@@ -11,13 +11,14 @@ const RUTAS_PUBLICAS = ['/iniciar-sesion', '/operador'];
 
 /**
  * Middleware de autenticación:
- * - Refresca sesión Supabase (cookies) en cada request.
- * - /produccion-piso* requiere sesión de operador (cookie firmada, timeout inactividad).
- * - Resto de rutas protegidas requieren usuario Supabase → redirige a /iniciar-sesion.
+ * - Refresca sesión Supabase (cookies) en cada request — necesario para que el
+ *   token no expire silenciosamente (patrón canónico de @supabase/ssr).
+ * - /produccion-piso* requiere sesión de operador (cookie firmada, timeout).
  * - Usuario autenticado en /iniciar-sesion → redirige a /tablero.
+ * - Sin sesión en ruta protegida → redirige a /iniciar-sesion.
  */
 export async function middleware(request: NextRequest) {
-  let respuesta = NextResponse.next({ request });
+  let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,13 +28,13 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesAEstablecer) {
-          cookiesAEstablecer.forEach(({ name, value }) =>
-            request.cookies.set(name, value),
-          );
-          respuesta = NextResponse.next({ request });
-          cookiesAEstablecer.forEach(({ name, value, options }) =>
-            respuesta.cookies.set(name, value, options),
+        setAll(cookiesToSet) {
+          // `response` se reasigna UNA vez para todo el lote, no dentro del
+          // forEach — recrearlo por cada cookie descartaba las ya puestas.
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
           );
         },
       },
@@ -46,8 +47,11 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const esRutaPublica = RUTAS_PUBLICAS.some(
+    (ruta) => pathname === ruta || pathname.startsWith(ruta + '/'),
+  );
 
-  // Zona de piso: sesión de operador propia (no Supabase Auth)
+  // Zona de piso: sesión de operador propia (no Supabase Auth).
   if (pathname.startsWith('/produccion-piso')) {
     const valorCookie = request.cookies.get(COOKIE_SESION_OPERADOR)?.value;
     const sesionOperador = valorCookie
@@ -60,26 +64,24 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    return respuesta;
+    return response;
   }
 
-  const esRutaPublica = RUTAS_PUBLICAS.some((ruta) => pathname.startsWith(ruta));
-
-  // Autenticado en login → directo al tablero
+  // Autenticado en login → directo al tablero.
   if (user && pathname.startsWith('/iniciar-sesion')) {
     const url = request.nextUrl.clone();
     url.pathname = '/tablero';
     return NextResponse.redirect(url);
   }
 
-  // Sin sesión en ruta protegida → login (la raíz "/" redirige en su propio page)
+  // Sin sesión en ruta protegida → login (la raíz "/" redirige en su page).
   if (!user && !esRutaPublica && pathname !== '/') {
     const url = request.nextUrl.clone();
     url.pathname = '/iniciar-sesion';
     return NextResponse.redirect(url);
   }
 
-  return respuesta;
+  return response;
 }
 
 export const config = {

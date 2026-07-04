@@ -25,14 +25,15 @@ const MENSAJE_BLOQUEADO = 'Demasiados intentos. Intenta de nuevo más tarde.';
 /**
  * Server Action de inicio de sesión con email y contraseña (Supabase Auth).
  *
- * Valida la entrada con Zod, autentica contra Supabase, verifica que la
- * cuenta esté activa, actualiza `ultimo_login_at` y registra el evento en
- * auditoría. Los errores esperados se retornan como `RespuestaAccion` con
- * mensajes genéricos (nunca revela si el email existe).
+ * Valida la entrada con Zod, aplica rate-limiting por IP, autentica contra
+ * Supabase, verifica que la cuenta esté activa, actualiza `ultimo_login_at` y
+ * registra el evento en auditoría. Los errores esperados se retornan como
+ * `RespuestaAccion` con mensajes genéricos (nunca revela si el email existe ni
+ * si la cuenta está desactivada — eso sería un oráculo para credential stuffing).
  *
  * @param entrada Datos sin validar del formulario ({ email, contrasena }).
- * @returns `{ exito: true }` si la sesión quedó iniciada (el cliente
- * redirige a /tablero) o `{ exito: false, error }` en caso contrario.
+ * @returns `{ exito: true }` si la sesión quedó iniciada (el cliente redirige
+ * a /tablero) o `{ exito: false, error }` en caso contrario.
  */
 export async function iniciarSesionAccion(entrada: unknown): Promise<RespuestaAccion> {
   const resultado = esquemaIniciarSesion.safeParse(entrada);
@@ -66,6 +67,9 @@ export async function iniciarSesionAccion(entrada: unknown): Promise<RespuestaAc
       .single();
 
     if (errorFila || !fila) {
+      // Autenticó pero no tiene perfil en public.usuarios. Causa real logueada
+      // internamente; al usuario se le da el mismo mensaje genérico.
+      console.error('[AUTENTICACION] Login sin perfil en usuarios:', data.user.id, errorFila?.message);
       await supabase.auth.signOut();
       await registrarIntentoFallido(identificador, 'password');
       return { exito: false, error: MENSAJE_CREDENCIALES_INVALIDAS };
@@ -76,8 +80,7 @@ export async function iniciarSesionAccion(entrada: unknown): Promise<RespuestaAc
     if (!usuario.activo) {
       await supabase.auth.signOut();
       // Mensaje genérico a propósito: distinguir "cuenta desactivada" de
-      // "credenciales inválidas" convierte la respuesta en oráculo para
-      // credential stuffing (confirma contraseña válida + email existente).
+      // "credenciales inválidas" convierte la respuesta en oráculo.
       const usuarioParaLog: UsuarioAutenticado = { ...usuario, permisos: [] };
       try {
         await registrarLog(usuarioParaLog, 'intento_acceso_cuenta_desactivada', 'autenticacion', usuario.id);

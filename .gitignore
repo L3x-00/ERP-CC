@@ -30,23 +30,17 @@
 # ============================================================================
 .vscode/settings.json
 .vscode/launch.json
-.vscode/extensions.json
-!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # ============================================================================
 # ENV & SECRETS
 # ============================================================================
+.env
 .env.local
 .env.*.local
-.env.production.local
-.env.development.local
-.env.test.local
-.env
 !.env.example
 
 # ============================================================================
@@ -70,40 +64,40 @@ lerna-debug.log*
 next-env.d.ts
 
 # ============================================================================
-# CLAUDE SUPERPOWERS (LOCAL ONLY — NEVER COMMIT)
+# DOCUMENTATION & PLANNING (internal, not for repo)
 # ============================================================================
-.claude/
-.agents/
-.skills/
-.memory/
-.errors/
-.automations/
-.graphify/
-*.graphify
+/docs/
+CLAUDE.md
+Untitled-*.txt
+documentos
 
 # ============================================================================
-# MISC & OS
+# DEVELOPMENT SCRIPTS & SCRATCH FILES
 # ============================================================================
-*.pem
+crear-estructura.ps1
+scratch-*.*
+*.scratch.*
+
+# ============================================================================
+# SUPABASE
+# ============================================================================
+.supabase/
+supabase/.branches/
+supabase/.temp/
+supabase/snippets/
+
+# ============================================================================
+# OS
+# ============================================================================
 .DS_Store
 Thumbs.db
-.vscode/launch.json
-.vscode/settings.json
-.editorconfig.local
-.env.*.local
+*.pem
 
 # ============================================================================
 # DOCKER
 # ============================================================================
 .docker/
 docker-compose.override.yml
-
-# ============================================================================
-# SUPABASE LOCAL
-# ============================================================================
-.supabase/
-supabase/.branches/
-supabase/.temp/
 
 # ============================================================================
 # TEMP & CACHE

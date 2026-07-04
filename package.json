@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run tests/unitarias",
+    "test:integracion": "vitest run tests/integracion"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

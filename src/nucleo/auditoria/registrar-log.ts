@@ -1,5 +1,6 @@
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
+import type { Json } from '@/compartido/tipos/supabase';
 
 /**
  * Registra una entrada de auditoría en la tabla `logs`.
@@ -32,7 +33,11 @@ export async function registrarLog(
       accion,
       modulo,
       recurso_id: recursoId,
-      detalles: detalles ?? null,
+      // `detalles` es un objeto plano de datos serializables; el tipo público
+      // Record<string, unknown> es ergonómico para los llamadores pero no es
+      // estáticamente asignable al `Json` generado (que exige recursión
+      // verificada) — el cast queda aislado en esta única frontera con la BD.
+      detalles: (detalles ?? null) as Json | null,
     });
 
     if (error) {

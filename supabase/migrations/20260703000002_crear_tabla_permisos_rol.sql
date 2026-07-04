@@ -78,3 +78,5 @@ INSERT INTO public.permisos_rol (rol, permiso) VALUES
   ('contador', 'ver_finanzas')
   -- operador: sin permisos granulares (0)
 ON CONFLICT (rol, permiso) DO NOTHING;
+
+

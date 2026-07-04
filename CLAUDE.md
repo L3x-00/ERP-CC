@@ -54,6 +54,40 @@ Cada módulo en `src/modulos/<dominio>/` sigue siempre: `acciones/` (Server Acti
   llamadas internas a `useState`/`useEffect`/etc. se marcan como error. Patrón: declarar
   la función como `useAlgo` y exportar con alias — `export { useAlgo as usarAlgo }`. No
   desactivar la regla.
+- **Regenerar tipos de Supabase** (`src/compartido/tipos/supabase.ts`, vía
+  `supabase gen types typescript`): en PowerShell, redirigir con `>` escribe UTF-16LE, no
+  UTF-8. `tsc` autodetecta el BOM y compila igual, pero ESLint falla con "File appears to
+  be binary". Generar con `... | Out-File -Encoding utf8 ruta.ts` (o regenerar y volver a
+  guardar en UTF-8 explícito) — nunca `>` a secas para este archivo.
+
+## Lecciones aprendidas (bugs reales ya pagados — no repetir)
+
+1. **Errores de dos pasos**: si una operación valida en varios pasos (ej. auth OK pero
+   perfil inexistente), el mensaje al usuario sigue genérico PERO se loguea la causa real
+   con `console.error` interno. No dar por bueno un flujo porque el primer paso pasó —
+   probar end-to-end, no con `curl` a medias (un `curl` a Supabase Auth no ejercita el
+   lookup de perfil que hace la Server Action después).
+2. **Encoding**: nunca generar código/tipos con `>` de PowerShell (UTF-16). Verificar
+   encoding antes de dar por terminado — ESLint rechaza UTF-16 como binario.
+3. **Renombrar exports**: antes de renombrar/mover una función exportada, `grep` TODOS sus
+   imports en `src/` y actualizarlos en el mismo cambio. Un `tsc` limpio no basta si el
+   editor tiene caché — verificar con `pnpm typecheck` desde cero (borrar `.next` si hay
+   tipos generados obsoletos que referencian rutas/archivos eliminados).
+4. **Cookies en middleware/loops**: al mutar `NextResponse` dentro de un loop, reasignar el
+   objeto UNA vez para el lote, no por iteración (recrearlo por cookie descarta las
+   anteriores, solo sobrevive la última).
+5. **Migraciones**: tras cada `supabase db push`, correr `supabase migration list` y
+   confirmar que historial remoto == archivos locales. Si alguna vez se migró a mano por
+   SQL Editor, reconciliar con `supabase migration repair --status applied <version> --linked`
+   ANTES del siguiente push — evita drift.
+6. **Auto-provisión de perfil**: existe trigger `manejar_nuevo_usuario_auth` (migración
+   000005) que crea `public.usuarios` al insertarse un `auth.users`. Toda tabla nueva
+   ligada a usuarios/auth debe seguir el patrón — nunca depender de que alguien cree la
+   fila a mano.
+7. **Menor privilegio por defecto**: todo cambio de datos vía trigger/función usa el rol de
+   MENOR privilegio posible (`vendedor`, no `admin`). Nunca auto-otorgar permisos elevados.
+
+Decisiones de arquitectura con su razón: ver `.claude/decision-log.md`.
 
 ## Comandos
 
