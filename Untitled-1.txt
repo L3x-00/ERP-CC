@@ -1,0 +1,321 @@
+File Tree: ERP-CC
+Generated on: 3/7/2026, 14:09:44
+Root path: d:\ERP-CC
+
+────────────────────────────────────────────────────────────────────────────────
+
+├── docs/
+│   └── fases/
+│       └── .gitkeep
+├── documentos/
+├── public/
+│   ├── iconos/
+│   │   └── .gitkeep
+│   ├── imagenes/
+│   │   └── .gitkeep
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── iniciar-sesion/
+│   │   │   │   └── .gitkeep
+│   │   │   └── operador/
+│   │   │       └── .gitkeep
+│   │   ├── (panel)/
+│   │   │   ├── clientes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── cobranza/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── configuracion/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── gastos/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── inventario/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── ordenes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── pipeline/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── planeacion/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── produccion/
+│   │   │   │   └── .gitkeep
+│   │   │   └── tablero/
+│   │   │       └── .gitkeep
+│   │   ├── (piso)/
+│   │   │   └── produccion-piso/
+│   │   │       └── .gitkeep
+│   │   ├── (portal-cliente)/
+│   │   │   └── seguimiento/
+│   │   │       └── .gitkeep
+│   │   ├── api/
+│   │   │   └── webhooks/
+│   │   │       └── .gitkeep
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── compartido/
+│   │   ├── componentes/
+│   │   │   ├── diseno/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── formularios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── retroalimentacion/
+│   │   │   │   └── .gitkeep
+│   │   │   └── ui/
+│   │   │       └── .gitkeep
+│   │   ├── constantes/
+│   │   │   └── .gitkeep
+│   │   ├── hooks/
+│   │   │   └── .gitkeep
+│   │   ├── tipos/
+│   │   │   └── .gitkeep
+│   │   ├── utilidades/
+│   │   │   └── .gitkeep
+│   │   └── validaciones/
+│   │       └── .gitkeep
+│   ├── estado/
+│   │   └── .gitkeep
+│   ├── estilos/
+│   │   └── .gitkeep
+│   ├── modulos/
+│   │   ├── auditoria/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── autenticacion/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── clientes/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── cobranza/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── comentarios/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── configuracion/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── gastos/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── inventario/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── ordenes/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── permisos/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── pipeline/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── planeacion/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── portal-cliente/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   ├── produccion/
+│   │   │   ├── acciones/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── componentes/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── hooks/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── servicios/
+│   │   │   │   └── .gitkeep
+│   │   │   ├── tipos/
+│   │   │   │   └── .gitkeep
+│   │   │   └── validaciones/
+│   │   │       └── .gitkeep
+│   │   └── tablero/
+│   │       ├── acciones/
+│   │       │   └── .gitkeep
+│   │       ├── componentes/
+│   │       │   └── .gitkeep
+│   │       ├── hooks/
+│   │       │   └── .gitkeep
+│   │       ├── servicios/
+│   │       │   └── .gitkeep
+│   │       ├── tipos/
+│   │       │   └── .gitkeep
+│   │       └── validaciones/
+│   │           └── .gitkeep
+│   └── nucleo/
+│       ├── almacenamiento/
+│       │   └── .gitkeep
+│       ├── auditoria/
+│       │   └── .gitkeep
+│       ├── autenticacion/
+│       │   └── .gitkeep
+│       ├── correo/
+│       │   └── .gitkeep
+│       ├── ia/
+│       │   └── .gitkeep
+│       ├── monitoreo/
+│       │   └── .gitkeep
+│       └── supabase/
+│           └── .gitkeep
+├── supabase/
+│   ├── functions/
+│   │   └── .gitkeep
+│   ├── migrations/
+│   │   └── .gitkeep
+│   └── seed/
+│       └── .gitkeep
+├── tests/
+│   ├── e2e/
+│   │   └── .gitkeep
+│   └── unitarias/
+│       └── .gitkeep
+├── .gitignore
+├── README.md
+├── crear-estructura.ps1
+├── eslint.config.mjs
+├── next.config.ts
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── postcss.config.mjs
+└── tsconfig.json
+
+────────────────────────────────────────────────────────────────────────────────
+Generated by FileTree Pro Extension

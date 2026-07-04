@@ -1,0 +1,19 @@
+import { createClient } from '@supabase/supabase-js';
+
+/**
+ * Crea cliente Supabase con service role key (sin RLS).
+ * SOLO para uso en servidor: auditoría, validación de PIN y setup.
+ * Nunca importar desde código de cliente.
+ */
+export function crearClienteSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    },
+  );
+}

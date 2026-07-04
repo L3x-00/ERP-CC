@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Variante dark controlada por clase (next-themes attribute="class") */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --primario: hsl(209 89% 51%); /* Azul */
+  --secundario: hsl(160 84% 39%); /* Verde azulado */
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primario: var(--primario);
+  --color-secundario: var(--secundario);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-base: var(--radius);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
