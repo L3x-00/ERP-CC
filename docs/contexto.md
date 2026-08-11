@@ -21,7 +21,8 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fases 0, 1 y 2: confirmadas en el historial Git.
 - Fase 3: módulo de Clientes implementado, incluidas reglas de tiers, crédito, documentos y promoción desde Pipeline.
 - Fase 4: Inventario / Compras implementado, con catálogo, movimientos, CPP, bloqueo de stock negativo y UI operativa.
-- Próximo hito: Fase 5 — Órdenes.
+- Fase 5.1: modelo de Órdenes de Producción implementado localmente con folios OP atómicos, RLS, tipos y validaciones de taller.
+- Próximo hito: Fase 5.2 — Server Actions y reglas de transición de órdenes.
 
 ## Reglas funcionales que no se deben romper
 

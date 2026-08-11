@@ -264,7 +264,7 @@ export type Database = {
           costo_unitario_control: number
           creado_en: string
           descripcion: string | null
-          factor_conversion: number
+          factor_conversion?: number
           factor_merma_porcentaje: number
           id: string
           nombre: string
@@ -283,7 +283,7 @@ export type Database = {
           costo_unitario_control?: number
           creado_en?: string
           descripcion?: string | null
-          factor_conversion?: number
+          factor_conversion: number
           factor_merma_porcentaje?: number
           id?: string
           nombre: string
@@ -372,6 +372,129 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordenes_produccion: {
+        Row: {
+          actualizado_en: string
+          cliente_id: string
+          cotizacion_id: string | null
+          creado_en: string
+          estado: string
+          fecha_compromiso: string
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          folio: string
+          id: string
+          prioridad: string
+        }
+        Insert: {
+          actualizado_en?: string
+          cliente_id: string
+          cotizacion_id?: string | null
+          creado_en?: string
+          estado?: string
+          fecha_compromiso: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          folio: string
+          id?: string
+          prioridad?: string
+        }
+        Update: {
+          actualizado_en?: string
+          cliente_id?: string
+          cotizacion_id?: string | null
+          creado_en?: string
+          estado?: string
+          fecha_compromiso?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          folio?: string
+          id?: string
+          prioridad?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordenes_produccion_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_produccion_cotizacion_id_fkey"
+            columns: ["cotizacion_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partidas_orden_produccion: {
+        Row: {
+          actualizado_en: string
+          cantidad_producida: number
+          cantidad_scrap: number
+          cantidad_solicitada: number
+          codigo_pieza: string
+          creado_en: string
+          descripcion: string | null
+          id: string
+          maquina_asignada: string | null
+          material_id: string | null
+          orden_id: string
+          tiempo_estimado_minutos: number
+          tiempo_real_minutos: number
+          unidad_medida: string
+        }
+        Insert: {
+          actualizado_en?: string
+          cantidad_producida?: number
+          cantidad_scrap?: number
+          cantidad_solicitada: number
+          codigo_pieza: string
+          creado_en?: string
+          descripcion?: string | null
+          id?: string
+          maquina_asignada?: string | null
+          material_id?: string | null
+          orden_id: string
+          tiempo_estimado_minutos?: number
+          tiempo_real_minutos?: number
+          unidad_medida: string
+        }
+        Update: {
+          actualizado_en?: string
+          cantidad_producida?: number
+          cantidad_scrap?: number
+          cantidad_solicitada?: number
+          codigo_pieza?: string
+          creado_en?: string
+          descripcion?: string | null
+          id?: string
+          maquina_asignada?: string | null
+          material_id?: string | null
+          orden_id?: string
+          tiempo_estimado_minutos?: number
+          tiempo_real_minutos?: number
+          unidad_medida?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partidas_orden_produccion_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidas_orden_produccion_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -523,6 +646,54 @@ export type Database = {
         }
         Relationships: []
       }
+      registros_tiempo_operador: {
+        Row: {
+          accion: string
+          actualizado_en: string
+          creado_en: string
+          fecha_registro: string
+          id: string
+          notas: string | null
+          operador_id: string
+          partida_id: string
+        }
+        Insert: {
+          accion: string
+          actualizado_en?: string
+          creado_en?: string
+          fecha_registro?: string
+          id?: string
+          notas?: string | null
+          operador_id: string
+          partida_id: string
+        }
+        Update: {
+          accion?: string
+          actualizado_en?: string
+          creado_en?: string
+          fecha_registro?: string
+          id?: string
+          notas?: string | null
+          operador_id?: string
+          partida_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_tiempo_operador_operador_id_fkey"
+            columns: ["operador_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_tiempo_operador_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservas_material: {
         Row: {
           actualizado_en: string
@@ -606,6 +777,7 @@ export type Database = {
       generar_folio_cnc: { Args: never; Returns: string }
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }
       generar_folio_op: { Args: never; Returns: string }
+      generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
       registrar_intento_fallido: {
         Args: {
           p_bloqueo_segundos: number

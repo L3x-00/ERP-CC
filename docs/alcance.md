@@ -9,10 +9,11 @@
 | 2 | Pipeline comercial, cotización manual, folios atómicos, adjuntos y hardening adversarial. |
 | 3 | Cliente 360°, tiers, crédito, documentos y vinculación con oportunidades ganadas. |
 | 4 | Proveedores, materiales, kardex, entradas/salidas, CPP y control de stock. |
+| 5.1 | Esquema de órdenes de producción, folios OP atómicos, RLS de lectura, contratos TypeScript y validaciones Zod v4. |
 
 ## Siguiente alcance
 
-1. **Fase 5 — Órdenes:** orden automática desde una oportunidad ganada, órdenes manuales e internas, dos niveles de información y cancelación controlada.
+1. **Fase 5.2 — Órdenes:** Server Actions para orden automática desde una oportunidad ganada, órdenes manuales e internas, reglas de transición y cancelación controlada.
 2. **Fase 6 — Planeación:** calendario, modo preparación y candado por área.
 3. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega.
 4. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.

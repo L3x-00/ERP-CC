@@ -28,6 +28,8 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - RLS permanece activa en toda tabla de negocio. Las mutaciones críticas carecen de políticas PostgREST directas y pasan por acciones de servidor autorizadas.
 - El `service_role` se limita a operaciones que realmente requieren privilegio elevado.
 - Los folios OP, CNC e inventario se generan atómicamente en Postgres.
+- Las Órdenes de Producción usan una cabecera, partidas y eventos de tiempo de operador. Su serie `OP-NNNNNN` nace en una `SEQUENCE` de Postgres y solo `service_role` puede consumirla mediante función `SECURITY DEFINER` con ruta de búsqueda acotada.
+- Las nuevas tablas de órdenes separan los privilegios SQL de RLS: `authenticated` recibe exclusivamente `SELECT`; las mutaciones quedan reservadas a las Server Actions de la siguiente sub-fase mediante `service_role`.
 - `registrar_movimiento_inventario` bloquea la fila del material, rechaza stock negativo y recalcula el costo promedio ponderado dentro de la misma transacción.
 - Storage de adjuntos y documentos usa buckets privados y políticas acotadas al permiso correspondiente.
 
