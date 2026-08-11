@@ -66,7 +66,6 @@ crear-estructura.ps1
 # ============================================================================
 # DOCUMENTATION & PLANNING (internal, not for repo)
 # ============================================================================
-/docs/
 CLAUDE.md
 Untitled-*.txt
 documentos
@@ -106,3 +105,13 @@ docker-compose.override.yml
 tmp/
 temp/
 *.tmp
+# ============================================================================
+# IA Y DESARROLLO
+# ============================================================================
+.agents
+.ai-shared
+.claude
+.codex
+.kimi-code
+AGENTS.md
+CLAUDE.md
