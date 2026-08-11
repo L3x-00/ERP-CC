@@ -98,19 +98,81 @@ describe('esquemaCrearOrden', () => {
 });
 
 describe('esquemaCambiarEstadoOrden', () => {
+  const cambioValido = {
+    ordenId: uuidOrden,
+    estadoActual: 'borrador',
+    estado: 'programada',
+  };
+
   it('acepta los estados definidos para una orden', () => {
-    expect(
-      esquemaCambiarEstadoOrden.safeParse({ ordenId: uuidOrden, estado: 'programada' }).success,
-    ).toBe(true);
+    expect(esquemaCambiarEstadoOrden.safeParse(cambioValido).success).toBe(true);
   });
 
   it('rechaza el UUID y los estados fuera de rango', () => {
     expect(
-      esquemaCambiarEstadoOrden.safeParse({ ordenId: 'OP-001001', estado: 'programada' }).success,
+      esquemaCambiarEstadoOrden.safeParse({ ...cambioValido, ordenId: 'OP-001001' }).success,
     ).toBe(false);
     expect(
-      esquemaCambiarEstadoOrden.safeParse({ ordenId: uuidOrden, estado: 'liberada' }).success,
+      esquemaCambiarEstadoOrden.safeParse({ ...cambioValido, estado: 'liberada' }).success,
     ).toBe(false);
+    expect(
+      esquemaCambiarEstadoOrden.safeParse({ ...cambioValido, estadoActual: 'liberada' }).success,
+    ).toBe(false);
+  });
+
+  it('exige estadoActual explícito', () => {
+    expect(
+      esquemaCambiarEstadoOrden.safeParse({ ordenId: uuidOrden, estado: 'programada' }).success,
+    ).toBe(false);
+  });
+
+  it('acepta una cancelación con motivo de al menos 3 caracteres', () => {
+    const resultado = esquemaCambiarEstadoOrden.safeParse({
+      ...cambioValido,
+      estado: 'cancelada',
+      motivoCancelacion: 'Cliente canceló el pedido',
+    });
+
+    expect(resultado.success).toBe(true);
+    if (resultado.success) {
+      expect(resultado.data.motivoCancelacion).toBe('Cliente canceló el pedido');
+    }
+  });
+
+  it('rechaza una cancelación sin motivo o con motivo demasiado corto', () => {
+    const sinMotivo = esquemaCambiarEstadoOrden.safeParse({
+      ...cambioValido,
+      estado: 'cancelada',
+    });
+    expect(sinMotivo.success).toBe(false);
+    if (!sinMotivo.success) {
+      expect(sinMotivo.error.issues[0].path).toEqual(['motivoCancelacion']);
+    }
+
+    expect(
+      esquemaCambiarEstadoOrden.safeParse({
+        ...cambioValido,
+        estado: 'cancelada',
+        motivoCancelacion: 'xy',
+      }).success,
+    ).toBe(false);
+    expect(
+      esquemaCambiarEstadoOrden.safeParse({
+        ...cambioValido,
+        estado: 'cancelada',
+        motivoCancelacion: '   ',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('no exige motivo cuando el destino no es cancelada', () => {
+    expect(
+      esquemaCambiarEstadoOrden.safeParse({
+        ...cambioValido,
+        estadoActual: 'en_proceso',
+        estado: 'completada',
+      }).success,
+    ).toBe(true);
   });
 });
 
@@ -161,6 +223,7 @@ describe('mappers de órdenes', () => {
         fecha_compromiso: '2026-09-15T18:00:00+00:00',
         fecha_inicio: null,
         fecha_fin: null,
+        motivo_cancelacion: null,
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
@@ -211,6 +274,7 @@ describe('mappers de órdenes', () => {
         fecha_compromiso: '2026-09-15T18:00:00+00:00',
         fecha_inicio: null,
         fecha_fin: null,
+        motivo_cancelacion: null,
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),

@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  ACCIONES_TIEMPO_OPERADOR,
+  ESTADOS_ORDEN_PRODUCCION,
+  PRIORIDADES_ORDEN_PRODUCCION,
+} from '@/modulos/ordenes/tipos/ordenes';
 
 export const esquemaPartidaOrden = z.object({
   codigoPieza: z.string().trim().min(1, 'El código de pieza es requerido'),
@@ -13,27 +18,49 @@ export const esquemaPartidaOrden = z.object({
 export const esquemaCrearOrden = z.object({
   clienteId: z.uuid('ID de cliente inválido'),
   cotizacionId: z.uuid('ID de cotización inválido').optional(),
-  prioridad: z.enum(['baja', 'normal', 'alta', 'urgente']).default('normal'),
+  prioridad: z.enum(PRIORIDADES_ORDEN_PRODUCCION).default('normal'),
   fechaCompromiso: z.iso.datetime({ message: 'Fecha de compromiso inválida' }),
   partidas: z
     .array(esquemaPartidaOrden)
     .min(1, 'La orden requiere al menos una partida'),
 });
 
-export const esquemaCambiarEstadoOrden = z.object({
-  ordenId: z.uuid('ID de orden inválido'),
-  estado: z.enum(['borrador', 'programada', 'en_proceso', 'pausada', 'completada', 'cancelada']),
-});
+/** Una orden manual no puede apropiarse de una cotización de Pipeline. */
+export const esquemaCrearOrdenManual = esquemaCrearOrden.omit({ cotizacionId: true }).strict();
+
+export const esquemaCambiarEstadoOrden = z
+  .object({
+    ordenId: z.uuid('ID de orden inválido'),
+    estadoActual: z.enum(ESTADOS_ORDEN_PRODUCCION),
+    estado: z.enum(ESTADOS_ORDEN_PRODUCCION),
+    motivoCancelacion: z.string().trim().optional(),
+  })
+  .superRefine((valor, ctx) => {
+    if (valor.estado !== 'cancelada') {
+      return;
+    }
+
+    const motivo = valor.motivoCancelacion?.trim() ?? '';
+
+    if (motivo.length < 3) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['motivoCancelacion'],
+        message: 'El motivo de cancelación es requerido y debe tener al menos 3 caracteres',
+      });
+    }
+  });
 
 export const esquemaRegistrarTiempoOperador = z.object({
   partidaId: z.uuid('ID de partida inválido'),
   operadorId: z.uuid('ID de operador inválido'),
-  accion: z.enum(['inicio', 'pausa', 'fin']),
+  accion: z.enum(ACCIONES_TIEMPO_OPERADOR),
   fechaRegistro: z.iso.datetime({ message: 'Fecha de registro inválida' }).optional(),
   notas: z.string().trim().optional(),
 });
 
 export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
+export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
 export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;
 export type RegistrarTiempoOperadorInput = z.infer<typeof esquemaRegistrarTiempoOperador>;

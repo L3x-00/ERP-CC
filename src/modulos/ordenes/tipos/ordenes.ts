@@ -2,7 +2,7 @@ import type { Tables } from '@/compartido/tipos/supabase';
 
 /** Contratos de dominio de Órdenes de Producción — Sub-fase 5.1. */
 
-const estadosOrden = [
+export const ESTADOS_ORDEN_PRODUCCION = [
   'borrador',
   'programada',
   'en_proceso',
@@ -11,12 +11,12 @@ const estadosOrden = [
   'cancelada',
 ] as const;
 
-const prioridadesOrden = ['baja', 'normal', 'alta', 'urgente'] as const;
-const accionesTiempoOperador = ['inicio', 'pausa', 'fin'] as const;
+export const PRIORIDADES_ORDEN_PRODUCCION = ['baja', 'normal', 'alta', 'urgente'] as const;
+export const ACCIONES_TIEMPO_OPERADOR = ['inicio', 'pausa', 'fin'] as const;
 
-export type EstadoOrden = (typeof estadosOrden)[number];
-export type PrioridadOrden = (typeof prioridadesOrden)[number];
-export type AccionTiempoOperador = (typeof accionesTiempoOperador)[number];
+export type EstadoOrden = (typeof ESTADOS_ORDEN_PRODUCCION)[number];
+export type PrioridadOrden = (typeof PRIORIDADES_ORDEN_PRODUCCION)[number];
+export type AccionTiempoOperador = (typeof ACCIONES_TIEMPO_OPERADOR)[number];
 
 export interface Orden {
   id: string;
@@ -28,6 +28,7 @@ export interface Orden {
   fechaCompromiso: string;
   fechaInicio: string | null;
   fechaFin: string | null;
+  motivoCancelacion: string | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -83,11 +84,16 @@ export function filaAOrden(fila: FilaOrden): Orden {
     folio: fila.folio,
     clienteId: fila.cliente_id,
     cotizacionId: fila.cotizacion_id,
-    estado: validarValorEnumerado(fila.estado, estadosOrden, 'estado de orden'),
-    prioridad: validarValorEnumerado(fila.prioridad, prioridadesOrden, 'prioridad de orden'),
+    estado: validarValorEnumerado(fila.estado, ESTADOS_ORDEN_PRODUCCION, 'estado de orden'),
+    prioridad: validarValorEnumerado(
+      fila.prioridad,
+      PRIORIDADES_ORDEN_PRODUCCION,
+      'prioridad de orden',
+    ),
     fechaCompromiso: fila.fecha_compromiso,
     fechaInicio: fila.fecha_inicio,
     fechaFin: fila.fecha_fin,
+    motivoCancelacion: fila.motivo_cancelacion,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
@@ -117,7 +123,7 @@ export function filaARegistroTiempo(fila: FilaRegistroTiempo): RegistroTiempo {
     id: fila.id,
     partidaId: fila.partida_id,
     operadorId: fila.operador_id,
-    accion: validarValorEnumerado(fila.accion, accionesTiempoOperador, 'acción de tiempo'),
+    accion: validarValorEnumerado(fila.accion, ACCIONES_TIEMPO_OPERADOR, 'acción de tiempo'),
     fechaRegistro: fila.fecha_registro,
     notas: fila.notas,
     creadoEn: fila.creado_en,

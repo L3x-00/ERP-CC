@@ -388,6 +388,7 @@ export type Database = {
           fecha_inicio: string | null
           folio: string
           id: string
+          motivo_cancelacion: string | null
           prioridad: string
         }
         Insert: {
@@ -401,6 +402,7 @@ export type Database = {
           fecha_inicio?: string | null
           folio: string
           id?: string
+          motivo_cancelacion?: string | null
           prioridad?: string
         }
         Update: {
@@ -414,6 +416,7 @@ export type Database = {
           fecha_inicio?: string | null
           folio?: string
           id?: string
+          motivo_cancelacion?: string | null
           prioridad?: string
         }
         Relationships: [
@@ -773,6 +776,57 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aprobar_oportunidad_y_crear_orden: {
+        Args: {
+          p_cliente_id: string
+          p_fecha_compromiso: string
+          p_pipeline_id: string
+        }
+        Returns: {
+          folio: string
+          id: string
+          ya_existia: boolean
+        }[]
+      }
+      cambiar_estado_orden: {
+        Args: {
+          p_estado_actual: string
+          p_estado_nuevo: string
+          p_motivo_cancelacion?: string
+          p_orden_id: string
+        }
+        Returns: {
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+        }[]
+      }
+      crear_orden_manual: {
+        Args: {
+          p_cliente_id: string
+          p_fecha_compromiso: string
+          p_partidas: Json
+          p_prioridad: string
+        }
+        Returns: {
+          folio: string
+          id: string
+        }[]
+      }
+      crear_orden_produccion: {
+        Args: {
+          p_cliente_id: string
+          p_cotizacion_id: string
+          p_fecha_compromiso: string
+          p_partidas: Json
+          p_prioridad: string
+        }
+        Returns: {
+          folio: string
+          id: string
+        }[]
+      }
       es_admin: { Args: never; Returns: boolean }
       generar_folio_cnc: { Args: never; Returns: string }
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }

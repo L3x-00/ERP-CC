@@ -7,12 +7,16 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import { promoverAClienteSiNoExiste } from '@/modulos/pipeline/servicios/promover-a-cliente';
+import {
+  aprobarOportunidadYCrearOrdenServicio,
+  mensajeErrorOrden,
+} from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaMarcarGanada } from '@/modulos/pipeline/validaciones/esquemas-transicion-etapa';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 /**
  * Marca una oportunidad como ganada (solo desde Negociación) y promueve el
- * contacto a cliente si aún no existe.
+ * contacto a cliente si aún no existe y crea la Orden de Producción asociada.
  *
  * La promoción usa el cliente ADMIN (service role) porque la deduplicación por
  * RFC/correo debe ver toda la tabla `clientes`, no solo lo que la RLS del
@@ -20,7 +24,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
  */
 export async function marcarGanadaAccion(
   entrada: unknown,
-): Promise<RespuestaAccion<{ clienteId: string }>> {
+): Promise<RespuestaAccion<{ clienteId: string; ordenId: string; folioOrden: string }>> {
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) {
     return { exito: false, error: 'No autorizado' };
@@ -30,7 +34,7 @@ export async function marcarGanadaAccion(
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
-  const { id } = analisis.data;
+  const { id, fechaCompromiso } = analisis.data;
 
   const servidor = await crearClienteSupabaseServidor();
 
@@ -62,17 +66,26 @@ export async function marcarGanadaAccion(
     return { exito: false, error: 'No se pudo registrar el cliente' };
   }
 
-  // Escritura de columnas controladas vía admin (trigger/RLS bloquean el cambio
-  // directo de etapa/cliente_id); acceso y permiso ya verificados arriba.
-  const { error } = await clienteAdmin
-    .from('pipeline')
-    .update({ etapa: 'ganada', cliente_id: clienteId })
-    .eq('id', id);
-  if (error) {
-    return { exito: false, error: 'No se pudo marcar como ganada' };
+  try {
+    // La RPC bloquea la oportunidad y crea cabecera, partidas y cambio de etapa
+    // en una sola transacción PostgreSQL. No existe un estado "ganada sin OP".
+    const orden = await aprobarOportunidadYCrearOrdenServicio(clienteAdmin, {
+      pipelineId: id,
+      clienteId,
+      fechaCompromiso,
+    });
+    await registrarLog(usuario, 'marcar_ganada', 'pipeline', op.id, {
+      clienteId,
+      ordenId: orden.id,
+      folioOrden: orden.folio,
+      ...(orden.yaExistia ? { ordenPreexistente: true } : {}),
+    });
+
+    return {
+      exito: true,
+      datos: { clienteId, ordenId: orden.id, folioOrden: orden.folio },
+    };
+  } catch (error) {
+    return { exito: false, error: mensajeErrorOrden(error, 'aprobar') };
   }
-
-  await registrarLog(usuario, 'marcar_ganada', 'pipeline', op.id, { clienteId });
-
-  return { exito: true, datos: { clienteId } };
 }

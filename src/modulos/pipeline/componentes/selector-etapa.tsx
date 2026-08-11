@@ -46,8 +46,10 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [mostrarMotivo, setMostrarMotivo] = useState(false);
+  const [mostrarCompromiso, setMostrarCompromiso] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [notas, setNotas] = useState('');
+  const [fechaCompromiso, setFechaCompromiso] = useState('');
 
   const desde = oportunidad.etapa;
 
@@ -60,8 +62,10 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
       const respuesta = await operacion();
       if (respuesta.exito) {
         setMostrarMotivo(false);
+        setMostrarCompromiso(false);
         setMotivo('');
         setNotas('');
+        setFechaCompromiso('');
         router.refresh();
         onCambio?.();
       } else {
@@ -76,11 +80,13 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
   function manejarSeleccion(destino: EtapaPipeline): void {
     setError(null);
     if (destino === 'perdida') {
+      setMostrarCompromiso(false);
       setMostrarMotivo(true);
       return;
     }
     if (destino === 'ganada') {
-      void ejecutar(() => marcarGanadaAccion({ id: oportunidad.id }));
+      setMostrarMotivo(false);
+      setMostrarCompromiso(true);
       return;
     }
     void ejecutar(() =>
@@ -95,6 +101,22 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
         id: oportunidad.id,
         motivoPerdida: motivo,
         ...(notas.trim() !== '' ? { notasPerdida: notas.trim() } : {}),
+      }),
+    );
+  }
+
+  function manejarGanada(evento: FormEvent<HTMLFormElement>): void {
+    evento.preventDefault();
+    const fecha = new Date(fechaCompromiso);
+    if (Number.isNaN(fecha.getTime())) {
+      setError('Ingresa una fecha de compromiso válida');
+      return;
+    }
+
+    void ejecutar(() =>
+      marcarGanadaAccion({
+        id: oportunidad.id,
+        fechaCompromiso: fecha.toISOString(),
       }),
     );
   }
@@ -142,6 +164,35 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
             <button
               type="button"
               onClick={() => setMostrarMotivo(false)}
+              className={CLASE_BOTON}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {mostrarCompromiso && (
+        <form onSubmit={manejarGanada} className="flex flex-col gap-2" noValidate>
+          <label htmlFor={`fecha-compromiso-${oportunidad.id}`} className="text-xs font-medium">
+            Fecha de compromiso de producción
+          </label>
+          <input
+            id={`fecha-compromiso-${oportunidad.id}`}
+            type="datetime-local"
+            value={fechaCompromiso}
+            onChange={(evento) => setFechaCompromiso(evento.target.value)}
+            required
+            className={CLASE_INPUT}
+          />
+          <div className="flex gap-2">
+            <button type="submit" disabled={enviando} className={CLASE_BOTON_PELIGRO}>
+              {enviando ? 'Creando orden…' : 'Confirmar ganada y crear OP'}
+            </button>
+            <button
+              type="button"
+              disabled={enviando}
+              onClick={() => setMostrarCompromiso(false)}
               className={CLASE_BOTON}
             >
               Cancelar
