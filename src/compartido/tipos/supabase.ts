@@ -10,40 +10,70 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
       clientes: {
         Row: {
           actualizado_en: string
+          condiciones_pago: string | null
           contacto: string | null
           correo: string | null
           creado_en: string
+          direccion_envio: Json | null
+          direccion_fiscal: Json | null
+          estado: string
           id: string
+          limite_credito: number
           nombre_comercial: string
+          razon_social: string
           rfc: string | null
+          saldo_a_favor: number
           telefono: string | null
+          tier: string
+          tier_manual: string | null
+          tier_manual_hasta: string | null
         }
         Insert: {
           actualizado_en?: string
+          condiciones_pago?: string | null
           contacto?: string | null
           correo?: string | null
           creado_en?: string
+          direccion_envio?: Json | null
+          direccion_fiscal?: Json | null
+          estado?: string
           id?: string
+          limite_credito?: number
           nombre_comercial: string
+          razon_social: string
           rfc?: string | null
+          saldo_a_favor?: number
           telefono?: string | null
+          tier?: string
+          tier_manual?: string | null
+          tier_manual_hasta?: string | null
         }
         Update: {
           actualizado_en?: string
+          condiciones_pago?: string | null
           contacto?: string | null
           correo?: string | null
           creado_en?: string
+          direccion_envio?: Json | null
+          direccion_fiscal?: Json | null
+          estado?: string
           id?: string
+          limite_credito?: number
           nombre_comercial?: string
+          razon_social?: string
           rfc?: string | null
+          saldo_a_favor?: number
           telefono?: string | null
+          tier?: string
+          tier_manual?: string | null
+          tier_manual_hasta?: string | null
         }
         Relationships: []
       }
@@ -112,6 +142,51 @@ export type Database = {
           },
         ]
       }
+      documentos_cliente: {
+        Row: {
+          cliente_id: string
+          creado_en: string
+          id: string
+          nombre_archivo: string
+          ruta_storage: string
+          subido_por: string | null
+          tipo: string
+        }
+        Insert: {
+          cliente_id: string
+          creado_en?: string
+          id?: string
+          nombre_archivo: string
+          ruta_storage: string
+          subido_por?: string | null
+          tipo: string
+        }
+        Update: {
+          cliente_id?: string
+          creado_en?: string
+          id?: string
+          nombre_archivo?: string
+          ruta_storage?: string
+          subido_por?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_cliente_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_cliente_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intentos_login: {
         Row: {
           actualizado_en: string
@@ -176,6 +251,127 @@ export type Database = {
             columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materiales: {
+        Row: {
+          actualizado_en: string
+          categoria: string
+          codigo: string
+          costo_unitario_compra: number
+          costo_unitario_control: number
+          creado_en: string
+          descripcion: string | null
+          factor_conversion: number
+          factor_merma_porcentaje: number
+          id: string
+          nombre: string
+          proveedor_id: string | null
+          stock_actual_control: number
+          stock_minimo_control: number
+          stock_reservado_control: number
+          unidad_compra: string
+          unidad_control: string
+        }
+        Insert: {
+          actualizado_en?: string
+          categoria: string
+          codigo: string
+          costo_unitario_compra?: number
+          costo_unitario_control?: number
+          creado_en?: string
+          descripcion?: string | null
+          factor_conversion?: number
+          factor_merma_porcentaje?: number
+          id?: string
+          nombre: string
+          proveedor_id?: string | null
+          stock_actual_control?: number
+          stock_minimo_control?: number
+          stock_reservado_control?: number
+          unidad_compra: string
+          unidad_control: string
+        }
+        Update: {
+          actualizado_en?: string
+          categoria?: string
+          codigo?: string
+          costo_unitario_compra?: number
+          costo_unitario_control?: number
+          creado_en?: string
+          descripcion?: string | null
+          factor_conversion?: number
+          factor_merma_porcentaje?: number
+          id?: string
+          nombre?: string
+          proveedor_id?: string | null
+          stock_actual_control?: number
+          stock_minimo_control?: number
+          stock_reservado_control?: number
+          unidad_compra?: string
+          unidad_control?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "materiales_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_inventario: {
+        Row: {
+          cantidad_compra: number | null
+          cantidad_control: number
+          costo_unitario_momento: number
+          creado_en: string
+          folio: string
+          id: string
+          material_id: string
+          notas: string | null
+          operador_id: string | null
+          orden_id: string | null
+          referencia_externa: string | null
+          tipo_movimiento: string
+        }
+        Insert: {
+          cantidad_compra?: number | null
+          cantidad_control: number
+          costo_unitario_momento: number
+          creado_en?: string
+          folio: string
+          id?: string
+          material_id: string
+          notas?: string | null
+          operador_id?: string | null
+          orden_id?: string | null
+          referencia_externa?: string | null
+          tipo_movimiento: string
+        }
+        Update: {
+          cantidad_compra?: number | null
+          cantidad_control?: number
+          costo_unitario_momento?: number
+          creado_en?: string
+          folio?: string
+          id?: string
+          material_id?: string
+          notas?: string | null
+          operador_id?: string | null
+          orden_id?: string | null
+          referencia_externa?: string | null
+          tipo_movimiento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_inventario_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiales"
             referencedColumns: ["id"]
           },
         ]
@@ -288,6 +484,83 @@ export type Database = {
           },
         ]
       }
+      proveedores: {
+        Row: {
+          actualizado_en: string
+          contacto_nombre: string
+          correo: string
+          creado_en: string
+          direccion: string | null
+          id: string
+          nombre_comercial: string
+          razon_social: string | null
+          rfc: string | null
+          telefono: string
+        }
+        Insert: {
+          actualizado_en?: string
+          contacto_nombre: string
+          correo: string
+          creado_en?: string
+          direccion?: string | null
+          id?: string
+          nombre_comercial: string
+          razon_social?: string | null
+          rfc?: string | null
+          telefono: string
+        }
+        Update: {
+          actualizado_en?: string
+          contacto_nombre?: string
+          correo?: string
+          creado_en?: string
+          direccion?: string | null
+          id?: string
+          nombre_comercial?: string
+          razon_social?: string | null
+          rfc?: string | null
+          telefono?: string
+        }
+        Relationships: []
+      }
+      reservas_material: {
+        Row: {
+          actualizado_en: string
+          cantidad_reservada: number
+          creado_en: string
+          estado: string
+          id: string
+          material_id: string
+          orden_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          cantidad_reservada: number
+          creado_en?: string
+          estado?: string
+          id?: string
+          material_id: string
+          orden_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          cantidad_reservada?: number
+          creado_en?: string
+          estado?: string
+          id?: string
+          material_id?: string
+          orden_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_material_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuarios: {
         Row: {
           activo: boolean
@@ -331,6 +604,7 @@ export type Database = {
     Functions: {
       es_admin: { Args: never; Returns: boolean }
       generar_folio_cnc: { Args: never; Returns: string }
+      generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }
       generar_folio_op: { Args: never; Returns: string }
       registrar_intento_fallido: {
         Args: {
@@ -340,6 +614,21 @@ export type Database = {
           p_max_intentos: number
         }
         Returns: undefined
+      }
+      registrar_movimiento_inventario: {
+        Args: {
+          p_cantidad_compra?: number
+          p_cantidad_control: number
+          p_costo_unitario_momento: number
+          p_material_id: string
+          p_notas?: string
+          p_operador_id?: string
+          p_orden_id?: string
+          p_prefijo_folio: string
+          p_referencia_externa?: string
+          p_tipo: string
+        }
+        Returns: string
       }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }
     }
