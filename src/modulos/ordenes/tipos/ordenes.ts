@@ -61,10 +61,22 @@ export interface RegistroTiempo {
   actualizadoEn: string;
 }
 
+/** Consumo real de material asociado a una partida, en unidad de control. */
+export interface RegistroConsumoMaterial {
+  id: string;
+  partidaId: string;
+  materialId: string;
+  cantidadUsada: number;
+  cantidadScrap: number;
+  costoUnitarioMomento: number;
+  creadoEn: string;
+}
+
 /** Filas crudas snake_case derivadas directamente de Supabase local. */
 export type FilaOrden = Tables<'ordenes_produccion'>;
 export type FilaPartida = Tables<'partidas_orden_produccion'>;
 export type FilaRegistroTiempo = Tables<'registros_tiempo_operador'>;
+export type FilaRegistroConsumoMaterial = Tables<'registros_consumo_material'>;
 
 function validarValorEnumerado<T extends string>(
   valor: string,
@@ -128,5 +140,19 @@ export function filaARegistroTiempo(fila: FilaRegistroTiempo): RegistroTiempo {
     notas: fila.notas,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
+  };
+}
+
+export function filaARegistroConsumoMaterial(
+  fila: FilaRegistroConsumoMaterial,
+): RegistroConsumoMaterial {
+  return {
+    id: fila.id,
+    partidaId: fila.partida_id,
+    materialId: fila.material_id,
+    cantidadUsada: Number(fila.cantidad_usada),
+    cantidadScrap: Number(fila.cantidad_scrap),
+    costoUnitarioMomento: Number(fila.costo_unitario_momento),
+    creadoEn: fila.creado_en,
   };
 }

@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   esquemaCambiarEstadoOrden,
   esquemaCrearOrden,
+  esquemaRegistrarConsumoMaterial,
   esquemaRegistrarTiempoOperador,
 } from '@/modulos/ordenes/validaciones/ordenes';
 import {
   filaAOrden,
   filaAPartida,
+  filaARegistroConsumoMaterial,
   filaARegistroTiempo,
 } from '@/modulos/ordenes/tipos/ordenes';
 
@@ -210,6 +212,38 @@ describe('esquemaRegistrarTiempoOperador', () => {
   });
 });
 
+describe('esquemaRegistrarConsumoMaterial', () => {
+  const consumoValido = {
+    partidaId: uuidPartida,
+    materialId: uuidMaterial,
+    cantidadUsada: 12.5,
+    cantidadScrap: 0.5,
+  };
+
+  it('acepta consumo y scrap no negativos con total positivo', () => {
+    expect(esquemaRegistrarConsumoMaterial.safeParse(consumoValido).success).toBe(true);
+    expect(
+      esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, cantidadUsada: 0 }).success,
+    ).toBe(true);
+  });
+
+  it('rechaza UUIDs, cantidades negativas y un consumo total en cero', () => {
+    expect(
+      esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, partidaId: 'partida-1' }).success,
+    ).toBe(false);
+    expect(
+      esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, cantidadScrap: -0.1 }).success,
+    ).toBe(false);
+    expect(
+      esquemaRegistrarConsumoMaterial.safeParse({
+        ...consumoValido,
+        cantidadUsada: 0,
+        cantidadScrap: 0,
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe('mappers de órdenes', () => {
   it('mapea filas snake_case de las tres tablas sin perder cantidades', () => {
     expect(
@@ -260,6 +294,18 @@ describe('mappers de órdenes', () => {
         actualizado_en: '2026-08-12T14:30:00+00:00',
       }),
     ).toMatchObject({ partidaId: uuidPartida, accion: 'inicio' });
+
+    expect(
+      filaARegistroConsumoMaterial({
+        id: '88888888-8888-4888-8888-888888888888',
+        partida_id: uuidPartida,
+        material_id: uuidMaterial,
+        cantidad_usada: 12.5,
+        cantidad_scrap: 0.5,
+        costo_unitario_momento: 35.75,
+        creado_en: '2026-08-12T14:30:00+00:00',
+      }),
+    ).toMatchObject({ cantidadUsada: 12.5, cantidadScrap: 0.5, costoUnitarioMomento: 35.75 });
   });
 
   it('rechaza un valor de enum corrupto proveniente de base de datos', () => {

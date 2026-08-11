@@ -1,8 +1,13 @@
-# Fase 5 · Sub-fase 5.2 — Operación transaccional de Órdenes
+# Fase 5 · Avance anticipado de Sub-fase 5.3 — Operación transaccional de Órdenes
 
 ## Resultado
 
-Se implementó el núcleo operativo de Órdenes de Producción sin confiar en
+Este avance se implementó antes de fijar el desglose oficial de la Fase 5. No
+corresponde al consumo de materiales de la Sub-fase 5.2: es base reutilizable
+de la Sub-fase 5.3, que todavía debe completar el registro de consumo y tiempo,
+la tienda Zustand de taller y sus pruebas de seguridad.
+
+El núcleo operativo de Órdenes de Producción no confía en
 mutaciones encadenadas desde el navegador ni en conteos de filas. La aprobación
 de una oportunidad y la creación de su OP ocurren dentro de una transacción de
 PostgreSQL; las Server Actions solo autentican, validan, autorizan y auditan.
@@ -80,8 +85,8 @@ de la RPC o `service_role`.
   `OP-NNNNNN` únicos.
 - Un rol `authenticated` no logró cambiar la etapa de Pipeline aun fijando la
   variable de sesión usada por la protección histórica.
-- `supabase migration list --local` confirma las migraciones 5.1 y 5.2 sin
-  divergencia local.
+- `supabase migration list --local` confirmó entonces las migraciones 5.1 y de
+  operación inicial sin divergencia local.
 
 ## Riesgo conocido
 

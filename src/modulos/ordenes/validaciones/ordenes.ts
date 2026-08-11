@@ -59,8 +59,22 @@ export const esquemaRegistrarTiempoOperador = z.object({
   notas: z.string().trim().optional(),
 });
 
+/** Consumo en unidad de control; usado y scrap salen juntos del inventario. */
+export const esquemaRegistrarConsumoMaterial = z
+  .object({
+    partidaId: z.uuid('ID de partida inválido'),
+    materialId: z.uuid('ID de material inválido'),
+    cantidadUsada: z.number().min(0, 'La cantidad usada no puede ser negativa'),
+    cantidadScrap: z.number().min(0, 'La cantidad de scrap no puede ser negativa'),
+  })
+  .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {
+    message: 'Debe registrar una cantidad usada o scrap mayor a 0',
+    path: ['cantidadUsada'],
+  });
+
 export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
 export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
 export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;
 export type RegistrarTiempoOperadorInput = z.infer<typeof esquemaRegistrarTiempoOperador>;
+export type RegistrarConsumoMaterialInput = z.infer<typeof esquemaRegistrarConsumoMaterial>;

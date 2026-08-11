@@ -32,6 +32,7 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - Las nuevas tablas de órdenes separan los privilegios SQL de RLS: `authenticated` recibe exclusivamente `SELECT`; las mutaciones se realizan mediante Server Actions autorizadas y RPCs `SECURITY DEFINER` ejecutables solo por `service_role`.
 - Aprobar una oportunidad y crear su OP se ejecutan en una sola función SQL con bloqueo de fila e índice único de cotización. Los cambios de estado aplican compare-and-set para rechazar pantallas obsoletas.
 - `registrar_movimiento_inventario` bloquea la fila del material, rechaza stock negativo y recalcula el costo promedio ponderado dentro de la misma transacción.
+- `registrar_consumo_material_op` bloquea el material, valida la partida y el stock, crea la salida de kardex y persiste consumo/scrap con el CPP histórico en una única transacción. La RPC solo es ejecutable por `service_role`; el consumo no recalcula CPP porque una salida no cambia el costo promedio.
 - Storage de adjuntos y documentos usa buckets privados y políticas acotadas al permiso correspondiente.
 
 ## Convenciones de código

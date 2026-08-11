@@ -2,11 +2,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Json, Database } from '@/compartido/tipos/supabase';
 import {
   ESTADOS_ORDEN_PRODUCCION,
+  filaAOrden,
+  filaAPartida,
+  filaARegistroConsumoMaterial,
   type EstadoOrden,
+  type Orden,
+  type Partida,
+  type RegistroConsumoMaterial,
 } from '@/modulos/ordenes/tipos/ordenes';
 import type {
   CambiarEstadoOrdenInput,
   CrearOrdenManualInput,
+  RegistrarConsumoMaterialInput,
 } from '@/modulos/ordenes/validaciones/ordenes';
 
 export type CodigoErrorOrden =
@@ -16,6 +23,11 @@ export type CodigoErrorOrden =
   | 'estado_conflicto'
   | 'transicion_no_permitida'
   | 'motivo_cancelacion_requerido'
+  | 'stock_insuficiente'
+  | 'partida_inexistente'
+  | 'material_inexistente'
+  | 'material_no_corresponde_partida'
+  | 'cantidad_consumo_invalida'
   | 'desconocido';
 
 /** Error de negocio estable; el detalle crudo de Postgres no llega al cliente. */
@@ -45,6 +57,18 @@ export type OrdenConEstadoActualizado = {
   fechaFin: string | null;
 };
 
+export type OrdenConPartidas = {
+  orden: Orden;
+  partidas: Partida[];
+};
+
+export type ConsumoMaterialRegistrado = {
+  id: string;
+  costoUnitarioMomento: number;
+  cantidadTotal: number;
+  movimientoInventarioId: string;
+};
+
 function partidasAJson(partidas: CrearOrdenManualInput['partidas']): Json {
   return partidas.map((partida) => ({
     codigo_pieza: partida.codigoPieza,
@@ -67,6 +91,15 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('transicion_no_permitida')) return 'transicion_no_permitida';
   if (mensaje.includes('motivo_cancelacion_requerido')) {
     return 'motivo_cancelacion_requerido';
+  }
+  if (mensaje.includes('stock_insuficiente')) return 'stock_insuficiente';
+  if (mensaje.includes('partida_inexistente')) return 'partida_inexistente';
+  if (mensaje.includes('material_inexistente')) return 'material_inexistente';
+  if (mensaje.includes('material_no_corresponde_partida')) {
+    return 'material_no_corresponde_partida';
+  }
+  if (mensaje.includes('cantidad_consumo_invalida')) {
+    return 'cantidad_consumo_invalida';
   }
   return 'desconocido';
 }
@@ -158,13 +191,99 @@ export async function cambiarEstadoOrdenServicio(
   };
 }
 
-export function mensajeErrorOrden(error: unknown, accion: 'crear' | 'actualizar' | 'aprobar'): string {
-  if (!(error instanceof ErrorOrden)) {
-    return accion === 'crear'
+/** Carga una OP y sus partidas; la RLS define qué registros puede consultar el usuario. */
+export async function obtenerOrdenConPartidasServicio(
+  cliente: SupabaseClient<Database>,
+  ordenId: string,
+): Promise<OrdenConPartidas | null> {
+  const { data: filaOrden, error: errorOrden } = await cliente
+    .from('ordenes_produccion')
+    .select('*')
+    .eq('id', ordenId)
+    .maybeSingle();
+
+  if (errorOrden) {
+    throw new ErrorOrden('desconocido', errorOrden.message);
+  }
+  if (!filaOrden) return null;
+
+  const { data: filasPartidas, error: errorPartidas } = await cliente
+    .from('partidas_orden_produccion')
+    .select('*')
+    .eq('orden_id', ordenId)
+    .order('creado_en', { ascending: true });
+
+  if (errorPartidas) {
+    throw new ErrorOrden('desconocido', errorPartidas.message);
+  }
+
+  return {
+    orden: filaAOrden(filaOrden),
+    partidas: (filasPartidas ?? []).map(filaAPartida),
+  };
+}
+
+/** Lista el historial de consumo de una partida para cálculo de merma y costo real. */
+export async function obtenerConsumosPartidaServicio(
+  cliente: SupabaseClient<Database>,
+  partidaId: string,
+): Promise<RegistroConsumoMaterial[]> {
+  const { data, error } = await cliente
+    .from('registros_consumo_material')
+    .select('*')
+    .eq('partida_id', partidaId)
+    .order('creado_en', { ascending: true });
+
+  if (error) {
+    throw new ErrorOrden('desconocido', error.message);
+  }
+  return (data ?? []).map(filaARegistroConsumoMaterial);
+}
+
+/**
+ * Registra usado y scrap mediante la RPC que bloquea inventario, crea kardex y
+ * persiste el costo CPP histórico en una única transacción PostgreSQL.
+ */
+export async function registrarConsumoMaterialServicio(
+  admin: SupabaseClient<Database>,
+  entrada: RegistrarConsumoMaterialInput,
+): Promise<ConsumoMaterialRegistrado> {
+  const { data, error } = await admin.rpc('registrar_consumo_material_op', {
+    p_partida_id: entrada.partidaId,
+    p_material_id: entrada.materialId,
+    p_cantidad_usada: entrada.cantidadUsada,
+    p_cantidad_scrap: entrada.cantidadScrap,
+  });
+
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.id || !fila.movimiento_inventario_id) {
+    throw new ErrorOrden('desconocido');
+  }
+
+  return {
+    id: fila.id,
+    costoUnitarioMomento: Number(fila.costo_unitario_momento),
+    cantidadTotal: Number(fila.cantidad_total),
+    movimientoInventarioId: fila.movimiento_inventario_id,
+  };
+}
+
+export function mensajeErrorOrden(
+  error: unknown,
+  accion: 'crear' | 'actualizar' | 'aprobar' | 'consumir',
+): string {
+  const mensajeGenerico =
+    accion === 'crear'
       ? 'No se pudo crear la orden'
       : accion === 'aprobar'
         ? 'No se pudo aprobar la oportunidad'
-        : 'No se pudo actualizar la orden';
+        : accion === 'consumir'
+          ? 'No se pudo registrar el consumo de material'
+          : 'No se pudo actualizar la orden';
+
+  if (!(error instanceof ErrorOrden)) {
+    return mensajeGenerico;
   }
 
   switch (error.codigo) {
@@ -180,11 +299,16 @@ export function mensajeErrorOrden(error: unknown, accion: 'crear' | 'actualizar'
       return 'El motivo de cancelación es obligatorio';
     case 'cotizacion_duplicada':
       return 'La cotización ya tiene una orden de producción';
+    case 'stock_insuficiente':
+      return 'Stock insuficiente para registrar el consumo';
+    case 'material_no_corresponde_partida':
+      return 'El material no corresponde a la partida seleccionada';
+    case 'partida_inexistente':
+    case 'material_inexistente':
+      return 'La partida o el material ya no están disponibles';
+    case 'cantidad_consumo_invalida':
+      return 'La cantidad de consumo no es válida';
     default:
-      return accion === 'crear'
-        ? 'No se pudo crear la orden'
-        : accion === 'aprobar'
-          ? 'No se pudo aprobar la oportunidad'
-          : 'No se pudo actualizar la orden';
+      return mensajeGenerico;
   }
 }

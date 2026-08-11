@@ -5,6 +5,7 @@ import {
   aprobarOportunidadYCrearOrdenServicio,
   cambiarEstadoOrdenServicio,
   crearOrdenManualServicio,
+  registrarConsumoMaterialServicio,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 
 const clienteConRpc = (rpc: ReturnType<typeof vi.fn>): SupabaseClient<Database> =>
@@ -86,5 +87,39 @@ describe('servicios transaccionales de órdenes', () => {
         estado: 'en_proceso',
       }),
     ).rejects.toMatchObject({ codigo: 'estado_conflicto' });
+  });
+
+  it('registra consumo y scrap solo mediante la RPC atómica', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          costo_unitario_momento: 25,
+          cantidad_total: 3.5,
+          movimiento_inventario_id: '55555555-5555-4555-8555-555555555555',
+        },
+      ],
+      error: null,
+    });
+
+    const resultado = await registrarConsumoMaterialServicio(clienteConRpc(rpc), {
+      partidaId: '22222222-2222-4222-8222-222222222222',
+      materialId: '33333333-3333-4333-8333-333333333333',
+      cantidadUsada: 3,
+      cantidadScrap: 0.5,
+    });
+
+    expect(resultado).toEqual({
+      id: '44444444-4444-4444-8444-444444444444',
+      costoUnitarioMomento: 25,
+      cantidadTotal: 3.5,
+      movimientoInventarioId: '55555555-5555-4555-8555-555555555555',
+    });
+    expect(rpc).toHaveBeenCalledWith('registrar_consumo_material_op', {
+      p_partida_id: '22222222-2222-4222-8222-222222222222',
+      p_material_id: '33333333-3333-4333-8333-333333333333',
+      p_cantidad_usada: 3,
+      p_cantidad_scrap: 0.5,
+    });
   });
 });

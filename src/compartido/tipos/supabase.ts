@@ -649,6 +649,51 @@ export type Database = {
         }
         Relationships: []
       }
+      registros_consumo_material: {
+        Row: {
+          cantidad_scrap: number
+          cantidad_usada: number
+          costo_unitario_momento: number
+          creado_en: string
+          id: string
+          material_id: string
+          partida_id: string
+        }
+        Insert: {
+          cantidad_scrap?: number
+          cantidad_usada?: number
+          costo_unitario_momento: number
+          creado_en?: string
+          id?: string
+          material_id: string
+          partida_id: string
+        }
+        Update: {
+          cantidad_scrap?: number
+          cantidad_usada?: number
+          costo_unitario_momento?: number
+          creado_en?: string
+          id?: string
+          material_id?: string
+          partida_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_consumo_material_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_consumo_material_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registros_tiempo_operador: {
         Row: {
           accion: string
@@ -832,6 +877,20 @@ export type Database = {
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }
       generar_folio_op: { Args: never; Returns: string }
       generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
+      registrar_consumo_material_op: {
+        Args: {
+          p_cantidad_scrap: number
+          p_cantidad_usada: number
+          p_material_id: string
+          p_partida_id: string
+        }
+        Returns: {
+          cantidad_total: number
+          costo_unitario_momento: number
+          id: string
+          movimiento_inventario_id: string
+        }[]
+      }
       registrar_intento_fallido: {
         Args: {
           p_bloqueo_segundos: number
