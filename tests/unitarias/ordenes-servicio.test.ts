@@ -6,6 +6,7 @@ import {
   cambiarEstadoOrdenServicio,
   crearOrdenManualServicio,
   registrarConsumoMaterialServicio,
+  registrarTiempoOperadorServicio,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 
 const clienteConRpc = (rpc: ReturnType<typeof vi.fn>): SupabaseClient<Database> =>
@@ -120,6 +121,41 @@ describe('servicios transaccionales de órdenes', () => {
       p_material_id: '33333333-3333-4333-8333-333333333333',
       p_cantidad_usada: 3,
       p_cantidad_scrap: 0.5,
+    });
+  });
+
+  it('persiste y mapea una marca de tiempo de operador mediante el servicio', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: '66666666-6666-4666-8666-666666666666',
+          partida_id: '22222222-2222-4222-8222-222222222222',
+          operador_id: '33333333-3333-4333-8333-333333333333',
+          accion: 'inicio',
+          fecha_registro: '2026-08-12T11:00:00.000Z',
+          notas: null,
+          creado_en: '2026-08-12T11:00:00.000Z',
+          actualizado_en: '2026-08-12T11:00:00.000Z',
+        },
+      ],
+      error: null,
+    });
+
+    const resultado = await registrarTiempoOperadorServicio(clienteConRpc(rpc), {
+      partidaId: '22222222-2222-4222-8222-222222222222',
+      operadorId: '33333333-3333-4333-8333-333333333333',
+      accion: 'inicio',
+    });
+
+    expect(resultado).toMatchObject({
+      partidaId: '22222222-2222-4222-8222-222222222222',
+      operadorId: '33333333-3333-4333-8333-333333333333',
+      accion: 'inicio',
+    });
+    expect(rpc).toHaveBeenCalledWith('registrar_tiempo_operador_op', {
+      p_partida_id: '22222222-2222-4222-8222-222222222222',
+      p_operador_id: '33333333-3333-4333-8333-333333333333',
+      p_accion: 'inicio',
     });
   });
 });

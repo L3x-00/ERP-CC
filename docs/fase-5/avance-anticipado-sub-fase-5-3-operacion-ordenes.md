@@ -4,8 +4,8 @@
 
 Este avance se implementó antes de fijar el desglose oficial de la Fase 5. No
 corresponde al consumo de materiales de la Sub-fase 5.2: es base reutilizable
-de la Sub-fase 5.3, que todavía debe completar el registro de consumo y tiempo,
-la tienda Zustand de taller y sus pruebas de seguridad.
+de la Sub-fase 5.3, completada posteriormente con consumo, tiempo seguro,
+tienda Zustand y pruebas de seguridad.
 
 El núcleo operativo de Órdenes de Producción no confía en
 mutaciones encadenadas desde el navegador ni en conteos de filas. La aprobación

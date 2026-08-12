@@ -7,9 +7,8 @@ Orden de Producción. Cada registro descuenta inventario, genera su salida de
 kardex y conserva el costo promedio ponderado (CPP) vigente dentro de una sola
 transacción PostgreSQL.
 
-La implementación está aplicada y comprobada en la base local. Su despliegue al
-proyecto Supabase remoto queda pendiente de autorización explícita, pues cambia
-el esquema productivo.
+La implementación fue aplicada y comprobada tanto en la base local como en el
+proyecto Supabase remoto `pwnecbcynnqnvfwmvrnn`.
 
 ## Migración y concurrencia
 

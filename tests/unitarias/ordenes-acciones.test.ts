@@ -6,13 +6,19 @@ const {
   registrarLogMock,
   crearOrdenManualMock,
   cambiarEstadoMock,
-} = vi.hoisted(() => ({
-  obtenerUsuarioMock: vi.fn(),
-  canMock: vi.fn(),
-  registrarLogMock: vi.fn(),
-  crearOrdenManualMock: vi.fn(),
-  cambiarEstadoMock: vi.fn(),
-}));
+  ErrorOrdenMock,
+} = vi.hoisted(() => {
+  class ErrorOrdenMock extends Error {}
+
+  return {
+    obtenerUsuarioMock: vi.fn(),
+    canMock: vi.fn(),
+    registrarLogMock: vi.fn(),
+    crearOrdenManualMock: vi.fn(),
+    cambiarEstadoMock: vi.fn(),
+    ErrorOrdenMock,
+  };
+});
 
 vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
   obtenerUsuarioServidor: () => obtenerUsuarioMock(),
@@ -27,9 +33,9 @@ vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({ rpc: vi.fn() }),
 }));
 vi.mock('@/modulos/ordenes/servicios/ordenes-servicio', () => ({
+  ErrorOrden: ErrorOrdenMock,
   crearOrdenManualServicio: (...args: unknown[]) => crearOrdenManualMock(...args),
   cambiarEstadoOrdenServicio: (...args: unknown[]) => cambiarEstadoMock(...args),
-  mensajeErrorOrden: () => 'No se pudo actualizar la orden',
 }));
 
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
@@ -143,7 +149,7 @@ describe('cambiarEstadoOrdenAccion', () => {
   });
 
   it('exige permiso extra al cancelar una orden en proceso', async () => {
-    canMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    canMock.mockResolvedValue(false);
 
     const respuesta = await cambiarEstadoOrdenAccion({
       ...CAMBIO_A_PROGRAMADA,
@@ -159,7 +165,7 @@ describe('cambiarEstadoOrdenAccion', () => {
     expect(cambiarEstadoMock).not.toHaveBeenCalled();
   });
 
-  it('permite cancelar en proceso solo con ambos permisos y motivo', async () => {
+  it('permite cancelar en proceso con su permiso específico y motivo', async () => {
     canMock.mockResolvedValue(true);
     cambiarEstadoMock.mockResolvedValue({
       id: CAMBIO_A_PROGRAMADA.ordenId,

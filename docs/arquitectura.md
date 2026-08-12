@@ -33,6 +33,8 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - Aprobar una oportunidad y crear su OP se ejecutan en una sola función SQL con bloqueo de fila e índice único de cotización. Los cambios de estado aplican compare-and-set para rechazar pantallas obsoletas.
 - `registrar_movimiento_inventario` bloquea la fila del material, rechaza stock negativo y recalcula el costo promedio ponderado dentro de la misma transacción.
 - `registrar_consumo_material_op` bloquea el material, valida la partida y el stock, crea la salida de kardex y persiste consumo/scrap con el CPP histórico en una única transacción. La RPC solo es ejecutable por `service_role`; el consumo no recalcula CPP porque una salida no cambia el costo promedio.
+- Las marcas de tiempo pasan por `registrar_tiempo_operador_op`: bloquea partida y OP, exige que esta siga `en_proceso`, verifica un operador activo y usa `now()` de PostgreSQL. La RPC solo es ejecutable por `service_role`; la acción contrasta además el operador con una cookie PIN HMAC vigente.
+- `usarTiendaOrdenes` concentra estado efímero de taller (orden activa, filtros de máquina/estado y versión de actualización) sin persistirlo entre turnos.
 - Storage de adjuntos y documentos usa buckets privados y políticas acotadas al permiso correspondiente.
 
 ## Convenciones de código

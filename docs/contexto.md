@@ -22,9 +22,9 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fase 3: módulo de Clientes implementado, incluidas reglas de tiers, crédito, documentos y promoción desde Pipeline.
 - Fase 4: Inventario / Compras implementado, con catálogo, movimientos, CPP, bloqueo de stock negativo y UI operativa.
 - Fase 5.1: modelo de Órdenes de Producción con folios OP atómicos, RLS de lectura, contratos TypeScript y validaciones Zod v4.
-- Fase 5.2: consumo atómico de materiales por partida, salida de kardex, protección de stock, CPP histórico y cálculo de merma/desviación, verificados localmente. La aplicación al proyecto remoto queda pendiente de la autorización de despliegue.
-- Existe un adelanto de operación de órdenes (creación desde Pipeline, creación manual y transiciones); la Sub-fase 5.3 oficial aún consolidará sus Server Actions, seguridad y estado de taller.
-- Próximo hito funcional: Fase 5.3 — Seguridad server-side y estado de taller.
+- Fase 5.2: consumo atómico de materiales por partida, salida de kardex, protección de stock, CPP histórico y cálculo de merma/desviación, aplicados y verificados en Supabase remoto.
+- Fase 5.3: acciones server-side para OP, consumo y tiempo; sesión PIN contrastada con un operador activo; marcas con hora de PostgreSQL y estado de OP bloqueado; y tienda Zustand v5 de taller. Aplicada y verificada en Supabase remoto.
+- Próximo hito funcional: Fase 5.4 — Control de piso y pruebas E2E.
 
 ## Reglas funcionales que no se deben romper
 

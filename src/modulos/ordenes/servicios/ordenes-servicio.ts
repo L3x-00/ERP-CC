@@ -5,15 +5,18 @@ import {
   filaAOrden,
   filaAPartida,
   filaARegistroConsumoMaterial,
+  filaARegistroTiempo,
   type EstadoOrden,
   type Orden,
   type Partida,
   type RegistroConsumoMaterial,
+  type RegistroTiempo,
 } from '@/modulos/ordenes/tipos/ordenes';
 import type {
   CambiarEstadoOrdenInput,
   CrearOrdenManualInput,
   RegistrarConsumoMaterialInput,
+  RegistrarTiempoOperadorInput,
 } from '@/modulos/ordenes/validaciones/ordenes';
 
 export type CodigoErrorOrden =
@@ -28,6 +31,9 @@ export type CodigoErrorOrden =
   | 'material_inexistente'
   | 'material_no_corresponde_partida'
   | 'cantidad_consumo_invalida'
+  | 'orden_no_en_proceso'
+  | 'operador_no_activo'
+  | 'accion_tiempo_invalida'
   | 'desconocido';
 
 /** Error de negocio estable; el detalle crudo de Postgres no llega al cliente. */
@@ -101,6 +107,9 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('cantidad_consumo_invalida')) {
     return 'cantidad_consumo_invalida';
   }
+  if (mensaje.includes('orden_no_en_proceso')) return 'orden_no_en_proceso';
+  if (mensaje.includes('operador_no_activo')) return 'operador_no_activo';
+  if (mensaje.includes('accion_tiempo_invalida')) return 'accion_tiempo_invalida';
   return 'desconocido';
 }
 
@@ -267,6 +276,31 @@ export async function registrarConsumoMaterialServicio(
     cantidadTotal: Number(fila.cantidad_total),
     movimientoInventarioId: fila.movimiento_inventario_id,
   };
+}
+
+/**
+ * Persiste una marca de tiempo mediante la RPC que bloquea la OP y confirma
+ * que esté en proceso. Postgres fija la fecha; nunca se acepta un reloj del
+ * navegador para la evidencia de taller.
+ */
+export async function registrarTiempoOperadorServicio(
+  admin: SupabaseClient<Database>,
+  entrada: RegistrarTiempoOperadorInput,
+): Promise<RegistroTiempo> {
+  const { data, error } = await admin.rpc('registrar_tiempo_operador_op', {
+    p_partida_id: entrada.partidaId,
+    p_operador_id: entrada.operadorId,
+    p_accion: entrada.accion,
+    ...(entrada.notas ? { p_notas: entrada.notas } : {}),
+  });
+
+  if (error) {
+    lanzarErrorOrden(error.message);
+  }
+  const fila = data?.[0];
+  if (!fila) throw new ErrorOrden('desconocido');
+
+  return filaARegistroTiempo(fila);
 }
 
 export function mensajeErrorOrden(

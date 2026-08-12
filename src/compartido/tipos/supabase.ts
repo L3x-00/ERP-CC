@@ -891,6 +891,24 @@ export type Database = {
           movimiento_inventario_id: string
         }[]
       }
+      registrar_tiempo_operador_op: {
+        Args: {
+          p_accion: string
+          p_notas?: string
+          p_operador_id: string
+          p_partida_id: string
+        }
+        Returns: {
+          accion: string
+          actualizado_en: string
+          creado_en: string
+          fecha_registro: string
+          id: string
+          notas: string
+          operador_id: string
+          partida_id: string
+        }[]
+      }
       registrar_intento_fallido: {
         Args: {
           p_bloqueo_segundos: number
