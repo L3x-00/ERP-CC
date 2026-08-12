@@ -107,7 +107,8 @@ type PropsTablaOrdenes = {
  * Tabla de órdenes de producción para el piso: filtra por máquina y estado desde
  * `usarTiendaOrdenes`, marca la orden activa y muestra el avance agregado de cada
  * OP. No consulta datos — recibe la proyección ya resuelta en el servidor y sólo
- * pide un refresco (`router.refresh()` + `refrescarOrdenes()`) bajo demanda.
+ * solicita una revalidación inmediata tras sus acciones propias; los cambios
+ * de otras estaciones llegan automáticamente mediante Realtime.
  */
 export function TablaOrdenes({ ordenes }: PropsTablaOrdenes) {
   const router = useRouter();
@@ -118,7 +119,6 @@ export function TablaOrdenes({ ordenes }: PropsTablaOrdenes) {
   const establecerFiltroMaquina = usarTiendaOrdenes((estado) => estado.establecerFiltroMaquina);
   const alternarFiltroEstado = usarTiendaOrdenes((estado) => estado.alternarFiltroEstado);
   const limpiarFiltros = usarTiendaOrdenes((estado) => estado.limpiarFiltros);
-  const refrescarOrdenes = usarTiendaOrdenes((estado) => estado.refrescarOrdenes);
   const [ordenActualizandoId, setOrdenActualizandoId] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [hidratado, setHidratado] = useState(false);
@@ -158,7 +158,6 @@ export function TablaOrdenes({ ordenes }: PropsTablaOrdenes) {
   }
 
   function alRefrescar(): void {
-    refrescarOrdenes();
     router.refresh();
   }
 
@@ -175,7 +174,6 @@ export function TablaOrdenes({ ordenes }: PropsTablaOrdenes) {
         setErrorAccion(respuesta.error);
         return;
       }
-      refrescarOrdenes();
       router.refresh();
     } catch {
       setErrorAccion('No se pudo actualizar la orden. Intenta de nuevo.');

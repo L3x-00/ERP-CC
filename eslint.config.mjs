@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // El entorno local de agentes no forma parte del producto ni de sus reglas.
+    ".agents/**",
+    ".ai-shared/**",
+    ".claude/**",
+    ".codex/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

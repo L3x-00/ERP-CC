@@ -12,7 +12,9 @@ export type Permiso =
   | 'ver_finanzas'
   | 'ver_pipeline_equipo'
   | 'configuracion'
-  | 'cancelar_ordenes_en_proceso';
+  | 'cancelar_ordenes_en_proceso'
+  | 'gestionar_inventario'
+  | 'gestionar_produccion';
 
 /** Usuario del sistema (tabla usuarios). */
 export type Usuario = {

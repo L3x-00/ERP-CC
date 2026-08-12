@@ -46,6 +46,7 @@ export interface Partida {
   tiempoEstimadoMinutos: number;
   tiempoRealMinutos: number;
   maquinaAsignada: string | null;
+  operadorAsignadoId: string | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -72,11 +73,22 @@ export interface RegistroConsumoMaterial {
   creadoEn: string;
 }
 
+/** Evento inmutable de producción buena y scrap por operador. */
+export interface RegistroAvancePartida {
+  id: string;
+  partidaId: string;
+  operadorId: string;
+  cantidadProducida: number;
+  cantidadScrap: number;
+  creadoEn: string;
+}
+
 /** Filas crudas snake_case derivadas directamente de Supabase local. */
 export type FilaOrden = Tables<'ordenes_produccion'>;
 export type FilaPartida = Tables<'partidas_orden_produccion'>;
 export type FilaRegistroTiempo = Tables<'registros_tiempo_operador'>;
 export type FilaRegistroConsumoMaterial = Tables<'registros_consumo_material'>;
+export type FilaRegistroAvancePartida = Tables<'registros_avance_partida'>;
 
 function validarValorEnumerado<T extends string>(
   valor: string,
@@ -125,6 +137,7 @@ export function filaAPartida(fila: FilaPartida): Partida {
     tiempoEstimadoMinutos: Number(fila.tiempo_estimado_minutos),
     tiempoRealMinutos: Number(fila.tiempo_real_minutos),
     maquinaAsignada: fila.maquina_asignada,
+    operadorAsignadoId: fila.operador_asignado_id,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
@@ -153,6 +166,19 @@ export function filaARegistroConsumoMaterial(
     cantidadUsada: Number(fila.cantidad_usada),
     cantidadScrap: Number(fila.cantidad_scrap),
     costoUnitarioMomento: Number(fila.costo_unitario_momento),
+    creadoEn: fila.creado_en,
+  };
+}
+
+export function filaARegistroAvancePartida(
+  fila: FilaRegistroAvancePartida,
+): RegistroAvancePartida {
+  return {
+    id: fila.id,
+    partidaId: fila.partida_id,
+    operadorId: fila.operador_id,
+    cantidadProducida: Number(fila.cantidad_producida),
+    cantidadScrap: Number(fila.cantidad_scrap),
     creadoEn: fila.creado_en,
   };
 }

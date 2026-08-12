@@ -24,6 +24,8 @@ type PropsControlPisoPanel = {
 
 type OperacionPiso = 'tiempo' | 'avance' | 'consumo' | null;
 
+const EVENTO_OPERACION_LOCAL = 'ordenes:piso-operacion-local';
+
 const CLASE_INPUT =
   'w-full rounded-base border border-zinc-700 bg-zinc-900 px-3 py-2 text-base text-zinc-50 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30';
 const CLASE_BOTON =
@@ -44,7 +46,6 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
   const seleccionarOrden = usarTiendaOrdenes((estado) => estado.seleccionarOrden);
-  const refrescarOrdenes = usarTiendaOrdenes((estado) => estado.refrescarOrdenes);
 
   const [ordenId, setOrdenId] = useState<string>(() => ordenActivaId ?? ordenes[0]?.orden.id ?? '');
   const ordenActiva = useMemo(
@@ -96,10 +97,13 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
     setError(null);
   }
 
+  function notificarOperacionLocal(): void {
+    window.dispatchEvent(new Event(EVENTO_OPERACION_LOCAL));
+  }
+
   function confirmarOperacion(exito: boolean, mensajeExito: string, mensajeError: string): void {
     if (exito) {
       setMensaje(mensajeExito);
-      refrescarOrdenes();
       router.refresh();
       return;
     }
@@ -112,6 +116,7 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
       return;
     }
     limpiarResultado();
+    notificarOperacionLocal();
     setOperacion('tiempo');
     try {
       const respuesta = await registrarTiempoOperadorAccion({
@@ -143,6 +148,7 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
     }
 
     limpiarResultado();
+    notificarOperacionLocal();
     setOperacion('avance');
     try {
       const respuesta = await registrarAvancePartidaAccion({
@@ -178,6 +184,7 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
     }
 
     limpiarResultado();
+    notificarOperacionLocal();
     setOperacion('consumo');
     try {
       const respuesta = await registrarConsumoOperadorAccion({

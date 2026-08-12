@@ -10,19 +10,17 @@ beforeEach(() => {
       ordenActivaId: estadoInicial.ordenActivaId,
       filtroMaquina: estadoInicial.filtroMaquina,
       filtrosEstado: [],
-      versionActualizacion: estadoInicial.versionActualizacion,
     },
     false,
   );
 });
 
 describe('usarTiendaOrdenes', () => {
-  it('arranca sin orden activa, sin filtros y con versión 0', () => {
+  it('arranca sin orden activa y sin filtros', () => {
     const estado = usarTiendaOrdenes.getState();
     expect(estado.ordenActivaId).toBeNull();
     expect(estado.filtroMaquina).toBeNull();
     expect(estado.filtrosEstado).toEqual([]);
-    expect(estado.versionActualizacion).toBe(0);
   });
 
   describe('seleccionarOrden', () => {
@@ -128,45 +126,5 @@ describe('usarTiendaOrdenes', () => {
       expect(estado.ordenActivaId).toBe('orden-9');
     });
 
-    it('no incrementa la versión de actualización', () => {
-      const antes = usarTiendaOrdenes.getState().versionActualizacion;
-      usarTiendaOrdenes.getState().limpiarFiltros();
-      expect(usarTiendaOrdenes.getState().versionActualizacion).toBe(antes);
-    });
-  });
-
-  describe('refrescarOrdenes', () => {
-    it('incrementa la versión en cada llamada', () => {
-      const antes = usarTiendaOrdenes.getState().versionActualizacion;
-      usarTiendaOrdenes.getState().refrescarOrdenes();
-      expect(usarTiendaOrdenes.getState().versionActualizacion).toBe(antes + 1);
-
-      usarTiendaOrdenes.getState().refrescarOrdenes();
-      usarTiendaOrdenes.getState().refrescarOrdenes();
-      expect(usarTiendaOrdenes.getState().versionActualizacion).toBe(antes + 3);
-    });
-
-    it('no altera orden activa ni filtros', () => {
-      usarTiendaOrdenes.getState().seleccionarOrden('orden-7');
-      usarTiendaOrdenes.getState().establecerFiltroMaquina('CNC-04');
-      usarTiendaOrdenes.getState().establecerFiltrosEstado(['en_proceso']);
-
-      usarTiendaOrdenes.getState().refrescarOrdenes();
-
-      const estado = usarTiendaOrdenes.getState();
-      expect(estado.ordenActivaId).toBe('orden-7');
-      expect(estado.filtroMaquina).toBe('CNC-04');
-      expect(estado.filtrosEstado).toEqual(['en_proceso']);
-    });
-
-    it('notifica a los suscriptores', () => {
-      let notificaciones = 0;
-      const desuscribir = usarTiendaOrdenes.subscribe(() => {
-        notificaciones += 1;
-      });
-      usarTiendaOrdenes.getState().refrescarOrdenes();
-      desuscribir();
-      expect(notificaciones).toBe(1);
-    });
-  });
+});
 });

@@ -4,7 +4,6 @@ import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
-import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
 import {
   PRIORIDADES_ORDEN_PRODUCCION,
   type PrioridadOrden,
@@ -132,7 +131,7 @@ type PropsFormularioOrden = {
 /**
  * Alta manual de una orden de producción: cabecera (cliente, fecha compromiso,
  * prioridad) más una o más partidas editables. Al éxito limpia el formulario y
- * dispara el refresco de datos (`router.refresh()` + `refrescarOrdenes()`).
+ * solicita una revalidación inmediata de datos tras la creación.
  */
 export function FormularioOrden({ clientes, materiales, alCrearOrden }: PropsFormularioOrden) {
   const router = useRouter();
@@ -205,7 +204,6 @@ export function FormularioOrden({ clientes, materiales, alCrearOrden }: PropsFor
           respuesta.datos ? `Orden ${respuesta.datos.folio} creada.` : 'Orden creada.',
         );
         reiniciarFormulario();
-        usarTiendaOrdenes.getState().refrescarOrdenes();
         router.refresh();
       } else {
         setError(respuesta.error);

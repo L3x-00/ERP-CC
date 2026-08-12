@@ -5,13 +5,14 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import {
   ErrorOrden,
   registrarConsumoMaterialServicio,
+  registrarConsumoMaterialOperadorServicio,
   type ConsumoMaterialRegistrado,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaRegistrarConsumoMaterial } from '@/modulos/ordenes/validaciones/ordenes';
-import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso-inventario';
 
 /**
  * Solicita a Postgres el consumo de material de una partida. El stock, kardex
@@ -30,7 +31,7 @@ export async function registrarConsumoAccion(
   if (!usuario) {
     return { exito: false, error: 'No autorizado' };
   }
-  if (!(await can(usuario, 'aprobar_ordenes'))) {
+  if (!(await puedeGestionarInventario(usuario))) {
     return { exito: false, error: 'Sin permiso para registrar consumo de material' };
   }
 
@@ -76,9 +77,9 @@ export async function registrarConsumoOperadorAccion(
   }
 
   try {
-    const consumo = await registrarConsumoMaterialServicio(
+    const consumo = await registrarConsumoMaterialOperadorServicio(
       crearClienteSupabaseAdmin(),
-      analisis.data,
+      { ...analisis.data, operadorId: operador.id },
     );
     await registrarLog(operador, 'registrar_consumo_material', 'ordenes', consumo.id, {
       partidaId: analisis.data.partidaId,

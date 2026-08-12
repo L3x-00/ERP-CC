@@ -3,9 +3,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
   aprobarOportunidadYCrearOrdenServicio,
+  asignarOperadorPartidaServicio,
   cambiarEstadoOrdenServicio,
   crearOrdenManualServicio,
   registrarConsumoMaterialServicio,
+  registrarConsumoMaterialOperadorServicio,
   registrarTiempoOperadorServicio,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 
@@ -156,6 +158,64 @@ describe('servicios transaccionales de órdenes', () => {
       p_partida_id: '22222222-2222-4222-8222-222222222222',
       p_operador_id: '33333333-3333-4333-8333-333333333333',
       p_accion: 'inicio',
+    });
+  });
+
+  it('usa una RPC distinta para consumo desde piso y envía la identidad asignada', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          costo_unitario_momento: 25,
+          cantidad_total: 3,
+          movimiento_inventario_id: '55555555-5555-4555-8555-555555555555',
+        },
+      ],
+      error: null,
+    });
+
+    await registrarConsumoMaterialOperadorServicio(clienteConRpc(rpc), {
+      partidaId: '22222222-2222-4222-8222-222222222222',
+      materialId: '33333333-3333-4333-8333-333333333333',
+      operadorId: '66666666-6666-4666-8666-666666666666',
+      cantidadUsada: 3,
+      cantidadScrap: 0,
+    });
+
+    expect(rpc).toHaveBeenCalledWith('registrar_consumo_material_operador_op', {
+      p_partida_id: '22222222-2222-4222-8222-222222222222',
+      p_material_id: '33333333-3333-4333-8333-333333333333',
+      p_operador_id: '66666666-6666-4666-8666-666666666666',
+      p_cantidad_usada: 3,
+      p_cantidad_scrap: 0,
+    });
+  });
+
+  it('asigna una partida únicamente mediante la RPC transaccional', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          partida_id: '22222222-2222-4222-8222-222222222222',
+          operador_asignado_id: '66666666-6666-4666-8666-666666666666',
+          actualizado_en: '2026-08-12T11:00:00.000Z',
+        },
+      ],
+      error: null,
+    });
+
+    const resultado = await asignarOperadorPartidaServicio(clienteConRpc(rpc), {
+      partidaId: '22222222-2222-4222-8222-222222222222',
+      operadorId: '66666666-6666-4666-8666-666666666666',
+    });
+
+    expect(resultado).toEqual({
+      partidaId: '22222222-2222-4222-8222-222222222222',
+      operadorAsignadoId: '66666666-6666-4666-8666-666666666666',
+      actualizadoEn: '2026-08-12T11:00:00.000Z',
+    });
+    expect(rpc).toHaveBeenCalledWith('asignar_operador_a_partida_op', {
+      p_partida_id: '22222222-2222-4222-8222-222222222222',
+      p_operador_id: '66666666-6666-4666-8666-666666666666',
     });
   });
 });

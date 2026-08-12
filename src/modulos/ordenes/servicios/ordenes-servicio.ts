@@ -15,6 +15,7 @@ import {
 import type {
   CambiarEstadoOrdenInput,
   CrearOrdenManualInput,
+  AsignarOperadorPartidaInput,
   RegistrarConsumoMaterialInput,
   RegistrarAvancePartidaInput,
   RegistrarTiempoOperadorInput,
@@ -33,8 +34,11 @@ export type CodigoErrorOrden =
   | 'material_no_corresponde_partida'
   | 'cantidad_consumo_invalida'
   | 'cantidad_avance_invalida'
+  | 'cantidad_producida_excede_solicitada'
   | 'orden_no_en_proceso'
+  | 'orden_no_asignable'
   | 'operador_no_activo'
+  | 'operador_no_asignado_partida'
   | 'accion_tiempo_invalida'
   | 'desconocido';
 
@@ -84,6 +88,12 @@ export type AvancePartidaRegistrado = {
   actualizadoEn: string;
 };
 
+export type PartidaConOperadorAsignado = {
+  partidaId: string;
+  operadorAsignadoId: string;
+  actualizadoEn: string;
+};
+
 function partidasAJson(partidas: CrearOrdenManualInput['partidas']): Json {
   return partidas.map((partida) => ({
     codigo_pieza: partida.codigoPieza,
@@ -117,8 +127,15 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
     return 'cantidad_consumo_invalida';
   }
   if (mensaje.includes('cantidad_avance_invalida')) return 'cantidad_avance_invalida';
+  if (mensaje.includes('cantidad_producida_excede_solicitada')) {
+    return 'cantidad_producida_excede_solicitada';
+  }
   if (mensaje.includes('orden_no_en_proceso')) return 'orden_no_en_proceso';
+  if (mensaje.includes('orden_no_asignable')) return 'orden_no_asignable';
   if (mensaje.includes('operador_no_activo')) return 'operador_no_activo';
+  if (mensaje.includes('operador_no_asignado_partida')) {
+    return 'operador_no_asignado_partida';
+  }
   if (mensaje.includes('accion_tiempo_invalida')) return 'accion_tiempo_invalida';
   return 'desconocido';
 }
@@ -289,6 +306,53 @@ export async function obtenerOrdenesConPartidasServicio(
   }));
 }
 
+/**
+ * Carga únicamente las partidas asignadas a un operador de piso y las OP a las
+ * que pertenecen. La consulta usa el cliente admin sólo después de validar la
+ * cookie PIN en el servidor; nunca se envían partidas ajenas al navegador.
+ */
+export async function obtenerOrdenesConPartidasDeOperadorServicio(
+  admin: SupabaseClient<Database>,
+  operadorId: string,
+): Promise<OrdenConPartidas[]> {
+  const { data: filasPartidas, error: errorPartidas } = await admin
+    .from('partidas_orden_produccion')
+    .select('*')
+    .eq('operador_asignado_id', operadorId)
+    .order('creado_en', { ascending: true });
+
+  if (errorPartidas) {
+    throw new ErrorOrden('desconocido', errorPartidas.message);
+  }
+
+  const partidas = (filasPartidas ?? []).map(filaAPartida);
+  if (partidas.length === 0) return [];
+
+  const idsOrdenes = [...new Set(partidas.map((partida) => partida.ordenId))];
+  const { data: filasOrdenes, error: errorOrdenes } = await admin
+    .from('ordenes_produccion')
+    .select('*')
+    .in('id', idsOrdenes)
+    .eq('estado', 'en_proceso')
+    .order('creado_en', { ascending: false });
+
+  if (errorOrdenes) {
+    throw new ErrorOrden('desconocido', errorOrdenes.message);
+  }
+
+  const partidasPorOrden = new Map<string, Partida[]>();
+  for (const partida of partidas) {
+    const partidasDeOrden = partidasPorOrden.get(partida.ordenId) ?? [];
+    partidasDeOrden.push(partida);
+    partidasPorOrden.set(partida.ordenId, partidasDeOrden);
+  }
+
+  return (filasOrdenes ?? []).map((filaOrden) => {
+    const orden = filaAOrden(filaOrden);
+    return { orden, partidas: partidasPorOrden.get(orden.id) ?? [] };
+  });
+}
+
 /** Lista el historial de consumo de una partida para cálculo de merma y costo real. */
 export async function obtenerConsumosPartidaServicio(
   cliente: SupabaseClient<Database>,
@@ -332,6 +396,59 @@ export async function registrarConsumoMaterialServicio(
     costoUnitarioMomento: Number(fila.costo_unitario_momento),
     cantidadTotal: Number(fila.cantidad_total),
     movimientoInventarioId: fila.movimiento_inventario_id,
+  };
+}
+
+/**
+ * Consumo desde piso: además de la transacción de inventario, Postgres verifica
+ * que la partida esté asignada al operador autenticado por PIN.
+ */
+export async function registrarConsumoMaterialOperadorServicio(
+  admin: SupabaseClient<Database>,
+  entrada: RegistrarConsumoMaterialInput & { operadorId: string },
+): Promise<ConsumoMaterialRegistrado> {
+  const { data, error } = await admin.rpc('registrar_consumo_material_operador_op', {
+    p_partida_id: entrada.partidaId,
+    p_material_id: entrada.materialId,
+    p_cantidad_usada: entrada.cantidadUsada,
+    p_cantidad_scrap: entrada.cantidadScrap,
+    p_operador_id: entrada.operadorId,
+  });
+
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.id || !fila.movimiento_inventario_id) {
+    throw new ErrorOrden('desconocido');
+  }
+
+  return {
+    id: fila.id,
+    costoUnitarioMomento: Number(fila.costo_unitario_momento),
+    cantidadTotal: Number(fila.cantidad_total),
+    movimientoInventarioId: fila.movimiento_inventario_id,
+  };
+}
+
+/** Asigna una partida a un operador mediante la RPC bloqueada de planificación. */
+export async function asignarOperadorPartidaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: AsignarOperadorPartidaInput,
+): Promise<PartidaConOperadorAsignado> {
+  const { data, error } = await admin.rpc('asignar_operador_a_partida_op', {
+    p_partida_id: entrada.partidaId,
+    p_operador_id: entrada.operadorId,
+  });
+
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.partida_id || !fila.operador_asignado_id) {
+    throw new ErrorOrden('desconocido');
+  }
+
+  return {
+    partidaId: fila.partida_id,
+    operadorAsignadoId: fila.operador_asignado_id,
+    actualizadoEn: fila.actualizado_en,
   };
 }
 
@@ -426,6 +543,10 @@ export function mensajeErrorOrden(
       return 'La partida o el material ya no están disponibles';
     case 'cantidad_consumo_invalida':
       return 'La cantidad de consumo no es válida';
+    case 'cantidad_producida_excede_solicitada':
+      return 'La producción buena no puede superar la cantidad solicitada';
+    case 'operador_no_asignado_partida':
+      return 'La partida no está asignada al operador de la sesión';
     default:
       return mensajeGenerico;
   }

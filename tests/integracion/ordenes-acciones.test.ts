@@ -7,6 +7,7 @@ const {
   registrarLogMock,
   cambiarEstadoMock,
   registrarConsumoMock,
+  registrarConsumoOperadorMock,
   registrarTiempoMock,
   ErrorOrdenMock,
 } = vi.hoisted(() => {
@@ -19,6 +20,7 @@ const {
     registrarLogMock: vi.fn(),
     cambiarEstadoMock: vi.fn(),
     registrarConsumoMock: vi.fn(),
+    registrarConsumoOperadorMock: vi.fn(),
     registrarTiempoMock: vi.fn(),
     ErrorOrdenMock,
   };
@@ -43,6 +45,8 @@ vi.mock('@/modulos/ordenes/servicios/ordenes-servicio', () => ({
   ErrorOrden: ErrorOrdenMock,
   cambiarEstadoOrdenServicio: (...args: unknown[]) => cambiarEstadoMock(...args),
   registrarConsumoMaterialServicio: (...args: unknown[]) => registrarConsumoMock(...args),
+  registrarConsumoMaterialOperadorServicio: (...args: unknown[]) =>
+    registrarConsumoOperadorMock(...args),
   registrarTiempoOperadorServicio: (...args: unknown[]) => registrarTiempoMock(...args),
   mensajeErrorOrden: () => 'No se pudo actualizar la orden',
 }));
@@ -97,6 +101,12 @@ beforeEach(() => {
     cantidadTotal: 3,
     movimientoInventarioId: '55555555-5555-4555-8555-555555555555',
   });
+  registrarConsumoOperadorMock.mockResolvedValue({
+    id: '44444444-4444-4444-8444-444444444444',
+    costoUnitarioMomento: 25,
+    cantidadTotal: 3,
+    movimientoInventarioId: '55555555-5555-4555-8555-555555555555',
+  });
   registrarTiempoMock.mockResolvedValue({
     id: '66666666-6666-4666-8666-666666666666',
     partidaId: '77777777-7777-4777-8777-777777777777',
@@ -136,7 +146,7 @@ describe('seguridad de acciones de órdenes', () => {
     expect(registrarLogMock).not.toHaveBeenCalled();
   });
 
-  it('no permite invocar el consumo atómico sin aprobar_ordenes', async () => {
+  it('no permite invocar el consumo atómico sin gestionar_inventario', async () => {
     const respuesta = await registrarConsumoAccion({
       partidaId: '77777777-7777-4777-8777-777777777777',
       materialId: '88888888-8888-4888-8888-888888888888',
@@ -167,7 +177,6 @@ describe('seguridad de acciones de órdenes', () => {
       partidaId: '77777777-7777-4777-8777-777777777777',
       operadorId: OPERADOR.id,
       accion: 'inicio',
-      fechaRegistro: '2099-01-01T00:00:00.000Z',
     });
 
     expect(respuesta.exito).toBe(true);

@@ -183,14 +183,13 @@ describe('esquemaRegistrarTiempoOperador', () => {
     partidaId: uuidPartida,
     operadorId: uuidOperador,
     accion: 'inicio',
-    fechaRegistro: '2026-08-12T14:30:00.000Z',
   };
 
   it('acepta un evento CNC de inicio válido', () => {
     expect(esquemaRegistrarTiempoOperador.safeParse(registroValido).success).toBe(true);
   });
 
-  it('acepta pausa y fin sin fecha explícita', () => {
+  it('acepta pausa y fin', () => {
     expect(
       esquemaRegistrarTiempoOperador.safeParse({ ...registroValido, accion: 'pausa' }).success,
     ).toBe(true);
@@ -199,7 +198,7 @@ describe('esquemaRegistrarTiempoOperador', () => {
     ).toBe(true);
   });
 
-  it('rechaza IDs, acción y fecha fuera de contrato', () => {
+  it('rechaza IDs, acción y campos fuera de contrato', () => {
     expect(
       esquemaRegistrarTiempoOperador.safeParse({ ...registroValido, operadorId: 'operador-1' }).success,
     ).toBe(false);
@@ -207,7 +206,10 @@ describe('esquemaRegistrarTiempoOperador', () => {
       esquemaRegistrarTiempoOperador.safeParse({ ...registroValido, accion: 'reanudacion' }).success,
     ).toBe(false);
     expect(
-      esquemaRegistrarTiempoOperador.safeParse({ ...registroValido, fechaRegistro: '2026-08-12' }).success,
+      esquemaRegistrarTiempoOperador.safeParse({
+        ...registroValido,
+        fechaRegistro: '2026-08-12T14:30:00.000Z',
+      }).success,
     ).toBe(false);
   });
 });
@@ -277,10 +279,16 @@ describe('mappers de órdenes', () => {
         tiempo_estimado_minutos: 45,
         tiempo_real_minutos: 30,
         maquina_asignada: 'CNC-01',
+        operador_asignado_id: uuidOperador,
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
-    ).toMatchObject({ cantidadSolicitada: 25, cantidadProducida: 10, cantidadScrap: 1 });
+    ).toMatchObject({
+      cantidadSolicitada: 25,
+      cantidadProducida: 10,
+      cantidadScrap: 1,
+      operadorAsignadoId: uuidOperador,
+    });
 
     expect(
       filaARegistroTiempo({

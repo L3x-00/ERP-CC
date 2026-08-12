@@ -448,6 +448,7 @@ export type Database = {
           id: string
           maquina_asignada: string | null
           material_id: string | null
+          operador_asignado_id: string | null
           orden_id: string
           tiempo_estimado_minutos: number
           tiempo_real_minutos: number
@@ -464,6 +465,7 @@ export type Database = {
           id?: string
           maquina_asignada?: string | null
           material_id?: string | null
+          operador_asignado_id?: string | null
           orden_id: string
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
@@ -480,6 +482,7 @@ export type Database = {
           id?: string
           maquina_asignada?: string | null
           material_id?: string | null
+          operador_asignado_id?: string | null
           orden_id?: string
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
@@ -491,6 +494,13 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidas_orden_produccion_operador_asignado_id_fkey"
+            columns: ["operador_asignado_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
           {
@@ -648,6 +658,48 @@ export type Database = {
           telefono?: string
         }
         Relationships: []
+      }
+      registros_avance_partida: {
+        Row: {
+          cantidad_producida: number
+          cantidad_scrap: number
+          creado_en: string
+          id: string
+          operador_id: string
+          partida_id: string
+        }
+        Insert: {
+          cantidad_producida?: number
+          cantidad_scrap?: number
+          creado_en?: string
+          id?: string
+          operador_id: string
+          partida_id: string
+        }
+        Update: {
+          cantidad_producida?: number
+          cantidad_scrap?: number
+          creado_en?: string
+          id?: string
+          operador_id?: string
+          partida_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_avance_partida_operador_id_fkey"
+            columns: ["operador_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_avance_partida_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registros_consumo_material: {
         Row: {
@@ -833,6 +885,14 @@ export type Database = {
           ya_existia: boolean
         }[]
       }
+      asignar_operador_a_partida_op: {
+        Args: { p_operador_id: string; p_partida_id: string }
+        Returns: {
+          actualizado_en: string
+          operador_asignado_id: string
+          partida_id: string
+        }[]
+      }
       cambiar_estado_orden: {
         Args: {
           p_estado_actual: string
@@ -896,6 +956,21 @@ export type Database = {
           p_cantidad_scrap: number
           p_cantidad_usada: number
           p_material_id: string
+          p_partida_id: string
+        }
+        Returns: {
+          cantidad_total: number
+          costo_unitario_momento: number
+          id: string
+          movimiento_inventario_id: string
+        }[]
+      }
+      registrar_consumo_material_operador_op: {
+        Args: {
+          p_cantidad_scrap: number
+          p_cantidad_usada: number
+          p_material_id: string
+          p_operador_id: string
           p_partida_id: string
         }
         Returns: {

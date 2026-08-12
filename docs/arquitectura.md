@@ -36,7 +36,10 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - `registrar_consumo_material_op` bloquea el material, valida la partida y el stock, crea la salida de kardex y persiste consumo/scrap con el CPP histórico en una única transacción. La RPC solo es ejecutable por `service_role`; el consumo no recalcula CPP porque una salida no cambia el costo promedio.
 - Las marcas de tiempo pasan por `registrar_tiempo_operador_op`: bloquea partida y OP, exige que esta siga `en_proceso`, verifica un operador activo y usa `now()` de PostgreSQL. La RPC solo es ejecutable por `service_role`; la acción contrasta además el operador con una cookie PIN HMAC vigente.
 - `registrar_avance_partida_op` acumula piezas buenas y scrap bajo locks de partida y OP. El consumo de material usa el mismo estado bloqueado `en_proceso`; con ello una cancelación, término o pausa concurrentes no se intercalan con un registro de piso.
-- `usarTiendaOrdenes` concentra estado efímero de taller (orden activa, filtros de máquina/estado y versión de actualización) sin persistirlo entre turnos.
+- La asignación `operador_asignado_id` se valida dentro de las RPC de tiempo, avance y consumo. El motor rechaza cualquier operación de piso fuera de su partida asignada.
+- Las funciones de apoyo a RLS viven en el esquema `privado`, fijan su ruta de búsqueda y no son invocables directamente por roles de navegador.
+- Los cambios de producción se publican por Supabase Realtime bajo RLS. Las terminales PIN reciben solamente una señal SSE desde el servidor, revalidan su sesión y vuelven a cargar datos ya filtrados por operador; no reciben filas, costos ni credenciales privilegiadas.
+- `usarTiendaOrdenes` concentra estado efímero de taller (orden activa y filtros de máquina/estado) sin persistirlo entre turnos.
 - Storage de adjuntos y documentos usa buckets privados y políticas acotadas al permiso correspondiente.
 
 ## Convenciones de código

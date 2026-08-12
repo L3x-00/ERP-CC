@@ -25,6 +25,7 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fase 5.2: consumo atómico de materiales por partida, salida de kardex, protección de stock, CPP histórico y cálculo de merma/desviación, aplicados y verificados en Supabase remoto.
 - Fase 5.3: acciones server-side para OP, consumo y tiempo; sesión PIN contrastada con un operador activo; marcas con hora de PostgreSQL y estado de OP bloqueado; y tienda Zustand v5 de taller. Aplicada y verificada en Supabase remoto.
 - Fase 5.4: control de piso funcional para tiempo, avance, scrap y consumo de material; interfaz privada de OP, RPC atómica de avance y E2E de navegador. Aplicada y verificada en Supabase remoto.
+- Endurecimiento transversal de Fase 5: escritura de inventario restringida, helpers RLS privados, permisos separados de inventario/producción, asignación obligatoria de operador y sincronización automática de OP y piso. Aplicado y verificado en Supabase remoto.
 - Próximo hito funcional: Fase 6 — Planeación.
 
 ## Reglas funcionales que no se deben romper
@@ -32,4 +33,5 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Los errores que llegan a usuarios son genéricos; los detalles se registran internamente.
 - Folios, límites, stock y cálculos concurrentes se resuelven en Postgres, nunca contando filas ni desde el cliente.
 - La seguridad combina permisos server-side y RLS de Supabase.
+- Toda actualización relevante de producción se propaga automáticamente: Realtime para usuarios autenticados y un relay sin payload para sesiones PIN.
 - Los documentos de producción no muestran precios; las líneas comerciales y actividades internas son niveles distintos.

@@ -13,7 +13,7 @@ export const esquemaPartidaOrden = z.object({
   materialId: z.uuid('ID de material inválido').optional(),
   tiempoEstimadoMinutos: z.number().min(0, 'El tiempo no puede ser negativo').default(0),
   maquinaAsignada: z.string().trim().optional(),
-});
+}).strict();
 
 export const esquemaCrearOrden = z.object({
   clienteId: z.uuid('ID de cliente inválido'),
@@ -23,7 +23,7 @@ export const esquemaCrearOrden = z.object({
   partidas: z
     .array(esquemaPartidaOrden)
     .min(1, 'La orden requiere al menos una partida'),
-});
+}).strict();
 
 /** Una orden manual no puede apropiarse de una cotización de Pipeline. */
 export const esquemaCrearOrdenManual = esquemaCrearOrden.omit({ cotizacionId: true }).strict();
@@ -34,7 +34,7 @@ export const esquemaCambiarEstadoOrden = z
     estadoActual: z.enum(ESTADOS_ORDEN_PRODUCCION),
     estado: z.enum(ESTADOS_ORDEN_PRODUCCION),
     motivoCancelacion: z.string().trim().optional(),
-  })
+  }).strict()
   .superRefine((valor, ctx) => {
     if (valor.estado !== 'cancelada') {
       return;
@@ -55,9 +55,8 @@ export const esquemaRegistrarTiempoOperador = z.object({
   partidaId: z.uuid('ID de partida inválido'),
   operadorId: z.uuid('ID de operador inválido'),
   accion: z.enum(ACCIONES_TIEMPO_OPERADOR),
-  fechaRegistro: z.iso.datetime({ message: 'Fecha de registro inválida' }).optional(),
   notas: z.string().trim().optional(),
-});
+}).strict();
 
 /** Consumo en unidad de control; usado y scrap salen juntos del inventario. */
 export const esquemaRegistrarConsumoMaterial = z
@@ -66,7 +65,7 @@ export const esquemaRegistrarConsumoMaterial = z
     materialId: z.uuid('ID de material inválido'),
     cantidadUsada: z.number().min(0, 'La cantidad usada no puede ser negativa'),
     cantidadScrap: z.number().min(0, 'La cantidad de scrap no puede ser negativa'),
-  })
+  }).strict()
   .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {
     message: 'Debe registrar una cantidad usada o scrap mayor a 0',
     path: ['cantidadUsada'],
@@ -78,11 +77,17 @@ export const esquemaRegistrarAvancePartida = z
     partidaId: z.uuid('ID de partida inválido'),
     cantidadProducida: z.number().min(0, 'La cantidad producida no puede ser negativa'),
     cantidadScrap: z.number().min(0, 'La cantidad de scrap no puede ser negativa'),
-  })
+  }).strict()
   .refine((valor) => valor.cantidadProducida + valor.cantidadScrap > 0, {
     message: 'Debe registrar producción o scrap mayor a 0',
     path: ['cantidadProducida'],
   });
+
+/** Asignación explícita que autoriza a un operador a trabajar una partida. */
+export const esquemaAsignarOperadorPartida = z.object({
+  partidaId: z.uuid('ID de partida inválido'),
+  operadorId: z.uuid('ID de operador inválido'),
+}).strict();
 
 export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
@@ -91,3 +96,4 @@ export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;
 export type RegistrarTiempoOperadorInput = z.infer<typeof esquemaRegistrarTiempoOperador>;
 export type RegistrarConsumoMaterialInput = z.infer<typeof esquemaRegistrarConsumoMaterial>;
 export type RegistrarAvancePartidaInput = z.infer<typeof esquemaRegistrarAvancePartida>;
+export type AsignarOperadorPartidaInput = z.infer<typeof esquemaAsignarOperadorPartida>;

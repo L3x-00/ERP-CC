@@ -166,6 +166,10 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
 
   if (contexto.partidaId) {
     await contexto.admin
+      .from('registros_avance_partida')
+      .delete()
+      .eq('partida_id', contexto.partidaId);
+    await contexto.admin
       .from('registros_consumo_material')
       .delete()
       .eq('partida_id', contexto.partidaId);
@@ -250,6 +254,28 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     expect(orden).not.toBeNull();
     const folio = orden!.folio;
 
+    const { data: partidaAsignada, error: errorAsignacion } = await contexto.admin
+      .from('partidas_orden_produccion')
+      .select('id')
+      .eq('orden_id', contexto.ordenId!)
+      .single();
+    expect(errorAsignacion).toBeNull();
+    expect(partidaAsignada).not.toBeNull();
+    contexto.partidaId = partidaAsignada!.id;
+
+    const { error: errorSinAsignacion } = await contexto.admin.rpc('registrar_tiempo_operador_op', {
+      p_partida_id: contexto.partidaId,
+      p_operador_id: contexto.operadorId,
+      p_accion: 'inicio',
+    });
+    expect(errorSinAsignacion?.message).toContain('operador_no_asignado_partida');
+
+    const { error: errorOperadorAsignado } = await contexto.admin
+      .from('partidas_orden_produccion')
+      .update({ operador_asignado_id: contexto.operadorId })
+      .eq('id', contexto.partidaId);
+    expect(errorOperadorAsignado).toBeNull();
+
     const filaOrden = page.getByRole('row', { name: new RegExp(folio) });
     await expect(filaOrden).toBeVisible();
     await expect(page.getByTestId('tabla-ordenes')).toHaveAttribute('data-hidratado', 'true');
@@ -263,9 +289,15 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     for (const digito of contexto.pinOperador) {
       await page.getByRole('button', { name: digito, exact: true }).click();
     }
+    const respuestaSincronizacion = page.waitForResponse(
+      (respuesta) =>
+        respuesta.url().includes('/api/produccion-piso/sincronizacion')
+        && respuesta.status() === 200,
+    );
     await page.getByRole('button', { name: 'Confirmar PIN' }).click();
     await page.waitForURL('**/produccion-piso');
     await expect(page.getByTestId('control-piso')).toHaveAttribute('data-hidratado', 'true');
+    await respuestaSincronizacion;
 
     await page.getByTestId('selector-orden-piso').selectOption(contexto.ordenId!);
     await page.getByTestId('iniciar-tiempo').click();
@@ -283,7 +315,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
 
     const { data: partida, error: errorPartida } = await contexto.admin
       .from('partidas_orden_produccion')
-      .select('id, cantidad_producida, cantidad_scrap')
+      .select('id, cantidad_producida, cantidad_scrap, operador_asignado_id')
       .eq('orden_id', contexto.ordenId!)
       .single();
     expect(errorPartida).toBeNull();
@@ -291,6 +323,18 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     contexto.partidaId = partida!.id;
     expect(Number(partida!.cantidad_producida)).toBe(2);
     expect(Number(partida!.cantidad_scrap)).toBe(1);
+    expect(partida!.operador_asignado_id).toBe(contexto.operadorId);
+
+    const { data: avances, error: errorAvances } = await contexto.admin
+      .from('registros_avance_partida')
+      .select('cantidad_producida, cantidad_scrap, operador_id')
+      .eq('partida_id', contexto.partidaId);
+    expect(errorAvances).toBeNull();
+    expect(avances).toContainEqual({
+      cantidad_producida: 2,
+      cantidad_scrap: 1,
+      operador_id: contexto.operadorId,
+    });
 
     const { data: consumo, error: errorConsumo } = await contexto.admin
       .from('registros_consumo_material')
@@ -339,5 +383,23 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     for (const accion of accionesEsperadas) {
       expect(acciones.has(accion)).toBe(true);
     }
+
+    const { error: errorDesactivarOperador } = await contexto.admin
+      .from('usuarios')
+      .update({ activo: false })
+      .eq('id', contexto.operadorId);
+    expect(errorDesactivarOperador).toBeNull();
+
+    const { error: errorConsumoOperadorInactivo } = await contexto.admin.rpc(
+      'registrar_consumo_material_operador_op',
+      {
+        p_partida_id: contexto.partidaId,
+        p_material_id: contexto.materialId,
+        p_cantidad_usada: 1,
+        p_cantidad_scrap: 0,
+        p_operador_id: contexto.operadorId,
+      },
+    );
+    expect(errorConsumoOperadorInactivo?.message).toContain('operador_no_activo');
   });
 });

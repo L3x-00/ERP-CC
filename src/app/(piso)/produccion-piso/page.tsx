@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { IndicadorSesion } from '@/modulos/autenticacion/componentes/indicador-sesion';
 import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
-import { obtenerOrdenesConPartidasServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
+import { obtenerOrdenesConPartidasDeOperadorServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
@@ -16,13 +17,21 @@ export default async function PaginaProduccionPiso() {
   }
 
   const admin = crearClienteSupabaseAdmin();
-  const [ordenes, resultadoMateriales] = await Promise.all([
-    obtenerOrdenesConPartidasServicio(admin, ['en_proceso']),
-    admin
-      .from('materiales')
-      .select('id, codigo, nombre, stock_actual_control, unidad_control')
-      .order('nombre', { ascending: true }),
-  ]);
+  const ordenes = await obtenerOrdenesConPartidasDeOperadorServicio(admin, operador.id);
+  const idsMateriales = [
+    ...new Set(
+      ordenes.flatMap(({ partidas }) =>
+        partidas.flatMap((partida) => (partida.materialId ? [partida.materialId] : [])),
+      ),
+    ),
+  ];
+  const resultadoMateriales = idsMateriales.length
+    ? await admin
+        .from('materiales')
+        .select('id, codigo, nombre, stock_actual_control, unidad_control')
+        .in('id', idsMateriales)
+        .order('nombre', { ascending: true })
+    : { data: [], error: null };
 
   if (resultadoMateriales.error) {
     throw new Error('No se pudieron cargar los materiales para el control de piso');
@@ -38,6 +47,7 @@ export default async function PaginaProduccionPiso() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <SincronizadorPisoRealtime />
       <IndicadorSesion nombreUsuario={operador.nombreCompleto} esOperador />
       <ControlPisoPanel operadorId={operador.id} ordenes={ordenes} materiales={materiales} />
     </div>

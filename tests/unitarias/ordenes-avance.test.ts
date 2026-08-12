@@ -16,7 +16,14 @@ const ENTRADA_AVANCE = {
 
 describe('avance atómico de partidas', () => {
   it('acepta producción o scrap positivo y rechaza un avance vacío o negativo', () => {
-    expect(esquemaRegistrarAvancePartida.safeParse(ENTRADA_AVANCE).success).toBe(true);
+    expect(
+      esquemaRegistrarAvancePartida.safeParse({
+        partidaId: ENTRADA_AVANCE.partidaId,
+        cantidadProducida: ENTRADA_AVANCE.cantidadProducida,
+        cantidadScrap: ENTRADA_AVANCE.cantidadScrap,
+      }).success,
+    ).toBe(true);
+    expect(esquemaRegistrarAvancePartida.safeParse(ENTRADA_AVANCE).success).toBe(false);
     expect(
       esquemaRegistrarAvancePartida.safeParse({
         partidaId: ENTRADA_AVANCE.partidaId,

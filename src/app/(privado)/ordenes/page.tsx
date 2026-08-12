@@ -1,5 +1,6 @@
 import { crearOrdenAccion } from '@/modulos/ordenes/acciones/crear-orden';
 import { FormularioOrden } from '@/modulos/ordenes/componentes/formulario-orden';
+import { SincronizadorOrdenesRealtime } from '@/modulos/ordenes/componentes/sincronizador-ordenes-realtime';
 import { TablaOrdenes, type OrdenTabla } from '@/modulos/ordenes/componentes/tabla-ordenes';
 import { obtenerOrdenesConPartidasServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
@@ -50,6 +51,7 @@ export default async function PaginaOrdenes() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8">
+      <SincronizadorOrdenesRealtime />
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Órdenes de producción</h1>
         <p className="text-sm text-foreground/70">

@@ -17,7 +17,7 @@ const RUTAS_PUBLICAS = ['/iniciar-sesion', '/operador'];
  * - Usuario autenticado en /iniciar-sesion → redirige a /tablero.
  * - Sin sesión en ruta protegida → redirige a /iniciar-sesion.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
