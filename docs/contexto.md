@@ -24,7 +24,8 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fase 5.1: modelo de Órdenes de Producción con folios OP atómicos, RLS de lectura, contratos TypeScript y validaciones Zod v4.
 - Fase 5.2: consumo atómico de materiales por partida, salida de kardex, protección de stock, CPP histórico y cálculo de merma/desviación, aplicados y verificados en Supabase remoto.
 - Fase 5.3: acciones server-side para OP, consumo y tiempo; sesión PIN contrastada con un operador activo; marcas con hora de PostgreSQL y estado de OP bloqueado; y tienda Zustand v5 de taller. Aplicada y verificada en Supabase remoto.
-- Próximo hito funcional: Fase 5.4 — Control de piso y pruebas E2E.
+- Fase 5.4: control de piso funcional para tiempo, avance, scrap y consumo de material; interfaz privada de OP, RPC atómica de avance y E2E de navegador. Aplicada y verificada en Supabase remoto.
+- Próximo hito funcional: Fase 6 — Planeación.
 
 ## Reglas funcionales que no se deben romper
 

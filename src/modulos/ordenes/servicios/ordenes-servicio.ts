@@ -16,6 +16,7 @@ import type {
   CambiarEstadoOrdenInput,
   CrearOrdenManualInput,
   RegistrarConsumoMaterialInput,
+  RegistrarAvancePartidaInput,
   RegistrarTiempoOperadorInput,
 } from '@/modulos/ordenes/validaciones/ordenes';
 
@@ -31,6 +32,7 @@ export type CodigoErrorOrden =
   | 'material_inexistente'
   | 'material_no_corresponde_partida'
   | 'cantidad_consumo_invalida'
+  | 'cantidad_avance_invalida'
   | 'orden_no_en_proceso'
   | 'operador_no_activo'
   | 'accion_tiempo_invalida'
@@ -75,6 +77,13 @@ export type ConsumoMaterialRegistrado = {
   movimientoInventarioId: string;
 };
 
+export type AvancePartidaRegistrado = {
+  partidaId: string;
+  cantidadProducida: number;
+  cantidadScrap: number;
+  actualizadoEn: string;
+};
+
 function partidasAJson(partidas: CrearOrdenManualInput['partidas']): Json {
   return partidas.map((partida) => ({
     codigo_pieza: partida.codigoPieza,
@@ -107,6 +116,7 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('cantidad_consumo_invalida')) {
     return 'cantidad_consumo_invalida';
   }
+  if (mensaje.includes('cantidad_avance_invalida')) return 'cantidad_avance_invalida';
   if (mensaje.includes('orden_no_en_proceso')) return 'orden_no_en_proceso';
   if (mensaje.includes('operador_no_activo')) return 'operador_no_activo';
   if (mensaje.includes('accion_tiempo_invalida')) return 'accion_tiempo_invalida';
@@ -232,6 +242,53 @@ export async function obtenerOrdenConPartidasServicio(
   };
 }
 
+/**
+ * Carga las OP y todas sus partidas en dos consultas, sin N+1. El cliente
+ * recibido conserva el alcance de lectura definido por RLS.
+ */
+export async function obtenerOrdenesConPartidasServicio(
+  cliente: SupabaseClient<Database>,
+  estados?: readonly EstadoOrden[],
+): Promise<OrdenConPartidas[]> {
+  let consultaOrdenes = cliente.from('ordenes_produccion').select('*');
+  if (estados && estados.length > 0) {
+    consultaOrdenes = consultaOrdenes.in('estado', estados);
+  }
+
+  const { data: filasOrdenes, error: errorOrdenes } = await consultaOrdenes.order('creado_en', {
+    ascending: false,
+  });
+  if (errorOrdenes) {
+    throw new ErrorOrden('desconocido', errorOrdenes.message);
+  }
+
+  const ordenes = (filasOrdenes ?? []).map(filaAOrden);
+  if (ordenes.length === 0) return [];
+
+  const idsOrdenes = ordenes.map((orden) => orden.id);
+  const { data: filasPartidas, error: errorPartidas } = await cliente
+    .from('partidas_orden_produccion')
+    .select('*')
+    .in('orden_id', idsOrdenes)
+    .order('creado_en', { ascending: true });
+  if (errorPartidas) {
+    throw new ErrorOrden('desconocido', errorPartidas.message);
+  }
+
+  const partidasPorOrden = new Map<string, Partida[]>();
+  for (const fila of filasPartidas ?? []) {
+    const partida = filaAPartida(fila);
+    const partidas = partidasPorOrden.get(partida.ordenId) ?? [];
+    partidas.push(partida);
+    partidasPorOrden.set(partida.ordenId, partidas);
+  }
+
+  return ordenes.map((orden) => ({
+    orden,
+    partidas: partidasPorOrden.get(orden.id) ?? [],
+  }));
+}
+
 /** Lista el historial de consumo de una partida para cálculo de merma y costo real. */
 export async function obtenerConsumosPartidaServicio(
   cliente: SupabaseClient<Database>,
@@ -301,6 +358,33 @@ export async function registrarTiempoOperadorServicio(
   if (!fila) throw new ErrorOrden('desconocido');
 
   return filaARegistroTiempo(fila);
+}
+
+/**
+ * Acumula piezas fabricadas y scrap mediante la RPC de piso. La suma se hace
+ * en PostgreSQL bajo locks, nunca con valores leídos previamente en la UI.
+ */
+export async function registrarAvancePartidaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: RegistrarAvancePartidaInput & { operadorId: string },
+): Promise<AvancePartidaRegistrado> {
+  const { data, error } = await admin.rpc('registrar_avance_partida_op', {
+    p_partida_id: entrada.partidaId,
+    p_operador_id: entrada.operadorId,
+    p_cantidad_producida: entrada.cantidadProducida,
+    p_cantidad_scrap: entrada.cantidadScrap,
+  });
+
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.partida_id) throw new ErrorOrden('desconocido');
+
+  return {
+    partidaId: fila.partida_id,
+    cantidadProducida: Number(fila.cantidad_producida),
+    cantidadScrap: Number(fila.cantidad_scrap),
+    actualizadoEn: fila.actualizado_en,
+  };
 }
 
 export function mensajeErrorOrden(

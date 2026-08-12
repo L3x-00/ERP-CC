@@ -10,6 +10,7 @@ import {
 import { esquemaRegistrarConsumoMaterial } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -50,6 +51,47 @@ export async function registrarConsumoAccion(
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
     console.error('[ORDENES] Error al registrar consumo:', error);
     await registrarLog(usuario, 'consumo_material_rechazado', 'ordenes', analisis.data.partidaId, {
+      codigo,
+      materialId: analisis.data.materialId,
+    });
+    return { exito: false, error: 'No se pudo registrar el consumo de material' };
+  }
+}
+
+/**
+ * Variante exclusiva para piso: el operador se autentica por PIN firmado y
+ * vigente. Conserva la misma RPC atómica de inventario que usa administración.
+ */
+export async function registrarConsumoOperadorAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<ConsumoMaterialRegistrado>> {
+  const analisis = esquemaRegistrarConsumoMaterial.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  const operador = await obtenerOperadorConSesionActiva();
+  if (!operador) {
+    return { exito: false, error: 'Sesión de operador no válida' };
+  }
+
+  try {
+    const consumo = await registrarConsumoMaterialServicio(
+      crearClienteSupabaseAdmin(),
+      analisis.data,
+    );
+    await registrarLog(operador, 'registrar_consumo_material', 'ordenes', consumo.id, {
+      partidaId: analisis.data.partidaId,
+      materialId: analisis.data.materialId,
+      cantidadUsada: analisis.data.cantidadUsada,
+      cantidadScrap: analisis.data.cantidadScrap,
+      movimientoInventarioId: consumo.movimientoInventarioId,
+    });
+    return { exito: true, datos: consumo };
+  } catch (error) {
+    const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
+    console.error('[ORDENES] Error de consumo de operador:', error);
+    await registrarLog(operador, 'consumo_material_rechazado', 'ordenes', analisis.data.partidaId, {
       codigo,
       materialId: analisis.data.materialId,
     });

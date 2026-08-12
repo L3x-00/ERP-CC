@@ -12,14 +12,14 @@
 | 5.1 | Esquema de órdenes de producción, folios OP atómicos, RLS de lectura, contratos TypeScript y validaciones Zod v4. |
 | 5.2 | Motor transaccional de consumo de materiales por OP, kardex atómico, protección de stock, costo CPP histórico y cálculos de merma/desviación. Aplicado y validado en Supabase remoto. |
 | 5.3 | Server Actions seguras para creación, estado, consumo y tiempo; sesión PIN validada; RPC de tiempo con hora de PostgreSQL; y tienda Zustand v5 para el taller. Aplicado y validado en Supabase remoto. |
+| 5.4 | Control de piso funcional, avance y scrap atómicos, consumo restringido a OP en proceso, interfaz de OP y flujo E2E completo con Playwright. Aplicado y validado en Supabase remoto. |
 
 ## Siguiente alcance
 
-1. **Fase 5.4 — Control de piso:** panel funcional, registro ágil de producción y pruebas E2E del flujo completo.
-2. **Fase 6 — Planeación:** calendario, modo preparación y candado por área.
-3. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega.
-4. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
-5. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
+1. **Fase 6 — Planeación:** calendario, modo preparación y candado por área.
+2. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega.
+3. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
+4. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
 
 ## Fuera de alcance actual
 

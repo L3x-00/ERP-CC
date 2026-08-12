@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { validarPinAccion } from '@/modulos/autenticacion/acciones/validar-pin';
 import {
@@ -23,6 +23,12 @@ export function TecladoPin() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [validando, setValidando] = useState(false);
+  const [hidratado, setHidratado] = useState(false);
+
+  useEffect(() => {
+    const marco = requestAnimationFrame(() => setHidratado(true));
+    return () => cancelAnimationFrame(marco);
+  }, []);
 
   function agregarDigito(digito: string): void {
     setError(null);
@@ -66,7 +72,11 @@ export function TecladoPin() {
     'h-20 rounded-xl bg-zinc-800 text-3xl font-semibold text-zinc-50 transition-colors active:bg-zinc-700 disabled:opacity-40';
 
   return (
-    <div className="flex w-full max-w-xs flex-col items-center gap-6">
+    <div
+      data-testid="teclado-pin"
+      data-hidratado={hidratado ? 'true' : 'false'}
+      className="flex w-full max-w-xs flex-col items-center gap-6"
+    >
       <div
         aria-label="PIN ingresado"
         className="flex h-14 w-full items-center justify-center rounded-xl bg-zinc-900 text-3xl tracking-[0.5em] text-zinc-50"

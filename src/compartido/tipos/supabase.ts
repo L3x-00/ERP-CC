@@ -264,7 +264,7 @@ export type Database = {
           costo_unitario_control: number
           creado_en: string
           descripcion: string | null
-          factor_conversion?: number
+          factor_conversion: number
           factor_merma_porcentaje: number
           id: string
           nombre: string
@@ -283,7 +283,7 @@ export type Database = {
           costo_unitario_control?: number
           creado_en?: string
           descripcion?: string | null
-          factor_conversion: number
+          factor_conversion?: number
           factor_merma_porcentaje?: number
           id?: string
           nombre: string
@@ -877,6 +877,20 @@ export type Database = {
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }
       generar_folio_op: { Args: never; Returns: string }
       generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
+      registrar_avance_partida_op: {
+        Args: {
+          p_cantidad_producida: number
+          p_cantidad_scrap: number
+          p_operador_id: string
+          p_partida_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          cantidad_producida: number
+          cantidad_scrap: number
+          partida_id: string
+        }[]
+      }
       registrar_consumo_material_op: {
         Args: {
           p_cantidad_scrap: number
@@ -889,24 +903,6 @@ export type Database = {
           costo_unitario_momento: number
           id: string
           movimiento_inventario_id: string
-        }[]
-      }
-      registrar_tiempo_operador_op: {
-        Args: {
-          p_accion: string
-          p_notas?: string
-          p_operador_id: string
-          p_partida_id: string
-        }
-        Returns: {
-          accion: string
-          actualizado_en: string
-          creado_en: string
-          fecha_registro: string
-          id: string
-          notas: string
-          operador_id: string
-          partida_id: string
         }[]
       }
       registrar_intento_fallido: {
@@ -932,6 +928,24 @@ export type Database = {
           p_tipo: string
         }
         Returns: string
+      }
+      registrar_tiempo_operador_op: {
+        Args: {
+          p_accion: string
+          p_notas?: string
+          p_operador_id: string
+          p_partida_id: string
+        }
+        Returns: {
+          accion: string
+          actualizado_en: string
+          creado_en: string
+          fecha_registro: string
+          id: string
+          notas: string
+          operador_id: string
+          partida_id: string
+        }[]
       }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }
     }

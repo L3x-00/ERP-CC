@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { iniciarSesionAccion } from '@/modulos/autenticacion/acciones/iniciar-sesion';
 
@@ -15,6 +15,12 @@ export function FormularioIniciarSesion() {
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [hidratado, setHidratado] = useState(false);
+
+  useEffect(() => {
+    const marco = requestAnimationFrame(() => setHidratado(true));
+    return () => cancelAnimationFrame(marco);
+  }, []);
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -41,6 +47,9 @@ export function FormularioIniciarSesion() {
   return (
     <form
       onSubmit={manejarEnvio}
+      method="post"
+      data-testid="formulario-iniciar-sesion"
+      data-hidratado={hidratado ? 'true' : 'false'}
       className="flex w-full max-w-sm flex-col gap-4"
       noValidate
     >

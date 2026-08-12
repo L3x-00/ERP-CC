@@ -72,9 +72,22 @@ export const esquemaRegistrarConsumoMaterial = z
     path: ['cantidadUsada'],
   });
 
+/** Avance acumulable de una partida: producción buena y scrap de fabricación. */
+export const esquemaRegistrarAvancePartida = z
+  .object({
+    partidaId: z.uuid('ID de partida inválido'),
+    cantidadProducida: z.number().min(0, 'La cantidad producida no puede ser negativa'),
+    cantidadScrap: z.number().min(0, 'La cantidad de scrap no puede ser negativa'),
+  })
+  .refine((valor) => valor.cantidadProducida + valor.cantidadScrap > 0, {
+    message: 'Debe registrar producción o scrap mayor a 0',
+    path: ['cantidadProducida'],
+  });
+
 export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
 export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
 export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;
 export type RegistrarTiempoOperadorInput = z.infer<typeof esquemaRegistrarTiempoOperador>;
 export type RegistrarConsumoMaterialInput = z.infer<typeof esquemaRegistrarConsumoMaterial>;
+export type RegistrarAvancePartidaInput = z.infer<typeof esquemaRegistrarAvancePartida>;

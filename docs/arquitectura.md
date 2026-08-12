@@ -7,7 +7,7 @@
 - TanStack Query v5 para datos de servidor y Zustand v5 para estado de interfaz.
 - Zod v4 y React Hook Form para validación y formularios.
 - Supabase: Postgres, Auth, Storage y RLS mediante `@supabase/ssr`.
-- Vitest para pruebas unitarias e integración; pnpm como gestor de paquetes.
+- Vitest para pruebas unitarias e integración; Playwright para E2E y pnpm como gestor de paquetes.
 
 ## Capas
 
@@ -19,6 +19,7 @@ src/nucleo/                      Supabase, autenticación, permisos y auditoría
 src/estado/                      estado global de interfaz
 supabase/migrations/             esquema y funciones SQL versionadas
 tests/unitarias|integracion/     evidencia automatizada
+tests/e2e/                       flujo de navegador con datos temporales aislados
 ```
 
 Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, comprueban permisos cuando corresponde, llaman al servicio y registran auditoría. Los componentes no acceden directamente a Supabase.
@@ -34,6 +35,7 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - `registrar_movimiento_inventario` bloquea la fila del material, rechaza stock negativo y recalcula el costo promedio ponderado dentro de la misma transacción.
 - `registrar_consumo_material_op` bloquea el material, valida la partida y el stock, crea la salida de kardex y persiste consumo/scrap con el CPP histórico en una única transacción. La RPC solo es ejecutable por `service_role`; el consumo no recalcula CPP porque una salida no cambia el costo promedio.
 - Las marcas de tiempo pasan por `registrar_tiempo_operador_op`: bloquea partida y OP, exige que esta siga `en_proceso`, verifica un operador activo y usa `now()` de PostgreSQL. La RPC solo es ejecutable por `service_role`; la acción contrasta además el operador con una cookie PIN HMAC vigente.
+- `registrar_avance_partida_op` acumula piezas buenas y scrap bajo locks de partida y OP. El consumo de material usa el mismo estado bloqueado `en_proceso`; con ello una cancelación, término o pausa concurrentes no se intercalan con un registro de piso.
 - `usarTiendaOrdenes` concentra estado efímero de taller (orden activa, filtros de máquina/estado y versión de actualización) sin persistirlo entre turnos.
 - Storage de adjuntos y documentos usa buckets privados y políticas acotadas al permiso correspondiente.
 
