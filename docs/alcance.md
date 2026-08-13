@@ -17,7 +17,7 @@
 
 ## Siguiente alcance
 
-1. **Fase 6 — Planeación:** calendario, modo preparación y candado por área.
+1. **Fase 6 — Planeación:** recursos explícitos, capacidad por turno, programación atómica, preparación bloqueada por recurso y sincronización en tiempo real. El plan técnico está en `docs/fase-6/plan-ejecucion-ajustado.md`.
 2. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega.
 3. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
 4. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
