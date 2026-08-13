@@ -1,4 +1,4 @@
-import type { Tables } from '@/compartido/tipos/supabase';
+import type { Database, Tables } from '@/compartido/tipos/supabase';
 
 /** Contratos de dominio de Planeación — Sub-fase 6.1. */
 
@@ -39,6 +39,18 @@ export interface CapacidadRecursoTurno {
   actualizadoEn: string;
 }
 
+/** Excepción de capacidad para mantenimiento, feriado o turno extraordinario. */
+export interface ExcepcionCapacidadRecurso {
+  id: string;
+  recursoId: string;
+  fecha: string;
+  turno: TurnoPlaneacion;
+  horasCapacidad: number;
+  motivo: string;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
 /** Asignación de una partida a un recurso en una fecha y turno concretos. */
 export interface ProgramacionArea {
   id: string;
@@ -55,10 +67,26 @@ export interface ProgramacionArea {
   actualizadoEn: string;
 }
 
+/** Resumen de PostgreSQL para un recurso, fecha y turno; no autoriza mutaciones. */
+export interface CargaCapacidadDiaria {
+  recursoId: string;
+  area: AreaPlaneacion;
+  fechaProgramada: string;
+  turno: TurnoPlaneacion;
+  horasCapacidad: number;
+  horasProgramadas: number;
+  horasDisponibles: number;
+  porcentajeOcupacion: number;
+  sobrecargado: boolean;
+}
+
 /** Filas crudas snake_case derivadas directamente de los tipos generados de Supabase. */
 export type FilaRecursoPlaneacion = Tables<'recursos_planeacion'>;
 export type FilaCapacidadRecursoTurno = Tables<'capacidades_recurso_turno'>;
+export type FilaExcepcionCapacidadRecurso = Tables<'excepciones_capacidad_recurso'>;
 export type FilaProgramacionArea = Tables<'programacion_areas'>;
+export type FilaCargaCapacidadDiaria =
+  Database['public']['Functions']['obtener_carga_capacidad_diaria']['Returns'][number];
 
 /**
  * Las columnas de enumeración viajan como `text` en los tipos generados: un valor
@@ -100,6 +128,21 @@ export function filaACapacidadRecursoTurno(
   };
 }
 
+export function filaAExcepcionCapacidadRecurso(
+  fila: FilaExcepcionCapacidadRecurso,
+): ExcepcionCapacidadRecurso {
+  return {
+    id: fila.id,
+    recursoId: fila.recurso_id,
+    fecha: fila.fecha,
+    turno: validarValorEnumerado(fila.turno, TURNOS_PLANEACION, 'turno de excepción'),
+    horasCapacidad: Number(fila.horas_capacidad),
+    motivo: fila.motivo,
+    creadoEn: fila.creado_en,
+    actualizadoEn: fila.actualizado_en,
+  };
+}
+
 export function filaAProgramacionArea(fila: FilaProgramacionArea): ProgramacionArea {
   return {
     id: fila.id,
@@ -118,5 +161,21 @@ export function filaAProgramacionArea(fila: FilaProgramacionArea): ProgramacionA
     ),
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
+  };
+}
+
+export function filaACargaCapacidadDiaria(
+  fila: FilaCargaCapacidadDiaria,
+): CargaCapacidadDiaria {
+  return {
+    recursoId: fila.recurso_id,
+    area: validarValorEnumerado(fila.area, AREAS_PLANEACION, 'área de carga'),
+    fechaProgramada: fila.fecha_programada,
+    turno: validarValorEnumerado(fila.turno, TURNOS_PLANEACION, 'turno de carga'),
+    horasCapacidad: Number(fila.horas_capacidad),
+    horasProgramadas: Number(fila.horas_programadas),
+    horasDisponibles: Number(fila.horas_disponibles),
+    porcentajeOcupacion: Number(fila.porcentaje_ocupacion),
+    sobrecargado: fila.sobrecargado,
   };
 }

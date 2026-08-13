@@ -26,8 +26,9 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fase 5.3: acciones server-side para OP, consumo y tiempo; sesión PIN contrastada con un operador activo; marcas con hora de PostgreSQL y estado de OP bloqueado; y tienda Zustand v5 de taller. Aplicada y verificada en Supabase remoto.
 - Fase 5.4: control de piso funcional para tiempo, avance, scrap y consumo de material; interfaz privada de OP, RPC atómica de avance y E2E de navegador. Aplicada y verificada en Supabase remoto.
 - Endurecimiento transversal de Fase 5: escritura de inventario restringida, helpers RLS privados, permisos separados de inventario/producción, asignación obligatoria de operador y sincronización automática de OP y piso. Aplicado y verificado en Supabase remoto.
-- Fase 6.1: base de Planeación aplicada en Supabase remoto: recursos identificables, capacidad por turno, programación secuenciada, permisos específicos, RLS de mínimo privilegio, candado concurrente por recurso y publicación Realtime. Las verificaciones remotas usan exclusivamente datos ficticios temporales con limpieza comprobada.
-- Próximo hito funcional: Fase 6.2 — Motor transaccional de capacidad y preparación.
+- Fase 6.1: base de Planeación aplicada en Supabase remoto: recursos identificables, capacidad por turno, programación secuenciada, permisos específicos, RLS de mínimo privilegio, candado concurrente por recurso y publicación Realtime.
+- Fase 6.2: motor transaccional de capacidad aplicado en Supabase remoto: excepciones por fecha/turno, programación y reprogramación bajo lock, compare-and-set para cambios concurrentes, y toma de preparación protegida por el candado de recurso. Se conserva un conjunto idempotente de datos ficticios `SIM-PLN` para desarrollar y verificar sincronización, sin datos reales ni uso en producción.
+- Próximo hito funcional: Fase 6.3 — Server Actions, auditoría y sincronización de calendario.
 
 ## Reglas funcionales que no se deben romper
 

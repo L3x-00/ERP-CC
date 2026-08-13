@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests/unitarias",
     "test:integracion": "vitest run tests/integracion",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "datos:ficticios:planeacion": "node supabase/semillas/planeacion-ficticia.mjs",
+    "verificar:ficticios:planeacion": "node supabase/semillas/planeacion-ficticia.mjs --verificar",
+    "verificar:motor:planeacion": "node supabase/semillas/verificar-motor-capacidad.mjs",
+    "verificar:cas:planeacion": "node supabase/semillas/verificar-compare-and-set-planeacion.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",

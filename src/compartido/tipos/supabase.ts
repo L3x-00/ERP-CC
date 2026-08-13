@@ -219,6 +219,47 @@ export type Database = {
           },
         ]
       }
+      excepciones_capacidad_recurso: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          fecha: string
+          horas_capacidad: number
+          id: string
+          motivo: string
+          recurso_id: string
+          turno: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          fecha: string
+          horas_capacidad: number
+          id?: string
+          motivo: string
+          recurso_id: string
+          turno: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          fecha?: string
+          horas_capacidad?: number
+          id?: string
+          motivo?: string
+          recurso_id?: string
+          turno?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "excepciones_capacidad_recurso_recurso_id_fkey"
+            columns: ["recurso_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_planeacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intentos_login: {
         Row: {
           actualizado_en: string
@@ -1002,6 +1043,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activar_modo_preparacion: {
+        Args: { p_actualizado_en_esperado: string; p_programacion_id: string }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          id: string
+        }[]
+      }
       aprobar_oportunidad_y_crear_orden: {
         Args: {
           p_cliente_id: string
@@ -1066,6 +1115,37 @@ export type Database = {
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }
       generar_folio_op: { Args: never; Returns: string }
       generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
+      obtener_carga_capacidad_diaria: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: {
+          area: string
+          fecha_programada: string
+          horas_capacidad: number
+          horas_disponibles: number
+          horas_programadas: number
+          porcentaje_ocupacion: number
+          recurso_id: string
+          sobrecargado: boolean
+          turno: string
+        }[]
+      }
+      programar_partida_recurso: {
+        Args: {
+          p_fecha_programada: string
+          p_horas_estimadas: number
+          p_orden_id: string
+          p_orden_prioridad?: number
+          p_partida_id: string
+          p_recurso_id: string
+          p_secuencia: number
+          p_turno: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          id: string
+        }[]
+      }
       registrar_avance_partida_op: {
         Args: {
           p_cantidad_producida: number
@@ -1149,6 +1229,22 @@ export type Database = {
           notas: string
           operador_id: string
           partida_id: string
+        }[]
+      }
+      reprogramar_partida_recurso: {
+        Args: {
+          p_actualizado_en_esperado: string
+          p_fecha_programada: string
+          p_horas_estimadas: number
+          p_orden_prioridad: number
+          p_programacion_id: string
+          p_recurso_id: string
+          p_turno: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          id: string
         }[]
       }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }
