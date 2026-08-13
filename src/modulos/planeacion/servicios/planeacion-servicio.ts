@@ -4,9 +4,11 @@ import {
   ESTADOS_PLANEACION,
   filaACargaCapacidadDiaria,
   filaAProgramacionArea,
+  filaARecursoPlaneacion,
   type CargaCapacidadDiaria,
   type EstadoPlaneacion,
   type ProgramacionArea,
+  type RecursoPlaneacion,
   type TurnoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import type {
@@ -64,6 +66,13 @@ export type FiltrosCalendarioPlaneacion = {
   fechaFin: string;
   recursoId?: string;
   estados?: readonly EstadoPlaneacion[];
+};
+
+/** Proyección de calendario: una sola lectura de recursos, carga y programaciones. */
+export type DatosCalendarioPlaneacion = {
+  recursos: RecursoPlaneacion[];
+  cargas: CargaCapacidadDiaria[];
+  programaciones: ProgramacionArea[];
 };
 
 function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
@@ -213,6 +222,42 @@ export async function obtenerProgramacionesCalendarioServicio(
 
   if (error) lanzarErrorPlaneacion(error.message);
   return (data ?? []).map(filaAProgramacionArea);
+}
+
+/**
+ * Compone el calendario dentro del servidor. El cliente RLS gobierna recursos y
+ * programaciones; la carga calculada usa la RPC privilegiada solo después de la
+ * autorización de la Server Action llamadora.
+ */
+export async function obtenerDatosCalendarioPlaneacionServicio(
+  cliente: SupabaseClient<Database>,
+  admin: SupabaseClient<Database>,
+  filtros: FiltrosCalendarioPlaneacion,
+): Promise<DatosCalendarioPlaneacion> {
+  const [programaciones, respuestaRecursos] = await Promise.all([
+    obtenerProgramacionesCalendarioServicio(cliente, filtros),
+    cliente.from('recursos_planeacion').select('*').eq('activo', true).order('codigo'),
+  ]);
+
+  if (respuestaRecursos.error) lanzarErrorPlaneacion(respuestaRecursos.error.message);
+
+  const recursos = (respuestaRecursos.data ?? []).map(filaARecursoPlaneacion);
+  const recursosAutorizados = new Set(recursos.map((recurso) => recurso.id));
+  const cargas = await obtenerCargaCapacidadDiariaServicio(
+    admin,
+    filtros.fechaInicio,
+    filtros.fechaFin,
+  );
+
+  return {
+    recursos,
+    // La RPC de carga se ejecuta con service_role porque agrega capacidad; se
+    // vuelve a acotar a los recursos que RLS permiti\u00f3 leer. De otro modo, una
+    // pol\u00edtica futura m\u00e1s restrictiva en recursos filtrar\u00eda las filas visibles
+    // pero dejar\u00eda metadatos de capacidad de otros recursos en la respuesta.
+    cargas: cargas.filter((carga) => recursosAutorizados.has(carga.recursoId)),
+    programaciones,
+  };
 }
 
 /** Mensajes estables para Server Actions; el detalle PostgreSQL queda en el log interno. */

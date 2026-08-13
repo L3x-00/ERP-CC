@@ -1,8 +1,10 @@
 # Fase 6 — Planeación y capacidad por recurso
 
-Estado: Sub-fase 6.1 implementada; la Sub-fase 6.2 queda pendiente.
+Estado: Fase 6 cerrada técnicamente (sub-fases 6.1 a 6.4).
 
 ## Objetivo
+
+> Actualización vinculante del 2026-08-13: la decisión inicial de no conservar datos ficticios persistentes quedó sustituida por la autorización explícita del Product Owner. Las fixtures idempotentes `SIM-PLN` permanecen en el entorno de desarrollo; solo los datos E2E son efímeros y se limpian por ID.
 
 Programar partidas de producción contra recursos reales de taller, medir su capacidad por día y turno, impedir colisiones de preparación/ejecución desde PostgreSQL y propagar los cambios sin refresco manual.
 

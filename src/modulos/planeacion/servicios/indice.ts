@@ -2,6 +2,7 @@ export {
   ErrorPlaneacion,
   activarModoPreparacionServicio,
   mensajeErrorPlaneacion,
+  obtenerDatosCalendarioPlaneacionServicio,
   obtenerCargaCapacidadDiariaServicio,
   obtenerProgramacionesCalendarioServicio,
   programarPartidaRecursoServicio,
@@ -10,6 +11,7 @@ export {
 
 export type {
   CodigoErrorPlaneacion,
+  DatosCalendarioPlaneacion,
   FiltrosCalendarioPlaneacion,
   ProgramacionActualizada,
   ReprogramarPartidaRecursoEntrada,

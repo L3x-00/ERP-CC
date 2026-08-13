@@ -16,14 +16,14 @@
 | 5 transversal | Auditoría y endurecimiento: RLS de mínimo privilegio, asignación obligatoria de operador, trazabilidad de avance y sincronización automática segura. |
 | 6.1 | Esquema seguro de Planeación: recursos, capacidad por turno, programación secuenciada, candado concurrente por recurso, permisos/RLS y Realtime. Aplicado y validado remotamente solo con datos ficticios temporales. |
 | 6.2 | Motor transaccional de capacidad: excepciones de calendario, programación/reprogramación atómicas, compare-and-set, preparación exclusiva por recurso, servicios de capacidad y fixtures `SIM-PLN` persistentes. Aplicado y validado remotamente con datos ficticios. |
+| 6.3 | Server Actions de Planeación, permisos, auditoría, lectura acotada y estado cliente sin copias mutables de datos de servidor. |
+| 6.4 | Ruta `/planeacion`, calendario y asignación funcionales, Realtime con refetch seguro y E2E remoto colaborativo. |
 
 ## Siguiente alcance
 
-1. **Fase 6.3 — Planeación:** Server Actions autorizadas, auditoría, calendario y sincronización de cambios en tiempo real.
-2. **Fase 6.4 — Planeación:** pruebas de integración/E2E de la programación colaborativa y controles operativos.
-3. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega.
-4. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
-5. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
+1. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega; debe tomar recursos mediante RPC de Planeación.
+2. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
+3. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
 
 ## Fuera de alcance actual
 

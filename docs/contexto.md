@@ -28,7 +28,8 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Endurecimiento transversal de Fase 5: escritura de inventario restringida, helpers RLS privados, permisos separados de inventario/producción, asignación obligatoria de operador y sincronización automática de OP y piso. Aplicado y verificado en Supabase remoto.
 - Fase 6.1: base de Planeación aplicada en Supabase remoto: recursos identificables, capacidad por turno, programación secuenciada, permisos específicos, RLS de mínimo privilegio, candado concurrente por recurso y publicación Realtime.
 - Fase 6.2: motor transaccional de capacidad aplicado en Supabase remoto: excepciones por fecha/turno, programación y reprogramación bajo lock, compare-and-set para cambios concurrentes, y toma de preparación protegida por el candado de recurso. Se conserva un conjunto idempotente de datos ficticios `SIM-PLN` para desarrollar y verificar sincronización, sin datos reales ni uso en producción.
-- Próximo hito funcional: Fase 6.3 — Server Actions, auditoría y sincronización de calendario.
+- Fase 6 cerrada: las sub-fases 6.3 y 6.4 conectan Planeación mediante Server Actions autorizadas, bitácora, calendario operativo y Realtime sin refresco manual. TanStack Query conserva datos de servidor; Zustand solo filtros/selección. La E2E remota validó programación, preparación, auditoría y sincronización entre dos vistas, con limpieza de datos E2E.
+- Próximo hito funcional: Fase 7 — Producción integrada con la toma segura de recurso de Planeación.
 
 ## Reglas funcionales que no se deben romper
 
