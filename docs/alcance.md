@@ -14,10 +14,11 @@
 | 5.3 | Server Actions seguras para creación, estado, consumo y tiempo; sesión PIN validada; RPC de tiempo con hora de PostgreSQL; y tienda Zustand v5 para el taller. Aplicado y validado en Supabase remoto. |
 | 5.4 | Control de piso funcional, avance y scrap atómicos, consumo restringido a OP en proceso, interfaz de OP y flujo E2E completo con Playwright. Aplicado y validado en Supabase remoto. |
 | 5 transversal | Auditoría y endurecimiento: RLS de mínimo privilegio, asignación obligatoria de operador, trazabilidad de avance y sincronización automática segura. |
+| 6.1 | Esquema seguro de Planeación: recursos, capacidad por turno, programación secuenciada, candado concurrente por recurso, permisos/RLS y Realtime. Aplicado y validado remotamente solo con datos ficticios temporales. |
 
 ## Siguiente alcance
 
-1. **Fase 6 — Planeación:** recursos explícitos, capacidad por turno, programación atómica, preparación bloqueada por recurso y sincronización en tiempo real. El plan técnico está en `docs/fase-6/plan-ejecucion-ajustado.md`.
+1. **Fase 6.2 — Planeación:** RPCs atómicas de programación, reprogramación, capacidad y preparación bloqueada por recurso. El plan técnico está en `docs/fase-6/plan-ejecucion-ajustado.md`.
 2. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega.
 3. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
 4. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.

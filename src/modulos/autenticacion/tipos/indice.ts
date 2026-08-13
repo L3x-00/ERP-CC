@@ -14,7 +14,9 @@ export type Permiso =
   | 'configuracion'
   | 'cancelar_ordenes_en_proceso'
   | 'gestionar_inventario'
-  | 'gestionar_produccion';
+  | 'gestionar_produccion'
+  | 'ver_planeacion'
+  | 'gestionar_planeacion';
 
 /** Usuario del sistema (tabla usuarios). */
 export type Usuario = {

@@ -28,6 +28,8 @@ export const PERMISOS = [
   'cancelar_ordenes_en_proceso',
   'gestionar_inventario',
   'gestionar_produccion',
+  'ver_planeacion',
+  'gestionar_planeacion',
 ] as const;
 
 // Timeouts de sesión: ver src/nucleo/autenticacion/constantes.ts (única fuente,

@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      capacidades_recurso_turno: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          horas_capacidad: number
+          recurso_id: string
+          turno: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          horas_capacidad: number
+          recurso_id: string
+          turno: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          horas_capacidad?: number
+          recurso_id?: string
+          turno?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capacidades_recurso_turno_recurso_id_fkey"
+            columns: ["recurso_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_planeacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           actualizado_en: string
@@ -620,6 +652,73 @@ export type Database = {
           },
         ]
       }
+      programacion_areas: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          estado_planeacion: string
+          fecha_programada: string
+          horas_estimadas: number
+          id: string
+          orden_id: string
+          orden_prioridad: number
+          partida_id: string
+          recurso_id: string
+          secuencia: number
+          turno: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          estado_planeacion?: string
+          fecha_programada: string
+          horas_estimadas: number
+          id?: string
+          orden_id: string
+          orden_prioridad?: number
+          partida_id: string
+          recurso_id: string
+          secuencia?: number
+          turno?: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          estado_planeacion?: string
+          fecha_programada?: string
+          horas_estimadas?: number
+          id?: string
+          orden_id?: string
+          orden_prioridad?: number
+          partida_id?: string
+          recurso_id?: string
+          secuencia?: number
+          turno?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programacion_areas_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacion_areas_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programacion_areas_recurso_id_fkey"
+            columns: ["recurso_id"]
+            isOneToOne: false
+            referencedRelation: "recursos_planeacion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proveedores: {
         Row: {
           actualizado_en: string
@@ -656,6 +755,36 @@ export type Database = {
           razon_social?: string | null
           rfc?: string | null
           telefono?: string
+        }
+        Relationships: []
+      }
+      recursos_planeacion: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          area: string
+          codigo: string
+          creado_en: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          area: string
+          codigo: string
+          creado_en?: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          area?: string
+          codigo?: string
+          creado_en?: string
+          id?: string
+          nombre?: string
         }
         Relationships: []
       }

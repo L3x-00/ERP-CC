@@ -41,6 +41,7 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - Los cambios de producción se publican por Supabase Realtime bajo RLS. Las terminales PIN reciben solamente una señal SSE desde el servidor, revalidan su sesión y vuelven a cargar datos ya filtrados por operador; no reciben filas, costos ni credenciales privilegiadas.
 - `usarTiendaOrdenes` concentra estado efímero de taller (orden activa y filtros de máquina/estado) sin persistirlo entre turnos.
 - Storage de adjuntos y documentos usa buckets privados y políticas acotadas al permiso correspondiente.
+- Planeación separa el recurso programable del texto histórico `maquina_asignada`: `recursos_planeacion` identifica la máquina, celda o recurso externo; `capacidades_recurso_turno` define horas normales por turno y `programacion_areas` asigna una partida a una fecha, turno y secuencia. Un trigger garantiza que la partida pertenezca a la OP, y un índice único parcial impide dos preparaciones o ejecuciones simultáneas sobre el mismo recurso. Las tres tablas solo permiten lectura autenticada con permiso de planeación, reservan escritura a `service_role`/RPC y se publican en Realtime bajo RLS.
 
 ## Convenciones de código
 

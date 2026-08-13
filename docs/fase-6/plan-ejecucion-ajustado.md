@@ -1,6 +1,6 @@
 # Fase 6 — Planeación y capacidad por recurso
 
-Estado: plan ajustado; todavía no implementado.
+Estado: Sub-fase 6.1 implementada; la Sub-fase 6.2 queda pendiente.
 
 ## Objetivo
 
@@ -11,7 +11,7 @@ Programar partidas de producción contra recursos reales de taller, medir su cap
 1. La unidad bloqueable será un **recurso de planeación**, no un texto libre de área o máquina. Un recurso representa una máquina concreta o un recurso virtual que ocupa toda un área, incluido trabajo externo.
 2. `partidas_orden_produccion.maquina_asignada` se conserva como referencia histórica de Fase 5; no es una llave foránea ni fuente de capacidad. Una programación nueva exige `recurso_id` válido.
 3. El estado global de `ordenes_produccion` no se reutiliza como candado de máquina. Una OP puede atravesar varios recursos; el candado pertenece a cada programación. La relación con el inicio de producción de Fase 7 se implementará mediante una RPC específica, no con actualizaciones directas de dos estados desconectados.
-4. No se sembrarán capacidades ficticias. La migración puede crear el esquema vacío, pero antes de programar en producción se cargarán los recursos, turnos y horas reales aprobados por CC Manufacturing Group.
+4. No se sembrarán capacidades ficticias persistentes. La migración crea el esquema vacío; las verificaciones remotas crean recursos, turnos, capacidad, OP y partidas ficticios temporales y los eliminan al terminar. Antes de programar en producción se cargarán los recursos, turnos y horas reales aprobados por CC Manufacturing Group.
 
 ## Modelo recomendado
 

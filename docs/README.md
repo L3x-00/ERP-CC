@@ -17,6 +17,7 @@ Esta carpeta registra el avance funcional y técnico del ERP de CC Manufacturing
 | 2 | Pipeline / CRM | Completada | [Fase 2](fase-2/) |
 | 3 | Clientes | Completada | [Fase 3](fase-3/) |
 | 4 | Inventario / Compras | Completada | [Fase 4](fase-4/) |
-| 5 | Órdenes de Producción | Sub-fase 5.1 completada localmente | [Fase 5](fase-5/) |
+| 5 | Órdenes de Producción | Completada y endurecida | [Fase 5](fase-5/) |
+| 6 | Planeación y capacidad | Sub-fase 6.1 completada | [Fase 6](fase-6/) |
 
 Las fases futuras se documentarán al iniciar su implementación. Cada subfase incluye objetivo, cambios, seguridad, pruebas y pendientes relevantes.
