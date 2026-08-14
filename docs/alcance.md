@@ -18,12 +18,15 @@
 | 6.2 | Motor transaccional de capacidad: excepciones de calendario, programación/reprogramación atómicas, compare-and-set, preparación exclusiva por recurso, servicios de capacidad y fixtures `SIM-PLN` persistentes. Aplicado y validado remotamente con datos ficticios. |
 | 6.3 | Server Actions de Planeación, permisos, auditoría, lectura acotada y estado cliente sin copias mutables de datos de servidor. |
 | 6.4 | Ruta `/planeacion`, calendario y asignación funcionales, Realtime con refetch seguro y E2E remoto colaborativo. |
+| 7.1 | Modelo seguro de sesiones de taller y notas de entrega, folios NE atómicos, RLS, tipos y Zod v4. |
+| 7.2 | RPCs atómicas de inicio/cierre, cálculo horario local, avance inmutable, liberación de recurso y entrega parcial concurrente. |
+| 7.3 | Server Actions seguras, HMAC y reconfirmación PIN, rate limiting, auditoría, Zustand y sincronización de tablero. |
+| 7.4 | Ruta `/produccion`, Kanban derivado, panel de piso, entrega sin precios y E2E remoto de sincronización entre vistas. |
 
 ## Siguiente alcance
 
-1. **Fase 7 — Producción:** Kanban, sesiones con PIN, avances, consumo real y entrega; debe tomar recursos mediante RPC de Planeación.
-2. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
-3. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
+1. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
+2. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
 
 ## Fuera de alcance actual
 

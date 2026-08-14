@@ -13,6 +13,8 @@
     "test:e2e": "playwright test",
     "datos:ficticios:planeacion": "node supabase/semillas/planeacion-ficticia.mjs",
     "verificar:ficticios:planeacion": "node supabase/semillas/planeacion-ficticia.mjs --verificar",
+    "datos:ficticios:produccion": "node supabase/semillas/produccion-ficticia.mjs",
+    "verificar:ficticios:produccion": "node supabase/semillas/produccion-ficticia.mjs --verificar",
     "verificar:motor:planeacion": "node supabase/semillas/verificar-motor-capacidad.mjs",
     "verificar:cas:planeacion": "node supabase/semillas/verificar-compare-and-set-planeacion.mjs"
   },

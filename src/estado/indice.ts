@@ -4,4 +4,5 @@ export { usarTiendaUI } from './tienda-ui';
 export { usarInventarioTienda } from './inventario-tienda';
 export { usarTiendaOrdenes } from './uso-tienda-ordenes';
 export { usarTiendaPlaneacion } from './uso-tienda-planeacion';
+export { usarTiendaProduccion } from './uso-tienda-produccion';
 export type { RangoFechasPlaneacion } from './uso-tienda-planeacion';

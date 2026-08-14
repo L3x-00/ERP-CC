@@ -29,7 +29,9 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fase 6.1: base de Planeación aplicada en Supabase remoto: recursos identificables, capacidad por turno, programación secuenciada, permisos específicos, RLS de mínimo privilegio, candado concurrente por recurso y publicación Realtime.
 - Fase 6.2: motor transaccional de capacidad aplicado en Supabase remoto: excepciones por fecha/turno, programación y reprogramación bajo lock, compare-and-set para cambios concurrentes, y toma de preparación protegida por el candado de recurso. Se conserva un conjunto idempotente de datos ficticios `SIM-PLN` para desarrollar y verificar sincronización, sin datos reales ni uso en producción.
 - Fase 6 cerrada: las sub-fases 6.3 y 6.4 conectan Planeación mediante Server Actions autorizadas, bitácora, calendario operativo y Realtime sin refresco manual. TanStack Query conserva datos de servidor; Zustand solo filtros/selección. La E2E remota validó programación, preparación, auditoría y sincronización entre dos vistas, con limpieza de datos E2E.
-- Próximo hito funcional: Fase 7 — Producción integrada con la toma segura de recurso de Planeación.
+- Fase 7 cerrada: Producción toma recursos preparados de Planeación mediante RPCs atómicas, registra sesiones y avances inmutables, calcula horas de taller en PostgreSQL y genera notas de entrega parciales o totales sin precios. El Kanban es una proyección derivada y se actualiza por Realtime sin refresco manual.
+- Se mantienen fixtures ficticias `SIM-PLN` y `SIM-PRD` para desarrollo: recurso preparado, entrega parcial y entrega total. No hay datos operativos reales en el entorno de desarrollo.
+- Próximo hito funcional: Fase 8 — Cobranza, condicionado a la aprobación de sus reglas de negocio.
 
 ## Reglas funcionales que no se deben romper
 
@@ -38,3 +40,4 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - La seguridad combina permisos server-side y RLS de Supabase.
 - Toda actualización relevante de producción se propaga automáticamente: Realtime para usuarios autenticados y un relay sin payload para sesiones PIN.
 - Los documentos de producción no muestran precios; las líneas comerciales y actividades internas son niveles distintos.
+- El PIN de piso debe identificar de forma unívoca a un operador. Una coincidencia duplicada falla cerrada y se registra como acceso no válido.

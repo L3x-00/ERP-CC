@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -449,6 +449,54 @@ export type Database = {
           },
         ]
       }
+      notas_entrega: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          es_parcial: boolean
+          firma_cliente_url: string | null
+          folio: string
+          id: string
+          orden_id: string
+          recibido_por: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          es_parcial?: boolean
+          firma_cliente_url?: string | null
+          folio: string
+          id?: string
+          orden_id: string
+          recibido_por: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          es_parcial?: boolean
+          firma_cliente_url?: string | null
+          folio?: string
+          id?: string
+          orden_id?: string
+          recibido_por?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_entrega_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrega_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ordenes_produccion: {
         Row: {
           actualizado_en: string
@@ -505,6 +553,45 @@ export type Database = {
             columns: ["cotizacion_id"]
             isOneToOne: false
             referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partidas_nota_entrega: {
+        Row: {
+          cantidad_entregada: number
+          cantidad_solicitada: number
+          id: string
+          nota_entrega_id: string
+          partida_id: string
+        }
+        Insert: {
+          cantidad_entregada: number
+          cantidad_solicitada: number
+          id?: string
+          nota_entrega_id: string
+          partida_id: string
+        }
+        Update: {
+          cantidad_entregada?: number
+          cantidad_solicitada?: number
+          id?: string
+          nota_entrega_id?: string
+          partida_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partidas_nota_entrega_nota_entrega_id_fkey"
+            columns: ["nota_entrega_id"]
+            isOneToOne: false
+            referencedRelation: "notas_entrega"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidas_nota_entrega_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -837,6 +924,7 @@ export type Database = {
           id: string
           operador_id: string
           partida_id: string
+          sesion_trabajo_id: string | null
         }
         Insert: {
           cantidad_producida?: number
@@ -845,6 +933,7 @@ export type Database = {
           id?: string
           operador_id: string
           partida_id: string
+          sesion_trabajo_id?: string | null
         }
         Update: {
           cantidad_producida?: number
@@ -853,6 +942,7 @@ export type Database = {
           id?: string
           operador_id?: string
           partida_id?: string
+          sesion_trabajo_id?: string | null
         }
         Relationships: [
           {
@@ -867,6 +957,13 @@ export type Database = {
             columns: ["partida_id"]
             isOneToOne: false
             referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_avance_partida_sesion_trabajo_id_fkey"
+            columns: ["sesion_trabajo_id"]
+            isOneToOne: false
+            referencedRelation: "sesiones_trabajo"
             referencedColumns: ["id"]
           },
         ]
@@ -1002,6 +1099,89 @@ export type Database = {
           },
         ]
       }
+      sesiones_trabajo: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          estado_sesion: string
+          fecha_fin: string | null
+          fecha_inicio: string
+          horas_brutas: number
+          horas_netas: number
+          id: string
+          motivo_pausa: string | null
+          notas: string | null
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          piezas_producidas: number
+          programacion_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          estado_sesion?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          horas_brutas?: number
+          horas_netas?: number
+          id?: string
+          motivo_pausa?: string | null
+          notas?: string | null
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          piezas_producidas?: number
+          programacion_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          estado_sesion?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          horas_brutas?: number
+          horas_netas?: number
+          id?: string
+          motivo_pausa?: string | null
+          notas?: string | null
+          operador_id?: string
+          orden_id?: string
+          partida_id?: string
+          piezas_producidas?: number
+          programacion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sesiones_trabajo_operador_id_fkey"
+            columns: ["operador_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sesiones_trabajo_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sesiones_trabajo_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sesiones_trabajo_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuarios: {
         Row: {
           activo: boolean
@@ -1085,6 +1265,27 @@ export type Database = {
           id: string
         }[]
       }
+      cerrar_sesion_trabajo_operador: {
+        Args: {
+          p_estado_destino: string
+          p_motivo_pausa?: string
+          p_notas?: string
+          p_operador_id: string
+          p_piezas_producidas: number
+          p_sesion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          cantidad_producida_partida: number
+          estado_orden: string
+          estado_planeacion: string
+          estado_sesion: string
+          horas_brutas: number
+          horas_netas: number
+          id: string
+          piezas_producidas: number
+        }[]
+      }
       crear_orden_manual: {
         Args: {
           p_cliente_id: string
@@ -1113,8 +1314,46 @@ export type Database = {
       es_admin: { Args: never; Returns: boolean }
       generar_folio_cnc: { Args: never; Returns: string }
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }
+      generar_folio_nota_entrega: {
+        Args: { p_prefijo?: string }
+        Returns: string
+      }
       generar_folio_op: { Args: never; Returns: string }
       generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
+      generar_nota_entrega: {
+        Args: {
+          p_creado_por: string
+          p_firma_cliente_url: string
+          p_orden_id: string
+          p_partidas: Json
+          p_recibido_por: string
+        }
+        Returns: {
+          creado_en: string
+          es_parcial: boolean
+          folio: string
+          id: string
+        }[]
+      }
+      iniciar_sesion_trabajo_operador: {
+        Args: {
+          p_operador_id: string
+          p_orden_id: string
+          p_partida_id: string
+          p_programacion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          creado_en: string
+          estado_sesion: string
+          fecha_inicio: string
+          id: string
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          programacion_id: string
+        }[]
+      }
       obtener_carga_capacidad_diaria: {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }
         Returns: {

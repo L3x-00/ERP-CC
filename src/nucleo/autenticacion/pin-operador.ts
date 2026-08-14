@@ -29,6 +29,27 @@ export async function verificarPin(pin: string, hash: string): Promise<boolean> 
 }
 
 /**
+ * Reconfirma el PIN contra un operador ya identificado por una sesión HMAC.
+ *
+ * A diferencia del inicio de piso, un cierre crítico ya conoce al operador. Se
+ * consulta exclusivamente esa fila para evitar enumerar hashes de otros
+ * operadores y para que PIN repetidos no vuelvan ambiguo el resultado.
+ */
+export async function confirmarPinDeOperador(operadorId: string, pin: string): Promise<boolean> {
+  const cliente = crearClienteSupabaseAdmin();
+  const { data, error } = await cliente
+    .from('usuarios')
+    .select('pin_operador')
+    .eq('id', operadorId)
+    .eq('rol', 'operador')
+    .eq('activo', true)
+    .maybeSingle();
+
+  if (error || !data?.pin_operador) return false;
+  return verificarPin(pin, data.pin_operador);
+}
+
+/**
  * Busca al operador cuyo PIN coincide con el ingresado.
  *
  * El PIN identifica al operador (no hay nombre de usuario en el piso),
@@ -37,7 +58,7 @@ export async function verificarPin(pin: string, hash: string): Promise<boolean> 
  * aún no existe sesión Supabase. Solo debe llamarse desde el servidor.
  *
  * @param pin PIN en texto plano (4 a 6 dígitos).
- * @returns El primer usuario cuyo PIN coincide, o `null` si ninguno.
+ * @returns El usuario si el PIN identifica a exactamente un operador, o `null`.
  */
 export async function buscarOperadorPorPin(pin: string): Promise<Usuario | null> {
   const cliente = crearClienteSupabaseAdmin();
@@ -53,11 +74,15 @@ export async function buscarOperadorPorPin(pin: string): Promise<Usuario | null>
     return null;
   }
 
+  let coincidencia: Usuario | null = null;
   for (const fila of data as FilaUsuario[]) {
     if (fila.pin_operador && (await verificarPin(pin, fila.pin_operador))) {
-      return filaAUsuario(fila);
+      // Un PIN compartido no puede autenticar a un operador de manera segura.
+      // Fallar cerrado evita que el orden de lectura decida una identidad de piso.
+      if (coincidencia !== null) return null;
+      coincidencia = filaAUsuario(fila);
     }
   }
 
-  return null;
+  return coincidencia;
 }
