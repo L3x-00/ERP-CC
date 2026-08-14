@@ -174,6 +174,69 @@ export type Database = {
           },
         ]
       }
+      cuentas_por_cobrar: {
+        Row: {
+          actualizado_en: string
+          cliente_id: string
+          creado_en: string
+          estado: string
+          fecha_emision: string
+          fecha_vencimiento: string
+          folio_factura_remision: string | null
+          id: string
+          moneda: string
+          monto_total: number
+          orden_id: string
+          saldo_pendiente: number
+          tipo_cambio_origen: number
+        }
+        Insert: {
+          actualizado_en?: string
+          cliente_id: string
+          creado_en?: string
+          estado?: string
+          fecha_emision?: string
+          fecha_vencimiento: string
+          folio_factura_remision?: string | null
+          id?: string
+          moneda?: string
+          monto_total: number
+          orden_id: string
+          saldo_pendiente: number
+          tipo_cambio_origen?: number
+        }
+        Update: {
+          actualizado_en?: string
+          cliente_id?: string
+          creado_en?: string
+          estado?: string
+          fecha_emision?: string
+          fecha_vencimiento?: string
+          folio_factura_remision?: string | null
+          id?: string
+          moneda?: string
+          monto_total?: number
+          orden_id?: string
+          saldo_pendiente?: number
+          tipo_cambio_origen?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuentas_por_cobrar_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuentas_por_cobrar_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: true
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos_cliente: {
         Row: {
           cliente_id: string
@@ -449,6 +512,74 @@ export type Database = {
           },
         ]
       }
+      movimientos_saldo_favor: {
+        Row: {
+          ar_id_origen: string | null
+          cliente_id: string
+          creado_en: string
+          creado_por: string
+          descripcion: string
+          id: string
+          moneda: string
+          monto: number
+          pago_ar_id: string | null
+          tipo: string
+        }
+        Insert: {
+          ar_id_origen?: string | null
+          cliente_id: string
+          creado_en?: string
+          creado_por: string
+          descripcion: string
+          id?: string
+          moneda?: string
+          monto: number
+          pago_ar_id?: string | null
+          tipo: string
+        }
+        Update: {
+          ar_id_origen?: string | null
+          cliente_id?: string
+          creado_en?: string
+          creado_por?: string
+          descripcion?: string
+          id?: string
+          moneda?: string
+          monto?: number
+          pago_ar_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_saldo_favor_ar_id_origen_fkey"
+            columns: ["ar_id_origen"]
+            isOneToOne: false
+            referencedRelation: "cuentas_por_cobrar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_saldo_favor_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_saldo_favor_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_saldo_favor_pago_ar_id_fkey"
+            columns: ["pago_ar_id"]
+            isOneToOne: true
+            referencedRelation: "pagos_ar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notas_entrega: {
         Row: {
           creado_en: string
@@ -553,6 +684,75 @@ export type Database = {
             columns: ["cotizacion_id"]
             isOneToOne: false
             referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos_ar: {
+        Row: {
+          ar_id: string
+          creado_en: string
+          creado_por: string
+          cuenta_bancaria_id: string | null
+          folio_recibo: string
+          id: string
+          metodo_pago: string
+          moneda_pago: string
+          monto_aplicado_ar: number
+          monto_pagado: number
+          monto_sobrepago_ar: number
+          notas: string | null
+          referencia_bancaria: string | null
+          solicitud_id: string
+          tipo_cambio_pago: number
+        }
+        Insert: {
+          ar_id: string
+          creado_en?: string
+          creado_por: string
+          cuenta_bancaria_id?: string | null
+          folio_recibo: string
+          id?: string
+          metodo_pago: string
+          moneda_pago: string
+          monto_aplicado_ar: number
+          monto_pagado: number
+          monto_sobrepago_ar?: number
+          notas?: string | null
+          referencia_bancaria?: string | null
+          solicitud_id: string
+          tipo_cambio_pago?: number
+        }
+        Update: {
+          ar_id?: string
+          creado_en?: string
+          creado_por?: string
+          cuenta_bancaria_id?: string | null
+          folio_recibo?: string
+          id?: string
+          metodo_pago?: string
+          moneda_pago?: string
+          monto_aplicado_ar?: number
+          monto_pagado?: number
+          monto_sobrepago_ar?: number
+          notas?: string | null
+          referencia_bancaria?: string | null
+          solicitud_id?: string
+          tipo_cambio_pago?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_ar_ar_id_fkey"
+            columns: ["ar_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_por_cobrar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_ar_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -1223,12 +1423,48 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      abrir_cuenta_por_cobrar: {
+        Args: {
+          p_fecha_vencimiento: string
+          p_folio_factura_remision?: string
+          p_moneda: string
+          p_monto_total: number
+          p_orden_id: string
+          p_tipo_cambio_origen: number
+        }
+        Returns: {
+          cliente_id: string
+          estado: string
+          id: string
+          moneda: string
+          saldo_pendiente: number
+        }[]
+      }
       activar_modo_preparacion: {
         Args: { p_actualizado_en_esperado: string; p_programacion_id: string }
         Returns: {
           actualizado_en: string
           estado_planeacion: string
           id: string
+        }[]
+      }
+      aplicar_saldo_favor_ar: {
+        Args: {
+          p_ar_id: string
+          p_cliente_id: string
+          p_monto_mxn: number
+          p_solicitud_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          ar_id: string
+          estado_ar: string
+          folio_recibo: string
+          idempotente: boolean
+          monto_aplicado_ar: number
+          pago_id: string
+          saldo_a_favor_mxn: number
+          saldo_pendiente: number
         }[]
       }
       aprobar_oportunidad_y_crear_orden: {
@@ -1320,6 +1556,7 @@ export type Database = {
       }
       generar_folio_op: { Args: never; Returns: string }
       generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
+      generar_folio_recibo: { Args: { p_prefijo?: string }; Returns: string }
       generar_nota_entrega: {
         Args: {
           p_creado_por: string
@@ -1451,6 +1688,31 @@ export type Database = {
           p_tipo: string
         }
         Returns: string
+      }
+      registrar_pago_ar_atomico: {
+        Args: {
+          p_ar_id: string
+          p_cuenta_bancaria_id?: string
+          p_metodo_pago: string
+          p_moneda_pago: string
+          p_monto_pagado: number
+          p_notas?: string
+          p_referencia: string
+          p_solicitud_id: string
+          p_tipo_cambio_pago: number
+          p_usuario_id: string
+        }
+        Returns: {
+          ar_id: string
+          estado_ar: string
+          folio_recibo: string
+          idempotente: boolean
+          monto_aplicado_ar: number
+          monto_sobrepago_ar: number
+          pago_id: string
+          saldo_a_favor_mxn: number
+          saldo_pendiente: number
+        }[]
       }
       registrar_tiempo_operador_op: {
         Args: {

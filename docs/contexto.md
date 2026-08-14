@@ -31,7 +31,8 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fase 6 cerrada: las sub-fases 6.3 y 6.4 conectan Planeación mediante Server Actions autorizadas, bitácora, calendario operativo y Realtime sin refresco manual. TanStack Query conserva datos de servidor; Zustand solo filtros/selección. La E2E remota validó programación, preparación, auditoría y sincronización entre dos vistas, con limpieza de datos E2E.
 - Fase 7 cerrada: Producción toma recursos preparados de Planeación mediante RPCs atómicas, registra sesiones y avances inmutables, calcula horas de taller en PostgreSQL y genera notas de entrega parciales o totales sin precios. El Kanban es una proyección derivada y se actualiza por Realtime sin refresco manual.
 - Se mantienen fixtures ficticias `SIM-PLN` y `SIM-PRD` para desarrollo: recurso preparado, entrega parcial y entrega total. No hay datos operativos reales en el entorno de desarrollo.
-- Próximo hito funcional: Fase 8 — Cobranza, condicionado a la aprobación de sus reglas de negocio.
+- Fase 8 cerrada: Cobranza abre AR de manera explícita únicamente desde OP terminadas, registra pagos y saldo a favor dentro de RPCs atómicas, emite recibos `REC-NNNNNN` y mantiene la cartera sincronizada por Realtime sin usar payloads como fuente de datos. El monedero se expresa exclusivamente en MXN con cuatro decimales; se conserva la fixture ficticia idempotente `SIM-AR`.
+- Próximo hito funcional: Fase 9 — Gastos y rentabilidad.
 
 ## Reglas funcionales que no se deben romper
 
@@ -41,3 +42,5 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Toda actualización relevante de producción se propaga automáticamente: Realtime para usuarios autenticados y un relay sin payload para sesiones PIN.
 - Los documentos de producción no muestran precios; las líneas comerciales y actividades internas son niveles distintos.
 - El PIN de piso debe identificar de forma unívoca a un operador. Una coincidencia duplicada falla cerrada y se registra como acceso no válido.
+- Una cuenta por cobrar solo puede abrirse desde una OP completada con todas sus partidas producidas. Los importes comerciales se capturan explícitamente por Contabilidad; Producción no inventa precios.
+- Los cobros, sobrepagos y aplicaciones de saldo se resuelven atómicamente en PostgreSQL. La misma `solicitud_id` nunca puede crear dos recibos ni tocar saldos por segunda vez.

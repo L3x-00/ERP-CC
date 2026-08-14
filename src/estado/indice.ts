@@ -5,4 +5,6 @@ export { usarInventarioTienda } from './inventario-tienda';
 export { usarTiendaOrdenes } from './uso-tienda-ordenes';
 export { usarTiendaPlaneacion } from './uso-tienda-planeacion';
 export { usarTiendaProduccion } from './uso-tienda-produccion';
+export { usarTiendaCobranza } from './uso-tienda-cobranza';
 export type { RangoFechasPlaneacion } from './uso-tienda-planeacion';
+export type { PeriodoCobranza } from './uso-tienda-cobranza';

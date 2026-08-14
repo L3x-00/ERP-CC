@@ -47,6 +47,9 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - Producción enlaza `sesiones_trabajo` con la programación concreta que tomó el recurso. Los índices únicos parciales impiden dos sesiones activas del mismo operador o la misma programación. Las RPCs bloquean partida, OP, operador, programación y recurso en orden estable, registran avances inmutables y resuelven el ciclo del recurso dentro de la transacción.
 - Las notas de entrega y sus partidas no poseen columnas financieras. `generar_nota_entrega` bloquea OP y partidas por UUID ordenado, deriva `es_parcial` del historial y emite `NE-NNNNNN` desde una secuencia PostgreSQL exclusiva de `service_role`.
 - La proyección de Producción usa TanStack Query bajo `['produccion', 'tablero']`. `usarTiendaProduccion` solo guarda filtros, selección y una referencia de sesión; Realtime invalida y relee por RLS las tablas publicadas, sin usar sus payloads como fuente de datos.
+- Cobranza separa el importe comercial de Producción: `abrir_cuenta_por_cobrar` exige OP completada y partidas totalmente producidas, mientras que el monto y el tipo de cambio se capturan de forma explícita y auditada. `cuentas_por_cobrar` mantiene saldos en la moneda de la cuenta; `clientes.saldo_a_favor` y `movimientos_saldo_favor` forman un monedero estrictamente MXN con precisión `numeric(14,4)`.
+- `registrar_pago_ar_atomico` y `aplicar_saldo_favor_ar` bloquean cuenta AR, usuario y cliente en el mismo orden. La llave única `solicitud_id` y `ON CONFLICT` vuelven idempotentes los reintentos y dobles envíos. Los folios `REC-NNNNNN` salen de una secuencia PostgreSQL restringida a `service_role`.
+- La cartera usa TanStack Query bajo `['cobranza', 'cartera']`; `usarTiendaCobranza` solo conserva interacción local. Realtime escucha las tres tablas financieras publicadas, invalida la consulta y relee por RLS sin proyectar payloads de difusión en pantalla.
 
 ## Convenciones de código
 

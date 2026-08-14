@@ -22,11 +22,14 @@
 | 7.2 | RPCs atómicas de inicio/cierre, cálculo horario local, avance inmutable, liberación de recurso y entrega parcial concurrente. |
 | 7.3 | Server Actions seguras, HMAC y reconfirmación PIN, rate limiting, auditoría, Zustand y sincronización de tablero. |
 | 7.4 | Ruta `/produccion`, Kanban derivado, panel de piso, entrega sin precios y E2E remoto de sincronización entre vistas. |
+| 8.1 | Esquema AR, RLS, folios REC atómicos, tipos y validaciones Zod v4. |
+| 8.2 | Pagos, monedero y apertura de AR mediante RPCs atómicas, idempotentes y multimoneda; aging y fixture `SIM-AR`. |
+| 8.3 | Server Actions autorizadas, auditoría, servicios de cartera y estado cliente sin copias de saldos. |
+| 8.4 | Ruta `/cobranza`, recibo funcional, Realtime sin payload y E2E remoto de pago y sincronización. |
 
 ## Siguiente alcance
 
-1. **Fase 8 — Cobranza:** AR, pagos, aging y recibos.
-2. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
+1. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
 
 ## Fuera de alcance actual
 
