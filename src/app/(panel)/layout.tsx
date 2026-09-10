@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { IndicadorSesion } from '@/modulos/autenticacion/componentes/indicador-sesion';
+import { CentroNotificacionesHeader } from '@/modulos/comentarios/componentes/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
 /**
@@ -24,7 +25,10 @@ export default async function LayoutPanel({
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-foreground/10 px-6 py-4">
         <span className="text-lg font-bold">ORCA MFG ERP</span>
-        <IndicadorSesion nombreUsuario={usuario.nombreCompleto} />
+        <div className="flex items-center gap-3">
+          <CentroNotificacionesHeader usuarioId={usuario.id} />
+          <IndicadorSesion nombreUsuario={usuario.nombreCompleto} />
+        </div>
       </header>
       <main className="flex-1 p-6">{children}</main>
     </div>

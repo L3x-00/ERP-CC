@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { SelectorEtapa } from '@/modulos/pipeline/componentes/selector-etapa';
+import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import type { AlertaPipeline } from '@/modulos/pipeline/servicios/calcular-alertas';
 import type { Oportunidad, PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
 
@@ -46,6 +48,7 @@ const ESTILO_PRIORIDAD: Record<PrioridadPipeline, { texto: string; clase: string
  * del tablero.
  */
 export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportunidad) {
+  const [mostrarComentarios, setMostrarComentarios] = useState(false);
   const folio = oportunidad.folioCnc ?? oportunidad.folioOp;
   const prioridad = ESTILO_PRIORIDAD[oportunidad.prioridad];
 
@@ -79,6 +82,17 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
       <div className="border-t border-foreground/10 pt-2">
         <SelectorEtapa oportunidad={oportunidad} />
       </div>
+      <button
+        type="button"
+        onClick={() => setMostrarComentarios((actual) => !actual)}
+        aria-expanded={mostrarComentarios}
+        className="self-start text-xs font-semibold text-primario hover:underline"
+      >
+        {mostrarComentarios ? 'Ocultar comentarios' : 'Ver comentarios'}
+      </button>
+      {mostrarComentarios && (
+        <HiloComentarios entidadTipo="cotizacion" entidadId={oportunidad.id} titulo={`Comentarios de ${folio}`} />
+      )}
     </article>
   );
 }

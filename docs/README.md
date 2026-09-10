@@ -24,5 +24,6 @@ Esta carpeta registra el avance funcional y técnico del ERP de CC Manufacturing
 | 9 | Gastos, CxP y rentabilidad | Implementada localmente; gate remoto pendiente | [Fase 9](fase-9/) |
 | 10 | Dashboard por rol y métricas | Implementada localmente; gate remoto pendiente | [Fase 10](fase-10/) |
 | 11 | Configuración maestra | Implementada localmente; gate remoto pendiente | [Fase 11](fase-11/) |
+| 12 | Comentarios y notificaciones | Implementada localmente; gate remoto pendiente | [Fase 12](fase-12/) |
 
 Las fases futuras se documentarán al iniciar su implementación. Cada subfase incluye objetivo, cambios, seguridad, pruebas y pendientes relevantes.

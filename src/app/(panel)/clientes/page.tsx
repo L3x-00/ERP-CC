@@ -13,7 +13,7 @@ export default async function PaginaClientes() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Clientes</h1>
-      <TablaClientes esAdmin={esAdmin} />
+      <TablaClientes esAdmin={esAdmin} usuarioActualId={usuario?.id} />
     </div>
   );
 }

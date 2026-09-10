@@ -22,7 +22,7 @@ const CLASE_BOTON_PRIMARIO =
  * comercial o RFC), filtros por estado y tier, orden alfabético y paginación de
  * 25. Abre el formulario de alta/edición (modal) y la ficha 360° (drawer).
  */
-export function TablaClientes({ esAdmin }: { esAdmin: boolean }) {
+export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; usuarioActualId?: string }) {
   const queryClient = useQueryClient();
   const [textoBusqueda, setTextoBusqueda] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -223,7 +223,12 @@ export function TablaClientes({ esAdmin }: { esAdmin: boolean }) {
       )}
 
       {clienteVer && (
-        <FichaCliente clienteId={clienteVer} esAdmin={esAdmin} onCerrar={() => setClienteVer(null)} />
+        <FichaCliente
+          clienteId={clienteVer}
+          esAdmin={esAdmin}
+          usuarioActualId={usuarioActualId}
+          onCerrar={() => setClienteVer(null)}
+        />
       )}
     </div>
   );

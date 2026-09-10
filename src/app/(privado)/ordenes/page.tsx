@@ -3,12 +3,19 @@ import { FormularioOrden } from '@/modulos/ordenes/componentes/formulario-orden'
 import { SincronizadorOrdenesRealtime } from '@/modulos/ordenes/componentes/sincronizador-ordenes-realtime';
 import { TablaOrdenes, type OrdenTabla } from '@/modulos/ordenes/componentes/tabla-ordenes';
 import { obtenerOrdenesConPartidasServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
+type ParametrosPaginaOrdenes = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
 /** Centro administrativo de OP; la lectura se resuelve en un Server Component. */
-export default async function PaginaOrdenes() {
+export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOrdenes) {
+  const parametros = searchParams ? await searchParams : {};
+  const ordenInicialId = typeof parametros.ordenId === 'string' ? parametros.ordenId : undefined;
   const cliente = await crearClienteSupabaseServidor();
-  const [ordenesConPartidas, resultadoClientes, resultadoMateriales] = await Promise.all([
+  const [ordenesConPartidas, resultadoClientes, resultadoMateriales, usuario] = await Promise.all([
     obtenerOrdenesConPartidasServicio(cliente),
     cliente
       .from('clientes')
@@ -16,6 +23,7 @@ export default async function PaginaOrdenes() {
       .eq('estado', 'activo')
       .order('razon_social', { ascending: true }),
     cliente.from('materiales').select('id, codigo, nombre').order('nombre', { ascending: true }),
+    obtenerUsuarioServidor(),
   ]);
 
   if (resultadoClientes.error || resultadoMateriales.error) {
@@ -76,7 +84,12 @@ export default async function PaginaOrdenes() {
             Selecciona una orden para conservar el contexto al abrir el control de piso.
           </p>
         </div>
-        <TablaOrdenes ordenes={ordenes} />
+        <TablaOrdenes
+          ordenes={ordenes}
+          ordenInicialId={ordenInicialId}
+          usuarioActualId={usuario?.id}
+          puedeEliminarTodos={usuario?.rol === 'admin'}
+        />
       </section>
     </div>
   );

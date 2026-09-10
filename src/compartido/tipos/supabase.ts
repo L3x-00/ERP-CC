@@ -1678,6 +1678,107 @@ export type Database = {
         }
         Relationships: []
       }
+      comentarios_registro: {
+        Row: {
+          archivos_adjuntos: Json
+          actualizado_en: string
+          autor_id: string
+          contenido: string
+          creado_en: string
+          eliminado: boolean
+          editado: boolean
+          entidad_id: string
+          entidad_tipo: Database['public']['Enums']['tipo_entidad_comentario']
+          id: string
+          menciones_json: Json
+        }
+        Insert: {
+          archivos_adjuntos?: Json
+          actualizado_en?: string
+          autor_id: string
+          contenido: string
+          creado_en?: string
+          eliminado?: boolean
+          editado?: boolean
+          entidad_id: string
+          entidad_tipo: Database['public']['Enums']['tipo_entidad_comentario']
+          id?: string
+          menciones_json?: Json
+        }
+        Update: {
+          archivos_adjuntos?: Json
+          actualizado_en?: string
+          autor_id?: string
+          contenido?: string
+          creado_en?: string
+          eliminado?: boolean
+          editado?: boolean
+          entidad_id?: string
+          entidad_tipo?: Database['public']['Enums']['tipo_entidad_comentario']
+          id?: string
+          menciones_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comentarios_registro_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificaciones_usuario: {
+        Row: {
+          creado_en: string
+          emisor_id: string | null
+          enlace: string | null
+          id: string
+          leida: boolean
+          mensaje: string
+          tipo: string
+          titulo: string
+          usuario_id: string
+        }
+        Insert: {
+          creado_en?: string
+          emisor_id?: string | null
+          enlace?: string | null
+          id?: string
+          leida?: boolean
+          mensaje: string
+          tipo: string
+          titulo: string
+          usuario_id: string
+        }
+        Update: {
+          creado_en?: string
+          emisor_id?: string | null
+          enlace?: string | null
+          id?: string
+          leida?: boolean
+          mensaje?: string
+          tipo?: string
+          titulo?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificaciones_usuario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notificaciones_usuario_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2133,7 +2234,7 @@ export type Database = {
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      tipo_entidad_comentario: 'orden' | 'cotizacion' | 'cliente'
     }
     CompositeTypes: {
       [_ in never]: never

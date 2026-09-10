@@ -1,5 +1,6 @@
 export { usarTiendaUsuario } from './tienda-usuario';
 export { usarTiendaConfiguracion } from './uso-tienda-configuracion';
+export { usarTiendaNotificaciones } from './uso-tienda-notificaciones';
 export { usarTiendaUI } from './tienda-ui';
 export { usarInventarioTienda } from './inventario-tienda';
 export { usarTiendaOrdenes } from './uso-tienda-ordenes';

@@ -10,6 +10,7 @@ import { subirDocumentoClienteAccion } from '@/modulos/clientes/acciones/subir-d
 import { asignarTierManualAccion } from '@/modulos/clientes/acciones/asignar-tier-manual';
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import { AlertaCredito } from '@/modulos/clientes/componentes/alerta-credito';
+import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import type {
   Cliente,
   Direccion,
@@ -24,7 +25,7 @@ import {
 } from '@/modulos/clientes/utilidades/indice';
 
 const BUCKET = 'documentos-cliente';
-type Pestana = 'general' | 'direcciones' | 'documentos' | 'oportunidades';
+type Pestana = 'general' | 'direcciones' | 'documentos' | 'oportunidades' | 'comentarios';
 
 const CLASE_BOTON_PRIMARIO =
   'rounded-base bg-primario px-3 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50';
@@ -38,10 +39,12 @@ const CLASE_BOTON_PRIMARIO =
 export function FichaCliente({
   clienteId,
   esAdmin,
+  usuarioActualId,
   onCerrar,
 }: {
   clienteId: string;
   esAdmin: boolean;
+  usuarioActualId?: string;
   onCerrar: () => void;
 }) {
   const [pestana, setPestana] = useState<Pestana>('general');
@@ -84,7 +87,7 @@ export function FichaCliente({
             {esAdmin && <ControlTierManual clienteId={clienteId} />}
 
             <nav className="flex gap-1 border-b border-foreground/10 px-4">
-              {(['general', 'direcciones', 'documentos', 'oportunidades'] as Pestana[]).map((p) => (
+              {(['general', 'direcciones', 'documentos', 'oportunidades', 'comentarios'] as Pestana[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPestana(p)}
@@ -109,6 +112,15 @@ export function FichaCliente({
                 <p className="text-sm text-foreground/60">
                   El historial de oportunidades y órdenes se conecta en la Fase 5.
                 </p>
+              )}
+              {pestana === 'comentarios' && (
+                <HiloComentarios
+                  entidadTipo="cliente"
+                  entidadId={clienteId}
+                  usuarioActualId={usuarioActualId}
+                  puedeEliminarTodos={esAdmin}
+                  titulo="Comentarios del cliente"
+                />
               )}
             </div>
           </>

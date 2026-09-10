@@ -38,13 +38,18 @@
 | 11.2 | Servicio central con actualización atómica por sección, tipo de cambio vigente y fallbacks para JSONB incompleto. |
 | 11.3 | Server Actions administrativas con Zod, `can('configuracion')`, auditoría saneada y Zustand v5 efímero. |
 | 11.4 | Ruta `/configuracion` por pestañas, edición de empresa/tarifas/áreas/cuentas/plantillas, Realtime y E2E opt-in. |
+| 12.1 | Esquema de comentarios y notificaciones, menciones transaccionales, RLS, restricciones de texto y tipos estrictos. Pendiente de aplicar al remoto. |
+| 12.2 | Parser de menciones, sanitización XSS, mappers y servicios de hilos/notificaciones. |
+| 12.3 | Server Actions protegidas, auditoría, eliminación lógica, marca de lectura propia, Zustand y Realtime. |
+| 12.4 | Hilos en órdenes/clientes/pipeline, centro de notificaciones en headers, navegación contextual y E2E opt-in de dos sesiones. |
 
 ## Siguiente alcance
 
 1. **Cierre operativo de Fase 9:** recuperar el privilegio CLI de Supabase, aplicar las tres migraciones, regenerar tipos desde la base, ejecutar `db lint`, verificar `SIM-GTO` y correr la E2E remota.
 2. **Cierre operativo de Fase 10:** recuperar el privilegio CLI de Supabase, aplicar la migración del dashboard, regenerar tipos, ejecutar lint/asesores y validar E2E con cuatro credenciales ficticias.
 3. **Cierre operativo de Fase 11:** recuperar privilegios Supabase, aplicar `20260910011548_fase_11_configuracion_base.sql`, regenerar tipos oficiales, ejecutar `db lint`/asesores y correr la E2E remota con credenciales ficticias. Validar además la política definitiva de tarifas por recurso frente a `recursos_planeacion`.
-4. **Fase 12 — Portal y analítica avanzada:** definir después de la aceptación del dashboard, configuración y motor financiero.
+4. **Cierre operativo de Fase 12:** recuperar privilegios Supabase, aplicar `20260910023504_fase_12_comentarios_base.sql`, regenerar tipos, ejecutar `db lint`/asesores y correr la E2E con dos credenciales ficticias.
+5. **Portal y analítica avanzada:** definir después de la aceptación de dashboard, configuración, comentarios y motor financiero.
 
 ## Fuera de alcance actual
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
@@ -101,6 +102,9 @@ function calcularAvance(partidas: PartidaTabla[]): {
 
 type PropsTablaOrdenes = {
   ordenes: OrdenTabla[];
+  ordenInicialId?: string;
+  usuarioActualId?: string;
+  puedeEliminarTodos?: boolean;
 };
 
 /**
@@ -110,7 +114,12 @@ type PropsTablaOrdenes = {
  * solicita una revalidación inmediata tras sus acciones propias; los cambios
  * de otras estaciones llegan automáticamente mediante Realtime.
  */
-export function TablaOrdenes({ ordenes }: PropsTablaOrdenes) {
+export function TablaOrdenes({
+  ordenes,
+  ordenInicialId,
+  usuarioActualId,
+  puedeEliminarTodos = false,
+}: PropsTablaOrdenes) {
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
   const filtroMaquina = usarTiendaOrdenes((estado) => estado.filtroMaquina);
@@ -127,6 +136,12 @@ export function TablaOrdenes({ ordenes }: PropsTablaOrdenes) {
     const marco = requestAnimationFrame(() => setHidratado(true));
     return () => cancelAnimationFrame(marco);
   }, []);
+
+  useEffect(() => {
+    if (ordenInicialId && ordenes.some((orden) => orden.id === ordenInicialId)) {
+      seleccionarOrden(ordenInicialId);
+    }
+  }, [ordenInicialId, ordenes, seleccionarOrden]);
 
   const maquinas = useMemo(() => {
     const encontradas = new Set<string>();
@@ -379,6 +394,18 @@ export function TablaOrdenes({ ordenes }: PropsTablaOrdenes) {
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {errorAccion}
         </p>
+      )}
+
+      {ordenActivaId && ordenes.some((orden) => orden.id === ordenActivaId) && (
+        <div className="rounded-base border border-foreground/10 p-4">
+          <HiloComentarios
+            entidadTipo="orden"
+            entidadId={ordenActivaId}
+            usuarioActualId={usuarioActualId}
+            puedeEliminarTodos={puedeEliminarTodos}
+            titulo={`Comentarios de ${ordenes.find((orden) => orden.id === ordenActivaId)?.folio ?? 'la orden'}`}
+          />
+        </div>
       )}
 
       <p aria-live="polite" className="text-sm text-foreground/70">
