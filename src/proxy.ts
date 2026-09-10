@@ -14,7 +14,7 @@ const RUTAS_PUBLICAS = ['/iniciar-sesion', '/operador'];
  * - Refresca sesión Supabase (cookies) en cada request — necesario para que el
  *   token no expire silenciosamente (patrón canónico de @supabase/ssr).
  * - /produccion-piso* requiere sesión de operador (cookie firmada, timeout).
- * - Usuario autenticado en /iniciar-sesion → redirige a /tablero.
+ * - Usuario autenticado en /iniciar-sesion → redirige a /dashboard.
  * - Sin sesión en ruta protegida → redirige a /iniciar-sesion.
  */
 export async function proxy(request: NextRequest) {
@@ -67,10 +67,10 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Autenticado en login → directo al tablero.
+  // Autenticado en login → directo al dashboard segmentado.
   if (user && pathname.startsWith('/iniciar-sesion')) {
     const url = request.nextUrl.clone();
-    url.pathname = '/tablero';
+    url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 

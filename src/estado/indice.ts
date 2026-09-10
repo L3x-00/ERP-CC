@@ -7,6 +7,7 @@ export { usarTiendaPlaneacion } from './uso-tienda-planeacion';
 export { usarTiendaProduccion } from './uso-tienda-produccion';
 export { usarTiendaCobranza } from './uso-tienda-cobranza';
 export { usarTiendaGastos } from './uso-tienda-gastos';
+export { usarTiendaDashboard } from './uso-tienda-dashboard';
 export type { RangoFechasPlaneacion } from './uso-tienda-planeacion';
 export type { PeriodoCobranza } from './uso-tienda-cobranza';
 export type { PeriodoGastos } from './uso-tienda-gastos';

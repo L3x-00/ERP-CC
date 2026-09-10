@@ -6,7 +6,7 @@ import { iniciarSesionAccion } from '@/modulos/autenticacion/acciones/iniciar-se
 
 /**
  * Formulario de inicio de sesión con correo y contraseña (admin, ventas, gerentes).
- * Envía las credenciales a `iniciarSesionAccion`; en éxito redirige a /tablero,
+ * Envía las credenciales a `iniciarSesionAccion`; en éxito redirige a /dashboard,
  * en error muestra el mensaje en rojo. El botón queda deshabilitado mientras envía.
  */
 export function FormularioIniciarSesion() {
@@ -31,7 +31,7 @@ export function FormularioIniciarSesion() {
       const respuesta = await iniciarSesionAccion({ email, contrasena });
 
       if (respuesta.exito) {
-        router.push('/tablero');
+        router.push('/dashboard');
         router.refresh();
         return;
       }

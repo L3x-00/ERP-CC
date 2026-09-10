@@ -30,11 +30,16 @@
 | 9.2 | Motor local de rentabilidad por orden, CPP con merma y OCR server-side validado con Zod. Pendiente de gate remoto. |
 | 9.3 | Server Actions, permisos financieros, auditoría, Zustand efímero y sincronización Realtime de Gastos. |
 | 9.4 | Ruta `/gastos`, fixture persistente `SIM-GTO`, pruebas de integración y E2E opt-in con cleanup por ID. |
+| 10.1 | RPCs de consolidación ejecutiva, vendedor, equipo y contador; metas/comisiones auditables; contratos y Zod v4. Pendiente de aplicar al remoto. |
+| 10.2 | Servicio de métricas por rol, comparativos vs periodo anterior y algoritmo puro de tendencias. |
+| 10.3 | Server Actions con `can()`, auditoría, filtrado server-side, Zustand y sincronización Realtime del dashboard. |
+| 10.4 | Ruta `/dashboard`, widgets funcionales por rol, redirección de compatibilidad `/tablero` y E2E opt-in. |
 
 ## Siguiente alcance
 
 1. **Cierre operativo de Fase 9:** recuperar el privilegio CLI de Supabase, aplicar las tres migraciones, regenerar tipos desde la base, ejecutar `db lint`, verificar `SIM-GTO` y correr la E2E remota.
-2. **Fase 10 — Portal y analítica:** definir después de la aceptación del motor financiero.
+2. **Cierre operativo de Fase 10:** recuperar el privilegio CLI de Supabase, aplicar la migración del dashboard, regenerar tipos, ejecutar lint/asesores y validar E2E con cuatro credenciales ficticias.
+3. **Fase 11 — Portal y analítica avanzada:** definir después de la aceptación del dashboard y del motor financiero.
 
 ## Fuera de alcance actual
 

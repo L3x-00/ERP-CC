@@ -255,7 +255,7 @@ async function iniciarSesion(page: Page, contexto: ContextoE2E): Promise<void> {
   await page.getByLabel('Correo electrónico').fill(contexto.correo);
   await page.getByLabel('Contraseña').fill(contexto.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.waitForURL('**/tablero');
+  await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
 test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {

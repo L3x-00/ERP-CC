@@ -3,7 +3,7 @@ import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
 /**
  * Página raíz: redirige según estado de autenticación.
- * Con sesión → /tablero; sin sesión → /iniciar-sesion.
+ * Con sesión → /dashboard; sin sesión → /iniciar-sesion.
  * Server Component: sin parpadeo de carga en cliente.
  */
 export default async function PaginaInicio() {
@@ -13,7 +13,7 @@ export default async function PaginaInicio() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect('/tablero');
+    redirect('/dashboard');
   }
 
   redirect('/iniciar-sesion');

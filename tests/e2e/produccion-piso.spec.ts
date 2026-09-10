@@ -178,7 +178,7 @@ async function iniciarSesionAdministrador(page: import('@playwright/test').Page,
   await page.getByLabel('Correo electrónico').fill(contexto.correoAdministrador);
   await page.getByLabel('Contraseña').fill(contexto.contrasenaAdministrador);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.waitForURL('**/tablero');
+  await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
 test.describe.serial('piso de Producción y entregas', () => {

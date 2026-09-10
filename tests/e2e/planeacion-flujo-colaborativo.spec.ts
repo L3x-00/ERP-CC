@@ -218,7 +218,7 @@ test.describe.serial('Planeación colaborativa completa', () => {
     await page.getByLabel('Correo electrónico').fill(contextoPrueba.correo);
     await page.getByLabel('Contraseña').fill(contextoPrueba.contrasena);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-    await page.waitForURL('**/tablero');
+    await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
     await page.goto('/planeacion');
     await expect(page.getByTestId('pagina-planeacion')).toBeVisible();

@@ -222,7 +222,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await page.getByLabel('Correo electrónico').fill(contexto.correoAdministrador);
     await page.getByLabel('Contraseña').fill(contexto.contrasenaAdministrador);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-    await page.waitForURL('**/tablero');
+    await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
     await page.goto('/ordenes');
     await expect(page.getByTestId('crear-orden')).toHaveAttribute('data-hidratado', 'true');

@@ -969,6 +969,44 @@ export type Database = {
           },
         ]
       }
+      metas_vendedor: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          id: string
+          mes: string
+          meta_mensual_mxn: number
+          porcentaje_comision: number
+          vendedor_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          mes: string
+          meta_mensual_mxn?: number
+          porcentaje_comision?: number
+          vendedor_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          mes?: string
+          meta_mensual_mxn?: number
+          porcentaje_comision?: number
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_vendedor_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permisos_rol: {
         Row: {
           creado_en: string
@@ -1947,6 +1985,22 @@ export type Database = {
           estado_planeacion: string
           id: string
         }[]
+      }
+      obtener_metricas_contador: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: Json
+      }
+      obtener_metricas_dashboard_ejecutivo: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: Json
+      }
+      obtener_metricas_pipeline_equipo: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: Json
+      }
+      obtener_metricas_vendedor: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string; p_usuario_id: string }
+        Returns: Json
       }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }
     }

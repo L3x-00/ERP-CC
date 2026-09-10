@@ -55,6 +55,10 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - `recursos_planeacion.costo_hora_interno` es la tarifa vigente. El trigger de `sesiones_trabajo` la copia en el alta para impedir que cambios posteriores de tarifa alteren la historia. Las sesiones antiguas sin tarifa se reportan como componente faltante, no se rellenan con una estimación.
 - `/gastos` carga datos iniciales desde RSC protegido por `ver_finanzas`; TanStack Query mantiene gastos/rentabilidad y `usarTiendaGastos` solo filtros, periodo y estado de OCR. Realtime escucha gastos, CxC, consumos y sesiones, agrupa ráfagas e invalida consultas para releer bajo RLS.
 - El OCR de comprobantes se ejecuta únicamente en Server Actions, valida MIME/tamaño, llama a Anthropic con la clave del entorno y valida el JSON devuelto con Zod v4. Los errores que cruzan al cliente son genéricos y no contienen respuestas del proveedor.
+- Fase 10 agrega RPCs de dashboard en PostgreSQL: ejecutivo, vendedor, equipo y contador. Cada RPC fija `search_path`, valida un máximo de 366 días, revoca ejecución pública y devuelve un JSON atómico con periodo actual/anterior. El RPC de equipo incluye alertas de OP y aprobaciones pendientes sin transportar finanzas; las finanzas no se entregan a vendedor o gerente.
+- `metas_vendedor` es una tabla de configuración auditable con RLS habilitada, lectura limitada al vendedor/equipo autorizado y escritura exclusiva de `service_role`; su Realtime solo señala invalidación. Las métricas de comisión se basan en CxC no cancelada vinculada a la oportunidad del vendedor.
+- No se usa vista materializada para el dashboard: introduce una ventana de datos obsoletos y una tarea de refresco que contradice la sincronización sin recarga. Las RPCs leen las tablas transaccionales indexadas en una sola instantánea y el cliente relee tras Realtime.
+- El servicio `obtenerDashboardPorRol` crea tarjetas comparativas con una función pura de tendencia; las Server Actions vuelven a resolver sesión/permisos y registran auditoría. La ruta `/dashboard` es dinámica, y `/tablero` conserva compatibilidad mediante redirección.
 
 ## Convenciones de código
 

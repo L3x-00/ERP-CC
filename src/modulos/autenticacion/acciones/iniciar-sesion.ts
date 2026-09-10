@@ -33,7 +33,7 @@ const MENSAJE_BLOQUEADO = 'Demasiados intentos. Intenta de nuevo más tarde.';
  *
  * @param entrada Datos sin validar del formulario ({ email, contrasena }).
  * @returns `{ exito: true }` si la sesión quedó iniciada (el cliente redirige
- * a /tablero) o `{ exito: false, error }` en caso contrario.
+ * a /dashboard) o `{ exito: false, error }` en caso contrario.
  */
 export async function iniciarSesionAccion(entrada: unknown): Promise<RespuestaAccion> {
   const resultado = esquemaIniciarSesion.safeParse(entrada);

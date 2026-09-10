@@ -19,5 +19,9 @@ Esta carpeta registra el avance funcional y técnico del ERP de CC Manufacturing
 | 4 | Inventario / Compras | Completada | [Fase 4](fase-4/) |
 | 5 | Órdenes de Producción | Completada y endurecida | [Fase 5](fase-5/) |
 | 6 | Planeación y capacidad | Sub-fases 6.1 y 6.2 completadas | [Fase 6](fase-6/) |
+| 7 | Producción | Cerrada técnicamente | [Fase 7](fase-7/) |
+| 8 | Cuentas por cobrar | Cerrada técnicamente | [Fase 8](fase-8/) |
+| 9 | Gastos, CxP y rentabilidad | Implementada localmente; gate remoto pendiente | [Fase 9](fase-9/) |
+| 10 | Dashboard por rol y métricas | Implementada localmente; gate remoto pendiente | [Fase 10](fase-10/) |
 
 Las fases futuras se documentarán al iniciar su implementación. Cada subfase incluye objetivo, cambios, seguridad, pruebas y pendientes relevantes.

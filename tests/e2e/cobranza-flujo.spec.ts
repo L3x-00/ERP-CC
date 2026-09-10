@@ -124,7 +124,7 @@ async function iniciarSesion(page: import('@playwright/test').Page, contexto: Co
   await page.getByLabel('Correo electrónico').fill(contexto.correo);
   await page.getByLabel('Contraseña').fill(contexto.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  await page.waitForURL('**/tablero');
+  await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
 test.describe.serial('flujo de Cobranza AR', () => {
