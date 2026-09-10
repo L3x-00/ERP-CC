@@ -1559,11 +1559,139 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracion_sistema: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          empresa_json: Json
+          id: string
+          iva_porcentaje_default: number
+          plantillas_doc_json: Json
+          tarifas_json: Json
+          tipo_cambio_usd: number
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          empresa_json?: Json
+          id?: string
+          iva_porcentaje_default?: number
+          plantillas_doc_json?: Json
+          tarifas_json?: Json
+          tipo_cambio_usd?: number
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          empresa_json?: Json
+          id?: string
+          iva_porcentaje_default?: number
+          plantillas_doc_json?: Json
+          tarifas_json?: Json
+          tipo_cambio_usd?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_sistema_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuentas_bancarias: {
+        Row: {
+          activa: boolean
+          actualizado_en: string
+          banco: string
+          clabe: string | null
+          creado_en: string
+          id: string
+          moneda: string
+          numero_cuenta: string
+          titular: string
+        }
+        Insert: {
+          activa?: boolean
+          actualizado_en?: string
+          banco: string
+          clabe?: string | null
+          creado_en?: string
+          id?: string
+          moneda?: string
+          numero_cuenta: string
+          titular: string
+        }
+        Update: {
+          activa?: boolean
+          actualizado_en?: string
+          banco?: string
+          clabe?: string | null
+          creado_en?: string
+          id?: string
+          moneda?: string
+          numero_cuenta?: string
+          titular?: string
+        }
+        Relationships: []
+      }
+      areas_trabajo_config: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          codigo: string
+          color_hex: string
+          costo_hora_interno: number
+          creado_en: string
+          es_externo: boolean
+          id: string
+          nombre: string
+          orden: number
+          tarifa_hora_venta: number
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          codigo: string
+          color_hex?: string
+          costo_hora_interno?: number
+          creado_en?: string
+          es_externo?: boolean
+          id?: string
+          nombre: string
+          orden?: number
+          tarifa_hora_venta?: number
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          codigo?: string
+          color_hex?: string
+          costo_hora_interno?: number
+          creado_en?: string
+          es_externo?: boolean
+          id?: string
+          nombre?: string
+          orden?: number
+          tarifa_hora_venta?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      actualizar_configuracion_seccion: {
+        Args: {
+          p_actualizado_por: string
+          p_datos: Json | null
+          p_seccion: string
+          p_valor: number | null
+        }
+        Returns: Json
+      }
       abrir_cuenta_por_cobrar: {
         Args: {
           p_fecha_vencimiento: string
