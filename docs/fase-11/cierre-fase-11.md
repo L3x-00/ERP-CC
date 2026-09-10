@@ -7,8 +7,6 @@ cuenta con configuración maestra singleton, catálogos de cuentas y áreas,
 servicio transaccional con fallbacks, acciones protegidas, auditoría, Zustand,
 UI por pestañas y E2E opt-in.
 
-El cambio quedó integrado y publicado en el commit `4ea2917` de `main`.
-
 ## Evidencia local
 
 - `pnpm typecheck`: correcto.
