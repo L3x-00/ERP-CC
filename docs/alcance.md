@@ -34,18 +34,23 @@
 | 10.2 | Servicio de métricas por rol, comparativos vs periodo anterior y algoritmo puro de tendencias. |
 | 10.3 | Server Actions con `can()`, auditoría, filtrado server-side, Zustand y sincronización Realtime del dashboard. |
 | 10.4 | Ruta `/dashboard`, widgets funcionales por rol, redirección de compatibilidad `/tablero` y E2E opt-in. |
+| 11.1 | Singleton de configuración, cuentas bancarias, áreas de trabajo, RLS, privilegios mínimos, Realtime y tipos/mappers estrictos. Pendiente de aplicar al remoto. |
+| 11.2 | Servicio central con actualización atómica por sección, tipo de cambio vigente y fallbacks para JSONB incompleto. |
+| 11.3 | Server Actions administrativas con Zod, `can('configuracion')`, auditoría saneada y Zustand v5 efímero. |
+| 11.4 | Ruta `/configuracion` por pestañas, edición de empresa/tarifas/áreas/cuentas/plantillas, Realtime y E2E opt-in. |
 
 ## Siguiente alcance
 
 1. **Cierre operativo de Fase 9:** recuperar el privilegio CLI de Supabase, aplicar las tres migraciones, regenerar tipos desde la base, ejecutar `db lint`, verificar `SIM-GTO` y correr la E2E remota.
 2. **Cierre operativo de Fase 10:** recuperar el privilegio CLI de Supabase, aplicar la migración del dashboard, regenerar tipos, ejecutar lint/asesores y validar E2E con cuatro credenciales ficticias.
-3. **Fase 11 — Portal y analítica avanzada:** definir después de la aceptación del dashboard y del motor financiero.
+3. **Cierre operativo de Fase 11:** recuperar privilegios Supabase, aplicar `20260910011548_fase_11_configuracion_base.sql`, regenerar tipos oficiales, ejecutar `db lint`/asesores y correr la E2E remota con credenciales ficticias. Validar además la política definitiva de tarifas por recurso frente a `recursos_planeacion`.
+4. **Fase 12 — Portal y analítica avanzada:** definir después de la aceptación del dashboard, configuración y motor financiero.
 
 ## Fuera de alcance actual
 
 - Parser automático DXF: diferido como Fase 2b; la cotización manual es el flujo vigente.
 - CFDI/PAC: no se implementa hasta definir proveedor y alcance fiscal.
-- Portal de cliente, dashboard final, comentarios y configuración completa se desarrollan en sus fases dependientes.
+- Portal de cliente, CFDI/PAC y analítica avanzada se desarrollan en sus fases dependientes. La configuración maestra ya cuenta con backend y UI funcional local; su activación operativa requiere el gate remoto.
 
 ## Decisiones de negocio pendientes
 
