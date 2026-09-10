@@ -16,7 +16,7 @@ Cliente → Orden → Planeación → Producción → Entrega → Cobranza
 
 El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inventario administra materiales, proveedores y el kardex. Órdenes, Planeación, Producción y Cobranza continuarán el flujo en fases posteriores.
 
-## Estado a agosto de 2026
+## Estado a septiembre de 2026
 
 - Fases 0, 1 y 2: confirmadas en el historial Git.
 - Fase 3: módulo de Clientes implementado, incluidas reglas de tiers, crédito, documentos y promoción desde Pipeline.
@@ -32,7 +32,7 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Fase 7 cerrada: Producción toma recursos preparados de Planeación mediante RPCs atómicas, registra sesiones y avances inmutables, calcula horas de taller en PostgreSQL y genera notas de entrega parciales o totales sin precios. El Kanban es una proyección derivada y se actualiza por Realtime sin refresco manual.
 - Se mantienen fixtures ficticias `SIM-PLN` y `SIM-PRD` para desarrollo: recurso preparado, entrega parcial y entrega total. No hay datos operativos reales en el entorno de desarrollo.
 - Fase 8 cerrada: Cobranza abre AR de manera explícita únicamente desde OP terminadas, registra pagos y saldo a favor dentro de RPCs atómicas, emite recibos `REC-NNNNNN` y mantiene la cartera sincronizada por Realtime sin usar payloads como fuente de datos. El monedero se expresa exclusivamente en MXN con cuatro decimales; se conserva la fixture ficticia idempotente `SIM-AR`.
-- Próximo hito funcional: Fase 9 — Gastos y rentabilidad.
+- Fase 9 en implementación local: Gastos/CxP, folios `GTO-NNNNNN`, rentabilidad por orden, tarifa histórica de sesiones, OCR server-side, acciones autorizadas, estado efímero, Realtime, ruta `/gastos`, fixture persistente `SIM-GTO` y pruebas unitarias/integración/E2E opt-in. Las migraciones aún no se han aplicado al remoto porque la cuenta CLI vinculada responde 403 por privilegios insuficientes.
 
 ## Reglas funcionales que no se deben romper
 
@@ -44,3 +44,5 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - El PIN de piso debe identificar de forma unívoca a un operador. Una coincidencia duplicada falla cerrada y se registra como acceso no válido.
 - Una cuenta por cobrar solo puede abrirse desde una OP completada con todas sus partidas producidas. Los importes comerciales se capturan explícitamente por Contabilidad; Producción no inventa precios.
 - Los cobros, sobrepagos y aplicaciones de saldo se resuelven atómicamente en PostgreSQL. La misma `solicitud_id` nunca puede crear dos recibos ni tocar saldos por segunda vez.
+- Los gastos guardan importes en su moneda original y tipo de cambio MXN por unidad; PostgreSQL exige subtotal + IVA = total y estados coherentes. La rentabilidad toma el ingreso únicamente de CxC explícita, valora materiales con usada + scrap al CPP histórico, usa la tarifa congelada de cada sesión y excluye gastos cancelados.
+- OCR solo recibe imágenes/PDF desde el servidor, con límite de 5 MiB, respuesta Zod estricta y sin persistir archivos ni secretos. La interfaz de Gastos actualiza sus consultas al recibir señales Realtime y nunca usa payloads como fuente contable.

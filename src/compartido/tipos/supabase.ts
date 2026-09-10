@@ -323,6 +323,103 @@ export type Database = {
           },
         ]
       }
+      gastos: {
+        Row: {
+          actualizado_en: string
+          categoria: string
+          comprobante_url: string | null
+          creado_en: string
+          creado_por: string
+          datos_ocr_json: Json | null
+          descripcion: string
+          estado_pago: string
+          fecha_gasto: string
+          fecha_vencimiento: string | null
+          folio: string
+          folio_comprobante: string | null
+          id: string
+          metodo_pago: string | null
+          moneda: string
+          monto_iva: number
+          monto_subtotal: number
+          monto_total: number
+          notas: string | null
+          orden_id: string | null
+          proveedor_id: string | null
+          tipo_cambio: number
+        }
+        Insert: {
+          actualizado_en?: string
+          categoria: string
+          comprobante_url?: string | null
+          creado_en?: string
+          creado_por: string
+          datos_ocr_json?: Json | null
+          descripcion: string
+          estado_pago?: string
+          fecha_gasto?: string
+          fecha_vencimiento?: string | null
+          folio: string
+          folio_comprobante?: string | null
+          id?: string
+          metodo_pago?: string | null
+          moneda?: string
+          monto_iva?: number
+          monto_subtotal: number
+          monto_total: number
+          notas?: string | null
+          orden_id?: string | null
+          proveedor_id?: string | null
+          tipo_cambio?: number
+        }
+        Update: {
+          actualizado_en?: string
+          categoria?: string
+          comprobante_url?: string | null
+          creado_en?: string
+          creado_por?: string
+          datos_ocr_json?: Json | null
+          descripcion?: string
+          estado_pago?: string
+          fecha_gasto?: string
+          fecha_vencimiento?: string | null
+          folio?: string
+          folio_comprobante?: string | null
+          id?: string
+          metodo_pago?: string | null
+          moneda?: string
+          monto_iva?: number
+          monto_subtotal?: number
+          monto_total?: number
+          notas?: string | null
+          orden_id?: string | null
+          proveedor_id?: string | null
+          tipo_cambio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gastos_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intentos_login: {
         Row: {
           actualizado_en: string
@@ -1092,6 +1189,7 @@ export type Database = {
           actualizado_en: string
           area: string
           codigo: string
+          costo_hora_interno: number
           creado_en: string
           id: string
           nombre: string
@@ -1101,6 +1199,7 @@ export type Database = {
           actualizado_en?: string
           area: string
           codigo: string
+          costo_hora_interno?: number
           creado_en?: string
           id?: string
           nombre: string
@@ -1110,6 +1209,7 @@ export type Database = {
           actualizado_en?: string
           area?: string
           codigo?: string
+          costo_hora_interno?: number
           creado_en?: string
           id?: string
           nombre?: string
@@ -1302,6 +1402,7 @@ export type Database = {
       sesiones_trabajo: {
         Row: {
           actualizado_en: string
+          costo_hora_interno: number
           creado_en: string
           estado_sesion: string
           fecha_fin: string | null
@@ -1319,6 +1420,7 @@ export type Database = {
         }
         Insert: {
           actualizado_en?: string
+          costo_hora_interno?: number
           creado_en?: string
           estado_sesion?: string
           fecha_fin?: string | null
@@ -1336,6 +1438,7 @@ export type Database = {
         }
         Update: {
           actualizado_en?: string
+          costo_hora_interno?: number
           creado_en?: string
           estado_sesion?: string
           fecha_fin?: string | null
@@ -1501,6 +1604,38 @@ export type Database = {
           id: string
         }[]
       }
+      cambiar_estado_gasto: {
+        Args: {
+          p_estado_esperado?: string
+          p_gasto_id: string
+          p_nuevo_estado: string
+          p_usuario_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          categoria: string
+          comprobante_url: string | null
+          creado_en: string
+          creado_por: string
+          datos_ocr_json: Json | null
+          descripcion: string
+          estado_pago: string
+          fecha_gasto: string
+          fecha_vencimiento: string | null
+          folio: string
+          folio_comprobante: string | null
+          id: string
+          metodo_pago: string | null
+          moneda: string
+          monto_iva: number
+          monto_subtotal: number
+          monto_total: number
+          notas: string | null
+          orden_id: string | null
+          proveedor_id: string | null
+          tipo_cambio: number
+        }[]
+      }
       cerrar_sesion_trabajo_operador: {
         Args: {
           p_estado_destino: string
@@ -1556,6 +1691,7 @@ export type Database = {
       }
       generar_folio_op: { Args: never; Returns: string }
       generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
+      generar_folio_gasto: { Args: { p_prefijo?: string }; Returns: string }
       generar_folio_recibo: { Args: { p_prefijo?: string }; Returns: string }
       generar_nota_entrega: {
         Args: {
@@ -1603,6 +1739,25 @@ export type Database = {
           recurso_id: string
           sobrecargado: boolean
           turno: string
+        }[]
+      }
+      obtener_rentabilidad_orden: {
+        Args: { p_orden_id: string }
+        Returns: {
+          costo_gastos_directos_mxn: number
+          costo_mano_obra_mxn: number
+          costo_materiales_mxn: number
+          costo_total_mxn: number
+          gastos_considerados: number
+          gastos_excluidos: number
+          margen_calculable: boolean
+          margen_porcentaje: number | null
+          materiales_considerados: number
+          monto_venta_mxn: number
+          orden_id: string
+          sesiones_consideradas: number
+          sesiones_sin_tarifa: number
+          utilidad_bruta_mxn: number
         }[]
       }
       programar_partida_recurso: {
@@ -1673,6 +1828,51 @@ export type Database = {
           p_max_intentos: number
         }
         Returns: undefined
+      }
+      registrar_gasto: {
+        Args: {
+          p_categoria: string
+          p_comprobante_url: string | null
+          p_datos_ocr_json: Json | null
+          p_descripcion: string
+          p_fecha_gasto: string
+          p_fecha_vencimiento: string | null
+          p_folio_comprobante: string | null
+          p_metodo_pago: string | null
+          p_monto_iva: number
+          p_monto_subtotal: number
+          p_monto_total: number
+          p_moneda: string
+          p_notas: string | null
+          p_orden_id: string | null
+          p_proveedor_id: string | null
+          p_tipo_cambio: number
+          p_creado_por: string
+        }
+        Returns: {
+          actualizado_en: string
+          categoria: string
+          comprobante_url: string | null
+          creado_en: string
+          creado_por: string
+          datos_ocr_json: Json | null
+          descripcion: string
+          estado_pago: string
+          fecha_gasto: string
+          fecha_vencimiento: string | null
+          folio: string
+          folio_comprobante: string | null
+          id: string
+          metodo_pago: string | null
+          moneda: string
+          monto_iva: number
+          monto_subtotal: number
+          monto_total: number
+          notas: string | null
+          orden_id: string | null
+          proveedor_id: string | null
+          tipo_cambio: number
+        }[]
       }
       registrar_movimiento_inventario: {
         Args: {

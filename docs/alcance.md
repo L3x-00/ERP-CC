@@ -26,10 +26,15 @@
 | 8.2 | Pagos, monedero y apertura de AR mediante RPCs atómicas, idempotentes y multimoneda; aging y fixture `SIM-AR`. |
 | 8.3 | Server Actions autorizadas, auditoría, servicios de cartera y estado cliente sin copias de saldos. |
 | 8.4 | Ruta `/cobranza`, recibo funcional, Realtime sin payload y E2E remoto de pago y sincronización. |
+| 9.1 | Esquema local de Gastos/CxP, folios GTO atómicos, RLS y tarifas históricas de sesiones. Pendiente de aplicar al remoto. |
+| 9.2 | Motor local de rentabilidad por orden, CPP con merma y OCR server-side validado con Zod. Pendiente de gate remoto. |
+| 9.3 | Server Actions, permisos financieros, auditoría, Zustand efímero y sincronización Realtime de Gastos. |
+| 9.4 | Ruta `/gastos`, fixture persistente `SIM-GTO`, pruebas de integración y E2E opt-in con cleanup por ID. |
 
 ## Siguiente alcance
 
-1. **Fase 9 — Gastos y rentabilidad:** costos, comprobantes y margen real por orden.
+1. **Cierre operativo de Fase 9:** recuperar el privilegio CLI de Supabase, aplicar las tres migraciones, regenerar tipos desde la base, ejecutar `db lint`, verificar `SIM-GTO` y correr la E2E remota.
+2. **Fase 10 — Portal y analítica:** definir después de la aceptación del motor financiero.
 
 ## Fuera de alcance actual
 

@@ -4,3 +4,8 @@ allowBuilds:
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+overrides:
+  brace-expansion@1.1.15: 1.1.18
+  js-yaml@4.3.0: 4.3.2
+  browserslist@4.28.4: 4.28.9
+  baseline-browser-mapping@2.10.41: 2.11.21

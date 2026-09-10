@@ -219,6 +219,7 @@ describe('mappers de Planeación', () => {
     codigo: 'SM-LASER-01',
     nombre: 'Láser fibra 3kW',
     area: 'sheet_metal',
+    costo_hora_interno: 0,
     activo: true,
     creado_en: '2026-08-01T12:00:00.000Z',
     actualizado_en: '2026-08-10T12:00:00.000Z',

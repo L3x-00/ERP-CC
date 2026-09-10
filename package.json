@@ -17,6 +17,8 @@
     "verificar:ficticios:produccion": "node supabase/semillas/produccion-ficticia.mjs --verificar",
     "datos:ficticios:cobranza": "node supabase/semillas/cobranza-ficticia.mjs",
     "verificar:ficticios:cobranza": "node supabase/semillas/cobranza-ficticia.mjs --verificar",
+    "datos:ficticios:gastos": "node supabase/semillas/gastos-ficticia.mjs",
+    "verificar:ficticios:gastos": "node supabase/semillas/gastos-ficticia.mjs --verificar",
     "verificar:motor:planeacion": "node supabase/semillas/verificar-motor-capacidad.mjs",
     "verificar:cas:planeacion": "node supabase/semillas/verificar-compare-and-set-planeacion.mjs"
   },
@@ -29,7 +31,7 @@
     "@tanstack/react-query-devtools": "^5.101.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
-    "next": "16.3.0",
+    "next": "16.3.3",
     "next-themes": "^0.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -49,11 +51,11 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.5.2",
     "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "16.3.3",
     "jsdom": "^30.0.1",
     "postcss": "^8.5.23",
     "tailwindcss": "^4.3.2",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   }
 }
