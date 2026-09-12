@@ -37,6 +37,14 @@ export async function actualizarClienteAccion(
 
   const { id, ...cambios } = analisis.data;
 
+  // El límite de crédito y el estado del cliente son decisiones financieras:
+  // no pueden modificarse con el permiso de solo lectura de clientes.
+  const tocaCamposFinancieros =
+    cambios.limiteCredito !== undefined || cambios.estado !== undefined;
+  if (tocaCamposFinancieros && !(await can(usuario, 'ver_finanzas'))) {
+    return { exito: false, error: 'Sin permiso para modificar crédito o estado del cliente' };
+  }
+
   // Solo se incluyen columnas realmente presentes en la entrada (edición parcial).
   const parche: ActualizacionCliente = {};
   if (cambios.razonSocial !== undefined) parche.razon_social = cambios.razonSocial;
@@ -64,7 +72,7 @@ export async function actualizarClienteAccion(
 
   if (error) {
     if (error.code === '23505') {
-      return { exito: false, error: 'Ya existe un cliente con ese RFC o razón social' };
+      console.error('[CLIENTES] Actualización rechazada por duplicado:', error.message);
     }
     return { exito: false, error: 'No se pudo actualizar el cliente' };
   }

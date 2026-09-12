@@ -88,22 +88,58 @@ export type FilaPipeline = Tables<'pipeline'>;
 export type FilaLineaCotizacion = Tables<'cotizacion_lineas'>;
 export type FilaCliente = Tables<'clientes'>;
 
+const ETAPAS_PIPELINE: readonly EtapaPipeline[] = [
+  'prospecto',
+  'contactado',
+  'cotizado',
+  'negociacion',
+  'ganada',
+  'perdida',
+];
+
+const MONEDAS_PIPELINE: readonly MonedaPipeline[] = ['MXN', 'USD'];
+const CONDICIONES_PAGO_PIPELINE: readonly CondicionesPago[] = [
+  'contado',
+  '15_dias',
+  '30_dias',
+  'credito',
+];
+const PRIORIDADES_PIPELINE: readonly PrioridadPipeline[] = ['baja', 'normal', 'alta', 'urgente'];
+
+/**
+ * Convierte un valor de BD a un enum de dominio; lanza si la BD trae un valor
+ * fuera del contrato (drift/migración) en lugar de dejarlo pasar con un `as`.
+ */
+function validarEnumerado<T extends string>(
+  valor: string,
+  permitidos: readonly T[],
+  campo: string,
+): T {
+  if (!(permitidos as readonly string[]).includes(valor)) {
+    throw new Error(`Valor fuera de contrato en pipeline: ${campo}`);
+  }
+  return valor as T;
+}
+
 /** Convierte una fila de pipeline (snake_case) a Oportunidad (camelCase). */
 export function filaAOportunidad(fila: FilaPipeline): Oportunidad {
   return {
     id: fila.id,
     folioOp: fila.folio_op,
     folioCnc: fila.folio_cnc,
-    etapa: fila.etapa as EtapaPipeline,
+    etapa: validarEnumerado(fila.etapa, ETAPAS_PIPELINE, 'etapa'),
     nombreContacto: fila.nombre_contacto,
     empresa: fila.empresa,
     correo: fila.correo,
     telefono: fila.telefono,
     clienteId: fila.cliente_id,
     vendedorId: fila.vendedor_id,
-    moneda: fila.moneda as MonedaPipeline,
-    condicionesPago: fila.condiciones_pago as CondicionesPago | null,
-    prioridad: fila.prioridad as PrioridadPipeline,
+    moneda: validarEnumerado(fila.moneda, MONEDAS_PIPELINE, 'moneda'),
+    condicionesPago:
+      fila.condiciones_pago === null
+        ? null
+        : validarEnumerado(fila.condiciones_pago, CONDICIONES_PAGO_PIPELINE, 'condiciones_pago'),
+    prioridad: validarEnumerado(fila.prioridad, PRIORIDADES_PIPELINE, 'prioridad'),
     ivaPorcentaje: Number(fila.iva_porcentaje),
     etiquetas: fila.etiquetas,
     motivoPerdida: fila.motivo_perdida,

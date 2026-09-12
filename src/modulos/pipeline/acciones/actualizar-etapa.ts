@@ -3,6 +3,7 @@
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { generarFolioCnc } from '@/modulos/pipeline/servicios/generar-folio-cnc';
 import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
@@ -34,12 +35,22 @@ export async function actualizarEtapaAccion(
   const { id, etapaDestino: hacia } = analisis.data;
 
   // Carga con cliente RLS: si el usuario no puede ver la oportunidad → null.
+  // El error de BD se registra internamente y se responde genérico.
   const servidor = await crearClienteSupabaseServidor();
   const cargada = await obtenerOportunidadPorId(servidor, id);
   if (!cargada) {
     return { exito: false, error: 'No encontrada' };
   }
   const desde = cargada.oportunidad.etapa;
+
+  // Un vendedor sin alcance de equipo solo puede mover sus propias oportunidades.
+  if (
+    cargada.oportunidad.vendedorId !== usuario.id &&
+    usuario.rol !== 'admin' &&
+    !(await can(usuario, 'ver_pipeline_equipo'))
+  ) {
+    return { exito: false, error: 'No encontrada' };
+  }
 
   // Escritura de columnas controladas (etapa/folio) vía cliente admin: la RLS y
   // un trigger impiden que un cliente autenticado las cambie directo; la

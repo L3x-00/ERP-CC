@@ -20,36 +20,41 @@ export type OportunidadConLineas = {
  *
  * @param cliente Cliente Supabase (servidor o navegador).
  * @param id Identificador de la oportunidad.
- * @returns La oportunidad con sus líneas ordenadas, o `null`.
- * @throws Error si la consulta falla por un motivo distinto a "no encontrada".
+ * @returns La oportunidad con sus líneas ordenadas, o `null` si no existe, RLS
+ * la oculta o la consulta falla (el detalle queda en el log interno).
  */
 export async function obtenerOportunidadPorId(
   cliente: SupabaseClient<Database>,
   id: string,
 ): Promise<OportunidadConLineas | null> {
-  const { data: fila, error } = await cliente
-    .from('pipeline')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-  if (error) {
-    throw new Error('No se pudo cargar la oportunidad');
-  }
-  if (!fila) {
+  try {
+    const { data: fila, error } = await cliente
+      .from('pipeline')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Error al cargar la oportunidad: ${error.message}`);
+    }
+    if (!fila) {
+      return null;
+    }
+
+    const { data: filasLineas, error: errorLineas } = await cliente
+      .from('cotizacion_lineas')
+      .select('*')
+      .eq('pipeline_id', id)
+      .order('orden', { ascending: true });
+    if (errorLineas) {
+      throw new Error(`Error al cargar líneas de cotización: ${errorLineas.message}`);
+    }
+
+    return {
+      oportunidad: filaAOportunidad(fila),
+      lineas: (filasLineas ?? []).map(filaALineaCotizacion),
+    };
+  } catch (error) {
+    console.error('[PIPELINE] Fallo al cargar oportunidad por id:', error);
     return null;
   }
-
-  const { data: filasLineas, error: errorLineas } = await cliente
-    .from('cotizacion_lineas')
-    .select('*')
-    .eq('pipeline_id', id)
-    .order('orden', { ascending: true });
-  if (errorLineas) {
-    throw new Error('No se pudieron cargar las líneas de la cotización');
-  }
-
-  return {
-    oportunidad: filaAOportunidad(fila),
-    lineas: (filasLineas ?? []).map(filaALineaCotizacion),
-  };
 }

@@ -6,14 +6,15 @@ import { formatearMoneda } from '@/compartido/utilidades/formatear';
 
 /**
  * Resumen de crédito del cliente con alerta si está excedido. El crédito usado
- * es 0 por ahora (hook Fase 8 — AR real); cuando exista, esta vista lo reflejará
- * sin cambios de UI. Un límite excedido bloquea nuevas órdenes (enforce en Fase 5).
+ * se calcula con las AR pendientes/parciales (MXN) leídas bajo RLS: un usuario
+ * sin `ver_finanzas` verá 0 porque las cuentas no le son visibles. Un límite
+ * excedido bloquea nuevas órdenes (enforce en Fase 5).
  */
-export function AlertaCredito({ cliente }: { cliente: Cliente }) {
+export function AlertaCredito({ cliente, usado = 0 }: { cliente: Cliente; usado?: number }) {
   const credito = verificarCredito({
     limite: cliente.limiteCredito,
     saldoAFavor: cliente.saldoAFavor,
-    usado: 0,
+    usado,
   });
 
   return (

@@ -16,7 +16,8 @@ export async function obtenerCreditoUsado(
     .in('estado', ['pendiente', 'parcial']);
 
   if (error) {
-    throw new Error('No se pudo calcular el crédito usado');
+    console.error('[CLIENTES] No se pudo calcular el crédito usado:', error.message);
+    return 0;
   }
 
   const total = (data ?? []).reduce((acumulado, cuenta) => {

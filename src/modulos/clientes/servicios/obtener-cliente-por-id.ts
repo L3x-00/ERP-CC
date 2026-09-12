@@ -6,11 +6,17 @@ import {
   type Cliente,
   type DocumentoCliente,
 } from '@/modulos/clientes/tipos/indice';
+import { calcularConsumoUltimos3Meses } from '@/modulos/clientes/servicios/calcular-consumo';
+import { obtenerCreditoUsado } from '@/modulos/clientes/servicios/credito-usado';
 
-/** Cliente con sus documentos adjuntos (ficha 360°). */
+/** Cliente con documentos y resumen financiero calculado (ficha 360°). */
 export type ClienteConDocumentos = {
   cliente: Cliente;
   documentos: DocumentoCliente[];
+  /** Consumo MXN de los últimos 3 meses (AR no cancelada); 0 si RLS lo oculta. */
+  consumoUltimos3Meses: number;
+  /** Suma de saldos AR pendientes/parciales en MXN; 0 si RLS lo oculta. */
+  creditoUsado: number;
 };
 
 /**
@@ -44,8 +50,15 @@ export async function obtenerClientePorId(
     .eq('cliente_id', id)
     .order('creado_en', { ascending: false });
 
+  const [consumoUltimos3Meses, creditoUsado] = await Promise.all([
+    calcularConsumoUltimos3Meses(cliente, id),
+    obtenerCreditoUsado(cliente, id),
+  ]);
+
   return {
     cliente: filaACliente(fila),
     documentos: (docs ?? []).map(filaADocumentoCliente),
+    consumoUltimos3Meses,
+    creditoUsado,
   };
 }

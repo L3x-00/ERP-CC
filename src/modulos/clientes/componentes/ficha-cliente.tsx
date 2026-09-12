@@ -61,7 +61,7 @@ export function FichaCliente({
             <h2 className="text-lg font-bold">{data?.cliente.razonSocial ?? 'Cliente'}</h2>
             {data && (
               <div className="flex items-center gap-2">
-                <BadgeTier cliente={data.cliente} />
+                <BadgeTier cliente={data.cliente} consumo={data.consumoUltimos3Meses} />
                 <span
                   className={`inline-flex items-center rounded-base px-2 py-0.5 text-xs font-semibold ${CLASE_ESTADO[data.cliente.estado]}`}
                 >
@@ -81,7 +81,7 @@ export function FichaCliente({
         {data && (
           <>
             <div className="p-4">
-              <AlertaCredito cliente={data.cliente} />
+              <AlertaCredito cliente={data.cliente} usado={data.creditoUsado} />
             </div>
 
             {esAdmin && <ControlTierManual clienteId={clienteId} />}

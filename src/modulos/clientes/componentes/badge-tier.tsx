@@ -6,12 +6,13 @@ import { CLASE_TIER, ETIQUETA_TIER } from '@/modulos/clientes/utilidades/indice'
 
 /**
  * Badge del tier EFECTIVO del cliente. Resuelve manual-vigente vs automático con
- * `calcularTier`. El consumo es 0 por ahora (hook Fase 8), así que sin tier
- * manual vigente todos caen a Bronce. Marca "· manual" cuando aplica un override.
+ * `calcularTier` usando el consumo MXN calculado por el servidor (AR de los
+ * últimos 3 meses). El tier manual vigente gana sobre el automático. Marca
+ * "· manual" cuando aplica un override.
  */
-export function BadgeTier({ cliente }: { cliente: Cliente }) {
+export function BadgeTier({ cliente, consumo = 0 }: { cliente: Cliente; consumo?: number }) {
   const { tier, esManual } = calcularTier({
-    consumo: 0,
+    consumo,
     tierManual: cliente.tierManual,
     tierManualHasta: cliente.tierManualHasta,
     ahora: new Date(),

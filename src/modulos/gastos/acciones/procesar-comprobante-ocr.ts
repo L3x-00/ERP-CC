@@ -51,7 +51,7 @@ export async function procesarComprobanteOcrAccion(
       await registrarLog(usuario, 'ocr_comprobante_rechazado', 'gastos', usuario.id, {
         codigo: error.codigo,
       });
-      return { exito: false, error: 'El OCR no está configurado' };
+      return { exito: false, error: 'No se pudo leer el comprobante' };
     }
     await registrarLog(usuario, 'ocr_comprobante_rechazado', 'gastos', usuario.id);
     return { exito: false, error: 'No se pudo leer el comprobante' };

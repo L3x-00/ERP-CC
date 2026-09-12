@@ -35,6 +35,11 @@ export async function crearClienteAccion(
   }
 
   const datos = analisis.data;
+
+  // Otorgar crédito inicial es una decisión financiera, no de captura comercial.
+  if (datos.limiteCredito > 0 && !(await can(usuario, 'ver_finanzas'))) {
+    return { exito: false, error: 'Sin permiso para asignar límite de crédito' };
+  }
   const admin = crearClienteSupabaseAdmin();
 
   const { data: fila, error } = await admin
@@ -57,7 +62,7 @@ export async function crearClienteAccion(
 
   if (error) {
     if (error.code === '23505') {
-      return { exito: false, error: 'Ya existe un cliente con ese RFC o razón social' };
+      console.error('[CLIENTES] Alta rechazada por duplicado:', error.message);
     }
     return { exito: false, error: 'No se pudo crear el cliente' };
   }

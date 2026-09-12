@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
@@ -38,13 +39,23 @@ export async function vincularDesdePipelineAccion(
     return { exito: false, error: 'Sin permiso para vincular clientes' };
   }
 
-  const admin = crearClienteSupabaseAdmin();
-
-  const cargada = await obtenerOportunidadPorId(admin, analisis.data.oportunidadId);
+  // Carga bajo RLS: solo se puede vincular una oportunidad visible para el
+  // usuario. Además se exige ser el vendedor dueño o tener alcance de equipo;
+  // nunca se usa el cliente admin para leer oportunidades ajenas.
+  const servidor = await crearClienteSupabaseServidor();
+  const cargada = await obtenerOportunidadPorId(servidor, analisis.data.oportunidadId);
   if (!cargada) {
     return { exito: false, error: 'Oportunidad no encontrada' };
   }
   const op = cargada.oportunidad;
+
+  const esPropia = op.vendedorId === usuario.id;
+  const alcanceEquipo = await can(usuario, 'ver_pipeline_equipo');
+  if (!esPropia && !alcanceEquipo) {
+    return { exito: false, error: 'Oportunidad no encontrada' };
+  }
+
+  const admin = crearClienteSupabaseAdmin();
 
   let clienteId: string;
   try {
