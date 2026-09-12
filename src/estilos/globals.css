@@ -1,33 +1,100 @@
 @import "tailwindcss";
+@import "../compartido/diseno/tokens.css";
 
 /* Variante dark controlada por clase (next-themes attribute="class") */
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primario: hsl(209 89% 51%); /* Azul */
-  --secundario: hsl(160 84% 39%); /* Verde azulado */
-  --radius: 0.5rem;
-}
-
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-}
-
+/* -----------------------------------------------------------------------------
+   Exposición del sistema de diseño a Tailwind v4.
+   Cada variable `--color-*` genera utilidades `bg-*`, `text-*`, `border-*`,
+   `divide-*`, `ring-*`; `--radius-*` genera `rounded-*`; `--shadow-*` genera
+   `shadow-*`.
+   ----------------------------------------------------------------------------- */
 @theme inline {
+  /* Compatibilidad histórica del repositorio */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primario: var(--primario);
   --color-secundario: var(--secundario);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
   --radius-base: var(--radius);
+
+  /* Superficies */
+  --color-fondo: var(--fondo);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-borde: var(--borde);
+  --color-borde-fuerte: var(--borde-fuerte);
+
+  /* Texto */
+  --color-texto-primario: var(--texto-primario);
+  --color-texto-secundario: var(--texto-secundario);
+  --color-texto-tenue: var(--texto-tenue);
+
+  /* Acento */
+  --color-acento: var(--acento);
+  --color-acento-suave: var(--acento-suave);
+  --color-acento-hover: var(--acento-hover);
+
+  /* Semánticos */
+  --color-exito: var(--exito);
+  --color-exito-suave: var(--exito-suave);
+  --color-exito-texto: var(--exito-texto);
+  --color-advertencia: var(--advertencia);
+  --color-advertencia-suave: var(--advertencia-suave);
+  --color-advertencia-texto: var(--advertencia-texto);
+  --color-peligro: var(--peligro);
+  --color-peligro-suave: var(--peligro-suave);
+  --color-peligro-texto: var(--peligro-texto);
+  --color-info: var(--info);
+  --color-info-suave: var(--info-suave);
+  --color-info-texto: var(--info-texto);
+
+  /* Tiers de cliente */
+  --color-tier-bronce: var(--tier-bronce);
+  --color-tier-bronce-suave: var(--tier-bronce-suave);
+  --color-tier-plata: var(--tier-plata);
+  --color-tier-plata-suave: var(--tier-plata-suave);
+  --color-tier-oro: var(--tier-oro);
+  --color-tier-oro-suave: var(--tier-oro-suave);
+  --color-tier-platino: var(--tier-platino);
+  --color-tier-platino-suave: var(--tier-platino-suave);
+
+  /* Tipografía */
+  --font-sans: var(--font-inter), var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* Radios */
+  --radius-sm: var(--radio-sm);
+  --radius-md: var(--radio-md);
+  --radius-lg: var(--radio-lg);
+  --radius-xl: var(--radio-xl);
+  --radius-full: var(--radio-full);
+
+  /* Sombras */
+  --shadow-sm: var(--sombra-sm);
+  --shadow-md: var(--sombra-md);
+  --shadow-lg: var(--sombra-lg);
 }
 
-body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+/* -----------------------------------------------------------------------------
+   Capa base: el lienzo nunca es blanco puro; bordes por defecto del sistema.
+   ----------------------------------------------------------------------------- */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-borde);
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-texto-primario);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Foco visible consistente en todo el sistema (no se oculta el ring). */
+  :focus-visible {
+    outline-color: var(--acento);
+  }
 }

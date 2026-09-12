@@ -1,0 +1,274 @@
+/* =============================================================================
+   ORCA MFG ERP v2 — Sistema de diseño (tokens canónicos)
+   -----------------------------------------------------------------------------
+   Fuente de verdad de color, radio, sombra, transición y utilidades de apoyo.
+   Se importa desde `src/estilos/globals.css`, donde además se expone a Tailwind
+   v4 con `@theme inline` para generar utilidades `bg-*`, `text-*`, `border-*`,
+   `shadow-*`, `rounded-*`.
+
+   Convención: nombres en español (no negociable en el repo). Se conservan los
+   alias históricos (`--background`, `--foreground`, `--primario`, `--secundario`,
+   `--radius`) re-mapeados al nuevo lenguaje para no romper componentes previos.
+
+   Modo oscuro: next-themes `attribute="class"`. El piso de taller fuerza `.dark`.
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   1. VALORES CRUDOS — modo claro (oficina)
+   ----------------------------------------------------------------------------- */
+:root {
+  /* Superficies */
+  --fondo: #f8f9fa; /* lienzo: nunca blanco puro */
+  --superficie: #ffffff; /* tarjetas, modales, tablas */
+  --superficie-2: #f1f3f5; /* filas alternas, fondo de inputs */
+  --borde: #e2e8f0;
+  --borde-fuerte: #cbd5e1;
+
+  /* Texto */
+  --texto-primario: #1e293b;
+  --texto-secundario: #64748b;
+  --texto-tenue: #94a3b8;
+
+  /* Acento */
+  --acento: #3b82f6;
+  --acento-suave: #eff6ff;
+  --acento-hover: #2563eb;
+  --acento-anillo: rgba(59, 130, 246, 0.15);
+
+  /* Semánticos */
+  --exito: #10b981;
+  --exito-suave: #ecfdf5;
+  --exito-texto: #065f46;
+  --advertencia: #f59e0b;
+  --advertencia-suave: #fffbeb;
+  --advertencia-texto: #92400e;
+  --peligro: #ef4444;
+  --peligro-suave: #fef2f2;
+  --peligro-texto: #991b1b;
+  --info: #6366f1;
+  --info-suave: #eef2ff;
+  --info-texto: #3730a3;
+
+  /* Tiers de cliente */
+  --tier-bronce: #a97142;
+  --tier-bronce-suave: #f6ece2;
+  --tier-plata: #8a94a6;
+  --tier-plata-suave: #eef1f5;
+  --tier-oro: #c79a2e;
+  --tier-oro-suave: #fbf3dc;
+  --tier-platino: #5b7c99;
+  --tier-platino-suave: #e9f0f5;
+
+  /* Radios */
+  --radio-sm: 4px;
+  --radio-md: 8px;
+  --radio-lg: 12px;
+  --radio-xl: 16px;
+  --radio-full: 9999px;
+
+  /* Espaciado — grid 8px (referencia documental) */
+  --esp-1: 4px;
+  --esp-2: 8px;
+  --esp-3: 12px;
+  --esp-4: 16px;
+  --esp-5: 20px;
+  --esp-6: 24px;
+  --esp-8: 32px;
+  --esp-10: 40px;
+  --esp-12: 48px;
+  --esp-16: 64px;
+
+  /* Sombras */
+  --sombra-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+
+  /* Transiciones */
+  --trans-rapida: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-lenta: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Alias históricos re-mapeados (compatibilidad) */
+  --background: var(--fondo);
+  --foreground: var(--texto-primario);
+  --primario: var(--acento);
+  --secundario: var(--exito);
+  --radius: 0.5rem;
+
+  /* Alias del prompt en inglés (documentación / compatibilidad) */
+  --surface: var(--superficie);
+  --surface-2: var(--superficie-2);
+  --border: var(--borde);
+  --border-strong: var(--borde-fuerte);
+  --text-primary: var(--texto-primario);
+  --text-secondary: var(--texto-secundario);
+  --text-muted: var(--texto-tenue);
+  --accent: var(--acento);
+  --accent-soft: var(--acento-suave);
+  --accent-hover: var(--acento-hover);
+  --success: var(--exito);
+  --success-soft: var(--exito-suave);
+  --warning: var(--advertencia);
+  --warning-soft: var(--advertencia-suave);
+  --danger: var(--peligro);
+  --danger-soft: var(--peligro-suave);
+  --info-soft: var(--info-suave);
+}
+
+/* -----------------------------------------------------------------------------
+   2. VALORES CRUDOS — modo oscuro (piso de taller: alto contraste, luz fuerte)
+   ----------------------------------------------------------------------------- */
+.dark {
+  --fondo: #0f172a;
+  --superficie: #1e293b;
+  --superficie-2: #334155;
+  --borde: #475569;
+  --borde-fuerte: #64748b;
+
+  --texto-primario: #f1f5f9;
+  --texto-secundario: #cbd5e1;
+  --texto-tenue: #94a3b8;
+
+  --acento: #60a5fa;
+  --acento-suave: #1e3a5f;
+  --acento-hover: #3b82f6;
+  --acento-anillo: rgba(96, 165, 250, 0.35);
+
+  --exito: #34d399;
+  --exito-suave: #064e3b;
+  --exito-texto: #a7f3d0;
+  --advertencia: #fbbf24;
+  --advertencia-suave: #78350f;
+  --advertencia-texto: #fde68a;
+  --peligro: #f87171;
+  --peligro-suave: #7f1d1d;
+  --peligro-texto: #fecaca;
+  --info: #818cf8;
+  --info-suave: #312e81;
+  --info-texto: #c7d2fe;
+
+  --sombra-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+  --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+
+  /* Alias dark del prompt */
+  --dark-background: #0f172a;
+  --dark-surface: #1e293b;
+  --dark-surface-2: #334155;
+  --dark-border: #475569;
+  --dark-text: #f1f5f9;
+  --dark-text-2: #cbd5e1;
+}
+
+/* -----------------------------------------------------------------------------
+   3. UTILIDADES DE APOYO
+   ----------------------------------------------------------------------------- */
+
+/* Anillo de foco accesible (inputs, botones, enlaces) */
+.foco-anillo:focus-visible {
+  outline: 2px solid transparent;
+  border-color: var(--acento);
+  box-shadow: 0 0 0 3px var(--acento-anillo);
+  transition: border-color var(--trans-rapida), box-shadow var(--trans-rapida);
+}
+
+/* Punto de estado pulsante (badge `en_proceso`, actividad en tiempo real) */
+@keyframes pulso-estado {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.punto-en-proceso {
+  animation: pulso-estado 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Aparición de modales y paneles (200ms) */
+@keyframes entrada-panel {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animar-entrada {
+  animation: entrada-panel var(--trans-base);
+}
+
+/* Deslizamiento lateral (drawer de navegación / panel de notificaciones) */
+@keyframes deslizar-derecha {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.deslizar-derecha {
+  animation: deslizar-derecha var(--trans-lenta);
+}
+
+@keyframes deslizar-izquierda {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.deslizar-izquierda {
+  animation: deslizar-izquierda var(--trans-lenta);
+}
+
+/* Shimmer de skeletons (izquierda → derecha) */
+@keyframes brillo {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+.skeleton-brillo {
+  background-image: linear-gradient(
+    90deg,
+    var(--superficie-2) 25%,
+    color-mix(in srgb, var(--superficie-2) 60%, var(--borde)) 50%,
+    var(--superficie-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: brillo 1.4s ease-in-out infinite;
+}
+
+/* Chevron para selects nativos */
+.select-flecha {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364748b' stroke-width='1.6'%3E%3Cpath d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 1.1rem;
+  padding-right: 2.25rem;
+}
+
+/* Scrollbars discretas en paneles con scroll */
+.scroll-sutil {
+  scrollbar-width: thin;
+  scrollbar-color: var(--borde-fuerte) transparent;
+}
+
+/* Respeta la preferencia de movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  .punto-en-proceso,
+  .animar-entrada,
+  .deslizar-derecha,
+  .deslizar-izquierda,
+  .skeleton-brillo {
+    animation: none;
+  }
+}

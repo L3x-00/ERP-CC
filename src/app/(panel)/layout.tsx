@@ -1,14 +1,13 @@
 import { redirect } from 'next/navigation';
-import { IndicadorSesion } from '@/modulos/autenticacion/componentes/indicador-sesion';
-import { CentroNotificacionesHeader } from '@/modulos/comentarios/componentes/indice';
+import { ChasisApp } from '@/compartido/componentes/navegacion/chasis-app';
+import { obtenerModulosPermitidos } from '@/compartido/componentes/navegacion/filtrar-modulos';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
 /**
  * Layout del panel administrativo (admin, ventas, gerentes, contador).
  * Server Component: exige un usuario Supabase autenticado — si no existe,
  * redirige a `/iniciar-sesion` (guardia adicional a la del middleware).
- * Renderiza un header con el nombre de la aplicación y el indicador de
- * sesión, y envuelve el contenido de cada ruta hija en `<main>`.
+ * Monta el chasis compartido con sidebar, encabezado y contenido.
  */
 export default async function LayoutPanel({
   children,
@@ -22,15 +21,11 @@ export default async function LayoutPanel({
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-foreground/10 px-6 py-4">
-        <span className="text-lg font-bold">ORCA MFG ERP</span>
-        <div className="flex items-center gap-3">
-          <CentroNotificacionesHeader usuarioId={usuario.id} />
-          <IndicadorSesion nombreUsuario={usuario.nombreCompleto} />
-        </div>
-      </header>
-      <main className="flex-1 p-6">{children}</main>
-    </div>
+    <ChasisApp
+      usuario={{ id: usuario.id, nombreCompleto: usuario.nombreCompleto, rol: usuario.rol }}
+      modulos={obtenerModulosPermitidos(usuario)}
+    >
+      {children}
+    </ChasisApp>
   );
 }

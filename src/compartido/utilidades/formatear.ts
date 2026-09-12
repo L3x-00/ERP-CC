@@ -1,10 +1,31 @@
 /**
- * Formatea número como moneda MXN.
+ * Formatea una cantidad como moneda. Por defecto MXN con 2 decimales; acepta
+ * moneda y decimales para cotizaciones USD y costos unitarios (CPP a 4).
  */
-export function formatearMoneda(cantidad: number): string {
+export function formatearMoneda(
+  cantidad: number,
+  moneda: 'MXN' | 'USD' = 'MXN',
+  decimales = 2,
+): string {
+  if (!Number.isFinite(cantidad)) {
+    return '—';
+  }
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
-    currency: 'MXN',
+    currency: moneda,
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  }).format(cantidad);
+}
+
+/** Formatea un número no monetario con decimales fijos (cantidades, horas). */
+export function formatearNumero(cantidad: number, decimales = 2): string {
+  if (!Number.isFinite(cantidad)) {
+    return '—';
+  }
+  return new Intl.NumberFormat('es-MX', {
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
   }).format(cantidad);
 }
 
