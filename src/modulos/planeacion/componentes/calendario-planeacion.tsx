@@ -172,7 +172,7 @@ export function CalendarioPlaneacion({
         <h2 id="titulo-calendario-planeacion" className="text-sm font-medium">
           Calendario de Planeación
         </h2>
-        <p className="text-xs text-foreground/60" aria-live="polite">
+        <p className="text-xs text-texto-secundario" aria-live="polite">
           {errorActualizacion
             ? 'No se pudo actualizar el calendario'
             : actualizando
@@ -181,7 +181,7 @@ export function CalendarioPlaneacion({
         </p>
       </div>
 
-      <div className="grid gap-3 rounded-base border border-foreground/10 p-3 md:grid-cols-3">
+      <div className="grid gap-3 rounded-base border border-borde p-3 md:grid-cols-3">
         <label className="flex flex-col gap-1 text-xs">
           Fecha inicial
           <Input
@@ -269,12 +269,12 @@ export function CalendarioPlaneacion({
         </fieldset>
       </div>
 
-      <div className="overflow-x-auto rounded-base border border-foreground/10">
+      <div className="overflow-x-auto rounded-base border border-borde">
         <table className="w-full text-left text-sm" aria-busy={actualizando}>
           <caption className="sr-only">
             Programaciones por fecha, turno y recurso en el rango seleccionado
           </caption>
-          <thead className="border-b border-foreground/10 bg-foreground/5 text-xs uppercase text-foreground/60">
+          <thead className="border-b border-borde bg-superficie-2 text-xs uppercase text-texto-secundario">
             <tr>
               <th scope="col" className="px-3 py-2">Fecha</th>
               <th scope="col" className="px-3 py-2">Turno</th>
@@ -289,7 +289,7 @@ export function CalendarioPlaneacion({
           <tbody>
             {visibles.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-foreground/60">
+                <td colSpan={8} className="px-3 py-6 text-center text-texto-secundario">
                   Sin programaciones para los filtros seleccionados
                 </td>
               </tr>
@@ -306,8 +306,8 @@ export function CalendarioPlaneacion({
                     aria-selected={seleccionada}
                     className={
                       seleccionada
-                        ? 'border-b border-foreground/10 bg-foreground/5'
-                        : 'border-b border-foreground/10'
+                        ? 'border-b border-borde bg-superficie-2'
+                        : 'border-b border-borde'
                     }
                   >
                     <th scope="row" className="px-3 py-2 font-normal">{programacion.fechaProgramada}</th>

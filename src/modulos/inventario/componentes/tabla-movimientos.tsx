@@ -1,6 +1,17 @@
 'use client';
 
 import { usarMovimientosInventario } from '@/modulos/inventario/hooks/usar-movimientos-inventario';
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
+import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { ETIQUETA_TIPO_MOVIMIENTO } from '@/modulos/inventario/utilidades/indice';
@@ -13,6 +24,13 @@ function varianteTipo(tipo: TipoMovimiento): 'exito' | 'alerta' | 'info' {
   return 'info';
 }
 
+/** Color semántico de la cantidad: positivas suman, negativas restan. */
+function claseCantidad(valor: number): string {
+  if (valor > 0) return 'text-exito-texto';
+  if (valor < 0) return 'text-peligro-texto';
+  return 'text-texto-secundario';
+}
+
 /**
  * Historial/auditoría de movimientos de inventario (kardex): folios ENT-/SAL-,
  * tipo, cantidades y fecha. Consume `usarMovimientosInventario()`.
@@ -21,68 +39,74 @@ export function TablaMovimientos() {
   const { data, isLoading, isError } = usarMovimientosInventario();
   const movimientos = data?.registros ?? [];
 
+  if (isLoading) {
+    return <SkeletonTabla filas={6} columnas={6} />;
+  }
+
+  if (isError) {
+    return (
+      <TablaContenedor className="p-6 text-center text-sm text-peligro-texto">
+        No se pudo cargar el historial.
+      </TablaContenedor>
+    );
+  }
+
+  if (movimientos.length === 0) {
+    return (
+      <EstadoVacio
+        titulo="Sin movimientos"
+        descripcion="Aún no se han registrado entradas, salidas ni ajustes de inventario."
+      />
+    );
+  }
+
   return (
-    <div className="overflow-x-auto rounded-base border border-foreground/10">
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-foreground/10 bg-foreground/5 text-xs uppercase text-foreground/60">
+    <TablaContenedor>
+      <Tabla>
+        <TablaEncabezado>
           <tr>
-            <th className="px-3 py-2">Folio</th>
-            <th className="px-3 py-2">Tipo</th>
-            <th className="px-3 py-2 text-right">Cant. compra</th>
-            <th className="px-3 py-2 text-right">Cant. control</th>
-            <th className="px-3 py-2 text-right">Costo unit.</th>
-            <th className="px-3 py-2">Fecha</th>
+            <TablaEncabezadoCelda>Folio</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Tipo</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Cant. compra</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Cant. control</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Costo unit.</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Fecha</TablaEncabezadoCelda>
           </tr>
-        </thead>
-        <tbody className="divide-y divide-foreground/5">
-          {isLoading && (
-            <tr>
-              <td colSpan={6} className="px-3 py-6 text-center text-foreground/60">
-                Cargando…
-              </td>
-            </tr>
-          )}
-          {isError && (
-            <tr>
-              <td colSpan={6} className="px-3 py-6 text-center text-red-600">
-                No se pudo cargar el historial.
-              </td>
-            </tr>
-          )}
-          {!isLoading && !isError && movimientos.length === 0 && (
-            <tr>
-              <td colSpan={6} className="px-3 py-6 text-center text-foreground/60">
-                Sin movimientos.
-              </td>
-            </tr>
-          )}
+        </TablaEncabezado>
+        <TablaCuerpo>
           {movimientos.map((movimiento) => (
-            <tr key={movimiento.id} className="hover:bg-foreground/5">
-              <td className="px-3 py-2 font-mono text-xs">{movimiento.folio}</td>
-              <td className="px-3 py-2">
+            <TablaFila key={movimiento.id}>
+              <TablaCelda className="font-mono text-xs tabular-nums">{movimiento.folio}</TablaCelda>
+              <TablaCelda>
                 <Badge variante={varianteTipo(movimiento.tipoMovimiento)}>
                   {ETIQUETA_TIPO_MOVIMIENTO[movimiento.tipoMovimiento]}
                 </Badge>
-              </td>
-              <td className="px-3 py-2 text-right">
+              </TablaCelda>
+              <TablaCelda
+                className={`text-right tabular-nums ${
+                  movimiento.cantidadCompra === null
+                    ? 'text-texto-secundario'
+                    : claseCantidad(movimiento.cantidadCompra)
+                }`}
+              >
                 {movimiento.cantidadCompra === null
                   ? '—'
                   : movimiento.cantidadCompra.toLocaleString('es-MX')}
-              </td>
-              <td className="px-3 py-2 text-right">
+              </TablaCelda>
+              <TablaCelda className={`text-right tabular-nums ${claseCantidad(movimiento.cantidadControl)}`}>
                 {movimiento.cantidadControl.toLocaleString('es-MX')}
-              </td>
-              <td className="px-3 py-2 text-right">
+              </TablaCelda>
+              <TablaCelda className="text-right tabular-nums">
                 {movimiento.costoUnitarioMomento.toLocaleString('es-MX', {
                   style: 'currency',
                   currency: 'MXN',
                 })}
-              </td>
-              <td className="px-3 py-2">{formatearFecha(movimiento.creadoEn)}</td>
-            </tr>
+              </TablaCelda>
+              <TablaCelda>{formatearFecha(movimiento.creadoEn)}</TablaCelda>
+            </TablaFila>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TablaCuerpo>
+      </Tabla>
+    </TablaContenedor>
   );
 }

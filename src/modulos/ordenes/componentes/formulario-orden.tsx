@@ -35,12 +35,12 @@ const ETIQUETA_PRIORIDAD: Record<PrioridadOrden, string> = {
 };
 
 const CLASE_INPUT =
-  'w-full rounded-base border border-foreground/20 bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
-const CLASE_ETIQUETA = 'text-xs font-medium text-foreground/70';
+  'w-full rounded-base border border-borde-fuerte bg-superficie px-2 py-1.5 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
+const CLASE_ETIQUETA = 'text-xs font-medium text-texto-secundario';
 const CLASE_BOTON_PRIMARIO =
   'rounded-base bg-primario px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
 const CLASE_BOTON_SECUNDARIO =
-  'rounded-base border border-foreground/20 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40';
+  'rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-40';
 
 function partidaVacia(): PartidaFormulario {
   return {
@@ -281,7 +281,7 @@ export function FormularioOrden({ clientes, materiales, alCrearOrden }: PropsFor
         {partidas.map((partida, indice) => (
           <fieldset
             key={indice}
-            className="flex flex-col gap-3 rounded-base border border-foreground/10 p-3"
+            className="flex flex-col gap-3 rounded-base border border-borde p-3"
           >
             <legend className="px-1 text-sm font-semibold">Partida {indice + 1}</legend>
 

@@ -5,6 +5,18 @@ import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import {
   Dialog,
   DialogContent,
@@ -54,15 +66,6 @@ const ETIQUETA_ESTADO: Record<EstadoOrden, string> = {
   cancelada: 'Cancelada',
 };
 
-const CLASE_ESTADO: Record<EstadoOrden, string> = {
-  borrador: 'bg-foreground/10 text-foreground/70',
-  programada: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200',
-  en_proceso: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
-  pausada: 'bg-orange-100 text-orange-900 dark:bg-orange-950 dark:text-orange-200',
-  completada: 'bg-green-100 text-green-900 dark:bg-green-950 dark:text-green-200',
-  cancelada: 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200',
-};
-
 const ETIQUETA_PRIORIDAD: Record<PrioridadOrden, string> = {
   baja: 'Baja',
   normal: 'Normal',
@@ -71,16 +74,16 @@ const ETIQUETA_PRIORIDAD: Record<PrioridadOrden, string> = {
 };
 
 const CLASE_PRIORIDAD: Record<PrioridadOrden, string> = {
-  baja: 'text-foreground/60',
-  normal: 'text-foreground/80',
+  baja: 'text-texto-secundario',
+  normal: 'text-texto-primario',
   alta: 'font-semibold text-amber-700 dark:text-amber-300',
   urgente: 'font-semibold text-red-700 dark:text-red-300',
 };
 
 const CLASE_BOTON_SECUNDARIO =
-  'rounded-base border border-foreground/20 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40';
+  'rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-40';
 const CLASE_SELECT =
-  'rounded-base border border-foreground/20 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
+  'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
 
 const ACCIONES_RAPIDAS: Record<EstadoOrden, readonly { etiqueta: string; estado: EstadoOrden }[]> = {
   borrador: [{ etiqueta: 'Programar', estado: 'programada' }],
@@ -120,6 +123,45 @@ function calcularAvance(partidas: PartidaTabla[]): {
     solicitado <= 0 ? 0 : Math.min(100, Math.round((producido / solicitado) * 100));
 
   return { porcentaje, producido, solicitado, scrap };
+}
+
+/** Días naturales entre hoy y la fecha de compromiso (negativo = vencida). */
+function diasParaCompromiso(fechaCompromiso: string): number {
+  const compromiso = new Date(fechaCompromiso);
+  if (Number.isNaN(compromiso.getTime())) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const dia = new Date(compromiso.getFullYear(), compromiso.getMonth(), compromiso.getDate());
+  return Math.round((dia.getTime() - hoy.getTime()) / 86_400_000);
+}
+
+/** Semáforo de la fecha de compromiso con las utilidades semánticas del sistema. */
+function claseCompromiso(dias: number): string {
+  if (dias < 0) return 'text-peligro-texto';
+  if (dias <= 3) return 'text-advertencia-texto';
+  return 'text-texto-secundario';
+}
+
+/** Explicación para el `title` del semáforo de compromiso. */
+function tituloCompromiso(dias: number, fechaCompromiso: string): string {
+  const fecha = formatearFecha(fechaCompromiso);
+  if (dias < 0) return `Compromiso vencido hace ${Math.abs(dias)} día(s) — ${fecha}`;
+  if (dias === 0) return `Vence hoy — ${fecha}`;
+  if (dias <= 3) return `Vence en ${dias} día(s) — ${fecha}`;
+  return `Fecha de compromiso: ${fecha}`;
+}
+
+/** Tono de la barra de avance según estado y fecha de compromiso. */
+function tonoAvance(
+  estado: EstadoOrden,
+  dias: number,
+): 'acento' | 'exito' | 'advertencia' | 'peligro' {
+  if (estado === 'completada') return 'exito';
+  if (estado === 'pausada') return 'advertencia';
+  if (dias < 0) return 'peligro';
+  return 'acento';
 }
 
 type PropsTablaOrdenes = {
@@ -257,7 +299,7 @@ export function TablaOrdenes({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <label htmlFor="filtro-maquina" className="text-xs font-medium text-foreground/70">
+            <label htmlFor="filtro-maquina" className="text-xs font-medium text-texto-secundario">
               Máquina
             </label>
             <select
@@ -280,7 +322,7 @@ export function TablaOrdenes({
           </div>
 
           <fieldset className="flex flex-col gap-1">
-            <legend className="text-xs font-medium text-foreground/70">Estado</legend>
+            <legend className="text-xs font-medium text-texto-secundario">Estado</legend>
             <div className="flex flex-wrap gap-1.5">
               {ESTADOS_ORDEN_PRODUCCION.map((estado) => {
                 const activo = filtrosEstado.includes(estado);
@@ -293,7 +335,7 @@ export function TablaOrdenes({
                     className={`rounded-base border px-2.5 py-1 text-xs font-medium transition-colors ${
                       activo
                         ? 'border-primario bg-primario text-white'
-                        : 'border-foreground/20 hover:bg-foreground/5'
+                        : 'border-borde-fuerte hover:bg-superficie-2'
                     }`}
                   >
                     {ETIQUETA_ESTADO[estado]}
@@ -319,156 +361,142 @@ export function TablaOrdenes({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-base border border-foreground/10">
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">
-            Órdenes de producción con estado, prioridad y avance agregado
-          </caption>
-          <thead className="border-b border-foreground/10 bg-foreground/5 text-xs uppercase text-foreground/60">
-            <tr>
-              <th scope="col" className="px-3 py-2">
-                Folio
-              </th>
-              <th scope="col" className="px-3 py-2">
-                Estado
-              </th>
-              <th scope="col" className="px-3 py-2">
-                Prioridad
-              </th>
-              <th scope="col" className="px-3 py-2">
-                Compromiso
-              </th>
-              <th scope="col" className="px-3 py-2">
-                Partidas
-              </th>
-              <th scope="col" className="px-3 py-2">
-                Avance
-              </th>
-              <th scope="col" className="px-3 py-2 text-right">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-foreground/5">
-            {ordenesVisibles.length === 0 && (
+      {ordenesVisibles.length === 0 ? (
+        <EstadoVacio
+          titulo="Sin órdenes que coincidan"
+          descripcion="Ninguna orden coincide con la máquina o los estados seleccionados."
+          accion={
+            filtroMaquina !== null || filtrosEstado.length > 0 ? (
+              <Button variante="contorno" tamano="lg" onClick={limpiarFiltros}>
+                Limpiar filtros
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <TablaContenedor>
+          <Tabla>
+            <caption className="sr-only">
+              Órdenes de producción con estado, prioridad y avance agregado
+            </caption>
+            <TablaEncabezado>
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-foreground/60">
-                  Sin órdenes que coincidan con los filtros.
-                </td>
+                <TablaEncabezadoCelda>Folio</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Estado</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Prioridad</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Compromiso</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Partidas</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Avance</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda className="text-right">Acciones</TablaEncabezadoCelda>
               </tr>
-            )}
+            </TablaEncabezado>
+            <TablaCuerpo>
+              {ordenesVisibles.map((orden) => {
+                const avance = calcularAvance(orden.partidas);
+                const activa = orden.id === ordenActivaId;
+                const dias = diasParaCompromiso(orden.fechaCompromiso);
 
-            {ordenesVisibles.map((orden) => {
-              const avance = calcularAvance(orden.partidas);
-              const activa = orden.id === ordenActivaId;
-
-              return (
-                <tr
-                  key={orden.id}
-                  aria-selected={activa}
-                  className={activa ? 'bg-primario/10' : 'hover:bg-foreground/5'}
-                >
-                  <th scope="row" className="px-3 py-2 font-medium">
-                    {orden.folio}
-                  </th>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-flex rounded-base px-2 py-0.5 text-xs font-semibold ${CLASE_ESTADO[orden.estado]}`}
+                return (
+                  <TablaFila key={orden.id} seleccionada={activa} aria-selected={activa}>
+                    <th
+                      scope="row"
+                      className="px-4 py-3 text-left align-middle font-mono text-xs font-medium tabular-nums"
                     >
-                      {ETIQUETA_ESTADO[orden.estado]}
-                    </span>
-                  </td>
-                  <td className={`px-3 py-2 ${CLASE_PRIORIDAD[orden.prioridad]}`}>
-                    {ETIQUETA_PRIORIDAD[orden.prioridad]}
-                  </td>
-                  <td className="px-3 py-2">{formatearFecha(orden.fechaCompromiso)}</td>
-                  <td className="px-3 py-2 text-foreground/70">
-                    {orden.partidas.length}
-                    {avance.scrap > 0 && (
-                      <span className="ml-2 text-xs text-red-700 dark:text-red-300">
-                        {avance.scrap} scrap
+                      {orden.folio}
+                    </th>
+                    <TablaCelda>
+                      <BadgeEstado estado={orden.estado} />
+                    </TablaCelda>
+                    <TablaCelda className={CLASE_PRIORIDAD[orden.prioridad]}>
+                      {ETIQUETA_PRIORIDAD[orden.prioridad]}
+                    </TablaCelda>
+                    <TablaCelda className={claseCompromiso(dias)}>
+                      <span title={tituloCompromiso(dias, orden.fechaCompromiso)}>
+                        {formatearFecha(orden.fechaCompromiso)}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        role="progressbar"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={avance.porcentaje}
-                        aria-label={`Avance de la orden ${orden.folio}`}
-                        className="h-2 w-24 overflow-hidden rounded-base bg-foreground/10"
-                      >
-                        <div
-                          className="h-full bg-primario"
-                          style={{ width: `${avance.porcentaje}%` }}
+                    </TablaCelda>
+                    <TablaCelda className="text-texto-secundario">
+                      {orden.partidas.length}
+                      {avance.scrap > 0 && (
+                        <span className="ml-2 text-xs text-peligro-texto">
+                          {avance.scrap} scrap
+                        </span>
+                      )}
+                    </TablaCelda>
+                    <TablaCelda>
+                      <div className="flex items-center gap-2">
+                        <BarraProgreso
+                          valor={avance.porcentaje}
+                          tono={tonoAvance(orden.estado, dias)}
+                          etiqueta={`Avance de la orden ${orden.folio}`}
+                          mostrarPorcentaje
+                          className="w-40"
                         />
+                        <span className="shrink-0 text-xs tabular-nums text-texto-secundario">
+                          {avance.producido}/{avance.solicitado}
+                        </span>
                       </div>
-                      <span className="text-xs text-foreground/70">
-                        {avance.porcentaje}% ({avance.producido}/{avance.solicitado})
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex justify-end gap-2">
-                      {ACCIONES_RAPIDAS[orden.estado].map((accion) => {
-                        const completarBloqueado =
-                          accion.estado === 'completada' && !puedeCompletar(orden);
-                        return (
+                    </TablaCelda>
+                    <TablaCelda className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {ACCIONES_RAPIDAS[orden.estado].map((accion) => {
+                          const completarBloqueado =
+                            accion.estado === 'completada' && !puedeCompletar(orden);
+                          return (
+                            <button
+                              key={accion.estado}
+                              type="button"
+                              data-testid={`cambiar-estado-${accion.estado}`}
+                              onClick={() => void cambiarEstado(orden, accion.estado)}
+                              disabled={ordenActualizandoId !== null || completarBloqueado}
+                              title={
+                                completarBloqueado
+                                  ? 'Todas las partidas deben estar producidas para completar la orden'
+                                  : undefined
+                              }
+                              className={CLASE_BOTON_SECUNDARIO}
+                            >
+                              {ordenActualizandoId === orden.id ? 'Actualizando…' : accion.etiqueta}
+                            </button>
+                          );
+                        })}
+                        {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
                           <button
-                            key={accion.estado}
                             type="button"
-                            data-testid={`cambiar-estado-${accion.estado}`}
-                            onClick={() => void cambiarEstado(orden, accion.estado)}
-                            disabled={ordenActualizandoId !== null || completarBloqueado}
-                            title={
-                              completarBloqueado
-                                ? 'Todas las partidas deben estar producidas para completar la orden'
-                                : undefined
-                            }
+                            data-testid="cambiar-estado-cancelada"
+                            onClick={() => abrirCancelacion(orden)}
+                            disabled={ordenActualizandoId !== null}
                             className={CLASE_BOTON_SECUNDARIO}
                           >
-                            {ordenActualizandoId === orden.id ? 'Actualizando…' : accion.etiqueta}
+                            Cancelar
                           </button>
-                        );
-                      })}
-                      {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
+                        )}
                         <button
                           type="button"
-                          data-testid="cambiar-estado-cancelada"
-                          onClick={() => abrirCancelacion(orden)}
-                          disabled={ordenActualizandoId !== null}
+                          aria-pressed={activa}
+                          onClick={() => alSeleccionarOrden(orden.id)}
                           className={CLASE_BOTON_SECUNDARIO}
                         >
-                          Cancelar
+                          {activa ? 'Quitar selección' : 'Seleccionar'}
                         </button>
-                      )}
-                    <button
-                      type="button"
-                      aria-pressed={activa}
-                      onClick={() => alSeleccionarOrden(orden.id)}
-                      className={CLASE_BOTON_SECUNDARIO}
-                    >
-                      {activa ? 'Quitar selección' : 'Seleccionar'}
-                    </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                      </div>
+                    </TablaCelda>
+                  </TablaFila>
+                );
+              })}
+            </TablaCuerpo>
+          </Tabla>
+        </TablaContenedor>
+      )}
 
       {errorAccion && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-peligro-texto">
           {errorAccion}
         </p>
       )}
 
       {ordenActivaId && ordenes.some((orden) => orden.id === ordenActivaId) && (
-        <div className="rounded-base border border-foreground/10 p-4">
+        <div className="rounded-base border border-borde p-4">
           <HiloComentarios
             entidadTipo="orden"
             entidadId={ordenActivaId}
@@ -479,7 +507,7 @@ export function TablaOrdenes({
         </div>
       )}
 
-      <p aria-live="polite" className="text-sm text-foreground/70">
+      <p aria-live="polite" className="text-sm text-texto-secundario">
         {ordenesVisibles.length} de {ordenes.length} orden(es)
       </p>
 

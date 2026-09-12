@@ -81,7 +81,7 @@ export function FormularioEntrada({
 
   return (
     <form onSubmit={handleSubmit(alEnviar)} className="flex flex-col gap-3" noValidate>
-      <p className="rounded-base bg-foreground/5 p-2 text-sm text-foreground/70">
+      <p className="rounded-base bg-superficie-2 p-2 text-sm text-texto-secundario">
         Stock actual: {material.stockActualControl.toLocaleString('es-MX')} {unidadControl} · cada
         unidad de compra ({material.unidadCompra}) equivale a {material.factorConversion}{' '}
         {unidadControl}.
@@ -92,14 +92,14 @@ export function FormularioEntrada({
           <Label>Cantidad ({material.unidadCompra})</Label>
           <Input type="number" step="0.0001" min={0} {...register('cantidadCompra', { valueAsNumber: true })} />
           {errors.cantidadCompra && (
-            <span className="text-xs text-red-600">{errors.cantidadCompra.message}</span>
+            <span className="text-xs text-peligro-texto">{errors.cantidadCompra.message}</span>
           )}
         </div>
         <div className="flex flex-col gap-1">
           <Label>Costo unitario de compra</Label>
           <Input type="number" step="0.01" min={0} {...register('costoUnitarioCompra', { valueAsNumber: true })} />
           {errors.costoUnitarioCompra && (
-            <span className="text-xs text-red-600">{errors.costoUnitarioCompra.message}</span>
+            <span className="text-xs text-peligro-texto">{errors.costoUnitarioCompra.message}</span>
           )}
         </div>
       </div>
@@ -114,16 +114,16 @@ export function FormularioEntrada({
       </div>
 
       {registrarEntrada.isError && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-peligro-texto">
           No se pudo registrar la entrada.
         </p>
       )}
 
       <DialogFooter>
-        <Button type="button" variante="contorno" onClick={onExito}>
+        <Button type="button" variante="contorno" tamano="lg" onClick={onExito}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" tamano="piso" disabled={isSubmitting}>
           {isSubmitting ? 'Guardando…' : 'Registrar entrada'}
         </Button>
       </DialogFooter>

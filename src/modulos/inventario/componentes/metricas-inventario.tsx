@@ -45,9 +45,13 @@ function Tarjeta({
   alerta?: boolean;
 }) {
   return (
-    <div className="rounded-base border border-foreground/10 p-4">
-      <p className="text-xs uppercase text-foreground/60">{etiqueta}</p>
-      <p className={`mt-1 text-2xl font-bold ${alerta ? 'text-red-600 dark:text-red-400' : ''}`}>
+    <div className="rounded-lg border border-borde bg-superficie p-4 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-texto-secundario">{etiqueta}</p>
+      <p
+        className={`mt-1 text-2xl font-semibold tabular-nums ${
+          alerta ? 'text-peligro-texto' : 'text-texto-primario'
+        }`}
+      >
         {valor}
       </p>
     </div>

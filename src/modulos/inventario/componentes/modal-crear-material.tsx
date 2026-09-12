@@ -142,16 +142,16 @@ function FormularioCrearMaterial({ onExito }: { onExito: () => void }) {
       </Campo>
 
       {crearMaterial.isError && (
-        <p role="alert" className="text-sm text-red-600 sm:col-span-2">
+        <p role="alert" className="text-sm text-peligro-texto sm:col-span-2">
           No se pudo crear el material. Verifica que el código no esté duplicado.
         </p>
       )}
 
       <DialogFooter className="sm:col-span-2">
-        <Button type="button" variante="contorno" onClick={onExito}>
+        <Button type="button" variante="contorno" tamano="lg" onClick={onExito}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" tamano="piso" disabled={isSubmitting}>
           {isSubmitting ? 'Guardando…' : 'Crear material'}
         </Button>
       </DialogFooter>
@@ -172,7 +172,7 @@ function Campo({
     <div className="flex flex-col gap-1">
       <Label>{etiqueta}</Label>
       {children}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-peligro-texto">{error}</span>}
     </div>
   );
 }

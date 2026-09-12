@@ -87,9 +87,9 @@ export function FormularioSalida({
 
   return (
     <form onSubmit={handleSubmit(alEnviar)} className="flex flex-col gap-3" noValidate>
-      <p className="rounded-base bg-foreground/5 p-2 text-sm text-foreground/70">
+      <p className="rounded-base bg-superficie-2 p-2 text-sm text-texto-secundario">
         Stock disponible:{' '}
-        <span className="font-semibold text-foreground">
+        <span className="font-semibold text-texto-primario">
           {material.stockActualControl.toLocaleString('es-MX')} {unidad}
         </span>
       </p>
@@ -107,10 +107,10 @@ export function FormularioSalida({
           })}
         />
         {errors.cantidadControl && (
-          <span className="text-xs text-red-600">{errors.cantidadControl.message}</span>
+          <span className="text-xs text-peligro-texto">{errors.cantidadControl.message}</span>
         )}
         {excedeStock && (
-          <span role="alert" className="text-xs font-medium text-red-600">
+          <span role="alert" className="text-xs font-medium text-peligro-texto">
             La cantidad supera el stock disponible ({material.stockActualControl.toLocaleString('es-MX')} {unidad}).
           </span>
         )}
@@ -122,16 +122,16 @@ export function FormularioSalida({
       </div>
 
       {registrarSalida.isError && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-peligro-texto">
           No se pudo registrar la salida.
         </p>
       )}
 
       <DialogFooter>
-        <Button type="button" variante="contorno" onClick={onExito}>
+        <Button type="button" variante="contorno" tamano="lg" onClick={onExito}>
           Cancelar
         </Button>
-        <Button type="submit" variante="destructivo" disabled={isSubmitting || excedeStock}>
+        <Button type="submit" variante="destructivo" tamano="piso" disabled={isSubmitting || excedeStock}>
           {isSubmitting ? 'Guardando…' : 'Registrar salida'}
         </Button>
       </DialogFooter>

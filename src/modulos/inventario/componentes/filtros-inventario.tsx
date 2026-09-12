@@ -54,11 +54,12 @@ export function FiltrosInventario() {
             </option>
           ))}
         </Select>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-sm text-texto-secundario">
           <input
             type="checkbox"
             checked={soloAlerta}
             onChange={(e) => setSoloAlerta(e.target.checked)}
+            className="h-4 w-4 accent-acento"
           />
           Solo alerta de stock
         </label>

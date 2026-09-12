@@ -25,7 +25,7 @@ export function PanelInventario() {
       <SincronizadorInventarioRealtime />
       <MetricasInventario />
 
-      <nav className="flex gap-1 border-b border-foreground/10">
+      <nav className="flex gap-1 border-b border-borde">
         <BotonPestana activa={pestana === 'catalogo'} onClick={() => setPestana('catalogo')}>
           Catálogo de materiales
         </BotonPestana>
@@ -66,7 +66,7 @@ function BotonPestana({
       className={`border-b-2 px-3 py-2 text-sm transition-colors ${
         activa
           ? 'border-primario font-semibold text-primario'
-          : 'border-transparent text-foreground/60 hover:text-foreground'
+          : 'border-transparent text-texto-secundario hover:text-foreground'
       }`}
     >
       {children}

@@ -165,7 +165,7 @@ export function OperacionPlaneacion({
         errorActualizacion={consulta.isError}
         onSeleccionarProgramacion={alSeleccionar}
       />
-      <aside className="rounded-base border border-foreground/10 p-4" aria-label="Asignación de recurso">
+      <aside className="rounded-base border border-borde p-4" aria-label="Asignación de recurso">
         <PanelAsignacionPlaneacion
           recursos={datosCalendario.recursos}
           partidasProgramables={partidasProgramables}

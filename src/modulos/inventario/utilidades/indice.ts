@@ -10,6 +10,16 @@ export function esStockBajo(material: Pick<Material, 'stockActualControl' | 'sto
   return material.stockActualControl <= material.stockMinimoControl;
 }
 
+export type EstadoStock = 'critico' | 'reorden' | 'ok';
+
+export function estadoStock(
+  material: Pick<Material, 'stockActualControl' | 'stockMinimoControl'>,
+): EstadoStock {
+  if (material.stockActualControl <= 0) return 'critico';
+  if (esStockBajo(material)) return 'reorden';
+  return 'ok';
+}
+
 /** Valor estimado del material en inventario = stock actual × costo por unidad de control. */
 export function valorInventario(
   material: Pick<Material, 'stockActualControl' | 'costoUnitarioControl'>,
