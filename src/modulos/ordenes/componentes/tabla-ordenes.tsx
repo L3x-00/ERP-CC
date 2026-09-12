@@ -430,7 +430,7 @@ export function TablaOrdenes({
                           tono={tonoAvance(orden.estado, dias)}
                           etiqueta={`Avance de la orden ${orden.folio}`}
                           mostrarPorcentaje
-                          className="w-40"
+                          className="w-24"
                         />
                         <span className="shrink-0 text-xs tabular-nums text-texto-secundario">
                           {avance.producido}/{avance.solicitado}
