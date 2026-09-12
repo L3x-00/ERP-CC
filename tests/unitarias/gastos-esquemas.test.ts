@@ -102,11 +102,11 @@ describe('comprobante OCR', () => {
     advertencias: [],
   };
 
-  it('acepta imagen/PDF y rechaza MIME o base64 inválidos', () => {
+  it('acepta imágenes y rechaza PDF, MIME o base64 inválidos', () => {
     expect(esquemaComprobanteOCR.safeParse({ contenidoBase64: 'QUJD', tipoMime: 'image/png' }).success)
       .toBe(true);
     expect(esquemaComprobanteOCR.safeParse({ contenidoBase64: 'QUJD', tipoMime: 'application/pdf' })
-      .success).toBe(true);
+      .success).toBe(false);
     expect(esquemaComprobanteOCR.safeParse({ contenidoBase64: 'a', tipoMime: 'image/png' }).success)
       .toBe(false);
     expect(esquemaComprobanteOCR.safeParse({ contenidoBase64: 'no válido', tipoMime: 'text/html' })

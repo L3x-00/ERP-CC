@@ -156,7 +156,6 @@ export const esquemaComprobanteOCR = z
       'image/png',
       'image/webp',
       'image/gif',
-      'application/pdf',
     ] as const),
   })
   .strict();

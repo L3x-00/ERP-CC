@@ -2,13 +2,13 @@ import {
   esquemaComprobanteOCR,
   esquemaDatosComprobanteOCR,
   type ComprobanteOCRInput,
-  type TipoMimeComprobante,
 } from '@/modulos/gastos/validaciones/gastos';
 import type { DatosComprobanteOCR } from '@/modulos/gastos/tipos/gastos';
+import {
+  ErrorIa,
+  solicitarTextoConImagenes,
+} from '@/nucleo/ia/indice';
 
-const URL_MENSAJES_ANTHROPIC = 'https://api.anthropic.com/v1/messages';
-const VERSION_API_ANTHROPIC = '2023-06-01';
-const MODELO_POR_DEFECTO = 'claude-3-5-haiku-20241022';
 const TIMEOUT_MS_POR_DEFECTO = 30_000;
 const TAMANO_MAXIMO_BYTES_POR_DEFECTO = 5 * 1024 * 1024;
 const TOKENS_MAXIMOS_RESPUESTA = 1_024;
@@ -36,13 +36,6 @@ export interface OpcionesOcr {
   timeoutMs?: number;
   tamanoMaximoBytes?: number;
 }
-
-const MIMES_IMAGEN: readonly TipoMimeComprobante[] = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-];
 
 const INSTRUCCION_SISTEMA = [
   'Eres un extractor de datos de comprobantes de gasto de una empresa CNC en Tijuana, México.',
@@ -92,36 +85,24 @@ export function extraerObjetoJson(texto: string): unknown {
   }
 }
 
-function obtenerTextoRespuesta(cuerpo: unknown): string {
-  if (typeof cuerpo !== 'object' || cuerpo === null) throw new ErrorOcr('respuesta_ilegible');
-  const contenido = (cuerpo as { content?: unknown }).content;
-  if (!Array.isArray(contenido)) throw new ErrorOcr('respuesta_ilegible');
-  const texto = contenido
-    .map((bloque) => {
-      if (typeof bloque !== 'object' || bloque === null) return '';
-      const textoBloque = bloque as { type?: unknown; text?: unknown };
-      return textoBloque.type === 'text' && typeof textoBloque.text === 'string'
-        ? textoBloque.text
-        : '';
-    })
-    .join('\n')
-    .trim();
-  if (!texto) throw new ErrorOcr('respuesta_ilegible');
-  return texto;
+/** Traduce los códigos del cliente de IA a los del dominio de gastos. */
+function traducirErrorIa(error: ErrorIa): ErrorOcr {
+  switch (error.codigo) {
+    case 'configuracion_faltante':
+      return new ErrorOcr('configuracion_faltante');
+    case 'tiempo_agotado':
+      return new ErrorOcr('tiempo_agotado');
+    case 'respuesta_ilegible':
+      return new ErrorOcr('respuesta_ilegible');
+    default:
+      return new ErrorOcr('proveedor_no_disponible');
+  }
 }
 
-function construirContenido(entrada: ComprobanteOCRInput): Record<string, unknown> {
-  const fuente = {
-    type: 'base64',
-    media_type: entrada.tipoMime,
-    data: entrada.contenidoBase64,
-  };
-  return MIMES_IMAGEN.includes(entrada.tipoMime)
-    ? { type: 'image', source: fuente }
-    : { type: 'document', source: fuente };
-}
-
-/** Llama Anthropic solo desde servidor y valida por completo la salida sugerida. */
+/**
+ * Extrae los datos de un comprobante con un modelo multimodal gratuito vía
+ * OpenRouter (solo imágenes JPG/PNG/WEBP/GIF) y valida la salida con Zod.
+ */
 export async function extraerDatosComprobante(
   entrada: ComprobanteOCRInput,
   opciones: OpcionesOcr = {},
@@ -135,57 +116,31 @@ export async function extraerDatosComprobante(
     throw new ErrorOcr('comprobante_excede_limite');
   }
 
-  const apiKey = opciones.apiKey ?? process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new ErrorOcr('configuracion_faltante');
-  const modelo = opciones.modelo ?? process.env.ANTHROPIC_MODEL ?? MODELO_POR_DEFECTO;
-  const timeoutMs = opciones.timeoutMs ?? TIMEOUT_MS_POR_DEFECTO;
-  const fetchImpl = opciones.fetchImpl ?? fetch;
-  const controlador = new AbortController();
-  const temporizador = setTimeout(() => controlador.abort(), timeoutMs);
-
+  let texto: string;
   try {
-    const respuesta = await fetchImpl(URL_MENSAJES_ANTHROPIC, {
-      method: 'POST',
-      signal: controlador.signal,
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': VERSION_API_ANTHROPIC,
-      },
-      body: JSON.stringify({
-        model: modelo,
-        max_tokens: TOKENS_MAXIMOS_RESPUESTA,
-        system: INSTRUCCION_SISTEMA,
-        messages: [{
-          role: 'user',
-          content: [
-            construirContenido(entradaValidada.data),
-            { type: 'text', text: `Devuelve solo este JSON:\n${ESQUEMA_SOLICITADO}` },
-          ],
+    texto = await solicitarTextoConImagenes(
+      {
+        sistema: INSTRUCCION_SISTEMA,
+        instruccion: `Devuelve solo este JSON:\n${ESQUEMA_SOLICITADO}`,
+        imagenes: [{
+          tipoMime: entradaValidada.data.tipoMime,
+          contenidoBase64: entradaValidada.data.contenidoBase64,
         }],
-      }),
-    });
-    if (!respuesta.ok) throw new ErrorOcr('proveedor_no_disponible');
-    let cuerpo: unknown;
-    try {
-      cuerpo = await respuesta.json();
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') throw error;
-      throw new ErrorOcr('respuesta_ilegible');
-    }
-
-    const datos = esquemaDatosComprobanteOCR.safeParse(
-      extraerObjetoJson(obtenerTextoRespuesta(cuerpo)),
+      },
+      {
+        apiKey: opciones.apiKey,
+        modelo: opciones.modelo,
+        timeoutMs: opciones.timeoutMs ?? TIMEOUT_MS_POR_DEFECTO,
+        tokensMaximos: TOKENS_MAXIMOS_RESPUESTA,
+        fetchImpl: opciones.fetchImpl,
+      },
     );
-    if (!datos.success) throw new ErrorOcr('respuesta_ilegible');
-    return datos.data;
   } catch (error) {
-    if (error instanceof ErrorOcr) throw error;
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new ErrorOcr('tiempo_agotado');
-    }
+    if (error instanceof ErrorIa) throw traducirErrorIa(error);
     throw new ErrorOcr('proveedor_no_disponible');
-  } finally {
-    clearTimeout(temporizador);
   }
+
+  const datos = esquemaDatosComprobanteOCR.safeParse(extraerObjetoJson(texto));
+  if (!datos.success) throw new ErrorOcr('respuesta_ilegible');
+  return datos.data;
 }

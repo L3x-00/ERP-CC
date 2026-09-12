@@ -25,7 +25,7 @@ export async function procesarComprobanteOcrAccion(
 
   const archivo = formulario.get('comprobante');
   if (!(archivo instanceof File)) return { exito: false, error: 'Selecciona un comprobante válido' };
-  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'].includes(archivo.type)) {
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(archivo.type)) {
     return { exito: false, error: 'El tipo de comprobante no está permitido' };
   }
   if (archivo.size <= 0 || archivo.size > TAMANO_MAXIMO_BYTES) {

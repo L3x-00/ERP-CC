@@ -124,9 +124,9 @@ export function ModalRegistrarGasto({
           >
             <div className="grid gap-1">
               <Label htmlFor="gasto-comprobante">Comprobante para OCR</Label>
-              <p className="text-xs text-texto-secundario">Arrastra una imagen o PDF, o selecciónalo desde tu equipo (máximo 5 MiB).</p>
+              <p className="text-xs text-texto-secundario">Arrastra una imagen (JPG, PNG, WEBP o GIF), o selecciónala desde tu equipo (máximo 5 MiB).</p>
             </div>
-            <Input id="gasto-comprobante" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
+            <Input id="gasto-comprobante" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
             {archivo ? <p className="text-xs text-texto-secundario" aria-live="polite">Archivo seleccionado: <span className="font-medium text-texto-primario">{archivo.name}</span></p> : null}
             <Button
               type="button"
