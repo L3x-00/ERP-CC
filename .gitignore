@@ -39,10 +39,11 @@
 
 # ============================================================================
 # ENV & SECRETS
+# Regla permanente: ningun archivo .env real se sube a GitHub.
+# Solo .env.example (plantilla sin valores) puede estar en el repo.
 # ============================================================================
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
 
 # ============================================================================
