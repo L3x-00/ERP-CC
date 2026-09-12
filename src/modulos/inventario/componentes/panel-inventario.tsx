@@ -8,6 +8,7 @@ import { TablaMovimientos } from '@/modulos/inventario/componentes/tabla-movimie
 import { ModalCrearMaterial } from '@/modulos/inventario/componentes/modal-crear-material';
 import { ModalRegistrarEntrada } from '@/modulos/inventario/componentes/modal-registrar-entrada';
 import { ModalRegistrarSalida } from '@/modulos/inventario/componentes/modal-registrar-salida';
+import { SincronizadorInventarioRealtime } from '@/modulos/inventario/componentes/sincronizador-inventario-realtime';
 
 type Pestana = 'catalogo' | 'historial';
 
@@ -21,6 +22,7 @@ export function PanelInventario() {
 
   return (
     <div className="flex flex-col gap-4">
+      <SincronizadorInventarioRealtime />
       <MetricasInventario />
 
       <nav className="flex gap-1 border-b border-foreground/10">

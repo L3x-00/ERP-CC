@@ -60,7 +60,7 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
   const establecerBusqueda = usarTiendaCobranza((estado) => estado.establecerBusqueda);
   const establecerPeriodo = usarTiendaCobranza((estado) => estado.establecerPeriodo);
   const establecerRangoPersonalizado = usarTiendaCobranza((estado) => estado.establecerRangoPersonalizado);
-  const notificarActualizacion = usarTiendaCobranza((estado) => estado.notificarActualizacion);
+
   const [modalAbierto, setModalAbierto] = useState(false);
   const [procesando, setProcesando] = useState(false);
   const [recibo, setRecibo] = useState<ReciboPago | null>(null);
@@ -93,9 +93,9 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
   }, [seleccionarCuenta]);
 
   const refrescar = useCallback(async () => {
-    notificarActualizacion();
+    // Una sola revalidación: invalidar el prefijo ya recarga la rama activa.
     await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CARTERA_COBRANZA });
-  }, [clienteConsultas, notificarActualizacion]);
+  }, [clienteConsultas]);
 
   const registrarPago = useCallback(async (entrada: DatosPagoFormulario) => {
     setProcesando(true);

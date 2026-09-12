@@ -1,10 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import type {
-  DashboardConsolidado,
-  FiltroPeriodoDashboard,
-} from '@/modulos/dashboard/tipos/indice';
+import type { FiltroPeriodoDashboard } from '@/modulos/dashboard/tipos/indice';
 
 function filtroInicial(): FiltroPeriodoDashboard {
   const ahora = new Date();
@@ -21,12 +18,10 @@ function filtroInicial(): FiltroPeriodoDashboard {
 export interface TiendaDashboard {
   filtroActivo: FiltroPeriodoDashboard;
   widgetsCargando: Readonly<Record<string, boolean>>;
-  datosConsolidados: DashboardConsolidado | null;
   ultimoError: string | null;
   revisionDashboard: number;
   establecerFiltro: (filtro: FiltroPeriodoDashboard) => void;
   establecerCargaWidget: (widget: string, cargando: boolean) => void;
-  establecerDatosConsolidados: (datos: DashboardConsolidado | null) => void;
   establecerError: (error: string | null) => void;
   notificarActualizacion: () => void;
   limpiar: () => void;
@@ -37,24 +32,22 @@ function crearTiendaDashboard(set: (actualizacion: Partial<TiendaDashboard> | ((
   return {
     filtroActivo: inicial,
     widgetsCargando: {},
-    datosConsolidados: null,
     ultimoError: null,
     revisionDashboard: 0,
     establecerFiltro: (filtroActivo) => set({ filtroActivo, ultimoError: null }),
     establecerCargaWidget: (widget, cargando) => set((estado) => ({
       widgetsCargando: { ...estado.widgetsCargando, [widget]: cargando },
     })),
-    establecerDatosConsolidados: (datosConsolidados) => set({ datosConsolidados, ultimoError: null }),
     establecerError: (ultimoError) => set({ ultimoError }),
     notificarActualizacion: () => set((estado) => ({ revisionDashboard: estado.revisionDashboard + 1 })),
-    limpiar: () => set({ filtroActivo: inicial, widgetsCargando: {}, datosConsolidados: null, ultimoError: null }),
+    limpiar: () => set({ filtroActivo: inicial, widgetsCargando: {}, ultimoError: null }),
   };
 }
 
 /**
- * Estado efímero de interacción. `datosConsolidados` es solo un último
- * snapshot para evitar parpadeos; TanStack Query sigue siendo la fuente de
- * verdad y lo reemplaza después de cada invalidación Realtime.
+ * Estado efímero de interacción (filtro, carga de widgets y revisión). Los
+ * datos consolidados viven únicamente en la caché de TanStack Query; este
+ * store no conserva copias de servidor.
  */
 function useDashboardStore(
   set: (actualizacion: Partial<TiendaDashboard> | ((estado: TiendaDashboard) => Partial<TiendaDashboard>)) => void,

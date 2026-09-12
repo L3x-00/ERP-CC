@@ -95,7 +95,7 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
   });
 
   const refrescar = useCallback(async () => {
-    usarTiendaGastos.getState().notificarActualizacion();
+    // Una sola revalidación: invalidar el prefijo ya recarga la rama activa.
     await clienteQuery.invalidateQueries({ queryKey: CLAVE_GASTOS });
   }, [clienteQuery]);
 

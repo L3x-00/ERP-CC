@@ -10,7 +10,6 @@ import {
   obtenerNotificacionesAccion,
 } from '@/modulos/comentarios/acciones/indice';
 import type { NotificacionUsuario } from '@/modulos/comentarios/tipos/indice';
-import { usarTiendaNotificaciones } from '@/estado/uso-tienda-notificaciones';
 
 const CLAVE_NOTIFICACIONES = ['notificaciones'] as const;
 
@@ -87,33 +86,26 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
   const router = useRouter();
   const clienteQuery = useQueryClient();
   const [abierto, setAbierto] = useState(false);
-  const usuarioEnTienda = usarTiendaNotificaciones((estado) => estado.usuarioId);
-  const notificacionesTienda = usarTiendaNotificaciones((estado) => estado.notificaciones);
-  const noLeidasTienda = usarTiendaNotificaciones((estado) => estado.noLeidas);
-  const establecerNotificaciones = usarTiendaNotificaciones((estado) => estado.establecerNotificaciones);
-  const marcarComoLeidaLocal = usarTiendaNotificaciones((estado) => estado.marcarComoLeidaLocal);
-  const notificaciones = usuarioEnTienda === usuarioId ? notificacionesTienda : [];
-  const noLeidas = usuarioEnTienda === usuarioId ? noLeidasTienda : 0;
   const consulta = useQuery({
     queryKey: [...CLAVE_NOTIFICACIONES, usuarioId],
     queryFn: async (): Promise<NotificacionUsuario[]> => {
       const respuesta = await obtenerNotificacionesAccion({ soloNoLeidas: false, limite: 30 });
       if (!respuesta.exito || !respuesta.datos) throw new Error(respuesta.exito ? 'Sin notificaciones' : respuesta.error);
-      establecerNotificaciones(usuarioId, respuesta.datos);
       return respuesta.datos;
     },
     staleTime: 0,
   });
 
-  useEffect(() => {
-    if (consulta.data) establecerNotificaciones(usuarioId, consulta.data);
-  }, [consulta.data, establecerNotificaciones, usuarioId]);
+  const notificaciones = consulta.data ?? [];
+  const noLeidas = notificaciones.reduce(
+    (total, notificacion) => total + (notificacion.leida ? 0 : 1),
+    0,
+  );
 
   async function manejarNotificacion(notificacion: NotificacionUsuario): Promise<void> {
     if (!notificacion.leida) {
       const respuesta = await marcarNotificacionesLeidasAccion({ notificacionId: notificacion.id });
       if (respuesta.exito) {
-        marcarComoLeidaLocal(notificacion.id);
         void clienteQuery.invalidateQueries({ queryKey: CLAVE_NOTIFICACIONES });
       }
     }

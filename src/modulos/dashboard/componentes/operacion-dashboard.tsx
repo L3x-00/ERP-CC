@@ -16,14 +16,12 @@ import type { DashboardConsolidado, FiltroPeriodoDashboard } from '@/modulos/das
 export function OperacionDashboard({ datosIniciales }: { datosIniciales: DashboardConsolidado }) {
   const filtro = usarTiendaDashboard((estado) => estado.filtroActivo);
   const establecerFiltro = usarTiendaDashboard((estado) => estado.establecerFiltro);
-  const establecerDatos = usarTiendaDashboard((estado) => estado.establecerDatosConsolidados);
   const establecerError = usarTiendaDashboard((estado) => estado.establecerError);
   const revision = usarTiendaDashboard((estado) => estado.revisionDashboard);
 
   useEffect(() => {
     establecerFiltro(datosIniciales.filtro);
-    establecerDatos(datosIniciales);
-  }, [datosIniciales, establecerDatos, establecerFiltro]);
+  }, [datosIniciales, establecerFiltro]);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_DASHBOARD, filtro, revision],
@@ -32,7 +30,6 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
         ? await obtenerMetricasInicioAccion(filtro)
         : await cambiarPeriodoDashboard(filtro);
       if (!respuesta.exito || !respuesta.datos) throw new Error(respuesta.exito ? 'Métricas ausentes' : respuesta.error);
-      establecerDatos(respuesta.datos);
       return respuesta.datos;
     },
     initialData: datosIniciales,
