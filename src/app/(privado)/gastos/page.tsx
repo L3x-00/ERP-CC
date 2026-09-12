@@ -17,7 +17,7 @@ export default async function PaginaGastos() {
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-gastos">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Gastos y rentabilidad</h1>
-        <p className="text-sm text-foreground/70">Control de gastos, cuentas por pagar y costo real por orden.</p>
+        <p className="text-sm text-texto-secundario">Control de gastos, cuentas por pagar y costo real por orden.</p>
       </header>
       <OperacionGastos datosIniciales={datosIniciales} />
     </div>

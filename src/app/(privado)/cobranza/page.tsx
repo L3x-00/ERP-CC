@@ -19,7 +19,7 @@ export default async function PaginaCobranza() {
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-cobranza">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Cuentas por cobrar</h1>
-        <p className="text-sm text-foreground/70">Cartera, recibos y monedero actualizados en tiempo real.</p>
+        <p className="text-sm text-texto-secundario">Cartera, recibos y monedero actualizados en tiempo real.</p>
       </header>
       <OperacionCobranza datosIniciales={datosIniciales} />
     </div>

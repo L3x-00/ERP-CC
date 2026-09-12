@@ -93,7 +93,7 @@ export default async function PaginaPlaneacion() {
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-planeacion">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Planeación y capacidad</h1>
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-texto-secundario">
           Programación transaccional por recurso, fecha y turno. La capacidad y los candados se
           validan en PostgreSQL; el calendario se actualiza al cambiar cualquier usuario.
         </p>

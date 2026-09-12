@@ -62,13 +62,13 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       <SincronizadorOrdenesRealtime />
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Órdenes de producción</h1>
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-texto-secundario">
           Planeación y seguimiento operativo de órdenes. El registro de piso se opera desde
           terminales con sesión de operador.
         </p>
       </header>
 
-      <section className="rounded-base border border-foreground/10 p-5" aria-labelledby="titulo-crear-op">
+      <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-crear-op">
         <h2 id="titulo-crear-op" className="mb-4 text-lg font-semibold">
           Nueva orden de producción
         </h2>
@@ -80,7 +80,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
           <h2 id="titulo-lista-op" className="text-lg font-semibold">
             Órdenes registradas
           </h2>
-          <p className="text-sm text-foreground/70">
+          <p className="text-sm text-texto-secundario">
             Selecciona una orden para conservar el contexto al abrir el control de piso.
           </p>
         </div>
