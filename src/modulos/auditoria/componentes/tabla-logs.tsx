@@ -11,11 +11,11 @@ import type { FiltrosLog } from '../tipos/indice';
 
 /** Clases compartidas de los inputs de filtro. */
 const CLASE_INPUT_FILTRO =
-  'rounded-base border border-foreground/20 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
+  'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
 
 /** Clases compartidas de los botones de paginación. */
 const CLASE_BOTON_PAGINACION =
-  'rounded-base border border-foreground/20 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40';
+  'rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-40';
 
 /**
  * Tabla de logs de auditoría con filtros por módulo y acción, y paginación
@@ -107,7 +107,7 @@ export function TablaLogs() {
         </div>
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Cargando registros…</p>}
+      {isLoading && <p className="text-sm text-texto-secundario">Cargando registros…</p>}
 
       {!isLoading && hayError && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
@@ -116,13 +116,13 @@ export function TablaLogs() {
       )}
 
       {mostrarVacio && (
-        <p className="text-sm text-foreground/60">No hay registros de auditoría.</p>
+        <p className="text-sm text-texto-secundario">No hay registros de auditoría.</p>
       )}
 
       {mostrarTabla && (
-        <div className="overflow-x-auto rounded-base border border-foreground/10">
+        <div className="overflow-x-auto rounded-base border border-borde">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-foreground/5">
+            <thead className="bg-superficie-2">
               <tr>
                 <th className="px-3 py-2 font-semibold">Fecha</th>
                 <th className="px-3 py-2 font-semibold">Usuario</th>
@@ -134,7 +134,7 @@ export function TablaLogs() {
             </thead>
             <tbody>
               {registros.map((log) => (
-                <tr key={log.id} className="border-t border-foreground/10">
+                <tr key={log.id} className="border-t border-borde">
                   <td className="whitespace-nowrap px-3 py-2">
                     {formatearFecha(log.creadoEn)} {formatearHora(log.creadoEn)}
                   </td>
@@ -151,7 +151,7 @@ export function TablaLogs() {
       )}
 
       <div className="flex items-center justify-between text-sm">
-        <span className="text-foreground/60">
+        <span className="text-texto-secundario">
           Página {pagina} de {totalPaginas}
         </span>
         <div className="flex gap-2">

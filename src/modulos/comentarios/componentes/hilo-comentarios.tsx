@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
 import {
   agregarComentarioAccion,
   eliminarComentarioAccion,
@@ -16,8 +17,10 @@ import type {
   TipoEntidadComentario,
 } from '@/modulos/comentarios/tipos/indice';
 
-const CLASE_BOTON = 'rounded-base border border-foreground/20 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-50';
+const CLASE_BOTON = 'rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-50';
 const CLASE_PRIMARIO = 'rounded-base bg-primario px-3 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
+
+const PATRON_MENCION = /@([\p{L}\p{N}._-]+)/u;
 
 interface PropsHiloComentarios {
   entidadTipo: TipoEntidadComentario;
@@ -32,6 +35,19 @@ function fechaComentario(valor: string): string {
   return Number.isFinite(fecha.getTime())
     ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(fecha)
     : 'Fecha no disponible';
+}
+
+/** Resalta `@menciones` del texto plano sin interpretar HTML crudo. */
+function contenidoConMenciones(contenido: string): ReactNode[] {
+  return contenido.split(PATRON_MENCION).map((parte, indice) =>
+    indice % 2 === 1 ? (
+      <span key={`mencion-${indice}`} className="rounded-sm bg-acento-suave px-1 text-acento">
+        @{parte}
+      </span>
+    ) : (
+      parte
+    ),
+  );
 }
 
 /** Hilo contextual con menciones, borrado lógico y sincronización Realtime. */
@@ -120,7 +136,7 @@ export function HiloComentarios({
       <SincronizadorComentariosRealtime entidadTipo={entidadTipo} entidadId={entidadId} />
       <header className="flex items-center justify-between gap-2">
         <h3 id={`titulo-comentarios-${entidadId}`} className="text-base font-semibold">{titulo}</h3>
-        <span className="text-xs text-foreground/60">{comentarios.length} mensaje(s)</span>
+        <span className="text-xs text-texto-secundario">{comentarios.length} mensaje(s)</span>
       </header>
       <form onSubmit={enviar} className="relative flex flex-col gap-2">
         <label htmlFor={`comentario-${entidadId}`} className="sr-only">Nuevo comentario</label>
@@ -131,13 +147,13 @@ export function HiloComentarios({
           onChange={(evento) => setContenido(evento.target.value)}
           placeholder="Escribe una actualización y menciona a @alguien…"
           rows={3}
-          className="w-full rounded-base border border-foreground/20 bg-background px-3 py-2 text-sm outline-none focus:border-primario focus:ring-2 focus:ring-primario/30"
+          className="w-full rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm outline-none focus:border-primario focus:ring-2 focus:ring-primario/30"
         />
         {sugerencias.length > 0 && (
-          <ul role="listbox" aria-label="Usuarios para mencionar" className="absolute left-0 top-full z-10 mt-1 w-full max-w-sm rounded-base border border-foreground/15 bg-background p-1 shadow-lg">
+          <ul role="listbox" aria-label="Usuarios para mencionar" className="absolute left-0 top-full z-10 mt-1 w-full max-w-sm rounded-base border border-borde bg-superficie p-1 shadow-lg">
             {sugerencias.map((usuario) => (
               <li key={usuario.id}>
-                <button type="button" role="option" aria-selected="false" onClick={() => seleccionarMencion(usuario)} className="w-full rounded px-2 py-1 text-left text-sm hover:bg-foreground/5">
+                <button type="button" role="option" aria-selected="false" onClick={() => seleccionarMencion(usuario)} className="w-full rounded px-2 py-1 text-left text-sm hover:bg-superficie-2">
                   @{usuario.nombre}
                 </button>
               </li>
@@ -145,31 +161,34 @@ export function HiloComentarios({
           </ul>
         )}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-foreground/60">{contenido.length}/2000</span>
+          <span className="text-xs text-texto-secundario">{contenido.length}/2000</span>
           <button type="submit" disabled={enviando || contenido.trim().length === 0} className={CLASE_PRIMARIO}>
             {enviando ? 'Guardando…' : 'Comentar'}
           </button>
         </div>
       </form>
-      {mensaje && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{mensaje}</p>}
-      {consulta.isLoading && <p className="text-sm text-foreground/60">Cargando comentarios…</p>}
-      {consulta.isError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">No se pudo cargar el hilo.</p>}
-      <ol className="flex flex-col gap-3" aria-live="polite">
+      {mensaje && <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p>}
+      {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando comentarios…</p>}
+      {consulta.isError && <p role="alert" className="text-sm text-peligro-texto">No se pudo cargar el hilo.</p>}
+      <ol className="divide-y divide-borde overflow-hidden rounded-lg border border-borde bg-superficie" aria-live="polite">
         {comentarios.map((comentario) => {
           const puedeEliminar = puedeEliminarTodos || comentario.autorId === usuarioActualId;
           return (
-            <li key={comentario.id} className="rounded-base border border-foreground/10 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold">{comentario.autorNombre}</span>
-                  <time dateTime={comentario.creadoEn} className="text-xs text-foreground/60">{fechaComentario(comentario.creadoEn)}</time>
+            <li key={comentario.id} className="flex gap-3 p-3">
+              <AvatarIniciales nombre={comentario.autorNombre} tamano="sm" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-texto-primario">{comentario.autorNombre}</span>
+                    <time dateTime={comentario.creadoEn} className="text-xs text-texto-tenue">{fechaComentario(comentario.creadoEn)}</time>
+                  </div>
+                  {puedeEliminar && (
+                    <button type="button" className={CLASE_BOTON} onClick={() => void eliminar(comentario)}>Eliminar</button>
+                  )}
                 </div>
-                {puedeEliminar && (
-                  <button type="button" className={CLASE_BOTON} onClick={() => void eliminar(comentario)}>Eliminar</button>
-                )}
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm">{contenidoConMenciones(comentario.contenido)}</p>
+                {comentario.editado && <span className="mt-2 block text-xs italic text-texto-secundario">(editado)</span>}
               </div>
-              <p className="mt-2 whitespace-pre-wrap break-words text-sm">{comentario.contenido}</p>
-              {comentario.editado && <span className="mt-2 block text-xs italic text-foreground/60">(editado)</span>}
             </li>
           );
         })}

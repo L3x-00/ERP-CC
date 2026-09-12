@@ -3,6 +3,17 @@
 import { useState } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { crearActualizarCuentaBancariaAccion } from '@/modulos/configuracion/acciones/indice';
 import type { CuentaBancaria } from '@/modulos/configuracion/tipos/indice';
 
@@ -41,8 +52,49 @@ export function PestanaCuentasBancarias({ datos, onGuardado }: { datos: readonly
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-      <section aria-labelledby="titulo-cuentas-config" className="grid gap-3"><div className="flex items-center justify-between gap-2"><h2 id="titulo-cuentas-config" className="text-lg font-semibold">Cuentas bancarias</h2><Button tamano="sm" variante="contorno" onClick={nueva}>Nueva cuenta</Button></div><div className="overflow-x-auto rounded-base border border-foreground/15"><table className="w-full min-w-[620px] text-left text-sm"><caption className="sr-only">Cuentas bancarias configuradas</caption><thead className="border-b border-foreground/10 bg-foreground/5"><tr><th className="p-3">Banco</th><th className="p-3">Número</th><th className="p-3">Moneda</th><th className="p-3">Titular</th><th className="p-3">Estado</th><th className="p-3"><span className="sr-only">Acción</span></th></tr></thead><tbody>{datos.map((cuenta) => <tr key={cuenta.id} className="border-b border-foreground/10 last:border-0"><td className="p-3">{cuenta.banco}</td><td className="p-3 font-mono">{cuenta.numeroCuenta}</td><td className="p-3">{cuenta.moneda}</td><td className="p-3">{cuenta.titular}</td><td className="p-3">{cuenta.activa ? 'Activa' : 'Inactiva'}</td><td className="p-3"><Button tamano="sm" variante="fantasma" onClick={() => editar(cuenta)}>Editar</Button></td></tr>)}</tbody></table></div></section>
-      <form className="grid content-start gap-3 rounded-base border border-foreground/15 p-4" onSubmit={guardar} aria-label="Editor de cuenta bancaria"><h2 className="text-lg font-semibold">{seleccionada ? `Editar ${seleccionada.banco}` : 'Nueva cuenta'}</h2><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-banco">Banco<Input id="configuracion-banco" value={formulario.banco} onChange={(e) => setFormulario((v) => ({ ...v, banco: e.target.value }))} required maxLength={120} /></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-numero-cuenta">Número de cuenta<Input id="configuracion-numero-cuenta" value={formulario.numeroCuenta} onChange={(e) => setFormulario((v) => ({ ...v, numeroCuenta: e.target.value }))} required maxLength={50} /></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-clabe">CLABE (opcional)<Input id="configuracion-clabe" inputMode="numeric" value={formulario.clabe} onChange={(e) => setFormulario((v) => ({ ...v, clabe: e.target.value }))} maxLength={18} /></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-moneda">Moneda<Select id="configuracion-moneda" value={formulario.moneda} onChange={(e) => setFormulario((v) => ({ ...v, moneda: e.target.value as 'MXN' | 'USD' }))}><option value="MXN">MXN</option><option value="USD">USD</option></Select></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-titular">Titular<Input id="configuracion-titular" value={formulario.titular} onChange={(e) => setFormulario((v) => ({ ...v, titular: e.target.value }))} required maxLength={160} /></label><label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={formulario.activa} onChange={(e) => setFormulario((v) => ({ ...v, activa: e.target.checked }))} /> Cuenta activa</label><div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cuenta'}</Button>{mensaje ? <p role="status" className="text-sm text-foreground/70">{mensaje}</p> : null}</div></form>
+      <section aria-labelledby="titulo-cuentas-config" className="grid gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="titulo-cuentas-config" className="text-lg font-semibold text-texto-primario">Cuentas bancarias</h2>
+          <Button tamano="sm" variante="contorno" onClick={nueva}>Nueva cuenta</Button>
+        </div>
+        {datos.length === 0 ? (
+          <EstadoVacio
+            titulo="Sin cuentas bancarias"
+            descripcion="Registra una cuenta para asociarla a cobranza y pagos."
+          />
+        ) : (
+          <TablaContenedor>
+            <Tabla className="min-w-[620px]">
+              <caption className="sr-only">Cuentas bancarias configuradas</caption>
+              <TablaEncabezado>
+                <tr>
+                  <TablaEncabezadoCelda>Banco</TablaEncabezadoCelda>
+                  <TablaEncabezadoCelda>Número</TablaEncabezadoCelda>
+                  <TablaEncabezadoCelda>Moneda</TablaEncabezadoCelda>
+                  <TablaEncabezadoCelda>Titular</TablaEncabezadoCelda>
+                  <TablaEncabezadoCelda>Estado</TablaEncabezadoCelda>
+                  <TablaEncabezadoCelda><span className="sr-only">Acción</span></TablaEncabezadoCelda>
+                </tr>
+              </TablaEncabezado>
+              <TablaCuerpo>
+                {datos.map((cuenta) => (
+                  <TablaFila key={cuenta.id} className="h-12">
+                    <TablaCelda>{cuenta.banco}</TablaCelda>
+                    <TablaCelda className="font-mono">{cuenta.numeroCuenta}</TablaCelda>
+                    <TablaCelda>{cuenta.moneda}</TablaCelda>
+                    <TablaCelda>{cuenta.titular}</TablaCelda>
+                    <TablaCelda><BadgeEstado estado={cuenta.activa ? 'activo' : 'inactivo'} /></TablaCelda>
+                    <TablaCelda>
+                      <Button tamano="sm" variante="fantasma" onClick={() => editar(cuenta)}>Editar</Button>
+                    </TablaCelda>
+                  </TablaFila>
+                ))}
+              </TablaCuerpo>
+            </Tabla>
+          </TablaContenedor>
+        )}
+      </section>
+      <form className="grid content-start gap-3 rounded-lg border border-borde bg-superficie p-4" onSubmit={guardar} aria-label="Editor de cuenta bancaria"><h2 className="text-lg font-semibold">{seleccionada ? `Editar ${seleccionada.banco}` : 'Nueva cuenta'}</h2><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-banco">Banco<Input id="configuracion-banco" value={formulario.banco} onChange={(e) => setFormulario((v) => ({ ...v, banco: e.target.value }))} required maxLength={120} /></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-numero-cuenta">Número de cuenta<Input id="configuracion-numero-cuenta" value={formulario.numeroCuenta} onChange={(e) => setFormulario((v) => ({ ...v, numeroCuenta: e.target.value }))} required maxLength={50} /></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-clabe">CLABE (opcional)<Input id="configuracion-clabe" inputMode="numeric" value={formulario.clabe} onChange={(e) => setFormulario((v) => ({ ...v, clabe: e.target.value }))} maxLength={18} /></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-moneda">Moneda<Select id="configuracion-moneda" value={formulario.moneda} onChange={(e) => setFormulario((v) => ({ ...v, moneda: e.target.value as 'MXN' | 'USD' }))}><option value="MXN">MXN</option><option value="USD">USD</option></Select></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-titular">Titular<Input id="configuracion-titular" value={formulario.titular} onChange={(e) => setFormulario((v) => ({ ...v, titular: e.target.value }))} required maxLength={160} /></label><label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={formulario.activa} onChange={(e) => setFormulario((v) => ({ ...v, activa: e.target.checked }))} /> Cuenta activa</label><div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cuenta'}</Button>{mensaje ? <p role="status" className="text-sm text-texto-secundario">{mensaje}</p> : null}</div></form>
     </div>
   );
 }

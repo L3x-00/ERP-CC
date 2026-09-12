@@ -3,8 +3,18 @@
 import { useState } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
+import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { actualizarTipoCambioAccion, guardarTarifasCotizadorAccion } from '@/modulos/configuracion/acciones/indice';
 import type { ConfiguracionSistema, TarifasCotizadorConfig } from '@/modulos/configuracion/tipos/indice';
+
+const HORAS_VIGENCIA_TIPO_CAMBIO = 24;
+
+/** Horas transcurridas desde una fecha ISO; `null` si la fecha es inválida. */
+function horasTranscurridas(desde: string, ahora: number): number | null {
+  const fecha = new Date(desde).getTime();
+  if (!Number.isFinite(fecha)) return null;
+  return (ahora - fecha) / (60 * 60 * 1000);
+}
 
 export interface PestanaTarifasProps {
   configuracion: ConfiguracionSistema;
@@ -16,6 +26,9 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
   const [tipoCambio, setTipoCambio] = useState(String(configuracion.tipoCambioUsd));
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [ahora] = useState(() => Date.now());
+  const antiguedadHoras = horasTranscurridas(configuracion.actualizadoEn, ahora);
+  const tipoCambioObsoleto = antiguedadHoras !== null && antiguedadHoras > HORAS_VIGENCIA_TIPO_CAMBIO;
 
   const cambiarTarifa = (campo: keyof TarifasCotizadorConfig, valor: string): void => {
     const numero = Number(valor);
@@ -49,6 +62,23 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
 
   return (
     <form className="grid gap-4" onSubmit={guardar} aria-label="Tarifas del cotizador">
+      <div className="rounded-lg border border-acento/30 bg-acento-suave p-4">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-acento">Tipo de cambio vigente</p>
+            <p className="text-2xl font-semibold tabular-nums text-texto-primario">
+              {configuracion.tipoCambioUsd.toFixed(4)}
+              <span className="ml-1 text-sm font-medium text-texto-secundario">MXN/USD</span>
+            </p>
+          </div>
+          <p className="text-xs text-texto-secundario">Actualizado el {formatearFecha(configuracion.actualizadoEn)}</p>
+        </div>
+        {tipoCambioObsoleto ? (
+          <p role="alert" className="mt-3 rounded-md bg-advertencia-suave px-3 py-2 text-sm font-medium text-advertencia-texto">
+            El tipo de cambio lleva más de 24 horas sin actualizarse; revisa el valor antes de cotizar.
+          </p>
+        ) : null}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora predeterminado (MXN)
           <Input id="configuracion-costo-hora" type="number" min="0" step="0.01" value={tarifas.costoHoraDefault} onChange={(e) => cambiarTarifa('costoHoraDefault', e.target.value)} required />
@@ -71,8 +101,8 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar tarifas y TC'}</Button>
-        <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-foreground/70">Vigente: {configuracion.tipoCambioUsd.toFixed(4)} MXN/USD</output>
-        {mensaje ? <p role="status" className="text-sm text-foreground/70">{mensaje}</p> : null}
+        <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-texto-secundario">Vigente: {configuracion.tipoCambioUsd.toFixed(4)} MXN/USD</output>
+        {mensaje ? <p role="status" className="text-sm text-texto-secundario">{mensaje}</p> : null}
       </div>
     </form>
   );

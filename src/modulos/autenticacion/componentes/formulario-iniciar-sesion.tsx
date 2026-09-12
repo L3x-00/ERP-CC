@@ -2,12 +2,16 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Input } from '@/compartido/componentes/ui/input';
+import { Label } from '@/compartido/componentes/ui/label';
 import { iniciarSesionAccion } from '@/modulos/autenticacion/acciones/iniciar-sesion';
 
 /**
  * Formulario de inicio de sesión con correo y contraseña (admin, ventas, gerentes).
  * Envía las credenciales a `iniciarSesionAccion`; en éxito redirige a /dashboard,
- * en error muestra el mensaje en rojo. El botón queda deshabilitado mientras envía.
+ * en error muestra el mensaje con rol de alerta. El botón queda deshabilitado
+ * mientras envía.
  */
 export function FormularioIniciarSesion() {
   const router = useRouter();
@@ -50,14 +54,12 @@ export function FormularioIniciarSesion() {
       method="post"
       data-testid="formulario-iniciar-sesion"
       data-hidratado={hidratado ? 'true' : 'false'}
-      className="flex w-full max-w-sm flex-col gap-4"
+      className="flex w-full max-w-sm flex-col gap-4 rounded-xl border border-borde bg-superficie p-6 shadow-md"
       noValidate
     >
-      <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-sm font-medium">
-          Correo electrónico
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="email" obligatorio>Correo electrónico</Label>
+        <Input
           id="email"
           name="email"
           type="email"
@@ -65,16 +67,13 @@ export function FormularioIniciarSesion() {
           required
           value={email}
           onChange={(evento) => setEmail(evento.target.value)}
-          className="rounded-base border border-foreground/20 bg-background px-3 py-2 text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30"
           placeholder="tu@empresa.com"
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="contrasena" className="text-sm font-medium">
-          Contraseña
-        </label>
-        <input
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="contrasena" obligatorio>Contraseña</Label>
+        <Input
           id="contrasena"
           name="contrasena"
           type="password"
@@ -82,24 +81,19 @@ export function FormularioIniciarSesion() {
           required
           value={contrasena}
           onChange={(evento) => setContrasena(evento.target.value)}
-          className="rounded-base border border-foreground/20 bg-background px-3 py-2 text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30"
           placeholder="••••••••"
         />
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-peligro-texto">
           {error}
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={enviando}
-        className="rounded-base bg-primario px-4 py-2 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button type="submit" tamano="lg" disabled={enviando} className="w-full">
         {enviando ? 'Iniciando sesión…' : 'Iniciar sesión'}
-      </button>
+      </Button>
     </form>
   );
 }

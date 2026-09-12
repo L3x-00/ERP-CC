@@ -86,7 +86,7 @@ export function IndicadorSesion({ nombreUsuario, esOperador = false }: PropsIndi
         <button
           type="button"
           onClick={() => void cerrarSesionAccion()}
-          className="rounded-base border border-foreground/20 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-foreground/5"
+          className="rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2"
         >
           Cerrar sesión
         </button>
