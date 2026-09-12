@@ -119,12 +119,12 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION public.registrar_gasto(
-  uuid, uuid, text, text, numeric, numeric, numeric, text, numeric, date, date,
-  text, text, text, jsonb, text, uuid
+  uuid, uuid, text, text, numeric, numeric, numeric, text, numeric,
+  timestamptz, timestamptz, text, text, text, jsonb, text, uuid
 ) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.registrar_gasto(
-  uuid, uuid, text, text, numeric, numeric, numeric, text, numeric, date, date,
-  text, text, text, jsonb, text, uuid
+  uuid, uuid, text, text, numeric, numeric, numeric, text, numeric,
+  timestamptz, timestamptz, text, text, text, jsonb, text, uuid
 ) TO service_role;
 
 -- El usuario se coloca antes del parámetro opcional porque PostgreSQL no
