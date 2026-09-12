@@ -11,6 +11,10 @@ import { asignarTierManualAccion } from '@/modulos/clientes/acciones/asignar-tie
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import { AlertaCredito } from '@/modulos/clientes/componentes/alerta-credito';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Select } from '@/compartido/componentes/ui/input';
 import type {
   Cliente,
   Direccion,
@@ -18,17 +22,10 @@ import type {
   TierCliente,
   TipoDocumentoCliente,
 } from '@/modulos/clientes/tipos/indice';
-import {
-  CLASE_ESTADO,
-  ETIQUETA_ESTADO,
-  ETIQUETA_TIPO_DOCUMENTO,
-} from '@/modulos/clientes/utilidades/indice';
+import { ETIQUETA_TIPO_DOCUMENTO } from '@/modulos/clientes/utilidades/indice';
 
 const BUCKET = 'documentos-cliente';
 type Pestana = 'general' | 'direcciones' | 'documentos' | 'oportunidades' | 'comentarios';
-
-const CLASE_BOTON_PRIMARIO =
-  'rounded-base bg-primario px-3 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50';
 
 /**
  * Ficha 360° del cliente en un drawer lateral. Cabecera con tier/estado y alerta
@@ -53,30 +50,35 @@ export function FichaCliente({
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onCerrar}>
       <aside
-        className="flex h-full w-full max-w-xl flex-col overflow-y-auto bg-background shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ficha del cliente"
+        className="deslizar-derecha flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-borde bg-superficie shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between border-b border-foreground/10 p-4">
+        <header className="flex items-start justify-between border-b border-borde p-4">
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-bold">{data?.cliente.razonSocial ?? 'Cliente'}</h2>
+            <h2 className="text-lg font-bold text-texto-primario">{data?.cliente.razonSocial ?? 'Cliente'}</h2>
             {data && (
               <div className="flex items-center gap-2">
                 <BadgeTier cliente={data.cliente} consumo={data.consumoUltimos3Meses} />
-                <span
-                  className={`inline-flex items-center rounded-base px-2 py-0.5 text-xs font-semibold ${CLASE_ESTADO[data.cliente.estado]}`}
-                >
-                  {ETIQUETA_ESTADO[data.cliente.estado]}
-                </span>
+                <BadgeEstado estado={data.cliente.estado} />
               </div>
             )}
           </div>
-          <button onClick={onCerrar} className="text-2xl leading-none text-foreground/60 hover:text-foreground" aria-label="Cerrar">
+          <Button
+            variante="fantasma"
+            tamano="sm"
+            onClick={onCerrar}
+            aria-label="Cerrar"
+            className="text-xl leading-none"
+          >
             ×
-          </button>
+          </Button>
         </header>
 
-        {isLoading && <p className="p-4 text-sm text-foreground/60">Cargando…</p>}
-        {!isLoading && !data && <p className="p-4 text-sm text-foreground/60">Cliente no encontrado.</p>}
+        {isLoading && <p className="p-4 text-sm text-texto-secundario">Cargando…</p>}
+        {!isLoading && !data && <p className="p-4 text-sm text-texto-secundario">Cliente no encontrado.</p>}
 
         {data && (
           <>
@@ -86,15 +88,15 @@ export function FichaCliente({
 
             {esAdmin && <ControlTierManual clienteId={clienteId} />}
 
-            <nav className="flex gap-1 border-b border-foreground/10 px-4">
+            <nav className="flex gap-1 border-b border-borde px-4">
               {(['general', 'direcciones', 'documentos', 'oportunidades', 'comentarios'] as Pestana[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPestana(p)}
                   className={`border-b-2 px-3 py-2 text-sm capitalize transition-colors ${
                     pestana === p
-                      ? 'border-primario font-semibold text-primario'
-                      : 'border-transparent text-foreground/60 hover:text-foreground'
+                      ? 'border-acento font-semibold text-acento'
+                      : 'border-transparent text-texto-secundario hover:text-texto-primario'
                   }`}
                 >
                   {p}
@@ -109,7 +111,7 @@ export function FichaCliente({
                 <PanelDocumentos clienteId={clienteId} documentos={data.documentos} />
               )}
               {pestana === 'oportunidades' && (
-                <p className="text-sm text-foreground/60">
+                <p className="text-sm text-texto-secundario">
                   El historial de oportunidades y órdenes se conecta en la Fase 5.
                 </p>
               )}
@@ -132,15 +134,17 @@ export function FichaCliente({
 
 function PanelGeneral({ cliente }: { cliente: Cliente }) {
   return (
-    <dl className="grid grid-cols-2 gap-3 text-sm">
-      <Dato etiqueta="Nombre comercial" valor={cliente.nombreComercial} />
-      <Dato etiqueta="RFC" valor={cliente.rfc ?? '—'} />
-      <Dato etiqueta="Contacto" valor={cliente.contacto ?? '—'} />
-      <Dato etiqueta="Correo" valor={cliente.correo ?? '—'} />
-      <Dato etiqueta="Teléfono" valor={cliente.telefono ?? '—'} />
-      <Dato etiqueta="Condiciones de pago" valor={cliente.condicionesPago ?? '—'} />
-      <Dato etiqueta="Alta" valor={formatearFecha(cliente.creadoEn)} />
-    </dl>
+    <Tarjeta>
+      <dl className="grid grid-cols-2 gap-3 px-6 py-4 text-sm">
+        <Dato etiqueta="Nombre comercial" valor={cliente.nombreComercial} />
+        <Dato etiqueta="RFC" valor={cliente.rfc ?? '—'} />
+        <Dato etiqueta="Contacto" valor={cliente.contacto ?? '—'} />
+        <Dato etiqueta="Correo" valor={cliente.correo ?? '—'} />
+        <Dato etiqueta="Teléfono" valor={cliente.telefono ?? '—'} />
+        <Dato etiqueta="Condiciones de pago" valor={cliente.condicionesPago ?? '—'} />
+        <Dato etiqueta="Alta" valor={formatearFecha(cliente.creadoEn)} />
+      </dl>
+    </Tarjeta>
   );
 }
 
@@ -167,10 +171,10 @@ function BloqueDireccion({
   notaSiVacia?: string;
 }) {
   return (
-    <div className="rounded-base border border-foreground/15 p-3 text-sm">
+    <Tarjeta className="p-3 text-sm">
       <h3 className="mb-1 font-semibold">{titulo}</h3>
       {direccion ? (
-        <address className="not-italic text-foreground/80">
+        <address className="not-italic text-texto-primario">
           {direccion.calle} {direccion.numeroExterior}
           {direccion.numeroInterior ? ` int. ${direccion.numeroInterior}` : ''}
           <br />
@@ -181,9 +185,9 @@ function BloqueDireccion({
           {direccion.pais}
         </address>
       ) : (
-        <p className="text-foreground/50">{notaSiVacia}</p>
+        <p className="text-texto-tenue">{notaSiVacia}</p>
       )}
-    </div>
+    </Tarjeta>
   );
 }
 
@@ -198,14 +202,14 @@ function PanelDocumentos({
     <div className="flex flex-col gap-4">
       <FormularioDocumento clienteId={clienteId} />
       {documentos.length === 0 ? (
-        <p className="text-sm text-foreground/60">Sin documentos.</p>
+        <p className="text-sm text-texto-secundario">Sin documentos.</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-foreground/10">
+        <ul className="flex flex-col divide-y divide-borde">
           {documentos.map((doc) => (
             <li key={doc.id} className="flex items-center justify-between gap-2 py-2 text-sm">
               <div className="flex flex-col">
                 <span className="font-medium">{ETIQUETA_TIPO_DOCUMENTO[doc.tipo]}</span>
-                <span className="text-xs text-foreground/60">
+                <span className="text-xs text-texto-secundario">
                   {doc.nombreArchivo} · {formatearFecha(doc.creadoEn)}
                 </span>
               </div>
@@ -230,9 +234,9 @@ function BotonVer({ ruta }: { ruta: string }) {
     }
   }
   return (
-    <button onClick={ver} disabled={cargando} className="text-sm font-medium text-primario hover:underline disabled:opacity-50">
+    <Button variante="fantasma" tamano="sm" onClick={ver} disabled={cargando}>
       {cargando ? '…' : 'Ver'}
-    </button>
+    </Button>
   );
 }
 
@@ -272,38 +276,41 @@ function FormularioDocumento({ clienteId }: { clienteId: string }) {
   }
 
   return (
-    <form onSubmit={manejarEnvio} className="flex flex-col gap-2 rounded-base border border-foreground/15 p-3">
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Tipo</span>
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoDocumentoCliente)}
-            className="rounded-base border border-foreground/20 bg-background px-2 py-1.5 text-sm"
-          >
-            {(Object.keys(ETIQUETA_TIPO_DOCUMENTO) as TipoDocumentoCliente[]).map((t) => (
-              <option key={t} value={t}>
-                {ETIQUETA_TIPO_DOCUMENTO[t]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <input
-          type="file"
-          accept="application/pdf,image/jpeg,image/png"
-          onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
-          className="text-sm"
-        />
-        <button type="submit" disabled={subiendo} className={CLASE_BOTON_PRIMARIO}>
-          {subiendo ? 'Subiendo…' : 'Subir'}
-        </button>
-      </div>
-      {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-    </form>
+    <Tarjeta>
+      <form onSubmit={manejarEnvio} className="flex flex-col gap-2 p-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Tipo</span>
+            <Select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoDocumentoCliente)}
+              aria-label="Tipo de documento"
+              className="w-auto"
+            >
+              {(Object.keys(ETIQUETA_TIPO_DOCUMENTO) as TipoDocumentoCliente[]).map((t) => (
+                <option key={t} value={t}>
+                  {ETIQUETA_TIPO_DOCUMENTO[t]}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+            className="text-sm"
+          />
+          <Button type="submit" tamano="sm" disabled={subiendo}>
+            {subiendo ? 'Subiendo…' : 'Subir'}
+          </Button>
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-peligro-texto">
+            {error}
+          </p>
+        )}
+      </form>
+    </Tarjeta>
   );
 }
 
@@ -328,30 +335,31 @@ function ControlTierManual({ clienteId }: { clienteId: string }) {
   }
 
   return (
-    <div className="mx-4 mb-2 flex flex-wrap items-center gap-2 rounded-base border border-foreground/15 bg-foreground/5 p-3 text-sm">
+    <Tarjeta className="mx-4 mb-2 flex flex-wrap items-center gap-2 p-3 text-sm">
       <span className="font-medium">Tier manual (admin):</span>
-      <select
+      <Select
         value={tier}
         onChange={(e) => setTier(e.target.value as TierCliente)}
-        className="rounded-base border border-foreground/20 bg-background px-2 py-1 text-sm"
+        aria-label="Tier manual"
+        className="w-auto"
       >
         <option value="bronce">Bronce</option>
         <option value="plata">Plata</option>
         <option value="oro">Oro</option>
         <option value="platino">Platino</option>
-      </select>
-      <button onClick={asignar} disabled={enviando} className={CLASE_BOTON_PRIMARIO}>
+      </Select>
+      <Button onClick={asignar} disabled={enviando} tamano="sm">
         {enviando ? '…' : 'Asignar'}
-      </button>
-      {mensaje && <span className="text-foreground/70">{mensaje}</span>}
-    </div>
+      </Button>
+      {mensaje && <span className="text-texto-secundario">{mensaje}</span>}
+    </Tarjeta>
   );
 }
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div className="flex flex-col">
-      <dt className="text-xs text-foreground/60">{etiqueta}</dt>
+      <dt className="text-xs text-texto-secundario">{etiqueta}</dt>
       <dd className="font-medium">{valor}</dd>
     </div>
   );

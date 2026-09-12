@@ -12,6 +12,9 @@ import {
   esTransicionValida,
 } from '@/modulos/pipeline/servicios/reglas-transicion';
 import type { EtapaPipeline, Oportunidad } from '@/modulos/pipeline/tipos/indice';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Input, Textarea } from '@/compartido/componentes/ui/input';
+import { Label } from '@/compartido/componentes/ui/label';
 
 type PropsSelectorEtapa = {
   oportunidad: Oportunidad;
@@ -26,13 +29,6 @@ const ETAPAS: { valor: EtapaPipeline; etiqueta: string }[] = [
   { valor: 'ganada', etiqueta: 'Ganada' },
   { valor: 'perdida', etiqueta: 'Perdida' },
 ];
-
-const CLASE_BOTON =
-  'rounded-base border border-foreground/20 px-2 py-1 text-xs font-medium transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40';
-const CLASE_BOTON_PELIGRO =
-  'rounded-base bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
-const CLASE_INPUT =
-  'rounded-base border border-foreground/20 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
 
 /**
  * Controles para mover una oportunidad entre etapas. Avances no terminales usan
@@ -128,81 +124,90 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
           const habilitado =
             esTransicionValida(desde, etapa.valor) || esReversion(desde, etapa.valor);
           return (
-            <button
+            <Button
               key={etapa.valor}
               type="button"
+              variante="contorno"
+              tamano="sm"
               disabled={!habilitado || enviando}
               onClick={() => manejarSeleccion(etapa.valor)}
-              className={CLASE_BOTON}
             >
               {etapa.etiqueta}
-            </button>
+            </Button>
           );
         })}
       </div>
 
       {mostrarMotivo && (
         <form onSubmit={manejarPerdida} className="flex flex-col gap-2" noValidate>
-          <input
-            type="text"
-            value={motivo}
-            onChange={(evento) => setMotivo(evento.target.value)}
-            placeholder="Motivo de la pérdida (obligatorio)"
-            className={CLASE_INPUT}
-          />
-          <textarea
-            value={notas}
-            onChange={(evento) => setNotas(evento.target.value)}
-            placeholder="Notas adicionales (opcional)"
-            rows={2}
-            className={CLASE_INPUT}
-          />
-          <div className="flex gap-2">
-            <button type="submit" disabled={enviando} className={CLASE_BOTON_PELIGRO}>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`motivo-perdida-${oportunidad.id}`}>Motivo de la pérdida</Label>
+            <Input
+              id={`motivo-perdida-${oportunidad.id}`}
+              type="text"
+              value={motivo}
+              onChange={(evento) => setMotivo(evento.target.value)}
+              placeholder="Obligatorio"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`notas-perdida-${oportunidad.id}`}>Notas adicionales (opcional)</Label>
+            <Textarea
+              id={`notas-perdida-${oportunidad.id}`}
+              value={notas}
+              onChange={(evento) => setNotas(evento.target.value)}
+              rows={2}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variante="destructivo" tamano="lg" disabled={enviando}>
               {enviando ? 'Guardando…' : 'Confirmar pérdida'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variante="contorno"
+              tamano="lg"
               onClick={() => setMostrarMotivo(false)}
-              className={CLASE_BOTON}
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       {mostrarCompromiso && (
         <form onSubmit={manejarGanada} className="flex flex-col gap-2" noValidate>
-          <label htmlFor={`fecha-compromiso-${oportunidad.id}`} className="text-xs font-medium">
-            Fecha de compromiso de producción
-          </label>
-          <input
-            id={`fecha-compromiso-${oportunidad.id}`}
-            type="datetime-local"
-            value={fechaCompromiso}
-            onChange={(evento) => setFechaCompromiso(evento.target.value)}
-            required
-            className={CLASE_INPUT}
-          />
-          <div className="flex gap-2">
-            <button type="submit" disabled={enviando} className={CLASE_BOTON_PELIGRO}>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={`fecha-compromiso-${oportunidad.id}`}>
+              Fecha de compromiso de producción
+            </Label>
+            <Input
+              id={`fecha-compromiso-${oportunidad.id}`}
+              type="datetime-local"
+              value={fechaCompromiso}
+              onChange={(evento) => setFechaCompromiso(evento.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variante="primario" tamano="lg" disabled={enviando}>
               {enviando ? 'Creando orden…' : 'Confirmar ganada y crear OP'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variante="contorno"
+              tamano="lg"
               disabled={enviando}
               onClick={() => setMostrarCompromiso(false)}
-              className={CLASE_BOTON}
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       {error !== null && (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-peligro-texto">
           {error}
         </p>
       )}

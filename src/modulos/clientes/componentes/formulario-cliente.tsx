@@ -12,12 +12,12 @@ import type {
 } from '@/modulos/clientes/tipos/indice';
 
 const CLASE_INPUT =
-  'rounded-base border border-foreground/20 bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
+  'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
 const CLASE_ETIQUETA = 'text-sm font-medium';
 const CLASE_BOTON_PRIMARIO =
   'rounded-base bg-primario px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
 const CLASE_BOTON_SECUNDARIO =
-  'rounded-base border border-foreground/20 px-4 py-2 text-sm font-medium hover:bg-foreground/5';
+  'rounded-base border border-borde-fuerte px-4 py-2 text-sm font-medium hover:bg-superficie-2';
 
 /** Estado local de una dirección (todos los campos como string para inputs controlados). */
 type FormularioDireccion = {
@@ -224,7 +224,7 @@ export function FormularioCliente({ cliente, onExito, onCancelar }: Props) {
         </div>
       </section>
 
-      <fieldset className="flex flex-col gap-3 rounded-base border border-foreground/15 p-4">
+      <fieldset className="flex flex-col gap-3 rounded-base border border-borde p-4">
         <legend className="px-1 text-sm font-semibold">Dirección fiscal</legend>
         <CamposDireccion prefijo="fiscal" valor={fiscal} onCambio={setFiscal} />
       </fieldset>
@@ -239,7 +239,7 @@ export function FormularioCliente({ cliente, onExito, onCancelar }: Props) {
       </label>
 
       {!mismaQueFiscal && (
-        <fieldset className="flex flex-col gap-3 rounded-base border border-foreground/15 p-4">
+        <fieldset className="flex flex-col gap-3 rounded-base border border-borde p-4">
           <legend className="px-1 text-sm font-semibold">Dirección de envío</legend>
           <CamposDireccion prefijo="envio" valor={envio} onCambio={setEnvio} />
         </fieldset>

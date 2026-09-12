@@ -1,8 +1,16 @@
 'use client';
 
 import { calcularTier } from '@/modulos/clientes/servicios/calcular-tier';
-import type { Cliente } from '@/modulos/clientes/tipos/indice';
-import { CLASE_TIER, ETIQUETA_TIER } from '@/modulos/clientes/utilidades/indice';
+import type { Cliente, TierCliente } from '@/modulos/clientes/tipos/indice';
+import { ETIQUETA_TIER } from '@/modulos/clientes/utilidades/indice';
+
+/** Tokens de tier del sistema de diseño (fondo suave + texto legible). */
+const CLASE_TIER: Record<TierCliente, string> = {
+  bronce: 'bg-tier-bronce-suave text-tier-bronce',
+  plata: 'bg-tier-plata-suave text-tier-plata',
+  oro: 'bg-tier-oro-suave text-tier-oro',
+  platino: 'bg-tier-platino-suave text-tier-platino',
+};
 
 /**
  * Badge del tier EFECTIVO del cliente. Resuelve manual-vigente vs automático con
@@ -20,7 +28,7 @@ export function BadgeTier({ cliente, consumo = 0 }: { cliente: Cliente; consumo?
 
   return (
     <span
-      className={`inline-flex items-center rounded-base px-2 py-0.5 text-xs font-semibold ${CLASE_TIER[tier]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${CLASE_TIER[tier]}`}
       title={esManual ? 'Tier asignado manualmente' : 'Tier por consumo'}
     >
       {ETIQUETA_TIER[tier]}

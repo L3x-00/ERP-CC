@@ -11,6 +11,7 @@ import { SeccionProduccionAlertas } from '@/modulos/dashboard/componentes/seccio
 import { SeccionVentasPipeline } from '@/modulos/dashboard/componentes/seccion-ventas-pipeline';
 import { SincronizadorDashboardRealtime } from '@/modulos/dashboard/componentes/sincronizador-dashboard-realtime';
 import { WidgetMetricaKPI } from '@/modulos/dashboard/componentes/widget-metrica-kpi';
+import { Button } from '@/compartido/componentes/ui/button';
 import type { DashboardConsolidado, FiltroPeriodoDashboard } from '@/modulos/dashboard/tipos/indice';
 
 export function OperacionDashboard({ datosIniciales }: { datosIniciales: DashboardConsolidado }) {
@@ -48,9 +49,19 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-dashboard">
       <SincronizadorDashboardRealtime />
-      <header><h1 className="text-2xl font-bold">Dashboard operativo</h1><p className="text-sm text-foreground/70">Indicadores visibles según tu rol y permisos vigentes.</p></header>
+      <header><h1 className="text-2xl font-bold">Dashboard operativo</h1><p className="text-sm text-texto-secundario">Indicadores visibles según tu rol y permisos vigentes.</p></header>
       <FiltroPeriodoGlobal filtro={filtro} onChange={cambiarFiltro} disabled={consulta.isFetching} />
-      {consulta.isError ? <p role="alert" className="text-sm text-red-700">No se pudieron actualizar las métricas. Vuelve a intentarlo.</p> : null}
+      {consulta.isError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-peligro/30 bg-peligro-suave px-4 py-3 text-sm text-peligro-texto"
+        >
+          <span>No se pudieron actualizar las métricas. Vuelve a intentarlo.</span>
+          <Button variante="contorno" tamano="sm" onClick={() => void consulta.refetch()}>
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
       <section aria-label="Indicadores clave" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{tarjetas.map((item) => <WidgetMetricaKPI key={item.id} tarjeta={item} />)}</section>
       {datos.ejecutivas ? <SeccionFinanciera finanzas={datos.ejecutivas.actual.finanzas} /> : null}
       {datos.contador ? <SeccionFinanciera contador={datos.contador.actual} titulo="CxC, CxP y flujo de caja" identificador="contador" /> : null}

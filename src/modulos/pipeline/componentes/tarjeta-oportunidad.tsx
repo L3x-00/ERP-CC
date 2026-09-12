@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { SelectorEtapa } from '@/modulos/pipeline/componentes/selector-etapa';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import type { AlertaPipeline } from '@/modulos/pipeline/servicios/calcular-alertas';
 import type { Oportunidad, PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
 
@@ -11,41 +12,42 @@ type PropsTarjetaOportunidad = {
   alertas: AlertaPipeline[];
 };
 
-/** Texto legible y clases de color por tipo de alerta (ámbar/rojo). */
+/** Días completos transcurridos desde una fecha ISO hasta `ahora` (mínimo 0). */
+export function diasDesde(fecha: string, ahora: Date = new Date()): number {
+  const transcurrido = ahora.getTime() - new Date(fecha).getTime();
+  if (!Number.isFinite(transcurrido) || transcurrido <= 0) return 0;
+  return Math.floor(transcurrido / 86_400_000);
+}
+
+/** Texto legible y clases semánticas por tipo de alerta. */
 const ESTILO_ALERTA: Record<AlertaPipeline, { texto: string; clase: string }> = {
   sin_respuesta: {
     texto: 'Sin respuesta',
-    clase: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
+    clase: 'bg-advertencia-suave text-advertencia-texto',
   },
   estancada: {
     texto: 'Estancada',
-    clase: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
+    clase: 'bg-peligro-suave text-peligro-texto',
   },
   datos_incompletos: {
     texto: 'Datos incompletos',
-    clase: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
+    clase: 'bg-peligro-suave text-peligro-texto',
   },
 };
 
-/** Texto legible y clases de color por prioridad. */
-const ESTILO_PRIORIDAD: Record<PrioridadPipeline, { texto: string; clase: string }> = {
-  baja: { texto: 'Baja', clase: 'bg-foreground/10 text-foreground/60' },
-  normal: { texto: 'Normal', clase: 'bg-foreground/10 text-foreground/70' },
-  alta: {
-    texto: 'Alta',
-    clase: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
-  },
-  urgente: {
-    texto: 'Urgente',
-    clase: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
-  },
+/** Texto legible y clases semánticas por prioridad. */
+export const ESTILO_PRIORIDAD: Record<PrioridadPipeline, { texto: string; clase: string }> = {
+  baja: { texto: 'Baja', clase: 'bg-superficie-2 text-texto-secundario' },
+  normal: { texto: 'Normal', clase: 'bg-superficie-2 text-texto-secundario' },
+  alta: { texto: 'Alta', clase: 'bg-advertencia-suave text-advertencia-texto' },
+  urgente: { texto: 'Urgente', clase: 'bg-peligro-suave text-peligro-texto' },
 };
 
 /**
  * Tarjeta compacta de una oportunidad del pipeline. Muestra el folio (CNC si ya
- * existe, si no el OP), empresa, contacto, prioridad y las alertas visuales
- * calculadas. Incluye el selector de etapa para mover la oportunidad sin salir
- * del tablero.
+ * existe, si no el OP), empresa, contacto, etapa, prioridad, los días en la
+ * etapa actual y las alertas visuales calculadas. Incluye el selector de etapa
+ * para mover la oportunidad sin salir del tablero.
  */
 export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportunidad) {
   const [mostrarComentarios, setMostrarComentarios] = useState(false);
@@ -53,17 +55,23 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
   const prioridad = ESTILO_PRIORIDAD[oportunidad.prioridad];
 
   return (
-    <article className="flex flex-col gap-2 rounded-base border border-foreground/10 bg-background p-3 shadow-sm">
+    <article className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie p-3 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
-        <span className="font-mono text-xs text-foreground/60">{folio}</span>
-        <span className={`rounded-base px-2 py-0.5 text-xs font-medium ${prioridad.clase}`}>
-          {prioridad.texto}
-        </span>
+        <span className="font-mono text-xs text-texto-secundario">{folio}</span>
+        <div className="flex flex-wrap items-center justify-end gap-1">
+          <BadgeEstado estado={oportunidad.etapa} />
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${prioridad.clase}`}>
+            {prioridad.texto}
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-col gap-0.5">
-        <h3 className="text-sm font-semibold text-foreground">{oportunidad.empresa}</h3>
-        <p className="text-xs text-foreground/70">{oportunidad.nombreContacto}</p>
+        <h3 className="text-sm font-semibold text-texto-primario">{oportunidad.empresa}</h3>
+        <p className="text-xs text-texto-secundario">{oportunidad.nombreContacto}</p>
+        <p className="text-xs text-texto-secundario">
+          {diasDesde(oportunidad.actualizadoEn)} días en esta etapa
+        </p>
       </div>
 
       {alertas.length > 0 && (
@@ -71,7 +79,7 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
           {alertas.map((alerta) => (
             <li
               key={alerta}
-              className={`rounded-base px-2 py-0.5 text-xs font-medium ${ESTILO_ALERTA[alerta].clase}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTILO_ALERTA[alerta].clase}`}
             >
               {ESTILO_ALERTA[alerta].texto}
             </li>
@@ -79,14 +87,14 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         </ul>
       )}
 
-      <div className="border-t border-foreground/10 pt-2">
+      <div className="border-t border-borde pt-2">
         <SelectorEtapa oportunidad={oportunidad} />
       </div>
       <button
         type="button"
         onClick={() => setMostrarComentarios((actual) => !actual)}
         aria-expanded={mostrarComentarios}
-        className="self-start text-xs font-semibold text-primario hover:underline"
+        className="self-start text-xs font-semibold text-acento hover:underline"
       >
         {mostrarComentarios ? 'Ocultar comentarios' : 'Ver comentarios'}
       </button>

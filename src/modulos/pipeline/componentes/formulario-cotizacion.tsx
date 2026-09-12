@@ -10,6 +10,9 @@ import type {
   LineaCotizacionEntrada,
   MonedaPipeline,
 } from '@/modulos/pipeline/tipos/indice';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Input } from '@/compartido/componentes/ui/input';
+import { Label } from '@/compartido/componentes/ui/label';
 
 type PropsFormularioCotizacion = {
   pipelineId: string;
@@ -30,13 +33,6 @@ type LineaFormulario = {
   material: string;
   procesos: string;
 };
-
-const CLASE_INPUT =
-  'w-full rounded-base border border-foreground/20 bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
-const CLASE_BOTON_PRIMARIO =
-  'rounded-base bg-primario px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
-const CLASE_BOTON_SECUNDARIO =
-  'rounded-base border border-foreground/20 px-3 py-1.5 text-sm font-medium transition-colors hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40';
 
 function lineaVacia(): LineaFormulario {
   return { descripcion: '', cantidad: '1', precioUnitario: '0', material: '', procesos: '' };
@@ -145,36 +141,25 @@ export function FormularioCotizacion({
         {lineas.map((linea, indice) => (
           <div
             key={indice}
-            className="flex flex-col gap-2 rounded-base border border-foreground/10 p-3"
+            className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie p-3 shadow-sm"
           >
             <div className="flex flex-col gap-1">
-              <label
-                htmlFor={`linea-${indice}-descripcion`}
-                className="text-xs font-medium text-foreground/70"
-              >
-                Descripción
-              </label>
-              <input
+              <Label htmlFor={`linea-${indice}-descripcion`}>Descripción</Label>
+              <Input
                 id={`linea-${indice}-descripcion`}
                 type="text"
                 value={linea.descripcion}
                 onChange={(evento) =>
                   actualizarLinea(indice, 'descripcion', evento.target.value)
                 }
-                className={CLASE_INPUT}
                 placeholder="Pieza, servicio o concepto"
               />
             </div>
 
             <div className="grid gap-2 sm:grid-cols-4">
               <div className="flex flex-col gap-1">
-                <label
-                  htmlFor={`linea-${indice}-cantidad`}
-                  className="text-xs font-medium text-foreground/70"
-                >
-                  Cantidad
-                </label>
-                <input
+                <Label htmlFor={`linea-${indice}-cantidad`}>Cantidad</Label>
+                <Input
                   id={`linea-${indice}-cantidad`}
                   type="number"
                   min="0"
@@ -183,18 +168,12 @@ export function FormularioCotizacion({
                   onChange={(evento) =>
                     actualizarLinea(indice, 'cantidad', evento.target.value)
                   }
-                  className={CLASE_INPUT}
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label
-                  htmlFor={`linea-${indice}-precio`}
-                  className="text-xs font-medium text-foreground/70"
-                >
-                  Precio unitario
-                </label>
-                <input
+                <Label htmlFor={`linea-${indice}-precio`}>Precio unitario</Label>
+                <Input
                   id={`linea-${indice}-precio`}
                   type="number"
                   min="0"
@@ -203,100 +182,89 @@ export function FormularioCotizacion({
                   onChange={(evento) =>
                     actualizarLinea(indice, 'precioUnitario', evento.target.value)
                   }
-                  className={CLASE_INPUT}
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label
-                  htmlFor={`linea-${indice}-material`}
-                  className="text-xs font-medium text-foreground/70"
-                >
-                  Material (opcional)
-                </label>
-                <input
+                <Label htmlFor={`linea-${indice}-material`}>Material (opcional)</Label>
+                <Input
                   id={`linea-${indice}-material`}
                   type="text"
                   value={linea.material}
                   onChange={(evento) =>
                     actualizarLinea(indice, 'material', evento.target.value)
                   }
-                  className={CLASE_INPUT}
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label
-                  htmlFor={`linea-${indice}-procesos`}
-                  className="text-xs font-medium text-foreground/70"
-                >
-                  Procesos (opcional)
-                </label>
-                <input
+                <Label htmlFor={`linea-${indice}-procesos`}>Procesos (opcional)</Label>
+                <Input
                   id={`linea-${indice}-procesos`}
                   type="text"
                   value={linea.procesos}
                   onChange={(evento) =>
                     actualizarLinea(indice, 'procesos', evento.target.value)
                   }
-                  className={CLASE_INPUT}
                   placeholder="corte, doblez"
                 />
               </div>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-foreground/60">
+              <span className="text-xs tabular-nums text-texto-secundario">
                 Importe:{' '}
                 {formatearMoneda(
                   (Number(linea.cantidad) || 0) * (Number(linea.precioUnitario) || 0),
+                  moneda,
                 )}
               </span>
-              <button
+              <Button
                 type="button"
+                variante="destructivo"
+                tamano="sm"
                 onClick={() => quitarLinea(indice)}
                 disabled={lineas.length <= 1}
-                className="text-xs font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400"
               >
                 Quitar
-              </button>
+              </Button>
             </div>
           </div>
         ))}
       </div>
 
-      <button type="button" onClick={agregarLinea} className={CLASE_BOTON_SECUNDARIO}>
+      <Button type="button" variante="contorno" onClick={agregarLinea} className="self-start">
         Agregar línea
-      </button>
+      </Button>
 
-      <div className="flex flex-col gap-1 rounded-base border border-foreground/10 bg-foreground/5 p-3 text-sm">
+      <div className="flex flex-col gap-1 rounded-lg border border-borde bg-superficie-2 p-3 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-foreground/70">Subtotal</span>
-          <span className="font-medium">{formatearMoneda(totales.subtotal)}</span>
+          <span className="text-texto-secundario">Subtotal</span>
+          <span className="font-medium tabular-nums">{formatearMoneda(totales.subtotal, totales.moneda)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-foreground/70">IVA ({totales.ivaPorcentaje}%)</span>
-          <span className="font-medium">{formatearMoneda(totales.iva)}</span>
+          <span className="text-texto-secundario">IVA ({totales.ivaPorcentaje}%)</span>
+          <span className="font-medium tabular-nums">{formatearMoneda(totales.iva, totales.moneda)}</span>
         </div>
-        <div className="flex items-center justify-between border-t border-foreground/10 pt-1">
+        <div className="flex items-center justify-between border-t border-borde pt-1">
           <span className="font-semibold">Total ({totales.moneda})</span>
-          <span className="font-semibold">{formatearMoneda(totales.total)}</span>
+          <span className="font-semibold tabular-nums">{formatearMoneda(totales.total, totales.moneda)}</span>
         </div>
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-peligro-texto">
           {error}
         </p>
       )}
 
       {mensajeExito !== null && (
-        <p className="text-sm text-secundario">{mensajeExito}</p>
+        <p className="text-sm text-exito-texto">{mensajeExito}</p>
       )}
 
-      <button type="submit" disabled={enviando} className={CLASE_BOTON_PRIMARIO}>
+      <Button type="submit" tamano="lg" disabled={enviando}>
         {enviando ? 'Guardando…' : 'Guardar cotización'}
-      </button>
+      </Button>
     </form>
   );
 }

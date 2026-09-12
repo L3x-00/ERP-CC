@@ -9,13 +9,22 @@ import { FormularioCliente } from '@/modulos/clientes/componentes/formulario-cli
 import { FichaCliente } from '@/modulos/clientes/componentes/ficha-cliente';
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import type { Cliente, EstadoCliente, TierCliente } from '@/modulos/clientes/tipos/indice';
-import { CLASE_ESTADO, ETIQUETA_ESTADO } from '@/modulos/clientes/utilidades/indice';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
-
-const CLASE_INPUT =
-  'rounded-base border border-foreground/20 bg-background px-3 py-2 text-sm outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
-const CLASE_BOTON_PRIMARIO =
-  'rounded-base bg-primario px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50';
+import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Input, Select } from '@/compartido/componentes/ui/input';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
+import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 
 /**
  * Tabla principal de clientes: buscador en tiempo real (razón social, nombre
@@ -51,6 +60,7 @@ export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; 
   });
 
   const totalPaginas = data ? Math.max(1, Math.ceil(data.total / CLIENTES_POR_PAGINA)) : 1;
+  const sinRegistros = !isLoading && !isError && data?.registros.length === 0;
 
   function refrescar(): void {
     void queryClient.invalidateQueries({ queryKey: ['clientes'] });
@@ -65,136 +75,149 @@ export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; 
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <input
+          <Input
             type="search"
             value={textoBusqueda}
             onChange={(e) => setTextoBusqueda(e.target.value)}
             placeholder="Buscar por razón social, nombre o RFC…"
-            className={`${CLASE_INPUT} w-72`}
+            aria-label="Buscar clientes"
+            className="w-72"
           />
-          <select
+          <Select
             value={estado}
             onChange={(e) => {
               setEstado(e.target.value as EstadoCliente | '');
               setPagina(1);
             }}
-            className={CLASE_INPUT}
+            aria-label="Filtrar por estado"
+            className="w-auto"
           >
             <option value="">Todos los estados</option>
             <option value="prospecto">Prospecto</option>
             <option value="activo">Activo</option>
             <option value="inactivo">Inactivo</option>
-          </select>
-          <select
+          </Select>
+          <Select
             value={tier}
             onChange={(e) => {
               setTier(e.target.value as TierCliente | '');
               setPagina(1);
             }}
-            className={CLASE_INPUT}
+            aria-label="Filtrar por tier"
+            className="w-auto"
           >
             <option value="">Todos los tiers</option>
             <option value="bronce">Bronce</option>
             <option value="plata">Plata</option>
             <option value="oro">Oro</option>
             <option value="platino">Platino</option>
-          </select>
+          </Select>
         </div>
-        <button onClick={abrirNuevo} className={CLASE_BOTON_PRIMARIO}>
-          Nuevo cliente
-        </button>
+        <Button onClick={abrirNuevo}>Nuevo cliente</Button>
       </div>
 
-      <div className="overflow-x-auto rounded-base border border-foreground/10">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-foreground/10 bg-foreground/5 text-xs uppercase text-foreground/60">
-            <tr>
-              <th className="px-3 py-2">Razón social</th>
-              <th className="px-3 py-2">Nombre comercial</th>
-              <th className="px-3 py-2">RFC</th>
-              <th className="px-3 py-2">Tier</th>
-              <th className="px-3 py-2">Estado</th>
-              <th className="px-3 py-2 text-right">Límite crédito</th>
-              <th className="px-3 py-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-foreground/5">
-            {isLoading && (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-foreground/60">
-                  Cargando…
-                </td>
-              </tr>
-            )}
-            {isError && (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-red-600">
-                  No se pudieron cargar los clientes.
-                </td>
-              </tr>
-            )}
-            {!isLoading && data?.registros.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-foreground/60">
-                  Sin clientes.
-                </td>
-              </tr>
-            )}
-            {data?.registros.map((cliente) => (
-              <tr key={cliente.id} className="hover:bg-foreground/5">
-                <td className="px-3 py-2 font-medium">
-                  <button onClick={() => setClienteVer(cliente.id)} className="text-primario hover:underline">
-                    {cliente.razonSocial}
-                  </button>
-                </td>
-                <td className="px-3 py-2">{cliente.nombreComercial}</td>
-                <td className="px-3 py-2">{cliente.rfc ?? '—'}</td>
-                <td className="px-3 py-2">
-                  <BadgeTier cliente={cliente} />
-                </td>
-                <td className="px-3 py-2">
-                  <span className={`inline-flex rounded-base px-2 py-0.5 text-xs font-semibold ${CLASE_ESTADO[cliente.estado]}`}>
-                    {ETIQUETA_ESTADO[cliente.estado]}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right">{formatearMoneda(cliente.limiteCredito)}</td>
-                <td className="px-3 py-2 text-right">
-                  <button
-                    onClick={() => {
-                      setClienteEditando(cliente);
-                      setFormularioAbierto(true);
-                    }}
-                    className="text-sm font-medium text-primario hover:underline"
-                  >
-                    Editar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {isLoading && <SkeletonTabla columnas={7} filas={6} />}
 
-      <div className="flex items-center justify-between text-sm text-foreground/70">
+      {isError && (
+        <p
+          role="alert"
+          className="rounded-lg border border-peligro/30 bg-peligro-suave px-4 py-3 text-sm text-peligro-texto"
+        >
+          No se pudieron cargar los clientes.
+        </p>
+      )}
+
+      {sinRegistros && (
+        <EstadoVacio
+          titulo="Sin clientes"
+          descripcion="No hay clientes que coincidan con la búsqueda o los filtros actuales."
+        />
+      )}
+
+      {!isLoading && !isError && data && data.registros.length > 0 && (
+        <TablaContenedor>
+          <Tabla>
+            <TablaEncabezado>
+              <tr>
+                <TablaEncabezadoCelda>Razón social</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Nombre comercial</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>RFC</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Tier</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Estado</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda className="text-right">Límite crédito</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>
+                  <span className="sr-only">Acciones</span>
+                </TablaEncabezadoCelda>
+              </tr>
+            </TablaEncabezado>
+            <TablaCuerpo>
+              {data.registros.map((cliente) => (
+                <TablaFila key={cliente.id}>
+                  <TablaCelda className="font-medium">
+                    <button
+                      onClick={() => setClienteVer(cliente.id)}
+                      className="text-acento hover:underline"
+                    >
+                      {cliente.razonSocial}
+                    </button>
+                  </TablaCelda>
+                  <TablaCelda>
+                    <span className="flex items-center gap-2">
+                      <AvatarIniciales nombre={cliente.nombreComercial} tamano="sm" />
+                      {cliente.nombreComercial}
+                    </span>
+                  </TablaCelda>
+                  <TablaCelda>{cliente.rfc ?? '—'}</TablaCelda>
+                  <TablaCelda>
+                    <BadgeTier cliente={cliente} />
+                  </TablaCelda>
+                  <TablaCelda>
+                    <BadgeEstado estado={cliente.estado} />
+                  </TablaCelda>
+                  <TablaCelda className="text-right tabular-nums">
+                    {formatearMoneda(cliente.limiteCredito)}
+                  </TablaCelda>
+                  <TablaCelda className="text-right">
+                    <Button
+                      variante="fantasma"
+                      tamano="sm"
+                      onClick={() => {
+                        setClienteEditando(cliente);
+                        setFormularioAbierto(true);
+                      }}
+                    >
+                      Editar
+                    </Button>
+                  </TablaCelda>
+                </TablaFila>
+              ))}
+            </TablaCuerpo>
+          </Tabla>
+        </TablaContenedor>
+      )}
+
+      <div className="flex items-center justify-between text-sm text-texto-secundario">
         <span>{data ? `${data.total} cliente(s)` : ''}</span>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variante="contorno"
+            tamano="sm"
             onClick={() => setPagina((p) => Math.max(1, p - 1))}
             disabled={pagina <= 1}
-            className="rounded-base border border-foreground/20 px-3 py-1 disabled:opacity-40"
           >
             Anterior
-          </button>
+          </Button>
           <span>
             Página {pagina} de {totalPaginas}
           </span>
-          <button
+          <Button
+            variante="contorno"
+            tamano="sm"
             onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
             disabled={pagina >= totalPaginas}
-            className="rounded-base border border-foreground/20 px-3 py-1 disabled:opacity-40"
           >
             Siguiente
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -204,7 +227,7 @@ export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; 
           onClick={() => setFormularioAbierto(false)}
         >
           <div
-            className="my-8 w-full max-w-2xl rounded-base bg-background p-6 shadow-xl"
+            className="my-8 w-full max-w-2xl rounded-lg border border-borde bg-superficie p-6 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="mb-4 text-lg font-bold">

@@ -1,3 +1,5 @@
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
 import type { PipelinePorEtapa } from '@/modulos/dashboard/tipos/indice';
 
 const ETAPAS: readonly [keyof PipelinePorEtapa, string][] = [
@@ -19,10 +21,17 @@ export interface SeccionVentasPipelineProps {
 export function SeccionVentasPipeline({ pipeline, cotizacionesSinSeguimiento, titulo = 'Pipeline de ventas' }: SeccionVentasPipelineProps) {
   return (
     <section aria-labelledby="titulo-pipeline-dashboard" className="grid gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="titulo-pipeline-dashboard" className="text-xl font-semibold">{titulo}</h2><span className="text-sm text-foreground/65">{cotizacionesSinSeguimiento} cotizaciones sin seguimiento</span></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ETAPAS.map(([etapa, etiqueta]) => <article key={etapa} className="rounded-base border border-foreground/15 bg-background p-4"><p className="text-xs text-foreground/65">{etiqueta}</p><p className="mt-1 text-2xl font-bold tabular-nums">{pipeline[etapa]}</p></article>)}
-      </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="titulo-pipeline-dashboard" className="text-xl font-semibold">{titulo}</h2><span className="text-sm text-texto-secundario">{cotizacionesSinSeguimiento} cotizaciones sin seguimiento</span></div>
+      <Tarjeta>
+        <ul className="divide-y divide-borde">
+          {ETAPAS.map(([etapa, etiqueta]) => (
+            <li key={etapa} className="flex flex-wrap items-center justify-between gap-2 px-6 py-3">
+              <BadgeEstado estado={etapa} etiqueta={etiqueta} />
+              <span className="text-sm font-semibold tabular-nums text-texto-primario">{pipeline[etapa]}</span>
+            </li>
+          ))}
+        </ul>
+      </Tarjeta>
     </section>
   );
 }

@@ -3,10 +3,14 @@
 import { useState } from 'react';
 
 import { FormularioProspecto } from '@/modulos/pipeline/componentes/formulario-prospecto';
+import { TablaOportunidades } from '@/modulos/pipeline/componentes/tabla-oportunidades';
 import { TarjetaOportunidad } from '@/modulos/pipeline/componentes/tarjeta-oportunidad';
 import { usarAlertasPipeline } from '@/modulos/pipeline/hooks/usar-alertas-pipeline';
 import { usarPipeline } from '@/modulos/pipeline/hooks/usar-pipeline';
 import type { EtapaPipeline } from '@/modulos/pipeline/tipos/indice';
+import { Button } from '@/compartido/componentes/ui/button';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
+import { Skeleton, SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 
 const COLUMNAS: { etapa: EtapaPipeline; titulo: string }[] = [
   { etapa: 'prospecto', titulo: 'Prospecto' },
@@ -17,19 +21,20 @@ const COLUMNAS: { etapa: EtapaPipeline; titulo: string }[] = [
   { etapa: 'perdida', titulo: 'Perdida' },
 ];
 
-const CLASE_BOTON_PRIMARIO =
-  'rounded-base bg-primario px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
+type VistaPipeline = 'tabla' | 'kanban';
 
 /**
- * Tablero Kanban del pipeline: una columna por etapa (en orden de avance).
- * Obtiene las oportunidades con `usarPipeline` y calcula sus alertas con
- * `usarAlertasPipeline`, agrupándolas por etapa. El cambio de etapa se hace
- * desde el selector dentro de cada tarjeta. El encabezado alterna el
- * `FormularioProspecto` para crear nuevas oportunidades.
+ * Tablero del pipeline: vista Kanban (una columna por etapa, en orden de
+ * avance) o vista Tabla, conmutables. Obtiene las oportunidades con
+ * `usarPipeline` y calcula sus alertas con `usarAlertasPipeline`,
+ * agrupándolas por etapa. El cambio de etapa se hace desde el selector dentro
+ * de cada tarjeta. El encabezado alterna el `FormularioProspecto` para crear
+ * nuevas oportunidades.
  */
 export function TableroKanban() {
   const { data, isLoading, isError } = usarPipeline();
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [vista, setVista] = useState<VistaPipeline>('kanban');
 
   const oportunidades = data ?? [];
   const alertasPorId = usarAlertasPipeline(oportunidades);
@@ -39,40 +44,74 @@ export function TableroKanban() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <button
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div
+          role="group"
+          aria-label="Vista del pipeline"
+          className="flex gap-1 rounded-lg border border-borde bg-superficie p-1"
+        >
+          <Button
+            variante={vista === 'kanban' ? 'primario' : 'fantasma'}
+            tamano="sm"
+            aria-pressed={vista === 'kanban'}
+            onClick={() => setVista('kanban')}
+          >
+            Kanban
+          </Button>
+          <Button
+            variante={vista === 'tabla' ? 'primario' : 'fantasma'}
+            tamano="sm"
+            aria-pressed={vista === 'tabla'}
+            onClick={() => setVista('tabla')}
+          >
+            Tabla
+          </Button>
+        </div>
+        <Button
           type="button"
           onClick={() => setMostrarFormulario((previo) => !previo)}
-          className={CLASE_BOTON_PRIMARIO}
         >
           {mostrarFormulario ? 'Cerrar formulario' : 'Nueva oportunidad'}
-        </button>
+        </Button>
       </div>
 
       {mostrarFormulario && (
-        <div className="rounded-base border border-foreground/10 bg-background p-4">
+        <div className="rounded-lg border border-borde bg-superficie p-4 shadow-sm">
           <FormularioProspecto />
         </div>
       )}
 
-      {isLoading && (
-        <p className="text-sm text-foreground/60">Cargando oportunidades…</p>
+      {isLoading && vista === 'kanban' && (
+        <div className="flex gap-4 overflow-hidden pb-2" role="status" aria-label="Cargando oportunidades">
+          {COLUMNAS.slice(0, 4).map((columna) => (
+            <div key={columna.etapa} className="flex w-72 shrink-0 flex-col gap-3 rounded-lg bg-superficie-2 p-3">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-28 rounded-lg" />
+              <Skeleton className="h-28 rounded-lg" />
+            </div>
+          ))}
+        </div>
       )}
 
+      {isLoading && vista === 'tabla' && <SkeletonTabla filas={5} columnas={7} />}
+
       {!isLoading && isError && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-peligro-texto">
           No se pudieron cargar las oportunidades del pipeline.
         </p>
       )}
 
       {vacio && (
-        <p className="text-sm text-foreground/60">
-          Aún no hay oportunidades en el pipeline.
-        </p>
+        <EstadoVacio
+          titulo="Sin oportunidades"
+          descripcion="Aún no hay oportunidades en el pipeline. Crea la primera con “Nueva oportunidad”."
+        />
       )}
 
-      {hayDatos && (
-        <div className="flex gap-4 overflow-x-auto pb-2">
+      {hayDatos && vista === 'tabla' && <TablaOportunidades oportunidades={oportunidades} />}
+
+      {hayDatos && vista === 'kanban' && (
+        <div className="flex max-h-[calc(100vh-10rem)] gap-4 overflow-x-auto pb-2">
           {COLUMNAS.map((columna) => {
             const items = oportunidades.filter(
               (oportunidad) => oportunidad.etapa === columna.etapa,
@@ -80,16 +119,16 @@ export function TableroKanban() {
             return (
               <section
                 key={columna.etapa}
-                className="flex w-72 shrink-0 flex-col gap-3"
+                className="flex w-72 shrink-0 flex-col gap-3 rounded-lg bg-superficie-2 p-3"
               >
-                <header className="flex items-center justify-between rounded-base bg-foreground/5 px-3 py-2">
+                <header className="sticky top-0 z-10 -mx-3 flex items-center justify-between rounded-t-lg bg-superficie-2 px-3 py-2">
                   <h2 className="text-sm font-semibold">{columna.titulo}</h2>
-                  <span className="text-xs text-foreground/60">{items.length}</span>
+                  <span className="text-xs tabular-nums text-texto-secundario">{items.length}</span>
                 </header>
 
                 <div className="flex flex-col gap-3">
                   {items.length === 0 ? (
-                    <p className="text-xs text-foreground/40">Sin oportunidades</p>
+                    <p className="text-xs text-texto-tenue">Sin oportunidades</p>
                   ) : (
                     items.map((oportunidad) => (
                       <TarjetaOportunidad

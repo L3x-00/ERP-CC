@@ -2,6 +2,13 @@
 
 import type { TarjetaMetrica } from '@/modulos/dashboard/tipos/indice';
 
+/** Color semántico de la tendencia (positiva, negativa o sin cambio). */
+const COLORES_TENDENCIA: Record<TarjetaMetrica['tendencia'], string> = {
+  subio: 'text-exito-texto',
+  bajo: 'text-peligro-texto',
+  neutro: 'text-texto-secundario',
+};
+
 function formatearValor(tarjeta: TarjetaMetrica): string {
   if (typeof tarjeta.valor === 'string') return tarjeta.valor;
   if (tarjeta.unidad === 'moneda') {
@@ -16,14 +23,14 @@ export function WidgetMetricaKPI({ tarjeta }: { tarjeta: TarjetaMetrica }) {
   const señal = tarjeta.tendencia === 'subio' ? '↑' : tarjeta.tendencia === 'bajo' ? '↓' : '→';
   const textoTendencia = tarjeta.tendencia === 'subio' ? 'subió' : tarjeta.tendencia === 'bajo' ? 'bajó' : 'sin cambio';
   return (
-    <article className="rounded-base border border-foreground/15 bg-background p-4 shadow-sm" aria-label={tarjeta.titulo} data-testid={`kpi-${tarjeta.id}`}>
-      <p className="text-xs font-medium text-foreground/65">{tarjeta.titulo}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums">{formatearValor(tarjeta)}</p>
-      <p className="mt-2 text-xs text-foreground/65" aria-label={`Variación: ${textoTendencia}`}>
+    <article className="rounded-lg border border-borde bg-superficie p-4 shadow-sm" aria-label={tarjeta.titulo} data-testid={`kpi-${tarjeta.id}`}>
+      <p className="text-xs font-medium text-texto-secundario">{tarjeta.titulo}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-texto-primario">{formatearValor(tarjeta)}</p>
+      <p className={`mt-2 text-xs ${COLORES_TENDENCIA[tarjeta.tendencia]}`} aria-label={`Variación: ${textoTendencia}`}>
         <span aria-hidden="true" className="mr-1">{señal}</span>
         {tarjeta.variacionPorcentaje === null ? 'Sin comparación disponible' : `${Math.abs(tarjeta.variacionPorcentaje).toFixed(2)}% ${textoTendencia}`}
       </p>
-      {tarjeta.descripcion ? <p className="mt-1 text-xs text-foreground/50">{tarjeta.descripcion}</p> : null}
+      {tarjeta.descripcion ? <p className="mt-1 text-xs text-texto-secundario">{tarjeta.descripcion}</p> : null}
     </article>
   );
 }
