@@ -10,10 +10,18 @@ export interface SeccionFinancieraProps {
   contador?: ResumenContadorPeriodo;
   titulo?: string;
   identificador?: string;
+  /** Con administrador ya hay bloque ejecutivo: aquí solo se muestra la antigüedad. */
+  soloAging?: boolean;
 }
 
 /** Bloque financiero: recibe solo el bloque ya autorizado por la Server Action. */
-export function SeccionFinanciera({ finanzas, contador, titulo = 'Finanzas', identificador = 'dashboard' }: SeccionFinancieraProps) {
+export function SeccionFinanciera({
+  finanzas,
+  contador,
+  titulo = 'Finanzas',
+  identificador = 'dashboard',
+  soloAging = false,
+}: SeccionFinancieraProps) {
   if (!finanzas && !contador) return null;
   const items = finanzas
     ? [
@@ -33,20 +41,22 @@ export function SeccionFinanciera({ finanzas, contador, titulo = 'Finanzas', ide
   return (
     <section aria-labelledby={`titulo-finanzas-${identificador}`} className="grid gap-3">
       <h2 id={`titulo-finanzas-${identificador}`} className="text-xl font-semibold">{titulo}</h2>
-      <Tarjeta>
-        <ul className="divide-y divide-borde">
-          {items.map(([tituloItem, valor, id]) => (
-            <li
-              key={id}
-              id={identificador === 'dashboard' ? id : `${identificador}-${id}`}
-              className="flex flex-wrap items-center justify-between gap-2 px-6 py-3"
-            >
-              <span className="text-sm text-texto-secundario">{tituloItem}</span>
-              <span className="text-sm font-semibold tabular-nums text-texto-primario">{valor}</span>
-            </li>
-          ))}
-        </ul>
-      </Tarjeta>
+      {!soloAging ? (
+        <Tarjeta>
+          <ul className="divide-y divide-borde">
+            {items.map(([tituloItem, valor, id]) => (
+              <li
+                key={id}
+                id={identificador === 'dashboard' ? id : `${identificador}-${id}`}
+                className="flex flex-wrap items-center justify-between gap-2 px-6 py-3"
+              >
+                <span className="text-sm text-texto-secundario">{tituloItem}</span>
+                <span className="text-sm font-semibold tabular-nums text-texto-primario">{valor}</span>
+              </li>
+            ))}
+          </ul>
+        </Tarjeta>
+      ) : null}
       {contador ? (
         <Tarjeta>
           <ul className="divide-y divide-borde" aria-label="Antigüedad de cuentas por cobrar">

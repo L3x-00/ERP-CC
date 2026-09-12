@@ -134,7 +134,7 @@ export function KanbanProduccion({
                       etiqueta={`Avance de ${orden.folio}`}
                     />
                     <p className="text-sm text-texto-secundario">
-                      Compromiso: {new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}
+                      Compromiso: <span className="whitespace-nowrap">{new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}</span>
                     </p>
                     <Button
                       type="button"

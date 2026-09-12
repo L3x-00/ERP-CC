@@ -64,7 +64,14 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
       ) : null}
       <section aria-label="Indicadores clave" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{tarjetas.map((item) => <WidgetMetricaKPI key={item.id} tarjeta={item} />)}</section>
       {datos.ejecutivas ? <SeccionFinanciera finanzas={datos.ejecutivas.actual.finanzas} /> : null}
-      {datos.contador ? <SeccionFinanciera contador={datos.contador.actual} titulo="CxC, CxP y flujo de caja" identificador="contador" /> : null}
+      {datos.contador ? (
+        <SeccionFinanciera
+          contador={datos.contador.actual}
+          titulo={datos.ejecutivas ? 'Antigüedad de cartera' : 'CxC, CxP y flujo de caja'}
+          identificador="contador"
+          soloAging={datos.ejecutivas !== undefined}
+        />
+      ) : null}
       {datos.vendedor ? <SeccionVentasPipeline pipeline={datos.vendedor.actual.pipelinePorEtapa} cotizacionesSinSeguimiento={datos.vendedor.actual.cotizacionesSinSeguimiento} titulo="Mi pipeline" /> : null}
       {datos.equipo ? <SeccionVentasPipeline pipeline={datos.equipo.actual.pipelinePorEtapa} cotizacionesSinSeguimiento={datos.equipo.actual.cotizacionesSinSeguimiento} titulo="Pipeline del equipo" /> : null}
       {datos.produccion ? <SeccionProduccionAlertas ordenes={datos.produccion} /> : null}

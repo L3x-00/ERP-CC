@@ -63,7 +63,7 @@ export function TablaFila({ className, seleccionada = false, clickable = false, 
 }
 
 export function TablaEncabezadoCelda({ className, ...props }: ComponentProps<'th'>) {
-  return <th scope="col" className={cn('px-4 py-3 font-semibold', className)} {...props} />;
+  return <th scope="col" className={cn('whitespace-nowrap px-4 py-3 font-semibold', className)} {...props} />;
 }
 
 export function TablaCelda({ className, ...props }: ComponentProps<'td'>) {

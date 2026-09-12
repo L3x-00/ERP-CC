@@ -400,7 +400,7 @@ export function TablaOrdenes({
                   <TablaFila key={orden.id} seleccionada={activa} aria-selected={activa}>
                     <th
                       scope="row"
-                      className="px-4 py-3 text-left align-middle font-mono text-xs font-medium tabular-nums"
+                      className="whitespace-nowrap px-4 py-3 text-left align-middle font-mono text-xs font-medium tabular-nums"
                     >
                       {orden.folio}
                     </th>
@@ -410,12 +410,12 @@ export function TablaOrdenes({
                     <TablaCelda className={CLASE_PRIORIDAD[orden.prioridad]}>
                       {ETIQUETA_PRIORIDAD[orden.prioridad]}
                     </TablaCelda>
-                    <TablaCelda className={claseCompromiso(dias)}>
+                    <TablaCelda className={`whitespace-nowrap ${claseCompromiso(dias)}`}>
                       <span title={tituloCompromiso(dias, orden.fechaCompromiso)}>
                         {formatearFecha(orden.fechaCompromiso)}
                       </span>
                     </TablaCelda>
-                    <TablaCelda className="text-texto-secundario">
+                    <TablaCelda className="whitespace-nowrap text-texto-secundario">
                       {orden.partidas.length}
                       {avance.scrap > 0 && (
                         <span className="ml-2 text-xs text-peligro-texto">
