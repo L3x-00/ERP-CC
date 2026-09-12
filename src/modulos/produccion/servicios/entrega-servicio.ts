@@ -17,14 +17,20 @@ function aJsonPartidas(partidas: CrearNotaEntregaInput['partidas']): Json {
   }));
 }
 
+const CODIGOS_ENTREGA: readonly CodigoErrorProduccionEntrega[] = [
+  'cantidad_entrega_excede_producida',
+  'orden_no_entregable',
+  'partida_no_corresponde_orden',
+];
+
+type CodigoErrorProduccionEntrega =
+  | 'cantidad_entrega_excede_producida'
+  | 'orden_no_entregable'
+  | 'partida_no_corresponde_orden';
+
 function lanzarErrorEntrega(mensaje: string | undefined): never {
-  if (mensaje?.includes('cantidad_entrega_excede_producida')) {
-    throw new ErrorProduccion('desconocido', mensaje);
-  }
-  if (mensaje?.includes('orden_no_entregable') || mensaje?.includes('partida_no_corresponde_orden')) {
-    throw new ErrorProduccion('desconocido', mensaje);
-  }
-  throw new ErrorProduccion('desconocido', mensaje);
+  const codigo = CODIGOS_ENTREGA.find((candidato) => mensaje?.includes(candidato));
+  throw new ErrorProduccion(codigo ?? 'desconocido', mensaje);
 }
 
 /** Emite la nota con el folio y las cantidades resueltas dentro de una sola RPC. */
@@ -52,8 +58,16 @@ export async function generarNotaEntregaServicio(
 }
 
 export function mensajeErrorEntrega(error: unknown): string {
-  if (error instanceof ErrorProduccion && error.message.includes('cantidad_entrega_excede_producida')) {
-    return 'La entrega no puede superar las piezas producidas pendientes';
+  if (error instanceof ErrorProduccion) {
+    if (error.codigo === 'cantidad_entrega_excede_producida') {
+      return 'La entrega no puede superar las piezas producidas pendientes';
+    }
+    if (error.codigo === 'orden_no_entregable') {
+      return 'La orden no está lista para entregarse';
+    }
+    if (error.codigo === 'partida_no_corresponde_orden') {
+      return 'Una partida no pertenece a la orden';
+    }
   }
   return 'No se pudo generar la nota de entrega';
 }

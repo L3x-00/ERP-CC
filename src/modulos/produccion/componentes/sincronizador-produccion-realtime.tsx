@@ -10,6 +10,7 @@ const TABLAS_TABLERO_PRODUCCION = [
   'ordenes_produccion',
   'partidas_orden_produccion',
   'programacion_areas',
+  'recursos_planeacion',
   'sesiones_trabajo',
   'notas_entrega',
   'partidas_nota_entrega',

@@ -252,9 +252,9 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
   return {
     recursos,
     // La RPC de carga se ejecuta con service_role porque agrega capacidad; se
-    // vuelve a acotar a los recursos que RLS permiti\u00f3 leer. De otro modo, una
-    // pol\u00edtica futura m\u00e1s restrictiva en recursos filtrar\u00eda las filas visibles
-    // pero dejar\u00eda metadatos de capacidad de otros recursos en la respuesta.
+    // vuelve a acotar a los recursos que RLS permitió leer. De otro modo, una
+    // política futura más restrictiva en recursos filtraría las filas visibles
+    // pero dejaría metadatos de capacidad de otros recursos en la respuesta.
     cargas: cargas.filter((carga) => recursosAutorizados.has(carga.recursoId)),
     programaciones,
   };

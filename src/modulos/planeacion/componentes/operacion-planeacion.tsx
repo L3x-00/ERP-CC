@@ -29,7 +29,7 @@ export interface PropsOperacionPlaneacion {
 }
 
 /**
- * Une las vistas cliente con Server Actions. Ninguna mutaci\u00f3n usa Supabase desde
+ * Une las vistas cliente con Server Actions. Ninguna mutación usa Supabase desde
  * el navegador: tras la respuesta se invalida el calendario y PostgreSQL sigue
  * siendo la fuente de verdad para capacidad, candados y CAS.
  */
@@ -58,7 +58,7 @@ export function OperacionPlaneacion({
     }): Promise<DatosCalendarioPlaneacion> => {
       const resultado = await obtenerCalendarioPlaneacionAccion(filtros);
       if (!resultado.exito || !resultado.datos) {
-        throw new Error(resultado.exito ? 'El calendario no devolvi\u00f3 datos' : resultado.error);
+        throw new Error(resultado.exito ? 'El calendario no devolvió datos' : resultado.error);
       }
       return resultado.datos;
     },
@@ -112,7 +112,7 @@ export function OperacionPlaneacion({
                 ordenPrioridad: datos.ordenPrioridad,
                 actualizadoEnEsperado: programacionSeleccionada.actualizadoEn,
               })
-            : { exito: false as const, error: 'Selecciona una programaci\u00f3n para reprogramarla' };
+            : { exito: false as const, error: 'Selecciona una programación para reprogramarla' };
 
       if (resultado.exito) await actualizarCalendario();
       return resultado;
@@ -122,7 +122,7 @@ export function OperacionPlaneacion({
 
   const activarPreparacion = useCallback(async (): Promise<ResultadoAsignacionPlaneacion> => {
     if (!programacionSeleccionada) {
-      return { exito: false, error: 'Selecciona una programaci\u00f3n para iniciar la preparaci\u00f3n' };
+      return { exito: false, error: 'Selecciona una programación para iniciar la preparación' };
     }
     const resultado = await activarModoPreparacionAccion({
       programacionId: programacionSeleccionada.id,
@@ -165,7 +165,7 @@ export function OperacionPlaneacion({
         errorActualizacion={consulta.isError}
         onSeleccionarProgramacion={alSeleccionar}
       />
-      <aside className="rounded-base border border-foreground/10 p-4" aria-label="Asignaci\u00f3n de recurso">
+      <aside className="rounded-base border border-foreground/10 p-4" aria-label="Asignación de recurso">
         <PanelAsignacionPlaneacion
           recursos={datosCalendario.recursos}
           partidasProgramables={partidasProgramables}

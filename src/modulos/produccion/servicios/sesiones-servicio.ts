@@ -28,6 +28,9 @@ export type CodigoErrorProduccion =
   | 'produccion_solo_ultima_secuencia'
   | 'cantidad_producida_excede_solicitada'
   | 'motivo_pausa_invalido'
+  | 'cantidad_entrega_excede_producida'
+  | 'orden_no_entregable'
+  | 'partida_no_corresponde_orden'
   | 'desconocido';
 
 export class ErrorProduccion extends Error {
@@ -71,6 +74,9 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'produccion_solo_ultima_secuencia',
   'cantidad_producida_excede_solicitada',
   'motivo_pausa_invalido',
+  'cantidad_entrega_excede_producida',
+  'orden_no_entregable',
+  'partida_no_corresponde_orden',
 ];
 
 function lanzarErrorProduccion(mensaje: string | undefined): never {

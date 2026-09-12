@@ -5,6 +5,17 @@ import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/compartido/componentes/ui/dialog';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Textarea } from '@/compartido/componentes/ui/input';
+import { Label } from '@/compartido/componentes/ui/label';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
 import {
@@ -83,6 +94,17 @@ const ACCIONES_RAPIDAS: Record<EstadoOrden, readonly { etiqueta: string; estado:
   cancelada: [],
 };
 
+/**
+ * Una orden solo puede completarse cuando todas sus partidas alcanzaron la
+ * cantidad solicitada. PostgreSQL revalida la misma condición como autoridad.
+ */
+function puedeCompletar(orden: OrdenTabla): boolean {
+  return (
+    orden.partidas.length > 0 &&
+    orden.partidas.every((partida) => partida.cantidadProducida >= partida.cantidadSolicitada)
+  );
+}
+
 /** Avance agregado de una orden: producido / solicitado en todas sus partidas. */
 function calcularAvance(partidas: PartidaTabla[]): {
   porcentaje: number;
@@ -130,6 +152,8 @@ export function TablaOrdenes({
   const limpiarFiltros = usarTiendaOrdenes((estado) => estado.limpiarFiltros);
   const [ordenActualizandoId, setOrdenActualizandoId] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
+  const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [hidratado, setHidratado] = useState(false);
 
   useEffect(() => {
@@ -176,7 +200,11 @@ export function TablaOrdenes({
     router.refresh();
   }
 
-  async function cambiarEstado(orden: OrdenTabla, estado: EstadoOrden): Promise<void> {
+  async function cambiarEstado(
+    orden: OrdenTabla,
+    estado: EstadoOrden,
+    motivo?: string,
+  ): Promise<boolean> {
     setErrorAccion(null);
     setOrdenActualizandoId(orden.id);
     try {
@@ -184,16 +212,39 @@ export function TablaOrdenes({
         ordenId: orden.id,
         estadoActual: orden.estado,
         estado,
+        ...(motivo ? { motivoCancelacion: motivo } : {}),
       });
       if (!respuesta.exito) {
         setErrorAccion(respuesta.error);
-        return;
+        return false;
       }
       router.refresh();
+      return true;
     } catch {
       setErrorAccion('No se pudo actualizar la orden. Intenta de nuevo.');
+      return false;
     } finally {
       setOrdenActualizandoId(null);
+    }
+  }
+
+  function abrirCancelacion(orden: OrdenTabla): void {
+    setErrorAccion(null);
+    setMotivoCancelacion('');
+    setOrdenCancelando(orden);
+  }
+
+  async function confirmarCancelacion(): Promise<void> {
+    if (!ordenCancelando) return;
+    const motivo = motivoCancelacion.trim();
+    if (motivo.length < 3) {
+      setErrorAccion('El motivo de cancelación es obligatorio (mínimo 3 caracteres).');
+      return;
+    }
+    const exito = await cambiarEstado(ordenCancelando, 'cancelada', motivo);
+    if (exito) {
+      setOrdenCancelando(null);
+      setMotivoCancelacion('');
     }
   }
 
@@ -361,18 +412,38 @@ export function TablaOrdenes({
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-2">
-                      {ACCIONES_RAPIDAS[orden.estado].map((accion) => (
+                      {ACCIONES_RAPIDAS[orden.estado].map((accion) => {
+                        const completarBloqueado =
+                          accion.estado === 'completada' && !puedeCompletar(orden);
+                        return (
+                          <button
+                            key={accion.estado}
+                            type="button"
+                            data-testid={`cambiar-estado-${accion.estado}`}
+                            onClick={() => void cambiarEstado(orden, accion.estado)}
+                            disabled={ordenActualizandoId !== null || completarBloqueado}
+                            title={
+                              completarBloqueado
+                                ? 'Todas las partidas deben estar producidas para completar la orden'
+                                : undefined
+                            }
+                            className={CLASE_BOTON_SECUNDARIO}
+                          >
+                            {ordenActualizandoId === orden.id ? 'Actualizando…' : accion.etiqueta}
+                          </button>
+                        );
+                      })}
+                      {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
                         <button
-                          key={accion.estado}
                           type="button"
-                          data-testid={`cambiar-estado-${accion.estado}`}
-                          onClick={() => void cambiarEstado(orden, accion.estado)}
+                          data-testid="cambiar-estado-cancelada"
+                          onClick={() => abrirCancelacion(orden)}
                           disabled={ordenActualizandoId !== null}
                           className={CLASE_BOTON_SECUNDARIO}
                         >
-                          {ordenActualizandoId === orden.id ? 'Actualizando…' : accion.etiqueta}
+                          Cancelar
                         </button>
-                      ))}
+                      )}
                     <button
                       type="button"
                       aria-pressed={activa}
@@ -411,6 +482,43 @@ export function TablaOrdenes({
       <p aria-live="polite" className="text-sm text-foreground/70">
         {ordenesVisibles.length} de {ordenes.length} orden(es)
       </p>
+
+      <Dialog open={ordenCancelando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCancelando(null) : undefined)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar orden {ordenCancelando?.folio}</DialogTitle>
+            <DialogDescription>
+              La cancelación es definitiva. Captura el motivo; quedará en la auditoría.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="motivo-cancelacion-orden">Motivo (mínimo 3 caracteres)</Label>
+            <Textarea
+              id="motivo-cancelacion-orden"
+              value={motivoCancelacion}
+              onChange={(evento) => setMotivoCancelacion(evento.target.value)}
+              disabled={ordenActualizandoId !== null}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variante="contorno"
+              onClick={() => setOrdenCancelando(null)}
+              disabled={ordenActualizandoId !== null}
+            >
+              Volver
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmarCancelacion()}
+              disabled={ordenActualizandoId !== null || motivoCancelacion.trim().length < 3}
+            >
+              {ordenActualizandoId !== null ? 'Cancelando…' : 'Confirmar cancelación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

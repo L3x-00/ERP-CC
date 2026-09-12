@@ -37,13 +37,13 @@ export type DatosAsignacionPlaneacion =
     })
   | (DatosComunesAsignacion & { tipo: 'reprogramar' });
 
-/** Resultado est\u00e1ndar de las Server Actions, sin adaptar ni exponer errores internos. */
+/** Resultado estándar de las Server Actions, sin adaptar ni exponer errores internos. */
 export type ResultadoAsignacionPlaneacion = RespuestaAccion<unknown>;
 
 export interface PropsPanelAsignacionPlaneacion {
   recursos: readonly RecursoPlaneacion[];
   partidasProgramables: readonly PartidaProgramablePlaneacion[];
-  /** Programaci\u00f3n en edici\u00f3n; si viene, el panel reprograma en vez de crear. */
+  /** Programación en edición; si viene, el panel reprograma en vez de crear. */
   programacion?: ProgramacionArea | null;
   onEnviar: (datos: DatosAsignacionPlaneacion) => Promise<ResultadoAsignacionPlaneacion>;
   onActivarPreparacion?: () => Promise<ResultadoAsignacionPlaneacion>;
@@ -56,10 +56,10 @@ const ETIQUETA_TURNO: Record<TurnoPlaneacion, string> = {
   nocturno: 'Nocturno',
 };
 
-const MENSAJE_ERROR_GENERICO = 'No se pudo guardar la programaci\u00f3n';
+const MENSAJE_ERROR_GENERICO = 'No se pudo guardar la programación';
 
 /**
- * Panel de asignaci\u00f3n/reprogramaci\u00f3n. Solo valida la forma del formulario;
+ * Panel de asignación/reprogramación. Solo valida la forma del formulario;
  * capacidad, candados y concurrencia pertenecen a la RPC transaccional.
  */
 export function PanelAsignacionPlaneacion({
@@ -86,7 +86,7 @@ export function PanelAsignacionPlaneacion({
   const [enviando, setEnviando] = useState(false);
   const [preparando, setPreparando] = useState(false);
 
-  // Al cambiar la selecci\u00f3n, el formulario refleja el estado confirmado por
+  // Al cambiar la selección, el formulario refleja el estado confirmado por
   // servidor sin duplicar programaciones en Zustand.
   const claveProgramacion = programacion?.id ?? '';
   const [clavePrevia, setClavePrevia] = useState(claveProgramacion);
@@ -124,7 +124,7 @@ export function PanelAsignacionPlaneacion({
       !programacion
       && (partidaId === '' || !Number.isInteger(secuenciaNumerica) || secuenciaNumerica <= 0)
     ) {
-      setErrorFormulario('Selecciona una partida e indica una secuencia v\u00e1lida');
+      setErrorFormulario('Selecciona una partida e indica una secuencia válida');
       return;
     }
 
@@ -156,7 +156,7 @@ export function PanelAsignacionPlaneacion({
             };
           })();
       if (!datos) {
-        setErrorFormulario('La partida seleccionada ya no est\u00e1 disponible');
+        setErrorFormulario('La partida seleccionada ya no está disponible');
         return;
       }
 
@@ -177,7 +177,7 @@ export function PanelAsignacionPlaneacion({
       const resultado = await onActivarPreparacion();
       if (!resultado.exito) setErrorFormulario(resultado.error || MENSAJE_ERROR_GENERICO);
     } catch {
-      setErrorFormulario('No se pudo activar la preparaci\u00f3n');
+      setErrorFormulario('No se pudo activar la preparación');
     } finally {
       setPreparando(false);
     }
@@ -298,7 +298,10 @@ export function PanelAsignacionPlaneacion({
         <Button type="submit" disabled={enviando || preparando} data-testid="guardar-asignacion-planeacion">
           {enviando ? 'Guardando…' : programacion ? 'Reprogramar' : 'Programar'}
         </Button>
-        {programacion?.estadoPlaneacion === 'programada' && onActivarPreparacion ? (
+        {programacion &&
+        (programacion.estadoPlaneacion === 'programada' ||
+          programacion.estadoPlaneacion === 'bloqueada') &&
+        onActivarPreparacion ? (
           <Button
             type="button"
             variante="secundario"
@@ -306,7 +309,7 @@ export function PanelAsignacionPlaneacion({
             onClick={() => void activarPreparacion()}
             data-testid="activar-preparacion-planeacion"
           >
-            {preparando ? 'Activando…' : 'Iniciar preparaci\u00f3n'}
+            {preparando ? 'Activando…' : 'Iniciar preparación'}
           </Button>
         ) : null}
         {onCancelar ? (

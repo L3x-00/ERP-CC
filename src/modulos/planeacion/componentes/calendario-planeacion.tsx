@@ -16,7 +16,7 @@ import {
   type TurnoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 
-/** Filtros de lectura serializables que se env\u00edan a la Server Action. */
+/** Filtros de lectura serializables que se envían a la Server Action. */
 export interface FiltrosConsultaCalendario {
   fechaInicio: string;
   fechaFin: string;
@@ -25,7 +25,7 @@ export interface FiltrosConsultaCalendario {
 }
 
 export interface PropsCalendarioPlaneacion {
-  /** Proyecci\u00f3n confirmada del calendario para los filtros actuales. */
+  /** Proyección confirmada del calendario para los filtros actuales. */
   datos: DatosCalendarioPlaneacion;
   rangoInicial: { fechaInicio: string; fechaFin: string };
   actualizando: boolean;
@@ -48,7 +48,7 @@ const ETIQUETA_TURNO: Record<TurnoPlaneacion, string> = {
 
 const ETIQUETA_ESTADO: Record<EstadoPlaneacion, string> = {
   programada: 'Programada',
-  en_preparacion: 'En preparaci\u00f3n',
+  en_preparacion: 'En preparación',
   en_proceso: 'En proceso',
   bloqueada: 'Bloqueada',
   completada: 'Completada',
@@ -87,8 +87,8 @@ function claveCarga(recursoId: string, fecha: string, turno: TurnoPlaneacion): s
 
 /**
  * Calendario operativo por fecha y turno. TanStack Query conserva los datos de
- * servidor; Zustand se limita a filtros y selecci\u00f3n, por lo que ninguna copia
- * mutable puede competir con la decisi\u00f3n transaccional de PostgreSQL.
+ * servidor; Zustand se limita a filtros y selección, por lo que ninguna copia
+ * mutable puede competir con la decisión transaccional de PostgreSQL.
  */
 export function CalendarioPlaneacion({
   datos,
@@ -170,7 +170,7 @@ export function CalendarioPlaneacion({
     <section className="flex flex-col gap-3" aria-labelledby="titulo-calendario-planeacion">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 id="titulo-calendario-planeacion" className="text-sm font-medium">
-          Calendario de Planeaci\u00f3n
+          Calendario de Planeación
         </h2>
         <p className="text-xs text-foreground/60" aria-live="polite">
           {errorActualizacion
@@ -208,12 +208,12 @@ export function CalendarioPlaneacion({
         </div>
 
         <label className="flex flex-col gap-1 text-xs">
-          \u00c1rea
+          Área
           <Select
             value={area ?? ''}
             onChange={(evento) => establecerArea((evento.target.value || null) as AreaPlaneacion | null)}
           >
-            <option value="">Todas las \u00e1reas</option>
+            <option value="">Todas las áreas</option>
             {AREAS_PLANEACION.map((valor) => (
               <option key={valor} value={valor}>{ETIQUETA_AREA[valor]}</option>
             ))}
@@ -283,7 +283,7 @@ export function CalendarioPlaneacion({
               <th scope="col" className="px-3 py-2">Horas</th>
               <th scope="col" className="px-3 py-2">Capacidad</th>
               <th scope="col" className="px-3 py-2">Estado</th>
-              <th scope="col" className="px-3 py-2">Acci\u00f3n</th>
+              <th scope="col" className="px-3 py-2">Acción</th>
             </tr>
           </thead>
           <tbody>
