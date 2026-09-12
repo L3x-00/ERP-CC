@@ -2,6 +2,8 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
+import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { usarTiendaCobranza } from '@/estado/uso-tienda-cobranza';
 import {
@@ -145,30 +147,46 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
     }
   }, [datos.cuentas, refrescar]);
 
+  const cargando = consulta.isPending && !consulta.isError;
+
   return (
     <div className="flex flex-col gap-6" data-testid="operacion-cobranza">
       <SincronizadorCobranzaRealtime />
       <TarjetaResumenAging resumenes={datos.agingPorCliente} />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="grid gap-1 text-sm font-medium">Buscar por cliente u orden
+      <div className="grid gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+        <label className="grid gap-1 text-sm font-medium text-texto-primario">Buscar por cliente u orden
           <Input value={busqueda} onChange={(evento) => establecerBusqueda(evento.target.value)} placeholder="Cliente, OP o remisión" />
         </label>
-        <label className="grid gap-1 text-sm font-medium">Periodo de emisión
+        <label className="grid gap-1 text-sm font-medium text-texto-primario">Periodo de emisión
           <Select value={periodo} onChange={(evento) => establecerPeriodo(evento.target.value as typeof periodo)}>
             <option value="hoy">Hoy</option><option value="esta_semana">Esta semana</option><option value="semana_pasada">Semana pasada</option><option value="este_mes">Este mes</option><option value="mes_pasado">Mes pasado</option><option value="este_anio">Este año</option><option value="personalizado">Personalizado</option>
           </Select>
         </label>
         {periodo === 'personalizado' ? <>
-          <label className="grid gap-1 text-sm font-medium">Desde
+          <label className="grid gap-1 text-sm font-medium text-texto-primario">Desde
             <Input type="date" value={rangoPersonalizado?.inicio ?? ''} onChange={(evento) => establecerRangoPersonalizado({ inicio: evento.target.value, fin: rangoPersonalizado?.fin ?? evento.target.value })} />
           </label>
-          <label className="grid gap-1 text-sm font-medium">Hasta
+          <label className="grid gap-1 text-sm font-medium text-texto-primario">Hasta
             <Input type="date" value={rangoPersonalizado?.fin ?? ''} onChange={(evento) => establecerRangoPersonalizado({ inicio: rangoPersonalizado?.inicio ?? evento.target.value, fin: evento.target.value })} />
           </label>
         </> : null}
       </div>
-      {consulta.isError ? <p role="alert" className="text-sm text-red-700">No se pudo actualizar la cartera; vuelve a intentarlo.</p> : null}
-      <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} />
+      {consulta.isError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-peligro/30 bg-peligro-suave px-4 py-3">
+          <p className="text-sm text-peligro-texto">No se pudo actualizar la cartera; vuelve a intentarlo.</p>
+          <Button
+            variante="contorno"
+            tamano="sm"
+            onClick={() => void consulta.refetch()}
+            disabled={consulta.isFetching}
+          >
+            {consulta.isFetching ? 'Reintentando…' : 'Reintentar'}
+          </Button>
+        </div>
+      ) : null}
+      {cargando
+        ? <SkeletonTabla columnas={8} filas={6} />
+        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} />}
       <ReciboPagoVista recibo={recibo} />
       <ModalRegistrarPago
         key={cuentaSeleccionada?.id ?? 'sin-cuenta'}

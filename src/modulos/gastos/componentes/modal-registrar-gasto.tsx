@@ -49,6 +49,8 @@ export function ModalRegistrarGasto({
   const [archivo, setArchivo] = useState<File | null>(null);
   const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [estadoOcr, setEstadoOcr] = useState<'inactivo' | 'exito' | 'error'>('inactivo');
+  const [mensajeOcr, setMensajeOcr] = useState<string | null>(null);
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -79,9 +81,12 @@ export function ModalRegistrarGasto({
   async function escanear(): Promise<void> {
     if (!archivo) return;
     setMensaje(null);
+    setMensajeOcr(null);
+    setEstadoOcr('inactivo');
     const resultado = await onOcr(archivo);
     if (!resultado.exito || !resultado.datos) {
-      setMensaje(resultado.exito ? 'El OCR no devolvió datos' : resultado.error);
+      setEstadoOcr('error');
+      setMensajeOcr(resultado.exito ? 'El OCR no devolvió datos' : resultado.error);
       return;
     }
     const datos = resultado.datos;
@@ -95,6 +100,7 @@ export function ModalRegistrarGasto({
       if (datos.moneda === 'MXN') setTipoCambio('1');
     }
     if (datos.fechaEmision) setFechaGasto(datos.fechaEmision);
+    setEstadoOcr('exito');
   }
 
   function seleccionarArchivo(archivoSeleccionado: File | undefined): void {
@@ -110,42 +116,82 @@ export function ModalRegistrarGasto({
           <DialogDescription id="descripcion-registro-gasto">Los importes se validan y guardan en su moneda original.</DialogDescription>
         </DialogHeader>
         <form className="grid gap-3" onSubmit={(evento) => void enviar(evento)}>
+          <div
+            className={`grid gap-3 rounded-lg border border-dashed p-4 transition-colors ${arrastrandoArchivo ? 'border-acento bg-acento-suave' : 'border-borde-fuerte bg-superficie-2/50'}`}
+            onDragOver={(evento) => { evento.preventDefault(); setArrastrandoArchivo(true); }}
+            onDragLeave={() => setArrastrandoArchivo(false)}
+            onDrop={(evento) => { evento.preventDefault(); seleccionarArchivo(evento.dataTransfer.files[0]); }}
+          >
+            <div className="grid gap-1">
+              <Label htmlFor="gasto-comprobante">Comprobante para OCR</Label>
+              <p className="text-xs text-texto-secundario">Arrastra una imagen o PDF, o selecciónalo desde tu equipo (máximo 5 MiB).</p>
+            </div>
+            <Input id="gasto-comprobante" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
+            {archivo ? <p className="text-xs text-texto-secundario" aria-live="polite">Archivo seleccionado: <span className="font-medium text-texto-primario">{archivo.name}</span></p> : null}
+            <Button
+              type="button"
+              variante="secundario"
+              tamano="lg"
+              className="w-full"
+              disabled={!archivo || ocrEnCurso}
+              onClick={() => void escanear()}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="h-5 w-5 fill-none stroke-current"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" />
+                <circle cx="12" cy="13" r="3" />
+              </svg>
+              {ocrEnCurso ? 'Analizando comprobante…' : 'Escanear comprobante con IA'}
+            </Button>
+            {ocrEnCurso ? (
+              <p role="status" aria-live="polite" className="rounded-md bg-info-suave px-3 py-2 text-sm text-info-texto">
+                Analizando el comprobante con IA…
+              </p>
+            ) : null}
+            {!ocrEnCurso && estadoOcr === 'exito' ? (
+              <p role="status" className="rounded-md bg-exito-suave px-3 py-2 text-sm text-exito-texto">
+                Datos extraídos; revisa los campos antes de guardar.
+              </p>
+            ) : null}
+            {!ocrEnCurso && estadoOcr === 'error' ? (
+              <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-peligro-suave px-3 py-2">
+                <p className="text-sm text-peligro-texto">{mensajeOcr ?? 'No se pudo analizar el comprobante'}</p>
+                <Button type="button" variante="contorno" tamano="sm" disabled={!archivo} onClick={() => void escanear()}>
+                  Reintentar
+                </Button>
+              </div>
+            ) : null}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-orden">ID de orden (opcional)</Label><Input id="gasto-orden" value={ordenId} onChange={(evento) => setOrdenId(evento.target.value)} /></div>
             <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value as typeof categoria)}>{CATEGORIAS_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
           </div>
-          <div className="grid gap-1"><Label htmlFor="gasto-descripcion">Descripción</Label><Input id="gasto-descripcion" value={descripcion} onChange={(evento) => setDescripcion(evento.target.value)} required /></div>
+          <div className="grid gap-1"><Label htmlFor="gasto-descripcion" obligatorio>Descripción</Label><Input id="gasto-descripcion" value={descripcion} onChange={(evento) => setDescripcion(evento.target.value)} required /></div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="grid gap-1"><Label htmlFor="gasto-subtotal">Subtotal</Label><Input id="gasto-subtotal" type="number" min="0" step="0.0001" value={subtotal} onChange={(evento) => setSubtotal(evento.target.value)} required /></div>
-            <div className="grid gap-1"><Label htmlFor="gasto-iva">IVA</Label><Input id="gasto-iva" type="number" min="0" step="0.0001" value={iva} onChange={(evento) => setIva(evento.target.value)} required /></div>
-            <div className="grid gap-1"><Label htmlFor="gasto-total">Total</Label><Input id="gasto-total" type="number" min="0" step="0.0001" value={total} onChange={(evento) => setTotal(evento.target.value)} required /></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-subtotal" obligatorio>Subtotal</Label><Input id="gasto-subtotal" type="number" min="0" step="0.0001" value={subtotal} onChange={(evento) => setSubtotal(evento.target.value)} required /></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-iva" obligatorio>IVA</Label><Input id="gasto-iva" type="number" min="0" step="0.0001" value={iva} onChange={(evento) => setIva(evento.target.value)} required /></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-total" obligatorio>Total</Label><Input id="gasto-total" type="number" min="0" step="0.0001" value={total} onChange={(evento) => setTotal(evento.target.value)} required /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-moneda">Moneda</Label><Select id="gasto-moneda" value={moneda} onChange={(evento) => { const valor = evento.target.value as MonedaGasto; setMoneda(valor); if (valor === 'MXN') setTipoCambio('1'); }}><option value="MXN">MXN</option><option value="USD">USD</option></Select></div>
-            <div className="grid gap-1"><Label htmlFor="gasto-tipo-cambio">Tipo de cambio (MXN)</Label><Input id="gasto-tipo-cambio" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(evento) => setTipoCambio(evento.target.value)} required /></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-tipo-cambio" obligatorio>Tipo de cambio (MXN)</Label><Input id="gasto-tipo-cambio" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(evento) => setTipoCambio(evento.target.value)} required /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1"><Label htmlFor="gasto-fecha">Fecha de gasto</Label><Input id="gasto-fecha" type="date" value={fechaGasto} onChange={(evento) => setFechaGasto(evento.target.value)} required /></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-fecha" obligatorio>Fecha de gasto</Label><Input id="gasto-fecha" type="date" value={fechaGasto} onChange={(evento) => setFechaGasto(evento.target.value)} required /></div>
             <div className="grid gap-1"><Label htmlFor="gasto-vencimiento">Vencimiento</Label><Input id="gasto-vencimiento" type="date" value={fechaVencimiento} onChange={(evento) => setFechaVencimiento(evento.target.value)} /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-folio">Folio de comprobante</Label><Input id="gasto-folio" value={folioComprobante} onChange={(evento) => setFolioComprobante(evento.target.value)} /></div>
             <div className="grid gap-1"><Label htmlFor="gasto-metodo">Método de pago</Label><Select id="gasto-metodo" value={metodoPago} onChange={(evento) => setMetodoPago(evento.target.value as typeof metodoPago)}>{METODOS_PAGO_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
           </div>
-          <div
-            className={`grid gap-2 rounded-base border border-dashed p-3 ${arrastrandoArchivo ? 'border-foreground bg-foreground/5' : 'border-foreground/20'}`}
-            onDragOver={(evento) => { evento.preventDefault(); setArrastrandoArchivo(true); }}
-            onDragLeave={() => setArrastrandoArchivo(false)}
-            onDrop={(evento) => { evento.preventDefault(); seleccionarArchivo(evento.dataTransfer.files[0]); }}
-          >
-            <Label htmlFor="gasto-comprobante">Comprobante para OCR</Label>
-            <p className="text-xs text-foreground/65">Arrastra una imagen o PDF, o selecciónalo desde tu equipo (máximo 5 MiB).</p>
-            <Input id="gasto-comprobante" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
-            {archivo ? <p className="text-xs" aria-live="polite">Archivo seleccionado: {archivo.name}</p> : null}
-            <Button type="button" variante="contorno" disabled={!archivo || ocrEnCurso} onClick={() => void escanear()}>{ocrEnCurso ? 'Analizando…' : 'Escanear comprobante con IA'}</Button>
-          </div>
           <div className="grid gap-1"><Label htmlFor="gasto-notas">Notas</Label><Textarea id="gasto-notas" value={notas} onChange={(evento) => setNotas(evento.target.value)} /></div>
-          {mensaje ? <p role="alert" className="text-sm text-red-700">{mensaje}</p> : null}
+          {mensaje ? <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p> : null}
           <DialogFooter><Button variante="contorno" type="button" onClick={() => onAbiertoChange(false)} disabled={procesando}>Cancelar</Button><Button type="submit" disabled={procesando}>{procesando ? 'Guardando…' : 'Guardar gasto'}</Button></DialogFooter>
         </form>
       </DialogContent>

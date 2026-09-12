@@ -12,6 +12,7 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import type { CuentaCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
 
 export interface DatosPagoFormulario {
@@ -118,21 +119,52 @@ export function ModalRegistrarPago({
         <DialogHeader>
           <DialogTitle>Registrar cobro · {cuenta.folioOrden}</DialogTitle>
           <DialogDescription id="descripcion-registro-pago">
-            Saldo: {new Intl.NumberFormat('es-MX', { style: 'currency', currency: cuenta.moneda }).format(cuenta.saldoPendiente)} · Monedero disponible: MXN {cuenta.saldoAFavorMxn.toFixed(2)}
+            Saldo pendiente: {cuenta.moneda} {formatearMoneda(cuenta.saldoPendiente, cuenta.moneda)} · Monedero disponible: MXN {formatearMoneda(cuenta.saldoAFavorMxn)}
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-3" onSubmit={registrarPago}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1"><Label htmlFor="monto-pago">Monto</Label><Input id="monto-pago" type="number" min="0.0001" step="0.0001" value={monto} onChange={(evento) => setMonto(evento.target.value)} required /></div>
-            <div className="grid gap-1"><Label htmlFor="moneda-pago">Moneda de pago</Label><Select id="moneda-pago" value={moneda} onChange={(evento) => setMoneda(evento.target.value as 'USD' | 'MXN')}><option value="MXN">MXN</option><option value="USD">USD</option></Select></div>
+            <div className="grid gap-1">
+              <Label htmlFor="monto-pago" obligatorio>Monto</Label>
+              <div className="flex items-stretch gap-2">
+                <span className="inline-flex items-center rounded-md border border-borde-fuerte bg-superficie-2 px-3 text-sm font-medium text-texto-secundario">
+                  {moneda}
+                </span>
+                <Input id="monto-pago" className="flex-1" type="number" min="0.0001" step="0.0001" value={monto} onChange={(evento) => setMonto(evento.target.value)} required />
+              </div>
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="moneda-pago">Moneda de pago</Label>
+              <Select id="moneda-pago" value={moneda} onChange={(evento) => setMoneda(evento.target.value as 'USD' | 'MXN')}>
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </Select>
+            </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1"><Label htmlFor="tipo-cambio-pago">Tipo de cambio (MXN)</Label><Input id="tipo-cambio-pago" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(evento) => setTipoCambio(evento.target.value)} required /></div>
-            <div className="grid gap-1"><Label htmlFor="metodo-pago">Método</Label><Select id="metodo-pago" value={metodo} onChange={(evento) => setMetodo(evento.target.value as DatosPagoFormulario['metodoPago'])}><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="cheque">Cheque</option><option value="tarjeta">Tarjeta</option></Select></div>
+            <div className="grid gap-1">
+              <Label htmlFor="tipo-cambio-pago" obligatorio>Tipo de cambio (MXN)</Label>
+              <Input id="tipo-cambio-pago" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(evento) => setTipoCambio(evento.target.value)} required />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="metodo-pago">Método</Label>
+              <Select id="metodo-pago" value={metodo} onChange={(evento) => setMetodo(evento.target.value as DatosPagoFormulario['metodoPago'])}>
+                <option value="transferencia">Transferencia</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="cheque">Cheque</option>
+                <option value="tarjeta">Tarjeta</option>
+              </Select>
+            </div>
           </div>
-          <div className="grid gap-1"><Label htmlFor="referencia-pago">Referencia bancaria</Label><Input id="referencia-pago" value={referencia} onChange={(evento) => setReferencia(evento.target.value)} /></div>
-          <div className="grid gap-1"><Label htmlFor="notas-pago">Notas</Label><Textarea id="notas-pago" value={notas} onChange={(evento) => setNotas(evento.target.value)} /></div>
-          {estado ? <p role="alert" className="text-sm text-red-700">{estado}</p> : null}
+          <div className="grid gap-1">
+            <Label htmlFor="referencia-pago">Referencia bancaria</Label>
+            <Input id="referencia-pago" value={referencia} onChange={(evento) => setReferencia(evento.target.value)} />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="notas-pago">Notas</Label>
+            <Textarea id="notas-pago" value={notas} onChange={(evento) => setNotas(evento.target.value)} />
+          </div>
+          {estado ? <p role="alert" className="text-sm text-peligro-texto">{estado}</p> : null}
           <DialogFooter>
             <Button variante="contorno" type="button" onClick={cerrar} disabled={procesando}>Cancelar</Button>
             <Button
@@ -143,7 +175,7 @@ export function ModalRegistrarPago({
             >
               Aplicar saldo a favor
             </Button>
-            <Button type="submit" disabled={procesando}>{procesando ? 'Registrando…' : 'Registrar pago'}</Button>
+            <Button tamano="lg" type="submit" disabled={procesando}>{procesando ? 'Registrando…' : 'Registrar pago'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -2,8 +2,10 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { usarTiendaGastos } from '@/estado/uso-tienda-gastos';
 import {
   cambiarEstadoGastoAccion,
@@ -51,6 +53,11 @@ function coincidePeriodo(fecha: string, periodo: string, rango: { inicio: string
   return true;
 }
 
+function etiquetaCategoria(categoria: Gasto['categoria']): string {
+  const texto = categoria.split('_').join(' ');
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] }) {
   const clienteQuery = useQueryClient();
   const periodo = usarTiendaGastos((estado) => estado.periodo);
@@ -83,6 +90,26 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
       && coincidePeriodo(gasto.fechaGasto, periodo, rango)
     ));
   }, [busqueda, categorias, estados, gastos, periodo, rango]);
+
+  const distribucion = useMemo(() => {
+    const acumulado = new Map<Gasto['categoria'], number>();
+    let total = 0;
+    for (const gasto of gastos) {
+      if (gasto.estadoPago === 'cancelado') continue;
+      const montoMxn = gasto.moneda === 'MXN' ? gasto.montoTotal : gasto.montoTotal * gasto.tipoCambio;
+      if (!Number.isFinite(montoMxn) || montoMxn <= 0) continue;
+      acumulado.set(gasto.categoria, (acumulado.get(gasto.categoria) ?? 0) + montoMxn);
+      total += montoMxn;
+    }
+    const filas = [...acumulado.entries()]
+      .map(([categoria, monto]) => ({
+        categoria,
+        monto,
+        porcentaje: total > 0 ? (monto / total) * 100 : 0,
+      }))
+      .sort((a, b) => b.monto - a.monto);
+    return { filas, total };
+  }, [gastos]);
 
   const rentabilidad = useQuery({
     queryKey: [...CLAVE_RENTABILIDAD_GASTOS, ordenRentabilidad],
@@ -150,7 +177,7 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
     <div className="flex flex-col gap-5">
       <SincronizadorGastosRealtime />
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h2 className="text-xl font-semibold">Gastos registrados</h2><p className="text-sm text-foreground/65">Los cambios se sincronizan sin recargar la página.</p></div>
+        <div><h2 className="text-xl font-semibold">Gastos registrados</h2><p className="text-sm text-texto-secundario">Los cambios se sincronizan sin recargar la página.</p></div>
         <Button onClick={() => setModalAbierto(true)}>Registrar gasto</Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -160,10 +187,32 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
         <label className="grid gap-1 text-sm font-medium">Categoría<Select value={categorias[0] ?? ''} onChange={(evento) => usarTiendaGastos.getState().establecerCategorias(evento.target.value ? [evento.target.value as typeof CATEGORIAS_GASTO[number]] : [])}><option value="">Todas</option>{CATEGORIAS_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></label>
         <label className="grid gap-1 text-sm font-medium">Estado<Select value={estados[0] ?? ''} onChange={(evento) => usarTiendaGastos.getState().establecerEstados(evento.target.value ? [evento.target.value as typeof ESTADOS_GASTO[number]] : [])}><option value="">Todos</option>{ESTADOS_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></label>
       </div>
-      {mensaje ? <p role="alert" className="text-sm text-red-700">{mensaje}</p> : null}
-      {consulta.isError ? <p role="alert" className="text-sm text-red-700">No se pudo consultar gastos.</p> : null}
-      <TablaGastos gastos={filtrados} onCambiarEstado={(gasto, estado) => void cambiarEstado(gasto, estado)} onVerRentabilidad={setOrdenRentabilidad} />
-      {rentabilidad.isError ? <p role="alert" className="text-sm text-red-700">No se pudo consultar la rentabilidad.</p> : null}
+      {mensaje ? <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p> : null}
+      {consulta.isError ? <p role="alert" className="text-sm text-peligro-texto">No se pudo consultar gastos.</p> : null}
+      <TablaGastos gastos={filtrados} cargando={consulta.isPending && !consulta.isError} onCambiarEstado={(gasto, estado) => void cambiarEstado(gasto, estado)} onVerRentabilidad={setOrdenRentabilidad} />
+      {distribucion.filas.length > 0 ? (
+        <section className="rounded-lg border border-borde bg-superficie p-4 shadow-sm" aria-labelledby="titulo-distribucion-categorias">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h3 id="titulo-distribucion-categorias" className="text-base font-semibold">Distribución por categoría</h3>
+              <p className="text-xs text-texto-secundario">Gastos cargados sin cancelados; importes convertidos a MXN.</p>
+            </div>
+            <p className="text-sm font-semibold tabular-nums">{formatearMoneda(distribucion.total)}</p>
+          </div>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {distribucion.filas.map(({ categoria, monto, porcentaje }) => (
+              <li key={categoria} className="grid gap-1">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-texto-secundario">{etiquetaCategoria(categoria)}</span>
+                  <span className="font-medium tabular-nums">{formatearMoneda(monto)}</span>
+                </div>
+                <BarraProgreso valor={porcentaje} tono="acento" etiqueta={`${etiquetaCategoria(categoria)}: ${porcentaje.toFixed(1)}%`} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {rentabilidad.isError ? <p role="alert" className="text-sm text-peligro-texto">No se pudo consultar la rentabilidad.</p> : null}
       <TarjetaRentabilidadOrden datos={rentabilidad.data ?? null} />
       <ModalRegistrarGasto abierto={modalAbierto} procesando={procesando} ocrEnCurso={usarTiendaGastos((estado) => estado.ocrEnCurso)} onAbiertoChange={setModalAbierto} onRegistrar={registrar} onOcr={procesarOcr} />
     </div>

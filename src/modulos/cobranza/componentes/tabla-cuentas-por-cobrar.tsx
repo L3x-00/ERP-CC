@@ -1,16 +1,29 @@
 'use client';
 
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { Button } from '@/compartido/componentes/ui/button';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { calcularDiasVencidos } from '@/modulos/cobranza/servicios/aging-servicio';
 import type { CuentaCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
-
-function formatoMoneda(valor: number, moneda: string): string {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(valor);
-}
 
 export interface TablaCuentasPorCobrarProps {
   cuentas: readonly CuentaCartera[];
   cuentaSeleccionadaId: string | null;
   onSeleccionar: (cuentaId: string) => void;
+}
+
+function cuentaVigente(cuenta: CuentaCartera): boolean {
+  return cuenta.estado === 'pendiente' || cuenta.estado === 'parcial';
 }
 
 export function TablaCuentasPorCobrar({
@@ -19,37 +32,65 @@ export function TablaCuentasPorCobrar({
   onSeleccionar,
 }: TablaCuentasPorCobrarProps) {
   if (cuentas.length === 0) {
-    return <p className="rounded-base border border-dashed border-foreground/20 p-6 text-sm text-foreground/65">No hay cuentas por cobrar con los filtros actuales.</p>;
+    return (
+      <EstadoVacio
+        titulo="No hay cuentas por cobrar"
+        descripcion="No hay cuentas que coincidan con los filtros actuales."
+      />
+    );
   }
 
+  const fechaReferencia = new Date().toISOString();
+
   return (
-    <div className="overflow-x-auto rounded-base border border-foreground/15">
-      <table className="w-full min-w-[900px] text-left text-sm">
-        <thead className="bg-foreground/5 text-xs text-foreground/70">
+    <TablaContenedor>
+      <Tabla className="min-w-[900px]">
+        <TablaEncabezado>
           <tr>
-            <th className="px-3 py-2">Orden</th>
-            <th className="px-3 py-2">Cliente</th>
-            <th className="px-3 py-2">Vencimiento</th>
-            <th className="px-3 py-2 text-right">Monto</th>
-            <th className="px-3 py-2 text-right">Saldo</th>
-            <th className="px-3 py-2">Producción</th>
-            <th className="px-3 py-2">Pago</th>
-            <th className="px-3 py-2"><span className="sr-only">Acciones</span></th>
+            <TablaEncabezadoCelda>Orden</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Cliente</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Vencimiento</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Monto</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Saldo</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Producción</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Pago</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>
+              <span className="sr-only">Acciones</span>
+            </TablaEncabezadoCelda>
           </tr>
-        </thead>
-        <tbody>
+        </TablaEncabezado>
+        <TablaCuerpo>
           {cuentas.map((cuenta) => {
             const seleccionada = cuenta.id === cuentaSeleccionadaId;
+            const diasVencidos = calcularDiasVencidos(cuenta.fechaVencimiento, fechaReferencia);
+            const vencida = diasVencidos !== null && diasVencidos > 0 && cuentaVigente(cuenta);
             return (
-              <tr key={cuenta.id} className={seleccionada ? 'bg-primario/10' : 'border-t border-foreground/10'}>
-                <td className="px-3 py-2 font-medium">{cuenta.folioOrden}</td>
-                <td className="px-3 py-2">{cuenta.clienteNombre}</td>
-                <td className="px-3 py-2">{new Intl.DateTimeFormat('es-MX').format(new Date(cuenta.fechaVencimiento))}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{formatoMoneda(cuenta.montoTotal, cuenta.moneda)}</td>
-                <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatoMoneda(cuenta.saldoPendiente, cuenta.moneda)}</td>
-                <td className="px-3 py-2">{cuenta.estadoProduccion}</td>
-                <td className="px-3 py-2">{cuenta.estado}</td>
-                <td className="px-3 py-2 text-right">
+              <TablaFila key={cuenta.id} seleccionada={seleccionada}>
+                <TablaCelda className="font-mono text-xs font-medium">{cuenta.folioOrden}</TablaCelda>
+                <TablaCelda>{cuenta.clienteNombre}</TablaCelda>
+                <TablaCelda>
+                  {new Intl.DateTimeFormat('es-MX').format(new Date(cuenta.fechaVencimiento))}
+                </TablaCelda>
+                <TablaCelda className="text-right tabular-nums">
+                  {formatearMoneda(cuenta.montoTotal, cuenta.moneda)}
+                </TablaCelda>
+                <TablaCelda className="text-right tabular-nums">
+                  <span
+                    className={vencida ? 'font-semibold text-peligro-texto' : 'font-semibold'}
+                    title={
+                      vencida && diasVencidos !== null
+                        ? `Vencida hace ${diasVencidos} ${diasVencidos === 1 ? 'día' : 'días'}`
+                        : undefined
+                    }
+                  >
+                    {formatearMoneda(cuenta.saldoPendiente, cuenta.moneda)}
+                  </span>
+                </TablaCelda>
+                <TablaCelda>{cuenta.estadoProduccion}</TablaCelda>
+                <TablaCelda>
+                  <BadgeEstado estado={cuenta.estado} />
+                </TablaCelda>
+                <TablaCelda className="text-right">
                   <Button
                     tamano="sm"
                     variante={seleccionada ? 'secundario' : 'contorno'}
@@ -57,12 +98,12 @@ export function TablaCuentasPorCobrar({
                   >
                     Cobrar
                   </Button>
-                </td>
-              </tr>
+                </TablaCelda>
+              </TablaFila>
             );
           })}
-        </tbody>
-      </table>
-    </div>
+        </TablaCuerpo>
+      </Tabla>
+    </TablaContenedor>
   );
 }

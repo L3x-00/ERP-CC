@@ -1,52 +1,75 @@
 'use client';
 
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
+import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { Button } from '@/compartido/componentes/ui/button';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import type { EstadoGasto, Gasto } from '@/modulos/gastos/tipos/indice';
-
-function formatoMoneda(valor: number, moneda: string): string {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(valor);
-}
 
 export interface TablaGastosProps {
   gastos: readonly Gasto[];
+  cargando?: boolean;
   onCambiarEstado: (gasto: Gasto, estado: EstadoGasto) => void;
   onVerRentabilidad: (ordenId: string) => void;
 }
 
-export function TablaGastos({ gastos, onCambiarEstado, onVerRentabilidad }: TablaGastosProps) {
+export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRentabilidad }: TablaGastosProps) {
+  if (cargando) {
+    return <SkeletonTabla columnas={9} filas={5} />;
+  }
+
   if (gastos.length === 0) {
-    return <p className="rounded-base border border-dashed border-foreground/20 p-6 text-sm text-foreground/65">No hay gastos con los filtros actuales.</p>;
+    return (
+      <EstadoVacio
+        titulo="Sin gastos registrados"
+        descripcion="No hay gastos que coincidan con los filtros actuales."
+      />
+    );
   }
 
   return (
-    <div className="overflow-x-auto rounded-base border border-foreground/15">
-      <table className="w-full min-w-[980px] text-left text-sm">
+    <TablaContenedor>
+      <Tabla className="min-w-[980px]">
         <caption className="sr-only">Gastos registrados</caption>
-        <thead className="bg-foreground/5 text-xs text-foreground/70">
+        <TablaEncabezado>
           <tr>
-            <th className="px-3 py-2">Folio</th>
-            <th className="px-3 py-2">Descripción</th>
-            <th className="px-3 py-2">Categoría</th>
-            <th className="px-3 py-2">Proveedor</th>
-            <th className="px-3 py-2">Orden vinculada</th>
-            <th className="px-3 py-2 text-right">Total</th>
-            <th className="px-3 py-2">Fecha</th>
-            <th className="px-3 py-2">Estado</th>
-            <th className="px-3 py-2"><span className="sr-only">Acciones</span></th>
+            <TablaEncabezadoCelda>Folio</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Descripción</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Categoría</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Proveedor</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Orden vinculada</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Total</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Fecha</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Estado</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>
+              <span className="sr-only">Acciones</span>
+            </TablaEncabezadoCelda>
           </tr>
-        </thead>
-        <tbody>
+        </TablaEncabezado>
+        <TablaCuerpo>
           {gastos.map((gasto) => (
-            <tr key={gasto.id} className="border-t border-foreground/10">
-              <td className="px-3 py-2 font-medium">{gasto.folio}</td>
-              <td className="px-3 py-2">{gasto.descripcion}</td>
-              <td className="px-3 py-2">{gasto.categoria}</td>
-              <td className="px-3 py-2 font-mono text-xs">{gasto.proveedorId ?? '—'}</td>
-              <td className="px-3 py-2 font-mono text-xs">{gasto.ordenId ?? 'Indirecto'}</td>
-              <td className="px-3 py-2 text-right tabular-nums">{formatoMoneda(gasto.montoTotal, gasto.moneda)}</td>
-              <td className="px-3 py-2">{gasto.fechaGasto}</td>
-              <td className="px-3 py-2">{gasto.estadoPago}</td>
-              <td className="flex justify-end gap-2 px-3 py-2">
+            <TablaFila key={gasto.id}>
+              <TablaCelda className="font-mono text-xs font-medium">{gasto.folio}</TablaCelda>
+              <TablaCelda>{gasto.descripcion}</TablaCelda>
+              <TablaCelda>{gasto.categoria}</TablaCelda>
+              <TablaCelda className="font-mono text-xs">{gasto.proveedorId ?? '—'}</TablaCelda>
+              <TablaCelda className="font-mono text-xs">{gasto.ordenId ?? 'Indirecto'}</TablaCelda>
+              <TablaCelda className="text-right tabular-nums">{formatearMoneda(gasto.montoTotal, gasto.moneda)}</TablaCelda>
+              <TablaCelda>{gasto.fechaGasto}</TablaCelda>
+              <TablaCelda>
+                <BadgeEstado estado={gasto.estadoPago} />
+              </TablaCelda>
+              <TablaCelda className="flex justify-end gap-2">
                 {gasto.ordenId ? (
                   <Button tamano="sm" variante="contorno" onClick={() => onVerRentabilidad(gasto.ordenId as string)}>
                     Rentabilidad
@@ -58,11 +81,11 @@ export function TablaGastos({ gastos, onCambiarEstado, onVerRentabilidad }: Tabl
                     <Button tamano="sm" variante="contorno" onClick={() => onCambiarEstado(gasto, 'cancelado')}>Cancelar</Button>
                   </>
                 ) : null}
-              </td>
-            </tr>
+              </TablaCelda>
+            </TablaFila>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TablaCuerpo>
+      </Tabla>
+    </TablaContenedor>
   );
 }
