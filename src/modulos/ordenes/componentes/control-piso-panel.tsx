@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Input, Select } from '@/compartido/componentes/ui/input';
 import { registrarAvancePartidaAccion } from '@/modulos/ordenes/acciones/registrar-avance-partida';
 import { registrarConsumoOperadorAccion } from '@/modulos/ordenes/acciones/registrar-consumo';
 import { registrarTiempoOperadorAccion } from '@/modulos/ordenes/acciones/registrar-tiempo-operador';
@@ -25,13 +29,6 @@ type PropsControlPisoPanel = {
 type OperacionPiso = 'tiempo' | 'avance' | 'consumo' | null;
 
 const EVENTO_OPERACION_LOCAL = 'ordenes:piso-operacion-local';
-
-const CLASE_INPUT =
-  'w-full rounded-base border border-zinc-700 bg-zinc-900 px-3 py-2 text-base text-zinc-50 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30';
-const CLASE_BOTON =
-  'rounded-base border border-zinc-600 px-4 py-3 text-sm font-semibold transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-45';
-const CLASE_BOTON_PRIMARIO =
-  'rounded-base bg-cyan-500 px-4 py-3 text-sm font-bold text-zinc-950 transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-45';
 
 function aNumeroPositivo(valor: string): number | null {
   const numero = Number(valor);
@@ -71,6 +68,10 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
   const [error, setError] = useState<string | null>(null);
   const [hidratado, setHidratado] = useState(false);
   const materialSeleccionadoId = materialId || partidaActiva?.materialId || '';
+  const porcentajePartidaActiva =
+    partidaActiva && partidaActiva.cantidadSolicitada > 0
+      ? (partidaActiva.cantidadProducida / partidaActiva.cantidadSolicitada) * 100
+      : 0;
 
   useEffect(() => {
     const marco = requestAnimationFrame(() => setHidratado(true));
@@ -210,9 +211,9 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
 
   if (ordenes.length === 0) {
     return (
-      <section className="rounded-base border border-zinc-800 bg-zinc-900 p-6" aria-live="polite">
-        <h1 className="text-lg font-bold text-zinc-50">Control de piso</h1>
-        <p className="mt-2 text-zinc-400">No hay órdenes de producción en proceso.</p>
+      <section className="rounded-lg border border-borde bg-superficie p-6" aria-live="polite">
+        <h1 className="text-lg font-bold text-texto-primario">Control de piso</h1>
+        <p className="mt-2 text-texto-secundario">No hay órdenes de producción en proceso.</p>
       </section>
     );
   }
@@ -224,43 +225,74 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
       className="flex max-w-5xl flex-col gap-5"
       aria-label="Control de piso de producción"
     >
-      <header className="flex flex-col gap-1 border-b border-zinc-800 pb-4">
-        <h1 className="text-2xl font-bold text-zinc-50">Control de piso</h1>
-        <p className="text-sm text-zinc-400">
+      <header className="flex flex-col gap-1 border-b border-borde pb-4">
+        <h1 className="text-2xl font-bold text-texto-primario">Control de piso</h1>
+        <p className="text-sm text-texto-secundario">
           Registra tiempo, piezas y material. Las operaciones se validan en el servidor.
         </p>
       </header>
 
+      {ordenActiva ? (
+        <section
+          className="flex flex-col gap-2 rounded-lg border border-borde border-l-4 border-l-acento bg-acento-suave p-4"
+          aria-label="Mi OP activa"
+          data-testid="mi-op-activa"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-texto-primario">MI OP ACTIVA</h2>
+            <BadgeEstado estado={ordenActiva.orden.estado} />
+          </div>
+          <p className="font-mono text-xl font-bold tracking-wide text-texto-primario">
+            {ordenActiva.orden.folio}
+          </p>
+          {partidaActiva ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-texto-secundario">
+                {partidaActiva.descripcion ?? partidaActiva.codigoPieza} · Máquina:{' '}
+                {partidaActiva.maquinaAsignada ?? 'sin asignar'} · Avance:{' '}
+                {partidaActiva.cantidadProducida}/{partidaActiva.cantidadSolicitada}{' '}
+                {partidaActiva.unidadMedida}
+              </p>
+              <BarraProgreso
+                valor={porcentajePartidaActiva}
+                mostrarPorcentaje
+                etiqueta={`Avance de ${partidaActiva.codigoPieza}`}
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-texto-secundario">La orden no tiene partidas registradas.</p>
+          )}
+        </section>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor="selector-orden-piso" className="text-sm font-medium text-zinc-300">
+          <label htmlFor="selector-orden-piso" className="text-sm font-medium text-texto-secundario">
             Orden en proceso
           </label>
-          <select
+          <Select
             id="selector-orden-piso"
             data-testid="selector-orden-piso"
             value={ordenActiva?.orden.id ?? ''}
             onChange={(evento) => seleccionarOrdenPiso(evento.target.value)}
-            className={CLASE_INPUT}
           >
             {ordenes.map(({ orden }) => (
               <option key={orden.id} value={orden.id}>
                 {orden.folio}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="selector-partida-piso" className="text-sm font-medium text-zinc-300">
+          <label htmlFor="selector-partida-piso" className="text-sm font-medium text-texto-secundario">
             Partida
           </label>
-          <select
+          <Select
             id="selector-partida-piso"
             data-testid="selector-partida-piso"
             value={partidaActiva?.id ?? ''}
             onChange={(evento) => seleccionarPartidaPiso(evento.target.value)}
-            className={CLASE_INPUT}
           >
             {(ordenActiva?.partidas ?? []).map((partida) => (
               <option key={partida.id} value={partida.id}>
@@ -268,55 +300,52 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
                 {partida.unidadMedida}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
-      {partidaActiva && (
-        <p className="rounded-base border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300">
-          {partidaActiva.descripcion ?? partidaActiva.codigoPieza} · Máquina:{' '}
-          {partidaActiva.maquinaAsignada ?? 'sin asignar'} · Avance: {partidaActiva.cantidadProducida}/
-          {partidaActiva.cantidadSolicitada} {partidaActiva.unidadMedida}
-        </p>
-      )}
-
       <div className="grid gap-4 lg:grid-cols-3">
-        <section className="flex flex-col gap-3 rounded-base border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="font-semibold text-zinc-50">Tiempo de operación</h2>
+        <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
+          <h2 className="text-lg font-semibold text-texto-primario">Tiempo de operación</h2>
           <div className="grid grid-cols-3 gap-2">
-            <button
+            <Button
               type="button"
+              tamano="piso"
               data-testid="iniciar-tiempo"
               onClick={() => void registrarTiempo('inicio')}
               disabled={operacion !== null || !partidaActiva}
-              className={CLASE_BOTON_PRIMARIO}
+              className="w-full"
             >
               Inicio
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variante="contorno"
+              tamano="piso"
               onClick={() => void registrarTiempo('pausa')}
               disabled={operacion !== null || !partidaActiva}
-              className={CLASE_BOTON}
+              className="w-full"
             >
               Pausa
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variante="contorno"
+              tamano="piso"
               onClick={() => void registrarTiempo('fin')}
               disabled={operacion !== null || !partidaActiva}
-              className={CLASE_BOTON}
+              className="w-full"
             >
               Fin
-            </button>
+            </Button>
           </div>
         </section>
 
-        <section className="flex flex-col gap-3 rounded-base border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="font-semibold text-zinc-50">Piezas y scrap</h2>
-          <label className="flex flex-col gap-1 text-sm text-zinc-300" htmlFor="cantidad-producida">
+        <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
+          <h2 className="text-lg font-semibold text-texto-primario">Piezas y scrap</h2>
+          <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="cantidad-producida">
             Piezas producidas
-            <input
+            <Input
               id="cantidad-producida"
               data-testid="cantidad-producida"
               type="number"
@@ -325,12 +354,11 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
               inputMode="decimal"
               value={cantidadProducida}
               onChange={(evento) => setCantidadProducida(evento.target.value)}
-              className={CLASE_INPUT}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-zinc-300" htmlFor="cantidad-scrap-fabricacion">
+          <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="cantidad-scrap-fabricacion">
             Scrap de fabricación
-            <input
+            <Input
               id="cantidad-scrap-fabricacion"
               data-testid="cantidad-scrap-fabricacion"
               type="number"
@@ -339,30 +367,29 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
               inputMode="decimal"
               value={cantidadScrapFabricacion}
               onChange={(evento) => setCantidadScrapFabricacion(evento.target.value)}
-              className={CLASE_INPUT}
             />
           </label>
-          <button
+          <Button
             type="button"
+            tamano="piso"
             data-testid="registrar-avance"
             onClick={() => void registrarAvance()}
             disabled={operacion !== null || !partidaActiva}
-            className={CLASE_BOTON_PRIMARIO}
+            className="w-full"
           >
             Registrar avance
-          </button>
+          </Button>
         </section>
 
-        <section className="flex flex-col gap-3 rounded-base border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="font-semibold text-zinc-50">Consumo de material</h2>
-          <label className="flex flex-col gap-1 text-sm text-zinc-300" htmlFor="material-consumo">
+        <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
+          <h2 className="text-lg font-semibold text-texto-primario">Consumo de material</h2>
+          <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="material-consumo">
             Material
-            <select
+            <Select
               id="material-consumo"
               data-testid="material-consumo"
               value={materialSeleccionadoId}
               onChange={(evento) => setMaterialId(evento.target.value)}
-              className={CLASE_INPUT}
             >
               <option value="">Selecciona un material</option>
               {materiales.map((material) => (
@@ -371,12 +398,12 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
                   {material.unidadControl})
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex flex-col gap-1 text-sm text-zinc-300" htmlFor="cantidad-consumo">
+            <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="cantidad-consumo">
               Usado
-              <input
+              <Input
                 id="cantidad-consumo"
                 data-testid="cantidad-consumo"
                 type="number"
@@ -385,42 +412,42 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
                 inputMode="decimal"
                 value={cantidadUsada}
                 onChange={(evento) => setCantidadUsada(evento.target.value)}
-                className={CLASE_INPUT}
               />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-zinc-300" htmlFor="cantidad-scrap-material">
+            <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="cantidad-scrap-material">
               Merma
-              <input
+              <Input
                 id="cantidad-scrap-material"
+                data-testid="cantidad-scrap-material"
                 type="number"
                 min="0"
                 step="any"
                 inputMode="decimal"
                 value={cantidadScrapMaterial}
                 onChange={(evento) => setCantidadScrapMaterial(evento.target.value)}
-                className={CLASE_INPUT}
               />
             </label>
           </div>
-          <button
+          <Button
             type="button"
+            tamano="piso"
             data-testid="registrar-consumo"
             onClick={() => void registrarConsumo()}
             disabled={operacion !== null || !partidaActiva || materialSeleccionadoId === ''}
-            className={CLASE_BOTON_PRIMARIO}
+            className="w-full"
           >
             Registrar consumo
-          </button>
+          </Button>
         </section>
       </div>
 
       {error && (
-        <p role="alert" className="rounded-base border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-200">
+        <p role="alert" className="rounded-md border border-peligro/40 bg-peligro-suave px-3 py-2 text-sm font-medium text-peligro-texto">
           {error}
         </p>
       )}
       {mensaje && (
-        <p role="status" className="rounded-base border border-emerald-900 bg-emerald-950 px-3 py-2 text-sm text-emerald-200">
+        <p role="status" className="rounded-md border border-exito/40 bg-exito-suave px-3 py-2 text-sm font-medium text-exito-texto">
           {mensaje}
         </p>
       )}

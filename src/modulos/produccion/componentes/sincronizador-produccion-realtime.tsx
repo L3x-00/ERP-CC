@@ -20,8 +20,8 @@ const NOMBRE_CANAL = 'sincronizacion-produccion';
 const MS_AGRUPACION_RAFAGA = 350;
 
 /**
- * Realtime solo se�ala que se debe releer el tablero. Nunca usa el payload como
- * dato de UI; la siguiente lectura vuelve a pasar por RLS, mappers y proyecci�n.
+ * Realtime solo señala que se debe releer el tablero. Nunca usa el payload como
+ * dato de UI; la siguiente lectura vuelve a pasar por RLS, mappers y proyección.
  */
 export function SincronizadorProduccionRealtime() {
   const clienteConsultas = useQueryClient();

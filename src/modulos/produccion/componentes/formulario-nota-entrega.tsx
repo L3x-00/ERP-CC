@@ -18,6 +18,8 @@ export interface PropsFormularioNotaEntrega {
   }) => Promise<ResultadoEntrega>;
 }
 
+const CLASE_ETIQUETA = 'flex flex-col gap-1 text-sm font-medium text-texto-secundario';
+
 /** Documento de despacho sin precio: la cantidad disponible siempre se vuelve a validar en la RPC. */
 export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsFormularioNotaEntrega) {
   const [recibidoPor, setRecibidoPor] = useState('');
@@ -51,30 +53,48 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
   }
 
   return (
-    <section className="rounded-base border border-foreground/10 p-4" aria-labelledby="titulo-nota-entrega" data-testid="panel-nota-entrega">
-      <h2 id="titulo-nota-entrega" className="text-sm font-medium">Nota de entrega</h2>
-      <p className="mt-1 text-xs text-foreground/60">Solo piezas producidas y pendientes de entrega. No contiene precios.</p>
-      {mensaje ? <p className="mt-3 text-sm" role="status">{mensaje}</p> : null}
-      {!orden ? <p className="mt-4 text-sm text-foreground/60">Selecciona una orden para preparar su entrega.</p> : null}
+    <section
+      className="rounded-lg border border-borde bg-superficie p-4"
+      aria-labelledby="titulo-nota-entrega"
+      data-testid="panel-nota-entrega"
+    >
+      <h2 id="titulo-nota-entrega" className="text-base font-semibold text-texto-primario">
+        Nota de entrega
+      </h2>
+      <p className="mt-1 text-sm text-texto-secundario">Solo piezas producidas y pendientes de entrega. No contiene precios.</p>
+      {mensaje ? <p className="mt-3 text-sm text-texto-primario" role="status">{mensaje}</p> : null}
+      {!orden ? <p className="mt-4 text-sm text-texto-secundario">Selecciona una orden para preparar su entrega.</p> : null}
       {orden ? (
         <form className="mt-4 flex flex-col gap-3" onSubmit={enviar} data-testid="formulario-nota-entrega">
-          <p className="text-sm font-medium">{orden.folio}</p>
-          <label className="flex flex-col gap-1 text-xs">
+          <p className="font-mono text-base font-semibold text-texto-primario">{orden.folio}</p>
+          <label className={CLASE_ETIQUETA}>
             Recibido por
-            <Input minLength={3} value={recibidoPor} onChange={(evento) => setRecibidoPor(evento.target.value)} required />
+            <Input
+              className="min-h-11"
+              minLength={3}
+              value={recibidoPor}
+              onChange={(evento) => setRecibidoPor(evento.target.value)}
+              required
+            />
           </label>
-          <label className="flex flex-col gap-1 text-xs">
+          <label className={CLASE_ETIQUETA}>
             URL de firma del cliente (opcional)
-            <Input type="url" value={firmaClienteUrl} onChange={(evento) => setFirmaClienteUrl(evento.target.value)} />
+            <Input
+              className="min-h-11"
+              type="url"
+              value={firmaClienteUrl}
+              onChange={(evento) => setFirmaClienteUrl(evento.target.value)}
+            />
           </label>
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-xs font-medium">Cantidades a entregar</legend>
+            <legend className="text-sm font-medium text-texto-secundario">Cantidades a entregar</legend>
             {orden.partidas.map((partida) => {
               const disponible = Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0);
               return (
-                <label key={partida.id} className="grid grid-cols-[1fr_7rem] items-center gap-2 text-xs">
-                  <span>{partida.codigoPieza} <span className="text-foreground/60">({disponible} disponibles)</span></span>
+                <label key={partida.id} className="grid grid-cols-[1fr_7rem] items-center gap-2 text-sm">
+                  <span>{partida.codigoPieza} <span className="text-texto-secundario">({disponible} disponibles)</span></span>
                   <Input
+                    className="min-h-11"
                     aria-label={`Cantidad entregada ${partida.codigoPieza}`}
                     disabled={disponible <= 0}
                     max={disponible}
@@ -88,7 +108,7 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
               );
             })}
           </fieldset>
-          <Button type="submit" disabled={procesando} data-testid="generar-nota-entrega">Generar nota de entrega</Button>
+          <Button type="submit" tamano="lg" disabled={procesando} data-testid="generar-nota-entrega">Generar nota de entrega</Button>
         </form>
       ) : null}
     </section>

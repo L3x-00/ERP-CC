@@ -8,7 +8,7 @@ import { TecladoPin } from '@/modulos/autenticacion/componentes/teclado-pin';
  */
 export default function PaginaOperador() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-zinc-950 p-6 text-zinc-50">
+    <main className="dark flex min-h-screen flex-col items-center justify-center gap-8 bg-fondo p-6 text-texto-primario">
       <h1 className="text-2xl font-bold">Acceso Operador</h1>
       <TecladoPin />
     </main>

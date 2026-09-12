@@ -20,9 +20,9 @@ export default async function PaginaProduccion() {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-produccion">
       <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">ProducciÃ³n y entregas</h1>
-        <p className="text-sm text-foreground/70">
-          Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la pÃ¡gina.
+        <h1 className="text-2xl font-bold text-texto-primario">Producción y entregas</h1>
+        <p className="text-sm text-texto-secundario">
+          Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la página.
         </p>
       </header>
       <OperacionProduccion datosIniciales={datosIniciales} operadorId={operador?.id ?? null} />

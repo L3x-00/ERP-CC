@@ -69,7 +69,7 @@ export function TecladoPin() {
   }
 
   const claseBotonDigito =
-    'h-20 rounded-xl bg-zinc-800 text-3xl font-semibold text-zinc-50 transition-colors active:bg-zinc-700 disabled:opacity-40';
+    'h-20 rounded-xl bg-superficie-2 text-3xl font-semibold text-texto-primario transition-colors active:bg-borde disabled:opacity-40';
 
   return (
     <div
@@ -79,17 +79,17 @@ export function TecladoPin() {
     >
       <div
         aria-label="PIN ingresado"
-        className="flex h-14 w-full items-center justify-center rounded-xl bg-zinc-900 text-3xl tracking-[0.5em] text-zinc-50"
+        className="flex h-14 w-full items-center justify-center rounded-xl bg-superficie text-3xl tracking-[0.5em] text-texto-primario"
       >
         {pin.length > 0 ? '●'.repeat(pin.length) : (
-          <span className="text-base tracking-normal text-zinc-500">
+          <span className="text-base tracking-normal text-texto-tenue">
             Ingresa tu PIN
           </span>
         )}
       </div>
 
       {error !== null && (
-        <p role="alert" className="text-sm text-red-400">
+        <p role="alert" className="text-sm text-peligro">
           {error}
         </p>
       )}
@@ -111,7 +111,7 @@ export function TecladoPin() {
           type="button"
           disabled={validando || pin.length === 0}
           onClick={borrarDigito}
-          className="h-20 rounded-xl bg-zinc-800 text-xl font-semibold text-zinc-300 transition-colors active:bg-zinc-700 disabled:opacity-40"
+          className="h-20 rounded-xl bg-superficie-2 text-xl font-semibold text-texto-secundario transition-colors active:bg-borde disabled:opacity-40"
           aria-label="Borrar último dígito"
         >
           DEL
@@ -130,7 +130,7 @@ export function TecladoPin() {
           type="button"
           disabled={validando || pin.length < PIN_LONGITUD_MINIMA}
           onClick={confirmar}
-          className="h-20 rounded-xl bg-primario text-xl font-bold text-white transition-opacity active:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-20 rounded-xl bg-acento text-xl font-bold text-white transition-opacity active:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Confirmar PIN"
         >
           {validando ? '…' : 'OK'}

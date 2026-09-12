@@ -134,16 +134,16 @@ export function OperacionProduccion({ datosIniciales, operadorId }: PropsOperaci
   }, [refrescar]);
 
   return (
-    <div className="flex flex-col gap-6" data-testid="operacion-produccion">
+    <div className="flex flex-col gap-6 text-texto-primario" data-testid="operacion-produccion">
       <SincronizadorProduccionRealtime />
-      <label className="flex max-w-sm flex-col gap-1 text-xs">
+      <label className="flex max-w-sm flex-col gap-1 text-sm text-texto-secundario">
         Recurso
         <Select value={recursoId ?? ''} onChange={(evento) => establecerRecurso(evento.target.value || null)}>
           <option value="">Todos los recursos</option>
           {datos.recursos.map((recurso) => <option key={recurso.id} value={recurso.id}>{recurso.codigo} · {recurso.nombre}</option>)}
         </Select>
       </label>
-      {consulta.isError ? <p className="text-sm text-red-700" role="alert">No se pudo actualizar el tablero; vuelve a intentarlo.</p> : null}
+      {consulta.isError ? <p className="text-sm font-medium text-peligro" role="alert">No se pudo actualizar el tablero; vuelve a intentarlo.</p> : null}
       <KanbanProduccion
         ordenes={datos.ordenes}
         ordenSeleccionadaId={ordenSeleccionadaId}

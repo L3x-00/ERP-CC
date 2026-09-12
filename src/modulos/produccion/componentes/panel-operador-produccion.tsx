@@ -34,6 +34,8 @@ const ETIQUETAS_MOTIVO: Record<MotivoPausaSesion, string> = {
   otro: 'Otro',
 };
 
+const CLASE_ETIQUETA = 'flex flex-col gap-1 text-sm font-medium text-texto-secundario';
+
 /** Panel rápido: el navegador solicita acciones, PostgreSQL confirma cada transición. */
 export function PanelOperadorProduccion({
   orden,
@@ -90,62 +92,102 @@ export function PanelOperadorProduccion({
   }
 
   return (
-    <section className="rounded-base border border-foreground/10 p-4" aria-labelledby="titulo-panel-operador" data-testid="panel-operador-produccion">
-      <h2 id="titulo-panel-operador" className="text-sm font-medium">Panel de operador</h2>
-      <p className="mt-1 text-xs text-foreground/60">
+    <section
+      className="rounded-lg border border-borde bg-superficie p-4"
+      aria-labelledby="titulo-panel-operador"
+      data-testid="panel-operador-produccion"
+    >
+      <h2 id="titulo-panel-operador" className="text-base font-semibold text-texto-primario">
+        Panel de operador
+      </h2>
+      <p className="mt-1 text-sm text-texto-secundario">
         {operadorDisponible
           ? 'La identidad de piso está confirmada por sesión HMAC.'
           : 'Ingresa por /operador con tu PIN antes de iniciar o cerrar una sesión.'}
       </p>
-      {mensaje ? <p className="mt-3 text-sm" role="status">{mensaje}</p> : null}
+      {mensaje ? <p className="mt-3 text-sm text-texto-primario" role="status">{mensaje}</p> : null}
 
       {sesionActiva ? (
         <form className="mt-4 flex flex-col gap-3" onSubmit={cerrar}>
-          <p className="text-sm">Sesión activa en la orden seleccionada.</p>
-          <label className="flex flex-col gap-1 text-xs">
+          <p className="text-sm text-texto-secundario">Sesión activa en la orden seleccionada.</p>
+          <label className={CLASE_ETIQUETA}>
             Piezas producidas ahora
-            <Input min="0" step="0.001" type="number" value={piezasProducidas} onChange={(evento) => setPiezasProducidas(evento.target.value)} required />
+            <Input
+              className="min-h-11"
+              min="0"
+              step="0.001"
+              type="number"
+              value={piezasProducidas}
+              onChange={(evento) => setPiezasProducidas(evento.target.value)}
+              required
+            />
           </label>
-          <label className="flex flex-col gap-1 text-xs">
+          <label className={CLASE_ETIQUETA}>
             Resultado
-            <Select value={estadoDestino} onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}>
+            <Select
+              className="min-h-11"
+              value={estadoDestino}
+              onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}
+            >
               <option value="finalizada">Finalizar sesión</option>
               <option value="pausada">Pausar sesión</option>
             </Select>
           </label>
           {estadoDestino === 'pausada' ? (
-            <label className="flex flex-col gap-1 text-xs">
+            <label className={CLASE_ETIQUETA}>
               Motivo de pausa
-              <Select value={motivoPausa} onChange={(evento) => setMotivoPausa(evento.target.value as MotivoPausaSesion)}>
+              <Select
+                className="min-h-11"
+                value={motivoPausa}
+                onChange={(evento) => setMotivoPausa(evento.target.value as MotivoPausaSesion)}
+              >
                 {MOTIVOS_PAUSA_SESION.map((motivo) => <option key={motivo} value={motivo}>{ETIQUETAS_MOTIVO[motivo]}</option>)}
               </Select>
             </label>
           ) : null}
-          <label className="flex flex-col gap-1 text-xs">
+          <label className={CLASE_ETIQUETA}>
             Notas operativas
-            <Textarea maxLength={1000} value={notas} onChange={(evento) => setNotas(evento.target.value)} />
+            <Textarea
+              className="min-h-11"
+              maxLength={1000}
+              value={notas}
+              onChange={(evento) => setNotas(evento.target.value)}
+            />
           </label>
-          <label className="flex flex-col gap-1 text-xs">
+          <label className={CLASE_ETIQUETA}>
             Confirmar PIN
-            <Input inputMode="numeric" maxLength={6} pattern="[0-9]{4,6}" type="password" value={pinConfirmacion} onChange={(evento) => setPinConfirmacion(evento.target.value)} required />
+            <Input
+              className="min-h-11"
+              inputMode="numeric"
+              maxLength={6}
+              pattern="[0-9]{4,6}"
+              type="password"
+              value={pinConfirmacion}
+              onChange={(evento) => setPinConfirmacion(evento.target.value)}
+              required
+            />
           </label>
-          <Button type="submit" disabled={procesando || !operadorDisponible} data-testid="cerrar-sesion-produccion">
+          <Button type="submit" tamano="lg" disabled={procesando || !operadorDisponible} data-testid="cerrar-sesion-produccion">
             {estadoDestino === 'pausada' ? 'Pausar sesión' : 'Finalizar sesión'}
           </Button>
         </form>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
-          {!orden ? <p className="text-sm text-foreground/60">Selecciona una orden del Kanban.</p> : null}
-          {orden && preparaciones.length === 0 ? <p className="text-sm text-foreground/60">La orden no tiene una programación en preparación disponible.</p> : null}
+          {!orden ? <p className="text-sm text-texto-secundario">Selecciona una orden del Kanban.</p> : null}
+          {orden && preparaciones.length === 0 ? <p className="text-sm text-texto-secundario">La orden no tiene una programación en preparación disponible.</p> : null}
           {preparaciones.length > 0 ? (
             <>
-              <label className="flex flex-col gap-1 text-xs">
+              <label className={CLASE_ETIQUETA}>
                 Partida preparada
-                <Select value={seleccion?.programacionId ?? ''} onChange={(evento) => setProgramacionId(evento.target.value)}>
+                <Select
+                  className="min-h-11"
+                  value={seleccion?.programacionId ?? ''}
+                  onChange={(evento) => setProgramacionId(evento.target.value)}
+                >
                   {preparaciones.map((item) => <option key={item.programacionId} value={item.programacionId}>{item.etiqueta}</option>)}
                 </Select>
               </label>
-              <Button type="button" disabled={procesando || !operadorDisponible} onClick={() => void iniciar()} data-testid="iniciar-sesion-produccion">
+              <Button type="button" tamano="lg" disabled={procesando || !operadorDisponible} onClick={() => void iniciar()} data-testid="iniciar-sesion-produccion">
                 Iniciar sesión
               </Button>
             </>
