@@ -9,7 +9,7 @@ import type { SesionOperador } from '@/modulos/autenticacion/tipos/indice';
 // módulo bajo prueba se carga con `import()` dinámico (no hoisteable):
 // así el test funciona sin importar si `sesion.ts` lee `process.env` al
 // cargar el módulo o de forma diferida dentro de cada función.
-process.env.SECRETO_SESION_OPERADOR = 'secreto-pruebas';
+process.env.SECRETO_SESION_OPERADOR = 'secreto-de-pruebas-con-longitud-suficiente-32+';
 
 const { deserializarSesionOperador, serializarSesionOperador, sesionOperadorExpirada } =
   await import('@/nucleo/autenticacion/sesion');

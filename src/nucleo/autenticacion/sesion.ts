@@ -1,14 +1,20 @@
 import type { SesionOperador } from '@/modulos/autenticacion/tipos/indice';
+import { MAXIMO_SESION_OPERADOR_MINUTOS } from './constantes';
 
 /**
  * Sesión de operador de piso: cookie httpOnly firmada con HMAC-SHA256.
  * Usa Web Crypto API — compatible con Edge (middleware) y Node (Server Actions).
  */
 
+/** Longitud mínima del secreto HMAC: 32 caracteres/bytes de entropía efectiva. */
+const LONGITUD_MINIMA_SECRETO = 32;
+
 function obtenerSecreto(): string {
   const secreto = process.env.SECRETO_SESION_OPERADOR;
-  if (!secreto) {
-    throw new Error('Falta variable de entorno SECRETO_SESION_OPERADOR');
+  if (!secreto || secreto.length < LONGITUD_MINIMA_SECRETO) {
+    throw new Error(
+      'Falta variable de entorno SECRETO_SESION_OPERADOR o no alcanza la longitud mínima requerida',
+    );
   }
   return secreto;
 }
@@ -77,7 +83,7 @@ export async function deserializarSesionOperador(
       new TextDecoder().decode(desdeBase64Url(payload)),
     ) as SesionOperador;
 
-    if (!sesion.usuarioId || !sesion.ultimaActividadEn || !sesion.timeoutMinutos) {
+    if (!sesion.usuarioId || !sesion.iniciadaEn || !sesion.ultimaActividadEn || !sesion.timeoutMinutos) {
       return null;
     }
 
@@ -94,4 +100,20 @@ export function sesionOperadorExpirada(sesion: SesionOperador, ahora: Date = new
   const ultimaActividad = new Date(sesion.ultimaActividadEn).getTime();
   const limite = ultimaActividad + sesion.timeoutMinutos * 60 * 1000;
   return ahora.getTime() > limite;
+}
+
+/**
+ * Verifica la vigencia absoluta de la sesión desde `iniciadaEn`, sin importar
+ * cuántas veces se haya renovado por actividad. Evita heredar la sesión de piso
+ * entre turnos.
+ */
+export function sesionOperadorVencidaAbsoluta(
+  sesion: SesionOperador,
+  ahora: Date = new Date(),
+): boolean {
+  const inicio = new Date(sesion.iniciadaEn).getTime();
+  if (!Number.isFinite(inicio)) {
+    return true;
+  }
+  return ahora.getTime() > inicio + MAXIMO_SESION_OPERADOR_MINUTOS * 60 * 1000;
 }

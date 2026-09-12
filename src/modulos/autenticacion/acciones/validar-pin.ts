@@ -7,7 +7,7 @@ import type {
   UsuarioAutenticado,
 } from '@/modulos/autenticacion/tipos/indice';
 import { esquemaValidarPin } from '@/modulos/autenticacion/validaciones/esquemas-pin';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarAccesoNoValido, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import {
   COOKIE_SESION_OPERADOR,
   TIMEOUT_SESION_OPERADOR_MINUTOS,
@@ -51,11 +51,18 @@ export async function validarPinAccion(
       return { exito: false, error: MENSAJE_BLOQUEADO };
     }
 
-    const operador = await buscarOperadorPorPin(resultado.data.pin);
-    if (!operador) {
+    const busqueda = await buscarOperadorPorPin(resultado.data.pin);
+    if (busqueda.estado !== 'unico') {
       await registrarIntentoFallido(identificador, 'pin');
+      console.error('[AUTENTICACION] Acceso de piso rechazado:', busqueda.estado);
+      await registrarAccesoNoValido(
+        busqueda.estado === 'duplicado' ? 'acceso_pin_duplicado' : 'acceso_pin_invalido',
+        identificador,
+        { contexto: 'pin' },
+      );
       return { exito: false, error: MENSAJE_PIN_INVALIDO };
     }
+    const operador = busqueda.usuario;
 
     await limpiarIntentos(identificador, 'pin');
 

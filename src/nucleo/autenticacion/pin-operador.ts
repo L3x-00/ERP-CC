@@ -50,6 +50,15 @@ export async function confirmarPinDeOperador(operadorId: string, pin: string): P
 }
 
 /**
+ * Resultado discriminado de la búsqueda por PIN. `duplicado` es un fallo
+ * cerrado explícito: un PIN compartido jamás autentica.
+ */
+export type ResultadoBusquedaPin =
+  | { estado: 'unico'; usuario: Usuario }
+  | { estado: 'duplicado' }
+  | { estado: 'sin_coincidencia' };
+
+/**
  * Busca al operador cuyo PIN coincide con el ingresado.
  *
  * El PIN identifica al operador (no hay nombre de usuario en el piso),
@@ -58,9 +67,10 @@ export async function confirmarPinDeOperador(operadorId: string, pin: string): P
  * aún no existe sesión Supabase. Solo debe llamarse desde el servidor.
  *
  * @param pin PIN en texto plano (4 a 6 dígitos).
- * @returns El usuario si el PIN identifica a exactamente un operador, o `null`.
+ * @returns Resultado discriminado; `unico` solo si el PIN identifica a un
+ * único operador activo.
  */
-export async function buscarOperadorPorPin(pin: string): Promise<Usuario | null> {
+export async function buscarOperadorPorPin(pin: string): Promise<ResultadoBusquedaPin> {
   const cliente = crearClienteSupabaseAdmin();
 
   const { data, error } = await cliente
@@ -71,7 +81,7 @@ export async function buscarOperadorPorPin(pin: string): Promise<Usuario | null>
     .not('pin_operador', 'is', null);
 
   if (error || !data) {
-    return null;
+    return { estado: 'sin_coincidencia' };
   }
 
   let coincidencia: Usuario | null = null;
@@ -79,10 +89,12 @@ export async function buscarOperadorPorPin(pin: string): Promise<Usuario | null>
     if (fila.pin_operador && (await verificarPin(pin, fila.pin_operador))) {
       // Un PIN compartido no puede autenticar a un operador de manera segura.
       // Fallar cerrado evita que el orden de lectura decida una identidad de piso.
-      if (coincidencia !== null) return null;
+      if (coincidencia !== null) return { estado: 'duplicado' };
       coincidencia = filaAUsuario(fila);
     }
   }
 
-  return coincidencia;
+  return coincidencia === null
+    ? { estado: 'sin_coincidencia' }
+    : { estado: 'unico', usuario: coincidencia };
 }

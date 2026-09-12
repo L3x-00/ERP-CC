@@ -12,11 +12,29 @@ export type ContextoIntento = 'pin' | 'password';
  */
 export async function obtenerIdentificadorSolicitante(): Promise<string> {
   const listaCabeceras = await headers();
+
+  // Cabeceras fijadas por la plataforma (Vercel/edge): no son controlables por
+  // el cliente y son la fuente preferida para llavear el rate limit.
+  const verificadaPorPlataforma =
+    listaCabeceras.get('x-vercel-forwarded-for') ?? listaCabeceras.get('x-real-ip');
+  if (verificadaPorPlataforma) {
+    const candidata = verificadaPorPlataforma.split(',')[0]?.trim();
+    if (candidata) return candidata;
+  }
+
+  // En proxies encadenados el último salto es el más cercano al servidor; el
+  // primer valor de XFF lo puede inyectar el cliente y no sirve como llave.
   const reenviadaPor = listaCabeceras.get('x-forwarded-for');
   if (reenviadaPor) {
-    return reenviadaPor.split(',')[0].trim();
+    const saltos = reenviadaPor
+      .split(',')
+      .map((salto) => salto.trim())
+      .filter((salto) => salto !== '');
+    const ultimo = saltos[saltos.length - 1];
+    if (ultimo) return ultimo;
   }
-  return listaCabeceras.get('x-real-ip') ?? 'desconocido';
+
+  return 'desconocido';
 }
 
 /**

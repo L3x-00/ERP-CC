@@ -47,3 +47,37 @@ export async function registrarLog(
     console.error('[AUDITORIA] Fallo inesperado al registrar log:', error);
   }
 }
+
+/**
+ * Registra un acceso rechazado sin usuario identificado (PIN inválido o
+ * duplicado, intento previo a la autenticación). Igual que `registrarLog`,
+ * NUNCA lanza: la auditoría no puede tumbar el flujo de autenticación.
+ *
+ * @param accion Código estable del rechazo (p. ej. `acceso_pin_duplicado`).
+ * @param recursoId Identificador no sensible del origen (IP del solicitante).
+ * @param detalles Contexto adicional opcional.
+ */
+export async function registrarAccesoNoValido(
+  accion: string,
+  recursoId: string,
+  detalles?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const cliente = crearClienteSupabaseAdmin();
+    const { error } = await cliente.from('logs').insert({
+      usuario_id: null,
+      nombre_usuario: 'acceso_no_identificado',
+      rol: 'operador',
+      accion,
+      modulo: 'autenticacion',
+      recurso_id: recursoId,
+      detalles: (detalles ?? null) as Json | null,
+    });
+
+    if (error) {
+      console.error('[AUDITORIA] Error al insertar acceso no válido:', error.message);
+    }
+  } catch (error) {
+    console.error('[AUDITORIA] Fallo inesperado al registrar acceso no válido:', error);
+  }
+}

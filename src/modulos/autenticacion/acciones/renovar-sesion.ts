@@ -3,11 +3,15 @@
 import { cookies } from 'next/headers';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import type { SesionOperador } from '@/modulos/autenticacion/tipos/indice';
-import { COOKIE_SESION_OPERADOR } from '@/nucleo/autenticacion/constantes';
+import {
+  COOKIE_SESION_OPERADOR,
+  MAXIMO_SESION_OPERADOR_MINUTOS,
+} from '@/nucleo/autenticacion/constantes';
 import {
   deserializarSesionOperador,
   serializarSesionOperador,
   sesionOperadorExpirada,
+  sesionOperadorVencidaAbsoluta,
 } from '@/nucleo/autenticacion/sesion';
 
 /**
@@ -33,7 +37,7 @@ export async function renovarSesionAccion(): Promise<
     }
 
     const sesion = await deserializarSesionOperador(valorCookie);
-    if (!sesion || sesionOperadorExpirada(sesion)) {
+    if (!sesion || sesionOperadorExpirada(sesion) || sesionOperadorVencidaAbsoluta(sesion)) {
       almacenCookies.delete(COOKIE_SESION_OPERADOR);
       return { exito: false, error: 'Sesión expirada' };
     }
@@ -43,18 +47,26 @@ export async function renovarSesionAccion(): Promise<
       ultimaActividadEn: new Date().toISOString(),
     };
 
+    // La cookie nunca puede vivir más allá de la vigencia absoluta de la sesión.
+    const inicioMs = new Date(sesion.iniciadaEn).getTime();
+    const restanteAbsolutoSegundos = Math.max(
+      0,
+      Math.floor((inicioMs + MAXIMO_SESION_OPERADOR_MINUTOS * 60 * 1000 - Date.now()) / 1000),
+    );
+    const maxAge = Math.min(sesionRenovada.timeoutMinutos * 60, restanteAbsolutoSegundos);
+
     const nuevoValor = await serializarSesionOperador(sesionRenovada);
     almacenCookies.set(COOKIE_SESION_OPERADOR, nuevoValor, {
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: sesionRenovada.timeoutMinutos * 60,
+      maxAge,
     });
 
     return {
       exito: true,
-      datos: { segundosRestantes: sesionRenovada.timeoutMinutos * 60 },
+      datos: { segundosRestantes: maxAge },
     };
   } catch (errorInesperado) {
     console.error('[AUTENTICACION] Error inesperado al renovar sesión:', errorInesperado);

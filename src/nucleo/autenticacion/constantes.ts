@@ -1,6 +1,13 @@
 /** Minutos de inactividad antes de cerrar sesión de operador. */
 export const TIMEOUT_SESION_OPERADOR_MINUTOS = 15;
 
+/**
+ * Vigencia máxima absoluta de una sesión de operador, contada desde
+ * `iniciadaEn`. Aunque la sesión se renueve cada 15 minutos, no puede
+ * heredarse entre turnos ni prolongarse indefinidamente.
+ */
+export const MAXIMO_SESION_OPERADOR_MINUTOS = 8 * 60;
+
 /** Horas de vigencia de sesión admin/ventas/gerente. */
 export const TIMEOUT_SESION_ADMIN_HORAS = 24;
 
