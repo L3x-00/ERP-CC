@@ -39,6 +39,7 @@ vi.mock('@/modulos/comentarios/servicios/indice', () => ({
   obtenerUsuariosMencionables: (...args: unknown[]) => usuariosMencionablesMock(...args),
   insertarComentario: (...args: unknown[]) => insertarComentarioMock(...args),
   extraerMencionesYSanitizar: (...args: unknown[]) => extraerMencionesMock(...args),
+  notificarMencionesPorCorreo: async () => ({ enviados: 0, fallidos: 0 }),
   obtenerComentarioPorId: (...args: unknown[]) => obtenerComentarioMock(...args),
   eliminarComentario: (...args: unknown[]) => eliminarComentarioMock(...args),
   marcarNotificacionComoLeida: (...args: unknown[]) => marcarNotificacionMock(...args),

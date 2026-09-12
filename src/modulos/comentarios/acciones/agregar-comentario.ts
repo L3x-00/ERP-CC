@@ -6,6 +6,7 @@ import {
   extraerMencionesYSanitizar,
   insertarComentario,
   mensajeErrorComentarios,
+  notificarMencionesPorCorreo,
   obtenerUsuariosMencionables,
   usuarioPuedeVerEntidadComentario,
 } from '@/modulos/comentarios/servicios/indice';
@@ -62,6 +63,21 @@ export async function agregarComentarioAccion(
       entidadId: comentario.entidadId,
       menciones: mencionesJson.length,
     });
+    // El correo es un extra: si falla, el comentario ya quedó creado y las
+    // notificaciones internas ya las generó el trigger de Postgres.
+    try {
+      const resumenCorreo = await notificarMencionesPorCorreo(admin, {
+        autorId: usuario.id,
+        autorNombre: usuario.nombreCompleto,
+        comentario,
+        mencionesIds: mencionesJson,
+      });
+      if (resumenCorreo.fallidos > 0) {
+        console.error('[COMENTARIOS] Correos de mención no entregados:', resumenCorreo.fallidos);
+      }
+    } catch (errorCorreo) {
+      console.error('[COMENTARIOS] Error al notificar menciones por correo:', errorCorreo);
+    }
     return { exito: true, datos: comentario };
   } catch (error) {
     console.error('[COMENTARIOS] Error al agregar comentario:', error);

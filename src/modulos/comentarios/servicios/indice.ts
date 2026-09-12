@@ -18,3 +18,12 @@ export {
   type ClienteComentarios,
   type CodigoErrorComentarios,
 } from './comentarios-servicio';
+export {
+  construirCorreoMencion,
+  construirEnlaceEntidad,
+  notificarMencionesPorCorreo,
+  resolverSitioPublico,
+  type DatosMencionCorreo,
+  type OpcionesNotificacionCorreo,
+  type ResumenNotificacionCorreo,
+} from './notificar-menciones-correo';
