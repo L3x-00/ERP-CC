@@ -67,7 +67,7 @@ export async function agregarComentarioAccion(
     console.error('[COMENTARIOS] Error al agregar comentario:', error);
     await registrarLog(usuario, 'agregar_comentario_rechazado', 'comentarios', analisis.data.entidadId, {
       entidadTipo: analisis.data.entidadTipo,
-      codigo: error instanceof Error ? error.message.slice(0, 160) : 'error_no_identificado',
+      codigo: 'error_servicio_comentarios',
     });
     return { exito: false, error: mensajeErrorComentarios(error) };
   }

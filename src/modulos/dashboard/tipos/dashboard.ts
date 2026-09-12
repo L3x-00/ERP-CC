@@ -198,7 +198,12 @@ function texto(valor: unknown, nombre: string): string {
 }
 
 function numero(valor: unknown, nombre: string): number {
-  const convertido = typeof valor === 'number' ? valor : typeof valor === 'string' ? Number(valor) : NaN;
+  const convertido =
+    typeof valor === 'number'
+      ? valor
+      : typeof valor === 'string' && valor.trim() !== ''
+        ? Number(valor)
+        : NaN;
   if (!Number.isFinite(convertido)) throw new Error(`Número inválido en métricas: ${nombre}`);
   return convertido;
 }

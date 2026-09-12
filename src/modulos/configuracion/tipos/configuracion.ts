@@ -145,7 +145,12 @@ function textoOpcional(valor: unknown): string | null {
 }
 
 function numeroSeguro(valor: unknown, respaldo: number, minimo = 0): number {
-  const numero = typeof valor === 'number' ? valor : typeof valor === 'string' ? Number(valor) : NaN;
+  const numero =
+    typeof valor === 'number'
+      ? valor
+      : typeof valor === 'string' && valor.trim() !== ''
+        ? Number(valor)
+        : NaN;
   return Number.isFinite(numero) && numero >= minimo ? numero : respaldo;
 }
 

@@ -51,7 +51,7 @@ export async function eliminarComentarioAccion(entrada: unknown): Promise<Respue
   } catch (error) {
     console.error('[COMENTARIOS] Error al eliminar comentario:', error);
     await registrarLog(usuario, 'eliminar_comentario_rechazado', 'comentarios', analisis.data.comentarioId, {
-      codigo: error instanceof Error ? error.message.slice(0, 160) : 'error_no_identificado',
+      codigo: 'error_servicio_comentarios',
     });
     return { exito: false, error: mensajeErrorComentarios(error) };
   }

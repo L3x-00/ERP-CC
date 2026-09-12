@@ -117,3 +117,9 @@ temp/
 .kimi-code
 AGENTS.md
 CLAUDE.md
+
+# ============================================================================
+# HERRAMIENTAS LOCALES (no forman parte del producto)
+# ============================================================================
+.opencode/
+opencode-context-usage/

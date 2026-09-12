@@ -17,10 +17,10 @@ export async function ejecutarAccionConfiguracion<T>(
     await registrarLog(usuario, accion, 'configuracion', recursoId, detalles);
     return { exito: true, datos };
   } catch (error) {
-    const detalleTecnico = error instanceof Error ? error.message : 'error_no_identificado';
+    // Código estable para correlación; el detalle crudo solo va a la consola.
     console.error(`[CONFIGURACION] ${accion}:`, error);
     await registrarLog(usuario, `${accion}_rechazada`, 'configuracion', recursoId, {
-      codigo: detalleTecnico.slice(0, 180),
+      codigo: 'error_servicio_configuracion',
     });
     return { exito: false, error: 'No se pudo guardar la configuración' };
   }
