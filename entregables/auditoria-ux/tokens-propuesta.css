@@ -1,0 +1,200 @@
+/* =============================================================================
+   PROPUESTA — Sistema de diseño ORCA MFG ERP v2
+   Auditoría UX/UI · grises pastel suaves · modo claro (oficina) + oscuro (piso)
+   -----------------------------------------------------------------------------
+   ESTADO: PROPUESTA. No integrado a src/. Codex debe registrar el encargo antes
+   de mover esto a src/estilos/globals.css.
+
+   ADAPTACIÓN AL STACK REAL (difiere del prompt de auditoría):
+   - Tailwind v4: la config vive en globals.css vía @theme inline. NO hay
+     tailwind.config.ts. Cada token @theme genera utilidades (bg-*, text-*, etc.).
+   - Dark mode: next-themes attribute="class" + @custom-variant dark. Los valores
+     crudos se redefinen en .dark; como @theme inline referencia var(--x), las
+     utilidades cambian solas al alternar tema. El piso fuerza .dark en su root.
+   - Nombres de token en ESPAÑOL (convención no negociable del repo). Mapa al
+     prompt (inglés) al pie de cada bloque.
+   - Se conservan --primario/--secundario/--background/--foreground ya usados;
+     los nuevos tokens conviven sin romper lo existente.
+
+   INTEGRACIÓN (cuando Codex lo autorice): pegar los bloques :root, .dark y las
+   líneas nuevas dentro de @theme inline de src/estilos/globals.css.
+   ============================================================================= */
+
+/* ----------------------------------------------------------------------------
+   1. VALORES CRUDOS — modo claro (oficina). Fuente de verdad de los colores.
+   ---------------------------------------------------------------------------- */
+:root {
+  /* Superficies (surface/background del prompt) — nunca blanco puro de fondo */
+  --fondo:             #F8F9FA;   /* app background */
+  --superficie:        #FFFFFF;   /* tarjetas, modales */
+  --superficie-2:      #F1F3F5;   /* filas alternas, fondo de input */
+  --borde:             #E2E8F0;   /* border */
+  --borde-fuerte:      #CBD5E1;   /* border-strong */
+
+  /* Texto */
+  --texto-primario:    #1E293B;   /* text-primary */
+  --texto-secundario:  #64748B;   /* text-secondary, placeholders */
+  --texto-tenue:       #94A3B8;   /* text-muted, etiquetas baja jerarquía */
+
+  /* Acento — azul corporativo suave */
+  --acento:            #3B82F6;   /* accent */
+  --acento-suave:      #EFF6FF;   /* accent-soft (badges, highlights) */
+  --acento-hover:      #2563EB;   /* accent-hover */
+  --acento-anillo:     rgba(59, 130, 246, 0.15); /* focus ring 3px */
+
+  /* Semánticos — estados del negocio (color + fondo suave + texto legible) */
+  --exito:             #10B981;   --exito-suave:       #ECFDF5;   --exito-texto:       #065F46;
+  --advertencia:       #F59E0B;   --advertencia-suave: #FFFBEB;   --advertencia-texto: #92400E;
+  --peligro:           #EF4444;   --peligro-suave:     #FEF2F2;   --peligro-texto:     #991B1B;
+  --info:              #6366F1;   --info-suave:        #EEF2FF;   --info-texto:        #3730A3;
+
+  /* Tiers de cliente (metales) — para BadgeTier */
+  --tier-bronce:       #A97142;   --tier-bronce-suave: #F6ECE2;
+  --tier-plata:        #8A94A6;   --tier-plata-suave:  #EEF1F5;
+  --tier-oro:          #C79A2E;   --tier-oro-suave:    #FBF3DC;
+  --tier-platino:      #5B7C99;   --tier-platino-suave:#E9F0F5;
+
+  /* Radios */
+  --radio-sm:   4px;
+  --radio-md:   8px;
+  --radio-lg:   12px;
+  --radio-xl:   16px;
+  --radio-full: 9999px;
+  --radius: 0.5rem; /* se conserva el existente (8px) */
+
+  /* Espaciado — grid 8px */
+  --esp-1: 4px;  --esp-2: 8px;  --esp-3: 12px; --esp-4: 16px;
+  --esp-5: 20px; --esp-6: 24px; --esp-8: 32px; --esp-10: 40px;
+  --esp-12: 48px; --esp-16: 64px;
+
+  /* Sombras — solo funcionales */
+  --sombra-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+
+  /* Transiciones */
+  --trans-rapida: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-base:   200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --trans-lenta:  300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Alias del sistema existente re-mapeados al nuevo lenguaje */
+  --background: var(--fondo);          /* antes #ffffff (blanco puro) → #F8F9FA */
+  --foreground: var(--texto-primario);
+  --primario:   var(--acento);         /* se preserva el nombre, nuevo valor coherente */
+  --secundario: var(--exito);
+}
+
+/* ----------------------------------------------------------------------------
+   2. VALORES CRUDOS — modo oscuro (piso de taller). Solo se redefine lo que cambia.
+      El piso fuerza .dark; alto contraste para lectura a 50–80 cm con luz fuerte.
+   ---------------------------------------------------------------------------- */
+.dark {
+  --fondo:             #0F172A;   /* dark-background */
+  --superficie:        #1E293B;   /* dark-surface */
+  --superficie-2:      #334155;   /* dark-surface-2 */
+  --borde:             #475569;   /* dark-border */
+  --borde-fuerte:      #64748B;
+
+  --texto-primario:    #F1F5F9;   /* dark-text */
+  --texto-secundario:  #CBD5E1;   /* dark-text-2 */
+  --texto-tenue:       #94A3B8;
+
+  --acento:            #60A5FA;   /* +luminoso para contraste sobre fondo oscuro */
+  --acento-suave:      #1E3A5F;
+  --acento-hover:      #3B82F6;
+  --acento-anillo:     rgba(96, 165, 250, 0.35);
+
+  /* Semánticos ajustados a dark (fondos suaves oscuros, no los claros del día) */
+  --exito:             #34D399;   --exito-suave:       #064E3B;   --exito-texto:       #A7F3D0;
+  --advertencia:       #FBBF24;   --advertencia-suave: #78350F;   --advertencia-texto: #FDE68A;
+  --peligro:           #F87171;   --peligro-suave:     #7F1D1D;   --peligro-texto:     #FECACA;
+  --info:              #818CF8;   --info-suave:        #312E81;   --info-texto:        #C7D2FE;
+
+  --sombra-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+  --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+}
+
+/* ----------------------------------------------------------------------------
+   3. EXPOSICIÓN A TAILWIND v4 — genera utilidades: bg-superficie, text-texto-tenue,
+      border-borde, bg-exito-suave, rounded-lg (radio-lg), shadow-md, etc.
+      Añadir estas líneas al @theme inline existente de globals.css.
+   ---------------------------------------------------------------------------- */
+@theme inline {
+  /* Colores → utilidades bg-*/text-*/border-* */
+  --color-fondo:            var(--fondo);
+  --color-superficie:       var(--superficie);
+  --color-superficie-2:     var(--superficie-2);
+  --color-borde:            var(--borde);
+  --color-borde-fuerte:     var(--borde-fuerte);
+  --color-texto-primario:   var(--texto-primario);
+  --color-texto-secundario: var(--texto-secundario);
+  --color-texto-tenue:      var(--texto-tenue);
+
+  --color-acento:           var(--acento);
+  --color-acento-suave:     var(--acento-suave);
+  --color-acento-hover:     var(--acento-hover);
+
+  --color-exito:            var(--exito);
+  --color-exito-suave:      var(--exito-suave);
+  --color-exito-texto:      var(--exito-texto);
+  --color-advertencia:      var(--advertencia);
+  --color-advertencia-suave: var(--advertencia-suave);
+  --color-advertencia-texto: var(--advertencia-texto);
+  --color-peligro:          var(--peligro);
+  --color-peligro-suave:    var(--peligro-suave);
+  --color-peligro-texto:    var(--peligro-texto);
+  --color-info:             var(--info);
+  --color-info-suave:       var(--info-suave);
+  --color-info-texto:       var(--info-texto);
+
+  /* Radios → rounded-sm/md/lg/xl */
+  --radius-sm: var(--radio-sm);
+  --radius-md: var(--radio-md);
+  --radius-lg: var(--radio-lg);
+  --radius-xl: var(--radio-xl);
+
+  /* Sombras → shadow-sm/md/lg */
+  --shadow-sm: var(--sombra-sm);
+  --shadow-md: var(--sombra-md);
+  --shadow-lg: var(--sombra-lg);
+
+  /* Tipografía: Inter con fallback (el repo usa Geist; Inter es la pedida) */
+  --font-sans: 'Inter', var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* ----------------------------------------------------------------------------
+   4. UTILIDADES DE APOYO (opcionales) — foco accesible y punto de estado pulsante.
+   ---------------------------------------------------------------------------- */
+
+/* Anillo de foco accesible reutilizable (inputs, botones) */
+.foco-anillo:focus-visible {
+  outline: 2px solid transparent;
+  border-color: var(--acento);
+  box-shadow: 0 0 0 3px var(--acento-anillo);
+  transition: border-color var(--trans-rapida), box-shadow var(--trans-rapida);
+}
+
+/* Punto de estado pulsante para en_proceso (badge en tiempo real) */
+@keyframes pulso-estado {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.punto-en-proceso {
+  animation: pulso-estado 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Respeta prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .punto-en-proceso { animation: none; }
+}
+
+/* =============================================================================
+   MAPA prompt (inglés) → repo (español)
+   --background→--fondo · --surface→--superficie · --surface-2→--superficie-2
+   --border→--borde · --border-strong→--borde-fuerte
+   --text-primary→--texto-primario · --text-secondary→--texto-secundario · --text-muted→--texto-tenue
+   --accent→--acento · --accent-soft→--acento-suave · --accent-hover→--acento-hover
+   --success→--exito · --warning→--advertencia · --danger→--peligro · --info→--info
+   --dark-*→ overrides en .dark de los mismos tokens semánticos
+   ============================================================================= */

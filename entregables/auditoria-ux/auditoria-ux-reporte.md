@@ -1,0 +1,3276 @@
+# Auditoría UX/UI Visual — ORCA MFG ERP v2
+
+**Fecha:** 2026-09-11 · **Método:** 14 auditores paralelos (read-only) contra el sistema de diseño pastel · **Modelo:** Opus 4.8
+
+> **Gobernanza:** auditoría de solo lectura. Ningún archivo de `src/` fue modificado. Los entregables (este reporte, `tokens-propuesta.css`, `componentes-base.md`, `checklist-revision.md`) son PROPUESTAS. Codex debe registrar el encargo de implementación en `ACTIVE_TASKS.md` antes de mover cualquier cosa a `src/`.
+
+## Resumen ejecutivo — 190 hallazgos
+
+- 🔴 **Crítico visual:** 66
+- 🟡 **Inconsistencia:** 79
+- 🔵 **Mejora de experiencia:** 45
+
+| Área | 🔴 | 🟡 | 🔵 | Total |
+|------|----|----|----|-------|
+| Layout global y navegacion | 3 | 5 | 2 | 10 |
+| Primitivos UI compartidos + tokens | 5 | 4 | 4 | 13 |
+| Dashboard | 4 | 6 | 3 | 13 |
+| Pipeline / Cotizaciones | 5 | 8 | 2 | 15 |
+| Clientes | 3 | 8 | 2 | 13 |
+| Inventario | 6 | 9 | 4 | 19 |
+| Ordenes de Produccion | 5 | 6 | 4 | 15 |
+| Planeacion | 4 | 4 | 3 | 11 |
+| Produccion — Vista de Piso (DARK, tablet industrial) | 8 | 5 | 3 | 16 |
+| Cobranza | 4 | 4 | 4 | 12 |
+| Gastos | 7 | 5 | 2 | 14 |
+| Configuracion | 5 | 5 | 4 | 14 |
+| Comentarios y Notificaciones | 4 | 7 | 3 | 14 |
+| Autenticacion y Portal Cliente | 3 | 3 | 5 | 11 |
+| **TOTAL** | **66** | **79** | **45** | **190** |
+
+## Estado por área
+
+### Layout global y navegacion
+
+El chasis de navegacion global esta esencialmente sin construir. Los layouts de (panel) y (privado) son identicos byte-a-byte: un header con el nombre de la app en texto plano, campana de notificaciones e indicador de sesion, seguido de `<main>`. NO existe sidebar/barra-lateral en ningun layout ni componente compartido, pese a que el design system la exige (ancho, colapso, grupos, footer usuario, drawer movil) y a que ya existe estado Zustand huerfano (`barraLateralContraida`/`contraerBarra`/`expandirBarra` en tienda-ui.ts) que ningun componente consume. No hay navegacion entre modulos: el usuario solo puede moverse por URL directa o por los pocos `<Link>` contextuales dispersos (ficha-cliente, panel-inventario, not-found). No hay breadcrumb, busqueda ni avatar en el header. globals.css sigue con `--background:#ffffff` (blanco puro prohibido) y sin ninguno de los tokens del sistema, asi que todo el layout usa grises por opacidad (`border-foreground/10`) y colores crudos de Tailwind (`bg-zinc-950`, `bg-red-600`). Cero responsive: sin breakpoints, sin hamburguesa, sin drawer. Lo unico solido es la accesibilidad del centro de notificaciones y las guardias de sesion server-side. Base practicamente vacia para 14 modulos que dependeran de este chasis.
+
+<sub>Archivos revisados: `src/app/layout.tsx`, `src/app/(panel)/layout.tsx`, `src/app/(privado)/layout.tsx`, `src/app/(piso)/layout.tsx`, `src/app/(auth)/iniciar-sesion/page.tsx`, `src/app/(auth)/operador/page.tsx`, `src/app/page.tsx`, `src/app/not-found.tsx`, `src/app/proveedores.tsx`, `src/estilos/globals.css`, `src/estado/tienda-ui.ts`, `src/modulos/autenticacion/componentes/indicador-sesion.tsx`, `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx`</sub>
+
+### Primitivos UI compartidos + tokens
+
+El design system objetivo NO esta implementado a nivel de tokens ni de primitivos. globals.css solo define 5 variables genericas (background #ffffff blanco puro, foreground, primario/secundario en HSL, radius .5rem) y NINGUNO de los tokens del sistema (surface, surface-2, border, border-strong, text-primary/secondary/muted, accent/accent-soft/accent-hover, semanticos success/warning/danger/info + soft, escala de radios, espaciado 8px, sombras). Como no hay @theme para esos colores, utilidades como bg-surface o text-text-secondary NO existen: es imposible que ningun modulo cumpla el sistema. Los 5 primitivos shadcn presentes (badge/button/input/dialog/label) usan tokens genericos o clases crudas de la paleta Tailwind (bg-red-100, bg-green-100), no los del sistema. NO existe BadgeEstado (ningun modulo lo tiene; renderean colores de estado a mano). NO existen los primitivos Table, Card, Select(Radix), Textarea-shadcn, Sheet, Toast, Tooltip, Skeleton, EmptyState: las carpetas diseno/, formularios/ y retroalimentacion/ contienen solo .gitkeep. Lo correcto: Dialog sobre Radix (foco atrapado, Esc, aria-label en cierre) y Button con focus-visible + disabled bien tratados; convenciones (espanol, cn, tipado, sin any) impecables. Se requiere primero cablear la capa de tokens completa en globals.css y luego reconstruir cada primitivo contra ella.
+
+<sub>Archivos revisados: `src/estilos/globals.css`, `src/compartido/componentes/ui/badge.tsx`, `src/compartido/componentes/ui/button.tsx`, `src/compartido/componentes/ui/input.tsx`, `src/compartido/componentes/ui/label.tsx`, `src/compartido/componentes/ui/dialog.tsx`, `src/compartido/componentes/diseno/.gitkeep`, `src/compartido/componentes/formularios/.gitkeep`, `src/compartido/componentes/retroalimentacion/.gitkeep`, `src/compartido/utilidades/cn.ts`, `src/app/layout.tsx`</sub>
+
+### Dashboard
+
+El Dashboard está funcionalmente sólido (adaptación por rol server-side, realtime con debounce, KPIs accesibles con flecha+texto, grid responsive), pero visualmente NO usa el sistema de diseño objetivo: ninguno de los tokens (surface, surface-2, border, border-strong, text-secondary/muted, accent, semánticos success/warning/danger/info) existe en globals.css, que solo define --background #ffffff (blanco puro), --foreground, --primario, --secundario y --radius. Todos los widgets pintan bg-background (blanco) sobre body blanco, separados solo por border-foreground/15 muy tenue, y usan grises por opacidad (text-foreground/65, /50) en vez de los tokens. Faltan piezas esperadas del alcance: no hay skeleton por widget ni estado de carga estructural (no existe loading.tsx; el refetch solo deshabilita el filtro), no hay gráficas (pipeline y aging se muestran como cifras), las tendencias no llevan color y los errores de red no son banner+reintento sino texto rojo crudo. src/modulos/tablero/ está vacío (.gitkeep) y (panel)/tablero/page.tsx es solo un redirect a /dashboard, por lo que no hay UI que auditar ahí; toda la superficie real vive en /dashboard.
+
+<sub>Archivos revisados: `src/app/(privado)/dashboard/page.tsx`, `src/app/(panel)/tablero/page.tsx`, `src/modulos/dashboard/componentes/operacion-dashboard.tsx`, `src/modulos/dashboard/componentes/widget-metrica-kpi.tsx`, `src/modulos/dashboard/componentes/seccion-financiera.tsx`, `src/modulos/dashboard/componentes/seccion-ventas-pipeline.tsx`, `src/modulos/dashboard/componentes/seccion-produccion-alertas.tsx`, `src/modulos/dashboard/componentes/filtro-periodo-global.tsx`, `src/modulos/dashboard/componentes/sincronizador-dashboard-realtime.tsx`, `src/modulos/dashboard/tipos/dashboard.ts`, `src/modulos/dashboard/servicios/calculo-tendencias.ts`, `src/estilos/globals.css`, `src/compartido/componentes/ui/input.tsx`, `src/modulos/tablero/ (solo .gitkeep, vacío)`</sub>
+
+### Pipeline / Cotizaciones
+
+El módulo Pipeline está funcionalmente vivo pero visualmente crudo y a media distancia del design system. Solo existe la vista Kanban: NO hay vista de tabla ni el toggle tabla/kanban que pide el alcance, NO hay filtros, y las tarjetas NO muestran ni monto MXN/USD ni tiempo en etapa (dos datos exigidos por el alcance y, en el caso del monto, ni siquiera existe el campo en el tipo Oportunidad). El sistema de tokens del design system no existe en globals.css: el módulo emula colores con `bg-background` (#ffffff blanco puro), `bg-foreground/5`, `text-foreground/60` y `border-foreground/10`, y hardcodea semánticos (`bg-amber-100`, `bg-red-100`). Hay un error de correctness real: `formatearMoneda` ignora la moneda y siempre formatea en MXN, por lo que una cotización en USD se muestra con formato/símbolo MXN aunque el label diga (USD). Bien resuelto: gating de transiciones válidas, estados de envío anti-doble-clic, `role="alert"` en errores y labels asociados en los formularios largos. El botón positivo "Confirmar ganada" usa estilo de peligro (rojo), y las confirmaciones de ganada/perdida son inline sin modal accesible. Ningún hallazgo es bloqueante de compilación, pero varios son visibles al primer uso.
+
+<sub>Archivos revisados: `D:\ERP-CC\src\app\(panel)\pipeline\page.tsx`, `D:\ERP-CC\src\modulos\pipeline\componentes\tablero-kanban.tsx`, `D:\ERP-CC\src\modulos\pipeline\componentes\tarjeta-oportunidad.tsx`, `D:\ERP-CC\src\modulos\pipeline\componentes\selector-etapa.tsx`, `D:\ERP-CC\src\modulos\pipeline\componentes\formulario-prospecto.tsx`, `D:\ERP-CC\src\modulos\pipeline\componentes\formulario-cotizacion.tsx`, `D:\ERP-CC\src\modulos\pipeline\tipos\indice.ts`, `D:\ERP-CC\src\modulos\pipeline\servicios\calcular-alertas.ts`, `D:\ERP-CC\src\modulos\pipeline\validaciones\esquemas-prospecto.ts`, `D:\ERP-CC\src\compartido\utilidades\formatear.ts`, `D:\ERP-CC\src\estilos\globals.css`</sub>
+
+### Clientes
+
+El modulo Clientes esta funcionalmente completo (buscador con debounce, filtros, paginacion, drawer de ficha 360, formulario alta/edicion, subida de documentos, tier manual) y su codigo es limpio y 100% en espanol. Pero NO consume ningun token del sistema de diseno objetivo porque esos tokens no existen: globals.css solo define --background:#ffffff (blanco puro), --foreground, --primario y --radius. Todo el modulo pinta con opacidades de foreground (foreground/5, foreground/10, foreground/20) y con paleta cruda de Tailwind (amber-100, slate-200, red-50, blue-100, green-100). Faltan tres piezas del alcance: NO hay avatar/iniciales en la lista, NO hay barra de credito usado/limite (AlertaCredito solo muestra numeros) y el drawer no es un componente sheet compartido. Las filas de tabla miden ~36px (objetivo >=48px), el estado vacio y el de carga son texto plano (sin ilustracion+CTA ni skeleton), y modal/drawer carecen de role=dialog/aria y de animacion. La base de comportamiento (debounce, anti-doble-envio, role=alert, labels con htmlFor en el formulario, URL firmada para documentos) es solida y sirve de referencia. La prioridad es crear los tokens en globals.css y luego remapear el modulo.
+
+<sub>Archivos revisados: `D:\ERP-CC\src\estilos\globals.css`, `D:\ERP-CC\src\app\(panel)\clientes\page.tsx`, `D:\ERP-CC\src\modulos\clientes\componentes\tabla-clientes.tsx`, `D:\ERP-CC\src\modulos\clientes\componentes\ficha-cliente.tsx`, `D:\ERP-CC\src\modulos\clientes\componentes\badge-tier.tsx`, `D:\ERP-CC\src\modulos\clientes\componentes\alerta-credito.tsx`, `D:\ERP-CC\src\modulos\clientes\componentes\formulario-cliente.tsx`, `D:\ERP-CC\src\modulos\clientes\utilidades\indice.ts`</sub>
+
+### Inventario
+
+El módulo Inventario es funcionalmente completo (catálogo, kardex, alta de material, entradas/salidas con validación de stock negativo, métricas), pero visualmente NO implementa el sistema de diseño objetivo: opera sobre `--background #ffffff` (blanco puro prohibido) y NO existe ninguno de los tokens surface/border/text-*/semánticos, por lo que todo se pinta con overlays `foreground/5-10` grises y colores Tailwind crudos (`text-red-600`, `bg-blue-100`). Tres requisitos específicos del área están incompletos o incorrectos: (1) el "semáforo de stock ok/reorden/crítico" no existe — solo hay un binario `esStockBajo` que muestra un badge ROJO "Reordenar" (debería ser ámbar/warning, y falta el estado crítico y el ok verde); (2) el CPP / costo por unidad de control se muestra con 2 decimales (`formatearMoneda`) cuando el área exige 4 decimales; (3) el kardex colorea el badge de tipo (verde/rojo) pero no las cantidades. Además las tablas tienen filas ~32px (regla ≥48px), botones de acción ~26px (<44px táctil), empty/loading/error de solo texto (sin ilustración/skeleton/banner de reintento), sin toast de éxito, e inputs sobre fondo blanco. Base sólida en accesibilidad de modales (Radix) y anti-doble-envío.
+
+<sub>Archivos revisados: `D:\ERP-CC\src\app\(panel)\inventario\page.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\panel-inventario.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\metricas-inventario.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\filtros-inventario.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\tabla-movimientos.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\modal-crear-material.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\modal-registrar-entrada.tsx`, `D:\ERP-CC\src\modulos\inventario\componentes\modal-registrar-salida.tsx`, `D:\ERP-CC\src\modulos\inventario\utilidades\indice.ts`, `D:\ERP-CC\src\modulos\inventario\servicios\calculos-inventario.ts`, `D:\ERP-CC\src\modulos\inventario\tipos\inventario.ts`, `D:\ERP-CC\src\compartido\utilidades\formatear.ts`, `D:\ERP-CC\src\compartido\componentes\ui\badge.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\button.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\input.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\label.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\dialog.tsx`, `D:\ERP-CC\src\estilos\globals.css`</sub>
+
+### Ordenes de Produccion
+
+El modulo de Ordenes tiene una base semantica y de accesibilidad decente (barra de progreso con role=progressbar + aria completo, role=alert/status en feedback, caption sr-only, th scope), pero incumple casi todo el sistema de diseno objetivo porque este NO existe en el repo: globals.css solo define --background #ffffff (blanco puro), --foreground, --primario, --secundario y --radius. No hay tokens surface/border/text-secondary/muted/accent-soft ni semanticos. El modulo por tanto pinta con utilidades ad-hoc (foreground/10, bg-background blanco, bg-blue-100, text-red-600) que no calman la vista ni son consistentes con la paleta gris pastel. Faltan tres piezas que el alcance nombra explicitamente: el folio OP-NNNNNN NO es monospace (otros modulos ya usan font-mono para folios, aqui no), NO existe semaforo de fecha compromiso (texto plano, sin estado vencida) y NO hay panel detalle expandible de partidas (el boton Seleccionar solo abre el hilo de comentarios). La tabla ademas tiene filas <48px, sin zebra, sin paginacion, sin skeleton, empty state pobre y badges de estado inline sin punto de color ni componente compartido. El control-piso-panel (dark) usa paleta zinc/cyan hardcodeada en vez de los tokens dark del sistema. Prioridad: crear los tokens en globals.css y luego migrar este modulo.
+
+<sub>Archivos revisados: `D:\ERP-CC\src\app\(privado)\ordenes\page.tsx`, `D:\ERP-CC\src\modulos\ordenes\componentes\tabla-ordenes.tsx`, `D:\ERP-CC\src\modulos\ordenes\componentes\formulario-orden.tsx`, `D:\ERP-CC\src\modulos\ordenes\componentes\control-piso-panel.tsx`, `D:\ERP-CC\src\estilos\globals.css`, `D:\ERP-CC\src\compartido\utilidades\formatear.ts`, `D:\ERP-CC\src\compartido\componentes\ui\ (badge/button/dialog/input/label)`, `D:\ERP-CC\src\modulos\pipeline\componentes\tarjeta-oportunidad.tsx (comparativa folio)`, `D:\ERP-CC\src\modulos\inventario\componentes\tabla-movimientos.tsx (comparativa folio)`</sub>
+
+### Planeacion
+
+Planeacion esta implementado con solidez tecnica (RSC + Server Actions + TanStack Query + Realtime, y buena base de a11y semantica: aria-labelledby, caption sr-only, scope col/row, aria-selected, aria-busy, aria-live y role=alert en el formulario). Sin embargo, en lo VISUAL/UX incumple el objetivo del alcance de forma severa: el "calendario semanal recursos x dias con bloques de color, semaforo de capacidad y tooltip de OP" NO existe — esta resuelto como una tabla plana de programaciones (una fila por programacion). La capacidad se muestra como texto sin semaforo, no hay tooltip, no hay bloques de color por recurso, y todo el modulo usa opacidades sobre --foreground (bg-foreground/5, border-foreground/10, text-foreground/60) en vez de los tokens del sistema, sobre un --background blanco puro (#ffffff). Ademas faltan estados de carga (skeleton), banner de error/reintento y toast de exito. El panel de reprogramacion es funcional y accesible, pero la ruta de reprogramar arranca en un boton "Seleccionar" tamano sm (~24px) que ademas queda en una columna no fija dentro del scroll horizontal. Nota transversal: globals.css no define ninguno de los tokens surface/border/text-*/semanticos del sistema, por lo que varios arreglos requieren primero ampliar @theme.
+
+<sub>Archivos revisados: `D:\ERP-CC\src\app\(privado)\planeacion\page.tsx`, `D:\ERP-CC\src\modulos\planeacion\componentes\calendario-planeacion.tsx`, `D:\ERP-CC\src\modulos\planeacion\componentes\panel-asignacion-planeacion.tsx`, `D:\ERP-CC\src\modulos\planeacion\componentes\operacion-planeacion.tsx`, `D:\ERP-CC\src\modulos\planeacion\componentes\sincronizador-planeacion-realtime.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\badge.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\button.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\input.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\label.tsx`, `D:\ERP-CC\src\estilos\globals.css`</sub>
+
+### Produccion — Vista de Piso (DARK, tablet industrial)
+
+El area "Produccion — Vista de Piso" esta partida en DOS superficies con niveles de calidad muy distintos, y ninguna cumple el sistema de diseno objetivo. (1) La ruta real de piso para operador con guantes es src/app/(piso)/produccion-piso -> ControlPisoPanel (modulo ordenes): SI fuerza modo oscuro (layout con clase `dark`, bg-zinc-950), pero usa una paleta ad-hoc zinc/cyan/emerald hardcodeada en lugar de los dark-* tokens del sistema (--dark-background #0F172A, --dark-surface #1E293B, accent #3B82F6). Le faltan casi todos los componentes requeridos de piso: no hay tarjetas de folio (usa <select>), no hay barra de progreso visual, no hay badge pulsante en_proceso, no hay tarjeta "MI OP ACTIVA" destacada, y las operaciones de avance/consumo/cierre son formularios inline sin modal ni keypad numerico. (2) La ruta src/app/(privado)/produccion -> OperacionProduccion (Kanban + PanelOperador + Nota entrega) es en realidad un tablero de oficina de escritorio: NO es dark (usa bg-background = blanco puro #ffffff), labels text-xs, botones tamano sm (~24-36px muy por debajo de 44px), checkboxes nativos diminutos y encabezado con mojibake ("ProducciOn"). No sirve como vista de piso tactil. Causa raiz transversal: globals.css solo define --background #ffffff (blanco puro), --foreground, --primario, --secundario y --radius; NINGUNO de los tokens surface/border/text/semanticos/dark del sistema existe, por lo que ningun componente puede usar bg-surface/text-text-secondary/dark-surface. Lo unico ejemplar es el TecladoPin de acceso (h-20 = 80px, >64px, enmascarado, aria-labels) y el forzado de dark del layout de piso; ese keypad, sin embargo, NO se reutiliza para la confirmacion de PIN al cerrar sesion. La ruta (panel)/produccion esta vacia (solo .gitkeep).
+
+<sub>Archivos revisados: `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx`, `D:\ERP-CC\src\modulos\produccion\componentes\operacion-produccion.tsx`, `D:\ERP-CC\src\modulos\produccion\componentes\panel-operador-produccion.tsx`, `D:\ERP-CC\src\modulos\produccion\componentes\formulario-nota-entrega.tsx`, `D:\ERP-CC\src\modulos\produccion\componentes\sincronizador-produccion-realtime.tsx`, `D:\ERP-CC\src\modulos\produccion\componentes\indice.ts`, `D:\ERP-CC\src\app\(privado)\produccion\page.tsx`, `D:\ERP-CC\src\app\(piso)\produccion-piso\page.tsx`, `D:\ERP-CC\src\app\(piso)\layout.tsx`, `D:\ERP-CC\src\app\(panel)\produccion\.gitkeep`, `D:\ERP-CC\src\app\(auth)\operador\page.tsx`, `D:\ERP-CC\src\modulos\ordenes\componentes\control-piso-panel.tsx`, `D:\ERP-CC\src\modulos\autenticacion\componentes\teclado-pin.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\badge.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\button.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\input.tsx`, `D:\ERP-CC\src\estilos\globals.css`</sub>
+
+### Cobranza
+
+La ruta real es src/app/(privado)/cobranza/page.tsx; NO existe (panel)/cobranza. El modulo es funcionalmente completo (aging, tabla, modal pago, saldo a favor, recibo con impresion, realtime) y accesible en lo estructural (Dialog Radix con focus-trap, role=alert, aria-live, tabular-nums, scroll-x sin truncar). Pero visualmente NO cumple el sistema de diseno: los tokens objetivo (surface/border/text-secondary/semanticos) no existen en globals.css, y todo el modulo pinta sobre bg-background=#ffffff (blanco puro prohibido) con hacks foreground/XX. Ademas hay tres piezas del alcance que estan ausentes o incompletas: (1) el aging se muestra como 5 tarjetas de texto SIN barras por bucket ni color semantico; (2) el saldo vencido no se pinta en rojo ni tiene tooltip de dias (la funcion calcularDiasVencidos existe pero no se usa en la tabla); (3) el modal de pago NO tiene selector de cuenta destino aunque el servicio ya acepta cuentaBancariaId. Los estados de produccion/pago se muestran como texto plano en vez de BadgeEstado (el Badge compartido existe pero no se usa). Faltan feedbacks: skeleton de carga, toast de exito y banner de reintento.
+
+<sub>Archivos revisados: `src/app/(privado)/cobranza/page.tsx`, `src/modulos/cobranza/componentes/operacion-cobranza.tsx`, `src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx`, `src/modulos/cobranza/componentes/tarjeta-resumen-aging.tsx`, `src/modulos/cobranza/componentes/modal-registrar-pago.tsx`, `src/modulos/cobranza/componentes/recibo-pago-vista.tsx`, `src/modulos/cobranza/componentes/sincronizador-cobranza-realtime.tsx`, `src/modulos/cobranza/servicios/cobranza-servicio.ts`, `src/modulos/cobranza/servicios/aging-servicio.ts`, `src/modulos/cobranza/tipos/cobranza.ts`, `src/compartido/componentes/ui/input.tsx`, `src/compartido/componentes/ui/button.tsx`, `src/compartido/componentes/ui/dialog.tsx`, `src/compartido/componentes/ui/badge.tsx`, `src/estilos/globals.css`</sub>
+
+### Gastos
+
+El módulo Gastos es funcionalmente sólido (RSC protegido, OCR server-side, realtime, a11y decente en formularios) pero NO implementa el sistema de diseño objetivo: cero tokens surface/border/text-*/semánticos. Todo el color se expresa con opacidad sobre `--foreground` (`text-foreground/65`, `bg-foreground/5`) y con hardcodes (`text-red-700`, `text-amber-700`, `bg-black/50`). El fondo global es blanco puro (#ffffff), prohibido por el sistema. Tres deliverables del alcance faltan por completo o están a medias: (1) NO existe la gráfica de distribución por categoría; (2) el margen de rentabilidad se muestra como texto plano SIN semáforo de color; (3) el botón OCR no tiene icono de cámara y los estados OCR se limitan a un texto "Analizando…" (sin preview del comprobante ni acción de reintento explícita). La tabla incumple casi todas las reglas: header no fijo, filas <48px, sin alternancia de fila, sin hover, sin BadgeEstado (estado en texto crudo), sin skeleton, sin paginación y con un empty state pobre. Requiere trabajo de fondo antes de considerarse alineado.
+
+<sub>Archivos revisados: `src/app/(privado)/gastos/page.tsx`, `src/modulos/gastos/componentes/operacion-gastos.tsx`, `src/modulos/gastos/componentes/tabla-gastos.tsx`, `src/modulos/gastos/componentes/modal-registrar-gasto.tsx`, `src/modulos/gastos/componentes/tarjeta-rentabilidad-orden.tsx`, `src/modulos/gastos/componentes/sincronizador-gastos-realtime.tsx`, `src/modulos/gastos/componentes/indice.ts`, `src/modulos/gastos/tipos/gastos.ts`, `src/compartido/componentes/ui/button.tsx`, `src/compartido/componentes/ui/input.tsx`, `src/compartido/componentes/ui/dialog.tsx`, `src/compartido/componentes/ui/badge.tsx`, `src/estilos/globals.css`</sub>
+
+### Configuracion
+
+La Configuracion esta funcionalmente completa (5 pestanas, master-detail inline sin modal, realtime, permisos) y con buena base de accesibilidad (roles tablist/tab/tabpanel correctos, labels con htmlFor, caption sr-only, aria-live). Sin embargo NO usa el sistema de diseno objetivo: globals.css solo define --background #ffffff (blanco puro), --foreground, --primario, --secundario y --radius; ninguno de los tokens surface/border/text-*/semanticos/espaciado/sombra existe. En consecuencia todos los paneles, inputs y cards se pintan blanco puro sobre blanco puro (sin jerarquia de superficie), el texto secundario se resuelve con opacidades foreground/70 (no text-secondary) y no hay color semantico. Ademas faltan requisitos explicitos del alcance: el tipo de cambio no esta destacado, no muestra fecha y no hay alerta si lleva >1 dia sin actualizar; la tabla de areas no tiene color swatch; las tablas no tienen empty state (quedan solo con header si no hay filas); los tabs no tienen estado activo visual; y la columna Estado usa texto plano en vez del BadgeEstado consistente entre modulos. Los errores se muestran con role=status y color neutro, indistinguibles del exito.
+
+<sub>Archivos revisados: `D:\ERP-CC\src\app\(privado)\configuracion\page.tsx`, `D:\ERP-CC\src\app\(panel)\configuracion\.gitkeep`, `D:\ERP-CC\src\modulos\configuracion\componentes\operacion-configuracion.tsx`, `D:\ERP-CC\src\modulos\configuracion\componentes\pestana-empresa.tsx`, `D:\ERP-CC\src\modulos\configuracion\componentes\pestana-tarifas.tsx`, `D:\ERP-CC\src\modulos\configuracion\componentes\pestana-areas-trabajo.tsx`, `D:\ERP-CC\src\modulos\configuracion\componentes\pestana-cuentas-bancarias.tsx`, `D:\ERP-CC\src\modulos\configuracion\componentes\pestana-plantillas-doc.tsx`, `D:\ERP-CC\src\modulos\configuracion\componentes\sincronizador-configuracion-realtime.tsx`, `D:\ERP-CC\src\modulos\configuracion\tipos\configuracion.ts`, `D:\ERP-CC\src\compartido\componentes\ui\input.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\button.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\badge.tsx`, `D:\ERP-CC\src\estilos\globals.css`</sub>
+
+### Comentarios y Notificaciones
+
+El área es funcionalmente sólida (Realtime con debounce y relectura bajo RLS, a11y básica correcta: aria-labelledby, htmlFor/id, role=alert, aria-live, badge con conteo y aria-label dinámico, anti-doble-envío). Sin embargo, visualmente NO cumple el sistema de diseño objetivo: no consume ningún token del sistema (surface/border/text-*/accent/semánticos no existen en globals.css, que solo define --background #ffffff blanco puro, --foreground, --primario, --secundario, --radius). Todos los superficies renderizan en blanco puro y los colores se resuelven con utilidades ad-hoc (bg-background, text-foreground/60, bg-red-600, text-red-700, bg-primario/5). Además faltan tres requisitos explícitos del área: (1) las menciones @usuario NO se resaltan en azul suave (el contenido se pinta como texto plano), (2) no hay avatar (solo nombre+timestamp; autorAvatarUrl es siempre null), y (3) el centro de notificaciones es un dropdown/popover anclado a la campana, no un panel lateral deslizable. Contraste de textos muted/timestamp en el límite o por debajo de AA. Faltan skeletons, empty states estructurados y toasts de éxito.
+
+<sub>Archivos revisados: `src/modulos/comentarios/componentes/hilo-comentarios.tsx`, `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx`, `src/modulos/comentarios/componentes/sincronizador-comentarios-realtime.tsx`, `src/modulos/comentarios/componentes/indice.ts`, `src/modulos/comentarios/tipos/comentarios.ts`, `src/modulos/comentarios/servicios/parser-menciones.ts`, `src/estilos/globals.css`</sub>
+
+### Autenticacion y Portal Cliente
+
+Login oficina y login operador (PIN) estan implementados y funcionan; el portal cliente de seguimiento NO existe (solo .gitkeep en app/(portal-cliente)/seguimiento y en modulos/portal-cliente/componentes). Cero adopcion del sistema de diseno objetivo: globals.css solo define --background #ffffff (blanco puro), --foreground, --primario/--secundario en HSL y --radius 0.5rem; no existe ningun token surface/surface-2/border/text-*/accent/semantico ni la paleta dark slate. En consecuencia el login oficina se renderiza sobre blanco puro (viola el principio "NUNCA blanco puro") y el keypad de operador usa una paleta zinc hardcodeada en vez de la dark slate del sistema. Los aciertos son de accesibilidad estructural (labels asociadas, role=alert, anti-doble-envio) y del tamano tactil del keypad (botones de 80px). REQUISITO PREVIO para casi todas las correcciones: definir la capa de tokens (surface, surface-2, border, text-primary/secondary/muted, accent, danger/soft, y equivalentes dark-*) en src/estilos/globals.css bajo :root, .dark y @theme inline; sin esa capa las clases sugeridas (bg-surface-2, text-danger, bg-dark-surface, etc.) no resuelven.
+
+<sub>Archivos revisados: `D:\ERP-CC\src\modulos\autenticacion\componentes\formulario-iniciar-sesion.tsx`, `D:\ERP-CC\src\modulos\autenticacion\componentes\teclado-pin.tsx`, `D:\ERP-CC\src\modulos\autenticacion\componentes\indicador-sesion.tsx`, `D:\ERP-CC\src\app\(auth)\iniciar-sesion\page.tsx`, `D:\ERP-CC\src\app\(auth)\operador\page.tsx`, `D:\ERP-CC\src\app\(portal-cliente)\seguimiento\ (solo .gitkeep)`, `D:\ERP-CC\src\modulos\portal-cliente\componentes\ (solo .gitkeep)`, `D:\ERP-CC\src\estilos\globals.css`, `D:\ERP-CC\src\compartido\componentes\ui\input.tsx`, `D:\ERP-CC\src\compartido\componentes\ui\button.tsx`</sub>
+
+## 🔴 CRÍTICO VISUAL — 66 hallazgos
+
+### 1. No existe sidebar ni navegacion principal en ningun layout
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Todas las rutas de (panel) y (privado): dashboard, ordenes, clientes, pipeline, inventario, cobranza, gastos, planeacion, produccion, configuracion, tablero
+- **Archivo:** `src/app/(panel)/layout.tsx:24-35 y src/app/(privado)/layout.tsx:17-28`
+- **Problema:** Ambos layouts renderizan solo `<header>` (nombre app + notificaciones + sesion) y `<main>`. No hay `<aside>`/sidebar, ni `<nav>`, ni un solo `<Link>` a otros modulos. El usuario NO tiene forma de navegar entre los 15 modulos salvo escribiendo la URL. El design system objetivo exige explicitamente sidebar con ancho, colapso, estados de item, grupos, footer de usuario y comportamiento responsive (desktop expandido / tablet iconos / mobile drawer). El componente esperado simplemente no existe. Ademas ya existe estado Zustand `barraLateralContraida/contraerBarra/expandirBarra` en src/estado/tienda-ui.ts:5-19 que NINGUN componente consume: el andamiaje del sidebar quedo huerfano.
+
+```tsx
+// Crear src/compartido/componentes/navegacion/barra-lateral.tsx (kebab-case) y consumirla en un layout compartido:
+// <div className="flex min-h-screen bg-background">
+//   <BarraLateral />  {/* aside w-64 en >=1280, w-16 iconos en 768-1279, drawer <768 */}
+//   <div className="flex flex-1 flex-col"> <EncabezadoApp/> <main className="flex-1 p-6">{children}</main> </div>
+// </div>
+// aside base:
+<aside
+  className="hidden md:flex flex-col w-64 shrink-0 border-r border-[var(--border)] bg-[var(--surface)] data-[contraida=true]:w-16"
+  aria-label="Navegacion principal"
+  data-contraida={barraLateralContraida}
+>
+  <nav className="flex flex-col gap-1 p-3">
+    <a href="/dashboard" aria-current={activo ? 'page' : undefined}
+       className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] aria-[current=page]:bg-[var(--accent-soft)] aria-[current=page]:text-[var(--accent)] aria-[current=page]:font-semibold min-h-11">
+      ...
+    </a>
+  </nav>
+</aside>
+```
+
+### 2. globals.css usa blanco puro y no define ninguno de los tokens del sistema
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Global (afecta todo el layout y todos los modulos)
+- **Archivo:** `src/estilos/globals.css:6-27`
+- **Problema:** `:root` define `--background:#ffffff` (blanco puro), que el design system prohibe explicitamente ("NUNCA blanco puro", debe ser #F8F9FA). No existe ninguno de los tokens objetivo: --surface, --surface-2, --border, --border-strong, --text-primary/secondary/muted, --accent/-soft/-hover, ni los semanticos success/warning/danger/info, ni escala de espaciado 8px, ni sombras. El `@theme inline` solo mapea background/foreground/primario/secundario/radius. Es la causa raiz de que todos los layouts recurran a `border-foreground/10` y colores crudos: no hay vocabulario de diseno que usar.
+
+```css
+:root {
+  --background: #F8F9FA; /* nunca #ffffff */
+  --surface: #FFFFFF;
+  --surface-2: #F1F3F5;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --accent: #3B82F6; --accent-soft: #EFF6FF; --accent-hover: #2563EB;
+  --success: #10B981; --success-soft: #ECFDF5;
+  --warning: #F59E0B; --warning-soft: #FFFBEB;
+  --danger: #EF4444; --danger-soft: #FEF2F2;
+  --info: #6366F1; --info-soft: #EEF2FF;
+}
+:where(.dark) {
+  --background: #0F172A; --surface: #1E293B; --surface-2: #334155;
+  --border: #475569; --text-primary: #F1F5F9; --text-secondary: #CBD5E1;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  /* ...resto de semanticos... */
+}
+```
+
+### 3. Layouts sin responsive: sin breakpoints, hamburguesa ni drawer movil
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Header de (panel)/(privado) en tablet (768-1279) y movil (<768)
+- **Archivo:** `src/app/(panel)/layout.tsx:26-32`
+- **Problema:** El header usa clases fijas `px-6 py-4` y un flex row con nombre + campana + nombre-de-usuario + boton, sin una sola utilidad responsive (`sm:`/`md:`/`lg:`). En movil, el nombre de usuario largo (`nombreCompleto`) mas los controles desbordan o se apretujan sin colapsar. No hay boton hamburguesa que abra un drawer (imposible: no hay sidebar/drawer). El design system exige desktop>=1280 sidebar expandido, tablet 768-1279 iconos, mobile <768 drawer con hamburguesa. Nada de eso existe.
+
+```tsx
+<header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 md:px-6">
+  <div className="flex items-center gap-3">
+    <button type="button" aria-label="Abrir menu" className="md:hidden rounded-md p-2 hover:bg-[var(--surface-2)]" onClick={abrirDrawer}>
+      {/* icono hamburguesa */}
+    </button>
+    <a href="/dashboard" className="text-lg font-bold text-[var(--text-primary)]">ORCA MFG ERP</a>
+  </div>
+  <div className="flex items-center gap-2 md:gap-3">...</div>
+</header>
+{/* Drawer movil: overlay + panel deslizante controlado por barraLateralContraida en <768 */}
+```
+
+### 4. Capa de tokens del design system inexistente: solo 5 variables genericas, ninguna del sistema
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (todas las pantallas heredan estos tokens)
+- **Archivo:** `src/estilos/globals.css:6-27`
+- **Problema:** ACTUAL: :root define solo --background #ffffff, --foreground #171717, --primario hsl(209 89% 51%), --secundario hsl(160 84% 39%), --radius .5rem; y @theme inline solo mapea color-background/foreground/primario/secundario. FALTAN por completo todos los tokens del sistema: --surface, --surface-2, --border, --border-strong, --text-primary/secondary/muted, --accent/-soft/-hover, semanticos success/warning/danger/info y sus -soft, escala de radios (sm/md/lg/xl/full), escala de espaciado 8px y sombras sm/md/lg. OBJETIVO: al no exponerlos via @theme, utilidades como bg-surface, text-text-secondary, bg-accent-soft, shadow-md NO se generan, de modo que ningun componente puede seguir el sistema aunque quiera. Es el bloqueo raiz de toda el area.
+
+```css
+:root {
+  --background: #F8F9FA; --surface: #FFFFFF; --surface-2: #F1F3F5;
+  --border: #E2E8F0; --border-strong: #CBD5E1;
+  --text-primary: #1E293B; --text-secondary: #64748B; --text-muted: #94A3B8;
+  --accent: #3B82F6; --accent-soft: #EFF6FF; --accent-hover: #2563EB;
+  --success: #10B981; --success-soft: #ECFDF5;
+  --warning: #F59E0B; --warning-soft: #FFFBEB;
+  --danger: #EF4444; --danger-soft: #FEF2F2;
+  --info: #6366F1; --info-soft: #EEF2FF;
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px; --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / .05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / .07);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .1);
+}
+@theme inline {
+  --color-surface: var(--surface); --color-surface-2: var(--surface-2);
+  --color-border: var(--border); --color-border-strong: var(--border-strong);
+  --color-text-primary: var(--text-primary); --color-text-secondary: var(--text-secondary); --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent); --color-accent-soft: var(--accent-soft); --color-accent-hover: var(--accent-hover);
+  --color-success: var(--success); --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning); --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger); --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info); --color-info-soft: var(--info-soft);
+  --radius-sm: var(--radius-sm); --radius-md: var(--radius-md); --radius-lg: var(--radius-lg); --radius-xl: var(--radius-xl);
+}
+```
+
+### 5. Fondo base es blanco puro (#ffffff), violando la regla NUNCA blanco puro
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (body y todo contenedor que use bg-background)
+- **Archivo:** `src/estilos/globals.css:7`
+- **Problema:** ACTUAL: --background: #ffffff; el body pinta blanco puro (globals.css:30). El sistema exige --background #F8F9FA (gris pastel de oficina) y reserva #FFFFFF solo para --surface (tarjetas/paneles). OBJETIVO: separar el lienzo (#F8F9FA) de las superficies elevadas (#FFFFFF) para el look calmado que no satura la vista; ademas Input (input.tsx:7) usa bg-background, por lo que hoy los campos quedan blanco puro en vez de surface-2.
+
+```css
+:root { --background: #F8F9FA; --surface: #FFFFFF; }
+body { background: var(--color-background); color: var(--color-text-primary); }
+```
+
+### 6. No existe BadgeEstado: cada modulo pinta los estados a mano con colores crudos
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Todos los modulos con estados (ordenes, pipeline, produccion, cobranza, planeacion)
+- **Archivo:** `src/compartido/componentes/ui/badge.tsx:6-13`
+- **Problema:** ACTUAL: Badge solo ofrece 4 variantes genericas (neutro/alerta/exito/info) con clases crudas (bg-red-100/bg-green-100/bg-blue-100), sin punto de color, sin variante warning y sin mapa de estados. No existe ningun BadgeEstado en src (grep sin resultados) y los modulos renderean estados con bg-green-100/bg-red-100 a mano (tabla-ordenes.tsx, tarjeta-oportunidad.tsx, clientes/utilidades). OBJETIVO: un BadgeEstado compartido que mapee TODOS los estados ERP (borrador, pendiente, en_proceso, programada, lista, terminada, entregada, pagado, cancelada, vencida) a fondo -soft + texto semantico + punto de color, con en_proceso usando punto animate-ping. Sin el, la consistencia entre modulos es imposible.
+
+```tsx
+// src/compartido/componentes/diseno/badge-estado.tsx
+const ESTILOS: Record<Estado, { clase: string; punto: string; ping?: boolean }> = {
+  borrador:   { clase: 'bg-surface-2 text-text-muted',   punto: 'bg-text-muted' },
+  pendiente:  { clase: 'bg-warning-soft text-warning',   punto: 'bg-warning' },
+  en_proceso: { clase: 'bg-info-soft text-info',         punto: 'bg-info', ping: true },
+  programada: { clase: 'bg-info-soft text-info',         punto: 'bg-info' },
+  lista:      { clase: 'bg-success-soft text-success',   punto: 'bg-success' },
+  terminada:  { clase: 'bg-success-soft text-success',   punto: 'bg-success' },
+  entregada:  { clase: 'bg-success-soft text-success',   punto: 'bg-success' },
+  pagado:     { clase: 'bg-success-soft text-success',   punto: 'bg-success' },
+  cancelada:  { clase: 'bg-surface-2 text-text-muted',   punto: 'bg-text-muted' },
+  vencida:    { clase: 'bg-danger-soft text-danger',     punto: 'bg-danger' },
+};
+// <span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium {clase}">
+//   <span class="relative flex h-1.5 w-1.5">{ping && <span class="absolute inline-flex h-full w-full animate-ping rounded-full {punto} opacity-75"/>}<span class="h-1.5 w-1.5 rounded-full {punto}"/></span>{texto}</span>
+```
+
+### 7. Primitivos base ausentes: Table, Card, Select(Radix), Skeleton, Toast, Tooltip, Sheet, EmptyState
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Todos los modulos (listados, dashboards, formularios, feedback)
+- **Archivo:** `src/compartido/componentes/diseno/.gitkeep`
+- **Problema:** ACTUAL: las carpetas diseno/, formularios/ y retroalimentacion/ contienen solo .gitkeep; en ui/ solo hay badge/button/input/label/dialog. NO existe Table (header fijo, filas 48px, alternancia, hover, empty state, skeleton, paginacion), Card (surface/border/shadow-sm/radius-lg), Skeleton (animate-pulse), Toast (exito esquina sup-der auto-dismiss), Tooltip (para ellipsis en tablas), Select accesible (hoy solo hay un <select> nativo en input.tsx) ni Sheet (bottom-sheet mobile). grep de Skeleton/Tooltip/Toast/animate-pulse en compartido: sin resultados. OBJETIVO: estos primitivos son la base de casi toda pantalla del ERP; su ausencia obliga a cada modulo a improvisar (se observan 45 archivos de modulos con manejo ad-hoc de estados/animaciones).
+
+```tsx
+// retroalimentacion/skeleton.tsx
+export function Skeleton({ className, ...p }: ComponentProps<'div'>) {
+  return <div className={cn('animate-pulse rounded-md bg-surface-2', className)} {...p} />;
+}
+// diseno/card.tsx
+export function Card({ className, ...p }: ComponentProps<'div'>) {
+  return <div className={cn('rounded-lg border border-border bg-surface p-6 shadow-sm', className)} {...p} />;
+}
+// Ademas: instalar via shadcn table, select (Radix), tooltip, sheet, sonner(toast).
+```
+
+### 8. Button no ofrece altura >=44px: sin objetivo tactil para piso de taller
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Produccion / piso (kanban-produccion, operacion-produccion, teclado-pin)
+- **Archivo:** `src/compartido/componentes/ui/button.tsx:17-20`
+- **Problema:** ACTUAL: TAMANOS solo define md (px-4 py-2 => ~36px) y sm (px-2.5 py-1 => ~26px). No hay tamano de 44px. El sistema exige alturas 36/40/44 y en piso los objetivos tactiles deben ser >=44px; hoy es imposible cumplirlo con este primitivo. Ademas define height por padding en vez de altura fija, lo que hace inconsistente el alto entre botones con distinto contenido.
+
+```tsx
+type TamanoBoton = 'sm' | 'md' | 'lg' | 'piso';
+const TAMANOS: Record<TamanoBoton, string> = {
+  sm:   'h-9 px-3 text-sm',       // 36px
+  md:   'h-10 px-4 text-sm',      // 40px
+  lg:   'h-11 px-5 text-base',    // 44px
+  piso: 'h-12 px-6 text-base min-w-[44px]', // >=44px tactil
+};
+```
+
+### 9. Ninguno de los tokens del sistema existe; el dashboard usa bg-background/border-foreground/text-foreground por opacidad
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — todos los widgets
+- **Archivo:** `src/estilos/globals.css:6-27 (y consumo en widget-metrica-kpi.tsx:19-26, seccion-financiera.tsx:36,46, seccion-ventas-pipeline.tsx:24, seccion-produccion-alertas.tsx:8-12)`
+- **Problema:** globals.css solo declara --background #ffffff, --foreground #171717, --primario, --secundario y --radius. No existe ni un solo token del sistema objetivo (surface, surface-2, border, border-strong, text-primary/secondary/muted, accent/soft/hover, success/warning/danger/info + soft, espaciado, sombras). Cada tarjeta usa bg-background + border-foreground/15 + text-foreground/65, es decir grises calculados por opacidad sobre negro puro, no la paleta pastel calmada acordada. Es la raíz de casi todas las demás inconsistencias.
+
+```css
+Definir la paleta en globals.css y mapearla en @theme inline:
+:root{
+  --background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+  --accent:#3B82F6; --accent-soft:#EFF6FF; --accent-hover:#2563EB;
+  --success:#10B981; --success-soft:#ECFDF5; --warning:#F59E0B; --warning-soft:#FFFBEB;
+  --danger:#EF4444; --danger-soft:#FEF2F2; --info:#6366F1; --info-soft:#EEF2FF;
+}
+.dark{--background:#0F172A; --surface:#1E293B; --surface-2:#334155; --border:#475569; --text-primary:#F1F5F9; --text-secondary:#CBD5E1;}
+@theme inline{
+  --color-surface:var(--surface); --color-surface-2:var(--surface-2);
+  --color-border:var(--border); --color-text-secondary:var(--text-secondary);
+  --color-success:var(--success); --color-warning:var(--warning); --color-danger:var(--danger);
+}
+Luego reemplazar en las tarjetas: bg-background border-foreground/15 -> bg-surface border-border; text-foreground/65 -> text-text-secondary.
+```
+
+### 10. Fondo de página blanco puro (#ffffff) — viola 'NUNCA blanco puro' y anula la separación tarjeta/fondo
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — lienzo y todas las tarjetas
+- **Archivo:** `src/estilos/globals.css:7 (--background:#ffffff) + widget-metrica-kpi.tsx:19, seccion-financiera.tsx:36,46, seccion-ventas-pipeline.tsx:24, seccion-produccion-alertas.tsx:8-12`
+- **Problema:** El body pinta var(--color-background) = #ffffff y CADA tarjeta usa bg-background = el mismo #ffffff. Resultado: tarjetas blancas sobre fondo blanco, distinguibles solo por un borde border-foreground/15 casi invisible, sin sombra en 3 de las 4 secciones. El sistema exige fondo #F8F9FA (nunca blanco puro) y superficies #FFFFFF para que las tarjetas 'floten' sobre el lienzo.
+
+```tsx
+En globals.css: --background:#F8F9FA; --surface:#FFFFFF;
+Envolver el lienzo: <div className="mx-auto flex max-w-7xl flex-col gap-6 bg-background ..."> (ya hereda del body) y las tarjetas a bg-surface:
+<article className="rounded-lg border border-border bg-surface p-4 shadow-sm">. Así el #FFFFFF de la tarjeta contrasta con el #F8F9FA del lienzo.
+```
+
+### 11. No existe skeleton por widget ni estado de carga estructural
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — carga inicial y cambio de periodo
+- **Archivo:** `src/app/(privado)/dashboard/page.tsx:17-24 y src/modulos/dashboard/componentes/operacion-dashboard.tsx:28-57`
+- **Problema:** El alcance pide 'skeleton por widget' y el sistema exige 'carga = skeleton estructural (no spinner de página completa)'. No hay ningún skeleton en el módulo (grep animate-pulse/Skeleton = 0 coincidencias), no existe loading.tsx en (privado), la página RSC hace await de la acción completa antes de pintar (pantalla en blanco hasta que resuelve), y en el refetch por cambio de periodo consulta.isFetching solo se usa para disabled del filtro (operacion-dashboard.tsx:55) — los widgets no muestran carga. No hay componente Skeleton compartido.
+
+```tsx
+Crear src/app/(privado)/dashboard/loading.tsx con la MISMA rejilla de KPIs en placeholder:
+export default function CargandoDashboard(){return(<div className="mx-auto flex max-w-7xl flex-col gap-6"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{Array.from({length:5}).map((_,i)=><div key={i} className="h-24 rounded-lg border border-border bg-surface-2 animate-pulse" aria-hidden="true" />)}</div></div>);}
+Y en operacion-dashboard.tsx, cuando consulta.isFetching, superponer skeletons por widget o atenuar la sección con aria-busy="true".
+```
+
+### 12. Descripción del KPI con text-foreground/50 — contraste ~3.5:1, bajo WCAG AA (4.5:1)
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — tarjeta KPI (línea de descripción)
+- **Archivo:** `src/modulos/dashboard/componentes/widget-metrica-kpi.tsx:26`
+- **Problema:** La descripción se pinta text-xs text-foreground/50. Sobre blanco, #171717 al 50% de opacidad ≈ #8B8B8B, contraste ≈ 3.5:1 en texto de 12px — falla el mínimo 4.5:1 para texto normal. El gris por opacidad no equivale al token text-muted, que además está pensado para hints, no para texto legible pequeño.
+
+```tsx
+Usar el token secundario, no /50: <p className="mt-1 text-xs text-text-secondary">{tarjeta.descripcion}</p> (--text-secondary #64748B da ~4.6:1 sobre #FFFFFF). Reservar text-muted (#94A3B8) solo para elementos no informativos.
+```
+
+### 13. No existe vista de tabla ni el toggle tabla/kanban que exige el alcance
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Pipeline (vista principal)
+- **Archivo:** `src/app/(panel)/pipeline/page.tsx:11 y src/modulos/pipeline/componentes/tablero-kanban.tsx (archivo completo)`
+- **Problema:** El alcance pide explícitamente un 'Toggle tabla/kanban'. La página solo renderiza <TableroKanban /> y en el módulo únicamente existe el componente kanban: no hay componente de tabla (`tabla-oportunidades.tsx`) ni control de alternancia. Antes: solo kanban forzado, sin forma de ver el pipeline como lista/tabla densa (que en oficina suele ser lo más usado para escanear montos y fechas). Después: un toggle persistente (por ejemplo con estado en Zustand o URL param) que alterna entre tabla y kanban.
+
+```tsx
+// nuevo estado + control en tablero-pipeline.tsx
+const [vista, setVista] = useState<'tabla' | 'kanban'>('tabla');
+<div role="tablist" aria-label="Vista del pipeline" className="inline-flex rounded-md border border-[var(--border)] bg-surface-2 p-0.5">
+  <button role="tab" aria-selected={vista==='tabla'} onClick={()=>setVista('tabla')}
+    className={`rounded-[6px] px-3 py-1.5 text-sm ${vista==='tabla' ? 'bg-surface text-text-primary shadow-sm' : 'text-text-secondary'}`}>Tabla</button>
+  <button role="tab" aria-selected={vista==='kanban'} onClick={()=>setVista('kanban')}
+    className={`rounded-[6px] px-3 py-1.5 text-sm ${vista==='kanban' ? 'bg-surface text-text-primary shadow-sm' : 'text-text-secondary'}`}>Kanban</button>
+</div>
+{vista === 'tabla' ? <TablaOportunidades ... /> : <TableroKanban ... />}
+```
+
+### 14. Las tarjetas no muestran monto (MXN/USD) ni tiempo en etapa
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — tarjeta de oportunidad
+- **Archivo:** `src/modulos/pipeline/componentes/tarjeta-oportunidad.tsx:55-97 (y tipo en src/modulos/pipeline/tipos/indice.ts:17-39)`
+- **Problema:** El alcance exige 'monto MXN/USD, tiempo en etapa' en el pipeline. La tarjeta solo pinta folio, empresa, contacto, prioridad, alertas y selector: no hay monto ni tiempo en etapa. Además el tipo `Oportunidad` no incluye ningún campo de monto/total, así que el dato no está disponible en el cliente (habría que exponer el total de la cotización desde el servicio). El tiempo sí es derivable de `actualizadoEn`/`fechaUltimoContacto` (ya usados en calcular-alertas.ts). Antes: tarjeta sin cifra ni antigüedad, imposible priorizar de un vistazo. Después: fila con monto formateado en su moneda y badge de días en etapa.
+
+```tsx
+// en Oportunidad: agregar totalCotizado: number | null (exponerlo desde obtener-oportunidades)
+<div className="flex items-center justify-between text-sm">
+  <span className="font-semibold text-text-primary tabular-nums">
+    {oportunidad.totalCotizado != null ? formatearMoneda(oportunidad.totalCotizado, oportunidad.moneda) : '—'}
+  </span>
+  <span className="text-xs text-text-secondary">{diasEnEtapa} d en etapa</span>
+</div>
+// diasEnEtapa = contarDiasHabiles(new Date(oportunidad.actualizadoEn), new Date())
+```
+
+### 15. formatearMoneda ignora la moneda y siempre formatea en MXN (USD se muestra mal)
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Cotizador — totales (subtotal/IVA/total)
+- **Archivo:** `src/compartido/utilidades/formatear.ts:4-9 usado en src/modulos/pipeline/componentes/formulario-cotizacion.tsx:251-253 y 275-283`
+- **Problema:** `formatearMoneda(cantidad)` hardcodea `currency: 'MXN'`. En una oportunidad con `moneda: 'USD'` el cotizador muestra el label 'Total (USD)' pero el importe se formatea con símbolo y reglas MXN — cifra engañosa en el documento comercial más sensible del módulo. Antes: `$1,234.56` etiquetado como USD pero formateado como peso. Después: la función recibe la moneda y usa el `currency` correcto (USD formatea como `US$1,234.56` en es-MX).
+
+```tsx
+export function formatearMoneda(cantidad: number, moneda: 'MXN' | 'USD' = 'MXN'): string {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: moneda }).format(cantidad);
+}
+// en formulario-cotizacion.tsx pasar la moneda:
+formatearMoneda(totales.total, moneda)
+formatearMoneda((Number(linea.cantidad)||0)*(Number(linea.precioUnitario)||0), moneda)
+```
+
+### 16. Fondo blanco puro y ausencia total de tokens surface/border/text del design system
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Todo el módulo Pipeline
+- **Archivo:** `src/estilos/globals.css:7 (--background: #ffffff) y uso en tarjeta-oportunidad.tsx:56, formulario-cotizacion.tsx:35, selector-etapa.tsx:35, tablero-kanban.tsx:53`
+- **Problema:** globals.css solo define `--background:#ffffff` (blanco puro, prohibido por el DS), `--foreground`, `--primario`, `--secundario` y `--radius`. No existen `--surface`, `--surface-2`, `--border`, `--text-secondary`, `--text-muted` ni los semánticos. El módulo los emula con `bg-background` (blanco puro en cards/inputs), `bg-foreground/5` (en vez de surface-2), `text-foreground/60` (en vez de text-secondary) y `border-foreground/10` (en vez de border). El resultado es alto contraste blanco/negro-translúcido, no la paleta gris pastel calmada del objetivo. Antes: `#171717 @ opacidad` sobre `#ffffff`. Después: tokens reales del DS.
+
+```css
+/* globals.css :root */
+--background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+--border:#E2E8F0; --border-strong:#CBD5E1;
+--text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+--accent:#3B82F6; --accent-soft:#EFF6FF;
+/* @theme inline */ --color-surface:var(--surface); --color-surface-2:var(--surface-2); --color-border:var(--border); --color-text-secondary:var(--text-secondary);
+/* uso: bg-surface / bg-surface-2 / border-border / text-text-secondary en vez de bg-background y foreground/opacity */
+```
+
+### 17. No existen filtros accesibles en el pipeline
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Pipeline (barra superior)
+- **Archivo:** `src/modulos/pipeline/componentes/tablero-kanban.tsx:40-50 (encabezado) y src/app/(panel)/pipeline/page.tsx`
+- **Problema:** El alcance pide 'filtros accesibles'. El encabezado del tablero solo tiene el botón 'Nueva oportunidad'; no hay ningún filtro (por vendedor, prioridad, etapa, moneda, texto/empresa). Con un pipeline real de decenas de oportunidades esto dificulta el uso: no se puede acotar la vista. Antes: sin filtros. Después: barra de filtros con labels asociados (no placeholders solos) y `aria-label` en el buscador.
+
+```tsx
+<div className="flex flex-wrap items-end gap-3">
+  <div className="flex flex-col gap-1">
+    <label htmlFor="filtro-prioridad" className="text-xs font-medium text-text-secondary">Prioridad</label>
+    <select id="filtro-prioridad" className="h-9 rounded-md border border-border bg-surface-2 px-2 text-sm">…</select>
+  </div>
+  <div className="flex flex-col gap-1">
+    <label htmlFor="filtro-busqueda" className="text-xs font-medium text-text-secondary">Buscar</label>
+    <input id="filtro-busqueda" type="search" aria-label="Buscar por empresa o contacto" className="h-9 rounded-md border border-border bg-surface-2 px-3 text-sm" />
+  </div>
+</div>
+```
+
+### 18. Fondo blanco puro y cero tokens del sistema en todo el modulo
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Todas (lista, ficha, formulario, alerta de credito)
+- **Archivo:** `src\estilos\globals.css:7 ; src\modulos\clientes\componentes\tabla-clientes.tsx:16,207 ; ficha-cliente.tsx:56 ; formulario-cliente.tsx:15`
+- **Problema:** globals.css define --background:#ffffff (blanco puro, prohibido: el objetivo es #F8F9FA para fondo y #FFFFFF solo para surface). No existe ninguno de los tokens surface/surface-2/border/border-strong/text-primary/text-secondary/text-muted/accent ni los semanticos success/warning/danger/info. Como consecuencia el modulo entero pinta con bg-background (=blanco) para pagina, modal, drawer e inputs, y con opacidades de foreground (border-foreground/10, text-foreground/60) que no distinguen jerarquia de texto (secondary vs muted) ni dan el gris pastel calmado del sistema. Antes: superficie plana blanca sin capas. Despues: fondo #F8F9FA, tarjetas/superficies #FFFFFF, filas alternas y bordes con tokens.
+
+```css
+:root{
+  --background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+  --accent:#3B82F6; --accent-soft:#EFF6FF; --accent-hover:#2563EB;
+  --success:#10B981; --success-soft:#ECFDF5; --warning:#F59E0B; --warning-soft:#FFFBEB;
+  --danger:#EF4444; --danger-soft:#FEF2F2; --info:#6366F1; --info-soft:#EEF2FF;
+}
+@theme inline{
+  --color-background:var(--background); --color-surface:var(--surface);
+  --color-surface-2:var(--surface-2); --color-border:var(--border);
+  --color-border-strong:var(--border-strong);
+  --color-text-primary:var(--text-primary); --color-text-secondary:var(--text-secondary);
+  --color-text-muted:var(--text-muted); --color-accent:var(--accent);
+  --color-accent-soft:var(--accent-soft); --color-danger:var(--danger);
+  --color-danger-soft:var(--danger-soft); /* ...resto semanticos... */
+}
+/* luego: bg-background→pagina, bg-surface→modal/drawer/card, bg-surface-2→inputs, border-border, text-text-secondary */
+```
+
+### 19. Filas de tabla por debajo de la altura minima (48px)
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Lista de clientes (tabla)
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:112-119,143-172`
+- **Problema:** Las celdas de thead y tbody usan px-3 py-2 (8px vertical). Con text-sm (line-height 20px) cada fila queda en ~36px, muy por debajo del minimo de 48px del sistema; el header ademas no es fijo (sticky) ni usa surface-2, y usa bg-foreground/5. Antes: filas densas ~36px, cabecera que se pierde al hacer scroll. Despues: filas >=48px, header sticky con fondo surface-2 y texto text-secondary.
+
+```tsx
+// thead
+<thead className="sticky top-0 z-10 bg-surface-2 text-xs font-medium uppercase tracking-wide text-text-secondary">
+  <th className="px-4 py-3">Razon social</th>
+// tbody: fila con altura garantizada
+<tr className="h-12 border-b border-border hover:bg-accent-soft">
+  <td className="px-4 py-3 align-middle">...</td>
+```
+
+### 20. Modal y drawer sin semantica de dialogo ni gestion de foco (a11y AA)
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Modal alta/edicion + Drawer ficha 360
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:202-223 ; ficha-cliente.tsx:54-76`
+- **Problema:** El overlay del modal (div fixed inset-0 bg-black/40) y el drawer (aside) no declaran role=dialog, aria-modal ni aria-labelledby; el h2 titulo no tiene id al que apuntar. No hay cierre con tecla Escape ni foco atrapado dentro del dialogo, y el foco no vuelve al disparador al cerrar. Un usuario de lector de pantalla o teclado no percibe que se abrio un dialogo ni queda contenido en el. Antes: dialogo invisible para tecnologia asistiva. Despues: role=dialog + aria-modal + aria-labelledby + Escape + focus trap.
+
+```tsx
+<div role="dialog" aria-modal="true" aria-labelledby="titulo-cliente"
+     className="fixed inset-0 z-50 ... bg-black/40 backdrop-blur-[4px]"
+     onKeyDown={(e)=>{ if(e.key==='Escape') setFormularioAbierto(false); }}>
+  ...
+  <h2 id="titulo-cliente" className="mb-4 text-lg font-bold text-text-primary">{...}</h2>
+// usar useEffect para enfocar el dialogo al abrir y restaurar foco al cerrar
+```
+
+### 21. Fondo blanco puro y ausencia total de tokens del sistema de diseño
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Todo el módulo Inventario (página, tablas, cards, modales)
+- **Archivo:** `D:\ERP-CC\src\estilos\globals.css:6-17`
+- **Problema:** ANTES: `:root` define solo `--background:#ffffff` (blanco puro, explícitamente prohibido), `--foreground:#171717`, `--primario`, `--secundario`, `--radius`. NO existen surface / surface-2 / border / text-secondary / text-muted / accent-soft ni los semánticos success/warning/danger/info-soft. Por eso todo Inventario se pinta con overlays translúcidos (`bg-foreground/5`, `border-foreground/10`) sobre blanco: sin jerarquía de superficies, plano y con blanco puro de fondo. DESPUES: paleta de oficina calmada #F8F9FA de fondo con superficies #FFFFFF y filas #F1F3F5.
+
+```css
+:root {
+  --background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+  --accent:#3B82F6; --accent-soft:#EFF6FF; --accent-hover:#2563EB;
+  --success:#10B981; --success-soft:#ECFDF5; --warning:#F59E0B; --warning-soft:#FFFBEB;
+  --danger:#EF4444; --danger-soft:#FEF2F2; --info:#6366F1; --info-soft:#EEF2FF;
+}
+@theme inline {
+  --color-surface:var(--surface); --color-surface-2:var(--surface-2);
+  --color-border:var(--border); --color-text-secondary:var(--text-secondary);
+  --color-accent-soft:var(--accent-soft); --color-warning-soft:var(--warning-soft);
+  /* ...resto de semanticos... */
+}
+```
+
+### 22. El semáforo de stock ok/reorden/crítico no existe: binario y con color rojo equivocado
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo de materiales — columna Stock actual
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:112`
+- **Problema:** ANTES: el área exige un semáforo de 3 estados (ok / reorden / crítico), pero solo existe el binario `esStockBajo` (`stockActual <= stockMinimo`, utilidades/indice.ts:9) que muestra un único `<Badge variante="alerta">Reordenar</Badge>`. `alerta` mapea a ROJO (`bg-red-100 text-red-800`, badge.tsx:10), así que un simple reorden se ve idéntico a un crítico; no hay estado 'crítico' distinto (stock 0 / muy por debajo) ni indicador verde 'ok', ni punto de color por estado. DESPUES: 3 niveles con color semántico correcto (reorden=ámbar/warning, crítico=rojo/danger, ok=verde) y punto.
+
+```tsx
+// utilidades/indice.ts
+export function nivelStock(m: Pick<Material,'stockActualControl'|'stockMinimoControl'>): 'ok'|'reorden'|'critico' {
+  if (m.stockActualControl <= 0 || m.stockActualControl <= m.stockMinimoControl * 0.5) return 'critico';
+  if (m.stockActualControl <= m.stockMinimoControl) return 'reorden';
+  return 'ok';
+}
+// tabla-materiales.tsx — badge con punto y token semantico (NO rojo para reorden)
+const estilo = { ok:'bg-[var(--success-soft)] text-[color:var(--success)]',
+  reorden:'bg-[var(--warning-soft)] text-[color:var(--warning)]',
+  critico:'bg-[var(--danger-soft)] text-[color:var(--danger)]' }[nivel];
+<span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${estilo}`}>
+  <span className="h-2 w-2 rounded-full bg-current" /> {etiquetaNivel}
+</span>
+```
+
+### 23. CPP / costo por unidad de control se muestra con 2 decimales en vez de 4
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo (Costo unitario) e Historial (Costo unit.)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:119`
+- **Problema:** ANTES: el costo por unidad de control (CPP, calculado con precisión en calculos-inventario.ts:44) se imprime con `formatearMoneda(material.costoUnitarioControl)` que usa el formato MXN por defecto = 2 decimales, ocultando la precisión que el área exige (4 decimales). Igual en tabla-movimientos.tsx:76 (`toLocaleString(...currency MXN...)` = 2 dec). Un CPP de $12.3456 se muestra como $12.35, con pérdida visible de precisión en materiales de bajo costo/unidad. DESPUES: 4 decimales para costos por unidad de control.
+
+```tsx
+// compartido/utilidades/formatear.ts — nueva util para costos unitarios de inventario
+export function formatearCostoUnitario(n: number): string {
+  return new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN',
+    minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(n);
+}
+// tabla-materiales.tsx:119 y tabla-movimientos.tsx:76
+<td className="px-4 py-3 text-right tabular-nums">{formatearCostoUnitario(material.costoUnitarioControl)}</td>
+```
+
+### 24. Filas de tabla ~32px, por debajo del mínimo de 48px
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo de materiales e Historial de movimientos
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:106-121`
+- **Problema:** ANTES: celdas con `px-3 py-2` + `text-sm` → altura de fila ~32px, muy por debajo de la regla de tablas (filas ≥48px) y difícil de escanear/tocar en tablet de almacén. El header (línea 68) usa la misma densidad. Mismo patrón en tabla-movimientos.tsx:59-81. DESPUES: filas de al menos 48px con padding vertical mayor.
+
+```tsx
+// filas
+<tr key={material.id} className="h-12 hover:bg-[var(--accent-soft)]">
+  <td className="px-4 py-3 ...">...</td>
+</tr>
+// header
+<thead className="bg-surface-2 text-text-secondary">
+  <tr><th className="px-4 py-3 text-xs uppercase">Código</th> ...</tr>
+</thead>
+```
+
+### 25. Botones de acción de fila ~26px de alto (touch target <44px)
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo de materiales — columna Acciones (Entrada / Salida / Editar)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:122-145`
+- **Problema:** ANTES: los botones usan `tamano="sm"` = `px-2.5 py-1 text-xs` (button.tsx:19) → ~26px de alto, muy por debajo de 44px táctiles; son la interacción principal del catálogo y se usan en piso/tablet. Las alturas objetivo son 36/40/44. DESPUES: garantizar ≥44px de área táctil en acciones operativas.
+
+```tsx
+// button.tsx — agregar tamano tactil
+const TAMANOS = { md:'h-10 px-4 text-sm', sm:'h-9 px-3 text-xs', lg:'h-11 px-4 text-sm' };
+// tabla-materiales.tsx — usar altura tactil en piso
+<Button tamano="lg" variante="contorno" onClick={...}>Entrada</Button>
+```
+
+### 26. Estado vacío de tablas es solo una fila de texto (sin ilustración ni CTA)
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo ("Sin materiales.") e Historial ("Sin movimientos.")
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:94-100`
+- **Problema:** ANTES: cuando no hay datos se pinta `<td colSpan={7}>Sin materiales.</td>` — una fila con la tabla vacía debajo del header, sin icono, título, subtítulo ni CTA. El sistema pide empty state = icono + título + subtítulo + CTA y explícitamente 'nunca tabla vacía solo con header'. Igual en tabla-movimientos.tsx:52-57. DESPUES: bloque de estado vacío con acción para crear el primer material.
+
+```tsx
+{!isLoading && !isError && materiales.length === 0 && (
+  <tr><td colSpan={7} className="py-12">
+    <div className="flex flex-col items-center gap-2 text-center">
+      <PackageIcon className="h-10 w-10 text-[var(--text-muted)]" aria-hidden />
+      <p className="font-semibold text-[var(--text-primary)]">Sin materiales</p>
+      <p className="text-sm text-[var(--text-secondary)]">Registra tu primer material para verlo aquí.</p>
+      <Button onClick={() => abrirModal('crear-material')}>Nuevo material</Button>
+    </div>
+  </td></tr>
+)}
+```
+
+### 27. Folio OP-NNNNNN no se renderiza en monospace (rompe la identidad del codigo y es inconsistente con el resto del ERP)
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla de ordenes registradas
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:320-322`
+- **Problema:** El alcance exige 'Folio OP-NNNNNN monospace'. La celda del folio se pinta con `font-medium` proporcional. Otros modulos YA muestran folios/codigos en monospace (pipeline/tarjeta-oportunidad.tsx:58 `font-mono text-xs`, inventario/tabla-movimientos.tsx:61 `font-mono text-xs`, gastos/tabla-gastos.tsx:44-45). El folio es el identificador operativo mas escaneado de la tabla y aqui pierde alineacion de digitos y lectura vertical.
+
+```tsx
+<th scope="row" className="px-4 py-3 font-mono text-sm tabular-nums text-[color:var(--text-primary)]">{orden.folio}</th>
+```
+
+### 28. No existe semaforo de fecha compromiso: la columna Compromiso es texto plano sin color por vencimiento
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla de ordenes registradas
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:333`
+- **Problema:** El alcance pide 'semaforo de fecha'. Hoy la celda es `{formatearFecha(orden.fechaCompromiso)}` sin ninguna senal visual: una OP vencida o proxima a vencer se ve igual que una holgada. El propio modelo de estados ni siquiera contempla 'vencida'. El operador/planeador no puede priorizar de un vistazo, que es justo el proposito de la columna en piso/oficina.
+
+```tsx
+// helper
+function claseSemaforo(fechaISO: string, estado: EstadoOrden) {
+  if (estado === 'completada' || estado === 'cancelada') return 'bg-[color:var(--surface-2)] text-[color:var(--text-muted)]';
+  const dias = Math.ceil((new Date(fechaISO).getTime() - Date.now()) / 86400000);
+  if (dias < 0) return 'bg-[color:var(--danger-soft)] text-[color:var(--danger)]';   // vencida
+  if (dias <= 2) return 'bg-[color:var(--warning-soft)] text-[color:var(--warning)]'; // proxima
+  return 'bg-[color:var(--success-soft)] text-[color:var(--success)]';
+}
+// celda
+<td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2 py-0.5 text-xs font-medium ${claseSemaforo(orden.fechaCompromiso, orden.estado)}`}><span className="size-1.5 rounded-full bg-current" />{formatearFecha(orden.fechaCompromiso)}</span></td>
+```
+
+### 29. Inputs sobre fondo blanco puro y sin tokens de superficie (viola 'nunca blanco puro' / 'inputs surface-2')
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Formulario nueva OP y filtros de tabla
+- **Archivo:** `src/modulos/ordenes/componentes/formulario-orden.tsx:37-38`
+- **Problema:** CLASE_INPUT usa `bg-background`, que en globals.css es `--background: #ffffff` (blanco puro). El sistema objetivo exige background #F8F9FA (NUNCA blanco puro) e inputs con fondo surface-2 #F1F3F5 para separar visualmente el campo del lienzo. Igual pasa con el select de filtros en tabla-ordenes.tsx:71-72. Sin tokens definidos, todo el modulo satura la vista con blancos sobre blancos y bordes `foreground/20` (gris carbon translucido) en vez del --border pastel #E2E8F0.
+
+```css
+/* Paso 1: definir tokens en src/estilos/globals.css */
+:root{--background:#F8F9FA;--surface:#FFFFFF;--surface-2:#F1F3F5;--border:#E2E8F0;--border-strong:#CBD5E1;--text-primary:#1E293B;--text-secondary:#64748B;--text-muted:#94A3B8;--accent:#3B82F6;--accent-soft:#EFF6FF;--accent-hover:#2563EB;--success:#10B981;--success-soft:#ECFDF5;--warning:#F59E0B;--warning-soft:#FFFBEB;--danger:#EF4444;--danger-soft:#FEF2F2;}
+/* Paso 2: input */
+const CLASE_INPUT='w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-2)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)] focus:shadow-[0_0_0_3px_rgba(59,130,246,.15)]';
+```
+
+### 30. Contraste insuficiente en textos secundarios (foreground/60 sobre blanco < 4.5:1)
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla (header, empty state, contadores)
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:276`
+- **Problema:** El header de tabla usa `text-foreground/60` a tamano xs; con --foreground #171717 al 60% sobre blanco el color efectivo es ~#747474, ratio ~4.47:1, por debajo del minimo AA 4.5:1 para texto normal/pequeno. Se repite en el empty state (linea 304 `text-foreground/60`), el contador de partidas (334 `text-foreground/70`) y varias etiquetas `foreground/70`. El texto muted debe venir de un token calibrado, no de opacidad sobre #171717.
+
+```tsx
+<thead className="... text-xs uppercase text-[color:var(--text-secondary)]"> {/* #64748B = 4.6:1 sobre surface */}
+// empty state / contadores: text-[color:var(--text-secondary)] en vez de text-foreground/60|70
+```
+
+### 31. Filas de tabla por debajo de 48px, sin alternancia (zebra) y hover fuera de paleta
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla de ordenes registradas
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:315-333`
+- **Problema:** Las celdas usan `px-3 py-2` (~8px vertical) dando filas de ~34-36px, bajo el minimo de 48px del sistema (mala densidad para lectura rapida en oficina/piso). No hay alternancia surface/surface-2 (solo `hover:bg-foreground/5`), asi que a muchas filas cuesta seguir la horizontal. El hover deberia ser accent-soft #EFF6FF, no `foreground/5` (gris translucido).
+
+```tsx
+<tr className={`h-12 ${activa ? 'bg-[color:var(--accent-soft)]' : 'odd:bg-[color:var(--surface)] even:bg-[color:var(--surface-2)] hover:bg-[color:var(--accent-soft)]'}`}>
+// y en cada <td>/<th> subir a px-4 py-3
+```
+
+### 32. El calendario semanal (recursos x dias con bloques de color) no existe: esta implementado como tabla plana
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:272-345`
+- **Problema:** El alcance pide un calendario semanal recursos(filas) x dias(columnas) con bloques de color por recurso. Antes: <table> con columnas Fecha/Turno/Recurso/Prioridad/Horas/Capacidad/Estado/Accion y una fila por programacion (lineas 279-345); no hay rejilla temporal ni bloques cromaticos, obligando a leer fechas en texto. Despues: rejilla CSS con dias como columnas y recursos como filas, cada programacion como bloque de color asociado al recurso.
+
+```tsx
+<div className="grid grid-cols-[12rem_repeat(7,minmax(7rem,1fr))] gap-px overflow-hidden rounded-lg bg-border">
+  <div className="bg-surface-2 px-3 py-2 text-xs font-medium text-text-secondary">Recurso</div>
+  {dias.map((d) => (<div key={d} className="bg-surface-2 px-3 py-2 text-xs text-text-secondary">{d}</div>))}
+  {recursos.map((r) => (<Fragment key={r.id}>
+    <div className="bg-surface px-3 py-2 text-sm text-text-primary">{r.codigo} · {r.nombre}</div>
+    {dias.map((d) => (<div key={d} className="bg-surface p-1">{bloquesDe(r,d).map((p)=>(<button key={p.id} className="mb-1 w-full rounded-md border-l-4 px-2 py-1 text-left text-xs" style={{ borderColor: colorRecurso(r.id), background: 'var(--accent-soft)' }}>{p.etiquetaOp}</button>))}</div>))}
+  </Fragment>))}
+</div>
+```
+
+### 33. Indicador de capacidad semaforo ausente: se muestra solo como texto
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario (columna Capacidad)
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:320-324`
+- **Problema:** El alcance exige un indicador de capacidad tipo semaforo. Antes: la celda renderiza texto plano `${carga.horasProgramadas}/${carga.horasCapacidad} h (${carga.horasDisponibles} libres)` sin ningun color; la sobrecarga (programado >= capacidad) es indistinguible de la holgura. Despues: chip con punto de color verde/ambar/rojo segun % de uso usando tokens success/warning/danger.
+
+```tsx
+function colorCapacidad(prog:number, cap:number){ const uso = cap>0?prog/cap:0; if(uso>=1) return 'bg-danger-soft text-danger'; if(uso>=0.85) return 'bg-warning-soft text-warning'; return 'bg-success-soft text-success'; }
+<span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium', colorCapacidad(carga.horasProgramadas, carga.horasCapacidad))}>
+  <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+  {carga.horasProgramadas}/{carga.horasCapacidad} h
+</span>
+```
+
+### 34. Blanco puro y ausencia total de tokens del sistema (surface/border/text/semanticos)
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - global + tokens
+- **Archivo:** `src\estilos\globals.css:6-27`
+- **Problema:** El sistema prohibe blanco puro (--background debe ser #F8F9FA) y define una paleta de tokens que aqui no existe. Antes: globals.css solo declara --background #ffffff, --foreground, --primario, --secundario, --radius; y el modulo pinta todo con opacidades sobre foreground (calendario-planeacion.tsx:184,272,277 usan bg-foreground/5, border-foreground/10, text-foreground/60; page.tsx:96 text-foreground/70). Despues: agregar los tokens del sistema a :root y @theme inline y consumir bg-surface / bg-surface-2 / border-border / text-text-secondary.
+
+```css
+:root{ --background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5; --border:#E2E8F0; --border-strong:#CBD5E1; --text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8; --accent:#3B82F6; --accent-soft:#EFF6FF; --accent-hover:#2563EB; --success:#10B981; --success-soft:#ECFDF5; --warning:#F59E0B; --warning-soft:#FFFBEB; --danger:#EF4444; --danger-soft:#FEF2F2; --info:#6366F1; --info-soft:#EEF2FF; }
+@theme inline{ --color-surface:var(--surface); --color-surface-2:var(--surface-2); --color-border:var(--border); --color-text-primary:var(--text-primary); --color-text-secondary:var(--text-secondary); --color-accent:var(--accent); --color-accent-soft:var(--accent-soft); --color-success:var(--success); --color-warning:var(--warning); --color-danger:var(--danger); --color-info:var(--info); /* + soft */ }
+```
+
+### 35. Filas <48px, boton de accion sm (~24px) y columna Accion no fija en scroll horizontal
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario (filas y accion)
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:304-339`
+- **Problema:** Reglas de tabla: filas >=48px, touch target >=44px y columna de acciones siempre visible. Antes: las <tr> usan celdas px-3 py-2 (alto efectivo ~36px, <48px), la unica accion es un <Button tamano="sm"> (~24px de alto, button.tsx:18) y la columna Accion es la ultima dentro de overflow-x-auto (linea 272) sin sticky, por lo que en pantallas estrechas la ruta de reprogramar se sale de vista. Despues: fila h-12, boton md/44px y columna Accion fija a la derecha con fondo propio.
+
+```tsx
+<tr className="h-12 border-b border-border"> ... </tr>
+{/* encabezado y celda de accion fijos */}
+<th scope="col" className="sticky right-0 z-10 bg-surface-2 px-3 py-2">Accion</th>
+<td className="sticky right-0 bg-[inherit] px-3 py-2">
+  <Button type="button" variante="contorno" className="min-h-11" onClick={() => alSeleccionar(programacion)}>Reprogramar</Button>
+</td>
+```
+
+### 36. No existe la paleta de tokens del sistema (ni dark): globals.css solo tiene --background blanco puro
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** Todo Produccion (base transversal, ambas rutas de piso)
+- **Archivo:** `D:\ERP-CC\src\estilos\globals.css:6-17`
+- **Problema:** globals.css define UNICAMENTE --background:#ffffff (blanco puro, prohibido por el sistema), --foreground, --primario, --secundario y --radius. No existe ninguno de los tokens surface/surface-2/border/border-strong/text-primary/text-secondary/text-muted, ni los semanticos (success/warning/danger/info + soft), ni los dark-* (--dark-background #0F172A, --dark-surface #1E293B, --dark-surface-2 #334155, --dark-border #475569, --dark-text #F1F5F9). El bloque .dark solo cambia background a #0a0a0a (negro casi puro, tampoco es el slate #0F172A del sistema) y foreground. Consecuencia: NINGUN componente de piso puede usar bg-surface/text-text-secondary/dark-surface; todos improvisan con foreground/alpha o zinc/cyan hardcodeado. Es la causa raiz de casi todos los demas hallazgos.
+
+```css
+:root {
+  --background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+  --accent:#3B82F6; --accent-soft:#EFF6FF; --accent-hover:#2563EB;
+  --success:#10B981; --success-soft:#ECFDF5; --warning:#F59E0B; --warning-soft:#FFFBEB;
+  --danger:#EF4444; --danger-soft:#FEF2F2; --info:#6366F1; --info-soft:#EEF2FF;
+  --radius:0.5rem;
+}
+.dark {
+  --background:#0F172A; --surface:#1E293B; --surface-2:#334155;
+  --border:#475569; --border-strong:#64748B;
+  --text-primary:#F1F5F9; --text-secondary:#CBD5E1; --text-muted:#94A3B8;
+  --accent-soft:#1E3A5F; --success-soft:#064E3B; --warning-soft:#451A03;
+  --danger-soft:#450A0A; --info-soft:#312E81;
+}
+@theme inline {
+  --color-surface:var(--surface); --color-surface-2:var(--surface-2);
+  --color-border:var(--border); --color-text-primary:var(--text-primary);
+  --color-text-secondary:var(--text-secondary); --color-text-muted:var(--text-muted);
+  --color-accent:var(--accent); --color-success:var(--success); --color-danger:var(--danger);
+  --color-warning:var(--warning); --color-info:var(--info);
+}
+```
+
+### 37. La vista de piso real (ControlPisoPanel) usa zinc/cyan hardcodeado en vez de los dark tokens del sistema
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (piso)/produccion-piso — consola de piso del operador
+- **Archivo:** `D:\ERP-CC\src\modulos\ordenes\componentes\control-piso-panel.tsx:29-34`
+- **Problema:** CLASE_INPUT y CLASE_BOTON estan cableadas a border-zinc-700/bg-zinc-900/text-zinc-50 y el acento es cyan-500/cyan-400. El sistema pide dark basado en slate (--dark-surface #1E293B = slate-800, --dark-border #475569 = slate-600) y acento azul --accent #3B82F6, no cyan (neutral zinc). Toda la pantalla mas critica del ERP ignora el design system: no hay un solo token, la familia de gris (zinc/neutral) difiere de la del resto (slate) y el acento no coincide con el azul del sistema. Ademas los colores de exito/error (emerald-950/red-950, lineas 418-426) son improvisados en vez de --success-soft/--danger-soft dark.
+
+```css
+const CLASE_INPUT =
+  'w-full rounded-base border border-border bg-surface-2 px-3 py-2 text-base text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-[rgba(59,130,246,0.30)]';
+const CLASE_BOTON =
+  'min-h-[44px] rounded-base border border-border px-4 py-3 text-base font-semibold text-text-primary transition-colors hover:bg-surface-2 disabled:opacity-45';
+const CLASE_BOTON_PRIMARIO =
+  'min-h-[44px] rounded-base bg-accent px-4 py-3 text-base font-bold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-45';
+```
+
+### 38. Boton 'Operar orden' del Kanban con touch target ~24px (tamano sm), inusable con guantes
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — tarjetas del Kanban
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx:100-108`
+- **Problema:** El unico CTA de cada tarjeta usa tamano="sm" que en button.tsx (lineas 17-20) resuelve a px-2.5 py-1 text-xs -> altura efectiva ~24px, muy por debajo del minimo 44px exigido para piso. Los botones md por defecto (px-4 py-2 text-sm ~36px) tambien quedan cortos para tablet industrial. Un operador con guantes no puede pulsar de forma fiable estos objetivos.
+
+```tsx
+<Button
+  type="button"
+  variante="contorno"
+  className="mt-3 min-h-[44px] w-full text-base"
+  onClick={() => onSeleccionarOrden(orden.id)}
+>
+  Operar orden
+</Button>
+// Y en button.tsx anadir un tamano tactil de piso:
+// piso: 'px-5 py-3 text-base min-h-[44px]'
+```
+
+### 39. Confirmacion de PIN al cerrar sesion usa <Input> minusculo, no el teclado tactil grande
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — Panel de operador, cierre de sesion
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\panel-operador-produccion.tsx:128-131`
+- **Problema:** El requisito de piso pide 'confirmacion PIN teclado grande tactil'. Aqui la confirmacion es un <Input inputMode=numeric type=password> de altura ~40px que obliga a levantar el teclado del SO. Existe un TecladoPin grande (teclado-pin.tsx, botones de 80px) pero solo se usa en el login /operador; no se reutiliza para confirmar el cierre en piso. El operador con guantes queda sin keypad tactil justo en la accion mas sensible (registro de piezas + liberacion de recurso).
+
+```tsx
+// Reutilizar/extraer TecladoPin como componente controlado y usarlo aqui:
+<label className="flex flex-col gap-2 text-base text-text-primary">
+  Confirmar PIN
+  <TecladoPin valor={pinConfirmacion} onCambio={setPinConfirmacion} modo="controlado" />
+</label>
+// Mientras tanto, minimo agrandar el input:
+<Input inputMode="numeric" pattern="[0-9]{4,6}" type="password"
+  className="min-h-[56px] text-center text-2xl tracking-[0.4em]"
+  value={pinConfirmacion} onChange={(e)=>setPinConfirmacion(e.target.value)} required />
+```
+
+### 40. Tarjetas Kanban sin altura minima, folio <16px y columnas que colapsan a 1 en tablet
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — Kanban de produccion
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx:72-99`
+- **Problema:** Tres incumplimientos de piso juntos: (a) el grid es `grid gap-3 xl:grid-cols-5`, sin md:/lg:, asi que en tablet 768-1279px (donde vive la tablet de planta) el Kanban colapsa a UNA columna apilada, no 'columnas amplias'. (b) Las tarjetas (linea 85-93, p-3) no tienen min-height; el requisito pide tarjetas >=200px de alto y columnas amplias. (c) El folio se renderiza como <strong className="text-sm"> (14px, linea 95) cuando el minimo es >=16px para lectura en piso.
+
+```tsx
+<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+...
+<article className="flex min-h-[200px] flex-col rounded-lg border border-border bg-surface p-4">
+  <strong className="text-lg font-bold text-text-primary">{orden.folio}</strong>
+  ...
+</article>
+```
+
+### 41. Uso de bg-background (#ffffff blanco puro) en tarjeta seleccionada e inputs
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — tarjetas Kanban e inputs
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx:91-92`
+- **Problema:** La tarjeta no seleccionada usa `bg-background` (linea 92) que hoy es #ffffff, blanco puro explicitamente prohibido por el sistema ('NUNCA blanco puro'). Lo mismo aplica al componente Input compartido (input.tsx:7 usa bg-background). En la vista de oficina de produccion esto satura la vista con blanco puro; en dark no hay superficie definida. Deben usarse tokens surface/surface-2.
+
+```tsx
+className={
+  orden.id === ordenSeleccionadaId
+    ? 'rounded-lg border border-accent bg-[var(--accent-soft)] p-4'
+    : 'rounded-lg border border-border bg-surface p-4'
+}
+// Input base -> bg-surface-2 en vez de bg-background
+```
+
+### 42. Encabezado de la pagina de produccion con texto corrupto (mojibake)
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — encabezado de pagina
+- **Archivo:** `D:\ERP-CC\src\app\(privado)\produccion\page.tsx:23-26`
+- **Problema:** El titulo visible al usuario dice 'ProducciÃ³n y entregas' y el subtitulo 'sin recargar la pÃ¡gina' (doble codificacion UTF-8 renderizada en pantalla). Es texto corrupto directamente visible en la cabecera de la vista de produccion. Guardar el archivo en UTF-8 real y corregir los caracteres.
+
+```tsx
+<h1 className="text-2xl font-bold text-text-primary">Produccion y entregas</h1>
+<p className="text-sm text-text-secondary">Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la pagina.</p>
+```
+
+### 43. Checkboxes de filtro nativos diminutos como controles de piso
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — filtro de columnas Kanban
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx:59-71`
+- **Problema:** El filtro de estados usa <input type="checkbox"> nativos sin estilar dentro de labels text-xs (px-2 py-1). El checkbox nativo mide ~13-16px: imposible de operar con guantes en una tablet. Para piso los filtros deben ser chips/toggles con area tactil >=44px.
+
+```tsx
+<button type="button" role="switch" aria-checked={estadosActivos.includes(estado)}
+  onClick={() => onAlternarEstado(estado)}
+  className={cn('min-h-[44px] rounded-full border px-4 text-base font-medium',
+    estadosActivos.includes(estado)
+      ? 'border-accent bg-[var(--accent-soft)] text-accent'
+      : 'border-border bg-surface-2 text-text-secondary')}>
+  {ETIQUETAS_ESTADO[estado]}
+</button>
+```
+
+### 44. Superficies en blanco puro y sin tokens del sistema
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Toda la pantalla de Cartera (tarjetas aging, inputs, recibo, modal)
+- **Archivo:** `src/modulos/cobranza/componentes/tarjeta-resumen-aging.tsx:20 (y input.tsx:7, recibo-pago-vista.tsx:19, dialog.tsx:26)`
+- **Problema:** Todas las superficies usan bg-background, que en globals.css resuelve a --background:#ffffff (blanco puro, explicitamente prohibido). No existen los tokens surface/surface-2/border/text-secondary del sistema; el codigo simula grises con opacidades del negro (border-foreground/15, text-foreground/65, bg-foreground/5). Resultado: fondo de pagina blanco puro y bordes/textos por opacidad, no por la paleta pastel calmada objetivo.
+
+```tsx
+/* globals.css :root */
+--background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+--border:#E2E8F0; --border-strong:#CBD5E1;
+--text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+--accent:#3B82F6; --accent-soft:#EFF6FF;
+--success:#10B981; --success-soft:#ECFDF5;
+--warning:#F59E0B; --warning-soft:#FFFBEB;
+--danger:#EF4444; --danger-soft:#FEF2F2;
+/* @theme inline: --color-surface: var(--surface); --color-border: var(--border); --color-text-secondary: var(--text-secondary); ... */
+
+/* tarjeta-resumen-aging.tsx */
+className="rounded-lg border border-border bg-surface p-6 shadow-sm"
+/* y sustituir text-foreground/65 -> text-text-secondary en todo el modulo */
+```
+
+### 45. Aging sin barras visuales ni color por bucket
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Resumen de antiguedad (aging)
+- **Archivo:** `src/modulos/cobranza/componentes/tarjeta-resumen-aging.tsx:17-27`
+- **Problema:** El alcance pide 'aging visual (barras por bucket al-corriente/1-30/31-60/61-90/+90)'. Actualmente se renderizan 5 <article> identicos con etiqueta + monto en texto, todos con el mismo gris neutro. No hay barra proporcional al monto ni color semantico (al-corriente=success, +90=danger). Un usuario no puede leer de un vistazo donde se concentra la deuda vencida.
+
+```tsx
+const COLORES = { alCorriente:'bg-success', de1A30:'bg-warning/70', de31A60:'bg-warning', de61A90:'bg-danger/70', mas90:'bg-danger' } as const;
+const maximo = Math.max(...buckets.map(([,m]) => m), 1);
+// por bucket:
+<article className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+  <p className="text-xs font-medium text-text-secondary">{etiqueta}</p>
+  <p className="mt-1 text-lg font-bold tabular-nums text-text-primary">{formatoMxn(monto)}</p>
+  <div className="mt-2 h-2 rounded-full bg-surface-2" role="img" aria-label={`${etiqueta}: ${formatoMxn(monto)}`}>
+    <div className={cn('h-full rounded-full transition-[width] duration-300', color)} style={{ width: `${(monto/maximo)*100}%` }} />
+  </div>
+</article>
+```
+
+### 46. Saldo vencido sin color rojo ni tooltip de dias vencidos
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Tabla de cuentas por cobrar
+- **Archivo:** `src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx:47-49`
+- **Problema:** El alcance pide 'monto vencido en rojo+tooltip dias'. La celda de Saldo solo aplica font-semibold neutro y la de Vencimiento muestra la fecha en color base; nunca se distingue una cuenta vencida ni se comunican los dias de mora, aunque calcularDiasVencidos() ya existe en aging-servicio.ts. No hay senal visual de urgencia en la tabla.
+
+```tsx
+import { calcularDiasVencidos } from '@/modulos/cobranza/servicios/aging-servicio';
+const dias = calcularDiasVencidos(cuenta.fechaVencimiento, new Date().toISOString()) ?? 0;
+const vencida = (cuenta.estado === 'pendiente' || cuenta.estado === 'parcial') && dias > 0;
+<td className="px-3 py-2 text-right font-semibold tabular-nums">
+  <span className={vencida ? 'text-danger' : 'text-text-primary'}
+        title={vencida ? `${dias} dia(s) vencida` : undefined}>
+    {formatoMoneda(cuenta.saldoPendiente, cuenta.moneda)}
+  </span>
+</td>
+```
+
+### 47. Modal de pago sin selector de cuenta destino
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Modal Registrar cobro
+- **Archivo:** `src/modulos/cobranza/componentes/modal-registrar-pago.tsx:124-135`
+- **Problema:** El alcance pide 'modal pago con selector cuenta destino'. El formulario captura monto, moneda, tipo de cambio, metodo, referencia y notas, pero NO tiene un selector de cuenta bancaria destino. DatosPagoFormulario no incluye cuentaBancariaId, pese a que registrarPagoServicio ya envia p_cuenta_bancaria_id a la RPC. La conciliacion de a que cuenta entro el dinero queda sin capturar.
+
+```tsx
+// agregar a DatosPagoFormulario: cuentaBancariaId?: string;
+<div className="grid gap-1">
+  <Label htmlFor="cuenta-destino">Cuenta destino</Label>
+  <Select id="cuenta-destino" value={cuentaDestino} onChange={(e)=>setCuentaDestino(e.target.value)}>
+    <option value="">Selecciona cuenta</option>
+    {cuentas.map((c)=><option key={c.id} value={c.id}>{c.alias} · {c.banco}</option>)}
+  </Select>
+</div>
+// y en registrarPago(): cuentaBancariaId: cuentaDestino || undefined
+```
+
+### 48. Módulo sin ningún token del sistema (color por opacidad sobre --foreground)
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — todas las vistas
+- **Archivo:** `src/modulos/gastos/componentes/operacion-gastos.tsx:153; tabla-gastos.tsx:18,22,25,40; tarjeta-rentabilidad-orden.tsx:12,15,21; src/estilos/globals.css:6-17`
+- **Problema:** El sistema exige tokens semánticos (surface, surface-2, border, text-primary/secondary/muted, accent, success/warning/danger). globals.css solo define --background/--foreground/--primario/--secundario/--radius; ninguno de los tokens del sistema existe. En consecuencia todo Gastos colorea con opacidad sobre foreground: encabezados de sección `text-foreground/65`, thead `bg-foreground/5 text-foreground/70`, bordes `border-foreground/15`, filas `border-foreground/10`. Esto no es el gris pastel calmado del sistema y no soporta dark real (solo invierte foreground). Antes: `text-foreground/65` / `border-foreground/15`. Después: `text-text-secondary` / `border-border`.
+
+```tsx
+/* 1) globals.css @theme inline: registrar tokens */
+--color-surface:#FFFFFF; --color-surface-2:#F1F3F5; --color-border:#E2E8F0; --color-border-strong:#CBD5E1;
+--color-text-primary:#1E293B; --color-text-secondary:#64748B; --color-text-muted:#94A3B8;
+--color-accent:#3B82F6; --color-accent-soft:#EFF6FF; --color-success:#10B981; --color-warning:#F59E0B; --color-danger:#EF4444;
+/* 2) reemplazar en componentes */
+<p className="text-sm text-text-secondary">…</p>
+<thead className="bg-surface-2 text-text-secondary">
+<div className="rounded-lg border border-border">
+```
+
+### 49. Fondo e inputs en blanco puro (#ffffff) — prohibido por el sistema
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — página, filtros y modal
+- **Archivo:** `src/estilos/globals.css:7; src/compartido/componentes/ui/input.tsx:7 (usado por Input/Select/Textarea en operacion-gastos.tsx:157-161 y modal-registrar-gasto.tsx)`
+- **Problema:** `--background:#ffffff` es blanco puro (el sistema exige --background #F8F9FA, NUNCA blanco puro; blanco solo para --surface). Además el Input compartido usa `bg-background`, así que todos los campos de filtro y del modal de gasto quedan blancos, cuando el sistema pide inputs con fondo surface-2 (#F1F3F5). El focus usa `ring-primario/30` en vez del box-shadow especificado. Antes: input `bg-background` blanco. Después: fondo surface-2 con anillo azul de 3px.
+
+```css
+/* globals.css */ :root{ --background:#F8F9FA; }
+/* input.tsx CLASE_BASE */
+'w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary '
++ 'placeholder:text-text-muted outline-none focus:border-accent '
++ 'focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)] disabled:opacity-50'
+```
+
+### 50. No existe la gráfica de distribución de gastos por categoría
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — panel principal
+- **Archivo:** `src/modulos/gastos/componentes/operacion-gastos.tsx:149-170 (render: Sincronizador + filtros + TablaGastos + TarjetaRentabilidad + Modal)`
+- **Problema:** El alcance pide una 'gráfica de distribución por categoría con colores del sistema'. No existe ningún componente de gráfica en el módulo (grep de grafica/chart/distribuc/svg = 0 coincidencias) y OperacionGastos no la renderiza. El usuario no tiene visualización del reparto de gasto entre las 9 categorías (materia_prima, consumibles, etc.); solo la tabla plana. Es un deliverable ausente.
+
+```tsx
+// nuevo: componentes/grafica-distribucion-categoria.tsx (barras horizontales, sin dependencia)
+const COLOR_CATEGORIA: Record<CategoriaGasto,string> = {
+  materia_prima:'var(--color-accent)', consumibles:'var(--color-info)',
+  herramentental:'var(--color-warning)', maquila_externa:'var(--color-success)', /* … */ };
+// por categoría: <div className="h-2 rounded-full" style={{width:`${pct}%`,background:COLOR_CATEGORIA[cat]}} />
+// tarjeta contenedora: className="rounded-lg border border-border bg-surface p-6 shadow-sm"
+// montos con text-text-primary tabular-nums, etiquetas text-text-secondary
+```
+
+### 51. Margen de rentabilidad sin semáforo de color
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — tarjeta de rentabilidad por orden
+- **Archivo:** `src/modulos/gastos/componentes/tarjeta-rentabilidad-orden.tsx:18`
+- **Problema:** El alcance pide 'rentabilidad por orden margen % semáforo'. El margen se imprime como texto neutro (`text-foreground` heredado): `datos.margenPorcentaje.toFixed(2) + ' %'`. No hay codificación por color (verde=sano, ámbar=ajustado, rojo=pérdida/bajo), que es exactamente el valor que un semáforo aporta al usuario de finanzas. Un margen negativo se ve igual que uno del 40%.
+
+```tsx
+function colorMargen(m:number|null){ if(m===null) return {t:'text-text-muted',b:'bg-surface-2'};
+  if(m>=25) return {t:'text-success',b:'bg-success-soft'};
+  if(m>=10) return {t:'text-warning',b:'bg-warning-soft'};
+  return {t:'text-danger',b:'bg-danger-soft'}; }
+// render:
+<span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-semibold tabular-nums ${c.b} ${c.t}`}>
+  <span className={`h-2 w-2 rounded-full ${c.t.replace('text-','bg-')}`} />
+  {datos.margenPorcentaje===null?'No calculable':datos.margenPorcentaje.toFixed(2)+' %'}
+</span>
+```
+
+### 52. La tabla de gastos incumple las reglas de tabla del sistema
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — tabla de gastos registrados
+- **Archivo:** `src/modulos/gastos/componentes/tabla-gastos.tsx:22-66`
+- **Problema:** Múltiples reglas de tabla incumplidas: (a) header NO fijo (thead sin `sticky top-0`); (b) filas < 48px — celdas `px-3 py-2` dan ~33px de alto; (c) sin alternancia surface/surface-2 (todas iguales); (d) sin hover accent-soft en filas; (e) sin ellipsis+tooltip en Descripción/Proveedor (texto largo rompe layout); (f) sin skeleton animate-pulse durante carga/refetch; (g) sin paginación 'Mostrando 1-25 de N'. El header usa `bg-foreground/5` en vez de surface-2.
+
+```tsx
+<thead className="sticky top-0 bg-surface-2 text-xs text-text-secondary">
+<tr className="h-12 border-t border-border odd:bg-surface even:bg-surface-2 hover:bg-accent-soft">
+<td className="max-w-[220px] truncate px-3" title={gasto.descripcion}>{gasto.descripcion}</td>
+{/* pie de tabla */}
+<p className="px-3 py-2 text-xs text-text-secondary">Mostrando 1-{Math.min(25,gastos.length)} de {gastos.length}</p>
+```
+
+### 53. Estado de pago en texto crudo, sin BadgeEstado ni punto de color
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — columna Estado de la tabla
+- **Archivo:** `src/modulos/gastos/componentes/tabla-gastos.tsx:48`
+- **Problema:** El estado se muestra como texto plano `{gasto.estadoPago}` ('pendiente'/'pagado'/'cancelado'). El sistema exige un BadgeEstado consistente en TODOS los módulos con soft-color y punto por estado: pendiente=warning-soft, pagado=success-soft, cancelado=surface-2/muted. Existe un Badge en ui/ pero no se usa aquí (y ese Badge tampoco usa tokens ni punto, ver hallazgo aparte). Rompe la consistencia visual con el resto del ERP.
+
+```tsx
+const CFG={pendiente:{c:'bg-warning-soft text-warning',p:'bg-warning'},pagado:{c:'bg-success-soft text-success',p:'bg-success'},cancelado:{c:'bg-surface-2 text-text-muted',p:'bg-text-muted'}} as const;
+const e=CFG[gasto.estadoPago];
+<span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ${e.c}`}>
+  <span className={`h-1.5 w-1.5 rounded-full ${e.p}`} />{gasto.estadoPago}
+</span>
+```
+
+### 54. Empty state de la tabla es solo un párrafo (sin icono/título/CTA)
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — tabla sin resultados
+- **Archivo:** `src/modulos/gastos/componentes/tabla-gastos.tsx:17-19`
+- **Problema:** Cuando no hay gastos con los filtros, se muestra únicamente `<p>No hay gastos con los filtros actuales.</p>` con borde punteado y `text-foreground/65`. El sistema exige empty state = icono + título + subtítulo + CTA (nunca solo texto). Aquí falta el icono, la jerarquía de título/subtítulo y el CTA (p. ej. 'Registrar gasto' o 'Limpiar filtros').
+
+```tsx
+<div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-surface p-10 text-center">
+  <span aria-hidden className="text-3xl">🧾</span>
+  <p className="text-base font-semibold text-text-primary">Sin gastos para estos filtros</p>
+  <p className="text-sm text-text-secondary">Ajusta el periodo o registra el primer gasto.</p>
+  <Button onClick={onRegistrar}>Registrar gasto</Button>
+</div>
+```
+
+### 55. Blanco puro y ausencia total de tokens del sistema de diseno
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Todas (Empresa, Tarifas/TC, Areas, Cuentas, Plantillas)
+- **Archivo:** `src/estilos/globals.css:6-27 (consumido en operacion-configuracion.tsx:74)`
+- **Problema:** globals.css define solo --background #ffffff (blanco puro), --foreground, --primario, --secundario y --radius; no existe ninguno de los tokens del sistema (surface #FFFFFF, surface-2 #F1F3F5, border #E2E8F0, text-primary/secondary/muted, accent-soft, semanticos). El contenedor de panel (operacion-configuracion.tsx:74) usa `bg-background p-4 sm:p-6` = #ffffff, y la pagina de fondo tambien es blanca, asi que panel, cards y fondo son el mismo blanco puro sin jerarquia de superficie ni la sombra funcional que separa una card del lienzo. Viola directamente 'NUNCA blanco puro' y 'grises pastel suaves, calmado'. ANTES: todo blanco #ffffff, texto secundario via foreground/70. DESPUES: fondo #F8F9FA, superficie #FFFFFF con border y shadow-sm.
+
+```tsx
+/* globals.css :root — agregar tokens del sistema */
+:root{
+  --background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+  --border:#E2E8F0; --border-strong:#CBD5E1;
+  --text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+  --accent:#3B82F6; --accent-soft:#EFF6FF; --accent-hover:#2563EB;
+  --success:#10B981; --success-soft:#ECFDF5; --warning:#F59E0B; --warning-soft:#FFFBEB;
+  --danger:#EF4444; --danger-soft:#FEF2F2; --info:#6366F1; --info-soft:#EEF2FF;
+  --radius:.5rem;
+}
+@theme inline{
+  --color-background:var(--background); --color-surface:var(--surface); --color-surface-2:var(--surface-2);
+  --color-border:var(--border); --color-text-secondary:var(--text-secondary); --color-accent:var(--accent);
+  --color-accent-soft:var(--accent-soft); --color-warning-soft:var(--warning-soft); --color-danger:var(--danger);
+  --radius-lg:.75rem;
+}
+/* panel en operacion-configuracion.tsx */
+className="rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-6"
+```
+
+### 56. Tabs sin estado activo visual (solo lectores de pantalla saben cual esta activo)
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Barra de pestanas (todas)
+- **Archivo:** `src/modulos/configuracion/componentes/operacion-configuracion.tsx:74`
+- **Problema:** Los botones de pestana tienen `aria-selected={pestana === id}` pero su className es fija: `rounded-base px-3 py-2 text-sm font-semibold transition-colors hover:bg-foreground/5 ...` — no hay ninguna clase condicionada a `pestana === id`. La pestana activa se ve identica a las inactivas; el usuario no distingue visualmente en cual esta. Dificulta el uso. ANTES: sin indicador. DESPUES: pestana activa con fondo accent-soft, texto accent y borde inferior.
+
+```tsx
+className={cn('rounded-md px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40', pestana === id ? 'bg-accent-soft text-accent shadow-[inset_0_-2px_0_var(--accent)]' : 'text-text-secondary hover:bg-surface-2')}
+```
+
+### 57. Tablas de Areas y Cuentas sin empty state (header solo cuando no hay filas)
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Areas de trabajo / Cuentas bancarias
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-areas-trabajo.tsx:64 y pestana-cuentas-bancarias.tsx:44`
+- **Problema:** El cuerpo de tabla renderiza `{datos.map((area) => ...)}` sin guarda de longitud. Si no hay areas/cuentas, el `<tbody>` queda vacio y se muestra una tabla con solo el header — viola 'vacio=icono+titulo+subtitulo+CTA (nunca tabla vacia solo con header)'. En un sistema recien configurado ambas tablas arrancan vacias. ANTES: tabla con encabezado y cuerpo vacio. DESPUES: fila de empty state con mensaje y CTA a 'Nueva'.
+
+```tsx
+<tbody>{datos.length === 0 ? (
+  <tr><td colSpan={6} className="p-8 text-center">
+    <p className="text-sm font-medium text-text-primary">Sin areas configuradas</p>
+    <p className="mt-1 text-sm text-text-secondary">Crea la primera area para calcular tarifas.</p>
+    <Button tamano="sm" variante="contorno" className="mt-3" onClick={nuevo}>Nueva area</Button>
+  </td></tr>
+) : datos.map((area) => (/* ...fila... */))}</tbody>
+```
+
+### 58. Tipo de cambio no destacado, sin fecha y sin alerta de obsolescencia (>1 dia)
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Tarifas / TC
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-tarifas.tsx:68-74`
+- **Problema:** El alcance exige 'tipo de cambio destacado+fecha, alerta si TC >1 dia sin actualizar'. El TC es solo un input mas dentro del grid de tarifas (linea 68-70) y el vigente se muestra como texto gris pequeno `Vigente: {tipoCambioUsd.toFixed(4)} MXN/USD` (linea 74) SIN fecha y SIN aviso de obsolescencia. El tipo `ConfiguracionSistema` expone `actualizadoEn` (configuracion.ts:66) que puede usarse para calcular antiguedad, pero no se usa. Falta un panel destacado con el valor grande, la fecha de ultima actualizacion y un banner warning-soft si supera 1 dia. ANTES: numero gris pequeno sin fecha. DESPUES: tarjeta destacada + alerta condicional role=status.
+
+```tsx
+const diasSinActualizar = (Date.now() - new Date(configuracion.actualizadoEn).getTime()) / 86_400_000;
+<div className="flex items-baseline justify-between rounded-lg border border-border bg-surface-2 p-4">
+  <div><p className="text-xs uppercase tracking-wide text-text-muted">Tipo de cambio vigente</p>
+  <p className="text-3xl font-bold tabular-nums text-text-primary">{configuracion.tipoCambioUsd.toFixed(4)} <span className="text-base font-normal text-text-secondary">MXN/USD</span></p></div>
+  <p className="text-xs text-text-secondary">Actualizado {new Intl.DateTimeFormat('es-MX',{dateStyle:'short',timeStyle:'short'}).format(new Date(configuracion.actualizadoEn))}</p>
+</div>
+{diasSinActualizar > 1 ? <p role="status" className="flex items-center gap-2 rounded-md bg-warning-soft px-3 py-2 text-sm text-[color:var(--warning)]"><span className="h-2 w-2 rounded-full bg-[color:var(--warning)]"/>El tipo de cambio no se actualiza hace mas de un dia.</p> : null}
+```
+
+### 59. Inputs con fondo blanco puro (deberian usar surface-2)
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Todas las pestanas (formularios)
+- **Archivo:** `src/compartido/componentes/ui/input.tsx:7`
+- **Problema:** La clase base del Input/Select/Textarea compartido usa `bg-background`, que resuelve a #ffffff (blanco puro). El sistema exige 'fondo surface-2 (no blanco)' para inputs, con foco border accent + box-shadow 0 0 0 3px rgba(59,130,246,.15). Actualmente el foco es `focus:ring-2 focus:ring-primario/30` (2px) sobre campo blanco. Afecta a los ~30 campos de toda la Configuracion. ANTES: campo #ffffff, ring 2px. DESPUES: campo surface-2, ring 3px accent 15%.
+
+```tsx
+const CLASE_BASE = 'w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,.15)] disabled:opacity-50';
+```
+
+### 60. Blanco puro y tokens de superficie inexistentes
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios (detalle OP/cliente/pipeline) y Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx:142`
+- **Problema:** El panel de notificaciones (centro-notificaciones-header.tsx:142) y el textarea del hilo (hilo-comentarios.tsx:134) usan bg-background. Como globals.css:6-12 define --background: #ffffff, TODAS las superficies (panel, tarjetas de comentario, input) renderizan en blanco puro. El objetivo prohíbe blanco puro: background #F8F9FA, surface #FFFFFF, inputs surface-2 #F1F3F5. No existe ningún token surface/surface-2/border/text-* en el proyecto, por lo que cada componente inventa utilidades (border-foreground/20, text-foreground/60). Antes: paleta ad-hoc sobre blanco puro. Despues: tokens del sistema.
+
+```tsx
+/* globals.css :root — definir tokens del sistema */
+--background:#F8F9FA; --surface:#FFFFFF; --surface-2:#F1F3F5;
+--border:#E2E8F0; --border-strong:#CBD5E1;
+--text-primary:#1E293B; --text-secondary:#64748B; --text-muted:#94A3B8;
+--accent:#3B82F6; --accent-soft:#EFF6FF; --accent-hover:#2563EB;
+--danger:#EF4444; --danger-soft:#FEF2F2;
+/* @theme inline */
+--color-surface:var(--surface); --color-surface-2:var(--surface-2);
+--color-border:var(--border); --color-text-secondary:var(--text-secondary);
+--color-accent:var(--accent); --color-accent-soft:var(--accent-soft);
+--color-danger:var(--danger); --color-danger-soft:var(--danger-soft);
+/* panel */
+<div className="... bg-surface border border-border shadow-md rounded-lg">
+/* textarea */
+<textarea className="... bg-surface-2 border border-border focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,.15)]" />
+```
+
+### 61. Menciones @usuario no se resaltan en azul suave
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios (detalle OP/cliente/pipeline)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:171`
+- **Problema:** Requisito headline del área: 'menciones @usuario en azul suave'. En hilo-comentarios.tsx:171 el cuerpo del comentario se pinta como texto plano: <p className="... text-sm">{comentario.contenido}</p>. Los tokens @Nombre aparecen como texto normal, sin color. Existe menciones en el tipo (ComentarioRegistro.menciones) y un parser server-side (parser-menciones.ts), pero NO hay componente de render que resalte las menciones en el hilo. Antes: '@Ana revisa esto' todo en gris. Despues: '@Ana' en azul suave (accent) sobre fondo accent-soft.
+
+```tsx
+/* Componente render-menciones.tsx (nuevo) — resalta @Nombre conocidos */
+function ContenidoConMenciones({ texto, nombres }: { texto: string; nombres: string[] }) {
+  const patron = new RegExp(`(@(?:${nombres.map(escaparRegex).join('|')}))`, 'gu');
+  return (
+    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-text-primary">
+      {texto.split(patron).map((parte, i) =>
+        patron.test(parte)
+          ? <span key={i} className="rounded bg-accent-soft px-1 font-medium text-accent">{parte}</span>
+          : parte,
+      )}
+    </p>
+  );
+}
+```
+
+### 62. Colores semanticos hardcodeados sin tokens danger
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios y Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx:139`
+- **Problema:** El badge de conteo usa bg-red-600 (centro-notificaciones-header.tsx:139) y los mensajes de error usan text-red-700 dark:text-red-300 (hilo-comentarios.tsx:154 y :156; centro-notificaciones-header.tsx:147). Son colores crudos de Tailwind, no el token semántico --danger #EF4444 del sistema. Esto rompe la consistencia entre módulos y hace imposible re-tematizar. Antes: bg-red-600 / text-red-700. Despues: bg-danger / text-danger sobre bg-danger-soft.
+
+```tsx
+/* badge de conteo */
+<span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-danger px-1 text-center text-xs font-bold leading-5 text-white">{noLeidas > 99 ? '99+' : noLeidas}</span>
+/* mensaje de error */
+<p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">No se pudo cargar el hilo.</p>
+```
+
+### 63. Contraste insuficiente en timestamps y texto muted
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios y Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx:158`
+- **Problema:** El timestamp de cada notificación usa text-[11px] text-foreground/55 (centro-notificaciones-header.tsx:158): foreground #171717 al 55% sobre blanco ≈ #7f7f7f, contraste ≈ 4.0:1, por debajo del mínimo AA 4.5:1 para texto normal (11px no es texto grande). El texto secundario a text-foreground/60 (hilo-comentarios.tsx:123, :148, :165, :172; centro:145) queda en ~4.4:1, en el límite. El objetivo usa text-secondary #64748B (4.6:1) y text-muted #94A3B8 solo para texto no esencial. Antes: opacidades sobre foreground. Despues: tokens text-secondary con contraste verificado.
+
+```tsx
+/* timestamp */
+<time dateTime={notificacion.creadoEn} className="mt-1 block text-xs text-text-secondary">{fechaNotificacion(notificacion.creadoEn)}</time>
+/* meta del hilo */
+<span className="text-xs text-text-secondary">{comentarios.length} mensaje(s)</span>
+```
+
+### 64. Login oficina se renderiza sobre blanco puro (#ffffff) — viola 'NUNCA blanco puro'
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login oficina (iniciar-sesion)
+- **Archivo:** `src/app/(auth)/iniciar-sesion/page.tsx:11`
+- **Problema:** El <main> no fija fondo, por lo que hereda el body = var(--color-background) = #ffffff (globals.css:7 define --background: #ffffff). El sistema exige --background #F8F9FA para oficina y prohibe explicitamente el blanco puro. El login 'pastel/calmado' queda como blanco clinico saturado. Ademas no hay contenedor Card: el formulario flota directo sobre la pagina, sin la jerarquia surface+border+shadow-sm+radius-lg que define el sistema.
+
+```tsx
+/* globals.css */ :root{ --background:#F8F9FA; --surface:#FFFFFF; --border:#E2E8F0; } @theme inline{ --color-background:var(--background); --color-surface:var(--surface); --color-border:var(--border); }
+
+<main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-6">
+  <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 shadow-sm">
+    {/* titulo + FormularioIniciarSesion */}
+  </div>
+</main>
+```
+
+### 65. Inputs del login usan bg-background (#ffffff blanco) en vez del token surface-2
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login oficina (iniciar-sesion)
+- **Archivo:** `src/modulos/autenticacion/componentes/formulario-iniciar-sesion.tsx:68`
+- **Problema:** Ambos inputs (correo linea 68, contrasena linea 85) usan `bg-background` que resuelve a #ffffff blanco puro, con `border-foreground/20` y `focus:ring-2 focus:ring-primario/30`. El sistema pide inputs con fondo surface-2 #F1F3F5 (no blanco), border --border #E2E8F0, y en focus border --accent + box-shadow 0 0 0 3px rgba(59,130,246,.15) (3px, no un ring de 2px). Sobre un fondo tambien blanco, el input es invisible como campo.
+
+```tsx
+className="rounded-md border border-border bg-surface-2 px-3 py-2 text-text-primary outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]"
+/* requiere en globals.css: --surface-2:#F1F3F5; --accent:#3B82F6; --text-primary:#1E293B; mapeados en @theme inline */
+```
+
+### 66. Portal cliente de seguimiento no existe (pantalla publica sin implementar)
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Portal cliente / seguimiento publico
+- **Archivo:** `src/app/(portal-cliente)/seguimiento/.gitkeep`
+- **Problema:** El directorio src/app/(portal-cliente)/seguimiento/ contiene solo .gitkeep (sin page.tsx) y src/modulos/portal-cliente/componentes/ tambien solo .gitkeep (todo el modulo portal-cliente esta vacio: acciones, hooks, servicios, tipos, validaciones son .gitkeep). La pantalla publica de seguimiento (claridad/marca, acceso publico) que forma parte del alcance no esta construida — no hay UI que auditar. Es un faltante, no una desviacion de estilo.
+
+```tsx
+// src/app/(portal-cliente)/seguimiento/page.tsx (scaffold minimo con tokens del sistema)
+export default function PaginaSeguimiento() {
+  return (
+    <main className="flex min-h-screen flex-col items-center gap-8 bg-background px-4 py-12">
+      <header className="flex flex-col items-center gap-2 text-center">
+        <h1 className="text-2xl font-bold text-text-primary">Seguimiento de tu pedido</h1>
+        <p className="text-sm text-text-secondary">Ingresa tu folio para ver el estado</p>
+      </header>
+      {/* form de folio publico + BadgeEstado + linea de tiempo */}
+    </main>
+  );
+}
+```
+
+## 🟡 INCONSISTENCIA — 79 hallazgos
+
+### 1. Layouts (panel) y (privado) duplicados byte-a-byte y rutas colisionables
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Arquitectura de rutas / mantenimiento del header
+- **Archivo:** `src/app/(panel)/layout.tsx:1-36 vs src/app/(privado)/layout.tsx:1-29`
+- **Problema:** Los dos layouts son practicamente identicos (misma guardia `obtenerUsuarioServidor`, mismo header, mismo `<main>`). Es duplicacion pura: cualquier cambio al chasis hay que hacerlo dos veces. Ademas hay riesgo de colision de rutas: (panel) contiene carpetas placeholder solo-.gitkeep (cobranza, configuracion, gastos, ordenes, planeacion, produccion) cuyas paginas reales viven en (privado). Como los route groups no afectan la URL, agregar un page.tsx en cualquiera de esas carpetas de (panel) provocaria un error de ruta duplicada en Next.js (`/cobranza`, `/configuracion`, etc. definidos dos veces). El nombre del componente `LayoutPanel` vs `LayoutPrivado` sugiere que iban a divergir, pero hoy son el mismo codigo.
+
+```tsx
+// Extraer un unico chasis compartido y que ambos route groups lo reutilicen (o unificar en un solo group).
+// src/compartido/componentes/navegacion/chasis-app.tsx
+export async function ChasisApp({ children }: { children: React.ReactNode }) {
+  const usuario = await obtenerUsuarioServidor();
+  if (!usuario) redirect('/iniciar-sesion');
+  return (
+    <div className="flex min-h-screen bg-background text-[var(--text-primary)]">
+      <BarraLateral />
+      <div className="flex flex-1 flex-col">
+        <EncabezadoApp usuario={usuario} />
+        <main className="flex-1 p-6">{children}</main>
+      </div>
+    </div>
+  );
+}
+// (panel)/layout.tsx y (privado)/layout.tsx: return <ChasisApp>{children}</ChasisApp>;
+// Y borrar las carpetas .gitkeep de (panel) que duplican rutas de (privado).
+```
+
+### 2. Header usa grises por opacidad en vez de tokens de borde/texto
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Header de (panel)/(privado)
+- **Archivo:** `src/app/(panel)/layout.tsx:26-27, src/app/(privado)/layout.tsx:19-20`
+- **Problema:** El borde inferior del header es `border-foreground/10` y el nombre `text-lg font-bold` hereda `foreground`. Se construyen grises con opacidad sobre el foreground en vez de usar los tokens del sistema (--border #E2E8F0, --text-primary #1E293B). El indicador de sesion repite el patron con `border-foreground/20` y `hover:bg-foreground/5` (indicador-sesion.tsx:89). Esto produce un gris azulado inconsistente y no controlable por el design system.
+
+```tsx
+<header className="... border-b border-[var(--border)] bg-[var(--surface)] ...">
+  <a href="/dashboard" className="text-lg font-bold text-[var(--text-primary)]">ORCA MFG ERP</a>
+// y en indicador-sesion.tsx el boton secundario:
+  className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-2)]"
+```
+
+### 3. Zona de piso usa paleta zinc de Tailwind en vez del dark del sistema
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** (piso) produccion-piso y (auth) operador (pantallas de planta)
+- **Archivo:** `src/app/(piso)/layout.tsx:12 y src/app/(auth)/operador/page.tsx:11`
+- **Problema:** El layout de piso fuerza `bg-zinc-950 text-zinc-50` (zinc-950 = ~#09090b, casi negro puro), y la pagina de operador repite `bg-zinc-950 text-zinc-50`. El design system define un dark distinto y menos duro para el taller: --dark-background #0F172A (slate azulado), --dark-surface #1E293B, --dark-text #F1F5F9. Usar zinc crudo rompe la consistencia con el resto del dark mode (que sera slate) y da un negro mas agresivo del pretendido. El concepto de forzar dark en piso es correcto; la paleta es la equivocada.
+
+```tsx
+// (piso)/layout.tsx
+return (
+  <div className="dark min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
+    {children}
+  </div>
+);
+// con los tokens dark ya definidos en globals.css (:where(.dark)):
+// --background:#0F172A; --surface:#1E293B; --text-primary:#F1F5F9;
+// operador/page.tsx: mismo tratamiento, bg-[var(--background)] text-[var(--text-primary)] dentro de .dark
+```
+
+### 4. Badge de notificaciones con color crudo bg-red-600 y panel en blanco puro
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Header - centro de notificaciones
+- **Archivo:** `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx:139, 142`
+- **Problema:** El badge de conteo usa `bg-red-600` (rojo crudo de Tailwind) en vez del token semantico --danger #EF4444. El panel desplegable usa `bg-background` que hoy resuelve a blanco puro #ffffff (violando el fondo objetivo y sin usar --surface). El fondo de item no leido usa `bg-primario/5` en vez de --accent-soft. Son desviaciones del vocabulario de tokens que haran que las notificaciones no combinen con el resto una vez migrado el sistema.
+
+```tsx
+// badge:
+<span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-[var(--danger)] px-1 text-center text-[10px] font-bold leading-5 text-white">
+// panel:
+<div ... className="... rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 shadow-md">
+// item no leido:
+className={`... ${notificacion.leida ? 'opacity-70' : 'bg-[var(--accent-soft)]'}`}
+```
+
+### 5. Fuente Geist en vez de Inter/system-ui que pide el design system
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Global (tipografia de toda la app)
+- **Archivo:** `src/app/layout.tsx:2, 7-15, 31 y src/estilos/globals.css:23-24, 32`
+- **Problema:** El layout raiz carga Geist/Geist_Mono y globals.css mapea `--font-sans: var(--font-geist-sans)`. El design system especifica Inter/system-ui como familia tipografica. No es critico visualmente pero es una desviacion explicita del sistema que conviene alinear antes de que 14 modulos hereden la fuente equivocada.
+
+```tsx
+// layout.tsx
+import { Inter } from 'next/font/google';
+const inter = Inter({ variable: '--font-inter', subsets: ['latin'] });
+// <html className={`${inter.variable} h-full antialiased`}>
+// globals.css
+--font-sans: var(--font-inter);
+body { font-family: var(--font-sans), system-ui, -apple-system, 'Segoe UI', sans-serif; }
+```
+
+### 6. Variantes de Button no siguen la especificacion (secondary verde, danger crudo, sin token accent-hover)
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (todos los botones)
+- **Archivo:** `src/compartido/componentes/ui/button.tsx:9-15`
+- **Problema:** ACTUAL: primario usa bg-primario + hover:opacity-90 (el sistema pide accent con hover a --accent-hover #2563EB, no opacidad); secundario es bg-secundario (VERDE relleno) text-white, cuando la spec define secondary como surface-2 / text-primary / border; destructivo usa bg-red-600 crudo (spec: danger-soft + danger-700); contorno/fantasma usan foreground/20 y foreground/5 en vez de border/surface-2. OBJETIVO: alinear las 4 variantes (primary/secondary/ghost/danger) a los tokens del sistema para consistencia visual.
+
+```tsx
+const VARIANTES = {
+  primario:    'bg-accent text-white hover:bg-accent-hover',
+  secundario:  'bg-surface-2 text-text-primary border border-border hover:bg-surface-2/70',
+  fantasma:    'bg-transparent text-text-primary hover:bg-surface-2',
+  destructivo: 'bg-danger-soft text-danger hover:bg-danger/10',
+};
+// focus-visible:ring-2 focus-visible:ring-accent/40
+```
+
+### 7. Input usa fondo blanco (bg-background) en vez de surface-2 y sin estado de error accesible
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (todos los formularios)
+- **Archivo:** `src/compartido/componentes/ui/input.tsx:6-7`
+- **Problema:** ACTUAL: CLASE_BASE usa bg-background (hoy blanco puro), border-foreground/20 y focus:ring-2 focus:ring-primario/30. El sistema pide: fondo surface-2 (#F1F3F5), border accent en focus + box-shadow 0 0 0 3px rgba(59,130,246,.15), y estado de error danger + mensaje debajo con role=alert. El primitivo no expone prop de error ni aria-invalid, por lo que cada formulario improvisa. OBJETIVO: input calmado con fondo surface-2 y foco/errores estandarizados.
+
+```tsx
+const CLASE_BASE = 'w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none transition focus:border-accent focus:shadow-[0_0_0_3px_rgb(59_130_246_/_0.15)] disabled:opacity-50 aria-[invalid=true]:border-danger aria-[invalid=true]:focus:shadow-[0_0_0_3px_rgb(239_68_68_/_0.15)]';
+// Prop error?: string -> render <p role="alert" class="mt-1 text-xs text-danger">{error}</p>
+```
+
+### 8. Dialog: overlay sin blur y opacidad .5, radio md en vez de xl, ancho 512 en vez de 640, sin bottom-sheet mobile
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (todos los modales)
+- **Archivo:** `src/compartido/componentes/ui/dialog.tsx:22-27`
+- **Problema:** ACTUAL: overlay bg-black/50 sin backdrop-blur; Content usa rounded-base (8px), max-w-lg (512px), shadow-xl y bg-background. El sistema pide overlay rgba(0,0,0,.4) + blur(4px), surface + shadow-lg + radius-xl (16px), max 640px desktop y bottom-sheet en mobile (<768). Ademas el footer (DialogFooter, linea 48) es pt-2 sin sticky, y la animacion declara animate-in/out pero sin fade+zoom-95 concretos. OBJETIVO: modal calmado con blur suave, radio 16px y layout responsive.
+
+```tsx
+// Overlay
+'fixed inset-0 z-50 bg-black/40 backdrop-blur-[4px] data-[state=open]:animate-in data-[state=open]:fade-in-0'
+// Content
+'... w-full max-w-[640px] rounded-xl border border-border bg-surface p-6 shadow-lg data-[state=open]:zoom-in-95 data-[state=open]:fade-in-0 max-sm:bottom-0 max-sm:top-auto max-sm:translate-y-0 max-sm:max-w-full max-sm:rounded-b-none'
+// DialogFooter: 'sticky bottom-0 flex justify-end gap-2 border-t border-border bg-surface pt-3'
+```
+
+### 9. Acento definido como HSL propio (no coincide con #3B82F6) y nombrado --primario en vez de --accent
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (color de marca / focus rings / botones primarios)
+- **Archivo:** `src/estilos/globals.css:9-10`
+- **Problema:** ACTUAL: --primario hsl(209 89% 51%) (~#0e8fef, un azul mas cian) y --secundario hsl(160 84% 39%) verde. El sistema define el acento como #3B82F6 (hsl 217 91% 60%) con -soft #EFF6FF y -hover #2563EB, y NO contempla un --secundario verde relleno (el verde es semantico success, no color de accion secundaria). OBJETIVO: renombrar/alinear a --accent #3B82F6 y eliminar el uso de --secundario como boton; el verde queda solo para estados de exito.
+
+```css
+:root { --accent: #3B82F6; --accent-soft: #EFF6FF; --accent-hover: #2563EB; }
+/* retirar --secundario como color de boton; success (#10B981) es solo semantico */
+```
+
+### 10. Las tendencias del KPI no llevan color — el alcance pide 'tendencias con color'
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — tarjeta KPI (línea de variación)
+- **Archivo:** `src/modulos/dashboard/componentes/widget-metrica-kpi.tsx:16,22-25`
+- **Problema:** El widget calcula señal (↑/↓/→) y textoTendencia, pero la línea de variación siempre se pinta text-foreground/65 (gris) sin importar si subió o bajó. La flecha+texto es correcto para a11y (color no debe ser la única señal), pero aquí el color está totalmente ausente, no solo 'no exclusivo'. El alcance lista 'tendencias con color' como requisito del dashboard; sube debería leer success y baja danger.
+
+```tsx
+const claseTendencia = tarjeta.tendencia === 'subio' ? 'text-success' : tarjeta.tendencia === 'bajo' ? 'text-danger' : 'text-text-secondary';
+<p className={`mt-2 text-xs ${claseTendencia}`} aria-label={`Variación: ${textoTendencia}`}>...</p>
+(La flecha y el texto se conservan como señal redundante accesible.)
+```
+
+### 11. Alertas de producción usan border-red-500/30 y border-amber-500/30 (paleta cruda) sin fill soft ni tokens semánticos
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — sección Alertas de producción
+- **Archivo:** `src/modulos/dashboard/componentes/seccion-produccion-alertas.tsx:10-11`
+- **Problema:** Las tarjetas 'Órdenes atrasadas' y 'En riesgo' señalizan con border-red-500/30 y border-amber-500/30: colores crudos de Tailwind, no los tokens danger (#EF4444) / warning (#F59E0B), y sin fondo soft (danger-soft/warning-soft). El resultado es un borde tenue apenas perceptible, no la tarjeta de alerta clara que el sistema define (fondo soft + borde/acento semántico). Además el resto de tarjetas de la misma sección quedan neutras, sin jerarquía visual de urgencia.
+
+```tsx
+Atrasadas: <article className="rounded-lg border border-danger/30 bg-danger-soft p-4"><p className="text-xs text-text-secondary">Órdenes atrasadas</p><p className="mt-1 text-2xl font-bold tabular-nums text-danger">{ordenes.atrasadas}</p></article>
+En riesgo: border-warning/30 bg-warning-soft, cifra text-warning. (Requiere --danger-soft/--warning-soft del sistema; ver hallazgo de tokens.)
+```
+
+### 12. Sombra de tarjeta inconsistente entre secciones del mismo dashboard
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — KPIs vs Finanzas/Pipeline/Producción
+- **Archivo:** `src/modulos/dashboard/componentes/widget-metrica-kpi.tsx:19 (shadow-sm) vs seccion-financiera.tsx:36,46 / seccion-ventas-pipeline.tsx:24 / seccion-produccion-alertas.tsx:8-12 (sin sombra)`
+- **Problema:** Las tarjetas KPI llevan shadow-sm pero las tarjetas de Finanzas, Pipeline y Producción no llevan ninguna. Dentro de una misma pantalla conviven dos tratamientos de 'card', lo que rompe la coherencia. El sistema define Cards como surface + border + shadow-sm + radius-lg de forma uniforme.
+
+```tsx
+Unificar todas las tarjetas al mismo patrón: className="rounded-lg border border-border bg-surface p-4 shadow-sm". Idealmente extraer una <Tarjeta> compartida en src/compartido/componentes/ui/ para que las cuatro secciones usen exactamente el mismo estilo.
+```
+
+### 13. Radio de tarjeta rounded-base (8px) en vez de radius-lg (12px) que el sistema define para Cards
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — todas las tarjetas y el filtro
+- **Archivo:** `src/modulos/dashboard/componentes/widget-metrica-kpi.tsx:19, seccion-financiera.tsx:36,46, seccion-ventas-pipeline.tsx:24, seccion-produccion-alertas.tsx:8-12, filtro-periodo-global.tsx:67`
+- **Problema:** Todas las tarjetas usan rounded-base = --radius 0.5rem = 8px (radius-md). El sistema especifica Cards con radius-lg = 12px. rounded-base tampoco es un token del sistema (es el alias local heredado de --radius 0.5rem).
+
+```css
+Cambiar rounded-base -> rounded-lg (12px) en tarjetas y contenedor del filtro. Si se quiere token propio: en @theme inline agregar --radius-lg:12px y usar rounded-lg.
+```
+
+### 14. Filtro de periodo: Input/Select sobre fondo blanco y focus con token 'primario' en vez de surface-2/accent
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — barra de filtro de periodo
+- **Archivo:** `src/compartido/componentes/ui/input.tsx:6-7 (consumido en filtro-periodo-global.tsx:70-98)`
+- **Problema:** El componente base Input/Select usa bg-background (blanco) y focus:border-primario + focus:ring-primario/30. El sistema pide inputs con fondo surface-2 (#F1F3F5, no blanco) y focus con border accent + box-shadow 0 0 0 3px rgba(59,130,246,.15). Además la barra de filtro se dibuja bg-background sobre fondo blanco (mismo problema de contraste que las tarjetas). Las etiquetas SÍ están visibles (Periodo/Desde/Hasta) — eso está bien.
+
+```tsx
+En input.tsx: const CLASE_BASE='w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-accent focus:ring-2 focus:ring-[rgba(59,130,246,0.15)] disabled:opacity-50'. En filtro-periodo-global.tsx:67 cambiar bg-background border-foreground/10 -> bg-surface border-border.
+```
+
+### 15. Errores de red sin banner+reintento y con rojo crudo; fallo RSC sin CTA; no hay toast
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — estados de error
+- **Archivo:** `src/modulos/dashboard/componentes/operacion-dashboard.tsx:56 (text-red-700) y src/app/(privado)/dashboard/page.tsx:20`
+- **Problema:** El error de refetch se muestra como texto rojo inline (text-red-700, color crudo, no token danger) con role=alert pero sin banner ni botón de reintento. El fallo de la RSC devuelve un <p role=alert> plano sin estilo ni CTA para reintentar. El sistema exige: error de red = banner 'Sin conexión' + reintento; y éxito = toast verde auto-dismiss. No existe sistema de toast compartido.
+
+```tsx
+Banner con token y reintento en operacion-dashboard.tsx:
+{consulta.isError ? (<div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger"><span>No se pudieron actualizar las métricas.</span><button type="button" onClick={()=>consulta.refetch()} className="rounded-md border border-danger/40 px-3 py-1 font-medium">Reintentar</button></div>) : null}
+En page.tsx envolver el <p> con la misma tarjeta de error + enlace/botón a reintentar.
+```
+
+### 16. El botón positivo 'Confirmar ganada' usa el estilo de peligro (rojo)
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — tarjeta, panel de ganar
+- **Archivo:** `src/modulos/pipeline/componentes/selector-etapa.tsx:189 (usa CLASE_BOTON_PELIGRO definido en :32-33)`
+- **Problema:** Marcar una oportunidad como GANADA es la acción positiva del módulo, pero el botón de confirmación usa `CLASE_BOTON_PELIGRO` (`bg-red-600 text-white`) igual que la confirmación de pérdida. Semánticamente contradictorio: rojo = destructivo/pérdida. Antes: 'Confirmar ganada y crear OP' en rojo. Después: variante success (verde) para ganada; el rojo se reserva para pérdida.
+
+```css
+const CLASE_BOTON_EXITO =
+  'rounded-md bg-[var(--success,#10B981)] px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
+// en el form de ganada usar CLASE_BOTON_EXITO en lugar de CLASE_BOTON_PELIGRO
+```
+
+### 17. Badges de prioridad/alerta hardcodean colores y no siguen el patrón BadgeEstado (sin punto de color, sin tokens soft)
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — tarjeta de oportunidad
+- **Archivo:** `src/modulos/pipeline/componentes/tarjeta-oportunidad.tsx:15-42 y 59-79`
+- **Problema:** Los badges usan clases crudas `bg-amber-100 text-amber-800` y `bg-red-100 text-red-800` (con overrides dark propios) en vez de los tokens `warning-soft`/`danger-soft` del DS, y no incluyen el punto de color por estado que exige la especificación de BadgeEstado (consistente en TODOS los módulos). No existe un componente BadgeEstado compartido, así que cada módulo se pinta distinto. Antes: pastillas amber/red ad-hoc sin dot. Después: BadgeEstado tokenizado con punto de color.
+
+```tsx
+// componente compartido BadgeEstado con tokens soft y dot
+<span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--warning-soft,#FFFBEB)] px-2 py-0.5 text-xs font-medium text-[var(--warning,#B45309)]">
+  <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning,#F59E0B)]" aria-hidden="true" />
+  Alta
+</span>
+```
+
+### 18. Inputs 'Motivo de pérdida' y 'Notas' sin label visible ni asociación (solo placeholder), requerido sin marca
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — tarjeta, panel de pérdida
+- **Archivo:** `src/modulos/pipeline/componentes/selector-etapa.tsx:146-159`
+- **Problema:** El input de motivo (obligatorio) y el textarea de notas no tienen `<label>` ni `id`/`aria-label`: la única guía es el placeholder 'Motivo de la pérdida (obligatorio)'. Viola la regla del DS 'label SIEMPRE visible' y falla WCAG (control sin nombre accesible). Al escribir, el usuario pierde la etiqueta. Antes: solo placeholder. Después: label visible con `*`, `id`+`htmlFor`, fondo surface-2, y mensaje de error con role=alert si va vacío.
+
+```tsx
+<label htmlFor={`motivo-perdida-${oportunidad.id}`} className="text-xs font-medium text-text-secondary">
+  Motivo de la pérdida <span className="text-[var(--danger,#EF4444)]">*</span>
+</label>
+<input id={`motivo-perdida-${oportunidad.id}`} type="text" required value={motivo}
+  onChange={(e)=>setMotivo(e.target.value)}
+  className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm" />
+```
+
+### 19. Campos requeridos del formulario de prospecto sin asterisco y con inputs en blanco puro
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Pipeline — formulario nueva oportunidad
+- **Archivo:** `src/modulos/pipeline/componentes/formulario-prospecto.tsx:14 (CLASE_INPUT bg-background) y 80-105 (labels)`
+- **Problema:** `nombreContacto` y `empresa` son obligatorios en el esquema (esquemas-prospecto.ts:9-10, min 2) pero sus labels ('Nombre del contacto', 'Empresa') no muestran `*`, mientras que correo/teléfono sí se marcan '(opcional)'. Ademas todos los inputs usan `bg-background` (blanco puro) en vez de `surface-2` como pide el DS. Antes: no se distingue lo obligatorio; inputs blancos. Después: `*` en requeridos y fondo surface-2.
+
+```tsx
+<label htmlFor="prospecto-empresa" className={CLASE_ETIQUETA}>Empresa <span className="text-[var(--danger,#EF4444)]">*</span></label>
+const CLASE_INPUT = 'rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]';
+```
+
+### 20. Estados vacíos son solo texto (sin icono, título, subtítulo ni CTA) y con contraste bajo
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — vacío global y por columna
+- **Archivo:** `src/modulos/pipeline/componentes/tablero-kanban.tsx:68-72 y 91-92`
+- **Problema:** El vacío global es un `<p>` ('Aún no hay oportunidades en el pipeline.') y el vacío por columna un `<p className="text-xs text-foreground/40">Sin oportunidades</p>`. El DS exige empty state con icono+título+subtítulo+CTA, y `text-foreground/40` (≈ gris muy claro sobre blanco) probablemente no alcanza contraste 4.5:1. Antes: texto plano tenue. Después: bloque estructurado con CTA que abre el formulario.
+
+```tsx
+<div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface p-8 text-center">
+  <IconoPipeline className="h-8 w-8 text-text-muted" aria-hidden="true" />
+  <h3 className="text-sm font-semibold text-text-primary">Sin oportunidades aún</h3>
+  <p className="text-sm text-text-secondary">Crea la primera oportunidad para empezar a dar seguimiento.</p>
+  <button onClick={()=>setMostrarFormulario(true)} className={CLASE_BOTON_PRIMARIO}>Nueva oportunidad</button>
+</div>
+// por columna: usar text-text-muted en vez de text-foreground/40
+```
+
+### 21. Carga con texto plano en vez de skeleton estructural
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — estado de carga
+- **Archivo:** `src/modulos/pipeline/componentes/tablero-kanban.tsx:58-60`
+- **Problema:** Mientras `isLoading`, se muestra '<p>Cargando oportunidades…</p>'. El DS pide skeleton estructural (animate-pulse) que anticipe la forma del tablero, no un texto. Antes: una línea de texto. Después: columnas con tarjetas fantasma animadas.
+
+```tsx
+<div className="flex gap-4 overflow-x-auto pb-2">
+  {COLUMNAS.map((c)=>(
+    <div key={c.etapa} className="flex w-72 shrink-0 flex-col gap-3">
+      <div className="h-9 rounded-md bg-surface-2" />
+      {[0,1].map(i=>(<div key={i} className="h-24 animate-pulse rounded-lg border border-border bg-surface-2" />))}
+    </div>
+  ))}
+</div>
+```
+
+### 22. Error de red sin banner ni acción de reintento
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — estado de error
+- **Archivo:** `src/modulos/pipeline/componentes/tablero-kanban.tsx:62-66`
+- **Problema:** Ante `isError` se muestra un `<p role="alert">` en rojo, sin banner con fondo danger-soft ni botón de reintentar (la query de TanStack expone `refetch`). El DS pide 'banner + reintento'. Antes: texto de error sin salida. Después: banner con CTA de reintento que llama a refetch.
+
+```tsx
+const { data, isLoading, isError, refetch } = usarPipeline();
+<div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-[var(--danger,#EF4444)]/30 bg-[var(--danger-soft,#FEF2F2)] px-4 py-3 text-sm text-[var(--danger,#B91C1C)]">
+  <span>No se pudieron cargar las oportunidades del pipeline.</span>
+  <button onClick={()=>refetch()} className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium">Reintentar</button>
+</div>
+```
+
+### 23. Confirmaciones de ganada/perdida inline, sin modal accesible (role=dialog)
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — tarjeta, ganar/perder
+- **Archivo:** `src/modulos/pipeline/componentes/selector-etapa.tsx:144-202`
+- **Problema:** Ganar (con fecha de compromiso que crea una OP) y perder (motivo obligatorio) son acciones importantes/irreversibles pero se confirman con un formulario que crece dentro de la tarjeta, sin overlay, sin `role=dialog`+`aria-labelledby`, sin foco atrapado. El DS pide modales accesibles para este tipo de confirmación. Antes: panel inline que empuja el layout de la columna. Después: Dialog (shadcn ya disponible en ui/) con foco y overlay.
+
+```tsx
+// usar el Dialog de src/compartido/componentes/ui/dialog
+<Dialog open={mostrarCompromiso} onOpenChange={setMostrarCompromiso}>
+  <DialogContent aria-labelledby="titulo-ganada">
+    <DialogHeader><DialogTitle id="titulo-ganada">Marcar como ganada</DialogTitle></DialogHeader>
+    <form onSubmit={manejarGanada}>…fecha de compromiso…</form>
+  </DialogContent>
+</Dialog>
+```
+
+### 24. Estado vacio de la tabla es solo texto en una celda (sin icono/CTA)
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Lista de clientes (tabla)
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:136-142`
+- **Problema:** Cuando data.registros.length === 0 se pinta un unico td con el texto 'Sin clientes.'. El sistema exige estado vacio con icono/ilustracion + titulo + subtitulo + CTA, y prohibe explicitamente la tabla vacia solo con header. Antes: mensaje minimo sin accion. Despues: bloque centrado con icono, titulo, subtitulo y boton 'Nuevo cliente'.
+
+```tsx
+<tr><td colSpan={7} className="px-4 py-16">
+  <div className="mx-auto flex max-w-sm flex-col items-center gap-3 text-center">
+    <UsersRound className="h-10 w-10 text-text-muted" aria-hidden />
+    <p className="text-base font-semibold text-text-primary">Aun no hay clientes</p>
+    <p className="text-sm text-text-secondary">Da de alta tu primer cliente para empezar a operar.</p>
+    <button onClick={abrirNuevo} className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-hover">Nuevo cliente</button>
+  </div>
+</td></tr>
+```
+
+### 25. Estado de carga es texto 'Cargando...' en vez de skeleton estructural
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Lista de clientes + Drawer ficha
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:122-128 ; ficha-cliente.tsx:78`
+- **Problema:** Durante isLoading la tabla muestra una fila con 'Cargando...' y el drawer un parrafo 'Cargando...'. El sistema pide skeleton estructural con animate-pulse que replique la forma real (no spinner ni texto de pagina). No existe componente skeleton compartido. Antes: texto plano que colapsa el layout. Despues: filas skeleton animate-pulse que preservan la estructura de columnas.
+
+```tsx
+{isLoading && Array.from({length:8}).map((_,i)=>(
+  <tr key={i} className="h-12 border-b border-border">
+    {Array.from({length:7}).map((_,c)=>(
+      <td key={c} className="px-4 py-3"><div className="h-4 w-24 animate-pulse rounded-sm bg-surface-2" /></td>
+    ))}
+  </tr>
+))}
+```
+
+### 26. Badges de tier y estado con paleta cruda, sin punto de color y sin BadgeEstado compartido
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Lista + Drawer ficha (badges)
+- **Archivo:** `src\modulos\clientes\utilidades\indice.ts:16-35 ; tabla-clientes.tsx:156-158 ; ficha-cliente.tsx:65-69`
+- **Problema:** CLASE_TIER y CLASE_ESTADO usan colores crudos de Tailwind (amber-100/slate-200/yellow-100/cyan-100 y blue-100/green-100/gray-200) en vez de los tokens semanticos (success-soft, info-soft, warning-soft, surface-2/muted). El estado se pinta como un mapa local en cada modulo en lugar de un BadgeEstado compartido, y ningun badge lleva el punto de color animado que exige el sistema. El contraste AA se cumple, pero difiere de los demas modulos. Antes: badge de color arbitrario sin punto, distinto por modulo. Despues: BadgeEstado unico con *-soft por token y punto de color.
+
+```tsx
+// CLASE_ESTADO con tokens semanticos
+export const CLASE_ESTADO = {
+  prospecto: 'bg-info-soft text-info',
+  activo:    'bg-success-soft text-success',
+  inactivo:  'bg-surface-2 text-text-muted',
+};
+// badge con punto
+<span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${CLASE_ESTADO[estado]}`}>
+  <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden /> {ETIQUETA_ESTADO[estado]}
+</span>
+```
+
+### 27. Inputs con fondo blanco y filtros/buscador sin label visible
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Filtros de lista + Formulario
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:15-16,68-101 ; formulario-cliente.tsx:14-15`
+- **Problema:** CLASE_INPUT usa bg-background (blanco) en vez de surface-2 (#F1F3F5) como exige el sistema. En la barra de filtros el buscador (type=search) y los dos selects (estado/tier) no tienen label ni aria-label: se apoyan solo en el placeholder / la opcion 'Todos...', lo que el sistema prohibe (label SIEMPRE visible). El foco usa ring-2 primario/30; el objetivo es box-shadow 0 0 0 3px rgba(59,130,246,.15). Antes: inputs blancos sin etiqueta accesible. Despues: fondo surface-2, label o aria-label en cada control y anillo de foco de 3px con accent.
+
+```tsx
+const CLASE_INPUT = 'rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,.15)]';
+// buscador
+<input type="search" aria-label="Buscar clientes" ... />
+// selects
+<label htmlFor="f-estado" className="sr-only">Estado</label>
+<select id="f-estado" ...>
+```
+
+### 28. AlertaCredito usa rojo crudo en vez de tokens danger
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Alerta de credito (drawer ficha)
+- **Archivo:** `src\modulos\clientes\componentes\alerta-credito.tsx:20-37`
+- **Problema:** El estado excedido pinta con border-red-400 bg-red-50 text-red-700 (paleta cruda) y el estado normal con border-foreground/15 bg-foreground/5. El sistema define danger #EF4444 / danger-soft #FEF2F2 y superficies con tokens. Antes: rojos arbitrarios y contenedor con opacidad de foreground. Despues: danger-soft + borde danger para excedido, surface + border para normal.
+
+```tsx
+className={`rounded-lg border p-4 text-sm ${
+  credito.excedido
+    ? 'border-danger bg-danger-soft'
+    : 'border-border bg-surface'
+}`}
+// mensaje
+<p role="alert" className="mt-2 font-semibold text-danger">Credito excedido...</p>
+```
+
+### 29. Barra visual de credito usado/limite ausente (pieza del alcance)
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Alerta de credito (drawer ficha)
+- **Archivo:** `src\modulos\clientes\componentes\alerta-credito.tsx:19-40`
+- **Problema:** El alcance especifica una 'barra credito usado/limite', pero AlertaCredito solo lista cuatro cifras (Limite, Saldo a favor, Usado, Disponible) en una grilla, sin ninguna barra de progreso. No hay lectura visual rapida de que porcentaje del limite esta consumido. Antes: solo numeros. Despues: barra de progreso usado/limite con color por umbral (accent normal, warning >80%, danger si excede).
+
+```tsx
+const pct = credito.limite > 0 ? Math.min(100, (credito.usado / credito.limite) * 100) : 0;
+<div className="mt-3">
+  <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Credito usado">
+    <div className={`h-full rounded-full ${credito.excedido ? 'bg-danger' : pct > 80 ? 'bg-warning' : 'bg-accent'}`} style={{ width: `${pct}%` }} />
+  </div>
+  <p className="mt-1 text-xs text-text-secondary">{formatearMoneda(credito.usado)} de {formatearMoneda(credito.limite)}</p>
+</div>
+```
+
+### 30. Lista sin avatar/iniciales del cliente (pieza del alcance)
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Lista de clientes (tabla)
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:112-149`
+- **Problema:** El alcance pide 'Lista con avatar/iniciales', pero la primera columna solo muestra la razon social como enlace de texto. No hay avatar circular con iniciales que ayude al escaneo visual de filas. Antes: columna de texto plano. Despues: avatar de iniciales (surface-2 con text-secondary) junto a la razon social.
+
+```tsx
+<td className="px-4 py-3">
+  <button onClick={()=>setClienteVer(cliente.id)} className="flex items-center gap-3 text-left">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-text-secondary">
+      {cliente.razonSocial.slice(0,2).toUpperCase()}
+    </span>
+    <span className="font-medium text-text-primary hover:text-accent hover:underline">{cliente.razonSocial}</span>
+  </button>
+</td>
+```
+
+### 31. Modal no es bottom-sheet en mobile, radius-md en vez de xl y overlay sin blur
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Modal alta/edicion
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:202-208`
+- **Problema:** El contenedor del modal es max-w-2xl centrado con my-8 en todas las resoluciones; el sistema pide bottom-sheet a ancho completo en mobile. Usa rounded-base (0.5rem = radius-md) y shadow-xl, cuando el objetivo es radius-xl (16px) + shadow-lg. El overlay es bg-black/40 pero sin backdrop-blur(4px). Antes: dialogo centrado con esquinas medias y sin blur en todos los tamanos. Despues: bottom-sheet en mobile, radius-xl, shadow-lg y overlay con blur.
+
+```tsx
+// overlay
+className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[4px] sm:items-start sm:overflow-y-auto sm:p-4"
+// panel
+className="w-full max-w-2xl rounded-t-xl bg-surface p-6 shadow-lg sm:my-8 sm:rounded-xl"
+```
+
+### 32. Carga con texto "Cargando…" en vez de skeleton animate-pulse
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo e Historial (estado de carga)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:80-86`
+- **Problema:** ANTES: la carga muestra `<td colSpan={7}>Cargando…</td>`, un texto centrado. El sistema pide skeleton estructural con `animate-pulse` (no spinner ni texto de página). Igual en tabla-movimientos.tsx:38-43 y no hay skeleton en las métricas (metricas-inventario.tsx). DESPUES: filas skeleton que reflejan la estructura de la tabla.
+
+```tsx
+{isLoading && Array.from({length:8}).map((_,i)=>(
+  <tr key={i} className="h-12">
+    {Array.from({length:7}).map((__,j)=>(
+      <td key={j} className="px-4 py-3">
+        <div className="h-4 w-3/4 rounded bg-[var(--surface-2)] animate-pulse" />
+      </td>
+    ))}
+  </tr>
+))}
+```
+
+### 33. Error de red mostrado como fila de texto roja, sin banner de reintento
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo ("No se pudieron cargar…") e Historial
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:87-93`
+- **Problema:** ANTES: `<td colSpan={7} className="text-red-600">No se pudieron cargar los materiales.</td>` — sin banner de 'Sin conexión', sin botón de reintento y con `text-red-600` crudo en vez de token danger. El sistema pide error de red = banner con reintento. Igual en tabla-movimientos.tsx:45-51. DESPUES: banner danger-soft con acción reintentar (refetch de TanStack Query).
+
+```tsx
+{isError && (
+  <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--danger-soft)] px-4 py-3">
+    <span className="text-sm text-[var(--danger)]">No se pudo conectar. Revisa tu conexión.</span>
+    <Button tamano="sm" variante="contorno" onClick={() => refetch()}>Reintentar</Button>
+  </div>
+)}
+```
+
+### 34. No hay toast de éxito tras crear material / registrar entrada o salida
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Modales de alta, entrada y salida
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\modal-crear-material.tsx:79-86`
+- **Problema:** ANTES: en éxito la única señal es que el modal se cierra (`onExito()`); no hay toast de confirmación. El sistema pide éxito = toast verde ✓ auto-dismiss 3s (esquina sup-der). Mismo vacío en modal-registrar-entrada.tsx:73-80 y modal-registrar-salida.tsx:78-86. Además no existe componente toast compartido en el repo. DESPUES: confirmación efímera visible tras cada operación.
+
+```css
+// tras crear/registrar con exito
+async function alEnviar(datos: CrearMaterialInput) {
+  await crearMaterial.mutateAsync(datos);
+  toast.success('Material creado'); // requiere provider de toast compartido
+  onExito();
+}
+// El toast va anclado top-right, verde (--success-soft/--success), auto-dismiss 3s.
+```
+
+### 35. Inputs y selects sobre fondo blanco en vez de surface-2
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Filtros del catálogo y todos los formularios de modal
+- **Archivo:** `D:\ERP-CC\src\compartido\componentes\ui\input.tsx:6-7`
+- **Problema:** ANTES: `CLASE_BASE` usa `bg-background` (= #ffffff) y `border-foreground/20`; el sistema pide inputs con fondo `surface-2` (#F1F3F5, no blanco) para separarlos de la superficie. El foco usa `focus:ring-2 focus:ring-primario/30`; el objetivo es border accent + box-shadow `0 0 0 3px rgba(59,130,246,.15)`. Afecta a buscador y selects de filtros-inventario.tsx y a todos los campos de los 3 modales. DESPUES: input con fondo surface-2 y anillo de foco accent al 15%.
+
+```css
+const CLASE_BASE =
+  'w-full rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm ' +
+  'text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] ' +
+  'focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_rgba(59,130,246,.15)] disabled:opacity-50';
+```
+
+### 36. Errores de campo sin role=alert y con color rojo crudo
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Modal alta de material y modal entrada (errores por campo)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\modal-crear-material.tsx:175`
+- **Problema:** ANTES: el `<span className="text-xs text-red-600">{error}</span>` del componente `Campo` no lleva `role="alert"` ni usa token danger; el lector de pantalla no anuncia el error de validación al aparecer. (El error global del form sí tiene role=alert en línea 145, y el modal de salida sí lo pone en el mensaje de exceso de stock — inconsistencia entre campos.) Mismo patrón en modal-registrar-entrada.tsx:94-103. DESPUES: mensaje por campo anunciado y con token.
+
+```tsx
+{error && (
+  <span role="alert" className="text-xs text-[var(--danger)]">{error}</span>
+)}
+```
+
+### 37. Campos requeridos sin asterisco visible en el label
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Modal alta de material y modales de entrada/salida
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\modal-crear-material.tsx:162-178`
+- **Problema:** ANTES: `Campo` recibe solo `etiqueta` y renderiza `<Label>{etiqueta}</Label>`; campos obligatorios (Código, Nombre, Categoría, cantidades, costos) no marcan `*` requerido, aunque el esquema Zod los exige. El sistema pide requerido con * en el label. DESPUES: prop `requerido` que agrega el asterisco (y `aria-required`).
+
+```tsx
+function Campo({ etiqueta, requerido, error, children }: {...; requerido?: boolean; ...}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label>{etiqueta}{requerido && <span className="text-[var(--danger)]"> *</span>}</Label>
+      {children}
+      {error && <span role="alert" className="text-xs text-[var(--danger)]">{error}</span>}
+    </div>
+  );
+}
+// uso: <Campo etiqueta="Código" requerido error={errors.codigo?.message}>
+```
+
+### 38. Tarjetas de métricas sin fondo surface, sin sombra y con radio md
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Métricas de inventario (Total ítems / Bajo stock / Valor)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\metricas-inventario.tsx:48`
+- **Problema:** ANTES: `<div className="rounded-base border border-foreground/10 p-4">` — sin `bg-surface` (queda transparente sobre el fondo), sin `shadow-sm`, radio 8px (base) en vez de 12px (lg) y padding 16 en vez de 24. El valor de alerta usa `text-red-600` crudo (línea 50) cuando 'bajo stock' es semánticamente warning (ámbar), no danger. El sistema pide card = surface + border + shadow-sm + radius-lg + padding 24/16. DESPUES: card con superficie, sombra funcional y color de alerta warning.
+
+```tsx
+<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm">
+  <p className="text-xs uppercase text-[var(--text-secondary)]">{etiqueta}</p>
+  <p className={`mt-1 text-2xl font-bold ${alerta ? 'text-[var(--warning)]' : 'text-[var(--text-primary)]'}`}>{valor}</p>
+</div>
+```
+
+### 39. Header de tabla y hover usan grises translúcidos, no surface-2 / accent-soft
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo e Historial (encabezado y hover de fila)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:68`
+- **Problema:** ANTES: header `bg-foreground/5 text-foreground/60`, filas con `divide-y divide-foreground/5` y hover `hover:bg-foreground/5` (gris). El sistema pide header fijo `bg-surface-2` con `text-secondary`, alternancia surface/surface-2 (zebra) y hover `accent-soft` azul. No hay zebra ni header sticky. Igual en tabla-movimientos.tsx:27,60. DESPUES: header surface-2, zebra y hover azul suave.
+
+```tsx
+<thead className="sticky top-0 bg-[var(--surface-2)] text-[var(--text-secondary)]"> ... </thead>
+// filas con zebra + hover accent-soft
+<tr className={`h-12 hover:bg-[var(--accent-soft)] ${i % 2 ? 'bg-[var(--surface-2)]' : 'bg-[var(--surface)]'}`}>
+```
+
+### 40. Modal sin variante bottom-sheet en móvil y radio md en vez de xl
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Modales de alta / entrada / salida (móvil)
+- **Archivo:** `D:\ERP-CC\src\compartido\componentes\ui\dialog.tsx:23-31`
+- **Problema:** ANTES: `DialogContent` está centrado con `left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-lg rounded-base` fijo para todos los breakpoints; en móvil el sistema pide bottom-sheet full-width. Además el radio es `rounded-base` (8px) cuando modales deben ser radius-xl (16px). El overlay (línea 22) es `bg-black/50` sin blur (objetivo rgba(0,0,0,.4)+blur 4px). DESPUES: bottom-sheet en <768px, centrado en desktop, radio xl y overlay con blur.
+
+```tsx
+// overlay
+<DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[4px] ..." />
+// content: bottom-sheet en movil, centrado >=sm, radius-xl
+className={cn(
+  'fixed z-50 bg-[var(--surface)] shadow-lg border border-[var(--border)]',
+  'inset-x-0 bottom-0 rounded-t-2xl max-h-[90vh] overflow-y-auto p-6',
+  'sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-xl sm:rounded-2xl',
+  className,
+)}
+```
+
+### 41. Badge de estado ad-hoc: sin componente compartido, sin punto de color y con colores hardcode (no tokens)
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla (columna Estado) y filtros
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:46-53,324-328`
+- **Problema:** CLASE_ESTADO mapea a `bg-blue-100/text-blue-800`, `bg-amber-100`, etc. (Tailwind por defecto, no la paleta pastel del sistema) y el badge no lleva el punto de color por estado que pide el design system; en_proceso ademas debe llevar punto `animate-ping`. No existe un BadgeEstado compartido, por lo que cada modulo reimplementa su propio mapeo y divergen entre pantallas. El set de estados aqui (borrador/programada/en_proceso/pausada/completada/cancelada) tambien difiere del canonico del spec (pendiente/lista/terminada/entregada/vencida).
+
+```tsx
+// Crear src/compartido/componentes/ui/badge-estado.tsx reutilizable:
+const TOKENS={borrador:['var(--surface-2)','var(--text-muted)'],programada:['var(--info-soft)','var(--info)'],en_proceso:['var(--info-soft)','var(--info)'],pausada:['var(--warning-soft)','var(--warning)'],completada:['var(--success-soft)','var(--success)'],cancelada:['var(--surface-2)','var(--text-muted)']};
+<span className="inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2 py-0.5 text-xs font-semibold" style={{background:`var(${bg})`,color:`var(${fg})`}}><span className={`size-1.5 rounded-full bg-current ${estado==='en_proceso'?'animate-ping':''}`} />{etiqueta}</span>
+```
+
+### 42. Header de tabla no es sticky y no usa surface-2
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla de ordenes registradas
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:271-300`
+- **Problema:** El thead usa `bg-foreground/5` y no queda fijo al hacer scroll (ni vertical dentro del contenedor ni al scrollear la pagina), asi que al recorrer muchas OP se pierde la referencia de columnas. El sistema pide header fijo con fondo surface-2 y texto text-secondary.
+
+```tsx
+<div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[color:var(--border)] max-h-[70vh] overflow-y-auto">
+  <thead className="sticky top-0 z-10 bg-[color:var(--surface-2)] text-xs uppercase text-[color:var(--text-secondary)] border-b border-[color:var(--border)]">
+```
+
+### 43. Empty state pobre: solo una celda de texto, sin icono/titulo/subtitulo/CTA
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla (sin resultados)
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:302-308`
+- **Problema:** Cuando no hay ordenes que coincidan se muestra `<td colSpan=7>Sin ordenes que coincidan con los filtros.` El sistema pide estado vacio con ilustracion/icono + titulo + subtitulo + CTA (p.ej. 'Limpiar filtros' o 'Nueva orden'). Ademas no distingue el caso 'no hay ninguna OP' del caso 'los filtros no matchean'.
+
+```tsx
+<td colSpan={7} className="py-12 text-center"><div className="mx-auto flex max-w-sm flex-col items-center gap-2"><svg aria-hidden className="size-10 text-[color:var(--text-muted)]">...</svg><p className="text-sm font-semibold text-[color:var(--text-primary)]">Sin ordenes visibles</p><p className="text-sm text-[color:var(--text-secondary)]">Ajusta o limpia los filtros para ver mas OP.</p><button onClick={limpiarFiltros} className="mt-1 rounded-[var(--radius-md)] bg-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-white">Limpiar filtros</button></div></td>
+```
+
+### 44. No hay paginacion: la tabla renderiza todas las OP y solo muestra un contador
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla de ordenes registradas
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:310-413`
+- **Problema:** Se hace `.map` sobre todas las ordenes visibles sin paginar; el unico control es el texto `{ordenesVisibles.length} de {ordenes.length} orden(es)` (linea 411-413). El sistema pide paginacion tipo 'Mostrando 1-25 de N'. Con decenas/cientos de OP la tabla se vuelve un scroll interminable y costoso de renderizar.
+
+```tsx
+// slice por pagina + footer:
+<div className="flex items-center justify-between text-sm text-[color:var(--text-secondary)]"><span>Mostrando {inicio+1}-{Math.min(inicio+25,total)} de {total}</span><div className="flex gap-1"><button disabled={pagina===0} className="rounded-[var(--radius-md)] border border-[color:var(--border)] px-3 py-1.5 disabled:opacity-40">Anterior</button><button disabled={inicio+25>=total} className="...">Siguiente</button></div></div>
+```
+
+### 45. Falta panel detalle expandible de partidas (el alcance lo nombra explicitamente)
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla / detalle de OP
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:376-409`
+- **Problema:** El alcance pide 'panel detalle expandible'. El boton 'Seleccionar' solo alterna `ordenActivaId` y lo unico que se despliega debajo es el HiloComentarios (lineas 399-409); no existe un desglose por partida (codigoPieza, producido/solicitado por linea, maquina asignada, scrap). La informacion de partidas ya viene en `orden.partidas` pero se colapsa a un simple conteo en la columna Partidas (335). El usuario no puede ver el detalle de la OP sin ir al control de piso.
+
+```tsx
+{activa && (
+  <tr><td colSpan={7} className="bg-[color:var(--surface-2)] px-4 py-3">
+    <table className="w-full text-xs"><thead className="text-[color:var(--text-secondary)]"><tr><th className="text-left py-1">Pieza</th><th>Maquina</th><th>Avance</th><th>Scrap</th></tr></thead><tbody>
+      {orden.partidas.map(p=>(<tr key={p.id} className="border-t border-[color:var(--border)]"><td className="font-mono py-1">{p.codigoPieza}</td><td>{p.maquinaAsignada ?? 'sin asignar'}</td><td>{p.cantidadProducida}/{p.cantidadSolicitada} {p.unidadMedida}</td><td>{p.cantidadScrap}</td></tr>))}
+    </tbody></table>
+  </td></tr>
+)}
+```
+
+### 46. Control de piso usa paleta zinc/cyan hardcodeada en vez de los tokens dark del sistema
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Control de piso (modo taller/dark)
+- **Archivo:** `src/modulos/ordenes/componentes/control-piso-panel.tsx:29-34`
+- **Problema:** El panel de piso pinta con `border-zinc-700/600/800`, `bg-zinc-900`, `text-zinc-50/300/400` y acento `bg-cyan-500/400 text-zinc-950`. El sistema dark objetivo define dark-surface #1E293B, dark-surface-2 #334155, dark-border #475569, dark-text #F1F5F9 y el acento es azul #3B82F6 (cyan no pertenece a la paleta). Aunque los touch targets aqui si son grandes (py-3 ~44px, correcto para piso), el color diverge del resto del ERP y del semaforo/badges, rompiendo la coherencia visual entre oficina y taller.
+
+```css
+const CLASE_INPUT='w-full rounded-[var(--radius-md)] border border-[color:var(--dark-border)] bg-[color:var(--dark-surface)] px-3 py-3 text-base text-[color:var(--dark-text)] outline-none focus:border-[color:var(--accent)] focus:shadow-[0_0_0_3px_rgba(59,130,246,.25)]';
+const CLASE_BOTON_PRIMARIO='rounded-[var(--radius-md)] bg-[color:var(--accent)] px-4 py-3 text-sm font-bold text-white hover:bg-[color:var(--accent-hover)] disabled:opacity-45';
+```
+
+### 47. BadgeEstado sin punto de color y sin animate-ping en en_proceso; usa paleta cruda no tokens
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario (columna Estado)
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:325-329`
+- **Problema:** El sistema exige un BadgeEstado consistente con punto de color por estado y en_proceso con punto animate-ping. Antes: se usa <Badge variante=...> (badge.tsx:8-13) que solo aplica bg-blue-100/text-blue-800 etc (paleta Tailwind cruda, no info-soft/warning-soft) y no dibuja ningun punto ni animacion; ademas en_preparacion y en_proceso comparten variante 'info' sin diferenciarse (VARIANTE_ESTADO lineas 58-68). Despues: badge con punto y ping via tokens semanticos.
+
+```tsx
+<span className="inline-flex items-center gap-1.5 rounded-full bg-info-soft px-2 py-0.5 text-xs font-medium text-info">
+  <span className="relative flex h-2 w-2">
+    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-info opacity-75" aria-hidden />
+    <span className="relative inline-flex h-2 w-2 rounded-full bg-info" aria-hidden />
+  </span>
+  En proceso
+</span>
+```
+
+### 48. Tabla sin zebra striping, sin hover de fila y con header no sticky
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:277-312`
+- **Problema:** El sistema pide header fijo (sticky) con fondo surface-2, alternancia surface/surface-2 y hover accent-soft. Antes: el <thead> (linea 277) usa bg-foreground/5 sin position:sticky (se pierde al hacer scroll vertical) y las filas (lineas 304-312) no tienen zebra ni hover; solo la seleccionada cambia con bg-foreground/5. Despues: thead sticky + zebra + hover con tokens.
+
+```tsx
+<thead className="sticky top-0 z-10 border-b border-border bg-surface-2 text-xs uppercase text-text-secondary"> ... </thead>
+<tr className={cn('h-12 border-b border-border odd:bg-surface even:bg-surface-2 hover:bg-accent-soft', seleccionada && 'bg-accent-soft')}>
+```
+
+### 49. Inputs con fondo blanco (bg-background) y sin asterisco de requerido
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Panel asignacion / filtros
+- **Archivo:** `src\compartido\componentes\ui\input.tsx:6-7`
+- **Problema:** El sistema pide inputs con fondo surface-2 (no blanco), focus con border accent + box-shadow 0 0 0 3px rgba(59,130,246,.15) y * en labels requeridos. Antes: CLASE_BASE usa bg-background (=#ffffff blanco puro) y focus:ring-2 focus:ring-primario/30 (2px, no 3px del spec); y en panel-asignacion-planeacion.tsx los Label de campos obligatorios (recurso l.228, fecha l.244, horas l.267) no llevan asterisco. Despues: fondo surface-2, shadow de focus exacto y marca de requerido.
+
+```tsx
+// input.tsx
+const CLASE_BASE = 'w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)] disabled:opacity-50';
+// panel-asignacion
+<Label htmlFor="planeacion-recurso">Recurso <span className="text-danger" aria-hidden>*</span></Label>
+```
+
+### 50. Sin tooltip de detalle de OP ni ellipsis en celdas que pueden desbordar
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario (celda Recurso)
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:315-317`
+- **Problema:** El alcance pide tooltip con detalle de la OP y las reglas de tabla piden ellipsis+tooltip. Antes: la celda de recurso imprime `${recurso.codigo} · ${recurso.nombre}` sin truncado ni title/tooltip; no existe componente Tooltip compartido (no hay ui/tooltip). Despues: truncado con title accesible como minimo, e idealmente un Tooltip compartido (role=tooltip / aria-describedby) que muestre folio OP, pieza y horas.
+
+```tsx
+<span className="block max-w-[14rem] truncate" title={`${recurso.codigo} · ${recurso.nombre}`}>
+  {recurso.codigo} · {recurso.nombre}
+</span>
+// objetivo: <Tooltip contenido={<DetalleOp programacion={programacion} />}>...</Tooltip> con aria-describedby
+```
+
+### 51. No existe BadgeEstado con punto pulsante; en_proceso no pulsa
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — badges de estado en Kanban
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx:19-25`
+- **Problema:** El sistema exige un BadgeEstado consistente en todos los modulos, con punto de color por estado y `animate-ping` para en_proceso. Aqui se mapean los estados a variantes genericas del Badge base (neutro/info/alerta/exito) sin punto y sin pulso; en_proceso queda como badge 'info' estatico. No hay senal visual pulsante de OP en proceso, clave en un piso.
+
+```tsx
+// BadgeEstado con punto; para en_proceso:
+<span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--info-soft)] px-2 py-0.5 text-sm font-semibold text-info">
+  <span className="relative flex h-2 w-2">
+    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-info opacity-75"></span>
+    <span className="relative inline-flex h-2 w-2 rounded-full bg-info"></span>
+  </span>
+  En proceso
+</span>
+```
+
+### 52. El Panel de operador de piso no destaca la 'MI OP ACTIVA'
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — Panel de operador (sesion activa)
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\panel-operador-produccion.tsx:102-104`
+- **Problema:** Cuando hay sesion activa, la unica senal es <p className="text-sm">Sesion activa en la orden seleccionada.</p>. El requisito pide una tarjeta 'MI OP ACTIVA' destacada (folio grande, pieza, avance, tiempo). En ControlPisoPanel tampoco existe: la orden activa es solo el primer item de un <select>. El operador no tiene un bloque prominente que le confirme en que OP esta trabajando.
+
+```tsx
+<div className="rounded-lg border-2 border-accent bg-[var(--accent-soft)] p-4">
+  <p className="text-xs font-bold uppercase tracking-wide text-accent">Mi OP activa</p>
+  <p className="mt-1 text-2xl font-bold text-text-primary">{orden?.folio}</p>
+  <p className="text-base text-text-secondary">{seleccion?.etiqueta}</p>
+</div>
+```
+
+### 53. Avance y cierre son formularios inline text-xs, no modales con keypad ni resumen
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — cierre de sesion / avance
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\panel-operador-produccion.tsx:103-135`
+- **Problema:** El sistema pide 'modal avance campos grandes+keypad numerico' y 'modal cierre resumen (horas/piezas/scrap)'. Aqui el cierre es un <form> inline con labels text-xs (11px) e inputs estandar; no hay modal, no hay keypad numerico de piso, y no se muestra resumen de horas/piezas/scrap antes de confirmar. En ControlPisoPanel el avance/consumo tambien son secciones inline sin modal ni resumen. Faltan los componentes Modal/Dialog de piso descritos.
+
+```tsx
+// Envolver el cierre en Dialog con footer sticky y mostrar resumen calculado:
+<div role="dialog" aria-labelledby="t-cierre" className="... bg-surface shadow-lg rounded-xl">
+  <div className="grid grid-cols-3 gap-3 text-center">
+    <div><p className="text-xs text-text-muted">Horas</p><p className="text-2xl font-bold">{horas}</p></div>
+    <div><p className="text-xs text-text-muted">Piezas</p><p className="text-2xl font-bold">{piezas}</p></div>
+    <div><p className="text-xs text-text-muted">Scrap</p><p className="text-2xl font-bold text-danger">{scrap}</p></div>
+  </div>
+  {/* inputs text-2xl + keypad */}
+</div>
+```
+
+### 54. Sin barra de progreso visual: el avance de piezas es solo texto
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** Ambas — tarjetas Kanban y linea de partida en piso
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx:36-40`
+- **Problema:** El requisito pide 'barra progreso visual'. En Kanban avanceOrden() devuelve un string '5/10 piezas' (lineas 36-40, renderizado en linea 98) y en ControlPisoPanel el avance es texto 'producida/solicitada' (control-piso-panel.tsx:267-279). No hay ninguna barra de progreso; a distancia en el piso un ratio de texto no comunica el avance.
+
+```tsx
+// junto al ratio:
+<div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2">
+  <div className="h-full rounded-full bg-accent transition-[width] duration-300"
+    style={{ width: `${solicitadas ? Math.min(100, (producidas/solicitadas)*100) : 0}%` }} />
+</div>
+```
+
+### 55. Ruta (panel)/produccion vacia (solo .gitkeep)
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (panel)/produccion
+- **Archivo:** `D:\ERP-CC\src\app\(panel)\produccion\.gitkeep`
+- **Problema:** El alcance incluye src/app/(panel)/produccion pero el directorio solo contiene .gitkeep: no hay page.tsx ni componente. La ruta no renderiza nada (404/dead route). O se implementa la vista de panel esperada o se elimina el placeholder para no dejar rutas muertas en el grupo (panel).
+
+```tsx
+// Definir el proposito de (panel)/produccion o eliminar el directorio.
+// Si es un panel de supervision, crear page.tsx que reuse el tablero con tokens dark del sistema.
+```
+
+### 56. Estados de produccion y pago como texto plano, no BadgeEstado
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Tabla de cuentas por cobrar
+- **Archivo:** `src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx:50-51`
+- **Problema:** Las columnas Produccion y Pago imprimen cuenta.estadoProduccion y cuenta.estado como cadena cruda (ej. 'pendiente', 'pagado'). El sistema exige un BadgeEstado consistente en TODOS los modulos con color y punto por estado (pagado=success, pendiente=warning-soft, cancelado=muted, vencida=danger-soft). Existe el Badge base en ui/badge.tsx pero no se usa; no hay componente compartido BadgeEstado en el repo.
+
+```tsx
+// crear src/compartido/componentes/ui/badge-estado.tsx reutilizable:
+const MAPA = { pendiente:'alerta', parcial:'info', pagado:'exito', cancelado:'neutro' } as const;
+export function BadgeEstado({ estado }: { estado: string }) {
+  return <Badge variante={MAPA[estado] ?? 'neutro'}>
+    <span className="mr-1 inline-block size-1.5 rounded-full bg-current opacity-70" />{estado}
+  </Badge>;
+}
+// en la tabla:
+<td className="px-3 py-3"><BadgeEstado estado={cuenta.estado} /></td>
+```
+
+### 57. Filas de tabla bajo 48px, sin alternancia ni hover
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Tabla de cuentas por cobrar
+- **Archivo:** `src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx:44-51`
+- **Problema:** Las celdas usan py-2 (~8px), lo que deja filas de ~36px cuando el sistema exige >=48px. Ademas no hay alternancia surface/surface-2 (solo border-t foreground/10) ni hover accent-soft; la fila seleccionada usa bg-primario/10 (azul saturado) en vez de accent-soft. Baja legibilidad al escanear muchas cuentas.
+
+```tsx
+<tr className={cn(
+  'transition-colors hover:bg-accent-soft',
+  seleccionada ? 'bg-accent-soft' : indice % 2 ? 'bg-surface-2' : 'bg-surface'
+)}>
+  <td className="px-3 py-3">...</td>  /* py-3 -> ~48px de alto de fila */
+```
+
+### 58. Header de tabla no fijo y con tokens simulados
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Tabla de cuentas por cobrar
+- **Archivo:** `src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx:28`
+- **Problema:** El thead usa bg-foreground/5 y text-foreground/70 en vez de surface-2 y text-secondary, y no queda fijo (sin sticky) al hacer scroll vertical de la cartera. El sistema pide header fijo con fondo surface-2 y texto text-secondary.
+
+```tsx
+<thead className="sticky top-0 z-10 bg-surface-2 text-xs uppercase tracking-wide text-text-secondary">
+```
+
+### 59. Inputs con fondo blanco, focus debil y sin marca de requerido
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Modal Registrar cobro / Filtros de cartera
+- **Archivo:** `src/compartido/componentes/ui/input.tsx:7 (usado en modal-registrar-pago.tsx:126-134)`
+- **Problema:** CLASE_BASE de Input/Select/Textarea usa bg-background (blanco) en vez de surface-2, border-foreground/20 en vez de border, y focus:ring-primario/30 (anillo 2px) en vez del box-shadow 0 0 0 3px rgba(59,130,246,.15) del sistema. Los campos required (monto, tipo de cambio) no muestran el asterisco en el Label, solo el atributo HTML.
+
+```tsx
+const CLASE_BASE = 'w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none placeholder:text-text-muted focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)] disabled:opacity-50';
+// Label requerido:
+<Label htmlFor="monto-pago">Monto <span className="text-danger">*</span></Label>
+```
+
+### 60. Botón OCR sin icono de cámara y estados OCR incompletos (sin preview ni reintento)
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — modal registrar, zona de comprobante OCR
+- **Archivo:** `src/modulos/gastos/componentes/modal-registrar-gasto.tsx:135-146; 79-98`
+- **Problema:** El alcance pide 'botón OCR/escanear con icono cámara' y 'estados OCR (loading/preview/reintento)'. El botón es solo texto ('Escanear comprobante con IA' / 'Analizando…') sin icono de cámara (grep camara/Camera/svg = 0). Estados: hay loading (texto) pero NO hay preview del comprobante cargado (miniatura de imagen/nombre-de-PDF con estado), NI acción de reintento explícita tras error (el error va a un `<p>` genérico y el usuario debe re-pulsar el mismo botón). No se muestra la confianza/advertencias del OCR (`datos.confianza`, `datos.advertencias`) pese a existir en el tipo.
+
+```tsx
+<Button type="button" variante="contorno" disabled={!archivo||ocrEnCurso} onClick={()=>void escanear()}>
+  <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+  {ocrEnCurso?'Analizando…':'Escanear comprobante'}
+</Button>
+{/* preview */}{archivo&&<img src={URL.createObjectURL(archivo)} className="h-16 rounded-md border border-border object-cover" alt="Vista previa comprobante"/>}
+{/* reintento */}{mensaje&&<Button variante="contorno" onClick={()=>void escanear()}>Reintentar OCR</Button>}
+```
+
+### 61. Colores semánticos hardcodeados (red-700, amber-700, black/50) en vez de tokens
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — mensajes de error, alertas, overlay del modal
+- **Archivo:** `src/modulos/gastos/componentes/operacion-gastos.tsx:163,164,166; modal-registrar-gasto.tsx:148; tarjeta-rentabilidad-orden.tsx:25; src/compartido/componentes/ui/dialog.tsx:22`
+- **Problema:** Los mensajes de error usan `text-red-700`, las advertencias de datos faltantes `text-amber-700`, y el overlay del modal `bg-black/50`. El sistema define tokens danger (#EF4444/soft #FEF2F2) y warning (#F59E0B/soft #FFFBEB) y pide overlay rgba(0,0,0,.4)+blur(4px). Los hardcodes de Tailwind divergen del sistema y no responden a dark.
+
+```tsx
+// errores
+<p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{mensaje}</p>
+// advertencia rentabilidad
+<p className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">Datos faltantes: …</p>
+// dialog.tsx overlay
+<DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[4px] data-[state=open]:animate-in" />
+```
+
+### 62. Modal fuera de especificación (ancho, overlay sin blur, sin bottom-sheet móvil)
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — modal registrar gasto
+- **Archivo:** `src/compartido/componentes/ui/dialog.tsx:23-31,22`
+- **Problema:** El DialogContent usa `max-w-lg` (512px) cuando el sistema pide max 640px en desktop; usa `shadow-xl` y radius `rounded-base` (0.5rem) en vez de radius-xl (16px); el overlay es `bg-black/50` sin blur. En móvil el modal sigue centrado (`left-1/2 top-1/2`) en vez de bottom-sheet full-width. El formulario de gasto es largo (subtotal/iva/total/moneda/fechas/OCR) y en móvil se beneficiaría del bottom-sheet.
+
+```tsx
+className="fixed z-50 grid gap-4 border border-border bg-surface p-6 shadow-lg 
++ sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-[640px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl 
++ max-sm:inset-x-0 max-sm:bottom-0 max-sm:rounded-t-xl max-sm:max-h-[92vh] 
++ data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 overflow-y-auto"
+```
+
+### 63. Botones de acción de fila demasiado pequeños (<36px) y sin full-width móvil
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — columna acciones de la tabla
+- **Archivo:** `src/compartido/componentes/ui/button.tsx:19 (tamano sm); tabla-gastos.tsx:49-60`
+- **Problema:** El tamaño `sm` es `px-2.5 py-1 text-xs` → altura ~24px, por debajo del mínimo del sistema (36/40/44). En la celda de acciones se apilan hasta 3 botones ('Rentabilidad', 'Marcar pagado', 'Cancelar') muy juntos con `gap-2`, lo que dificulta el toque/click preciso. En móvil no hay full-width para botones de acción. Aunque Gastos es módulo de oficina (no piso), 24px es un objetivo de toque insuficiente.
+
+```tsx
+// button.tsx TAMANOS: subir sm a altura usable
+sm:'h-9 px-3 text-xs'  // 36px
+// y separar acciones destructivas: 'Cancelar' con variante danger
+<Button tamano="sm" variante="contorno" onClick={()=>onCambiarEstado(gasto,'cancelado')} className="text-danger">Cancelar</Button>
+```
+
+### 64. Componente Badge compartido tampoco usa tokens ni punto de estado
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos (y todo el ERP) — referencia de BadgeEstado
+- **Archivo:** `src/compartido/componentes/ui/badge.tsx:8-13`
+- **Problema:** El Badge base usa `bg-foreground/10`, `bg-red-100`, `bg-green-100`, `bg-blue-100` hardcodeados y no incluye punto de color por estado. Aunque no se importa en Gastos, es la pieza que debería estandarizar el BadgeEstado; en su forma actual no cumple el sistema (soft-tokens + dot). Debe migrarse a tokens *-soft y aceptar un estado tipado para que Gastos y el resto lo consuman de forma uniforme.
+
+```tsx
+const VARIANTES={neutro:'bg-surface-2 text-text-muted',alerta:'bg-danger-soft text-danger',exito:'bg-success-soft text-success',info:'bg-info-soft text-info',aviso:'bg-warning-soft text-warning'};
+// opcional dot: <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${dotColor}`} />
+```
+
+### 65. Columna Estado en texto plano en vez de BadgeEstado con punto de color
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Areas de trabajo / Cuentas bancarias
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-areas-trabajo.tsx:64 y pestana-cuentas-bancarias.tsx:44`
+- **Problema:** El estado se pinta como texto plano `{area.activo ? 'Activa' : 'Inactiva'}`. Existe un componente Badge compartido (src/compartido/componentes/ui/badge.tsx) con variantes neutro/exito, pero no se usa. El sistema pide un BadgeEstado consistente en TODOS los modulos con punto de color por estado. Rompe consistencia con el resto del ERP. ANTES: texto plano gris. DESPUES: Badge exito/neutro con punto.
+
+```tsx
+import { Badge } from '@/compartido/componentes/ui/badge';
+<td className="p-3"><Badge variante={area.activo ? 'exito' : 'neutro'}><span className={cn('mr-1.5 h-1.5 w-1.5 rounded-full', area.activo ? 'bg-[color:var(--success)]' : 'bg-text-muted')} />{area.activo ? 'Activa' : 'Inactiva'}</Badge></td>
+```
+
+### 66. Tabla de areas sin color swatch (requisito explicito del alcance)
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Areas de trabajo
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-areas-trabajo.tsx:64`
+- **Problema:** El alcance pide 'tabla areas con color swatch'. El campo `colorHex` se edita en el formulario (input type=color, linea 71) pero NO se muestra como muestra de color en la tabla; las columnas son Codigo, Area, Interno/h, Venta/h, Estado, Accion. El color asignado a cada area es invisible en el listado. ANTES: sin swatch. DESPUES: circulo de color junto al nombre.
+
+```tsx
+<td className="p-3"><span className="inline-flex items-center gap-2"><span className="h-3.5 w-3.5 shrink-0 rounded-full border border-border" style={{ backgroundColor: area.colorHex }} aria-hidden="true" />{area.nombre}</span></td>
+```
+
+### 67. Errores mostrados con role=status y color neutro, indistinguibles del exito
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Todas las pestanas
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-empresa.tsx:69 (y pestana-tarifas.tsx:75, pestana-areas-trabajo.tsx:76, pestana-cuentas-bancarias.tsx:45, pestana-plantillas-doc.tsx:29)`
+- **Problema:** Un unico estado `mensaje` sirve para exito y error, y siempre se renderiza como `<p role="status" className="text-sm text-foreground/70">`. Un error ('No se pudo guardar la empresa', o el error de la accion) se ve gris igual que 'Datos de empresa guardados'. El sistema pide error danger + mensaje con role=alert/aria-live, y exito toast verde. No hay diferenciacion cromatica ni ARIA. ANTES: gris neutro role=status para todo. DESPUES: distinguir error (danger + role=alert) de exito (success).
+
+```tsx
+// separar exito de error, p.ej. estado `error: string | null` y `ok: boolean`
+{error ? <p role="alert" className="text-sm text-[color:var(--danger)]">{error}</p> : null}
+{ok ? <p role="status" className="flex items-center gap-1.5 text-sm text-[color:var(--success)]"><span aria-hidden>✓</span> Guardado</p> : null}
+```
+
+### 68. Filas de tabla sin alternancia (zebra), sin hover y encabezado con opacidad en vez de tokens
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Areas de trabajo / Cuentas bancarias
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-areas-trabajo.tsx:64 y pestana-cuentas-bancarias.tsx:44`
+- **Problema:** El header usa `bg-foreground/5` y las filas solo `border-b border-foreground/10`. Falta: header fondo surface-2 con texto text-secondary, alternancia surface/surface-2, y hover accent-soft. Sin zebra ni hover, recorrer visualmente filas anchas (min-w 620px) es dificil. ANTES: filas planas, header gris translucido. DESPUES: header surface-2/text-secondary, zebra even:surface-2, hover accent-soft.
+
+```tsx
+<thead className="bg-surface-2 text-text-secondary"><tr>{/* th p-3 text-xs uppercase tracking-wide */}</tr></thead>
+<tbody>{datos.map((a) => <tr key={a.id} className="border-b border-border last:border-0 odd:bg-surface even:bg-surface-2 hover:bg-accent-soft">...</tr>)}</tbody>
+```
+
+### 69. Paneles y sub-formularios sin jerarquia de superficie ni sombra funcional
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Todas (panel de pestana; editores laterales de Areas y Cuentas)
+- **Archivo:** `src/modulos/configuracion/componentes/operacion-configuracion.tsx:74; pestana-areas-trabajo.tsx:67; pestana-cuentas-bancarias.tsx:45`
+- **Problema:** El panel de pestana usa `rounded-base border border-foreground/15 bg-background` (blanco, sin sombra) y los formularios de edicion lateral usan `rounded-base border border-foreground/15 p-4` sobre el mismo blanco. El sistema define Cards con surface + border + shadow-sm + radius-lg y separacion sobre el background #F8F9FA. Al ser todo blanco sobre blanco, no hay separacion visual entre lienzo, panel y editor. ANTES: bordes finos sobre blanco uniforme. DESPUES: surface con shadow-sm y radius-lg sobre background gris.
+
+```tsx
+className="grid content-start gap-3 rounded-lg border border-border bg-surface p-4 shadow-sm"
+```
+
+### 70. Centro de notificaciones es dropdown, no panel lateral deslizable
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx:142`
+- **Problema:** El alcance pide 'centro de notificaciones panel lateral deslizable (no modal)'. La implementación (centro-notificaciones-header.tsx:141-142) es un popover pequeño anclado a la campana: absolute right-0 top-full ... w-[min(22rem,calc(100vw-2rem))], sin overlay, sin deslizamiento lateral, y marcado role=dialog. En móvil queda como un dropdown estrecho, no un side-sheet ni bottom-sheet. No existe componente Sheet compartido. Antes: dropdown popover. Despues: panel lateral fijo a la derecha con overlay y transición de entrada (o bottom-sheet en móvil).
+
+```tsx
+/* panel como sheet lateral */
+<div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" onClick={() => setAbierto(false)} />
+<aside id="centro-notificaciones-panel" role="dialog" aria-label="Centro de notificaciones"
+  className="fixed right-0 top-0 z-50 h-dvh w-[min(24rem,100vw)] translate-x-0 border-l border-border bg-surface shadow-lg transition-transform duration-200 ease-[cubic-bezier(.4,0,.2,1)] max-md:inset-x-0 max-md:top-auto max-md:bottom-0 max-md:h-[80dvh] max-md:w-full max-md:rounded-t-xl">
+```
+
+### 71. Avatar del autor ausente en el hilo
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios (detalle OP/cliente/pipeline)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:163`
+- **Problema:** El alcance pide 'avatar+nombre+timestamp'. El item de comentario (hilo-comentarios.tsx:162-166) solo muestra nombre y timestamp; no hay avatar. Además autorAvatarUrl siempre se devuelve null en comentarios.ts:99 (autorAvatarUrl: null), por lo que el dato está stubbeado. Falta al menos un avatar de iniciales como fallback. Antes: solo texto de nombre. Despues: avatar (iniciales o imagen) + nombre + timestamp en fila.
+
+```tsx
+<div className="flex items-start gap-3">
+  <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
+    {comentario.autorNombre.trim().slice(0,1).toUpperCase()}
+  </span>
+  <div className="flex flex-col">
+    <span className="text-sm font-semibold text-text-primary">{comentario.autorNombre}</span>
+    <time dateTime={comentario.creadoEn} className="text-xs text-text-secondary">{fechaComentario(comentario.creadoEn)}</time>
+  </div>
+</div>
+```
+
+### 72. Fondo de notificacion no-leida usa bg-primario/5 en vez de accent-soft
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx:152`
+- **Problema:** El alcance especifica 'no-leida fondo accent-soft'. En centro-notificaciones-header.tsx:152 la fila no-leída usa bg-primario/5 (5% del azul primario hsl 209 89% 51%), que no es el token --accent-soft #EFF6FF y produce un tinte apenas perceptible. El punto de no-leída (:155) usa bg-primario en vez del acento del sistema. Antes: bg-primario/5. Despues: bg-accent-soft.
+
+```tsx
+<button className={`w-full rounded-md p-2 text-left transition-colors hover:bg-surface-2 ${notificacion.leida ? 'opacity-70' : 'bg-accent-soft'}`}>
+  ...
+  {!notificacion.leida && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Sin leer" />}
+```
+
+### 73. Estados de carga sin skeleton estructural
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios y Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:155`
+- **Problema:** El sistema exige carga = skeleton estructural con animate-pulse (no spinner ni texto). El hilo muestra un texto plano 'Cargando comentarios…' (hilo-comentarios.tsx:155) y el centro de notificaciones no muestra nada durante la carga inicial. No existe componente skeleton compartido. Antes: texto 'Cargando…'. Despues: filas skeleton con animate-pulse que imitan la estructura de comentario/notificación.
+
+```tsx
+{consulta.isLoading && (
+  <ol className="flex flex-col gap-3" aria-hidden="true">
+    {[0,1,2].map((i) => (
+      <li key={i} className="animate-pulse rounded-lg border border-border p-3">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-surface-2" />
+          <div className="h-3 w-32 rounded bg-surface-2" />
+        </div>
+        <div className="mt-3 h-3 w-3/4 rounded bg-surface-2" />
+      </li>
+    ))}
+  </ol>
+)}
+```
+
+### 74. Empty states sin icono/estructura (hilo sin empty state)
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios y Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:157`
+- **Problema:** El sistema pide vacío = icono + título + subtítulo + CTA. El hilo (hilo-comentarios.tsx:157) renderiza un <ol> vacío cuando no hay comentarios: no muestra ningún mensaje ('Sé el primero en comentar'). El centro de notificaciones (centro-notificaciones-header.tsx:148) muestra solo texto 'No tienes notificaciones nuevas.' sin icono ni estructura. Antes: lista vacía / texto pelón. Despues: bloque vacío con icono + mensaje.
+
+```tsx
+{!consulta.isLoading && comentarios.length === 0 && (
+  <div className="flex flex-col items-center gap-1 py-8 text-center">
+    <svg aria-hidden="true" className="h-8 w-8 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" d="M8 10h8M8 14h5M21 12a9 9 0 0 1-13 8l-5 1 1-5A9 9 0 1 1 21 12Z"/></svg>
+    <p className="text-sm font-medium text-text-primary">Aún no hay comentarios</p>
+    <p className="text-xs text-text-secondary">Sé el primero en comentar esta orden.</p>
+  </div>
+)}
+```
+
+### 75. Label del textarea oculto (sr-only) y sobre fondo blanco
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios (detalle OP/cliente/pipeline)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:126`
+- **Problema:** El sistema de inputs exige 'label SIEMPRE visible (no solo placeholder)' y 'fondo surface-2 (no blanco)'. El textarea del hilo tiene su label como sr-only (hilo-comentarios.tsx:126) apoyándose solo en el placeholder, y usa bg-background (blanco puro) en :134. El foco usa ring-primario/30 en vez del box-shadow 0 0 0 3px rgba(59,130,246,.15) del sistema. Antes: label invisible + input blanco. Despues: label visible + input surface-2 + focus con acento.
+
+```tsx
+<label htmlFor={`comentario-${entidadId}`} className="text-sm font-medium text-text-primary">Nuevo comentario</label>
+<textarea id={`comentario-${entidadId}`} ... className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-primary outline-none focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,.15)]" />
+```
+
+### 76. Alturas de boton por debajo del minimo del sistema
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios (detalle OP/cliente/pipeline)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:19`
+- **Problema:** Los botones del hilo (CLASE_BOTON y CLASE_PRIMARIO, hilo-comentarios.tsx:19-20) usan px-3 py-1.5 text-sm, lo que da ~30px de alto, por debajo de las alturas del sistema (36/40/44) y del target táctil. El primario 'Comentar' y el secundario 'Eliminar' quedan pequeños. Antes: py-1.5 (~30px). Despues: h-9 (36px) mínimo, radius-md, tokens de color.
+
+```tsx
+const CLASE_BOTON = 'inline-flex h-9 items-center rounded-md border border-border bg-surface-2 px-3 text-sm font-medium text-text-primary transition-colors hover:bg-border/40 disabled:opacity-50';
+const CLASE_PRIMARIO = 'inline-flex h-9 items-center rounded-md bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50';
+```
+
+### 77. Keypad y pagina de operador usan paleta zinc hardcodeada, no la dark slate del sistema
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login operador (PIN, piso)
+- **Archivo:** `src/modulos/autenticacion/componentes/teclado-pin.tsx:72`
+- **Problema:** El keypad usa bg-zinc-800/900 y text-zinc-50/300/500 (lineas 72, 82, 84-88, 114) y la pagina operador usa bg-zinc-950 text-zinc-50 (page.tsx:11). El sistema define una paleta dark propia basada en slate: --dark-background #0F172A, --dark-surface #1E293B, --dark-surface-2 #334155, --dark-border #475569, --dark-text #F1F5F9, --dark-text-2 #CBD5E1. Zinc es gris neutro; slate es azulado — divergencia visible frente al resto del entorno de piso taller y cero uso de tokens.
+
+```tsx
+// page.tsx
+<main className="... bg-dark-background text-dark-text">
+// teclado-pin.tsx (claseBotonDigito)
+const claseBotonDigito = 'h-20 rounded-xl bg-dark-surface-2 text-3xl font-semibold text-dark-text transition-colors active:bg-dark-border disabled:opacity-40';
+// display: bg-dark-surface text-dark-text ; placeholder: text-dark-text-2
+/* requiere definir estos tokens en globals.css y exponerlos en @theme inline */
+```
+
+### 78. Mensajes de error con rojo Tailwind hardcodeado en vez del token danger
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login oficina + Login operador
+- **Archivo:** `src/modulos/autenticacion/componentes/formulario-iniciar-sesion.tsx:91`
+- **Problema:** El error del form usa `text-red-600 dark:text-red-400` (linea 91) y el del keypad `text-red-400` (teclado-pin.tsx:92). El sistema define el error con el token --danger #EF4444 y, para bloques de error, fondo --danger-soft #FEF2F2. Ademas el sistema describe el error como banner (fondo soft + texto), aqui es solo texto suelto. Genera inconsistencia entre modulos que ya usen el token.
+
+```tsx
+<p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p>
+/* globals.css: --danger:#EF4444; --danger-soft:#FEF2F2; en @theme inline: --color-danger, --color-danger-soft. En keypad usar text-dark-text sobre bg con danger o mantener text-[color:var(--danger)] segun contraste sobre fondo oscuro */
+```
+
+### 79. El login reimplementa inputs/boton inline en vez de reutilizar Input/Label/Button compartidos
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login oficina (iniciar-sesion)
+- **Archivo:** `src/modulos/autenticacion/componentes/formulario-iniciar-sesion.tsx:60`
+- **Problema:** El formulario declara <input> y <button> crudos con clases repetidas (lineas 60-70, 77-87, 96-102) cuando existen los componentes compartidos Input/Textarea/Select (src/compartido/componentes/ui/input.tsx) y Button (button.tsx). Duplica estilos y hace que un cambio de design system no se propague. Nota: los compartidos tampoco usan aun los tokens del sistema (input.tsx:7 tambien usa bg-background/border-foreground/20), asi que primero deben migrarse ellos.
+
+```tsx
+import { Input } from '@/compartido/componentes/ui/input';
+import { Label } from '@/compartido/componentes/ui/label';
+import { Button } from '@/compartido/componentes/ui/button';
+// ...
+<Label htmlFor="email">Correo electronico <span className="text-danger">*</span></Label>
+<Input id="email" name="email" type="email" required ... />
+<Button type="submit" disabled={enviando}>{enviando ? 'Iniciando sesion…' : 'Iniciar sesion'}</Button>
+```
+
+## 🔵 MEJORA DE EXPERIENCIA — 45 hallazgos
+
+### 1. Header no sticky, nombre sin enlace y sin breadcrumb/busqueda/avatar
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Header de (panel)/(privado)
+- **Archivo:** `src/app/(panel)/layout.tsx:26-32`
+- **Problema:** El header no es `sticky`: al hacer scroll de una tabla larga se pierde el acceso a notificaciones y cierre de sesion. El nombre `ORCA MFG ERP` es un `<span>` plano, no un enlace a /dashboard (patron esperado de logo-a-inicio). El design system describe un header con breadcrumb, busqueda y avatar; hoy solo hay nombre + campana + nombre-usuario, sin migas de pan (que ayudarian dado que NO hay sidebar), sin buscador global y sin avatar (solo texto del nombre).
+
+```tsx
+<header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-6">
+  <div className="flex items-center gap-4">
+    <a href="/dashboard" className="text-lg font-bold text-[var(--text-primary)]">ORCA MFG ERP</a>
+    <nav aria-label="Ruta actual" className="hidden md:flex items-center gap-1 text-sm text-[var(--text-secondary)]">{/* migas */}</nav>
+  </div>
+  {/* opcional: buscador global + avatar con iniciales */}
+</header>
+```
+
+### 2. Estado de sidebar en Zustand nunca consumido (andamiaje muerto)
+
+- **Área:** Layout global y navegacion
+- **Pantalla/Componente:** Estado global de UI
+- **Archivo:** `src/estado/tienda-ui.ts:5-19`
+- **Problema:** La tienda define `barraLateralContraida`, `contraerBarra` y `expandirBarra`, pero un grep confirma que solo aparecen en su definicion y en el barrel src/estado/indice.ts; ningun componente los lee ni los invoca. Es codigo muerto que documenta la intencion de un sidebar colapsable que nunca se construyo. Al implementar la barra lateral, conectar el toggle a este estado (y persistirlo por usuario). Mientras tanto, es senal clara de que el chasis quedo a medias.
+
+```tsx
+// Al crear barra-lateral.tsx, consumir el estado ya existente:
+const contraida = usarTiendaUI((s) => s.barraLateralContraida);
+const contraer = usarTiendaUI((s) => s.contraerBarra);
+const expandir = usarTiendaUI((s) => s.expandirBarra);
+// boton de colapso:
+<button type="button" aria-label={contraida ? 'Expandir menu' : 'Contraer menu'} aria-expanded={!contraida} onClick={() => (contraida ? expandir() : contraer())}>...</button>
+```
+
+### 3. Label sin soporte de campo requerido (asterisco *) ni asociacion explicita
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (formularios)
+- **Archivo:** `src/compartido/componentes/ui/label.tsx:7-14`
+- **Problema:** ACTUAL: Label solo aplica text-sm font-medium text-foreground. El sistema pide que el label este SIEMPRE visible y que los requeridos muestren '*'. No hay prop requerido ni indicacion visual, por lo que cada formulario lo agrega a mano de forma inconsistente. OBJETIVO: un Label que reciba requerido y pinte el asterisco en danger.
+
+```tsx
+type Props = ComponentProps<'label'> & { requerido?: boolean };
+export function Label({ className, requerido, children, ...p }: Props) {
+  return (<label className={cn('text-sm font-medium text-text-primary', className)} {...p}>
+    {children}{requerido && <span className="ml-0.5 text-danger" aria-hidden>*</span>}
+  </label>);
+}
+```
+
+### 4. Button sin estado de carga (spinner inline + anti-doble-envio)
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (acciones de mutacion en Server Actions)
+- **Archivo:** `src/compartido/componentes/ui/button.tsx:28-48`
+- **Problema:** ACTUAL: Button no expone prop cargando; el sistema pide que las acciones muestren spinner inline + disabled para evitar doble envio. Sin ello, cada formulario reimplementa el patron (se observan multiples modales de registro que lo hacen a mano). OBJETIVO: prop cargando que fuerce disabled y muestre spinner.
+
+```tsx
+type Props = ... & { cargando?: boolean };
+// dentro: disabled={props.disabled || cargando}
+// {cargando && <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />}
+```
+
+### 5. Escala tipografica y familia no alineadas: Geist en vez de Inter/system-ui, sin tokens de escala
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global (tipografia)
+- **Archivo:** `src/estilos/globals.css:24`
+- **Problema:** ACTUAL: --font-sans mapea a --font-geist-sans (layout.tsx:7 carga Geist). El sistema especifica Inter/system-ui. Ademas no hay tokens de escala tipografica (xs .75 -> 3xl 1.875rem) definidos explicitamente; se depende de los defaults de Tailwind. Impacto bajo (Geist es una sans neutra), pero es una desviacion del sistema y conviene fijar la familia y stack de respaldo. OBJETIVO: usar Inter con system-ui de respaldo.
+
+```css
+// layout.tsx: import { Inter } from 'next/font/google'; const inter = Inter({ variable: '--font-inter', subsets: ['latin'] });
+// globals.css @theme: --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
+```
+
+### 6. Tokens de modo oscuro (piso taller) ausentes: .dark solo cambia background/foreground
+
+- **Área:** Primitivos UI compartidos + tokens
+- **Pantalla/Componente:** Global dark (piso taller)
+- **Archivo:** `src/estilos/globals.css:14-17`
+- **Problema:** ACTUAL: .dark solo redefine --background #0a0a0a (casi negro) y --foreground #ededed. El sistema define una paleta slate para piso: --dark-background #0F172A, --dark-surface #1E293B, --dark-surface-2 #334155, --dark-border #475569, --dark-text #F1F5F9, --dark-text-2 #CBD5E1. Aunque esta area es modo claro, la ausencia de estos tokens deja el modo oscuro sin surface/border/text propios. OBJETIVO: al cablear los tokens del sistema, redefinir su valor dentro de .dark con la escala slate.
+
+```css
+.dark {
+  --background: #0F172A; --surface: #1E293B; --surface-2: #334155;
+  --border: #475569; --border-strong: #64748B;
+  --text-primary: #F1F5F9; --text-secondary: #CBD5E1; --text-muted: #94A3B8;
+}
+```
+
+### 7. No hay gráficas — pipeline y aging se muestran solo como cifras; el alcance pide 'graficas con colores del sistema'
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — Pipeline de ventas y Antigüedad CxC (aging)
+- **Archivo:** `src/modulos/dashboard/componentes/seccion-ventas-pipeline.tsx:19-27 y seccion-financiera.tsx:38-48`
+- **Problema:** El pipeline por etapa y el aging (corriente / 1-30 / 31-60 / 61-90 / +90) son datos ideales para barras, pero se renderizan como tarjetas numéricas planas. El alcance de esta área lista explícitamente 'graficas con colores del sistema' y no existe ningún componente de visualización. Es un componente esperado que no está implementado.
+
+```tsx
+Añadir barras simples con tokens (sin librería): para cada etapa/tramo, ancho proporcional al máximo y color por semántica —
+<div className="h-2 rounded-full bg-surface-2"><div className="h-2 rounded-full bg-accent" style={{width:`${(valor/maximo)*100}%`}} /></div>
+En pipeline usar bg-success para 'ganada' y bg-danger para 'perdida'; en aging degradar de bg-success (corriente) a bg-danger (+90 días).
+```
+
+### 8. Las alertas de producción no son accionables (números sin enlace/CTA a las órdenes)
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — sección Alertas de producción
+- **Archivo:** `src/modulos/dashboard/componentes/seccion-produccion-alertas.tsx:7-13`
+- **Problema:** El alcance pide 'alertas/acciones pendientes'. Las tarjetas muestran conteos (atrasadas, en riesgo, aprobaciones pendientes) pero ninguna enlaza a la lista filtrada de esas órdenes, por lo que el usuario ve el problema pero no puede actuar desde el dashboard. Una alerta accionable debería ser un enlace.
+
+```tsx
+Convertir cada tarjeta relevante en enlace: <Link href="/produccion?estado=atrasada" className="group rounded-lg border border-danger/30 bg-danger-soft p-4 transition-transform hover:-translate-y-px hover:shadow-md focus-visible:ring-2 focus-visible:ring-accent"> ...conteo... <span className="mt-1 block text-xs text-text-secondary">Ver órdenes atrasadas →</span></Link>. Igual para aprobaciones pendientes y en riesgo.
+```
+
+### 9. Etapas del pipeline sin color semántico (ganada/perdida idénticas al resto)
+
+- **Área:** Dashboard
+- **Pantalla/Componente:** Dashboard operativo (/dashboard) — Pipeline de ventas
+- **Archivo:** `src/modulos/dashboard/componentes/seccion-ventas-pipeline.tsx:24`
+- **Problema:** Las seis etapas (prospecto…ganada…perdida) se pintan con la misma tarjeta neutra. 'Ganada' (resultado positivo) y 'Perdida' (negativo) no reciben ninguna diferenciación visual, desperdiciando la lectura rápida del embudo. El sistema define semánticos success/danger justo para esto.
+
+```tsx
+Mapear color por etapa: const acento = etapa==='ganada' ? 'text-success' : etapa==='perdida' ? 'text-danger' : 'text-text-primary'; y aplicar a la cifra: <p className={`mt-1 text-2xl font-bold tabular-nums ${acento}`}>{pipeline[etapa]}</p>. Mantener la tarjeta bg-surface para no saturar.
+```
+
+### 10. Éxito de guardado como texto verde en vez de toast
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Cotizador — guardar cotización
+- **Archivo:** `src/modulos/pipeline/componentes/formulario-cotizacion.tsx:293-295`
+- **Problema:** Al guardar, el éxito se muestra como `<p className="text-sm text-secundario">Cotización guardada.</p>` que queda fijo en el formulario. El DS pide toast en esquina superior derecha, verde con ✓, auto-dismiss 3s. No hay componente toast compartido todavía. Antes: texto verde persistente. Después: toast efímero.
+
+```tsx
+// tras respuesta.exito, en vez de setMensajeExito:
+mostrarToast({ tipo: 'exito', mensaje: 'Cotización guardada', icono: '✓', duracionMs: 3000 });
+// requiere agregar un componente/provider de toast en compartido/componentes/ui
+```
+
+### 11. Botones de cambio de etapa con target táctil pequeño y poca separación visual de estado
+
+- **Área:** Pipeline / Cotizaciones
+- **Pantalla/Componente:** Kanban — selector de etapa
+- **Archivo:** `src/modulos/pipeline/componentes/selector-etapa.tsx:30-31 y 126-142`
+- **Problema:** Los botones de etapa usan `px-2 py-1 text-xs` (~24px de alto), muy por debajo de 44px; aunque Pipeline es de oficina (no piso), son controles de uso frecuente y difíciles de acertar. Además el único feedback de destino inválido es `opacity-40`, sin indicar por qué. Antes: pastillas de ~24px. Después: min-h de 36px y tooltip/aria en deshabilitados.
+
+```tsx
+const CLASE_BOTON = 'inline-flex min-h-9 items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40';
+// en el botón deshabilitado: title="Transición no permitida desde esta etapa"
+```
+
+### 12. Sin toast de exito y error de red sin banner ni reintento
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Formulario, tier manual y carga de lista
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:129-135,215-218 ; ficha-cliente.tsx:320-347`
+- **Problema:** Al crear/editar un cliente el modal se cierra en silencio (sin toast verde de confirmacion en esquina superior derecha); el tier manual reporta con un span inline. En error de red la tabla muestra 'No se pudieron cargar los clientes.' como texto en una celda, sin banner 'Sin conexion' ni boton de reintento. No existe infraestructura de toast compartida. Antes: exito sin feedback y error sin accion de recuperacion. Despues: toast de exito auto-dismiss 3s y banner de error con boton Reintentar.
+
+```tsx
+{isError && (
+  <tr><td colSpan={7} className="px-4 py-6">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-danger bg-danger-soft px-4 py-3 text-sm text-danger">
+      <span>Sin conexion. No se pudieron cargar los clientes.</span>
+      <button onClick={refrescar} className="rounded-md border border-danger px-3 py-1 font-medium">Reintentar</button>
+    </div>
+  </td></tr>
+)}
+// exito: disparar toast('Cliente guardado') tras onExito
+```
+
+### 13. Celdas sin ellipsis+tooltip y drawer/modal sin animacion de entrada
+
+- **Área:** Clientes
+- **Pantalla/Componente:** Lista (celdas) + Drawer/Modal
+- **Archivo:** `src\modulos\clientes\componentes\tabla-clientes.tsx:143-160 ; ficha-cliente.tsx:54-58`
+- **Problema:** Las celdas de razon social / nombre comercial no truncan con ellipsis+title, por lo que un texto largo hace crecer la fila en vez de mostrar tooltip. El drawer (aside) aparece sin transicion de slide y el modal sin fade+scale 95->100; el sistema pide animaciones base 200ms cubic-bezier(.4,0,.2,1). Antes: texto que rompe alturas de fila y aparicion brusca de paneles. Despues: truncate+title en celdas y animacion de entrada suave.
+
+```tsx
+// celda
+<td className="max-w-[220px] truncate px-4 py-3" title={cliente.nombreComercial}>{cliente.nombreComercial}</td>
+// drawer aside
+className="... animate-in slide-in-from-right duration-200 ease-[cubic-bezier(.4,0,.2,1)]"
+// modal panel
+className="... animate-in fade-in zoom-in-95 duration-200"
+```
+
+### 14. Kardex colorea el badge de tipo pero no las cantidades (entrada/salida)
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Historial de movimientos — columnas Cant. compra / Cant. control
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-movimientos.tsx:67-74`
+- **Problema:** ANTES: el color verde/rojo del kardex solo vive en el badge de tipo (`varianteTipo`, líneas 10-14); las cantidades se imprimen en `text-foreground` neutro sin signo ni color, así que a simple vista no se distingue una entrada (+) de una salida (−) por la cifra. El objetivo del área es 'entradas verde / salidas rojo' también en la magnitud. DESPUES: cantidad con signo y color según sume o reste.
+
+```tsx
+const suma = mov.tipoMovimiento === 'entrada_compra' || mov.tipoMovimiento === 'devolucion';
+<td className={`px-4 py-3 text-right tabular-nums font-medium ${suma ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
+  {suma ? '+' : '−'}{mov.cantidadControl.toLocaleString('es-MX')}
+</td>
+```
+
+### 15. Celdas de texto largo sin ellipsis+tooltip y columna Acciones no fija en scroll-x
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo de materiales (Nombre / Categoría / Acciones)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:66-107`
+- **Problema:** ANTES: la tabla está en `overflow-x-auto` (línea 66) pero ninguna celda tiene `truncate`+`title`, así que nombres largos ensanchan la tabla y empujan la columna Acciones fuera de vista al hacer scroll horizontal en tablet; el sistema pide ellipsis+tooltip y 'columna acciones siempre visible'. DESPUES: nombre con truncado y tooltip, columna Acciones sticky a la derecha.
+
+```tsx
+// nombre
+<td className="px-4 py-3 font-medium max-w-[16rem] truncate" title={material.nombre}>{material.nombre}</td>
+// header y celda de acciones fijas
+<th className="px-4 py-3 text-right sticky right-0 bg-[var(--surface-2)]">Acciones</th>
+<td className="px-4 py-3 sticky right-0 bg-inherit"> ... </td>
+```
+
+### 16. Paginación con "Página X de Y" y sin paginación en el historial
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Catálogo (paginación) e Historial (sin paginación)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\tabla-materiales.tsx:154-176`
+- **Problema:** ANTES: el pie muestra `{data.total} material(es)` y `Página {pagina} de {totalPaginas}`; el sistema pide el formato 'Mostrando 1-25 de N'. Además tabla-movimientos.tsx no tiene paginación alguna: el kardex crece sin control de página en pantalla. DESPUES: rango explícito 'Mostrando a–b de N' y paginación también en el historial.
+
+```tsx
+const desde = (pagina - 1) * MATERIALES_POR_PAGINA + 1;
+const hasta = Math.min(pagina * MATERIALES_POR_PAGINA, data.total);
+<span className="text-[var(--text-secondary)]">Mostrando {desde}–{hasta} de {data.total}</span>
+```
+
+### 17. Botones de guardado sin spinner y prefijo de moneda ausente en montos
+
+- **Área:** Inventario
+- **Pantalla/Componente:** Modales de alta / entrada (campos de costo y botón guardar)
+- **Archivo:** `D:\ERP-CC\src\modulos\inventario\componentes\modal-crear-material.tsx:133-155`
+- **Problema:** ANTES: el botón de envío solo cambia el texto a 'Guardando…' (línea 155) sin spinner inline; y los inputs de monto (`Costo unitario de compra`, línea 133; costo en entrada) son `type=number` sin prefijo MXN visible. El sistema pide botón loading con spinner y montos con prefijo MXN/USD. (Bien: el botón queda `disabled` durante el envío, evitando doble submit.) DESPUES: spinner en el botón y prefijo de moneda en el campo.
+
+```tsx
+// boton con spinner
+<Button type="submit" disabled={isSubmitting}>
+  {isSubmitting && <Spinner className="h-4 w-4 animate-spin" aria-hidden />}
+  {isSubmitting ? 'Guardando…' : 'Crear material'}
+</Button>
+// campo de monto con prefijo
+<div className="relative">
+  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">MXN</span>
+  <Input type="number" step="0.01" min={0} className="pl-12" {...register('costoUnitarioCompra',{valueAsNumber:true})} />
+</div>
+```
+
+### 18. Sin skeleton de carga: no existe loading.tsx para la ruta de ordenes
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - carga inicial
+- **Archivo:** `src/app/(privado)/ordenes/page.tsx:14-27`
+- **Problema:** La pagina es un Server Component que hace `Promise.all` de 4 consultas (ordenes+partidas, clientes, materiales, usuario) antes de pintar. No hay `loading.tsx` en la ruta (ni en ninguna ruta privada), asi que la navegacion muestra la pantalla anterior congelada en vez de un skeleton estructural `animate-pulse`. El sistema pide skeleton estructural, no spinner de pagina completa.
+
+```tsx
+// src/app/(privado)/ordenes/loading.tsx
+export default function Cargando(){return(<div className="mx-auto max-w-7xl space-y-4"><div className="h-8 w-64 animate-pulse rounded-[var(--radius-md)] bg-[color:var(--surface-2)]"/>{Array.from({length:6}).map((_,i)=><div key={i} className="h-12 animate-pulse rounded-[var(--radius-md)] bg-[color:var(--surface-2)]"/>)}</div>);}
+```
+
+### 19. Exito sin toast y cambio de estado sin feedback visible; boton de accion sin spinner
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Acciones rapidas y alta de OP
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:179-198`
+- **Problema:** `cambiarEstado` en exito solo hace `router.refresh()` sin ningun aviso (linea 192): el usuario no recibe confirmacion de que la transicion ocurrio. En el formulario el exito es un `<p role=status>` inline que no se auto-descarta (formulario-orden.tsx:444-448). El sistema pide toast en esquina superior derecha, verde con check, auto-dismiss 3s (5s criticos). Ademas el boton de accion muestra solo texto 'Actualizando...' sin spinner inline.
+
+```tsx
+// Introducir un contenedor de toasts (no existe compartido) y en confirmarOperacion/cambiarEstado:
+toast.exito(`OP ${orden.folio} -> ${ETIQUETA_ESTADO[estado]}`);
+// boton con spinner:
+{ordenActualizandoId===orden.id ? <span className="inline-flex items-center gap-1.5"><span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent"/>Actualizando</span> : accion.etiqueta}
+```
+
+### 20. Botones de accion por debajo de 36px y bloqueo global de todas las filas durante una accion
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Tabla (columna Acciones)
+- **Archivo:** `src/modulos/ordenes/componentes/tabla-ordenes.tsx:69-70,362-384`
+- **Problema:** CLASE_BOTON_SECUNDARIO usa `px-3 py-1.5 text-sm` dando ~30-32px de alto, bajo el minimo de 36px del sistema para botones. Ademas los botones se deshabilitan con `disabled={ordenActualizandoId !== null}`: al accionar UNA orden se bloquean los botones de TODAS las filas, no solo la que se esta procesando, lo que se siente como un congelamiento de la tabla.
+
+```css
+// altura minima + deshabilitar solo la fila activa
+const CLASE_BOTON_SECUNDARIO='inline-flex items-center rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-2)] px-3 py-2 min-h-9 text-sm font-medium text-[color:var(--text-primary)] transition-colors hover:bg-[color:var(--accent-soft)] disabled:opacity-50';
+// disabled={ordenActualizandoId === orden.id}
+```
+
+### 21. Campos requeridos sin asterisco visible en la etiqueta
+
+- **Área:** Ordenes de Produccion
+- **Pantalla/Componente:** Ordenes de produccion - Formulario nueva OP
+- **Archivo:** `src/modulos/ordenes/componentes/formulario-orden.tsx:228-356`
+- **Problema:** Cliente (228), Fecha compromiso (248), Codigo de pieza (290), Cantidad (324) y Unidad (344) llevan `required` en el input pero sus labels no indican obligatoriedad con `*`. El sistema pide 'requerido con * en label'. El usuario no sabe que es obligatorio hasta que falla la validacion (que ademas es un unico `<p role=alert>` global, no debajo de cada campo).
+
+```tsx
+<label htmlFor={`${idBase}-cliente`} className={CLASE_ETIQUETA}>Cliente <span className="text-[color:var(--danger)]" aria-hidden>*</span></label>
+// y marcar aria-required en el control; idealmente mensaje de error inline por campo con role=alert
+```
+
+### 22. Estados de carga/error/exito pobres: sin skeleton, sin banner de reintento, sin toast
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario / acciones
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:175-181`
+- **Problema:** El sistema pide skeleton estructural en carga, banner 'Sin conexion' + reintento en error de red y toast verde de exito. Antes: durante fetch solo cambia el texto de estado a 'Actualizando…' (linea 179) y el error se resume en el texto 'No se pudo actualizar el calendario' (linea 177) sin boton de reintento; tras programar/reprogramar (operacion-planeacion.tsx:117,131) no hay toast de confirmacion. Despues: skeleton de filas, banner de error con Reintentar y toast de exito.
+
+```tsx
+{consulta.isLoading ? (<tbody className="animate-pulse">{Array.from({length:6}).map((_,i)=>(<tr key={i} className="h-12 border-b border-border"><td colSpan={8}><div className="m-2 h-4 rounded bg-surface-2" /></td></tr>))}</tbody>) : ...}
+{consulta.isError && (<div role="alert" className="flex items-center justify-between rounded-md bg-danger-soft px-3 py-2 text-sm text-danger"><span>Sin conexion con el servidor</span><Button variante="contorno" onClick={()=>consulta.refetch()}>Reintentar</Button></div>)}
+// en operacion-planeacion tras exito: toast.success('Programacion guardada')
+```
+
+### 23. Empty state sin ilustracion ni CTA
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Calendario (vacio)
+- **Archivo:** `src\modulos\planeacion\componentes\calendario-planeacion.tsx:290-295`
+- **Problema:** El sistema pide empty state con icono + titulo + subtitulo + CTA. Antes: cuando no hay resultados se muestra un unico <td colSpan=8> con el texto 'Sin programaciones para los filtros seleccionados' (cumple 'no dejar tabla vacia solo con header' pero sin icono ni accion). Despues: bloque centrado con icono, titulo, subtitulo y CTA para programar o limpiar filtros.
+
+```tsx
+<td colSpan={8} className="py-12">
+  <div className="flex flex-col items-center gap-2 text-center">
+    <CalendarIcon className="h-10 w-10 text-text-muted" aria-hidden />
+    <p className="text-sm font-medium text-text-secondary">Sin programaciones</p>
+    <p className="text-xs text-text-muted">Ajusta el rango o programa una partida en el panel derecho</p>
+    <Button variante="contorno" onClick={restablecerFiltros}>Limpiar filtros</Button>
+  </div>
+</td>
+```
+
+### 24. Botones sin spinner inline durante loading
+
+- **Área:** Planeacion
+- **Pantalla/Componente:** Planeacion - Panel asignacion
+- **Archivo:** `src\modulos\planeacion\componentes\panel-asignacion-planeacion.tsx:298-311`
+- **Problema:** El sistema pide loading con spinner inline en el boton. Antes: los botones solo cambian el texto a 'Guardando…' / 'Activando…' (lineas 299 y 309) sin indicador visual de spinner; el anti-doble-envio (disabled) si esta bien. Despues: spinner inline animate-spin junto al texto.
+
+```tsx
+<Button type="submit" disabled={enviando || preparando}>
+  {enviando && (<svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" aria-hidden><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4"/></svg>)}
+  {enviando ? 'Guardando…' : programacion ? 'Reprogramar' : 'Programar'}
+</Button>
+```
+
+### 25. Feedback de exito/error como <p> inline en vez de toast
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** Ambas — Panel operador, Nota entrega, ControlPisoPanel
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\panel-operador-produccion.tsx:100`
+- **Problema:** Los resultados de accion se muestran con <p role="status"> inline (panel-operador linea 100, formulario-nota-entrega linea 57, control-piso-panel 417-426). El sistema pide toast en esquina superior derecha, verde con check, auto-dismiss 3s (5s criticos). En piso un toast persistente-breve es mas visible que un parrafo que empuja el layout. No existe un componente toast compartido (confirmado en estado del repo).
+
+```css
+// Crear compartido/componentes/ui/toast + provider y emitir:
+// mostrarToast({ tono:'exito', texto:'Avance registrado', duracionMs:3000 })
+// contenedor fixed top-4 right-4 z-50, bg-[var(--success-soft)] text-success, animate-in fade+slide.
+```
+
+### 26. Inputs de piso a ~40px de alto, por debajo del optimo tactil
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (piso)/produccion-piso — ControlPisoPanel
+- **Archivo:** `D:\ERP-CC\src\modulos\ordenes\componentes\control-piso-panel.tsx:29-30`
+- **Problema:** CLASE_INPUT usa px-3 py-2 text-base -> altura efectiva ~40px. Bien que sea text-base (evita zoom en iOS), pero para operacion con guantes conviene >=48px de alto en inputs y selects de captura de piezas/scrap/material. Es el unico bloque tactil de captura real del operador.
+
+```tsx
+const CLASE_INPUT =
+  'w-full min-h-[48px] rounded-base border border-border bg-surface-2 px-3 py-3 text-base text-text-primary outline-none focus:border-accent focus:ring-2 focus:ring-[rgba(59,130,246,0.30)]';
+```
+
+### 27. Sin skeleton ni empty state ilustrado en el Kanban durante carga/actualizacion
+
+- **Área:** Produccion — Vista de Piso (DARK, tablet industrial)
+- **Pantalla/Componente:** (privado)/produccion — Kanban
+- **Archivo:** `D:\ERP-CC\src\modulos\produccion\componentes\kanban-produccion.tsx:111-113`
+- **Problema:** La actualizacion solo muestra el texto 'Actualizando...' (operacion-produccion e indicador linea 55-57) y las columnas vacias muestran 'Sin ordenes' como texto centrado (linea 112). El sistema pide skeleton animate-pulse en carga y empty state con icono+titulo+subtitulo+CTA. Para piso, un skeleton estructural mantiene la posicion de las columnas y evita saltos.
+
+```tsx
+// columna vacia:
+<div className="flex flex-col items-center gap-2 py-8 text-center text-text-muted">
+  <IconoBandeja className="h-8 w-8" aria-hidden />
+  <p className="text-base font-medium">Sin ordenes</p>
+</div>
+// carga: render de 2-3 <div className="h-[200px] rounded-lg bg-surface-2 animate-pulse" />
+```
+
+### 28. Empty state de tabla es solo texto, sin icono ni CTA
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Tabla vacia
+- **Archivo:** `src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx:21-23`
+- **Problema:** Cuando no hay cuentas se muestra un <p> con borde punteado y un texto. El sistema pide empty state con icono/ilustracion + titulo + subtitulo + CTA (nunca solo texto). Falta guiar al usuario (ej. limpiar filtros).
+
+```tsx
+<div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface p-10 text-center">
+  <span aria-hidden className="text-3xl">💳</span>
+  <p className="font-semibold text-text-primary">Sin cuentas por cobrar</p>
+  <p className="text-sm text-text-secondary">No hay cuentas con los filtros actuales.</p>
+  <Button variante="contorno" tamano="sm" onClick={limpiarFiltros}>Limpiar filtros</Button>
+</div>
+```
+
+### 29. Sin skeleton de carga durante refetch de cartera
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Tabla y aging al recargar
+- **Archivo:** `src/modulos/cobranza/componentes/operacion-cobranza.tsx:68-77`
+- **Problema:** El useQuery no expone ningun estado de carga a la UI: al invalidar tras un pago o al cambiar revisionCartera (donde no hay initialData), no se muestra skeleton estructural animate-pulse; la tabla queda con datos viejos o vacia sin senal. El sistema pide skeleton estructural, no spinner de pagina.
+
+```tsx
+{consulta.isFetching && !consulta.data ? (
+  <div className="space-y-2" aria-busy="true">
+    {Array.from({length:6}).map((_,i)=>(<div key={i} className="h-12 animate-pulse rounded-md bg-surface-2" />))}
+  </div>
+) : (
+  <TablaCuentasPorCobrar ... />
+)}
+```
+
+### 30. Sin toast de exito al registrar pago
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Confirmacion de cobro
+- **Archivo:** `src/modulos/cobranza/componentes/operacion-cobranza.tsx:100-122`
+- **Problema:** Tras registrar un pago solo aparece el recibo inline al final de la pagina (ReciboPagoVista); no hay confirmacion inmediata tipo toast verde con ✓ auto-dismiss. El usuario que cierra el modal puede no notar que el cobro se aplico si el recibo queda fuera del viewport. No existe componente Toast compartido en el repo.
+
+```tsx
+// tras refrescar() en registrarPago():
+mostrarToast({ tipo:'exito', mensaje:`Pago aplicado · recibo ${resultado.datos.folioRecibo}`, duracion:5000 });
+// requiere un Toaster global (esquina sup-der, bg-success-soft text-success, animate-in fade)
+```
+
+### 31. Error de cartera sin banner de reconexion ni reintento
+
+- **Área:** Cobranza
+- **Pantalla/Componente:** Cartera / Estado de error de red
+- **Archivo:** `src/modulos/cobranza/componentes/operacion-cobranza.tsx:170`
+- **Problema:** Cuando la consulta falla se muestra un <p role=alert> con text-red-700 y una frase. El sistema pide un banner tipo 'Sin conexion' con boton de reintento. Falta la accion de recuperacion y el color por token danger-soft.
+
+```tsx
+{consulta.isError ? (
+  <div role="alert" className="flex items-center justify-between gap-3 rounded-md border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+    <span>No se pudo actualizar la cartera.</span>
+    <Button variante="contorno" tamano="sm" onClick={()=>consulta.refetch()}>Reintentar</Button>
+  </div>
+) : null}
+```
+
+### 32. Fecha del gasto en formato ISO crudo, no DD/MM/YYYY
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — columna Fecha de la tabla
+- **Archivo:** `src/modulos/gastos/componentes/tabla-gastos.tsx:47`
+- **Problema:** Se renderiza `{gasto.fechaGasto}` directamente (formato ISO 'YYYY-MM-DD'). El sistema pide fechas en DD/MM/YYYY para el usuario. Inconsistente con la localización es-MX ya usada para montos (Intl.NumberFormat).
+
+```tsx
+function fechaCorta(iso:string){ const [a,m,d]=iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; }
+<td className="px-3 tabular-nums text-text-secondary">{fechaCorta(gasto.fechaGasto)}</td>
+```
+
+### 33. Sin toast de éxito ni skeleton de carga; feedback solo por cierre de modal
+
+- **Área:** Gastos
+- **Pantalla/Componente:** Gastos — registro de gasto y carga de tabla
+- **Archivo:** `src/modulos/gastos/componentes/operacion-gastos.tsx:102-114,163-164; modal-registrar-gasto.tsx:71-73`
+- **Problema:** Tras registrar con éxito el modal se cierra sin confirmación (sin toast verde ✓ auto-dismiss en esquina sup-der que el sistema exige). Los errores se muestran como `<p>` inline (no banner). Durante la carga/refetch de la tabla no hay skeleton estructural (solo initialData); un refetch tras invalidación realtime no da señal visual. No existe componente toast compartido en el repo, por lo que hay que introducirlo.
+
+```tsx
+// al éxito: mostrarToast({tipo:'exito',mensaje:'Gasto registrado',autoDismiss:3000})
+// skeleton en refetch:
+{consulta.isFetching && !consulta.isPlaceholderData
+  ? <div className="h-12 animate-pulse rounded-md bg-surface-2" aria-hidden />
+  : null}
+```
+
+### 34. Campos requeridos sin asterisco visible en el label
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Todas las pestanas
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-empresa.tsx:45-61 (patron en todas)`
+- **Problema:** Varios inputs tienen atributo `required` (Nombre, Razon social, RFC, Direccion, tarifas, etc.) pero los labels no muestran el indicador '*'. El sistema pide 'requerido con * en label'. El usuario no sabe que es obligatorio hasta que el submit falla. ANTES: label sin marca. DESPUES: '*' en color danger junto al texto.
+
+```tsx
+<label ...>Nombre comercial <span className="text-[color:var(--danger)]" aria-hidden="true">*</span> <Input ... required /></label>
+```
+
+### 35. Montos sin prefijo de moneda dentro del campo
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Tarifas / TC y Areas de trabajo
+- **Archivo:** `src/modulos/configuracion/componentes/pestana-tarifas.tsx:53-70 y pestana-areas-trabajo.tsx:72`
+- **Problema:** Los campos de dinero (costoHoraDefault, tipo de cambio, costoHoraInterno, tarifaHoraVenta) son inputs numericos planos; la moneda solo aparece en el texto del label. El sistema pide 'montos con prefijo MXN/USD'. ANTES: input numerico sin contexto de moneda dentro del campo. DESPUES: prefijo MXN visible en el campo.
+
+```tsx
+<div className="flex items-center rounded-md border border-border bg-surface-2 focus-within:border-accent focus-within:shadow-[0_0_0_3px_rgba(59,130,246,.15)]"><span className="pl-3 text-sm text-text-muted">MXN</span><Input className="border-0 bg-transparent shadow-none focus:shadow-none" type="number" .../></div>
+```
+
+### 36. Boton Editar de tabla con touch target pequeno (~26px)
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Areas de trabajo / Cuentas bancarias
+- **Archivo:** `src/compartido/componentes/ui/button.tsx:19 (usado en pestana-areas-trabajo.tsx:64 y pestana-cuentas-bancarias.tsx:44)`
+- **Problema:** El tamano 'sm' es `px-2.5 py-1 text-xs` (~26px de alto). Los botones 'Editar' en las filas quedan por debajo de 44px de objetivo tactil. Al ser configuracion de oficina (modo claro, mouse) es mejora y no critico, pero conviene subir a >=36px para consistencia con el resto de acciones. ANTES: ~26px. DESPUES: >=36px (o zona clicable ampliada).
+
+```tsx
+// en TAMANOS de button.tsx
+sm: 'px-3 py-2 text-xs min-h-9'
+```
+
+### 37. Sin skeleton estructural durante la recarga de configuracion
+
+- **Área:** Configuracion
+- **Pantalla/Componente:** Todas (contenedor)
+- **Archivo:** `src/modulos/configuracion/componentes/operacion-configuracion.tsx:35-52`
+- **Problema:** El useQuery relee la configuracion (staleTime 0) tras eventos realtime; el primer pintado se cubre con initialData (bien), pero durante refetch/error de red no hay skeleton ni banner 'Sin conexion' con reintento; solo un `<p role=alert>` de texto al final (linea 74). El sistema pide skeleton estructural en carga y banner de error de red con reintento. Mejora de feedback. ANTES: sin indicador de recarga. DESPUES: skeleton animate-pulse en el panel y banner de reintento.
+
+```tsx
+{consulta.isFetching ? <div className="h-40 animate-pulse rounded-lg bg-surface-2" aria-hidden="true" /> : null}
+{consulta.isError ? <div role="alert" className="flex items-center justify-between rounded-md bg-danger-soft px-3 py-2 text-sm text-[color:var(--danger)]"><span>No se pudo actualizar la configuracion.</span><Button tamano="sm" variante="contorno" onClick={() => consulta.refetch()}>Reintentar</Button></div> : null}
+```
+
+### 38. Panel de notificaciones sin animacion de entrada
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/centro-notificaciones-header.tsx:141`
+- **Problema:** El panel aparece/desaparece de golpe con el condicional {abierto && ...} (centro-notificaciones-header.tsx:141), sin transición. El sistema pide animaciones base 200ms cubic-bezier(.4,0,.2,1) (slide para el sheet, fade+scale para popovers). Antes: aparición instantánea. Despues: transición de entrada de 200ms.
+
+```tsx
+/* si se conserva como popover, animar entrada */
+<div className="... origin-top-right animate-[fade-in_150ms_ease-out] transition duration-200" style={{ animationName: 'fadeZoom' }}>
+/* @keyframes fadeZoom { from { opacity:0; transform:scale(.97) } to { opacity:1; transform:none } } */
+```
+
+### 39. Listbox de menciones sin navegacion por teclado
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios (detalle OP/cliente/pipeline)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:137`
+- **Problema:** El popup de sugerencias de mención (hilo-comentarios.tsx:137-145) es role=listbox pero cada option tiene aria-selected="false" estático y no hay navegación con flechas ni aria-activedescendant; solo se puede elegir con clic. Para captura rápida en el hilo, teclado (ArrowUp/Down + Enter) es esperable. Antes: solo mouse, aria-selected fijo. Despues: opción activa navegable por teclado.
+
+```tsx
+/* mantener índice activo y sincronizar aria-selected/aria-activedescendant */
+<ul role="listbox" aria-activedescendant={`mencion-${sugerencias[indiceActivo]?.id}`} ... >
+  <button id={`mencion-${usuario.id}`} role="option" aria-selected={i === indiceActivo} ...>
+/* onKeyDown en el textarea: ArrowDown/ArrowUp mueven indiceActivo, Enter llama seleccionarMencion(sugerencias[indiceActivo]) */
+```
+
+### 40. Sin toast de confirmacion al comentar o marcar leida
+
+- **Área:** Comentarios y Notificaciones
+- **Pantalla/Componente:** Hilo de comentarios y Centro de notificaciones (header)
+- **Archivo:** `src/modulos/comentarios/componentes/hilo-comentarios.tsx:98`
+- **Problema:** Tras enviar un comentario (hilo-comentarios.tsx:98, solo limpia el campo) o marcar una notificación como leída, no hay feedback de éxito. El sistema pide éxito = toast esquina sup-der verde ✓ auto-dismiss 3s. No existe componente toast compartido. Antes: sin confirmación visible. Despues: toast success.
+
+```tsx
+/* al éxito */
+mostrarToast({ variante: 'success', mensaje: 'Comentario publicado' });
+/* toast: fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg border border-border bg-success-soft px-3 py-2 text-sm text-success shadow-md, auto-dismiss 3000ms */
+```
+
+### 41. aria-live='polite' en el countdown por-segundo satura al lector de pantalla
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Indicador de sesion (operador)
+- **Archivo:** `src/modulos/autenticacion/componentes/indicador-sesion.tsx:56`
+- **Problema:** El <span aria-live="polite"> (linea 56) muestra mm:ss y se actualiza cada segundo (usarCountdown), por lo que un lector de pantalla anunciaria el tiempo restante cada segundo de forma continua — ruido inutilizable. Debe silenciarse el live region y anunciar solo hitos (p.ej. a 1 min / 30s) o dejarlo como texto no anunciado.
+
+```tsx
+<span className="font-mono text-sm tabular-nums text-text-secondary" title="Tiempo restante de sesion">{formatearCountdown(segundosRestantes)}</span>
+{/* sin aria-live; opcional: un region separado aria-live=assertive que solo emita al cruzar 60s y 30s */}
+```
+
+### 42. Campos requeridos sin marcador visual '*' en la etiqueta
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login oficina (iniciar-sesion)
+- **Archivo:** `src/modulos/autenticacion/componentes/formulario-iniciar-sesion.tsx:57`
+- **Problema:** Los inputs tienen atributo `required` (lineas 65 y 82) pero las labels 'Correo electronico' (linea 57) y 'Contrasena' (linea 74) no muestran el asterisco. El sistema pide 'requerido con * en label'. Falta senal visual de obligatoriedad.
+
+```tsx
+<label htmlFor="email" className="text-sm font-medium text-text-primary">Correo electronico <span aria-hidden="true" className="text-danger">*</span></label>
+```
+
+### 43. Focus ring de 2px en inputs en vez del box-shadow de 3px del sistema
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login oficina (iniciar-sesion)
+- **Archivo:** `src/modulos/autenticacion/componentes/formulario-iniciar-sesion.tsx:68`
+- **Problema:** El focus usa `focus:ring-2 focus:ring-primario/30` (lineas 68 y 85). El sistema especifica focus con border --accent + box-shadow 0 0 0 3px rgba(59,130,246,.15) (3px, opacidad .15). Diferencia sutil pero define la identidad de focus consistente entre modulos.
+
+```tsx
+focus:border-accent focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)] focus:outline-none
+```
+
+### 44. El display del PIN no comunica el progreso de forma accesible
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login operador (PIN, piso)
+- **Archivo:** `src/modulos/autenticacion/componentes/teclado-pin.tsx:80`
+- **Problema:** El display es un <div aria-label="PIN ingresado"> (linea 80) que pinta ● por cada digito; el aria-label es estatico y no refleja cuantos digitos van (3 de 6). Un operador con lector de pantalla no percibe avance. mejora de feedback accesible sin exponer el PIN.
+
+```tsx
+<div role="status" aria-live="polite" aria-label={pin.length === 0 ? 'Ingresa tu PIN' : `${pin.length} de ${PIN_LONGITUD_MAXIMA} digitos ingresados`} className="...">
+  {pin.length > 0 ? '●'.repeat(pin.length) : <span className="text-base tracking-normal text-dark-text-2">Ingresa tu PIN</span>}
+</div>
+```
+
+### 45. Botones de envio sin spinner inline en estado de carga
+
+- **Área:** Autenticacion y Portal Cliente
+- **Pantalla/Componente:** Login oficina + Login operador
+- **Archivo:** `src/modulos/autenticacion/componentes/teclado-pin.tsx:136`
+- **Problema:** En carga, el boton OK del keypad muestra solo '…' (linea 136) y el submit del form cambia el texto a 'Iniciando sesion…' (formulario-iniciar-sesion.tsx:101). El sistema pide 'loading spinner inline'. El anti-doble-envio ya esta cubierto (disabled), falta el feedback visual de spinner.
+
+```tsx
+{validando ? <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" /> : 'OK'}
+/* animacion base 200ms cubic-bezier(.4,0,.2,1), sin bounce */
+```
+
+## ✅ Bien implementado
+
+**Layout global y navegacion**
+- CentroNotificacionesHeader (centro-notificaciones-header.tsx:128-166) es una referencia de accesibilidad: aria-label dinamico segun no-leidas, aria-expanded/aria-controls en el boton, role=dialog + aria-label en el panel, aria-live=polite en la lista, estado sr-only del sincronizador y focus-visible:ring-2 visible. Este patron debe replicarse en el resto de controles del layout.
+- Ambos layouts protegidos hacen guardia de sesion server-side con `obtenerUsuarioServidor()` + redirect a /iniciar-sesion (panel/layout.tsx:18-22, privado/layout.tsx:12-15), redundando el middleware — buena defensa en profundidad.
+- El layout de piso fuerza `dark` de forma fija para pantallas de planta (piso/layout.tsx:12): el concepto de aislar el tema del taller del tema del sistema es correcto (solo hay que cambiar zinc por los tokens slate del design system).
+- El ThemeProvider de next-themes con attribute=class, defaultTheme=system y enableSystem (layout.tsx:34) mas la @custom-variant dark en globals.css dejan la infraestructura de tema lista para recibir los tokens light/dark sin refactor.
+- enlaceInternoSeguro (centro-notificaciones-header.tsx:24-27) valida con allowlist regex las rutas de navegacion antes de router.push, evitando redirecciones a destinos arbitrarios desde datos de notificacion — buen habito de seguridad en la navegacion.
+
+**Primitivos UI compartidos + tokens**
+- Dialog (dialog.tsx) esta construido sobre Radix (@radix-ui/react-dialog): foco atrapado, cierre con Esc, Portal, role=dialog implicito y boton de cierre con aria-label="Cerrar" -> base accesible correcta sobre la que iterar.
+- Button (button.tsx:39-41) trae focus-visible:outline-none + focus-visible:ring-2 (foco visible, no lo oculta) y disabled:cursor-not-allowed disabled:opacity-50 -> patron a11y correcto que conviene mantener al reconstruir variantes.
+- Button fuerza type="button" por defecto (button.tsx:32), evitando envios accidentales dentro de <form>.
+- Convenciones del proyecto impecables en los 5 primitivos: 100% espanol (variante/tamano/VARIANTES), archivos kebab-case, tipos PascalCase, uso de cn() y ComponentProps<...> para tipado, sin uso de any, alias @/ -> buena base tecnica.
+- input.tsx expone Input, Select y Textarea compartiendo una CLASE_BASE comun, dando consistencia de estilo entre campos (falta migrarla a tokens, pero el patron de base compartida es correcto).
+- Estructura de carpetas ya prevista (diseno/, formularios/, retroalimentacion/ con .gitkeep) -> la ubicacion para los primitivos faltantes ya esta reservada segun la convencion del modulo.
+
+**Dashboard**
+- Adaptación por rol correcta y segura: la Server Action entrega solo los bloques autorizados y operacion-dashboard.tsx:58-62 los renderiza condicionalmente (ejecutivas/contador/vendedor/equipo/produccion), sin exponer datos no permitidos en cliente.
+- KPI accesible: widget-metrica-kpi.tsx usa flecha ↑/↓/→ + texto ('subió/bajó') como señal redundante (no depende solo de color), aria-label en la tarjeta y aria-label de variación, y tabular-nums para alinear cifras. Es la base correcta a la que solo le falta agregar color.
+- Grid de KPIs responsive y sobre rejilla de 8px: grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 (operacion-dashboard.tsx:57) adapta 1/2/4/5 columnas de forma limpia.
+- Semántica y a11y de secciones: cada sección usa aria-labelledby con id único (incluye sufijo por identificador en seccion-financiera para evitar colisiones), y encabezados jerárquicos h1>h2 coherentes.
+- Realtime bien contenido: sincronizador-dashboard-realtime.tsx invalida la query autorizada con debounce de 350ms (no usa el payload como dato), limpia canal/timeout al desmontar y expone estado con aria-live en sr-only — patrón correcto y sin fugas.
+- Formateo de moneda e i18n: uso consistente de Intl.NumberFormat('es-MX', currency MXN) en KPI y sección financiera, con manejo de nulos ('—' para margen sin dato).
+- Filtro de periodo con etiquetas visibles (Periodo/Desde/Hasta como <label htmlFor>), no placeholders, y manejo cuidadoso de intervalos semiabiertos en UTC — la accesibilidad de formulario está bien planteada.
+
+**Pipeline / Cotizaciones**
+- Gating de transiciones: selector-etapa.tsx:127-141 deshabilita destinos inválidos según `esTransicionValida`/`esReversion`, evitando movimientos ilegales desde la UI (defensa además del servidor).
+- Anti-doble-envío consistente: todos los botones de submit usan `disabled={enviando}` con texto de progreso ('Guardando…', 'Creando orden…', 'Confirmar pérdida' → 'Guardando…') — selector-etapa.tsx:161-190, formulario-prospecto.tsx:194-196, formulario-cotizacion.tsx:297-299.
+- Errores con `role="alert"` en los tres componentes (selector-etapa.tsx:205, formulario-prospecto.tsx:189, formulario-cotizacion.tsx:288 y tablero-kanban.tsx:63) — anuncio accesible correcto.
+- Formularios largos con labels asociados por `htmlFor`+`id`: formulario-prospecto.tsx (todos los campos) y formulario-cotizacion.tsx:150-245, incluida la fecha de compromiso con id único por oportunidad (selector-etapa.tsx:177-181).
+- Kanban con `overflow-x-auto` (tablero-kanban.tsx:75) y columnas `shrink-0`: cumple el patrón responsive de scroll horizontal sin romper el layout ni truncar columnas en silencio.
+- Totales del cotizador calculados en vivo con `useMemo` (formulario-cotizacion.tsx:92-95) y desglose subtotal/IVA/total claro; la lógica de cálculo vive en el servicio, no en el componente.
+- Botón de comentarios con `aria-expanded` (tarjeta-oportunidad.tsx:88) reflejando el estado de expansión — buen detalle de a11y.
+- Manejo de error de red envuelto en try/catch con mensaje genérico al usuario ('Error de conexión. Intenta de nuevo.') en las tres acciones cliente, sin filtrar detalles internos.
+
+**Clientes**
+- Buscador con debounce de 300ms que ademas resetea la pagina, evitando una consulta por tecla (tabla-clientes.tsx:38-44).
+- Anti-doble-envio correcto: todos los botones de mutacion quedan disabled durante la operacion (formulario-cliente.tsx:258, ficha-cliente.tsx:297,343).
+- Formulario con accesibilidad de campos solida: cada Campo usa label con htmlFor + input id enlazados, y los errores llevan role=alert (formulario-cliente.tsx:281-293,248-252).
+- Uso consistente de role=alert en mensajes de error de credito excedido, formulario y subida de documento (alerta-credito.tsx:34, formulario-cliente.tsx:249, ficha-cliente.tsx:301).
+- Boton de cierre del drawer con aria-label=Cerrar y columna de acciones (Editar) siempre presente en la tabla (ficha-cliente.tsx:73, tabla-clientes.tsx:161-171).
+- Contenedor de tabla con overflow-x-auto, que da scroll horizontal responsive sin truncar columnas (tabla-clientes.tsx:108).
+- Documentos servidos con URL firmada temporal de 60s sobre bucket privado, en vez de exponer rutas publicas (ficha-cliente.tsx:226).
+- BadgeTier resuelve tier manual-vigente vs automatico y expone el motivo via title (badge-tier.tsx:12-27); los pares de color de tier/estado cumplen contraste AA aunque usen paleta cruda.
+- Overlay de modal y drawer con opacidad correcta (bg-black/40 = rgba(0,0,0,.4)) y cierre por click en el fondo con stopPropagation en el panel (tabla-clientes.tsx:203-208, ficha-cliente.tsx:54-57).
+
+**Inventario**
+- Modales sobre Radix Dialog (dialog.tsx): traen role=dialog, aria-labelledby cableado vía DialogTitle, foco atrapado, cierre con Esc y botón de cierre con aria-label="Cerrar" — base de accesibilidad correcta que sirve de referencia para el resto de módulos.
+- Anti-doble-envío consistente: los tres formularios deshabilitan el botón con `disabled={isSubmitting}` y muestran 'Guardando…' (modal-crear-material.tsx:154, entrada:126, salida:134).
+- Modal de salida (modal-registrar-salida.tsx:76-116): bloquea el submit cuando la cantidad excede el stock (`excedeStock`), marca `aria-invalid`, muestra el mensaje con `role="alert"` y el servidor reimpone la regla atómicamente bajo lock — validación y feedback bien resueltos.
+- Kardex con color por tipo de movimiento (tabla-movimientos.tsx:10-14): entrada/devolución en verde (exito), salida en rojo (alerta), ajuste en info — cumple la intención 'entradas verde / salidas rojo' a nivel de badge.
+- Buscador con debounce de 300ms y aria-label (filtros-inventario.tsx:25-41), y reseteo de página en fase de render al cambiar filtros (tabla-materiales.tsx:42-47) — patrón correcto que evita set-state-in-effect.
+- Los estados de carga, error y vacío están al menos contemplados y diferenciados en ambas tablas (no quedan en blanco), lo que da una base sólida para elevarlos a skeleton/banner/empty-state completos.
+- Botones con `focus-visible:ring-2` (button.tsx:41): el foco de teclado es visible y no se oculta.
+- Convenciones del proyecto respetadas en todo el módulo: español 100% en variables/tipos/archivos, kebab-case, alias @/ con ruta completa, sin `any`, tipos inferidos de Zod (`z.infer`) en los formularios.
+
+**Ordenes de Produccion**
+- Barra de progreso agregada bien construida y accesible: role=progressbar con aria-valuemin/valuemax/valuenow y aria-label por folio, mas el texto '{porcentaje}% (producido/solicitado)' (tabla-ordenes.tsx:344-359). Es el patron a replicar para indicadores de avance en otros modulos.
+- Semantica de tabla correcta: <caption class=sr-only>, th scope=col en el header y th scope=row para el folio (tabla-ordenes.tsx:273-322), lo que da navegacion accesible aunque falte el estilo del sistema.
+- Feedback de estado con roles ARIA correctos: role=alert para errores y role=status / aria-live=polite para exito y para el contador de ordenes (tabla-ordenes.tsx:393-397,411-413; formulario-orden.tsx:438-448; control-piso-panel.tsx:417-425).
+- Anti-doble-envio y estado de carga por accion: enviando/operacion deshabilitan los botones, el form marca aria-busy y los botones cambian su texto durante el envio (formulario-orden.tsx:222,453-456; control-piso-panel.tsx:291-409).
+- Contenedor de tabla con overflow-x-auto para scroll horizontal responsive en vez de truncar columnas (tabla-ordenes.tsx:271), coherente con la regla 'nunca truncar sin aviso'.
+- Control de piso con touch targets adecuados para taller: botones py-3 (~44px) e inputs text-base py-2/3, buen tamano para operacion con guantes (control-piso-panel.tsx:29-34,283-413); solo requiere migrar el color a los tokens dark.
+- Filtros con estados accesibles: aria-pressed en los toggles de estado y fieldset/legend agrupando el filtro de Estado (tabla-ordenes.tsx:231-253).
+
+**Planeacion**
+- A11y semantica de tabla solida: seccion con aria-labelledby (calendario-planeacion.tsx:170), <caption class=sr-only> (l.274), scope=col/row en headers (l.279-286, l.313), aria-selected en filas (l.306) y aria-busy en la tabla (l.273).
+- Estado de actualizacion anunciado a lectores de pantalla con aria-live=polite (calendario-planeacion.tsx:175), diferenciando actualizando / error / conteo de resultados.
+- Formulario de asignacion accesible: cada campo con <Label htmlFor> asociado explicitamente (panel-asignacion-planeacion.tsx:200,213,228,244,254,267,281) y mensaje de error con role=alert aria-live=assertive (l.293).
+- Prevencion de doble envio y de layout shift: submit disabled={enviando||preparando} (l.298) y el parrafo de error usa min-h-4 para reservar espacio (l.293).
+- Contenedor de tabla con overflow-x-auto (calendario-planeacion.tsx:272), cumpliendo el requisito responsive de scroll horizontal en lugar de truncar.
+- Botones e inputs con focus-visible ring y disabled:opacity-50 en los componentes base (button.tsx:40-41, input.tsx:7), buena base para foco visible.
+- Layout responsive del modulo con grid xl:grid-cols-[minmax(0,1fr)_22rem] que colapsa a una columna en pantallas menores (operacion-planeacion.tsx:157).
+
+**Produccion — Vista de Piso (DARK, tablet industrial)**
+- TecladoPin (D:\ERP-CC\src\modulos\autenticacion\componentes\teclado-pin.tsx): referencia de ergonomia de piso — botones h-20 (80px, supera el minimo de 64px), PIN enmascarado con puntos, teclas DEL y OK diferenciadas, estados disabled coherentes (OK deshabilitado <4 digitos), aria-label en Borrar/Confirmar y role=alert en el error. Es el patron a reutilizar para la confirmacion de PIN en el cierre de sesion.
+- (piso)/layout.tsx (D:\ERP-CC\src\app\(piso)\layout.tsx): fuerza el modo oscuro de forma fija con className="dark" independiente del tema del sistema, patron correcto para pantalla de planta que no debe depender de la preferencia del usuario. Falta migrarlo de bg-zinc-950 a --dark-background del sistema.
+- ControlPisoPanel (D:\ERP-CC\src\modulos\ordenes\componentes\control-piso-panel.tsx): aciertos de accesibilidad y captura — inputs text-base (16px, evita zoom en iOS) con inputMode="decimal", cada control con label htmlFor/id emparejado, feedback con role=alert (error) y role=status (exito), empty state con aria-live cuando no hay ordenes, y anti-doble-envio real (botones disabled mientras operacion !== null). El contraste zinc-50 sobre zinc-900 pasa AA; solo falta migrarlo a los dark tokens del sistema.
+- SincronizadorProduccionRealtime (D:\ERP-CC\src\modulos\produccion\componentes\sincronizador-produccion-realtime.tsx): invalidacion de tablero con debounce de 350ms para agrupar rafagas de eventos realtime, region aria-live=polite (aunque sr-only) y limpieza correcta de canal/temporizador al desmontar — buena base para reflejar cambios de piso sin recargar.
+
+**Cobranza**
+- Modal de pago sobre Dialog de Radix (src/compartido/componentes/ui/dialog.tsx): trae focus-trap, cierre con Esc, overlay, DialogTitle/Description y aria-describedby en modal-registrar-pago.tsx:117-123 — accesibilidad estructural correcta (role=dialog + aria-labelledby via DialogTitle).
+- Recibo con impresion real: recibo-pago-vista.tsx:25 usa window.print() y clases print:hidden / print:border-0 (linea 19,25) para un layout limpio al imprimir/exportar a PDF.
+- Tabla con overflow-x-auto + min-w-[900px] (tabla-cuentas-por-cobrar.tsx:26-27): en tablet/mobile hace scroll horizontal sin truncar columnas, respetando la regla 'NUNCA truncar sin aviso'.
+- Columna de acciones siempre visible: el boton 'Cobrar' se renderiza por fila (tabla:52-60), no se oculta en hover.
+- Anti-doble-envio e idempotencia: botones disabled con `procesando` (modal:137-146) y solicitudId con crypto.randomUUID() reutilizado (modal:63-68) evitan pagos duplicados.
+- Montos con tabular-nums e Intl.NumberFormat('es-MX', currency) en tabla:48-49, aging:22 y recibo:30-31 — alineacion numerica y formato de moneda consistente.
+- Fechas con Intl.DateTimeFormat('es-MX') (tabla:47) que produce DD/MM/YYYY conforme al sistema.
+- Errores hacia el usuario con role=alert (modal:135, operacion-cobranza.tsx:170) y sincronizador realtime con aria-live=polite (sincronizador-cobranza-realtime.tsx:65).
+- Section de aging con aria-label descriptivo y total en sr-only (tarjeta-resumen-aging.tsx:18,25) para lectores de pantalla.
+
+**Gastos**
+- Tabla envuelta en `overflow-x-auto` con `min-w-[980px]` (tabla-gastos.tsx:22-23): usa scroll horizontal en vez de truncar columnas, respetando la regla 'NUNCA truncar sin aviso'.
+- Columna de acciones siempre presente con header sr-only (tabla-gastos.tsx:35) y montos con `tabular-nums` alineados a la derecha (tabla-gastos.tsx:46) — buena legibilidad numérica.
+- Formulario del modal con label visible + htmlFor/id en todos los campos (modal-registrar-gasto.tsx:114-147): a11y correcta de inputs, cumple id+label[for].
+- Modal accesible sobre Radix (dialog.tsx): foco atrapado, cierre con Esc, overlay, DialogTitle/Description y `aria-describedby` conectado (modal-registrar-gasto.tsx:107,110) — role=dialog + aria correcto.
+- Mensajes de error con `role="alert"` (operacion-gastos.tsx:163-166; modal:148) y `aria-live="polite"` en archivo seleccionado (modal:144) y en el sincronizador (sincronizador-gastos-realtime.tsx:72).
+- Anti-doble-envío correcto: botón Guardar deshabilitado con estado 'Guardando…' (modal:149) y botón OCR deshabilitado con 'Analizando…' durante el proceso (modal:145).
+- Formateo de moneda localizado con `Intl.NumberFormat('es-MX', {style:'currency'})` respetando la moneda original del gasto (tabla-gastos.tsx:6-8; tarjeta-rentabilidad-orden.tsx:5-7).
+- `caption` sr-only descriptivo en la tabla (tabla-gastos.tsx:24) y semántica `<dl>/<dt>/<dd>` en el desglose de costos de rentabilidad (tarjeta-rentabilidad-orden.tsx:20-24).
+
+**Configuracion**
+- Edicion inline master-detail sin modal para config simple, tal como pide el alcance: listado + editor lateral en el mismo panel (pestana-areas-trabajo.tsx:60 y pestana-cuentas-bancarias.tsx:43), no dialogos.
+- Accesibilidad de pestanas correcta: role=tablist/tab/tabpanel con aria-selected, aria-controls y aria-labelledby enlazados por id (operacion-configuracion.tsx:74). El foco es visible (focus-visible:ring-2).
+- Todos los inputs tienen label visible asociado con htmlFor/id (no solo placeholder), cumpliendo el requisito de 'label SIEMPRE visible' (pestana-empresa.tsx:45-64, pestana-tarifas.tsx:53-70).
+- Tablas con `<caption className=sr-only>` descriptiva y contenedor `overflow-x-auto` con `min-w-[620px]`: responsive por scroll-x sin truncar columnas (pestana-areas-trabajo.tsx:63-64).
+- Anti doble-envio consistente: cada boton de guardar usa `disabled={guardando}` y cambia el texto a 'Guardando...' durante la accion (pestana-empresa.tsx:68, pestana-tarifas.tsx:73, etc.).
+- Sincronizador realtime accesible: nodo sr-only con aria-live=polite y data-conectado que anuncia el estado de conexion sin ruido visual (sincronizador-configuracion-realtime.tsx:49).
+- Numeros monetarios y de tarifa con `tabular-nums` en las tablas para alineacion de columnas (pestana-areas-trabajo.tsx:64).
+- La pagina RSC maneja los caminos de autorizacion (redirect a login/dashboard) y un fallback role=alert legible cuando la configuracion no carga (page.tsx:10-15).
+
+**Comentarios y Notificaciones**
+- Sincronización Realtime bien encapsulada (sincronizador-comentarios-realtime.tsx y SincronizadorNotificaciones): debounce de 250ms, un canal por instancia con crypto.randomUUID, reconexión por onAuthStateChange y limpieza en desmontaje; Realtime solo invalida y la relectura vuelve a pasar por RLS (comentario en :11).
+- A11y base correcta en el hilo: section con aria-labelledby, textarea con label htmlFor/id enlazado, errores con role=alert, lista de comentarios con aria-live=polite (hilo-comentarios.tsx:119, :126, :154, :157).
+- Campana de notificaciones accesible: aria-label dinámico con conteo de no-leídas, aria-expanded, aria-controls apuntando al panel, y svg aria-hidden (centro-notificaciones-header.tsx:130-138).
+- Badge de conteo con tope 99+ y punto/indicador de no-leída con aria-label 'Sin leer' (centro-notificaciones-header.tsx:139, :155).
+- Anti-doble-envío y validación de vacío: botón submit deshabilitado mientras enviando y cuando el contenido está vacío, con estado 'Guardando…' (hilo-comentarios.tsx:149-151).
+- Contención de overflow de contenido: whitespace-pre-wrap break-words en el cuerpo del comentario y line-clamp-2 en el mensaje de la notificación evitan desbordes (hilo-comentarios.tsx:171; centro-notificaciones-header.tsx:157).
+- maxLength 2000 con contador de caracteres visible en el textarea (hilo-comentarios.tsx:130, :148).
+- Navegación segura desde notificaciones: enlaceInternoSeguro con allowlist de rutas internas (/ordenes|/pipeline|/clientes) antes de router.push (centro-notificaciones-header.tsx:24-27, :120-122).
+- Formato de fechas localizado y defensivo con Intl.DateTimeFormat es-MX y fallback 'Fecha no disponible' ante fechas inválidas (hilo-comentarios.tsx:30-35; centro-notificaciones-header.tsx:17-22).
+
+**Autenticacion y Portal Cliente**
+- Accesibilidad de formulario correcta en login oficina: cada input tiene id + <label htmlFor> asociada (formulario-iniciar-sesion.tsx:57/61 y 74/78), cumpliendo el requisito de label siempre visible y asociada (WCAG AA).
+- Mensajes de error con role="alert" en ambos flujos (formulario-iniciar-sesion.tsx:91 y teclado-pin.tsx:92), por lo que el error se anuncia a lectores de pantalla.
+- Anti-doble-envio implementado: el submit se deshabilita con `enviando` (formulario:98) y el keypad con `validando` + guarda temprana `if (pin.length < MINIMA || validando) return` (teclado-pin.tsx:46,102,131).
+- Touch targets del keypad excelentes para piso: botones de digitos, DEL y OK a h-20 (80px), muy por encima del minimo de 44px (teclado-pin.tsx:72,114,133). Digitos a text-3xl para lectura a distancia.
+- Feedback tactil de pulsacion con active:bg en los botones del keypad (teclado-pin.tsx:72,114) — micro-interaccion adecuada para pantalla tactil sin hover.
+- Errores genericos hacia el usuario preservados: se muestra respuesta.error del servidor y un generico 'Error de conexion. Intenta de nuevo.' en el catch (formulario:41, teclado-pin.tsx:64), sin revelar causa real.
+- PIN correctamente enmascarado con ● y OK deshabilitado por debajo de la longitud minima (teclado-pin.tsx:84,131), con limite maximo aplicado en agregarDigito (linea 36).
+- Concepto correcto de contexto por entorno: la pagina de operador fuerza fondo oscuro fijo para piso taller (operador/page.tsx:11), aunque con paleta zinc en vez de los tokens dark slate.
+- El countdown de sesion de operador usa font-mono + tabular-nums para que los digitos no salten al decrementar (indicador-sesion.tsx:57).
+
+---
+
+## Entregables de esta auditoría
+
+- `auditoria-ux-reporte.md` — este documento
+- `hallazgos-crudos.json` — los 14 resultados estructurados sin procesar (fuente de verdad para reanudar)
+- `tokens-propuesta.css` — sistema de diseño completo adaptado a Tailwind v4 + next-themes
+- `componentes-base.md` — guía de uso de componentes fundamentales
+- `checklist-revision.md` — checklist pre-commit por pantalla
