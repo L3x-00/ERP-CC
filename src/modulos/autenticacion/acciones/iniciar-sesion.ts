@@ -23,6 +23,14 @@ const MENSAJE_CREDENCIALES_INVALIDAS = 'Credenciales inválidas o correo no veri
 const MENSAJE_BLOQUEADO = 'Demasiados intentos. Intenta de nuevo más tarde.';
 
 /**
+ * Columnas permitidas por los grants por columna de `usuarios` (la correctiva
+ * 20260911000004 revocó `SELECT *` a `authenticated` para no exponer
+ * `pin_operador`). `SELECT *` aquí rompía el login con contraseña correcta.
+ */
+const COLUMNAS_USUARIO_LOGIN =
+  'id, email, nombre_completo, rol, activo, ultimo_login_at, creado_en, actualizado_en';
+
+/**
  * Server Action de inicio de sesión con email y contraseña (Supabase Auth).
  *
  * Valida la entrada con Zod, aplica rate-limiting por IP, autentica contra
@@ -62,7 +70,7 @@ export async function iniciarSesionAccion(entrada: unknown): Promise<RespuestaAc
 
     const { data: fila, error: errorFila } = await supabase
       .from('usuarios')
-      .select('*')
+      .select(COLUMNAS_USUARIO_LOGIN)
       .eq('id', data.user.id)
       .single();
 
@@ -75,7 +83,8 @@ export async function iniciarSesionAccion(entrada: unknown): Promise<RespuestaAc
       return { exito: false, error: MENSAJE_CREDENCIALES_INVALIDAS };
     }
 
-    const usuario = filaAUsuario(fila as FilaUsuario);
+    const filaTipada = fila as Omit<FilaUsuario, 'pin_operador'>;
+    const usuario = filaAUsuario({ ...filaTipada, pin_operador: null });
 
     if (!usuario.activo) {
       await supabase.auth.signOut();

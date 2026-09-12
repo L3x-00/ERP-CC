@@ -19,6 +19,7 @@ export function FormularioIniciarSesion() {
   const [contrasena, setContrasena] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const [hidratado, setHidratado] = useState(false);
 
   useEffect(() => {
@@ -73,16 +74,29 @@ export function FormularioIniciarSesion() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="contrasena" obligatorio>Contraseña</Label>
-        <Input
-          id="contrasena"
-          name="contrasena"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={contrasena}
-          onChange={(evento) => setContrasena(evento.target.value)}
-          placeholder="••••••••"
-        />
+        <div className="relative">
+          <Input
+            id="contrasena"
+            name="contrasena"
+            type={mostrarContrasena ? 'text' : 'password'}
+            autoComplete="current-password"
+            required
+            value={contrasena}
+            onChange={(evento) => setContrasena(evento.target.value)}
+            placeholder="••••••••"
+            className="pr-11"
+          />
+          <button
+            type="button"
+            onClick={() => setMostrarContrasena((visible) => !visible)}
+            aria-label={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            aria-pressed={mostrarContrasena}
+            title={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-2 text-texto-secundario transition-colors hover:text-texto-primario focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento"
+          >
+            {mostrarContrasena ? <IconoOjoCerrado /> : <IconoOjoAbierto />}
+          </button>
+        </div>
       </div>
 
       {error !== null && (
@@ -95,5 +109,45 @@ export function FormularioIniciarSesion() {
         {enviando ? 'Iniciando sesión…' : 'Iniciar sesión'}
       </Button>
     </form>
+  );
+}
+
+/** Icono de ojo abierto (la contraseña es visible). */
+function IconoOjoAbierto() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+/** Icono de ojo tachado (la contraseña está oculta). */
+function IconoOjoCerrado() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 4l16 16" />
+      <path d="M10.6 5.7A9.8 9.8 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17.3 17.3 0 0 1-3.4 4.2" />
+      <path d="M6.3 7.4A16.7 16.7 0 0 0 2.5 12s3.5 6.5 9.5 6.5c1.3 0 2.5-.3 3.6-.8" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </svg>
   );
 }
