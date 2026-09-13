@@ -489,7 +489,10 @@ const PIPELINE = [
   { n: 8, folio: 'CNC-0926-0008', etapa: 'negociacion', empresa: 'Aceros y Estructuras Tijuana', contacto: 'Fernando Lozano', moneda: 'MXN', prioridad: 'alta', condiciones: '15_dias', etiquetas: ['estructura'], lineas: [
     { descripcion: 'Marco estructural para andamio 2x1 m', cantidad: 150, material: 'PTR 2x2 calibre 11', area: 3.2, procesos: ['Láser', 'Soldadura', 'Pintura'], precio: 1980 },
   ] },
-  { n: 9, folio: 'CNC-0926-0009', etapa: 'ganada', empresa: 'Maquinados Aeroespaciales Baja', contacto: 'Diana Ochoa', moneda: 'MXN', prioridad: 'alta', condiciones: 'credito', etiquetas: ['aeroespacial'], cliente: 2 },
+  { n: 9, folio: 'CNC-0926-0009', etapa: 'ganada', empresa: 'Maquinados Aeroespaciales Baja', contacto: 'Diana Ochoa', moneda: 'MXN', prioridad: 'alta', condiciones: 'credito', etiquetas: ['aeroespacial'], cliente: 2, lineas: [
+    { descripcion: 'Soporte estructural aluminio 6061-T6', cantidad: 120, material: 'Aluminio 6061', area: 0.95, procesos: ['CNC', 'Inspección CMM'], precio: 2400 },
+    { descripcion: 'Placa base maquinada anodizada', cantidad: 40, material: 'Aluminio 6061', area: 1.35, procesos: ['CNC', 'Anodizado externo'], precio: 1550 },
+  ] },
   { n: 10, folio: 'CNC-0926-0010', etapa: 'perdida', empresa: 'Electrodomésticos del Pacífico', contacto: 'Iván Cárdenas', moneda: 'MXN', prioridad: 'baja', condiciones: 'contado', etiquetas: ['refrigeración'], motivo: 'Precio fuera de presupuesto del cliente' },
 ];
 
@@ -511,7 +514,7 @@ async function sembrarPipeline(ids) {
     iva_porcentaje: 16,
     etiquetas: p.etiquetas,
     motivo_perdida: p.motivo ?? null,
-    fecha_ultimo_contacto: new Date(ahora.getTime() - (11 - p.n) * 24 * 60 * 60 * 1000).toISOString(),
+    fecha_ultimo_contacto: new Date(ahora.getTime() - (p.n % 3) * 24 * 60 * 60 * 1000).toISOString(),
     fecha_envio_cotizacion: ['cotizado', 'negociacion', 'ganada'].includes(p.etapa)
       ? new Date(ahora.getTime() - (9 - p.n) * 24 * 60 * 60 * 1000).toISOString()
       : null,
@@ -670,8 +673,16 @@ const ORDENES = [
   },
 ];
 
-async function crearOrden(especificacion, ids) {
-  const partidas = especificacion.partidas.map((p) => ({
+/** Orden originada en una oportunidad del pipeline (flujo comercial completo). */
+const ESPECIFICACION_VENDEDOR = {
+  clave: 'vendedor',
+  pipeline: 8,
+  cliente: 3,
+  completar: { diasInicio: 20, diasFin: 12, recurso: 4, operador: 'jorge', consumo: 40 },
+  ar: { monto: 297000, moneda: 'MXN', tc: 1, vence: 18, factura: 'FAC-18502' },
+};
+
+async function crearOrden(especificacion, ids) {  const partidas = especificacion.partidas.map((p) => ({
     codigo_pieza: p.pieza,
     descripcion: p.descripcion,
     cantidad_solicitada: p.cantidad,
@@ -735,6 +746,24 @@ async function sembrarOrdenes(ids) {
     const orden = await crearOrden(especificacion, ids);
     creadas[especificacion.clave] = orden;
     paso(`${orden.folio} · ${especificacion.clave} · ${orden.partidas.length} partida(s)`);
+  }
+
+  // Orden creada desde una oportunidad ganada del vendedor (flujo Pipeline → OP).
+  {
+    const [creada] = await rpc('aprobar_oportunidad_y_crear_orden', {
+      p_pipeline_id: ID.pipeline(ESPECIFICACION_VENDEDOR.pipeline),
+      p_cliente_id: ID.cliente(ESPECIFICACION_VENDEDOR.cliente),
+      p_fecha_compromiso: fecha(14),
+    });
+    const partidas = await ejecutar(
+      'SELECT partidas vendedor',
+      cliente.from('partidas_orden_produccion')
+        .select('id, codigo_pieza, cantidad_solicitada, material_id')
+        .eq('orden_id', creada.id)
+        .order('codigo_pieza'),
+    );
+    creadas.vendedor = { id: creada.id, folio: creada.folio, partidas: partidas ?? [] };
+    paso(`${creada.folio} · vendedor · origen Pipeline #${ESPECIFICACION_VENDEDOR.pipeline}`);
   }
 
   // Programadas (planeación con trabajo futuro).
@@ -823,10 +852,10 @@ async function sembrarOrdenes(ids) {
   paso('OP pausada con motivo');
 
   // Completadas (histórico con sesión, avance y consumo).
-  const completadas = ['completada_1', 'completada_2', 'completada_3', 'completada_4', 'completada_5'];
+  const completadas = ['completada_1', 'completada_2', 'completada_3', 'completada_4', 'completada_5', 'vendedor'];
   for (const clave of completadas) {
     const orden = creadas[clave];
-    const especificacion = ORDENES.find((o) => o.clave === clave);
+    const especificacion = clave === 'vendedor' ? ESPECIFICACION_VENDEDOR : ORDENES.find((o) => o.clave === clave);
     const plan = especificacion.completar;
     const fechaInicio = new Date(Date.now() - plan.diasInicio * 24 * 60 * 60 * 1000);
     const fechaFin = new Date(Date.now() - plan.diasFin * 24 * 60 * 60 * 1000);
@@ -884,9 +913,10 @@ async function sembrarOrdenes(ids) {
       }, { id: partida.id });
 
       const material = MATERIALES.find((m) => ID.material(m.n) === partida.material_id) ?? MATERIALES[0];
+      const materialId = partida.material_id ?? ID.material(material.n);
       const cantidadConsumo = Number((plan.consumo / orden.partidas.length).toFixed(2));
       await rpc('registrar_movimiento_inventario', {
-        p_material_id: partida.material_id,
+        p_material_id: materialId,
         p_tipo: 'salida_produccion',
         p_prefijo_folio: 'SAL',
         p_cantidad_control: cantidadConsumo,
@@ -897,7 +927,7 @@ async function sembrarOrdenes(ids) {
       });
       await insertar('registros_consumo_material', [{
         partida_id: partida.id,
-        material_id: partida.material_id,
+        material_id: materialId,
         cantidad_usada: cantidadConsumo,
         cantidad_scrap: 0,
         costo_unitario_momento: Number((material.costoCompra / material.factor).toFixed(4)),
@@ -910,7 +940,7 @@ async function sembrarOrdenes(ids) {
       fecha_fin: fechaFin.toISOString(),
     }, { id: orden.id });
   }
-  paso('5 OP completadas con producción, consumo y tiempos');
+  paso('6 OP completadas con producción, consumo y tiempos');
 
   // Cancelada con motivo.
   {
@@ -955,9 +985,9 @@ async function sembrarOrdenes(ids) {
 async function sembrarCobranza(creadas, ids) {
   console.log('COBRANZA');
   const cuentas = {};
-  for (const clave of ['completada_1', 'completada_2', 'completada_3', 'completada_4', 'completada_5']) {
+  for (const clave of ['completada_1', 'completada_2', 'completada_3', 'completada_4', 'completada_5', 'vendedor']) {
     const orden = creadas[clave];
-    const especificacion = ORDENES.find((o) => o.clave === clave);
+    const especificacion = clave === 'vendedor' ? ESPECIFICACION_VENDEDOR : ORDENES.find((o) => o.clave === clave);
     const ar = especificacion.ar;
     const [cuenta] = await rpc('abrir_cuenta_por_cobrar', {
       p_orden_id: orden.id,
@@ -1126,20 +1156,20 @@ async function verificar() {
   const esperados = {
     clientes: 8,
     pipeline: 10,
-    cotizacion_lineas: 6,
+    cotizacion_lineas: 8,
     materiales: 10,
-    movimientos_inventario: 18,
-    registros_consumo_material: 7,
+    movimientos_inventario: 19,
+    registros_consumo_material: 8,
     recursos_planeacion: 6,
     capacidades_recurso_turno: 12,
     excepciones_capacidad_recurso: 1,
-    ordenes_produccion: 12,
-    partidas_orden_produccion: 16,
-    programacion_areas: 12,
-    sesiones_trabajo: 8,
-    registros_avance_partida: 8,
+    ordenes_produccion: 13,
+    partidas_orden_produccion: 17,
+    programacion_areas: 13,
+    sesiones_trabajo: 9,
+    registros_avance_partida: 9,
     notas_entrega: 2,
-    cuentas_por_cobrar: 5,
+    cuentas_por_cobrar: 6,
     pagos_ar: 5,
     movimientos_saldo_favor: 2,
     gastos: 10,
@@ -1149,7 +1179,6 @@ async function verificar() {
     areas_trabajo_config: 6,
     cuentas_bancarias: 3,
     proveedores: 4,
-    logs: 8,
   };
   let fallos = 0;
   for (const [tabla, esperado] of Object.entries(esperados)) {
@@ -1159,6 +1188,9 @@ async function verificar() {
     if (total !== esperado) fallos += 1;
     console.log(`  ${estado} ${tabla}: ${total} (esperado ${esperado})`);
   }
+
+  // La auditoría es viva: crece con cada sesión real, por eso solo se informa.
+  console.log(`  INFO logs: ${await contar('logs')} (crece con el uso real)`);
 
   const { data: ordenes } = await cliente.from('ordenes_produccion').select('estado');
   const porEstado = {};
