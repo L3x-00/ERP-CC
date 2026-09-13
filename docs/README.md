@@ -4,6 +4,7 @@ Esta carpeta registra el avance funcional y técnico del ERP de CC Manufacturing
 
 ## Documentos transversales
 
+- [Auditoría funcional y paridad — 164 requisitos, 13-09-2026](auditoria-funcional-2026-09-13/README.md): inventario completo y evidencia local; aceptación E2E pendiente. Los estados de fase del historial no equivalen a aceptación de este catálogo.
 - [Contexto del proyecto](contexto.md)
 - [Arquitectura](arquitectura.md)
 - [Alcance y roadmap](alcance.md)

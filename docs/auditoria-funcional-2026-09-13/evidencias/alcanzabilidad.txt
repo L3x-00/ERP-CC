@@ -1,0 +1,10 @@
+src\modulos\auditoria\componentes\tabla-logs.tsx:27:export function TablaLogs() {
+src\modulos\cobranza\servicios\cobranza-servicio.ts:256:export async function obtenerPagosCuentaServicio(
+src\modulos\cobranza\servicios\cobranza-servicio.ts:269:export async function obtenerMovimientosSaldoFavorServicio(
+src\modulos\cobranza\acciones\indice.ts:1:export { abrirCuentaPorCobrarAccion } from '@/modulos/cobranza/acciones/abrir-cuenta-por-cobrar';
+src\modulos\cobranza\acciones\abrir-cuenta-por-cobrar.ts:16:export async function abrirCuentaPorCobrarAccion(
+src\modulos\clientes\componentes\ficha-cliente.tsx:115:                  El historial de oportunidades y órdenes se conecta en la Fase 5.
+src\modulos\pipeline\componentes\formulario-cotizacion.tsx:17:type PropsFormularioCotizacion = {
+src\modulos\pipeline\componentes\formulario-cotizacion.tsx:72:export function FormularioCotizacion({
+src\modulos\pipeline\componentes\formulario-cotizacion.tsx:77:}: PropsFormularioCotizacion) {
+src\modulos\pipeline\acciones\agregar-archivo-adjunto.ts:30:export async function agregarArchivoAdjuntoAccion(

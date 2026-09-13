@@ -1,0 +1,572 @@
+[
+  {
+    "alias": "acceso",
+    "archivo_linea": "src/modulos/autenticacion/acciones/iniciar-sesion.ts:31",
+    "sha256_archivo": "79f41be89ac66978f4910db020159fece712359935489811baac97431a410530",
+    "fragmento_desde_linea": "  'id, email, nombre_completo, rol, activo, ultimo_login_at, creado_en, actualizado_en';\n\n/**\n * Server Action de inicio de sesión con email y contraseña (Supabase Auth).\n *"
+  },
+  {
+    "alias": "pin",
+    "archivo_linea": "src/modulos/autenticacion/acciones/validar-pin.ts:35",
+    "sha256_archivo": "853e9462c0eb4df20abbb16e02b9ecf82c8fcf633283d16ff47354435869cf02",
+    "fragmento_desde_linea": " * @param entrada Datos sin validar ({ pin }).\n * @returns `{ exito: true, datos: { nombreUsuario } }` si el PIN es válido\n * (el cliente redirige a /produccion-piso) o `{ exito: false, error }`.\n */\nexport async function validarPinAccion("
+  },
+  {
+    "alias": "teclado",
+    "archivo_linea": "src/modulos/autenticacion/componentes/teclado-pin.tsx:21",
+    "sha256_archivo": "3312f61bb5654a864f302a581dfb3668f75acf528cb7fd2293609b30b9d4d22e",
+    "fragmento_desde_linea": "export function TecladoPin() {\n  const router = useRouter();\n  const [pin, setPin] = useState('');\n  const [error, setError] = useState<string | null>(null);\n  const [validando, setValidando] = useState(false);"
+  },
+  {
+    "alias": "salir",
+    "archivo_linea": "src/modulos/autenticacion/acciones/cerrar-sesion.ts:28",
+    "sha256_archivo": "9ce07b4d8a9ffb1e5c2c51f574fe23106706d3fec94b8a64f1c9ad33ef0f83f2",
+    "fragmento_desde_linea": "export async function cerrarSesionAccion(): Promise<never> {\n  try {\n    const usuario = await obtenerUsuarioServidor().catch(() => null);\n\n    const almacenCookies = await cookies();"
+  },
+  {
+    "alias": "menu",
+    "archivo_linea": "src/compartido/componentes/navegacion/modulos-navegacion.ts:16",
+    "sha256_archivo": "9341cec966111503dc3a9cba4bf36b0e0da46a2535e9128e9cd753b9beadf675",
+    "fragmento_desde_linea": "export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [\n  { href: '/dashboard', etiqueta: 'Dashboard', grupo: 'General', icono: 'panel', permisos: [] },\n  {\n    href: '/pipeline',\n    etiqueta: 'Pipeline',"
+  },
+  {
+    "alias": "barra",
+    "archivo_linea": "src/compartido/componentes/navegacion/barra-lateral.tsx:25",
+    "sha256_archivo": "b95d5cc106d895b2f8da87b1c0d623af5af0e155f5ff7c31aef42428c27c78a5",
+    "fragmento_desde_linea": "function estaActivo(pathname: string, href: string): boolean {\n  return pathname === href || pathname.startsWith(`${href}/`);\n}\n\nfunction ContenidoNavegacion({"
+  },
+  {
+    "alias": "cliente_form",
+    "archivo_linea": "src/modulos/clientes/componentes/formulario-cliente.tsx:87",
+    "sha256_archivo": "d6c07d2b34372117869ba9dd298a0ba78b5c2b05ecbf8fec84e206aba91c9d14",
+    "fragmento_desde_linea": "export function FormularioCliente({ cliente, onExito, onCancelar }: Props) {\n  const edicion = cliente !== undefined;\n\n  const [razonSocial, setRazonSocial] = useState(cliente?.razonSocial ?? '');\n  const [nombreComercial, setNombreComercial] = useState(cliente?.nombreComercial ?? '');"
+  },
+  {
+    "alias": "cliente_lista",
+    "archivo_linea": "src/modulos/clientes/componentes/tabla-clientes.tsx:34",
+    "sha256_archivo": "5abdd36ff51c602a8a56ed44d371b39c65940c5471945351eaf84d3dc9467614",
+    "fragmento_desde_linea": "export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; usuarioActualId?: string }) {\n  const queryClient = useQueryClient();\n  const [textoBusqueda, setTextoBusqueda] = useState('');\n  const [busqueda, setBusqueda] = useState('');\n  const [estado, setEstado] = useState<EstadoCliente | ''>('');"
+  },
+  {
+    "alias": "cliente_ficha",
+    "archivo_linea": "src/modulos/clientes/componentes/ficha-cliente.tsx:112",
+    "sha256_archivo": "ba485d3118f44983ba691e35ffed42d937bdc3ff15ccba46d19c74125360adfc",
+    "fragmento_desde_linea": "              )}\n              {pestana === 'oportunidades' && (\n                <p className=\"text-sm text-texto-secundario\">\n                  El historial de oportunidades y órdenes se conecta en la Fase 5.\n                </p>"
+  },
+  {
+    "alias": "cliente_alta",
+    "archivo_linea": "src/modulos/clientes/acciones/crear-cliente.ts:20",
+    "sha256_archivo": "6561302336cda777d2560474cbff415972629e578616c096c25555827798ce6f",
+    "fragmento_desde_linea": "export async function crearClienteAccion(\n  entrada: unknown,\n): Promise<RespuestaAccion<{ id: string }>> {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario) {"
+  },
+  {
+    "alias": "cliente_editar",
+    "archivo_linea": "src/modulos/clientes/acciones/actualizar-cliente.ts:21",
+    "sha256_archivo": "37a6f8f9828318bab114dd0c1001f1b5588bcdee7aadb7bfa3730fbe3489232f",
+    "fragmento_desde_linea": "export async function actualizarClienteAccion(\n  entrada: unknown,\n): Promise<RespuestaAccion<{ id: string }>> {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario) {"
+  },
+  {
+    "alias": "credito",
+    "archivo_linea": "src/modulos/clientes/servicios/verificar-credito.ts:24",
+    "sha256_archivo": "2a2297436a7418e99e3b4089bf9e3d6899cf51d6ec87a7e0e987d35d37ccaa7a",
+    "fragmento_desde_linea": "export function verificarCredito(p: ParametrosCredito): ResumenCredito {\n  const limite = saneo(p.limite);\n  const saldoAFavor = saneo(p.saldoAFavor);\n  const usado = saneo(p.usado);\n"
+  },
+  {
+    "alias": "credito_ui",
+    "archivo_linea": "src/modulos/clientes/componentes/alerta-credito.tsx:14",
+    "sha256_archivo": "af2efe4bfac1f114a9525852e52abadf32833073d3965c2106b9a83b13e799fe",
+    "fragmento_desde_linea": "export function AlertaCredito({ cliente, usado = 0 }: { cliente: Cliente; usado?: number }) {\n  const credito = verificarCredito({\n    limite: cliente.limiteCredito,\n    saldoAFavor: cliente.saldoAFavor,\n    usado,"
+  },
+  {
+    "alias": "tier",
+    "archivo_linea": "src/modulos/clientes/servicios/calcular-tier.ts:53",
+    "sha256_archivo": "85af61ec312f8f20d46f321780f002d6c5bc0ffcdb38d64c33fd45d2023b7e6b",
+    "fragmento_desde_linea": " * @param p Consumo, tier manual, caducidad y momento de evaluación.\n * @returns Tier efectivo y si proviene de asignación manual vigente.\n */\nexport function calcularTier(p: ParametrosTier): ResultadoTier {\n  if (p.tierManual && p.tierManualHasta) {"
+  },
+  {
+    "alias": "consumo_cliente",
+    "archivo_linea": "src/modulos/clientes/servicios/calcular-consumo.ts:24",
+    "sha256_archivo": "62c54a2b04281181e959f8894b389d6474b4f8f9833c01856d791032aa39ab87",
+    "fragmento_desde_linea": "): Promise<number> {\n  const desde = new Date();\n  desde.setUTCMonth(desde.getUTCMonth() - MESES_CONSUMO);\n\n  const { data, error } = await cliente"
+  },
+  {
+    "alias": "tier_manual",
+    "archivo_linea": "src/modulos/clientes/acciones/asignar-tier-manual.ts:20",
+    "sha256_archivo": "e6d3579f4fef42adfb2f11258c43acfd9f30c97da5d4e571b1d960ffbba6aa11",
+    "fragmento_desde_linea": "export async function asignarTierManualAccion(\n  entrada: unknown,\n): Promise<RespuestaAccion<{ id: string; venceEn: string }>> {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario) {"
+  },
+  {
+    "alias": "prospecto",
+    "archivo_linea": "src/modulos/pipeline/componentes/formulario-prospecto.tsx:22",
+    "sha256_archivo": "1cff7688feeb480d2a916fb1a7251279309e892478d6ee29563df208e7c7bbbb",
+    "fragmento_desde_linea": "export function FormularioProspecto() {\n  const router = useRouter();\n  const [nombreContacto, setNombreContacto] = useState('');\n  const [empresa, setEmpresa] = useState('');\n  const [correo, setCorreo] = useState('');"
+  },
+  {
+    "alias": "pipeline",
+    "archivo_linea": "src/modulos/pipeline/componentes/tablero-kanban.tsx:34",
+    "sha256_archivo": "e3856cc90fb13f61d0654584b1b59e57c01d9f53fa59948c208e78962f75994b",
+    "fragmento_desde_linea": "export function TableroKanban() {\n  const { data, isLoading, isError } = usarPipeline();\n  const [mostrarFormulario, setMostrarFormulario] = useState(false);\n  const [vista, setVista] = useState<VistaPipeline>('kanban');\n"
+  },
+  {
+    "alias": "tarjeta_rfq",
+    "archivo_linea": "src/modulos/pipeline/componentes/tarjeta-oportunidad.tsx:52",
+    "sha256_archivo": "126431e477e84804f1c33947639b2e87d84fb01a462abe840745ed4d1b47ab3e",
+    "fragmento_desde_linea": "export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportunidad) {\n  const [mostrarComentarios, setMostrarComentarios] = useState(false);\n  const folio = oportunidad.folioCnc ?? oportunidad.folioOp;\n  const prioridad = ESTILO_PRIORIDAD[oportunidad.prioridad];\n"
+  },
+  {
+    "alias": "tabla_rfq",
+    "archivo_linea": "src/modulos/pipeline/componentes/tabla-oportunidades.tsx:23",
+    "sha256_archivo": "4920bcd1be56c6930614da4cb66e2ce086260ffb052aea8aa1376aec4f0c2d6b",
+    "fragmento_desde_linea": "}: {\n  oportunidades: readonly Oportunidad[];\n}) {\n  return (\n    <TablaContenedor>"
+  },
+  {
+    "alias": "rfq_consulta",
+    "archivo_linea": "src/modulos/pipeline/servicios/obtener-oportunidades.ts:26",
+    "sha256_archivo": "45fa083f09f5aae3200a9a299cc63131da7e94e729ee745b0a28a11d39f7b703",
+    "fragmento_desde_linea": "  cliente: SupabaseClient<Database>,\n  filtros?: FiltrosPipeline,\n): Promise<Oportunidad[]> {\n  let consulta = cliente.from('pipeline').select('*');\n"
+  },
+  {
+    "alias": "rfq_form",
+    "archivo_linea": "src/modulos/pipeline/componentes/formulario-cotizacion.tsx:72",
+    "sha256_archivo": "554cb7b57ebf9ea3f85966320e2f094f2ca873ab2246d99ed7a6a0ed57b36ca6",
+    "fragmento_desde_linea": "export function FormularioCotizacion({\n  pipelineId,\n  ivaPorcentaje,\n  moneda,\n  lineasIniciales,"
+  },
+  {
+    "alias": "rfq_guardar",
+    "archivo_linea": "src/modulos/pipeline/acciones/crear-cotizacion.ts:18",
+    "sha256_archivo": "2f5f9f03c9784a5f381161196c4998a3c005f875e7de33a07829dc4e9574e433",
+    "fragmento_desde_linea": "export async function crearCotizacionAccion(entrada: unknown): Promise<RespuestaAccion> {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario) {\n    return { exito: false, error: 'No autorizado' };\n  }"
+  },
+  {
+    "alias": "rfq_editar",
+    "archivo_linea": "src/modulos/pipeline/acciones/actualizar-cotizacion.ts:18",
+    "sha256_archivo": "33280153f789a448cff8990c00264743bdbe1109e908dbf2359e2aaddad5e208",
+    "fragmento_desde_linea": "export async function actualizarCotizacionAccion(entrada: unknown): Promise<RespuestaAccion> {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario) {\n    return { exito: false, error: 'No autorizado' };\n  }"
+  },
+  {
+    "alias": "rfq_totales",
+    "archivo_linea": "src/modulos/pipeline/servicios/calcular-totales-cotizacion.ts:25",
+    "sha256_archivo": "4e59b0f8fea08498ff54252d668c865ec9cde853bbf4e0928c90876569649de9",
+    "fragmento_desde_linea": "export function calcularTotalesCotizacion(\n  lineas: readonly LineaCotizacionEntrada[],\n  ivaPorcentaje: number,\n  moneda: MonedaPipeline,\n): TotalesCotizacion {"
+  },
+  {
+    "alias": "rfq_etapa",
+    "archivo_linea": "src/modulos/pipeline/componentes/selector-etapa.tsx:24",
+    "sha256_archivo": "d95d1c9a13be0a7b86825cdb4389fa522ecdfd06a3438381254ab5174b561811",
+    "fragmento_desde_linea": "const ETAPAS: { valor: EtapaPipeline; etiqueta: string }[] = [\n  { valor: 'prospecto', etiqueta: 'Prospecto' },\n  { valor: 'contactado', etiqueta: 'Contactado' },\n  { valor: 'cotizado', etiqueta: 'Cotizado' },\n  { valor: 'negociacion', etiqueta: 'Negociación' },"
+  },
+  {
+    "alias": "rfq_ganar",
+    "archivo_linea": "src/modulos/pipeline/acciones/marcar-ganada.ts:26",
+    "sha256_archivo": "d1e283882a68f71126c0eb36c738de05355f2fa2fb4c91e7fcca20dbb9f5afde",
+    "fragmento_desde_linea": "  entrada: unknown,\n): Promise<RespuestaAccion<{ clienteId: string; ordenId: string; folioOrden: string }>> {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario) {\n    return { exito: false, error: 'No autorizado' };"
+  },
+  {
+    "alias": "rfq_adjuntos",
+    "archivo_linea": "src/modulos/pipeline/acciones/agregar-archivo-adjunto.ts:30",
+    "sha256_archivo": "0358c47f40e0c3bdc1c1abdc02e453186525435d36f4faea9cacedd7bc1f3c59",
+    "fragmento_desde_linea": "export async function agregarArchivoAdjuntoAccion(\n  formData: FormData,\n): Promise<RespuestaAccion<{ ruta: string }>> {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario) {"
+  },
+  {
+    "alias": "rfq_folio",
+    "archivo_linea": "src/modulos/pipeline/servicios/generar-folio-cnc.ts:16",
+    "sha256_archivo": "ee09e7e3235fbe85588727c538faf36025863b045b39a2d40ffc6c0753a5fcdb",
+    "fragmento_desde_linea": "export async function generarFolioCnc(cliente: SupabaseClient<Database>): Promise<string> {\n  const { data, error } = await cliente.rpc('generar_folio_cnc');\n  if (error || !data) {\n    throw new Error('No se pudo generar el folio CNC');\n  }"
+  },
+  {
+    "alias": "rfq_tipos",
+    "archivo_linea": "src/modulos/pipeline/tipos/indice.ts:125",
+    "sha256_archivo": "07777bcc259335dd5c04a53e69f3d5526481ec87ca539a9428da397bd2ea794f",
+    "fragmento_desde_linea": "export function filaAOportunidad(fila: FilaPipeline): Oportunidad {\n  return {\n    id: fila.id,\n    folioOp: fila.folio_op,\n    folioCnc: fila.folio_cnc,"
+  },
+  {
+    "alias": "orden_ruta",
+    "archivo_linea": "src/app/(privado)/ordenes/page.tsx:62",
+    "sha256_archivo": "dd6d7f7c83c0e6cf3023f5e45e21c2e7d4596cf5b4ebbffd86ca4c8e0993d0cb",
+    "fragmento_desde_linea": "      <SincronizadorOrdenesRealtime />\n      <header className=\"flex flex-col gap-2\">\n        <h1 className=\"text-2xl font-bold\">Órdenes de producción</h1>\n        <p className=\"text-sm text-texto-secundario\">\n          Planeación y seguimiento operativo de órdenes. El registro de piso se opera desde"
+  },
+  {
+    "alias": "orden_form",
+    "archivo_linea": "src/modulos/ordenes/componentes/formulario-orden.tsx:136",
+    "sha256_archivo": "cc9b39d3ddc4a25bef24ade28431d486acb08017a5ed8faba73b3833ac2d215f",
+    "fragmento_desde_linea": "export function FormularioOrden({ clientes, materiales, alCrearOrden }: PropsFormularioOrden) {\n  const router = useRouter();\n  const idBase = useId();\n\n  const [clienteId, setClienteId] = useState('');"
+  },
+  {
+    "alias": "orden_tabla",
+    "archivo_linea": "src/modulos/ordenes/componentes/tabla-ordenes.tsx:188",
+    "sha256_archivo": "9dafd0d069db9cc8700cd2c6888e421ee075bf3edd94a87bc562133ca8cb2286",
+    "fragmento_desde_linea": "  const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);\n  const filtroMaquina = usarTiendaOrdenes((estado) => estado.filtroMaquina);\n  const filtrosEstado = usarTiendaOrdenes((estado) => estado.filtrosEstado);\n  const seleccionarOrden = usarTiendaOrdenes((estado) => estado.seleccionarOrden);\n  const establecerFiltroMaquina = usarTiendaOrdenes((estado) => estado.establecerFiltroMaquina);"
+  },
+  {
+    "alias": "orden_estados",
+    "archivo_linea": "src/modulos/ordenes/servicios/reglas-transicion.ts:12",
+    "sha256_archivo": "eebd430e34c9271b778029ec8300ec0cc1218e504c5bd20196509e06a55c3a8b",
+    "fragmento_desde_linea": "> = {\n  borrador: ['programada', 'cancelada'],\n  programada: ['en_proceso', 'cancelada'],\n  en_proceso: ['pausada', 'completada', 'cancelada'],\n  pausada: ['en_proceso', 'cancelada'],"
+  },
+  {
+    "alias": "orden_servicio",
+    "archivo_linea": "src/modulos/ordenes/servicios/ordenes-servicio.ts:165",
+    "sha256_archivo": "d131b363c84dec3ef477253a90e4d28dd0f0a67b42c077311acca4df3329552f",
+    "fragmento_desde_linea": "export async function crearOrdenManualServicio(\n  admin: SupabaseClient<Database>,\n  entrada: CrearOrdenManualInput,\n): Promise<OrdenCreada> {\n  const argumentos: Database['public']['Functions']['crear_orden_manual']['Args'] = {"
+  },
+  {
+    "alias": "orden_tipos",
+    "archivo_linea": "src/modulos/ordenes/tipos/ordenes.ts:5",
+    "sha256_archivo": "cdae20c440f02361de0f32018f11f8e71139e0c288dc176d39330a87b8f559ce",
+    "fragmento_desde_linea": "export const ESTADOS_ORDEN_PRODUCCION = [\n  'borrador',\n  'programada',\n  'en_proceso',\n  'pausada',"
+  },
+  {
+    "alias": "orden_sql",
+    "archivo_linea": "supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:26",
+    "sha256_archivo": "3078f515922c82298fe58e3aa95d8b4450c96381d122a4ce513613dfbf9ea994",
+    "fragmento_desde_linea": "CREATE OR REPLACE FUNCTION public.cambiar_estado_orden(\n  p_orden_id uuid,\n  p_estado_actual text,\n  p_estado_nuevo text,\n  p_motivo_cancelacion text DEFAULT NULL"
+  },
+  {
+    "alias": "programar_sql",
+    "archivo_linea": "supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:232",
+    "sha256_archivo": "3078f515922c82298fe58e3aa95d8b4450c96381d122a4ce513613dfbf9ea994",
+    "fragmento_desde_linea": "CREATE OR REPLACE FUNCTION public.programar_partida_recurso(\n  p_orden_id uuid,\n  p_partida_id uuid,\n  p_recurso_id uuid,\n  p_secuencia smallint,"
+  },
+  {
+    "alias": "reprogramar_sql",
+    "archivo_linea": "supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:364",
+    "sha256_archivo": "3078f515922c82298fe58e3aa95d8b4450c96381d122a4ce513613dfbf9ea994",
+    "fragmento_desde_linea": "CREATE OR REPLACE FUNCTION public.reprogramar_partida_recurso(\n  p_programacion_id uuid,\n  p_recurso_id uuid,\n  p_fecha_programada date,\n  p_turno text,"
+  },
+  {
+    "alias": "asignar_sql",
+    "archivo_linea": "supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:478",
+    "sha256_archivo": "3078f515922c82298fe58e3aa95d8b4450c96381d122a4ce513613dfbf9ea994",
+    "fragmento_desde_linea": "CREATE OR REPLACE FUNCTION public.asignar_operador_a_partida_op(\n  p_partida_id uuid,\n  p_operador_id uuid\n)\nRETURNS TABLE ("
+  },
+  {
+    "alias": "sesion_sql",
+    "archivo_linea": "supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:547",
+    "sha256_archivo": "3078f515922c82298fe58e3aa95d8b4450c96381d122a4ce513613dfbf9ea994",
+    "fragmento_desde_linea": "CREATE OR REPLACE FUNCTION public.cerrar_sesion_trabajo_operador(\n  p_sesion_id uuid,\n  p_operador_id uuid,\n  p_piezas_producidas numeric,\n  p_estado_destino text,"
+  },
+  {
+    "alias": "ultima_secuencia",
+    "archivo_linea": "supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:674",
+    "sha256_archivo": "3078f515922c82298fe58e3aa95d8b4450c96381d122a4ce513613dfbf9ea994",
+    "fragmento_desde_linea": "    SELECT 1 FROM public.programacion_areas AS posterior\n    WHERE posterior.partida_id = v_sesion.partida_id\n      AND posterior.secuencia > v_programacion.secuencia\n      AND posterior.estado_planeacion <> 'cancelada'\n  ) INTO v_es_ultima_secuencia;"
+  },
+  {
+    "alias": "ganar_sql",
+    "archivo_linea": "supabase/migrations/20260911000003_auditoria_cobranza_pipeline.sql:487",
+    "sha256_archivo": "5dd1a197a793af304260553da6bf6887a4ec4a9703b92e5e5b509ee10d79cb0b",
+    "fragmento_desde_linea": "CREATE OR REPLACE FUNCTION public.aprobar_oportunidad_y_crear_orden(\n  p_pipeline_id uuid,\n  p_cliente_id uuid,\n  p_fecha_compromiso timestamptz\n)"
+  },
+  {
+    "alias": "plan_form",
+    "archivo_linea": "src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx:182",
+    "sha256_archivo": "05cc25a7e01e7defc24845641f5d7d2b7de7e00d0b6e7fded452e27dec2da78b",
+    "fragmento_desde_linea": "      setPreparando(false);\n    }\n  }\n\n  return ("
+  },
+  {
+    "alias": "plan_cal",
+    "archivo_linea": "src/modulos/planeacion/componentes/calendario-planeacion.tsx:183",
+    "sha256_archivo": "7c82b6b6b7e60b87f1e921fec5e5d9659e47a2928fc9ce4a45ca5cc24969efcb",
+    "fragmento_desde_linea": "\n      <div className=\"grid gap-3 rounded-base border border-borde p-3 md:grid-cols-3\">\n        <label className=\"flex flex-col gap-1 text-xs\">\n          Fecha inicial\n          <Input"
+  },
+  {
+    "alias": "plan_operar",
+    "archivo_linea": "src/modulos/planeacion/componentes/operacion-planeacion.tsx:25",
+    "sha256_archivo": "08dc310a76505f1b0488119e1b522f2a15bd909f04c46d4dad03594c96247eb0",
+    "fragmento_desde_linea": "export interface PropsOperacionPlaneacion {\n  datosIniciales: DatosCalendarioPlaneacion;\n  rangoInicial: { fechaInicio: string; fechaFin: string };\n  partidasProgramables: readonly PartidaProgramablePlaneacion[];\n}"
+  },
+  {
+    "alias": "plan_tipos",
+    "archivo_linea": "src/modulos/planeacion/tipos/planeacion.ts:5",
+    "sha256_archivo": "4712a5f644d97a4547099e4ccc8bf59bd2b9378864cab51c5ff13f4429ce4792",
+    "fragmento_desde_linea": "export const AREAS_PLANEACION = ['sheet_metal', 'taller', 'acabados', 'ext'] as const;\n\nexport const TURNOS_PLANEACION = ['matutino', 'vespertino', 'nocturno'] as const;\n\nexport const ESTADOS_PLANEACION = ["
+  },
+  {
+    "alias": "prd_ruta",
+    "archivo_linea": "src/app/(privado)/produccion/page.tsx:10",
+    "sha256_archivo": "7df6c908065a22cb52433164afd7085aeaa682ae0007cd54316acb2fdd292c2d",
+    "fragmento_desde_linea": "export default async function PaginaProduccion() {\n  const usuario = await obtenerUsuarioServidor();\n  if (!usuario || !(await can(usuario, 'gestionar_produccion'))) notFound();\n\n  const [cliente, operador] = await Promise.all(["
+  },
+  {
+    "alias": "piso_ruta",
+    "archivo_linea": "src/app/(piso)/produccion-piso/page.tsx:13",
+    "sha256_archivo": "13bbc3d07fbd9f82114f039becf0bc69506ebd235e4aa627ea5b8fb4ea230b1d",
+    "fragmento_desde_linea": "export default async function PaginaProduccionPiso() {\n  const operador = await obtenerOperadorConSesionActiva();\n  if (!operador) {\n    redirect('/operador');\n  }"
+  },
+  {
+    "alias": "piso_panel",
+    "archivo_linea": "src/modulos/ordenes/componentes/control-piso-panel.tsx:42",
+    "sha256_archivo": "e87c38cee541e3f88f4f463bac86da7f6f9f7b36d2e923151fbb6afbc9cd45fc",
+    "fragmento_desde_linea": "export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsControlPisoPanel) {\n  const router = useRouter();\n  const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);\n  const seleccionarOrden = usarTiendaOrdenes((estado) => estado.seleccionarOrden);\n"
+  },
+  {
+    "alias": "prd_operar",
+    "archivo_linea": "src/modulos/produccion/componentes/operacion-produccion.tsx:27",
+    "sha256_archivo": "3dec75b1909139decf741a9154e12db4ff6ba1a7656baf4926b34ac9ec769496",
+    "fragmento_desde_linea": "export function OperacionProduccion({ datosIniciales, operadorId }: PropsOperacionProduccion) {\n  const clienteConsultas = useQueryClient();\n  const recursoId = usarTiendaProduccion((estado) => estado.recursoId);\n  const estados = usarTiendaProduccion((estado) => estado.estados);\n  const ordenSeleccionadaId = usarTiendaProduccion((estado) => estado.ordenSeleccionadaId);"
+  },
+  {
+    "alias": "prd_kanban",
+    "archivo_linea": "src/modulos/produccion/componentes/kanban-produccion.tsx:60",
+    "sha256_archivo": "d5809d64f94116c5b761eb93a76fd14a6d7e8d9fce98600f4ce7facd7228b1e7",
+    "fragmento_desde_linea": "export function KanbanProduccion({\n  ordenes,\n  ordenSeleccionadaId,\n  estadosActivos,\n  actualizando,"
+  },
+  {
+    "alias": "prd_tablero",
+    "archivo_linea": "src/modulos/produccion/servicios/tablero-produccion-servicio.ts:42",
+    "sha256_archivo": "7b7301e0699a65224cc2caa1e6a41b9d6fb7e990ac6a089d4d2a92857c2bc371",
+    "fragmento_desde_linea": "export function obtenerEstadoKanbanProduccion(\n  orden: Orden,\n  partidas: readonly PartidaTableroProduccion[],\n  sesiones: readonly SesionTrabajo[],\n): EstadoKanbanProduccion {"
+  },
+  {
+    "alias": "prd_panel",
+    "archivo_linea": "src/modulos/produccion/componentes/panel-operador-produccion.tsx:39",
+    "sha256_archivo": "74176083c64262b2824c1172cffe25affe234ec3cff5af3b2409c474c034bf19",
+    "fragmento_desde_linea": "/** Panel rápido: el navegador solicita acciones, PostgreSQL confirma cada transición. */\nexport function PanelOperadorProduccion({\n  orden,\n  sesionActiva,\n  operadorDisponible,"
+  },
+  {
+    "alias": "prd_cerrar",
+    "archivo_linea": "src/modulos/produccion/acciones/cerrar-sesion-operador.ts:31",
+    "sha256_archivo": "32fc1bb423dffb63df65b8fa272add67dd698f7d55b4690a328543da3e8aa10f",
+    "fragmento_desde_linea": "    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };\n  }\n\n  const operador = await obtenerOperadorConSesionActiva();\n  if (!operador) return { exito: false, error: 'Sesión de operador no válida' };"
+  },
+  {
+    "alias": "prd_horas",
+    "archivo_linea": "src/modulos/produccion/servicios/calculo-tiempos-servicio.ts:74",
+    "sha256_archivo": "1b922d657032f29ac08f6108bf204c2529a82333548150c5a7d760027a23c0b9",
+    "fragmento_desde_linea": "  const inicioMural = fechaMuralTaller(inicio);\n  const finMural = fechaMuralTaller(fin);\n  const cursor = new Date(Date.UTC(\n    inicioMural.getUTCFullYear(),\n    inicioMural.getUTCMonth(),"
+  },
+  {
+    "alias": "prd_entrega",
+    "archivo_linea": "src/modulos/produccion/componentes/formulario-nota-entrega.tsx:26",
+    "sha256_archivo": "ab5f0ecd957bd00542db4af79671dce1c78ed562cb6d0b7f7c6c74187513eb40",
+    "fragmento_desde_linea": "  const [firmaClienteUrl, setFirmaClienteUrl] = useState('');\n  const [cantidades, setCantidades] = useState<Record<string, string>>({});\n  const [mensaje, setMensaje] = useState<string | null>(null);\n\n  async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {"
+  },
+  {
+    "alias": "entrega_servicio",
+    "archivo_linea": "src/modulos/produccion/servicios/entrega-servicio.ts:6",
+    "sha256_archivo": "4b24dbaba5734582d81ba2f31c8f20eeef8f21e06be24d9c4e735c65f24d1cbd",
+    "fragmento_desde_linea": "export interface NotaEntregaGenerada {\n  id: string;\n  folio: string;\n  esParcial: boolean;\n  creadoEn: string;"
+  },
+  {
+    "alias": "prd_tipos",
+    "archivo_linea": "src/modulos/produccion/tipos/produccion.ts:5",
+    "sha256_archivo": "a96d153071e6c4b10f05c985250443b721dc93d45f76999e4834fbfadb949b1d",
+    "fragmento_desde_linea": "export const ESTADOS_SESION_TRABAJO = ['activa', 'pausada', 'finalizada'] as const;\n\nexport const MOTIVOS_PAUSA_SESION = [\n  'falta_informacion',\n  'material_pendiente',"
+  },
+  {
+    "alias": "material_consumir",
+    "archivo_linea": "src/modulos/ordenes/acciones/registrar-consumo.ts:22",
+    "sha256_archivo": "aabd433d8eae3eefed414890d0ac57ed53bc719c9ce5d4cde99878153e6fa356",
+    "fragmento_desde_linea": "export async function registrarConsumoAccion(\n  entrada: unknown,\n): Promise<RespuestaAccion<ConsumoMaterialRegistrado>> {\n  const analisis = esquemaRegistrarConsumoMaterial.safeParse(entrada);\n  if (!analisis.success) {"
+  },
+  {
+    "alias": "cfg",
+    "archivo_linea": "src/modulos/configuracion/componentes/operacion-configuracion.tsx:16",
+    "sha256_archivo": "3a4b408325dca0eaddc7a22822b36a8ff736d20e78bcaa632ec0b0f6467f9383",
+    "fragmento_desde_linea": "  ['empresa', 'Empresa'],\n  ['tarifas', 'Tarifas / TC'],\n  ['areas', 'Áreas de trabajo'],\n  ['cuentas', 'Cuentas bancarias'],\n  ['plantillas', 'Plantillas T1'],"
+  },
+  {
+    "alias": "cfg_empresa",
+    "archivo_linea": "src/modulos/configuracion/componentes/pestana-empresa.tsx:10",
+    "sha256_archivo": "8077c0e72bb6dc384d87a811d78c9aa2fd47ad08bf4861af3985004f3b60b5ac",
+    "fragmento_desde_linea": "export interface PestanaEmpresaProps {\n  datos: ConfiguracionEmpresa;\n  onGuardado: (configuracion: ConfiguracionSistema) => void;\n}\n"
+  },
+  {
+    "alias": "cfg_tarifas",
+    "archivo_linea": "src/modulos/configuracion/componentes/pestana-tarifas.tsx:23",
+    "sha256_archivo": "66daa84dec6a77dd27dae825dccd7ca8df00b1322555e888bf4791c44f967d2a",
+    "fragmento_desde_linea": "\nexport function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProps) {\n  const [tarifas, setTarifas] = useState<TarifasCotizadorConfig>(configuracion.tarifas);\n  const [tipoCambio, setTipoCambio] = useState(String(configuracion.tipoCambioUsd));\n  const [mensaje, setMensaje] = useState<string | null>(null);"
+  },
+  {
+    "alias": "cfg_tipos",
+    "archivo_linea": "src/modulos/configuracion/tipos/configuracion.ts:15",
+    "sha256_archivo": "d78848115831c3a58953f946517d96fa0fe62e164a7c4b4f639b8f65db449549",
+    "fragmento_desde_linea": "export interface TarifasCotizadorConfig {\n  costoHoraDefault: number;\n  segundosPorPierce: number;\n  factorEficienciaLaser: number;\n  factorMermaMaterial: number;"
+  },
+  {
+    "alias": "cfg_areas",
+    "archivo_linea": "src/modulos/configuracion/componentes/pestana-areas-trabajo.tsx:20",
+    "sha256_archivo": "d7be6689f054bd3a79afde1296015b56b0af9fe7b36933e192ea48ad720d7b77",
+    "fragmento_desde_linea": "export function PestanaAreasTrabajo({ datos, onGuardado }: { datos: readonly AreaTrabajoConfig[]; onGuardado: (area: AreaTrabajoConfig) => void }) {\n  const [seleccionada, setSeleccionada] = useState<AreaTrabajoConfig | null>(null);\n  const [mensaje, setMensaje] = useState<string | null>(null);\n  const [guardando, setGuardando] = useState(false);\n  const [formulario, setFormulario] = useState({ codigo: '', nombre: '', colorHex: '#3B82F6', costoHoraInterno: '0', tarifaHoraVenta: '0', esExterno: false, activo: true, orden: '0' });"
+  },
+  {
+    "alias": "cfg_cuentas",
+    "archivo_linea": "src/modulos/configuracion/componentes/pestana-cuentas-bancarias.tsx:20",
+    "sha256_archivo": "8b3b75f76c23569e6993c5ed6731deb471f5d89662e94435c64fe98c37529434",
+    "fragmento_desde_linea": "export function PestanaCuentasBancarias({ datos, onGuardado }: { datos: readonly CuentaBancaria[]; onGuardado: (cuenta: CuentaBancaria) => void }) {\n  const [seleccionada, setSeleccionada] = useState<CuentaBancaria | null>(null);\n  const [formulario, setFormulario] = useState({ banco: '', numeroCuenta: '', clabe: '', moneda: 'MXN' as 'MXN' | 'USD', titular: '', activa: true });\n  const [mensaje, setMensaje] = useState<string | null>(null);\n  const [guardando, setGuardando] = useState(false);"
+  },
+  {
+    "alias": "cfg_plantillas",
+    "archivo_linea": "src/modulos/configuracion/componentes/pestana-plantillas-doc.tsx:12",
+    "sha256_archivo": "219324ab084c9fc9c65cbf51d181b352c6b71c1474fee7cf36685d1ebfb085ed",
+    "fragmento_desde_linea": "export function PestanaPlantillasDoc({ configuracion, onGuardado }: { configuracion: ConfiguracionSistema; onGuardado: (configuracion: ConfiguracionSistema) => void }) {\n  const [plantilla, setPlantilla] = useState<PlantillaDocumentoConfig>(configuracion.plantillasDoc.T1);\n  const [mensaje, setMensaje] = useState<Mensaje | null>(null);\n  const [guardando, setGuardando] = useState(false);\n"
+  },
+  {
+    "alias": "cfg_servicio",
+    "archivo_linea": "src/modulos/configuracion/servicios/configuracion-servicio.ts:40",
+    "sha256_archivo": "6e8f8a31143efcebc996b3335cefbb6cbff759237638925a8f106fdb62c22462",
+    "fragmento_desde_linea": "export function combinarConfiguracion(\n  fila: FilaConfiguracionSistema | null | undefined,\n): ConfiguracionSistema {\n  if (!fila) {\n    return {"
+  },
+  {
+    "alias": "logs",
+    "archivo_linea": "src/modulos/auditoria/componentes/tabla-logs.tsx:27",
+    "sha256_archivo": "e00236a12c27a2367f97d72b80b20a09d716babe9b05b93c24bb7fed111ab783",
+    "fragmento_desde_linea": "export function TablaLogs() {\n  const [modulo, setModulo] = useState('');\n  const [accion, setAccion] = useState('');\n  const [pagina, setPagina] = useState(1);\n"
+  },
+  {
+    "alias": "comentarios",
+    "archivo_linea": "src/modulos/comentarios/componentes/hilo-comentarios.tsx:54",
+    "sha256_archivo": "ce14032647c7b64d996396b68db50b7a880045e29f037a37835439317b41ac26",
+    "fragmento_desde_linea": "export function HiloComentarios({\n  entidadTipo,\n  entidadId,\n  usuarioActualId,\n  puedeEliminarTodos = false,"
+  },
+  {
+    "alias": "comentario_guardar",
+    "archivo_linea": "src/modulos/comentarios/acciones/agregar-comentario.ts:20",
+    "sha256_archivo": "7dd09c7be32fa5ee00acd81ea9e6ee5d205b0b26903b3aa78d99f5de3429eae9",
+    "fragmento_desde_linea": "export async function agregarComentarioAccion(\n  entrada: unknown,\n): Promise<RespuestaAccion<ComentarioRegistro>> {\n  const analisis = esquemaCrearComentario.safeParse(entrada);\n  if (!analisis.success) {"
+  },
+  {
+    "alias": "ar_ui",
+    "archivo_linea": "src/modulos/cobranza/componentes/operacion-cobranza.tsx:54",
+    "sha256_archivo": "1bcc38b86f7004d3a2be60353752feeaa0cc5ae195e5cbaac3adc2c6a73958ff",
+    "fragmento_desde_linea": "export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenCartera }) {\n  const clienteConsultas = useQueryClient();\n  const cuentaSeleccionadaId = usarTiendaCobranza((estado) => estado.cuentaSeleccionadaId);\n  const busqueda = usarTiendaCobranza((estado) => estado.busqueda);\n  const periodo = usarTiendaCobranza((estado) => estado.periodo);"
+  },
+  {
+    "alias": "ar_tabla",
+    "archivo_linea": "src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx:69",
+    "sha256_archivo": "fd24f0aab85352f3caa6720d3194253ae63bd6b439872fe0f2c730645a23f279",
+    "fragmento_desde_linea": "                <TablaCelda className=\"font-mono text-xs font-medium\">{cuenta.folioOrden}</TablaCelda>\n                <TablaCelda>{cuenta.clienteNombre}</TablaCelda>\n                <TablaCelda>\n                  {new Intl.DateTimeFormat('es-MX').format(new Date(cuenta.fechaVencimiento))}\n                </TablaCelda>"
+  },
+  {
+    "alias": "ar_pago",
+    "archivo_linea": "src/modulos/cobranza/componentes/modal-registrar-pago.tsx:18",
+    "sha256_archivo": "5359e2c8d03c4fbf2a285bffc0453cdf2f422f57102cdb72cc37ab5427f3f155",
+    "fragmento_desde_linea": "export interface DatosPagoFormulario {\n  arId: string;\n  montoPagado: number;\n  monedaPago: 'USD' | 'MXN';\n  tipoCambioPago: number;"
+  },
+  {
+    "alias": "ar_recibo",
+    "archivo_linea": "src/modulos/cobranza/componentes/recibo-pago-vista.tsx:5",
+    "sha256_archivo": "1e988e115f404e2c5137e2b8543766330c51c81acc0f59f31a2b24f54f1a3543",
+    "fragmento_desde_linea": "export interface ReciboPago {\n  folio: string;\n  cliente: string;\n  montoAplicado: number;\n  moneda: string;"
+  },
+  {
+    "alias": "ar_servicio",
+    "archivo_linea": "src/modulos/cobranza/servicios/cobranza-servicio.ts:40",
+    "sha256_archivo": "dfda87196fc5a40a82b7f1bbc62b41873717c7050061f7fd8693e43bd2aa252a",
+    "fragmento_desde_linea": "export interface CuentaAbierta {\n  id: string;\n  clienteId: string;\n  saldoPendiente: number;\n  moneda: string;"
+  },
+  {
+    "alias": "ar_aging",
+    "archivo_linea": "src/modulos/cobranza/servicios/aging-servicio.ts:23",
+    "sha256_archivo": "fcd5a1301476538e45d503b1c44a3d04e43ed85a2e8a9c9d968deb5479ee6a49",
+    "fragmento_desde_linea": "export const MONEDA_AGING: MonedaSaldoFavor = 'MXN';\n\nexport const BUCKETS_AGING = [\n  'alCorriente',\n  'de1A30Dias',"
+  },
+  {
+    "alias": "ar_aging_ui",
+    "archivo_linea": "src/modulos/cobranza/componentes/tarjeta-resumen-aging.tsx:19",
+    "sha256_archivo": "833317a5c1f4c78ed10a46175fcf4922355c8443b2f9628f8645bdd8ef517d4a",
+    "fragmento_desde_linea": "export function TarjetaResumenAging({ resumenes }: { resumenes: readonly ResumenAgingCliente[] }) {\n  const total = resumenes.reduce((acumulado, resumen) => acumulado + resumen.totalPendiente, 0);\n\n  return (\n    <section aria-label=\"Resumen de antigüedad de cartera\" className=\"grid gap-3 sm:grid-cols-2 xl:grid-cols-5\">"
+  },
+  {
+    "alias": "ar_abrir",
+    "archivo_linea": "src/modulos/cobranza/acciones/abrir-cuenta-por-cobrar.ts:16",
+    "sha256_archivo": "5fa3482c4431bcc2058db76070e8b4e3dd8857a8c3811dd354b34da0d9b2fa95",
+    "fragmento_desde_linea": "export async function abrirCuentaPorCobrarAccion(\n  entrada: unknown,\n): Promise<RespuestaAccion<CuentaAbierta>> {\n  const analisis = esquemaCrearCuentaPorCobrar.safeParse(entrada);\n  if (!analisis.success) {"
+  },
+  {
+    "alias": "ar_tipos",
+    "archivo_linea": "src/modulos/cobranza/tipos/cobranza.ts:14",
+    "sha256_archivo": "0e63df966b660ff3712dabd3d2febbf2498b10c443745be71cefbc254542d43e",
+    "fragmento_desde_linea": "export const MONEDAS_COBRANZA = ['USD', 'MXN'] as const;\n\nexport const ESTADOS_CUENTA_POR_COBRAR = [\n  'pendiente',\n  'parcial',"
+  },
+  {
+    "alias": "ar_saldo",
+    "archivo_linea": "src/modulos/cobranza/acciones/aplicar-saldo-favor.ts:15",
+    "sha256_archivo": "8928594ad641eb83ac28410406e747c178abef3497995fc7828d7b9d3aca0616",
+    "fragmento_desde_linea": "export async function aplicarSaldoFavorAccion(\n  entrada: unknown,\n): Promise<RespuestaAccion<SaldoFavorAplicado>> {\n  const analisis = esquemaAplicarSaldoFavor.safeParse(entrada);\n  if (!analisis.success) {"
+  },
+  {
+    "alias": "gasto_ui",
+    "archivo_linea": "src/modulos/gastos/componentes/operacion-gastos.tsx:61",
+    "sha256_archivo": "e0b1bbad3cc2420f7f8a51b97d8326fdaabc0414f7871157dcb0ade854b39bf6",
+    "fragmento_desde_linea": "export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] }) {\n  const clienteQuery = useQueryClient();\n  const periodo = usarTiendaGastos((estado) => estado.periodo);\n  const rango = usarTiendaGastos((estado) => estado.rango);\n  const categorias = usarTiendaGastos((estado) => estado.categorias);"
+  },
+  {
+    "alias": "gasto_form",
+    "archivo_linea": "src/modulos/gastos/componentes/modal-registrar-gasto.tsx:17",
+    "sha256_archivo": "bb13f066e0309ba272056da450078bc3897d24a1f680bbcad7821b79365d80b5",
+    "fragmento_desde_linea": "export interface ModalRegistrarGastoProps {\n  abierto: boolean;\n  procesando: boolean;\n  ocrEnCurso: boolean;\n  ordenIdInicial?: string;"
+  },
+  {
+    "alias": "gasto_tabla",
+    "archivo_linea": "src/modulos/gastos/componentes/tabla-gastos.tsx:19",
+    "sha256_archivo": "315e7d0d5f0a92abb34a269f21cc54fc4764d6a9f04915ca7fa6defb07f8a495",
+    "fragmento_desde_linea": "export interface TablaGastosProps {\n  gastos: readonly Gasto[];\n  cargando?: boolean;\n  onCambiarEstado: (gasto: Gasto, estado: EstadoGasto) => void;\n  onVerRentabilidad: (ordenId: string) => void;"
+  },
+  {
+    "alias": "gasto_servicio",
+    "archivo_linea": "src/modulos/gastos/servicios/gastos-servicio.ts:62",
+    "sha256_archivo": "16e9a4f42e832c7f4f27bc213fde0b7fae428a0ac63186f7b97607313f40e053",
+    "fragmento_desde_linea": "export async function registrarGastoServicio(\n  admin: SupabaseClient<Database>,\n  entrada: RegistrarGastoInput,\n  usuarioId: string,\n): Promise<Gasto> {"
+  },
+  {
+    "alias": "gasto_renta",
+    "archivo_linea": "src/modulos/gastos/servicios/rentabilidad-servicio.ts:12",
+    "sha256_archivo": "05a09e1486fdc6bcc2aee091e18ec68f367a0d0ec06d4712f5e97a8f625ef5b9",
+    "fragmento_desde_linea": "export const MONEDA_RENTABILIDAD: MonedaRentabilidad = 'MXN';\n\nexport interface EntradaIngresoOrden {\n  montoTotal: number;\n  moneda: MonedaGasto;"
+  },
+  {
+    "alias": "gasto_ocr",
+    "archivo_linea": "src/modulos/gastos/servicios/ocr-servicio.ts:32",
+    "sha256_archivo": "a9c5cffa044af6e949814f05a74f28293a2a8ef8acb73cb42944f0460adcfffc",
+    "fragmento_desde_linea": "export interface OpcionesOcr {\n  fetchImpl?: typeof fetch;\n  apiKey?: string;\n  modelo?: string;\n  timeoutMs?: number;"
+  },
+  {
+    "alias": "gasto_esquema",
+    "archivo_linea": "src/modulos/gastos/validaciones/gastos.ts:72",
+    "sha256_archivo": "e4c93292d2f395ec13bcbd7c72d385659c1de74f7b140b7e85590c4c030409d7",
+    "fragmento_desde_linea": "export const esquemaRegistrarGasto = z\n  .object({\n    ordenId: z.uuid('ID de orden inválido').optional(),\n    proveedorId: z.uuid('ID de proveedor inválido').optional(),\n    categoria: z.enum(CATEGORIAS_GASTO),"
+  },
+  {
+    "alias": "dashboard",
+    "archivo_linea": "src/modulos/dashboard/componentes/operacion-dashboard.tsx:17",
+    "sha256_archivo": "f1b92c486fc75e351ffb874a1da1700bf47f74be5772c5fa134b43f39238fa69",
+    "fragmento_desde_linea": "export function OperacionDashboard({ datosIniciales }: { datosIniciales: DashboardConsolidado }) {\n  const filtro = usarTiendaDashboard((estado) => estado.filtroActivo);\n  const establecerFiltro = usarTiendaDashboard((estado) => estado.establecerFiltro);\n  const establecerError = usarTiendaDashboard((estado) => estado.establecerError);\n  const revision = usarTiendaDashboard((estado) => estado.revisionDashboard);"
+  },
+  {
+    "alias": "dashboard_servicio",
+    "archivo_linea": "src/modulos/dashboard/servicios/dashboard-servicio.ts:159",
+    "sha256_archivo": "6b90d7f70731247fa472289e3d126e95373c689fcd45af4b88d3b21327759341",
+    "fragmento_desde_linea": "export async function obtenerDashboardPorRol(\n  usuarioId: string,\n  rol: string,\n  permisos: readonly string[],\n  filtro: FiltroPeriodoDashboard,"
+  },
+  {
+    "alias": "dashboard_sql",
+    "archivo_linea": "supabase/migrations/20260910001120_fase_10_dashboard_base.sql:136",
+    "sha256_archivo": "ecb678d4ec22b1d084f2b34d7da72c5fc61976183a6d3ac3f67ee5375dc67fa0",
+    "fragmento_desde_linea": "  WITH ingresos AS (\n    SELECT COALESCE(SUM(\n      CASE WHEN cuenta.moneda = 'MXN' THEN cuenta.monto_total\n           ELSE cuenta.monto_total * cuenta.tipo_cambio_origen END\n    ), 0)::numeric AS monto"
+  },
+  {
+    "alias": "dashboard_finanzas",
+    "archivo_linea": "src/modulos/dashboard/componentes/seccion-financiera.tsx:8",
+    "sha256_archivo": "d29334c5f278215734269f801ba61648e58f408aa5553a7a690ebd3a68a2c907",
+    "fragmento_desde_linea": "export interface SeccionFinancieraProps {\n  finanzas?: ResumenFinanzasDashboard;\n  contador?: ResumenContadorPeriodo;\n  titulo?: string;\n  identificador?: string;"
+  },
+  {
+    "alias": "dashboard_ventas",
+    "archivo_linea": "src/modulos/dashboard/componentes/seccion-ventas-pipeline.tsx:14",
+    "sha256_archivo": "abdcd7a91bea9ebbd10ddc035a582c1b09ddca87d85fbea37040f1a9a062f782",
+    "fragmento_desde_linea": "export interface SeccionVentasPipelineProps {\n  pipeline: PipelinePorEtapa;\n  cotizacionesSinSeguimiento: number;\n  titulo?: string;\n}"
+  },
+  {
+    "alias": "dashboard_periodo",
+    "archivo_linea": "src/modulos/dashboard/componentes/filtro-periodo-global.tsx:39",
+    "sha256_archivo": "43ed10853d7d9ccb532359e0c7449d7efd9cfa950e83e5e0d1c6da15ce0f0732",
+    "fragmento_desde_linea": "export interface FiltroPeriodoGlobalProps {\n  filtro: FiltroPeriodoDashboard;\n  onChange: (filtro: FiltroPeriodoDashboard) => void;\n  disabled?: boolean;\n}"
+  },
+  {
+    "alias": "inventario",
+    "archivo_linea": "src/modulos/inventario/componentes/panel-inventario.tsx:20",
+    "sha256_archivo": "6df7ed43870982779396d7da1e7f7716ab1b3f9df35cd93dc015d07fb4fe9e62",
+    "fragmento_desde_linea": "export function PanelInventario() {\n  const [pestana, setPestana] = useState<Pestana>('catalogo');\n\n  return (\n    <div className=\"flex flex-col gap-4\">"
+  }
+]

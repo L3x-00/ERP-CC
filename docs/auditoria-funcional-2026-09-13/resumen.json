@@ -1,0 +1,27 @@
+{
+  "base_auditada": "9209de8",
+  "inventario_total": 164,
+  "base": 134,
+  "observaciones": 30,
+  "decisiones_catalogadas_aparte": 16,
+  "conteos": {
+    "conservada verificada": 0,
+    "equivalente verificada": 0,
+    "cobertura parcial": 115,
+    "no cubierta en el alcance revisado": 34,
+    "no verificable por datos/acceso/servicio": 8,
+    "sustituida por observación": 3,
+    "decisión pendiente": 4
+  },
+  "requisitos_aplicables_decididos": 157,
+  "numerador_verificado": 0,
+  "cobertura_verificada_porcentaje": 0,
+  "formula": "(0 conservadas + 0 equivalentes verificadas) / 157",
+  "denominador_explicacion": "Se excluyen solo requisitos clasificados sustituidos o decisión pendiente; las dependencias no verificables permanecen dentro. Las 16 decisiones tienen inventario separado y no se restan de nuevo.",
+  "unitarias": 390,
+  "acciones_con_dependencias_simuladas": 37,
+  "pruebas_aprobadas": 427,
+  "E2E_catalogados": 41,
+  "E2E_ejecutados": 0,
+  "aceptacion_funcional": "Pendiente; no certificada"
+}
