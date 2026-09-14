@@ -20,7 +20,8 @@ export function AlertaCredito({ cliente, usado = 0 }: { cliente: Cliente; usado?
 
   const base = credito.limite + credito.saldoAFavor;
   const porcentajeUso = base > 0 ? (credito.usado / base) * 100 : 0;
-  const tono = credito.excedido ? 'peligro' : porcentajeUso > 80 ? 'advertencia' : 'exito';
+  // Desde el 80% exacto, no a partir de superarlo: el corte de aviso es el 80%.
+  const tono = credito.excedido ? 'peligro' : porcentajeUso >= 80 ? 'advertencia' : 'exito';
 
   return (
     <div
@@ -43,10 +44,17 @@ export function AlertaCredito({ cliente, usado = 0 }: { cliente: Cliente; usado?
         etiqueta="Uso del crédito"
         mostrarPorcentaje
       />
-      {credito.excedido && (
+      {credito.excedido ? (
         <p role="alert" className="mt-2 font-semibold text-peligro-texto">
           Crédito excedido. Nuevas órdenes requieren autorización de un administrador.
         </p>
+      ) : (
+        porcentajeUso >= 80 && (
+          <p role="alert" className="mt-2 font-medium text-advertencia-texto">
+            Crédito al {Math.round(porcentajeUso)}% de su límite. Revisa la cartera antes de
+            comprometer nuevas órdenes.
+          </p>
+        )
       )}
     </div>
   );

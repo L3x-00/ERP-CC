@@ -8,7 +8,12 @@ import { CLIENTES_POR_PAGINA } from '@/modulos/clientes/servicios/obtener-client
 import { FormularioCliente } from '@/modulos/clientes/componentes/formulario-cliente';
 import { FichaCliente } from '@/modulos/clientes/componentes/ficha-cliente';
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
-import type { Cliente, EstadoCliente, TierCliente } from '@/modulos/clientes/tipos/indice';
+import type {
+  Cliente,
+  CondicionesPagoCliente,
+  EstadoCliente,
+  TierCliente,
+} from '@/modulos/clientes/tipos/indice';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -26,10 +31,20 @@ import { Input, Select } from '@/compartido/componentes/ui/input';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 
+/** Etiquetas del filtro de condiciones de pago (mismo enum que el formulario). */
+const ETIQUETA_CONDICIONES_PAGO: Record<CondicionesPagoCliente, string> = {
+  contado: 'Contado',
+  '15_dias': '15 días',
+  '30_dias': '30 días',
+  credito: 'Crédito',
+};
+
 /**
  * Tabla principal de clientes: buscador en tiempo real (razón social, nombre
- * comercial o RFC), filtros por estado y tier, orden alfabético y paginación de
- * 25. Abre el formulario de alta/edición (modal) y la ficha 360° (drawer).
+ * comercial o RFC), filtros por estado, tier y condiciones de pago, orden
+ * alfabético y paginación de 25. Todos los filtros se resuelven en el servidor,
+ * así que el total mostrado es el real del filtro, no el de la página. Abre el
+ * formulario de alta/edición (modal) y la ficha 360° (drawer).
  */
 export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; usuarioActualId?: string }) {
   const queryClient = useQueryClient();
@@ -37,6 +52,7 @@ export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; 
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState<EstadoCliente | ''>('');
   const [tier, setTier] = useState<TierCliente | ''>('');
+  const [condicionesPago, setCondicionesPago] = useState<CondicionesPagoCliente | ''>('');
   const [pagina, setPagina] = useState(1);
 
   const [formularioAbierto, setFormularioAbierto] = useState(false);
@@ -55,12 +71,24 @@ export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; 
   const { data, isLoading, isError } = usarClientes({
     ...(estado ? { estado } : {}),
     ...(tier ? { tier } : {}),
+    ...(condicionesPago ? { condicionesPago } : {}),
     ...(busqueda ? { busqueda } : {}),
     pagina,
   });
 
   const totalPaginas = data ? Math.max(1, Math.ceil(data.total / CLIENTES_POR_PAGINA)) : 1;
   const sinRegistros = !isLoading && !isError && data?.registros.length === 0;
+  const hayFiltros = Boolean(textoBusqueda || busqueda || estado || tier || condicionesPago);
+
+  /** Deja el listado como al entrar: sin filtros, sin búsqueda y en la página 1. */
+  function limpiarFiltros(): void {
+    setTextoBusqueda('');
+    setBusqueda('');
+    setEstado('');
+    setTier('');
+    setCondicionesPago('');
+    setPagina(1);
+  }
 
   function refrescar(): void {
     void queryClient.invalidateQueries({ queryKey: ['clientes'] });
@@ -112,6 +140,33 @@ export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; 
             <option value="oro">Oro</option>
             <option value="platino">Platino</option>
           </Select>
+          <Select
+            value={condicionesPago}
+            onChange={(e) => {
+              setCondicionesPago(e.target.value as CondicionesPagoCliente | '');
+              setPagina(1);
+            }}
+            aria-label="Filtrar por condiciones de pago"
+            className="w-auto"
+          >
+            <option value="">Todas las condiciones</option>
+            {(Object.keys(ETIQUETA_CONDICIONES_PAGO) as CondicionesPagoCliente[]).map(
+              (condicion) => (
+                <option key={condicion} value={condicion}>
+                  {ETIQUETA_CONDICIONES_PAGO[condicion]}
+                </option>
+              ),
+            )}
+          </Select>
+          <Button
+            variante="fantasma"
+            tamano="sm"
+            onClick={limpiarFiltros}
+            disabled={!hayFiltros}
+            aria-label="Limpiar filtros y búsqueda"
+          >
+            Limpiar
+          </Button>
         </div>
         <Button onClick={abrirNuevo}>Nuevo cliente</Button>
       </div>
