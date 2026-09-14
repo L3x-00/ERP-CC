@@ -20,6 +20,9 @@ export interface TablaCuentasPorCobrarProps {
   cuentas: readonly CuentaCartera[];
   cuentaSeleccionadaId: string | null;
   onSeleccionar: (cuentaId: string) => void;
+  onVerHistorial?: (cuenta: CuentaCartera) => void;
+  onVerOrden?: (ordenId: string) => void;
+  puedeCobrar?: boolean;
 }
 
 function cuentaVigente(cuenta: CuentaCartera): boolean {
@@ -30,6 +33,9 @@ export function TablaCuentasPorCobrar({
   cuentas,
   cuentaSeleccionadaId,
   onSeleccionar,
+  onVerHistorial,
+  onVerOrden,
+  puedeCobrar = true,
 }: TablaCuentasPorCobrarProps) {
   if (cuentas.length === 0) {
     return (
@@ -66,7 +72,7 @@ export function TablaCuentasPorCobrar({
             const vencida = diasVencidos !== null && diasVencidos > 0 && cuentaVigente(cuenta);
             return (
               <TablaFila key={cuenta.id} seleccionada={seleccionada}>
-                <TablaCelda className="font-mono text-xs font-medium">{cuenta.folioOrden}</TablaCelda>
+                <TablaCelda className="font-mono text-xs font-medium">{onVerOrden ? <Button variante="contorno" tamano="sm" onClick={() => onVerOrden(cuenta.ordenId)}>{cuenta.folioOrden}</Button> : cuenta.folioOrden}</TablaCelda>
                 <TablaCelda>{cuenta.clienteNombre}</TablaCelda>
                 <TablaCelda>
                   {new Intl.DateTimeFormat('es-MX').format(new Date(cuenta.fechaVencimiento))}
@@ -91,10 +97,12 @@ export function TablaCuentasPorCobrar({
                   <BadgeEstado estado={cuenta.estado} />
                 </TablaCelda>
                 <TablaCelda className="text-right">
+                  {onVerHistorial && <Button tamano="sm" variante="contorno" onClick={() => onVerHistorial(cuenta)}>Historial</Button>}
                   <Button
                     tamano="sm"
                     variante={seleccionada ? 'secundario' : 'contorno'}
                     onClick={() => onSeleccionar(cuenta.id)}
+                    disabled={!puedeCobrar || !cuentaVigente(cuenta)}
                   >
                     Cobrar
                   </Button>

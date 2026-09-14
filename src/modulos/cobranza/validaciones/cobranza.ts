@@ -97,7 +97,51 @@ export const esquemaConsultarCartera = z
   })
   .strict();
 
+/** Página 1-based; el tope evita solicitudes de desplazamiento arbitrario. */
+const pagina = z
+  .number()
+  .int('La página debe ser un entero')
+  .min(1, 'La página debe ser mayor a 0')
+  .max(10_000, 'La página excede el máximo permitido')
+  .optional();
+
+export const esquemaConsultarHistorialCuenta = z
+  .object({
+    arId: z.uuid('ID de cuenta por cobrar inválido'),
+    /**
+     * Cliente que la UI cree dueño de la cuenta. El servidor no confía en él:
+     * lo compara contra el `cliente_id` real y rechaza la consulta si difiere.
+     */
+    clienteId: z.uuid('ID de cliente inválido').optional(),
+    paginaPagos: pagina,
+    paginaMovimientos: pagina,
+  })
+  .strict();
+
+export const esquemaConsultarDetalleOrden = z
+  .object({
+    ordenId: z.uuid('ID de orden inválido'),
+    paginaPartidas: pagina,
+  })
+  .strict();
+
+export const esquemaConsultarRecibo = z
+  .object({
+    pagoId: z.uuid('ID de pago inválido'),
+  })
+  .strict();
+
+export const esquemaConsultarCuentasBancarias = z
+  .object({
+    moneda: z.enum(MONEDAS_COBRANZA).optional(),
+  })
+  .strict();
+
 export type CrearCuentaPorCobrarInput = z.infer<typeof esquemaCrearCuentaPorCobrar>;
+export type ConsultarHistorialCuentaInput = z.infer<typeof esquemaConsultarHistorialCuenta>;
+export type ConsultarDetalleOrdenInput = z.infer<typeof esquemaConsultarDetalleOrden>;
+export type ConsultarReciboInput = z.infer<typeof esquemaConsultarRecibo>;
+export type ConsultarCuentasBancariasInput = z.infer<typeof esquemaConsultarCuentasBancarias>;
 export type RegistrarPagoInput = z.infer<typeof esquemaRegistrarPago>;
 export type AplicarSaldoFavorInput = z.infer<typeof esquemaAplicarSaldoFavor>;
 export type ConsultarCarteraInput = z.infer<typeof esquemaConsultarCartera>;

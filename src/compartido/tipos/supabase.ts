@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -1784,6 +1784,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consultar_bancos_cobranza: {
+        Args: { p_moneda?: string; p_cuenta_id?: string; p_desde?: number }
+        Returns: { id: string; banco: string; numero_cuenta_enmascarado: string; moneda: string; titular: string }[]
+      }
       actualizar_configuracion_seccion: {
         Args: {
           p_actualizado_por: string

@@ -17,7 +17,8 @@ import {
   type DatosPagoFormulario,
   type DatosSaldoFormulario,
 } from '@/modulos/cobranza/componentes/modal-registrar-pago';
-import { ReciboPagoVista, type ReciboPago } from '@/modulos/cobranza/componentes/recibo-pago-vista';
+import { HistorialCuenta, DetalleOrdenCobranza, ReciboPagoConsulta } from '@/modulos/cobranza/componentes/historial-cuenta';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/compartido/componentes/ui/dialog';
 import { SincronizadorCobranzaRealtime } from '@/modulos/cobranza/componentes/sincronizador-cobranza-realtime';
 import { TablaCuentasPorCobrar } from '@/modulos/cobranza/componentes/tabla-cuentas-por-cobrar';
 import { TarjetaResumenAging } from '@/modulos/cobranza/componentes/tarjeta-resumen-aging';
@@ -51,7 +52,7 @@ function rangoPeriodo(periodo: string, personalizado: { inicio: string; fin: str
   return null;
 }
 
-export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenCartera }) {
+export function OperacionCobranza({ datosIniciales, puedeRegistrarPago = false, puedeAplicarSaldo = false }: { datosIniciales: ResumenCartera; puedeRegistrarPago?: boolean; puedeAplicarSaldo?: boolean }) {
   const clienteConsultas = useQueryClient();
   const cuentaSeleccionadaId = usarTiendaCobranza((estado) => estado.cuentaSeleccionadaId);
   const busqueda = usarTiendaCobranza((estado) => estado.busqueda);
@@ -65,7 +66,9 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [procesando, setProcesando] = useState(false);
-  const [recibo, setRecibo] = useState<ReciboPago | null>(null);
+  const [reciboId, setReciboId] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<{ arId: string; clienteId: string } | null>(null);
+  const [ordenId, setOrdenId] = useState<string | null>(null);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_CARTERA_COBRANZA, revisionCartera],
@@ -96,24 +99,16 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
 
   const refrescar = useCallback(async () => {
     // Una sola revalidación: invalidar el prefijo ya recarga la rama activa.
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CARTERA_COBRANZA });
+    await clienteConsultas.invalidateQueries({ queryKey: ['cobranza'] });
   }, [clienteConsultas]);
 
   const registrarPago = useCallback(async (entrada: DatosPagoFormulario) => {
     setProcesando(true);
     try {
       const resultado = await registrarPagoAccion(entrada);
-      if (!resultado.exito || !resultado.datos) return { exito: false, error: resultado.exito ? 'El pago no devolvió recibo' : resultado.error };
-      const cuenta = datos.cuentas.find((item) => item.id === entrada.arId);
-      setRecibo({
-        folio: resultado.datos.folioRecibo,
-        cliente: cuenta?.clienteNombre ?? 'Cliente',
-        montoAplicado: resultado.datos.montoAplicadoAr,
-        moneda: cuenta?.moneda ?? entrada.monedaPago,
-        metodo: entrada.metodoPago,
-        saldoRestante: resultado.datos.saldoPendiente,
-      });
-      await refrescar();
+      if (!resultado.exito || !resultado.datos) return { exito: false, error: resultado.exito ? 'El pago no devolvió recibo' : resultado.error, rechazoConfirmado: resultado.rechazoConfirmado };
+      setReciboId(resultado.datos.pagoId);
+      await refrescar().catch(() => console.error('[COBRANZA] Pago confirmado; cartera pendiente de actualizar'));
       return { exito: true };
     } catch (error) {
       console.error('[COBRANZA] Error de comunicación al registrar pago:', error);
@@ -121,23 +116,15 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
     } finally {
       setProcesando(false);
     }
-  }, [datos.cuentas, refrescar]);
+  }, [refrescar]);
 
   const aplicarSaldo = useCallback(async (entrada: DatosSaldoFormulario) => {
     setProcesando(true);
     try {
       const resultado = await aplicarSaldoFavorAccion(entrada);
-      if (!resultado.exito || !resultado.datos) return { exito: false, error: resultado.exito ? 'La aplicación no devolvió recibo' : resultado.error };
-      const cuenta = datos.cuentas.find((item) => item.id === entrada.arId);
-      setRecibo({
-        folio: resultado.datos.folioRecibo,
-        cliente: cuenta?.clienteNombre ?? 'Cliente',
-        montoAplicado: resultado.datos.montoAplicadoAr,
-        moneda: cuenta?.moneda ?? 'MXN',
-        metodo: 'saldo a favor',
-        saldoRestante: resultado.datos.saldoPendiente,
-      });
-      await refrescar();
+      if (!resultado.exito || !resultado.datos) return { exito: false, error: resultado.exito ? 'La aplicación no devolvió recibo' : resultado.error, rechazoConfirmado: resultado.rechazoConfirmado };
+      setReciboId(resultado.datos.pagoId);
+      await refrescar().catch(() => console.error('[COBRANZA] Pago confirmado; cartera pendiente de actualizar'));
       return { exito: true };
     } catch (error) {
       console.error('[COBRANZA] Error de comunicación al aplicar saldo:', error);
@@ -145,7 +132,7 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
     } finally {
       setProcesando(false);
     }
-  }, [datos.cuentas, refrescar]);
+  }, [refrescar]);
 
   const cargando = consulta.isPending && !consulta.isError;
 
@@ -186,8 +173,10 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
       ) : null}
       {cargando
         ? <SkeletonTabla columnas={8} filas={6} />
-        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} />}
-      <ReciboPagoVista recibo={recibo} />
+        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} puedeCobrar={puedeRegistrarPago || puedeAplicarSaldo} onVerHistorial={(cuenta) => setHistorial({ arId: cuenta.id, clienteId: cuenta.clienteId })} onVerOrden={setOrdenId} />}
+      {reciboId && <ReciboPagoConsulta key={reciboId} pagoId={reciboId} />}
+      <Dialog open={historial !== null} onOpenChange={(abierto) => { if (!abierto) setHistorial(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Historial de cobranza</DialogTitle><DialogDescription>Pagos de la cuenta y monedero del cliente.</DialogDescription></DialogHeader>{historial && <HistorialCuenta key={historial.arId} {...historial} />}</DialogContent></Dialog>
+      <Dialog open={ordenId !== null} onOpenChange={(abierto) => { if (!abierto) setOrdenId(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Detalle de orden</DialogTitle><DialogDescription>Partidas y avance de la orden seleccionada.</DialogDescription></DialogHeader>{ordenId && <DetalleOrdenCobranza key={ordenId} ordenId={ordenId} />}</DialogContent></Dialog>
       <ModalRegistrarPago
         key={cuentaSeleccionada?.id ?? 'sin-cuenta'}
         cuenta={cuentaSeleccionada}
@@ -196,6 +185,8 @@ export function OperacionCobranza({ datosIniciales }: { datosIniciales: ResumenC
         onAbiertoChange={setModalAbierto}
         onRegistrarPago={registrarPago}
         onAplicarSaldo={aplicarSaldo}
+        puedeRegistrarPago={puedeRegistrarPago}
+        puedeAplicarSaldo={puedeAplicarSaldo}
       />
     </div>
   );

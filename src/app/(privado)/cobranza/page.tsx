@@ -21,7 +21,7 @@ export default async function PaginaCobranza() {
         <h1 className="text-2xl font-bold">Cuentas por cobrar</h1>
         <p className="text-sm text-texto-secundario">Cartera, recibos y monedero actualizados en tiempo real.</p>
       </header>
-      <OperacionCobranza datosIniciales={datosIniciales} />
+      <OperacionCobranza datosIniciales={datosIniciales} puedeRegistrarPago={await can(usuario, 'registrar_pagos')} puedeAplicarSaldo={await can(usuario, 'aplicar_saldos')} />
     </div>
   );
 }

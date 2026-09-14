@@ -197,42 +197,54 @@ export async function obtenerResumenCarteraServicio(
   cliente: SupabaseClient<Database>,
   filtros: ConsultarCarteraInput,
 ): Promise<ResumenCartera> {
-  let consulta = cliente
-    .from('cuentas_por_cobrar')
-    .select('*')
-    .order('fecha_vencimiento', { ascending: true });
+  const filasCuenta: Tables<'cuentas_por_cobrar'>[] = [];
+  for (let desde = 0; ; desde += 200) {
+    let consulta = cliente
+      .from('cuentas_por_cobrar')
+      .select('*', { count: 'exact' })
+      .order('fecha_vencimiento', { ascending: true })
+      .order('id', { ascending: true });
 
-  if (filtros.clienteId) consulta = consulta.eq('cliente_id', filtros.clienteId);
-  if (filtros.estados?.length) consulta = consulta.in('estado', filtros.estados);
-  if (filtros.moneda) consulta = consulta.eq('moneda', filtros.moneda);
-  if (filtros.soloVencidas) {
-    consulta = consulta
-      .in('estado', ['pendiente', 'parcial'])
-      .lt('fecha_vencimiento', filtros.fechaReferencia ?? new Date().toISOString());
-  }
+    if (filtros.clienteId) consulta = consulta.eq('cliente_id', filtros.clienteId);
+    if (filtros.estados?.length) consulta = consulta.in('estado', filtros.estados);
+    if (filtros.moneda) consulta = consulta.eq('moneda', filtros.moneda);
+    if (filtros.soloVencidas) {
+      consulta = consulta
+        .in('estado', ['pendiente', 'parcial'])
+        .lt('fecha_vencimiento', filtros.fechaReferencia ?? new Date().toISOString());
+    }
 
-  const { data: filasCuenta, error: errorCuentas } = await consulta;
+  const { data, error: errorCuentas, count } = await consulta.range(desde, desde + 199);
   if (errorCuentas) throw new ErrorCobranza('desconocido', errorCuentas.message);
-  const cuentas = (filasCuenta ?? []).map(filaACuentaPorCobrar);
+  if (!data?.length && filasCuenta.length < (count ?? 0)) throw new ErrorCobranza('desconocido', 'cartera_incompleta');
+  filasCuenta.push(...(data ?? []));
+  if (filasCuenta.length >= (count ?? 0)) break;
+  }
+  const cuentas = filasCuenta.map(filaACuentaPorCobrar);
   if (cuentas.length === 0) {
     return { cuentas: [], agingPorCliente: [], totalPendienteMxn: 0 };
   }
 
   const idsCliente = [...new Set(cuentas.map((cuenta) => cuenta.clienteId))];
   const idsOrden = [...new Set(cuentas.map((cuenta) => cuenta.ordenId))];
-  const [clientes, ordenes] = await Promise.all([
-    cliente.from('clientes').select('id, nombre_comercial, razon_social, saldo_a_favor').in('id', idsCliente),
-    cliente.from('ordenes_produccion').select('id, folio, estado').in('id', idsOrden),
-  ]);
-  if (clientes.error || ordenes.error) {
-    throw new ErrorCobranza('desconocido', clientes.error?.message ?? ordenes.error?.message);
+  const clientes: Pick<Tables<'clientes'>, 'id' | 'nombre_comercial' | 'razon_social' | 'saldo_a_favor'>[] = [];
+  const ordenes: Pick<Tables<'ordenes_produccion'>, 'id' | 'folio' | 'estado'>[] = [];
+  // Lotes acotados evitan URLs de miles de IDs y el límite implícito de filas.
+  for (let desde = 0; desde < Math.max(idsCliente.length, idsOrden.length); desde += 100) {
+    const [grupoClientes, grupoOrdenes] = await Promise.all([
+      desde < idsCliente.length ? cliente.from('clientes').select('id, nombre_comercial, razon_social, saldo_a_favor').in('id', idsCliente.slice(desde, desde + 100)) : Promise.resolve({ data: [], error: null }),
+      desde < idsOrden.length ? cliente.from('ordenes_produccion').select('id, folio, estado').in('id', idsOrden.slice(desde, desde + 100)) : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (grupoClientes.error || grupoOrdenes.error) throw new ErrorCobranza('desconocido', grupoClientes.error?.message ?? grupoOrdenes.error?.message);
+    clientes.push(...(grupoClientes.data ?? []));
+    ordenes.push(...(grupoOrdenes.data ?? []));
   }
 
-  const clientesPorId = new Map((clientes.data ?? []).map((fila) => [
+  const clientesPorId = new Map(clientes.map((fila) => [
     fila.id,
     { nombre: nombreCliente(fila), saldoAFavorMxn: Number(fila.saldo_a_favor) },
   ]));
-  const ordenesPorId = new Map((ordenes.data ?? []).map((fila) => [fila.id, fila]));
+  const ordenesPorId = new Map(ordenes.map((fila) => [fila.id, fila]));
   const cuentasCartera = cuentas.map((cuenta) => {
     const orden = ordenesPorId.get(cuenta.ordenId);
     return {

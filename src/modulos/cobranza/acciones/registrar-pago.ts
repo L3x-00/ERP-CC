@@ -4,6 +4,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   mensajeErrorCobranza,
+  ErrorCobranza,
   registrarPagoServicio,
   type PagoRegistrado,
 } from '@/modulos/cobranza/servicios/cobranza-servicio';
@@ -12,10 +13,10 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
-export async function registrarPagoAccion(entrada: unknown): Promise<RespuestaAccion<PagoRegistrado>> {
+export async function registrarPagoAccion(entrada: unknown): Promise<RespuestaAccion<PagoRegistrado> & { rechazoConfirmado?: boolean }> {
   const analisis = esquemaRegistrarPago.safeParse(entrada);
   if (!analisis.success) {
-    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+    return { exito: false, rechazoConfirmado: true, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
   const usuario = await obtenerUsuarioServidor();
@@ -41,6 +42,6 @@ export async function registrarPagoAccion(entrada: unknown): Promise<RespuestaAc
     await registrarLog(usuario, 'pago_ar_rechazado', 'cobranza', analisis.data.arId, {
       solicitudId: analisis.data.solicitudId,
     });
-    return { exito: false, error: mensajeErrorCobranza(error) };
+    return { exito: false, error: mensajeErrorCobranza(error), rechazoConfirmado: error instanceof ErrorCobranza && ['cuenta_inexistente', 'cuenta_no_disponible', 'saldo_insuficiente', 'orden_no_lista'].includes(error.codigo) };
   }
 }
