@@ -1975,6 +1975,18 @@ export type Database = {
           id: string
         }[]
       }
+      guardar_cotizacion_atomica: {
+        Args: {
+          p_actualizado_en_esperado?: string | null
+          p_lineas: Json
+          p_pipeline_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          lineas_guardadas: number
+          pipeline_id: string
+        }[]
+      }
       iniciar_sesion_trabajo_operador: {
         Args: {
           p_operador_id: string

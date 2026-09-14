@@ -10,13 +10,15 @@ import {
   TablaEncabezadoCelda,
   TablaFila,
 } from '@/compartido/componentes/diseno/tabla';
+import { EditorCotizacion } from '@/modulos/pipeline/componentes/editor-cotizacion';
 import { ESTILO_PRIORIDAD, diasDesde } from '@/modulos/pipeline/componentes/tarjeta-oportunidad';
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
 
 /**
  * Vista de tabla del pipeline: folio, empresa, contacto, etapa con badge,
  * prioridad, días en la etapa actual y si la oportunidad ya está vinculada a un
- * cliente. Solo lectura para revisar el embudo completo.
+ * cliente. La última columna abre la cotización (edición o consulta según la
+ * etapa), para no obligar a cambiar de vista para cotizar.
  */
 export function TablaOportunidades({
   oportunidades,
@@ -35,6 +37,7 @@ export function TablaOportunidades({
             <TablaEncabezadoCelda>Prioridad</TablaEncabezadoCelda>
             <TablaEncabezadoCelda className="text-right">Días en etapa</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Cliente</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Cotización</TablaEncabezadoCelda>
           </tr>
         </TablaEncabezado>
         <TablaCuerpo>
@@ -60,6 +63,9 @@ export function TablaOportunidades({
                 </TablaCelda>
                 <TablaCelda className="text-texto-secundario">
                   {oportunidad.clienteId ? 'Vinculado' : 'Sin vincular'}
+                </TablaCelda>
+                <TablaCelda className="text-right">
+                  <EditorCotizacion oportunidad={oportunidad} />
                 </TablaCelda>
               </TablaFila>
             );

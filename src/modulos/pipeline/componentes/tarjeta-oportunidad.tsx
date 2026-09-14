@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { EditorCotizacion } from '@/modulos/pipeline/componentes/editor-cotizacion';
 import { SelectorEtapa } from '@/modulos/pipeline/componentes/selector-etapa';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -89,6 +90,9 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
 
       <div className="border-t border-borde pt-2">
         <SelectorEtapa oportunidad={oportunidad} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <EditorCotizacion oportunidad={oportunidad} />
       </div>
       <button
         type="button"

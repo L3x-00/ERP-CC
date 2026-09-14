@@ -7,11 +7,11 @@ import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-op
 // Nombre interno con prefijo `use` para que `react-hooks/rules-of-hooks`
 // (que detecta hooks por el patrón `/^use[A-Z0-9]/`) reconozca esta función.
 // Se exporta con el nombre en español exigido por el contrato mediante alias.
-function useOportunidad(id: string) {
+function useOportunidad(id: string, habilitada = true) {
   return useQuery({
     queryKey: ['oportunidad', id],
     queryFn: () => obtenerOportunidadPorId(crearClienteSupabase(), id),
-    enabled: !!id,
+    enabled: !!id && habilitada,
   });
 }
 
