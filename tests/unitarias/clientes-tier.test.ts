@@ -45,6 +45,68 @@ describe('calcularTier', () => {
     expect(r).toEqual({ tier: 'platino', esManual: true });
   });
 
+  it('un tier manual vigente INFERIOR al consumo no perjudica al cliente', () => {
+    const r = calcularTier({
+      consumo: 320_000, // platino por consumo
+      tierManual: 'plata',
+      tierManualHasta: '2026-09-01T00:00:00Z', // vigente
+      ahora,
+    });
+    expect(r).toEqual({ tier: 'platino', esManual: false });
+  });
+
+  it('un tier manual vigente SUPERIOR al consumo manda', () => {
+    const r = calcularTier({
+      consumo: 60_000, // plata por consumo
+      tierManual: 'oro',
+      tierManualHasta: '2026-09-01T00:00:00Z',
+      ahora,
+    });
+    expect(r).toEqual({ tier: 'oro', esManual: true });
+  });
+
+  it('manual y consumo iguales: mismo tier, reportado como manual vigente', () => {
+    const r = calcularTier({
+      consumo: 160_000, // oro por consumo
+      tierManual: 'oro',
+      tierManualHasta: '2026-09-01T00:00:00Z',
+      ahora,
+    });
+    expect(r).toEqual({ tier: 'oro', esManual: true });
+  });
+
+  it('en el instante exacto de vencimiento el manual ya no aplica', () => {
+    const vencimiento = '2026-08-07T00:00:00Z';
+    expect(
+      calcularTier({
+        consumo: 60_000,
+        tierManual: 'platino',
+        tierManualHasta: vencimiento,
+        ahora: new Date(vencimiento),
+      }),
+    ).toEqual({ tier: 'plata', esManual: false });
+
+    // Un milisegundo antes todavía está vigente.
+    expect(
+      calcularTier({
+        consumo: 60_000,
+        tierManual: 'platino',
+        tierManualHasta: vencimiento,
+        ahora: new Date(new Date(vencimiento).getTime() - 1),
+      }),
+    ).toEqual({ tier: 'platino', esManual: true });
+  });
+
+  it('una caducidad no parseable no habilita el tier manual', () => {
+    const r = calcularTier({
+      consumo: 0,
+      tierManual: 'platino',
+      tierManualHasta: 'no-es-fecha',
+      ahora,
+    });
+    expect(r).toEqual({ tier: 'bronce', esManual: false });
+  });
+
   it('el tier manual vencido cae al automático por consumo', () => {
     const r = calcularTier({
       consumo: 160_000, // oro
