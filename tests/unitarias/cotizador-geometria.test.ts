@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest';
+import { leerGeometria } from '@/modulos/cotizador/servicios/leer-geometria';
+type Par = [number, string | number];
+const entidad = (tipo: string, pares: Par[]) => [[0, tipo] as Par, ...pares];
+function dxf(entidades: Par[], unidad: number | null = 4, bloques: Par[] = []) {
+  const pares: Par[] = [[0,'SECTION'],[2,'HEADER'],...(unidad === null ? [] : [[9,'$INSUNITS'],[70,unidad]] as Par[]),[0,'ENDSEC'],
+    ...(bloques.length ? [[0,'SECTION'],[2,'BLOCKS'],...bloques,[0,'ENDSEC']] as Par[] : []),
+    [0,'SECTION'],[2,'ENTITIES'],...entidades,[0,'ENDSEC'],[0,'EOF']];
+  return pares.flat().join('\n');
+}
+const linea = entidad('LINE',[[10,0],[20,0],[11,3],[21,4]]);
+describe('lector geométrico estimado',()=>{
+ it('rechaza sección truncada y contenido después de EOF',()=>{const valido=dxf(linea);expect(()=>leerGeometria(valido.replace('0\nENDSEC\n0\nEOF','0\nEOF'),'dxf')).toThrow(/incompleto/);expect(()=>leerGeometria(valido+'\n0\nLINE','dxf')).toThrow(/después de EOF/);});
+ it.each([[4,'mm',1],[1,'in',25.4],[2,'ft',304.8],[5,'cm',10],[6,'m',1000]])('convierte unidadDXF %s (%s) sin suponer escala',(codigo,_unidad,factor)=>{const r=leerGeometria(dxf(linea,Number(codigo)),'dxf');expect(r.anchoMm).toBeCloseTo(3*Number(factor));expect(r.altoMm).toBeCloseTo(4*Number(factor));expect(r.perimetroM).toBeCloseTo(5*Number(factor)/1000);expect(r.areaEnvolventeM2).toBeCloseTo(12*Number(factor)**2/1e6);});
+ it('exige unidad manual si falta o es desconocida',()=>{for(const unidad of [null,0,99]){const archivo=dxf(linea,unidad);expect(()=>leerGeometria(archivo,'dxf')).toThrow(/selecciona la unidad/);expect(leerGeometria(archivo,'dxf','cm').anchoMm).toBe(30);}});
+ it('círculo conserva perímetro y envolvente, sin confundir área neta',()=>{const r=leerGeometria(dxf(entidad('CIRCLE',[[10,10],[20,-20],[40,10]])),'dxf');expect(r.perimetroM).toBeCloseTo(0.02*Math.PI);expect(r.anchoMm).toBe(20);expect(r.altoMm).toBe(20);expect(r.areaEnvolventeM2).toBe(0.0004);expect(r.perforacionesEstimadas).toBe(1);});
+ it('arco cruzando0 incluye extremos reales y no toda la circunferencia',()=>{const r=leerGeometria(dxf(entidad('ARC',[[10,0],[20,0],[40,10],[50,350],[51,10]])),'dxf');expect(r.perimetroM).toBeCloseTo(Math.PI/900);expect(r.anchoMm).toBeCloseTo(10*(1-Math.cos(Math.PI/18)));expect(r.altoMm).toBeCloseTo(20*Math.sin(Math.PI/18));});
+ it.each([1,-1,2,-2])('bulge %s amplía la envolvente entre vértices',(bulge)=>{const r=leerGeometria(dxf(entidad('LWPOLYLINE',[[90,2],[70,0],[10,0],[20,0],[42,bulge],[10,2],[20,0]])),'dxf');expect(r.altoMm).toBeCloseTo(Math.abs(bulge));expect(r.perimetroM).toBeCloseTo(2*(1+bulge**2)/(4*Math.abs(bulge))*4*Math.atan(Math.abs(bulge))/1000);if(Math.abs(bulge)>1)expect(r.anchoMm).toBeGreaterThan(2);});
+ it('cierra LWPOLYLINE sin curvatura',()=>{const r=leerGeometria(dxf(entidad('LWPOLYLINE',[[90,3],[70,1],[10,0],[20,0],[10,3],[20,0],[10,3],[20,4]])),'dxf');expect(r.perimetroM).toBeCloseTo(0.012);});
+ it('lee POLYLINE clásica y SEQEND sin contar vértices como piezas',()=>{const r=leerGeometria(dxf([...entidad('POLYLINE',[[70,1]]),...entidad('VERTEX',[[10,0],[20,0],[42,1]]),...entidad('VERTEX',[[10,2],[20,0]]),[0,'SEQEND']]),'dxf');expect(r.perimetroM).toBeCloseTo((Math.PI+2)/1000);expect(r.perforacionesEstimadas).toBe(1);});
+ it('elipse rotada tiene envolvente analítica y arco parcial integrado',()=>{const r=leerGeometria(dxf(entidad('ELLIPSE',[[10,0],[20,0],[11,3],[21,4],[40,0.5],[41,0],[42,Math.PI*2]])),'dxf');expect(r.anchoMm).toBeCloseTo(2*Math.sqrt(13));expect(r.altoMm).toBeCloseTo(2*Math.sqrt(18.25));expect(r.perimetroM).toBeCloseTo(0.02422112,6);expect(r.advertencias.some(a=>a.includes('aproximación numérica'))).toBe(true);});
+ it('aproxima spline por polígono de control e informa el límite',()=>{const r=leerGeometria(dxf(entidad('SPLINE',[[70,0],[71,2],[10,0],[20,0],[10,3],[20,4],[10,6],[20,0]])),'dxf');expect(r.perimetroM).toBe(0.01);expect(r.anchoMm).toBe(6);expect(r.advertencias.some(a=>a.includes('Spline aproximada'))).toBe(true);});
+ it('omite definiciones de bloque y avisa sobre INSERT no resuelto',()=>{const r=leerGeometria(dxf([...linea,...entidad('INSERT',[[2,'Pieza']])],4,entidad('CIRCLE',[[10,0],[20,0],[40,1000]])),'dxf');expect(r.perimetroM).toBe(0.005);expect(r.advertencias.some(a=>a.includes('Bloques insertados'))).toBe(true);});
+ it('omite espacio papel para no duplicar cotas o vistas',()=>{const r=leerGeometria(dxf([...linea,...entidad('CIRCLE',[[67,1],[10,0],[20,0],[40,1000]])]),'dxf');expect(r.perimetroM).toBe(0.005);});
+ it('rechaza valores no finitos, arcos degenerados y geometría3D',()=>{for(const e of [entidad('LINE',[[10,'NaN'],[20,0],[11,1],[21,0]]),entidad('ARC',[[10,0],[20,0],[40,10],[50,0],[51,0]]),entidad('CIRCLE',[[10,0],[20,0],[40,1],[230,-1]]),entidad('LINE',[[10,0],[20,0],[30,2],[11,3],[21,4]])])expect(()=>leerGeometria(dxf(e),'dxf')).toThrow();});
+ it('rechaza archivo grande, binario y texto incompleto',()=>{expect(()=>leerGeometria('x'.repeat(5*1024*1024+1),'dxf')).toThrow(/5 MiB/);expect(()=>leerGeometria('AutoCAD Binary DXF\0','dxf')).toThrow(/texto/);expect(()=>leerGeometria('0\nSECTION\n2\nENTITIES','dxf')).toThrow(/EOF/);});
+ it('EPS prioriza HiResBoundingBox y solo estima la envolvente',()=>{const r=leerGeometria('%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 73 145\n%%HiResBoundingBox: 0 0 72 144\n','eps');expect(r.anchoMm).toBeCloseTo(25.4);expect(r.altoMm).toBeCloseTo(50.8);expect(r.perimetroM).toBeCloseTo(0.1524);expect(r.advertencias[0]).toContain('recorrido real');});
+ it('AI y EPS sin envolvente exigen captura manual sin ejecutar contenido',()=>{expect(()=>leerGeometria('cualquier contenido','ai')).toThrow(/captura manual/);expect(()=>leerGeometria('%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: (atend)\n','eps')).toThrow(/captura las medidas/);});
+});

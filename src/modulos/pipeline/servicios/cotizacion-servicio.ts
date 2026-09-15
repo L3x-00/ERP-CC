@@ -75,6 +75,7 @@ function lineasAJson(lineas: GuardarCotizacionInput['lineas']): Json {
     espesor: linea.espesor ?? null,
     area: linea.area ?? null,
     procesos: linea.procesos,
+    ...(linea.calculoTecnico ? { calculo_tecnico: JSON.parse(JSON.stringify(linea.calculoTecnico)) as Json } : {}),
   }));
 }
 

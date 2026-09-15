@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { esquemaSnapshotTecnico } from '@/modulos/cotizador/validaciones/snapshot';
 
 /** Tope de líneas por cotización; igual al que valida la RPC. */
 export const MAXIMO_LINEAS_COTIZACION = 200;
@@ -55,8 +56,13 @@ export const esquemaLineaCotizacion = z
       .refine(escalaMaxima(4).comprobar, `Área: ${escalaMaxima(4).mensaje}`)
       .optional(),
     procesos: z.array(z.string().trim().max(60)).max(20).default([]),
+    calculoTecnico: esquemaSnapshotTecnico.optional(),
   })
-  .strict();
+  .strict().superRefine((linea, contexto) => {
+    if (linea.calculoTecnico && (linea.calculoTecnico.entrada.cantidad !== linea.cantidad || linea.calculoTecnico.precioUnitario !== linea.precioUnitario)) {
+      contexto.addIssue({ code: 'custom', message: 'El cálculo técnico no corresponde al precio o cantidad de la línea', path: ['calculoTecnico'] });
+    }
+  });
 
 /**
  * Esquema para guardar la cotización completa de una oportunidad.

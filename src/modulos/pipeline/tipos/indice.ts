@@ -1,4 +1,5 @@
 import type { Tables } from '@/compartido/tipos/supabase';
+import { esquemaSnapshotTecnico } from '@/modulos/cotizador/validaciones/snapshot';
 
 /** Etapas del pipeline (orden de avance; ganada/perdida son terminales). */
 export type EtapaPipeline =
@@ -40,6 +41,7 @@ export type Oportunidad = {
 
 /** Línea de cotización persistida. */
 export type LineaCotizacion = {
+  calculoTecnico?: import('@/modulos/cotizador/tipos/indice').CotizacionTecnicaCalculada;
   id: string;
   pipelineId: string;
   descripcion: string;
@@ -55,6 +57,7 @@ export type LineaCotizacion = {
 
 /** Línea aún no persistida (entrada del cotizador, para calcular totales). */
 export type LineaCotizacionEntrada = {
+  calculoTecnico?: import('@/modulos/cotizador/tipos/indice').CotizacionTecnicaCalculada;
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
@@ -153,6 +156,10 @@ export function filaAOportunidad(fila: FilaPipeline): Oportunidad {
 
 /** Convierte una fila de cotizacion_lineas (snake_case) a LineaCotizacion. */
 export function filaALineaCotizacion(fila: FilaLineaCotizacion): LineaCotizacion {
+  const lectura = esquemaSnapshotTecnico.safeParse(fila.calculo_tecnico);
+  // Un cálculo antiguo o inválido no debe impedir consultar la partida comercial.
+  const calculo = lectura.success && lectura.data.entrada.cantidad === Number(fila.cantidad)
+    && lectura.data.precioUnitario === Number(fila.precio_unitario) ? lectura.data : undefined;
   return {
     id: fila.id,
     pipelineId: fila.pipeline_id,
@@ -165,6 +172,7 @@ export function filaALineaCotizacion(fila: FilaLineaCotizacion): LineaCotizacion
     precioUnitario: Number(fila.precio_unitario),
     orden: fila.orden,
     creadoEn: fila.creado_en,
+    ...(calculo ? { calculoTecnico: calculo } : {}),
   };
 }
 

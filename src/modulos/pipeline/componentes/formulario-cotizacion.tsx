@@ -15,6 +15,8 @@ import type {
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { CotizadorTecnico } from '@/modulos/cotizador/componentes/cotizador-tecnico';
+import type { CotizacionTecnicaCalculada } from '@/modulos/cotizador/tipos/indice';
 
 type PropsFormularioCotizacion = {
   pipelineId: string;
@@ -35,6 +37,7 @@ type PropsFormularioCotizacion = {
  * número al calcular totales y al enviar.
  */
 type LineaFormulario = {
+  calculoTecnico?: CotizacionTecnicaCalculada;
   descripcion: string;
   cantidad: string;
   precioUnitario: string;
@@ -76,6 +79,7 @@ function desdeEntrada(entrada: LineaCotizacionEntrada): LineaFormulario {
     area: entrada.area === null || entrada.area === undefined ? '' : String(entrada.area),
     procesos: procesos.join(', '),
     procesosOriginales: procesos,
+    calculoTecnico: entrada.calculoTecnico,
   };
 }
 
@@ -87,6 +91,7 @@ function aEntrada(linea: LineaFormulario): LineaCotizacionEntrada {
   const procesosSinTocar = linea.procesos === linea.procesosOriginales.join(', ');
   return {
     descripcion: linea.descripcion.trim(),
+    ...(linea.calculoTecnico ? { calculoTecnico: linea.calculoTecnico } : {}),
     cantidad: Number(linea.cantidad) || 0,
     precioUnitario: Number(linea.precioUnitario) || 0,
     material: material === '' ? undefined : material,
@@ -143,16 +148,25 @@ export function FormularioCotizacion({
 
   function actualizarLinea(
     indice: number,
-    campo: keyof LineaFormulario,
+    campo: Exclude<keyof LineaFormulario, 'procesosOriginales' | 'calculoTecnico'>,
     valor: string,
   ): void {
     setLineas((previas) =>
-      previas.map((linea, i) => (i === indice ? { ...linea, [campo]: valor } : linea)),
+      previas.map((linea, i) => (i === indice ? { ...linea, [campo]: valor, calculoTecnico: campo === 'descripcion' || campo === 'area' ? linea.calculoTecnico : undefined } : linea)),
     );
   }
 
   function agregarLinea(): void {
     setLineas((previas) => [...previas, lineaVacia()]);
+  }
+
+  function aplicarCalculo(indice: number, calculo: CotizacionTecnicaCalculada): void {
+    setLineas(previas => previas.map((linea, i) => i !== indice ? linea : {
+      ...linea, cantidad: String(calculo.entrada.cantidad), precioUnitario: String(calculo.precioUnitario),
+      material: calculo.entrada.material ?? calculo.entrada.laser?.material ?? linea.material,
+      espesor: `${calculo.entrada.espesorMm ?? calculo.entrada.laser?.espesorMm} mm`,
+      procesos: calculo.procesos.map(p => p.proceso).join(', '), procesosOriginales: calculo.procesos.map(p => p.proceso), calculoTecnico: calculo,
+    }));
   }
 
   function quitarLinea(indice: number): void {
@@ -208,6 +222,7 @@ export function FormularioCotizacion({
                   className="flex flex-col gap-1 rounded-lg border border-borde bg-superficie p-3 text-sm"
                 >
                   <span className="font-medium text-texto-primario">{entrada.descripcion}</span>
+                  {linea.calculoTecnico && <CotizadorTecnico moneda={moneda} cantidad={entrada.cantidad} inicial={linea.calculoTecnico} soloLectura onAplicar={() => {}} />}
                   <span className="text-xs text-texto-secundario">
                     {entrada.cantidad} × {formatearMoneda(entrada.precioUnitario, moneda)} ={' '}
                     <span className="tabular-nums">
@@ -267,7 +282,7 @@ export function FormularioCotizacion({
                   id={`linea-${indice}-cantidad`}
                   type="number"
                   min="0"
-                  step="1"
+                  step="0.01"
                   value={linea.cantidad}
                   onChange={(evento) =>
                     actualizarLinea(indice, 'cantidad', evento.target.value)
@@ -281,7 +296,7 @@ export function FormularioCotizacion({
                   id={`linea-${indice}-precio`}
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="0.0001"
                   value={linea.precioUnitario}
                   onChange={(evento) =>
                     actualizarLinea(indice, 'precioUnitario', evento.target.value)
@@ -350,6 +365,8 @@ export function FormularioCotizacion({
               </div>
             </div>
 
+            <CotizadorTecnico moneda={moneda} cantidad={Number(linea.cantidad)} inicial={linea.calculoTecnico} onAplicar={calculo=>aplicarCalculo(indice,calculo)} />
+            <p className="text-xs text-texto-secundario">{linea.calculoTecnico ? 'Cálculo técnico vinculado; se guardará junto con la cotización.' : 'Precio manual. Modificar cantidad, precio, material, espesor o procesos desvincula el cálculo anterior.'}</p>
             <div className="flex items-center justify-between">
               <span className="text-xs tabular-nums text-texto-secundario">
                 Importe:{' '}

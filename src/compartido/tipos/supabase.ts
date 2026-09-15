@@ -126,6 +126,7 @@ export type Database = {
       }
       cotizacion_lineas: {
         Row: {
+          calculo_tecnico?: Json | null
           area: number | null
           cantidad: number
           creado_en: string
@@ -139,6 +140,7 @@ export type Database = {
           procesos: string[]
         }
         Insert: {
+          calculo_tecnico?: Json | null
           area?: number | null
           cantidad: number
           creado_en?: string
@@ -152,6 +154,7 @@ export type Database = {
           procesos?: string[]
         }
         Update: {
+          calculo_tecnico?: Json | null
           area?: number | null
           cantidad?: number
           creado_en?: string

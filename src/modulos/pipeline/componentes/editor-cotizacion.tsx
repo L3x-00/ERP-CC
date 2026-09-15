@@ -91,6 +91,7 @@ export function EditorCotizacion({
     espesor: linea.espesor,
     area: linea.area,
     procesos: linea.procesos,
+    calculoTecnico: linea.calculoTecnico,
   }));
 
   return (
