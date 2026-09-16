@@ -153,6 +153,31 @@ Varias ausentes/parciales son **decisiones de arquitectura v2** frente al SPA vi
 nace al completar la OP, no al aprobar; avance por partidas, no global; sin reactivación de OP
 completada) — a reconciliar con Codex, no son olvidos.
 
+## 8. Verificación en runtime (entorno aislado)
+
+La matriz (sección 7) es un mapeo de código **estático**. Para elevar los entregables de esta
+sesión a **verificación ejecutada** sin tocar producción (el `.env.local` apunta al remoto; el
+HANDOFF prohíbe E2E/mutaciones contra él), se corrieron harnesses **PGlite** (Postgres-WASM en
+memoria) que cargan las **migraciones reales** y ejecutan los RPC con aserciones deterministas:
+
+- `.ai-shared/qa/cobertura/verificar-dashboard-ti.mjs` — **7/7 APROBADO**. Ejecuta
+  `obtener_metricas_dashboard_ejecutivo` tras `20260916000002` y verifica DAS-05 (tiempo de
+  respuesta 27 h, 50 % ≤24 h), DAS-02 (gasto 21 000), DAS-06 (distribución ordenada), DAS-01
+  (internas = 2; RFQ internas excluidas de cotizado/conversión), grants a solo `service_role`.
+- `.ai-shared/qa/cobertura/verificar-ti-aprobacion-ar.mjs` — **5/5 APROBADO**. Con las funciones
+  reales `crear_orden_produccion` + `aprobar_oportunidad_y_crear_orden` + `abrir_cuenta_por_cobrar`:
+  aprobar una oportunidad interna hereda `es_interna=true` a la OP; abrir AR sobre una OP interna
+  es rechazado (`orden_interna_sin_cobranza`); una OP comercial completada sí abre AR.
+- Suite unitaria del repo (`pnpm test`): **543/543** (lógica de app: mappers, tarjetas, aging).
+
+**Alcance y límite honesto**: lo runtime-verificado son las piezas SQL de esta sesión
+(DAS-01/02/05/06, RFQ-09/bloqueo AR). Los harnesses corren en un Postgres aislado con contorno
+mínimo — **no** ejercitan Auth/PostgREST/Realtime, `now()`-dependientes ni concurrencia
+multiconexión. La **aceptación end-to-end real** de los 164 (navegador + BD) requiere un **stack
+aislado** (Supabase local / Docker) contra el cual correr `tests/e2e/*.spec.ts`; hoy ese entorno
+no está disponible aquí (Docker no responde) y el remoto es producción (excluido). Eso queda como
+provisión de entorno para el PO/Codex, no como algo ejecutable en esta estación.
+
 ## 5. Pendientes
 
 1. **Aplicar** `20260916000002` en Supabase (PO). (`20260916000001` ya aplicada.)
@@ -160,3 +185,6 @@ completada) — a reconciliar con Codex, no son olvidos.
    confirmar la decisión de conteos operativos (sección 6).
 3. **Cerrar brechas por prioridad** usando la matriz (sección 7): los 45 ausentes y 75 parciales.
    Antes de implementar, reconciliar con Codex las que son diferencias de arquitectura v2.
+4. **Aceptación E2E**: provisionar un stack aislado (Supabase local/Docker) para correr
+   `tests/e2e/*.spec.ts` sin tocar producción; ampliar harnesses PGlite a más RPC (cobranza,
+   planeación, producción) para runtime-verificar más requisitos sin navegador.
