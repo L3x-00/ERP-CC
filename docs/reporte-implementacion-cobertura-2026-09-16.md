@@ -55,11 +55,17 @@ siempre en `0`.
 
 ## 2. SQL que debe aplicar el Product Owner
 
-**Un solo archivo**, idempotente (`CREATE OR REPLACE`, firma sin cambios → conserva grants):
+Idempotentes (`CREATE OR REPLACE` / `ADD COLUMN IF NOT EXISTS`, firmas sin cambios → conservan grants):
 
 ```
-supabase/migrations/20260916000001_dashboard_respuesta_gastos.sql
+supabase/migrations/20260916000001_dashboard_respuesta_gastos.sql   (APLICADA por el PO)
+supabase/migrations/20260916000002_ordenes_internas_ti.sql          (POR APLICAR)
 ```
+
+> `20260916000002` (órdenes internas TI, sección 6) vuelve a hacer `CREATE OR REPLACE` del
+> RPC ejecutivo como **superset** de `20260916000001`; aplicarla después de la primera. Al
+> añadir columnas con `DEFAULT false`, Postgres no reescribe la tabla y backfillea filas
+> existentes.
 
 Pasos sugeridos:
 1. Aplicarlo en Supabase (SQL Editor o `supabase db push` según tu flujo).
@@ -105,10 +111,32 @@ configuración (tarifas por estación) y sus tests. Ver `git show --stat` del co
 
 ---
 
+## 6. Órdenes internas (TI) — DAS-01 + RFQ-09 (entregado 2026-09-16)
+
+Cierra DAS-01 completo. Mecanismo por **bandera booleana** (el folio sigue `OP/CNC`; se
+etiqueta "TI"):
+
+- **Migración `20260916000002_ordenes_internas_ti.sql`** (la aplica el PO): añade
+  `pipeline.es_orden_interna` y `ordenes_produccion.es_interna`; `aprobar_oportunidad_y_crear_orden`
+  hereda el flag a la OP; `abrir_cuenta_por_cobrar` **rechaza** órdenes internas
+  (`orden_interna_sin_cobranza`, RFQ-09 "no AR"); el RPC ejecutivo **excluye** las RFQ internas de
+  ventas/cotizado/conversión y añade el conteo `ordenes.internas`.
+- **App**: toggle "Orden interna (TI)" en el alta de oportunidad y en el editor de cotización
+  (acción `actualizar-orden-interna`, solo con la oportunidad abierta, autz dueño/admin/
+  `ver_pipeline_equipo`); tarjeta "Órdenes internas (TI)" en el dashboard; badge "TI" en la
+  tarjeta de oportunidad. Tipos generados `supabase.ts` editados a mano (sin acceso remoto).
+- **Decisión de diseño**: las OP internas SÍ siguen contando en los indicadores OPERATIVOS
+  (activas/atrasadas/en riesgo) además de en `internas`; DAS-01 pide separarlas de **ventas**,
+  no ocultarlas del piso. Si se prefiere excluirlas también de lo operativo, es un `AND NOT
+  orden.es_interna` en esos conteos (pendiente de confirmación de Codex/PO).
+- **Verificación**: workflow de 3 agentes en frío comparó cada RPC contra su versión vigente —
+  fidelidad sin regresión (aprobación y AR), columnas/dashboard/contrato correctos, los 3 `ok`.
+
 ## 5. Pendientes
 
-1. **Aplicar** `20260916000001` en Supabase (PO) — único paso remoto.
-2. **DAS-01 TI**: requiere columna de esquema + flujo de creación (trabajo aparte).
+1. **Aplicar** `20260916000002` en Supabase (PO). (`20260916000001` ya aplicada.)
+2. **Opcional**: badge "TI" en la tabla de `/ordenes` (no incluido para acotar superficie) y
+   confirmar la decisión de conteos operativos (sección 6).
 3. **Mapeo de cobertura**: 8/14 módulos mapeados; consolidar la matriz de 164
    (`COBERTURA_IMPLEMENTACION_ACTUAL.csv`) con los 7 restantes.
 4. **Resto del catálogo** por prioridad (módulos aún no cerrados).

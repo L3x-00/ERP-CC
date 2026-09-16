@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { FormularioCotizacion } from '@/modulos/pipeline/componentes/formulario-cotizacion';
 import { PanelAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
+import { actualizarOrdenInternaAccion } from '@/modulos/pipeline/acciones/actualizar-orden-interna';
 import { usarOportunidad } from '@/modulos/pipeline/hooks/usar-oportunidad';
 import type { OportunidadConLineas } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import type {
@@ -46,6 +47,7 @@ export function EditorCotizacion({
   const [instantanea, setInstantanea] = useState<OportunidadConLineas | null>(null);
   const [cargando, setCargando] = useState(false);
   const [fallo, setFallo] = useState(false);
+  const [guardandoInterna, setGuardandoInterna] = useState(false);
   const solicitud = useRef(0);
   const { refetch } = usarOportunidad(oportunidad.id, false);
 
@@ -77,6 +79,24 @@ export function EditorCotizacion({
     solicitud.current += 1;
     setAbierto(false);
     setInstantanea(null);
+  }
+
+  async function alternarInterna(valor: boolean): Promise<void> {
+    if (!instantanea) return;
+    setGuardandoInterna(true);
+    try {
+      const respuesta = await actualizarOrdenInternaAccion({ id: oportunidad.id, esOrdenInterna: valor });
+      if (respuesta.exito) {
+        setInstantanea({
+          ...instantanea,
+          oportunidad: { ...instantanea.oportunidad, esOrdenInterna: valor },
+        });
+      }
+    } catch {
+      // El estado del checkbox no cambia si la acción falla; el usuario puede reintentar.
+    } finally {
+      setGuardandoInterna(false);
+    }
   }
 
   const etapa = instantanea?.oportunidad.etapa ?? oportunidad.etapa;
@@ -145,6 +165,24 @@ export function EditorCotizacion({
 
           {instantanea && (
             <>
+              {editable && (
+                <label htmlFor="cotizacion-orden-interna" className="flex items-start gap-2 rounded-lg border border-borde px-4 py-3">
+                  <input
+                    id="cotizacion-orden-interna"
+                    type="checkbox"
+                    className="mt-1"
+                    checked={instantanea.oportunidad.esOrdenInterna}
+                    disabled={guardandoInterna}
+                    onChange={(evento) => void alternarInterna(evento.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium text-texto-primario">Orden interna (TI)</span>
+                    <span className="block text-texto-secundario">
+                      Trabajo interno: al aprobar no genera cuenta por cobrar ni cuenta como venta a cliente.
+                    </span>
+                  </span>
+                </label>
+              )}
               <FormularioCotizacion
                 pipelineId={oportunidad.id}
                 ivaPorcentaje={instantanea.oportunidad.ivaPorcentaje}

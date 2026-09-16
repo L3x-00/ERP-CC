@@ -22,6 +22,7 @@ function oportunidad(sobre: Partial<Oportunidad> & { etapa: EtapaPipeline }): Op
     prioridad: 'normal',
     ivaPorcentaje: 16,
     etiquetas: [],
+    esOrdenInterna: false,
     motivoPerdida: null,
     notasPerdida: null,
     fechaUltimoContacto: null,

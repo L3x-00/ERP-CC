@@ -91,6 +91,7 @@ describe('mappers del dashboard', () => {
     expect(resultado.actual.ventas.tiempoRespuestaHorasPromedio).toBe(0);
     expect(resultado.actual.ventas.porcentajeRespondidas24h).toBe(0);
     expect(resultado.actual.finanzas.gastosTotal).toBe(0);
+    expect(resultado.actual.ordenes.internas).toBe(0);
     expect(resultado.actual.distribucionGastoPorCategoria).toEqual([]);
   });
 

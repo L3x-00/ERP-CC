@@ -8,7 +8,7 @@ function periodo(
 ): ResumenEjecutivoPeriodo {
   return {
     ventas,
-    ordenes: { activas: 3, completadas: 5, aprobacionesPendientes: 1, atrasadas: 2, enRiesgo: 0 },
+    ordenes: { activas: 3, completadas: 5, aprobacionesPendientes: 1, internas: 4, atrasadas: 2, enRiesgo: 0 },
     finanzas: {
       arPendiente: 0,
       arVencido: 0,
@@ -81,5 +81,13 @@ describe('tarjetasEjecutivas', () => {
     const gastos = porId.get('gastos-periodo');
     expect(gastos?.valor).toBe(40_000);
     expect(gastos?.unidad).toBe('moneda');
+  });
+
+  it('cuenta las órdenes internas (TI) por separado (DAS-01)', () => {
+    const porId = new Map(tarjetasEjecutivas(METRICAS).map((t) => [t.id, t]));
+
+    const internas = porId.get('ordenes-internas-ti');
+    expect(internas?.valor).toBe(4);
+    expect(internas?.unidad).toBe('cantidad');
   });
 });

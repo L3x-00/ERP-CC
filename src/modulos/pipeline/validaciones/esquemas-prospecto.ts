@@ -15,7 +15,18 @@ export const esquemaCrearProspecto = z.object({
   prioridad: z.enum(['baja', 'normal', 'alta', 'urgente']).default('normal'),
   ivaPorcentaje: z.number().positive().default(16),
   etiquetas: z.array(z.string()).default([]),
+  // RFQ-09: trabajo interno (TI). Al aprobar no genera AR ni cuenta como venta.
+  esOrdenInterna: z.boolean().default(false),
 });
 
 /** Datos validados para crear un prospecto. */
 export type CrearProspectoInput = z.infer<typeof esquemaCrearProspecto>;
+
+/** Esquema para marcar/desmarcar una oportunidad como trabajo interno (TI). */
+export const esquemaOrdenInterna = z.object({
+  id: z.uuid(),
+  esOrdenInterna: z.boolean(),
+});
+
+/** Datos validados para cambiar la condición interna de una oportunidad. */
+export type OrdenInternaInput = z.infer<typeof esquemaOrdenInterna>;

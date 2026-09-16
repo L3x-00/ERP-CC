@@ -51,6 +51,8 @@ export interface ResumenOrdenesDashboard {
   activas: number;
   completadas: number;
   aprobacionesPendientes: number;
+  /** DAS-01: órdenes de trabajo interno (TI) del periodo, contadas por separado. */
+  internas: number;
   atrasadas: number;
   enRiesgo: number;
 }
@@ -272,6 +274,7 @@ function ordenesDesde(valor: unknown): ResumenOrdenesDashboard {
     activas: numero(campo(objeto, 'activas'), 'ordenes.activas'),
     completadas: numero(campo(objeto, 'completadas'), 'ordenes.completadas'),
     aprobacionesPendientes: numero(campo(objeto, 'aprobacionesPendientes'), 'ordenes.aprobacionesPendientes'),
+    internas: numeroOpcional(objeto, 'internas'),
     atrasadas: numero(campo(objeto, 'atrasadas'), 'ordenes.atrasadas'),
     enRiesgo: numero(campo(objeto, 'enRiesgo'), 'ordenes.enRiesgo'),
   };

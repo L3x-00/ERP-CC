@@ -734,6 +734,7 @@ export type Database = {
           cliente_id: string
           cotizacion_id: string | null
           creado_en: string
+          es_interna: boolean
           estado: string
           fecha_compromiso: string
           fecha_fin: string | null
@@ -748,6 +749,7 @@ export type Database = {
           cliente_id: string
           cotizacion_id?: string | null
           creado_en?: string
+          es_interna?: boolean
           estado?: string
           fecha_compromiso: string
           fecha_fin?: string | null
@@ -762,6 +764,7 @@ export type Database = {
           cliente_id?: string
           cotizacion_id?: string | null
           creado_en?: string
+          es_interna?: boolean
           estado?: string
           fecha_compromiso?: string
           fecha_fin?: string | null
@@ -1039,6 +1042,7 @@ export type Database = {
           correo: string | null
           creado_en: string
           empresa: string
+          es_orden_interna: boolean
           etapa: string
           etiquetas: string[]
           fecha_envio_cotizacion: string | null
@@ -1062,6 +1066,7 @@ export type Database = {
           correo?: string | null
           creado_en?: string
           empresa: string
+          es_orden_interna?: boolean
           etapa?: string
           etiquetas?: string[]
           fecha_envio_cotizacion?: string | null
@@ -1085,6 +1090,7 @@ export type Database = {
           correo?: string | null
           creado_en?: string
           empresa?: string
+          es_orden_interna?: boolean
           etapa?: string
           etiquetas?: string[]
           fecha_envio_cotizacion?: string | null

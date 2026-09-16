@@ -28,6 +28,7 @@ export function FormularioProspecto() {
   const [moneda, setMoneda] = useState<MonedaPipeline>('MXN');
   const [prioridad, setPrioridad] = useState<PrioridadPipeline>('normal');
   const [condicionesPago, setCondicionesPago] = useState<CondicionesPago | ''>('');
+  const [esOrdenInterna, setEsOrdenInterna] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -39,6 +40,7 @@ export function FormularioProspecto() {
     setMoneda('MXN');
     setPrioridad('normal');
     setCondicionesPago('');
+    setEsOrdenInterna(false);
   }
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -54,6 +56,7 @@ export function FormularioProspecto() {
         telefono,
         moneda,
         prioridad,
+        esOrdenInterna,
         ...(condicionesPago !== '' ? { condicionesPago } : {}),
       });
 
@@ -159,6 +162,25 @@ export function FormularioProspecto() {
             <option value="credito">Crédito</option>
           </Select>
         </div>
+
+        <label
+          htmlFor="prospecto-orden-interna"
+          className="flex items-start gap-2 sm:col-span-2"
+        >
+          <input
+            id="prospecto-orden-interna"
+            type="checkbox"
+            className="mt-1"
+            checked={esOrdenInterna}
+            onChange={(evento) => setEsOrdenInterna(evento.target.checked)}
+          />
+          <span className="text-sm">
+            <span className="font-medium text-texto-primario">Orden interna (TI)</span>
+            <span className="block text-texto-secundario">
+              Trabajo interno: al aprobar no genera cuenta por cobrar ni cuenta como venta a cliente.
+            </span>
+          </span>
+        </label>
       </div>
 
       {error !== null && (

@@ -55,6 +55,7 @@ export async function crearProspectoAccion(
       prioridad: datos.prioridad,
       iva_porcentaje: datos.ivaPorcentaje,
       etiquetas: datos.etiquetas,
+      es_orden_interna: datos.esOrdenInterna,
     })
     .select('id')
     .single();

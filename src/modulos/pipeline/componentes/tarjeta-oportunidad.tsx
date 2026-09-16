@@ -60,6 +60,14 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
       <div className="flex items-start justify-between gap-2">
         <span className="font-mono text-xs text-texto-secundario">{folio}</span>
         <div className="flex flex-wrap items-center justify-end gap-1">
+          {oportunidad.esOrdenInterna && (
+            <span
+              className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs font-semibold text-texto-secundario"
+              title="Trabajo interno: no genera cobranza ni cuenta como venta"
+            >
+              TI
+            </span>
+          )}
           <BadgeEstado estado={oportunidad.etapa} />
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${prioridad.clase}`}>
             {prioridad.texto}

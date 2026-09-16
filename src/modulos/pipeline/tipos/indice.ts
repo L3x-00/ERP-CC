@@ -31,6 +31,8 @@ export type Oportunidad = {
   prioridad: PrioridadPipeline;
   ivaPorcentaje: number;
   etiquetas: string[];
+  /** RFQ-09: la oportunidad es un trabajo interno (TI). */
+  esOrdenInterna: boolean;
   motivoPerdida: string | null;
   notasPerdida: string | null;
   fechaUltimoContacto: string | null;
@@ -145,6 +147,7 @@ export function filaAOportunidad(fila: FilaPipeline): Oportunidad {
     prioridad: validarEnumerado(fila.prioridad, PRIORIDADES_PIPELINE, 'prioridad'),
     ivaPorcentaje: Number(fila.iva_porcentaje),
     etiquetas: fila.etiquetas,
+    esOrdenInterna: fila.es_orden_interna,
     motivoPerdida: fila.motivo_perdida,
     notasPerdida: fila.notas_perdida,
     fechaUltimoContacto: fila.fecha_ultimo_contacto,

@@ -120,6 +120,7 @@ export function tarjetasEjecutivas(metricas: MetricasEjecutivas): TarjetaMetrica
     tarjeta('tiempo-respuesta-cotizacion', 'Tiempo de respuesta', metricas.actual.ventas.tiempoRespuestaHorasPromedio, metricas.anterior.ventas.tiempoRespuestaHorasPromedio, 'cantidad', 'Horas promedio hasta enviar la cotización'),
     tarjeta('respondidas-24h', 'Respondidas ≤24 h', metricas.actual.ventas.porcentajeRespondidas24h, metricas.anterior.ventas.porcentajeRespondidas24h, 'porcentaje', 'Cotizaciones enviadas dentro de 24 h'),
     tarjeta('ordenes-activas', 'Órdenes activas', metricas.actual.ordenes.activas, metricas.anterior.ordenes.activas, 'cantidad'),
+    tarjeta('ordenes-internas-ti', 'Órdenes internas (TI)', metricas.actual.ordenes.internas, metricas.anterior.ordenes.internas, 'cantidad', 'Trabajos internos del periodo; no son ventas a clientes'),
     tarjeta('ordenes-atrasadas', 'Órdenes atrasadas', metricas.actual.ordenes.atrasadas, metricas.anterior.ordenes.atrasadas, 'cantidad'),
     tarjeta('gastos-periodo', 'Gastos del periodo', metricas.actual.finanzas.gastosTotal, metricas.anterior.finanzas.gastosTotal, 'moneda', 'Gastos no cancelados del periodo en MXN'),
     tarjeta('utilidad-neta', 'Utilidad neta acumulada', metricas.actual.finanzas.utilidadNetaAcumulada, metricas.anterior.finanzas.utilidadNetaAcumulada, 'moneda', 'Resultado aproximado del periodo en MXN'),
