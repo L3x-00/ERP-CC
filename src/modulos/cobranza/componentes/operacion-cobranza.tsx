@@ -22,6 +22,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { SincronizadorCobranzaRealtime } from '@/modulos/cobranza/componentes/sincronizador-cobranza-realtime';
 import { TablaCuentasPorCobrar } from '@/modulos/cobranza/componentes/tabla-cuentas-por-cobrar';
 import { TarjetaResumenAging } from '@/modulos/cobranza/componentes/tarjeta-resumen-aging';
+import {
+  BUCKETS_AGING,
+  ETIQUETA_BUCKET_AGING,
+  bucketDeCuenta,
+  bucketDesdeSlugAging,
+  type BucketAging,
+} from '@/modulos/cobranza/servicios/aging-servicio';
 import type { ResumenCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
 
 function rangoPeriodo(periodo: string, personalizado: { inicio: string; fin: string } | null): { inicio: Date; fin: Date } | null {
@@ -52,8 +59,10 @@ function rangoPeriodo(periodo: string, personalizado: { inicio: string; fin: str
   return null;
 }
 
-export function OperacionCobranza({ datosIniciales, puedeRegistrarPago = false, puedeAplicarSaldo = false }: { datosIniciales: ResumenCartera; puedeRegistrarPago?: boolean; puedeAplicarSaldo?: boolean }) {
+export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrarPago = false, puedeAplicarSaldo = false }: { datosIniciales: ResumenCartera; agingInicial?: string; puedeRegistrarPago?: boolean; puedeAplicarSaldo?: boolean }) {
   const clienteConsultas = useQueryClient();
+  // Filtro de antigüedad (OBS-01): se puede sembrar desde el dashboard vía ?aging=<slug>.
+  const [bucketAging, setBucketAging] = useState<BucketAging | null>(() => bucketDesdeSlugAging(agingInicial));
   const cuentaSeleccionadaId = usarTiendaCobranza((estado) => estado.cuentaSeleccionadaId);
   const busqueda = usarTiendaCobranza((estado) => estado.busqueda);
   const periodo = usarTiendaCobranza((estado) => estado.periodo);
@@ -83,13 +92,15 @@ export function OperacionCobranza({ datosIniciales, puedeRegistrarPago = false, 
   const cuentasFiltradas = useMemo(() => {
     const termino = busqueda.trim().toLocaleLowerCase('es-MX');
     const rango = rangoPeriodo(periodo, rangoPersonalizado);
+    const hoyISO = new Date().toISOString();
     return datos.cuentas.filter((cuenta) => {
       const coincideBusqueda = !termino || [cuenta.clienteNombre, cuenta.folioOrden, cuenta.folioFacturaRemision ?? ''].some((valor) => valor.toLocaleLowerCase('es-MX').includes(termino));
       const emitida = new Date(cuenta.fechaEmision);
       const coincidePeriodo = !rango || (emitida >= rango.inicio && emitida < rango.fin);
-      return coincideBusqueda && coincidePeriodo;
+      const coincideAging = bucketAging === null || bucketDeCuenta(cuenta, hoyISO) === bucketAging;
+      return coincideBusqueda && coincidePeriodo && coincideAging;
     });
-  }, [busqueda, datos.cuentas, periodo, rangoPersonalizado]);
+  }, [busqueda, datos.cuentas, periodo, rangoPersonalizado, bucketAging]);
   const cuentaSeleccionada = datos.cuentas.find((cuenta) => cuenta.id === cuentaSeleccionadaId) ?? null;
 
   const abrirCobro = useCallback((cuentaId: string) => {
@@ -147,6 +158,12 @@ export function OperacionCobranza({ datosIniciales, puedeRegistrarPago = false, 
         <label className="grid gap-1 text-sm font-medium text-texto-primario">Periodo de emisión
           <Select value={periodo} onChange={(evento) => establecerPeriodo(evento.target.value as typeof periodo)}>
             <option value="hoy">Hoy</option><option value="esta_semana">Esta semana</option><option value="semana_pasada">Semana pasada</option><option value="este_mes">Este mes</option><option value="mes_pasado">Mes pasado</option><option value="este_anio">Este año</option><option value="personalizado">Personalizado</option>
+          </Select>
+        </label>
+        <label className="grid gap-1 text-sm font-medium text-texto-primario">Antigüedad
+          <Select value={bucketAging ?? 'todas'} onChange={(evento) => setBucketAging(evento.target.value === 'todas' ? null : (evento.target.value as BucketAging))}>
+            <option value="todas">Todas</option>
+            {BUCKETS_AGING.map((bucket) => <option key={bucket} value={bucket}>{ETIQUETA_BUCKET_AGING[bucket]}</option>)}
           </Select>
         </label>
         {periodo === 'personalizado' ? <>

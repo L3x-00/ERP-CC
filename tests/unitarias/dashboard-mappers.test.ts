@@ -70,6 +70,77 @@ describe('mappers del dashboard', () => {
     })).toThrow(/Número inválido/);
   });
 
+  it('aplica defaults cuando el RPC aún no envía las métricas nuevas (compatibilidad)', () => {
+    // Payload "viejo": sin tiempoRespuesta/porcentajeRespondidas24h/gastosTotal ni distribución.
+    const resultado = mapearMetricasEjecutivas({
+      version: 1,
+      periodo,
+      actual: {
+        ventas: { totalFacturado: 1000, totalCotizado: 2000, porcentajeConversion: 50 },
+        ordenes,
+        finanzas,
+      },
+      anterior: {
+        ventas: { totalFacturado: 800, totalCotizado: 1500, porcentajeConversion: 40 },
+        ordenes,
+        finanzas,
+      },
+      generadoEn: '2026-10-01T00:00:00.000Z',
+    });
+
+    expect(resultado.actual.ventas.tiempoRespuestaHorasPromedio).toBe(0);
+    expect(resultado.actual.ventas.porcentajeRespondidas24h).toBe(0);
+    expect(resultado.actual.finanzas.gastosTotal).toBe(0);
+    expect(resultado.actual.distribucionGastoPorCategoria).toEqual([]);
+  });
+
+  it('mapea las métricas nuevas y descarta renglones de distribución malformados (DAS-05/02/06)', () => {
+    const resultado = mapearMetricasEjecutivas({
+      version: 1,
+      periodo,
+      actual: {
+        ventas: {
+          totalFacturado: 1000,
+          totalCotizado: 2000,
+          porcentajeConversion: 50,
+          tiempoRespuestaHorasPromedio: 6.5,
+          porcentajeRespondidas24h: 80,
+        },
+        ordenes,
+        finanzas: { ...finanzas, gastosTotal: 40_000 },
+        distribucionGastoPorCategoria: [
+          { categoria: 'materia_prima', montoMxn: 25_000 },
+          { categoria: 'nomina', montoMxn: 15_000 },
+          { categoria: '', montoMxn: 999 },
+          { categoria: 'otros', montoMxn: Number.NaN },
+          { montoMxn: 5 },
+          'basura',
+        ],
+      },
+      anterior: {
+        ventas: {
+          totalFacturado: 800,
+          totalCotizado: 1500,
+          porcentajeConversion: 40,
+          tiempoRespuestaHorasPromedio: 9,
+          porcentajeRespondidas24h: 60,
+        },
+        ordenes,
+        finanzas: { ...finanzas, gastosTotal: 30_000 },
+        distribucionGastoPorCategoria: [],
+      },
+      generadoEn: '2026-10-01T00:00:00.000Z',
+    });
+
+    expect(resultado.actual.ventas.tiempoRespuestaHorasPromedio).toBe(6.5);
+    expect(resultado.actual.ventas.porcentajeRespondidas24h).toBe(80);
+    expect(resultado.actual.finanzas.gastosTotal).toBe(40_000);
+    expect(resultado.actual.distribucionGastoPorCategoria).toEqual([
+      { categoria: 'materia_prima', montoMxn: 25_000 },
+      { categoria: 'nomina', montoMxn: 15_000 },
+    ]);
+  });
+
   it('mantiene el alcance exclusivo del vendedor y exige su identificador', () => {
     const resumen = {
       pipelinePorEtapa: {

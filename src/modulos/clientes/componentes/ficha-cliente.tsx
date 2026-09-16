@@ -10,6 +10,7 @@ import { subirDocumentoClienteAccion } from '@/modulos/clientes/acciones/subir-d
 import { asignarTierManualAccion } from '@/modulos/clientes/acciones/asignar-tier-manual';
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import { AlertaCredito } from '@/modulos/clientes/componentes/alerta-credito';
+import { PanelTier } from '@/modulos/clientes/componentes/panel-tier';
 import { HistorialCliente } from '@/modulos/clientes/componentes/historial-cliente';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -91,8 +92,9 @@ export function FichaCliente({
 
         {data && (
           <>
-            <div className="p-4">
+            <div className="grid gap-3 p-4">
               <AlertaCredito cliente={data.cliente} usado={data.creditoUsado} />
+              <PanelTier cliente={data.cliente} consumo={data.consumoUltimos3Meses} />
             </div>
 
             {esAdmin && <ControlTierManual clienteId={clienteId} />}

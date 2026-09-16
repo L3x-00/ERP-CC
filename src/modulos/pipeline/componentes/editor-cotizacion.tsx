@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { FormularioCotizacion } from '@/modulos/pipeline/componentes/formulario-cotizacion';
+import { PanelAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
 import { usarOportunidad } from '@/modulos/pipeline/hooks/usar-oportunidad';
 import type { OportunidadConLineas } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import type {
@@ -143,15 +144,18 @@ export function EditorCotizacion({
           )}
 
           {instantanea && (
-            <FormularioCotizacion
-              pipelineId={oportunidad.id}
-              ivaPorcentaje={instantanea.oportunidad.ivaPorcentaje}
-              moneda={instantanea.oportunidad.moneda}
-              lineasIniciales={lineasIniciales}
-              actualizadoEn={instantanea.oportunidad.actualizadoEn}
-              soloLectura={!editable}
-              alGuardar={cerrar}
-            />
+            <>
+              <FormularioCotizacion
+                pipelineId={oportunidad.id}
+                ivaPorcentaje={instantanea.oportunidad.ivaPorcentaje}
+                moneda={instantanea.oportunidad.moneda}
+                lineasIniciales={lineasIniciales}
+                actualizadoEn={instantanea.oportunidad.actualizadoEn}
+                soloLectura={!editable}
+                alGuardar={cerrar}
+              />
+              <PanelAdjuntos pipelineId={oportunidad.id} soloLectura={!editable} />
+            </>
           )}
         </DialogContent>
       </Dialog>

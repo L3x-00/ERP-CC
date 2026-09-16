@@ -50,6 +50,14 @@ describe('AlertaCredito', () => {
     expect(screen.getByRole('alert').textContent).toContain('Crédito excedido');
   });
 
+  it('sin límite definido (0) informa ausencia de límite, sin excedido ni porcentaje', () => {
+    render(createElement(AlertaCredito, { cliente: { ...CLIENTE, limiteCredito: 0 }, usado: 50_000 }));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.getByText('Sin límite definido')).toBeTruthy();
+  });
+
   it('el saldo a favor amplía la base del porcentaje (fórmula intacta)', () => {
     render(
       createElement(AlertaCredito, {

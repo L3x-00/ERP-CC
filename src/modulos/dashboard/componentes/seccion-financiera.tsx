@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
+import { slugDeBucketAging, type BucketAging } from '@/modulos/cobranza/servicios/aging-servicio';
 import type { ResumenContadorPeriodo, ResumenFinanzasDashboard } from '@/modulos/dashboard/tipos/indice';
 
 function moneda(valor: number): string {
@@ -61,15 +63,21 @@ export function SeccionFinanciera({
         <Tarjeta>
           <ul className="divide-y divide-borde" aria-label="Antigüedad de cuentas por cobrar">
             {([
-              ['Corriente', contador.aging.corrienteMxn],
-              ['1–30 días', contador.aging.unoTreintaMxn],
-              ['31–60 días', contador.aging.treintaSesentaMxn],
-              ['61–90 días', contador.aging.sesentaNoventaMxn],
-              ['Más de 90 días', contador.aging.mayorNoventaMxn],
-            ] as const).map(([etiqueta, valor]) => (
-              <li key={etiqueta} className="flex flex-wrap items-center justify-between gap-2 px-6 py-3">
-                <span className="text-sm text-texto-secundario">{etiqueta}</span>
-                <span className="text-sm font-semibold tabular-nums text-texto-primario">{moneda(valor)}</span>
+              ['Corriente', contador.aging.corrienteMxn, 'alCorriente'],
+              ['1–30 días', contador.aging.unoTreintaMxn, 'de1A30Dias'],
+              ['31–60 días', contador.aging.treintaSesentaMxn, 'de31A60Dias'],
+              ['61–90 días', contador.aging.sesentaNoventaMxn, 'de61A90Dias'],
+              ['Más de 90 días', contador.aging.mayorNoventaMxn, 'masDe90Dias'],
+            ] as const satisfies readonly (readonly [string, number, BucketAging])[]).map(([etiqueta, valor, bucket]) => (
+              <li key={etiqueta}>
+                <Link
+                  href={`/cobranza?aging=${slugDeBucketAging(bucket)}`}
+                  className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 transition-colors hover:bg-superficie-2"
+                  aria-label={`Ver en cobranza las cuentas: ${etiqueta}`}
+                >
+                  <span className="text-sm text-texto-secundario">{etiqueta}</span>
+                  <span className="text-sm font-semibold tabular-nums text-texto-primario">{moneda(valor)}</span>
+                </Link>
               </li>
             ))}
           </ul>

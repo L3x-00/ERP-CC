@@ -109,11 +109,19 @@ async function obtenerContador(
   return mapearMetricasContador(data);
 }
 
-function tarjetasEjecutivas(metricas: MetricasEjecutivas): TarjetaMetrica[] {
+/** Meta de referencia de conversión de pipeline (DAS-05); no es un dato del RPC. */
+const META_CONVERSION_PIPELINE = 80;
+
+export function tarjetasEjecutivas(metricas: MetricasEjecutivas): TarjetaMetrica[] {
   return [
     tarjeta('ventas-total-facturado', 'Ventas facturadas', metricas.actual.ventas.totalFacturado, metricas.anterior.ventas.totalFacturado, 'moneda', 'Importe convertido a MXN'),
+    tarjeta('pipeline-activo', 'Pipeline activo (cotizado)', metricas.actual.ventas.totalCotizado, metricas.anterior.ventas.totalCotizado, 'moneda', 'Importe cotizado del periodo en MXN'),
+    tarjeta('conversion-pipeline', 'Conversión de pipeline', metricas.actual.ventas.porcentajeConversion, metricas.anterior.ventas.porcentajeConversion, 'porcentaje', `Aprobadas/total · meta de referencia ${META_CONVERSION_PIPELINE}%`),
+    tarjeta('tiempo-respuesta-cotizacion', 'Tiempo de respuesta', metricas.actual.ventas.tiempoRespuestaHorasPromedio, metricas.anterior.ventas.tiempoRespuestaHorasPromedio, 'cantidad', 'Horas promedio hasta enviar la cotización'),
+    tarjeta('respondidas-24h', 'Respondidas ≤24 h', metricas.actual.ventas.porcentajeRespondidas24h, metricas.anterior.ventas.porcentajeRespondidas24h, 'porcentaje', 'Cotizaciones enviadas dentro de 24 h'),
     tarjeta('ordenes-activas', 'Órdenes activas', metricas.actual.ordenes.activas, metricas.anterior.ordenes.activas, 'cantidad'),
     tarjeta('ordenes-atrasadas', 'Órdenes atrasadas', metricas.actual.ordenes.atrasadas, metricas.anterior.ordenes.atrasadas, 'cantidad'),
+    tarjeta('gastos-periodo', 'Gastos del periodo', metricas.actual.finanzas.gastosTotal, metricas.anterior.finanzas.gastosTotal, 'moneda', 'Gastos no cancelados del periodo en MXN'),
     tarjeta('utilidad-neta', 'Utilidad neta acumulada', metricas.actual.finanzas.utilidadNetaAcumulada, metricas.anterior.finanzas.utilidadNetaAcumulada, 'moneda', 'Resultado aproximado del periodo en MXN'),
     tarjeta('margen-promedio', 'Margen promedio', metricas.actual.finanzas.margenPromedioPorcentaje, metricas.anterior.finanzas.margenPromedioPorcentaje, 'porcentaje'),
   ];
@@ -205,6 +213,7 @@ export async function obtenerDashboardPorRol(
     ...base,
     ejecutivas,
     produccion: ejecutivas.actual.ordenes,
+    distribucionGasto: ejecutivas.actual.distribucionGastoPorCategoria,
     tarjetas: tarjetasEjecutivas(ejecutivas),
   };
   if (tienePermiso(rol, permisos, 'ver_pipeline_equipo')) {

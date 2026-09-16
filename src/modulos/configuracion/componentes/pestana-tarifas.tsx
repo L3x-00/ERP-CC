@@ -6,6 +6,7 @@ import { Input } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { actualizarTipoCambioAccion, guardarTarifasCotizadorAccion } from '@/modulos/configuracion/acciones/indice';
 import type { ConfiguracionSistema, TarifasCotizadorConfig } from '@/modulos/configuracion/tipos/indice';
+import { EditorTarifasEstaciones } from '@/modulos/configuracion/componentes/editor-tarifas-estaciones';
 
 const HORAS_VIGENCIA_TIPO_CAMBIO = 24;
 
@@ -99,6 +100,14 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
           <Input id="configuracion-tipo-cambio" data-testid="configuracion-tipo-cambio" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(e) => setTipoCambio(e.target.value)} required />
         </label>
       </div>
+      <fieldset className="grid gap-3">
+        <legend className="text-sm font-semibold text-texto-primario">Tarifas por estación del cotizador</legend>
+        <EditorTarifasEstaciones
+          valor={tarifas.estaciones}
+          onCambio={(estaciones) => setTarifas((actual) => ({ ...actual, estaciones }))}
+          deshabilitado={guardando}
+        />
+      </fieldset>
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar tarifas y TC'}</Button>
         <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-texto-secundario">Vigente: {configuracion.tipoCambioUsd.toFixed(4)} MXN/USD</output>

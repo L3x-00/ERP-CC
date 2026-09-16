@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { actualizarCotizacionAccion } from '@/modulos/pipeline/acciones/actualizar-cotizacion';
@@ -16,6 +16,9 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { CotizadorTecnico } from '@/modulos/cotizador/componentes/cotizador-tecnico';
+import { obtenerCatalogoTarifasAccion } from '@/modulos/cotizador/acciones/obtener-catalogo-tarifas';
+import { agregarArchivoAdjuntoAccion } from '@/modulos/pipeline/acciones/agregar-archivo-adjunto';
+import { claveAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
 import type { CotizacionTecnicaCalculada } from '@/modulos/cotizador/tipos/indice';
 
 type PropsFormularioCotizacion = {
@@ -127,6 +130,16 @@ export function FormularioCotizacion({
 }: PropsFormularioCotizacion) {
   const router = useRouter();
   const clienteConsultas = useQueryClient();
+  // Catálogo central de tarifas (CFG-10/OBS-30): precarga el cotizador. Se
+  // consulta una sola vez y se comparte entre todas las líneas.
+  const { data: catalogoTarifas } = useQuery({
+    queryKey: ['cotizador', 'catalogo-tarifas'],
+    queryFn: async () => {
+      const respuesta = await obtenerCatalogoTarifasAccion();
+      return respuesta.exito ? respuesta.datos : null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
   const teniaLineas = lineasIniciales !== undefined && lineasIniciales.length > 0;
   // En consulta no se inventa una línea en blanco: una cotización sin líneas se
   // muestra vacía, no como una partida ficticia con cantidad 1 y precio 0.
@@ -158,6 +171,16 @@ export function FormularioCotizacion({
 
   function agregarLinea(): void {
     setLineas((previas) => [...previas, lineaVacia()]);
+  }
+
+  /** Adjunta a la oportunidad el plano leído en el cotizador (COT-04/05/06, RFQ-19). */
+  async function adjuntarPlano(archivo: File): Promise<boolean> {
+    const formData = new FormData();
+    formData.set('pipelineId', pipelineId);
+    formData.set('archivo', archivo);
+    const respuesta = await agregarArchivoAdjuntoAccion(formData);
+    if (respuesta.exito) await clienteConsultas.invalidateQueries({ queryKey: claveAdjuntos(pipelineId) });
+    return respuesta.exito;
   }
 
   function aplicarCalculo(indice: number, calculo: CotizacionTecnicaCalculada): void {
@@ -365,7 +388,7 @@ export function FormularioCotizacion({
               </div>
             </div>
 
-            <CotizadorTecnico moneda={moneda} cantidad={Number(linea.cantidad)} inicial={linea.calculoTecnico} onAplicar={calculo=>aplicarCalculo(indice,calculo)} />
+            <CotizadorTecnico moneda={moneda} cantidad={Number(linea.cantidad)} inicial={linea.calculoTecnico} catalogo={catalogoTarifas ?? undefined} onAdjuntarPlano={adjuntarPlano} onAplicar={calculo=>aplicarCalculo(indice,calculo)} />
             <p className="text-xs text-texto-secundario">{linea.calculoTecnico ? 'Cálculo técnico vinculado; se guardará junto con la cotización.' : 'Precio manual. Modificar cantidad, precio, material, espesor o procesos desvincula el cálculo anterior.'}</p>
             <div className="flex items-center justify-between">
               <span className="text-xs tabular-nums text-texto-secundario">

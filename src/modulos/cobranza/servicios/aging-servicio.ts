@@ -121,6 +121,55 @@ export function calcularDiasVencidos(
   return Math.floor((referencia - vencimiento) / MS_POR_DIA);
 }
 
+/** Slugs de aging para query-params (drill-down desde el dashboard, OBS-01). */
+export const SLUGS_AGING = ['corriente', '1-30', '31-60', '61-90', '90-mas'] as const;
+export type SlugAging = (typeof SLUGS_AGING)[number];
+
+const MAPA_SLUG_BUCKET: Record<SlugAging, BucketAging> = {
+  corriente: 'alCorriente',
+  '1-30': 'de1A30Dias',
+  '31-60': 'de31A60Dias',
+  '61-90': 'de61A90Dias',
+  '90-mas': 'masDe90Dias',
+};
+
+const MAPA_BUCKET_SLUG: Record<BucketAging, SlugAging> = {
+  alCorriente: 'corriente',
+  de1A30Dias: '1-30',
+  de31A60Dias: '31-60',
+  de61A90Dias: '61-90',
+  masDe90Dias: '90-mas',
+};
+
+/** Etiquetas legibles de cada bucket, para el filtro visible de cobranza. */
+export const ETIQUETA_BUCKET_AGING: Record<BucketAging, string> = {
+  alCorriente: 'Al corriente',
+  de1A30Dias: '1–30 días',
+  de31A60Dias: '31–60 días',
+  de61A90Dias: '61–90 días',
+  masDe90Dias: '+90 días',
+};
+
+/** Traduce un slug de URL a su bucket; `null` si el slug no es válido. */
+export function bucketDesdeSlugAging(slug: string | null | undefined): BucketAging | null {
+  return slug && (SLUGS_AGING as readonly string[]).includes(slug) ? MAPA_SLUG_BUCKET[slug as SlugAging] : null;
+}
+
+/** Slug de URL de un bucket (para construir enlaces de drill-down). */
+export function slugDeBucketAging(bucket: BucketAging): SlugAging {
+  return MAPA_BUCKET_SLUG[bucket];
+}
+
+/**
+ * Bucket de antigüedad de una cuenta a una fecha de referencia, o `null` si la
+ * cuenta no aporta al aging (pagada/cancelada) o su vencimiento es inválido.
+ */
+export function bucketDeCuenta(cuenta: CuentaPorCobrar, fechaReferencia: string): BucketAging | null {
+  if (!contribuyeAlAging(cuenta)) return null;
+  const dias = calcularDiasVencidos(cuenta.fechaVencimiento, fechaReferencia);
+  return dias === null ? null : clasificarBucketAging(dias);
+}
+
 /** Ubica los días vencidos en su bucket de antigüedad. */
 export function clasificarBucketAging(diasVencidos: number): BucketAging {
   if (diasVencidos <= 0) {

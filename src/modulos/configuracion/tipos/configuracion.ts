@@ -1,4 +1,7 @@
 import type { Json } from '@/compartido/tipos/supabase';
+import type { CatalogoTarifasCotizador } from '@/modulos/cotizador/tipos/indice';
+import { esquemaCatalogoTarifas } from '@/modulos/cotizador/validaciones/tarifas';
+import { CATALOGO_TARIFAS_DEFECTO } from '@/modulos/cotizador/servicios/catalogo-tarifas';
 
 export type MonedaCuenta = 'MXN' | 'USD';
 
@@ -18,6 +21,8 @@ export interface TarifasCotizadorConfig {
   factorEficienciaLaser: number;
   factorMermaMaterial: number;
   margenUtilidadDefault: number;
+  /** Catálogo detallado por estación que precarga el cotizador (CFG-10/OBS-30). */
+  estaciones: CatalogoTarifasCotizador;
 }
 
 export interface PlantillaDocumentoConfig {
@@ -120,6 +125,7 @@ export const TARIFAS_COTIZADOR_DEFECTO: TarifasCotizadorConfig = {
   factorEficienciaLaser: 0.85,
   factorMermaMaterial: 0.08,
   margenUtilidadDefault: 30,
+  estaciones: CATALOGO_TARIFAS_DEFECTO,
 };
 
 export const PLANTILLA_DOCUMENTO_DEFECTO: PlantillaDocumentoConfig = {
@@ -186,6 +192,11 @@ function empresaDesde(valor: Json): ConfiguracionEmpresa {
   };
 }
 
+function estacionesDesde(valor: unknown): CatalogoTarifasCotizador {
+  const analisis = esquemaCatalogoTarifas.safeParse(valor);
+  return analisis.success ? analisis.data : CATALOGO_TARIFAS_DEFECTO;
+}
+
 function tarifasDesde(valor: Json): TarifasCotizadorConfig {
   const objeto = esObjeto(valor) ? valor : {};
   return {
@@ -198,6 +209,7 @@ function tarifasDesde(valor: Json): TarifasCotizadorConfig {
     ),
     factorMermaMaterial: numeroSeguro(objeto.factorMermaMaterial, TARIFAS_COTIZADOR_DEFECTO.factorMermaMaterial),
     margenUtilidadDefault: numeroSeguro(objeto.margenUtilidadDefault, TARIFAS_COTIZADOR_DEFECTO.margenUtilidadDefault),
+    estaciones: estacionesDesde(objeto.estaciones),
   };
 }
 

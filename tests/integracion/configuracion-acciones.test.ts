@@ -40,6 +40,7 @@ import {
   guardarPlantillaDocAccion,
   guardarTarifasCotizadorAccion,
 } from '@/modulos/configuracion/acciones/indice';
+import { CATALOGO_TARIFAS_DEFECTO } from '@/modulos/cotizador/servicios/catalogo-tarifas';
 
 const CONFIGURACION = {
   id: 'main' as const,
@@ -47,7 +48,7 @@ const CONFIGURACION = {
     nombre: 'CC Manufacturing Group', razonSocial: 'CC Manufacturing Group S de RL de CV',
     rfc: 'XAXX010101000', direccion: 'Tijuana, Baja California', telefono: '', email: '', logoUrl: null,
   },
-  tarifas: { costoHoraDefault: 650, segundosPorPierce: 8, factorEficienciaLaser: 0.85, factorMermaMaterial: 0.08, margenUtilidadDefault: 30 },
+  tarifas: { costoHoraDefault: 650, segundosPorPierce: 8, factorEficienciaLaser: 0.85, factorMermaMaterial: 0.08, margenUtilidadDefault: 30, estaciones: CATALOGO_TARIFAS_DEFECTO },
   plantillasDoc: { T1: { colorAcento: '#1D4ED8', terminosCondiciones: 'Pago contra entrega', textoPiePagina: 'Tijuana', textoEncabezado: 'ORCA MFG ERP' } },
   tipoCambioUsd: 20, ivaPorcentajeDefault: 16, actualizadoPor: null, actualizadoEn: '2026-09-09T00:00:00.000Z',
 };

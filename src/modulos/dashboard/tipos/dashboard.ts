@@ -41,6 +41,10 @@ export interface ResumenVentasDashboard {
   totalFacturado: number;
   totalCotizado: number;
   porcentajeConversion: number;
+  /** DAS-05: horas promedio entre alta de oportunidad y envío de cotización. */
+  tiempoRespuestaHorasPromedio: number;
+  /** DAS-05: % de cotizaciones enviadas en <=24h respecto a las enviadas. */
+  porcentajeRespondidas24h: number;
 }
 
 export interface ResumenOrdenesDashboard {
@@ -55,14 +59,24 @@ export interface ResumenFinanzasDashboard {
   arPendiente: number;
   arVencido: number;
   cxpPendiente: number;
+  /** DAS-02: gasto total no cancelado del periodo, en MXN. */
+  gastosTotal: number;
   utilidadNetaAcumulada: number;
   margenPromedioPorcentaje: number | null;
+}
+
+/** DAS-06: un renglón de la distribución de gasto por categoría, en MXN. */
+export interface GastoPorCategoriaDashboard {
+  categoria: string;
+  montoMxn: number;
 }
 
 export interface ResumenEjecutivoPeriodo {
   ventas: ResumenVentasDashboard;
   ordenes: ResumenOrdenesDashboard;
   finanzas: ResumenFinanzasDashboard;
+  /** DAS-06: distribución del gasto del periodo por categoría (orden descendente). */
+  distribucionGastoPorCategoria: GastoPorCategoriaDashboard[];
 }
 
 /** Agregados globales de un periodo y su comparación inmediata anterior. */
@@ -178,6 +192,8 @@ export interface DashboardConsolidado {
   equipo?: MetricasPipelineEquipo;
   contador?: MetricasContador;
   produccion?: ResumenOrdenesDashboard;
+  /** DAS-06: distribución de gasto por categoría del periodo actual (solo vista ejecutiva). */
+  distribucionGasto?: GastoPorCategoriaDashboard[];
   redireccion?: '/produccion';
 }
 
@@ -212,6 +228,17 @@ function numeroNulo(valor: unknown, nombre: string): number | null {
   return valor === null ? null : numero(valor, nombre);
 }
 
+/**
+ * Lee una clave numérica que puede no existir todavía en el RPC remoto (claves
+ * añadidas de forma aditiva). Si falta, devuelve el default sin lanzar; si está
+ * presente, exige que sea un número válido. Así el dashboard no se rompe antes
+ * de aplicar la migración que puebla estas métricas.
+ */
+function numeroOpcional(objeto: Record<string, unknown>, nombre: string, porDefecto = 0): number {
+  if (!(nombre in objeto)) return porDefecto;
+  return numero(objeto[nombre], nombre);
+}
+
 function objetoCampo(objeto: Record<string, unknown>, nombre: string): Record<string, unknown> {
   const valor = campo(objeto, nombre);
   if (!esObjeto(valor)) throw new Error(`Objeto inválido en métricas: ${nombre}`);
@@ -234,6 +261,8 @@ function ventasDesde(valor: unknown): ResumenVentasDashboard {
     totalFacturado: numero(campo(objeto, 'totalFacturado'), 'ventas.totalFacturado'),
     totalCotizado: numero(campo(objeto, 'totalCotizado'), 'ventas.totalCotizado'),
     porcentajeConversion: numero(campo(objeto, 'porcentajeConversion'), 'ventas.porcentajeConversion'),
+    tiempoRespuestaHorasPromedio: numeroOpcional(objeto, 'tiempoRespuestaHorasPromedio'),
+    porcentajeRespondidas24h: numeroOpcional(objeto, 'porcentajeRespondidas24h'),
   };
 }
 
@@ -254,9 +283,31 @@ function finanzasDesde(valor: unknown): ResumenFinanzasDashboard {
     arPendiente: numero(campo(objeto, 'arPendiente'), 'finanzas.arPendiente'),
     arVencido: numero(campo(objeto, 'arVencido'), 'finanzas.arVencido'),
     cxpPendiente: numero(campo(objeto, 'cxpPendiente'), 'finanzas.cxpPendiente'),
+    gastosTotal: numeroOpcional(objeto, 'gastosTotal'),
     utilidadNetaAcumulada: numero(campo(objeto, 'utilidadNetaAcumulada'), 'finanzas.utilidadNetaAcumulada'),
     margenPromedioPorcentaje: numeroNulo(campo(objeto, 'margenPromedioPorcentaje'), 'finanzas.margenPromedioPorcentaje'),
   };
+}
+
+/**
+ * Distribución de gasto por categoría (DAS-06). Clave aditiva: si el RPC aún no
+ * la envía, devuelve []. Descarta renglones malformados en vez de lanzar, para
+ * no tumbar todo el dashboard por un dato accesorio.
+ */
+function distribucionGastoDesde(objeto: Record<string, unknown>): GastoPorCategoriaDashboard[] {
+  if (!('distribucionGastoPorCategoria' in objeto)) return [];
+  const bruto = objeto.distribucionGastoPorCategoria;
+  if (!Array.isArray(bruto)) return [];
+  const filas: GastoPorCategoriaDashboard[] = [];
+  for (const item of bruto) {
+    if (!esObjeto(item)) continue;
+    const categoria = item.categoria;
+    const monto = item.montoMxn;
+    if (typeof categoria !== 'string' || categoria.trim() === '') continue;
+    if (typeof monto !== 'number' || !Number.isFinite(monto)) continue;
+    filas.push({ categoria, montoMxn: monto });
+  }
+  return filas;
 }
 
 function resumenEjecutivoDesde(valor: unknown): ResumenEjecutivoPeriodo {
@@ -265,6 +316,7 @@ function resumenEjecutivoDesde(valor: unknown): ResumenEjecutivoPeriodo {
     ventas: ventasDesde(campo(objeto, 'ventas')),
     ordenes: ordenesDesde(campo(objeto, 'ordenes')),
     finanzas: finanzasDesde(campo(objeto, 'finanzas')),
+    distribucionGastoPorCategoria: distribucionGastoDesde(objeto),
   };
 }
 

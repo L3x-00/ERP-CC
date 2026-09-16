@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { esquemaCatalogoTarifas } from '@/modulos/cotizador/validaciones/tarifas';
 
 const RFC_MEXICANO = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
@@ -41,6 +42,7 @@ export const esquemaTarifasCotizador = z
     factorEficienciaLaser: numeroFinito('El factor de eficiencia láser', 0.01, 1),
     factorMermaMaterial: numeroFinito('El factor de merma', 0, 1),
     margenUtilidadDefault: numeroFinito('El margen de utilidad', 0, 100),
+    estaciones: esquemaCatalogoTarifas,
   })
   .strict();
 

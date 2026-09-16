@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { calcularCotizacionTecnica } from '../servicios/calcular-cotizacion-tecnica';
 import { leerGeometria, type GeometriaEstimada, type UnidadGeometria } from '../servicios/leer-geometria';
-import type { CotizacionTecnicaCalculada, ProcesoCotizacion } from '../tipos/indice';
+import { aplanarCatalogoTarifas } from '../servicios/catalogo-tarifas';
+import type { CotizacionTecnicaCalculada, ProcesoCotizacion, CatalogoTarifasCotizador } from '../tipos/indice';
 
 type Campo = readonly [string, string, string?];
 const PROCESOS: Record<ProcesoCotizacion, string> = { laser: 'Corte láser', router: 'Router CNC', doblado: 'Doblado', fabricacion: 'Fabricación', otros: 'Otros y flete' };
@@ -26,9 +27,13 @@ function aplanar(valor: unknown, prefijo = '', salida: Record<string, string> = 
   return salida;
 }
 
-function FormularioTecnico({ moneda, cantidad, inicial, soloLectura, aplicar }: { moneda: 'MXN' | 'USD'; cantidad: number; inicial?: CotizacionTecnicaCalculada; soloLectura: boolean; aplicar: (calculo: CotizacionTecnicaCalculada) => void }) {
+function FormularioTecnico({ moneda, cantidad, inicial, soloLectura, catalogo, onAdjuntarPlano, aplicar }: { moneda: 'MXN' | 'USD'; cantidad: number; inicial?: CotizacionTecnicaCalculada; soloLectura: boolean; catalogo?: CatalogoTarifasCotizador; onAdjuntarPlano?: (archivo: File) => Promise<boolean>; aplicar: (calculo: CotizacionTecnicaCalculada) => void }) {
   const [campos, setCampos] = useState<Record<string,string>>(() => {
-    const salida = aplanar(inicial?.entrada ?? { cantidad, material: 'Acero al carbono', recargoPorcentaje: 0, descuentoPorcentaje: 0 });
+    const base = inicial?.entrada ?? { cantidad, material: 'Acero al carbono', recargoPorcentaje: 0, descuentoPorcentaje: 0 };
+    const materialBase = typeof base.material === 'string' ? base.material : 'Acero al carbono';
+    // El catálogo central precarga las tarifas; la instantánea (`inicial`) las
+    // sobrescribe para conservar la reproducibilidad histórica del cálculo.
+    const salida = { ...(catalogo ? aplanarCatalogoTarifas(catalogo, materialBase) : {}), ...aplanar(base) };
     const laser = inicial?.entrada.laser;
     if (laser) { salida.material = inicial?.entrada.material ?? laser.material; salida.espesorMm = String(inicial?.entrada.espesorMm ?? laser.espesorMm); const tiempos = laser.tarifas.segundosPerforacion[laser.material] ?? laser.tarifas.segundosPerforacion.Otro; if (tiempos) for (const [k,v] of Object.entries(tiempos)) salida[`laser.pierce.${k}`] = String(v); }
     return salida;
@@ -40,9 +45,19 @@ function FormularioTecnico({ moneda, cantidad, inicial, soloLectura, aplicar }: 
   const [unidad, setUnidad] = useState<UnidadGeometria | ''>('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [leyendo, setLeyendo] = useState(false);
+  const [adjuntando, setAdjuntando] = useState(false);
+  const [adjuntadoMsg, setAdjuntadoMsg] = useState<string | null>(null);
   const lectura = useRef(0);
   useEffect(() => () => { lectura.current++; }, []);
   const cambiar = (clave:string, valor:string) => { setCampos(prev => ({ ...prev, [clave]:valor })); setResultado(null); setError(null); };
+  const cambiarMaterial = (material:string) => {
+    setCampos(prev => {
+      const siguiente: Record<string, string> = { ...prev, material };
+      if (catalogo) { const p = aplanarCatalogoTarifas(catalogo, material); siguiente['laser.pierce.hasta3Mm'] = p['laser.pierce.hasta3Mm']; siguiente['laser.pierce.hasta6Mm'] = p['laser.pierce.hasta6Mm']; siguiente['laser.pierce.mayor6Mm'] = p['laser.pierce.mayor6Mm']; }
+      return siguiente;
+    });
+    setResultado(null); setError(null);
+  };
   const leer = (clave:string, defecto='') => campos[clave] ?? defecto;
   const n = (clave:string, defecto='') => leer(clave,defecto).trim() === '' ? NaN : Number(leer(clave,defecto));
   const equipo = (proceso:ProcesoCotizacion) => ({ maquinaHora:n(`${proceso}.tarifas.maquinaHora`), preparacionHora:n(`${proceso}.tarifas.preparacionHora`) });
@@ -73,20 +88,31 @@ function FormularioTecnico({ moneda, cantidad, inicial, soloLectura, aplicar }: 
     } catch (causa) { if(solicitud===lectura.current) setError(causa instanceof Error?causa.message:'No se pudo leer el plano'); }
     finally { if(solicitud===lectura.current) setLeyendo(false); }
   }
+  async function adjuntar() {
+    if (!archivo || !onAdjuntarPlano) return;
+    setAdjuntando(true); setAdjuntadoMsg(null);
+    try { const ok = await onAdjuntarPlano(archivo); setAdjuntadoMsg(ok ? 'Plano adjuntado a la oportunidad.' : 'No se pudo adjuntar el plano.'); }
+    catch { setAdjuntadoMsg('No se pudo adjuntar el plano.'); }
+    finally { setAdjuntando(false); }
+  }
   return <form onSubmit={calcular} className="grid gap-5" aria-label="Cálculo técnico de la línea">
     <fieldset disabled={soloLectura} className="grid min-w-0 gap-5">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1 text-sm">Material<Select value={leer('material')} onChange={e=>cambiar('material',e.target.value)}>{['Acero al carbono','Acero inoxidable','Aluminio','Otro'].map(m=><option key={m}>{m}</option>)}</Select></label>
+        <label className="grid gap-1 text-sm">Material<Select value={leer('material')} onChange={e=>cambiarMaterial(e.target.value)}>{['Acero al carbono','Acero inoxidable','Aluminio','Otro'].map(m=><option key={m}>{m}</option>)}</Select></label>
         {(['espesorMm','cantidad','recargoPorcentaje','descuentoPorcentaje'] as const).map((clave,i)=><label key={clave} className="grid gap-1 text-sm">{['Espesor (mm)','Cantidad de piezas','Recargo sobre costo (%)','Descuento (%)'][i]}<Input type="number" required min={clave==='cantidad'?'0.01':i===0?'0.0001':'0'} step={clave==='cantidad'?'0.01':'any'} max={clave==='descuentoPorcentaje'?100:undefined} value={leer(clave,i>1?'0':'')} onChange={e=>cambiar(clave,e.target.value)} /></label>)}
       </div>
-      <section className="grid gap-3 rounded-lg border border-borde bg-superficie-2 p-3"><h3 className="font-semibold">Medidas del plano</h3><label className="grid gap-1 text-sm">Archivo para lectura local (máximo 5 MiB)<Input type="file" accept=".dxf,.eps,.ai" onChange={e=>{lectura.current++;setLeyendo(false);setGeometria(null);setArchivo(e.target.files?.[0]??null);}} /></label>
+      <section className="grid gap-3 rounded-lg border border-borde bg-superficie-2 p-3"><h3 className="font-semibold">Medidas del plano</h3><label className="grid gap-1 text-sm">Archivo para lectura local (máximo 5 MiB)<Input type="file" accept=".dxf,.eps,.ai" onChange={e=>{lectura.current++;setLeyendo(false);setGeometria(null);setAdjuntadoMsg(null);setArchivo(e.target.files?.[0]??null);}} /></label>
         <label className="grid gap-1 text-sm">Unidad cuando el DXF no la declara<Select value={unidad} onChange={e=>setUnidad(e.target.value as UnidadGeometria|'')}><option value="">Seleccionar</option>{(['mm','cm','m','in','ft'] as const).map(u=><option key={u}>{u}</option>)}</Select></label>
-        <Button type="button" variante="contorno" disabled={!archivo||leyendo} onClick={()=>void procesarArchivo()}>{leyendo?'Leyendo…':'Leer medidas'}</Button>
-        <p className="text-xs text-texto-secundario">La lectura no adjunta el archivo a la cotización. EPS aporta dimensiones; AI requiere captura manual. Verifica los datos antes de aplicar.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variante="contorno" disabled={!archivo||leyendo} onClick={()=>void procesarArchivo()}>{leyendo?'Leyendo…':'Leer medidas'}</Button>
+          {onAdjuntarPlano && !soloLectura && <Button type="button" variante="contorno" disabled={!archivo||adjuntando} onClick={()=>void adjuntar()}>{adjuntando?'Adjuntando…':'Adjuntar plano a la oportunidad'}</Button>}
+        </div>
+        <p className="text-xs text-texto-secundario">La lectura estima medidas; adjunta el plano para conservarlo en la oportunidad y consultarlo después. EPS aporta dimensiones; AI requiere captura manual. Verifica los datos antes de aplicar.</p>
+        {adjuntadoMsg&&<p role="status" className="text-xs text-texto-secundario">{adjuntadoMsg}</p>}
         {geometria&&<div className="grid gap-2 text-sm"><p>{geometria.anchoMm.toFixed(3)} × {geometria.altoMm.toFixed(3)} mm · Envolvente: {geometria.areaEnvolventeM2.toFixed(6)} m²</p><p>Perímetro estimado: {geometria.perimetroM.toFixed(6)} m · Perforaciones estimadas: {geometria.perforacionesEstimadas}</p>{geometria.advertencias.map(a=><p className="text-advertencia-texto" key={a}>{a}</p>)}</div>}
       </section>
       <div className="flex flex-wrap gap-4">{(Object.entries(PROCESOS) as [ProcesoCotizacion,string][]).map(([clave,nombre])=><label key={clave} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={activos.includes(clave)} onChange={e=>{setActivos(prev=>e.target.checked?[...prev,clave]:prev.filter(p=>p!==clave));setResultado(null);}}/>{nombre}</label>)}</div>
-      <p className="text-sm text-texto-secundario">Importes y tarifas en {moneda}. Los costos corresponden al trabajo completo; indica cero cuando un concepto no tenga costo.</p>
+      <p className="text-sm text-texto-secundario">Importes y tarifas en {moneda}. Los costos corresponden al trabajo completo; indica cero cuando un concepto no tenga costo.{catalogo && !inicial ? ' Las tarifas se precargan desde Configuración; ajústalas si esta cotización lo requiere.' : ''}</p>
       {activos.map(proceso=><section key={proceso} className="grid gap-3 rounded-lg border border-borde p-3"><h3 className="font-semibold">{PROCESOS[proceso]}</h3>
         {proceso==='laser'&&<label className="grid gap-1 text-sm">Gas<Select value={leer('laser.gas','O2')} onChange={e=>cambiar('laser.gas',e.target.value)}><option value="O2">O₂</option><option value="N2">N₂</option><option value="aire">Aire</option></Select></label>}
         {proceso==='router'&&<label className="grid gap-1 text-sm">Tipo de fresa<Select value={leer('router.fresa','endmill')} onChange={e=>cambiar('router.fresa',e.target.value)}><option value="endmill">End-mill</option><option value="ballnose">Ball-nose</option></Select></label>}
@@ -100,7 +126,7 @@ function FormularioTecnico({ moneda, cantidad, inicial, soloLectura, aplicar }: 
   </form>;
 }
 
-export function CotizadorTecnico({ moneda, cantidad, inicial, soloLectura=false, onAplicar }: { moneda:'MXN'|'USD'; cantidad:number; inicial?:CotizacionTecnicaCalculada; soloLectura?:boolean; onAplicar:(calculo:CotizacionTecnicaCalculada)=>void }) {
+export function CotizadorTecnico({ moneda, cantidad, inicial, soloLectura=false, catalogo, onAdjuntarPlano, onAplicar }: { moneda:'MXN'|'USD'; cantidad:number; inicial?:CotizacionTecnicaCalculada; soloLectura?:boolean; catalogo?:CatalogoTarifasCotizador; onAdjuntarPlano?:(archivo:File)=>Promise<boolean>; onAplicar:(calculo:CotizacionTecnicaCalculada)=>void }) {
   const [abierto,setAbierto]=useState(false);
-  return <><Button type="button" variante="contorno" onClick={()=>setAbierto(true)}>{soloLectura?'Consultar cálculo técnico':'Calcular precio por procesos'}</Button><Dialog open={abierto} onOpenChange={setAbierto}><DialogContent className="sm:max-w-4xl"><DialogHeader><DialogTitle>Cálculo técnico de la pieza</DialogTitle><DialogDescription>Combina procesos y revisa el precio antes de aplicarlo a esta línea.</DialogDescription></DialogHeader>{abierto&&<FormularioTecnico moneda={moneda} cantidad={cantidad} inicial={inicial} soloLectura={soloLectura} aplicar={calculo=>{onAplicar(calculo);setAbierto(false);}}/>}</DialogContent></Dialog></>;
+  return <><Button type="button" variante="contorno" onClick={()=>setAbierto(true)}>{soloLectura?'Consultar cálculo técnico':'Calcular precio por procesos'}</Button><Dialog open={abierto} onOpenChange={setAbierto}><DialogContent className="sm:max-w-4xl"><DialogHeader><DialogTitle>Cálculo técnico de la pieza</DialogTitle><DialogDescription>Combina procesos y revisa el precio antes de aplicarlo a esta línea.</DialogDescription></DialogHeader>{abierto&&<FormularioTecnico moneda={moneda} cantidad={cantidad} inicial={inicial} soloLectura={soloLectura} catalogo={catalogo} onAdjuntarPlano={onAdjuntarPlano} aplicar={calculo=>{onAplicar(calculo);setAbierto(false);}}/>}</DialogContent></Dialog></>;
 }

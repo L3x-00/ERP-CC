@@ -8,6 +8,7 @@ import {
   esquemaTarifasCotizador,
   esquemaTipoCambio,
 } from '@/modulos/configuracion/validaciones/indice';
+import { CATALOGO_TARIFAS_DEFECTO } from '@/modulos/cotizador/servicios/catalogo-tarifas';
 
 const empresaValida = {
   nombre: 'CC Manufacturing Group',
@@ -39,11 +40,20 @@ describe('esquemas de configuración', () => {
       factorEficienciaLaser: 0.85,
       factorMermaMaterial: 0.08,
       margenUtilidadDefault: 30,
+      estaciones: CATALOGO_TARIFAS_DEFECTO,
     };
     expect(esquemaTarifasCotizador.safeParse(tarifas).success).toBe(true);
     expect(esquemaTarifasCotizador.safeParse({ ...tarifas, costoHoraDefault: -1 }).success).toBe(false);
     expect(esquemaTarifasCotizador.safeParse({ ...tarifas, factorEficienciaLaser: 1.2 }).success).toBe(false);
     expect(esquemaTarifasCotizador.safeParse({ ...tarifas, margenUtilidadDefault: Number.NaN }).success).toBe(false);
+    // El catálogo por estación es obligatorio y no admite valores inválidos.
+    expect(esquemaTarifasCotizador.safeParse({ ...tarifas, estaciones: undefined }).success).toBe(false);
+    expect(
+      esquemaTarifasCotizador.safeParse({
+        ...tarifas,
+        estaciones: { ...CATALOGO_TARIFAS_DEFECTO, router: { ...CATALOGO_TARIFAS_DEFECTO.router, endmill: -5 } },
+      }).success,
+    ).toBe(false);
   });
 
   it('valida cuentas en MXN/USD y CLABE de 18 dígitos', () => {
