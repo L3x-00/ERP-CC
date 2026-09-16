@@ -36,6 +36,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     estado: orden.estado,
     prioridad: orden.prioridad,
     fechaCompromiso: orden.fechaCompromiso,
+    esInterna: orden.esInterna,
     partidas: partidas.map((partida) => ({
       id: partida.id,
       codigoPieza: partida.codigoPieza,

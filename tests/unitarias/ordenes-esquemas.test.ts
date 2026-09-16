@@ -254,7 +254,7 @@ describe('mappers de órdenes', () => {
         folio: 'OP-001001',
         cliente_id: uuidCliente,
         cotizacion_id: uuidCotizacion,
-        es_interna: false,
+        es_interna: true,
         estado: 'programada',
         prioridad: 'alta',
         fecha_compromiso: '2026-09-15T18:00:00+00:00',
@@ -264,7 +264,7 @@ describe('mappers de órdenes', () => {
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
-    ).toMatchObject({ clienteId: uuidCliente, estado: 'programada', prioridad: 'alta' });
+    ).toMatchObject({ clienteId: uuidCliente, estado: 'programada', prioridad: 'alta', esInterna: true });
 
     expect(
       filaAPartida({

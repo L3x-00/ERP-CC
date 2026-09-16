@@ -29,6 +29,8 @@ export interface Orden {
   fechaInicio: string | null;
   fechaFin: string | null;
   motivoCancelacion: string | null;
+  /** DAS-01/RFQ-09: la orden es un trabajo interno (TI). */
+  esInterna: boolean;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -118,6 +120,7 @@ export function filaAOrden(fila: FilaOrden): Orden {
     fechaInicio: fila.fecha_inicio,
     fechaFin: fila.fecha_fin,
     motivoCancelacion: fila.motivo_cancelacion,
+    esInterna: fila.es_interna,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

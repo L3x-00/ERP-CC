@@ -124,7 +124,8 @@ etiqueta "TI"):
 - **App**: toggle "Orden interna (TI)" en el alta de oportunidad y en el editor de cotización
   (acción `actualizar-orden-interna`, solo con la oportunidad abierta, autz dueño/admin/
   `ver_pipeline_equipo`); tarjeta "Órdenes internas (TI)" en el dashboard; badge "TI" en la
-  tarjeta de oportunidad. Tipos generados `supabase.ts` editados a mano (sin acceso remoto).
+  tarjeta de oportunidad **y en la tabla de `/ordenes`** (`ordenes_produccion.es_interna` →
+  `Orden.esInterna` → proyección `OrdenTabla`). Tipos generados `supabase.ts` a mano (sin acceso remoto).
 - **Decisión de diseño**: las OP internas SÍ siguen contando en los indicadores OPERATIVOS
   (activas/atrasadas/en riesgo) además de en `internas`; DAS-01 pide separarlas de **ventas**,
   no ocultarlas del piso. Si se prefiere excluirlas también de lo operativo, es un `AND NOT
@@ -181,8 +182,9 @@ provisión de entorno para el PO/Codex, no como algo ejecutable en esta estació
 ## 5. Pendientes
 
 1. **Aplicar** `20260916000002` en Supabase (PO). (`20260916000001` ya aplicada.)
-2. **Opcional**: badge "TI" en la tabla de `/ordenes` (no incluido para acotar superficie) y
-   confirmar la decisión de conteos operativos (sección 6).
+2. **Confirmar** la decisión de conteos operativos (sección 6): las OP internas siguen sumando
+   en activas/atrasadas/en riesgo además de contarse en `internas`. (El badge "TI" en `/ordenes`
+   ya se implementó.)
 3. **Cerrar brechas por prioridad** usando la matriz (sección 7): los 45 ausentes y 75 parciales.
    Antes de implementar, reconciliar con Codex las que son diferencias de arquitectura v2.
 4. **Aceptación E2E**: provisionar un stack aislado (Supabase local/Docker) para correr

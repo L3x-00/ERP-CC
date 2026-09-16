@@ -54,6 +54,7 @@ export type OrdenTabla = {
   estado: EstadoOrden;
   prioridad: PrioridadOrden;
   fechaCompromiso: string;
+  esInterna: boolean;
   partidas: PartidaTabla[];
 };
 
@@ -402,7 +403,17 @@ export function TablaOrdenes({
                       scope="row"
                       className="whitespace-nowrap px-4 py-3 text-left align-middle font-mono text-xs font-medium tabular-nums"
                     >
-                      {orden.folio}
+                      <span className="flex items-center gap-1.5">
+                        {orden.folio}
+                        {orden.esInterna && (
+                          <span
+                            className="rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario"
+                            title="Trabajo interno (TI): no genera cobranza ni cuenta como venta"
+                          >
+                            TI
+                          </span>
+                        )}
+                      </span>
                     </th>
                     <TablaCelda>
                       <BadgeEstado estado={orden.estado} />
