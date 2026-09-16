@@ -132,11 +132,31 @@ etiqueta "TI"):
 - **Verificación**: workflow de 3 agentes en frío comparó cada RPC contra su versión vigente —
   fidelidad sin regresión (aprobación y AR), columnas/dashboard/contrato correctos, los 3 `ok`.
 
+## 7. Cobertura consolidada — matriz 164/164 (2026-09-16)
+
+Se completó el mapeo de los 164 requisitos del catálogo. Artefactos (en `.ai-shared/coordination/`,
+gitignored por política; no forman parte del commit):
+
+- `COBERTURA_IMPLEMENTACION_ACTUAL.csv` — matriz operativa, 164 filas
+  (`ID;Modulo;Capacidad;Estado;Evidencia;Brecha;Prueba`).
+- `COBERTURA_MAPEO_COMPLETO_2026-09-16.json` — mismo contenido por módulo.
+- `cobertura-mapeo/*.json` — fuentes por dominio (cada agente persistió la suya en vivo).
+
+**Estado global: 43 completo · 75 parcial · 45 ausente · 1 no verificable estático (ACC-08).**
+Es un mapeo de **código estático** (no runtime): inventario de cobertura, no certificación de
+aceptación. Método: 7 agentes por dominio para los 88 faltantes + 1 refresco de 10 IDs re-tocados
+esta sesión (para no dejar obsoletos RFQ-09/CLI/COT/CFG-10).
+
+**Brechas mayores (ausentes) por dominio**: RFQ/Pipeline (8), Cobranza (8), Órdenes (7),
+Configuración (7), Producción (5), Planeación (3), Documentos (2), más CLI-08, GAS-02, OBS-02/27/28.
+Varias ausentes/parciales son **decisiones de arquitectura v2** frente al SPA viejo (p. ej. el AR
+nace al completar la OP, no al aprobar; avance por partidas, no global; sin reactivación de OP
+completada) — a reconciliar con Codex, no son olvidos.
+
 ## 5. Pendientes
 
 1. **Aplicar** `20260916000002` en Supabase (PO). (`20260916000001` ya aplicada.)
 2. **Opcional**: badge "TI" en la tabla de `/ordenes` (no incluido para acotar superficie) y
    confirmar la decisión de conteos operativos (sección 6).
-3. **Mapeo de cobertura**: 8/14 módulos mapeados; consolidar la matriz de 164
-   (`COBERTURA_IMPLEMENTACION_ACTUAL.csv`) con los 7 restantes.
-4. **Resto del catálogo** por prioridad (módulos aún no cerrados).
+3. **Cerrar brechas por prioridad** usando la matriz (sección 7): los 45 ausentes y 75 parciales.
+   Antes de implementar, reconciliar con Codex las que son diferencias de arquitectura v2.
