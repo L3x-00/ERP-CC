@@ -143,10 +143,16 @@ gitignored por política; no forman parte del commit):
 - `COBERTURA_MAPEO_COMPLETO_2026-09-16.json` — mismo contenido por módulo.
 - `cobertura-mapeo/*.json` — fuentes por dominio (cada agente persistió la suya en vivo).
 
-**Estado global: 43 completo · 75 parcial · 45 ausente · 1 no verificable estático (ACC-08).**
+**Estado global: 43 completo · 77 parcial · 43 ausente · 1 no verificable estático (ACC-08).**
 Es un mapeo de **código estático** (no runtime): inventario de cobertura, no certificación de
 aceptación. Método: 7 agentes por dominio para los 88 faltantes + 1 refresco de 10 IDs re-tocados
 esta sesión (para no dejar obsoletos RFQ-09/CLI/COT/CFG-10).
+
+**Avance comercial (bloque app-only)**: RFQ-13 (búsqueda + filtros del pipeline), RFQ-14 (resumen
+por conteo: total/ganadas/conversión) y RFQ-12 (etiquetas visibles y filtrables) pasan de
+ausente/parcial a **parcial** — servicios puros testeados + UI aditiva sobre el tablero, sin
+migración. Quedan fuera (honesto): filtro por área (depende de RFQ-05), filtro por cliente y
+descuento heredado (RFQ-02/03), importe por estado (sumar líneas), y CRUD de etiquetas.
 
 **Brechas mayores (ausentes) por dominio**: RFQ/Pipeline (8), Cobranza (8), Órdenes (7),
 Configuración (7), Producción (5), Planeación (3), Documentos (2), más CLI-08, GAS-02, OBS-02/27/28.

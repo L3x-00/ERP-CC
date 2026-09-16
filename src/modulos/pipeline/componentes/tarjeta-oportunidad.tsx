@@ -96,6 +96,19 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         </ul>
       )}
 
+      {oportunidad.etiquetas.length > 0 && (
+        <ul className="flex flex-wrap gap-1" aria-label="Etiquetas">
+          {oportunidad.etiquetas.map((etiqueta) => (
+            <li
+              key={etiqueta}
+              className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs text-texto-secundario"
+            >
+              {etiqueta}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="border-t border-borde pt-2">
         <SelectorEtapa oportunidad={oportunidad} />
       </div>

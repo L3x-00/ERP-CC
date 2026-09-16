@@ -93,7 +93,7 @@ export type FilaPipeline = Tables<'pipeline'>;
 export type FilaLineaCotizacion = Tables<'cotizacion_lineas'>;
 export type FilaCliente = Tables<'clientes'>;
 
-const ETAPAS_PIPELINE: readonly EtapaPipeline[] = [
+export const ETAPAS_PIPELINE: readonly EtapaPipeline[] = [
   'prospecto',
   'contactado',
   'cotizado',
@@ -109,7 +109,7 @@ const CONDICIONES_PAGO_PIPELINE: readonly CondicionesPago[] = [
   '30_dias',
   'credito',
 ];
-const PRIORIDADES_PIPELINE: readonly PrioridadPipeline[] = ['baja', 'normal', 'alta', 'urgente'];
+export const PRIORIDADES_PIPELINE: readonly PrioridadPipeline[] = ['baja', 'normal', 'alta', 'urgente'];
 
 /**
  * Convierte un valor de BD a un enum de dominio; lanza si la BD trae un valor
