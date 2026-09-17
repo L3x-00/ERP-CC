@@ -206,9 +206,12 @@ provisión de entorno para el PO/Codex, no como algo ejecutable en esta estació
   (nunca suma MXN+USD); importe por fila en la tarjeta y "enviado/pendiente" en la barra de
   controles. → sigue **parcial** (falta el estado de la orden vinculada por fila).
 
-### 9.2 Migraciones 🟡 ESCRITAS (las aplica el PO; Claude no toca remoto)
+### 9.2 Migraciones 🟡 (APLICADAS por el PO 2026-09-16)
 Aditivas, idempotentes (`ADD COLUMN IF NOT EXISTS`, default constante → sin reescritura de tabla),
-sin cambios de RLS/grants (las columnas nuevas heredan las políticas de fila vigentes):
+sin cambios de RLS/grants (las columnas nuevas heredan las políticas de fila vigentes). Ambos write
+paths que tocan estas tablas (`guardar_cotizacion_atomica` y el INSERT de partidas al crear la OP)
+insertan con **lista de columnas explícita**, así que las columnas nuevas toman su default y no hay
+regresión tras aplicar:
 - `supabase/migrations/20260916000003_pipeline_captura_rfq01.sql` — **RFQ-01**: `pipeline`
   `po_cliente`, `fecha_requerida`, `horas_estimadas`, `notas`.
 - `supabase/migrations/20260916000004_lineas_area_externo_rfq0506.sql` — **RFQ-05/06** (+ línea de
@@ -232,8 +235,8 @@ tier/condiciones (fase 3); solo falta el wiring de app.
 
 ## 5. Pendientes
 
-1. **Aplicar** en Supabase (PO): `20260916000003` y `20260916000004` (RFQ-01/05/06). Ya aplicadas
-   `20260916000001` y `20260916000002`.
+1. ~~Aplicar `20260916000003` y `20260916000004`~~ **APLICADAS** por el PO (2026-09-16), junto con
+   `20260916000001` y `20260916000002`. Las 4 migraciones de esta serie están en producción.
 2. **Codex — arquitectura v2**: wiring de las 🟡 (captura de cabecera RFQ-01; selección/alta de
    cliente + herencia condiciones/tier RFQ-02/03; propagación línea→partida + exclusión de descuento
    en el RPC de orden RFQ-05/06) y los RFQ 🔴 (RFQ-07 estados vs etapas, RFQ-10 folio, RFQ-15 AR en
