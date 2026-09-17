@@ -35,3 +35,24 @@ export function calcularTotalesCotizacion(
 
   return { subtotal, iva, ivaPorcentaje, total, moneda };
 }
+
+/**
+ * Equivalente en MXN de unos totales en USD, dado el tipo de cambio vigente
+ * (RFQ-11). Devuelve `null` cuando no aplica (moneda distinta de USD o tipo de
+ * cambio inválido), para que el consumidor simplemente no muestre la fila.
+ */
+export function equivalenteMxn(
+  totales: TotalesCotizacion,
+  tipoCambioUsd: number,
+): TotalesCotizacion | null {
+  if (totales.moneda !== 'USD' || !Number.isFinite(tipoCambioUsd) || tipoCambioUsd <= 0) {
+    return null;
+  }
+  return {
+    subtotal: redondear(totales.subtotal * tipoCambioUsd),
+    iva: redondear(totales.iva * tipoCambioUsd),
+    ivaPorcentaje: totales.ivaPorcentaje,
+    total: redondear(totales.total * tipoCambioUsd),
+    moneda: 'MXN',
+  };
+}

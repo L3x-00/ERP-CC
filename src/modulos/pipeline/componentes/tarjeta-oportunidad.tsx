@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { BotonRetirarOportunidad } from '@/modulos/pipeline/componentes/boton-retirar-oportunidad';
 import { EditorCotizacion } from '@/modulos/pipeline/componentes/editor-cotizacion';
 import { SelectorEtapa } from '@/modulos/pipeline/componentes/selector-etapa';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import type { AlertaPipeline } from '@/modulos/pipeline/servicios/calcular-alertas';
 import type { Oportunidad, PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
 
@@ -81,6 +83,11 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         <p className="text-xs text-texto-secundario">
           {diasDesde(oportunidad.actualizadoEn)} días en esta etapa
         </p>
+        {oportunidad.importeSubtotal !== undefined && oportunidad.importeSubtotal > 0 && (
+          <p className="text-xs text-texto-secundario">
+            Importe: <span className="tabular-nums">{formatearMoneda(oportunidad.importeSubtotal, oportunidad.moneda)}</span>
+          </p>
+        )}
       </div>
 
       {alertas.length > 0 && (
@@ -115,14 +122,19 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
       <div className="flex flex-wrap items-center gap-2">
         <EditorCotizacion oportunidad={oportunidad} />
       </div>
-      <button
-        type="button"
-        onClick={() => setMostrarComentarios((actual) => !actual)}
-        aria-expanded={mostrarComentarios}
-        className="self-start text-xs font-semibold text-acento hover:underline"
-      >
-        {mostrarComentarios ? 'Ocultar comentarios' : 'Ver comentarios'}
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setMostrarComentarios((actual) => !actual)}
+          aria-expanded={mostrarComentarios}
+          className="self-start text-xs font-semibold text-acento hover:underline"
+        >
+          {mostrarComentarios ? 'Ocultar comentarios' : 'Ver comentarios'}
+        </button>
+        {oportunidad.etapa !== 'ganada' && (
+          <BotonRetirarOportunidad oportunidadId={oportunidad.id} folio={folio} />
+        )}
+      </div>
       {mostrarComentarios && (
         <HiloComentarios entidadTipo="cotizacion" entidadId={oportunidad.id} titulo={`Comentarios de ${folio}`} />
       )}

@@ -1,7 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import { filaAOportunidad } from '@/modulos/pipeline/tipos/indice';
-import type { EtapaPipeline, Oportunidad } from '@/modulos/pipeline/tipos/indice';
+import type { EtapaPipeline, FilaPipeline, Oportunidad } from '@/modulos/pipeline/tipos/indice';
+
+/** Redondea a 2 decimales evitando el error de flotante. */
+function redondear2(cantidad: number): number {
+  return Math.round((cantidad + Number.EPSILON) * 100) / 100;
+}
 
 /** Filtros opcionales para listar oportunidades del pipeline. */
 export type FiltrosPipeline = {
@@ -26,7 +31,13 @@ export async function obtenerOportunidades(
   cliente: SupabaseClient<Database>,
   filtros?: FiltrosPipeline,
 ): Promise<Oportunidad[]> {
-  let consulta = cliente.from('pipeline').select('*');
+  // RFQ-14: se embeben las líneas (solo cantidad y precio) para calcular el
+  // subtotal por oportunidad sin una consulta extra por fila. RLS de
+  // `cotizacion_lineas` hereda el alcance de la oportunidad padre, así que el
+  // conjunto embebido coincide con lo que el usuario puede ver.
+  let consulta = cliente
+    .from('pipeline')
+    .select('*, cotizacion_lineas(cantidad, precio_unitario)');
 
   if (filtros?.etapa) {
     consulta = consulta.eq('etapa', filtros.etapa);
@@ -52,5 +63,14 @@ export async function obtenerOportunidades(
   if (error) {
     throw new Error('No se pudieron cargar las oportunidades');
   }
-  return (data ?? []).map(filaAOportunidad);
+  return (data ?? []).map((fila) => {
+    const { cotizacion_lineas: lineas, ...base } = fila;
+    const importeSubtotal = redondear2(
+      (lineas ?? []).reduce(
+        (suma, linea) => suma + Number(linea.cantidad) * Number(linea.precio_unitario),
+        0,
+      ),
+    );
+    return { ...filaAOportunidad(base as FilaPipeline), importeSubtotal };
+  });
 }

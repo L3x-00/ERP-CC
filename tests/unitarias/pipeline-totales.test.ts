@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { calcularTotalesCotizacion } from '@/modulos/pipeline/servicios/calcular-totales-cotizacion';
+import {
+  calcularTotalesCotizacion,
+  equivalenteMxn,
+} from '@/modulos/pipeline/servicios/calcular-totales-cotizacion';
 import type { LineaCotizacionEntrada } from '@/modulos/pipeline/tipos/indice';
 
 function linea(cantidad: number, precioUnitario: number): LineaCotizacionEntrada {
@@ -42,5 +45,28 @@ describe('calcularTotalesCotizacion', () => {
     const t = calcularTotalesCotizacion([linea(1, 500)], 8, 'USD');
     expect(t.moneda).toBe('USD');
     expect(t.ivaPorcentaje).toBe(8);
+  });
+});
+
+describe('equivalenteMxn (RFQ-11)', () => {
+  it('convierte totales USD a MXN con el tipo de cambio', () => {
+    const usd = calcularTotalesCotizacion([linea(1, 100)], 16, 'USD'); // sub 100, iva 16, total 116
+    const mxn = equivalenteMxn(usd, 18.5);
+    expect(mxn).not.toBeNull();
+    expect(mxn?.moneda).toBe('MXN');
+    expect(mxn?.subtotal).toBe(1850);
+    expect(mxn?.iva).toBe(296); // 16 * 18.5
+    expect(mxn?.total).toBe(2146); // 116 * 18.5
+  });
+
+  it('devuelve null para cotizaciones que no son USD', () => {
+    const mxn = calcularTotalesCotizacion([linea(1, 100)], 16, 'MXN');
+    expect(equivalenteMxn(mxn, 18.5)).toBeNull();
+  });
+
+  it('devuelve null con tipo de cambio inválido', () => {
+    const usd = calcularTotalesCotizacion([linea(1, 100)], 16, 'USD');
+    expect(equivalenteMxn(usd, 0)).toBeNull();
+    expect(equivalenteMxn(usd, Number.NaN)).toBeNull();
   });
 });

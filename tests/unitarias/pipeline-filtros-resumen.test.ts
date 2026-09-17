@@ -131,3 +131,42 @@ describe('resumirPipeline', () => {
     expect(r.conversion).toBe(0);
   });
 });
+
+describe('resumirPipeline · importes (RFQ-14)', () => {
+  it('no suma MXN y USD entre sí; separa importe por moneda', () => {
+    const datos = [
+      op({ moneda: 'MXN', importeSubtotal: 1000 }),
+      op({ moneda: 'USD', importeSubtotal: 200 }),
+    ];
+    const r = resumirPipeline(datos);
+    expect(r.importeTotal).toEqual({ MXN: 1000, USD: 200 });
+  });
+
+  it('pendiente vs enviado según fechaEnvioCotizacion, solo en abiertas', () => {
+    const datos = [
+      op({ etapa: 'contactado', importeSubtotal: 100, fechaEnvioCotizacion: null }),
+      op({ etapa: 'cotizado', importeSubtotal: 300, fechaEnvioCotizacion: '2026-09-12T00:00:00.000Z' }),
+      // ganada: resuelta, no cuenta en pendiente/enviado
+      op({ etapa: 'ganada', importeSubtotal: 999, fechaEnvioCotizacion: '2026-09-12T00:00:00.000Z' }),
+    ];
+    const r = resumirPipeline(datos);
+    expect(r.importePendiente.MXN).toBe(100);
+    expect(r.importeEnviado.MXN).toBe(300);
+    expect(r.importeTotal.MXN).toBe(1399);
+  });
+
+  it('importe por etapa separado por moneda', () => {
+    const datos = [
+      op({ etapa: 'cotizado', moneda: 'MXN', importeSubtotal: 500 }),
+      op({ etapa: 'cotizado', moneda: 'USD', importeSubtotal: 80 }),
+    ];
+    const r = resumirPipeline(datos);
+    expect(r.importePorEtapa.cotizado).toEqual({ MXN: 500, USD: 80 });
+    expect(r.importePorEtapa.prospecto).toEqual({ MXN: 0, USD: 0 });
+  });
+
+  it('importe ausente (undefined) cuenta como cero', () => {
+    const r = resumirPipeline([op({ moneda: 'MXN' })]);
+    expect(r.importeTotal).toEqual({ MXN: 0, USD: 0 });
+  });
+});

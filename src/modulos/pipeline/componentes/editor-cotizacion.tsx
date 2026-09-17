@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { FormularioCotizacion } from '@/modulos/pipeline/componentes/formulario-cotizacion';
+import { GestorEtiquetas } from '@/modulos/pipeline/componentes/gestor-etiquetas';
 import { PanelAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
 import { actualizarOrdenInternaAccion } from '@/modulos/pipeline/acciones/actualizar-orden-interna';
 import { usarOportunidad } from '@/modulos/pipeline/hooks/usar-oportunidad';
@@ -49,6 +51,7 @@ export function EditorCotizacion({
   const [fallo, setFallo] = useState(false);
   const [guardandoInterna, setGuardandoInterna] = useState(false);
   const solicitud = useRef(0);
+  const clienteConsultas = useQueryClient();
   const { refetch } = usarOportunidad(oportunidad.id, false);
 
   useEffect(() => () => { solicitud.current += 1; }, []);
@@ -97,6 +100,19 @@ export function EditorCotizacion({
     } finally {
       setGuardandoInterna(false);
     }
+  }
+
+  function alCambiarEtiquetas(etiquetas: string[]): void {
+    if (instantanea) {
+      setInstantanea({
+        ...instantanea,
+        oportunidad: { ...instantanea.oportunidad, etiquetas },
+      });
+    }
+    // El listado del tablero muestra las etiquetas como chips: se invalida para
+    // que se reflejen sin recargar la página.
+    void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+    void clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
   }
 
   const etapa = instantanea?.oportunidad.etapa ?? oportunidad.etapa;
@@ -183,6 +199,12 @@ export function EditorCotizacion({
                   </span>
                 </label>
               )}
+              <GestorEtiquetas
+                oportunidadId={oportunidad.id}
+                etiquetas={instantanea.oportunidad.etiquetas}
+                soloLectura={!editable}
+                onCambio={alCambiarEtiquetas}
+              />
               <FormularioCotizacion
                 pipelineId={oportunidad.id}
                 ivaPorcentaje={instantanea.oportunidad.ivaPorcentaje}

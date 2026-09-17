@@ -33,6 +33,13 @@ export type Oportunidad = {
   etiquetas: string[];
   /** RFQ-09: la oportunidad es un trabajo interno (TI). */
   esOrdenInterna: boolean;
+  /**
+   * RFQ-14: subtotal de la cotización (suma de líneas, en la moneda de la
+   * oportunidad) — solo se llena en el listado del tablero, que embebe las
+   * líneas. Es `undefined` en rutas que no las cargan. No mezclar entre monedas
+   * al agregar (ver `resumirPipeline`).
+   */
+  importeSubtotal?: number;
   motivoPerdida: string | null;
   notasPerdida: string | null;
   fechaUltimoContacto: string | null;

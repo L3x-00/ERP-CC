@@ -3,12 +3,16 @@
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { PRIORIDADES_PIPELINE, type PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
 import {
   hayFiltrosActivos,
   type FiltrosTablero,
 } from '@/modulos/pipeline/servicios/filtrar-oportunidades';
-import type { ResumenPipeline } from '@/modulos/pipeline/servicios/resumen-pipeline';
+import type {
+  ImportePorMoneda,
+  ResumenPipeline,
+} from '@/modulos/pipeline/servicios/resumen-pipeline';
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadPipeline, string> = {
   baja: 'Baja',
@@ -16,6 +20,17 @@ const ETIQUETA_PRIORIDAD: Record<PrioridadPipeline, string> = {
   alta: 'Alta',
   urgente: 'Urgente',
 };
+
+/**
+ * Muestra un importe agregado sin sumar entre monedas: solo las monedas con
+ * importe distinto de cero, separadas por "·". Devuelve "—" si todo es cero.
+ */
+export function formatearImportePorMoneda(importe: ImportePorMoneda): string {
+  const partes: string[] = [];
+  if (importe.MXN !== 0) partes.push(formatearMoneda(importe.MXN, 'MXN'));
+  if (importe.USD !== 0) partes.push(formatearMoneda(importe.USD, 'USD'));
+  return partes.length > 0 ? partes.join(' · ') : '—';
+}
 
 export interface ControlesPipelineProps {
   filtros: FiltrosTablero;
@@ -112,6 +127,8 @@ export function ControlesPipeline({
           <span>Ganadas: <strong className="text-texto-primario tabular-nums">{resumen.ganadas}</strong></span>
           <span>Perdidas: <strong className="text-texto-primario tabular-nums">{resumen.perdidas}</strong></span>
           <span>Conversión: <strong className="text-texto-primario tabular-nums">{resumen.conversion}%</strong></span>
+          <span title="Cotización enviada y aún abierta">Enviado: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importeEnviado)}</strong></span>
+          <span title="Oportunidad abierta sin cotización enviada">Pendiente: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importePendiente)}</strong></span>
         </div>
         <div className="flex items-center gap-2">
           <label htmlFor="pipeline-solo-ti" className="flex items-center gap-1.5 text-sm text-texto-secundario">

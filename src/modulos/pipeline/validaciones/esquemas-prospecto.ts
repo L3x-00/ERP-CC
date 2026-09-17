@@ -30,3 +30,26 @@ export const esquemaOrdenInterna = z.object({
 
 /** Datos validados para cambiar la condición interna de una oportunidad. */
 export type OrdenInternaInput = z.infer<typeof esquemaOrdenInterna>;
+
+/**
+ * Esquema para reemplazar el conjunto de etiquetas (clasificación) de una
+ * oportunidad — RFQ-12. Cada etiqueta se recorta y se acota en longitud; la
+ * deduplicación se hace en la acción (Zod no dedupe arreglos).
+ */
+export const esquemaEtiquetasOportunidad = z.object({
+  id: z.uuid(),
+  etiquetas: z
+    .array(z.string().trim().min(1, 'Etiqueta vacía').max(40, 'Etiqueta demasiado larga'))
+    .max(20, 'Máximo 20 etiquetas'),
+});
+
+/** Datos validados para actualizar las etiquetas de una oportunidad. */
+export type EtiquetasOportunidadInput = z.infer<typeof esquemaEtiquetasOportunidad>;
+
+/** Esquema para retirar (eliminar) una oportunidad sin orden asociada — RFQ-18. */
+export const esquemaRetirarOportunidad = z.object({
+  id: z.uuid(),
+});
+
+/** Datos validados para retirar una oportunidad. */
+export type RetirarOportunidadInput = z.infer<typeof esquemaRetirarOportunidad>;

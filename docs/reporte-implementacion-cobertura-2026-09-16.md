@@ -185,14 +185,63 @@ aislado** (Supabase local / Docker) contra el cual correr `tests/e2e/*.spec.ts`;
 no está disponible aquí (Docker no responde) y el remoto es producción (excluido). Eso queda como
 provisión de entorno para el PO/Codex, no como algo ejecutable en esta estación.
 
+## 9. Comercial: 🟢 cerrable + migraciones 🟡 escritas (2026-09-16)
+
+### 9.1 App-only implementado y verificado (sin migración, vivo de inmediato)
+- **RFQ-12 — CRUD de etiquetas.** `src/modulos/pipeline/componentes/gestor-etiquetas.tsx`
+  (añadir/quitar por oportunidad), acción `acciones/actualizar-etiquetas.ts` (authz
+  dueño/admin/`ver_pipeline_equipo`, recorte + dedupe case-insensitive), integrado en
+  `editor-cotizacion.tsx` (invalida el listado para reflejar los chips). → **completo**.
+- **RFQ-11 — IVA opcional + equivalente MXN.** `ResumenTotales` (en `formulario-cotizacion.tsx`)
+  con interruptor "Incluir IVA" (ayuda de vista; no cambia el % persistido) y fila de equivalente
+  MXN para cotizaciones USD; helper puro `equivalenteMxn` en `calcular-totales-cotizacion.ts`;
+  acción `obtener-tipo-cambio.ts` lee el TC vigente de configuración. → **completo**.
+- **RFQ-18 — Retiro de RFQ sin orden.** `acciones/retirar-oportunidad.ts` (rechaza si
+  etapa=ganada o si existe orden con `cotizacion_id`; borra vía admin tras authz) +
+  `componentes/boton-retirar-oportunidad.tsx` (confirmación en dos pasos, visible salvo ganada).
+  `cotizacion_lineas` ON DELETE CASCADE borra las líneas. → **completo**.
+- **RFQ-14 — Importe (embebido de líneas).** `obtener-oportunidades.ts` embebe
+  `cotizacion_lineas(cantidad, precio_unitario)` para el subtotal por oportunidad;
+  `resumen-pipeline.ts` agrega importe por etapa / pendiente / enviado **separado por moneda**
+  (nunca suma MXN+USD); importe por fila en la tarjeta y "enviado/pendiente" en la barra de
+  controles. → sigue **parcial** (falta el estado de la orden vinculada por fila).
+
+### 9.2 Migraciones 🟡 ESCRITAS (las aplica el PO; Claude no toca remoto)
+Aditivas, idempotentes (`ADD COLUMN IF NOT EXISTS`, default constante → sin reescritura de tabla),
+sin cambios de RLS/grants (las columnas nuevas heredan las políticas de fila vigentes):
+- `supabase/migrations/20260916000003_pipeline_captura_rfq01.sql` — **RFQ-01**: `pipeline`
+  `po_cliente`, `fecha_requerida`, `horas_estimadas`, `notas`.
+- `supabase/migrations/20260916000004_lineas_area_externo_rfq0506.sql` — **RFQ-05/06** (+ línea de
+  descuento de **RFQ-03**): `cotizacion_lineas` y `partidas_orden_produccion` con
+  `area_trabajo_codigo`, `es_externo`, `proveedor_externo`, `es_descuento` / `procesos`.
+
+El **wiring de app** de estas 🟡 (captura de cabecera RFQ-01, selección/alta rápida de cliente y
+herencia de condiciones/tier RFQ-02/03, propagación línea→partida y exclusión de descuento en el
+RPC de creación de orden RFQ-05/06) es la **reconciliación de arquitectura v2 = Codex**. RFQ-02/03
+**no requieren migración nueva**: `pipeline.cliente_id` ya liga al cliente y `clientes` ya tiene
+tier/condiciones (fase 3); solo falta el wiring de app.
+
+### 9.3 Verificación en runtime aislado (PGlite) y gates
+- `.ai-shared/qa/cobertura/verificar-comercial-rfq.mjs` — **3/3**: subtotal embebido = suma de
+  líneas (RFQ-14); DELETE de `pipeline` cascadea las líneas (RFQ-18); orden asociada ⇒ FK SET NULL
+  (motivo de la guarda de la acción).
+- `.ai-shared/qa/cobertura/verificar-migraciones-rfq.mjs` — **12 columnas + idempotencia +
+  defaults** de `20260916000003`/`20260916000004`.
+- Gates: **typecheck 0 · lint 0 · 559 unitarias (67 archivos, +7) · build 17 rutas.**
+- Matriz actualizada: **46 completo · 75 parcial · 42 ausente · 1 no_verificable_estatico.**
+
 ## 5. Pendientes
 
-1. **Aplicar** `20260916000002` en Supabase (PO). (`20260916000001` ya aplicada.)
-2. **Confirmar** la decisión de conteos operativos (sección 6): las OP internas siguen sumando
-   en activas/atrasadas/en riesgo además de contarse en `internas`. (El badge "TI" en `/ordenes`
-   ya se implementó.)
-3. **Cerrar brechas por prioridad** usando la matriz (sección 7): los 45 ausentes y 75 parciales.
+1. **Aplicar** en Supabase (PO): `20260916000003` y `20260916000004` (RFQ-01/05/06). Ya aplicadas
+   `20260916000001` y `20260916000002`.
+2. **Codex — arquitectura v2**: wiring de las 🟡 (captura de cabecera RFQ-01; selección/alta de
+   cliente + herencia condiciones/tier RFQ-02/03; propagación línea→partida + exclusión de descuento
+   en el RPC de orden RFQ-05/06) y los RFQ 🔴 (RFQ-07 estados vs etapas, RFQ-10 folio, RFQ-15 AR en
+   aprobación, RFQ-17 editar RFQ con orden). Además: estado de la orden vinculada por fila (RFQ-14).
+3. **Confirmar** la decisión de conteos operativos (sección 6): las OP internas siguen sumando
+   en activas/atrasadas/en riesgo además de contarse en `internas`.
+4. **Cerrar brechas por prioridad** usando la matriz (sección 7): los 42 ausentes y 75 parciales.
    Antes de implementar, reconciliar con Codex las que son diferencias de arquitectura v2.
-4. **Aceptación E2E**: provisionar un stack aislado (Supabase local/Docker) para correr
+5. **Aceptación E2E**: provisionar un stack aislado (Supabase local/Docker) para correr
    `tests/e2e/*.spec.ts` sin tocar producción; ampliar harnesses PGlite a más RPC (cobranza,
    planeación, producción) para runtime-verificar más requisitos sin navegador.

@@ -7,7 +7,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { actualizarCotizacionAccion } from '@/modulos/pipeline/acciones/actualizar-cotizacion';
 import { crearCotizacionAccion } from '@/modulos/pipeline/acciones/crear-cotizacion';
-import { calcularTotalesCotizacion } from '@/modulos/pipeline/servicios/calcular-totales-cotizacion';
+import { obtenerTipoCambioAccion } from '@/modulos/pipeline/acciones/obtener-tipo-cambio';
+import {
+  calcularTotalesCotizacion,
+  equivalenteMxn,
+} from '@/modulos/pipeline/servicios/calcular-totales-cotizacion';
 import type {
   LineaCotizacionEntrada,
   MonedaPipeline,
@@ -138,6 +142,17 @@ export function FormularioCotizacion({
       const respuesta = await obtenerCatalogoTarifasAccion();
       return respuesta.exito ? respuesta.datos : null;
     },
+    staleTime: 5 * 60 * 1000,
+  });
+  // RFQ-11: tipo de cambio para el equivalente MXN de cotizaciones en USD. Solo
+  // se consulta cuando la moneda es USD; en MXN no hace falta.
+  const { data: tipoCambioUsd } = useQuery({
+    queryKey: ['cotizador', 'tipo-cambio'],
+    queryFn: async () => {
+      const respuesta = await obtenerTipoCambioAccion();
+      return respuesta.exito ? (respuesta.datos?.tipoCambioUsd ?? null) : null;
+    },
+    enabled: moneda === 'USD',
     staleTime: 5 * 60 * 1000,
   });
   const teniaLineas = lineasIniciales !== undefined && lineasIniciales.length > 0;
@@ -272,7 +287,7 @@ export function FormularioCotizacion({
           </ul>
         )}
 
-        <ResumenTotales totales={totales} />
+        <ResumenTotales totales={totales} tipoCambioUsd={tipoCambioUsd ?? null} />
       </div>
     );
   }
@@ -416,7 +431,7 @@ export function FormularioCotizacion({
         Agregar línea
       </Button>
 
-      <ResumenTotales totales={totales} />
+      <ResumenTotales totales={totales} tipoCambioUsd={tipoCambioUsd ?? null} />
 
       {error !== null && (
         <p role="alert" className="text-sm text-peligro-texto">
@@ -435,12 +450,31 @@ export function FormularioCotizacion({
   );
 }
 
-/** Bloque de subtotal, IVA y total; se comparte entre edición y consulta. */
+/**
+ * Bloque de subtotal, IVA y total; se comparte entre edición y consulta.
+ *
+ * RFQ-11: el IVA es opcional en la vista — un interruptor permite ver el total
+ * con o sin IVA (el porcentaje persistido de la oportunidad no cambia; es una
+ * ayuda de presentación). Para cotizaciones en USD, si hay tipo de cambio, se
+ * muestra además el equivalente en MXN de la cifra mostrada.
+ */
 function ResumenTotales({
   totales,
+  tipoCambioUsd = null,
 }: {
   totales: ReturnType<typeof calcularTotalesCotizacion>;
+  tipoCambioUsd?: number | null;
 }) {
+  const [incluirIva, setIncluirIva] = useState(true);
+  const totalMostrado = incluirIva ? totales.total : totales.subtotal;
+
+  const equivalente = tipoCambioUsd !== null ? equivalenteMxn(totales, tipoCambioUsd) : null;
+  const equivalenteMostrado = equivalente
+    ? incluirIva
+      ? equivalente.total
+      : equivalente.subtotal
+    : null;
+
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-borde bg-superficie-2 p-3 text-sm">
       <div className="flex items-center justify-between">
@@ -450,17 +484,32 @@ function ResumenTotales({
         </span>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-texto-secundario">IVA ({totales.ivaPorcentaje}%)</span>
-        <span className="font-medium tabular-nums">
+        <label className="flex items-center gap-1.5 text-texto-secundario">
+          <input
+            type="checkbox"
+            checked={incluirIva}
+            onChange={(evento) => setIncluirIva(evento.target.checked)}
+          />
+          IVA ({totales.ivaPorcentaje}%)
+        </label>
+        <span className={`font-medium tabular-nums ${incluirIva ? '' : 'text-texto-tenue line-through'}`}>
           {formatearMoneda(totales.iva, totales.moneda)}
         </span>
       </div>
       <div className="flex items-center justify-between border-t border-borde pt-1">
-        <span className="font-semibold">Total ({totales.moneda})</span>
+        <span className="font-semibold">
+          Total ({totales.moneda}){incluirIva ? '' : ' sin IVA'}
+        </span>
         <span className="font-semibold tabular-nums">
-          {formatearMoneda(totales.total, totales.moneda)}
+          {formatearMoneda(totalMostrado, totales.moneda)}
         </span>
       </div>
+      {equivalenteMostrado !== null && (
+        <div className="flex items-center justify-between text-xs text-texto-secundario">
+          <span>Equivalente MXN (TC {formatearMoneda(tipoCambioUsd ?? 0, 'MXN', 4)})</span>
+          <span className="tabular-nums">{formatearMoneda(equivalenteMostrado, 'MXN')}</span>
+        </div>
+      )}
     </div>
   );
 }
