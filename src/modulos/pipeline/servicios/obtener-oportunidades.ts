@@ -32,12 +32,13 @@ export async function obtenerOportunidades(
   filtros?: FiltrosPipeline,
 ): Promise<Oportunidad[]> {
   // RFQ-14: se embeben las líneas (solo cantidad y precio) para calcular el
-  // subtotal por oportunidad sin una consulta extra por fila. RLS de
-  // `cotizacion_lineas` hereda el alcance de la oportunidad padre, así que el
-  // conjunto embebido coincide con lo que el usuario puede ver.
+  // subtotal por oportunidad, y la orden de producción vinculada (folio/estado)
+  // por `cotizacion_id`, sin consultas extra por fila. RLS de `cotizacion_lineas`
+  // hereda el alcance de la oportunidad padre; `ordenes_produccion` es legible
+  // por cualquier autenticado (SELECT USING true).
   let consulta = cliente
     .from('pipeline')
-    .select('*, cotizacion_lineas(cantidad, precio_unitario)');
+    .select('*, cotizacion_lineas(cantidad, precio_unitario), ordenes_produccion(folio, estado)');
 
   if (filtros?.etapa) {
     consulta = consulta.eq('etapa', filtros.etapa);
@@ -64,13 +65,17 @@ export async function obtenerOportunidades(
     throw new Error('No se pudieron cargar las oportunidades');
   }
   return (data ?? []).map((fila) => {
-    const { cotizacion_lineas: lineas, ...base } = fila;
+    const { cotizacion_lineas: lineas, ordenes_produccion: ordenes, ...base } = fila;
     const importeSubtotal = redondear2(
       (lineas ?? []).reduce(
         (suma, linea) => suma + Number(linea.cantidad) * Number(linea.precio_unitario),
         0,
       ),
     );
-    return { ...filaAOportunidad(base as FilaPipeline), importeSubtotal };
+    // Una oportunidad genera a lo sumo una orden (al ganar); si hubiera varias,
+    // se muestra la primera.
+    const orden = (ordenes ?? [])[0];
+    const ordenVinculada = orden ? { folio: orden.folio, estado: orden.estado } : null;
+    return { ...filaAOportunidad(base as FilaPipeline), importeSubtotal, ordenVinculada };
   });
 }

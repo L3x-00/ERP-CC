@@ -1058,6 +1058,10 @@ export type Database = {
           prioridad: string
           telefono: string | null
           vendedor_id: string
+          po_cliente: string | null
+          fecha_requerida: string | null
+          horas_estimadas: number | null
+          notas: string | null
         }
         Insert: {
           actualizado_en?: string
@@ -1082,6 +1086,10 @@ export type Database = {
           prioridad?: string
           telefono?: string | null
           vendedor_id: string
+          po_cliente?: string | null
+          fecha_requerida?: string | null
+          horas_estimadas?: number | null
+          notas?: string | null
         }
         Update: {
           actualizado_en?: string
@@ -1106,6 +1114,10 @@ export type Database = {
           prioridad?: string
           telefono?: string | null
           vendedor_id?: string
+          po_cliente?: string | null
+          fecha_requerida?: string | null
+          horas_estimadas?: number | null
+          notas?: string | null
         }
         Relationships: [
           {

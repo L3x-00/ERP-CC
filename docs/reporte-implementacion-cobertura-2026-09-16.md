@@ -233,17 +233,39 @@ tier/condiciones (fase 3); solo falta el wiring de app.
 - Gates: **typecheck 0 · lint 0 · 559 unitarias (67 archivos, +7) · build 17 rutas.**
 - Matriz actualizada: **46 completo · 75 parcial · 42 ausente · 1 no_verificable_estatico.**
 
+## 10. Bucket A app-only tras aplicar las migraciones (2026-09-16)
+
+Con las 4 migraciones `20260916*` en producción, se cerró el trabajo app-only que quedó desbloqueado:
+
+- **RFQ-01 — captura de cabecera CABLEADA.** `crear-prospecto.ts` persiste `po_cliente`,
+  `fecha_requerida`, `horas_estimadas`, `notas`; `formulario-prospecto.tsx` los captura al alta;
+  la acción `actualizar-datos-oportunidad.ts` (authz dueño/admin/`ver_pipeline_equipo`, solo
+  oportunidad abierta) + el componente `gestor-datos-solicitud.tsx` los editan desde el editor de
+  cotización. `Oportunidad`+`filaAOportunidad` incorporan los 4 campos; `supabase.ts` editado a mano
+  (4 columnas en `pipeline`). Sigue **parcial** solo por la selección/alta de cliente al cotizar
+  (RFQ-02/03), que es arquitectura v2 = Codex.
+- **RFQ-14 → completo.** `obtener-oportunidades.ts` embebe también `ordenes_produccion(folio, estado)`
+  por `cotizacion_id`; el estado de la orden vinculada se muestra por fila en la tarjeta y en una
+  columna nueva de la tabla. Con el importe por moneda ya entregado, RFQ-14 queda completo.
+- **NO app-only puro (queda para Codex):** RFQ-05/06 captura a nivel línea. Persistir
+  `area_trabajo_codigo/es_externo/proveedor_externo/es_descuento` exige extender el RPC atómico
+  `guardar_cotizacion_atomica` (migración sobre el path de guardado, sensible por concurrencia y
+  snapshot técnico) → v2 con la propagación línea→partida.
+- Gates: **typecheck 0 · lint 0 · 566 unitarias (68 archivos, +7) · build 17 rutas.**
+- Matriz: **47 completo · 74 parcial · 42 ausente · 1 no_verificable_estatico.**
+
 ## 5. Pendientes
 
 1. ~~Aplicar `20260916000003` y `20260916000004`~~ **APLICADAS** por el PO (2026-09-16), junto con
    `20260916000001` y `20260916000002`. Las 4 migraciones de esta serie están en producción.
-2. **Codex — arquitectura v2**: wiring de las 🟡 (captura de cabecera RFQ-01; selección/alta de
-   cliente + herencia condiciones/tier RFQ-02/03; propagación línea→partida + exclusión de descuento
-   en el RPC de orden RFQ-05/06) y los RFQ 🔴 (RFQ-07 estados vs etapas, RFQ-10 folio, RFQ-15 AR en
-   aprobación, RFQ-17 editar RFQ con orden). Además: estado de la orden vinculada por fila (RFQ-14).
+2. **Codex — arquitectura v2**: RFQ-05/06 (captura a nivel línea vía extensión del RPC
+   `guardar_cotizacion_atomica` + propagación línea→partida + exclusión de descuento en el RPC de
+   orden); RFQ-02/03 (selección/alta de cliente al cotizar + herencia condiciones/tier — cierra el
+   parcial de RFQ-01); y los RFQ 🔴 (RFQ-07 estados vs etapas, RFQ-10 folio, RFQ-15 AR en aprobación,
+   RFQ-17 editar RFQ con orden).
 3. **Confirmar** la decisión de conteos operativos (sección 6): las OP internas siguen sumando
    en activas/atrasadas/en riesgo además de contarse en `internas`.
-4. **Cerrar brechas por prioridad** usando la matriz (sección 7): los 42 ausentes y 75 parciales.
+4. **Cerrar brechas por prioridad** usando la matriz (sección 7): los 42 ausentes y 74 parciales.
    Antes de implementar, reconciliar con Codex las que son diferencias de arquitectura v2.
 5. **Aceptación E2E**: provisionar un stack aislado (Supabase local/Docker) para correr
    `tests/e2e/*.spec.ts` sin tocar producción; ampliar harnesses PGlite a más RPC (cobranza,

@@ -17,6 +17,11 @@ export const esquemaCrearProspecto = z.object({
   etiquetas: z.array(z.string()).default([]),
   // RFQ-09: trabajo interno (TI). Al aprobar no genera AR ni cuenta como venta.
   esOrdenInterna: z.boolean().default(false),
+  // RFQ-01: datos de captura de la solicitud (opcionales en el alta).
+  poCliente: z.string().max(60).optional(),
+  fechaRequerida: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').optional().or(z.literal('')),
+  horasEstimadas: z.number().min(0).max(100000).optional(),
+  notas: z.string().max(2000).optional(),
 });
 
 /** Datos validados para crear un prospecto. */
@@ -53,3 +58,19 @@ export const esquemaRetirarOportunidad = z.object({
 
 /** Datos validados para retirar una oportunidad. */
 export type RetirarOportunidadInput = z.infer<typeof esquemaRetirarOportunidad>;
+
+/**
+ * Esquema para actualizar los datos de captura de la solicitud comercial de una
+ * oportunidad abierta — RFQ-01. Las cadenas vacías se normalizan a null en la
+ * acción; `horasEstimadas` es número o null.
+ */
+export const esquemaDatosOportunidad = z.object({
+  id: z.uuid(),
+  poCliente: z.string().max(60),
+  fechaRequerida: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').or(z.literal('')),
+  horasEstimadas: z.number().min(0).max(100000).nullable(),
+  notas: z.string().max(2000),
+});
+
+/** Datos validados para actualizar los datos de la solicitud (RFQ-01). */
+export type DatosOportunidadInput = z.infer<typeof esquemaDatosOportunidad>;

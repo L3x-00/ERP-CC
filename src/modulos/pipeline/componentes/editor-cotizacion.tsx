@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { FormularioCotizacion } from '@/modulos/pipeline/componentes/formulario-cotizacion';
+import { GestorDatosSolicitud } from '@/modulos/pipeline/componentes/gestor-datos-solicitud';
 import { GestorEtiquetas } from '@/modulos/pipeline/componentes/gestor-etiquetas';
 import { PanelAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
 import { actualizarOrdenInternaAccion } from '@/modulos/pipeline/acciones/actualizar-orden-interna';
@@ -115,6 +116,22 @@ export function EditorCotizacion({
     void clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
   }
 
+  function alCambiarDatos(datos: {
+    poCliente: string | null;
+    fechaRequerida: string | null;
+    horasEstimadas: number | null;
+    notas: string | null;
+  }): void {
+    if (instantanea) {
+      setInstantanea({
+        ...instantanea,
+        oportunidad: { ...instantanea.oportunidad, ...datos },
+      });
+    }
+    void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+    void clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
+  }
+
   const etapa = instantanea?.oportunidad.etapa ?? oportunidad.etapa;
   const editable = cotizacionEsEditable(etapa);
   const cabecera = instantanea?.oportunidad ?? oportunidad;
@@ -199,6 +216,17 @@ export function EditorCotizacion({
                   </span>
                 </label>
               )}
+              <GestorDatosSolicitud
+                oportunidadId={oportunidad.id}
+                datos={{
+                  poCliente: instantanea.oportunidad.poCliente,
+                  fechaRequerida: instantanea.oportunidad.fechaRequerida,
+                  horasEstimadas: instantanea.oportunidad.horasEstimadas,
+                  notas: instantanea.oportunidad.notas,
+                }}
+                soloLectura={!editable}
+                onCambio={alCambiarDatos}
+              />
               <GestorEtiquetas
                 oportunidadId={oportunidad.id}
                 etiquetas={instantanea.oportunidad.etiquetas}

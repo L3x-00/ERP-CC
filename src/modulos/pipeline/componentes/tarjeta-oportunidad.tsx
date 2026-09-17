@@ -38,6 +38,16 @@ const ESTILO_ALERTA: Record<AlertaPipeline, { texto: string; clase: string }> = 
   },
 };
 
+/** Etiqueta legible del estado de una orden de producción vinculada (RFQ-14). */
+export const ETIQUETA_ESTADO_ORDEN: Record<string, string> = {
+  borrador: 'Borrador',
+  programada: 'Programada',
+  en_proceso: 'En proceso',
+  pausada: 'Pausada',
+  completada: 'Completada',
+  cancelada: 'Cancelada',
+};
+
 /** Texto legible y clases semánticas por prioridad. */
 export const ESTILO_PRIORIDAD: Record<PrioridadPipeline, { texto: string; clase: string }> = {
   baja: { texto: 'Baja', clase: 'bg-superficie-2 text-texto-secundario' },
@@ -86,6 +96,13 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         {oportunidad.importeSubtotal !== undefined && oportunidad.importeSubtotal > 0 && (
           <p className="text-xs text-texto-secundario">
             Importe: <span className="tabular-nums">{formatearMoneda(oportunidad.importeSubtotal, oportunidad.moneda)}</span>
+          </p>
+        )}
+        {oportunidad.ordenVinculada && (
+          <p className="text-xs text-texto-secundario">
+            Orden: <span className="font-mono">{oportunidad.ordenVinculada.folio}</span>
+            {' · '}
+            {ETIQUETA_ESTADO_ORDEN[oportunidad.ordenVinculada.estado] ?? oportunidad.ordenVinculada.estado}
           </p>
         )}
       </div>

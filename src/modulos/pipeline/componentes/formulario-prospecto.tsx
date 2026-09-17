@@ -10,7 +10,7 @@ import type {
   PrioridadPipeline,
 } from '@/modulos/pipeline/tipos/indice';
 import { Button } from '@/compartido/componentes/ui/button';
-import { Input, Select } from '@/compartido/componentes/ui/input';
+import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 
 /**
@@ -29,6 +29,10 @@ export function FormularioProspecto() {
   const [prioridad, setPrioridad] = useState<PrioridadPipeline>('normal');
   const [condicionesPago, setCondicionesPago] = useState<CondicionesPago | ''>('');
   const [esOrdenInterna, setEsOrdenInterna] = useState(false);
+  const [poCliente, setPoCliente] = useState('');
+  const [fechaRequerida, setFechaRequerida] = useState('');
+  const [horasEstimadas, setHorasEstimadas] = useState('');
+  const [notas, setNotas] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -41,6 +45,10 @@ export function FormularioProspecto() {
     setPrioridad('normal');
     setCondicionesPago('');
     setEsOrdenInterna(false);
+    setPoCliente('');
+    setFechaRequerida('');
+    setHorasEstimadas('');
+    setNotas('');
   }
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -58,6 +66,12 @@ export function FormularioProspecto() {
         prioridad,
         esOrdenInterna,
         ...(condicionesPago !== '' ? { condicionesPago } : {}),
+        ...(poCliente.trim() ? { poCliente: poCliente.trim() } : {}),
+        ...(fechaRequerida ? { fechaRequerida } : {}),
+        ...(horasEstimadas.trim() !== '' && Number.isFinite(Number(horasEstimadas))
+          ? { horasEstimadas: Number(horasEstimadas) }
+          : {}),
+        ...(notas.trim() ? { notas: notas.trim() } : {}),
       });
 
       if (respuesta.exito) {
@@ -161,6 +175,51 @@ export function FormularioProspecto() {
             <option value="30_dias">30 días</option>
             <option value="credito">Crédito</option>
           </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="prospecto-po">Orden de compra (PO, opcional)</Label>
+          <Input
+            id="prospecto-po"
+            type="text"
+            value={poCliente}
+            onChange={(evento) => setPoCliente(evento.target.value)}
+            maxLength={60}
+            placeholder="PO del cliente"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="prospecto-fecha-requerida">Fecha requerida (opcional)</Label>
+          <Input
+            id="prospecto-fecha-requerida"
+            type="date"
+            value={fechaRequerida}
+            onChange={(evento) => setFechaRequerida(evento.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="prospecto-horas">Horas estimadas (opcional)</Label>
+          <Input
+            id="prospecto-horas"
+            type="number"
+            min="0"
+            step="0.5"
+            value={horasEstimadas}
+            onChange={(evento) => setHorasEstimadas(evento.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1 sm:col-span-2">
+          <Label htmlFor="prospecto-notas">Notas (opcional)</Label>
+          <Textarea
+            id="prospecto-notas"
+            value={notas}
+            onChange={(evento) => setNotas(evento.target.value)}
+            rows={2}
+            maxLength={2000}
+          />
         </div>
 
         <label

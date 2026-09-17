@@ -56,6 +56,11 @@ export async function crearProspectoAccion(
       iva_porcentaje: datos.ivaPorcentaje,
       etiquetas: datos.etiquetas,
       es_orden_interna: datos.esOrdenInterna,
+      // RFQ-01: datos de captura de la solicitud (cadenas vacías → null).
+      po_cliente: datos.poCliente?.trim() ? datos.poCliente.trim() : null,
+      fecha_requerida: datos.fechaRequerida ? datos.fechaRequerida : null,
+      horas_estimadas: datos.horasEstimadas ?? null,
+      notas: datos.notas?.trim() ? datos.notas.trim() : null,
     })
     .select('id')
     .single();

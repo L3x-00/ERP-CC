@@ -11,7 +11,11 @@ import {
   TablaFila,
 } from '@/compartido/componentes/diseno/tabla';
 import { EditorCotizacion } from '@/modulos/pipeline/componentes/editor-cotizacion';
-import { ESTILO_PRIORIDAD, diasDesde } from '@/modulos/pipeline/componentes/tarjeta-oportunidad';
+import {
+  ESTILO_PRIORIDAD,
+  ETIQUETA_ESTADO_ORDEN,
+  diasDesde,
+} from '@/modulos/pipeline/componentes/tarjeta-oportunidad';
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
 
 /**
@@ -37,6 +41,7 @@ export function TablaOportunidades({
             <TablaEncabezadoCelda>Prioridad</TablaEncabezadoCelda>
             <TablaEncabezadoCelda className="text-right">Días en etapa</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Cliente</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Orden</TablaEncabezadoCelda>
             <TablaEncabezadoCelda className="text-right">Cotización</TablaEncabezadoCelda>
           </tr>
         </TablaEncabezado>
@@ -63,6 +68,18 @@ export function TablaOportunidades({
                 </TablaCelda>
                 <TablaCelda className="text-texto-secundario">
                   {oportunidad.clienteId ? 'Vinculado' : 'Sin vincular'}
+                </TablaCelda>
+                <TablaCelda className="text-texto-secundario">
+                  {oportunidad.ordenVinculada ? (
+                    <span>
+                      <span className="font-mono text-xs">{oportunidad.ordenVinculada.folio}</span>
+                      {' · '}
+                      {ETIQUETA_ESTADO_ORDEN[oportunidad.ordenVinculada.estado] ??
+                        oportunidad.ordenVinculada.estado}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
                 </TablaCelda>
                 <TablaCelda className="text-right">
                   <EditorCotizacion oportunidad={oportunidad} />

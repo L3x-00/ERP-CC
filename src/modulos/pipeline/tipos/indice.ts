@@ -40,6 +40,17 @@ export type Oportunidad = {
    * al agregar (ver `resumirPipeline`).
    */
   importeSubtotal?: number;
+  /**
+   * RFQ-14: orden de producción vinculada (por `cotizacion_id`), si existe —
+   * solo se llena en el listado del tablero (embebido). `undefined` en rutas que
+   * no la cargan; `null` si la oportunidad aún no generó orden.
+   */
+  ordenVinculada?: { folio: string; estado: string } | null;
+  /** RFQ-01: datos de captura de la solicitud comercial. */
+  poCliente: string | null;
+  fechaRequerida: string | null;
+  horasEstimadas: number | null;
+  notas: string | null;
   motivoPerdida: string | null;
   notasPerdida: string | null;
   fechaUltimoContacto: string | null;
@@ -155,6 +166,10 @@ export function filaAOportunidad(fila: FilaPipeline): Oportunidad {
     ivaPorcentaje: Number(fila.iva_porcentaje),
     etiquetas: fila.etiquetas,
     esOrdenInterna: fila.es_orden_interna,
+    poCliente: fila.po_cliente,
+    fechaRequerida: fila.fecha_requerida,
+    horasEstimadas: fila.horas_estimadas === null ? null : Number(fila.horas_estimadas),
+    notas: fila.notas,
     motivoPerdida: fila.motivo_perdida,
     notasPerdida: fila.notas_perdida,
     fechaUltimoContacto: fila.fecha_ultimo_contacto,
