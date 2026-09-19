@@ -147,6 +147,7 @@ function aEntrada(linea: LineaFormulario): LineaCotizacionEntrada {
     areaTrabajoCodigo: linea.areaTrabajoCodigo === '' ? undefined : linea.areaTrabajoCodigo,
     esExterno: linea.esExterno,
     proveedorExterno: linea.esExterno && proveedor !== '' ? proveedor : undefined,
+    esDescuento: false,
   };
 }
 
@@ -611,7 +612,15 @@ export function FormularioCotizacion({
             </div>
 
             <CotizadorTecnico moneda={moneda} cantidad={Number(linea.cantidad)} inicial={linea.calculoTecnico} catalogo={catalogoTarifas ?? undefined} onAdjuntarPlano={adjuntarPlano} onAplicar={calculo=>aplicarCalculo(indice,calculo)} />
-            <p className="text-xs text-texto-secundario">{linea.calculoTecnico ? 'Cálculo técnico vinculado; se guardará junto con la cotización.' : 'Precio manual. Modificar cantidad, precio, material, espesor o procesos desvincula el cálculo anterior.'}</p>
+            <p className="text-xs text-texto-secundario">
+              {linea.calculoTecnico
+                ? `Cálculo técnico vinculado${
+                    linea.calculoTecnico.tiempoEstimadoMinutos
+                      ? ` · Tiempo estimado: ${linea.calculoTecnico.tiempoEstimadoMinutos} min (lo hereda la orden)`
+                      : ''
+                  }; se guardará junto con la cotización.`
+                : 'Precio manual. Modificar cantidad, precio, material, espesor o procesos desvincula el cálculo anterior.'}
+            </p>
             <div className="flex items-center justify-between">
               <span className="text-xs tabular-nums text-texto-secundario">
                 Importe:{' '}

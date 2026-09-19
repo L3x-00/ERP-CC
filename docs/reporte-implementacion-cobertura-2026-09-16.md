@@ -346,3 +346,40 @@ estado, cliente, área, prioridad, etiqueta y período"):
 - **Verificación:** 6 tests unitarios nuevos en `pipeline-filtros-resumen.test.ts`. Gates:
   typecheck 0 · lint 0 · **608 unitarias** (71 archivos) · build 17 rutas.
 - **Matriz final:** **53 completo · 71 parcial · 39 ausente · 1 no verificable**.
+
+## 13. Decisiones de arquitectura v2 resueltas — RFQ-07/10/15/17 (2026-09-19)
+
+El PO aplicó `20260916000005` y pidió resolver las decisiones v2 con la vía más viable. Cada
+decisión se registró en `.ai-shared/memory/decisions/ADR-DECISIONES-V2-RFQ-20260919.md`:
+
+1. **RFQ-07 — estados comerciales.** La etapa del pipeline es la única máquina de estados
+   (pendiente→prospecto, enviada→cotizado+`fecha_envio_cotizacion`, aprobada→ganada+OP,
+   rechazada→perdida+motivo). Sin columna duplicada; prioridad y etiquetas ya cubiertas.
+2. **RFQ-10 — folio comercial.** Se conserva `CNC-MMYY-XXXX` (contador atómico; renombrar rompe
+   históricos). Se cierra el "se comparte como referencia": la lista de órdenes embebe
+   `pipeline.folio_cnc` por `cotizacion_id` (`ordenes-servicio.ts`) y lo muestra bajo el folio OP
+   (`tabla-ordenes.tsx`), solo si RLS autoriza la cotización.
+3. **RFQ-15 — AR al completar + tiempo estimado.** Se mantiene la AR al completar la OP (Fase 8).
+   El motor del cotizador expone `tiempoEstimadoMinutos` y la migración NUEVA
+   **`20260916000006_tiempo_estimado_linea_partida.sql`** (CREATE OR REPLACE, firma idéntica; la
+   aplica el PO) hace que `aprobar_oportunidad_y_crear_orden` herede el estimado del snapshot
+   técnico de cada línea (acotado a `[0, 1000000]`; sin snapshot → 0). PO/notas/adjuntos siguen en
+   la cotización vinculada (cadena única). La UI muestra el tiempo estimado de la línea.
+4. **RFQ-17 — cotización con orden inmutable.** `guardar_cotizacion_atomica` sigue rechazando la
+   edición (`cotizacion_con_orden`). El editor ahora carga la orden vinculada
+   (`obtenerOportunidadPorId` con `conOrdenVinculada`) y explica la vía soportada: cancelar la
+   orden con motivo y crear una cotización nueva. No se implementa el "pendiente de sincronizar"
+   del SPA v1 (parche de un modelo que reescribía el documento aprobado).
+
+**Bug corregido de paso:** el mapeo `lineasIniciales` del editor perdía
+`areaTrabajoCodigo/esExterno/proveedorExterno/esDescuento` al reabrir una cotización (regresión
+del bloque 11); ahora se conservan y hay test que guarda desde `EditorCotizacion`.
+
+**Verificación:** harness PGlite `verificar-rfq0506-wiring.mjs` **12/12** (carga 000005+000006 y
+afirma la herencia del tiempo estimado); 5 tests unitarios nuevos (motor, servicio de órdenes x2,
+editor x2). Gates: typecheck 0 · lint 0 · **613 unitarias** · build 17 rutas. **Matriz final:
+57 completo · 68 parcial · 38 ausente · 1 no verificable** (RFQ-07/10/15/17 → completo con la
+desviación intencional documentada en la columna Brecha).
+
+**Pendiente para el PO:** aplicar `20260916000006` (sin ella todo funciona; solo el estimado de
+las partidas nuevas queda en 0).

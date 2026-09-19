@@ -23,6 +23,11 @@ export interface Orden {
   folio: string;
   clienteId: string;
   cotizacionId: string | null;
+  /**
+   * RFQ-10: folio comercial (CNC-…) de la cotización de origen, cuando el
+   * listado la embebe; `undefined` en rutas que no la cargan.
+   */
+  folioCotizacionCnc?: string | null;
   estado: EstadoOrden;
   prioridad: PrioridadOrden;
   fechaCompromiso: string;

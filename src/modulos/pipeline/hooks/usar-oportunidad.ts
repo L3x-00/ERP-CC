@@ -10,7 +10,9 @@ import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-op
 function useOportunidad(id: string, habilitada = true) {
   return useQuery({
     queryKey: ['oportunidad', id],
-    queryFn: () => obtenerOportunidadPorId(crearClienteSupabase(), id),
+    // RFQ-17: el editor muestra la orden que generó la cotización (documento
+    // inmutable) para explicar por qué no se edita.
+    queryFn: () => obtenerOportunidadPorId(crearClienteSupabase(), id, { conOrdenVinculada: true }),
     enabled: !!id && habilitada,
   });
 }

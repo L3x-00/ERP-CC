@@ -181,6 +181,7 @@ describe('FormularioCotizacion', () => {
           areaTrabajoCodigo: 'CNC',
           esExterno: false,
           proveedorExterno: undefined,
+          esDescuento: false,
         },
       ],
     });
@@ -221,6 +222,7 @@ describe('FormularioCotizacion', () => {
           areaTrabajoCodigo: undefined,
           esExterno: false,
           proveedorExterno: undefined,
+          esDescuento: false,
         },
       ],
     });
@@ -374,6 +376,53 @@ describe('EditorCotizacion', () => {
     await screen.findByText('Placa base');
     expect(screen.getByText('Placa base')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Guardar cotización' })).toBeNull();
+  });
+
+  it('conserva área/externo/descuento de las líneas al reabrir y guardar desde el editor (RFQ-05/06)', async () => {
+    usarOportunidadMock.mockReturnValue({ data: DATOS, isLoading: false, isError: false });
+
+    conProveedor(createElement(EditorCotizacion, { oportunidad: OPORTUNIDAD }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cotización' }));
+
+    await screen.findByLabelText('Descripción');
+    // El mapeo del editor no debe perder las dimensiones nuevas de la línea.
+    // El select se puebla con las áreas del catálogo (consulta asíncrona).
+    await waitFor(() =>
+      expect((screen.getByLabelText(/Área \/ departamento/) as HTMLSelectElement).value).toBe('CNC'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cotización' }));
+
+    await waitFor(() => expect(actualizarMock).toHaveBeenCalledTimes(1));
+    const payload = actualizarMock.mock.calls[0]?.[0] as {
+      lineas: { areaTrabajoCodigo?: string; esExterno?: boolean; esDescuento?: boolean }[];
+    };
+    expect(payload.lineas[0]).toEqual(
+      expect.objectContaining({ areaTrabajoCodigo: 'CNC', esExterno: false, esDescuento: false }),
+    );
+  });
+
+  it('explica que la cotización con orden es inmutable y la vía de cambio (RFQ-17)', async () => {
+    usarOportunidadMock.mockReturnValue({
+      data: {
+        oportunidad: { ...OPORTUNIDAD, etapa: 'ganada' },
+        lineas: [LINEA_PERSISTIDA],
+        ordenVinculada: { folio: 'OP-001001', estado: 'programada' },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    conProveedor(
+      createElement(EditorCotizacion, {
+        oportunidad: { ...OPORTUNIDAD, etapa: 'ganada' },
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Ver cotización' }));
+
+    await screen.findByText(/Documento inmutable/);
+    expect(screen.getByText(/OP-001001/)).toBeDefined();
+    expect(screen.getByText(/cancela esa orden/)).toBeDefined();
   });
 
   it('informa cuando la cotización no se puede cargar', async () => {

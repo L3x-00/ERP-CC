@@ -51,6 +51,8 @@ export type PartidaTabla = {
 export type OrdenTabla = {
   id: string;
   folio: string;
+  /** RFQ-10: folio comercial (CNC-…) de la cotización de origen, si es visible. */
+  folioCotizacionCnc: string | null;
   estado: EstadoOrden;
   prioridad: PrioridadOrden;
   fechaCompromiso: string;
@@ -403,14 +405,24 @@ export function TablaOrdenes({
                       scope="row"
                       className="whitespace-nowrap px-4 py-3 text-left align-middle font-mono text-xs font-medium tabular-nums"
                     >
-                      <span className="flex items-center gap-1.5">
-                        {orden.folio}
-                        {orden.esInterna && (
+                      <span className="flex flex-col gap-0.5">
+                        <span className="flex items-center gap-1.5">
+                          {orden.folio}
+                          {orden.esInterna && (
+                            <span
+                              className="rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario"
+                              title="Trabajo interno (TI): no genera cobranza ni cuenta como venta"
+                            >
+                              TI
+                            </span>
+                          )}
+                        </span>
+                        {orden.folioCotizacionCnc && (
                           <span
-                            className="rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario"
-                            title="Trabajo interno (TI): no genera cobranza ni cuenta como venta"
+                            className="font-sans text-[10px] font-normal text-texto-tenue"
+                            title="Cotización de origen"
                           >
-                            TI
+                            {orden.folioCotizacionCnc}
                           </span>
                         )}
                       </span>

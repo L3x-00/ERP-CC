@@ -161,6 +161,10 @@ export function EditorCotizacion({
     espesor: linea.espesor,
     area: linea.area,
     procesos: linea.procesos,
+    areaTrabajoCodigo: linea.areaTrabajoCodigo,
+    esExterno: linea.esExterno,
+    proveedorExterno: linea.proveedorExterno,
+    esDescuento: linea.esDescuento,
     calculoTecnico: linea.calculoTecnico,
   }));
 
@@ -183,7 +187,9 @@ export function EditorCotizacion({
             <DialogDescription>
               {editable
                 ? 'Captura las líneas de la cotización con sus datos técnicos.'
-                : 'La oportunidad está cerrada: la cotización queda como consulta histórica.'}
+                : instantanea?.ordenVinculada
+                  ? `Documento inmutable: generó la orden ${instantanea.ordenVinculada.folio}. Para cambiar el alcance, cancela esa orden desde Órdenes y crea una cotización nueva.`
+                  : 'La oportunidad está cerrada: la cotización queda como consulta histórica.'}
             </DialogDescription>
           </DialogHeader>
 

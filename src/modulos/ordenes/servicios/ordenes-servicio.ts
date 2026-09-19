@@ -7,6 +7,7 @@ import {
   filaARegistroConsumoMaterial,
   filaARegistroTiempo,
   type EstadoOrden,
+  type FilaOrden,
   type Orden,
   type Partida,
   type RegistroConsumoMaterial,
@@ -262,12 +263,16 @@ export async function obtenerOrdenConPartidasServicio(
 /**
  * Carga las OP y todas sus partidas en dos consultas, sin N+1. El cliente
  * recibido conserva el alcance de lectura definido por RLS.
+ *
+ * RFQ-10: se embebe el folio comercial (`pipeline.folio_cnc`) de la cotización
+ * de origen para compartirlo como referencia en la orden; si RLS no autoriza la
+ * cotización, llega `null` y la orden se muestra igual.
  */
 export async function obtenerOrdenesConPartidasServicio(
   cliente: SupabaseClient<Database>,
   estados?: readonly EstadoOrden[],
 ): Promise<OrdenConPartidas[]> {
-  let consultaOrdenes = cliente.from('ordenes_produccion').select('*');
+  let consultaOrdenes = cliente.from('ordenes_produccion').select('*, pipeline(folio_cnc)');
   if (estados && estados.length > 0) {
     consultaOrdenes = consultaOrdenes.in('estado', estados);
   }
@@ -279,7 +284,13 @@ export async function obtenerOrdenesConPartidasServicio(
     throw new ErrorOrden('desconocido', errorOrdenes.message);
   }
 
-  const ordenes = (filasOrdenes ?? []).map(filaAOrden);
+  const ordenes = (filasOrdenes ?? []).map((fila) => {
+    const { pipeline: cotizacion, ...base } = fila;
+    return {
+      ...filaAOrden(base as FilaOrden),
+      folioCotizacionCnc: cotizacion?.folio_cnc ?? null,
+    };
+  });
   if (ordenes.length === 0) return [];
 
   const idsOrdenes = ordenes.map((orden) => orden.id);
