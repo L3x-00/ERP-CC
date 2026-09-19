@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -483,6 +484,7 @@ export function TablaOrdenes({
                             </button>
                           );
                         })}
+                        <DocumentoOrdenBoton ordenId={orden.id} folio={orden.folio} />
                         {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
                           <button
                             type="button"
