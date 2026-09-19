@@ -329,3 +329,20 @@ con **firma idéntica** (conserva grants), idempotente:
 ### 11.5 Commits
 `66c1bd4` (tipos Supabase + reconciliación), `0cb7c8b` (cliente en RFQ), y el commit de este
 bloque (migración + app + harness + docs). Rama `codex/cobertura-funcional`; sin merge a `main`.
+
+## 12. Filtros de pipeline completos — RFQ-13 (2026-09-19, segundo bloque)
+
+Bloque app-only que cierra el parcial de RFQ-13 ("se busca por folio o cliente y se filtra por
+estado, cliente, área, prioridad, etiqueta y período"):
+- `Oportunidad` gana `areasTrabajo` y `clienteNombre` opcionales, embebidos en
+  `obtener-oportunidades.ts` (líneas con `area_trabajo_codigo`; `clientes` por la FK
+  `pipeline_cliente_id_fkey`), sin fetch extra por fila.
+- `filtrar-oportunidades.ts`: filtros `etapa`, `area` (entra si alguna línea pertenece al área) y
+  `clienteId`; el texto libre ahora también busca en el nombre del cliente ligado; helpers
+  `areasDistintas`/`clientesDistintos` además de `etiquetasDistintas`; `hayFiltrosActivos` cubre
+  los filtros nuevos. `controles-pipeline.tsx` añade los selectores de etapa/área/cliente;
+  `ETIQUETA_ETAPA` se centraliza en `utilidades/indice.ts`. El tablero sigue filtrando en memoria
+  (preserva Kanban y tabla) con conteo y "Limpiar".
+- **Verificación:** 6 tests unitarios nuevos en `pipeline-filtros-resumen.test.ts`. Gates:
+  typecheck 0 · lint 0 · **608 unitarias** (71 archivos) · build 17 rutas.
+- **Matriz final:** **53 completo · 71 parcial · 39 ausente · 1 no verificable**.

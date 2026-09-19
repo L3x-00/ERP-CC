@@ -4,7 +4,13 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
-import { PRIORIDADES_PIPELINE, type PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
+import {
+  ETAPAS_PIPELINE,
+  PRIORIDADES_PIPELINE,
+  type EtapaPipeline,
+  type PrioridadPipeline,
+} from '@/modulos/pipeline/tipos/indice';
+import { ETIQUETA_ETAPA } from '@/modulos/pipeline/utilidades/indice';
 import {
   hayFiltrosActivos,
   type FiltrosTablero,
@@ -38,6 +44,8 @@ export interface ControlesPipelineProps {
   onLimpiar: () => void;
   resumen: ResumenPipeline;
   etiquetas: readonly string[];
+  areas: readonly string[];
+  clientes: readonly { id: string; nombre: string }[];
   totalFiltrado: number;
   totalTotal: number;
 }
@@ -52,12 +60,14 @@ export function ControlesPipeline({
   onLimpiar,
   resumen,
   etiquetas,
+  areas,
+  clientes,
   totalFiltrado,
   totalTotal,
 }: ControlesPipelineProps) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-2">
           <Label htmlFor="pipeline-busqueda">Buscar</Label>
           <Input
@@ -65,8 +75,23 @@ export function ControlesPipeline({
             type="search"
             value={filtros.texto}
             onChange={(evento) => onCambio({ texto: evento.target.value })}
-            placeholder="Folio, empresa o contacto"
+            placeholder="Folio, cliente, empresa o contacto"
           />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="pipeline-etapa">Etapa</Label>
+          <Select
+            id="pipeline-etapa"
+            value={filtros.etapa}
+            onChange={(evento) => onCambio({ etapa: evento.target.value as EtapaPipeline | '' })}
+          >
+            <option value="">Todas</option>
+            {ETAPAS_PIPELINE.map((etapa) => (
+              <option key={etapa} value={etapa}>
+                {ETIQUETA_ETAPA[etapa]}
+              </option>
+            ))}
+          </Select>
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="pipeline-prioridad">Prioridad</Label>
@@ -95,6 +120,38 @@ export function ControlesPipeline({
             {etiquetas.map((etiqueta) => (
               <option key={etiqueta} value={etiqueta}>
                 {etiqueta}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="pipeline-area">Área / departamento</Label>
+          <Select
+            id="pipeline-area"
+            value={filtros.area}
+            onChange={(evento) => onCambio({ area: evento.target.value })}
+            disabled={areas.length === 0}
+          >
+            <option value="">Todas</option>
+            {areas.map((area) => (
+              <option key={area} value={area}>
+                {area}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="pipeline-cliente">Cliente</Label>
+          <Select
+            id="pipeline-cliente"
+            value={filtros.clienteId}
+            onChange={(evento) => onCambio({ clienteId: evento.target.value })}
+            disabled={clientes.length === 0}
+          >
+            <option value="">Todos</option>
+            {clientes.map((cliente) => (
+              <option key={cliente.id} value={cliente.id}>
+                {cliente.nombre}
               </option>
             ))}
           </Select>

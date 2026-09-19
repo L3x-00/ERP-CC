@@ -46,6 +46,16 @@ export type Oportunidad = {
    * no la cargan; `null` si la oportunidad aún no generó orden.
    */
   ordenVinculada?: { folio: string; estado: string } | null;
+  /**
+   * RFQ-05/13: áreas/departamento presentes en las líneas de la cotización,
+   * para el filtro del tablero — solo se llena en el listado (embebido).
+   */
+  areasTrabajo?: string[];
+  /**
+   * RFQ-02/13: nombre del cliente ligado (nombre comercial o razón social) —
+   * solo se llena en el listado (embebido con la FK `cliente_id`).
+   */
+  clienteNombre?: string | null;
   /** RFQ-01: datos de captura de la solicitud comercial. */
   poCliente: string | null;
   fechaRequerida: string | null;

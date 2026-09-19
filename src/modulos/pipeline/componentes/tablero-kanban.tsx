@@ -10,6 +10,8 @@ import { usarAlertasPipeline } from '@/modulos/pipeline/hooks/usar-alertas-pipel
 import { usarPipeline } from '@/modulos/pipeline/hooks/usar-pipeline';
 import {
   FILTROS_TABLERO_INICIAL,
+  areasDistintas,
+  clientesDistintos,
   etiquetasDistintas,
   filtrarOportunidades,
   type FiltrosTablero,
@@ -53,6 +55,8 @@ export function TableroKanban() {
   );
   const resumen = useMemo(() => resumirPipeline(filtradas), [filtradas]);
   const etiquetas = useMemo(() => etiquetasDistintas(oportunidades), [oportunidades]);
+  const areas = useMemo(() => areasDistintas(oportunidades), [oportunidades]);
+  const clientes = useMemo(() => clientesDistintos(oportunidades), [oportunidades]);
   const alertasPorId = usarAlertasPipeline(filtradas);
 
   const cambiarFiltros = (parcial: Partial<FiltrosTablero>): void =>
@@ -109,6 +113,8 @@ export function TableroKanban() {
           onLimpiar={limpiarFiltros}
           resumen={resumen}
           etiquetas={etiquetas}
+          areas={areas}
+          clientes={clientes}
           totalFiltrado={filtradas.length}
           totalTotal={oportunidades.length}
         />

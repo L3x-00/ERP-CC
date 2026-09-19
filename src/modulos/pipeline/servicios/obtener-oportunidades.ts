@@ -31,14 +31,17 @@ export async function obtenerOportunidades(
   cliente: SupabaseClient<Database>,
   filtros?: FiltrosPipeline,
 ): Promise<Oportunidad[]> {
-  // RFQ-14: se embeben las líneas (cantidad, precio y bandera de descuento) para
-  // calcular el subtotal por oportunidad, y la orden de producción vinculada
-  // (folio/estado) por `cotizacion_id`, sin consultas extra por fila. RLS de
-  // `cotizacion_lineas` hereda el alcance de la oportunidad padre;
-  // `ordenes_produccion` es legible por cualquier autenticado (SELECT USING true).
+  // RFQ-14: se embeben las líneas (cantidad, precio, bandera de descuento y área
+  // para el filtro RFQ-13) para calcular el subtotal por oportunidad, la orden de
+  // producción vinculada (folio/estado) por `cotizacion_id` y el cliente ligado
+  // (RFQ-02), sin consultas extra por fila. RLS de `cotizacion_lineas` hereda el
+  // alcance de la oportunidad padre; `ordenes_produccion` es legible por
+  // cualquier autenticado (SELECT USING true) y `clientes` respeta su RLS.
   let consulta = cliente
     .from('pipeline')
-    .select('*, cotizacion_lineas(cantidad, precio_unitario, es_descuento), ordenes_produccion(folio, estado)');
+    .select(
+      '*, cotizacion_lineas(cantidad, precio_unitario, es_descuento, area_trabajo_codigo), ordenes_produccion(folio, estado), clientes(razon_social, nombre_comercial)',
+    );
 
   if (filtros?.etapa) {
     consulta = consulta.eq('etapa', filtros.etapa);
@@ -65,7 +68,12 @@ export async function obtenerOportunidades(
     throw new Error('No se pudieron cargar las oportunidades');
   }
   return (data ?? []).map((fila) => {
-    const { cotizacion_lineas: lineas, ordenes_produccion: ordenes, ...base } = fila;
+    const {
+      cotizacion_lineas: lineas,
+      ordenes_produccion: ordenes,
+      clientes: clienteLigado,
+      ...base
+    } = fila;
     // RFQ-03: una línea de descuento se captura en positivo y aquí se resta.
     const importeSubtotal = redondear2(
       (lineas ?? []).reduce(
@@ -77,10 +85,29 @@ export async function obtenerOportunidades(
         0,
       ),
     );
+    // RFQ-05/13: áreas distintas de la cotización para el filtro del tablero.
+    const areasTrabajo = [
+      ...new Set(
+        (lineas ?? [])
+          .map((linea) => linea.area_trabajo_codigo)
+          .filter((codigo): codigo is string => codigo !== null && codigo.trim() !== ''),
+      ),
+    ].sort((a, b) => a.localeCompare(b, 'es'));
     // Una oportunidad genera a lo sumo una orden (al ganar); si hubiera varias,
-    // se muestra la primera.
+    // se muestra la primera. El cliente ligado es a lo sumo uno (FK).
     const orden = (ordenes ?? [])[0];
     const ordenVinculada = orden ? { folio: orden.folio, estado: orden.estado } : null;
-    return { ...filaAOportunidad(base as FilaPipeline), importeSubtotal, ordenVinculada };
+    const clienteNombre = clienteLigado
+      ? clienteLigado.nombre_comercial.trim() !== ''
+        ? clienteLigado.nombre_comercial
+        : clienteLigado.razon_social
+      : null;
+    return {
+      ...filaAOportunidad(base as FilaPipeline),
+      importeSubtotal,
+      ordenVinculada,
+      areasTrabajo,
+      clienteNombre,
+    };
   });
 }

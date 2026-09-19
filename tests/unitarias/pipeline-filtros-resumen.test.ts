@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
 import {
   FILTROS_TABLERO_INICIAL,
+  areasDistintas,
+  clientesDistintos,
   etiquetasDistintas,
   filtrarOportunidades,
   hayFiltrosActivos,
@@ -93,6 +95,43 @@ describe('filtrarOportunidades', () => {
     ];
     expect(filtrarOportunidades(datos, f({ texto: 'norte', prioridad: 'alta', etiqueta: 'x' }))).toHaveLength(1);
   });
+
+  it('filtra por etapa (RFQ-13)', () => {
+    const datos = [
+      op({ etapa: 'cotizado' }),
+      op({ etapa: 'negociacion' }),
+      op({ etapa: 'cotizado' }),
+    ];
+    expect(filtrarOportunidades(datos, f({ etapa: 'cotizado' }))).toHaveLength(2);
+    expect(filtrarOportunidades(datos, f({ etapa: 'ganada' }))).toHaveLength(0);
+  });
+
+  it('el texto también busca en el nombre del cliente ligado (RFQ-13)', () => {
+    const datos = [op({ clienteNombre: 'Metales del Norte' }), op({ empresa: 'Otro' })];
+    expect(filtrarOportunidades(datos, f({ texto: 'metales' }))).toHaveLength(1);
+  });
+
+  it('filtra por área presente en alguna línea (RFQ-05/13)', () => {
+    const datos = [
+      op({ areasTrabajo: ['CNC', 'DOBLEZ'] }),
+      op({ areasTrabajo: ['SOLDADURA'] }),
+      op({ areasTrabajo: [] }),
+      op({}),
+    ];
+    expect(filtrarOportunidades(datos, f({ area: 'CNC' }))).toHaveLength(1);
+    expect(filtrarOportunidades(datos, f({ area: 'DOBLEZ' }))).toHaveLength(1);
+    expect(filtrarOportunidades(datos, f({ area: 'NADA' }))).toHaveLength(0);
+  });
+
+  it('filtra por cliente del catálogo ligado (RFQ-02/13)', () => {
+    const datos = [
+      op({ clienteId: 'c-1', clienteNombre: 'Metanor' }),
+      op({ clienteId: 'c-2', clienteNombre: 'Aceros Baja' }),
+      op({ clienteId: null }),
+    ];
+    expect(filtrarOportunidades(datos, f({ clienteId: 'c-1' }))).toHaveLength(1);
+    expect(filtrarOportunidades(datos, f({ clienteId: 'c-3' }))).toHaveLength(0);
+  });
 });
 
 describe('hayFiltrosActivos', () => {
@@ -101,6 +140,31 @@ describe('hayFiltrosActivos', () => {
     expect(hayFiltrosActivos(f({ texto: 'x' }))).toBe(true);
     expect(hayFiltrosActivos(f({ soloInternas: true }))).toBe(true);
     expect(hayFiltrosActivos(f({ desde: '2026-09-01' }))).toBe(true);
+    expect(hayFiltrosActivos(f({ etapa: 'cotizado' }))).toBe(true);
+    expect(hayFiltrosActivos(f({ area: 'CNC' }))).toBe(true);
+    expect(hayFiltrosActivos(f({ clienteId: 'c-1' }))).toBe(true);
+  });
+});
+
+describe('areasDistintas y clientesDistintos (RFQ-13)', () => {
+  it('devuelve áreas únicas ordenadas y sin vacíos', () => {
+    const datos = [op({ areasTrabajo: ['DOBLEZ', 'CNC', ' '] }), op({ areasTrabajo: ['CNC'] })];
+    expect(areasDistintas(datos)).toEqual(['CNC', 'DOBLEZ']);
+  });
+
+  it('devuelve clientes por id, ordenados por nombre y sin oportunidades sin cliente', () => {
+    const datos = [
+      op({ clienteId: 'c-2', clienteNombre: 'Zeta' }),
+      op({ clienteId: 'c-1', clienteNombre: 'Alfa' }),
+      op({ clienteId: 'c-2', clienteNombre: 'Zeta' }),
+      op({ clienteId: null }),
+      op({ clienteId: 'c-3', clienteNombre: null }),
+    ];
+    expect(clientesDistintos(datos)).toEqual([
+      { id: 'c-1', nombre: 'Alfa' },
+      { id: 'c-3', nombre: 'Cliente sin nombre' },
+      { id: 'c-2', nombre: 'Zeta' },
+    ]);
   });
 });
 
