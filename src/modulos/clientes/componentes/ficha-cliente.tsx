@@ -10,6 +10,8 @@ import { subirDocumentoClienteAccion } from '@/modulos/clientes/acciones/subir-d
 import { asignarTierManualAccion } from '@/modulos/clientes/acciones/asignar-tier-manual';
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import { AlertaCredito } from '@/modulos/clientes/componentes/alerta-credito';
+import { PanelTier } from '@/modulos/clientes/componentes/panel-tier';
+import { HistorialCliente } from '@/modulos/clientes/componentes/historial-cliente';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
@@ -25,13 +27,21 @@ import type {
 import { ETIQUETA_TIPO_DOCUMENTO } from '@/modulos/clientes/utilidades/indice';
 
 const BUCKET = 'documentos-cliente';
-type Pestana = 'general' | 'direcciones' | 'documentos' | 'oportunidades' | 'comentarios';
+type Pestana = 'general' | 'direcciones' | 'documentos' | 'historial' | 'comentarios';
+
+const ETIQUETA_PESTANA: Record<Pestana, string> = {
+  general: 'General',
+  direcciones: 'Direcciones',
+  documentos: 'Documentos',
+  historial: 'Historial',
+  comentarios: 'Comentarios',
+};
 
 /**
  * Ficha 360° del cliente en un drawer lateral. Cabecera con tier/estado y alerta
  * de crédito; pestañas General, Direcciones, Documentos (subida + previsualización
- * vía URL firmada) y Oportunidades (placeholder para Fase 5). Carga sus datos con
- * `usarCliente`.
+ * vía URL firmada), Historial (cotizaciones y órdenes reales) y Comentarios.
+ * Carga sus datos con `usarCliente`.
  */
 export function FichaCliente({
   clienteId,
@@ -82,24 +92,26 @@ export function FichaCliente({
 
         {data && (
           <>
-            <div className="p-4">
+            <div className="grid gap-3 p-4">
               <AlertaCredito cliente={data.cliente} usado={data.creditoUsado} />
+              <PanelTier cliente={data.cliente} consumo={data.consumoUltimos3Meses} />
             </div>
 
             {esAdmin && <ControlTierManual clienteId={clienteId} />}
 
-            <nav className="flex gap-1 border-b border-borde px-4">
-              {(['general', 'direcciones', 'documentos', 'oportunidades', 'comentarios'] as Pestana[]).map((p) => (
+            <nav className="flex flex-wrap gap-1 border-b border-borde px-4">
+              {(Object.keys(ETIQUETA_PESTANA) as Pestana[]).map((p) => (
                 <button
                   key={p}
                   onClick={() => setPestana(p)}
-                  className={`border-b-2 px-3 py-2 text-sm capitalize transition-colors ${
+                  aria-current={pestana === p ? 'page' : undefined}
+                  className={`border-b-2 px-3 py-2 text-sm transition-colors ${
                     pestana === p
                       ? 'border-acento font-semibold text-acento'
                       : 'border-transparent text-texto-secundario hover:text-texto-primario'
                   }`}
                 >
-                  {p}
+                  {ETIQUETA_PESTANA[p]}
                 </button>
               ))}
             </nav>
@@ -110,11 +122,7 @@ export function FichaCliente({
               {pestana === 'documentos' && (
                 <PanelDocumentos clienteId={clienteId} documentos={data.documentos} />
               )}
-              {pestana === 'oportunidades' && (
-                <p className="text-sm text-texto-secundario">
-                  El historial de oportunidades y órdenes se conecta en la Fase 5.
-                </p>
-              )}
+              {pestana === 'historial' && <HistorialCliente clienteId={clienteId} />}
               {pestana === 'comentarios' && (
                 <HiloComentarios
                   entidadTipo="cliente"

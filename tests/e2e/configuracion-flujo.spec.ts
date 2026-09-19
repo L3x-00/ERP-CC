@@ -13,7 +13,7 @@ function credenciales(nombre: string): Credenciales | null {
 async function iniciarSesion(page: Page, acceso: Credenciales): Promise<void> {
   await page.goto('/iniciar-sesion');
   await page.getByLabel('Correo electrónico').fill(acceso.correo);
-  await page.getByLabel('Contraseña').fill(acceso.contrasena);
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(acceso.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL((url) => ['/dashboard', '/produccion'].includes(url.pathname));
 }
@@ -49,7 +49,7 @@ test.describe('Configuración maestra', () => {
     try {
       await page.getByTestId('configuracion-tipo-cambio').fill('19.7500');
       await page.getByRole('button', { name: 'Guardar tarifas y TC' }).click();
-      await expect(page.getByRole('status')).toContainText('guardados');
+      await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardados');
       await expect(page.getByTestId('configuracion-tipo-cambio-vigente')).toContainText('19.7500');
       await page.reload();
       await page.getByRole('tab', { name: 'Tarifas / TC' }).click();

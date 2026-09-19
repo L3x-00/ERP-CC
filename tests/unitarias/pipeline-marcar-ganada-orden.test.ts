@@ -26,7 +26,18 @@ vi.mock('@/nucleo/supabase/servidor', () => ({
   crearClienteSupabaseServidor: () => ({ from: vi.fn() }),
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
-  crearClienteSupabaseAdmin: () => ({ rpc: vi.fn() }),
+  crearClienteSupabaseAdmin: () => ({
+    rpc: vi.fn(),
+    // RFQ-16: la lectura de límite de crédito usa el cliente admin; sin límite
+    // (null) el gate no consulta cartera ni líneas.
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { limite_credito: null }, error: null }),
+        }),
+      }),
+    }),
+  }),
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...args: unknown[]) => registrarLogMock(...args),

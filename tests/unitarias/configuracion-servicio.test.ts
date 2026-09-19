@@ -69,4 +69,26 @@ describe('servicio central de configuración', () => {
     const cliente: ClienteConfiguracion | null = null;
     expect(cliente).toBeNull();
   });
+
+  it('provee el catálogo de tarifas por estación por defecto', () => {
+    const resultado = combinarConfiguracion(null);
+    expect(resultado.tarifas.estaciones.laser.maquinaHora).toBeGreaterThan(0);
+    expect(resultado.tarifas.estaciones.doblado.piezasHora.media).toBeGreaterThan(0);
+    expect(resultado.tarifas.estaciones.laser.segundosPerforacion['Acero al carbono'].hasta3Mm).toBeGreaterThan(0);
+  });
+
+  it('respalda con el catálogo por defecto cuando estaciones es inválido', () => {
+    const resultado = combinarConfiguracion(fila({
+      tarifas_json: { estaciones: { laser: { maquinaHora: -1 } } },
+    }));
+    // Un catálogo incompleto/negativo no se acepta parcialmente; usa el defecto.
+    expect(resultado.tarifas.estaciones.laser.maquinaHora).toBe(650);
+  });
+
+  it('conserva un catálogo válido persistido en tarifas_json', () => {
+    const base = combinarConfiguracion(null).tarifas.estaciones;
+    const estaciones = { ...base, router: { ...base.router, maquinaHora: 999 } };
+    const resultado = combinarConfiguracion(fila({ tarifas_json: { estaciones } }));
+    expect(resultado.tarifas.estaciones.router.maquinaHora).toBe(999);
+  });
 });

@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { BotonRetirarOportunidad } from '@/modulos/pipeline/componentes/boton-retirar-oportunidad';
+import { EditorCotizacion } from '@/modulos/pipeline/componentes/editor-cotizacion';
 import { SelectorEtapa } from '@/modulos/pipeline/componentes/selector-etapa';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import type { AlertaPipeline } from '@/modulos/pipeline/servicios/calcular-alertas';
 import type { Oportunidad, PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
 
@@ -35,6 +38,16 @@ const ESTILO_ALERTA: Record<AlertaPipeline, { texto: string; clase: string }> = 
   },
 };
 
+/** Etiqueta legible del estado de una orden de producción vinculada (RFQ-14). */
+export const ETIQUETA_ESTADO_ORDEN: Record<string, string> = {
+  borrador: 'Borrador',
+  programada: 'Programada',
+  en_proceso: 'En proceso',
+  pausada: 'Pausada',
+  completada: 'Completada',
+  cancelada: 'Cancelada',
+};
+
 /** Texto legible y clases semánticas por prioridad. */
 export const ESTILO_PRIORIDAD: Record<PrioridadPipeline, { texto: string; clase: string }> = {
   baja: { texto: 'Baja', clase: 'bg-superficie-2 text-texto-secundario' },
@@ -59,6 +72,14 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
       <div className="flex items-start justify-between gap-2">
         <span className="font-mono text-xs text-texto-secundario">{folio}</span>
         <div className="flex flex-wrap items-center justify-end gap-1">
+          {oportunidad.esOrdenInterna && (
+            <span
+              className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs font-semibold text-texto-secundario"
+              title="Trabajo interno: no genera cobranza ni cuenta como venta"
+            >
+              TI
+            </span>
+          )}
           <BadgeEstado estado={oportunidad.etapa} />
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${prioridad.clase}`}>
             {prioridad.texto}
@@ -72,6 +93,18 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         <p className="text-xs text-texto-secundario">
           {diasDesde(oportunidad.actualizadoEn)} días en esta etapa
         </p>
+        {oportunidad.importeSubtotal !== undefined && oportunidad.importeSubtotal > 0 && (
+          <p className="text-xs text-texto-secundario">
+            Importe: <span className="tabular-nums">{formatearMoneda(oportunidad.importeSubtotal, oportunidad.moneda)}</span>
+          </p>
+        )}
+        {oportunidad.ordenVinculada && (
+          <p className="text-xs text-texto-secundario">
+            Orden: <span className="font-mono">{oportunidad.ordenVinculada.folio}</span>
+            {' · '}
+            {ETIQUETA_ESTADO_ORDEN[oportunidad.ordenVinculada.estado] ?? oportunidad.ordenVinculada.estado}
+          </p>
+        )}
       </div>
 
       {alertas.length > 0 && (
@@ -87,17 +120,38 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         </ul>
       )}
 
+      {oportunidad.etiquetas.length > 0 && (
+        <ul className="flex flex-wrap gap-1" aria-label="Etiquetas">
+          {oportunidad.etiquetas.map((etiqueta) => (
+            <li
+              key={etiqueta}
+              className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs text-texto-secundario"
+            >
+              {etiqueta}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="border-t border-borde pt-2">
         <SelectorEtapa oportunidad={oportunidad} />
       </div>
-      <button
-        type="button"
-        onClick={() => setMostrarComentarios((actual) => !actual)}
-        aria-expanded={mostrarComentarios}
-        className="self-start text-xs font-semibold text-acento hover:underline"
-      >
-        {mostrarComentarios ? 'Ocultar comentarios' : 'Ver comentarios'}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <EditorCotizacion oportunidad={oportunidad} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setMostrarComentarios((actual) => !actual)}
+          aria-expanded={mostrarComentarios}
+          className="self-start text-xs font-semibold text-acento hover:underline"
+        >
+          {mostrarComentarios ? 'Ocultar comentarios' : 'Ver comentarios'}
+        </button>
+        {oportunidad.etapa !== 'ganada' && (
+          <BotonRetirarOportunidad oportunidadId={oportunidad.id} folio={folio} />
+        )}
+      </div>
       {mostrarComentarios && (
         <HiloComentarios entidadTipo="cotizacion" entidadId={oportunidad.id} titulo={`Comentarios de ${folio}`} />
       )}

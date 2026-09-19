@@ -1,8 +1,30 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { Database } from '@/compartido/tipos/supabase';
+
+/**
+ * Aplica el rango que cubre las fechas E2E. Mientras la consulta inicial del
+ * calendario está en vuelo, un re-render puede reemplazar los inputs y perder
+ * el primer onChange; se reintenta hasta que el rango aplicado se vea reflejado
+ * (el backend rechaza rangos mayores a 31 días).
+ */
+async function aplicarRangoCalendario(pagina: Page): Promise<void> {
+  const aviso = pagina.locator(
+    'section[aria-labelledby="titulo-calendario-planeacion"] p[aria-live="polite"]',
+  );
+  await expect(aviso).toContainText(/programaciones ·/);
+  let aplicado = false;
+  for (let intento = 0; intento < 3 && !aplicado; intento += 1) {
+    await pagina.getByLabel('Fecha inicial').fill('2099-12-28');
+    await pagina.getByLabel('Fecha final').fill('2100-01-03');
+    await pagina.getByRole('button', { name: 'Aplicar rango' }).click();
+    await pagina.waitForTimeout(300);
+    aplicado = ((await aviso.textContent()) ?? '').includes('2099-12-28');
+  }
+  await expect(aviso).toContainText('2099-12-28');
+}
 
 /** Carga únicamente valores locales de prueba; nunca muestra secretos en la salida. */
 function cargarEntornoLocal(): void {
@@ -216,15 +238,13 @@ test.describe.serial('Planeación colaborativa completa', () => {
     if (!contextoPrueba) throw new Error('El contexto E2E no fue preparado');
     await page.goto('/iniciar-sesion');
     await page.getByLabel('Correo electrónico').fill(contextoPrueba.correo);
-    await page.getByLabel('Contraseña').fill(contextoPrueba.contrasena);
+    await page.getByRole('textbox', { name: 'Contraseña' }).fill(contextoPrueba.contrasena);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
     await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
     await page.goto('/planeacion');
     await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
-    await page.getByLabel('Fecha inicial').fill('2099-12-28');
-    await page.getByLabel('Fecha final').fill('2100-01-03');
-    await page.getByRole('button', { name: 'Aplicar rango' }).click();
+    await aplicarRangoCalendario(page);
     await page.getByLabel('Partida').selectOption(contextoPrueba.partidaId);
     await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
     await page.getByLabel('Fecha programada').fill('2099-12-30');
@@ -244,24 +264,12 @@ test.describe.serial('Planeación colaborativa completa', () => {
       .toBe('programada');
     await expect(page.getByText('2099-12-30')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Seleccionar' }).click();
-    await page.getByTestId('activar-preparacion-planeacion').click();
-    await expect
-      .poll(async () => {
-        const { data } = await contextoPrueba.admin
-          .from('programacion_areas')
-          .select('estado_planeacion')
-          .eq('id', contextoPrueba.programacionId!)
-          .single();
-        return data?.estado_planeacion ?? null;
-      })
-      .toBe('en_preparacion');
-
+    // La reprogramación se valida mientras la programación sigue `programada`:
+    // el backend rechaza moverla en preparación/ejecución porque el recurso y la
+    // sesión ya están comprometidos (regla intencional de la auditoría).
     const segundaVista = await context.newPage();
     await segundaVista.goto('/planeacion');
-    await segundaVista.getByLabel('Fecha inicial').fill('2099-12-28');
-    await segundaVista.getByLabel('Fecha final').fill('2100-01-03');
-    await segundaVista.getByRole('button', { name: 'Aplicar rango' }).click();
+    await aplicarRangoCalendario(segundaVista);
     await expect(segundaVista.getByText('2099-12-30')).toBeVisible();
 
     const { data: programacionActual, error: errorProgramacion } = await contextoPrueba.admin
@@ -283,6 +291,19 @@ test.describe.serial('Planeación colaborativa completa', () => {
 
     await expect(segundaVista.getByText('2099-12-31')).toBeVisible({ timeout: 15_000 });
     await expect(segundaVista.getByText('2099-12-30')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Seleccionar' }).click();
+    await page.getByTestId('activar-preparacion-planeacion').click();
+    await expect
+      .poll(async () => {
+        const { data } = await contextoPrueba.admin
+          .from('programacion_areas')
+          .select('estado_planeacion')
+          .eq('id', contextoPrueba.programacionId!)
+          .single();
+        return data?.estado_planeacion ?? null;
+      })
+      .toBe('en_preparacion');
 
     const { data: logs } = await contextoPrueba.admin
       .from('logs')

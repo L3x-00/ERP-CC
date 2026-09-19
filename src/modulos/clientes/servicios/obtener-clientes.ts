@@ -4,6 +4,7 @@ import type { ResultadoPaginado } from '@/compartido/tipos/indice';
 import {
   filaACliente,
   type Cliente,
+  type CondicionesPagoCliente,
   type EstadoCliente,
   type TierCliente,
 } from '@/modulos/clientes/tipos/indice';
@@ -15,6 +16,8 @@ export const CLIENTES_POR_PAGINA = 25;
 export type FiltrosClientes = {
   estado?: EstadoCliente;
   tier?: TierCliente;
+  /** Condiciones de pago pactadas (contado, 15/30 días o crédito). */
+  condicionesPago?: CondicionesPagoCliente;
   /** Texto libre: razón social, nombre comercial o RFC. */
   busqueda?: string;
   pagina?: number;
@@ -27,7 +30,7 @@ export type FiltrosClientes = {
  * cubre razón social, nombre comercial y RFC. Página de `CLIENTES_POR_PAGINA`.
  *
  * @param cliente Cliente Supabase (servidor o navegador).
- * @param filtros Estado, tier, búsqueda y página (1-based).
+ * @param filtros Estado, tier, condiciones de pago, búsqueda y página (1-based).
  * @returns Registros de la página, total global y metadatos de paginación.
  * @throws Error si la consulta falla.
  */
@@ -46,6 +49,9 @@ export async function obtenerClientes(
   }
   if (filtros?.tier) {
     consulta = consulta.eq('tier', filtros.tier);
+  }
+  if (filtros?.condicionesPago) {
+    consulta = consulta.eq('condiciones_pago', filtros.condicionesPago);
   }
   if (filtros?.busqueda) {
     // Neutraliza la sintaxis de `.or()` de PostgREST (`, ( ) " % *`) para que un

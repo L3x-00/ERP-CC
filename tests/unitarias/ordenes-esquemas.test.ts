@@ -254,6 +254,7 @@ describe('mappers de órdenes', () => {
         folio: 'OP-001001',
         cliente_id: uuidCliente,
         cotizacion_id: uuidCotizacion,
+        es_interna: true,
         estado: 'programada',
         prioridad: 'alta',
         fecha_compromiso: '2026-09-15T18:00:00+00:00',
@@ -263,7 +264,7 @@ describe('mappers de órdenes', () => {
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
-    ).toMatchObject({ clienteId: uuidCliente, estado: 'programada', prioridad: 'alta' });
+    ).toMatchObject({ clienteId: uuidCliente, estado: 'programada', prioridad: 'alta', esInterna: true });
 
     expect(
       filaAPartida({
@@ -276,6 +277,10 @@ describe('mappers de órdenes', () => {
         cantidad_scrap: 1,
         unidad_medida: 'pieza',
         material_id: uuidMaterial,
+        area_trabajo_codigo: null,
+        procesos: [],
+        es_externo: false,
+        proveedor_externo: null,
         tiempo_estimado_minutos: 45,
         tiempo_real_minutos: 30,
         maquina_asignada: 'CNC-01',
@@ -323,6 +328,7 @@ describe('mappers de órdenes', () => {
         folio: 'OP-001001',
         cliente_id: uuidCliente,
         cotizacion_id: null,
+        es_interna: false,
         estado: 'desconocido',
         prioridad: 'normal',
         fecha_compromiso: '2026-09-15T18:00:00+00:00',

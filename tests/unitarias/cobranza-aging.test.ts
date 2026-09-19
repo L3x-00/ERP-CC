@@ -8,6 +8,11 @@ import {
   convertirAMxn,
   convertirPagoAMonedaCuenta,
 } from '@/modulos/cobranza/servicios/indice';
+import {
+  bucketDeCuenta,
+  bucketDesdeSlugAging,
+  slugDeBucketAging,
+} from '@/modulos/cobranza/servicios/aging-servicio';
 
 const CLIENTE = '22222222-2222-4222-8222-222222222222';
 const OTRO_CLIENTE = '33333333-3333-4333-8333-333333333333';
@@ -34,6 +39,28 @@ function cuenta(parcial: Partial<CuentaPorCobrar>): CuentaPorCobrar {
     ...parcial,
   };
 }
+
+describe('aging: slugs y bucket de cuenta (OBS-01 drill-down)', () => {
+  it('mapea slug↔bucket y rechaza slugs inválidos', () => {
+    expect(bucketDesdeSlugAging('1-30')).toBe('de1A30Dias');
+    expect(bucketDesdeSlugAging('90-mas')).toBe('masDe90Dias');
+    expect(bucketDesdeSlugAging('xyz')).toBeNull();
+    expect(bucketDesdeSlugAging(undefined)).toBeNull();
+    expect(slugDeBucketAging('de31A60Dias')).toBe('31-60');
+    expect(slugDeBucketAging('alCorriente')).toBe('corriente');
+  });
+
+  it('ubica una cuenta pendiente en su bucket y excluye pagadas o vencimiento inválido', () => {
+    const vencido40 = new Date(Date.parse(REFERENCIA) - 40 * 86_400_000).toISOString();
+    expect(bucketDeCuenta(cuenta({ fechaVencimiento: vencido40 }), REFERENCIA)).toBe('de31A60Dias');
+
+    const futuro = new Date(Date.parse(REFERENCIA) + 5 * 86_400_000).toISOString();
+    expect(bucketDeCuenta(cuenta({ fechaVencimiento: futuro }), REFERENCIA)).toBe('alCorriente');
+
+    expect(bucketDeCuenta(cuenta({ estado: 'pagado' }), REFERENCIA)).toBeNull();
+    expect(bucketDeCuenta(cuenta({ fechaVencimiento: 'no-es-fecha' }), REFERENCIA)).toBeNull();
+  });
+});
 
 describe('convertirPagoAMonedaCuenta', () => {
   it('convierte un pago MXN a una cuenta USD de forma determinista', () => {

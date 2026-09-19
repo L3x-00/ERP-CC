@@ -43,24 +43,39 @@ export type ResultadoTier = {
   esManual: boolean;
 };
 
+/** Tiers de menor a mayor beneficio, para comparar manual contra consumo. */
+const TIERS_ASC: readonly TierCliente[] = ['bronce', 'plata', 'oro', 'platino'];
+
 /**
  * Resuelve el tier EFECTIVO de un cliente.
  *
- * El tier manual manda mientras no venza (`ahora < tierManualHasta`). Vencido o
- * ausente, se cae al tier automático por consumo. Función pura y determinista
- * (la fecha se inyecta).
+ * El tier manual vigente (`ahora < tierManualHasta`) nunca perjudica al
+ * cliente: si su consumo ya le da un tier mejor, manda el consumo. Un manual
+ * vencido o ausente se ignora por completo. Función pura y determinista (la
+ * fecha se inyecta).
+ *
+ * `esManual` indica que el tier devuelto proviene del manual vigente; cuando
+ * ambos coinciden se reporta manual, porque esa asignación sigue siendo la que
+ * sostiene el tier si el consumo baja antes de que venza.
  *
  * @param p Consumo, tier manual, caducidad y momento de evaluación.
  * @returns Tier efectivo y si proviene de asignación manual vigente.
  */
 export function calcularTier(p: ParametrosTier): ResultadoTier {
+  const porConsumo = tierPorConsumo(p.consumo);
+
   if (p.tierManual && p.tierManualHasta) {
     const vence = new Date(p.tierManualHasta).getTime();
     if (Number.isFinite(vence) && p.ahora.getTime() < vence) {
-      return { tier: p.tierManual, esManual: true };
+      const manualEsMejorOIgual =
+        TIERS_ASC.indexOf(p.tierManual) >= TIERS_ASC.indexOf(porConsumo);
+      return manualEsMejorOIgual
+        ? { tier: p.tierManual, esManual: true }
+        : { tier: porConsumo, esManual: false };
     }
   }
-  return { tier: tierPorConsumo(p.consumo), esManual: false };
+
+  return { tier: porConsumo, esManual: false };
 }
 
 /** Descuento porcentual asociado a un tier. */

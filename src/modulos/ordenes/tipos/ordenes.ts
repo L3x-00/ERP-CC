@@ -23,12 +23,19 @@ export interface Orden {
   folio: string;
   clienteId: string;
   cotizacionId: string | null;
+  /**
+   * RFQ-10: folio comercial (CNC-…) de la cotización de origen, cuando el
+   * listado la embebe; `undefined` en rutas que no la cargan.
+   */
+  folioCotizacionCnc?: string | null;
   estado: EstadoOrden;
   prioridad: PrioridadOrden;
   fechaCompromiso: string;
   fechaInicio: string | null;
   fechaFin: string | null;
   motivoCancelacion: string | null;
+  /** DAS-01/RFQ-09: la orden es un trabajo interno (TI). */
+  esInterna: boolean;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -118,6 +125,7 @@ export function filaAOrden(fila: FilaOrden): Orden {
     fechaInicio: fila.fecha_inicio,
     fechaFin: fila.fecha_fin,
     motivoCancelacion: fila.motivo_cancelacion,
+    esInterna: fila.es_interna,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

@@ -1,0 +1,18 @@
+[
+  {
+    "archivo": "fuentes/02_Prompt_auditoria_funcional.md",
+    "sha256": "6dfb773666223160b1ebe05e55a39eb87ffb4d8f25857618b9fd6c11d19758b5"
+  },
+  {
+    "archivo": "fuentes/03_Prompt_flujos_E2E.md",
+    "sha256": "1abf5e3befad1bbe4f904754f856848ddc7493fafb12f1762147fbd6c22ff767"
+  },
+  {
+    "archivo": "fuentes/04_Prompt_correcciones_observaciones.md",
+    "sha256": "5c939ecd9d97e36698968bfa97103cf2a0fd4e45d98d609d46b5881d2cb814fa"
+  },
+  {
+    "archivo": "fuentes/catalogo.csv",
+    "sha256": "f61a2626c7918c69f502b70ac973c9428013168d793f782b54059103db813059"
+  }
+]

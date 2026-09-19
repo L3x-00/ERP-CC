@@ -14,7 +14,7 @@ const MAX_BYTES = 20 * 1024 * 1024;
 
 /** Extensiones permitidas (planos CAD, PDF, imágenes, hojas de cálculo). */
 const EXTENSIONES_PERMITIDAS = new Set([
-  'pdf', 'dxf', 'dwg', 'step', 'stp', 'igs', 'iges',
+  'pdf', 'dxf', 'dwg', 'step', 'stp', 'igs', 'iges', 'eps', 'ai',
   'png', 'jpg', 'jpeg', 'webp',
   'xlsx', 'xls', 'csv', 'doc', 'docx',
 ]);

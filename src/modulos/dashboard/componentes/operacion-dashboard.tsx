@@ -7,6 +7,7 @@ import { cambiarPeriodoDashboard, obtenerMetricasInicioAccion } from '@/modulos/
 import { CLAVE_DASHBOARD } from '@/modulos/dashboard/componentes/claves-consulta';
 import { FiltroPeriodoGlobal } from '@/modulos/dashboard/componentes/filtro-periodo-global';
 import { SeccionFinanciera } from '@/modulos/dashboard/componentes/seccion-financiera';
+import { SeccionGastoCategoria } from '@/modulos/dashboard/componentes/seccion-gasto-categoria';
 import { SeccionProduccionAlertas } from '@/modulos/dashboard/componentes/seccion-produccion-alertas';
 import { SeccionVentasPipeline } from '@/modulos/dashboard/componentes/seccion-ventas-pipeline';
 import { SincronizadorDashboardRealtime } from '@/modulos/dashboard/componentes/sincronizador-dashboard-realtime';
@@ -64,6 +65,9 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
       ) : null}
       <section aria-label="Indicadores clave" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{tarjetas.map((item) => <WidgetMetricaKPI key={item.id} tarjeta={item} />)}</section>
       {datos.ejecutivas ? <SeccionFinanciera finanzas={datos.ejecutivas.actual.finanzas} /> : null}
+      {datos.distribucionGasto && datos.distribucionGasto.length > 0 ? (
+        <SeccionGastoCategoria distribucion={datos.distribucionGasto} />
+      ) : null}
       {datos.contador ? (
         <SeccionFinanciera
           contador={datos.contador.actual}

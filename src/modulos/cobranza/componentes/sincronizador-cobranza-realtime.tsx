@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
-import { CLAVE_CARTERA_COBRANZA } from '@/modulos/cobranza/componentes/claves-consulta';
+
 
 // Cada cambio de saldo a favor siempre inserta un movimiento; no se suscribe a
 // `clientes`, que no forma parte de la publicación Realtime de este módulo.
-const TABLAS_COBRANZA = ['cuentas_por_cobrar', 'pagos_ar', 'movimientos_saldo_favor'] as const;
+const TABLAS_COBRANZA = ['cuentas_por_cobrar', 'pagos_ar', 'movimientos_saldo_favor', 'ordenes_produccion', 'partidas_orden_produccion', 'cuentas_bancarias'] as const;
 
 /** Realtime solo invalida y relee datos autorizados; los payloads nunca llegan a la UI. */
 export function SincronizadorCobranzaRealtime() {
@@ -27,7 +27,7 @@ export function SincronizadorCobranzaRealtime() {
       if (temporizadorRef.current) clearTimeout(temporizadorRef.current);
       temporizadorRef.current = setTimeout(() => {
         temporizadorRef.current = null;
-        if (!desmontado) void clienteConsultas.invalidateQueries({ queryKey: CLAVE_CARTERA_COBRANZA });
+        if (!desmontado) void clienteConsultas.invalidateQueries({ queryKey: ['cobranza'] });
       }, 350);
     };
     const conectar = (): void => {

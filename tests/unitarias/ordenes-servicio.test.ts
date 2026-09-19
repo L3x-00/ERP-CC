@@ -6,6 +6,7 @@ import {
   asignarOperadorPartidaServicio,
   cambiarEstadoOrdenServicio,
   crearOrdenManualServicio,
+  obtenerOrdenesConPartidasServicio,
   registrarConsumoMaterialServicio,
   registrarConsumoMaterialOperadorServicio,
   registrarTiempoOperadorServicio,
@@ -217,5 +218,74 @@ describe('servicios transaccionales de órdenes', () => {
       p_partida_id: '22222222-2222-4222-8222-222222222222',
       p_operador_id: '66666666-6666-4666-8666-666666666666',
     });
+  });
+});
+
+describe('obtenerOrdenesConPartidasServicio (RFQ-10)', () => {
+  /** Constructor de consulta encadenable mínimo: select().(in)().order(). */
+  function consultaCon(filas: unknown[]) {
+    const cadena: Record<string, unknown> = {};
+    cadena.in = vi.fn(() => cadena);
+    cadena.order = vi.fn().mockResolvedValue({ data: filas, error: null });
+    return { select: vi.fn(() => cadena) };
+  }
+
+  it('expone el folio CNC de la cotización de origen y el avance de la OP', async () => {
+    const filaOrden = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      folio: 'OP-001001',
+      cliente_id: '11111111-1111-4111-8111-111111111111',
+      cotizacion_id: '33333333-3333-4333-8333-333333333333',
+      estado: 'programada',
+      prioridad: 'normal',
+      fecha_compromiso: '2026-10-01T18:00:00.000Z',
+      fecha_inicio: null,
+      fecha_fin: null,
+      motivo_cancelacion: null,
+      es_interna: false,
+      creado_en: '2026-09-01T10:00:00.000Z',
+      actualizado_en: '2026-09-01T10:00:00.000Z',
+      pipeline: { folio_cnc: 'CNC-0926-0007' },
+    };
+    const cliente = {
+      from: vi.fn((tabla: string) =>
+        tabla === 'ordenes_produccion' ? consultaCon([filaOrden]) : consultaCon([]),
+      ),
+    } as unknown as SupabaseClient<Database>;
+
+    const ordenes = await obtenerOrdenesConPartidasServicio(cliente);
+
+    expect(ordenes).toHaveLength(1);
+    expect(ordenes[0].orden.folioCotizacionCnc).toBe('CNC-0926-0007');
+    expect(ordenes[0].orden.folio).toBe('OP-001001');
+    expect(ordenes[0].partidas).toEqual([]);
+  });
+
+  it('sin cotización visible (RLS) deja el folio CNC en null sin romper la orden', async () => {
+    const filaOrden = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      folio: 'OP-001002',
+      cliente_id: null,
+      cotizacion_id: null,
+      estado: 'borrador',
+      prioridad: 'normal',
+      fecha_compromiso: '2026-10-02T18:00:00.000Z',
+      fecha_inicio: null,
+      fecha_fin: null,
+      motivo_cancelacion: null,
+      es_interna: false,
+      creado_en: '2026-09-02T10:00:00.000Z',
+      actualizado_en: '2026-09-02T10:00:00.000Z',
+      pipeline: null,
+    };
+    const cliente = {
+      from: vi.fn((tabla: string) =>
+        tabla === 'ordenes_produccion' ? consultaCon([filaOrden]) : consultaCon([]),
+      ),
+    } as unknown as SupabaseClient<Database>;
+
+    const ordenes = await obtenerOrdenesConPartidasServicio(cliente);
+
+    expect(ordenes[0].orden.folioCotizacionCnc).toBeNull();
   });
 });

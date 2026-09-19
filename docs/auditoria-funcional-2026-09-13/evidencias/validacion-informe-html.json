@@ -1,0 +1,9 @@
+{
+  "filas": 164,
+  "filtro_id": 1,
+  "filtro_observaciones": 30,
+  "filtro_no_cubierta": 34,
+  "limpieza": 164,
+  "desbordamiento_movil": false,
+  "alcance": "Documento local; no es E2E del ERP"
+}

@@ -71,9 +71,11 @@ const esquemaImportes = z
 
 export const esquemaRegistrarGasto = z
   .object({
-    ordenId: z.uuid('ID de orden inválido').optional(),
-    proveedorId: z.uuid('ID de proveedor inválido').optional(),
-    categoria: z.enum(CATEGORIAS_GASTO),
+  ordenId: z.uuid('ID de orden inválido').optional(),
+  proveedorId: z.uuid('ID de proveedor inválido').optional(),
+  // OBS-28: cuenta bancaria de salida (opcional).
+  cuentaBancariaId: z.uuid('Cuenta inválida').optional(),
+  categoria: z.enum(CATEGORIAS_GASTO),
     descripcion: z.string().trim().min(3).max(500),
     montoSubtotal: montoNoNegativo('subtotal'),
     montoIva: montoNoNegativo('IVA'),

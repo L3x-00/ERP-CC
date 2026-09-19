@@ -14,7 +14,7 @@ function credenciales(prefijo: string): CredencialesDashboard | null {
 async function iniciarSesion(page: Page, acceso: CredencialesDashboard): Promise<void> {
   await page.goto('/iniciar-sesion');
   await page.getByLabel('Correo electrónico').fill(acceso.correo);
-  await page.getByLabel('Contraseña').fill(acceso.contrasena);
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(acceso.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/produccion');
 }
@@ -44,9 +44,9 @@ test.describe('Dashboard segmentado por rol', () => {
     if (!acceso) return;
     await iniciarSesion(page, acceso);
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByText('CxC pendiente')).toBeVisible();
-    await expect(page.getByText('CxP pendiente')).toBeVisible();
-    await expect(page.getByText('Flujo neto')).toBeVisible();
+    await expect(page.getByTestId('kpi-ar-pendiente-contador')).toBeVisible();
+    await expect(page.getByTestId('kpi-cxp-pendiente-contador')).toBeVisible();
+    await expect(page.getByTestId('kpi-flujo-neto-contador')).toBeVisible();
     await expect(page.getByTestId('kpi-margen-promedio')).toHaveCount(0);
   });
 

@@ -3,6 +3,10 @@ export {
   esquemaRegistrarPago,
   esquemaAplicarSaldoFavor,
   esquemaConsultarCartera,
+  esquemaConsultarHistorialCuenta,
+  esquemaConsultarDetalleOrden,
+  esquemaConsultarRecibo,
+  esquemaConsultarCuentasBancarias,
 } from '@/modulos/cobranza/validaciones/cobranza';
 
 export type {
@@ -10,4 +14,8 @@ export type {
   RegistrarPagoInput,
   AplicarSaldoFavorInput,
   ConsultarCarteraInput,
+  ConsultarHistorialCuentaInput,
+  ConsultarDetalleOrdenInput,
+  ConsultarReciboInput,
+  ConsultarCuentasBancariasInput,
 } from '@/modulos/cobranza/validaciones/cobranza';

@@ -1,0 +1,31 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+import { chromium } from '@playwright/test';
+const base = path.resolve('docs/auditoria-funcional-2026-09-13');
+const dom = new JSDOM(readFileSync(path.join(base, 'informe.html'), 'utf8'), { runScripts: 'dangerously' });
+const d = dom.window.document;
+const visible = () => [...d.querySelectorAll('#matriz details')].filter(e => !e.hidden).length;
+const input = (id, value) => { const e=d.querySelector(id); e.value=value; e.dispatchEvent(new dom.window.Event('input')); };
+assert.equal(visible(),164);
+input('#buscar','COT-04'); assert.equal(visible(),1);
+d.querySelector('#limpiar').click(); assert.equal(visible(),164);
+input('#origen','OBS'); assert.equal(visible(),30);
+d.querySelector('#limpiar').click();
+input('#clase','no cubierta en el alcance revisado'); assert.equal(visible(),34);
+d.querySelector('#limpiar').click(); assert.equal(visible(),164);
+let navegador;
+try {
+ navegador=await chromium.launch({headless:true});
+ const page=await navegador.newPage({viewport:{width:1440,height:1000}});
+ await page.goto(pathToFileURL(path.join(base,'informe.html')).href);
+ await page.screenshot({path:path.join(base,'evidencias/informe-escritorio.png')});
+ await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:path.join(base,'evidencias/informe-movil.png')});
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
+ assert.equal(overflow,false);
+ writeFileSync(path.join(base,'evidencias/validacion-informe-html.json'),JSON.stringify({filas:164,filtro_id:1,filtro_observaciones:30,filtro_no_cubierta:34,limpieza:164,desbordamiento_movil:false,alcance:'Documento local; no es E2E del ERP'},null,2));
+ console.log('VALIDACION_INFORME=PASS; 164 filas, filtros y móvil comprobados');
+} finally {await navegador?.close(); dom.window.close();}

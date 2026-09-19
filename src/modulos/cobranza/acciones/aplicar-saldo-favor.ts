@@ -5,6 +5,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import {
   aplicarSaldoFavorServicio,
   mensajeErrorCobranza,
+  ErrorCobranza,
   type SaldoFavorAplicado,
 } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { esquemaAplicarSaldoFavor } from '@/modulos/cobranza/validaciones/cobranza';
@@ -14,10 +15,10 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 export async function aplicarSaldoFavorAccion(
   entrada: unknown,
-): Promise<RespuestaAccion<SaldoFavorAplicado>> {
+): Promise<RespuestaAccion<SaldoFavorAplicado> & { rechazoConfirmado?: boolean }> {
   const analisis = esquemaAplicarSaldoFavor.safeParse(entrada);
   if (!analisis.success) {
-    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+    return { exito: false, rechazoConfirmado: true, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
   const usuario = await obtenerUsuarioServidor();
@@ -42,6 +43,6 @@ export async function aplicarSaldoFavorAccion(
     await registrarLog(usuario, 'aplicacion_saldo_rechazada', 'cobranza', analisis.data.arId, {
       solicitudId: analisis.data.solicitudId,
     });
-    return { exito: false, error: mensajeErrorCobranza(error) };
+    return { exito: false, error: mensajeErrorCobranza(error), rechazoConfirmado: error instanceof ErrorCobranza && ['cuenta_inexistente', 'cuenta_no_disponible', 'saldo_insuficiente', 'orden_no_lista'].includes(error.codigo) };
   }
 }

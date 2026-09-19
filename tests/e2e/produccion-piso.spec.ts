@@ -176,7 +176,7 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
 async function iniciarSesionAdministrador(page: import('@playwright/test').Page, contexto: ContextoE2E): Promise<void> {
   await page.goto('/iniciar-sesion');
   await page.getByLabel('Correo electrónico').fill(contexto.correoAdministrador);
-  await page.getByLabel('Contraseña').fill(contexto.contrasenaAdministrador);
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(contexto.contrasenaAdministrador);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }

@@ -33,9 +33,11 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   const ordenes: OrdenTabla[] = ordenesConPartidas.map(({ orden, partidas }) => ({
     id: orden.id,
     folio: orden.folio,
+    folioCotizacionCnc: orden.folioCotizacionCnc ?? null,
     estado: orden.estado,
     prioridad: orden.prioridad,
     fechaCompromiso: orden.fechaCompromiso,
+    esInterna: orden.esInterna,
     partidas: partidas.map((partida) => ({
       id: partida.id,
       codigoPieza: partida.codigoPieza,

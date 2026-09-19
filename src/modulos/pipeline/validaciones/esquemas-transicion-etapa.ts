@@ -27,10 +27,13 @@ export const esquemaMarcarPerdida = z.object({
 /**
  * Esquema para aprobar una oportunidad. La fecha de compromiso es parte de la
  * orden resultante y evita crear OPs sin una promesa de entrega trazable.
+ * `autorizarSobregiro` es el consentimiento explícito del administrador cuando
+ * el cliente ya alcanzó su límite de crédito (RFQ-16).
  */
 export const esquemaMarcarGanada = z.object({
   id: z.uuid(),
   fechaCompromiso: z.iso.datetime({ message: 'Fecha de compromiso inválida' }),
+  autorizarSobregiro: z.boolean().default(false),
 });
 
 /** Datos validados para una transición de etapa. */

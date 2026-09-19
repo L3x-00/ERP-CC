@@ -41,12 +41,18 @@ export interface ResumenVentasDashboard {
   totalFacturado: number;
   totalCotizado: number;
   porcentajeConversion: number;
+  /** DAS-05: horas promedio entre alta de oportunidad y envío de cotización. */
+  tiempoRespuestaHorasPromedio: number;
+  /** DAS-05: % de cotizaciones enviadas en <=24h respecto a las enviadas. */
+  porcentajeRespondidas24h: number;
 }
 
 export interface ResumenOrdenesDashboard {
   activas: number;
   completadas: number;
   aprobacionesPendientes: number;
+  /** DAS-01: órdenes de trabajo interno (TI) del periodo, contadas por separado. */
+  internas: number;
   atrasadas: number;
   enRiesgo: number;
 }
@@ -55,14 +61,24 @@ export interface ResumenFinanzasDashboard {
   arPendiente: number;
   arVencido: number;
   cxpPendiente: number;
+  /** DAS-02: gasto total no cancelado del periodo, en MXN. */
+  gastosTotal: number;
   utilidadNetaAcumulada: number;
   margenPromedioPorcentaje: number | null;
+}
+
+/** DAS-06: un renglón de la distribución de gasto por categoría, en MXN. */
+export interface GastoPorCategoriaDashboard {
+  categoria: string;
+  montoMxn: number;
 }
 
 export interface ResumenEjecutivoPeriodo {
   ventas: ResumenVentasDashboard;
   ordenes: ResumenOrdenesDashboard;
   finanzas: ResumenFinanzasDashboard;
+  /** DAS-06: distribución del gasto del periodo por categoría (orden descendente). */
+  distribucionGastoPorCategoria: GastoPorCategoriaDashboard[];
 }
 
 /** Agregados globales de un periodo y su comparación inmediata anterior. */
@@ -77,7 +93,8 @@ export interface MetricasEjecutivas {
 export type PipelinePorEtapa = Record<EtapaPipelineDashboard, number>;
 
 export interface MetaMensualVendedor {
-  metaMxn: number;
+  /** `null` cuando el vendedor no tiene meta configurada para el periodo. */
+  metaMxn: number | null;
   realMxn: number;
   porcentajeCumplimiento: number;
 }
@@ -86,7 +103,8 @@ export interface ResumenVendedorPeriodo {
   pipelinePorEtapa: PipelinePorEtapa;
   cotizacionesSinSeguimiento: number;
   metaMensual: MetaMensualVendedor;
-  comisionAcumuladaMxn: number;
+  /** `null` cuando aún no hay facturación comisionable en el periodo. */
+  comisionAcumuladaMxn: number | null;
 }
 
 /** Métricas limitadas al vendedor indicado por la RPC protegida. */
@@ -178,6 +196,8 @@ export interface DashboardConsolidado {
   equipo?: MetricasPipelineEquipo;
   contador?: MetricasContador;
   produccion?: ResumenOrdenesDashboard;
+  /** DAS-06: distribución de gasto por categoría del periodo actual (solo vista ejecutiva). */
+  distribucionGasto?: GastoPorCategoriaDashboard[];
   redireccion?: '/produccion';
 }
 
@@ -212,6 +232,17 @@ function numeroNulo(valor: unknown, nombre: string): number | null {
   return valor === null ? null : numero(valor, nombre);
 }
 
+/**
+ * Lee una clave numérica que puede no existir todavía en el RPC remoto (claves
+ * añadidas de forma aditiva). Si falta, devuelve el default sin lanzar; si está
+ * presente, exige que sea un número válido. Así el dashboard no se rompe antes
+ * de aplicar la migración que puebla estas métricas.
+ */
+function numeroOpcional(objeto: Record<string, unknown>, nombre: string, porDefecto = 0): number {
+  if (!(nombre in objeto)) return porDefecto;
+  return numero(objeto[nombre], nombre);
+}
+
 function objetoCampo(objeto: Record<string, unknown>, nombre: string): Record<string, unknown> {
   const valor = campo(objeto, nombre);
   if (!esObjeto(valor)) throw new Error(`Objeto inválido en métricas: ${nombre}`);
@@ -234,6 +265,8 @@ function ventasDesde(valor: unknown): ResumenVentasDashboard {
     totalFacturado: numero(campo(objeto, 'totalFacturado'), 'ventas.totalFacturado'),
     totalCotizado: numero(campo(objeto, 'totalCotizado'), 'ventas.totalCotizado'),
     porcentajeConversion: numero(campo(objeto, 'porcentajeConversion'), 'ventas.porcentajeConversion'),
+    tiempoRespuestaHorasPromedio: numeroOpcional(objeto, 'tiempoRespuestaHorasPromedio'),
+    porcentajeRespondidas24h: numeroOpcional(objeto, 'porcentajeRespondidas24h'),
   };
 }
 
@@ -243,6 +276,7 @@ function ordenesDesde(valor: unknown): ResumenOrdenesDashboard {
     activas: numero(campo(objeto, 'activas'), 'ordenes.activas'),
     completadas: numero(campo(objeto, 'completadas'), 'ordenes.completadas'),
     aprobacionesPendientes: numero(campo(objeto, 'aprobacionesPendientes'), 'ordenes.aprobacionesPendientes'),
+    internas: numeroOpcional(objeto, 'internas'),
     atrasadas: numero(campo(objeto, 'atrasadas'), 'ordenes.atrasadas'),
     enRiesgo: numero(campo(objeto, 'enRiesgo'), 'ordenes.enRiesgo'),
   };
@@ -254,9 +288,31 @@ function finanzasDesde(valor: unknown): ResumenFinanzasDashboard {
     arPendiente: numero(campo(objeto, 'arPendiente'), 'finanzas.arPendiente'),
     arVencido: numero(campo(objeto, 'arVencido'), 'finanzas.arVencido'),
     cxpPendiente: numero(campo(objeto, 'cxpPendiente'), 'finanzas.cxpPendiente'),
+    gastosTotal: numeroOpcional(objeto, 'gastosTotal'),
     utilidadNetaAcumulada: numero(campo(objeto, 'utilidadNetaAcumulada'), 'finanzas.utilidadNetaAcumulada'),
     margenPromedioPorcentaje: numeroNulo(campo(objeto, 'margenPromedioPorcentaje'), 'finanzas.margenPromedioPorcentaje'),
   };
+}
+
+/**
+ * Distribución de gasto por categoría (DAS-06). Clave aditiva: si el RPC aún no
+ * la envía, devuelve []. Descarta renglones malformados en vez de lanzar, para
+ * no tumbar todo el dashboard por un dato accesorio.
+ */
+function distribucionGastoDesde(objeto: Record<string, unknown>): GastoPorCategoriaDashboard[] {
+  if (!('distribucionGastoPorCategoria' in objeto)) return [];
+  const bruto = objeto.distribucionGastoPorCategoria;
+  if (!Array.isArray(bruto)) return [];
+  const filas: GastoPorCategoriaDashboard[] = [];
+  for (const item of bruto) {
+    if (!esObjeto(item)) continue;
+    const categoria = item.categoria;
+    const monto = item.montoMxn;
+    if (typeof categoria !== 'string' || categoria.trim() === '') continue;
+    if (typeof monto !== 'number' || !Number.isFinite(monto)) continue;
+    filas.push({ categoria, montoMxn: monto });
+  }
+  return filas;
 }
 
 function resumenEjecutivoDesde(valor: unknown): ResumenEjecutivoPeriodo {
@@ -265,6 +321,7 @@ function resumenEjecutivoDesde(valor: unknown): ResumenEjecutivoPeriodo {
     ventas: ventasDesde(campo(objeto, 'ventas')),
     ordenes: ordenesDesde(campo(objeto, 'ordenes')),
     finanzas: finanzasDesde(campo(objeto, 'finanzas')),
+    distribucionGastoPorCategoria: distribucionGastoDesde(objeto),
   };
 }
 
@@ -284,11 +341,13 @@ function resumenVendedorDesde(valor: unknown): ResumenVendedorPeriodo {
     pipelinePorEtapa: pipelineDesde(campo(objeto, 'pipelinePorEtapa')),
     cotizacionesSinSeguimiento: numero(campo(objeto, 'cotizacionesSinSeguimiento'), 'cotizacionesSinSeguimiento'),
     metaMensual: {
-      metaMxn: numero(campo(meta, 'metaMxn'), 'metaMensual.metaMxn'),
+      // La RPC devuelve `null` cuando el vendedor no tiene meta configurada:
+      // es un dato ausente, no un cero (la tarjeta lo muestra como "—").
+      metaMxn: numeroNulo(campo(meta, 'metaMxn'), 'metaMensual.metaMxn'),
       realMxn: numero(campo(meta, 'realMxn'), 'metaMensual.realMxn'),
       porcentajeCumplimiento: numero(campo(meta, 'porcentajeCumplimiento'), 'metaMensual.porcentajeCumplimiento'),
     },
-    comisionAcumuladaMxn: numero(campo(objeto, 'comisionAcumuladaMxn'), 'comisionAcumuladaMxn'),
+    comisionAcumuladaMxn: numeroNulo(campo(objeto, 'comisionAcumuladaMxn'), 'comisionAcumuladaMxn'),
   };
 }
 

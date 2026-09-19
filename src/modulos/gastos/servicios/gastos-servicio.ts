@@ -64,9 +64,12 @@ export async function registrarGastoServicio(
   entrada: RegistrarGastoInput,
   usuarioId: string,
 ): Promise<Gasto> {
-  const { data, error } = await admin.rpc('registrar_gasto', {
+  // Los parámetros SQL sin DEFAULT se generan como no nulos, pero la RPC acepta
+  // null en los campos opcionales (los valida por dentro); de ahí la conversión.
+  const argumentos = {
     p_orden_id: entrada.ordenId ?? null,
     p_proveedor_id: entrada.proveedorId ?? null,
+    p_cuenta_bancaria_id: entrada.cuentaBancariaId ?? null,
     p_categoria: entrada.categoria,
     p_descripcion: entrada.descripcion,
     p_monto_subtotal: entrada.montoSubtotal,
@@ -82,7 +85,9 @@ export async function registrarGastoServicio(
     p_datos_ocr_json: jsonSeguro(entrada.datosOcrJson),
     p_notas: entrada.notas ?? null,
     p_creado_por: usuarioId,
-  });
+  } as unknown as Database['public']['Functions']['registrar_gasto']['Args'];
+
+  const { data, error } = await admin.rpc('registrar_gasto', argumentos);
   if (error) lanzarError(error.message);
   const fila = data?.[0];
   if (!fila) throw new ErrorGastos('desconocido');
