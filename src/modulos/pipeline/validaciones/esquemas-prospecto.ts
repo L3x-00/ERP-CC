@@ -17,6 +17,9 @@ export const esquemaCrearProspecto = z.object({
   etiquetas: z.array(z.string()).default([]),
   // RFQ-09: trabajo interno (TI). Al aprobar no genera AR ni cuenta como venta.
   esOrdenInterna: z.boolean().default(false),
+  // RFQ-02: cliente existente (o recién dado de alta) al que se liga la RFQ.
+  // Opcional: una RFQ puede nacer sin cliente en el catálogo y ligarse después.
+  clienteId: z.uuid('Cliente inválido').optional(),
   // RFQ-01: datos de captura de la solicitud (opcionales en el alta).
   poCliente: z.string().max(60).optional(),
   fechaRequerida: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').optional().or(z.literal('')),
@@ -74,3 +77,20 @@ export const esquemaDatosOportunidad = z.object({
 
 /** Datos validados para actualizar los datos de la solicitud (RFQ-01). */
 export type DatosOportunidadInput = z.infer<typeof esquemaDatosOportunidad>;
+
+/**
+ * Esquema para ligar (o desligar) una oportunidad abierta con un cliente del
+ * catálogo — RFQ-02. `clienteId: null` desliga. `heredarCondiciones` copia las
+ * condiciones de pago del cliente a la oportunidad; se pide de forma explícita
+ * para no pisar en silencio unas condiciones negociadas a mano (RFQ-03).
+ */
+export const esquemaAsignarClienteOportunidad = z.object({
+  id: z.uuid(),
+  clienteId: z.uuid('Cliente inválido').nullable(),
+  heredarCondiciones: z.boolean().default(false),
+});
+
+/** Datos validados para asignar el cliente de una oportunidad (RFQ-02). */
+export type AsignarClienteOportunidadInput = z.infer<
+  typeof esquemaAsignarClienteOportunidad
+>;

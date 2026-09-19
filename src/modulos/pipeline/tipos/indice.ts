@@ -96,6 +96,24 @@ export type TotalesCotizacion = {
   moneda: MonedaPipeline;
 };
 
+/**
+ * Cliente tal como lo consume la RFQ (RFQ-02/03): solo los campos que la
+ * cotización hereda o muestra. Deliberadamente NO incluye tier: el tier efectivo
+ * depende del consumo AR y lo resuelve `calcularTier` con los datos de la ficha
+ * (`usarCliente`), no un valor copiado aquí.
+ */
+export type ClienteRfq = {
+  id: string;
+  razonSocial: string;
+  nombreComercial: string;
+  rfc: string | null;
+  contacto: string | null;
+  correo: string | null;
+  telefono: string | null;
+  condicionesPago: CondicionesPago | null;
+  estado: 'prospecto' | 'activo' | 'inactivo';
+};
+
 /** Datos mínimos de cliente creados al promover una oportunidad ganada. */
 export type ClienteMinimo = {
   id: string;
@@ -198,6 +216,26 @@ export function filaALineaCotizacion(fila: FilaLineaCotizacion): LineaCotizacion
     orden: fila.orden,
     creadoEn: fila.creado_en,
     ...(calculo ? { calculoTecnico: calculo } : {}),
+  };
+}
+
+/**
+ * Reduce un `Cliente` del módulo de Clientes a lo que la RFQ necesita
+ * (RFQ-02/03). Las condiciones de pago comparten unión en ambos módulos.
+ */
+export function clienteAClienteRfq(
+  cliente: import('@/modulos/clientes/tipos/indice').Cliente,
+): ClienteRfq {
+  return {
+    id: cliente.id,
+    razonSocial: cliente.razonSocial,
+    nombreComercial: cliente.nombreComercial,
+    rfc: cliente.rfc,
+    contacto: cliente.contacto,
+    correo: cliente.correo,
+    telefono: cliente.telefono,
+    condicionesPago: cliente.condicionesPago,
+    estado: cliente.estado,
   };
 }
 

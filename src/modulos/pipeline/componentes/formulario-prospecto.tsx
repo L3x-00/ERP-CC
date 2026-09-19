@@ -4,7 +4,10 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { crearProspectoAccion } from '@/modulos/pipeline/acciones/crear-prospecto';
+import { SelectorCliente } from '@/modulos/pipeline/componentes/selector-cliente';
+import { ResumenClienteRfq } from '@/modulos/pipeline/componentes/resumen-cliente-rfq';
 import type {
+  ClienteRfq,
   CondicionesPago,
   MonedaPipeline,
   PrioridadPipeline,
@@ -18,9 +21,15 @@ import { Label } from '@/compartido/componentes/ui/label';
  * datos a `crearProspectoAccion`; en éxito limpia los campos y refresca la ruta
  * para que el tablero muestre la oportunidad recién creada. Campos numéricos
  * como `ivaPorcentaje` y `etiquetas` los resuelve el esquema por defecto.
+ *
+ * RFQ-02/03: permite elegir (o dar de alta) el cliente del catálogo sin salir
+ * del formulario. Al elegirlo se heredan sus condiciones de pago y se rellenan
+ * solo los campos de contacto que estén vacíos — nunca se pisa lo ya capturado.
  */
 export function FormularioProspecto() {
   const router = useRouter();
+  const [cliente, setCliente] = useState<ClienteRfq | null>(null);
+  const [condicionesHeredadas, setCondicionesHeredadas] = useState(false);
   const [nombreContacto, setNombreContacto] = useState('');
   const [empresa, setEmpresa] = useState('');
   const [correo, setCorreo] = useState('');
@@ -36,7 +45,30 @@ export function FormularioProspecto() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  /**
+   * Aplica el cliente elegido a la captura: hereda sus condiciones de pago y
+   * rellena los datos de contacto que aún estén vacíos. Al quitarlo no se borra
+   * nada de lo capturado (la RFQ sigue siendo válida sin cliente del catálogo).
+   */
+  function aplicarCliente(elegido: ClienteRfq | null): void {
+    setCliente(elegido);
+    if (!elegido) {
+      setCondicionesHeredadas(false);
+      return;
+    }
+    if (elegido.condicionesPago !== null) {
+      setCondicionesPago(elegido.condicionesPago);
+      setCondicionesHeredadas(true);
+    }
+    setEmpresa((actual) => (actual.trim() ? actual : elegido.razonSocial));
+    setNombreContacto((actual) => (actual.trim() ? actual : elegido.contacto ?? ''));
+    setCorreo((actual) => (actual.trim() ? actual : elegido.correo ?? ''));
+    setTelefono((actual) => (actual.trim() ? actual : elegido.telefono ?? ''));
+  }
+
   function limpiar(): void {
+    setCliente(null);
+    setCondicionesHeredadas(false);
     setNombreContacto('');
     setEmpresa('');
     setCorreo('');
@@ -65,6 +97,7 @@ export function FormularioProspecto() {
         moneda,
         prioridad,
         esOrdenInterna,
+        ...(cliente ? { clienteId: cliente.id } : {}),
         ...(condicionesPago !== '' ? { condicionesPago } : {}),
         ...(poCliente.trim() ? { poCliente: poCliente.trim() } : {}),
         ...(fechaRequerida ? { fechaRequerida } : {}),
@@ -89,6 +122,20 @@ export function FormularioProspecto() {
 
   return (
     <form onSubmit={manejarEnvio} className="flex flex-col gap-4" noValidate>
+      <div className="flex flex-col gap-2">
+        <SelectorCliente
+          seleccionado={cliente}
+          onSeleccionar={aplicarCliente}
+          sugerencias={{ empresa, contacto: nombreContacto, correo, telefono }}
+        />
+        {cliente && (
+          <ResumenClienteRfq
+            clienteId={cliente.id}
+            condicionesPago={condicionesPago === '' ? null : condicionesPago}
+          />
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="prospecto-contacto">Nombre del contacto</Label>
@@ -165,9 +212,10 @@ export function FormularioProspecto() {
           <Select
             id="prospecto-condiciones"
             value={condicionesPago}
-            onChange={(evento) =>
-              setCondicionesPago(evento.target.value as CondicionesPago | '')
-            }
+            onChange={(evento) => {
+              setCondicionesPago(evento.target.value as CondicionesPago | '');
+              setCondicionesHeredadas(false);
+            }}
           >
             <option value="">Sin especificar</option>
             <option value="contado">Contado</option>
@@ -175,6 +223,11 @@ export function FormularioProspecto() {
             <option value="30_dias">30 días</option>
             <option value="credito">Crédito</option>
           </Select>
+          {condicionesHeredadas && (
+            <span className="text-xs text-texto-secundario">
+              Heredadas del cliente seleccionado. Puedes cambiarlas para esta RFQ.
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { FormularioCotizacion } from '@/modulos/pipeline/componentes/formulario-cotizacion';
+import { GestorClienteOportunidad } from '@/modulos/pipeline/componentes/gestor-cliente-oportunidad';
 import { GestorDatosSolicitud } from '@/modulos/pipeline/componentes/gestor-datos-solicitud';
 import { GestorEtiquetas } from '@/modulos/pipeline/componentes/gestor-etiquetas';
 import { PanelAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
@@ -11,6 +12,7 @@ import { actualizarOrdenInternaAccion } from '@/modulos/pipeline/acciones/actual
 import { usarOportunidad } from '@/modulos/pipeline/hooks/usar-oportunidad';
 import type { OportunidadConLineas } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import type {
+  CondicionesPago,
   EtapaPipeline,
   LineaCotizacionEntrada,
   Oportunidad,
@@ -132,6 +134,20 @@ export function EditorCotizacion({
     void clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
   }
 
+  function alCambiarCliente(datos: {
+    clienteId: string | null;
+    condicionesPago: CondicionesPago | null;
+  }): void {
+    if (instantanea) {
+      setInstantanea({
+        ...instantanea,
+        oportunidad: { ...instantanea.oportunidad, ...datos },
+      });
+    }
+    void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+    void clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
+  }
+
   const etapa = instantanea?.oportunidad.etapa ?? oportunidad.etapa;
   const editable = cotizacionEsEditable(etapa);
   const cabecera = instantanea?.oportunidad ?? oportunidad;
@@ -216,6 +232,13 @@ export function EditorCotizacion({
                   </span>
                 </label>
               )}
+              <GestorClienteOportunidad
+                oportunidadId={oportunidad.id}
+                clienteId={instantanea.oportunidad.clienteId}
+                condicionesPago={instantanea.oportunidad.condicionesPago}
+                soloLectura={!editable}
+                onCambio={alCambiarCliente}
+              />
               <GestorDatosSolicitud
                 oportunidadId={oportunidad.id}
                 datos={{
