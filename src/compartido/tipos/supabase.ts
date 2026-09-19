@@ -10,10 +10,52 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      areas_trabajo_config: {
+        Row: {
+          activo: boolean
+          actualizado_en: string
+          codigo: string
+          color_hex: string
+          costo_hora_interno: number
+          creado_en: string
+          es_externo: boolean
+          id: string
+          nombre: string
+          orden: number
+          tarifa_hora_venta: number
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_en?: string
+          codigo: string
+          color_hex?: string
+          costo_hora_interno?: number
+          creado_en?: string
+          es_externo?: boolean
+          id?: string
+          nombre: string
+          orden?: number
+          tarifa_hora_venta?: number
+        }
+        Update: {
+          activo?: boolean
+          actualizado_en?: string
+          codigo?: string
+          color_hex?: string
+          costo_hora_interno?: number
+          creado_en?: string
+          es_externo?: boolean
+          id?: string
+          nombre?: string
+          orden?: number
+          tarifa_hora_venta?: number
+        }
+        Relationships: []
+      }
       capacidades_recurso_turno: {
         Row: {
           actualizado_en: string
@@ -109,6 +151,97 @@ export type Database = {
         }
         Relationships: []
       }
+      comentarios_registro: {
+        Row: {
+          actualizado_en: string
+          archivos_adjuntos: Json
+          autor_id: string
+          contenido: string
+          creado_en: string
+          editado: boolean
+          eliminado: boolean
+          entidad_id: string
+          entidad_tipo: Database["public"]["Enums"]["tipo_entidad_comentario"]
+          id: string
+          menciones_json: Json
+        }
+        Insert: {
+          actualizado_en?: string
+          archivos_adjuntos?: Json
+          autor_id: string
+          contenido: string
+          creado_en?: string
+          editado?: boolean
+          eliminado?: boolean
+          entidad_id: string
+          entidad_tipo: Database["public"]["Enums"]["tipo_entidad_comentario"]
+          id?: string
+          menciones_json?: Json
+        }
+        Update: {
+          actualizado_en?: string
+          archivos_adjuntos?: Json
+          autor_id?: string
+          contenido?: string
+          creado_en?: string
+          editado?: boolean
+          eliminado?: boolean
+          entidad_id?: string
+          entidad_tipo?: Database["public"]["Enums"]["tipo_entidad_comentario"]
+          id?: string
+          menciones_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comentarios_registro_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      configuracion_sistema: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          empresa_json: Json
+          id: string
+          iva_porcentaje_default: number
+          plantillas_doc_json: Json
+          tarifas_json: Json
+          tipo_cambio_usd: number
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          empresa_json?: Json
+          id?: string
+          iva_porcentaje_default?: number
+          plantillas_doc_json?: Json
+          tarifas_json?: Json
+          tipo_cambio_usd?: number
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          empresa_json?: Json
+          id?: string
+          iva_porcentaje_default?: number
+          plantillas_doc_json?: Json
+          tarifas_json?: Json
+          tipo_cambio_usd?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_sistema_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contador_folios: {
         Row: {
           periodo: string
@@ -126,11 +259,14 @@ export type Database = {
       }
       cotizacion_lineas: {
         Row: {
-          calculo_tecnico?: Json | null
           area: number | null
+          area_trabajo_codigo: string | null
+          calculo_tecnico: Json | null
           cantidad: number
           creado_en: string
           descripcion: string
+          es_descuento: boolean
+          es_externo: boolean
           espesor: string | null
           id: string
           material: string | null
@@ -138,13 +274,17 @@ export type Database = {
           pipeline_id: string
           precio_unitario: number
           procesos: string[]
+          proveedor_externo: string | null
         }
         Insert: {
-          calculo_tecnico?: Json | null
           area?: number | null
+          area_trabajo_codigo?: string | null
+          calculo_tecnico?: Json | null
           cantidad: number
           creado_en?: string
           descripcion: string
+          es_descuento?: boolean
+          es_externo?: boolean
           espesor?: string | null
           id?: string
           material?: string | null
@@ -152,13 +292,17 @@ export type Database = {
           pipeline_id: string
           precio_unitario: number
           procesos?: string[]
+          proveedor_externo?: string | null
         }
         Update: {
-          calculo_tecnico?: Json | null
           area?: number | null
+          area_trabajo_codigo?: string | null
+          calculo_tecnico?: Json | null
           cantidad?: number
           creado_en?: string
           descripcion?: string
+          es_descuento?: boolean
+          es_externo?: boolean
           espesor?: string | null
           id?: string
           material?: string | null
@@ -166,6 +310,7 @@ export type Database = {
           pipeline_id?: string
           precio_unitario?: number
           procesos?: string[]
+          proveedor_externo?: string | null
         }
         Relationships: [
           {
@@ -176,6 +321,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cuentas_bancarias: {
+        Row: {
+          activa: boolean
+          actualizado_en: string
+          banco: string
+          clabe: string | null
+          creado_en: string
+          id: string
+          moneda: string
+          numero_cuenta: string
+          titular: string
+        }
+        Insert: {
+          activa?: boolean
+          actualizado_en?: string
+          banco: string
+          clabe?: string | null
+          creado_en?: string
+          id?: string
+          moneda?: string
+          numero_cuenta: string
+          titular: string
+        }
+        Update: {
+          activa?: boolean
+          actualizado_en?: string
+          banco?: string
+          clabe?: string | null
+          creado_en?: string
+          id?: string
+          moneda?: string
+          numero_cuenta?: string
+          titular?: string
+        }
+        Relationships: []
       }
       cuentas_por_cobrar: {
         Row: {
@@ -559,6 +740,44 @@ export type Database = {
           },
         ]
       }
+      metas_vendedor: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          id: string
+          mes: string
+          meta_mensual_mxn: number
+          porcentaje_comision: number
+          vendedor_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          mes: string
+          meta_mensual_mxn?: number
+          porcentaje_comision?: number
+          vendedor_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          mes?: string
+          meta_mensual_mxn?: number
+          porcentaje_comision?: number
+          vendedor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_vendedor_vendedor_id_fkey"
+            columns: ["vendedor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       movimientos_inventario: {
         Row: {
           cantidad_compra: number | null
@@ -608,6 +827,13 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_inventario_orden_fk"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -724,6 +950,57 @@ export type Database = {
             columns: ["orden_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificaciones_usuario: {
+        Row: {
+          creado_en: string
+          emisor_id: string | null
+          enlace: string | null
+          id: string
+          leida: boolean
+          mensaje: string
+          tipo: string
+          titulo: string
+          usuario_id: string
+        }
+        Insert: {
+          creado_en?: string
+          emisor_id?: string | null
+          enlace?: string | null
+          id?: string
+          leida?: boolean
+          mensaje: string
+          tipo: string
+          titulo: string
+          usuario_id: string
+        }
+        Update: {
+          creado_en?: string
+          emisor_id?: string | null
+          enlace?: string | null
+          id?: string
+          leida?: boolean
+          mensaje?: string
+          tipo?: string
+          titulo?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificaciones_usuario_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notificaciones_usuario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -858,6 +1135,13 @@ export type Database = {
             referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pagos_ar_cuenta_bancaria_fk"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
         ]
       }
       partidas_nota_entrega: {
@@ -902,51 +1186,63 @@ export type Database = {
       partidas_orden_produccion: {
         Row: {
           actualizado_en: string
+          area_trabajo_codigo: string | null
           cantidad_producida: number
           cantidad_scrap: number
           cantidad_solicitada: number
           codigo_pieza: string
           creado_en: string
           descripcion: string | null
+          es_externo: boolean
           id: string
           maquina_asignada: string | null
           material_id: string | null
           operador_asignado_id: string | null
           orden_id: string
+          procesos: string[]
+          proveedor_externo: string | null
           tiempo_estimado_minutos: number
           tiempo_real_minutos: number
           unidad_medida: string
         }
         Insert: {
           actualizado_en?: string
+          area_trabajo_codigo?: string | null
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada: number
           codigo_pieza: string
           creado_en?: string
           descripcion?: string | null
+          es_externo?: boolean
           id?: string
           maquina_asignada?: string | null
           material_id?: string | null
           operador_asignado_id?: string | null
           orden_id: string
+          procesos?: string[]
+          proveedor_externo?: string | null
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
           unidad_medida: string
         }
         Update: {
           actualizado_en?: string
+          area_trabajo_codigo?: string | null
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada?: number
           codigo_pieza?: string
           creado_en?: string
           descripcion?: string | null
+          es_externo?: boolean
           id?: string
           maquina_asignada?: string | null
           material_id?: string | null
           operador_asignado_id?: string | null
           orden_id?: string
+          procesos?: string[]
+          proveedor_externo?: string | null
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
           unidad_medida?: string
@@ -971,44 +1267,6 @@ export type Database = {
             columns: ["orden_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      metas_vendedor: {
-        Row: {
-          actualizado_en: string
-          creado_en: string
-          id: string
-          mes: string
-          meta_mensual_mxn: number
-          porcentaje_comision: number
-          vendedor_id: string
-        }
-        Insert: {
-          actualizado_en?: string
-          creado_en?: string
-          id?: string
-          mes: string
-          meta_mensual_mxn?: number
-          porcentaje_comision?: number
-          vendedor_id: string
-        }
-        Update: {
-          actualizado_en?: string
-          creado_en?: string
-          id?: string
-          mes?: string
-          meta_mensual_mxn?: number
-          porcentaje_comision?: number
-          vendedor_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "metas_vendedor_vendedor_id_fkey"
-            columns: ["vendedor_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -1046,22 +1304,22 @@ export type Database = {
           etapa: string
           etiquetas: string[]
           fecha_envio_cotizacion: string | null
+          fecha_requerida: string | null
           fecha_ultimo_contacto: string | null
           folio_cnc: string | null
           folio_op: string
+          horas_estimadas: number | null
           id: string
           iva_porcentaje: number
           moneda: string
           motivo_perdida: string | null
           nombre_contacto: string
+          notas: string | null
           notas_perdida: string | null
+          po_cliente: string | null
           prioridad: string
           telefono: string | null
           vendedor_id: string
-          po_cliente: string | null
-          fecha_requerida: string | null
-          horas_estimadas: number | null
-          notas: string | null
         }
         Insert: {
           actualizado_en?: string
@@ -1074,22 +1332,22 @@ export type Database = {
           etapa?: string
           etiquetas?: string[]
           fecha_envio_cotizacion?: string | null
+          fecha_requerida?: string | null
           fecha_ultimo_contacto?: string | null
           folio_cnc?: string | null
           folio_op: string
+          horas_estimadas?: number | null
           id?: string
           iva_porcentaje?: number
           moneda?: string
           motivo_perdida?: string | null
           nombre_contacto: string
+          notas?: string | null
           notas_perdida?: string | null
+          po_cliente?: string | null
           prioridad?: string
           telefono?: string | null
           vendedor_id: string
-          po_cliente?: string | null
-          fecha_requerida?: string | null
-          horas_estimadas?: number | null
-          notas?: string | null
         }
         Update: {
           actualizado_en?: string
@@ -1102,22 +1360,22 @@ export type Database = {
           etapa?: string
           etiquetas?: string[]
           fecha_envio_cotizacion?: string | null
+          fecha_requerida?: string | null
           fecha_ultimo_contacto?: string | null
           folio_cnc?: string | null
           folio_op?: string
+          horas_estimadas?: number | null
           id?: string
           iva_porcentaje?: number
           moneda?: string
           motivo_perdida?: string | null
           nombre_contacto?: string
+          notas?: string | null
           notas_perdida?: string | null
+          po_cliente?: string | null
           prioridad?: string
           telefono?: string | null
           vendedor_id?: string
-          po_cliente?: string | null
-          fecha_requerida?: string | null
-          horas_estimadas?: number | null
-          notas?: string | null
         }
         Relationships: [
           {
@@ -1456,6 +1714,13 @@ export type Database = {
             referencedRelation: "materiales"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reservas_material_orden_fk"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sesiones_trabajo: {
@@ -1580,244 +1845,11 @@ export type Database = {
         }
         Relationships: []
       }
-      configuracion_sistema: {
-        Row: {
-          actualizado_en: string
-          actualizado_por: string | null
-          empresa_json: Json
-          id: string
-          iva_porcentaje_default: number
-          plantillas_doc_json: Json
-          tarifas_json: Json
-          tipo_cambio_usd: number
-        }
-        Insert: {
-          actualizado_en?: string
-          actualizado_por?: string | null
-          empresa_json?: Json
-          id?: string
-          iva_porcentaje_default?: number
-          plantillas_doc_json?: Json
-          tarifas_json?: Json
-          tipo_cambio_usd?: number
-        }
-        Update: {
-          actualizado_en?: string
-          actualizado_por?: string | null
-          empresa_json?: Json
-          id?: string
-          iva_porcentaje_default?: number
-          plantillas_doc_json?: Json
-          tarifas_json?: Json
-          tipo_cambio_usd?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "configuracion_sistema_actualizado_por_fkey"
-            columns: ["actualizado_por"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cuentas_bancarias: {
-        Row: {
-          activa: boolean
-          actualizado_en: string
-          banco: string
-          clabe: string | null
-          creado_en: string
-          id: string
-          moneda: string
-          numero_cuenta: string
-          titular: string
-        }
-        Insert: {
-          activa?: boolean
-          actualizado_en?: string
-          banco: string
-          clabe?: string | null
-          creado_en?: string
-          id?: string
-          moneda?: string
-          numero_cuenta: string
-          titular: string
-        }
-        Update: {
-          activa?: boolean
-          actualizado_en?: string
-          banco?: string
-          clabe?: string | null
-          creado_en?: string
-          id?: string
-          moneda?: string
-          numero_cuenta?: string
-          titular?: string
-        }
-        Relationships: []
-      }
-      areas_trabajo_config: {
-        Row: {
-          activo: boolean
-          actualizado_en: string
-          codigo: string
-          color_hex: string
-          costo_hora_interno: number
-          creado_en: string
-          es_externo: boolean
-          id: string
-          nombre: string
-          orden: number
-          tarifa_hora_venta: number
-        }
-        Insert: {
-          activo?: boolean
-          actualizado_en?: string
-          codigo: string
-          color_hex?: string
-          costo_hora_interno?: number
-          creado_en?: string
-          es_externo?: boolean
-          id?: string
-          nombre: string
-          orden?: number
-          tarifa_hora_venta?: number
-        }
-        Update: {
-          activo?: boolean
-          actualizado_en?: string
-          codigo?: string
-          color_hex?: string
-          costo_hora_interno?: number
-          creado_en?: string
-          es_externo?: boolean
-          id?: string
-          nombre?: string
-          orden?: number
-          tarifa_hora_venta?: number
-        }
-        Relationships: []
-      }
-      comentarios_registro: {
-        Row: {
-          archivos_adjuntos: Json
-          actualizado_en: string
-          autor_id: string
-          contenido: string
-          creado_en: string
-          eliminado: boolean
-          editado: boolean
-          entidad_id: string
-          entidad_tipo: Database['public']['Enums']['tipo_entidad_comentario']
-          id: string
-          menciones_json: Json
-        }
-        Insert: {
-          archivos_adjuntos?: Json
-          actualizado_en?: string
-          autor_id: string
-          contenido: string
-          creado_en?: string
-          eliminado?: boolean
-          editado?: boolean
-          entidad_id: string
-          entidad_tipo: Database['public']['Enums']['tipo_entidad_comentario']
-          id?: string
-          menciones_json?: Json
-        }
-        Update: {
-          archivos_adjuntos?: Json
-          actualizado_en?: string
-          autor_id?: string
-          contenido?: string
-          creado_en?: string
-          eliminado?: boolean
-          editado?: boolean
-          entidad_id?: string
-          entidad_tipo?: Database['public']['Enums']['tipo_entidad_comentario']
-          id?: string
-          menciones_json?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "comentarios_registro_autor_id_fkey"
-            columns: ["autor_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notificaciones_usuario: {
-        Row: {
-          creado_en: string
-          emisor_id: string | null
-          enlace: string | null
-          id: string
-          leida: boolean
-          mensaje: string
-          tipo: string
-          titulo: string
-          usuario_id: string
-        }
-        Insert: {
-          creado_en?: string
-          emisor_id?: string | null
-          enlace?: string | null
-          id?: string
-          leida?: boolean
-          mensaje: string
-          tipo: string
-          titulo: string
-          usuario_id: string
-        }
-        Update: {
-          creado_en?: string
-          emisor_id?: string | null
-          enlace?: string | null
-          id?: string
-          leida?: boolean
-          mensaje?: string
-          tipo?: string
-          titulo?: string
-          usuario_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notificaciones_usuario_usuario_id_fkey"
-            columns: ["usuario_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notificaciones_usuario_emisor_id_fkey"
-            columns: ["emisor_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      consultar_bancos_cobranza: {
-        Args: { p_moneda?: string; p_cuenta_id?: string; p_desde?: number }
-        Returns: { id: string; banco: string; numero_cuenta_enmascarado: string; moneda: string; titular: string }[]
-      }
-      actualizar_configuracion_seccion: {
-        Args: {
-          p_actualizado_por: string
-          p_datos: Json | null
-          p_seccion: string
-          p_valor: number | null
-        }
-        Returns: Json
-      }
       abrir_cuenta_por_cobrar: {
         Args: {
           p_fecha_vencimiento: string
@@ -1842,6 +1874,15 @@ export type Database = {
           estado_planeacion: string
           id: string
         }[]
+      }
+      actualizar_configuracion_seccion: {
+        Args: {
+          p_actualizado_por: string
+          p_datos: Json
+          p_seccion: string
+          p_valor: number
+        }
+        Returns: Json
       }
       aplicar_saldo_favor_ar: {
         Args: {
@@ -1882,20 +1923,6 @@ export type Database = {
           partida_id: string
         }[]
       }
-      cambiar_estado_orden: {
-        Args: {
-          p_estado_actual: string
-          p_estado_nuevo: string
-          p_motivo_cancelacion?: string
-          p_orden_id: string
-        }
-        Returns: {
-          estado: string
-          fecha_fin: string
-          fecha_inicio: string
-          id: string
-        }[]
-      }
       cambiar_estado_gasto: {
         Args: {
           p_estado_esperado?: string
@@ -1927,6 +1954,26 @@ export type Database = {
           proveedor_id: string | null
           tipo_cambio: number
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "gastos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      cambiar_estado_orden: {
+        Args: {
+          p_estado_actual: string
+          p_estado_nuevo: string
+          p_motivo_cancelacion?: string
+          p_orden_id: string
+        }
+        Returns: {
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+        }[]
       }
       cerrar_sesion_trabajo_operador: {
         Args: {
@@ -1947,6 +1994,16 @@ export type Database = {
           horas_netas: number
           id: string
           piezas_producidas: number
+        }[]
+      }
+      consultar_bancos_cobranza: {
+        Args: { p_cuenta_id?: string; p_desde?: number; p_moneda?: string }
+        Returns: {
+          banco: string
+          id: string
+          moneda: string
+          numero_cuenta_enmascarado: string
+          titular: string
         }[]
       }
       crear_orden_manual: {
@@ -1976,6 +2033,7 @@ export type Database = {
       }
       es_admin: { Args: never; Returns: boolean }
       generar_folio_cnc: { Args: never; Returns: string }
+      generar_folio_gasto: { Args: { p_prefijo?: string }; Returns: string }
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }
       generar_folio_nota_entrega: {
         Args: { p_prefijo?: string }
@@ -1983,7 +2041,6 @@ export type Database = {
       }
       generar_folio_op: { Args: never; Returns: string }
       generar_folio_orden: { Args: { p_prefijo: string }; Returns: string }
-      generar_folio_gasto: { Args: { p_prefijo?: string }; Returns: string }
       generar_folio_recibo: { Args: { p_prefijo?: string }; Returns: string }
       generar_nota_entrega: {
         Args: {
@@ -2002,7 +2059,7 @@ export type Database = {
       }
       guardar_cotizacion_atomica: {
         Args: {
-          p_actualizado_en_esperado?: string | null
+          p_actualizado_en_esperado?: string
           p_lineas: Json
           p_pipeline_id: string
         }
@@ -2045,6 +2102,26 @@ export type Database = {
           turno: string
         }[]
       }
+      obtener_metricas_contador: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: Json
+      }
+      obtener_metricas_dashboard_ejecutivo: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: Json
+      }
+      obtener_metricas_pipeline_equipo: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: Json
+      }
+      obtener_metricas_vendedor: {
+        Args: {
+          p_fecha_fin: string
+          p_fecha_inicio: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       obtener_rentabilidad_orden: {
         Args: { p_orden_id: string }
         Returns: {
@@ -2055,7 +2132,7 @@ export type Database = {
           gastos_considerados: number
           gastos_excluidos: number
           margen_calculable: boolean
-          margen_porcentaje: number | null
+          margen_porcentaje: number
           materiales_considerados: number
           monto_venta_mxn: number
           orden_id: string
@@ -2124,34 +2201,25 @@ export type Database = {
           movimiento_inventario_id: string
         }[]
       }
-      registrar_intento_fallido: {
-        Args: {
-          p_bloqueo_segundos: number
-          p_contexto: string
-          p_identificador: string
-          p_max_intentos: number
-        }
-        Returns: undefined
-      }
       registrar_gasto: {
         Args: {
           p_categoria: string
-          p_comprobante_url: string | null
-          p_datos_ocr_json: Json | null
+          p_comprobante_url: string
+          p_creado_por: string
+          p_datos_ocr_json: Json
           p_descripcion: string
           p_fecha_gasto: string
-          p_fecha_vencimiento: string | null
-          p_folio_comprobante: string | null
-          p_metodo_pago: string | null
+          p_fecha_vencimiento: string
+          p_folio_comprobante: string
+          p_metodo_pago: string
+          p_moneda: string
           p_monto_iva: number
           p_monto_subtotal: number
           p_monto_total: number
-          p_moneda: string
-          p_notas: string | null
-          p_orden_id: string | null
-          p_proveedor_id: string | null
+          p_notas: string
+          p_orden_id: string
+          p_proveedor_id: string
           p_tipo_cambio: number
-          p_creado_por: string
         }
         Returns: {
           actualizado_en: string
@@ -2177,6 +2245,21 @@ export type Database = {
           proveedor_id: string | null
           tipo_cambio: number
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "gastos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      registrar_intento_fallido: {
+        Args: {
+          p_bloqueo_segundos: number
+          p_contexto: string
+          p_identificador: string
+          p_max_intentos: number
+        }
+        Returns: undefined
       }
       registrar_movimiento_inventario: {
         Args: {
@@ -2252,26 +2335,10 @@ export type Database = {
           id: string
         }[]
       }
-      obtener_metricas_contador: {
-        Args: { p_fecha_fin: string; p_fecha_inicio: string }
-        Returns: Json
-      }
-      obtener_metricas_dashboard_ejecutivo: {
-        Args: { p_fecha_fin: string; p_fecha_inicio: string }
-        Returns: Json
-      }
-      obtener_metricas_pipeline_equipo: {
-        Args: { p_fecha_fin: string; p_fecha_inicio: string }
-        Returns: Json
-      }
-      obtener_metricas_vendedor: {
-        Args: { p_fecha_fin: string; p_fecha_inicio: string; p_usuario_id: string }
-        Returns: Json
-      }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }
     }
     Enums: {
-      tipo_entidad_comentario: 'orden' | 'cotizacion' | 'cliente'
+      tipo_entidad_comentario: "orden" | "cotizacion" | "cliente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2287,12 +2354,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2316,11 +2383,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2341,11 +2408,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2366,11 +2433,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2383,11 +2450,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2398,6 +2465,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      tipo_entidad_comentario: ["orden", "cotizacion", "cliente"],
+    },
   },
 } as const

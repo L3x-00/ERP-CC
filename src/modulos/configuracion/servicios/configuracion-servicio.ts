@@ -120,7 +120,9 @@ export async function actualizarConfiguracionSeccion(
   const { data, error } = await cliente.rpc('actualizar_configuracion_seccion', {
     p_seccion: seccion,
     p_datos: json,
-    p_valor: valor,
+    // El parámetro SQL es nullable (la RPC valida cada sección y exige valor
+    // solo en las numéricas); los tipos generados no lo expresan sin DEFAULT.
+    p_valor: valor as number,
     p_actualizado_por: actualizadoPor,
   });
 
