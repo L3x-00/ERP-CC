@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { actualizarEtapaAccion } from '@/modulos/pipeline/acciones/actualizar-etapa';
@@ -39,6 +40,7 @@ const ETAPAS: { valor: EtapaPipeline; etiqueta: string }[] = [
  */
 export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
   const router = useRouter();
+  const clienteConsultas = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [mostrarMotivo, setMostrarMotivo] = useState(false);
@@ -62,6 +64,11 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
         setMotivo('');
         setNotas('');
         setFechaCompromiso('');
+        // La tarjeta y el editor leen de TanStack Query: `router.refresh()` no
+        // invalida esa caché y, con `refetchOnWindowFocus` desactivado, el
+        // tablero seguiría mostrando la etapa anterior tras el cambio.
+        await clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+        await clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
         router.refresh();
         onCambio?.();
       } else {

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { crearProspectoAccion } from '@/modulos/pipeline/acciones/crear-prospecto';
 import { SelectorCliente } from '@/modulos/pipeline/componentes/selector-cliente';
@@ -28,6 +29,7 @@ import { Label } from '@/compartido/componentes/ui/label';
  */
 export function FormularioProspecto() {
   const router = useRouter();
+  const clienteConsultas = useQueryClient();
   const [cliente, setCliente] = useState<ClienteRfq | null>(null);
   const [condicionesHeredadas, setCondicionesHeredadas] = useState(false);
   const [nombreContacto, setNombreContacto] = useState('');
@@ -109,6 +111,10 @@ export function FormularioProspecto() {
 
       if (respuesta.exito) {
         limpiar();
+        // El tablero vive en una consulta de TanStack Query (`['pipeline']`):
+        // `router.refresh()` no la invalida por sí solo y con
+        // `refetchOnWindowFocus` desactivado la tarjeta nueva no aparecería.
+        await clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
         router.refresh();
       } else {
         setError(respuesta.error);
