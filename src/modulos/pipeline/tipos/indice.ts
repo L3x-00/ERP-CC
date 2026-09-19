@@ -61,6 +61,10 @@ export type Oportunidad = {
   fechaRequerida: string | null;
   horasEstimadas: number | null;
   notas: string | null;
+  /** RFQ-08: próximo seguimiento comercial (propuesta +3 días hábiles). */
+  fechaSeguimiento?: string | null;
+  /** RFQ-08: vigencia de la cotización (propuesta +10 días hábiles). */
+  fechaVencimientoCotizacion?: string | null;
   motivoPerdida: string | null;
   notasPerdida: string | null;
   fechaUltimoContacto: string | null;
@@ -220,6 +224,8 @@ export function filaAOportunidad(fila: FilaPipeline): Oportunidad {
     fechaRequerida: fila.fecha_requerida,
     horasEstimadas: fila.horas_estimadas === null ? null : Number(fila.horas_estimadas),
     notas: fila.notas,
+    fechaSeguimiento: fila.fecha_seguimiento,
+    fechaVencimientoCotizacion: fila.fecha_vencimiento_cotizacion,
     motivoPerdida: fila.motivo_perdida,
     notasPerdida: fila.notas_perdida,
     fechaUltimoContacto: fila.fecha_ultimo_contacto,

@@ -69,6 +69,7 @@ export async function registrarGastoServicio(
   const argumentos = {
     p_orden_id: entrada.ordenId ?? null,
     p_proveedor_id: entrada.proveedorId ?? null,
+    p_cuenta_bancaria_id: entrada.cuentaBancariaId ?? null,
     p_categoria: entrada.categoria,
     p_descripcion: entrada.descripcion,
     p_monto_subtotal: entrada.montoSubtotal,

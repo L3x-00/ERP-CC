@@ -28,7 +28,8 @@ export async function actualizarDatosOportunidadAccion(
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
-  const { id, poCliente, fechaRequerida, horasEstimadas, notas } = analisis.data;
+  const { id, poCliente, fechaRequerida, horasEstimadas, notas, fechaSeguimiento, fechaVencimientoCotizacion } =
+    analisis.data;
 
   const servidor = await crearClienteSupabaseServidor();
   const cargada = await obtenerOportunidadPorId(servidor, id);
@@ -56,6 +57,11 @@ export async function actualizarDatosOportunidadAccion(
       fecha_requerida: fechaRequerida ? fechaRequerida : null,
       horas_estimadas: horasEstimadas,
       notas: notas.trim() ? notas.trim() : null,
+      // RFQ-08: fechas comerciales editables (vacío → null).
+      fecha_seguimiento: fechaSeguimiento ? fechaSeguimiento : null,
+      fecha_vencimiento_cotizacion: fechaVencimientoCotizacion
+        ? fechaVencimientoCotizacion
+        : null,
     })
     .eq('id', id);
   if (error) {
@@ -66,6 +72,8 @@ export async function actualizarDatosOportunidadAccion(
     poCliente: poCliente.trim() || null,
     fechaRequerida: fechaRequerida || null,
     horasEstimadas,
+    fechaSeguimiento: fechaSeguimiento || null,
+    fechaVencimientoCotizacion: fechaVencimientoCotizacion || null,
   });
 
   return { exito: true };

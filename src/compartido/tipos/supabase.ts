@@ -1305,7 +1305,9 @@ export type Database = {
           etiquetas: string[]
           fecha_envio_cotizacion: string | null
           fecha_requerida: string | null
+          fecha_seguimiento: string | null
           fecha_ultimo_contacto: string | null
+          fecha_vencimiento_cotizacion: string | null
           folio_cnc: string | null
           folio_op: string
           horas_estimadas: number | null
@@ -1333,7 +1335,9 @@ export type Database = {
           etiquetas?: string[]
           fecha_envio_cotizacion?: string | null
           fecha_requerida?: string | null
+          fecha_seguimiento?: string | null
           fecha_ultimo_contacto?: string | null
+          fecha_vencimiento_cotizacion?: string | null
           folio_cnc?: string | null
           folio_op: string
           horas_estimadas?: number | null
@@ -1361,7 +1365,9 @@ export type Database = {
           etiquetas?: string[]
           fecha_envio_cotizacion?: string | null
           fecha_requerida?: string | null
+          fecha_seguimiento?: string | null
           fecha_ultimo_contacto?: string | null
+          fecha_vencimiento_cotizacion?: string | null
           folio_cnc?: string | null
           folio_op?: string
           horas_estimadas?: number | null

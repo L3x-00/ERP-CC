@@ -20,26 +20,29 @@ edición de órdenes tocan integridad financiera/estructural: a medias sería pe
 - **Por qué no se exigió un permiso nuevo:** otorgar crédito es una decisión de rol, no un permiso
   delegable; misma regla que las acciones de RBAC.
 
-### RFQ-08 · Fechas de seguimiento y vencimiento — **esquema listo; wiring app pendiente**
+### RFQ-08 · Fechas de seguimiento y vencimiento — **implementado (app + esquema)**
 - **Decisión:** `fecha_seguimiento` (+3 días hábiles desde el envío) y
   `fecha_vencimiento_cotizacion` (+10 hábiles) son fechas **editables** en calendario; la app las
-  propone con una utilidad pura (`sumarDiasHabiles`, lunes–viernes) pero el vendedor puede cambiarlas.
-- **Hecho:** migración `20260919000001` (columnas `date` + comentarios) verificada en PGlite (7/7).
-- **Pendiente exacto:** utilidad + campos en `esquemaDatosOportunidad`/`actualizar-datos-oportunidad`
-  + dos inputs con botones "＋3/＋10 hábiles" en `gestor-datos-solicitud` + tipos/mapper. Sin
-  migración adicional.
+  propone con `sumarDiasHabiles` (lunes–viernes, sin feriados: el sistema no tiene catálogo de
+  días festivos) y el vendedor puede cambiarlas.
+- **Implementación:** migración `20260919000001` verificada en PGlite (7/7); utilidad
+  `sumarDiasHabiles`; campos en `esquemaDatosOportunidad` (opcionales, retrocompatibles) y en
+  `actualizar-datos-oportunidad`; `Oportunidad`+mapper; dos inputs con botones “＋3 hábiles” y
+  “＋10 hábiles” en `gestor-datos-solicitud` (edición y solo lectura); columnas en el tipo
+  generado `supabase.ts`.
+- **Verificación:** unitarias 618/618, typecheck/lint 0 y **14/14 E2E** con la migración aplicada.
 
-### OBS-28 · Cuenta de salida en gastos — **esquema y RPC listos; wiring app pendiente**
+### OBS-28 · Cuenta de salida en gastos — **captura implementada; flujo por cuenta pendiente**
 - **Decisión:** `gastos.cuenta_bancaria_id` (FK, `ON DELETE SET NULL` para conservar histórico) y
-  `registrar_gasto` con `p_cuenta_bancaria_id uuid DEFAULT NULL` (firma de 18 args; la app actual
-  sigue funcionando sin cambios porque PostgREST aplica el default — verificado con la suite E2E
-  contra la migración aplicada en local).
-- **Hecho:** migración verificada en PGlite (cuenta persistida, sin cuenta = NULL, cuenta
-  inexistente rechazada, grants) y **14/14 E2E** de regresión con la RPC nueva.
-- **Pendiente exacto:** campo `cuentaBancariaId` en `esquemaRegistrarGasto`, paso del argumento en
-  `registrarGastoServicio`, selector en el modal (catálogo enmascarado; opción "Sin especificar"),
-  `cuentaBancariaId` en `Gasto`/mapper, y el **flujo por cuenta** (ingresos de `pagos_ar` vs
-  egresos de `gastos` por cuenta) como sección de Cobranza/Dashboard.
+  `registrar_gasto` con `p_cuenta_bancaria_id uuid DEFAULT NULL` (firma de 18 args; la app previa
+  seguía funcionando por el default — verificado con la suite E2E).
+- **Implementado:** campo `cuentaBancariaId` en `esquemaRegistrarGasto`; paso del argumento en
+  `registrarGastoServicio`; acción `obtenerCuentasGastoAccion` (solo `registrar_gastos`, catálogo
+  enmascarado — últimas 4 cifras) y selector “Cuenta de salida (opcional)” en el modal.
+- **Pendiente único (ya diseñado):** el **flujo neto por cuenta** (ingresos de `pagos_ar` vs
+  egresos de `gastos` por `cuenta_bancaria_id`, convertidos a MXN con su TC del periodo) como
+  sección de Cobranza/Dashboard. Es una consulta de agregación pura sobre columnas ya existentes;
+  no requiere migración y es el siguiente paso exacto.
 
 ## Diseñado con decisión, pendiente de implementar como bloque dedicado
 

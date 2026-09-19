@@ -73,6 +73,14 @@ export const esquemaDatosOportunidad = z.object({
   fechaRequerida: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').or(z.literal('')),
   horasEstimadas: z.number().min(0).max(100000).nullable(),
   notas: z.string().max(2000),
+  // RFQ-08: vigencia comercial editable; la UI propone +3 y +10 días hábiles.
+  // Opcionales para no romper llamadas anteriores sin estas fechas.
+  fechaSeguimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').or(z.literal('')).optional(),
+  fechaVencimientoCotizacion: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')
+    .or(z.literal(''))
+    .optional(),
 });
 
 /** Datos validados para actualizar los datos de la solicitud (RFQ-01). */

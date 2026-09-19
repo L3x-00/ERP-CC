@@ -5,6 +5,8 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { useQuery } from '@tanstack/react-query';
+import { obtenerCuentasGastoAccion } from '@/modulos/gastos/acciones/obtener-cuentas-gasto';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import {
   CATEGORIAS_GASTO,
@@ -45,6 +47,17 @@ export function ModalRegistrarGasto({
   const [fechaVencimiento, setFechaVencimiento] = useState('');
   const [folioComprobante, setFolioComprobante] = useState('');
   const [metodoPago, setMetodoPago] = useState<(typeof METODOS_PAGO_GASTO)[number]>('transferencia');
+  // OBS-28: cuenta bancaria de salida (opcional). El catálogo llega enmascarado.
+  const [cuentaBancariaId, setCuentaBancariaId] = useState('');
+  const cuentasBancarias = useQuery({
+    queryKey: ['gastos', 'cuentas-bancarias'],
+    queryFn: async () => {
+      const respuesta = await obtenerCuentasGastoAccion();
+      return respuesta.exito ? (respuesta.datos ?? []) : [];
+    },
+    enabled: abierto,
+    staleTime: 5 * 60 * 1000,
+  });
   const [notas, setNotas] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false);
@@ -68,6 +81,7 @@ export function ModalRegistrarGasto({
       fechaVencimiento: fechaVencimiento || undefined,
       folioComprobante: folioComprobante || undefined,
       metodoPago,
+      cuentaBancariaId: cuentaBancariaId || undefined,
       notas: notas || undefined,
     });
     if (resultado.exito) {
@@ -171,6 +185,23 @@ export function ModalRegistrarGasto({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-orden">ID de orden (opcional)</Label><Input id="gasto-orden" value={ordenId} onChange={(evento) => setOrdenId(evento.target.value)} /></div>
             <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value as typeof categoria)}>{CATEGORIAS_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="gasto-cuenta">Cuenta de salida (opcional)</Label>
+            <Select
+              id="gasto-cuenta"
+              value={cuentaBancariaId}
+              onChange={(evento) => setCuentaBancariaId(evento.target.value)}
+              disabled={cuentasBancarias.isPending}
+            >
+              <option value="">Sin especificar</option>
+              {(cuentasBancarias.data ?? []).map((cuenta) => (
+                <option key={cuenta.id} value={cuenta.id}>{cuenta.etiqueta}</option>
+              ))}
+            </Select>
+            {cuentasBancarias.isError ? (
+              <span role="alert" className="text-xs text-peligro-texto">No se pudieron cargar las cuentas.</span>
+            ) : null}
           </div>
           <div className="grid gap-1"><Label htmlFor="gasto-descripcion" obligatorio>Descripción</Label><Input id="gasto-descripcion" value={descripcion} onChange={(evento) => setDescripcion(evento.target.value)} required /></div>
           <div className="grid gap-3 sm:grid-cols-3">
