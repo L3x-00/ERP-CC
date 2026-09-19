@@ -13,7 +13,7 @@ function credenciales(nombre: string): Credenciales | null {
 async function iniciarSesion(page: Page, acceso: Credenciales): Promise<void> {
   await page.goto('/iniciar-sesion');
   await page.getByLabel('Correo electrónico').fill(acceso.correo);
-  await page.getByLabel('Contraseña').fill(acceso.contrasena);
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(acceso.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL((url) => ['/dashboard', '/produccion'].includes(url.pathname));
 }

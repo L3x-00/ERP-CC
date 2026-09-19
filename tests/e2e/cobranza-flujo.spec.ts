@@ -122,7 +122,7 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
 async function iniciarSesion(page: import('@playwright/test').Page, contexto: ContextoE2E): Promise<void> {
   await page.goto('/iniciar-sesion');
   await page.getByLabel('Correo electrónico').fill(contexto.correo);
-  await page.getByLabel('Contraseña').fill(contexto.contrasena);
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(contexto.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
@@ -150,20 +150,20 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.goto('/cobranza');
     await expect(page.getByTestId('operacion-cobranza')).toBeVisible();
     const fila = page.getByRole('row', { name: new RegExp(datos.folioOrden) });
-    await expect(fila).toContainText('pendiente');
+    await expect(fila).toContainText(/pendiente/i);
     await fila.getByRole('button', { name: 'Cobrar' }).click();
     await page.getByLabel('Monto').fill('40');
     await page.getByLabel('Moneda de pago').selectOption('USD');
     await page.getByLabel('Tipo de cambio (MXN)').fill('18.5');
     await page.getByLabel('Referencia bancaria').fill('E2E-PARCIAL');
     await page.getByRole('button', { name: 'Registrar pago' }).click();
-    await expect(page.getByTestId('recibo-pago').getByText(/^REC-\d{6}$/)).toBeVisible();
+    await expect(page.getByTestId('recibo-persistido')).toContainText(/REC-\d{6}/);
     await expect.poll(async () => {
       const { data } = await datos.admin.from('cuentas_por_cobrar').select('estado, saldo_pendiente').eq('id', datos.arId).single();
       return `${data?.estado}:${data?.saldo_pendiente}`;
     }).toBe('parcial:60');
     await expect(observador.getByTestId('sincronizador-cobranza')).not.toHaveAttribute('data-eventos', '0');
-    await expect(observador.getByRole('row', { name: new RegExp(datos.folioOrden) })).toContainText('parcial');
+    await expect(observador.getByRole('row', { name: new RegExp(datos.folioOrden) })).toContainText(/parcial/i);
 
     await fila.getByRole('button', { name: 'Cobrar' }).click();
     await page.getByLabel('Monto').fill('70');
@@ -171,7 +171,7 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.getByLabel('Tipo de cambio (MXN)').fill('18.5');
     await page.getByLabel('Referencia bancaria').fill('E2E-SOBREPAGO');
     await page.getByRole('button', { name: 'Registrar pago' }).click();
-    await expect(page.getByTestId('recibo-pago').getByText(/^REC-\d{6}$/)).toBeVisible();
+    await expect(page.getByTestId('recibo-persistido')).toContainText(/REC-\d{6}/);
     await expect.poll(async () => {
       const { data } = await datos.admin.from('cuentas_por_cobrar').select('estado, saldo_pendiente').eq('id', datos.arId).single();
       return `${data?.estado}:${data?.saldo_pendiente}`;

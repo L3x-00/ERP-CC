@@ -154,7 +154,9 @@ async function prepararContexto(): Promise<ContextoE2E> {
     const { data: orden, error: errorOrden } = await admin.from('ordenes_produccion').insert({
       folio,
       cliente_id: cliente.id,
-      estado: 'completada',
+      // El consumo de material solo procede en una OP `en_proceso`; la orden se
+      // completa después del consumo para que la AR pueda abrirse al final.
+      estado: 'en_proceso',
       prioridad: 'normal',
       fecha_compromiso: '2100-01-15T00:00:00.000Z',
     }).select('id').single();
@@ -207,6 +209,11 @@ async function prepararContexto(): Promise<ContextoE2E> {
       p_partida_id: partida.id, p_material_id: material.id, p_cantidad_usada: 3, p_cantidad_scrap: 0.5,
     });
     if (errorConsumo) throw new Error(`No se creó consumo E2E: ${errorConsumo.message}`);
+    const { error: errorCompletar } = await admin
+      .from('ordenes_produccion')
+      .update({ estado: 'completada' })
+      .eq('id', orden.id);
+    if (errorCompletar) throw new Error(`No se completó la orden E2E: ${errorCompletar.message}`);
     const { error: errorSesion } = await admin.from('sesiones_trabajo').insert({
       orden_id: orden.id,
       partida_id: partida.id,
@@ -253,7 +260,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
 async function iniciarSesion(page: Page, contexto: ContextoE2E): Promise<void> {
   await page.goto('/iniciar-sesion');
   await page.getByLabel('Correo electrónico').fill(contexto.correo);
-  await page.getByLabel('Contraseña').fill(contexto.contrasena);
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(contexto.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
@@ -286,7 +293,7 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await page.getByLabel('Descripción').fill('Gasto E2E de consumibles');
     await page.getByLabel('Subtotal').fill('1000');
     await page.getByLabel('IVA').fill('160');
-    await page.getByLabel('Total').fill('1160');
+    await page.getByRole('spinbutton', { name: 'Total', exact: true }).fill('1160');
     await page.getByLabel('Folio de comprobante').fill('E2E-GTO-COMP-001');
     await page.getByRole('button', { name: 'Guardar gasto' }).click();
 
@@ -315,7 +322,7 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
       const { data } = await datos.admin.from('gastos').select('estado_pago').eq('orden_id', datos.ordenId).eq('descripcion', 'Gasto E2E de consumibles').maybeSingle();
       return data?.estado_pago ?? null;
     }).toBe('pagado');
-    await expect(fila).toContainText('pagado');
+    await expect(fila).toContainText(/pagado/i);
 
     const { data: logs } = await datos.admin.from('logs').select('accion').eq('usuario_id', datos.usuarioId).eq('modulo', 'gastos');
     expect((logs ?? []).map((log) => log.accion)).toEqual(expect.arrayContaining(['registrar_gasto', 'cambiar_estado_gasto']));

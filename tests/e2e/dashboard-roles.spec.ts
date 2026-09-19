@@ -14,7 +14,7 @@ function credenciales(prefijo: string): CredencialesDashboard | null {
 async function iniciarSesion(page: Page, acceso: CredencialesDashboard): Promise<void> {
   await page.goto('/iniciar-sesion');
   await page.getByLabel('Correo electrónico').fill(acceso.correo);
-  await page.getByLabel('Contraseña').fill(acceso.contrasena);
+  await page.getByRole('textbox', { name: 'Contraseña' }).fill(acceso.contrasena);
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/produccion');
 }

@@ -220,7 +220,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
       'true',
     );
     await page.getByLabel('Correo electrónico').fill(contexto.correoAdministrador);
-    await page.getByLabel('Contraseña').fill(contexto.contrasenaAdministrador);
+    await page.getByRole('textbox', { name: 'Contraseña' }).fill(contexto.contrasenaAdministrador);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
     await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
