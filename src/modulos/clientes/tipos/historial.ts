@@ -32,7 +32,9 @@ export type LineaCotizacionHistorial = {
   area: number | null;
   procesos: string[];
   precioUnitario: number;
-  /** `cantidad * precioUnitario` redondeado a 2 decimales. */
+  /** RFQ-03: la línea es un descuento; `importe` se guarda en negativo. */
+  esDescuento: boolean;
+  /** `cantidad * precioUnitario` con signo (negativo si es descuento). */
   importe: number;
   orden: number;
 };
@@ -99,7 +101,7 @@ export type PaginaHistorial<T> = {
 
 // Filas crudas de Supabase (snake_case) derivadas de los tipos generados.
 export type FilaPipelineHistorial = Pick<Tables<'pipeline'>, 'id' | 'folio_op' | 'folio_cnc' | 'etapa' | 'moneda' | 'iva_porcentaje' | 'fecha_envio_cotizacion' | 'creado_en' | 'actualizado_en'>;
-export type FilaLineaCotizacionHistorial = Pick<Tables<'cotizacion_lineas'>, 'id' | 'pipeline_id' | 'descripcion' | 'cantidad' | 'material' | 'espesor' | 'area' | 'procesos' | 'precio_unitario' | 'orden'>;
+export type FilaLineaCotizacionHistorial = Pick<Tables<'cotizacion_lineas'>, 'id' | 'pipeline_id' | 'descripcion' | 'cantidad' | 'material' | 'espesor' | 'area' | 'procesos' | 'precio_unitario' | 'es_descuento' | 'orden'>;
 export type FilaOrdenHistorial = Pick<Tables<'ordenes_produccion'>, 'id' | 'folio' | 'estado' | 'prioridad' | 'cotizacion_id' | 'fecha_compromiso' | 'fecha_inicio' | 'fecha_fin' | 'creado_en'>;
 export type FilaPartidaOrdenHistorial = Pick<Tables<'partidas_orden_produccion'>, 'id' | 'orden_id' | 'codigo_pieza' | 'descripcion' | 'cantidad_solicitada' | 'cantidad_producida' | 'cantidad_scrap' | 'unidad_medida' | 'maquina_asignada' | 'tiempo_estimado_minutos' | 'tiempo_real_minutos'>;
 
@@ -147,7 +149,10 @@ export function filaALineaCotizacionHistorial(
     area: fila.area === null ? null : Number(fila.area),
     procesos: fila.procesos ?? [],
     precioUnitario,
-    importe: redondear(cantidad * precioUnitario),
+    // RFQ-03: el descuento se muestra como importe negativo para que el
+    // subtotal del historial cuadre sin que la UI tenga que saber de la bandera.
+    esDescuento: fila.es_descuento,
+    importe: redondear((fila.es_descuento ? -1 : 1) * cantidad * precioUnitario),
     orden: fila.orden,
   };
 }

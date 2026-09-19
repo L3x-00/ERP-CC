@@ -27,8 +27,10 @@ const ENTRADA: GuardarCotizacionInput = {
       espesor: '1/8"',
       area: 0.75,
       procesos: ['corte', 'doblez'],
+      esExterno: false,
+      esDescuento: false,
     },
-    { descripcion: 'Barreno', cantidad: 8, precioUnitario: 12, procesos: [] },
+    { descripcion: 'Barreno', cantidad: 8, precioUnitario: 12, procesos: [], esExterno: false, esDescuento: false },
   ],
   actualizadoEnEsperado: '2026-09-13T10:00:00.000Z',
 };
@@ -61,6 +63,10 @@ describe('guardarCotizacionServicio', () => {
           espesor: '1/8"',
           area: 0.75,
           procesos: ['corte', 'doblez'],
+          area_trabajo_codigo: null,
+          es_externo: false,
+          proveedor_externo: null,
+          es_descuento: false,
         },
         {
           descripcion: 'Barreno',
@@ -70,6 +76,10 @@ describe('guardarCotizacionServicio', () => {
           espesor: null,
           area: null,
           procesos: [],
+          area_trabajo_codigo: null,
+          es_externo: false,
+          proveedor_externo: null,
+          es_descuento: false,
         },
       ],
     });
@@ -94,7 +104,9 @@ describe('guardarCotizacionServicio', () => {
 
     await guardarCotizacionServicio(cliente, {
       pipelineId: PIPELINE_ID,
-      lineas: [{ descripcion: 'Placa', cantidad: 1, precioUnitario: 10, procesos: [] }],
+      lineas: [
+        { descripcion: 'Placa', cantidad: 1, precioUnitario: 10, procesos: [], esExterno: false, esDescuento: false },
+      ],
     });
 
     expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty('p_actualizado_en_esperado');

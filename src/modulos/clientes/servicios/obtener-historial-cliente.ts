@@ -97,7 +97,7 @@ async function obtenerLineasPorCotizacion(
   for (;;) {
     const { data, error, count } = await cliente
       .from('cotizacion_lineas')
-      .select('id,pipeline_id,descripcion,cantidad,material,espesor,area,procesos,precio_unitario,orden', { count: 'exact' })
+      .select('id,pipeline_id,descripcion,cantidad,material,espesor,area,procesos,precio_unitario,es_descuento,orden', { count: 'exact' })
       .in('pipeline_id', cotizacionIds)
       .order('orden', { ascending: true })
       .order('id', { ascending: true })

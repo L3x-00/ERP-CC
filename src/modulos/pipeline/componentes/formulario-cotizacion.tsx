@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { actualizarCotizacionAccion } from '@/modulos/pipeline/acciones/actualizar-cotizacion';
 import { crearCotizacionAccion } from '@/modulos/pipeline/acciones/crear-cotizacion';
+import { obtenerAreasTrabajoAccion } from '@/modulos/pipeline/acciones/obtener-areas-trabajo';
 import { obtenerTipoCambioAccion } from '@/modulos/pipeline/acciones/obtener-tipo-cambio';
 import {
   calcularTotalesCotizacion,
@@ -16,8 +17,9 @@ import type {
   LineaCotizacionEntrada,
   MonedaPipeline,
 } from '@/modulos/pipeline/tipos/indice';
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
-import { Input } from '@/compartido/componentes/ui/input';
+import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { CotizadorTecnico } from '@/modulos/cotizador/componentes/cotizador-tecnico';
 import { obtenerCatalogoTarifasAccion } from '@/modulos/cotizador/acciones/obtener-catalogo-tarifas';
@@ -59,6 +61,14 @@ type LineaFormulario = {
    * original en vez del texto reparseado.
    */
   procesosOriginales: readonly string[];
+  /** RFQ-05: código de área/departamento del catálogo. */
+  areaTrabajoCodigo: string;
+  /** RFQ-06: trabajo externo (EXT). */
+  esExterno: boolean;
+  /** RFQ-06: proveedor externo (texto libre). */
+  proveedorExterno: string;
+  /** RFQ-03: la línea es un descuento del cliente, no una partida fabricable. */
+  esDescuento: boolean;
 };
 
 function lineaVacia(): LineaFormulario {
@@ -71,7 +81,16 @@ function lineaVacia(): LineaFormulario {
     area: '',
     procesos: '',
     procesosOriginales: [],
+    areaTrabajoCodigo: '',
+    esExterno: false,
+    proveedorExterno: '',
+    esDescuento: false,
   };
+}
+
+/** Línea de descuento (RFQ-03): concepto removible que resta del subtotal. */
+function lineaDescuento(): LineaFormulario {
+  return { ...lineaVacia(), descripcion: 'Descuento', esDescuento: true };
 }
 
 /** Convierte una línea persistida/inicial al estado editable del formulario. */
@@ -87,14 +106,29 @@ function desdeEntrada(entrada: LineaCotizacionEntrada): LineaFormulario {
     procesos: procesos.join(', '),
     procesosOriginales: procesos,
     calculoTecnico: entrada.calculoTecnico,
+    areaTrabajoCodigo: entrada.areaTrabajoCodigo ?? '',
+    esExterno: entrada.esExterno ?? false,
+    proveedorExterno: entrada.proveedorExterno ?? '',
+    esDescuento: entrada.esDescuento ?? false,
   };
 }
 
 /** Convierte una línea del formulario a la entrada tipada para cálculo/envío. */
 function aEntrada(linea: LineaFormulario): LineaCotizacionEntrada {
+  // El descuento es un concepto comercial: no arrastra datos técnicos ni de
+  // producción aunque el formulario los tuviera de un estado anterior.
+  if (linea.esDescuento) {
+    return {
+      descripcion: linea.descripcion.trim(),
+      cantidad: Number(linea.cantidad) || 0,
+      precioUnitario: Number(linea.precioUnitario) || 0,
+      esDescuento: true,
+    };
+  }
   const material = linea.material.trim();
   const espesor = linea.espesor.trim();
   const area = linea.area.trim();
+  const proveedor = linea.proveedorExterno.trim();
   const procesosSinTocar = linea.procesos === linea.procesosOriginales.join(', ');
   return {
     descripcion: linea.descripcion.trim(),
@@ -110,8 +144,23 @@ function aEntrada(linea: LineaFormulario): LineaCotizacionEntrada {
           .split(',')
           .map((proceso) => proceso.trim())
           .filter((proceso) => proceso !== ''),
+    areaTrabajoCodigo: linea.areaTrabajoCodigo === '' ? undefined : linea.areaTrabajoCodigo,
+    esExterno: linea.esExterno,
+    proveedorExterno: linea.esExterno && proveedor !== '' ? proveedor : undefined,
   };
 }
+
+/** Campos de texto/número de la línea que edita `actualizarLinea`. */
+type CampoLinea =
+  | 'descripcion'
+  | 'cantidad'
+  | 'precioUnitario'
+  | 'material'
+  | 'espesor'
+  | 'area'
+  | 'procesos'
+  | 'areaTrabajoCodigo'
+  | 'proveedorExterno';
 
 /**
  * Cotizador de una oportunidad: lista dinámica de líneas (con los datos
@@ -155,6 +204,16 @@ export function FormularioCotizacion({
     enabled: moneda === 'USD',
     staleTime: 5 * 60 * 1000,
   });
+  // RFQ-05: catálogo de áreas/departamento para etiquetar cada línea. Se
+  // consulta una sola vez y se comparte entre todas las líneas.
+  const { data: areasTrabajo } = useQuery({
+    queryKey: ['pipeline', 'areas-trabajo'],
+    queryFn: async () => {
+      const respuesta = await obtenerAreasTrabajoAccion();
+      return respuesta.exito ? respuesta.datos : null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
   const teniaLineas = lineasIniciales !== undefined && lineasIniciales.length > 0;
   // En consulta no se inventa una línea en blanco: una cotización sin líneas se
   // muestra vacía, no como una partida ficticia con cantidad 1 y precio 0.
@@ -173,19 +232,43 @@ export function FormularioCotizacion({
     () => calcularTotalesCotizacion(lineas.map(aEntrada), ivaPorcentaje, moneda),
     [lineas, ivaPorcentaje, moneda],
   );
+  // Una cotización debe conservar al menos una línea fabricable (RFQ-03): las
+  // de descuento no cuentan y se pueden quitar siempre.
+  const fabricables = lineas.filter((linea) => !linea.esDescuento).length;
 
-  function actualizarLinea(
-    indice: number,
-    campo: Exclude<keyof LineaFormulario, 'procesosOriginales' | 'calculoTecnico'>,
-    valor: string,
-  ): void {
+  function actualizarLinea(indice: number, campo: CampoLinea, valor: string): void {
+    // Editar el área o el proveedor externo no invalida el cálculo técnico; el
+    // resto de los campos comerciales sí lo desvinculan.
+    const preservaCalculo =
+      campo === 'descripcion' ||
+      campo === 'area' ||
+      campo === 'areaTrabajoCodigo' ||
+      campo === 'proveedorExterno';
     setLineas((previas) =>
-      previas.map((linea, i) => (i === indice ? { ...linea, [campo]: valor, calculoTecnico: campo === 'descripcion' || campo === 'area' ? linea.calculoTecnico : undefined } : linea)),
+      previas.map((linea, i) =>
+        i === indice
+          ? { ...linea, [campo]: valor, calculoTecnico: preservaCalculo ? linea.calculoTecnico : undefined }
+          : linea,
+      ),
+    );
+  }
+
+  function alternarExterno(indice: number, activo: boolean): void {
+    setLineas((previas) =>
+      previas.map((linea, i) =>
+        i === indice
+          ? { ...linea, esExterno: activo, proveedorExterno: activo ? linea.proveedorExterno : '' }
+          : linea,
+      ),
     );
   }
 
   function agregarLinea(): void {
     setLineas((previas) => [...previas, lineaVacia()]);
+  }
+
+  function agregarDescuento(): void {
+    setLineas((previas) => [...previas, lineaDescuento()]);
   }
 
   /** Adjunta a la oportunidad el plano leído en el cotizador (COT-04/05/06, RFQ-19). */
@@ -208,9 +291,13 @@ export function FormularioCotizacion({
   }
 
   function quitarLinea(indice: number): void {
-    setLineas((previas) =>
-      previas.length <= 1 ? previas : previas.filter((_, i) => i !== indice),
-    );
+    setLineas((previas) => {
+      const linea = previas[indice];
+      if (!linea) return previas;
+      // Quitar la última línea fabricable dejaría una cotización sin producción.
+      if (!linea.esDescuento && previas.filter((l) => !l.esDescuento).length <= 1) return previas;
+      return previas.filter((_, i) => i !== indice);
+    });
   }
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -257,30 +344,56 @@ export function FormularioCotizacion({
               return (
                 <li
                   key={indice}
-                  className="flex flex-col gap-1 rounded-lg border border-borde bg-superficie p-3 text-sm"
+                  className={`flex flex-col gap-1 rounded-lg border bg-superficie p-3 text-sm ${
+                    entrada.esDescuento ? 'border-dashed' : 'border-borde'
+                  }`}
                 >
-                  <span className="font-medium text-texto-primario">{entrada.descripcion}</span>
+                  <span className="flex items-center gap-2 font-medium text-texto-primario">
+                    {entrada.descripcion}
+                    {entrada.esDescuento && <Badge variante="info">Descuento</Badge>}
+                  </span>
                   {linea.calculoTecnico && <CotizadorTecnico moneda={moneda} cantidad={entrada.cantidad} inicial={linea.calculoTecnico} soloLectura onAplicar={() => {}} />}
                   <span className="text-xs text-texto-secundario">
-                    {entrada.cantidad} × {formatearMoneda(entrada.precioUnitario, moneda)} ={' '}
-                    <span className="tabular-nums">
-                      {formatearMoneda(entrada.cantidad * entrada.precioUnitario, moneda)}
+                    {entrada.esDescuento ? (
+                      <>
+                        −
+                        {formatearMoneda(
+                          entrada.cantidad * entrada.precioUnitario,
+                          moneda,
+                        )}{' '}
+                        (se resta del subtotal)
+                      </>
+                    ) : (
+                      <>
+                        {entrada.cantidad} × {formatearMoneda(entrada.precioUnitario, moneda)} ={' '}
+                        <span className="tabular-nums">
+                          {formatearMoneda(entrada.cantidad * entrada.precioUnitario, moneda)}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                  {!entrada.esDescuento && (
+                    <span className="text-xs text-texto-secundario">
+                      {[
+                        entrada.material ? `Material: ${entrada.material}` : null,
+                        entrada.espesor ? `Espesor: ${entrada.espesor}` : null,
+                        entrada.area !== undefined && entrada.area !== null
+                          ? `Área geométrica: ${entrada.area}`
+                          : null,
+                        (entrada.procesos ?? []).length > 0
+                          ? `Procesos: ${(entrada.procesos ?? []).join(', ')}`
+                          : null,
+                        entrada.areaTrabajoCodigo
+                          ? `Área/departamento: ${entrada.areaTrabajoCodigo}`
+                          : null,
+                        entrada.esExterno
+                          ? `Externo (EXT)${entrada.proveedorExterno ? `: ${entrada.proveedorExterno}` : ''}`
+                          : null,
+                      ]
+                        .filter((dato) => dato !== null)
+                        .join(' · ') || 'Sin datos técnicos capturados'}
                     </span>
-                  </span>
-                  <span className="text-xs text-texto-secundario">
-                    {[
-                      entrada.material ? `Material: ${entrada.material}` : null,
-                      entrada.espesor ? `Espesor: ${entrada.espesor}` : null,
-                      entrada.area !== undefined && entrada.area !== null
-                        ? `Área geométrica: ${entrada.area}`
-                        : null,
-                      (entrada.procesos ?? []).length > 0
-                        ? `Procesos: ${(entrada.procesos ?? []).join(', ')}`
-                        : null,
-                    ]
-                      .filter((dato) => dato !== null)
-                      .join(' · ') || 'Sin datos técnicos capturados'}
-                  </span>
+                  )}
                 </li>
               );
             })}
@@ -298,8 +411,56 @@ export function FormularioCotizacion({
         {lineas.map((linea, indice) => (
           <div
             key={indice}
-            className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie p-3 shadow-sm"
+            className={`flex flex-col gap-2 rounded-lg border bg-superficie p-3 shadow-sm ${
+              linea.esDescuento ? 'border-dashed' : ''
+            }`}
           >
+            {linea.esDescuento ? (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variante="info">Descuento</Badge>
+                  <span className="flex-1 text-xs text-texto-secundario">
+                    Se resta del subtotal de la cotización.
+                  </span>
+                  <Button
+                    type="button"
+                    variante="destructivo"
+                    tamano="sm"
+                    onClick={() => quitarLinea(indice)}
+                  >
+                    Quitar
+                  </Button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor={`linea-${indice}-descripcion`}>Concepto</Label>
+                    <Input
+                      id={`linea-${indice}-descripcion`}
+                      type="text"
+                      value={linea.descripcion}
+                      onChange={(evento) =>
+                        actualizarLinea(indice, 'descripcion', evento.target.value)
+                      }
+                      placeholder="Descuento comercial"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label htmlFor={`linea-${indice}-precio`}>Monto del descuento</Label>
+                    <Input
+                      id={`linea-${indice}-precio`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={linea.precioUnitario}
+                      onChange={(evento) =>
+                        actualizarLinea(indice, 'precioUnitario', evento.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
             <div className="flex flex-col gap-1">
               <Label htmlFor={`linea-${indice}-descripcion`}>Descripción</Label>
               <Input
@@ -401,6 +562,52 @@ export function FormularioCotizacion({
                   placeholder="corte, doblez"
                 />
               </div>
+
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`linea-${indice}-area-trabajo`}>
+                  Área / departamento (opcional)
+                </Label>
+                <Select
+                  id={`linea-${indice}-area-trabajo`}
+                  value={linea.areaTrabajoCodigo}
+                  onChange={(evento) =>
+                    actualizarLinea(indice, 'areaTrabajoCodigo', evento.target.value)
+                  }
+                >
+                  <option value="">Sin asignar</option>
+                  {(areasTrabajo ?? []).map((area) => (
+                    <option key={area.codigo} value={area.codigo}>
+                      {area.nombre}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1 sm:col-span-3">
+                <label
+                  htmlFor={`linea-${indice}-externo`}
+                  className="flex items-center gap-2 text-sm text-texto-primario"
+                >
+                  <input
+                    id={`linea-${indice}-externo`}
+                    type="checkbox"
+                    checked={linea.esExterno}
+                    onChange={(evento) => alternarExterno(indice, evento.target.checked)}
+                  />
+                  Trabajo externo (EXT)
+                </label>
+                {linea.esExterno && (
+                  <Input
+                    type="text"
+                    value={linea.proveedorExterno}
+                    onChange={(evento) =>
+                      actualizarLinea(indice, 'proveedorExterno', evento.target.value)
+                    }
+                    placeholder="Proveedor externo (texto libre)"
+                    aria-label="Proveedor externo"
+                  />
+                )}
+              </div>
             </div>
 
             <CotizadorTecnico moneda={moneda} cantidad={Number(linea.cantidad)} inicial={linea.calculoTecnico} catalogo={catalogoTarifas ?? undefined} onAdjuntarPlano={adjuntarPlano} onAplicar={calculo=>aplicarCalculo(indice,calculo)} />
@@ -418,18 +625,30 @@ export function FormularioCotizacion({
                 variante="destructivo"
                 tamano="sm"
                 onClick={() => quitarLinea(indice)}
-                disabled={lineas.length <= 1}
+                disabled={fabricables <= 1}
               >
                 Quitar
               </Button>
             </div>
+              </>
+            )}
           </div>
         ))}
       </div>
 
-      <Button type="button" variante="contorno" onClick={agregarLinea} className="self-start">
-        Agregar línea
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variante="contorno" onClick={agregarLinea} className="self-start">
+          Agregar línea
+        </Button>
+        <Button
+          type="button"
+          variante="contorno"
+          onClick={agregarDescuento}
+          className="self-start"
+        >
+          Agregar descuento
+        </Button>
+      </div>
 
       <ResumenTotales totales={totales} tipoCambioUsd={tipoCambioUsd ?? null} />
 
@@ -480,9 +699,17 @@ function ResumenTotales({
       <div className="flex items-center justify-between">
         <span className="text-texto-secundario">Subtotal</span>
         <span className="font-medium tabular-nums">
-          {formatearMoneda(totales.subtotal, totales.moneda)}
+          {formatearMoneda(totales.subtotal + totales.descuento, totales.moneda)}
         </span>
       </div>
+      {totales.descuento > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-texto-secundario">Descuento</span>
+          <span className="font-medium tabular-nums text-peligro-texto">
+            −{formatearMoneda(totales.descuento, totales.moneda)}
+          </span>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-1.5 text-texto-secundario">
           <input

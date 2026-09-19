@@ -75,6 +75,11 @@ function lineasAJson(lineas: GuardarCotizacionInput['lineas']): Json {
     espesor: linea.espesor ?? null,
     area: linea.area ?? null,
     procesos: linea.procesos,
+    // RFQ-05/06/03: dimensiones de línea que persiste `guardar_cotizacion_atomica`.
+    area_trabajo_codigo: linea.areaTrabajoCodigo ?? null,
+    es_externo: linea.esExterno,
+    proveedor_externo: linea.proveedorExterno ?? null,
+    es_descuento: linea.esDescuento,
     ...(linea.calculoTecnico ? { calculo_tecnico: JSON.parse(JSON.stringify(linea.calculoTecnico)) as Json } : {}),
   }));
 }

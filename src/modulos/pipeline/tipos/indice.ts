@@ -70,6 +70,14 @@ export type LineaCotizacion = {
   espesor: string | null;
   area: number | null;
   procesos: string[];
+  /** RFQ-05: área/departamento del catálogo (`areas_trabajo_config.codigo`). */
+  areaTrabajoCodigo: string | null;
+  /** RFQ-06: la línea es trabajo externo (EXT). */
+  esExterno: boolean;
+  /** RFQ-06: proveedor externo de texto libre cuando `esExterno`. */
+  proveedorExterno: string | null;
+  /** RFQ-03: línea de descuento del cliente (concepto, no fabricable). */
+  esDescuento: boolean;
   precioUnitario: number;
   orden: number;
   creadoEn: string;
@@ -85,15 +93,29 @@ export type LineaCotizacionEntrada = {
   espesor?: string | null;
   area?: number | null;
   procesos?: string[];
+  areaTrabajoCodigo?: string | null;
+  esExterno?: boolean;
+  proveedorExterno?: string | null;
+  esDescuento?: boolean;
 };
 
 /** Totales calculados de una cotización. */
 export type TotalesCotizacion = {
+  /** Suma de líneas fabricables después de restar `descuento`. */
   subtotal: number;
+  /** Suma de las líneas marcadas como descuento (RFQ-03), siempre positiva. */
+  descuento: number;
   iva: number;
   ivaPorcentaje: number;
   total: number;
   moneda: MonedaPipeline;
+};
+
+/** Área/departamento disponible para asignar a una línea (RFQ-05). */
+export type AreaTrabajoOpcion = {
+  codigo: string;
+  nombre: string;
+  esExterno: boolean;
 };
 
 /**
@@ -212,6 +234,10 @@ export function filaALineaCotizacion(fila: FilaLineaCotizacion): LineaCotizacion
     espesor: fila.espesor,
     area: fila.area === null ? null : Number(fila.area),
     procesos: fila.procesos,
+    areaTrabajoCodigo: fila.area_trabajo_codigo,
+    esExterno: fila.es_externo,
+    proveedorExterno: fila.proveedor_externo,
+    esDescuento: fila.es_descuento,
     precioUnitario: Number(fila.precio_unitario),
     orden: fila.orden,
     creadoEn: fila.creado_en,

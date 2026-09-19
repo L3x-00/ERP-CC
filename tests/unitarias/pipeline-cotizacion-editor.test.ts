@@ -23,6 +23,12 @@ vi.mock('@/modulos/pipeline/acciones/crear-cotizacion', () => ({
 vi.mock('@/modulos/pipeline/acciones/actualizar-cotizacion', () => ({
   actualizarCotizacionAccion: (...args: unknown[]) => actualizarMock(...args),
 }));
+vi.mock('@/modulos/pipeline/acciones/obtener-areas-trabajo', () => ({
+  obtenerAreasTrabajoAccion: async () => ({
+    exito: true,
+    datos: [{ codigo: 'CNC', nombre: 'CNC', esExterno: false }],
+  }),
+}));
 vi.mock('@/modulos/pipeline/hooks/usar-oportunidad', () => ({
   usarOportunidad: (id: string, habilitada: boolean) => {
     const resultado = usarOportunidadMock(id, habilitada);
@@ -74,6 +80,10 @@ const LINEA_PERSISTIDA = {
   espesor: '1/8"',
   area: 0.75,
   procesos: ['corte', 'doblez'],
+  areaTrabajoCodigo: 'CNC',
+  esExterno: false,
+  proveedorExterno: null,
+  esDescuento: false,
   precioUnitario: 320.5,
   orden: 0,
   creadoEn: '2026-09-01T10:00:00.000Z',
@@ -97,6 +107,10 @@ function entradaDesdePersistida() {
     espesor: LINEA_PERSISTIDA.espesor,
     area: LINEA_PERSISTIDA.area,
     procesos: LINEA_PERSISTIDA.procesos,
+    areaTrabajoCodigo: LINEA_PERSISTIDA.areaTrabajoCodigo,
+    esExterno: LINEA_PERSISTIDA.esExterno,
+    proveedorExterno: LINEA_PERSISTIDA.proveedorExterno,
+    esDescuento: LINEA_PERSISTIDA.esDescuento,
   };
 }
 
@@ -164,6 +178,9 @@ describe('FormularioCotizacion', () => {
           espesor: '1/8"',
           area: 0.75,
           procesos: ['corte', 'doblez'],
+          areaTrabajoCodigo: 'CNC',
+          esExterno: false,
+          proveedorExterno: undefined,
         },
       ],
     });
@@ -201,9 +218,48 @@ describe('FormularioCotizacion', () => {
           espesor: undefined,
           area: undefined,
           procesos: [],
+          areaTrabajoCodigo: undefined,
+          esExterno: false,
+          proveedorExterno: undefined,
         },
       ],
     });
+  });
+
+  it('agrega la línea de descuento, la resta del total y la envía marcada (RFQ-03)', async () => {
+    conProveedor(
+      createElement(FormularioCotizacion, {
+        pipelineId: PIPELINE_ID,
+        ivaPorcentaje: 16,
+        moneda: 'MXN',
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Corte láser' } });
+    fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Precio unitario'), { target: { value: '1000' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar descuento' }));
+    fireEvent.change(screen.getByLabelText('Monto del descuento'), { target: { value: '200' } });
+
+    // Subtotal 2000 - 200 = 1800 + IVA 16% = 2088.
+    expect(screen.getByText('$2,088.00')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cotización' }));
+
+    await waitFor(() => expect(crearMock).toHaveBeenCalledTimes(1));
+    expect(crearMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lineas: expect.arrayContaining([
+          expect.objectContaining({
+            descripcion: 'Descuento',
+            cantidad: 1,
+            precioUnitario: 200,
+            esDescuento: true,
+          }),
+        ]),
+      }),
+    );
   });
 
   it('muestra el error devuelto por el servidor sin cerrar el formulario', async () => {

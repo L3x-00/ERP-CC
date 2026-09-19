@@ -54,6 +54,69 @@ describe('esquemaLineaCotizacion', () => {
       esquemaLineaCotizacion.safeParse({ ...lineaValida(), costoInterno: 99 }).success,
     ).toBe(false);
   });
+
+  it('acepta área de catálogo y trabajo externo con proveedor (RFQ-05/06)', () => {
+    const analisis = esquemaLineaCotizacion.safeParse({
+      ...lineaValida(),
+      areaTrabajoCodigo: 'CNC',
+      esExterno: true,
+      proveedorExterno: 'Nitrurados del Norte',
+    });
+
+    expect(analisis.success).toBe(true);
+    expect(analisis.success && analisis.data).toMatchObject({
+      areaTrabajoCodigo: 'CNC',
+      esExterno: true,
+      proveedorExterno: 'Nitrurados del Norte',
+      esDescuento: false,
+    });
+  });
+
+  it('rechaza proveedor externo sin marcar la línea como externa', () => {
+    expect(
+      esquemaLineaCotizacion.safeParse({
+        ...lineaValida(),
+        proveedorExterno: 'Taller ajeno',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('acepta la línea de descuento sin datos técnicos (RFQ-03)', () => {
+    const analisis = esquemaLineaCotizacion.safeParse({
+      descripcion: 'Descuento',
+      cantidad: 1,
+      precioUnitario: 50,
+      esDescuento: true,
+    });
+
+    expect(analisis.success).toBe(true);
+    expect(analisis.success && analisis.data.esDescuento).toBe(true);
+  });
+
+  it('rechaza descuento con datos técnicos o cálculo', () => {
+    expect(
+      esquemaLineaCotizacion.safeParse({
+        descripcion: 'Descuento',
+        cantidad: 1,
+        precioUnitario: 50,
+        esDescuento: true,
+        procesos: ['corte'],
+      }).success,
+    ).toBe(false);
+    expect(
+      esquemaLineaCotizacion.safeParse({
+        descripcion: 'Descuento',
+        cantidad: 1,
+        precioUnitario: 50,
+        esDescuento: true,
+        calculoTecnico: {
+          version: 1,
+          entrada: { cantidad: 1, moneda: 'MXN' },
+          precioUnitario: 50,
+        },
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('esquemaGuardarCotizacion', () => {
@@ -107,5 +170,30 @@ describe('esquemaGuardarCotizacion', () => {
     });
 
     expect(analisis.success).toBe(false);
+  });
+
+  it('exige al menos una línea fabricable cuando hay descuentos (RFQ-03)', () => {
+    const analisis = esquemaGuardarCotizacion.safeParse({
+      pipelineId: PIPELINE_ID,
+      lineas: [{ descripcion: 'Descuento', cantidad: 1, precioUnitario: 50, esDescuento: true }],
+    });
+
+    expect(analisis.success).toBe(false);
+  });
+
+  it('rechaza un descuento mayor al subtotal de las líneas (RFQ-03)', () => {
+    expect(
+      esquemaGuardarCotizacion.safeParse({
+        pipelineId: PIPELINE_ID,
+        lineas: [lineaValida(), { descripcion: 'Descuento', cantidad: 1, precioUnitario: 1000, esDescuento: true }],
+      }).success,
+    ).toBe(false);
+
+    expect(
+      esquemaGuardarCotizacion.safeParse({
+        pipelineId: PIPELINE_ID,
+        lineas: [lineaValida(), { descripcion: 'Descuento', cantidad: 1, precioUnitario: 100, esDescuento: true }],
+      }).success,
+    ).toBe(true);
   });
 });

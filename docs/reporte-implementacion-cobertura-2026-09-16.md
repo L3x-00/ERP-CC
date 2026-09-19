@@ -270,3 +270,62 @@ Con las 4 migraciones `20260916*` en producción, se cerró el trabajo app-only 
 5. **Aceptación E2E**: provisionar un stack aislado (Supabase local/Docker) para correr
    `tests/e2e/*.spec.ts` sin tocar producción; ampliar harnesses PGlite a más RPC (cobranza,
    planeación, producción) para runtime-verificar más requisitos sin navegador.
+
+## 11. Cliente en la RFQ y wiring RFQ-03/05/06 (2026-09-19)
+
+> Esta sección es del bloque de reanudación (19-sep). Complementa la entrega del 16-sep; la
+> integración a `main` sigue siendo de Codex.
+
+### 11.1 Cliente en la RFQ — RFQ-02/03 (app-only, sin migración)
+- **RFQ-02 → completo.** `selector-cliente.tsx` (búsqueda con debounce bajo RLS de `clientes`) y
+  `alta-rapida-cliente.tsx` (reutiliza `crearClienteAccion`; nace en `prospecto`) integrados en
+  `formulario-prospecto.tsx` (RFQ nueva, sin perder el borrador) y `gestor-cliente-oportunidad.tsx`
+  (oportunidad abierta: ligar/cambiar/quitar). `asignar-cliente-oportunidad.ts` (Zod + authz
+  dueño/admin/`ver_pipeline_equipo` + `registrarLog`); `obtener-cliente-para-rfq.ts` verifica el
+  cliente **bajo RLS** (nunca admin: no es un oráculo de la cartera). `crear-prospecto.ts` liga
+  `cliente_id` y hereda `condiciones_pago` solo si la captura no las fijó.
+- **RFQ-03 (app):** herencia explícita de condiciones (checkbox; no pisa condiciones negociadas) y
+  tier efectivo en vivo con el consumo real (`resumen-cliente-rfq.tsx` + `calcularTier`). El
+  descuento como línea se resolvió en 11.2.
+- 26 tests unitarios nuevos (acciones, schemas/mappers, selector/alta rápida en jsdom).
+
+### 11.2 Wiring SQL RFQ-03/05/06 — migración `20260916000005` (la aplica el PO)
+`supabase/migrations/20260916000005_rfq0506_lineas_partidas_wiring.sql` — todo `CREATE OR REPLACE`
+con **firma idéntica** (conserva grants), idempotente:
+1. `guardar_cotizacion_atomica` acepta y persiste `area_trabajo_codigo` (validado contra
+   `areas_trabajo_config`), `es_externo`, `proveedor_externo` (NULL si la línea no es externa) y
+   `es_descuento`. Reglas del descuento: no puede ser la única línea, no supera el subtotal
+   fabricable y no lleva `calculo_tecnico`.
+2. `crear_orden_produccion` persiste `area_trabajo_codigo/procesos/es_externo/proveedor_externo` en
+   la partida; claves opcionales → las órdenes manuales siguen funcionando.
+3. `aprobar_oportunidad_y_crear_orden` propaga línea→partida y **excluye las líneas de descuento**
+   de las partidas fabricables (el folio `COT-NNN` conserva el número de línea de origen).
+4. `obtener_metricas_dashboard_ejecutivo` **resta los descuentos** del total cotizado (periodo
+   actual y anterior).
+
+### 11.3 App del wiring
+- Captura por línea: select de área/departamento (`obtener-areas-trabajo.ts` expone solo
+  código/nombre/externo) y casilla "Trabajo externo (EXT)" + proveedor; botón "Agregar descuento"
+  (línea removible con badge), `calcularTotalesCotizacion` resta el descuento **antes del IVA**
+  (`TotalesCotizacion.descuento`), esquemas Zod con las reglas del RPC y payload snake_case.
+- `obtener-oportunidades.ts` resta las líneas de descuento del importe de RFQ-14; el historial de
+  cliente (`historial.ts` + `historial-cliente.tsx`) marca la línea y su importe negativo.
+- **Dependencia de despliegue (crítica):** la migración `20260916000005` **no está aplicada** en
+  producción. Mientras la app nueva corra contra la RPC vigente, las claves nuevas se ignoran en
+  silencio (no se persiste área/externo y el descuento cuenta como cargo). **Aplicarla antes de
+  promover la rama a `main`.**
+
+### 11.4 Verificación
+- **Runtime aislado (PGlite):** `.ai-shared/qa/cobertura/verificar-rfq0506-wiring.mjs` — **12/12**:
+  persistencia por línea y normalización de proveedor; rechazos (área fuera de catálogo sin borrar
+  las previas, cotización solo-descuento, descuento mayor al subtotal, descuento con cálculo técnico,
+  sin sesión y sin acceso); aprobación que propaga a la partida y excluye el descuento; compat de
+  `crear_orden_produccion` sin claves nuevas; partida con área inválida rechazada; dashboard con
+  descuento restado; grants (`authenticated` solo `guardar`; `aprobar`/`crear` solo `service_role`).
+- **Gates locales:** typecheck 0 · lint 0 · **602 unitarias** (71 archivos) · build 17 rutas.
+- **Matriz:** **52 completo · 72 parcial · 39 ausente · 1 no verificable** (antes 47/74/42/1).
+  RFQ-01/02/03/05/06 → completo; RFQ-04/13/14/15 con evidencia actualizada.
+
+### 11.5 Commits
+`66c1bd4` (tipos Supabase + reconciliación), `0cb7c8b` (cliente en RFQ), y el commit de este
+bloque (migración + app + harness + docs). Rama `codex/cobertura-funcional`; sin merge a `main`.

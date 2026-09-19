@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
@@ -144,18 +145,23 @@ function FilaCotizacion({ cotizacion }: { cotizacion: CotizacionHistorial }) {
               {cotizacion.lineas.map((linea) => (
                 <li key={linea.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
                   <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-texto-primario">{linea.descripcion}</span>
-                    <span className="text-xs text-texto-secundario">
-                      {[
-                        `${formatearNumero(linea.cantidad, 2)} pz`,
-                        linea.material,
-                        linea.espesor ? `esp. ${linea.espesor}` : null,
-                        linea.area === null ? null : `Área geométrica: ${formatearNumero(linea.area, 3)}`,
-                        linea.procesos.length > 0 ? linea.procesos.join(', ') : null,
-                      ]
-                        .filter((parte): parte is string => Boolean(parte))
-                        .join(' · ')}
+                    <span className="flex items-center gap-2 font-medium text-texto-primario">
+                      {linea.descripcion}
+                      {linea.esDescuento && <Badge variante="info">Descuento</Badge>}
                     </span>
+                    {!linea.esDescuento && (
+                      <span className="text-xs text-texto-secundario">
+                        {[
+                          `${formatearNumero(linea.cantidad, 2)} pz`,
+                          linea.material,
+                          linea.espesor ? `esp. ${linea.espesor}` : null,
+                          linea.area === null ? null : `Área geométrica: ${formatearNumero(linea.area, 3)}`,
+                          linea.procesos.length > 0 ? linea.procesos.join(', ') : null,
+                        ]
+                          .filter((parte): parte is string => Boolean(parte))
+                          .join(' · ')}
+                      </span>
+                    )}
                   </div>
                   <span className="tabular-nums text-texto-primario">
                     {formatearMoneda(linea.importe, cotizacion.moneda)}

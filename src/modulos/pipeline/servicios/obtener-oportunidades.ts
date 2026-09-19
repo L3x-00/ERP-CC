@@ -31,14 +31,14 @@ export async function obtenerOportunidades(
   cliente: SupabaseClient<Database>,
   filtros?: FiltrosPipeline,
 ): Promise<Oportunidad[]> {
-  // RFQ-14: se embeben las líneas (solo cantidad y precio) para calcular el
-  // subtotal por oportunidad, y la orden de producción vinculada (folio/estado)
-  // por `cotizacion_id`, sin consultas extra por fila. RLS de `cotizacion_lineas`
-  // hereda el alcance de la oportunidad padre; `ordenes_produccion` es legible
-  // por cualquier autenticado (SELECT USING true).
+  // RFQ-14: se embeben las líneas (cantidad, precio y bandera de descuento) para
+  // calcular el subtotal por oportunidad, y la orden de producción vinculada
+  // (folio/estado) por `cotizacion_id`, sin consultas extra por fila. RLS de
+  // `cotizacion_lineas` hereda el alcance de la oportunidad padre;
+  // `ordenes_produccion` es legible por cualquier autenticado (SELECT USING true).
   let consulta = cliente
     .from('pipeline')
-    .select('*, cotizacion_lineas(cantidad, precio_unitario), ordenes_produccion(folio, estado)');
+    .select('*, cotizacion_lineas(cantidad, precio_unitario, es_descuento), ordenes_produccion(folio, estado)');
 
   if (filtros?.etapa) {
     consulta = consulta.eq('etapa', filtros.etapa);
@@ -66,9 +66,14 @@ export async function obtenerOportunidades(
   }
   return (data ?? []).map((fila) => {
     const { cotizacion_lineas: lineas, ordenes_produccion: ordenes, ...base } = fila;
+    // RFQ-03: una línea de descuento se captura en positivo y aquí se resta.
     const importeSubtotal = redondear2(
       (lineas ?? []).reduce(
-        (suma, linea) => suma + Number(linea.cantidad) * Number(linea.precio_unitario),
+        (suma, linea) =>
+          suma +
+          (linea.es_descuento ? -1 : 1) *
+            Number(linea.cantidad) *
+            Number(linea.precio_unitario),
         0,
       ),
     );

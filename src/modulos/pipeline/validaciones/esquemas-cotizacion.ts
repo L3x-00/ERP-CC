@@ -56,11 +56,43 @@ export const esquemaLineaCotizacion = z
       .refine(escalaMaxima(4).comprobar, `Área: ${escalaMaxima(4).mensaje}`)
       .optional(),
     procesos: z.array(z.string().trim().max(60)).max(20).default([]),
+    // RFQ-05: área/departamento del catálogo de configuración.
+    areaTrabajoCodigo: textoOpcional(48),
+    // RFQ-06: trabajo externo (EXT) con proveedor de texto libre.
+    esExterno: z.boolean().default(false),
+    proveedorExterno: textoOpcional(120),
+    // RFQ-03: concepto de descuento del cliente (no fabricable).
+    esDescuento: z.boolean().default(false),
     calculoTecnico: esquemaSnapshotTecnico.optional(),
   })
   .strict().superRefine((linea, contexto) => {
     if (linea.calculoTecnico && (linea.calculoTecnico.entrada.cantidad !== linea.cantidad || linea.calculoTecnico.precioUnitario !== linea.precioUnitario)) {
       contexto.addIssue({ code: 'custom', message: 'El cálculo técnico no corresponde al precio o cantidad de la línea', path: ['calculoTecnico'] });
+    }
+    if (linea.esDescuento && linea.calculoTecnico) {
+      contexto.addIssue({ code: 'custom', message: 'La línea de descuento no lleva cálculo técnico', path: ['esDescuento'] });
+    }
+    if (
+      linea.esDescuento &&
+      (linea.material !== undefined ||
+        linea.espesor !== undefined ||
+        linea.area !== undefined ||
+        linea.areaTrabajoCodigo !== undefined ||
+        linea.esExterno ||
+        linea.procesos.length > 0)
+    ) {
+      contexto.addIssue({
+        code: 'custom',
+        message: 'La línea de descuento no lleva datos técnicos ni de producción',
+        path: ['esDescuento'],
+      });
+    }
+    if (!linea.esExterno && linea.proveedorExterno !== undefined) {
+      contexto.addIssue({
+        code: 'custom',
+        message: 'El proveedor externo requiere marcar la línea como externa',
+        path: ['proveedorExterno'],
+      });
     }
   });
 
@@ -83,7 +115,35 @@ export const esquemaGuardarCotizacion = z
       .max(MAXIMO_LINEAS_COTIZACION, 'Demasiadas líneas en la cotización'),
     actualizadoEnEsperado: z.iso.datetime({ offset: true }).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((cotizacion, contexto) => {
+    // RFQ-03: el descuento no sustituye líneas fabricables ni puede dejar la
+    // cotización en negativo (la RPC aplica exactamente estas dos reglas).
+    const fabricables = cotizacion.lineas.filter((linea) => !linea.esDescuento);
+    if (fabricables.length === 0) {
+      contexto.addIssue({
+        code: 'custom',
+        message: 'Agrega al menos una línea que no sea descuento',
+        path: ['lineas'],
+      });
+      return;
+    }
+    const subtotal = fabricables.reduce(
+      (suma, linea) => suma + linea.cantidad * linea.precioUnitario,
+      0,
+    );
+    const descuento = cotizacion.lineas.reduce(
+      (suma, linea) => suma + (linea.esDescuento ? linea.cantidad * linea.precioUnitario : 0),
+      0,
+    );
+    if (descuento > subtotal) {
+      contexto.addIssue({
+        code: 'custom',
+        message: 'El descuento no puede superar el subtotal de las líneas',
+        path: ['lineas'],
+      });
+    }
+  });
 
 /** Datos validados de una línea de cotización. */
 export type LineaCotizacionInput = z.infer<typeof esquemaLineaCotizacion>;
