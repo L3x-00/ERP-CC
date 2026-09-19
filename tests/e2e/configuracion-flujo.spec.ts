@@ -49,7 +49,7 @@ test.describe('Configuración maestra', () => {
     try {
       await page.getByTestId('configuracion-tipo-cambio').fill('19.7500');
       await page.getByRole('button', { name: 'Guardar tarifas y TC' }).click();
-      await expect(page.getByRole('status')).toContainText('guardados');
+      await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardados');
       await expect(page.getByTestId('configuracion-tipo-cambio-vigente')).toContainText('19.7500');
       await page.reload();
       await page.getByRole('tab', { name: 'Tarifas / TC' }).click();

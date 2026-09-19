@@ -383,3 +383,46 @@ desviación intencional documentada en la columna Brecha).
 
 **Pendiente para el PO:** aplicar `20260916000006` (sin ella todo funciona; solo el estimado de
 las partidas nuevas queda en 0).
+
+## 14. Aceptación E2E real contra Supabase local — 12/12 (2026-09-19)
+
+El PO levantó Docker con el stack Supabase local del repo; con eso se cerró la aceptación E2E que
+llevaba pendiente desde la auditoría. **No se tocó producción** (todo corre contra `127.0.0.1`).
+
+**Provisión del entorno aislado:**
+1. `supabase init` → se creó y commiteó `supabase/config.toml` (project_id `ERP-CC`, puertos por
+   defecto). El stack ya estaba corriendo en Docker.
+2. `supabase migration up --local` → migraciones locales al día (incluida `20260916000006`).
+3. Claves locales con `supabase status -o env` (anon y service_role de desarrollo).
+4. Fixture local `provisionar-e2e-local.mjs` (en `.ai-shared/qa/cobertura/`, gitignored): crea los
+   usuarios de configuración/dashboard por rol y el par de usuarios + orden de comentarios.
+5. `E2E_HABILITAR_PRUEBAS_REMOTAS=si` + `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` +
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` locales + variables del fixture, y
+   `pnpm test:e2e` (Playwright levanta `pnpm build && next start` en el puerto 3100).
+
+**Resultado: 12/12 pruebas E2E pasan** (2.6 min): órdenes completo (tiempo/avance/consumo/auditoría),
+cobranza AR (parcial/sobrepago/recibo/realtime), gastos y rentabilidad, planeación colaborativa
+(reprogramación externa sin recargar), piso de producción (PIN/entregas), comentarios y
+notificaciones en tiempo real, configuración maestra y dashboard por rol (vendedor, contador,
+admin, operador).
+
+**Bugs de producto encontrados y corregidos por la corrida E2E:**
+1. **Dashboard de vendedor sin meta**: la RPC devuelve `metaMxn`/`comisionAcumuladaMxn` en `null`
+   cuando no hay meta configurada y el mapper los exigía números → el dashboard fallaba completo.
+   Ahora son nullable (`numeroNulo`), la tarjeta muestra "—" y hay test unitario del caso.
+2. **Confirmación de guardado en Configuración**: la pestaña se remonta por `key`
+   (`actualizadoEn`) al guardar y perdía su `mensaje` local, así que el usuario no veía ninguna
+   confirmación. Ahora la confirmación es de página (`data-testid="configuracion-confirmacion"`),
+   sobrevive al remontaje y se limpia al cambiar de pestaña.
+3. **Deuda anotada**: `ReciboPagoVista` quedó sin consumidores al pasar al recibo persistido
+   (`recibo-persistido`); no se elimina en este bloque.
+
+**Specs E2E corregidos** (drift de UI/reglas, no fallos del producto): login por rol `textbox`
+(ambigüedad con "Mostrar contraseña"), comparaciones de estado sin distinguir mayúsculas
+(`Pendiente`/`Parcial`/`Pagado`), recibo persistido en Cobranza, fixture de Gastos crea la OP
+`en_proceso` para el consumo y la completa después, Planeación reprograma solo mientras está
+`programada` (regla intencional de la auditoría) y aplica el rango con reintento ante el
+re-render inicial, dashboard de contador por `data-testid`.
+
+**Gates finales:** typecheck 0 · lint 0 · **614 unitarias** (71 archivos) · build 17 rutas ·
+**E2E 12/12** en local.

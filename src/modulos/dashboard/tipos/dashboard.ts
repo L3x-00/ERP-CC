@@ -93,7 +93,8 @@ export interface MetricasEjecutivas {
 export type PipelinePorEtapa = Record<EtapaPipelineDashboard, number>;
 
 export interface MetaMensualVendedor {
-  metaMxn: number;
+  /** `null` cuando el vendedor no tiene meta configurada para el periodo. */
+  metaMxn: number | null;
   realMxn: number;
   porcentajeCumplimiento: number;
 }
@@ -102,7 +103,8 @@ export interface ResumenVendedorPeriodo {
   pipelinePorEtapa: PipelinePorEtapa;
   cotizacionesSinSeguimiento: number;
   metaMensual: MetaMensualVendedor;
-  comisionAcumuladaMxn: number;
+  /** `null` cuando aún no hay facturación comisionable en el periodo. */
+  comisionAcumuladaMxn: number | null;
 }
 
 /** Métricas limitadas al vendedor indicado por la RPC protegida. */
@@ -339,11 +341,13 @@ function resumenVendedorDesde(valor: unknown): ResumenVendedorPeriodo {
     pipelinePorEtapa: pipelineDesde(campo(objeto, 'pipelinePorEtapa')),
     cotizacionesSinSeguimiento: numero(campo(objeto, 'cotizacionesSinSeguimiento'), 'cotizacionesSinSeguimiento'),
     metaMensual: {
-      metaMxn: numero(campo(meta, 'metaMxn'), 'metaMensual.metaMxn'),
+      // La RPC devuelve `null` cuando el vendedor no tiene meta configurada:
+      // es un dato ausente, no un cero (la tarjeta lo muestra como "—").
+      metaMxn: numeroNulo(campo(meta, 'metaMxn'), 'metaMensual.metaMxn'),
       realMxn: numero(campo(meta, 'realMxn'), 'metaMensual.realMxn'),
       porcentajeCumplimiento: numero(campo(meta, 'porcentajeCumplimiento'), 'metaMensual.porcentajeCumplimiento'),
     },
-    comisionAcumuladaMxn: numero(campo(objeto, 'comisionAcumuladaMxn'), 'comisionAcumuladaMxn'),
+    comisionAcumuladaMxn: numeroNulo(campo(objeto, 'comisionAcumuladaMxn'), 'comisionAcumuladaMxn'),
   };
 }
 

@@ -44,9 +44,9 @@ test.describe('Dashboard segmentado por rol', () => {
     if (!acceso) return;
     await iniciarSesion(page, acceso);
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByText('CxC pendiente')).toBeVisible();
-    await expect(page.getByText('CxP pendiente')).toBeVisible();
-    await expect(page.getByText('Flujo neto')).toBeVisible();
+    await expect(page.getByTestId('kpi-ar-pendiente-contador')).toBeVisible();
+    await expect(page.getByTestId('kpi-cxp-pendiente-contador')).toBeVisible();
+    await expect(page.getByTestId('kpi-flujo-neto-contador')).toBeVisible();
     await expect(page.getByTestId('kpi-margen-promedio')).toHaveCount(0);
   });
 

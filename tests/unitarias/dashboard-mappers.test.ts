@@ -168,4 +168,31 @@ describe('mappers del dashboard', () => {
     expect(resultado.usuarioId).toBe('10000000-0000-4000-8000-000000000001');
     expect(() => mapearMetricasVendedor({ version: 1, periodo, actual: resumen, anterior: resumen })).toThrow(/usuarioId/);
   });
+
+  it('acepta meta y comisión ausentes del vendedor como null (sin meta configurada)', () => {
+    const resumenSinMeta = {
+      pipelinePorEtapa: {
+        prospecto: 0,
+        contactado: 0,
+        cotizado: 0,
+        negociacion: 0,
+        ganada: 0,
+        perdida: 0,
+      },
+      cotizacionesSinSeguimiento: 0,
+      metaMensual: { metaMxn: null, realMxn: 0, porcentajeCumplimiento: 0 },
+      comisionAcumuladaMxn: null,
+    };
+    const resultado = mapearMetricasVendedor({
+      version: 1,
+      usuarioId: '10000000-0000-4000-8000-000000000001',
+      periodo,
+      actual: resumenSinMeta,
+      anterior: resumenSinMeta,
+      generadoEn: '2026-10-01T00:00:00.000Z',
+    });
+
+    expect(resultado.actual.metaMensual.metaMxn).toBeNull();
+    expect(resultado.actual.comisionAcumuladaMxn).toBeNull();
+  });
 });
