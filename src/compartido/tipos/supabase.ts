@@ -514,6 +514,7 @@ export type Database = {
           comprobante_url: string | null
           creado_en: string
           creado_por: string
+          cuenta_bancaria_id: string | null
           datos_ocr_json: Json | null
           descripcion: string
           estado_pago: string
@@ -538,6 +539,7 @@ export type Database = {
           comprobante_url?: string | null
           creado_en?: string
           creado_por: string
+          cuenta_bancaria_id?: string | null
           datos_ocr_json?: Json | null
           descripcion: string
           estado_pago?: string
@@ -562,6 +564,7 @@ export type Database = {
           comprobante_url?: string | null
           creado_en?: string
           creado_por?: string
+          cuenta_bancaria_id?: string | null
           datos_ocr_json?: Json | null
           descripcion?: string
           estado_pago?: string
