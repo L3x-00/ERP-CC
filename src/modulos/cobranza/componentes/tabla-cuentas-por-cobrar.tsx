@@ -12,6 +12,7 @@ import {
 } from '@/compartido/componentes/diseno/tabla';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { Button } from '@/compartido/componentes/ui/button';
+import { EstadoCuentaClienteBoton } from '@/modulos/cobranza/componentes/estado-cuenta-cliente-boton';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { calcularDiasVencidos } from '@/modulos/cobranza/servicios/aging-servicio';
 import type { CuentaCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
@@ -73,7 +74,12 @@ export function TablaCuentasPorCobrar({
             return (
               <TablaFila key={cuenta.id} seleccionada={seleccionada}>
                 <TablaCelda className="font-mono text-xs font-medium">{onVerOrden ? <Button variante="contorno" tamano="sm" onClick={() => onVerOrden(cuenta.ordenId)}>{cuenta.folioOrden}</Button> : cuenta.folioOrden}</TablaCelda>
-                <TablaCelda>{cuenta.clienteNombre}</TablaCelda>
+                <TablaCelda>
+            <div className="flex items-center gap-1.5">
+              <span>{cuenta.clienteNombre}</span>
+              <EstadoCuentaClienteBoton clienteId={cuenta.clienteId} clienteNombre={cuenta.clienteNombre} />
+            </div>
+          </TablaCelda>
                 <TablaCelda>
                   {new Intl.DateTimeFormat('es-MX').format(new Date(cuenta.fechaVencimiento))}
                 </TablaCelda>
