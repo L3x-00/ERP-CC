@@ -45,6 +45,7 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
   const [enviando, setEnviando] = useState(false);
   const [mostrarMotivo, setMostrarMotivo] = useState(false);
   const [mostrarCompromiso, setMostrarCompromiso] = useState(false);
+  const [sobrecreditoMxn, setSobrecreditoMxn] = useState<number | null>(null);
   const [motivo, setMotivo] = useState('');
   const [notas, setNotas] = useState('');
   const [fechaCompromiso, setFechaCompromiso] = useState('');
@@ -110,18 +111,46 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
 
   function manejarGanada(evento: FormEvent<HTMLFormElement>): void {
     evento.preventDefault();
+    void aprobarGanada(false);
+  }
+
+  /**
+   * RFQ-16: la aprobación puede volver pidiendo autorización cuando el cliente
+   * alcanzó su límite de crédito. El reintento con `autorizarSobregiro` solo lo
+   * acepta el servidor para administradores; aquí se muestra el excedente.
+   */
+  async function aprobarGanada(autorizarSobregiro: boolean): Promise<void> {
     const fecha = new Date(fechaCompromiso);
     if (Number.isNaN(fecha.getTime())) {
       setError('Ingresa una fecha de compromiso válida');
       return;
     }
-
-    void ejecutar(() =>
-      marcarGanadaAccion({
+    setError(null);
+    setEnviando(true);
+    try {
+      const respuesta = await marcarGanadaAccion({
         id: oportunidad.id,
         fechaCompromiso: fecha.toISOString(),
-      }),
-    );
+        autorizarSobregiro,
+      });
+      if (respuesta.exito) {
+        setMostrarCompromiso(false);
+        setFechaCompromiso('');
+        setSobrecreditoMxn(null);
+        await clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+        await clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
+        router.refresh();
+        onCambio?.();
+      } else if (respuesta.requiereAutorizacionCredito) {
+        setSobrecreditoMxn(respuesta.excedenteMxn ?? 0);
+        setError(respuesta.error);
+      } else {
+        setError(respuesta.error);
+      }
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.');
+    }
+    setEnviando(false);
   }
 
   return (
@@ -205,11 +234,37 @@ export function SelectorEtapa({ oportunidad, onCambio }: PropsSelectorEtapa) {
               variante="contorno"
               tamano="lg"
               disabled={enviando}
-              onClick={() => setMostrarCompromiso(false)}
+              onClick={() => {
+                setMostrarCompromiso(false);
+                setSobrecreditoMxn(null);
+              }}
             >
               Cancelar
             </Button>
           </div>
+          {sobrecreditoMxn !== null && (
+            <div
+              role="alert"
+              className="flex flex-col gap-2 rounded-lg border border-borde bg-advertencia-suave px-4 py-3 text-sm text-advertencia-texto"
+            >
+              <p>
+                El cliente alcanzó su límite de crédito; el excedente es{' '}
+                <span className="font-semibold tabular-nums">
+                  MXN {sobrecreditoMxn.toFixed(2)}
+                </span>
+                . Solo un administrador puede autorizar la aprobación.
+              </p>
+              <Button
+                type="button"
+                variante="primario"
+                tamano="sm"
+                disabled={enviando}
+                onClick={() => void aprobarGanada(true)}
+              >
+                Autorizar sobrepaso y crear OP
+              </Button>
+            </div>
+          )}
         </form>
       )}
 

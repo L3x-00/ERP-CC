@@ -7,12 +7,77 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import { promoverAClienteSiNoExiste } from '@/modulos/pipeline/servicios/promover-a-cliente';
+import { evaluarCreditoCliente } from '@/modulos/pipeline/servicios/evaluar-credito';
 import {
   aprobarOportunidadYCrearOrdenServicio,
   mensajeErrorOrden,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import { obtenerTipoCambioVigente } from '@/modulos/configuracion/servicios/configuracion-servicio';
 import { esquemaMarcarGanada } from '@/modulos/pipeline/validaciones/esquemas-transicion-etapa';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
+
+/** Respuesta de la aprobación; el flag de crédito exige confirmación explícita. */
+export type ResultadoMarcarGanada = RespuestaAccion<{
+  clienteId: string;
+  ordenId: string;
+  folioOrden: string;
+}> & {
+  /** El cliente alcanzó su límite y la aprobación espera autorización (RFQ-16). */
+  requiereAutorizacionCredito?: boolean;
+  /** Excedente sobre el límite, en MXN, para mostrarlo en la confirmación. */
+  excedenteMxn?: number;
+};
+
+/** Importe neto de la cotización en MXN (descuentos restados, TC si es USD). */
+async function calcularMontoCotizadoMxn(
+  clienteAdmin: ReturnType<typeof crearClienteSupabaseAdmin>,
+  pipelineId: string,
+  moneda: 'MXN' | 'USD',
+): Promise<number> {
+  const { data: lineas, error } = await clienteAdmin
+    .from('cotizacion_lineas')
+    .select('cantidad, precio_unitario, es_descuento')
+    .eq('pipeline_id', pipelineId);
+  if (error) {
+    console.error('[PIPELINE] No se pudo calcular el importe para el crédito:', error.message);
+    return 0;
+  }
+  const total = (lineas ?? []).reduce(
+    (suma, linea) =>
+      suma +
+      (linea.es_descuento ? -1 : 1) *
+        Number(linea.cantidad) *
+        Number(linea.precio_unitario),
+    0,
+  );
+  const tipoCambio = moneda === 'USD' ? await obtenerTipoCambioVigente(clienteAdmin) : 1;
+  return Math.round(total * tipoCambio * 100) / 100;
+}
+
+/** Crédito ya consumido por el cliente: AR pendiente/parcial convertida a MXN. */
+async function calcularCreditoUtilizadoMxn(
+  clienteAdmin: ReturnType<typeof crearClienteSupabaseAdmin>,
+  clienteId: string,
+): Promise<number> {
+  const { data, error } = await clienteAdmin
+    .from('cuentas_por_cobrar')
+    .select('saldo_pendiente, moneda, tipo_cambio_origen')
+    .eq('cliente_id', clienteId)
+    .in('estado', ['pendiente', 'parcial']);
+  if (error) {
+    console.error('[PIPELINE] No se pudo calcular el crédito usado:', error.message);
+    return 0;
+  }
+  return Math.round(
+    (data ?? []).reduce(
+      (suma, cuenta) =>
+        suma +
+        Number(cuenta.saldo_pendiente) *
+          (cuenta.moneda === 'USD' ? Number(cuenta.tipo_cambio_origen) : 1),
+      0,
+    ) * 100,
+  ) / 100;
+}
 
 /**
  * Marca una oportunidad como ganada (solo desde Negociación) y promueve el
@@ -24,7 +89,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
  */
 export async function marcarGanadaAccion(
   entrada: unknown,
-): Promise<RespuestaAccion<{ clienteId: string; ordenId: string; folioOrden: string }>> {
+): Promise<ResultadoMarcarGanada> {
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) {
     return { exito: false, error: 'No autorizado' };
@@ -34,7 +99,7 @@ export async function marcarGanadaAccion(
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
-  const { id, fechaCompromiso } = analisis.data;
+  const { id, fechaCompromiso, autorizarSobregiro } = analisis.data;
 
   const servidor = await crearClienteSupabaseServidor();
 
@@ -66,6 +131,44 @@ export async function marcarGanadaAccion(
     return { exito: false, error: 'No se pudo registrar el cliente' };
   }
 
+  // RFQ-16: si la cartera del cliente más esta cotización exceden su límite,
+  // la aprobación exige autorización explícita de un administrador. El cálculo
+  // se hace en el servidor con el cliente admin (la cartera puede no ser
+  // visible para el vendedor) y nunca bloquea por un fallo de lectura.
+  const { data: clienteCredito } = await clienteAdmin
+    .from('clientes')
+    .select('limite_credito')
+    .eq('id', clienteId)
+    .maybeSingle();
+  const limiteCredito = Number(clienteCredito?.limite_credito ?? 0);
+  if (limiteCredito > 0) {
+    const [creditoUtilizadoMxn, montoCotizadoMxn] = await Promise.all([
+      calcularCreditoUtilizadoMxn(clienteAdmin, clienteId),
+      calcularMontoCotizadoMxn(clienteAdmin, id, op.moneda),
+    ]);
+    const evaluacion = evaluarCreditoCliente({
+      limiteCredito,
+      creditoUtilizadoMxn,
+      montoCotizadoMxn,
+    });
+    if (evaluacion.excedeLimite) {
+      if (!autorizarSobregiro) {
+        return {
+          exito: false,
+          error: 'El cliente alcanzó su límite de crédito',
+          requiereAutorizacionCredito: true,
+          excedenteMxn: evaluacion.excedenteMxn,
+        };
+      }
+      if (usuario.rol !== 'admin') {
+        return {
+          exito: false,
+          error: 'Solo un administrador puede autorizar un sobrepaso de crédito',
+        };
+      }
+    }
+  }
+
   try {
     // La RPC bloquea la oportunidad y crea cabecera, partidas y cambio de etapa
     // en una sola transacción PostgreSQL. No existe un estado "ganada sin OP".
@@ -79,6 +182,7 @@ export async function marcarGanadaAccion(
       ordenId: orden.id,
       folioOrden: orden.folio,
       ...(orden.yaExistia ? { ordenPreexistente: true } : {}),
+      ...(autorizarSobregiro ? { autorizacionCredito: true } : {}),
     });
 
     return {
