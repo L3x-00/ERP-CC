@@ -28,6 +28,24 @@ export const esquemaCrearOrden = z.object({
 /** Una orden manual no puede apropiarse de una cotización de Pipeline. */
 export const esquemaCrearOrdenManual = esquemaCrearOrden.omit({ cotizacionId: true }).strict();
 
+/** ORD-05: partida existente (con `id`) o nueva (sin `id`) dentro de la edición. */
+export const esquemaPartidaOrdenEdicion = esquemaPartidaOrden
+  .extend({ id: z.uuid('ID de partida inválido').optional() })
+  .strict();
+
+/** ORD-05: edición de cabecera y partidas mientras la OP está en borrador. */
+export const esquemaActualizarOrdenBorrador = z
+  .object({
+    ordenId: z.uuid('ID de orden inválido'),
+    actualizadoEn: z.iso.datetime({ offset: true, message: 'Token de versión inválido' }),
+    prioridad: z.enum(PRIORIDADES_ORDEN_PRODUCCION),
+    fechaCompromiso: z.iso.datetime({ message: 'Fecha de compromiso inválida' }),
+    partidas: z
+      .array(esquemaPartidaOrdenEdicion)
+      .min(1, 'La orden requiere al menos una partida'),
+  })
+  .strict();
+
 export const esquemaCambiarEstadoOrden = z
   .object({
     ordenId: z.uuid('ID de orden inválido'),
@@ -92,6 +110,7 @@ export const esquemaAsignarOperadorPartida = z.object({
 export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
 export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
+export type ActualizarOrdenBorradorInput = z.infer<typeof esquemaActualizarOrdenBorrador>;
 export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;
 export type RegistrarTiempoOperadorInput = z.infer<typeof esquemaRegistrarTiempoOperador>;
 export type RegistrarConsumoMaterialInput = z.infer<typeof esquemaRegistrarConsumoMaterial>;

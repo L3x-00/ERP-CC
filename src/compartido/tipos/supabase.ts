@@ -1976,6 +1976,23 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      actualizar_orden_borrador: {
+        Args: {
+          p_actualizado_en: string
+          p_fecha_compromiso: string
+          p_orden_id: string
+          p_partidas: Json
+          p_prioridad: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado: string
+          fecha_compromiso: string
+          folio: string
+          id: string
+          prioridad: string
+        }[]
+      }
       cambiar_estado_orden: {
         Args: {
           p_estado_actual: string

@@ -37,14 +37,17 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     estado: orden.estado,
     prioridad: orden.prioridad,
     fechaCompromiso: orden.fechaCompromiso,
+    actualizadoEn: orden.actualizadoEn,
     esInterna: orden.esInterna,
     partidas: partidas.map((partida) => ({
       id: partida.id,
       codigoPieza: partida.codigoPieza,
+      descripcion: partida.descripcion,
       cantidadSolicitada: partida.cantidadSolicitada,
       cantidadProducida: partida.cantidadProducida,
       cantidadScrap: partida.cantidadScrap,
       unidadMedida: partida.unidadMedida,
+      tiempoEstimadoMinutos: partida.tiempoEstimadoMinutos,
       maquinaAsignada: partida.maquinaAsignada,
     })),
   }));
