@@ -15,6 +15,7 @@ import {
   type MonedaGasto,
 } from '@/modulos/gastos/tipos/indice';
 import type { RegistrarGastoInput } from '@/modulos/gastos/validaciones/indice';
+import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
 
 export interface ModalRegistrarGastoProps {
   abierto: boolean;
@@ -35,8 +36,9 @@ export function ModalRegistrarGasto({
   onRegistrar,
   onOcr,
 }: ModalRegistrarGastoProps) {
+  const { categoriasGasto } = usarCatalogosComerciales();
   const [ordenId, setOrdenId] = useState(ordenIdInicial ?? '');
-  const [categoria, setCategoria] = useState<(typeof CATEGORIAS_GASTO)[number]>('materia_prima');
+  const [categoria, setCategoria] = useState<string>(CATEGORIAS_GASTO[0]);
   const [descripcion, setDescripcion] = useState('');
   const [subtotal, setSubtotal] = useState('');
   const [iva, setIva] = useState('');
@@ -184,7 +186,7 @@ export function ModalRegistrarGasto({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-orden">ID de orden (opcional)</Label><Input id="gasto-orden" value={ordenId} onChange={(evento) => setOrdenId(evento.target.value)} /></div>
-            <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value as typeof categoria)}>{CATEGORIAS_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value)}>{categoriasGasto.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
           </div>
           <div className="grid gap-1">
             <Label htmlFor="gasto-cuenta">Cuenta de salida (opcional)</Label>

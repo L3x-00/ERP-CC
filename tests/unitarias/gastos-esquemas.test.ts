@@ -44,6 +44,12 @@ describe('esquemaRegistrarGasto', () => {
     }
   });
 
+  it('acepta categorías configurables (CFG-09) con formato válido', () => {
+    expect(esquemaRegistrarGasto.safeParse(gastoBase({ categoria: 'acero_inoxidable' })).success).toBe(true);
+    expect(esquemaRegistrarGasto.safeParse(gastoBase({ categoria: 'MAL!' })).success).toBe(false);
+    expect(esquemaConsultarGastos.safeParse({ categorias: ['acero_inoxidable'] }).success).toBe(true);
+  });
+
   it('rechaza negativos, no finitos y total incoherente', () => {
     expect(esquemaRegistrarGasto.safeParse(gastoBase({ montoSubtotal: -1 })).success).toBe(false);
     expect(esquemaRegistrarGasto.safeParse(gastoBase({ montoSubtotal: Number.NaN })).success)

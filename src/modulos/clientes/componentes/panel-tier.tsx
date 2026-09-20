@@ -1,10 +1,11 @@
 'use client';
 
 import { calcularTier, descuentoDeTier, tierPorConsumo } from '@/modulos/clientes/servicios/calcular-tier';
-import { UMBRAL_TIER, type Cliente, type TierCliente } from '@/modulos/clientes/tipos/indice';
+import type { Cliente, TierCliente } from '@/modulos/clientes/tipos/indice';
 import { ETIQUETA_TIER } from '@/modulos/clientes/utilidades/indice';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
+import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
 
 /** Tiers de menor a mayor, para localizar el siguiente por consumo. */
 const ORDEN_TIER: readonly TierCliente[] = ['bronce', 'plata', 'oro', 'platino'];
@@ -14,23 +15,25 @@ const ORDEN_TIER: readonly TierCliente[] = ['bronce', 'plata', 'oro', 'platino']
  * descuento, el consumo acumulado de los últimos 3 meses, el siguiente tier por
  * consumo, el importe que falta para alcanzarlo y una barra de progreso. El tier
  * efectivo respeta el manual vigente (más beneficioso); el progreso se mide
- * siempre contra los umbrales de consumo.
+ * siempre contra los umbrales del catálogo configurado (CFG-08).
  */
 export function PanelTier({ cliente, consumo }: { cliente: Cliente; consumo: number }) {
+  const { tiers } = usarCatalogosComerciales();
   const monto = Number.isFinite(consumo) && consumo > 0 ? consumo : 0;
   const { tier, esManual } = calcularTier({
     consumo: monto,
     tierManual: cliente.tierManual,
     tierManualHasta: cliente.tierManualHasta,
     ahora: new Date(),
+    catalogo: tiers,
   });
 
-  const tierConsumo = tierPorConsumo(monto);
+  const tierConsumo = tierPorConsumo(monto, tiers);
   const indice = ORDEN_TIER.indexOf(tierConsumo);
   const siguiente = indice >= 0 && indice < ORDEN_TIER.length - 1 ? ORDEN_TIER[indice + 1] : null;
 
-  const base = UMBRAL_TIER[tierConsumo];
-  const objetivo = siguiente ? UMBRAL_TIER[siguiente] : null;
+  const base = tiers.tiers[tierConsumo].umbralMxn;
+  const objetivo = siguiente ? tiers.tiers[siguiente].umbralMxn : null;
   const faltante = objetivo !== null ? Math.max(objetivo - monto, 0) : 0;
   const progreso =
     objetivo !== null && objetivo > base
@@ -44,7 +47,7 @@ export function PanelTier({ cliente, consumo }: { cliente: Cliente; consumo: num
           Tier {ETIQUETA_TIER[tier]}
           {esManual && <span className="ml-1 text-xs font-normal text-texto-secundario">· manual vigente</span>}
         </span>
-        <span className="tabular-nums text-texto-secundario">Descuento {descuentoDeTier(tier)}%</span>
+        <span className="tabular-nums text-texto-secundario">Descuento {descuentoDeTier(tier, tiers)}%</span>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">

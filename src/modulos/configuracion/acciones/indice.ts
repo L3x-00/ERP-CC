@@ -1,8 +1,12 @@
 export { actualizarTipoCambioAccion } from './actualizar-tipo-cambio';
 export { crearActualizarCuentaBancariaAccion } from './crear-actualizar-cuenta-bancaria';
 export { guardarAreaTrabajoAccion } from './guardar-area-trabajo';
+export { guardarCatalogoCategoriasAccion } from './guardar-catalogo-categorias';
+export { guardarCatalogoTiersAccion } from './guardar-catalogo-tiers';
 export { guardarDatosEmpresaAccion } from './guardar-datos-empresa';
 export { guardarPlantillaDocAccion } from './guardar-plantilla-doc';
 export { guardarTarifasCotizadorAccion } from './guardar-tarifas-cotizador';
+export { obtenerCatalogosComercialesAccion } from './obtener-catalogos-comerciales';
+export type { CatalogosComerciales } from './obtener-catalogos-comerciales';
 export { obtenerConfiguracionAccion } from './obtener-configuracion';
 export type { DatosConfiguracion } from './obtener-configuracion';

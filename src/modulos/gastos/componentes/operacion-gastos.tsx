@@ -20,7 +20,8 @@ import { SincronizadorGastosRealtime } from '@/modulos/gastos/componentes/sincro
 import { TablaGastos } from '@/modulos/gastos/componentes/tabla-gastos';
 import { TarjetaRentabilidadOrden } from '@/modulos/gastos/componentes/tarjeta-rentabilidad-orden';
 import type { CalculoRentabilidadOrden, Gasto } from '@/modulos/gastos/tipos/indice';
-import { CATEGORIAS_GASTO, ESTADOS_GASTO } from '@/modulos/gastos/tipos/indice';
+import { ESTADOS_GASTO } from '@/modulos/gastos/tipos/indice';
+import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
 import type { RegistrarGastoInput } from '@/modulos/gastos/validaciones/indice';
 import type { DatosComprobanteOCR } from '@/modulos/gastos/tipos/indice';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
@@ -60,6 +61,7 @@ function etiquetaCategoria(categoria: Gasto['categoria']): string {
 
 export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] }) {
   const clienteQuery = useQueryClient();
+  const { categoriasGasto } = usarCatalogosComerciales();
   const periodo = usarTiendaGastos((estado) => estado.periodo);
   const rango = usarTiendaGastos((estado) => estado.rango);
   const categorias = usarTiendaGastos((estado) => estado.categorias);
@@ -184,7 +186,7 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
         <label className="grid gap-1 text-sm font-medium">Buscar<Input value={busqueda} onChange={(evento) => usarTiendaGastos.getState().establecerBusqueda(evento.target.value)} placeholder="Folio o descripción" /></label>
         <label className="grid gap-1 text-sm font-medium">Periodo<Select value={periodo} onChange={(evento) => usarTiendaGastos.getState().establecerPeriodo(evento.target.value as typeof periodo)}><option value="hoy">Hoy</option><option value="esta_semana">Esta semana</option><option value="semana_pasada">Semana pasada</option><option value="este_mes">Este mes</option><option value="mes_pasado">Mes pasado</option><option value="este_anio">Este año</option><option value="personalizado">Personalizado</option></Select></label>
         {periodo === 'personalizado' ? <><label className="grid gap-1 text-sm font-medium">Desde<Input type="date" value={rango?.inicio ?? ''} onChange={(evento) => usarTiendaGastos.getState().establecerRango({ inicio: evento.target.value, fin: rango?.fin ?? evento.target.value })} /></label><label className="grid gap-1 text-sm font-medium">Hasta<Input type="date" value={rango?.fin ?? ''} onChange={(evento) => usarTiendaGastos.getState().establecerRango({ inicio: rango?.inicio ?? evento.target.value, fin: evento.target.value })} /></label></> : null}
-        <label className="grid gap-1 text-sm font-medium">Categoría<Select value={categorias[0] ?? ''} onChange={(evento) => usarTiendaGastos.getState().establecerCategorias(evento.target.value ? [evento.target.value as typeof CATEGORIAS_GASTO[number]] : [])}><option value="">Todas</option>{CATEGORIAS_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></label>
+        <label className="grid gap-1 text-sm font-medium">Categoría<Select value={categorias[0] ?? ''} onChange={(evento) => usarTiendaGastos.getState().establecerCategorias(evento.target.value ? [evento.target.value] : [])}><option value="">Todas</option>{categoriasGasto.map((item) => <option key={item} value={item}>{item}</option>)}</Select></label>
         <label className="grid gap-1 text-sm font-medium">Estado<Select value={estados[0] ?? ''} onChange={(evento) => usarTiendaGastos.getState().establecerEstados(evento.target.value ? [evento.target.value as typeof ESTADOS_GASTO[number]] : [])}><option value="">Todos</option>{ESTADOS_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></label>
       </div>
       {mensaje ? <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p> : null}

@@ -2,6 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
+import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/indice';
 import {
   mensajeErrorGastos,
   registrarGastoServicio,
@@ -27,6 +28,11 @@ export async function registrarGastoAccion(
   }
 
   try {
+    const configuracion = await obtenerConfiguracionGeneral();
+    if (!configuracion.categoriasGasto.includes(analisis.data.categoria)) {
+      return { exito: false, error: 'La categoría no está en el catálogo configurado' };
+    }
+
     const gasto = await registrarGastoServicio(
       crearClienteSupabaseAdmin(),
       analisis.data,

@@ -1,7 +1,18 @@
 import type { Json } from '@/compartido/tipos/supabase';
+import {
+  CATALOGO_TIERS_DEFECTO,
+  type CatalogoTiers,
+  type TierCliente,
+  type TierConfig,
+} from '@/modulos/clientes/tipos/indice';
+import {
+  esquemaCatalogoCategoriasGasto,
+  esquemaCatalogoTiers,
+} from '@/modulos/configuracion/validaciones/configuracion';
 import type { CatalogoTarifasCotizador } from '@/modulos/cotizador/tipos/indice';
-import { esquemaCatalogoTarifas } from '@/modulos/cotizador/validaciones/tarifas';
 import { CATALOGO_TARIFAS_DEFECTO } from '@/modulos/cotizador/servicios/catalogo-tarifas';
+import { esquemaCatalogoTarifas } from '@/modulos/cotizador/validaciones/tarifas';
+import { CATEGORIAS_GASTO } from '@/modulos/gastos/tipos/gastos';
 
 export type MonedaCuenta = 'MXN' | 'USD';
 
@@ -65,6 +76,8 @@ export interface ConfiguracionSistema {
   empresa: ConfiguracionEmpresa;
   tarifas: TarifasCotizadorConfig;
   plantillasDoc: PlantillasDocumentoConfig;
+  tiers: CatalogoTiers;
+  categoriasGasto: readonly string[];
   tipoCambioUsd: number;
   ivaPorcentajeDefault: number;
   actualizadoPor: string | null;
@@ -77,6 +90,8 @@ export interface FilaConfiguracionSistema {
   empresa_json: Json;
   tarifas_json: Json;
   plantillas_doc_json: Json;
+  tiers_json: Json;
+  categorias_gasto_json: Json;
   tipo_cambio_usd: number | string;
   iva_porcentaje_default: number | string;
   actualizado_por: string | null;
@@ -137,6 +152,9 @@ export const PLANTILLA_DOCUMENTO_DEFECTO: PlantillaDocumentoConfig = {
 
 export const TIPO_CAMBIO_USD_DEFECTO = 20;
 export const IVA_PORCENTAJE_DEFECTO = 16;
+
+/** Categorías de gasto de fábrica (CFG-09) usadas si no hay catálogo válido. */
+export const CATALOGO_CATEGORIAS_GASTO_DEFECTO: readonly string[] = [...CATEGORIAS_GASTO];
 
 function esObjeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
@@ -231,6 +249,24 @@ function plantillasDesde(valor: Json): PlantillasDocumentoConfig {
     : { T1: { ...PLANTILLA_DOCUMENTO_DEFECTO } };
 }
 
+function catalogoTiersDesde(valor: Json): CatalogoTiers {
+  const analisis = esquemaCatalogoTiers.safeParse(valor);
+  if (!analisis.success) return CATALOGO_TIERS_DEFECTO;
+  const tiers = {} as Record<TierCliente, TierConfig>;
+  for (const tier of analisis.data.tiers) {
+    tiers[tier.clave] = {
+      umbralMxn: tier.umbralMxn,
+      descuentoPorcentaje: tier.descuentoPorcentaje,
+    };
+  }
+  return { diasManual: analisis.data.diasManual, tiers };
+}
+
+function categoriasGastoDesde(valor: Json): readonly string[] {
+  const analisis = esquemaCatalogoCategoriasGasto.safeParse(valor);
+  return analisis.success ? analisis.data.categorias : CATALOGO_CATEGORIAS_GASTO_DEFECTO;
+}
+
 /** Mapea y normaliza una fila del singleton sin exponer JSONB desconocido. */
 export function filaAConfiguracionSistema(fila: FilaConfiguracionSistema): ConfiguracionSistema {
   if (fila.id !== 'main') throw new Error('La configuración singleton tiene un identificador inválido');
@@ -239,6 +275,8 @@ export function filaAConfiguracionSistema(fila: FilaConfiguracionSistema): Confi
     empresa: empresaDesde(fila.empresa_json),
     tarifas: tarifasDesde(fila.tarifas_json),
     plantillasDoc: plantillasDesde(fila.plantillas_doc_json),
+    tiers: catalogoTiersDesde(fila.tiers_json),
+    categoriasGasto: categoriasGastoDesde(fila.categorias_gasto_json),
     tipoCambioUsd: numeroSeguro(fila.tipo_cambio_usd, TIPO_CAMBIO_USD_DEFECTO, 0.0001),
     ivaPorcentajeDefault: numeroSeguro(fila.iva_porcentaje_default, IVA_PORCENTAJE_DEFECTO),
     actualizadoPor: fila.actualizado_por,

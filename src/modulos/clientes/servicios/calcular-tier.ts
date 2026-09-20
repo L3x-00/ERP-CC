@@ -1,6 +1,6 @@
 import {
-  DESCUENTO_TIER,
-  UMBRAL_TIER,
+  CATALOGO_TIERS_DEFECTO,
+  type CatalogoTiers,
   type TierCliente,
 } from '@/modulos/clientes/tipos/indice';
 
@@ -9,16 +9,16 @@ const TIERS_DESC: TierCliente[] = ['platino', 'oro', 'plata', 'bronce'];
 
 /**
  * Determina el tier que corresponde a un consumo acumulado (MXN, últimos 3
- * meses). Función pura: devuelve el tier más alto cuyo umbral no supera el
- * consumo. Bronce es el piso.
- *
- * @param consumo Consumo acumulado en MXN (>= 0).
- * @returns Tier automático por consumo.
+ * meses) usando los umbrales del catálogo vigente (CFG-08). Función pura:
+ * devuelve el tier más alto cuyo umbral no supera el consumo. Bronce es el piso.
  */
-export function tierPorConsumo(consumo: number): TierCliente {
+export function tierPorConsumo(
+  consumo: number,
+  catalogo: CatalogoTiers = CATALOGO_TIERS_DEFECTO,
+): TierCliente {
   const monto = Number.isFinite(consumo) && consumo > 0 ? consumo : 0;
   for (const tier of TIERS_DESC) {
-    if (monto >= UMBRAL_TIER[tier]) {
+    if (monto >= catalogo.tiers[tier].umbralMxn) {
       return tier;
     }
   }
@@ -35,6 +35,8 @@ export type ParametrosTier = {
   tierManualHasta: string | null;
   /** Momento de evaluación (inyectable para pruebas deterministas). */
   ahora: Date;
+  /** Catálogo configurado; por defecto, los valores de fábrica. */
+  catalogo?: CatalogoTiers;
 };
 
 /** Tier efectivo resuelto, con la bandera de si vino de asignación manual. */
@@ -52,17 +54,11 @@ const TIERS_ASC: readonly TierCliente[] = ['bronce', 'plata', 'oro', 'platino'];
  * El tier manual vigente (`ahora < tierManualHasta`) nunca perjudica al
  * cliente: si su consumo ya le da un tier mejor, manda el consumo. Un manual
  * vencido o ausente se ignora por completo. Función pura y determinista (la
- * fecha se inyecta).
- *
- * `esManual` indica que el tier devuelto proviene del manual vigente; cuando
- * ambos coinciden se reporta manual, porque esa asignación sigue siendo la que
- * sostiene el tier si el consumo baja antes de que venza.
- *
- * @param p Consumo, tier manual, caducidad y momento de evaluación.
- * @returns Tier efectivo y si proviene de asignación manual vigente.
+ * fecha y el catálogo se inyectan).
  */
 export function calcularTier(p: ParametrosTier): ResultadoTier {
-  const porConsumo = tierPorConsumo(p.consumo);
+  const catalogo = p.catalogo ?? CATALOGO_TIERS_DEFECTO;
+  const porConsumo = tierPorConsumo(p.consumo, catalogo);
 
   if (p.tierManual && p.tierManualHasta) {
     const vence = new Date(p.tierManualHasta).getTime();
@@ -78,7 +74,10 @@ export function calcularTier(p: ParametrosTier): ResultadoTier {
   return { tier: porConsumo, esManual: false };
 }
 
-/** Descuento porcentual asociado a un tier. */
-export function descuentoDeTier(tier: TierCliente): number {
-  return DESCUENTO_TIER[tier];
+/** Descuento porcentual asociado a un tier según el catálogo vigente. */
+export function descuentoDeTier(
+  tier: TierCliente,
+  catalogo: CatalogoTiers = CATALOGO_TIERS_DEFECTO,
+): number {
+  return catalogo.tiers[tier].descuentoPorcentaje;
 }

@@ -205,31 +205,37 @@ export type Database = {
         Row: {
           actualizado_en: string
           actualizado_por: string | null
+          categorias_gasto_json: Json
           empresa_json: Json
           id: string
           iva_porcentaje_default: number
           plantillas_doc_json: Json
           tarifas_json: Json
+          tiers_json: Json
           tipo_cambio_usd: number
         }
         Insert: {
           actualizado_en?: string
           actualizado_por?: string | null
+          categorias_gasto_json?: Json
           empresa_json?: Json
           id?: string
           iva_porcentaje_default?: number
           plantillas_doc_json?: Json
           tarifas_json?: Json
+          tiers_json?: Json
           tipo_cambio_usd?: number
         }
         Update: {
           actualizado_en?: string
           actualizado_por?: string | null
+          categorias_gasto_json?: Json
           empresa_json?: Json
           id?: string
           iva_porcentaje_default?: number
           plantillas_doc_json?: Json
           tarifas_json?: Json
+          tiers_json?: Json
           tipo_cambio_usd?: number
         }
         Relationships: [
