@@ -14,6 +14,7 @@ import {
   type RegistroTiempo,
 } from '@/modulos/ordenes/tipos/ordenes';
 import type {
+  ActualizarOrdenBorradorInput,
   CambiarEstadoOrdenInput,
   CrearOrdenManualInput,
   AsignarOperadorPartidaInput,
@@ -36,6 +37,9 @@ export type CodigoErrorOrden =
   | 'cantidad_consumo_invalida'
   | 'cantidad_avance_invalida'
   | 'cantidad_producida_excede_solicitada'
+  | 'orden_no_editable'
+  | 'orden_desactualizada'
+  | 'partida_con_historial'
   | 'orden_no_en_proceso'
   | 'orden_no_asignable'
   | 'operador_no_activo'
@@ -131,6 +135,9 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('cantidad_producida_excede_solicitada')) {
     return 'cantidad_producida_excede_solicitada';
   }
+  if (mensaje.includes('orden_no_editable')) return 'orden_no_editable';
+  if (mensaje.includes('orden_desactualizada')) return 'orden_desactualizada';
+  if (mensaje.includes('partida_con_historial')) return 'partida_con_historial';
   if (mensaje.includes('orden_no_en_proceso')) return 'orden_no_en_proceso';
   if (mensaje.includes('orden_no_asignable')) return 'orden_no_asignable';
   if (mensaje.includes('operador_no_activo')) return 'operador_no_activo';
@@ -225,6 +232,57 @@ export async function cambiarEstadoOrdenServicio(
     estado: estadoDeBaseDeDatos(fila.estado),
     fechaInicio: fila.fecha_inicio,
     fechaFin: fila.fecha_fin,
+  };
+}
+
+export type OrdenEditada = {
+  id: string;
+  folio: string;
+  estado: EstadoOrden;
+  prioridad: string;
+  fechaCompromiso: string;
+  actualizadoEn: string;
+};
+
+/**
+ * ORD-05: edita cabecera y partidas de una OP en borrador mediante una sola RPC
+ * con `FOR UPDATE` y compare-and-set sobre `actualizado_en`; el token proviene
+ * de la lectura que hizo la pantalla y Postgres revalida estado y versión.
+ */
+export async function actualizarOrdenBorradorServicio(
+  admin: SupabaseClient<Database>,
+  entrada: ActualizarOrdenBorradorInput,
+): Promise<OrdenEditada> {
+  const { data, error } = await admin.rpc('actualizar_orden_borrador', {
+    p_orden_id: entrada.ordenId,
+    p_actualizado_en: entrada.actualizadoEn,
+    p_prioridad: entrada.prioridad,
+    p_fecha_compromiso: entrada.fechaCompromiso,
+    p_partidas: entrada.partidas.map((partida) => ({
+      id: partida.id ?? null,
+      codigo_pieza: partida.codigoPieza,
+      descripcion: partida.descripcion ?? null,
+      cantidad_solicitada: partida.cantidadSolicitada,
+      unidad_medida: partida.unidadMedida,
+      material_id: partida.materialId ?? null,
+      tiempo_estimado_minutos: partida.tiempoEstimadoMinutos,
+      maquina_asignada: partida.maquinaAsignada ?? null,
+    })),
+  });
+
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.id || !fila.folio) {
+    throw new ErrorOrden('desconocido');
+  }
+
+  return {
+    id: fila.id,
+    folio: fila.folio,
+    estado: estadoDeBaseDeDatos(fila.estado),
+    prioridad: fila.prioridad,
+    fechaCompromiso: fila.fecha_compromiso,
+    actualizadoEn: fila.actualizado_en,
   };
 }
 
@@ -539,6 +597,12 @@ export function mensajeErrorOrden(
       return 'La orden no existe o ya no está disponible';
     case 'estado_conflicto':
       return 'La orden fue actualizada por otro usuario. Recarga e inténtalo de nuevo';
+    case 'orden_no_editable':
+      return 'Solo se puede editar una orden en borrador';
+    case 'orden_desactualizada':
+      return 'La orden fue actualizada por otra persona. Recarga e inténtalo de nuevo';
+    case 'partida_con_historial':
+      return 'No se puede retirar una partida con historial de piso o con operador asignado';
     case 'transicion_no_permitida':
       return 'La transición de estado no está permitida';
     case 'motivo_cancelacion_requerido':

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
+import { EditarOrdenDialog } from '@/modulos/ordenes/componentes/editar-orden-dialog';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -41,10 +42,12 @@ import {
 export type PartidaTabla = {
   id: string;
   codigoPieza: string;
+  descripcion: string | null;
   cantidadSolicitada: number;
   cantidadProducida: number;
   cantidadScrap: number;
   unidadMedida: string;
+  tiempoEstimadoMinutos: number;
   maquinaAsignada: string | null;
 };
 
@@ -57,6 +60,8 @@ export type OrdenTabla = {
   estado: EstadoOrden;
   prioridad: PrioridadOrden;
   fechaCompromiso: string;
+  /** Token de versión (ORD-05) para editar el borrador con compare-and-set. */
+  actualizadoEn: string;
   esInterna: boolean;
   partidas: PartidaTabla[];
 };
@@ -199,6 +204,7 @@ export function TablaOrdenes({
   const [ordenActualizandoId, setOrdenActualizandoId] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
+  const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [hidratado, setHidratado] = useState(false);
 
@@ -484,6 +490,17 @@ export function TablaOrdenes({
                             </button>
                           );
                         })}
+                        {orden.estado === 'borrador' && (
+                          <button
+                            type="button"
+                            data-testid={`editar-orden-${orden.folio}`}
+                            onClick={() => setOrdenEditando(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                          >
+                            Editar
+                          </button>
+                        )}
                         <DocumentoOrdenBoton ordenId={orden.id} folio={orden.folio} />
                         {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
                           <button
@@ -535,6 +552,15 @@ export function TablaOrdenes({
       <p aria-live="polite" className="text-sm text-texto-secundario">
         {ordenesVisibles.length} de {ordenes.length} orden(es)
       </p>
+
+      {ordenEditando ? (
+        <EditarOrdenDialog
+          key={`editar-orden-${ordenEditando.id}-${ordenEditando.actualizadoEn}`}
+          orden={ordenEditando}
+          onCerrar={() => setOrdenEditando(null)}
+          onGuardado={alRefrescar}
+        />
+      ) : null}
 
       <Dialog open={ordenCancelando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCancelando(null) : undefined)}>
         <DialogContent>
