@@ -1,11 +1,18 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 
 import { PanelTier } from '@/modulos/clientes/componentes/panel-tier';
 import { ETIQUETA_TIER } from '@/modulos/clientes/utilidades/indice';
 import type { Cliente } from '@/modulos/clientes/tipos/indice';
+
+vi.mock('@/modulos/configuracion/hooks/usar-catalogos-comerciales', async () => {
+  const { CATALOGO_TIERS_DEFECTO } = await import('@/modulos/clientes/tipos/indice');
+  return {
+    usarCatalogosComerciales: () => ({ tiers: CATALOGO_TIERS_DEFECTO, categoriasGasto: [] }),
+  };
+});
 
 const CLIENTE: Cliente = {
   id: '11111111-1111-4111-8111-111111111111',

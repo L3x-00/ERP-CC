@@ -11,6 +11,8 @@ function fila(parcial: Partial<FilaConfiguracionSistema> = {}): FilaConfiguracio
     empresa_json: {},
     tarifas_json: {},
     plantillas_doc_json: {},
+    tiers_json: {},
+    categorias_gasto_json: {},
     tipo_cambio_usd: 19.5,
     iva_porcentaje_default: 16,
     actualizado_por: null,

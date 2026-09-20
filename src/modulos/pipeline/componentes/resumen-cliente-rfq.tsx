@@ -3,6 +3,7 @@
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import { calcularTier, descuentoDeTier } from '@/modulos/clientes/servicios/calcular-tier';
 import { usarCliente } from '@/modulos/clientes/hooks/usar-cliente';
+import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
 import { ETIQUETA_CONDICIONES_PAGO } from '@/modulos/pipeline/utilidades/indice';
 import type { CondicionesPago } from '@/modulos/pipeline/tipos/indice';
 
@@ -23,6 +24,7 @@ export function ResumenClienteRfq({
   condicionesPago: CondicionesPago | null;
 }) {
   const { data, isLoading, isError } = usarCliente(clienteId);
+  const { tiers } = usarCatalogosComerciales();
 
   const condiciones =
     condicionesPago === null ? 'Sin especificar' : ETIQUETA_CONDICIONES_PAGO[condicionesPago];
@@ -49,8 +51,9 @@ export function ResumenClienteRfq({
     tierManual: data.cliente.tierManual,
     tierManualHasta: data.cliente.tierManualHasta,
     ahora: new Date(),
+    catalogo: tiers,
   });
-  const descuento = descuentoDeTier(tier);
+  const descuento = descuentoDeTier(tier, tiers);
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-texto-secundario">

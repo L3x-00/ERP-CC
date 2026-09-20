@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { TIERS_CLIENTE } from '@/modulos/clientes/tipos/indice';
 import { esquemaCatalogoTarifas } from '@/modulos/cotizador/validaciones/tarifas';
+import { FORMATO_CATEGORIA_GASTO } from '@/modulos/gastos/tipos/gastos';
 
 const RFC_MEXICANO = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
@@ -104,6 +106,44 @@ export const esquemaConsultaConfiguracion = z
   .object({ soloCuentasActivas: z.boolean().default(true) })
   .strict();
 
+/** CFG-08: catálogo de tiers editable; exige los cuatro tiers una sola vez. */
+export const esquemaCatalogoTiers = z
+  .object({
+    diasManual: numeroFinito('Los días de vigencia del tier manual', 1, 3_650),
+    tiers: z
+      .array(
+        z
+          .object({
+            clave: z.enum(TIERS_CLIENTE),
+            umbralMxn: numeroFinito('El umbral', 0, 999_999_999.99),
+            descuentoPorcentaje: numeroFinito('El descuento', 0, 100),
+          })
+          .strict(),
+      )
+      .length(TIERS_CLIENTE.length, 'El catálogo debe incluir los cuatro tiers')
+      .superRefine((tiers, contexto) => {
+        if (new Set(tiers.map((tier) => tier.clave)).size !== TIERS_CLIENTE.length) {
+          contexto.addIssue({ code: 'custom', message: 'Cada tier debe aparecer una sola vez' });
+        }
+      }),
+  })
+  .strict();
+
+/** CFG-09: catálogo de categorías de gasto editable y sin duplicados. */
+export const esquemaCatalogoCategoriasGasto = z
+  .object({
+    categorias: z
+      .array(z.string().trim().regex(FORMATO_CATEGORIA_GASTO, 'La categoría no es válida'))
+      .min(1, 'Debe existir al menos una categoría')
+      .max(60, 'El catálogo admite máximo 60 categorías')
+      .superRefine((categorias, contexto) => {
+        if (new Set(categorias).size !== categorias.length) {
+          contexto.addIssue({ code: 'custom', message: 'Las categorías no pueden repetirse' });
+        }
+      }),
+  })
+  .strict();
+
 export type ConfiguracionEmpresaInput = z.infer<typeof esquemaConfiguracionEmpresa>;
 export type TarifasCotizadorInput = z.infer<typeof esquemaTarifasCotizador>;
 export type PlantillaDocumentoInput = z.infer<typeof esquemaPlantillaDocumento>;
@@ -112,3 +152,5 @@ export type GuardarCuentaBancariaInput = z.infer<typeof esquemaGuardarCuentaBanc
 export type TipoCambioInput = z.infer<typeof esquemaTipoCambio>;
 export type AreaTrabajoInput = z.infer<typeof esquemaAreaTrabajo>;
 export type ConsultaConfiguracionInput = z.infer<typeof esquemaConsultaConfiguracion>;
+export type CatalogoTiersInput = z.infer<typeof esquemaCatalogoTiers>;
+export type CatalogoCategoriasGastoInput = z.infer<typeof esquemaCatalogoCategoriasGasto>;

@@ -7,8 +7,9 @@ import {
   obtenerConfiguracionAccion,
   type DatosConfiguracion,
 } from '@/modulos/configuracion/acciones/indice';
-import { CLAVE_CONFIGURACION } from './claves-consulta';
+import { CLAVE_CATALOGOS_COMERCIALES, CLAVE_CONFIGURACION } from './claves-consulta';
 import { PestanaAreasTrabajo } from './pestana-areas-trabajo';
+import { PestanaCatalogos } from './pestana-catalogos';
 import { PestanaCuentasBancarias } from './pestana-cuentas-bancarias';
 import { PestanaEmpresa } from './pestana-empresa';
 import { PestanaPlantillasDoc } from './pestana-plantillas-doc';
@@ -18,6 +19,7 @@ import { SincronizadorConfiguracionRealtime } from './sincronizador-configuracio
 const PESTANAS = [
   ['empresa', 'Empresa'],
   ['tarifas', 'Tarifas / TC'],
+  ['catalogos', 'Catálogos'],
   ['areas', 'Áreas de trabajo'],
   ['cuentas', 'Cuentas bancarias'],
   ['plantillas', 'Plantillas T1'],
@@ -54,6 +56,10 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
     clienteQuery.setQueryData<DatosConfiguracion>(CLAVE_CONFIGURACION, (actual) =>
       actual ? { ...actual, configuracion } : actual,
     );
+    clienteQuery.setQueryData(CLAVE_CATALOGOS_COMERCIALES, {
+      tiers: configuracion.tiers,
+      categoriasGasto: configuracion.categoriasGasto,
+    });
     setConfirmacion('Cambios guardados');
   };
   const actualizarCuenta = (cuenta: DatosConfiguracion['cuentasBancarias'][number]): void => {
@@ -128,6 +134,13 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         {pestana === 'tarifas' ? (
           <PestanaTarifas
             key={`tarifas-${vigente.configuracion.actualizadoEn}`}
+            configuracion={vigente.configuracion}
+            onGuardado={actualizarConfiguracion}
+          />
+        ) : null}
+        {pestana === 'catalogos' ? (
+          <PestanaCatalogos
+            key={`catalogos-${vigente.configuracion.actualizadoEn}`}
             configuracion={vigente.configuracion}
             onGuardado={actualizarConfiguracion}
           />

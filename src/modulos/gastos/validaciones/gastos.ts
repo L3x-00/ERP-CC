@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {
-  CATEGORIAS_GASTO,
   ESTADOS_GASTO,
+  FORMATO_CATEGORIA_GASTO,
   METODOS_PAGO_GASTO,
   MONEDAS_GASTO,
 } from '@/modulos/gastos/tipos/gastos';
@@ -75,7 +75,7 @@ export const esquemaRegistrarGasto = z
   proveedorId: z.uuid('ID de proveedor inválido').optional(),
   // OBS-28: cuenta bancaria de salida (opcional).
   cuentaBancariaId: z.uuid('Cuenta inválida').optional(),
-  categoria: z.enum(CATEGORIAS_GASTO),
+  categoria: z.string().trim().regex(FORMATO_CATEGORIA_GASTO, 'La categoría no es válida'),
     descripcion: z.string().trim().min(3).max(500),
     montoSubtotal: montoNoNegativo('subtotal'),
     montoIva: montoNoNegativo('IVA'),
@@ -125,7 +125,7 @@ export const esquemaConsultarGastos = z
   .object({
     ordenId: z.uuid('ID de orden inválido').optional(),
     proveedorId: z.uuid('ID de proveedor inválido').optional(),
-    categorias: z.array(z.enum(CATEGORIAS_GASTO)).min(1).optional(),
+    categorias: z.array(z.string().trim().regex(FORMATO_CATEGORIA_GASTO, 'La categoría no es válida')).min(1).optional(),
     estados: z.array(z.enum(ESTADOS_GASTO)).min(1).optional(),
     moneda: z.enum(MONEDAS_GASTO).optional(),
     desde: fechaISO.optional(),

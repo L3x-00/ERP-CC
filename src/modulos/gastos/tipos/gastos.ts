@@ -16,6 +16,9 @@ export const CATEGORIAS_GASTO = [
   'otros',
 ] as const;
 
+/** Formato admitido para categorías configurables (CFG-09). */
+export const FORMATO_CATEGORIA_GASTO = /^[a-z0-9_]{2,40}$/;
+
 export const ESTADOS_GASTO = ['pendiente', 'pagado', 'cancelado'] as const;
 
 export const METODOS_PAGO_GASTO = [
@@ -27,7 +30,7 @@ export const METODOS_PAGO_GASTO = [
 ] as const;
 
 export type MonedaGasto = (typeof MONEDAS_GASTO)[number];
-export type CategoriaGasto = (typeof CATEGORIAS_GASTO)[number];
+export type CategoriaGasto = string;
 export type EstadoGasto = (typeof ESTADOS_GASTO)[number];
 export type MetodoPagoGasto = (typeof METODOS_PAGO_GASTO)[number];
 export type MonedaRentabilidad = 'MXN';
@@ -156,7 +159,7 @@ export function filaAGasto(fila: FilaGasto): Gasto {
     folio: fila.folio,
     ordenId: fila.orden_id,
     proveedorId: fila.proveedor_id,
-    categoria: validarEnumerado(fila.categoria, CATEGORIAS_GASTO, 'categoría'),
+    categoria: FORMATO_CATEGORIA_GASTO.test(fila.categoria) ? fila.categoria : 'otros',
     descripcion: fila.descripcion,
     montoSubtotal: numeroDeFila(fila.monto_subtotal, 'monto_subtotal'),
     montoIva: numeroDeFila(fila.monto_iva, 'monto_iva'),

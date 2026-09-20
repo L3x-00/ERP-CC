@@ -4,13 +4,14 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { esquemaAsignarTierManual } from '@/modulos/clientes/validaciones/cliente-schema';
-import { DIAS_TIER_MANUAL } from '@/modulos/clientes/tipos/indice';
+import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/configuracion-servicio';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 const MS_POR_DIA = 24 * 60 * 60 * 1000;
 
 /**
- * Asigna manualmente el tier de un cliente, con caducidad de `DIAS_TIER_MANUAL`.
+ * Asigna manualmente el tier de un cliente, con la vigencia configurada en
+ * Configuración (CFG-08; 90 días de fábrica).
  *
  * Restringido a `rol === 'admin'` explícito (no un permiso otorgable): forzar el
  * tier salta la regla automática por consumo, así que es privilegio de admin. La
@@ -35,7 +36,11 @@ export async function asignarTierManualAccion(
   }
 
   const { clienteId, tier } = analisis.data;
-  const venceEn = new Date(Date.now() + DIAS_TIER_MANUAL * MS_POR_DIA).toISOString();
+  const configuracion = await obtenerConfiguracionGeneral().catch(() => null);
+  if (!configuracion) {
+    return { exito: false, error: 'No se pudo leer la vigencia configurada del tier' };
+  }
+  const venceEn = new Date(Date.now() + configuracion.tiers.diasManual * MS_POR_DIA).toISOString();
 
   const admin = crearClienteSupabaseAdmin();
   const { error } = await admin

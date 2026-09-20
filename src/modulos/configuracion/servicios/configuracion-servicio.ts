@@ -17,15 +17,17 @@ import type {
   GuardarCuentaBancariaInput,
 } from '@/modulos/configuracion/validaciones/indice';
 import {
+  CATALOGO_CATEGORIAS_GASTO_DEFECTO,
   CONFIGURACION_EMPRESA_DEFECTO,
   IVA_PORCENTAJE_DEFECTO,
   PLANTILLA_DOCUMENTO_DEFECTO,
   TARIFAS_COTIZADOR_DEFECTO,
   TIPO_CAMBIO_USD_DEFECTO,
 } from '@/modulos/configuracion/tipos/indice';
+import { CATALOGO_TIERS_DEFECTO } from '@/modulos/clientes/tipos/indice';
 
 export type ClienteConfiguracion = SupabaseClient<Database>;
-export type SeccionConfiguracion = 'empresa' | 'tarifas' | 'plantillas' | 'tipo_cambio' | 'iva';
+export type SeccionConfiguracion = 'empresa' | 'tarifas' | 'plantillas' | 'tiers' | 'categorias' | 'tipo_cambio' | 'iva';
 
 const FECHA_EPOCA = new Date(0).toISOString();
 
@@ -46,6 +48,8 @@ export function combinarConfiguracion(
       empresa: { ...CONFIGURACION_EMPRESA_DEFECTO },
       tarifas: { ...TARIFAS_COTIZADOR_DEFECTO },
       plantillasDoc: { T1: { ...PLANTILLA_DOCUMENTO_DEFECTO } },
+      tiers: CATALOGO_TIERS_DEFECTO,
+      categoriasGasto: CATALOGO_CATEGORIAS_GASTO_DEFECTO,
       tipoCambioUsd: TIPO_CAMBIO_USD_DEFECTO,
       ivaPorcentajeDefault: IVA_PORCENTAJE_DEFECTO,
       actualizadoPor: null,
@@ -83,6 +87,8 @@ function filaDesdeRpc(valor: Json): FilaConfiguracionSistema {
     empresa_json: valor.empresa_json,
     tarifas_json: valor.tarifas_json,
     plantillas_doc_json: valor.plantillas_doc_json,
+    tiers_json: esJson(valor.tiers_json) ? valor.tiers_json : {},
+    categorias_gasto_json: esJson(valor.categorias_gasto_json) ? valor.categorias_gasto_json : {},
     tipo_cambio_usd: valor.tipo_cambio_usd,
     iva_porcentaje_default: valor.iva_porcentaje_default,
     actualizado_por: valor.actualizado_por,

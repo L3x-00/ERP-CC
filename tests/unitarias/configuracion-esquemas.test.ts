@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   esquemaAreaTrabajo,
+  esquemaCatalogoCategoriasGasto,
+  esquemaCatalogoTiers,
   esquemaConfiguracionEmpresa,
   esquemaCuentaBancaria,
   esquemaGuardarCuentaBancaria,
@@ -98,5 +100,41 @@ describe('esquemas de configuración', () => {
     expect(esquemaTipoCambio.safeParse({ tipoCambioUsd: 19.875 }).success).toBe(true);
     expect(esquemaTipoCambio.safeParse({ tipoCambioUsd: 0 }).success).toBe(false);
     expect(esquemaTipoCambio.safeParse({ tipoCambioUsd: Number.POSITIVE_INFINITY }).success).toBe(false);
+  });
+
+  it('valida el catálogo de tiers (CFG-08): cuatro claves únicas y rangos', () => {
+    const tiers = {
+      diasManual: 90,
+      tiers: [
+        { clave: 'bronce', umbralMxn: 0, descuentoPorcentaje: 0 },
+        { clave: 'plata', umbralMxn: 50_000, descuentoPorcentaje: 3 },
+        { clave: 'oro', umbralMxn: 150_000, descuentoPorcentaje: 5 },
+        { clave: 'platino', umbralMxn: 300_000, descuentoPorcentaje: 8 },
+      ],
+    };
+    expect(esquemaCatalogoTiers.safeParse(tiers).success).toBe(true);
+    expect(esquemaCatalogoTiers.safeParse({ ...tiers, tiers: tiers.tiers.slice(0, 3) }).success).toBe(false);
+    expect(
+      esquemaCatalogoTiers.safeParse({
+        ...tiers,
+        tiers: tiers.tiers.map((tier) => (tier.clave === 'plata' ? { ...tier, clave: 'bronce' } : tier)),
+      }).success,
+    ).toBe(false);
+    expect(esquemaCatalogoTiers.safeParse({ ...tiers, diasManual: 0 }).success).toBe(false);
+    expect(
+      esquemaCatalogoTiers.safeParse({
+        ...tiers,
+        tiers: tiers.tiers.map((tier) => (tier.clave === 'oro' ? { ...tier, descuentoPorcentaje: 120 } : tier)),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('valida el catálogo de categorías (CFG-09): formato y sin duplicados', () => {
+    expect(
+      esquemaCatalogoCategoriasGasto.safeParse({ categorias: ['materia_prima', 'acero_inoxidable'] }).success,
+    ).toBe(true);
+    expect(esquemaCatalogoCategoriasGasto.safeParse({ categorias: [] }).success).toBe(false);
+    expect(esquemaCatalogoCategoriasGasto.safeParse({ categorias: ['MAYÚSCULAS'] }).success).toBe(false);
+    expect(esquemaCatalogoCategoriasGasto.safeParse({ categorias: ['otros', 'otros'] }).success).toBe(false);
   });
 });

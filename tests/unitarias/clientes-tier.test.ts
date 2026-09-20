@@ -4,6 +4,7 @@ import {
   descuentoDeTier,
   tierPorConsumo,
 } from '@/modulos/clientes/servicios/calcular-tier';
+import type { CatalogoTiers } from '@/modulos/clientes/tipos/indice';
 
 describe('tierPorConsumo', () => {
   it('asigna el tier por umbral acumulado', () => {
@@ -135,5 +136,42 @@ describe('calcularTier', () => {
       ahora,
     });
     expect(r).toEqual({ tier: 'bronce', esManual: false });
+  });
+});
+
+const CATALOGO_CUSTOM: CatalogoTiers = {
+  diasManual: 30,
+  tiers: {
+    bronce: { umbralMxn: 0, descuentoPorcentaje: 1 },
+    plata: { umbralMxn: 10_000, descuentoPorcentaje: 4 },
+    oro: { umbralMxn: 20_000, descuentoPorcentaje: 6 },
+    platino: { umbralMxn: 30_000, descuentoPorcentaje: 9 },
+  },
+};
+
+describe('catálogo configurable (CFG-08)', () => {
+  it('usa umbrales y descuentos del catálogo inyectado', () => {
+    expect(tierPorConsumo(9_999, CATALOGO_CUSTOM)).toBe('bronce');
+    expect(tierPorConsumo(10_000, CATALOGO_CUSTOM)).toBe('plata');
+    expect(tierPorConsumo(29_999, CATALOGO_CUSTOM)).toBe('oro');
+    expect(tierPorConsumo(30_000, CATALOGO_CUSTOM)).toBe('platino');
+    expect(descuentoDeTier('oro', CATALOGO_CUSTOM)).toBe(6);
+  });
+
+  it('sin catálogo conserva los valores de fábrica', () => {
+    expect(tierPorConsumo(50_000)).toBe('plata');
+    expect(tierPorConsumo(300_000)).toBe('platino');
+    expect(descuentoDeTier('platino')).toBe(8);
+  });
+
+  it('el tier manual vigente se resuelve con el catálogo inyectado', () => {
+    const r = calcularTier({
+      consumo: 15_000,
+      tierManual: 'plata',
+      tierManualHasta: '2026-09-01T00:00:00Z',
+      ahora: new Date('2026-08-07T00:00:00Z'),
+      catalogo: CATALOGO_CUSTOM,
+    });
+    expect(r).toEqual({ tier: 'plata', esManual: true });
   });
 });

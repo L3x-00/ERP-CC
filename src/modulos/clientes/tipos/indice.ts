@@ -1,7 +1,10 @@
 import type { Tables } from '@/compartido/tipos/supabase';
 
+/** Tiers comerciales en orden ascendente de beneficio. */
+export const TIERS_CLIENTE = ['bronce', 'plata', 'oro', 'platino'] as const;
+
 /** Tier comercial del cliente (por consumo o asignación manual). */
-export type TierCliente = 'bronce' | 'plata' | 'oro' | 'platino';
+export type TierCliente = (typeof TIERS_CLIENTE)[number];
 
 /** Estado del ciclo de vida del cliente. */
 export type EstadoCliente = 'prospecto' | 'activo' | 'inactivo';
@@ -95,6 +98,29 @@ export const DESCUENTO_TIER: Record<TierCliente, number> = {
 
 /** Vigencia (en días) de un tier asignado manualmente por un admin. */
 export const DIAS_TIER_MANUAL = 90;
+
+/** Umbral y descuento vigentes de un tier (CFG-08: editables en Configuración). */
+export interface TierConfig {
+  umbralMxn: number;
+  descuentoPorcentaje: number;
+}
+
+/** Catálogo de tiers resuelto desde `configuracion_sistema.tiers_json`. */
+export interface CatalogoTiers {
+  diasManual: number;
+  tiers: Record<TierCliente, TierConfig>;
+}
+
+/** Valores de fábrica: cortes vigentes si no hay catálogo guardado o válido. */
+export const CATALOGO_TIERS_DEFECTO: CatalogoTiers = {
+  diasManual: DIAS_TIER_MANUAL,
+  tiers: {
+    bronce: { umbralMxn: UMBRAL_TIER.bronce, descuentoPorcentaje: DESCUENTO_TIER.bronce },
+    plata: { umbralMxn: UMBRAL_TIER.plata, descuentoPorcentaje: DESCUENTO_TIER.plata },
+    oro: { umbralMxn: UMBRAL_TIER.oro, descuentoPorcentaje: DESCUENTO_TIER.oro },
+    platino: { umbralMxn: UMBRAL_TIER.platino, descuentoPorcentaje: DESCUENTO_TIER.platino },
+  },
+};
 
 // Filas crudas de Supabase (snake_case) derivadas de los tipos generados.
 export type FilaCliente = Tables<'clientes'>;
