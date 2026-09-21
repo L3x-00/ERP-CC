@@ -254,6 +254,24 @@ test.describe.serial('piso de Producción y entregas', () => {
     await expect(page.getByTestId('panel-nota-entrega').getByRole('status')).toContainText(/^Nota NE-\d{6} generada$/);
     await expect(observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)).toContainText('Entregada');
 
+    // OBS-13: la nota generada queda como entregable imprimible con su confirmación.
+    const mensajeNota = await page.getByTestId('panel-nota-entrega').getByRole('status').textContent();
+    const folioNota = /NE-\d{6}/.exec(mensajeNota ?? '')?.[0] ?? '';
+    expect(folioNota).not.toBe('');
+    const panelEntregables = page.getByTestId('panel-documentos-orden');
+    await expect(panelEntregables).toBeVisible();
+    const listaNotas = panelEntregables.getByTestId('lista-notas-entrega');
+    await expect(listaNotas).toContainText(folioNota);
+    await expect(listaNotas).toContainText('Almacén E2E');
+    await panelEntregables.getByTestId(`imprimir-nota-${folioNota}`).click();
+    const dialogoNota = page.getByRole('dialog', { name: `Nota de entrega ${folioNota}` });
+    await expect(dialogoNota.getByTestId('documento-nota-entrega')).toContainText('Recibido por (confirmación)');
+    await expect(dialogoNota.getByTestId('documento-nota-entrega')).toContainText('Almacén E2E');
+    await page.keyboard.press('Escape');
+    await expect(dialogoNota).toBeHidden();
+    // Orden manual sin cotización: el piso lo informa en vez de ofrecer una carpeta.
+    await expect(panelEntregables).toContainText('no hay carpeta donde guardar documentos');
+
     const { data: notas, error: errorNotas } = await contextoPrueba.admin
       .from('notas_entrega')
       .select('*')

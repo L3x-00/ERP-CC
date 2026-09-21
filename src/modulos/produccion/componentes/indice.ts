@@ -8,3 +8,8 @@ export type { PropsOperacionProduccion } from './operacion-produccion';
 export { PanelOperadorProduccion } from './panel-operador-produccion';
 export type { PropsPanelOperadorProduccion } from './panel-operador-produccion';
 export { SincronizadorProduccionRealtime } from './sincronizador-produccion-realtime';
+export {
+  DocumentosOrdenPanel,
+  CLAVE_ENTREGABLES_ORDEN,
+} from './documentos-orden-panel';
+export { NotaEntregaDocumentoBoton } from './nota-entrega-documento-boton';

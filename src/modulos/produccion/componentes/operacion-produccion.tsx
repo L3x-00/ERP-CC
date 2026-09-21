@@ -11,6 +11,10 @@ import {
   obtenerTableroProduccionAccion,
 } from '@/modulos/produccion/acciones/indice';
 import { CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
+import {
+  CLAVE_ENTREGABLES_ORDEN,
+  DocumentosOrdenPanel,
+} from '@/modulos/produccion/componentes/documentos-orden-panel';
 import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formulario-nota-entrega';
 import { KanbanProduccion } from '@/modulos/produccion/componentes/kanban-produccion';
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
@@ -127,11 +131,12 @@ export function OperacionProduccion({ datosIniciales, operadorId }: PropsOperaci
       if (!resultado.exito) return { exito: false, error: resultado.error };
       if (!resultado.datos) return { exito: false, error: 'La entrega no devolvió una confirmación' };
       await refrescar();
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_ENTREGABLES_ORDEN });
       return { exito: true, folio: resultado.datos.folio };
     } finally {
       setProcesando(false);
     }
-  }, [refrescar]);
+  }, [clienteConsultas, refrescar]);
 
   return (
     <div className="flex flex-col gap-6 text-texto-primario" data-testid="operacion-produccion">
@@ -168,6 +173,10 @@ export function OperacionProduccion({ datosIniciales, operadorId }: PropsOperaci
           onEnviar={generarNota}
         />
       </div>
+      <DocumentosOrdenPanel
+        ordenId={ordenSeleccionada?.id ?? null}
+        ordenFolio={ordenSeleccionada?.folio ?? null}
+      />
     </div>
   );
 }
