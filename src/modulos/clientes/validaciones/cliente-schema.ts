@@ -79,6 +79,34 @@ export const esquemaSubirDocumento = z.object({
   nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido'),
 });
 
+/**
+ * Contacto adicional del cliente — OBS-02. Nombre obligatorio; el resto
+ * opcional con longitudes acotadas. `esPrincipal` marca el contacto de cabecera
+ * (a lo sumo uno por cliente, garantizado por índice parcial en la base).
+ */
+export const esquemaCrearContactoCliente = z
+  .object({
+    clienteId: z.uuid('Identificador inválido'),
+    nombre: z.string().trim().min(2, 'Nombre del contacto requerido').max(120),
+    puesto: z.string().trim().max(80).optional().or(z.literal('')),
+    correo: correoOpcional,
+    telefono: z.string().trim().max(40).optional().or(z.literal('')),
+    notas: z.string().trim().max(300).optional().or(z.literal('')),
+    esPrincipal: z.boolean().default(false),
+  })
+  .strict();
+
+/** Baja de un contacto adicional; el `clienteId` acota la pertenencia. */
+export const esquemaEliminarContactoCliente = z
+  .object({
+    id: z.uuid('Identificador inválido'),
+    clienteId: z.uuid('Identificador inválido'),
+  })
+  .strict();
+
+export type CrearContactoClienteInput = z.infer<typeof esquemaCrearContactoCliente>;
+export type EliminarContactoClienteInput = z.infer<typeof esquemaEliminarContactoCliente>;
+
 export type CrearClienteInput = z.infer<typeof esquemaCrearCliente>;
 export type ActualizarClienteInput = z.infer<typeof esquemaActualizarCliente>;
 export type AsignarTierManualInput = z.infer<typeof esquemaAsignarTierManual>;

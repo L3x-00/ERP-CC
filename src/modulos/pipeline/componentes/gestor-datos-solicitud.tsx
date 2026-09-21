@@ -15,6 +15,7 @@ type DatosSolicitud = {
   notas: string | null;
   fechaSeguimiento: string | null;
   fechaVencimientoCotizacion: string | null;
+  proximoPaso: string | null;
 };
 
 type PropsGestorDatos = {
@@ -57,6 +58,7 @@ export function GestorDatosSolicitud({
   const [fechaVencimientoCotizacion, setFechaVencimientoCotizacion] = useState(
     aFechaInput(datos.fechaVencimientoCotizacion),
   );
+  const [proximoPaso, setProximoPaso] = useState(datos.proximoPaso ?? '');
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -67,6 +69,7 @@ export function GestorDatosSolicitud({
       datos.fechaRequerida ? `Fecha requerida: ${aFechaInput(datos.fechaRequerida)}` : null,
       datos.horasEstimadas !== null ? `Horas estimadas: ${datos.horasEstimadas}` : null,
       datos.fechaSeguimiento ? `Seguimiento: ${aFechaInput(datos.fechaSeguimiento)}` : null,
+      datos.proximoPaso ? `Siguiente acción: ${datos.proximoPaso}` : null,
       datos.fechaVencimientoCotizacion
         ? `Vence: ${aFechaInput(datos.fechaVencimientoCotizacion)}`
         : null,
@@ -90,6 +93,10 @@ export function GestorDatosSolicitud({
       setError('Horas estimadas inválidas');
       return;
     }
+    if (fechaSeguimiento && !proximoPaso.trim()) {
+      setError('Captura la siguiente acción concreta del seguimiento');
+      return;
+    }
     setGuardando(true);
     try {
       const respuesta = await actualizarDatosOportunidadAccion({
@@ -100,6 +107,7 @@ export function GestorDatosSolicitud({
         notas,
         fechaSeguimiento,
         fechaVencimientoCotizacion,
+        proximoPaso,
       });
       if (respuesta.exito) {
         setMensaje('Datos guardados.');
@@ -112,6 +120,7 @@ export function GestorDatosSolicitud({
           fechaVencimientoCotizacion: fechaVencimientoCotizacion
             ? fechaVencimientoCotizacion
             : null,
+          proximoPaso: proximoPaso.trim() ? proximoPaso.trim() : null,
         });
       } else {
         setError(respuesta.error);
@@ -197,6 +206,22 @@ export function GestorDatosSolicitud({
             </Button>
           </div>
         </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={`proximo-paso-${oportunidadId}`} obligatorio={fechaSeguimiento !== ''}>
+          Siguiente acción concreta
+        </Label>
+        <Input
+          id={`proximo-paso-${oportunidadId}`}
+          value={proximoPaso}
+          onChange={(evento) => setProximoPaso(evento.target.value)}
+          maxLength={300}
+          placeholder="p. ej. Llamar para confirmar la orden de compra"
+        />
+        <span className="text-xs text-texto-secundario">
+          Responsable: el vendedor asignado de la oportunidad. Obligatoria si hay fecha de
+          seguimiento{fechaSeguimiento && fechaSeguimiento < hoyISO() ? ' · Seguimiento atrasado' : ''}.
+        </span>
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor={`notas-${oportunidadId}`}>Notas</Label>

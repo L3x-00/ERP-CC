@@ -28,7 +28,7 @@ export async function actualizarDatosOportunidadAccion(
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
-  const { id, poCliente, fechaRequerida, horasEstimadas, notas, fechaSeguimiento, fechaVencimientoCotizacion } =
+  const { id, poCliente, fechaRequerida, horasEstimadas, notas, fechaSeguimiento, fechaVencimientoCotizacion, proximoPaso } =
     analisis.data;
 
   const servidor = await crearClienteSupabaseServidor();
@@ -62,6 +62,8 @@ export async function actualizarDatosOportunidadAccion(
       fecha_vencimiento_cotizacion: fechaVencimientoCotizacion
         ? fechaVencimientoCotizacion
         : null,
+      // OBS-03: siguiente acción concreta (obligatoria si hay fecha; Zod lo exige).
+      proximo_paso: proximoPaso && proximoPaso.trim() ? proximoPaso.trim() : null,
     })
     .eq('id', id);
   if (error) {
@@ -74,6 +76,7 @@ export async function actualizarDatosOportunidadAccion(
     horasEstimadas,
     fechaSeguimiento: fechaSeguimiento || null,
     fechaVencimientoCotizacion: fechaVencimientoCotizacion || null,
+    proximoPaso: proximoPaso?.trim() || null,
   });
 
   return { exito: true };
