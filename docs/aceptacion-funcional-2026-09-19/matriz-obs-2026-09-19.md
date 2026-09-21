@@ -11,8 +11,8 @@ Evidencia base: suite E2E local **14/14** (`tests/e2e/*.spec.ts`), PGlite
 | OBS | Situación inicial | Solución / equivalencia | Archivos / pantallas | Prueba | Resultado |
 |---|---|---|---|---|---|
 | OBS-01 | KPIs sin navegación | Drill-down de aging: segmento → `/cobranza?aging=<slug>` con filtro visible | `dashboard/*`, `cobranza/*`, `aging-servicio` | unitarias de aging + matriz | **completo** |
-| OBS-02 | Sin búsqueda de empresas/contactos en el alta | Selector de cliente con búsqueda RLS + alta rápida; una sola ficha en Clientes (no duplica al cambiar contacto) | `selector-cliente`, `alta-rapida-cliente`, `crear-prospecto` | E2E aceptacion-comercial (vincular cliente); unitarias selector | **parcial probado** — falta alta inline de un **contacto adicional** |
-| OBS-03 | Solo "ya contactado" | Etapa + `fecha_ultimo_contacto` + RFQ-08: fecha de seguimiento editable (+3 hábiles) y vencimiento (+10) | `gestor-datos-solicitud`, `actualizar-datos-oportunidad` | 14/14 E2E; unitarias 618 | **parcial probado** — falta acción concreta/ responsable |
+| OBS-02 | Sin búsqueda de empresas/contactos en el alta | Selector de cliente con búsqueda RLS + alta rápida + **contactos adicionales por cliente** (con principal único) en la ficha | `selector-cliente`, `panel-contactos`, `crear-contacto-cliente` | E2E clientes-contactos + aceptacion-comercial; PGlite 7/7 | **implementado** - 21-sep |
+| OBS-03 | Solo "ya contactado" | Etapa + fechas RFQ-08 + **siguiente acción concreta** (`proximo_paso`) con responsable (vendedor asignado) y aviso de atraso | `gestor-datos-solicitud`, `actualizar-datos-oportunidad` | E2E aceptacion-comercial; unitarias contactos-seguimiento; PGlite 7/7 | **implementado** - 21-sep |
 | OBS-04 | Descripción técnica sin condición interna/estación por solicitud | Línea con área de catálogo, procesos, externo, descuento y snapshot técnico reabrible | `formulario-cotizacion`, `guardar_cotizacion_atomica` | PGlite 12/12; E2E comercial | **parcial probado** — "varias solicitudes/partidas" = multilínea (equivalencia) |
 | OBS-05 | Distribución no automática; sin subáreas | Partidas heredan área/procesos de la línea al aprobar (una sola orden, sin duplicar venta) | `aprobar_oportunidad_y_crear_orden` + UI | E2E comercial + PGlite | **equivalencia** — distribución por área al aprobar; subáreas pendientes (OBS-14) |
 | OBS-06 | Planos solo en Comercial | Adjuntos múltiples con URL firmada; visor/descarga y subida desde el piso (permiso Producción + service_role, ruta validada por carpeta de la cotización) | `panel-adjuntos`, `panel-documentos-orden`, `obtener-url-documento-orden` | E2E aceptacion-comercial + unitarias | **implementado** - 21-sep (visor y subida en taller) |
@@ -49,10 +49,10 @@ Los reemplazos por OBS se hicieron por equivalencia (OBS-05/12/15/22), no duplic
 
 ## Decisiones pendientes (no inventadas)
 Resueltas por el cliente en la segunda ronda (ver `decisiones-cliente-backlog.md`): D-02 (jornada
-8 h + capacidad instalada, pendiente de implementar), D-04 (exigibilidad a la entrega con
+8 h + capacidad instalada, **implementada** 21-sep), D-04 (exigibilidad a la entrega con
 anticipos, **implementada** 21-sep), OBS-21 (archivo al entregar, **implementado**), OBS-27 (solo
 órdenes abiertas + días de cartera, **implementado**), OBS-28 (folio y cliente, **implementado**),
-OBS-02/03 (ejemplos enviados; pendiente de respuesta).
+OBS-02/03 (ejemplos entregados e **implementados** 21-sep: contactos adicionales + próxima acción concreta).
 
 ## Dependencias que impiden comprobar
 El OCR (GAS-08) requiere proveedor de IA (bloqueado en local); la concurrencia estricta no se

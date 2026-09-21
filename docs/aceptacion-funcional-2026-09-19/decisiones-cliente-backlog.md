@@ -4,10 +4,11 @@
 
 **Resueltas:**
 
-1. **D-02 · Capacidad — RESUELTA (ajuste):** se separan **jornada laboral** (8 h) y **capacidad
+1. **D-02 · Capacidad — RESUELTA (ajuste) e IMPLEMENTADA:** se separan **jornada laboral** (8 h) y **capacidad
    instalada**. La capacidad instalada es la multiplicación de equipos por jornada: p. ej. 3 CNC
-   router × 8 h = **24 h de capacidad por jornada**. Implementación pendiente: número de equipos por
-   recurso/estación + override opcional (Planeación, migración).
+   router × 8 h = **24 h de capacidad por jornada**. ✅ implementado (bloque D-02, 21-sep): migración
+   `20260919000007` (`cantidad_equipos` + override de jornada), motor de capacidad `equipos × jornada`
+   y panel “Capacidad instalada” en Planeación.
 2. **D-04 · Exigibilidad de cobranza — RESUELTA (ajuste) e IMPLEMENTADA:** la AR **puede nacer desde la aprobación**
    (visible), pero **no es cobrable hasta la entrega** de la orden; se admiten **anticipos** según
    términos y condiciones con el cliente. ✅ implementado (bloque D-04, 21-sep): migración
@@ -20,8 +21,10 @@
    a **crédito**, indicar los **días de cartera vencida**. ✅ aplicado sobre la implementación del
    bloque 6a (filtro de abiertas + línea de cartera vencida).
 5. **OBS-28 · Selector de orden en gastos:** **ambos** (folio y cliente). ✅ implementado en 6b.
-6. **OBS-02/03 · Comercial:** el cliente **solicitó un ejemplo** de contactos adicionales y de
-   responsable + siguiente acción antes de decidir.
+6. **OBS-02/03 · Comercial — IMPLEMENTADA (21-sep):** contactos adicionales por cliente (con principal
+   único) en la ficha, y en el seguimiento **responsable** (vendedor asignado) + **siguiente acción
+   concreta** obligatoria con aviso de atraso. El cliente había pedido un ejemplo; se entregó y se
+   implementó el flujo completo.
 7. **TI · Conteos operativos — RESUELTA (ajuste):** se incluyen en lo operativo; además se pide, si es
    posible, **obtener el costo de producción de las TI** (no generan precio de venta ni AR).
 8. **Prioridad:** el cliente **solicitó un ejemplo** de priorización del backlog restante.
@@ -52,10 +55,13 @@
 9. **TI identificables** — ✅ **implementado (bloque 6c):** badge TI en tabla de órdenes, kanban de
    Producción, control de piso (cabecera y selector) y estado de cuenta; las internas siguen
    sumando en los conteos operativos como confirmó el cliente.
-10. **Capacidad por operadores/estación** (D-02) — ⏳ pendiente (Planeación; migración): capacidad =
-    operadores × 8 h por turno con override manual opcional.
-11. **Contactos y seguimiento comercial** (OBS-02/03) — ⏳ pendiente: contactos adicionales por
-    cliente y responsable + siguiente acción obligatorios (migración + UI).
+10. **Capacidad instalada por equipos** (D-02) — ✅ **implementado (bloque D-02, 21-sep):** migración
+    `20260919000007` (`cantidad_equipos` + `capacidad_jornada_override_horas`), capacidad por turno =
+    equipos × jornada (excepción > override > turno; PGlite 7/7) y panel en Planeación con E2E propio.
+11. **Contactos y seguimiento comercial** (OBS-02/03) — ✅ **implementado (bloque OBS-02/03, 21-sep):**
+    contactos adicionales por cliente con alta/baja inline en la ficha (migración `20260919000006`,
+    PGlite 7/7) y `proximo_paso` obligatorio con fecha de seguimiento (CHECK `NOT VALID` para no tocar
+    el histórico).
 12. **Documentos en piso** (OBS-06/ORD-09 + OBS-13) — ✅ **implementado (bloque 2, 21-sep):** panel
     “Entregables de producción” en el piso: documentos de la orden listados/abiertos con URL firmada
     de corta vida bajo permiso de Producción, subida de archivos durante la ejecución con límites, y

@@ -163,8 +163,8 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | TRA-03 | Cancelación de formularios y consulta vacía | completo | unitarias (614/614) |
 | **OBS** | *(módulo)* | | |
 | OBS-01 | Navegación desde indicadores | completo | unitarias (614/614) (aging) |
-| OBS-02 | Búsqueda de empresa y contacto | ausente | inventario estático (matriz 164) |
-| OBS-03 | Seguimiento del prospecto | parcial | inventario estático (matriz 164) |
+| OBS-02 | Búsqueda de empresa y contacto | implementado | E2E local 19/19 (`pnpm test:e2e`) (clientes-contactos: alta/baja de contacto adicional en la ficha) + PGlite 7/7 |
+| OBS-03 | Seguimiento del prospecto | implementado | E2E local 19/19 (`pnpm test:e2e`) (aceptacion-comercial: fecha + siguiente acción + responsable) + PGlite 7/7 |
 | OBS-04 | Necesidad completa y varias solicitudes | parcial | inventario estático (matriz 164) |
 | OBS-05 | Distribución por estaciones y procesos | parcial | inventario estático (matriz 164) |
 | OBS-06 | Planos múltiples utilizables en taller | implementado | E2E local 17/17 (`pnpm test:e2e`) (piso: listar, subir y abrir documentos con URL firmada) |
@@ -198,7 +198,7 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | OBS | Estado de cobertura | Ejecución en esta entrega |
 |---|---|---|
 | OBS-01 | completo | unitarias de aging + navegación dashboard→cobranza (matriz) |
-| OBS-02/03/04 | ausente/parcial | estático; sin flujo de prospecto completo ejecutado |
+| OBS-02/03/04 | implementado/parcial | contactos adicionales y siguiente acción concreta ejecutados (21-sep); prospecto completo con E2E aceptacion-comercial |
 | OBS-05 | parcial | estático (programación por áreas existe; sin distribución automática) |
 | OBS-06 | implementado | E2E 17/17 (piso: listar/subir/abrir documentos de la orden) |
 | OBS-07 | parcial | E2E aceptacion-comercial (cotización ligada a la oportunidad) |
@@ -213,7 +213,7 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | OBS-16 | parcial | E2E comentarios-notificaciones (hilo en Órdenes) |
 | OBS-17 | parcial | estático (comentarios fuera de Producción) |
 | OBS-18 | parcial | E2E planeacion-flujo-colaborativo (programar sin IDs) |
-| OBS-19 | parcial | E2E planeacion + unitarias (bloqueo de capacidad); D-02 pendiente de alcance |
+| OBS-19 | parcial | E2E planeacion + unitarias (bloqueo de capacidad); D-02 implementado (equipos × jornada, E2E planeacion-capacidad) |
 | OBS-20 | parcial | E2E produccion-piso (flujo completo por estado) |
 | OBS-21 | parcial | estático (entregadas no se archivan) |
 | OBS-22 | completo | D-04: la AR es visible desde la aprobación con cobrabilidad a la entrega |
