@@ -160,6 +160,7 @@ describe('mappers de filas generadas', () => {
     estado: 'parcial',
     fecha_emision: fecha,
     fecha_vencimiento: fecha,
+    cobrable_desde: fecha,
     creado_en: fecha,
     actualizado_en: fecha,
   };

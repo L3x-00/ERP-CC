@@ -23,7 +23,9 @@ export interface CuentaCrudaEstadoCuenta {
   montoTotal: number;
   saldoPendiente: number;
   estado: string;
-  fechaVencimiento: string;
+  /** D-04: `null` mientras la cuenta no es cobrable (aún sin entrega). */
+  fechaVencimiento: string | null;
+  cobrableDesde: string | null;
   moneda: string;
 }
 
@@ -35,6 +37,7 @@ export interface LineaCotizacionCruda {
 
 export type SituacionCobroOrden =
   | 'no_exigible'
+  | 'por_entregar'
   | 'por_cobrar'
   | 'vencido'
   | 'pagado'
@@ -64,6 +67,12 @@ function monedaSegura(moneda: string): 'MXN' | 'USD' {
   return moneda === 'USD' ? 'USD' : 'MXN';
 }
 
+function vencimientoMs(cuenta: { fechaVencimiento: string | null }): number {
+  if (cuenta.fechaVencimiento === null) return Number.POSITIVE_INFINITY;
+  const tiempo = new Date(cuenta.fechaVencimiento).getTime();
+  return Number.isFinite(tiempo) ? tiempo : Number.POSITIVE_INFINITY;
+}
+
 function situacionDeOrden(
   cuentas: readonly CuentaCrudaEstadoCuenta[],
   estadoOrden: string,
@@ -75,7 +84,11 @@ function situacionDeOrden(
     return estadoOrden === 'completada' ? 'sin_ar' : 'no_exigible';
   }
   if (conSaldo.length === 0) return 'pagado';
-  const vencida = conSaldo.some((cuenta) => new Date(cuenta.fechaVencimiento).getTime() < hoy.getTime());
+  // D-04: una cuenta sin entrega aún no es exigible; solo cuando existe al
+  // menos una cuenta cobrable se evalúa vencimiento.
+  const cobrables = conSaldo.filter((cuenta) => cuenta.cobrableDesde !== null);
+  if (cobrables.length === 0) return 'por_entregar';
+  const vencida = cobrables.some((cuenta) => vencimientoMs(cuenta) < hoy.getTime());
   return vencida ? 'vencido' : 'por_cobrar';
 }
 
@@ -150,6 +163,7 @@ export function resumirOrdenesEstadoCuenta(
 
 export const ETIQUETA_SITUACION_ORDEN: Record<SituacionCobroOrden, string> = {
   no_exigible: 'No exigible (en proceso)',
+  por_entregar: 'Por cobrar al entregar',
   por_cobrar: 'Por cobrar',
   vencido: 'Vencido',
   pagado: 'Pagado',
@@ -161,7 +175,7 @@ export function diasAtrasoMaximo(
   cuentas: readonly {
     estado: string;
     saldoPendiente: number;
-    fechaVencimiento: string;
+    fechaVencimiento: string | null;
   }[],
   hoy: Date,
 ): number {
@@ -170,6 +184,7 @@ export function diasAtrasoMaximo(
   );
   let maximo = 0;
   for (const cuenta of vigentes) {
+    if (cuenta.fechaVencimiento === null) continue;
     const vencimiento = new Date(cuenta.fechaVencimiento).getTime();
     if (!Number.isFinite(vencimiento)) continue;
     const dias = Math.floor((hoy.getTime() - vencimiento) / 86_400_000);

@@ -72,6 +72,7 @@ describe('resumirOrdenesEstadoCuenta', () => {
           saldoPendiente: 4_000,
           estado: 'parcial',
           fechaVencimiento: '2026-09-01T12:00:00.000Z',
+          cobrableDesde: '2026-09-01T12:00:00.000Z',
           moneda: 'MXN',
         },
       ],
@@ -84,6 +85,27 @@ describe('resumirOrdenesEstadoCuenta', () => {
     expect(filas[0]?.situacion).toBe('vencido');
   });
 
+  it('una AR aún no cobrable (D-04) se informa como por cobrar al entregar', () => {
+    const filas = resumirOrdenesEstadoCuenta(
+      [ORDEN_BASE],
+      [
+        {
+          ordenId: ORDEN_BASE.id,
+          montoTotal: 10_000,
+          saldoPendiente: 10_000,
+          estado: 'pendiente',
+          fechaVencimiento: null,
+          cobrableDesde: null,
+          moneda: 'MXN',
+        },
+      ],
+      new Map(),
+      HOY,
+    );
+    expect(filas[0]?.situacion).toBe('por_entregar');
+    expect(filas[0]?.saldo).toBe(10_000);
+  });
+
   it('considera pagada la orden cuando todas sus AR están liquidadas y conserva TI', () => {
     const filas = resumirOrdenesEstadoCuenta(
       [{ ...ORDEN_BASE, estado: 'completada', esInterna: true, cotizacionMoneda: 'USD' }],
@@ -94,6 +116,7 @@ describe('resumirOrdenesEstadoCuenta', () => {
           saldoPendiente: 0,
           estado: 'pagado',
           fechaVencimiento: '2026-09-01T12:00:00.000Z',
+          cobrableDesde: '2026-09-01T12:00:00.000Z',
           moneda: 'USD',
         },
       ],

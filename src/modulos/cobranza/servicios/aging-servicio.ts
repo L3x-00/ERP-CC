@@ -108,9 +108,10 @@ export function convertirAMxn(monto: number, tipoCambio: number): number | null 
  * en ningún bucket. Un valor <= 0 significa que la cuenta aún no vence.
  */
 export function calcularDiasVencidos(
-  fechaVencimiento: string,
+  fechaVencimiento: string | null,
   fechaReferencia: string,
 ): number | null {
+  if (fechaVencimiento === null) return null;
   const vencimiento = Date.parse(fechaVencimiento);
   const referencia = Date.parse(fechaReferencia);
 
@@ -205,9 +206,16 @@ function resumenVacio(clienteId: string): ResumenAgingCliente {
   };
 }
 
-/** Solo las cuentas con saldo vivo entran al aging; pagadas/canceladas no suman. */
+/**
+ * Solo las cuentas con saldo vivo entran al aging; pagadas/canceladas no suman.
+ * D-04: una cuenta aún no cobrable (sin entrega) tampoco es cartera exigible;
+ * su anticipo se ve en la tabla de cobranza, no en antigüedad de saldos.
+ */
 function contribuyeAlAging(cuenta: CuentaPorCobrar): boolean {
-  return cuenta.estado === 'pendiente' || cuenta.estado === 'parcial';
+  return (
+    (cuenta.estado === 'pendiente' || cuenta.estado === 'parcial') &&
+    cuenta.cobrableDesde !== null
+  );
 }
 
 /**

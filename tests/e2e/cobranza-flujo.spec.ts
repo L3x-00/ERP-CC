@@ -26,6 +26,9 @@ type ContextoE2E = {
   partidaId: string;
   arId: string;
   folioOrden: string;
+  anticipoOrdenId: string;
+  anticipoArId: string;
+  anticipoFolioOrden: string;
 };
 
 function requerirVariable(nombre: string): string {
@@ -68,7 +71,8 @@ async function prepararContexto(): Promise<ContextoE2E> {
   }).select('id').single();
   if (errorCliente || !cliente) throw new Error(`No se creó cliente E2E: ${errorCliente?.message ?? 'sin cliente'}`);
 
-  const folioOrden = `OP-${900000 + (Number.parseInt(sufijo, 16) % 99_999)}`;
+  const numeroFolio = 900000 + (Number.parseInt(sufijo, 16) % 99_998);
+  const folioOrden = `OP-${numeroFolio}`;
   const { data: orden, error: errorOrden } = await admin.from('ordenes_produccion').insert({
     folio: folioOrden,
     cliente_id: cliente.id,
@@ -101,18 +105,53 @@ async function prepararContexto(): Promise<ContextoE2E> {
   });
   if (errorCuenta || !cuenta?.[0]) throw new Error(`No se abrió AR E2E: ${errorCuenta?.message ?? 'sin cuenta'}`);
 
-  return { admin, correo, contrasena, administradorId, clienteId: cliente.id, ordenId: orden.id, partidaId: partida.id, arId: cuenta[0].id, folioOrden };
+  // D-04: contorno de anticipo — orden aún no entregada con AR no cobrable,
+  // como la deja la aprobación comercial.
+  const anticipoFolioOrden = `OP-${numeroFolio + 1}`;
+  const { data: anticipoOrden, error: errorAnticipoOrden } = await admin.from('ordenes_produccion').insert({
+    folio: anticipoFolioOrden,
+    cliente_id: cliente.id,
+    estado: 'en_proceso',
+    prioridad: 'normal',
+    fecha_compromiso: '2099-12-31T18:00:00.000Z',
+  }).select('id').single();
+  if (errorAnticipoOrden || !anticipoOrden) throw new Error(`No se creó orden de anticipo E2E: ${errorAnticipoOrden?.message ?? 'sin orden'}`);
+
+  const { data: anticipoAr, error: errorAnticipoAr } = await admin.from('cuentas_por_cobrar').insert({
+    orden_id: anticipoOrden.id,
+    cliente_id: cliente.id,
+    monto_total: 1000,
+    saldo_pendiente: 1000,
+    moneda: 'MXN',
+    tipo_cambio_origen: 1,
+    estado: 'pendiente',
+    fecha_vencimiento: null,
+    cobrable_desde: null,
+  }).select('id').single();
+  if (errorAnticipoAr || !anticipoAr) throw new Error(`No se creó AR de anticipo E2E: ${errorAnticipoAr?.message ?? 'sin cuenta'}`);
+
+  return {
+    admin, correo, contrasena, administradorId, clienteId: cliente.id,
+    ordenId: orden.id, partidaId: partida.id, arId: cuenta[0].id, folioOrden,
+    anticipoOrdenId: anticipoOrden.id, anticipoArId: anticipoAr.id, anticipoFolioOrden,
+  };
+}
+
+async function limpiarAr(admin: SupabaseClient<Database>, arId: string): Promise<void> {
+  const { data: pagos } = await admin.from('pagos_ar').select('id').eq('ar_id', arId);
+  const pagosIds = (pagos ?? []).map((pago) => pago.id);
+  if (pagosIds.length) await admin.from('movimientos_saldo_favor').delete().in('pago_ar_id', pagosIds);
+  await admin.from('movimientos_saldo_favor').delete().eq('ar_id_origen', arId);
+  await admin.from('pagos_ar').delete().eq('ar_id', arId);
+  await admin.from('cuentas_por_cobrar').delete().eq('id', arId);
 }
 
 async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
   const { admin } = contexto;
-  const { data: pagos } = await admin.from('pagos_ar').select('id').eq('ar_id', contexto.arId);
-  const pagosIds = (pagos ?? []).map((pago) => pago.id);
-  if (pagosIds.length) await admin.from('movimientos_saldo_favor').delete().in('pago_ar_id', pagosIds);
-  await admin.from('movimientos_saldo_favor').delete().eq('ar_id_origen', contexto.arId);
-  await admin.from('pagos_ar').delete().eq('ar_id', contexto.arId);
-  await admin.from('cuentas_por_cobrar').delete().eq('id', contexto.arId);
+  await limpiarAr(admin, contexto.arId);
+  await limpiarAr(admin, contexto.anticipoArId);
   await admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
+  await admin.from('ordenes_produccion').delete().eq('id', contexto.anticipoOrdenId);
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
   await admin.from('logs').delete().eq('usuario_id', contexto.administradorId);
   await admin.from('usuarios').delete().eq('id', contexto.administradorId);
@@ -187,5 +226,32 @@ test.describe.serial('flujo de Cobranza AR', () => {
     const { data: logs } = await datos.admin.from('logs').select('accion').eq('modulo', 'cobranza').eq('usuario_id', datos.administradorId);
     expect((logs ?? []).filter((log) => log.accion === 'registrar_pago_ar')).toHaveLength(2);
     await observador.close();
+  });
+
+  test('registra un anticipo sobre una AR no cobrable y la mantiene por entregar (D-04)', async ({ page }) => {
+    if (!contexto) throw new Error('No se preparó el contexto E2E');
+    const datos = contexto;
+    await iniciarSesion(page, datos);
+    await page.goto('/cobranza');
+    await expect(page.getByTestId('operacion-cobranza')).toBeVisible();
+
+    const fila = page.getByRole('row', { name: new RegExp(datos.anticipoFolioOrden) });
+    await expect(fila).toContainText('No cobrable');
+    await expect(fila).toContainText('Por entregar');
+    await fila.getByRole('button', { name: 'Cobrar' }).click();
+    await expect(page.getByText(/se registra como anticipo/)).toBeVisible();
+    await page.getByLabel('Monto').fill('200');
+    await page.getByLabel('Referencia bancaria').fill('E2E-ANTICIPO');
+    await page.getByRole('button', { name: 'Registrar pago' }).click();
+    await expect(page.getByTestId('recibo-persistido')).toContainText(/REC-\d{6}/);
+
+    await expect.poll(async () => {
+      const { data } = await datos.admin
+        .from('cuentas_por_cobrar')
+        .select('estado, saldo_pendiente, cobrable_desde')
+        .eq('id', datos.anticipoArId)
+        .single();
+      return `${data?.estado}:${data?.saldo_pendiente}:${data?.cobrable_desde}`;
+    }).toBe('parcial:800:null');
   });
 });

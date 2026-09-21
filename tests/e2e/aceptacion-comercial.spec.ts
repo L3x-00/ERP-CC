@@ -105,6 +105,16 @@ async function limpiarContexto(contexto: ContextoAceptacion): Promise<void> {
       .in('cotizacion_id', idsOportunidades);
     const idsOrdenes = (ordenes ?? []).map((fila) => fila.id);
     if (idsOrdenes.length > 0) {
+      // D-04: la aprobación deja AR ligada a la orden; se limpia antes por la FK.
+      const { data: cuentas } = await admin
+        .from('cuentas_por_cobrar')
+        .select('id')
+        .in('orden_id', idsOrdenes);
+      const idsCuentas = (cuentas ?? []).map((fila) => fila.id);
+      if (idsCuentas.length > 0) {
+        await admin.from('pagos_ar').delete().in('ar_id', idsCuentas);
+        await admin.from('cuentas_por_cobrar').delete().in('id', idsCuentas);
+      }
       await admin.from('partidas_orden_produccion').delete().in('orden_id', idsOrdenes);
       await admin.from('ordenes_produccion').delete().in('id', idsOrdenes);
     }
@@ -328,11 +338,18 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     expect(partidas?.[1]).toMatchObject({ codigo_pieza: 'COT-002', es_externo: true, proveedor_externo: 'Taller QA Externo' });
     expect(partidas?.some((partida) => partida.codigo_pieza === 'COT-003')).toBe(false);
 
-    const { count: cuentas } = await datos.admin
+    // D-04: la aprobación crea la AR no cobrable; será cobrable al entregar.
+    const { data: cuentas } = await datos.admin
       .from('cuentas_por_cobrar')
-      .select('id', { count: 'exact', head: true })
+      .select('monto_total, estado, cobrable_desde, fecha_vencimiento')
       .eq('orden_id', orden!.id);
-    expect(cuentas).toBe(0);
+    expect(cuentas).toHaveLength(1);
+    expect(cuentas?.[0]).toMatchObject({
+      estado: 'pendiente',
+      cobrable_desde: null,
+      fecha_vencimiento: null,
+    });
+    expect(Number(cuentas?.[0]?.monto_total)).toBeGreaterThan(0);
 
     // RFQ-10: la orden muestra el folio comercial de su cotización.
     await page.goto('/ordenes');

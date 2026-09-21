@@ -368,10 +368,11 @@ export type Database = {
         Row: {
           actualizado_en: string
           cliente_id: string
+          cobrable_desde: string | null
           creado_en: string
           estado: string
           fecha_emision: string
-          fecha_vencimiento: string
+          fecha_vencimiento: string | null
           folio_factura_remision: string | null
           id: string
           moneda: string
@@ -383,10 +384,11 @@ export type Database = {
         Insert: {
           actualizado_en?: string
           cliente_id: string
+          cobrable_desde?: string | null
           creado_en?: string
           estado?: string
           fecha_emision?: string
-          fecha_vencimiento: string
+          fecha_vencimiento?: string | null
           folio_factura_remision?: string | null
           id?: string
           moneda?: string
@@ -398,10 +400,11 @@ export type Database = {
         Update: {
           actualizado_en?: string
           cliente_id?: string
+          cobrable_desde?: string | null
           creado_en?: string
           estado?: string
           fecha_emision?: string
-          fecha_vencimiento?: string
+          fecha_vencimiento?: string | null
           folio_factura_remision?: string | null
           id?: string
           moneda?: string
