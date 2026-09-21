@@ -169,10 +169,22 @@ async function crearOportunidadSimple(
   await pagina.getByLabel('Cantidad').fill('1');
   await pagina.getByLabel('Precio unitario').fill(opciones.precio);
   await pagina.getByRole('button', { name: 'Guardar cotización' }).click();
-    await expect(pagina.getByText('Cotización guardada.')).toBeVisible();
-    await pagina.keyboard.press('Escape');
-    await expect(pagina.getByRole('dialog')).toHaveCount(0);
-  }
+  await expect(pagina.getByText('Cotización guardada.')).toBeVisible();
+  await pagina.keyboard.press('Escape');
+  await expect(pagina.getByRole('dialog')).toHaveCount(0);
+
+  // OBS-03: responsable (vendedor asignado) y acción concreta en un editor ya asentado.
+  await pagina.reload();
+  await expect(tarjeta).toBeVisible();
+  await tarjeta.getByRole('button', { name: 'Cotización' }).click();
+  await expect(pagina.getByRole('button', { name: 'Guardar cotización' })).toBeVisible();
+  await pagina.getByLabel('Fecha de seguimiento').fill('2026-10-01');
+  await pagina.getByLabel('Siguiente acción concreta').fill('Llamar para confirmar la orden de compra');
+  await pagina.getByRole('button', { name: 'Guardar datos' }).click();
+  await expect(pagina.getByText('Datos guardados.')).toBeVisible();
+  await pagina.keyboard.press('Escape');
+  await expect(pagina.getByRole('dialog')).toHaveCount(0);
+}
 
 /** Avanza una etapa adyacente y confirma el cambio en la base (con reintento). */
 async function avanzarEtapa(
@@ -312,17 +324,34 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
+    // OBS-03: responsable (vendedor) y siguiente acción concreta.
+    await page.reload();
+    const tarjetaComercial = page.locator('article', { hasText: datos.empresa });
+    await expect(tarjetaComercial).toBeVisible();
+    await tarjetaComercial.getByRole('button', { name: 'Cotización' }).click();
+    await expect(page.getByRole('button', { name: 'Guardar cotización' })).toBeVisible();
+    await page.getByLabel('Fecha de seguimiento').fill('2026-10-01');
+    await page.getByLabel('Siguiente acción concreta').fill('Llamar para confirmar la orden de compra');
+    await page.getByRole('button', { name: 'Guardar datos' }).click();
+    await expect(page.getByText('Datos guardados.')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
     await ganarOportunidad(page, datos.admin, datos.empresa);
 
     // Efectos persistidos: una sola cadena cotización→OP, con AR no cobrable (D-04).
     const { data: oportunidad } = await datos.admin
       .from('pipeline')
-      .select('id, etapa, cliente_id, es_orden_interna')
+      .select('id, etapa, cliente_id, es_orden_interna, fecha_seguimiento, proximo_paso, vendedor_id')
       .eq('empresa', datos.empresa)
       .single();
     expect(oportunidad?.etapa).toBe('ganada');
     expect(oportunidad?.cliente_id).toBe(datos.clienteId);
     expect(oportunidad?.es_orden_interna).toBe(false);
+    // OBS-03: responsable (vendedor) y siguiente acción persistidos.
+    expect(oportunidad?.vendedor_id).toBe(datos.usuarioId);
+    expect(oportunidad?.fecha_seguimiento).toBe('2026-10-01');
+    expect(oportunidad?.proximo_paso).toBe('Llamar para confirmar la orden de compra');
 
     const { data: orden } = await datos.admin
       .from('ordenes_produccion')

@@ -66,6 +66,21 @@ export type DocumentoCliente = {
   creadoEn: string;
 };
 
+/** Contacto adicional del cliente (OBS-02): a lo sumo uno principal. */
+export interface ContactoCliente {
+  id: string;
+  clienteId: string;
+  nombre: string;
+  puesto: string | null;
+  correo: string | null;
+  telefono: string | null;
+  notas: string | null;
+  esPrincipal: boolean;
+  creadoPor: string | null;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
 /** Resultado de la verificación de crédito de un cliente. */
 export type ResumenCredito = {
   limite: number;
@@ -125,6 +140,24 @@ export const CATALOGO_TIERS_DEFECTO: CatalogoTiers = {
 // Filas crudas de Supabase (snake_case) derivadas de los tipos generados.
 export type FilaCliente = Tables<'clientes'>;
 export type FilaDocumentoCliente = Tables<'documentos_cliente'>;
+export type FilaContactoCliente = Tables<'contactos_cliente'>;
+
+/** Convierte una fila de `contactos_cliente` (snake_case) a `ContactoCliente`. */
+export function filaAContactoCliente(fila: FilaContactoCliente): ContactoCliente {
+  return {
+    id: fila.id,
+    clienteId: fila.cliente_id,
+    nombre: fila.nombre,
+    puesto: fila.puesto,
+    correo: fila.correo,
+    telefono: fila.telefono,
+    notas: fila.notas,
+    esPrincipal: fila.es_principal,
+    creadoPor: fila.creado_por,
+    creadoEn: fila.creado_en,
+    actualizadoEn: fila.actualizado_en,
+  };
+}
 
 /** Convierte el JSONB de dirección a `Direccion` tipada (o null). */
 function jsonADireccion(valor: FilaCliente['direccion_fiscal']): Direccion | null {

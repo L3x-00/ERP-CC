@@ -67,21 +67,34 @@ export type RetirarOportunidadInput = z.infer<typeof esquemaRetirarOportunidad>;
  * oportunidad abierta — RFQ-01. Las cadenas vacías se normalizan a null en la
  * acción; `horasEstimadas` es número o null.
  */
-export const esquemaDatosOportunidad = z.object({
-  id: z.uuid(),
-  poCliente: z.string().max(60),
-  fechaRequerida: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').or(z.literal('')),
-  horasEstimadas: z.number().min(0).max(100000).nullable(),
-  notas: z.string().max(2000),
-  // RFQ-08: vigencia comercial editable; la UI propone +3 y +10 días hábiles.
-  // Opcionales para no romper llamadas anteriores sin estas fechas.
-  fechaSeguimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').or(z.literal('')).optional(),
-  fechaVencimientoCotizacion: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')
-    .or(z.literal(''))
-    .optional(),
-});
+export const esquemaDatosOportunidad = z
+  .object({
+    id: z.uuid(),
+    poCliente: z.string().max(60),
+    fechaRequerida: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').or(z.literal('')),
+    horasEstimadas: z.number().min(0).max(100000).nullable(),
+    notas: z.string().max(2000),
+    // RFQ-08: vigencia comercial editable; la UI propone +3 y +10 días hábiles.
+    // Opcionales para no romper llamadas anteriores sin estas fechas.
+    fechaSeguimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').or(z.literal('')).optional(),
+    fechaVencimientoCotizacion: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')
+      .or(z.literal(''))
+      .optional(),
+    // OBS-03: siguiente acción concreta; obligatoria cuando hay fecha de
+    // seguimiento (el responsable es el vendedor asignado de la oportunidad).
+    proximoPaso: z.string().trim().max(300, 'Máximo 300 caracteres').optional(),
+  })
+  .superRefine((datos, ctx) => {
+    if (datos.fechaSeguimiento && !(datos.proximoPaso ?? '').trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['proximoPaso'],
+        message: 'Captura la siguiente acción concreta del seguimiento',
+      });
+    }
+  });
 
 /** Datos validados para actualizar los datos de la solicitud (RFQ-01). */
 export type DatosOportunidadInput = z.infer<typeof esquemaDatosOportunidad>;

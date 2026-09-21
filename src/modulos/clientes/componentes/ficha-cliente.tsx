@@ -12,6 +12,7 @@ import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import { AlertaCredito } from '@/modulos/clientes/componentes/alerta-credito';
 import { PanelTier } from '@/modulos/clientes/componentes/panel-tier';
 import { HistorialCliente } from '@/modulos/clientes/componentes/historial-cliente';
+import { PanelContactos } from '@/modulos/clientes/componentes/contactos-cliente';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
@@ -27,10 +28,11 @@ import type {
 import { ETIQUETA_TIPO_DOCUMENTO } from '@/modulos/clientes/utilidades/indice';
 
 const BUCKET = 'documentos-cliente';
-type Pestana = 'general' | 'direcciones' | 'documentos' | 'historial' | 'comentarios';
+type Pestana = 'general' | 'contactos' | 'direcciones' | 'documentos' | 'historial' | 'comentarios';
 
 const ETIQUETA_PESTANA: Record<Pestana, string> = {
   general: 'General',
+  contactos: 'Contactos',
   direcciones: 'Direcciones',
   documentos: 'Documentos',
   historial: 'Historial',
@@ -118,6 +120,7 @@ export function FichaCliente({
 
             <div className="flex-1 p-4">
               {pestana === 'general' && <PanelGeneral cliente={data.cliente} />}
+              {pestana === 'contactos' && <PanelContactos clienteId={clienteId} />}
               {pestana === 'direcciones' && <PanelDirecciones cliente={data.cliente} />}
               {pestana === 'documentos' && (
                 <PanelDocumentos clienteId={clienteId} documentos={data.documentos} />

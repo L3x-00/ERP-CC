@@ -125,6 +125,7 @@ export function EditorCotizacion({
     notas: string | null;
     fechaSeguimiento: string | null;
     fechaVencimientoCotizacion: string | null;
+    proximoPaso: string | null;
   }): void {
     if (instantanea) {
       setInstantanea({
@@ -256,6 +257,7 @@ export function EditorCotizacion({
                   notas: instantanea.oportunidad.notas,
                   fechaSeguimiento: instantanea.oportunidad.fechaSeguimiento ?? null,
                   fechaVencimientoCotizacion: instantanea.oportunidad.fechaVencimientoCotizacion ?? null,
+                  proximoPaso: instantanea.oportunidad.proximoPaso ?? null,
                 }}
                 soloLectura={!editable}
                 onCambio={alCambiarDatos}

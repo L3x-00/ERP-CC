@@ -328,6 +328,63 @@ export type Database = {
           },
         ]
       }
+      contactos_cliente: {
+        Row: {
+          actualizado_en: string
+          cliente_id: string
+          correo: string | null
+          creado_en: string
+          creado_por: string | null
+          es_principal: boolean
+          id: string
+          nombre: string
+          notas: string | null
+          puesto: string | null
+          telefono: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          cliente_id: string
+          correo?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          es_principal?: boolean
+          id?: string
+          nombre: string
+          notas?: string | null
+          puesto?: string | null
+          telefono?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          cliente_id?: string
+          correo?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          es_principal?: boolean
+          id?: string
+          nombre?: string
+          notas?: string | null
+          puesto?: string | null
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contactos_cliente_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_cliente_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuentas_bancarias: {
         Row: {
           activa: boolean
@@ -1335,6 +1392,7 @@ export type Database = {
           notas_perdida: string | null
           po_cliente: string | null
           prioridad: string
+          proximo_paso: string | null
           telefono: string | null
           vendedor_id: string
         }
@@ -1365,6 +1423,7 @@ export type Database = {
           notas_perdida?: string | null
           po_cliente?: string | null
           prioridad?: string
+          proximo_paso?: string | null
           telefono?: string | null
           vendedor_id: string
         }
@@ -1395,6 +1454,7 @@ export type Database = {
           notas_perdida?: string | null
           po_cliente?: string | null
           prioridad?: string
+          proximo_paso?: string | null
           telefono?: string | null
           vendedor_id?: string
         }
