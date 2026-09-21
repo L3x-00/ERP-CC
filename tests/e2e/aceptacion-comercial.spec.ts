@@ -163,13 +163,24 @@ async function crearOportunidadSimple(
 
   const tarjeta = pagina.locator('article', { hasText: opciones.empresa });
   await expect(tarjeta).toBeVisible();
-  await tarjeta.getByRole('button', { name: 'Cotización' }).click();
-  await expect(pagina.getByLabel('Descripción')).toBeVisible();
-  await pagina.getByLabel('Descripción').fill(opciones.descripcion);
-  await pagina.getByLabel('Cantidad').fill('1');
-  await pagina.getByLabel('Precio unitario').fill(opciones.precio);
-  await pagina.getByRole('button', { name: 'Guardar cotización' }).click();
-  await expect(pagina.getByText('Cotización guardada.')).toBeVisible();
+  // La tarjeta se remonta con cada refetch; se reintenta abrir y guardar.
+  for (let intento = 0; intento < 3; intento += 1) {
+    if (!(await pagina.getByLabel('Descripción').isVisible().catch(() => false))) {
+      await tarjeta.getByRole('button', { name: 'Cotización' }).click();
+      await expect(pagina.getByLabel('Descripción')).toBeVisible();
+    }
+    await pagina.getByLabel('Descripción').fill(opciones.descripcion);
+    await pagina.getByLabel('Cantidad').fill('1');
+    await pagina.getByLabel('Precio unitario').fill(opciones.precio);
+    await pagina.getByRole('button', { name: 'Guardar cotización' }).click();
+    try {
+      await expect(pagina.getByText('Cotización guardada.')).toBeVisible({ timeout: 4_000 });
+      break;
+    } catch {
+      if (intento === 2) throw new Error('No se pudo guardar la cotización inicial por la interfaz');
+      await pagina.waitForTimeout(300);
+    }
+  }
   await pagina.keyboard.press('Escape');
   await expect(pagina.getByRole('dialog')).toHaveCount(0);
 
