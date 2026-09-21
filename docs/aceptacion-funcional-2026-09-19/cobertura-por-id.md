@@ -178,7 +178,7 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | OBS-14 | Áreas, subáreas y procesos configurables | parcial | inventario estático (matriz 164) |
 | OBS-15 | Origen comercial y tablero de órdenes | parcial | inventario estático (matriz 164) |
 | OBS-16 | Acciones y estados consistentes | parcial | E2E local 14/14 (`pnpm test:e2e`) (comentarios-notificaciones) |
-| OBS-17 | Comentarios por orden | parcial | unitarias (614/614)/estático |
+| OBS-17 | Comentarios por orden | implementado | E2E local (`pnpm test:e2e`) (produccion-piso: hilo en el piso; comentarios: menciones/notificaciones) |
 | OBS-18 | Programar partida comprensible | parcial | unitarias (614/614)/estático |
 | OBS-19 | Horario, capacidad y sobrecarga | parcial | unitarias (614/614)/estático |
 | OBS-20 | Área como filtro principal y flujo completo | parcial | unitarias (614/614)/estático |
@@ -211,7 +211,7 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | OBS-14 | parcial | estático (áreas planas; sin subáreas/procesos) |
 | OBS-15 | parcial | E2E aceptacion-comercial (origen comercial); alta manual sigue existiendo |
 | OBS-16 | parcial | E2E comentarios-notificaciones (hilo en Órdenes) |
-| OBS-17 | parcial | estático (comentarios fuera de Producción) |
+| OBS-17 | implementado | E2E produccion-piso (hilo de comentarios del trabajo dentro del piso) |
 | OBS-18 | parcial | E2E planeacion-flujo-colaborativo (programar sin IDs) |
 | OBS-19 | parcial | E2E planeacion + unitarias (bloqueo de capacidad); D-02 implementado (equipos × jornada, E2E planeacion-capacidad) |
 | OBS-20 | parcial | E2E produccion-piso (flujo completo por estado) |
