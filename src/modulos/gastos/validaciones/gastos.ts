@@ -147,6 +147,11 @@ export const esquemaConsultarRentabilidadOrden = z
   .object({ ordenId: z.uuid('ID de orden inválido') })
   .strict();
 
+/** OBS-28: búsqueda legible de órdenes (folio o cliente) para vincular un gasto. */
+export const esquemaBuscarOrdenesGasto = z
+  .object({ busqueda: z.string().trim().max(80).optional() })
+  .strict();
+
 export const esquemaComprobanteOCR = z
   .object({
     contenidoBase64: z.string().min(1).regex(
@@ -198,6 +203,7 @@ export type RegistrarGastoInput = z.infer<typeof esquemaRegistrarGasto>;
 export type CambiarEstadoGastoInput = z.infer<typeof esquemaCambiarEstadoGasto>;
 export type ConsultarGastosInput = z.infer<typeof esquemaConsultarGastos>;
 export type ConsultarRentabilidadOrdenInput = z.infer<typeof esquemaConsultarRentabilidadOrden>;
+export type BuscarOrdenesGastoInput = z.infer<typeof esquemaBuscarOrdenesGasto>;
 export type ComprobanteOCRInput = z.infer<typeof esquemaComprobanteOCR>;
 export type DatosComprobanteOCRValidados = z.infer<typeof esquemaDatosComprobanteOCR>;
 export type TipoMimeComprobante = ComprobanteOCRInput['tipoMime'];

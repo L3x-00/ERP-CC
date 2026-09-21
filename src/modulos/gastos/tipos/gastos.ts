@@ -40,6 +40,8 @@ export interface Gasto {
   id: string;
   folio: string;
   ordenId: string | null;
+  /** Folio legible de la orden vinculada (OBS-28); null si no se embebió. */
+  ordenFolio: string | null;
   proveedorId: string | null;
   categoria: CategoriaGasto;
   descripcion: string;
@@ -158,6 +160,7 @@ export function filaAGasto(fila: FilaGasto): Gasto {
     id: fila.id,
     folio: fila.folio,
     ordenId: fila.orden_id,
+    ordenFolio: null,
     proveedorId: fila.proveedor_id,
     categoria: FORMATO_CATEGORIA_GASTO.test(fila.categoria) ? fila.categoria : 'otros',
     descripcion: fila.descripcion,

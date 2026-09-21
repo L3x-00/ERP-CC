@@ -36,6 +36,8 @@ export interface Orden {
   motivoCancelacion: string | null;
   /** DAS-01/RFQ-09: la orden es un trabajo interno (TI). */
   esInterna: boolean;
+  /** OBS-21: fecha de archivo automático al completar la entrega; null activa. */
+  archivadaEn: string | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -126,6 +128,7 @@ export function filaAOrden(fila: FilaOrden): Orden {
     fechaFin: fila.fecha_fin,
     motivoCancelacion: fila.motivo_cancelacion,
     esInterna: fila.es_interna,
+    archivadaEn: fila.archivada_en,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

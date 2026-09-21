@@ -40,6 +40,7 @@ type ContextoE2E = {
   proveedorId: string;
   materialId: string;
   ordenId: string;
+  folioOrden: string;
   partidaId: string;
   recursoId: string;
   programacionId: string;
@@ -51,6 +52,7 @@ type RecursosCreados = {
   proveedorId: string | null;
   materialId: string | null;
   ordenId: string | null;
+  folioOrden: string | null;
   partidaId: string | null;
   recursoId: string | null;
   programacionId: string | null;
@@ -97,6 +99,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     proveedorId: null,
     materialId: null,
     ordenId: null,
+    folioOrden: null,
     partidaId: null,
     recursoId: null,
     programacionId: null,
@@ -162,6 +165,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     }).select('id').single();
     if (errorOrden || !orden) throw new Error(`No se creó orden E2E: ${errorOrden?.message ?? 'sin orden'}`);
     recursos.ordenId = orden.id;
+    recursos.folioOrden = folio;
 
     const { data: partida, error: errorPartida } = await admin.from('partidas_orden_produccion').insert({
       orden_id: orden.id,
@@ -247,6 +251,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
       proveedorId: recursos.proveedorId,
       materialId: recursos.materialId,
       ordenId: recursos.ordenId,
+      folioOrden: recursos.folioOrden,
       partidaId: recursos.partidaId,
       recursoId: recursos.recursoId,
       programacionId: recursos.programacionId,
@@ -289,7 +294,8 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await page.goto('/gastos');
     await expect(page.getByTestId('pagina-gastos')).toBeVisible();
     await page.getByRole('button', { name: 'Registrar gasto' }).click();
-    await page.getByLabel('ID de orden (opcional)').fill(datos.ordenId);
+    await page.getByTestId('gasto-orden-busqueda').fill(datos.folioOrden);
+    await page.getByTestId('gasto-orden').selectOption(datos.ordenId);
     await page.getByLabel('Descripción').fill('Gasto E2E de consumibles');
     await page.getByLabel('Subtotal').fill('1000');
     await page.getByLabel('IVA').fill('160');

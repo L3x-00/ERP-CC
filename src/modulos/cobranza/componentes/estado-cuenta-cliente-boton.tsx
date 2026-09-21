@@ -7,6 +7,10 @@ import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
 import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
+  ETIQUETA_SITUACION_ORDEN,
+  resumirOrdenesEstadoCuenta,
+} from '@/modulos/cobranza/servicios/estado-cuenta-servicio';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -43,7 +47,7 @@ export function EstadoCuentaClienteBoton({
     queryKey: ['cobranza', 'estado-cuenta', clienteId],
     queryFn: async () => {
       const cliente = crearClienteSupabase();
-      const [ficha, cuentas] = await Promise.all([
+      const [ficha, cuentas, ordenes] = await Promise.all([
         cliente
           .from('clientes')
           .select('razon_social, rfc, condiciones_pago, contacto')
@@ -54,10 +58,79 @@ export function EstadoCuentaClienteBoton({
           .select('*')
           .eq('cliente_id', clienteId)
           .order('fecha_vencimiento', { ascending: true }),
+        cliente
+          .from('ordenes_produccion')
+          .select(
+            'id, folio, estado, fecha_compromiso, es_interna, cotizacion_id, creado_en, partidas_orden_produccion(cantidad_solicitada, cantidad_producida), pipeline(folio_cnc, moneda)',
+          )
+          .eq('cliente_id', clienteId)
+          .order('creado_en', { ascending: false }),
       ]);
       if (ficha.error) throw new Error(ficha.error.message);
       if (cuentas.error) throw new Error(cuentas.error.message);
-      return { ficha: ficha.data, cuentas: cuentas.data ?? [] };
+      if (ordenes.error) throw new Error(ordenes.error.message);
+
+      const idsCotizacion = [
+        ...new Set(
+          (ordenes.data ?? []).flatMap((orden) =>
+            orden.cotizacion_id ? [orden.cotizacion_id] : [],
+          ),
+        ),
+      ];
+      const lineas =
+        idsCotizacion.length > 0
+          ? await cliente
+              .from('cotizacion_lineas')
+              .select('pipeline_id, cantidad, precio_unitario, es_descuento')
+              .in('pipeline_id', idsCotizacion)
+          : { data: [], error: null };
+      if (lineas.error) throw new Error(lineas.error.message);
+
+      const lineasPorCotizacion = new Map<
+        string,
+        { cantidad: number; precioUnitario: number; esDescuento: boolean }[]
+      >();
+      for (const linea of lineas.data ?? []) {
+        const actuales = lineasPorCotizacion.get(linea.pipeline_id) ?? [];
+        actuales.push({
+          cantidad: Number(linea.cantidad),
+          precioUnitario: Number(linea.precio_unitario),
+          esDescuento: linea.es_descuento,
+        });
+        lineasPorCotizacion.set(linea.pipeline_id, actuales);
+      }
+
+      const ordenesResumidas = resumirOrdenesEstadoCuenta(
+        (ordenes.data ?? []).map((orden) => {
+          const { pipeline, partidas_orden_produccion, ...base } = orden;
+          return {
+            id: base.id,
+            folio: base.folio,
+            estado: base.estado,
+            fechaCompromiso: base.fecha_compromiso,
+            esInterna: base.es_interna,
+            cotizacionId: base.cotizacion_id,
+            cotizacionFolio: pipeline?.folio_cnc ?? null,
+            cotizacionMoneda: pipeline?.moneda ?? 'MXN',
+            partidas: (partidas_orden_produccion ?? []).map((partida) => ({
+              cantidadSolicitada: Number(partida.cantidad_solicitada),
+              cantidadProducida: Number(partida.cantidad_producida),
+            })),
+          };
+        }),
+        (cuentas.data ?? []).map((cuenta) => ({
+          ordenId: cuenta.orden_id,
+          montoTotal: Number(cuenta.monto_total),
+          saldoPendiente: Number(cuenta.saldo_pendiente),
+          estado: cuenta.estado,
+          fechaVencimiento: cuenta.fecha_vencimiento,
+          moneda: cuenta.moneda,
+        })),
+        lineasPorCotizacion,
+        new Date(),
+      );
+
+      return { ficha: ficha.data, cuentas: cuentas.data ?? [], ordenes: ordenesResumidas };
     },
     enabled: abierto,
     staleTime: 60_000,
@@ -101,7 +174,8 @@ export function EstadoCuentaClienteBoton({
           <DialogHeader>
             <DialogTitle>Estado de cuenta · {clienteNombre}</DialogTitle>
             <DialogDescription>
-              Cargos, abonos y saldos por orden. Imprime o guarda como PDF; el envío al cliente es una acción manual.
+              Órdenes con su avance y saldo, más cargos, abonos y vencimientos. Imprime o guarda
+              como PDF; el envío al cliente es una acción manual.
             </DialogDescription>
           </DialogHeader>
 
@@ -187,6 +261,69 @@ export function EstadoCuentaClienteBoton({
                     })}
                   </tbody>
                 </table>
+
+                {datos.ordenes.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-sm font-semibold text-texto-primario">
+                      Órdenes y saldos por orden
+                    </h3>
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-borde">
+                          <th className="py-1 pr-2 font-medium">Orden</th>
+                          <th className="py-1 pr-2 font-medium">Compromiso</th>
+                          <th className="py-1 pr-2 text-right font-medium">Avance</th>
+                          <th className="py-1 pr-2 text-right font-medium">Cotizado (s/IVA)</th>
+                          <th className="py-1 pr-2 text-right font-medium">Abonado</th>
+                          <th className="py-1 pr-2 text-right font-medium">Saldo</th>
+                          <th className="py-1 font-medium">Cobro</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {datos.ordenes.map((orden) => (
+                          <tr key={orden.id} className="border-b border-borde/60">
+                            <td className="py-1 pr-2 font-mono">
+                              {orden.folio}
+                              {orden.esInterna && (
+                                <span
+                                  className="ml-1 rounded-full bg-superficie-2 px-1.5 py-0.5 text-[10px] font-semibold text-texto-secundario"
+                                  title="Trabajo interno (TI): no genera cobranza"
+                                >
+                                  TI
+                                </span>
+                              )}
+                              {orden.cotizacionFolio && (
+                                <span className="ml-1 text-texto-tenue">{orden.cotizacionFolio}</span>
+                              )}
+                            </td>
+                            <td className="py-1 pr-2">{formatearFecha(orden.fechaCompromiso)}</td>
+                            <td className="py-1 pr-2 text-right tabular-nums">
+                              {orden.avancePorcentaje}%
+                            </td>
+                            <td className="py-1 pr-2 text-right tabular-nums">
+                              {orden.cotizadoSinIva === null
+                                ? '—'
+                                : formatearMoneda(orden.cotizadoSinIva, orden.moneda)}
+                            </td>
+                            <td className="py-1 pr-2 text-right tabular-nums">
+                              {formatearMoneda(orden.abonado, orden.moneda)}
+                            </td>
+                            <td
+                              className={`py-1 pr-2 text-right tabular-nums ${
+                                orden.situacion === 'vencido'
+                                  ? 'font-medium text-peligro-texto'
+                                  : ''
+                              }`}
+                            >
+                              {formatearMoneda(orden.saldo, orden.moneda)}
+                            </td>
+                            <td className="py-1">{ETIQUETA_SITUACION_ORDEN[orden.situacion]}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 <dl className="flex flex-col items-end gap-0.5 text-xs">
                   <div className="flex gap-3">

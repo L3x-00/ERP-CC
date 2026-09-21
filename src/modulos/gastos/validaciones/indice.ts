@@ -3,6 +3,7 @@ export {
   esquemaCambiarEstadoGasto,
   esquemaConsultarGastos,
   esquemaConsultarRentabilidadOrden,
+  esquemaBuscarOrdenesGasto,
   esquemaComprobanteOCR,
   esquemaDatosComprobanteOCR,
 } from '@/modulos/gastos/validaciones/gastos';
@@ -12,6 +13,7 @@ export type {
   CambiarEstadoGastoInput,
   ConsultarGastosInput,
   ConsultarRentabilidadOrdenInput,
+  BuscarOrdenesGastoInput,
   ComprobanteOCRInput,
   DatosComprobanteOCRValidados,
   TipoMimeComprobante,

@@ -4,6 +4,7 @@ import {
   filaAGasto,
   type CalculoRentabilidadOrden,
   type ComponenteRentabilidad,
+  type FilaGasto,
   type Gasto,
 } from '@/modulos/gastos/tipos/gastos';
 import type {
@@ -118,7 +119,10 @@ export async function consultarGastosServicio(
   cliente: SupabaseClient<Database>,
   filtros: ConsultarGastosInput,
 ): Promise<Gasto[]> {
-  let consulta = cliente.from('gastos').select('*').order('fecha_gasto', { ascending: false });
+  let consulta = cliente
+    .from('gastos')
+    .select('*, ordenes_produccion(folio)')
+    .order('fecha_gasto', { ascending: false });
   if (filtros.ordenId) consulta = consulta.eq('orden_id', filtros.ordenId);
   if (filtros.proveedorId) consulta = consulta.eq('proveedor_id', filtros.proveedorId);
   if (filtros.categorias?.length) consulta = consulta.in('categoria', filtros.categorias);
@@ -145,7 +149,13 @@ export async function consultarGastosServicio(
   }
   const { data, error } = await consulta;
   if (error) throw new ErrorGastos('desconocido', error.message);
-  return (data ?? []).map(filaAGasto);
+  return (data ?? []).map((fila) => {
+    const { ordenes_produccion, ...base } = fila;
+    return {
+      ...filaAGasto(base as FilaGasto),
+      ordenFolio: ordenes_produccion?.folio ?? null,
+    };
+  });
 }
 
 function componentesFaltantes(

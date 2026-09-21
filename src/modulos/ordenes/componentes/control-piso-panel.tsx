@@ -244,6 +244,14 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
           </div>
           <p className="font-mono text-xl font-bold tracking-wide text-texto-primario">
             {ordenActiva.orden.folio}
+            {ordenActiva.orden.esInterna && (
+              <span
+                className="ml-2 rounded-full bg-superficie-2 px-2 py-0.5 align-middle text-[10px] font-semibold text-texto-secundario"
+                title="Trabajo interno (TI): no genera cobranza"
+              >
+                TI
+              </span>
+            )}
           </p>
           {partidaActiva ? (
             <div className="flex flex-col gap-2">
@@ -279,6 +287,7 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
             {ordenes.map(({ orden }) => (
               <option key={orden.id} value={orden.id}>
                 {orden.folio}
+                {orden.esInterna ? ' · TI' : ''}
               </option>
             ))}
           </Select>

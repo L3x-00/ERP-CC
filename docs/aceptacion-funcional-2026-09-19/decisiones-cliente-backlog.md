@@ -1,21 +1,33 @@
 # Decisiones para el cliente y backlog de desarrollo restante
 
-## Decisiones que debe responder el cliente (no se inventan)
+## Decisiones del cliente (segunda ronda)
 
-1. **D-02 · Capacidad**: las "8 horas" ordinarias, ¿son por operador, por estación o la menor de ambas?
-   Hoy el sistema bloquea por recurso+turno; el alcance define si además se valida por operador.
-2. **D-04 · Exigibilidad de cobranza**: ¿basta la visibilidad del AR al completar la producción
-   (regla actual) o el negocio exige que la cuenta nazca exigible desde la aprobación (plazo distinto)?
-3. **OBS-21 · Archivo de trabajos terminados**: ¿se archivan al completar producción o al entregar?
-   (Propuesta técnica: al entregar, con bandeja separada de pendientes de entrega.)
-4. **OBS-27 · Estado de cuenta por cliente**: ¿qué debe incluir (todas las órdenes históricas o solo
-   con saldo) y cada cuándo se comparte? El envío real será siempre una acción manual autorizada.
-5. **OBS-28 · Selector de orden en gastos**: ¿la búsqueda es por folio, por cliente o por ambos?
-6. **OBS-02/03 · Comercial**: ¿se requiere alta de **contactos adicionales** por cliente y un
-   **responsable + siguiente acción** obligatorios en el seguimiento del prospecto?
-7. **TI · Conteos operativos**: las órdenes internas siguen sumando en activas/atrasadas/en riesgo
-   además de en "internas". ¿Se confirma o se excluyen también de lo operativo?
-8. **Prioridad** de los bloques 1–5 del backlog siguiente.
+**Resueltas:**
+
+1. **D-02 · Capacidad — RESUELTA:** la capacidad ordinaria es **operadores por estación × 8 h**;
+   además se agrega una **opción manual opcional** por recurso/turno para ajustes puntuales
+   (interpretación propuesta al implementar: default 1 operador = 8 h y campo opcional de override;
+   se confirma con el cliente en el arranque del bloque).
+2. **D-04 · Exigibilidad de cobranza — RESUELTA:** se mantiene la **regla actual**: la AR nace al
+   completar la OP; antes de eso el trabajo no se cobra.
+3. **OBS-21 · Archivo — RESUELTA:** los trabajos se archivan **al entregar**, con **bandeja
+   separada** de pendientes de entrega (coincide con la propuesta técnica).
+4. **OBS-27 · Estado de cuenta — RESUELTA:** de la forma más viable para el negocio: **incluir cada
+   orden con su saldo**, descontado según las reglas del proyecto (la AR nace al completar la OP y
+   los abonos se aplican por orden), más consolidados del cliente. El envío sigue siendo una acción
+   manual autorizada.
+
+**Pendientes de respuesta:**
+
+5. **OBS-28 · Selector de orden en gastos — RESUELTA:** la búsqueda será **por folio y por cliente**.
+6. **OBS-02/03 · Comercial — RESUELTA:** sí, se requiere todo: **contactos adicionales** por cliente
+   y **responsable + siguiente acción obligatorios** en el seguimiento del prospecto.
+7. **TI · Conteos operativos — RESUELTA:** las órdenes internas **siguen sumando** en
+   activas/atrasadas/en riesgo además de en “internas”; no se excluyen de lo operativo y deben ser
+   **identificables** (badge TI) en todas las vistas donde aparezcan.
+8. **Prioridad** de los bloques restantes del backlog: ejecución por valor/riesgo — estado de cuenta
+   con órdenes, selector de orden en gastos, TI identificable, archivo al entregar, contactos y
+   seguimiento, documentos en piso y capacidad D-02.
 
 ## Backlog de desarrollo restante (orden propuesto)
 
@@ -29,11 +41,28 @@
    como default); categorías exige relajar el CHECK y validar contra catálogo. **Requiere migración.**
 5. **Edición de órdenes** (ORD-05): solo en `borrador`, RPC `SECURITY DEFINER` con `FOR UPDATE` y
    token de concurrencia; auditoría completa. **Requiere migración.**
-6. **Brechas parciales OBS** (en la matriz): OBS-02 contacto adicional, OBS-03 acción/responsable,
-   OBS-06 planos en taller (ORD-09), OBS-08 desglose en Planeación, OBS-09/PRD-11 colas por área,
-   OBS-11 enlaces y notas de sesión, OBS-13 documentos, OBS-14 subáreas/procesos, OBS-17 hilo en
-   Producción, OBS-18/19 arrastre y semana/mes, OBS-20 filtro por área, OBS-21 archivo,
-   OBS-28 selector legible de orden, OBS-29 desglose por estación en UI.
+6. **Estado de cuenta con órdenes y saldos** (OBS-27 ampliado) — ✅ **implementado (bloque 6a):**
+   la vista por cliente suma cada OP con avance, cotizado sin IVA, AR total, abonado, saldo y
+   situación (no exigible / por cobrar / vencido / pagado), coherente con D-04; resumen puro con
+   unitarias e identificación TI.
+7. **Archivo al entregar** (OBS-21) — ✅ **implementado (bloque 6d):** migración
+   `20260919000004` (columna `archivada_en` + trigger idempotente al cubrir la entrega total),
+   verificado en PGlite 5/5; bandeja **Activas / Archivo** en `/ordenes` con fecha de archivo.
+8. **Selector de orden en gastos** (OBS-28) — ✅ **implementado (bloque 6b):** búsqueda por folio y
+   cliente con etiqueta legible (`OP-… · Cliente · estado`) y folio visible en la tabla de gastos.
+9. **TI identificables** — ✅ **implementado (bloque 6c):** badge TI en tabla de órdenes, kanban de
+   Producción, control de piso (cabecera y selector) y estado de cuenta; las internas siguen
+   sumando en los conteos operativos como confirmó el cliente.
+10. **Capacidad por operadores/estación** (D-02) — ⏳ pendiente (Planeación; migración): capacidad =
+    operadores × 8 h por turno con override manual opcional.
+11. **Contactos y seguimiento comercial** (OBS-02/03) — ⏳ pendiente: contactos adicionales por
+    cliente y responsable + siguiente acción obligatorios (migración + UI).
+12. **Documentos en piso** (OBS-06/ORD-09 + OBS-13) — ⏳ pendiente: planos/PDF por partida en la
+    terminal de operador y nota de entrega imprimible.
+13. **Brechas parciales OBS restantes** (en la matriz): OBS-08 desglose en Planeación, OBS-09/PRD-11
+    colas por área, OBS-11 enlaces y notas de sesión, OBS-14 subáreas/procesos, OBS-17 hilo en
+    Producción, OBS-18/19 arrastre y semana/mes, OBS-20 filtro por área, OBS-29 desglose por estación
+    en UI.
 
 ## Límites de entorno por cerrar
 
