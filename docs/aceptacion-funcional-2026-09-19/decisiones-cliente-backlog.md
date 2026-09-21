@@ -4,30 +4,28 @@
 
 **Resueltas:**
 
-1. **D-02 · Capacidad — RESUELTA:** la capacidad ordinaria es **operadores por estación × 8 h**;
-   además se agrega una **opción manual opcional** por recurso/turno para ajustes puntuales
-   (interpretación propuesta al implementar: default 1 operador = 8 h y campo opcional de override;
-   se confirma con el cliente en el arranque del bloque).
-2. **D-04 · Exigibilidad de cobranza — RESUELTA:** se mantiene la **regla actual**: la AR nace al
-   completar la OP; antes de eso el trabajo no se cobra.
-3. **OBS-21 · Archivo — RESUELTA:** los trabajos se archivan **al entregar**, con **bandeja
-   separada** de pendientes de entrega (coincide con la propuesta técnica).
-4. **OBS-27 · Estado de cuenta — RESUELTA:** de la forma más viable para el negocio: **incluir cada
-   orden con su saldo**, descontado según las reglas del proyecto (la AR nace al completar la OP y
-   los abonos se aplican por orden), más consolidados del cliente. El envío sigue siendo una acción
-   manual autorizada.
+1. **D-02 · Capacidad — RESUELTA (ajuste):** se separan **jornada laboral** (8 h) y **capacidad
+   instalada**. La capacidad instalada es la multiplicación de equipos por jornada: p. ej. 3 CNC
+   router × 8 h = **24 h de capacidad por jornada**. Implementación pendiente: número de equipos por
+   recurso/estación + override opcional (Planeación, migración).
+2. **D-04 · Exigibilidad de cobranza — RESUELTA (ajuste):** la AR **puede nacer desde la aprobación**
+   (visible), pero **no es cobrable hasta la entrega** de la orden; se admiten **anticipos** según
+   términos y condiciones con el cliente. Cambio de flujo mayor: requiere diseño de estados de AR
+   (no cobrable/cobrable), aplicación de anticipos por orden y ajustes en Cobranza (bloque dedicado).
+3. **OBS-21 · Entregables de producción — RESUELTA (ajuste):** al completar producción se añaden a
+   los entregables las **confirmaciones de las entregas** (nota de entrega con su confirmación; enlaza
+   con OBS-13 imprimible).
+4. **OBS-27 · Estado de cuenta — RESUELTA (ajuste):** mostrar **solo órdenes abiertas**; para clientes
+   a **crédito**, indicar los **días de cartera vencida**. ✅ aplicado sobre la implementación del
+   bloque 6a (filtro de abiertas + línea de cartera vencida).
+5. **OBS-28 · Selector de orden en gastos:** **ambos** (folio y cliente). ✅ implementado en 6b.
+6. **OBS-02/03 · Comercial:** el cliente **solicitó un ejemplo** de contactos adicionales y de
+   responsable + siguiente acción antes de decidir.
+7. **TI · Conteos operativos — RESUELTA (ajuste):** se incluyen en lo operativo; además se pide, si es
+   posible, **obtener el costo de producción de las TI** (no generan precio de venta ni AR).
+8. **Prioridad:** el cliente **solicitó un ejemplo** de priorización del backlog restante.
 
-**Pendientes de respuesta:**
-
-5. **OBS-28 · Selector de orden en gastos — RESUELTA:** la búsqueda será **por folio y por cliente**.
-6. **OBS-02/03 · Comercial — RESUELTA:** sí, se requiere todo: **contactos adicionales** por cliente
-   y **responsable + siguiente acción obligatorios** en el seguimiento del prospecto.
-7. **TI · Conteos operativos — RESUELTA:** las órdenes internas **siguen sumando** en
-   activas/atrasadas/en riesgo además de en “internas”; no se excluyen de lo operativo y deben ser
-   **identificables** (badge TI) en todas las vistas donde aparezcan.
-8. **Prioridad** de los bloques restantes del backlog: ejecución por valor/riesgo — estado de cuenta
-   con órdenes, selector de orden en gastos, TI identificable, archivo al entregar, contactos y
-   seguimiento, documentos en piso y capacidad D-02.
+**Pendientes de respuesta:** ninguno de fondo; 6 y 8 esperan que enviemos los ejemplos.
 
 ## Backlog de desarrollo restante (orden propuesto)
 

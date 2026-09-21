@@ -8,6 +8,7 @@ import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/u
 import { Button } from '@/compartido/componentes/ui/button';
 import {
   ETIQUETA_SITUACION_ORDEN,
+  diasAtrasoMaximo,
   resumirOrdenesEstadoCuenta,
 } from '@/modulos/cobranza/servicios/estado-cuenta-servicio';
 import {
@@ -61,7 +62,7 @@ export function EstadoCuentaClienteBoton({
         cliente
           .from('ordenes_produccion')
           .select(
-            'id, folio, estado, fecha_compromiso, es_interna, cotizacion_id, creado_en, partidas_orden_produccion(cantidad_solicitada, cantidad_producida), pipeline(folio_cnc, moneda)',
+            'id, folio, estado, fecha_compromiso, es_interna, archivada_en, cotizacion_id, creado_en, partidas_orden_produccion(cantidad_solicitada, cantidad_producida), pipeline(folio_cnc, moneda)',
           )
           .eq('cliente_id', clienteId)
           .order('creado_en', { ascending: false }),
@@ -109,6 +110,7 @@ export function EstadoCuentaClienteBoton({
             estado: base.estado,
             fechaCompromiso: base.fecha_compromiso,
             esInterna: base.es_interna,
+            archivadaEn: base.archivada_en,
             cotizacionId: base.cotizacion_id,
             cotizacionFolio: pipeline?.folio_cnc ?? null,
             cotizacionMoneda: pipeline?.moneda ?? 'MXN',
@@ -154,6 +156,19 @@ export function EstadoCuentaClienteBoton({
           : 1;
       return suma + Number(cuenta.saldo_pendiente) * tipoCambio;
     }, 0);
+
+  // Ajuste del cliente (OBS-27): el estado solo lista órdenes abiertas y, para
+  // clientes a crédito, indica los días de atraso de la cartera vencida.
+  const ordenesAbiertas = (datos?.ordenes ?? []).filter((orden) => orden.abierta);
+  const esCredito = datos?.ficha?.condiciones_pago === 'credito';
+  const atrasoMaximo = diasAtrasoMaximo(
+    cuentas.map((cuenta) => ({
+      estado: cuenta.estado,
+      saldoPendiente: Number(cuenta.saldo_pendiente),
+      fechaVencimiento: cuenta.fecha_vencimiento,
+    })),
+    new Date(),
+  );
 
   return (
     <>
@@ -262,10 +277,10 @@ export function EstadoCuentaClienteBoton({
                   </tbody>
                 </table>
 
-                {datos.ordenes.length > 0 && (
+                {ordenesAbiertas.length > 0 && (
                   <div className="flex flex-col gap-1">
                     <h3 className="text-sm font-semibold text-texto-primario">
-                      Órdenes y saldos por orden
+                      Órdenes abiertas y saldos por orden
                     </h3>
                     <table className="w-full border-collapse text-left text-xs">
                       <thead>
@@ -280,7 +295,7 @@ export function EstadoCuentaClienteBoton({
                         </tr>
                       </thead>
                       <tbody>
-                        {datos.ordenes.map((orden) => (
+                        {ordenesAbiertas.map((orden) => (
                           <tr key={orden.id} className="border-b border-borde/60">
                             <td className="py-1 pr-2 font-mono">
                               {orden.folio}
@@ -338,6 +353,18 @@ export function EstadoCuentaClienteBoton({
                       {formatearMoneda(saldoVencidoMxn, 'MXN')}
                     </dd>
                   </div>
+                  {esCredito ? (
+                    <div className="flex gap-3">
+                      <dt className="text-texto-secundario">Cartera vencida (días de atraso)</dt>
+                      <dd
+                        className={`w-32 text-right font-medium tabular-nums ${
+                          atrasoMaximo > 0 ? 'text-peligro-texto' : ''
+                        }`}
+                      >
+                        {atrasoMaximo > 0 ? `${formatearNumero(atrasoMaximo, 0)} días` : 'Al corriente'}
+                      </dd>
+                    </div>
+                  ) : null}
                 </dl>
               </div>
 
