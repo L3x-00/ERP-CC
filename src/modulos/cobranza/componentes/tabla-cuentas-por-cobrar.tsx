@@ -81,7 +81,9 @@ export function TablaCuentasPorCobrar({
             </div>
           </TablaCelda>
                 <TablaCelda>
-                  {new Intl.DateTimeFormat('es-MX').format(new Date(cuenta.fechaVencimiento))}
+                  {cuenta.fechaVencimiento
+                    ? new Intl.DateTimeFormat('es-MX').format(new Date(cuenta.fechaVencimiento))
+                    : 'Por entregar'}
                 </TablaCelda>
                 <TablaCelda className="text-right tabular-nums">
                   {formatearMoneda(cuenta.montoTotal, cuenta.moneda)}
@@ -100,7 +102,17 @@ export function TablaCuentasPorCobrar({
                 </TablaCelda>
                 <TablaCelda>{cuenta.estadoProduccion}</TablaCelda>
                 <TablaCelda>
-                  <BadgeEstado estado={cuenta.estado} />
+                  <div className="flex items-center gap-1.5">
+                    {cuenta.cobrableDesde === null && cuentaVigente(cuenta) && (
+                      <span
+                        className="rounded-full bg-superficie-2 px-1.5 py-0.5 text-[10px] font-semibold text-texto-secundario"
+                        title="La cuenta se vuelve cobrable al entregar; hasta entonces solo admite anticipos"
+                      >
+                        No cobrable
+                      </span>
+                    )}
+                    <BadgeEstado estado={cuenta.estado} />
+                  </div>
                 </TablaCelda>
                 <TablaCelda className="text-right">
                   {onVerHistorial && <Button tamano="sm" variante="contorno" onClick={() => onVerHistorial(cuenta)}>Historial</Button>}

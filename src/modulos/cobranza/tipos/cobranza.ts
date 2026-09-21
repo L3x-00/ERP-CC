@@ -57,7 +57,10 @@ export interface CuentaPorCobrar {
   tipoCambioOrigen: number;
   estado: EstadoCuentaPorCobrar;
   fechaEmision: string;
-  fechaVencimiento: string;
+  /** D-04: `null` mientras la cuenta no es cobrable (aún sin entrega). */
+  fechaVencimiento: string | null;
+  /** D-04: fecha en que la cuenta se volvió exigible; `null` = no cobrable. */
+  cobrableDesde: string | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -146,6 +149,7 @@ export function filaACuentaPorCobrar(fila: FilaCuentaPorCobrar): CuentaPorCobrar
     estado: validarValorEnumerado(fila.estado, ESTADOS_CUENTA_POR_COBRAR, 'estado'),
     fechaEmision: fila.fecha_emision,
     fechaVencimiento: fila.fecha_vencimiento,
+    cobrableDesde: fila.cobrable_desde,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

@@ -80,7 +80,7 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | ORD-06 | Captura de trabajo heredado | ausente | E2E local 14/14 (`pnpm test:e2e`) (ordenes-flujo-completo/produccion-piso) |
 | ORD-07 | Partes y metas | parcial | E2E local 14/14 (`pnpm test:e2e`) (ordenes-flujo-completo/produccion-piso) |
 | ORD-08 | Sincronización comercial | ausente | E2E local 14/14 (`pnpm test:e2e`) (ordenes-flujo-completo/produccion-piso) |
-| ORD-09 | Nuevos archivos durante ejecución | ausente | E2E local 14/14 (`pnpm test:e2e`) (ordenes-flujo-completo/produccion-piso) |
+| ORD-09 | Nuevos archivos durante ejecución | implementado | E2E local 17/17 (`pnpm test:e2e`) (aceptacion-comercial: subida y apertura de documentos desde piso) |
 | ORD-10 | Eliminación administrativa | parcial | E2E local 14/14 (`pnpm test:e2e`) (ordenes-flujo-completo/produccion-piso) |
 | ORD-11 | Comparativa de desempeño | ausente | E2E local 14/14 (`pnpm test:e2e`) (ordenes-flujo-completo/produccion-piso) |
 | ORD-12 | Estados y fechas operativas | parcial | inventario estático (matriz 164) |
@@ -117,7 +117,7 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | DOC-03 | Consulta y reimpresión | ausente | inventario estático (matriz 164) |
 | DOC-04 | Ciclo de archivos múltiples | parcial | inventario estático (matriz 164) |
 | **AR** | *(módulo)* | | |
-| AR-01 | AR vinculado al aprobar | parcial | E2E local 14/14 (`pnpm test:e2e`) (aceptacion-comercial: sin AR al aprobar, D-04) + PGlite aislado (harness .ai-shared/qa/cobertura) |
+| AR-01 | AR no cobrable al aprobar, activa al entregar (D-04) | implementado | E2E local 17/17 (`pnpm test:e2e`) (aceptacion-comercial: AR creada sin cobrabilidad) + PGlite 10/10 (harness verificar-d04-ar-anticipos) |
 | AR-02 | Alta de factura/cuenta por cobrar | parcial | inventario estático (matriz 164) |
 | AR-03 | Estados y activación | parcial | E2E local 14/14 (`pnpm test:e2e`) (cobranza-flujo) + PGlite aislado (harness .ai-shared/qa/cobertura) (verificar-bancos-pagos) |
 | AR-04 | Reglas de plazo | ausente | inventario estático (matriz 164) |
@@ -167,14 +167,14 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | OBS-03 | Seguimiento del prospecto | parcial | inventario estático (matriz 164) |
 | OBS-04 | Necesidad completa y varias solicitudes | parcial | inventario estático (matriz 164) |
 | OBS-05 | Distribución por estaciones y procesos | parcial | inventario estático (matriz 164) |
-| OBS-06 | Planos múltiples utilizables en taller | parcial | unitarias (614/614)/estático |
+| OBS-06 | Planos múltiples utilizables en taller | implementado | E2E local 17/17 (`pnpm test:e2e`) (piso: listar, subir y abrir documentos con URL firmada) |
 | OBS-07 | Cotizaciones integradas al pipeline | parcial | unitarias (614/614)/estático |
 | OBS-08 | Desglose de lo solicitado | parcial | inventario estático (matriz 164) |
 | OBS-09 | Asignación inequívoca del trabajo | parcial | inventario estático (matriz 164) |
 | OBS-10 | Parciales de producción y entrega | completo | inventario estático (matriz 164) |
 | OBS-11 | Historial comercial y operativo navegable | parcial | unitarias (614/614)/estático |
 | OBS-12 | Descuento automático de existencias | parcial | E2E local 14/14 (`pnpm test:e2e`) (ordenes-flujo-completo: consumo/kardex) |
-| OBS-13 | Conformidad fiel al pedido | parcial | E2E local 14/14 (`pnpm test:e2e`) (produccion-piso: nota parcial/total) |
+| OBS-13 | Conformidad fiel al pedido | implementado | E2E local 17/17 (`pnpm test:e2e`) (produccion-piso: nota parcial/total + documento imprimible con confirmación) |
 | OBS-14 | Áreas, subáreas y procesos configurables | parcial | inventario estático (matriz 164) |
 | OBS-15 | Origen comercial y tablero de órdenes | parcial | inventario estático (matriz 164) |
 | OBS-16 | Acciones y estados consistentes | parcial | E2E local 14/14 (`pnpm test:e2e`) (comentarios-notificaciones) |
@@ -200,14 +200,14 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | OBS-01 | completo | unitarias de aging + navegación dashboard→cobranza (matriz) |
 | OBS-02/03/04 | ausente/parcial | estático; sin flujo de prospecto completo ejecutado |
 | OBS-05 | parcial | estático (programación por áreas existe; sin distribución automática) |
-| OBS-06 | parcial | estático (planos no consultables en taller) |
+| OBS-06 | implementado | E2E 17/17 (piso: listar/subir/abrir documentos de la orden) |
 | OBS-07 | parcial | E2E aceptacion-comercial (cotización ligada a la oportunidad) |
 | OBS-08 | parcial | estático (desglose limitado en Planeación) |
 | OBS-09 | parcial | backend fuerza asignación (unit/PGlite); sin colas por área |
 | OBS-10 | completo | E2E produccion-piso (entrega parcial + total) |
 | OBS-11 | parcial | estático (ficha sin enlaces originales) |
 | OBS-12 | parcial | E2E ordenes-flujo-completo (consumo/kardex); divergencia D-10 |
-| OBS-13 | parcial | E2E produccion-piso (registro); sin documento imprimible |
+| OBS-13 | implementado | E2E 17/17 (produccion-piso: nota imprimible con recibido por y acumulados) |
 | OBS-14 | parcial | estático (áreas planas; sin subáreas/procesos) |
 | OBS-15 | parcial | E2E aceptacion-comercial (origen comercial); alta manual sigue existiendo |
 | OBS-16 | parcial | E2E comentarios-notificaciones (hilo en Órdenes) |
@@ -216,7 +216,7 @@ navegador ejecutado queda como inventario verificado, no como aceptación E2E.
 | OBS-19 | parcial | E2E planeacion + unitarias (bloqueo de capacidad); D-02 pendiente de alcance |
 | OBS-20 | parcial | E2E produccion-piso (flujo completo por estado) |
 | OBS-21 | parcial | estático (entregadas no se archivan) |
-| OBS-22 | ausente | divergencia D-04: sin visibilidad desde aprobación |
+| OBS-22 | completo | D-04: la AR es visible desde la aprobación con cobrabilidad a la entrega |
 | OBS-23 | completo | E2E cobranza-flujo (USD + TC) |
 | OBS-24 | parcial | E2E cobranza (cuenta destino) + PGlite bancos; sin flujo por cuenta |
 | OBS-25 | completo | E2E cobranza (sobrepago/crédito) |

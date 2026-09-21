@@ -149,6 +149,9 @@ export function ModalRegistrarPago({
           <DialogTitle>Registrar cobro · {cuenta.folioOrden}</DialogTitle>
           <DialogDescription id="descripcion-registro-pago">
             Saldo pendiente: {cuenta.moneda} {formatearMoneda(cuenta.saldoPendiente, cuenta.moneda)} · Monedero disponible: MXN {formatearMoneda(cuenta.saldoAFavorMxn)}
+            {cuenta.cobrableDesde === null
+              ? ' · Cuenta no cobrable: este cobro se registra como anticipo de la orden.'
+              : ''}
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-3" onSubmit={registrarPago}>

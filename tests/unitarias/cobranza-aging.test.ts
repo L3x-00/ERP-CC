@@ -34,6 +34,7 @@ function cuenta(parcial: Partial<CuentaPorCobrar>): CuentaPorCobrar {
     estado: 'pendiente',
     fechaEmision: '2026-01-01T00:00:00.000Z',
     fechaVencimiento: REFERENCIA,
+    cobrableDesde: '2026-01-01T00:00:00.000Z',
     creadoEn: '2026-01-01T00:00:00.000Z',
     actualizadoEn: '2026-01-01T00:00:00.000Z',
     ...parcial,
@@ -59,6 +60,20 @@ describe('aging: slugs y bucket de cuenta (OBS-01 drill-down)', () => {
 
     expect(bucketDeCuenta(cuenta({ estado: 'pagado' }), REFERENCIA)).toBeNull();
     expect(bucketDeCuenta(cuenta({ fechaVencimiento: 'no-es-fecha' }), REFERENCIA)).toBeNull();
+  });
+
+  it('excluye del aging la cuenta aún no cobrable (D-04) aunque tenga saldo', () => {
+    const vencido40 = new Date(Date.parse(REFERENCIA) - 40 * 86_400_000).toISOString();
+    const noCobrable = cuenta({ fechaVencimiento: null, cobrableDesde: null });
+
+    expect(bucketDeCuenta(noCobrable, REFERENCIA)).toBeNull();
+    const resumen = calcularAgingCliente(CLIENTE, [noCobrable], REFERENCIA);
+    expect(resumen.totalPendiente).toBe(0);
+    expect(resumen.cuentasConsideradas).toBe(0);
+
+    // Al volverse cobrable con su vencimiento real, entra al aging.
+    const cobrable = cuenta({ fechaVencimiento: vencido40, cobrableDesde: REFERENCIA });
+    expect(bucketDeCuenta(cobrable, REFERENCIA)).toBe('de31A60Dias');
   });
 });
 
@@ -105,6 +120,7 @@ describe('calcularDiasVencidos y clasificarBucketAging', () => {
   it('devuelve null si alguna fecha es inválida', () => {
     expect(calcularDiasVencidos('no-es-fecha', REFERENCIA)).toBeNull();
     expect(calcularDiasVencidos(REFERENCIA, 'x')).toBeNull();
+    expect(calcularDiasVencidos(null, REFERENCIA)).toBeNull();
   });
 
   it('clasifica cada rango en su bucket', () => {

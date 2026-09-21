@@ -98,6 +98,16 @@ async function limpiarContexto(contexto: ContextoAceptacion): Promise<void> {
     .select('id')
     .eq('cliente_id', clienteId);
   const idsOportunidades = (oportunidades ?? []).map((fila) => fila.id);
+  // OBS-06/ORD-09: los documentos subidos desde el piso viven en el bucket.
+  for (const oportunidadId of idsOportunidades) {
+    const { data: objetos } = await admin.storage
+      .from('adjuntos-cotizacion')
+      .list(oportunidadId, { limit: 200 });
+    const rutas = (objetos ?? [])
+      .filter((objeto) => objeto.id !== null)
+      .map((objeto) => `${oportunidadId}/${objeto.name}`);
+    if (rutas.length > 0) await admin.storage.from('adjuntos-cotizacion').remove(rutas);
+  }
   if (idsOportunidades.length > 0) {
     const { data: ordenes } = await admin
       .from('ordenes_produccion')
@@ -105,6 +115,16 @@ async function limpiarContexto(contexto: ContextoAceptacion): Promise<void> {
       .in('cotizacion_id', idsOportunidades);
     const idsOrdenes = (ordenes ?? []).map((fila) => fila.id);
     if (idsOrdenes.length > 0) {
+      // D-04: la aprobación deja AR ligada a la orden; se limpia antes por la FK.
+      const { data: cuentas } = await admin
+        .from('cuentas_por_cobrar')
+        .select('id')
+        .in('orden_id', idsOrdenes);
+      const idsCuentas = (cuentas ?? []).map((fila) => fila.id);
+      if (idsCuentas.length > 0) {
+        await admin.from('pagos_ar').delete().in('ar_id', idsCuentas);
+        await admin.from('cuentas_por_cobrar').delete().in('id', idsCuentas);
+      }
       await admin.from('partidas_orden_produccion').delete().in('orden_id', idsOrdenes);
       await admin.from('ordenes_produccion').delete().in('id', idsOrdenes);
     }
@@ -294,7 +314,7 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
 
     await ganarOportunidad(page, datos.admin, datos.empresa);
 
-    // Efectos persistidos: una sola cadena cotización→OP, sin AR (D-04 v2).
+    // Efectos persistidos: una sola cadena cotización→OP, con AR no cobrable (D-04).
     const { data: oportunidad } = await datos.admin
       .from('pipeline')
       .select('id, etapa, cliente_id, es_orden_interna')
@@ -328,17 +348,51 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     expect(partidas?.[1]).toMatchObject({ codigo_pieza: 'COT-002', es_externo: true, proveedor_externo: 'Taller QA Externo' });
     expect(partidas?.some((partida) => partida.codigo_pieza === 'COT-003')).toBe(false);
 
-    const { count: cuentas } = await datos.admin
+    // D-04: la aprobación crea la AR no cobrable; será cobrable al entregar.
+    const { data: cuentas } = await datos.admin
       .from('cuentas_por_cobrar')
-      .select('id', { count: 'exact', head: true })
+      .select('monto_total, estado, cobrable_desde, fecha_vencimiento')
       .eq('orden_id', orden!.id);
-    expect(cuentas).toBe(0);
+    expect(cuentas).toHaveLength(1);
+    expect(cuentas?.[0]).toMatchObject({
+      estado: 'pendiente',
+      cobrable_desde: null,
+      fecha_vencimiento: null,
+    });
+    expect(Number(cuentas?.[0]?.monto_total)).toBeGreaterThan(0);
 
     // RFQ-10: la orden muestra el folio comercial de su cotización.
     await page.goto('/ordenes');
     const fila = page.getByRole('row', { name: new RegExp(orden!.folio) });
     await expect(fila).toBeVisible();
     await expect(fila).toContainText('CNC-');
+
+    // OBS-06/ORD-09: el taller ve y sube documentos de la orden desde el piso.
+    await page.goto('/produccion');
+    await page
+      .getByTestId(`tarjeta-produccion-${orden!.id}`)
+      .getByRole('button', { name: 'Operar orden' })
+      .click();
+    const panelEntregables = page.getByTestId('panel-documentos-orden');
+    await expect(panelEntregables).toBeVisible();
+    await expect(panelEntregables).toContainText('Sin documentos en la carpeta de la orden.');
+    await panelEntregables.getByLabel('Archivo de la orden').setInputFiles({
+      name: 'E2E-PLANO.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF'),
+    });
+    await panelEntregables.getByRole('button', { name: 'Subir', exact: true }).click();
+    await expect(panelEntregables.getByRole('status')).toContainText('E2E-PLANO.pdf subido');
+    await expect(panelEntregables.getByTestId('lista-documentos-orden')).toContainText('E2E-PLANO.pdf');
+    const esperaFirma = page.context().waitForEvent('request', (solicitud) =>
+      solicitud.url().includes('/storage/v1/object/sign/adjuntos-cotizacion/'),
+    );
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup'),
+      panelEntregables.getByRole('button', { name: 'Abrir' }).first().click(),
+    ]);
+    await esperaFirma;
+    await popup.close();
   });
 
   test('trabajo interno TI: sin AR comercial e identificado en órdenes (E2E-09)', async ({ page }) => {

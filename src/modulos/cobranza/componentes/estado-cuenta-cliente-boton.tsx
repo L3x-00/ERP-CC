@@ -19,8 +19,9 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 
-/** Días de atraso de un vencimiento (0 si aún no vence o la fecha es inválida). */
-function diasDeAtraso(fechaVencimiento: string): number {
+/** Días de atraso de un vencimiento (0 si aún no vence, no es cobrable o la fecha es inválida). */
+function diasDeAtraso(fechaVencimiento: string | null): number {
+  if (fechaVencimiento === null) return 0;
   const vencimiento = new Date(fechaVencimiento).getTime();
   if (!Number.isFinite(vencimiento)) return 0;
   const dias = Math.floor((Date.now() - vencimiento) / 86_400_000);
@@ -126,6 +127,7 @@ export function EstadoCuentaClienteBoton({
           saldoPendiente: Number(cuenta.saldo_pendiente),
           estado: cuenta.estado,
           fechaVencimiento: cuenta.fecha_vencimiento,
+          cobrableDesde: cuenta.cobrable_desde,
           moneda: cuenta.moneda,
         })),
         lineasPorCotizacion,
@@ -148,6 +150,7 @@ export function EstadoCuentaClienteBoton({
   }, 0);
   const saldoVencidoMxn = cuentas
     .filter((cuenta) => cuenta.estado !== 'cancelado' && cuenta.estado !== 'pagado')
+    .filter((cuenta) => cuenta.cobrable_desde !== null)
     .filter((cuenta) => diasDeAtraso(cuenta.fecha_vencimiento) > 0)
     .reduce((suma, cuenta) => {
       const tipoCambio =
@@ -242,6 +245,7 @@ export function EstadoCuentaClienteBoton({
                     {cuentas.map((cuenta) => {
                       const atraso = diasDeAtraso(cuenta.fecha_vencimiento);
                       const esCobrable = cuenta.estado !== 'cancelado' && cuenta.estado !== 'pagado';
+                      const porEntregar = esCobrable && cuenta.cobrable_desde === null;
                       const abonado = Number(cuenta.monto_total) - Number(cuenta.saldo_pendiente);
                       const moneda: 'MXN' | 'USD' = cuenta.moneda === 'USD' ? 'USD' : 'MXN';
                       return (
@@ -249,15 +253,21 @@ export function EstadoCuentaClienteBoton({
                           <td className="py-1 pr-2 font-mono">
                             {cuenta.folio_factura_remision ?? cuenta.moneda}
                           </td>
-                          <td className="py-1 pr-2">{formatearFecha(cuenta.fecha_vencimiento)}</td>
+                          <td className="py-1 pr-2">
+                            {cuenta.fecha_vencimiento
+                              ? formatearFecha(cuenta.fecha_vencimiento)
+                              : 'Al entregar'}
+                          </td>
                           <td className="py-1 pr-2">
                             {cuenta.estado === 'cancelado'
                               ? 'Cancelado'
                               : cuenta.estado === 'pagado'
                                 ? 'Pagado'
-                                : atraso > 0
-                                  ? 'Vencido'
-                                  : 'Vigente'}
+                                : porEntregar
+                                  ? 'Por entregar (no cobrable)'
+                                  : atraso > 0
+                                    ? 'Vencido'
+                                    : 'Vigente'}
                           </td>
                           <td className="py-1 pr-2 text-right tabular-nums">
                             {formatearMoneda(Number(cuenta.monto_total), moneda)}

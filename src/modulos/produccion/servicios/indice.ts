@@ -35,3 +35,27 @@ export type {
   OrdenTableroProduccion,
   PartidaTableroProduccion,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';
+
+export {
+  EXTENSIONES_DOCUMENTO_ORDEN,
+  TAMANO_MAXIMO_DOCUMENTO_ORDEN,
+  listarDocumentosOrden,
+  nombreDocumentoSeguro,
+  obtenerOrdenDocumental,
+  validarRutaDocumento,
+} from '@/modulos/produccion/servicios/documentos-orden-servicio';
+
+export type { OrdenDocumental } from '@/modulos/produccion/servicios/documentos-orden-servicio';
+
+export {
+  listarNotasEntregaOrden,
+  obtenerDocumentoNotaEntrega,
+  resumirLineasNota,
+} from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';
+
+export type {
+  DocumentoNotaEntrega,
+  LineaNotaEntrega,
+  NotaEntregaResumen,
+  RenglonNotaCrudo,
+} from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';

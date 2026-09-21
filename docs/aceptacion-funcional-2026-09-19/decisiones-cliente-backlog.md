@@ -8,10 +8,11 @@
    instalada**. La capacidad instalada es la multiplicación de equipos por jornada: p. ej. 3 CNC
    router × 8 h = **24 h de capacidad por jornada**. Implementación pendiente: número de equipos por
    recurso/estación + override opcional (Planeación, migración).
-2. **D-04 · Exigibilidad de cobranza — RESUELTA (ajuste):** la AR **puede nacer desde la aprobación**
+2. **D-04 · Exigibilidad de cobranza — RESUELTA (ajuste) e IMPLEMENTADA:** la AR **puede nacer desde la aprobación**
    (visible), pero **no es cobrable hasta la entrega** de la orden; se admiten **anticipos** según
-   términos y condiciones con el cliente. Cambio de flujo mayor: requiere diseño de estados de AR
-   (no cobrable/cobrable), aplicación de anticipos por orden y ajustes en Cobranza (bloque dedicado).
+   términos y condiciones con el cliente. ✅ implementado (bloque D-04, 21-sep): migración
+   `20260919000005` con `cobrable_desde`, activación al entregar con plazo del cliente y anticipos
+   sobre la AR no cobrable; rentabilidad/dashboard solo reconocen cuentas cobrables.
 3. **OBS-21 · Entregables de producción — RESUELTA (ajuste):** al completar producción se añaden a
    los entregables las **confirmaciones de las entregas** (nota de entrega con su confirmación; enlaza
    con OBS-13 imprimible).
@@ -55,8 +56,10 @@
     operadores × 8 h por turno con override manual opcional.
 11. **Contactos y seguimiento comercial** (OBS-02/03) — ⏳ pendiente: contactos adicionales por
     cliente y responsable + siguiente acción obligatorios (migración + UI).
-12. **Documentos en piso** (OBS-06/ORD-09 + OBS-13) — ⏳ pendiente: planos/PDF por partida en la
-    terminal de operador y nota de entrega imprimible.
+12. **Documentos en piso** (OBS-06/ORD-09 + OBS-13) — ✅ **implementado (bloque 2, 21-sep):** panel
+    “Entregables de producción” en el piso: documentos de la orden listados/abiertos con URL firmada
+    de corta vida bajo permiso de Producción, subida de archivos durante la ejecución con límites, y
+    nota de entrega imprimible con confirmación (recibido por, acumulados por pieza y firmas).
 13. **Brechas parciales OBS restantes** (en la matriz): OBS-08 desglose en Planeación, OBS-09/PRD-11
     colas por área, OBS-11 enlaces y notas de sesión, OBS-14 subáreas/procesos, OBS-17 hilo en
     Producción, OBS-18/19 arrastre y semana/mes, OBS-20 filtro por área, OBS-29 desglose por estación

@@ -31,7 +31,8 @@ export interface CuentaHistorial {
   saldoPendiente: number;
   estado: EstadoCuentaPorCobrar;
   fechaEmision: string;
-  fechaVencimiento: string;
+  /** D-04: `null` mientras la cuenta no es cobrable. */
+  fechaVencimiento: string | null;
 }
 
 /** Historial navegable: cada entidad pagina por separado para no truncarse. */

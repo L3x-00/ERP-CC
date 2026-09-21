@@ -15,14 +15,14 @@ Evidencia base: suite E2E local **14/14** (`tests/e2e/*.spec.ts`), PGlite
 | OBS-03 | Solo "ya contactado" | Etapa + `fecha_ultimo_contacto` + RFQ-08: fecha de seguimiento editable (+3 hábiles) y vencimiento (+10) | `gestor-datos-solicitud`, `actualizar-datos-oportunidad` | 14/14 E2E; unitarias 618 | **parcial probado** — falta acción concreta/ responsable |
 | OBS-04 | Descripción técnica sin condición interna/estación por solicitud | Línea con área de catálogo, procesos, externo, descuento y snapshot técnico reabrible | `formulario-cotizacion`, `guardar_cotizacion_atomica` | PGlite 12/12; E2E comercial | **parcial probado** — "varias solicitudes/partidas" = multilínea (equivalencia) |
 | OBS-05 | Distribución no automática; sin subáreas | Partidas heredan área/procesos de la línea al aprobar (una sola orden, sin duplicar venta) | `aprobar_oportunidad_y_crear_orden` + UI | E2E comercial + PGlite | **equivalencia** — distribución por área al aprobar; subáreas pendientes (OBS-14) |
-| OBS-06 | Planos solo en Comercial | Adjuntos múltiples con URL firmada y modo lectura en la oportunidad | `panel-adjuntos`, `obtener-url-adjunto` | unitarias adjuntos | **pendiente** — visor/descarga desde taller (ORD-09/DOC-04) |
+| OBS-06 | Planos solo en Comercial | Adjuntos múltiples con URL firmada; visor/descarga y subida desde el piso (permiso Producción + service_role, ruta validada por carpeta de la cotización) | `panel-adjuntos`, `panel-documentos-orden`, `obtener-url-documento-orden` | E2E aceptacion-comercial + unitarias | **implementado** - 21-sep (visor y subida en taller) |
 | OBS-07 | Cotización sin vínculo visible | Sección Cotización en la oportunidad (editor modal) con calculadora y guardado en contexto | `editor-cotizacion`, `formulario-cotizacion` | E2E comercial (guardar/reabrir) | **completo** (sección propia de listado "Cotizaciones" no existe; equivalencia en ficha/pipeline) |
 | OBS-08 | Etiqueta mínima en Planeación | Partida programable por etiqueta legible folio·pieza—descripción | `planeacion/*` | E2E planeación | **parcial probado** — falta material/desglose por proceso (PRD-16) |
 | OBS-09 | Sin colas por área/operador | Backend fuerza asignación (`operador_asignado_id`); RPC rechazan ajenos | RPC producción + `produccion-piso` | E2E piso + PGlite | **parcial probado** — falta `areaId`/colas por área |
 | OBS-10 | Parciales por pieza | Avances por partida/sesión + entrega parcial con nota persistida (fabricar ≠ entregar) | `registros_avance_partida`, `notas_entrega` | E2E piso (parcial/total) | **completo** |
 | OBS-11 | Ficha sin enlaces ni notas de operador | Historial 360° por cliente (cotizaciones, órdenes, pagos); notas de entrega en historial | `historial-cliente`, `obtener-historial-cliente` | unitarias historial | **parcial probado** — sin enlaces a originales ni notas de sesión automáticas |
 | OBS-12 | Sin inventario en la base | Consumo atómico por partida con kardex/CPP; variante con consumo previo descuenta solo la diferencia | `registrar_consumo_material_op` | E2E órdenes (consumo) | **equivalencia probada** (D-10) |
-| OBS-13 | Sin documento de conformidad | Registro de nota (cantidades, parcial, recibido por) sin documento imprimible | `notas_entrega` | E2E piso | **pendiente** — DOC-01/02/03 (impresión) |
+| OBS-13 | Sin documento de conformidad | Registro de nota (cantidades, parcial, recibido por) con documento imprimible y firmas de conformidad | `notas_entrega`, `NotaEntregaDocumentoBoton` | E2E piso | **implementado** - 21-sep (OBS-13/OBS-21) |
 | OBS-14 | Áreas planas | Áreas configurables (código, color, externa) + botones de área en cotización | `areas_trabajo_config`, `pestana-areas` | E2E config/aceptación | **parcial probado** — subáreas/procesos pendientes; mapa explícito acordado en ADR |
 | OBS-15 | Alta manual desconectada | Origen comercial (`aprobar_oportunidad_y_crear_orden`); alta manual queda como excepción administrativa | `ordenes/*` | E2E comercial + piso | **equivalencia probada** (excepción histórica por decisión D-01) |
 | OBS-16 | Acciones dispersas | Transiciones reales con auditoría; Programada/En proceso distinguidas en filtros | `ordenes-servicio`, `tabla-ordenes` | E2E órdenes/piso | **completo** |
@@ -48,11 +48,14 @@ parciales, monedero/saldo a favor, bitácora durable, dashboard por rol y catál
 Los reemplazos por OBS se hicieron por equivalencia (OBS-05/12/15/22), no duplicando módulos.
 
 ## Decisiones pendientes (no inventadas)
-D-02 (alcance de las 8 h), D-04 (si el negocio exige exigibilidad desde aprobación), OBS-21
-(punto de archivo), OBS-27 (contenido del estado de cuenta), OBS-28 (selector de orden: ¿filtro
-por folio/cliente?), OBS-02/03 (contacto adicional y acción de seguimiento con responsable).
+Resueltas por el cliente en la segunda ronda (ver `decisiones-cliente-backlog.md`): D-02 (jornada
+8 h + capacidad instalada, pendiente de implementar), D-04 (exigibilidad a la entrega con
+anticipos, **implementada** 21-sep), OBS-21 (archivo al entregar, **implementado**), OBS-27 (solo
+órdenes abiertas + días de cartera, **implementado**), OBS-28 (folio y cliente, **implementado**),
+OBS-02/03 (ejemplos enviados; pendiente de respuesta).
 
 ## Dependencias que impiden comprobar
 El OCR (GAS-08) requiere proveedor de IA (bloqueado en local); la concurrencia estricta no se
-probó (solo sincronización multi-vista); los documentos imprimibles (OBS-13/21/26/27) dependen del
-bloque DOC-01/03.
+probó (solo sincronización multi-vista). Los documentos imprimibles (DOC-01/03, OBS-13/21/26/27)
+y el visor de planos en taller (OBS-06/ORD-09) quedaron **implementados y verificados** (21-sep:
+PGlite y E2E local 17/17).
