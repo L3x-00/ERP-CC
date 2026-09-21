@@ -16,6 +16,7 @@ import {
   DocumentosOrdenPanel,
 } from '@/modulos/produccion/componentes/documentos-orden-panel';
 import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formulario-nota-entrega';
+import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion } from '@/modulos/produccion/componentes/kanban-produccion';
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
@@ -25,10 +26,12 @@ import type { MotivoPausaSesion } from '@/modulos/produccion/tipos/indice';
 export interface PropsOperacionProduccion {
   datosIniciales: DatosTableroProduccion;
   operadorId: string | null;
+  usuarioActualId?: string;
+  esAdmin?: boolean;
 }
 
 /** Orquesta el piso de taller sin copias locales de datos de negocio. */
-export function OperacionProduccion({ datosIniciales, operadorId }: PropsOperacionProduccion) {
+export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false }: PropsOperacionProduccion) {
   const clienteConsultas = useQueryClient();
   const recursoId = usarTiendaProduccion((estado) => estado.recursoId);
   const estados = usarTiendaProduccion((estado) => estado.estados);
@@ -177,6 +180,15 @@ export function OperacionProduccion({ datosIniciales, operadorId }: PropsOperaci
         ordenId={ordenSeleccionada?.id ?? null}
         ordenFolio={ordenSeleccionada?.folio ?? null}
       />
+      {ordenSeleccionada && (
+        <HiloComentarios
+          entidadTipo="orden"
+          entidadId={ordenSeleccionada.id}
+          usuarioActualId={usuarioActualId}
+          puedeEliminarTodos={esAdmin}
+          titulo={`Comentarios de ${ordenSeleccionada.folio}`}
+        />
+      )}
     </div>
   );
 }

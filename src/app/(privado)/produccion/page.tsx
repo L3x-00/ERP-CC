@@ -25,7 +25,12 @@ export default async function PaginaProduccion() {
           Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la página.
         </p>
       </header>
-      <OperacionProduccion datosIniciales={datosIniciales} operadorId={operador?.id ?? null} />
+      <OperacionProduccion
+        datosIniciales={datosIniciales}
+        operadorId={operador?.id ?? null}
+        usuarioActualId={usuario.id}
+        esAdmin={usuario.rol === 'admin'}
+      />
     </div>
   );
 }

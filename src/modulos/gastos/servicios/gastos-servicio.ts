@@ -165,9 +165,11 @@ function componentesFaltantes(
     sesiones_consideradas: number;
     gastos_considerados: number;
   },
+  esInterna: boolean,
 ): ComponenteRentabilidad[] {
   const faltantes: ComponenteRentabilidad[] = [];
-  if (numeroSeguro(fila.monto_venta_mxn) <= 0) faltantes.push('ingreso');
+  // TI no genera venta por diseño: no es un dato faltante.
+  if (!esInterna && numeroSeguro(fila.monto_venta_mxn) <= 0) faltantes.push('ingreso');
   if (numeroSeguro(fila.materiales_considerados) === 0) faltantes.push('materiales');
   if (numeroSeguro(fila.sesiones_consideradas) === 0) faltantes.push('mano_obra');
   if (numeroSeguro(fila.gastos_considerados) === 0) faltantes.push('gastos');
@@ -183,8 +185,20 @@ export async function obtenerRentabilidadOrdenServicio(
   if (error) lanzarError(error.message);
   const fila = data?.[0];
   if (!fila) throw new ErrorGastos('orden_inexistente');
+
+  // El costo de producción de un TI se informa sin exigir venta ni margen.
+  const { data: orden, error: errorOrden } = await admin
+    .from('ordenes_produccion')
+    .select('folio, es_interna')
+    .eq('id', ordenId)
+    .maybeSingle();
+  if (errorOrden) lanzarError(errorOrden.message);
+  const esInterna = orden?.es_interna ?? false;
+
   return {
     ordenId: fila.orden_id,
+    folio: orden?.folio ?? 'Orden no disponible',
+    esInterna,
     moneda: 'MXN',
     ingresoMxn: numeroSeguro(fila.monto_venta_mxn),
     costoMaterialesMxn: numeroSeguro(fila.costo_materiales_mxn),
@@ -199,7 +213,7 @@ export async function obtenerRentabilidadOrdenServicio(
     sesionesSinTarifa: numeroSeguro(fila.sesiones_sin_tarifa),
     gastosConsiderados: numeroSeguro(fila.gastos_considerados),
     gastosExcluidos: numeroSeguro(fila.gastos_excluidos),
-    componentesFaltantes: componentesFaltantes(fila),
+    componentesFaltantes: componentesFaltantes(fila, esInterna),
   };
 }
 

@@ -127,6 +127,36 @@ describe('margen y rentabilidad', () => {
     expect(resultado.componentesFaltantes).toEqual(['ingreso', 'mano_obra', 'gastos']);
   });
 
+  it('un TI informa su costo de producción sin exigir venta', () => {
+    const resultado = calcularRentabilidadOrden({
+      ordenId: ORDEN,
+      folio: 'OP-001000',
+      esInterna: true,
+      ingreso: null,
+      materiales: [{ cantidadUsada: 4, cantidadScrap: 0, costoUnitarioMomento: 100 }],
+      sesiones: [{ horasNetas: 2, costoHoraInterno: 50 }],
+      gastos: [gasto({ montoTotal: 232 })],
+    });
+    expect(resultado.esInterna).toBe(true);
+    expect(resultado.folio).toBe('OP-001000');
+    expect(resultado.ingresoMxn).toBe(0);
+    expect(resultado.costoTotalMxn).toBe(732);
+    expect(resultado.margenPorcentaje).toBeNull();
+    expect(resultado.componentesFaltantes).toEqual([]);
+  });
+
+  it('un TI sin costos reporta los componentes faltantes pero nunca ingreso', () => {
+    const resultado = calcularRentabilidadOrden({
+      ordenId: ORDEN,
+      esInterna: true,
+      ingreso: null,
+      materiales: [],
+      sesiones: [],
+      gastos: [],
+    });
+    expect(resultado.componentesFaltantes).toEqual(['materiales', 'mano_obra', 'gastos']);
+  });
+
   it('nunca propaga NaN o Infinity y es determinista', () => {
     const entrada = {
       ordenId: ORDEN,

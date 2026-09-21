@@ -272,6 +272,13 @@ test.describe.serial('piso de Producción y entregas', () => {
     // Orden manual sin cotización: el piso lo informa en vez de ofrecer una carpeta.
     await expect(panelEntregables).toContainText('no hay carpeta donde guardar documentos');
 
+    // OBS-17: hilo de comentarios del trabajo dentro del piso.
+    const hilo = page.getByTestId('hilo-comentarios');
+    await expect(hilo).toBeVisible();
+    await hilo.getByLabel('Nuevo comentario').fill('Entrega revisada en piso');
+    await hilo.getByRole('button', { name: 'Comentar' }).click();
+    await expect(hilo).toContainText('Entrega revisada en piso');
+
     const { data: notas, error: errorNotas } = await contextoPrueba.admin
       .from('notas_entrega')
       .select('*')
