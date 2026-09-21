@@ -63,7 +63,10 @@ export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRe
               <TablaCelda>{gasto.descripcion}</TablaCelda>
               <TablaCelda>{gasto.categoria}</TablaCelda>
               <TablaCelda className="font-mono text-xs">{gasto.proveedorId ?? '—'}</TablaCelda>
-              <TablaCelda className="font-mono text-xs">{gasto.ordenId ?? 'Indirecto'}</TablaCelda>
+              <TablaCelda className="font-mono text-xs">
+                {gasto.ordenFolio
+                  ?? (gasto.ordenId ? `${gasto.ordenId.slice(0, 8)}…` : 'Indirecto')}
+              </TablaCelda>
               <TablaCelda className="text-right tabular-nums">{formatearMoneda(gasto.montoTotal, gasto.moneda)}</TablaCelda>
               <TablaCelda>{gasto.fechaGasto}</TablaCelda>
               <TablaCelda>

@@ -21,6 +21,7 @@ function gasto(parcial: Partial<Gasto>): Gasto {
     id: `00000000-0000-4000-8000-${String(contador).padStart(12, '0')}`,
     folio: `GTO-${String(contador).padStart(6, '0')}`,
     ordenId: ORDEN,
+    ordenFolio: null,
     proveedorId: null,
     categoria: 'maquila_externa',
     descripcion: 'Tratamiento térmico',

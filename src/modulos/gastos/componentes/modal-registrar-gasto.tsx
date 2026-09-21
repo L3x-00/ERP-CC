@@ -7,6 +7,7 @@ import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { useQuery } from '@tanstack/react-query';
 import { obtenerCuentasGastoAccion } from '@/modulos/gastos/acciones/obtener-cuentas-gasto';
+import { obtenerOrdenesGastoAccion } from '@/modulos/gastos/acciones/obtener-ordenes-gasto';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import {
   CATEGORIAS_GASTO,
@@ -38,6 +39,18 @@ export function ModalRegistrarGasto({
 }: ModalRegistrarGastoProps) {
   const { categoriasGasto } = usarCatalogosComerciales();
   const [ordenId, setOrdenId] = useState(ordenIdInicial ?? '');
+  const [busquedaOrden, setBusquedaOrden] = useState('');
+  const ordenesOpciones = useQuery({
+    queryKey: ['gastos', 'ordenes', busquedaOrden],
+    queryFn: async () => {
+      const respuesta = await obtenerOrdenesGastoAccion(
+        busquedaOrden.trim() ? { busqueda: busquedaOrden.trim() } : {},
+      );
+      return respuesta.exito ? (respuesta.datos ?? []) : [];
+    },
+    enabled: abierto,
+    staleTime: 30_000,
+  });
   const [categoria, setCategoria] = useState<string>(CATEGORIAS_GASTO[0]);
   const [descripcion, setDescripcion] = useState('');
   const [subtotal, setSubtotal] = useState('');
@@ -185,7 +198,38 @@ export function ModalRegistrarGasto({
             ) : null}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1"><Label htmlFor="gasto-orden">ID de orden (opcional)</Label><Input id="gasto-orden" value={ordenId} onChange={(evento) => setOrdenId(evento.target.value)} /></div>
+            <div className="grid gap-1">
+              <Label htmlFor="gasto-orden-busqueda">Orden vinculada (opcional)</Label>
+              <Input
+                id="gasto-orden-busqueda"
+                data-testid="gasto-orden-busqueda"
+                value={busquedaOrden}
+                onChange={(evento) => setBusquedaOrden(evento.target.value)}
+                placeholder="Busca por folio (OP-…) o cliente"
+              />
+              <Select
+                id="gasto-orden"
+                data-testid="gasto-orden"
+                value={ordenId}
+                onChange={(evento) => setOrdenId(evento.target.value)}
+                disabled={ordenesOpciones.isPending}
+              >
+                <option value="">Sin orden (indirecto)</option>
+                {ordenId && !(ordenesOpciones.data ?? []).some((opcion) => opcion.id === ordenId) ? (
+                  <option value={ordenId}>Orden seleccionada</option>
+                ) : null}
+                {(ordenesOpciones.data ?? []).map((opcion) => (
+                  <option key={opcion.id} value={opcion.id}>
+                    {opcion.etiqueta}
+                  </option>
+                ))}
+              </Select>
+              {ordenesOpciones.isError ? (
+                <span role="alert" className="text-xs text-peligro-texto">
+                  No se pudieron cargar las órdenes.
+                </span>
+              ) : null}
+            </div>
             <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value)}>{categoriasGasto.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
           </div>
           <div className="grid gap-1">

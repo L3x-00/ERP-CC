@@ -119,9 +119,19 @@ export function KanbanProduccion({
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <strong className="font-mono text-base font-semibold text-texto-primario">
-                        {orden.folio}
-                      </strong>
+                      <div className="flex items-center gap-1.5">
+                        <strong className="font-mono text-base font-semibold text-texto-primario">
+                          {orden.folio}
+                        </strong>
+                        {orden.esInterna && (
+                          <span
+                            className="rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario"
+                            title="Trabajo interno (TI): no genera cobranza ni cuenta como venta"
+                          >
+                            TI
+                          </span>
+                        )}
+                      </div>
                       <BadgeEstado
                         estado={orden.estadoKanban}
                         etiqueta={ETIQUETAS_ESTADO[orden.estadoKanban]}

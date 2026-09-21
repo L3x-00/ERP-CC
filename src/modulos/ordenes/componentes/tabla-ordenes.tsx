@@ -62,6 +62,8 @@ export type OrdenTabla = {
   fechaCompromiso: string;
   /** Token de versión (ORD-05) para editar el borrador con compare-and-set. */
   actualizadoEn: string;
+  /** OBS-21: fecha de archivo al completar la entrega; null si sigue activa. */
+  archivadaEn: string | null;
   esInterna: boolean;
   partidas: PartidaTabla[];
 };
@@ -205,6 +207,7 @@ export function TablaOrdenes({
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
   const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
+  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>('activas');
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [hidratado, setHidratado] = useState(false);
 
@@ -234,14 +237,16 @@ export function TablaOrdenes({
   const ordenesVisibles = useMemo(
     () =>
       ordenes.filter((orden) => {
+        const pasaBandeja =
+          bandeja === 'archivo' ? orden.archivadaEn !== null : orden.archivadaEn === null;
         const pasaEstado =
           filtrosEstado.length === 0 || filtrosEstado.includes(orden.estado);
         const pasaMaquina =
           filtroMaquina === null ||
           orden.partidas.some((partida) => partida.maquinaAsignada === filtroMaquina);
-        return pasaEstado && pasaMaquina;
+        return pasaBandeja && pasaEstado && pasaMaquina;
       }),
-    [ordenes, filtrosEstado, filtroMaquina],
+    [ordenes, filtrosEstado, filtroMaquina, bandeja],
   );
 
   function alSeleccionarOrden(ordenId: string): void {
@@ -357,6 +362,27 @@ export function TablaOrdenes({
         </div>
 
         <div className="flex items-center gap-2">
+          <div
+            role="tablist"
+            aria-label="Bandeja de órdenes"
+            className="flex overflow-hidden rounded-base border border-borde-fuerte"
+          >
+            {(['activas', 'archivo'] as const).map((valor) => (
+              <button
+                key={valor}
+                type="button"
+                role="tab"
+                aria-selected={bandeja === valor}
+                data-testid={`bandeja-${valor}`}
+                onClick={() => setBandeja(valor)}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                  bandeja === valor ? 'bg-primario text-white' : 'hover:bg-superficie-2'
+                }`}
+              >
+                {valor === 'activas' ? 'Activas' : 'Archivo'}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={limpiarFiltros}
@@ -373,8 +399,12 @@ export function TablaOrdenes({
 
       {ordenesVisibles.length === 0 ? (
         <EstadoVacio
-          titulo="Sin órdenes que coincidan"
-          descripcion="Ninguna orden coincide con la máquina o los estados seleccionados."
+          titulo={bandeja === 'archivo' ? 'Archivo vacío' : 'Sin órdenes que coincidan'}
+          descripcion={
+            bandeja === 'archivo'
+              ? 'Las órdenes se archivan automáticamente al completar la entrega total.'
+              : 'Ninguna orden coincide con la máquina o los estados seleccionados.'
+          }
           accion={
             filtroMaquina !== null || filtrosEstado.length > 0 ? (
               <Button variante="contorno" tamano="lg" onClick={limpiarFiltros}>
@@ -430,6 +460,11 @@ export function TablaOrdenes({
                             title="Cotización de origen"
                           >
                             {orden.folioCotizacionCnc}
+                          </span>
+                        )}
+                        {orden.archivadaEn && (
+                          <span className="font-sans text-[10px] font-normal text-texto-tenue">
+                            Archivada {formatearFecha(orden.archivadaEn)}
                           </span>
                         )}
                       </span>

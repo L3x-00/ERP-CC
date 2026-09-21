@@ -1017,6 +1017,7 @@ export type Database = {
       ordenes_produccion: {
         Row: {
           actualizado_en: string
+          archivada_en: string | null
           cliente_id: string
           cotizacion_id: string | null
           creado_en: string
@@ -1032,6 +1033,7 @@ export type Database = {
         }
         Insert: {
           actualizado_en?: string
+          archivada_en?: string | null
           cliente_id: string
           cotizacion_id?: string | null
           creado_en?: string
@@ -1047,6 +1049,7 @@ export type Database = {
         }
         Update: {
           actualizado_en?: string
+          archivada_en?: string | null
           cliente_id?: string
           cotizacion_id?: string | null
           creado_en?: string

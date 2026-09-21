@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  esquemaBuscarOrdenesGasto,
   esquemaCambiarEstadoGasto,
   esquemaComprobanteOCR,
   esquemaConsultarGastos,
@@ -82,6 +83,13 @@ describe('esquemaRegistrarGasto', () => {
 });
 
 describe('consultas y cambio de estado', () => {
+  it('valida la búsqueda de órdenes del selector (OBS-28)', () => {
+    expect(esquemaBuscarOrdenesGasto.safeParse({}).success).toBe(true);
+    expect(esquemaBuscarOrdenesGasto.safeParse({ busqueda: 'OP-001' }).success).toBe(true);
+    expect(esquemaBuscarOrdenesGasto.safeParse({ busqueda: 'x'.repeat(81) }).success).toBe(false);
+    expect(esquemaBuscarOrdenesGasto.safeParse({ busqueda: 'OP', extra: true }).success).toBe(false);
+  });
+
   it('valida filtros de fecha y transición', () => {
     expect(esquemaConsultarGastos.safeParse({ desde: '2026-09-10', hasta: '2026-09-01' }).success)
       .toBe(false);
@@ -169,6 +177,7 @@ describe('filaAGasto', () => {
     expect(gasto.montoTotal).toBe(1_160);
     expect(gasto.tipoCambio).toBe(1);
     expect(gasto.ordenId).toBe(ORDEN);
+    expect(gasto.ordenFolio).toBeNull();
   });
 
   it('rompe ante enum o importe ilegible', () => {
