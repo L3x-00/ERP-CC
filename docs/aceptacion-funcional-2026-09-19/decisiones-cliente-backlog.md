@@ -25,8 +25,10 @@
    único) en la ficha, y en el seguimiento **responsable** (vendedor asignado) + **siguiente acción
    concreta** obligatoria con aviso de atraso. El cliente había pedido un ejemplo; se entregó y se
    implementó el flujo completo.
-7. **TI · Conteos operativos — RESUELTA (ajuste):** se incluyen en lo operativo; además se pide, si es
-   posible, **obtener el costo de producción de las TI** (no generan precio de venta ni AR).
+7. **TI · Conteos operativos — RESUELTA (ajuste) e IMPLEMENTADA:** se incluyen en lo operativo; además se pide, si es
+   posible, **obtener el costo de producción de las TI** (no generan precio de venta ni AR). ✅ implementado
+   (21-sep): la tarjeta de rentabilidad informa “Costo de producción” del TI (materiales, mano de obra y
+   gastos directos) sin exigir venta, con E2E propio.
 8. **Prioridad:** el cliente **solicitó un ejemplo** de priorización del backlog restante.
 
 **Pendientes de respuesta:** ninguno de fondo; 6 y 8 esperan que enviemos los ejemplos.

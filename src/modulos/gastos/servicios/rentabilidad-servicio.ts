@@ -32,6 +32,10 @@ export interface EntradaSesionRentabilidad {
 
 export interface EntradaRentabilidadOrden {
   ordenId: string;
+  /** Folio para el encabezado; opcional en cálculos aislados. */
+  folio?: string;
+  /** Trabajo interno (TI): no exige venta; se informa su costo de producción. */
+  esInterna?: boolean;
   ingreso: EntradaIngresoOrden | null;
   materiales: readonly EntradaMaterialConsumido[];
   sesiones: readonly EntradaSesionRentabilidad[];
@@ -159,12 +163,15 @@ export function calcularRentabilidadOrden(
   const utilidadBrutaMxn = redondear(ingresoMxn - costoTotalMxn, DECIMALES_MONTO);
   const margenPorcentaje = calcularMargenPorcentaje(utilidadBrutaMxn, ingresoMxn);
   const componentesFaltantes: ComponenteRentabilidad[] = [];
-  if (ingresoCalculado === null) componentesFaltantes.push('ingreso');
+  // Un TI no genera venta por diseño: no se reporta como dato faltante.
+  if (!entrada.esInterna && ingresoCalculado === null) componentesFaltantes.push('ingreso');
   if (materiales.considerados === 0) componentesFaltantes.push('materiales');
   if (manoObra.considerados === 0) componentesFaltantes.push('mano_obra');
   if (gastos.considerados === 0) componentesFaltantes.push('gastos');
   return {
     ordenId: entrada.ordenId,
+    folio: entrada.folio ?? 'Orden no disponible',
+    esInterna: entrada.esInterna ?? false,
     moneda: MONEDA_RENTABILIDAD,
     ingresoMxn,
     costoMaterialesMxn: materiales.costo,

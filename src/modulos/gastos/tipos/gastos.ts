@@ -101,6 +101,10 @@ export type ComponenteRentabilidad = (typeof COMPONENTES_RENTABILIDAD)[number];
 /** Resultado consolidado en MXN, incluyendo indicadores de datos faltantes. */
 export interface CalculoRentabilidadOrden {
   ordenId: string;
+  /** Folio de la orden para el encabezado de la tarjeta. */
+  folio: string;
+  /** Trabajo interno (TI): no genera venta ni AR; se informa su costo. */
+  esInterna: boolean;
   moneda: MonedaRentabilidad;
   ingresoMxn: number;
   costoMaterialesMxn: number;
