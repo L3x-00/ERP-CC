@@ -10,6 +10,8 @@ export interface OrdenCrudaEstadoCuenta {
   estado: string;
   fechaCompromiso: string;
   esInterna: boolean;
+  /** OBS-21: las órdenes archivadas (entregadas) no se muestran en el estado. */
+  archivadaEn: string | null;
   cotizacionId: string | null;
   cotizacionFolio: string | null;
   cotizacionMoneda: string;
@@ -43,6 +45,8 @@ export interface FilaOrdenEstadoCuenta {
   folio: string;
   estado: string;
   esInterna: boolean;
+  /** Visible en el estado de cuenta: ni archivada (entregada) ni cancelada. */
+  abierta: boolean;
   fechaCompromiso: string;
   cotizacionFolio: string | null;
   moneda: 'MXN' | 'USD';
@@ -125,6 +129,7 @@ export function resumirOrdenesEstadoCuenta(
       folio: orden.folio,
       estado: orden.estado,
       esInterna: orden.esInterna,
+      abierta: orden.archivadaEn === null && orden.estado !== 'cancelada',
       fechaCompromiso: orden.fechaCompromiso,
       cotizacionFolio: orden.cotizacionFolio,
       moneda: monedaSegura(orden.cotizacionMoneda),
@@ -150,3 +155,25 @@ export const ETIQUETA_SITUACION_ORDEN: Record<SituacionCobroOrden, string> = {
   pagado: 'Pagado',
   sin_ar: 'Sin AR',
 };
+
+/** Días de atraso de la cartera vencida (0 si no hay nada vencido). */
+export function diasAtrasoMaximo(
+  cuentas: readonly {
+    estado: string;
+    saldoPendiente: number;
+    fechaVencimiento: string;
+  }[],
+  hoy: Date,
+): number {
+  const vigentes = cuentas.filter(
+    (cuenta) => cuenta.estado !== 'cancelado' && cuenta.saldoPendiente > 0.00005,
+  );
+  let maximo = 0;
+  for (const cuenta of vigentes) {
+    const vencimiento = new Date(cuenta.fechaVencimiento).getTime();
+    if (!Number.isFinite(vencimiento)) continue;
+    const dias = Math.floor((hoy.getTime() - vencimiento) / 86_400_000);
+    if (dias > maximo) maximo = dias;
+  }
+  return maximo;
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  diasAtrasoMaximo,
   resumirOrdenesEstadoCuenta,
   totalCotizadoSinIva,
   type OrdenCrudaEstadoCuenta,
@@ -13,6 +14,7 @@ const ORDEN_BASE: OrdenCrudaEstadoCuenta = {
   estado: 'en_proceso',
   fechaCompromiso: '2026-10-01T12:00:00.000Z',
   esInterna: false,
+  archivadaEn: null,
   cotizacionId: '22222222-2222-4222-8222-222222222222',
   cotizacionFolio: 'CNC-0926-0001',
   cotizacionMoneda: 'MXN',
@@ -42,7 +44,22 @@ describe('resumirOrdenesEstadoCuenta', () => {
     expect(filas[0]?.avancePorcentaje).toBe(25);
     expect(filas[0]?.situacion).toBe('no_exigible');
     expect(filas[0]?.saldo).toBe(0);
+    expect(filas[0]?.abierta).toBe(true);
     expect(filas[0]?.cotizacionFolio).toBe('CNC-0926-0001');
+  });
+
+  it('las órdenes archivadas (entregadas) no se consideran abiertas', () => {
+    const filas = resumirOrdenesEstadoCuenta(
+      [
+        { ...ORDEN_BASE, archivadaEn: '2026-09-18T12:00:00.000Z' },
+        { ...ORDEN_BASE, id: '33333333-3333-4333-8333-333333333333', estado: 'cancelada' },
+      ],
+      [],
+      new Map(),
+      HOY,
+    );
+    expect(filas[0]?.abierta).toBe(false);
+    expect(filas[1]?.abierta).toBe(false);
   });
 
   it('resume abonado y saldo por orden y detecta vencimiento', () => {
@@ -87,5 +104,37 @@ describe('resumirOrdenesEstadoCuenta', () => {
     expect(filas[0]?.esInterna).toBe(true);
     expect(filas[0]?.moneda).toBe('USD');
     expect(filas[0]?.cotizadoSinIva).toBe(100);
+  });
+});
+
+describe('diasAtrasoMaximo', () => {
+  const cuenta = (parcial: Partial<Parameters<typeof diasAtrasoMaximo>[0][number]>) => ({
+    ordenId: ORDEN_BASE.id,
+    montoTotal: 1_000,
+    saldoPendiente: 1_000,
+    estado: 'pendiente',
+    fechaVencimiento: '2026-09-01T12:00:00.000Z',
+    moneda: 'MXN',
+    ...parcial,
+  });
+
+  it('reporta el atraso de la AR vencida con saldo más antigua', () => {
+    expect(diasAtrasoMaximo([cuenta({ fechaVencimiento: '2026-09-10T12:00:00.000Z' })], HOY)).toBe(9);
+    expect(
+      diasAtrasoMaximo(
+        [
+          cuenta({ fechaVencimiento: '2026-09-10T12:00:00.000Z' }),
+          cuenta({ fechaVencimiento: '2026-09-01T12:00:00.000Z' }),
+        ],
+        HOY,
+      ),
+    ).toBe(18);
+  });
+
+  it('ignora AR pagadas, canceladas o sin saldo', () => {
+    expect(diasAtrasoMaximo([cuenta({ estado: 'pagado', saldoPendiente: 0 })], HOY)).toBe(0);
+    expect(diasAtrasoMaximo([cuenta({ estado: 'cancelado' })], HOY)).toBe(0);
+    expect(diasAtrasoMaximo([cuenta({ saldoPendiente: 0 })], HOY)).toBe(0);
+    expect(diasAtrasoMaximo([cuenta({ fechaVencimiento: '2026-10-01T12:00:00.000Z' })], HOY)).toBe(0);
   });
 });
