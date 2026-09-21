@@ -1586,6 +1586,8 @@ export type Database = {
           activo: boolean
           actualizado_en: string
           area: string
+          capacidad_jornada_override_horas: number | null
+          cantidad_equipos: number
           codigo: string
           costo_hora_interno: number
           creado_en: string
@@ -1596,6 +1598,8 @@ export type Database = {
           activo?: boolean
           actualizado_en?: string
           area: string
+          capacidad_jornada_override_horas?: number | null
+          cantidad_equipos?: number
           codigo: string
           costo_hora_interno?: number
           creado_en?: string
@@ -1606,6 +1610,8 @@ export type Database = {
           activo?: boolean
           actualizado_en?: string
           area?: string
+          capacidad_jornada_override_horas?: number | null
+          cantidad_equipos?: number
           codigo?: string
           costo_hora_interno?: number
           creado_en?: string

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-planeacion';
+import { PanelCapacidadInstalada } from '@/modulos/planeacion/componentes/panel-capacidad-instalada';
 import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { obtenerDatosCalendarioPlaneacionServicio } from '@/modulos/planeacion/servicios/planeacion-servicio';
@@ -103,6 +104,7 @@ export default async function PaginaPlaneacion() {
         rangoInicial={{ fechaInicio, fechaFin }}
         partidasProgramables={partidasProgramables}
       />
+      <PanelCapacidadInstalada />
     </div>
   );
 }
