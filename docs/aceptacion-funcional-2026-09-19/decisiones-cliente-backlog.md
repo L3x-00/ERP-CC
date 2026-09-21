@@ -68,10 +68,13 @@
     “Entregables de producción” en el piso: documentos de la orden listados/abiertos con URL firmada
     de corta vida bajo permiso de Producción, subida de archivos durante la ejecución con límites, y
     nota de entrega imprimible con confirmación (recibido por, acumulados por pieza y firmas).
-13. **Brechas parciales OBS restantes** (en la matriz): OBS-08 desglose en Planeación, OBS-09/PRD-11
-    colas por área, OBS-11 enlaces y notas de sesión, OBS-14 subáreas/procesos, OBS-17 hilo en
-    Producción, OBS-18/19 arrastre y semana/mes, OBS-20 filtro por área, OBS-29 desglose por estación
-    en UI.
+13. **OBS menores — estado al 21-sep:** ✅ OBS-17 (hilo de comentarios en Producción) y ✅ OBS-20
+    (filtro por área ya presente en el calendario de Planeación). **Quedan pendientes:** OBS-08
+    (desglose en Planeación), OBS-09/PRD-11 (colas por área), OBS-11 (enlaces y notas de sesión),
+    OBS-14 (subáreas/procesos), OBS-18/19 (arrastre y vista semana/mes), OBS-29 (desglose por estación
+    en UI) y OBS-04 (equipo por solicitud).
+14. **Costo de TI agregado por periodo** — ⏳ pendiente (opcional): el costo por orden ya se informa en
+    la tarjeta de rentabilidad; un total de TI por periodo en el dashboard requiere una RPC nueva.
 
 ## Límites de entorno por cerrar
 
