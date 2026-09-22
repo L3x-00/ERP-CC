@@ -37,6 +37,16 @@ export default async function PaginaProduccionPiso() {
     throw new Error('No se pudieron cargar los materiales para el control de piso');
   }
 
+  // OBS-09/PRD-11: nombres del catálogo de taller para las etiquetas del piso.
+  const resultadoAreas = await admin
+    .from('areas_trabajo_config')
+    .select('codigo, nombre')
+    .order('orden')
+    .order('nombre');
+  if (resultadoAreas.error) {
+    throw new Error('No se pudieron cargar las áreas de taller para el control de piso');
+  }
+
   const materiales = (resultadoMateriales.data ?? []).map((material) => ({
     id: material.id,
     codigo: material.codigo,
@@ -45,11 +55,22 @@ export default async function PaginaProduccionPiso() {
     unidadControl: material.unidad_control,
   }));
 
+  const areas = (resultadoAreas.data ?? []).map((area) => ({
+    codigo: area.codigo,
+    nombre: area.nombre,
+  }));
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <SincronizadorPisoRealtime />
       <IndicadorSesion nombreUsuario={operador.nombreCompleto} esOperador />
-      <ControlPisoPanel operadorId={operador.id} ordenes={ordenes} materiales={materiales} />
+      <ControlPisoPanel
+        operadorId={operador.id}
+        nombreOperador={operador.nombreCompleto}
+        ordenes={ordenes}
+        materiales={materiales}
+        areas={areas}
+      />
     </div>
   );
 }

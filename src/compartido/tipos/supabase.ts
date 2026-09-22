@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           activo: boolean
           actualizado_en: string
+          area_planeacion: string | null
           codigo: string
           color_hex: string
           costo_hora_interno: number
@@ -26,11 +27,14 @@ export type Database = {
           id: string
           nombre: string
           orden: number
+          padre_codigo: string | null
           tarifa_hora_venta: number
+          tipo: string
         }
         Insert: {
           activo?: boolean
           actualizado_en?: string
+          area_planeacion?: string | null
           codigo: string
           color_hex?: string
           costo_hora_interno?: number
@@ -39,11 +43,14 @@ export type Database = {
           id?: string
           nombre: string
           orden?: number
+          padre_codigo?: string | null
           tarifa_hora_venta?: number
+          tipo?: string
         }
         Update: {
           activo?: boolean
           actualizado_en?: string
+          area_planeacion?: string | null
           codigo?: string
           color_hex?: string
           costo_hora_interno?: number
@@ -52,9 +59,19 @@ export type Database = {
           id?: string
           nombre?: string
           orden?: number
+          padre_codigo?: string | null
           tarifa_hora_venta?: number
+          tipo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "areas_trabajo_config_padre_fk"
+            columns: ["padre_codigo"]
+            isOneToOne: false
+            referencedRelation: "areas_trabajo_config"
+            referencedColumns: ["codigo"]
+          },
+        ]
       }
       capacidades_recurso_turno: {
         Row: {
@@ -1071,6 +1088,49 @@ export type Database = {
           {
             foreignKeyName: "notificaciones_usuario_usuario_id_fkey"
             columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operadores_areas: {
+        Row: {
+          area_codigo: string
+          creado_en: string
+          creado_por: string | null
+          operador_id: string
+        }
+        Insert: {
+          area_codigo: string
+          creado_en?: string
+          creado_por?: string | null
+          operador_id: string
+        }
+        Update: {
+          area_codigo?: string
+          creado_en?: string
+          creado_por?: string | null
+          operador_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operadores_areas_area_codigo_fkey"
+            columns: ["area_codigo"]
+            isOneToOne: false
+            referencedRelation: "areas_trabajo_config"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "operadores_areas_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "operadores_areas_operador_id_fkey"
+            columns: ["operador_id"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]

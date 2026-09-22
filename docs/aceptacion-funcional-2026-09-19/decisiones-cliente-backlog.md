@@ -69,13 +69,13 @@
     de corta vida bajo permiso de Producción, subida de archivos durante la ejecución con límites, y
     nota de entrega imprimible con confirmación (recibido por, acumulados por pieza y firmas).
 13. **OBS menores — estado al 21-sep:** ✅ OBS-17 (hilo de comentarios en Producción), ✅ OBS-20
-    (filtro por área ya presente en el calendario de Planeación), ✅ OBS-08 (desglose de partida en
-    tarjeta y panel: material/procesos/avance/tiempo con "Por definir" explícito), ✅ OBS-18/19
-    (resumen previo, vistas día/semana/mes, arrastre con confirmación por CAS y propuesta de
-    siguiente día hábil con hueco), ✅ OBS-04 (equipo/estación por línea validado contra el catálogo
-    de recursos, heredado a la partida) y ✅ OBS-11 (historial con enlaces al original y notas de
-    taller automáticas). **Quedan pendientes:** OBS-09/PRD-11 (colas por área), OBS-14
-    (subáreas/procesos) y OBS-29 (desglose por estación en UI).
+    (flujo completo y filtro por área en el tablero), ✅ OBS-08 (desglose de partida), ✅ OBS-18/19
+    (vistas semana/mes, arrastre y propuesta de hueco), ✅ OBS-04 (equipo/estación por línea),
+    ✅ OBS-11 (historial con enlaces y notas de taller), ✅ OBS-09/PRD-11 (modelo operador↔área con
+    validación en las RPC y colas por área en piso y tablero) y ✅ OBS-14 (subáreas/procesos
+    configurables con jerarquía y mapeo a las áreas macro de Planeación). **Queda pendiente:**
+    OBS-29 (desglose por estación en la UI de rentabilidad), que vive en el Bloque 4 junto con el
+    costo TI por periodo y los límites de entorno.
 14. **Costo de TI agregado por periodo** — ⏳ pendiente (opcional): el costo por orden ya se informa en
     la tarjeta de rentabilidad; un total de TI por periodo en el dashboard requiere una RPC nueva.
 
@@ -106,7 +106,14 @@ desarrollarán en ramas cortas sobre `main` con PR por bloque, manteniendo los g
   `20260921000001` (equipo/estación por línea, validado contra `recursos_planeacion` y heredado a
   `partidas.maquina_asignada`), select de estación en el cotizador, deep-link
   `/pipeline?oportunidad=<id>` y notas de taller automáticas en el historial del cliente.
-  Evidencia: 686 unitarias, typecheck/lint 0, build 17 rutas y E2E local 22/22 (comercial y
-  historial); **pendiente de que el PO aplique la migración en remoto antes del merge**.
-- Siguientes: Bloque 3 (OBS-09/PRD-11 y OBS-14) y Bloque 4 (OBS-29, TI por periodo, OCR,
-  concurrencia estricta y CI).
+  Evidencia: 686 unitarias, typecheck/lint 0, build 17 rutas y E2E local 22/22; integrado en
+  `main` (PR #15) tras aplicar la migración en remoto.
+- **Bloque 3 — Taller (OBS-14, OBS-09/PRD-11)** ✅ implementado 21-sep: migración
+  `20260921000002` (jerarquía área/subárea/proceso con mapeo a las áreas macro de Planeación;
+  `operadores_areas` N:M y validación de área en asignar operador e iniciar sesión), UI de
+  configuración de operadores por área, select agrupado en Comercial, cola/filtro por área en piso
+  y tablero, y área/estación/responsable visibles en las tarjetas. Evidencia: 692 unitarias,
+  typecheck/lint 0, build 17 rutas y E2E local 23/23 (spec nuevo de taxonomía/colas).
+  **Pendiente: el PO aplica la migración en remoto antes del merge.**
+- Siguiente: Bloque 4 (OBS-29, TI por periodo, OCR, concurrencia estricta, CI y cierre de
+  aceptación).

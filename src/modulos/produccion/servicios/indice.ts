@@ -26,11 +26,13 @@ export {
 export type { NotaEntregaGenerada } from '@/modulos/produccion/servicios/entrega-servicio';
 
 export {
+  codigosAreaFiltrada,
   obtenerDatosTableroProduccionServicio,
   obtenerEstadoKanbanProduccion,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';
 
 export type {
+  AreaCatalogoProduccion,
   DatosTableroProduccion,
   OrdenTableroProduccion,
   PartidaTableroProduccion,

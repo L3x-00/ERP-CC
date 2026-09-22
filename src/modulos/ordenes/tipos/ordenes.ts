@@ -56,6 +56,10 @@ export interface Partida {
   tiempoRealMinutos: number;
   maquinaAsignada: string | null;
   operadorAsignadoId: string | null;
+  /** OBS-14/OBS-09: código del área/subárea/proceso del catálogo de taller. */
+  areaTrabajoCodigo?: string | null;
+  /** OBS-14/OBS-09: procesos solicitados de la línea de cotización. */
+  procesos?: string[];
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -149,6 +153,8 @@ export function filaAPartida(fila: FilaPartida): Partida {
     tiempoRealMinutos: Number(fila.tiempo_real_minutos),
     maquinaAsignada: fila.maquina_asignada,
     operadorAsignadoId: fila.operador_asignado_id,
+    areaTrabajoCodigo: fila.area_trabajo_codigo,
+    procesos: fila.procesos ?? [],
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

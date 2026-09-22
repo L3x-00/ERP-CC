@@ -57,6 +57,21 @@ export interface CuentaBancaria {
   actualizadoEn: string;
 }
 
+import {
+  AREAS_PLANEACION_CATALOGO,
+  TIPOS_AREA_TRABAJO,
+  type AreaPlaneacionCatalogo,
+  type TipoAreaTrabajo,
+} from '@/modulos/configuracion/tipos/taxonomia-taller';
+export {
+  AREAS_PLANEACION_CATALOGO,
+  TIPOS_AREA_TRABAJO,
+} from '@/modulos/configuracion/tipos/taxonomia-taller';
+export type {
+  AreaPlaneacionCatalogo,
+  TipoAreaTrabajo,
+} from '@/modulos/configuracion/tipos/taxonomia-taller';
+
 export interface AreaTrabajoConfig {
   id: string;
   codigo: string;
@@ -67,6 +82,12 @@ export interface AreaTrabajoConfig {
   esExterno: boolean;
   activo: boolean;
   orden: number;
+  /** OBS-14: area | subarea | proceso. */
+  tipo: TipoAreaTrabajo;
+  /** OBS-14: área contenedora; `null` para las raíz. */
+  padreCodigo: string | null;
+  /** OBS-14: área macro de Planeación; los hijos heredan la del padre. */
+  areaPlaneacion: AreaPlaneacionCatalogo | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -120,6 +141,9 @@ export interface FilaAreaTrabajoConfig {
   es_externo: boolean;
   activo: boolean;
   orden: number;
+  tipo: string;
+  padre_codigo: string | null;
+  area_planeacion: string | null;
   creado_en: string;
   actualizado_en: string;
 }
@@ -301,6 +325,14 @@ export function filaACuentaBancaria(fila: FilaCuentaBancaria): CuentaBancaria {
 
 /** Convierte un área de trabajo de Supabase al contrato público del módulo. */
 export function filaAAreaTrabajo(fila: FilaAreaTrabajoConfig): AreaTrabajoConfig {
+  const tipo = (TIPOS_AREA_TRABAJO as readonly string[]).includes(fila.tipo)
+    ? (fila.tipo as TipoAreaTrabajo)
+    : 'area';
+  const areaPlaneacion =
+    fila.area_planeacion !== null
+    && (AREAS_PLANEACION_CATALOGO as readonly string[]).includes(fila.area_planeacion)
+      ? (fila.area_planeacion as AreaPlaneacionCatalogo)
+      : null;
   return {
     id: fila.id,
     codigo: fila.codigo,
@@ -311,6 +343,9 @@ export function filaAAreaTrabajo(fila: FilaAreaTrabajoConfig): AreaTrabajoConfig
     esExterno: fila.es_externo,
     activo: fila.activo,
     orden: fila.orden,
+    tipo,
+    padreCodigo: fila.padre_codigo,
+    areaPlaneacion,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

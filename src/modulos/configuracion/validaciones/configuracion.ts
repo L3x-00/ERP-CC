@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { TIERS_CLIENTE } from '@/modulos/clientes/tipos/indice';
+import {
+  AREAS_PLANEACION_CATALOGO,
+  TIPOS_AREA_TRABAJO,
+} from '@/modulos/configuracion/tipos/taxonomia-taller';
 import { esquemaCatalogoTarifas } from '@/modulos/cotizador/validaciones/tarifas';
 import { FORMATO_CATEGORIA_GASTO } from '@/modulos/gastos/tipos/gastos';
 
@@ -99,11 +103,50 @@ export const esquemaAreaTrabajo = z
     esExterno: z.boolean().default(false),
     activo: z.boolean().default(true),
     orden: z.number().int().min(0).max(99_999).default(0),
+    // OBS-14/D-13: clasificación y jerarquía del catálogo de taller.
+    tipo: z.enum(TIPOS_AREA_TRABAJO).default('area'),
+    padreCodigo: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .max(49, 'El código padre es demasiado largo')
+      .transform((valor) => (valor === '' ? undefined : valor))
+      .refine(
+        (valor) => valor === undefined || /^[A-Z0-9][A-Z0-9_-]{1,48}$/.test(valor),
+        'El código padre no es válido',
+      )
+      .optional(),
+    areaPlaneacion: z.enum(AREAS_PLANEACION_CATALOGO).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((area, contexto) => {
+    if (area.padreCodigo !== undefined && area.padreCodigo === area.codigo) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['padreCodigo'],
+        message: 'Un área no puede ser su propio padre',
+      });
+    }
+  });
 
 export const esquemaConsultaConfiguracion = z
   .object({ soloCuentasActivas: z.boolean().default(true) })
+  .strict();
+
+/** OBS-09/PRD-11: áreas habilitadas de un operador (reemplazo total). */
+export const esquemaAreasOperador = z
+  .object({
+    operadorId: z.uuid('Operador inválido'),
+    areas: z
+      .array(
+        z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[A-Z0-9][A-Z0-9_-]{1,48}$/, 'Código de área inválido'),
+      )
+      .max(50, 'Demasiadas áreas para un operador'),
+  })
   .strict();
 
 /** CFG-08: catálogo de tiers editable; exige los cuatro tiers una sola vez. */
@@ -152,5 +195,6 @@ export type GuardarCuentaBancariaInput = z.infer<typeof esquemaGuardarCuentaBanc
 export type TipoCambioInput = z.infer<typeof esquemaTipoCambio>;
 export type AreaTrabajoInput = z.infer<typeof esquemaAreaTrabajo>;
 export type ConsultaConfiguracionInput = z.infer<typeof esquemaConsultaConfiguracion>;
+export type AreasOperadorInput = z.infer<typeof esquemaAreasOperador>;
 export type CatalogoTiersInput = z.infer<typeof esquemaCatalogoTiers>;
 export type CatalogoCategoriasGastoInput = z.infer<typeof esquemaCatalogoCategoriasGasto>;

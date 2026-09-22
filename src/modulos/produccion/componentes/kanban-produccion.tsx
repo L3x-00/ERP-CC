@@ -5,7 +5,10 @@ import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { cn } from '@/compartido/utilidades/cn';
-import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
+import type {
+  AreaCatalogoProduccion,
+  OrdenTableroProduccion,
+} from '@/modulos/produccion/servicios/indice';
 import {
   ESTADOS_KANBAN_PRODUCCION,
   type EstadoKanbanProduccion,
@@ -32,6 +35,10 @@ export interface PropsKanbanProduccion {
   ordenSeleccionadaId: string | null;
   estadosActivos: readonly EstadoKanbanProduccion[];
   actualizando: boolean;
+  /** OBS-09: catálogo de taller para mostrar área y estación legibles. */
+  areas?: readonly AreaCatalogoProduccion[];
+  /** OBS-09: nombre del operador asignado por id. */
+  responsables?: Readonly<Record<string, string>>;
   onSeleccionarOrden: (ordenId: string) => void;
   onAlternarEstado: (estado: EstadoKanbanProduccion) => void;
 }
@@ -56,12 +63,54 @@ function porcentajeOrden(orden: OrdenTableroProduccion): number {
   return solicitadas > 0 ? (producidas / solicitadas) * 100 : 0;
 }
 
+/** OBS-09/PRD-11: área, estación y responsable de las partidas de la orden. */
+export function resumenTallerOrden(
+  orden: OrdenTableroProduccion,
+  areas: readonly AreaCatalogoProduccion[],
+  responsables: Readonly<Record<string, string>>,
+): string {
+  const nombreArea = new Map(areas.map((area) => [area.codigo, area.nombre]));
+  const codigosArea = [
+    ...new Set(
+      orden.partidas
+        .map((partida) => partida.areaTrabajoCodigo)
+        .filter((valor): valor is string => Boolean(valor)),
+    ),
+  ];
+  const estaciones = [
+    ...new Set(
+      orden.partidas
+        .map((partida) => partida.maquinaAsignada)
+        .filter((valor): valor is string => Boolean(valor)),
+    ),
+  ];
+  const responsablesOrden = [
+    ...new Set(
+      orden.partidas
+        .map((partida) => partida.operadorAsignadoId)
+        .filter((valor): valor is string => Boolean(valor))
+        .map((id) => responsables[id] ?? 'Operador'),
+    ),
+  ];
+  return [
+    codigosArea.length > 0
+      ? `Área: ${codigosArea.map((codigo) => nombreArea.get(codigo) ?? codigo).join(', ')}`
+      : null,
+    estaciones.length > 0 ? `Estación: ${estaciones.join(', ')}` : null,
+    responsablesOrden.length > 0 ? `Responsable: ${responsablesOrden.join(', ')}` : null,
+  ]
+    .filter((parte): parte is string => parte !== null)
+    .join(' · ');
+}
+
 /** Kanban derivado: las columnas no escriben ningún estado en la base de datos. */
 export function KanbanProduccion({
   ordenes,
   ordenSeleccionadaId,
   estadosActivos,
   actualizando,
+  areas = [],
+  responsables = {},
   onSeleccionarOrden,
   onAlternarEstado,
 }: PropsKanbanProduccion) {
@@ -138,6 +187,14 @@ export function KanbanProduccion({
                       />
                     </div>
                     <p className="text-sm font-medium text-texto-secundario">{avanceOrden(orden)}</p>
+                    {resumenTallerOrden(orden, areas, responsables) ? (
+                      <p
+                        className="text-xs text-texto-secundario"
+                        data-testid={`detalle-taller-${orden.id}`}
+                      >
+                        {resumenTallerOrden(orden, areas, responsables)}
+                      </p>
+                    ) : null}
                     <BarraProgreso
                       valor={porcentajeOrden(orden)}
                       mostrarPorcentaje

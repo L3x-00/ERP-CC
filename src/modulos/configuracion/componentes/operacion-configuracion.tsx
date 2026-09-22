@@ -82,6 +82,13 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
     });
     setConfirmacion('Área guardada');
   };
+  const actualizarOperadoresAreas = (
+    operadoresAreas: DatosConfiguracion['operadoresAreas'],
+  ): void => {
+    clienteQuery.setQueryData<DatosConfiguracion>(CLAVE_CONFIGURACION, (actual) =>
+      actual ? { ...actual, operadoresAreas } : actual,
+    );
+  };
 
   function cambiarPestana(id: Pestana): void {
     setPestana(id);
@@ -149,7 +156,9 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
           <PestanaAreasTrabajo
             key={`areas-${vigente.areasTrabajo.map((area) => area.actualizadoEn).join('|')}`}
             datos={vigente.areasTrabajo}
+            operadores={vigente.operadoresAreas}
             onGuardado={actualizarArea}
+            onOperadoresGuardados={actualizarOperadoresAreas}
           />
         ) : null}
         {pestana === 'cuentas' ? (

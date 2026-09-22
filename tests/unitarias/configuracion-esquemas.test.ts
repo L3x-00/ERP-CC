@@ -96,6 +96,40 @@ describe('esquemas de configuración', () => {
     expect(esquemaAreaTrabajo.safeParse({ ...area, codigo: 'laser 1' }).success).toBe(false);
   });
 
+  it('valida la taxonomía de taller y la jerarquía (OBS-14)', () => {
+    const proceso = {
+      codigo: 'LASER_01',
+      nombre: 'Corte láser',
+      colorHex: '#3B82F6',
+      costoHoraInterno: 650,
+      tarifaHoraVenta: 1_100,
+      esExterno: false,
+      activo: true,
+      orden: 1,
+      tipo: 'proceso',
+      padreCodigo: 'metal_mecanica',
+      areaPlaneacion: 'sheet_metal',
+    };
+    const valido = esquemaAreaTrabajo.safeParse(proceso);
+    expect(valido.success).toBe(true);
+    if (valido.success) {
+      expect(valido.data.padreCodigo).toBe('METAL_MECANICA');
+      expect(valido.data.areaPlaneacion).toBe('sheet_metal');
+    }
+
+    // Clasificación y área macro fuera del contrato.
+    expect(esquemaAreaTrabajo.safeParse({ ...proceso, tipo: 'celda' }).success).toBe(false);
+    expect(esquemaAreaTrabajo.safeParse({ ...proceso, areaPlaneacion: 'otra' }).success).toBe(false);
+    // Un área no puede ser su propio padre.
+    expect(
+      esquemaAreaTrabajo.safeParse({ ...proceso, padreCodigo: 'LASER_01' }).success,
+    ).toBe(false);
+    // El padre vacío se normaliza a raíz.
+    const raiz = esquemaAreaTrabajo.safeParse({ ...proceso, padreCodigo: '' });
+    expect(raiz.success).toBe(true);
+    if (raiz.success) expect(raiz.data.padreCodigo).toBeUndefined();
+  });
+
   it('valida tipo de cambio positivo y finito', () => {
     expect(esquemaTipoCambio.safeParse({ tipoCambioUsd: 19.875 }).success).toBe(true);
     expect(esquemaTipoCambio.safeParse({ tipoCambioUsd: 0 }).success).toBe(false);

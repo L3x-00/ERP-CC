@@ -212,6 +212,10 @@ export async function guardarAreaTrabajoServicio(
     es_externo: entrada.esExterno,
     activo: entrada.activo,
     orden: entrada.orden,
+    // OBS-14: jerarquía y mapeo a las áreas macro de Planeación.
+    tipo: entrada.tipo,
+    padre_codigo: entrada.padreCodigo ?? null,
+    area_planeacion: entrada.areaPlaneacion ?? null,
   };
 
   const consulta = entrada.id
@@ -220,4 +224,78 @@ export async function guardarAreaTrabajoServicio(
   const { data, error } = await consulta;
   if (error) throw error;
   return filaAAreaTrabajo(data as FilaAreaTrabajoConfig);
+}
+
+/** OBS-09/PRD-11: operador activo con las áreas que puede atender. */
+export type OperadorAreaConfig = {
+  id: string;
+  nombre: string;
+  areas: string[];
+};
+
+/** Lista operadores activos y sus áreas habilitadas (códigos del catálogo). */
+export async function listarOperadoresAreasServicio(
+  cliente: ClienteConfiguracion = crearClienteSupabaseAdmin(),
+): Promise<OperadorAreaConfig[]> {
+  const [respuestaUsuarios, respuestaAsignaciones] = await Promise.all([
+    cliente
+      .from('usuarios')
+      .select('id, nombre_completo')
+      .eq('rol', 'operador')
+      .eq('activo', true)
+      .order('nombre_completo'),
+    cliente.from('operadores_areas').select('operador_id, area_codigo'),
+  ]);
+  if (respuestaUsuarios.error) throw respuestaUsuarios.error;
+  if (respuestaAsignaciones.error) throw respuestaAsignaciones.error;
+
+  const porOperador = new Map<string, string[]>();
+  for (const fila of respuestaAsignaciones.data ?? []) {
+    const lista = porOperador.get(fila.operador_id) ?? [];
+    lista.push(fila.area_codigo);
+    porOperador.set(fila.operador_id, lista);
+  }
+
+  return (respuestaUsuarios.data ?? []).map((usuario) => ({
+    id: usuario.id,
+    nombre: usuario.nombre_completo,
+    areas: porOperador.get(usuario.id) ?? [],
+  }));
+}
+
+/**
+ * Reemplaza las áreas habilitadas de un operador. Sin filas, el operador queda
+ * sin restricción (transición); el rechazo real vive en las RPC de producción.
+ */
+export async function actualizarAreasOperadorServicio(
+  cliente: ClienteConfiguracion,
+  entrada: { operadorId: string; areas: readonly string[] },
+  creadoPor: string,
+): Promise<void> {
+  const { data: operador, error: errorOperador } = await cliente
+    .from('usuarios')
+    .select('id')
+    .eq('id', entrada.operadorId)
+    .eq('rol', 'operador')
+    .eq('activo', true)
+    .maybeSingle();
+  if (errorOperador) throw errorOperador;
+  if (!operador) throw new Error('El operador no está activo');
+
+  const { error: errorBorrado } = await cliente
+    .from('operadores_areas')
+    .delete()
+    .eq('operador_id', entrada.operadorId);
+  if (errorBorrado) throw errorBorrado;
+
+  if (entrada.areas.length === 0) return;
+
+  const { error: errorInsercion } = await cliente.from('operadores_areas').insert(
+    entrada.areas.map((areaCodigo) => ({
+      operador_id: entrada.operadorId,
+      area_codigo: areaCodigo,
+      creado_por: creadoPor,
+    })),
+  );
+  if (errorInsercion) throw errorInsercion;
 }

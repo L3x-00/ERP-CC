@@ -232,6 +232,14 @@ export function FormularioCotizacion({
     },
     staleTime: 5 * 60 * 1000,
   });
+  // OBS-14: agrupa el catálogo por área padre para leer la jerarquía.
+  const areasDisponibles = areasTrabajo ?? [];
+  const codigosDeArea = new Set(areasDisponibles.map((area) => area.codigo));
+  const areasRaiz = areasDisponibles.filter(
+    (area) => !area.padreCodigo || !codigosDeArea.has(area.padreCodigo),
+  );
+  const hijosDeArea = (codigo: string) =>
+    areasDisponibles.filter((area) => area.padreCodigo === codigo);
   const teniaLineas = lineasIniciales !== undefined && lineasIniciales.length > 0;
   // En consulta no se inventa una línea en blanco: una cotización sin líneas se
   // muestra vacía, no como una partida ficticia con cantidad 1 y precio 0.
@@ -597,11 +605,26 @@ export function FormularioCotizacion({
                   }
                 >
                   <option value="">Sin asignar</option>
-                  {(areasTrabajo ?? []).map((area) => (
-                    <option key={area.codigo} value={area.codigo}>
-                      {area.nombre}
-                    </option>
-                  ))}
+                  {areasRaiz.map((raiz) => {
+                    const hijos = hijosDeArea(raiz.codigo);
+                    if (hijos.length === 0) {
+                      return (
+                        <option key={raiz.codigo} value={raiz.codigo}>
+                          {raiz.nombre}
+                        </option>
+                      );
+                    }
+                    return (
+                      <optgroup key={raiz.codigo} label={raiz.nombre}>
+                        <option value={raiz.codigo}>{raiz.nombre}</option>
+                        {hijos.map((hijo) => (
+                          <option key={hijo.codigo} value={hijo.codigo}>
+                            {hijo.nombre}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </Select>
               </div>
 
