@@ -45,10 +45,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.0
-      - name: Levantar Supabase local
+      - name: Levantar Supabase local (aplica migraciones)
         run: supabase start
-      - name: Aplicar migraciones y seed
-        run: supabase db reset --local
       - name: Exportar entorno del stack local
         run: |
           source <(supabase status -o env)
