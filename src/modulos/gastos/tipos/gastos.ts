@@ -98,6 +98,40 @@ export const COMPONENTES_RENTABILIDAD = [
 
 export type ComponenteRentabilidad = (typeof COMPONENTES_RENTABILIDAD)[number];
 
+/**
+ * OBS-29: categorías que ya están representadas por los rubros de material
+ * (consumo real) y mano de obra (sesiones con tarifa histórica). Sumarlas otra
+ * vez duplicaría el costo; la UI las muestra marcadas y el RPC las cuenta en
+ * `gastosIncluidosEnRubros`.
+ */
+export const CATEGORIAS_INCLUIDAS_EN_RUBROS = ['materia_prima', 'nomina'] as const;
+
+export function categoriaIncluidaEnRubros(categoria: string): boolean {
+  return (CATEGORIAS_INCLUIDAS_EN_RUBROS as readonly string[]).includes(categoria);
+}
+
+/** Rubros del desglose de rentabilidad (OBS-29). */
+export const RUBROS_DESGLOSE_RENTABILIDAD = [
+  'mano_obra',
+  'material',
+  'gasto',
+  'gasto_incluido',
+] as const;
+
+export type RubroDesgloseRentabilidad = (typeof RUBROS_DESGLOSE_RENTABILIDAD)[number];
+
+/** Renglón del desglose por estación/rubro de una orden. */
+export interface DesgloseRentabilidadOrden {
+  rubro: RubroDesgloseRentabilidad;
+  concepto: string;
+  referencia: string | null;
+  horasEstimadas: number | null;
+  horasReales: number | null;
+  tarifaHora: number | null;
+  importe: number;
+  nota: string | null;
+}
+
 /** Resultado consolidado en MXN, incluyendo indicadores de datos faltantes. */
 export interface CalculoRentabilidadOrden {
   ordenId: string;
@@ -119,6 +153,8 @@ export interface CalculoRentabilidadOrden {
   sesionesSinTarifa: number;
   gastosConsiderados: number;
   gastosExcluidos: number;
+  /** OBS-29: gastos de material/nómina que no se sumaron por anti-duplicado. */
+  gastosIncluidosEnRubros: number;
   componentesFaltantes: readonly ComponenteRentabilidad[];
 }
 

@@ -90,4 +90,33 @@ describe('tarjetasEjecutivas', () => {
     expect(internas?.valor).toBe(4);
     expect(internas?.unidad).toBe('cantidad');
   });
+
+  it('expone el costo de producción TI del periodo cuando la RPC lo entrega (OBS-29)', () => {
+    const conCosto = tarjetasEjecutivas({
+      ...METRICAS,
+      costoTi: {
+        actual: {
+          costoMaterialesMxn: 100,
+          costoManoObraMxn: 200,
+          costoGastosMxn: 50,
+          costoTotalMxn: 350,
+          ordenesInternas: 2,
+        },
+        anterior: {
+          costoMaterialesMxn: 0,
+          costoManoObraMxn: 0,
+          costoGastosMxn: 0,
+          costoTotalMxn: 0,
+          ordenesInternas: 0,
+        },
+      },
+    });
+    const porId = new Map(conCosto.map((t) => [t.id, t]));
+    expect(porId.get('costo-ti-periodo')?.valor).toBe(350);
+    expect(porId.get('costo-ti-periodo')?.unidad).toBe('moneda');
+
+    // Sin la RPC (migración pendiente) la tarjeta muestra "—" y no rompe.
+    const sinCosto = new Map(tarjetasEjecutivas(METRICAS).map((t) => [t.id, t]));
+    expect(sinCosto.get('costo-ti-periodo')?.valor).toBe('—');
+  });
 });

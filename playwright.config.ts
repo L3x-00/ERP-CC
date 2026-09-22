@@ -19,7 +19,9 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL || !pruebasRemotasHabilitadas
     ? undefined
     : {
-        command: `pnpm build && pnpm exec next start --port ${puerto}`,
+        // El wrapper levanta un stub local de OpenRouter (GAS-08) y arranca Next
+        // con el override solo-loopback para que el E2E de OCR sea determinista.
+        command: `pnpm build && node tests/e2e/servidor-con-stub-ocr.mjs`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

@@ -79,6 +79,8 @@ export function ModalRegistrarGasto({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [estadoOcr, setEstadoOcr] = useState<'inactivo' | 'exito' | 'error'>('inactivo');
   const [mensajeOcr, setMensajeOcr] = useState<string | null>(null);
+  // GAS-08: evidencia cruda de la última lectura, se guarda con el gasto.
+  const [datosOcr, setDatosOcr] = useState<DatosComprobanteOCR | null>(null);
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -98,6 +100,9 @@ export function ModalRegistrarGasto({
       metodoPago,
       cuentaBancariaId: cuentaBancariaId || undefined,
       notas: notas || undefined,
+      ...(datosOcr
+        ? { datosOcrJson: datosOcr as unknown as Record<string, unknown> }
+        : {}),
     });
     if (resultado.exito) {
       setMensaje(null);
@@ -129,6 +134,7 @@ export function ModalRegistrarGasto({
       if (datos.moneda === 'MXN') setTipoCambio('1');
     }
     if (datos.fechaEmision) setFechaGasto(datos.fechaEmision);
+    setDatosOcr(datos);
     setEstadoOcr('exito');
   }
 

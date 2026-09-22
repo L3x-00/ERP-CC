@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests/unitarias",
     "test:integracion": "vitest run tests/integracion",
+    "test:concurrencia": "vitest run tests/integracion/concurrencia-estricta.test.ts",
     "test:e2e": "playwright test",
     "datos:ficticios:planeacion": "node supabase/semillas/planeacion-ficticia.mjs",
     "verificar:ficticios:planeacion": "node supabase/semillas/planeacion-ficticia.mjs --verificar",

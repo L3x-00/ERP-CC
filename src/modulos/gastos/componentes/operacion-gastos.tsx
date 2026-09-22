@@ -9,6 +9,7 @@ import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { usarTiendaGastos } from '@/estado/uso-tienda-gastos';
 import {
   cambiarEstadoGastoAccion,
+  obtenerDesgloseRentabilidadOrdenAccion,
   obtenerGastosAccion,
   obtenerRentabilidadOrdenAccion,
   procesarComprobanteOcrAccion,
@@ -19,7 +20,11 @@ import { ModalRegistrarGasto } from '@/modulos/gastos/componentes/modal-registra
 import { SincronizadorGastosRealtime } from '@/modulos/gastos/componentes/sincronizador-gastos-realtime';
 import { TablaGastos } from '@/modulos/gastos/componentes/tabla-gastos';
 import { TarjetaRentabilidadOrden } from '@/modulos/gastos/componentes/tarjeta-rentabilidad-orden';
-import type { CalculoRentabilidadOrden, Gasto } from '@/modulos/gastos/tipos/indice';
+import type {
+  CalculoRentabilidadOrden,
+  DesgloseRentabilidadOrden,
+  Gasto,
+} from '@/modulos/gastos/tipos/indice';
 import { ESTADOS_GASTO } from '@/modulos/gastos/tipos/indice';
 import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
 import type { RegistrarGastoInput } from '@/modulos/gastos/validaciones/indice';
@@ -123,6 +128,21 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
     enabled: ordenRentabilidad !== null,
   });
 
+  // OBS-29: desglose por estación/rubro del mismo agregado.
+  const desgloseRentabilidad = useQuery({
+    queryKey: [...CLAVE_RENTABILIDAD_GASTOS, 'desglose', ordenRentabilidad],
+    queryFn: async (): Promise<DesgloseRentabilidadOrden[]> => {
+      const resultado = await obtenerDesgloseRentabilidadOrdenAccion({
+        ordenId: ordenRentabilidad as string,
+      });
+      if (!resultado.exito || !resultado.datos) {
+        throw new Error(resultado.exito ? 'Sin desglose de rentabilidad' : resultado.error);
+      }
+      return resultado.datos;
+    },
+    enabled: ordenRentabilidad !== null,
+  });
+
   const refrescar = useCallback(async () => {
     // Una sola revalidación: invalidar el prefijo ya recarga la rama activa.
     await clienteQuery.invalidateQueries({ queryKey: CLAVE_GASTOS });
@@ -215,7 +235,7 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
         </section>
       ) : null}
       {rentabilidad.isError ? <p role="alert" className="text-sm text-peligro-texto">No se pudo consultar la rentabilidad.</p> : null}
-      <TarjetaRentabilidadOrden datos={rentabilidad.data ?? null} />
+      <TarjetaRentabilidadOrden datos={rentabilidad.data ?? null} desglose={desgloseRentabilidad.data ?? null} />
       <ModalRegistrarGasto abierto={modalAbierto} procesando={procesando} ocrEnCurso={usarTiendaGastos((estado) => estado.ocrEnCurso)} onAbiertoChange={setModalAbierto} onRegistrar={registrar} onOcr={procesarOcr} />
     </div>
   );

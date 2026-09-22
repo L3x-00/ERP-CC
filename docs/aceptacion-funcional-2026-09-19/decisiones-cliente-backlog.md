@@ -68,25 +68,30 @@
     “Entregables de producción” en el piso: documentos de la orden listados/abiertos con URL firmada
     de corta vida bajo permiso de Producción, subida de archivos durante la ejecución con límites, y
     nota de entrega imprimible con confirmación (recibido por, acumulados por pieza y firmas).
-13. **OBS menores — estado al 21-sep:** ✅ OBS-17 (hilo de comentarios en Producción), ✅ OBS-20
-    (flujo completo y filtro por área en el tablero), ✅ OBS-08 (desglose de partida), ✅ OBS-18/19
-    (vistas semana/mes, arrastre y propuesta de hueco), ✅ OBS-04 (equipo/estación por línea),
-    ✅ OBS-11 (historial con enlaces y notas de taller), ✅ OBS-09/PRD-11 (modelo operador↔área con
-    validación en las RPC y colas por área en piso y tablero) y ✅ OBS-14 (subáreas/procesos
-    configurables con jerarquía y mapeo a las áreas macro de Planeación). **Queda pendiente:**
-    OBS-29 (desglose por estación en la UI de rentabilidad), que vive en el Bloque 4 junto con el
-    costo TI por periodo y los límites de entorno.
-14. **Costo de TI agregado por periodo** — ⏳ pendiente (opcional): el costo por orden ya se informa en
-    la tarjeta de rentabilidad; un total de TI por periodo en el dashboard requiere una RPC nueva.
+13. **OBS menores — estado al 21-sep:** ✅ OBS-17, ✅ OBS-20, ✅ OBS-08, ✅ OBS-18/19, ✅ OBS-04,
+    ✅ OBS-11, ✅ OBS-09/PRD-11, ✅ OBS-14 y ✅ OBS-29 (desglose por estación/rubro en la tarjeta de
+    rentabilidad, con regla anti-duplicado: material y nómina no se suman dos veces). **No quedan
+    OBS menores pendientes.**
+14. **Costo de TI agregado por periodo** — ✅ implementado 21-sep: RPC
+    `obtener_costo_ti_periodo` (materiales, mano de obra y gastos directos de las órdenes internas
+    con la misma regla anti-duplicado) y tarjeta "Costo de producción TI" en el dashboard
+    ejecutivo (admin) y de contador, con comparativa del periodo anterior.
 
-## Límites de entorno por cerrar
+## Límites de entorno — cerrados
 
-- **OCR (GAS-08)**: el código está probado con proveedor real en producción; en local no hay clave.
-  Cerrar con una prueba E2E controlada en un entorno con `OPENROUTER_API_KEY` de sandbox.
-- **Concurrencia estricta**: los E2E actuales prueban sincronización multi-vista, no carreras
-  simultáneas de RPC; añadir pruebas de dos conexiones sobre aprobación/pago/consumo.
-- **CI**: los E2E requieren Supabase local (Docker) + fixture; dejarlos en un job de CI con
-  `supabase start` y el script de provisión, o documentar la corrida manual.
+- **OCR (GAS-08)**: ✅ E2E propio (`gastos-ocr.spec.ts`) con proveedor controlado: el arranque E2E
+  levanta un stub local de OpenRouter (`tests/e2e/servidor-con-stub-ocr.mjs`) y el cliente acepta
+  `OPENROUTER_BASE_URL` solo hacia loopback con `OPENROUTER_PERMITIR_ENDPOINT_LOCAL=si` (en
+  producción siempre usa OpenRouter). El gasto guarda además la evidencia cruda
+  (`datos_ocr_json`).
+- **Concurrencia estricta**: ✅ `tests/integracion/concurrencia-estricta.test.ts` con dos conexiones
+  reales sobre `aprobar_oportunidad_y_crear_orden`, `registrar_pago_ar_atomico` y
+  `registrar_consumo_material_op` (una sola orden, un solo pago por solicitud, sin stock negativo).
+  Corre solo contra Supabase local (guardia de loopback) con `pnpm test:concurrencia`.
+- **CI**: ✅ `.github/workflows/ci.yml` con job `verificacion` (typecheck/lint/unitarias) y job
+  `e2e-local` (Supabase CLI fijo, `supabase start` + `db reset`, provisionador portable
+  `supabase/semillas/e2e-local.mjs`, Chromium, E2E y concurrencia). Se añadió `supabase/seed.sql`
+  para que el reset sea determinista.
 
 ## Integración
 
@@ -113,7 +118,14 @@ desarrollarán en ramas cortas sobre `main` con PR por bloque, manteniendo los g
   `operadores_areas` N:M y validación de área en asignar operador e iniciar sesión), UI de
   configuración de operadores por área, select agrupado en Comercial, cola/filtro por área en piso
   y tablero, y área/estación/responsable visibles en las tarjetas. Evidencia: 692 unitarias,
-  typecheck/lint 0, build 17 rutas y E2E local 23/23 (spec nuevo de taxonomía/colas).
-  **Pendiente: el PO aplica la migración en remoto antes del merge.**
-- Siguiente: Bloque 4 (OBS-29, TI por periodo, OCR, concurrencia estricta, CI y cierre de
-  aceptación).
+  typecheck/lint 0, build 17 rutas y E2E local 23/23 (spec nuevo de taxonomía/colas); integrado en
+  `main` (PR #16) tras aplicar la migración en remoto.
+- **Bloque 4 — Rentabilidad, dashboard, límites y cierre (OBS-29 + TI)** ✅ implementado 21-sep:
+  migración `20260921000003` (rentabilidad con anti-duplicado y contador de gastos incluidos,
+  desglose por estación/rubro y costo TI por periodo), tarjeta con desglose expandible, tarjeta de
+  costo TI en dashboard, E2E de OCR con stub, pruebas de concurrencia de dos conexiones y CI de
+  E2E. Evidencia: 700 unitarias, typecheck/lint 0, build 17 rutas, E2E local 24/24 y concurrencia
+  3/3. **Pendiente: el PO aplica `20260921000003` en remoto antes del merge.**
+- **Cierre de aceptación**: la demo/revisión visual del cliente recorre los bloques nuevos
+  (D-04, OBS-02/03, D-02, documentos en piso, costo TI, comentarios en piso, Planeación,
+  Comercial/clientes, Taller y Rentabilidad) con los guiones E2E ya verdes como referencia.

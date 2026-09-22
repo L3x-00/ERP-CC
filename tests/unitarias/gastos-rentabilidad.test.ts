@@ -83,7 +83,31 @@ describe('mano de obra y gastos', () => {
       gasto({ montoTotal: 9_000, montoSubtotal: 9_000, montoIva: 0, estadoPago: 'cancelado' }),
       gasto({ montoTotal: 7_000, montoSubtotal: 7_000, montoIva: 0, ordenId: null }),
       gasto({ montoTotal: 3_000, montoSubtotal: 3_000, montoIva: 0, ordenId: OTRA_ORDEN }),
-    ], ORDEN)).toEqual({ costo: 500, considerados: 1, excluidos: 3 });
+    ], ORDEN)).toEqual({ costo: 500, considerados: 1, excluidos: 3, incluidos: 0 });
+  });
+
+  it('OBS-29: material y nómina no se duplican en el costo directo', () => {
+    expect(calcularCostoGastosDirectosMxn([
+      gasto({ montoTotal: 2_000, montoSubtotal: 2_000, montoIva: 0, categoria: 'materia_prima' }),
+      gasto({ montoTotal: 800, montoSubtotal: 800, montoIva: 0, categoria: 'nomina' }),
+      gasto({ montoTotal: 500, montoSubtotal: 500, montoIva: 0, categoria: 'otros' }),
+    ], ORDEN)).toEqual({ costo: 500, considerados: 1, excluidos: 0, incluidos: 2 });
+
+    const resultado = calcularRentabilidadOrden({
+      ordenId: ORDEN,
+      ingreso: { montoTotal: 10_000, moneda: 'MXN', tipoCambio: 1 },
+      materiales: [{ cantidadUsada: 100, cantidadScrap: 0, costoUnitarioMomento: 30 }],
+      sesiones: [{ horasNetas: 20, costoHoraInterno: 100 }],
+      gastos: [
+        gasto({ montoTotal: 1_000, montoSubtotal: 1_000, montoIva: 0, categoria: 'materia_prima' }),
+        gasto({ montoTotal: 1_000, montoSubtotal: 1_000, montoIva: 0, categoria: 'otros' }),
+      ],
+    });
+    // 3000 material + 2000 mano de obra + 1000 gasto directo = 6000; utilidad 4000; margen 40 %.
+    expect(resultado.costoTotalMxn).toBe(6_000);
+    expect(resultado.utilidadBrutaMxn).toBe(4_000);
+    expect(resultado.margenPorcentaje).toBe(40);
+    expect(resultado.gastosIncluidosEnRubros).toBe(1);
   });
 });
 
