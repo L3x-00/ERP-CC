@@ -99,6 +99,26 @@ export type PaginaHistorial<T> = {
   porPagina: number;
 };
 
+/**
+ * OBS-11: nota operativa escrita por un operador y vinculada automáticamente al
+ * historial del cliente. Son notas internas de taller (D-14): no se envían al
+ * cliente ni se exponen fuera de la ficha.
+ */
+export type NotaOperativaCliente = {
+  id: string;
+  /** `sesion` = cierre de sesión de trabajo; `tiempo` = pausa/cierre de tiempo. */
+  origen: 'sesion' | 'tiempo';
+  /** Acción registrada cuando `origen` es `tiempo` (p. ej. `pausa`). */
+  accion: string | null;
+  fecha: string;
+  autorId: string;
+  autorNombre: string;
+  ordenId: string;
+  ordenFolio: string;
+  partidaCodigo: string | null;
+  texto: string;
+};
+
 // Filas crudas de Supabase (snake_case) derivadas de los tipos generados.
 export type FilaPipelineHistorial = Pick<Tables<'pipeline'>, 'id' | 'folio_op' | 'folio_cnc' | 'etapa' | 'moneda' | 'iva_porcentaje' | 'fecha_envio_cotizacion' | 'creado_en' | 'actualizado_en'>;
 export type FilaLineaCotizacionHistorial = Pick<Tables<'cotizacion_lineas'>, 'id' | 'pipeline_id' | 'descripcion' | 'cantidad' | 'material' | 'espesor' | 'area' | 'procesos' | 'precio_unitario' | 'es_descuento' | 'orden'>;

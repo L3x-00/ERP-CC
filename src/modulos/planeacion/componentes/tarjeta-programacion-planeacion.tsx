@@ -95,6 +95,10 @@ export function TarjetaProgramacionPlaneacion({
             <dd>{desglose ? etiquetaProcesos(desglose) : textoODefecto(null)}</dd>
           </div>
           <div>
+            <dt className="text-texto-secundario">Equipo / estación</dt>
+            <dd>{desglose ? textoODefecto(desglose.maquinaAsignada) : textoODefecto(null)}</dd>
+          </div>
+          <div>
             <dt className="text-texto-secundario">Material</dt>
             <dd>{desglose ? etiquetaMaterial(desglose) : textoODefecto(null)}</dd>
           </div>

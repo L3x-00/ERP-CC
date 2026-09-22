@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -11,11 +12,13 @@ import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-v
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import {
   usarCotizacionesCliente,
+  usarNotasOperativasCliente,
   usarOrdenesCliente,
   usarSincronizacionHistorialCliente,
 } from '@/modulos/clientes/hooks/usar-historial-cliente';
 import type {
   CotizacionHistorial,
+  NotaOperativaCliente,
   OrdenHistorial,
 } from '@/modulos/clientes/tipos/historial';
 
@@ -26,9 +29,12 @@ import type {
  *
  * Lo que se ve depende de RLS: un usuario con `ver_clientes` pero sin acceso al
  * pipeline verá el bloque de cotizaciones vacío, no un error. No se muestran
- * importes de Cobranza ni costos; los folios no enlazan a un detalle porque hoy
- * no existe una ruta de detalle por folio, y enlazar el listado genérico sería
- * prometer una navegación que no lleva al registro.
+ * importes de Cobranza ni costos.
+ *
+ * OBS-11: cada registro enlaza a su original (cotización → editor del pipeline,
+ * orden → tablero de Órdenes) y las notas de taller de los operadores se
+ * consultan automáticamente por Server Action bajo `ver_clientes` (D-14: son
+ * notas internas, no se envían al cliente).
  */
 export function HistorialCliente({ clienteId }: { clienteId: string }) {
   usarSincronizacionHistorialCliente(clienteId);
@@ -37,6 +43,7 @@ export function HistorialCliente({ clienteId }: { clienteId: string }) {
     <div className="flex flex-col gap-6" data-testid="historial-cliente">
       <SeccionCotizaciones key={`cotizaciones-${clienteId}`} clienteId={clienteId} />
       <SeccionOrdenes key={`ordenes-${clienteId}`} clienteId={clienteId} />
+      <SeccionNotas key={`notas-${clienteId}`} clienteId={clienteId} />
     </div>
   );
 }
@@ -113,6 +120,13 @@ function FilaCotizacion({ cotizacion }: { cotizacion: CotizacionHistorial }) {
             {formatearFecha(cotizacion.fechaEnvioCotizacion ?? cotizacion.creadoEn)}
             {cotizacion.folioCnc ? ` · ${cotizacion.folioOp}` : ''}
           </span>
+          <Link
+            href={`/pipeline?oportunidad=${cotizacion.id}`}
+            className="w-fit text-xs text-acento underline"
+            data-testid={`enlace-cotizacion-${cotizacion.id}`}
+          >
+            Ver oportunidad
+          </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BadgeEstado estado={cotizacion.etapa} />
@@ -243,6 +257,13 @@ function FilaOrden({ orden }: { orden: OrdenHistorial }) {
             Compromiso {formatearFecha(orden.fechaCompromiso)}
             {orden.fechaFin ? ` · Cierre ${formatearFecha(orden.fechaFin)}` : ''}
           </span>
+          <Link
+            href={`/ordenes?ordenId=${orden.id}`}
+            className="w-fit text-xs text-acento underline"
+            data-testid={`enlace-orden-${orden.id}`}
+          >
+            Ver orden
+          </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BadgeEstado estado={orden.estado} />
@@ -293,6 +314,70 @@ function FilaOrden({ orden }: { orden: OrdenHistorial }) {
           )}
         </div>
       )}
+    </Tarjeta>
+  );
+}
+
+function SeccionNotas({ clienteId }: { clienteId: string }) {
+  const { data, isLoading, isError, refetch, isFetching } = usarNotasOperativasCliente(clienteId);
+
+  return (
+    <section aria-labelledby="historial-notas-titulo" className="flex flex-col gap-3">
+      <h3 id="historial-notas-titulo" className="text-sm font-semibold text-texto-primario">
+        Notas de taller
+        {data ? <span className="ml-2 font-normal text-texto-secundario">{data.length}</span> : null}
+      </h3>
+
+      {isLoading && <SkeletonHistorial etiqueta="Cargando notas de taller" />}
+
+      {isError && (
+        <BloqueError
+          mensaje="No se pudieron cargar las notas de taller."
+          reintentando={isFetching}
+          onReintentar={() => void refetch()}
+        />
+      )}
+
+      {!isLoading && !isError && data?.length === 0 && (
+        <EstadoVacio
+          titulo="Sin notas de taller"
+          descripcion="Los operadores todavía no registraron notas en las órdenes de este cliente."
+        />
+      )}
+
+      {!isLoading && !isError && data && data.length > 0 && (
+        <ul className="flex flex-col gap-2" data-testid="historial-notas">
+          {data.map((nota) => (
+            <li key={`${nota.origen}-${nota.id}`}>
+              <NotaOperativa nota={nota} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function NotaOperativa({ nota }: { nota: NotaOperativaCliente }) {
+  return (
+    <Tarjeta className="p-3" data-testid={`nota-operativa-${nota.id}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="text-sm font-medium text-texto-primario">{nota.autorNombre}</span>
+          <span className="text-xs text-texto-secundario">
+            {formatearFecha(nota.fecha)} ·{' '}
+            {nota.origen === 'sesion' ? 'Cierre de sesión' : (nota.accion ?? 'Registro de tiempo')}
+            {nota.partidaCodigo ? ` · ${nota.partidaCodigo}` : ''}
+          </span>
+        </div>
+        <Link
+          href={`/ordenes?ordenId=${nota.ordenId}`}
+          className="font-mono text-xs text-acento underline"
+        >
+          {nota.ordenFolio}
+        </Link>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-sm text-texto-primario">{nota.texto}</p>
     </Tarjeta>
   );
 }

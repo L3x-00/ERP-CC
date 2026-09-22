@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 
 import { ControlesPipeline } from '@/modulos/pipeline/componentes/controles-pipeline';
+import { EditorCotizacion } from '@/modulos/pipeline/componentes/editor-cotizacion';
 import { FormularioProspecto } from '@/modulos/pipeline/componentes/formulario-prospecto';
 import { TablaOportunidades } from '@/modulos/pipeline/componentes/tabla-oportunidades';
 import { TarjetaOportunidad } from '@/modulos/pipeline/componentes/tarjeta-oportunidad';
@@ -40,13 +41,27 @@ type VistaPipeline = 'tabla' | 'kanban';
  * agrupándolas por etapa. El cambio de etapa se hace desde el selector dentro
  * de cada tarjeta. El encabezado alterna el `FormularioProspecto` para crear
  * nuevas oportunidades.
+ *
+ * OBS-11: `oportunidadInicialId` (deep-link `?oportunidad=<id>` desde el
+ * historial del cliente) abre el editor de esa cotización al entrar.
  */
-export function TableroKanban() {
+export function TableroKanban({
+  oportunidadInicialId,
+}: {
+  oportunidadInicialId?: string;
+} = {}) {
   const { data, isLoading, isError } = usarPipeline();
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [vista, setVista] = useState<VistaPipeline>('kanban');
 
   const oportunidades = useMemo(() => data ?? [], [data]);
+  const oportunidadInicial = useMemo(
+    () =>
+      oportunidadInicialId
+        ? oportunidades.find((oportunidad) => oportunidad.id === oportunidadInicialId)
+        : undefined,
+    [oportunidadInicialId, oportunidades],
+  );
   const [filtros, setFiltros] = useState<FiltrosTablero>(FILTROS_TABLERO_INICIAL);
 
   const filtradas = useMemo(
@@ -197,6 +212,15 @@ export function TableroKanban() {
           })}
         </div>
       )}
+
+      {/* OBS-11: deep-link desde el historial del cliente; se abre una sola vez. */}
+      {oportunidadInicial ? (
+        <EditorCotizacion
+          key={oportunidadInicial.id}
+          oportunidad={oportunidadInicial}
+          abiertoInicial
+        />
+      ) : null}
     </div>
   );
 }

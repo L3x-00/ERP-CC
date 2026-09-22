@@ -7,9 +7,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 
 const { obtenerClienteMock } = vi.hoisted(() => ({ obtenerClienteMock: vi.fn() }));
+const { obtenerNotasMock } = vi.hoisted(() => ({ obtenerNotasMock: vi.fn() }));
 
 vi.mock('@/nucleo/supabase/cliente-navegador', () => ({
   obtenerClienteSupabaseNavegador: () => obtenerClienteMock(),
+}));
+
+vi.mock('@/modulos/clientes/acciones/obtener-notas-operativas-cliente', () => ({
+  obtenerNotasOperativasClienteAccion: (...args: unknown[]) => obtenerNotasMock(...args),
 }));
 
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
@@ -329,6 +334,7 @@ function crearClienteConsultas(): QueryClient {
 describe('panel de historial en la ficha del cliente', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    obtenerNotasMock.mockResolvedValue({ exito: true, datos: [] });
   });
 
   afterEach(() => cleanup());
@@ -384,6 +390,65 @@ describe('panel de historial en la ficha del cliente', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ver partidas de la orden OP-100001' }));
     expect(screen.getByText('PZA-001')).toBeTruthy();
     expect(screen.getByText(/scrap 1/)).toBeTruthy();
+  });
+
+  it('enlaza cada registro histórico con su original (OBS-11)', async () => {
+    obtenerClienteMock.mockReturnValue(
+      crearSupabaseFalso({
+        pipeline: (registro) => paginar([filaPipeline(1)], registro),
+        cotizacion_lineas: () => ({ data: [], error: null }),
+        ordenes_produccion: (registro) => paginar([filaOrden(1)], registro),
+        partidas_orden_produccion: () => ({ data: [], error: null }),
+      }).cliente,
+    );
+
+    render(createElement(HistorialCliente, { clienteId: CLIENTE_ID }), {
+      wrapper: crearWrapper(crearClienteConsultas()),
+    });
+
+    expect(
+      (await screen.findByTestId('enlace-cotizacion-cot-1')).getAttribute('href'),
+    ).toBe('/pipeline?oportunidad=cot-1');
+    expect(screen.getByTestId('enlace-orden-ord-1').getAttribute('href')).toBe(
+      '/ordenes?ordenId=ord-1',
+    );
+  });
+
+  it('muestra las notas de taller vinculadas automáticamente (OBS-11)', async () => {
+    obtenerClienteMock.mockReturnValue(
+      crearSupabaseFalso({
+        pipeline: () => ({ data: [], error: null, count: 0 }),
+        ordenes_produccion: (registro) => paginar([filaOrden(1)], registro),
+        partidas_orden_produccion: () => ({ data: [], error: null }),
+      }).cliente,
+    );
+    obtenerNotasMock.mockResolvedValue({
+      exito: true,
+      datos: [
+        {
+          id: 'nota-1',
+          origen: 'sesion',
+          accion: null,
+          fecha: '2026-09-11T18:30:00.000Z',
+          autorId: 'operador-1',
+          autorNombre: 'Operador Uno',
+          ordenId: 'ord-1',
+          ordenFolio: 'OP-100001',
+          partidaCodigo: 'PZA-001',
+          texto: 'Se ajustó la prensa antes del cierre.',
+        },
+      ],
+    });
+
+    render(createElement(HistorialCliente, { clienteId: CLIENTE_ID }), {
+      wrapper: crearWrapper(crearClienteConsultas()),
+    });
+
+    expect(await screen.findByTestId('historial-notas')).toBeTruthy();
+    expect(screen.getByText('Se ajustó la prensa antes del cierre.')).toBeTruthy();
+    expect(screen.getByText('Operador Uno')).toBeTruthy();
+    expect(screen.getByText(/PZA-001/)).toBeTruthy();
+    expect(obtenerNotasMock).toHaveBeenCalledWith({ clienteId: CLIENTE_ID });
   });
 
   it('distingue historial vacío de error de carga', async () => {

@@ -88,6 +88,8 @@ export type LineaCotizacion = {
   procesos: string[];
   /** RFQ-05: área/departamento del catálogo (`areas_trabajo_config.codigo`). */
   areaTrabajoCodigo: string | null;
+  /** OBS-04: equipo/estación del catálogo de Planeación (`recursos_planeacion.codigo`). */
+  estacionCodigo: string | null;
   /** RFQ-06: la línea es trabajo externo (EXT). */
   esExterno: boolean;
   /** RFQ-06: proveedor externo de texto libre cuando `esExterno`. */
@@ -110,6 +112,8 @@ export type LineaCotizacionEntrada = {
   area?: number | null;
   procesos?: string[];
   areaTrabajoCodigo?: string | null;
+  /** OBS-04: equipo/estación del catálogo de Planeación. */
+  estacionCodigo?: string | null;
   esExterno?: boolean;
   proveedorExterno?: string | null;
   esDescuento?: boolean;
@@ -132,6 +136,17 @@ export type AreaTrabajoOpcion = {
   codigo: string;
   nombre: string;
   esExterno: boolean;
+};
+
+/**
+ * OBS-04: equipo/estación disponible para asignar a una línea. Es el catálogo de
+ * recursos de Planeación expuesto con el mínimo operativo (código, nombre y
+ * área); ni capacidad ni costos salen de aquí.
+ */
+export type EquipoEstacionOpcion = {
+  codigo: string;
+  nombre: string;
+  area: string;
 };
 
 /**
@@ -254,6 +269,7 @@ export function filaALineaCotizacion(fila: FilaLineaCotizacion): LineaCotizacion
     area: fila.area === null ? null : Number(fila.area),
     procesos: fila.procesos,
     areaTrabajoCodigo: fila.area_trabajo_codigo,
+    estacionCodigo: fila.estacion_codigo,
     esExterno: fila.es_externo,
     proveedorExterno: fila.proveedor_externo,
     esDescuento: fila.es_descuento,
