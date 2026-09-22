@@ -326,6 +326,10 @@ export function PanelAsignacionPlaneacion({
               <dd>{etiquetaProcesos(desgloseSeleccionado)}</dd>
             </div>
             <div>
+              <dt className="text-texto-secundario">Equipo / estación</dt>
+              <dd>{textoODefecto(desgloseSeleccionado.maquinaAsignada)}</dd>
+            </div>
+            <div>
               <dt className="text-texto-secundario">Material</dt>
               <dd>{etiquetaMaterial(desgloseSeleccionado)}</dd>
             </div>

@@ -39,6 +39,8 @@ type ContextoAceptacion = {
   clienteId: string;
   empresa: string;
   areaCodigo: string;
+  /** OBS-04: recurso de Planeación usado como equipo/estación de la línea. */
+  estacionCodigo: string;
 };
 
 /**
@@ -88,11 +90,30 @@ async function prepararContexto(): Promise<ContextoAceptacion> {
   });
   if (errorArea) throw new Error(`No se creó el área E2E: ${errorArea.message}`);
 
-  return { admin, correo, contrasena, usuarioId: usuario.user.id, clienteId: cliente.id, empresa, areaCodigo };
+  // OBS-04: recurso de Planeación para elegirlo como equipo/estación de la línea.
+  const estacionCodigo = `QAEST-${sufijo.slice(0, 6).toUpperCase()}`;
+  const { error: errorEstacion } = await admin.from('recursos_planeacion').insert({
+    codigo: estacionCodigo,
+    nombre: `Estación QA ${sufijo}`,
+    area: 'taller',
+    activo: true,
+  });
+  if (errorEstacion) throw new Error(`No se creó la estación E2E: ${errorEstacion.message}`);
+
+  return {
+    admin,
+    correo,
+    contrasena,
+    usuarioId: usuario.user.id,
+    clienteId: cliente.id,
+    empresa,
+    areaCodigo,
+    estacionCodigo,
+  };
 }
 
 async function limpiarContexto(contexto: ContextoAceptacion): Promise<void> {
-  const { admin, clienteId, areaCodigo, usuarioId } = contexto;
+  const { admin, clienteId, areaCodigo, estacionCodigo, usuarioId } = contexto;
   const { data: oportunidades } = await admin
     .from('pipeline')
     .select('id')
@@ -132,6 +153,7 @@ async function limpiarContexto(contexto: ContextoAceptacion): Promise<void> {
   }
   await admin.from('clientes').delete().eq('id', clienteId);
   await admin.from('areas_trabajo_config').delete().eq('codigo', areaCodigo);
+  await admin.from('recursos_planeacion').delete().eq('codigo', estacionCodigo);
   await admin.auth.admin.deleteUser(usuarioId);
 }
 
@@ -314,6 +336,8 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     await page.getByLabel('Cantidad').nth(0).fill('10');
     await page.getByLabel('Precio unitario').nth(0).fill('100');
     await page.getByLabel('Área / departamento (opcional)').nth(0).selectOption(datos.areaCodigo);
+    // OBS-04: equipo/estación del catálogo de Planeación por línea.
+    await page.getByLabel('Equipo / estación (opcional)').nth(0).selectOption(datos.estacionCodigo);
     await page.getByLabel('Procesos (opcional)').nth(0).fill('corte');
 
     // Línea 2: trabajo externo con proveedor.
@@ -374,7 +398,7 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
 
     const { data: partidas } = await datos.admin
       .from('partidas_orden_produccion')
-      .select('codigo_pieza, area_trabajo_codigo, procesos, es_externo, proveedor_externo, cantidad_solicitada')
+      .select('codigo_pieza, area_trabajo_codigo, procesos, es_externo, proveedor_externo, cantidad_solicitada, maquina_asignada')
       .eq('orden_id', orden!.id)
       .order('codigo_pieza');
     expect(partidas).toHaveLength(2);
@@ -383,6 +407,8 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
       area_trabajo_codigo: datos.areaCodigo,
       es_externo: false,
       proveedor_externo: null,
+      // OBS-04: la estación de la línea se hereda a la partida.
+      maquina_asignada: datos.estacionCodigo,
     });
     expect(partidas?.[0]?.procesos).toEqual(['corte']);
     expect(partidas?.[1]).toMatchObject({ codigo_pieza: 'COT-002', es_externo: true, proveedor_externo: 'Taller QA Externo' });

@@ -134,6 +134,10 @@ export function DialogoReprogramacionPlaneacion({
                 <dt className="text-texto-secundario">Material</dt>
                 <dd>{desglose ? etiquetaMaterial(desglose) : textoODefecto(null)}</dd>
               </div>
+              <div>
+                <dt className="text-texto-secundario">Equipo / estación</dt>
+                <dd>{textoODefecto(desglose?.maquinaAsignada)}</dd>
+              </div>
               <div className="col-span-2">
                 <dt className="text-texto-secundario">Avance</dt>
                 <dd>{desglose ? etiquetaAvancePartida(desglose) : textoODefecto(null)}</dd>

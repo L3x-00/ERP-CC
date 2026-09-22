@@ -58,6 +58,8 @@ export const esquemaLineaCotizacion = z
     procesos: z.array(z.string().trim().max(60)).max(20).default([]),
     // RFQ-05: área/departamento del catálogo de configuración.
     areaTrabajoCodigo: textoOpcional(48),
+    // OBS-04: equipo/estación del catálogo de Planeación (opcional).
+    estacionCodigo: textoOpcional(60),
     // RFQ-06: trabajo externo (EXT) con proveedor de texto libre.
     esExterno: z.boolean().default(false),
     proveedorExterno: textoOpcional(120),
@@ -78,6 +80,7 @@ export const esquemaLineaCotizacion = z
         linea.espesor !== undefined ||
         linea.area !== undefined ||
         linea.areaTrabajoCodigo !== undefined ||
+        linea.estacionCodigo !== undefined ||
         linea.esExterno ||
         linea.procesos.length > 0)
     ) {

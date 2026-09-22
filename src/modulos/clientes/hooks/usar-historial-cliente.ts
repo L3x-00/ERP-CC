@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
+import { obtenerNotasOperativasClienteAccion } from '@/modulos/clientes/acciones/obtener-notas-operativas-cliente';
 import {
   obtenerCotizacionesCliente,
   obtenerOrdenesCliente,
@@ -23,6 +24,11 @@ export function claveOrdenesCliente(clienteId: string, pagina: number) {
   return [...CLAVE_HISTORIAL_CLIENTE, 'ordenes', clienteId, pagina] as const;
 }
 
+/** Clave de las notas operativas (OBS-11) del cliente. */
+export function claveNotasOperativasCliente(clienteId: string) {
+  return [...CLAVE_HISTORIAL_CLIENTE, 'notas', clienteId] as const;
+}
+
 // Nombres internos con prefijo `use` para `react-hooks/rules-of-hooks` (detecta
 // hooks por `/^use[A-Z0-9]/`). Se exportan con el nombre en español vía alias.
 
@@ -38,6 +44,23 @@ function useOrdenesCliente(clienteId: string, pagina: number) {
   return useQuery({
     queryKey: claveOrdenesCliente(clienteId, pagina),
     queryFn: () => obtenerOrdenesCliente(obtenerClienteSupabaseNavegador(), clienteId, pagina),
+    enabled: clienteId.length > 0,
+  });
+}
+
+/**
+ * OBS-11: notas de taller de las órdenes del cliente. Se leen por Server Action
+ * (la RLS de producción no autoriza a `ver_clientes`); la acción valida el
+ * permiso y devuelve solo las notas del cliente solicitado.
+ */
+function useNotasOperativasCliente(clienteId: string) {
+  return useQuery({
+    queryKey: claveNotasOperativasCliente(clienteId),
+    queryFn: async () => {
+      const respuesta = await obtenerNotasOperativasClienteAccion({ clienteId });
+      if (!respuesta.exito) throw new Error(respuesta.error);
+      return respuesta.datos ?? [];
+    },
     enabled: clienteId.length > 0,
   });
 }
@@ -98,6 +121,7 @@ function useSincronizacionHistorialCliente(clienteId: string): void {
 
 export {
   useCotizacionesCliente as usarCotizacionesCliente,
+  useNotasOperativasCliente as usarNotasOperativasCliente,
   useOrdenesCliente as usarOrdenesCliente,
   useSincronizacionHistorialCliente as usarSincronizacionHistorialCliente,
 };

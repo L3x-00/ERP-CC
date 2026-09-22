@@ -5,7 +5,7 @@ import { filaALineaCotizacion } from '@/modulos/pipeline/tipos/indice';
 const entrada = { moneda: 'MXN', cantidad: 2, recargoPorcentaje: 25, descuentoPorcentaje: 0, otros: { flete: 100, adicionales: 0 } };
 describe('persistencia del cálculo técnico', () => {
   it('conserva la partida comercial al leer un cálculo inválido o desactualizado', () => {
-    const fila = { id: 'qa', pipeline_id: 'qa', descripcion: 'Pieza anterior', cantidad: 2, precio_unitario: 62.5, material: null, espesor: null, area: null, procesos: [], area_trabajo_codigo: null, es_externo: false, proveedor_externo: null, es_descuento: false, orden: 0, creado_en: '', calculo_tecnico: { version: 1, entrada } };
+    const fila = { id: 'qa', pipeline_id: 'qa', descripcion: 'Pieza anterior', cantidad: 2, precio_unitario: 62.5, material: null, espesor: null, area: null, procesos: [], area_trabajo_codigo: null, estacion_codigo: null, es_externo: false, proveedor_externo: null, es_descuento: false, orden: 0, creado_en: '', calculo_tecnico: { version: 1, entrada } };
     expect(filaALineaCotizacion(fila).calculoTecnico?.precioUnitario).toBe(62.5);
     expect(filaALineaCotizacion({ ...fila, calculo_tecnico: { version: 9 } }).descripcion).toBe('Pieza anterior');
     expect(filaALineaCotizacion({ ...fila, precio_unitario: 70 }).calculoTecnico).toBeUndefined();

@@ -274,6 +274,7 @@ export type Database = {
           es_descuento: boolean
           es_externo: boolean
           espesor: string | null
+          estacion_codigo: string | null
           id: string
           material: string | null
           orden: number
@@ -292,6 +293,7 @@ export type Database = {
           es_descuento?: boolean
           es_externo?: boolean
           espesor?: string | null
+          estacion_codigo?: string | null
           id?: string
           material?: string | null
           orden?: number
@@ -310,6 +312,7 @@ export type Database = {
           es_descuento?: boolean
           es_externo?: boolean
           espesor?: string | null
+          estacion_codigo?: string | null
           id?: string
           material?: string | null
           orden?: number

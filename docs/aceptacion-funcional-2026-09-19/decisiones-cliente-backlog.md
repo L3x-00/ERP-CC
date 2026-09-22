@@ -70,11 +70,12 @@
     nota de entrega imprimible con confirmación (recibido por, acumulados por pieza y firmas).
 13. **OBS menores — estado al 21-sep:** ✅ OBS-17 (hilo de comentarios en Producción), ✅ OBS-20
     (filtro por área ya presente en el calendario de Planeación), ✅ OBS-08 (desglose de partida en
-    tarjeta y panel: material/procesos/avance/tiempo con "Por definir" explícito) y ✅ OBS-18/19
+    tarjeta y panel: material/procesos/avance/tiempo con "Por definir" explícito), ✅ OBS-18/19
     (resumen previo, vistas día/semana/mes, arrastre con confirmación por CAS y propuesta de
-    siguiente día hábil con hueco). **Quedan pendientes:** OBS-09/PRD-11 (colas por área), OBS-11
-    (enlaces y notas de sesión), OBS-14 (subáreas/procesos), OBS-29 (desglose por estación en UI) y
-    OBS-04 (equipo por solicitud).
+    siguiente día hábil con hueco), ✅ OBS-04 (equipo/estación por línea validado contra el catálogo
+    de recursos, heredado a la partida) y ✅ OBS-11 (historial con enlaces al original y notas de
+    taller automáticas). **Quedan pendientes:** OBS-09/PRD-11 (colas por área), OBS-14
+    (subáreas/procesos) y OBS-29 (desglose por estación en UI).
 14. **Costo de TI agregado por periodo** — ⏳ pendiente (opcional): el costo por orden ya se informa en
     la tarjeta de rentabilidad; un total de TI por periodo en el dashboard requiere una RPC nueva.
 
@@ -100,6 +101,12 @@ desarrollarán en ramas cortas sobre `main` con PR por bloque, manteniendo los g
   partida en tarjeta y panel ("Por definir" explícito), resumen previo a guardar con capacidad,
   vistas día/semana/mes con navegación, arrastre con confirmación bajo CAS y propuesta del
   siguiente día hábil con hueco. Evidencia: 679 unitarias, typecheck/lint 0, build 17 rutas y E2E
-  local 21/21 (Planeación 2/2); PR para revisión e integración.
-- Siguientes: Bloque 2 (OBS-04/11), Bloque 3 (OBS-09/PRD-11 y OBS-14) y Bloque 4 (OBS-29, TI por
-  periodo, OCR, concurrencia estricta y CI).
+  local 21/21 (Planeación 2/2); integrado en `main` (PR #14).
+- **Bloque 2 — Comercial/clientes (OBS-04, OBS-11)** ✅ implementado 21-sep: migración
+  `20260921000001` (equipo/estación por línea, validado contra `recursos_planeacion` y heredado a
+  `partidas.maquina_asignada`), select de estación en el cotizador, deep-link
+  `/pipeline?oportunidad=<id>` y notas de taller automáticas en el historial del cliente.
+  Evidencia: 686 unitarias, typecheck/lint 0, build 17 rutas y E2E local 22/22 (comercial y
+  historial); **pendiente de que el PO aplique la migración en remoto antes del merge**.
+- Siguientes: Bloque 3 (OBS-09/PRD-11 y OBS-14) y Bloque 4 (OBS-29, TI por periodo, OCR,
+  concurrencia estricta y CI).

@@ -29,6 +29,12 @@ vi.mock('@/modulos/pipeline/acciones/obtener-areas-trabajo', () => ({
     datos: [{ codigo: 'CNC', nombre: 'CNC', esExterno: false }],
   }),
 }));
+vi.mock('@/modulos/pipeline/acciones/obtener-equipos-estaciones', () => ({
+  obtenerEquiposEstacionesAccion: async () => ({
+    exito: true,
+    datos: [{ codigo: 'CNC-01', nombre: 'CNC principal', area: 'taller' }],
+  }),
+}));
 vi.mock('@/modulos/pipeline/hooks/usar-oportunidad', () => ({
   usarOportunidad: (id: string, habilitada: boolean) => {
     const resultado = usarOportunidadMock(id, habilitada);
@@ -81,6 +87,7 @@ const LINEA_PERSISTIDA = {
   area: 0.75,
   procesos: ['corte', 'doblez'],
   areaTrabajoCodigo: 'CNC',
+  estacionCodigo: null,
   esExterno: false,
   proveedorExterno: null,
   esDescuento: false,
@@ -400,6 +407,36 @@ describe('EditorCotizacion', () => {
     expect(payload.lineas[0]).toEqual(
       expect.objectContaining({ areaTrabajoCodigo: 'CNC', esExterno: false, esDescuento: false }),
     );
+  });
+
+  it('abre con deep-link y conserva el equipo/estación de la línea (OBS-04/OBS-11)', async () => {
+    usarOportunidadMock.mockReturnValue({
+      data: {
+        oportunidad: OPORTUNIDAD,
+        lineas: [{ ...LINEA_PERSISTIDA, estacionCodigo: 'CNC-01' }],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    conProveedor(
+      createElement(EditorCotizacion, { oportunidad: OPORTUNIDAD, abiertoInicial: true }),
+    );
+
+    await screen.findByLabelText('Descripción');
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText(/Equipo \/ estación/) as HTMLSelectElement).value,
+      ).toBe('CNC-01'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cotización' }));
+
+    await waitFor(() => expect(actualizarMock).toHaveBeenCalledTimes(1));
+    const payload = actualizarMock.mock.calls[0]?.[0] as {
+      lineas: { estacionCodigo?: string }[];
+    };
+    expect(payload.lineas[0]).toEqual(expect.objectContaining({ estacionCodigo: 'CNC-01' }));
   });
 
   it('explica que la cotización con orden es inmutable y la vía de cambio (RFQ-17)', async () => {

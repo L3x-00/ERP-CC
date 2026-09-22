@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { FormularioCotizacion } from '@/modulos/pipeline/componentes/formulario-cotizacion';
@@ -44,22 +44,26 @@ export function cotizacionEsEditable(etapa: EtapaPipeline): boolean {
 export function EditorCotizacion({
   oportunidad,
   etiqueta = 'Cotización',
+  abiertoInicial = false,
 }: {
   oportunidad: Oportunidad;
   etiqueta?: string;
+  /** OBS-11: abrir el editor directamente (enlace profundo desde el historial). */
+  abiertoInicial?: boolean;
 }) {
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abiertoInicial);
   const [instantanea, setInstantanea] = useState<OportunidadConLineas | null>(null);
   const [cargando, setCargando] = useState(false);
   const [fallo, setFallo] = useState(false);
   const [guardandoInterna, setGuardandoInterna] = useState(false);
   const solicitud = useRef(0);
+  const cargaInicialSolicitada = useRef(false);
   const clienteConsultas = useQueryClient();
   const { refetch } = usarOportunidad(oportunidad.id, false);
 
   useEffect(() => () => { solicitud.current += 1; }, []);
 
-  async function cargar(): Promise<void> {
+  const cargar = useCallback(async (): Promise<void> => {
     const intento = ++solicitud.current;
     setCargando(true);
     setFallo(false);
@@ -74,7 +78,14 @@ export function EditorCotizacion({
     } finally {
       if (intento === solicitud.current) setCargando(false);
     }
-  }
+  }, [refetch]);
+
+  // Enlace profundo: la primera carga ocurre al montar sin esperar un clic.
+  useEffect(() => {
+    if (!abiertoInicial || cargaInicialSolicitada.current) return;
+    cargaInicialSolicitada.current = true;
+    void cargar();
+  }, [abiertoInicial, cargar]);
 
   function abrir(): void {
     setAbierto(true);
@@ -165,6 +176,7 @@ export function EditorCotizacion({
     area: linea.area,
     procesos: linea.procesos,
     areaTrabajoCodigo: linea.areaTrabajoCodigo,
+    estacionCodigo: linea.estacionCodigo,
     esExterno: linea.esExterno,
     proveedorExterno: linea.proveedorExterno,
     esDescuento: linea.esDescuento,
@@ -173,15 +185,17 @@ export function EditorCotizacion({
 
   return (
     <>
-      <Button
-        type="button"
-        variante="contorno"
-        tamano="sm"
-        onClick={abrir}
-        aria-haspopup="dialog"
-      >
-        {cotizacionEsEditable(oportunidad.etapa) ? etiqueta : `Ver ${etiqueta.toLowerCase()}`}
-      </Button>
+      {!abiertoInicial ? (
+        <Button
+          type="button"
+          variante="contorno"
+          tamano="sm"
+          onClick={abrir}
+          aria-haspopup="dialog"
+        >
+          {cotizacionEsEditable(oportunidad.etapa) ? etiqueta : `Ver ${etiqueta.toLowerCase()}`}
+        </Button>
+      ) : null}
 
       <Dialog open={abierto} onOpenChange={(valor) => (valor ? abrir() : cerrar())}>
         <DialogContent aria-label={`Cotización de ${folio}`}>

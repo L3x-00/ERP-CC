@@ -77,6 +77,8 @@ function lineasAJson(lineas: GuardarCotizacionInput['lineas']): Json {
     procesos: linea.procesos,
     // RFQ-05/06/03: dimensiones de línea que persiste `guardar_cotizacion_atomica`.
     area_trabajo_codigo: linea.areaTrabajoCodigo ?? null,
+    // OBS-04: equipo/estación del catálogo de Planeación.
+    estacion_codigo: linea.estacionCodigo ?? null,
     es_externo: linea.esExterno,
     proveedor_externo: linea.proveedorExterno ?? null,
     es_descuento: linea.esDescuento,

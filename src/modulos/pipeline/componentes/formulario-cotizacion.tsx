@@ -8,6 +8,7 @@ import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { actualizarCotizacionAccion } from '@/modulos/pipeline/acciones/actualizar-cotizacion';
 import { crearCotizacionAccion } from '@/modulos/pipeline/acciones/crear-cotizacion';
 import { obtenerAreasTrabajoAccion } from '@/modulos/pipeline/acciones/obtener-areas-trabajo';
+import { obtenerEquiposEstacionesAccion } from '@/modulos/pipeline/acciones/obtener-equipos-estaciones';
 import { obtenerTipoCambioAccion } from '@/modulos/pipeline/acciones/obtener-tipo-cambio';
 import {
   calcularTotalesCotizacion,
@@ -63,6 +64,8 @@ type LineaFormulario = {
   procesosOriginales: readonly string[];
   /** RFQ-05: código de área/departamento del catálogo. */
   areaTrabajoCodigo: string;
+  /** OBS-04: código del equipo/estación del catálogo de Planeación. */
+  estacionCodigo: string;
   /** RFQ-06: trabajo externo (EXT). */
   esExterno: boolean;
   /** RFQ-06: proveedor externo (texto libre). */
@@ -82,6 +85,7 @@ function lineaVacia(): LineaFormulario {
     procesos: '',
     procesosOriginales: [],
     areaTrabajoCodigo: '',
+    estacionCodigo: '',
     esExterno: false,
     proveedorExterno: '',
     esDescuento: false,
@@ -107,6 +111,7 @@ function desdeEntrada(entrada: LineaCotizacionEntrada): LineaFormulario {
     procesosOriginales: procesos,
     calculoTecnico: entrada.calculoTecnico,
     areaTrabajoCodigo: entrada.areaTrabajoCodigo ?? '',
+    estacionCodigo: entrada.estacionCodigo ?? '',
     esExterno: entrada.esExterno ?? false,
     proveedorExterno: entrada.proveedorExterno ?? '',
     esDescuento: entrada.esDescuento ?? false,
@@ -145,6 +150,7 @@ function aEntrada(linea: LineaFormulario): LineaCotizacionEntrada {
           .map((proceso) => proceso.trim())
           .filter((proceso) => proceso !== ''),
     areaTrabajoCodigo: linea.areaTrabajoCodigo === '' ? undefined : linea.areaTrabajoCodigo,
+    estacionCodigo: linea.estacionCodigo === '' ? undefined : linea.estacionCodigo,
     esExterno: linea.esExterno,
     proveedorExterno: linea.esExterno && proveedor !== '' ? proveedor : undefined,
     esDescuento: false,
@@ -161,6 +167,7 @@ type CampoLinea =
   | 'area'
   | 'procesos'
   | 'areaTrabajoCodigo'
+  | 'estacionCodigo'
   | 'proveedorExterno';
 
 /**
@@ -215,6 +222,16 @@ export function FormularioCotizacion({
     },
     staleTime: 5 * 60 * 1000,
   });
+  // OBS-04: catálogo de equipos/estaciones (recursos de Planeación) para indicar
+  // qué equipo atenderá cada línea. Solo activos y sin datos de capacidad.
+  const { data: equiposEstaciones } = useQuery({
+    queryKey: ['pipeline', 'equipos-estaciones'],
+    queryFn: async () => {
+      const respuesta = await obtenerEquiposEstacionesAccion();
+      return respuesta.exito ? respuesta.datos : null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
   const teniaLineas = lineasIniciales !== undefined && lineasIniciales.length > 0;
   // En consulta no se inventa una línea en blanco: una cotización sin líneas se
   // muestra vacía, no como una partida ficticia con cantidad 1 y precio 0.
@@ -244,6 +261,7 @@ export function FormularioCotizacion({
       campo === 'descripcion' ||
       campo === 'area' ||
       campo === 'areaTrabajoCodigo' ||
+      campo === 'estacionCodigo' ||
       campo === 'proveedorExterno';
     setLineas((previas) =>
       previas.map((linea, i) =>
@@ -386,6 +404,9 @@ export function FormularioCotizacion({
                           : null,
                         entrada.areaTrabajoCodigo
                           ? `Área/departamento: ${entrada.areaTrabajoCodigo}`
+                          : null,
+                        entrada.estacionCodigo
+                          ? `Equipo/estación: ${entrada.estacionCodigo}`
                           : null,
                         entrada.esExterno
                           ? `Externo (EXT)${entrada.proveedorExterno ? `: ${entrada.proveedorExterno}` : ''}`
@@ -582,6 +603,30 @@ export function FormularioCotizacion({
                     </option>
                   ))}
                 </Select>
+              </div>
+
+              {/* OBS-04: equipo/estación del taller que atenderá la línea. */}
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={`linea-${indice}-estacion`}>
+                  Equipo / estación (opcional)
+                </Label>
+                <Select
+                  id={`linea-${indice}-estacion`}
+                  value={linea.estacionCodigo}
+                  onChange={(evento) =>
+                    actualizarLinea(indice, 'estacionCodigo', evento.target.value)
+                  }
+                >
+                  <option value="">Por definir</option>
+                  {(equiposEstaciones ?? []).map((equipo) => (
+                    <option key={equipo.codigo} value={equipo.codigo}>
+                      {equipo.codigo} · {equipo.nombre}
+                    </option>
+                  ))}
+                </Select>
+                <span className="text-xs text-texto-secundario">
+                  Del catálogo de Planeación; se hereda a la orden.
+                </span>
               </div>
 
               <div className="flex flex-col gap-1 sm:col-span-3">
