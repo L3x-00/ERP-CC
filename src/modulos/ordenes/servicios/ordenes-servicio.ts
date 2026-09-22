@@ -30,6 +30,8 @@ export type CodigoErrorOrden =
   | 'estado_conflicto'
   | 'transicion_no_permitida'
   | 'motivo_cancelacion_requerido'
+  | 'orden_con_cobranza_registrada'
+  | 'orden_con_partidas_pendientes'
   | 'stock_insuficiente'
   | 'partida_inexistente'
   | 'material_inexistente'
@@ -121,6 +123,13 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('transicion_no_permitida')) return 'transicion_no_permitida';
   if (mensaje.includes('motivo_cancelacion_requerido')) {
     return 'motivo_cancelacion_requerido';
+  }
+  // A02: cancelar una orden cancela su AR; con cobranza registrada se rechaza.
+  if (mensaje.includes('orden_con_cobranza_registrada')) {
+    return 'orden_con_cobranza_registrada';
+  }
+  if (mensaje.includes('orden_con_partidas_pendientes')) {
+    return 'orden_con_partidas_pendientes';
   }
   if (mensaje.includes('stock_insuficiente')) return 'stock_insuficiente';
   if (mensaje.includes('partida_inexistente')) return 'partida_inexistente';

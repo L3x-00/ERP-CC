@@ -154,6 +154,8 @@ describe('mappers de filas generadas', () => {
     cliente_id: uuidCliente,
     folio_factura_remision: null,
     monto_total: 1000,
+    monto_subtotal: null,
+    monto_iva: null,
     saldo_pendiente: 400,
     moneda: 'USD',
     tipo_cambio_origen: 18.5,

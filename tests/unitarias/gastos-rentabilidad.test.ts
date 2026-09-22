@@ -95,7 +95,7 @@ describe('mano de obra y gastos', () => {
 
     const resultado = calcularRentabilidadOrden({
       ordenId: ORDEN,
-      ingreso: { montoTotal: 10_000, moneda: 'MXN', tipoCambio: 1 },
+      ingreso: { montoTotal: 10_000, montoSubtotal: 10_000, moneda: 'MXN', tipoCambio: 1 },
       materiales: [{ cantidadUsada: 100, cantidadScrap: 0, costoUnitarioMomento: 30 }],
       sesiones: [{ horasNetas: 20, costoHoraInterno: 100 }],
       gastos: [
@@ -122,7 +122,7 @@ describe('margen y rentabilidad', () => {
   it('agrega los cuatro componentes con merma y redondeo', () => {
     const resultado = calcularRentabilidadOrden({
       ordenId: ORDEN,
-      ingreso: { montoTotal: 1_000, moneda: 'USD', tipoCambio: 18.5 },
+      ingreso: { montoTotal: 1_000, montoSubtotal: 1_000, moneda: 'USD', tipoCambio: 18.5 },
       materiales: [{ cantidadUsada: 100, cantidadScrap: 10, costoUnitarioMomento: 25 }],
       sesiones: [{ horasNetas: 20, costoHoraInterno: 150 }],
       gastos: [gasto({ montoTotal: 1_160 })],
@@ -135,6 +135,54 @@ describe('margen y rentabilidad', () => {
     expect(resultado.utilidadBrutaMxn).toBe(11_590);
     expect(resultado.margenPorcentaje).toBe(62.65);
     expect(resultado.componentesFaltantes).toEqual([]);
+  });
+
+  it('A03: el margen se mide sobre la base sin IVA, no sobre el importe facturado', () => {
+    const resultado = calcularRentabilidadOrden({
+      ordenId: ORDEN,
+      // Venta 1000 + IVA 160 con costo 500: D-11 pide utilidad 500, no 660.
+      ingreso: { montoTotal: 1_160, montoSubtotal: 1_000, moneda: 'MXN', tipoCambio: 1 },
+      materiales: [{ cantidadUsada: 1, cantidadScrap: 0, costoUnitarioMomento: 500 }],
+      sesiones: [],
+      gastos: [],
+    });
+    expect(resultado.ingresoMxn).toBe(1_160);
+    expect(resultado.ingresoNetoMxn).toBe(1_000);
+    expect(resultado.ivaVentaMxn).toBe(160);
+    expect(resultado.utilidadBrutaMxn).toBe(500);
+    expect(resultado.margenPorcentaje).toBe(50);
+    expect(resultado.ingresoDesgloseConocido).toBe(true);
+  });
+
+  it('A03: una AR sin desglose histórico deja neto, utilidad y margen no calculables', () => {
+    const resultado = calcularRentabilidadOrden({
+      ordenId: ORDEN,
+      ingreso: { montoTotal: 1_160, moneda: 'MXN', tipoCambio: 1 },
+      materiales: [{ cantidadUsada: 1, cantidadScrap: 0, costoUnitarioMomento: 500 }],
+      sesiones: [],
+      gastos: [],
+    });
+    expect(resultado.ingresoMxn).toBe(1_160);
+    expect(resultado.ingresoNetoMxn).toBeNull();
+    expect(resultado.ivaVentaMxn).toBeNull();
+    expect(resultado.utilidadBrutaMxn).toBeNull();
+    expect(resultado.margenPorcentaje).toBeNull();
+    expect(resultado.margenCalculable).toBe(false);
+    expect(resultado.cuentasSinDesglose).toBe(1);
+    expect(resultado.componentesFaltantes).toContain('desglose_iva');
+  });
+
+  it('A03: un desglose incoherente con el total se trata como desconocido', () => {
+    const resultado = calcularRentabilidadOrden({
+      ordenId: ORDEN,
+      // Subtotal mayor que el total: dato corrupto, no se usa para el margen.
+      ingreso: { montoTotal: 1_000, montoSubtotal: 1_200, moneda: 'MXN', tipoCambio: 1 },
+      materiales: [],
+      sesiones: [],
+      gastos: [],
+    });
+    expect(resultado.ingresoNetoMxn).toBeNull();
+    expect(resultado.utilidadBrutaMxn).toBeNull();
   });
 
   it('sin CxC devuelve ingreso cero y margen no calculable', () => {
@@ -196,8 +244,11 @@ describe('margen y rentabilidad', () => {
       resultado.costoManoObraMxn,
       resultado.costoGastosDirectosMxn,
       resultado.costoTotalMxn,
-      resultado.utilidadBrutaMxn,
     ]) expect(Number.isFinite(valor)).toBe(true);
+    // A03: la utilidad es nullable; aquí no hay venta reconocida, así que el
+    // neto es 0 y la utilidad sigue siendo un número finito.
+    expect(resultado.utilidadBrutaMxn).not.toBeNull();
+    expect(Number.isFinite(resultado.utilidadBrutaMxn ?? Number.NaN)).toBe(true);
     expect(calcularRentabilidadOrden(entrada)).toEqual(resultado);
   });
 });

@@ -91,6 +91,8 @@ export interface FilaGasto {
 
 export const COMPONENTES_RENTABILIDAD = [
   'ingreso',
+  /** A03: hay venta facturada pero sin desglose histórico de IVA. */
+  'desglose_iva',
   'materiales',
   'mano_obra',
   'gastos',
@@ -140,12 +142,26 @@ export interface CalculoRentabilidadOrden {
   /** Trabajo interno (TI): no genera venta ni AR; se informa su costo. */
   esInterna: boolean;
   moneda: MonedaRentabilidad;
+  /** Importe facturado (con IVA) de las cuentas cobrables, en MXN. */
   ingresoMxn: number;
+  /**
+   * A03/D-11: base gravable histórica en MXN. `null` cuando alguna cuenta
+   * cobrable no tiene desglose persistido: el ingreso neto NO se deriva
+   * dividiendo por la tasa de IVA vigente.
+   */
+  ingresoNetoMxn: number | null;
+  /** IVA histórico en MXN; `null` con el mismo criterio que `ingresoNetoMxn`. */
+  ivaVentaMxn: number | null;
+  /** `false` si al menos una cuenta cobrable carece de desglose base/IVA. */
+  ingresoDesgloseConocido: boolean;
+  /** Cuentas cobrables sin desglose persistido. */
+  cuentasSinDesglose: number;
   costoMaterialesMxn: number;
   costoManoObraMxn: number;
   costoGastosDirectosMxn: number;
   costoTotalMxn: number;
-  utilidadBrutaMxn: number;
+  /** Utilidad sobre ingreso NETO; `null` si el neto no es calculable. */
+  utilidadBrutaMxn: number | null;
   margenPorcentaje: number | null;
   margenCalculable: boolean;
   materialesConsiderados: number;

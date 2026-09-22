@@ -30,7 +30,7 @@ export function SeccionFinanciera({
         ['CxC pendiente', moneda(finanzas.arPendiente), 'dashboard-ar-pendiente'],
         ['CxC vencido', moneda(finanzas.arVencido), 'dashboard-ar-vencido'],
         ['CxP pendiente', moneda(finanzas.cxpPendiente), 'dashboard-cxp-pendiente'],
-        ['Utilidad neta', moneda(finanzas.utilidadNetaAcumulada), 'dashboard-utilidad'],
+        ['Utilidad neta', finanzas.utilidadNetaAcumulada === null ? 'No calculable' : moneda(finanzas.utilidadNetaAcumulada), 'dashboard-utilidad'],
         ['Margen promedio', finanzas.margenPromedioPorcentaje === null ? '—' : `${finanzas.margenPromedioPorcentaje.toFixed(2)}%`, 'dashboard-margen'],
       ] as const
     : [

@@ -163,7 +163,8 @@ export async function consultarGastosServicio(
 
 function componentesFaltantes(
   fila: {
-    monto_venta_mxn: number;
+    monto_venta_facturado_mxn: number;
+    venta_desglose_conocido: boolean;
     materiales_considerados: number;
     sesiones_consideradas: number;
     gastos_considerados: number;
@@ -172,7 +173,9 @@ function componentesFaltantes(
 ): ComponenteRentabilidad[] {
   const faltantes: ComponenteRentabilidad[] = [];
   // TI no genera venta por diseño: no es un dato faltante.
-  if (!esInterna && numeroSeguro(fila.monto_venta_mxn) <= 0) faltantes.push('ingreso');
+  if (!esInterna && numeroSeguro(fila.monto_venta_facturado_mxn) <= 0) faltantes.push('ingreso');
+  // A03: hay venta pero sin base gravable histórica con la que medir el margen.
+  if (!fila.venta_desglose_conocido) faltantes.push('desglose_iva');
   if (numeroSeguro(fila.materiales_considerados) === 0) faltantes.push('materiales');
   if (numeroSeguro(fila.sesiones_consideradas) === 0) faltantes.push('mano_obra');
   if (numeroSeguro(fila.gastos_considerados) === 0) faltantes.push('gastos');
@@ -203,12 +206,19 @@ export async function obtenerRentabilidadOrdenServicio(
     folio: orden?.folio ?? 'Orden no disponible',
     esInterna,
     moneda: 'MXN',
-    ingresoMxn: numeroSeguro(fila.monto_venta_mxn),
+    ingresoMxn: numeroSeguro(fila.monto_venta_facturado_mxn),
+    // A03: `monto_venta_mxn` es la base sin IVA y llega null cuando alguna
+    // cuenta cobrable no tiene desglose histórico. No se sustituye por 0.
+    ingresoNetoMxn: fila.monto_venta_mxn === null ? null : numeroSeguro(fila.monto_venta_mxn),
+    ivaVentaMxn: fila.monto_iva_mxn === null ? null : numeroSeguro(fila.monto_iva_mxn),
+    ingresoDesgloseConocido: fila.venta_desglose_conocido,
+    cuentasSinDesglose: numeroSeguro(fila.cuentas_sin_desglose),
     costoMaterialesMxn: numeroSeguro(fila.costo_materiales_mxn),
     costoManoObraMxn: numeroSeguro(fila.costo_mano_obra_mxn),
     costoGastosDirectosMxn: numeroSeguro(fila.costo_gastos_directos_mxn),
     costoTotalMxn: numeroSeguro(fila.costo_total_mxn),
-    utilidadBrutaMxn: numeroSeguro(fila.utilidad_bruta_mxn),
+    utilidadBrutaMxn:
+      fila.utilidad_bruta_mxn === null ? null : numeroSeguro(fila.utilidad_bruta_mxn),
     margenPorcentaje: fila.margen_porcentaje === null ? null : numeroSeguro(fila.margen_porcentaje),
     margenCalculable: fila.margen_calculable,
     materialesConsiderados: numeroSeguro(fila.materiales_considerados),

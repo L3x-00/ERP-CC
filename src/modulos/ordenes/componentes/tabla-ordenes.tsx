@@ -566,7 +566,7 @@ export function TablaOrdenes({
         </TablaContenedor>
       )}
 
-      {errorAccion && (
+      {errorAccion && !ordenCancelando && (
         <p role="alert" className="text-sm text-peligro-texto">
           {errorAccion}
         </p>
@@ -605,6 +605,7 @@ export function TablaOrdenes({
               La cancelación es definitiva. Captura el motivo; quedará en la auditoría.
             </DialogDescription>
           </DialogHeader>
+          {errorAccion ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
           <div className="flex flex-col gap-1">
             <Label htmlFor="motivo-cancelacion-orden">Motivo (mínimo 3 caracteres)</Label>
             <Textarea

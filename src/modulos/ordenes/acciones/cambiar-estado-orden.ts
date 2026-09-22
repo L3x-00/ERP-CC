@@ -65,6 +65,16 @@ export async function cambiarEstadoOrdenAccion(
       estadoAnterior: datos.estadoActual,
       estadoNuevo: datos.estado,
     });
+    // A02: regla de negocio, no un detalle de infraestructura. Quien cancela
+    // necesita saber por qué se detuvo y qué hay que resolver antes.
+    if (codigo === 'orden_con_cobranza_registrada') {
+      return {
+        exito: false,
+        error:
+          'La orden tiene cobranza registrada (pagos, anticipos o saldo aplicado). '
+          + 'No se puede cancelar hasta resolver esos movimientos con la persona responsable de cobranza.',
+      };
+    }
     return { exito: false, error: 'No se pudo actualizar la orden' };
   }
 }

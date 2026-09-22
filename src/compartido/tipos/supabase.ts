@@ -453,6 +453,8 @@ export type Database = {
           folio_factura_remision: string | null
           id: string
           moneda: string
+          monto_iva: number | null
+          monto_subtotal: number | null
           monto_total: number
           orden_id: string
           saldo_pendiente: number
@@ -469,6 +471,8 @@ export type Database = {
           folio_factura_remision?: string | null
           id?: string
           moneda?: string
+          monto_iva?: number | null
+          monto_subtotal?: number | null
           monto_total: number
           orden_id: string
           saldo_pendiente: number
@@ -485,6 +489,8 @@ export type Database = {
           folio_factura_remision?: string | null
           id?: string
           moneda?: string
+          monto_iva?: number | null
+          monto_subtotal?: number | null
           monto_total?: number
           orden_id?: string
           saldo_pendiente?: number
@@ -2306,6 +2312,22 @@ export type Database = {
         }
         Returns: Json
       }
+      obtener_ar_ordenes_canceladas_con_cobranza: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          aplicaciones_saldo: number
+          cliente_id: string
+          cobrado_moneda_cuenta: number
+          cuenta_id: string
+          estado_cuenta: string
+          folio: string
+          moneda: string
+          monto_total: number
+          orden_id: string
+          pagos: number
+          saldo_pendiente: number
+        }[]
+      }
       obtener_rentabilidad_orden: {
         Args: { p_orden_id: string }
         Returns: {
@@ -2313,17 +2335,21 @@ export type Database = {
           costo_mano_obra_mxn: number
           costo_materiales_mxn: number
           costo_total_mxn: number
+          cuentas_sin_desglose: number
           gastos_considerados: number
           gastos_excluidos: number
           gastos_incluidos_en_rubros: number
           margen_calculable: boolean
-          margen_porcentaje: number
+          margen_porcentaje: number | null
           materiales_considerados: number
-          monto_venta_mxn: number
+          monto_iva_mxn: number | null
+          monto_venta_facturado_mxn: number
+          monto_venta_mxn: number | null
           orden_id: string
           sesiones_consideradas: number
           sesiones_sin_tarifa: number
-          utilidad_bruta_mxn: number
+          utilidad_bruta_mxn: number | null
+          venta_desglose_conocido: boolean
         }[]
       }
       programar_partida_recurso: {

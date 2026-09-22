@@ -314,8 +314,19 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await expect(observador.getByRole('row', { name: /Gasto E2E de consumibles/ })).toContainText('Gasto E2E de consumibles');
 
     await fila.getByRole('button', { name: 'Rentabilidad' }).click();
-    await expect(page.getByText('Venta explícita (MXN)')).toBeVisible();
-    await expect(page.getByText('$10,000.00')).toBeVisible();
+    await expect(page.getByText('Venta neta sin IVA (MXN)')).toBeVisible();
+    await expect(page.getByTestId('rentabilidad-venta-neta')).toHaveText('No calculable');
+    await expect(page.getByTestId('rentabilidad-utilidad')).toHaveText('No calculable');
+    await expect(page.getByTestId('rentabilidad-sin-desglose')).toBeVisible();
+    // Esta AR manual no tiene evidencia fiscal. Solo el fixture local documenta
+    // después la base y el IVA histórico; nunca se infiere la tasa actual.
+    const { error: errorDesglose } = await datos.admin.from('cuentas_por_cobrar')
+      .update({ monto_subtotal: 10000, monto_iva: 0 }).eq('orden_id', datos.ordenId);
+    expect(errorDesglose).toBeNull();
+    await page.reload();
+    await fila.getByRole('button', { name: 'Rentabilidad' }).click();
+    await expect(page.getByTestId('rentabilidad-venta-neta')).toHaveText('$10,000.00');
+    await expect(page.getByTestId('rentabilidad-sin-desglose')).toHaveCount(0);
     // OBS-29: el gasto por defecto es `materia_prima` y ya está en el rubro de
     // material, así que no se suma: costo 700 + 975 = 1675; margen 83.25 %.
     await expect(page.getByText('$1,675.00')).toBeVisible();

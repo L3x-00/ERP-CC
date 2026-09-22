@@ -18,6 +18,12 @@ export interface EntradaIngresoOrden {
   /** MXN por unidad de la moneda del ingreso. */
   tipoCambio: number;
   cancelada?: boolean;
+  /**
+   * A03: base gravable histórica de la cuenta, en su misma moneda. Ausente o
+   * `null` = desglose desconocido; el neto queda no calculable y nunca se
+   * reconstruye dividiendo por la tasa de IVA vigente.
+   */
+  montoSubtotal?: number | null;
 }
 
 export interface EntradaMaterialConsumido {
@@ -67,6 +73,21 @@ export function calcularIngresoMxn(ingreso: EntradaIngresoOrden | null): number 
   if (!ingreso || ingreso.cancelada === true) return null;
   if (ingreso.moneda === 'MXN' && ingreso.tipoCambio !== 1) return null;
   return convertirAMxn(ingreso.montoTotal, ingreso.tipoCambio);
+}
+
+/**
+ * A03/D-11: ingreso NETO (sin IVA) en MXN a partir del desglose persistido en la
+ * cuenta. Devuelve `null` cuando no hay desglose o es incoherente con el total:
+ * un margen sobre el importe con IVA queda inflado por el impuesto, y derivarlo
+ * con la tasa vigente reescribiría ventas pasadas.
+ */
+export function calcularIngresoNetoMxn(ingreso: EntradaIngresoOrden | null): number | null {
+  if (!ingreso || ingreso.cancelada === true) return null;
+  if (ingreso.moneda === 'MXN' && ingreso.tipoCambio !== 1) return null;
+  const subtotal = ingreso.montoSubtotal;
+  if (subtotal === undefined || subtotal === null) return null;
+  if (!esNoNegativoFinito(subtotal) || subtotal > ingreso.montoTotal + 0.01) return null;
+  return convertirAMxn(subtotal, ingreso.tipoCambio);
 }
 
 /** La merma es costo real: se valúan usadas y scrap al CPP histórico. */
@@ -167,11 +188,24 @@ export function calcularRentabilidadOrden(
     materiales.costo + manoObra.costo + gastos.costo,
     DECIMALES_MONTO,
   );
-  const utilidadBrutaMxn = redondear(ingresoMxn - costoTotalMxn, DECIMALES_MONTO);
-  const margenPorcentaje = calcularMargenPorcentaje(utilidadBrutaMxn, ingresoMxn);
+  // A03: sin cuenta reconocida el neto es 0 (no hay venta que desglosar); con
+  // cuenta pero sin desglose persistido, el neto —y con él utilidad y margen—
+  // quedan no calculables.
+  const netoCalculado = ingresoCalculado === null ? 0 : calcularIngresoNetoMxn(entrada.ingreso);
+  const ingresoDesgloseConocido = netoCalculado !== null;
+  const ingresoNetoMxn = netoCalculado;
+  const ivaVentaMxn =
+    ingresoNetoMxn === null ? null : redondear(ingresoMxn - ingresoNetoMxn, DECIMALES_MONTO);
+  const utilidadBrutaMxn =
+    ingresoNetoMxn === null ? null : redondear(ingresoNetoMxn - costoTotalMxn, DECIMALES_MONTO);
+  const margenPorcentaje =
+    utilidadBrutaMxn === null || ingresoNetoMxn === null
+      ? null
+      : calcularMargenPorcentaje(utilidadBrutaMxn, ingresoNetoMxn);
   const componentesFaltantes: ComponenteRentabilidad[] = [];
   // Un TI no genera venta por diseño: no se reporta como dato faltante.
   if (!entrada.esInterna && ingresoCalculado === null) componentesFaltantes.push('ingreso');
+  if (!ingresoDesgloseConocido) componentesFaltantes.push('desglose_iva');
   if (materiales.considerados === 0) componentesFaltantes.push('materiales');
   if (manoObra.considerados === 0) componentesFaltantes.push('mano_obra');
   if (gastos.considerados === 0) componentesFaltantes.push('gastos');
@@ -181,6 +215,10 @@ export function calcularRentabilidadOrden(
     esInterna: entrada.esInterna ?? false,
     moneda: MONEDA_RENTABILIDAD,
     ingresoMxn,
+    ingresoNetoMxn,
+    ivaVentaMxn,
+    ingresoDesgloseConocido,
+    cuentasSinDesglose: ingresoDesgloseConocido ? 0 : 1,
     costoMaterialesMxn: materiales.costo,
     costoManoObraMxn: manoObra.costo,
     costoGastosDirectosMxn: gastos.costo,
