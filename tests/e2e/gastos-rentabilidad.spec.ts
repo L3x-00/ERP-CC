@@ -316,12 +316,26 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await fila.getByRole('button', { name: 'Rentabilidad' }).click();
     await expect(page.getByText('Venta explícita (MXN)')).toBeVisible();
     await expect(page.getByText('$10,000.00')).toBeVisible();
-    await expect(page.getByText('$7,165.00')).toBeVisible();
-    await expect(page.getByText('71.65 %')).toBeVisible();
+    // OBS-29: el gasto por defecto es `materia_prima` y ya está en el rubro de
+    // material, así que no se suma: costo 700 + 975 = 1675; margen 83.25 %.
+    await expect(page.getByText('$1,675.00')).toBeVisible();
+    await expect(page.getByText('83.25 %')).toBeVisible();
     await expect.poll(async () => {
       const { data } = await datos.admin.rpc('obtener_rentabilidad_orden', { p_orden_id: datos.ordenId });
-      return data?.[0] ? Number(data[0].costo_total_mxn) : 0;
-    }).toBe(2835);
+      return data?.[0]
+        ? `${Number(data[0].costo_total_mxn)}:${Number(data[0].gastos_incluidos_en_rubros)}`
+        : '0:0';
+    }).toBe('1675:1');
+
+    // OBS-29: desglose por estación/rubro con el gasto marcado como no sumable.
+    const desglose = page.getByTestId('desglose-rentabilidad');
+    await expect(desglose).toBeVisible();
+    await desglose.getByText('Desglose por estación y rubro').click();
+    await expect(desglose).toContainText('Mano de obra por estación');
+    await expect(desglose).toContainText('h reales');
+    const incluidos = page.getByTestId('desglose-incluidos');
+    await expect(incluidos).toContainText('materia_prima');
+    await expect(incluidos).toContainText('No suma');
 
     await fila.getByRole('button', { name: 'Marcar pagado' }).click();
     await expect.poll(async () => {

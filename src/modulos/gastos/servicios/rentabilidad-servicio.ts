@@ -5,6 +5,7 @@ import type {
   MonedaGasto,
   MonedaRentabilidad,
 } from '@/modulos/gastos/tipos/gastos';
+import { categoriaIncluidaEnRubros } from '@/modulos/gastos/tipos/gastos';
 
 const DECIMALES_MONTO = 4;
 const DECIMALES_PORCENTAJE = 2;
@@ -118,13 +119,19 @@ export function calcularCostoManoObraMxn(
 export function calcularCostoGastosDirectosMxn(
   gastos: readonly Gasto[],
   ordenId: string,
-): { costo: number; considerados: number; excluidos: number } {
+): { costo: number; considerados: number; excluidos: number; incluidos: number } {
   let costo = 0;
   let considerados = 0;
   let excluidos = 0;
+  let incluidos = 0;
   for (const gasto of gastos) {
     if (gasto.ordenId !== ordenId || gasto.estadoPago === 'cancelado') {
       excluidos += 1;
+      continue;
+    }
+    // OBS-29: material y nómina ya viven en sus rubros; no se duplican.
+    if (categoriaIncluidaEnRubros(gasto.categoria)) {
+      incluidos += 1;
       continue;
     }
     if (gasto.moneda === 'MXN' && gasto.tipoCambio !== 1) {
@@ -139,7 +146,7 @@ export function calcularCostoGastosDirectosMxn(
     costo += importe;
     considerados += 1;
   }
-  return { costo: redondear(costo, DECIMALES_MONTO), considerados, excluidos };
+  return { costo: redondear(costo, DECIMALES_MONTO), considerados, excluidos, incluidos };
 }
 
 export function calcularMargenPorcentaje(utilidad: number, ingreso: number): number | null {
@@ -186,6 +193,7 @@ export function calcularRentabilidadOrden(
     sesionesSinTarifa: manoObra.sinTarifa,
     gastosConsiderados: gastos.considerados,
     gastosExcluidos: gastos.excluidos,
+    gastosIncluidosEnRubros: gastos.incluidos,
     componentesFaltantes,
   };
 }

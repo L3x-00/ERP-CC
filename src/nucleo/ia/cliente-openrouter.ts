@@ -16,6 +16,29 @@ const TIMEOUT_MS_POR_DEFECTO = 30_000;
 const TOKENS_MAXIMOS_POR_DEFECTO = 1_024;
 
 /**
+ * Endpoint de chat del proveedor. En producción es siempre OpenRouter; para
+ * pruebas E2E locales se permite un override explícito
+ * (`OPENROUTER_BASE_URL` + `OPENROUTER_PERMITIR_ENDPOINT_LOCAL=si`) y **solo**
+ * hacia loopback: sin el flag, o con un host remoto, se usa el endpoint oficial.
+ */
+export function resolverUrlChatCompletions(
+  entorno: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  const candidato = entorno.OPENROUTER_BASE_URL?.trim();
+  if (!candidato) return URL_CHAT_COMPLETIONS;
+  if (entorno.OPENROUTER_PERMITIR_ENDPOINT_LOCAL !== 'si') return URL_CHAT_COMPLETIONS;
+  try {
+    const url = new URL(candidato);
+    const esLoopback =
+      url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '::1';
+    if (!esLoopback) return URL_CHAT_COMPLETIONS;
+    return url.toString();
+  } catch {
+    return URL_CHAT_COMPLETIONS;
+  }
+}
+
+/**
  * Modelo gratuito multimodal por defecto. Es configurable con
  * `OPENROUTER_MODEL`; alternativas gratuitas verificadas en OpenRouter:
  * - `google/gemma-4-26b-a4b-it:free`
@@ -117,7 +140,7 @@ export async function solicitarTextoConImagenes(
   const temporizador = setTimeout(() => controlador.abort(), timeoutMs);
 
   try {
-    const respuesta = await fetchImpl(URL_CHAT_COMPLETIONS, {
+    const respuesta = await fetchImpl(resolverUrlChatCompletions(), {
       method: 'POST',
       signal: controlador.signal,
       headers: {

@@ -30,6 +30,8 @@ export {
   registrarGastoServicio,
   cambiarEstadoGastoServicio,
   consultarGastosServicio,
+  mapearDesgloseRentabilidad,
+  obtenerDesgloseRentabilidadServicio,
   obtenerRentabilidadOrdenServicio,
   mensajeErrorGastos,
 } from '@/modulos/gastos/servicios/gastos-servicio';

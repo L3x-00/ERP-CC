@@ -4,6 +4,9 @@ export {
   ESTADOS_GASTO,
   METODOS_PAGO_GASTO,
   COMPONENTES_RENTABILIDAD,
+  RUBROS_DESGLOSE_RENTABILIDAD,
+  CATEGORIAS_INCLUIDAS_EN_RUBROS,
+  categoriaIncluidaEnRubros,
   filaAGasto,
 } from '@/modulos/gastos/tipos/gastos';
 
@@ -14,6 +17,8 @@ export type {
   MetodoPagoGasto,
   MonedaRentabilidad,
   ComponenteRentabilidad,
+  RubroDesgloseRentabilidad,
+  DesgloseRentabilidadOrden,
   Gasto,
   FilaGasto,
   CalculoRentabilidadOrden,

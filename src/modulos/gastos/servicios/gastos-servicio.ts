@@ -1,11 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/compartido/tipos/supabase';
 import {
+  RUBROS_DESGLOSE_RENTABILIDAD,
   filaAGasto,
   type CalculoRentabilidadOrden,
   type ComponenteRentabilidad,
+  type DesgloseRentabilidadOrden,
   type FilaGasto,
   type Gasto,
+  type RubroDesgloseRentabilidad,
 } from '@/modulos/gastos/tipos/gastos';
 import type {
   CambiarEstadoGastoInput,
@@ -213,8 +216,51 @@ export async function obtenerRentabilidadOrdenServicio(
     sesionesSinTarifa: numeroSeguro(fila.sesiones_sin_tarifa),
     gastosConsiderados: numeroSeguro(fila.gastos_considerados),
     gastosExcluidos: numeroSeguro(fila.gastos_excluidos),
+    gastosIncluidosEnRubros: numeroSeguro(fila.gastos_incluidos_en_rubros),
     componentesFaltantes: componentesFaltantes(fila, esInterna),
   };
+}
+
+type FilaDesgloseRentabilidad =
+  Database['public']['Functions']['obtener_desglose_rentabilidad_orden']['Returns'][number];
+
+/**
+ * Mapea los renglones del RPC de desglose (OBS-29). Un rubro desconocido no
+ * debe romper la tarjeta: se descarta en vez de propagarse como si fuera válido.
+ */
+export function mapearDesgloseRentabilidad(
+  filas: readonly FilaDesgloseRentabilidad[],
+): DesgloseRentabilidadOrden[] {
+  const resultado: DesgloseRentabilidadOrden[] = [];
+  for (const fila of filas) {
+    if (!(RUBROS_DESGLOSE_RENTABILIDAD as readonly string[]).includes(fila.rubro)) continue;
+    resultado.push({
+      rubro: fila.rubro as RubroDesgloseRentabilidad,
+      concepto: fila.concepto,
+      referencia: fila.referencia,
+      horasEstimadas: fila.horas_estimadas === null ? null : numeroSeguro(fila.horas_estimadas),
+      horasReales: fila.horas_reales === null ? null : numeroSeguro(fila.horas_reales),
+      tarifaHora: fila.tarifa_hora === null ? null : numeroSeguro(fila.tarifa_hora),
+      importe: numeroSeguro(fila.importe),
+      nota: fila.nota ?? null,
+    });
+  }
+  return resultado;
+}
+
+/**
+ * OBS-29: desglose por estación/rubro de la orden. Requiere el mismo permiso
+ * que la rentabilidad (la Server Action lo comprueba).
+ */
+export async function obtenerDesgloseRentabilidadServicio(
+  admin: SupabaseClient<Database>,
+  ordenId: string,
+): Promise<DesgloseRentabilidadOrden[]> {
+  const { data, error } = await admin.rpc('obtener_desglose_rentabilidad_orden', {
+    p_orden_id: ordenId,
+  });
+  if (error) lanzarError(error.message);
+  return mapearDesgloseRentabilidad(data ?? []);
 }
 
 /** Mensaje saneado que puede cruzar la frontera hacia la interfaz. */

@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Gates rápidos: tipos, lint y unitarias.
+  verificacion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+
+  # E2E real contra Supabase local (Docker) + concurrencia estricta.
+  e2e-local:
+    runs-on: ubuntu-latest
+    needs: verificacion
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.0
+      - name: Levantar Supabase local (aplica migraciones)
+        run: supabase start
+      - name: Exportar entorno del stack local
+        run: |
+          source <(supabase status -o env)
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY_LOCAL=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_URL_LOCAL=$API_URL" >> "$GITHUB_ENV"
+          echo "SECRETO_SESION_OPERADOR=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SITIO_URL=http://127.0.0.1:3100" >> "$GITHUB_ENV"
+          echo "E2E_HABILITAR_PRUEBAS_REMOTAS=si" >> "$GITHUB_ENV"
+      - name: Provisionar fixture E2E
+        run: |
+          node supabase/semillas/e2e-local.mjs /tmp/e2e-fixture.json --exports > /tmp/e2e-exports.txt
+          cat /tmp/e2e-exports.txt >> "$GITHUB_ENV"
+      - name: Instalar Chromium de Playwright
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E de navegador (incluye OCR con stub local)
+        run: pnpm test:e2e
+      - name: Concurrencia estricta (dos conexiones)
+        run: pnpm test:concurrencia
+      - name: Registrar logs de Supabase si algo falla
+        if: failure()
+        run: docker ps --format '{{.Names}}' && supabase status

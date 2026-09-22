@@ -1,7 +1,10 @@
 'use client';
 
 import { formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
-import type { CalculoRentabilidadOrden } from '@/modulos/gastos/tipos/indice';
+import type {
+  CalculoRentabilidadOrden,
+  DesgloseRentabilidadOrden,
+} from '@/modulos/gastos/tipos/indice';
 
 function claseMargen(margen: number | null): string {
   if (margen === null) return 'text-texto-secundario';
@@ -11,13 +14,141 @@ function claseMargen(margen: number | null): string {
 }
 
 /**
+ * OBS-29: desglose por estación (horas estimadas vs reales y tarifa histórica),
+ * material consumido y categorías de gasto. Los gastos ya representados en
+ * material/mano de obra se muestran marcados y no suman.
+ */
+function DesgloseRentabilidad({
+  desglose,
+}: {
+  desglose: readonly DesgloseRentabilidadOrden[];
+}) {
+  if (desglose.length === 0) return null;
+
+  const manoObra = desglose.filter((renglon) => renglon.rubro === 'mano_obra');
+  const materiales = desglose.filter((renglon) => renglon.rubro === 'material');
+  const gastos = desglose.filter((renglon) => renglon.rubro === 'gasto');
+  const incluidos = desglose.filter((renglon) => renglon.rubro === 'gasto_incluido');
+
+  return (
+    <details
+      className="mt-4 rounded-md border border-borde bg-superficie-2/50 p-3"
+      data-testid="desglose-rentabilidad"
+    >
+      <summary className="cursor-pointer text-sm font-medium text-texto-primario">
+        Desglose por estación y rubro
+      </summary>
+
+      {manoObra.length > 0 ? (
+        <section className="mt-3 flex flex-col gap-1" aria-label="Mano de obra por estación">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">
+            Mano de obra por estación
+          </h3>
+          <ul className="flex flex-col gap-1 text-sm">
+            {manoObra.map((renglon) => (
+              <li
+                key={`${renglon.rubro}-${renglon.referencia ?? renglon.concepto}-${renglon.tarifaHora ?? 0}`}
+                className="flex flex-wrap justify-between gap-2"
+              >
+                <span className="text-texto-secundario">
+                  {renglon.concepto}
+                  {renglon.horasReales !== null ? (
+                    <span className="ml-2 text-xs">
+                      {formatearNumero(renglon.horasReales, 2)} h reales /{' '}
+                      {formatearNumero(renglon.horasEstimadas ?? 0, 2)} h estimadas
+                    </span>
+                  ) : null}
+                  {renglon.tarifaHora !== null ? (
+                    <span className="ml-2 text-xs">
+                      @ {formatearMoneda(renglon.tarifaHora)}/h
+                    </span>
+                  ) : null}
+                </span>
+                <span className="tabular-nums">{formatearMoneda(renglon.importe)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {materiales.length > 0 ? (
+        <section className="mt-3 flex flex-col gap-1" aria-label="Material consumido">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">
+            Material consumido
+          </h3>
+          <ul className="flex flex-col gap-1 text-sm">
+            {materiales.map((renglon) => (
+              <li key={`${renglon.rubro}-${renglon.referencia ?? renglon.concepto}`} className="flex justify-between gap-2">
+                <span className="text-texto-secundario">{renglon.concepto}</span>
+                <span className="tabular-nums">{formatearMoneda(renglon.importe)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {gastos.length > 0 ? (
+        <section className="mt-3 flex flex-col gap-1" aria-label="Gastos directos">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">
+            Gastos directos
+          </h3>
+          <ul className="flex flex-col gap-1 text-sm">
+            {gastos.map((renglon) => (
+              <li key={`${renglon.rubro}-${renglon.concepto}`} className="flex justify-between gap-2">
+                <span className="text-texto-secundario">{renglon.concepto}</span>
+                <span className="tabular-nums">{formatearMoneda(renglon.importe)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {incluidos.length > 0 ? (
+        <section className="mt-3 flex flex-col gap-1" aria-label="Gastos ya incluidos en rubros">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">
+            Ya incluidos en sus rubros (no suman)
+          </h3>
+          <ul className="flex flex-col gap-1 text-sm" data-testid="desglose-incluidos">
+            {incluidos.map((renglon) => (
+              <li key={`${renglon.rubro}-${renglon.concepto}`} className="flex flex-wrap justify-between gap-2">
+                <span className="text-texto-secundario">
+                  {renglon.concepto}
+                  <span className="ml-2 rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario">
+                    No suma
+                  </span>
+                  {renglon.nota ? <span className="ml-2 text-xs">{renglon.nota}</span> : null}
+                </span>
+                <span className="tabular-nums text-texto-secundario">
+                  {formatearMoneda(renglon.importe)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </details>
+  );
+}
+
+/**
  * Rentabilidad de una orden comercial o **costo de producción de un trabajo
  * interno (TI)**: los TI no generan precio de venta ni AR, así que se informa
  * su costo con el mismo agregado transaccional (materiales, mano de obra y
- * gastos directos).
+ * gastos directos). El desglose OBS-29 se añade cuando el consumidor lo carga.
  */
-export function TarjetaRentabilidadOrden({ datos }: { datos: CalculoRentabilidadOrden | null }) {
+export function TarjetaRentabilidadOrden({
+  datos,
+  desglose = null,
+}: {
+  datos: CalculoRentabilidadOrden | null;
+  desglose?: readonly DesgloseRentabilidadOrden[] | null;
+}) {
   if (!datos) return null;
+
+  const notaIncluidos =
+    datos.gastosIncluidosEnRubros > 0
+      ? `${formatearNumero(datos.gastosIncluidosEnRubros, 0)} gasto(s) de material/nómina ya incluidos en sus rubros; no suman al costo.`
+      : null;
 
   if (datos.esInterna) {
     return (
@@ -78,6 +209,10 @@ export function TarjetaRentabilidadOrden({ datos }: { datos: CalculoRentabilidad
             mano de obra está subestimado.
           </p>
         ) : null}
+        {notaIncluidos ? (
+          <p className="mt-2 text-sm text-texto-secundario">{notaIncluidos}</p>
+        ) : null}
+        {desglose ? <DesgloseRentabilidad desglose={desglose} /> : null}
       </section>
     );
   }
@@ -101,7 +236,11 @@ export function TarjetaRentabilidadOrden({ datos }: { datos: CalculoRentabilidad
         <div><dt className="text-texto-secundario">Mano de obra</dt><dd className="tabular-nums">{formatearMoneda(datos.costoManoObraMxn)}</dd></div>
         <div><dt className="text-texto-secundario">Gastos directos</dt><dd className="tabular-nums">{formatearMoneda(datos.costoGastosDirectosMxn)}</dd></div>
       </dl>
+      {notaIncluidos ? (
+        <p className="mt-2 text-sm text-texto-secundario">{notaIncluidos}</p>
+      ) : null}
       {datos.componentesFaltantes.length > 0 ? <p className="mt-3 text-sm text-advertencia-texto">Datos faltantes: {datos.componentesFaltantes.join(', ')}</p> : null}
+      {desglose ? <DesgloseRentabilidad desglose={desglose} /> : null}
     </section>
   );
 }

@@ -2273,6 +2273,23 @@ export type Database = {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }
         Returns: Json
       }
+      obtener_costo_ti_periodo: {
+        Args: { p_fecha_fin: string; p_fecha_inicio: string }
+        Returns: Json
+      }
+      obtener_desglose_rentabilidad_orden: {
+        Args: { p_orden_id: string }
+        Returns: {
+          concepto: string
+          horas_estimadas: number
+          horas_reales: number
+          importe: number
+          nota: string
+          referencia: string
+          rubro: string
+          tarifa_hora: number
+        }[]
+      }
       obtener_metricas_dashboard_ejecutivo: {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }
         Returns: Json
@@ -2298,6 +2315,7 @@ export type Database = {
           costo_total_mxn: number
           gastos_considerados: number
           gastos_excluidos: number
+          gastos_incluidos_en_rubros: number
           margen_calculable: boolean
           margen_porcentaje: number
           materiales_considerados: number

@@ -38,7 +38,7 @@ Evidencia base: suite E2E local **14/14** (`tests/e2e/*.spec.ts`), PGlite
 | OBS-26 | Sin comprobante | Recibo persistido imprimible por pago (folio, abonado, saldo, método) | `recibo-persistido` | E2E cobranza | **completo** |
 | OBS-27 | Sin consolidado | No existe estado de cuenta multi-orden por cliente | — | — | **pendiente** (diseñado, app-only) |
 | OBS-28 | Gasto sin cuenta/selector de orden | Cuenta de salida implementada; orden se captura por ID (sin selector legible) | `modal-registrar-gasto`, `registrar_gasto` | E2E gastos + PGlite | **parcial probado** — selector legible de orden pendiente |
-| OBS-29 | Sin rentabilidad por orden | Motor por orden (venta neta − material real − mano de obra histórica − gastos) + panel | `obtener_rentabilidad_orden` | E2E gastos/rentabilidad | **parcial probado** — desglose por rubro/estación en UI pendiente |
+| OBS-29 | Sin rentabilidad por orden | Motor por orden (venta neta − material real − mano de obra histórica − gastos) + panel, con desglose por estación/rubro y anti-duplicado (material/nómina no suman dos veces) | `obtener_rentabilidad_orden`, `obtener_desglose_rentabilidad_orden`, `tarjeta-rentabilidad-orden` | E2E gastos/rentabilidad + unitarias | **implementado** - 21-sep |
 | OBS-30 | Tarifas sin parámetros completos | Tarifas por estación en Configuración con efecto en cálculos nuevos e históricos congelados | `editor-tarifas-estaciones`, motor | unitarias cotizador; E2E config | **completo** |
 
 ## Capacidades conservadas (no se eliminó nada)
@@ -53,9 +53,10 @@ Resueltas por el cliente en la segunda ronda (ver `decisiones-cliente-backlog.md
 anticipos, **implementada** 21-sep), OBS-21 (archivo al entregar, **implementado**), OBS-27 (solo
 órdenes abiertas + días de cartera, **implementado**), OBS-28 (folio y cliente, **implementado**),
 OBS-02/03 (ejemplos entregados e **implementados** 21-sep: contactos adicionales + próxima acción concreta).
-
 ## Dependencias que impiden comprobar
-El OCR (GAS-08) requiere proveedor de IA (bloqueado en local); la concurrencia estricta no se
-probó (solo sincronización multi-vista). Los documentos imprimibles (DOC-01/03, OBS-13/21/26/27)
-y el visor de planos en taller (OBS-06/ORD-09) quedaron **implementados y verificados** (21-sep:
-PGlite y E2E local 17/17).
+
+Resueltas al 21-sep: el OCR (GAS-08) tiene E2E con stub local y override solo-loopback; la
+concurrencia estricta se probó con dos conexiones reales (aprobación/pago/consumo) y el CI de E2E
+quedó definido (`.github/workflows/ci.yml` + provisionador portable). Los documentos imprimibles
+(DOC-01/03, OBS-13/21/26/27) y el visor de planos en taller (OBS-06/ORD-09) ya estaban
+implementados y verificados. **No quedan dependencias abiertas de la matriz OBS.**

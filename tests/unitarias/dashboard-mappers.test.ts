@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  mapearCostoTiPeriodo,
   mapearMetricasEjecutivas,
   mapearMetricasVendedor,
 } from '@/modulos/dashboard/tipos/indice';
@@ -52,8 +53,32 @@ describe('mappers del dashboard', () => {
     expect(resultado.actual).not.toHaveProperty('campoInterno');
   });
 
-  it('rechaza números no finitos en la respuesta del RPC', () => {
-    expect(() => mapearMetricasEjecutivas({
+  it('mapea el comparativo de costo TI del periodo (OBS-29)', () => {
+    const resultado = mapearCostoTiPeriodo({
+      version: 1,
+      actual: {
+        costoMaterialesMxn: 100,
+        costoManoObraMxn: 200,
+        costoGastosMxn: 50,
+        costoTotalMxn: 350,
+        ordenesInternas: 2,
+      },
+      anterior: {
+        costoMaterialesMxn: 10,
+        costoManoObraMxn: 20,
+        costoGastosMxn: 5,
+        costoTotalMxn: 35,
+        ordenesInternas: 1,
+      },
+    });
+
+    expect(resultado.actual.costoTotalMxn).toBe(350);
+    expect(resultado.actual.ordenesInternas).toBe(2);
+    expect(resultado.anterior.costoTotalMxn).toBe(35);
+    expect(() => mapearCostoTiPeriodo({ actual: { costoTotalMxn: Number.NaN } })).toThrow();
+  });
+
+  it('rechaza números no finitos en la respuesta del RPC', () => {    expect(() => mapearMetricasEjecutivas({
       version: 1,
       periodo,
       actual: {

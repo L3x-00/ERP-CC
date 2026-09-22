@@ -73,6 +73,21 @@ export interface GastoPorCategoriaDashboard {
   montoMxn: number;
 }
 
+/** OBS-29/TI: costo de producción de trabajos internos en el periodo. */
+export interface CostoTiPeriodoDashboard {
+  costoMaterialesMxn: number;
+  costoManoObraMxn: number;
+  costoGastosMxn: number;
+  costoTotalMxn: number;
+  ordenesInternas: number;
+}
+
+/** Costo TI del periodo y su comparativa inmediata anterior. */
+export interface CostoTiComparativoDashboard {
+  actual: CostoTiPeriodoDashboard;
+  anterior: CostoTiPeriodoDashboard;
+}
+
 export interface ResumenEjecutivoPeriodo {
   ventas: ResumenVentasDashboard;
   ordenes: ResumenOrdenesDashboard;
@@ -87,6 +102,11 @@ export interface MetricasEjecutivas {
   periodo: PeriodoComparativoDashboard;
   actual: ResumenEjecutivoPeriodo;
   anterior: ResumenEjecutivoPeriodo;
+  /**
+   * OBS-29/TI: costo de producción de los trabajos internos del periodo.
+   * Opcional: se omite si la RPC de costo TI aún no está aplicada en remoto.
+   */
+  costoTi?: CostoTiComparativoDashboard;
   generadoEn: string;
 }
 
@@ -405,6 +425,26 @@ export function mapearMetricasEjecutivas(valor: unknown): MetricasEjecutivas {
     actual: resumenEjecutivoDesde(campo(valor, 'actual')),
     anterior: resumenEjecutivoDesde(campo(valor, 'anterior')),
     generadoEn: texto(campo(valor, 'generadoEn'), 'generadoEn'),
+  };
+}
+
+function costoTiPeriodoDesde(valor: unknown): CostoTiPeriodoDashboard {
+  const objeto = esObjeto(valor) ? valor : (() => { throw new Error('Costo TI inválido'); })();
+  return {
+    costoMaterialesMxn: numero(campo(objeto, 'costoMaterialesMxn'), 'costoTi.costoMaterialesMxn'),
+    costoManoObraMxn: numero(campo(objeto, 'costoManoObraMxn'), 'costoTi.costoManoObraMxn'),
+    costoGastosMxn: numero(campo(objeto, 'costoGastosMxn'), 'costoTi.costoGastosMxn'),
+    costoTotalMxn: numero(campo(objeto, 'costoTotalMxn'), 'costoTi.costoTotalMxn'),
+    ordenesInternas: numero(campo(objeto, 'ordenesInternas'), 'costoTi.ordenesInternas'),
+  };
+}
+
+/** OBS-29/TI: mapea el comparativo de costo de trabajos internos del periodo. */
+export function mapearCostoTiPeriodo(valor: unknown): CostoTiComparativoDashboard {
+  if (!esObjeto(valor)) throw new Error('Respuesta de costo TI inválida');
+  return {
+    actual: costoTiPeriodoDesde(campo(valor, 'actual')),
+    anterior: costoTiPeriodoDesde(campo(valor, 'anterior')),
   };
 }
 

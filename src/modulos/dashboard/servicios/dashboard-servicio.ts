@@ -2,10 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import type { RolUsuario } from '@/modulos/autenticacion/tipos/indice';
 import {
+  mapearCostoTiPeriodo,
   mapearMetricasContador,
   mapearMetricasEjecutivas,
   mapearMetricasPipelineEquipo,
   mapearMetricasVendedor,
+  type CostoTiComparativoDashboard,
   type DashboardConsolidado,
   type FiltroPeriodoDashboard,
   type MetricasContador,
@@ -72,7 +74,30 @@ async function obtenerEjecutivas(
     argumentosPeriodo(filtro),
   );
   if (error || data === null) throw new Error(error?.message ?? 'Métricas ejecutivas ausentes');
-  return mapearMetricasEjecutivas(data);
+  const metricas = mapearMetricasEjecutivas(data);
+  // OBS-29/TI: dato aditivo; si la RPC aún no está aplicada en remoto, el
+  // dashboard sigue funcionando sin la tarjeta de costo.
+  const costoTi = await obtenerCostoTi(cliente, filtro);
+  if (costoTi) metricas.costoTi = costoTi;
+  return metricas;
+}
+
+/**
+ * OBS-29/TI: costo de producción de los trabajos internos del periodo. Devuelve
+ * `null` si la RPC no está disponible (migración pendiente) para no tumbar el
+ * dashboard.
+ */
+async function obtenerCostoTi(
+  cliente: ClienteDashboard,
+  filtro: FiltroPeriodoDashboard,
+): Promise<CostoTiComparativoDashboard | null> {
+  try {
+    const { data, error } = await cliente.rpc('obtener_costo_ti_periodo', argumentosPeriodo(filtro));
+    if (error || data === null) return null;
+    return mapearCostoTiPeriodo(data);
+  } catch {
+    return null;
+  }
 }
 
 async function obtenerVendedor(
@@ -121,6 +146,7 @@ export function tarjetasEjecutivas(metricas: MetricasEjecutivas): TarjetaMetrica
     tarjeta('respondidas-24h', 'Respondidas ≤24 h', metricas.actual.ventas.porcentajeRespondidas24h, metricas.anterior.ventas.porcentajeRespondidas24h, 'porcentaje', 'Cotizaciones enviadas dentro de 24 h'),
     tarjeta('ordenes-activas', 'Órdenes activas', metricas.actual.ordenes.activas, metricas.anterior.ordenes.activas, 'cantidad'),
     tarjeta('ordenes-internas-ti', 'Órdenes internas (TI)', metricas.actual.ordenes.internas, metricas.anterior.ordenes.internas, 'cantidad', 'Trabajos internos del periodo; no son ventas a clientes'),
+    tarjeta('costo-ti-periodo', 'Costo de producción TI', metricas.costoTi?.actual.costoTotalMxn ?? null, metricas.costoTi?.anterior.costoTotalMxn ?? null, 'moneda', 'Materiales, mano de obra y gastos directos de los trabajos internos del periodo'),
     tarjeta('ordenes-atrasadas', 'Órdenes atrasadas', metricas.actual.ordenes.atrasadas, metricas.anterior.ordenes.atrasadas, 'cantidad'),
     tarjeta('gastos-periodo', 'Gastos del periodo', metricas.actual.finanzas.gastosTotal, metricas.anterior.finanzas.gastosTotal, 'moneda', 'Gastos no cancelados del periodo en MXN'),
     tarjeta('utilidad-neta', 'Utilidad neta acumulada', metricas.actual.finanzas.utilidadNetaAcumulada, metricas.anterior.finanzas.utilidadNetaAcumulada, 'moneda', 'Resultado aproximado del periodo en MXN'),
@@ -194,7 +220,20 @@ export async function obtenerDashboardPorRol(
   if (rol === 'contador') {
     if (!tienePermiso(rol, permisos, 'ver_finanzas')) return base;
     const contador = await obtenerContador(supabase, filtro);
-    return { ...base, contador, tarjetas: tarjetasContador(contador) };
+    const costoTi = await obtenerCostoTi(supabase, filtro);
+    const tarjetas: TarjetaMetrica[] = [...tarjetasContador(contador)];
+    if (costoTi) {
+      tarjetas.push(
+        tarjeta(
+          'costo-ti-periodo-contador',
+          'Costo de producción TI',
+          costoTi.actual.costoTotalMxn,
+          costoTi.anterior.costoTotalMxn,
+          'moneda',
+        ),
+      );
+    }
+    return { ...base, contador, tarjetas };
   }
 
   if (rol === 'gerente') {
