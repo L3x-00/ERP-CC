@@ -3,17 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { DesglosePartidaPlaneacion } from '@/modulos/planeacion/tipos/indice';
 import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
 
 const {
   activarPreparacionMock,
   obtenerCalendarioMock,
   programarMock,
+  proponerHuecoMock,
   reprogramarMock,
 } = vi.hoisted(() => ({
   activarPreparacionMock: vi.fn(),
   obtenerCalendarioMock: vi.fn(),
   programarMock: vi.fn(),
+  proponerHuecoMock: vi.fn(),
   reprogramarMock: vi.fn(),
 }));
 
@@ -27,6 +30,7 @@ vi.mock('@/modulos/planeacion/acciones/indice', () => ({
   activarModoPreparacionAccion: (...args: unknown[]) => activarPreparacionMock(...args),
   obtenerCalendarioPlaneacionAccion: (...args: unknown[]) => obtenerCalendarioMock(...args),
   programarPartidaRecursoAccion: (...args: unknown[]) => programarMock(...args),
+  proponerHuecoReprogramacionAccion: (...args: unknown[]) => proponerHuecoMock(...args),
   reprogramarPartidaRecursoAccion: (...args: unknown[]) => reprogramarMock(...args),
 }));
 vi.mock('@/modulos/planeacion/componentes/sincronizador-planeacion-realtime', () => ({
@@ -62,6 +66,17 @@ const DATOS: DatosCalendarioPlaneacion = {
       porcentajeOcupacion: 50,
       sobrecargado: false,
     },
+    {
+      recursoId: '11111111-1111-4111-8111-111111111111',
+      area: 'taller',
+      fechaProgramada: '2026-09-16',
+      turno: 'matutino',
+      horasCapacidad: 8,
+      horasProgramadas: 8,
+      horasDisponibles: 0,
+      porcentajeOcupacion: 100,
+      sobrecargado: false,
+    },
   ],
   programaciones: [
     {
@@ -79,6 +94,27 @@ const DATOS: DatosCalendarioPlaneacion = {
       actualizadoEn: '2026-09-01T12:00:00+00:00',
     },
   ],
+};
+
+const DESGLOSE: DesglosePartidaPlaneacion = {
+  partidaId: '44444444-4444-4444-8444-444444444444',
+  ordenId: '33333333-3333-4333-8333-333333333333',
+  folio: 'OP-000001',
+  codigoPieza: 'PIEZA-E2E',
+  descripcion: 'Partida temporal',
+  areaCodigo: null,
+  areaNombre: null,
+  procesos: [],
+  esExterno: false,
+  proveedorExterno: null,
+  maquinaAsignada: null,
+  materialNombre: null,
+  cantidadSolicitada: 2,
+  cantidadProducida: 1,
+  cantidadScrap: 0,
+  unidadMedida: 'pieza',
+  tiempoEstimadoMinutos: 0,
+  operadorAsignadoId: null,
 };
 
 function crearWrapper(cliente: QueryClient) {
@@ -99,6 +135,7 @@ function renderizarOperacion(cliente: QueryClient): void {
           etiqueta: 'OP-000001 · PIEZA-E2E',
         },
       ],
+      desglosePartidas: [DESGLOSE],
     }),
     { wrapper: crearWrapper(cliente) },
   );
@@ -118,6 +155,17 @@ describe('operación de Planeación en cliente', () => {
     obtenerCalendarioMock.mockResolvedValue({ exito: true, datos: DATOS });
     programarMock.mockResolvedValue({ exito: true, datos: { id: 'nueva' } });
     reprogramarMock.mockResolvedValue({ exito: true, datos: { id: DATOS.programaciones[0].id } });
+    proponerHuecoMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        fecha: '2026-09-21',
+        turno: 'matutino',
+        horasCapacidad: 8,
+        horasProgramadas: 0,
+        horasDisponibles: 8,
+        holguraHoras: 8,
+      },
+    });
     activarPreparacionMock.mockResolvedValue({ exito: true, datos: { id: DATOS.programaciones[0].id } });
   });
 
@@ -166,5 +214,73 @@ describe('operación de Planeación en cliente', () => {
       programacionId: DATOS.programaciones[0].id,
       actualizadoEnEsperado: '2026-09-01T12:00:00+00:00',
     });
+  });
+
+  it('muestra el desglose de la partida con "Por definir" y el resumen antes de guardar', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+
+    const desglose = await screen.findByTestId('desglose-partida-planeacion');
+    expect(desglose.textContent).toContain('OP-000001 · PIEZA-E2E');
+    expect(desglose.textContent).toContain('Por definir');
+    expect(desglose.textContent).toContain('1/2 pieza');
+
+    const resumen = screen.getByTestId('resumen-programacion-planeacion');
+    expect(resumen.textContent).toContain('Reprogramar en CNC-01');
+    expect(resumen.textContent).toContain('2026-09-15');
+    expect(resumen.textContent).toContain('Capacidad tras guardar');
+  });
+
+  it('bloquea la previsualización por capacidad y propone el siguiente día hábil', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
+
+    expect(await screen.findByTestId('aviso-capacidad-insuficiente')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('buscar-hueco-planeacion'));
+
+    await waitFor(() => expect(proponerHuecoMock).toHaveBeenCalledTimes(1));
+    expect(proponerHuecoMock).toHaveBeenCalledWith({
+      recursoId: DATOS.programaciones[0].recursoId,
+      turno: 'matutino',
+      horasEstimadas: 4,
+      desdeFecha: '2026-09-16',
+    });
+
+    const sugerencia = await screen.findByTestId('hueco-sugerido-planeacion');
+    expect(sugerencia.textContent).toContain('2026-09-21');
+    fireEvent.click(screen.getByTestId('usar-hueco-sugerido-planeacion'));
+    expect((screen.getByLabelText('Fecha programada') as HTMLInputElement).value).toBe('2026-09-21');
+  });
+
+  it('el arrastre abre confirmación con resumen y reprograma solo al confirmar', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    const columna = screen.getByTestId('columna-2026-09-16');
+    fireEvent.dragStart(tarjeta, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    fireEvent.drop(columna, {
+      dataTransfer: { getData: () => DATOS.programaciones[0].id },
+    });
+
+    const dialogo = await screen.findByTestId('dialogo-reprogramacion-planeacion');
+    expect(dialogo.textContent).toContain('Reprogramar por arrastre');
+    expect(dialogo.textContent).toContain('OP-000001 · PIEZA-E2E');
+    expect(reprogramarMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('confirmar-reprogramacion-planeacion'));
+    await waitFor(() =>
+      expect(reprogramarMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          programacionId: DATOS.programaciones[0].id,
+          fechaProgramada: '2026-09-16',
+        }),
+      ),
+    );
   });
 });

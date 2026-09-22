@@ -81,6 +81,19 @@ export const esquemaActivarModoPreparacion = z
 
 const MAXIMO_DIAS_CALENDARIO = 31;
 
+/** Búsqueda del primer día hábil con capacidad comprobada (OBS-19). */
+export const esquemaProponerHuecoPlaneacion = z
+  .object({
+    recursoId: z.uuid('ID de recurso inválido'),
+    turno: z.enum(TURNOS_PLANEACION),
+    horasEstimadas: z
+      .number()
+      .positive('Las horas estimadas deben ser mayores a 0')
+      .max(24, 'Las horas estimadas no pueden exceder 24'),
+    desdeFecha: z.iso.date({ message: 'Fecha inicial de búsqueda inválida' }),
+  })
+  .strict();
+
 /** Filtros de lectura acotados para no permitir consultas de calendario sin límite. */
 export const esquemaConsultarCalendarioPlaneacion = z
   .object({
@@ -113,3 +126,4 @@ export type CambiarModoPreparacionInput = z.infer<typeof esquemaCambiarModoPrepa
 export type ReprogramarPartidaRecursoInput = z.infer<typeof esquemaReprogramarPartidaRecurso>;
 export type ActivarModoPreparacionInput = z.infer<typeof esquemaActivarModoPreparacion>;
 export type ConsultarCalendarioPlaneacionInput = z.infer<typeof esquemaConsultarCalendarioPlaneacion>;
+export type ProponerHuecoPlaneacionInput = z.infer<typeof esquemaProponerHuecoPlaneacion>;

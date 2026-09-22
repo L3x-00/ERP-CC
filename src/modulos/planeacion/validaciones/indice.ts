@@ -4,6 +4,7 @@ export {
   esquemaReprogramarPartidaRecurso,
   esquemaActivarModoPreparacion,
   esquemaConsultarCalendarioPlaneacion,
+  esquemaProponerHuecoPlaneacion,
 } from '@/modulos/planeacion/validaciones/planeacion';
 
 export type {
@@ -12,4 +13,5 @@ export type {
   ReprogramarPartidaRecursoInput,
   ActivarModoPreparacionInput,
   ConsultarCalendarioPlaneacionInput,
+  ProponerHuecoPlaneacionInput,
 } from '@/modulos/planeacion/validaciones/planeacion';

@@ -3,6 +3,7 @@ import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-
 import { PanelCapacidadInstalada } from '@/modulos/planeacion/componentes/panel-capacidad-instalada';
 import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
+import { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
 import { obtenerDatosCalendarioPlaneacionServicio } from '@/modulos/planeacion/servicios/planeacion-servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -56,13 +57,26 @@ export default async function PaginaPlaneacion() {
     }),
     cliente
       .from('partidas_orden_produccion')
-      .select('id, orden_id, codigo_pieza, descripcion')
+      .select('id, orden_id')
       .order('creado_en', { ascending: false })
       .limit(100),
   ]);
   if (resultadoPartidas.error) {
     throw new Error('No se pudieron cargar las partidas para Planeación');
   }
+
+  // El desglose cubre tanto las partidas programables como las ya programadas
+  // del rango visible, para que ninguna tarjeta del calendario quede sin datos.
+  const idsDesglose = [
+    ...new Set([
+      ...(resultadoPartidas.data ?? []).map((partida) => partida.id),
+      ...datosIniciales.programaciones.map((programacion) => programacion.partidaId),
+    ]),
+  ];
+  const desglosePartidas = await obtenerDesglosePartidasServicio(cliente, idsDesglose);
+  const desglosePorId = new Map(
+    desglosePartidas.map((desglose) => [desglose.partidaId, desglose]),
+  );
 
   const ordenesIds = [...new Set((resultadoPartidas.data ?? []).map((partida) => partida.orden_id))];
   const { data: ordenes, error: errorOrdenes } = ordenesIds.length === 0
@@ -82,13 +96,17 @@ export default async function PaginaPlaneacion() {
   );
   const partidasProgramables: PartidaProgramablePlaneacion[] = (resultadoPartidas.data ?? [])
     .filter((partida) => folioPorOrden.has(partida.orden_id))
-    .map((partida) => ({
-      ordenId: partida.orden_id,
-      partidaId: partida.id,
-      etiqueta: `${folioPorOrden.get(partida.orden_id) ?? 'OP'} · ${partida.codigo_pieza}${
-        partida.descripcion ? ` — ${partida.descripcion}` : ''
-      }`,
-    }));
+    .map((partida) => {
+      const desglose = desglosePorId.get(partida.id);
+      const descripcion = desglose?.descripcion ? ` — ${desglose.descripcion}` : '';
+      return {
+        ordenId: partida.orden_id,
+        partidaId: partida.id,
+        etiqueta: desglose
+          ? `${desglose.folio} · ${desglose.codigoPieza}${descripcion}`
+          : `OP · ${partida.id.slice(0, 8)}`,
+      };
+    });
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-planeacion">
@@ -103,6 +121,7 @@ export default async function PaginaPlaneacion() {
         datosIniciales={datosIniciales}
         rangoInicial={{ fechaInicio, fechaFin }}
         partidasProgramables={partidasProgramables}
+        desglosePartidas={desglosePartidas}
       />
       <PanelCapacidadInstalada />
     </div>

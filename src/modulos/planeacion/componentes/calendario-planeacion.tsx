@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
-import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import {
@@ -11,10 +10,33 @@ import {
   ESTADOS_PLANEACION,
   TURNOS_PLANEACION,
   type AreaPlaneacion,
+  type DesglosePartidaPlaneacion,
   type EstadoPlaneacion,
   type ProgramacionArea,
   type TurnoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
+import {
+  VistaDia,
+  VistaMes,
+  VistaSemana,
+  type PropsVistaCalendario,
+} from '@/modulos/planeacion/componentes/vistas-calendario-planeacion';
+import {
+  VISTAS_PLANEACION,
+  diasEntre,
+  etiquetaMes,
+  etiquetaRango,
+  hoyIso,
+  navegarRango,
+  rangoVista,
+  type RangoFechas,
+  type VistaPlaneacion,
+} from '@/modulos/planeacion/utilidades/fechas-planeacion';
+import {
+  ETIQUETA_AREA,
+  ETIQUETA_ESTADO,
+  ETIQUETA_TURNO,
+} from '@/modulos/planeacion/utilidades/etiquetas';
 
 /** Filtros de lectura serializables que se envían a la Server Action. */
 export interface FiltrosConsultaCalendario {
@@ -30,41 +52,17 @@ export interface PropsCalendarioPlaneacion {
   rangoInicial: { fechaInicio: string; fechaFin: string };
   actualizando: boolean;
   errorActualizacion: boolean;
+  /** Desglose de las partidas visibles (OBS-08); si falta, se declara "Por definir". */
+  desglosePartidas?: readonly DesglosePartidaPlaneacion[];
   onSeleccionarProgramacion?: (programacion: ProgramacionArea | null) => void;
+  /** Solicita confirmar una reprogramación por arrastre; nunca muta por sí sola. */
+  onSolicitarReprogramacion?: (programacion: ProgramacionArea, fechaDestino: string) => void;
 }
 
-const ETIQUETA_AREA: Record<AreaPlaneacion, string> = {
-  sheet_metal: 'Sheet metal',
-  taller: 'Taller',
-  acabados: 'Acabados',
-  ext: 'Proveedor externo',
-};
-
-const ETIQUETA_TURNO: Record<TurnoPlaneacion, string> = {
-  matutino: 'Matutino',
-  vespertino: 'Vespertino',
-  nocturno: 'Nocturno',
-};
-
-const ETIQUETA_ESTADO: Record<EstadoPlaneacion, string> = {
-  programada: 'Programada',
-  en_preparacion: 'En preparación',
-  en_proceso: 'En proceso',
-  bloqueada: 'Bloqueada',
-  completada: 'Completada',
-  cancelada: 'Cancelada',
-};
-
-const VARIANTE_ESTADO: Record<
-  EstadoPlaneacion,
-  'neutro' | 'alerta' | 'exito' | 'info'
-> = {
-  programada: 'neutro',
-  en_preparacion: 'info',
-  en_proceso: 'info',
-  bloqueada: 'alerta',
-  completada: 'exito',
-  cancelada: 'neutro',
+const ETIQUETA_VISTA: Record<VistaPlaneacion, string> = {
+  dia: 'Día',
+  semana: 'Semana',
+  mes: 'Mes',
 };
 
 function ordenarProgramaciones(
@@ -86,16 +84,19 @@ function claveCarga(recursoId: string, fecha: string, turno: TurnoPlaneacion): s
 }
 
 /**
- * Calendario operativo por fecha y turno. TanStack Query conserva los datos de
- * servidor; Zustand se limita a filtros y selección, por lo que ninguna copia
- * mutable puede competir con la decisión transaccional de PostgreSQL.
+ * Calendario operativo por fecha y turno con vistas de día, semana y mes.
+ * TanStack Query conserva los datos de servidor; Zustand se limita a filtros y
+ * selección, por lo que ninguna copia mutable puede competir con la decisión
+ * transaccional de PostgreSQL. El arrastre solo abre una confirmación.
  */
 export function CalendarioPlaneacion({
   datos,
   rangoInicial,
   actualizando,
   errorActualizacion,
+  desglosePartidas = [],
   onSeleccionarProgramacion,
+  onSolicitarReprogramacion,
 }: PropsCalendarioPlaneacion) {
   const rango = usarTiendaPlaneacion((estado) => estado.rango);
   const area = usarTiendaPlaneacion((estado) => estado.area);
@@ -117,20 +118,36 @@ export function CalendarioPlaneacion({
   const rangoEfectivo = rango ?? rangoInicial;
   const [fechaInicio, setFechaInicio] = useState(rangoEfectivo.fechaInicio);
   const [fechaFin, setFechaFin] = useState(rangoEfectivo.fechaFin);
+  const [vista, setVista] = useState<VistaPlaneacion>('semana');
 
-  const recursosPorId = new Map(datos.recursos.map((recurso) => [recurso.id, recurso]));
-  const cargasPorClave = new Map(
-    datos.cargas.map((carga) => [
-      claveCarga(carga.recursoId, carga.fechaProgramada, carga.turno),
-      carga,
-    ]),
+  const recursosPorId = useMemo(
+    () => new Map(datos.recursos.map((recurso) => [recurso.id, recurso])),
+    [datos.recursos],
   );
-  const visibles = ordenarProgramaciones(
-    datos.programaciones.filter((programacion) => {
-      if (turnos.length > 0 && !turnos.includes(programacion.turno)) return false;
-      if (recursoId !== null && programacion.recursoId !== recursoId) return false;
-      return area === null || recursosPorId.get(programacion.recursoId)?.area === area;
-    }),
+  const cargasPorClave = useMemo(
+    () =>
+      new Map(
+        datos.cargas.map((carga) => [
+          claveCarga(carga.recursoId, carga.fechaProgramada, carga.turno),
+          carga,
+        ]),
+      ),
+    [datos.cargas],
+  );
+  const desglosePorPartidaId = useMemo(
+    () => new Map(desglosePartidas.map((desglose) => [desglose.partidaId, desglose])),
+    [desglosePartidas],
+  );
+  const visibles = useMemo(
+    () =>
+      ordenarProgramaciones(
+        datos.programaciones.filter((programacion) => {
+          if (turnos.length > 0 && !turnos.includes(programacion.turno)) return false;
+          if (recursoId !== null && programacion.recursoId !== recursoId) return false;
+          return area === null || recursosPorId.get(programacion.recursoId)?.area === area;
+        }),
+      ),
+    [area, datos.programaciones, recursoId, recursosPorId, turnos],
   );
 
   useEffect(() => {
@@ -151,8 +168,34 @@ export function CalendarioPlaneacion({
     seleccionarProgramacion,
   ]);
 
+  const fechas = diasEntre(rangoEfectivo.fechaInicio, rangoEfectivo.fechaFin);
+
+  function aplicarRangoNuevo(nuevo: RangoFechas): void {
+    setFechaInicio(nuevo.fechaInicio);
+    setFechaFin(nuevo.fechaFin);
+    establecerRango(nuevo.fechaInicio, nuevo.fechaFin);
+  }
+
   function aplicarRango(): void {
     establecerRango(fechaInicio, fechaFin);
+  }
+
+  function cambiarVista(nueva: VistaPlaneacion): void {
+    setVista(nueva);
+    aplicarRangoNuevo(rangoVista(nueva, rangoEfectivo.fechaInicio));
+  }
+
+  function navegar(direccion: -1 | 1): void {
+    aplicarRangoNuevo(navegarRango(vista, rangoEfectivo, direccion));
+  }
+
+  function irHoy(): void {
+    aplicarRangoNuevo(rangoVista(vista, hoyIso()));
+  }
+
+  function abrirDia(fecha: string): void {
+    setVista('dia');
+    aplicarRangoNuevo({ fechaInicio: fecha, fechaFin: fecha });
   }
 
   function restablecerFiltros(): void {
@@ -165,6 +208,20 @@ export function CalendarioPlaneacion({
     seleccionarProgramacion(programacion.id);
     onSeleccionarProgramacion?.(programacion);
   }
+
+  const propsVista: PropsVistaCalendario = {
+    fechas,
+    fechaInicio: rangoEfectivo.fechaInicio,
+    fechaFin: rangoEfectivo.fechaFin,
+    programaciones: visibles,
+    recursosPorId,
+    desglosePorPartidaId,
+    cargasPorClave,
+    programacionSeleccionadaId,
+    onSeleccionarProgramacion: alSeleccionar,
+    onSolicitarReprogramacion,
+    onAbrirDia: abrirDia,
+  };
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="titulo-calendario-planeacion">
@@ -269,80 +326,46 @@ export function CalendarioPlaneacion({
         </fieldset>
       </div>
 
-      <div className="overflow-x-auto rounded-base border border-borde">
-        <table className="w-full text-left text-sm" aria-busy={actualizando}>
-          <caption className="sr-only">
-            Programaciones por fecha, turno y recurso en el rango seleccionado
-          </caption>
-          <thead className="border-b border-borde bg-superficie-2 text-xs uppercase text-texto-secundario">
-            <tr>
-              <th scope="col" className="px-3 py-2">Fecha</th>
-              <th scope="col" className="px-3 py-2">Turno</th>
-              <th scope="col" className="px-3 py-2">Recurso</th>
-              <th scope="col" className="px-3 py-2">Prioridad</th>
-              <th scope="col" className="px-3 py-2">Horas</th>
-              <th scope="col" className="px-3 py-2">Capacidad</th>
-              <th scope="col" className="px-3 py-2">Estado</th>
-              <th scope="col" className="px-3 py-2">Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibles.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-texto-secundario">
-                  Sin programaciones para los filtros seleccionados
-                </td>
-              </tr>
-            ) : (
-              visibles.map((programacion) => {
-                const recurso = recursosPorId.get(programacion.recursoId);
-                const carga = cargasPorClave.get(
-                  claveCarga(programacion.recursoId, programacion.fechaProgramada, programacion.turno),
-                );
-                const seleccionada = programacion.id === programacionSeleccionadaId;
-                return (
-                  <tr
-                    key={programacion.id}
-                    aria-selected={seleccionada}
-                    className={
-                      seleccionada
-                        ? 'border-b border-borde bg-superficie-2'
-                        : 'border-b border-borde'
-                    }
-                  >
-                    <th scope="row" className="px-3 py-2 font-normal">{programacion.fechaProgramada}</th>
-                    <td className="px-3 py-2">{ETIQUETA_TURNO[programacion.turno]}</td>
-                    <td className="px-3 py-2">
-                      {recurso ? `${recurso.codigo} · ${recurso.nombre}` : programacion.recursoId}
-                    </td>
-                    <td className="px-3 py-2">{programacion.ordenPrioridad}</td>
-                    <td className="px-3 py-2">{programacion.horasEstimadas}</td>
-                    <td className="px-3 py-2">
-                      {carga
-                        ? `${carga.horasProgramadas}/${carga.horasCapacidad} h (${carga.horasDisponibles} libres)`
-                        : 'Sin capacidad'}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge variante={VARIANTE_ESTADO[programacion.estadoPlaneacion]}>
-                        {ETIQUETA_ESTADO[programacion.estadoPlaneacion]}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2">
-                      <Button
-                        type="button"
-                        variante="contorno"
-                        tamano="sm"
-                        onClick={() => alSeleccionar(programacion)}
-                      >
-                        Seleccionar
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Navegación del calendario">
+        <div className="flex gap-1" role="group" aria-label="Vista del calendario">
+          {VISTAS_PLANEACION.map((valor) => (
+            <Button
+              key={valor}
+              type="button"
+              tamano="sm"
+              variante={vista === valor ? 'secundario' : 'contorno'}
+              aria-pressed={vista === valor}
+              onClick={() => cambiarVista(valor)}
+              data-testid={`vista-planeacion-${valor}`}
+            >
+              {ETIQUETA_VISTA[valor]}
+            </Button>
+          ))}
+        </div>
+        <Button type="button" tamano="sm" variante="contorno" onClick={() => navegar(-1)}>
+          Anterior
+        </Button>
+        <Button type="button" tamano="sm" variante="contorno" onClick={irHoy}>
+          Hoy
+        </Button>
+        <Button type="button" tamano="sm" variante="contorno" onClick={() => navegar(1)}>
+          Siguiente
+        </Button>
+        <span className="text-xs text-texto-secundario">
+          {vista === 'mes'
+            ? etiquetaMes(rangoEfectivo.fechaInicio)
+            : etiquetaRango(rangoEfectivo)}
+        </span>
+      </div>
+
+      <div aria-busy={actualizando}>
+        {vista === 'dia' ? (
+          <VistaDia {...propsVista} fecha={rangoEfectivo.fechaInicio} />
+        ) : vista === 'semana' ? (
+          <VistaSemana {...propsVista} />
+        ) : (
+          <VistaMes {...propsVista} />
+        )}
       </div>
     </section>
   );
