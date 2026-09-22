@@ -89,9 +89,10 @@
   `registrar_consumo_material_op` (una sola orden, un solo pago por solicitud, sin stock negativo).
   Corre solo contra Supabase local (guardia de loopback) con `pnpm test:concurrencia`.
 - **CI**: ✅ `.github/workflows/ci.yml` con job `verificacion` (typecheck/lint/unitarias) y job
-  `e2e-local` (Supabase CLI fijo, `supabase start` + `db reset`, provisionador portable
+  `e2e-local` (Supabase CLI fijo, `supabase start` + grants base, provisionador portable
   `supabase/semillas/e2e-local.mjs`, Chromium, E2E y concurrencia). Se añadió `supabase/seed.sql`
-  para que el reset sea determinista.
+  para un reset determinista y la primera corrida quedó **en verde**: verificación 48 s, E2E local
+  5 m 23 s (24/24 + concurrencia 3/3).
 
 ## Integración
 
