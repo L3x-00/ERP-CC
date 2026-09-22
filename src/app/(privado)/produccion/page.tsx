@@ -4,6 +4,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { obtenerDatosTableroProduccionServicio } from '@/modulos/produccion/servicios/indice';
+import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
 /** Entrada RSC al piso: los datos llegan con RLS y las mutaciones siguen en Server Actions. */
@@ -15,7 +16,11 @@ export default async function PaginaProduccion() {
     crearClienteSupabaseServidor(),
     obtenerOperadorConSesionActiva(),
   ]);
-  const datosIniciales = await obtenerDatosTableroProduccionServicio(cliente, {});
+  const datosIniciales = await obtenerDatosTableroProduccionServicio(
+    cliente,
+    {},
+    crearClienteSupabaseAdmin(),
+  );
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-produccion">

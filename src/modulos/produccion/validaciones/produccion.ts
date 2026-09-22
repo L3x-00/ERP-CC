@@ -53,6 +53,13 @@ export const esquemaCrearNotaEntrega = z.object({
 
 export const esquemaConsultarTableroProduccion = z.object({
   recursoId: z.uuid('ID de recurso inválido').optional(),
+  // OBS-09: cola por área del catálogo de taller (código o su área macro).
+  areaCodigo: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9][A-Z0-9_-]{1,48}$/, 'Código de área inválido')
+    .optional(),
   estados: z.array(z.enum(ESTADOS_KANBAN_PRODUCCION)).max(5).optional(),
 }).strict();
 

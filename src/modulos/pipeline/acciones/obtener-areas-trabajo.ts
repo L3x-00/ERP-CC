@@ -23,7 +23,14 @@ export async function obtenerAreasTrabajoAccion(): Promise<RespuestaAccion<AreaT
       exito: true,
       datos: areas
         .filter((area) => area.activo)
-        .map((area) => ({ codigo: area.codigo, nombre: area.nombre, esExterno: area.esExterno })),
+        .map((area) => ({
+          codigo: area.codigo,
+          nombre: area.nombre,
+          esExterno: area.esExterno,
+          // OBS-14: la jerarquía viaja para agrupar el select del cotizador.
+          padreCodigo: area.padreCodigo,
+          tipo: area.tipo,
+        })),
     };
   } catch (error) {
     console.error('[PIPELINE] Error al consultar las áreas de trabajo:', error);

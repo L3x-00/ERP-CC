@@ -136,6 +136,9 @@ export type AreaTrabajoOpcion = {
   codigo: string;
   nombre: string;
   esExterno: boolean;
+  /** OBS-14: jerarquía para agrupar el select del cotizador. */
+  padreCodigo?: string | null;
+  tipo?: string;
 };
 
 /**

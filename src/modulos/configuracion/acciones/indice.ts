@@ -1,4 +1,5 @@
 export { actualizarTipoCambioAccion } from './actualizar-tipo-cambio';
+export { actualizarAreasOperadorAccion } from './actualizar-operadores-areas';
 export { crearActualizarCuentaBancariaAccion } from './crear-actualizar-cuenta-bancaria';
 export { guardarAreaTrabajoAccion } from './guardar-area-trabajo';
 export { guardarCatalogoCategoriasAccion } from './guardar-catalogo-categorias';
@@ -10,3 +11,4 @@ export { obtenerCatalogosComercialesAccion } from './obtener-catalogos-comercial
 export type { CatalogosComerciales } from './obtener-catalogos-comerciales';
 export { obtenerConfiguracionAccion } from './obtener-configuracion';
 export type { DatosConfiguracion } from './obtener-configuracion';
+export { obtenerOperadoresAreasAccion } from './obtener-operadores-areas';

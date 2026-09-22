@@ -5,7 +5,9 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import {
   listarAreasTrabajoConfig,
   listarCuentasBancarias,
+  listarOperadoresAreasServicio,
   obtenerConfiguracionGeneral,
+  type OperadorAreaConfig,
 } from '@/modulos/configuracion/servicios/indice';
 import type {
   AreaTrabajoConfig,
@@ -14,12 +16,15 @@ import type {
 } from '@/modulos/configuracion/tipos/indice';
 import { esquemaConsultaConfiguracion } from '@/modulos/configuracion/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
+import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
 export interface DatosConfiguracion {
   configuracion: ConfiguracionSistema;
   cuentasBancarias: CuentaBancaria[];
   areasTrabajo: AreaTrabajoConfig[];
+  /** OBS-09/PRD-11: operadores activos y sus áreas habilitadas. */
+  operadoresAreas: OperadorAreaConfig[];
 }
 
 export async function obtenerConfiguracionAccion(
@@ -34,12 +39,16 @@ export async function obtenerConfiguracionAccion(
 
   try {
     const cliente = await crearClienteSupabaseServidor();
-    const [configuracion, cuentasBancarias, areasTrabajo] = await Promise.all([
+    const [configuracion, cuentasBancarias, areasTrabajo, operadoresAreas] = await Promise.all([
       obtenerConfiguracionGeneral(cliente),
       listarCuentasBancarias(cliente, analisis.data.soloCuentasActivas),
       listarAreasTrabajoConfig(cliente),
+      // La RLS de `usuarios` solo deja al propio usuario o admin; el permiso
+      // `configuracion` ya se comprobó arriba y aquí solo se exponen operadores
+      // activos con sus códigos de área.
+      listarOperadoresAreasServicio(crearClienteSupabaseAdmin()),
     ]);
-    return { exito: true, datos: { configuracion, cuentasBancarias, areasTrabajo } };
+    return { exito: true, datos: { configuracion, cuentasBancarias, areasTrabajo, operadoresAreas } };
   } catch (error) {
     console.error('[CONFIGURACION] Error al consultar configuración:', error);
     return { exito: false, error: 'No se pudo consultar la configuración' };

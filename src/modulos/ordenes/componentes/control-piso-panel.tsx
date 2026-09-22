@@ -22,8 +22,11 @@ export type MaterialPiso = {
 
 type PropsControlPisoPanel = {
   operadorId: string;
+  nombreOperador?: string;
   ordenes: OrdenConPartidas[];
   materiales: MaterialPiso[];
+  /** OBS-09: catálogo de taller para etiquetas y filtro de área. */
+  areas?: readonly { codigo: string; nombre: string }[];
 };
 
 type OperacionPiso = 'tiempo' | 'avance' | 'consumo' | null;
@@ -39,17 +42,50 @@ function aNumeroPositivo(valor: string): number | null {
  * Consola de piso para sesiones PIN. Las cantidades nunca se acumulan en el
  * navegador: cada acción delega el total a una RPC transaccional de PostgreSQL.
  */
-export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsControlPisoPanel) {
+export function ControlPisoPanel({
+  operadorId,
+  nombreOperador,
+  ordenes,
+  materiales,
+  areas = [],
+}: PropsControlPisoPanel) {
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
   const seleccionarOrden = usarTiendaOrdenes((estado) => estado.seleccionarOrden);
 
-  const [ordenId, setOrdenId] = useState<string>(() => ordenActivaId ?? ordenes[0]?.orden.id ?? '');
-  const ordenActiva = useMemo(
-    () => ordenes.find((orden) => orden.orden.id === ordenId) ?? ordenes[0] ?? null,
-    [ordenes, ordenId],
+  // OBS-09: cola por área sobre las partidas ya asignadas al operador.
+  const [areaFiltro, setAreaFiltro] = useState('');
+  const nombrePorArea = useMemo(
+    () => new Map(areas.map((area) => [area.codigo, area.nombre])),
+    [areas],
   );
-  const [partidaId, setPartidaId] = useState<string>(() => ordenes[0]?.partidas[0]?.id ?? '');
+  const codigosArea = useMemo(
+    () =>
+      [...new Set(
+        ordenes.flatMap(({ partidas }) =>
+          partidas.flatMap((partida) => (partida.areaTrabajoCodigo ? [partida.areaTrabajoCodigo] : [])),
+        ),
+      )].sort(),
+    [ordenes],
+  );
+  const ordenesVisibles = useMemo(() => {
+    if (areaFiltro === '') return ordenes;
+    return ordenes
+      .map((entrada) => ({
+        ...entrada,
+        partidas: entrada.partidas.filter((partida) => partida.areaTrabajoCodigo === areaFiltro),
+      }))
+      .filter((entrada) => entrada.partidas.length > 0);
+  }, [areaFiltro, ordenes]);
+
+  const [ordenId, setOrdenId] = useState<string>(
+    () => ordenActivaId ?? ordenesVisibles[0]?.orden.id ?? '',
+  );
+  const ordenActiva = useMemo(
+    () => ordenesVisibles.find((orden) => orden.orden.id === ordenId) ?? ordenesVisibles[0] ?? null,
+    [ordenesVisibles, ordenId],
+  );
+  const [partidaId, setPartidaId] = useState<string>(() => ordenesVisibles[0]?.partidas[0]?.id ?? '');
   const partidaActiva = useMemo(
     () =>
       ordenActiva?.partidas.find((partida) => partida.id === partidaId) ??
@@ -79,7 +115,7 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
   }, []);
 
   function seleccionarOrdenPiso(nuevoOrdenId: string): void {
-    const nuevaOrden = ordenes.find((orden) => orden.orden.id === nuevoOrdenId) ?? null;
+    const nuevaOrden = ordenesVisibles.find((orden) => orden.orden.id === nuevoOrdenId) ?? null;
     const nuevaPartida = nuevaOrden?.partidas[0] ?? null;
     setOrdenId(nuevoOrdenId);
     setPartidaId(nuevaPartida?.id ?? '');
@@ -256,10 +292,17 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
           {partidaActiva ? (
             <div className="flex flex-col gap-2">
               <p className="text-sm text-texto-secundario">
-                {partidaActiva.descripcion ?? partidaActiva.codigoPieza} · Máquina:{' '}
-                {partidaActiva.maquinaAsignada ?? 'sin asignar'} · Avance:{' '}
+                {partidaActiva.descripcion ?? partidaActiva.codigoPieza} · Equipo/estación:{' '}
+                {partidaActiva.maquinaAsignada ?? 'por definir'} · Avance:{' '}
                 {partidaActiva.cantidadProducida}/{partidaActiva.cantidadSolicitada}{' '}
                 {partidaActiva.unidadMedida}
+              </p>
+              <p className="text-sm text-texto-secundario" data-testid="detalle-partida-piso">
+                Área:{' '}
+                {partidaActiva.areaTrabajoCodigo
+                  ? (nombrePorArea.get(partidaActiva.areaTrabajoCodigo) ?? partidaActiva.areaTrabajoCodigo)
+                  : 'por definir'}
+                {' · '}Responsable: {nombreOperador ?? 'Operador'}
               </p>
               <BarraProgreso
                 valor={porcentajePartidaActiva}
@@ -273,7 +316,12 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
         </section>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {ordenesVisibles.length === 0 ? (
+        <p className="rounded-lg border border-borde bg-superficie p-4 text-sm text-texto-secundario">
+          No tienes partidas en esta área.
+        </p>
+      ) : (
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label htmlFor="selector-orden-piso" className="text-sm font-medium text-texto-secundario">
             Orden en proceso
@@ -284,7 +332,7 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
             value={ordenActiva?.orden.id ?? ''}
             onChange={(evento) => seleccionarOrdenPiso(evento.target.value)}
           >
-            {ordenes.map(({ orden }) => (
+            {ordenesVisibles.map(({ orden }) => (
               <option key={orden.id} value={orden.id}>
                 {orden.folio}
                 {orden.esInterna ? ' · TI' : ''}
@@ -311,7 +359,28 @@ export function ControlPisoPanel({ operadorId, ordenes, materiales }: PropsContr
             ))}
           </Select>
         </div>
+
+        {/* OBS-09: filtro por área sobre las partidas asignadas al operador. */}
+        <div className="flex flex-col gap-1">
+          <label htmlFor="selector-area-piso" className="text-sm font-medium text-texto-secundario">
+            Área de taller
+          </label>
+          <Select
+            id="selector-area-piso"
+            data-testid="selector-area-piso"
+            value={areaFiltro}
+            onChange={(evento) => setAreaFiltro(evento.target.value)}
+          >
+            <option value="">Todas mis áreas</option>
+            {codigosArea.map((codigo) => (
+              <option key={codigo} value={codigo}>
+                {nombrePorArea.get(codigo) ?? codigo}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">

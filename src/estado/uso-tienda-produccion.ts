@@ -11,10 +11,13 @@ export interface SesionActivaProduccion {
 interface TiendaProduccion {
   sesionActiva: SesionActivaProduccion | null;
   recursoId: string | null;
+  /** OBS-09: área del catálogo de taller por la que se filtra el tablero. */
+  areaCodigo: string | null;
   estados: EstadoKanbanProduccion[];
   ordenSeleccionadaId: string | null;
   establecerSesionActiva: (sesion: SesionActivaProduccion | null) => void;
   establecerRecurso: (recursoId: string | null) => void;
+  establecerAreaCodigo: (areaCodigo: string | null) => void;
   alternarEstado: (estado: EstadoKanbanProduccion) => void;
   establecerEstados: (estados: readonly EstadoKanbanProduccion[]) => void;
   seleccionarOrden: (ordenId: string | null) => void;
@@ -28,10 +31,12 @@ interface TiendaProduccion {
 export const usarTiendaProduccion = create<TiendaProduccion>((set) => ({
   sesionActiva: null,
   recursoId: null,
+  areaCodigo: null,
   estados: [],
   ordenSeleccionadaId: null,
   establecerSesionActiva: (sesion) => set({ sesionActiva: sesion }),
   establecerRecurso: (recursoId) => set({ recursoId }),
+  establecerAreaCodigo: (areaCodigo) => set({ areaCodigo }),
   alternarEstado: (estado) => set((actual) => ({
     estados: actual.estados.includes(estado)
       ? actual.estados.filter((seleccionado) => seleccionado !== estado)
@@ -39,5 +44,5 @@ export const usarTiendaProduccion = create<TiendaProduccion>((set) => ({
   })),
   establecerEstados: (estados) => set({ estados: [...estados] }),
   seleccionarOrden: (ordenId) => set({ ordenSeleccionadaId: ordenId }),
-  limpiarFiltros: () => set({ recursoId: null, estados: [] }),
+  limpiarFiltros: () => set({ recursoId: null, areaCodigo: null, estados: [] }),
 }));

@@ -34,10 +34,12 @@ export interface PropsOperacionProduccion {
 export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false }: PropsOperacionProduccion) {
   const clienteConsultas = useQueryClient();
   const recursoId = usarTiendaProduccion((estado) => estado.recursoId);
+  const areaCodigo = usarTiendaProduccion((estado) => estado.areaCodigo);
   const estados = usarTiendaProduccion((estado) => estado.estados);
   const ordenSeleccionadaId = usarTiendaProduccion((estado) => estado.ordenSeleccionadaId);
   const sesionActivaAlmacenada = usarTiendaProduccion((estado) => estado.sesionActiva);
   const establecerRecurso = usarTiendaProduccion((estado) => estado.establecerRecurso);
+  const establecerAreaCodigo = usarTiendaProduccion((estado) => estado.establecerAreaCodigo);
   const alternarEstado = usarTiendaProduccion((estado) => estado.alternarEstado);
   const seleccionarOrden = usarTiendaProduccion((estado) => estado.seleccionarOrden);
   const establecerSesionActiva = usarTiendaProduccion((estado) => estado.establecerSesionActiva);
@@ -45,9 +47,10 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
 
   const filtros = useMemo(() => ({
     ...(recursoId ? { recursoId } : {}),
+    ...(areaCodigo ? { areaCodigo } : {}),
     ...(estados.length > 0 ? { estados } : {}),
-  }), [recursoId, estados]);
-  const consultaInicial = recursoId === null && estados.length === 0;
+  }), [areaCodigo, recursoId, estados]);
+  const consultaInicial = recursoId === null && areaCodigo === null && estados.length === 0;
   const consulta = useQuery({
     queryKey: [...CLAVE_TABLERO_PRODUCCION, filtros],
     queryFn: async (): Promise<DatosTableroProduccion> => {
@@ -144,19 +147,39 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   return (
     <div className="flex flex-col gap-6 text-texto-primario" data-testid="operacion-produccion">
       <SincronizadorProduccionRealtime />
-      <label className="flex max-w-sm flex-col gap-1 text-sm text-texto-secundario">
-        Recurso
-        <Select value={recursoId ?? ''} onChange={(evento) => establecerRecurso(evento.target.value || null)}>
-          <option value="">Todos los recursos</option>
-          {datos.recursos.map((recurso) => <option key={recurso.id} value={recurso.id}>{recurso.codigo} · {recurso.nombre}</option>)}
-        </Select>
-      </label>
+      <div className="flex flex-wrap gap-4">
+        <label className="flex max-w-sm flex-1 flex-col gap-1 text-sm text-texto-secundario">
+          Recurso
+          <Select value={recursoId ?? ''} onChange={(evento) => establecerRecurso(evento.target.value || null)}>
+            <option value="">Todos los recursos</option>
+            {datos.recursos.map((recurso) => <option key={recurso.id} value={recurso.id}>{recurso.codigo} · {recurso.nombre}</option>)}
+          </Select>
+        </label>
+        {/* OBS-09/PRD-11: cola por área del catálogo de taller. */}
+        <label className="flex max-w-sm flex-1 flex-col gap-1 text-sm text-texto-secundario">
+          Área de taller
+          <Select
+            data-testid="filtro-area-produccion"
+            value={areaCodigo ?? ''}
+            onChange={(evento) => establecerAreaCodigo(evento.target.value || null)}
+          >
+            <option value="">Todas las áreas</option>
+            {(datos.areas ?? [])
+              .filter((area) => area.padreCodigo === null)
+              .map((area) => (
+                <option key={area.codigo} value={area.codigo}>{area.nombre}</option>
+              ))}
+          </Select>
+        </label>
+      </div>
       {consulta.isError ? <p className="text-sm font-medium text-peligro" role="alert">No se pudo actualizar el tablero; vuelve a intentarlo.</p> : null}
       <KanbanProduccion
         ordenes={datos.ordenes}
         ordenSeleccionadaId={ordenSeleccionadaId}
         estadosActivos={estados}
         actualizando={consulta.isFetching}
+        areas={datos.areas ?? []}
+        responsables={datos.responsables ?? {}}
         onSeleccionarOrden={seleccionarOrden}
         onAlternarEstado={alternarEstado}
       />
