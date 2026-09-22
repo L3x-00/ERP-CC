@@ -18,6 +18,7 @@ export type {
   ExcepcionCapacidadRecurso,
   ProgramacionArea,
   CargaCapacidadDiaria,
+  DesglosePartidaPlaneacion,
   FilaRecursoPlaneacion,
   FilaCapacidadRecursoTurno,
   FilaExcepcionCapacidadRecurso,

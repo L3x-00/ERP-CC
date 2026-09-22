@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
@@ -8,35 +8,50 @@ import {
   activarModoPreparacionAccion,
   obtenerCalendarioPlaneacionAccion,
   programarPartidaRecursoAccion,
+  proponerHuecoReprogramacionAccion,
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
 import { CalendarioPlaneacion } from '@/modulos/planeacion/componentes/calendario-planeacion';
 import { CLAVE_CALENDARIO_PLANEACION } from '@/modulos/planeacion/componentes/claves-consulta';
+import { DialogoReprogramacionPlaneacion } from '@/modulos/planeacion/componentes/dialogo-reprogramacion-planeacion';
 import {
   PanelAsignacionPlaneacion,
   type DatosAsignacionPlaneacion,
+  type EntradaProponerHueco,
   type PartidaProgramablePlaneacion,
   type ResultadoAsignacionPlaneacion,
+  type ResultadoProponerHueco,
 } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { SincronizadorPlaneacionRealtime } from '@/modulos/planeacion/componentes/sincronizador-planeacion-realtime';
 import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
-import type { ProgramacionArea } from '@/modulos/planeacion/tipos/indice';
+import type {
+  DesglosePartidaPlaneacion,
+  ProgramacionArea,
+} from '@/modulos/planeacion/tipos/indice';
 
 export interface PropsOperacionPlaneacion {
   datosIniciales: DatosCalendarioPlaneacion;
   rangoInicial: { fechaInicio: string; fechaFin: string };
   partidasProgramables: readonly PartidaProgramablePlaneacion[];
+  desglosePartidas?: readonly DesglosePartidaPlaneacion[];
+}
+
+interface SolicitudArrastre {
+  programacion: ProgramacionArea;
+  fechaDestino: string;
 }
 
 /**
  * Une las vistas cliente con Server Actions. Ninguna mutación usa Supabase desde
  * el navegador: tras la respuesta se invalida el calendario y PostgreSQL sigue
- * siendo la fuente de verdad para capacidad, candados y CAS.
+ * siendo la fuente de verdad para capacidad, candados y CAS. El arrastre solo
+ * abre un diálogo de confirmación con resumen y capacidad.
  */
 export function OperacionPlaneacion({
   datosIniciales,
   rangoInicial,
   partidasProgramables,
+  desglosePartidas = [],
 }: PropsOperacionPlaneacion) {
   const clienteConsultas = useQueryClient();
   const enrutador = useRouter();
@@ -48,6 +63,7 @@ export function OperacionPlaneacion({
   const estados = usarTiendaPlaneacion((estado) => estado.estados);
   const [programacionSeleccionada, setProgramacionSeleccionada] =
     useState<ProgramacionArea | null>(null);
+  const [arrastre, setArrastre] = useState<SolicitudArrastre | null>(null);
 
   const consultarCalendario = useCallback(
     async (filtros: {
@@ -82,6 +98,11 @@ export function OperacionPlaneacion({
     esConsultaInicial
       ? datosIniciales
       : { recursos: datosIniciales.recursos, cargas: [], programaciones: [] }
+  );
+
+  const desglosePorPartidaId = useMemo(
+    () => new Map(desglosePartidas.map((desglose) => [desglose.partidaId, desglose])),
+    [desglosePartidas],
   );
 
   const actualizarCalendario = useCallback(async (): Promise<void> => {
@@ -120,6 +141,12 @@ export function OperacionPlaneacion({
     [actualizarCalendario, programacionSeleccionada],
   );
 
+  const proponerHuecoPanel = useCallback(
+    async (entrada: EntradaProponerHueco): Promise<ResultadoProponerHueco> =>
+      proponerHuecoReprogramacionAccion(entrada),
+    [],
+  );
+
   const activarPreparacion = useCallback(async (): Promise<ResultadoAsignacionPlaneacion> => {
     if (!programacionSeleccionada) {
       return { exito: false, error: 'Selecciona una programación para iniciar la preparación' };
@@ -144,6 +171,45 @@ export function OperacionPlaneacion({
     });
   }, []);
 
+  const solicitarReprogramacion = useCallback(
+    (programacion: ProgramacionArea, fechaDestino: string): void => {
+      if (fechaDestino === programacion.fechaProgramada) return;
+      setArrastre({ programacion, fechaDestino });
+    },
+    [],
+  );
+
+  const confirmarReprogramacionArrastre = useCallback(
+    async (fecha: string): Promise<ResultadoAsignacionPlaneacion> => {
+      if (!arrastre) return { exito: false, error: 'La reprogramación ya no está disponible' };
+      const resultado = await reprogramarPartidaRecursoAccion({
+        programacionId: arrastre.programacion.id,
+        recursoId: arrastre.programacion.recursoId,
+        fechaProgramada: fecha,
+        turno: arrastre.programacion.turno,
+        horasEstimadas: arrastre.programacion.horasEstimadas,
+        ordenPrioridad: arrastre.programacion.ordenPrioridad,
+        actualizadoEnEsperado: arrastre.programacion.actualizadoEn,
+      });
+      if (resultado.exito) {
+        await actualizarCalendario();
+        setArrastre(null);
+      }
+      return resultado;
+    },
+    [actualizarCalendario, arrastre],
+  );
+
+  const buscarHuecoArrastre = useCallback(async (): Promise<ResultadoProponerHueco> => {
+    if (!arrastre) return { exito: false, error: 'La reprogramación ya no está disponible' };
+    return proponerHuecoReprogramacionAccion({
+      recursoId: arrastre.programacion.recursoId,
+      turno: arrastre.programacion.turno,
+      horasEstimadas: arrastre.programacion.horasEstimadas,
+      desdeFecha: arrastre.fechaDestino,
+    });
+  }, [arrastre]);
+
   function cancelarSeleccion(): void {
     seleccionarProgramacion(null);
     setProgramacionSeleccionada(null);
@@ -152,6 +218,15 @@ export function OperacionPlaneacion({
   const refrescarEstructuraOperacion = useCallback((): void => {
     enrutador.refresh();
   }, [enrutador]);
+
+  const cargaDestino = arrastre
+    ? datosCalendario.cargas.find(
+        (carga) =>
+          carga.recursoId === arrastre.programacion.recursoId
+          && carga.fechaProgramada === arrastre.fechaDestino
+          && carga.turno === arrastre.programacion.turno,
+      )
+    : undefined;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -163,18 +238,35 @@ export function OperacionPlaneacion({
         rangoInicial={rangoInicial}
         actualizando={consulta.isFetching}
         errorActualizacion={consulta.isError}
+        desglosePartidas={desglosePartidas}
         onSeleccionarProgramacion={alSeleccionar}
+        onSolicitarReprogramacion={solicitarReprogramacion}
       />
       <aside className="rounded-base border border-borde p-4" aria-label="Asignación de recurso">
         <PanelAsignacionPlaneacion
           recursos={datosCalendario.recursos}
           partidasProgramables={partidasProgramables}
           programacion={programacionSeleccionada}
+          desglosePartidas={desglosePartidas}
+          cargas={datosCalendario.cargas}
           onEnviar={enviarAsignacion}
           onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
           onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
+          onProponerHueco={proponerHuecoPanel}
         />
       </aside>
+
+      {arrastre ? (
+        <DialogoReprogramacionPlaneacion
+          programacion={arrastre.programacion}
+          fechaDestino={arrastre.fechaDestino}
+          desglose={desglosePorPartidaId.get(arrastre.programacion.partidaId)}
+          carga={cargaDestino}
+          onCerrar={() => setArrastre(null)}
+          onConfirmar={confirmarReprogramacionArrastre}
+          onBuscarHueco={buscarHuecoArrastre}
+        />
+      ) : null}
     </div>
   );
 }

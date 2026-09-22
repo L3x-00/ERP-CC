@@ -67,6 +67,32 @@ export interface ProgramacionArea {
   actualizadoEn: string;
 }
 
+/**
+ * Desglose de negocio de una partida programable (OBS-08): qué se solicita,
+ * material, área/procesos, avance y tiempo estimado. Los campos sin captura
+ * llegan en `null`/vacío y la UI los declara "Por definir".
+ */
+export interface DesglosePartidaPlaneacion {
+  partidaId: string;
+  ordenId: string;
+  folio: string;
+  codigoPieza: string;
+  descripcion: string | null;
+  areaCodigo: string | null;
+  areaNombre: string | null;
+  procesos: string[];
+  esExterno: boolean;
+  proveedorExterno: string | null;
+  maquinaAsignada: string | null;
+  materialNombre: string | null;
+  cantidadSolicitada: number;
+  cantidadProducida: number;
+  cantidadScrap: number;
+  unidadMedida: string;
+  tiempoEstimadoMinutos: number;
+  operadorAsignadoId: string | null;
+}
+
 /** Resumen de PostgreSQL para un recurso, fecha y turno; no autoriza mutaciones. */
 export interface CargaCapacidadDiaria {
   recursoId: string;

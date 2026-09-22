@@ -68,11 +68,13 @@
     “Entregables de producción” en el piso: documentos de la orden listados/abiertos con URL firmada
     de corta vida bajo permiso de Producción, subida de archivos durante la ejecución con límites, y
     nota de entrega imprimible con confirmación (recibido por, acumulados por pieza y firmas).
-13. **OBS menores — estado al 21-sep:** ✅ OBS-17 (hilo de comentarios en Producción) y ✅ OBS-20
-    (filtro por área ya presente en el calendario de Planeación). **Quedan pendientes:** OBS-08
-    (desglose en Planeación), OBS-09/PRD-11 (colas por área), OBS-11 (enlaces y notas de sesión),
-    OBS-14 (subáreas/procesos), OBS-18/19 (arrastre y vista semana/mes), OBS-29 (desglose por estación
-    en UI) y OBS-04 (equipo por solicitud).
+13. **OBS menores — estado al 21-sep:** ✅ OBS-17 (hilo de comentarios en Producción), ✅ OBS-20
+    (filtro por área ya presente en el calendario de Planeación), ✅ OBS-08 (desglose de partida en
+    tarjeta y panel: material/procesos/avance/tiempo con "Por definir" explícito) y ✅ OBS-18/19
+    (resumen previo, vistas día/semana/mes, arrastre con confirmación por CAS y propuesta de
+    siguiente día hábil con hueco). **Quedan pendientes:** OBS-09/PRD-11 (colas por área), OBS-11
+    (enlaces y notas de sesión), OBS-14 (subáreas/procesos), OBS-29 (desglose por estación en UI) y
+    OBS-04 (equipo por solicitud).
 14. **Costo de TI agregado por periodo** — ⏳ pendiente (opcional): el costo por orden ya se informa en
     la tarjeta de rentabilidad; un total de TI por periodo en el dashboard requiere una RPC nueva.
 
@@ -91,3 +93,13 @@ La campaña verificada (164 requisitos: comercial, TI, dashboard, cobranza, gast
 piso, aceptación E2E) se integra a `main` con esta entrega. Los bloques del backlog se
 desarrollarán en ramas cortas sobre `main` con PR por bloque, manteniendo los gates
 (typecheck, lint, unitarias, E2E local, PGlite para SQL).
+
+## Bloques de cierre en curso
+
+- **Bloque 1 — Planeación (OBS-08, OBS-18/19)** ✅ implementado 21-sep, sin migración: desglose de
+  partida en tarjeta y panel ("Por definir" explícito), resumen previo a guardar con capacidad,
+  vistas día/semana/mes con navegación, arrastre con confirmación bajo CAS y propuesta del
+  siguiente día hábil con hueco. Evidencia: 679 unitarias, typecheck/lint 0, build 17 rutas y E2E
+  local 21/21 (Planeación 2/2); PR para revisión e integración.
+- Siguientes: Bloque 2 (OBS-04/11), Bloque 3 (OBS-09/PRD-11 y OBS-14) y Bloque 4 (OBS-29, TI por
+  periodo, OCR, concurrencia estricta y CI).

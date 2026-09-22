@@ -7,8 +7,10 @@ import {
   calcularPorcentajeOcupacion,
   clasificarSaturacion,
   detectarCuellosBotella,
+  evaluarAsignacionTurno,
   evaluarCargaRecursoTurno,
   puedeAbsorberHoras,
+  seleccionarPrimerHueco,
   type CargaRecursoTurno,
 } from '@/modulos/planeacion/servicios/indice';
 
@@ -127,5 +129,105 @@ describe('cuellos de botella y holgura de fecha compromiso', () => {
 
     expect(resultado.holguraHoras).toBe(-2);
     expect(resultado.sobrecargado).toBe(true);
+  });
+});
+
+describe('previsualización de asignación y primer hueco (OBS-18/OBS-19)', () => {
+  const cargaOcupada: CargaRecursoTurno = {
+    recursoId: 'recurso-1',
+    fechaProgramada: '2026-09-18',
+    turno: 'matutino',
+    horasCapacidad: 8,
+    horasProgramadas: 4,
+  };
+
+  it('evalúa las horas que quedarían tras guardar sin autorizar la escritura', () => {
+    expect(evaluarAsignacionTurno(cargaOcupada, 4)).toMatchObject({
+      horasCapacidad: 8,
+      horasProgramadas: 8,
+      horasDisponibles: 4,
+      holguraHoras: 0,
+      cabe: true,
+      clasificacion: 'saturado',
+    });
+    expect(evaluarAsignacionTurno(cargaOcupada, 4.01).cabe).toBe(false);
+  });
+
+  it('descuenta la programación que se mueve dentro del mismo slot', () => {
+    const evaluacion = evaluarAsignacionTurno(cargaOcupada, 4, { horasEnSlot: 4 });
+
+    expect(evaluacion).toMatchObject({
+      horasProgramadas: 4,
+      horasDisponibles: 8,
+      holguraHoras: 4,
+      cabe: true,
+    });
+  });
+
+  it('no declara capacidad cuando el turno no tiene configuración', () => {
+    const evaluacion = evaluarAsignacionTurno(undefined, 2);
+
+    expect(evaluacion).toMatchObject({
+      horasCapacidad: 0,
+      sinCapacidad: true,
+      cabe: false,
+    });
+  });
+
+  it('propone el primer día hábil con hueco y omite el fin de semana', () => {
+    // 2026-09-18 es viernes; sábado y domingo no se proponen aunque tengan hueco.
+    const cargas: CargaRecursoTurno[] = [
+      { ...cargaOcupada, horasProgramadas: 8 },
+      { ...cargaOcupada, fechaProgramada: '2026-09-19', horasProgramadas: 0 },
+      { ...cargaOcupada, fechaProgramada: '2026-09-20', horasProgramadas: 0 },
+      { ...cargaOcupada, fechaProgramada: '2026-09-21', horasProgramadas: 6 },
+    ];
+
+    expect(
+      seleccionarPrimerHueco(cargas, {
+        recursoId: 'recurso-1',
+        turno: 'matutino',
+        horasEstimadas: 2,
+        desdeFecha: '2026-09-18',
+      }),
+    ).toMatchObject({
+      fecha: '2026-09-21',
+      horasCapacidad: 8,
+      horasDisponibles: 2,
+      holguraHoras: 0,
+    });
+  });
+
+  it('no propone nada sin hueco, sin horas o para otro recurso/turno', () => {
+    const cargas: CargaRecursoTurno[] = [
+      { ...cargaOcupada, horasProgramadas: 8 },
+      { ...cargaOcupada, fechaProgramada: '2026-09-19', horasProgramadas: 8 },
+      { ...cargaOcupada, fechaProgramada: '2026-09-20', horasProgramadas: 8 },
+    ];
+
+    expect(
+      seleccionarPrimerHueco(cargas, {
+        recursoId: 'recurso-1',
+        turno: 'matutino',
+        horasEstimadas: 1,
+        desdeFecha: '2026-09-18',
+      }),
+    ).toBeNull();
+    expect(
+      seleccionarPrimerHueco(cargas, {
+        recursoId: 'recurso-1',
+        turno: 'matutino',
+        horasEstimadas: 0,
+        desdeFecha: '2026-09-18',
+      }),
+    ).toBeNull();
+    expect(
+      seleccionarPrimerHueco(cargas, {
+        recursoId: 'recurso-2',
+        turno: 'nocturno',
+        horasEstimadas: 1,
+        desdeFecha: '2026-09-18',
+      }),
+    ).toBeNull();
   });
 });

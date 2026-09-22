@@ -9,6 +9,8 @@ export {
   reprogramarPartidaRecursoServicio,
 } from '@/modulos/planeacion/servicios/planeacion-servicio';
 
+export { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
+
 export type {
   CodigoErrorPlaneacion,
   DatosCalendarioPlaneacion,
@@ -28,15 +30,20 @@ export {
   calcularPorcentajeOcupacion,
   clasificarSaturacion,
   detectarCuellosBotella,
+  evaluarAsignacionTurno,
   evaluarCargaRecursoTurno,
   evaluarCargasRecursoTurno,
   puedeAbsorberHoras,
+  seleccionarPrimerHueco,
 } from '@/modulos/planeacion/servicios/capacidad-servicio';
 
 export type {
   CargaRecursoTurno,
   ClasificacionSaturacion,
+  CriteriosPrimerHueco,
+  EvaluacionAsignacionTurno,
   HolguraHastaFecha,
+  HuecoDisponible,
   OcupacionRecursoTurno,
   OpcionesCuellosBotella,
 } from '@/modulos/planeacion/servicios/capacidad-servicio';

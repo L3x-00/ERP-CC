@@ -1,4 +1,5 @@
 import type { TurnoPlaneacion } from '@/modulos/planeacion/tipos/indice';
+import { esFinDeSemana } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 
 /**
  * Cálculos puros de capacidad de Planeación (Sub-fase 6.2). No consultan la BD
@@ -244,6 +245,117 @@ export function puedeAbsorberHoras(
   }
 
   return adicionales <= ocupacion.horasDisponibles;
+}
+
+/** Evaluación previa de un alta/reprogramación sobre un turno concreto. */
+export interface EvaluacionAsignacionTurno {
+  horasCapacidad: number;
+  /** Horas programadas que quedarían tras aceptar la asignación. */
+  horasProgramadas: number;
+  /** Horas libres antes de aceptar la asignación. */
+  horasDisponibles: number;
+  /** Holgura con signo tras aceptar la asignación. */
+  holguraHoras: number;
+  clasificacion: ClasificacionSaturacion;
+  cabe: boolean;
+  sinCapacidad: boolean;
+}
+
+/**
+ * Previsualización de escritorio: interpreta la carga confirmada por PostgreSQL
+ * como si la asignación ya estuviera hecha. `horasEnSlot` descuenta la
+ * programación que se está moviendo dentro del mismo recurso/fecha/turno para no
+ * contar dos veces las mismas horas. Un `cabe: true` NO autoriza: la RPC vuelve
+ * a validar bajo lock.
+ */
+export function evaluarAsignacionTurno(
+  carga: CargaRecursoTurno | undefined,
+  horasNuevas: number,
+  opciones: { horasEnSlot?: number } = {},
+): EvaluacionAsignacionTurno {
+  const nuevas = normalizarHoras(horasNuevas);
+  const enSlot = normalizarHoras(opciones.horasEnSlot ?? 0);
+  const horasCapacidad = redondear(
+    carga ? normalizarHoras(carga.horasCapacidad) : 0,
+    DECIMALES_HORAS,
+  );
+  const baseProgramada = redondear(
+    Math.max(0, (carga ? normalizarHoras(carga.horasProgramadas) : 0) - enSlot),
+    DECIMALES_HORAS,
+  );
+  const horasProgramadas = redondear(baseProgramada + nuevas, DECIMALES_HORAS);
+  const horasDisponibles = calcularHorasDisponibles(horasCapacidad, baseProgramada);
+  const sinCapacidad = horasCapacidad === 0;
+  const cabe = sinCapacidad
+    ? false
+    : nuevas === 0
+      ? calcularHolguraHoras(horasCapacidad, baseProgramada) >= 0
+      : nuevas <= horasDisponibles;
+
+  return {
+    horasCapacidad,
+    horasProgramadas,
+    horasDisponibles,
+    holguraHoras: redondear(horasCapacidad - horasProgramadas, DECIMALES_HORAS),
+    clasificacion: clasificarSaturacion(horasCapacidad, horasProgramadas),
+    cabe,
+    sinCapacidad,
+  };
+}
+
+export interface CriteriosPrimerHueco {
+  recursoId: string;
+  turno: TurnoPlaneacion;
+  horasEstimadas: number;
+  /** Primera fecha candidata; se buscan días hábiles desde aquí. */
+  desdeFecha: string;
+  /** Por defecto se omiten sábados y domingos (no hay catálogo de feriados). */
+  incluirFinesDeSemana?: boolean;
+}
+
+export interface HuecoDisponible {
+  fecha: string;
+  turno: TurnoPlaneacion;
+  horasCapacidad: number;
+  horasProgramadas: number;
+  horasDisponibles: number;
+  holguraHoras: number;
+}
+
+/**
+ * Primer día con capacidad comprobada para las horas solicitadas (OBS-19).
+ * El resultado es una propuesta de UI: programar/reprogramar vuelve a validar.
+ */
+export function seleccionarPrimerHueco(
+  cargas: readonly CargaRecursoTurno[],
+  criterios: CriteriosPrimerHueco,
+): HuecoDisponible | null {
+  const horas = normalizarHoras(criterios.horasEstimadas);
+  if (horas === 0) return null;
+
+  const candidatos = cargas
+    .filter((carga) => carga.recursoId === criterios.recursoId)
+    .filter((carga) => carga.turno === criterios.turno)
+    .filter((carga) => carga.fechaProgramada >= criterios.desdeFecha)
+    .filter(
+      (carga) =>
+        criterios.incluirFinesDeSemana === true || !esFinDeSemana(carga.fechaProgramada),
+    )
+    .map((carga) => ({ carga, evaluacion: evaluarAsignacionTurno(carga, horas) }))
+    .filter(({ evaluacion }) => evaluacion.cabe)
+    .sort((a, b) => (a.carga.fechaProgramada < b.carga.fechaProgramada ? -1 : 1));
+
+  const primero = candidatos[0];
+  if (!primero) return null;
+
+  return {
+    fecha: primero.carga.fechaProgramada,
+    turno: primero.carga.turno,
+    horasCapacidad: primero.evaluacion.horasCapacidad,
+    horasProgramadas: primero.evaluacion.horasProgramadas,
+    horasDisponibles: primero.evaluacion.horasDisponibles,
+    holguraHoras: primero.evaluacion.holguraHoras,
+  };
 }
 
 /**

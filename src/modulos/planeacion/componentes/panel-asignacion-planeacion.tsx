@@ -1,16 +1,31 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import {
+  evaluarAsignacionTurno,
+  type HuecoDisponible,
+} from '@/modulos/planeacion/servicios/indice';
+import {
   TURNOS_PLANEACION,
+  type CargaCapacidadDiaria,
+  type DesglosePartidaPlaneacion,
   type ProgramacionArea,
   type RecursoPlaneacion,
   type TurnoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
+import {
+  etiquetaArea,
+  etiquetaAvancePartida,
+  etiquetaMaterial,
+  etiquetaProcesos,
+  formatearDuracionMinutos,
+  textoODefecto,
+} from '@/modulos/planeacion/utilidades/desglose';
+import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
 
 /** Partida que el usuario puede asignar sin revelar datos no autorizados. */
 export interface PartidaProgramablePlaneacion {
@@ -40,35 +55,49 @@ export type DatosAsignacionPlaneacion =
 /** Resultado estándar de las Server Actions, sin adaptar ni exponer errores internos. */
 export type ResultadoAsignacionPlaneacion = RespuestaAccion<unknown>;
 
+/** Resultado de la búsqueda del primer día hábil con hueco (OBS-19). */
+export type ResultadoProponerHueco = RespuestaAccion<HuecoDisponible | null>;
+
+export interface EntradaProponerHueco {
+  recursoId: string;
+  turno: TurnoPlaneacion;
+  horasEstimadas: number;
+  desdeFecha: string;
+}
+
 export interface PropsPanelAsignacionPlaneacion {
   recursos: readonly RecursoPlaneacion[];
   partidasProgramables: readonly PartidaProgramablePlaneacion[];
   /** Programación en edición; si viene, el panel reprograma en vez de crear. */
   programacion?: ProgramacionArea | null;
+  /** Desglose de negocio de las partidas (OBS-08). */
+  desglosePartidas?: readonly DesglosePartidaPlaneacion[];
+  /** Carga confirmada del rango visible para la previsualización de capacidad. */
+  cargas?: readonly CargaCapacidadDiaria[];
   onEnviar: (datos: DatosAsignacionPlaneacion) => Promise<ResultadoAsignacionPlaneacion>;
   onActivarPreparacion?: () => Promise<ResultadoAsignacionPlaneacion>;
   onCancelar?: () => void;
+  /** Busca el siguiente día hábil con capacidad comprobada (OBS-19). */
+  onProponerHueco?: (entrada: EntradaProponerHueco) => Promise<ResultadoProponerHueco>;
 }
-
-const ETIQUETA_TURNO: Record<TurnoPlaneacion, string> = {
-  matutino: 'Matutino',
-  vespertino: 'Vespertino',
-  nocturno: 'Nocturno',
-};
 
 const MENSAJE_ERROR_GENERICO = 'No se pudo guardar la programación';
 
 /**
  * Panel de asignación/reprogramación. Solo valida la forma del formulario;
- * capacidad, candados y concurrencia pertenecen a la RPC transaccional.
+ * capacidad, candados y concurrencia pertenecen a la RPC transaccional. La
+ * previsualización y la propuesta de hueco son ayudas de UI, nunca autorización.
  */
 export function PanelAsignacionPlaneacion({
   recursos,
   partidasProgramables,
   programacion,
+  desglosePartidas = [],
+  cargas = [],
   onEnviar,
   onActivarPreparacion,
   onCancelar,
+  onProponerHueco,
 }: PropsPanelAsignacionPlaneacion) {
   const recursosActivos = recursos.filter((recurso) => recurso.activo);
   const [partidaId, setPartidaId] = useState('');
@@ -85,6 +114,13 @@ export function PanelAsignacionPlaneacion({
   const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [preparando, setPreparando] = useState(false);
+  const [hueco, setHueco] = useState<{ clave: string; datos: HuecoDisponible } | null>(null);
+  const [buscandoHueco, setBuscandoHueco] = useState(false);
+
+  const desglosePorId = useMemo(
+    () => new Map(desglosePartidas.map((desglose) => [desglose.partidaId, desglose])),
+    [desglosePartidas],
+  );
 
   // Al cambiar la selección, el formulario refleja el estado confirmado por
   // servidor sin duplicar programaciones en Zustand.
@@ -97,6 +133,81 @@ export function PanelAsignacionPlaneacion({
     setTurno(programacion?.turno ?? 'matutino');
     setHorasEstimadas(programacion ? String(programacion.horasEstimadas) : '');
     setOrdenPrioridad(programacion ? String(programacion.ordenPrioridad) : '1');
+    setErrorFormulario(null);
+    setHueco(null);
+  }
+
+  // La propuesta solo es válida para los insumos con los que se calculó: si el
+  // usuario cambia recurso, fecha, turno u horas, deja de mostrarse sin efectos.
+  const claveFormulario = `${recursoId}|${fechaProgramada}|${turno}|${horasEstimadas}`;
+  const huecoVigente = hueco && hueco.clave === claveFormulario ? hueco.datos : null;
+
+  const desgloseSeleccionado = programacion
+    ? desglosePorId.get(programacion.partidaId)
+    : partidaId
+      ? desglosePorId.get(partidaId)
+      : undefined;
+  const etiquetaPartida = programacion
+    ? desgloseSeleccionado
+      ? `${desgloseSeleccionado.folio} · ${desgloseSeleccionado.codigoPieza}`
+      : 'Partida seleccionada'
+    : partidasProgramables.find((partida) => partida.partidaId === partidaId)?.etiqueta;
+
+  const horasNumero = Number(horasEstimadas);
+  const horasValidas = Number.isFinite(horasNumero) && horasNumero > 0;
+  const cargaDelSlot = cargas.find(
+    (carga) =>
+      carga.recursoId === recursoId
+      && carga.fechaProgramada === fechaProgramada
+      && carga.turno === turno,
+  );
+  const mismoSlot =
+    programacion !== undefined
+    && programacion !== null
+    && programacion.recursoId === recursoId
+    && programacion.fechaProgramada === fechaProgramada
+    && programacion.turno === turno;
+  const evaluacion = evaluarAsignacionTurno(cargaDelSlot, horasValidas ? horasNumero : 0, {
+    horasEnSlot: mismoSlot && programacion ? programacion.horasEstimadas : 0,
+  });
+  const puedePrevisualizar = recursoId !== '' && fechaProgramada !== '' && horasValidas;
+
+  function limpiarEstadoBuscador(): void {
+    setHueco(null);
+    setErrorFormulario(null);
+  }
+
+  async function buscarHueco(): Promise<void> {
+    if (!onProponerHueco || buscandoHueco || enviando || preparando || !horasValidas) return;
+    limpiarEstadoBuscador();
+    setBuscandoHueco(true);
+    try {
+      const resultado = await onProponerHueco({
+        recursoId,
+        turno,
+        horasEstimadas: horasNumero,
+        desdeFecha: fechaProgramada,
+      });
+      if (!resultado.exito) {
+        setErrorFormulario(resultado.error);
+        return;
+      }
+      if (!resultado.datos) {
+        setErrorFormulario('No se encontró un día hábil con capacidad en los próximos días');
+        return;
+      }
+      setHueco({ clave: claveFormulario, datos: resultado.datos });
+    } catch {
+      setErrorFormulario('No se pudo buscar un hueco disponible');
+    } finally {
+      setBuscandoHueco(false);
+    }
+  }
+
+  function usarHueco(): void {
+    if (!huecoVigente) return;
+    setFechaProgramada(huecoVigente.fecha);
+    setHueco(null);
     setErrorFormulario(null);
   }
 
@@ -162,6 +273,7 @@ export function PanelAsignacionPlaneacion({
 
       const resultado = await onEnviar(datos);
       if (!resultado.exito) setErrorFormulario(resultado.error || MENSAJE_ERROR_GENERICO);
+      else setHueco(null);
     } catch {
       setErrorFormulario(MENSAJE_ERROR_GENERICO);
     } finally {
@@ -193,6 +305,41 @@ export function PanelAsignacionPlaneacion({
       <h2 className="text-sm font-medium">
         {programacion ? 'Reprogramar partida' : 'Programar partida'}
       </h2>
+
+      {desgloseSeleccionado ? (
+        <section
+          className="flex flex-col gap-1 rounded-base border border-borde bg-superficie-2 p-3 text-xs"
+          aria-label="Desglose de fabricación"
+          data-testid="desglose-partida-planeacion"
+        >
+          <p className="font-mono text-[11px] font-medium">
+            {desgloseSeleccionado.folio} · {desgloseSeleccionado.codigoPieza}
+          </p>
+          <p className="text-texto-secundario">{textoODefecto(desgloseSeleccionado.descripcion)}</p>
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <div>
+              <dt className="text-texto-secundario">Área</dt>
+              <dd>{etiquetaArea(desgloseSeleccionado)}</dd>
+            </div>
+            <div>
+              <dt className="text-texto-secundario">Procesos</dt>
+              <dd>{etiquetaProcesos(desgloseSeleccionado)}</dd>
+            </div>
+            <div>
+              <dt className="text-texto-secundario">Material</dt>
+              <dd>{etiquetaMaterial(desgloseSeleccionado)}</dd>
+            </div>
+            <div>
+              <dt className="text-texto-secundario">Tiempo estimado</dt>
+              <dd>{formatearDuracionMinutos(desgloseSeleccionado.tiempoEstimadoMinutos)}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-texto-secundario">Avance</dt>
+              <dd>{etiquetaAvancePartida(desgloseSeleccionado)}</dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
 
       {!programacion ? (
         <>
@@ -289,6 +436,66 @@ export function PanelAsignacionPlaneacion({
           onChange={(evento) => setOrdenPrioridad(evento.target.value)}
         />
       </div>
+
+      {puedePrevisualizar ? (
+        <section
+          className="flex flex-col gap-1 rounded-base border border-borde p-3 text-xs"
+          aria-label="Resumen antes de guardar"
+          data-testid="resumen-programacion-planeacion"
+        >
+          <p className="font-medium">Resumen antes de guardar</p>
+          {etiquetaPartida ? <p>Partida: {etiquetaPartida}</p> : null}
+          <p>
+            {programacion ? 'Reprogramar' : 'Programar'} en{' '}
+            {recursos.find((recurso) => recurso.id === recursoId)?.codigo ?? 'recurso'} ·{' '}
+            {fechaProgramada} · {ETIQUETA_TURNO[turno]} · {horasNumero} h · prioridad{' '}
+            {ordenPrioridad || '1'}
+          </p>
+          <p className={evaluacion.cabe ? 'text-texto-secundario' : 'text-peligro-texto'}>
+            {evaluacion.sinCapacidad
+              ? 'Sin capacidad configurada para ese recurso, fecha y turno'
+              : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
+          </p>
+          {!evaluacion.cabe ? (
+            <p role="status" className="text-peligro-texto" data-testid="aviso-capacidad-insuficiente">
+              El recurso no tiene capacidad disponible en el turno seleccionado. Puedes buscar el
+              siguiente día hábil con hueco.
+            </p>
+          ) : null}
+          {onProponerHueco && !evaluacion.cabe ? (
+            <Button
+              type="button"
+              variante="secundario"
+              tamano="sm"
+              disabled={buscandoHueco || enviando || preparando}
+              onClick={() => void buscarHueco()}
+              data-testid="buscar-hueco-planeacion"
+            >
+              {buscandoHueco ? 'Buscando…' : 'Buscar hueco'}
+            </Button>
+          ) : null}
+          {huecoVigente ? (
+            <div
+              className="flex flex-col gap-1 rounded-base border border-acento bg-superficie-2 p-2"
+              data-testid="hueco-sugerido-planeacion"
+            >
+              <p>
+                Siguiente día hábil con hueco: <strong>{huecoVigente.fecha}</strong> · quedan{' '}
+                {huecoVigente.horasDisponibles} h de {huecoVigente.horasCapacidad} h.
+              </p>
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                onClick={usarHueco}
+                data-testid="usar-hueco-sugerido-planeacion"
+              >
+                Usar esta fecha
+              </Button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <p role="alert" aria-live="assertive" className="min-h-4 text-xs text-red-600">
         {errorFormulario ?? ''}

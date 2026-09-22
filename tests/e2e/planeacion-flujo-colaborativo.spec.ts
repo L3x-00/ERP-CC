@@ -61,6 +61,8 @@ type ContextoPlaneacionE2E = {
   clienteId: string;
   ordenId: string;
   partidaId: string;
+  partidaSecundariaId: string;
+  partidaTerciariaId: string;
   recursoId: string;
   programacionId: string | null;
 };
@@ -70,7 +72,7 @@ type RecursosTemporalesPlaneacion = {
   clienteId: string | null;
   ordenId: string | null;
   recursoId: string | null;
-  programacionId: string | null;
+  partidaIds: string[];
 };
 
 /** Borra únicamente IDs creados por la prueba, incluso si su preparación falla a mitad. */
@@ -78,8 +80,8 @@ async function limpiarRecursosTemporales(
   admin: SupabaseClient<Database>,
   recursos: RecursosTemporalesPlaneacion,
 ): Promise<void> {
-  if (recursos.programacionId) {
-    await admin.from('programacion_areas').delete().eq('id', recursos.programacionId);
+  if (recursos.partidaIds.length > 0) {
+    await admin.from('programacion_areas').delete().in('partida_id', recursos.partidaIds);
   }
   if (recursos.usuarioId) {
     await admin.from('logs').delete().eq('usuario_id', recursos.usuarioId);
@@ -96,6 +98,26 @@ async function limpiarRecursosTemporales(
   }
 }
 
+async function crearPartida(
+  admin: SupabaseClient<Database>,
+  ordenId: string,
+  sufijo: string,
+): Promise<string> {
+  const { data, error } = await admin
+    .from('partidas_orden_produccion')
+    .insert({
+      orden_id: ordenId,
+      codigo_pieza: `PZA-${sufijo}`,
+      descripcion: 'Partida temporal para sincronización de Planeación',
+      cantidad_solicitada: 1,
+      unidad_medida: 'pieza',
+    })
+    .select('id')
+    .single();
+  if (error || !data) throw new Error(`No se pudo crear partida E2E: ${error?.message ?? 'sin partida'}`);
+  return data.id;
+}
+
 async function prepararContexto(): Promise<ContextoPlaneacionE2E> {
   const admin = crearAdmin();
   const sufijo = randomUUID().slice(0, 8).toUpperCase();
@@ -106,7 +128,7 @@ async function prepararContexto(): Promise<ContextoPlaneacionE2E> {
     clienteId: null,
     ordenId: null,
     recursoId: null,
-    programacionId: null,
+    partidaIds: [],
   };
 
   try {
@@ -161,18 +183,10 @@ async function prepararContexto(): Promise<ContextoPlaneacionE2E> {
     if (errorOrden || !orden) throw new Error(`No se pudo crear orden E2E: ${errorOrden?.message ?? 'sin orden'}`);
     recursos.ordenId = orden.id;
 
-    const { data: partida, error: errorPartida } = await admin
-      .from('partidas_orden_produccion')
-      .insert({
-        orden_id: orden.id,
-        codigo_pieza: `PZA-${sufijo}`,
-        descripcion: 'Partida temporal para sincronización de Planeación',
-        cantidad_solicitada: 1,
-        unidad_medida: 'pieza',
-      })
-      .select('id')
-      .single();
-    if (errorPartida || !partida) throw new Error(`No se pudo crear partida E2E: ${errorPartida?.message ?? 'sin partida'}`);
+    const partidaId = await crearPartida(admin, orden.id, `${sufijo}-A`);
+    const partidaSecundariaId = await crearPartida(admin, orden.id, `${sufijo}-B`);
+    const partidaTerciariaId = await crearPartida(admin, orden.id, `${sufijo}-C`);
+    recursos.partidaIds = [partidaId, partidaSecundariaId, partidaTerciariaId];
 
     const { data: recurso, error: errorRecurso } = await admin
       .from('recursos_planeacion')
@@ -199,7 +213,9 @@ async function prepararContexto(): Promise<ContextoPlaneacionE2E> {
       contrasena,
       clienteId: recursos.clienteId,
       ordenId: recursos.ordenId,
-      partidaId: partida.id,
+      partidaId,
+      partidaSecundariaId,
+      partidaTerciariaId,
       recursoId: recursos.recursoId,
       programacionId: null,
     };
@@ -210,7 +226,21 @@ async function prepararContexto(): Promise<ContextoPlaneacionE2E> {
 }
 
 async function limpiarContexto(contexto: ContextoPlaneacionE2E): Promise<void> {
-  await limpiarRecursosTemporales(contexto.admin, contexto);
+  await limpiarRecursosTemporales(contexto.admin, {
+    usuarioId: contexto.usuarioId,
+    clienteId: contexto.clienteId,
+    ordenId: contexto.ordenId,
+    recursoId: contexto.recursoId,
+    partidaIds: [contexto.partidaId, contexto.partidaSecundariaId, contexto.partidaTerciariaId],
+  });
+}
+
+async function iniciarSesion(pagina: Page, contexto: ContextoPlaneacionE2E): Promise<void> {
+  await pagina.goto('/iniciar-sesion');
+  await pagina.getByLabel('Correo electrónico').fill(contexto.correo);
+  await pagina.getByRole('textbox', { name: 'Contraseña' }).fill(contexto.contrasena);
+  await pagina.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await pagina.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
 test.describe.serial('Planeación colaborativa completa', () => {
@@ -236,16 +266,12 @@ test.describe.serial('Planeación colaborativa completa', () => {
   }) => {
     const contextoPrueba = contexto;
     if (!contextoPrueba) throw new Error('El contexto E2E no fue preparado');
-    await page.goto('/iniciar-sesion');
-    await page.getByLabel('Correo electrónico').fill(contextoPrueba.correo);
-    await page.getByRole('textbox', { name: 'Contraseña' }).fill(contextoPrueba.contrasena);
-    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-    await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
+    await iniciarSesion(page, contextoPrueba);
 
     await page.goto('/planeacion');
     await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
     await aplicarRangoCalendario(page);
-    await page.getByLabel('Partida').selectOption(contextoPrueba.partidaId);
+    await page.getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaId);
     await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
     await page.getByLabel('Fecha programada').fill('2099-12-30');
     await page.getByLabel('Horas estimadas').fill('4');
@@ -262,7 +288,11 @@ test.describe.serial('Planeación colaborativa completa', () => {
         return data?.estado_planeacion ?? null;
       })
       .toBe('programada');
-    await expect(page.getByText('2099-12-30')).toBeVisible();
+    await expect(
+      page
+        .getByTestId('columna-2099-12-30')
+        .getByTestId(`programacion-${contextoPrueba.programacionId}`),
+    ).toBeVisible();
 
     // La reprogramación se valida mientras la programación sigue `programada`:
     // el backend rechaza moverla en preparación/ejecución porque el recurso y la
@@ -270,7 +300,11 @@ test.describe.serial('Planeación colaborativa completa', () => {
     const segundaVista = await context.newPage();
     await segundaVista.goto('/planeacion');
     await aplicarRangoCalendario(segundaVista);
-    await expect(segundaVista.getByText('2099-12-30')).toBeVisible();
+    await expect(
+      segundaVista
+        .getByTestId('columna-2099-12-30')
+        .getByTestId(`programacion-${contextoPrueba.programacionId}`),
+    ).toBeVisible();
 
     const { data: programacionActual, error: errorProgramacion } = await contextoPrueba.admin
       .from('programacion_areas')
@@ -289,8 +323,16 @@ test.describe.serial('Planeación colaborativa completa', () => {
     });
     expect(errorReprogramacion).toBeNull();
 
-    await expect(segundaVista.getByText('2099-12-31')).toBeVisible({ timeout: 15_000 });
-    await expect(segundaVista.getByText('2099-12-30')).toHaveCount(0);
+    await expect(
+      segundaVista
+        .getByTestId('columna-2099-12-31')
+        .getByTestId(`programacion-${contextoPrueba.programacionId}`),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      segundaVista
+        .getByTestId('columna-2099-12-30')
+        .getByTestId(`programacion-${contextoPrueba.programacionId}`),
+    ).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Seleccionar' }).click();
     await page.getByTestId('activar-preparacion-planeacion').click();
@@ -315,5 +357,104 @@ test.describe.serial('Planeación colaborativa completa', () => {
       'programar_partida_recurso',
       'activar_modo_preparacion',
     ]));
+  });
+
+  test('desglose, vistas y arrastre con propuesta de hueco (OBS-08/OBS-18/OBS-19)', async ({
+    page,
+  }) => {
+    const contextoPrueba = contexto;
+    if (!contextoPrueba) throw new Error('El contexto E2E no fue preparado');
+    await iniciarSesion(page, contextoPrueba);
+
+    await page.goto('/planeacion');
+    await aplicarRangoCalendario(page);
+
+    // OBS-18: programar sin IDs internos, con desglose y resumen previos.
+    await page.getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaSecundariaId);
+    await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
+    await page.getByLabel('Fecha programada').fill('2099-12-28');
+    await page.getByLabel('Horas estimadas').fill('8');
+    await expect(page.getByTestId('desglose-partida-planeacion')).toContainText('Por definir');
+    const resumen = page.getByTestId('resumen-programacion-planeacion');
+    await expect(resumen).toContainText('2099-12-28');
+    await expect(resumen).toContainText('Capacidad tras guardar');
+    await page.getByTestId('guardar-asignacion-planeacion').click();
+
+    await expect
+      .poll(async () => {
+        const { data } = await contextoPrueba.admin
+          .from('programacion_areas')
+          .select('fecha_programada')
+          .eq('partida_id', contextoPrueba.partidaSecundariaId);
+        return (data ?? []).map((fila) => fila.fecha_programada).join(',');
+      })
+      .toContain('2099-12-28');
+
+    const { data: programaciones } = await contextoPrueba.admin
+      .from('programacion_areas')
+      .select('id, fecha_programada')
+      .eq('partida_id', contextoPrueba.partidaSecundariaId);
+    const primera = (programaciones ?? []).find((fila) => fila.fecha_programada === '2099-12-28');
+    expect(primera).toBeTruthy();
+
+    // Vistas de día, semana y mes con navegación estable.
+    await page.getByTestId('vista-planeacion-mes').click();
+    await expect(page.getByTestId('vista-mes')).toBeVisible();
+    await page.getByTestId('vista-planeacion-dia').click();
+    await expect(page.getByTestId('vista-dia')).toBeVisible();
+    await page.getByTestId('vista-planeacion-semana').click();
+    await expect(page.getByTestId('vista-semana')).toBeVisible();
+    await aplicarRangoCalendario(page);
+    await expect(
+      page.getByTestId('columna-2099-12-28').getByTestId(`programacion-${primera!.id}`),
+    ).toBeVisible();
+
+    // OBS-19: el turno se llena, el guardado se bloquea y se propone el
+    // siguiente día hábil con hueco, que se confirma con "Usar esta fecha".
+    await page.getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaTerciariaId);
+    await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
+    await page.getByLabel('Fecha programada').fill('2099-12-28');
+    await page.getByLabel('Horas estimadas').fill('1');
+    await expect(page.getByTestId('aviso-capacidad-insuficiente')).toBeVisible();
+    await page.getByTestId('guardar-asignacion-planeacion').click();
+    await expect(
+      page.getByText('El recurso no tiene capacidad disponible en el turno seleccionado'),
+    ).toBeVisible();
+    await page.getByTestId('buscar-hueco-planeacion').click();
+    await expect(page.getByTestId('hueco-sugerido-planeacion')).toContainText('2099-12-29');
+    await page.getByTestId('usar-hueco-sugerido-planeacion').click();
+    await expect(page.getByLabel('Fecha programada')).toHaveValue('2099-12-29');
+    await page.getByTestId('guardar-asignacion-planeacion').click();
+
+    await expect
+      .poll(async () => {
+        const { data } = await contextoPrueba.admin
+          .from('programacion_areas')
+          .select('fecha_programada')
+          .eq('partida_id', contextoPrueba.partidaTerciariaId);
+        return (data ?? []).map((fila) => fila.fecha_programada).join(',');
+      })
+      .toContain('2099-12-29');
+
+    // PLA-02: arrastrar la tarjeta a otro día abre confirmación; recién al
+    // confirmar se mueve, y la columna original queda libre.
+    await page
+      .getByTestId(`programacion-${primera!.id}`)
+      .dragTo(page.getByTestId('columna-2099-12-30'));
+    await expect(page.getByTestId('dialogo-reprogramacion-planeacion')).toBeVisible();
+    await page.getByTestId('confirmar-reprogramacion-planeacion').click();
+    await expect
+      .poll(async () => {
+        const { data } = await contextoPrueba.admin
+          .from('programacion_areas')
+          .select('fecha_programada')
+          .eq('id', primera!.id)
+          .single();
+        return data?.fecha_programada ?? null;
+      })
+      .toBe('2099-12-30');
+    await expect(
+      page.getByTestId('columna-2099-12-28').getByTestId(`programacion-${primera!.id}`),
+    ).toHaveCount(0);
   });
 });
