@@ -25,5 +25,8 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
+        // El wrapper necesita una señal capturable para apagar Next y el stub
+        // (con SIGKILL quedaría un next-server huérfano colgando el job de CI).
+        gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
       },
 });

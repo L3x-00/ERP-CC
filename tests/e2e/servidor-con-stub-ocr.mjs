@@ -40,7 +40,9 @@ const stub = createServer((peticion, respuesta) => {
 await new Promise((resolver) => stub.listen(PUERTO_STUB, '127.0.0.1', resolver));
 
 const hijo = spawn('pnpm', ['exec', 'next', 'start', '--port', String(PUERTO_NEXT)], {
-  stdio: 'inherit',
+  // stdout/stderr se reenvían desde el wrapper: si el wrapper muere, el hijo no
+  // conserva los pipes del runner y el step de CI no se queda colgado.
+  stdio: ['ignore', 'pipe', 'pipe'],
   shell: process.platform === 'win32',
   env: {
     ...process.env,
@@ -49,11 +51,19 @@ const hijo = spawn('pnpm', ['exec', 'next', 'start', '--port', String(PUERTO_NEX
     OPENROUTER_BASE_URL: `http://127.0.0.1:${PUERTO_STUB}/api/v1/chat/completions`,
   },
 });
+hijo.stdout?.on('data', (datos) => process.stdout.write(datos));
+hijo.stderr?.on('data', (datos) => process.stderr.write(datos));
 
+let cerrando = false;
 function cerrar(codigo) {
+  if (cerrando) return;
+  cerrando = true;
   stub.close();
-  hijo.kill();
-  process.exit(codigo);
+  hijo.kill('SIGTERM');
+  setTimeout(() => {
+    hijo.kill('SIGKILL');
+    process.exit(codigo);
+  }, 4_000).unref();
 }
 
 hijo.on('exit', (codigo) => {
@@ -62,3 +72,4 @@ hijo.on('exit', (codigo) => {
 });
 process.on('SIGTERM', () => cerrar(0));
 process.on('SIGINT', () => cerrar(0));
+process.on('exit', () => hijo.kill('SIGKILL'));

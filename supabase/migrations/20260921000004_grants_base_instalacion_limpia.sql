@@ -18,6 +18,8 @@ GRANT ALL PRIVILEGES ON TABLE public.permisos_rol TO service_role;
 GRANT SELECT ON TABLE public.logs TO authenticated;
 GRANT ALL PRIVILEGES ON TABLE public.logs TO service_role;
 
+GRANT ALL PRIVILEGES ON TABLE public.intentos_login TO service_role;
+
 GRANT SELECT ON TABLE public.clientes TO authenticated;
 GRANT ALL PRIVILEGES ON TABLE public.clientes TO service_role;
 
