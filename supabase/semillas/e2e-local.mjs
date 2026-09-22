@@ -143,8 +143,10 @@ writeFileSync(
   ),
   'utf8',
 );
-console.log(`OK: fixture local creado en ${rutaSalida}`);
-console.log('orden:', orden.folio, orden.id);
+// Los avisos van a stderr para que stdout quede limpio cuando se usa
+// `--exports` y el job de CI lo anexa a $GITHUB_ENV.
+console.error(`OK: fixture local creado en ${rutaSalida}`);
+console.error('orden:', orden.folio, orden.id);
 
 if (imprimirExports) {
   for (const [clave, valor] of Object.entries(variables)) {
