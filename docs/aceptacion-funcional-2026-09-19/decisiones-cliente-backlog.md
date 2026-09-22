@@ -101,7 +101,7 @@ piso, aceptación E2E) se integra a `main` con esta entrega. Los bloques del bac
 desarrollarán en ramas cortas sobre `main` con PR por bloque, manteniendo los gates
 (typecheck, lint, unitarias, E2E local, PGlite para SQL).
 
-## Bloques de cierre en curso
+## Bloques de cierre — completados (21-sep)
 
 - **Bloque 1 — Planeación (OBS-08, OBS-18/19)** ✅ implementado 21-sep, sin migración: desglose de
   partida en tarjeta y panel ("Por definir" explícito), resumen previo a guardar con capacidad,
@@ -126,7 +126,9 @@ desarrollarán en ramas cortas sobre `main` con PR por bloque, manteniendo los g
   desglose por estación/rubro y costo TI por periodo), tarjeta con desglose expandible, tarjeta de
   costo TI en dashboard, E2E de OCR con stub, pruebas de concurrencia de dos conexiones y CI de
   E2E. Evidencia: 700 unitarias, typecheck/lint 0, build 17 rutas, E2E local 24/24 y concurrencia
-  3/3. **Pendiente: el PO aplica `20260921000003` en remoto antes del merge.**
-- **Cierre de aceptación**: la demo/revisión visual del cliente recorre los bloques nuevos
+  3/3; **CI en verde** (verificación + E2E local). Integrado en `main` (PR #17, merge `d2cd7be`)
+  tras aplicar `20260921000003` y `20260921000004` en remoto.
+- **Cierre de aceptación**: pendiente la demo/revisión visual del cliente sobre los bloques nuevos
   (D-04, OBS-02/03, D-02, documentos en piso, costo TI, comentarios en piso, Planeación,
-  Comercial/clientes, Taller y Rentabilidad) con los guiones E2E ya verdes como referencia.
+  Comercial/clientes, Taller y Rentabilidad) y la revisión cruzada de Codex. Los guiones E2E
+  verdes sirven de referencia y el CI queda activo para los próximos PR.
