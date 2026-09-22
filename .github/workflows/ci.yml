@@ -47,6 +47,8 @@ jobs:
           version: 2.109.0
       - name: Levantar Supabase local (aplica migraciones)
         run: supabase start
+      - name: Verificar permisos SQL tras todas las migraciones
+        run: supabase test db
       - name: Exportar entorno del stack local
         run: |
           source <(supabase status -o env)
