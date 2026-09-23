@@ -10,8 +10,10 @@ function ejecutar() {
   asegurar(process.env.NODE_ENV !== 'production', 'La prueba de motor no puede ejecutarse en producción.');
   asegurar(
     process.env.CONFIRMAR_PRUEBAS_FICTICIAS === 'si',
-    'Define CONFIRMAR_PRUEBAS_FICTICIAS=si para ejecutar la prueba remota de motor.',
+    'Define CONFIRMAR_PRUEBAS_FICTICIAS=si para ejecutar la prueba local de motor.',
   );
+  // El SQL inserta y borra fixtures; `--local` fija el destino al stack local
+  // sin depender de .env.local ni del proyecto enlazado.
 
   const rutaPnpm = process.platform === 'win32'
     ? join(
@@ -32,7 +34,7 @@ function ejecutar() {
       'supabase',
       'db',
       'query',
-      '--linked',
+      '--local',
       '--file',
       'supabase/semillas/verificar-motor-capacidad.sql',
     ],

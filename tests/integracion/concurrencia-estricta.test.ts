@@ -1,38 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from '@/compartido/tipos/supabase';
+import { prepararSuiteSupabaseLocal } from '../utilidades/entorno-supabase';
 
-/**
- * Prioriza `process.env` (override explícito del runner/CI) y cae a
- * `.env.local` solo si la variable no está definida.
- */
-function leerVariableEnv(nombre: string): string | undefined {
-  if (process.env[nombre]) return process.env[nombre];
-  try {
-    const rutaEnv = resolve(dirname(fileURLToPath(import.meta.url)), '../../.env.local');
-    const contenido = readFileSync(rutaEnv, 'utf8');
-    const coincidencia = contenido.match(new RegExp(`^${nombre}=([^\\r\\n]+)`, 'm'));
-    if (coincidencia?.[1]) return coincidencia[1].trim();
-  } catch {
-    // `.env.local` ausente; se usa solo `process.env`.
-  }
-  return undefined;
-}
-
-const URL_SUPABASE = leerVariableEnv('NEXT_PUBLIC_SUPABASE_URL');
-const CLAVE_SERVICE_ROLE = leerVariableEnv('SUPABASE_SERVICE_ROLE_KEY');
-
-/**
- * Guardia dura: estas pruebas MUTAN datos y solo pueden correr contra un
- * Supabase local (loopback). Con la URL de producción quedan omitidas, porque
- * el `.env.local` del repo apunta al proyecto remoto.
- */
-const esLocal = URL_SUPABASE !== undefined && /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(URL_SUPABASE);
-const describir = esLocal && CLAVE_SERVICE_ROLE ? describe : describe.skip;
+// Guardia dura: estas pruebas MUTAN datos y solo pueden correr contra un
+// Supabase local (loopback). La guardia lanza al importar, antes de abrir
+// ningún cliente, aunque el entorno herede credenciales remotas.
+const { describir, crearClienteServicio } = prepararSuiteSupabaseLocal(
+  'concurrencia estricta',
+);
 
 type Contexto = {
   admin: SupabaseClient<Database>;
@@ -107,9 +84,7 @@ async function crearOrden(
 
 describir('concurrencia estricta sobre RPC críticas (integración local)', () => {
   beforeAll(async () => {
-    contexto.admin = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    contexto.admin = crearClienteServicio();
     const sufijo = randomUUID().slice(0, 8);
     contexto.usuarioId = await crearUsuarioAdmin(contexto.admin, sufijo);
     contexto.clienteId = await crearCliente(contexto.admin, sufijo);
@@ -187,12 +162,8 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
     if (errorLinea) throw new Error(`No se creó la línea E2E: ${errorLinea.message}`);
 
     // Dos conexiones independientes: cada cliente HTTP abre su propia sesión.
-    const clienteA = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { persistSession: false },
-    });
-    const clienteB = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { persistSession: false },
-    });
+    const clienteA = crearClienteServicio();
+    const clienteB = crearClienteServicio();
     const argumentos = {
       p_pipeline_id: oportunidad.id,
       p_cliente_id: contexto.clienteId,
@@ -263,12 +234,8 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
       .single();
     const solicitudId = randomUUID();
 
-    const clienteA = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { persistSession: false },
-    });
-    const clienteB = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { persistSession: false },
-    });
+    const clienteA = crearClienteServicio();
+    const clienteB = crearClienteServicio();
     const argumentos = {
       p_ar_id: ar!.id,
       p_monto_pagado: 200,
@@ -343,12 +310,8 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
     if (errorMaterial || !material) throw new Error(`Sin material E2E: ${errorMaterial?.message}`);
     contexto.materialId = material.id;
 
-    const clienteA = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { persistSession: false },
-    });
-    const clienteB = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { persistSession: false },
-    });
+    const clienteA = crearClienteServicio();
+    const clienteB = crearClienteServicio();
     const argumentos = {
       p_partida_id: partida.id,
       p_material_id: material.id,

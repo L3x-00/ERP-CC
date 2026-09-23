@@ -1,20 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from '@/compartido/tipos/supabase';
+import { prepararSuiteSupabaseLocal } from '../utilidades/entorno-supabase';
 
 // Un JWT emitido antes de la baja permanece válido hasta expirar. Esta prueba
 // solo escribe fixtures contra el Supabase local y jamás lee .env.local.
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const claveServicio = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const claveAnonima = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-if (url && !['127.0.0.1', 'localhost'].includes(new URL(url).hostname)) {
-  throw new Error('RLS de usuario inactivo: solo se permite Supabase local');
-}
-const suite = url && claveServicio && claveAnonima ? describe : describe.skip;
+const { describir: suite, crearClienteServicio, crearClienteAnonimo } = prepararSuiteSupabaseLocal(
+  'RLS de usuario inactivo',
+  { requiereClaveAnonima: true },
+);
 
 suite('A09: revocación efectiva con JWT anterior a la desactivación', () => {
-  const opciones = { auth: { persistSession: false, autoRefreshToken: false } };
   let admin: SupabaseClient<Database>;
   let vendedor: SupabaseClient<Database>;
   let otroVendedor: SupabaseClient<Database>;
@@ -35,14 +32,14 @@ suite('A09: revocación efectiva con JWT anterior a la desactivación', () => {
     usuarios.push(id);
     const actualizacion = await admin.from('usuarios').update({ rol, activo: true }).eq('id', id);
     if (actualizacion.error) throw actualizacion.error;
-    const cliente = createClient<Database>(url!, claveAnonima!, opciones);
+    const cliente = crearClienteAnonimo();
     const ingreso = await cliente.auth.signInWithPassword({ email, password });
     if (ingreso.error || !ingreso.data.session) throw new Error(ingreso.error?.message ?? 'No se emitió JWT');
     return { id, cliente };
   }
 
   beforeAll(async () => {
-    admin = createClient<Database>(url!, claveServicio!, opciones);
+    admin = crearClienteServicio();
     const primero = await crearUsuario('vendedor');
     vendedorId = primero.id;
     vendedor = primero.cliente;

@@ -52,6 +52,10 @@ jobs:
       - name: Exportar entorno del stack local
         run: |
           source <(supabase status -o env)
+          case "$API_URL" in
+            http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*) ;;
+            *) echo "El stack de CI debe usar loopback" >&2; exit 1 ;;
+          esac
           echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
           echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
@@ -64,6 +68,8 @@ jobs:
         run: |
           node supabase/semillas/e2e-local.mjs /tmp/e2e-fixture.json --exports > /tmp/e2e-exports.txt
           cat /tmp/e2e-exports.txt >> "$GITHUB_ENV"
+      - name: Integración completa contra Supabase local
+        run: pnpm test:integracion
       - name: Instalar Chromium de Playwright
         run: pnpm exec playwright install --with-deps chromium
       - name: E2E de navegador (incluye OCR con stub local)

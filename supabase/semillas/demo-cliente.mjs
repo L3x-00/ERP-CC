@@ -11,7 +11,9 @@
  * Requisitos:
  *   - `CONFIRMAR_DEMO=si` para limpiar/sembrar (omitido en `verificar`).
  *   - `NODE_ENV` distinto de `production`.
- *   - `.env.local` con NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.
+ *   - `NEXT_PUBLIC_SUPABASE_URL` apuntando a loopback (stack local).
+ *   - `.env.local` con NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY;
+ *     `process.env` explícito siempre tiene prioridad sobre ese archivo.
  *
  * Limpia TODAS las tablas transaccionales (los datos existentes son fixtures
  * de prueba) y conserva las cuentas reales `ales@gmail.com` y
@@ -20,23 +22,14 @@
  * inventario, cobranza con pagos, gastos, comentarios/notificaciones y metas.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
+import { cargarEntornoLocal, exigirSupabaseLocal } from './guardia-supabase-local.mjs';
 
 // ---------------------------------------------------------------------------
 // Entorno y utilidades
 // ---------------------------------------------------------------------------
-
-function cargarEntornoLocal() {
-  if (!existsSync('.env.local')) return;
-  for (const linea of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
-    const coincidencia = /^([A-Z0-9_]+)=(.*)$/.exec(linea.trim());
-    if (!coincidencia || process.env[coincidencia[1]] !== undefined) continue;
-    process.env[coincidencia[1]] = coincidencia[2].replace(/^['"]|['"]$/g, '');
-  }
-}
 
 function requerirVariable(nombre) {
   const valor = process.env[nombre];
@@ -56,6 +49,10 @@ asegurar(process.env.NODE_ENV !== 'production', 'La semilla de demo no puede eje
 if (MODO !== 'verificar') {
   asegurar(process.env.CONFIRMAR_DEMO === 'si', 'Define CONFIRMAR_DEMO=si para limpiar/sembrar datos de demo.');
 }
+
+// Guardia de aislamiento ANTES de abrir cliente: este script BORRA todas las
+// tablas transaccionales. `.env.local` apunta al proyecto remoto.
+exigirSupabaseLocal('Semilla de demo comercial');
 
 const cliente = createClient(
   requerirVariable('NEXT_PUBLIC_SUPABASE_URL'),

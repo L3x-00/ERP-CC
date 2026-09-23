@@ -1,16 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from '@/compartido/tipos/supabase';
 import { actualizarAreasOperadorServicio } from '@/modulos/configuracion/servicios/configuracion-servicio';
+import { prepararSuiteSupabaseLocal } from '../utilidades/entorno-supabase';
 
 // Estos casos escriben fixtures únicamente en el stack local, sin leer .env.local.
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const clave = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (url && !['127.0.0.1', 'localhost'].includes(new URL(url).hostname)) {
-  throw new Error('Áreas de operador: solo se permite Supabase local');
-}
-const suite = url && clave ? describe : describe.skip;
+const { describir: suite, crearClienteServicio } = prepararSuiteSupabaseLocal(
+  'áreas de operador bajo concurrencia',
+);
 
 suite('restricciones de área: atomicidad y dos ediciones simultáneas', () => {
   let admin: SupabaseClient<Database>;
@@ -20,9 +18,8 @@ suite('restricciones de área: atomicidad y dos ediciones simultáneas', () => {
   const usuarios: string[] = [];
 
   beforeAll(async () => {
-    const opciones = { auth: { persistSession: false, autoRefreshToken: false } };
-    admin = createClient<Database>(url!, clave!, opciones);
-    segundo = createClient<Database>(url!, clave!, opciones);
+    admin = crearClienteServicio();
+    segundo = crearClienteServicio();
     for (const rol of ['admin', 'operador'] as const) {
       const creada = await admin.auth.admin.createUser({
         email: `a05-${randomUUID()}@orca.local`, password: `A05!${randomUUID()}`, email_confirm: true,

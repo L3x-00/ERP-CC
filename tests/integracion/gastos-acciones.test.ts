@@ -7,6 +7,7 @@ const {
   registrarGastoMock,
   cambiarEstadoMock,
   obtenerRentabilidadMock,
+  configuracionMock,
 } = vi.hoisted(() => ({
   obtenerUsuarioMock: vi.fn(),
   canMock: vi.fn(),
@@ -14,6 +15,7 @@ const {
   registrarGastoMock: vi.fn(),
   cambiarEstadoMock: vi.fn(),
   obtenerRentabilidadMock: vi.fn(),
+  configuracionMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
@@ -25,8 +27,25 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...argumentos: unknown[]) => registrarLogMock(...argumentos),
 }));
+/**
+ * `registrarGastoAccion` valida la categoría contra `obtenerConfiguracionGeneral()`,
+ * que abre su propio cliente admin por defecto. El doble debe responder a esa
+ * lectura (`from('configuracion_sistema')…maybeSingle()`): con solo `rpc` la
+ * acción moría en `cliente.from is not a function` y devolvía el error genérico.
+ * Se responde `data: null` para que corra el fallback real de `combinarConfiguracion`,
+ * que entrega el catálogo de categorías por defecto sin tocar la base.
+ */
 vi.mock('@/nucleo/supabase/admin', () => ({
-  crearClienteSupabaseAdmin: () => ({ rpc: vi.fn() }),
+  crearClienteSupabaseAdmin: () => ({
+    rpc: vi.fn(),
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => configuracionMock(),
+        }),
+      }),
+    }),
+  }),
 }));
 vi.mock('@/modulos/gastos/servicios/indice', async () => {
   const real = await vi.importActual<typeof import('@/modulos/gastos/servicios/indice')>('@/modulos/gastos/servicios/indice');
@@ -88,6 +107,8 @@ beforeEach(() => {
   registrarGastoMock.mockResolvedValue(GASTO);
   cambiarEstadoMock.mockResolvedValue({ ...GASTO, estadoPago: 'pagado' });
   obtenerRentabilidadMock.mockResolvedValue({ ordenId: '11111111-1111-4111-8111-111111111111' });
+  // Singleton ausente → `combinarConfiguracion` aplica el catálogo por defecto.
+  configuracionMock.mockResolvedValue({ data: null, error: null });
 });
 
 const entrada = {
@@ -118,6 +139,34 @@ describe('acciones seguras de Gastos', () => {
     expect(respuesta).toEqual({ exito: true, datos: GASTO });
     expect(registrarGastoMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining(entrada), CONTADOR.id);
     expect(registrarLogMock).toHaveBeenCalledWith(CONTADOR, 'registrar_gasto', 'gastos', GASTO.id, expect.anything());
+  });
+
+  it('rechaza una categoría fuera del catálogo configurado', async () => {
+    obtenerUsuarioMock.mockResolvedValue(CONTADOR);
+    canMock.mockResolvedValue(true);
+    // Catálogo configurado que NO incluye `servicios_generales`: la acción debe
+    // frenar antes de llamar al servicio. Cubre que la lectura de configuración
+    // se ejerce de verdad y no queda neutralizada por el doble.
+    configuracionMock.mockResolvedValue({
+      data: {
+        id: 'main',
+        empresa_json: {},
+        tarifas_json: {},
+        plantillas_doc_json: {},
+        tiers_json: {},
+        categorias_gasto_json: { categorias: ['nomina'] },
+        tipo_cambio_usd: 18,
+        iva_porcentaje_default: 16,
+        actualizado_por: null,
+        actualizado_en: '2026-09-09T00:00:00.000Z',
+      },
+      error: null,
+    });
+    await expect(registrarGastoAccion(entrada)).resolves.toEqual({
+      exito: false,
+      error: 'La categoría no está en el catálogo configurado',
+    });
+    expect(registrarGastoMock).not.toHaveBeenCalled();
   });
 
   it('usuario sin permiso no puede cambiar el estado', async () => {

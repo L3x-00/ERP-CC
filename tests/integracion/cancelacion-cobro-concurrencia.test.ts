@@ -1,15 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from '@/compartido/tipos/supabase';
+import { prepararSuiteSupabaseLocal } from '../utilidades/entorno-supabase';
 
 // Nunca leer .env.local: estas pruebas mutan exclusivamente fixtures locales.
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const clave = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (url && !['127.0.0.1', 'localhost'].includes(new URL(url).hostname)) {
-  throw new Error('Cancelación/cobro: solo se permite Supabase local');
-}
-const suite = url && clave ? describe : describe.skip;
+const { describir: suite, crearClienteServicio } = prepararSuiteSupabaseLocal(
+  'cancelación y cobro concurrentes',
+);
 function datos<T>(r: { data: T; error: { message: string } | null }): NonNullable<T> {
   if (r.error || r.data === null) throw new Error(r.error?.message ?? 'Sin datos');
   return r.data as NonNullable<T>;
@@ -24,9 +22,8 @@ suite('cancelación y cobro concurrentes, dos clientes PostgreSQL reales', () =>
   const cuentas: string[] = [];
 
   beforeAll(async () => {
-    const opciones = { auth: { persistSession: false, autoRefreshToken: false } };
-    admin = createClient<Database>(url!, clave!, opciones);
-    otro = createClient<Database>(url!, clave!, opciones);
+    admin = crearClienteServicio();
+    otro = crearClienteServicio();
     const creada = await admin.auth.admin.createUser({
       email: `a02-${randomUUID()}@orca.local`,
       password: `A02!${randomUUID()}`,

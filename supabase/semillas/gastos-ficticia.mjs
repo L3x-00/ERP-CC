@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
 import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
+import { cargarEntornoLocal, exigirSupabaseLocal } from './guardia-supabase-local.mjs';
 
 // Fixture persistente de Fase 9. Los UUID son propios del escenario SIM-GTO y
 // no se reutilizan con las semillas de Planeación, Producción o Cobranza.
@@ -18,15 +18,6 @@ const identificadores = {
 };
 
 const descripcionGasto = 'Gasto ficticio de consumibles para rentabilidad SIM-GTO';
-
-function cargarEntornoLocal() {
-  if (!existsSync('.env.local')) return;
-  for (const linea of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
-    const coincidencia = /^([A-Z0-9_]+)=(.*)$/.exec(linea.trim());
-    if (!coincidencia || process.env[coincidencia[1]] !== undefined) continue;
-    process.env[coincidencia[1]] = coincidencia[2].replace(/^['"]|['"]$/g, '');
-  }
-}
 
 function requerirVariable(nombre) {
   const valor = process.env[nombre];
@@ -367,6 +358,9 @@ async function ejecutar() {
   if (!soloVerificar) {
     asegurar(process.env.CONFIRMAR_DATOS_FICTICIOS === 'si', 'Define CONFIRMAR_DATOS_FICTICIOS=si para sembrar datos ficticios persistentes.');
   }
+  // Guardia de aislamiento ANTES de abrir cliente: `.env.local` apunta al
+  // proyecto remoto y esta semilla borra e inserta fixtures.
+  exigirSupabaseLocal('Semilla de gastos ficticia');
   const cliente = createClient(
     requerirVariable('NEXT_PUBLIC_SUPABASE_URL'),
     requerirVariable('SUPABASE_SERVICE_ROLE_KEY'),

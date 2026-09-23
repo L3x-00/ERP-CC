@@ -1,4 +1,4 @@
--- Verificación remota reutilizable de capacidad y candado para la Sub-fase 6.2.
+-- Verificación local reutilizable de capacidad y candado para la Sub-fase 6.2.
 -- Conserva fixtures SIM-PLN y elimina todas las filas temporales que crea.
 DO $$
 DECLARE
