@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
+import { claveListaClientes } from '@/modulos/clientes/componentes/claves-consulta';
 import {
   obtenerClientes,
   type FiltrosClientes,
@@ -11,7 +12,7 @@ import {
 // hooks por `/^use[A-Z0-9]/`). Se exporta con el nombre en español vía alias.
 function useClientes(filtros?: FiltrosClientes) {
   return useQuery({
-    queryKey: ['clientes', filtros ?? null],
+    queryKey: claveListaClientes(filtros),
     queryFn: () => obtenerClientes(crearClienteSupabase(), filtros),
   });
 }

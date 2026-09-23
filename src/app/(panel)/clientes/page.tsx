@@ -1,5 +1,6 @@
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { TablaClientes } from '@/modulos/clientes/componentes/tabla-clientes';
+import { SincronizadorClientesRealtime } from '@/modulos/clientes/componentes/sincronizador-clientes-realtime';
 
 /**
  * Página de Clientes. Server Component: resuelve el usuario para saber si es
@@ -12,6 +13,7 @@ export default async function PaginaClientes() {
 
   return (
     <div className="flex flex-col gap-4">
+      <SincronizadorClientesRealtime />
       <h1 className="text-2xl font-bold">Clientes</h1>
       <TablaClientes esAdmin={esAdmin} usuarioActualId={usuario?.id} />
     </div>

@@ -7,11 +7,10 @@ import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
 import { crearContactoClienteAccion } from '@/modulos/clientes/acciones/crear-contacto-cliente';
 import { eliminarContactoClienteAccion } from '@/modulos/clientes/acciones/eliminar-contacto-cliente';
 import { filaAContactoCliente } from '@/modulos/clientes/tipos/indice';
+import { CLAVE_CONTACTOS_CLIENTE, claveContactosCliente } from './claves-consulta';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
-
-const CLAVE_CONTACTOS = ['clientes', 'contactos'] as const;
 
 /**
  * Contactos adicionales del cliente (OBS-02): lista con alta inline y baja.
@@ -30,7 +29,7 @@ export function PanelContactos({ clienteId }: { clienteId: string }) {
   const [mensaje, setMensaje] = useState<string | null>(null);
 
   const consulta = useQuery({
-    queryKey: [...CLAVE_CONTACTOS, clienteId],
+    queryKey: claveContactosCliente(clienteId),
     queryFn: async () => {
       const cliente = crearClienteSupabase();
       const { data, error } = await cliente
@@ -70,7 +69,7 @@ export function PanelContactos({ clienteId }: { clienteId: string }) {
       setNotas('');
       setEsPrincipal(false);
       setMensaje('Contacto agregado.');
-      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CONTACTOS });
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CONTACTOS_CLIENTE });
     } catch {
       setMensaje('No se pudo comunicar el alta; vuelve a intentarlo');
     } finally {
@@ -86,7 +85,7 @@ export function PanelContactos({ clienteId }: { clienteId: string }) {
       return;
     }
     setMensaje('Contacto eliminado.');
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CONTACTOS });
+    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CONTACTOS_CLIENTE });
   }
 
   const contactos = consulta.data ?? [];

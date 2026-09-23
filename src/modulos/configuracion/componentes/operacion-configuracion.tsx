@@ -88,6 +88,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
     clienteQuery.setQueryData<DatosConfiguracion>(CLAVE_CONFIGURACION, (actual) =>
       actual ? { ...actual, operadoresAreas } : actual,
     );
+    setConfirmacion('Áreas del operador guardadas');
   };
 
   function cambiarPestana(id: Pestana): void {

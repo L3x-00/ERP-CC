@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -92,8 +92,24 @@ export function PestanaAreasTrabajo({
   const [seleccionAreas, setSeleccionAreas] = useState<Record<string, string[]>>(() =>
     mapaInicial(operadores),
   );
+  const operadoresConEdicionLocal = useRef(new Set<string>());
   const [operadorGuardando, setOperadorGuardando] = useState<string | null>(null);
   const [mensajeOperador, setMensajeOperador] = useState<string | null>(null);
+
+  // Realtime actualiza `operadores` desde la consulta autorizada. La selección
+  // debe seguir esos cambios sin borrar las casillas que este administrador
+  // todavía está editando y no ha guardado.
+  useEffect(() => {
+    setSeleccionAreas((previo) => {
+      const siguiente: Record<string, string[]> = {};
+      for (const operador of operadores) {
+        siguiente[operador.id] = operadoresConEdicionLocal.current.has(operador.id)
+          ? (previo[operador.id] ?? [...operador.areas])
+          : [...operador.areas];
+      }
+      return siguiente;
+    });
+  }, [operadores]);
 
   const areasOrdenadas = useMemo(() => ordenarJerarquia(datos), [datos]);
   const opcionesPadre = useMemo(
@@ -168,6 +184,7 @@ export function PestanaAreasTrabajo({
   }
 
   function alternarAreaOperador(operadorId: string, codigo: string): void {
+    operadoresConEdicionLocal.current.add(operadorId);
     setSeleccionAreas((previo) => {
       const actuales = previo[operadorId] ?? [];
       return {
@@ -194,6 +211,7 @@ export function PestanaAreasTrabajo({
         return;
       }
       setMensajeOperador(`Áreas de ${operador.nombre} guardadas`);
+      operadoresConEdicionLocal.current.delete(operador.id);
       onOperadoresGuardados(
         operadores.map((actual) =>
           actual.id === operador.id ? { ...actual, areas: [...areas].sort() } : actual,

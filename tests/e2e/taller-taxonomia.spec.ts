@@ -313,14 +313,14 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     await panelOperadores
       .getByTestId(`guardar-areas-operador-${datos.operadorAId}`)
       .click();
-    await expect(page.getByTestId('areas-operador-mensaje')).toContainText('guardadas');
+    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
     await panelOperadores
       .getByTestId(`areas-operador-check-${datos.operadorBId}-FABRICACION_DIGITAL`)
       .check();
     await panelOperadores
       .getByTestId(`guardar-areas-operador-${datos.operadorBId}`)
       .click();
-    await expect(page.getByTestId('areas-operador-mensaje')).toContainText('guardadas');
+    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
 
     await expect
       .poll(async () => {
@@ -349,7 +349,7 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     );
     await opcionProceso.check();
     await panelOperadores.getByTestId(`guardar-areas-operador-${datos.operadorAId}`).click();
-    await expect(page.getByTestId('areas-operador-mensaje')).toContainText('guardadas');
+    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
     const { error: errorDesactivar } = await datos.admin.from('areas_trabajo_config')
       .update({ activo: false }).eq('codigo', codigoProceso);
     expect(errorDesactivar).toBeNull();
@@ -363,7 +363,7 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     await expect(filaOperador.getByText('Desmarca las áreas inactivas o no disponibles antes de guardar.')).toBeVisible();
     await opcionInactiva.uncheck();
     await filaOperador.getByTestId(`guardar-areas-operador-${datos.operadorAId}`).click();
-    await expect(page.getByTestId('areas-operador-mensaje')).toContainText('guardadas');
+    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
 
     // A06/PRD-11: el área del operador se aplica en la asignación aun cuando
     // la partida usa un proceso de tercer nivel sin macroárea propia.
