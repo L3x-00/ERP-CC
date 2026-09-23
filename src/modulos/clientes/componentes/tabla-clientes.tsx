@@ -46,7 +46,7 @@ const ETIQUETA_CONDICIONES_PAGO: Record<CondicionesPagoCliente, string> = {
  * así que el total mostrado es el real del filtro, no el de la página. Abre el
  * formulario de alta/edición (modal) y la ficha 360° (drawer).
  */
-export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; usuarioActualId?: string }) {
+export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { esAdmin: boolean; usuarioActualId?: string; clienteInicialId?: string }) {
   const queryClient = useQueryClient();
   const [textoBusqueda, setTextoBusqueda] = useState('');
   const [busqueda, setBusqueda] = useState('');
@@ -57,7 +57,7 @@ export function TablaClientes({ esAdmin, usuarioActualId }: { esAdmin: boolean; 
 
   const [formularioAbierto, setFormularioAbierto] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null);
-  const [clienteVer, setClienteVer] = useState<string | null>(null);
+  const [clienteVer, setClienteVer] = useState<string | null>(clienteInicialId ?? null);
 
   // Debounce del buscador (300 ms) para no consultar en cada tecla.
   useEffect(() => {

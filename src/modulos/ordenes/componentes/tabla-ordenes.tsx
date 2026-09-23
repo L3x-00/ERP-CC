@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
@@ -207,9 +207,12 @@ export function TablaOrdenes({
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
   const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
-  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>('activas');
+  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
+    ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
+      ? 'archivo' : 'activas');
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [hidratado, setHidratado] = useState(false);
+  const enlaceProcesado = useRef<string | null>(null);
 
   useEffect(() => {
     const marco = requestAnimationFrame(() => setHidratado(true));
@@ -217,10 +220,13 @@ export function TablaOrdenes({
   }, []);
 
   useEffect(() => {
-    if (ordenInicialId && ordenes.some((orden) => orden.id === ordenInicialId)) {
+    if (ordenInicialId && enlaceProcesado.current !== ordenInicialId
+      && ordenes.some((orden) => orden.id === ordenInicialId)) {
+      enlaceProcesado.current = ordenInicialId;
+      limpiarFiltros();
       seleccionarOrden(ordenInicialId);
     }
-  }, [ordenInicialId, ordenes, seleccionarOrden]);
+  }, [ordenInicialId, ordenes, limpiarFiltros, seleccionarOrden]);
 
   const maquinas = useMemo(() => {
     const encontradas = new Set<string>();

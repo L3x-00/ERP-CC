@@ -7,7 +7,8 @@ import { filaALog, type FilaLog, type Log } from '../tipos/indice';
 
 /**
  * Obtiene los logs de auditoría de un usuario, del más reciente al más antiguo.
- * La visibilidad final la decide RLS según el cliente recibido.
+ * La visibilidad final la decide RLS según el cliente recibido. `detalles`
+ * nunca se solicita al cliente para evitar exposición de datos sensibles.
  * Ante un error de consulta retorna arreglo vacío.
  *
  * @param cliente - Cliente Supabase (navegador, servidor o admin según el contexto).
@@ -26,7 +27,7 @@ export async function obtenerLogsUsuario(
 
   const { data, error } = await cliente
     .from('logs')
-    .select('*')
+    .select('id, usuario_id, nombre_usuario, rol, accion, modulo, recurso_id, creado_en')
     .eq('usuario_id', usuarioId)
     .order('creado_en', { ascending: false })
     .range(indiceInicial, indiceInicial + porPagina - 1);
@@ -36,5 +37,5 @@ export async function obtenerLogsUsuario(
     return [];
   }
 
-  return ((data ?? []) as FilaLog[]).map(filaALog);
+  return (data ?? []).map((fila) => filaALog({ ...fila, detalles: null } as FilaLog));
 }

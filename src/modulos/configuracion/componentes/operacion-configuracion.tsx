@@ -14,6 +14,7 @@ import { PestanaCuentasBancarias } from './pestana-cuentas-bancarias';
 import { PestanaEmpresa } from './pestana-empresa';
 import { PestanaPlantillasDoc } from './pestana-plantillas-doc';
 import { PestanaOperadores } from './pestana-operadores';
+import { TablaLogs } from '@/modulos/auditoria/componentes/tabla-logs';
 import { PestanaTarifas } from './pestana-tarifas';
 import { SincronizadorConfiguracionRealtime } from './sincronizador-configuracion-realtime';
 
@@ -25,6 +26,7 @@ const PESTANAS = [
   ['cuentas', 'Cuentas bancarias'],
   ['plantillas', 'Plantillas T1'],
   ['operadores', 'Operadores'],
+  ['bitacora', 'Bitácora'],
 ] as const;
 type Pestana = (typeof PESTANAS)[number][0];
 
@@ -108,7 +110,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         </p>
       </header>
       <div role="tablist" aria-label="Secciones de configuración" className="flex flex-wrap gap-1 border-b border-borde">
-        {PESTANAS.filter(([id]) => id !== 'operadores' || vigente.esAdmin).map(([id, etiqueta]) => (
+        {PESTANAS.filter(([id]) => (id !== 'operadores' && id !== 'bitacora') || vigente.esAdmin).map(([id, etiqueta]) => (
           <button
             key={id}
             id={`tab-configuracion-${id}`}
@@ -186,6 +188,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
             }}
           />
         ) : null}
+        {pestana === 'bitacora' && vigente.esAdmin ? <TablaLogs /> : null}
       </section>
       {confirmacion ? (
         <p role="status" data-testid="configuracion-confirmacion" className="text-sm text-exito-texto">
