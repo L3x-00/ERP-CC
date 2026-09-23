@@ -10,17 +10,17 @@ Fuente operativa para retomar: `.ai-shared/qa/cierre-auditoria-2026-09-22/CONTIN
 | A07–A09 | `c56f585` | Realtime de clientes/pipeline, publicación y revocación con JWT anterior |
 | A10–A11 | `9d8850e` | Pruebas de integración y semillas aisladas de producción; gate de CI |
 | A13–A14 | `d762500` | Crédito concurrente en transacción e identidad de cliente conservada |
-| A15 | Ver historial de esta rama | Horas estimadas repartidas por tarifa, sin tocar costo histórico |
+| A15 | `54e81e8` | Horas estimadas repartidas por tarifa, sin tocar costo histórico |
+| A16 | Ver historial de esta rama | Crédito vence a 45 días al entregar; historia AR intacta |
 
-Cada bloque tiene evidencia y límites en su documento `A*.md`. A15 superó SQL 116/116, 718 unitarias, tipos, lint y compilación local. Los bloques anteriores también tienen pruebas locales registradas en sus documentos y en `.ai-shared/qa/cierre-auditoria-2026-09-22/`. Esos resultados **no certifican producción**.
+Cada bloque tiene evidencia y límites en su documento `A*.md`. A16 superó SQL 127/127, 718 unitarias, tipos, lint, compilación y E2E de Cobranza 2/2 locales. Los bloques anteriores también tienen pruebas locales registradas en sus documentos y en `.ai-shared/qa/cierre-auditoria-2026-09-22/`. Esos resultados **no certifican producción**.
 
 ## Trabajo restante
 
-1. **A16 (AR-04):** la condición `credito` vence a 30 días; el catálogo exige 45. Corregir y probar todas las condiciones sin alterar vencimientos históricos.
-2. **A17 (CFG-05):** administración de operadores y PIN desde la aplicación, con roles, duplicados, revocación y bitácora.
-3. **A18 (CFG-13/PRD-18):** consulta autorizada y paginada de la bitácora en la aplicación.
-4. **A19 (GAS-01/02/06/07/09):** edición controlada de gastos, proveedor, filtros y reapertura autorizada de comprobante.
-5. **A20:** reconciliar e implementar las brechas individuales de órdenes, taller, planeación y cartera indicadas por `hallazgos.json` y `matriz-164.csv`; no declarar completo un ID por una prueba parcial.
-6. **A12 final:** ejecutar aceptación por los 164 requisitos y las variantes de 41 escenarios; reconciliar evidencias locales y remotas, CI y decisión del Product Owner.
+1. **A17 (CFG-05):** administración de operadores y PIN desde la aplicación, con roles, duplicados, revocación y bitácora.
+2. **A18 (CFG-13/PRD-18):** consulta autorizada y paginada de la bitácora en la aplicación.
+3. **A19 (GAS-01/02/06/07/09):** edición controlada de gastos, proveedor, filtros y reapertura autorizada de comprobante.
+4. **A20:** reconciliar e implementar las brechas individuales de órdenes, taller, planeación y cartera indicadas por `hallazgos.json` y `matriz-164.csv`; no declarar completo un ID por una prueba parcial.
+5. **A12 final:** ejecutar aceptación por los 164 requisitos y las variantes de 41 escenarios; reconciliar evidencias locales y remotas, CI y decisión del Product Owner.
 
-Las migraciones del cierre (`20260922000001`–`000008`, `20260923144144` y A15 `20260923170507`) se aplicaron **solo a Supabase local**. La comprobación remota anterior devolvió HTTP 403. `.env.local` apunta a producción: para pruebas con escritura usar exclusivamente `.ai-shared/qa/auditoria-global-2026-09-22/entorno-local.ps1` y verificar loopback. Los commits siguen solo locales; cualquier push, merge, migración remota o despliegue requiere un encargo y control de riesgo separados. Claude no ejecutó ni revisó A15; Codex lo implementó y revisó provisionalmente.
+Las migraciones del cierre (`20260922000001`–`000008`, `20260923144144`, A15 `20260923170507` y A16 `20260923181412`) se aplicaron **solo a Supabase local**. La comprobación remota anterior devolvió HTTP 403. `.env.local` apunta a producción: para pruebas con escritura usar exclusivamente `.ai-shared/qa/auditoria-global-2026-09-22/entorno-local.ps1` y verificar loopback. Los commits siguen solo locales; cualquier push, merge, migración remota o despliegue requiere un encargo y control de riesgo separados. Claude no ejecutó ni revisó A15 ni A16; Codex implementó y revisó ambos provisionalmente.
