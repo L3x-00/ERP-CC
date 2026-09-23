@@ -69,6 +69,8 @@ describe('servicios transaccionales de órdenes', () => {
       pipelineId: '33333333-3333-4333-8333-333333333333',
       clienteId: ENTRADA_MANUAL.clienteId,
       fechaCompromiso: ENTRADA_MANUAL.fechaCompromiso,
+      actorId: '11111111-1111-4111-8111-111111111111',
+      autorizarSobregiro: false,
     });
 
     expect(resultado).toEqual({

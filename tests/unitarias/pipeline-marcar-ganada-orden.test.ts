@@ -7,6 +7,7 @@ const {
   promoverClienteMock,
   aprobarOportunidadMock,
   registrarLogMock,
+  clienteConsultaMock,
 } = vi.hoisted(() => ({
   obtenerUsuarioMock: vi.fn(),
   canMock: vi.fn(),
@@ -14,6 +15,7 @@ const {
   promoverClienteMock: vi.fn(),
   aprobarOportunidadMock: vi.fn(),
   registrarLogMock: vi.fn(),
+  clienteConsultaMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
@@ -33,7 +35,7 @@ vi.mock('@/nucleo/supabase/admin', () => ({
     from: () => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: { limite_credito: null }, error: null }),
+          maybeSingle: () => clienteConsultaMock(),
         }),
       }),
     }),
@@ -84,6 +86,10 @@ beforeEach(() => {
     lineas: [],
   });
   promoverClienteMock.mockResolvedValue(CLIENTE_ID);
+  clienteConsultaMock.mockResolvedValue({
+    data: { id: CLIENTE_ID, estado: 'activo', limite_credito: null },
+    error: null,
+  });
   aprobarOportunidadMock.mockResolvedValue({
     id: '33333333-3333-4333-8333-333333333333',
     folio: 'OP-001005',
@@ -92,6 +98,49 @@ beforeEach(() => {
 });
 
 describe('marcarGanadaAccion', () => {
+  it('bloquea la aprobación si no se puede verificar el cliente elegido', async () => {
+    obtenerOportunidadMock.mockResolvedValue({
+      oportunidad: {
+        id: OPORTUNIDAD_ID,
+        clienteId: CLIENTE_ID,
+        empresa: 'Proyecto distinto',
+        etapa: 'negociacion',
+      },
+      lineas: [],
+    });
+    clienteConsultaMock.mockResolvedValue({ data: null, error: { message: 'lectura fallida' } });
+    const respuesta = await marcarGanadaAccion({
+      id: OPORTUNIDAD_ID,
+      fechaCompromiso: '2026-09-15T18:00:00.000Z',
+    });
+    expect(respuesta).toEqual({ exito: false, error: 'No se pudo verificar el cliente de la oportunidad' });
+    expect(promoverClienteMock).not.toHaveBeenCalled();
+    expect(aprobarOportunidadMock).not.toHaveBeenCalled();
+  });
+
+  it('conserva el cliente elegido aunque el nombre comercial sea distinto', async () => {
+    obtenerOportunidadMock.mockResolvedValue({
+      oportunidad: {
+        id: OPORTUNIDAD_ID,
+        clienteId: CLIENTE_ID,
+        empresa: 'Nombre de proyecto diferente',
+        nombreContacto: 'Ana López',
+        correo: 'otra-cuenta@orca.test',
+        etapa: 'negociacion',
+      },
+      lineas: [],
+    });
+    const respuesta = await marcarGanadaAccion({
+      id: OPORTUNIDAD_ID,
+      fechaCompromiso: '2026-09-15T18:00:00.000Z',
+    });
+    expect(respuesta.exito).toBe(true);
+    expect(promoverClienteMock).not.toHaveBeenCalled();
+    expect(aprobarOportunidadMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      clienteId: CLIENTE_ID,
+    }));
+  });
+
   it('aprueba la oportunidad y genera su OP por la RPC atómica', async () => {
     const respuesta = await marcarGanadaAccion({
       id: OPORTUNIDAD_ID,
@@ -110,6 +159,8 @@ describe('marcarGanadaAccion', () => {
       pipelineId: OPORTUNIDAD_ID,
       clienteId: CLIENTE_ID,
       fechaCompromiso: '2026-09-15T18:00:00.000Z',
+      actorId: USUARIO.id,
+      autorizarSobregiro: false,
     });
     expect(registrarLogMock).toHaveBeenCalledWith(
       USUARIO,

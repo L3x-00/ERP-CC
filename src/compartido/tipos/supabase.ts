@@ -2059,18 +2059,33 @@ export type Database = {
           saldo_pendiente: number
         }[]
       }
-      aprobar_oportunidad_y_crear_orden: {
-        Args: {
-          p_cliente_id: string
-          p_fecha_compromiso: string
-          p_pipeline_id: string
-        }
-        Returns: {
-          folio: string
-          id: string
-          ya_existia: boolean
-        }[]
-      }
+      aprobar_oportunidad_y_crear_orden:
+        | {
+            Args: {
+              p_cliente_id: string
+              p_fecha_compromiso: string
+              p_pipeline_id: string
+            }
+            Returns: {
+              folio: string
+              id: string
+              ya_existia: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_actor_id: string
+              p_autorizar_sobregiro: boolean
+              p_cliente_id: string
+              p_fecha_compromiso: string
+              p_pipeline_id: string
+            }
+            Returns: {
+              folio: string
+              id: string
+              ya_existia: boolean
+            }[]
+          }
       asignar_operador_a_partida_op: {
         Args: { p_operador_id: string; p_partida_id: string }
         Returns: {

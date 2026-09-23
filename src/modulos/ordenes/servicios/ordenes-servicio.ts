@@ -26,6 +26,10 @@ import type {
 export type CodigoErrorOrden =
   | 'cotizacion_duplicada'
   | 'cotizacion_sin_lineas'
+  | 'credito_limite_excedido'
+  | 'cliente_no_corresponde_oportunidad'
+  | 'cliente_no_activo'
+  | 'sobregiro_requiere_admin_activo'
   | 'orden_inexistente'
   | 'estado_conflicto'
   | 'transicion_no_permitida'
@@ -118,6 +122,10 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
     return 'cotizacion_duplicada';
   }
   if (mensaje.includes('cotizacion_sin_lineas')) return 'cotizacion_sin_lineas';
+  if (mensaje.includes('credito_limite_excedido')) return 'credito_limite_excedido';
+  if (mensaje.includes('cliente_no_corresponde_oportunidad')) return 'cliente_no_corresponde_oportunidad';
+  if (mensaje.includes('cliente_no_activo')) return 'cliente_no_activo';
+  if (mensaje.includes('sobregiro_requiere_admin_activo')) return 'sobregiro_requiere_admin_activo';
   if (mensaje.includes('orden_inexistente')) return 'orden_inexistente';
   if (mensaje.includes('estado_conflicto')) return 'estado_conflicto';
   if (mensaje.includes('transicion_no_permitida')) return 'transicion_no_permitida';
@@ -202,12 +210,16 @@ export async function aprobarOportunidadYCrearOrdenServicio(
     pipelineId: string;
     clienteId: string;
     fechaCompromiso: string;
+    actorId: string;
+    autorizarSobregiro: boolean;
   },
 ): Promise<ResultadoOportunidadAprobada> {
   const { data, error } = await admin.rpc('aprobar_oportunidad_y_crear_orden', {
     p_pipeline_id: entrada.pipelineId,
     p_cliente_id: entrada.clienteId,
     p_fecha_compromiso: entrada.fechaCompromiso,
+    p_actor_id: entrada.actorId,
+    p_autorizar_sobregiro: entrada.autorizarSobregiro,
   });
 
   if (error) lanzarErrorOrden(error.message);
@@ -602,6 +614,14 @@ export function mensajeErrorOrden(
   switch (error.codigo) {
     case 'cotizacion_sin_lineas':
       return 'La cotización debe tener al menos una partida para generar la orden';
+    case 'credito_limite_excedido':
+      return 'El cliente alcanzó su límite de crédito';
+    case 'cliente_no_corresponde_oportunidad':
+      return 'El cliente de la oportunidad cambió. Recarga e inténtalo de nuevo';
+    case 'cliente_no_activo':
+      return 'El cliente de la oportunidad no está activo';
+    case 'sobregiro_requiere_admin_activo':
+      return 'Solo un administrador activo puede autorizar un sobrepaso de crédito';
     case 'orden_inexistente':
       return 'La orden no existe o ya no está disponible';
     case 'estado_conflicto':

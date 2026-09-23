@@ -10,6 +10,7 @@ import { promoverAClienteSiNoExiste } from '@/modulos/pipeline/servicios/promove
 import { evaluarCreditoCliente } from '@/modulos/pipeline/servicios/evaluar-credito';
 import {
   aprobarOportunidadYCrearOrdenServicio,
+  ErrorOrden,
   mensajeErrorOrden,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { obtenerTipoCambioVigente } from '@/modulos/configuracion/servicios/configuracion-servicio';
@@ -40,7 +41,7 @@ async function calcularMontoCotizadoMxn(
     .eq('pipeline_id', pipelineId);
   if (error) {
     console.error('[PIPELINE] No se pudo calcular el importe para el crédito:', error.message);
-    return 0;
+    throw new Error('No se pudo calcular el importe para el crédito');
   }
   const total = (lineas ?? []).reduce(
     (suma, linea) =>
@@ -66,7 +67,7 @@ async function calcularCreditoUtilizadoMxn(
     .in('estado', ['pendiente', 'parcial']);
   if (error) {
     console.error('[PIPELINE] No se pudo calcular el crédito usado:', error.message);
-    return 0;
+    throw new Error('No se pudo calcular el crédito usado');
   }
   return Math.round(
     (data ?? []).reduce(
@@ -118,34 +119,54 @@ export async function marcarGanadaAccion(
   }
 
   const clienteAdmin = crearClienteSupabaseAdmin();
-  let clienteId: string;
-  try {
-    clienteId = await promoverAClienteSiNoExiste(clienteAdmin, {
-      nombreComercial: op.empresa,
-      rfc: null,
-      contacto: op.nombreContacto,
-      correo: op.correo,
-      telefono: op.telefono,
-    });
-  } catch {
-    return { exito: false, error: 'No se pudo registrar el cliente' };
+  let clienteId = op.clienteId;
+  if (!clienteId) {
+    try {
+      clienteId = await promoverAClienteSiNoExiste(clienteAdmin, {
+        nombreComercial: op.empresa,
+        rfc: null,
+        contacto: op.nombreContacto,
+        correo: op.correo,
+        telefono: op.telefono,
+      });
+    } catch {
+      return { exito: false, error: 'No se pudo registrar el cliente' };
+    }
+  }
+
+  // Un vínculo explícito es la identidad comercial de la RFQ. No se vuelve a
+  // deduplicar por nombre/correo, que pueden diferir de los datos del cliente.
+  // También se valida el cliente promovido: una coincidencia histórica inactiva
+  // no debe aprobarse por accidente.
+  const { data: clienteCredito, error: errorCliente } = await clienteAdmin
+    .from('clientes')
+    .select('id, estado, limite_credito')
+    .eq('id', clienteId)
+    .maybeSingle();
+  if (errorCliente || !clienteCredito) {
+    return { exito: false, error: 'No se pudo verificar el cliente de la oportunidad' };
+  }
+  if (clienteCredito.estado !== 'activo') {
+    return { exito: false, error: 'El cliente de la oportunidad no está activo' };
   }
 
   // RFQ-16: si la cartera del cliente más esta cotización exceden su límite,
   // la aprobación exige autorización explícita de un administrador. El cálculo
   // se hace en el servidor con el cliente admin (la cartera puede no ser
-  // visible para el vendedor) y nunca bloquea por un fallo de lectura.
-  const { data: clienteCredito } = await clienteAdmin
-    .from('clientes')
-    .select('limite_credito')
-    .eq('id', clienteId)
-    .maybeSingle();
+  // visible para el vendedor). Una lectura fallida bloquea la aprobación;
+  // la RPC vuelve a evaluar dentro de la transacción y es el control final.
   const limiteCredito = Number(clienteCredito?.limite_credito ?? 0);
   if (limiteCredito > 0) {
-    const [creditoUtilizadoMxn, montoCotizadoMxn] = await Promise.all([
-      calcularCreditoUtilizadoMxn(clienteAdmin, clienteId),
-      calcularMontoCotizadoMxn(clienteAdmin, id, op.moneda),
-    ]);
+    let creditoUtilizadoMxn: number;
+    let montoCotizadoMxn: number;
+    try {
+      [creditoUtilizadoMxn, montoCotizadoMxn] = await Promise.all([
+        calcularCreditoUtilizadoMxn(clienteAdmin, clienteId),
+        calcularMontoCotizadoMxn(clienteAdmin, id, op.moneda),
+      ]);
+    } catch {
+      return { exito: false, error: 'No se pudo verificar el crédito del cliente' };
+    }
     const evaluacion = evaluarCreditoCliente({
       limiteCredito,
       creditoUtilizadoMxn,
@@ -176,6 +197,8 @@ export async function marcarGanadaAccion(
       pipelineId: id,
       clienteId,
       fechaCompromiso,
+      actorId: usuario.id,
+      autorizarSobregiro: autorizarSobregiro ?? false,
     });
     await registrarLog(usuario, 'marcar_ganada', 'pipeline', op.id, {
       clienteId,
@@ -190,6 +213,27 @@ export async function marcarGanadaAccion(
       datos: { clienteId, ordenId: orden.id, folioOrden: orden.folio },
     };
   } catch (error) {
+    if (error instanceof ErrorOrden && error.codigo === 'credito_limite_excedido') {
+      try {
+        const [creditoUtilizadoMxn, montoCotizadoMxn] = await Promise.all([
+          calcularCreditoUtilizadoMxn(clienteAdmin, clienteId),
+          calcularMontoCotizadoMxn(clienteAdmin, id, op.moneda),
+        ]);
+        const evaluacion = evaluarCreditoCliente({
+          limiteCredito,
+          creditoUtilizadoMxn,
+          montoCotizadoMxn,
+        });
+        return {
+          exito: false,
+          error: 'El cliente alcanzó su límite de crédito',
+          requiereAutorizacionCredito: true,
+          excedenteMxn: evaluacion.excedenteMxn,
+        };
+      } catch {
+        return { exito: false, error: 'El crédito cambió. Recarga e inténtalo de nuevo' };
+      }
+    }
     return { exito: false, error: mensajeErrorOrden(error, 'aprobar') };
   }
 }

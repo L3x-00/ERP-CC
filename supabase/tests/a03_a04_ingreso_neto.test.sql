@@ -13,8 +13,8 @@ VALUES (
   '{"nombre_completo":"Prueba A03"}'::jsonb
 );
 
-INSERT INTO public.clientes (id, nombre_comercial, razon_social)
-VALUES ('00000000-0000-4000-8000-0000000a0302', 'Cliente A03', 'Cliente A03');
+INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado)
+VALUES ('00000000-0000-4000-8000-0000000a0302', 'Cliente A03', 'Cliente A03', 'activo');
 
 UPDATE public.configuracion_sistema SET tipo_cambio_usd = 18.5 WHERE id = 'main';
 
