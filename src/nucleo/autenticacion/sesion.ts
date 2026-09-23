@@ -117,3 +117,13 @@ export function sesionOperadorVencidaAbsoluta(
   }
   return ahora.getTime() > inicio + MAXIMO_SESION_OPERADOR_MINUTOS * 60 * 1000;
 }
+
+/** Una rotación de PIN revoca las cookies emitidas con el PIN anterior. */
+export function sesionOperadorRevocadaPorPin(
+  sesion: SesionOperador,
+  pinCambiadoEn: string | null,
+): boolean {
+  // La versión exacta evita falsos permisos por precisión de milisegundos o
+  // diferencias de reloj entre el servidor Next y Postgres.
+  return (sesion.pinCambiadoEn ?? null) !== (pinCambiadoEn ?? null);
+}

@@ -1973,6 +1973,7 @@ export type Database = {
           email: string
           id: string
           nombre_completo: string
+          pin_cambiado_en: string | null
           pin_operador: string | null
           rol: string
           ultimo_login_at: string | null
@@ -1984,6 +1985,7 @@ export type Database = {
           email: string
           id: string
           nombre_completo: string
+          pin_cambiado_en?: string | null
           pin_operador?: string | null
           rol: string
           ultimo_login_at?: string | null
@@ -1995,6 +1997,7 @@ export type Database = {
           email?: string
           id?: string
           nombre_completo?: string
+          pin_cambiado_en?: string | null
           pin_operador?: string | null
           rol?: string
           ultimo_login_at?: string | null
@@ -2006,6 +2009,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      guardar_operador_admin: {
+        Args: {
+          p_actor_id: string
+          p_operador_id: string
+          p_nombre: string
+          p_pin: string | null
+          p_activo: boolean
+        }
+        Returns: undefined
+      }
       abrir_cuenta_por_cobrar: {
         Args: {
           p_fecha_vencimiento: string

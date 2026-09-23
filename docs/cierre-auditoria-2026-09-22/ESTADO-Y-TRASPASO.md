@@ -12,15 +12,15 @@ Fuente operativa para retomar: `.ai-shared/qa/cierre-auditoria-2026-09-22/CONTIN
 | A13–A14 | `d762500` | Crédito concurrente en transacción e identidad de cliente conservada |
 | A15 | `54e81e8` | Horas estimadas repartidas por tarifa, sin tocar costo histórico |
 | A16 | Ver historial de esta rama | Crédito vence a 45 días al entregar; historia AR intacta |
+| A17 | Ver historial de esta rama | Gestión administrativa de operadores/PIN, unicidad concurrente y revocación viva |
 
-Cada bloque tiene evidencia y límites en su documento `A*.md`. A16 superó SQL 127/127, 718 unitarias, tipos, lint, compilación y E2E de Cobranza 2/2 locales. Los bloques anteriores también tienen pruebas locales registradas en sus documentos y en `.ai-shared/qa/cierre-auditoria-2026-09-22/`. Esos resultados **no certifican producción**.
+Cada bloque tiene evidencia y límites en su documento `A*.md`. A17 superó SQL 150/150, integración 173/173, 727 unitarias, tipos, lint, compilación y E2E local del ciclo de operadores 1/1, incluida revocación de sesión abierta. Los bloques anteriores también tienen pruebas locales registradas en sus documentos y en `.ai-shared/qa/cierre-auditoria-2026-09-22/`. Esos resultados **no certifican producción**.
 
 ## Trabajo restante
 
-1. **A17 (CFG-05):** administración de operadores y PIN desde la aplicación, con roles, duplicados, revocación y bitácora.
-2. **A18 (CFG-13/PRD-18):** consulta autorizada y paginada de la bitácora en la aplicación.
-3. **A19 (GAS-01/02/06/07/09):** edición controlada de gastos, proveedor, filtros y reapertura autorizada de comprobante.
-4. **A20:** reconciliar e implementar las brechas individuales de órdenes, taller, planeación y cartera indicadas por `hallazgos.json` y `matriz-164.csv`; no declarar completo un ID por una prueba parcial.
-5. **A12 final:** ejecutar aceptación por los 164 requisitos y las variantes de 41 escenarios; reconciliar evidencias locales y remotas, CI y decisión del Product Owner.
+1. **A18 (CFG-13/PRD-18):** consulta autorizada y paginada de la bitácora en la aplicación.
+2. **A19 (GAS-01/02/06/07/09):** edición controlada de gastos, proveedor, filtros y reapertura autorizada de comprobante.
+3. **A20:** reconciliar e implementar las brechas individuales de órdenes, taller, planeación y cartera indicadas por `hallazgos.json` y `matriz-164.csv`; no declarar completo un ID por una prueba parcial.
+4. **A12 final:** ejecutar aceptación por los 164 requisitos y las variantes de 41 escenarios; reconciliar evidencias locales y remotas, CI y decisión del Product Owner.
 
-Las migraciones del cierre (`20260922000001`–`000008`, `20260923144144`, A15 `20260923170507` y A16 `20260923181412`) se aplicaron **solo a Supabase local**. La comprobación remota anterior devolvió HTTP 403. `.env.local` apunta a producción: para pruebas con escritura usar exclusivamente `.ai-shared/qa/auditoria-global-2026-09-22/entorno-local.ps1` y verificar loopback. Los commits siguen solo locales; cualquier push, merge, migración remota o despliegue requiere un encargo y control de riesgo separados. Claude no ejecutó ni revisó A15 ni A16; Codex implementó y revisó ambos provisionalmente.
+Las migraciones del cierre (`20260922000001`–`000008`, `20260923144144`, A15 `20260923170507`, A16 `20260923181412` y A17 `20260923183348`) se aplicaron **solo a Supabase local**. La comprobación remota anterior devolvió HTTP 403. `.env.local` apunta a producción: para pruebas con escritura usar exclusivamente `.ai-shared/qa/auditoria-global-2026-09-22/entorno-local.ps1` y verificar loopback. Los commits siguen solo locales; cualquier push, merge, migración remota o despliegue requiere un encargo y control de riesgo separados. Claude no ejecutó ni revisó A15–A17 (API 429); Codex implementó y revisó estos bloques provisionalmente.

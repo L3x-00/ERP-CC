@@ -11,7 +11,7 @@ import type { SesionOperador } from '@/modulos/autenticacion/tipos/indice';
 // cargar el módulo o de forma diferida dentro de cada función.
 process.env.SECRETO_SESION_OPERADOR = 'secreto-de-pruebas-con-longitud-suficiente-32+';
 
-const { deserializarSesionOperador, serializarSesionOperador, sesionOperadorExpirada } =
+const { deserializarSesionOperador, serializarSesionOperador, sesionOperadorExpirada, sesionOperadorRevocadaPorPin } =
   await import('@/nucleo/autenticacion/sesion');
 
 /**
@@ -69,6 +69,22 @@ describe('serializarSesionOperador / deserializarSesionOperador', () => {
     expect(await deserializarSesionOperador('')).toBeNull();
     expect(await deserializarSesionOperador('a.b.c')).toBeNull();
     expect(await deserializarSesionOperador('%%%.$$$')).toBeNull();
+  });
+});
+
+describe('revocación por rotación del PIN', () => {
+  it('conserva sesiones históricas sin marca y sesiones emitidas después del cambio', () => {
+    expect(sesionOperadorRevocadaPorPin(crearSesion(), null)).toBe(false);
+    const version = '2026-07-03T09:59:59.123456Z';
+    expect(sesionOperadorRevocadaPorPin(crearSesion({ pinCambiadoEn: version }), version)).toBe(false);
+  });
+
+  it('revoca la cookie anterior al cambio, incluso si el cambio ocurre en el mismo milisegundo', () => {
+    expect(sesionOperadorRevocadaPorPin(crearSesion(), '2026-07-03T10:00:01Z')).toBe(true);
+    expect(sesionOperadorRevocadaPorPin(
+      crearSesion({ pinCambiadoEn: '2026-07-03T10:00:00.111111Z' }),
+      '2026-07-03T10:00:00.222222Z',
+    )).toBe(true);
   });
 });
 

@@ -13,6 +13,7 @@ import { PestanaCatalogos } from './pestana-catalogos';
 import { PestanaCuentasBancarias } from './pestana-cuentas-bancarias';
 import { PestanaEmpresa } from './pestana-empresa';
 import { PestanaPlantillasDoc } from './pestana-plantillas-doc';
+import { PestanaOperadores } from './pestana-operadores';
 import { PestanaTarifas } from './pestana-tarifas';
 import { SincronizadorConfiguracionRealtime } from './sincronizador-configuracion-realtime';
 
@@ -23,6 +24,7 @@ const PESTANAS = [
   ['areas', 'Áreas de trabajo'],
   ['cuentas', 'Cuentas bancarias'],
   ['plantillas', 'Plantillas T1'],
+  ['operadores', 'Operadores'],
 ] as const;
 type Pestana = (typeof PESTANAS)[number][0];
 
@@ -106,7 +108,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         </p>
       </header>
       <div role="tablist" aria-label="Secciones de configuración" className="flex flex-wrap gap-1 border-b border-borde">
-        {PESTANAS.map(([id, etiqueta]) => (
+        {PESTANAS.filter(([id]) => id !== 'operadores' || vigente.esAdmin).map(([id, etiqueta]) => (
           <button
             key={id}
             id={`tab-configuracion-${id}`}
@@ -176,6 +178,14 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
             onGuardado={actualizarConfiguracion}
           />
         ) : null}
+        {pestana === 'operadores' && vigente.esAdmin ? (
+          <PestanaOperadores
+            operadores={vigente.operadoresGestion}
+            onCambio={async () => {
+              await clienteQuery.invalidateQueries({ queryKey: CLAVE_CONFIGURACION });
+            }}
+          />
+        ) : null}
       </section>
       {confirmacion ? (
         <p role="status" data-testid="configuracion-confirmacion" className="text-sm text-exito-texto">
@@ -183,9 +193,10 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         </p>
       ) : null}
       {consulta.isError ? (
-        <p role="alert" className="text-sm text-peligro-texto">
-          No se pudo actualizar la configuración. Vuelve a intentarlo.
-        </p>
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-peligro-texto">
+          No se pudo actualizar la configuración.
+          <button type="button" className="font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento" onClick={() => void consulta.refetch()}>Reintentar</button>
+        </div>
       ) : null}
     </div>
   );

@@ -26,6 +26,8 @@ export type Usuario = {
   rol: RolUsuario;
   /** Hash bcrypt del PIN (solo si rol='operador'). Nunca se envía al cliente. */
   pinOperador?: string | null;
+  /** Versión del PIN para revocar cookies previas sin depender de relojes. */
+  pinCambiadoEn?: string | null;
   activo: boolean;
   ultimoLoginEn?: string | null; // ISO 8601
   creadoEn: string; // ISO 8601
@@ -44,6 +46,7 @@ export type SesionOperador = {
   iniciadaEn: string; // ISO 8601
   ultimaActividadEn: string; // ISO 8601
   timeoutMinutos: number; // 15, 30, etc.
+  pinCambiadoEn?: string | null; // versión al emitir la cookie HMAC
 };
 
 /** Registro de auditoría (tabla logs). */
@@ -66,6 +69,7 @@ export type FilaUsuario = {
   nombre_completo: string;
   rol: RolUsuario;
   pin_operador: string | null;
+  pin_cambiado_en?: string | null;
   activo: boolean;
   ultimo_login_at: string | null;
   creado_en: string;
@@ -80,6 +84,7 @@ export function filaAUsuario(fila: FilaUsuario): Usuario {
     nombreCompleto: fila.nombre_completo,
     rol: fila.rol,
     pinOperador: fila.pin_operador,
+    pinCambiadoEn: fila.pin_cambiado_en ?? null,
     activo: fila.activo,
     ultimoLoginEn: fila.ultimo_login_at,
     creadoEn: fila.creado_en,
