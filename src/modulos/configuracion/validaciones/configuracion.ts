@@ -145,7 +145,14 @@ export const esquemaAreasOperador = z
           .toUpperCase()
           .regex(/^[A-Z0-9][A-Z0-9_-]{1,48}$/, 'Código de área inválido'),
       )
-      .max(50, 'Demasiadas áreas para un operador'),
+      .max(50, 'Demasiadas áreas para un operador')
+      // A05: `ACABADOS` y `acabados` son el mismo código tras normalizar. Se
+      // rechaza aquí y también en la RPC, que es la barrera real.
+      .superRefine((areas, contexto) => {
+        if (new Set(areas).size !== areas.length) {
+          contexto.addIssue({ code: 'custom', message: 'Un área no puede repetirse para el operador' });
+        }
+      }),
   })
   .strict();
 

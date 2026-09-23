@@ -47,7 +47,8 @@ async function asegurarArea(
   codigo: string,
   nombre: string,
   padreCodigo: string,
-  areaPlaneacion: string,
+  areaPlaneacion: string | null,
+  tipo: 'subarea' | 'proceso' = 'proceso',
 ): Promise<boolean> {
   const { data } = await admin
     .from('areas_trabajo_config')
@@ -58,7 +59,7 @@ async function asegurarArea(
   const { error } = await admin.from('areas_trabajo_config').insert({
     codigo,
     nombre,
-    tipo: 'proceso',
+    tipo,
     padre_codigo: padreCodigo,
     area_planeacion: areaPlaneacion,
     activo: true,
@@ -206,6 +207,21 @@ async function prepararContexto(): Promise<ContextoE2E> {
     areasCreadas.push('CNC');
   }
 
+  // A06: el trabajo de corte recorre raíz → subárea → proceso. Solo la raíz
+  // declara macroárea; la prueba de asignación y el filtro de piso ejercen la
+  // herencia completa sin modificar las áreas sembradas que usan otros casos.
+  const subareaCodigo = `A06_SUB_${sufijo.toUpperCase()}`;
+  const procesoCodigo = `A06_PROC_${sufijo.toUpperCase()}`;
+  if (await asegurarArea(admin, subareaCodigo, 'Subárea corte E2E', 'METAL_MECANICA', null, 'subarea')) {
+    areasCreadas.push(subareaCodigo);
+  }
+  if (await asegurarArea(admin, procesoCodigo, 'Corte láser E2E', subareaCodigo, null)) {
+    areasCreadas.push(procesoCodigo);
+  }
+  const { error: errorJerarquia } = await admin.from('partidas_orden_produccion')
+    .update({ area_trabajo_codigo: procesoCodigo }).eq('id', corte.partidaId);
+  if (errorJerarquia) throw new Error(`No se preparó la jerarquía A06: ${errorJerarquia.message}`);
+
   return {
     admin,
     correoAdministrador,
@@ -239,8 +255,8 @@ async function limpiarContexto(contexto: ContextoE2E, codigoProceso: string | nu
   if (codigoProceso) {
     await admin.from('areas_trabajo_config').delete().eq('codigo', codigoProceso);
   }
-  if (contexto.areasCreadas.length > 0) {
-    await admin.from('areas_trabajo_config').delete().in('codigo', contexto.areasCreadas);
+  for (const codigo of [...contexto.areasCreadas].reverse()) {
+    await admin.from('areas_trabajo_config').delete().eq('codigo', codigo);
   }
 }
 
@@ -326,7 +342,31 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     await page.getByTestId('guardar-area-trabajo').click();
     await expect(page.getByTestId(`area-fila-${codigoProceso}`)).toBeVisible();
 
-    // PRD-11: el área del operador se aplica en la asignación.
+    // A05: una asignación ya guardada sigue visible si el área se desactiva;
+    // el administrador puede quitarla antes de guardar otros cambios.
+    const opcionProceso = panelOperadores.getByTestId(
+      `areas-operador-check-${datos.operadorAId}-${codigoProceso}`,
+    );
+    await opcionProceso.check();
+    await panelOperadores.getByTestId(`guardar-areas-operador-${datos.operadorAId}`).click();
+    await expect(page.getByTestId('areas-operador-mensaje')).toContainText('guardadas');
+    const { error: errorDesactivar } = await datos.admin.from('areas_trabajo_config')
+      .update({ activo: false }).eq('codigo', codigoProceso);
+    expect(errorDesactivar).toBeNull();
+    await page.reload();
+    await page.getByRole('tab', { name: 'Áreas de trabajo' }).click();
+    const filaOperador = page.getByTestId(`areas-operador-fila-${datos.operadorAId}`);
+    const opcionInactiva = filaOperador.getByTestId(
+      `areas-operador-check-${datos.operadorAId}-${codigoProceso}`,
+    );
+    await expect(opcionInactiva).toBeChecked();
+    await expect(filaOperador.getByText('Desmarca las áreas inactivas o no disponibles antes de guardar.')).toBeVisible();
+    await opcionInactiva.uncheck();
+    await filaOperador.getByTestId(`guardar-areas-operador-${datos.operadorAId}`).click();
+    await expect(page.getByTestId('areas-operador-mensaje')).toContainText('guardadas');
+
+    // A06/PRD-11: el área del operador se aplica en la asignación aun cuando
+    // la partida usa un proceso de tercer nivel sin macroárea propia.
     const rechazo = await datos.admin.rpc('asignar_operador_a_partida_op', {
       p_partida_id: datos.partidaCorteId,
       p_operador_id: datos.operadorBId,
@@ -347,7 +387,8 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     await iniciarPisoConPin(page, datos.pinA);
     await expect(page.getByTestId('detalle-partida-piso')).toContainText('Corte láser');
     await expect(page.getByTestId('selector-area-piso')).toBeVisible();
-    await page.getByTestId('selector-area-piso').selectOption('LASER');
+    // A06: el filtro de piso ofrece la familia (área raíz), no cada proceso.
+    await page.getByTestId('selector-area-piso').selectOption('METAL_MECANICA');
     await expect(page.getByTestId('control-piso')).toContainText('E2E-TAX-');
     await expect(page.getByTestId('control-piso')).not.toContainText('CNC');
 

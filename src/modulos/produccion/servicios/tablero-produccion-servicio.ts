@@ -19,6 +19,7 @@ import {
   type NotaEntrega,
   type SesionTrabajo,
 } from '@/modulos/produccion/tipos/indice';
+import { codigosFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { ConsultarTableroProduccionInput } from '@/modulos/produccion/validaciones/indice';
 
 export interface PartidaTableroProduccion extends Partida {
@@ -50,36 +51,16 @@ export interface DatosTableroProduccion {
   responsables?: Record<string, string>;
 }
 
-/** Área macro efectiva de un código del catálogo (propia o del padre). */
-function areaMacroDe(
-  catalogo: readonly AreaCatalogoProduccion[],
-  codigo: string | null,
-): string | null {
-  if (!codigo) return null;
-  const propia = catalogo.find((area) => area.codigo === codigo);
-  if (!propia) return null;
-  return (
-    propia.areaPlaneacion
-    ?? catalogo.find((area) => area.codigo === propia.padreCodigo)?.areaPlaneacion
-    ?? null
-  );
-}
-
 /**
  * Códigos aceptados por el filtro de área: la familia completa del área macro
- * seleccionada (p. ej. "Metal mecánica" incluye corte, doblez y soldadura). Si
- * el código no está en el catálogo, se acepta solo el código exacto.
+ * seleccionada, resuelta por ancestros (A06). Delega en el helper compartido
+ * con la terminal de piso para que servidor y cliente filtren igual.
  */
 export function codigosAreaFiltrada(
   catalogo: readonly AreaCatalogoProduccion[],
   areaCodigo: string,
 ): Set<string> {
-  const macro = areaMacroDe(catalogo, areaCodigo);
-  if (macro === null) return new Set([areaCodigo]);
-  const familia = catalogo
-    .filter((area) => areaMacroDe(catalogo, area.codigo) === macro)
-    .map((area) => area.codigo);
-  return new Set([areaCodigo, ...familia]);
+  return codigosFamiliaArea(catalogo, areaCodigo);
 }
 
 /** Deriva una columna de UI desde hechos persistidos; no escribe etiquetas en la OP. */

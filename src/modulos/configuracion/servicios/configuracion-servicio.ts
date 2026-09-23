@@ -264,38 +264,23 @@ export async function listarOperadoresAreasServicio(
 }
 
 /**
- * Reemplaza las áreas habilitadas de un operador. Sin filas, el operador queda
- * sin restricción (transición); el rechazo real vive en las RPC de producción.
+ * A05: reemplaza las áreas habilitadas de un operador en una sola RPC
+ * transaccional. La RPC valida actor, operador y TODOS los códigos antes de
+ * escribir y serializa por operador, así que un fallo conserva la asignación
+ * anterior en vez de dejar al operador sin restricciones. La lista vacía sigue
+ * siendo válida y explícita (transición); el rechazo real de trabajo vive en
+ * las RPC de producción. Devuelve el conjunto que quedó almacenado.
  */
 export async function actualizarAreasOperadorServicio(
   cliente: ClienteConfiguracion,
   entrada: { operadorId: string; areas: readonly string[] },
   creadoPor: string,
-): Promise<void> {
-  const { data: operador, error: errorOperador } = await cliente
-    .from('usuarios')
-    .select('id')
-    .eq('id', entrada.operadorId)
-    .eq('rol', 'operador')
-    .eq('activo', true)
-    .maybeSingle();
-  if (errorOperador) throw errorOperador;
-  if (!operador) throw new Error('El operador no está activo');
-
-  const { error: errorBorrado } = await cliente
-    .from('operadores_areas')
-    .delete()
-    .eq('operador_id', entrada.operadorId);
-  if (errorBorrado) throw errorBorrado;
-
-  if (entrada.areas.length === 0) return;
-
-  const { error: errorInsercion } = await cliente.from('operadores_areas').insert(
-    entrada.areas.map((areaCodigo) => ({
-      operador_id: entrada.operadorId,
-      area_codigo: areaCodigo,
-      creado_por: creadoPor,
-    })),
-  );
-  if (errorInsercion) throw errorInsercion;
+): Promise<string[]> {
+  const { data, error } = await cliente.rpc('reemplazar_areas_operador', {
+    p_operador_id: entrada.operadorId,
+    p_areas: [...entrada.areas],
+    p_actor_id: creadoPor,
+  });
+  if (error) throw error;
+  return (data ?? []).map((fila) => fila.area_codigo);
 }

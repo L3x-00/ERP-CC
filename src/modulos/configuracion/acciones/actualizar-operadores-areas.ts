@@ -9,8 +9,10 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
- * OBS-09/PRD-11: reemplaza las áreas habilitadas de un operador. Sin áreas
- * asignadas el operador no queda restringido (transición); el rechazo real vive
+ * OBS-09/PRD-11: reemplaza las áreas habilitadas de un operador. El reemplazo
+ * es atómico (A05): si la RPC rechaza la entrada, la asignación anterior queda
+ * intacta y el operador NO se queda sin restricciones. Sin áreas asignadas el
+ * operador no queda restringido (transición); el rechazo real de trabajo vive
  * en `asignar_operador_a_partida_op` e `iniciar_sesion_trabajo_operador`.
  */
 export async function actualizarAreasOperadorAccion(

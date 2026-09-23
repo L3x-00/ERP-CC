@@ -37,10 +37,11 @@ export default async function PaginaProduccionPiso() {
     throw new Error('No se pudieron cargar los materiales para el control de piso');
   }
 
-  // OBS-09/PRD-11: nombres del catálogo de taller para las etiquetas del piso.
+  // OBS-09/PRD-11 y A06: catálogo mínimo de taller (nombre para las etiquetas;
+  // padre y área macro para filtrar por familia, no por código exacto).
   const resultadoAreas = await admin
     .from('areas_trabajo_config')
-    .select('codigo, nombre')
+    .select('codigo, nombre, padre_codigo, area_planeacion')
     .order('orden')
     .order('nombre');
   if (resultadoAreas.error) {
@@ -58,6 +59,8 @@ export default async function PaginaProduccionPiso() {
   const areas = (resultadoAreas.data ?? []).map((area) => ({
     codigo: area.codigo,
     nombre: area.nombre,
+    padreCodigo: area.padre_codigo,
+    areaPlaneacion: area.area_planeacion,
   }));
 
   return (

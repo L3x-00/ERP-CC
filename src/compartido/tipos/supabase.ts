@@ -2369,6 +2369,12 @@ export type Database = {
           id: string
         }[]
       }
+      reemplazar_areas_operador: {
+        Args: { p_actor_id: string; p_areas: string[]; p_operador_id: string }
+        Returns: {
+          area_codigo: string
+        }[]
+      }
       registrar_avance_partida_op: {
         Args: {
           p_cantidad_producida: number

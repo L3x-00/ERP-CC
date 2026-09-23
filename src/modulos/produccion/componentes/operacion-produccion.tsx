@@ -20,6 +20,7 @@ import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion } from '@/modulos/produccion/componentes/kanban-produccion';
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
+import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { DatosTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { MotivoPausaSesion } from '@/modulos/produccion/tipos/indice';
 
@@ -63,6 +64,12 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     ...(consultaInicial ? { initialData: datosIniciales } : {}),
   });
   const datos = consulta.data ?? datosIniciales;
+  const codigosAreaConTrabajo = [...new Set(
+    [...datosIniciales.ordenes, ...datos.ordenes]
+      .flatMap((orden) => orden.partidas)
+      .flatMap((partida) => partida.areaTrabajoCodigo ? [partida.areaTrabajoCodigo] : []),
+  )];
+  const opcionesArea = opcionesFamiliaArea(datos.areas ?? datosIniciales.areas ?? [], codigosAreaConTrabajo);
   const ordenSeleccionada = datos.ordenes.find((orden) => orden.id === ordenSeleccionadaId) ?? null;
   const sesionActivaDesdeServidor = operadorId
     ? datos.ordenes.flatMap((orden) => orden.sesiones).find(
@@ -164,9 +171,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
             onChange={(evento) => establecerAreaCodigo(evento.target.value || null)}
           >
             <option value="">Todas las áreas</option>
-            {(datos.areas ?? [])
-              .filter((area) => area.padreCodigo === null)
-              .map((area) => (
+            {opcionesArea.map((area) => (
                 <option key={area.codigo} value={area.codigo}>{area.nombre}</option>
               ))}
           </Select>

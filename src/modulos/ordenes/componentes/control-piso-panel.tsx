@@ -11,6 +11,18 @@ import { registrarConsumoOperadorAccion } from '@/modulos/ordenes/acciones/regis
 import { registrarTiempoOperadorAccion } from '@/modulos/ordenes/acciones/registrar-tiempo-operador';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
 import type { OrdenConPartidas } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import {
+  codigosFamiliaArea,
+  opcionesFamiliaArea,
+} from '@/modulos/produccion/utilidades/indice';
+
+/** OBS-09/A06: catálogo mínimo de taller que necesita la terminal de piso. */
+export type AreaPiso = {
+  codigo: string;
+  nombre: string;
+  padreCodigo: string | null;
+  areaPlaneacion: string | null;
+};
 
 export type MaterialPiso = {
   id: string;
@@ -25,8 +37,8 @@ type PropsControlPisoPanel = {
   nombreOperador?: string;
   ordenes: OrdenConPartidas[];
   materiales: MaterialPiso[];
-  /** OBS-09: catálogo de taller para etiquetas y filtro de área. */
-  areas?: readonly { codigo: string; nombre: string }[];
+  /** OBS-09: catálogo de taller para etiquetas y filtro por familia de área. */
+  areas?: readonly AreaPiso[];
 };
 
 type OperacionPiso = 'tiempo' | 'avance' | 'consumo' | null;
@@ -68,15 +80,26 @@ export function ControlPisoPanel({
       )].sort(),
     [ordenes],
   );
+  // A06: una opción por familia, no una por proceso suelto.
+  const opcionesArea = useMemo(
+    () => opcionesFamiliaArea(areas, codigosArea),
+    [areas, codigosArea],
+  );
   const ordenesVisibles = useMemo(() => {
     if (areaFiltro === '') return ordenes;
+    // A06: el filtro acepta la familia completa del área elegida, no solo el
+    // código exacto; un proceso de tercer nivel no se queda fuera de su área.
+    const codigosAceptados = codigosFamiliaArea(areas, areaFiltro);
     return ordenes
       .map((entrada) => ({
         ...entrada,
-        partidas: entrada.partidas.filter((partida) => partida.areaTrabajoCodigo === areaFiltro),
+        partidas: entrada.partidas.filter(
+          (partida) => typeof partida.areaTrabajoCodigo === 'string'
+            && codigosAceptados.has(partida.areaTrabajoCodigo),
+        ),
       }))
       .filter((entrada) => entrada.partidas.length > 0);
-  }, [areaFiltro, ordenes]);
+  }, [areaFiltro, areas, ordenes]);
 
   const [ordenId, setOrdenId] = useState<string>(
     () => ordenActivaId ?? ordenesVisibles[0]?.orden.id ?? '',
@@ -372,9 +395,9 @@ export function ControlPisoPanel({
             onChange={(evento) => setAreaFiltro(evento.target.value)}
           >
             <option value="">Todas mis áreas</option>
-            {codigosArea.map((codigo) => (
-              <option key={codigo} value={codigo}>
-                {nombrePorArea.get(codigo) ?? codigo}
+            {opcionesArea.map((opcion) => (
+              <option key={opcion.codigo} value={opcion.codigo}>
+                {opcion.nombre}
               </option>
             ))}
           </Select>
