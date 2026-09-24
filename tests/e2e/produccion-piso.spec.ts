@@ -155,6 +155,12 @@ async function prepararContexto(): Promise<ContextoE2E> {
 
 async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
   const { admin } = contexto;
+  const { data: archivos } = await admin.from('archivos_sesion_produccion')
+    .select('id, ruta, sesiones_trabajo!inner(orden_id)')
+    .eq('sesiones_trabajo.orden_id', contexto.ordenId);
+  const rutas = (archivos ?? []).map((archivo) => archivo.ruta);
+  if (archivos?.length) await admin.from('archivos_sesion_produccion').delete().in('id', archivos.map((archivo) => archivo.id));
+  if (rutas.length) await admin.storage.from('archivos-sesion-produccion').remove(rutas);
   const { data: notas } = await admin.from('notas_entrega').select('id').eq('orden_id', contexto.ordenId);
   const notasIds = (notas ?? []).map((nota) => nota.id);
   if (notasIds.length > 0) await admin.from('partidas_nota_entrega').delete().in('nota_entrega_id', notasIds);
@@ -271,6 +277,31 @@ test.describe.serial('piso de Producción y entregas', () => {
     await expect(dialogoNota).toBeHidden();
     // Orden manual sin cotización: el piso lo informa en vez de ofrecer una carpeta.
     await expect(panelEntregables).toContainText('no hay carpeta donde guardar documentos');
+    await observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)
+      .getByRole('button', { name: 'Operar orden' }).click();
+    await expect(observador.getByTestId('panel-documentos-orden')).toContainText('Sin archivos de salida final');
+    await panelEntregables.getByLabel('Archivo de salida final').setInputFiles({
+      name: 'archivo-no-permitido.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('E2E'),
+    });
+    await panelEntregables.getByRole('button', { name: 'Subir salida' }).click();
+    await expect(panelEntregables).toContainText('Tipo de archivo no permitido');
+    await expect(observador.getByTestId('panel-documentos-orden')).toContainText('Sin archivos de salida final');
+    await panelEntregables.getByLabel('Archivo de salida final').setInputFiles({
+      name: 'salida-final.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4\nSalida final E2E\n'),
+    });
+    await panelEntregables.getByRole('button', { name: 'Subir salida' }).click();
+    await expect(panelEntregables).toContainText('Archivo de salida final asociado');
+    await expect(panelEntregables).toContainText('salida-final.pdf');
+    await expect(observador.getByTestId('panel-documentos-orden')).toContainText('salida-final.pdf');
+    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd17-salida-final.png', fullPage: true });
+    const [salidaLectura] = await Promise.all([
+      page.waitForEvent('popup'),
+      panelEntregables.getByRole('button', { name: 'Abrir en lectura' }).click(),
+    ]);
+    await expect.poll(async () => (await page.request.get(salidaLectura.url())).status()).toBe(200);
+    await salidaLectura.close();
 
     // OBS-17: hilo de comentarios del trabajo dentro del piso.
     const hilo = page.getByTestId('hilo-comentarios');
@@ -295,7 +326,7 @@ test.describe.serial('piso de Producción y entregas', () => {
       .eq('modulo', 'produccion')
       .in('usuario_id', [contextoPrueba.administradorId, contextoPrueba.operadorId]);
     const acciones = new Set((logs ?? []).map((log) => log.accion));
-    for (const accion of ['iniciar_sesion_trabajo', 'cerrar_sesion_trabajo', 'generar_nota_entrega']) {
+    for (const accion of ['iniciar_sesion_trabajo', 'cerrar_sesion_trabajo', 'generar_nota_entrega', 'asociar_archivo_sesion']) {
       expect(acciones.has(accion)).toBe(true);
     }
     await observador.close();
@@ -323,6 +354,30 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(page.getByRole('status')).toContainText('Sesión registrada');
       await expect(page.getByRole('region', { name: 'Historial de sesiones' })).toContainText('Esperando insumo para continuar');
 
+      const historial = page.getByRole('region', { name: 'Historial de sesiones' });
+      const binario = Buffer.alloc(2 * 1024 * 1024 + 128, 0x20);
+      binario.write('%PDF-1.4\n');
+      await historial.locator('input[type="file"]').first().setInputFiles({
+        name: 'registro-turno.pdf', mimeType: 'application/pdf', buffer: binario,
+      });
+      await historial.getByRole('button', { name: 'Subir archivo' }).first().click();
+      await expect(historial).toContainText('Archivo asociado a la sesión');
+      await expect(historial).toContainText('registro-turno.pdf');
+      await expect(page.getByTestId('panel-documentos-orden')).toContainText('Planos y documentos del cliente/orden');
+      await expect(page.getByTestId('panel-documentos-orden')).toContainText('Salida y notas de entrega');
+      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd17-escritorio-claro.png', fullPage: true });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd17-movil-oscuro.png', fullPage: true });
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.emulateMedia({ colorScheme: 'light' });
+      const [lectura] = await Promise.all([
+        page.waitForEvent('popup'),
+        historial.getByRole('button', { name: 'Abrir en lectura' }).first().click(),
+      ]);
+      await expect.poll(async () => (await page.request.get(lectura.url())).status()).toBe(200);
+      await lectura.close();
+
       await page.getByRole('button', { name: 'Continuar sesión pausada' }).click();
       const dialogo = page.getByRole('dialog', { name: /Reanudar OP-/ });
       await expect(dialogo).toContainText('Material pendiente');
@@ -337,12 +392,14 @@ test.describe.serial('piso de Producción y entregas', () => {
 
       await page.getByRole('button', { name: 'Continuar sesión pausada' }).click();
       await dialogo.getByRole('button', { name: 'Continuar', exact: true }).click();
-      await expect(page.getByRole('status')).toContainText('Sesión reanudada');
+      await expect(page.getByTestId('panel-operador-produccion').getByRole('status')).toContainText('Sesión reanudada');
       await expect.poll(async () => {
         const { data } = await caso.admin.from('sesiones_trabajo').select('id').eq('orden_id', caso.ordenId);
         return data?.length;
       }).toBe(2);
       await expect(page.getByRole('region', { name: 'Historial de sesiones' })).toContainText('Esperando insumo para continuar');
+      await expect(historial.getByText('registro-turno.pdf')).toHaveCount(1);
+      await expect(historial.getByText('Sin archivos asociados.')).toHaveCount(1);
       const { data: programacion } = await caso.admin.from('programacion_areas')
         .select('estado_planeacion').eq('id', caso.programacionId).single();
       expect(programacion?.estado_planeacion).toBe('en_proceso');

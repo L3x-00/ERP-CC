@@ -231,6 +231,11 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       <DocumentosOrdenPanel
         ordenId={ordenSeleccionada?.id ?? null}
         ordenFolio={ordenSeleccionada?.folio ?? null}
+        sesionFinalId={ordenSeleccionada?.estado === 'completada'
+          ? [...ordenSeleccionada.sesiones]
+            .filter((sesion) => sesion.estadoSesion === 'finalizada')
+            .sort((primera, segunda) => segunda.creadoEn.localeCompare(primera.creadoEn))[0]?.id ?? null
+          : null}
       />
       {ordenSeleccionada && (
         <HiloComentarios

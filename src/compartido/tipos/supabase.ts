@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      archivos_sesion_produccion: {
+        Row: {
+          clase: string
+          creado_en: string
+          creado_por: string
+          id: string
+          mime: string
+          nombre: string
+          ruta: string
+          sesion_id: string
+          tamano: number
+        }
+        Insert: {
+          clase?: string
+          creado_en?: string
+          creado_por: string
+          id?: string
+          mime: string
+          nombre: string
+          ruta: string
+          sesion_id: string
+          tamano: number
+        }
+        Update: {
+          clase?: string
+          creado_en?: string
+          creado_por?: string
+          id?: string
+          mime?: string
+          nombre?: string
+          ruta?: string
+          sesion_id?: string
+          tamano?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivos_sesion_produccion_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivos_sesion_produccion_sesion_id_fkey"
+            columns: ["sesion_id"]
+            isOneToOne: false
+            referencedRelation: "sesiones_trabajo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       areas_trabajo_config: {
         Row: {
           activo: boolean
