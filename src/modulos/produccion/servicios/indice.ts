@@ -9,6 +9,7 @@ export type { CalculoHorasSesion } from '@/modulos/produccion/servicios/calculo-
 export {
   ErrorProduccion,
   iniciarSesionTrabajoServicio,
+  reanudarSesionTrabajoServicio,
   cerrarSesionTrabajoServicio,
   mensajeErrorSesion,
 } from '@/modulos/produccion/servicios/sesiones-servicio';

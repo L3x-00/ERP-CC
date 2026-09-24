@@ -8,6 +8,7 @@ import {
   cerrarSesionOperadorAccion,
   generarNotaEntregaAccion,
   iniciarSesionOperadorAccion,
+  reanudarSesionOperadorAccion,
   obtenerTableroProduccionAccion,
 } from '@/modulos/produccion/acciones/indice';
 import { CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
@@ -19,6 +20,7 @@ import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formular
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion } from '@/modulos/produccion/componentes/kanban-produccion';
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
+import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
 import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { DatosTableroProduccion } from '@/modulos/produccion/servicios/indice';
@@ -111,6 +113,25 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     }
   }, [establecerSesionActiva, refrescar, seleccionarOrden]);
 
+  const reanudar = useCallback(async (datosReanudacion: {
+    ordenId: string; partidaId: string; programacionId: string; actualizadoEnEsperado: string;
+  }): Promise<{ exito: true } | { exito: false; error: string }> => {
+    setProcesando(true);
+    try {
+      const resultado = await reanudarSesionOperadorAccion(datosReanudacion);
+      if (!resultado.exito) return { exito: false, error: resultado.error };
+      if (!resultado.datos) return { exito: false, error: 'La reanudación no devolvió confirmación' };
+      establecerSesionActiva({
+        id: resultado.datos.id, ordenId: resultado.datos.ordenId,
+        partidaId: resultado.datos.partidaId, programacionId: resultado.datos.programacionId,
+      });
+      await refrescar();
+      return { exito: true };
+    } finally {
+      setProcesando(false);
+    }
+  }, [establecerSesionActiva, refrescar]);
+
   const cerrar = useCallback(async (datosCierre: {
     sesionId: string;
     piezasProducidas: number;
@@ -195,7 +216,9 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
           operadorDisponible={operadorId !== null}
           procesando={procesando}
           onIniciar={iniciar}
+          onReanudar={reanudar}
           onCerrar={cerrar}
+          responsables={datos.responsables ?? {}}
         />
         <FormularioNotaEntrega
           key={ordenSeleccionada?.id ?? 'sin-orden'}
@@ -204,6 +227,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
           onEnviar={generarNota}
         />
       </div>
+      <HistorialSesionesProduccion orden={ordenSeleccionada} responsables={datos.responsables ?? {}} />
       <DocumentosOrdenPanel
         ordenId={ordenSeleccionada?.id ?? null}
         ordenFolio={ordenSeleccionada?.folio ?? null}

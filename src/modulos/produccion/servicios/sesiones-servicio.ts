@@ -7,7 +7,7 @@ import {
   type EstadoSesionTrabajo,
   type SesionTrabajo,
 } from '@/modulos/produccion/tipos/indice';
-import type { CerrarSesionInput, IniciarSesionInput } from '@/modulos/produccion/validaciones/indice';
+import type { CerrarSesionInput, IniciarSesionInput, ReanudarSesionInput } from '@/modulos/produccion/validaciones/indice';
 
 export type CodigoErrorProduccion =
   | 'inicio_sesion_invalido'
@@ -31,6 +31,13 @@ export type CodigoErrorProduccion =
   | 'cantidad_entrega_excede_producida'
   | 'orden_no_entregable'
   | 'partida_no_corresponde_orden'
+  | 'reanudacion_invalida'
+  | 'orden_no_reanudable'
+  | 'programacion_no_bloqueada'
+  | 'programacion_conflicto'
+  | 'sesion_pausada_inexistente'
+  | 'recurso_ocupado'
+  | 'capacidad_no_disponible'
   | 'desconocido';
 
 export class ErrorProduccion extends Error {
@@ -77,6 +84,13 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'cantidad_entrega_excede_producida',
   'orden_no_entregable',
   'partida_no_corresponde_orden',
+  'reanudacion_invalida',
+  'orden_no_reanudable',
+  'programacion_no_bloqueada',
+  'programacion_conflicto',
+  'sesion_pausada_inexistente',
+  'recurso_ocupado',
+  'capacidad_no_disponible',
 ];
 
 function lanzarErrorProduccion(mensaje: string | undefined): never {
@@ -101,21 +115,16 @@ function estadoPlaneacionDesdeBase(estado: string): EstadoPlaneacion {
   return estado as EstadoPlaneacion;
 }
 
-/** Abre una sesión tomando únicamente una programación ya preparada. */
-export async function iniciarSesionTrabajoServicio(
-  admin: SupabaseClient<Database>,
-  entrada: IniciarSesionInput & { operadorId: string },
-): Promise<Pick<SesionTrabajo, 'id' | 'ordenId' | 'partidaId' | 'programacionId' | 'operadorId' | 'fechaInicio' | 'estadoSesion' | 'creadoEn' | 'actualizadoEn'>> {
-  const { data, error } = await admin.rpc('iniciar_sesion_trabajo_operador', {
-    p_orden_id: entrada.ordenId,
-    p_partida_id: entrada.partidaId,
-    p_programacion_id: entrada.programacionId,
-    p_operador_id: entrada.operadorId,
-  });
-  if (error) lanzarErrorProduccion(error.message);
-  const fila = data?.[0];
-  if (!fila?.id || !fila.actualizado_en) throw new ErrorProduccion('desconocido');
+type SesionIniciada = Pick<SesionTrabajo,
+  'id' | 'ordenId' | 'partidaId' | 'programacionId' | 'operadorId' |
+  'fechaInicio' | 'estadoSesion' | 'creadoEn' | 'actualizadoEn'>;
 
+function sesionIniciadaDesdeRpc(fila: {
+  id: string; orden_id: string; partida_id: string; programacion_id: string;
+  operador_id: string; fecha_inicio: string; estado_sesion: string;
+  creado_en: string; actualizado_en: string;
+} | null): SesionIniciada {
+  if (!fila?.id || !fila.actualizado_en) throw new ErrorProduccion('desconocido');
   return {
     id: fila.id,
     ordenId: fila.orden_id,
@@ -127,6 +136,36 @@ export async function iniciarSesionTrabajoServicio(
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
+}
+
+/** Abre una sesión tomando únicamente una programación ya preparada. */
+export async function iniciarSesionTrabajoServicio(
+  admin: SupabaseClient<Database>,
+  entrada: IniciarSesionInput & { operadorId: string },
+): Promise<SesionIniciada> {
+  const { data, error } = await admin.rpc('iniciar_sesion_trabajo_operador', {
+    p_orden_id: entrada.ordenId,
+    p_partida_id: entrada.partidaId,
+    p_programacion_id: entrada.programacionId,
+    p_operador_id: entrada.operadorId,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+  return sesionIniciadaDesdeRpc(data?.[0] ?? null);
+}
+
+/** Libera una pausa y vuelve a tomar el recurso en una única transacción SQL. */
+export async function reanudarSesionTrabajoServicio(
+  admin: SupabaseClient<Database>, entrada: ReanudarSesionInput & { operadorId: string },
+): Promise<SesionIniciada> {
+  const { data, error } = await admin.rpc('reanudar_sesion_trabajo_a20', {
+    p_orden_id: entrada.ordenId,
+    p_partida_id: entrada.partidaId,
+    p_programacion_id: entrada.programacionId,
+    p_actualizado_en_esperado: entrada.actualizadoEnEsperado,
+    p_operador_id: entrada.operadorId,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+  return sesionIniciadaDesdeRpc(data?.[0] ?? null);
 }
 
 /** Cierra o pausa en PostgreSQL; el reloj, producción y recurso no vienen del cliente. */
@@ -173,6 +212,16 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La producción no puede superar la cantidad solicitada';
     case 'sesion_no_activa':
       return 'La sesión ya fue actualizada o no está disponible';
+    case 'programacion_conflicto':
+      return 'La pausa cambió en otra pantalla; actualiza el tablero';
+    case 'recurso_ocupado':
+      return 'El recurso está ocupado; vuelve a intentarlo cuando esté libre';
+    case 'capacidad_no_disponible':
+      return 'La capacidad del recurso ya no permite reanudar';
+    case 'programacion_no_bloqueada':
+    case 'sesion_pausada_inexistente':
+    case 'orden_no_reanudable':
+      return 'La orden ya no está pausada o no puede reanudarse';
     default:
       return 'No se pudo registrar la sesión de producción';
   }

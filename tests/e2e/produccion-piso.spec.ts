@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
@@ -71,7 +71,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
   const sufijo = randomUUID().slice(0, 8);
   const correoAdministrador = `e2e-prd-admin-${sufijo}@orca.local`;
   const contrasenaAdministrador = `E2e!${randomUUID()}Aa9`;
-  const pinOperador = '4826';
+  const pinOperador = String(randomInt(100000, 1000000));
   const administradorId = await crearUsuario(
     admin, correoAdministrador, contrasenaAdministrador, `Administrador Producción ${sufijo}`, 'admin',
   );
@@ -299,5 +299,55 @@ test.describe.serial('piso de Producción y entregas', () => {
       expect(acciones.has(accion)).toBe(true);
     }
     await observador.close();
+  });
+
+  test('reanuda una pausa con confirmación e historial persistido', async ({ page }) => {
+    const caso = await prepararContexto();
+    try {
+      await iniciarSesionAdministrador(page, caso);
+      await page.goto('/operador');
+      for (const digito of caso.pinOperador) await page.getByRole('button', { name: digito, exact: true }).click();
+      await page.getByRole('button', { name: 'Confirmar PIN' }).click();
+      await page.waitForURL('**/produccion-piso');
+      await page.goto('/produccion');
+      await page.getByTestId(`tarjeta-produccion-${caso.ordenId}`).getByRole('button', { name: 'Operar orden' }).click();
+      await page.getByTestId('iniciar-sesion-produccion').click();
+      await expect(page.getByRole('status')).toContainText('Sesión iniciada');
+
+      await page.getByLabel('Piezas producidas ahora').fill('2');
+      await page.getByLabel('Resultado').selectOption('pausada');
+      await page.getByLabel('Motivo de pausa').selectOption('material_pendiente');
+      await page.getByLabel('Notas operativas').fill('Esperando insumo para continuar');
+      await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
+      await page.getByTestId('cerrar-sesion-produccion').click();
+      await expect(page.getByRole('status')).toContainText('Sesión registrada');
+      await expect(page.getByRole('region', { name: 'Historial de sesiones' })).toContainText('Esperando insumo para continuar');
+
+      await page.getByRole('button', { name: 'Continuar sesión pausada' }).click();
+      const dialogo = page.getByRole('dialog', { name: /Reanudar OP-/ });
+      await expect(dialogo).toContainText('Material pendiente');
+      await expect(dialogo).toContainText(/2(?:\.00)? piezas/);
+      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-reanudacion-escritorio.png' });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-reanudacion-movil-oscuro.png' });
+      await dialogo.getByRole('button', { name: 'Cancelar' }).click();
+      const { data: antes } = await caso.admin.from('sesiones_trabajo').select('id').eq('orden_id', caso.ordenId);
+      expect(antes).toHaveLength(1);
+
+      await page.getByRole('button', { name: 'Continuar sesión pausada' }).click();
+      await dialogo.getByRole('button', { name: 'Continuar', exact: true }).click();
+      await expect(page.getByRole('status')).toContainText('Sesión reanudada');
+      await expect.poll(async () => {
+        const { data } = await caso.admin.from('sesiones_trabajo').select('id').eq('orden_id', caso.ordenId);
+        return data?.length;
+      }).toBe(2);
+      await expect(page.getByRole('region', { name: 'Historial de sesiones' })).toContainText('Esperando insumo para continuar');
+      const { data: programacion } = await caso.admin.from('programacion_areas')
+        .select('estado_planeacion').eq('id', caso.programacionId).single();
+      expect(programacion?.estado_planeacion).toBe('en_proceso');
+    } finally {
+      await limpiarContexto(caso);
+    }
   });
 });

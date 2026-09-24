@@ -2501,6 +2501,26 @@ export type Database = {
         Returns: Database["public"]["Tables"]["gastos"]["Row"][]
         SetofOptions: { from: "*"; to: "gastos"; isOneToOne: false; isSetofReturn: true }
       }
+      reanudar_sesion_trabajo_a20: {
+        Args: {
+          p_orden_id: string
+          p_partida_id: string
+          p_programacion_id: string
+          p_actualizado_en_esperado: string
+          p_operador_id: string
+        }
+        Returns: {
+          id: string
+          orden_id: string
+          partida_id: string
+          programacion_id: string
+          operador_id: string
+          fecha_inicio: string
+          estado_sesion: string
+          creado_en: string
+          actualizado_en: string
+        }[]
+      }
       registrar_gasto_a19: {
         Args: { p_datos: Json; p_usuario_id: string }
         Returns: Database["public"]["Tables"]["gastos"]["Row"][]

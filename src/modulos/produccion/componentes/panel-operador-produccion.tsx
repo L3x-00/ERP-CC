@@ -3,6 +3,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
+import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { SesionActivaProduccion } from '@/estado/uso-tienda-produccion';
 import { MOTIVOS_PAUSA_SESION, type MotivoPausaSesion } from '@/modulos/produccion/tipos/indice';
@@ -15,6 +17,8 @@ export interface PropsPanelOperadorProduccion {
   operadorDisponible: boolean;
   procesando: boolean;
   onIniciar: (datos: { ordenId: string; partidaId: string; programacionId: string }) => Promise<ResultadoOperacion>;
+  onReanudar: (datos: { ordenId: string; partidaId: string; programacionId: string; actualizadoEnEsperado: string }) => Promise<ResultadoOperacion>;
+  responsables: Readonly<Record<string, string>>;
   onCerrar: (datos: {
     sesionId: string;
     piezasProducidas: number;
@@ -43,6 +47,8 @@ export function PanelOperadorProduccion({
   operadorDisponible,
   procesando,
   onIniciar,
+  onReanudar,
+  responsables,
   onCerrar,
 }: PropsPanelOperadorProduccion) {
   const preparaciones = useMemo(() => orden?.partidas.flatMap((partida) => (
@@ -61,10 +67,43 @@ export function PanelOperadorProduccion({
   const [notas, setNotas] = useState('');
   const [pinConfirmacion, setPinConfirmacion] = useState('');
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
+  const [errorReanudacion, setErrorReanudacion] = useState<string | null>(null);
 
   const seleccion = preparaciones.find((item) => item.programacionId === programacionId)
     ?? preparaciones[0]
     ?? null;
+  const ultimaPausa = (() => {
+    if (!orden || orden.estadoKanban !== 'pausada') return null;
+    const sesiones = [...orden.sesiones]
+      .sort((primera, segunda) => segunda.creadoEn.localeCompare(primera.creadoEn)
+        || segunda.id.localeCompare(primera.id));
+    const programacionesVistas = new Set<string>();
+    for (const sesion of sesiones) {
+      if (programacionesVistas.has(sesion.programacionId)) continue;
+      programacionesVistas.add(sesion.programacionId);
+      if (sesion.estadoSesion !== 'pausada') continue;
+      const partida = orden.partidas.find((item) => item.id === sesion.partidaId);
+      const programacion = partida?.programaciones.find((item) =>
+        item.id === sesion.programacionId && item.estadoPlaneacion === 'bloqueada');
+      if (partida && programacion) return { sesion, partida, programacion };
+    }
+    return null;
+  })();
+
+  async function reanudar(): Promise<void> {
+    if (!orden || !ultimaPausa) return;
+    setErrorReanudacion(null);
+    const resultado = await onReanudar({
+      ordenId: orden.id, partidaId: ultimaPausa.partida.id,
+      programacionId: ultimaPausa.programacion.id,
+      actualizadoEnEsperado: ultimaPausa.programacion.actualizadoEn,
+    });
+    if (resultado.exito) {
+      setConfirmarReanudacion(false);
+      setMensaje('Sesión reanudada y recurso reservado');
+    } else setErrorReanudacion(resultado.error);
+  }
 
   async function iniciar(): Promise<void> {
     if (!orden || !seleccion) return;
@@ -174,7 +213,7 @@ export function PanelOperadorProduccion({
       ) : (
         <div className="mt-4 flex flex-col gap-3">
           {!orden ? <p className="text-sm text-texto-secundario">Selecciona una orden del Kanban.</p> : null}
-          {orden && preparaciones.length === 0 ? <p className="text-sm text-texto-secundario">La orden no tiene una programación en preparación disponible.</p> : null}
+          {orden && preparaciones.length === 0 && !ultimaPausa ? <p className="text-sm text-texto-secundario">La orden no tiene una programación en preparación disponible.</p> : null}
           {preparaciones.length > 0 ? (
             <>
               <label className={CLASE_ETIQUETA}>
@@ -192,8 +231,36 @@ export function PanelOperadorProduccion({
               </Button>
             </>
           ) : null}
+          {ultimaPausa && operadorDisponible ? (
+            <Button type="button" tamano="lg" variante="secundario"
+              disabled={procesando} onClick={() => { setErrorReanudacion(null); setConfirmarReanudacion(true); }}>
+              Continuar sesión pausada
+            </Button>
+          ) : null}
         </div>
       )}
+      <Dialog open={confirmarReanudacion} onOpenChange={(abierto) => {
+        if (!procesando) setConfirmarReanudacion(abierto);
+      }}>
+        <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Reanudar {orden?.folio}</DialogTitle>
+            <DialogDescription>Revisa la última sesión. Continuar vuelve a comprobar capacidad, recurso y operador; cancelar conserva la pausa.</DialogDescription>
+          </DialogHeader>
+          {ultimaPausa ? <div className="grid max-h-[45vh] min-h-0 shrink gap-1 overflow-y-auto pr-1 text-sm">
+            <p>Operador: {responsables[ultimaPausa.sesion.operadorId] ?? 'Operador histórico'}</p>
+            <p>Horario: {formatearFecha(ultimaPausa.sesion.fechaInicio)} · {formatearHora(ultimaPausa.sesion.fechaInicio)}–{ultimaPausa.sesion.fechaFin ? formatearHora(ultimaPausa.sesion.fechaFin) : 'sin cierre'}</p>
+            <p>Partida: {ultimaPausa.partida.codigoPieza} · {formatearNumero(ultimaPausa.sesion.piezasProducidas)} piezas · {formatearNumero(ultimaPausa.sesion.horasNetas)} h netas</p>
+            {ultimaPausa.sesion.motivoPausa ? <p>Motivo: {ETIQUETAS_MOTIVO[ultimaPausa.sesion.motivoPausa]}</p> : null}
+            {ultimaPausa.sesion.notas ? <p className="whitespace-pre-wrap">Notas: {ultimaPausa.sesion.notas}</p> : null}
+          </div> : null}
+          {errorReanudacion ? <p role="alert" className="text-sm text-peligro-texto">{errorReanudacion}</p> : null}
+          <DialogFooter className="static mt-2 shrink-0">
+            <Button type="button" variante="contorno" disabled={procesando} onClick={() => setConfirmarReanudacion(false)}>Cancelar</Button>
+            <Button type="button" disabled={procesando || !ultimaPausa} onClick={() => void reanudar()}>{procesando ? 'Reanudando…' : 'Continuar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

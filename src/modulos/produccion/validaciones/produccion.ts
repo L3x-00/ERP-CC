@@ -17,6 +17,10 @@ export const esquemaIniciarSesion = z.object({
   programacionId: z.uuid('ID de programación inválido'),
 }).strict();
 
+export const esquemaReanudarSesion = esquemaIniciarSesion.extend({
+  actualizadoEnEsperado: z.iso.datetime({ offset: true }),
+}).strict();
+
 export const esquemaCerrarSesion = z
   .object({
     sesionId: z.uuid('ID de sesión inválido'),
@@ -64,6 +68,7 @@ export const esquemaConsultarTableroProduccion = z.object({
 }).strict();
 
 export type IniciarSesionInput = z.infer<typeof esquemaIniciarSesion>;
+export type ReanudarSesionInput = z.infer<typeof esquemaReanudarSesion>;
 export type CerrarSesionInput = z.infer<typeof esquemaCerrarSesion>;
 export type PartidaNotaEntregaInput = z.infer<typeof esquemaPartidaNotaEntrega>;
 export type CrearNotaEntregaInput = z.infer<typeof esquemaCrearNotaEntrega>;

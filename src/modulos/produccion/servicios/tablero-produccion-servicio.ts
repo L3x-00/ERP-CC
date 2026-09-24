@@ -88,6 +88,20 @@ export function obtenerEstadoKanbanProduccion(
   return 'bandeja';
 }
 
+/** PostgREST limita cada respuesta; paginar evita recortar el historial de producción. */
+async function obtenerTodasLasSesiones(cliente: SupabaseClient<Database>) {
+  const sesiones: Database['public']['Tables']['sesiones_trabajo']['Row'][] = [];
+  const TAMANO_PAGINA = 500;
+  for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
+    const { data, error } = await cliente.from('sesiones_trabajo').select('*')
+      .order('creado_en').order('id').range(inicio, inicio + TAMANO_PAGINA - 1);
+    if (error) throw new Error(`No se pudo cargar el historial de Producción: ${error.message}`);
+    sesiones.push(...(data ?? []));
+    if (!data || data.length < TAMANO_PAGINA) break;
+  }
+  return sesiones;
+}
+
 /**
  * Proyección de tablero sin N+1. La parcialidad y el estado de entrega se
  * derivan del historial inmutable, nunca del payload Realtime ni de Zustand.
@@ -105,11 +119,11 @@ export async function obtenerDatosTableroProduccionServicio(
         .order('nombre')
     : { data: [], error: null };
 
-  const [resultadoOrdenes, resultadoPartidas, resultadoProgramaciones, resultadoSesiones, resultadoNotas, resultadoRenglones, resultadoRecursos] = await Promise.all([
+  const [resultadoOrdenes, resultadoPartidas, resultadoProgramaciones, sesiones, resultadoNotas, resultadoRenglones, resultadoRecursos] = await Promise.all([
     cliente.from('ordenes_produccion').select('*').neq('estado', 'cancelada').order('fecha_compromiso'),
     cliente.from('partidas_orden_produccion').select('*').order('creado_en'),
     cliente.from('programacion_areas').select('*').neq('estado_planeacion', 'cancelada').order('secuencia'),
-    cliente.from('sesiones_trabajo').select('*').order('creado_en', { ascending: false }),
+    obtenerTodasLasSesiones(cliente),
     cliente.from('notas_entrega').select('*').order('creado_en', { ascending: false }),
     cliente.from('partidas_nota_entrega').select('*'),
     cliente.from('recursos_planeacion').select('*').eq('activo', true).order('codigo'),
@@ -120,7 +134,6 @@ export async function obtenerDatosTableroProduccionServicio(
     resultadoOrdenes.error,
     resultadoPartidas.error,
     resultadoProgramaciones.error,
-    resultadoSesiones.error,
     resultadoNotas.error,
     resultadoRenglones.error,
     resultadoRecursos.error,
@@ -172,8 +185,8 @@ export async function obtenerDatosTableroProduccionServicio(
   const responsables: Record<string, string> = {};
   const operadorIds = [
     ...new Set(
-      partidasFilas
-        .map((partida) => partida.operadorAsignadoId)
+      [...partidasFilas.map((partida) => partida.operadorAsignadoId),
+        ...sesiones.map((sesion) => sesion.operador_id)]
         .filter((valor): valor is string => valor !== null),
     ),
   ];
@@ -191,7 +204,7 @@ export async function obtenerDatosTableroProduccionServicio(
   }
 
   const sesionesPorOrden = new Map<string, SesionTrabajo[]>();
-  for (const sesion of (resultadoSesiones.data ?? []).map(filaASesionTrabajo)) {
+  for (const sesion of sesiones.map(filaASesionTrabajo)) {
     const actuales = sesionesPorOrden.get(sesion.ordenId) ?? [];
     actuales.push(sesion);
     sesionesPorOrden.set(sesion.ordenId, actuales);
