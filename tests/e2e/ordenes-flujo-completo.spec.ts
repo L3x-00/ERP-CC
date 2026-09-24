@@ -278,6 +278,30 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
 
     const filaOrden = page.getByRole('row', { name: new RegExp(folio) });
     await expect(filaOrden).toBeVisible();
+    const resumen = page.getByRole('region', { name: 'Resumen operativo de órdenes' });
+    await expect(resumen.getByText('Órdenes no canceladas')).toBeVisible();
+    await expect(resumen.getByText('TI creadas este mes')).toBeVisible();
+    await page.getByText('Comparativa KPI de órdenes comerciales').click();
+    const filaKpi = page.getByRole('table', { name: 'Horas, eficiencia, puntualidad, sesiones, pausas y venta por orden' })
+      .getByRole('row', { name: new RegExp(folio) });
+    await expect(filaKpi).toContainText('Sin tiempo real');
+    await expect(filaKpi).toContainText('Sin entrega final');
+    await expect(filaKpi).toContainText('Sin cuenta');
+    for (const [formato, ancho, alto] of [
+      ['escritorio', 1440, 900], ['tableta', 768, 1024], ['movil', 390, 844],
+    ] as const) {
+      await page.setViewportSize({ width: ancho, height: alto });
+      for (const tema of ['claro', 'oscuro'] as const) {
+        await page.locator('html').evaluate((nodo, oscuro) => nodo.classList.toggle('dark', oscuro), tema === 'oscuro');
+        await page.screenshot({
+          path: `.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ordenes-${formato}-${tema}.png`,
+          fullPage: true, animations: 'disabled',
+        });
+      }
+    }
+    await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.getByText('Comparativa KPI de órdenes comerciales').click();
     await expect(page.getByTestId('tabla-ordenes')).toHaveAttribute('data-hidratado', 'true');
     await filaOrden.getByTestId('cambiar-estado-programada').click();
     await expect(filaOrden.getByText('Programada')).toBeVisible();
