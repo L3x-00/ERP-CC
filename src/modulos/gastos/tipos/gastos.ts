@@ -32,6 +32,7 @@ export const METODOS_PAGO_GASTO = [
 export type MonedaGasto = (typeof MONEDAS_GASTO)[number];
 export type CategoriaGasto = string;
 export type EstadoGasto = (typeof ESTADOS_GASTO)[number];
+export type TipoGasto = 'fijo' | 'variable';
 export type MetodoPagoGasto = (typeof METODOS_PAGO_GASTO)[number];
 export type MonedaRentabilidad = 'MXN';
 
@@ -43,6 +44,9 @@ export interface Gasto {
   /** Folio legible de la orden vinculada (OBS-28); null si no se embebió. */
   ordenFolio: string | null;
   proveedorId: string | null;
+  proveedorNombre: string | null;
+  cuentaBancariaId: string | null;
+  tipoGasto: TipoGasto | null;
   categoria: CategoriaGasto;
   descripcion: string;
   montoSubtotal: number;
@@ -54,6 +58,7 @@ export interface Gasto {
   fechaGasto: string;
   fechaVencimiento: string | null;
   comprobanteUrl: string | null;
+  comprobanteRuta: string | null;
   folioComprobante: string | null;
   metodoPago: MetodoPagoGasto | null;
   datosOcrJson: Json | null;
@@ -69,6 +74,9 @@ export interface FilaGasto {
   folio: string;
   orden_id: string | null;
   proveedor_id: string | null;
+  cuenta_bancaria_id?: string | null;
+  tipo_gasto?: string | null;
+  comprobante_ruta?: string | null;
   categoria: string;
   descripcion: string;
   monto_subtotal: number | string;
@@ -218,6 +226,9 @@ export function filaAGasto(fila: FilaGasto): Gasto {
     ordenId: fila.orden_id,
     ordenFolio: null,
     proveedorId: fila.proveedor_id,
+    proveedorNombre: null,
+    cuentaBancariaId: fila.cuenta_bancaria_id ?? null,
+    tipoGasto: fila.tipo_gasto === 'fijo' || fila.tipo_gasto === 'variable' ? fila.tipo_gasto : null,
     categoria: FORMATO_CATEGORIA_GASTO.test(fila.categoria) ? fila.categoria : 'otros',
     descripcion: fila.descripcion,
     montoSubtotal: numeroDeFila(fila.monto_subtotal, 'monto_subtotal'),
@@ -229,6 +240,7 @@ export function filaAGasto(fila: FilaGasto): Gasto {
     fechaGasto: fila.fecha_gasto,
     fechaVencimiento: fila.fecha_vencimiento,
     comprobanteUrl: fila.comprobante_url,
+    comprobanteRuta: fila.comprobante_ruta ?? null,
     folioComprobante: fila.folio_comprobante,
     metodoPago: fila.metodo_pago === null
       ? null

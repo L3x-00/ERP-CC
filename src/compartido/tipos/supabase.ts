@@ -599,10 +599,50 @@ export type Database = {
           },
         ]
       }
+      comprobantes_gasto_historial: {
+        Row: {
+          id: number
+          gasto_id: string
+          ruta: string
+          reemplazado_en: string
+          reemplazado_por: string
+        }
+        Insert: {
+          id?: never
+          gasto_id: string
+          ruta: string
+          reemplazado_en?: string
+          reemplazado_por: string
+        }
+        Update: {
+          id?: never
+          gasto_id?: string
+          ruta?: string
+          reemplazado_en?: string
+          reemplazado_por?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comprobantes_gasto_historial_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comprobantes_gasto_historial_reemplazado_por_fkey"
+            columns: ["reemplazado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gastos: {
         Row: {
           actualizado_en: string
           categoria: string
+          comprobante_ruta: string | null
           comprobante_url: string | null
           creado_en: string
           creado_por: string
@@ -623,11 +663,13 @@ export type Database = {
           notas: string | null
           orden_id: string | null
           proveedor_id: string | null
+          tipo_gasto: string | null
           tipo_cambio: number
         }
         Insert: {
           actualizado_en?: string
           categoria: string
+          comprobante_ruta?: string | null
           comprobante_url?: string | null
           creado_en?: string
           creado_por: string
@@ -648,11 +690,13 @@ export type Database = {
           notas?: string | null
           orden_id?: string | null
           proveedor_id?: string | null
+          tipo_gasto?: string | null
           tipo_cambio?: number
         }
         Update: {
           actualizado_en?: string
           categoria?: string
+          comprobante_ruta?: string | null
           comprobante_url?: string | null
           creado_en?: string
           creado_por?: string
@@ -673,6 +717,7 @@ export type Database = {
           notas?: string | null
           orden_id?: string | null
           proveedor_id?: string | null
+          tipo_gasto?: string | null
           tipo_cambio?: number
         }
         Relationships: [
@@ -2445,6 +2490,21 @@ export type Database = {
           id: string
           movimiento_inventario_id: string
         }[]
+      }
+      editar_gasto_a19: {
+        Args: {
+          p_gasto_id: string
+          p_actualizado_en: string
+          p_datos: Json
+          p_usuario_id: string
+        }
+        Returns: Database["public"]["Tables"]["gastos"]["Row"][]
+        SetofOptions: { from: "*"; to: "gastos"; isOneToOne: false; isSetofReturn: true }
+      }
+      registrar_gasto_a19: {
+        Args: { p_datos: Json; p_usuario_id: string }
+        Returns: Database["public"]["Tables"]["gastos"]["Row"][]
+        SetofOptions: { from: "*"; to: "gastos"; isOneToOne: false; isSetofReturn: true }
       }
       registrar_gasto: {
         Args: {

@@ -21,11 +21,13 @@ export interface TablaGastosProps {
   cargando?: boolean;
   onCambiarEstado: (gasto: Gasto, estado: EstadoGasto) => void;
   onVerRentabilidad: (ordenId: string) => void;
+  onEditar: (gasto: Gasto) => void;
+  onVerComprobante: (gasto: Gasto) => void;
 }
 
-export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRentabilidad }: TablaGastosProps) {
+export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRentabilidad, onEditar, onVerComprobante }: TablaGastosProps) {
   if (cargando) {
-    return <SkeletonTabla columnas={9} filas={5} />;
+    return <SkeletonTabla columnas={10} filas={5} />;
   }
 
   if (gastos.length === 0) {
@@ -38,14 +40,17 @@ export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRe
   }
 
   return (
+    <div>
+      <p className="mb-2 text-xs text-texto-secundario">Desliza la tabla para ver todas las columnas y acciones.</p>
     <TablaContenedor>
-      <Tabla className="min-w-[980px]">
+      <Tabla className="min-w-[1100px]">
         <caption className="sr-only">Gastos registrados</caption>
         <TablaEncabezado>
           <tr>
             <TablaEncabezadoCelda>Folio</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Descripción</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Categoría</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Tipo</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Proveedor</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Orden vinculada</TablaEncabezadoCelda>
             <TablaEncabezadoCelda className="text-right">Total</TablaEncabezadoCelda>
@@ -62,17 +67,23 @@ export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRe
               <TablaCelda className="font-mono text-xs font-medium">{gasto.folio}</TablaCelda>
               <TablaCelda>{gasto.descripcion}</TablaCelda>
               <TablaCelda>{gasto.categoria}</TablaCelda>
-              <TablaCelda className="font-mono text-xs">{gasto.proveedorId ?? '—'}</TablaCelda>
+              <TablaCelda>{gasto.tipoGasto === 'fijo' ? 'Fijo' : gasto.tipoGasto === 'variable' ? 'Variable' : 'Sin clasificar'}</TablaCelda>
+              <TablaCelda>{gasto.proveedorNombre ?? (gasto.proveedorId ? 'Proveedor no disponible' : '—')}</TablaCelda>
               <TablaCelda className="font-mono text-xs">
                 {gasto.ordenFolio
                   ?? (gasto.ordenId ? `${gasto.ordenId.slice(0, 8)}…` : 'Indirecto')}
               </TablaCelda>
               <TablaCelda className="text-right tabular-nums">{formatearMoneda(gasto.montoTotal, gasto.moneda)}</TablaCelda>
-              <TablaCelda>{gasto.fechaGasto}</TablaCelda>
+              <TablaCelda className="whitespace-nowrap">{gasto.fechaGasto.slice(0, 10)}</TablaCelda>
               <TablaCelda>
                 <BadgeEstado estado={gasto.estadoPago} />
               </TablaCelda>
               <TablaCelda className="flex justify-end gap-2">
+                {gasto.comprobanteRuta || gasto.comprobanteUrl ? (
+                  <Button tamano="sm" variante="contorno" onClick={() => onVerComprobante(gasto)}>
+                    Comprobante
+                  </Button>
+                ) : null}
                 {gasto.ordenId ? (
                   <Button tamano="sm" variante="contorno" onClick={() => onVerRentabilidad(gasto.ordenId as string)}>
                     Rentabilidad
@@ -80,6 +91,7 @@ export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRe
                 ) : null}
                 {gasto.estadoPago === 'pendiente' ? (
                   <>
+                    <Button tamano="sm" variante="contorno" onClick={() => onEditar(gasto)}>Editar</Button>
                     <Button tamano="sm" variante="contorno" onClick={() => onCambiarEstado(gasto, 'pagado')}>Marcar pagado</Button>
                     <Button tamano="sm" variante="contorno" onClick={() => onCambiarEstado(gasto, 'cancelado')}>Cancelar</Button>
                   </>
@@ -90,5 +102,6 @@ export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRe
         </TablaCuerpo>
       </Tabla>
     </TablaContenedor>
+    </div>
   );
 }

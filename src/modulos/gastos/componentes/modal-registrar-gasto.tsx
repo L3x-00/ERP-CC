@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import Image from 'next/image';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
@@ -14,6 +15,8 @@ import {
   METODOS_PAGO_GASTO,
   type DatosComprobanteOCR,
   type MonedaGasto,
+  type Gasto,
+  type TipoGasto,
 } from '@/modulos/gastos/tipos/indice';
 import type { RegistrarGastoInput } from '@/modulos/gastos/validaciones/indice';
 import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
@@ -23,8 +26,13 @@ export interface ModalRegistrarGastoProps {
   procesando: boolean;
   ocrEnCurso: boolean;
   ordenIdInicial?: string;
+  gastoEditar?: Gasto | null;
+  proveedores: readonly { id: string; nombre: string }[];
   onAbiertoChange: (abierto: boolean) => void;
-  onRegistrar: (entrada: RegistrarGastoInput) => Promise<RespuestaAccion<unknown>>;
+  onGuardar: (entrada: RegistrarGastoInput & {
+    modo: 'crear' | 'editar'; gastoId?: string; actualizadoEn?: string; tipoGasto: TipoGasto;
+  }, archivo: File | null) => Promise<RespuestaAccion<unknown>>;
+  onVerComprobante: (gasto: Gasto) => void;
   onOcr: (archivo: File) => Promise<RespuestaAccion<DatosComprobanteOCR>>;
 }
 
@@ -33,12 +41,17 @@ export function ModalRegistrarGasto({
   procesando,
   ocrEnCurso,
   ordenIdInicial,
+  gastoEditar,
+  proveedores,
   onAbiertoChange,
-  onRegistrar,
+  onGuardar,
+  onVerComprobante,
   onOcr,
 }: ModalRegistrarGastoProps) {
   const { categoriasGasto } = usarCatalogosComerciales();
-  const [ordenId, setOrdenId] = useState(ordenIdInicial ?? '');
+  const [ordenId, setOrdenId] = useState(gastoEditar?.ordenId ?? ordenIdInicial ?? '');
+  const [proveedorId, setProveedorId] = useState(gastoEditar?.proveedorId ?? '');
+  const [tipoGasto, setTipoGasto] = useState<TipoGasto>(gastoEditar?.tipoGasto ?? 'variable');
   const [busquedaOrden, setBusquedaOrden] = useState('');
   const ordenesOpciones = useQuery({
     queryKey: ['gastos', 'ordenes', busquedaOrden],
@@ -51,19 +64,19 @@ export function ModalRegistrarGasto({
     enabled: abierto,
     staleTime: 30_000,
   });
-  const [categoria, setCategoria] = useState<string>(CATEGORIAS_GASTO[0]);
-  const [descripcion, setDescripcion] = useState('');
-  const [subtotal, setSubtotal] = useState('');
-  const [iva, setIva] = useState('');
-  const [total, setTotal] = useState('');
-  const [moneda, setMoneda] = useState<MonedaGasto>('MXN');
-  const [tipoCambio, setTipoCambio] = useState('1');
-  const [fechaGasto, setFechaGasto] = useState(() => new Date().toISOString().slice(0, 10));
-  const [fechaVencimiento, setFechaVencimiento] = useState('');
-  const [folioComprobante, setFolioComprobante] = useState('');
-  const [metodoPago, setMetodoPago] = useState<(typeof METODOS_PAGO_GASTO)[number]>('transferencia');
+  const [categoria, setCategoria] = useState<string>(gastoEditar?.categoria ?? CATEGORIAS_GASTO[0]);
+  const [descripcion, setDescripcion] = useState(gastoEditar?.descripcion ?? '');
+  const [subtotal, setSubtotal] = useState(gastoEditar ? String(gastoEditar.montoSubtotal) : '');
+  const [iva, setIva] = useState(gastoEditar ? String(gastoEditar.montoIva) : '');
+  const [total, setTotal] = useState(gastoEditar ? String(gastoEditar.montoTotal) : '');
+  const [moneda, setMoneda] = useState<MonedaGasto>(gastoEditar?.moneda ?? 'MXN');
+  const [tipoCambio, setTipoCambio] = useState(gastoEditar ? String(gastoEditar.tipoCambio) : '1');
+  const [fechaGasto, setFechaGasto] = useState(() => gastoEditar?.fechaGasto.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
+  const [fechaVencimiento, setFechaVencimiento] = useState(gastoEditar?.fechaVencimiento?.slice(0, 10) ?? '');
+  const [folioComprobante, setFolioComprobante] = useState(gastoEditar?.folioComprobante ?? '');
+  const [metodoPago, setMetodoPago] = useState<(typeof METODOS_PAGO_GASTO)[number] | ''>(gastoEditar ? gastoEditar.metodoPago ?? '' : 'transferencia');
   // OBS-28: cuenta bancaria de salida (opcional). El catálogo llega enmascarado.
-  const [cuentaBancariaId, setCuentaBancariaId] = useState('');
+  const [cuentaBancariaId, setCuentaBancariaId] = useState(gastoEditar?.cuentaBancariaId ?? '');
   const cuentasBancarias = useQuery({
     queryKey: ['gastos', 'cuentas-bancarias'],
     queryFn: async () => {
@@ -73,7 +86,7 @@ export function ModalRegistrarGasto({
     enabled: abierto,
     staleTime: 5 * 60 * 1000,
   });
-  const [notas, setNotas] = useState('');
+  const [notas, setNotas] = useState(gastoEditar?.notas ?? '');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -81,12 +94,18 @@ export function ModalRegistrarGasto({
   const [mensajeOcr, setMensajeOcr] = useState<string | null>(null);
   // GAS-08: evidencia cruda de la última lectura, se guarda con el gasto.
   const [datosOcr, setDatosOcr] = useState<DatosComprobanteOCR | null>(null);
+  const [vistaPrevia, setVistaPrevia] = useState<string | null>(null);
+  useEffect(() => () => { if (vistaPrevia) URL.revokeObjectURL(vistaPrevia); }, [vistaPrevia]);
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setMensaje(null);
-    const resultado = await onRegistrar({
+    const resultado = await onGuardar({
+      modo: gastoEditar ? 'editar' : 'crear',
+      ...(gastoEditar ? { gastoId: gastoEditar.id, actualizadoEn: gastoEditar.actualizadoEn } : {}),
+      tipoGasto,
       ordenId: ordenId || undefined,
+      proveedorId: proveedorId || undefined,
       categoria,
       descripcion,
       montoSubtotal: Number(subtotal),
@@ -97,13 +116,13 @@ export function ModalRegistrarGasto({
       fechaGasto,
       fechaVencimiento: fechaVencimiento || undefined,
       folioComprobante: folioComprobante || undefined,
-      metodoPago,
+      metodoPago: metodoPago || undefined,
       cuentaBancariaId: cuentaBancariaId || undefined,
       notas: notas || undefined,
       ...(datosOcr
         ? { datosOcrJson: datosOcr as unknown as Record<string, unknown> }
         : {}),
-    });
+    }, archivo);
     if (resultado.exito) {
       setMensaje(null);
       onAbiertoChange(false);
@@ -139,7 +158,12 @@ export function ModalRegistrarGasto({
   }
 
   function seleccionarArchivo(archivoSeleccionado: File | undefined): void {
-    if (archivoSeleccionado) setArchivo(archivoSeleccionado);
+    if (archivoSeleccionado) {
+      setArchivo(archivoSeleccionado);
+      setVistaPrevia(URL.createObjectURL(archivoSeleccionado));
+      setDatosOcr(null);
+      setEstadoOcr('inactivo');
+    }
     setArrastrandoArchivo(false);
   }
 
@@ -147,8 +171,8 @@ export function ModalRegistrarGasto({
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
       <DialogContent aria-describedby="descripcion-registro-gasto">
         <DialogHeader>
-          <DialogTitle>Registrar gasto</DialogTitle>
-          <DialogDescription id="descripcion-registro-gasto">Los importes se validan y guardan en su moneda original.</DialogDescription>
+          <DialogTitle>{gastoEditar ? `Editar ${gastoEditar.folio}` : 'Registrar gasto'}</DialogTitle>
+          <DialogDescription id="descripcion-registro-gasto">Los importes se validan y guardan en su moneda original. Solo los pendientes admiten corrección.</DialogDescription>
         </DialogHeader>
         <form className="grid gap-3" onSubmit={(evento) => void enviar(evento)}>
           <div
@@ -158,17 +182,20 @@ export function ModalRegistrarGasto({
             onDrop={(evento) => { evento.preventDefault(); seleccionarArchivo(evento.dataTransfer.files[0]); }}
           >
             <div className="grid gap-1">
-              <Label htmlFor="gasto-comprobante">Comprobante para OCR</Label>
-              <p className="text-xs text-texto-secundario">Arrastra una imagen (JPG, PNG, WEBP o GIF), o selecciónala desde tu equipo (máximo 5 MiB).</p>
+              <Label htmlFor="gasto-comprobante">Comprobante (opcional)</Label>
+              <p className="text-xs text-texto-secundario">Imagen o PDF hasta 10 MiB. El OCR admite imágenes hasta 5 MiB; guardar no requiere escanear.</p>
             </div>
-            <Input id="gasto-comprobante" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
+            <Input id="gasto-comprobante" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
             {archivo ? <p className="text-xs text-texto-secundario" aria-live="polite">Archivo seleccionado: <span className="font-medium text-texto-primario">{archivo.name}</span></p> : null}
+            {vistaPrevia && archivo?.type.startsWith('image/') ? <Image src={vistaPrevia} alt="Vista previa del comprobante seleccionado" width={320} height={160} unoptimized className="max-h-40 max-w-full rounded-md object-contain" /> : null}
+            {vistaPrevia && archivo?.type === 'application/pdf' ? <a href={vistaPrevia} target="_blank" rel="noopener noreferrer" className="text-sm text-acento underline">Previsualizar PDF seleccionado</a> : null}
+            {gastoEditar && (gastoEditar.comprobanteRuta || gastoEditar.comprobanteUrl) ? <Button type="button" variante="contorno" tamano="sm" onClick={() => onVerComprobante(gastoEditar)}>Ver comprobante guardado</Button> : null}
             <Button
               type="button"
               variante="secundario"
               tamano="lg"
               className="w-full"
-              disabled={!archivo || ocrEnCurso}
+              disabled={!archivo || archivo.type === 'application/pdf' || archivo.size > 5 * 1024 * 1024 || ocrEnCurso}
               onClick={() => void escanear()}
             >
               <svg
@@ -236,7 +263,11 @@ export function ModalRegistrarGasto({
                 </span>
               ) : null}
             </div>
-            <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value)}>{categoriasGasto.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-categoria">Categoría</Label><Select id="gasto-categoria" value={categoria} onChange={(evento) => setCategoria(evento.target.value)}>{categoria && !categoriasGasto.includes(categoria) ? <option value={categoria}>{categoria} (histórica)</option> : null}{categoriasGasto.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1"><Label htmlFor="gasto-tipo">Tipo de gasto</Label><Select id="gasto-tipo" value={tipoGasto} onChange={(evento) => setTipoGasto(evento.target.value as TipoGasto)}><option value="fijo">Fijo</option><option value="variable">Variable</option></Select></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-proveedor">Proveedor (opcional)</Label><Select id="gasto-proveedor" value={proveedorId} onChange={(evento) => setProveedorId(evento.target.value)}><option value="">Sin proveedor</option>{proveedorId && !proveedores.some((item) => item.id === proveedorId) ? <option value={proveedorId}>{gastoEditar?.proveedorNombre ?? 'Proveedor seleccionado'}</option> : null}{proveedores.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</Select></div>
           </div>
           <div className="grid gap-1">
             <Label htmlFor="gasto-cuenta">Cuenta de salida (opcional)</Label>
@@ -247,6 +278,7 @@ export function ModalRegistrarGasto({
               disabled={cuentasBancarias.isPending}
             >
               <option value="">Sin especificar</option>
+              {cuentaBancariaId && !(cuentasBancarias.data ?? []).some((cuenta) => cuenta.id === cuentaBancariaId) ? <option value={cuentaBancariaId}>Cuenta actual (no disponible)</option> : null}
               {(cuentasBancarias.data ?? []).map((cuenta) => (
                 <option key={cuenta.id} value={cuenta.id}>{cuenta.etiqueta}</option>
               ))}
@@ -271,11 +303,11 @@ export function ModalRegistrarGasto({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1"><Label htmlFor="gasto-folio">Folio de comprobante</Label><Input id="gasto-folio" value={folioComprobante} onChange={(evento) => setFolioComprobante(evento.target.value)} /></div>
-            <div className="grid gap-1"><Label htmlFor="gasto-metodo">Método de pago</Label><Select id="gasto-metodo" value={metodoPago} onChange={(evento) => setMetodoPago(evento.target.value as typeof metodoPago)}>{METODOS_PAGO_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-metodo">Método de pago</Label><Select id="gasto-metodo" value={metodoPago} onChange={(evento) => setMetodoPago(evento.target.value as typeof metodoPago)}><option value="">Sin especificar</option>{METODOS_PAGO_GASTO.map((item) => <option key={item} value={item}>{item}</option>)}</Select></div>
           </div>
           <div className="grid gap-1"><Label htmlFor="gasto-notas">Notas</Label><Textarea id="gasto-notas" value={notas} onChange={(evento) => setNotas(evento.target.value)} /></div>
           {mensaje ? <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p> : null}
-          <DialogFooter><Button variante="contorno" type="button" onClick={() => onAbiertoChange(false)} disabled={procesando}>Cancelar</Button><Button type="submit" disabled={procesando}>{procesando ? 'Guardando…' : 'Guardar gasto'}</Button></DialogFooter>
+          <DialogFooter><Button variante="contorno" type="button" onClick={() => onAbiertoChange(false)} disabled={procesando}>Cancelar</Button><Button type="submit" disabled={procesando}>{procesando ? 'Guardando…' : gastoEditar ? 'Guardar cambios' : 'Guardar gasto'}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

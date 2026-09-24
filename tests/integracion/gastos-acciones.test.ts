@@ -61,6 +61,9 @@ vi.mock('@/modulos/gastos/servicios/indice', async () => {
 import { cambiarEstadoGastoAccion } from '@/modulos/gastos/acciones/cambiar-estado-gasto';
 import { obtenerRentabilidadOrdenAccion } from '@/modulos/gastos/acciones/obtener-rentabilidad-orden';
 import { registrarGastoAccion } from '@/modulos/gastos/acciones/registrar-gasto';
+import { guardarGastoA19Accion } from '@/modulos/gastos/acciones/guardar-gasto-a19';
+import { obtenerUrlComprobanteGastoAccion } from '@/modulos/gastos/acciones/obtener-url-comprobante';
+import { prepararSubidaComprobanteGastoAccion } from '@/modulos/gastos/acciones/preparar-subida-comprobante';
 
 const USUARIO_BASE = {
   id: '10000000-0000-4000-8000-000000000001',
@@ -112,6 +115,7 @@ beforeEach(() => {
 });
 
 const entrada = {
+  tipoGasto: 'variable',
   categoria: 'servicios_generales',
   descripcion: 'Servicio de prueba',
   montoSubtotal: 100,
@@ -123,6 +127,20 @@ const entrada = {
 };
 
 describe('acciones seguras de Gastos', () => {
+  it('rechaza guardado A19 y URL de comprobante a vendedor sin permiso', async () => {
+    const formulario = new FormData();
+    formulario.set('datos', JSON.stringify({ ...entrada, modo: 'crear' }));
+    await expect(guardarGastoA19Accion(formulario)).resolves.toEqual({
+      exito: false, error: 'Sin permiso para guardar gastos',
+    });
+    await expect(obtenerUrlComprobanteGastoAccion({ gastoId: GASTO.id })).resolves.toEqual({
+      exito: false, error: 'Sin permiso para consultar comprobantes',
+    });
+    await expect(prepararSubidaComprobanteGastoAccion({ mime: 'image/png', tamano: 100 })).resolves.toEqual({
+      exito: false, error: 'Sin permiso para subir comprobantes',
+    });
+    expect(registrarGastoMock).not.toHaveBeenCalled();
+  });
   it.each([['operador', OPERADOR], ['vendedor', USUARIO_BASE]])('%s no puede registrar gastos', async (_rol, usuario) => {
     obtenerUsuarioMock.mockResolvedValue(usuario);
     await expect(registrarGastoAccion(entrada)).resolves.toEqual({

@@ -1,5 +1,6 @@
 export {
   esquemaRegistrarGasto,
+  esquemaGuardarGastoA19,
   esquemaCambiarEstadoGasto,
   esquemaConsultarGastos,
   esquemaConsultarRentabilidadOrden,

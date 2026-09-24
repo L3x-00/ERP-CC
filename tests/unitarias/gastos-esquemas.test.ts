@@ -15,6 +15,7 @@ const USUARIO = '33333333-3333-4333-8333-333333333333';
 
 function gastoBase(parcial: Record<string, unknown> = {}) {
   return {
+    tipoGasto: 'variable',
     categoria: 'materia_prima',
     descripcion: 'Placa de aluminio 6061',
     montoSubtotal: 1_000,
@@ -28,6 +29,10 @@ function gastoBase(parcial: Record<string, unknown> = {}) {
 }
 
 describe('esquemaRegistrarGasto', () => {
+  it('exige clasificación explícita para registros nuevos', () => {
+    expect(esquemaRegistrarGasto.safeParse(gastoBase({ tipoGasto: undefined })).success).toBe(false);
+    expect(esquemaRegistrarGasto.safeParse(gastoBase({ tipoGasto: 'indefinido' })).success).toBe(false);
+  });
   it('acepta gasto indirecto y gasto directo', () => {
     expect(esquemaRegistrarGasto.safeParse(gastoBase({ categoria: 'servicios_generales' })).success)
       .toBe(true);

@@ -14,6 +14,7 @@ export type {
   MonedaGasto,
   CategoriaGasto,
   EstadoGasto,
+  TipoGasto,
   MetodoPagoGasto,
   MonedaRentabilidad,
   ComponenteRentabilidad,
