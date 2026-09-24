@@ -2329,6 +2329,18 @@ export type Database = {
         }[]
       }
       es_admin: { Args: never; Returns: boolean }
+      ajustar_continuidad_folio_cnc: {
+        Args: { p_periodo: string; p_ultimo: number; p_actor_id: string }
+        Returns: number
+      }
+      consultar_continuidad_folio_cnc: {
+        Args: { p_periodo: string; p_actor_id: string }
+        Returns: {
+          ultimo_contador: number
+          ultimo_emitido: number
+          siguiente: number | null
+        }[]
+      }
       generar_folio_cnc: { Args: never; Returns: string }
       generar_folio_gasto: { Args: { p_prefijo?: string }; Returns: string }
       generar_folio_inventario: { Args: { p_prefijo: string }; Returns: string }

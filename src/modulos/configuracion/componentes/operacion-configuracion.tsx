@@ -12,6 +12,7 @@ import { PestanaAreasTrabajo } from './pestana-areas-trabajo';
 import { PestanaCatalogos } from './pestana-catalogos';
 import { PestanaCuentasBancarias } from './pestana-cuentas-bancarias';
 import { PestanaEmpresa } from './pestana-empresa';
+import { PestanaFolios } from './pestana-folios';
 import { PestanaPlantillasDoc } from './pestana-plantillas-doc';
 import { PestanaOperadores } from './pestana-operadores';
 import { TablaLogs } from '@/modulos/auditoria/componentes/tabla-logs';
@@ -20,6 +21,7 @@ import { SincronizadorConfiguracionRealtime } from './sincronizador-configuracio
 
 const PESTANAS = [
   ['empresa', 'Empresa'],
+  ['folios', 'Folios'],
   ['tarifas', 'Tarifas / TC'],
   ['catalogos', 'Catálogos'],
   ['areas', 'Áreas de trabajo'],
@@ -180,6 +182,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
             onGuardado={actualizarConfiguracion}
           />
         ) : null}
+        {pestana === 'folios' ? <PestanaFolios /> : null}
         {pestana === 'operadores' && vigente.esAdmin ? (
           <PestanaOperadores
             operadores={vigente.operadoresGestion}
