@@ -51,10 +51,10 @@ export function TablaCuentasPorCobrar({
 
   return (
     <TablaContenedor>
-      <Tabla className="min-w-[900px]">
+      <Tabla className="min-w-[1050px]">
         <TablaEncabezado>
           <tr>
-            <TablaEncabezadoCelda>Orden</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>AR / orden</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Cliente</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Vencimiento</TablaEncabezadoCelda>
             <TablaEncabezadoCelda className="text-right">Monto</TablaEncabezadoCelda>
@@ -73,7 +73,12 @@ export function TablaCuentasPorCobrar({
             const vencida = diasVencidos !== null && diasVencidos > 0 && cuentaVigente(cuenta);
             return (
               <TablaFila key={cuenta.id} seleccionada={seleccionada}>
-                <TablaCelda className="font-mono text-xs font-medium">{onVerOrden ? <Button variante="contorno" tamano="sm" onClick={() => onVerOrden(cuenta.ordenId)}>{cuenta.folioOrden}</Button> : cuenta.folioOrden}</TablaCelda>
+                <TablaCelda className="font-mono text-xs font-medium">
+                  <div className="flex flex-col items-start gap-1">
+                    <span className="whitespace-nowrap">{cuenta.referenciaInterna}</span>
+                    {onVerOrden ? <Button variante="contorno" tamano="sm" onClick={() => onVerOrden(cuenta.ordenId)}>{cuenta.folioOrden}</Button> : cuenta.folioOrden}
+                  </div>
+                </TablaCelda>
                 <TablaCelda>
             <div className="flex items-center gap-1.5">
               <span>{cuenta.clienteNombre}</span>

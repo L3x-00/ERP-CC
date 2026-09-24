@@ -189,6 +189,27 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.goto('/cobranza');
     await expect(page.getByTestId('operacion-cobranza')).toBeVisible();
     const fila = page.getByRole('row', { name: new RegExp(datos.folioOrden) });
+    const { data: referencia } = await datos.admin.from('cuentas_por_cobrar')
+      .select('referencia_interna, folio_factura_remision').eq('id', datos.arId).single();
+    expect(referencia?.referencia_interna).toMatch(/^INVCNC-\d{7}$/);
+    expect(referencia?.folio_factura_remision).toMatch(/^REM-E2E-/);
+    await expect(fila).toContainText(referencia!.referencia_interna);
+    await expect(fila.getByText(referencia!.referencia_interna)).toHaveCSS('white-space', 'nowrap');
+    await page.getByPlaceholder('Cliente, OP, INVCNC o factura').fill(referencia!.referencia_interna);
+    await expect(fila).toBeVisible();
+    await page.getByPlaceholder('Cliente, OP, INVCNC o factura').fill('');
+    for (const [ancho, nombre] of [[1440, 'escritorio'], [768, 'tableta'], [390, 'movil']] as const) {
+      await page.setViewportSize({ width: ancho, height: 900 });
+      for (const oscuro of [false, true]) {
+        await page.evaluate((activar) => document.documentElement.classList.toggle('dark', activar), oscuro);
+        await page.screenshot({
+          path: `.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar01-${nombre}-${oscuro ? 'oscuro' : 'claro'}.png`,
+          fullPage: true,
+        });
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
     await expect(fila).toContainText(/pendiente/i);
     await fila.getByRole('button', { name: 'Cobrar' }).click();
     await page.getByLabel('Monto').fill('40');
@@ -197,6 +218,7 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.getByLabel('Referencia bancaria').fill('E2E-PARCIAL');
     await page.getByRole('button', { name: 'Registrar pago' }).click();
     await expect(page.getByTestId('recibo-persistido')).toContainText(/REC-\d{6}/);
+    await expect(page.getByTestId('recibo-persistido')).toContainText(referencia!.referencia_interna);
     await expect.poll(async () => {
       const { data } = await datos.admin.from('cuentas_por_cobrar').select('estado, saldo_pendiente').eq('id', datos.arId).single();
       return `${data?.estado}:${data?.saldo_pendiente}`;

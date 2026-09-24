@@ -24,6 +24,7 @@ function cuenta(parcial: Partial<CuentaPorCobrar>): CuentaPorCobrar {
   contador += 1;
   return {
     id: `00000000-0000-4000-8000-${String(contador).padStart(12, '0')}`,
+    referenciaInterna: `INVCNC-${String(contador).padStart(7, '0')}`,
     ordenId: '11111111-1111-4111-8111-111111111111',
     clienteId: CLIENTE,
     folioFacturaRemision: null,

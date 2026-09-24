@@ -49,7 +49,7 @@ export function HistorialCuenta({ arId, clienteId }: { arId: string; clienteId: 
   const consulta = useQuery({ queryKey: ['cobranza', 'historial', arId, clienteId, paginaPagos, paginaMovimientos], queryFn: () => datosDe(obtenerHistorialCuentaAccion({ arId, clienteId, paginaPagos, paginaMovimientos })), staleTime: 0, refetchOnWindowFocus: true, refetchInterval: 60_000 });
   const datos = consulta.data;
   return <Consulta consulta={consulta}>{datos && <div className="grid gap-5">
-    <p>{datos.cuenta.clienteNombre} · {datos.cuenta.folioOrden} · Saldo actual: {formatearMoneda(datos.cuenta.saldoPendiente, datos.cuenta.moneda)}</p>
+    <p>{datos.cuenta.clienteNombre} · {datos.cuenta.referenciaInterna} · {datos.cuenta.folioOrden} · Saldo actual: {formatearMoneda(datos.cuenta.saldoPendiente, datos.cuenta.moneda)}</p>
     <section className="grid gap-3"><h3 className="font-semibold">Pagos de la cuenta</h3>
       {datos.pagos.registros.length ? <ul className="grid gap-2">{datos.pagos.registros.map(pago => <li key={pago.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-borde p-3 text-sm"><div><p className="font-medium">{pago.folioRecibo} · {formatearMoneda(pago.montoPagado, pago.monedaPago)}</p><p>{new Date(pago.creadoEn).toLocaleString('es-MX')} · {pago.metodoPago.replaceAll('_', ' ')}</p></div><Button variante="contorno" onClick={() => setPagoId(pago.id)}>Ver recibo {pago.folioRecibo}</Button></li>)}</ul> : <EstadoVacio titulo="Sin pagos registrados" descripcion="Los pagos de esta cuenta aparecerán aquí." />}
       <Paginas nombre="pagos" pagina={paginaPagos} total={datos.pagos.total} porPagina={datos.pagos.porPagina} cambiar={setPaginaPagos} />

@@ -150,6 +150,7 @@ describe('esquemaConsultarCartera', () => {
 describe('mappers de filas generadas', () => {
   const filaCuenta: FilaCuentaPorCobrar = {
     id: uuidCuenta,
+    referencia_interna: 'INVCNC-0000001',
     orden_id: uuidOrden,
     cliente_id: uuidCliente,
     folio_factura_remision: null,
@@ -171,6 +172,7 @@ describe('mappers de filas generadas', () => {
     const cuenta = filaACuentaPorCobrar({ ...filaCuenta, monto_total: '1000' as unknown as number });
     expect(cuenta).toMatchObject({
       id: uuidCuenta,
+      referenciaInterna: 'INVCNC-0000001',
       ordenId: uuidOrden,
       clienteId: uuidCliente,
       folioFacturaRemision: null,

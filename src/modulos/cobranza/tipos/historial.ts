@@ -21,6 +21,7 @@ import {
 /** Encabezado de la cuenta consultada; el saldo es el vigente al momento de leer. */
 export interface CuentaHistorial {
   id: string;
+  referenciaInterna: string;
   ordenId: string;
   clienteId: string;
   clienteNombre: string;
@@ -75,6 +76,7 @@ export interface DetalleOrdenCobranza {
 export interface ReciboPagoPersistido {
   pagoId: string;
   folioRecibo: string;
+  referenciaInterna: string;
   fecha: string;
   folioOrden: string;
   folioFacturaRemision: string | null;

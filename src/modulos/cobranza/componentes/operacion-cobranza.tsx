@@ -94,7 +94,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
     const rango = rangoPeriodo(periodo, rangoPersonalizado);
     const hoyISO = new Date().toISOString();
     return datos.cuentas.filter((cuenta) => {
-      const coincideBusqueda = !termino || [cuenta.clienteNombre, cuenta.folioOrden, cuenta.folioFacturaRemision ?? ''].some((valor) => valor.toLocaleLowerCase('es-MX').includes(termino));
+      const coincideBusqueda = !termino || [cuenta.clienteNombre, cuenta.folioOrden, cuenta.referenciaInterna, cuenta.folioFacturaRemision ?? ''].some((valor) => valor.toLocaleLowerCase('es-MX').includes(termino));
       const emitida = new Date(cuenta.fechaEmision);
       const coincidePeriodo = !rango || (emitida >= rango.inicio && emitida < rango.fin);
       const coincideAging = bucketAging === null || bucketDeCuenta(cuenta, hoyISO) === bucketAging;
@@ -152,8 +152,8 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
       <SincronizadorCobranzaRealtime />
       <TarjetaResumenAging resumenes={datos.agingPorCliente} />
       <div className="grid gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
-        <label className="grid gap-1 text-sm font-medium text-texto-primario">Buscar por cliente u orden
-          <Input value={busqueda} onChange={(evento) => establecerBusqueda(evento.target.value)} placeholder="Cliente, OP o remisión" />
+        <label className="grid gap-1 text-sm font-medium text-texto-primario">Buscar por cliente, orden o AR
+          <Input value={busqueda} onChange={(evento) => establecerBusqueda(evento.target.value)} placeholder="Cliente, OP, INVCNC o factura" />
         </label>
         <label className="grid gap-1 text-sm font-medium text-texto-primario">Periodo de emisión
           <Select value={periodo} onChange={(evento) => establecerPeriodo(evento.target.value as typeof periodo)}>

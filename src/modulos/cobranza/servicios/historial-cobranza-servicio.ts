@@ -60,7 +60,7 @@ export async function obtenerHistorialCuentaServicio(
 ): Promise<HistorialCuenta> {
   const { data: filaCuenta, error: errorCuenta } = await cliente
     .from('cuentas_por_cobrar')
-    .select('id, orden_id, cliente_id, folio_factura_remision, monto_total, saldo_pendiente, moneda, estado, fecha_emision, fecha_vencimiento')
+    .select('id, orden_id, cliente_id, referencia_interna, folio_factura_remision, monto_total, saldo_pendiente, moneda, estado, fecha_emision, fecha_vencimiento')
     .eq('id', entrada.arId)
     .maybeSingle();
   if (errorCuenta) throw new ErrorCobranza('desconocido', errorCuenta.message);
@@ -103,6 +103,7 @@ export async function obtenerHistorialCuentaServicio(
   const folioOrden = await folioDeOrden(cliente, filaCuenta.orden_id);
   const cuenta: CuentaHistorial = {
     id: filaCuenta.id,
+    referenciaInterna: filaCuenta.referencia_interna,
     ordenId: filaCuenta.orden_id,
     clienteId: filaCuenta.cliente_id,
     clienteNombre: contexto.data ? nombreCliente(contexto.data) : 'Cliente no disponible',
@@ -215,7 +216,7 @@ export async function obtenerReciboPagoServicio(
 
   const { data: filaCuenta, error: errorCuenta } = await cliente
     .from('cuentas_por_cobrar')
-    .select('id, orden_id, cliente_id, folio_factura_remision, monto_total, saldo_pendiente, moneda, estado')
+    .select('id, orden_id, cliente_id, referencia_interna, folio_factura_remision, monto_total, saldo_pendiente, moneda, estado')
     .eq('id', pago.arId)
     .maybeSingle();
   if (errorCuenta) throw new ErrorCobranza('desconocido', errorCuenta.message);
@@ -235,6 +236,7 @@ export async function obtenerReciboPagoServicio(
   return {
     pagoId: pago.id,
     folioRecibo: pago.folioRecibo,
+    referenciaInterna: filaCuenta.referencia_interna,
     fecha: pago.creadoEn,
     folioOrden: await folioDeOrden(cliente, filaCuenta.orden_id),
     folioFacturaRemision: filaCuenta.folio_factura_remision,

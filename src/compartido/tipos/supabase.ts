@@ -502,6 +502,7 @@ export type Database = {
           fecha_emision: string
           fecha_vencimiento: string | null
           folio_factura_remision: string | null
+          referencia_interna: string
           id: string
           moneda: string
           monto_iva: number | null
@@ -520,6 +521,7 @@ export type Database = {
           fecha_emision?: string
           fecha_vencimiento?: string | null
           folio_factura_remision?: string | null
+          referencia_interna?: string
           id?: string
           moneda?: string
           monto_iva?: number | null
@@ -538,6 +540,7 @@ export type Database = {
           fecha_emision?: string
           fecha_vencimiento?: string | null
           folio_factura_remision?: string | null
+          referencia_interna?: string
           id?: string
           moneda?: string
           monto_iva?: number | null

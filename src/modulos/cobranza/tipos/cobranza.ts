@@ -48,6 +48,7 @@ export type MonedaSaldoFavor = 'MXN';
  */
 export interface CuentaPorCobrar {
   id: string;
+  referenciaInterna: string;
   ordenId: string;
   clienteId: string;
   folioFacturaRemision: string | null;
@@ -139,6 +140,7 @@ function validarValorEnumerado<T extends string>(
 export function filaACuentaPorCobrar(fila: FilaCuentaPorCobrar): CuentaPorCobrar {
   return {
     id: fila.id,
+    referenciaInterna: fila.referencia_interna,
     ordenId: fila.orden_id,
     clienteId: fila.cliente_id,
     folioFacturaRemision: fila.folio_factura_remision,
