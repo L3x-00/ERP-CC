@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   esquemaCambiarEstadoOrden,
   esquemaCrearOrden,
+  esquemaCrearOrdenHistorica,
   esquemaRegistrarConsumoMaterial,
   esquemaRegistrarTiempoOperador,
+  esquemaReactivarOrden,
+  esquemaRepetirOrden,
 } from '@/modulos/ordenes/validaciones/ordenes';
 import {
   filaAOrden,
@@ -262,6 +265,15 @@ describe('mappers de órdenes', () => {
         fecha_inicio: null,
         fecha_fin: null,
         motivo_cancelacion: null,
+        condicion_pago: null,
+        fecha_trabajo: null,
+        horas_estimadas: null,
+        id_historico: null,
+        monto_iva: null,
+        monto_sin_iva: null,
+        notas: null,
+        referencia_externa: null,
+        orden_origen_id: null,
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
@@ -337,9 +349,86 @@ describe('mappers de órdenes', () => {
         fecha_inicio: null,
         fecha_fin: null,
         motivo_cancelacion: null,
+        condicion_pago: null,
+        fecha_trabajo: null,
+        horas_estimadas: null,
+        id_historico: null,
+        monto_iva: null,
+        monto_sin_iva: null,
+        notas: null,
+        referencia_externa: null,
+        orden_origen_id: null,
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
     ).toThrow('estado de orden');
+  });
+});
+
+describe('ORD-06: esquema de la orden heredada', () => {
+  const historicaValida = {
+    clienteId: uuidCliente,
+    idHistorico: 'HIST-2024-001',
+    fechaTrabajo: '2024-11-30',
+    fechaCompromiso: '2026-10-01T18:00:00.000Z',
+    condicionPago: 'credito' as const,
+    montoSinIva: 1000,
+    montoIva: 160,
+    horasEstimadas: 8,
+    partidas: [{ ...partidaValida, procesos: ['Corte', 'Pulido'], areaTrabajoCodigo: 'ACABADOS' }],
+  };
+
+  it('acepta el trabajo heredado completo con área y procesos', () => {
+    expect(esquemaCrearOrdenHistorica.safeParse(historicaValida).success).toBe(true);
+  });
+
+  it('rechaza monto total cero, ID previo vacío y partidas sin código', () => {
+    expect(esquemaCrearOrdenHistorica.safeParse({
+      ...historicaValida, montoSinIva: 0, montoIva: 0,
+    }).success).toBe(false);
+    expect(esquemaCrearOrdenHistorica.safeParse({ ...historicaValida, idHistorico: '  ' }).success).toBe(false);
+    expect(esquemaCrearOrdenHistorica.safeParse({
+      ...historicaValida,
+      partidas: [{ ...partidaValida, codigoPieza: '' }],
+    }).success).toBe(false);
+  });
+
+  it('rechaza una fecha de trabajo que no es fecha y horas negativas', () => {
+    expect(esquemaCrearOrdenHistorica.safeParse({ ...historicaValida, fechaTrabajo: 'ayer' }).success).toBe(false);
+    expect(esquemaCrearOrdenHistorica.safeParse({ ...historicaValida, horasEstimadas: -1 }).success).toBe(false);
+  });
+});
+
+describe('CLI-08: esquema de repetición', () => {
+  it('exige orden de origen y fecha de compromiso válidas', () => {
+    expect(esquemaRepetirOrden.safeParse({
+      ordenOrigenId: uuidOrden,
+      fechaCompromiso: '2026-11-01T18:00:00.000Z',
+    }).success).toBe(true);
+    expect(esquemaRepetirOrden.safeParse({
+      ordenOrigenId: 'no-es-uuid',
+      fechaCompromiso: '2026-11-01T18:00:00.000Z',
+    }).success).toBe(false);
+    expect(esquemaRepetirOrden.safeParse({
+      ordenOrigenId: uuidOrden,
+      fechaCompromiso: '01/11/2026',
+    }).success).toBe(false);
+  });
+});
+
+describe('PRD-15: esquema de reactivación', () => {
+  it('exige orden y token de versión con offset', () => {
+    expect(esquemaReactivarOrden.safeParse({
+      ordenId: uuidOrden,
+      actualizadoEn: '2026-10-01T18:00:00.000Z',
+    }).success).toBe(true);
+    expect(esquemaReactivarOrden.safeParse({
+      ordenId: uuidOrden,
+      actualizadoEn: 'ayer',
+    }).success).toBe(false);
+    expect(esquemaReactivarOrden.safeParse({
+      ordenId: 'no-es-uuid',
+      actualizadoEn: '2026-10-01T18:00:00.000Z',
+    }).success).toBe(false);
   });
 });

@@ -6,6 +6,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { obtenerArchivosSesionOrdenAccion, obtenerUrlArchivoSesionAccion } from '@/modulos/produccion/acciones/archivos-sesion';
+import type { ArchivoSesionResumen } from '@/modulos/produccion/archivos-sesion-config';
+import { CLAVE_ARCHIVOS_SESION } from '@/modulos/produccion/componentes/claves-consulta';
+import { subirArchivoSesionDesdeNavegador } from '@/modulos/produccion/subir-archivo-sesion-cliente';
 import { NotaEntregaDocumentoBoton } from '@/modulos/produccion/componentes/nota-entrega-documento-boton';
 import {
   obtenerDocumentosOrdenAccion,
@@ -32,14 +36,18 @@ function formatearTamano(bytes: number | null): string {
 export function DocumentosOrdenPanel({
   ordenId,
   ordenFolio,
+  sesionFinalId,
 }: {
   ordenId: string | null;
   ordenFolio: string | null;
+  sesionFinalId: string | null;
 }) {
   const clienteConsultas = useQueryClient();
   const entradaArchivo = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [mensajeSalida, setMensajeSalida] = useState<string | null>(null);
+  const [subiendoSalida, setSubiendoSalida] = useState(false);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_ENTREGABLES_ORDEN, ordenId],
@@ -54,6 +62,17 @@ export function DocumentosOrdenPanel({
     staleTime: 30_000,
   });
   const datos = consulta.data ?? null;
+  const consultaArchivos = useQuery({
+    queryKey: [...CLAVE_ARCHIVOS_SESION, ordenId],
+    queryFn: async (): Promise<ArchivoSesionResumen[]> => {
+      const respuesta = await obtenerArchivosSesionOrdenAccion({ ordenId });
+      if (!respuesta.exito || !respuesta.datos) throw new Error('No se pudieron consultar los archivos de salida');
+      return respuesta.datos;
+    },
+    enabled: ordenId !== null,
+    staleTime: 30_000,
+  });
+  const archivosSalida = (consultaArchivos.data ?? []).filter((archivo) => archivo.clase === 'salida_final');
 
   const refrescar = useCallback(async () => {
     await clienteConsultas.invalidateQueries({ queryKey: CLAVE_ENTREGABLES_ORDEN });
@@ -101,6 +120,41 @@ export function DocumentosOrdenPanel({
     window.open(resultado.datos.url, '_blank', 'noopener,noreferrer');
   }, [ordenId]);
 
+  async function subirSalida(evento: FormEvent<HTMLFormElement>): Promise<void> {
+    evento.preventDefault();
+    if (!sesionFinalId) return;
+    const formulario = evento.currentTarget;
+    const archivo = new FormData(formulario).get('archivoSalida');
+    if (!(archivo instanceof File)) {
+      setMensajeSalida('Selecciona un archivo de salida final');
+      return;
+    }
+    setSubiendoSalida(true);
+    setMensajeSalida(null);
+    try {
+      await subirArchivoSesionDesdeNavegador(sesionFinalId, 'salida_final', archivo);
+      formulario.reset();
+      setMensajeSalida('Archivo de salida final asociado');
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_ARCHIVOS_SESION }).catch(() => {
+        setMensajeSalida('Archivo asociado; actualiza la lista para verlo');
+      });
+    } catch (error) {
+      setMensajeSalida(error instanceof Error ? error.message : 'No se pudo subir la salida final');
+    } finally {
+      setSubiendoSalida(false);
+    }
+  }
+
+  async function abrirSalida(id: string): Promise<void> {
+    if (!ordenId) return;
+    const resultado = await obtenerUrlArchivoSesionAccion({ ordenId, archivoId: id });
+    if (!resultado.exito || !resultado.datos) {
+      setMensajeSalida(resultado.exito ? 'No se pudo abrir el archivo' : resultado.error);
+      return;
+    }
+    window.open(resultado.datos.url, '_blank', 'noopener,noreferrer');
+  }
+
   return (
     <section
       className="rounded-lg border border-borde bg-superficie p-4"
@@ -111,7 +165,7 @@ export function DocumentosOrdenPanel({
         Entregables de producción
       </h2>
       <p className="mt-1 text-sm text-texto-secundario">
-        Planos y documentos de la orden, más las notas de entrega con su confirmación imprimible.
+        Planos y documentos de origen/orden, archivos de cada sesión y salida final se muestran por separado.
       </p>
 
       {!ordenId && (
@@ -131,7 +185,7 @@ export function DocumentosOrdenPanel({
         <div className="mt-4 grid gap-6 lg:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex items-baseline justify-between gap-2">
-              <h3 className="text-sm font-semibold text-texto-primario">Planos y documentos</h3>
+              <h3 className="text-sm font-semibold text-texto-primario">Planos y documentos del cliente/orden</h3>
               <span className="text-xs text-texto-secundario">
                 {datos.orden.cotizacionFolio
                   ? `Origen ${datos.orden.cotizacionFolio}`
@@ -192,7 +246,7 @@ export function DocumentosOrdenPanel({
 
           <div className="flex min-w-0 flex-col gap-3">
             <h3 className="text-sm font-semibold text-texto-primario">
-              Notas de entrega {ordenFolio ? `· ${ordenFolio}` : ''}
+              Salida y notas de entrega {ordenFolio ? `· ${ordenFolio}` : ''}
             </h3>
             {datos.notas.length === 0 ? (
               <p className="text-sm text-texto-secundario">Aún no hay entregas registradas para la orden.</p>
@@ -216,6 +270,29 @@ export function DocumentosOrdenPanel({
                 ))}
               </ul>
             )}
+            <div className="border-t border-borde pt-3">
+              <h4 className="text-sm font-semibold">Archivos de salida final</h4>
+              {consultaArchivos.isError ? <p role="alert" className="mt-1 text-sm text-peligro-texto">No se pudieron cargar los archivos de salida.</p> : null}
+              {archivosSalida.length === 0 ? <p className="mt-1 text-sm text-texto-secundario">Sin archivos de salida final.</p> : null}
+              {archivosSalida.length > 0 ? <ul className="mt-2 grid gap-2">
+                {archivosSalida.map((archivo) => (
+                  <li key={archivo.id} className="flex min-w-0 items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate" title={archivo.nombre}>{archivo.nombre}</span>
+                    <Button type="button" variante="contorno" tamano="sm" onClick={() => void abrirSalida(archivo.id)}>Abrir en lectura</Button>
+                  </li>
+                ))}
+              </ul> : null}
+              {sesionFinalId ? <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={subirSalida}>
+                <label className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
+                  Adjuntar salida final (hasta 20 MiB)
+                  <Input name="archivoSalida" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai" aria-label="Archivo de salida final" />
+                </label>
+                <Button type="submit" tamano="sm" disabled={subiendoSalida}>
+                  {subiendoSalida ? 'Subiendo…' : 'Subir salida'}
+                </Button>
+              </form> : <p className="mt-2 text-xs text-texto-secundario">Disponible cuando la orden tenga una sesión finalizada.</p>}
+              {mensajeSalida ? <p role="status" className="mt-2 text-sm text-texto-secundario">{mensajeSalida}</p> : null}
+            </div>
           </div>
         </div>
       )}

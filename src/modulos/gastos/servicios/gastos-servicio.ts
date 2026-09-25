@@ -68,30 +68,10 @@ export async function registrarGastoServicio(
   entrada: RegistrarGastoInput,
   usuarioId: string,
 ): Promise<Gasto> {
-  // Los parámetros SQL sin DEFAULT se generan como no nulos, pero la RPC acepta
-  // null en los campos opcionales (los valida por dentro); de ahí la conversión.
-  const argumentos = {
-    p_orden_id: entrada.ordenId ?? null,
-    p_proveedor_id: entrada.proveedorId ?? null,
-    p_cuenta_bancaria_id: entrada.cuentaBancariaId ?? null,
-    p_categoria: entrada.categoria,
-    p_descripcion: entrada.descripcion,
-    p_monto_subtotal: entrada.montoSubtotal,
-    p_monto_iva: entrada.montoIva,
-    p_monto_total: entrada.montoTotal,
-    p_moneda: entrada.moneda,
-    p_tipo_cambio: entrada.tipoCambio,
-    p_fecha_gasto: entrada.fechaGasto,
-    p_fecha_vencimiento: entrada.fechaVencimiento ?? null,
-    p_comprobante_url: entrada.comprobanteUrl ?? null,
-    p_folio_comprobante: entrada.folioComprobante ?? null,
-    p_metodo_pago: entrada.metodoPago ?? null,
-    p_datos_ocr_json: jsonSeguro(entrada.datosOcrJson),
-    p_notas: entrada.notas ?? null,
-    p_creado_por: usuarioId,
-  } as unknown as Database['public']['Functions']['registrar_gasto']['Args'];
-
-  const { data, error } = await admin.rpc('registrar_gasto', argumentos);
+  const datos = { ...entrada, datosOcrJson: jsonSeguro(entrada.datosOcrJson) } as Json;
+  const { data, error } = await admin.rpc('registrar_gasto_a19', {
+    p_datos: datos, p_usuario_id: usuarioId,
+  });
   if (error) lanzarError(error.message);
   const fila = data?.[0];
   if (!fila) throw new ErrorGastos('desconocido');
@@ -124,7 +104,7 @@ export async function consultarGastosServicio(
 ): Promise<Gasto[]> {
   let consulta = cliente
     .from('gastos')
-    .select('*, ordenes_produccion(folio)')
+    .select('*, ordenes_produccion(folio), proveedores(nombre_comercial)')
     .order('fecha_gasto', { ascending: false });
   if (filtros.ordenId) consulta = consulta.eq('orden_id', filtros.ordenId);
   if (filtros.proveedorId) consulta = consulta.eq('proveedor_id', filtros.proveedorId);
@@ -153,17 +133,19 @@ export async function consultarGastosServicio(
   const { data, error } = await consulta;
   if (error) throw new ErrorGastos('desconocido', error.message);
   return (data ?? []).map((fila) => {
-    const { ordenes_produccion, ...base } = fila;
+    const { ordenes_produccion, proveedores, ...base } = fila;
     return {
       ...filaAGasto(base as FilaGasto),
       ordenFolio: ordenes_produccion?.folio ?? null,
+      proveedorNombre: proveedores?.nombre_comercial ?? null,
     };
   });
 }
 
 function componentesFaltantes(
   fila: {
-    monto_venta_mxn: number;
+    monto_venta_facturado_mxn: number;
+    venta_desglose_conocido: boolean;
     materiales_considerados: number;
     sesiones_consideradas: number;
     gastos_considerados: number;
@@ -172,7 +154,9 @@ function componentesFaltantes(
 ): ComponenteRentabilidad[] {
   const faltantes: ComponenteRentabilidad[] = [];
   // TI no genera venta por diseño: no es un dato faltante.
-  if (!esInterna && numeroSeguro(fila.monto_venta_mxn) <= 0) faltantes.push('ingreso');
+  if (!esInterna && numeroSeguro(fila.monto_venta_facturado_mxn) <= 0) faltantes.push('ingreso');
+  // A03: hay venta pero sin base gravable histórica con la que medir el margen.
+  if (!fila.venta_desglose_conocido) faltantes.push('desglose_iva');
   if (numeroSeguro(fila.materiales_considerados) === 0) faltantes.push('materiales');
   if (numeroSeguro(fila.sesiones_consideradas) === 0) faltantes.push('mano_obra');
   if (numeroSeguro(fila.gastos_considerados) === 0) faltantes.push('gastos');
@@ -203,12 +187,19 @@ export async function obtenerRentabilidadOrdenServicio(
     folio: orden?.folio ?? 'Orden no disponible',
     esInterna,
     moneda: 'MXN',
-    ingresoMxn: numeroSeguro(fila.monto_venta_mxn),
+    ingresoMxn: numeroSeguro(fila.monto_venta_facturado_mxn),
+    // A03: `monto_venta_mxn` es la base sin IVA y llega null cuando alguna
+    // cuenta cobrable no tiene desglose histórico. No se sustituye por 0.
+    ingresoNetoMxn: fila.monto_venta_mxn === null ? null : numeroSeguro(fila.monto_venta_mxn),
+    ivaVentaMxn: fila.monto_iva_mxn === null ? null : numeroSeguro(fila.monto_iva_mxn),
+    ingresoDesgloseConocido: fila.venta_desglose_conocido,
+    cuentasSinDesglose: numeroSeguro(fila.cuentas_sin_desglose),
     costoMaterialesMxn: numeroSeguro(fila.costo_materiales_mxn),
     costoManoObraMxn: numeroSeguro(fila.costo_mano_obra_mxn),
     costoGastosDirectosMxn: numeroSeguro(fila.costo_gastos_directos_mxn),
     costoTotalMxn: numeroSeguro(fila.costo_total_mxn),
-    utilidadBrutaMxn: numeroSeguro(fila.utilidad_bruta_mxn),
+    utilidadBrutaMxn:
+      fila.utilidad_bruta_mxn === null ? null : numeroSeguro(fila.utilidad_bruta_mxn),
     margenPorcentaje: fila.margen_porcentaje === null ? null : numeroSeguro(fila.margen_porcentaje),
     margenCalculable: fila.margen_calculable,
     materialesConsiderados: numeroSeguro(fila.materiales_considerados),

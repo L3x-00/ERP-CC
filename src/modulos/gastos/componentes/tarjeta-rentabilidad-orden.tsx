@@ -221,9 +221,25 @@ export function TarjetaRentabilidadOrden({
     <section className="rounded-lg border border-borde bg-superficie p-4 shadow-sm" aria-labelledby="titulo-rentabilidad">
       <h2 id="titulo-rentabilidad" className="text-lg font-semibold">Rentabilidad de la orden {datos.folio}</h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div><span className="text-xs text-texto-secundario">Venta explícita (MXN)</span><p className="font-semibold tabular-nums">{formatearMoneda(datos.ingresoMxn)}</p></div>
+        <div>
+          <span className="text-xs text-texto-secundario">Venta neta sin IVA (MXN)</span>
+          <p className="font-semibold tabular-nums" data-testid="rentabilidad-venta-neta">
+            {datos.ingresoNetoMxn === null ? 'No calculable' : formatearMoneda(datos.ingresoNetoMxn)}
+          </p>
+          <span className="text-xs text-texto-secundario">
+            Facturado {formatearMoneda(datos.ingresoMxn)}
+            {datos.ivaVentaMxn !== null ? ` · IVA ${formatearMoneda(datos.ivaVentaMxn)}` : ''}
+          </span>
+        </div>
         <div><span className="text-xs text-texto-secundario">Costo total</span><p className="font-semibold tabular-nums">{formatearMoneda(datos.costoTotalMxn)}</p></div>
-        <div><span className="text-xs text-texto-secundario">Utilidad bruta</span><p className="font-semibold tabular-nums">{formatearMoneda(datos.utilidadBrutaMxn)}</p></div>
+        <div>
+          <span className="text-xs text-texto-secundario">Utilidad bruta</span>
+          <p className="font-semibold tabular-nums" data-testid="rentabilidad-utilidad">
+            {datos.utilidadBrutaMxn === null
+              ? 'No calculable'
+              : formatearMoneda(datos.utilidadBrutaMxn)}
+          </p>
+        </div>
         <div>
           <span className="text-xs text-texto-secundario">Margen</span>
           <p className={`font-semibold tabular-nums ${claseMargen(datos.margenPorcentaje)}`}>
@@ -238,6 +254,13 @@ export function TarjetaRentabilidadOrden({
       </dl>
       {notaIncluidos ? (
         <p className="mt-2 text-sm text-texto-secundario">{notaIncluidos}</p>
+      ) : null}
+      {!datos.ingresoDesgloseConocido && datos.ingresoMxn > 0 ? (
+        <p className="mt-3 text-sm text-advertencia-texto" data-testid="rentabilidad-sin-desglose">
+          {formatearNumero(datos.cuentasSinDesglose, 0)} cuenta(s) por cobrar sin desglose de IVA
+          registrado: la venta neta, la utilidad y el margen no son calculables. No se estiman con
+          la tasa de IVA vigente porque reescribiría ventas pasadas.
+        </p>
       ) : null}
       {datos.componentesFaltantes.length > 0 ? <p className="mt-3 text-sm text-advertencia-texto">Datos faltantes: {datos.componentesFaltantes.join(', ')}</p> : null}
       {desglose ? <DesgloseRentabilidad desglose={desglose} /> : null}

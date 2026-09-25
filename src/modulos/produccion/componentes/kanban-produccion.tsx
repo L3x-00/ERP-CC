@@ -5,6 +5,7 @@ import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { cn } from '@/compartido/utilidades/cn';
+import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type {
   AreaCatalogoProduccion,
   OrdenTableroProduccion,
@@ -200,6 +201,28 @@ export function KanbanProduccion({
                       mostrarPorcentaje
                       etiqueta={`Avance de ${orden.folio}`}
                     />
+                    {/* PRD-09: hecho/meta/pendiente/porcentaje por pareja partida×proceso. */}
+                    {orden.partidas.map((partida) => partida.metasProceso.length > 1 ? (
+                      <div
+                        key={partida.id}
+                        className="flex flex-col gap-0.5 rounded-md border border-borde bg-superficie-2/40 p-2"
+                        data-testid={`avance-procesos-${partida.id}`}
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-texto-tenue">
+                          {partida.codigoPieza}
+                        </p>
+                        {partida.metasProceso.map((meta) => (
+                          <p
+                            key={meta.id}
+                            className="text-xs text-texto-secundario"
+                            data-testid={`avance-proceso-${partida.id}-${meta.secuencia}`}
+                          >
+                            {meta.nombre}: {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
+                            {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
+                          </p>
+                        ))}
+                      </div>
+                    ) : null)}
                     <p className="text-sm text-texto-secundario">
                       Compromiso: <span className="whitespace-nowrap">{new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}</span>
                     </p>

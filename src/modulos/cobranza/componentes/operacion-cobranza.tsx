@@ -9,6 +9,7 @@ import { usarTiendaCobranza } from '@/estado/uso-tienda-cobranza';
 import {
   aplicarSaldoFavorAccion,
   obtenerResumenCarteraAccion,
+  registrarFacturaArAccion,
   registrarPagoAccion,
 } from '@/modulos/cobranza/acciones/indice';
 import { CLAVE_CARTERA_COBRANZA } from '@/modulos/cobranza/componentes/claves-consulta';
@@ -21,6 +22,8 @@ import { HistorialCuenta, DetalleOrdenCobranza, ReciboPagoConsulta } from '@/mod
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/compartido/componentes/ui/dialog';
 import { SincronizadorCobranzaRealtime } from '@/modulos/cobranza/componentes/sincronizador-cobranza-realtime';
 import { TablaCuentasPorCobrar } from '@/modulos/cobranza/componentes/tabla-cuentas-por-cobrar';
+import { ModalRegistrarFactura, type DatosFacturaAr } from '@/modulos/cobranza/componentes/modal-registrar-factura';
+import { ModalAbrirArExcepcion } from '@/modulos/cobranza/componentes/modal-abrir-ar-excepcion';
 import { TarjetaResumenAging } from '@/modulos/cobranza/componentes/tarjeta-resumen-aging';
 import {
   BUCKETS_AGING,
@@ -78,6 +81,8 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
   const [reciboId, setReciboId] = useState<string | null>(null);
   const [historial, setHistorial] = useState<{ arId: string; clienteId: string } | null>(null);
   const [ordenId, setOrdenId] = useState<string | null>(null);
+  const [facturaCuentaId, setFacturaCuentaId] = useState<string | null>(null);
+  const [altaExcepcionAbierta, setAltaExcepcionAbierta] = useState(false);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_CARTERA_COBRANZA, revisionCartera],
@@ -94,7 +99,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
     const rango = rangoPeriodo(periodo, rangoPersonalizado);
     const hoyISO = new Date().toISOString();
     return datos.cuentas.filter((cuenta) => {
-      const coincideBusqueda = !termino || [cuenta.clienteNombre, cuenta.folioOrden, cuenta.folioFacturaRemision ?? ''].some((valor) => valor.toLocaleLowerCase('es-MX').includes(termino));
+      const coincideBusqueda = !termino || [cuenta.clienteNombre, cuenta.folioOrden, cuenta.referenciaInterna, cuenta.folioFacturaRemision ?? ''].some((valor) => valor.toLocaleLowerCase('es-MX').includes(termino));
       const emitida = new Date(cuenta.fechaEmision);
       const coincidePeriodo = !rango || (emitida >= rango.inicio && emitida < rango.fin);
       const coincideAging = bucketAging === null || bucketDeCuenta(cuenta, hoyISO) === bucketAging;
@@ -102,6 +107,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
     });
   }, [busqueda, datos.cuentas, periodo, rangoPersonalizado, bucketAging]);
   const cuentaSeleccionada = datos.cuentas.find((cuenta) => cuenta.id === cuentaSeleccionadaId) ?? null;
+  const cuentaFactura = datos.cuentas.find((cuenta) => cuenta.id === facturaCuentaId) ?? null;
 
   const abrirCobro = useCallback((cuentaId: string) => {
     seleccionarCuenta(cuentaId);
@@ -145,15 +151,39 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
     }
   }, [refrescar]);
 
+  const guardarFactura = useCallback(async (entrada: DatosFacturaAr, abrirAbono: boolean) => {
+    const resultado = await registrarFacturaArAccion(entrada);
+    if (!resultado.exito) return { exito: false as const, error: resultado.error };
+    await refrescar().catch(() => console.error('[COBRANZA] Factura confirmada; cartera pendiente de actualizar'));
+    setFacturaCuentaId(null);
+    if (abrirAbono) {
+      seleccionarCuenta(entrada.arId);
+      setModalAbierto(true);
+    }
+    return { exito: true as const };
+  }, [refrescar, seleccionarCuenta]);
+
+  const cuentaExcepcionalCreada = useCallback(async (cuentaId: string, abrirAbono: boolean) => {
+    await refrescar().catch(() => console.error('[COBRANZA] AR creada; cartera pendiente de actualizar'));
+    setAltaExcepcionAbierta(false);
+    if (abrirAbono) {
+      seleccionarCuenta(cuentaId);
+      setModalAbierto(true);
+    }
+  }, [refrescar, seleccionarCuenta]);
+
   const cargando = consulta.isPending && !consulta.isError;
 
   return (
     <div className="flex flex-col gap-6" data-testid="operacion-cobranza">
       <SincronizadorCobranzaRealtime />
       <TarjetaResumenAging resumenes={datos.agingPorCliente} />
+      {puedeRegistrarPago && <div className="flex justify-end">
+        <Button variante="secundario" onClick={() => setAltaExcepcionAbierta(true)}>Nueva factura de orden sin cuenta</Button>
+      </div>}
       <div className="grid gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
-        <label className="grid gap-1 text-sm font-medium text-texto-primario">Buscar por cliente u orden
-          <Input value={busqueda} onChange={(evento) => establecerBusqueda(evento.target.value)} placeholder="Cliente, OP o remisión" />
+        <label className="grid gap-1 text-sm font-medium text-texto-primario">Buscar por cliente, orden o AR
+          <Input value={busqueda} onChange={(evento) => establecerBusqueda(evento.target.value)} placeholder="Cliente, OP, INVCNC o factura" />
         </label>
         <label className="grid gap-1 text-sm font-medium text-texto-primario">Periodo de emisión
           <Select value={periodo} onChange={(evento) => establecerPeriodo(evento.target.value as typeof periodo)}>
@@ -190,7 +220,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
       ) : null}
       {cargando
         ? <SkeletonTabla columnas={8} filas={6} />
-        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} puedeCobrar={puedeRegistrarPago || puedeAplicarSaldo} onVerHistorial={(cuenta) => setHistorial({ arId: cuenta.id, clienteId: cuenta.clienteId })} onVerOrden={setOrdenId} />}
+        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} puedeCobrar={puedeRegistrarPago || puedeAplicarSaldo} onVerHistorial={(cuenta) => setHistorial({ arId: cuenta.id, clienteId: cuenta.clienteId })} onVerOrden={setOrdenId} onRegistrarFactura={puedeRegistrarPago ? setFacturaCuentaId : undefined} />}
       {reciboId && <ReciboPagoConsulta key={reciboId} pagoId={reciboId} />}
       <Dialog open={historial !== null} onOpenChange={(abierto) => { if (!abierto) setHistorial(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Historial de cobranza</DialogTitle><DialogDescription>Pagos de la cuenta y monedero del cliente.</DialogDescription></DialogHeader>{historial && <HistorialCuenta key={historial.arId} {...historial} />}</DialogContent></Dialog>
       <Dialog open={ordenId !== null} onOpenChange={(abierto) => { if (!abierto) setOrdenId(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Detalle de orden</DialogTitle><DialogDescription>Partidas y avance de la orden seleccionada.</DialogDescription></DialogHeader>{ordenId && <DetalleOrdenCobranza key={ordenId} ordenId={ordenId} />}</DialogContent></Dialog>
@@ -204,6 +234,18 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
         onAplicarSaldo={aplicarSaldo}
         puedeRegistrarPago={puedeRegistrarPago}
         puedeAplicarSaldo={puedeAplicarSaldo}
+      />
+      <ModalRegistrarFactura
+        key={cuentaFactura?.id ?? 'sin-factura'}
+        cuenta={cuentaFactura}
+        abierto={facturaCuentaId !== null}
+        onAbiertoChange={(abierto) => { if (!abierto) setFacturaCuentaId(null); }}
+        onGuardar={guardarFactura}
+      />
+      <ModalAbrirArExcepcion
+        abierto={altaExcepcionAbierta}
+        onAbiertoChange={setAltaExcepcionAbierta}
+        onCreada={cuentaExcepcionalCreada}
       />
     </div>
   );

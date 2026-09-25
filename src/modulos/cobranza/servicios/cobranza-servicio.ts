@@ -25,6 +25,8 @@ export type CodigoErrorCobranza =
   | 'saldo_insuficiente'
   | 'solicitud_invalida'
   | 'orden_no_lista'
+  | 'cuenta_ya_existe'
+  | 'sin_permiso'
   | 'desconocido';
 
 export class ErrorCobranza extends Error {
@@ -82,6 +84,9 @@ export interface ResumenCartera {
 }
 
 function codigoDesdeMensaje(mensaje: string | undefined): CodigoErrorCobranza {
+  if (mensaje?.includes('sin_permiso_ar_excepcion')) return 'sin_permiso';
+  if (mensaje?.includes('cuenta_por_cobrar_ya_existe')) return 'cuenta_ya_existe';
+  if (mensaje?.includes('orden_no_entregada_para_ar')) return 'orden_no_lista';
   if (mensaje?.includes('orden_no_lista_para_cobranza')) return 'orden_no_lista';
   if (mensaje?.includes('saldo_a_favor_insuficiente')) return 'saldo_insuficiente';
   if (mensaje?.includes('solicitud_')) return 'solicitud_invalida';
@@ -101,26 +106,27 @@ function numeroSeguro(valor: number): number {
 /** Abre una cuenta AR desde una orden lista, con el importe capturado por Contabilidad. */
 export async function abrirCuentaPorCobrarServicio(
   admin: SupabaseClient<Database>,
-  entrada: CrearCuentaPorCobrarInput,
+  entrada: CrearCuentaPorCobrarInput & { actorId: string },
 ): Promise<CuentaAbierta> {
-  const { data, error } = await admin.rpc('abrir_cuenta_por_cobrar', {
+  const { data, error } = await admin.rpc('abrir_ar_excepcion_entregada', {
     p_orden_id: entrada.ordenId,
     p_monto_total: entrada.montoTotal,
     p_moneda: entrada.moneda,
     p_tipo_cambio_origen: entrada.tipoCambioOrigen,
     p_fecha_vencimiento: entrada.fechaVencimiento,
-    p_folio_factura_remision: entrada.folioFacturaRemision,
+    p_folio_factura: entrada.folioFacturaRemision,
+    p_actor_id: entrada.actorId,
   });
   if (error) lanzarErrorCobranza(error.message);
   const fila = data?.[0];
-  if (!fila?.id) throw new ErrorCobranza('desconocido');
+  if (!fila?.cuenta_id) throw new ErrorCobranza('desconocido');
 
   return {
-    id: fila.id,
+    id: fila.cuenta_id,
     clienteId: fila.cliente_id,
-    saldoPendiente: Number(fila.saldo_pendiente),
-    moneda: fila.moneda,
-    estado: fila.estado,
+    saldoPendiente: entrada.montoTotal,
+    moneda: entrada.moneda,
+    estado: 'pendiente',
   };
 }
 
@@ -295,6 +301,8 @@ export function mensajeErrorCobranza(error: unknown): string {
   if (error instanceof ErrorCobranza) {
     if (error.codigo === 'saldo_insuficiente') return 'El cliente no tiene saldo a favor suficiente';
     if (error.codigo === 'orden_no_lista') return 'La orden todavía no está lista para abrir cobranza';
+    if (error.codigo === 'cuenta_ya_existe') return 'La orden ya tiene una cuenta por cobrar. Actualiza la cartera.';
+    if (error.codigo === 'sin_permiso') return 'Tu permiso para registrar facturas ya no está vigente.';
     if (error.codigo === 'cuenta_no_disponible') return 'La cuenta no está disponible para este movimiento';
   }
   return 'No se pudo completar la operación de cobranza';

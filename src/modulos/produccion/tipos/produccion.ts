@@ -74,6 +74,26 @@ export interface PartidaNotaEntrega {
 export type FilaSesionTrabajo = Tables<'sesiones_trabajo'>;
 export type FilaNotaEntrega = Tables<'notas_entrega'>;
 export type FilaPartidaNotaEntrega = Tables<'partidas_nota_entrega'>;
+export type FilaMetaProcesoPartida = Tables<'metas_proceso_partida'>;
+
+/** ORD-07/PRD-09: meta ordenada de una pareja partida×proceso. */
+export interface MetaProcesoPartida {
+  id: string;
+  partidaId: string;
+  secuencia: number;
+  nombre: string;
+  metaPiezas: number;
+}
+
+export function filaAMetaProcesoPartida(fila: FilaMetaProcesoPartida): MetaProcesoPartida {
+  return {
+    id: fila.id,
+    partidaId: fila.partida_id,
+    secuencia: Number(fila.secuencia),
+    nombre: fila.nombre,
+    metaPiezas: Number(fila.meta_piezas),
+  };
+}
 
 /**
  * Las columnas de enumeración viajan como `text` en los tipos generados: un valor

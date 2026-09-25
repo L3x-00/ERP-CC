@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
 import { EditarOrdenDialog } from '@/modulos/ordenes/componentes/editar-orden-dialog';
+import { ConfigurarProcesosDialog } from '@/modulos/ordenes/componentes/configurar-procesos-dialog';
+import { ReactivarOrdenDialog } from '@/modulos/ordenes/componentes/reactivar-orden-dialog';
+import { RepetirOrdenDialog } from '@/modulos/ordenes/componentes/repetir-orden-dialog';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -49,6 +53,7 @@ export type PartidaTabla = {
   unidadMedida: string;
   tiempoEstimadoMinutos: number;
   maquinaAsignada: string | null;
+  metasProceso: { id: string; secuencia: number; nombre: string; metaPiezas: number }[];
 };
 
 /** Orden tal como la necesita la tabla (proyección plana del servidor). */
@@ -65,6 +70,8 @@ export type OrdenTabla = {
   /** OBS-21: fecha de archivo al completar la entrega; null si sigue activa. */
   archivadaEn: string | null;
   esInterna: boolean;
+  /** ORD-06: ID del sistema anterior; null en órdenes del flujo actual. */
+  idHistorico: string | null;
   partidas: PartidaTabla[];
 };
 
@@ -180,6 +187,8 @@ type PropsTablaOrdenes = {
   ordenInicialId?: string;
   usuarioActualId?: string;
   puedeEliminarTodos?: boolean;
+  /** CLI-08/PRD-15: repetir y reactivar son acciones administrativas. */
+  puedeAdministrar?: boolean;
 };
 
 /**
@@ -194,6 +203,7 @@ export function TablaOrdenes({
   ordenInicialId,
   usuarioActualId,
   puedeEliminarTodos = false,
+  puedeAdministrar = false,
 }: PropsTablaOrdenes) {
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
@@ -207,9 +217,16 @@ export function TablaOrdenes({
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
   const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
-  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>('activas');
+  const [ordenConfigurando, setOrdenConfigurando] = useState<OrdenTabla | null>(null);
+  const [ordenAdjuntos, setOrdenAdjuntos] = useState<OrdenTabla | null>(null);
+  const [ordenRepitiendo, setOrdenRepitiendo] = useState<OrdenTabla | null>(null);
+  const [ordenReactivando, setOrdenReactivando] = useState<OrdenTabla | null>(null);
+  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
+    ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
+      ? 'archivo' : 'activas');
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [hidratado, setHidratado] = useState(false);
+  const enlaceProcesado = useRef<string | null>(null);
 
   useEffect(() => {
     const marco = requestAnimationFrame(() => setHidratado(true));
@@ -217,10 +234,13 @@ export function TablaOrdenes({
   }, []);
 
   useEffect(() => {
-    if (ordenInicialId && ordenes.some((orden) => orden.id === ordenInicialId)) {
+    if (ordenInicialId && enlaceProcesado.current !== ordenInicialId
+      && ordenes.some((orden) => orden.id === ordenInicialId)) {
+      enlaceProcesado.current = ordenInicialId;
+      limpiarFiltros();
       seleccionarOrden(ordenInicialId);
     }
-  }, [ordenInicialId, ordenes, seleccionarOrden]);
+  }, [ordenInicialId, ordenes, limpiarFiltros, seleccionarOrden]);
 
   const maquinas = useMemo(() => {
     const encontradas = new Set<string>();
@@ -526,7 +546,7 @@ export function TablaOrdenes({
                           );
                         })}
                         {orden.estado === 'borrador' && (
-                          <button
+                          <><button
                             type="button"
                             data-testid={`editar-orden-${orden.folio}`}
                             onClick={() => setOrdenEditando(orden)}
@@ -535,8 +555,47 @@ export function TablaOrdenes({
                           >
                             Editar
                           </button>
+                          <button type="button" className={CLASE_BOTON_SECUNDARIO}
+                            data-testid={`configurar-procesos-${orden.folio}`}
+                            disabled={ordenActualizandoId !== null}
+                            onClick={() => setOrdenConfigurando(orden)}>Procesos</button></>
                         )}
                         <DocumentoOrdenBoton ordenId={orden.id} folio={orden.folio} />
+                        {puedeAdministrar && (orden.idHistorico !== null || orden.estado === 'completada') && (
+                          <button
+                            type="button"
+                            data-testid={`repetir-orden-${orden.folio}`}
+                            onClick={() => setOrdenRepitiendo(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                            title="Crea un trabajo nuevo reutilizando solo datos comerciales y técnicos"
+                          >
+                            Repetir
+                          </button>
+                        )}
+                        {puedeAdministrar && orden.estado === 'completada' && (
+                          <button
+                            type="button"
+                            data-testid={`reactivar-orden-${orden.folio}`}
+                            onClick={() => setOrdenReactivando(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                            title="Devuelve la orden a operación conservando las sesiones previas"
+                          >
+                            Reactivar
+                          </button>
+                        )}
+                        {orden.idHistorico !== null && (
+                          <button
+                            type="button"
+                            data-testid={`adjuntos-orden-${orden.folio}`}
+                            onClick={() => setOrdenAdjuntos(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                          >
+                            Adjuntos
+                          </button>
+                        )}
                         {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
                           <button
                             type="button"
@@ -566,7 +625,7 @@ export function TablaOrdenes({
         </TablaContenedor>
       )}
 
-      {errorAccion && (
+      {errorAccion && !ordenCancelando && (
         <p role="alert" className="text-sm text-peligro-texto">
           {errorAccion}
         </p>
@@ -597,6 +656,38 @@ export function TablaOrdenes({
         />
       ) : null}
 
+      {ordenConfigurando ? <ConfigurarProcesosDialog
+        key={`procesos-${ordenConfigurando.id}-${ordenConfigurando.actualizadoEn}`}
+        orden={ordenConfigurando}
+        onCerrar={() => setOrdenConfigurando(null)}
+        onGuardado={alRefrescar}
+      /> : null}
+
+      {ordenAdjuntos ? (
+        <AdjuntosOrdenDialog
+          ordenId={ordenAdjuntos.id}
+          folio={ordenAdjuntos.folio}
+          onCerrar={() => setOrdenAdjuntos(null)}
+        />
+      ) : null}
+
+      {ordenRepitiendo ? (
+        <RepetirOrdenDialog
+          ordenOrigenId={ordenRepitiendo.id}
+          folioOrigen={ordenRepitiendo.folio}
+          onCerrar={() => setOrdenRepitiendo(null)}
+        />
+      ) : null}
+
+      {ordenReactivando ? (
+        <ReactivarOrdenDialog
+          ordenId={ordenReactivando.id}
+          folio={ordenReactivando.folio}
+          actualizadoEn={ordenReactivando.actualizadoEn}
+          onCerrar={() => setOrdenReactivando(null)}
+        />
+      ) : null}
+
       <Dialog open={ordenCancelando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCancelando(null) : undefined)}>
         <DialogContent>
           <DialogHeader>
@@ -605,6 +696,7 @@ export function TablaOrdenes({
               La cancelación es definitiva. Captura el motivo; quedará en la auditoría.
             </DialogDescription>
           </DialogHeader>
+          {errorAccion ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
           <div className="flex flex-col gap-1">
             <Label htmlFor="motivo-cancelacion-orden">Motivo (mínimo 3 caracteres)</Label>
             <Textarea

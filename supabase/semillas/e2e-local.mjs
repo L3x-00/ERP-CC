@@ -6,13 +6,17 @@
 //   node supabase/semillas/e2e-local.mjs [ruta-salida.json] [--exports]
 //
 // CI: con `--exports` imprime `CLAVE=valor` para anexar a $GITHUB_ENV.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
+import { exigirSupabaseLocal } from './guardia-supabase-local.mjs';
 
 const URL_BASE = (
   process.env.SUPABASE_URL_LOCAL
   ?? process.env.NEXT_PUBLIC_SUPABASE_URL
-  ?? 'http://127.0.0.1:54321'
+  ?? ''
 ).replace(/\/$/, '');
+// Guardia dura antes de cualquier petición: este script crea usuarios de auth,
+// clientes y órdenes. Antes solo avisaba por consola y seguía adelante.
+exigirSupabaseLocal('Fixture E2E local', { ...process.env, NEXT_PUBLIC_SUPABASE_URL: URL_BASE });
 const SERVICE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY_LOCAL ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!SERVICE_KEY) {
@@ -151,12 +155,5 @@ console.error('orden:', orden.folio, orden.id);
 if (imprimirExports) {
   for (const [clave, valor] of Object.entries(variables)) {
     console.log(`${clave}=${valor}`);
-  }
-}
-
-if (existsSync('.env.local')) {
-  const contenido = readFileSync('.env.local', 'utf8');
-  if (contenido.includes('SUPABASE_SERVICE_ROLE_KEY=') && !contenido.includes('127.0.0.1')) {
-    console.warn('Aviso: .env.local parece apuntar a un Supabase remoto; este fixture es solo local.');
   }
 }

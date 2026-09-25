@@ -9,6 +9,7 @@ export type { CalculoHorasSesion } from '@/modulos/produccion/servicios/calculo-
 export {
   ErrorProduccion,
   iniciarSesionTrabajoServicio,
+  reanudarSesionTrabajoServicio,
   cerrarSesionTrabajoServicio,
   mensajeErrorSesion,
 } from '@/modulos/produccion/servicios/sesiones-servicio';
@@ -29,11 +30,13 @@ export {
   codigosAreaFiltrada,
   obtenerDatosTableroProduccionServicio,
   obtenerEstadoKanbanProduccion,
+  partidaProduccionCompleta,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';
 
 export type {
   AreaCatalogoProduccion,
   DatosTableroProduccion,
+  MetaProcesoAvance,
   OrdenTableroProduccion,
   PartidaTableroProduccion,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';

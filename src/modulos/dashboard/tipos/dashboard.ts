@@ -38,7 +38,19 @@ export interface FiltroPeriodoDashboard {
 }
 
 export interface ResumenVentasDashboard {
+  /** Importe facturado del periodo (con IVA), en MXN. */
   totalFacturado: number;
+  /**
+   * A03/D-11: venta neta histórica sin IVA. `null` cuando alguna cuenta
+   * reconocida en el periodo no tiene desglose persistido.
+   */
+  ventaNetaMxn: number | null;
+  /** IVA histórico del periodo; `null` con el mismo criterio que `ventaNetaMxn`. */
+  ivaMxn: number | null;
+  /** Importe facturado que carece de desglose base/IVA, en MXN. */
+  ventaSinDesgloseMxn: number;
+  /** Cuentas del periodo sin desglose persistido. */
+  cuentasSinDesglose: number;
   totalCotizado: number;
   porcentajeConversion: number;
   /** DAS-05: horas promedio entre alta de oportunidad y envío de cotización. */
@@ -61,9 +73,23 @@ export interface ResumenFinanzasDashboard {
   arPendiente: number;
   arVencido: number;
   cxpPendiente: number;
-  /** DAS-02: gasto total no cancelado del periodo, en MXN. */
+  /** DAS-02: gasto total no cancelado del periodo (desembolso real), en MXN. */
   gastosTotal: number;
-  utilidadNetaAcumulada: number;
+  /**
+   * A04: costo de producción reconocido en el periodo (material consumido, mano
+   * de obra y gastos que no duplican esos rubros). Es la cifra que resta a la
+   * venta neta, y difiere de `gastosTotal` a propósito. `null` cuando el RPC no
+   * lo entrega (migración A04 sin aplicar): dato ausente, nunca un cero.
+   */
+  costosReconocidosMxn: number | null;
+  /** A04: gasto de orden (materia prima/nómina) neutralizado por anti-duplicado. */
+  gastosIncluidosEnRubrosMxn: number;
+  /**
+   * A03: `null` cuando la venta neta del periodo no es calculable, y también
+   * cuando el RPC todavía es el anterior a A04 (ahí la cifra se calculaba sobre
+   * venta bruta con IVA: no es esta utilidad y no se publica como tal).
+   */
+  utilidadNetaAcumulada: number | null;
   margenPromedioPorcentaje: number | null;
 }
 
@@ -263,6 +289,16 @@ function numeroOpcional(objeto: Record<string, unknown>, nombre: string, porDefe
   return numero(objeto[nombre], nombre);
 }
 
+/**
+ * Variante nullable de `numeroOpcional`: la clave puede faltar (RPC anterior a
+ * la migración) o venir en `null` de forma legítima (A03: dato no calculable).
+ * Ambos casos se representan como `null`, nunca como 0.
+ */
+function numeroNuloOpcional(objeto: Record<string, unknown>, nombre: string): number | null {
+  if (!(nombre in objeto)) return null;
+  return numeroNulo(objeto[nombre], nombre);
+}
+
 function objetoCampo(objeto: Record<string, unknown>, nombre: string): Record<string, unknown> {
   const valor = campo(objeto, nombre);
   if (!esObjeto(valor)) throw new Error(`Objeto inválido en métricas: ${nombre}`);
@@ -283,6 +319,10 @@ function ventasDesde(valor: unknown): ResumenVentasDashboard {
   const objeto = esObjeto(valor) ? valor : (() => { throw new Error('Ventas inválidas'); })();
   return {
     totalFacturado: numero(campo(objeto, 'totalFacturado'), 'ventas.totalFacturado'),
+    ventaNetaMxn: numeroNuloOpcional(objeto, 'ventaNetaMxn'),
+    ivaMxn: numeroNuloOpcional(objeto, 'ivaMxn'),
+    ventaSinDesgloseMxn: numeroOpcional(objeto, 'ventaSinDesgloseMxn'),
+    cuentasSinDesglose: numeroOpcional(objeto, 'cuentasSinDesglose'),
     totalCotizado: numero(campo(objeto, 'totalCotizado'), 'ventas.totalCotizado'),
     porcentajeConversion: numero(campo(objeto, 'porcentajeConversion'), 'ventas.porcentajeConversion'),
     tiempoRespuestaHorasPromedio: numeroOpcional(objeto, 'tiempoRespuestaHorasPromedio'),
@@ -304,13 +344,23 @@ function ordenesDesde(valor: unknown): ResumenOrdenesDashboard {
 
 function finanzasDesde(valor: unknown): ResumenFinanzasDashboard {
   const objeto = esObjeto(valor) ? valor : (() => { throw new Error('Finanzas inválidas'); })();
+  // A04 siempre emite `costosReconocidosMxn` como número; su ausencia identifica
+  // al RPC anterior, donde utilidad y margen se calculaban sobre la venta bruta
+  // (con IVA). Esa cifra vieja no es la utilidad neta que anuncia la UI, así que
+  // se degrada a "no calculable" en vez de republicarse con otro significado.
+  const costosReconocidosMxn = numeroNuloOpcional(objeto, 'costosReconocidosMxn');
+  const hayContratoNeto = costosReconocidosMxn !== null;
+  const utilidad = numeroNulo(campo(objeto, 'utilidadNetaAcumulada'), 'finanzas.utilidadNetaAcumulada');
+  const margen = numeroNulo(campo(objeto, 'margenPromedioPorcentaje'), 'finanzas.margenPromedioPorcentaje');
   return {
     arPendiente: numero(campo(objeto, 'arPendiente'), 'finanzas.arPendiente'),
     arVencido: numero(campo(objeto, 'arVencido'), 'finanzas.arVencido'),
     cxpPendiente: numero(campo(objeto, 'cxpPendiente'), 'finanzas.cxpPendiente'),
     gastosTotal: numeroOpcional(objeto, 'gastosTotal'),
-    utilidadNetaAcumulada: numero(campo(objeto, 'utilidadNetaAcumulada'), 'finanzas.utilidadNetaAcumulada'),
-    margenPromedioPorcentaje: numeroNulo(campo(objeto, 'margenPromedioPorcentaje'), 'finanzas.margenPromedioPorcentaje'),
+    costosReconocidosMxn,
+    gastosIncluidosEnRubrosMxn: numeroOpcional(objeto, 'gastosIncluidosEnRubrosMxn'),
+    utilidadNetaAcumulada: hayContratoNeto ? utilidad : null,
+    margenPromedioPorcentaje: hayContratoNeto ? margen : null,
   };
 }
 

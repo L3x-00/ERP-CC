@@ -2,6 +2,7 @@ export { actualizarTipoCambioAccion } from './actualizar-tipo-cambio';
 export { actualizarAreasOperadorAccion } from './actualizar-operadores-areas';
 export { crearActualizarCuentaBancariaAccion } from './crear-actualizar-cuenta-bancaria';
 export { guardarAreaTrabajoAccion } from './guardar-area-trabajo';
+export { guardarOperadorAccion } from './guardar-operador';
 export { guardarCatalogoCategoriasAccion } from './guardar-catalogo-categorias';
 export { guardarCatalogoTiersAccion } from './guardar-catalogo-tiers';
 export { guardarDatosEmpresaAccion } from './guardar-datos-empresa';

@@ -8,7 +8,13 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
 /** Entrada RSC al piso: los datos llegan con RLS y las mutaciones siguen en Server Actions. */
-export default async function PaginaProduccion() {
+type ParametrosPaginaProduccion = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function PaginaProduccion({ searchParams }: ParametrosPaginaProduccion) {
+  const parametros = searchParams ? await searchParams : {};
+  const ordenInicialId = typeof parametros.ordenId === 'string' ? parametros.ordenId : undefined;
   const usuario = await obtenerUsuarioServidor();
   if (!usuario || !(await can(usuario, 'gestionar_produccion'))) notFound();
 
@@ -35,6 +41,7 @@ export default async function PaginaProduccion() {
         operadorId={operador?.id ?? null}
         usuarioActualId={usuario.id}
         esAdmin={usuario.rol === 'admin'}
+        ordenInicialId={ordenInicialId}
       />
     </div>
   );

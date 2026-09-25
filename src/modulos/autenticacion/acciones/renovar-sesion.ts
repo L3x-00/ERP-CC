@@ -13,6 +13,7 @@ import {
   sesionOperadorExpirada,
   sesionOperadorVencidaAbsoluta,
 } from '@/nucleo/autenticacion/sesion';
+import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 
 /**
  * Server Action que renueva la sesión corta del operador de piso.
@@ -37,7 +38,8 @@ export async function renovarSesionAccion(): Promise<
     }
 
     const sesion = await deserializarSesionOperador(valorCookie);
-    if (!sesion || sesionOperadorExpirada(sesion) || sesionOperadorVencidaAbsoluta(sesion)) {
+    if (!sesion || sesionOperadorExpirada(sesion) || sesionOperadorVencidaAbsoluta(sesion)
+      || !(await obtenerOperadorConSesionActiva())) {
       almacenCookies.delete(COOKIE_SESION_OPERADOR);
       return { exito: false, error: 'Sesión expirada' };
     }

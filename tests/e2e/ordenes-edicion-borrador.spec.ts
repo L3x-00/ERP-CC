@@ -111,10 +111,40 @@ test.describe('Edición de órdenes en borrador (ORD-05)', () => {
         .eq('orden_id', ordenId);
       expect(Number(partidas?.[0]?.cantidad_solicitada)).toBe(5);
 
+      await filaActualizada.getByTestId(`configurar-procesos-${folio}`).click();
+      const ruta = page.getByRole('dialog', { name: new RegExp(`Procesos de ${folio}`) });
+      await expect(ruta).toBeVisible();
+      await ruta.getByRole('button', { name: 'Agregar proceso' }).click();
+      await ruta.getByLabel('Nombre').nth(0).fill('Corte');
+      await ruta.getByLabel('Meta de piezas').nth(0).fill('7');
+      await ruta.getByLabel('Nombre').nth(1).fill('Pulido');
+      await expect(ruta.getByLabel('Meta de piezas').nth(1)).toHaveValue('5');
+      if (process.env.E2E_CAPTURAR_VISUAL === 'si') {
+        await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ord07-escritorio.png' });
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.evaluate(() => document.documentElement.classList.add('dark'));
+        await page.waitForTimeout(200);
+        await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ord07-movil-oscuro.png' });
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.evaluate(() => document.documentElement.classList.remove('dark'));
+      }
+      await ruta.getByRole('button', { name: 'Guardar procesos' }).click();
+      await expect(ruta).toBeHidden();
+
+      const { data: partidaConfigurada } = await admin.from('partidas_orden_produccion')
+        .select('id, procesos').eq('orden_id', ordenId).single();
+      const { data: metas } = await admin.from('metas_proceso_partida')
+        .select('secuencia, nombre, meta_piezas')
+        .eq('partida_id', partidaConfigurada?.id ?? '').order('secuencia');
+      expect(partidaConfigurada?.procesos).toEqual(['Corte', 'Pulido']);
+      expect(metas?.map((meta) => [meta.secuencia, meta.nombre, Number(meta.meta_piezas)]))
+        .toEqual([[1, 'Corte', 7], [2, 'Pulido', 5]]);
+
       await filaActualizada.getByTestId('cambiar-estado-programada').click();
       const filaProgramada = page.getByRole('row', { name: new RegExp(folio) });
       await expect(filaProgramada).toContainText('Programada');
       await expect(filaProgramada.getByTestId(`editar-orden-${folio}`)).toHaveCount(0);
+      await expect(filaProgramada.getByTestId(`configurar-procesos-${folio}`)).toHaveCount(0);
     } finally {
       await admin.from('ordenes_produccion').delete().eq('id', ordenId);
       await admin.from('clientes').delete().eq('id', cliente.id);

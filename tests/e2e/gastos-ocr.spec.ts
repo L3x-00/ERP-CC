@@ -26,6 +26,7 @@ const PNG_MINIMO = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64',
 );
+const PNG_MAYOR_1_MIB = Buffer.concat([PNG_MINIMO, Buffer.alloc(2 * 1024 * 1024)]);
 
 type ContextoE2E = {
   admin: SupabaseClient<Database>;
@@ -62,6 +63,11 @@ async function prepararContexto(): Promise<ContextoE2E> {
 
 async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
   const { admin } = contexto;
+  const { data: gastos } = await admin.from('gastos')
+    .select('comprobante_ruta').eq('creado_por', contexto.usuarioId);
+  const rutas = (gastos ?? []).map((gasto) => gasto.comprobante_ruta)
+    .filter((ruta): ruta is string => Boolean(ruta));
+  if (rutas.length) await admin.storage.from('comprobantes-gasto').remove(rutas);
   await admin.from('gastos').delete().eq('creado_por', contexto.usuarioId);
   await admin.from('logs').delete().eq('usuario_id', contexto.usuarioId);
   await admin.from('usuarios').delete().eq('id', contexto.usuarioId);
@@ -97,10 +103,10 @@ test.describe.serial('OCR de comprobantes con proveedor controlado (GAS-08)', ()
     await page.goto('/gastos');
     await expect(page.getByTestId('pagina-gastos')).toBeVisible();
     await page.getByRole('button', { name: 'Registrar gasto' }).click();
-    await page.getByLabel('Comprobante para OCR').setInputFiles({
+    await page.getByLabel('Comprobante (opcional)').setInputFiles({
       name: 'ticket-e2e.png',
       mimeType: 'image/png',
-      buffer: PNG_MINIMO,
+      buffer: PNG_MAYOR_1_MIB,
     });
     await page.getByRole('button', { name: 'Escanear comprobante con IA' }).click();
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   esquemaAreaTrabajo,
+  esquemaAreasOperador,
   esquemaCatalogoCategoriasGasto,
   esquemaCatalogoTiers,
   esquemaConfiguracionEmpresa,
@@ -94,6 +95,18 @@ describe('esquemas de configuración', () => {
     expect(esquemaAreaTrabajo.safeParse(area).success).toBe(true);
     expect(esquemaAreaTrabajo.safeParse({ ...area, colorHex: 'blue' }).success).toBe(false);
     expect(esquemaAreaTrabajo.safeParse({ ...area, codigo: 'laser 1' }).success).toBe(false);
+  });
+
+  it('rechaza áreas de operador repetidas tras normalizar (A05)', () => {
+    const operadorId = '00000000-0000-4000-8000-0000000a0502';
+    const valido = esquemaAreasOperador.safeParse({ operadorId, areas: [' acabados ', 'LASER'] });
+    expect(valido.success).toBe(true);
+    if (valido.success) expect(valido.data.areas).toEqual(['ACABADOS', 'LASER']);
+    // `ACABADOS` y `acabados` son el mismo código: no se envía un lote que la
+    // RPC tendría que rechazar por clave primaria duplicada.
+    expect(esquemaAreasOperador.safeParse({ operadorId, areas: ['ACABADOS', 'acabados'] }).success).toBe(false);
+    // La lista vacía es una configuración explícita válida (transición).
+    expect(esquemaAreasOperador.safeParse({ operadorId, areas: [] }).success).toBe(true);
   });
 
   it('valida la taxonomía de taller y la jerarquía (OBS-14)', () => {

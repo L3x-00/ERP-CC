@@ -14,6 +14,7 @@ import {
 import { CalendarioPlaneacion } from '@/modulos/planeacion/componentes/calendario-planeacion';
 import { CLAVE_CALENDARIO_PLANEACION } from '@/modulos/planeacion/componentes/claves-consulta';
 import { DialogoReprogramacionPlaneacion } from '@/modulos/planeacion/componentes/dialogo-reprogramacion-planeacion';
+import { PanelBolsaPlaneacion } from '@/modulos/planeacion/componentes/panel-bolsa-planeacion';
 import {
   PanelAsignacionPlaneacion,
   type DatosAsignacionPlaneacion,
@@ -23,7 +24,7 @@ import {
   type ResultadoProponerHueco,
 } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { SincronizadorPlaneacionRealtime } from '@/modulos/planeacion/componentes/sincronizador-planeacion-realtime';
-import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
+import type { BolsaPlaneacion, DatosCalendarioPlaneacion, SugerenciaBolsa } from '@/modulos/planeacion/servicios/indice';
 import type {
   DesglosePartidaPlaneacion,
   ProgramacionArea,
@@ -34,6 +35,10 @@ export interface PropsOperacionPlaneacion {
   rangoInicial: { fechaInicio: string; fechaFin: string };
   partidasProgramables: readonly PartidaProgramablePlaneacion[];
   desglosePartidas?: readonly DesglosePartidaPlaneacion[];
+  /** PLA-05: pausadas sin plan, activas sin fecha hoy y sugerencias por hueco. */
+  bolsa?: BolsaPlaneacion;
+  /** PLA-06/PRD-15: Reactivar solo para administradores. */
+  puedeAdministrar?: boolean;
 }
 
 interface SolicitudArrastre {
@@ -52,6 +57,8 @@ export function OperacionPlaneacion({
   rangoInicial,
   partidasProgramables,
   desglosePartidas = [],
+  bolsa,
+  puedeAdministrar = false,
 }: PropsOperacionPlaneacion) {
   const clienteConsultas = useQueryClient();
   const enrutador = useRouter();
@@ -64,6 +71,9 @@ export function OperacionPlaneacion({
   const [programacionSeleccionada, setProgramacionSeleccionada] =
     useState<ProgramacionArea | null>(null);
   const [arrastre, setArrastre] = useState<SolicitudArrastre | null>(null);
+  const [bolsaProcesando, setBolsaProcesando] = useState(false);
+  const [bolsaMensaje, setBolsaMensaje] = useState<string | null>(null);
+  const [bolsaError, setBolsaError] = useState<string | null>(null);
 
   const consultarCalendario = useCallback(
     async (filtros: {
@@ -219,6 +229,41 @@ export function OperacionPlaneacion({
     enrutador.refresh();
   }, [enrutador]);
 
+  // PLA-05: asignar una sugerencia reutiliza la RPC transaccional; PostgreSQL
+  // revalida capacidad y candados aunque la vista previa dijera que cabía.
+  const asignarSugerencia = useCallback(async (sugerencia: SugerenciaBolsa) => {
+    setBolsaProcesando(true);
+    setBolsaMensaje(null);
+    setBolsaError(null);
+    try {
+      const resultado = await programarPartidaRecursoAccion({
+        ordenId: sugerencia.ordenId,
+        partidaId: sugerencia.partidaId,
+        recursoId: sugerencia.recursoId,
+        secuencia: sugerencia.secuencia,
+        fechaProgramada: sugerencia.fecha,
+        turno: sugerencia.turno,
+        horasEstimadas: sugerencia.horas,
+        ordenPrioridad: 1,
+      });
+      if (!resultado.exito) {
+        setBolsaError(resultado.error);
+      } else {
+        setBolsaMensaje(`${sugerencia.codigoPieza} programada el ${sugerencia.fecha}.`);
+        await actualizarCalendario();
+        enrutador.refresh();
+      }
+      return resultado.exito
+        ? { exito: true as const }
+        : { exito: false as const, error: resultado.error };
+    } catch {
+      setBolsaError('No se pudo programar la sugerencia. Intenta de nuevo.');
+      return { exito: false as const, error: 'No se pudo programar la sugerencia' };
+    } finally {
+      setBolsaProcesando(false);
+    }
+  }, [actualizarCalendario, enrutador]);
+
   const cargaDestino = arrastre
     ? datosCalendario.cargas.find(
         (carga) =>
@@ -241,6 +286,8 @@ export function OperacionPlaneacion({
         desglosePartidas={desglosePartidas}
         onSeleccionarProgramacion={alSeleccionar}
         onSolicitarReprogramacion={solicitarReprogramacion}
+        puedeAdministrar={puedeAdministrar}
+        onRefrescarOperacion={refrescarEstructuraOperacion}
       />
       <aside className="rounded-base border border-borde p-4" aria-label="Asignación de recurso">
         <PanelAsignacionPlaneacion
@@ -253,6 +300,13 @@ export function OperacionPlaneacion({
           onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
           onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
           onProponerHueco={proponerHuecoPanel}
+        />
+        <PanelBolsaPlaneacion
+          bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}
+          procesando={bolsaProcesando}
+          mensaje={bolsaMensaje}
+          error={bolsaError}
+          onAsignar={asignarSugerencia}
         />
       </aside>
 

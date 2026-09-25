@@ -5,7 +5,24 @@ import {
   type AreaCatalogoProduccion,
   type OrdenTableroProduccion,
 } from '@/modulos/produccion/servicios/indice';
+import {
+  codigosFamiliaArea,
+  opcionesFamiliaArea,
+  resolverAreaMacro,
+  type AreaFamiliaTaller,
+} from '@/modulos/produccion/utilidades/indice';
 import { resumenTallerOrden } from '@/modulos/produccion/componentes/kanban-produccion';
+
+/** A06: tres niveles con macroárea solo en la raíz, más un ciclo padre↔hijo. */
+const CATALOGO_TRES_NIVELES: AreaFamiliaTaller[] = [
+  { codigo: 'METAL_MECANICA', nombre: 'Metal mecánica', padreCodigo: null, areaPlaneacion: 'sheet_metal' },
+  { codigo: 'CORTE', nombre: 'Corte', padreCodigo: 'METAL_MECANICA', areaPlaneacion: null },
+  { codigo: 'LASER_FIBRA', nombre: 'Láser de fibra', padreCodigo: 'CORTE', areaPlaneacion: null },
+  { codigo: 'ACABADOS', nombre: 'Acabados', padreCodigo: null, areaPlaneacion: 'acabados' },
+  { codigo: 'PINTURA', nombre: 'Pintura', padreCodigo: 'ACABADOS', areaPlaneacion: null },
+  { codigo: 'CICLO_A', nombre: 'Ciclo A', padreCodigo: 'CICLO_B', areaPlaneacion: null },
+  { codigo: 'CICLO_B', nombre: 'Ciclo B', padreCodigo: 'CICLO_A', areaPlaneacion: null },
+];
 
 const CATALOGO: AreaCatalogoProduccion[] = [
   { codigo: 'METAL_MECANICA', nombre: 'Metal mecánica', padreCodigo: null, areaPlaneacion: 'sheet_metal' },
@@ -36,6 +53,60 @@ describe('filtro de cola por área (OBS-09/PRD-11)', () => {
   it('con un código desconocido solo filtra por el código exacto', () => {
     expect([...codigosAreaFiltrada(CATALOGO, 'SUELTO')]).toEqual(['SUELTO']);
     expect([...codigosAreaFiltrada([], 'LASER')]).toEqual(['LASER']);
+  });
+});
+
+describe('familia de áreas con jerarquía de tres niveles (A06)', () => {
+  it('resuelve la macroárea por la cadena completa de ancestros', () => {
+    expect(resolverAreaMacro(CATALOGO_TRES_NIVELES, 'LASER_FIBRA')).toBe('sheet_metal');
+    expect(resolverAreaMacro(CATALOGO_TRES_NIVELES, 'CORTE')).toBe('sheet_metal');
+    expect(resolverAreaMacro(CATALOGO_TRES_NIVELES, 'PINTURA')).toBe('acabados');
+  });
+
+  it('incluye el proceso de tercer nivel en la familia de su área raíz', () => {
+    expect([...codigosFamiliaArea(CATALOGO_TRES_NIVELES, 'METAL_MECANICA')].sort()).toEqual([
+      'CORTE',
+      'LASER_FIBRA',
+      'METAL_MECANICA',
+    ]);
+    expect([...codigosFamiliaArea(CATALOGO_TRES_NIVELES, 'LASER_FIBRA')].sort()).toEqual([
+      'CORTE',
+      'LASER_FIBRA',
+      'METAL_MECANICA',
+    ]);
+  });
+
+  it('ante un ciclo o un código desconocido no se cuelga ni ensancha el filtro', () => {
+    expect(resolverAreaMacro(CATALOGO_TRES_NIVELES, 'CICLO_A')).toBeNull();
+    expect(resolverAreaMacro(CATALOGO_TRES_NIVELES, 'DESCONOCIDA')).toBeNull();
+    expect([...codigosFamiliaArea(CATALOGO_TRES_NIVELES, 'CICLO_A')]).toEqual(['CICLO_A']);
+    expect([...codigosFamiliaArea(CATALOGO_TRES_NIVELES, 'DESCONOCIDA')]).toEqual(['DESCONOCIDA']);
+  });
+});
+
+describe('opciones del filtro de área en la terminal de piso (A06)', () => {
+  it('usa el proceso con trabajo cuando la raíz no tiene macroárea', () => {
+    const sinMacro: AreaFamiliaTaller[] = [
+      { codigo: 'RAIZ', nombre: 'Raíz', padreCodigo: null, areaPlaneacion: null },
+      { codigo: 'PROCESO', nombre: 'Proceso', padreCodigo: 'RAIZ', areaPlaneacion: null },
+    ];
+    expect(opcionesFamiliaArea(sinMacro, ['PROCESO'])).toEqual([
+      { codigo: 'PROCESO', nombre: 'Proceso' },
+    ]);
+    expect([...codigosFamiliaArea(sinMacro, 'PROCESO')]).toEqual(['PROCESO']);
+  });
+  it('ofrece una entrada por familia, representada por su área raíz', () => {
+    expect(opcionesFamiliaArea(CATALOGO_TRES_NIVELES, ['LASER_FIBRA', 'CORTE', 'PINTURA'])).toEqual([
+      { codigo: 'ACABADOS', nombre: 'Acabados' },
+      { codigo: 'METAL_MECANICA', nombre: 'Metal mecánica' },
+    ]);
+  });
+
+  it('conserva el código suelto cuando el catálogo no lo resuelve', () => {
+    expect(opcionesFamiliaArea(CATALOGO_TRES_NIVELES, ['DESCONOCIDA', 'CICLO_B'])).toEqual([
+      { codigo: 'CICLO_B', nombre: 'Ciclo B' },
+      { codigo: 'DESCONOCIDA', nombre: 'DESCONOCIDA' },
+    ]);
   });
 });
 

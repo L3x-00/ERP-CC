@@ -3,6 +3,7 @@
 import type { DragEvent } from 'react';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
+import { AccionesTarjetaOrden } from '@/modulos/planeacion/componentes/acciones-tarjeta-orden';
 import type {
   CargaCapacidadDiaria,
   DesglosePartidaPlaneacion,
@@ -34,6 +35,9 @@ export interface PropsTarjetaProgramacionPlaneacion {
   seleccionada: boolean;
   arrastrable?: boolean;
   compacta?: boolean;
+  /** PLA-06: acciones de la orden visibles en la tarjeta semanal. */
+  puedeAdministrar?: boolean;
+  onRefrescarOperacion?: () => void;
   onSeleccionar?: (programacion: ProgramacionArea) => void;
 }
 
@@ -51,6 +55,8 @@ export function TarjetaProgramacionPlaneacion({
   seleccionada,
   arrastrable = false,
   compacta = false,
+  puedeAdministrar = false,
+  onRefrescarOperacion,
   onSeleccionar,
 }: PropsTarjetaProgramacionPlaneacion) {
   const titulo = desglose ? `${desglose.folio} · ${desglose.codigoPieza}` : 'Partida';
@@ -152,6 +158,14 @@ export function TarjetaProgramacionPlaneacion({
         <p className="text-[11px] text-texto-secundario">
           Arrastra la tarjeta a otro día para reprogramar con confirmación.
         </p>
+      ) : null}
+
+      {!compacta && onRefrescarOperacion ? (
+        <AccionesTarjetaOrden
+          programacion={programacion}
+          puedeAdministrar={puedeAdministrar}
+          onRefrescar={onRefrescarOperacion}
+        />
       ) : null}
     </article>
   );

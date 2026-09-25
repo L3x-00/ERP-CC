@@ -1,4 +1,5 @@
 import { TableroKanban } from '@/modulos/pipeline/componentes/tablero-kanban';
+import { SincronizadorPipelineRealtime } from '@/modulos/pipeline/componentes/sincronizador-pipeline-realtime';
 
 type ParametrosPaginaPipeline = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -18,6 +19,7 @@ export default async function PaginaPipeline({ searchParams }: ParametrosPaginaP
 
   return (
     <div className="flex flex-col gap-4">
+      <SincronizadorPipelineRealtime />
       <h1 className="text-2xl font-bold">Pipeline</h1>
       <TableroKanban oportunidadInicialId={oportunidadInicialId} />
     </div>

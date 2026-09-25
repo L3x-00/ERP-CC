@@ -3,8 +3,10 @@ import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
 /** Reglas puras de transición de estado para Órdenes de Producción — Sub-fase 5.2. */
 
 /**
- * Destinos permitidos por estado de origen. `completada` y `cancelada` son terminales:
- * quedan con lista vacía en vez de omitirse para que el Record cubra todo `EstadoOrden`
+ * Destinos permitidos por estado de origen. `completada` y `cancelada` son
+ * terminales para esta transición genérica: la reactivación PRD-15 se ejecuta
+ * solo por su RPC administrativa, que valida entrega, cobros y CAS. Se dejan
+ * con lista vacía en vez de omitirse para que el Record cubra todo `EstadoOrden`
  * y un estado nuevo rompa la compilación en vez de caer en un lookup indefinido.
  */
 export const TRANSICIONES_ORDEN_VALIDAS: Readonly<

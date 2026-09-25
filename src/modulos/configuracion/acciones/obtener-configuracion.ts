@@ -18,6 +18,10 @@ import { esquemaConsultaConfiguracion } from '@/modulos/configuracion/validacion
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
+import {
+  listarOperadoresGestionServicio,
+  type OperadorGestionConfig,
+} from '@/modulos/configuracion/servicios/operadores-servicio';
 
 export interface DatosConfiguracion {
   configuracion: ConfiguracionSistema;
@@ -25,6 +29,9 @@ export interface DatosConfiguracion {
   areasTrabajo: AreaTrabajoConfig[];
   /** OBS-09/PRD-11: operadores activos y sus áreas habilitadas. */
   operadoresAreas: OperadorAreaConfig[];
+  /** CFG-05: solo se entrega a admins activos; nunca incluye hash de PIN. */
+  operadoresGestion: OperadorGestionConfig[];
+  esAdmin: boolean;
 }
 
 export async function obtenerConfiguracionAccion(
@@ -39,7 +46,8 @@ export async function obtenerConfiguracionAccion(
 
   try {
     const cliente = await crearClienteSupabaseServidor();
-    const [configuracion, cuentasBancarias, areasTrabajo, operadoresAreas] = await Promise.all([
+    const esAdmin = usuario.rol === 'admin' && usuario.activo;
+    const [configuracion, cuentasBancarias, areasTrabajo, operadoresAreas, operadoresGestion] = await Promise.all([
       obtenerConfiguracionGeneral(cliente),
       listarCuentasBancarias(cliente, analisis.data.soloCuentasActivas),
       listarAreasTrabajoConfig(cliente),
@@ -47,8 +55,11 @@ export async function obtenerConfiguracionAccion(
       // `configuracion` ya se comprobó arriba y aquí solo se exponen operadores
       // activos con sus códigos de área.
       listarOperadoresAreasServicio(crearClienteSupabaseAdmin()),
+      esAdmin ? listarOperadoresGestionServicio() : Promise.resolve([]),
     ]);
-    return { exito: true, datos: { configuracion, cuentasBancarias, areasTrabajo, operadoresAreas } };
+    return { exito: true, datos: {
+      configuracion, cuentasBancarias, areasTrabajo, operadoresAreas, operadoresGestion, esAdmin,
+    } };
   } catch (error) {
     console.error('[CONFIGURACION] Error al consultar configuración:', error);
     return { exito: false, error: 'No se pudo consultar la configuración' };

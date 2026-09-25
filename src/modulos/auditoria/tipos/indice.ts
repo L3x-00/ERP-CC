@@ -5,12 +5,16 @@ export type { Log };
 /** Filtros de consulta para el listado de logs de auditoría. */
 export type FiltrosLog = {
   usuarioId?: string;
+  actor?: string;
+  recursoId?: string;
   modulo?: string;
   accion?: string;
   /** Fecha ISO 8601 inclusive (creado_en >= desde). */
   desde?: string;
   /** Fecha ISO 8601 inclusive (creado_en <= hasta). */
   hasta?: string;
+  /** Límite estable de la primera página al navegar por el historial. */
+  corte?: string;
   pagina?: number;
   porPagina?: number;
 };

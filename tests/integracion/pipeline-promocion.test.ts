@@ -1,39 +1,13 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import {
-  createClient,
-  type SupabaseClient,
-} from '@supabase/supabase-js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { type SupabaseClient } from '@supabase/supabase-js';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 import type { Database } from '@/compartido/tipos/supabase';
 import { promoverAClienteSiNoExiste } from '@/modulos/pipeline/servicios/promover-a-cliente';
+import { prepararSuiteSupabaseLocal } from '../utilidades/entorno-supabase';
 
-/**
- * Lee una variable de `.env.local` (o de `process.env` como respaldo).
- *
- * Vitest en entorno `node` NO carga `.env.local` automáticamente, así que se
- * lee el archivo del root del repo con `readFileSync` + regex. Se acepta tanto
- * LF como CRLF (`[^\r\n]+` en vez de anclar con `$`, que falla ante el `\r`).
- */
-function leerVariableEnv(nombre: string): string | undefined {
-  try {
-    const rutaEnv = resolve(dirname(fileURLToPath(import.meta.url)), '../../.env.local');
-    const contenido = readFileSync(rutaEnv, 'utf8');
-    const coincidencia = contenido.match(new RegExp(`^${nombre}=([^\\r\\n]+)`, 'm'));
-    if (coincidencia?.[1]) return coincidencia[1].trim();
-  } catch {
-    // `.env.local` ausente en este entorno; se intenta `process.env` abajo.
-  }
-  return process.env[nombre];
-}
-
-const URL_SUPABASE = leerVariableEnv('NEXT_PUBLIC_SUPABASE_URL');
-const CLAVE_SERVICE_ROLE = leerVariableEnv('SUPABASE_SERVICE_ROLE_KEY');
-const faltanCredenciales = !URL_SUPABASE || !CLAVE_SERVICE_ROLE;
-
-// Guardia de entorno: sin credenciales de service-role no hay BD real que probar.
-const describir = faltanCredenciales ? describe.skip : describe;
+// Esta suite BORRA e inserta clientes: solo puede correr contra el stack local.
+const { describir, crearClienteServicio } = prepararSuiteSupabaseLocal(
+  'promoción de prospecto a cliente',
+);
 
 // RFC exclusivo de prueba, 13 caracteres. Valor determinista para que la
 // limpieza (before/after) sea auto-sanadora: una corrida interrumpida deja la
@@ -44,12 +18,9 @@ describir('promoción de prospecto a cliente (integración)', () => {
   let clienteAdmin: SupabaseClient<Database>;
 
   beforeAll(async () => {
-    // Se crea dentro de beforeAll (no en el cuerpo del describe) porque el
-    // factory de un describe.skip igual se ejecuta al recolectar, y createClient
-    // lanzaría con credenciales indefinidas.
-    clienteAdmin = createClient<Database>(URL_SUPABASE!, CLAVE_SERVICE_ROLE!, {
-      auth: { persistSession: false },
-    });
+    // El cliente se abre dentro de beforeAll (no en el cuerpo del describe)
+    // porque el factory de un describe.skip igual se ejecuta al recolectar.
+    clienteAdmin = crearClienteServicio();
     // Limpieza defensiva previa: garantiza que la primera promoción ejerza el
     // camino de insert y no un dedup contra una fila residual.
     await clienteAdmin.from('clientes').delete().eq('rfc', RFC_PRUEBA);

@@ -1,0 +1,23 @@
+# Diez encargos breves para terminar A20 y verificar A12
+
+Estado de partida: `codex/cierre-auditoria-global` en `0fa7286` (ORD-07 confirmado solo localmente). Los once ID A20 pendientes se agrupan en los encargos 1–9; el 10 es A12. Ejecutar **uno a la vez** para evitar conflictos. Cada encargo debe leer solo su fila de `entregables/auditoria-global-2026-09-22/matriz-164.csv`, el checkpoint `CONTINUIDAD.md` y el código implicado. No repetir pruebas históricas aprobadas sin cambios. `.env.local` apunta a producción: cualquier prueba mutante exige `entorno-local.ps1` y loopback. Preservar cuatro `entregables/*` ajenos. Claude Code implementa y entrega diff/evidencia; Codex revisa, verifica y confirma Git. No push, merge, despliegue ni escritura/migración remota.
+
+1. **PRD-09 — avance por proceso.** Implementa progreso acumulado por pareja partida×proceso sobre las metas de ORD-07: hecho, meta, pendiente y porcentaje en producción. Registrar varias sesiones sin duplicar avances; completar solo cuando todas las metas se cumplan y distinguir operaciones intermedias de piezas físicas finales. Conserva el camino histórico sin metas. Prueba concurrencia, permisos y E2E-19; entrega archivos, resultados y riesgos.
+
+2. **ORD-06 — orden heredada.** Implementa alta administrativa de trabajo histórico con ID previo único, cliente, monto sin IVA/IVA, condiciones, referencia externa, área, procesos, fecha, horas, notas, archivos y partidas. Debe entrar en Bandeja y crear AR borrador sin consumir folio RFQ; respeta la excepción D-01/OBS-15 y no duplica AR. Prueba rechazo de ID repetido, persistencia y E2E-14.
+
+3. **CLI-08 — repetir trabajo.** Desde una orden histórica crea un trabajo nuevo reutilizando solo datos comerciales/técnicos pertinentes y mostrando el identificador nuevo. No copies avances, sesiones, pagos ni documentos de la ejecución anterior. Usa el canal de alta acordado en OBS-15 y coordina con ORD-06; verifica aislamiento de datos y E2E-14.
+
+4. **PRD-15 — reactivar orden.** Añade acción administrativa para devolver una orden «Lista» a operación sin borrar sesiones previas. Define y prueba transición, permisos, CAS, capacidad/planeación y efecto financiero según la política vigente; no reabre entregas o cobros por accidente. Cubre E2E-21 y deja explícitos los casos no permitidos.
+
+5. **PLA-05 y PLA-06 — calendario operativo.** Muestra pausadas sin plan, trabajo activo sin fecha en hoy y sugerencias que caben en capacidad libre; permite asignarlas. En tarjetas semanales expón detalle y acciones permitidas por estado (Bandeja, Iniciar, Sesión, Pausar, Reanudar, Entregar, Imprimir); Reactivar solo admin. Reutiliza acciones existentes, valida capacidad/concurrencia y E2E-22.
+
+6. **AR-01 — ficha integral.** Completa la cuenta vinculada a orden/cliente con referencia INVCNC ya implementada, desglose de base e IVA, condiciones, emisión, pagos y saldo reconciliado en una sola ficha. Respeta D-04 actual: AR al aprobar una orden comercial, TI sin AR y cobro antes de entrega como anticipo. No regeneres referencias ni dupliques cuentas. Verifica E2E-07 y cálculos SQL.
+
+7. **AR-08 y AR-09 — movimientos.** Implementa corrección trazable de pagos (reverso y reemplazo, sin edición destructiva) con fecha, monto, método, cuenta, referencia, TC y notas; cancelar el formulario no escribe y el saldo se recalcula. Representa anticipos heredados no estructurados una sola vez y sepáralos de pagos corregibles. Prueba idempotencia, concurrencia, permisos y E2E-24/25.
+
+8. **AR-16 — anulación de cuenta.** Añade confirmación y anulación trazable de AR, conservando orden e historial financiero; define qué ocurre con pagos y saldo según D-04 y las correcciones AR-08. No borres en cascada ni elimines evidencia. Prueba roles, doble solicitud, invariantes y E2E-16.
+
+9. **CFG-12 — consolidación heredada.** Implementa herramienta administrativa de soporte con vista previa de conteos, selección y confirmación explícita; crea solo AR borradores faltantes para órdenes comerciales elegibles, de modo idempotente y auditable. No la ejecutes sobre datos reales durante el desarrollo. Prueba permisos, repetición, estados y E2E-14 en Supabase local.
+
+10. **A12 — cierre de los cuatro prompts originales.** Tras confirmar los encargos anteriores, reconcilia individualmente 164 ID (**134 capacidades base y 30 OBS**), audita el delta funcional frente a la referencia y verifica las variantes de los 41 escenarios. Ejecuta solo casos faltantes o afectados; registra evidencia y límites por ID, separando local, CI, remoto y aceptación del Product Owner. No declares cierre global con gates pendientes; entrega dictamen y pendientes precisos.

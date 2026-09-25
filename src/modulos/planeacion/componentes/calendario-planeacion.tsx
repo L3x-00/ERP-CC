@@ -57,6 +57,9 @@ export interface PropsCalendarioPlaneacion {
   onSeleccionarProgramacion?: (programacion: ProgramacionArea | null) => void;
   /** Solicita confirmar una reprogramación por arrastre; nunca muta por sí sola. */
   onSolicitarReprogramacion?: (programacion: ProgramacionArea, fechaDestino: string) => void;
+  /** PLA-06: acciones de orden desde la tarjeta semanal. */
+  puedeAdministrar?: boolean;
+  onRefrescarOperacion?: () => void;
 }
 
 const ETIQUETA_VISTA: Record<VistaPlaneacion, string> = {
@@ -97,6 +100,8 @@ export function CalendarioPlaneacion({
   desglosePartidas = [],
   onSeleccionarProgramacion,
   onSolicitarReprogramacion,
+  puedeAdministrar = false,
+  onRefrescarOperacion,
 }: PropsCalendarioPlaneacion) {
   const rango = usarTiendaPlaneacion((estado) => estado.rango);
   const area = usarTiendaPlaneacion((estado) => estado.area);
@@ -221,6 +226,8 @@ export function CalendarioPlaneacion({
     onSeleccionarProgramacion: alSeleccionar,
     onSolicitarReprogramacion,
     onAbrirDia: abrirDia,
+    puedeAdministrar,
+    onRefrescarOperacion,
   };
 
   return (

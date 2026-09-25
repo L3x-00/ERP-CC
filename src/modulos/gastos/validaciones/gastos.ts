@@ -42,6 +42,13 @@ const urlComprobante = z
 const textoOpcional = (maximo: number, etiqueta: string) =>
   z.string().trim().min(1, `${etiqueta} no puede estar vacío`).max(maximo).optional();
 
+export const esquemaGuardarGastoA19 = z.object({
+  modo: z.enum(['crear', 'editar']),
+  gastoId: z.uuid().optional(),
+  actualizadoEn: z.iso.datetime({ offset: true }).optional(),
+  tipoGasto: z.enum(['fijo', 'variable']),
+}).strict();
+
 const esquemaImportes = z
   .object({
     montoSubtotal: montoNoNegativo('subtotal'),
@@ -71,6 +78,7 @@ const esquemaImportes = z
 
 export const esquemaRegistrarGasto = z
   .object({
+  tipoGasto: z.enum(['fijo', 'variable']),
   ordenId: z.uuid('ID de orden inválido').optional(),
   proveedorId: z.uuid('ID de proveedor inválido').optional(),
   // OBS-28: cuenta bancaria de salida (opcional).

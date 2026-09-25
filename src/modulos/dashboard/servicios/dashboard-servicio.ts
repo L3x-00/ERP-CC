@@ -43,17 +43,21 @@ function tarjeta(
   descripcion?: string,
 ): TarjetaMetrica {
   const actualSeguro = numeroSeguro(actual);
-  const variacion: ResultadoVariacionPorcentaje = calcularVariacionPorcentaje(
-    actualSeguro,
-    numeroSeguro(anterior),
-  );
+  // A03/A04: un periodo (actual o anterior) puede venir como "no calculable".
+  // Tratar ese `null` como 0 produciría una variación falsa (±100% contra una
+  // base inexistente), así que la tarjeta se emite sin comparación: la UI ya
+  // pinta "Sin comparación disponible" con `variacionPorcentaje === null`.
+  const comparable = actual !== null && anterior !== null;
+  const variacion: ResultadoVariacionPorcentaje | null = comparable
+    ? calcularVariacionPorcentaje(actualSeguro, numeroSeguro(anterior))
+    : null;
   return {
     id,
     titulo,
     valor: actual === null ? '—' : actualSeguro,
     unidad,
-    variacionPorcentaje: actual === null ? null : variacion.porcentaje,
-    tendencia: actual === null ? 'neutro' : variacion.tendencia,
+    variacionPorcentaje: variacion === null ? null : variacion.porcentaje,
+    tendencia: variacion === null ? 'neutro' : variacion.tendencia,
     ...(descripcion ? { descripcion } : {}),
   };
 }
@@ -139,7 +143,10 @@ const META_CONVERSION_PIPELINE = 80;
 
 export function tarjetasEjecutivas(metricas: MetricasEjecutivas): TarjetaMetrica[] {
   return [
-    tarjeta('ventas-total-facturado', 'Ventas facturadas', metricas.actual.ventas.totalFacturado, metricas.anterior.ventas.totalFacturado, 'moneda', 'Importe convertido a MXN'),
+    tarjeta('ventas-total-facturado', 'Ventas facturadas', metricas.actual.ventas.totalFacturado, metricas.anterior.ventas.totalFacturado, 'moneda', 'Importe facturado con IVA, convertido a MXN'),
+    // A03: la venta neta es la base del margen; sale "—" cuando alguna cuenta
+    // del periodo no tiene desglose histórico de IVA.
+    tarjeta('ventas-netas', 'Ventas netas (sin IVA)', metricas.actual.ventas.ventaNetaMxn, metricas.anterior.ventas.ventaNetaMxn, 'moneda', metricas.actual.ventas.cuentasSinDesglose > 0 ? `${metricas.actual.ventas.cuentasSinDesglose} cuenta(s) sin desglose de IVA: no calculable` : 'Base gravable histórica en MXN'),
     tarjeta('pipeline-activo', 'Pipeline activo (cotizado)', metricas.actual.ventas.totalCotizado, metricas.anterior.ventas.totalCotizado, 'moneda', 'Importe cotizado del periodo en MXN'),
     tarjeta('conversion-pipeline', 'Conversión de pipeline', metricas.actual.ventas.porcentajeConversion, metricas.anterior.ventas.porcentajeConversion, 'porcentaje', `Aprobadas/total · meta de referencia ${META_CONVERSION_PIPELINE}%`),
     tarjeta('tiempo-respuesta-cotizacion', 'Tiempo de respuesta', metricas.actual.ventas.tiempoRespuestaHorasPromedio, metricas.anterior.ventas.tiempoRespuestaHorasPromedio, 'cantidad', 'Horas promedio hasta enviar la cotización'),
@@ -148,8 +155,11 @@ export function tarjetasEjecutivas(metricas: MetricasEjecutivas): TarjetaMetrica
     tarjeta('ordenes-internas-ti', 'Órdenes internas (TI)', metricas.actual.ordenes.internas, metricas.anterior.ordenes.internas, 'cantidad', 'Trabajos internos del periodo; no son ventas a clientes'),
     tarjeta('costo-ti-periodo', 'Costo de producción TI', metricas.costoTi?.actual.costoTotalMxn ?? null, metricas.costoTi?.anterior.costoTotalMxn ?? null, 'moneda', 'Materiales, mano de obra y gastos directos de los trabajos internos del periodo'),
     tarjeta('ordenes-atrasadas', 'Órdenes atrasadas', metricas.actual.ordenes.atrasadas, metricas.anterior.ordenes.atrasadas, 'cantidad'),
-    tarjeta('gastos-periodo', 'Gastos del periodo', metricas.actual.finanzas.gastosTotal, metricas.anterior.finanzas.gastosTotal, 'moneda', 'Gastos no cancelados del periodo en MXN'),
-    tarjeta('utilidad-neta', 'Utilidad neta acumulada', metricas.actual.finanzas.utilidadNetaAcumulada, metricas.anterior.finanzas.utilidadNetaAcumulada, 'moneda', 'Resultado aproximado del periodo en MXN'),
+    tarjeta('gastos-periodo', 'Gastos del periodo', metricas.actual.finanzas.gastosTotal, metricas.anterior.finanzas.gastosTotal, 'moneda', 'Gastos no cancelados del periodo en MXN (desembolso, no costo de producción)'),
+    // A04: costo reconocido = material + mano de obra + gastos que no duplican
+    // esos rubros. Es la cifra que resta a la venta neta.
+    tarjeta('costos-reconocidos', 'Costo de producción del periodo', metricas.actual.finanzas.costosReconocidosMxn, metricas.anterior.finanzas.costosReconocidosMxn, 'moneda', metricas.actual.finanzas.gastosIncluidosEnRubrosMxn > 0 ? 'Excluye gastos de orden de materia prima/nómina ya contados en material y mano de obra' : 'Material consumido, mano de obra y gastos directos en MXN'),
+    tarjeta('utilidad-neta', 'Utilidad neta acumulada', metricas.actual.finanzas.utilidadNetaAcumulada, metricas.anterior.finanzas.utilidadNetaAcumulada, 'moneda', 'Venta neta sin IVA menos costo de producción del periodo, en MXN'),
     tarjeta('margen-promedio', 'Margen promedio', metricas.actual.finanzas.margenPromedioPorcentaje, metricas.anterior.finanzas.margenPromedioPorcentaje, 'porcentaje'),
   ];
 }

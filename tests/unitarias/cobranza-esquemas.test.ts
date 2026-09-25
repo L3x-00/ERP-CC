@@ -31,13 +31,14 @@ describe('esquemaCrearCuentaPorCobrar', () => {
     moneda: 'USD' as const,
     tipoCambioOrigen: 18.5,
     fechaVencimiento: fecha,
+    folioFacturaRemision: 'F-001',
   };
 
-  it('acepta una cuenta válida con y sin folio', () => {
+  it('acepta una cuenta válida con folio y rechaza omitirlo', () => {
     expect(esquemaCrearCuentaPorCobrar.safeParse(base).success).toBe(true);
     expect(
-      esquemaCrearCuentaPorCobrar.safeParse({ ...base, folioFacturaRemision: 'F-001' }).success,
-    ).toBe(true);
+      esquemaCrearCuentaPorCobrar.safeParse({ ...base, folioFacturaRemision: undefined }).success,
+    ).toBe(false);
   });
 
   it('rechaza UUID, moneda y fecha inválidos', () => {
@@ -150,10 +151,13 @@ describe('esquemaConsultarCartera', () => {
 describe('mappers de filas generadas', () => {
   const filaCuenta: FilaCuentaPorCobrar = {
     id: uuidCuenta,
+    referencia_interna: 'INVCNC-0000001',
     orden_id: uuidOrden,
     cliente_id: uuidCliente,
     folio_factura_remision: null,
     monto_total: 1000,
+    monto_subtotal: null,
+    monto_iva: null,
     saldo_pendiente: 400,
     moneda: 'USD',
     tipo_cambio_origen: 18.5,
@@ -169,6 +173,7 @@ describe('mappers de filas generadas', () => {
     const cuenta = filaACuentaPorCobrar({ ...filaCuenta, monto_total: '1000' as unknown as number });
     expect(cuenta).toMatchObject({
       id: uuidCuenta,
+      referenciaInterna: 'INVCNC-0000001',
       ordenId: uuidOrden,
       clienteId: uuidCliente,
       folioFacturaRemision: null,

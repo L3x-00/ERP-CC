@@ -1,49 +1,65 @@
 'use client';
 
 import { useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Input, Select } from '@/compartido/componentes/ui/input';
+import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
+import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
+import {
+  Tabla, TablaCelda, TablaContenedor, TablaCuerpo, TablaEncabezado,
+  TablaEncabezadoCelda, TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
 
-import { REGISTROS_POR_PAGINA } from '@/compartido/constantes/indice';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/indice';
 
 import { obtenerLogsAccion } from '../acciones/obtener-logs';
 import type { FiltrosLog } from '../tipos/indice';
-
-/** Clases compartidas de los inputs de filtro. */
-const CLASE_INPUT_FILTRO =
-  'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
-
-/** Clases compartidas de los botones de paginación. */
-const CLASE_BOTON_PAGINACION =
-  'rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-40';
+import { enlaceRegistroAuditado } from '../utilidades/enlace-registro';
 
 /**
- * Tabla de logs de auditoría con filtros por módulo y acción, y paginación
- * anterior/siguiente. Consulta `obtenerLogsAccion` (Server Action) a través
- * de TanStack Query bajo la clave `['logs', filtros]`; conserva los datos de
- * la página anterior mientras carga la siguiente para evitar parpadeos.
- * Muestra estados de carga, error y lista vacía en español.
+ * Bitácora administrativa filtrable. La primera página consulta cambios cada
+ * 30 segundos; las páginas siguientes mantienen un corte temporal para que
+ * nuevas inserciones no desplacen filas durante la navegación.
  */
 export function TablaLogs() {
   const [modulo, setModulo] = useState('');
   const [accion, setAccion] = useState('');
+  const [actor, setActor] = useState('');
+  const [recursoId, setRecursoId] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState(60);
+  const [corte, setCorte] = useState<string>();
+
+  function reiniciarBusqueda(): void {
+    setPagina(1);
+    setCorte(undefined);
+  }
 
   const filtros: FiltrosLog = {
     pagina,
-    porPagina: REGISTROS_POR_PAGINA,
+    porPagina,
+    ...(corte ? { corte } : {}),
     ...(modulo.trim() !== '' ? { modulo: modulo.trim() } : {}),
     ...(accion.trim() !== '' ? { accion: accion.trim() } : {}),
+    ...(actor.trim() !== '' ? { actor: actor.trim() } : {}),
+    ...(recursoId.trim() !== '' ? { recursoId: recursoId.trim() } : {}),
+    ...(desde ? { desde: new Date(`${desde}T00:00:00`).toISOString() } : {}),
+    ...(hasta ? { hasta: new Date(`${hasta}T23:59:59.999`).toISOString() } : {}),
   };
 
   const {
     data: respuesta,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     queryKey: ['logs', filtros],
     queryFn: () => obtenerLogsAccion(filtros),
-    placeholderData: keepPreviousData,
+    refetchInterval: 30_000,
   });
 
   /**
@@ -53,7 +69,7 @@ export function TablaLogs() {
    */
   function manejarCambioModulo(valor: string): void {
     setModulo(valor);
-    setPagina(1);
+    reiniciarBusqueda();
   }
 
   /**
@@ -63,32 +79,32 @@ export function TablaLogs() {
    */
   function manejarCambioAccion(valor: string): void {
     setAccion(valor);
-    setPagina(1);
+    reiniciarBusqueda();
   }
 
   const datos = respuesta !== undefined && respuesta.exito ? respuesta.datos : undefined;
   const errorAccion = respuesta !== undefined && !respuesta.exito ? respuesta.error : null;
   const registros = datos?.registros ?? [];
   const total = datos?.total ?? 0;
-  const totalPaginas = total > 0 ? Math.ceil(total / REGISTROS_POR_PAGINA) : 1;
+  const totalPaginas = total > 0 ? Math.ceil(total / porPagina) : 1;
   const hayError = isError || errorAccion !== null;
   const mostrarVacio = !isLoading && !hayError && registros.length === 0;
   const mostrarTabla = !isLoading && !hayError && registros.length > 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-3">
+    <div className="flex flex-col gap-4" data-testid="bitacora-configuracion">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="flex flex-col gap-1">
           <label htmlFor="filtro-modulo" className="text-sm font-medium">
             Módulo
           </label>
-          <input
+          <Input
             id="filtro-modulo"
             type="text"
             value={modulo}
             onChange={(evento) => manejarCambioModulo(evento.target.value)}
             placeholder="ej. clientes"
-            className={CLASE_INPUT_FILTRO}
+            maxLength={80}
           />
         </div>
 
@@ -96,81 +112,106 @@ export function TablaLogs() {
           <label htmlFor="filtro-accion" className="text-sm font-medium">
             Acción
           </label>
-          <input
+          <Input
             id="filtro-accion"
             type="text"
             value={accion}
             onChange={(evento) => manejarCambioAccion(evento.target.value)}
             placeholder="ej. crear"
-            className={CLASE_INPUT_FILTRO}
+            maxLength={80}
           />
         </div>
+        <label className="grid gap-1 text-sm font-medium" htmlFor="filtro-actor">Actor
+          <Input id="filtro-actor" value={actor} onChange={(evento) => { setActor(evento.target.value); reiniciarBusqueda(); }} placeholder="Nombre del usuario" maxLength={120} />
+        </label>
+        <label className="grid gap-1 text-sm font-medium" htmlFor="filtro-recurso">Registro
+          <Input id="filtro-recurso" value={recursoId} onChange={(evento) => { setRecursoId(evento.target.value); reiniciarBusqueda(); }} placeholder="ID del registro" maxLength={120} />
+        </label>
+        <label className="grid gap-1 text-sm font-medium" htmlFor="filtro-desde">Desde
+          <Input id="filtro-desde" type="date" value={desde} max={hasta || undefined} onChange={(evento) => { setDesde(evento.target.value); reiniciarBusqueda(); }} />
+        </label>
+        <label className="grid gap-1 text-sm font-medium" htmlFor="filtro-hasta">Hasta
+          <Input id="filtro-hasta" type="date" value={hasta} min={desde || undefined} onChange={(evento) => { setHasta(evento.target.value); reiniciarBusqueda(); }} />
+        </label>
+        <label className="grid gap-1 text-sm font-medium" htmlFor="tamano-bitacora">Entradas por página
+          <Select id="tamano-bitacora" value={porPagina} onChange={(evento) => { setPorPagina(Number(evento.target.value)); reiniciarBusqueda(); }}>
+            <option value={60}>60 recientes</option>
+            <option value={30}>30</option>
+            <option value={10}>10</option>
+          </Select>
+        </label>
       </div>
 
-      {isLoading && <p className="text-sm text-texto-secundario">Cargando registros…</p>}
+      {isLoading && <div aria-label="Cargando bitácora" className="grid gap-2"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div>}
 
       {!isLoading && hayError && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {errorAccion ?? 'No se pudieron cargar los logs de auditoría.'}
-        </p>
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-peligro-texto">
+          {errorAccion ?? 'No se pudieron cargar los registros de auditoría.'}
+          <Button variante="contorno" tamano="lg" onClick={() => void refetch()}>Reintentar</Button>
+        </div>
       )}
 
       {mostrarVacio && (
-        <p className="text-sm text-texto-secundario">No hay registros de auditoría.</p>
+        <EstadoVacio titulo="Sin actividad para estos filtros" descripcion="Ajusta actor, fecha o registro para ampliar la búsqueda." />
       )}
 
       {mostrarTabla && (
-        <div className="overflow-x-auto rounded-base border border-borde">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-superficie-2">
+        <div className="space-y-2">
+          <p className="text-xs text-texto-secundario sm:hidden">Desliza la tabla para ver todas las columnas.</p>
+          <TablaContenedor role="region" tabIndex={0} aria-label="Tabla de actividad, desplazamiento horizontal">
+          <Tabla className="min-w-[760px]">
+            <TablaEncabezado>
               <tr>
-                <th className="px-3 py-2 font-semibold">Fecha</th>
-                <th className="px-3 py-2 font-semibold">Usuario</th>
-                <th className="px-3 py-2 font-semibold">Rol</th>
-                <th className="px-3 py-2 font-semibold">Acción</th>
-                <th className="px-3 py-2 font-semibold">Módulo</th>
-                <th className="px-3 py-2 font-semibold">Recurso</th>
+                <TablaEncabezadoCelda>Fecha</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Usuario</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Rol</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Acción</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Módulo</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>Registro</TablaEncabezadoCelda>
               </tr>
-            </thead>
-            <tbody>
-              {registros.map((log) => (
-                <tr key={log.id} className="border-t border-borde">
-                  <td className="whitespace-nowrap px-3 py-2">
+            </TablaEncabezado>
+            <TablaCuerpo>
+              {registros.map((log) => {
+                const enlace = enlaceRegistroAuditado(log);
+                return <TablaFila key={log.id}>
+                  <TablaCelda className="whitespace-nowrap">
                     {formatearFecha(log.creadoEn)} {formatearHora(log.creadoEn)}
-                  </td>
-                  <td className="px-3 py-2">{log.nombreUsuario}</td>
-                  <td className="px-3 py-2">{log.rol}</td>
-                  <td className="px-3 py-2">{log.accion}</td>
-                  <td className="px-3 py-2">{log.modulo}</td>
-                  <td className="px-3 py-2">{log.recursoId}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </TablaCelda>
+                  <TablaCelda>{log.nombreUsuario}</TablaCelda>
+                  <TablaCelda>{log.rol}</TablaCelda>
+                  <TablaCelda>{log.accion}</TablaCelda>
+                  <TablaCelda>{log.modulo}</TablaCelda>
+                  <TablaCelda>{enlace ? <Link className="text-acento underline-offset-2 hover:underline focus-visible:underline" href={enlace}>Abrir registro</Link> : <span className="break-all text-texto-secundario">{log.recursoId}</span>}</TablaCelda>
+                </TablaFila>;
+              })}
+            </TablaCuerpo>
+          </Tabla>
+          </TablaContenedor>
         </div>
       )}
 
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="text-texto-secundario">
-          Página {pagina} de {totalPaginas}
+          {total} registros · Página {pagina} de {totalPaginas} · Actualización cada 30 s
         </span>
         <div className="flex gap-2">
-          <button
-            type="button"
+          <Button tamano="lg" variante="contorno" onClick={() => void refetch()} disabled={isLoading}>
+            Actualizar
+          </Button>
+          <Button
+            tamano="lg" variante="contorno"
             disabled={pagina <= 1 || isLoading}
-            onClick={() => setPagina((previo) => Math.max(1, previo - 1))}
-            className={CLASE_BOTON_PAGINACION}
+            onClick={() => { if (pagina === 2) setCorte(undefined); setPagina((previo) => Math.max(1, previo - 1)); }}
           >
             Anterior
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            tamano="lg" variante="contorno"
             disabled={pagina >= totalPaginas || isLoading}
-            onClick={() => setPagina((previo) => previo + 1)}
-            className={CLASE_BOTON_PAGINACION}
+            onClick={() => { if (pagina === 1) setCorte(registros[0]?.creadoEn); setPagina((previo) => previo + 1); }}
           >
             Siguiente
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -30,7 +30,7 @@ export function ReciboPersistido({ recibo }: { recibo: ReciboPagoPersistido }) {
   const elemento = useRef<HTMLElement>(null);
   const [error, setError] = useState(false);
   const campos: [string, string][] = [
-    ['Cliente', recibo.clienteNombre], ['Orden', recibo.folioOrden],
+    ['Cliente', recibo.clienteNombre], ['Cuenta AR', recibo.referenciaInterna], ['Orden', recibo.folioOrden],
     ['Fecha del pago', new Date(recibo.fecha).toLocaleString('es-MX')], ['Método', recibo.metodoPago.replaceAll('_', ' ')],
     ['Importe pagado', formatearMoneda(recibo.montoPagado, recibo.monedaPago)], ['Moneda de pago', recibo.monedaPago],
     ['Tipo de cambio del pago (MXN)', String(recibo.tipoCambioPago)],

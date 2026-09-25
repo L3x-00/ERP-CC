@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -92,8 +92,24 @@ export function PestanaAreasTrabajo({
   const [seleccionAreas, setSeleccionAreas] = useState<Record<string, string[]>>(() =>
     mapaInicial(operadores),
   );
+  const operadoresConEdicionLocal = useRef(new Set<string>());
   const [operadorGuardando, setOperadorGuardando] = useState<string | null>(null);
   const [mensajeOperador, setMensajeOperador] = useState<string | null>(null);
+
+  // Realtime actualiza `operadores` desde la consulta autorizada. La selección
+  // debe seguir esos cambios sin borrar las casillas que este administrador
+  // todavía está editando y no ha guardado.
+  useEffect(() => {
+    setSeleccionAreas((previo) => {
+      const siguiente: Record<string, string[]> = {};
+      for (const operador of operadores) {
+        siguiente[operador.id] = operadoresConEdicionLocal.current.has(operador.id)
+          ? (previo[operador.id] ?? [...operador.areas])
+          : [...operador.areas];
+      }
+      return siguiente;
+    });
+  }, [operadores]);
 
   const areasOrdenadas = useMemo(() => ordenarJerarquia(datos), [datos]);
   const opcionesPadre = useMemo(
@@ -168,6 +184,7 @@ export function PestanaAreasTrabajo({
   }
 
   function alternarAreaOperador(operadorId: string, codigo: string): void {
+    operadoresConEdicionLocal.current.add(operadorId);
     setSeleccionAreas((previo) => {
       const actuales = previo[operadorId] ?? [];
       return {
@@ -194,6 +211,7 @@ export function PestanaAreasTrabajo({
         return;
       }
       setMensajeOperador(`Áreas de ${operador.nombre} guardadas`);
+      operadoresConEdicionLocal.current.delete(operador.id);
       onOperadoresGuardados(
         operadores.map((actual) =>
           actual.id === operador.id ? { ...actual, areas: [...areas].sort() } : actual,
@@ -324,6 +342,16 @@ export function PestanaAreasTrabajo({
           <ul className="flex flex-col gap-3">
             {operadores.map((operador) => {
               const seleccionadas = seleccionAreas[operador.id] ?? [];
+              // Las áreas asignadas que luego se desactivaron deben seguir
+              // visibles: la RPC rechaza guardarlas y el administrador necesita
+              // poder quitarlas expresamente antes de confirmar otro cambio.
+              const noDisponibles = seleccionadas.filter(
+                (codigo) => !areasSeleccionables.includes(codigo),
+              );
+              const opciones = [
+                ...areasSeleccionables,
+                ...operador.areas.filter((codigo) => !areasSeleccionables.includes(codigo)),
+              ];
               return (
                 <li key={operador.id} className="rounded-lg border border-borde bg-superficie p-3" data-testid={`areas-operador-fila-${operador.id}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -338,12 +366,18 @@ export function PestanaAreasTrabajo({
                       {operadorGuardando === operador.id ? 'Guardando…' : 'Guardar áreas'}
                     </Button>
                   </div>
+                  {noDisponibles.length > 0 ? (
+                    <p className="mt-2 text-sm text-advertencia-texto" role="status">
+                      Desmarca las áreas inactivas o no disponibles antes de guardar.
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
-                    {areasSeleccionables.map((codigo) => (
+                    {opciones.map((codigo) => (
                       <label key={codigo} className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
                           checked={seleccionadas.includes(codigo)}
+                          disabled={!areasSeleccionables.includes(codigo) && !seleccionadas.includes(codigo)}
                           onChange={() => alternarAreaOperador(operador.id, codigo)}
                           data-testid={`areas-operador-check-${operador.id}-${codigo}`}
                         />
@@ -351,6 +385,9 @@ export function PestanaAreasTrabajo({
                         <span className="text-texto-secundario">
                           {nombrePorCodigo.get(codigo) ?? ''}
                         </span>
+                        {noDisponibles.includes(codigo) ? (
+                          <span className="text-advertencia-texto">Inactiva o no disponible</span>
+                        ) : null}
                       </label>
                     ))}
                   </div>

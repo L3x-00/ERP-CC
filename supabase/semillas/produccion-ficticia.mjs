@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
 import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
+import { cargarEntornoLocal, exigirSupabaseLocal } from './guardia-supabase-local.mjs';
 
 const identificadores = {
   ordenes: [
@@ -18,15 +18,6 @@ const identificadores = {
   recurso: '60000000-0000-4000-8000-000000000302',
   correoOperador: 'sim-produccion@datos-ficticios.invalid',
 };
-
-function cargarEntornoLocal() {
-  if (!existsSync('.env.local')) return;
-  for (const linea of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
-    const coincidencia = /^([A-Z0-9_]+)=(.*)$/.exec(linea.trim());
-    if (!coincidencia || process.env[coincidencia[1]] !== undefined) continue;
-    process.env[coincidencia[1]] = coincidencia[2].replace(/^['"]|['"]$/g, '');
-  }
-}
 
 function requerirVariable(nombre) {
   const valor = process.env[nombre];
@@ -245,6 +236,9 @@ async function ejecutar() {
   if (!soloVerificar) {
     asegurar(process.env.CONFIRMAR_DATOS_FICTICIOS === 'si', 'Define CONFIRMAR_DATOS_FICTICIOS=si para sembrar datos ficticios persistentes.');
   }
+  // Guardia de aislamiento ANTES de abrir cliente: `.env.local` apunta al
+  // proyecto remoto y esta semilla borra e inserta fixtures.
+  exigirSupabaseLocal('Semilla de producción ficticia');
   const cliente = createClient(requerirVariable('NEXT_PUBLIC_SUPABASE_URL'), requerirVariable('SUPABASE_SERVICE_ROLE_KEY'), {
     auth: { autoRefreshToken: false, persistSession: false },
   });

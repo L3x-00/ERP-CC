@@ -29,6 +29,8 @@ export function SincronizadorDashboardRealtime() {
   useEffect(() => {
     const supabase = obtenerClienteSupabaseNavegador();
     let desmontado = false;
+    let identidad: string | null = null;
+    let revisionSesion = 0;
     const invalidar = (): void => {
       if (temporizadorRef.current) clearTimeout(temporizadorRef.current);
       temporizadorRef.current = setTimeout(() => {
@@ -41,7 +43,11 @@ export function SincronizadorDashboardRealtime() {
       const canal = supabase.channel(idCanalRef.current);
       for (const tabla of TABLAS_DASHBOARD) canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla }, invalidar);
       canalRef.current = canal;
-      canal.subscribe((estado) => { if (!desmontado) setConectado(estado === 'SUBSCRIBED'); });
+      canal.subscribe((estado) => {
+        if (desmontado) return;
+        setConectado(estado === 'SUBSCRIBED');
+        if (estado === 'SUBSCRIBED') invalidar();
+      });
     };
     const desconectar = (): void => {
       if (temporizadorRef.current) clearTimeout(temporizadorRef.current);
@@ -49,11 +55,24 @@ export function SincronizadorDashboardRealtime() {
       const canal = canalRef.current;
       canalRef.current = null;
       if (canal) void supabase.removeChannel(canal);
-      setConectado(false);
+      if (!desmontado) setConectado(false);
     };
-    void supabase.auth.getSession().then(({ data }) => { if (data.session) conectar(); });
-    const { data: suscripcion } = supabase.auth.onAuthStateChange((_evento, sesion) => { if (sesion) conectar(); else desconectar(); });
-    return () => { desmontado = true; suscripcion.subscription.unsubscribe(); desconectar(); };
+    const actualizarSesion = (usuarioId: string | null): void => {
+      if (!usuarioId) { identidad = null; desconectar(); return; }
+      if (identidad && identidad !== usuarioId) desconectar();
+      identidad = usuarioId;
+      conectar();
+    };
+    const { data: suscripcion } = supabase.auth.onAuthStateChange((_evento, sesion) => {
+      revisionSesion++;
+      actualizarSesion(sesion?.user.id ?? null);
+    });
+    const revisionInicial = revisionSesion;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (revisionSesion === revisionInicial) actualizarSesion(data.session?.user.id ?? null);
+    });
+    window.addEventListener('online', invalidar);
+    return () => { desmontado = true; suscripcion.subscription.unsubscribe(); window.removeEventListener('online', invalidar); desconectar(); };
   }, [clienteQuery]);
 
   return <span className="sr-only" data-testid="sincronizador-dashboard" data-conectado={conectado ? 'true' : 'false'} aria-live="polite">{conectado ? 'Sincronización del dashboard conectada' : 'Sincronización del dashboard conectando'}</span>;

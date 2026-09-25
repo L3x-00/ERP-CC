@@ -158,13 +158,14 @@ export async function GET(request: Request): Promise<Response> {
       intervaloSesion = setInterval(() => {
         void supabase
           .from('usuarios')
-          .select('id')
+          .select('id, pin_cambiado_en')
           .eq('id', operador.id)
           .eq('rol', 'operador')
           .eq('activo', true)
           .maybeSingle()
           .then(({ data: operadorActual, error }) => {
-            if (Date.now() >= expiraEn || error || !operadorActual) {
+            if (Date.now() >= expiraEn || error || !operadorActual
+              || operadorActual.pin_cambiado_en !== (operador.pinCambiadoEn ?? null)) {
               enviar('sesion_expirada');
               void cerrar?.();
             }

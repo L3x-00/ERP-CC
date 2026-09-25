@@ -12,7 +12,7 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
-/** Abre AR solo para Contabilidad; la elegibilidad de la orden se vuelve a validar en PostgreSQL. */
+/** Excepción para orden entregada sin AR; la elegibilidad se revalida bajo lock en PostgreSQL. */
 export async function abrirCuentaPorCobrarAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<CuentaAbierta>> {
@@ -28,10 +28,16 @@ export async function abrirCuentaPorCobrarAccion(
   }
 
   try {
-    const cuenta = await abrirCuentaPorCobrarServicio(crearClienteSupabaseAdmin(), analisis.data);
+    const cuenta = await abrirCuentaPorCobrarServicio(crearClienteSupabaseAdmin(), {
+      ...analisis.data, actorId: usuario.id,
+    });
     await registrarLog(usuario, 'abrir_cuenta_por_cobrar', 'cobranza', cuenta.id, {
       ordenId: analisis.data.ordenId,
       moneda: cuenta.moneda,
+      montoTotal: analisis.data.montoTotal,
+      tipoCambioOrigen: analisis.data.tipoCambioOrigen,
+      fechaVencimiento: analisis.data.fechaVencimiento,
+      folioFacturaRemision: analisis.data.folioFacturaRemision,
     });
     return { exito: true, datos: cuenta };
   } catch (error) {

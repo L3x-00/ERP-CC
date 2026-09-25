@@ -4,6 +4,8 @@ import { COOKIE_SESION_OPERADOR } from '@/nucleo/autenticacion/constantes';
 import {
   deserializarSesionOperador,
   sesionOperadorExpirada,
+  sesionOperadorRevocadaPorPin,
+  sesionOperadorVencidaAbsoluta,
 } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
@@ -21,19 +23,19 @@ export async function obtenerOperadorConSesionActiva(): Promise<UsuarioAutentica
   }
 
   const sesion = await deserializarSesionOperador(valorCookie);
-  if (!sesion || sesionOperadorExpirada(sesion)) {
+  if (!sesion || sesionOperadorExpirada(sesion) || sesionOperadorVencidaAbsoluta(sesion)) {
     return null;
   }
 
   const { data: operador, error } = await crearClienteSupabaseAdmin()
     .from('usuarios')
-    .select('id, email, nombre_completo, activo, ultimo_login_at, creado_en, actualizado_en')
+    .select('id, email, nombre_completo, activo, ultimo_login_at, creado_en, actualizado_en, pin_cambiado_en')
     .eq('id', sesion.usuarioId)
     .eq('rol', 'operador')
     .eq('activo', true)
     .maybeSingle();
 
-  if (error || !operador) {
+  if (error || !operador || sesionOperadorRevocadaPorPin(sesion, operador.pin_cambiado_en)) {
     return null;
   }
 
@@ -43,6 +45,7 @@ export async function obtenerOperadorConSesionActiva(): Promise<UsuarioAutentica
     nombreCompleto: operador.nombre_completo,
     rol: 'operador',
     activo: operador.activo,
+    pinCambiadoEn: operador.pin_cambiado_en,
     ultimoLoginEn: operador.ultimo_login_at,
     creadoEn: operador.creado_en,
     actualizadoEn: operador.actualizado_en,

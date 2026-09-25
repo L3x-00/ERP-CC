@@ -1,20 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { cargarEntornoLocal, exigirSupabaseLocal } from './guardia-supabase-local.mjs';
 
 const clienteFicticioId = '60000000-0000-4000-8000-000000000001';
 const recursoPruebaId = '60000000-0000-4000-8000-000000000301';
 const temporales = { ordenId: null, programacionId: null };
-
-function cargarEntornoLocal() {
-  if (!existsSync('.env.local')) return;
-
-  for (const linea of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
-    const coincidencia = /^([A-Z0-9_]+)=(.*)$/.exec(linea.trim());
-    if (!coincidencia || process.env[coincidencia[1]] !== undefined) continue;
-    process.env[coincidencia[1]] = coincidencia[2].replace(/^['"]|['"]$/g, '');
-  }
-}
 
 function requerirVariable(nombre) {
   const valor = process.env[nombre];
@@ -45,8 +35,12 @@ async function ejecutar() {
   asegurar(process.env.NODE_ENV !== 'production', 'La prueba CAS no puede ejecutarse en producción.');
   asegurar(
     process.env.CONFIRMAR_PRUEBAS_FICTICIAS === 'si',
-    'Define CONFIRMAR_PRUEBAS_FICTICIAS=si para ejecutar la prueba remota de compare-and-set.',
+    'Define CONFIRMAR_PRUEBAS_FICTICIAS=si para ejecutar la prueba local de compare-and-set.',
   );
+
+  // Guardia de aislamiento ANTES de abrir cliente: esta verificación crea y
+  // borra órdenes y programaciones reales.
+  exigirSupabaseLocal('Verificación de compare-and-set de Planeación');
 
   const cliente = createClient(
     requerirVariable('NEXT_PUBLIC_SUPABASE_URL'),

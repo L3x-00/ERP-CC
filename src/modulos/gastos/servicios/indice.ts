@@ -2,6 +2,7 @@ export {
   MONEDA_RENTABILIDAD,
   convertirAMxn,
   calcularIngresoMxn,
+  calcularIngresoNetoMxn,
   calcularCostoMaterialesMxn,
   calcularCostoManoObraMxn,
   calcularCostoGastosDirectosMxn,

@@ -8,7 +8,7 @@ const { bancos } = vi.hoisted(() => ({ bancos: vi.fn() }));
 vi.mock('@/modulos/cobranza/acciones/consultar-historial', () => ({ obtenerCuentasBancariasAccion: bancos }));
 import { ModalRegistrarPago } from '@/modulos/cobranza/componentes/modal-registrar-pago';
 const id = (n: number) => `11111111-1111-4111-8111-${String(n).padStart(12, '0')}`;
-const cuenta: CuentaCartera = { id:id(1),clienteId:id(2),ordenId:id(3),folioOrden:'OP-QA',clienteNombre:'Cliente QA',saldoAFavorMxn:500,montoTotal:100,saldoPendiente:100,moneda:'MXN',tipoCambioOrigen:1,estado:'pendiente',estadoProduccion:'completada',folioFacturaRemision:null,fechaEmision:'2026-09-01T12:00:00Z',fechaVencimiento:'2026-09-30T12:00:00Z',cobrableDesde:'2026-09-30T12:00:00Z',creadoEn:'2026-09-01T12:00:00Z',actualizadoEn:'2026-09-01T12:00:00Z' };
+const cuenta: CuentaCartera = { id:id(1),referenciaInterna:'INVCNC-0000001',clienteId:id(2),ordenId:id(3),folioOrden:'OP-QA',clienteNombre:'Cliente QA',saldoAFavorMxn:500,montoTotal:100,saldoPendiente:100,moneda:'MXN',tipoCambioOrigen:1,estado:'pendiente',estadoProduccion:'completada',folioFacturaRemision:null,fechaEmision:'2026-09-01T12:00:00Z',fechaVencimiento:'2026-09-30T12:00:00Z',cobrableDesde:'2026-09-30T12:00:00Z',creadoEn:'2026-09-01T12:00:00Z',actualizadoEn:'2026-09-01T12:00:00Z' };
 function montar(pago=vi.fn().mockResolvedValue({exito:true}), saldo=vi.fn().mockResolvedValue({exito:true})) {
  const cerrar=vi.fn(); const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
  const props={cuenta,abierto:true,procesando:false,onAbiertoChange:cerrar,onRegistrarPago:pago,onAplicarSaldo:saldo};

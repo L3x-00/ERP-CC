@@ -145,9 +145,31 @@ export const esquemaAreasOperador = z
           .toUpperCase()
           .regex(/^[A-Z0-9][A-Z0-9_-]{1,48}$/, 'Código de área inválido'),
       )
-      .max(50, 'Demasiadas áreas para un operador'),
+      .max(50, 'Demasiadas áreas para un operador')
+      // A05: `ACABADOS` y `acabados` son el mismo código tras normalizar. Se
+      // rechaza aquí y también en la RPC, que es la barrera real.
+      .superRefine((areas, contexto) => {
+        if (new Set(areas).size !== areas.length) {
+          contexto.addIssue({ code: 'custom', message: 'Un área no puede repetirse para el operador' });
+        }
+      }),
   })
   .strict();
+
+/** A17/CFG-05: el PIN nunca es numérico; los ceros iniciales cuentan. */
+export const esquemaGuardarOperador = z.object({
+  id: z.uuid('Operador inválido').optional(),
+  nombre: z.string().trim().min(3, 'El nombre debe tener al menos 3 caracteres').max(120),
+  pin: z.string().regex(/^[0-9]{4,6}$/, 'El PIN debe tener de 4 a 6 dígitos').nullable(),
+  activo: z.boolean(),
+}).strict().superRefine((datos, contexto) => {
+  if (!datos.id && !datos.pin) {
+    contexto.addIssue({ code: 'custom', path: ['pin'], message: 'El PIN es obligatorio al crear un operador' });
+  }
+  if (!datos.id && !datos.activo) {
+    contexto.addIssue({ code: 'custom', path: ['activo'], message: 'El operador nuevo debe estar activo' });
+  }
+});
 
 /** CFG-08: catálogo de tiers editable; exige los cuatro tiers una sola vez. */
 export const esquemaCatalogoTiers = z
@@ -196,5 +218,6 @@ export type TipoCambioInput = z.infer<typeof esquemaTipoCambio>;
 export type AreaTrabajoInput = z.infer<typeof esquemaAreaTrabajo>;
 export type ConsultaConfiguracionInput = z.infer<typeof esquemaConsultaConfiguracion>;
 export type AreasOperadorInput = z.infer<typeof esquemaAreasOperador>;
+export type GuardarOperadorInput = z.infer<typeof esquemaGuardarOperador>;
 export type CatalogoTiersInput = z.infer<typeof esquemaCatalogoTiers>;
 export type CatalogoCategoriasGastoInput = z.infer<typeof esquemaCatalogoCategoriasGasto>;

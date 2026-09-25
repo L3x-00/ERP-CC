@@ -1,4 +1,9 @@
 export { registrarGastoAccion } from '@/modulos/gastos/acciones/registrar-gasto';
+export { guardarGastoA19Accion } from '@/modulos/gastos/acciones/guardar-gasto-a19';
+export { obtenerUrlComprobanteGastoAccion } from '@/modulos/gastos/acciones/obtener-url-comprobante';
+export { obtenerProveedoresGastoAccion } from '@/modulos/gastos/acciones/obtener-proveedores-gasto';
+export { prepararSubidaComprobanteGastoAccion } from '@/modulos/gastos/acciones/preparar-subida-comprobante';
+export { descartarSubidaComprobanteGastoAccion } from '@/modulos/gastos/acciones/descartar-subida-comprobante';
 export { cambiarEstadoGastoAccion } from '@/modulos/gastos/acciones/cambiar-estado-gasto';
 export { obtenerGastosAccion } from '@/modulos/gastos/acciones/obtener-gastos';
 export { obtenerDesgloseRentabilidadOrdenAccion } from '@/modulos/gastos/acciones/obtener-desglose-rentabilidad';

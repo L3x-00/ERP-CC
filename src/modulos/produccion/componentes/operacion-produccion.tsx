@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Select } from '@/compartido/componentes/ui/input';
 import { usarTiendaProduccion } from '@/estado/uso-tienda-produccion';
@@ -8,6 +8,7 @@ import {
   cerrarSesionOperadorAccion,
   generarNotaEntregaAccion,
   iniciarSesionOperadorAccion,
+  reanudarSesionOperadorAccion,
   obtenerTableroProduccionAccion,
 } from '@/modulos/produccion/acciones/indice';
 import { CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
@@ -19,7 +20,9 @@ import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formular
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion } from '@/modulos/produccion/componentes/kanban-produccion';
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
+import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
+import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { DatosTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { MotivoPausaSesion } from '@/modulos/produccion/tipos/indice';
 
@@ -28,10 +31,12 @@ export interface PropsOperacionProduccion {
   operadorId: string | null;
   usuarioActualId?: string;
   esAdmin?: boolean;
+  /** PLA-06: la tarjeta de Planeación abre Producción con la orden ya elegida. */
+  ordenInicialId?: string;
 }
 
 /** Orquesta el piso de taller sin copias locales de datos de negocio. */
-export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false }: PropsOperacionProduccion) {
+export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false, ordenInicialId }: PropsOperacionProduccion) {
   const clienteConsultas = useQueryClient();
   const recursoId = usarTiendaProduccion((estado) => estado.recursoId);
   const areaCodigo = usarTiendaProduccion((estado) => estado.areaCodigo);
@@ -63,6 +68,20 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     ...(consultaInicial ? { initialData: datosIniciales } : {}),
   });
   const datos = consulta.data ?? datosIniciales;
+
+  // PLA-06: llegada desde una tarjeta de Planeación; selecciona la orden pedida.
+  useEffect(() => {
+    if (ordenInicialId && datos.ordenes.some((orden) => orden.id === ordenInicialId)) {
+      seleccionarOrden(ordenInicialId);
+    }
+  }, [ordenInicialId, datos.ordenes, seleccionarOrden]);
+
+  const codigosAreaConTrabajo = [...new Set(
+    [...datosIniciales.ordenes, ...datos.ordenes]
+      .flatMap((orden) => orden.partidas)
+      .flatMap((partida) => partida.areaTrabajoCodigo ? [partida.areaTrabajoCodigo] : []),
+  )];
+  const opcionesArea = opcionesFamiliaArea(datos.areas ?? datosIniciales.areas ?? [], codigosAreaConTrabajo);
   const ordenSeleccionada = datos.ordenes.find((orden) => orden.id === ordenSeleccionadaId) ?? null;
   const sesionActivaDesdeServidor = operadorId
     ? datos.ordenes.flatMap((orden) => orden.sesiones).find(
@@ -104,10 +123,30 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     }
   }, [establecerSesionActiva, refrescar, seleccionarOrden]);
 
+  const reanudar = useCallback(async (datosReanudacion: {
+    ordenId: string; partidaId: string; programacionId: string; actualizadoEnEsperado: string;
+  }): Promise<{ exito: true } | { exito: false; error: string }> => {
+    setProcesando(true);
+    try {
+      const resultado = await reanudarSesionOperadorAccion(datosReanudacion);
+      if (!resultado.exito) return { exito: false, error: resultado.error };
+      if (!resultado.datos) return { exito: false, error: 'La reanudación no devolvió confirmación' };
+      establecerSesionActiva({
+        id: resultado.datos.id, ordenId: resultado.datos.ordenId,
+        partidaId: resultado.datos.partidaId, programacionId: resultado.datos.programacionId,
+      });
+      await refrescar();
+      return { exito: true };
+    } finally {
+      setProcesando(false);
+    }
+  }, [establecerSesionActiva, refrescar]);
+
   const cerrar = useCallback(async (datosCierre: {
     sesionId: string;
     piezasProducidas: number;
     estadoDestino: 'pausada' | 'finalizada';
+    metaProcesoId?: string;
     motivoPausa?: MotivoPausaSesion;
     notas?: string;
     pinConfirmacion: string;
@@ -164,9 +203,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
             onChange={(evento) => establecerAreaCodigo(evento.target.value || null)}
           >
             <option value="">Todas las áreas</option>
-            {(datos.areas ?? [])
-              .filter((area) => area.padreCodigo === null)
-              .map((area) => (
+            {opcionesArea.map((area) => (
                 <option key={area.codigo} value={area.codigo}>{area.nombre}</option>
               ))}
           </Select>
@@ -190,7 +227,9 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
           operadorDisponible={operadorId !== null}
           procesando={procesando}
           onIniciar={iniciar}
+          onReanudar={reanudar}
           onCerrar={cerrar}
+          responsables={datos.responsables ?? {}}
         />
         <FormularioNotaEntrega
           key={ordenSeleccionada?.id ?? 'sin-orden'}
@@ -199,9 +238,15 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
           onEnviar={generarNota}
         />
       </div>
+      <HistorialSesionesProduccion orden={ordenSeleccionada} responsables={datos.responsables ?? {}} />
       <DocumentosOrdenPanel
         ordenId={ordenSeleccionada?.id ?? null}
         ordenFolio={ordenSeleccionada?.folio ?? null}
+        sesionFinalId={ordenSeleccionada?.estado === 'completada'
+          ? [...ordenSeleccionada.sesiones]
+            .filter((sesion) => sesion.estadoSesion === 'finalizada')
+            .sort((primera, segunda) => segunda.creadoEn.localeCompare(primera.creadoEn))[0]?.id ?? null
+          : null}
       />
       {ordenSeleccionada && (
         <HiloComentarios

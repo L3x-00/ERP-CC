@@ -1,5 +1,6 @@
 export {
   esquemaIniciarSesion,
+  esquemaReanudarSesion,
   esquemaCerrarSesion,
   esquemaPartidaNotaEntrega,
   esquemaCrearNotaEntrega,
@@ -8,6 +9,7 @@ export {
 
 export type {
   IniciarSesionInput,
+  ReanudarSesionInput,
   CerrarSesionInput,
   PartidaNotaEntregaInput,
   CrearNotaEntregaInput,

@@ -66,12 +66,11 @@ function useNotasOperativasCliente(clienteId: string) {
 }
 
 /**
- * Tablas del historial que están publicadas en Realtime. `pipeline` y
- * `cotizacion_lineas` no lo están, así que las cotizaciones se refrescan al
- * reabrir la ficha o al reintentar; suscribirse a algo no publicado solo
- * abriría un canal que nunca emite.
+ * Tablas del historial publicadas en Realtime desde A08.
  */
-const TABLAS_HISTORIAL_REALTIME = ['ordenes_produccion', 'partidas_orden_produccion'] as const;
+const TABLAS_HISTORIAL_REALTIME = [
+  'ordenes_produccion', 'partidas_orden_produccion', 'pipeline', 'cotizacion_lineas',
+] as const;
 
 /** Espera para agrupar ráfagas de eventos antes de invalidar (ms). */
 const ESPERA_AGRUPACION_MS = 350;
@@ -93,27 +92,42 @@ function useSincronizacionHistorialCliente(clienteId: string): void {
     const supabase = obtenerClienteSupabaseNavegador();
     let desmontado = false;
     let temporizador: ReturnType<typeof setTimeout> | null = null;
+    const pendientes = new Set<'ordenes' | 'cotizaciones'>();
 
-    const invalidar = (): void => {
+    const invalidar = (bloque: 'ordenes' | 'cotizaciones' | 'todo'): void => {
+      if (bloque === 'todo') {
+        pendientes.add('ordenes');
+        pendientes.add('cotizaciones');
+      } else pendientes.add(bloque);
       if (temporizador) clearTimeout(temporizador);
       temporizador = setTimeout(() => {
         temporizador = null;
         if (desmontado) return;
-        void clienteConsultas.invalidateQueries({
-          queryKey: [...CLAVE_HISTORIAL_CLIENTE, 'ordenes'],
-        });
+        if (pendientes.has('ordenes')) {
+          void clienteConsultas.invalidateQueries({ queryKey: [...CLAVE_HISTORIAL_CLIENTE, 'ordenes'] });
+        }
+        if (pendientes.has('cotizaciones')) {
+          void clienteConsultas.invalidateQueries({ queryKey: [...CLAVE_HISTORIAL_CLIENTE, 'cotizaciones'] });
+        }
+        pendientes.clear();
       }, ESPERA_AGRUPACION_MS);
     };
 
     const canal: RealtimeChannel = supabase.channel(`historial-cliente-${clienteId}`);
     for (const tabla of TABLAS_HISTORIAL_REALTIME) {
-      canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla }, invalidar);
+      canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
+        () => invalidar(tabla === 'pipeline' || tabla === 'cotizacion_lineas' ? 'cotizaciones' : 'ordenes'));
     }
-    canal.subscribe();
+    canal.subscribe((estado) => { if (estado === 'SUBSCRIBED') invalidar('todo'); });
+    const alVolver = (): void => { if (navigator.onLine && document.visibilityState === 'visible') invalidar('todo'); };
+    window.addEventListener('online', alVolver);
+    document.addEventListener('visibilitychange', alVolver);
 
     return () => {
       desmontado = true;
       if (temporizador) clearTimeout(temporizador);
+      window.removeEventListener('online', alVolver);
+      document.removeEventListener('visibilitychange', alVolver);
       void supabase.removeChannel(canal);
     };
   }, [clienteId, clienteConsultas]);

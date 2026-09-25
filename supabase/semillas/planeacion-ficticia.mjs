@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
+import { cargarEntornoLocal, exigirSupabaseLocal } from './guardia-supabase-local.mjs';
 
 const identificadores = {
   cliente: '60000000-0000-4000-8000-000000000001',
@@ -20,17 +20,6 @@ const identificadores = {
     '60000000-0000-4000-8000-000000000304',
   ],
 };
-
-function cargarEntornoLocal() {
-  const ruta = '.env.local';
-  if (!existsSync(ruta)) return;
-
-  for (const linea of readFileSync(ruta, 'utf8').split(/\r?\n/)) {
-    const coincidencia = /^([A-Z0-9_]+)=(.*)$/.exec(linea.trim());
-    if (!coincidencia || process.env[coincidencia[1]] !== undefined) continue;
-    process.env[coincidencia[1]] = coincidencia[2].replace(/^['"]|['"]$/g, '');
-  }
-}
 
 function requerirVariable(nombre) {
   const valor = process.env[nombre];
@@ -313,6 +302,10 @@ async function ejecutar() {
       'Define CONFIRMAR_DATOS_FICTICIOS=si para sembrar datos ficticios persistentes.',
     );
   }
+
+  // Guardia de aislamiento ANTES de abrir cliente: `.env.local` apunta al
+  // proyecto remoto y esta semilla borra e inserta fixtures.
+  exigirSupabaseLocal('Semilla de planeación ficticia');
 
   const cliente = createClient(
     requerirVariable('NEXT_PUBLIC_SUPABASE_URL'),

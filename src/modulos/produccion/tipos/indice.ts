@@ -5,6 +5,7 @@ export {
   filaASesionTrabajo,
   filaANotaEntrega,
   filaAPartidaNotaEntrega,
+  filaAMetaProcesoPartida,
 } from '@/modulos/produccion/tipos/produccion';
 
 export type {
@@ -17,4 +18,6 @@ export type {
   FilaSesionTrabajo,
   FilaNotaEntrega,
   FilaPartidaNotaEntrega,
+  FilaMetaProcesoPartida,
+  MetaProcesoPartida,
 } from '@/modulos/produccion/tipos/produccion';

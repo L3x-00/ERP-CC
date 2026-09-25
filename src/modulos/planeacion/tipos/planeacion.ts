@@ -1,4 +1,5 @@
 import type { Database, Tables } from '@/compartido/tipos/supabase';
+import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
 
 /** Contratos de dominio de Planeación — Sub-fase 6.1. */
 
@@ -65,6 +66,11 @@ export interface ProgramacionArea {
   estadoPlaneacion: EstadoPlaneacion;
   creadoEn: string;
   actualizadoEn: string;
+  /** PLA-06: contexto de la orden para las acciones de la tarjeta (opcional). */
+  ordenFolio?: string;
+  ordenEstado?: EstadoOrden;
+  ordenActualizadoEn?: string;
+  ordenEsInterna?: boolean;
 }
 
 /**

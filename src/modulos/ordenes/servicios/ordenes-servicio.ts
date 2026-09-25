@@ -15,8 +15,12 @@ import {
 } from '@/modulos/ordenes/tipos/ordenes';
 import type {
   ActualizarOrdenBorradorInput,
+  ConfigurarMetasProcesoInput,
   CambiarEstadoOrdenInput,
+  CrearOrdenHistoricaInput,
   CrearOrdenManualInput,
+  ReactivarOrdenInput,
+  RepetirOrdenInput,
   AsignarOperadorPartidaInput,
   RegistrarConsumoMaterialInput,
   RegistrarAvancePartidaInput,
@@ -26,10 +30,16 @@ import type {
 export type CodigoErrorOrden =
   | 'cotizacion_duplicada'
   | 'cotizacion_sin_lineas'
+  | 'credito_limite_excedido'
+  | 'cliente_no_corresponde_oportunidad'
+  | 'cliente_no_activo'
+  | 'sobregiro_requiere_admin_activo'
   | 'orden_inexistente'
   | 'estado_conflicto'
   | 'transicion_no_permitida'
   | 'motivo_cancelacion_requerido'
+  | 'orden_con_cobranza_registrada'
+  | 'orden_con_partidas_pendientes'
   | 'stock_insuficiente'
   | 'partida_inexistente'
   | 'material_inexistente'
@@ -39,12 +49,23 @@ export type CodigoErrorOrden =
   | 'cantidad_producida_excede_solicitada'
   | 'orden_no_editable'
   | 'orden_desactualizada'
+  | 'metas_proceso_invalidas'
+  | 'sin_permiso_configurar_procesos'
   | 'partida_con_historial'
   | 'orden_no_en_proceso'
   | 'orden_no_asignable'
   | 'operador_no_activo'
   | 'operador_no_asignado_partida'
   | 'accion_tiempo_invalida'
+  | 'orden_historica_invalida'
+  | 'sin_permiso_orden_historica'
+  | 'id_historico_duplicado'
+  | 'orden_no_repetible'
+  | 'sin_permiso_repetir_orden'
+  | 'orden_sin_partidas'
+  | 'orden_no_reactivable'
+  | 'orden_entregada_no_reactivable'
+  | 'sin_permiso_reactivar_orden'
   | 'desconocido';
 
 /** Error de negocio estable; el detalle crudo de Postgres no llega al cliente. */
@@ -61,6 +82,11 @@ export class ErrorOrden extends Error {
 export type OrdenCreada = {
   id: string;
   folio: string;
+};
+
+/** ORD-06: el alta heredada también devuelve la AR no cobrable creada. */
+export type OrdenHistoricaCreada = OrdenCreada & {
+  cuentaId: string;
 };
 
 export type ResultadoOportunidadAprobada = OrdenCreada & {
@@ -111,16 +137,44 @@ function partidasAJson(partidas: CrearOrdenManualInput['partidas']): Json {
   }));
 }
 
+/** ORD-06: la partida heredada admite área, procesos y proveedor externo. */
+function partidasHistoricasAJson(partidas: CrearOrdenHistoricaInput['partidas']): Json {
+  return partidas.map((partida) => ({
+    codigo_pieza: partida.codigoPieza,
+    descripcion: partida.descripcion ?? null,
+    cantidad_solicitada: partida.cantidadSolicitada,
+    unidad_medida: partida.unidadMedida,
+    material_id: partida.materialId ?? null,
+    tiempo_estimado_minutos: partida.tiempoEstimadoMinutos,
+    maquina_asignada: partida.maquinaAsignada ?? null,
+    area_trabajo_codigo: partida.areaTrabajoCodigo ?? null,
+    procesos: partida.procesos ?? [],
+    es_externo: partida.esExterno ?? false,
+    proveedor_externo: partida.proveedorExterno ?? null,
+  }));
+}
+
 function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('idx_ordenes_produccion_cotizacion_unica')) {
     return 'cotizacion_duplicada';
   }
   if (mensaje.includes('cotizacion_sin_lineas')) return 'cotizacion_sin_lineas';
+  if (mensaje.includes('credito_limite_excedido')) return 'credito_limite_excedido';
+  if (mensaje.includes('cliente_no_corresponde_oportunidad')) return 'cliente_no_corresponde_oportunidad';
+  if (mensaje.includes('cliente_no_activo')) return 'cliente_no_activo';
+  if (mensaje.includes('sobregiro_requiere_admin_activo')) return 'sobregiro_requiere_admin_activo';
   if (mensaje.includes('orden_inexistente')) return 'orden_inexistente';
   if (mensaje.includes('estado_conflicto')) return 'estado_conflicto';
   if (mensaje.includes('transicion_no_permitida')) return 'transicion_no_permitida';
   if (mensaje.includes('motivo_cancelacion_requerido')) {
     return 'motivo_cancelacion_requerido';
+  }
+  // A02: cancelar una orden cancela su AR; con cobranza registrada se rechaza.
+  if (mensaje.includes('orden_con_cobranza_registrada')) {
+    return 'orden_con_cobranza_registrada';
+  }
+  if (mensaje.includes('orden_con_partidas_pendientes')) {
+    return 'orden_con_partidas_pendientes';
   }
   if (mensaje.includes('stock_insuficiente')) return 'stock_insuficiente';
   if (mensaje.includes('partida_inexistente')) return 'partida_inexistente';
@@ -137,6 +191,8 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   }
   if (mensaje.includes('orden_no_editable')) return 'orden_no_editable';
   if (mensaje.includes('orden_desactualizada')) return 'orden_desactualizada';
+  if (mensaje.includes('metas_proceso_invalidas')) return 'metas_proceso_invalidas';
+  if (mensaje.includes('sin_permiso_configurar_procesos')) return 'sin_permiso_configurar_procesos';
   if (mensaje.includes('partida_con_historial')) return 'partida_con_historial';
   if (mensaje.includes('orden_no_en_proceso')) return 'orden_no_en_proceso';
   if (mensaje.includes('orden_no_asignable')) return 'orden_no_asignable';
@@ -145,6 +201,15 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
     return 'operador_no_asignado_partida';
   }
   if (mensaje.includes('accion_tiempo_invalida')) return 'accion_tiempo_invalida';
+  if (mensaje.includes('orden_historica_invalida')) return 'orden_historica_invalida';
+  if (mensaje.includes('sin_permiso_orden_historica')) return 'sin_permiso_orden_historica';
+  if (mensaje.includes('id_historico_duplicado')) return 'id_historico_duplicado';
+  if (mensaje.includes('orden_no_repetible')) return 'orden_no_repetible';
+  if (mensaje.includes('sin_permiso_repetir_orden')) return 'sin_permiso_repetir_orden';
+  if (mensaje.includes('orden_sin_partidas')) return 'orden_sin_partidas';
+  if (mensaje.includes('orden_entregada_no_reactivable')) return 'orden_entregada_no_reactivable';
+  if (mensaje.includes('orden_no_reactivable')) return 'orden_no_reactivable';
+  if (mensaje.includes('sin_permiso_reactivar_orden')) return 'sin_permiso_reactivar_orden';
   return 'desconocido';
 }
 
@@ -186,6 +251,98 @@ export async function crearOrdenManualServicio(
   return validarResultadoCreacion(data?.[0] ?? null);
 }
 
+/**
+ * ORD-06: alta administrativa de un trabajo heredado. PostgreSQL revalida actor,
+ * ID previo único, cliente activo y coherencia de montos, y crea en una sola
+ * transacción la OP, sus partidas y la AR no cobrable (D-04).
+ */
+export async function crearOrdenHistoricaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: CrearOrdenHistoricaInput & { actorId: string },
+): Promise<OrdenHistoricaCreada> {
+  const { data, error } = await admin.rpc('crear_orden_historica', {
+    p_cliente_id: entrada.clienteId,
+    p_actor_id: entrada.actorId,
+    p_id_historico: entrada.idHistorico,
+    p_fecha_trabajo: entrada.fechaTrabajo,
+    p_fecha_compromiso: entrada.fechaCompromiso,
+    p_condicion_pago: entrada.condicionPago,
+    p_referencia_externa: entrada.referenciaExterna ?? '',
+    p_monto_sin_iva: entrada.montoSinIva,
+    p_monto_iva: entrada.montoIva,
+    p_horas_estimadas: entrada.horasEstimadas,
+    p_notas: entrada.notas ?? '',
+    p_partidas: partidasHistoricasAJson(entrada.partidas),
+  });
+
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  const creada = validarResultadoCreacion(fila ?? null);
+  if (!fila?.cuenta_id) throw new ErrorOrden('desconocido');
+  return { id: creada.id, folio: creada.folio, cuentaId: fila.cuenta_id };
+}
+
+/** CLI-08: la repetición puede no tener precio conocido y devuelve cuenta nula. */
+export type RepeticionCreada = OrdenCreada & {
+  cuentaId: string | null;
+};
+
+/**
+ * CLI-08: repite un trabajo histórico o completado clonando solo sus datos
+ * comerciales/técnicos. PostgreSQL revalida permiso, estado de origen y crea la
+ * OP con folio nuevo, partidas en cero y su propia AR borrador.
+ */
+export async function repetirOrdenServicio(
+  admin: SupabaseClient<Database>,
+  entrada: RepetirOrdenInput & { actorId: string },
+): Promise<RepeticionCreada> {
+  const { data, error } = await admin.rpc('repetir_orden_op', {
+    p_orden_origen_id: entrada.ordenOrigenId,
+    p_actor_id: entrada.actorId,
+    p_fecha_compromiso: entrada.fechaCompromiso,
+  });
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  const creada = validarResultadoCreacion(fila ?? null);
+  return { id: creada.id, folio: creada.folio, cuentaId: fila?.cuenta_id ?? null };
+}
+
+/** PRD-15: la reactivación conserva todo y solo devuelve la orden a operación. */
+export type OrdenReactivada = {
+  id: string;
+  estado: EstadoOrden;
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  actualizadoEn: string;
+};
+
+/**
+ * PRD-15: devuelve una orden completada sin entrega ni cobros a operación.
+ * PostgreSQL revalida el permiso administrativo, el CAS y que la ejecución
+ * previa y los documentos financieros sigan intactos.
+ */
+export async function reactivarOrdenServicio(
+  admin: SupabaseClient<Database>,
+  entrada: ReactivarOrdenInput & { actorId: string },
+): Promise<OrdenReactivada> {
+  const { data, error } = await admin.rpc('reactivar_orden_op', {
+    p_orden_id: entrada.ordenId,
+    p_actualizado_en: entrada.actualizadoEn,
+    p_actor_id: entrada.actorId,
+  });
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.id) throw new ErrorOrden('desconocido');
+
+  return {
+    id: fila.id,
+    estado: estadoDeBaseDeDatos(fila.estado),
+    fechaInicio: fila.fecha_inicio,
+    fechaFin: fila.fecha_fin,
+    actualizadoEn: fila.actualizado_en,
+  };
+}
+
 /** Aprueba Pipeline y crea su OP sin exponer una ventana entre ambas escrituras. */
 export async function aprobarOportunidadYCrearOrdenServicio(
   admin: SupabaseClient<Database>,
@@ -193,12 +350,16 @@ export async function aprobarOportunidadYCrearOrdenServicio(
     pipelineId: string;
     clienteId: string;
     fechaCompromiso: string;
+    actorId: string;
+    autorizarSobregiro: boolean;
   },
 ): Promise<ResultadoOportunidadAprobada> {
   const { data, error } = await admin.rpc('aprobar_oportunidad_y_crear_orden', {
     p_pipeline_id: entrada.pipelineId,
     p_cliente_id: entrada.clienteId,
     p_fecha_compromiso: entrada.fechaCompromiso,
+    p_actor_id: entrada.actorId,
+    p_autorizar_sobregiro: entrada.autorizarSobregiro,
   });
 
   if (error) lanzarErrorOrden(error.message);
@@ -286,6 +447,26 @@ export async function actualizarOrdenBorradorServicio(
   };
 }
 
+/** Cambia metas solo en borrador, con CAS y autorización revalidada en SQL. */
+export async function configurarMetasProcesoPartidaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: ConfigurarMetasProcesoInput & { actorId: string },
+): Promise<{ partidaId: string; ordenActualizadoEn: string }> {
+  const { data, error } = await admin.rpc('configurar_metas_proceso_partida', {
+    p_partida_id: entrada.partidaId,
+    p_orden_actualizado_en: entrada.ordenActualizadoEn,
+    p_procesos: entrada.procesos.map((proceso) => ({
+      nombre: proceso.nombre,
+      meta_piezas: proceso.metaPiezas,
+    })),
+    p_actor_id: entrada.actorId,
+  });
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.partida_id || !fila.orden_actualizado_en) throw new ErrorOrden('desconocido');
+  return { partidaId: fila.partida_id, ordenActualizadoEn: fila.orden_actualizado_en };
+}
+
 /** Carga una OP y sus partidas; la RLS define qué registros puede consultar el usuario. */
 export async function obtenerOrdenConPartidasServicio(
   cliente: SupabaseClient<Database>,
@@ -354,7 +535,7 @@ export async function obtenerOrdenesConPartidasServicio(
   const idsOrdenes = ordenes.map((orden) => orden.id);
   const { data: filasPartidas, error: errorPartidas } = await cliente
     .from('partidas_orden_produccion')
-    .select('*')
+    .select('*, metas_proceso_partida(id, secuencia, nombre, meta_piezas)')
     .in('orden_id', idsOrdenes)
     .order('creado_en', { ascending: true });
   if (errorPartidas) {
@@ -363,7 +544,17 @@ export async function obtenerOrdenesConPartidasServicio(
 
   const partidasPorOrden = new Map<string, Partida[]>();
   for (const fila of filasPartidas ?? []) {
-    const partida = filaAPartida(fila);
+    const partida: Partida = {
+      ...filaAPartida(fila),
+      metasProceso: (fila.metas_proceso_partida ?? [])
+        .map((meta) => ({
+          id: meta.id,
+          secuencia: meta.secuencia,
+          nombre: meta.nombre,
+          metaPiezas: Number(meta.meta_piezas),
+        }))
+        .sort((primero, segundo) => primero.secuencia - segundo.secuencia),
+    };
     const partidas = partidasPorOrden.get(partida.ordenId) ?? [];
     partidas.push(partida);
     partidasPorOrden.set(partida.ordenId, partidas);
@@ -593,6 +784,14 @@ export function mensajeErrorOrden(
   switch (error.codigo) {
     case 'cotizacion_sin_lineas':
       return 'La cotización debe tener al menos una partida para generar la orden';
+    case 'credito_limite_excedido':
+      return 'El cliente alcanzó su límite de crédito';
+    case 'cliente_no_corresponde_oportunidad':
+      return 'El cliente de la oportunidad cambió. Recarga e inténtalo de nuevo';
+    case 'cliente_no_activo':
+      return 'El cliente de la oportunidad no está activo';
+    case 'sobregiro_requiere_admin_activo':
+      return 'Solo un administrador activo puede autorizar un sobrepaso de crédito';
     case 'orden_inexistente':
       return 'La orden no existe o ya no está disponible';
     case 'estado_conflicto':

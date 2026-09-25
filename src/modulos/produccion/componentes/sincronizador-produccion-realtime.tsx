@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
-import { CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
+import { CLAVE_ARCHIVOS_SESION, CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
 
 const TABLAS_TABLERO_PRODUCCION = [
   'ordenes_produccion',
@@ -15,6 +15,7 @@ const TABLAS_TABLERO_PRODUCCION = [
   'notas_entrega',
   'partidas_nota_entrega',
   'registros_avance_partida',
+  'archivos_sesion_produccion',
 ] as const;
 const NOMBRE_CANAL = 'sincronizacion-produccion';
 const MS_AGRUPACION_RAFAGA = 350;
@@ -40,6 +41,7 @@ export function SincronizadorProduccionRealtime() {
         temporizadorRef.current = null;
         if (!desmontado) {
           void clienteConsultas.invalidateQueries({ queryKey: CLAVE_TABLERO_PRODUCCION });
+          void clienteConsultas.invalidateQueries({ queryKey: CLAVE_ARCHIVOS_SESION });
         }
       }, MS_AGRUPACION_RAFAGA);
     }
