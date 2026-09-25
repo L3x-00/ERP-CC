@@ -34,6 +34,11 @@ export interface CuentaHistorial {
   fechaEmision: string;
   /** D-04: `null` mientras la cuenta no es cobrable. */
   fechaVencimiento: string | null;
+  /** AR-01: desglose y condiciones para la ficha integral. */
+  montoSubtotal: number | null;
+  montoIva: number | null;
+  cobrableDesde: string | null;
+  condicionesPago: string | null;
 }
 
 /** Historial navegable: cada entidad pagina por separado para no truncarse. */

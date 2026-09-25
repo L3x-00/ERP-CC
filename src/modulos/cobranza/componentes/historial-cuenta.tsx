@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { obtenerHistorialCuentaAccion, obtenerDetalleOrdenCobranzaAccion, obtenerReciboPagoAccion } from '@/modulos/cobranza/acciones/consultar-historial';
+import { etiquetaCondicionCuenta, reconciliarCuenta } from '@/modulos/cobranza/servicios/ficha-cuenta-servicio';
 import { ReciboPersistido } from './recibo-persistido';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
@@ -49,7 +50,27 @@ export function HistorialCuenta({ arId, clienteId }: { arId: string; clienteId: 
   const consulta = useQuery({ queryKey: ['cobranza', 'historial', arId, clienteId, paginaPagos, paginaMovimientos], queryFn: () => datosDe(obtenerHistorialCuentaAccion({ arId, clienteId, paginaPagos, paginaMovimientos })), staleTime: 0, refetchOnWindowFocus: true, refetchInterval: 60_000 });
   const datos = consulta.data;
   return <Consulta consulta={consulta}>{datos && <div className="grid gap-5">
-    <p>{datos.cuenta.clienteNombre} · {datos.cuenta.referenciaInterna} · {datos.cuenta.folioOrden} · Saldo actual: {formatearMoneda(datos.cuenta.saldoPendiente, datos.cuenta.moneda)}</p>
+    <section aria-label="Ficha de la cuenta" data-testid="ficha-cuenta" className="grid gap-2 rounded-base border border-borde p-3 text-sm">
+      <p className="font-medium"><span className="font-mono text-xs">{datos.cuenta.referenciaInterna}</span> · {datos.cuenta.clienteNombre} · {datos.cuenta.folioOrden}{datos.cuenta.folioFacturaRemision ? ` · Factura: ${datos.cuenta.folioFacturaRemision}` : ''}</p>
+      {(() => {
+        const r = reconciliarCuenta(datos.cuenta);
+        const m = datos.cuenta.moneda;
+        const textoMonto = (valor: number | null) => valor === null ? 'No capturado' : formatearMoneda(valor, m);
+        return <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+          <div><dt className="text-texto-secundario">Estado</dt><dd><BadgeEstado estado={datos.cuenta.estado} /></dd></div>
+          <div><dt className="text-texto-secundario">Emisión</dt><dd>{formatearFecha(datos.cuenta.fechaEmision)}</dd></div>
+          <div><dt className="text-texto-secundario">Condición</dt><dd>{etiquetaCondicionCuenta(datos.cuenta.condicionesPago)}</dd></div>
+          <div><dt className="text-texto-secundario">Base</dt><dd>{textoMonto(r.base)}</dd></div>
+          <div><dt className="text-texto-secundario">IVA</dt><dd>{textoMonto(r.iva)}</dd></div>
+          <div><dt className="text-texto-secundario">Total</dt><dd>{formatearMoneda(r.total, m)}</dd></div>
+          <div><dt className="text-texto-secundario">Abonado</dt><dd>{formatearMoneda(r.abonado, m)}</dd></div>
+          <div><dt className="text-texto-secundario">Saldo</dt><dd className={r.saldo > 0 ? 'font-semibold' : ''}>{formatearMoneda(r.saldo, m)}</dd></div>
+          <div><dt className="text-texto-secundario">Cobrabilidad</dt><dd>{r.cobrable ? `Cobrable desde ${formatearFecha(datos.cuenta.cobrableDesde ?? datos.cuenta.fechaEmision)}` : 'No cobrable (admite anticipos)'}</dd></div>
+          <div><dt className="text-texto-secundario">Vencimiento</dt><dd>{datos.cuenta.fechaVencimiento ? formatearFecha(datos.cuenta.fechaVencimiento) : 'Por entregar'}</dd></div>
+        </dl>;
+      })()}
+      {!reconciliarCuenta(datos.cuenta).desgloseCuadra ? <p role="alert" className="text-xs text-peligro-texto">El desglose base + IVA no coincide con el total de la cuenta.</p> : null}
+    </section>
     <section className="grid gap-3"><h3 className="font-semibold">Pagos de la cuenta</h3>
       {datos.pagos.registros.length ? <ul className="grid gap-2">{datos.pagos.registros.map(pago => <li key={pago.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-borde p-3 text-sm"><div><p className="font-medium">{pago.folioRecibo} · {formatearMoneda(pago.montoPagado, pago.monedaPago)}</p><p>{new Date(pago.creadoEn).toLocaleString('es-MX')} · {pago.metodoPago.replaceAll('_', ' ')}</p></div><Button variante="contorno" onClick={() => setPagoId(pago.id)}>Ver recibo {pago.folioRecibo}</Button></li>)}</ul> : <EstadoVacio titulo="Sin pagos registrados" descripcion="Los pagos de esta cuenta aparecerán aquí." />}
       <Paginas nombre="pagos" pagina={paginaPagos} total={datos.pagos.total} porPagina={datos.pagos.porPagina} cambiar={setPaginaPagos} />
