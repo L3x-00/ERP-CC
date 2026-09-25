@@ -17,6 +17,7 @@ import type {
   ActualizarOrdenBorradorInput,
   ConfigurarMetasProcesoInput,
   CambiarEstadoOrdenInput,
+  CrearOrdenHistoricaInput,
   CrearOrdenManualInput,
   AsignarOperadorPartidaInput,
   RegistrarConsumoMaterialInput,
@@ -54,6 +55,9 @@ export type CodigoErrorOrden =
   | 'operador_no_activo'
   | 'operador_no_asignado_partida'
   | 'accion_tiempo_invalida'
+  | 'orden_historica_invalida'
+  | 'sin_permiso_orden_historica'
+  | 'id_historico_duplicado'
   | 'desconocido';
 
 /** Error de negocio estable; el detalle crudo de Postgres no llega al cliente. */
@@ -70,6 +74,11 @@ export class ErrorOrden extends Error {
 export type OrdenCreada = {
   id: string;
   folio: string;
+};
+
+/** ORD-06: el alta heredada también devuelve la AR no cobrable creada. */
+export type OrdenHistoricaCreada = OrdenCreada & {
+  cuentaId: string;
 };
 
 export type ResultadoOportunidadAprobada = OrdenCreada & {
@@ -120,6 +129,23 @@ function partidasAJson(partidas: CrearOrdenManualInput['partidas']): Json {
   }));
 }
 
+/** ORD-06: la partida heredada admite área, procesos y proveedor externo. */
+function partidasHistoricasAJson(partidas: CrearOrdenHistoricaInput['partidas']): Json {
+  return partidas.map((partida) => ({
+    codigo_pieza: partida.codigoPieza,
+    descripcion: partida.descripcion ?? null,
+    cantidad_solicitada: partida.cantidadSolicitada,
+    unidad_medida: partida.unidadMedida,
+    material_id: partida.materialId ?? null,
+    tiempo_estimado_minutos: partida.tiempoEstimadoMinutos,
+    maquina_asignada: partida.maquinaAsignada ?? null,
+    area_trabajo_codigo: partida.areaTrabajoCodigo ?? null,
+    procesos: partida.procesos ?? [],
+    es_externo: partida.esExterno ?? false,
+    proveedor_externo: partida.proveedorExterno ?? null,
+  }));
+}
+
 function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('idx_ordenes_produccion_cotizacion_unica')) {
     return 'cotizacion_duplicada';
@@ -167,6 +193,9 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
     return 'operador_no_asignado_partida';
   }
   if (mensaje.includes('accion_tiempo_invalida')) return 'accion_tiempo_invalida';
+  if (mensaje.includes('orden_historica_invalida')) return 'orden_historica_invalida';
+  if (mensaje.includes('sin_permiso_orden_historica')) return 'sin_permiso_orden_historica';
+  if (mensaje.includes('id_historico_duplicado')) return 'id_historico_duplicado';
   return 'desconocido';
 }
 
@@ -206,6 +235,37 @@ export async function crearOrdenManualServicio(
 
   if (error) lanzarErrorOrden(error.message);
   return validarResultadoCreacion(data?.[0] ?? null);
+}
+
+/**
+ * ORD-06: alta administrativa de un trabajo heredado. PostgreSQL revalida actor,
+ * ID previo único, cliente activo y coherencia de montos, y crea en una sola
+ * transacción la OP, sus partidas y la AR no cobrable (D-04).
+ */
+export async function crearOrdenHistoricaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: CrearOrdenHistoricaInput & { actorId: string },
+): Promise<OrdenHistoricaCreada> {
+  const { data, error } = await admin.rpc('crear_orden_historica', {
+    p_cliente_id: entrada.clienteId,
+    p_actor_id: entrada.actorId,
+    p_id_historico: entrada.idHistorico,
+    p_fecha_trabajo: entrada.fechaTrabajo,
+    p_fecha_compromiso: entrada.fechaCompromiso,
+    p_condicion_pago: entrada.condicionPago,
+    p_referencia_externa: entrada.referenciaExterna ?? '',
+    p_monto_sin_iva: entrada.montoSinIva,
+    p_monto_iva: entrada.montoIva,
+    p_horas_estimadas: entrada.horasEstimadas,
+    p_notas: entrada.notas ?? '',
+    p_partidas: partidasHistoricasAJson(entrada.partidas),
+  });
+
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  const creada = validarResultadoCreacion(fila ?? null);
+  if (!fila?.cuenta_id) throw new ErrorOrden('desconocido');
+  return { id: creada.id, folio: creada.folio, cuentaId: fila.cuenta_id };
 }
 
 /** Aprueba Pipeline y crea su OP sin exponer una ventana entre ambas escrituras. */

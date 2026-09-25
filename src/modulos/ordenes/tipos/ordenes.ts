@@ -14,9 +14,13 @@ export const ESTADOS_ORDEN_PRODUCCION = [
 export const PRIORIDADES_ORDEN_PRODUCCION = ['baja', 'normal', 'alta', 'urgente'] as const;
 export const ACCIONES_TIEMPO_OPERADOR = ['inicio', 'pausa', 'fin'] as const;
 
+/** ORD-06: condiciones admitidas para el trabajo heredado (mismas que Clientes). */
+export const CONDICIONES_PAGO_ORDEN = ['contado', '15_dias', '30_dias', 'credito'] as const;
+
 export type EstadoOrden = (typeof ESTADOS_ORDEN_PRODUCCION)[number];
 export type PrioridadOrden = (typeof PRIORIDADES_ORDEN_PRODUCCION)[number];
 export type AccionTiempoOperador = (typeof ACCIONES_TIEMPO_OPERADOR)[number];
+export type CondicionPagoOrden = (typeof CONDICIONES_PAGO_ORDEN)[number];
 
 export interface Orden {
   id: string;
@@ -38,6 +42,16 @@ export interface Orden {
   esInterna: boolean;
   /** OBS-21: fecha de archivo automático al completar la entrega; null activa. */
   archivadaEn: string | null;
+  /** ORD-06: ID del sistema anterior; su presencia marca un trabajo heredado. */
+  idHistorico: string | null;
+  /** ORD-06: referencia externa capturada para el trabajo heredado. */
+  referenciaExterna: string | null;
+  condicionPago: CondicionPagoOrden | null;
+  montoSinIva: number | null;
+  montoIva: number | null;
+  notas: string | null;
+  fechaTrabajo: string | null;
+  horasEstimadas: number | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -135,6 +149,16 @@ export function filaAOrden(fila: FilaOrden): Orden {
     motivoCancelacion: fila.motivo_cancelacion,
     esInterna: fila.es_interna,
     archivadaEn: fila.archivada_en,
+    idHistorico: fila.id_historico,
+    referenciaExterna: fila.referencia_externa,
+    condicionPago: fila.condicion_pago === null
+      ? null
+      : validarValorEnumerado(fila.condicion_pago, CONDICIONES_PAGO_ORDEN, 'condición de pago'),
+    montoSinIva: fila.monto_sin_iva === null ? null : Number(fila.monto_sin_iva),
+    montoIva: fila.monto_iva === null ? null : Number(fila.monto_iva),
+    notas: fila.notas,
+    fechaTrabajo: fila.fecha_trabajo,
+    horasEstimadas: fila.horas_estimadas === null ? null : Number(fila.horas_estimadas),
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

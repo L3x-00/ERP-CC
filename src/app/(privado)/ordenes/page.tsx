@@ -1,5 +1,6 @@
 import { crearOrdenAccion } from '@/modulos/ordenes/acciones/crear-orden';
 import { FormularioOrden } from '@/modulos/ordenes/componentes/formulario-orden';
+import { PanelOrdenHeredada } from '@/modulos/ordenes/componentes/panel-orden-heredada';
 import { ComparativaOrdenes } from '@/modulos/ordenes/componentes/comparativa-ordenes';
 import { SincronizadorOrdenesRealtime } from '@/modulos/ordenes/componentes/sincronizador-ordenes-realtime';
 import { TablaOrdenes, type OrdenTabla } from '@/modulos/ordenes/componentes/tabla-ordenes';
@@ -22,7 +23,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   const parametros = searchParams ? await searchParams : {};
   const ordenInicialId = typeof parametros.ordenId === 'string' ? parametros.ordenId : undefined;
   const cliente = await crearClienteSupabaseServidor();
-  const [ordenesConPartidas, resultadoClientes, resultadoMateriales, usuario] = await Promise.all([
+  const [ordenesConPartidas, resultadoClientes, resultadoMateriales, resultadoAreas, usuario] = await Promise.all([
     obtenerOrdenesConPartidasServicio(cliente),
     cliente
       .from('clientes')
@@ -30,10 +31,16 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       .eq('estado', 'activo')
       .order('razon_social', { ascending: true }),
     cliente.from('materiales').select('id, codigo, nombre').order('nombre', { ascending: true }),
+    cliente
+      .from('areas_trabajo_config')
+      .select('codigo, nombre')
+      .eq('activo', true)
+      .order('orden', { ascending: true })
+      .order('nombre', { ascending: true }),
     obtenerUsuarioServidor(),
   ]);
 
-  if (resultadoClientes.error || resultadoMateriales.error) {
+  if (resultadoClientes.error || resultadoMateriales.error || resultadoAreas.error) {
     throw new Error('No se pudieron cargar las opciones para crear la orden');
   }
 
@@ -58,6 +65,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     actualizadoEn: orden.actualizadoEn,
     archivadaEn: orden.archivadaEn,
     esInterna: orden.esInterna,
+    idHistorico: orden.idHistorico,
     partidas: partidas.map((partida) => ({
       id: partida.id,
       codigoPieza: partida.codigoPieza,
@@ -80,6 +88,10 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     id: material.id,
     codigo: material.codigo,
     nombre: material.nombre,
+  }));
+  const areas = (resultadoAreas.data ?? []).map((area) => ({
+    codigo: area.codigo,
+    nombre: area.nombre,
   }));
 
   return (
@@ -117,6 +129,9 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
           Nueva orden de producción
         </h2>
         <FormularioOrden clientes={clientes} materiales={materiales} alCrearOrden={crearOrdenAccion} />
+        <div className="mt-5 border-t border-borde pt-4">
+          <PanelOrdenHeredada clientes={clientes} areas={areas} />
+        </div>
       </section>
 
       <section className="flex flex-col gap-4" aria-labelledby="titulo-lista-op">

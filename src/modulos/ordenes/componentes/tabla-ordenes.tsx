@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
 import { EditarOrdenDialog } from '@/modulos/ordenes/componentes/editar-orden-dialog';
 import { ConfigurarProcesosDialog } from '@/modulos/ordenes/componentes/configurar-procesos-dialog';
@@ -67,6 +68,8 @@ export type OrdenTabla = {
   /** OBS-21: fecha de archivo al completar la entrega; null si sigue activa. */
   archivadaEn: string | null;
   esInterna: boolean;
+  /** ORD-06: ID del sistema anterior; null en órdenes del flujo actual. */
+  idHistorico: string | null;
   partidas: PartidaTabla[];
 };
 
@@ -210,6 +213,7 @@ export function TablaOrdenes({
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
   const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
   const [ordenConfigurando, setOrdenConfigurando] = useState<OrdenTabla | null>(null);
+  const [ordenAdjuntos, setOrdenAdjuntos] = useState<OrdenTabla | null>(null);
   const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
     ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
       ? 'archivo' : 'activas');
@@ -550,6 +554,17 @@ export function TablaOrdenes({
                             onClick={() => setOrdenConfigurando(orden)}>Procesos</button></>
                         )}
                         <DocumentoOrdenBoton ordenId={orden.id} folio={orden.folio} />
+                        {orden.idHistorico !== null && (
+                          <button
+                            type="button"
+                            data-testid={`adjuntos-orden-${orden.folio}`}
+                            onClick={() => setOrdenAdjuntos(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                          >
+                            Adjuntos
+                          </button>
+                        )}
                         {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
                           <button
                             type="button"
@@ -616,6 +631,14 @@ export function TablaOrdenes({
         onCerrar={() => setOrdenConfigurando(null)}
         onGuardado={alRefrescar}
       /> : null}
+
+      {ordenAdjuntos ? (
+        <AdjuntosOrdenDialog
+          ordenId={ordenAdjuntos.id}
+          folio={ordenAdjuntos.folio}
+          onCerrar={() => setOrdenAdjuntos(null)}
+        />
+      ) : null}
 
       <Dialog open={ordenCancelando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCancelando(null) : undefined)}>
         <DialogContent>
