@@ -39,6 +39,10 @@ export interface CuentaHistorial {
   montoIva: number | null;
   cobrableDesde: string | null;
   condicionesPago: string | null;
+  /** AR-09: anticipo heredado ya aplicado, separado de los pagos correctibles. */
+  abonoHeredado: number;
+  /** AR-08: pagos de esta cuenta que ya tienen reverso y no se corrigen de nuevo. */
+  pagosReversados: string[];
 }
 
 /** Historial navegable: cada entidad pagina por separado para no truncarse. */

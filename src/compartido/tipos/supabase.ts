@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -543,6 +543,9 @@ export type Database = {
       cuentas_por_cobrar: {
         Row: {
           actualizado_en: string
+          abono_heredado: number
+          abono_heredado_en: string | null
+          abono_heredado_notas: string | null
           cliente_id: string
           cobrable_desde: string | null
           creado_en: string
@@ -562,6 +565,9 @@ export type Database = {
         }
         Insert: {
           actualizado_en?: string
+          abono_heredado?: number
+          abono_heredado_en?: string | null
+          abono_heredado_notas?: string | null
           cliente_id: string
           cobrable_desde?: string | null
           creado_en?: string
@@ -581,6 +587,9 @@ export type Database = {
         }
         Update: {
           actualizado_en?: string
+          abono_heredado?: number
+          abono_heredado_en?: string | null
+          abono_heredado_notas?: string | null
           cliente_id?: string
           cobrable_desde?: string | null
           creado_en?: string
@@ -2108,6 +2117,64 @@ export type Database = {
           },
         ]
       }
+      reversos_pago_ar: {
+        Row: {
+          ar_id: string
+          creado_en: string
+          creado_por: string | null
+          id: string
+          monedero_revertido_mxn: number
+          monto_aplicado_reverso: number
+          monto_sobrepago_reverso: number
+          motivo: string
+          pago_id: string
+        }
+        Insert: {
+          ar_id: string
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          monedero_revertido_mxn?: number
+          monto_aplicado_reverso: number
+          monto_sobrepago_reverso?: number
+          motivo: string
+          pago_id: string
+        }
+        Update: {
+          ar_id?: string
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          monedero_revertido_mxn?: number
+          monto_aplicado_reverso?: number
+          monto_sobrepago_reverso?: number
+          motivo?: string
+          pago_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reversos_pago_ar_ar_id_fkey"
+            columns: ["ar_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_por_cobrar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reversos_pago_ar_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reversos_pago_ar_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: true
+            referencedRelation: "pagos_ar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sesiones_trabajo: {
         Row: {
           actualizado_en: string
@@ -2694,6 +2761,20 @@ export type Database = {
           area_codigo: string
         }[]
       }
+      registrar_abono_heredado_ar: {
+        Args: {
+          p_actor_id: string
+          p_ar_id: string
+          p_monto: number
+          p_notas: string
+        }
+        Returns: {
+          abono_heredado: number
+          ar_id: string
+          estado: string
+          saldo_pendiente: number
+        }[]
+      }
       registrar_avance_partida_op: {
         Args: {
           p_cantidad_producida: number
@@ -2945,6 +3026,17 @@ export type Database = {
           actualizado_en: string
           estado_planeacion: string
           id: string
+        }[]
+      }
+      reversar_pago_ar: {
+        Args: { p_actor_id: string; p_motivo: string; p_pago_id: string }
+        Returns: {
+          ar_id: string
+          estado_ar: string
+          folio_recibo: string
+          monedero_revertido_mxn: number
+          pago_id: string
+          saldo_pendiente: number
         }[]
       }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }

@@ -60,7 +60,7 @@ export async function obtenerHistorialCuentaServicio(
 ): Promise<HistorialCuenta> {
   const { data: filaCuenta, error: errorCuenta } = await cliente
     .from('cuentas_por_cobrar')
-    .select('id, orden_id, cliente_id, referencia_interna, folio_factura_remision, monto_total, monto_subtotal, monto_iva, saldo_pendiente, moneda, estado, fecha_emision, fecha_vencimiento, cobrable_desde')
+    .select('id, orden_id, cliente_id, referencia_interna, folio_factura_remision, monto_total, monto_subtotal, monto_iva, saldo_pendiente, moneda, estado, fecha_emision, fecha_vencimiento, cobrable_desde, abono_heredado')
     .eq('id', entrada.arId)
     .maybeSingle();
   if (errorCuenta) throw new ErrorCobranza('desconocido', errorCuenta.message);
@@ -73,7 +73,7 @@ export async function obtenerHistorialCuentaServicio(
   const rangoPagos = rangoPagina(entrada.paginaPagos, PAGOS_POR_PAGINA);
   const rangoMovimientos = rangoPagina(entrada.paginaMovimientos, MOVIMIENTOS_POR_PAGINA);
 
-  const [contexto, pagos, movimientos] = await Promise.all([
+  const [contexto, pagos, movimientos, reversos] = await Promise.all([
     cliente
       .from('clientes')
       .select('id, nombre_comercial, razon_social, condiciones_pago')
@@ -95,10 +95,15 @@ export async function obtenerHistorialCuentaServicio(
       .order('creado_en', { ascending: false })
       .order('id', { ascending: false })
       .range(rangoMovimientos.desde, rangoMovimientos.hasta),
+    cliente
+      .from('reversos_pago_ar')
+      .select('pago_id')
+      .eq('ar_id', entrada.arId),
   ]);
   if (pagos.error) throw new ErrorCobranza('desconocido', pagos.error.message);
   if (movimientos.error) throw new ErrorCobranza('desconocido', movimientos.error.message);
   if (contexto.error) throw new ErrorCobranza('desconocido', contexto.error.message);
+  if (reversos.error) throw new ErrorCobranza('desconocido', reversos.error.message);
 
   const folioOrden = await folioDeOrden(cliente, filaCuenta.orden_id);
   const cuenta: CuentaHistorial = {
@@ -119,6 +124,8 @@ export async function obtenerHistorialCuentaServicio(
     montoIva: filaCuenta.monto_iva === null ? null : Number(filaCuenta.monto_iva),
     cobrableDesde: filaCuenta.cobrable_desde,
     condicionesPago: contexto.data?.condiciones_pago ?? null,
+    abonoHeredado: Number(filaCuenta.abono_heredado ?? 0),
+    pagosReversados: (reversos.data ?? []).map((reverso) => reverso.pago_id),
   };
 
   return {

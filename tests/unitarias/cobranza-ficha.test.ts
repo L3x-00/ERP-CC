@@ -23,6 +23,8 @@ function cuenta(parcial: Partial<CuentaHistorial> = {}): CuentaHistorial {
     montoSubtotal: 1000,
     montoIva: 160,
     cobrableDesde: null,
+    abonoHeredado: 0,
+    pagosReversados: [],
     condicionesPago: 'credito',
     ...parcial,
   };

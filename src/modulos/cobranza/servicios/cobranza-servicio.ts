@@ -27,6 +27,12 @@ export type CodigoErrorCobranza =
   | 'orden_no_lista'
   | 'cuenta_ya_existe'
   | 'sin_permiso'
+  | 'pago_ya_reversado'
+  | 'saldo_favor_insuficiente'
+  | 'abono_heredado_ya_registrado'
+  | 'abono_heredado_invalido'
+  | 'cuenta_con_pagos_estructurados'
+  | 'cuenta_cancelada'
   | 'desconocido';
 
 export class ErrorCobranza extends Error {
@@ -297,6 +303,51 @@ export async function obtenerMovimientosSaldoFavorServicio(
   return (data ?? []).map(filaAMovimientoSaldoFavor);
 }
 
+/** AR-08: reverso trazable de un pago; el pago original no se edita ni se borra. */
+export async function reversarPagoServicio(
+  admin: SupabaseClient<Database>,
+  entrada: { pagoId: string; motivo: string; actorId: string },
+): Promise<{ pagoId: string; arId: string; folioRecibo: string; saldoPendiente: number; estadoAr: string; monederoRevertidoMxn: number }> {
+  const { data, error } = await admin.rpc('reversar_pago_ar', {
+    p_pago_id: entrada.pagoId,
+    p_motivo: entrada.motivo,
+    p_actor_id: entrada.actorId,
+  });
+  if (error) lanzarErrorCobranza(error.message);
+  const fila = data?.[0];
+  if (!fila?.pago_id) throw new ErrorCobranza('desconocido');
+  return {
+    pagoId: fila.pago_id,
+    arId: fila.ar_id,
+    folioRecibo: fila.folio_recibo,
+    saldoPendiente: Number(fila.saldo_pendiente),
+    estadoAr: fila.estado_ar,
+    monederoRevertidoMxn: Number(fila.monedero_revertido_mxn),
+  };
+}
+
+/** AR-09: registra una sola vez el anticipo heredado no estructurado. */
+export async function registrarAbonoHeredadoServicio(
+  admin: SupabaseClient<Database>,
+  entrada: { arId: string; monto: number; notas?: string; actorId: string },
+): Promise<{ arId: string; saldoPendiente: number; estado: string; abonoHeredado: number }> {
+  const { data, error } = await admin.rpc('registrar_abono_heredado_ar', {
+    p_ar_id: entrada.arId,
+    p_monto: entrada.monto,
+    p_notas: entrada.notas ?? '',
+    p_actor_id: entrada.actorId,
+  });
+  if (error) lanzarErrorCobranza(error.message);
+  const fila = data?.[0];
+  if (!fila?.ar_id) throw new ErrorCobranza('desconocido');
+  return {
+    arId: fila.ar_id,
+    saldoPendiente: Number(fila.saldo_pendiente),
+    estado: fila.estado,
+    abonoHeredado: Number(fila.abono_heredado),
+  };
+}
+
 export function mensajeErrorCobranza(error: unknown): string {
   if (error instanceof ErrorCobranza) {
     if (error.codigo === 'saldo_insuficiente') return 'El cliente no tiene saldo a favor suficiente';
@@ -304,6 +355,12 @@ export function mensajeErrorCobranza(error: unknown): string {
     if (error.codigo === 'cuenta_ya_existe') return 'La orden ya tiene una cuenta por cobrar. Actualiza la cartera.';
     if (error.codigo === 'sin_permiso') return 'Tu permiso para registrar facturas ya no está vigente.';
     if (error.codigo === 'cuenta_no_disponible') return 'La cuenta no está disponible para este movimiento';
+    if (error.codigo === 'pago_ya_reversado') return 'Ese pago ya fue reversado antes.';
+    if (error.codigo === 'saldo_favor_insuficiente') return 'El monedero no tiene el crédito original; revisa movimientos antes de reversar.';
+    if (error.codigo === 'abono_heredado_ya_registrado') return 'El anticipo heredado ya está registrado en esta cuenta.';
+    if (error.codigo === 'cuenta_con_pagos_estructurados') return 'La cuenta ya tiene pagos registrados; el anticipo heredado solo se captura antes de cobrar.';
+    if (error.codigo === 'cuenta_cancelada') return 'La cuenta está cancelada.';
+    if (error.codigo === 'abono_heredado_invalido') return 'El anticipo heredado debe ser mayor a cero.';
   }
   return 'No se pudo completar la operación de cobranza';
 }

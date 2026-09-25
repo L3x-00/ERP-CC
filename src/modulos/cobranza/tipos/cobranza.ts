@@ -62,6 +62,8 @@ export interface CuentaPorCobrar {
   fechaVencimiento: string | null;
   /** D-04: fecha en que la cuenta se volvió exigible; `null` = no cobrable. */
   cobrableDesde: string | null;
+  /** AR-09: anticipo heredado ya aplicado; se cuenta una sola vez y no se corrige. */
+  abonoHeredado: number;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -152,6 +154,7 @@ export function filaACuentaPorCobrar(fila: FilaCuentaPorCobrar): CuentaPorCobrar
     fechaEmision: fila.fecha_emision,
     fechaVencimiento: fila.fecha_vencimiento,
     cobrableDesde: fila.cobrable_desde,
+    abonoHeredado: Number(fila.abono_heredado ?? 0),
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
