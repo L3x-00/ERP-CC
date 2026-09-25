@@ -11,6 +11,19 @@ export {
 
 export { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
 
+export {
+  elegirHueco,
+  horasSugeridas,
+  obtenerBolsaPlaneacionServicio,
+  siguienteSecuencia,
+} from '@/modulos/planeacion/servicios/bolsa-planeacion-servicio';
+
+export type {
+  BolsaPlaneacion,
+  PartidaBolsa,
+  SugerenciaBolsa,
+} from '@/modulos/planeacion/servicios/bolsa-planeacion-servicio';
+
 export type {
   CodigoErrorPlaneacion,
   DatosCalendarioPlaneacion,

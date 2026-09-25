@@ -4,6 +4,7 @@ import { PanelCapacidadInstalada } from '@/modulos/planeacion/componentes/panel-
 import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
+import { obtenerBolsaPlaneacionServicio } from '@/modulos/planeacion/servicios/bolsa-planeacion-servicio';
 import { obtenerDatosCalendarioPlaneacionServicio } from '@/modulos/planeacion/servicios/planeacion-servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -33,6 +34,7 @@ export default async function PaginaPlaneacion() {
 
   const puedeVer = await can(usuario, 'ver_planeacion');
   if (!puedeVer && !(await can(usuario, 'gestionar_planeacion'))) notFound();
+  const puedeAdministrar = await can(usuario, 'aprobar_ordenes');
 
   const cliente = await crearClienteSupabaseServidor();
   const hoy = fechaIsoDesdeFecha(new Date());
@@ -50,7 +52,7 @@ export default async function PaginaPlaneacion() {
   const fechaReferencia = proximaProgramacion?.fecha_programada ?? hoy;
   const fechaInicio = inicioSemana(fechaReferencia);
   const fechaFin = sumarDias(fechaInicio, 6);
-  const [datosIniciales, resultadoPartidas] = await Promise.all([
+  const [datosIniciales, resultadoPartidas, bolsa] = await Promise.all([
     obtenerDatosCalendarioPlaneacionServicio(cliente, crearClienteSupabaseAdmin(), {
       fechaInicio,
       fechaFin,
@@ -60,6 +62,7 @@ export default async function PaginaPlaneacion() {
       .select('id, orden_id')
       .order('creado_en', { ascending: false })
       .limit(100),
+    obtenerBolsaPlaneacionServicio(cliente, crearClienteSupabaseAdmin(), hoy),
   ]);
   if (resultadoPartidas.error) {
     throw new Error('No se pudieron cargar las partidas para Planeación');
@@ -122,6 +125,8 @@ export default async function PaginaPlaneacion() {
         rangoInicial={{ fechaInicio, fechaFin }}
         partidasProgramables={partidasProgramables}
         desglosePartidas={desglosePartidas}
+        bolsa={bolsa}
+        puedeAdministrar={puedeAdministrar}
       />
       <PanelCapacidadInstalada />
     </div>

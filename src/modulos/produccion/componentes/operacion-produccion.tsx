@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Select } from '@/compartido/componentes/ui/input';
 import { usarTiendaProduccion } from '@/estado/uso-tienda-produccion';
@@ -31,10 +31,12 @@ export interface PropsOperacionProduccion {
   operadorId: string | null;
   usuarioActualId?: string;
   esAdmin?: boolean;
+  /** PLA-06: la tarjeta de Planeación abre Producción con la orden ya elegida. */
+  ordenInicialId?: string;
 }
 
 /** Orquesta el piso de taller sin copias locales de datos de negocio. */
-export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false }: PropsOperacionProduccion) {
+export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualId, esAdmin = false, ordenInicialId }: PropsOperacionProduccion) {
   const clienteConsultas = useQueryClient();
   const recursoId = usarTiendaProduccion((estado) => estado.recursoId);
   const areaCodigo = usarTiendaProduccion((estado) => estado.areaCodigo);
@@ -66,6 +68,14 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     ...(consultaInicial ? { initialData: datosIniciales } : {}),
   });
   const datos = consulta.data ?? datosIniciales;
+
+  // PLA-06: llegada desde una tarjeta de Planeación; selecciona la orden pedida.
+  useEffect(() => {
+    if (ordenInicialId && datos.ordenes.some((orden) => orden.id === ordenInicialId)) {
+      seleccionarOrden(ordenInicialId);
+    }
+  }, [ordenInicialId, datos.ordenes, seleccionarOrden]);
+
   const codigosAreaConTrabajo = [...new Set(
     [...datosIniciales.ordenes, ...datos.ordenes]
       .flatMap((orden) => orden.partidas)

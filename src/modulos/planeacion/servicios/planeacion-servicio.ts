@@ -221,7 +221,30 @@ export async function obtenerProgramacionesCalendarioServicio(
     .order('orden_prioridad', { ascending: true });
 
   if (error) lanzarErrorPlaneacion(error.message);
-  return (data ?? []).map(filaAProgramacionArea);
+  const programaciones = (data ?? []).map(filaAProgramacionArea);
+  const ordenIds = [...new Set(programaciones.map((programacion) => programacion.ordenId))];
+  if (ordenIds.length === 0) return programaciones;
+
+  // PLA-06: la tarjeta semanal necesita el estado de la orden para ofrecer
+  // Bandeja/Iniciar/Sesión/Pausar/Reanudar/Entregar/Imprimir/Reactivar.
+  const { data: ordenes, error: errorOrdenes } = await cliente
+    .from('ordenes_produccion')
+    .select('id, folio, estado, actualizado_en, es_interna')
+    .in('id', ordenIds);
+  if (errorOrdenes) lanzarErrorPlaneacion(errorOrdenes.message);
+  const ordenPorId = new Map((ordenes ?? []).map((orden) => [orden.id, orden]));
+
+  return programaciones.map((programacion) => {
+    const orden = ordenPorId.get(programacion.ordenId);
+    if (!orden) return programacion;
+    return {
+      ...programacion,
+      ordenFolio: orden.folio,
+      ordenEstado: orden.estado as ProgramacionArea['ordenEstado'],
+      ordenActualizadoEn: orden.actualizado_en,
+      ordenEsInterna: orden.es_interna,
+    };
+  });
 }
 
 /**
