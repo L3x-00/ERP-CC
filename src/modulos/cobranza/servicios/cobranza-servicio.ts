@@ -33,6 +33,12 @@ export type CodigoErrorCobranza =
   | 'abono_heredado_invalido'
   | 'cuenta_con_pagos_estructurados'
   | 'cuenta_cancelada'
+  | 'cuenta_ya_anulada'
+  | 'cuenta_con_cobros_vigentes'
+  | 'cuenta_con_saldo_irregular'
+  | 'cuenta_desactualizada'
+  | 'sin_permiso_anular_cuenta'
+  | 'sin_permiso_consolidar_ar'
   | 'desconocido';
 
 export class ErrorCobranza extends Error {
@@ -348,6 +354,70 @@ export async function registrarAbonoHeredadoServicio(
   };
 }
 
+/** AR-16: anula con CAS una cuenta sin cobros vigentes, conservando el historial. */
+export async function anularCuentaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: { arId: string; actualizadoEn: string; motivo: string; actorId: string },
+): Promise<{ id: string; estado: string; saldoPendiente: number; motivoAnulacion: string }> {
+  const { data, error } = await admin.rpc('anular_cuenta_por_cobrar', {
+    p_ar_id: entrada.arId,
+    p_actualizado_en: entrada.actualizadoEn,
+    p_motivo: entrada.motivo,
+    p_actor_id: entrada.actorId,
+  });
+  if (error) lanzarErrorCobranza(error.message);
+  const fila = data?.[0];
+  if (!fila?.id) throw new ErrorCobranza('desconocido');
+  return {
+    id: fila.id,
+    estado: fila.estado,
+    saldoPendiente: Number(fila.saldo_pendiente),
+    motivoAnulacion: fila.motivo_anulacion,
+  };
+}
+
+export interface OrdenConsolidable {
+  ordenId: string;
+  folio: string;
+  clienteNombre: string;
+  estado: string;
+  montoTotal: number;
+  elegible: boolean;
+  motivo: string | null;
+}
+
+export async function previsualizarConsolidacionServicio(
+  admin: SupabaseClient<Database>,
+): Promise<OrdenConsolidable[]> {
+  const { data, error } = await admin.rpc('previsualizar_consolidacion_ar_faltantes');
+  if (error) lanzarErrorCobranza(error.message);
+  return (data ?? []).map((fila) => ({
+    ordenId: fila.orden_id,
+    folio: fila.folio,
+    clienteNombre: fila.cliente_nombre,
+    estado: fila.estado,
+    montoTotal: Number(fila.monto_total),
+    elegible: fila.elegible,
+    motivo: fila.motivo,
+  }));
+}
+
+export async function consolidarArFaltantesServicio(
+  admin: SupabaseClient<Database>,
+  entrada: { ordenIds: string[]; actorId: string },
+): Promise<{ ordenId: string; creada: boolean; motivo: string | null }[]> {
+  const { data, error } = await admin.rpc('consolidar_ar_faltantes', {
+    p_orden_ids: entrada.ordenIds,
+    p_actor_id: entrada.actorId,
+  });
+  if (error) lanzarErrorCobranza(error.message);
+  return (data ?? []).map((fila) => ({
+    ordenId: fila.orden_id,
+    creada: fila.creada,
+    motivo: fila.motivo ?? null,
+  }));
+}
+
 export function mensajeErrorCobranza(error: unknown): string {
   if (error instanceof ErrorCobranza) {
     if (error.codigo === 'saldo_insuficiente') return 'El cliente no tiene saldo a favor suficiente';
@@ -361,6 +431,11 @@ export function mensajeErrorCobranza(error: unknown): string {
     if (error.codigo === 'cuenta_con_pagos_estructurados') return 'La cuenta ya tiene pagos registrados; el anticipo heredado solo se captura antes de cobrar.';
     if (error.codigo === 'cuenta_cancelada') return 'La cuenta está cancelada.';
     if (error.codigo === 'abono_heredado_invalido') return 'El anticipo heredado debe ser mayor a cero.';
+    if (error.codigo === 'cuenta_ya_anulada') return 'La cuenta ya está anulada.';
+    if (error.codigo === 'cuenta_con_cobros_vigentes') return 'La cuenta tiene cobros vigentes; reversa o corrige antes de anular.';
+    if (error.codigo === 'cuenta_desactualizada') return 'La cuenta cambió en otra pantalla; actualiza antes de anular.';
+    if (error.codigo === 'sin_permiso_anular_cuenta') return 'No tienes permiso para anular cuentas.';
+    if (error.codigo === 'sin_permiso_consolidar_ar') return 'No tienes permiso para consolidar cuentas.';
   }
   return 'No se pudo completar la operación de cobranza';
 }

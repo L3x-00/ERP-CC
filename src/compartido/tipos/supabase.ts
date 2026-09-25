@@ -546,6 +546,8 @@ export type Database = {
           abono_heredado: number
           abono_heredado_en: string | null
           abono_heredado_notas: string | null
+          anulada_en: string | null
+          anulada_por: string | null
           cliente_id: string
           cobrable_desde: string | null
           creado_en: string
@@ -553,6 +555,7 @@ export type Database = {
           fecha_emision: string
           fecha_vencimiento: string | null
           folio_factura_remision: string | null
+          motivo_anulacion: string | null
           referencia_interna: string
           id: string
           moneda: string
@@ -568,6 +571,8 @@ export type Database = {
           abono_heredado?: number
           abono_heredado_en?: string | null
           abono_heredado_notas?: string | null
+          anulada_en?: string | null
+          anulada_por?: string | null
           cliente_id: string
           cobrable_desde?: string | null
           creado_en?: string
@@ -575,6 +580,7 @@ export type Database = {
           fecha_emision?: string
           fecha_vencimiento?: string | null
           folio_factura_remision?: string | null
+          motivo_anulacion?: string | null
           referencia_interna?: string
           id?: string
           moneda?: string
@@ -590,6 +596,8 @@ export type Database = {
           abono_heredado?: number
           abono_heredado_en?: string | null
           abono_heredado_notas?: string | null
+          anulada_en?: string | null
+          anulada_por?: string | null
           cliente_id?: string
           cobrable_desde?: string | null
           creado_en?: string
@@ -597,6 +605,7 @@ export type Database = {
           fecha_emision?: string
           fecha_vencimiento?: string | null
           folio_factura_remision?: string | null
+          motivo_anulacion?: string | null
           referencia_interna?: string
           id?: string
           moneda?: string
@@ -3037,6 +3046,36 @@ export type Database = {
           monedero_revertido_mxn: number
           pago_id: string
           saldo_pendiente: number
+        }[]
+      }
+      anular_cuenta_por_cobrar: {
+        Args: { p_actualizado_en: string; p_actor_id: string; p_ar_id: string; p_motivo: string }
+        Returns: {
+          actualizado_en: string
+          estado: string
+          id: string
+          motivo_anulacion: string
+          saldo_pendiente: number
+        }[]
+      }
+      previsualizar_consolidacion_ar_faltantes: {
+        Args: never
+        Returns: {
+          cliente_nombre: string
+          elegible: boolean
+          estado: string
+          folio: string
+          monto_total: number
+          motivo: string
+          orden_id: string
+        }[]
+      }
+      consolidar_ar_faltantes: {
+        Args: { p_actor_id: string; p_orden_ids: string[] }
+        Returns: {
+          creada: boolean
+          motivo: string
+          orden_id: string
         }[]
       }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }

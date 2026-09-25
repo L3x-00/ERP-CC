@@ -25,6 +25,9 @@ function cuenta(parcial: Partial<CuentaHistorial> = {}): CuentaHistorial {
     cobrableDesde: null,
     abonoHeredado: 0,
     pagosReversados: [],
+    motivoAnulacion: null,
+    anuladaEn: null,
+    actualizadoEn: '2026-09-20T00:00:00.000Z',
     condicionesPago: 'credito',
     ...parcial,
   };

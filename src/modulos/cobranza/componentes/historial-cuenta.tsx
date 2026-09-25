@@ -10,7 +10,7 @@ import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skelet
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { obtenerHistorialCuentaAccion, obtenerDetalleOrdenCobranzaAccion, obtenerReciboPagoAccion } from '@/modulos/cobranza/acciones/consultar-historial';
-import { registrarAbonoHeredadoAccion, reversarPagoAccion } from '@/modulos/cobranza/acciones/indice';
+import { registrarAbonoHeredadoAccion, reversarPagoAccion, anularCuentaAccion } from '@/modulos/cobranza/acciones/indice';
 import { etiquetaCondicionCuenta, reconciliarCuenta } from '@/modulos/cobranza/servicios/ficha-cuenta-servicio';
 import { ReciboPersistido } from './recibo-persistido';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
@@ -56,6 +56,8 @@ export function HistorialCuenta({ arId, clienteId }: { arId: string; clienteId: 
   const [montoHeredado, setMontoHeredado] = useState('');
   const [notasHeredado, setNotasHeredado] = useState('');
   const [procesando, setProcesando] = useState(false);
+  const [anulando, setAnulando] = useState(false);
+  const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [mensajeAccion, setMensajeAccion] = useState<string | null>(null);
   const consulta = useQuery({ queryKey: ['cobranza', 'historial', arId, clienteId, paginaPagos, paginaMovimientos], queryFn: () => datosDe(obtenerHistorialCuentaAccion({ arId, clienteId, paginaPagos, paginaMovimientos })), staleTime: 0, refetchOnWindowFocus: true, refetchInterval: 60_000 });
@@ -111,9 +113,33 @@ export function HistorialCuenta({ arId, clienteId }: { arId: string; clienteId: 
     }
   }
 
+  async function confirmarAnulacion(): Promise<void> {
+    if (!datos || motivoAnulacion.trim().length < 3) {
+      setErrorAccion('Indica el motivo de la anulación (mínimo 3 caracteres).');
+      return;
+    }
+    setProcesando(true);
+    setErrorAccion(null);
+    setMensajeAccion(null);
+    const respuesta = await anularCuentaAccion({
+      arId,
+      actualizadoEn: datos.cuenta.actualizadoEn,
+      motivo: motivoAnulacion.trim(),
+    });
+    setProcesando(false);
+    if (respuesta.exito) {
+      setMensajeAccion('Cuenta anulada; la orden, los pagos y el historial se conservan.');
+      setAnulando(false);
+      setMotivoAnulacion('');
+      await refrescar();
+    } else {
+      setErrorAccion(respuesta.exito ? 'No se pudo anular la cuenta' : respuesta.error);
+    }
+  }
+
   return <Consulta consulta={consulta}>{datos && <div className="grid gap-5">
     {mensajeAccion ? <p role="status" className="text-sm text-exito-texto">{mensajeAccion}</p> : null}
-    {errorAccion && pagoAReversar === null && !abonoAbierto ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
+    {errorAccion && pagoAReversar === null && !abonoAbierto && !anulando ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
     <section aria-label="Ficha de la cuenta" data-testid="ficha-cuenta" className="grid gap-2 rounded-base border border-borde p-3 text-sm">
       <p className="font-medium"><span className="font-mono text-xs">{datos.cuenta.referenciaInterna}</span> · {datos.cuenta.clienteNombre} · {datos.cuenta.folioOrden}{datos.cuenta.folioFacturaRemision ? ` · Factura: ${datos.cuenta.folioFacturaRemision}` : ''}</p>
       {(() => {
@@ -141,6 +167,17 @@ export function HistorialCuenta({ arId, clienteId }: { arId: string; clienteId: 
         <Button type="button" variante="contorno" tamano="sm" className="justify-self-start" data-testid="registrar-abono-heredado"
           onClick={() => { setErrorAccion(null); setNotasHeredado(''); setMontoHeredado(''); setAbonoAbierto(true); }}>
           Registrar anticipo heredado (no estructurado)
+        </Button>
+      ) : null}
+      {datos.cuenta.estado === 'cancelado' && datos.cuenta.motivoAnulacion ? (
+        <p role="status" className="text-xs text-peligro-texto" data-testid="cuenta-anulada">
+          Cuenta anulada{datos.cuenta.anuladaEn ? ` el ${formatearFecha(datos.cuenta.anuladaEn)}` : ''}: {datos.cuenta.motivoAnulacion}
+        </p>
+      ) : null}
+      {datos.cuenta.estado !== 'cancelado' ? (
+        <Button type="button" variante="contorno" tamano="sm" className="justify-self-start" data-testid="anular-cuenta"
+          onClick={() => { setErrorAccion(null); setMotivoAnulacion(''); setAnulando(true); }}>
+          Anular cuenta
         </Button>
       ) : null}
     </section>
@@ -187,6 +224,23 @@ export function HistorialCuenta({ arId, clienteId }: { arId: string; clienteId: 
         <DialogFooter className="static">
           <Button type="button" variante="contorno" disabled={procesando} onClick={() => { setAbonoAbierto(false); setErrorAccion(null); }}>Cancelar</Button>
           <Button type="button" data-testid="confirmar-abono-heredado" disabled={procesando || Number(montoHeredado) <= 0} onClick={() => void confirmarAbonoHeredado()}>{procesando ? 'Registrando…' : 'Registrar anticipo'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={anulando} onOpenChange={abierto => { if (!abierto && !procesando) { setAnulando(false); setErrorAccion(null); } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Anular cuenta</DialogTitle>
+          <DialogDescription>La cuenta deja de ser cobrable y conserva la orden, los pagos, los reversos y el historial. No se anula con cobros vigentes ni dos veces.</DialogDescription>
+        </DialogHeader>
+        <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario">
+          Motivo (mínimo 3 caracteres)
+          <Textarea data-testid="motivo-anulacion" maxLength={300} value={motivoAnulacion} onChange={evento => setMotivoAnulacion(evento.target.value)} disabled={procesando} />
+        </label>
+        {errorAccion ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
+        <DialogFooter className="static">
+          <Button type="button" variante="contorno" disabled={procesando} onClick={() => { setAnulando(false); setErrorAccion(null); }}>Cancelar</Button>
+          <Button type="button" data-testid="confirmar-anular-cuenta" disabled={procesando || motivoAnulacion.trim().length < 3} onClick={() => void confirmarAnulacion()}>{procesando ? 'Anulando…' : 'Anular cuenta'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

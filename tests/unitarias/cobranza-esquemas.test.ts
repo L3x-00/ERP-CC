@@ -168,6 +168,9 @@ describe('mappers de filas generadas', () => {
     abono_heredado: 0,
     abono_heredado_en: null,
     abono_heredado_notas: null,
+    motivo_anulacion: null,
+    anulada_en: null,
+    anulada_por: null,
     creado_en: fecha,
     actualizado_en: fecha,
   };
