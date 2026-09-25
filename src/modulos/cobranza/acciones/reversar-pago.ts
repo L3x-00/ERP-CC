@@ -14,7 +14,7 @@ const esquema = z.object({
 }).strict();
 
 /** AR-08: revierte un pago con motivo; nunca edita ni borra el movimiento original. */
-export async function reversarPagoAccion(entrada: unknown): Promise<RespuestaAccion<{ pagoId: string; saldoPendiente: number; estadoAr: string }>> {
+export async function reversarPagoAccion(entrada: unknown): Promise<RespuestaAccion<{ pagoId: string; arId: string; folioRecibo: string; saldoPendiente: number; estadoAr: string; monederoRevertidoMxn: number }>> {
   const analisis = esquema.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const usuario = await obtenerUsuarioServidor();
