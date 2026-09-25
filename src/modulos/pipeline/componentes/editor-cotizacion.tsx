@@ -262,6 +262,15 @@ export function EditorCotizacion({
                 soloLectura={!editable}
                 onCambio={alCambiarCliente}
               />
+              <FormularioCotizacion
+                pipelineId={oportunidad.id}
+                ivaPorcentaje={instantanea.oportunidad.ivaPorcentaje}
+                moneda={instantanea.oportunidad.moneda}
+                lineasIniciales={lineasIniciales}
+                actualizadoEn={instantanea.oportunidad.actualizadoEn}
+                soloLectura={!editable}
+                alGuardar={cerrar}
+              />
               <GestorDatosSolicitud
                 oportunidadId={oportunidad.id}
                 datos={{
@@ -281,15 +290,6 @@ export function EditorCotizacion({
                 etiquetas={instantanea.oportunidad.etiquetas}
                 soloLectura={!editable}
                 onCambio={alCambiarEtiquetas}
-              />
-              <FormularioCotizacion
-                pipelineId={oportunidad.id}
-                ivaPorcentaje={instantanea.oportunidad.ivaPorcentaje}
-                moneda={instantanea.oportunidad.moneda}
-                lineasIniciales={lineasIniciales}
-                actualizadoEn={instantanea.oportunidad.actualizadoEn}
-                soloLectura={!editable}
-                alGuardar={cerrar}
               />
               <PanelAdjuntos pipelineId={oportunidad.id} soloLectura={!editable} />
             </>

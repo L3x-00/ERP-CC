@@ -26,6 +26,7 @@ import { CotizadorTecnico } from '@/modulos/cotizador/componentes/cotizador-tecn
 import { obtenerCatalogoTarifasAccion } from '@/modulos/cotizador/acciones/obtener-catalogo-tarifas';
 import { agregarArchivoAdjuntoAccion } from '@/modulos/pipeline/acciones/agregar-archivo-adjunto';
 import { claveAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
+import { normalizarProcesosConPrevios } from '@/modulos/pipeline/utilidades/procesos';
 import type { CotizacionTecnicaCalculada } from '@/modulos/cotizador/tipos/indice';
 
 type PropsFormularioCotizacion = {
@@ -143,12 +144,14 @@ function aEntrada(linea: LineaFormulario): LineaCotizacionEntrada {
     material: material === '' ? undefined : material,
     espesor: espesor === '' ? undefined : espesor,
     area: area === '' || !Number.isFinite(Number(area)) ? undefined : Number(area),
-    procesos: procesosSinTocar
-      ? [...linea.procesosOriginales]
-      : linea.procesos
-          .split(',')
-          .map((proceso) => proceso.trim())
-          .filter((proceso) => proceso !== ''),
+    procesos: normalizarProcesosConPrevios(
+      procesosSinTocar
+        ? [...linea.procesosOriginales]
+        : linea.procesos
+            .split(',')
+            .map((proceso) => proceso.trim())
+            .filter((proceso) => proceso !== ''),
+    ).procesos,
     areaTrabajoCodigo: linea.areaTrabajoCodigo === '' ? undefined : linea.areaTrabajoCodigo,
     estacionCodigo: linea.estacionCodigo === '' ? undefined : linea.estacionCodigo,
     esExterno: linea.esExterno,
@@ -253,6 +256,7 @@ export function FormularioCotizacion({
   const [error, setError] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [avisoProceso, setAvisoProceso] = useState<{ indice: number; mensaje: string } | null>(null);
 
   const totales = useMemo(
     () => calcularTotalesCotizacion(lineas.map(aEntrada), ivaPorcentaje, moneda),
@@ -261,6 +265,27 @@ export function FormularioCotizacion({
   // Una cotización debe conservar al menos una línea fabricable (RFQ-03): las
   // de descuento no cuentan y se pueden quitar siempre.
   const fabricables = lineas.filter((linea) => !linea.esDescuento).length;
+
+  // Al salir del campo se completa la secuencia: doblar/pulir/soldar exige el
+  // corte previo, así que se agrega de forma visible en lugar de bloquear.
+  function normalizarProcesosLinea(indice: number): void {
+    const linea = lineas[indice];
+    if (!linea) return;
+    const capturados = linea.procesos
+      .split(',')
+      .map((proceso) => proceso.trim())
+      .filter((proceso) => proceso !== '');
+    const { procesos, agregados } = normalizarProcesosConPrevios(capturados);
+    if (agregados.length > 0) {
+      actualizarLinea(indice, 'procesos', procesos.join(', '));
+      setAvisoProceso({
+        indice,
+        mensaje: `Se agregó ${agregados.join(', ')} como proceso previo: los procesos se complementan.`,
+      });
+    } else {
+      setAvisoProceso(null);
+    }
+  }
 
   function actualizarLinea(indice: number, campo: CampoLinea, valor: string): void {
     // Editar el área o el proveedor externo no invalida el cálculo técnico; el
@@ -589,8 +614,18 @@ export function FormularioCotizacion({
                   onChange={(evento) =>
                     actualizarLinea(indice, 'procesos', evento.target.value)
                   }
+                  onBlur={() => normalizarProcesosLinea(indice)}
                   placeholder="corte, doblez"
                 />
+                <span className="text-xs text-texto-secundario">
+                  Los procesos se complementan: doblado, pulido o soldadura agregan
+                  corte como proceso previo.
+                </span>
+                {avisoProceso?.indice === indice ? (
+                  <span role="status" className="text-xs text-advertencia-texto">
+                    {avisoProceso.mensaje}
+                  </span>
+                ) : null}
               </div>
 
               <div className="flex flex-col gap-1">

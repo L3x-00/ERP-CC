@@ -134,7 +134,13 @@ export function GestorDatosSolicitud({
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-borde px-4 py-3">
-      <span className="text-sm font-medium text-texto-primario">Datos de la solicitud</span>
+      <span className="text-sm font-medium text-texto-primario">
+        Seguimiento de la oportunidad (opcional, después de cotizar)
+      </span>
+      <span className="text-xs text-texto-secundario">
+        PO, fechas y próxima acción son de seguimiento comercial: no bloquean ni
+        forman parte de la cotización; captúralos cuando ya exista una propuesta.
+      </span>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor={`po-${oportunidadId}`}>Orden de compra (PO)</Label>

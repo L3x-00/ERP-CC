@@ -1,5 +1,12 @@
 import type { CondicionesPago, EtapaPipeline } from '@/modulos/pipeline/tipos/indice';
 
+export {
+  claveProceso,
+  normalizarProcesosConPrevios,
+} from '@/modulos/pipeline/utilidades/procesos';
+
+export type { ProcesosNormalizados } from '@/modulos/pipeline/utilidades/procesos';
+
 /** Etiqueta legible de las condiciones de pago de una oportunidad. */
 export const ETIQUETA_CONDICIONES_PAGO: Record<CondicionesPago, string> = {
   contado: 'Contado',
