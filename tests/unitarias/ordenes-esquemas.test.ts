@@ -5,6 +5,7 @@ import {
   esquemaCrearOrdenHistorica,
   esquemaRegistrarConsumoMaterial,
   esquemaRegistrarTiempoOperador,
+  esquemaRepetirOrden,
 } from '@/modulos/ordenes/validaciones/ordenes';
 import {
   filaAOrden,
@@ -271,6 +272,7 @@ describe('mappers de órdenes', () => {
         monto_sin_iva: null,
         notas: null,
         referencia_externa: null,
+        orden_origen_id: null,
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
@@ -354,6 +356,7 @@ describe('mappers de órdenes', () => {
         monto_sin_iva: null,
         notas: null,
         referencia_externa: null,
+        orden_origen_id: null,
         creado_en: '2026-08-12T10:00:00+00:00',
         actualizado_en: '2026-08-12T10:00:00+00:00',
       }),
@@ -392,5 +395,22 @@ describe('ORD-06: esquema de la orden heredada', () => {
   it('rechaza una fecha de trabajo que no es fecha y horas negativas', () => {
     expect(esquemaCrearOrdenHistorica.safeParse({ ...historicaValida, fechaTrabajo: 'ayer' }).success).toBe(false);
     expect(esquemaCrearOrdenHistorica.safeParse({ ...historicaValida, horasEstimadas: -1 }).success).toBe(false);
+  });
+});
+
+describe('CLI-08: esquema de repetición', () => {
+  it('exige orden de origen y fecha de compromiso válidas', () => {
+    expect(esquemaRepetirOrden.safeParse({
+      ordenOrigenId: uuidOrden,
+      fechaCompromiso: '2026-11-01T18:00:00.000Z',
+    }).success).toBe(true);
+    expect(esquemaRepetirOrden.safeParse({
+      ordenOrigenId: 'no-es-uuid',
+      fechaCompromiso: '2026-11-01T18:00:00.000Z',
+    }).success).toBe(false);
+    expect(esquemaRepetirOrden.safeParse({
+      ordenOrigenId: uuidOrden,
+      fechaCompromiso: '01/11/2026',
+    }).success).toBe(false);
   });
 });

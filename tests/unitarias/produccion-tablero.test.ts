@@ -10,7 +10,7 @@ const orden: Orden = {
   prioridad: 'normal', fechaCompromiso: '2026-08-14T18:00:00.000Z', fechaInicio: null, fechaFin: null,
   motivoCancelacion: null, esInterna: false, archivadaEn: null,
   idHistorico: null, referenciaExterna: null, condicionPago: null, montoSinIva: null, montoIva: null,
-  notas: null, fechaTrabajo: null, horasEstimadas: null,
+  notas: null, fechaTrabajo: null, horasEstimadas: null, ordenOrigenId: null,
   creadoEn: '2026-08-14T12:00:00.000Z', actualizadoEn: '2026-08-14T12:00:00.000Z',
 };
 

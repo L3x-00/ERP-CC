@@ -65,6 +65,12 @@ export const esquemaCrearOrdenHistorica = z
     path: ['montoSinIva'],
   });
 
+/** CLI-08: repetir un trabajo histórico o completado con una fecha nueva. */
+export const esquemaRepetirOrden = z.object({
+  ordenOrigenId: z.uuid('ID de orden origen inválido'),
+  fechaCompromiso: z.iso.datetime({ message: 'Fecha de compromiso inválida' }),
+}).strict();
+
 /** ORD-05: partida existente (con `id`) o nueva (sin `id`) dentro de la edición. */
 export const esquemaPartidaOrdenEdicion = esquemaPartidaOrden
   .extend({ id: z.uuid('ID de partida inválido').optional() })
@@ -158,6 +164,7 @@ export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
 export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
 export type CrearOrdenHistoricaInput = z.infer<typeof esquemaCrearOrdenHistorica>;
+export type RepetirOrdenInput = z.infer<typeof esquemaRepetirOrden>;
 export type ActualizarOrdenBorradorInput = z.infer<typeof esquemaActualizarOrdenBorrador>;
 export type ConfigurarMetasProcesoInput = z.infer<typeof esquemaConfigurarMetasProceso>;
 export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;

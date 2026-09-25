@@ -19,6 +19,7 @@ import type {
   CambiarEstadoOrdenInput,
   CrearOrdenHistoricaInput,
   CrearOrdenManualInput,
+  RepetirOrdenInput,
   AsignarOperadorPartidaInput,
   RegistrarConsumoMaterialInput,
   RegistrarAvancePartidaInput,
@@ -58,6 +59,9 @@ export type CodigoErrorOrden =
   | 'orden_historica_invalida'
   | 'sin_permiso_orden_historica'
   | 'id_historico_duplicado'
+  | 'orden_no_repetible'
+  | 'sin_permiso_repetir_orden'
+  | 'orden_sin_partidas'
   | 'desconocido';
 
 /** Error de negocio estable; el detalle crudo de Postgres no llega al cliente. */
@@ -196,6 +200,9 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('orden_historica_invalida')) return 'orden_historica_invalida';
   if (mensaje.includes('sin_permiso_orden_historica')) return 'sin_permiso_orden_historica';
   if (mensaje.includes('id_historico_duplicado')) return 'id_historico_duplicado';
+  if (mensaje.includes('orden_no_repetible')) return 'orden_no_repetible';
+  if (mensaje.includes('sin_permiso_repetir_orden')) return 'sin_permiso_repetir_orden';
+  if (mensaje.includes('orden_sin_partidas')) return 'orden_sin_partidas';
   return 'desconocido';
 }
 
@@ -266,6 +273,31 @@ export async function crearOrdenHistoricaServicio(
   const creada = validarResultadoCreacion(fila ?? null);
   if (!fila?.cuenta_id) throw new ErrorOrden('desconocido');
   return { id: creada.id, folio: creada.folio, cuentaId: fila.cuenta_id };
+}
+
+/** CLI-08: la repetición puede no tener precio conocido y devuelve cuenta nula. */
+export type RepeticionCreada = OrdenCreada & {
+  cuentaId: string | null;
+};
+
+/**
+ * CLI-08: repite un trabajo histórico o completado clonando solo sus datos
+ * comerciales/técnicos. PostgreSQL revalida permiso, estado de origen y crea la
+ * OP con folio nuevo, partidas en cero y su propia AR borrador.
+ */
+export async function repetirOrdenServicio(
+  admin: SupabaseClient<Database>,
+  entrada: RepetirOrdenInput & { actorId: string },
+): Promise<RepeticionCreada> {
+  const { data, error } = await admin.rpc('repetir_orden_op', {
+    p_orden_origen_id: entrada.ordenOrigenId,
+    p_actor_id: entrada.actorId,
+    p_fecha_compromiso: entrada.fechaCompromiso,
+  });
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  const creada = validarResultadoCreacion(fila ?? null);
+  return { id: creada.id, folio: creada.folio, cuentaId: fila?.cuenta_id ?? null };
 }
 
 /** Aprueba Pipeline y crea su OP sin exponer una ventana entre ambas escrituras. */

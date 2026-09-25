@@ -1350,6 +1350,7 @@ export type Database = {
           monto_sin_iva: number | null
           motivo_cancelacion: string | null
           notas: string | null
+          orden_origen_id: string | null
           prioridad: string
           referencia_externa: string | null
         }
@@ -1374,6 +1375,7 @@ export type Database = {
           monto_sin_iva?: number | null
           motivo_cancelacion?: string | null
           notas?: string | null
+          orden_origen_id?: string | null
           prioridad?: string
           referencia_externa?: string | null
         }
@@ -1398,6 +1400,7 @@ export type Database = {
           monto_sin_iva?: number | null
           motivo_cancelacion?: string | null
           notas?: string | null
+          orden_origen_id?: string | null
           prioridad?: string
           referencia_externa?: string | null
         }
@@ -1414,6 +1417,13 @@ export type Database = {
             columns: ["cotizacion_id"]
             isOneToOne: false
             referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_produccion_orden_origen_id_fkey"
+            columns: ["orden_origen_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -2893,6 +2903,18 @@ export type Database = {
           notas: string
           operador_id: string
           partida_id: string
+        }[]
+      }
+      repetir_orden_op: {
+        Args: {
+          p_actor_id: string
+          p_fecha_compromiso: string
+          p_orden_origen_id: string
+        }
+        Returns: {
+          cuenta_id: string
+          folio: string
+          id: string
         }[]
       }
       reprogramar_partida_recurso: {

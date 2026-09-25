@@ -7,6 +7,7 @@ import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orde
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
 import { EditarOrdenDialog } from '@/modulos/ordenes/componentes/editar-orden-dialog';
 import { ConfigurarProcesosDialog } from '@/modulos/ordenes/componentes/configurar-procesos-dialog';
+import { RepetirOrdenDialog } from '@/modulos/ordenes/componentes/repetir-orden-dialog';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -185,6 +186,8 @@ type PropsTablaOrdenes = {
   ordenInicialId?: string;
   usuarioActualId?: string;
   puedeEliminarTodos?: boolean;
+  /** CLI-08/PRD-15: repetir y reactivar son acciones administrativas. */
+  puedeAdministrar?: boolean;
 };
 
 /**
@@ -199,6 +202,7 @@ export function TablaOrdenes({
   ordenInicialId,
   usuarioActualId,
   puedeEliminarTodos = false,
+  puedeAdministrar = false,
 }: PropsTablaOrdenes) {
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
@@ -214,6 +218,7 @@ export function TablaOrdenes({
   const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
   const [ordenConfigurando, setOrdenConfigurando] = useState<OrdenTabla | null>(null);
   const [ordenAdjuntos, setOrdenAdjuntos] = useState<OrdenTabla | null>(null);
+  const [ordenRepitiendo, setOrdenRepitiendo] = useState<OrdenTabla | null>(null);
   const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
     ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
       ? 'archivo' : 'activas');
@@ -554,6 +559,18 @@ export function TablaOrdenes({
                             onClick={() => setOrdenConfigurando(orden)}>Procesos</button></>
                         )}
                         <DocumentoOrdenBoton ordenId={orden.id} folio={orden.folio} />
+                        {puedeAdministrar && (orden.idHistorico !== null || orden.estado === 'completada') && (
+                          <button
+                            type="button"
+                            data-testid={`repetir-orden-${orden.folio}`}
+                            onClick={() => setOrdenRepitiendo(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                            title="Crea un trabajo nuevo reutilizando solo datos comerciales y técnicos"
+                          >
+                            Repetir
+                          </button>
+                        )}
                         {orden.idHistorico !== null && (
                           <button
                             type="button"
@@ -637,6 +654,14 @@ export function TablaOrdenes({
           ordenId={ordenAdjuntos.id}
           folio={ordenAdjuntos.folio}
           onCerrar={() => setOrdenAdjuntos(null)}
+        />
+      ) : null}
+
+      {ordenRepitiendo ? (
+        <RepetirOrdenDialog
+          ordenOrigenId={ordenRepitiendo.id}
+          folioOrigen={ordenRepitiendo.folio}
+          onCerrar={() => setOrdenRepitiendo(null)}
         />
       ) : null}
 

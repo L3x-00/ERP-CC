@@ -52,6 +52,8 @@ export interface Orden {
   notas: string | null;
   fechaTrabajo: string | null;
   horasEstimadas: number | null;
+  /** CLI-08: orden de origen cuando este trabajo es una repetición. */
+  ordenOrigenId: string | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -159,6 +161,7 @@ export function filaAOrden(fila: FilaOrden): Orden {
     notas: fila.notas,
     fechaTrabajo: fila.fecha_trabajo,
     horasEstimadas: fila.horas_estimadas === null ? null : Number(fila.horas_estimadas),
+    ordenOrigenId: fila.orden_origen_id,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };
