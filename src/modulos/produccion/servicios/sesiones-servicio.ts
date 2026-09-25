@@ -27,6 +27,8 @@ export type CodigoErrorProduccion =
   | 'secuencia_previa_pendiente'
   | 'produccion_solo_ultima_secuencia'
   | 'cantidad_producida_excede_solicitada'
+  | 'meta_proceso_no_corresponde'
+  | 'cantidad_excede_meta_proceso'
   | 'motivo_pausa_invalido'
   | 'cantidad_entrega_excede_producida'
   | 'orden_no_entregable'
@@ -80,6 +82,8 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'secuencia_previa_pendiente',
   'produccion_solo_ultima_secuencia',
   'cantidad_producida_excede_solicitada',
+  'meta_proceso_no_corresponde',
+  'cantidad_excede_meta_proceso',
   'motivo_pausa_invalido',
   'cantidad_entrega_excede_producida',
   'orden_no_entregable',
@@ -178,6 +182,7 @@ export async function cerrarSesionTrabajoServicio(
     p_operador_id: entrada.operadorId,
     p_piezas_producidas: entrada.piezasProducidas,
     p_estado_destino: entrada.estadoDestino,
+    ...(entrada.metaProcesoId ? { p_meta_proceso_id: entrada.metaProcesoId } : {}),
     ...(entrada.motivoPausa ? { p_motivo_pausa: entrada.motivoPausa } : {}),
     ...(entrada.notas ? { p_notas: entrada.notas } : {}),
   });
@@ -210,6 +215,10 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'Existe una operación previa pendiente para esta partida';
     case 'cantidad_producida_excede_solicitada':
       return 'La producción no puede superar la cantidad solicitada';
+    case 'meta_proceso_no_corresponde':
+      return 'El proceso elegido no pertenece a esta partida';
+    case 'cantidad_excede_meta_proceso':
+      return 'La cantidad supera lo pendiente de esa meta de proceso';
     case 'sesion_no_activa':
       return 'La sesión ya fue actualizada o no está disponible';
     case 'programacion_conflicto':

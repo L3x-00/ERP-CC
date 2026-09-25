@@ -13,18 +13,30 @@ import {
   type RecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import {
+  filaAMetaProcesoPartida,
   filaANotaEntrega,
   filaASesionTrabajo,
   type EstadoKanbanProduccion,
+  type MetaProcesoPartida,
   type NotaEntrega,
   type SesionTrabajo,
 } from '@/modulos/produccion/tipos/indice';
 import { codigosFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { ConsultarTableroProduccionInput } from '@/modulos/produccion/validaciones/indice';
 
+/** PRD-09: hecho/meta/pendiente/porcentaje de una pareja partida×proceso. */
+export interface MetaProcesoAvance extends MetaProcesoPartida {
+  hechoPiezas: number;
+  pendientePiezas: number;
+  porcentaje: number;
+  esFinal: boolean;
+}
+
 export interface PartidaTableroProduccion extends Partida {
   cantidadEntregada: number;
   programaciones: ProgramacionArea[];
+  /** Vacío en trabajos históricos sin desglose de procesos. */
+  metasProceso: MetaProcesoAvance[];
 }
 
 export interface OrdenTableroProduccion extends Orden {
@@ -63,6 +75,18 @@ export function codigosAreaFiltrada(
   return codigosFamiliaArea(catalogo, areaCodigo);
 }
 
+/**
+ * PRD-09: con metas, la partida solo está completa cuando todas las parejas
+ * partida×proceso alcanzaron su meta; sin desglose se conserva la comparación
+ * física histórica.
+ */
+export function partidaProduccionCompleta(partida: PartidaTableroProduccion): boolean {
+  if (partida.metasProceso.length > 0) {
+    return partida.metasProceso.every((meta) => meta.hechoPiezas >= meta.metaPiezas);
+  }
+  return partida.cantidadProducida >= partida.cantidadSolicitada;
+}
+
 /** Deriva una columna de UI desde hechos persistidos; no escribe etiquetas en la OP. */
 export function obtenerEstadoKanbanProduccion(
   orden: Orden,
@@ -74,9 +98,7 @@ export function obtenerEstadoKanbanProduccion(
   );
   if (todasEntregadas) return 'entregada';
 
-  const todasCompletadas = partidas.length > 0 && partidas.every(
-    (partida) => partida.cantidadProducida >= partida.cantidadSolicitada,
-  );
+  const todasCompletadas = partidas.length > 0 && partidas.every(partidaProduccionCompleta);
   if (todasCompletadas || orden.estado === 'completada') return 'lista';
 
   if (sesiones.some((sesion) => sesion.estadoSesion === 'activa')) return 'en_proceso';
@@ -103,6 +125,33 @@ async function obtenerTodasLasSesiones(cliente: SupabaseClient<Database>) {
 }
 
 /**
+ * PRD-09: solo interesan los avances atribuidos a una meta de proceso; los
+ * registros históricos sin meta se resumen en la cantidad física de la partida.
+ */
+async function obtenerAvancesProceso(cliente: SupabaseClient<Database>) {
+  const avances: { meta_proceso_id: string; cantidad_producida: number }[] = [];
+  const TAMANO_PAGINA = 1000;
+  for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
+    const { data, error } = await cliente.from('registros_avance_partida')
+      .select('meta_proceso_id, cantidad_producida')
+      .not('meta_proceso_id', 'is', null)
+      .order('id')
+      .range(inicio, inicio + TAMANO_PAGINA - 1);
+    if (error) throw new Error(`No se pudo cargar el avance por proceso: ${error.message}`);
+    for (const avance of data ?? []) {
+      if (avance.meta_proceso_id) {
+        avances.push({
+          meta_proceso_id: avance.meta_proceso_id,
+          cantidad_producida: Number(avance.cantidad_producida),
+        });
+      }
+    }
+    if (!data || data.length < TAMANO_PAGINA) break;
+  }
+  return avances;
+}
+
+/**
  * Proyección de tablero sin N+1. La parcialidad y el estado de entrega se
  * derivan del historial inmutable, nunca del payload Realtime ni de Zustand.
  */
@@ -119,7 +168,7 @@ export async function obtenerDatosTableroProduccionServicio(
         .order('nombre')
     : { data: [], error: null };
 
-  const [resultadoOrdenes, resultadoPartidas, resultadoProgramaciones, sesiones, resultadoNotas, resultadoRenglones, resultadoRecursos] = await Promise.all([
+  const [resultadoOrdenes, resultadoPartidas, resultadoProgramaciones, sesiones, resultadoNotas, resultadoRenglones, resultadoRecursos, resultadoMetas, avancesProceso] = await Promise.all([
     cliente.from('ordenes_produccion').select('*').neq('estado', 'cancelada').order('fecha_compromiso'),
     cliente.from('partidas_orden_produccion').select('*').order('creado_en'),
     cliente.from('programacion_areas').select('*').neq('estado_planeacion', 'cancelada').order('secuencia'),
@@ -127,6 +176,8 @@ export async function obtenerDatosTableroProduccionServicio(
     cliente.from('notas_entrega').select('*').order('creado_en', { ascending: false }),
     cliente.from('partidas_nota_entrega').select('*'),
     cliente.from('recursos_planeacion').select('*').eq('activo', true).order('codigo'),
+    cliente.from('metas_proceso_partida').select('*').order('partida_id').order('secuencia'),
+    obtenerAvancesProceso(cliente),
   ]);
 
   const error = [
@@ -137,6 +188,7 @@ export async function obtenerDatosTableroProduccionServicio(
     resultadoNotas.error,
     resultadoRenglones.error,
     resultadoRecursos.error,
+    resultadoMetas.error,
   ].find((actual) => actual !== null);
   if (error) throw new Error(`No se pudo cargar el tablero de Producción: ${error.message}`);
 
@@ -167,16 +219,45 @@ export async function obtenerDatosTableroProduccionServicio(
     );
   }
 
+  // PRD-09: metas ordenadas por partida y suma de avances por pareja partida×proceso.
+  const metasPorPartida = new Map<string, MetaProcesoPartida[]>();
+  for (const meta of (resultadoMetas.data ?? []).map(filaAMetaProcesoPartida)) {
+    const actuales = metasPorPartida.get(meta.partidaId) ?? [];
+    actuales.push(meta);
+    metasPorPartida.set(meta.partidaId, actuales);
+  }
+  const hechoPorMeta = new Map<string, number>();
+  for (const avance of avancesProceso) {
+    hechoPorMeta.set(
+      avance.meta_proceso_id,
+      (hechoPorMeta.get(avance.meta_proceso_id) ?? 0) + avance.cantidad_producida,
+    );
+  }
+
   const partidasPorOrden = new Map<string, PartidaTableroProduccion[]>();
   const partidasFilas = (resultadoPartidas.data ?? []).map(filaAPartida);
   for (const partida of partidasFilas) {
     // OBS-09: la cola por área solo considera la familia del área elegida.
     if (codigosAceptados && !codigosAceptados.has(partida.areaTrabajoCodigo ?? '')) continue;
     const actuales = partidasPorOrden.get(partida.ordenId) ?? [];
+    const metas = metasPorPartida.get(partida.id) ?? [];
+    const ultimaSecuencia = metas.reduce((maxima, meta) => Math.max(maxima, meta.secuencia), 0);
     actuales.push({
       ...partida,
       cantidadEntregada: cantidadEntregadaPorPartida.get(partida.id) ?? 0,
       programaciones: programacionesPorPartida.get(partida.id) ?? [],
+      metasProceso: metas.map((meta) => {
+        const hechoPiezas = hechoPorMeta.get(meta.id) ?? 0;
+        return {
+          ...meta,
+          hechoPiezas,
+          pendientePiezas: Math.max(meta.metaPiezas - hechoPiezas, 0),
+          porcentaje: meta.metaPiezas > 0
+            ? Math.min((hechoPiezas / meta.metaPiezas) * 100, 100)
+            : 0,
+          esFinal: meta.secuencia === ultimaSecuencia,
+        };
+      }),
     });
     partidasPorOrden.set(partida.ordenId, actuales);
   }

@@ -23,6 +23,7 @@ export interface PropsPanelOperadorProduccion {
     sesionId: string;
     piezasProducidas: number;
     estadoDestino: 'pausada' | 'finalizada';
+    metaProcesoId?: string;
     motivoPausa?: MotivoPausaSesion;
     notas?: string;
     pinConfirmacion: string;
@@ -62,6 +63,7 @@ export function PanelOperadorProduccion({
   )) ?? [], [orden]);
   const [programacionId, setProgramacionId] = useState('');
   const [piezasProducidas, setPiezasProducidas] = useState('0');
+  const [metaProcesoId, setMetaProcesoId] = useState('');
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState<MotivoPausaSesion>('otro');
   const [notas, setNotas] = useState('');
@@ -73,6 +75,22 @@ export function PanelOperadorProduccion({
   const seleccion = preparaciones.find((item) => item.programacionId === programacionId)
     ?? preparaciones[0]
     ?? null;
+  // PRD-09: la sesión activa pertenece a una partida con metas; se preselecciona
+  // el proceso de su programación y, si no coincide, el primero con pendientes.
+  const partidaSesionActiva = sesionActiva
+    ? orden?.partidas.find((partida) => partida.id === sesionActiva.partidaId) ?? null
+    : null;
+  const metasSesion = partidaSesionActiva?.metasProceso ?? [];
+  const secuenciaProgramacion = sesionActiva
+    ? partidaSesionActiva?.programaciones.find(
+      (programacion) => programacion.id === sesionActiva.programacionId,
+    )?.secuencia
+    : undefined;
+  const metaPorDefecto = metasSesion.find((meta) => meta.secuencia === secuenciaProgramacion)
+    ?? metasSesion.find((meta) => meta.pendientePiezas > 0)
+    ?? metasSesion[metasSesion.length - 1]
+    ?? null;
+  const metaSeleccionada = metasSesion.find((meta) => meta.id === metaProcesoId) ?? metaPorDefecto;
   const ultimaPausa = (() => {
     if (!orden || orden.estadoKanban !== 'pausada') return null;
     const sesiones = [...orden.sesiones]
@@ -122,6 +140,7 @@ export function PanelOperadorProduccion({
       sesionId: sesionActiva.id,
       piezasProducidas: Number(piezasProducidas),
       estadoDestino,
+      ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
       ...(estadoDestino === 'pausada' ? { motivoPausa } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
       pinConfirmacion,
@@ -161,6 +180,24 @@ export function PanelOperadorProduccion({
               required
             />
           </label>
+          {metasSesion.length > 1 ? (
+            <label className={CLASE_ETIQUETA}>
+              Proceso trabajado
+              <Select
+                className="min-h-11"
+                data-testid="meta-proceso-cierre"
+                value={metaSeleccionada?.id ?? ''}
+                onChange={(evento) => setMetaProcesoId(evento.target.value)}
+              >
+                {metasSesion.map((meta) => (
+                  <option key={meta.id} value={meta.id}>
+                    {meta.nombre} · {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
+                    {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
+                  </option>
+                ))}
+              </Select>
+            </label>
+          ) : null}
           <label className={CLASE_ETIQUETA}>
             Resultado
             <Select

@@ -30,11 +30,13 @@ export {
   codigosAreaFiltrada,
   obtenerDatosTableroProduccionServicio,
   obtenerEstadoKanbanProduccion,
+  partidaProduccionCompleta,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';
 
 export type {
   AreaCatalogoProduccion,
   DatosTableroProduccion,
+  MetaProcesoAvance,
   OrdenTableroProduccion,
   PartidaTableroProduccion,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';

@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      archivos_orden: {
+        Row: {
+          creado_en: string
+          creado_por: string | null
+          id: string
+          mime: string
+          nombre: string
+          orden_id: string
+          ruta: string
+          tamano: number
+        }
+        Insert: {
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          mime: string
+          nombre: string
+          orden_id: string
+          ruta: string
+          tamano: number
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string | null
+          id?: string
+          mime?: string
+          nombre?: string
+          orden_id?: string
+          ruta?: string
+          tamano?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivos_orden_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivos_orden_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       archivos_sesion_produccion: {
         Row: {
           clase: string
@@ -1285,6 +1333,7 @@ export type Database = {
           actualizado_en: string
           archivada_en: string | null
           cliente_id: string
+          condicion_pago: string | null
           cotizacion_id: string | null
           creado_en: string
           es_interna: boolean
@@ -1292,15 +1341,23 @@ export type Database = {
           fecha_compromiso: string
           fecha_fin: string | null
           fecha_inicio: string | null
+          fecha_trabajo: string | null
           folio: string
+          horas_estimadas: number | null
           id: string
+          id_historico: string | null
+          monto_iva: number | null
+          monto_sin_iva: number | null
           motivo_cancelacion: string | null
+          notas: string | null
           prioridad: string
+          referencia_externa: string | null
         }
         Insert: {
           actualizado_en?: string
           archivada_en?: string | null
           cliente_id: string
+          condicion_pago?: string | null
           cotizacion_id?: string | null
           creado_en?: string
           es_interna?: boolean
@@ -1308,15 +1365,23 @@ export type Database = {
           fecha_compromiso: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
+          fecha_trabajo?: string | null
           folio: string
+          horas_estimadas?: number | null
           id?: string
+          id_historico?: string | null
+          monto_iva?: number | null
+          monto_sin_iva?: number | null
           motivo_cancelacion?: string | null
+          notas?: string | null
           prioridad?: string
+          referencia_externa?: string | null
         }
         Update: {
           actualizado_en?: string
           archivada_en?: string | null
           cliente_id?: string
+          condicion_pago?: string | null
           cotizacion_id?: string | null
           creado_en?: string
           es_interna?: boolean
@@ -1324,10 +1389,17 @@ export type Database = {
           fecha_compromiso?: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
+          fecha_trabajo?: string | null
           folio?: string
+          horas_estimadas?: number | null
           id?: string
+          id_historico?: string | null
+          monto_iva?: number | null
+          monto_sin_iva?: number | null
           motivo_cancelacion?: string | null
+          notas?: string | null
           prioridad?: string
+          referencia_externa?: string | null
         }
         Relationships: [
           {
@@ -1832,6 +1904,7 @@ export type Database = {
           cantidad_scrap: number
           creado_en: string
           id: string
+          meta_proceso_id: string | null
           operador_id: string
           partida_id: string
           sesion_trabajo_id: string | null
@@ -1841,6 +1914,7 @@ export type Database = {
           cantidad_scrap?: number
           creado_en?: string
           id?: string
+          meta_proceso_id?: string | null
           operador_id: string
           partida_id: string
           sesion_trabajo_id?: string | null
@@ -1850,11 +1924,19 @@ export type Database = {
           cantidad_scrap?: number
           creado_en?: string
           id?: string
+          meta_proceso_id?: string | null
           operador_id?: string
           partida_id?: string
           sesion_trabajo_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registros_avance_partida_meta_proceso_id_fkey"
+            columns: ["meta_proceso_id"]
+            isOneToOne: false
+            referencedRelation: "metas_proceso_partida"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registros_avance_partida_operador_id_fkey"
             columns: ["operador_id"]
@@ -2344,6 +2426,7 @@ export type Database = {
       cerrar_sesion_trabajo_operador: {
         Args: {
           p_estado_destino: string
+          p_meta_proceso_id?: string
           p_motivo_pausa?: string
           p_notas?: string
           p_operador_id: string
@@ -2370,6 +2453,27 @@ export type Database = {
           moneda: string
           numero_cuenta_enmascarado: string
           titular: string
+        }[]
+      }
+      crear_orden_historica: {
+        Args: {
+          p_actor_id: string
+          p_cliente_id: string
+          p_condicion_pago: string
+          p_fecha_compromiso: string
+          p_fecha_trabajo: string
+          p_horas_estimadas: number
+          p_id_historico: string
+          p_monto_iva: number
+          p_monto_sin_iva: number
+          p_notas: string
+          p_partidas: Json
+          p_referencia_externa: string
+        }
+        Returns: {
+          cuenta_id: string
+          folio: string
+          id: string
         }[]
       }
       crear_orden_manual: {

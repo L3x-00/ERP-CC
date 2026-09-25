@@ -26,6 +26,7 @@ export const esquemaCerrarSesion = z
     sesionId: z.uuid('ID de sesión inválido'),
     piezasProducidas: z.number().min(0, 'Las piezas producidas no pueden ser negativas'),
     estadoDestino: z.enum(ESTADOS_DESTINO_SESION),
+    metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_SESION).optional(),
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
     pinConfirmacion: z

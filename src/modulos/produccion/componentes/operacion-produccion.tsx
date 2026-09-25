@@ -136,6 +136,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     sesionId: string;
     piezasProducidas: number;
     estadoDestino: 'pausada' | 'finalizada';
+    metaProcesoId?: string;
     motivoPausa?: MotivoPausaSesion;
     notas?: string;
     pinConfirmacion: string;
