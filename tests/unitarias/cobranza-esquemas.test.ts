@@ -165,6 +165,9 @@ describe('mappers de filas generadas', () => {
     fecha_emision: fecha,
     fecha_vencimiento: fecha,
     cobrable_desde: fecha,
+    abono_heredado: 0,
+    abono_heredado_en: null,
+    abono_heredado_notas: null,
     creado_en: fecha,
     actualizado_en: fecha,
   };

@@ -36,6 +36,7 @@ function cuenta(parcial: Partial<CuentaPorCobrar>): CuentaPorCobrar {
     fechaEmision: '2026-01-01T00:00:00.000Z',
     fechaVencimiento: REFERENCIA,
     cobrableDesde: '2026-01-01T00:00:00.000Z',
+    abonoHeredado: 0,
     creadoEn: '2026-01-01T00:00:00.000Z',
     actualizadoEn: '2026-01-01T00:00:00.000Z',
     ...parcial,
