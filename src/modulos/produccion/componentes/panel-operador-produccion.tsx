@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
@@ -52,6 +53,7 @@ export function PanelOperadorProduccion({
   responsables,
   onCerrar,
 }: PropsPanelOperadorProduccion) {
+  const enrutador = useRouter();
   const preparaciones = useMemo(() => orden?.partidas.flatMap((partida) => (
     partida.programaciones
       .filter((programacion) => programacion.estadoPlaneacion === 'en_preparacion')
@@ -169,6 +171,18 @@ export function PanelOperadorProduccion({
           ? 'La identidad de piso está confirmada por sesión HMAC.'
           : 'Ingresa por /operador con tu PIN antes de iniciar o cerrar una sesión.'}
       </p>
+      {!operadorDisponible ? (
+        <Button
+          type="button"
+          variante="contorno"
+          tamano="sm"
+          className="mt-2 self-start"
+          data-testid="abrir-terminal-operador"
+          onClick={() => enrutador.push('/operador')}
+        >
+          Abrir terminal de operador (/operador)
+        </Button>
+      ) : null}
       {mensaje ? <p className="mt-3 text-sm text-texto-primario" role="status">{mensaje}</p> : null}
 
       {sesionActiva ? (
@@ -256,7 +270,25 @@ export function PanelOperadorProduccion({
       ) : (
         <div className="mt-4 flex flex-col gap-3">
           {!orden ? <p className="text-sm text-texto-secundario">Selecciona una orden del Kanban.</p> : null}
-          {orden && preparaciones.length === 0 && !ultimaPausa ? <p className="text-sm text-texto-secundario">La orden no tiene una programación en preparación disponible.</p> : null}
+          {orden && preparaciones.length === 0 && !ultimaPausa ? (
+            <div className="flex flex-col gap-2 rounded-md border border-borde bg-superficie-2/40 p-3">
+              <p className="text-sm text-texto-secundario">
+                Para operar {orden.folio}: primero programa su partida y usa «Iniciar preparación»
+                en Planeación; después entra por /operador con el PIN del operador y vuelve a esta
+                pantalla para iniciar o cerrar la sesión.
+              </p>
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                className="self-start"
+                data-testid="ir-planeacion-preparar"
+                onClick={() => enrutador.push('/planeacion')}
+              >
+                Programar la partida en Planeación
+              </Button>
+            </div>
+          ) : null}
           {preparaciones.length > 0 ? (
             <>
               <label className={CLASE_ETIQUETA}>
