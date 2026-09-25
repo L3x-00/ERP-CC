@@ -6,3 +6,5 @@ export { obtenerResumenCarteraAccion } from '@/modulos/cobranza/acciones/obtener
 export { registrarPagoAccion } from '@/modulos/cobranza/acciones/registrar-pago';
 export { registrarAbonoHeredadoAccion } from '@/modulos/cobranza/acciones/registrar-abono-heredado';
 export { reversarPagoAccion } from '@/modulos/cobranza/acciones/reversar-pago';
+export { anularCuentaAccion } from '@/modulos/cobranza/acciones/anular-cuenta';
+export { consolidarArFaltantesAccion, previsualizarConsolidacionAccion } from '@/modulos/cobranza/acciones/consolidar-ar';

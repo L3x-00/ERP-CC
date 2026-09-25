@@ -43,6 +43,11 @@ export interface CuentaHistorial {
   abonoHeredado: number;
   /** AR-08: pagos de esta cuenta que ya tienen reverso y no se corrigen de nuevo. */
   pagosReversados: string[];
+  /** AR-16: trazabilidad de la anulación administrativa. */
+  motivoAnulacion: string | null;
+  anuladaEn: string | null;
+  /** CAS para corregir/anular sin sobrescribir otra pantalla. */
+  actualizadoEn: string;
 }
 
 /** Historial navegable: cada entidad pagina por separado para no truncarse. */

@@ -24,6 +24,7 @@ import { SincronizadorCobranzaRealtime } from '@/modulos/cobranza/componentes/si
 import { TablaCuentasPorCobrar } from '@/modulos/cobranza/componentes/tabla-cuentas-por-cobrar';
 import { ModalRegistrarFactura, type DatosFacturaAr } from '@/modulos/cobranza/componentes/modal-registrar-factura';
 import { ModalAbrirArExcepcion } from '@/modulos/cobranza/componentes/modal-abrir-ar-excepcion';
+import { ModalConsolidacionAr } from '@/modulos/cobranza/componentes/modal-consolidacion-ar';
 import { TarjetaResumenAging } from '@/modulos/cobranza/componentes/tarjeta-resumen-aging';
 import {
   BUCKETS_AGING,
@@ -83,6 +84,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
   const [ordenId, setOrdenId] = useState<string | null>(null);
   const [facturaCuentaId, setFacturaCuentaId] = useState<string | null>(null);
   const [altaExcepcionAbierta, setAltaExcepcionAbierta] = useState(false);
+  const [consolidacionAbierta, setConsolidacionAbierta] = useState(false);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_CARTERA_COBRANZA, revisionCartera],
@@ -178,9 +180,10 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
     <div className="flex flex-col gap-6" data-testid="operacion-cobranza">
       <SincronizadorCobranzaRealtime />
       <TarjetaResumenAging resumenes={datos.agingPorCliente} />
-      {puedeRegistrarPago && <div className="flex justify-end">
-        <Button variante="secundario" onClick={() => setAltaExcepcionAbierta(true)}>Nueva factura de orden sin cuenta</Button>
-      </div>}
+        {puedeRegistrarPago && <div className="flex justify-end gap-2">
+          <Button variante="contorno" data-testid="abrir-consolidacion" onClick={() => setConsolidacionAbierta(true)}>Consolidar cuentas heredadas</Button>
+          <Button variante="secundario" onClick={() => setAltaExcepcionAbierta(true)}>Nueva factura de orden sin cuenta</Button>
+        </div>}
       <div className="grid gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <label className="grid gap-1 text-sm font-medium text-texto-primario">Buscar por cliente, orden o AR
           <Input value={busqueda} onChange={(evento) => establecerBusqueda(evento.target.value)} placeholder="Cliente, OP, INVCNC o factura" />
@@ -247,6 +250,12 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
         onAbiertoChange={setAltaExcepcionAbierta}
         onCreada={cuentaExcepcionalCreada}
       />
+      {consolidacionAbierta ? (
+        <ModalConsolidacionAr
+          onCerrar={() => setConsolidacionAbierta(false)}
+          onConsolidado={() => void refrescar()}
+        />
+      ) : null}
     </div>
   );
 }

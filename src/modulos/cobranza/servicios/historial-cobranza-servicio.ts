@@ -60,7 +60,7 @@ export async function obtenerHistorialCuentaServicio(
 ): Promise<HistorialCuenta> {
   const { data: filaCuenta, error: errorCuenta } = await cliente
     .from('cuentas_por_cobrar')
-    .select('id, orden_id, cliente_id, referencia_interna, folio_factura_remision, monto_total, monto_subtotal, monto_iva, saldo_pendiente, moneda, estado, fecha_emision, fecha_vencimiento, cobrable_desde, abono_heredado')
+    .select('id, orden_id, cliente_id, referencia_interna, folio_factura_remision, monto_total, monto_subtotal, monto_iva, saldo_pendiente, moneda, estado, fecha_emision, fecha_vencimiento, cobrable_desde, abono_heredado, motivo_anulacion, anulada_en, actualizado_en')
     .eq('id', entrada.arId)
     .maybeSingle();
   if (errorCuenta) throw new ErrorCobranza('desconocido', errorCuenta.message);
@@ -126,6 +126,9 @@ export async function obtenerHistorialCuentaServicio(
     condicionesPago: contexto.data?.condiciones_pago ?? null,
     abonoHeredado: Number(filaCuenta.abono_heredado ?? 0),
     pagosReversados: (reversos.data ?? []).map((reverso) => reverso.pago_id),
+    motivoAnulacion: filaCuenta.motivo_anulacion,
+    anuladaEn: filaCuenta.anulada_en,
+    actualizadoEn: filaCuenta.actualizado_en,
   };
 
   return {
