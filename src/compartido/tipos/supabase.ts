@@ -2667,6 +2667,21 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_factura_ar: {
+        Args: {
+          p_ar_id: string
+          p_actualizado_en_esperado: string
+          p_folio_factura: string
+          p_fecha_vencimiento: string | null
+          p_actor_id: string
+        }
+        Returns: {
+          cuenta_id: string
+          version_nueva: string
+          folio_factura: string
+          fecha_vencimiento: string | null
+        }[]
+      }
       registrar_pago_ar_atomico: {
         Args: {
           p_ar_id: string

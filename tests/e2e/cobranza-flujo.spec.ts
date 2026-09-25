@@ -211,6 +211,24 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.evaluate(() => document.documentElement.classList.remove('dark'));
     await expect(fila).toContainText(/pendiente/i);
+    await fila.getByRole('button', { name: 'Factura' }).click();
+    await page.getByRole('textbox', { name: 'Número de factura o remisión' }).fill(`FAC-E2E-${datos.folioOrden}`);
+    await page.getByLabel('Fecha de vencimiento').fill('2099-12-30');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-factura-escritorio-claro.png', fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-factura-movil-oscuro.png', fullPage: true });
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
+    await page.getByRole('button', { name: 'Guardar factura' }).click();
+    await expect(fila).toContainText(`FAC-E2E-${datos.folioOrden}`);
+    const { data: cuentaFacturada, count: cuentasDeOrden } = await datos.admin.from('cuentas_por_cobrar')
+      .select('id, folio_factura_remision, fecha_vencimiento, monto_total', { count: 'exact' })
+      .eq('orden_id', datos.ordenId).single();
+    expect(cuentasDeOrden).toBe(1);
+    expect(cuentaFacturada).toMatchObject({ id: datos.arId, monto_total: 100, folio_factura_remision: `FAC-E2E-${datos.folioOrden}` });
+    expect(cuentaFacturada?.fecha_vencimiento?.startsWith('2099-12-30')).toBe(true);
     await fila.getByRole('button', { name: 'Cobrar' }).click();
     await page.getByLabel('Monto').fill('40');
     await page.getByLabel('Moneda de pago').selectOption('USD');
@@ -219,6 +237,7 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.getByRole('button', { name: 'Registrar pago' }).click();
     await expect(page.getByTestId('recibo-persistido')).toContainText(/REC-\d{6}/);
     await expect(page.getByTestId('recibo-persistido')).toContainText(referencia!.referencia_interna);
+    await expect(page.getByTestId('recibo-persistido')).toContainText(`FAC-E2E-${datos.folioOrden}`);
     await expect.poll(async () => {
       const { data } = await datos.admin.from('cuentas_por_cobrar').select('estado, saldo_pendiente').eq('id', datos.arId).single();
       return `${data?.estado}:${data?.saldo_pendiente}`;
@@ -260,7 +279,10 @@ test.describe.serial('flujo de Cobranza AR', () => {
     const fila = page.getByRole('row', { name: new RegExp(datos.anticipoFolioOrden) });
     await expect(fila).toContainText('No cobrable');
     await expect(fila).toContainText('Por entregar');
-    await fila.getByRole('button', { name: 'Cobrar' }).click();
+    await fila.getByRole('button', { name: 'Factura' }).click();
+    await page.getByRole('textbox', { name: 'Número de factura o remisión' }).fill(`FAC-ANT-${datos.anticipoFolioOrden}`);
+    await expect(page.getByText(/vencimiento se fija al entregar/)).toBeVisible();
+    await page.getByRole('button', { name: 'Guardar y registrar abono' }).click();
     await expect(page.getByText(/se registra como anticipo/)).toBeVisible();
     await page.getByLabel('Monto').fill('200');
     await page.getByLabel('Referencia bancaria').fill('E2E-ANTICIPO');

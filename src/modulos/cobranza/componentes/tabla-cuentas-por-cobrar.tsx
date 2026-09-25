@@ -23,6 +23,7 @@ export interface TablaCuentasPorCobrarProps {
   onSeleccionar: (cuentaId: string) => void;
   onVerHistorial?: (cuenta: CuentaCartera) => void;
   onVerOrden?: (ordenId: string) => void;
+  onRegistrarFactura?: (cuentaId: string) => void;
   puedeCobrar?: boolean;
 }
 
@@ -36,6 +37,7 @@ export function TablaCuentasPorCobrar({
   onSeleccionar,
   onVerHistorial,
   onVerOrden,
+  onRegistrarFactura,
   puedeCobrar = true,
 }: TablaCuentasPorCobrarProps) {
   if (cuentas.length === 0) {
@@ -76,6 +78,7 @@ export function TablaCuentasPorCobrar({
                 <TablaCelda className="font-mono text-xs font-medium">
                   <div className="flex flex-col items-start gap-1">
                     <span className="whitespace-nowrap">{cuenta.referenciaInterna}</span>
+                    {cuenta.folioFacturaRemision && <span className="max-w-48 truncate font-sans text-texto-secundario" title={cuenta.folioFacturaRemision}>Factura: {cuenta.folioFacturaRemision}</span>}
                     {onVerOrden ? <Button variante="contorno" tamano="sm" onClick={() => onVerOrden(cuenta.ordenId)}>{cuenta.folioOrden}</Button> : cuenta.folioOrden}
                   </div>
                 </TablaCelda>
@@ -120,15 +123,18 @@ export function TablaCuentasPorCobrar({
                   </div>
                 </TablaCelda>
                 <TablaCelda className="text-right">
-                  {onVerHistorial && <Button tamano="sm" variante="contorno" onClick={() => onVerHistorial(cuenta)}>Historial</Button>}
-                  <Button
-                    tamano="sm"
-                    variante={seleccionada ? 'secundario' : 'contorno'}
-                    onClick={() => onSeleccionar(cuenta.id)}
-                    disabled={!puedeCobrar || !cuentaVigente(cuenta)}
-                  >
-                    Cobrar
-                  </Button>
+                  <div className="flex flex-wrap justify-end gap-1">
+                    {onVerHistorial && <Button tamano="sm" variante="contorno" onClick={() => onVerHistorial(cuenta)}>Historial</Button>}
+                    {onRegistrarFactura && cuenta.estado !== 'cancelado' && <Button tamano="sm" variante="contorno" onClick={() => onRegistrarFactura(cuenta.id)}>Factura</Button>}
+                    <Button
+                      tamano="sm"
+                      variante={seleccionada ? 'secundario' : 'contorno'}
+                      onClick={() => onSeleccionar(cuenta.id)}
+                      disabled={!puedeCobrar || !cuentaVigente(cuenta)}
+                    >
+                      Cobrar
+                    </Button>
+                  </div>
                 </TablaCelda>
               </TablaFila>
             );

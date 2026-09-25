@@ -9,6 +9,7 @@ import { usarTiendaCobranza } from '@/estado/uso-tienda-cobranza';
 import {
   aplicarSaldoFavorAccion,
   obtenerResumenCarteraAccion,
+  registrarFacturaArAccion,
   registrarPagoAccion,
 } from '@/modulos/cobranza/acciones/indice';
 import { CLAVE_CARTERA_COBRANZA } from '@/modulos/cobranza/componentes/claves-consulta';
@@ -21,6 +22,7 @@ import { HistorialCuenta, DetalleOrdenCobranza, ReciboPagoConsulta } from '@/mod
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/compartido/componentes/ui/dialog';
 import { SincronizadorCobranzaRealtime } from '@/modulos/cobranza/componentes/sincronizador-cobranza-realtime';
 import { TablaCuentasPorCobrar } from '@/modulos/cobranza/componentes/tabla-cuentas-por-cobrar';
+import { ModalRegistrarFactura, type DatosFacturaAr } from '@/modulos/cobranza/componentes/modal-registrar-factura';
 import { TarjetaResumenAging } from '@/modulos/cobranza/componentes/tarjeta-resumen-aging';
 import {
   BUCKETS_AGING,
@@ -78,6 +80,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
   const [reciboId, setReciboId] = useState<string | null>(null);
   const [historial, setHistorial] = useState<{ arId: string; clienteId: string } | null>(null);
   const [ordenId, setOrdenId] = useState<string | null>(null);
+  const [facturaCuentaId, setFacturaCuentaId] = useState<string | null>(null);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_CARTERA_COBRANZA, revisionCartera],
@@ -102,6 +105,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
     });
   }, [busqueda, datos.cuentas, periodo, rangoPersonalizado, bucketAging]);
   const cuentaSeleccionada = datos.cuentas.find((cuenta) => cuenta.id === cuentaSeleccionadaId) ?? null;
+  const cuentaFactura = datos.cuentas.find((cuenta) => cuenta.id === facturaCuentaId) ?? null;
 
   const abrirCobro = useCallback((cuentaId: string) => {
     seleccionarCuenta(cuentaId);
@@ -144,6 +148,18 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
       setProcesando(false);
     }
   }, [refrescar]);
+
+  const guardarFactura = useCallback(async (entrada: DatosFacturaAr, abrirAbono: boolean) => {
+    const resultado = await registrarFacturaArAccion(entrada);
+    if (!resultado.exito) return { exito: false as const, error: resultado.error };
+    await refrescar().catch(() => console.error('[COBRANZA] Factura confirmada; cartera pendiente de actualizar'));
+    setFacturaCuentaId(null);
+    if (abrirAbono) {
+      seleccionarCuenta(entrada.arId);
+      setModalAbierto(true);
+    }
+    return { exito: true as const };
+  }, [refrescar, seleccionarCuenta]);
 
   const cargando = consulta.isPending && !consulta.isError;
 
@@ -190,7 +206,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
       ) : null}
       {cargando
         ? <SkeletonTabla columnas={8} filas={6} />
-        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} puedeCobrar={puedeRegistrarPago || puedeAplicarSaldo} onVerHistorial={(cuenta) => setHistorial({ arId: cuenta.id, clienteId: cuenta.clienteId })} onVerOrden={setOrdenId} />}
+        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} puedeCobrar={puedeRegistrarPago || puedeAplicarSaldo} onVerHistorial={(cuenta) => setHistorial({ arId: cuenta.id, clienteId: cuenta.clienteId })} onVerOrden={setOrdenId} onRegistrarFactura={puedeRegistrarPago ? setFacturaCuentaId : undefined} />}
       {reciboId && <ReciboPagoConsulta key={reciboId} pagoId={reciboId} />}
       <Dialog open={historial !== null} onOpenChange={(abierto) => { if (!abierto) setHistorial(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Historial de cobranza</DialogTitle><DialogDescription>Pagos de la cuenta y monedero del cliente.</DialogDescription></DialogHeader>{historial && <HistorialCuenta key={historial.arId} {...historial} />}</DialogContent></Dialog>
       <Dialog open={ordenId !== null} onOpenChange={(abierto) => { if (!abierto) setOrdenId(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Detalle de orden</DialogTitle><DialogDescription>Partidas y avance de la orden seleccionada.</DialogDescription></DialogHeader>{ordenId && <DetalleOrdenCobranza key={ordenId} ordenId={ordenId} />}</DialogContent></Dialog>
@@ -204,6 +220,13 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
         onAplicarSaldo={aplicarSaldo}
         puedeRegistrarPago={puedeRegistrarPago}
         puedeAplicarSaldo={puedeAplicarSaldo}
+      />
+      <ModalRegistrarFactura
+        key={cuentaFactura?.id ?? 'sin-factura'}
+        cuenta={cuentaFactura}
+        abierto={facturaCuentaId !== null}
+        onAbiertoChange={(abierto) => { if (!abierto) setFacturaCuentaId(null); }}
+        onGuardar={guardarFactura}
       />
     </div>
   );
