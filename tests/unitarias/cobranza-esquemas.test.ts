@@ -31,13 +31,14 @@ describe('esquemaCrearCuentaPorCobrar', () => {
     moneda: 'USD' as const,
     tipoCambioOrigen: 18.5,
     fechaVencimiento: fecha,
+    folioFacturaRemision: 'F-001',
   };
 
-  it('acepta una cuenta válida con y sin folio', () => {
+  it('acepta una cuenta válida con folio y rechaza omitirlo', () => {
     expect(esquemaCrearCuentaPorCobrar.safeParse(base).success).toBe(true);
     expect(
-      esquemaCrearCuentaPorCobrar.safeParse({ ...base, folioFacturaRemision: 'F-001' }).success,
-    ).toBe(true);
+      esquemaCrearCuentaPorCobrar.safeParse({ ...base, folioFacturaRemision: undefined }).success,
+    ).toBe(false);
   });
 
   it('rechaza UUID, moneda y fecha inválidos', () => {

@@ -29,6 +29,9 @@ type ContextoE2E = {
   anticipoOrdenId: string;
   anticipoArId: string;
   anticipoFolioOrden: string;
+  excepcionOrdenId: string;
+  excepcionFolioOrden: string;
+  excepcionCotizacionId: string;
 };
 
 function requerirVariable(nombre: string): string {
@@ -130,10 +133,34 @@ async function prepararContexto(): Promise<ContextoE2E> {
   }).select('id').single();
   if (errorAnticipoAr || !anticipoAr) throw new Error(`No se creó AR de anticipo E2E: ${errorAnticipoAr?.message ?? 'sin cuenta'}`);
 
+  const { data: folioRfQ, error: errorFolioRfQ } = await admin.rpc('generar_folio_op');
+  if (errorFolioRfQ || !folioRfQ) throw new Error(`No se generó folio RFQ E2E: ${errorFolioRfQ?.message ?? 'sin folio'}`);
+  const { data: cotizacion, error: errorCotizacion } = await admin.from('pipeline').insert({
+    folio_op: folioRfQ, vendedor_id: administradorId, cliente_id: cliente.id,
+    empresa: `Cliente Cobranza E2E ${sufijo}`, nombre_contacto: 'Contacto E2E',
+    etapa: 'ganada', moneda: 'MXN', iva_porcentaje: 16,
+  }).select('id').single();
+  if (errorCotizacion || !cotizacion) throw new Error(`No se creó RFQ E2E: ${errorCotizacion?.message ?? 'sin RFQ'}`);
+  const { error: errorLinea } = await admin.from('cotizacion_lineas').insert([
+    { pipeline_id: cotizacion.id, descripcion: 'Trabajo histórico sin AR', cantidad: 1,
+      precio_unitario: 100, es_descuento: false },
+    { pipeline_id: cotizacion.id, descripcion: 'Descuento RFQ histórico', cantidad: 1,
+      precio_unitario: 10, es_descuento: true },
+  ]);
+  if (errorLinea) throw new Error(`No se creó línea RFQ E2E: ${errorLinea.message}`);
+  const excepcionFolioOrden = `OP-${numeroFolio + 2}`;
+  const { data: excepcionOrden, error: errorExcepcionOrden } = await admin.from('ordenes_produccion').insert({
+    folio: excepcionFolioOrden, cliente_id: cliente.id, cotizacion_id: cotizacion.id,
+    estado: 'completada', archivada_en: new Date().toISOString(),
+    fecha_compromiso: '2099-12-31T18:00:00.000Z',
+  }).select('id').single();
+  if (errorExcepcionOrden || !excepcionOrden) throw new Error(`No se creó orden histórica E2E: ${errorExcepcionOrden?.message ?? 'sin orden'}`);
+
   return {
     admin, correo, contrasena, administradorId, clienteId: cliente.id,
     ordenId: orden.id, partidaId: partida.id, arId: cuenta[0].id, folioOrden,
     anticipoOrdenId: anticipoOrden.id, anticipoArId: anticipoAr.id, anticipoFolioOrden,
+    excepcionOrdenId: excepcionOrden.id, excepcionFolioOrden, excepcionCotizacionId: cotizacion.id,
   };
 }
 
@@ -150,8 +177,13 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
   const { admin } = contexto;
   await limpiarAr(admin, contexto.arId);
   await limpiarAr(admin, contexto.anticipoArId);
+  const { data: cuentaExcepcion } = await admin.from('cuentas_por_cobrar').select('id').eq('orden_id', contexto.excepcionOrdenId).maybeSingle();
+  if (cuentaExcepcion) await limpiarAr(admin, cuentaExcepcion.id);
   await admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   await admin.from('ordenes_produccion').delete().eq('id', contexto.anticipoOrdenId);
+  await admin.from('ordenes_produccion').delete().eq('id', contexto.excepcionOrdenId);
+  await admin.from('cotizacion_lineas').delete().eq('pipeline_id', contexto.excepcionCotizacionId);
+  await admin.from('pipeline').delete().eq('id', contexto.excepcionCotizacionId);
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
   await admin.from('logs').delete().eq('usuario_id', contexto.administradorId);
   await admin.from('usuarios').delete().eq('id', contexto.administradorId);
@@ -218,6 +250,8 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-factura-escritorio-claro.png', fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-factura-movil-oscuro.png', fullPage: true });
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.evaluate(() => document.documentElement.classList.remove('dark'));
@@ -297,5 +331,47 @@ test.describe.serial('flujo de Cobranza AR', () => {
         .single();
       return `${data?.estado}:${data?.saldo_pendiente}:${data?.cobrable_desde}`;
     }).toBe('parcial:800:null');
+  });
+
+  test('abre una factura excepcional para orden entregada sin AR y propone el total RFQ', async ({ page }) => {
+    if (!contexto) throw new Error('No se preparó el contexto E2E');
+    const datos = contexto;
+    await iniciarSesion(page, datos);
+    await page.goto('/cobranza');
+    await page.getByRole('button', { name: 'Nueva factura de orden sin cuenta' }).click();
+    await page.getByLabel('Buscar folio de orden').fill(datos.excepcionFolioOrden);
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await page.getByLabel('Orden entregada sin cuenta').selectOption(datos.excepcionOrdenId);
+    await expect(page.getByText(/descuento \$10\.00.*IVA \$14\.40.*total sugerido \$104\.40/)).toBeVisible();
+    await expect(page.getByLabel('Importe total confirmado')).toHaveValue('104.40');
+    await expect(page.getByLabel('Fecha de vencimiento')).not.toHaveValue('');
+    await page.getByLabel('Número de factura o remisión').fill(`FAC-HIST-${datos.excepcionFolioOrden}`);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-excepcion-escritorio-claro.png', fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-excepcion-movil-oscuro.png', fullPage: true });
+    await page.getByLabel('Número de factura o remisión').scrollIntoViewIfNeeded();
+    await expect(page.getByLabel('Número de factura o remisión')).toBeVisible();
+    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-excepcion-movil-formulario.png', fullPage: true });
+    await page.getByRole('button', { name: 'Guardar y registrar abono' }).click();
+    await expect(page.getByRole('dialog', { name: 'Nueva factura de orden entregada' })).toBeHidden();
+    await expect(page.getByLabel('Monto')).toBeVisible();
+    const { data: cuenta, count } = await datos.admin.from('cuentas_por_cobrar')
+      .select('id, monto_total, folio_factura_remision, referencia_interna, cliente_id', { count: 'exact' })
+      .eq('orden_id', datos.excepcionOrdenId).single();
+    expect(count).toBe(1);
+    expect(cuenta).toMatchObject({ monto_total: 104.4, cliente_id: datos.clienteId,
+      folio_factura_remision: `FAC-HIST-${datos.excepcionFolioOrden}` });
+    expect(cuenta?.referencia_interna).toMatch(/^INVCNC-\d{7}$/);
+    await page.getByLabel('Monto').fill('20');
+    await page.getByLabel('Referencia bancaria').fill('E2E-ABONO-INICIAL');
+    await page.getByRole('button', { name: 'Registrar pago' }).click();
+    await expect(page.getByTestId('recibo-persistido')).toContainText(cuenta!.referencia_interna);
+    const { data: pagosIniciales } = await datos.admin.from('pagos_ar').select('id').eq('ar_id', cuenta!.id);
+    expect(pagosIniciales).toHaveLength(1);
+    await expect(page.getByRole('row', { name: new RegExp(datos.excepcionFolioOrden) })).toContainText(cuenta!.referencia_interna);
   });
 });

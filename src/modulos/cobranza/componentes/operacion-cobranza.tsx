@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { SincronizadorCobranzaRealtime } from '@/modulos/cobranza/componentes/sincronizador-cobranza-realtime';
 import { TablaCuentasPorCobrar } from '@/modulos/cobranza/componentes/tabla-cuentas-por-cobrar';
 import { ModalRegistrarFactura, type DatosFacturaAr } from '@/modulos/cobranza/componentes/modal-registrar-factura';
+import { ModalAbrirArExcepcion } from '@/modulos/cobranza/componentes/modal-abrir-ar-excepcion';
 import { TarjetaResumenAging } from '@/modulos/cobranza/componentes/tarjeta-resumen-aging';
 import {
   BUCKETS_AGING,
@@ -81,6 +82,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
   const [historial, setHistorial] = useState<{ arId: string; clienteId: string } | null>(null);
   const [ordenId, setOrdenId] = useState<string | null>(null);
   const [facturaCuentaId, setFacturaCuentaId] = useState<string | null>(null);
+  const [altaExcepcionAbierta, setAltaExcepcionAbierta] = useState(false);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_CARTERA_COBRANZA, revisionCartera],
@@ -161,12 +163,24 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
     return { exito: true as const };
   }, [refrescar, seleccionarCuenta]);
 
+  const cuentaExcepcionalCreada = useCallback(async (cuentaId: string, abrirAbono: boolean) => {
+    await refrescar().catch(() => console.error('[COBRANZA] AR creada; cartera pendiente de actualizar'));
+    setAltaExcepcionAbierta(false);
+    if (abrirAbono) {
+      seleccionarCuenta(cuentaId);
+      setModalAbierto(true);
+    }
+  }, [refrescar, seleccionarCuenta]);
+
   const cargando = consulta.isPending && !consulta.isError;
 
   return (
     <div className="flex flex-col gap-6" data-testid="operacion-cobranza">
       <SincronizadorCobranzaRealtime />
       <TarjetaResumenAging resumenes={datos.agingPorCliente} />
+      {puedeRegistrarPago && <div className="flex justify-end">
+        <Button variante="secundario" onClick={() => setAltaExcepcionAbierta(true)}>Nueva factura de orden sin cuenta</Button>
+      </div>}
       <div className="grid gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <label className="grid gap-1 text-sm font-medium text-texto-primario">Buscar por cliente, orden o AR
           <Input value={busqueda} onChange={(evento) => establecerBusqueda(evento.target.value)} placeholder="Cliente, OP, INVCNC o factura" />
@@ -227,6 +241,11 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
         abierto={facturaCuentaId !== null}
         onAbiertoChange={(abierto) => { if (!abierto) setFacturaCuentaId(null); }}
         onGuardar={guardarFactura}
+      />
+      <ModalAbrirArExcepcion
+        abierto={altaExcepcionAbierta}
+        onAbiertoChange={setAltaExcepcionAbierta}
+        onCreada={cuentaExcepcionalCreada}
       />
     </div>
   );

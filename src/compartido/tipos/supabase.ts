@@ -2118,6 +2118,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      abrir_ar_excepcion_entregada: {
+        Args: {
+          p_orden_id: string
+          p_monto_total: number
+          p_moneda: string
+          p_tipo_cambio_origen: number
+          p_fecha_vencimiento: string
+          p_folio_factura: string
+          p_actor_id: string
+        }
+        Returns: {
+          cuenta_id: string
+          cliente_id: string
+          referencia_interna: string
+        }[]
+      }
       abrir_cuenta_por_cobrar: {
         Args: {
           p_fecha_vencimiento: string

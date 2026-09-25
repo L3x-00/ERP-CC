@@ -52,8 +52,7 @@ export const esquemaCrearCuentaPorCobrar = z
       .string()
       .trim()
       .min(1, 'El folio no puede estar vacío')
-      .max(60, 'El folio no puede exceder 60 caracteres')
-      .optional(),
+      .max(60, 'El folio no puede exceder 60 caracteres'),
   })
   .strict();
 
