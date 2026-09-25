@@ -5,7 +5,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 import { prepararSuiteSupabaseLocal } from '../utilidades/entorno-supabase';
 
 // PRD-09: acumulación por pareja partida×proceso, concurrencia y permisos.
-// Escribe fixtures solo en el Supabase local y nunca lee `.env.local`.
+// Escribe fixtures solo en el Supabase local y no hereda el archivo de entorno.
 const { describir: suite, crearClienteServicio, crearClienteAnonimo } = prepararSuiteSupabaseLocal(
   'avance por proceso PRD-09', { requiereClaveAnonima: true },
 );
