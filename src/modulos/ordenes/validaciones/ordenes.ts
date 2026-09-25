@@ -33,6 +33,16 @@ export const esquemaPartidaOrdenEdicion = esquemaPartidaOrden
   .extend({ id: z.uuid('ID de partida inválido').optional() })
   .strict();
 
+/** ORD-07: ruta ordenada y meta independiente para cada proceso de una parte. */
+export const esquemaConfigurarMetasProceso = z.object({
+  partidaId: z.uuid('ID de partida inválido'),
+  ordenActualizadoEn: z.iso.datetime({ offset: true, message: 'Token de versión inválido' }),
+  procesos: z.array(z.object({
+    nombre: z.string().trim().min(1, 'Indica el proceso').max(60),
+    metaPiezas: z.number().positive('La meta debe ser mayor a cero').max(9999999999.9999),
+  }).strict()).min(1, 'Agrega al menos un proceso').max(20, 'Máximo 20 procesos'),
+}).strict();
+
 /** ORD-05: edición de cabecera y partidas mientras la OP está en borrador. */
 export const esquemaActualizarOrdenBorrador = z
   .object({
@@ -111,6 +121,7 @@ export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
 export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
 export type ActualizarOrdenBorradorInput = z.infer<typeof esquemaActualizarOrdenBorrador>;
+export type ConfigurarMetasProcesoInput = z.infer<typeof esquemaConfigurarMetasProceso>;
 export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;
 export type RegistrarTiempoOperadorInput = z.infer<typeof esquemaRegistrarTiempoOperador>;
 export type RegistrarConsumoMaterialInput = z.infer<typeof esquemaRegistrarConsumoMaterial>;

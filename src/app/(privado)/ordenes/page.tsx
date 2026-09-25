@@ -68,6 +68,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       unidadMedida: partida.unidadMedida,
       tiempoEstimadoMinutos: partida.tiempoEstimadoMinutos,
       maquinaAsignada: partida.maquinaAsignada,
+      metasProceso: partida.metasProceso ?? [],
     })),
   }));
 

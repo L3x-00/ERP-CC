@@ -60,6 +60,8 @@ export interface Partida {
   areaTrabajoCodigo?: string | null;
   /** OBS-14/OBS-09: procesos solicitados de la línea de cotización. */
   procesos?: string[];
+  /** ORD-07: metas configuradas en borrador; vacías en trabajos históricos sin desglose. */
+  metasProceso?: { id: string; secuencia: number; nombre: string; metaPiezas: number }[];
   creadoEn: string;
   actualizadoEn: string;
 }

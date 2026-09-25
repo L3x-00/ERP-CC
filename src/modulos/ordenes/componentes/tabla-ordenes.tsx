@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
 import { EditarOrdenDialog } from '@/modulos/ordenes/componentes/editar-orden-dialog';
+import { ConfigurarProcesosDialog } from '@/modulos/ordenes/componentes/configurar-procesos-dialog';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -49,6 +50,7 @@ export type PartidaTabla = {
   unidadMedida: string;
   tiempoEstimadoMinutos: number;
   maquinaAsignada: string | null;
+  metasProceso: { id: string; secuencia: number; nombre: string; metaPiezas: number }[];
 };
 
 /** Orden tal como la necesita la tabla (proyección plana del servidor). */
@@ -207,6 +209,7 @@ export function TablaOrdenes({
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
   const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
+  const [ordenConfigurando, setOrdenConfigurando] = useState<OrdenTabla | null>(null);
   const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
     ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
       ? 'archivo' : 'activas');
@@ -532,7 +535,7 @@ export function TablaOrdenes({
                           );
                         })}
                         {orden.estado === 'borrador' && (
-                          <button
+                          <><button
                             type="button"
                             data-testid={`editar-orden-${orden.folio}`}
                             onClick={() => setOrdenEditando(orden)}
@@ -541,6 +544,10 @@ export function TablaOrdenes({
                           >
                             Editar
                           </button>
+                          <button type="button" className={CLASE_BOTON_SECUNDARIO}
+                            data-testid={`configurar-procesos-${orden.folio}`}
+                            disabled={ordenActualizandoId !== null}
+                            onClick={() => setOrdenConfigurando(orden)}>Procesos</button></>
                         )}
                         <DocumentoOrdenBoton ordenId={orden.id} folio={orden.folio} />
                         {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
@@ -602,6 +609,13 @@ export function TablaOrdenes({
           onGuardado={alRefrescar}
         />
       ) : null}
+
+      {ordenConfigurando ? <ConfigurarProcesosDialog
+        key={`procesos-${ordenConfigurando.id}-${ordenConfigurando.actualizadoEn}`}
+        orden={ordenConfigurando}
+        onCerrar={() => setOrdenConfigurando(null)}
+        onGuardado={alRefrescar}
+      /> : null}
 
       <Dialog open={ordenCancelando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCancelando(null) : undefined)}>
         <DialogContent>

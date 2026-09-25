@@ -972,6 +972,44 @@ export type Database = {
           },
         ]
       }
+      metas_proceso_partida: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          id: string
+          meta_piezas: number
+          nombre: string
+          partida_id: string
+          secuencia: number
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          meta_piezas: number
+          nombre: string
+          partida_id: string
+          secuencia: number
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          id?: string
+          meta_piezas?: number
+          nombre?: string
+          partida_id?: string
+          secuencia?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_proceso_partida_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       movimientos_inventario: {
         Row: {
           cantidad_compra: number | null
@@ -2219,6 +2257,18 @@ export type Database = {
         Returns: {
           actualizado_en: string
           operador_asignado_id: string
+          partida_id: string
+        }[]
+      }
+      configurar_metas_proceso_partida: {
+        Args: {
+          p_actor_id: string
+          p_orden_actualizado_en: string
+          p_partida_id: string
+          p_procesos: Json
+        }
+        Returns: {
+          orden_actualizado_en: string
           partida_id: string
         }[]
       }

@@ -15,6 +15,7 @@ import {
 } from '@/modulos/ordenes/tipos/ordenes';
 import type {
   ActualizarOrdenBorradorInput,
+  ConfigurarMetasProcesoInput,
   CambiarEstadoOrdenInput,
   CrearOrdenManualInput,
   AsignarOperadorPartidaInput,
@@ -45,6 +46,8 @@ export type CodigoErrorOrden =
   | 'cantidad_producida_excede_solicitada'
   | 'orden_no_editable'
   | 'orden_desactualizada'
+  | 'metas_proceso_invalidas'
+  | 'sin_permiso_configurar_procesos'
   | 'partida_con_historial'
   | 'orden_no_en_proceso'
   | 'orden_no_asignable'
@@ -154,6 +157,8 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   }
   if (mensaje.includes('orden_no_editable')) return 'orden_no_editable';
   if (mensaje.includes('orden_desactualizada')) return 'orden_desactualizada';
+  if (mensaje.includes('metas_proceso_invalidas')) return 'metas_proceso_invalidas';
+  if (mensaje.includes('sin_permiso_configurar_procesos')) return 'sin_permiso_configurar_procesos';
   if (mensaje.includes('partida_con_historial')) return 'partida_con_historial';
   if (mensaje.includes('orden_no_en_proceso')) return 'orden_no_en_proceso';
   if (mensaje.includes('orden_no_asignable')) return 'orden_no_asignable';
@@ -307,6 +312,26 @@ export async function actualizarOrdenBorradorServicio(
   };
 }
 
+/** Cambia metas solo en borrador, con CAS y autorización revalidada en SQL. */
+export async function configurarMetasProcesoPartidaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: ConfigurarMetasProcesoInput & { actorId: string },
+): Promise<{ partidaId: string; ordenActualizadoEn: string }> {
+  const { data, error } = await admin.rpc('configurar_metas_proceso_partida', {
+    p_partida_id: entrada.partidaId,
+    p_orden_actualizado_en: entrada.ordenActualizadoEn,
+    p_procesos: entrada.procesos.map((proceso) => ({
+      nombre: proceso.nombre,
+      meta_piezas: proceso.metaPiezas,
+    })),
+    p_actor_id: entrada.actorId,
+  });
+  if (error) lanzarErrorOrden(error.message);
+  const fila = data?.[0];
+  if (!fila?.partida_id || !fila.orden_actualizado_en) throw new ErrorOrden('desconocido');
+  return { partidaId: fila.partida_id, ordenActualizadoEn: fila.orden_actualizado_en };
+}
+
 /** Carga una OP y sus partidas; la RLS define qué registros puede consultar el usuario. */
 export async function obtenerOrdenConPartidasServicio(
   cliente: SupabaseClient<Database>,
@@ -375,7 +400,7 @@ export async function obtenerOrdenesConPartidasServicio(
   const idsOrdenes = ordenes.map((orden) => orden.id);
   const { data: filasPartidas, error: errorPartidas } = await cliente
     .from('partidas_orden_produccion')
-    .select('*')
+    .select('*, metas_proceso_partida(id, secuencia, nombre, meta_piezas)')
     .in('orden_id', idsOrdenes)
     .order('creado_en', { ascending: true });
   if (errorPartidas) {
@@ -384,7 +409,17 @@ export async function obtenerOrdenesConPartidasServicio(
 
   const partidasPorOrden = new Map<string, Partida[]>();
   for (const fila of filasPartidas ?? []) {
-    const partida = filaAPartida(fila);
+    const partida: Partida = {
+      ...filaAPartida(fila),
+      metasProceso: (fila.metas_proceso_partida ?? [])
+        .map((meta) => ({
+          id: meta.id,
+          secuencia: meta.secuencia,
+          nombre: meta.nombre,
+          metaPiezas: Number(meta.meta_piezas),
+        }))
+        .sort((primero, segundo) => primero.secuencia - segundo.secuencia),
+    };
     const partidas = partidasPorOrden.get(partida.ordenId) ?? [];
     partidas.push(partida);
     partidasPorOrden.set(partida.ordenId, partidas);
