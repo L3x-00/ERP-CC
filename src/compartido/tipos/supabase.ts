@@ -2747,6 +2747,20 @@ export type Database = {
         Returns: Database["public"]["Tables"]["gastos"]["Row"][]
         SetofOptions: { from: "*"; to: "gastos"; isOneToOne: false; isSetofReturn: true }
       }
+      reactivar_orden_op: {
+        Args: {
+          p_actor_id: string
+          p_actualizado_en: string
+          p_orden_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+        }[]
+      }
       reanudar_sesion_trabajo_a20: {
         Args: {
           p_orden_id: string

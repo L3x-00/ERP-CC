@@ -7,6 +7,7 @@ import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orde
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
 import { EditarOrdenDialog } from '@/modulos/ordenes/componentes/editar-orden-dialog';
 import { ConfigurarProcesosDialog } from '@/modulos/ordenes/componentes/configurar-procesos-dialog';
+import { ReactivarOrdenDialog } from '@/modulos/ordenes/componentes/reactivar-orden-dialog';
 import { RepetirOrdenDialog } from '@/modulos/ordenes/componentes/repetir-orden-dialog';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
@@ -219,6 +220,7 @@ export function TablaOrdenes({
   const [ordenConfigurando, setOrdenConfigurando] = useState<OrdenTabla | null>(null);
   const [ordenAdjuntos, setOrdenAdjuntos] = useState<OrdenTabla | null>(null);
   const [ordenRepitiendo, setOrdenRepitiendo] = useState<OrdenTabla | null>(null);
+  const [ordenReactivando, setOrdenReactivando] = useState<OrdenTabla | null>(null);
   const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
     ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
       ? 'archivo' : 'activas');
@@ -571,6 +573,18 @@ export function TablaOrdenes({
                             Repetir
                           </button>
                         )}
+                        {puedeAdministrar && orden.estado === 'completada' && (
+                          <button
+                            type="button"
+                            data-testid={`reactivar-orden-${orden.folio}`}
+                            onClick={() => setOrdenReactivando(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                            title="Devuelve la orden a operación conservando las sesiones previas"
+                          >
+                            Reactivar
+                          </button>
+                        )}
                         {orden.idHistorico !== null && (
                           <button
                             type="button"
@@ -662,6 +676,15 @@ export function TablaOrdenes({
           ordenOrigenId={ordenRepitiendo.id}
           folioOrigen={ordenRepitiendo.folio}
           onCerrar={() => setOrdenRepitiendo(null)}
+        />
+      ) : null}
+
+      {ordenReactivando ? (
+        <ReactivarOrdenDialog
+          ordenId={ordenReactivando.id}
+          folio={ordenReactivando.folio}
+          actualizadoEn={ordenReactivando.actualizadoEn}
+          onCerrar={() => setOrdenReactivando(null)}
         />
       ) : null}
 

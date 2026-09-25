@@ -46,6 +46,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
 
   const idsOrdenes = ordenesConPartidas.map(({ orden }) => orden.id);
   const mostrarVentas = usuario ? await can(usuario, 'ver_finanzas') : false;
+  const puedeAdministrar = usuario ? await can(usuario, 'aprobar_ordenes') : false;
   const datosComparativa = await obtenerDatosComparativaServicio(
     crearClienteSupabaseAdmin(), idsOrdenes, mostrarVentas,
   );
@@ -148,6 +149,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
           ordenInicialId={ordenInicialId}
           usuarioActualId={usuario?.id}
           puedeEliminarTodos={usuario?.rol === 'admin'}
+          puedeAdministrar={puedeAdministrar}
         />
       </section>
     </div>

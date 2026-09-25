@@ -71,6 +71,12 @@ export const esquemaRepetirOrden = z.object({
   fechaCompromiso: z.iso.datetime({ message: 'Fecha de compromiso inválida' }),
 }).strict();
 
+/** PRD-15: reactivación administrativa con token de versión (CAS). */
+export const esquemaReactivarOrden = z.object({
+  ordenId: z.uuid('ID de orden inválido'),
+  actualizadoEn: z.iso.datetime({ offset: true, message: 'Token de versión inválido' }),
+}).strict();
+
 /** ORD-05: partida existente (con `id`) o nueva (sin `id`) dentro de la edición. */
 export const esquemaPartidaOrdenEdicion = esquemaPartidaOrden
   .extend({ id: z.uuid('ID de partida inválido').optional() })
@@ -165,6 +171,7 @@ export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
 export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
 export type CrearOrdenHistoricaInput = z.infer<typeof esquemaCrearOrdenHistorica>;
 export type RepetirOrdenInput = z.infer<typeof esquemaRepetirOrden>;
+export type ReactivarOrdenInput = z.infer<typeof esquemaReactivarOrden>;
 export type ActualizarOrdenBorradorInput = z.infer<typeof esquemaActualizarOrdenBorrador>;
 export type ConfigurarMetasProcesoInput = z.infer<typeof esquemaConfigurarMetasProceso>;
 export type CambiarEstadoOrdenInput = z.infer<typeof esquemaCambiarEstadoOrden>;
