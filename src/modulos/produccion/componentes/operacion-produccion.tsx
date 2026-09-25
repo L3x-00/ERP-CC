@@ -99,6 +99,16 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     await clienteConsultas.invalidateQueries({ queryKey: CLAVE_TABLERO_PRODUCCION });
   }, [clienteConsultas]);
 
+  // "Operar orden" debe dar retroalimentación inmediata: selecciona y lleva la
+  // vista al panel donde se inicia/cierra la sesión de esa orden.
+  const seleccionarYOperar = useCallback((ordenId: string): void => {
+    seleccionarOrden(ordenId);
+    requestAnimationFrame(() => {
+      document.getElementById('panel-operador-produccion')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [seleccionarOrden]);
+
   const iniciar = useCallback(async (datosInicio: {
     ordenId: string;
     partidaId: string;
@@ -217,7 +227,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
         actualizando={consulta.isFetching}
         areas={datos.areas ?? []}
         responsables={datos.responsables ?? {}}
-        onSeleccionarOrden={seleccionarOrden}
+        onSeleccionarOrden={seleccionarYOperar}
         onAlternarEstado={alternarEstado}
       />
       <div className="grid gap-6 lg:grid-cols-2">

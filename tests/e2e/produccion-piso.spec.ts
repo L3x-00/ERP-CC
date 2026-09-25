@@ -224,6 +224,8 @@ test.describe.serial('piso de Producción y entregas', () => {
 
     const tarjeta = page.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`);
     await tarjeta.getByRole('button', { name: 'Operar orden' }).click();
+    await expect(page.getByTestId('orden-seleccionada-panel')).toContainText('Orden seleccionada:');
+    await expect(page.getByTestId('panel-operador-produccion')).toBeInViewport();
     await page.getByTestId('iniciar-sesion-produccion').click();
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await expect(observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)).toContainText('En proceso');

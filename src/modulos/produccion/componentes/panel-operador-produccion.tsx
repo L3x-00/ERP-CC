@@ -151,6 +151,7 @@ export function PanelOperadorProduccion({
 
   return (
     <section
+      id="panel-operador-produccion"
       className="rounded-lg border border-borde bg-superficie p-4"
       aria-labelledby="titulo-panel-operador"
       data-testid="panel-operador-produccion"
@@ -158,6 +159,11 @@ export function PanelOperadorProduccion({
       <h2 id="titulo-panel-operador" className="text-base font-semibold text-texto-primario">
         Panel de operador
       </h2>
+      {orden ? (
+        <p className="mt-1 text-sm text-texto-secundario" data-testid="orden-seleccionada-panel">
+          Orden seleccionada: <span className="font-mono font-medium text-texto-primario">{orden.folio}</span>
+        </p>
+      ) : null}
       <p className="mt-1 text-sm text-texto-secundario">
         {operadorDisponible
           ? 'La identidad de piso está confirmada por sesión HMAC.'
