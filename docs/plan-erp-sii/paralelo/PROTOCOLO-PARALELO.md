@@ -14,6 +14,22 @@
 
 Regla: **una terminal no toca archivos de otro stream** (mapa en §3). Si lo necesita, se detiene y lo pide en su archivo de estado.
 
+### 1.1 Bandas por bloque (para no colisionar)
+
+| Bloque | Terminal | Banda de migraciones |
+|---|---|---|
+| B3 RFQ (ola 1) | B | `2026100710xxxx` |
+| B4 Propuestas (pendiente de B3) | C, tras cierre de B2 | `2026100711xxxx` |
+| B5 Orden (pendiente de B4) | A, tras cierre E2 y retrofit | `2026100712xxxx` |
+| B6 Producción | por asignar | `2026100713xxxx` |
+| B7 Entregas | por asignar | `2026100714xxxx` |
+
+Transferencias vigentes: B es dueño de `src/modulos/rfq/**`, `src/modulos/pipeline/**` y (solo ola 2) `src/app/(panel)/pipeline/**` + consumidores de `etapa` en `src/modulos/dashboard/**`. A es dueño del retrofit de `correlationId` en `src/modulos/ordenes|planeacion|produccion|cobranza|gastos|inventario|comentarios|configuracion/acciones` (excluye congelados y módulos de B/C).
+
+### 1.2 Verificación de aplicación de migraciones
+
+Una migración se considera aplicada **solo** si aparece en `supabase migration list --local` **y** sus objetos existen en la BD local. El remoto lo aplica el PO. Si el orden remoto bloquea la aplicación local (error "inserted before the last migration"), el coordinador aplica en local con `supabase migration up --local --include-all`; las terminales nunca lo hacen.
+
 ## 2. Reglas de convivencia
 
 1. **Un escritor por archivo.** Antes de editar, verifica que el archivo pertenece a tu stream (§3).
@@ -54,6 +70,22 @@ Cada stream **sí** agrega sus tablas/columnas/funciones al tipo generado, con e
 3. Agrega **solo tu bloque** (al final de la sección `Tables` o `Functions` según corresponda), formato generado por Supabase, sin tocar lo demás.
 4. Verifica que tu bloque quedó (`Select-String`), libera el bloqueo (borra el `.lock`).
 5. Si al liberar detectas que tu bloque desapareció (alguien guardó encima), vuelve a insertarlo.
+
+## 4bis. Marcadores obligatorios en `supabase.ts`
+
+Después de guardar `supabase.ts`, cada terminal ejecuta:
+
+```powershell
+Select-String -Path src\compartido\tipos\supabase.ts -Pattern "catalogo_materiales:|obtener_actividad:|credito_habilitado:"
+```
+
+Deben aparecer los tres marcadores (uno por stream). Si falta el tuyo, vuélvelo a insertar (relee el archivo antes); si falta el de otro stream, **repórtalo de inmediato** y no lo edites tú: el coordinador lo restaura.
+
+| Stream | Marcadores representativos |
+|---|---|
+| A | `catalogo_materiales:`, `catalogo_espesores:`, `catalogo_procesos:`, `catalogo_proximas_acciones:`, `grupos_equipo:`, `grupos_planeados:`, `grupo_equipo_id` |
+| B | `correlation_id` (en `logs`), `obtener_actividad:` |
+| C | `credito_habilitado:` (en `clientes`), `folio:` (en `clientes`), RPC `crear_cliente_con_contacto:`, `cambiar_estado_cliente:` |
 
 ## 5. Bloqueos de pruebas mutantes y E2E
 

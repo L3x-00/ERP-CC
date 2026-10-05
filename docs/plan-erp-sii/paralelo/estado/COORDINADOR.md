@@ -12,3 +12,12 @@
 - **Fuera de los streams** (coordinador): retrofit de `correlationId` en acciones de todos los módulos, pipeline/B3 en adelante, limpieza de `clientes-contactos` si C cambia el flujo, commits e integración.
 - **Bloqueos actuales**: ninguno.
 - **Siguiente**: vigilar estado de A/B/C, resolver peticiones de zonas compartidas, verificar y commitear cada sub-bloque terminado.
+- **Verificación**: checklist y línea base en `paralelo/VERIFICACION-COORDINADOR.md`; Auditoría 0 = CONFORME (árbol limpio, sin cambios aún).
+
+## 2026-10-05 — Auditorías 1 y 2; cierre de olas y nuevos prompts
+
+- Auditoría 1: bloque de tipos de B pisado en `supabase.ts` → restaurado por el coordinador; protocolo §4bis (marcadores) añadido.
+- Auditoría 2: E4/B verificado (pgTAP 27/27); E2/A y B2/C no estaban aplicadas en local (C solo en remoto) → coordinador aplicó con `supabase migration up --local --include-all`; pgTAP global 29 archivos / 555 PASS. Protocolo §1.2 (verificación de aplicación) y §1.1 (bandas por bloque) añadidos.
+- Coordinador: `clientes-folios-concurrencia.test.ts` agregado a `test:concurrencia` (package.json).
+- Nuevos prompts emitidos: A cierre E2 + retrofit de correlación; B B3 RFQ ola 1 (`2026100710*`); C cierre B2.
+- Pendiente coordinador: cross-review y commit de E4/B; commit de E2/A y B2/C cuando reporten cierre; aplicar regla de bandas y vigilancia de marcadores en cada guardado de `supabase.ts`.
