@@ -78,9 +78,9 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | Bloque | Sub-bloques | Estado | Commit(s) | Evidencia |
 |---|---|---|---|---|
 | B0 Fundamentos | 0.1–0.9 | PENDIENTE | — | — |
-| B1 Sistema/Catálogos | 1.1–1.10 | EN_CURSO: E1 y E3 verificados y commiteados; E2 catálogos (terminal A) y E4 actividad (terminal B) en ejecución paralela | `7f97714` (E1), `72d1765` (E3) | E1: pgTAP 402/402 · integración 223/223 · E2E 40/40 · unit 770/770 · visual 4/4. E3: pgTAP 413/413 · integración 223/223 · E2E 41/41 · unit 778/778 |
-| B2 Clientes | 2.1–2.8 | EN_CURSO (terminal C, ejecución paralela) | — | — |
-| B3 RFQ | 3.1–3.9 | PENDIENTE | — | — |
+| B1 Sistema/Catálogos | 1.1–1.10 | **COMPLETADO** (E1–E4 verificados y commiteados) | `7f97714`, `72d1765`, `d10ecf5`, `452bfcf` | pgTAP 611/611 · integración 226/226 · unit 862/862 · E2E (actividad/catálogos) · capturas E2 4/4 |
+| B2 Clientes | 2.1–2.8 | **COMPLETADO** (verificado y commiteado) | `b98a56a` | pgTAP 75/75 · concurrencia 10/10 · integración 226/226 · E2E 6/6 · capturas 12/12 |
+| B3 RFQ | 3.1–3.9 | EN_CURSO: ola 1 (modelo/estados/folio/ítems) completada y commiteada; ola 2 (archivos/gate/UI/E2E) pendiente | `452bfcf`, `b3fad90` | pgTAP 56/56 focal · unit RFQ 3 archivos |
 | B4 Propuestas | 4.1–4.9 | PENDIENTE | — | — |
 | B5 Orden | 5.1–5.6 | PENDIENTE | — | — |
 | B6 Producción | 6.1–6.4 | PENDIENTE | — | — |

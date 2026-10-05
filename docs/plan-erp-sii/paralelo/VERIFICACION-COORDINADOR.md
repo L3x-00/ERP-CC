@@ -87,3 +87,13 @@
 - **C (cierre B2): EN CURSO, avance visible.** Capturas generadas: 12 PNG en `.ai-shared/qa/sii-b2/visual/` (ficha comercial/contactos + lista, 1440/768 × claro/oscuro); bloqueo de pruebas liberado; pendiente su reporte y actualización de estado.
 - **Transversal:** `git log` intacto (sin commits de terminales); zonas prohibidas sin cambios (solo `entregables/*` ajenos preservados); los 3 marcadores coexisten en `supabase.ts`; `pnpm typecheck` 0 y `pnpm lint` 0 con todo mezclado.
 - **Próxima auditoría:** al pedido de aplicación de migraciones de B o al reporte de cierre de A/C.
+
+### Auditoría 4 — 2026-10-05 (cierres E2/E4/B2, verificación final y commits)
+
+- **Verificación combinada del coordinador:** `typecheck` 0 · `lint` 0 · `build` OK · pgTAP **611/611** (30 archivos) · unit **862/862** · integración **226/226** (30 archivos) · E2E **44/45**, con el único fallo corregido por el coordinador.
+- **Fallo E2E detectado y corregido (cross-stream):** `comercial-realtime.spec.ts` usaba "Quitar contacto" (borrado duro); B2 lo cambió a baja lógica con motivo. Se actualizó el spec a "Desactivar contacto" + estado `Inactivo` en ambas identidades; spec re-ejecutado **1/1 verde**.
+- **Reclamos cruzados verificados:** los 19 fallos unitarios y el fallo de pgTAP reportados por C eran de una corrida previa a los fixes de A/B; en el árbol final todo está verde.
+- **Defecto de A corregido por el coordinador:** `registrar-consumo.ts:70` (const dentro del genérico) → typecheck 0.
+- **Errores de migraciones B3 en remoto:** `relation "catalogo_proximas_acciones" does not exist` se debe a que A (`2026100610*`) no está aplicada allí; `20261007100003` falla en cascada porque `rfq_items` no llegó a crearse. Orden correcto: A `...06100001` → `...06100002` → reintentar `...07100002` → `...07100003` (idempotentes). En local ya funcionan en ese orden.
+- **Commits de cierre:** `452bfcf` (B: E4+B3 ola 1) · `d10ecf5` (A: E2+retrofit) · `b98a56a` (C: B2) · `7887e31` (fix realtime) · `f37b036` (docs) · `b3fad90` (unitarias RFQ).
+- **Pendiente del PO:** aplicar en remoto, cuando autorice: `2026100610*` y `2026100710*`; verificar que `2026100620*` y `2026100630*` ya estén.
