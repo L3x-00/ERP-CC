@@ -86,9 +86,13 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     await panelA.getByRole('button', { name: 'Agregar contacto' }).click();
     await expect(panelA.getByRole('status')).toContainText('Contacto agregado.');
     await expect(panelB.getByTestId('lista-contactos')).toContainText(nombreContacto, { timeout: 6_000 });
-    await panelA.getByRole('button', { name: `Quitar contacto ${nombreContacto}` }).click();
-    await expect(panelA).toContainText('Sin contactos adicionales.');
-    await expect(panelB).toContainText('Sin contactos adicionales.', { timeout: 6_000 });
+    // B2: la baja de contactos es lógica (motivo obligatorio) y el contacto queda visible como inactivo.
+    await panelA.getByRole('button', { name: `Desactivar contacto ${nombreContacto}` }).click();
+    await panelA.getByLabel('Motivo de la baja').fill('Baja E2E realtime');
+    await panelA.getByRole('button', { name: 'Confirmar baja' }).click();
+    await expect(panelA.getByTestId('lista-contactos')).toContainText('Inactivo');
+    await expect(panelB.getByTestId('lista-contactos')).toContainText('Inactivo', { timeout: 6_000 });
+    await expect(panelB).toContainText(nombreContacto);
 
     const bajaCliente = await admin.from('clientes').delete().eq('id', clienteId);
     if (bajaCliente.error) throw bajaCliente.error;
