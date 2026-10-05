@@ -61,7 +61,7 @@ suite('A09: revocación efectiva con JWT anterior a la desactivación', () => {
     lineaId = linea.data.id;
     rutaAdjunto = `${oportunidadId}/a09-${randomUUID()}.txt`;
     const adjunto = await admin.storage.from('adjuntos-cotizacion').upload(
-      rutaAdjunto, new TextEncoder().encode('Solo fixture local A09'), { contentType: 'text/plain' },
+      rutaAdjunto, new TextEncoder().encode('%PDF-1.4 fixture local A09'), { contentType: 'application/pdf' },
     );
     if (adjunto.error) throw adjunto.error;
   });

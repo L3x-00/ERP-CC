@@ -27,7 +27,10 @@ export async function obtenerUrlAdjuntoAccion(
   if (!analisis.success) return { exito: false, error: 'Datos inválidos' };
   const { pipelineId, ruta } = analisis.data;
 
-  if (!ruta.startsWith(`${pipelineId}/`) || ruta.includes('..')) {
+  // Rutas nuevas `rfq/<pipelineId>/...` y rutas históricas `<pipelineId>/...`.
+  const rutaValida =
+    ruta.startsWith(`${pipelineId}/`) || ruta.startsWith(`rfq/${pipelineId}/`);
+  if (!rutaValida || ruta.includes('..')) {
     return { exito: false, error: 'Ruta inválida' };
   }
 

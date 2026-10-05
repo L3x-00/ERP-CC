@@ -36,7 +36,7 @@ suite('AR-08/09: reverso de pagos y anticipo heredado con RLS real', () => {
 
   async function crearCuenta(sufijo: string) {
     const { data: cliente } = await servicio.from('clientes')
-      .insert({ nombre_comercial: `AR08 ${sufijo}`, razon_social: 'AR08 SA', estado: 'activo' })
+      .insert({ nombre_comercial: `AR08 ${sufijo}`, razon_social: `AR08 SA ${sufijo}`, estado: 'activo' })
       .select('id').single();
     const { data: folio } = await servicio.rpc('generar_folio_orden', { p_prefijo: 'OP' });
     const { data: orden } = await servicio.from('ordenes_produccion')

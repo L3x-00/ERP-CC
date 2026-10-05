@@ -78,7 +78,7 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | Bloque | Sub-bloques | Estado | Commit(s) | Evidencia |
 |---|---|---|---|---|
 | B0 Fundamentos | 0.1–0.9 | PENDIENTE | — | — |
-| B1 Sistema/Catálogos | 1.1–1.10 | EN_CURSO: E1 verificado (B1.1+B1.2); pendientes E2 catálogos, E3 archivos y E4 actividad | commit E1 | pgTAP 402/402 · integración 223/223 · E2E 40/40 · unit 770/770 · typecheck/lint 0 · visual 4/4 |
+| B1 Sistema/Catálogos | 1.1–1.10 | EN_CURSO: E1 verificado (B1.1+B1.2); E3 archivos implementado (pendiente aplicar migración y verificar); E2 catálogos y E4 actividad pendientes | commit E1 | E1: pgTAP 402/402 · integración 223/223 · E2E 40/40 · unit 770/770 · visual 4/4. E3: unit 778/778 · typecheck/lint 0 (sin verificar contra BD todavía) |
 | B2 Clientes | 2.1–2.8 | PENDIENTE | — | — |
 | B3 RFQ | 3.1–3.9 | PENDIENTE | — | — |
 | B4 Propuestas | 4.1–4.9 | PENDIENTE | — | — |

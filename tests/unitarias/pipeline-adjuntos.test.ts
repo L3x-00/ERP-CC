@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { usuarioMock, clienteMock, oportunidadMock, urlMock, logMock } = vi.hoisted(() => ({
+const { usuarioMock, clienteMock, adminMock, oportunidadMock, urlMock, logMock } = vi.hoisted(() => ({
   usuarioMock: vi.fn(),
   clienteMock: vi.fn(),
+  adminMock: vi.fn(),
   oportunidadMock: vi.fn(),
   urlMock: vi.fn(),
   logMock: vi.fn(),
@@ -13,6 +14,9 @@ vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
 }));
 vi.mock('@/nucleo/supabase/servidor', () => ({
   crearClienteSupabaseServidor: () => clienteMock(),
+}));
+vi.mock('@/nucleo/supabase/admin', () => ({
+  crearClienteSupabaseAdmin: () => adminMock(),
 }));
 vi.mock('@/modulos/pipeline/servicios/obtener-oportunidad-por-id', () => ({
   obtenerOportunidadPorId: (...argumentos: unknown[]) => oportunidadMock(...argumentos),
@@ -31,14 +35,33 @@ import { eliminarAdjuntoAccion } from '@/modulos/pipeline/acciones/eliminar-adju
 
 const PIPELINE = '11111111-1111-4111-8111-111111111111';
 
-function clienteConLista(objetos: unknown[]) {
+/** Simula la cadena de PostgREST: select().eq().eq().eq().order().limit(). */
+function clienteConArchivos(filas: unknown[]) {
+  const cadena: Record<string, unknown> = {};
+  const encadenar = (): Record<string, unknown> => cadena;
+  Object.assign(cadena, {
+    select: encadenar,
+    eq: encadenar,
+    order: encadenar,
+    limit: async () => ({ data: filas, error: null }),
+  });
   return {
+    from: () => cadena,
     storage: {
       from: () => ({
-        list: async () => ({ data: objetos, error: null }),
         remove: async () => ({ data: [], error: null }),
       }),
     },
+  };
+}
+
+function adminConCatalogo() {
+  return {
+    from: () => ({
+      update: () => ({
+        eq: async () => ({ error: null }),
+      }),
+    }),
   };
 }
 
@@ -46,23 +69,26 @@ beforeEach(() => {
   vi.clearAllMocks();
   usuarioMock.mockResolvedValue({ id: 'u1', activo: true, rol: 'vendedor' });
   oportunidadMock.mockResolvedValue({ oportunidad: { id: PIPELINE }, lineas: [] });
+  adminMock.mockReturnValue(adminConCatalogo());
 });
 
 describe('listarAdjuntosOportunidad', () => {
-  it('mapea nombre/tamaño/tipo/fecha y descarta el marcador de carpeta', async () => {
-    const cliente = clienteConLista([
-      { id: null, name: '.emptyFolderPlaceholder', metadata: null, created_at: null },
+  it('mapea los metadatos vigentes del modelo único de archivos', async () => {
+    const cliente = clienteConArchivos([
       {
         id: 'a1',
-        name: '1726000000000-plano-cliente.dxf',
-        metadata: { size: 2048, mimetype: 'image/vnd.dxf' },
-        created_at: '2026-09-15T00:00:00.000Z',
+        ruta_storage: `rfq/${PIPELINE}/uuid-plano-cliente.dxf`,
+        nombre_original: 'plano-cliente.dxf',
+        tamano_bytes: 2048,
+        mime: 'image/vnd.dxf',
+        creado_en: '2026-09-15T00:00:00.000Z',
       },
     ]);
     const adjuntos = await listarAdjuntosOportunidad(cliente as never, PIPELINE);
     expect(adjuntos).toHaveLength(1);
     expect(adjuntos[0]).toMatchObject({
-      ruta: `${PIPELINE}/1726000000000-plano-cliente.dxf`,
+      id: 'a1',
+      ruta: `rfq/${PIPELINE}/uuid-plano-cliente.dxf`,
       nombre: 'plano-cliente.dxf',
       tamano: 2048,
       tipo: 'image/vnd.dxf',
@@ -79,9 +105,18 @@ describe('obtenerAdjuntosAccion', () => {
   });
 
   it('devuelve la lista cuando la oportunidad es accesible', async () => {
-    clienteMock.mockResolvedValue(clienteConLista([
-      { id: 'a1', name: '10-plano.dxf', metadata: { size: 10, mimetype: 'x' }, created_at: '2026-09-15T00:00:00.000Z' },
-    ]));
+    clienteMock.mockResolvedValue(
+      clienteConArchivos([
+        {
+          id: 'a1',
+          ruta_storage: `rfq/${PIPELINE}/uuid-plano.dxf`,
+          nombre_original: 'plano.dxf',
+          tamano_bytes: 10,
+          mime: 'image/vnd.dxf',
+          creado_en: '2026-09-15T00:00:00.000Z',
+        },
+      ]),
+    );
     const resultado = await obtenerAdjuntosAccion(PIPELINE);
     expect(resultado.exito).toBe(true);
     if (resultado.exito) expect(resultado.datos).toHaveLength(1);
@@ -90,26 +125,44 @@ describe('obtenerAdjuntosAccion', () => {
 
 describe('guardas de ruta de adjuntos', () => {
   it('obtenerUrlAdjuntoAccion rechaza una ruta fuera de la carpeta de la oportunidad', async () => {
-    clienteMock.mockResolvedValue(clienteConLista([]));
+    clienteMock.mockResolvedValue(clienteConArchivos([]));
     urlMock.mockResolvedValue('https://firmada');
-    const ajena = await obtenerUrlAdjuntoAccion({ pipelineId: PIPELINE, ruta: '99999999-9999-9999-9999-999999999999/x.dxf' });
+    const ajena = await obtenerUrlAdjuntoAccion({
+      pipelineId: PIPELINE,
+      ruta: '99999999-9999-9999-9999-999999999999/x.dxf',
+    });
     expect(ajena).toMatchObject({ exito: false });
     expect(urlMock).not.toHaveBeenCalled();
 
-    const traversal = await obtenerUrlAdjuntoAccion({ pipelineId: PIPELINE, ruta: `${PIPELINE}/../otro/x.dxf` });
+    const traversal = await obtenerUrlAdjuntoAccion({
+      pipelineId: PIPELINE,
+      ruta: `${PIPELINE}/../otro/x.dxf`,
+    });
     expect(traversal).toMatchObject({ exito: false });
 
-    const valida = await obtenerUrlAdjuntoAccion({ pipelineId: PIPELINE, ruta: `${PIPELINE}/10-plano.dxf` });
-    expect(valida).toMatchObject({ exito: true });
+    const historica = await obtenerUrlAdjuntoAccion({
+      pipelineId: PIPELINE,
+      ruta: `${PIPELINE}/10-plano.dxf`,
+    });
+    expect(historica).toMatchObject({ exito: true });
+
+    const nueva = await obtenerUrlAdjuntoAccion({
+      pipelineId: PIPELINE,
+      ruta: `rfq/${PIPELINE}/uuid-plano.dxf`,
+    });
+    expect(nueva).toMatchObject({ exito: true });
   });
 
   it('eliminarAdjuntoAccion rechaza ruta ajena y registra al eliminar la propia', async () => {
-    clienteMock.mockResolvedValue(clienteConLista([]));
+    clienteMock.mockResolvedValue(clienteConArchivos([]));
     const ajena = await eliminarAdjuntoAccion({ pipelineId: PIPELINE, ruta: 'otra/x.dxf' });
     expect(ajena).toMatchObject({ exito: false });
     expect(logMock).not.toHaveBeenCalled();
 
-    const propia = await eliminarAdjuntoAccion({ pipelineId: PIPELINE, ruta: `${PIPELINE}/10-plano.dxf` });
+    const propia = await eliminarAdjuntoAccion({
+      pipelineId: PIPELINE,
+      ruta: `rfq/${PIPELINE}/uuid-plano.dxf`,
+    });
     expect(propia).toMatchObject({ exito: true });
     expect(logMock).toHaveBeenCalledOnce();
   });

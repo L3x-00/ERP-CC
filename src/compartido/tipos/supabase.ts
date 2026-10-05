@@ -113,6 +113,81 @@ export type Database = {
           },
         ]
       }
+      archivos: {
+        Row: {
+          bucket: string
+          clase: string
+          creado_en: string
+          entidad: string
+          entidad_id: string
+          hash_sha256: string | null
+          id: string
+          mime: string
+          nombre_erp: string | null
+          nombre_original: string
+          reemplaza_a: string | null
+          ruta_storage: string
+          subido_por: string | null
+          tamano_bytes: number
+          tema_codigo: string | null
+          version: number
+          vigente: boolean
+        }
+        Insert: {
+          bucket: string
+          clase: string
+          creado_en?: string
+          entidad: string
+          entidad_id: string
+          hash_sha256?: string | null
+          id?: string
+          mime: string
+          nombre_erp?: string | null
+          nombre_original: string
+          reemplaza_a?: string | null
+          ruta_storage: string
+          subido_por?: string | null
+          tamano_bytes: number
+          tema_codigo?: string | null
+          version?: number
+          vigente?: boolean
+        }
+        Update: {
+          bucket?: string
+          clase?: string
+          creado_en?: string
+          entidad?: string
+          entidad_id?: string
+          hash_sha256?: string | null
+          id?: string
+          mime?: string
+          nombre_erp?: string | null
+          nombre_original?: string
+          reemplaza_a?: string | null
+          ruta_storage?: string
+          subido_por?: string | null
+          tamano_bytes?: number
+          tema_codigo?: string | null
+          version?: number
+          vigente?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivos_reemplaza_a_fkey"
+            columns: ["reemplaza_a"]
+            isOneToOne: false
+            referencedRelation: "archivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivos_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       areas_trabajo_config: {
         Row: {
           activo: boolean

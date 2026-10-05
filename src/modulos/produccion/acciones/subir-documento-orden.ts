@@ -11,6 +11,8 @@ import {
 } from '@/modulos/produccion/servicios/documentos-orden-servicio';
 import { BUCKET_ADJUNTOS } from '@/nucleo/almacenamiento/constantes';
 import { subirArchivo } from '@/nucleo/almacenamiento/subir-archivo';
+import { registrarArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
+import { sanearNombreArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -54,7 +56,28 @@ export async function subirDocumentoOrdenAccion(
 
     const nombre = nombreDocumentoSeguro(archivo.name);
     const ruta = `${orden.cotizacionId}/${Date.now()}-${nombre}`;
-    await subirArchivo(admin, BUCKET_ADJUNTOS, ruta, await archivo.arrayBuffer(), archivo.type);
+    await subirArchivo(
+      admin,
+      BUCKET_ADJUNTOS,
+      ruta,
+      await archivo.arrayBuffer(),
+      archivo.type || 'application/octet-stream',
+    );
+
+    // Metadata en el modelo único (SII-B1.9): sin fila, el documento no se
+    // lista ni puede firmarse con trazabilidad.
+    await registrarArchivo(admin, {
+      entidad: 'rfq',
+      entidadId: orden.cotizacionId,
+      clase: 'OTROS',
+      nombreOriginal: archivo.name,
+      nombreErp: sanearNombreArchivo(archivo.name),
+      bucket: BUCKET_ADJUNTOS,
+      rutaStorage: ruta,
+      mime: archivo.type || 'application/octet-stream',
+      tamanoBytes: archivo.size,
+      subidoPor: usuario.id,
+    });
     await registrarLog(usuario, 'subir_documento_orden', 'produccion', orden.id, { ruta });
 
     return { exito: true, datos: { ruta, nombre } };

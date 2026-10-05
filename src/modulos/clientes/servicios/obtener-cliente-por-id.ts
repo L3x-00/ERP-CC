@@ -2,12 +2,24 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
   filaACliente,
-  filaADocumentoCliente,
   type Cliente,
   type DocumentoCliente,
+  type TipoDocumentoCliente,
 } from '@/modulos/clientes/tipos/indice';
 import { calcularConsumoUltimos3Meses } from '@/modulos/clientes/servicios/calcular-consumo';
 import { obtenerCreditoUsado } from '@/modulos/clientes/servicios/credito-usado';
+
+const TIPOS_DOCUMENTO: readonly string[] = [
+  'csf',
+  'contrato',
+  'identificacion',
+  'comprobante_domicilio',
+  'otro',
+];
+
+function normalizarTipoDocumento(valor: string | null): TipoDocumentoCliente {
+  return TIPOS_DOCUMENTO.includes(valor ?? '') ? (valor as TipoDocumentoCliente) : 'otro';
+}
 
 /** Cliente con documentos y resumen financiero calculado (ficha 360°). */
 export type ClienteConDocumentos = {
@@ -44,10 +56,13 @@ export async function obtenerClientePorId(
     return null;
   }
 
+  // Modelo único de archivos (SII-B1.9): solo la versión vigente de cada documento.
   const { data: docs } = await cliente
-    .from('documentos_cliente')
-    .select('*')
-    .eq('cliente_id', id)
+    .from('archivos')
+    .select('id, entidad_id, tema_codigo, nombre_original, ruta_storage, subido_por, creado_en')
+    .eq('entidad', 'cliente')
+    .eq('entidad_id', id)
+    .eq('vigente', true)
     .order('creado_en', { ascending: false });
 
   const [consumoUltimos3Meses, creditoUsado] = await Promise.all([
@@ -57,7 +72,15 @@ export async function obtenerClientePorId(
 
   return {
     cliente: filaACliente(fila),
-    documentos: (docs ?? []).map(filaADocumentoCliente),
+    documentos: (docs ?? []).map((doc) => ({
+      id: doc.id,
+      clienteId: doc.entidad_id,
+      tipo: normalizarTipoDocumento(doc.tema_codigo),
+      nombreArchivo: doc.nombre_original,
+      rutaStorage: doc.ruta_storage,
+      subidoPor: doc.subido_por,
+      creadoEn: doc.creado_en,
+    })),
     consumoUltimos3Meses,
     creditoUsado,
   };
