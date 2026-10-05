@@ -18,13 +18,18 @@ Regla: **una terminal no toca archivos de otro stream** (mapa en §3). Si lo nec
 
 | Bloque | Terminal | Banda de migraciones |
 |---|---|---|
-| B3 RFQ (ola 1) | B | `2026100710xxxx` |
-| B4 Propuestas (pendiente de B3) | C, tras cierre de B2 | `2026100711xxxx` |
-| B5 Orden (pendiente de B4) | A, tras cierre E2 y retrofit | `2026100712xxxx` |
+| B3 RFQ ola 1 y ola 2 | B | `2026100710xxxx` |
+| B4 Propuestas (ola 1 modelo; ola 2 UI/PDF) | C | `2026100711xxxx` |
+| B5 Orden (pendiente de B4) | A | `2026100712xxxx` |
 | B6 Producción | por asignar | `2026100713xxxx` |
 | B7 Entregas | por asignar | `2026100714xxxx` |
+| Continuidad de folios (cierre B3.5) | A | `2026100715xxxx` |
 
-Transferencias vigentes: B es dueño de `src/modulos/rfq/**`, `src/modulos/pipeline/**` y (solo ola 2) `src/app/(panel)/pipeline/**` + consumidores de `etapa` en `src/modulos/dashboard/**`. A es dueño del retrofit de `correlationId` en `src/modulos/ordenes|planeacion|produccion|cobranza|gastos|inventario|comentarios|configuracion/acciones` (excluye congelados y módulos de B/C).
+Transferencias vigentes:
+- **B**: `src/modulos/rfq/**`, `src/modulos/pipeline/**`, `src/app/(panel)/pipeline/**` y los consumidores de `etapa` (dashboard, alertas, filtros, resumen, `src/modulos/auditoria/utilidades/actividad.ts`) + transferencia temporal de `src/modulos/clientes/servicios/obtener-historial-cliente.ts`, `src/modulos/clientes/componentes/historial-cliente.tsx`, `src/modulos/clientes/tipos/historial.ts` y `tests/e2e/comercial-realtime.spec.ts` (solo `estado_rfq`).
+- **A**: retrofit de `correlationId` (ya entregado) y, en esta ola, `src/modulos/configuracion/componentes/pestana-folios.tsx` + `src/modulos/configuracion/acciones/continuidad-folios*.ts`.
+- **C**: `src/modulos/propuestas/**` (nuevo), `src/modulos/clientes/**` (cerrado B2, ya sin transferencias activas).
+- Congelados para todos: `src/modulos/permisos/**`, `src/nucleo/almacenamiento/archivos/**`, `src/nucleo/auditoria/registrar-log.ts`, `supabase/semillas/**`.
 
 ### 1.2 Verificación de aplicación de migraciones
 
@@ -83,9 +88,18 @@ Deben aparecer los tres marcadores (uno por stream). Si falta el tuyo, vuélvelo
 
 | Stream | Marcadores representativos |
 |---|---|
-| A | `catalogo_materiales:`, `catalogo_espesores:`, `catalogo_procesos:`, `catalogo_proximas_acciones:`, `grupos_equipo:`, `grupos_planeados:`, `grupo_equipo_id` |
-| B | `correlation_id` (en `logs`), `obtener_actividad:` |
-| C | `credito_habilitado:` (en `clientes`), `folio:` (en `clientes`), RPC `crear_cliente_con_contacto:`, `cambiar_estado_cliente:` |
+| A | `catalogo_materiales:`, `catalogo_espesores:`, `catalogo_procesos:`, `catalogo_proximas_acciones:`, `grupos_equipo:`, `grupos_planeados:`, `grupo_equipo_id`, `ajustar_continuidad_folio_periodico:` |
+| B | `correlation_id` (en `logs`), `obtener_actividad:`, `rfq_items:`, `estado_rfq`, `cambiar_estado_rfq:`, `validar_rfq_listo:` |
+| C | `credito_habilitado:` y `folio:` (en `clientes`), `crear_cliente_con_contacto:`, `cambiar_estado_cliente:`, `propuestas:`, `propuesta_revisiones:`, `accepted_revision_id`, `crear_nueva_revision:` |
+
+### 4ter. Lecciones obligatorias (de las olas anteriores)
+
+1. **Dependencias de migración**: toda migración que referencie tablas de otro stream empieza con una guarda `DO $$ ... to_regclass(...) IS NULL THEN RAISE EXCEPTION 'aplicar <migración> antes' ... $$`. Orden vigente: A `0610*` → B3 `0710*` → B4 `0711*`.
+2. **Tras cualquier lote de ediciones**: `pnpm typecheck` inmediato (una línea insertada dentro de una firma rompió 9 errores).
+3. **Si cambias etiquetas/testids de UI**: grep de los textos viejos en `tests/` y actualiza los specs (`Quitar contacto`→`Desactivar contacto` rompió la suite combinada).
+4. **Migraciones**: las aplica el PO (o el coordinador en local con `--include-all`); una terminal nunca aplica ni hace git.
+5. **Pruebas mutantes**: con `BLOQUEO-PRUEBAS.lock`; E2E en el puerto 3100.
+6. **Reporte honesto**: si un gate ajeno falla, se reporta con evidencia y no se toca.
 
 ## 5. Bloqueos de pruebas mutantes y E2E
 

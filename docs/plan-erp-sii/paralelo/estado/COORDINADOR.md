@@ -27,4 +27,10 @@
 - Verificación final combinada: typecheck 0 · lint 0 · build OK · pgTAP 611/611 · unit 862/862 · integración 226/226 · E2E 44/45 con el fallo corregido (spec `comercial-realtime` re-ejecutado 1/1).
 - Defectos corregidos por el coordinador: `registrar-consumo.ts` (sintaxis) y `comercial-realtime.spec.ts` (baja lógica de contactos).
 - Commits: `452bfcf` B · `d10ecf5` A · `b98a56a` C · `7887e31` fix · `f37b036` docs · `b3fad90` unitarias RFQ.
-- Pendiente PO: aplicar en remoto A `2026100610*` y B3 `2026100710*` (en ese orden; re-ejecutar 0002/0003 tras A).
+- Pendiente PO: aplicar en remoto A `2026100610*` y B3 `2026100710*` (en ese orden; re-ejecutar 0002/0003 tras A). **Resuelto: el PO confirmó migraciones aplicadas.**
+
+## 2026-10-06 — Siguiente ola emitida
+
+- Prompts: A `PROMPT-TERMINAL-A-FOLIOS.md` (continuidad de folios, banda `2026100715*`), B `PROMPT-TERMINAL-B-B3-OLA2.md` (UI RFQ + consumidores `etapa` + archivos + gate + retiro del puente, banda `2026100710*` 0004+), C `PROMPT-TERMINAL-C-B4-OLA1.md` (B4 propuestas ola 1 modelo/RPC/tests, banda `2026100711*`).
+- Protocolo actualizado: bandas, transferencias (B toma consumidores de `etapa` en clientes y `comercial-realtime`), marcadores nuevos y §4ter con las lecciones obligatorias de la ola anterior.
+- Dependencias de orden a vigilar: `0610*` (A) → `0710*` (B3) → `0711*` (B4). Cada migración nueva lleva guarda `to_regclass`.
