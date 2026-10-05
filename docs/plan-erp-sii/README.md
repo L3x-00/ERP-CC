@@ -78,8 +78,8 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | Bloque | Sub-bloques | Estado | Commit(s) | Evidencia |
 |---|---|---|---|---|
 | B0 Fundamentos | 0.1–0.9 | PENDIENTE | — | — |
-| B1 Sistema/Catálogos | 1.1–1.10 | EN_CURSO: E1 verificado (B1.1+B1.2); E3 archivos implementado (pendiente aplicar migración y verificar); E2 catálogos y E4 actividad pendientes | commit E1 | E1: pgTAP 402/402 · integración 223/223 · E2E 40/40 · unit 770/770 · visual 4/4. E3: unit 778/778 · typecheck/lint 0 (sin verificar contra BD todavía) |
-| B2 Clientes | 2.1–2.8 | PENDIENTE | — | — |
+| B1 Sistema/Catálogos | 1.1–1.10 | EN_CURSO: E1 y E3 verificados y commiteados; E2 catálogos (terminal A) y E4 actividad (terminal B) en ejecución paralela | `7f97714` (E1), `72d1765` (E3) | E1: pgTAP 402/402 · integración 223/223 · E2E 40/40 · unit 770/770 · visual 4/4. E3: pgTAP 413/413 · integración 223/223 · E2E 41/41 · unit 778/778 |
+| B2 Clientes | 2.1–2.8 | EN_CURSO (terminal C, ejecución paralela) | — | — |
 | B3 RFQ | 3.1–3.9 | PENDIENTE | — | — |
 | B4 Propuestas | 4.1–4.9 | PENDIENTE | — | — |
 | B5 Orden | 5.1–5.6 | PENDIENTE | — | — |
@@ -92,4 +92,11 @@ Al avanzar, reemplazar `PENDIENTE` por el estado real y enlazar handoff/PR. Este
 
 ## 8. Próximo paso inmediato
 
-Ejecutar **B0** (ADRs + nomenclatura maestra + patrones) y luego **B1.1/B1.2** (permisos) y **B1.3–B1.7** (catálogos base), que son prerrequisito de RFQ y Propuestas.
+Con E1/E3 cerrados, el trabajo corre en **modo paralelo** (ver §9): terminal A con E2 catálogos, terminal B con E4 actividad, terminal C con B2 clientes; el coordinador verifica, integra y commitea.
+
+## 9. Desarrollo paralelo (3 terminales + coordinador)
+
+- Protocolo obligatorio: `paralelo/PROTOCOLO-PARALELO.md` (propiedad de archivos, bloqueos de tipos/pruebas, migraciones por banda, reporte).
+- Prompts listos para pegar: `paralelo/prompts/PROMPT-TERMINAL-A.md` (E2 catálogos), `PROMPT-TERMINAL-B.md` (E4 actividad), `PROMPT-TERMINAL-C.md` (B2 clientes).
+- Estados en vivo (append-only): `paralelo/estado/TERMINAL-A.md`, `TERMINAL-B.md`, `TERMINAL-C.md`, `COORDINADOR.md`.
+- Bandas de migración: A `2026100610xxxx` · B `2026100620xxxx` · C `2026100630xxxx`. Las migraciones las aplica el PO; las terminales nunca las aplican ni hacen Git de integración.
