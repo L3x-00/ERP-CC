@@ -298,7 +298,7 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await page.getByTestId('gasto-orden').selectOption(datos.ordenId);
     await page.getByLabel('Descripción').fill('Gasto E2E de consumibles');
     await page.getByLabel('Subtotal').fill('1000');
-    await page.getByLabel('IVA').fill('160');
+    await page.getByRole('spinbutton', { name: 'IVA' }).fill('160');
     await page.getByRole('spinbutton', { name: 'Total', exact: true }).fill('1160');
     await page.getByLabel('Folio de comprobante').fill('E2E-GTO-COMP-001');
     await page.getByRole('button', { name: 'Guardar gasto' }).click();

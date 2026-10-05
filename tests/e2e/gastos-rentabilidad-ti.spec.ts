@@ -134,7 +134,7 @@ test.describe.serial('costo de producción de trabajos internos (TI)', () => {
     await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
     await page.goto('/gastos');
-    await page.getByPlaceholder('Folio o descripción').fill(datos.gastoFolio);
+    await page.getByPlaceholder('Folio, descripción o proveedor').fill(datos.gastoFolio);
     const fila = page.getByRole('row', { name: new RegExp(datos.gastoFolio) });
     await expect(fila).toBeVisible();
     await expect(fila).toContainText(datos.folioOrden);
