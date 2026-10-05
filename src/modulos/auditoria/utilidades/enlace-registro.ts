@@ -1,4 +1,4 @@
-import type { Log } from '../tipos/indice';
+import type { Log, RegistroActividad } from '../tipos/indice';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACCIONES_ORDEN = new Set([
@@ -13,5 +13,21 @@ export function enlaceRegistroAuditado(log: Pick<Log, 'modulo' | 'accion' | 'rec
   if (log.modulo === 'pipeline') return `/pipeline?oportunidad=${id}`;
   if (log.modulo === 'clientes') return `/clientes?cliente=${id}`;
   if (log.modulo === 'ordenes' && ACCIONES_ORDEN.has(log.accion)) return `/ordenes?ordenId=${id}`;
+  return null;
+}
+
+/**
+ * Enlace a la ficha del registro para la vista Actividad, usando la entidad
+ * resuelta en SQL por la RPC. Devuelve null cuando no hay destino conocido o el
+ * recurso no es un UUID (nunca se inventa una ruta).
+ */
+export function enlaceRegistroActividad(
+  registro: Pick<RegistroActividad, 'entidad' | 'recursoId'>,
+): string | null {
+  if (!UUID.test(registro.recursoId)) return null;
+  const id = encodeURIComponent(registro.recursoId);
+  if (registro.entidad === 'pipeline') return `/pipeline?oportunidad=${id}`;
+  if (registro.entidad === 'cliente') return `/clientes?cliente=${id}`;
+  if (registro.entidad === 'orden') return `/ordenes?ordenId=${id}`;
   return null;
 }

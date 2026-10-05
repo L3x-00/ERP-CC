@@ -1,6 +1,18 @@
+import { randomUUID } from 'node:crypto';
+
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
 import type { Json } from '@/compartido/tipos/supabase';
+
+/**
+ * Genera el identificador de correlación de una acción de negocio (ADR-SII-08).
+ * Los eventos hijos de la misma acción heredan el valor recibido.
+ *
+ * @returns UUID v4 nuevo para agrupar eventos en la vista Actividad.
+ */
+export function nuevoCorrelationId(): string {
+  return randomUUID();
+}
 
 /**
  * Registra una entrada de auditoría en la tabla `logs`.
@@ -15,6 +27,8 @@ import type { Json } from '@/compartido/tipos/supabase';
  * @param modulo Módulo afectado ('autenticacion', 'clientes', 'ordenes', etc.).
  * @param recursoId Identificador del recurso afectado.
  * @param detalles Datos adicionales opcionales (se guardan como JSONB).
+ * @param correlationId UUID opcional que agrupa los eventos de una misma
+ *   acción de negocio; usa `nuevoCorrelationId()` al iniciar la acción.
  */
 export async function registrarLog(
   usuario: UsuarioAutenticado,
@@ -22,6 +36,7 @@ export async function registrarLog(
   modulo: string,
   recursoId: string,
   detalles?: Record<string, unknown>,
+  correlationId?: string,
 ): Promise<void> {
   try {
     const cliente = crearClienteSupabaseAdmin();
@@ -33,6 +48,7 @@ export async function registrarLog(
       accion,
       modulo,
       recurso_id: recursoId,
+      correlation_id: correlationId ?? null,
       // `detalles` es un objeto plano de datos serializables; el tipo público
       // Record<string, unknown> es ergonómico para los llamadores pero no es
       // estáticamente asignable al `Json` generado (que exige recursión
