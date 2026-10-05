@@ -18,6 +18,8 @@ import { PestanaOperadores } from './pestana-operadores';
 import { TablaLogs } from '@/modulos/auditoria/componentes/tabla-logs';
 import { PestanaTarifas } from './pestana-tarifas';
 import { SincronizadorConfiguracionRealtime } from './sincronizador-configuracion-realtime';
+import { PestanaPermisos } from '@/modulos/permisos/componentes/pestana-permisos';
+import { PestanaUsuarios } from '@/modulos/permisos/componentes/pestana-usuarios';
 
 const PESTANAS = [
   ['empresa', 'Empresa'],
@@ -27,10 +29,15 @@ const PESTANAS = [
   ['areas', 'Áreas de trabajo'],
   ['cuentas', 'Cuentas bancarias'],
   ['plantillas', 'Plantillas T1'],
+  ['usuarios', 'Usuarios'],
+  ['permisos', 'Permisos'],
   ['operadores', 'Operadores'],
   ['bitacora', 'Bitácora'],
 ] as const;
 type Pestana = (typeof PESTANAS)[number][0];
+
+/** Pestañas visibles solo para administradores activos. */
+const PESTANAS_SOLO_ADMIN: readonly Pestana[] = ['usuarios', 'permisos', 'operadores', 'bitacora'];
 
 export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: DatosConfiguracion }) {
   const clienteQuery = useQueryClient();
@@ -112,7 +119,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         </p>
       </header>
       <div role="tablist" aria-label="Secciones de configuración" className="flex flex-wrap gap-1 border-b border-borde">
-        {PESTANAS.filter(([id]) => (id !== 'operadores' && id !== 'bitacora') || vigente.esAdmin).map(([id, etiqueta]) => (
+        {PESTANAS.filter(([id]) => !PESTANAS_SOLO_ADMIN.includes(id) || vigente.esAdmin).map(([id, etiqueta]) => (
           <button
             key={id}
             id={`tab-configuracion-${id}`}
@@ -191,6 +198,8 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
             }}
           />
         ) : null}
+        {pestana === 'usuarios' && vigente.esAdmin ? <PestanaUsuarios /> : null}
+        {pestana === 'permisos' && vigente.esAdmin ? <PestanaPermisos /> : null}
         {pestana === 'bitacora' && vigente.esAdmin ? <TablaLogs /> : null}
       </section>
       {confirmacion ? (

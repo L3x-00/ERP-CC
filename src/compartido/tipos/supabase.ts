@@ -1649,6 +1649,30 @@ export type Database = {
           },
         ]
       }
+      permisos: {
+        Row: {
+          activo: boolean
+          codigo: string
+          creado_en: string
+          descripcion: string
+          modulo: string
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          creado_en?: string
+          descripcion: string
+          modulo: string
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          creado_en?: string
+          descripcion?: string
+          modulo?: string
+        }
+        Relationships: []
+      }
       permisos_rol: {
         Row: {
           creado_en: string
@@ -2588,6 +2612,28 @@ export type Database = {
         }[]
       }
       es_admin: { Args: never; Returns: boolean }
+      actualizar_permisos_rol: {
+        Args: { p_actor_id: string; p_permisos: string[]; p_rol: string }
+        Returns: number
+      }
+      cambiar_estado_usuario: {
+        Args: {
+          p_activo: boolean
+          p_actor_id: string
+          p_motivo: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
+      cambiar_rol_usuario: {
+        Args: {
+          p_actor_id: string
+          p_motivo: string
+          p_rol: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
       ajustar_continuidad_folio_cnc: {
         Args: { p_periodo: string; p_ultimo: number; p_actor_id: string }
         Returns: number
