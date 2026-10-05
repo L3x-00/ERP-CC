@@ -9,6 +9,9 @@ export type TierCliente = (typeof TIERS_CLIENTE)[number];
 /** Estado del ciclo de vida del cliente. */
 export type EstadoCliente = 'prospecto' | 'activo' | 'inactivo';
 
+/** Moneda comercial del cliente. */
+export type MonedaCliente = 'MXN' | 'USD';
+
 /** Condiciones de pago pactadas. */
 export type CondicionesPagoCliente = 'contado' | '15_dias' | '30_dias' | 'credito';
 
@@ -35,6 +38,8 @@ export type Direccion = {
 /** Cliente 360° (camelCase; ver mapeo desde FilaCliente). */
 export type Cliente = {
   id: string;
+  /** Folio humano global CLI-#### (SII-B2.1); nulo solo en filas históricas sin migrar. */
+  folio: string | null;
   razonSocial: string;
   nombreComercial: string;
   rfc: string | null;
@@ -44,6 +49,12 @@ export type Cliente = {
   condicionesPago: CondicionesPagoCliente | null;
   limiteCredito: number;
   saldoAFavor: number;
+  /** Moneda comercial (MXN/USD). */
+  moneda: MonedaCliente;
+  /** Crédito habilitado, sincronizado con `condicionesPago`. */
+  creditoHabilitado: boolean;
+  /** Días de crédito (1..365 con crédito; null/0 sin crédito). */
+  diasCredito: number | null;
   /** Tier base derivado del consumo. El EFECTIVO lo resuelve `calcularTier`. */
   tier: TierCliente;
   tierManual: TierCliente | null;
@@ -55,18 +66,27 @@ export type Cliente = {
   actualizadoEn: string;
 };
 
-/** Documento del cliente (metadatos; el binario vive en Storage). */
+/** Documento del cliente en el modelo único `archivos` (metadata versionada). */
 export type DocumentoCliente = {
   id: string;
   clienteId: string;
   tipo: TipoDocumentoCliente;
   nombreArchivo: string;
+  /** Nombre normalizado del ERP; repetirlo genera una versión nueva. */
+  nombreErp: string | null;
   rutaStorage: string;
+  mime: string;
+  tamanoBytes: number;
+  version: number;
+  /** `true` si es la versión vigente del documento. */
+  vigente: boolean;
+  /** Versión anterior que reemplaza esta fila (trazabilidad). */
+  reemplazaA: string | null;
   subidoPor: string | null;
   creadoEn: string;
 };
 
-/** Contacto adicional del cliente (OBS-02): a lo sumo uno principal. */
+/** Contacto adicional del cliente (OBS-02): a lo sumo uno principal activo. */
 export interface ContactoCliente {
   id: string;
   clienteId: string;
@@ -76,6 +96,10 @@ export interface ContactoCliente {
   telefono: string | null;
   notas: string | null;
   esPrincipal: boolean;
+  /** Baja lógica: inactivo conserva historial (SII-B2.3). */
+  activo: boolean;
+  desactivadoEn: string | null;
+  desactivadoPor: string | null;
   creadoPor: string | null;
   creadoEn: string;
   actualizadoEn: string;
@@ -139,7 +163,7 @@ export const CATALOGO_TIERS_DEFECTO: CatalogoTiers = {
 
 // Filas crudas de Supabase (snake_case) derivadas de los tipos generados.
 export type FilaCliente = Tables<'clientes'>;
-export type FilaDocumentoCliente = Tables<'documentos_cliente'>;
+export type FilaArchivoCliente = Tables<'archivos'>;
 export type FilaContactoCliente = Tables<'contactos_cliente'>;
 
 /** Convierte una fila de `contactos_cliente` (snake_case) a `ContactoCliente`. */
@@ -153,6 +177,9 @@ export function filaAContactoCliente(fila: FilaContactoCliente): ContactoCliente
     telefono: fila.telefono,
     notas: fila.notas,
     esPrincipal: fila.es_principal,
+    activo: fila.activo,
+    desactivadoEn: fila.desactivado_en,
+    desactivadoPor: fila.desactivado_por,
     creadoPor: fila.creado_por,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
@@ -181,6 +208,7 @@ function jsonADireccion(valor: FilaCliente['direccion_fiscal']): Direccion | nul
 export function filaACliente(fila: FilaCliente): Cliente {
   return {
     id: fila.id,
+    folio: fila.folio ?? null,
     razonSocial: fila.razon_social,
     nombreComercial: fila.nombre_comercial,
     rfc: fila.rfc,
@@ -190,6 +218,12 @@ export function filaACliente(fila: FilaCliente): Cliente {
     condicionesPago: fila.condiciones_pago as CondicionesPagoCliente | null,
     limiteCredito: Number(fila.limite_credito),
     saldoAFavor: Number(fila.saldo_a_favor),
+    moneda: fila.moneda === 'USD' ? 'USD' : 'MXN',
+    creditoHabilitado: fila.credito_habilitado === true,
+    diasCredito:
+      fila.dias_credito === null || fila.dias_credito === undefined
+        ? null
+        : Number(fila.dias_credito),
     tier: fila.tier as TierCliente,
     tierManual: fila.tier_manual as TierCliente | null,
     tierManualHasta: fila.tier_manual_hasta,
@@ -201,14 +235,20 @@ export function filaACliente(fila: FilaCliente): Cliente {
   };
 }
 
-/** Convierte una fila de `documentos_cliente` (snake_case) a `DocumentoCliente`. */
-export function filaADocumentoCliente(fila: FilaDocumentoCliente): DocumentoCliente {
+/** Convierte una fila de `archivos` (snake_case) a `DocumentoCliente`. */
+export function filaADocumentoCliente(fila: FilaArchivoCliente): DocumentoCliente {
   return {
     id: fila.id,
-    clienteId: fila.cliente_id,
-    tipo: fila.tipo as TipoDocumentoCliente,
-    nombreArchivo: fila.nombre_archivo,
+    clienteId: fila.entidad_id,
+    tipo: (fila.tema_codigo ?? 'otro') as TipoDocumentoCliente,
+    nombreArchivo: fila.nombre_original,
+    nombreErp: fila.nombre_erp,
     rutaStorage: fila.ruta_storage,
+    mime: fila.mime,
+    tamanoBytes: Number(fila.tamano_bytes),
+    version: Number(fila.version),
+    vigente: fila.vigente,
+    reemplazaA: fila.reemplaza_a,
     subidoPor: fila.subido_por,
     creadoEn: fila.creado_en,
   };

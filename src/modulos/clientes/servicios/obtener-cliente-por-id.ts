@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
   filaACliente,
+  filaADocumentoCliente,
   type Cliente,
   type DocumentoCliente,
   type TipoDocumentoCliente,
@@ -24,7 +25,10 @@ function normalizarTipoDocumento(valor: string | null): TipoDocumentoCliente {
 /** Cliente con documentos y resumen financiero calculado (ficha 360°). */
 export type ClienteConDocumentos = {
   cliente: Cliente;
+  /** Versiones vigentes (una por documento). */
   documentos: DocumentoCliente[];
+  /** Todas las versiones, para el historial de reemplazos (SII-B2.6). */
+  versionesDocumentos: DocumentoCliente[];
   /** Consumo MXN de los últimos 3 meses (AR no cancelada); 0 si RLS lo oculta. */
   consumoUltimos3Meses: number;
   /** Suma de saldos AR pendientes/parciales en MXN; 0 si RLS lo oculta. */
@@ -56,14 +60,19 @@ export async function obtenerClientePorId(
     return null;
   }
 
-  // Modelo único de archivos (SII-B1.9): solo la versión vigente de cada documento.
-  const { data: docs } = await cliente
+  // Modelo único de archivos (SII-B1.9): todas las versiones, y la pestaña
+  // Documentos muestra la vigente + el historial de reemplazos (SII-B2.6).
+  const { data: archivos } = await cliente
     .from('archivos')
-    .select('id, entidad_id, tema_codigo, nombre_original, ruta_storage, subido_por, creado_en')
+    .select('*')
     .eq('entidad', 'cliente')
     .eq('entidad_id', id)
-    .eq('vigente', true)
     .order('creado_en', { ascending: false });
+
+  const versionesDocumentos = (archivos ?? []).map((archivo) => {
+    const doc = filaADocumentoCliente(archivo);
+    return { ...doc, tipo: normalizarTipoDocumento(archivo.tema_codigo) };
+  });
 
   const [consumoUltimos3Meses, creditoUsado] = await Promise.all([
     calcularConsumoUltimos3Meses(cliente, id),
@@ -72,15 +81,8 @@ export async function obtenerClientePorId(
 
   return {
     cliente: filaACliente(fila),
-    documentos: (docs ?? []).map((doc) => ({
-      id: doc.id,
-      clienteId: doc.entidad_id,
-      tipo: normalizarTipoDocumento(doc.tema_codigo),
-      nombreArchivo: doc.nombre_original,
-      rutaStorage: doc.ruta_storage,
-      subidoPor: doc.subido_por,
-      creadoEn: doc.creado_en,
-    })),
+    documentos: versionesDocumentos.filter((doc) => doc.vigente),
+    versionesDocumentos,
     consumoUltimos3Meses,
     creditoUsado,
   };

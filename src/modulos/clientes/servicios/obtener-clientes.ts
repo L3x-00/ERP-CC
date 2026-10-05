@@ -6,6 +6,7 @@ import {
   type Cliente,
   type CondicionesPagoCliente,
   type EstadoCliente,
+  type MonedaCliente,
   type TierCliente,
 } from '@/modulos/clientes/tipos/indice';
 
@@ -18,7 +19,11 @@ export type FiltrosClientes = {
   tier?: TierCliente;
   /** Condiciones de pago pactadas (contado, 15/30 días o crédito). */
   condicionesPago?: CondicionesPagoCliente;
-  /** Texto libre: razón social, nombre comercial o RFC. */
+  /** Moneda comercial (MXN/USD). */
+  moneda?: MonedaCliente;
+  /** Crédito habilitado (sí/no). */
+  creditoHabilitado?: boolean;
+  /** Texto libre: folio, razón social, nombre comercial, RFC o correo. */
   busqueda?: string;
   pagina?: number;
 };
@@ -53,6 +58,12 @@ export async function obtenerClientes(
   if (filtros?.condicionesPago) {
     consulta = consulta.eq('condiciones_pago', filtros.condicionesPago);
   }
+  if (filtros?.moneda) {
+    consulta = consulta.eq('moneda', filtros.moneda);
+  }
+  if (filtros?.creditoHabilitado !== undefined) {
+    consulta = consulta.eq('credito_habilitado', filtros.creditoHabilitado);
+  }
   if (filtros?.busqueda) {
     // Neutraliza la sintaxis de `.or()` de PostgREST (`, ( ) " % *`) para que un
     // término del usuario no inyecte condiciones de filtro (RLS acota, pero
@@ -60,7 +71,7 @@ export async function obtenerClientes(
     const termino = filtros.busqueda.replace(/[%,()"*\\]/g, ' ').trim();
     if (termino) {
       consulta = consulta.or(
-        `razon_social.ilike.%${termino}%,nombre_comercial.ilike.%${termino}%,rfc.ilike.%${termino}%`,
+        `folio.ilike.%${termino}%,razon_social.ilike.%${termino}%,nombre_comercial.ilike.%${termino}%,rfc.ilike.%${termino}%,correo.ilike.%${termino}%`,
       );
     }
   }

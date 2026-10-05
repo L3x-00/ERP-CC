@@ -36,6 +36,7 @@ export async function subirDocumentoClienteAccion(
     clienteId: formData.get('clienteId'),
     tipo: formData.get('tipo'),
     nombreArchivo: formData.get('nombreArchivo'),
+    nombreErp: formData.get('nombreErp') ?? undefined,
   });
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -62,8 +63,10 @@ export async function subirDocumentoClienteAccion(
     return { exito: false, error: validacion.error };
   }
 
-  const { clienteId, tipo, nombreArchivo } = analisis.data;
-  const nombreErp = sanearNombreArchivo(nombreArchivo);
+  const { clienteId, tipo, nombreArchivo, nombreErp: nombreErpForzado } = analisis.data;
+  // Reemplazar un documento conserva su nombre ERP (clave de versionado) aunque
+  // el binario elegido tenga otro nombre de archivo (SII-B2.6).
+  const nombreErp = sanearNombreArchivo(nombreErpForzado ?? nombreArchivo);
   const ruta = construirRutaArchivo('cliente', clienteId, nombreArchivo);
   const mime = archivo.type || 'application/octet-stream';
   const admin = crearClienteSupabaseAdmin();

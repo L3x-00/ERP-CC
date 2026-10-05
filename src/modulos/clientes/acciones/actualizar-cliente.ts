@@ -3,8 +3,9 @@
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { esquemaActualizarCliente } from '@/modulos/clientes/validaciones/cliente-schema';
+import { resolverCredito } from '@/modulos/clientes/servicios/condiciones-comerciales';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import type { Json } from '@/compartido/tipos/supabase';
 import type { Database } from '@/compartido/tipos/supabase';
@@ -15,8 +16,10 @@ type ActualizacionCliente = Database['public']['Tables']['clientes']['Update'];
  * Actualiza campos de un cliente existente (edición parcial).
  *
  * Solo se escriben las columnas presentes en la entrada. El tier y su caducidad
- * NO se tocan aquí: se gestionan en `asignar-tier-manual`. Escritura con
- * service_role tras verificar `can('ver_clientes')`.
+ * NO se tocan aquí (los gestiona `asignar-tier-manual`) y el estado tampoco:
+ * cambia solo por `cambiar-estado-cliente`. Las condiciones comerciales
+ * (moneda/crédito/días) se sincronizan con `condiciones_pago`; los días exigen
+ * `cliente_comercial` y el límite `ver_finanzas`. Escritura con service_role.
  */
 export async function actualizarClienteAccion(
   entrada: unknown,
@@ -31,18 +34,33 @@ export async function actualizarClienteAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  if (!(await can(usuario, 'ver_clientes'))) {
+  if (!(await can(usuario, 'cliente_editar'))) {
     return { exito: false, error: 'Sin permiso para editar clientes' };
   }
 
   const { id, ...cambios } = analisis.data;
 
-  // El límite de crédito y el estado del cliente son decisiones financieras:
-  // no pueden modificarse con el permiso de solo lectura de clientes.
-  const tocaCamposFinancieros =
-    cambios.limiteCredito !== undefined || cambios.estado !== undefined;
-  if (tocaCamposFinancieros && !(await can(usuario, 'ver_finanzas'))) {
-    return { exito: false, error: 'Sin permiso para modificar crédito o estado del cliente' };
+  // Días de crédito: solo Management/Admin (SII-B2.4).
+  const tocaCredito =
+    cambios.creditoHabilitado !== undefined || cambios.diasCredito !== undefined;
+  if (tocaCredito && !(await can(usuario, 'cliente_comercial'))) {
+    return { exito: false, error: 'Sin permiso para modificar condiciones de crédito' };
+  }
+
+  // El límite de crédito es una decisión financiera.
+  if (cambios.limiteCredito !== undefined && !(await can(usuario, 'ver_finanzas'))) {
+    return { exito: false, error: 'Sin permiso para asignar límite de crédito' };
+  }
+
+  let comercial: ReturnType<typeof resolverCredito> = null;
+  try {
+    comercial = resolverCredito({
+      creditoHabilitado: cambios.creditoHabilitado,
+      diasCredito: cambios.diasCredito,
+      condicionesPago: cambios.condicionesPago,
+    });
+  } catch {
+    return { exito: false, error: 'Días de crédito inválidos' };
   }
 
   // Solo se incluyen columnas realmente presentes en la entrada (edición parcial).
@@ -53,9 +71,13 @@ export async function actualizarClienteAccion(
   if (cambios.contacto !== undefined) parche.contacto = cambios.contacto ?? null;
   if (cambios.correo !== undefined) parche.correo = cambios.correo ? cambios.correo.toLowerCase() : null;
   if (cambios.telefono !== undefined) parche.telefono = cambios.telefono ?? null;
-  if (cambios.condicionesPago !== undefined) parche.condiciones_pago = cambios.condicionesPago ?? null;
   if (cambios.limiteCredito !== undefined) parche.limite_credito = cambios.limiteCredito;
-  if (cambios.estado !== undefined) parche.estado = cambios.estado;
+  if (cambios.moneda !== undefined) parche.moneda = cambios.moneda;
+  if (comercial) {
+    parche.credito_habilitado = comercial.creditoHabilitado;
+    parche.dias_credito = comercial.diasCredito;
+    parche.condiciones_pago = comercial.condicionesPago;
+  }
   if (cambios.direccionFiscal !== undefined) {
     parche.direccion_fiscal = (cambios.direccionFiscal ?? null) as Json | null;
   }
@@ -77,9 +99,16 @@ export async function actualizarClienteAccion(
     return { exito: false, error: 'No se pudo actualizar el cliente' };
   }
 
-  await registrarLog(usuario, 'actualizar', 'clientes', id, {
-    campos: Object.keys(parche),
-  });
+  await registrarLog(
+    usuario,
+    'actualizar',
+    'clientes',
+    id,
+    {
+      campos: Object.keys(parche),
+    },
+    nuevoCorrelationId(),
+  );
 
   return { exito: true, datos: { id } };
 }

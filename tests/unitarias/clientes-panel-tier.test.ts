@@ -16,6 +16,7 @@ vi.mock('@/modulos/configuracion/hooks/usar-catalogos-comerciales', async () => 
 
 const CLIENTE: Cliente = {
   id: '11111111-1111-4111-8111-111111111111',
+  folio: 'CLI-0001',
   razonSocial: 'Metales del Norte SA de CV',
   nombreComercial: 'Metales del Norte',
   rfc: null,
@@ -25,6 +26,9 @@ const CLIENTE: Cliente = {
   condicionesPago: '30_dias',
   limiteCredito: 100_000,
   saldoAFavor: 0,
+  moneda: 'MXN',
+  creditoHabilitado: true,
+  diasCredito: 30,
   tier: 'plata',
   tierManual: null,
   tierManualHasta: null,

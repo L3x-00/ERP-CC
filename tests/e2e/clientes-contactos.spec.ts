@@ -85,7 +85,7 @@ test.describe.serial('contactos adicionales del cliente (OBS-02)', () => {
   test.beforeAll(async () => { contexto = await prepararContexto(); });
   test.afterAll(async () => { if (contexto) await limpiarContexto(contexto); });
 
-  test('agrega y quita un contacto adicional desde la ficha del cliente', async ({ page }) => {
+  test('agrega, desactiva y reactiva un contacto desde la ficha del cliente', async ({ page }) => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const datos = contexto;
 
@@ -119,7 +119,7 @@ test.describe.serial('contactos adicionales del cliente (OBS-02)', () => {
 
     const { data: contactos } = await datos.admin
       .from('contactos_cliente')
-      .select('nombre, puesto, correo, es_principal, creado_por')
+      .select('nombre, puesto, correo, es_principal, activo, creado_por')
       .eq('cliente_id', datos.clienteId);
     expect(contactos).toHaveLength(1);
     expect(contactos?.[0]).toMatchObject({
@@ -127,16 +127,45 @@ test.describe.serial('contactos adicionales del cliente (OBS-02)', () => {
       puesto: 'Compras',
       correo: 'laura.compras@metales.mx',
       es_principal: true,
+      activo: true,
       creado_por: datos.administradorId,
     });
+    const contactoId = (
+      await datos.admin
+        .from('contactos_cliente')
+        .select('id')
+        .eq('cliente_id', datos.clienteId)
+        .single()
+    ).data?.id;
 
-    await panel.getByRole('button', { name: 'Quitar contacto Laura Compras' }).click();
-    await expect(panel.getByRole('status')).toContainText('Contacto eliminado.');
-    await expect(panel).toContainText('Sin contactos adicionales.');
-    const { count } = await datos.admin
+    // SII-B2.3: la baja es lógica (motivo obligatorio) y conserva la fila.
+    await panel.getByRole('button', { name: 'Desactivar contacto Laura Compras' }).click();
+    await panel.getByLabel('Motivo de la baja').fill('cambió de proveedor');
+    await panel.getByRole('button', { name: 'Confirmar baja' }).click();
+    await expect(panel.getByRole('status')).toContainText('Contacto desactivado.');
+    await expect(lista).toContainText('Laura Compras');
+    await expect(lista).toContainText('Inactivo');
+
+    const { data: baja } = await datos.admin
       .from('contactos_cliente')
-      .select('id', { count: 'exact', head: true })
-      .eq('cliente_id', datos.clienteId);
-    expect(count).toBe(0);
+      .select('activo, desactivado_en, desactivado_por')
+      .eq('id', contactoId ?? '')
+      .single();
+    expect(baja?.activo).toBe(false);
+    expect(baja?.desactivado_en).not.toBeNull();
+    expect(baja?.desactivado_por).toBe(datos.administradorId);
+
+    // Reactivación: vuelve a estar activo y se limpia la marca de baja.
+    await panel.getByRole('button', { name: 'Reactivar contacto Laura Compras' }).click();
+    await expect(panel.getByRole('status')).toContainText('Contacto reactivado.');
+    await expect(lista).not.toContainText('Inactivo');
+
+    const { data: reactivado } = await datos.admin
+      .from('contactos_cliente')
+      .select('activo, desactivado_en')
+      .eq('id', contactoId ?? '')
+      .single();
+    expect(reactivado?.activo).toBe(true);
+    expect(reactivado?.desactivado_en).toBeNull();
   });
 });

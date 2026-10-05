@@ -37,6 +37,7 @@ const CLIENTE_ID = '11111111-1111-4111-8111-111111111111';
 
 const CLIENTE: Cliente = {
   id: CLIENTE_ID,
+  folio: 'CLI-0001',
   razonSocial: 'Metales del Norte SA de CV',
   nombreComercial: 'Metanor',
   rfc: 'MNO120101AB1',
@@ -46,6 +47,9 @@ const CLIENTE: Cliente = {
   condicionesPago: '30_dias',
   limiteCredito: 50_000,
   saldoAFavor: 0,
+  moneda: 'MXN',
+  creditoHabilitado: true,
+  diasCredito: 30,
   tier: 'oro',
   tierManual: null,
   tierManualHasta: null,

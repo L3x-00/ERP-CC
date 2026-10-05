@@ -6,13 +6,12 @@ import { crearClienteAccion } from '@/modulos/clientes/acciones/crear-cliente';
 import { actualizarClienteAccion } from '@/modulos/clientes/acciones/actualizar-cliente';
 import type {
   Cliente,
-  CondicionesPagoCliente,
   Direccion,
-  EstadoCliente,
+  MonedaCliente,
 } from '@/modulos/clientes/tipos/indice';
 
 const CLASE_INPUT =
-  'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
+  'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30 disabled:cursor-not-allowed disabled:opacity-60';
 const CLASE_ETIQUETA = 'text-sm font-medium';
 const CLASE_BOTON_PRIMARIO =
   'rounded-base bg-primario px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
@@ -74,30 +73,46 @@ function aDireccionONull(f: FormularioDireccion): Direccion | null {
 type Props = {
   /** Cliente a editar; ausente = alta. */
   cliente?: Cliente;
+  /** Permite editar crédito/días (SII-B2.4); el servidor lo revalida. */
+  puedeComercial?: boolean;
+  /** Permite editar el límite de crédito; el servidor lo revalida. */
+  puedeFinanzas?: boolean;
   onExito: () => void;
   onCancelar: () => void;
 };
 
 /**
- * Formulario de alta/edición de cliente. En alta llama a `crearClienteAccion`;
- * en edición a `actualizarClienteAccion`. La dirección de envío puede marcarse
- * "misma que la fiscal" (se copia al enviar). Validación fuerte en el servidor
- * (Zod); aquí se hace validación mínima de UX.
+ * Formulario maestro de alta/edición (SII-B2.2/B2.7). En alta llama a la RPC
+ * atómica `crearClienteAccion` (cliente + contacto principal); en edición a
+ * `actualizarClienteAccion`. Secciones: General, Contacto principal (alta),
+ * Comercial y Direcciones. El estado no se edita aquí: cambia por acción.
  */
-export function FormularioCliente({ cliente, onExito, onCancelar }: Props) {
+export function FormularioCliente({
+  cliente,
+  puedeComercial = false,
+  puedeFinanzas = false,
+  onExito,
+  onCancelar,
+}: Props) {
   const edicion = cliente !== undefined;
 
   const [razonSocial, setRazonSocial] = useState(cliente?.razonSocial ?? '');
   const [nombreComercial, setNombreComercial] = useState(cliente?.nombreComercial ?? '');
   const [rfc, setRfc] = useState(cliente?.rfc ?? '');
-  const [contacto, setContacto] = useState(cliente?.contacto ?? '');
   const [correo, setCorreo] = useState(cliente?.correo ?? '');
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
-  const [condicionesPago, setCondicionesPago] = useState<CondicionesPagoCliente | ''>(
-    cliente?.condicionesPago ?? '',
+  const [contactoNombre, setContactoNombre] = useState('');
+  const [contactoPuesto, setContactoPuesto] = useState('');
+  const [contactoCorreo, setContactoCorreo] = useState('');
+  const [contactoTelefono, setContactoTelefono] = useState('');
+  const [moneda, setMoneda] = useState<MonedaCliente>(cliente?.moneda ?? 'MXN');
+  const [creditoHabilitado, setCreditoHabilitado] = useState(
+    cliente?.creditoHabilitado ?? false,
+  );
+  const [diasCredito, setDiasCredito] = useState(
+    String(cliente?.diasCredito ?? (cliente?.creditoHabilitado ? 30 : 45)),
   );
   const [limiteCredito, setLimiteCredito] = useState(String(cliente?.limiteCredito ?? 0));
-  const [estado, setEstado] = useState<EstadoCliente>(cliente?.estado ?? 'activo');
   const [fiscal, setFiscal] = useState<FormularioDireccion>(
     aFormularioDireccion(cliente?.direccionFiscal ?? null),
   );
@@ -111,6 +126,10 @@ export function FormularioCliente({ cliente, onExito, onCancelar }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  function diasResueltos(): number {
+    return creditoHabilitado ? Math.max(1, Math.min(365, Number(diasCredito) || 0)) : 0;
+  }
+
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setError(null);
@@ -119,108 +138,198 @@ export function FormularioCliente({ cliente, onExito, onCancelar }: Props) {
     const direccionFiscal = aDireccionONull(fiscal);
     const direccionEnvio = mismaQueFiscal ? direccionFiscal : aDireccionONull(envio);
 
-    const base = {
-      razonSocial,
-      nombreComercial,
-      rfc,
-      contacto,
-      correo,
-      telefono,
-      ...(condicionesPago !== '' ? { condicionesPago } : {}),
-      limiteCredito: Number(limiteCredito) || 0,
-      estado,
-      direccionFiscal,
-      direccionEnvio,
-    };
-
     try {
-      const respuesta = edicion
-        ? await actualizarClienteAccion({ id: cliente!.id, ...base })
-        : await crearClienteAccion(base);
+      if (edicion && cliente) {
+        const cambios: Record<string, unknown> = {
+          id: cliente.id,
+          razonSocial,
+          nombreComercial,
+          rfc,
+          correo,
+          telefono,
+          direccionFiscal,
+          direccionEnvio,
+        };
+        if (moneda !== cliente.moneda) cambios.moneda = moneda;
+        const dias = diasResueltos();
+        if (
+          creditoHabilitado !== cliente.creditoHabilitado ||
+          (creditoHabilitado && dias !== (cliente.diasCredito ?? 0))
+        ) {
+          cambios.creditoHabilitado = creditoHabilitado;
+          cambios.diasCredito = dias;
+        }
+        const limite = Number(limiteCredito) || 0;
+        if (limite !== cliente.limiteCredito) cambios.limiteCredito = limite;
 
-      if (respuesta.exito) {
-        onExito();
+        const respuesta = await actualizarClienteAccion(cambios);
+        if (!respuesta.exito) {
+          setError(respuesta.error);
+          return;
+        }
       } else {
-        setError(respuesta.error);
+        const respuesta = await crearClienteAccion({
+          razonSocial,
+          nombreComercial,
+          rfc,
+          correo,
+          telefono,
+          limiteCredito: Number(limiteCredito) || 0,
+          estado: 'activo',
+          moneda,
+          creditoHabilitado,
+          diasCredito: diasResueltos(),
+          direccionFiscal,
+          direccionEnvio,
+          ...(contactoNombre.trim()
+            ? {
+                contactoPrincipal: {
+                  nombre: contactoNombre,
+                  puesto: contactoPuesto,
+                  correo: contactoCorreo,
+                  telefono: contactoTelefono,
+                },
+              }
+            : {}),
+        });
+        if (!respuesta.exito) {
+          setError(respuesta.error);
+          return;
+        }
       }
+      onExito();
     } catch {
       setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setEnviando(false);
     }
-    setEnviando(false);
   }
 
   return (
     <form onSubmit={manejarEnvio} className="flex flex-col gap-5" noValidate>
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Campo id="cli-razon" etiqueta="Razón social" valor={razonSocial} onCambio={setRazonSocial} />
-        <Campo
-          id="cli-nombre"
-          etiqueta="Nombre comercial"
-          valor={nombreComercial}
-          onCambio={setNombreComercial}
-        />
-        <Campo id="cli-rfc" etiqueta="RFC (opcional)" valor={rfc} onCambio={setRfc} />
-        <Campo
-          id="cli-contacto"
-          etiqueta="Contacto principal (opcional)"
-          valor={contacto}
-          onCambio={setContacto}
-        />
-        <Campo
-          id="cli-correo"
-          etiqueta="Correo (opcional)"
-          tipo="email"
-          valor={correo}
-          onCambio={setCorreo}
-        />
-        <Campo
-          id="cli-telefono"
-          etiqueta="Teléfono (opcional)"
-          tipo="tel"
-          valor={telefono}
-          onCambio={setTelefono}
-        />
+      {edicion && cliente?.folio && (
+        <p className="text-sm text-texto-secundario">
+          Folio <span className="font-mono font-medium text-texto-primario">{cliente.folio}</span>
+        </p>
+      )}
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="cli-condiciones" className={CLASE_ETIQUETA}>
-            Condiciones de pago
-          </label>
-          <select
-            id="cli-condiciones"
-            value={condicionesPago}
-            onChange={(e) => setCondicionesPago(e.target.value as CondicionesPagoCliente | '')}
-            className={CLASE_INPUT}
-          >
-            <option value="">Sin especificar</option>
-            <option value="contado">Contado</option>
-            <option value="15_dias">15 días</option>
-            <option value="30_dias">30 días</option>
-            <option value="credito">Crédito</option>
-          </select>
+      <section className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-texto-primario">General</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo id="cli-razon" etiqueta="Razón social" valor={razonSocial} onCambio={setRazonSocial} />
+          <Campo
+            id="cli-nombre"
+            etiqueta="Nombre comercial"
+            valor={nombreComercial}
+            onCambio={setNombreComercial}
+          />
+          <Campo id="cli-rfc" etiqueta="RFC (opcional)" valor={rfc} onCambio={setRfc} />
+          <Campo
+            id="cli-correo"
+            etiqueta="Correo (opcional)"
+            tipo="email"
+            valor={correo}
+            onCambio={setCorreo}
+          />
+          <Campo
+            id="cli-telefono"
+            etiqueta="Teléfono (opcional)"
+            tipo="tel"
+            valor={telefono}
+            onCambio={setTelefono}
+          />
         </div>
+      </section>
 
-        <Campo
-          id="cli-limite"
-          etiqueta="Límite de crédito (MXN)"
-          tipo="number"
-          valor={limiteCredito}
-          onCambio={setLimiteCredito}
-        />
+      {!edicion && (
+        <section className="flex flex-col gap-3 rounded-base border border-borde p-4">
+          <h3 className="text-sm font-semibold text-texto-primario">Contacto principal</h3>
+          <p className="text-xs text-texto-secundario">
+            Se crea junto con el cliente en una sola operación (alta atómica).
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Campo
+              id="cli-contacto-nombre"
+              etiqueta="Nombre del contacto"
+              valor={contactoNombre}
+              onCambio={setContactoNombre}
+            />
+            <Campo
+              id="cli-contacto-puesto"
+              etiqueta="Puesto o área (opcional)"
+              valor={contactoPuesto}
+              onCambio={setContactoPuesto}
+            />
+            <Campo
+              id="cli-contacto-correo"
+              etiqueta="Correo del contacto (opcional)"
+              tipo="email"
+              valor={contactoCorreo}
+              onCambio={setContactoCorreo}
+            />
+            <Campo
+              id="cli-contacto-telefono"
+              etiqueta="Teléfono del contacto (opcional)"
+              tipo="tel"
+              valor={contactoTelefono}
+              onCambio={setContactoTelefono}
+            />
+          </div>
+        </section>
+      )}
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="cli-estado" className={CLASE_ETIQUETA}>
-            Estado
+      <section className="flex flex-col gap-3 rounded-base border border-borde p-4">
+        <h3 className="text-sm font-semibold text-texto-primario">Comercial</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cli-moneda" className={CLASE_ETIQUETA}>
+              Moneda
+            </label>
+            <select
+              id="cli-moneda"
+              value={moneda}
+              onChange={(e) => setMoneda(e.target.value as MonedaCliente)}
+              className={CLASE_INPUT}
+            >
+              <option value="MXN">MXN</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+
+          <label className="flex items-center gap-2 self-end text-sm">
+            <input
+              type="checkbox"
+              checked={creditoHabilitado}
+              onChange={(e) => setCreditoHabilitado(e.target.checked)}
+              disabled={edicion && !puedeComercial}
+            />
+            Crédito habilitado
           </label>
-          <select
-            id="cli-estado"
-            value={estado}
-            onChange={(e) => setEstado(e.target.value as EstadoCliente)}
-            className={CLASE_INPUT}
-          >
-            <option value="prospecto">Prospecto</option>
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-          </select>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cli-dias" className={CLASE_ETIQUETA}>
+              Días de crédito
+            </label>
+            <input
+              id="cli-dias"
+              type="number"
+              min={1}
+              max={365}
+              value={diasCredito}
+              onChange={(e) => setDiasCredito(e.target.value)}
+              disabled={!creditoHabilitado || (edicion && !puedeComercial)}
+              className={CLASE_INPUT}
+            />
+          </div>
+
+          <Campo
+            id="cli-limite"
+            etiqueta="Límite de crédito"
+            tipo="number"
+            valor={limiteCredito}
+            onCambio={setLimiteCredito}
+            deshabilitado={edicion && !puedeFinanzas}
+          />
         </div>
       </section>
 
@@ -270,12 +379,14 @@ function Campo({
   valor,
   onCambio,
   tipo = 'text',
+  deshabilitado = false,
 }: {
   id: string;
   etiqueta: string;
   valor: string;
   onCambio: (v: string) => void;
   tipo?: 'text' | 'email' | 'tel' | 'number';
+  deshabilitado?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -289,6 +400,7 @@ function Campo({
         onChange={(e) => onCambio(e.target.value)}
         className={CLASE_INPUT}
         min={tipo === 'number' ? 0 : undefined}
+        disabled={deshabilitado}
       />
     </div>
   );

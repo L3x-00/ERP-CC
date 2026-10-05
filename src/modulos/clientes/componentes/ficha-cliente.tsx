@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
@@ -8,9 +9,11 @@ import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { usarCliente } from '@/modulos/clientes/hooks/usar-cliente';
 import { subirDocumentoClienteAccion } from '@/modulos/clientes/acciones/subir-documento-cliente';
 import { asignarTierManualAccion } from '@/modulos/clientes/acciones/asignar-tier-manual';
+import { cambiarEstadoClienteAccion } from '@/modulos/clientes/acciones/cambiar-estado-cliente';
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
 import { AlertaCredito } from '@/modulos/clientes/componentes/alerta-credito';
 import { PanelTier } from '@/modulos/clientes/componentes/panel-tier';
+import { PanelComercial } from '@/modulos/clientes/componentes/comercial-cliente';
 import { HistorialCliente } from '@/modulos/clientes/componentes/historial-cliente';
 import { PanelContactos } from '@/modulos/clientes/componentes/contactos-cliente';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
@@ -22,42 +25,56 @@ import type {
   Cliente,
   Direccion,
   DocumentoCliente,
+  EstadoCliente,
   TierCliente,
   TipoDocumentoCliente,
 } from '@/modulos/clientes/tipos/indice';
-import { ETIQUETA_TIPO_DOCUMENTO } from '@/modulos/clientes/utilidades/indice';
+import {
+  ETIQUETA_TIPO_DOCUMENTO,
+  ETIQUETA_TIER,
+} from '@/modulos/clientes/utilidades/indice';
 
 const BUCKET = 'documentos-cliente';
-type Pestana = 'general' | 'contactos' | 'direcciones' | 'documentos' | 'historial' | 'comentarios';
+type Pestana = 'resumen' | 'contactos' | 'comercial' | 'documentos' | 'historial' | 'comentarios';
 
 const ETIQUETA_PESTANA: Record<Pestana, string> = {
-  general: 'General',
+  resumen: 'Resumen',
   contactos: 'Contactos',
-  direcciones: 'Direcciones',
+  comercial: 'Comercial',
   documentos: 'Documentos',
   historial: 'Historial',
   comentarios: 'Comentarios',
 };
 
 /**
- * Ficha 360° del cliente en un drawer lateral. Cabecera con tier/estado y alerta
- * de crédito; pestañas General, Direcciones, Documentos (subida + previsualización
- * vía URL firmada), Historial (cotizaciones y órdenes reales) y Comentarios.
- * Carga sus datos con `usarCliente`.
+ * Ficha 360° del cliente en un drawer lateral (SII-B2.7). Cabecera con folio
+ * CLI-#### + chip de estado, acciones de negocio arriba (Editar,
+ * Activar/Inactivar, Nuevo RFQ) y pestañas Resumen, Contactos, Comercial,
+ * Documentos (versiones), Historial y Comentarios.
  */
 export function FichaCliente({
   clienteId,
   esAdmin,
   usuarioActualId,
   onCerrar,
+  onEditar,
+  puedeEditar = false,
+  puedeComercial = false,
+  puedeFinanzas = false,
 }: {
   clienteId: string;
   esAdmin: boolean;
   usuarioActualId?: string;
   onCerrar: () => void;
+  onEditar?: (cliente: Cliente) => void;
+  puedeEditar?: boolean;
+  puedeComercial?: boolean;
+  puedeFinanzas?: boolean;
 }) {
-  const [pestana, setPestana] = useState<Pestana>('general');
+  const [pestana, setPestana] = useState<Pestana>('resumen');
+  const router = useRouter();
   const { data, isLoading } = usarCliente(clienteId);
+  const edicionPermitida = puedeEditar || esAdmin;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onCerrar}>
@@ -69,8 +86,20 @@ export function FichaCliente({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-start justify-between border-b border-borde p-4">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-bold text-texto-primario">{data?.cliente.razonSocial ?? 'Cliente'}</h2>
+          <div className="flex min-w-0 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold text-texto-primario">
+                {data?.cliente.razonSocial ?? 'Cliente'}
+              </h2>
+              {data?.cliente.folio && (
+                <span
+                  data-testid="folio-cliente"
+                  className="rounded bg-superficie-2 px-1.5 py-0.5 font-mono text-xs text-texto-secundario"
+                >
+                  {data.cliente.folio}
+                </span>
+              )}
+            </div>
             {data && (
               <div className="flex items-center gap-2">
                 <BadgeTier cliente={data.cliente} consumo={data.consumoUltimos3Meses} />
@@ -94,12 +123,25 @@ export function FichaCliente({
 
         {data && (
           <>
-            <div className="grid gap-3 p-4">
-              <AlertaCredito cliente={data.cliente} usado={data.creditoUsado} />
-              <PanelTier cliente={data.cliente} consumo={data.consumoUltimos3Meses} />
+            <div className="flex flex-wrap items-center gap-2 border-b border-borde px-4 py-3">
+              {edicionPermitida && onEditar && (
+                <Button
+                  variante="contorno"
+                  tamano="sm"
+                  onClick={() => onEditar(data.cliente)}
+                >
+                  Editar
+                </Button>
+              )}
+              <AccionEstado cliente={data.cliente} puedeEditar={edicionPermitida} />
+              <Button
+                variante="fantasma"
+                tamano="sm"
+                onClick={() => router.push('/pipeline')}
+              >
+                Nuevo RFQ
+              </Button>
             </div>
-
-            {esAdmin && <ControlTierManual clienteId={clienteId} />}
 
             <nav className="flex flex-wrap gap-1 border-b border-borde px-4">
               {(Object.keys(ETIQUETA_PESTANA) as Pestana[]).map((p) => (
@@ -119,11 +161,29 @@ export function FichaCliente({
             </nav>
 
             <div className="flex-1 p-4">
-              {pestana === 'general' && <PanelGeneral cliente={data.cliente} />}
+              {pestana === 'resumen' && <PanelResumen cliente={data.cliente} />}
               {pestana === 'contactos' && <PanelContactos clienteId={clienteId} />}
-              {pestana === 'direcciones' && <PanelDirecciones cliente={data.cliente} />}
+              {pestana === 'comercial' && (
+                <>
+                  <div className="flex flex-col gap-3">
+                    <PanelComercial
+                      cliente={data.cliente}
+                      creditoUsado={data.creditoUsado}
+                      puedeComercial={puedeComercial || esAdmin}
+                      puedeFinanzas={puedeFinanzas || esAdmin}
+                    />
+                    <AlertaCredito cliente={data.cliente} usado={data.creditoUsado} />
+                    <PanelTier cliente={data.cliente} consumo={data.consumoUltimos3Meses} />
+                    {esAdmin && <ControlTierManual clienteId={clienteId} />}
+                  </div>
+                </>
+              )}
               {pestana === 'documentos' && (
-                <PanelDocumentos clienteId={clienteId} documentos={data.documentos} />
+                <PanelDocumentos
+                  clienteId={clienteId}
+                  documentos={data.documentos}
+                  versiones={data.versionesDocumentos}
+                />
               )}
               {pestana === 'historial' && <HistorialCliente clienteId={clienteId} />}
               {pestana === 'comentarios' && (
@@ -143,31 +203,129 @@ export function FichaCliente({
   );
 }
 
-function PanelGeneral({ cliente }: { cliente: Cliente }) {
+/** Acciones Activar/Inactivar con motivo obligatorio y CAS (SII-B2.5). */
+function AccionEstado({ cliente, puedeEditar }: { cliente: Cliente; puedeEditar: boolean }) {
+  const queryClient = useQueryClient();
+  const [confirmando, setConfirmando] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  if (!puedeEditar) return null;
+
+  async function ejecutar(nuevoEstado: EstadoCliente): Promise<void> {
+    setEnviando(true);
+    setMensaje(null);
+    const respuesta = await cambiarEstadoClienteAccion({
+      clienteId: cliente.id,
+      nuevoEstado,
+      ...(nuevoEstado === 'inactivo' ? { motivo } : {}),
+      actualizadoEn: cliente.actualizadoEn,
+    });
+    setEnviando(false);
+    if (!respuesta.exito) {
+      setMensaje(respuesta.error);
+      return;
+    }
+    setConfirmando(false);
+    setMotivo('');
+    await queryClient.invalidateQueries({ queryKey: ['cliente', cliente.id] });
+    await queryClient.invalidateQueries({ queryKey: ['clientes'] });
+  }
+
+  if (cliente.estado === 'inactivo') {
+    return (
+      <div className="flex items-center gap-2">
+        <Button tamano="sm" onClick={() => void ejecutar('activo')} disabled={enviando}>
+          {enviando ? '…' : 'Activar'}
+        </Button>
+        {mensaje && (
+          <span role="alert" className="text-xs text-peligro-texto">
+            {mensaje}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (!confirmando) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {cliente.estado === 'prospecto' && (
+          <Button tamano="sm" onClick={() => void ejecutar('activo')} disabled={enviando}>
+            Activar
+          </Button>
+        )}
+        <Button variante="contorno" tamano="sm" onClick={() => setConfirmando(true)}>
+          Inactivar
+        </Button>
+        {mensaje && (
+          <span role="alert" className="text-xs text-peligro-texto">
+            {mensaje}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <Tarjeta>
-      <dl className="grid grid-cols-2 gap-3 px-6 py-4 text-sm">
-        <Dato etiqueta="Nombre comercial" valor={cliente.nombreComercial} />
-        <Dato etiqueta="RFC" valor={cliente.rfc ?? '—'} />
-        <Dato etiqueta="Contacto" valor={cliente.contacto ?? '—'} />
-        <Dato etiqueta="Correo" valor={cliente.correo ?? '—'} />
-        <Dato etiqueta="Teléfono" valor={cliente.telefono ?? '—'} />
-        <Dato etiqueta="Condiciones de pago" valor={cliente.condicionesPago ?? '—'} />
-        <Dato etiqueta="Alta" valor={formatearFecha(cliente.creadoEn)} />
-      </dl>
-    </Tarjeta>
+    <div className="flex w-full flex-col gap-2 rounded-base border border-borde p-2">
+      <label htmlFor="motivo-inactivar" className="text-xs font-medium">
+        Motivo de la inactivación
+      </label>
+      <textarea
+        id="motivo-inactivar"
+        value={motivo}
+        onChange={(evento) => setMotivo(evento.target.value)}
+        maxLength={300}
+        rows={2}
+        className="rounded-base border border-borde-fuerte bg-superficie px-2 py-1 text-sm"
+      />
+      <div className="flex items-center gap-2">
+        <Button
+          variante="destructivo"
+          tamano="sm"
+          onClick={() => void ejecutar('inactivo')}
+          disabled={enviando || motivo.trim().length < 3}
+        >
+          {enviando ? '…' : 'Confirmar inactivación'}
+        </Button>
+        <Button variante="fantasma" tamano="sm" onClick={() => setConfirmando(false)} disabled={enviando}>
+          Cancelar
+        </Button>
+        {mensaje && (
+          <span role="alert" className="text-xs text-peligro-texto">
+            {mensaje}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
-function PanelDirecciones({ cliente }: { cliente: Cliente }) {
+function PanelResumen({ cliente }: { cliente: Cliente }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <BloqueDireccion titulo="Fiscal" direccion={cliente.direccionFiscal} />
-      <BloqueDireccion
-        titulo="Envío"
-        direccion={cliente.direccionEnvio}
-        notaSiVacia="Misma que la fiscal"
-      />
+    <div className="flex flex-col gap-4">
+      <Tarjeta>
+        <dl className="grid grid-cols-2 gap-3 px-6 py-4 text-sm">
+          <Dato etiqueta="Folio" valor={cliente.folio ?? '—'} />
+          <Dato etiqueta="Nombre comercial" valor={cliente.nombreComercial} />
+          <Dato etiqueta="RFC" valor={cliente.rfc ?? '—'} />
+          <Dato etiqueta="Contacto" valor={cliente.contacto ?? '—'} />
+          <Dato etiqueta="Correo" valor={cliente.correo ?? '—'} />
+          <Dato etiqueta="Teléfono" valor={cliente.telefono ?? '—'} />
+          <Dato etiqueta="Moneda" valor={cliente.moneda} />
+          <Dato etiqueta="Alta" valor={formatearFecha(cliente.creadoEn)} />
+        </dl>
+      </Tarjeta>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <BloqueDireccion titulo="Dirección fiscal" direccion={cliente.direccionFiscal} />
+        <BloqueDireccion
+          titulo="Dirección de envío"
+          direccion={cliente.direccionEnvio}
+          notaSiVacia="Misma que la fiscal"
+        />
+      </div>
     </div>
   );
 }
@@ -202,12 +360,19 @@ function BloqueDireccion({
   );
 }
 
+/** Clave de versionado de un documento: tema + nombre ERP. */
+function claveVersionDocumento(doc: DocumentoCliente): string {
+  return `${doc.tipo}|${doc.nombreErp ?? doc.nombreArchivo}`;
+}
+
 function PanelDocumentos({
   clienteId,
   documentos,
+  versiones,
 }: {
   clienteId: string;
   documentos: DocumentoCliente[];
+  versiones: DocumentoCliente[];
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -215,21 +380,138 @@ function PanelDocumentos({
       {documentos.length === 0 ? (
         <p className="text-sm text-texto-secundario">Sin documentos.</p>
       ) : (
-        <ul className="flex flex-col divide-y divide-borde">
+        <ul className="flex flex-col divide-y divide-borde" data-testid="lista-documentos-cliente">
           {documentos.map((doc) => (
-            <li key={doc.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-              <div className="flex flex-col">
-                <span className="font-medium">{ETIQUETA_TIPO_DOCUMENTO[doc.tipo]}</span>
-                <span className="text-xs text-texto-secundario">
-                  {doc.nombreArchivo} · {formatearFecha(doc.creadoEn)}
-                </span>
-              </div>
-              <BotonVer ruta={doc.rutaStorage} />
-            </li>
+            <FilaDocumento
+              key={doc.id}
+              clienteId={clienteId}
+              documento={doc}
+              versiones={versiones.filter(
+                (version) => claveVersionDocumento(version) === claveVersionDocumento(doc),
+              )}
+            />
           ))}
         </ul>
       )}
     </div>
+  );
+}
+
+/** Fila de un documento vigente con reemplazo versionado e historial (SII-B2.6). */
+function FilaDocumento({
+  clienteId,
+  documento,
+  versiones,
+}: {
+  clienteId: string;
+  documento: DocumentoCliente;
+  versiones: DocumentoCliente[];
+}) {
+  const queryClient = useQueryClient();
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [reemplazando, setReemplazando] = useState(false);
+  const [subiendo, setSubiendo] = useState(false);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  async function esperarRefresco(): Promise<void> {
+    await queryClient.invalidateQueries({ queryKey: ['cliente', clienteId] });
+  }
+
+  async function reemplazar(archivo: File): Promise<void> {
+    setSubiendo(true);
+    setMensaje(null);
+    const fd = new FormData();
+    fd.set('clienteId', clienteId);
+    fd.set('tipo', documento.tipo);
+    fd.set('nombreArchivo', archivo.name);
+    // Mismo nombre ERP ⇒ el trigger de versionado crea una versión nueva.
+    fd.set('nombreErp', documento.nombreErp ?? documento.nombreArchivo);
+    fd.set('archivo', archivo);
+    try {
+      const respuesta = await subirDocumentoClienteAccion(fd);
+      if (!respuesta.exito) {
+        setMensaje(respuesta.error);
+        return;
+      }
+      setMensaje('Documento reemplazado (nueva versión).');
+      await esperarRefresco();
+    } catch {
+      setMensaje('No se pudo reemplazar el documento');
+    } finally {
+      setSubiendo(false);
+      setReemplazando(false);
+    }
+  }
+
+  const historial = [...versiones].sort((a, b) => b.version - a.version);
+
+  return (
+    <li className="flex flex-col gap-2 py-3 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col">
+          <span className="font-medium">{ETIQUETA_TIPO_DOCUMENTO[documento.tipo]}</span>
+          <span className="text-xs text-texto-secundario">
+            {documento.nombreArchivo} · v{documento.version} · {formatearFecha(documento.creadoEn)}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <BotonVer ruta={documento.rutaStorage} />
+          {reemplazando ? (
+            <input
+              type="file"
+              aria-label={`Archivo de reemplazo de ${documento.nombreArchivo}`}
+              accept="application/pdf,image/jpeg,image/png"
+              disabled={subiendo}
+              autoFocus
+              className="max-w-40 text-xs"
+              onChange={(evento) => {
+                const archivo = evento.target.files?.[0];
+                if (archivo) void reemplazar(archivo);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="rounded-base border border-borde-fuerte px-2 py-1 text-xs hover:bg-superficie-2"
+              onClick={() => setReemplazando(true)}
+            >
+              Reemplazar
+            </button>
+          )}
+          <Button
+            variante="fantasma"
+            tamano="sm"
+            onClick={() => setMostrarHistorial((valor) => !valor)}
+          >
+            {mostrarHistorial ? 'Ocultar historial' : 'Historial'}
+          </Button>
+        </div>
+      </div>
+
+      {mensaje && (
+        <p role="status" className="text-xs text-texto-secundario">
+          {mensaje}
+        </p>
+      )}
+
+      {mostrarHistorial && (
+        <ul className="ml-2 flex flex-col gap-1 border-l border-borde pl-3" data-testid="historial-versiones">
+          {historial.map((version) => (
+            <li key={version.id} className="flex items-center justify-between gap-2 text-xs">
+              <span>
+                v{version.version} · {formatearFecha(version.creadoEn)}{' '}
+                {version.vigente ? (
+                  <span className="font-medium text-acento">vigente</span>
+                ) : (
+                  <span className="text-texto-tenue">reemplazada</span>
+                )}
+              </span>
+              <BotonVer ruta={version.rutaStorage} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
@@ -346,7 +628,7 @@ function ControlTierManual({ clienteId }: { clienteId: string }) {
   }
 
   return (
-    <Tarjeta className="mx-4 mb-2 flex flex-wrap items-center gap-2 p-3 text-sm">
+    <Tarjeta className="flex flex-wrap items-center gap-2 p-3 text-sm">
       <span className="font-medium">Tier manual (admin):</span>
       <Select
         value={tier}
@@ -354,10 +636,11 @@ function ControlTierManual({ clienteId }: { clienteId: string }) {
         aria-label="Tier manual"
         className="w-auto"
       >
-        <option value="bronce">Bronce</option>
-        <option value="plata">Plata</option>
-        <option value="oro">Oro</option>
-        <option value="platino">Platino</option>
+        {(Object.keys(ETIQUETA_TIER) as TierCliente[]).map((t) => (
+          <option key={t} value={t}>
+            {ETIQUETA_TIER[t]}
+          </option>
+        ))}
       </Select>
       <Button onClick={asignar} disabled={enviando} tamano="sm">
         {enviando ? '…' : 'Asignar'}

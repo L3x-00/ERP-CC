@@ -1,4 +1,5 @@
 import type {
+  CondicionesPagoCliente,
   EstadoCliente,
   TierCliente,
   TipoDocumentoCliente,
@@ -41,4 +42,12 @@ export const ETIQUETA_TIPO_DOCUMENTO: Record<TipoDocumentoCliente, string> = {
   identificacion: 'Identificación',
   comprobante_domicilio: 'Comprobante de domicilio',
   otro: 'Otro',
+};
+
+/** Etiqueta legible de las condiciones de pago. */
+export const ETIQUETA_CONDICIONES_PAGO: Record<CondicionesPagoCliente, string> = {
+  contado: 'Contado',
+  '15_dias': '15 días',
+  '30_dias': '30 días',
+  credito: 'Crédito',
 };

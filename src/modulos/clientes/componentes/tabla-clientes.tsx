@@ -12,8 +12,10 @@ import type {
   Cliente,
   CondicionesPagoCliente,
   EstadoCliente,
+  MonedaCliente,
   TierCliente,
 } from '@/modulos/clientes/tipos/indice';
+import { ETIQUETA_CONDICIONES_PAGO } from '@/modulos/clientes/utilidades/indice';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -31,28 +33,36 @@ import { Input, Select } from '@/compartido/componentes/ui/input';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 
-/** Etiquetas del filtro de condiciones de pago (mismo enum que el formulario). */
-const ETIQUETA_CONDICIONES_PAGO: Record<CondicionesPagoCliente, string> = {
-  contado: 'Contado',
-  '15_dias': '15 días',
-  '30_dias': '30 días',
-  credito: 'Crédito',
-};
-
 /**
- * Tabla principal de clientes: buscador en tiempo real (razón social, nombre
- * comercial o RFC), filtros por estado, tier y condiciones de pago, orden
- * alfabético y paginación de 25. Todos los filtros se resuelven en el servidor,
- * así que el total mostrado es el real del filtro, no el de la página. Abre el
- * formulario de alta/edición (modal) y la ficha 360° (drawer).
+ * Tabla principal de clientes: buscador en tiempo real (folio, razón social,
+ * nombre comercial, RFC o correo), filtros por estado, tier, condiciones de
+ * pago, moneda y crédito, orden alfabético y paginación de 25. Todos los
+ * filtros se resuelven en el servidor. Abre el formulario de alta/edición
+ * (modal) y la ficha 360° (drawer).
  */
-export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { esAdmin: boolean; usuarioActualId?: string; clienteInicialId?: string }) {
+export function TablaClientes({
+  esAdmin,
+  usuarioActualId,
+  clienteInicialId,
+  puedeEditar = esAdmin,
+  puedeComercial = esAdmin,
+  puedeFinanzas = esAdmin,
+}: {
+  esAdmin: boolean;
+  usuarioActualId?: string;
+  clienteInicialId?: string;
+  puedeEditar?: boolean;
+  puedeComercial?: boolean;
+  puedeFinanzas?: boolean;
+}) {
   const queryClient = useQueryClient();
   const [textoBusqueda, setTextoBusqueda] = useState('');
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState<EstadoCliente | ''>('');
   const [tier, setTier] = useState<TierCliente | ''>('');
   const [condicionesPago, setCondicionesPago] = useState<CondicionesPagoCliente | ''>('');
+  const [moneda, setMoneda] = useState<MonedaCliente | ''>('');
+  const [credito, setCredito] = useState<'' | 'si' | 'no'>('');
   const [pagina, setPagina] = useState(1);
 
   const [formularioAbierto, setFormularioAbierto] = useState(false);
@@ -72,13 +82,17 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
     ...(estado ? { estado } : {}),
     ...(tier ? { tier } : {}),
     ...(condicionesPago ? { condicionesPago } : {}),
+    ...(moneda ? { moneda } : {}),
+    ...(credito !== '' ? { creditoHabilitado: credito === 'si' } : {}),
     ...(busqueda ? { busqueda } : {}),
     pagina,
   });
 
   const totalPaginas = data ? Math.max(1, Math.ceil(data.total / CLIENTES_POR_PAGINA)) : 1;
   const sinRegistros = !isLoading && !isError && data?.registros.length === 0;
-  const hayFiltros = Boolean(textoBusqueda || busqueda || estado || tier || condicionesPago);
+  const hayFiltros = Boolean(
+    textoBusqueda || busqueda || estado || tier || condicionesPago || moneda || credito,
+  );
 
   /** Deja el listado como al entrar: sin filtros, sin búsqueda y en la página 1. */
   function limpiarFiltros(): void {
@@ -87,6 +101,8 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
     setEstado('');
     setTier('');
     setCondicionesPago('');
+    setMoneda('');
+    setCredito('');
     setPagina(1);
   }
 
@@ -107,7 +123,7 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
             type="search"
             value={textoBusqueda}
             onChange={(e) => setTextoBusqueda(e.target.value)}
-            placeholder="Buscar por razón social, nombre o RFC…"
+            placeholder="Buscar por folio, razón social, nombre, RFC o correo…"
             aria-label="Buscar clientes"
             className="w-72"
           />
@@ -158,6 +174,32 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
               ),
             )}
           </Select>
+          <Select
+            value={moneda}
+            onChange={(e) => {
+              setMoneda(e.target.value as MonedaCliente | '');
+              setPagina(1);
+            }}
+            aria-label="Filtrar por moneda"
+            className="w-auto"
+          >
+            <option value="">Todas las monedas</option>
+            <option value="MXN">MXN</option>
+            <option value="USD">USD</option>
+          </Select>
+          <Select
+            value={credito}
+            onChange={(e) => {
+              setCredito(e.target.value as '' | 'si' | 'no');
+              setPagina(1);
+            }}
+            aria-label="Filtrar por crédito"
+            className="w-auto"
+          >
+            <option value="">Crédito: todos</option>
+            <option value="si">Con crédito</option>
+            <option value="no">Sin crédito</option>
+          </Select>
           <Button
             variante="fantasma"
             tamano="sm"
@@ -171,7 +213,7 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
         <Button onClick={abrirNuevo}>Nuevo cliente</Button>
       </div>
 
-      {isLoading && <SkeletonTabla columnas={7} filas={6} />}
+      {isLoading && <SkeletonTabla columnas={8} filas={6} />}
 
       {isError && (
         <p
@@ -194,6 +236,7 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
           <Tabla>
             <TablaEncabezado>
               <tr>
+                <TablaEncabezadoCelda>Folio</TablaEncabezadoCelda>
                 <TablaEncabezadoCelda>Razón social</TablaEncabezadoCelda>
                 <TablaEncabezadoCelda>Nombre comercial</TablaEncabezadoCelda>
                 <TablaEncabezadoCelda>RFC</TablaEncabezadoCelda>
@@ -208,6 +251,9 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
             <TablaCuerpo>
               {data.registros.map((cliente) => (
                 <TablaFila key={cliente.id}>
+                  <TablaCelda className="font-mono text-xs text-texto-secundario">
+                    {cliente.folio ?? '—'}
+                  </TablaCelda>
                   <TablaCelda className="font-medium">
                     <button
                       onClick={() => setClienteVer(cliente.id)}
@@ -230,19 +276,21 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
                     <BadgeEstado estado={cliente.estado} />
                   </TablaCelda>
                   <TablaCelda className="text-right tabular-nums">
-                    {formatearMoneda(cliente.limiteCredito)}
+                    {formatearMoneda(cliente.limiteCredito, cliente.moneda)}
                   </TablaCelda>
                   <TablaCelda className="text-right">
-                    <Button
-                      variante="fantasma"
-                      tamano="sm"
-                      onClick={() => {
-                        setClienteEditando(cliente);
-                        setFormularioAbierto(true);
-                      }}
-                    >
-                      Editar
-                    </Button>
+                    {puedeEditar && (
+                      <Button
+                        variante="fantasma"
+                        tamano="sm"
+                        onClick={() => {
+                          setClienteEditando(cliente);
+                          setFormularioAbierto(true);
+                        }}
+                      >
+                        Editar
+                      </Button>
+                    )}
                   </TablaCelda>
                 </TablaFila>
               ))}
@@ -290,6 +338,8 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
             </h2>
             <FormularioCliente
               cliente={clienteEditando ?? undefined}
+              puedeComercial={puedeComercial}
+              puedeFinanzas={puedeFinanzas}
               onExito={() => {
                 setFormularioAbierto(false);
                 refrescar();
@@ -305,6 +355,14 @@ export function TablaClientes({ esAdmin, usuarioActualId, clienteInicialId }: { 
           clienteId={clienteVer}
           esAdmin={esAdmin}
           usuarioActualId={usuarioActualId}
+          puedeEditar={puedeEditar}
+          puedeComercial={puedeComercial}
+          puedeFinanzas={puedeFinanzas}
+          onEditar={(cliente) => {
+            setClienteVer(null);
+            setClienteEditando(cliente);
+            setFormularioAbierto(true);
+          }}
           onCerrar={() => setClienteVer(null)}
         />
       )}

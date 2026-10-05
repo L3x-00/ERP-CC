@@ -158,6 +158,36 @@ describe('obtenerClientes: filtros combinados en el servidor', () => {
     expect(consultas[0]?.igualdades).toEqual([['estado', 'activo']]);
   });
 
+  it('aplica moneda y crédito como igualdades (SII-B2.4)', async () => {
+    const { cliente, consultas } = crearSupabaseFalso(() => ({
+      data: [],
+      error: null,
+      count: 0,
+    }));
+
+    await obtenerClientes(cliente, { moneda: 'USD', creditoHabilitado: true });
+
+    expect(consultas[0]?.igualdades).toEqual([
+      ['moneda', 'USD'],
+      ['credito_habilitado', true],
+    ]);
+  });
+
+  it('la búsqueda cubre folio, razón social, nombre, RFC y correo', async () => {
+    const { cliente, consultas } = crearSupabaseFalso(() => ({
+      data: [],
+      error: null,
+      count: 0,
+    }));
+
+    await obtenerClientes(cliente, { busqueda: 'CLI-0001' });
+
+    const expresion = consultas[0]?.condicionesO[0] ?? '';
+    expect(expresion).toContain('folio.ilike.%CLI-0001');
+    expect(expresion).toContain('razon_social.ilike.%CLI-0001');
+    expect(expresion).toContain('correo.ilike.%CLI-0001');
+  });
+
   it('devuelve el total del servidor, no el tamaño de la página', async () => {
     const { cliente } = crearSupabaseFalso(() => ({
       data: [filaCliente(1), filaCliente(2)],
