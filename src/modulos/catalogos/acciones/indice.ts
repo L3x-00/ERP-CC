@@ -1,0 +1,10 @@
+export { alternarActivoAccion } from './alternar-activo';
+export { guardarEspesorAccion } from './guardar-espesor';
+export { guardarGrupoEquipoAccion } from './guardar-grupo-equipo';
+export { guardarGrupoPlaneadoAccion } from './guardar-grupo-planeado';
+export { guardarMaterialAccion } from './guardar-material';
+export { guardarProcesoAccion } from './guardar-proceso';
+export { guardarProximaAccionAccion } from './guardar-proxima-accion';
+export { listarVersionesAccion } from './listar-versiones';
+export { obtenerCatalogosBaseAccion } from './obtener-catalogos-base';
+export { obtenerPermisosCatalogosAccion } from './obtener-permisos-catalogos';

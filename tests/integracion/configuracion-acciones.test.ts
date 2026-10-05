@@ -24,6 +24,7 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...argumentos: unknown[]) => registrarLogMock(...argumentos),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({ crearClienteSupabaseAdmin: () => ({}) }));
 vi.mock('@/modulos/configuracion/servicios/indice', () => ({
@@ -86,7 +87,7 @@ describe('acciones protegidas de configuración', () => {
     const respuesta = await actualizarTipoCambioAccion({ tipoCambioUsd: 19.75 });
     expect(respuesta).toEqual({ exito: true, datos: CONFIGURACION });
     expect(actualizarConfiguracionMock).toHaveBeenCalledWith(expect.anything(), 'tipo_cambio', 19.75, admin.id);
-    expect(registrarLogMock).toHaveBeenCalledWith(admin, 'actualizar_tipo_cambio', 'configuracion', 'main', expect.anything());
+    expect(registrarLogMock).toHaveBeenCalledWith(admin, 'actualizar_tipo_cambio', 'configuracion', 'main', expect.anything(), expect.anything());
   });
 
   it('un gerente con permiso puede guardar empresa, tarifas, plantilla, cuenta y área', async () => {

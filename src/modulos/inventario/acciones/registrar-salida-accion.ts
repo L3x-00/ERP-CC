@@ -2,7 +2,7 @@
 
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { esquemaSalidaInventario } from '@/modulos/inventario/validaciones/inventario';
 import {
   ErrorInventario,
@@ -22,6 +22,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 export async function registrarSalidaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<{ id: string; folio: string }>> {
+  const correlationId = nuevoCorrelationId();
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) {
     return { exito: false, error: 'No autorizado' };
@@ -52,7 +53,7 @@ export async function registrarSalidaAccion(
     await registrarLog(usuario, 'salida_inventario', 'inventario', movimiento.materialId, {
       folio: movimiento.folio,
       cantidadControl: datos.cantidadControl,
-    });
+    }, correlationId);
 
     return { exito: true, datos: { id: movimiento.id, folio: movimiento.folio } };
   } catch (error) {
@@ -60,7 +61,7 @@ export async function registrarSalidaAccion(
       // Se registra el intento rechazado (auditoría), sin filtrar detalle al cliente.
       await registrarLog(usuario, 'salida_rechazada_stock', 'inventario', datos.materialId, {
         cantidadSolicitada: datos.cantidadControl,
-      });
+      }, correlationId);
       return { exito: false, error: 'Stock insuficiente para la salida' };
     }
     console.error('[INVENTARIO] Error al registrar salida:', error);

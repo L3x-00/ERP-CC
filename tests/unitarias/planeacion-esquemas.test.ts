@@ -223,6 +223,7 @@ describe('mappers de Planeación', () => {
     activo: true,
     cantidad_equipos: 1,
     capacidad_jornada_override_horas: null,
+    grupo_equipo_id: null,
     creado_en: '2026-08-01T12:00:00.000Z',
     actualizado_en: '2026-08-10T12:00:00.000Z',
   };

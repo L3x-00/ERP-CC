@@ -4,7 +4,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { registrarTiempoOperadorServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import type { RegistroTiempo } from '@/modulos/ordenes/tipos/ordenes';
 import { esquemaRegistrarTiempoOperador } from '@/modulos/ordenes/validaciones/ordenes';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
@@ -16,6 +16,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 export async function registrarTiempoOperadorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<RegistroTiempo>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaRegistrarTiempoOperador.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -40,13 +41,13 @@ export async function registrarTiempoOperadorAccion(
       partidaId: registro.partidaId,
       accion: registro.accion,
       fechaRegistro: registro.fechaRegistro,
-    });
+    }, correlationId);
     return { exito: true, datos: registro };
   } catch (error) {
     console.error('[ORDENES] Error al registrar tiempo de operador:', error);
     await registrarLog(operador, 'tiempo_operador_rechazado', 'ordenes', analisis.data.partidaId, {
       accion: analisis.data.accion,
-    });
+    }, correlationId);
     return { exito: false, error: 'No se pudo registrar el tiempo de operador' };
   }
 }

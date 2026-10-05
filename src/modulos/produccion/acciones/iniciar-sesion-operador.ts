@@ -2,7 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import {
   ErrorProduccion,
@@ -14,6 +14,7 @@ import { esquemaIniciarSesion } from '@/modulos/produccion/validaciones/indice';
 export async function iniciarSesionOperadorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<Awaited<ReturnType<typeof iniciarSesionTrabajoServicio>>>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaIniciarSesion.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -31,7 +32,7 @@ export async function iniciarSesionOperadorAccion(
       ordenId: sesion.ordenId,
       partidaId: sesion.partidaId,
       programacionId: sesion.programacionId,
-    });
+    }, correlationId);
     return { exito: true, datos: sesion };
   } catch (error) {
     const codigo = error instanceof ErrorProduccion ? error.codigo : 'desconocido';
@@ -39,7 +40,7 @@ export async function iniciarSesionOperadorAccion(
     await registrarLog(operador, 'inicio_sesion_trabajo_rechazado', 'produccion', analisis.data.partidaId, {
       codigo,
       programacionId: analisis.data.programacionId,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorSesion(error) };
   }
 }

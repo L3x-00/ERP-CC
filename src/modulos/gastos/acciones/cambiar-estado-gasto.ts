@@ -9,12 +9,13 @@ import {
 import type { Gasto } from '@/modulos/gastos/tipos/indice';
 import { esquemaCambiarEstadoGasto } from '@/modulos/gastos/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 export async function cambiarEstadoGastoAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<Gasto>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaCambiarEstadoGasto.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -34,13 +35,13 @@ export async function cambiarEstadoGastoAccion(
     );
     await registrarLog(usuario, 'cambiar_estado_gasto', 'gastos', gasto.id, {
       estadoNuevo: gasto.estadoPago,
-    });
+    }, correlationId);
     return { exito: true, datos: gasto };
   } catch (error) {
     console.error('[GASTOS] Error al cambiar estado:', error);
     await registrarLog(usuario, 'cambio_estado_gasto_rechazado', 'gastos', analisis.data.gastoId, {
       estadoNuevo: analisis.data.nuevoEstado,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorGastos(error) };
   }
 }

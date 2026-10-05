@@ -9,7 +9,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaReactivarOrden } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const MENSAJES: Readonly<Record<string, string>> = {
@@ -27,6 +27,7 @@ const MENSAJES: Readonly<Record<string, string>> = {
 export async function reactivarOrdenAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<OrdenReactivada>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaReactivarOrden.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -46,14 +47,14 @@ export async function reactivarOrdenAccion(
     await registrarLog(usuario, 'reactivar_orden', 'ordenes', orden.id, {
       estado: orden.estado,
       actualizadoEn: orden.actualizadoEn,
-    });
+    }, correlationId);
     return { exito: true, datos: orden };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
     console.error('[ORDENES] Error al reactivar orden:', error);
     await registrarLog(usuario, 'reactivar_orden_rechazado', 'ordenes', analisis.data.ordenId, {
       codigo,
-    });
+    }, correlationId);
     return { exito: false, error: MENSAJES[codigo] ?? 'No se pudo reactivar la orden' };
   }
 }

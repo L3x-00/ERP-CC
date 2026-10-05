@@ -9,7 +9,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaCrearOrdenHistorica } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const MENSAJES: Readonly<Record<string, string>> = {
@@ -27,6 +27,7 @@ const MENSAJES: Readonly<Record<string, string>> = {
 export async function crearOrdenHeredadaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<OrdenHistoricaCreada>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaCrearOrdenHistorica.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -47,7 +48,7 @@ export async function crearOrdenHeredadaAccion(
       folio: orden.folio,
       idHistorico: analisis.data.idHistorico,
       cuentaId: orden.cuentaId,
-    });
+    }, correlationId);
     return { exito: true, datos: orden };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
@@ -55,7 +56,7 @@ export async function crearOrdenHeredadaAccion(
     await registrarLog(usuario, 'orden_historica_rechazada', 'ordenes', analisis.data.clienteId, {
       codigo,
       idHistorico: analisis.data.idHistorico,
-    });
+    }, correlationId);
     return { exito: false, error: MENSAJES[codigo] ?? 'No se pudo crear la orden heredada' };
   }
 }

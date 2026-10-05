@@ -5,7 +5,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { ErrorCobranza, mensajeErrorCobranza, registrarAbonoHeredadoServicio } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const esquema = z.object({
@@ -16,6 +16,7 @@ const esquema = z.object({
 
 /** AR-09: captura única del anticipo heredado, separada de los pagos correctibles. */
 export async function registrarAbonoHeredadoAccion(entrada: unknown): Promise<RespuestaAccion<{ arId: string; saldoPendiente: number; estado: string; abonoHeredado: number }>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquema.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const usuario = await obtenerUsuarioServidor();
@@ -28,12 +29,12 @@ export async function registrarAbonoHeredadoAccion(entrada: unknown): Promise<Re
     });
     await registrarLog(usuario, 'registrar_abono_heredado', 'cobranza', registro.arId, {
       monto: registro.abonoHeredado, saldoPendiente: registro.saldoPendiente,
-    });
+    }, correlationId);
     return { exito: true, datos: registro };
   } catch (error) {
     const codigo = error instanceof ErrorCobranza ? error.codigo : 'desconocido';
     console.error('[COBRANZA] Error al registrar anticipo heredado:', error);
-    await registrarLog(usuario, 'abono_heredado_rechazado', 'cobranza', analisis.data.arId, { codigo });
+    await registrarLog(usuario, 'abono_heredado_rechazado', 'cobranza', analisis.data.arId, { codigo }, correlationId);
     return { exito: false, error: mensajeErrorCobranza(error) };
   }
 }

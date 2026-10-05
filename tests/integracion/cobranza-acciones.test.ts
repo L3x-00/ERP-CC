@@ -22,6 +22,7 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...argumentos: unknown[]) => registrarLogMock(...argumentos),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({ rpc: vi.fn(), from: vi.fn() }),
@@ -149,6 +150,7 @@ describe('acciones seguras de Cobranza', () => {
       'cobranza',
       IDS.pago,
       expect.objectContaining({ folioRecibo: 'REC-001001' }),
+      expect.anything(),
     );
   });
 
@@ -175,6 +177,7 @@ describe('acciones seguras de Cobranza', () => {
       'cobranza',
       IDS.pago,
       expect.objectContaining({ folioRecibo: 'REC-001002' }),
+      expect.anything(),
     );
   });
 });

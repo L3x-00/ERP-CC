@@ -7,7 +7,7 @@ import {
   type AvancePartidaRegistrado,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaRegistrarAvancePartida } from '@/modulos/ordenes/validaciones/ordenes';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
@@ -19,6 +19,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 export async function registrarAvancePartidaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<AvancePartidaRegistrado>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaRegistrarAvancePartida.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -37,14 +38,14 @@ export async function registrarAvancePartidaAccion(
     await registrarLog(operador, 'registrar_avance_partida', 'ordenes', avance.partidaId, {
       cantidadProducida: analisis.data.cantidadProducida,
       cantidadScrap: analisis.data.cantidadScrap,
-    });
+    }, correlationId);
     return { exito: true, datos: avance };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
     console.error('[ORDENES] Error al registrar avance de partida:', error);
     await registrarLog(operador, 'avance_partida_rechazado', 'ordenes', analisis.data.partidaId, {
       codigo,
-    });
+    }, correlationId);
     return { exito: false, error: 'No se pudo registrar el avance de la partida' };
   }
 }

@@ -10,7 +10,7 @@ import { nombreDocumentoSeguro } from '@/modulos/produccion/servicios/documentos
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 
 const nombreArchivo = z.string().trim().min(1).max(250);
 const sesionId = z.uuid();
@@ -77,6 +77,7 @@ export async function prepararSubidaArchivoSesionAccion(entrada: unknown): Promi
 
 /** Recomprueba el objeto privado antes de vincularlo a una sesión persistida. */
 export async function confirmarArchivoSesionAccion(entrada: unknown): Promise<RespuestaAccion<ArchivoSesionResumen>> {
+  const correlationId = nuevoCorrelationId();
   const validado = esquemaConfirmar.safeParse(entrada);
   if (!validado.success) return { exito: false, error: 'Archivo inválido' };
   const usuario = await usuarioAutorizado();
@@ -110,7 +111,7 @@ export async function confirmarArchivoSesionAccion(entrada: unknown): Promise<Re
   if (error || !data) return { exito: false, error: 'No se pudo vincular el archivo a la sesión' };
   await registrarLog(usuario, 'asociar_archivo_sesion', 'produccion', data.id, {
     sesionId: data.sesion_id, clase: data.clase,
-  });
+  }, correlationId);
   return { exito: true, datos: {
     id: data.id, sesionId: data.sesion_id,
     clase: claseDesdeFila(data.clase),

@@ -27,6 +27,7 @@ vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...args: unknown[]) => registrarLogMock(...args),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({ nombre: 'cliente-admin-pruebas' }),
@@ -124,6 +125,7 @@ describe('seguridad de acciones de comentarios', () => {
       'comentarios',
       ENTRADA.entidadId,
       expect.objectContaining({ motivo: 'entidad_no_disponible' }),
+      expect.anything(),
     );
   });
 
@@ -152,6 +154,7 @@ describe('seguridad de acciones de comentarios', () => {
       'comentarios',
       COMENTARIO.id,
       expect.objectContaining({ menciones: 1 }),
+      expect.anything(),
     );
   });
 
@@ -173,6 +176,7 @@ describe('seguridad de acciones de comentarios', () => {
       'comentarios',
       COMENTARIO.id,
       expect.objectContaining({ motivo: 'autoría' }),
+      expect.anything(),
     );
   });
 
@@ -190,6 +194,7 @@ describe('seguridad de acciones de comentarios', () => {
       'comentarios',
       COMENTARIO.id,
       expect.objectContaining({ entidadTipo: 'cliente' }),
+      expect.anything(),
     );
   });
 

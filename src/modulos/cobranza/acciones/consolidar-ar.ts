@@ -11,7 +11,7 @@ import {
   type OrdenConsolidable,
 } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /** CFG-12: vista previa; no escribe nada. */
@@ -36,6 +36,7 @@ const esquemaConsolidar = z.object({
 export async function consolidarArFaltantesAccion(entrada: unknown): Promise<
   RespuestaAccion<{ creadas: number; omitidas: number; detalle: { ordenId: string; creada: boolean; motivo: string | null }[] }>
 > {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaConsolidar.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const usuario = await obtenerUsuarioServidor();
@@ -50,12 +51,12 @@ export async function consolidarArFaltantesAccion(entrada: unknown): Promise<
     await registrarLog(usuario, 'consolidar_ar_faltantes', 'cobranza', usuario.id, {
       creadas,
       omitidas: detalle.length - creadas,
-    });
+    }, correlationId);
     return { exito: true, datos: { creadas, omitidas: detalle.length - creadas, detalle } };
   } catch (error) {
     const codigo = error instanceof ErrorCobranza ? error.codigo : 'desconocido';
     console.error('[COBRANZA] Error al consolidar cuentas:', error);
-    await registrarLog(usuario, 'consolidar_ar_rechazado', 'cobranza', usuario.id, { codigo });
+    await registrarLog(usuario, 'consolidar_ar_rechazado', 'cobranza', usuario.id, { codigo }, correlationId);
     return { exito: false, error: mensajeErrorCobranza(error) };
   }
 }

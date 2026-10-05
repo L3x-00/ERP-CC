@@ -10,10 +10,11 @@ import {
 } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { esquemaRegistrarPago } from '@/modulos/cobranza/validaciones/cobranza';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 export async function registrarPagoAccion(entrada: unknown): Promise<RespuestaAccion<PagoRegistrado> & { rechazoConfirmado?: boolean }> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaRegistrarPago.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, rechazoConfirmado: true, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -35,13 +36,13 @@ export async function registrarPagoAccion(entrada: unknown): Promise<RespuestaAc
       folioRecibo: pago.folioRecibo,
       idempotente: pago.idempotente,
       estadoAr: pago.estadoAr,
-    });
+    }, correlationId);
     return { exito: true, datos: pago };
   } catch (error) {
     console.error('[COBRANZA] Error al registrar pago:', error);
     await registrarLog(usuario, 'pago_ar_rechazado', 'cobranza', analisis.data.arId, {
       solicitudId: analisis.data.solicitudId,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorCobranza(error), rechazoConfirmado: error instanceof ErrorCobranza && ['cuenta_inexistente', 'cuenta_no_disponible', 'saldo_insuficiente', 'orden_no_lista'].includes(error.codigo) };
   }
 }

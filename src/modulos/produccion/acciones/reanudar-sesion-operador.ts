@@ -2,7 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import {
   ErrorProduccion, mensajeErrorSesion, reanudarSesionTrabajoServicio,
@@ -12,6 +12,7 @@ import { esquemaReanudarSesion } from '@/modulos/produccion/validaciones/indice'
 export async function reanudarSesionOperadorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<Awaited<ReturnType<typeof reanudarSesionTrabajoServicio>>>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaReanudarSesion.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const operador = await obtenerOperadorConSesionActiva();
@@ -22,12 +23,12 @@ export async function reanudarSesionOperadorAccion(
     });
     await registrarLog(operador, 'reanudar_sesion_trabajo', 'produccion', sesion.id, {
       ordenId: sesion.ordenId, partidaId: sesion.partidaId, programacionId: sesion.programacionId,
-    });
+    }, correlationId);
     return { exito: true, datos: sesion };
   } catch (error) {
     const codigo = error instanceof ErrorProduccion ? error.codigo : 'desconocido';
     console.error('[PRODUCCION] Falló reanudación de sesión:', error);
-    await registrarLog(operador, 'reanudacion_rechazada', 'produccion', analisis.data.programacionId, { codigo });
+    await registrarLog(operador, 'reanudacion_rechazada', 'produccion', analisis.data.programacionId, { codigo }, correlationId);
     return { exito: false, error: mensajeErrorSesion(error) };
   }
 }

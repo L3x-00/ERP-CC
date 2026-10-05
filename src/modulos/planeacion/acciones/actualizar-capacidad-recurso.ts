@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const esquema = z
@@ -31,6 +31,7 @@ const esquema = z
 export async function actualizarCapacidadRecursoAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquema.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -62,7 +63,7 @@ export async function actualizarCapacidadRecursoAccion(
   await registrarLog(usuario, 'actualizar_capacidad_recurso', 'planeacion', data.id, {
     cantidadEquipos: data.cantidad_equipos,
     jornadaOverrideHoras: data.capacidad_jornada_override_horas,
-  });
+  }, correlationId);
 
   return { exito: true };
 }

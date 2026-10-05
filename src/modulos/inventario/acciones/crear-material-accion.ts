@@ -2,7 +2,7 @@
 
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { esquemaCrearMaterial } from '@/modulos/inventario/validaciones/inventario';
 import { crearMaterialServicio } from '@/modulos/inventario/servicios/inventario-servicio';
 import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso-inventario';
@@ -18,6 +18,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 export async function crearMaterialAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<{ id: string }>> {
+  const correlationId = nuevoCorrelationId();
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) {
     return { exito: false, error: 'No autorizado' };
@@ -38,7 +39,7 @@ export async function crearMaterialAccion(
     const material = await crearMaterialServicio(admin, analisis.data);
     await registrarLog(usuario, 'crear', 'inventario', material.id, {
       codigo: material.codigo,
-    });
+    }, correlationId);
     return { exito: true, datos: { id: material.id } };
   } catch (error) {
     console.error('[INVENTARIO] Error al crear material:', error);

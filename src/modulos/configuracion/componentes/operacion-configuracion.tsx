@@ -20,12 +20,18 @@ import { PestanaTarifas } from './pestana-tarifas';
 import { SincronizadorConfiguracionRealtime } from './sincronizador-configuracion-realtime';
 import { PestanaPermisos } from '@/modulos/permisos/componentes/pestana-permisos';
 import { PestanaUsuarios } from '@/modulos/permisos/componentes/pestana-usuarios';
+import { PestanaCatalogosBase } from './pestana-catalogos-base';
+import {
+  obtenerPermisosCatalogosAccion,
+  type PermisosCatalogos,
+} from '@/modulos/catalogos/acciones/obtener-permisos-catalogos';
 
 const PESTANAS = [
   ['empresa', 'Empresa'],
   ['folios', 'Folios'],
   ['tarifas', 'Tarifas / TC'],
   ['catalogos', 'Catálogos'],
+  ['catalogos-base', 'Catálogos base'],
   ['areas', 'Áreas de trabajo'],
   ['cuentas', 'Cuentas bancarias'],
   ['plantillas', 'Plantillas T1'],
@@ -38,6 +44,8 @@ type Pestana = (typeof PESTANAS)[number][0];
 
 /** Pestañas visibles solo para administradores activos. */
 const PESTANAS_SOLO_ADMIN: readonly Pestana[] = ['usuarios', 'permisos', 'operadores', 'bitacora'];
+
+const CLAVE_PERMISOS_CATALOGOS = ['catalogos-base', 'permisos-pestana'] as const;
 
 export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: DatosConfiguracion }) {
   const clienteQuery = useQueryClient();
@@ -60,6 +68,19 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
     initialData: datosIniciales,
     staleTime: 0,
   });
+
+  const consultaPermisosCatalogos = useQuery({
+    queryKey: CLAVE_PERMISOS_CATALOGOS,
+    queryFn: async (): Promise<PermisosCatalogos> => {
+      const respuesta = await obtenerPermisosCatalogosAccion();
+      if (!respuesta.exito || !respuesta.datos) {
+        throw new Error(respuesta.exito ? 'Permisos ausentes' : respuesta.error);
+      }
+      return respuesta.datos;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const puedeVerCatalogosBase = consultaPermisosCatalogos.data?.puedeVer === true;
 
   // Única fuente de datos: la caché de TanStack Query. Los `onGuardado` de las
   // pestañas reciben la sección confirmada por el servidor y actualizan la
@@ -119,7 +140,11 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         </p>
       </header>
       <div role="tablist" aria-label="Secciones de configuración" className="flex flex-wrap gap-1 border-b border-borde">
-        {PESTANAS.filter(([id]) => !PESTANAS_SOLO_ADMIN.includes(id) || vigente.esAdmin).map(([id, etiqueta]) => (
+        {PESTANAS.filter(
+          ([id]) =>
+            (!PESTANAS_SOLO_ADMIN.includes(id) || vigente.esAdmin)
+            && (id !== 'catalogos-base' || puedeVerCatalogosBase),
+        ).map(([id, etiqueta]) => (
           <button
             key={id}
             id={`tab-configuracion-${id}`}
@@ -166,6 +191,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
             onGuardado={actualizarConfiguracion}
           />
         ) : null}
+        {pestana === 'catalogos-base' && puedeVerCatalogosBase ? <PestanaCatalogosBase /> : null}
         {pestana === 'areas' ? (
           <PestanaAreasTrabajo
             key={`areas-${vigente.areasTrabajo.map((area) => area.actualizadoEn).join('|')}`}

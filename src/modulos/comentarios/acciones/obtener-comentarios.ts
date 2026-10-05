@@ -9,7 +9,7 @@ import {
 } from '@/modulos/comentarios/servicios/indice';
 import type { ComentarioRegistro } from '@/modulos/comentarios/tipos/indice';
 import { esquemaConsultaComentarios } from '@/modulos/comentarios/validaciones/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
@@ -17,6 +17,7 @@ import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 export async function obtenerComentariosAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ComentarioRegistro[]>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaConsultaComentarios.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -40,7 +41,7 @@ export async function obtenerComentariosAccion(
     await registrarLog(usuario, 'consultar_comentarios', 'comentarios', analisis.data.entidadId, {
       entidadTipo: analisis.data.entidadTipo,
       cantidad: comentarios.length,
-    });
+    }, correlationId);
     return { exito: true, datos: comentarios };
   } catch (error) {
     console.error('[COMENTARIOS] Error al consultar hilo:', error);

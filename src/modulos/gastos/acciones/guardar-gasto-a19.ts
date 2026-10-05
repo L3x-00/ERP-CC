@@ -7,7 +7,7 @@ import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/i
 import { filaAGasto, type Gasto } from '@/modulos/gastos/tipos/indice';
 import { esquemaGuardarGastoA19, esquemaRegistrarGasto } from '@/modulos/gastos/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const BUCKET = 'comprobantes-gasto';
@@ -27,6 +27,7 @@ function mensajeError(mensaje: string): string {
 
 /** Guarda datos y ruta del comprobante en una sola transacción SQL. */
 export async function guardarGastoA19Accion(formulario: FormData): Promise<RespuestaAccion<Gasto>> {
+  const correlationId = nuevoCorrelationId();
   const crudo = formulario.get('datos');
   if (typeof crudo !== 'string' || crudo.length > 30_000) {
     return { exito: false, error: 'Datos inválidos' };
@@ -95,7 +96,7 @@ export async function guardarGastoA19Accion(formulario: FormData): Promise<Respu
     const gasto = filaAGasto(data[0]);
     await registrarLog(usuario, meta.data.modo === 'crear' ? 'registrar_gasto' : 'editar_gasto', 'gastos', gasto.id, {
       folio: gasto.folio, tipoGasto: gasto.tipoGasto, comprobanteActualizado: ruta !== null,
-    });
+    }, correlationId);
     return { exito: true, datos: gasto };
   } catch (error) {
     console.error('[GASTOS] Falló guardar A19:', error);

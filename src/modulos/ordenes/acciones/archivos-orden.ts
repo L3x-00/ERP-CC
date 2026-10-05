@@ -15,7 +15,7 @@ import { nombreDocumentoSeguro } from '@/modulos/produccion/servicios/documentos
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 
 const nombreArchivo = z.string().trim().min(1).max(250);
 const ordenId = z.uuid();
@@ -78,6 +78,7 @@ export async function prepararSubidaArchivoOrdenAccion(entrada: unknown): Promis
 export async function confirmarArchivoOrdenAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ArchivoOrdenResumen>> {
+  const correlationId = nuevoCorrelationId();
   const validado = esquemaConfirmar.safeParse(entrada);
   if (!validado.success) return { exito: false, error: 'Archivo inválido' };
   const usuario = await usuarioAutorizado();
@@ -116,7 +117,7 @@ export async function confirmarArchivoOrdenAccion(
   await registrarLog(usuario, 'asociar_archivo_orden', 'ordenes', data.id, {
     ordenId: data.orden_id,
     nombre: data.nombre,
-  });
+  }, correlationId);
   return {
     exito: true,
     datos: {

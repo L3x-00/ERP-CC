@@ -28,6 +28,7 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...args: unknown[]) => registrarLogMock(...args),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({ rpc: vi.fn() }),
@@ -100,6 +101,7 @@ describe('crearOrdenManualAccion', () => {
       'ordenes',
       CAMBIO_A_PROGRAMADA.ordenId,
       expect.objectContaining({ folio: 'OP-001003' }),
+      expect.anything(),
     );
   });
 
@@ -135,6 +137,7 @@ describe('cambiarEstadoOrdenAccion', () => {
       'ordenes',
       CAMBIO_A_PROGRAMADA.ordenId,
       expect.objectContaining({ estadoAnterior: 'borrador', estadoNuevo: 'programada' }),
+      expect.anything(),
     );
   });
 

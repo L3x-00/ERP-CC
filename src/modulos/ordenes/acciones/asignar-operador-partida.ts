@@ -9,7 +9,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaAsignarOperadorPartida } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -19,6 +19,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 export async function asignarOperadorPartidaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<PartidaConOperadorAsignado>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaAsignarOperadorPartida.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -39,7 +40,7 @@ export async function asignarOperadorPartidaAccion(
     );
     await registrarLog(usuario, 'asignar_operador_partida', 'ordenes', asignacion.partidaId, {
       operadorAsignadoId: asignacion.operadorAsignadoId,
-    });
+    }, correlationId);
     return { exito: true, datos: asignacion };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
@@ -47,7 +48,7 @@ export async function asignarOperadorPartidaAccion(
     await registrarLog(usuario, 'asignacion_operador_rechazada', 'ordenes', analisis.data.partidaId, {
       operadorId: analisis.data.operadorId,
       codigo,
-    });
+    }, correlationId);
     return { exito: false, error: 'No se pudo asignar el operador a la partida' };
   }
 }

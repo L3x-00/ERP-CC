@@ -2,7 +2,7 @@
 
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { esquemaEntradaInventario } from '@/modulos/inventario/validaciones/inventario';
 import { registrarMovimientoServicio } from '@/modulos/inventario/servicios/inventario-servicio';
 import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso-inventario';
@@ -18,6 +18,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 export async function registrarEntradaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<{ id: string; folio: string }>> {
+  const correlationId = nuevoCorrelationId();
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) {
     return { exito: false, error: 'No autorizado' };
@@ -49,7 +50,7 @@ export async function registrarEntradaAccion(
     await registrarLog(usuario, 'entrada_inventario', 'inventario', movimiento.materialId, {
       folio: movimiento.folio,
       cantidadCompra: datos.cantidadCompra,
-    });
+    }, correlationId);
 
     return { exito: true, datos: { id: movimiento.id, folio: movimiento.folio } };
   } catch (error) {

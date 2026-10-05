@@ -9,7 +9,7 @@ import {
   type ConsumoMaterialRegistrado,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaRegistrarConsumoMaterial } from '@/modulos/ordenes/validaciones/ordenes';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso-inventario';
@@ -22,6 +22,7 @@ import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso
 export async function registrarConsumoAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ConsumoMaterialRegistrado>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaRegistrarConsumoMaterial.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -46,7 +47,7 @@ export async function registrarConsumoAccion(
       cantidadUsada: analisis.data.cantidadUsada,
       cantidadScrap: analisis.data.cantidadScrap,
       movimientoInventarioId: consumo.movimientoInventarioId,
-    });
+    }, correlationId);
     return { exito: true, datos: consumo };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
@@ -54,7 +55,7 @@ export async function registrarConsumoAccion(
     await registrarLog(usuario, 'consumo_material_rechazado', 'ordenes', analisis.data.partidaId, {
       codigo,
       materialId: analisis.data.materialId,
-    });
+    }, correlationId);
     return { exito: false, error: 'No se pudo registrar el consumo de material' };
   }
 }
@@ -66,6 +67,7 @@ export async function registrarConsumoAccion(
 export async function registrarConsumoOperadorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ConsumoMaterialRegistrado>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaRegistrarConsumoMaterial.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -87,7 +89,7 @@ export async function registrarConsumoOperadorAccion(
       cantidadUsada: analisis.data.cantidadUsada,
       cantidadScrap: analisis.data.cantidadScrap,
       movimientoInventarioId: consumo.movimientoInventarioId,
-    });
+    }, correlationId);
     return { exito: true, datos: consumo };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
@@ -95,7 +97,7 @@ export async function registrarConsumoOperadorAccion(
     await registrarLog(operador, 'consumo_material_rechazado', 'ordenes', analisis.data.partidaId, {
       codigo,
       materialId: analisis.data.materialId,
-    });
+    }, correlationId);
     return { exito: false, error: 'No se pudo registrar el consumo de material' };
   }
 }

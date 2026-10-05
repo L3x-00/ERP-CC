@@ -10,12 +10,13 @@ import {
 import type { Gasto } from '@/modulos/gastos/tipos/indice';
 import { esquemaRegistrarGasto } from '@/modulos/gastos/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 export async function registrarGastoAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<Gasto>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaRegistrarGasto.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -43,13 +44,13 @@ export async function registrarGastoAccion(
       ordenId: gasto.ordenId,
       montoTotal: gasto.montoTotal,
       moneda: gasto.moneda,
-    });
+    }, correlationId);
     return { exito: true, datos: gasto };
   } catch (error) {
     console.error('[GASTOS] Error al registrar gasto:', error);
     await registrarLog(usuario, 'registro_gasto_rechazado', 'gastos', analisis.data.ordenId ?? usuario.id, {
       categoria: analisis.data.categoria,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorGastos(error) };
   }
 }

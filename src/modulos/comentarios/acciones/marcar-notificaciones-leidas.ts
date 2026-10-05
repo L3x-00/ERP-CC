@@ -4,13 +4,14 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { marcarNotificacionComoLeida, mensajeErrorComentarios } from '@/modulos/comentarios/servicios/indice';
 import { esquemaMarcarNotificacionLeida } from '@/modulos/comentarios/validaciones/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /** Marca una notificación propia; el usuario nunca se recibe desde el cliente. */
 export async function marcarNotificacionesLeidasAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<undefined>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaMarcarNotificacionLeida.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const usuario = await obtenerUsuarioServidor();
@@ -21,7 +22,7 @@ export async function marcarNotificacionesLeidasAccion(
       analisis.data.notificacionId,
       usuario.id,
     );
-    await registrarLog(usuario, 'marcar_notificacion_leida', 'comentarios', analisis.data.notificacionId);
+    await registrarLog(usuario, 'marcar_notificacion_leida', 'comentarios', analisis.data.notificacionId, undefined, correlationId);
     return { exito: true };
   } catch (error) {
     console.error('[COMENTARIOS] Error al marcar notificación:', error);

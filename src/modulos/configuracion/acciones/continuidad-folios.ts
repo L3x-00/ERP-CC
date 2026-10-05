@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
@@ -50,6 +50,7 @@ export async function obtenerContinuidadFoliosAccion(
 export async function ajustarContinuidadFoliosAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<{ ultimo: number }>> {
+  const correlationId = nuevoCorrelationId();
   const validado = esquemaAjustar.safeParse(entrada);
   if (!validado.success) return { exito: false, error: 'Periodo o último número inválido' };
   const usuario = await usuarioConfiguracion();
@@ -67,6 +68,6 @@ export async function ajustarContinuidadFoliosAccion(
   }
   await registrarLog(usuario, 'ajustar_continuidad_folio_cnc', 'configuracion', usuario.id, {
     periodo: validado.data.periodo, ultimo: data,
-  });
+  }, correlationId);
   return { exito: true, datos: { ultimo: data } };
 }

@@ -10,7 +10,7 @@ import {
 import { esTransicionOrdenValida } from '@/modulos/ordenes/servicios/reglas-transicion';
 import { esquemaCambiarEstadoOrden } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -21,6 +21,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 export async function cambiarEstadoOrdenAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<OrdenConEstadoActualizado>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaCambiarEstadoOrden.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -55,7 +56,7 @@ export async function cambiarEstadoOrdenAccion(
       estadoAnterior: datos.estadoActual,
       estadoNuevo: orden.estado,
       ...(datos.motivoCancelacion ? { motivoCancelacion: datos.motivoCancelacion } : {}),
-    });
+    }, correlationId);
     return { exito: true, datos: orden };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
@@ -64,7 +65,7 @@ export async function cambiarEstadoOrdenAccion(
       codigo,
       estadoAnterior: datos.estadoActual,
       estadoNuevo: datos.estado,
-    });
+    }, correlationId);
     // A02: regla de negocio, no un detalle de infraestructura. Quien cancela
     // necesita saber por qué se detuvo y qué hay que resolver antes.
     if (codigo === 'orden_con_cobranza_registrada') {

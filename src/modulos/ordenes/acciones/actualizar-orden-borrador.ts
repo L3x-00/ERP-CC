@@ -10,7 +10,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaActualizarOrdenBorrador } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -20,6 +20,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 export async function actualizarOrdenBorradorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<OrdenEditada>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaActualizarOrdenBorrador.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -37,14 +38,14 @@ export async function actualizarOrdenBorradorAccion(
       folio: orden.folio,
       prioridad: orden.prioridad,
       partidas: analisis.data.partidas.length,
-    });
+    }, correlationId);
     return { exito: true, datos: orden };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
     console.error('[ORDENES] Error al editar orden:', error);
     await registrarLog(usuario, 'edicion_orden_rechazada', 'ordenes', analisis.data.ordenId, {
       codigo,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorOrden(error, 'actualizar') };
   }
 }

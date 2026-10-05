@@ -5,11 +5,12 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { obtenerDashboardPorRol } from '@/modulos/dashboard/servicios/indice';
 import type { DashboardConsolidado } from '@/modulos/dashboard/tipos/indice';
 import { esquemaFiltroPeriodo } from '@/modulos/dashboard/validaciones/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 async function ejecutarConsultaDashboard(entrada: unknown): Promise<RespuestaAccion<DashboardConsolidado>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaFiltroPeriodo.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -42,13 +43,13 @@ async function ejecutarConsultaDashboard(entrada: unknown): Promise<RespuestaAcc
       fechaInicio: analisis.data.fechaInicio,
       fechaFin: analisis.data.fechaFin,
       secciones: Object.keys(datos).filter((clave) => !['rol', 'filtro', 'tarjetas'].includes(clave)),
-    });
+    }, correlationId);
     return { exito: true, datos };
   } catch (error) {
     console.error('[DASHBOARD] Error al consolidar métricas:', error);
     await registrarLog(usuario, 'consulta_dashboard_rechazada', 'dashboard', usuario.id, {
       periodoTipo: analisis.data.periodoTipo,
-    });
+    }, correlationId);
     return { exito: false, error: 'No se pudieron consultar las métricas' };
   }
 }

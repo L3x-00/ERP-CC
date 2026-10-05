@@ -10,13 +10,14 @@ import {
 } from '@/modulos/planeacion/servicios/indice';
 import { esquemaReprogramarPartidaRecurso } from '@/modulos/planeacion/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /** Reprograma con compare-and-set para rechazar cambios realizados desde una pantalla obsoleta. */
 export async function reprogramarPartidaRecursoAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ProgramacionActualizada>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaReprogramarPartidaRecurso.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -38,7 +39,7 @@ export async function reprogramarPartidaRecursoAccion(
       fechaProgramada: analisis.data.fechaProgramada,
       turno: analisis.data.turno,
       marcaEsperada: analisis.data.actualizadoEnEsperado,
-    });
+    }, correlationId);
     return { exito: true, datos: programacion };
   } catch (error) {
     const codigo = error instanceof ErrorPlaneacion ? error.codigo : 'desconocido';
@@ -46,7 +47,7 @@ export async function reprogramarPartidaRecursoAccion(
     await registrarLog(usuario, 'reprogramacion_partida_rechazada', 'planeacion', analisis.data.programacionId, {
       codigo,
       recursoId: analisis.data.recursoId,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorPlaneacion(error, 'reprogramar') };
   }
 }

@@ -5,7 +5,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { ErrorCobranza, mensajeErrorCobranza, reversarPagoServicio } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const esquema = z.object({
@@ -15,6 +15,7 @@ const esquema = z.object({
 
 /** AR-08: revierte un pago con motivo; nunca edita ni borra el movimiento original. */
 export async function reversarPagoAccion(entrada: unknown): Promise<RespuestaAccion<{ pagoId: string; arId: string; folioRecibo: string; saldoPendiente: number; estadoAr: string; monederoRevertidoMxn: number }>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquema.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const usuario = await obtenerUsuarioServidor();
@@ -27,12 +28,12 @@ export async function reversarPagoAccion(entrada: unknown): Promise<RespuestaAcc
     });
     await registrarLog(usuario, 'reversar_pago', 'cobranza', reverso.pagoId, {
       arId: reverso.arId, folioRecibo: reverso.folioRecibo,
-    });
+    }, correlationId);
     return { exito: true, datos: reverso };
   } catch (error) {
     const codigo = error instanceof ErrorCobranza ? error.codigo : 'desconocido';
     console.error('[COBRANZA] Error al reversar pago:', error);
-    await registrarLog(usuario, 'reversar_pago_rechazado', 'cobranza', analisis.data.pagoId, { codigo });
+    await registrarLog(usuario, 'reversar_pago_rechazado', 'cobranza', analisis.data.pagoId, { codigo }, correlationId);
     return { exito: false, error: mensajeErrorCobranza(error) };
   }
 }

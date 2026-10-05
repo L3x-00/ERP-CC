@@ -13,7 +13,7 @@ import { BUCKET_ADJUNTOS } from '@/nucleo/almacenamiento/constantes';
 import { subirArchivo } from '@/nucleo/almacenamiento/subir-archivo';
 import { registrarArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
 import { sanearNombreArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
@@ -26,6 +26,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 export async function subirDocumentoOrdenAccion(
   formData: FormData,
 ): Promise<RespuestaAccion<{ ruta: string; nombre: string }>> {
+  const correlationId = nuevoCorrelationId();
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) return { exito: false, error: 'No autorizado' };
   if (!(await can(usuario, 'gestionar_produccion'))) {
@@ -78,7 +79,7 @@ export async function subirDocumentoOrdenAccion(
       tamanoBytes: archivo.size,
       subidoPor: usuario.id,
     });
-    await registrarLog(usuario, 'subir_documento_orden', 'produccion', orden.id, { ruta });
+    await registrarLog(usuario, 'subir_documento_orden', 'produccion', orden.id, { ruta }, correlationId);
 
     return { exito: true, datos: { ruta, nombre } };
   } catch (error) {

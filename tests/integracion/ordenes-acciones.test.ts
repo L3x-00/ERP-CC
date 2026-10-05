@@ -37,6 +37,7 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...args: unknown[]) => registrarLogMock(...args),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({ rpc: vi.fn(), from: vi.fn() }),
@@ -194,6 +195,7 @@ describe('seguridad de acciones de órdenes', () => {
       'ordenes',
       '66666666-6666-4666-8666-666666666666',
       expect.objectContaining({ partidaId: '77777777-7777-4777-8777-777777777777' }),
+      expect.anything(),
     );
   });
 });

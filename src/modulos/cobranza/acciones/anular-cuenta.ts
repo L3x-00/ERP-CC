@@ -5,7 +5,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { ErrorCobranza, anularCuentaServicio, mensajeErrorCobranza } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const esquema = z.object({
@@ -16,6 +16,7 @@ const esquema = z.object({
 
 /** AR-16: anula la cuenta sin borrar pagos, reversos ni referencia. */
 export async function anularCuentaAccion(entrada: unknown): Promise<RespuestaAccion<{ id: string; estado: string; saldoPendiente: number; motivoAnulacion: string }>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquema.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const usuario = await obtenerUsuarioServidor();
@@ -28,12 +29,12 @@ export async function anularCuentaAccion(entrada: unknown): Promise<RespuestaAcc
     });
     await registrarLog(usuario, 'anular_cuenta_por_cobrar', 'cobranza', cuenta.id, {
       motivo: cuenta.motivoAnulacion,
-    });
+    }, correlationId);
     return { exito: true, datos: cuenta };
   } catch (error) {
     const codigo = error instanceof ErrorCobranza ? error.codigo : 'desconocido';
     console.error('[COBRANZA] Error al anular cuenta:', error);
-    await registrarLog(usuario, 'anular_cuenta_rechazada', 'cobranza', analisis.data.arId, { codigo });
+    await registrarLog(usuario, 'anular_cuenta_rechazada', 'cobranza', analisis.data.arId, { codigo }, correlationId);
     return { exito: false, error: mensajeErrorCobranza(error) };
   }
 }

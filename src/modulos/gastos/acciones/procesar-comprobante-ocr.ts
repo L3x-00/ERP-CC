@@ -11,7 +11,7 @@ import {
 import type { DatosComprobanteOCR } from '@/modulos/gastos/tipos/indice';
 import { esquemaComprobanteOCR } from '@/modulos/gastos/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024;
@@ -19,6 +19,7 @@ const TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024;
 export async function procesarComprobanteOcrAccion(
   entradaCruda: unknown,
 ): Promise<RespuestaAccion<DatosComprobanteOCR>> {
+  const correlationId = nuevoCorrelationId();
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) return { exito: false, error: 'No autorizado' };
   if (!(await can(usuario, 'registrar_gastos'))) {
@@ -50,17 +51,17 @@ export async function procesarComprobanteOcrAccion(
     await registrarLog(usuario, 'procesar_comprobante_ocr', 'gastos', usuario.id, {
       mime: archivo.type,
       bytes: archivo.size,
-    });
+    }, correlationId);
     return { exito: true, datos };
   } catch (error) {
     console.error('[GASTOS] Error al procesar OCR:', error);
     if (error instanceof ErrorOcr && error.codigo === 'configuracion_faltante') {
       await registrarLog(usuario, 'ocr_comprobante_rechazado', 'gastos', usuario.id, {
         codigo: error.codigo,
-      });
+      }, correlationId);
       return { exito: false, error: 'No se pudo leer el comprobante' };
     }
-    await registrarLog(usuario, 'ocr_comprobante_rechazado', 'gastos', usuario.id);
+    await registrarLog(usuario, 'ocr_comprobante_rechazado', 'gastos', usuario.id, undefined, correlationId);
     return { exito: false, error: 'No se pudo leer el comprobante' };
   }
 }

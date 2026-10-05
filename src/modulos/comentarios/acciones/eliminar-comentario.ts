@@ -9,12 +9,13 @@ import {
   usuarioPuedeVerEntidadComentario,
 } from '@/modulos/comentarios/servicios/indice';
 import { esquemaEliminarComentario } from '@/modulos/comentarios/validaciones/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
 /** Marca un comentario como eliminado si el autor o un administrador lo solicita. */
 export async function eliminarComentarioAccion(entrada: unknown): Promise<RespuestaAccion<undefined>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaEliminarComentario.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   const usuario = await obtenerUsuarioServidor();
@@ -30,7 +31,7 @@ export async function eliminarComentarioAccion(entrada: unknown): Promise<Respue
     if (comentario.autor_id !== usuario.id && !esAdmin) {
       await registrarLog(usuario, 'eliminar_comentario_rechazado', 'comentarios', comentario.id, {
         motivo: 'autoría',
-      });
+      }, correlationId);
       return { exito: false, error: 'No puedes eliminar este comentario' };
     }
     if (comentario.autor_id === usuario.id && !esAdmin) {
@@ -46,13 +47,13 @@ export async function eliminarComentarioAccion(entrada: unknown): Promise<Respue
     await registrarLog(usuario, 'eliminar_comentario', 'comentarios', comentario.id, {
       entidadTipo: comentario.entidad_tipo,
       entidadId: comentario.entidad_id,
-    });
+    }, correlationId);
     return { exito: true };
   } catch (error) {
     console.error('[COMENTARIOS] Error al eliminar comentario:', error);
     await registrarLog(usuario, 'eliminar_comentario_rechazado', 'comentarios', analisis.data.comentarioId, {
       codigo: 'error_servicio_comentarios',
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorComentarios(error) };
   }
 }

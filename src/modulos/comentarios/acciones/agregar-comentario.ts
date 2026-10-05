@@ -12,7 +12,7 @@ import {
 } from '@/modulos/comentarios/servicios/indice';
 import type { ComentarioRegistro } from '@/modulos/comentarios/tipos/indice';
 import { esquemaCrearComentario } from '@/modulos/comentarios/validaciones/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
@@ -20,6 +20,7 @@ import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 export async function agregarComentarioAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ComentarioRegistro>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaCrearComentario.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -40,7 +41,7 @@ export async function agregarComentarioAccion(
       await registrarLog(usuario, 'agregar_comentario_rechazado', 'comentarios', analisis.data.entidadId, {
         entidadTipo: analisis.data.entidadTipo,
         motivo: 'entidad_no_disponible',
-      });
+      }, correlationId);
       return { exito: false, error: 'No tienes acceso a este registro' };
     }
 
@@ -62,7 +63,7 @@ export async function agregarComentarioAccion(
       entidadTipo: comentario.entidadTipo,
       entidadId: comentario.entidadId,
       menciones: mencionesJson.length,
-    });
+    }, correlationId);
     // El correo es un extra: si falla, el comentario ya quedó creado y las
     // notificaciones internas ya las generó el trigger de Postgres.
     try {
@@ -84,7 +85,7 @@ export async function agregarComentarioAccion(
     await registrarLog(usuario, 'agregar_comentario_rechazado', 'comentarios', analisis.data.entidadId, {
       entidadTipo: analisis.data.entidadTipo,
       codigo: 'error_servicio_comentarios',
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorComentarios(error) };
   }
 }

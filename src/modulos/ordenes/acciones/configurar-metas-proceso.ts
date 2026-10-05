@@ -8,12 +8,13 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaConfigurarMetasProceso } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 export async function configurarMetasProcesoAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<{ partidaId: string; ordenActualizadoEn: string }>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaConfigurarMetasProceso.safeParse(entrada);
   if (!analisis.success) return {
     exito: false,
@@ -29,14 +30,14 @@ export async function configurarMetasProcesoAccion(
     });
     await registrarLog(usuario, 'configurar_metas_proceso', 'ordenes', datos.partidaId, {
       procesos: analisis.data.procesos.length,
-    });
+    }, correlationId);
     return { exito: true, datos };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
     console.error('[ORDENES] Error al configurar procesos:', error);
     await registrarLog(usuario, 'configuracion_procesos_rechazada', 'ordenes', analisis.data.partidaId, {
       codigo,
-    });
+    }, correlationId);
     return { exito: false, error: (
       codigo === 'orden_desactualizada' ? 'La orden cambió; recarga antes de configurar procesos.'
         : codigo === 'orden_no_editable' ? 'La orden ya no está en borrador.'

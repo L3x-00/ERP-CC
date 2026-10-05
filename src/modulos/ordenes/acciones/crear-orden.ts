@@ -9,7 +9,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaCrearOrden } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -18,6 +18,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
  * por lo que no admite una cotización asignada desde esta acción.
  */
 export async function crearOrdenAccion(entrada: unknown): Promise<RespuestaAccion<OrdenCreada>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaCrearOrden.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -49,12 +50,12 @@ export async function crearOrdenAccion(entrada: unknown): Promise<RespuestaAccio
     await registrarLog(usuario, 'crear_orden_manual', 'ordenes', orden.id, {
       folio: orden.folio,
       clienteId: datosManual.clienteId,
-    });
+    }, correlationId);
     return { exito: true, datos: orden };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
     console.error('[ORDENES] Error al crear orden:', error);
-    await registrarLog(usuario, 'crear_orden_rechazada', 'ordenes', datosManual.clienteId, { codigo });
+    await registrarLog(usuario, 'crear_orden_rechazada', 'ordenes', datosManual.clienteId, { codigo }, correlationId);
     return { exito: false, error: 'No se pudo crear la orden' };
   }
 }

@@ -5,7 +5,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 
 const esquema = z.object({
   arId: z.uuid(),
@@ -18,6 +18,7 @@ const esquema = z.object({
 export async function registrarFacturaArAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<{ cuentaId: string; folioFactura: string }>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquema.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: 'Datos de factura inválidos' };
   const usuario = await obtenerUsuarioServidor();
@@ -43,6 +44,6 @@ export async function registrarFacturaArAccion(
   await registrarLog(usuario, 'registrar_factura_ar', 'cobranza', fila.cuenta_id, {
     referenciaFiscal: fila.folio_factura,
     fechaVencimiento: fila.fecha_vencimiento,
-  });
+  }, correlationId);
   return { exito: true, datos: { cuentaId: fila.cuenta_id, folioFactura: fila.folio_factura } };
 }

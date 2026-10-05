@@ -9,7 +9,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaRepetirOrden } from '@/modulos/ordenes/validaciones/ordenes';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const MENSAJES: Readonly<Record<string, string>> = {
@@ -26,6 +26,7 @@ const MENSAJES: Readonly<Record<string, string>> = {
 export async function repetirOrdenAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<RepeticionCreada>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaRepetirOrden.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -45,14 +46,14 @@ export async function repetirOrdenAccion(
     await registrarLog(usuario, 'repetir_orden', 'ordenes', orden.id, {
       folio: orden.folio,
       ordenOrigenId: analisis.data.ordenOrigenId,
-    });
+    }, correlationId);
     return { exito: true, datos: orden };
   } catch (error) {
     const codigo = error instanceof ErrorOrden ? error.codigo : 'desconocido';
     console.error('[ORDENES] Error al repetir orden:', error);
     await registrarLog(usuario, 'repetir_orden_rechazado', 'ordenes', analisis.data.ordenOrigenId, {
       codigo,
-    });
+    }, correlationId);
     return { exito: false, error: MENSAJES[codigo] ?? 'No se pudo repetir el trabajo' };
   }
 }

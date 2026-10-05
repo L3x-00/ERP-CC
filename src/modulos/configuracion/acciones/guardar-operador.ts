@@ -1,7 +1,7 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   guardarOperadorServicio,
@@ -13,6 +13,7 @@ import { esquemaGuardarOperador } from '@/modulos/configuracion/validaciones/ind
 export async function guardarOperadorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<OperadorGestionConfig>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaGuardarOperador.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -32,14 +33,14 @@ export async function guardarOperadorAccion(
     await registrarLog(usuario, accion, 'configuracion', operador.id, {
       activo: operador.activo,
       pinCambiado: Boolean(datos.pin),
-    });
+    }, correlationId);
     return { exito: true, datos: operador };
   } catch (error) {
     const codigo = error instanceof Error ? error.message : 'error_inesperado';
     console.error('[CONFIGURACION] Gestión de operador rechazada:', codigo);
     await registrarLog(usuario, 'guardar_operador_rechazado', 'configuracion', datos.id ?? usuario.id, {
       codigo: codigo === 'pin_duplicado' ? 'pin_duplicado' : 'error_servicio',
-    });
+    }, correlationId);
     return {
       exito: false,
       error: codigo === 'pin_duplicado'

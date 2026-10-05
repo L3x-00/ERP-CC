@@ -10,12 +10,13 @@ import {
 } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { esquemaAplicarSaldoFavor } from '@/modulos/cobranza/validaciones/cobranza';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 export async function aplicarSaldoFavorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<SaldoFavorAplicado> & { rechazoConfirmado?: boolean }> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaAplicarSaldoFavor.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, rechazoConfirmado: true, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -36,13 +37,13 @@ export async function aplicarSaldoFavorAccion(
       arId: aplicacion.arId,
       folioRecibo: aplicacion.folioRecibo,
       idempotente: aplicacion.idempotente,
-    });
+    }, correlationId);
     return { exito: true, datos: aplicacion };
   } catch (error) {
     console.error('[COBRANZA] Error al aplicar saldo a favor:', error);
     await registrarLog(usuario, 'aplicacion_saldo_rechazada', 'cobranza', analisis.data.arId, {
       solicitudId: analisis.data.solicitudId,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorCobranza(error), rechazoConfirmado: error instanceof ErrorCobranza && ['cuenta_inexistente', 'cuenta_no_disponible', 'saldo_insuficiente', 'orden_no_lista'].includes(error.codigo) };
   }
 }

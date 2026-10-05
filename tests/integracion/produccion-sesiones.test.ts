@@ -48,6 +48,7 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...argumentos: unknown[]) => registrarLogMock(...argumentos),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({ rpc: vi.fn(), from: vi.fn() }),
@@ -170,6 +171,7 @@ describe('acciones seguras de sesiones de Producción', () => {
       'produccion',
       IDS.sesionId,
       expect.objectContaining({ programacionId: IDS.programacionId }),
+      expect.anything(),
     );
   });
 
@@ -210,6 +212,7 @@ describe('acciones seguras de sesiones de Producción', () => {
       'produccion',
       IDS.sesionId,
       expect.objectContaining({ horasNetas: 7 }),
+      expect.anything(),
     );
   });
 

@@ -9,13 +9,14 @@ import {
 } from '@/modulos/cobranza/servicios/cobranza-servicio';
 import { esquemaCrearCuentaPorCobrar } from '@/modulos/cobranza/validaciones/cobranza';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /** Excepción para orden entregada sin AR; la elegibilidad se revalida bajo lock en PostgreSQL. */
 export async function abrirCuentaPorCobrarAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<CuentaAbierta>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaCrearCuentaPorCobrar.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -38,13 +39,13 @@ export async function abrirCuentaPorCobrarAccion(
       tipoCambioOrigen: analisis.data.tipoCambioOrigen,
       fechaVencimiento: analisis.data.fechaVencimiento,
       folioFacturaRemision: analisis.data.folioFacturaRemision,
-    });
+    }, correlationId);
     return { exito: true, datos: cuenta };
   } catch (error) {
     console.error('[COBRANZA] Error al abrir cuenta por cobrar:', error);
     await registrarLog(usuario, 'apertura_cuenta_rechazada', 'cobranza', analisis.data.ordenId, {
       moneda: analisis.data.moneda,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorCobranza(error) };
   }
 }

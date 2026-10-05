@@ -51,7 +51,7 @@ test.describe('Catálogos comerciales configurables (CFG-08/09)', () => {
     await iniciarSesion(page, acceso);
     await page.goto('/configuracion');
     await expect(page.getByTestId('pagina-configuracion')).toBeVisible();
-    await page.getByRole('tab', { name: 'Catálogos' }).click();
+    await page.getByRole('tab', { name: 'Catálogos', exact: true }).click();
 
     try {
       await page.getByTestId('catalogo-descuento-plata').fill('4');
@@ -71,7 +71,7 @@ test.describe('Catálogos comerciales configurables (CFG-08/09)', () => {
       expect(tiers.tiers.map((tier) => tier.clave)).toEqual(['bronce', 'plata', 'oro', 'platino']);
 
       await page.reload();
-      await page.getByRole('tab', { name: 'Catálogos' }).click();
+      await page.getByRole('tab', { name: 'Catálogos', exact: true }).click();
       await expect(page.getByTestId('catalogo-descuento-plata')).toHaveValue('4');
 
       await page.getByTestId('catalogo-nueva-categoria').fill('acero_inoxidable');

@@ -10,13 +10,14 @@ import {
 } from '@/modulos/planeacion/servicios/indice';
 import { esquemaProgramarOrden } from '@/modulos/planeacion/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /** Programa con autorización de Planeación; PostgreSQL conserva la decisión atómica. */
 export async function programarPartidaRecursoAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ProgramacionActualizada>> {
+  const correlationId = nuevoCorrelationId();
   const analisis = esquemaProgramarOrden.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -39,7 +40,7 @@ export async function programarPartidaRecursoAccion(
       recursoId: analisis.data.recursoId,
       fechaProgramada: analisis.data.fechaProgramada,
       turno: analisis.data.turno,
-    });
+    }, correlationId);
     return { exito: true, datos: programacion };
   } catch (error) {
     const codigo = error instanceof ErrorPlaneacion ? error.codigo : 'desconocido';
@@ -47,7 +48,7 @@ export async function programarPartidaRecursoAccion(
     await registrarLog(usuario, 'programacion_partida_rechazada', 'planeacion', analisis.data.partidaId, {
       codigo,
       recursoId: analisis.data.recursoId,
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorPlaneacion(error, 'programar') };
   }
 }

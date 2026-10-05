@@ -26,6 +26,7 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...argumentos: unknown[]) => registrarLogMock(...argumentos),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 /**
  * `registrarGastoAccion` valida la categoría contra `obtenerConfiguracionGeneral()`,
@@ -156,7 +157,7 @@ describe('acciones seguras de Gastos', () => {
     const respuesta = await registrarGastoAccion(entrada);
     expect(respuesta).toEqual({ exito: true, datos: GASTO });
     expect(registrarGastoMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining(entrada), CONTADOR.id);
-    expect(registrarLogMock).toHaveBeenCalledWith(CONTADOR, 'registrar_gasto', 'gastos', GASTO.id, expect.anything());
+    expect(registrarLogMock).toHaveBeenCalledWith(CONTADOR, 'registrar_gasto', 'gastos', GASTO.id, expect.anything(), expect.anything());
   });
 
   it('rechaza una categoría fuera del catálogo configurado', async () => {
@@ -221,6 +222,6 @@ describe('acciones seguras de Gastos', () => {
       nuevoEstado: 'pagado',
       estadoEsperado: 'pendiente',
     }, CONTADOR.id);
-    expect(registrarLogMock).toHaveBeenCalledWith(CONTADOR, 'cambiar_estado_gasto', 'gastos', GASTO.id, expect.anything());
+    expect(registrarLogMock).toHaveBeenCalledWith(CONTADOR, 'cambiar_estado_gasto', 'gastos', GASTO.id, expect.anything(), expect.anything());
   });
 });

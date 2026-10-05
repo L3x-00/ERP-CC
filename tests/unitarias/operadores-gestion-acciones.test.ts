@@ -14,6 +14,7 @@ vi.mock('@/modulos/configuracion/servicios/operadores-servicio', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...args: unknown[]) => mocks.log(...args),
+  nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 
 import { guardarOperadorAccion } from '@/modulos/configuracion/acciones/guardar-operador';
