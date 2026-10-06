@@ -89,6 +89,17 @@ El documento describe la plataforma actual como referencia, no como obligación 
 3. Diccionario de KPIs acordado con el PO; fórmulas con pruebas unitarias; sin doble conteo.
 4. Documento del cliente y plan actualizados ante cualquier cambio de regla.
 
+## 9.7 Estado de implementación (2026-10-06) — cierre del plan
+
+- **Diccionario §9.3 cerrado con el PO** (alcance completo aprobado 2026-10-06) e implementado en `public.obtener_kpis_sii(p_inicio, p_fin, p_actor_id)` (migración `20261007210001`): ventas (vendido con TC congelado, tasa de cierre, propuestas en seguimiento), producción (horas reales vs estimadas, utilización, WIP valorado, piezas finales), calidad (retrabajos, scrap, no conformidades), rentabilidad (margen estimado vs real) y cobranza (cobros vigentes, aging 0-30/31-60/61-90/90+, promesas), con TI aparte y reglas anti doble conteo.
+  - Aproximaciones documentadas: utilización usa capacidad nominal (equipos × jornada) × días del rango; el WIP se valora con la tarifa interna más reciente de la partida (las partidas sin tarifa se cuentan y valen 0); el scrap de partida se atribuye a órdenes con actividad en el rango.
+- **UI:** sección “KPIs del mes” en `/dashboard` (`SeccionKpisSii`), filtrada por permiso del área (ventas, producción, calidad, rentabilidad/cobranza) según decisión del PO.
+- **UX (§9.2):** checklist `orca-ui-review` aplicado a las pantallas SII nuevas; sin patrones de color prohibidos (grep), estados homologados con `BadgeEstado` (se añadieron `emitida`, `recibida`, `conciliado`), estados de carga/vacío/error presentes y capturas claro/oscuro/tablet en `.ai-shared/qa/`.
+- **Evidencia:** pgTAP `sii_b9_kpis` 18/18 · global **1100/1100** · unit 955/955 · E2E `kpis-dashboard` 1/1 (+ regresión de badges 3/3) · build OK · capturas 2/2 en `.ai-shared/qa/sii-b9/visual/`.
+- **Compuertas Go Live (§9.1):** GL1–GL4 tienen bloque, evidencia y auditoría en `docs/plan-erp-sii/paralelo/VERIFICACION-COORDINADOR.md` (auditorías 1–16); “Después” (B8) quedó implementado localmente completo. La aceptación remota/CI y la publicación siguen pendientes del PO.
+- **Transferencia (§9.5):** el traspaso por bloque vive en `docs/plan-erp-sii/` (bloques + ADRs en `.ai-shared/memory/decisions/`), con migraciones, pruebas y evidencia por ola; el diccionario y las decisiones del cliente quedan en el anexo.
+- **Documento vivo (§23):** las reglas nuevas (F1–F5, B9) se registraron primero como decisión (ADR `ADR-SII-B8-FINANZAS-20261006.md` y este plan) y después en el sistema.
+
 ---
 
 ## Anexo — Decisiones del cliente (respondidas 2026-10-05)

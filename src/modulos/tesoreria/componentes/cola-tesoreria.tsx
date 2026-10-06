@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { obtenerTesoreriaAccion } from '@/modulos/tesoreria/acciones/obtener-tesoreria';
@@ -164,11 +165,8 @@ export function ColaTesoreria({
                     {movimiento.signo === 1 ? '+' : '−'}{formatearMoneda(movimiento.monto, movimiento.moneda as 'MXN' | 'USD')}
                   </td>
                   <td className="px-4 py-3">
-                    <span data-testid={`conciliacion-${movimiento.entidad}-${movimiento.entidadId}`}
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        movimiento.conciliadoEn ? 'bg-exito-suave text-exito-texto' : 'bg-advertencia-suave text-advertencia-texto'
-                      }`}>
-                      {movimiento.conciliadoEn ? 'Conciliado' : 'Pendiente'}
+                    <span data-testid={`conciliacion-${movimiento.entidad}-${movimiento.entidadId}`}>
+                      <BadgeEstado estado={movimiento.conciliadoEn ? 'conciliado' : 'pendiente'} />
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">

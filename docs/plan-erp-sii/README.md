@@ -86,7 +86,9 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | B6 Producción | 6.1–6.4 | **COMPLETADO** (olas 1 y 2 commiteadas: modelo + UI de piso/calidad) | `247fe31`, `78933f0` | pgTAP 968/968 · unit 932/932 · E2E corridas-calidad verde |
 | B7 Entregas | 7.1–7.3 | **COMPLETADO localmente**: ola 1 `b4c4487`; ola 2 (UI `/entregas`, evidencia y firma) verificada 2026-10-06, **pendiente commit** | `b4c4487` | pgTAP 968/968 global (B7 51/51) · unit 935/935 · E2E focal 1/1 + regresión producción/cobranza 7/7 · capturas 8/8 |
 | B8 Finanzas | 8.1–8.4 | **COMPLETADO localmente**: F1–F5 implementadas y verificadas 2026-10-06 (pendiente commit); solo B9 queda del plan | — | pgTAP B8 12/12+19/19+27/27+29/29+27/27 · global 1082/1082 · unit 951/951 · E2E B8 5/5 + regresiones 17/17 · capturas 16/16 |
-| B9 Estrategia/KPIs | 9.1–9.6 | PENDIENTE | — | — |
+| B9 Estrategia/KPIs | 9.1–9.6 | **COMPLETADO localmente**: diccionario §9.3 implementado (RPC + sección dashboard por permiso), UX revisado y compuertas documentadas 2026-10-06 (pendiente commit) | — | pgTAP `sii_b9_kpis` 18/18 · global 1100/1100 · unit 955/955 · E2E `kpis-dashboard` 1/1 · capturas 2/2 |
+
+**Plan SII/CC completo localmente (B1–B9)** al 2026-10-06: pendientes del PO únicamente el commit/publicación, las migraciones remotas y la aceptación/CI. `supabase db reset` local + fixture sigue recomendado para acelerar suites.
 
 Al avanzar, reemplazar `PENDIENTE` por el estado real y enlazar handoff/PR. Este archivo es la única fuente de verdad del avance del plan.
 

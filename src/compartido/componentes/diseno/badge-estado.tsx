@@ -34,6 +34,11 @@ const ESTADOS: Record<string, DefinicionEstado> = {
   produccion_completada: { tono: 'exito', etiqueta: 'Producción completada' },
   cerrada: { tono: 'exito', etiqueta: 'Cerrada' },
 
+  // Facturación/Compras/Tesorería (SII-B8)
+  emitida: { tono: 'exito', etiqueta: 'Emitida' },
+  recibida: { tono: 'info', etiqueta: 'Recibida' },
+  conciliado: { tono: 'exito', etiqueta: 'Conciliado' },
+
   // Cobranza / Gastos
   pendiente: { tono: 'advertencia', etiqueta: 'Pendiente' },
   parcial: { tono: 'info', etiqueta: 'Parcial' },

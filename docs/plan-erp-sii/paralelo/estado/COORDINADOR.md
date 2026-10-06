@@ -115,3 +115,10 @@
 - Implementado: `20261007200001`–`0003` (tipo de cuenta, saldos iniciales, movimientos en par, conciliaciones, 4 RPC y ajuste de RETURNING) y UI `/tesoreria`.
 - Gates: typecheck 0 · lint 0 · unit **951/951** · pgTAP **1082/1082** (`sii_b8_tesoreria` 27/27) · E2E F5 1/1 · build OK · capturas 4/4.
 - **B8 completo localmente (F1–F5)**; pendiente commit del bloque; queda B9 (Estrategia/KPIs) en el plan.
+
+### B9 Estrategia/KPIs cerrada — plan SII/CC completo localmente — 2026-10-06
+
+- El PO autorizó el diccionario §9.3 completo con visibilidad por permiso del área.
+- Implementado: `20261007210001` (RPC `obtener_kpis_sii` con las 15 fórmulas y anti doble conteo) y sección “KPIs del mes” en `/dashboard` filtrada por permiso. UX (§9.2) aplicado con homologación de estados en `BadgeEstado` y regresión E2E 3/3.
+- Gates: typecheck 0 · lint 0 · unit **955/955** · pgTAP **1100/1100** (`sii_b9_kpis` 18/18) · E2E B9 1/1 · build OK · capturas 2/2.
+- **Plan B1–B9 completo localmente**; pendientes del PO: commit final, push y migraciones remotas (`20261007210001` última), aceptación/CI.

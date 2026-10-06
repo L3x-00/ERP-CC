@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { obtenerColaComprasAccion } from '@/modulos/compras/acciones/obtener-cola-compras';
 import {
@@ -11,15 +12,7 @@ import {
   type ModoPanelCompra,
 } from '@/modulos/compras/componentes/panel-compra';
 import type { ColaCompras } from '@/modulos/compras/servicios/obtener-compras';
-import { ETIQUETA_ESTADO_COMPRA, type CompraCola } from '@/modulos/compras/tipos/indice';
-
-const CLASE_ESTADO: Record<string, string> = {
-  BORRADOR: 'bg-advertencia-suave text-advertencia-texto',
-  CONFIRMADA: 'bg-info-suave text-info-texto',
-  RECIBIDA: 'bg-acento-suave text-acento',
-  PAGADA: 'bg-exito-suave text-exito-texto',
-  CANCELADA: 'bg-superficie-2 text-texto-secundario',
-};
+import type { CompraCola } from '@/modulos/compras/tipos/indice';
 
 /** SII-B8 F4: cola de compras/CxP con folio CG y pagos a proveedores. */
 export function ColaCompras({
@@ -141,9 +134,8 @@ export function ColaCompras({
                     {compra.fechaVencimiento ? formatearFecha(compra.fechaVencimiento) : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <span data-testid={`estado-compra-${compra.id}`}
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLASE_ESTADO[compra.estado] ?? ''}`}>
-                      {ETIQUETA_ESTADO_COMPRA[compra.estado]}
+                    <span data-testid={`estado-compra-${compra.id}`}>
+                      <BadgeEstado estado={compra.estado} />
                     </span>
                   </td>
                   <td className="px-4 py-3">

@@ -5489,6 +5489,14 @@ export type Database = {
           salida_id: string
         }[]
       }
+      obtener_kpis_sii: {
+        Args: {
+          p_actor_id: string
+          p_fin: string
+          p_inicio: string
+        }
+        Returns: Json
+      }
       registrar_entrega: {
         Args: {
           p_actor?: string

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { obtenerColaFacturasAccion } from '@/modulos/facturacion/acciones/obtener-cola-facturas';
@@ -13,16 +14,9 @@ import {
 } from '@/modulos/facturacion/componentes/panel-factura';
 import type { ColaFacturas, FacturaCola } from '@/modulos/facturacion/servicios/obtener-facturas';
 import {
-  ETIQUETA_ESTADO_FACTURA,
   filtrarFacturas,
   type FiltroEstadoFactura,
 } from '@/modulos/facturacion/utilidades/indice';
-
-const CLASE_ESTADO: Record<string, string> = {
-  BORRADOR: 'bg-advertencia-suave text-advertencia-texto',
-  EMITIDA: 'bg-exito-suave text-exito-texto',
-  CANCELADA: 'bg-superficie-2 text-texto-secundario',
-};
 
 /**
  * SII-B8 F2: cola de facturación con borradores/emitidas/canceladas y alta
@@ -138,11 +132,8 @@ export function ColaFacturas({
                 return (
                   <tr key={factura.id} data-testid={`fila-factura-${factura.id}`} className="border-t border-borde">
                     <td className="px-4 py-3">
-                      <span
-                        data-testid={`estado-factura-${factura.id}`}
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLASE_ESTADO[factura.estado] ?? ''}`}
-                      >
-                        {ETIQUETA_ESTADO_FACTURA[factura.estado]}
+                      <span data-testid={`estado-factura-${factura.id}`}>
+                        <BadgeEstado estado={factura.estado} />
                       </span>
                     </td>
                     <td className="px-4 py-3">{factura.clienteNombre ?? '—'}</td>

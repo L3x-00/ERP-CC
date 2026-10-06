@@ -217,3 +217,13 @@
 - **Evidencia:** typecheck 0 · lint 0 · unit **951/951** · pgTAP **1082/1082** (42 archivos; `sii_b8_tesoreria` 27/27) · E2E `tesoreria-flujo` 1/1 · build OK · capturas 4/4.
 - **Migraciones para el PO (remoto):** `20261007200001`–`0003` (tras `20261007190002`).
 - **Hito:** B8 Finanzas (F1–F5) queda **completo localmente**; pendiente el commit del bloque y, al final del plan, B9 (Estrategia/KPIs/transferencia).
+
+### Auditoría 16 — 2026-10-06 (B9 KPIs/UX/transferencia; cierre del plan)
+
+- **Alcance autorizado por el PO:** diccionario §9.3 completo como sección “KPIs del mes” del dashboard, con visibilidad por permiso del área.
+- **Implementación:** `20261007210001` (RPC `obtener_kpis_sii` con las 15 fórmulas §9.3, TI aparte y anti doble conteo; aproximaciones documentadas) y módulo `src/modulos/kpis/**` con la sección RSC en `/dashboard` filtrada por `areasKpisVisibles`.
+- **UX (§9.2):** checklist `orca-ui-review` aplicado; sin patrones prohibidos; estados homologados con `BadgeEstado` (nuevos `emitida`, `recibida`, `conciliado`) en facturación/compras/tesorería con regresión E2E 3/3; capturas claro/oscuro.
+- **Evidencia:** typecheck 0 · lint 0 · unit **955/955** · pgTAP **1100/1100** (43 archivos; `sii_b9_kpis` 18/18) · E2E `kpis-dashboard` 1/1 + regresión de badges 3/3 · build OK (sección en `/dashboard`) · capturas 2/2.
+- **Compuertas Go Live (§9.1):** GL1–GL4 documentadas con evidencia por bloque (auditorías 1–16); “Después” (B8 F1–F5) implementado localmente.
+- **Migración para el PO (remoto):** `20261007210001` (tras `20261007200003`).
+- **Cierre:** **plan SII/CC (B1–B9) completo localmente**; pendientes del PO: commit final, push, migraciones remotas y aceptación/CI.

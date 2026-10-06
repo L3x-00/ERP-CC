@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { OperacionDashboard } from '@/modulos/dashboard/componentes/indice';
 import { obtenerMetricasInicioAccion } from '@/modulos/dashboard/acciones/indice';
 import type { FiltroPeriodoDashboard } from '@/modulos/dashboard/tipos/indice';
+import { SeccionKpisSii } from '@/modulos/kpis/componentes/seccion-kpis-sii';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,5 +21,10 @@ export default async function PaginaDashboard() {
     return <p role="alert">No se pudo cargar el dashboard. Vuelve a intentarlo.</p>;
   }
   if (respuesta.datos.redireccion) redirect(respuesta.datos.redireccion);
-  return <OperacionDashboard datosIniciales={respuesta.datos} />;
+  return (
+    <div className="flex flex-col gap-8">
+      <OperacionDashboard datosIniciales={respuesta.datos} />
+      <SeccionKpisSii />
+    </div>
+  );
 }
