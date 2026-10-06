@@ -228,10 +228,24 @@ export async function obtenerReciboPagoServicio(
   if (!filaPago) throw new ErrorCobranza('cuenta_inexistente');
   const pago = filaAPagoAR(filaPago);
 
+  // SII-B8 F3: los cobros repartidos no tienen AR principal; se usa la primera aplicación.
+  let cuentaIdRecibo = pago.arId;
+  if (!cuentaIdRecibo) {
+    const { data: aplicacion } = await cliente
+      .from('aplicaciones_pago')
+      .select('cuenta_id')
+      .eq('pago_id', pago.id)
+      .order('creado_en', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    cuentaIdRecibo = aplicacion?.cuenta_id ?? null;
+  }
+  if (!cuentaIdRecibo) throw new ErrorCobranza('cuenta_inexistente');
+
   const { data: filaCuenta, error: errorCuenta } = await cliente
     .from('cuentas_por_cobrar')
     .select('id, orden_id, cliente_id, referencia_interna, folio_factura_remision, monto_total, saldo_pendiente, moneda, estado')
-    .eq('id', pago.arId)
+    .eq('id', cuentaIdRecibo)
     .maybeSingle();
   if (errorCuenta) throw new ErrorCobranza('desconocido', errorCuenta.message);
   if (!filaCuenta) throw new ErrorCobranza('cuenta_no_disponible');

@@ -191,3 +191,12 @@
 - **Compatibilidad verificada:** `registrar_factura_ar` (modal de Cobranza) intacto; D-04 intacto (AR por entregar facturada conserva vencimiento NULL); cancelación conserva vencimiento y desvincula.
 - **Migración para el PO (remoto):** `20261007170001` (tras `20261007160002`).
 - **Siguiente:** commit del cierre B8-F2; F3–F5 solo con autorización por fase.
+
+### Auditoría 13 — 2026-10-06 (B8 F3: cobros repartidos y promesas con recordatorios)
+
+- **Scope autorizado con decisiones del PO:** recibo multi-factura real (aplicaciones N:M), folio `RP-MMYY_0000-YY` global del periodo, recordatorios internos 2 días antes y al vencer, y promesa CUMPLIDA automática al pagarse.
+- **Implementación:** dos migraciones base + tres ajustes (`20261007180001`–`0005`): tablas `aplicaciones_pago`/`promesas_pago` con RLS, `ar_id` nullable con backfill, motores recreados (registro de aplicación, promesa cumplida, `reversar_pago_ar` por aplicaciones, `registrar_cobro_multiple`, RPC de promesas y procesador de recordatorios), corrección de los literales acentuados que F1 dejó mal codificados, CHECK de folio con sufijo `0000` y recordatorios compatibles con los CHECK de `notificaciones_usuario`. UI en `/cobranza` (cobro múltiple + promesa) y materialización de recordatorios al abrir cartera o notificaciones.
+- **Defectos detectados y corregidos durante la verificación:** conflicto de inferencia `ON CONFLICT (pago_id…)` contra parámetro OUT; CHECK de folio sin `0000`; `tipo`/`enlace` fuera del catálogo de notificaciones; folio de fixture E2E con 7 dígitos.
+- **Evidencia:** typecheck 0 · lint 0 · unit **944/944** · pgTAP **1026/1026** (40 archivos; `sii_b8_cobros_promesas` 27/27) · E2E `cobranza-cobro-multiple` 1/1 + regresión cobranza/facturación 5/5 · build OK · capturas 2/2.
+- **Migraciones para el PO (remoto):** `20261007180001`–`20261007180005` (tras `20261007170001`).
+- **Siguiente:** commit del cierre B8-F3; F4 (compras/CxP) y F5 (tesorería) solo con autorización por fase.

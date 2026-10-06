@@ -85,7 +85,7 @@ Regla clave: **las transferencias internas entre cuentas no son ingreso ni gasto
 |---|---|---|---|
 | F1 | Folio `RP-MMYY_XX-YY` para recibos nuevos + `solicitud_id` en cobros legacy | B7 | **COMPLETADA localmente 2026-10-06** (§8.5): migraciones `20261007160001/0002`, pgTAP 12/12, E2E `cobranza-folio-rp`; la idempotencia por `solicitud_id` ya existía. |
 | F2 | Factura borrador + vínculo entrega→facturación→CxC (sin timbrado CFDI) | F1 | **COMPLETADA localmente 2026-10-06** (§8.6): migración `20261007170001`, pgTAP 19/19, E2E `facturacion-flujo`; UI `/facturacion`. |
-| F3 | Aplicaciones many-to-many + promesas de pago (**con recordatorios**, decisión PO 2026-10-06) | F1 | PENDIENTE (autorización del PO) |
+| F3 | Aplicaciones many-to-many + promesas de pago (**con recordatorios**, decisión PO 2026-10-06) | F1 | **COMPLETADA localmente 2026-10-06** (§8.7): migraciones `20261007180001`–`0005`, pgTAP 27/27, E2E `cobranza-cobro-multiple`; UI en `/cobranza`. |
 | F4 | Compras/CxP con folio `CG-MMYY_####` y pagos a proveedores | F2 | PENDIENTE (autorización del PO) |
 | F5 | Tesorería: saldos, transferencias internas, conciliación básica | F4 | PENDIENTE (autorización del PO) |
 
@@ -117,3 +117,12 @@ Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP
 - **Compatibilidad:** el flujo vigente de `registrar_factura_ar` (folio directo sobre la AR desde `/cobranza`) no se modifica; D-04 (activación de AR al entregar) queda intacto y una AR por-entregar conserva vencimiento NULL al facturarse.
 - **Evidencia:** pgTAP `sii_b8_facturacion` 19/19 · pgTAP global 999/999 · unit 940/940 · E2E `facturacion-flujo` + regresión entregas/cobranza 5/5 · build OK · capturas 4/4 en `.ai-shared/qa/sii-b8-f2/visual/`.
 - **Pendiente del PO:** aplicar en remoto `20261007170001` (tras `20261007160002`).
+
+## 8.7 Estado F3 — Aplicaciones many-to-many y promesas de pago (2026-10-06)
+
+- **Decisiones del PO:** recibo único aplicable a varias facturas del mismo cliente (F3.1); folio `RP-MMYY_0000-YY` con contador global del periodo para cobros repartidos (F3.2); recordatorios internos 2 días antes y al vencer, para usuarios con `registrar_pagos` y el creador (F3.3); promesa CUMPLIDA automáticamente al pagarse su factura (F3.4).
+- **Migraciones:** `20261007180001` (tablas `aplicaciones_pago` y `promesas_pago`, `pagos_ar.ar_id`/`reversos_pago_ar.ar_id` nullable con backfill de aplicaciones, RLS/grants), `20261007180002` (motores: `registrar_pago_ar_atomico` y `aplicar_saldo_favor_ar` registran su aplicación y cumplen promesas; `reversar_pago_ar` por aplicaciones —legacy y repartido—; folio múltiple; `registrar_cobro_multiple`; RPC de promesas y procesador de recordatorios; **corrige los literales acentuados del motor recreado en F1**), `20261007180003` (CHECK del folio admite el sufijo reservado `0000`), `20261007180004` (aplicaciones sin `ON CONFLICT` ambiguo), `20261007180005` (recordatorios con `tipo=alerta_sistema` y enlace interno `/ordenes?ordenId=`, compatibles con los CHECK de `notificaciones_usuario`).
+- **UI:** botón “Cobro múltiple” y modal con selección de cliente/facturas y montos por AR; botón “Promesa” por cuenta con alta/cancelación; los recordatorios se materializan al abrir `/cobranza` o el centro de notificaciones (idempotente).
+- **Compatibilidad:** el flujo 1-AR y el modal de facturación por AR quedan intactos; el reverso conserva valores históricos y funciona con recibos repartidos.
+- **Evidencia:** pgTAP `sii_b8_cobros_promesas` 27/27 · global 1026/1026 · unit 944/944 · E2E `cobranza-cobro-multiple` 1/1 + regresión cobranza/facturación 5/5 · build OK · capturas 2/2 en `.ai-shared/qa/sii-b8-f3/visual/`.
+- **Pendiente del PO:** aplicar en remoto `20261007180001`–`20261007180005` (tras `20261007170001`). Riesgo heredado: colisión de folios `O-`/`OI-` sigue pendiente de decisión.

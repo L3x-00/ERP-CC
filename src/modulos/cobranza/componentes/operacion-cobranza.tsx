@@ -25,6 +25,8 @@ import { TablaCuentasPorCobrar } from '@/modulos/cobranza/componentes/tabla-cuen
 import { ModalRegistrarFactura, type DatosFacturaAr } from '@/modulos/cobranza/componentes/modal-registrar-factura';
 import { ModalAbrirArExcepcion } from '@/modulos/cobranza/componentes/modal-abrir-ar-excepcion';
 import { ModalConsolidacionAr } from '@/modulos/cobranza/componentes/modal-consolidacion-ar';
+import { ModalPromesaPago } from '@/modulos/cobranza/componentes/modal-promesa-pago';
+import { ModalCobroMultiple } from '@/modulos/cobranza/componentes/modal-cobro-multiple';
 import { TarjetaResumenAging } from '@/modulos/cobranza/componentes/tarjeta-resumen-aging';
 import {
   BUCKETS_AGING,
@@ -33,7 +35,7 @@ import {
   bucketDesdeSlugAging,
   type BucketAging,
 } from '@/modulos/cobranza/servicios/aging-servicio';
-import type { ResumenCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
+import type { ResumenCartera, CuentaCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
 
 function rangoPeriodo(periodo: string, personalizado: { inicio: string; fin: string } | null): { inicio: Date; fin: Date } | null {
   const hoy = new Date();
@@ -85,6 +87,8 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
   const [facturaCuentaId, setFacturaCuentaId] = useState<string | null>(null);
   const [altaExcepcionAbierta, setAltaExcepcionAbierta] = useState(false);
   const [consolidacionAbierta, setConsolidacionAbierta] = useState(false);
+  const [promesaCuenta, setPromesaCuenta] = useState<CuentaCartera | null>(null);
+  const [cobroMultipleAbierto, setCobroMultipleAbierto] = useState(false);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_CARTERA_COBRANZA, revisionCartera],
@@ -182,6 +186,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
       <TarjetaResumenAging resumenes={datos.agingPorCliente} />
         {puedeRegistrarPago && <div className="flex justify-end gap-2">
           <Button variante="contorno" data-testid="abrir-consolidacion" onClick={() => setConsolidacionAbierta(true)}>Consolidar cuentas heredadas</Button>
+          <Button variante="contorno" data-testid="abrir-cobro-multiple" onClick={() => setCobroMultipleAbierto(true)}>Cobro múltiple</Button>
           <Button variante="secundario" onClick={() => setAltaExcepcionAbierta(true)}>Nueva factura de orden sin cuenta</Button>
         </div>}
       <div className="grid gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -223,7 +228,7 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
       ) : null}
       {cargando
         ? <SkeletonTabla columnas={8} filas={6} />
-        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} puedeCobrar={puedeRegistrarPago || puedeAplicarSaldo} onVerHistorial={(cuenta) => setHistorial({ arId: cuenta.id, clienteId: cuenta.clienteId })} onVerOrden={setOrdenId} onRegistrarFactura={puedeRegistrarPago ? setFacturaCuentaId : undefined} />}
+        : <TablaCuentasPorCobrar cuentas={cuentasFiltradas} cuentaSeleccionadaId={cuentaSeleccionadaId} onSeleccionar={abrirCobro} puedeCobrar={puedeRegistrarPago || puedeAplicarSaldo} onVerHistorial={(cuenta) => setHistorial({ arId: cuenta.id, clienteId: cuenta.clienteId })} onVerOrden={setOrdenId} onRegistrarFactura={puedeRegistrarPago ? setFacturaCuentaId : undefined} onPromesa={puedeRegistrarPago ? setPromesaCuenta : undefined} />}
       {reciboId && <ReciboPagoConsulta key={reciboId} pagoId={reciboId} />}
       <Dialog open={historial !== null} onOpenChange={(abierto) => { if (!abierto) setHistorial(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Historial de cobranza</DialogTitle><DialogDescription>Pagos de la cuenta y monedero del cliente.</DialogDescription></DialogHeader>{historial && <HistorialCuenta key={historial.arId} {...historial} />}</DialogContent></Dialog>
       <Dialog open={ordenId !== null} onOpenChange={(abierto) => { if (!abierto) setOrdenId(null); }}><DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl"><DialogHeader><DialogTitle>Detalle de orden</DialogTitle><DialogDescription>Partidas y avance de la orden seleccionada.</DialogDescription></DialogHeader>{ordenId && <DetalleOrdenCobranza key={ordenId} ordenId={ordenId} />}</DialogContent></Dialog>
@@ -254,6 +259,24 @@ export function OperacionCobranza({ datosIniciales, agingInicial, puedeRegistrar
         <ModalConsolidacionAr
           onCerrar={() => setConsolidacionAbierta(false)}
           onConsolidado={() => void refrescar()}
+        />
+      ) : null}
+      {promesaCuenta ? (
+        <ModalPromesaPago
+          key={promesaCuenta.id}
+          cuentaId={promesaCuenta.id}
+          saldo={promesaCuenta.saldoPendiente}
+          referencia={promesaCuenta.referenciaInterna}
+          abierto
+          onCerrar={() => setPromesaCuenta(null)}
+          onGuardada={refrescar}
+        />
+      ) : null}
+      {cobroMultipleAbierto ? (
+        <ModalCobroMultiple
+          abierto
+          onCerrar={() => setCobroMultipleAbierto(false)}
+          onRegistrado={refrescar}
         />
       ) : null}
     </div>

@@ -5,6 +5,7 @@ import { obtenerFlujoCuentasServicio } from '@/modulos/cobranza/servicios/flujo-
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
+import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
 type ParametrosPaginaCobranza = {
@@ -15,6 +16,14 @@ type ParametrosPaginaCobranza = {
 export default async function PaginaCobranza({ searchParams }: ParametrosPaginaCobranza) {
   const usuario = await obtenerUsuarioServidor();
   if (!usuario || !(await can(usuario, 'ver_finanzas'))) notFound();
+
+  // SII-B8 F3: materializa promesas vencidas/cumplidas y sus recordatorios
+  // (idempotente; no bloquea la cartera si falla).
+  try {
+    await crearClienteSupabaseAdmin().rpc('procesar_recordatorios_promesas', { p_actor_id: usuario.id });
+  } catch (error) {
+    console.error('[COBRANZA] Recordatorios de promesas no procesados:', error);
+  }
 
   const parametros = searchParams ? await searchParams : {};
   const agingInicial = typeof parametros.aging === 'string' ? parametros.aging : undefined;

@@ -75,7 +75,8 @@ export interface CuentaPorCobrar {
  */
 export interface PagoAR {
   id: string;
-  arId: string;
+  /** AR principal; `null` en cobros repartidos entre varias facturas (SII-B8 F3). */
+  arId: string | null;
   folioRecibo: string;
   solicitudId: string;
   montoPagado: number;

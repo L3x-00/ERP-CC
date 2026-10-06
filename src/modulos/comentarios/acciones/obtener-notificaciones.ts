@@ -18,9 +18,18 @@ export async function obtenerNotificacionesAccion(
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) return { exito: false, error: 'No autorizado' };
 
+  const admin = crearClienteSupabaseAdmin();
+  // SII-B8 F3: los recordatorios de promesas se materializan al abrir el centro
+  // de notificaciones (idempotente; no bloquea si falla).
+  try {
+    await admin.rpc('procesar_recordatorios_promesas', { p_actor_id: null });
+  } catch (error) {
+    console.error('[COMENTARIOS] Recordatorios de promesas no procesados:', error);
+  }
+
   try {
     const notificaciones = await obtenerNotificacionesUsuario(
-      crearClienteSupabaseAdmin(),
+      admin,
       usuario.id,
       analisis.data,
     );

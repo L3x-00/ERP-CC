@@ -94,3 +94,10 @@
 - Implementado: `20261007170001` (tabla `facturas`, `cuentas_por_cobrar.factura_id`, RPC crear/editar/emitir/cancelar), `/facturacion` con cola y panel, enlace desde el detalle de entrega y menú.
 - Gates: typecheck 0 · lint 0 · unit 940/940 · pgTAP **999/999** (`sii_b8_facturacion` 19/19) · E2E facturación 1/1 + regresión 4/4 · build OK · capturas 4/4.
 - Pendiente: commit de cierre B8-F2; aplicar `20261007170001` en remoto (tras `20261007160002`).
+
+### B8 Finanzas — F3 cobros repartidos y promesas cerrada localmente — 2026-10-06
+
+- El PO autorizó F3 y validó: recibo multi-factura, folio `RP-MMYY_0000-YY`, recordatorios 2 días antes y al vencer, y cumplimiento automático.
+- Implementado: `20261007180001`–`0005` (aplicaciones N:M con backfill, reverso por aplicaciones, cobro múltiple, promesas + procesador de recordatorios compatible con `notificaciones_usuario`, literales de F1 corregidos) y UI `/cobranza` (cobro múltiple + promesa).
+- Gates: typecheck 0 · lint 0 · unit 944/944 · pgTAP **1026/1026** (`sii_b8_cobros_promesas` 27/27) · E2E F3 1/1 + regresión 5/5 · build OK · capturas 2/2.
+- Pendiente: commit de cierre B8-F3; aplicar `20261007180001`–`0005` en remoto (tras `20261007170001`).

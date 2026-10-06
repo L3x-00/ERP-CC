@@ -24,6 +24,7 @@ export interface TablaCuentasPorCobrarProps {
   onVerHistorial?: (cuenta: CuentaCartera) => void;
   onVerOrden?: (ordenId: string) => void;
   onRegistrarFactura?: (cuentaId: string) => void;
+  onPromesa?: (cuenta: CuentaCartera) => void;
   puedeCobrar?: boolean;
 }
 
@@ -50,6 +51,7 @@ export function TablaCuentasPorCobrar({
   onVerHistorial,
   onVerOrden,
   onRegistrarFactura,
+  onPromesa,
   puedeCobrar = true,
 }: TablaCuentasPorCobrarProps) {
   if (cuentas.length === 0) {
@@ -138,6 +140,12 @@ export function TablaCuentasPorCobrar({
                   <div className="flex flex-wrap justify-end gap-1">
                     {onVerHistorial && <Button tamano="sm" variante="contorno" onClick={() => onVerHistorial(cuenta)}>Historial</Button>}
                     {onRegistrarFactura && cuenta.estado !== 'cancelado' && <Button tamano="sm" variante="contorno" onClick={() => onRegistrarFactura(cuenta.id)}>Factura</Button>}
+                    {onPromesa && cuenta.estado !== 'cancelado' && (
+                      <Button tamano="sm" variante="contorno" data-testid={`promesa-${cuenta.referenciaInterna}`}
+                        onClick={() => onPromesa(cuenta)}>
+                        Promesa
+                      </Button>
+                    )}
                     <Button
                       tamano="sm"
                       variante={seleccionada ? 'secundario' : 'contorno'}

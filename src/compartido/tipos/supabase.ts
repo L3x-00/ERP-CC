@@ -113,6 +113,102 @@ export type Database = {
           },
         ]
       }
+      aplicaciones_pago: {
+        Row: {
+          creado_en: string
+          cuenta_id: string
+          id: string
+          monto: number
+          pago_id: string
+        }
+        Insert: {
+          creado_en?: string
+          cuenta_id: string
+          id?: string
+          monto: number
+          pago_id: string
+        }
+        Update: {
+          creado_en?: string
+          cuenta_id?: string
+          id?: string
+          monto?: number
+          pago_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aplicaciones_pago_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_por_cobrar"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicaciones_pago_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos_ar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promesas_pago: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          creado_por: string
+          cuenta_id: string
+          estado: string
+          fecha_prometida: string
+          id: string
+          monto: number
+          motivo_cancelacion: string | null
+          recordatorio_previo_en: string | null
+          recordatorio_vencida_en: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por: string
+          cuenta_id: string
+          estado?: string
+          fecha_prometida: string
+          id?: string
+          monto: number
+          motivo_cancelacion?: string | null
+          recordatorio_previo_en?: string | null
+          recordatorio_vencida_en?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          creado_por?: string
+          cuenta_id?: string
+          estado?: string
+          fecha_prometida?: string
+          id?: string
+          monto?: number
+          motivo_cancelacion?: string | null
+          recordatorio_previo_en?: string | null
+          recordatorio_vencida_en?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promesas_pago_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promesas_pago_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_por_cobrar"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       archivos: {
         Row: {
           bucket: string
@@ -1803,7 +1899,7 @@ export type Database = {
       }
       pagos_ar: {
         Row: {
-          ar_id: string
+          ar_id: string | null
           creado_en: string
           creado_por: string
           cuenta_bancaria_id: string | null
@@ -1820,7 +1916,7 @@ export type Database = {
           tipo_cambio_pago: number
         }
         Insert: {
-          ar_id: string
+          ar_id?: string | null
           creado_en?: string
           creado_por: string
           cuenta_bancaria_id?: string | null
@@ -1837,7 +1933,7 @@ export type Database = {
           tipo_cambio_pago?: number
         }
         Update: {
-          ar_id?: string
+          ar_id?: string | null
           creado_en?: string
           creado_por?: string
           cuenta_bancaria_id?: string | null
@@ -3181,7 +3277,7 @@ export type Database = {
       }
       reversos_pago_ar: {
         Row: {
-          ar_id: string
+          ar_id: string | null
           creado_en: string
           creado_por: string | null
           id: string
@@ -3192,7 +3288,7 @@ export type Database = {
           pago_id: string
         }
         Insert: {
-          ar_id: string
+          ar_id?: string | null
           creado_en?: string
           creado_por?: string | null
           id?: string
@@ -3203,7 +3299,7 @@ export type Database = {
           pago_id: string
         }
         Update: {
-          ar_id?: string
+          ar_id?: string | null
           creado_en?: string
           creado_por?: string | null
           id?: string
@@ -4889,6 +4985,72 @@ export type Database = {
           estado: string
           folio_fiscal: string
           id: string
+        }[]
+      }
+      crear_promesa_pago: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_cuenta_id: string
+          p_fecha_prometida: string
+          p_monto: number
+        }
+        Returns: {
+          actualizado_en: string
+          cuenta_id: string
+          estado: string
+          fecha_prometida: string
+          id: string
+          monto: number
+        }[]
+      }
+      cancelar_promesa_pago: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_motivo: string
+          p_promesa_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado: string
+          id: string
+        }[]
+      }
+      procesar_recordatorios_promesas: {
+        Args: {
+          p_actor_id?: string | null
+        }
+        Returns: {
+          cumplidas: number
+          recordatorios_previos: number
+          recordatorios_vencidas: number
+          vencidas: number
+        }[]
+      }
+      registrar_cobro_multiple: {
+        Args: {
+          p_aplicaciones: Json
+          p_cliente_id: string
+          p_correlation_id?: string
+          p_cuenta_bancaria_id: string | null
+          p_metodo_pago: string
+          p_moneda_pago: string
+          p_monto_pagado: number
+          p_notas: string | null
+          p_referencia: string | null
+          p_solicitud_id: string
+          p_tipo_cambio_pago: number
+          p_usuario_id: string
+        }
+        Returns: {
+          aplicaciones: number
+          aplicado_pago: number
+          folio_recibo: string
+          idempotente: boolean
+          pago_id: string
+          saldo_a_favor_mxn: number
+          sobrepago_pago: number
         }[]
       }
       registrar_entrega: {
