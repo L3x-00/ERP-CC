@@ -1,17 +1,17 @@
 import { create } from 'zustand';
-import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
+import type { EstadoSiiOrden } from '@/modulos/ordenes/tipos/orden-sii';
 
 interface TiendaOrdenes {
   /** Orden abierta en el detalle/panel de piso (o null si ninguna). */
   ordenActivaId: string | null;
   /** Máquina por la que se filtra el tablero de piso (o null = todas). */
   filtroMaquina: string | null;
-  /** Estados seleccionados; lista vacía = sin filtrar por estado. */
-  filtrosEstado: EstadoOrden[];
+  /** Estados SII seleccionados; lista vacía = sin filtrar por estado. */
+  filtrosEstado: EstadoSiiOrden[];
   seleccionarOrden: (ordenId: string | null) => void;
   establecerFiltroMaquina: (maquina: string | null) => void;
-  alternarFiltroEstado: (estado: EstadoOrden) => void;
-  establecerFiltrosEstado: (estados: EstadoOrden[]) => void;
+  alternarFiltroEstado: (estado: EstadoSiiOrden) => void;
+  establecerFiltrosEstado: (estados: EstadoSiiOrden[]) => void;
   limpiarFiltros: () => void;
 }
 

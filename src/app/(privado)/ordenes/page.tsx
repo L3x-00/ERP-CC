@@ -1,5 +1,6 @@
 import { crearOrdenAccion } from '@/modulos/ordenes/acciones/crear-orden';
 import { FormularioOrden } from '@/modulos/ordenes/componentes/formulario-orden';
+import { PanelAltaOrdenSii } from '@/modulos/ordenes/componentes/panel-alta-orden-sii';
 import { PanelOrdenHeredada } from '@/modulos/ordenes/componentes/panel-orden-heredada';
 import { ComparativaOrdenes } from '@/modulos/ordenes/componentes/comparativa-ordenes';
 import { SincronizadorOrdenesRealtime } from '@/modulos/ordenes/componentes/sincronizador-ordenes-realtime';
@@ -59,8 +60,10 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   const ordenes: OrdenTabla[] = ordenesConPartidas.map(({ orden, partidas }) => ({
     id: orden.id,
     folio: orden.folio,
+    folioSii: orden.folioSii,
     folioCotizacionCnc: orden.folioCotizacionCnc ?? null,
     estado: orden.estado,
+    estadoSii: orden.estadoSii,
     prioridad: orden.prioridad,
     fechaCompromiso: orden.fechaCompromiso,
     actualizadoEn: orden.actualizadoEn,
@@ -124,6 +127,13 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       </section>
 
       <ComparativaOrdenes filas={comparativa} mostrarVentas={mostrarVentas} />
+
+      <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-alta-sii">
+        <h2 id="titulo-alta-sii" className="mb-4 text-lg font-semibold">
+          Alta desde propuesta aceptada
+        </h2>
+        <PanelAltaOrdenSii clientes={clientes} />
+      </section>
 
       <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-crear-op">
         <h2 id="titulo-crear-op" className="mb-4 text-lg font-semibold">

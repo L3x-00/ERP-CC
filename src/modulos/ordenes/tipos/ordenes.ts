@@ -1,4 +1,9 @@
 import type { Tables } from '@/compartido/tipos/supabase';
+import {
+  ESTADO_LEGACY_A_SII,
+  type EstadoSiiOrden,
+} from '@/modulos/ordenes/tipos/orden-sii';
+import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
 
 /** Contratos de dominio de Órdenes de Producción — Sub-fase 5.1. */
 
@@ -33,6 +38,10 @@ export interface Orden {
    */
   folioCotizacionCnc?: string | null;
   estado: EstadoOrden;
+  /** SII-B5.3: estado derivado del avance; el legacy `estado` sigue en paralelo. */
+  estadoSii: EstadoSiiOrden;
+  /** SII-B5.2: O-MMYY_XX / OI-MMYY_XX; null en históricos OP-######. */
+  folioSii: string | null;
   prioridad: PrioridadOrden;
   fechaCompromiso: string;
   fechaInicio: string | null;
@@ -134,12 +143,17 @@ function validarValorEnumerado<T extends string>(
 }
 
 export function filaAOrden(fila: FilaOrden): Orden {
+  const estado = validarValorEnumerado(fila.estado, ESTADOS_ORDEN_PRODUCCION, 'estado de orden');
   return {
     id: fila.id,
     folio: fila.folio,
     clienteId: fila.cliente_id,
     cotizacionId: fila.cotizacion_id,
-    estado: validarValorEnumerado(fila.estado, ESTADOS_ORDEN_PRODUCCION, 'estado de orden'),
+    estado,
+    estadoSii: esEstadoSiiOrden(fila.estado_sii)
+      ? fila.estado_sii
+      : ESTADO_LEGACY_A_SII[estado],
+    folioSii: fila.folio_sii,
     prioridad: validarValorEnumerado(
       fila.prioridad,
       PRIORIDADES_ORDEN_PRODUCCION,

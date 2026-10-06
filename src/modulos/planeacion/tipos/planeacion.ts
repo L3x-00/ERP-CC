@@ -1,4 +1,5 @@
 import type { Database, Tables } from '@/compartido/tipos/supabase';
+import type { EstadoSiiOrden } from '@/modulos/ordenes/tipos/orden-sii';
 import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
 
 /** Contratos de dominio de Planeación — Sub-fase 6.1. */
@@ -69,6 +70,8 @@ export interface ProgramacionArea {
   /** PLA-06: contexto de la orden para las acciones de la tarjeta (opcional). */
   ordenFolio?: string;
   ordenEstado?: EstadoOrden;
+  /** SII-B5.3: estado derivado del avance; gobierna las acciones de la tarjeta. */
+  ordenEstadoSii?: EstadoSiiOrden;
   ordenActualizadoEn?: string;
   ordenEsInterna?: boolean;
 }

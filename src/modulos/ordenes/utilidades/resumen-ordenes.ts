@@ -23,15 +23,15 @@ export function resumirOrdenes(
     tiMes: 0, tiEnProceso: 0, tiHorasAcumuladas: 0,
   };
   for (const { orden, partidas } of ordenes) {
-    if (orden.estado === 'cancelada') continue;
+    if (orden.estadoSii === 'CANCELADA') continue;
     resumen.total++;
-    if (orden.estado === 'en_proceso') resumen.enProceso++;
+    if (orden.estadoSii === 'EN_PRODUCCION') resumen.enProceso++;
     if (orden.fechaCompromiso.slice(0, 10) < hoy
       && !ordenesConEntregaFinal.has(orden.id)) resumen.atrasadas++;
     if (ordenesConEntregaFinal.has(orden.id)) resumen.entregadas++;
     if (orden.esInterna) {
       if (fechaKpiMexico(orden.creadoEn).slice(0, 7) === mesActual) resumen.tiMes++;
-      if (orden.estado === 'en_proceso') resumen.tiEnProceso++;
+      if (orden.estadoSii === 'EN_PRODUCCION') resumen.tiEnProceso++;
       resumen.tiHorasAcumuladas += partidas.reduce(
         (minutos, partida) => minutos + partida.tiempoRealMinutos, 0,
       ) / 60;

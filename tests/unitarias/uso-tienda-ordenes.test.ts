@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
-import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
+import type { EstadoSiiOrden } from '@/modulos/ordenes/tipos/orden-sii';
 
 const estadoInicial = usarTiendaOrdenes.getState();
 
@@ -53,44 +53,44 @@ describe('usarTiendaOrdenes', () => {
 
     it('no toca la orden activa ni los filtros de estado', () => {
       usarTiendaOrdenes.getState().seleccionarOrden('orden-1');
-      usarTiendaOrdenes.getState().alternarFiltroEstado('en_proceso');
+      usarTiendaOrdenes.getState().alternarFiltroEstado('EN_PRODUCCION');
       usarTiendaOrdenes.getState().establecerFiltroMaquina('CNC-02');
 
       const estado = usarTiendaOrdenes.getState();
       expect(estado.ordenActivaId).toBe('orden-1');
-      expect(estado.filtrosEstado).toEqual(['en_proceso']);
+      expect(estado.filtrosEstado).toEqual(['EN_PRODUCCION']);
     });
   });
 
   describe('alternarFiltroEstado', () => {
     it('agrega un estado ausente y lo quita al repetir', () => {
-      usarTiendaOrdenes.getState().alternarFiltroEstado('programada');
-      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['programada']);
+      usarTiendaOrdenes.getState().alternarFiltroEstado('PLANIFICADA');
+      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['PLANIFICADA']);
 
-      usarTiendaOrdenes.getState().alternarFiltroEstado('programada');
+      usarTiendaOrdenes.getState().alternarFiltroEstado('PLANIFICADA');
       expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual([]);
     });
 
     it('acumula varios estados conservando el orden de selección', () => {
-      usarTiendaOrdenes.getState().alternarFiltroEstado('programada');
-      usarTiendaOrdenes.getState().alternarFiltroEstado('en_proceso');
-      usarTiendaOrdenes.getState().alternarFiltroEstado('pausada');
+      usarTiendaOrdenes.getState().alternarFiltroEstado('PLANIFICADA');
+      usarTiendaOrdenes.getState().alternarFiltroEstado('EN_PRODUCCION');
+      usarTiendaOrdenes.getState().alternarFiltroEstado('LISTA');
       expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual([
-        'programada',
-        'en_proceso',
-        'pausada',
+        'PLANIFICADA',
+        'EN_PRODUCCION',
+        'LISTA',
       ]);
     });
 
     it('quita solo el estado alternado', () => {
-      usarTiendaOrdenes.getState().establecerFiltrosEstado(['programada', 'en_proceso', 'pausada']);
-      usarTiendaOrdenes.getState().alternarFiltroEstado('en_proceso');
-      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['programada', 'pausada']);
+      usarTiendaOrdenes.getState().establecerFiltrosEstado(['PLANIFICADA', 'EN_PRODUCCION', 'LISTA']);
+      usarTiendaOrdenes.getState().alternarFiltroEstado('EN_PRODUCCION');
+      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['PLANIFICADA', 'LISTA']);
     });
 
     it('produce un arreglo nuevo (no muta el anterior)', () => {
       const antes = usarTiendaOrdenes.getState().filtrosEstado;
-      usarTiendaOrdenes.getState().alternarFiltroEstado('completada');
+      usarTiendaOrdenes.getState().alternarFiltroEstado('PRODUCCION_COMPLETADA');
       const despues = usarTiendaOrdenes.getState().filtrosEstado;
       expect(despues).not.toBe(antes);
       expect(antes).toEqual([]);
@@ -99,16 +99,16 @@ describe('usarTiendaOrdenes', () => {
 
   describe('establecerFiltrosEstado', () => {
     it('reemplaza la lista completa', () => {
-      usarTiendaOrdenes.getState().alternarFiltroEstado('borrador');
-      usarTiendaOrdenes.getState().establecerFiltrosEstado(['cancelada', 'completada']);
-      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['cancelada', 'completada']);
+      usarTiendaOrdenes.getState().alternarFiltroEstado('CONFIRMADA');
+      usarTiendaOrdenes.getState().establecerFiltrosEstado(['CANCELADA', 'PRODUCCION_COMPLETADA']);
+      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['CANCELADA', 'PRODUCCION_COMPLETADA']);
     });
 
     it('copia el arreglo recibido: mutarlo fuera no afecta la tienda', () => {
-      const externos: EstadoOrden[] = ['programada'];
+      const externos: EstadoSiiOrden[] = ['PLANIFICADA'];
       usarTiendaOrdenes.getState().establecerFiltrosEstado(externos);
-      externos.push('cancelada');
-      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['programada']);
+      externos.push('CANCELADA');
+      expect(usarTiendaOrdenes.getState().filtrosEstado).toEqual(['PLANIFICADA']);
     });
   });
 
@@ -116,7 +116,7 @@ describe('usarTiendaOrdenes', () => {
     it('limpia máquina y estados sin perder la orden activa', () => {
       usarTiendaOrdenes.getState().seleccionarOrden('orden-9');
       usarTiendaOrdenes.getState().establecerFiltroMaquina('CNC-03');
-      usarTiendaOrdenes.getState().establecerFiltrosEstado(['en_proceso', 'pausada']);
+      usarTiendaOrdenes.getState().establecerFiltrosEstado(['EN_PRODUCCION', 'LISTA']);
 
       usarTiendaOrdenes.getState().limpiarFiltros();
 

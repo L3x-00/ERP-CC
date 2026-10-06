@@ -246,12 +246,12 @@ export async function obtenerResumenCarteraServicio(
   const idsCliente = [...new Set(cuentas.map((cuenta) => cuenta.clienteId))];
   const idsOrden = [...new Set(cuentas.map((cuenta) => cuenta.ordenId))];
   const clientes: Pick<Tables<'clientes'>, 'id' | 'nombre_comercial' | 'razon_social' | 'saldo_a_favor'>[] = [];
-  const ordenes: Pick<Tables<'ordenes_produccion'>, 'id' | 'folio' | 'estado'>[] = [];
+  const ordenes: Pick<Tables<'ordenes_produccion'>, 'id' | 'folio' | 'estado_sii'>[] = [];
   // Lotes acotados evitan URLs de miles de IDs y el límite implícito de filas.
   for (let desde = 0; desde < Math.max(idsCliente.length, idsOrden.length); desde += 100) {
     const [grupoClientes, grupoOrdenes] = await Promise.all([
       desde < idsCliente.length ? cliente.from('clientes').select('id, nombre_comercial, razon_social, saldo_a_favor').in('id', idsCliente.slice(desde, desde + 100)) : Promise.resolve({ data: [], error: null }),
-      desde < idsOrden.length ? cliente.from('ordenes_produccion').select('id, folio, estado').in('id', idsOrden.slice(desde, desde + 100)) : Promise.resolve({ data: [], error: null }),
+      desde < idsOrden.length ? cliente.from('ordenes_produccion').select('id, folio, estado_sii').in('id', idsOrden.slice(desde, desde + 100)) : Promise.resolve({ data: [], error: null }),
     ]);
     if (grupoClientes.error || grupoOrdenes.error) throw new ErrorCobranza('desconocido', grupoClientes.error?.message ?? grupoOrdenes.error?.message);
     clientes.push(...(grupoClientes.data ?? []));
@@ -270,7 +270,7 @@ export async function obtenerResumenCarteraServicio(
       clienteNombre: clientesPorId.get(cuenta.clienteId)?.nombre ?? 'Cliente no disponible',
       saldoAFavorMxn: clientesPorId.get(cuenta.clienteId)?.saldoAFavorMxn ?? 0,
       folioOrden: orden?.folio ?? 'Orden no disponible',
-      estadoProduccion: orden?.estado ?? 'sin_datos',
+      estadoProduccion: orden?.estado_sii ?? 'sin_datos',
     } satisfies CuentaCartera;
   });
   const fechaReferencia = filtros.fechaReferencia ?? new Date().toISOString();

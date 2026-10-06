@@ -31,6 +31,18 @@ function cuentaVigente(cuenta: CuentaCartera): boolean {
   return cuenta.estado === 'pendiente' || cuenta.estado === 'parcial';
 }
 
+/** SII-B5: la cartera muestra la etiqueta legible del estado de la orden. */
+const ETIQUETA_PRODUCCION: Record<string, string> = {
+  CONFIRMADA: 'Confirmada',
+  PLANIFICADA: 'Planificada',
+  LISTA: 'Lista',
+  EN_PRODUCCION: 'En producción',
+  PRODUCCION_COMPLETADA: 'Producción completada',
+  CERRADA: 'Cerrada',
+  CANCELADA: 'Cancelada',
+  sin_datos: 'Sin datos',
+};
+
 export function TablaCuentasPorCobrar({
   cuentas,
   cuentaSeleccionadaId,
@@ -108,7 +120,7 @@ export function TablaCuentasPorCobrar({
                     {formatearMoneda(cuenta.saldoPendiente, cuenta.moneda)}
                   </span>
                 </TablaCelda>
-                <TablaCelda>{cuenta.estadoProduccion}</TablaCelda>
+                <TablaCelda>{ETIQUETA_PRODUCCION[cuenta.estadoProduccion] ?? cuenta.estadoProduccion}</TablaCelda>
                 <TablaCelda>
                   <div className="flex items-center gap-1.5">
                     {cuenta.cobrableDesde === null && cuentaVigente(cuenta) && (

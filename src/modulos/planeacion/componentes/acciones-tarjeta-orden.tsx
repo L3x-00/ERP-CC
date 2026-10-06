@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
+import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
 import { ReactivarOrdenDialog } from '@/modulos/ordenes/componentes/reactivar-orden-dialog';
-import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
+import { ESTADO_LEGACY_A_SII } from '@/modulos/ordenes/tipos/orden-sii';
 import type { ProgramacionArea } from '@/modulos/planeacion/tipos/indice';
 
 export interface PropsAccionesTarjetaOrden {
@@ -18,9 +18,10 @@ const CLASE_ACCION =
   'rounded-base border border-borde-fuerte px-2 py-1 text-[11px] font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-40';
 
 /**
- * PLA-06: acciones permitidas desde la tarjeta semanal según el estado de la
- * orden. Iniciar/Pausar/Reanudar reutilizan la transición con CAS; Bandeja y
- * Sesión/Entregar/Imprimir abren las pantallas existentes sin duplicar flujos.
+ * PLA-06 + SII-B5: acciones de negocio de la tarjeta semanal. El estado deriva
+ * del avance (ADR-SII-07): iniciar/pausar/reanudar manuales se eliminaron; la
+ * sesión de piso y el avance deciden el estado. Liberar y Reactivar se ofrecen
+ * según `estado_sii`.
  */
 export function AccionesTarjetaOrden({
   programacion,
@@ -31,24 +32,24 @@ export function AccionesTarjetaOrden({
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reactivando, setReactivando] = useState(false);
-  const estado = programacion.ordenEstado;
+  const estadoSii = programacion.ordenEstadoSii
+    ?? (programacion.ordenEstado ? ESTADO_LEGACY_A_SII[programacion.ordenEstado] : undefined);
 
-  if (!estado) return null;
+  if (!estadoSii) return null;
 
-  async function cambiarEstado(nuevo: EstadoOrden): Promise<void> {
-    if (!estado || !programacion.ordenActualizadoEn) return;
+  async function liberar(): Promise<void> {
+    if (!programacion.ordenActualizadoEn) return;
     setError(null);
     setProcesando(true);
     try {
-      const respuesta = await cambiarEstadoOrdenAccion({
+      const respuesta = await liberarOrdenAccion({
         ordenId: programacion.ordenId,
-        estadoActual: estado,
-        estado: nuevo,
+        actualizadoEn: programacion.ordenActualizadoEn,
       });
       if (!respuesta.exito) setError(respuesta.error);
       else onRefrescar();
     } catch {
-      setError('No se pudo actualizar la orden');
+      setError('No se pudo liberar la orden');
     }
     setProcesando(false);
   }
@@ -66,18 +67,18 @@ export function AccionesTarjetaOrden({
       >
         Bandeja
       </button>
-      {estado === 'programada' ? (
+      {estadoSii === 'PLANIFICADA' ? (
         <button
           type="button"
           className={CLASE_ACCION}
-          data-testid={`accion-iniciar-${programacion.ordenId}`}
+          data-testid={`accion-liberar-${programacion.ordenId}`}
           disabled={procesando}
-          onClick={() => void cambiarEstado('en_proceso')}
+          onClick={() => void liberar()}
         >
-          Iniciar
+          {procesando ? 'Liberando…' : 'Liberar'}
         </button>
       ) : null}
-      {estado === 'en_proceso' || estado === 'pausada' ? (
+      {estadoSii === 'EN_PRODUCCION' || estadoSii === 'LISTA' ? (
         <button
           type="button"
           className={CLASE_ACCION}
@@ -87,29 +88,7 @@ export function AccionesTarjetaOrden({
           Sesión
         </button>
       ) : null}
-      {estado === 'en_proceso' ? (
-        <button
-          type="button"
-          className={CLASE_ACCION}
-          data-testid={`accion-pausar-${programacion.ordenId}`}
-          disabled={procesando}
-          onClick={() => void cambiarEstado('pausada')}
-        >
-          Pausar
-        </button>
-      ) : null}
-      {estado === 'pausada' ? (
-        <button
-          type="button"
-          className={CLASE_ACCION}
-          data-testid={`accion-reanudar-${programacion.ordenId}`}
-          disabled={procesando}
-          onClick={() => void cambiarEstado('en_proceso')}
-        >
-          Reanudar
-        </button>
-      ) : null}
-      {estado === 'en_proceso' || estado === 'completada' ? (
+      {estadoSii === 'EN_PRODUCCION' || estadoSii === 'PRODUCCION_COMPLETADA' || estadoSii === 'CERRADA' ? (
         <button
           type="button"
           className={CLASE_ACCION}
@@ -119,17 +98,17 @@ export function AccionesTarjetaOrden({
           Entregar
         </button>
       ) : null}
-      {estado === 'completada' ? (
+      {estadoSii === 'PRODUCCION_COMPLETADA' || estadoSii === 'CERRADA' ? (
         <button
           type="button"
           className={CLASE_ACCION}
           data-testid={`accion-imprimir-${programacion.ordenId}`}
-          onClick={() => enrutador.push(`/produccion?ordenId=${programacion.ordenId}`)}
+          onClick={() => enrutador.push(`/ordenes/${programacion.ordenId}`)}
         >
           Imprimir
         </button>
       ) : null}
-      {estado === 'completada' && puedeAdministrar ? (
+      {(estadoSii === 'PRODUCCION_COMPLETADA' || estadoSii === 'CERRADA') && puedeAdministrar ? (
         <button
           type="button"
           className={CLASE_ACCION}

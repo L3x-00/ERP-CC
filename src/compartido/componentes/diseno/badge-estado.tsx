@@ -28,6 +28,12 @@ const ESTADOS: Record<string, DefinicionEstado> = {
   cancelada: { tono: 'neutro', etiqueta: 'Cancelada' },
   cancelado: { tono: 'neutro', etiqueta: 'Cancelado' },
 
+  // Órdenes SII-B5 (estado derivado del avance)
+  confirmada: { tono: 'neutro', etiqueta: 'Confirmada' },
+  en_produccion: { tono: 'info', etiqueta: 'En producción', ping: true },
+  produccion_completada: { tono: 'exito', etiqueta: 'Producción completada' },
+  cerrada: { tono: 'exito', etiqueta: 'Cerrada' },
+
   // Cobranza / Gastos
   pendiente: { tono: 'advertencia', etiqueta: 'Pendiente' },
   parcial: { tono: 'info', etiqueta: 'Parcial' },
@@ -61,6 +67,9 @@ const ESTADOS: Record<string, DefinicionEstado> = {
   converted: { tono: 'exito', etiqueta: 'Convertido' },
   closed: { tono: 'neutro', etiqueta: 'Cerrado' },
   cancelled: { tono: 'neutro', etiqueta: 'Cancelado' },
+
+  // Corridas (SII-B6)
+  planificada: { tono: 'neutro', etiqueta: 'Planificada' },
 
   // Inventario
   ok: { tono: 'exito', etiqueta: 'Stock OK' },

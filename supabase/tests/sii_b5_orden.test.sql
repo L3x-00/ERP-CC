@@ -6,7 +6,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(64);
+SELECT plan(66);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores
@@ -250,13 +250,32 @@ SELECT is(
   'El backfill deja estado_sii en todas las Ã³rdenes'
 );
 SELECT ok(NOT EXISTS (
-  SELECT 1 FROM public.ordenes_produccion
-  WHERE (estado = 'borrador' AND estado_sii <> 'CONFIRMADA')
-     OR (estado = 'en_proceso' AND estado_sii <> 'EN_PRODUCCION')
-     OR (estado = 'completada' AND estado_sii NOT IN ('PRODUCCION_COMPLETADA', 'CERRADA'))
-     OR (estado = 'cancelada' AND estado_sii <> 'CANCELADA')
-     OR (estado = 'programada' AND estado_sii NOT IN ('PLANIFICADA', 'LISTA'))
-), 'El puente mantiene coherentes estado y estado_sii');
+  SELECT 1 FROM public.ordenes_produccion AS orden
+  WHERE orden.folio = 'OP-999001'
+    AND (
+      (orden.estado = 'borrador' AND orden.estado_sii <> 'CONFIRMADA')
+      OR (orden.estado = 'en_proceso' AND orden.estado_sii <> 'EN_PRODUCCION')
+      OR (orden.estado = 'completada' AND orden.estado_sii NOT IN ('PRODUCCION_COMPLETADA', 'CERRADA'))
+      OR (orden.estado = 'cancelada' AND orden.estado_sii <> 'CANCELADA')
+      OR (orden.estado = 'programada' AND orden.estado_sii NOT IN ('PLANIFICADA', 'LISTA'))
+    )
+), 'El puente mantiene coherentes estado y estado_sii en el fixture');
+
+-- El puente también deriva en INSERT: solo un lado explícito.
+INSERT INTO public.ordenes_produccion (folio, cliente_id, estado, fecha_compromiso)
+VALUES ('OP-999002', (SELECT valor FROM b5_ids WHERE nombre = 'cliente'), 'en_proceso', now() + interval '3 days');
+SELECT is(
+  (SELECT estado_sii FROM public.ordenes_produccion WHERE folio = 'OP-999002'),
+  'EN_PRODUCCION',
+  'En INSERT, el estado legacy explícito deriva estado_sii'
+);
+INSERT INTO public.ordenes_produccion (folio, cliente_id, estado_sii, fecha_compromiso)
+VALUES ('OP-999003', (SELECT valor FROM b5_ids WHERE nombre = 'cliente'), 'LISTA', now() + interval '3 days');
+SELECT is(
+  (SELECT estado FROM public.ordenes_produccion WHERE folio = 'OP-999003'),
+  'programada',
+  'En INSERT, el estado_sii explícito deriva el legacy'
+);
 
 UPDATE public.ordenes_produccion SET estado = 'programada' WHERE folio = 'OP-999001';
 SELECT is(

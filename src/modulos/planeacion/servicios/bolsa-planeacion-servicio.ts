@@ -71,7 +71,7 @@ export function elegirHueco(
 
 type FilaOrden = Pick<
   Database['public']['Tables']['ordenes_produccion']['Row'],
-  'id' | 'folio' | 'estado'
+  'id' | 'folio' | 'estado' | 'estado_sii'
 >;
 type FilaPartida = Pick<
   Database['public']['Tables']['partidas_orden_produccion']['Row'],
@@ -99,8 +99,8 @@ export async function obtenerBolsaPlaneacionServicio(
   const vacia: BolsaPlaneacion = { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] };
   const { data: ordenes, error: errorOrdenes } = await cliente
     .from('ordenes_produccion')
-    .select('id, folio, estado')
-    .in('estado', ['programada', 'en_proceso', 'pausada']);
+    .select('id, folio, estado, estado_sii')
+    .in('estado_sii', ['PLANIFICADA', 'LISTA', 'EN_PRODUCCION']);
   if (errorOrdenes) throw new Error('No se pudo calcular la bolsa de Planeación');
 
   const ordenesActivas = (ordenes ?? []) as FilaOrden[];

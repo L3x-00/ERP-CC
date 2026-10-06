@@ -140,9 +140,12 @@ test.describe('Edición de órdenes en borrador (ORD-05)', () => {
       expect(metas?.map((meta) => [meta.secuencia, meta.nombre, Number(meta.meta_piezas)]))
         .toEqual([[1, 'Corte', 7], [2, 'Pulido', 5]]);
 
-      await filaActualizada.getByTestId('cambiar-estado-programada').click();
+      // SII-B5: el estado deja de cambiarse a mano desde la cola; se usa el
+      // puente legacy para programar y verificar el bloqueo de edición.
+      await admin.from('ordenes_produccion').update({ estado: 'programada' }).eq('id', ordenId);
+      await page.reload();
       const filaProgramada = page.getByRole('row', { name: new RegExp(folio) });
-      await expect(filaProgramada).toContainText('Programada');
+      await expect(filaProgramada).toContainText('Planificada');
       await expect(filaProgramada.getByTestId(`editar-orden-${folio}`)).toHaveCount(0);
       await expect(filaProgramada.getByTestId(`configurar-procesos-${folio}`)).toHaveCount(0);
     } finally {

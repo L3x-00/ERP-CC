@@ -229,7 +229,7 @@ export async function obtenerProgramacionesCalendarioServicio(
   // Bandeja/Iniciar/Sesión/Pausar/Reanudar/Entregar/Imprimir/Reactivar.
   const { data: ordenes, error: errorOrdenes } = await cliente
     .from('ordenes_produccion')
-    .select('id, folio, estado, actualizado_en, es_interna')
+    .select('id, folio, estado, estado_sii, actualizado_en, es_interna')
     .in('id', ordenIds);
   if (errorOrdenes) lanzarErrorPlaneacion(errorOrdenes.message);
   const ordenPorId = new Map((ordenes ?? []).map((orden) => [orden.id, orden]));
@@ -241,6 +241,7 @@ export async function obtenerProgramacionesCalendarioServicio(
       ...programacion,
       ordenFolio: orden.folio,
       ordenEstado: orden.estado as ProgramacionArea['ordenEstado'],
+      ordenEstadoSii: (orden.estado_sii ?? undefined) as ProgramacionArea['ordenEstadoSii'],
       ordenActualizadoEn: orden.actualizado_en,
       ordenEsInterna: orden.es_interna,
     };

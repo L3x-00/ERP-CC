@@ -11,7 +11,7 @@ const HOY = new Date('2026-09-19T12:00:00Z');
 const ORDEN_BASE: OrdenCrudaEstadoCuenta = {
   id: '11111111-1111-4111-8111-111111111111',
   folio: 'OP-001001',
-  estado: 'en_proceso',
+  estadoSii: 'EN_PRODUCCION',
   fechaCompromiso: '2026-10-01T12:00:00.000Z',
   esInterna: false,
   archivadaEn: null,
@@ -52,7 +52,7 @@ describe('resumirOrdenesEstadoCuenta', () => {
     const filas = resumirOrdenesEstadoCuenta(
       [
         { ...ORDEN_BASE, archivadaEn: '2026-09-18T12:00:00.000Z' },
-        { ...ORDEN_BASE, id: '33333333-3333-4333-8333-333333333333', estado: 'cancelada' },
+        { ...ORDEN_BASE, id: '33333333-3333-4333-8333-333333333333', estadoSii: 'CANCELADA' },
       ],
       [],
       new Map(),
@@ -108,7 +108,7 @@ describe('resumirOrdenesEstadoCuenta', () => {
 
   it('considera pagada la orden cuando todas sus AR están liquidadas y conserva TI', () => {
     const filas = resumirOrdenesEstadoCuenta(
-      [{ ...ORDEN_BASE, estado: 'completada', esInterna: true, cotizacionMoneda: 'USD' }],
+      [{ ...ORDEN_BASE, estadoSii: 'PRODUCCION_COMPLETADA', esInterna: true, cotizacionMoneda: 'USD' }],
       [
         {
           ordenId: ORDEN_BASE.id,

@@ -151,11 +151,11 @@ export async function obtenerHistorialCuentaServicio(
 async function folioDeOrden(cliente: SupabaseClient<Database>, ordenId: string): Promise<string> {
   const { data, error } = await cliente
     .from('ordenes_produccion')
-    .select('folio')
+    .select('folio, folio_sii')
     .eq('id', ordenId)
     .maybeSingle();
   if (error) throw new ErrorCobranza('desconocido', error.message);
-  return data?.folio ?? 'Orden no disponible';
+  return data?.folio_sii ?? data?.folio ?? 'Orden no disponible';
 }
 
 /**
@@ -168,7 +168,7 @@ export async function obtenerDetalleOrdenCobranzaServicio(
 ): Promise<DetalleOrdenCobranza> {
   const { data: filaOrden, error: errorOrden } = await cliente
     .from('ordenes_produccion')
-    .select('id, folio, estado, prioridad, fecha_compromiso, fecha_inicio, fecha_fin, cliente_id')
+    .select('id, folio, folio_sii, estado_sii, prioridad, fecha_compromiso, fecha_inicio, fecha_fin, cliente_id')
     .eq('id', entrada.ordenId)
     .maybeSingle();
   if (errorOrden) throw new ErrorCobranza('desconocido', errorOrden.message);
@@ -194,8 +194,8 @@ export async function obtenerDetalleOrdenCobranzaServicio(
 
   return {
     id: filaOrden.id,
-    folio: filaOrden.folio,
-    estado: filaOrden.estado,
+    folio: filaOrden.folio_sii ?? filaOrden.folio,
+    estado: filaOrden.estado_sii,
     prioridad: filaOrden.prioridad,
     fechaCompromiso: filaOrden.fecha_compromiso,
     fechaInicio: filaOrden.fecha_inicio,

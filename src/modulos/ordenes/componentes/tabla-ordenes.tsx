@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
@@ -36,8 +37,13 @@ import { Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
+import { cerrarOrdenAdministrativaAccion } from '@/modulos/ordenes/acciones/cerrar-orden-administrativa';
+import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
 import {
-  ESTADOS_ORDEN_PRODUCCION,
+  ESTADOS_SII_ORDEN,
+  type EstadoSiiOrden,
+} from '@/modulos/ordenes/tipos/orden-sii';
+import {
   type EstadoOrden,
   type PrioridadOrden,
 } from '@/modulos/ordenes/tipos/ordenes';
@@ -60,12 +66,16 @@ export type PartidaTabla = {
 export type OrdenTabla = {
   id: string;
   folio: string;
+  /** SII-B5.2: folio nuevo O-/OI-; null en históricos. */
+  folioSii: string | null;
   /** RFQ-10: folio comercial (CNC-…) de la cotización de origen, si es visible. */
   folioCotizacionCnc: string | null;
   estado: EstadoOrden;
+  /** SII-B5.3: estado derivado del avance. */
+  estadoSii: EstadoSiiOrden;
   prioridad: PrioridadOrden;
   fechaCompromiso: string;
-  /** Token de versión (ORD-05) para editar el borrador con compare-and-set. */
+  /** Token de versión (ORD-05/B5) para acciones con compare-and-set. */
   actualizadoEn: string;
   /** OBS-21: fecha de archivo al completar la entrega; null si sigue activa. */
   archivadaEn: string | null;
@@ -75,13 +85,14 @@ export type OrdenTabla = {
   partidas: PartidaTabla[];
 };
 
-const ETIQUETA_ESTADO: Record<EstadoOrden, string> = {
-  borrador: 'Borrador',
-  programada: 'Programada',
-  en_proceso: 'En proceso',
-  pausada: 'Pausada',
-  completada: 'Completada',
-  cancelada: 'Cancelada',
+const ETIQUETA_ESTADO_SII: Record<EstadoSiiOrden, string> = {
+  CONFIRMADA: 'Confirmada',
+  PLANIFICADA: 'Planificada',
+  LISTA: 'Lista',
+  EN_PRODUCCION: 'En producción',
+  PRODUCCION_COMPLETADA: 'Producción completada',
+  CERRADA: 'Cerrada',
+  CANCELADA: 'Cancelada',
 };
 
 const ETIQUETA_PRIORIDAD: Record<PrioridadOrden, string> = {
@@ -102,29 +113,6 @@ const CLASE_BOTON_SECUNDARIO =
   'rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-40';
 const CLASE_SELECT =
   'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30';
-
-const ACCIONES_RAPIDAS: Record<EstadoOrden, readonly { etiqueta: string; estado: EstadoOrden }[]> = {
-  borrador: [{ etiqueta: 'Programar', estado: 'programada' }],
-  programada: [{ etiqueta: 'Iniciar', estado: 'en_proceso' }],
-  en_proceso: [
-    { etiqueta: 'Pausar', estado: 'pausada' },
-    { etiqueta: 'Completar', estado: 'completada' },
-  ],
-  pausada: [{ etiqueta: 'Reanudar', estado: 'en_proceso' }],
-  completada: [],
-  cancelada: [],
-};
-
-/**
- * Una orden solo puede completarse cuando todas sus partidas alcanzaron la
- * cantidad solicitada. PostgreSQL revalida la misma condición como autoridad.
- */
-function puedeCompletar(orden: OrdenTabla): boolean {
-  return (
-    orden.partidas.length > 0 &&
-    orden.partidas.every((partida) => partida.cantidadProducida >= partida.cantidadSolicitada)
-  );
-}
 
 /** Avance agregado de una orden: producido / solicitado en todas sus partidas. */
 function calcularAvance(partidas: PartidaTabla[]): {
@@ -165,19 +153,19 @@ function claseCompromiso(dias: number): string {
 /** Explicación para el `title` del semáforo de compromiso. */
 function tituloCompromiso(dias: number, fechaCompromiso: string): string {
   const fecha = formatearFecha(fechaCompromiso);
-  if (dias < 0) return `Compromiso vencido hace ${Math.abs(dias)} día(s) — ${fecha}`;
+  if (dias < 0) return `Compromiso vencido hace ${Math.abs(dias)} días — ${fecha}`;
   if (dias === 0) return `Vence hoy — ${fecha}`;
   if (dias <= 3) return `Vence en ${dias} día(s) — ${fecha}`;
   return `Fecha de compromiso: ${fecha}`;
 }
 
-/** Tono de la barra de avance según estado y fecha de compromiso. */
+/** Tono de la barra de avance según estado SII y fecha de compromiso. */
 function tonoAvance(
-  estado: EstadoOrden,
+  estadoSii: EstadoSiiOrden,
   dias: number,
 ): 'acento' | 'exito' | 'advertencia' | 'peligro' {
-  if (estado === 'completada') return 'exito';
-  if (estado === 'pausada') return 'advertencia';
+  if (estadoSii === 'PRODUCCION_COMPLETADA' || estadoSii === 'CERRADA') return 'exito';
+  if (estadoSii === 'CANCELADA') return 'advertencia';
   if (dias < 0) return 'peligro';
   return 'acento';
 }
@@ -192,11 +180,10 @@ type PropsTablaOrdenes = {
 };
 
 /**
- * Tabla de órdenes de producción para el piso: filtra por máquina y estado desde
- * `usarTiendaOrdenes`, marca la orden activa y muestra el avance agregado de cada
- * OP. No consulta datos — recibe la proyección ya resuelta en el servidor y sólo
- * solicita una revalidación inmediata tras sus acciones propias; los cambios
- * de otras estaciones llegan automáticamente mediante Realtime.
+ * Cola de órdenes de producción (estados SII-B5): filtra por máquina y estado,
+ * muestra el avance agregado y ofrece solo acciones de negocio — Liberar,
+ * Cancelar y Cierre administrativo. Iniciar/Pausar/Completar se eliminaron:
+ * el estado deriva de la programación, las sesiones y las metas.
  */
 export function TablaOrdenes({
   ordenes,
@@ -215,7 +202,9 @@ export function TablaOrdenes({
   const limpiarFiltros = usarTiendaOrdenes((estado) => estado.limpiarFiltros);
   const [ordenActualizandoId, setOrdenActualizandoId] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
+  const [mensajeAccion, setMensajeAccion] = useState<string | null>(null);
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
+  const [ordenCerrando, setOrdenCerrando] = useState<OrdenTabla | null>(null);
   const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
   const [ordenConfigurando, setOrdenConfigurando] = useState<OrdenTabla | null>(null);
   const [ordenAdjuntos, setOrdenAdjuntos] = useState<OrdenTabla | null>(null);
@@ -260,7 +249,7 @@ export function TablaOrdenes({
         const pasaBandeja =
           bandeja === 'archivo' ? orden.archivadaEn !== null : orden.archivadaEn === null;
         const pasaEstado =
-          filtrosEstado.length === 0 || filtrosEstado.includes(orden.estado);
+          filtrosEstado.length === 0 || filtrosEstado.includes(orden.estadoSii);
         const pasaMaquina =
           filtroMaquina === null ||
           orden.partidas.some((partida) => partida.maquinaAsignada === filtroMaquina);
@@ -277,12 +266,17 @@ export function TablaOrdenes({
     router.refresh();
   }
 
+  function limpiarMensajes(): void {
+    setErrorAccion(null);
+    setMensajeAccion(null);
+  }
+
   async function cambiarEstado(
     orden: OrdenTabla,
     estado: EstadoOrden,
     motivo?: string,
   ): Promise<boolean> {
-    setErrorAccion(null);
+    limpiarMensajes();
     setOrdenActualizandoId(orden.id);
     try {
       const respuesta = await cambiarEstadoOrdenAccion({
@@ -305,8 +299,52 @@ export function TablaOrdenes({
     }
   }
 
+  async function liberar(orden: OrdenTabla): Promise<void> {
+    limpiarMensajes();
+    setOrdenActualizandoId(orden.id);
+    try {
+      const respuesta = await liberarOrdenAccion({
+        ordenId: orden.id,
+        actualizadoEn: orden.actualizadoEn,
+      });
+      if (!respuesta.exito) {
+        setErrorAccion(respuesta.error);
+        return;
+      }
+      setMensajeAccion(`Orden ${orden.folioSii ?? orden.folio} liberada a producción`);
+      router.refresh();
+    } catch {
+      setErrorAccion('No se pudo liberar la orden. Intenta de nuevo.');
+    } finally {
+      setOrdenActualizandoId(null);
+    }
+  }
+
+  async function cerrarAdministrativa(): Promise<void> {
+    if (!ordenCerrando) return;
+    limpiarMensajes();
+    setOrdenActualizandoId(ordenCerrando.id);
+    try {
+      const respuesta = await cerrarOrdenAdministrativaAccion({
+        ordenId: ordenCerrando.id,
+        actualizadoEn: ordenCerrando.actualizadoEn,
+      });
+      if (!respuesta.exito) {
+        setErrorAccion(respuesta.error);
+        return;
+      }
+      setMensajeAccion(`Orden ${ordenCerrando.folioSii ?? ordenCerrando.folio} cerrada administrativamente`);
+      setOrdenCerrando(null);
+      router.refresh();
+    } catch {
+      setErrorAccion('No se pudo cerrar la orden. Intenta de nuevo.');
+    } finally {
+      setOrdenActualizandoId(null);
+    }
+  }
+
   function abrirCancelacion(orden: OrdenTabla): void {
-    setErrorAccion(null);
+    limpiarMensajes();
     setMotivoCancelacion('');
     setOrdenCancelando(orden);
   }
@@ -320,6 +358,7 @@ export function TablaOrdenes({
     }
     const exito = await cambiarEstado(ordenCancelando, 'cancelada', motivo);
     if (exito) {
+      setMensajeAccion(`Orden ${ordenCancelando.folioSii ?? ordenCancelando.folio} cancelada`);
       setOrdenCancelando(null);
       setMotivoCancelacion('');
     }
@@ -359,13 +398,14 @@ export function TablaOrdenes({
           <fieldset className="flex flex-col gap-1">
             <legend className="text-xs font-medium text-texto-secundario">Estado</legend>
             <div className="flex flex-wrap gap-1.5">
-              {ESTADOS_ORDEN_PRODUCCION.map((estado) => {
+              {ESTADOS_SII_ORDEN.map((estado) => {
                 const activo = filtrosEstado.includes(estado);
                 return (
                   <button
                     key={estado}
                     type="button"
                     aria-pressed={activo}
+                    data-testid={`chip-estado-${estado}`}
                     onClick={() => alternarFiltroEstado(estado)}
                     className={`rounded-base border px-2.5 py-1 text-xs font-medium transition-colors ${
                       activo
@@ -373,7 +413,7 @@ export function TablaOrdenes({
                         : 'border-borde-fuerte hover:bg-superficie-2'
                     }`}
                   >
-                    {ETIQUETA_ESTADO[estado]}
+                    {ETIQUETA_ESTADO_SII[estado]}
                   </button>
                 );
               })}
@@ -455,16 +495,22 @@ export function TablaOrdenes({
                 const avance = calcularAvance(orden.partidas);
                 const activa = orden.id === ordenActivaId;
                 const dias = diasParaCompromiso(orden.fechaCompromiso);
+                const folioVisible = orden.folioSii ?? orden.folio;
 
                 return (
-                  <TablaFila key={orden.id} seleccionada={activa} aria-selected={activa}>
+                  <TablaFila
+                    key={orden.id}
+                    seleccionada={activa}
+                    aria-selected={activa}
+                    data-testid={`fila-orden-${folioVisible}`}
+                  >
                     <th
                       scope="row"
                       className="whitespace-nowrap px-4 py-3 text-left align-middle font-mono text-xs font-medium tabular-nums"
                     >
                       <span className="flex flex-col gap-0.5">
                         <span className="flex items-center gap-1.5">
-                          {orden.folio}
+                          {folioVisible}
                           {orden.esInterna && (
                             <span
                               className="rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario"
@@ -490,7 +536,9 @@ export function TablaOrdenes({
                       </span>
                     </th>
                     <TablaCelda>
-                      <BadgeEstado estado={orden.estado} />
+                      <span data-testid={`estado-orden-${folioVisible}`}>
+                        <BadgeEstado estado={orden.estadoSii} />
+                      </span>
                     </TablaCelda>
                     <TablaCelda className={CLASE_PRIORIDAD[orden.prioridad]}>
                       {ETIQUETA_PRIORIDAD[orden.prioridad]}
@@ -512,8 +560,8 @@ export function TablaOrdenes({
                       <div className="flex items-center gap-2">
                         <BarraProgreso
                           valor={avance.porcentaje}
-                          tono={tonoAvance(orden.estado, dias)}
-                          etiqueta={`Avance de la orden ${orden.folio}`}
+                          tono={tonoAvance(orden.estadoSii, dias)}
+                          etiqueta={`Avance de la orden ${folioVisible}`}
                           mostrarPorcentaje
                           className="w-24"
                         />
@@ -523,28 +571,41 @@ export function TablaOrdenes({
                       </div>
                     </TablaCelda>
                     <TablaCelda className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {ACCIONES_RAPIDAS[orden.estado].map((accion) => {
-                          const completarBloqueado =
-                            accion.estado === 'completada' && !puedeCompletar(orden);
-                          return (
-                            <button
-                              key={accion.estado}
-                              type="button"
-                              data-testid={`cambiar-estado-${accion.estado}`}
-                              onClick={() => void cambiarEstado(orden, accion.estado)}
-                              disabled={ordenActualizandoId !== null || completarBloqueado}
-                              title={
-                                completarBloqueado
-                                  ? 'Todas las partidas deben estar producidas para completar la orden'
-                                  : undefined
-                              }
-                              className={CLASE_BOTON_SECUNDARIO}
-                            >
-                              {ordenActualizandoId === orden.id ? 'Actualizando…' : accion.etiqueta}
-                            </button>
-                          );
-                        })}
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Link
+                          href={`/ordenes/${orden.id}`}
+                          data-testid={`abrir-ficha-${folioVisible}`}
+                          className={CLASE_BOTON_SECUNDARIO}
+                        >
+                          Abrir
+                        </Link>
+                        {orden.estadoSii === 'PLANIFICADA' && (
+                          <button
+                            type="button"
+                            data-testid={`liberar-orden-${folioVisible}`}
+                            onClick={() => void liberar(orden)}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                            title="Libera la orden a producción validando programación, ruteo y archivos vivos"
+                          >
+                            {ordenActualizandoId === orden.id ? 'Liberando…' : 'Liberar'}
+                          </button>
+                        )}
+                        {orden.estadoSii === 'PRODUCCION_COMPLETADA' && puedeAdministrar && (
+                          <button
+                            type="button"
+                            data-testid={`cerrar-administrativa-${folioVisible}`}
+                            onClick={() => {
+                              limpiarMensajes();
+                              setOrdenCerrando(orden);
+                            }}
+                            disabled={ordenActualizandoId !== null}
+                            className={CLASE_BOTON_SECUNDARIO}
+                            title="Cierre administrativo al 100 % entregado (independiente del cobro)"
+                          >
+                            Cerrar administrativa
+                          </button>
+                        )}
                         {orden.estado === 'borrador' && (
                           <><button
                             type="button"
@@ -560,11 +621,14 @@ export function TablaOrdenes({
                             disabled={ordenActualizandoId !== null}
                             onClick={() => setOrdenConfigurando(orden)}>Procesos</button></>
                         )}
-                        <DocumentoOrdenBoton ordenId={orden.id} folio={orden.folio} />
-                        {puedeAdministrar && (orden.idHistorico !== null || orden.estado === 'completada') && (
+                        <DocumentoOrdenBoton ordenId={orden.id} folio={folioVisible} />
+                        {puedeAdministrar
+                          && (orden.idHistorico !== null
+                            || orden.estadoSii === 'PRODUCCION_COMPLETADA'
+                            || orden.estadoSii === 'CERRADA') && (
                           <button
                             type="button"
-                            data-testid={`repetir-orden-${orden.folio}`}
+                            data-testid={`repetir-orden-${folioVisible}`}
                             onClick={() => setOrdenRepitiendo(orden)}
                             disabled={ordenActualizandoId !== null}
                             className={CLASE_BOTON_SECUNDARIO}
@@ -573,10 +637,11 @@ export function TablaOrdenes({
                             Repetir
                           </button>
                         )}
-                        {puedeAdministrar && orden.estado === 'completada' && (
+                        {puedeAdministrar
+                          && (orden.estadoSii === 'PRODUCCION_COMPLETADA' || orden.estadoSii === 'CERRADA') && (
                           <button
                             type="button"
-                            data-testid={`reactivar-orden-${orden.folio}`}
+                            data-testid={`reactivar-orden-${folioVisible}`}
                             onClick={() => setOrdenReactivando(orden)}
                             disabled={ordenActualizandoId !== null}
                             className={CLASE_BOTON_SECUNDARIO}
@@ -588,7 +653,7 @@ export function TablaOrdenes({
                         {orden.idHistorico !== null && (
                           <button
                             type="button"
-                            data-testid={`adjuntos-orden-${orden.folio}`}
+                            data-testid={`adjuntos-orden-${folioVisible}`}
                             onClick={() => setOrdenAdjuntos(orden)}
                             disabled={ordenActualizandoId !== null}
                             className={CLASE_BOTON_SECUNDARIO}
@@ -596,7 +661,9 @@ export function TablaOrdenes({
                             Adjuntos
                           </button>
                         )}
-                        {orden.estado !== 'completada' && orden.estado !== 'cancelada' && (
+                        {orden.estadoSii !== 'CERRADA'
+                          && orden.estadoSii !== 'CANCELADA'
+                          && orden.estadoSii !== 'PRODUCCION_COMPLETADA' && (
                           <button
                             type="button"
                             data-testid="cambiar-estado-cancelada"
@@ -625,9 +692,14 @@ export function TablaOrdenes({
         </TablaContenedor>
       )}
 
-      {errorAccion && !ordenCancelando && (
-        <p role="alert" className="text-sm text-peligro-texto">
+      {errorAccion && !ordenCancelando && !ordenCerrando && (
+        <p role="alert" className="text-sm text-peligro-texto" data-testid="ordenes-error">
           {errorAccion}
+        </p>
+      )}
+      {mensajeAccion && (
+        <p role="status" className="text-sm text-exito-texto" data-testid="ordenes-mensaje">
+          {mensajeAccion}
         </p>
       )}
 
@@ -638,7 +710,8 @@ export function TablaOrdenes({
             entidadId={ordenActivaId}
             usuarioActualId={usuarioActualId}
             puedeEliminarTodos={puedeEliminarTodos}
-            titulo={`Comentarios de ${ordenes.find((orden) => orden.id === ordenActivaId)?.folio ?? 'la orden'}`}
+            titulo={`Comentarios de ${ordenes.find((orden) => orden.id === ordenActivaId)?.folioSii
+              ?? ordenes.find((orden) => orden.id === ordenActivaId)?.folio ?? 'la orden'}`}
           />
         </div>
       )}
@@ -666,7 +739,7 @@ export function TablaOrdenes({
       {ordenAdjuntos ? (
         <AdjuntosOrdenDialog
           ordenId={ordenAdjuntos.id}
-          folio={ordenAdjuntos.folio}
+          folio={ordenAdjuntos.folioSii ?? ordenAdjuntos.folio}
           onCerrar={() => setOrdenAdjuntos(null)}
         />
       ) : null}
@@ -674,7 +747,7 @@ export function TablaOrdenes({
       {ordenRepitiendo ? (
         <RepetirOrdenDialog
           ordenOrigenId={ordenRepitiendo.id}
-          folioOrigen={ordenRepitiendo.folio}
+          folioOrigen={ordenRepitiendo.folioSii ?? ordenRepitiendo.folio}
           onCerrar={() => setOrdenRepitiendo(null)}
         />
       ) : null}
@@ -682,7 +755,7 @@ export function TablaOrdenes({
       {ordenReactivando ? (
         <ReactivarOrdenDialog
           ordenId={ordenReactivando.id}
-          folio={ordenReactivando.folio}
+          folio={ordenReactivando.folioSii ?? ordenReactivando.folio}
           actualizadoEn={ordenReactivando.actualizadoEn}
           onCerrar={() => setOrdenReactivando(null)}
         />
@@ -691,7 +764,7 @@ export function TablaOrdenes({
       <Dialog open={ordenCancelando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCancelando(null) : undefined)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancelar orden {ordenCancelando?.folio}</DialogTitle>
+            <DialogTitle>Cancelar orden {ordenCancelando?.folioSii ?? ordenCancelando?.folio}</DialogTitle>
             <DialogDescription>
               La cancelación es definitiva. Captura el motivo; quedará en la auditoría.
             </DialogDescription>
@@ -721,6 +794,37 @@ export function TablaOrdenes({
               disabled={ordenActualizandoId !== null || motivoCancelacion.trim().length < 3}
             >
               {ordenActualizandoId !== null ? 'Cancelando…' : 'Confirmar cancelación'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={ordenCerrando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCerrando(null) : undefined)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cierre administrativo de {ordenCerrando?.folioSii ?? ordenCerrando?.folio}</DialogTitle>
+            <DialogDescription>
+              Cierra la orden con el 100 % de las cantidades entregadas. Es independiente del cobro
+              y no modifica la producción registrada.
+            </DialogDescription>
+          </DialogHeader>
+          {errorAccion ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variante="contorno"
+              onClick={() => setOrdenCerrando(null)}
+              disabled={ordenActualizandoId !== null}
+            >
+              Volver
+            </Button>
+            <Button
+              type="button"
+              data-testid="confirmar-cierre-administrativo"
+              onClick={() => void cerrarAdministrativa()}
+              disabled={ordenActualizandoId !== null}
+            >
+              {ordenActualizandoId !== null ? 'Cerrando…' : 'Confirmar cierre'}
             </Button>
           </DialogFooter>
         </DialogContent>

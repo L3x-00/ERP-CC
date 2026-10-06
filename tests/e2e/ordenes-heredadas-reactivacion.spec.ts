@@ -194,7 +194,7 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
     const mensajeAlta = await page.getByRole('status').filter({ hasText: 'creada con su cuenta por cobrar' }).first().textContent();
     const folioHistoricoVisible = /OP-\d{6}/.exec(mensajeAlta ?? '')?.[0] ?? '';
     expect(folioHistoricoVisible).not.toBe('');
-    await expect(page.getByRole('row', { name: new RegExp(folioHistoricoVisible) })).toContainText('Programada');
+    await expect(page.getByRole('row', { name: new RegExp(folioHistoricoVisible) })).toContainText('Planificada');
 
     // ID repetido: se rechaza con mensaje explícito.
     await page.getByTestId('abrir-orden-heredada').click();
@@ -216,7 +216,7 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
     expect(historica?.folio).toMatch(/^OP-/);
     caso.ordenesCreadas.push(historica!.id);
     const filaHistorica = page.getByRole('row', { name: new RegExp(historica!.folio) });
-    await expect(filaHistorica).toContainText('Programada');
+    await expect(filaHistorica).toContainText('Planificada');
     await page.getByTestId(`repetir-orden-${historica!.folio}`).click();
     await page.getByTestId('repetir-fecha-compromiso').fill('2027-01-20');
     await page.getByTestId('confirmar-repetir-orden').click();
@@ -226,7 +226,7 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
     expect(folioNuevo).not.toBe('');
     expect(folioNuevo).not.toBe(historica!.folio);
     await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).first().click();
-    await expect(page.getByRole('row', { name: new RegExp(folioNuevo) })).toContainText('Programada');
+    await expect(page.getByRole('row', { name: new RegExp(folioNuevo) })).toContainText('Planificada');
 
     const { data: repetida } = await caso.admin.from('ordenes_produccion')
       .select('id, estado, id_historico, orden_origen_id').eq('folio', folioNuevo).single();
@@ -250,12 +250,12 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
     await page.goto('/ordenes');
 
     const fila = page.getByRole('row', { name: new RegExp(completada.folio) });
-    await expect(fila).toContainText('Completada');
+    await expect(fila).toContainText('Producción completada');
     await page.getByTestId(`reactivar-orden-${completada.folio}`).click();
     await page.getByTestId('confirmar-reactivar-orden').click();
     await expect(page.getByRole('dialog').getByRole('status')).toContainText('reactivada');
     await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).first().click();
-    await expect(page.getByRole('row', { name: new RegExp(completada.folio) })).toContainText('En proceso');
+    await expect(page.getByRole('row', { name: new RegExp(completada.folio) })).toContainText('En producción');
 
     const { data: sesiones } = await caso.admin.from('sesiones_trabajo')
       .select('id').eq('orden_id', completada.ordenId);

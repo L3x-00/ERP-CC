@@ -36,7 +36,7 @@ export async function obtenerOrdenesSinArAccion(busqueda: unknown): Promise<Resp
   const admin = crearClienteSupabaseAdmin();
   let consulta = admin.from('ordenes_produccion')
     .select('id, folio, cliente_id, cotizacion_id, archivada_en')
-    .eq('estado', 'completada').eq('es_interna', false)
+    .in('estado_sii', ['PRODUCCION_COMPLETADA', 'CERRADA']).eq('es_interna', false)
     .not('archivada_en', 'is', null)
     .order('archivada_en', { ascending: false }).limit(50);
   if (analisis.data) {

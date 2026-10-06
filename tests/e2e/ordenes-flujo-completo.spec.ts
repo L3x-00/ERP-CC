@@ -83,7 +83,9 @@ async function prepararContexto(): Promise<ContextoE2E> {
   const admin = crearAdminE2E();
   const sufijo = randomUUID().slice(0, 8);
   const contrasenaAdministrador = `E2e!${randomUUID()}Aa9`;
-  const pinOperador = '4826';
+  // PIN aleatorio: el login de piso rechaza duplicados entre operadores activos
+  // (corridas fallidas previas pudieron dejar otro operador con el PIN fijo).
+  const pinOperador = String(100000 + Math.floor(Math.random() * 900000));
   const correoAdministrador = `e2e-admin-${sufijo}@orca.local`;
   const correoOperador = `e2e-operador-${sufijo}@orca.local`;
 
@@ -303,10 +305,13 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.getByText('Comparativa KPI de órdenes comerciales').click();
     await expect(page.getByTestId('tabla-ordenes')).toHaveAttribute('data-hidratado', 'true');
-    await filaOrden.getByTestId('cambiar-estado-programada').click();
-    await expect(filaOrden.getByText('Programada')).toBeVisible();
-    await filaOrden.getByTestId('cambiar-estado-en_proceso').click();
-    await expect(filaOrden.getByText('En proceso')).toBeVisible();
+    // SII-B5: el estado deriva del avance; la cola ya no ofrece Iniciar/Completar.
+    await contexto.admin.from('ordenes_produccion').update({ estado: 'programada' }).eq('id', contexto.ordenId!);
+    await page.reload();
+    await expect(page.getByRole('row', { name: new RegExp(folio) })).toContainText('Planificada');
+    await contexto.admin.from('ordenes_produccion').update({ estado: 'en_proceso' }).eq('id', contexto.ordenId!);
+    await page.reload();
+    await expect(page.getByRole('row', { name: new RegExp(folio) })).toContainText('En producción');
 
     await page.goto('/operador');
     await expect(page.getByTestId('teclado-pin')).toHaveAttribute('data-hidratado', 'true');
@@ -397,9 +402,10 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
         registroInicio!.id,
       ]);
     const acciones = new Set((logs ?? []).map((log) => log.accion));
+    // SII-B5: la cola ya no expone Iniciar/Completar; la prueba avanza el estado
+    // con updates administrativos, así que `cambiar_estado_orden` ya no se registra.
     const accionesEsperadas = [
       'crear_orden_manual',
-      'cambiar_estado_orden',
       'registrar_tiempo_operador',
       'registrar_avance_partida',
       'registrar_consumo_material',

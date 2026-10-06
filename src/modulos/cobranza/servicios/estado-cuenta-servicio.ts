@@ -7,7 +7,8 @@
 export interface OrdenCrudaEstadoCuenta {
   id: string;
   folio: string;
-  estado: string;
+  /** SII-B5.3: estado derivado del avance (CONFIRMADA…CANCELADA). */
+  estadoSii: string;
   fechaCompromiso: string;
   esInterna: boolean;
   /** OBS-21: las órdenes archivadas (entregadas) no se muestran en el estado. */
@@ -75,13 +76,15 @@ function vencimientoMs(cuenta: { fechaVencimiento: string | null }): number {
 
 function situacionDeOrden(
   cuentas: readonly CuentaCrudaEstadoCuenta[],
-  estadoOrden: string,
+  estadoSii: string,
   hoy: Date,
 ): SituacionCobroOrden {
   const vigentes = cuentas.filter((cuenta) => cuenta.estado !== 'cancelado');
   const conSaldo = vigentes.filter((cuenta) => cuenta.saldoPendiente > 0.00005);
   if (vigentes.length === 0) {
-    return estadoOrden === 'completada' ? 'sin_ar' : 'no_exigible';
+    return estadoSii === 'PRODUCCION_COMPLETADA' || estadoSii === 'CERRADA'
+      ? 'sin_ar'
+      : 'no_exigible';
   }
   if (conSaldo.length === 0) return 'pagado';
   // D-04: una cuenta sin entrega aún no es exigible; solo cuando existe al
@@ -140,9 +143,9 @@ export function resumirOrdenesEstadoCuenta(
     return {
       id: orden.id,
       folio: orden.folio,
-      estado: orden.estado,
+      estado: orden.estadoSii,
       esInterna: orden.esInterna,
-      abierta: orden.archivadaEn === null && orden.estado !== 'cancelada',
+      abierta: orden.archivadaEn === null && orden.estadoSii !== 'CANCELADA',
       fechaCompromiso: orden.fechaCompromiso,
       cotizacionFolio: orden.cotizacionFolio,
       moneda: monedaSegura(orden.cotizacionMoneda),
@@ -156,7 +159,7 @@ export function resumirOrdenesEstadoCuenta(
       totalAr,
       abonado,
       saldo,
-      situacion: situacionDeOrden(propias, orden.estado, hoy),
+      situacion: situacionDeOrden(propias, orden.estadoSii, hoy),
     };
   });
 }

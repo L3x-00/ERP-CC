@@ -93,7 +93,7 @@ test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)
       contexto.ordenes.push(orden.id);
       const { data: partida, error: errorPartida } = await admin.from('partidas_orden_produccion').insert({
         orden_id: orden.id, codigo_pieza: codigo, cantidad_solicitada: 1,
-        unidad_medida: 'pza', tiempo_estimado_minutos: minutos,
+        unidad_medida: 'pza', tiempo_estimado_minutos: minutos, procesos: ['Corte'],
       }).select('id').single();
       if (errorPartida || !partida) throw new Error(`Sin partida (${codigo}): ${errorPartida?.message ?? 'vacía'}`);
       if (programacion) {
@@ -178,27 +178,17 @@ test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)
       .select('estado_planeacion').eq('partida_id', partidaSugerida).single();
     expect(asignada?.estado_planeacion).toBe('programada');
 
-    // Acciones de la tarjeta en el día de hoy.
+    // Acciones SII de la tarjeta: Liberar (PLANIFICADA→LISTA) y acceso a sesión;
+    // iniciar/pausar/reanudar manuales se retiraron (el avance deriva el estado).
     await page.getByTestId('vista-planeacion-dia').click();
     await page.getByRole('button', { name: 'Hoy' }).click();
     const acciones = page.getByTestId(`acciones-tarjeta-${ordenAcciones}`);
     await expect(acciones).toBeVisible();
-    await page.getByTestId(`accion-iniciar-${ordenAcciones}`).click();
+    await page.getByTestId(`accion-liberar-${ordenAcciones}`).click();
     await expect.poll(async () => (
-      await admin.from('ordenes_produccion').select('estado').eq('id', ordenAcciones).single()
-    ).data?.estado).toBe('en_proceso');
-    await expect(page.getByTestId(`accion-pausar-${ordenAcciones}`)).toBeVisible();
-    await page.getByTestId(`accion-pausar-${ordenAcciones}`).click();
-    await expect.poll(async () => (
-      await admin.from('ordenes_produccion').select('estado').eq('id', ordenAcciones).single()
-    ).data?.estado).toBe('pausada');
-    await expect(page.getByTestId(`accion-reanudar-${ordenAcciones}`)).toBeVisible();
-    await page.getByTestId(`accion-reanudar-${ordenAcciones}`).click();
-    await expect.poll(async () => (
-      await admin.from('ordenes_produccion').select('estado').eq('id', ordenAcciones).single()
-    ).data?.estado).toBe('en_proceso');
+      await admin.from('ordenes_produccion').select('estado_sii').eq('id', ordenAcciones).single()
+    ).data?.estado_sii).toBe('LISTA');
     await expect(page.getByTestId(`accion-sesion-${ordenAcciones}`)).toBeVisible();
-    await expect(page.getByTestId(`accion-entregar-${ordenAcciones}`)).toBeVisible();
     await expect(page.getByTestId(`accion-bandeja-${ordenAcciones}`)).toBeVisible();
 
     // Reactivar solo aparece en admin y devuelve una Lista a operación.

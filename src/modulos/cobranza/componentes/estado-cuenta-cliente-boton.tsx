@@ -63,7 +63,7 @@ export function EstadoCuentaClienteBoton({
         cliente
           .from('ordenes_produccion')
           .select(
-            'id, folio, estado, fecha_compromiso, es_interna, archivada_en, cotizacion_id, creado_en, partidas_orden_produccion(cantidad_solicitada, cantidad_producida), pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc, moneda)',
+            'id, folio, estado, estado_sii, fecha_compromiso, es_interna, archivada_en, cotizacion_id, creado_en, partidas_orden_produccion(cantidad_solicitada, cantidad_producida), pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc, moneda)',
           )
           .eq('cliente_id', clienteId)
           .order('creado_en', { ascending: false }),
@@ -108,7 +108,7 @@ export function EstadoCuentaClienteBoton({
           return {
             id: base.id,
             folio: base.folio,
-            estado: base.estado,
+            estadoSii: base.estado_sii ?? base.estado,
             fechaCompromiso: base.fecha_compromiso,
             esInterna: base.es_interna,
             archivadaEn: base.archivada_en,
