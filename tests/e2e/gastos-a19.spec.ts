@@ -80,12 +80,13 @@ test.describe.serial('A19 gastos y comprobantes privados', () => {
     await expect(dialogo).toHaveCount(0);
 
     const { data: gasto, error } = await f.admin.from('gastos')
-      .select('id, folio, proveedor_id, tipo_gasto, comprobante_ruta, monto_total')
+      .select('id, folio, folio_sii, proveedor_id, tipo_gasto, comprobante_ruta, monto_total')
       .eq('creado_por', f.usuarioId).single();
     if (error || !gasto) throw error ?? new Error('Sin gasto persistido');
     expect(gasto.proveedor_id).toBe(f.proveedorId);
     expect(gasto.tipo_gasto).toBe('fijo');
     expect(gasto.comprobante_ruta).toMatch(/\.png$/);
+    const folioVisible = gasto.folio_sii ?? gasto.folio;
     const { data: original } = await f.admin.storage.from('comprobantes-gasto').download(gasto.comprobante_ruta as string);
     expect(original?.size).toBe(PNG_MAYOR_1_MIB.length);
 
@@ -93,7 +94,7 @@ test.describe.serial('A19 gastos y comprobantes privados', () => {
     await page.getByRole('combobox', { name: 'IVA', exact: true }).selectOption('con');
     await page.getByRole('combobox', { name: 'Tipo', exact: true }).selectOption('fijo');
     await expect(page.getByText('1 resultados')).toBeVisible();
-    const fila = page.getByRole('row').filter({ hasText: gasto.folio });
+    const fila = page.getByRole('row').filter({ hasText: folioVisible });
     await expect(fila).toContainText('Proveedor A19');
     await expect(page.getByRole('region', { name: 'Resumen de gastos filtrados' }).getByText('Fijos')).toBeVisible();
     await page.getByRole('button', { name: 'Ocultar gráfico' }).click();
@@ -157,6 +158,6 @@ test.describe.serial('A19 gastos y comprobantes privados', () => {
       .select('ruta').eq('gasto_id', gasto.id).single();
     expect(historico?.ruta).toBe(gasto.comprobante_ruta);
     await page.getByRole('combobox', { name: 'Tipo', exact: true }).selectOption('variable');
-    await expect(page.getByRole('row').filter({ hasText: gasto.folio })).toContainText('Servicio A19 corregido');
+    await expect(page.getByRole('row').filter({ hasText: folioVisible })).toContainText('Servicio A19 corregido');
   });
 });

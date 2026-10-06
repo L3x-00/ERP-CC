@@ -64,7 +64,7 @@ export function TablaGastos({ gastos, cargando = false, onCambiarEstado, onVerRe
         <TablaCuerpo>
           {gastos.map((gasto) => (
             <TablaFila key={gasto.id}>
-              <TablaCelda className="font-mono text-xs font-medium">{gasto.folio}</TablaCelda>
+                <TablaCelda className="font-mono text-xs font-medium">{gasto.folioSii ?? gasto.folio}</TablaCelda>
               <TablaCelda>{gasto.descripcion}</TablaCelda>
               <TablaCelda>{gasto.categoria}</TablaCelda>
               <TablaCelda>{gasto.tipoGasto === 'fijo' ? 'Fijo' : gasto.tipoGasto === 'variable' ? 'Variable' : 'Sin clasificar'}</TablaCelda>

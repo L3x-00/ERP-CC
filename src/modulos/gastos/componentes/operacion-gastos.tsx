@@ -115,6 +115,7 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
     return gastos.filter((gasto) => (
       (!termino || gasto.descripcion.toLocaleLowerCase('es-MX').includes(termino)
         || gasto.folio.toLocaleLowerCase('es-MX').includes(termino)
+        || (gasto.folioSii ?? '').toLocaleLowerCase('es-MX').includes(termino)
         || (gasto.proveedorNombre ?? '').toLocaleLowerCase('es-MX').includes(termino))
       && (categorias.length === 0 || categorias.includes(gasto.categoria))
       && (estados.length === 0 || estados.includes(gasto.estadoPago))

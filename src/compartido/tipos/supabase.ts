@@ -724,6 +724,141 @@ export type Database = {
         }
         Relationships: []
       }
+      compras: {
+        Row: {
+          actualizado_en: string
+          cancelada_en: string | null
+          creado_en: string
+          creado_por: string
+          estado: string
+          fecha_compra: string
+          fecha_vencimiento: string | null
+          folio_sii: string
+          id: string
+          moneda: string
+          monto_iva: number
+          monto_subtotal: number
+          monto_total: number
+          motivo_cancelacion: string | null
+          notas: string | null
+          orden_id: string | null
+          proveedor_id: string
+          saldo_pendiente: number
+          tipo_cambio: number
+        }
+        Insert: {
+          actualizado_en?: string
+          cancelada_en?: string | null
+          creado_en?: string
+          creado_por: string
+          estado?: string
+          fecha_compra?: string
+          fecha_vencimiento?: string | null
+          folio_sii: string
+          id?: string
+          moneda?: string
+          monto_iva?: number
+          monto_subtotal: number
+          monto_total: number
+          motivo_cancelacion?: string | null
+          notas?: string | null
+          orden_id?: string | null
+          proveedor_id: string
+          saldo_pendiente: number
+          tipo_cambio?: number
+        }
+        Update: {
+          actualizado_en?: string
+          cancelada_en?: string | null
+          creado_en?: string
+          creado_por?: string
+          estado?: string
+          fecha_compra?: string
+          fecha_vencimiento?: string | null
+          folio_sii?: string
+          id?: string
+          moneda?: string
+          monto_iva?: number
+          monto_subtotal?: number
+          monto_total?: number
+          motivo_cancelacion?: string | null
+          notas?: string | null
+          orden_id?: string | null
+          proveedor_id?: string
+          saldo_pendiente?: number
+          tipo_cambio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos_compra: {
+        Row: {
+          compra_id: string
+          creado_en: string
+          creado_por: string
+          cuenta_bancaria_id: string | null
+          fecha_pago: string
+          id: string
+          metodo_pago: string
+          monto: number
+          notas: string | null
+          referencia: string | null
+        }
+        Insert: {
+          compra_id: string
+          creado_en?: string
+          creado_por: string
+          cuenta_bancaria_id?: string | null
+          fecha_pago?: string
+          id?: string
+          metodo_pago: string
+          monto: number
+          notas?: string | null
+          referencia?: string | null
+        }
+        Update: {
+          compra_id?: string
+          creado_en?: string
+          creado_por?: string
+          cuenta_bancaria_id?: string | null
+          fecha_pago?: string
+          id?: string
+          metodo_pago?: string
+          monto?: number
+          notas?: string | null
+          referencia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_compra_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuentas_bancarias: {
         Row: {
           activa: boolean
@@ -1093,6 +1228,7 @@ export type Database = {
           fecha_vencimiento: string | null
           folio: string
           folio_comprobante: string | null
+          folio_sii: string | null
           id: string
           metodo_pago: string | null
           moneda: string
@@ -1120,6 +1256,7 @@ export type Database = {
           fecha_vencimiento?: string | null
           folio: string
           folio_comprobante?: string | null
+          folio_sii?: string | null
           id?: string
           metodo_pago?: string | null
           moneda?: string
@@ -1147,6 +1284,7 @@ export type Database = {
           fecha_vencimiento?: string | null
           folio?: string
           folio_comprobante?: string | null
+          folio_sii?: string | null
           id?: string
           metodo_pago?: string | null
           moneda?: string
@@ -5051,6 +5189,89 @@ export type Database = {
           pago_id: string
           saldo_a_favor_mxn: number
           sobrepago_pago: number
+        }[]
+      }
+      actualizar_compra_borrador: {
+        Args: {
+          p_actualizado_en_esperado: string
+          p_actor_id: string
+          p_compra_id: string
+          p_fecha_vencimiento: string | null
+          p_moneda: string
+          p_monto_iva: number
+          p_monto_subtotal: number
+          p_notas: string | null
+          p_orden_id: string | null
+          p_proveedor_id: string
+          p_tipo_cambio: number
+        }
+        Returns: {
+          actualizado_en: string
+          id: string
+          moneda: string
+          monto_iva: number
+          monto_subtotal: number
+          monto_total: number
+          orden_id: string | null
+          proveedor_id: string
+          saldo_pendiente: number
+          tipo_cambio: number
+        }[]
+      }
+      cambiar_estado_compra: {
+        Args: {
+          p_actualizado_en_esperado: string
+          p_actor_id: string
+          p_compra_id: string
+          p_correlation_id?: string
+          p_estado_destino: string
+          p_motivo: string | null
+        }
+        Returns: {
+          actualizado_en: string
+          estado: string
+          id: string
+        }[]
+      }
+      crear_compra: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_fecha_vencimiento: string | null
+          p_moneda: string
+          p_monto_iva: number
+          p_monto_subtotal: number
+          p_notas: string | null
+          p_orden_id: string | null
+          p_proveedor_id: string
+          p_tipo_cambio: number
+        }
+        Returns: {
+          actualizado_en: string
+          estado: string
+          folio_sii: string
+          id: string
+          monto_total: number
+          saldo_pendiente: number
+        }[]
+      }
+      pagar_compra: {
+        Args: {
+          p_actor_id: string
+          p_compra_id: string
+          p_correlation_id?: string
+          p_cuenta_bancaria_id: string | null
+          p_metodo_pago: string
+          p_monto: number
+          p_notas: string | null
+          p_referencia: string | null
+        }
+        Returns: {
+          actualizado_en: string
+          compra_id: string
+          estado: string
+          pago_id: string
+          saldo_pendiente: number
         }[]
       }
       registrar_entrega: {

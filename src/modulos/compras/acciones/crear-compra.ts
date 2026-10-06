@@ -1,0 +1,74 @@
+'use server';
+
+import type { RespuestaAccion } from '@/compartido/tipos/indice';
+import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { can } from '@/nucleo/autenticacion/verificar-permiso';
+import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
+import { traducirErrorCompra } from '@/modulos/compras/servicios/errores-compra';
+import { esquemaCrearCompra } from '@/modulos/compras/validaciones/esquemas-compras';
+
+export type ResultadoCrearCompra = {
+  compraId: string;
+  folioSii: string;
+  actualizadoEn: string;
+};
+
+/** SII-B8 F4: crea una compra en borrador con folio CG. */
+export async function crearCompraAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<ResultadoCrearCompra>> {
+  const analisis = esquemaCrearCompra.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+  const datos = analisis.data;
+
+  const usuario = await obtenerUsuarioServidor();
+  if (!usuario) return { exito: false, error: 'No autorizado' };
+  if (!(await can(usuario, 'registrar_gastos'))) {
+    return { exito: false, error: 'Sin permiso para gestionar compras' };
+  }
+
+  const correlationId = nuevoCorrelationId();
+  const admin = crearClienteSupabaseAdmin();
+  const { data, error } = await admin.rpc('crear_compra', {
+    p_proveedor_id: datos.proveedorId,
+    p_orden_id: datos.ordenId ?? null,
+    p_monto_subtotal: datos.montoSubtotal,
+    p_monto_iva: datos.montoIva,
+    p_moneda: datos.moneda,
+    p_tipo_cambio: datos.tipoCambio,
+    p_fecha_vencimiento: datos.fechaVencimiento ?? null,
+    p_notas: datos.notas ?? null,
+    p_actor_id: usuario.id,
+    p_correlation_id: correlationId,
+  });
+
+  const fila = Array.isArray(data) ? data[0] : null;
+  if (error || !fila) {
+    await registrarLog(
+      usuario,
+      'crear_compra_rechazado',
+      'compras',
+      datos.proveedorId,
+      { codigo: (error?.message ?? 'sin_respuesta').slice(0, 120) },
+      correlationId,
+    );
+    return { exito: false, error: traducirErrorCompra(error?.message ?? '', error?.details ?? undefined) };
+  }
+
+  await registrarLog(
+    usuario,
+    'crear_compra',
+    'compras',
+    fila.id,
+    { folioSii: fila.folio_sii, total: fila.monto_total },
+    correlationId,
+  );
+
+  return {
+    exito: true,
+    datos: { compraId: fila.id, folioSii: fila.folio_sii, actualizadoEn: fila.actualizado_en },
+  };
+}

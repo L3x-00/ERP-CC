@@ -93,6 +93,13 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['registrar_gastos', 'ver_finanzas'],
   },
   {
+    href: '/compras',
+    etiqueta: 'Compras',
+    grupo: 'Finanzas',
+    icono: 'carrito',
+    permisos: ['registrar_gastos', 'ver_finanzas'],
+  },
+  {
     href: '/actividad',
     etiqueta: 'Actividad',
     grupo: 'Sistema',

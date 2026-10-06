@@ -20,6 +20,7 @@ function gasto(parcial: Partial<Gasto>): Gasto {
   return {
     id: `00000000-0000-4000-8000-${String(contador).padStart(12, '0')}`,
     folio: `GTO-${String(contador).padStart(6, '0')}`,
+    folioSii: null,
     ordenId: ORDEN,
     ordenFolio: null,
     proveedorId: null,

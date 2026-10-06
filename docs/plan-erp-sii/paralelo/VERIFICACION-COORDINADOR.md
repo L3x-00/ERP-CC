@@ -200,3 +200,12 @@
 - **Evidencia:** typecheck 0 · lint 0 · unit **944/944** · pgTAP **1026/1026** (40 archivos; `sii_b8_cobros_promesas` 27/27) · E2E `cobranza-cobro-multiple` 1/1 + regresión cobranza/facturación 5/5 · build OK · capturas 2/2.
 - **Migraciones para el PO (remoto):** `20261007180001`–`20261007180005` (tras `20261007170001`).
 - **Siguiente:** commit del cierre B8-F3; F4 (compras/CxP) y F5 (tesorería) solo con autorización por fase.
+
+### Auditoría 14 — 2026-10-06 (B8 F4: compras/CxP con folio CG y pagos a proveedores)
+
+- **Scope autorizado con decisiones del PO:** compra por cabecera con estados, serie CG compartida compras/gastos, pagos parciales con saldo y compras fuera de rentabilidad.
+- **Implementación:** `20261007190001` (tablas `compras`/`pagos_compra` con RLS, `gastos.folio_sii` + CHECK/único, generador CG compartido con advisory lock y máximo real) y `20261007190002` (`registrar_gasto` recreada asigna CG conservando GTO; `crear_compra`, `actualizar_compra_borrador`, `cambiar_estado_compra`, `pagar_compra`). UI `/compras` (cola, alta/edición, confirmar/recibir, pagar, cancelar) y visualización CG en gastos (búsqueda incluida).
+- **Defectos corregidos durante la verificación:** proveedor de fixture con columnas NOT NULL; errcode P0002 de `no_data_found`; selectores GTO de la regresión de gastos actualizados a CG (solo presentación).
+- **Evidencia:** typecheck 0 · lint 0 · unit **948/948** · pgTAP **1055/1055** (41 archivos; `sii_b8_compras` 29/29) · E2E `compras-flujo` 1/1 + regresión gastos 3/3 · build OK (ruta `/compras`) · capturas 4/4.
+- **Migraciones para el PO (remoto):** `20261007190001` y `20261007190002` (tras `20261007180005`).
+- **Siguiente:** commit del cierre B8-F4; F5 (tesorería) solo con autorización del PO.

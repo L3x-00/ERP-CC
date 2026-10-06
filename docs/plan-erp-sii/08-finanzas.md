@@ -86,7 +86,7 @@ Regla clave: **las transferencias internas entre cuentas no son ingreso ni gasto
 | F1 | Folio `RP-MMYY_XX-YY` para recibos nuevos + `solicitud_id` en cobros legacy | B7 | **COMPLETADA localmente 2026-10-06** (§8.5): migraciones `20261007160001/0002`, pgTAP 12/12, E2E `cobranza-folio-rp`; la idempotencia por `solicitud_id` ya existía. |
 | F2 | Factura borrador + vínculo entrega→facturación→CxC (sin timbrado CFDI) | F1 | **COMPLETADA localmente 2026-10-06** (§8.6): migración `20261007170001`, pgTAP 19/19, E2E `facturacion-flujo`; UI `/facturacion`. |
 | F3 | Aplicaciones many-to-many + promesas de pago (**con recordatorios**, decisión PO 2026-10-06) | F1 | **COMPLETADA localmente 2026-10-06** (§8.7): migraciones `20261007180001`–`0005`, pgTAP 27/27, E2E `cobranza-cobro-multiple`; UI en `/cobranza`. |
-| F4 | Compras/CxP con folio `CG-MMYY_####` y pagos a proveedores | F2 | PENDIENTE (autorización del PO) |
+| F4 | Compras/CxP con folio `CG-MMYY_####` y pagos a proveedores | F2 | **COMPLETADA localmente 2026-10-06** (§8.8): migraciones `20261007190001/0002`, pgTAP 29/29, E2E `compras-flujo`; UI `/compras`. |
 | F5 | Tesorería: saldos, transferencias internas, conciliación básica | F4 | PENDIENTE (autorización del PO) |
 
 Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP no timbra CFDI: solo registra folios fiscales capturados (decisión alineada con §2: "no pretende sostener la estabilidad fiscal ni CFDI").
@@ -126,3 +126,12 @@ Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP
 - **Compatibilidad:** el flujo 1-AR y el modal de facturación por AR quedan intactos; el reverso conserva valores históricos y funciona con recibos repartidos.
 - **Evidencia:** pgTAP `sii_b8_cobros_promesas` 27/27 · global 1026/1026 · unit 944/944 · E2E `cobranza-cobro-multiple` 1/1 + regresión cobranza/facturación 5/5 · build OK · capturas 2/2 en `.ai-shared/qa/sii-b8-f3/visual/`.
 - **Pendiente del PO:** aplicar en remoto `20261007180001`–`20261007180005` (tras `20261007170001`). Riesgo heredado: colisión de folios `O-`/`OI-` sigue pendiente de decisión.
+
+## 8.8 Estado F4 — Compras/CxP con folio CG y pagos a proveedores (2026-10-06)
+
+- **Decisiones del PO:** compra = cabecera (proveedor, orden opcional, montos, vencimiento, notas) con estados BORRADOR→CONFIRMADA→RECIBIDA→PAGADA/CANCELADA (F4.1); serie `CG-MMYY_####` **compartida** entre compras y gastos nuevos (F4.2); pagos parciales con saldo (F4.3); las compras **no** entran a la rentabilidad (F4.4).
+- **Migraciones:** `20261007190001` (tablas `compras` y `pagos_compra` con RLS, `gastos.folio_sii` con CHECK/único, generador `privado.siguiente_folio_cg` con advisory lock por periodo y máximo real entre ambas tablas) y `20261007190002` (`registrar_gasto` recreada asigna `folio_sii` CG conservando el GTO interno; RPC `crear_compra`, `actualizar_compra_borrador`, `cambiar_estado_compra` y `pagar_compra`).
+- **UI:** ruta `/compras` (Finanzas) con cola filtrable, alta/edición en borrador, confirmar/recibir, pagar (parcial/total) y cancelar con motivo; los gastos nuevos muestran su folio CG (el histórico conserva GTO) y la búsqueda de gastos lo incluye.
+- **Compatibilidad:** `registrar_gasto` mantiene su firma y el folio interno GTO; cobranza/facturación/rentabilidad quedan intactas (rentabilidad sigue leyendo gastos).
+- **Evidencia:** pgTAP `sii_b8_compras` 29/29 · global 1055/1055 · unit 948/948 · E2E `compras-flujo` 1/1 + regresión gastos 3/3 · build OK · capturas 4/4 en `.ai-shared/qa/sii-b8-f4/visual/`.
+- **Pendiente del PO:** aplicar en remoto `20261007190001` y `20261007190002` (tras `20261007180005`).

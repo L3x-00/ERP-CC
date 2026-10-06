@@ -40,6 +40,8 @@ export type MonedaRentabilidad = 'MXN';
 export interface Gasto {
   id: string;
   folio: string;
+  /** SII-B8 F4: folio CG-MMYY_#### de la serie compartida; null en históricos. */
+  folioSii: string | null;
   ordenId: string | null;
   /** Folio legible de la orden vinculada (OBS-28); null si no se embebió. */
   ordenFolio: string | null;
@@ -89,6 +91,7 @@ export interface FilaGasto {
   fecha_vencimiento: string | null;
   comprobante_url: string | null;
   folio_comprobante: string | null;
+  folio_sii?: string | null;
   metodo_pago: string | null;
   datos_ocr_json: Json | null;
   notas: string | null;
@@ -223,6 +226,7 @@ export function filaAGasto(fila: FilaGasto): Gasto {
   return {
     id: fila.id,
     folio: fila.folio,
+    folioSii: fila.folio_sii ?? null,
     ordenId: fila.orden_id,
     ordenFolio: null,
     proveedorId: fila.proveedor_id,

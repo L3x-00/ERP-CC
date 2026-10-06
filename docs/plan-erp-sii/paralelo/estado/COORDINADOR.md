@@ -101,3 +101,10 @@
 - Implementado: `20261007180001`–`0005` (aplicaciones N:M con backfill, reverso por aplicaciones, cobro múltiple, promesas + procesador de recordatorios compatible con `notificaciones_usuario`, literales de F1 corregidos) y UI `/cobranza` (cobro múltiple + promesa).
 - Gates: typecheck 0 · lint 0 · unit 944/944 · pgTAP **1026/1026** (`sii_b8_cobros_promesas` 27/27) · E2E F3 1/1 + regresión 5/5 · build OK · capturas 2/2.
 - Pendiente: commit de cierre B8-F3; aplicar `20261007180001`–`0005` en remoto (tras `20261007170001`).
+
+### B8 Finanzas — F4 compras/CxP cerrada localmente — 2026-10-06
+
+- El PO autorizó F4 y validó: compra por cabecera, serie CG compartida con gastos, pagos parciales y compras fuera de rentabilidad.
+- Implementado: `20261007190001/0002` (compras, pagos_compra, gastos.folio_sii, generador CG compartido, registrar_gasto con CG y RPC de compras) y UI `/compras` con gastos mostrando CG.
+- Gates: typecheck 0 · lint 0 · unit 948/948 · pgTAP **1055/1055** (`sii_b8_compras` 29/29) · E2E F4 1/1 + regresión gastos 3/3 · build OK · capturas 4/4.
+- Pendiente: commit de cierre B8-F4; aplicar `20261007190001/0002` en remoto (tras `20261007180005`).

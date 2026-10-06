@@ -304,11 +304,11 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await page.getByRole('button', { name: 'Guardar gasto' }).click();
 
     const fila = page.getByRole('row', { name: /Gasto E2E de consumibles/ });
-    await expect(fila).toContainText(/GTO-\d{6}/);
+    await expect(fila).toContainText(/CG-\d{4}_\d{4,}/);
     await expect.poll(async () => {
-      const { data: gasto } = await datos.admin.from('gastos').select('folio, estado_pago').eq('orden_id', datos.ordenId).eq('descripcion', 'Gasto E2E de consumibles').maybeSingle();
-      return gasto ? `${gasto.folio}:${gasto.estado_pago}` : null;
-    }).toMatch(/^GTO-\d{6}:pendiente$/);
+      const { data: gasto } = await datos.admin.from('gastos').select('folio_sii, estado_pago').eq('orden_id', datos.ordenId).eq('descripcion', 'Gasto E2E de consumibles').maybeSingle();
+      return gasto ? `${gasto.folio_sii}:${gasto.estado_pago}` : null;
+    }).toMatch(/^CG-\d{4}_\d{4,}:pendiente$/);
 
     await expect.poll(async () => observador.getByTestId('sincronizador-gastos').getAttribute('data-eventos')).not.toBe('0');
     await expect(observador.getByRole('row', { name: /Gasto E2E de consumibles/ })).toContainText('Gasto E2E de consumibles');
