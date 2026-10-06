@@ -155,6 +155,7 @@ describe('mappers de filas generadas', () => {
     orden_id: uuidOrden,
     cliente_id: uuidCliente,
     folio_factura_remision: null,
+    factura_id: null,
     monto_total: 1000,
     monto_subtotal: null,
     monto_iva: null,

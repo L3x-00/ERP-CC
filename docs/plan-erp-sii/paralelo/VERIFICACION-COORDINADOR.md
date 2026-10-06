@@ -182,3 +182,12 @@
 - **Riesgo heredado:** la colisión `O-`/`OI-` del mismo mes+sufijo aplica también a `RP` (falla ruidosa por UNIQUE); decisión de desambiguación pendiente del PO para NE y RP.
 - **Migraciones para el PO (remoto):** `20261007160001`, `20261007160002` (tras `20261007120005`).
 - **Siguiente:** commit del cierre B8-F1; F2–F5 solo con autorización por fase.
+
+### Auditoría 12 — 2026-10-06 (B8 F2: facturación borrador y vínculo a CxC)
+
+- **Scope autorizado por el PO** con decisiones registradas: montos precargados/editables, una factura por entrega, emisión vincula la AR, cancelar desvincula y permite re-facturar.
+- **Implementación:** migración `20261007170001_sii_b8_facturacion.sql` (tabla `facturas` con ciclo BORRADOR→EMITIDA→CANCELADA, folio fiscal único, una activa por entrega, `cuentas_por_cobrar.factura_id`, RLS de lectura y 4 RPC `service_role`), dominio `src/modulos/facturacion/**`, UI `/facturacion` + botón “Facturar entrega” en `/entregas/[id]`, entrada de menú en Finanzas y tipos generados actualizados a mano (tabla, columna y RPC).
+- **Evidencia:** typecheck 0 · lint 0 · unit **940/940** · pgTAP **999/999** (39 archivos; `sii_b8_facturacion` 19/19) · E2E `facturacion-flujo` 1/1 + regresión entregas/cobranza 4/4 · build OK (ruta `/facturacion`) · capturas 4/4.
+- **Compatibilidad verificada:** `registrar_factura_ar` (modal de Cobranza) intacto; D-04 intacto (AR por entregar facturada conserva vencimiento NULL); cancelación conserva vencimiento y desvincula.
+- **Migración para el PO (remoto):** `20261007170001` (tras `20261007160002`).
+- **Siguiente:** commit del cierre B8-F2; F3–F5 solo con autorización por fase.

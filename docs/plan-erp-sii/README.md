@@ -85,7 +85,7 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | B5 Orden | 5.1–5.6 | **COMPLETADO localmente**: ola 1 `7aaee76`; ola 2 (UI ficha/alta SII + consumidores) verificada 2026-10-06, **pendiente commit** | `7aaee76` | pgTAP 968/968 · unit 932/932 · integración 226/227 (flake PIN aislado) · E2E focal 1/1 + regresión 10/10 · capturas 4/4 |
 | B6 Producción | 6.1–6.4 | **COMPLETADO** (olas 1 y 2 commiteadas: modelo + UI de piso/calidad) | `247fe31`, `78933f0` | pgTAP 968/968 · unit 932/932 · E2E corridas-calidad verde |
 | B7 Entregas | 7.1–7.3 | **COMPLETADO localmente**: ola 1 `b4c4487`; ola 2 (UI `/entregas`, evidencia y firma) verificada 2026-10-06, **pendiente commit** | `b4c4487` | pgTAP 968/968 global (B7 51/51) · unit 935/935 · E2E focal 1/1 + regresión producción/cobranza 7/7 · capturas 8/8 |
-| B8 Finanzas | 8.1–8.4 | EN_CURSO: diseño validado por el PO; **F1 (folio de recibo RP) completada localmente 2026-10-06** (pendiente commit); F2–F5 pendientes de autorización | — | pgTAP `sii_b8_folio_recibo` 12/12 · pgTAP global 980/980 · unit 935/935 · E2E `cobranza-folio-rp` 1/1 + regresión cobranza 5/5 · capturas 2/2 |
+| B8 Finanzas | 8.1–8.4 | EN_CURSO: diseño validado por el PO; **F1 (folio RP) y F2 (facturación borrador + vínculo a CxC) completadas localmente 2026-10-06** (pendiente commit); F3–F5 pendientes de autorización | — | pgTAP `sii_b8_folio_recibo` 12/12 y `sii_b8_facturacion` 19/19 · pgTAP global 999/999 · unit 940/940 · E2E RP y facturación 2/2 + regresiones 9/9 · capturas 6/6 |
 | B9 Estrategia/KPIs | 9.1–9.6 | PENDIENTE | — | — |
 
 Al avanzar, reemplazar `PENDIENTE` por el estado real y enlazar handoff/PR. Este archivo es la única fuente de verdad del avance del plan.

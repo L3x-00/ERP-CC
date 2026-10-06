@@ -678,6 +678,7 @@ export type Database = {
           estado: string
           fecha_emision: string
           fecha_vencimiento: string | null
+          factura_id: string | null
           folio_factura_remision: string | null
           motivo_anulacion: string | null
           referencia_interna: string
@@ -703,6 +704,7 @@ export type Database = {
           estado?: string
           fecha_emision?: string
           fecha_vencimiento?: string | null
+          factura_id?: string | null
           folio_factura_remision?: string | null
           motivo_anulacion?: string | null
           referencia_interna?: string
@@ -728,6 +730,7 @@ export type Database = {
           estado?: string
           fecha_emision?: string
           fecha_vencimiento?: string | null
+          factura_id?: string | null
           folio_factura_remision?: string | null
           motivo_anulacion?: string | null
           referencia_interna?: string
@@ -753,6 +756,13 @@ export type Database = {
             columns: ["orden_id"]
             isOneToOne: true
             referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuentas_por_cobrar_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
             referencedColumns: ["id"]
           },
         ]
@@ -878,6 +888,95 @@ export type Database = {
             columns: ["reemplazado_por"]
             isOneToOne: false
             referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facturas: {
+        Row: {
+          actualizado_en: string
+          cancelada_en: string | null
+          cliente_id: string
+          creado_en: string
+          creado_por: string | null
+          emitida_en: string | null
+          entrega_id: string
+          estado: string
+          folio_fiscal: string | null
+          id: string
+          iva: number | null
+          motivo_cancelacion: string | null
+          orden_id: string
+          rfc_receptor: string | null
+          subtotal: number | null
+          total: number | null
+          uuid_fiscal: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          cancelada_en?: string | null
+          cliente_id: string
+          creado_en?: string
+          creado_por?: string | null
+          emitida_en?: string | null
+          entrega_id: string
+          estado?: string
+          folio_fiscal?: string | null
+          id?: string
+          iva?: number | null
+          motivo_cancelacion?: string | null
+          orden_id: string
+          rfc_receptor?: string | null
+          subtotal?: number | null
+          total?: number | null
+          uuid_fiscal?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          cancelada_en?: string | null
+          cliente_id?: string
+          creado_en?: string
+          creado_por?: string | null
+          emitida_en?: string | null
+          entrega_id?: string
+          estado?: string
+          folio_fiscal?: string | null
+          id?: string
+          iva?: number | null
+          motivo_cancelacion?: string | null
+          orden_id?: string
+          rfc_receptor?: string | null
+          subtotal?: number | null
+          total?: number | null
+          uuid_fiscal?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_entrega_id_fkey"
+            columns: ["entrega_id"]
+            isOneToOne: false
+            referencedRelation: "notas_entrega"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -4717,6 +4816,80 @@ export type Database = {
           p_tipo: string
         }
         Returns: string
+      }
+      actualizar_factura_borrador: {
+        Args: {
+          p_actor_id: string
+          p_actualizado_en_esperado: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_factura_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado: string
+          id: string
+          iva: number | null
+          rfc_receptor: string | null
+          subtotal: number | null
+          total: number | null
+        }[]
+      }
+      cancelar_factura: {
+        Args: {
+          p_actor_id: string
+          p_actualizado_en_esperado: string
+          p_correlation_id?: string
+          p_factura_id: string
+          p_motivo: string
+        }
+        Returns: {
+          actualizado_en: string
+          ar_id: string | null
+          estado: string
+          id: string
+        }[]
+      }
+      crear_factura_borrador: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_entrega_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          cliente_id: string
+          entrega_id: string
+          estado: string
+          id: string
+          iva: number | null
+          orden_id: string
+          rfc_receptor: string | null
+          subtotal: number | null
+          total: number | null
+          ya_existia: boolean
+        }[]
+      }
+      emitir_factura: {
+        Args: {
+          p_actor_id: string
+          p_actualizado_en_esperado: string
+          p_correlation_id?: string
+          p_factura_id: string
+          p_folio_fiscal: string
+          p_rfc_receptor: string | null
+          p_uuid_fiscal: string | null
+        }
+        Returns: {
+          actualizado_en: string
+          ar_folio: string | null
+          ar_id: string | null
+          ar_vencimiento: string | null
+          estado: string
+          folio_fiscal: string
+          id: string
+        }[]
       }
       registrar_entrega: {
         Args: {

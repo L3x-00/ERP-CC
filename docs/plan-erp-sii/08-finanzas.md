@@ -84,7 +84,7 @@ Regla clave: **las transferencias internas entre cuentas no son ingreso ni gasto
 | Fase | Alcance | Depende | Estado |
 |---|---|---|---|
 | F1 | Folio `RP-MMYY_XX-YY` para recibos nuevos + `solicitud_id` en cobros legacy | B7 | **COMPLETADA localmente 2026-10-06** (§8.5): migraciones `20261007160001/0002`, pgTAP 12/12, E2E `cobranza-folio-rp`; la idempotencia por `solicitud_id` ya existía. |
-| F2 | Factura borrador + vínculo entrega→facturación→CxC (sin timbrado CFDI) | F1 | PENDIENTE (autorización del PO) |
+| F2 | Factura borrador + vínculo entrega→facturación→CxC (sin timbrado CFDI) | F1 | **COMPLETADA localmente 2026-10-06** (§8.6): migración `20261007170001`, pgTAP 19/19, E2E `facturacion-flujo`; UI `/facturacion`. |
 | F3 | Aplicaciones many-to-many + promesas de pago (**con recordatorios**, decisión PO 2026-10-06) | F1 | PENDIENTE (autorización del PO) |
 | F4 | Compras/CxP con folio `CG-MMYY_####` y pagos a proveedores | F2 | PENDIENTE (autorización del PO) |
 | F5 | Tesorería: saldos, transferencias internas, conciliación básica | F4 | PENDIENTE (autorización del PO) |
@@ -108,3 +108,12 @@ Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP
 - **Regla clave:** la idempotencia por `solicitud_id` no cambió; un reintento devuelve el mismo folio. Los folios nunca se reutilizan (el conteo incluye recibos reversados).
 - **Evidencia:** pgTAP `sii_b8_folio_recibo` 12/12 (espejo OI, consecutivo 01→02, monedero 03, fallback REC, idempotencia, CHECK y unicidad) · pgTAP global 980/980 · unit 935/935 · E2E `cobranza-folio-rp` + regresión de cobranza 6/6 · build OK · capturas en `.ai-shared/qa/sii-b8-f1/visual/`.
 - **Pendiente del PO:** aplicar en remoto `20261007160001` y `20261007160002` (después de `20261007120005`).
+
+## 8.6 Estado F2 — Facturación: borrador y vínculo entrega→factura→CxC (2026-10-06)
+
+- **Decisiones del PO:** montos precargados desde la AR y editables (F2.1); una factura por entrega (F2.2); emitir vincula la AR —`factura_id`, `folio_factura_remision` y vencimiento por términos del cliente— (F2.3); cancelar con motivo desvincula la AR y permite re-facturar conservando el vencimiento (F2.4).
+- **Migración:** `20261007170001_sii_b8_facturacion.sql` — tabla `public.facturas` (BORRADOR→EMITIDA→CANCELADA, folio fiscal único, una activa por entrega), columna `cuentas_por_cobrar.factura_id` (única), RLS de lectura con `ver_finanzas` y RPC `crear_factura_borrador` / `actualizar_factura_borrador` (CAS) / `emitir_factura` / `cancelar_factura` (solo `service_role`).
+- **UI:** ruta `/facturacion` (Finanzas) con cola de borradores/emitidas/canceladas, alta desde entregas sin factura activa, edición con CAS, emisión con folio capturado del PAC y cancelación; botón “Facturar entrega” en el detalle de la entrega (`/entregas/[id]`).
+- **Compatibilidad:** el flujo vigente de `registrar_factura_ar` (folio directo sobre la AR desde `/cobranza`) no se modifica; D-04 (activación de AR al entregar) queda intacto y una AR por-entregar conserva vencimiento NULL al facturarse.
+- **Evidencia:** pgTAP `sii_b8_facturacion` 19/19 · pgTAP global 999/999 · unit 940/940 · E2E `facturacion-flujo` + regresión entregas/cobranza 5/5 · build OK · capturas 4/4 en `.ai-shared/qa/sii-b8-f2/visual/`.
+- **Pendiente del PO:** aplicar en remoto `20261007170001` (tras `20261007160002`).

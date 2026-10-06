@@ -87,3 +87,10 @@
 - Gates: typecheck 0 · lint 0 · unit 935/935 · pgTAP **980/980** (nuevo `sii_b8_folio_recibo` 12/12) · E2E `cobranza-folio-rp` 1/1 + regresión cobranza 5/5 · build OK · capturas 2/2.
 - Decisiones registradas en `.ai-shared/memory/decisions/ADR-SII-B8-FINANZAS-20261006.md`.
 - Pendiente: commit de cierre B8-F1; F2–F5 esperan autorización por fase.
+
+### B8 Finanzas — F2 facturación cerrada localmente — 2026-10-06
+
+- El PO autorizó F2 y validó el diseño: montos precargados/editables, una factura por entrega, emitir vincula la AR y cancelar desvincula (re-factura permitida).
+- Implementado: `20261007170001` (tabla `facturas`, `cuentas_por_cobrar.factura_id`, RPC crear/editar/emitir/cancelar), `/facturacion` con cola y panel, enlace desde el detalle de entrega y menú.
+- Gates: typecheck 0 · lint 0 · unit 940/940 · pgTAP **999/999** (`sii_b8_facturacion` 19/19) · E2E facturación 1/1 + regresión 4/4 · build OK · capturas 4/4.
+- Pendiente: commit de cierre B8-F2; aplicar `20261007170001` en remoto (tras `20261007160002`).

@@ -79,6 +79,13 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['registrar_pagos', 'aplicar_saldos', 'ver_finanzas'],
   },
   {
+    href: '/facturacion',
+    etiqueta: 'Facturación',
+    grupo: 'Finanzas',
+    icono: 'factura',
+    permisos: ['registrar_pagos', 'ver_finanzas'],
+  },
+  {
     href: '/gastos',
     etiqueta: 'Gastos',
     grupo: 'Finanzas',

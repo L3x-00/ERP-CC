@@ -26,9 +26,11 @@ import { ETIQUETA_CLASE_EVIDENCIA } from '@/modulos/entregas/utilidades/indice';
 export function DetalleEntrega({
   inicial,
   puedeEvidencia,
+  puedeFacturar = false,
 }: {
   inicial: DetalleEntregaCompleto;
   puedeEvidencia: boolean;
+  puedeFacturar?: boolean;
 }) {
   const [datos, setDatos] = useState<DetalleEntregaCompleto>(inicial);
   const [claseArchivo, setClaseArchivo] = useState<'evidencia' | 'firma_escaneada'>('evidencia');
@@ -112,9 +114,20 @@ export function DetalleEntrega({
             Entrega: {detalle.entregadoPorNombre ?? '—'} · Recibe: {entrega.recibidoPor}
           </p>
         </div>
-        <Button variante="contorno" tamano="sm" onClick={() => router.push('/entregas')}>
-          Volver a la cola
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {puedeFacturar ? (
+            <Link
+              href={`/facturacion?entrega=${entrega.id}`}
+              className="inline-flex min-h-11 items-center rounded-md border border-borde px-3 text-sm font-semibold text-acento hover:bg-superficie-2"
+              data-testid="facturar-entrega"
+            >
+              Facturar entrega
+            </Link>
+          ) : null}
+          <Button variante="contorno" tamano="sm" onClick={() => router.push('/entregas')}>
+            Volver a la cola
+          </Button>
+        </div>
       </header>
 
       {error ? <p role="alert" className="text-sm text-peligro-texto" data-testid="detalle-error">{error}</p> : null}
