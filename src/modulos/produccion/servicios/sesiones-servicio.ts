@@ -40,6 +40,43 @@ export type CodigoErrorProduccion =
   | 'sesion_pausada_inexistente'
   | 'recurso_ocupado'
   | 'capacidad_no_disponible'
+  | 'verificacion_inicio_incompleta'
+  | 'nota_pausa_requerida'
+  | 'primera_pieza_pendiente'
+  | 'horas_extra_sin_autorizacion'
+  | 'corrida_invalida'
+  | 'corrida_item_no_incluye_partida'
+  | 'corrida_sin_pendiente'
+  | 'corrida_sin_proceso_disponible'
+  | 'corrida_items_otra_orden'
+  | 'corrida_items_incompatibles'
+  | 'corrida_cantidad_invalida'
+  | 'corrida_item_duplicado'
+  | 'corrida_partida_inexistente'
+  | 'corrida_inexistente'
+  | 'corrida_no_iniciable'
+  | 'corrida_no_completable'
+  | 'corrida_no_cancelable'
+  | 'corrida_con_sesiones_abiertas'
+  | 'corrida_items_incompletos'
+  | 'corrida_con_avance'
+  | 'sin_permiso_corrida'
+  | 'sin_permiso_calidad'
+  | 'sin_permiso_horas_extra'
+  | 'sin_permiso_cerrar_jornada'
+  | 'sin_permiso_reclamar_recurso'
+  | 'referencia_lote_invalida'
+  | 'inspeccion_invalida'
+  | 'orden_no_autorizable'
+  | 'sesion_no_corresponde'
+  | 'fecha_jornada_invalida'
+  | 'sin_sesion_liberable'
+  | 'proceso_invalido'
+  | 'orden_inexistente'
+  | 'partida_no_corresponde'
+  | 'corrida_no_corresponde'
+  | 'orden_no_creable_corrida'
+  | 'motivo_requerido'
   | 'desconocido';
 
 export class ErrorProduccion extends Error {
@@ -95,9 +132,47 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'sesion_pausada_inexistente',
   'recurso_ocupado',
   'capacidad_no_disponible',
+  'verificacion_inicio_incompleta',
+  'nota_pausa_requerida',
+  'primera_pieza_pendiente',
+  'horas_extra_sin_autorizacion',
+  'corrida_invalida',
+  'corrida_item_no_incluye_partida',
+  'corrida_sin_pendiente',
+  'corrida_sin_proceso_disponible',
+  'corrida_items_otra_orden',
+  'corrida_items_incompatibles',
+  'corrida_cantidad_invalida',
+  'corrida_item_duplicado',
+  'corrida_partida_inexistente',
+  'corrida_inexistente',
+  'corrida_no_iniciable',
+  'corrida_no_completable',
+  'corrida_no_cancelable',
+  'corrida_con_sesiones_abiertas',
+  'corrida_items_incompletos',
+  'corrida_con_avance',
+  'sin_permiso_corrida',
+  'sin_permiso_calidad',
+  'sin_permiso_horas_extra',
+  'sin_permiso_cerrar_jornada',
+  'sin_permiso_reclamar_recurso',
+  'referencia_lote_invalida',
+  'inspeccion_invalida',
+  'orden_no_autorizable',
+  'sesion_no_corresponde',
+  'fecha_jornada_invalida',
+  'sin_sesion_liberable',
+  'proceso_invalido',
+  'orden_inexistente',
+  'partida_no_corresponde',
+  'corrida_no_corresponde',
+  'orden_no_creable_corrida',
+  'motivo_requerido',
 ];
 
-function lanzarErrorProduccion(mensaje: string | undefined): never {
+/** Traduce el mensaje de una RPC a un error tipado de producción. */
+export function lanzarErrorProduccion(mensaje: string | undefined): never {
   const codigo = CODIGOS_ERROR.find((actual) => mensaje?.includes(actual)) ?? 'desconocido';
   throw new ErrorProduccion(codigo, mensaje);
 }
@@ -152,6 +227,8 @@ export async function iniciarSesionTrabajoServicio(
     p_partida_id: entrada.partidaId,
     p_programacion_id: entrada.programacionId,
     p_operador_id: entrada.operadorId,
+    ...(entrada.verificacion ? { p_verificacion: entrada.verificacion } : {}),
+    ...(entrada.corridaId ? { p_corrida_id: entrada.corridaId } : {}),
   });
   if (error) lanzarErrorProduccion(error.message);
   return sesionIniciadaDesdeRpc(data?.[0] ?? null);
@@ -231,6 +308,21 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'sesion_pausada_inexistente':
     case 'orden_no_reanudable':
       return 'La orden ya no está pausada o no puede reanudarse';
+    case 'verificacion_inicio_incompleta':
+      return 'Completa el checklist de eventos críticos para iniciar';
+    case 'nota_pausa_requerida':
+      return 'Este motivo de pausa exige una nota';
+    case 'primera_pieza_pendiente':
+      return 'Falta liberar la primera pieza antes de declarar producción';
+    case 'horas_extra_sin_autorizacion':
+      return 'El cierre excede la jornada configurada y requiere autorización de horas extra';
+    case 'corrida_invalida':
+    case 'corrida_item_no_incluye_partida':
+      return 'La corrida no corresponde a esta partida';
+    case 'corrida_sin_pendiente':
+      return 'La partida no tiene cantidad pendiente para una corrida';
+    case 'motivo_requerido':
+      return 'El motivo es obligatorio (mínimo 3 caracteres)';
     default:
       return 'No se pudo registrar la sesión de producción';
   }

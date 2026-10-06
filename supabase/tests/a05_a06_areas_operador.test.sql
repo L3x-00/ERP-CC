@@ -394,7 +394,8 @@ SELECT lives_ok($$
     '00000000-0000-4000-8000-0000000a0520'::uuid,
     '00000000-0000-4000-8000-0000000a0530'::uuid,
     '00000000-0000-4000-8000-0000000a0550'::uuid,
-    '00000000-0000-4000-8000-0000000a0503'::uuid
+    '00000000-0000-4000-8000-0000000a0503'::uuid,
+    '{"material":true,"espesor":true,"cantidad":true,"archivo":true,"proceso_equipo":true,"observaciones":"Regresión B6"}'::jsonb
   )
 $$, 'El inicio de sesión acepta al operador de la macroárea correcta');
 

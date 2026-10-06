@@ -39,11 +39,12 @@ INSERT INTO public.programacion_areas (
 );
 INSERT INTO public.sesiones_trabajo (
   id, orden_id, partida_id, programacion_id, operador_id, estado_sesion, fecha_fin,
-  horas_brutas, horas_netas, piezas_producidas, motivo_pausa
+  horas_brutas, horas_netas, piezas_producidas, motivo_pausa, verificacion_inicio
 ) VALUES (
   '00000000-0000-4000-8000-0000000a2060', '00000000-0000-4000-8000-0000000a2020',
   '00000000-0000-4000-8000-0000000a2030', '00000000-0000-4000-8000-0000000a2050',
-  '00000000-0000-4000-8000-0000000a2001', 'pausada', now(), 1, 1, 2, 'otro'
+  '00000000-0000-4000-8000-0000000a2001', 'pausada', now(), 1, 1, 2, 'otro',
+  '{"material":true,"espesor":true,"cantidad":true,"archivo":true,"proceso_equipo":true,"observaciones":"Regresión B6"}'::jsonb
 );
 
 SELECT is((SELECT estado_planeacion FROM public.programacion_areas WHERE id = '00000000-0000-4000-8000-0000000a2050'), 'bloqueada', 'Cancelar el diálogo no escribe: la programación sigue bloqueada');

@@ -164,6 +164,7 @@ describe('acciones seguras de sesiones de Producción', () => {
       partidaId: IDS.partidaId,
       programacionId: IDS.programacionId,
       operadorId: OPERADOR.id,
+      verificacion: expect.objectContaining({ material: true, observaciones: expect.any(String) }),
     });
     expect(registrarLogMock).toHaveBeenCalledWith(
       OPERADOR,

@@ -8,3 +8,13 @@ export type { EntregablesOrden } from '@/modulos/produccion/acciones/obtener-doc
 export { obtenerUrlDocumentoOrdenAccion } from '@/modulos/produccion/acciones/obtener-url-documento-orden';
 export { subirDocumentoOrdenAccion } from '@/modulos/produccion/acciones/subir-documento-orden';
 export { obtenerDocumentoNotaEntregaAccion } from '@/modulos/produccion/acciones/obtener-documento-nota-entrega';
+export { crearCorridaAccion } from '@/modulos/produccion/acciones/crear-corrida';
+export {
+  iniciarCorridaAccion,
+  completarCorridaAccion,
+  cancelarCorridaAccion,
+} from '@/modulos/produccion/acciones/estado-corrida';
+export { reclamarRecursoAccion } from '@/modulos/produccion/acciones/reclamar-recurso';
+export { cerrarJornadaAccion } from '@/modulos/produccion/acciones/cerrar-jornada';
+export { autorizarHorasExtraAccion } from '@/modulos/produccion/acciones/autorizar-horas-extra';
+export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';

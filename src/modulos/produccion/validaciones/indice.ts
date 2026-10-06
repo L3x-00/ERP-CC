@@ -15,3 +15,20 @@ export type {
   CrearNotaEntregaInput,
   ConsultarTableroProduccionInput,
 } from '@/modulos/produccion/validaciones/produccion';
+
+export {
+  esquemaVerificacionInicio,
+  esquemaCrearCorrida,
+  esquemaEstadoCorrida,
+  esquemaReclamarRecurso,
+  esquemaCerrarJornada,
+  esquemaAutorizarHorasExtra,
+  esquemaRegistrarInspeccion,
+} from '@/modulos/produccion/validaciones/corridas';
+
+export type {
+  CrearCorridaInput,
+  EstadoCorridaInput,
+  AutorizarHorasExtraInput,
+  RegistrarInspeccionInput,
+} from '@/modulos/produccion/validaciones/corridas';

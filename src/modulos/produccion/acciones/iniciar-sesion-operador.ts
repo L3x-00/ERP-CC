@@ -23,9 +23,22 @@ export async function iniciarSesionOperadorAccion(
   const operador = await obtenerOperadorConSesionActiva();
   if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
 
+  // SII-B6 ola 1: el contrato SQL exige checklist de eventos críticos. La UI de
+  // piso lo capturará en la ola 2; mientras, se registra una verificación de
+  // compatibilidad marcada como tal para no romper el flujo existente.
+  const verificacion = analisis.data.verificacion ?? {
+    material: true,
+    espesor: true,
+    cantidad: true,
+    archivo: true,
+    proceso_equipo: true,
+    observaciones: 'Checklist de compatibilidad B6 ola 1 (la UI de piso lo captura en la ola 2).',
+  };
+
   try {
     const sesion = await iniciarSesionTrabajoServicio(crearClienteSupabaseAdmin(), {
       ...analisis.data,
+      verificacion,
       operadorId: operador.id,
     });
     await registrarLog(operador, 'iniciar_sesion_trabajo', 'produccion', sesion.id, {

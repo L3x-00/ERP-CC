@@ -36,7 +36,7 @@ export async function obtenerOrdenDocumental(
 ): Promise<OrdenDocumental | null> {
   const { data, error } = await admin
     .from('ordenes_produccion')
-    .select('id, folio, cotizacion_id, pipeline(folio_cnc)')
+    .select('id, folio, cotizacion_id, pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc)')
     .eq('id', ordenId)
     .maybeSingle();
   if (error) throw error;

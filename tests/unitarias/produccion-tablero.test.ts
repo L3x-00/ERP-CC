@@ -48,8 +48,11 @@ function crearSesion(estadoSesion: SesionTrabajo['estadoSesion']): SesionTrabajo
     partidaId: '33333333-3333-4333-8333-333333333333',
     programacionId: '55555555-5555-4555-8555-555555555555',
     operadorId: '66666666-6666-4666-8666-666666666666',
+    corridaId: null,
     fechaInicio: orden.creadoEn, fechaFin: estadoSesion === 'activa' ? null : orden.actualizadoEn,
     horasBrutas: 0, horasNetas: 0, piezasProducidas: 0, motivoPausa: null, notas: null,
+    motivoPausaCodigo: null, motivoPausaNota: null, recursoLiberado: false,
+    verificacionInicio: null,
     estadoSesion, creadoEn: orden.creadoEn, actualizadoEn: orden.actualizadoEn,
   };
 }

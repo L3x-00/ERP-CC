@@ -5,19 +5,31 @@ import {
 } from '@/nucleo/autenticacion/constantes';
 import {
   ESTADOS_KANBAN_PRODUCCION,
+  MOTIVOS_PAUSA_CATALOGO,
   MOTIVOS_PAUSA_SESION,
 } from '@/modulos/produccion/tipos/produccion';
+import { esquemaVerificacionInicio } from '@/modulos/produccion/validaciones/corridas';
 
 const PATRON_PIN_OPERADOR = new RegExp(`^\\d{${PIN_LONGITUD_MINIMA},${PIN_LONGITUD_MAXIMA}}$`);
 const ESTADOS_DESTINO_SESION = ['pausada', 'finalizada'] as const;
+const MOTIVOS_PAUSA_VALIDOS = [...MOTIVOS_PAUSA_SESION, ...MOTIVOS_PAUSA_CATALOGO] as const;
 
+/**
+ * SII-B6.2: la pausa acepta el código del catálogo nuevo o el valor legacy
+ * (grandfathering); el checklist de eventos críticos viaja al inicio.
+ */
 export const esquemaIniciarSesion = z.object({
   ordenId: z.uuid('ID de orden inválido'),
   partidaId: z.uuid('ID de partida inválido'),
   programacionId: z.uuid('ID de programación inválido'),
+  verificacion: esquemaVerificacionInicio.optional(),
+  corridaId: z.uuid('ID de corrida inválido').nullish(),
 }).strict();
 
-export const esquemaReanudarSesion = esquemaIniciarSesion.extend({
+export const esquemaReanudarSesion = z.object({
+  ordenId: z.uuid('ID de orden inválido'),
+  partidaId: z.uuid('ID de partida inválido'),
+  programacionId: z.uuid('ID de programación inválido'),
   actualizadoEnEsperado: z.iso.datetime({ offset: true }),
 }).strict();
 
@@ -27,7 +39,7 @@ export const esquemaCerrarSesion = z
     piezasProducidas: z.number().min(0, 'Las piezas producidas no pueden ser negativas'),
     estadoDestino: z.enum(ESTADOS_DESTINO_SESION),
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
-    motivoPausa: z.enum(MOTIVOS_PAUSA_SESION).optional(),
+    motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
     pinConfirmacion: z
       .string()

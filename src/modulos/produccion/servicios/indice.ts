@@ -11,6 +11,7 @@ export {
   iniciarSesionTrabajoServicio,
   reanudarSesionTrabajoServicio,
   cerrarSesionTrabajoServicio,
+  lanzarErrorProduccion,
   mensajeErrorSesion,
 } from '@/modulos/produccion/servicios/sesiones-servicio';
 
@@ -18,6 +19,23 @@ export type {
   CodigoErrorProduccion,
   CierreSesionRegistrado,
 } from '@/modulos/produccion/servicios/sesiones-servicio';
+
+export {
+  autorizarHorasExtraServicio,
+  cambiarEstadoCorridaServicio,
+  cerrarJornadaServicio,
+  crearCorridaServicio,
+  reclamarRecursoLiberadoServicio,
+} from '@/modulos/produccion/servicios/corridas-servicio';
+
+export type {
+  AutorizacionHorasExtraRegistrada,
+  ReclamacionRecurso,
+  ResultadoCerrarJornada,
+  ResultadoEstadoCorrida,
+} from '@/modulos/produccion/servicios/corridas-servicio';
+
+export { registrarInspeccionServicio } from '@/modulos/produccion/servicios/calidad-servicio';
 
 export {
   generarNotaEntregaServicio,
