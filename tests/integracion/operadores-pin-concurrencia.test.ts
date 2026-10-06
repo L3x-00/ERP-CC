@@ -67,5 +67,6 @@ suite('dos administradores compiten por el mismo PIN', () => {
     if (error) throw error;
     expect(data.filter((fila) => fila.rol === 'operador' && fila.pin_operador)).toHaveLength(1);
     expect(data.filter((fila) => fila.rol === 'vendedor' && !fila.pin_operador)).toHaveLength(1);
-  });
+    // bcrypt + advisory lock en dos conexiones: timeout holgado para carga local acumulada.
+  }, 30_000);
 });

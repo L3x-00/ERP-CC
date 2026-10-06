@@ -40,7 +40,7 @@ SELECT ok(has_function_privilege('service_role',
 DELETE FROM public.contadores_folio_periodico
 WHERE tipo = 'RFQ' AND periodo = to_char(now(), 'MMYY');
 UPDATE public.pipeline SET folio_rfq = NULL
-WHERE folio_rfq ~ ('^RFQ-' || to_char(now(), 'MMYY') || '_[0-9]{2}$');
+WHERE folio_rfq ~ ('^RFQ-' || to_char(now(), 'MMYY') || '_[0-9]{2,3}$');
 INSERT INTO public.pipeline (folio_op, nombre_contacto, empresa, vendedor_id, folio_rfq)
 VALUES (
   'OP-B35-0001', 'Contacto B3.5', 'Empresa B3.5',

@@ -110,10 +110,22 @@ SELECT is((SELECT (metrica->'actual'->'pipelinePorEtapa'->>'ganada')::integer FR
 
 -- -----------------------------------------------------------------------------
 -- 16-17. Ejecutivo: claves presentes y conversión por órdenes
+-- Aísla el fixture en una ventana futura: el rango real puede tener RFQ de
+-- otras corridas y contaminar la conversión (el resto de métricas filtra por
+-- vendedor y no se ve afectado porque ya se evaluaron arriba).
 -- -----------------------------------------------------------------------------
+UPDATE public.pipeline SET creado_en = '2099-05-01T12:00:00Z'
+WHERE id IN (
+  '00000000-0000-4000-8000-00000000b361', '00000000-0000-4000-8000-00000000b362',
+  '00000000-0000-4000-8000-00000000b363', '00000000-0000-4000-8000-00000000b364',
+  '00000000-0000-4000-8000-00000000b365', '00000000-0000-4000-8000-00000000b366'
+);
+UPDATE public.ordenes_produccion SET creado_en = '2099-05-01T12:00:00Z'
+WHERE id = '00000000-0000-4000-8000-00000000b367';
+
 CREATE TEMP TABLE ejec AS
 SELECT public.obtener_metricas_dashboard_ejecutivo(
-  now() - interval '1 day', now() + interval '1 day'
+  '2099-01-01T00:00:00Z'::timestamptz, '2099-12-31T23:59:59Z'::timestamptz
 ) AS metrica;
 SELECT ok(
   (SELECT metrica->'actual'->'ventas' ? 'porcentajeConversion'
