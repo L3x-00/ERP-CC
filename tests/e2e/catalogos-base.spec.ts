@@ -152,11 +152,21 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await page.locator('html').evaluate((elemento) => elemento.classList.remove('dark'));
       await page.getByTestId('catalogos-historial-cerrar').click();
     } finally {
-      // Los catálogos no se borran: la limpieza del fixture es desactivar.
+      // Los catálogos no se borran (trigger `catalogo_sin_borrado`): la limpieza del
+      // fixture es desactivar, y las versiones del fixture se retiran para no acumular.
       if (procesoId && procesoOriginal !== null) {
         await admin.from('catalogo_procesos').update({ requiere_archivo_tecnico: procesoOriginal }).eq('id', procesoId);
       }
       if (materialId) {
+        const { data: espesores } = await admin
+          .from('catalogo_espesores')
+          .select('id')
+          .eq('material_id', materialId);
+        const idsEspesores = (espesores ?? []).map((fila) => fila.id);
+        if (idsEspesores.length > 0) {
+          await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_espesores').in('entidad_id', idsEspesores);
+        }
+        await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_materiales').eq('entidad_id', materialId);
         await admin.from('catalogo_espesores').update({ activo: false }).eq('material_id', materialId);
         await admin.from('catalogo_materiales').update({ activo: false }).eq('id', materialId);
       }

@@ -34,13 +34,19 @@ SELECT ok(
   ]::text[],
   'Procesos sembrados: los 8 del documento'
 );
+-- Acotado a las semillas: los fixtures E2E pueden dejar procesos extra en la BD local.
 SELECT is(
-  (ARRAY(SELECT prefijo_corrida FROM public.catalogo_procesos ORDER BY codigo)),
+  (ARRAY(SELECT prefijo_corrida FROM public.catalogo_procesos
+    WHERE codigo IN ('ACABADO','DOB','LASER_CO2','LASER_FIBRA','MAQUINADO','MARCADO','ROUTER','SOLD')
+    ORDER BY codigo)),
   ARRAY['ACA', 'DOB', 'LCO', 'LAS', 'MAQ', 'MAR', 'ROU', 'SOL']::text[],
-  'Cada proceso tiene su prefijo de corrida'
+  'Cada proceso sembrado tiene su prefijo de corrida'
 );
 SELECT is(
-  (ARRAY(SELECT codigo FROM public.catalogo_procesos WHERE requiere_primera_pieza ORDER BY codigo)),
+  (ARRAY(SELECT codigo FROM public.catalogo_procesos
+    WHERE requiere_primera_pieza
+      AND codigo IN ('ACABADO','DOB','LASER_CO2','LASER_FIBRA','MAQUINADO','MARCADO','ROUTER','SOLD')
+    ORDER BY codigo)),
   ARRAY['DOB', 'LASER_CO2', 'LASER_FIBRA', 'MAQUINADO', 'ROUTER']::text[],
   'Primera pieza exigida en láser, doblado, router y maquinado'
 );

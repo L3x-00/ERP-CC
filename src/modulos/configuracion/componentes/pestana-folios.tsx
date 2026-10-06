@@ -3,14 +3,25 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
-import { Input } from '@/compartido/componentes/ui/input';
+import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import {
   ajustarContinuidadFoliosAccion,
   obtenerContinuidadFoliosAccion,
 } from '@/modulos/configuracion/acciones/continuidad-folios';
+import {
+  ajustarContinuidadFoliosPeriodicoAccion,
+  obtenerContinuidadFoliosPeriodicoAccion,
+} from '@/modulos/configuracion/acciones/continuidad-folios-periodico';
+import {
+  ETIQUETA_TIPO_FOLIO,
+  formatearFolioPeriodico,
+  TIPOS_FOLIO_PERIODICO,
+  type TipoFolioPeriodico,
+} from '@/modulos/configuracion/tipos/continuidad-folios-periodico';
 
 const CLAVE_CONTINUIDAD_FOLIOS = ['configuracion', 'continuidad-folios'] as const;
+const CLAVE_CONTINUIDAD_PERIODICO = ['configuracion', 'continuidad-folios-periodico'] as const;
 
 function periodoDesdeMes(mes: string): string | null {
   if (!/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(mes)) return null;
@@ -18,6 +29,15 @@ function periodoDesdeMes(mes: string): string | null {
 }
 
 export function PestanaFolios() {
+  return (
+    <div className="grid gap-8">
+      <SeccionFoliosCnc />
+      <SeccionFoliosPeriodico />
+    </div>
+  );
+}
+
+function SeccionFoliosCnc() {
   const consultas = useQueryClient();
   const [mes, setMes] = useState(() => new Date().toISOString().slice(0, 7));
   const [propuesto, setPropuesto] = useState('');
@@ -112,6 +132,137 @@ export function PestanaFolios() {
       </> : null}
       {errorEnvio ? <p role="alert" className="text-sm text-peligro-texto">{errorEnvio}</p> : null}
       {mensaje ? <p role="status" className="text-sm text-exito-texto">{mensaje}</p> : null}
+    </section>
+  );
+}
+
+function SeccionFoliosPeriodico() {
+  const consultas = useQueryClient();
+  const [tipo, setTipo] = useState<TipoFolioPeriodico>('RFQ');
+  const [propuesto, setPropuesto] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
+
+  const consulta = useQuery({
+    queryKey: [...CLAVE_CONTINUIDAD_PERIODICO, tipo],
+    queryFn: async () => {
+      const resultado = await obtenerContinuidadFoliosPeriodicoAccion({ tipo });
+      if (!resultado.exito || !resultado.datos) {
+        throw new Error(resultado.exito ? 'No se recibió la continuidad' : resultado.error);
+      }
+      return resultado.datos;
+    },
+    staleTime: 15_000,
+  });
+  const datos = consulta.data;
+  const minimo = Math.max(datos?.ultimoContador ?? 0, datos?.ultimoEmitido ?? 0);
+
+  function cambiarTipo(nuevo: string): void {
+    setTipo(nuevo as TipoFolioPeriodico);
+    setPropuesto('');
+    setMensaje(null);
+    setErrorEnvio(null);
+  }
+
+  async function ajustar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+    evento.preventDefault();
+    setMensaje(null);
+    setErrorEnvio(null);
+    if (!datos) return;
+    const numero = Number(propuesto);
+    if (propuesto.trim() === '' || !Number.isInteger(numero) || numero < minimo || numero > 99) {
+      setErrorEnvio(`Indica un número entero entre ${minimo} y 99`);
+      return;
+    }
+    setGuardando(true);
+    try {
+      const resultado = await ajustarContinuidadFoliosPeriodicoAccion({
+        tipo,
+        periodo: datos.periodo,
+        ultimo: numero,
+      });
+      if (!resultado.exito || !resultado.datos) {
+        setErrorEnvio(resultado.exito ? 'No se recibió el ajuste confirmado' : resultado.error);
+        return;
+      }
+      setPropuesto('');
+      setMensaje(
+        `Continuidad guardada en ${resultado.datos.ultimo}; el siguiente folio será ${
+          resultado.datos.ultimo < 99
+            ? formatearFolioPeriodico(tipo, datos.periodo, resultado.datos.ultimo + 1)
+            : 'no disponible'
+        }`,
+      );
+      await consultas.invalidateQueries({ queryKey: CLAVE_CONTINUIDAD_PERIODICO });
+    } catch {
+      setErrorEnvio('No se pudo comunicar el ajuste; consulta el contador antes de reintentar');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <section className="grid gap-5" aria-labelledby="titulo-continuidad-periodico" data-testid="continuidad-folios-periodico">
+      <div>
+        <h2 id="titulo-continuidad-periodico" className="text-lg font-semibold text-texto-primario">Folios por periodo</h2>
+        <p className="text-sm text-texto-secundario">
+          Diagnóstico del periodo vigente para los folios nuevos (RFQ, orden, orden interna, entrega, recibo y gasto).
+          Cuando el tipo ya emite documentos, el ajuste nunca reduce un número reservado o emitido. El contador CNC se administra arriba.
+        </p>
+      </div>
+      <div className="max-w-xs">
+        <Label htmlFor="tipo-continuidad-periodico">Tipo de folio</Label>
+        <Select id="tipo-continuidad-periodico" data-testid="continuidad-periodico-tipo"
+          value={tipo} onChange={(evento) => cambiarTipo(evento.target.value)}>
+          {TIPOS_FOLIO_PERIODICO.map((clave) => (
+            <option key={clave} value={clave}>{ETIQUETA_TIPO_FOLIO[clave]}</option>
+          ))}
+        </Select>
+      </div>
+      {consulta.isPending ? <p className="text-sm text-texto-secundario">Consultando continuidad del periodo…</p> : null}
+      {consulta.isError ? <div role="alert" className="flex flex-wrap items-center gap-3 rounded-md border border-borde bg-superficie-2 p-3 text-sm text-peligro-texto">
+        <span>No se pudo consultar el periodo vigente.</span>
+        <Button type="button" variante="contorno" tamano="sm" onClick={() => void consulta.refetch()}>Reintentar</Button>
+      </div> : null}
+      {datos ? <>
+        <dl className="grid gap-3 sm:grid-cols-4">
+          <div className="rounded-md border border-borde bg-superficie-2 p-3">
+            <dt className="text-xs text-texto-secundario">Periodo vigente</dt>
+            <dd className="mt-1 font-mono text-lg font-semibold" data-testid="continuidad-periodico-periodo">{datos.periodo}</dd>
+          </div>
+          <div className="rounded-md border border-borde bg-superficie-2 p-3">
+            <dt className="text-xs text-texto-secundario">Último reservado o ajustado</dt>
+            <dd className="mt-1 font-mono text-lg font-semibold" data-testid="continuidad-periodico-ultimo-reservado">{datos.ultimoContador ?? 0}</dd>
+          </div>
+          <div className="rounded-md border border-borde bg-superficie-2 p-3">
+            <dt className="text-xs text-texto-secundario">Último emitido real</dt>
+            <dd className="mt-1 font-mono text-lg font-semibold" data-testid="continuidad-periodico-ultimo-emitido">
+              {datos.ultimoEmitido === null ? 'Sin emisor todavía' : datos.ultimoEmitido}
+            </dd>
+          </div>
+          <div className="rounded-md border border-borde bg-superficie-2 p-3">
+            <dt className="text-xs text-texto-secundario">Siguiente identificador</dt>
+            <dd className="mt-1 font-mono text-lg font-semibold" data-testid="continuidad-periodico-siguiente">
+              {datos.siguiente === null ? 'Periodo agotado' : formatearFolioPeriodico(tipo, datos.periodo, datos.siguiente)}
+            </dd>
+          </div>
+        </dl>
+        <form className="grid gap-2 sm:max-w-md" noValidate onSubmit={(evento) => void ajustar(evento)}>
+          <Label htmlFor="ultimo-periodico-ajustar">Establecer último número reservado del periodo</Label>
+          <div className="flex flex-wrap items-end gap-2">
+            <Input id="ultimo-periodico-ajustar" type="number" min={minimo} max={99} step={1}
+              value={propuesto} onChange={(evento) => setPropuesto(evento.target.value)}
+              className="min-w-32 flex-1" data-testid="continuidad-periodico-ultimo" />
+            <Button type="submit" disabled={guardando} data-testid="continuidad-periodico-guardar">
+              {guardando ? 'Guardando…' : 'Guardar continuidad'}
+            </Button>
+          </div>
+          <p className="text-xs text-texto-secundario">Solo se permite un valor igual o mayor a {minimo}; el tope del periodo es 99.</p>
+        </form>
+      </> : null}
+      {errorEnvio ? <p role="alert" className="text-sm text-peligro-texto" data-testid="continuidad-periodico-error">{errorEnvio}</p> : null}
+      {mensaje ? <p role="status" className="text-sm text-exito-texto" data-testid="continuidad-periodico-confirmacion">{mensaje}</p> : null}
     </section>
   );
 }

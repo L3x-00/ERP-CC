@@ -2060,6 +2060,592 @@ export type Database = {
           },
         ]
       }
+      propuesta_item_operaciones: {
+        Row: {
+          id: string
+          item_id: string
+          orden: number
+          proceso_id: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          orden?: number
+          proceso_id: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          orden?: number
+          proceso_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_item_operaciones_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_item_operaciones_proceso_id_fkey"
+            columns: ["proceso_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_procesos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuesta_item_ruteo: {
+        Row: {
+          grupo_equipo_id: string | null
+          grupo_planeado_id: string | null
+          id: string
+          item_id: string
+          proceso_id: string
+          requiere_revision: boolean
+          run_horas: number
+          secuencia: number
+          setup_horas: number
+          total_horas: number | null
+        }
+        Insert: {
+          grupo_equipo_id?: string | null
+          grupo_planeado_id?: string | null
+          id?: string
+          item_id: string
+          proceso_id: string
+          requiere_revision?: boolean
+          run_horas?: number
+          secuencia: number
+          setup_horas?: number
+          total_horas?: number | null
+        }
+        Update: {
+          grupo_equipo_id?: string | null
+          grupo_planeado_id?: string | null
+          id?: string
+          item_id?: string
+          proceso_id?: string
+          requiere_revision?: boolean
+          run_horas?: number
+          secuencia?: number
+          setup_horas?: number
+          total_horas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_item_ruteo_grupo_equipo_id_fkey"
+            columns: ["grupo_equipo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_equipo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_item_ruteo_grupo_planeado_id_fkey"
+            columns: ["grupo_planeado_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_planeados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_item_ruteo_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_item_ruteo_proceso_id_fkey"
+            columns: ["proceso_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_procesos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuesta_items: {
+        Row: {
+          acabado: string | null
+          activo: boolean
+          actualizado_en: string
+          cantidad: number
+          codigo: string
+          creado_en: string
+          descripcion: string
+          es_descuento: boolean
+          espesor_id: string | null
+          id: string
+          material_id: string | null
+          notas: string | null
+          precio_unitario: number
+          revision_id: string
+          rfq_item_id: string | null
+        }
+        Insert: {
+          acabado?: string | null
+          activo?: boolean
+          actualizado_en?: string
+          cantidad: number
+          codigo: string
+          creado_en?: string
+          descripcion: string
+          es_descuento?: boolean
+          espesor_id?: string | null
+          id?: string
+          material_id?: string | null
+          notas?: string | null
+          precio_unitario?: number
+          revision_id: string
+          rfq_item_id?: string | null
+        }
+        Update: {
+          acabado?: string | null
+          activo?: boolean
+          actualizado_en?: string
+          cantidad?: number
+          codigo?: string
+          creado_en?: string
+          descripcion?: string
+          es_descuento?: boolean
+          espesor_id?: string | null
+          id?: string
+          material_id?: string | null
+          notas?: string | null
+          precio_unitario?: number
+          revision_id?: string
+          rfq_item_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_items_espesor_id_fkey"
+            columns: ["espesor_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_espesores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_items_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_items_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_items_rfq_item_id_fkey"
+            columns: ["rfq_item_id"]
+            isOneToOne: false
+            referencedRelation: "rfq_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuesta_pdfs: {
+        Row: {
+          archivo_id: string
+          contenido_hash: string
+          creado_en: string
+          generado_por: string
+          id: string
+          reemplaza_a: string | null
+          revision_id: string
+          version: number
+          vigente: boolean
+        }
+        Insert: {
+          archivo_id: string
+          contenido_hash: string
+          creado_en?: string
+          generado_por: string
+          id?: string
+          reemplaza_a?: string | null
+          revision_id: string
+          version?: number
+          vigente?: boolean
+        }
+        Update: {
+          archivo_id?: string
+          contenido_hash?: string
+          creado_en?: string
+          generado_por?: string
+          id?: string
+          reemplaza_a?: string | null
+          revision_id?: string
+          version?: number
+          vigente?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_pdfs_archivo_id_fkey"
+            columns: ["archivo_id"]
+            isOneToOne: false
+            referencedRelation: "archivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_pdfs_generado_por_fkey"
+            columns: ["generado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_pdfs_reemplaza_a_fkey"
+            columns: ["reemplaza_a"]
+            isOneToOne: false
+            referencedRelation: "propuesta_pdfs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_pdfs_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuesta_revision_acciones: {
+        Row: {
+          canal: string | null
+          codigo: string
+          creado_en: string
+          creado_por: string
+          fecha: string | null
+          id: string
+          nota: string | null
+          responsable_id: string | null
+          revision_id: string
+          texto_otro: string | null
+        }
+        Insert: {
+          canal?: string | null
+          codigo: string
+          creado_en?: string
+          creado_por: string
+          fecha?: string | null
+          id?: string
+          nota?: string | null
+          responsable_id?: string | null
+          revision_id: string
+          texto_otro?: string | null
+        }
+        Update: {
+          canal?: string | null
+          codigo?: string
+          creado_en?: string
+          creado_por?: string
+          fecha?: string | null
+          id?: string
+          nota?: string | null
+          responsable_id?: string | null
+          revision_id?: string
+          texto_otro?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_revision_acciones_codigo_fkey"
+            columns: ["codigo"]
+            isOneToOne: false
+            referencedRelation: "catalogo_proximas_acciones"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "propuesta_revision_acciones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_revision_acciones_responsable_id_fkey"
+            columns: ["responsable_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_revision_acciones_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuesta_revision_costos: {
+        Row: {
+          categoria: string
+          id: string
+          monto: number
+          nota: string | null
+          revision_id: string
+        }
+        Insert: {
+          categoria: string
+          id?: string
+          monto: number
+          nota?: string | null
+          revision_id: string
+        }
+        Update: {
+          categoria?: string
+          id?: string
+          monto?: number
+          nota?: string | null
+          revision_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_revision_costos_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuesta_revision_eventos: {
+        Row: {
+          accion: string
+          actor_id: string | null
+          canal: string | null
+          correlation_id: string | null
+          creado_en: string
+          destino: string | null
+          estado_anterior: string | null
+          estado_nuevo: string | null
+          id: string
+          motivo: string | null
+          revision_id: string
+        }
+        Insert: {
+          accion: string
+          actor_id?: string | null
+          canal?: string | null
+          correlation_id?: string | null
+          creado_en?: string
+          destino?: string | null
+          estado_anterior?: string | null
+          estado_nuevo?: string | null
+          id?: string
+          motivo?: string | null
+          revision_id: string
+        }
+        Update: {
+          accion?: string
+          actor_id?: string | null
+          canal?: string | null
+          correlation_id?: string | null
+          creado_en?: string
+          destino?: string | null
+          estado_anterior?: string | null
+          estado_nuevo?: string | null
+          id?: string
+          motivo?: string | null
+          revision_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_revision_eventos_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_revision_eventos_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuesta_revisiones: {
+        Row: {
+          actualizado_en: string
+          canal_envio: string | null
+          creado_en: string
+          creado_por: string
+          destino_envio: string | null
+          enviado_en: string | null
+          enviado_por: string | null
+          estado: string
+          folio_revision: string
+          id: string
+          letra: string
+          motivo_creacion: string | null
+          propuesta_id: string
+          requiere_revision_costeo: boolean
+          requiere_revision_ruteo: boolean
+          snapshot_cabecera: Json
+          validada_en: string | null
+          validada_por: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          canal_envio?: string | null
+          creado_en?: string
+          creado_por: string
+          destino_envio?: string | null
+          enviado_en?: string | null
+          enviado_por?: string | null
+          estado?: string
+          folio_revision: string
+          id?: string
+          letra: string
+          motivo_creacion?: string | null
+          propuesta_id: string
+          requiere_revision_costeo?: boolean
+          requiere_revision_ruteo?: boolean
+          snapshot_cabecera?: Json
+          validada_en?: string | null
+          validada_por?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          canal_envio?: string | null
+          creado_en?: string
+          creado_por?: string
+          destino_envio?: string | null
+          enviado_en?: string | null
+          enviado_por?: string | null
+          estado?: string
+          folio_revision?: string
+          id?: string
+          letra?: string
+          motivo_creacion?: string | null
+          propuesta_id?: string
+          requiere_revision_costeo?: boolean
+          requiere_revision_ruteo?: boolean
+          snapshot_cabecera?: Json
+          validada_en?: string | null
+          validada_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuesta_revisiones_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_revisiones_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_revisiones_propuesta_id_fkey"
+            columns: ["propuesta_id"]
+            isOneToOne: false
+            referencedRelation: "propuestas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_revisiones_validada_por_fkey"
+            columns: ["validada_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuestas: {
+        Row: {
+          accepted_revision_id: string | null
+          actualizado_en: string
+          cliente_id: string
+          creado_en: string
+          creado_por: string
+          estado: string
+          folio_cnc: string
+          id: string
+          responsable_id: string
+          revision_vigente_id: string | null
+          rfq_id: string
+        }
+        Insert: {
+          accepted_revision_id?: string | null
+          actualizado_en?: string
+          cliente_id: string
+          creado_en?: string
+          creado_por: string
+          estado?: string
+          folio_cnc: string
+          id?: string
+          responsable_id: string
+          revision_vigente_id?: string | null
+          rfq_id: string
+        }
+        Update: {
+          accepted_revision_id?: string | null
+          actualizado_en?: string
+          cliente_id?: string
+          creado_en?: string
+          creado_por?: string
+          estado?: string
+          folio_cnc?: string
+          id?: string
+          responsable_id?: string
+          revision_vigente_id?: string | null
+          rfq_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuestas_accepted_revision_fk"
+            columns: ["accepted_revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuestas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuestas_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuestas_responsable_id_fkey"
+            columns: ["responsable_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuestas_revision_vigente_fk"
+            columns: ["revision_vigente_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuestas_rfq_id_fkey"
+            columns: ["rfq_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proveedores: {
         Row: {
           actualizado_en: string
@@ -3796,6 +4382,106 @@ export type Database = {
         }[]
       }
       usuario_tiene_permiso: { Args: { p_permiso: string }; Returns: boolean }
+      aceptar_revision: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      calcular_totales_revision: {
+        Args: { p_revision_id: string }
+        Returns: Json
+      }
+      cerrar_propuesta: {
+        Args: {
+          p_actor: string
+          p_actualizado_en: string
+          p_correlation_id?: string
+          p_motivo: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      confirmar_venta: {
+        Args: {
+          p_actor: string
+          p_actualizado_en: string
+          p_correlation_id?: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      crear_nueva_revision: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_motivo: string
+          p_revision_origen: string
+        }
+        Returns: Json
+      }
+      crear_propuesta: {
+        Args: { p_actor: string; p_correlation_id?: string; p_rfq_id: string }
+        Returns: Json
+      }
+      editar_costos_revision: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      editar_item_propuesta: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_item_id: string
+        }
+        Returns: Json
+      }
+      editar_ruteo_item: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_item_id: string
+        }
+        Returns: Json
+      }
+      rechazar_propuesta: {
+        Args: {
+          p_actor: string
+          p_actualizado_en: string
+          p_correlation_id?: string
+          p_motivo: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      registrar_seguimiento_propuesta: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      validar_revision: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_revision_id: string
+        }
+        Returns: Json
+      }
       generar_folio_periodico: {
         Args: { p_tipo: string }
         Returns: string
@@ -3850,6 +4536,24 @@ export type Database = {
           p_proceso_ids: string[]
         }
         Returns: Json
+      }
+      ajustar_continuidad_folio_periodico: {
+        Args: {
+          p_actor_id: string
+          p_periodo: string
+          p_tipo: string
+          p_ultimo: number
+        }
+        Returns: number
+      }
+      consultar_continuidad_folio_periodico: {
+        Args: { p_actor_id: string; p_tipo: string }
+        Returns: {
+          periodo: string
+          ultimo_contador: number | null
+          ultimo_emitido: number | null
+          siguiente: number | null
+        }[]
       }
     }
     Enums: {
