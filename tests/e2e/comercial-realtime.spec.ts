@@ -99,9 +99,9 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     clienteId = '';
     await expect(filaCliente).toHaveCount(0, { timeout: 6_000 });
 
-    await Promise.all([a.goto('/pipeline'), b.goto('/pipeline')]);
+    await Promise.all([a.goto('/rfq'), b.goto('/rfq')]);
     await expect(b.getByTestId('sincronizador-pipeline')).toHaveAttribute('data-conectado', 'true');
-    await expect(b.getByRole('status', { name: 'Cargando oportunidades' })).toBeHidden({ timeout: 30_000 });
+    await expect(b.getByRole('status', { name: 'Cargando RFQ' })).toBeHidden({ timeout: 30_000 });
     const dashboardB = await contextoB.newPage();
     await dashboardB.goto('/dashboard');
     await expect(dashboardB.getByTestId('sincronizador-dashboard')).toHaveAttribute('data-conectado', 'true');
@@ -113,10 +113,10 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     expect(Number.isFinite(prospectosIniciales)).toBe(true);
     const tarjeta = b.locator('article').filter({ hasText: marca });
     await expect(tarjeta).toHaveCount(0);
-    await a.getByRole('button', { name: 'Nueva oportunidad' }).click();
+    await a.getByRole('button', { name: 'Nuevo RFQ' }).click();
     await a.getByLabel('Nombre del contacto').fill('QA Realtime');
     await a.getByLabel('Empresa', { exact: true }).fill(marca);
-    await a.getByRole('button', { name: 'Crear oportunidad', exact: true }).click();
+    await a.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
     await expect(a.locator('article').filter({ hasText: marca })).toHaveCount(1);
     const oportunidad = await admin.from('pipeline').select('id').eq('empresa', marca).single();
     if (oportunidad.error || !oportunidad.data) throw new Error(oportunidad.error?.message ?? 'Oportunidad no persistida');

@@ -6,7 +6,7 @@ const id = '10000000-0000-4000-8000-000000000001';
 describe('enlaces de la bitácora al objeto auditado', () => {
   it('abre el objeto cuando el recurso tiene identidad conocida', () => {
     expect(enlaceRegistroAuditado({ modulo: 'pipeline', accion: 'actualizar_etapa', recursoId: id }))
-      .toBe(`/pipeline?oportunidad=${id}`);
+      .toBe(`/rfq?rfq=${id}`);
     expect(enlaceRegistroAuditado({ modulo: 'clientes', accion: 'crear_contacto_cliente', recursoId: id }))
       .toBe(`/clientes?cliente=${id}`);
     expect(enlaceRegistroAuditado({ modulo: 'ordenes', accion: 'cambiar_estado_orden', recursoId: id }))

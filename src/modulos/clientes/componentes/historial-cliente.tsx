@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -114,22 +115,22 @@ function FilaCotizacion({ cotizacion }: { cotizacion: CotizacionHistorial }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-1">
           <span className="font-mono text-sm font-semibold text-texto-primario">
-            {cotizacion.folioCnc ?? cotizacion.folioOp}
+            {cotizacion.folioRfq ?? cotizacion.folioCnc ?? cotizacion.folioOp}
           </span>
           <span className="text-xs text-texto-secundario">
             {formatearFecha(cotizacion.fechaEnvioCotizacion ?? cotizacion.creadoEn)}
             {cotizacion.folioCnc ? ` · ${cotizacion.folioOp}` : ''}
           </span>
           <Link
-            href={`/pipeline?oportunidad=${cotizacion.id}`}
+            href={`/rfq?rfq=${cotizacion.id}`}
             className="w-fit text-xs text-acento underline"
             data-testid={`enlace-cotizacion-${cotizacion.id}`}
           >
-            Ver oportunidad
+            Ver RFQ
           </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <BadgeEstado estado={cotizacion.etapa} />
+          <BadgeEstado estado={cotizacion.estadoRfq} etiqueta={ETIQUETAS_ESTADO_RFQ[cotizacion.estadoRfq]} />
           <span className="tabular-nums text-sm font-medium text-texto-primario">
             {cotizacion.subtotal === null
               ? 'Importe no disponible'

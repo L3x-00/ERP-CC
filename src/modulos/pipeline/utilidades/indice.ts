@@ -1,4 +1,5 @@
-import type { CondicionesPago, EtapaPipeline } from '@/modulos/pipeline/tipos/indice';
+import type { CondicionesPago } from '@/modulos/pipeline/tipos/indice';
+import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 
 export {
   claveProceso,
@@ -15,15 +16,8 @@ export const ETIQUETA_CONDICIONES_PAGO: Record<CondicionesPago, string> = {
   credito: 'Crédito',
 };
 
-/** Etiqueta legible de cada etapa del pipeline (tablero, filtros y selectores). */
-export const ETIQUETA_ETAPA: Record<EtapaPipeline, string> = {
-  prospecto: 'Prospecto',
-  contactado: 'Contactado',
-  cotizado: 'Cotizado',
-  negociacion: 'Negociación',
-  ganada: 'Ganada',
-  perdida: 'Perdida',
-};
+/** Etiqueta legible de cada estado del RFQ (tablero, filtros y ficha). */
+export const ETIQUETA_ESTADO_RFQ = ETIQUETAS_ESTADO_RFQ;
 
 /**
  * Suma días hábiles (lunes a viernes) a una fecha ISO `YYYY-MM-DD` — RFQ-08.

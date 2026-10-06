@@ -1,5 +1,9 @@
 import { calcularTotalesCotizacion } from '@/modulos/pipeline/servicios/calcular-totales-cotizacion';
 import type { Tables } from '@/compartido/tipos/supabase';
+import {
+  normalizarEstadoRfq,
+  type EstadoRfq,
+} from '@/modulos/rfq/tipos/indice';
 
 /**
  * Contratos del historial 360° del cliente (cotizaciones y órdenes).
@@ -10,14 +14,8 @@ import type { Tables } from '@/compartido/tipos/supabase';
  * incluye costos, márgenes ni datos de Cobranza, que `ver_clientes` no autoriza).
  */
 
-/** Etapa de la oportunidad tal como la publica `pipeline.etapa`. */
-export type EtapaHistorial =
-  | 'prospecto'
-  | 'contactado'
-  | 'cotizado'
-  | 'negociacion'
-  | 'ganada'
-  | 'perdida';
+/** Estado del RFQ tal como lo publica `pipeline.estado_rfq` (ola 2). */
+export type EstadoHistorial = EstadoRfq;
 
 /** Moneda de la cotización. */
 export type MonedaHistorial = 'MXN' | 'USD';
@@ -44,7 +42,8 @@ export type CotizacionHistorial = {
   id: string;
   folioOp: string;
   folioCnc: string | null;
-  etapa: EtapaHistorial;
+  folioRfq: string | null;
+  estadoRfq: EstadoHistorial;
   moneda: MonedaHistorial;
   ivaPorcentaje: number;
   fechaEnvioCotizacion: string | null;
@@ -120,33 +119,16 @@ export type NotaOperativaCliente = {
 };
 
 // Filas crudas de Supabase (snake_case) derivadas de los tipos generados.
-export type FilaPipelineHistorial = Pick<Tables<'pipeline'>, 'id' | 'folio_op' | 'folio_cnc' | 'etapa' | 'moneda' | 'iva_porcentaje' | 'fecha_envio_cotizacion' | 'creado_en' | 'actualizado_en'>;
+export type FilaPipelineHistorial = Pick<Tables<'pipeline'>, 'id' | 'folio_op' | 'folio_cnc' | 'folio_rfq' | 'estado_rfq' | 'moneda' | 'iva_porcentaje' | 'fecha_envio_cotizacion' | 'creado_en' | 'actualizado_en'>;
 export type FilaLineaCotizacionHistorial = Pick<Tables<'cotizacion_lineas'>, 'id' | 'pipeline_id' | 'descripcion' | 'cantidad' | 'material' | 'espesor' | 'area' | 'procesos' | 'precio_unitario' | 'es_descuento' | 'orden'>;
 export type FilaOrdenHistorial = Pick<Tables<'ordenes_produccion'>, 'id' | 'folio' | 'estado' | 'prioridad' | 'cotizacion_id' | 'fecha_compromiso' | 'fecha_inicio' | 'fecha_fin' | 'creado_en'>;
 export type FilaPartidaOrdenHistorial = Pick<Tables<'partidas_orden_produccion'>, 'id' | 'orden_id' | 'codigo_pieza' | 'descripcion' | 'cantidad_solicitada' | 'cantidad_producida' | 'cantidad_scrap' | 'unidad_medida' | 'maquina_asignada' | 'tiempo_estimado_minutos' | 'tiempo_real_minutos'>;
-
-const ETAPAS: readonly EtapaHistorial[] = [
-  'prospecto',
-  'contactado',
-  'cotizado',
-  'negociacion',
-  'ganada',
-  'perdida',
-];
 
 const MONEDAS: readonly MonedaHistorial[] = ['MXN', 'USD'];
 
 /** Redondea a 2 decimales evitando el error de flotante (0.1 + 0.2). */
 function redondear(cantidad: number): number {
   return Math.round((cantidad + Number.EPSILON) * 100) / 100;
-}
-
-/**
- * Rechaza un enumerado desconocido para no inventar estados o monedas.
- */
-function normalizarEtapa(valor: string): EtapaHistorial {
-  if (!(ETAPAS as readonly string[]).includes(valor)) throw new Error('Etapa no reconocida en historial');
-  return valor as EtapaHistorial;
 }
 
 function normalizarMoneda(valor: string): MonedaHistorial {
@@ -191,7 +173,8 @@ export function filaACotizacionHistorial(
     id: fila.id,
     folioOp: fila.folio_op,
     folioCnc: fila.folio_cnc,
-    etapa: normalizarEtapa(fila.etapa),
+    folioRfq: fila.folio_rfq,
+    estadoRfq: normalizarEstadoRfq(fila.estado_rfq),
     moneda: normalizarMoneda(fila.moneda),
     ivaPorcentaje: Number(fila.iva_porcentaje),
     fechaEnvioCotizacion: fila.fecha_envio_cotizacion,

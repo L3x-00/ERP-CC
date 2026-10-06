@@ -60,7 +60,7 @@ export async function asignarClienteOportunidadAccion(
     return { exito: false, error: 'No encontrada' };
   }
 
-  if (op.etapa === 'ganada' || op.etapa === 'perdida') {
+  if (op.estadoRfq === 'CLOSED' || op.estadoRfq === 'CANCELLED') {
     return { exito: false, error: 'El cliente solo se cambia con la oportunidad abierta' };
   }
 

@@ -308,7 +308,7 @@ export function FormularioProspecto() {
       )}
 
       <Button type="submit" tamano="lg" disabled={enviando}>
-        {enviando ? 'Guardando…' : 'Crear oportunidad'}
+        {enviando ? 'Guardando…' : 'Crear RFQ'}
       </Button>
     </form>
   );

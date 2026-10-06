@@ -52,6 +52,16 @@ const ESTADOS: Record<string, DefinicionEstado> = {
   ganada: { tono: 'exito', etiqueta: 'Ganada' },
   perdida: { tono: 'peligro', etiqueta: 'Perdida' },
 
+  // RFQ (SII-B3): estados propios del ciclo de vida
+  new: { tono: 'neutro', etiqueta: 'Nuevo' },
+  incomplete: { tono: 'advertencia', etiqueta: 'Incompleto' },
+  waiting_customer: { tono: 'info', etiqueta: 'En espera del cliente' },
+  waiting_technical: { tono: 'info', etiqueta: 'En espera técnica' },
+  ready_for_proposal: { tono: 'exito', etiqueta: 'Listo para propuesta' },
+  converted: { tono: 'exito', etiqueta: 'Convertido' },
+  closed: { tono: 'neutro', etiqueta: 'Cerrado' },
+  cancelled: { tono: 'neutro', etiqueta: 'Cancelado' },
+
   // Inventario
   ok: { tono: 'exito', etiqueta: 'Stock OK' },
   reorden: { tono: 'advertencia', etiqueta: 'Punto de reorden' },

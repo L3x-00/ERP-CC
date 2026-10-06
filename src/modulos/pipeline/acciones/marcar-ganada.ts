@@ -114,8 +114,8 @@ export async function marcarGanadaAccion(
     return { exito: false, error: 'Sin permiso para marcar como ganada' };
   }
 
-  if (op.etapa !== 'negociacion') {
-    return { exito: false, error: 'Solo se puede ganar desde Negociación' };
+  if (op.estadoRfq !== 'READY_FOR_PROPOSAL' && op.estadoRfq !== 'CONVERTED') {
+    return { exito: false, error: 'Solo se puede confirmar la venta desde un RFQ listo o con propuesta' };
   }
 
   const clienteAdmin = crearClienteSupabaseAdmin();

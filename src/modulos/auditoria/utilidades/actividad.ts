@@ -18,7 +18,7 @@ export function esUuidTecnico(valor: string): boolean {
 
 /** Opciones del filtro de módulo de la vista Actividad. */
 export const MODULOS_ACTIVIDAD: readonly { valor: string; etiqueta: string }[] = [
-  { valor: 'pipeline', etiqueta: 'Pipeline / RFQ' },
+  { valor: 'pipeline', etiqueta: 'RFQ' },
   { valor: 'clientes', etiqueta: 'Clientes' },
   { valor: 'ordenes', etiqueta: 'Órdenes' },
   { valor: 'planeacion', etiqueta: 'Planeación' },
@@ -38,6 +38,12 @@ const ETIQUETAS_ACCION: Record<string, string> = {
   crear_orden_manual: 'Alta manual de orden',
   actualizar: 'Actualización',
   actualizar_etapa: 'Cambio de etapa',
+  cambiar_estado_rfq: 'Cambio de estado del RFQ',
+  actualizar_datos_rfq: 'Datos generales del RFQ',
+  crear_item_rfq: 'Alta de ítem RFQ',
+  actualizar_item_rfq: 'Edición de ítem RFQ',
+  cancelar_item_rfq: 'Cancelación de ítem RFQ',
+  subir_archivo_rfq: 'Archivo del RFQ',
   eliminar: 'Eliminación',
   iniciar_sesion: 'Inicio de sesión',
   cerrar_sesion: 'Cierre de sesión',

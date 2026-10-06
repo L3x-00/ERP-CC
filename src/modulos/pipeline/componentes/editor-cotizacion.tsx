@@ -13,7 +13,7 @@ import { usarOportunidad } from '@/modulos/pipeline/hooks/usar-oportunidad';
 import type { OportunidadConLineas } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import type {
   CondicionesPago,
-  EtapaPipeline,
+  EstadoRfq,
   LineaCotizacionEntrada,
   Oportunidad,
 } from '@/modulos/pipeline/tipos/indice';
@@ -27,17 +27,19 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 
-/** Etapas en las que la cotización todavía admite cambios. */
-const ETAPAS_EDITABLES: readonly EtapaPipeline[] = [
-  'prospecto',
-  'contactado',
-  'cotizado',
-  'negociacion',
+/** Estados en los que la cotización legacy todavía admite cambios. */
+const ESTADOS_EDITABLES: readonly EstadoRfq[] = [
+  'NEW',
+  'INCOMPLETE',
+  'WAITING_CUSTOMER',
+  'WAITING_TECHNICAL',
+  'READY_FOR_PROPOSAL',
+  'CONVERTED',
 ];
 
-/** ¿La cotización de esta etapa se puede editar, o es solo consulta? */
-export function cotizacionEsEditable(etapa: EtapaPipeline): boolean {
-  return ETAPAS_EDITABLES.includes(etapa);
+/** ¿La cotización de este estado se puede editar, o es solo consulta? */
+export function cotizacionEsEditable(estado: EstadoRfq): boolean {
+  return ESTADOS_EDITABLES.includes(estado);
 }
 
 /** Carga una copia fresca al abrir y conserva el borrador hasta cerrar. */
@@ -162,8 +164,8 @@ export function EditorCotizacion({
     void clienteConsultas.invalidateQueries({ queryKey: ['oportunidad', oportunidad.id] });
   }
 
-  const etapa = instantanea?.oportunidad.etapa ?? oportunidad.etapa;
-  const editable = cotizacionEsEditable(etapa);
+  const estadoRfq = instantanea?.oportunidad.estadoRfq ?? oportunidad.estadoRfq;
+  const editable = cotizacionEsEditable(estadoRfq);
   const cabecera = instantanea?.oportunidad ?? oportunidad;
   const folio = cabecera.folioCnc ?? cabecera.folioOp;
 
@@ -193,7 +195,7 @@ export function EditorCotizacion({
           onClick={abrir}
           aria-haspopup="dialog"
         >
-          {cotizacionEsEditable(oportunidad.etapa) ? etiqueta : `Ver ${etiqueta.toLowerCase()}`}
+          {cotizacionEsEditable(oportunidad.estadoRfq) ? etiqueta : `Ver ${etiqueta.toLowerCase()}`}
         </Button>
       ) : null}
 

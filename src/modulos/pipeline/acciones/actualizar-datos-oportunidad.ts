@@ -45,7 +45,7 @@ export async function actualizarDatosOportunidadAccion(
     return { exito: false, error: 'No encontrada' };
   }
 
-  if (cargada.oportunidad.etapa === 'ganada' || cargada.oportunidad.etapa === 'perdida') {
+  if (cargada.oportunidad.estadoRfq === 'CLOSED' || cargada.oportunidad.estadoRfq === 'CANCELLED') {
     return { exito: false, error: 'Los datos solo se editan con la oportunidad abierta' };
   }
 

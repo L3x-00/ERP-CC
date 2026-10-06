@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import { BotonRetirarOportunidad } from '@/modulos/pipeline/componentes/boton-retirar-oportunidad';
-import { EditorCotizacion } from '@/modulos/pipeline/componentes/editor-cotizacion';
-import { SelectorEtapa } from '@/modulos/pipeline/componentes/selector-etapa';
-import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import type { AlertaPipeline } from '@/modulos/pipeline/servicios/calcular-alertas';
+import { proximaAccionVencida } from '@/modulos/pipeline/servicios/filtrar-oportunidades';
 import type { Oportunidad, PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
+import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
+import { etiquetaProximaAccion } from '@/modulos/pipeline/utilidades/proxima-accion';
 
 type PropsTarjetaOportunidad = {
   oportunidad: Oportunidad;
@@ -57,18 +57,20 @@ export const ESTILO_PRIORIDAD: Record<PrioridadPipeline, { texto: string; clase:
 };
 
 /**
- * Tarjeta compacta de una oportunidad del pipeline. Muestra el folio (CNC si ya
- * existe, si no el OP), empresa, contacto, etapa, prioridad, los días en la
- * etapa actual y las alertas visuales calculadas. Incluye el selector de etapa
- * para mover la oportunidad sin salir del tablero.
+ * Tarjeta compacta de un RFQ en la cola: folio, empresa, contacto, estado,
+ * prioridad, próxima acción/fecha y alertas. Las acciones de negocio viven en
+ * la ficha (`/rfq?rfq=<id>`), no en la tarjeta (ADR-SII-07).
  */
 export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportunidad) {
-  const [mostrarComentarios, setMostrarComentarios] = useState(false);
-  const folio = oportunidad.folioCnc ?? oportunidad.folioOp;
+  const folio = oportunidad.folioRfq ?? oportunidad.folioCnc ?? oportunidad.folioOp;
   const prioridad = ESTILO_PRIORIDAD[oportunidad.prioridad];
+  const vencida = proximaAccionVencida(oportunidad, new Date().toISOString().slice(0, 10));
 
   return (
-    <article className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie p-3 shadow-sm transition-shadow hover:shadow-md">
+    <article
+      className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie p-3 shadow-sm transition-shadow hover:shadow-md"
+      data-testid="tarjeta-rfq"
+    >
       <div className="flex items-start justify-between gap-2">
         <span className="font-mono text-xs text-texto-secundario">{folio}</span>
         <div className="flex flex-wrap items-center justify-end gap-1">
@@ -80,7 +82,10 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
               TI
             </span>
           )}
-          <BadgeEstado estado={oportunidad.etapa} />
+          <BadgeEstado
+            estado={oportunidad.estadoRfq}
+            etiqueta={ETIQUETAS_ESTADO_RFQ[oportunidad.estadoRfq]}
+          />
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${prioridad.clase}`}>
             {prioridad.texto}
           </span>
@@ -88,10 +93,26 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
       </div>
 
       <div className="flex flex-col gap-0.5">
-        <h3 className="text-sm font-semibold text-texto-primario">{oportunidad.empresa}</h3>
+        <Link
+          href={`/rfq?rfq=${oportunidad.id}`}
+          className="text-sm font-semibold text-texto-primario underline-offset-2 hover:text-acento hover:underline focus-visible:underline"
+        >
+          {oportunidad.empresa}
+        </Link>
         <p className="text-xs text-texto-secundario">{oportunidad.nombreContacto}</p>
+        {oportunidad.descripcionGeneral && (
+          <p className="line-clamp-2 text-xs text-texto-secundario">{oportunidad.descripcionGeneral}</p>
+        )}
         <p className="text-xs text-texto-secundario">
-          {diasDesde(oportunidad.actualizadoEn)} días en esta etapa
+          {oportunidad.fechaProximaAccion ? (
+            <span className={vencida ? 'font-semibold text-peligro-texto' : undefined}>
+              Próxima acción: {etiquetaProximaAccion(oportunidad.proximaAccionCodigo)}{' '}
+              {oportunidad.fechaProximaAccion}
+              {vencida ? ' (vencida)' : ''}
+            </span>
+          ) : (
+            'Sin próxima acción'
+          )}
         </p>
         {oportunidad.importeSubtotal !== undefined && oportunidad.importeSubtotal > 0 && (
           <p className="text-xs text-texto-secundario">
@@ -133,28 +154,15 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         </ul>
       )}
 
-      <div className="border-t border-borde pt-2">
-        <SelectorEtapa oportunidad={oportunidad} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <EditorCotizacion oportunidad={oportunidad} />
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => setMostrarComentarios((actual) => !actual)}
-          aria-expanded={mostrarComentarios}
-          className="self-start text-xs font-semibold text-acento hover:underline"
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-2">
+        <Link
+          href={`/rfq?rfq=${oportunidad.id}`}
+          className="text-xs font-semibold text-acento hover:underline"
         >
-          {mostrarComentarios ? 'Ocultar comentarios' : 'Ver comentarios'}
-        </button>
-        {oportunidad.etapa !== 'ganada' && (
-          <BotonRetirarOportunidad oportunidadId={oportunidad.id} folio={folio} />
-        )}
+          Abrir RFQ
+        </Link>
+        <BotonRetirarOportunidad oportunidadId={oportunidad.id} folio={folio} />
       </div>
-      {mostrarComentarios && (
-        <HiloComentarios entidadTipo="cotizacion" entidadId={oportunidad.id} titulo={`Comentarios de ${folio}`} />
-      )}
     </article>
   );
 }

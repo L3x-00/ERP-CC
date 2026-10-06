@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import { filaAOportunidad } from '@/modulos/pipeline/tipos/indice';
-import type { EtapaPipeline, FilaPipeline, Oportunidad } from '@/modulos/pipeline/tipos/indice';
+import type { EstadoRfq, FilaPipeline, Oportunidad } from '@/modulos/pipeline/tipos/indice';
 
 /** Redondea a 2 decimales evitando el error de flotante. */
 function redondear2(cantidad: number): number {
@@ -10,7 +10,7 @@ function redondear2(cantidad: number): number {
 
 /** Filtros opcionales para listar oportunidades del pipeline. */
 export type FiltrosPipeline = {
-  etapa?: EtapaPipeline;
+  estadoRfq?: EstadoRfq;
   vendedorId?: string;
   busqueda?: string;
 };
@@ -40,11 +40,11 @@ export async function obtenerOportunidades(
   let consulta = cliente
     .from('pipeline')
     .select(
-      '*, cotizacion_lineas(cantidad, precio_unitario, es_descuento, area_trabajo_codigo), ordenes_produccion(folio, estado), clientes(razon_social, nombre_comercial)',
+      '*, cotizacion_lineas(cantidad, precio_unitario, es_descuento, area_trabajo_codigo), ordenes_produccion(folio, estado), clientes(razon_social, nombre_comercial), responsable:usuarios!pipeline_responsable_id_fkey(nombre_completo)',
     );
 
-  if (filtros?.etapa) {
-    consulta = consulta.eq('etapa', filtros.etapa);
+  if (filtros?.estadoRfq) {
+    consulta = consulta.eq('estado_rfq', filtros.estadoRfq);
   }
   if (filtros?.vendedorId) {
     consulta = consulta.eq('vendedor_id', filtros.vendedorId);
@@ -72,6 +72,7 @@ export async function obtenerOportunidades(
       cotizacion_lineas: lineas,
       ordenes_produccion: ordenes,
       clientes: clienteLigado,
+      responsable: responsableLigado,
       ...base
     } = fila;
     // RFQ-03: una línea de descuento se captura en positivo y aquí se resta.
@@ -108,6 +109,7 @@ export async function obtenerOportunidades(
       ordenVinculada,
       areasTrabajo,
       clienteNombre,
+      responsableNombre: responsableLigado?.nombre_completo ?? null,
     };
   });
 }

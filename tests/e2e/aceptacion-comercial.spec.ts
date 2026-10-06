@@ -44,9 +44,8 @@ type ContextoAceptacion = {
 };
 
 /**
- * Prepara el actor y los catálogos mínimos de la cadena comercial: un admin
- * ficticio, un cliente del catálogo y un área de taller. Nada pertenece a
- * producción: son datos QA-FUNC locales con limpieza posterior por ID.
+ * Prepara el actor y los catálogos mínimos de la cadena comercial. Nada
+ * pertenece a producción: son datos QA-FUNC locales con limpieza posterior.
  */
 async function prepararContexto(): Promise<ContextoAceptacion> {
   const admin = crearAdmin();
@@ -119,7 +118,6 @@ async function limpiarContexto(contexto: ContextoAceptacion): Promise<void> {
     .select('id')
     .eq('cliente_id', clienteId);
   const idsOportunidades = (oportunidades ?? []).map((fila) => fila.id);
-  // OBS-06/ORD-09: los documentos subidos desde el piso viven en el bucket.
   for (const oportunidadId of idsOportunidades) {
     const { data: objetos } = await admin.storage
       .from('adjuntos-cotizacion')
@@ -149,6 +147,7 @@ async function limpiarContexto(contexto: ContextoAceptacion): Promise<void> {
       await admin.from('partidas_orden_produccion').delete().in('orden_id', idsOrdenes);
       await admin.from('ordenes_produccion').delete().in('id', idsOrdenes);
     }
+    await admin.from('archivos').delete().in('entidad_id', idsOportunidades);
     await admin.from('pipeline').delete().in('id', idsOportunidades);
   }
   await admin.from('clientes').delete().eq('id', clienteId);
@@ -165,136 +164,115 @@ async function iniciarSesion(pagina: Page, contexto: ContextoAceptacion): Promis
   await pagina.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
-/** Crea una oportunidad desde el tablero con una sola línea y datos mínimos. */
-async function crearOportunidadSimple(
+/** Crea un RFQ desde la cola nueva. */
+async function crearRfqSimple(
   pagina: Page,
   contexto: ContextoAceptacion,
-  opciones: { empresa: string; interna?: boolean; descripcion: string; precio: string },
+  opciones: { empresa: string; interna?: boolean },
 ): Promise<void> {
-  await pagina.goto('/pipeline');
-  await pagina.getByRole('button', { name: 'Nueva oportunidad' }).click();
+  await pagina.goto('/rfq');
+  await pagina.getByRole('button', { name: 'Nuevo RFQ' }).click();
   await pagina.getByLabel('Nombre del contacto').fill('Ana QA');
-  await pagina.getByLabel('Empresa').fill(opciones.empresa);
+  await pagina.getByLabel('Empresa', { exact: true }).fill(opciones.empresa);
   await pagina.getByLabel('Correo (opcional)').fill('ana.qa@qa-func.local');
   await pagina.getByLabel('Cliente (opcional)').fill(contexto.empresa);
   await pagina.getByRole('button', { name: new RegExp(contexto.empresa) }).first().click();
   if (opciones.interna) {
     await pagina.getByLabel(/Orden interna \(TI\)/).check();
   }
-  await pagina.getByRole('button', { name: 'Crear oportunidad' }).click();
-
+  await pagina.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
   const tarjeta = pagina.locator('article', { hasText: opciones.empresa });
   await expect(tarjeta).toBeVisible();
-  // La tarjeta se remonta con cada refetch; se reintenta abrir y guardar.
-  for (let intento = 0; intento < 3; intento += 1) {
-    if (!(await pagina.getByLabel('Descripción').isVisible().catch(() => false))) {
-      await tarjeta.getByRole('button', { name: 'Cotización' }).click();
-      await expect(pagina.getByLabel('Descripción')).toBeVisible();
-    }
-    await pagina.getByLabel('Descripción').fill(opciones.descripcion);
-    await pagina.getByLabel('Cantidad').fill('1');
-    await pagina.getByLabel('Precio unitario').fill(opciones.precio);
-    await pagina.getByRole('button', { name: 'Guardar cotización' }).click();
-    try {
-      await expect(pagina.getByText('Cotización guardada.')).toBeVisible({ timeout: 4_000 });
-      break;
-    } catch {
-      if (intento === 2) throw new Error('No se pudo guardar la cotización inicial por la interfaz');
-      await pagina.waitForTimeout(300);
-    }
-  }
-  await pagina.keyboard.press('Escape');
-  await expect(pagina.getByRole('dialog')).toHaveCount(0);
-
-  // OBS-03: responsable (vendedor asignado) y acción concreta en un editor ya asentado.
-  await pagina.reload();
-  await expect(tarjeta).toBeVisible();
-  await tarjeta.getByRole('button', { name: 'Cotización' }).click();
-  await expect(pagina.getByRole('button', { name: 'Guardar cotización' })).toBeVisible();
-  await pagina.getByLabel('Fecha de seguimiento').fill('2026-10-01');
-  await pagina.getByLabel('Siguiente acción concreta').fill('Llamar para confirmar la orden de compra');
-  await pagina.getByRole('button', { name: 'Guardar datos' }).click();
-  await expect(pagina.getByText('Datos guardados.')).toBeVisible();
-  await pagina.keyboard.press('Escape');
-  await expect(pagina.getByRole('dialog')).toHaveCount(0);
 }
 
-/** Avanza una etapa adyacente y confirma el cambio en la base (con reintento). */
-async function avanzarEtapa(
-  pagina: Page,
+/**
+ * Prepara la cadena comercial→orden por la vía vigente hasta B4/B5: las líneas
+ * legacy y la etapa negociación se cargan con service_role (la UI de etapa se
+ * retiró) y la RPC `aprobar_oportunidad_y_crear_orden` crea la orden. La UI de
+ * aceptación comercial se restaurará sobre propuestas en B4/B5.
+ */
+async function crearOrdenDesdeRfq(
   admin: SupabaseClient<Database>,
+  datos: ContextoAceptacion,
   empresa: string,
-  etiqueta: string,
-  etapaEsperada: string,
-): Promise<void> {
-  for (let intento = 0; intento < 5; intento += 1) {
-    const tarjeta = pagina.locator('article', { hasText: empresa });
-    await expect(tarjeta).toBeVisible({ timeout: 10_000 });
-    const boton = tarjeta.getByRole('button', { name: etiqueta });
-    await expect(boton).toBeEnabled({ timeout: 10_000 });
-    await boton.click();
-    try {
-      await expect
-        .poll(
-          async () => {
-            const { data } = await admin
-              .from('pipeline')
-              .select('etapa')
-              .eq('empresa', empresa)
-              .single();
-            return data?.etapa ?? null;
-          },
-          { timeout: 5_000 },
-        )
-        .toBe(etapaEsperada);
-      return;
-    } catch {
-      // La tarjeta pudo re-montarse (refetch) y perder el clic: se reintenta.
-      await pagina.waitForTimeout(400);
-      await pagina.reload();
-    }
+): Promise<{ oportunidadId: string; ordenId: string; ordenFolio: string }> {
+  const { data: oportunidad, error: errorOportunidad } = await admin
+    .from('pipeline')
+    .select('id, vendedor_id')
+    .eq('empresa', empresa)
+    .single();
+  if (errorOportunidad || !oportunidad) {
+    throw new Error(`Sin RFQ para ordenar: ${errorOportunidad?.message ?? empresa}`);
   }
-  throw new Error(`No se pudo avanzar a la etapa "${etapaEsperada}" por la interfaz`);
-}
 
-/** Avanza la oportunidad por etapas adyacentes hasta `ganada` y crea la OP. */
-async function ganarOportunidad(
-  pagina: Page,
-  admin: SupabaseClient<Database>,
-  empresa: string,
-): Promise<void> {
-  await avanzarEtapa(pagina, admin, empresa, 'Contactado', 'contactado');
-  await avanzarEtapa(pagina, admin, empresa, 'Cotizado', 'cotizado');
-  await avanzarEtapa(pagina, admin, empresa, 'Negociación', 'negociacion');
+  const { error: errorLineas } = await admin.from('cotizacion_lineas').insert([
+    {
+      pipeline_id: oportunidad.id,
+      descripcion: 'Soporte QA',
+      cantidad: 10,
+      precio_unitario: 100,
+      area_trabajo_codigo: datos.areaCodigo,
+      estacion_codigo: datos.estacionCodigo,
+      procesos: ['corte'],
+      es_externo: false,
+      es_descuento: false,
+      orden: 0,
+    },
+    {
+      pipeline_id: oportunidad.id,
+      descripcion: 'Servicio externo QA',
+      cantidad: 1,
+      precio_unitario: 300,
+      procesos: [],
+      es_externo: true,
+      proveedor_externo: 'Taller QA Externo',
+      es_descuento: false,
+      orden: 1,
+    },
+    {
+      pipeline_id: oportunidad.id,
+      descripcion: 'Descuento QA',
+      cantidad: 100,
+      precio_unitario: 1,
+      procesos: [],
+      es_externo: false,
+      es_descuento: true,
+      orden: 2,
+    },
+  ]);
+  if (errorLineas) throw new Error(`No se crearon las líneas: ${errorLineas.message}`);
 
-  for (let intento = 0; intento < 4; intento += 1) {
-    const tarjeta = pagina.locator('article', { hasText: empresa });
-    const ganar = tarjeta.getByRole('button', { name: 'Ganada' });
-    await expect(ganar).toBeEnabled({ timeout: 10_000 });
-    await ganar.click();
-    await tarjeta.getByLabel('Fecha de compromiso de producción').fill('2099-12-31T10:00');
-    await tarjeta.getByRole('button', { name: 'Confirmar ganada y crear OP' }).click();
-    try {
-      await expect
-        .poll(
-          async () => {
-            const { data } = await admin
-              .from('pipeline')
-              .select('etapa')
-              .eq('empresa', empresa)
-              .single();
-            return data?.etapa ?? null;
-          },
-          { timeout: 5_000 },
-        )
-        .toBe('ganada');
-      return;
-    } catch {
-      await pagina.waitForTimeout(400);
-      await pagina.reload();
-    }
+  const { data: folioCnc, error: errorFolioCnc } = await admin.rpc('generar_folio_cnc');
+  if (errorFolioCnc || !folioCnc) throw new Error(`Sin folio CNC: ${errorFolioCnc?.message}`);
+
+  const { error: errorEtapa } = await admin
+    .from('pipeline')
+    .update({
+      cliente_id: datos.clienteId,
+      etapa: 'negociacion',
+      estado_rfq: 'CONVERTED',
+      folio_cnc: folioCnc,
+      fecha_seguimiento: '2026-10-01',
+      proximo_paso: 'Llamar para confirmar la orden de compra',
+    })
+    .eq('id', oportunidad.id);
+  if (errorEtapa) throw new Error(`No se preparó el RFQ: ${errorEtapa.message}`);
+
+  const { data: ordenes, error: errorRpc } = await admin.rpc('aprobar_oportunidad_y_crear_orden', {
+    p_pipeline_id: oportunidad.id,
+    p_cliente_id: datos.clienteId,
+    p_fecha_compromiso: '2099-12-31T10:00:00.000Z',
+    p_autorizar_sobregiro: false,
+    p_actor_id: datos.usuarioId,
+  });
+  if (errorRpc || !ordenes || ordenes.length === 0) {
+    throw new Error(`No se creó la orden: ${errorRpc?.message ?? 'sin fila'}`);
   }
-  throw new Error('No se pudo marcar la oportunidad como ganada por la interfaz');
+  return {
+    oportunidadId: oportunidad.id,
+    ordenId: ordenes[0]!.id,
+    ordenFolio: ordenes[0]!.folio,
+  };
 }
 
 test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/05/06/10/15)', () => {
@@ -317,73 +295,18 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     const datos = contexto;
     await iniciarSesion(page, datos);
 
-    await page.goto('/pipeline');
-    await page.getByRole('button', { name: 'Nueva oportunidad' }).click();
-    await page.getByLabel('Nombre del contacto').fill('Ana QA');
-    await page.getByLabel('Empresa').fill(datos.empresa);
-    await page.getByLabel('Correo (opcional)').fill('ana.qa@qa-func.local');
-    await page.getByLabel('Cliente (opcional)').fill(datos.empresa);
-    await page.getByRole('button', { name: new RegExp(datos.empresa) }).first().click();
-    await page.getByRole('button', { name: 'Crear oportunidad' }).click();
-
-    const tarjeta = page.locator('article', { hasText: datos.empresa });
-    await expect(tarjeta).toBeVisible();
-    await tarjeta.getByRole('button', { name: 'Cotización' }).click();
-    await expect(page.getByLabel('Descripción')).toBeVisible();
-
-    // Línea 1: fabricable con área del catálogo y procesos.
-    await page.getByLabel('Descripción').nth(0).fill('Soporte QA');
-    await page.getByLabel('Cantidad').nth(0).fill('10');
-    await page.getByLabel('Precio unitario').nth(0).fill('100');
-    await page.getByLabel('Área / departamento (opcional)').nth(0).selectOption(datos.areaCodigo);
-    // OBS-04: equipo/estación del catálogo de Planeación por línea.
-    await page.getByLabel('Equipo / estación (opcional)').nth(0).selectOption(datos.estacionCodigo);
-    await page.getByLabel('Procesos (opcional)').nth(0).fill('corte');
-
-    // Línea 2: trabajo externo con proveedor.
-    await page.getByRole('button', { name: 'Agregar línea' }).click();
-    await page.getByLabel('Descripción').nth(1).fill('Servicio externo QA');
-    await page.getByLabel('Cantidad').nth(1).fill('1');
-    await page.getByLabel('Precio unitario').nth(1).fill('300');
-    await page.locator('#linea-1-externo').check();
-    await page.getByLabel('Proveedor externo').fill('Taller QA Externo');
-
-    // Línea 3: descuento removible que resta del subtotal antes del IVA.
-    await page.getByRole('button', { name: 'Agregar descuento' }).click();
-    await page.getByLabel('Monto del descuento').fill('100');
-
-    // 1000 + 300 − 100 = 1200; IVA 16% = 192; total 1392.
-    await expect(page.getByText('$1,392.00')).toBeVisible();
-    await page.getByRole('button', { name: 'Guardar cotización' }).click();
-    await expect(page.getByText('Cotización guardada.')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-
-    // OBS-03: responsable (vendedor) y siguiente acción concreta.
-    await page.reload();
-    const tarjetaComercial = page.locator('article', { hasText: datos.empresa });
-    await expect(tarjetaComercial).toBeVisible();
-    await tarjetaComercial.getByRole('button', { name: 'Cotización' }).click();
-    await expect(page.getByRole('button', { name: 'Guardar cotización' })).toBeVisible();
-    await page.getByLabel('Fecha de seguimiento').fill('2026-10-01');
-    await page.getByLabel('Siguiente acción concreta').fill('Llamar para confirmar la orden de compra');
-    await page.getByRole('button', { name: 'Guardar datos' }).click();
-    await expect(page.getByText('Datos guardados.')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-
-    await ganarOportunidad(page, datos.admin, datos.empresa);
+    await crearRfqSimple(page, datos, { empresa: datos.empresa });
+    const { oportunidadId, ordenId, ordenFolio } = await crearOrdenDesdeRfq(datos.admin, datos, datos.empresa);
 
     // Efectos persistidos: una sola cadena cotización→OP, con AR no cobrable (D-04).
     const { data: oportunidad } = await datos.admin
       .from('pipeline')
       .select('id, etapa, cliente_id, es_orden_interna, fecha_seguimiento, proximo_paso, vendedor_id')
-      .eq('empresa', datos.empresa)
+      .eq('id', oportunidadId)
       .single();
     expect(oportunidad?.etapa).toBe('ganada');
     expect(oportunidad?.cliente_id).toBe(datos.clienteId);
     expect(oportunidad?.es_orden_interna).toBe(false);
-    // OBS-03: responsable (vendedor) y siguiente acción persistidos.
     expect(oportunidad?.vendedor_id).toBe(datos.usuarioId);
     expect(oportunidad?.fecha_seguimiento).toBe('2026-10-01');
     expect(oportunidad?.proximo_paso).toBe('Llamar para confirmar la orden de compra');
@@ -391,15 +314,16 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     const { data: orden } = await datos.admin
       .from('ordenes_produccion')
       .select('id, folio, estado, es_interna')
-      .eq('cotizacion_id', oportunidad!.id)
+      .eq('id', ordenId)
       .single();
+    expect(orden?.folio).toBe(ordenFolio);
     expect(orden?.estado).toBe('borrador');
     expect(orden?.es_interna).toBe(false);
 
     const { data: partidas } = await datos.admin
       .from('partidas_orden_produccion')
       .select('codigo_pieza, area_trabajo_codigo, procesos, es_externo, proveedor_externo, cantidad_solicitada, maquina_asignada')
-      .eq('orden_id', orden!.id)
+      .eq('orden_id', ordenId)
       .order('codigo_pieza');
     expect(partidas).toHaveLength(2);
     expect(partidas?.[0]).toMatchObject({
@@ -407,7 +331,6 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
       area_trabajo_codigo: datos.areaCodigo,
       es_externo: false,
       proveedor_externo: null,
-      // OBS-04: la estación de la línea se hereda a la partida.
       maquina_asignada: datos.estacionCodigo,
     });
     expect(partidas?.[0]?.procesos).toEqual(['corte']);
@@ -418,7 +341,7 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     const { data: cuentas } = await datos.admin
       .from('cuentas_por_cobrar')
       .select('monto_total, estado, cobrable_desde, fecha_vencimiento')
-      .eq('orden_id', orden!.id);
+      .eq('orden_id', ordenId);
     expect(cuentas).toHaveLength(1);
     expect(cuentas?.[0]).toMatchObject({
       estado: 'pendiente',
@@ -429,14 +352,14 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
 
     // RFQ-10: la orden muestra el folio comercial de su cotización.
     await page.goto('/ordenes');
-    const fila = page.getByRole('row', { name: new RegExp(orden!.folio) });
+    const fila = page.getByRole('row', { name: new RegExp(ordenFolio) });
     await expect(fila).toBeVisible();
     await expect(fila).toContainText('CNC-');
 
     // OBS-06/ORD-09: el taller ve y sube documentos de la orden desde el piso.
     await page.goto('/produccion');
     await page
-      .getByTestId(`tarjeta-produccion-${orden!.id}`)
+      .getByTestId(`tarjeta-produccion-${ordenId}`)
       .getByRole('button', { name: 'Operar orden' })
       .click();
     const panelEntregables = page.getByTestId('panel-documentos-orden');
@@ -466,31 +389,31 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     const datos = contexto;
     const empresaInterna = `${datos.empresa} TI`;
     await iniciarSesion(page, datos);
-    await crearOportunidadSimple(page, datos, {
-      empresa: empresaInterna,
-      interna: true,
-      descripcion: 'Trabajo interno QA',
-      precio: '500',
-    });
-    await ganarOportunidad(page, datos.admin, empresaInterna);
+    await crearRfqSimple(page, datos, { empresa: empresaInterna, interna: true });
+    const { oportunidadId, ordenId, ordenFolio } = await crearOrdenDesdeRfq(
+      datos.admin,
+      datos,
+      empresaInterna,
+    );
 
     const { data: oportunidad } = await datos.admin
       .from('pipeline')
       .select('id, es_orden_interna')
-      .eq('empresa', empresaInterna)
+      .eq('id', oportunidadId)
       .single();
     expect(oportunidad?.es_orden_interna).toBe(true);
 
     const { data: orden } = await datos.admin
       .from('ordenes_produccion')
       .select('id, folio, es_interna')
-      .eq('cotizacion_id', oportunidad!.id)
+      .eq('id', ordenId)
       .single();
+    expect(orden?.folio).toBe(ordenFolio);
     expect(orden?.es_interna).toBe(true);
 
     // La cobranza comercial rechaza una OP interna (RFQ-09).
     const { error } = await datos.admin.rpc('abrir_cuenta_por_cobrar', {
-      p_orden_id: orden!.id,
+      p_orden_id: ordenId,
       p_monto_total: 500,
       p_moneda: 'MXN',
       p_tipo_cambio_origen: 1,
@@ -499,7 +422,7 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     expect(error?.message).toContain('orden_interna_sin_cobranza');
 
     await page.goto('/ordenes');
-    const fila = page.getByRole('row', { name: new RegExp(orden!.folio) });
+    const fila = page.getByRole('row', { name: new RegExp(ordenFolio) });
     await expect(fila).toBeVisible();
     await expect(fila).toContainText('TI');
   });

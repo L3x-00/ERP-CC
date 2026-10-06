@@ -116,7 +116,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
 
     fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
     await screen.findByText('Cambiar cliente');
-    fireEvent.click(screen.getByRole('button', { name: 'Crear oportunidad' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
 
     await waitFor(() => {
       expect(crearProspectoMock).toHaveBeenCalledWith(
@@ -133,7 +133,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quitar' }));
 
     expect(campo(/Nombre del contacto/).value).toBe('Ana Pérez');
-    fireEvent.click(screen.getByRole('button', { name: 'Crear oportunidad' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
 
     await waitFor(() => {
       expect(crearProspectoMock).toHaveBeenCalledTimes(1);

@@ -10,7 +10,7 @@ const ACCIONES_ORDEN = new Set([
 export function enlaceRegistroAuditado(log: Pick<Log, 'modulo' | 'accion' | 'recursoId'>): string | null {
   if (!UUID.test(log.recursoId)) return null;
   const id = encodeURIComponent(log.recursoId);
-  if (log.modulo === 'pipeline') return `/pipeline?oportunidad=${id}`;
+  if (log.modulo === 'pipeline') return `/rfq?rfq=${id}`;
   if (log.modulo === 'clientes') return `/clientes?cliente=${id}`;
   if (log.modulo === 'ordenes' && ACCIONES_ORDEN.has(log.accion)) return `/ordenes?ordenId=${id}`;
   return null;
@@ -26,7 +26,7 @@ export function enlaceRegistroActividad(
 ): string | null {
   if (!UUID.test(registro.recursoId)) return null;
   const id = encodeURIComponent(registro.recursoId);
-  if (registro.entidad === 'pipeline') return `/pipeline?oportunidad=${id}`;
+  if (registro.entidad === 'pipeline') return `/rfq?rfq=${id}`;
   if (registro.entidad === 'cliente') return `/clientes?cliente=${id}`;
   if (registro.entidad === 'orden') return `/ordenes?ordenId=${id}`;
   return null;

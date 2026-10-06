@@ -7,6 +7,7 @@ import {
   etiquetasDistintas,
   filtrarOportunidades,
   hayFiltrosActivos,
+  proximaAccionVencida,
   type FiltrosTablero,
 } from '@/modulos/pipeline/servicios/filtrar-oportunidades';
 import { resumirPipeline } from '@/modulos/pipeline/servicios/resumen-pipeline';
@@ -18,13 +19,19 @@ function op(parcial: Partial<Oportunidad>): Oportunidad {
     id: `id-${contador}`,
     folioOp: `OP-${String(contador).padStart(4, '0')}`,
     folioCnc: null,
-    etapa: 'prospecto',
+    folioRfq: null,
+    estadoRfq: 'NEW',
     nombreContacto: 'Contacto',
     empresa: 'Empresa',
     correo: null,
     telefono: null,
     clienteId: null,
+    contactoId: null,
     vendedorId: 'v-1',
+    responsableId: null,
+    canal: null,
+    fechaSolicitud: null,
+    descripcionGeneral: null,
     moneda: 'MXN',
     condicionesPago: null,
     prioridad: 'normal',
@@ -35,6 +42,10 @@ function op(parcial: Partial<Oportunidad>): Oportunidad {
     fechaRequerida: null,
     horasEstimadas: null,
     notas: null,
+    proximaAccionCodigo: null,
+    proximaAccionTexto: null,
+    fechaProximaAccion: null,
+    responsableProximaAccionId: null,
     motivoPerdida: null,
     notasPerdida: null,
     fechaUltimoContacto: null,
@@ -53,16 +64,18 @@ describe('filtrarOportunidades', () => {
     expect(filtrarOportunidades(datos, FILTROS_TABLERO_INICIAL)).toHaveLength(3);
   });
 
-  it('texto busca en folio OP/CNC, empresa y contacto, sin distinguir mayúsculas', () => {
+  it('texto busca en folio RFQ/OP/CNC, empresa y contacto, sin distinguir mayúsculas', () => {
     const datos = [
       op({ empresa: 'Aceros del Norte' }),
       op({ nombreContacto: 'María López' }),
       op({ folioCnc: 'CNC-0926-0007' }),
+      op({ folioRfq: 'RFQ-0926_04' }),
       op({ empresa: 'Otro' }),
     ];
     expect(filtrarOportunidades(datos, f({ texto: 'norte' }))).toHaveLength(1);
     expect(filtrarOportunidades(datos, f({ texto: 'lópez' }))).toHaveLength(1);
     expect(filtrarOportunidades(datos, f({ texto: 'cnc-0926' }))).toHaveLength(1);
+    expect(filtrarOportunidades(datos, f({ texto: 'rfq-0926' }))).toHaveLength(1);
     expect(filtrarOportunidades(datos, f({ texto: 'zzz' }))).toHaveLength(0);
   });
 
@@ -96,14 +109,37 @@ describe('filtrarOportunidades', () => {
     expect(filtrarOportunidades(datos, f({ texto: 'norte', prioridad: 'alta', etiqueta: 'x' }))).toHaveLength(1);
   });
 
-  it('filtra por etapa (RFQ-13)', () => {
+  it('filtra por estado RFQ (ola 2)', () => {
     const datos = [
-      op({ etapa: 'cotizado' }),
-      op({ etapa: 'negociacion' }),
-      op({ etapa: 'cotizado' }),
+      op({ estadoRfq: 'READY_FOR_PROPOSAL' }),
+      op({ estadoRfq: 'CONVERTED' }),
+      op({ estadoRfq: 'READY_FOR_PROPOSAL' }),
     ];
-    expect(filtrarOportunidades(datos, f({ etapa: 'cotizado' }))).toHaveLength(2);
-    expect(filtrarOportunidades(datos, f({ etapa: 'ganada' }))).toHaveLength(0);
+    expect(filtrarOportunidades(datos, f({ estadoRfq: 'READY_FOR_PROPOSAL' }))).toHaveLength(2);
+    expect(filtrarOportunidades(datos, f({ estadoRfq: 'CLOSED' }))).toHaveLength(0);
+  });
+
+  it('filtra por responsable (responsable_id o vendedor si falta)', () => {
+    const datos = [
+      op({ responsableId: 'u-1' }),
+      op({ responsableId: null, vendedorId: 'u-2' }),
+      op({ responsableId: 'u-1' }),
+    ];
+    expect(filtrarOportunidades(datos, f({ responsableId: 'u-1' }))).toHaveLength(2);
+    expect(filtrarOportunidades(datos, f({ responsableId: 'u-2' }))).toHaveLength(1);
+  });
+
+  it('filtra por próxima acción vencida, excluyendo terminales y con orden', () => {
+    const hoy = '2026-09-20';
+    const datos = [
+      op({ fechaProximaAccion: '2026-09-10' }),
+      op({ fechaProximaAccion: '2026-09-25' }),
+      op({ fechaProximaAccion: '2026-09-01', estadoRfq: 'CLOSED' }),
+      op({ fechaProximaAccion: '2026-09-01', ordenVinculada: { folio: 'OP-1', estado: 'borrador' } }),
+    ];
+    expect(filtrarOportunidades(datos, f({ proximaVencida: true }), hoy)).toHaveLength(1);
+    expect(proximaAccionVencida(datos[0]!, hoy)).toBe(true);
+    expect(proximaAccionVencida(datos[2]!, hoy)).toBe(false);
   });
 
   it('el texto también busca en el nombre del cliente ligado (RFQ-13)', () => {
@@ -140,7 +176,9 @@ describe('hayFiltrosActivos', () => {
     expect(hayFiltrosActivos(f({ texto: 'x' }))).toBe(true);
     expect(hayFiltrosActivos(f({ soloInternas: true }))).toBe(true);
     expect(hayFiltrosActivos(f({ desde: '2026-09-01' }))).toBe(true);
-    expect(hayFiltrosActivos(f({ etapa: 'cotizado' }))).toBe(true);
+    expect(hayFiltrosActivos(f({ estadoRfq: 'READY_FOR_PROPOSAL' }))).toBe(true);
+    expect(hayFiltrosActivos(f({ responsableId: 'u-1' }))).toBe(true);
+    expect(hayFiltrosActivos(f({ proximaVencida: true }))).toBe(true);
     expect(hayFiltrosActivos(f({ area: 'CNC' }))).toBe(true);
     expect(hayFiltrosActivos(f({ clienteId: 'c-1' }))).toBe(true);
   });
@@ -176,18 +214,18 @@ describe('etiquetasDistintas', () => {
 });
 
 describe('resumirPipeline', () => {
-  it('cuenta por etapa y calcula conversión aprobadas/total', () => {
+  it('cuenta por estado y calcula conversión por órdenes vinculadas', () => {
     const datos = [
-      op({ etapa: 'prospecto' }),
-      op({ etapa: 'cotizado' }),
-      op({ etapa: 'ganada' }),
-      op({ etapa: 'ganada' }),
-      op({ etapa: 'perdida' }),
+      op({ estadoRfq: 'NEW' }),
+      op({ estadoRfq: 'READY_FOR_PROPOSAL' }),
+      op({ estadoRfq: 'CONVERTED', ordenVinculada: { folio: 'OP-1', estado: 'borrador' } }),
+      op({ estadoRfq: 'CONVERTED', ordenVinculada: { folio: 'OP-2', estado: 'borrador' } }),
+      op({ estadoRfq: 'CLOSED' }),
     ];
     const r = resumirPipeline(datos);
     expect(r.total).toBe(5);
-    expect(r.porEtapa.ganada).toBe(2);
-    expect(r.porEtapa.perdida).toBe(1);
+    expect(r.porEstado.CONVERTED).toBe(2);
+    expect(r.porEstado.CLOSED).toBe(1);
     expect(r.ganadas).toBe(2);
     expect(r.perdidas).toBe(1);
     expect(r.conversion).toBe(40); // 2/5
@@ -212,10 +250,15 @@ describe('resumirPipeline · importes (RFQ-14)', () => {
 
   it('pendiente vs enviado según fechaEnvioCotizacion, solo en abiertas', () => {
     const datos = [
-      op({ etapa: 'contactado', importeSubtotal: 100, fechaEnvioCotizacion: null }),
-      op({ etapa: 'cotizado', importeSubtotal: 300, fechaEnvioCotizacion: '2026-09-12T00:00:00.000Z' }),
-      // ganada: resuelta, no cuenta en pendiente/enviado
-      op({ etapa: 'ganada', importeSubtotal: 999, fechaEnvioCotizacion: '2026-09-12T00:00:00.000Z' }),
+      op({ estadoRfq: 'INCOMPLETE', importeSubtotal: 100, fechaEnvioCotizacion: null }),
+      op({ estadoRfq: 'READY_FOR_PROPOSAL', importeSubtotal: 300, fechaEnvioCotizacion: '2026-09-12T00:00:00.000Z' }),
+      // convertida en orden: resuelta, no cuenta en pendiente/enviado
+      op({
+        estadoRfq: 'CONVERTED',
+        importeSubtotal: 999,
+        fechaEnvioCotizacion: '2026-09-12T00:00:00.000Z',
+        ordenVinculada: { folio: 'OP-1', estado: 'borrador' },
+      }),
     ];
     const r = resumirPipeline(datos);
     expect(r.importePendiente.MXN).toBe(100);
@@ -223,14 +266,14 @@ describe('resumirPipeline · importes (RFQ-14)', () => {
     expect(r.importeTotal.MXN).toBe(1399);
   });
 
-  it('importe por etapa separado por moneda', () => {
+  it('importe por estado separado por moneda', () => {
     const datos = [
-      op({ etapa: 'cotizado', moneda: 'MXN', importeSubtotal: 500 }),
-      op({ etapa: 'cotizado', moneda: 'USD', importeSubtotal: 80 }),
+      op({ estadoRfq: 'CONVERTED', moneda: 'MXN', importeSubtotal: 500 }),
+      op({ estadoRfq: 'CONVERTED', moneda: 'USD', importeSubtotal: 80 }),
     ];
     const r = resumirPipeline(datos);
-    expect(r.importePorEtapa.cotizado).toEqual({ MXN: 500, USD: 80 });
-    expect(r.importePorEtapa.prospecto).toEqual({ MXN: 0, USD: 0 });
+    expect(r.importePorEstado.CONVERTED).toEqual({ MXN: 500, USD: 80 });
+    expect(r.importePorEstado.NEW).toEqual({ MXN: 0, USD: 0 });
   });
 
   it('importe ausente (undefined) cuenta como cero', () => {

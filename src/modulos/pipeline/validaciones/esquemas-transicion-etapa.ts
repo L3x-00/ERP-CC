@@ -1,21 +1,10 @@
 import { z } from 'zod';
 
 /**
- * Esquema para transiciones de etapa no terminales (avances y reversiones).
- * Las etapas terminales "ganada"/"perdida" existen en el enum, pero sus
- * transiciones se manejan por las acciones específicas de ganar/perder.
+ * Esquemas de las acciones legacy que se conservan hasta B4/B5 (ganar/perder).
+ * Las transiciones de etapa fueron retiradas: el estado del RFQ se valida con
+ * `esquemaCambiarEstadoRfq` de `@/modulos/rfq/validaciones/esquemas-rfq`.
  */
-export const esquemaTransicionEtapa = z.object({
-  id: z.uuid(),
-  etapaDestino: z.enum([
-    'prospecto',
-    'contactado',
-    'cotizado',
-    'negociacion',
-    'ganada',
-    'perdida',
-  ]),
-});
 
 /** Esquema para marcar una oportunidad como perdida (motivo obligatorio). */
 export const esquemaMarcarPerdida = z.object({
@@ -35,9 +24,6 @@ export const esquemaMarcarGanada = z.object({
   fechaCompromiso: z.iso.datetime({ message: 'Fecha de compromiso inválida' }),
   autorizarSobregiro: z.boolean().default(false),
 });
-
-/** Datos validados para una transición de etapa. */
-export type TransicionEtapaInput = z.infer<typeof esquemaTransicionEtapa>;
 
 /** Datos validados para marcar una oportunidad como perdida. */
 export type MarcarPerdidaInput = z.infer<typeof esquemaMarcarPerdida>;

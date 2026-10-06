@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { valorJsonAItemRfq } from '@/modulos/rfq/tipos/indice';
 import { formatearCodigoItem, siguienteNumeroItem } from '@/modulos/rfq/utilidades/estados';
+import { etiquetaProximaAccion } from '@/modulos/pipeline/utilidades/proxima-accion';
 import {
   esquemaCambiarEstadoRfq,
   esquemaCancelarItemRfq,
+  esquemaDatosGeneralesRfq,
   esquemaDatosItemRfq,
   esquemaGuardarItemRfq,
 } from '@/modulos/rfq/validaciones/esquemas-rfq';
@@ -119,5 +121,35 @@ describe('esquemas Zod de RFQ', () => {
     expect(esquemaCancelarItemRfq.safeParse({ itemId: UUID, motivo: 'duplicado' }).success).toBe(true);
     expect(esquemaCancelarItemRfq.safeParse({ itemId: 'no-uuid' }).success).toBe(false);
     expect(esquemaCancelarItemRfq.safeParse({ itemId: UUID, extra: 1 }).success).toBe(false);
+  });
+
+  it('valida los datos generales y la próxima acción "Otro"', () => {
+    const base = {
+      rfqId: UUID,
+      actualizadoEn: '2026-10-05T10:00:00+00:00',
+      canal: 'correo',
+      fechaSolicitud: '2026-10-01',
+      descripcionGeneral: 'Solicitud de prueba',
+      proximaAccionCodigo: 'FOLLOW_UP',
+      fechaProximaAccion: '2026-10-10',
+    };
+    expect(esquemaDatosGeneralesRfq.safeParse(base).success).toBe(true);
+    expect(esquemaDatosGeneralesRfq.safeParse({
+      ...base,
+      proximaAccionCodigo: 'OTHER',
+    }).success).toBe(false);
+    expect(esquemaDatosGeneralesRfq.safeParse({
+      ...base,
+      proximaAccionCodigo: 'OTHER',
+      proximaAccionTexto: 'Llamar al comprador',
+    }).success).toBe(true);
+    expect(esquemaDatosGeneralesRfq.safeParse({ ...base, fechaSolicitud: '01/10/2026' }).success).toBe(false);
+  });
+
+  it('etiqueta la próxima acción del catálogo y humaniza códigos nuevos', () => {
+    expect(etiquetaProximaAccion('FOLLOW_UP')).toBe('Seguimiento');
+    expect(etiquetaProximaAccion('OTHER')).toBe('Otro');
+    expect(etiquetaProximaAccion('ACCION_NUEVA')).toBe('ACCION NUEVA');
+    expect(etiquetaProximaAccion(null)).toBe('Sin próxima acción');
   });
 });

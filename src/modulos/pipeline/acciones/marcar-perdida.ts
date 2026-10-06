@@ -31,17 +31,18 @@ export async function marcarPerdidaAccion(entrada: unknown): Promise<RespuestaAc
     return { exito: false, error: 'No encontrada' };
   }
 
-  const etapa = cargada.oportunidad.etapa;
-  if (etapa === 'ganada' || etapa === 'perdida') {
+  const estadoRfq = cargada.oportunidad.estadoRfq;
+  if (estadoRfq === 'CLOSED' || estadoRfq === 'CANCELLED') {
     return { exito: false, error: 'La oportunidad ya está cerrada' };
   }
 
-  // Cambio de etapa (columna controlada) vía admin; acceso ya verificado con la
-  // carga RLS de arriba.
+  // Acción legacy conservada para B4/B5. Escribe el estado RFQ (fuente de
+  // verdad) y la columna histórica `etapa` en el mismo update.
   const admin = crearClienteSupabaseAdmin();
   const { error } = await admin
     .from('pipeline')
     .update({
+      estado_rfq: 'CLOSED',
       etapa: 'perdida',
       motivo_perdida: motivoPerdida,
       notas_perdida: notasPerdida ?? null,

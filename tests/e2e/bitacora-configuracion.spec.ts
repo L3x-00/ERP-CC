@@ -100,9 +100,9 @@ test('CFG-13/PRD-18: admin consulta actividad paginada sin detalles sensibles', 
     await vista.getByLabel('Actor').fill('A18 Enlace');
     await vista.getByLabel('Registro').fill('');
     const enlace = vista.getByRole('link', { name: 'Abrir registro' });
-    await expect(enlace).toHaveAttribute('href', `/pipeline?oportunidad=${oportunidadId}`);
+    await expect(enlace).toHaveAttribute('href', `/rfq?rfq=${oportunidadId}`);
     await enlace.click();
-    await expect(page).toHaveURL(new RegExp(`/pipeline\\?oportunidad=${oportunidadId}$`));
+    await expect(page).toHaveURL(new RegExp(`/rfq\\?rfq=${oportunidadId}$`));
   } finally {
     await admin.from('logs').delete().eq('recurso_id', recursoId);
     if (oportunidadId) {

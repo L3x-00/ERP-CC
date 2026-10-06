@@ -49,10 +49,6 @@ export async function retirarOportunidadAccion(entrada: unknown): Promise<Respue
     return { exito: false, error: 'No encontrada' };
   }
 
-  if (cargada.oportunidad.etapa === 'ganada') {
-    return { exito: false, error: 'La oportunidad tiene una orden asociada; no puede retirarse' };
-  }
-
   const admin = crearClienteSupabaseAdmin();
 
   // Verificación explícita: ninguna orden debe apuntar a esta cotización.
@@ -74,7 +70,7 @@ export async function retirarOportunidadAccion(entrada: unknown): Promise<Respue
   }
 
   await registrarLog(usuario, 'retirar_oportunidad', 'pipeline', id, {
-    etapa: cargada.oportunidad.etapa,
+    estadoRfq: cargada.oportunidad.estadoRfq,
     folioOp: cargada.oportunidad.folioOp,
   });
 

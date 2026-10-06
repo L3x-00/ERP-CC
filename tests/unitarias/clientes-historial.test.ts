@@ -132,6 +132,8 @@ function filaPipeline(indice: number, extra: Record<string, unknown> = {}) {
     creado_en: `2026-09-${String(10 - indice).padStart(2, '0')}T10:00:00.000Z`,
     empresa: 'CC Manufacturing',
     etapa: 'cotizado',
+    estado_rfq: 'CONVERTED',
+    folio_rfq: null,
     etiquetas: [],
     fecha_envio_cotizacion: null,
     fecha_ultimo_contacto: null,
@@ -408,7 +410,7 @@ describe('panel de historial en la ficha del cliente', () => {
 
     expect(
       (await screen.findByTestId('enlace-cotizacion-cot-1')).getAttribute('href'),
-    ).toBe('/pipeline?oportunidad=cot-1');
+    ).toBe('/rfq?rfq=cot-1');
     expect(screen.getByTestId('enlace-orden-ord-1').getAttribute('href')).toBe(
       '/ordenes?ordenId=ord-1',
     );
@@ -571,8 +573,13 @@ describe('integridad del detalle histórico', () => {
     });
     expect((await obtenerCotizacionesCliente(cliente,CLIENTE_ID)).registros[0]?.subtotal).toBe(0.01);
   });
-  it.each([{moneda:'EUR'},{etapa:'desconocida'}])('rechaza datos desconocidos sin inventar su significado: %j', async extra=>{
-    const {cliente}=crearSupabaseFalso({pipeline:()=>({data:[filaPipeline(1,extra)],error:null,count:1})});
+  it('rechaza monedas desconocidas sin inventar su significado', async () => {
+    const {cliente}=crearSupabaseFalso({pipeline:()=>({data:[filaPipeline(1,{moneda:'EUR'})],error:null,count:1})});
     await expect(obtenerCotizacionesCliente(cliente,CLIENTE_ID)).rejects.toThrow(/no reconocida/);
+  });
+  it('normaliza un estado_rfq desconocido a INCOMPLETE (defensivo)', async () => {
+    const {cliente}=crearSupabaseFalso({pipeline:()=>({data:[filaPipeline(1,{estado_rfq:'desconocida'})],error:null,count:1})});
+    const resultado = await obtenerCotizacionesCliente(cliente,CLIENTE_ID);
+    expect(resultado.registros[0]?.estadoRfq).toBe('INCOMPLETE');
   });
 });

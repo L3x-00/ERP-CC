@@ -1,13 +1,16 @@
-import type { EtapaPipeline, Oportunidad } from '@/modulos/pipeline/tipos/indice';
+import type { EstadoRfq, Oportunidad } from '@/modulos/pipeline/tipos/indice';
 
 /** Alertas inteligentes que puede tener una oportunidad. */
 export type AlertaPipeline = 'sin_respuesta' | 'estancada' | 'datos_incompletos';
 
-const ETAPAS_ACTIVAS: readonly EtapaPipeline[] = [
-  'prospecto',
-  'contactado',
-  'cotizado',
-  'negociacion',
+/** Estados donde la oportunidad sigue viva (alertables). */
+const ESTADOS_ACTIVOS: readonly EstadoRfq[] = [
+  'NEW',
+  'INCOMPLETE',
+  'WAITING_CUSTOMER',
+  'WAITING_TECHNICAL',
+  'READY_FOR_PROPOSAL',
+  'CONVERTED',
 ];
 
 /**
@@ -36,15 +39,16 @@ export function contarDiasHabiles(desde: Date, hasta: Date): number {
  * Calcula las alertas visuales de una oportunidad. Función pura (recibe `ahora`
  * para poder probarse con fechas controladas).
  *
- * Reglas (del documento ORCA):
+ * Reglas (del documento ORCA, buckets adaptados al estado del RFQ en ola 2):
  * - `sin_respuesta`: cotización enviada hace > 3 días hábiles sin avanzar de
- *   etapa (sigue en cotizado/negociación).
+ *   estado (sigue en READY_FOR_PROPOSAL/CONVERTED).
  * - `estancada`: > 7 días (calendario) sin actividad (último contacto o última
  *   actualización).
- * - `datos_incompletos`: en etapa cotizado+ sin correo de contacto (defensivo;
- *   el gate de transición ya lo previene).
+ * - `datos_incompletos`: en READY_FOR_PROPOSAL/CONVERTED sin correo de contacto
+ *   (defensivo; el gate de LISTO ya lo previene).
  *
- * Las oportunidades ganadas/perdidas no generan alertas.
+ * Los RFQ cerrados/cancelados (y los ya convertidos en orden) no generan
+ * alertas.
  *
  * @param oportunidad Oportunidad a evaluar.
  * @param ahora Momento de referencia (default: ahora).
@@ -55,12 +59,12 @@ export function calcularAlertas(
   ahora: Date = new Date(),
 ): AlertaPipeline[] {
   const alertas: AlertaPipeline[] = [];
-  if (!ETAPAS_ACTIVAS.includes(oportunidad.etapa)) {
+  if (!ESTADOS_ACTIVOS.includes(oportunidad.estadoRfq) || oportunidad.ordenVinculada) {
     return alertas;
   }
 
   const enCotizacion =
-    oportunidad.etapa === 'cotizado' || oportunidad.etapa === 'negociacion';
+    oportunidad.estadoRfq === 'READY_FOR_PROPOSAL' || oportunidad.estadoRfq === 'CONVERTED';
 
   if (enCotizacion && oportunidad.fechaEnvioCotizacion) {
     const diasHabiles = contarDiasHabiles(new Date(oportunidad.fechaEnvioCotizacion), ahora);

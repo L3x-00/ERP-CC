@@ -16,11 +16,11 @@ export type ModuloNavegacion = {
 export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
   { href: '/dashboard', etiqueta: 'Dashboard', grupo: 'General', icono: 'panel', permisos: [] },
   {
-    href: '/pipeline',
-    etiqueta: 'Pipeline',
+    href: '/rfq',
+    etiqueta: 'RFQ',
     grupo: 'Comercial',
     icono: 'embudo',
-    permisos: ['ver_clientes', 'ver_pipeline_equipo'],
+    permisos: ['ver_clientes', 'ver_pipeline_equipo', 'rfq_vista'],
   },
   {
     href: '/clientes',

@@ -84,13 +84,19 @@ const OPORTUNIDAD: Oportunidad = {
   id: OPORTUNIDAD_ID,
   folioOp: 'OP-000001',
   folioCnc: null,
-  etapa: 'cotizado',
+  folioRfq: 'RFQ-0926_05',
+  estadoRfq: 'CONVERTED',
   nombreContacto: 'Ana Pérez',
   empresa: 'Metanor',
   correo: null,
   telefono: null,
   clienteId: null,
+  contactoId: null,
   vendedorId: VENDEDOR_ID,
+  responsableId: null,
+  canal: null,
+  fechaSolicitud: null,
+  descripcionGeneral: null,
   moneda: 'MXN',
   condicionesPago: null,
   prioridad: 'normal',
@@ -101,6 +107,10 @@ const OPORTUNIDAD: Oportunidad = {
   fechaRequerida: null,
   horasEstimadas: null,
   notas: null,
+  proximaAccionCodigo: null,
+  proximaAccionTexto: null,
+  fechaProximaAccion: null,
+  responsableProximaAccionId: null,
   motivoPerdida: null,
   notasPerdida: null,
   fechaUltimoContacto: null,
@@ -245,9 +255,9 @@ describe('asignarClienteOportunidadAccion', () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
-  it('oportunidad ganada: no se reescribe el histórico', async () => {
+  it('oportunidad cerrada: no se reescribe el histórico', async () => {
     obtenerOportunidadMock.mockResolvedValue({
-      oportunidad: { ...OPORTUNIDAD, etapa: 'ganada' },
+      oportunidad: { ...OPORTUNIDAD, estadoRfq: 'CLOSED' },
       lineas: [],
     });
 

@@ -4,19 +4,26 @@ import {
   contarDiasHabiles,
   type AlertaPipeline,
 } from '@/modulos/pipeline/servicios/calcular-alertas';
-import type { EtapaPipeline, Oportunidad } from '@/modulos/pipeline/tipos/indice';
+import type { EstadoRfq, Oportunidad } from '@/modulos/pipeline/tipos/indice';
 
-function oportunidad(sobre: Partial<Oportunidad> & { etapa: EtapaPipeline }): Oportunidad {
+function oportunidad(sobre: Partial<Oportunidad> & { estadoRfq?: EstadoRfq }): Oportunidad {
   return {
     id: 'op-1',
     folioOp: 'OP-0001',
     folioCnc: null,
+    folioRfq: 'RFQ-0726_01',
+    estadoRfq: 'NEW',
     nombreContacto: 'Juan',
     empresa: 'ACME',
     correo: 'juan@acme.com',
     telefono: null,
     clienteId: null,
+    contactoId: null,
     vendedorId: 'v-1',
+    responsableId: null,
+    canal: null,
+    fechaSolicitud: null,
+    descripcionGeneral: null,
     moneda: 'MXN',
     condicionesPago: null,
     prioridad: 'normal',
@@ -27,6 +34,10 @@ function oportunidad(sobre: Partial<Oportunidad> & { etapa: EtapaPipeline }): Op
     fechaRequerida: null,
     horasEstimadas: null,
     notas: null,
+    proximaAccionCodigo: null,
+    proximaAccionTexto: null,
+    fechaProximaAccion: null,
+    responsableProximaAccionId: null,
     motivoPerdida: null,
     notasPerdida: null,
     fechaUltimoContacto: null,
@@ -56,14 +67,23 @@ describe('contarDiasHabiles', () => {
 describe('calcularAlertas', () => {
   const ahora = new Date('2026-07-15T00:00:00Z');
 
-  it('ganada/perdida no generan alertas', () => {
-    expect(calcularAlertas(oportunidad({ etapa: 'ganada' }), ahora)).toEqual([]);
-    expect(calcularAlertas(oportunidad({ etapa: 'perdida' }), ahora)).toEqual([]);
+  it('cerrados/cancelados (y con orden) no generan alertas', () => {
+    expect(calcularAlertas(oportunidad({ estadoRfq: 'CLOSED' }), ahora)).toEqual([]);
+    expect(calcularAlertas(oportunidad({ estadoRfq: 'CANCELLED' }), ahora)).toEqual([]);
+    expect(
+      calcularAlertas(
+        oportunidad({
+          estadoRfq: 'CONVERTED',
+          ordenVinculada: { folio: 'OP-1', estado: 'borrador' },
+        }),
+        ahora,
+      ),
+    ).toEqual([]);
   });
 
   it('sin_respuesta: cotización enviada > 3 días hábiles atrás', () => {
     const op = oportunidad({
-      etapa: 'cotizado',
+      estadoRfq: 'READY_FOR_PROPOSAL',
       fechaEnvioCotizacion: '2026-07-06T00:00:00Z', // lun; a mié 15 hay 7 hábiles
       fechaUltimoContacto: '2026-07-14T00:00:00Z', // reciente, para aislar sin_respuesta
     });
@@ -73,7 +93,7 @@ describe('calcularAlertas', () => {
 
   it('NO sin_respuesta si la cotización se envió hace <= 3 días hábiles', () => {
     const op = oportunidad({
-      etapa: 'cotizado',
+      estadoRfq: 'CONVERTED',
       fechaEnvioCotizacion: '2026-07-13T00:00:00Z', // lun; a mié 15 = 2 hábiles
       fechaUltimoContacto: '2026-07-14T00:00:00Z',
     });
@@ -82,20 +102,20 @@ describe('calcularAlertas', () => {
 
   it('estancada: > 7 días sin actividad', () => {
     const op = oportunidad({
-      etapa: 'contactado',
+      estadoRfq: 'WAITING_CUSTOMER',
       fechaUltimoContacto: '2026-07-01T00:00:00Z', // 14 días atrás
     });
     expect(calcularAlertas(op, ahora)).toContain<AlertaPipeline>('estancada');
   });
 
   it('usa actualizadoEn si no hay fechaUltimoContacto', () => {
-    const op = oportunidad({ etapa: 'prospecto', actualizadoEn: '2026-07-14T00:00:00Z' });
+    const op = oportunidad({ estadoRfq: 'NEW', actualizadoEn: '2026-07-14T00:00:00Z' });
     expect(calcularAlertas(op, ahora)).not.toContain('estancada');
   });
 
-  it('datos_incompletos: en cotizado sin correo', () => {
+  it('datos_incompletos: listo/convertido sin correo', () => {
     const op = oportunidad({
-      etapa: 'cotizado',
+      estadoRfq: 'READY_FOR_PROPOSAL',
       correo: null,
       fechaUltimoContacto: '2026-07-14T00:00:00Z',
     });

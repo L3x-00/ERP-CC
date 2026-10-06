@@ -1,14 +1,16 @@
 import type { Tables } from '@/compartido/tipos/supabase';
 import { esquemaSnapshotTecnico } from '@/modulos/cotizador/validaciones/snapshot';
+import {
+  ESTADOS_RFQ,
+  normalizarEstadoRfq,
+  type EstadoRfq,
+} from '@/modulos/rfq/tipos/indice';
 
-/** Etapas del pipeline (orden de avance; ganada/perdida son terminales). */
-export type EtapaPipeline =
-  | 'prospecto'
-  | 'contactado'
-  | 'cotizado'
-  | 'negociacion'
-  | 'ganada'
-  | 'perdida';
+/** Estados del RFQ (fuente única en `@/modulos/rfq`); reemplazan a etapa. */
+export { ESTADOS_RFQ };
+export type { EstadoRfq };
+export const ESTADOS_PIPELINE = ESTADOS_RFQ;
+export type EstadoPipeline = EstadoRfq;
 
 export type MonedaPipeline = 'MXN' | 'USD';
 export type CondicionesPago = 'contado' | '15_dias' | '30_dias' | 'credito';
@@ -19,13 +21,20 @@ export type Oportunidad = {
   id: string;
   folioOp: string;
   folioCnc: string | null;
-  etapa: EtapaPipeline;
+  /** Folio RFQ-MMYY_XX de documentos nuevos; null en históricos. */
+  folioRfq: string | null;
+  estadoRfq: EstadoRfq;
   nombreContacto: string;
   empresa: string;
   correo: string | null;
   telefono: string | null;
   clienteId: string | null;
+  contactoId: string | null;
   vendedorId: string;
+  responsableId: string | null;
+  canal: string | null;
+  fechaSolicitud: string | null;
+  descripcionGeneral: string | null;
   moneda: MonedaPipeline;
   condicionesPago: CondicionesPago | null;
   prioridad: PrioridadPipeline;
@@ -56,6 +65,8 @@ export type Oportunidad = {
    * solo se llena en el listado (embebido con la FK `cliente_id`).
    */
   clienteNombre?: string | null;
+  /** Ola 2: nombre del responsable del RFQ (embebido), si existe. */
+  responsableNombre?: string | null;
   /** RFQ-01: datos de captura de la solicitud comercial. */
   poCliente: string | null;
   fechaRequerida: string | null;
@@ -65,6 +76,11 @@ export type Oportunidad = {
   fechaSeguimiento?: string | null;
   /** OBS-03: siguiente acción concreta del seguimiento (responsable = vendedor). */
   proximoPaso?: string | null;
+  /** Ola 2: próxima acción del catálogo, su detalle, fecha y responsable. */
+  proximaAccionCodigo: string | null;
+  proximaAccionTexto: string | null;
+  fechaProximaAccion: string | null;
+  responsableProximaAccionId: string | null;
   /** RFQ-08: vigencia de la cotización (propuesta +10 días hábiles). */
   fechaVencimientoCotizacion?: string | null;
   motivoPerdida: string | null;
@@ -185,15 +201,6 @@ export type FilaPipeline = Tables<'pipeline'>;
 export type FilaLineaCotizacion = Tables<'cotizacion_lineas'>;
 export type FilaCliente = Tables<'clientes'>;
 
-export const ETAPAS_PIPELINE: readonly EtapaPipeline[] = [
-  'prospecto',
-  'contactado',
-  'cotizado',
-  'negociacion',
-  'ganada',
-  'perdida',
-];
-
 const MONEDAS_PIPELINE: readonly MonedaPipeline[] = ['MXN', 'USD'];
 const CONDICIONES_PAGO_PIPELINE: readonly CondicionesPago[] = [
   'contado',
@@ -224,13 +231,19 @@ export function filaAOportunidad(fila: FilaPipeline): Oportunidad {
     id: fila.id,
     folioOp: fila.folio_op,
     folioCnc: fila.folio_cnc,
-    etapa: validarEnumerado(fila.etapa, ETAPAS_PIPELINE, 'etapa'),
+    folioRfq: fila.folio_rfq,
+    estadoRfq: normalizarEstadoRfq(fila.estado_rfq),
     nombreContacto: fila.nombre_contacto,
     empresa: fila.empresa,
     correo: fila.correo,
     telefono: fila.telefono,
     clienteId: fila.cliente_id,
+    contactoId: fila.contacto_id,
     vendedorId: fila.vendedor_id,
+    responsableId: fila.responsable_id,
+    canal: fila.canal,
+    fechaSolicitud: fila.fecha_solicitud,
+    descripcionGeneral: fila.descripcion_general,
     moneda: validarEnumerado(fila.moneda, MONEDAS_PIPELINE, 'moneda'),
     condicionesPago:
       fila.condiciones_pago === null
@@ -246,6 +259,10 @@ export function filaAOportunidad(fila: FilaPipeline): Oportunidad {
     notas: fila.notas,
     fechaSeguimiento: fila.fecha_seguimiento,
     proximoPaso: fila.proximo_paso,
+    proximaAccionCodigo: fila.proxima_accion_codigo,
+    proximaAccionTexto: fila.proxima_accion_texto,
+    fechaProximaAccion: fila.fecha_proxima_accion,
+    responsableProximaAccionId: fila.responsable_proxima_accion_id,
     fechaVencimientoCotizacion: fila.fecha_vencimiento_cotizacion,
     motivoPerdida: fila.motivo_perdida,
     notasPerdida: fila.notas_perdida,

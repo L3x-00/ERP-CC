@@ -5,12 +5,12 @@ import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import {
-  ETAPAS_PIPELINE,
+  ESTADOS_PIPELINE,
   PRIORIDADES_PIPELINE,
-  type EtapaPipeline,
+  type EstadoRfq,
   type PrioridadPipeline,
 } from '@/modulos/pipeline/tipos/indice';
-import { ETIQUETA_ETAPA } from '@/modulos/pipeline/utilidades/indice';
+import { ETIQUETA_ESTADO_RFQ } from '@/modulos/pipeline/utilidades/indice';
 import {
   hayFiltrosActivos,
   type FiltrosTablero,
@@ -46,13 +46,15 @@ export interface ControlesPipelineProps {
   etiquetas: readonly string[];
   areas: readonly string[];
   clientes: readonly { id: string; nombre: string }[];
+  responsables: readonly { id: string; nombre: string }[];
   totalFiltrado: number;
   totalTotal: number;
 }
 
 /**
- * Búsqueda + filtros (RFQ-13) y resumen del pipeline (RFQ-14, por conteo).
- * Presentacional: no consulta datos; el tablero aplica los filtros en memoria.
+ * Búsqueda + filtros de la cola RFQ (estado, cliente, responsable, próxima
+ * acción vencida) y resumen por estado. Presentacional: no consulta datos; la
+ * cola aplica los filtros en memoria.
  */
 export function ControlesPipeline({
   filtros,
@@ -62,6 +64,7 @@ export function ControlesPipeline({
   etiquetas,
   areas,
   clientes,
+  responsables,
   totalFiltrado,
   totalTotal,
 }: ControlesPipelineProps) {
@@ -79,16 +82,16 @@ export function ControlesPipeline({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-etapa">Etapa</Label>
+          <Label htmlFor="pipeline-estado">Estado</Label>
           <Select
-            id="pipeline-etapa"
-            value={filtros.etapa}
-            onChange={(evento) => onCambio({ etapa: evento.target.value as EtapaPipeline | '' })}
+            id="pipeline-estado"
+            value={filtros.estadoRfq}
+            onChange={(evento) => onCambio({ estadoRfq: evento.target.value as EstadoRfq | '' })}
           >
-            <option value="">Todas</option>
-            {ETAPAS_PIPELINE.map((etapa) => (
-              <option key={etapa} value={etapa}>
-                {ETIQUETA_ETAPA[etapa]}
+            <option value="">Todos</option>
+            {ESTADOS_PIPELINE.map((estado) => (
+              <option key={estado} value={estado}>
+                {ETIQUETA_ESTADO_RFQ[estado]}
               </option>
             ))}
           </Select>
@@ -157,6 +160,22 @@ export function ControlesPipeline({
           </Select>
         </div>
         <div className="flex flex-col gap-1">
+          <Label htmlFor="pipeline-responsable">Responsable</Label>
+          <Select
+            id="pipeline-responsable"
+            value={filtros.responsableId}
+            onChange={(evento) => onCambio({ responsableId: evento.target.value })}
+            disabled={responsables.length === 0}
+          >
+            <option value="">Todos</option>
+            {responsables.map((responsable) => (
+              <option key={responsable.id} value={responsable.id}>
+                {responsable.nombre}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
           <Label htmlFor="pipeline-desde">Desde</Label>
           <Input
             id="pipeline-desde"
@@ -180,14 +199,22 @@ export function ControlesPipeline({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-texto-secundario">
-          <span><strong className="text-texto-primario tabular-nums">{totalFiltrado}</strong> de {totalTotal} oportunidad(es)</span>
-          <span>Ganadas: <strong className="text-texto-primario tabular-nums">{resumen.ganadas}</strong></span>
-          <span>Perdidas: <strong className="text-texto-primario tabular-nums">{resumen.perdidas}</strong></span>
-          <span>Conversión: <strong className="text-texto-primario tabular-nums">{resumen.conversion}%</strong></span>
-          <span title="Cotización enviada y aún abierta">Enviado: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importeEnviado)}</strong></span>
-          <span title="Oportunidad abierta sin cotización enviada">Pendiente: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importePendiente)}</strong></span>
+          <span><strong className="text-texto-primario tabular-nums">{totalFiltrado}</strong> de {totalTotal} RFQ</span>
+          <span>Convertidos: <strong className="text-texto-primario tabular-nums">{resumen.ganadas}</strong></span>
+          <span>Cerrados/Cancelados: <strong className="text-texto-primario tabular-nums">{resumen.perdidas}</strong></span>
+          <span>Envío: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importeEnviado)}</strong></span>
+          <span>Pendiente: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importePendiente)}</strong></span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="pipeline-proxima-vencida" className="flex items-center gap-1.5 text-sm text-texto-secundario">
+            <input
+              id="pipeline-proxima-vencida"
+              type="checkbox"
+              checked={filtros.proximaVencida}
+              onChange={(evento) => onCambio({ proximaVencida: evento.target.checked })}
+            />
+            Próxima acción vencida
+          </label>
           <label htmlFor="pipeline-solo-ti" className="flex items-center gap-1.5 text-sm text-texto-secundario">
             <input
               id="pipeline-solo-ti"

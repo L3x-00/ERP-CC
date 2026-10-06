@@ -52,13 +52,19 @@ const OPORTUNIDAD: Oportunidad = {
   id: PIPELINE_ID,
   folioOp: 'OP-0001',
   folioCnc: 'CNC-0926-0001',
-  etapa: 'cotizado',
+  folioRfq: 'RFQ-0926_01',
+  estadoRfq: 'CONVERTED',
   nombreContacto: 'Ana Pérez',
   empresa: 'Metales del Norte',
   correo: null,
   telefono: null,
   clienteId: null,
+  contactoId: null,
   vendedorId: '22222222-2222-4222-8222-222222222222',
+  responsableId: null,
+  canal: null,
+  fechaSolicitud: null,
+  descripcionGeneral: null,
   moneda: 'MXN',
   condicionesPago: null,
   prioridad: 'normal',
@@ -69,6 +75,10 @@ const OPORTUNIDAD: Oportunidad = {
   fechaRequerida: null,
   horasEstimadas: null,
   notas: null,
+  proximaAccionCodigo: null,
+  proximaAccionTexto: null,
+  fechaProximaAccion: null,
+  responsableProximaAccionId: null,
   motivoPerdida: null,
   notasPerdida: null,
   fechaUltimoContacto: null,
@@ -368,14 +378,14 @@ describe('EditorCotizacion', () => {
 
   it('una oportunidad ganada se consulta en solo lectura', async () => {
     usarOportunidadMock.mockReturnValue({
-      data: { oportunidad: { ...OPORTUNIDAD, etapa: 'ganada' }, lineas: [LINEA_PERSISTIDA] },
+      data: { oportunidad: { ...OPORTUNIDAD, estadoRfq: 'CLOSED' }, lineas: [LINEA_PERSISTIDA] },
       isLoading: false,
       isError: false,
     });
 
     conProveedor(
       createElement(EditorCotizacion, {
-        oportunidad: { ...OPORTUNIDAD, etapa: 'ganada' },
+        oportunidad: { ...OPORTUNIDAD, estadoRfq: 'CLOSED' },
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ver cotización' }));
@@ -442,7 +452,7 @@ describe('EditorCotizacion', () => {
   it('explica que la cotización con orden es inmutable y la vía de cambio (RFQ-17)', async () => {
     usarOportunidadMock.mockReturnValue({
       data: {
-        oportunidad: { ...OPORTUNIDAD, etapa: 'ganada' },
+        oportunidad: { ...OPORTUNIDAD, estadoRfq: 'CLOSED' },
         lineas: [LINEA_PERSISTIDA],
         ordenVinculada: { folio: 'OP-001001', estado: 'programada' },
       },
@@ -452,7 +462,7 @@ describe('EditorCotizacion', () => {
 
     conProveedor(
       createElement(EditorCotizacion, {
-        oportunidad: { ...OPORTUNIDAD, etapa: 'ganada' },
+        oportunidad: { ...OPORTUNIDAD, estadoRfq: 'CLOSED' },
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Ver cotización' }));

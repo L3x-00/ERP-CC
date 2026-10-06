@@ -10,13 +10,14 @@ import { esquemaCrearProspecto } from '@/modulos/pipeline/validaciones/esquemas-
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 /**
- * Crea un prospecto nuevo en la etapa inicial del pipeline.
+ * Crea un prospecto nuevo en el estado inicial del RFQ (NEW).
  *
  * El folio OP se genera SIEMPRE vía RPC atómica (nunca contando filas ni en
- * cliente). El prospecto queda asignado al vendedor autenticado. Escribe con
- * cliente admin: el folio y las columnas controladas (etapa/folio) están
- * protegidas de escritura directa por trigger/RLS; la autorización ya se hizo
- * arriba (`obtenerUsuarioServidor`) y `vendedor_id` se fija al usuario actual.
+ * cliente). El folio RFQ lo asigna el trigger de alta. El prospecto queda
+ * asignado al vendedor autenticado. Escribe con cliente admin: las columnas
+ * controladas están protegidas de escritura directa por trigger/RLS; la
+ * autorización ya se hizo arriba (`obtenerUsuarioServidor`) y `vendedor_id` se
+ * fija al usuario actual.
  *
  * RFQ-02/03: admite `clienteId` para que la RFQ nazca ligada a un cliente del
  * catálogo, heredando sus condiciones de pago si la captura no fijó otras.
@@ -63,7 +64,7 @@ export async function crearProspectoAccion(
     .from('pipeline')
     .insert({
       folio_op: folioOp,
-      etapa: 'prospecto',
+      estado_rfq: 'NEW',
       nombre_contacto: datos.nombreContacto,
       empresa: datos.empresa,
       // Correo opcional: cadena vacía se normaliza a null.

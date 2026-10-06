@@ -51,7 +51,7 @@ export async function obtenerCotizacionesCliente(
 
   const { data, error, count } = await cliente
     .from('pipeline')
-    .select('id,folio_op,folio_cnc,etapa,moneda,iva_porcentaje,fecha_envio_cotizacion,creado_en,actualizado_en', { count: 'exact' })
+    .select('id,folio_op,folio_cnc,folio_rfq,estado_rfq,moneda,iva_porcentaje,fecha_envio_cotizacion,creado_en,actualizado_en', { count: 'exact' })
     .eq('cliente_id', clienteId)
     .order('creado_en', { ascending: false })
     .order('id', { ascending: false })

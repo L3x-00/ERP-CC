@@ -87,7 +87,6 @@ $$, '23514', 'folio_periodo_agotado', 'El tope 99 no se desborda');
 -- 14-22. Backfill idempotente del histórico
 -- -----------------------------------------------------------------------------
 ALTER TABLE public.pipeline DISABLE TRIGGER trigger_pipeline_asignar_folio_rfq;
-ALTER TABLE public.pipeline DISABLE TRIGGER trigger_pipeline_sincronizar_etapa_rfq;
 
 INSERT INTO public.pipeline (
   id, folio_op, etapa, nombre_contacto, empresa, vendedor_id, notas, creado_en
@@ -105,7 +104,6 @@ INSERT INTO public.cotizacion_lineas (
    ARRAY['proceso_inventado'], 5, 2);
 
 ALTER TABLE public.pipeline ENABLE TRIGGER trigger_pipeline_asignar_folio_rfq;
-ALTER TABLE public.pipeline ENABLE TRIGGER trigger_pipeline_sincronizar_etapa_rfq;
 
 SELECT public.backfill_rfq_legacy(); 
 SELECT is(
@@ -209,14 +207,14 @@ SELECT is(
   3::bigint, 'Cada transición exitosa escribe su rfq_evento');
 SELECT is(
   (SELECT etapa FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b311'),
-  'perdida', 'El puente sincroniza etapa desde estado_rfq');
+  'prospecto', 'Con el puente retirado, estado_rfq ya no mueve la etapa histórica');
 
--- Puente inverso: una acción heredada que mueve `etapa` deriva `estado_rfq`.
+-- La columna histórica tampoco deriva estado_rfq (puente retirado en ola 2).
 UPDATE public.pipeline SET etapa = 'contactado'
 WHERE id = '00000000-0000-4000-8000-00000000b312';
 SELECT is(
   (SELECT estado_rfq FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b312'),
-  'INCOMPLETE', 'El puente deriva estado_rfq desde etapa');
+  'NEW', 'La etapa histórica ya no deriva estado_rfq');
 SELECT throws_ok($$
   SELECT public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b312', 'marcar_listo',

@@ -113,7 +113,7 @@ test.describe.serial('SII-B1.10 Actividad', () => {
       await expect(grupo).toContainText('2 eventos');
 
       const enlacePipeline = vista.getByRole('link', { name: folioCnc });
-      await expect(enlacePipeline).toHaveAttribute('href', `/pipeline?oportunidad=${pipelineId}`);
+      await expect(enlacePipeline).toHaveAttribute('href', `/rfq?rfq=${pipelineId}`);
       const enlaceCliente = vista.getByRole('link', { name: razonSocial });
       await expect(enlaceCliente).toHaveAttribute('href', `/clientes?cliente=${clienteId}`);
       const enlaceOrden = vista.getByRole('link', { name: folioOrden.data });

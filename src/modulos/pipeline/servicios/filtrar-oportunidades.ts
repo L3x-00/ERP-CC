@@ -1,24 +1,28 @@
 import type {
-  EtapaPipeline,
+  EstadoRfq,
   Oportunidad,
   PrioridadPipeline,
 } from '@/modulos/pipeline/tipos/indice';
 
 /**
- * Filtros de tablero para el pipeline (RFQ-13). Se aplican en el cliente sobre
- * las oportunidades ya cargadas, para no perder la vista Kanban por etapa ni
- * disparar refetch por cada tecla. RLS ya acotó el conjunto en el servidor.
+ * Filtros de tablero para el pipeline (RFQ-13, ola 2). Se aplican en el cliente
+ * sobre las oportunidades ya cargadas, para no perder la vista Tablero por
+ * estado ni disparar refetch por cada tecla. RLS ya acotó el conjunto.
  */
 export type FiltrosTablero = {
-  /** Texto libre: folio (OP/CNC), empresa, contacto o cliente ligado. */
+  /** Texto libre: folio (RFQ/OP/CNC), empresa, contacto o cliente ligado. */
   texto: string;
-  etapa: EtapaPipeline | '';
+  estadoRfq: EstadoRfq | '';
   prioridad: PrioridadPipeline | '';
   etiqueta: string;
   /** RFQ-05/13: área/departamento presente en alguna línea de la cotización. */
   area: string;
   /** RFQ-02/13: cliente del catálogo ligado a la oportunidad (`cliente_id`). */
   clienteId: string;
+  /** Ola 2: responsable del RFQ (`responsable_id` o el vendedor si falta). */
+  responsableId: string;
+  /** Ola 2: solo RFQs con próxima acción vencida y estado no terminal. */
+  proximaVencida: boolean;
   /** Fecha de creación desde (YYYY-MM-DD, inclusive). */
   desde: string;
   /** Fecha de creación hasta (YYYY-MM-DD, inclusive). */
@@ -29,11 +33,13 @@ export type FiltrosTablero = {
 
 export const FILTROS_TABLERO_INICIAL: FiltrosTablero = {
   texto: '',
-  etapa: '',
+  estadoRfq: '',
   prioridad: '',
   etiqueta: '',
   area: '',
   clienteId: '',
+  responsableId: '',
+  proximaVencida: false,
   desde: '',
   hasta: '',
   soloInternas: false,
@@ -43,11 +49,13 @@ export const FILTROS_TABLERO_INICIAL: FiltrosTablero = {
 export function hayFiltrosActivos(filtros: FiltrosTablero): boolean {
   return (
     filtros.texto.trim() !== '' ||
-    filtros.etapa !== '' ||
+    filtros.estadoRfq !== '' ||
     filtros.prioridad !== '' ||
     filtros.etiqueta !== '' ||
     filtros.area !== '' ||
     filtros.clienteId !== '' ||
+    filtros.responsableId !== '' ||
+    filtros.proximaVencida ||
     filtros.desde !== '' ||
     filtros.hasta !== '' ||
     filtros.soloInternas
@@ -58,6 +66,7 @@ function coincideTexto(oportunidad: Oportunidad, termino: string): boolean {
   const t = termino.trim().toLowerCase();
   if (t === '') return true;
   return [
+    oportunidad.folioRfq,
     oportunidad.folioOp,
     oportunidad.folioCnc,
     oportunidad.empresa,
@@ -66,14 +75,30 @@ function coincideTexto(oportunidad: Oportunidad, termino: string): boolean {
   ].some((campo) => (campo ?? '').toLowerCase().includes(t));
 }
 
+/**
+ * ¿La próxima acción está vencida? Solo aplica a RFQs no terminales con fecha
+ * de próxima acción anterior a hoy (comparación ISO `YYYY-MM-DD`).
+ */
+export function proximaAccionVencida(oportunidad: Oportunidad, hoy: string): boolean {
+  if (
+    oportunidad.estadoRfq === 'CLOSED' ||
+    oportunidad.estadoRfq === 'CANCELLED' ||
+    oportunidad.ordenVinculada
+  ) {
+    return false;
+  }
+  return oportunidad.fechaProximaAccion !== null && oportunidad.fechaProximaAccion < hoy;
+}
+
 /** Aplica los filtros de tablero sobre una lista de oportunidades. */
 export function filtrarOportunidades(
   oportunidades: readonly Oportunidad[],
   filtros: FiltrosTablero,
+  hoy: string = new Date().toISOString().slice(0, 10),
 ): Oportunidad[] {
   return oportunidades.filter((oportunidad) => {
     if (!coincideTexto(oportunidad, filtros.texto)) return false;
-    if (filtros.etapa !== '' && oportunidad.etapa !== filtros.etapa) return false;
+    if (filtros.estadoRfq !== '' && oportunidad.estadoRfq !== filtros.estadoRfq) return false;
     if (filtros.prioridad !== '' && oportunidad.prioridad !== filtros.prioridad) return false;
     if (filtros.etiqueta !== '' && !oportunidad.etiquetas.includes(filtros.etiqueta)) return false;
     if (filtros.soloInternas && !oportunidad.esOrdenInterna) return false;
@@ -84,6 +109,11 @@ export function filtrarOportunidades(
     // RFQ-02/13: cliente del catálogo ligado (las oportunidades sin cliente no
     // coinciden con un filtro de cliente concreto).
     if (filtros.clienteId !== '' && oportunidad.clienteId !== filtros.clienteId) return false;
+    if (filtros.responsableId !== '') {
+      const responsable = oportunidad.responsableId ?? oportunidad.vendedorId;
+      if (responsable !== filtros.responsableId) return false;
+    }
+    if (filtros.proximaVencida && !proximaAccionVencida(oportunidad, hoy)) return false;
     // Comparación lexicográfica de fechas ISO: válida para YYYY-MM-DD.
     const dia = (oportunidad.creadoEn ?? '').slice(0, 10);
     if (filtros.desde !== '' && dia < filtros.desde) return false;

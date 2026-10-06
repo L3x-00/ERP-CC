@@ -81,7 +81,7 @@ beforeEach(() => {
       nombreContacto: 'Ana López',
       correo: 'ana@acme.test',
       telefono: '6640000000',
-      etapa: 'negociacion',
+      estadoRfq: 'CONVERTED',
     },
     lineas: [],
   });
@@ -104,7 +104,7 @@ describe('marcarGanadaAccion', () => {
         id: OPORTUNIDAD_ID,
         clienteId: CLIENTE_ID,
         empresa: 'Proyecto distinto',
-        etapa: 'negociacion',
+        estadoRfq: 'CONVERTED',
       },
       lineas: [],
     });
@@ -126,7 +126,7 @@ describe('marcarGanadaAccion', () => {
         empresa: 'Nombre de proyecto diferente',
         nombreContacto: 'Ana López',
         correo: 'otra-cuenta@orca.test',
-        etapa: 'negociacion',
+        estadoRfq: 'CONVERTED',
       },
       lineas: [],
     });

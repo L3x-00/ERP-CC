@@ -46,7 +46,7 @@ export async function actualizarOrdenInternaAccion(
     return { exito: false, error: 'No encontrada' };
   }
 
-  if (cargada.oportunidad.etapa === 'ganada' || cargada.oportunidad.etapa === 'perdida') {
+  if (cargada.oportunidad.estadoRfq === 'CLOSED' || cargada.oportunidad.estadoRfq === 'CANCELLED') {
     return { exito: false, error: 'La condición interna solo se cambia con la oportunidad abierta' };
   }
 

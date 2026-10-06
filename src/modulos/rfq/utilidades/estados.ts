@@ -6,6 +6,45 @@ import type {
 } from '../tipos/indice';
 import { SECCIONES_VALIDACION_RFQ } from '../tipos/indice';
 
+/**
+ * Acciones de negocio disponibles por estado del RFQ (ADR-SII-07). Es el
+ * espejo en TS de la máquina de estados de `cambiar_estado_rfq`; el servidor
+ * revalida siempre.
+ */
+export const ACCIONES_POR_ESTADO: Record<EstadoRfq, readonly AccionRfq[]> = {
+  NEW: [
+    'marcar_incompleto',
+    'poner_en_espera_cliente',
+    'poner_en_espera_tecnica',
+    'marcar_listo',
+    'cerrar',
+    'cancelar',
+  ],
+  INCOMPLETE: [
+    'poner_en_espera_cliente',
+    'poner_en_espera_tecnica',
+    'marcar_listo',
+    'cerrar',
+    'cancelar',
+  ],
+  WAITING_CUSTOMER: ['marcar_incompleto', 'marcar_listo', 'cerrar', 'cancelar'],
+  WAITING_TECHNICAL: ['marcar_incompleto', 'marcar_listo', 'cerrar', 'cancelar'],
+  READY_FOR_PROPOSAL: ['marcar_incompleto', 'cerrar', 'cancelar'],
+  CONVERTED: [],
+  CLOSED: [],
+  CANCELLED: [],
+};
+
+/** ¿La acción está permitida desde el estado actual? */
+export function esAccionValida(estado: EstadoRfq, accion: AccionRfq): boolean {
+  return ACCIONES_POR_ESTADO[estado].includes(accion);
+}
+
+/** Estados terminales: ya no admiten acciones de negocio del RFQ. */
+export function esEstadoTerminal(estado: EstadoRfq): boolean {
+  return estado === 'CONVERTED' || estado === 'CLOSED' || estado === 'CANCELLED';
+}
+
 /** Etiqueta legible por estado del RFQ. */
 export const ETIQUETAS_ESTADO_RFQ: Record<EstadoRfq, string> = {
   NEW: 'Nuevo',

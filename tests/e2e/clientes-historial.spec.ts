@@ -112,6 +112,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
       vendedor_id: administradorId,
       cliente_id: cliente.id,
       etapa: 'cotizado',
+      estado_rfq: 'CONVERTED',
       moneda: 'MXN',
       prioridad: 'normal',
     })
@@ -236,13 +237,11 @@ test.describe.serial('historial navegable y notas de taller (OBS-11)', () => {
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
     await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
-    // Deep-link OBS-11: ?oportunidad=<id> abre el editor de esa cotización.
-    await page.goto(`/pipeline?oportunidad=${datos.pipelineId}`);
-    const dialogoCotizacion = page.getByRole('dialog', { name: `Cotización ${datos.folioCnc ?? datos.folioOp}` });
-    await expect(dialogoCotizacion).toBeVisible();
-    await expect(dialogoCotizacion.getByLabel('Descripción')).toHaveValue('Pieza histórica');
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // Deep-link OBS-11: ?rfq=<id> abre la ficha del RFQ histórico.
+    await page.goto(`/rfq?rfq=${datos.pipelineId}`);
+    const fichaRfq = page.getByTestId('ficha-rfq');
+    await expect(fichaRfq).toBeVisible();
+    await expect(fichaRfq).toContainText(datos.folioCnc ?? datos.folioOp);
 
     // Ficha del cliente → Historial: enlaces a originales y notas de taller.
     await page.goto('/clientes');
@@ -255,7 +254,7 @@ test.describe.serial('historial navegable y notas de taller (OBS-11)', () => {
     await expect(enlaceCotizacion).toBeVisible();
     await expect(enlaceCotizacion).toHaveAttribute(
       'href',
-      `/pipeline?oportunidad=${datos.pipelineId}`,
+      `/rfq?rfq=${datos.pipelineId}`,
     );
     const enlaceOrden = ficha.getByTestId(`enlace-orden-${datos.ordenId}`);
     await expect(enlaceOrden).toBeVisible();

@@ -69,14 +69,14 @@ describe('presentación sin UUID crudo', () => {
   it('traduce acciones y módulos conocidos y humaniza los códigos nuevos', () => {
     expect(etiquetaAccion('crear')).toBe('Alta');
     expect(etiquetaAccion('actualizar_permisos_rol')).toBe('Actualizar permisos rol');
-    expect(etiquetaModulo('pipeline')).toBe('Pipeline / RFQ');
+    expect(etiquetaModulo('pipeline')).toBe('RFQ');
     expect(etiquetaModulo('modulo_nuevo')).toBe('Modulo nuevo');
   });
 
   it('construye enlaces solo para entidades resueltas y uuid válidos', () => {
     const id = '10000000-0000-4000-8000-000000000001';
     expect(enlaceRegistroActividad(registro({ id: 'a', entidad: 'pipeline', recursoId: id })))
-      .toBe(`/pipeline?oportunidad=${id}`);
+      .toBe(`/rfq?rfq=${id}`);
     expect(enlaceRegistroActividad(registro({ id: 'b', entidad: 'cliente', recursoId: id })))
       .toBe(`/clientes?cliente=${id}`);
     expect(enlaceRegistroActividad(registro({ id: 'c', entidad: 'orden', recursoId: id })))

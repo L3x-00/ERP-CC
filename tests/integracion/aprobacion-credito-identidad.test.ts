@@ -79,6 +79,7 @@ describir('A13-A14: aprobación con crédito e identidad de cliente', () => {
       vendedor_id: usuarioId,
       cliente_id: clienteId,
       etapa: 'negociacion',
+      estado_rfq: 'CONVERTED',
       iva_porcentaje: 0,
     }).select('id').single();
     if (respuesta.error || !respuesta.data) throw new Error(respuesta.error?.message ?? 'Sin oportunidad QA');
