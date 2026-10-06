@@ -42,3 +42,10 @@
 - Fixes del coordinador: scoping pgTAP de catálogos, limpieza de fixtures E2E por desactivación, desborde/relleno de folio (999), `hoyIso` unificado en Planeación.
 - Migraciones para el PO: `20261007100004/5` (B), `0006/7/8` (fixes folio), `20261007110001/2` (C), `20261007150001` (A) en ese orden.
 - Siguiente ola emitida: A → B5 ola 1 (`0712*`) + rango folios 999; B → B6 ola 1 (`0713*`, modelo sin UI); C → B4 ola 2 (`0711*` 0003+, UI/PDF/envío/E2E). Prompts en `paralelo/prompts/`.
+
+### Cierre de la ola 4 y nueva asignación — 2026-10-06
+
+- Commits: B5 ola 1 `7aaee76` · B6 ola 1 `247fe31` · B4 ola 2 `5aa3ca9` · fixes `d91fdc8`.
+- Auditoría 7: corregidos el puente `estado_sii` en INSERT, la próxima acción en READY_TO_SEND y specs frágiles (paginación, Realtime, selectores estrictos). Gates: pgTAP 912/912, unit 916/916, integración 226/226, typecheck/lint/build 0; specs E2E afectados verdes en focal; suite completa local pendiente de `db reset` autorizado.
+- Migraciones para el PO: `0711 0003/0004`, `0712 0001/0002/0003`, `0713 0001/0002`, `0715 0002`.
+- Nueva ola: A → B5 ola 2 (UI órdenes/consumidores, `0712*` 0004+); B → B6 ola 2 (UI piso/calidad/checklist real, `0713*` 0003+); C → B7 ola 1 (entregas modelo, `0714*`). Prompts en `paralelo/prompts/`.

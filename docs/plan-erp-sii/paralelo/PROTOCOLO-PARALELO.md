@@ -18,13 +18,14 @@ Regla: **una terminal no toca archivos de otro stream** (mapa en §3). Si lo nec
 
 | Bloque | Terminal | Banda | Estado |
 |---|---|---|---|
-| B3 RFQ olas 1–2 | B | `2026100710xxxx` | **cerrado y commiteado** (`452bfcf`, `a0cd4f3`); fixes de folio `0006–0008` |
-| B4 Propuestas ola 1 | C | `2026100711xxxx` | **cerrado y commiteado** (`6b0c524`) |
-| B4 Propuestas ola 2 (UI/PDF/envío/E2E) | C | `2026100711xxxx` (0003+) | en curso |
-| B5 Orden ola 1 (modelo/snapshot/estados) | A | `2026100712xxxx` | en curso |
-| B6 Producción ola 1 (modelo de piso) | B | `2026100713xxxx` | en curso |
-| B7 Entregas | por asignar | `2026100714xxxx` | pendiente |
-| Continuidad de folios (B3.5) | A | `2026100715xxxx` | **cerrado y commiteado** (`c161b1a`); alinear rango a 999 en B5 ola 1 |
+| B3 RFQ olas 1–2 | B | `2026100710xxxx` | **cerrado y commiteado** (`452bfcf`, `a0cd4f3`; fixes `0006–0008`) |
+| B4 Propuestas olas 1–2 | C | `2026100711xxxx` | **cerrado y commiteado** (`6b0c524`, `5aa3ca9`, ver `0004`) |
+| B5 Orden ola 1 | A | `2026100712xxxx` | **cerrado y commiteado** (`7aaee76`); puente endurecido en `d91fdc8` |
+| B5 Orden ola 2 (UI/consumidores) | A | `2026100712xxxx` (0004+) | en curso |
+| B6 Producción ola 1 | B | `2026100713xxxx` | **cerrado y commiteado** (`247fe31`) |
+| B6 Producción ola 2 (UI piso/calidad) | B | `2026100713xxxx` (0003+) | en curso |
+| B7 Entregas ola 1 (modelo) | C | `2026100714xxxx` | en curso |
+| Continuidad de folios (B3.5) | A | `2026100715xxxx` | **cerrado** (`c161b1a`, `7aaee76`) |
 
 Transferencias vigentes:
 - **A**: `src/modulos/ordenes/**` (B5, dominio sin UI + estados) y `src/modulos/configuracion/{componentes/pestana-folios.tsx, acciones/continuidad-folios*.ts, tipos, validaciones}`.
@@ -104,6 +105,9 @@ Deben aparecer los tres marcadores (uno por stream). Si falta el tuyo, vuélvelo
 7. **Formato de consecutivos**: nunca `lpad(x, 2, '0')` (trunca) ni `to_char(x, 'FM00')` (desborda a `##`) para números que pueden superar 2 dígitos; usa `CASE`. Cubre en pgTAP 99→100→101 cuando aplique.
 8. **“Hoy” único**: para fechas de calendario usa `hoyIso()` (fecha local del operador) en servidor y cliente; no uses `toISOString()` para “hoy”.
 9. **Fixtures de catálogo**: el trigger `catalogo_sin_borrado` impide DELETE en los catálogos; los E2E desactivan (`activo=false`) y borran solo `versiones_catalogo`. Los pgTAP de catálogos se acotan a las semillas, no a igualdad de tabla completa.
+10. **Puente `estado_sii`**: sincroniza legacy en INSERT y UPDATE, derivando solo el lado que no vino explícito. Nunca lo elimines sin confirmar que Producción (B) lee `estado_sii`.
+11. **Specs ante listas grandes/paginadas**: filtra por el dato único (folio/nombre) antes de aserciones; scopea botones con `.first()` si el árbol puede duplicarlos; ante re-render por Realtime, reintenta el clic y verifica en el panel o en la BD (caso “Guardar áreas”).
+12. **Suite E2E completa local**: si se acumulan datos de muchas corridas, pedir al PO autorización para `supabase db reset` + fixture antes de la corrida completa.
 
 ## 5. Bloqueos de pruebas mutantes y E2E
 

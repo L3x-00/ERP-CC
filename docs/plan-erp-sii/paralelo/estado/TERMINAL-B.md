@@ -133,3 +133,46 @@ DECISIONES / INTERPRETACIONES:
 BLOQUEOS: ninguno propio.
 
 SIGUIENTE: el PO aplica `20261007100004/0005` en remoto; el coordinador hace cross-review y commit; B4/B5 sustituirán la aceptación/orden y retirarán las últimas lecturas de `etapa` (`aprobar_oportunidad_y_crear_orden`, `guardar_cotizacion_atomica`).
+
+## 2026-10-05 23:40 — B6 Producción básica ola 1 (modelo y reglas de piso)
+
+TERMINAL: B | FECHA-HORA: 2026-10-05 23:40
+ESTADO: SUB-BLOQUE LISTO (modelo, sin UI; pendiente de verificación del coordinador)
+TAREAS:
+- Modelo LISTO: `corridas` + `corrida_items` (compatibilidad por orden/proceso/grupo, código `<PREFIJO><NN>` con consecutivo CASE sin truncar), `sesiones_trabajo.corrida_id` nullable + auto-corrida legacy al primer inicio, `catalogo_motivos_pausa` (DUDA/MATERIAL liberan máquina) + columnas `motivo_pausa_codigo/nota`, `recurso_liberado`, `verificacion_inicio`, `autorizaciones_hora_extra` e `inspecciones_calidad`. RLS de lectura por permiso de producción/calidad, Realtime de `corridas`, backfill de motivos legacy.
+- Acciones LISTO: `crear_corrida` (items compatibles, cantidades ≤ pendiente, nunca otra orden), `iniciar_corrida`/`completar_corrida` (todas las metas)/`cancelar_corrida` (sin avance), `reclamar_recurso_liberado` (≥60 min, motivo liberable, traza), `cerrar_jornada` (FIN_JORNADA, sin cruzar fecha), `autorizar_horas_extra` (Management/Admin; cierre valida contra la jornada configurada del turno vía capacidad efectiva, sin hardcodear 8 h), `registrar_inspeccion` (primera pieza, referencias 1/3/5 e intervalos 10/20, cierre).
+- RPC de piso recreadas LISTO: `iniciar_sesion_trabajo_operador` (checklist obligatorio de 6 eventos, corrida explícita/única/auto-legacy, herencia del checklist al reanudar) y `cerrar_sesion_trabajo_operador` (motivo por catálogo o legacy, nota si el catálogo la exige, gate de primera pieza, horas extra con autorización consumida como USADA, estado de corrida derivado) conservando firma/returns y el contrato de locks partida→orden→operador→programación→recurso→sesión.
+- Código LISTO: tipos/validaciones/servicios/acciones en `src/modulos/produccion/**` con `can()` + admin + `registrarLog` + `nuevoCorrelationId`; `supabase.ts` bajo lock con las 5 tablas, columnas de sesión y 8 RPC nuevas.
+- Hook B5: ningún objeto de B6 asume `estado_sii`; el único update va en `DO`/`IF EXISTS` dentro de `completar_corrida`.
+
+ARCHIVOS:
+- Nuevos: `supabase/migrations/20261007130001_sii_b6_produccion_base.sql`, `20261007130002_sii_b6_produccion_acciones.sql`, `supabase/tests/sii_b6_produccion.test.sql`, `src/modulos/produccion/tipos/corridas.ts`, `src/modulos/produccion/utilidades/corridas.ts`, `src/modulos/produccion/validaciones/corridas.ts`, `src/modulos/produccion/servicios/{corridas,calidad}-servicio.ts`, `src/modulos/produccion/acciones/{utilidades-acciones,crear-corrida,estado-corrida,reclamar-recurso,cerrar-jornada,autorizar-horas-extra,registrar-inspeccion}.ts`, `tests/unitarias/produccion-corridas.test.ts`.
+- Modificados: `src/compartido/tipos/supabase.ts`, `src/modulos/produccion/{tipos/produccion,tipos/indice,utilidades/indice,validaciones/produccion,validaciones/indice,servicios/sesiones-servicio,servicios/indice,acciones/indice,acciones/iniciar-sesion-operador}.ts`, `tests/unitarias/{produccion-esquemas,produccion-tablero}.test.ts`, `tests/integracion/produccion-sesiones.test.ts`, `supabase/tests/{a05_a06_areas_operador,a20_reanudar_sesion_contextual,sii_b3_rfq_base}.test.sql` (regresión al contrato B6 y al folio 999 de A).
+
+MIGRACIONES: `20261007130001` y `20261007130002` | APLICADAS EN LOCAL CON AUTORIZACIÓN EXPRESA DEL PO (psql + `migration repair --status applied --local`, porque la CLI pedía `--include-all` por migraciones de A/C aún pendientes y las terminales no usan ese flag). NO aplicadas en remoto: pendiente PO.
+
+GATES:
+- unit: 916/916. lint: 0. typecheck: 0. build: OK.
+- pgTAP focal `sii_b6_produccion.test.sql`: 71/71.
+- pgTAP global: 36 archivos, 811 tests; 704 en verde y 3 archivos en rojo EXCLUSIVAMENTE por migraciones pendientes de A/C: `sii_b3_continuidad_folios` (A `20261007150002`), `sii_b4_propuestas_envio` (C `20261007110003`), `sii_b5_orden` (A `20261007120001/2`).
+- integración: 226/226.
+- E2E regresión del flujo mutado: `produccion-piso.spec.ts` + `produccion-avance-procesos.spec.ts` → 3/3 con `BLOQUEO-PRUEBAS.lock`.
+
+EVIDENCIA (comandos):
+- `pnpm typecheck` EXIT 0; `pnpm lint` EXIT 0; `pnpm test` 916 passed; `pnpm build` EXIT 0.
+- `supabase test db supabase/tests/sii_b6_produccion.test.sql --local` → 71/71 PASS.
+- `supabase test db --local` → Files=36, Tests=811 (fallos solo A/C por migraciones pendientes).
+- `pnpm test:integracion` → 30 archivos, 226 passed.
+- `pnpm exec playwright test tests/e2e/produccion-piso.spec.ts tests/e2e/produccion-avance-procesos.spec.ts` → 3 passed.
+
+DECISIONES / INTERPRETACIONES:
+- Corridas legacy: si no llega `p_corrida_id`, se usa la corrida de la última sesión de la programación (reanudación), o la única activa del ítem; con más de una activa se exige elegir (`corrida_ambigua`). Sin corrida se genera una automática con el proceso que la partida/metas declaren; si no hay match de catálogo, se usa un proceso activo sin `requiere_primera_pieza` como fallback técnico de grandfathering (evita bloquear producción legacy por un gate nuevo).
+- `reanudar_sesion_trabajo_a20` conserva el checklist del inicio (lo hereda de la sesión pausada); no cambia su firma.
+- Compatibilidad temporal de checklist: la Server Action de inicio de sesión del piso inyecta una verificación marcada como “compatibilidad B6 ola 1” cuando la UI aún no la captura; la ola 2 la sustituye por la captura real (el SQL ya la exige).
+- La pausa acepta códigos del catálogo nuevo o los 6 motivos legacy (mapeo documentado); el CHECK legacy de `motivo_pausa` se conserva (ADR-09).
+- Horas extra: solo se exige autorización cuando la jornada configurada del turno es > 0 (capacidad efectiva del recurso/fecha/turno); si el recurso no tiene capacidad configurada, no se bloquea (nunca se hardcodea 8 h).
+- `corrida_ambigua`/`verificacion_inicio_incompleta` y demás códigos nuevos se agregaron al union `CodigoErrorProduccion` con mensajes es-MX.
+
+BLOQUEOS: ninguno propio. A/C tienen migraciones pendientes en local (`20261007110003`, `20261007120001/2`, `20261007150002`) y sus tests pgTAP/typecheck en curso; no las toqué.
+
+SIGUIENTE: el PO aplica `2026100713*` en remoto; el coordinador hace cross-review/commit; B6 ola 2 monta la UI de corridas/checklist/pausas/horas extra/calidad y retira la verificación de compatibilidad.

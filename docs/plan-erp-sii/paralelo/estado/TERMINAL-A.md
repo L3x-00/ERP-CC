@@ -131,4 +131,56 @@ SIGUIENTE: aplicar 2026100715* en local → correr pgTAP + integración + E2E fo
   BLOQUEO-PRUEBAS y cerrar reporte.
 ```
 
+## 2026-10-05 21:48 — B5 ola 1 (orden desde revisión, snapshot y estados) + Fase 0 rango 999
+
+```
+TERMINAL: A | FECHA-HORA: 2026-10-05 21:48
+ESTADO: SUB-BLOQUE LISTO (código/dominio/tests) · BLOQUEADO para gates mutantes hasta aplicar 0712* y 0715*0002
+
+TAREAS:
+  FASE 0 (rango folios): RPC consultar/ajustar periódico con rango 0..999 ✅ · UI/validaciones a 999 ✅ ·
+    pgTAP actualizado (ajustar 100 y 999 OK; 1000 falla) ✅
+  B5.1/B5.2/B5.5 (0001): columnas SII + folio_sii + snapshot_json + eventos + backfill + puente ✅ ·
+    RPC crear_orden_desde_revision (idempotente, snapshot, AR no cobrable, gate de crédito) ✅ ·
+    RPC crear_orden_interna (OI- con autorización) ✅
+  B5.3/B5.4 (0002): liberar_orden ✅ · cerrar_orden_administrativa ✅ · ajustar_orden_post_aceptacion ✅ ·
+    derivaciones programación→PLANIFICADA, sesión→EN_PRODUCCION, metas→PRODUCCION_COMPLETADA ✅
+  Dominio TS (sin UI): tipos + snapshot guard + Zod + servicio + 5 acciones con can/registrarLog/correlationId ✅
+  supabase.ts con BLOQUEO-TIPOS tomado/liberado y marcadores de los 4 streams ✅
+  pgTAP sii_b5_orden.test.sql (64 aserciones) ✅ dry-run · unitarias estado/snapshot/Zod ✅
+
+ARCHIVOS:
+  supabase/migrations/20261007150002_sii_b3_continuidad_folios_rango.sql (nuevo)
+  supabase/migrations/20261007120001_sii_b5_orden_base.sql (nuevo)
+  supabase/migrations/20261007120002_sii_b5_orden_estados.sql (nuevo)
+  supabase/tests/sii_b5_orden.test.sql (nuevo) · supabase/tests/sii_b3_continuidad_folios.test.sql (rango 999)
+  src/modulos/ordenes/tipos/orden-sii.ts · validaciones/orden-sii.ts · servicios/orden-sii-servicio.ts (nuevos)
+  src/modulos/ordenes/acciones/{crear-orden-desde-revision,crear-orden-interna,liberar-orden,cerrar-orden-administrativa,ajustar-orden-post-aceptacion}.ts (nuevos)
+  src/modulos/configuracion/{componentes/pestana-folios.tsx,validaciones/continuidad-folios-periodico.ts} (rango 999)
+  src/compartido/tipos/supabase.ts (eventos + columnas SII + 5 funciones)
+  Ajustes por mi cambio de FK/tipos (hints PostgREST + fixture): src/modulos/ordenes/servicios/ordenes-servicio.ts,
+    planeacion/servicios/desglose-servicio.ts, produccion/servicios/documentos-orden-servicio.ts,
+    pipeline/servicios/obtener-oportunidades.ts, cobranza/componentes/estado-cuenta-cliente-boton.tsx,
+    tests/unitarias/ordenes-esquemas.test.ts
+  tests/unitarias/ordenes-estado-sii.test.ts · tests/unitarias/configuracion-continuidad-periodico.test.ts (nuevos/actualizados)
+
+MIGRACIONES: 20261007150002, 20261007120001, 20261007120002 | APLICADA POR PO: no
+  Orden: 0610* → 0710* → 0711* → 0712* → 0715* (el 0712 relaja el CHECK de contadores para el tipo `O` de una letra)
+
+GATES: typecheck: mis archivos 0 (global falla por C: propuestas cola/hook) · lint 0 (mis archivos) ·
+  unit 906/906 · build: bloqueado por C (module-not-found en propuestas) — mi código compila ·
+  pgTAP B5 64/64 y B3.5 29/29 en dry-run transaccional revertido (0 rastros) · pgTAP real/integración/E2E ⏸
+
+EVIDENCIA:
+  · docker psql BEGIN + 0712/0001 + 0712/0002 + sii_b5_orden.test → 64 ok, sin "not ok"; luego 0 funciones/tablas tras ROLLBACK
+  · docker psql BEGIN + 0712/0001 + 0715/0002 + sii_b3_continuidad_folios.test → 29 ok
+  · npx vitest run ordenes-estado-sii + ordenes-esquemas + continuidad-periodico → 36/36; pnpm test → 111 files/906
+  · Corregidos durante el dry-run: partidas antes de la orden (FK), `id` ambiguo con OUT params, CHECK de 2..6 letras del contador
+
+BLOQUEOS: falta aplicar 20261007150002 y 20261007120001/0002 en local (PO/coordinador; `--include-all` si el orden
+  remoto lo bloquea). Sin eso no corren `supabase test db`, integración ni E2E.
+SIGUIENTE: aplicar migraciones → pgTAP global + integración + E2E de regresión (planeación/producción) con
+  BLOQUEO-PRUEBAS; la UI de la orden (consumidores) es la ola 2.
+```
+
 

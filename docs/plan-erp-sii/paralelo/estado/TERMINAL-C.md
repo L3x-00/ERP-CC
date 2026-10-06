@@ -86,4 +86,27 @@
 - BLOQUEOS: ninguno propio. Dependencia de orden: aplicar A `2026100610*` → B3 `2026100710*` → C `2026100711*` (las guardas lo verifican).
 - SIGUIENTE: PO aplica `2026100711*` en local/remoto; luego `supabase test db` completo y pase a ola 2 (UI `/propuestas`, PDF, envío atómico).
 
+## 2026-10-06 — B4 Propuestas ola 2 (UI, PDF, envío y E2E): SUB-BLOQUE LISTO (focal pendiente de aplicar 0003)
+
+- TERMINAL: C | FECHA-HORA: 2026-10-06
+- ESTADO: SUB-BLOQUE LISTO. `20261007110001/0002` ya están aplicadas en local; **falta que el PO aplique `20261007110003`** para `supabase test db` y el E2E focal.
+- TAREAS: SII-B4.7 (PDF + spike ADR-SII-04 + envío atómico), SII-B4.8 (archivos), SII-B4.11 (cola/ficha/editor/capturas) y E2E del flujo completo.
+- ARCHIVOS:
+  - Migración: `supabase/migrations/20261007110003_sii_b4_propuestas_envio_pdf.sql` (buckets privados `propuestas-pdf`/`propuestas-archivos`, `registrar_pdf_revision` idempotente por hash, `enviar_revision` atómico con PDF/canal/destino/próxima acción).
+  - pgTAP: `supabase/tests/sii_b4_propuestas_envio.test.sql` (32 aserciones).
+  - PDF: `src/modulos/propuestas/servicios/pdf/{documento-propuesta,escritor-pdf}.ts` (escritor PDF 1.4 interno, sin dependencias).
+  - Acciones nuevas: `generar-pdf-revision`, `enviar-revision`, `firmar-archivo-propuesta`, `subir-archivo-propuesta`, `obtener-propuesta`, `obtener-propuestas`, `obtener-catalogos-propuesta` (y esquemas Zod de la ola 2).
+  - UI: ruta `src/app/(panel)/propuestas/{page,loading}.tsx`, componentes `cola-propuestas`, `ficha-propuesta`, `panel-acciones-propuesta`, `editor-items-propuesta`, `panel-ruteo-costeo`, `panel-archivos-propuesta`, `panel-pdfs-propuesta`, `panel-seguimiento-propuesta`, `actividad-propuesta`, `lista-propuestas-rfq`, `sincronizador-propuestas-realtime` y hooks/claves.
+  - Zonas compartidas (permitidas por el prompt): pestaña Propuestas de `src/modulos/rfq/componentes/ficha-rfq.tsx` (placeholder → componente real) y enlace aditivo en `src/compartido/componentes/navegacion/modulos-navegacion.ts`; nota de decisión del spike en `docs/plan-erp-sii/04-propuestas.md` §4.7.
+  - Tipos: `src/compartido/tipos/supabase.ts` con bloqueo §4 (bloques `enviar_revision` y `registrar_pdf_revision`); marcadores de los 4 streams verificados.
+  - E2E: `tests/e2e/propuestas-flujo.spec.ts` (focal, pendiente de 0003) y unitarias `propuestas-pdf.test.ts` + ampliación de `propuestas-esquemas.test.ts`.
+- MIGRACIONES: `20261007110003_sii_b4_propuestas_envio_pdf` | APLICADA POR PO: no (validada 2× idempotente y pgTAP 32/32 en copia scratch).
+- GATES: unit 112 archivos / 916 pruebas · lint 0 · typecheck 0 · build 0 · integración 226/226 · E2E regresión: `aceptacion-comercial` 2/2, `rfq-flujo` 1/1, `actividad` 1/1 (1 skip ajeno) · pgTAP `sii_b4_propuestas_envio` 32/32 y `sii_b4_propuestas` 88/88 en scratch · E2E focal PENDIENTE de aplicar 0003 · capturas 1440/768 × claro/oscuro pendientes de la corrida focal (se generan en `.ai-shared/qa/sii-b4-ola2/visual/` con `E2E_CAPTURAR_VISUAL=1|si`).
+- EVIDENCIA:
+  - Scratch: pg_dump del esquema local → aplicar `0001/0002/0003` dos veces sin errores; `ok=88` + `ok=32`, `notok=0`.
+  - Spike PDF (ADR-SII-04): decisión = escritor PDF 1.4 interno sin dependencias (sin red, determinista, hash estable, peso nulo); `@react-pdf/renderer`/Chromium descartados por ahora y sustituibles tras `generarPdfBorrador`. Prueba de exclusión: el binario no contiene costo/margen/setup/run/ruteo/mano de obra. Nota registrada en `04-propuestas.md` §4.7.
+  - Gates mutantes con `BLOQUEO-PRUEBAS.lock` (tomado y liberado); regresión E2E ejecutada con admin temporal del stack local (creado y eliminado).
+- BLOQUEOS: `20261007110003` requiere aplicación del PO (protocolo §2.3). Sin ella no corren `supabase test db` (el test nuevo referencia `enviar_revision`/`registrar_pdf_revision`) ni el E2E focal/capturas.
+- SIGUIENTE: aplicada 0003, correr `supabase test db` completo, E2E focal `propuestas-flujo` + capturas, y reportar al coordinador para cross-review/commit.
+
 

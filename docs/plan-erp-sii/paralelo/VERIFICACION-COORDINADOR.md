@@ -118,3 +118,22 @@
   3. Fixes folio: `20261007100006`, `20261007100007`, `20261007100008`
   4. B4 ola 1 (C): `20261007110001_sii_b4_propuestas_base.sql`, `20261007110002_sii_b4_propuestas_acciones.sql`
   Orden recomendado: `0004 → 0005 → 0006 → 0007 → 0008 → 0711* → 0715`. Todas idempotentes con guardas de dependencia.
+
+### Auditoría 6 — 2026-10-06 (ola 4 en curso; pasada estática)
+
+- **A (B5 ola 1):** fase 0 completa (`20261007150002` rango 0..999 + UI/Zod/pgTAP/unit ajustados) y migraciones `20261007120001/2` creadas. Verificado estáticamente: guardas `to_regclass` de B4/catálogos/archivos/follio, CHECKs de estado/folio (`O(I)?-[0-9]{4}_[0-9]{2,3}`, coherente con el desborde), índices únicos (folio_sii y revisión), snapshot objeto, comentarios. Sin commits ni zonas prohibidas.
+- **C (B4 ola 2):** `20261007110003` con `registrar_pdf_revision` idempotente por hash y `enviar_revision` atómico (READY_TO_SEND + PDF vigente + canal + destino + próxima acción, GUC del frozen). **Decisión del spike PDF**: escritor interno sin dependencias (PDF 1.4, Helvetica/WinAnsi, xref, determinista sin fecha) — cumple criterios del ADR-04; pendiente validar contenido/exclusión de campos internos y acentos en la prueba.
+- **B (B6 ola 1):** sin artefactos aún al momento de la pasada.
+- **Transversal:** bandas correctas, `git log` intacto, sin locks activos, sin cambios en zonas congeladas.
+- **Pendiente:** aplicar en local `0711 0003`, `0712 0001/2`, `0715 0002` cuando los streams reporten; correr pgTAP/unit/integración/E2E; auditar B6; commits por stream.
+
+### Auditoría 7 — 2026-10-06 (cierres B5 ola 1, B6 ola 1 y B4 ola 2)
+
+- **Gates combinados:** typecheck 0 · lint 0 · build OK · pgTAP **912/912** (36 archivos) · unit **916/916** · integración **226/226**.
+- **Defectos encontrados por la auditoría y corregidos por el coordinador (`d91fdc8`):**
+  1. **Puente `estado_sii` solo en UPDATE**: las órdenes insertadas por vías legacy con `estado` explícito tomaban `estado_sii='CONFIRMADA'`; al programarse, el puente pisaba `estado` a `programada` y rompía consumo de material y bolsa de planeación (fallos E2E de `gastos-rentabilidad` y `planeacion-bolsa`). Se añadió derivación en INSERT.
+  2. **Specs desactualizados/estrictos**: búsqueda acotada en `clientes-ficha`/`clientes-contactos` (lista paginada por razón social), guardado con reintento y verificación en panel/BD en `taller-taxonomia` (re-render de Realtime), y scoping de botones en `propuestas-flujo` (`Enviar` duplicado en suite).
+  3. **Próxima acción en `READY_TO_SEND`**: el diálogo de envío la exigía pero la RPC/panel solo la permitían en DRAFT/SENT/FOLLOW_UP (migración C `0711 0004`).
+- **E2E:** cada spec afectado pasa aislado y focalizado (propuestas, clientes, taller, gastos, planeación). La corrida completa local excedió el presupuesto por datos acumulados de ~100 corridas; se recomienda `supabase db reset` local + fixture antes de la próxima corrida completa (autorización del PO).
+- **Commits de cierre:** B5 ola 1 `7aaee76` · B6 ola 1 `247fe31` · B4 ola 2 `5aa3ca9` · fixes `d91fdc8`.
+- **Migraciones nuevas para el PO (remoto):** `20261007110003`, `20261007110004`, `20261007120001`, `20261007120002`, `20261007120003`, `20261007130001`, `20261007130002`, `20261007150002` (orden: 0711 → 0712 → 0713 → 0715).

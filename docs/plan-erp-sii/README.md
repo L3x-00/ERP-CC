@@ -81,9 +81,10 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | B1 Sistema/Catálogos | 1.1–1.10 | **COMPLETADO** (E1–E4 verificados y commiteados) | `7f97714`, `72d1765`, `d10ecf5`, `452bfcf` | pgTAP 611/611 · integración 226/226 · unit 862/862 · E2E (actividad/catálogos) · capturas E2 4/4 |
 | B2 Clientes | 2.1–2.8 | **COMPLETADO** (verificado y commiteado) | `b98a56a` | pgTAP 75/75 · concurrencia 10/10 · integración 226/226 · E2E 6/6 · capturas 12/12 |
 | B3 RFQ | 3.1–3.9 | **COMPLETADO** (olas 1 y 2 verificadas y commiteadas) | `452bfcf`, `a0cd4f3` | pgTAP 744/744 · integración 226/226 · E2E 46/46 · unit 886/886 |
-| B4 Propuestas | 4.1–4.9 | EN_CURSO: ola 1 commiteada (`6b0c524`); ola 2 (UI/PDF/envío/E2E) en ejecución (C) | `6b0c524` | pgTAP 88/88 scratch · unit 887/887 |
-| B5 Orden | 5.1–5.6 | EN_CURSO: ola 1 (modelo/snapshot/estados) en ejecución (A) | — | — |
-| B6 Producción | 6.1–6.4 | EN_CURSO: ola 1 (modelo de piso) en ejecución (B) | — | — |
+| B4 Propuestas | 4.1–4.9 | **COMPLETADO** (olas 1 y 2 commiteadas: UI, PDF interno y envío atómico) | `6b0c524`, `5aa3ca9` | pgTAP 912/912 global · E2E propuestas-flujo verde |
+| B5 Orden | 5.1–5.6 | EN_CURSO: ola 1 (modelo/snapshot/estados) commiteada (`7aaee76`); ola 2 (UI/consumidores) en ejecución (A) | `7aaee76` | pgTAP 912/912 · unit 916/916 |
+| B6 Producción | 6.1–6.4 | EN_CURSO: ola 1 (modelo de piso) commiteada (`247fe31`); ola 2 (UI piso/calidad) en ejecución (B) | `247fe31` | pgTAP 912/912 · unit 916/916 |
+| B7 Entregas | 7.1–7.3 | EN_CURSO: ola 1 (modelo/folio NE/evidencias) en ejecución (C) | — | — |
 | B7 Entregas | 7.1–7.3 | PENDIENTE | — | — |
 | B8 Finanzas | 8.1–8.4 | PENDIENTE (diseño) | — | — |
 | B9 Estrategia/KPIs | 9.1–9.6 | PENDIENTE | — | — |
