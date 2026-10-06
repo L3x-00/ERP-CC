@@ -16,19 +16,20 @@ Regla: **una terminal no toca archivos de otro stream** (mapa en §3). Si lo nec
 
 ### 1.1 Bandas por bloque (para no colisionar)
 
-| Bloque | Terminal | Banda de migraciones |
-|---|---|---|
-| B3 RFQ ola 1 y ola 2 | B | `2026100710xxxx` |
-| B4 Propuestas (ola 1 modelo; ola 2 UI/PDF) | C | `2026100711xxxx` |
-| B5 Orden (pendiente de B4) | A | `2026100712xxxx` |
-| B6 Producción | por asignar | `2026100713xxxx` |
-| B7 Entregas | por asignar | `2026100714xxxx` |
-| Continuidad de folios (cierre B3.5) | A | `2026100715xxxx` |
+| Bloque | Terminal | Banda | Estado |
+|---|---|---|---|
+| B3 RFQ olas 1–2 | B | `2026100710xxxx` | **cerrado y commiteado** (`452bfcf`, `a0cd4f3`); fixes de folio `0006–0008` |
+| B4 Propuestas ola 1 | C | `2026100711xxxx` | **cerrado y commiteado** (`6b0c524`) |
+| B4 Propuestas ola 2 (UI/PDF/envío/E2E) | C | `2026100711xxxx` (0003+) | en curso |
+| B5 Orden ola 1 (modelo/snapshot/estados) | A | `2026100712xxxx` | en curso |
+| B6 Producción ola 1 (modelo de piso) | B | `2026100713xxxx` | en curso |
+| B7 Entregas | por asignar | `2026100714xxxx` | pendiente |
+| Continuidad de folios (B3.5) | A | `2026100715xxxx` | **cerrado y commiteado** (`c161b1a`); alinear rango a 999 en B5 ola 1 |
 
 Transferencias vigentes:
-- **B**: `src/modulos/rfq/**`, `src/modulos/pipeline/**`, `src/app/(panel)/pipeline/**` y los consumidores de `etapa` (dashboard, alertas, filtros, resumen, `src/modulos/auditoria/utilidades/actividad.ts`) + transferencia temporal de `src/modulos/clientes/servicios/obtener-historial-cliente.ts`, `src/modulos/clientes/componentes/historial-cliente.tsx`, `src/modulos/clientes/tipos/historial.ts` y `tests/e2e/comercial-realtime.spec.ts` (solo `estado_rfq`).
-- **A**: retrofit de `correlationId` (ya entregado) y, en esta ola, `src/modulos/configuracion/componentes/pestana-folios.tsx` + `src/modulos/configuracion/acciones/continuidad-folios*.ts`.
-- **C**: `src/modulos/propuestas/**` (nuevo), `src/modulos/clientes/**` (cerrado B2, ya sin transferencias activas).
+- **A**: `src/modulos/ordenes/**` (B5, dominio sin UI + estados) y `src/modulos/configuracion/{componentes/pestana-folios.tsx, acciones/continuidad-folios*.ts, tipos, validaciones}`.
+- **B**: `src/modulos/produccion/**` (B6 ola 1) y `src/modulos/rfq/**`/`src/modulos/pipeline/**` en modo mantenimiento (solo fixes).
+- **C**: `src/modulos/propuestas/**`, `/propuestas`, y **solo la pestaña “Propuestas”** de `src/modulos/rfq/componentes/ficha-rfq.tsx` para montar la lista.
 - Congelados para todos: `src/modulos/permisos/**`, `src/nucleo/almacenamiento/archivos/**`, `src/nucleo/auditoria/registrar-log.ts`, `supabase/semillas/**`.
 
 ### 1.2 Verificación de aplicación de migraciones
@@ -100,6 +101,9 @@ Deben aparecer los tres marcadores (uno por stream). Si falta el tuyo, vuélvelo
 4. **Migraciones**: las aplica el PO (o el coordinador en local con `--include-all`); una terminal nunca aplica ni hace git.
 5. **Pruebas mutantes**: con `BLOQUEO-PRUEBAS.lock`; E2E en el puerto 3100.
 6. **Reporte honesto**: si un gate ajeno falla, se reporta con evidencia y no se toca.
+7. **Formato de consecutivos**: nunca `lpad(x, 2, '0')` (trunca) ni `to_char(x, 'FM00')` (desborda a `##`) para números que pueden superar 2 dígitos; usa `CASE`. Cubre en pgTAP 99→100→101 cuando aplique.
+8. **“Hoy” único**: para fechas de calendario usa `hoyIso()` (fecha local del operador) en servidor y cliente; no uses `toISOString()` para “hoy”.
+9. **Fixtures de catálogo**: el trigger `catalogo_sin_borrado` impide DELETE en los catálogos; los E2E desactivan (`activo=false`) y borran solo `versiones_catalogo`. Los pgTAP de catálogos se acotan a las semillas, no a igualdad de tabla completa.
 
 ## 5. Bloqueos de pruebas mutantes y E2E
 

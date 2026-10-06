@@ -59,4 +59,31 @@
   2. `supabase test db`: `supabase/tests/sii_b3_rfq_base.test.sql` falla por `catalogo_procesos_prefijo_valido` al insertar `B3_SIN_ARCH`/prefijo `B3S` (stream B3/A, fuera del mapa de C).
 - SIGUIENTE: cross-review y commit del coordinador. Tras integrar, recordar que las 3 migraciones B2 siguen pendientes de aplicación en remoto por el PO.
 
+## 2026-10-06 — B4 Propuestas ola 1 (SQL + dominio + pruebas): SUB-BLOQUE LISTO
+
+- TERMINAL: C | FECHA-HORA: 2026-10-06
+- ESTADO: SUB-BLOQUE LISTO (SQL/dominio/pruebas); pendiente que el PO aplique `2026100711*` para pgTAP en la BD del proyecto. Sin UI/PDF/E2E (ola 2).
+- TAREAS: SII-B4.1 (modelo), B4.2 (estados y acciones), B4.3 (revisiones A..Z), B4.4 (congelamiento SENT), B4.5 (ítems/ruteo/costeo/totales), B4.9 (requiere revisión), B4.10 (aceptación de la revisión exacta).
+- ARCHIVOS:
+  - Migraciones: `supabase/migrations/20261007110001_sii_b4_propuestas_base.sql` (9 tablas, checks, RLS, frozen, PDF versionado, backfill) y `20261007110002_sii_b4_propuestas_acciones.sql` (12 RPC).
+  - pgTAP: `supabase/tests/sii_b4_propuestas.test.sql` (88 aserciones).
+  - Dominio: `src/modulos/propuestas/**` (`tipos/indice.ts`, `servicios/calcular-totales-propuesta.ts`, `servicios/errores-propuesta.ts`, `servicios/obtener-propuesta.ts`, `utilidades/indice.ts`, `validaciones/esquemas-propuestas.ts`, 11 acciones servidor en `acciones/**`).
+  - Tipos: `src/compartido/tipos/supabase.ts` (bloqueo §4 tomado/liberado; 9 tablas + 12 funciones insertadas desde `supabase gen types` de la copia scratch).
+  - Unitarias: `tests/unitarias/propuestas-totales.test.ts` (tabla de casos compartida con el SQL) y `propuestas-esquemas.test.ts` (Zod, estados, mapeos, errores).
+- MIGRACIONES: `20261007110001_sii_b4_propuestas_base`, `20261007110002_sii_b4_propuestas_acciones` | APLICADA POR PO: no (validadas 2× idempotentes en copia scratch `sii_b4_probe`).
+- GATES: unit 109 archivos / 887 pruebas · lint 0 · typecheck 0 · build 0 · pgTAP `sii_b4_propuestas` 88/88 en scratch · integración/E2E N/A en ola 1.
+- EVIDENCIA:
+  - Copia scratch del esquema local (pg_dump) + `-f b4m1.sql -f b4m2.sql` dos veces sin errores; `ok=88 notok=0`.
+  - Guardas de dependencia: M1 exige `rfq_items`, `contadores_folio_periodico`, `catalogo_procesos`; M2 exige `propuestas` y `privado.actor_con_permiso`.
+  - Marcadores §4bis verificados: `credito_habilitado` (C-B2), `catalogo_materiales` (A), `obtener_actividad` (B), `propuestas:`/`propuesta_revisiones:`/`accepted_revision_id`/`crear_nueva_revision:` (C-B4).
+- NOTAS DE IMPLEMENTACIÓN (para el cross-review):
+  1. Folio nuevo `CNC-MMYY_XX` vía `generar_folio_periodico('CNC')`; el histórico de 4 dígitos se conserva y el folio legacy del RFQ queda en `snapshot_cabecera.folio_legacy`.
+  2. Frozen: GUC local `sii.b4_rpc` que fijan las RPC; cualquier UPDATE directo de la revisión o DML de hijos con padre no-DRAFT falla `revision_congelada`.
+  3. "Requiere revisión" (4.9): la copia A→B nace idéntica; los flags se marcan al editar cantidad/material/espesor de una revisión B+ (comparación contra el predecesor) y se limpian al confirmar ruteo/costeo. `validar_revision` bloquea con `requiere_revision_pendiente` + detalle.
+  4. `registrar_seguimiento_propuesta` se permite en DRAFT/SENT/FOLLOW_UP (tabla §4.2); en SENT pasa a FOLLOW_UP.
+  5. Extra técnico: tabla `propuesta_revision_eventos` (bitácora de transición con correlationId, §4.2 "evento en la revisión") y `actualizado_en` en `propuesta_items` para el CAS de ítem.
+  6. `enviar_revision`/PDF/UI quedan explícitamente para la ola 2 (spike ADR-SII-04); la aceptación se probó con revisiones SENT preparadas en el arnés.
+- BLOQUEOS: ninguno propio. Dependencia de orden: aplicar A `2026100610*` → B3 `2026100710*` → C `2026100711*` (las guardas lo verifican).
+- SIGUIENTE: PO aplica `2026100711*` en local/remoto; luego `supabase test db` completo y pase a ola 2 (UI `/propuestas`, PDF, envío atómico).
+
 

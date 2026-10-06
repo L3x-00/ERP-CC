@@ -89,3 +89,47 @@ EVIDENCIA (comandos):
 BLOQUEOS: ninguno propio. Nota: `BLOQUEO-PRUEBAS.lock` activo de Terminal A (no me bloqueó).
 
 SIGUIENTE: ola 2 (UI `/rfq`, ficha, pestaña Archivos, migración de consumidores de `etapa` y retiro del puente) cuando el coordinador la asigne; el PO aplica `2026100710*` en remoto.
+
+## 2026-10-05 19:45 — B3 RFQ ola 2 (UI, archivos, gate LISTO, consumidores y retiro del puente)
+
+TERMINAL: B | FECHA-HORA: 2026-10-05 19:45
+ESTADO: SUB-BLOQUE LISTO (pendiente de verificación del coordinador)
+TAREAS:
+- Consumidores SQL LISTO: `privado.metricas_ejecutivas_rango`, `public.obtener_metricas_vendedor` y `public.obtener_metricas_pipeline_equipo` recreadas con `estado_rfq` conservando firmas y claves JSON (`pipelinePorEtapa` con los 6 buckets, `cotizacionesSinSeguimiento`, meta/comisión, órdenes y finanzas). Helper `privado.etapa_legacy_de_rfq(text)`.
+- Retiro del puente LISTO: `DROP` del trigger `trigger_pipeline_sincronizar_etapa_rfq` y de `privado.sincronizar_etapa_rfq()`; `etapa` queda como columna histórica con COMMENT de deprecación.
+- UI `/rfq` LISTO: cola con chips por estado, filtros (texto, estado, prioridad, etiqueta, área, cliente, responsable, próxima vencida, fechas, TI), vistas Tablero (8 columnas por estado) y Lista, alta de RFQ; ficha con encabezado `folio_rfq ?? folio_op`, chip de estado, acciones de negocio por estado y pestañas Resumen/Ítems/Archivos/Propuestas (placeholder B4)/Actividad. `/pipeline` redirige a `/rfq` conservando query (`?rfq=` y `?oportunidad=`).
+- Ítems LISTO: CRUD ITxx con material y espesor dependiente de `catalogo_espesores`, operaciones de `catalogo_procesos`, cancelación sin reutilizar número; bloqueado en READY/terminal (igual que la RPC).
+- Archivos LISTO: subida general (`rfq`) y por ítem (`rfq_item`) al bucket privado con metadata en `archivos` (E3), listado de vigentes y URL firmada; clases CAD/DIBUJO/IMAGEN/ESPECIFICACIONES/OTROS.
+- Gate LISTO LISTO: panel con faltantes por sección consultado fresco en cada apertura; el botón solo se habilita sin faltantes y el servidor revalida (`rfq_no_listo`).
+- Consumidores TS LISTO: pipeline (tipos `estadoRfq`, servicios, filtros, alertas, resumen, gates de acciones, kanban→cola, tarjeta/tabla/controles), `actualizar-etapa` neutralizada con error de negocio, `marcar-ganada`/`marcar-perdida` conservadas pero fuera de la UI, dashboard (claves intactas; sin cambios TS necesarios), historial de cliente (3 archivos transferidos) y `auditoria/actividad` (etiqueta RFQ, enlaces a `/rfq?rfq=`).
+
+ARCHIVOS:
+- Nuevos: `supabase/migrations/20261007100004_sii_b3_rfq_consumidores.sql`, `20261007100005_sii_b3_retirar_puente.sql`, `supabase/tests/sii_b3_rfq_consumidores.test.sql`, `src/modulos/rfq/acciones/{obtener-catalogos,actualizar-datos-rfq,archivos-rfq}.ts`, `src/modulos/rfq/componentes/{ficha-rfq,panel-acciones-rfq,formulario-general-rfq,tabla-items-rfq,panel-archivos-rfq,actividad-rfq}.tsx`, `src/modulos/pipeline/componentes/cola-rfq.tsx`, `src/modulos/pipeline/utilidades/proxima-accion.ts`, `src/app/(panel)/rfq/{page,loading}.tsx`, `tests/e2e/rfq-flujo.spec.ts`, `tests/unitarias/pipeline-transiciones.test.ts` (reescrito).
+- Modificados: `src/app/(panel)/pipeline/page.tsx` (redirect), `src/compartido/componentes/navegacion/modulos-navegacion.ts` (entrada `/rfq`), `src/compartido/componentes/diseno/badge-estado.tsx` (8 estados RFQ aditivos), `src/modulos/pipeline/{tipos/indice, utilidades/indice, servicios/{reglas-transicion,calcular-alertas,resumen-pipeline,filtrar-oportunidades,obtener-oportunidades}, acciones/{crear-prospecto,actualizar-etapa,asignar-cliente-oportunidad,actualizar-datos-oportunidad,actualizar-orden-interna,retirar-oportunidad,marcar-ganada,marcar-perdida}}`, componentes de pipeline, `validaciones/esquemas-transicion-etapa.ts`, `src/modulos/clientes/{tipos/historial,servicios/obtener-historial-cliente,componentes/historial-cliente}`, `src/modulos/auditoria/utilidades/{actividad,enlace-registro}.ts`, `src/modulos/rfq/validaciones/esquemas-rfq.ts`, specs E2E (comercial-realtime, aceptacion-comercial, clientes-historial, bitacora-configuracion, actividad) y unitarias de pipeline/rfq/clientes-historial.
+- Eliminados: `src/modulos/pipeline/componentes/{tablero-kanban,selector-etapa}.tsx` (reemplazados por la cola y las acciones de negocio).
+
+MIGRACIONES: `20261007100004_sii_b3_rfq_consumidores.sql`, `20261007100005_sii_b3_retirar_puente.sql` | APLICADAS EN LOCAL CON AUTORIZACIÓN EXPRESA DEL PO (`supabase migration up --local`; la CLI aplicó también pendientes de C `2026100711*` y A `20261007150001`, ya listas). NO aplicadas en remoto: pendiente PO.
+
+GATES:
+- unit: 886/886. lint: 0. typecheck: 0. build: OK (`/rfq` y `/pipeline` presentes).
+- pgTAP focal `sii_b3_rfq_consumidores.test.sql`: 17/17; `sii_b3_rfq_base.test.sql` actualizado a la ola 2: 56/56.
+- pgTAP global: 33 archivos, 744/744 PASS.
+- integración: 226/226 (fixture de `aprobacion-credito-identidad` actualizado con `estado_rfq`).
+- E2E focal `rfq-flujo.spec.ts` + regresión (`comercial-realtime`, `aceptacion-comercial`, `dashboard-roles`, `clientes-historial`, `actividad`, `bitacora-configuracion`, `configuracion-flujo`): 15/15 con `BLOQUEO-PRUEBAS.lock`.
+- Visual: `.ai-shared/qa/sii-b3-ola2/visual/rfq-ficha-{escritorio,tableta}-{claro,oscuro}.png` (4 capturas).
+
+EVIDENCIA (comandos):
+- `pnpm typecheck` EXIT 0; `pnpm lint` EXIT 0; `pnpm test` 886 passed; `pnpm build` EXIT 0.
+- `supabase test db --local` → Files=33, Tests=744, PASS.
+- `pnpm test:integracion` → 30 archivos, 226 passed.
+- `pnpm exec playwright test tests/e2e/rfq-flujo.spec.ts tests/e2e/comercial-realtime.spec.ts tests/e2e/aceptacion-comercial.spec.ts tests/e2e/dashboard-roles.spec.ts tests/e2e/clientes-historial.spec.ts tests/e2e/actividad.spec.ts tests/e2e/bitacora-configuracion.spec.ts tests/e2e/configuracion-flujo.spec.ts` → 15 passed.
+
+DECISIONES / INTERPRETACIONES:
+- Buckets del embudo (contrato JSON sin cambios): prospecto=NEW; contactado=INCOMPLETE/WAITING_CUSTOMER/WAITING_TECHNICAL; cotizado=READY_FOR_PROPOSAL; negociacion=CONVERTED sin orden; ganada=RFQ con orden vinculada; perdida=CLOSED/CANCELLED. `porcentajeConversion` y `cotizacionesSinSeguimiento` usan el mismo criterio.
+- `marcar-ganada`/`marcar-perdida` se conservan (retiro de UI) pero sus gates/fixtures migraron a `estado_rfq`; `marcar-perdida` además escribe `estado_rfq='CLOSED'`. `aprobar_oportunidad_y_crear_orden` y `guardar_cotizacion_atomica` siguen leyendo `etapa` como camino legacy: sus sustitutos llegan en B4/B5 y entonces se retirará esa última lectura (nota para el coordinador).
+- `aceptacion-comercial.spec.ts` se adaptó a la transición: la orden se crea con la RPC legacy vía service_role tras preparar líneas/etapa (la UI de etapas se retiró); la UI nueva cubre el flujo RFQ en `rfq-flujo.spec.ts`. Se restaurará el flujo UI sobre propuestas en B4/B5.
+- El log de acciones RFQ usa módulo `'pipeline'` (misma decisión de ola 1) y los enlaces de Actividad/Bitácora apuntan a `/rfq?rfq=`.
+
+BLOQUEOS: ninguno propio.
+
+SIGUIENTE: el PO aplica `20261007100004/0005` en remoto; el coordinador hace cross-review y commit; B4/B5 sustituirán la aceptación/orden y retirarán las últimas lecturas de `etapa` (`aprobar_oportunidad_y_crear_orden`, `guardar_cotizacion_atomica`).

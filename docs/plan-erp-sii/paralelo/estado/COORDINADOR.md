@@ -34,3 +34,11 @@
 - Prompts: A `PROMPT-TERMINAL-A-FOLIOS.md` (continuidad de folios, banda `2026100715*`), B `PROMPT-TERMINAL-B-B3-OLA2.md` (UI RFQ + consumidores `etapa` + archivos + gate + retiro del puente, banda `2026100710*` 0004+), C `PROMPT-TERMINAL-C-B4-OLA1.md` (B4 propuestas ola 1 modelo/RPC/tests, banda `2026100711*`).
 - Protocolo actualizado: bandas, transferencias (B toma consumidores de `etapa` en clientes y `comercial-realtime`), marcadores nuevos y §4ter con las lecciones obligatorias de la ola anterior.
 - Dependencias de orden a vigilar: `0610*` (A) → `0710*` (B3) → `0711*` (B4). Cada migración nueva lleva guarda `to_regclass`.
+
+## 2026-10-06 — Cierre de la ola 3 y siguiente asignación
+
+- Cerrado y commiteado: folios (A) `c161b1a` · B4 ola 1 (C) `6b0c524` · B3 ola 2 (B) `a0cd4f3` · fixes coordinador `a7e87c5`.
+- Verificación final: typecheck/lint/build 0 · pgTAP 744/744 · unit 886/886 · integración 226/226 · E2E 46/46 (+1 condicional).
+- Fixes del coordinador: scoping pgTAP de catálogos, limpieza de fixtures E2E por desactivación, desborde/relleno de folio (999), `hoyIso` unificado en Planeación.
+- Migraciones para el PO: `20261007100004/5` (B), `0006/7/8` (fixes folio), `20261007110001/2` (C), `20261007150001` (A) en ese orden.
+- Siguiente ola emitida: A → B5 ola 1 (`0712*`) + rango folios 999; B → B6 ola 1 (`0713*`, modelo sin UI); C → B4 ola 2 (`0711*` 0003+, UI/PDF/envío/E2E). Prompts en `paralelo/prompts/`.

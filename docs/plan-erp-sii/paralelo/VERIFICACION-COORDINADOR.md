@@ -97,3 +97,24 @@
 - **Errores de migraciones B3 en remoto:** `relation "catalogo_proximas_acciones" does not exist` se debe a que A (`2026100610*`) no está aplicada allí; `20261007100003` falla en cascada porque `rfq_items` no llegó a crearse. Orden correcto: A `...06100001` → `...06100002` → reintentar `...07100002` → `...07100003` (idempotentes). En local ya funcionan en ese orden.
 - **Commits de cierre:** `452bfcf` (B: E4+B3 ola 1) · `d10ecf5` (A: E2+retrofit) · `b98a56a` (C: B2) · `7887e31` (fix realtime) · `f37b036` (docs) · `b3fad90` (unitarias RFQ).
 - **Pendiente del PO:** aplicar en remoto, cuando autorice: `2026100610*` y `2026100710*`; verificar que `2026100620*` y `2026100630*` ya estén.
+
+### Auditoría 5 — 2026-10-06 (cierres folios/B3 ola 2/B4 ola 1, verificación final y fixes del coordinador)
+
+- **Entregas verificadas y commiteadas:**
+  - A (folios B3.5): `c161b1a` — RPCs de continuidad por periodo, UI, pgTAP 28/28, unit 3/3, E2E focal verde.
+  - C (B4 ola 1): `6b0c524` — 9 tablas, 12 RPC, frozen/revisiones/costeo/aceptación, pgTAP 88/88 (scratch), unit verde.
+  - B (B3 ola 2): `a0cd4f3` — UI `/rfq`, archivos, gate LISTO, consumidores `etapa` migrados y puente retirado; E2E completo 46/46.
+- **Defectos encontrados por la auditoría y corregidos por el coordinador:**
+  1. **pgTAP de catálogos frágil**: comparaba la tabla completa contra las semillas → fallaba con fixtures E2E (procesos `QAR` desactivados). Se acotó a los 8 códigos sembrados (`supabase/tests/sii_b1_catalogos.test.sql`).
+  2. **Fixtures E2E de catálogo**: los specs intentaban borrar filas y el trigger `catalogo_sin_borrado` (implementado por A, correcto) lo impedía; se cambió a desactivación + borrado de `versiones_catalogo` (`catalogos-base.spec.ts`, `rfq-flujo.spec.ts`).
+  3. **Folio periódico**: el tope de 99 bloqueaba altas con uso intenso y el primer intento de desborde (`lpad`) truncaba duplicando folios (100→"10"); se corrigió con `CASE` (`20261007100006/7/8`, commiteadas en `a7e87c5`). Verificado 99→100→109.
+  4. **Zona horaria de Planeación**: el servidor calculaba “hoy” en UTC y el cliente en fecha local; en la ventana post-medianoche UTC los specs fallaban. Se unificó a `hoyIso()` (fecha local del operador) y se hizo robusto el fixture de `planeacion-bolsa` (`a7e87c5`).
+  5. Specs desactualizados por la baja lógica de contactos y el cambio de contadores del embudo ya habían sido corregidos en la ola anterior.
+- **Verificación final combinada:** typecheck 0 · lint 0 · build OK · pgTAP **744/744** · unit **886/886** · integración **226/226** · **E2E 46/46 (1 caso condicional omitido, sin fallo)**.
+- **Riesgo abierto (no bloquea):** en producción el servidor puede estar en UTC y los operadores en Tijuana; conviene definir la zona de negocio (`America/Tijuana`) para “hoy” en un bloque de endurecimiento (mismo criterio para Horas extra/jornada).
+- **Migraciones nuevas para el PO (remoto):**
+  1. A folios: `20261007150001_sii_b3_continuidad_folios.sql`
+  2. B3 ola 2: `20261007100004_sii_b3_rfq_consumidores.sql`, `20261007100005_sii_b3_retirar_puente.sql`
+  3. Fixes folio: `20261007100006`, `20261007100007`, `20261007100008`
+  4. B4 ola 1 (C): `20261007110001_sii_b4_propuestas_base.sql`, `20261007110002_sii_b4_propuestas_acciones.sql`
+  Orden recomendado: `0004 → 0005 → 0006 → 0007 → 0008 → 0711* → 0715`. Todas idempotentes con guardas de dependencia.

@@ -85,4 +85,50 @@ BLOQUEOS: ninguno.
 SIGUIENTE: cross-review del coordinador y commit de Fase 1 + Fase 2; remoto de las 2 migraciones cuando el PO autorice.
 ```
 
+## 2026-10-05 18:50 — B3.5 cierre: continuidad de folios periódicos implementada (pendiente aplicar migración)
+
+```
+TERMINAL: A | FECHA-HORA: 2026-10-05 18:50
+ESTADO: SUB-BLOQUE LISTO (código/tests) · BLOQUEADO para gates mutantes hasta aplicar 2026100715* en local
+
+TAREAS (B3.5 cierre):
+  · Migración `consultar_continuidad_folio_periodico` + `ajustar_continuidad_folio_periodico` ✅
+  · Guarda de dependencia `to_regclass('public.contadores_folio_periodico')` ✅
+  · Acciones tipadas con `can('configuracion')` + service_role + registrarLog + correlationId ✅
+  · Sección "Folios por periodo" en pestaña Folios (bloque CNC intacto) ✅
+  · Tipos `supabase.ts` con BLOQUEO-TIPOS tomado/liberado y marcadores §4bis verificados ✅
+  · pgTAP 28 aserciones ✅ (dry-run transaccional revertido, 0 rastros) · unit 3/3 ✅ · E2E escrito ⏸
+
+ARCHIVOS:
+  supabase/migrations/20261007150001_sii_b3_continuidad_folios.sql (nuevo)
+  supabase/tests/sii_b3_continuidad_folios.test.sql (nuevo)
+  src/modulos/configuracion/acciones/continuidad-folios-periodico.ts (nuevo; solo exports async)
+  src/modulos/configuracion/tipos/continuidad-folios-periodico.ts (nuevo)
+  src/modulos/configuracion/validaciones/continuidad-folios-periodico.ts (nuevo)
+  src/modulos/configuracion/componentes/pestana-folios.tsx (sección nueva; CNC sin cambios de markup)
+  src/compartido/tipos/supabase.ts (2 funciones al final de Functions; bloqueo §4 liberado)
+  tests/unitarias/configuracion-continuidad-periodico.test.ts (nuevo)
+  tests/e2e/continuidad-folios-rfq.spec.ts (nuevo)
+
+MIGRACIONES: 20261007150001_sii_b3_continuidad_folios.sql | APLICADA POR PO: no
+  (orden: 0610* → 0710* → 0711* → 0715*; si el orden remoto bloquea, el coordinador aplica local con --include-all)
+
+GATES: typecheck 0 · lint 0 (mis archivos) · unit 865/865 · build "Compiled successfully" ·
+  pgTAP 28/28 en dry-run revertido · pgTAP real ⏸ (requiere migración aplicada) · integración ⏸ · E2E focal+regresión ⏸
+
+EVIDENCIA:
+  · docker exec psql BEGIN + migración + test + ROLLBACK → plan(28), 28 ok, sin "not ok"; 0 funciones tras rollback
+  · npx vitest run tests/unitarias/configuracion-continuidad-periodico.test.ts → 3/3
+  · pnpm test → 107 files / 865 tests passed · pnpm build → OK
+  · Select-String marcadores: catalogo_materiales:, obtener_actividad:, credito_habilitado:,
+    ajustar_continuidad_folio_periodico:, consultar_continuidad_folio_periodico: presentes
+  · E2E: ajusta periodo vigente RFQ, ve siguiente, retroceso muestra error, capturas en
+    .ai-shared/qa/sii-b3-folios/visual/ (se generan al ejecutar el spec)
+
+BLOQUEOS: migración 20261007150001 sin aplicar en local (dueño: PO/coordinador). Sin ella no corren
+  `supabase test db`, integración ni E2E focal/regresión.
+SIGUIENTE: aplicar 2026100715* en local → correr pgTAP + integración + E2E focal/regresión con
+  BLOQUEO-PRUEBAS y cerrar reporte.
+```
+
 
