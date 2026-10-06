@@ -145,3 +145,31 @@
 - **A (B5 ola 2): sin cerrar.** Artefactos completos (ficha de orden, alta SII, migración de consumidores `20261007120004`, tests) con última escritura 09:04; desde ~09:57 su terminal quedó en una corrida larga (probable E2E/build bloqueado por el UTF-8 de B de ese momento, más la suite completa sobre datos acumulados). El bloqueo de pruebas está liberado. Recomendación: interrumpir y reiniciar su terminal; las migraciones `20261007120004` ya están aplicadas en local por el coordinador y el pgTAP quedó verde.
 - **Decisión pendiente del PO:** el folio `NE-MMYY_XX-YY` puede colisionar entre orden comercial `O-` e interna `OI-` del mismo mes (el índice único falla ruidosamente). Opción: desambiguar con prefijo O/OI en la ola 2 de B7.
 - **Recomendación operativa:** `supabase db reset` local + fixture (autorización del PO) para devolver velocidad a la suite E2E/integración.
+
+### Auditoría 9 — 2026-10-06 (cierre B5 ola 2 retomado por el coordinador)
+
+- **Contexto:** la terminal A quedó atascada con los artefactos de B5 ola 2 completos (ficha, alta SII, consumidores y migración `20261007120004`). El PO ordenó retomar el cierre desde el coordinador y detener una sesión paralela de opencode que estaba corriendo el mismo E2E sobre la misma base local (doble mutación evitada).
+- **Verificación combinada:** typecheck 0 · lint 0 · unit **932/932** · pgTAP **968/968** (37 archivos) · integración **226/227** (el test `operadores-pin-concurrencia` falla bajo carga de suite y **pasa aislado en 8.6 s**; mismo flake ambiental documentado en auditoría 8) · build "Compiled successfully" · E2E focal `ordenes-estados-sii` **1/1** + regresión B5 **10/10** (ordenes×4, planeacion×3, cobranza-flujo, dashboard-roles, comercial-realtime) · capturas 4/4 en `.ai-shared/qa/sii-b5-orden/visual/`.
+- **Defectos encontrados y corregidos por el coordinador:**
+  1. **pgTAP B6 dependiente de la hora** (flake): el cierre con 5 h de sesión no excedía la jornada de 4 h cuando la corrida cae entre 13:00 y 17:00 Tijuana (el descuento de comida de 1 h dejaba `horas_netas = 4`). Se cambió a 6 h → determinista (neto ≥ 5).
+  2. **Lint**: `prefer-const` en el spec B5.
+  3. **E2E B5**: la entrega total archiva la orden (OBS-21); el cierre administrativo ahora se ejecuta desde la bandeja **Archivo**. La TI (sin cliente) se localiza por el folio `OI-` del mensaje de alta, no por `cliente_id`.
+  4. **Specs heredados al badge SII**: `ordenes-heredadas-reactivacion` esperaba etiquetas legacy; se actualizó a `Planificada`, `Producción completada`, `En producción` (la BD sigue derivando el estado legacy por el puente, sin cambios).
+- **Sin cambios de producto adicionales**: los artefactos de la terminal A se aceptan íntegros (migración `20261007120004` solo local). Se conserva además `20261007120005_sii_b5_derivaciones_definer.sql` (creada por la sesión paralela antes de detenerla): recrea `asignar_meta_final_avance_partida` y `privado.derivar_orden_completada` como `SECURITY DEFINER` con `search_path=''` para que los avances insertados con `service_role` (PostgREST) no fallen por permisos del esquema `privado`; está aplicada en local y es requisito de los fixtures E2E de B5/B7.
+- **Migraciones para el PO (remoto):** `20261007120004_sii_b5_consumidores_estado.sql` y `20261007120005_sii_b5_derivaciones_definer.sql`.
+- **Pendiente:** commit del cierre (coordinador) y B7 ola 2 (UI `/entregas`, captura de firma/evidencia y E2E).
+
+### Auditoría 10 — 2026-10-06 (cierre B7 ola 2 y auditoría integral del plan SII hasta B7)
+
+- **B7 ola 2: verificada.** Cola `/entregas` (pendientes por ITxx y notas con filtros), panel de preparación con cantidades por partida/contacto/quién recibe, detalle con renglones ITxx, evidencia fotográfica, firma digital en canvas (→ PNG) y firma escaneada con reemplazo versionado; enlace desde la ficha de orden y menú. Sin migración nueva.
+- **E2E focal `entregas-flujo` (1/1)**: revisión aceptada → orden → programar → liberar → producir → entrega parcial 1/2 (`NE-...-01`) → firma digital v1 → firma escaneada ×2 (v1 reemplazada, v2 vigente) → entrega total (`NE-...-02`) → orden archivada; residuo de BD/Storage tras el spec = 0. Capturas 8/8 (cola y detalle × 1440/768 × claro/oscuro).
+- **Regresión B7:** `produccion-piso`, `produccion-avance-procesos`, `corridas-calidad`, `cobranza-flujo` → **7/7**.
+- **Endurecimiento pgTAP por datos acumulados (3 archivos, sin cambios de producto):** `sii_b3_continuidad_folios` (neutraliza contador/folios `O`/`OI` del periodo), `sii_b3_rfq_consumidores` (corte de equipo en ventana futura aislada) y `sii_b6_produccion` (finaliza sesiones activas ajenas dentro de la transacción antes de `cerrar_jornada`). Con ello pgTAP **968/968** es determinista en una base local con datos de E2E.
+- **Auditoría integral del plan (B0–B9) al 2026-10-06:**
+  - Completados y commiteados: B1 Sistema/Catálogos, B2 Clientes, B3 RFQ, B4 Propuestas, B6 Producción.
+  - Completados localmente, **pendientes de commit**: B5 Orden (ola 2 + `20261007120004/0005`) y B7 Entregas (ola 2).
+  - Pendientes por diseño del plan: **B8 Finanzas** (después de B7) y **B9 Estrategia/KPIs/transferencia**; B0 (fundamentos) consta como pendiente documental.
+  - Riesgos abiertos: (1) colisión potencial del folio `NE-MMYY_XX-YY` entre orden `O-` y `OI-` — decisión del PO; (2) retiro del puente `estado_sii` aún no ejecutado (producción lee legacy); (3) suites locales lentas por datos acumulados (recomendado `supabase db reset` autorizado); (4) nada publicado: sin push/remoto/CI/despliegue.
+  - Evidencia fresca combinada: typecheck 0 · lint 0 · build OK · unit **935/935** · pgTAP **968/968** · integración 226/227 (flake PIN documentado que pasa aislado) · E2E focal B5+B7 **2/2** y regresiones **17/17**.
+- **Migraciones SII pendientes para el PO (remoto)**, en orden: `20261007100004`–`20261007100008`, `20261007110001`–`20261007110004`, `20261007120001`–`20261007120005`, `20261007130001`–`20261007130002`, `20261007140001`, `20261007150001`–`20261007150002`; además verificar que `2026100620*` y `2026100630*` estén aplicadas. Todas idempotentes con guardas de dependencia.
+- **Pendiente inmediato:** commit de cierre de B5 ola 2 y B7 ola 2 (coordinador) y aplicar migraciones en remoto cuando el PO autorice.

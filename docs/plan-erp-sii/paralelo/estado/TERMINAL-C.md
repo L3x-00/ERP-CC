@@ -133,4 +133,36 @@
   Nota de riesgo (formato normativo): una orden comercial `O-MMYY_XX` y una interna `OI-MMYY_XX` pueden compartir XX el mismo mes; el formato `NE-MMYY_XX-YY` colisionaría entre ambas. Se sigue el documento al pie de la letra y el índice único falla ruidosamente; si el PO quiere, se desambigua en ola 2 (p. ej. incluir el prefijo O/OI).
 - SIGUIENTE: aplicada `2026100714*`, correr `supabase test db`; ola 2 de B7 (UI `/entregas`, captura de firma/evidencia y E2E).
 
+## 2026-10-06 — B7 ola 2 (UI `/entregas`, evidencia y firma): SUB-BLOQUE LISTO (implementado por el coordinador)
+
+```
+TERMINAL: C (continuado por el coordinador) | FECHA-HORA: 2026-10-06 17:00
+ESTADO: SUB-BLOQUE LISTO para commit
+TAREAS: SII-B7.3 — cola `/entregas` de Logística con pendientes por orden (ITxx) y notas
+  registradas (filtros por parcial/completa y texto); panel de preparación con captura de
+  cantidades por partida, contacto y quién recibe; detalle de nota con renglones ITxx,
+  evidencia fotográfica, firma digital en canvas y firma escaneada; nav y enlace desde la
+  ficha de orden. Sin migración nueva (reusa `20261007140001`).
+ARCHIVOS:
+  src/app/(privado)/entregas/page.tsx · loading.tsx · [id]/page.tsx (nuevos)
+  src/modulos/entregas/acciones/obtener-cola-entregas.ts · obtener-entrega-detalle.ts (nuevos)
+  src/modulos/entregas/componentes/{cola-entregas,panel-preparar-entrega,detalle-entrega,captura-firma}.tsx (nuevos)
+  src/modulos/entregas/{servicios/obtener-entregas,acciones/preparar-entrega,utilidades/indice,validaciones/esquemas-entregas}.ts
+  src/compartido/componentes/navegacion/{iconos,modulos-navegacion}.tsx/ts (enlace Entregas)
+  src/modulos/ordenes/componentes/ficha-orden.tsx + servicios/ficha-orden-servicio.ts + tipos/ficha-orden.ts
+  tests/unitarias/entregas-cola.test.ts · tests/e2e/entregas-flujo.spec.ts (nuevos)
+MIGRACIONES: ninguna nueva (usa 20261007140001, aplicada solo local por el coordinador)
+GATES: typecheck 0 · lint 0 · unit 935/935 · pgTAP 968/968 · E2E focal 1/1 · regresión
+  producción/cobranza 7/7 · build OK · capturas 8/8 en .ai-shared/qa/sii-b7-ola2/visual/
+EVIDENCIA:
+  · E2E: cadena RFQ→propuesta→revisión aceptada→orden→programar→liberar→producir→entrega
+    parcial 1/2 (folio NE-...-01) → firma digital (v1) → firma escaneada ×2 (v1 reemplazada, v2
+    vigente) → entrega total (NE-...-02) → orden archivada.
+  · Riesgo normativo abierto (decisión del PO): el folio `NE-MMYY_XX-YY` puede colisionar
+    entre orden `O-` e interna `OI-` del mismo mes; el índice único falla ruidosamente.
+BLOQUEOS: ninguno.
+SIGUIENTE: commit del coordinador; B8/B9 quedan como bloques siguientes del plan.
+```
+
+
 

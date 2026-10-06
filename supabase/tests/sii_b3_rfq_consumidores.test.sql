@@ -101,19 +101,8 @@ SELECT is((SELECT (metrica->'actual'->>'cotizacionesSinSeguimiento')::integer FR
 SELECT ok((SELECT metrica->'actual' ? 'metaMensual' AND metrica->'actual' ? 'comisionAcumuladaMxn' FROM vend),
   'Se conservan metaMensual y comisionAcumuladaMxn');
 
-CREATE TEMP TABLE equipo AS
-SELECT public.obtener_metricas_pipeline_equipo(
-  now() - interval '1 day', now() + interval '1 day'
-) AS metrica;
-SELECT is((SELECT (metrica->'actual'->'pipelinePorEtapa'->>'ganada')::integer FROM equipo), 1,
-  'Equipo también cuenta ganadas por orden');
-
--- -----------------------------------------------------------------------------
--- 16-17. Ejecutivo: claves presentes y conversión por órdenes
--- Aísla el fixture en una ventana futura: el rango real puede tener RFQ de
--- otras corridas y contaminar la conversión (el resto de métricas filtra por
--- vendedor y no se ve afectado porque ya se evaluaron arriba).
--- -----------------------------------------------------------------------------
+-- Aísla el fixture en una ventana futura antes del corte de equipo: la base
+-- local puede acumular RFQ/órdenes de otras corridas que contaminarían ganadas.
 UPDATE public.pipeline SET creado_en = '2099-05-01T12:00:00Z'
 WHERE id IN (
   '00000000-0000-4000-8000-00000000b361', '00000000-0000-4000-8000-00000000b362',
@@ -122,6 +111,18 @@ WHERE id IN (
 );
 UPDATE public.ordenes_produccion SET creado_en = '2099-05-01T12:00:00Z'
 WHERE id = '00000000-0000-4000-8000-00000000b367';
+
+CREATE TEMP TABLE equipo AS
+SELECT public.obtener_metricas_pipeline_equipo(
+  '2099-01-01T00:00:00Z'::timestamptz, '2099-12-31T23:59:59Z'::timestamptz
+) AS metrica;
+SELECT is((SELECT (metrica->'actual'->'pipelinePorEtapa'->>'ganada')::integer FROM equipo), 1,
+  'Equipo también cuenta ganadas por orden');
+
+-- -----------------------------------------------------------------------------
+-- 16-17. Ejecutivo: claves presentes y conversión por órdenes
+-- (el fixture ya quedó aislado en la ventana futura de arriba)
+-- -----------------------------------------------------------------------------
 
 CREATE TEMP TABLE ejec AS
 SELECT public.obtener_metricas_dashboard_ejecutivo(

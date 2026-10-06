@@ -82,10 +82,9 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | B2 Clientes | 2.1–2.8 | **COMPLETADO** (verificado y commiteado) | `b98a56a` | pgTAP 75/75 · concurrencia 10/10 · integración 226/226 · E2E 6/6 · capturas 12/12 |
 | B3 RFQ | 3.1–3.9 | **COMPLETADO** (olas 1 y 2 verificadas y commiteadas) | `452bfcf`, `a0cd4f3` | pgTAP 744/744 · integración 226/226 · E2E 46/46 · unit 886/886 |
 | B4 Propuestas | 4.1–4.9 | **COMPLETADO** (olas 1 y 2 commiteadas: UI, PDF interno y envío atómico) | `6b0c524`, `5aa3ca9` | pgTAP 912/912 global · E2E propuestas-flujo verde |
-| B5 Orden | 5.1–5.6 | EN_CURSO: ola 1 (modelo/snapshot/estados) commiteada (`7aaee76`); ola 2 (UI/consumidores) en ejecución (A) | `7aaee76` | pgTAP 912/912 · unit 916/916 |
+| B5 Orden | 5.1–5.6 | **COMPLETADO localmente**: ola 1 `7aaee76`; ola 2 (UI ficha/alta SII + consumidores) verificada 2026-10-06, **pendiente commit** | `7aaee76` | pgTAP 968/968 · unit 932/932 · integración 226/227 (flake PIN aislado) · E2E focal 1/1 + regresión 10/10 · capturas 4/4 |
 | B6 Producción | 6.1–6.4 | **COMPLETADO** (olas 1 y 2 commiteadas: modelo + UI de piso/calidad) | `247fe31`, `78933f0` | pgTAP 968/968 · unit 932/932 · E2E corridas-calidad verde |
-| B7 Entregas | 7.1–7.3 | EN_CURSO: ola 1 (modelo/folio NE/parciales/evidencias) commiteada (`b4c4487`); ola 2 (UI `/entregas`, firma y E2E) pendiente (C) | `b4c4487` | pgTAP 51/51 del bloque |
-| B7 Entregas | 7.1–7.3 | PENDIENTE | — | — |
+| B7 Entregas | 7.1–7.3 | **COMPLETADO localmente**: ola 1 `b4c4487`; ola 2 (UI `/entregas`, evidencia y firma) verificada 2026-10-06, **pendiente commit** | `b4c4487` | pgTAP 968/968 global (B7 51/51) · unit 935/935 · E2E focal 1/1 + regresión producción/cobranza 7/7 · capturas 8/8 |
 | B8 Finanzas | 8.1–8.4 | PENDIENTE (diseño) | — | — |
 | B9 Estrategia/KPIs | 9.1–9.6 | PENDIENTE | — | — |
 

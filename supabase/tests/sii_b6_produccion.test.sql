@@ -368,7 +368,9 @@ SELECT 'sesion3', to_jsonb(sesion.*)
 FROM public.iniciar_sesion_trabajo_operador(
   '00000000-0000-4000-8000-00000000b607', '00000000-0000-4000-8000-00000000b608',
   '00000000-0000-4000-8000-00000000b60a', '00000000-0000-4000-8000-00000000b603') AS sesion;
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '5 hours'
+-- 6 h garantiza superar la jornada de 4 h a cualquier hora local: el descuento
+-- de comida (12:00-13:00 Tijuana) resta como máximo 1 h.
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '6 hours'
 WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion3');
 
 SELECT throws_ok($$
@@ -399,6 +401,13 @@ SELECT 'sesion4', to_jsonb(sesion.*)
 FROM public.iniciar_sesion_trabajo_operador(
   '00000000-0000-4000-8000-00000000b607', '00000000-0000-4000-8000-00000000b608',
   '00000000-0000-4000-8000-00000000b60a', '00000000-0000-4000-8000-00000000b603') AS sesion;
+-- La base local puede tener sesiones activas de otras corridas: se finalizan
+-- dentro de la transacción (la RPC de cierre validaría horas extra ajenas)
+-- para que cerrar_jornada cierre solo la del fixture.
+UPDATE public.sesiones_trabajo
+SET estado_sesion = 'finalizada', fecha_fin = coalesce(fecha_fin, now())
+WHERE estado_sesion = 'activa'
+  AND id <> (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion4');
 SELECT is(
   (public.cerrar_jornada((now() AT TIME ZONE 'America/Tijuana')::date,
     '00000000-0000-4000-8000-00000000b602')->>'sesiones_cerradas')::integer,

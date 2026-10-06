@@ -183,4 +183,41 @@ SIGUIENTE: aplicar migraciones → pgTAP global + integración + E2E de regresi�
   BLOQUEO-PRUEBAS; la UI de la orden (consumidores) es la ola 2.
 ```
 
+## 2026-10-06 — B5 ola 2 (UI de orden/alta SII + consumidores): SUB-BLOQUE LISTO (retomado por el coordinador)
+
+```
+TERMINAL: A (artefactos retomados y verificados por el coordinador) | FECHA-HORA: 2026-10-06 16:00
+ESTADO: SUB-BLOQUE LISTO para commit
+TAREAS: SII-B5 ola 2 — cola /ordenes con chips por estado_sii y bandejas Activas/Archivo;
+  acciones de negocio Liberar/Cancelar/Cerrar administrativa (sin botones manuales);
+  ficha /ordenes/[id] con snapshot, ITxx, ruta, archivos vivos, entregas, actividad y documento;
+  alta desde revisión aceptada + orden interna (TI) con autorización;
+  consumidores migrados a estado_sii (planeación, cobranza, repetir/reactivar, dashboard).
+ARCHIVOS:
+  supabase/migrations/20261007120004_sii_b5_consumidores_estado.sql (nuevo)
+  supabase/migrations/20261007120005_sii_b5_derivaciones_definer.sql (nuevo; aportado por la
+    sesión paralela antes de detenerla: triggers de avance SECURITY DEFINER para service_role)
+  src/app/(privado)/ordenes/page.tsx · src/app/(privado)/ordenes/[id]/page.tsx (nuevo)
+  src/modulos/ordenes/componentes/{tabla-ordenes,ficha-orden,panel-alta-orden-sii}.tsx
+  src/modulos/ordenes/{tipos/ordenes,tipos/ficha-orden,utilidades/resumen-ordenes}.ts
+  src/modulos/ordenes/servicios/ficha-orden-servicio.ts · acciones/obtener-revisiones-aceptadas.ts
+  src/estado/uso-tienda-ordenes.ts · src/compartido/componentes/diseno/badge-estado.tsx
+  src/modulos/{planeacion,cobranza}/** (consumidores) · supabase/tests/sii_b5_orden.test.sql
+  tests/e2e/ordenes-estados-sii.spec.ts + specs de regresión de órdenes/planeación
+MIGRACIONES: 20261007120004_sii_b5_consumidores_estado.sql y 20261007120005_sii_b5_derivaciones_definer.sql
+  | APLICADA POR PO: no (aplicadas en local por el coordinador)
+GATES: typecheck 0 · lint 0 · unit 932/932 · pgTAP 968/968 · integración 226/227
+  (flake de concurrencia PIN pasa aislado en 8.6 s) · E2E focal 1/1 + regresión 10/10 · build OK ·
+  capturas 4/4 en .ai-shared/qa/sii-b5-orden/visual/
+EVIDENCIA:
+  · correcciones durante la verificación: lint prefer-const del spec; flake horario del pgTAP B6
+    (5 h→6 h por el descuento de comida 12:00-13:00 Tijuana); E2E B5 debía usar la bandeja Archivo
+    tras la entrega total (OBS-21 archiva) y localizar la TI sin cliente por folio del mensaje;
+    specs heredados actualizados a etiquetas SII (Planificada/Producción completada/En producción).
+  · sesión paralela detenida a petición del PO para evitar doble mutación de la base local.
+BLOQUEOS: ninguno.
+SIGUIENTE: commit del coordinador; el retiro del puente `estado_sii` sigue pendiente (producción aún lee el estado legacy) y se coordina como endurecimiento posterior.
+```
+
+
 

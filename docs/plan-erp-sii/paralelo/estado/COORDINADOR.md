@@ -57,3 +57,25 @@
 - A (B5 ola 2) sin cerrar: artefactos completos, terminal atascada desde ~09:57 (¿E2E/build largo?); migración `20261007120004` aplicada en local por el coordinador; pgTAP verde. Pendiente que A reporte o se reinicie.
 - Migraciones para el PO: `20261007120004` (A, tras su cierre) y `20261007140001` (C).
 - Decisiones pendientes: colisión potencial `NE-M MYY_XX-YY` entre O y OI; autorización de `supabase db reset` local.
+
+### Cierre B5 ola 2 verificado — 2026-10-06
+
+- El PO pidió retomar el cierre; la terminal A estaba atascada con artefactos completos. Durante la verificación se detectó y detuvo (por indicación del PO) una sesión paralela que corría el mismo E2E, para evitar doble mutación de la base local.
+- Defectos corregidos por el coordinador:
+  1. `prefer-const` en `ordenes-estados-sii.spec.ts`.
+  2. Flake horario del pgTAP B6: con la ventana de 5 h el descuento de comida (12:00–13:00 Tijuana) dejaba `horas_netas = 4` justo cuando la corrida cae entre 13:00 y 17:00; se usa 6 h (neto ≥ 5 > jornada 4) y queda determinista (`sii_b6_produccion.test.sql`).
+  3. E2E B5: la entrega total archiva la orden (OBS-21), por lo que el cierre administrativo se ejecuta desde la bandeja **Archivo**; la TI no lleva cliente y se identifica por el folio `OI-` del mensaje de alta.
+  4. Specs heredados al badge SII: `ordenes-heredadas-reactivacion` ahora espera `Planificada`/`Producción completada`/`En producción`.
+- Gates: typecheck 0 · lint 0 · unit 932/932 · pgTAP **968/968** · integración 226/227 (PIN pasa aislado 8.6 s) · E2E focal B5 1/1 + regresión 10/10 · build OK · capturas 4/4.
+- Migración para el PO: `20261007120004` (aplicada solo local) y `20261007120005` (fix SECURITY DEFINER de triggers de avance, aportada por la sesión paralela; aplicada solo local).
+- Pendiente: commit del cierre de B5 ola 2; después B7 ola 2 (UI `/entregas`, firma/evidencia y E2E).
+
+### Cierre B7 ola 2 verificado — 2026-10-06
+
+- Implementado por el coordinador (sesión paralela ya detenida): cola `/entregas` con pendientes por orden (ITxx) y notas registradas con filtros; panel de preparación con cantidades por partida, contacto y quién recibe; detalle con evidencia fotográfica, firma digital en canvas y firma escaneada versionada; enlace desde la ficha de orden y entrada en el menú.
+- Gates: typecheck 0 · lint 0 · unit **935/935** · pgTAP **968/968** · E2E focal `entregas-flujo` **1/1** · regresión producción/cobranza **7/7** · build OK · capturas **8/8** en `.ai-shared/qa/sii-b7-ola2/visual/`.
+- Defectos ambientales endurecidos en pgTAP (sin cambios de producto):
+  1. `sii_b3_continuidad_folios`: neutraliza también contador y folios `O`/`OI` del periodo vigente (la base local acumula órdenes reales de E2E).
+  2. `sii_b3_rfq_consumidores`: el corte de equipo se evalúa en ventana futura aislada (mismo criterio que el ejecutivo).
+  3. `sii_b6_produccion`: finaliza sesiones activas ajenas dentro de la transacción antes de `cerrar_jornada`.
+- Sin migración nueva (reusa `20261007140001`). Pendiente: commit del cierre de B7 ola 2.
