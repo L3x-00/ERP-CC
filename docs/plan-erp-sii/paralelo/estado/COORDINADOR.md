@@ -79,3 +79,11 @@
   2. `sii_b3_rfq_consumidores`: el corte de equipo se evalúa en ventana futura aislada (mismo criterio que el ejecutivo).
   3. `sii_b6_produccion`: finaliza sesiones activas ajenas dentro de la transacción antes de `cerrar_jornada`.
 - Sin migración nueva (reusa `20261007140001`). Pendiente: commit del cierre de B7 ola 2.
+
+### B8 Finanzas — diseño validado y F1 cerrada localmente — 2026-10-06
+
+- El PO validó los criterios §8.4: conservar AR D-04 + vincular factura; gastos nuevos `CG-MMYY_####`; promesas **con recordatorios**; y autorizó F1.
+- F1 (folio `RP-MMYY_XX-YY`, espejo del NE) implementada: `20261007160001` + `20261007160002` (limpieza de índice redundante), sin cambios de firma ni de idempotencia.
+- Gates: typecheck 0 · lint 0 · unit 935/935 · pgTAP **980/980** (nuevo `sii_b8_folio_recibo` 12/12) · E2E `cobranza-folio-rp` 1/1 + regresión cobranza 5/5 · build OK · capturas 2/2.
+- Decisiones registradas en `.ai-shared/memory/decisions/ADR-SII-B8-FINANZAS-20261006.md`.
+- Pendiente: commit de cierre B8-F1; F2–F5 esperan autorización por fase.

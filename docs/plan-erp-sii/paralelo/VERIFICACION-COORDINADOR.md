@@ -173,3 +173,12 @@
   - Evidencia fresca combinada: typecheck 0 · lint 0 · build OK · unit **935/935** · pgTAP **968/968** · integración 226/227 (flake PIN documentado que pasa aislado) · E2E focal B5+B7 **2/2** y regresiones **17/17**.
 - **Migraciones SII pendientes para el PO (remoto)**, en orden: `20261007100004`–`20261007100008`, `20261007110001`–`20261007110004`, `20261007120001`–`20261007120005`, `20261007130001`–`20261007130002`, `20261007140001`, `20261007150001`–`20261007150002`; además verificar que `2026100620*` y `2026100630*` estén aplicadas. Todas idempotentes con guardas de dependencia.
 - **Pendiente inmediato:** commit de cierre de B5 ola 2 y B7 ola 2 (coordinador) y aplicar migraciones en remoto cuando el PO autorice.
+
+### Auditoría 11 — 2026-10-06 (B8 Finanzas: diseño validado y F1 folio RP)
+
+- **Diseño B8 validado por el PO** (respuestas registradas en `08-finanzas.md` §8.4 y ADR `ADR-SII-B8-FINANZAS-20261006.md`): conservar el flujo de AR D-04 vinculando factura; gastos nuevos con `CG-MMYY_####` (históricos `GTO`); promesas de pago **con recordatorios**; el folio `RP-MMYY_XX-YY` se deriva **espejo del NE**.
+- **F1 implementada y verificada:** migraciones `20261007160001_sii_b8_folio_recibo.sql` (CHECK dual REC/RP, `privado.siguiente_folio_recibo` con advisory lock por orden, `registrar_pago_ar_atomico` y `aplicar_saldo_favor_ar` recreadas sin cambio de firma) y `20261007160002_sii_b8_folio_recibo_limpieza.sql` (retira índice redundante; ya existía `pagos_ar_folio_recibo_key`). La idempotencia por `solicitud_id` ya existía y no se modificó.
+- **Evidencia:** typecheck 0 · lint 0 · unit **935/935** · pgTAP **980/980** (38 archivos; nuevo `sii_b8_folio_recibo` 12/12) · E2E `cobranza-folio-rp` **1/1** + regresión de cobranza **5/5** · build OK · capturas 2/2 en `.ai-shared/qa/sii-b8-f1/visual/`.
+- **Riesgo heredado:** la colisión `O-`/`OI-` del mismo mes+sufijo aplica también a `RP` (falla ruidosa por UNIQUE); decisión de desambiguación pendiente del PO para NE y RP.
+- **Migraciones para el PO (remoto):** `20261007160001`, `20261007160002` (tras `20261007120005`).
+- **Siguiente:** commit del cierre B8-F1; F2–F5 solo con autorización por fase.
