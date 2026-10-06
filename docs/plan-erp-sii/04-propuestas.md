@@ -201,6 +201,8 @@ Reglas del documento, implementadas literalmente:
 5. **Enviar** (`PROPUESTA_ENVIAR`) exige PDF vigente + canal + destino + próxima acción y pasa a SENT **congelando atómicamente** (transacción con locks; fallo = no cambia nada).
 6. **Spike B4.6 (ADR-SII-04):** comparar `@react-pdf/renderer` vs Chromium headless; criterios: sin red en runtime, determinista, peso de build aceptable, plantilla reutilizable para B5/B7. Registrar decisión en el ADR antes de implementar.
 
+> **DECISIÓN DEL SPIKE (2026-10-06, terminal C):** se implementó un **escritor PDF 1.4 interno sin dependencias** (`src/modulos/propuestas/servicios/pdf/escritor-pdf.ts`). Cumple los criterios: sin red en runtime, determinista (mismos datos ⇒ mismos bytes, hash estable para la idempotencia), peso de build nulo (no toca `package.json`) y contenido exclusivamente comercial (prueba unitaria de exclusión de costo/margen/horas/ruteo/notas internas). `@react-pdf/renderer` queda descartado por ahora (dependencia nueva + reconciliador React) y Chromium headless por peso/runtime/indeterminismo de fuentes; ambos podrían sustituir al renderer detrás de `generarPdfBorrador` sin cambiar datos ni flujo si el cliente exige maquetación rica.
+
 ---
 
 ## 4.8 Archivos de la propuesta (§10.6)

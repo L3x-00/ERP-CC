@@ -22,7 +22,11 @@ import {
   esquemaEditarCostosRevision,
   esquemaEditarItemPropuesta,
   esquemaEditarRuteoItem,
+  esquemaEnviarRevision,
+  esquemaFiltrosPropuestas,
+  esquemaGenerarPdfRevision,
   esquemaRegistrarSeguimientoPropuesta,
+  esquemaSubirArchivoPropuesta,
 } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 
 const ID = '11111111-1111-4111-8111-111111111111';
@@ -263,5 +267,53 @@ describe('mapeos de propuestas (B4)', () => {
     expect(snapshot.ivaPorcentaje).toBe(16);
     expect(snapshot.cliente).toBeNull();
     expect(snapshot.folioLegacy).toBeNull();
+  });
+});
+
+describe('validaciones de la ola 2 (envío, PDF y filtros)', () => {
+  it('el envío exige canal y destino', () => {
+    expect(
+      esquemaEnviarRevision.safeParse({ revisionId: ID, canal: '', destino: 'x@y.mx' }).success,
+    ).toBe(false);
+    expect(
+      esquemaEnviarRevision.safeParse({ revisionId: ID, canal: 'correo', destino: '' }).success,
+    ).toBe(false);
+    expect(
+      esquemaEnviarRevision.safeParse({ revisionId: ID, canal: 'correo', destino: 'x@y.mx' }).success,
+    ).toBe(true);
+  });
+
+  it('la generación de PDF solo requiere la revisión', () => {
+    expect(esquemaGenerarPdfRevision.safeParse({ revisionId: ID }).success).toBe(true);
+    expect(esquemaGenerarPdfRevision.safeParse({}).success).toBe(false);
+  });
+
+  it('los filtros de la cola validan estado y rfq', () => {
+    expect(esquemaFiltrosPropuestas.safeParse({ estado: 'SENT' }).success).toBe(true);
+    expect(esquemaFiltrosPropuestas.safeParse({ estado: 'ENVIADA' }).success).toBe(false);
+    expect(esquemaFiltrosPropuestas.safeParse({ rfqId: ID }).success).toBe(true);
+    expect(esquemaFiltrosPropuestas.safeParse({ rfqId: 'no-uuid' }).success).toBe(false);
+  });
+
+  it('la subida de archivos valida tema y nombre', () => {
+    expect(
+      esquemaSubirArchivoPropuesta.safeParse({
+        revisionId: ID,
+        tema: 'tecnico',
+        nombreArchivo: 'plano.dxf',
+      }).success,
+    ).toBe(true);
+    expect(
+      esquemaSubirArchivoPropuesta.safeParse({ revisionId: ID, nombreArchivo: '' }).success,
+    ).toBe(false);
+  });
+
+  it('traduce los errores nuevos de envío y PDF', () => {
+    expect(traducirErrorPropuesta('pdf_requerido')).toContain('PDF');
+    expect(traducirErrorPropuesta('pdf_archivo_invalido')).toContain('PDF');
+    expect(traducirErrorPropuesta('revision_no_apta_pdf')).toContain('PDF');
+    expect(traducirErrorPropuesta('proxima_accion_requerida')).toContain('próxima acción');
+    expect(traducirErrorPropuesta('canal_requerido')).toContain('canal');
+    expect(traducirErrorPropuesta('destino_requerido')).toContain('destino');
   });
 });

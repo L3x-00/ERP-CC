@@ -191,6 +191,21 @@ export type TotalesPropuesta = {
   moneda: MonedaPropuesta;
 };
 
+/** Banderas de permiso resueltas en el servidor para la UI de propuestas. */
+export type PermisosPropuesta = {
+  editarArticulo: boolean;
+  editarPrecio: boolean;
+  editarRuteo: boolean;
+  editarCosto: boolean;
+  validar: boolean;
+  generarPdf: boolean;
+  enviar: boolean;
+  seguimiento: boolean;
+  aceptar: boolean;
+  crearRevision: boolean;
+  cerrar: boolean;
+};
+
 // Filas crudas de Supabase (snake_case) derivadas de los tipos generados.
 export type FilaPropuesta = Tables<'propuestas'>;
 export type FilaRevisionPropuesta = Tables<'propuesta_revisiones'>;

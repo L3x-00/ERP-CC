@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
-import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { Button } from '@/compartido/componentes/ui/button';
 import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
@@ -13,6 +12,7 @@ import type { Rfq } from '@/modulos/rfq/tipos/indice';
 
 import { obtenerRfqAccion } from '../acciones/obtener-rfq';
 import { obtenerCatalogosRfqAccion } from '../acciones/obtener-catalogos';
+import { ListaPropuestasRfq } from '@/modulos/propuestas/componentes/lista-propuestas-rfq';
 import { ActividadRfq } from './actividad-rfq';
 import { FormularioGeneralRfq } from './formulario-general-rfq';
 import { PanelAccionesRfq } from './panel-acciones-rfq';
@@ -149,10 +149,7 @@ export function FichaRfq({ rfqId }: { rfqId: string }) {
       {pestana === 'archivos' && <PanelArchivosRfq rfq={rfq} />}
 
       {pestana === 'propuestas' && (
-        <EstadoVacio
-          titulo="Propuestas (B4)"
-          descripcion="La generación de propuestas y revisiones llega con el bloque B4; este RFQ quedará ligado a sus propuestas."
-        />
+        <ListaPropuestasRfq rfqId={rfq.id} estadoRfq={rfq.estadoRfq} />
       )}
 
       {pestana === 'actividad' && <ActividadRfq rfqId={rfq.id} />}

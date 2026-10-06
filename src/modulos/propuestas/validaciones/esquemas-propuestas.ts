@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CATEGORIAS_COSTO } from '@/modulos/propuestas/tipos/indice';
+import { CATEGORIAS_COSTO, ESTADOS_PROPIESTA } from '@/modulos/propuestas/tipos/indice';
 
 const uuid = z.uuid('Identificador inválido');
 const actualizadoEn = z.string().trim().min(1, 'Falta la versión del registro');
@@ -132,6 +132,45 @@ export const esquemaMotivoPropuesta = z
   .object({ revisionId: uuid, motivo, actualizadoEn })
   .strict();
 
+/** Generación/regeneración del PDF de una revisión lista para enviar. */
+export const esquemaGenerarPdfRevision = z
+  .object({ revisionId: uuid })
+  .strict();
+
+/** Envío atómico de la revisión (congela en SENT). */
+export const esquemaEnviarRevision = z
+  .object({
+    revisionId: uuid,
+    canal: z.string().trim().min(1, 'Indica el canal de envío').max(60),
+    destino: z.string().trim().min(1, 'Indica el destino').max(120),
+  })
+  .strict();
+
+/** Firma corta de un archivo de propuesta (PDF o adjunto). */
+export const esquemaFirmarArchivoPropuesta = z
+  .object({ archivoId: uuid })
+  .strict();
+
+/** Metadatos de subida de un archivo propio de la revisión. */
+export const esquemaSubirArchivoPropuesta = z
+  .object({
+    revisionId: uuid,
+    tema: z.enum(['general', 'tecnico']).default('general'),
+    nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido'),
+  })
+  .strict();
+
+/** Filtros de la cola de propuestas. */
+export const esquemaFiltrosPropuestas = z
+  .object({
+    estado: z.enum(ESTADOS_PROPIESTA).optional(),
+    busqueda: z.string().trim().max(120).optional(),
+    responsableId: uuid.optional(),
+    rfqId: uuid.optional(),
+    soloVencidas: z.boolean().optional(),
+  })
+  .strict();
+
 export type CrearPropuestaInput = z.infer<typeof esquemaCrearPropuesta>;
 export type CrearNuevaRevisionInput = z.infer<typeof esquemaCrearNuevaRevision>;
 export type EditarItemPropuestaInput = z.infer<typeof esquemaEditarItemPropuesta>;
@@ -144,3 +183,8 @@ export type ValidarRevisionInput = z.infer<typeof esquemaValidarRevision>;
 export type AceptarRevisionInput = z.infer<typeof esquemaAceptarRevision>;
 export type ConfirmarVentaInput = z.infer<typeof esquemaConfirmarVenta>;
 export type MotivoPropuestaInput = z.infer<typeof esquemaMotivoPropuesta>;
+export type GenerarPdfRevisionInput = z.infer<typeof esquemaGenerarPdfRevision>;
+export type EnviarRevisionInput = z.infer<typeof esquemaEnviarRevision>;
+export type FirmarArchivoPropuestaInput = z.infer<typeof esquemaFirmarArchivoPropuesta>;
+export type SubirArchivoPropuestaInput = z.infer<typeof esquemaSubirArchivoPropuesta>;
+export type FiltrosPropuestasInput = z.infer<typeof esquemaFiltrosPropuestas>;

@@ -23,6 +23,13 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['ver_clientes', 'ver_pipeline_equipo', 'rfq_vista'],
   },
   {
+    href: '/propuestas',
+    etiqueta: 'Propuestas',
+    grupo: 'Comercial',
+    icono: 'documento',
+    permisos: ['propuesta_vista'],
+  },
+  {
     href: '/clientes',
     etiqueta: 'Clientes',
     grupo: 'Comercial',

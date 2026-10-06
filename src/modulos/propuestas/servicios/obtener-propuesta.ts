@@ -5,6 +5,7 @@ import {
   filaACostoRevisionPropuesta,
   filaAEventoRevisionPropuesta,
   filaAItemPropuesta,
+  filaAPdfRevisionPropuesta,
   filaAPropuesta,
   filaARevisionPropuesta,
   filaARuteoPropuesta,
@@ -12,6 +13,7 @@ import {
   type CostoRevisionPropuesta,
   type EventoRevisionPropuesta,
   type MonedaPropuesta,
+  type PdfRevisionPropuesta,
   type Propuesta,
   type PropuestaItem,
   type RevisionPropuesta,
@@ -115,6 +117,98 @@ export async function obtenerPropuestaPorId(
     acciones: (filasAcciones ?? []).map(filaAAccionRevisionPropuesta),
     eventos: (filasEventos ?? []).map(filaAEventoRevisionPropuesta),
   };
+}
+
+/** Archivo vinculado a la propuesta (propio, heredado del RFQ o por ítem). */
+export type ArchivoPropuesta = {
+  id: string;
+  entidad: string;
+  entidadId: string;
+  temaCodigo: string | null;
+  nombreOriginal: string;
+  rutaStorage: string;
+  bucket: string;
+  mime: string;
+  tamanoBytes: number;
+  version: number;
+  vigente: boolean;
+  creadoEn: string;
+};
+
+/** Carga los archivos visibles de la propuesta: propios, heredados y por ítem. */
+export async function obtenerArchivosDePropuesta(
+  cliente: SupabaseClient<Database>,
+  entrada: {
+    revisionIds: readonly string[];
+    itemIds: readonly string[];
+    rfqId: string;
+    rfqItemIds: readonly string[];
+  },
+): Promise<ArchivoPropuesta[]> {
+  const filtros: string[] = [];
+  if (entrada.revisionIds.length > 0) {
+    filtros.push(`and(entidad.eq.propuesta_revision,entidad_id.in.(${entrada.revisionIds.join(',')}))`);
+  }
+  if (entrada.itemIds.length > 0) {
+    filtros.push(`and(entidad.eq.propuesta_item,entidad_id.in.(${entrada.itemIds.join(',')}))`);
+  }
+  filtros.push(`and(entidad.eq.rfq,entidad_id.eq.${entrada.rfqId})`);
+  if (entrada.rfqItemIds.length > 0) {
+    filtros.push(`and(entidad.eq.rfq_item,entidad_id.in.(${entrada.rfqItemIds.join(',')}))`);
+  }
+
+  const { data, error } = await cliente
+    .from('archivos')
+    .select('*')
+    .eq('vigente', true)
+    .or(filtros.join(','))
+    .order('creado_en', { ascending: false });
+  if (error) {
+    console.error('[PROPUESTAS] No se pudieron cargar los archivos:', error.message);
+    return [];
+  }
+
+  return (data ?? []).map((fila) => ({
+    id: fila.id,
+    entidad: fila.entidad,
+    entidadId: fila.entidad_id,
+    temaCodigo: fila.tema_codigo,
+    nombreOriginal: fila.nombre_original,
+    rutaStorage: fila.ruta_storage,
+    bucket: fila.bucket,
+    mime: fila.mime,
+    tamanoBytes: Number(fila.tamano_bytes),
+    version: fila.version,
+    vigente: fila.vigente,
+    creadoEn: fila.creado_en,
+  }));
+}
+
+/** IDs de los ítems del RFQ (para resolver archivos heredados por ítem). */
+export async function obtenerIdsItemsRfq(
+  cliente: SupabaseClient<Database>,
+  rfqId: string,
+): Promise<string[]> {
+  const { data } = await cliente.from('rfq_items').select('id').eq('rfq_id', rfqId);
+  return (data ?? []).map((fila) => fila.id);
+}
+
+/** PDFs registrados (vigentes e históricos) de las revisiones indicadas. */
+export async function obtenerPdfsDeRevisiones(
+  cliente: SupabaseClient<Database>,
+  revisionIds: readonly string[],
+): Promise<PdfRevisionPropuesta[]> {
+  if (revisionIds.length === 0) return [];
+  const { data, error } = await cliente
+    .from('propuesta_pdfs')
+    .select('*')
+    .in('revision_id', [...revisionIds])
+    .order('version', { ascending: false });
+  if (error) {
+    console.error('[PROPUESTAS] No se pudieron cargar los PDFs:', error.message);
+    return [];
+  }
+  return (data ?? []).map(filaAPdfRevisionPropuesta);
 }
 
 /** Lee los totales calculados por SQL (misma semántica que el espejo TS). */

@@ -47,6 +47,28 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
       ? `Antes de validar: ${faltantes.join(', ')}`
       : 'La revisión requiere confirmar ruteo/costeo antes de validar';
   }
+  if (mensaje.includes('revision_no_apta_pdf')) {
+    return 'El PDF solo se genera sobre revisiones listas para enviar';
+  }
+  if (
+    mensaje.includes('pdf_archivo_invalido') ||
+    mensaje.includes('pdf_archivo_requerido') ||
+    mensaje.includes('pdf_hash_invalido')
+  ) {
+    return 'El archivo del PDF no es válido para la revisión';
+  }
+  if (mensaje.includes('pdf_requerido')) {
+    return 'Genera el PDF vigente antes de enviar';
+  }
+  if (mensaje.includes('canal_requerido')) {
+    return 'Indica el canal de envío';
+  }
+  if (mensaje.includes('destino_requerido')) {
+    return 'Indica el destino del envío';
+  }
+  if (mensaje.includes('proxima_accion_requerida')) {
+    return 'Registra la próxima acción antes de enviar';
+  }
   if (mensaje.includes('revision_congelada')) {
     return 'La revisión está congelada; crea una nueva revisión para cambiar el contenido';
   }
