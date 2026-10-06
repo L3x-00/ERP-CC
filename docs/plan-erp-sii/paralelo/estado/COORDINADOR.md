@@ -49,3 +49,11 @@
 - Auditoría 7: corregidos el puente `estado_sii` en INSERT, la próxima acción en READY_TO_SEND y specs frágiles (paginación, Realtime, selectores estrictos). Gates: pgTAP 912/912, unit 916/916, integración 226/226, typecheck/lint/build 0; specs E2E afectados verdes en focal; suite completa local pendiente de `db reset` autorizado.
 - Migraciones para el PO: `0711 0003/0004`, `0712 0001/0002/0003`, `0713 0001/0002`, `0715 0002`.
 - Nueva ola: A → B5 ola 2 (UI órdenes/consumidores, `0712*` 0004+); B → B6 ola 2 (UI piso/calidad/checklist real, `0713*` 0003+); C → B7 ola 1 (entregas modelo, `0714*`). Prompts en `paralelo/prompts/`.
+
+### Cierre ola 5 (parcial) — 2026-10-06
+
+- B (B6 ola 2) `78933f0` y C (B7 ola 1) `b4c4487` verificados y commiteados; fixes de auditoría `ad2d8ad`.
+- Gates: pgTAP 968/968 · unit 932/932 · typecheck/lint/build 0 · integración 226/227 (1 flake ambiental de concurrencia PIN, pasa aislado).
+- A (B5 ola 2) sin cerrar: artefactos completos, terminal atascada desde ~09:57 (¿E2E/build largo?); migración `20261007120004` aplicada en local por el coordinador; pgTAP verde. Pendiente que A reporte o se reinicie.
+- Migraciones para el PO: `20261007120004` (A, tras su cierre) y `20261007140001` (C).
+- Decisiones pendientes: colisión potencial `NE-M MYY_XX-YY` entre O y OI; autorización de `supabase db reset` local.

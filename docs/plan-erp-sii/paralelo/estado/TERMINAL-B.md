@@ -176,3 +176,44 @@ DECISIONES / INTERPRETACIONES:
 BLOQUEOS: ninguno propio. A/C tienen migraciones pendientes en local (`20261007110003`, `20261007120001/2`, `20261007150002`) y sus tests pgTAP/typecheck en curso; no las toqué.
 
 SIGUIENTE: el PO aplica `2026100713*` en remoto; el coordinador hace cross-review/commit; B6 ola 2 monta la UI de corridas/checklist/pausas/horas extra/calidad y retira la verificación de compatibilidad.
+
+## 2026-10-06 11:01 - B6 Produccion ola 2 (UI de piso, checklist real, corridas, calidad, horas extra)
+
+TERMINAL: B | FECHA-HORA: 2026-10-06 11:01
+ESTADO: SUB-BLOQUE LISTO (UI y pruebas; pendiente cross-review/commit del coordinador)
+TAREAS:
+- UI LISTA: paneles `panel-corridas` (alta con partidas compatibles, iniciar/completar/cancelar, operar), `panel-calidad` (primera pieza, referencia de lote, cierre, fotos via bucket adjuntos-cotizacion), `panel-recursos-liberados` (reclamo >=60 min), `panel-horas-extra` (autorizacion Management/Admin) y `dialogo-checklist-inicio` (5 eventos criticos); `panel-operador` captura el checklist real y usa motivos del catalogo con nota obligatoria; `operacion-produccion` cablea todo con queries por clave y seleccion derivada de corrida.
+- Inyeccion de compatibilidad RETIRADA de `iniciar-sesion-operador` (ahora reenvia el checklist real; test de integracion actualizado).
+- Auto-cierre de jornada en `/produccion`: al abrir el piso cierra la jornada de ayer (`cerrar_jornada`, FIN_JORNADA); nunca bloquea la carga.
+- Realtime: se suscribe solo a tablas publicadas (`corridas` nueva) e invalida el prefijo `['produccion']`; las tablas B6 de items/inspecciones/horas extra NO estan en `supabase_realtime` y suscribirlas rompia el canal completo (regresion detectada y corregida en E2E). Refresco cruzado de esas tablas requeriria migracion de publicacion (coordinador/PO).
+- pgTAP: 3 asserts nuevos del hook B5 (trigger, PLANIFICADA previa, EN_PRODUCCION tras primera sesion). Plan 71 -> 74.
+- E2E nuevo `corridas-calidad.spec.ts`: crear corrida compatible (LASER_FIBRA), iniciar con checklist, primera pieza aprobada con foto, sesion de operador vinculada a la corrida (contexto admin+PIN aparte), 2/2 piezas y auto-COMPLETADA por el cierre; capturas en `.ai-shared/qa/sii-b6-ola2/visual/`.
+- E2E existentes adaptados: checklist obligatorio antes de iniciar y pausa por codigo `MATERIAL` (texto "Falta de material").
+
+ARCHIVOS:
+- Nuevos: `src/modulos/produccion/servicios/consultas-b6-servicio.ts`, `src/modulos/produccion/acciones/consultas-b6.ts`, `src/modulos/produccion/componentes/{dialogo-checklist-inicio,panel-corridas-produccion,panel-calidad-produccion,panel-recursos-liberados,panel-horas-extra-produccion}.tsx`, `tests/e2e/corridas-calidad.spec.ts`.
+- Modificados: `src/modulos/produccion/componentes/{panel-operador-produccion,operacion-produccion,claves-consulta,sincronizador-produccion-realtime}.tsx`, `src/modulos/produccion/acciones/{iniciar-sesion-operador,indice}.ts`, `src/modulos/produccion/servicios/indice.ts`, `src/modulos/produccion/utilidades/{corridas,indice}.ts`, `src/modulos/produccion/validaciones/corridas.ts`, `src/compartido/componentes/diseno/badge-estado.tsx` (clave planificada), `src/app/(privado)/produccion/page.tsx`, `tests/e2e/{produccion-piso,produccion-avance-procesos}.spec.ts`, `tests/integracion/produccion-sesiones.test.ts`, `tests/unitarias/produccion-corridas.test.ts`, `supabase/tests/sii_b6_produccion.test.sql`.
+
+MIGRACIONES: ninguna nueva en esta ola (decision: el hook B5 cubre LISTA->EN_PRODUCCION; verificado por pgTAP). `20261007130001/0002` siguen pendientes de aplicacion remota por el PO.
+
+GATES:
+- typecheck: 0. lint completo: 0. unit: 932/932. build: OK (via E2E).
+- pgTAP focal `sii_b6_produccion.test.sql`: 74/74.
+- integracion: 226/227; unico fallo `operadores-pin-concurrencia` por timeout de 5 s con 26 operadores con PIN acumulados en local (cada `crypt` ~80 ms bajo el advisory lock); no es regresion B6 (pasaba 226/226 en local limpio). Requiere `supabase db reset` del PO.
+- E2E: `corridas-calidad` + `produccion-avance-procesos` + `produccion-piso` = 4/4 passed con `BLOQUEO-PRUEBAS.lock` (se retomo el lock de A por vencimiento >20 min y se libero al terminar).
+
+EVIDENCIA (comandos):
+- `pnpm typecheck` EXIT 0; `pnpm lint` EXIT 0; `pnpm test` 932 passed; `next build` OK dentro del webServer E2E.
+- `supabase test db supabase/tests/sii_b6_produccion.test.sql` -> Files=1, Tests=74, PASS.
+- `pnpm test:integracion` (env loopback via `supabase status -o env`) -> 226 passed, 1 failed (flake ambiental documentado).
+- `pnpm exec playwright test tests/e2e/corridas-calidad.spec.ts tests/e2e/produccion-avance-procesos.spec.ts tests/e2e/produccion-piso.spec.ts` -> 4 passed.
+
+DECISIONES / INTERPRETACIONES:
+- Completar/cancelar corrida exige `gestionar_produccion` (SQL); el operador solo inicia/opera su sesion. El E2E usa admin para el flujo completo.
+- La corrida se auto-COMPLETA al cerrar la sesion cuando todos sus items quedaron completos (`cerrar_sesion_trabajo_operador`); no hizo falta paso manual.
+- No suscribir Realtime a tablas fuera de la publicacion: mata el canal completo y deja de refrescar el tablero; el panel de calidad/horas extra se invalida tras la accion propia.
+- Motivo de pausa del panel usa el codigo del catalogo; el dialogo de reanudacion resuelve nombre del catalogo y conserva el texto legacy como fallback.
+
+BLOQUEOS: reset local pendiente del PO para dejar integracion 227/227 y re-ejecutar E2E sobre base limpia; cross-review/commit del coordinador; aplicacion remota de `2026100713*` sigue en manos del PO.
+
+SIGUIENTE: coordinador hace cross-review y commit de B6 ola 2; PO hace `supabase db reset` + semillas y aplica migraciones B6 en remoto; si se desea refresco Realtime cruzado de items/inspecciones/horas extra, se propone migracion de publicacion en la siguiente ola.

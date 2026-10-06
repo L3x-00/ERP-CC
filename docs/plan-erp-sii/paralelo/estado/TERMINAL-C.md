@@ -109,4 +109,28 @@
 - BLOQUEOS: `20261007110003` requiere aplicación del PO (protocolo §2.3). Sin ella no corren `supabase test db` (el test nuevo referencia `enviar_revision`/`registrar_pdf_revision`) ni el E2E focal/capturas.
 - SIGUIENTE: aplicada 0003, correr `supabase test db` completo, E2E focal `propuestas-flujo` + capturas, y reportar al coordinador para cross-review/commit.
 
+## 2026-10-07 — B7 Entregas ola 1 (modelo, folio NE y evidencias): SUB-BLOQUE LISTO
+
+- TERMINAL: C | FECHA-HORA: 2026-10-07
+- ESTADO: SUB-BLOQUE LISTO (SQL + dominio + pruebas). Pendiente que el PO aplique `20261007140001` para `supabase test db`. Sin UI/E2E (ola 2).
+- TAREAS: SII-B7.1 (modelo, folio NE-MMYY_XX-YY, RPC idempotente) y base de SII-B7.2 (evidencia/firma en `archivos` + bucket).
+- ARCHIVOS:
+  - Migración: `supabase/migrations/20261007140001_sii_b7_entregas.sql` (columnas SII de `notas_entrega`, `codigo_item` en renglones con backfill, triggers de folio/entregador/ITxx —aplican también al flujo legacy—, bucket privado `entregas-evidencias`, RLS ampliada y RPC `registrar_entrega`).
+  - pgTAP: `supabase/tests/sii_b7_entregas.test.sql` (51 aserciones).
+  - Dominio: `src/modulos/entregas/**` (`tipos`, `utilidades` folio/agrupación, `servicios` pendientes/entregas/errores, `validaciones` Zod y 6 acciones servidor: preparar, registrar, listar entregas, pendientes, vincular evidencia y firmar evidencia).
+  - Tipos: `src/compartido/tipos/supabase.ts` con bloqueo §4 (notas_entrega/partidas_nota_entrega actualizados + `registrar_entrega`); marcadores de los 4 streams verificados.
+  - Unitarias: `tests/unitarias/entregas-{folio,pendientes,esquemas}.test.ts` (14 pruebas). Ajuste **aditivo** de fixtures ajenos en `tests/unitarias/produccion-esquemas.test.ts` (campos nuevos que mi tipo exige; sin cambios de lógica).
+- MIGRACIONES: `20261007140001_sii_b7_entregas` | APLICADA POR PO: no (validada 2× idempotente y pgTAP 51/51 en copia scratch `sii_b7_probe`, ya eliminada).
+- GATES: unit 115 archivos / 930 pruebas · lint 0 · typecheck 0 · pgTAP B7 51/51 en scratch · `supabase test db` PENDIENTE de aplicar la migración · integración NO ejecutada (bloqueo de pruebas activo de A) · build BLOQUEADO por error ajeno.
+- EVIDENCIA:
+  - Scratch: pg_dump del esquema local → `0001` aplicada 2× sin errores (incluye 9 notas dummy para el 9→10 y 99→100); `ok=51 notok=0`.
+  - Folio: `NE-MMYY_XX-YY` derivado de `O-`/`OI-` con lock de la orden; históricos sin `folio_sii` conservan `NE-######`; trigger completa folio/entregador/ITxx también en `generar_nota_entrega` legacy (regresión verde en el pgTAP).
+  - Idempotencia por `solicitud_id` (lookup bajo lock + unique parcial + handler de carrera); AR/archivo se activan reutilizando el trigger existente `archivar_orden_al_entregar` (sin duplicar lógica).
+- BLOQUEOS:
+  1. `20261007140001` requiere aplicación del PO para `supabase test db`.
+  2. Gate `pnpm build` BLOQUEADO por archivo ajeno con UTF-8 inválido: `src/modulos/produccion/componentes/operacion-produccion.tsx` (B6 ola 2, en edición); typecheck y unit sí pasan.
+  3. `BLOQUEO-PRUEBAS.lock` estaba tomado por A durante el cierre (E2E B5 ola 2), por lo que no se ejecutó integración/E2E; no lo toqué.
+  Nota de riesgo (formato normativo): una orden comercial `O-MMYY_XX` y una interna `OI-MMYY_XX` pueden compartir XX el mismo mes; el formato `NE-MMYY_XX-YY` colisionaría entre ambas. Se sigue el documento al pie de la letra y el índice único falla ruidosamente; si el PO quiere, se desambigua en ola 2 (p. ej. incluir el prefijo O/OI).
+- SIGUIENTE: aplicada `2026100714*`, correr `supabase test db`; ola 2 de B7 (UI `/entregas`, captura de firma/evidencia y E2E).
+
 

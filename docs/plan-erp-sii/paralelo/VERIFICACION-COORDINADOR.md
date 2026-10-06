@@ -137,3 +137,11 @@
 - **E2E:** cada spec afectado pasa aislado y focalizado (propuestas, clientes, taller, gastos, planeación). La corrida completa local excedió el presupuesto por datos acumulados de ~100 corridas; se recomienda `supabase db reset` local + fixture antes de la próxima corrida completa (autorización del PO).
 - **Commits de cierre:** B5 ola 1 `7aaee76` · B6 ola 1 `247fe31` · B4 ola 2 `5aa3ca9` · fixes `d91fdc8`.
 - **Migraciones nuevas para el PO (remoto):** `20261007110003`, `20261007110004`, `20261007120001`, `20261007120002`, `20261007120003`, `20261007130001`, `20261007130002`, `20261007150002` (orden: 0711 → 0712 → 0713 → 0715).
+
+### Auditoría 8 — 2026-10-06 (cierres B6 ola 2 y B7 ola 1; A demorado)
+
+- **B (B6 ola 2) y C (B7 ola 1): verificados y commiteados** (`78933f0`, `b4c4487`). Gates: pgTAP **968/968** (37 archivos), unit **932/932**, typecheck/lint/build 0; integración **226/227** con 1 test de concurrencia PIN que pasa aislado (10 s) y falla por carga local acumulada (timeout ampliado a 30 s; documentado).
+- **Defectos de la auditoría corregidos:** pgTAP de continuidad de folios no cubría folios de 3 dígitos al limpiar el periodo; métrica de conversión del ejecutivo se contaminaba con RFQ reales (aislada en ventana futura); UTF-8 inválido en `operacion-produccion.tsx` reportado por C ya estaba resuelto por B; build compila.
+- **A (B5 ola 2): sin cerrar.** Artefactos completos (ficha de orden, alta SII, migración de consumidores `20261007120004`, tests) con última escritura 09:04; desde ~09:57 su terminal quedó en una corrida larga (probable E2E/build bloqueado por el UTF-8 de B de ese momento, más la suite completa sobre datos acumulados). El bloqueo de pruebas está liberado. Recomendación: interrumpir y reiniciar su terminal; las migraciones `20261007120004` ya están aplicadas en local por el coordinador y el pgTAP quedó verde.
+- **Decisión pendiente del PO:** el folio `NE-MMYY_XX-YY` puede colisionar entre orden comercial `O-` e interna `OI-` del mismo mes (el índice único falla ruidosamente). Opción: desambiguar con prefijo O/OI en la ola 2 de B7.
+- **Recomendación operativa:** `supabase db reset` local + fixture (autorización del PO) para devolver velocidad a la suite E2E/integración.
