@@ -60,7 +60,7 @@ SELECT has_table('public', 'rfq_eventos', 'Existe rfq_eventos');
 INSERT INTO public.pipeline (id, folio_op, nombre_contacto, empresa, vendedor_id)
 VALUES ('00000000-0000-4000-8000-00000000b311', 'OP-B3-FOLIO-1', 'Contacto', 'Empresa', '00000000-0000-4000-8000-00000000b303');
 SELECT ok(
-  (SELECT folio_rfq ~ '^RFQ-[0-9]{4}_[0-9]{2}$' FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b311'),
+  (SELECT folio_rfq ~ '^RFQ-[0-9]{4}_[0-9]{2,}$' FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b311'),
   'El alta asigna folio RFQ-MMYY_XX');
 INSERT INTO public.pipeline (id, folio_op, nombre_contacto, empresa, vendedor_id)
 VALUES ('00000000-0000-4000-8000-00000000b312', 'OP-B3-FOLIO-2', 'Contacto', 'Empresa', '00000000-0000-4000-8000-00000000b303');
@@ -76,12 +76,12 @@ SELECT throws_ok($$
   SELECT public.generar_folio_periodico('minusculas')
 $$, '22023', 'tipo_folio_invalido', 'Rechaza tipos fuera del formato');
 INSERT INTO public.contadores_folio_periodico (tipo, periodo, ultimo)
-VALUES ('ZZT', to_char(now(), 'MMYY'), 98);
-SELECT is(public.generar_folio_periodico('ZZT'), 'ZZT-' || to_char(now(), 'MMYY') || '_99',
+VALUES ('ZZT', to_char(now(), 'MMYY'), 998);
+SELECT is(public.generar_folio_periodico('ZZT'), 'ZZT-' || to_char(now(), 'MMYY') || '_999',
   'Emite el último folio del periodo');
 SELECT throws_ok($$
   SELECT public.generar_folio_periodico('ZZT')
-$$, '23514', 'folio_periodo_agotado', 'El tope 99 no se desborda');
+$$, '23514', 'folio_periodo_agotado', 'El tope 999 no se desborda');
 
 -- -----------------------------------------------------------------------------
 -- 14-22. Backfill idempotente del histórico
