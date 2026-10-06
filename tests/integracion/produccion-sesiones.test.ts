@@ -164,7 +164,6 @@ describe('acciones seguras de sesiones de Producción', () => {
       partidaId: IDS.partidaId,
       programacionId: IDS.programacionId,
       operadorId: OPERADOR.id,
-      verificacion: expect.objectContaining({ material: true, observaciones: expect.any(String) }),
     });
     expect(registrarLogMock).toHaveBeenCalledWith(
       OPERADOR,
@@ -174,6 +173,32 @@ describe('acciones seguras de sesiones de Producción', () => {
       expect.objectContaining({ programacionId: IDS.programacionId }),
       expect.anything(),
     );
+  });
+
+  it('reenvía el checklist real de la UI (sin verificación de compatibilidad)', async () => {
+    const verificacion = {
+      material: true,
+      espesor: true,
+      cantidad: true,
+      archivo: true,
+      proceso_equipo: true,
+      observaciones: 'Checklist capturado en piso',
+    };
+    const respuesta = await iniciarSesionOperadorAccion({
+      ordenId: IDS.ordenId,
+      partidaId: IDS.partidaId,
+      programacionId: IDS.programacionId,
+      verificacion,
+    });
+
+    expect(respuesta.exito).toBe(true);
+    expect(iniciarSesionMock).toHaveBeenCalledWith(expect.anything(), {
+      ordenId: IDS.ordenId,
+      partidaId: IDS.partidaId,
+      programacionId: IDS.programacionId,
+      operadorId: OPERADOR.id,
+      verificacion,
+    });
   });
 
   it('rechaza el cierre si el PIN no vuelve a confirmar al operador HMAC', async () => {

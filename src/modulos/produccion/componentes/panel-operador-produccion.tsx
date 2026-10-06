@@ -7,8 +7,11 @@ import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
+import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { SesionActivaProduccion } from '@/estado/uso-tienda-produccion';
-import { MOTIVOS_PAUSA_SESION, type MotivoPausaSesion } from '@/modulos/produccion/tipos/indice';
+import { type MotivoPausaSesion, type VerificacionInicio } from '@/modulos/produccion/tipos/indice';
+
+import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 
 type ResultadoOperacion = { exito: true } | { exito: false; error: string };
 
@@ -17,7 +20,16 @@ export interface PropsPanelOperadorProduccion {
   sesionActiva: SesionActivaProduccion | null;
   operadorDisponible: boolean;
   procesando: boolean;
-  onIniciar: (datos: { ordenId: string; partidaId: string; programacionId: string }) => Promise<ResultadoOperacion>;
+  /** SII-B6: corrida elegida en el panel de corridas (opcional). */
+  corridaId?: string | null;
+  motivosPausa: MotivoPausaCatalogo[];
+  onIniciar: (datos: {
+    ordenId: string;
+    partidaId: string;
+    programacionId: string;
+    verificacion: VerificacionInicio;
+    corridaId?: string;
+  }) => Promise<ResultadoOperacion>;
   onReanudar: (datos: { ordenId: string; partidaId: string; programacionId: string; actualizadoEnEsperado: string }) => Promise<ResultadoOperacion>;
   responsables: Readonly<Record<string, string>>;
   onCerrar: (datos: {
@@ -25,13 +37,13 @@ export interface PropsPanelOperadorProduccion {
     piezasProducidas: number;
     estadoDestino: 'pausada' | 'finalizada';
     metaProcesoId?: string;
-    motivoPausa?: MotivoPausaSesion;
+    motivoPausa?: string;
     notas?: string;
     pinConfirmacion: string;
   }) => Promise<ResultadoOperacion>;
 }
 
-const ETIQUETAS_MOTIVO: Record<MotivoPausaSesion, string> = {
+const ETIQUETAS_MOTIVO_LEGACY: Record<MotivoPausaSesion, string> = {
   falta_informacion: 'Falta de información',
   material_pendiente: 'Material pendiente',
   aprobacion_cliente: 'Aprobación de cliente',
@@ -48,6 +60,8 @@ export function PanelOperadorProduccion({
   sesionActiva,
   operadorDisponible,
   procesando,
+  corridaId = null,
+  motivosPausa,
   onIniciar,
   onReanudar,
   responsables,
@@ -67,12 +81,13 @@ export function PanelOperadorProduccion({
   const [piezasProducidas, setPiezasProducidas] = useState('0');
   const [metaProcesoId, setMetaProcesoId] = useState('');
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
-  const [motivoPausa, setMotivoPausa] = useState<MotivoPausaSesion>('otro');
+  const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
   const [pinConfirmacion, setPinConfirmacion] = useState('');
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
   const [errorReanudacion, setErrorReanudacion] = useState<string | null>(null);
+  const [confirmarChecklist, setConfirmarChecklist] = useState(false);
 
   const seleccion = preparaciones.find((item) => item.programacionId === programacionId)
     ?? preparaciones[0]
@@ -93,6 +108,9 @@ export function PanelOperadorProduccion({
     ?? metasSesion[metasSesion.length - 1]
     ?? null;
   const metaSeleccionada = metasSesion.find((meta) => meta.id === metaProcesoId) ?? metaPorDefecto;
+  const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
+    ?? motivosPausa[0]
+    ?? null;
   const ultimaPausa = (() => {
     if (!orden || orden.estadoKanban !== 'pausada') return null;
     const sesiones = [...orden.sesiones]
@@ -125,14 +143,17 @@ export function PanelOperadorProduccion({
     } else setErrorReanudacion(resultado.error);
   }
 
-  async function iniciar(): Promise<void> {
-    if (!orden || !seleccion) return;
+  async function confirmarInicio(verificacion: VerificacionInicio): Promise<ResultadoOperacion> {
+    if (!orden || !seleccion) return { exito: false, error: 'Selecciona una partida preparada' };
     const resultado = await onIniciar({
       ordenId: orden.id,
       partidaId: seleccion.partidaId,
       programacionId: seleccion.programacionId,
+      verificacion,
+      ...(corridaId ? { corridaId } : {}),
     });
     setMensaje(resultado.exito ? 'Sesión iniciada' : resultado.error);
+    return resultado;
   }
 
   async function cerrar(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -143,12 +164,15 @@ export function PanelOperadorProduccion({
       piezasProducidas: Number(piezasProducidas),
       estadoDestino,
       ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
-      ...(estadoDestino === 'pausada' ? { motivoPausa } : {}),
+      ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
       pinConfirmacion,
     });
     setMensaje(resultado.exito ? 'Sesión registrada y recurso liberado' : resultado.error);
-    if (resultado.exito) setPinConfirmacion('');
+    if (resultado.exito) {
+      setPinConfirmacion('');
+      setNotas('');
+    }
   }
 
   return (
@@ -171,6 +195,11 @@ export function PanelOperadorProduccion({
           ? 'La identidad de piso está confirmada por sesión HMAC.'
           : 'Ingresa por /operador con tu PIN antes de iniciar o cerrar una sesión.'}
       </p>
+      {corridaId ? (
+        <p className="mt-1 text-xs text-texto-secundario">
+          Corrida seleccionada: <span className="font-mono">{corridaId.slice(0, 8)}</span>
+        </p>
+      ) : null}
       {!operadorDisponible ? (
         <Button
           type="button"
@@ -234,20 +263,25 @@ export function PanelOperadorProduccion({
               Motivo de pausa
               <Select
                 className="min-h-11"
-                value={motivoPausa}
-                onChange={(evento) => setMotivoPausa(evento.target.value as MotivoPausaSesion)}
+                value={motivoSeleccionado?.codigo ?? ''}
+                onChange={(evento) => setMotivoPausa(evento.target.value)}
               >
-                {MOTIVOS_PAUSA_SESION.map((motivo) => <option key={motivo} value={motivo}>{ETIQUETAS_MOTIVO[motivo]}</option>)}
+                {motivosPausa.map((motivo) => (
+                  <option key={motivo.codigo} value={motivo.codigo}>
+                    {motivo.nombre}{motivo.requiereNota ? ' (nota obligatoria)' : ''}
+                  </option>
+                ))}
               </Select>
             </label>
           ) : null}
           <label className={CLASE_ETIQUETA}>
-            Notas operativas
+            Notas operativas{estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota ? ' (obligatorias)' : ''}
             <Textarea
               className="min-h-11"
               maxLength={1000}
               value={notas}
               onChange={(evento) => setNotas(evento.target.value)}
+              required={estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota === true}
             />
           </label>
           <label className={CLASE_ETIQUETA}>
@@ -301,7 +335,13 @@ export function PanelOperadorProduccion({
                   {preparaciones.map((item) => <option key={item.programacionId} value={item.programacionId}>{item.etiqueta}</option>)}
                 </Select>
               </label>
-              <Button type="button" tamano="lg" disabled={procesando || !operadorDisponible} onClick={() => void iniciar()} data-testid="iniciar-sesion-produccion">
+              <Button
+                type="button"
+                tamano="lg"
+                disabled={procesando || !operadorDisponible || motivosPausa.length === 0}
+                onClick={() => { setMensaje(null); setConfirmarChecklist(true); }}
+                data-testid="iniciar-sesion-produccion"
+              >
                 Iniciar sesión
               </Button>
             </>
@@ -314,6 +354,13 @@ export function PanelOperadorProduccion({
           ) : null}
         </div>
       )}
+      <DialogoChecklistInicio
+        abierto={confirmarChecklist}
+        procesando={procesando}
+        titulo={orden ? `Inicio de sesión ${orden.folio}` : 'Inicio de sesión'}
+        onAbiertoCambiar={setConfirmarChecklist}
+        onConfirmar={confirmarInicio}
+      />
       <Dialog open={confirmarReanudacion} onOpenChange={(abierto) => {
         if (!procesando) setConfirmarReanudacion(abierto);
       }}>
@@ -326,8 +373,15 @@ export function PanelOperadorProduccion({
             <p>Operador: {responsables[ultimaPausa.sesion.operadorId] ?? 'Operador histórico'}</p>
             <p>Horario: {formatearFecha(ultimaPausa.sesion.fechaInicio)} · {formatearHora(ultimaPausa.sesion.fechaInicio)}–{ultimaPausa.sesion.fechaFin ? formatearHora(ultimaPausa.sesion.fechaFin) : 'sin cierre'}</p>
             <p>Partida: {ultimaPausa.partida.codigoPieza} · {formatearNumero(ultimaPausa.sesion.piezasProducidas)} piezas · {formatearNumero(ultimaPausa.sesion.horasNetas)} h netas</p>
-            {ultimaPausa.sesion.motivoPausa ? <p>Motivo: {ETIQUETAS_MOTIVO[ultimaPausa.sesion.motivoPausa]}</p> : null}
-            {ultimaPausa.sesion.notas ? <p className="whitespace-pre-wrap">Notas: {ultimaPausa.sesion.notas}</p> : null}
+            {ultimaPausa.sesion.motivoPausaCodigo
+              ? <p>Motivo: {motivosPausa.find((motivo) => motivo.codigo === ultimaPausa.sesion.motivoPausaCodigo)?.nombre
+                ?? ultimaPausa.sesion.motivoPausaCodigo}</p>
+              : ultimaPausa.sesion.motivoPausa
+                ? <p>Motivo: {ETIQUETAS_MOTIVO_LEGACY[ultimaPausa.sesion.motivoPausa]}</p>
+                : null}
+            {(ultimaPausa.sesion.motivoPausaNota ?? ultimaPausa.sesion.notas)
+              ? <p className="whitespace-pre-wrap">Notas: {ultimaPausa.sesion.motivoPausaNota ?? ultimaPausa.sesion.notas}</p>
+              : null}
           </div> : null}
           {errorReanudacion ? <p role="alert" className="text-sm text-peligro-texto">{errorReanudacion}</p> : null}
           <DialogFooter className="static mt-2 shrink-0">

@@ -18,3 +18,13 @@ export { reclamarRecursoAccion } from '@/modulos/produccion/acciones/reclamar-re
 export { cerrarJornadaAccion } from '@/modulos/produccion/acciones/cerrar-jornada';
 export { autorizarHorasExtraAccion } from '@/modulos/produccion/acciones/autorizar-horas-extra';
 export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
+export {
+  firmarFotoInspeccionAccion,
+  obtenerAutorizacionesHoraExtraAccion,
+  obtenerCatalogosPisoAccion,
+  obtenerCorridasOrdenAccion,
+  obtenerInspeccionesOrdenAccion,
+  obtenerRecursosLiberablesAccion,
+  subirFotoInspeccionAccion,
+} from '@/modulos/produccion/acciones/consultas-b6';
+export type { CatalogosPiso } from '@/modulos/produccion/acciones/consultas-b6';

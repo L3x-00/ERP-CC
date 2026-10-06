@@ -207,6 +207,22 @@ async function entrarComoOperador(
   await expect(page.getByTestId('operacion-produccion')).toBeVisible();
 }
 
+/** SII-B6 ola 2: el inicio exige el checklist de eventos críticos completo. */
+async function confirmarChecklistInicio(page: import('@playwright/test').Page): Promise<void> {
+  const dialogo = page.getByTestId('checklist-inicio');
+  await expect(dialogo).toBeVisible();
+  for (const etiqueta of [
+    'Material verificado',
+    'Espesor verificado',
+    'Cantidad verificada',
+    'Revisión / archivo vigente',
+    'Proceso / equipo correcto',
+  ]) {
+    await dialogo.getByLabel(etiqueta, { exact: true }).check();
+  }
+  await dialogo.getByTestId('confirmar-checklist-inicio').click();
+}
+
 test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => {
   test.skip(
     process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
@@ -238,6 +254,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     // Sesión 1: Corte 4.
     await tarjeta.getByRole('button', { name: 'Operar orden' }).click();
     await page.getByTestId('iniciar-sesion-produccion').click();
+    await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await page.getByLabel('Piezas producidas ahora').fill('4');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
@@ -255,6 +272,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
 
     // Sesión 2: Corte 6.
     await page.getByTestId('iniciar-sesion-produccion').click();
+    await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await page.getByLabel('Piezas producidas ahora').fill('6');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
@@ -269,6 +287,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
 
     // Sesión 3: Doblado 10; solo ahora la orden pasa a Lista.
     await page.getByTestId('iniciar-sesion-produccion').click();
+    await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await page.getByLabel('Piezas producidas ahora').fill('10');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaDobladoId);

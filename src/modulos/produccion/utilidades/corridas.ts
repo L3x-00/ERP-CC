@@ -1,4 +1,5 @@
 import {
+  type EstadoAutorizacionHoraExtra,
   type EstadoCorrida,
   type ResultadoInspeccion,
   type TipoInspeccion,
@@ -24,6 +25,13 @@ export const ETIQUETAS_TIPO_INSPECCION: Record<TipoInspeccion, string> = {
 export const ETIQUETAS_RESULTADO_INSPECCION: Record<ResultadoInspeccion, string> = {
   APROBADA: 'Aprobada',
   RECHAZADA: 'Rechazada',
+};
+
+/** Etiqueta legible por estado de autorización de horas extra. */
+export const ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA: Record<EstadoAutorizacionHoraExtra, string> = {
+  VIGENTE: 'Vigente',
+  USADA: 'Usada',
+  REVOCADA: 'Revocada',
 };
 
 const ESTADOS_TERMINALES: readonly EstadoCorrida[] = ['COMPLETADA', 'CANCELADA'];

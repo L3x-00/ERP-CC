@@ -144,6 +144,12 @@ describe('mappers de Producción', () => {
     es_parcial: true,
     creado_por: uuidOperador,
     creado_en: '2026-08-14T22:00:00.000Z',
+    // SII-B7: columnas nuevas de la nota de entrega.
+    folio_sii: null,
+    entregado_por_id: null,
+    recibido_por_id: null,
+    solicitud_id: null,
+    fecha_entrega: '2026-08-14T22:00:00.000Z',
   };
   const filaPartidaNota: FilaPartidaNotaEntrega = {
     id: uuidNota,
@@ -151,6 +157,8 @@ describe('mappers de Producción', () => {
     partida_id: uuidPartida,
     cantidad_solicitada: 10,
     cantidad_entregada: 4,
+    // SII-B7: ITxx heredado de la partida.
+    codigo_item: null,
   };
 
   it('mapea sesiones y cantidades numéricas a camelCase', () => {

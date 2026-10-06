@@ -1335,32 +1335,47 @@ export type Database = {
         Row: {
           creado_en: string
           creado_por: string
+          entregado_por_id: string | null
           es_parcial: boolean
+          fecha_entrega: string
           firma_cliente_url: string | null
           folio: string
+          folio_sii: string | null
           id: string
           orden_id: string
           recibido_por: string
+          recibido_por_id: string | null
+          solicitud_id: string | null
         }
         Insert: {
           creado_en?: string
           creado_por: string
+          entregado_por_id?: string | null
           es_parcial?: boolean
+          fecha_entrega?: string
           firma_cliente_url?: string | null
           folio: string
+          folio_sii?: string | null
           id?: string
           orden_id: string
           recibido_por: string
+          recibido_por_id?: string | null
+          solicitud_id?: string | null
         }
         Update: {
           creado_en?: string
           creado_por?: string
+          entregado_por_id?: string | null
           es_parcial?: boolean
+          fecha_entrega?: string
           firma_cliente_url?: string | null
           folio?: string
+          folio_sii?: string | null
           id?: string
           orden_id?: string
           recibido_por?: string
+          recibido_por_id?: string | null
+          solicitud_id?: string | null
         }
         Relationships: [
           {
@@ -1371,10 +1386,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notas_entrega_entregado_por_id_fkey"
+            columns: ["entregado_por_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "notas_entrega_orden_id_fkey"
             columns: ["orden_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_entrega_recibido_por_id_fkey"
+            columns: ["recibido_por_id"]
+            isOneToOne: false
+            referencedRelation: "contactos_cliente"
             referencedColumns: ["id"]
           },
         ]
@@ -1753,6 +1782,7 @@ export type Database = {
         Row: {
           cantidad_entregada: number
           cantidad_solicitada: number
+          codigo_item: string | null
           id: string
           nota_entrega_id: string
           partida_id: string
@@ -1760,6 +1790,7 @@ export type Database = {
         Insert: {
           cantidad_entregada: number
           cantidad_solicitada: number
+          codigo_item?: string | null
           id?: string
           nota_entrega_id: string
           partida_id: string
@@ -1767,6 +1798,7 @@ export type Database = {
         Update: {
           cantidad_entregada?: number
           cantidad_solicitada?: number
+          codigo_item?: string | null
           id?: string
           nota_entrega_id?: string
           partida_id?: string
@@ -4685,6 +4717,19 @@ export type Database = {
           p_tipo: string
         }
         Returns: string
+      }
+      registrar_entrega: {
+        Args: {
+          p_actor?: string
+          p_contacto_id?: string
+          p_correlation_id?: string
+          p_entregado_por?: string
+          p_orden_id: string
+          p_recibido_por: string
+          p_renglones: Json
+          p_solicitud_id?: string
+        }
+        Returns: Json
       }
       registrar_factura_ar: {
         Args: {

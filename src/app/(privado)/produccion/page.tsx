@@ -3,7 +3,9 @@ import { OperacionProduccion } from '@/modulos/produccion/componentes/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { obtenerDatosTableroProduccionServicio } from '@/modulos/produccion/servicios/indice';
+import { nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
+import { cerrarJornadaServicio, obtenerDatosTableroProduccionServicio } from '@/modulos/produccion/servicios/indice';
+import { hoyIso, sumarDias } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 
@@ -22,6 +24,17 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
     crearClienteSupabaseServidor(),
     obtenerOperadorConSesionActiva(),
   ]);
+  // SII-B6.2: ninguna sesión debe cruzar de fecha. Al abrir el piso se cierra la
+  // jornada de ayer si quedó trabajo activo; un fallo aquí nunca bloquea la carga.
+  try {
+    await cerrarJornadaServicio(crearClienteSupabaseAdmin(), {
+      fecha: sumarDias(hoyIso(), -1),
+      actorId: usuario.id,
+      correlationId: nuevoCorrelationId(),
+    });
+  } catch {
+    // El cierre se reintenta en la próxima apertura o con la acción manual.
+  }
   const datosIniciales = await obtenerDatosTableroProduccionServicio(
     cliente,
     {},

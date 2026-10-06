@@ -7,6 +7,7 @@ import type { SesionTrabajo } from '@/modulos/produccion/tipos/indice';
 const orden: Orden = {
   id: '11111111-1111-4111-8111-111111111111', folio: 'OP-001001',
   clienteId: '22222222-2222-4222-8222-222222222222', cotizacionId: null, estado: 'programada',
+  estadoSii: 'PLANIFICADA', folioSii: null,
   prioridad: 'normal', fechaCompromiso: '2026-08-14T18:00:00.000Z', fechaInicio: null, fechaFin: null,
   motivoCancelacion: null, esInterna: false, archivadaEn: null,
   idHistorico: null, referenciaExterna: null, condicionPago: null, montoSinIva: null, montoIva: null,

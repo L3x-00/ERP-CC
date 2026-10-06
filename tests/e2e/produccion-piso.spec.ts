@@ -187,6 +187,22 @@ async function iniciarSesionAdministrador(page: import('@playwright/test').Page,
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
+/** SII-B6 ola 2: el inicio exige el checklist de eventos críticos completo. */
+async function confirmarChecklistInicio(page: import('@playwright/test').Page): Promise<void> {
+  const dialogo = page.getByTestId('checklist-inicio');
+  await expect(dialogo).toBeVisible();
+  for (const etiqueta of [
+    'Material verificado',
+    'Espesor verificado',
+    'Cantidad verificada',
+    'Revisión / archivo vigente',
+    'Proceso / equipo correcto',
+  ]) {
+    await dialogo.getByLabel(etiqueta, { exact: true }).check();
+  }
+  await dialogo.getByTestId('confirmar-checklist-inicio').click();
+}
+
 test.describe.serial('piso de Producción y entregas', () => {
   test.skip(
     process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
@@ -227,6 +243,7 @@ test.describe.serial('piso de Producción y entregas', () => {
     await expect(page.getByTestId('orden-seleccionada-panel')).toContainText('Orden seleccionada:');
     await expect(page.getByTestId('panel-operador-produccion')).toBeInViewport();
     await page.getByTestId('iniciar-sesion-produccion').click();
+    await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await expect(observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)).toContainText('En proceso');
 
@@ -345,11 +362,12 @@ test.describe.serial('piso de Producción y entregas', () => {
       await page.goto('/produccion');
       await page.getByTestId(`tarjeta-produccion-${caso.ordenId}`).getByRole('button', { name: 'Operar orden' }).click();
       await page.getByTestId('iniciar-sesion-produccion').click();
+      await confirmarChecklistInicio(page);
       await expect(page.getByRole('status')).toContainText('Sesión iniciada');
 
       await page.getByLabel('Piezas producidas ahora').fill('2');
       await page.getByLabel('Resultado').selectOption('pausada');
-      await page.getByLabel('Motivo de pausa').selectOption('material_pendiente');
+      await page.getByLabel('Motivo de pausa').selectOption('MATERIAL');
       await page.getByLabel('Notas operativas').fill('Esperando insumo para continuar');
       await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
       await page.getByTestId('cerrar-sesion-produccion').click();
@@ -382,7 +400,7 @@ test.describe.serial('piso de Producción y entregas', () => {
 
       await page.getByRole('button', { name: 'Continuar sesión pausada' }).click();
       const dialogo = page.getByRole('dialog', { name: /Reanudar OP-/ });
-      await expect(dialogo).toContainText('Material pendiente');
+      await expect(dialogo).toContainText('Falta de material');
       await expect(dialogo).toContainText(/2(?:\.00)? piezas/);
       await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-reanudacion-escritorio.png' });
       await page.setViewportSize({ width: 390, height: 844 });

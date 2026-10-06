@@ -5,6 +5,7 @@ import {
   inspeccionDesdeJson,
 } from '@/modulos/produccion/tipos/corridas';
 import {
+  ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA,
   esEstadoCorridaTerminal,
   esReferenciaLoteValida,
   formatearCodigoCorrida,
@@ -13,6 +14,7 @@ import {
   verificacionInicioCompleta,
 } from '@/modulos/produccion/utilidades/corridas';
 import {
+  esquemaConsultarCorridas,
   esquemaCrearCorrida,
   esquemaEstadoCorrida,
   esquemaRegistrarInspeccion,
@@ -53,6 +55,14 @@ describe('códigos de corrida', () => {
     expect(esEstadoCorridaTerminal('COMPLETADA')).toBe(true);
     expect(esEstadoCorridaTerminal('CANCELADA')).toBe(true);
     expect(esEstadoCorridaTerminal('PAUSADA')).toBe(false);
+  });
+
+  it('etiqueta los estados de autorización de horas extra', () => {
+    expect(ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA).toEqual({
+      VIGENTE: 'Vigente',
+      USADA: 'Usada',
+      REVOCADA: 'Revocada',
+    });
   });
 });
 
@@ -137,6 +147,12 @@ describe('esquemas B6', () => {
       referencia: 3,
     }).success).toBe(true);
     expect(esquemaRegistrarInspeccion.safeParse({ ...base, cantidadOk: -1 }).success).toBe(false);
+  });
+
+  it('las consultas B6 exigen UUID de orden', () => {
+    expect(esquemaConsultarCorridas.safeParse({ ordenId: UUID }).success).toBe(true);
+    expect(esquemaConsultarCorridas.safeParse({ ordenId: 'no-es-uuid' }).success).toBe(false);
+    expect(esquemaConsultarCorridas.safeParse({}).success).toBe(false);
   });
 });
 

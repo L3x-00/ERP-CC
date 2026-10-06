@@ -38,6 +38,22 @@ export type {
 export { registrarInspeccionServicio } from '@/modulos/produccion/servicios/calidad-servicio';
 
 export {
+  obtenerAutorizacionesHoraExtraServicio,
+  obtenerCorridasOrdenServicio,
+  obtenerInspeccionesOrdenServicio,
+  obtenerMotivosPausaServicio,
+  obtenerProcesosPisoServicio,
+  obtenerRecursosLiberablesServicio,
+} from '@/modulos/produccion/servicios/consultas-b6-servicio';
+
+export type {
+  AutorizacionHoraExtraDetalle,
+  CorridaDetalle,
+  InspeccionDetalle,
+  RecursoLiberable,
+} from '@/modulos/produccion/servicios/consultas-b6-servicio';
+
+export {
   generarNotaEntregaServicio,
   mensajeErrorEntrega,
 } from '@/modulos/produccion/servicios/entrega-servicio';

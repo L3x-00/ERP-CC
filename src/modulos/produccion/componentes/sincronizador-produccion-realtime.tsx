@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
-import { CLAVE_ARCHIVOS_SESION, CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
 
 const TABLAS_TABLERO_PRODUCCION = [
   'ordenes_produccion',
@@ -16,7 +15,13 @@ const TABLAS_TABLERO_PRODUCCION = [
   'partidas_nota_entrega',
   'registros_avance_partida',
   'archivos_sesion_produccion',
+  // SII-B6 ola 2: las corridas refrescan el tablero y los paneles de piso. Las
+  // tablas corrida_items/inspecciones_calidad/autorizaciones_hora_extra no están
+  // en la publicación `supabase_realtime`; sus paneles se invalidan tras la
+  // acción propia. Publicarlas exige migración del coordinador/PO.
+  'corridas',
 ] as const;
+const CLAVE_RAIZ_PRODUCCION = ['produccion'] as const;
 const NOMBRE_CANAL = 'sincronizacion-produccion';
 const MS_AGRUPACION_RAFAGA = 350;
 
@@ -40,8 +45,7 @@ export function SincronizadorProduccionRealtime() {
       temporizadorRef.current = setTimeout(() => {
         temporizadorRef.current = null;
         if (!desmontado) {
-          void clienteConsultas.invalidateQueries({ queryKey: CLAVE_TABLERO_PRODUCCION });
-          void clienteConsultas.invalidateQueries({ queryKey: CLAVE_ARCHIVOS_SESION });
+          void clienteConsultas.invalidateQueries({ queryKey: CLAVE_RAIZ_PRODUCCION });
         }
       }, MS_AGRUPACION_RAFAGA);
     }

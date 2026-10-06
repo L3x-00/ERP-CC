@@ -1,11 +1,11 @@
 -- SII-B6 ola 1 — Producción básica: corridas, pausas, jornada, horas extra y calidad.
 -- Verifica modelo, compatibilidad, códigos (99→100→101), checklist, pausa por
 -- catálogo, liberación >1 h, primera pieza, referencias de lote, horas extra,
--- cierre de jornada, privilegios/RLS y hook ausente de estado_sii.
+-- cierre de jornada, privilegios/RLS y hook B5 de estado_sii.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(71);
+SELECT plan(74);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: actores, cliente, recursos, orden/partidas y programaciones
@@ -189,6 +189,13 @@ SELECT is((SELECT estado FROM public.corridas
   WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'corrida1')), 'EN_PROCESO',
   'La corrida queda EN_PROCESO');
 
+-- Hook B5: la primera sesión de trabajo deriva la orden a EN_PRODUCCION.
+SELECT has_trigger('public', 'sesiones_trabajo', 'trigger_sesiones_derivar_orden_en_produccion',
+  'El hook B5 de derivación a EN_PRODUCCION existe');
+SELECT is((SELECT estado_sii FROM public.ordenes_produccion
+  WHERE id = '00000000-0000-4000-8000-00000000b607'), 'PLANIFICADA',
+  'Antes de la primera sesión la orden sigue PLANIFICADA');
+
 SELECT throws_ok($$
   SELECT * FROM public.iniciar_sesion_trabajo_operador(
     '00000000-0000-4000-8000-00000000b607', '00000000-0000-4000-8000-00000000b608',
@@ -211,6 +218,9 @@ SELECT isnt((SELECT corrida_id FROM public.sesiones_trabajo
 SELECT ok((SELECT verificacion_inicio IS NOT NULL FROM public.sesiones_trabajo
   WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion1')),
   'La verificación inicial queda persistida');
+SELECT is((SELECT estado_sii FROM public.ordenes_produccion
+  WHERE id = '00000000-0000-4000-8000-00000000b607'), 'EN_PRODUCCION',
+  'La primera sesión deriva la orden a EN_PRODUCCION (hook B5)');
 
 -- -----------------------------------------------------------------------------
 -- 32-39. Pausa por catálogo, reanudación con checklist heredado
@@ -449,7 +459,7 @@ SELECT lives_ok($$
   SELECT public.completar_corrida(
     (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'corrida2'),
     '00000000-0000-4000-8000-00000000b602')
-$$, 'completar_corrida funciona sin la columna estado_sii (B5 ausente)');
+$$, 'completar_corrida convive con el hook B5 de estado_sii');
 SELECT is((SELECT estado FROM public.corridas
   WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'corrida2')), 'COMPLETADA',
   'La corrida queda COMPLETADA');

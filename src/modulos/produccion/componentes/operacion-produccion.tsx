@@ -13,18 +13,31 @@ import {
 } from '@/modulos/produccion/acciones/indice';
 import { CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
 import {
+  CLAVE_CATALOGOS_PISO,
+  CLAVE_CORRIDAS_ORDEN,
+} from '@/modulos/produccion/componentes/claves-consulta';
+import {
   CLAVE_ENTREGABLES_ORDEN,
   DocumentosOrdenPanel,
 } from '@/modulos/produccion/componentes/documentos-orden-panel';
 import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formulario-nota-entrega';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion } from '@/modulos/produccion/componentes/kanban-produccion';
+import { PanelCalidadProduccion } from '@/modulos/produccion/componentes/panel-calidad-produccion';
+import { PanelCorridasProduccion } from '@/modulos/produccion/componentes/panel-corridas-produccion';
+import { PanelHorasExtraProduccion } from '@/modulos/produccion/componentes/panel-horas-extra-produccion';
 import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
+import { PanelRecursosLiberados } from '@/modulos/produccion/componentes/panel-recursos-liberados';
 import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
 import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { DatosTableroProduccion } from '@/modulos/produccion/servicios/indice';
-import type { MotivoPausaSesion } from '@/modulos/produccion/tipos/indice';
+import type { CatalogosPiso } from '@/modulos/produccion/acciones/consultas-b6';
+import type { VerificacionInicio } from '@/modulos/produccion/tipos/indice';
+import {
+  obtenerCatalogosPisoAccion,
+  obtenerCorridasOrdenAccion,
+} from '@/modulos/produccion/acciones/consultas-b6';
 
 export interface PropsOperacionProduccion {
   datosIniciales: DatosTableroProduccion;
@@ -49,6 +62,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   const seleccionarOrden = usarTiendaProduccion((estado) => estado.seleccionarOrden);
   const establecerSesionActiva = usarTiendaProduccion((estado) => estado.establecerSesionActiva);
   const [procesando, setProcesando] = useState(false);
+  const [corridaSeleccionadaCruda, setCorridaSeleccionadaId] = useState<string | null>(null);
 
   const filtros = useMemo(() => ({
     ...(recursoId ? { recursoId } : {}),
@@ -95,6 +109,37 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     programacionId: sesionActivaDesdeServidor.programacionId,
   } : null);
 
+  const catalogosConsulta = useQuery({
+    queryKey: [...CLAVE_CATALOGOS_PISO],
+    queryFn: async (): Promise<CatalogosPiso> => {
+      const resultado = await obtenerCatalogosPisoAccion();
+      if (!resultado.exito || !resultado.datos) {
+        throw new Error(resultado.exito ? 'La consulta no devolvi� datos' : resultado.error);
+      }
+      return resultado.datos;
+    },
+    staleTime: 5 * 60_000,
+  });
+  const catalogosPiso = catalogosConsulta.data ?? null;
+
+  const corridasConsulta = useQuery({
+    queryKey: [...CLAVE_CORRIDAS_ORDEN, ordenSeleccionada?.id ?? 'sin-orden'],
+    queryFn: async () => {
+      if (!ordenSeleccionada) return [];
+      const resultado = await obtenerCorridasOrdenAccion({ ordenId: ordenSeleccionada.id });
+      if (!resultado.exito || !resultado.datos) {
+        throw new Error(resultado.exito ? 'La consulta no devolvi� datos' : resultado.error);
+      }
+      return resultado.datos;
+    },
+    enabled: ordenSeleccionada !== null,
+  });
+  const corridasOrden = corridasConsulta.data ?? [];
+  // La corrida elegida solo vale si sigue perteneciendo a la orden seleccionada.
+  const corridaSeleccionadaId = corridasOrden.some((corrida) => corrida.id === corridaSeleccionadaCruda)
+    ? corridaSeleccionadaCruda
+    : null;
+
   const refrescar = useCallback(async (): Promise<void> => {
     await clienteConsultas.invalidateQueries({ queryKey: CLAVE_TABLERO_PRODUCCION });
   }, [clienteConsultas]);
@@ -109,10 +154,19 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     });
   }, [seleccionarOrden]);
 
+  const desplazarAPanelOperador = useCallback((): void => {
+    requestAnimationFrame(() => {
+      document.getElementById('panel-operador-produccion')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+
   const iniciar = useCallback(async (datosInicio: {
     ordenId: string;
     partidaId: string;
     programacionId: string;
+    verificacion: VerificacionInicio;
+    corridaId?: string;
   }): Promise<{ exito: true } | { exito: false; error: string }> => {
     setProcesando(true);
     try {
@@ -157,7 +211,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     piezasProducidas: number;
     estadoDestino: 'pausada' | 'finalizada';
     metaProcesoId?: string;
-    motivoPausa?: MotivoPausaSesion;
+    motivoPausa?: string;
     notas?: string;
     pinConfirmacion: string;
   }): Promise<{ exito: true } | { exito: false; error: string }> => {
@@ -231,11 +285,23 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
         onAlternarEstado={alternarEstado}
       />
       <div className="grid gap-6 lg:grid-cols-2">
+        <PanelCorridasProduccion
+          orden={ordenSeleccionada}
+          catalogos={catalogosPiso}
+          corridaSeleccionadaId={corridaSeleccionadaId}
+          onSeleccionarCorrida={setCorridaSeleccionadaId}
+          onOperarCorrida={desplazarAPanelOperador}
+        />
+        <PanelCalidadProduccion orden={ordenSeleccionada} corridas={corridasOrden} />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
         <PanelOperadorProduccion
           orden={ordenSeleccionada}
           sesionActiva={sesionActiva}
           operadorDisponible={operadorId !== null}
           procesando={procesando}
+          corridaId={corridaSeleccionadaId}
+          motivosPausa={catalogosPiso?.motivos ?? []}
           onIniciar={iniciar}
           onReanudar={reanudar}
           onCerrar={cerrar}
@@ -247,6 +313,10 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
           procesando={procesando}
           onEnviar={generarNota}
         />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PanelRecursosLiberados />
+        <PanelHorasExtraProduccion orden={ordenSeleccionada} sesionIdActivo={sesionActiva?.id ?? null} />
       </div>
       <HistorialSesionesProduccion orden={ordenSeleccionada} responsables={datos.responsables ?? {}} />
       <DocumentosOrdenPanel

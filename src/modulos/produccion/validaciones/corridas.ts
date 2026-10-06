@@ -66,6 +66,17 @@ export const esquemaEstadoCorrida = z
 
 export const esquemaReclamarRecurso = z.object({ recursoId: z.uuid('ID de recurso inválido') }).strict();
 
+/** Consulta de corridas de una orden (UI de piso). */
+export const esquemaConsultarCorridas = z.object({ ordenId: z.uuid('ID de orden inválido') }).strict();
+
+/** Consulta de inspecciones de una orden (UI de calidad). */
+export const esquemaConsultarInspecciones = z.object({ ordenId: z.uuid('ID de orden inválido') }).strict();
+
+/** Consulta de autorizaciones de horas extra (opcionalmente por orden). */
+export const esquemaConsultarAutorizacionesHoraExtra = z
+  .object({ ordenId: z.uuid('ID de orden inválido').optional() })
+  .strict();
+
 export const esquemaCerrarJornada = z.object({ fecha: z.iso.date('Fecha inválida') }).strict();
 
 export const esquemaAutorizarHorasExtra = z
@@ -109,3 +120,8 @@ export type CrearCorridaInput = z.infer<typeof esquemaCrearCorrida>;
 export type EstadoCorridaInput = z.infer<typeof esquemaEstadoCorrida>;
 export type AutorizarHorasExtraInput = z.infer<typeof esquemaAutorizarHorasExtra>;
 export type RegistrarInspeccionInput = z.infer<typeof esquemaRegistrarInspeccion>;
+
+/** Entrada de subida de foto de inspección (multipart). */
+export const esquemaSubirFotoInspeccion = z
+  .object({ inspeccionId: z.uuid('ID de inspección inválido') })
+  .strict();
