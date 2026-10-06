@@ -56,8 +56,12 @@ export const esquemaFirmarEvidenciaEntrega = z
 /** Identificador de orden para preparar/listar entregas. */
 export const esquemaOrdenEntrega = z.object({ ordenId: uuid }).strict();
 
+/** Identificador de una nota de entrega concreta. */
+export const esquemaEntregaPorId = z.object({ entregaId: uuid }).strict();
+
 export type RenglonEntregaInput = z.infer<typeof esquemaRenglonEntrega>;
 export type RegistrarEntregaInput = z.infer<typeof esquemaRegistrarEntrega>;
 export type SubirEvidenciaEntregaInput = z.infer<typeof esquemaSubirEvidenciaEntrega>;
 export type FirmarEvidenciaEntregaInput = z.infer<typeof esquemaFirmarEvidenciaEntrega>;
 export type OrdenEntregaInput = z.infer<typeof esquemaOrdenEntrega>;
+export type EntregaPorIdInput = z.infer<typeof esquemaEntregaPorId>;

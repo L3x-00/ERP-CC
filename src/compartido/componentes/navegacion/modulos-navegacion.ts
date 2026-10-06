@@ -65,6 +65,13 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['gestionar_produccion', 'aprobar_ordenes', 'cancelar_ordenes_en_proceso'],
   },
   {
+    href: '/entregas',
+    etiqueta: 'Entregas',
+    grupo: 'Operación',
+    icono: 'camion',
+    permisos: ['entrega_generar', 'entrega_evidencia', 'orden_vista', 'ver_finanzas'],
+  },
+  {
     href: '/cobranza',
     etiqueta: 'Cobranza',
     grupo: 'Finanzas',

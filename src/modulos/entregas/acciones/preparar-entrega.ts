@@ -5,10 +5,11 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   obtenerEntregasDeOrden,
+  obtenerPartidasPendientesDeOrden,
   obtenerPendientesDeOrden,
   type EntregaConRenglones,
 } from '@/modulos/entregas/servicios/obtener-entregas';
-import type { PendienteEntregaItem } from '@/modulos/entregas/tipos/indice';
+import type { PartidaPendiente, PendienteEntregaItem } from '@/modulos/entregas/tipos/indice';
 import { esquemaOrdenEntrega } from '@/modulos/entregas/validaciones/esquemas-entregas';
 
 export type ContactoEntrega = {
@@ -30,6 +31,8 @@ export type PreparacionEntrega = {
     condicionesPago: string | null;
   };
   pendientes: PendienteEntregaItem[];
+  /** Filas por partida (para capturar cantidades exactas que exige la RPC). */
+  partidas: PartidaPendiente[];
   entregas: EntregaConRenglones[];
   contactos: ContactoEntrega[];
 };
@@ -76,8 +79,9 @@ export async function prepararEntregaAccion(
 
   const cliente = orden.clientes as { razon_social: string; condiciones_pago: string | null } | null;
 
-  const [pendientes, entregas, contactos] = await Promise.all([
+  const [pendientes, partidas, entregas, contactos] = await Promise.all([
     obtenerPendientesDeOrden(servidor, analisis.data.ordenId),
+    obtenerPartidasPendientesDeOrden(servidor, analisis.data.ordenId),
     obtenerEntregasDeOrden(servidor, analisis.data.ordenId),
     servidor
       .from('contactos_cliente')
@@ -101,6 +105,7 @@ export async function prepararEntregaAccion(
         condicionesPago: cliente?.condiciones_pago ?? null,
       },
       pendientes,
+      partidas,
       entregas,
       contactos: (contactos.data ?? []).map((contacto) => ({
         id: contacto.id,
