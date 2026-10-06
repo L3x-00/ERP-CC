@@ -100,6 +100,13 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['registrar_gastos', 'ver_finanzas'],
   },
   {
+    href: '/tesoreria',
+    etiqueta: 'Tesorería',
+    grupo: 'Finanzas',
+    icono: 'boveda',
+    permisos: ['registrar_pagos', 'ver_finanzas'],
+  },
+  {
     href: '/actividad',
     etiqueta: 'Actividad',
     grupo: 'Sistema',

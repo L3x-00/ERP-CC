@@ -209,3 +209,11 @@
 - **Evidencia:** typecheck 0 · lint 0 · unit **948/948** · pgTAP **1055/1055** (41 archivos; `sii_b8_compras` 29/29) · E2E `compras-flujo` 1/1 + regresión gastos 3/3 · build OK (ruta `/compras`) · capturas 4/4.
 - **Migraciones para el PO (remoto):** `20261007190001` y `20261007190002` (tras `20261007180005`).
 - **Siguiente:** commit del cierre B8-F4; F5 (tesorería) solo con autorización del PO.
+
+### Auditoría 15 — 2026-10-06 (B8 F5: tesorería; cierre del bloque B8)
+
+- **Scope autorizado con decisiones del PO:** saldo inicial + movimientos vivos, efectivo como cuenta, transferencias en par de misma moneda y conciliación manual auditada.
+- **Implementación:** `20261007200001`–`0003`: tipo banco/efectivo en cuentas, `saldos_iniciales_tesoreria`, `movimientos_tesoreria` (par enlazado) y `conciliaciones_tesoreria` con RLS; RPC `registrar_saldo_inicial`, `registrar_transferencia`, `conciliar_movimiento` y `desconciliar_movimiento`; UI `/tesoreria` con tarjetas de saldo, transferencias y conciliación. Defecto corregido en la verificación: RETURNING ambiguo (`id`/`creado_en` OUT) resuelto con alias en `20261007200003`.
+- **Evidencia:** typecheck 0 · lint 0 · unit **951/951** · pgTAP **1082/1082** (42 archivos; `sii_b8_tesoreria` 27/27) · E2E `tesoreria-flujo` 1/1 · build OK · capturas 4/4.
+- **Migraciones para el PO (remoto):** `20261007200001`–`0003` (tras `20261007190002`).
+- **Hito:** B8 Finanzas (F1–F5) queda **completo localmente**; pendiente el commit del bloque y, al final del plan, B9 (Estrategia/KPIs/transferencia).

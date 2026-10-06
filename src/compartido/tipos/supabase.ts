@@ -859,6 +859,157 @@ export type Database = {
           },
         ]
       }
+      conciliaciones_tesoreria: {
+        Row: {
+          conciliado_en: string
+          conciliado_por: string
+          cuenta_id: string
+          entidad: string
+          entidad_id: string
+          id: string
+        }
+        Insert: {
+          conciliado_en?: string
+          conciliado_por: string
+          cuenta_id: string
+          entidad: string
+          entidad_id: string
+          id?: string
+        }
+        Update: {
+          conciliado_en?: string
+          conciliado_por?: string
+          cuenta_id?: string
+          entidad?: string
+          entidad_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliaciones_tesoreria_conciliado_por_fkey"
+            columns: ["conciliado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliaciones_tesoreria_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_tesoreria: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          cuenta_id: string
+          id: string
+          moneda: string
+          monto: number
+          par_movimiento_id: string | null
+          referencia: string | null
+          tipo: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          cuenta_id: string
+          id?: string
+          moneda: string
+          monto: number
+          par_movimiento_id?: string | null
+          referencia?: string | null
+          tipo: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          cuenta_id?: string
+          id?: string
+          moneda?: string
+          monto?: number
+          par_movimiento_id?: string | null
+          referencia?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_tesoreria_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_tesoreria_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_tesoreria_par_movimiento_id_fkey"
+            columns: ["par_movimiento_id"]
+            isOneToOne: true
+            referencedRelation: "movimientos_tesoreria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saldos_iniciales_tesoreria: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          creado_en: string
+          creado_por: string | null
+          cuenta_id: string
+          fecha: string
+          moneda: string
+          monto: number
+          tipo_cambio: number
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          cuenta_id: string
+          fecha?: string
+          moneda: string
+          monto: number
+          tipo_cambio?: number
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          cuenta_id?: string
+          fecha?: string
+          moneda?: string
+          monto?: number
+          tipo_cambio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saldos_iniciales_tesoreria_cuenta_id_fkey"
+            columns: ["cuenta_id"]
+            isOneToOne: true
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldos_iniciales_tesoreria_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuentas_bancarias: {
         Row: {
           activa: boolean
@@ -869,6 +1020,7 @@ export type Database = {
           id: string
           moneda: string
           numero_cuenta: string
+          tipo: string
           titular: string
         }
         Insert: {
@@ -880,6 +1032,7 @@ export type Database = {
           id?: string
           moneda?: string
           numero_cuenta: string
+          tipo?: string
           titular: string
         }
         Update: {
@@ -891,6 +1044,7 @@ export type Database = {
           id?: string
           moneda?: string
           numero_cuenta?: string
+          tipo?: string
           titular?: string
         }
         Relationships: []
@@ -5272,6 +5426,67 @@ export type Database = {
           estado: string
           pago_id: string
           saldo_pendiente: number
+        }[]
+      }
+      conciliar_movimiento: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_cuenta_id: string
+          p_entidad: string
+          p_entidad_id: string
+        }
+        Returns: {
+          conciliacion_id: string
+          conciliado_en: string
+        }[]
+      }
+      desconciliar_movimiento: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_entidad: string
+          p_entidad_id: string
+        }
+        Returns: {
+          entidad: string
+          entidad_id: string
+        }[]
+      }
+      registrar_saldo_inicial: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_cuenta_id: string
+          p_fecha: string
+          p_moneda: string
+          p_monto: number
+          p_tipo_cambio: number
+        }
+        Returns: {
+          actualizado_en: string
+          cuenta_id: string
+          fecha: string
+          moneda: string
+          monto: number
+          tipo_cambio: number
+        }[]
+      }
+      registrar_transferencia: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_cuenta_destino_id: string
+          p_cuenta_origen_id: string
+          p_monto: number
+          p_referencia: string | null
+        }
+        Returns: {
+          creado_en: string
+          entrada_id: string
+          moneda: string
+          monto: number
+          salida_id: string
         }[]
       }
       registrar_entrega: {

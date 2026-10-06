@@ -108,3 +108,10 @@
 - Implementado: `20261007190001/0002` (compras, pagos_compra, gastos.folio_sii, generador CG compartido, registrar_gasto con CG y RPC de compras) y UI `/compras` con gastos mostrando CG.
 - Gates: typecheck 0 · lint 0 · unit 948/948 · pgTAP **1055/1055** (`sii_b8_compras` 29/29) · E2E F4 1/1 + regresión gastos 3/3 · build OK · capturas 4/4.
 - Pendiente: commit de cierre B8-F4; aplicar `20261007190001/0002` en remoto (tras `20261007180005`).
+
+### B8 Finanzas — F5 tesorería y cierre del bloque — 2026-10-06
+
+- El PO autorizó F5 y validó: saldo inicial + movimientos vivos, efectivo como cuenta, transferencias en par de misma moneda y conciliación manual auditada.
+- Implementado: `20261007200001`–`0003` (tipo de cuenta, saldos iniciales, movimientos en par, conciliaciones, 4 RPC y ajuste de RETURNING) y UI `/tesoreria`.
+- Gates: typecheck 0 · lint 0 · unit **951/951** · pgTAP **1082/1082** (`sii_b8_tesoreria` 27/27) · E2E F5 1/1 · build OK · capturas 4/4.
+- **B8 completo localmente (F1–F5)**; pendiente commit del bloque; queda B9 (Estrategia/KPIs) en el plan.

@@ -1,7 +1,7 @@
 # B8 — Finanzas (fase posterior)
 
 Referencias del documento: §14 completo (facturación/CxC, cobranza, compras/gastos/CxP, tesorería), §6.1 (folios `RP-MMYY_XX-YY`, `CG-MMYY_####`), §16.5 (qué postergar).
-Depende de: B7. **Este bloque es de diseño con validación del PO; las fases F1–F5 se implementan solo con autorización explícita (repetida por fase).** F1 quedó implementada y verificada el 2026-10-06 (§8.5); F2–F5 siguen pendientes de autorización. El primer Go Live puede operar sin sustituir facturación/cobro (§14).
+Depende de: B7. **Este bloque es de diseño con validación del PO; las fases F1–F5 se implementan solo con autorización explícita (repetida por fase).** F1–F5 quedaron implementadas y verificadas el 2026-10-06 (§8.5–§8.9); el bloque está completo localmente a falta del commit del PO. El primer Go Live puede operar sin sustituir facturación/cobro (§14).
 
 **Objetivo:** dejar la arquitectura lista para conectar `Entrega → Facturación → CxC → Cobranza` y `Compras/Gastos/CxP → Tesorería`, sin romper lo ya construido (CxC con pagos idempotentes, reversos, anulación, anticipos y monedero; gastos con OCR).
 
@@ -87,7 +87,7 @@ Regla clave: **las transferencias internas entre cuentas no son ingreso ni gasto
 | F2 | Factura borrador + vínculo entrega→facturación→CxC (sin timbrado CFDI) | F1 | **COMPLETADA localmente 2026-10-06** (§8.6): migración `20261007170001`, pgTAP 19/19, E2E `facturacion-flujo`; UI `/facturacion`. |
 | F3 | Aplicaciones many-to-many + promesas de pago (**con recordatorios**, decisión PO 2026-10-06) | F1 | **COMPLETADA localmente 2026-10-06** (§8.7): migraciones `20261007180001`–`0005`, pgTAP 27/27, E2E `cobranza-cobro-multiple`; UI en `/cobranza`. |
 | F4 | Compras/CxP con folio `CG-MMYY_####` y pagos a proveedores | F2 | **COMPLETADA localmente 2026-10-06** (§8.8): migraciones `20261007190001/0002`, pgTAP 29/29, E2E `compras-flujo`; UI `/compras`. |
-| F5 | Tesorería: saldos, transferencias internas, conciliación básica | F4 | PENDIENTE (autorización del PO) |
+| F5 | Tesorería: saldos, transferencias internas, conciliación básica | F4 | **COMPLETADA localmente 2026-10-06** (§8.9): migraciones `20261007200001`–`0003`, pgTAP 27/27, E2E `tesoreria-flujo`; UI `/tesoreria`. |
 
 Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP no timbra CFDI: solo registra folios fiscales capturados (decisión alineada con §2: "no pretende sostener la estabilidad fiscal ni CFDI").
 
@@ -135,3 +135,12 @@ Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP
 - **Compatibilidad:** `registrar_gasto` mantiene su firma y el folio interno GTO; cobranza/facturación/rentabilidad quedan intactas (rentabilidad sigue leyendo gastos).
 - **Evidencia:** pgTAP `sii_b8_compras` 29/29 · global 1055/1055 · unit 948/948 · E2E `compras-flujo` 1/1 + regresión gastos 3/3 · build OK · capturas 4/4 en `.ai-shared/qa/sii-b8-f4/visual/`.
 - **Pendiente del PO:** aplicar en remoto `20261007190001` y `20261007190002` (tras `20261007180005`).
+
+## 8.9 Estado F5 — Tesorería: saldos, transferencias y conciliación (2026-10-06)
+
+- **Decisiones del PO:** saldo inicial por cuenta + movimientos vivos (sin ledger duplicado, F5.1); efectivo como cuenta con `tipo` banco/efectivo (F5.2); transferencias internas como par enlazado de la misma moneda, fuera de KPIs (F5.3); conciliación básica por marca manual auditada, sin importar extractos (F5.4).
+- **Migraciones:** `20261007200001` (tipo de cuenta, `saldos_iniciales_tesoreria`, `movimientos_tesoreria` en par enlazado y `conciliaciones_tesoreria` únicos por movimiento, con RLS de lectura), `20261007200002` (RPC `registrar_saldo_inicial`, `registrar_transferencia`, `conciliar_movimiento` y `desconciliar_movimiento`) y `20261007200003` (RETURNING calificado por alias).
+- **Saldos:** en la moneda de la cuenta — inicial + cobros con cuenta − pagos a proveedores − gastos pagados con cuenta ± transferencias; los gastos USD→cuenta MXN se convierten con su TC. La sección “Flujo por cuenta” de Cobranza sigue siendo la vista consolidada MXN.
+- **UI:** ruta `/tesoreria` (Finanzas) con tarjetas por cuenta (banco/efectivo, saldo actual, conciliados), captura de saldo inicial, registro de transferencias y conciliación/desconciliación por movimiento con auditoría.
+- **Evidencia:** pgTAP `sii_b8_tesoreria` 27/27 · global 1082/1082 · unit 951/951 · E2E `tesoreria-flujo` 1/1 · build OK (ruta `/tesoreria`) · capturas 4/4 en `.ai-shared/qa/sii-b8-f5/visual/`.
+- **Pendiente del PO:** aplicar en remoto `20261007200001`–`0003` (tras `20261007190002`). Con F5 cerrada, **B8 queda completo localmente** a falta de commit y publicación.
