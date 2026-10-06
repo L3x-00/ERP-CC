@@ -9,15 +9,12 @@ import { obtenerDatosCalendarioPlaneacionServicio } from '@/modulos/planeacion/s
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
-
-function fechaIsoDesdeFecha(fecha: Date): string {
-  return fecha.toISOString().slice(0, 10);
-}
+import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 
 function sumarDias(fechaIso: string, dias: number): string {
   const fecha = new Date(`${fechaIso}T00:00:00.000Z`);
   fecha.setUTCDate(fecha.getUTCDate() + dias);
-  return fechaIsoDesdeFecha(fecha);
+  return fecha.toISOString().slice(0, 10);
 }
 
 /** Devuelve el lunes de la semana ISO sin depender de la zona horaria del servidor. */
@@ -37,7 +34,8 @@ export default async function PaginaPlaneacion() {
   const puedeAdministrar = await can(usuario, 'aprobar_ordenes');
 
   const cliente = await crearClienteSupabaseServidor();
-  const hoy = fechaIsoDesdeFecha(new Date());
+  // Misma convención que el cliente (`hoyIso`): fecha local del operador, no UTC.
+  const hoy = hoyIso();
   const { data: proximaProgramacion, error: errorProximaProgramacion } = await cliente
     .from('programacion_areas')
     .select('fecha_programada')

@@ -30,9 +30,13 @@ function crearAdmin(): SupabaseClient<Database> {
 }
 
 function fecha(dias: number): string {
+  // Misma convención que el servidor de Planeación (`hoyIso` = fecha local del operador).
   const instante = new Date();
   instante.setDate(instante.getDate() + dias);
-  return instante.toISOString().slice(0, 10);
+  const anio = instante.getFullYear();
+  const mes = String(instante.getMonth() + 1).padStart(2, '0');
+  const dia = String(instante.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
 }
 
 test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)', () => {
@@ -79,31 +83,36 @@ test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)
       minutos: number,
       programacion?: { fecha: string; estado: string },
     ) {
-      const { data: folio } = await admin.rpc('generar_folio_orden', { p_prefijo: 'OP' });
-      const { data: orden } = await admin.from('ordenes_produccion').insert({
-        folio: folio!, cliente_id: cliente!.id, estado,
+      const { data: folio, error: errorFolio } = await admin.rpc('generar_folio_orden', { p_prefijo: 'OP' });
+      if (errorFolio || !folio) throw new Error(`Sin folio: ${errorFolio?.message ?? 'vacío'}`);
+      const { data: orden, error: errorOrden } = await admin.from('ordenes_produccion').insert({
+        folio, cliente_id: cliente!.id, estado,
         fecha_compromiso: '2099-12-31T18:00:00.000Z',
       }).select('id').single();
-      contexto.ordenes.push(orden!.id);
-      const { data: partida } = await admin.from('partidas_orden_produccion').insert({
-        orden_id: orden!.id, codigo_pieza: codigo, cantidad_solicitada: 1,
+      if (errorOrden || !orden) throw new Error(`Sin orden (${codigo}): ${errorOrden?.message ?? 'vacía'}`);
+      contexto.ordenes.push(orden.id);
+      const { data: partida, error: errorPartida } = await admin.from('partidas_orden_produccion').insert({
+        orden_id: orden.id, codigo_pieza: codigo, cantidad_solicitada: 1,
         unidad_medida: 'pza', tiempo_estimado_minutos: minutos,
       }).select('id').single();
+      if (errorPartida || !partida) throw new Error(`Sin partida (${codigo}): ${errorPartida?.message ?? 'vacía'}`);
       if (programacion) {
-        await admin.from('programacion_areas').insert({
-          orden_id: orden!.id, partida_id: partida!.id, recurso_id: recurso!.id,
+        const { error: errorProgramacion } = await admin.from('programacion_areas').insert({
+          orden_id: orden.id, partida_id: partida.id, recurso_id: recurso!.id,
           secuencia: 1, estado_planeacion: programacion.estado,
           fecha_programada: programacion.fecha, turno: 'matutino', horas_estimadas: 1,
         });
+        if (errorProgramacion) throw new Error(`Sin programación (${codigo}): ${errorProgramacion.message}`);
       }
-      return { ordenId: orden!.id, partidaId: partida!.id };
+      return { ordenId: orden.id, partidaId: partida.id };
     }
 
     partidaSugerida = (await crearOrden('programada', 'PLA5-SUG', 60)).partidaId;
     await crearOrden('programada', 'PLA5-BIG', 600);
     await crearOrden('pausada', 'PLA5-PAUSA', 60);
+    // Programada a +2 días: nunca cae en "hoy" aunque el reloj cruce medianoche UTC/local.
     await crearOrden('en_proceso', 'PLA5-HOY', 30, {
-      fecha: fecha(1), estado: 'programada',
+      fecha: fecha(2), estado: 'programada',
     });
     const acciones = await crearOrden('programada', 'PLA5-ACC', 30, {
       fecha: fecha(0), estado: 'programada',
