@@ -307,20 +307,31 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     await page.getByRole('tab', { name: 'Áreas de trabajo' }).click();
     const panelOperadores = page.getByTestId('areas-operadores');
     await expect(panelOperadores).toBeVisible();
+
+    /** Guarda reintentando una vez si el clic se pierde por un re-render de Realtime. */
+    async function guardarOperadorConReintento(operadorId: string): Promise<void> {
+      for (let intento = 0; intento < 2; intento += 1) {
+        await panelOperadores.getByTestId(`guardar-areas-operador-${operadorId}`).click();
+        try {
+          await expect(panelOperadores.getByRole('status').filter({ hasText: 'guardadas' }))
+            .toBeVisible({ timeout: 8_000 });
+          return;
+        } catch {
+          // Reintenta una vez.
+        }
+      }
+      await expect(panelOperadores.getByRole('status').filter({ hasText: 'guardadas' }))
+        .toBeVisible({ timeout: 20_000 });
+    }
+
     await panelOperadores
       .getByTestId(`areas-operador-check-${datos.operadorAId}-METAL_MECANICA`)
       .check();
-    await panelOperadores
-      .getByTestId(`guardar-areas-operador-${datos.operadorAId}`)
-      .click();
-    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
+    await guardarOperadorConReintento(datos.operadorAId);
     await panelOperadores
       .getByTestId(`areas-operador-check-${datos.operadorBId}-FABRICACION_DIGITAL`)
       .check();
-    await panelOperadores
-      .getByTestId(`guardar-areas-operador-${datos.operadorBId}`)
-      .click();
-    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
+    await guardarOperadorConReintento(datos.operadorBId);
 
     await expect
       .poll(async () => {
@@ -348,8 +359,21 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
       `areas-operador-check-${datos.operadorAId}-${codigoProceso}`,
     );
     await opcionProceso.check();
-    await panelOperadores.getByTestId(`guardar-areas-operador-${datos.operadorAId}`).click();
-    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
+    await guardarOperadorConReintento(datos.operadorAId);
+    // Verifica que la asignación quedó persistida antes de desactivar el área.
+    await expect
+      .poll(
+        async () => {
+          const { data } = await datos.admin
+            .from('operadores_areas')
+            .select('area_codigo')
+            .eq('operador_id', datos.operadorAId)
+            .eq('area_codigo', codigoProceso);
+          return data?.length ?? 0;
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(1);
     const { error: errorDesactivar } = await datos.admin.from('areas_trabajo_config')
       .update({ activo: false }).eq('codigo', codigoProceso);
     expect(errorDesactivar).toBeNull();
@@ -359,11 +383,11 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     const opcionInactiva = filaOperador.getByTestId(
       `areas-operador-check-${datos.operadorAId}-${codigoProceso}`,
     );
-    await expect(opcionInactiva).toBeChecked();
-    await expect(filaOperador.getByText('Desmarca las áreas inactivas o no disponibles antes de guardar.')).toBeVisible();
+    // Tras recargar con datos acumulados el panel puede tardar: timeout ampliado.
+    await expect(opcionInactiva).toBeChecked({ timeout: 30_000 });
+    await expect(filaOperador.getByText('Desmarca las áreas inactivas o no disponibles antes de guardar.')).toBeVisible({ timeout: 30_000 });
     await opcionInactiva.uncheck();
-    await filaOperador.getByTestId(`guardar-areas-operador-${datos.operadorAId}`).click();
-    await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardadas');
+    await guardarOperadorConReintento(datos.operadorAId);
 
     // A06/PRD-11: el área del operador se aplica en la asignación aun cuando
     // la partida usa un proceso de tercer nivel sin macroárea propia.

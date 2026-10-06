@@ -96,6 +96,8 @@ test.describe.serial('contactos adicionales del cliente (OBS-02)', () => {
     await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
     await page.goto('/clientes');
+    // La lista paginada puede contener datos de otras corridas: acota por búsqueda.
+    await page.getByRole('searchbox', { name: 'Buscar clientes' }).fill(datos.razonSocial);
     await page.getByRole('button', { name: datos.razonSocial }).click();
     const ficha = page.getByRole('dialog', { name: 'Ficha del cliente' });
     await expect(ficha).toBeVisible();

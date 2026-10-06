@@ -153,6 +153,8 @@ test.describe.serial('ficha de cliente B2: alta atómica, comercial y estado', (
     await page.getByLabel('Correo del contacto (opcional)').fill(`ana-${datos.sufijo}@metalesficha.mx`);
     await page.getByRole('button', { name: 'Crear cliente' }).click();
 
+    // La lista paginada puede contener datos de otras corridas: acota por búsqueda.
+    await page.getByRole('searchbox', { name: 'Buscar clientes' }).fill(datos.razonSocial);
     const fila = page.getByRole('row', { name: new RegExp(datos.razonSocial) });
     await expect(fila).toBeVisible();
 
@@ -275,6 +277,7 @@ test.describe.serial('ficha de cliente B2: alta atómica, comercial y estado', (
 
     // --- Lista con folio (captura) --------------------------------------------
     await page.goto('/clientes');
+    await page.getByRole('searchbox', { name: 'Buscar clientes' }).fill(datos.razonSocial);
     await expect(page.getByRole('row', { name: new RegExp(creado!.folio ?? '') })).toBeVisible();
     await capturar(page, 'lista-clientes');
   });
