@@ -17,7 +17,7 @@ async function consultarPartidas(
   const { data, error } = await cliente
     .from('partidas_orden_produccion')
     .select(
-      'id, orden_id, codigo_pieza, descripcion, area_trabajo_codigo, procesos, es_externo, proveedor_externo, maquina_asignada, material_id, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, tiempo_estimado_minutos, tiempo_real_minutos, operador_asignado_id, creado_en, actualizado_en',
+      'id, orden_id, codigo_pieza, codigo_item, propuesta_item_id, descripcion, area_trabajo_codigo, procesos, es_externo, proveedor_externo, maquina_asignada, material_id, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, tiempo_estimado_minutos, tiempo_real_minutos, operador_asignado_id, creado_en, actualizado_en',
     )
     .in('id', ids);
   if (error) throw new Error('No se pudieron cargar las partidas para Planeación');

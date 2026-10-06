@@ -28,7 +28,9 @@ describe('continuidad de folios periódicos', () => {
     }
     expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: 0 }).success).toBe(true);
     expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: 99 }).success).toBe(true);
-    expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: 100 }).success).toBe(false);
+    expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: 100 }).success).toBe(true);
+    expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: 999 }).success).toBe(true);
+    expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: 1000 }).success).toBe(false);
     expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: -1 }).success).toBe(false);
     expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: 1.5 }).success).toBe(false);
     expect(esquemaAjustarContinuidadPeriodico.safeParse({ ...base, ultimo: Number.NaN }).success).toBe(false);

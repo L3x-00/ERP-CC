@@ -1473,21 +1473,73 @@ export type Database = {
           },
         ]
       }
+      orden_eventos_cambio: {
+        Row: {
+          actor_id: string | null
+          correlation_id: string | null
+          creado_en: string
+          detalle: Json
+          id: string
+          motivo: string | null
+          orden_id: string
+          tipo: string
+        }
+        Insert: {
+          actor_id?: string | null
+          correlation_id?: string | null
+          creado_en?: string
+          detalle?: Json
+          id?: string
+          motivo?: string | null
+          orden_id: string
+          tipo: string
+        }
+        Update: {
+          actor_id?: string | null
+          correlation_id?: string | null
+          creado_en?: string
+          detalle?: Json
+          id?: string
+          motivo?: string | null
+          orden_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orden_eventos_cambio_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orden_eventos_cambio_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ordenes_produccion: {
         Row: {
           actualizado_en: string
           archivada_en: string | null
+          cerrada_admin_en: string | null
+          cerrada_admin_por: string | null
           cliente_id: string
           condicion_pago: string | null
           cotizacion_id: string | null
           creado_en: string
           es_interna: boolean
           estado: string
+          estado_sii: string
           fecha_compromiso: string
           fecha_fin: string | null
           fecha_inicio: string | null
           fecha_trabajo: string | null
           folio: string
+          folio_sii: string | null
           horas_estimadas: number | null
           id: string
           id_historico: string | null
@@ -1497,22 +1549,30 @@ export type Database = {
           notas: string | null
           orden_origen_id: string | null
           prioridad: string
+          propuesta_id: string | null
+          propuesta_revision_id: string | null
           referencia_externa: string | null
+          rfq_id: string | null
+          snapshot_json: Json
         }
         Insert: {
           actualizado_en?: string
           archivada_en?: string | null
+          cerrada_admin_en?: string | null
+          cerrada_admin_por?: string | null
           cliente_id: string
           condicion_pago?: string | null
           cotizacion_id?: string | null
           creado_en?: string
           es_interna?: boolean
           estado?: string
+          estado_sii?: string
           fecha_compromiso: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
           fecha_trabajo?: string | null
           folio: string
+          folio_sii?: string | null
           horas_estimadas?: number | null
           id?: string
           id_historico?: string | null
@@ -1522,22 +1582,30 @@ export type Database = {
           notas?: string | null
           orden_origen_id?: string | null
           prioridad?: string
+          propuesta_id?: string | null
+          propuesta_revision_id?: string | null
           referencia_externa?: string | null
+          rfq_id?: string | null
+          snapshot_json?: Json
         }
         Update: {
           actualizado_en?: string
           archivada_en?: string | null
+          cerrada_admin_en?: string | null
+          cerrada_admin_por?: string | null
           cliente_id?: string
           condicion_pago?: string | null
           cotizacion_id?: string | null
           creado_en?: string
           es_interna?: boolean
           estado?: string
+          estado_sii?: string
           fecha_compromiso?: string
           fecha_fin?: string | null
           fecha_inicio?: string | null
           fecha_trabajo?: string | null
           folio?: string
+          folio_sii?: string | null
           horas_estimadas?: number | null
           id?: string
           id_historico?: string | null
@@ -1547,9 +1615,20 @@ export type Database = {
           notas?: string | null
           orden_origen_id?: string | null
           prioridad?: string
+          propuesta_id?: string | null
+          propuesta_revision_id?: string | null
           referencia_externa?: string | null
+          rfq_id?: string | null
+          snapshot_json?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "ordenes_produccion_cerrada_admin_por_fkey"
+            columns: ["cerrada_admin_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ordenes_produccion_cliente_id_fkey"
             columns: ["cliente_id"]
@@ -1569,6 +1648,27 @@ export type Database = {
             columns: ["orden_origen_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_produccion_propuesta_id_fkey"
+            columns: ["propuesta_id"]
+            isOneToOne: false
+            referencedRelation: "propuestas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_produccion_propuesta_revision_id_fkey"
+            columns: ["propuesta_revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordenes_produccion_rfq_id_fkey"
+            columns: ["rfq_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline"
             referencedColumns: ["id"]
           },
         ]
@@ -1695,6 +1795,7 @@ export type Database = {
           cantidad_producida: number
           cantidad_scrap: number
           cantidad_solicitada: number
+          codigo_item: string | null
           codigo_pieza: string
           creado_en: string
           descripcion: string | null
@@ -1705,6 +1806,7 @@ export type Database = {
           operador_asignado_id: string | null
           orden_id: string
           procesos: string[]
+          propuesta_item_id: string | null
           proveedor_externo: string | null
           tiempo_estimado_minutos: number
           tiempo_real_minutos: number
@@ -1716,6 +1818,7 @@ export type Database = {
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada: number
+          codigo_item?: string | null
           codigo_pieza: string
           creado_en?: string
           descripcion?: string | null
@@ -1726,6 +1829,7 @@ export type Database = {
           operador_asignado_id?: string | null
           orden_id: string
           procesos?: string[]
+          propuesta_item_id?: string | null
           proveedor_externo?: string | null
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
@@ -1737,6 +1841,7 @@ export type Database = {
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada?: number
+          codigo_item?: string | null
           codigo_pieza?: string
           creado_en?: string
           descripcion?: string | null
@@ -1747,6 +1852,7 @@ export type Database = {
           operador_asignado_id?: string | null
           orden_id?: string
           procesos?: string[]
+          propuesta_item_id?: string | null
           proveedor_externo?: string | null
           tiempo_estimado_minutos?: number
           tiempo_real_minutos?: number
@@ -1772,6 +1878,13 @@ export type Database = {
             columns: ["orden_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidas_orden_produccion_propuesta_item_id_fkey"
+            columns: ["propuesta_item_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_items"
             referencedColumns: ["id"]
           },
         ]
@@ -3153,6 +3266,7 @@ export type Database = {
       sesiones_trabajo: {
         Row: {
           actualizado_en: string
+          corrida_id: string | null
           costo_hora_interno: number
           creado_en: string
           estado_sesion: string
@@ -3162,15 +3276,20 @@ export type Database = {
           horas_netas: number
           id: string
           motivo_pausa: string | null
+          motivo_pausa_codigo: string | null
+          motivo_pausa_nota: string | null
           notas: string | null
           operador_id: string
           orden_id: string
           partida_id: string
           piezas_producidas: number
           programacion_id: string
+          recurso_liberado: boolean
+          verificacion_inicio: Json | null
         }
         Insert: {
           actualizado_en?: string
+          corrida_id?: string | null
           costo_hora_interno?: number
           creado_en?: string
           estado_sesion?: string
@@ -3180,15 +3299,20 @@ export type Database = {
           horas_netas?: number
           id?: string
           motivo_pausa?: string | null
+          motivo_pausa_codigo?: string | null
+          motivo_pausa_nota?: string | null
           notas?: string | null
           operador_id: string
           orden_id: string
           partida_id: string
           piezas_producidas?: number
           programacion_id: string
+          recurso_liberado?: boolean
+          verificacion_inicio?: Json | null
         }
         Update: {
           actualizado_en?: string
+          corrida_id?: string | null
           costo_hora_interno?: number
           creado_en?: string
           estado_sesion?: string
@@ -3198,14 +3322,32 @@ export type Database = {
           horas_netas?: number
           id?: string
           motivo_pausa?: string | null
+          motivo_pausa_codigo?: string | null
+          motivo_pausa_nota?: string | null
           notas?: string | null
           operador_id?: string
           orden_id?: string
           partida_id?: string
           piezas_producidas?: number
           programacion_id?: string
+          recurso_liberado?: boolean
+          verificacion_inicio?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sesiones_trabajo_corrida_id_fkey"
+            columns: ["corrida_id"]
+            isOneToOne: false
+            referencedRelation: "corridas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sesiones_trabajo_motivo_pausa_codigo_fkey"
+            columns: ["motivo_pausa_codigo"]
+            isOneToOne: false
+            referencedRelation: "catalogo_motivos_pausa"
+            referencedColumns: ["codigo"]
+          },
           {
             foreignKeyName: "sesiones_trabajo_operador_id_fkey"
             columns: ["operador_id"]
@@ -3528,6 +3670,284 @@ export type Database = {
           },
         ]
       }
+      autorizaciones_hora_extra: {
+        Row: {
+          autorizado_por: string
+          creado_en: string
+          estado: string
+          horas_autorizadas: number
+          id: string
+          motivo: string
+          orden_id: string
+          sesion_id: string | null
+        }
+        Insert: {
+          autorizado_por: string
+          creado_en?: string
+          estado?: string
+          horas_autorizadas: number
+          id?: string
+          motivo: string
+          orden_id: string
+          sesion_id?: string | null
+        }
+        Update: {
+          autorizado_por?: string
+          creado_en?: string
+          estado?: string
+          horas_autorizadas?: number
+          id?: string
+          motivo?: string
+          orden_id?: string
+          sesion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "autorizaciones_hora_extra_autorizado_por_fkey"
+            columns: ["autorizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autorizaciones_hora_extra_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "autorizaciones_hora_extra_sesion_id_fkey"
+            columns: ["sesion_id"]
+            isOneToOne: false
+            referencedRelation: "sesiones_trabajo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalogo_motivos_pausa: {
+        Row: {
+          activo: boolean
+          codigo: string
+          libera_maquina: boolean
+          nombre: string
+          orden: number
+          requiere_nota: boolean
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          libera_maquina?: boolean
+          nombre: string
+          orden?: number
+          requiere_nota?: boolean
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          libera_maquina?: boolean
+          nombre?: string
+          orden?: number
+          requiere_nota?: boolean
+        }
+        Relationships: []
+      }
+      corrida_items: {
+        Row: {
+          cantidad: number
+          codigo_item: string
+          corrida_id: string
+          id: string
+          partida_id: string
+        }
+        Insert: {
+          cantidad: number
+          codigo_item: string
+          corrida_id: string
+          id?: string
+          partida_id: string
+        }
+        Update: {
+          cantidad?: number
+          codigo_item?: string
+          corrida_id?: string
+          id?: string
+          partida_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corrida_items_corrida_id_fkey"
+            columns: ["corrida_id"]
+            isOneToOne: false
+            referencedRelation: "corridas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corrida_items_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      corridas: {
+        Row: {
+          actualizado_en: string
+          cantidad_planificada: number
+          codigo: string
+          corrida_origen_id: string | null
+          creado_en: string
+          creado_por: string
+          estado: string
+          id: string
+          orden_id: string
+          proceso_id: string
+        }
+        Insert: {
+          actualizado_en?: string
+          cantidad_planificada: number
+          codigo: string
+          corrida_origen_id?: string | null
+          creado_en?: string
+          creado_por: string
+          estado?: string
+          id?: string
+          orden_id: string
+          proceso_id: string
+        }
+        Update: {
+          actualizado_en?: string
+          cantidad_planificada?: number
+          codigo?: string
+          corrida_origen_id?: string | null
+          creado_en?: string
+          creado_por?: string
+          estado?: string
+          id?: string
+          orden_id?: string
+          proceso_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corridas_corrida_origen_id_fkey"
+            columns: ["corrida_origen_id"]
+            isOneToOne: false
+            referencedRelation: "corridas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corridas_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corridas_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corridas_proceso_id_fkey"
+            columns: ["proceso_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_procesos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspecciones_calidad: {
+        Row: {
+          cantidad_inspeccionada: number
+          cantidad_nok: number
+          cantidad_ok: number
+          cantidad_retrabajo: number
+          codigo_item: string
+          corrida_id: string | null
+          creado_en: string
+          id: string
+          liberado_por: string
+          material_usado: Json
+          observaciones: string | null
+          orden_id: string
+          partida_id: string | null
+          referencia: number | null
+          resultado: string
+          tipo: string
+          tolerancias: Json
+        }
+        Insert: {
+          cantidad_inspeccionada?: number
+          cantidad_nok?: number
+          cantidad_ok?: number
+          cantidad_retrabajo?: number
+          codigo_item: string
+          corrida_id?: string | null
+          creado_en?: string
+          id?: string
+          liberado_por: string
+          material_usado?: Json
+          observaciones?: string | null
+          orden_id: string
+          partida_id?: string | null
+          referencia?: number | null
+          resultado: string
+          tipo: string
+          tolerancias?: Json
+        }
+        Update: {
+          cantidad_inspeccionada?: number
+          cantidad_nok?: number
+          cantidad_ok?: number
+          cantidad_retrabajo?: number
+          codigo_item?: string
+          corrida_id?: string | null
+          creado_en?: string
+          id?: string
+          liberado_por?: string
+          material_usado?: Json
+          observaciones?: string | null
+          orden_id?: string
+          partida_id?: string | null
+          referencia?: number | null
+          resultado?: string
+          tipo?: string
+          tolerancias?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspecciones_calidad_corrida_id_fkey"
+            columns: ["corrida_id"]
+            isOneToOne: false
+            referencedRelation: "corridas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspecciones_calidad_liberado_por_fkey"
+            columns: ["liberado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspecciones_calidad_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspecciones_calidad_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -3839,6 +4259,16 @@ export type Database = {
         Args: { p_actor: string; p_cliente_id: string; p_contacto_id: string }
         Returns: Json
       }
+      enviar_revision: {
+        Args: {
+          p_actor: string
+          p_canal: string
+          p_correlation_id?: string
+          p_destino: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
       es_admin: { Args: never; Returns: boolean }
       obtener_actividad: {
         Args: {
@@ -3942,10 +4372,12 @@ export type Database = {
       }
       iniciar_sesion_trabajo_operador: {
         Args: {
+          p_corrida_id?: string | null
           p_operador_id: string
           p_orden_id: string
           p_partida_id: string
           p_programacion_id: string
+          p_verificacion?: Json | null
         }
         Returns: {
           actualizado_en: string
@@ -4464,6 +4896,16 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_pdf_revision: {
+        Args: {
+          p_actor: string
+          p_archivo_id: string
+          p_contenido_hash: string
+          p_correlation_id?: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
       registrar_seguimiento_propuesta: {
         Args: {
           p_actor: string
@@ -4554,6 +4996,158 @@ export type Database = {
           ultimo_emitido: number | null
           siguiente: number | null
         }[]
+      }
+      crear_orden_desde_revision: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_revision_id: string
+        }
+        Returns: {
+          folio: string
+          folio_sii: string
+          id: string
+          ya_existia: boolean
+        }[]
+      }
+      crear_orden_interna: {
+        Args: {
+          p_actor_id: string
+          p_autorizacion: Json
+          p_correlation_id?: string
+          p_datos: Json
+        }
+        Returns: {
+          folio: string
+          folio_sii: string
+          id: string
+          ya_existia: boolean
+        }[]
+      }
+      liberar_orden: {
+        Args: {
+          p_actualizado_en: string
+          p_actor_id: string
+          p_correlation_id?: string
+          p_orden_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_sii: string
+          id: string
+        }[]
+      }
+      cerrar_orden_administrativa: {
+        Args: {
+          p_actualizado_en: string
+          p_actor_id: string
+          p_correlation_id?: string
+          p_orden_id: string
+        }
+        Returns: {
+          cerrada_admin_en: string | null
+          estado_sii: string
+          id: string
+        }[]
+      }
+      ajustar_orden_post_aceptacion: {
+        Args: {
+          p_actualizado_en: string
+          p_actor_id: string
+          p_cambios: Json
+          p_correlation_id?: string
+          p_motivo: string
+          p_orden_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_sii: string
+          id: string
+        }[]
+      }
+      crear_corrida: {
+        Args: {
+          p_actor_id: string
+          p_corrida_origen_id?: string | null
+          p_items: Json
+          p_orden_id: string
+          p_proceso_id: string
+        }
+        Returns: Json
+      }
+      iniciar_corrida: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_corrida_id: string
+          p_verificacion: Json
+        }
+        Returns: Json
+      }
+      completar_corrida: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_corrida_id: string
+        }
+        Returns: Json
+      }
+      cancelar_corrida: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_corrida_id: string
+          p_motivo: string
+        }
+        Returns: Json
+      }
+      reclamar_recurso_liberado: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_recurso_id: string
+        }
+        Returns: Json
+      }
+      cerrar_jornada: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_fecha: string
+        }
+        Returns: Json
+      }
+      autorizar_horas_extra: {
+        Args: {
+          p_actor_id?: string | null
+          p_correlation_id?: string
+          p_horas?: number | null
+          p_motivo?: string | null
+          p_orden_id: string
+          p_sesion_id?: string | null
+        }
+        Returns: Json
+      }
+      registrar_inspeccion: {
+        Args: {
+          p_actor_id: string
+          p_cantidad_inspeccionada: number
+          p_cantidad_nok: number
+          p_cantidad_ok: number
+          p_cantidad_retrabajo: number
+          p_codigo_item: string
+          p_correlation_id?: string
+          p_corrida_id: string | null
+          p_material_usado: Json
+          p_observaciones: string | null
+          p_orden_id: string
+          p_partida_id: string | null
+          p_referencia: number | null
+          p_resultado: string
+          p_tipo: string
+          p_tolerancias: Json
+        }
+        Returns: Json
       }
     }
     Enums: {

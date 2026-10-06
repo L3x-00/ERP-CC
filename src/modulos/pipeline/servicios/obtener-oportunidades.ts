@@ -40,7 +40,7 @@ export async function obtenerOportunidades(
   let consulta = cliente
     .from('pipeline')
     .select(
-      '*, cotizacion_lineas(cantidad, precio_unitario, es_descuento, area_trabajo_codigo), ordenes_produccion(folio, estado), clientes(razon_social, nombre_comercial), responsable:usuarios!pipeline_responsable_id_fkey(nombre_completo)',
+      '*, cotizacion_lineas(cantidad, precio_unitario, es_descuento, area_trabajo_codigo), ordenes_produccion!ordenes_produccion_cotizacion_id_fkey(folio, estado), clientes(razon_social, nombre_comercial), responsable:usuarios!pipeline_responsable_id_fkey(nombre_completo)',
     );
 
   if (filtros?.estadoRfq) {

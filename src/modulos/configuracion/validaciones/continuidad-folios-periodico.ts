@@ -17,7 +17,7 @@ export const esquemaAjustarContinuidadPeriodico = z
       .number({ message: 'El último folio debe ser numérico' })
       .int('El último folio debe ser entero')
       .min(0, 'El último folio no puede ser negativo')
-      .max(99, 'El último folio no puede superar 99'),
+      .max(999, 'El último folio no puede superar 999'),
   })
   .strict();
 

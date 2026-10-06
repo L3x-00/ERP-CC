@@ -4,7 +4,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(28);
+SELECT plan(29);
 
 -- Fixture: actor administrador y actor sin permiso de configuración.
 INSERT INTO auth.users (id, email) VALUES
@@ -65,10 +65,11 @@ SELECT is(
   to_char(now(), 'MMYY'),
   'La consulta devuelve el periodo vigente MMYY'
 );
-SELECT ok(
-  (SELECT ultimo_emitido IS NULL FROM public.consultar_continuidad_folio_periodico('O',
+SELECT is(
+  (SELECT ultimo_emitido FROM public.consultar_continuidad_folio_periodico('O',
     '00000000-0000-4000-8000-0000000b3f01'::uuid)),
-  'Los tipos sin emisor todavía reportan último emitido NULL'
+  0,
+  'O usa el folio_sii emitido (0 si aún no hay órdenes)'
 );
 SELECT is(
   (SELECT ultimo_contador FROM public.consultar_continuidad_folio_periodico('RFQ',
@@ -123,7 +124,13 @@ SELECT is(
   'El upsert no duplica la fila del contador'
 );
 
--- 20-24. Validaciones del ajuste.
+-- 20-25. Validaciones del ajuste y rango 0..999.
+SELECT is(
+  (SELECT public.ajustar_continuidad_folio_periodico('RFQ', to_char(now(), 'MMYY'), 100,
+    '00000000-0000-4000-8000-0000000b3f01'::uuid)),
+  100,
+  'El rango crece a 3 dígitos: 100 es válido'
+);
 SELECT throws_ok($$
   SELECT public.ajustar_continuidad_folio_periodico('XX', to_char(now(), 'MMYY'), 7,
     '00000000-0000-4000-8000-0000000b3f01'::uuid)
@@ -133,9 +140,9 @@ SELECT throws_ok($$
     '00000000-0000-4000-8000-0000000b3f01'::uuid)
 $$, '22023', 'continuidad_folio_invalida', 'El periodo debe ser MMYY válido');
 SELECT throws_ok($$
-  SELECT public.ajustar_continuidad_folio_periodico('RFQ', to_char(now(), 'MMYY'), 100,
+  SELECT public.ajustar_continuidad_folio_periodico('RFQ', to_char(now(), 'MMYY'), 1000,
     '00000000-0000-4000-8000-0000000b3f01'::uuid)
-$$, '22023', 'continuidad_folio_invalida', 'El último no puede superar 99');
+$$, '22023', 'continuidad_folio_invalida', 'El último no puede superar 999');
 SELECT throws_ok($$
   SELECT public.ajustar_continuidad_folio_periodico('RFQ', to_char(now(), 'MMYY'), -1,
     '00000000-0000-4000-8000-0000000b3f01'::uuid)
@@ -145,11 +152,11 @@ SELECT throws_ok($$
     '00000000-0000-4000-8000-0000000b3f02'::uuid)
 $$, '42501', 'sin_permiso_configuracion', 'Un vendedor no ajusta la continuidad');
 
--- 25-28. Tope 99 y lectura final del periodo.
+-- 26-29. Tope 999 y lectura final del periodo.
 SELECT is(
-  (SELECT public.ajustar_continuidad_folio_periodico('RFQ', to_char(now(), 'MMYY'), 99,
+  (SELECT public.ajustar_continuidad_folio_periodico('RFQ', to_char(now(), 'MMYY'), 999,
     '00000000-0000-4000-8000-0000000b3f01'::uuid)),
-  99,
+  999,
   'El ajuste permite llegar al tope del periodo'
 );
 SELECT is(
@@ -161,7 +168,7 @@ SELECT is(
 SELECT is(
   (SELECT ultimo_contador FROM public.consultar_continuidad_folio_periodico('RFQ',
     '00000000-0000-4000-8000-0000000b3f01'::uuid)),
-  99,
+  999,
   'La consulta refleja el contador ajustado'
 );
 SELECT is(

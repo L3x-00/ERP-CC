@@ -171,8 +171,8 @@ function SeccionFoliosPeriodico() {
     setErrorEnvio(null);
     if (!datos) return;
     const numero = Number(propuesto);
-    if (propuesto.trim() === '' || !Number.isInteger(numero) || numero < minimo || numero > 99) {
-      setErrorEnvio(`Indica un número entero entre ${minimo} y 99`);
+    if (propuesto.trim() === '' || !Number.isInteger(numero) || numero < minimo || numero > 999) {
+      setErrorEnvio(`Indica un número entero entre ${minimo} y 999`);
       return;
     }
     setGuardando(true);
@@ -189,7 +189,7 @@ function SeccionFoliosPeriodico() {
       setPropuesto('');
       setMensaje(
         `Continuidad guardada en ${resultado.datos.ultimo}; el siguiente folio será ${
-          resultado.datos.ultimo < 99
+          resultado.datos.ultimo < 999
             ? formatearFolioPeriodico(tipo, datos.periodo, resultado.datos.ultimo + 1)
             : 'no disponible'
         }`,
@@ -251,14 +251,14 @@ function SeccionFoliosPeriodico() {
         <form className="grid gap-2 sm:max-w-md" noValidate onSubmit={(evento) => void ajustar(evento)}>
           <Label htmlFor="ultimo-periodico-ajustar">Establecer último número reservado del periodo</Label>
           <div className="flex flex-wrap items-end gap-2">
-            <Input id="ultimo-periodico-ajustar" type="number" min={minimo} max={99} step={1}
+            <Input id="ultimo-periodico-ajustar" type="number" min={minimo} max={999} step={1}
               value={propuesto} onChange={(evento) => setPropuesto(evento.target.value)}
               className="min-w-32 flex-1" data-testid="continuidad-periodico-ultimo" />
             <Button type="submit" disabled={guardando} data-testid="continuidad-periodico-guardar">
               {guardando ? 'Guardando…' : 'Guardar continuidad'}
             </Button>
           </div>
-          <p className="text-xs text-texto-secundario">Solo se permite un valor igual o mayor a {minimo}; el tope del periodo es 99.</p>
+          <p className="text-xs text-texto-secundario">Solo se permite un valor igual o mayor a {minimo}; el tope del periodo es 999.</p>
         </form>
       </> : null}
       {errorEnvio ? <p role="alert" className="text-sm text-peligro-texto" data-testid="continuidad-periodico-error">{errorEnvio}</p> : null}

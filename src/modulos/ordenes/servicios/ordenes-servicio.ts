@@ -511,7 +511,7 @@ export async function obtenerOrdenesConPartidasServicio(
   cliente: SupabaseClient<Database>,
   estados?: readonly EstadoOrden[],
 ): Promise<OrdenConPartidas[]> {
-  let consultaOrdenes = cliente.from('ordenes_produccion').select('*, pipeline(folio_cnc)');
+  let consultaOrdenes = cliente.from('ordenes_produccion').select('*, pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc)');
   if (estados && estados.length > 0) {
     consultaOrdenes = consultaOrdenes.in('estado', estados);
   }

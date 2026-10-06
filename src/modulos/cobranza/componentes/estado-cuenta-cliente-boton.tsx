@@ -63,7 +63,7 @@ export function EstadoCuentaClienteBoton({
         cliente
           .from('ordenes_produccion')
           .select(
-            'id, folio, estado, fecha_compromiso, es_interna, archivada_en, cotizacion_id, creado_en, partidas_orden_produccion(cantidad_solicitada, cantidad_producida), pipeline(folio_cnc, moneda)',
+            'id, folio, estado, fecha_compromiso, es_interna, archivada_en, cotizacion_id, creado_en, partidas_orden_produccion(cantidad_solicitada, cantidad_producida), pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc, moneda)',
           )
           .eq('cliente_id', clienteId)
           .order('creado_en', { ascending: false }),
