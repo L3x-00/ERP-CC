@@ -13,7 +13,7 @@ import { cn } from '@/compartido/utilidades/cn';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/indice';
 
 import { obtenerActividadAccion } from '../acciones/obtener-actividad';
-import type { FiltrosActividad, RegistroActividad } from '../tipos/indice';
+import type { RegistroActividad } from '../tipos/indice';
 import {
   agruparPorCorrelacion,
   etiquetaAccion,
@@ -23,6 +23,7 @@ import {
   textoRecurso,
 } from '../utilidades/actividad';
 import { enlaceRegistroActividad } from '../utilidades/enlace-registro';
+import type { FiltrosActividadInput } from '../validaciones/esquemas-actividad';
 
 type Cursor = { creadoEn: string; id: string };
 
@@ -43,7 +44,7 @@ export function TablaActividad({ esAdmin }: { esAdmin: boolean }) {
   const [cursores, setCursores] = useState<(Cursor | undefined)[]>([undefined]);
 
   const cursor = cursores[cursores.length - 1];
-  const filtros: FiltrosActividad = {
+  const filtros: FiltrosActividadInput = {
     limite,
     ...(actorTexto.trim() !== '' ? { actorTexto: actorTexto.trim() } : {}),
     ...(modulo !== '' ? { modulo } : {}),
@@ -51,7 +52,7 @@ export function TablaActividad({ esAdmin }: { esAdmin: boolean }) {
     ...(recursoId.trim() !== '' ? { recursoId: recursoId.trim() } : {}),
     ...(desde ? { desde: new Date(`${desde}T00:00:00`).toISOString() } : {}),
     ...(hasta ? { hasta: new Date(`${hasta}T23:59:59.999`).toISOString() } : {}),
-    ...(cursor ? { cursor } : {}),
+    ...(cursor ? { cursorCreado: cursor.creadoEn, cursorId: cursor.id } : {}),
   };
 
   const { data: respuesta, isLoading, isError, refetch } = useQuery({
