@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
@@ -72,6 +73,10 @@ export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
   }
 
   const itemsActivos = rfq.items.filter((item) => item.estado === 'activo');
+  const itemSeleccionado = itemsActivos.find((item) => item.id === itemId);
+  const destino = itemSeleccionado
+    ? `Ítem ${itemSeleccionado.codigo} — ${itemSeleccionado.descripcion}`
+    : 'General del RFQ';
 
   return (
     <div className="flex flex-col gap-4" data-testid="panel-archivos-rfq">
@@ -94,7 +99,7 @@ export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
           </Select>
         </label>
         <label className="grid gap-1 text-sm font-medium" htmlFor="archivo-item">
-          Vínculo
+          ¿A qué pertenece?
           <Select
             id="archivo-item"
             value={itemId}
@@ -123,6 +128,11 @@ export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
         </div>
       </form>
 
+      <p className="text-xs text-texto-secundario">
+        Se adjuntará a <span className="font-medium text-texto-primario">{destino}</span>. El archivo
+        se guarda privado, queda ligado a ese vínculo y conserva su nombre original (saneado).
+      </p>
+
       {mensaje !== null && (
         <p role="alert" className="text-sm text-peligro-texto">
           {mensaje}
@@ -144,14 +154,17 @@ export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
               key={archivo.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-borde bg-superficie px-3 py-2"
             >
-              <div className="flex min-w-0 flex-col">
+              <div className="flex min-w-0 flex-col gap-1">
                 <span className="truncate text-sm font-medium">{archivo.nombreOriginal}</span>
-                <span className="text-xs text-texto-secundario">
-                  {archivo.clase}
-                  {archivo.itemCodigo ? ` · ${archivo.itemCodigo}` : ' · General'}
-                  {archivo.version > 1 ? ` · versión ${archivo.version}` : ''}
-                  {' · '}
-                  {formatearFecha(archivo.creadoEn)} {formatearHora(archivo.creadoEn)}
+                <span className="flex flex-wrap items-center gap-1.5 text-xs text-texto-secundario">
+                  <Badge variante={archivo.entidad === 'rfq_item' ? 'info' : 'neutro'}>
+                    {archivo.entidad === 'rfq_item' ? `Ítem ${archivo.itemCodigo}` : 'General del RFQ'}
+                  </Badge>
+                  <Badge variante="neutro">{archivo.clase}</Badge>
+                  {archivo.version > 1 ? <Badge variante="exito">v{archivo.version}</Badge> : null}
+                  <span>
+                    {formatearFecha(archivo.creadoEn)} {formatearHora(archivo.creadoEn)}
+                  </span>
                 </span>
               </div>
               <Button variante="contorno" tamano="sm" onClick={() => void abrirArchivo(archivo.id)}>

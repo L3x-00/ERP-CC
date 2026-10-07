@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
@@ -80,32 +81,46 @@ export function PanelArchivosPropuesta({
   return (
     <section className="flex flex-col gap-4" data-testid="panel-archivos-propuesta">
       {esBorrador && puedeSubir && (
-        <form onSubmit={subir} className="flex flex-wrap items-end gap-2 rounded-lg border border-borde p-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Tipo</span>
-            <Select
-              value={tema}
-              onChange={(evento) => setTema(evento.target.value as 'general' | 'tecnico')}
-              aria-label="Tipo de archivo de propuesta"
-            >
-              <option value="general">General</option>
-              <option value="tecnico">Técnico</option>
-            </Select>
-          </label>
-          <input
-            type="file"
-            aria-label="Archivo de la propuesta"
-            onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
-            className="text-sm"
-          />
-          <Button type="submit" tamano="sm" disabled={subiendo}>
-            {subiendo ? 'Subiendo…' : 'Subir archivo'}
-          </Button>
-          {mensaje && (
-            <span role="status" className="text-xs text-texto-secundario">
-              {mensaje}
-            </span>
-          )}
+        <form onSubmit={subir} className="flex flex-col gap-3 rounded-lg border border-borde p-3">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-sm font-semibold text-texto-primario">
+              Subir archivo a la revisión {revision.folioRevision}
+            </h3>
+            <p className="text-xs text-texto-secundario">
+              Queda ligado a esta revisión con el tipo elegido; los archivos del RFQ se heredan sin
+              duplicarse.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Tipo</span>
+              <Select
+                value={tema}
+                onChange={(evento) => setTema(evento.target.value as 'general' | 'tecnico')}
+                aria-label="Tipo de archivo de propuesta"
+              >
+                <option value="general">General (comercial)</option>
+                <option value="tecnico">Técnico (CAD/planos)</option>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Archivo</span>
+              <input
+                type="file"
+                aria-label="Archivo de la propuesta"
+                onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
+                className="text-sm"
+              />
+            </label>
+            <Button type="submit" tamano="sm" disabled={subiendo}>
+              {subiendo ? 'Subiendo…' : 'Subir archivo'}
+            </Button>
+            {mensaje && (
+              <span role="status" className="text-xs text-texto-secundario">
+                {mensaje}
+              </span>
+            )}
+          </div>
         </form>
       )}
 
@@ -115,6 +130,7 @@ export function PanelArchivosPropuesta({
             key={fila.id}
             archivo={fila}
             chip={fila.temaCodigo === 'tecnico' ? 'Técnico' : 'General'}
+            variante={fila.temaCodigo === 'tecnico' ? 'info' : 'neutro'}
             onVer={ver}
           />
         ))}
@@ -126,6 +142,7 @@ export function PanelArchivosPropuesta({
             key={fila.id}
             archivo={fila}
             chip={fila.entidad === 'rfq_item' ? 'Origen: RFQ · Ítem' : 'Origen: RFQ'}
+            variante={fila.entidad === 'rfq_item' ? 'info' : 'neutro'}
             onVer={ver}
           />
         ))}
@@ -137,6 +154,7 @@ export function PanelArchivosPropuesta({
             key={fila.id}
             archivo={fila}
             chip={`Ítem ${codigoItem(fila.entidadId)}`}
+            variante="info"
             onVer={ver}
           />
         ))}
@@ -154,11 +172,16 @@ function Grupo({
   vacio: string;
   children: React.ReactNode;
 }) {
-  const tieneHijos = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  const cantidad = Array.isArray(children) ? children.length : children ? 1 : 0;
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-texto-primario">{titulo}</h3>
-      {tieneHijos ? (
+      <h3 className="text-sm font-semibold text-texto-primario">
+        {titulo}
+        {cantidad > 0 ? (
+          <span className="ml-1.5 text-xs font-normal text-texto-tenue">({cantidad})</span>
+        ) : null}
+      </h3>
+      {cantidad > 0 ? (
         <ul className="flex flex-col divide-y divide-borde">{children}</ul>
       ) : (
         <p className="text-sm text-texto-secundario">{vacio}</p>
@@ -170,18 +193,22 @@ function Grupo({
 function FilaArchivo({
   archivo,
   chip,
+  variante = 'neutro',
   onVer,
 }: {
   archivo: ArchivoPropuesta;
   chip: string;
+  variante?: 'neutro' | 'info';
   onVer: (id: string) => Promise<void>;
 }) {
   return (
     <li className="flex items-center justify-between gap-2 py-2 text-sm">
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-w-0 flex-col gap-1">
         <span className="truncate font-medium">{archivo.nombreOriginal}</span>
-        <span className="text-xs text-texto-secundario">
-          {chip} · v{archivo.version} · {formatearFecha(archivo.creadoEn)}
+        <span className="flex flex-wrap items-center gap-1.5 text-xs text-texto-secundario">
+          <Badge variante={variante}>{chip}</Badge>
+          <Badge variante="neutro">v{archivo.version}</Badge>
+          <span>{formatearFecha(archivo.creadoEn)}</span>
         </span>
       </div>
       <Button variante="fantasma" tamano="sm" onClick={() => void onVer(archivo.id)}>
