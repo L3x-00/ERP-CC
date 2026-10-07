@@ -100,6 +100,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
 
     // Borrador previo: la empresa ya se capturó a mano y no debe pisarse.
     fireEvent.change(campo(/Empresa/), { target: { value: 'Taller propio' } });
+    fireEvent.focus(campo(/Cliente \(opcional\)/));
     fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
 
     await waitFor(() => {
@@ -114,6 +115,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
   it('envía el clienteId al crear la oportunidad', async () => {
     renderizarFormulario();
 
+    fireEvent.focus(campo(/Cliente \(opcional\)/));
     fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
     await screen.findByText('Cambiar cliente');
     fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
@@ -128,6 +130,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
   it('quitar el cliente conserva lo capturado y no envía clienteId', async () => {
     renderizarFormulario();
 
+    fireEvent.focus(campo(/Cliente \(opcional\)/));
     fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
     await screen.findByText('Quitar');
     fireEvent.click(screen.getByRole('button', { name: 'Quitar' }));
@@ -148,7 +151,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     fireEvent.change(campo(/Orden de compra/), { target: { value: 'PO-99' } });
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo cliente' }));
 
-    fireEvent.change(screen.getByLabelText(/Razón social/), {
+    fireEvent.change(await screen.findByLabelText(/Razón social/), {
       target: { value: 'Aceros Baja SA' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Crear y usar en la RFQ' }));
@@ -170,7 +173,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     renderizarFormulario();
 
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo cliente' }));
-    fireEvent.change(screen.getByLabelText(/Razón social/), {
+    fireEvent.change(await screen.findByLabelText(/Razón social/), {
       target: { value: 'Aceros Baja SA' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Crear y usar en la RFQ' }));
@@ -179,6 +182,8 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
       'textContent',
       'Sin permiso para crear clientes',
     );
+    // El diálogo sigue abierto para reintentar y nada quedó seleccionado.
+    expect(screen.getByRole('dialog')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Cambiar cliente' })).toBeNull();
   });
 });

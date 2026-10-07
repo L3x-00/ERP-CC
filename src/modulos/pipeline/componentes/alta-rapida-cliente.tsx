@@ -99,8 +99,7 @@ export function AltaRapidaCliente({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie-2 px-4 py-3">
-      <span className="text-sm font-medium text-texto-primario">Nuevo cliente</span>
+    <div className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="alta-rapida-razon">Razón social</Label>
