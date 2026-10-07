@@ -31,6 +31,7 @@
 | 2026-10-07 | Corrección RBAC (H-B1-03/05/06/07/09/13) — commit `ac35c5b`, migración `20261008000001` (solo local) | Hecho: pgTAP 24/24 + 16/16, concurrencia 2/2, unitarias 962/962, typecheck/lint 0. H-B1-02 diferido a B2/B3/B4 (otorgar permisos legacy abriría mutaciones) |
 | 2026-10-07 | Guardián probado en sesión real: aviso al 83 % (5 h, reinicia 13:30) | Pausa preventiva: sin lanzar trabajo nuevo hasta el reinicio |
 | 2026-10-07 | Tanda 2 terminada (`wf_be9bc2c3-f72`, 2/2 agentes) | 18 hallazgos registrados como H-B1-29..46 "Por clasificar" en `B1-hallazgos.md` (1 Crítico: subidas limitadas a 1 MB). **PAUSA al 89 %** hasta el reinicio de las 13:30 |
+| 2026-10-07 | Sesión Claude Code identificada y tanda 2 clasificada por Codex | Sesión `4c6ad8e4-b953-453d-b80b-86bd0dfd758c`, modelo comprobado `claude-opus-5-5`; 7 bloqueantes B1, 6 no bloqueantes B1, 2 diferidos a B3, 2 propuestas PO y H-B1-44 consolidado con H-B1-24. Límite 5 h comprobado en 90 %, reinicio `2026-10-07 13:29:59 -05:00` |
 
 ## Hipótesis propias pendientes de verificar (B1)
 
@@ -44,9 +45,10 @@
 
 ## Siguiente paso
 
-0. **Al reanudar (tras 13:30):** clasificar H-B1-29..46 (leer detalle con `ConvertFrom-Json` del output de la tarea `wpyqhfrye` o del journal de `wf_be9bc2c3-f72`), separar B1 / diferidos / propuestos, y sumar los de B1 a la lista de correcciones. Prioridad: H-B1-29 (Crítico, subida directa con URL firmada), H-B1-30 (IDOR firma), H-B1-38/39 (Actividad: paginación y etiquetas), H-B1-40 (logs append-only).
-1. ~~RBAC (a y b)~~ hecho en `ac35c5b`.
+0. ~~Clasificar H-B1-29..46~~ hecho. Fuente completa: sesión Claude Code `4c6ad8e4-b953-453d-b80b-86bd0dfd758c`, tarea `wpyqhfrye`, workflow `wf_be9bc2c3-f72`; resumen persistente en `B1-hallazgos.md`.
+1. **Al reanudar Claude tras 13:30:** ejecutar el encargo `.ai-shared/coordination/ENCARGO_CLAUDE_SII_B1_H29.md` en la misma sesión. Primera corrección: H-B1-29, subida directa a Storage mediante URL firmada, con prueba que reproduzca >1 MiB antes de corregir y revalidación server-side del objeto real.
+2. ~~RBAC (a y b)~~ hecho en `ac35c5b`.
    c. **Siguiente:** catálogos — migración `20261008000002`: columna `actualizado_por` (y `actualizado_en` donde falte) en los 6 catálogos de B1; `privado.registrar_version_catalogo()` toma el actor de `new.actualizado_por`; servicios con CAS por `actualizado_en` esperado (`catalogo_desactualizado`); `ejecutarAccionCatalogo` con `nuevoCorrelationId()`; historial muestra el nombre del usuario (H-B1-14, H-B1-15, H-B1-22, H-B1-24 parcial). Prueba primero en `supabase/tests/sii_b1_catalogos.test.sql` (hoy afirma actor NULL en líneas 144-148).
    - Para pruebas de integración cargar el entorno local: `supabase status -o env` → `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (sin imprimir valores).
-2. Al terminar la tanda 2: registrar sus hallazgos, corregir los de B1.
-3. Gates (typecheck, lint, unit, pgTAP, integración/E2E focales de B1), simplificación, reporte B1 y alto hasta confirmación del PO.
+3. Después de H-B1-29: H-B1-31/32/33; Actividad H-B1-38/39/40; catálogos H-B1-14/15/22/24; luego los B1 opcionales que no amplíen alcance.
+4. Gates (typecheck, lint, unit, pgTAP, integración/E2E focales de B1), simplificación, reporte B1 y alto hasta confirmación del PO.
