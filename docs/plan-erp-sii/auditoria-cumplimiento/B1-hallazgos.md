@@ -48,7 +48,7 @@ Detalle y evidencia: resultado del workflow `wf_be9bc2c3-f72` (journal de la ses
 
 | ID | Sev. | Tipo | Req. | Descripción | Estado |
 |---|---|---|---|---|---|
-| H-B1-29 | Critico | Bug | R-B1-25, R-B1-50 | [L3] Subidas por Server Action limitadas a 1 MB: falla cualquier plano o foto de más de 1 MB | Pendiente (B1; prioridad 1) |
+| H-B1-29 | Critico | Bug | R-B1-25, R-B1-50 | [L3] Subidas por Server Action limitadas a 1 MB: falla cualquier plano o foto de más de 1 MB | En curso (`fba32cf`): subida directa con URL firmada en RFQ, pipeline/cotizador, propuestas, entregas, documento de orden e inspección; integración 10/10. Falta documentos de cliente y E2E > 1 MiB |
 | H-B1-30 | Requerido | Seguridad | R-B1-27, R-B1-11 | [L3] IDOR: firmarArchivoRfqAccion firma cualquier archivo de cualquier entidad | Diferido a B3 |
 | H-B1-31 | Requerido | Incumplimiento | R-B1-31, R-B1-32, R-B1-30 | [L3] Reemplazo implícito y sin aviso cuando coincide el nombre saneado (nombre_erp) | Pendiente (B1) |
 | H-B1-32 | Requerido | Incumplimiento | R-B1-43, R-B1-31, R-B1-32 | [L3] Borrado físico de adjuntos históricos y políticas de Storage que permiten borrar o subir directo | Resuelto (`e9da561`; retiro lógico sin borrar binario + Storage sin INSERT/DELETE directo; pgTAP 7/7) |
@@ -71,7 +71,7 @@ Cobertura tanda 2: R-B1-26 CUBIERTO · R-B1-27 PARCIAL · R-B1-28 CUBIERTO · R-
 
 ## Cola resultante de B1
 
-1. **Bloqueantes obligatorios pendientes:** H-B1-29 y H-B1-31; además de catálogos H-B1-14, H-B1-15, H-B1-22 y H-B1-24/H-B1-44. Actividad H-B1-38/39/40 y archivos H-B1-32/33 ya están resueltos.
+1. **Bloqueantes obligatorios pendientes:** H-B1-29 (en curso: 6 de 7 flujos migrados en `fba32cf`) y H-B1-31; además de catálogos H-B1-14, H-B1-15, H-B1-22 y H-B1-24/H-B1-44. Actividad H-B1-38/39/40 y archivos H-B1-32/33 ya están resueltos. **Auditoría en pausa de control desde 2026-10-07** (ver `CONTINUIDAD.md`).
 2. **B1 no bloqueante:** H-B1-34, H-B1-35, H-B1-36, H-B1-37, H-B1-41 y H-B1-42. Se atienden después de los obligatorios si no amplían el alcance.
 3. **Diferidos a B3:** H-B1-30 y H-B1-45. No se modifica B3 durante el cierre de B1.
 4. **Propuestas para decisión del PO:** H-B1-43 y H-B1-46. No se elimina ni fusiona funcionalidad sin confirmación explícita.
