@@ -69,7 +69,8 @@ export function validarRutaDocumento(
 ): boolean {
   if (!cotizacionId || ruta.length === 0 || ruta.length > 500) return false;
   if (ruta.includes('..') || ruta.includes('\\')) return false;
-  return ruta.startsWith(`${cotizacionId}/`) && ruta.length > cotizacionId.length + 1;
+  const prefijos = [`${cotizacionId}/`, `rfq/${cotizacionId}/`];
+  return prefijos.some((prefijo) => ruta.startsWith(prefijo) && ruta.length > prefijo.length);
 }
 
 /** Sanea el nombre de archivo para que no escape del prefijo ni sea ambiguo. */

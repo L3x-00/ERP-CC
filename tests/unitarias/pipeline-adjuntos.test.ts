@@ -1,12 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { usuarioMock, clienteMock, adminMock, oportunidadMock, urlMock, logMock } = vi.hoisted(() => ({
+const {
+  usuarioMock,
+  clienteMock,
+  adminMock,
+  oportunidadMock,
+  urlMock,
+  logMock,
+  removeMock,
+  retirarMetadataMock,
+} = vi.hoisted(() => ({
   usuarioMock: vi.fn(),
   clienteMock: vi.fn(),
   adminMock: vi.fn(),
   oportunidadMock: vi.fn(),
   urlMock: vi.fn(),
   logMock: vi.fn(),
+  removeMock: vi.fn(),
+  retirarMetadataMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
@@ -49,24 +60,30 @@ function clienteConArchivos(filas: unknown[]) {
     from: () => cadena,
     storage: {
       from: () => ({
-        remove: async () => ({ data: [], error: null }),
+        remove: (...argumentos: unknown[]) => removeMock(...argumentos),
       }),
     },
   };
 }
 
 function adminConCatalogo() {
+  const cadena: Record<string, unknown> = {};
+  const encadenar = (): Record<string, unknown> => cadena;
+  Object.assign(cadena, {
+    update: encadenar,
+    eq: encadenar,
+    select: encadenar,
+    maybeSingle: () => retirarMetadataMock(),
+  });
   return {
-    from: () => ({
-      update: () => ({
-        eq: async () => ({ error: null }),
-      }),
-    }),
+    from: () => cadena,
   };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  removeMock.mockResolvedValue({ data: [], error: null });
+  retirarMetadataMock.mockResolvedValue({ data: { id: 'a1' }, error: null });
   usuarioMock.mockResolvedValue({ id: 'u1', activo: true, rol: 'vendedor' });
   oportunidadMock.mockResolvedValue({ oportunidad: { id: PIPELINE }, lineas: [] });
   adminMock.mockReturnValue(adminConCatalogo());
@@ -153,17 +170,32 @@ describe('guardas de ruta de adjuntos', () => {
     expect(nueva).toMatchObject({ exito: true });
   });
 
-  it('eliminarAdjuntoAccion rechaza ruta ajena y registra al eliminar la propia', async () => {
+  it('eliminarAdjuntoAccion retira la metadata sin borrar el binario histórico', async () => {
     clienteMock.mockResolvedValue(clienteConArchivos([]));
     const ajena = await eliminarAdjuntoAccion({ pipelineId: PIPELINE, ruta: 'otra/x.dxf' });
     expect(ajena).toMatchObject({ exito: false });
     expect(logMock).not.toHaveBeenCalled();
 
+    removeMock.mockResolvedValueOnce({ data: null, error: { message: 'borrado bloqueado' } });
     const propia = await eliminarAdjuntoAccion({
       pipelineId: PIPELINE,
       ruta: `rfq/${PIPELINE}/uuid-plano.dxf`,
     });
     expect(propia).toMatchObject({ exito: true });
+    expect(removeMock).not.toHaveBeenCalled();
     expect(logMock).toHaveBeenCalledOnce();
+  });
+
+  it('no informa éxito si la metadata vigente ya no existe', async () => {
+    clienteMock.mockResolvedValue(clienteConArchivos([]));
+    retirarMetadataMock.mockResolvedValueOnce({ data: null, error: null });
+
+    const resultado = await eliminarAdjuntoAccion({
+      pipelineId: PIPELINE,
+      ruta: `rfq/${PIPELINE}/uuid-inexistente.dxf`,
+    });
+
+    expect(resultado).toMatchObject({ exito: false });
+    expect(logMock).not.toHaveBeenCalled();
   });
 });

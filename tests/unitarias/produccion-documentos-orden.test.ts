@@ -11,6 +11,7 @@ describe('validarRutaDocumento (OBS-06/ORD-09)', () => {
   it('acepta rutas dentro de la carpeta de la cotización de la orden', () => {
     expect(validarRutaDocumento(`${COTIZACION}/171234-plano.pdf`, COTIZACION)).toBe(true);
     expect(validarRutaDocumento(`${COTIZACION}/171234-cara.dxf`, COTIZACION)).toBe(true);
+    expect(validarRutaDocumento(`rfq/${COTIZACION}/uuid-plano.step`, COTIZACION)).toBe(true);
   });
 
   it('rechaza rutas ajenas, ambiguas o sin cotización', () => {

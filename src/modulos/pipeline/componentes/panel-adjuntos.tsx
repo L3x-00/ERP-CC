@@ -27,8 +27,8 @@ function formatearTamano(bytes: number | null): string {
 /**
  * Adjuntos de una oportunidad (RFQ-19, OBS-06, DOC-04): lista con nombre,
  * tamaño y fecha; subida múltiple, apertura por URL firmada y retiro. En modo
- * consulta solo permite abrir. La seguridad la impone la RLS del bucket, acotada
- * por carpeta = `pipelineId`.
+ * consulta solo permite abrir. Las acciones de servidor validan el acceso a la
+ * oportunidad antes de operar sobre la ruta privada `rfq/<pipelineId>/...`.
  */
 export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId: string; soloLectura?: boolean }) {
   const clienteConsultas = useQueryClient();
@@ -77,7 +77,7 @@ export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId:
     else setError(respuesta.exito ? 'No se pudo generar el enlace' : respuesta.error);
   }
 
-  async function quitar(ruta: string): Promise<void> {
+  async function retirar(ruta: string): Promise<void> {
     setOcupado(true);
     setError(null);
     try {
@@ -144,8 +144,8 @@ export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId:
                   Abrir
                 </Button>
                 {!soloLectura && (
-                  <Button type="button" variante="destructivo" tamano="sm" disabled={ocupado} onClick={() => void quitar(adjunto.ruta)}>
-                    Quitar
+                  <Button type="button" variante="destructivo" tamano="sm" disabled={ocupado} onClick={() => void retirar(adjunto.ruta)}>
+                    Retirar
                   </Button>
                 )}
               </div>
