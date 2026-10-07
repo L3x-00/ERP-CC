@@ -1,6 +1,6 @@
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 
 /** Módulo de auditoría de todos los catálogos base. */
 export const MODULO_CATALOGOS = 'catalogos';
@@ -43,15 +43,16 @@ export async function ejecutarAccionCatalogo<T>(
   ejecutar: () => Promise<T>,
   detalles: Record<string, unknown> = {},
 ): Promise<RespuestaAccion<T>> {
+  const correlationId = nuevoCorrelationId();
   try {
     const datos = await ejecutar();
-    await registrarLog(usuario, accion, MODULO_CATALOGOS, recursoId, detalles);
+    await registrarLog(usuario, accion, MODULO_CATALOGOS, recursoId, detalles, correlationId);
     return { exito: true, datos };
   } catch (error) {
     console.error(`[CATALOGOS] ${accion}:`, error);
     await registrarLog(usuario, `${accion}_rechazada`, MODULO_CATALOGOS, recursoId, {
       codigo: codigoPostgres(error) ?? 'error_servicio_catalogos',
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorCatalogo(error) };
   }
 }
