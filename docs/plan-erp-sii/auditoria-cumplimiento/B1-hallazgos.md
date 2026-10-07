@@ -7,18 +7,18 @@ Estados: **Pendiente** (B1, se corrige en esta auditoría) · **Resuelto** (comm
 | ID | Sev. | Tipo | Req. | Descripción | Estado |
 |---|---|---|---|---|---|
 | H-B1-01 | Requerido | Incumplimiento | R-B1-12 | Customer Service y Administrative ven costo interno y margen de propuestas (decisión #2: solo Management/Admin); `obtener-propuesta.ts` los entrega a quien tiene `propuesta_vista` | Diferido a B4 |
-| H-B1-02 | Requerido | Incumplimiento | R-B1-05 | Administrative no puede consultar lo comercial: tiene `cliente_vista`/`rfq_vista`/`propuesta_vista` pero la RLS usa `ver_clientes`/`ver_pipeline_equipo` (simulación: 0/85 clientes, 0/8 RFQ, 0/8 propuestas) | Pendiente |
-| H-B1-03 | Requerido | Incumplimiento | R-B1-05 | Matriz deja a `contador` (Administrative) sin `orden_cerrar_admin` pese a §5 "cierres administrativos" | Pendiente |
+| H-B1-02 | Requerido | Incumplimiento | R-B1-05 | Administrative no puede consultar lo comercial: tiene `cliente_vista`/`rfq_vista`/`propuesta_vista` pero la RLS usa `ver_clientes`/`ver_pipeline_equipo` (simulación: 0/85 clientes, 0/8 RFQ, 0/8 propuestas) | Diferido a B2/B3/B4 (la RLS de clientes, RFQ y propuestas debe aceptar `*_vista`; otorgar `ver_clientes`/`ver_pipeline_equipo` abriría mutaciones y expondría costo/margen antes de corregir H-B1-01) |
+| H-B1-03 | Requerido | Incumplimiento | R-B1-05 | Matriz deja a `contador` (Administrative) sin `orden_cerrar_admin` pese a §5 "cierres administrativos" | Resuelto (`ac35c5b`) |
 | H-B1-04 | Requerido | Incumplimiento | R-B1-07 | Permiso legacy `aprobar_ordenes` (lo tiene `vendedor`) permite a Customer Service autorizar horas extra (decisión #8: Management/Admin) y administrar órdenes | Diferido a B6 |
-| H-B1-05 | Requerido | Bug | R-B1-41 | `actualizar_permisos_rol` reemplaza la matriz sin lock ni control optimista: revierte cambios ajenos o mezcla conjuntos | Pendiente |
-| H-B1-06 | Requerido | Bug | R-B1-09 | Guarda de "último admin activo" sin lock común: dos admins degradándose a la vez dejan 0 admins | Pendiente |
-| H-B1-07 | Requerido | Seguridad | R-B1-11 | Un permiso desactivado (`permisos.activo=false`) sigue concediendo acceso (helpers SQL y `can()`), y bloquea guardar la matriz | Pendiente |
+| H-B1-05 | Requerido | Bug | R-B1-41 | `actualizar_permisos_rol` reemplaza la matriz sin lock ni control optimista: revierte cambios ajenos o mezcla conjuntos | Resuelto (`ac35c5b`) |
+| H-B1-06 | Requerido | Bug | R-B1-09 | Guarda de "último admin activo" sin lock común: dos admins degradándose a la vez dejan 0 admins | Resuelto (`ac35c5b`) |
+| H-B1-07 | Requerido | Seguridad | R-B1-11 | Un permiso desactivado (`permisos.activo=false`) sigue concediendo acceso (helpers SQL y `can()`), y bloquea guardar la matriz | Resuelto (`ac35c5b`) |
 | H-B1-08 | Requerido | Seguridad | R-B1-02 | El operador recibe montos de la orden en el payload del piso y la RLS de `ordenes_produccion` es `USING(true)` | Diferido a B6/B5 |
-| H-B1-09 | Requerido | Incumplimiento | R-B1-36 | Auditoría de RBAC sin "qué cambió" (permisos agregados/retirados, rol/estado anterior) y escrita fuera de la transacción | Pendiente |
+| H-B1-09 | Requerido | Incumplimiento | R-B1-36 | Auditoría de RBAC sin "qué cambió" (permisos agregados/retirados, rol/estado anterior) y escrita fuera de la transacción | Resuelto (`ac35c5b`) |
 | H-B1-10 | Opcional | Mantenibilidad | R-B1-50 | Matriz con permisos decorativos (`usuario_admin`, `permiso_admin`, `cliente_vista`) y duplicados legacy vs. por acción | Propuesto |
 | H-B1-11 | Opcional | Mantenibilidad | R-B1-11 | Server Actions muertas `asignar-permiso`/`revocar-permiso` escriben `permisos_rol` sin las guardas de la RPC | Propuesto |
 | H-B1-12 | Opcional | Seguridad | R-B1-11 | `privado.actor_con_permiso` con EXECUTE para PUBLIC (creado en B3) | Diferido a B3 |
-| H-B1-13 | Detalle menor | Mantenibilidad | R-B1-35 | Acciones de permisos/usuarios sin `correlationId` | Pendiente |
+| H-B1-13 | Detalle menor | Mantenibilidad | R-B1-35 | Acciones de permisos/usuarios sin `correlationId` | Resuelto (`ac35c5b`) |
 | H-B1-14 | Requerido | Incumplimiento | R-B1-21/22/36 | `versiones_catalogo.actor_id` siempre NULL (165/165): el historial no dice quién cambió | Pendiente |
 | H-B1-15 | Requerido | Incumplimiento | R-B1-35/22 | Acciones de catálogo auditadas sin `correlationId` (36/36 logs) | Pendiente |
 | H-B1-16 | Requerido | Incumplimiento | R-B1-19..22 | `catalogo_motivos_pausa` (B6) no configurable, no versionado ni protegido contra borrado | Diferido a B6 |

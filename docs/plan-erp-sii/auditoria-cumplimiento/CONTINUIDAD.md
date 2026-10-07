@@ -27,7 +27,9 @@
 | 2026-10-07 | Pruebas de B1 (propias) | pgTAP 94/94 (permisos 16, archivos 11, catálogos 40, actividad 27) · unitarias B1 53/53 |
 | 2026-10-07 | Revisión git de B1 (propia) | Migraciones B1 nunca editadas tras su commit (1 commit c/u); sin secretos en diffs; commits mezclados: `452bfcf` (B1.10 + B3 ola 1) y `d10ecf5` (catálogos + retrofit en 45 archivos/9 módulos) → hallazgo de proceso, sin reescritura |
 | 2026-10-07 | Tanda 1 de lentes (L1 roles/permisos, L2 catálogos) — workflow `wf_797b616a-06e` | Hecho: 27 hallazgos → `B1-hallazgos.md` (10 de B1 a corregir, 13 diferidos, 4 propuestos) |
-| 2026-10-07 | Tanda 2 de lentes (L3 archivos, L4 Actividad/UX/alcance) — workflow `wf_be9bc2c3-f72` | En curso |
+| 2026-10-07 | Tanda 2 de lentes (L3 archivos, L4 Actividad/UX/alcance) — workflow `wf_be9bc2c3-f72` | En curso (si se corta por límite: `Workflow({scriptPath: <script de wf_797b616a-06e>, resumeFromRunId: "wf_be9bc2c3-f72", args: ["L3","L4"]})` reutiliza lo terminado) |
+| 2026-10-07 | Corrección RBAC (H-B1-03/05/06/07/09/13) — commit `ac35c5b`, migración `20261008000001` (solo local) | Hecho: pgTAP 24/24 + 16/16, concurrencia 2/2, unitarias 962/962, typecheck/lint 0. H-B1-02 diferido a B2/B3/B4 (otorgar permisos legacy abriría mutaciones) |
+| 2026-10-07 | Guardián probado en sesión real: aviso al 83 % (5 h, reinicia 13:30) | Pausa preventiva: sin lanzar trabajo nuevo hasta el reinicio |
 
 ## Hipótesis propias pendientes de verificar (B1)
 
@@ -41,9 +43,8 @@
 
 ## Siguiente paso
 
-1. Corregir los hallazgos **Pendiente** de `B1-hallazgos.md` en este orden, cada uno con prueba que falla antes y pasa después, y commit propio:
-   a. Migración RBAC `20261008000001_sii_b1_rbac_endurecido.sql`: helpers que ignoran permisos inactivos (H-B1-07), lock común de último admin (H-B1-06), `actualizar_permisos_rol` con lock + CAS por conjunto esperado (H-B1-05), auditoría dentro de las RPC con antes/después y `correlation_id` (H-B1-09, H-B1-13), matriz: `contador` con `orden_cerrar_admin`, `ver_clientes` y `ver_pipeline_equipo` (H-B1-02, H-B1-03).
-   b. TS de permisos: nuevas firmas, conjunto esperado, sin inactivos, `correlationId`.
-   c. Catálogos: `actualizado_por`/`actualizado_en` + CAS + actor en versiones + `correlationId` (H-B1-14, H-B1-15, H-B1-22, H-B1-24 parcial).
+1. ~~RBAC (a y b)~~ hecho en `ac35c5b`.
+   c. **Siguiente:** catálogos — migración `20261008000002`: columna `actualizado_por` (y `actualizado_en` donde falte) en los 6 catálogos de B1; `privado.registrar_version_catalogo()` toma el actor de `new.actualizado_por`; servicios con CAS por `actualizado_en` esperado (`catalogo_desactualizado`); `ejecutarAccionCatalogo` con `nuevoCorrelationId()`; historial muestra el nombre del usuario (H-B1-14, H-B1-15, H-B1-22, H-B1-24 parcial). Prueba primero en `supabase/tests/sii_b1_catalogos.test.sql` (hoy afirma actor NULL en líneas 144-148).
+   - Para pruebas de integración cargar el entorno local: `supabase status -o env` → `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (sin imprimir valores).
 2. Al terminar la tanda 2: registrar sus hallazgos, corregir los de B1.
 3. Gates (typecheck, lint, unit, pgTAP, integración/E2E focales de B1), simplificación, reporte B1 y alto hasta confirmación del PO.
