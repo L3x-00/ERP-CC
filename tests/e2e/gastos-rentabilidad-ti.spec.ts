@@ -98,7 +98,8 @@ async function prepararContexto(): Promise<ContextoE2E> {
   return {
     admin, correo, contrasena, administradorId,
     clienteId: cliente.id, ordenId: orden.id,
-    gastoFolio: gasto[0].folio, folioOrden,
+    // La UI muestra el folio SII (CG-MMYY_####) y conserva el GTO interno.
+    gastoFolio: gasto[0].folio_sii ?? gasto[0].folio, folioOrden,
   };
 }
 
