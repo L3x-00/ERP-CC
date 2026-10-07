@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/compartido/utilidades/cn';
@@ -80,7 +81,11 @@ function ContenidoNavegacion({
   );
 }
 
-function PieUsuario({
+/**
+ * Usuario de la sesión en la parte superior de la barra. El avatar/nombre es un
+ * botón desplegable con las opciones de cuenta (cerrar sesión).
+ */
+function MenuUsuario({
   usuario,
   contraida,
   alNavegar,
@@ -89,35 +94,83 @@ function PieUsuario({
   contraida: boolean;
   alNavegar?: () => void;
 }) {
+  const [abierto, setAbierto] = useState(false);
+  const contenedorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const manejarTecla = (evento: KeyboardEvent): void => {
+      if (evento.key === 'Escape') setAbierto(false);
+    };
+    const manejarClic = (evento: MouseEvent): void => {
+      if (!contenedorRef.current?.contains(evento.target as Node)) setAbierto(false);
+    };
+    document.addEventListener('keydown', manejarTecla);
+    document.addEventListener('mousedown', manejarClic);
+    return () => {
+      document.removeEventListener('keydown', manejarTecla);
+      document.removeEventListener('mousedown', manejarClic);
+    };
+  }, [abierto]);
+
+  function cerrarSesion(): void {
+    setAbierto(false);
+    alNavegar?.();
+    void cerrarSesionAccion();
+  }
+
   return (
-    <div className="border-t border-borde p-2">
-      <div className={cn('flex items-center gap-2 rounded-md p-2', contraida && 'justify-center')}>
-        <AvatarIniciales nombre={usuario.nombreCompleto} tamano="sm" />
-        {!contraida ? (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-texto-primario">
-              {usuario.nombreCompleto}
-            </p>
-            <p className="truncate text-xs text-texto-secundario">
-              {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
-            </p>
-          </div>
-        ) : null}
-      </div>
+    <div ref={contenedorRef} className="relative border-b border-borde p-2">
       <button
         type="button"
-        onClick={() => {
-          alNavegar?.();
-          void cerrarSesionAccion();
-        }}
+        data-testid="menu-usuario"
+        aria-haspopup="menu"
+        aria-expanded={abierto}
+        aria-label={`Menú de usuario: ${usuario.nombreCompleto}`}
+        onClick={() => setAbierto((actual) => !actual)}
         className={cn(
-          'mt-1 flex min-h-10 w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-peligro-suave hover:text-peligro-texto',
+          'flex min-h-11 w-full items-center gap-2 rounded-md p-2 text-left transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40',
           contraida && 'justify-center px-0',
         )}
       >
-        <Icono nombre="cerrar" className="h-4 w-4" />
-        {!contraida ? 'Cerrar sesión' : null}
+        <AvatarIniciales nombre={usuario.nombreCompleto} tamano="sm" />
+        {!contraida ? (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-texto-primario">
+                {usuario.nombreCompleto}
+              </span>
+              <span className="block truncate text-xs text-texto-secundario">
+                {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
+              </span>
+            </span>
+            <Icono
+              nombre="chevron"
+              className={cn('h-4 w-4 shrink-0 text-texto-tenue transition-transform', abierto && 'rotate-180')}
+            />
+          </>
+        ) : null}
       </button>
+      {abierto ? (
+        <div
+          role="menu"
+          aria-label="Opciones de usuario"
+          className={cn(
+            'absolute z-30 min-w-48 rounded-md border border-borde bg-superficie p-1 shadow-lg',
+            contraida ? 'left-full top-2 ml-1' : 'left-2 right-2 top-full mt-1',
+          )}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={cerrarSesion}
+            className="flex min-h-10 w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-peligro-suave hover:text-peligro-texto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+          >
+            <Icono nombre="cerrar" className="h-4 w-4" />
+            Cerrar sesión
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -159,8 +212,8 @@ export function BarraLateral({ usuario, modulos, abiertoMovil, onCerrarMovil }: 
           ) : null}
         </div>
 
+        <MenuUsuario usuario={usuario} contraida={contraida} />
         <ContenidoNavegacion modulos={modulos} contraida={contraida} />
-        <PieUsuario usuario={usuario} contraida={contraida} />
 
         <button
           type="button"
@@ -197,8 +250,8 @@ export function BarraLateral({ usuario, modulos, abiertoMovil, onCerrarMovil }: 
                 <Icono nombre="cerrar" />
               </button>
             </div>
+            <MenuUsuario usuario={usuario} contraida={false} alNavegar={onCerrarMovil} />
             <ContenidoNavegacion modulos={modulos} contraida={false} alNavegar={onCerrarMovil} />
-            <PieUsuario usuario={usuario} contraida={false} alNavegar={onCerrarMovil} />
           </div>
         </div>
       ) : null}
