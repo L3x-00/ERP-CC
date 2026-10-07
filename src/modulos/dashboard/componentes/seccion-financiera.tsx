@@ -14,6 +14,8 @@ export interface SeccionFinancieraProps {
   identificador?: string;
   /** Con administrador ya hay bloque ejecutivo: aquí solo se muestra la antigüedad. */
   soloAging?: boolean;
+  /** Con contador sin bloque ejecutivo: los importes van en su propia celda. */
+  soloItems?: boolean;
 }
 
 /** Bloque financiero: recibe solo el bloque ya autorizado por la Server Action. */
@@ -23,6 +25,7 @@ export function SeccionFinanciera({
   titulo = 'Finanzas',
   identificador = 'dashboard',
   soloAging = false,
+  soloItems = false,
 }: SeccionFinancieraProps) {
   if (!finanzas && !contador) return null;
   const items = finanzas
@@ -59,7 +62,7 @@ export function SeccionFinanciera({
           </ul>
         </Tarjeta>
       ) : null}
-      {contador ? (
+      {contador && !soloItems ? (
         <Tarjeta>
           <ul className="divide-y divide-borde" aria-label="Antigüedad de cuentas por cobrar">
             {([

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usarTiendaDashboard } from '@/estado/uso-tienda-dashboard';
 import { cambiarPeriodoDashboard, obtenerMetricasInicioAccion } from '@/modulos/dashboard/acciones/indice';
@@ -47,6 +47,69 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
   const cambiarFiltro = (nuevoFiltro: FiltroPeriodoDashboard): void => establecerFiltro(nuevoFiltro);
 
   if (datos.redireccion) return <p>Redirigiendo a Producción…</p>;
+
+  // Rejilla 2x2 en escritorio: agrupa finanzas, antigüedad de cartera, pipeline
+  // del equipo y alertas de producción para reducir el scroll vertical.
+  const secciones: ReactNode[] = [];
+  if (datos.ejecutivas) {
+    secciones.push(
+      <SeccionFinanciera key="finanzas" finanzas={datos.ejecutivas.actual.finanzas} />,
+    );
+  }
+  if (datos.contador) {
+    if (datos.ejecutivas) {
+      secciones.push(
+        <SeccionFinanciera
+          key="antiguedad"
+          contador={datos.contador.actual}
+          titulo="Antigüedad de cartera"
+          identificador="contador"
+          soloAging
+        />,
+      );
+    } else {
+      secciones.push(
+        <SeccionFinanciera
+          key="contador"
+          contador={datos.contador.actual}
+          titulo="CxC, CxP y flujo de caja"
+          identificador="contador"
+          soloItems
+        />,
+        <SeccionFinanciera
+          key="contador-antiguedad"
+          contador={datos.contador.actual}
+          titulo="Antigüedad de cartera"
+          identificador="contador-aging"
+          soloAging
+        />,
+      );
+    }
+  }
+  if (datos.vendedor) {
+    secciones.push(
+      <SeccionVentasPipeline
+        key="mi-pipeline"
+        pipeline={datos.vendedor.actual.pipelinePorEtapa}
+        cotizacionesSinSeguimiento={datos.vendedor.actual.cotizacionesSinSeguimiento}
+        titulo="Mi pipeline"
+      />,
+    );
+  }
+  if (datos.equipo) {
+    secciones.push(
+      <SeccionVentasPipeline
+        key="equipo"
+        pipeline={datos.equipo.actual.pipelinePorEtapa}
+        cotizacionesSinSeguimiento={datos.equipo.actual.cotizacionesSinSeguimiento}
+        titulo="Pipeline del equipo"
+      />,
+    );
+  }
+  if (datos.produccion) {
+    secciones.push(<SeccionProduccionAlertas key="produccion" ordenes={datos.produccion} />);
+  }
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-dashboard">
       <SincronizadorDashboardRealtime />
@@ -64,21 +127,17 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
         </div>
       ) : null}
       <section aria-label="Indicadores clave" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{tarjetas.map((item) => <WidgetMetricaKPI key={item.id} tarjeta={item} />)}</section>
-      {datos.ejecutivas ? <SeccionFinanciera finanzas={datos.ejecutivas.actual.finanzas} /> : null}
+      {secciones.length > 0 ? (
+        <div
+          data-testid="rejilla-secciones-dashboard"
+          className={secciones.length === 1 ? 'grid gap-4' : 'grid gap-4 lg:grid-cols-2'}
+        >
+          {secciones}
+        </div>
+      ) : null}
       {datos.distribucionGasto && datos.distribucionGasto.length > 0 ? (
         <SeccionGastoCategoria distribucion={datos.distribucionGasto} />
       ) : null}
-      {datos.contador ? (
-        <SeccionFinanciera
-          contador={datos.contador.actual}
-          titulo={datos.ejecutivas ? 'Antigüedad de cartera' : 'CxC, CxP y flujo de caja'}
-          identificador="contador"
-          soloAging={datos.ejecutivas !== undefined}
-        />
-      ) : null}
-      {datos.vendedor ? <SeccionVentasPipeline pipeline={datos.vendedor.actual.pipelinePorEtapa} cotizacionesSinSeguimiento={datos.vendedor.actual.cotizacionesSinSeguimiento} titulo="Mi pipeline" /> : null}
-      {datos.equipo ? <SeccionVentasPipeline pipeline={datos.equipo.actual.pipelinePorEtapa} cotizacionesSinSeguimiento={datos.equipo.actual.cotizacionesSinSeguimiento} titulo="Pipeline del equipo" /> : null}
-      {datos.produccion ? <SeccionProduccionAlertas ordenes={datos.produccion} /> : null}
     </div>
   );
 }
