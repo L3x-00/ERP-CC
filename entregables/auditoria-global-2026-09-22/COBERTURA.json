@@ -1,0 +1,22 @@
+{
+  "requisitos": 164,
+  "escenarios": 41,
+  "estados_estaticos": {
+    "Implementación localizada; aceptación no certificada": 81,
+    "Cobertura parcial": 45,
+    "Implementación afectada por hallazgo": 12,
+    "Capacidad ausente en interfaz/flujo actual": 17,
+    "Divergencia documentada": 2,
+    "No aplicable por modelo documentado": 1,
+    "Equivalencia documentada; evidencia parcial": 5,
+    "Equivalencia de ubicación; evidencia parcial": 1
+  },
+  "estados_escenarios": {
+    "Evidencia parcial; escenario íntegro no certificado": 29,
+    "Divergencia reproducida en parte del escenario": 8,
+    "Pruebas parciales de componentes; E2E integral no ejecutado": 2,
+    "No ejecutado; divergencia documentada o capacidad ausente": 2
+  },
+  "aceptacion_integral_certificada": 0,
+  "metodo": "Cada requisito/escenario mantiene denominador original; estados estáticos y pruebas parciales separados; 24 tests no equivalen a 41 escenarios."
+}

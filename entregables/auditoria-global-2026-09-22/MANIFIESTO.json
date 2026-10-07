@@ -1,0 +1,37 @@
+{
+  "base": "2d7f0c2b96188b41beb4545baed3f13bad0ea1bc",
+  "pdf_fuente_sha256": "13084ce34474f079827e6cd34d2355b99d8f4c56a6edbe9754024fdade2844f8",
+  "criterios": 164,
+  "escenarios": 41,
+  "hallazgos": 20,
+  "por_prioridad": {
+    "ALTA": 8,
+    "MEDIA": 12
+  },
+  "migraciones_locales": 71,
+  "tablas": 37,
+  "tablas_realtime": 25,
+  "validacion_entregables": {
+    "resultado": "PASS",
+    "pdf_paginas": 13,
+    "requisitos_unicos": 164,
+    "escenarios_unicos": 41,
+    "hallazgos": 20,
+    "altos": 8,
+    "medios": 12,
+    "csv_campos_completos": true,
+    "referencias_resueltas_existentes": true,
+    "todos_hallazgos_en_pdf": true,
+    "patrones_secretos_publicados": false
+  },
+  "archivos_sha256": {
+    "Auditoria_Global_ORCA.pdf": "6f31fb56aaf1bb2c78fc9de2bfc972804054e557fb182ccd1a826e0efb599893",
+    "COBERTURA.json": "d8bbc03d8bc1202344b6b6f38ca04aba856430e8b5f5a7044b90d7af9d7a8929",
+    "escenarios-41.csv": "c118daf9abd303ded428a9b52626a5d2c59896bb7e519be7d0a2001799a02764",
+    "hallazgos.json": "596ed04bd5601effa7d7d7081a61c765b470763ed691b74220beac7d726729a2",
+    "INFORME.html": "ef092ed019370bc6bbde620e456153dbdaf10bbe53999c25f727a58a1775a933",
+    "INFORME.md": "37f1860e9346cf08633a878ded6348c27d53c68f022509377e1e6fc5df5f7802",
+    "matriz-164.csv": "2e8e3161982135e3c1d986ddf791e9a8731d5334adc80e5fc94ec174f85a7eb7",
+    "vista-previa.png": "51f50c0bac543d10001fb8de246886215ebb277e0dba6d4b0a16c0fc736ce0d3"
+  }
+}
