@@ -17,12 +17,15 @@ export type PermisoRolInput = z.infer<typeof esquemaPermisoRol>;
 /**
  * Reemplazo completo de la matriz de un rol editable.
  * `admin` queda excluido: siempre tiene todos los permisos por diseño de `can()`.
+ * `permisosEsperados` es el conjunto que la pantalla cargó: la RPC rechaza el
+ * guardado si otro administrador cambió el rol entretanto (control optimista).
  */
 export const esquemaActualizarPermisosRol = z.object({
   rol: z.enum(ROLES).refine((rol) => rol !== 'admin', {
     message: 'El rol admin no se administra desde la matriz',
   }),
   permisos: z.array(z.enum(PERMISOS)).max(PERMISOS.length),
+  permisosEsperados: z.array(z.enum(PERMISOS)).max(PERMISOS.length),
 });
 
 /** Cambio de rol de un usuario, con motivo obligatorio. */

@@ -56,12 +56,16 @@ export async function obtenerUsuarioServidor(): Promise<UsuarioAutenticado | nul
   if (usuario.rol === 'admin') {
     permisos = [...PERMISOS];
   } else {
-    const { data: filasPermisos } = await cliente
-      .from('permisos_rol')
-      .select('permiso')
-      .eq('rol', usuario.rol);
+    const [{ data: filasPermisos }, { data: filasActivos }] = await Promise.all([
+      cliente.from('permisos_rol').select('permiso').eq('rol', usuario.rol),
+      cliente.from('permisos').select('codigo').eq('activo', true),
+    ]);
 
-    permisos = ((filasPermisos ?? []) as { permiso: string }[]).map((f) => f.permiso);
+    // Un permiso desactivado en el catálogo no concede acceso aunque siga asignado.
+    const activos = new Set(((filasActivos ?? []) as { codigo: string }[]).map((f) => f.codigo));
+    permisos = ((filasPermisos ?? []) as { permiso: string }[])
+      .map((f) => f.permiso)
+      .filter((codigo) => activos.has(codigo));
   }
 
   return { ...usuario, permisos };

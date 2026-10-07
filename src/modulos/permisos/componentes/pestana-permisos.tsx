@@ -98,15 +98,18 @@ export function PestanaPermisos() {
   }
 
   async function guardar(): Promise<void> {
-    if (!seleccion || rolesConCambios.length === 0) return;
+    if (!consulta.data || !seleccion || rolesConCambios.length === 0) return;
     setOcupado(true);
     setError(null);
     setMensaje(null);
+    // Un permiso inactivo no se vuelve a otorgar: al guardar el rol se retira.
+    const activos = new Set(consulta.data.permisos.filter((p) => p.activo).map((p) => p.codigo));
     const fallos: string[] = [];
     for (const rol of rolesConCambios) {
       const respuesta = await actualizarPermisosRolAccion({
         rol,
-        permisos: normalizarSeleccion(seleccion[rol]),
+        permisos: normalizarSeleccion(seleccion[rol]).filter((codigo) => activos.has(codigo)),
+        permisosEsperados: consulta.data.asignaciones[rol],
       });
       if (!respuesta.exito) {
         fallos.push(`${NOMBRE_ROL[rol]}: ${respuesta.error}`);
@@ -126,6 +129,9 @@ export function PestanaPermisos() {
     setSeleccion(copiarAsignaciones(consulta.data.asignaciones));
     setMensaje(null);
     setError(null);
+    // Recarga desde el servidor: si otro administrador cambió la matriz, el
+    // borrador se reinicia con la versión vigente (estado derivado de arriba).
+    void consulta.refetch();
   }
 
   if (consulta.isPending) {

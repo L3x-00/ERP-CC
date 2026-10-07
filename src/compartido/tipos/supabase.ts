@@ -4822,13 +4822,20 @@ export type Database = {
         }[]
       }
       actualizar_permisos_rol: {
-        Args: { p_actor_id: string; p_permisos: string[]; p_rol: string }
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_permisos: string[]
+          p_permisos_esperados: string[]
+          p_rol: string
+        }
         Returns: number
       }
       cambiar_estado_usuario: {
         Args: {
           p_activo: boolean
           p_actor_id: string
+          p_correlation_id?: string
           p_motivo: string
           p_usuario_id: string
         }
@@ -4837,6 +4844,7 @@ export type Database = {
       cambiar_rol_usuario: {
         Args: {
           p_actor_id: string
+          p_correlation_id?: string
           p_motivo: string
           p_rol: string
           p_usuario_id: string
