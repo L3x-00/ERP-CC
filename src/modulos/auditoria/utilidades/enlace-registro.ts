@@ -29,5 +29,10 @@ export function enlaceRegistroActividad(
   if (registro.entidad === 'pipeline') return `/rfq?rfq=${id}`;
   if (registro.entidad === 'cliente') return `/clientes?cliente=${id}`;
   if (registro.entidad === 'orden') return `/ordenes?ordenId=${id}`;
+  // Estas entidades pueden auditar una cabecera o un registro hijo. Sin un
+  // destino de ficha inequívoco, se enlaza a la pantalla del módulo.
+  if (registro.entidad === 'propuesta') return '/propuestas';
+  if (registro.entidad === 'produccion') return '/produccion';
+  if (registro.entidad === 'tesoreria') return '/tesoreria';
   return null;
 }
