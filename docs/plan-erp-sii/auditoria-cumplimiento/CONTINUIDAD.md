@@ -49,7 +49,7 @@
    - Comparar la versión corregida del documento del cliente con `docs/ERP_SII_Handoff_Tecnico_Funcional.md` (versionado en `6e3b33c`) y con lo que haya implementado la tarea de observaciones.
    - Re-validar R-B1-01..50 de `B1-requisitos.md`: marcar requisitos cambiados, hallazgos obsoletos y hallazgos que la tarea nueva ya resolvió. Registrar el resultado en este archivo.
    - Recién entonces seguir el "Siguiente paso".
-3. **Archivo ajeno sin versionar (no se commiteó a propósito):** `supabase/migrations/20261007164257_sii_b1_catalogos_actor_concurrencia.sql` pesa 0 bytes y su marca de tiempo es anterior a las migraciones locales `20261008000001..05`. Si se aplicara (`supabase migration up --local`) quedaría registrado como aplicado y el contenido que se le escriba después nunca correría. Codex decide si lo renombra a una marca posterior a `20261008000005` o lo elimina; mientras exista, no correr `migration up` a ciegas.
+3. **Migración vacía resuelta:** Codex eliminó `supabase/migrations/20261007164257_sii_b1_catalogos_actor_concurrencia.sql` al iniciar esta pausa. Cuando se retome catálogos, crear una migración nueva posterior a `20261008000005`.
 4. Para pruebas de integración: `supabase status -o env` → `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (sin imprimir valores; abortar si la URL no es loopback). Nunca `.env.local`.
 
 ## Plan global de la auditoría (B1 → B9)
@@ -95,6 +95,5 @@ Insumo disponible: la auditoría global previa `entregables/auditoria-global-202
 1. **Terminar H-B1-29** (Claude, mismo encargo): documentos de cliente, E2E > 1 MiB y gates, según "Entrega parcial H-B1-29". Luego entregar a Codex para revisión e integración.
 2. ~~RBAC (a y b)~~ hecho en `ac35c5b`. ~~Clasificar H-B1-29..46~~ hecho (fuente: sesión `4c6ad8e4-b953-453d-b80b-86bd0dfd758c`, workflow `wf_be9bc2c3-f72`).
    c. **Siguiente:** catálogos — usar una migración posterior a `20261008000005` (el identificador `20261008000002` quedó reservado pero nunca se creó): columna `actualizado_por` (y `actualizado_en` donde falte) en los 6 catálogos de B1; `privado.registrar_version_catalogo()` toma el actor de `new.actualizado_por`; servicios con CAS por `actualizado_en` esperado (`catalogo_desactualizado`); ~~`ejecutarAccionCatalogo` con `nuevoCorrelationId()`~~ hecho por Codex en `123531e`; historial muestra el nombre del usuario (H-B1-14, H-B1-15, H-B1-22, H-B1-24 parcial). Prueba primero en `supabase/tests/sii_b1_catalogos.test.sql` (hoy afirma actor NULL en líneas 144-148).
-   - Resolver antes el archivo vacío `20261007164257_sii_b1_catalogos_actor_concurrencia.sql` (ver "Pausa de control", punto 3).
 3. **Codex:** Actividad H-B1-38/39/40 y archivos H-B1-32/33 ya resueltos. H-B1-31 se apoya en el nuevo `confirmarSubidaDirecta` (un solo punto de vinculación) para no duplicar el flujo. Siguiente independiente: catálogos H-B1-14/15/22/24.
 4. Gates (typecheck, lint, unit, pgTAP, integración/E2E focales de B1), simplificación, reporte B1 y alto hasta confirmación del PO. Después, B2 según el "Plan global".
