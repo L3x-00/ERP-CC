@@ -57,9 +57,9 @@ Detalle y evidencia: resultado del workflow `wf_be9bc2c3-f72` (journal de la ses
 | H-B1-35 | Opcional | Mantenibilidad | R-B1-28, R-B1-32 | [L3] Tres flujos heredados siguen escribiendo fuera del modelo único de archivos | Pendiente (B1, no bloqueante) |
 | H-B1-36 | Opcional | Bug | R-B1-31, R-B1-40 | [L3] Compensación incompleta: archivos huérfanos y PDF previo que pierde la vigencia | Pendiente (B1, no bloqueante; refutación adicional) |
 | H-B1-37 | Opcional | Prueba faltante | R-B1-26, R-B1-27, R-B1-43 | [L3] Pruebas faltantes: RLS por entidad, políticas de storage y firmas por objeto | Pendiente (B1, se cubre con las correcciones) |
-| H-B1-38 | Requerido | Bug | R-B1-33, R-B1-50 | [L4] Paginación de /actividad rota: 'Siguiente' envía un cursor anidado que el esquema .strict() rechaza | Pendiente (B1) |
-| H-B1-39 | Requerido | Incumplimiento | R-B1-33, R-B1-34, R-B1-38 | [L4] obtener_actividad solo resuelve etiqueta y enlace para pipeline, clientes y ordenes; el RFQ usa el folio OP en vez de folio_rfq | Pendiente (B1) |
-| H-B1-40 | Requerido | Seguridad | R-B1-37, R-B1-22 | [L4] La tabla logs no es append-only en la BD: service_role puede hacer UPDATE, DELETE y TRUNCATE y ningún trigger lo impide | Pendiente (B1) |
+| H-B1-38 | Requerido | Bug | R-B1-33, R-B1-50 | [L4] Paginación de /actividad rota: 'Siguiente' envía un cursor anidado que el esquema .strict() rechaza | Resuelto (`3035dfa`; regresión UI + 963/963 unitarias) |
+| H-B1-39 | Requerido | Incumplimiento | R-B1-33, R-B1-34, R-B1-38 | [L4] obtener_actividad solo resuelve etiqueta y enlace para pipeline, clientes y ordenes; el RFQ usa el folio OP en vez de folio_rfq | Resuelto (`b97944f`; pgTAP 35/35 + enlaces unitarios) |
+| H-B1-40 | Requerido | Seguridad | R-B1-37, R-B1-22 | [L4] La tabla logs no es append-only en la BD: service_role puede hacer UPDATE, DELETE y TRUNCATE y ningún trigger lo impide | Resuelto (`4b51ac3`; pgTAP focal 12/12 y global 1160/1160) |
 | H-B1-41 | Opcional | UX | R-B1-33, R-B1-34, R-B1-38, R-B1-50 | [L4] Filtros y textos de Actividad dependen de códigos técnicos: Acción y Registro exactos, módulos incompletos y 154 de 163 acciones sin etiqueta | Pendiente (B1, no bloqueante; priorizar por facilidad de uso) |
 | H-B1-42 | Opcional | UX | R-B1-33, R-B1-50 | [L4] Las lecturas inundan Actividad: 55.8% de los eventos son consultas (consultar_dashboard, consultar_comentarios) | Pendiente (B1, no bloqueante) |
 | H-B1-43 | Opcional | Fuera de alcance | R-B1-34, R-B1-46, R-B1-50 | [L4] La pestaña Bitácora duplica Actividad y muestra códigos y UUID crudos (propuesta: fusionarla) | Propuesto (espera decisión del PO) |
@@ -71,7 +71,7 @@ Cobertura tanda 2: R-B1-26 CUBIERTO · R-B1-27 PARCIAL · R-B1-28 CUBIERTO · R-
 
 ## Cola resultante de B1
 
-1. **Bloqueantes obligatorios:** H-B1-29, H-B1-31, H-B1-32, H-B1-33, H-B1-38, H-B1-39 y H-B1-40; además de catálogos H-B1-14, H-B1-15, H-B1-22 y H-B1-24/H-B1-44.
+1. **Bloqueantes obligatorios pendientes:** H-B1-29, H-B1-31, H-B1-32 y H-B1-33; además de catálogos H-B1-14, H-B1-15, H-B1-22 y H-B1-24/H-B1-44. Actividad H-B1-38/39/40 ya está resuelta.
 2. **B1 no bloqueante:** H-B1-34, H-B1-35, H-B1-36, H-B1-37, H-B1-41 y H-B1-42. Se atienden después de los obligatorios si no amplían el alcance.
 3. **Diferidos a B3:** H-B1-30 y H-B1-45. No se modifica B3 durante el cierre de B1.
 4. **Propuestas para decisión del PO:** H-B1-43 y H-B1-46. No se elimina ni fusiona funcionalidad sin confirmación explícita.

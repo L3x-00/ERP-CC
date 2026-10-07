@@ -33,16 +33,14 @@
 | 2026-10-07 | Tanda 2 terminada (`wf_be9bc2c3-f72`, 2/2 agentes) | 18 hallazgos registrados como H-B1-29..46 "Por clasificar" en `B1-hallazgos.md` (1 Crítico: subidas limitadas a 1 MB). **PAUSA al 89 %** hasta el reinicio de las 13:30 |
 | 2026-10-07 | Sesión Claude Code identificada y tanda 2 clasificada por Codex | Sesión `4c6ad8e4-b953-453d-b80b-86bd0dfd758c`, modelo comprobado `claude-opus-5-5`; 7 bloqueantes B1, 6 no bloqueantes B1, 2 diferidos a B3, 2 propuestas PO y H-B1-44 consolidado con H-B1-24. Límite 5 h comprobado en 90 %, reinicio `2026-10-07 13:29:59 -05:00` |
 | 2026-10-07 | Auditoría reanudable endurecida | Requisitos R-B1-01..50 persistidos en `B1-requisitos.md`; Skill promovida a la fuente canónica `.agents/skills/auditoria-cumplimiento-cliente/` con tandas pequeñas y checkpoint obligatorio |
+| 2026-10-07 | Actividad H-B1-38 | Resuelto en `3035dfa`: el cursor se aplana al contrato de la Server Action; prueba roja/verde de componente, typecheck, lint focal y 963/963 unitarias |
+| 2026-10-07 | Actividad H-B1-39 | Resuelto en `b97944f`: RFQ prioriza `folio_rfq`; Propuestas, Producción y Tesorería muestran referencias legibles y enlaces seguros; migración `20261008000003` aplicada solo local; pgTAP 35/35 |
+| 2026-10-07 | Actividad H-B1-40 | Resuelto en `4b51ac3`: `logs` queda append-only por privilegios mínimos y triggers contra UPDATE/DELETE/TRUNCATE; migración `20261008000004` solo local; pgTAP global 1160/1160 |
 
 ## Hipótesis propias pendientes de verificar (B1)
 
-1. `obtener_actividad` solo etiqueta pipeline/clientes/órdenes (folio viejo) y nunca se actualizó tras B1 → eventos de B4–B8 sin etiqueta legible (R-B1-34/38).
-2. Acciones de permisos/usuarios no pasan `correlationId` a `registrarLog` (R-B1-35).
-3. Carrera en guarda de último admin (`cambiar_rol_usuario`/`cambiar_estado_usuario` bloquean solo la fila objetivo) (R-B1-09).
-4. `actualizar_permisos_rol` sin lock ni CAS (R-B1-41).
-5. `firmarLecturaArchivo` no valida vigencia ni permiso (IDOR depende del llamador) (R-B1-27).
-6. Versionado de archivos por `nombre_erp`: subir otro archivo con el mismo nombre oculta el anterior (R-B1-31).
-7. Matriz inicial: `contador` sin `orden_cerrar_admin` pese a §5 "cierres administrativos" (R-B1-05).
+1. `firmarLecturaArchivo` no valida vigencia ni permiso (IDOR depende del llamador) (R-B1-27; diferido a B3 donde vive el llamador RFQ).
+2. Versionado de archivos por `nombre_erp`: subir otro archivo con el mismo nombre oculta el anterior (R-B1-31).
 
 ## Siguiente paso
 
@@ -51,5 +49,5 @@
 2. ~~RBAC (a y b)~~ hecho en `ac35c5b`.
    c. **Siguiente:** catálogos — migración `20261008000002`: columna `actualizado_por` (y `actualizado_en` donde falte) en los 6 catálogos de B1; `privado.registrar_version_catalogo()` toma el actor de `new.actualizado_por`; servicios con CAS por `actualizado_en` esperado (`catalogo_desactualizado`); `ejecutarAccionCatalogo` con `nuevoCorrelationId()`; historial muestra el nombre del usuario (H-B1-14, H-B1-15, H-B1-22, H-B1-24 parcial). Prueba primero en `supabase/tests/sii_b1_catalogos.test.sql` (hoy afirma actor NULL en líneas 144-148).
    - Para pruebas de integración cargar el entorno local: `supabase status -o env` → `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (sin imprimir valores).
-3. Después de H-B1-29: H-B1-31/32/33; Actividad H-B1-38/39/40; catálogos H-B1-14/15/22/24; luego los B1 opcionales que no amplíen alcance.
+3. **Codex mientras Claude está limitado:** Actividad H-B1-38/39/40 ya resuelta. Siguiente: H-B1-31/32/33; después catálogos H-B1-14/15/22/24 y los B1 opcionales que no amplíen alcance.
 4. Gates (typecheck, lint, unit, pgTAP, integración/E2E focales de B1), simplificación, reporte B1 y alto hasta confirmación del PO.
