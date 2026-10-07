@@ -49,8 +49,9 @@ al `id` del campo.
 ### Dialog — `@/compartido/componentes/ui/dialog`
 
 Overlay `bg-black/40 backdrop-blur`, contenido `rounded-xl bg-superficie shadow-lg`
-máx. 640px, `DialogFooter` sticky. Accesible sobre Radix (`role="dialog"`, foco
-atrapado, Esc). En mobile ocupar `max-h-[90vh]` con scroll interno.
+máx. 640px, `DialogFooter` fluye al final del contenido (sin sticky ni solapes).
+Accesible sobre Radix (`role="dialog"`, foco atrapado, Esc). En mobile ocupar
+`max-h-[90vh]` con scroll interno.
 
 ### Tarjeta — `@/compartido/componentes/diseno/tarjeta`
 

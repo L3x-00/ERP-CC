@@ -9,6 +9,7 @@ import type {
   Direccion,
   MonedaCliente,
 } from '@/modulos/clientes/tipos/indice';
+import { SeccionColapsable } from '@/compartido/componentes/diseno/seccion-colapsable';
 
 const CLASE_INPUT =
   'rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm text-foreground outline-none focus:border-primario focus:ring-2 focus:ring-primario/30 disabled:cursor-not-allowed disabled:opacity-60';
@@ -242,11 +243,10 @@ export function FormularioCliente({
       </section>
 
       {!edicion && (
-        <section className="flex flex-col gap-3 rounded-base border border-borde p-4">
-          <h3 className="text-sm font-semibold text-texto-primario">Contacto principal</h3>
-          <p className="text-xs text-texto-secundario">
-            Se crea junto con el cliente en una sola operación (alta atómica).
-          </p>
+        <SeccionColapsable
+          titulo="Contacto principal"
+          descripcion="Se crea junto con el cliente en una sola operación (alta atómica)."
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo
               id="cli-contacto-nombre"
@@ -275,11 +275,10 @@ export function FormularioCliente({
               onCambio={setContactoTelefono}
             />
           </div>
-        </section>
+        </SeccionColapsable>
       )}
 
-      <section className="flex flex-col gap-3 rounded-base border border-borde p-4">
-        <h3 className="text-sm font-semibold text-texto-primario">Comercial</h3>
+      <SeccionColapsable titulo="Comercial">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
             <label htmlFor="cli-moneda" className={CLASE_ETIQUETA}>
@@ -331,12 +330,11 @@ export function FormularioCliente({
             deshabilitado={edicion && !puedeFinanzas}
           />
         </div>
-      </section>
+      </SeccionColapsable>
 
-      <fieldset className="flex flex-col gap-3 rounded-base border border-borde p-4">
-        <legend className="px-1 text-sm font-semibold">Dirección fiscal</legend>
+      <SeccionColapsable titulo="Dirección fiscal">
         <CamposDireccion prefijo="fiscal" valor={fiscal} onCambio={setFiscal} />
-      </fieldset>
+      </SeccionColapsable>
 
       <label className="flex items-center gap-2 text-sm">
         <input
