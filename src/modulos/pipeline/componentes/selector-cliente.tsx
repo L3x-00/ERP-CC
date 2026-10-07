@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { usarClientes } from '@/modulos/clientes/hooks/usar-clientes';
 import { AltaRapidaCliente } from '@/modulos/pipeline/componentes/alta-rapida-cliente';
@@ -10,6 +10,14 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/compartido/componentes/ui/dialog';
+import { Icono } from '@/compartido/componentes/navegacion/iconos';
 
 /** Espera tras la última tecla antes de consultar el catálogo (ms). */
 const RETARDO_BUSQUEDA = 300;
@@ -36,6 +44,10 @@ type Props = {
  * es un alta (`crearProspectoAccion`) o un cambio sobre una oportunidad abierta
  * (`asignarClienteOportunidadAccion`).
  *
+ * La búsqueda es un desplegable cerrable (X, clic fuera o Escape) que no empuja
+ * el layout, y el alta rápida vive en un diálogo modal: así la captura nunca
+ * duplica formularios ni alarga el scroll de la RFQ.
+ *
  * El alcance de lo que se ve lo impone RLS sobre `clientes` (permiso
  * `ver_clientes`): sin él, la búsqueda simplemente no devuelve resultados.
  */
@@ -49,11 +61,28 @@ export function SelectorCliente({
   const [enAlta, setEnAlta] = useState(false);
   const [texto, setTexto] = useState('');
   const [termino, setTermino] = useState('');
+  const contenedorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const temporizador = setTimeout(() => setTermino(texto.trim()), RETARDO_BUSQUEDA);
     return () => clearTimeout(temporizador);
   }, [texto]);
+
+  useEffect(() => {
+    if (!abiertoBuscador) return;
+    const manejarTecla = (evento: KeyboardEvent): void => {
+      if (evento.key === 'Escape') setAbiertoBuscador(false);
+    };
+    const manejarClic = (evento: MouseEvent): void => {
+      if (!contenedorRef.current?.contains(evento.target as Node)) setAbiertoBuscador(false);
+    };
+    document.addEventListener('keydown', manejarTecla);
+    document.addEventListener('mousedown', manejarClic);
+    return () => {
+      document.removeEventListener('keydown', manejarTecla);
+      document.removeEventListener('mousedown', manejarClic);
+    };
+  }, [abiertoBuscador]);
 
   function elegir(cliente: ClienteRfq | null): void {
     onSeleccionar(cliente);
@@ -108,26 +137,59 @@ export function SelectorCliente({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-borde px-4 py-3">
+    <div ref={contenedorRef} className="flex flex-col gap-3 rounded-lg border border-borde px-4 py-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex min-w-60 flex-1 flex-col gap-1">
+        <div className="relative flex min-w-60 flex-1 flex-col gap-1">
           <Label htmlFor="rfq-buscar-cliente">Cliente (opcional)</Label>
           <Input
             id="rfq-buscar-cliente"
             type="search"
             value={texto}
-            onChange={(evento) => setTexto(evento.target.value)}
+            onChange={(evento) => {
+              setTexto(evento.target.value);
+              setAbiertoBuscador(true);
+            }}
+            onFocus={() => setAbiertoBuscador(true)}
+            aria-expanded={abiertoBuscador}
+            aria-controls="rfq-clientes-sugerencias"
             placeholder="Buscar por razón social, nombre comercial o RFC"
           />
+          {abiertoBuscador ? (
+            <div
+              id="rfq-clientes-sugerencias"
+              aria-label="Clientes del catálogo"
+              className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-borde bg-superficie shadow-lg"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-borde px-3 py-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-texto-tenue">
+                  Clientes del catálogo
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAbiertoBuscador(false)}
+                  aria-label="Cerrar resultados de clientes"
+                  className="rounded-md p-1 text-texto-secundario transition-colors hover:bg-superficie-2 hover:text-texto-primario focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+                >
+                  <Icono nombre="cerrar" className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="p-2">
+                <ResultadosClientes termino={termino} onElegir={elegir} />
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <Button
             type="button"
             variante="contorno"
             tamano="sm"
-            onClick={() => setEnAlta((valor) => !valor)}
+            onClick={() => {
+              setAbiertoBuscador(false);
+              setEnAlta(true);
+            }}
           >
-            {enAlta ? 'Cerrar alta' : 'Nuevo cliente'}
+            Nuevo cliente
           </Button>
           {seleccionado && (
             <Button
@@ -142,25 +204,32 @@ export function SelectorCliente({
         </div>
       </div>
 
-      {enAlta ? (
-        <AltaRapidaCliente
-          nombreSugerido={sugerencias?.empresa ?? ''}
-          contactoSugerido={sugerencias?.contacto ?? ''}
-          correoSugerido={sugerencias?.correo ?? ''}
-          telefonoSugerido={sugerencias?.telefono ?? ''}
-          onCreado={elegir}
-          onCancelar={() => setEnAlta(false)}
-        />
-      ) : (
-        <ResultadosClientes termino={termino} onElegir={elegir} />
-      )}
+      <Dialog open={enAlta} onOpenChange={setEnAlta}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuevo cliente</DialogTitle>
+            <DialogDescription>
+              Se dará de alta como prospecto y quedará seleccionado en esta RFQ sin perder lo
+              capturado.
+            </DialogDescription>
+          </DialogHeader>
+          <AltaRapidaCliente
+            nombreSugerido={sugerencias?.empresa ?? ''}
+            contactoSugerido={sugerencias?.contacto ?? ''}
+            correoSugerido={sugerencias?.correo ?? ''}
+            telefonoSugerido={sugerencias?.telefono ?? ''}
+            onCreado={elegir}
+            onCancelar={() => setEnAlta(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 /**
  * Resultados del catálogo para el término buscado. Vive en su propio componente
- * para que la consulta solo exista mientras el buscador está abierto.
+ * para que la consulta solo exista mientras el desplegable está abierto.
  */
 function ResultadosClientes({
   termino,
@@ -174,12 +243,12 @@ function ResultadosClientes({
   );
 
   if (isLoading) {
-    return <p className="text-xs text-texto-secundario">Buscando clientes…</p>;
+    return <p className="p-2 text-xs text-texto-secundario">Buscando clientes…</p>;
   }
 
   if (isError) {
     return (
-      <p role="alert" className="text-xs text-peligro-texto">
+      <p role="alert" className="p-2 text-xs text-peligro-texto">
         No se pudo consultar el catálogo de clientes.
       </p>
     );
@@ -188,14 +257,14 @@ function ResultadosClientes({
   const registros = data?.registros ?? [];
   if (registros.length === 0) {
     return (
-      <p className="text-xs text-texto-secundario">
+      <p className="p-2 text-xs text-texto-secundario">
         Sin clientes que coincidan. Usa “Nuevo cliente” para darlo de alta sin perder la RFQ.
       </p>
     );
   }
 
   return (
-    <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+    <ul className="scroll-sutil flex max-h-64 flex-col gap-1 overflow-y-auto">
       {registros.map((cliente) => (
         <li key={cliente.id}>
           <button
