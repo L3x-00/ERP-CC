@@ -148,6 +148,7 @@ test.describe.serial('ficha de cliente B2: alta atómica, comercial y estado', (
     await page.getByLabel('Razón social').fill(datos.razonSocial);
     await page.getByLabel('Nombre comercial').fill(datos.nombreComercial);
     await page.getByLabel('Correo (opcional)').fill(datos.correoCliente);
+    await page.getByRole('button', { name: 'Contacto principal' }).click();
     await page.getByLabel('Nombre del contacto').fill('Ana Compras');
     await page.getByLabel('Puesto o área (opcional)').fill('Compras');
     await page.getByLabel('Correo del contacto (opcional)').fill(`ana-${datos.sufijo}@metalesficha.mx`);
