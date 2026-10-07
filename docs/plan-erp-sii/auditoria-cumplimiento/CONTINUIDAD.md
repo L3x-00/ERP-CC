@@ -14,7 +14,7 @@
 | Línea base | `b71d9e0` (cierre del plan) + `6e3b33c` (documento del cliente versionado) |
 | Fuente de verdad | `docs/ERP_SII_Handoff_Tecnico_Funcional.md` → decisiones del cliente → plan |
 | Proceso | skill `.claude/skills/auditoria-cumplimiento-cliente/SKILL.md` |
-| Requisitos B1 | R-B1-01 … R-B1-50 (lista en el workflow de auditoría; se vuelca al reporte) |
+| Requisitos B1 | R-B1-01 … R-B1-50, persistidos en `B1-requisitos.md` |
 | Reglas | Corregir defectos con prueba; migración nueva (nunca editar aplicada) solo en local; commits atómicos locales sin push; fuera de alcance solo se propone; no tocar B2–B9 (se difiere) |
 
 ## Historial de pasos
@@ -32,6 +32,7 @@
 | 2026-10-07 | Guardián probado en sesión real: aviso al 83 % (5 h, reinicia 13:30) | Pausa preventiva: sin lanzar trabajo nuevo hasta el reinicio |
 | 2026-10-07 | Tanda 2 terminada (`wf_be9bc2c3-f72`, 2/2 agentes) | 18 hallazgos registrados como H-B1-29..46 "Por clasificar" en `B1-hallazgos.md` (1 Crítico: subidas limitadas a 1 MB). **PAUSA al 89 %** hasta el reinicio de las 13:30 |
 | 2026-10-07 | Sesión Claude Code identificada y tanda 2 clasificada por Codex | Sesión `4c6ad8e4-b953-453d-b80b-86bd0dfd758c`, modelo comprobado `claude-opus-5-5`; 7 bloqueantes B1, 6 no bloqueantes B1, 2 diferidos a B3, 2 propuestas PO y H-B1-44 consolidado con H-B1-24. Límite 5 h comprobado en 90 %, reinicio `2026-10-07 13:29:59 -05:00` |
+| 2026-10-07 | Auditoría reanudable endurecida | Requisitos R-B1-01..50 persistidos en `B1-requisitos.md`; Skill promovida a la fuente canónica `.agents/skills/auditoria-cumplimiento-cliente/` con tandas pequeñas y checkpoint obligatorio |
 
 ## Hipótesis propias pendientes de verificar (B1)
 
