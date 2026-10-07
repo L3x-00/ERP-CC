@@ -44,11 +44,11 @@ Los tres conceptos **nunca se mezclan**: vendido ≠ producido ≠ cobrado. Toda
 | Ventas | Tasa de cierre | propuestas `ACCEPTED/SALE_CONFIRMED` ÷ propuestas `SENT` del periodo | revisiones |
 | Ventas | Propuestas en seguimiento | revisión vigente en `SENT/FOLLOW_UP` | revisiones + acciones |
 | Producción | Horas reales vs estimadas | Σ horas netas de sesiones ÷ Σ `total_horas` del ruteo del snapshot (por orden/periodo) | `sesiones_trabajo`, snapshot |
-| Producción | WIP | órdenes en `EN_PRODUCCION`/`PRODUCCION_COMPLETADA` sin cierre administrativo, valoradas a costo estimado | órdenes + costos |
-| Producción | Utilización por máquina | horas de sesión por recurso ÷ capacidad efectiva del periodo (equipos × jornada) | sesiones + capacidades |
+| Producción | WIP (aprox.) | órdenes en `EN_PRODUCCION`/`PRODUCCION_COMPLETADA` sin cierre administrativo, valoradas a costo estimado | órdenes + costos |
+| Producción | Utilización por máquina (aprox.) | horas de sesión por recurso ÷ capacidad efectiva del periodo (equipos × jornada) | sesiones + capacidades |
 | Producción | Piezas producidas | Σ cantidades de la **meta final** por ítem (nunca sumar procesos intermedios) | metas/avance |
 | Calidad | Retrabajos | Σ `cantidad_retrabajo` de inspecciones | `inspecciones_calidad` |
-| Calidad | Scrap | Σ `cantidad_scrap` + `cantidad_nok` | partidas + inspecciones |
+| Calidad | Scrap (aprox.) | Σ `cantidad_scrap` + `cantidad_nok` | partidas + inspecciones |
 | Calidad | No conformidades | inspecciones `RECHAZADA` | inspecciones |
 | Rentabilidad | Rentabilidad por orden | venta reconocida (AR cobrable) − costos reales (material, mano de obra, gastos) | funciones existentes + snapshot |
 | Rentabilidad | Margen operativo | margen estimado de la revisión aceptada vs margen real al cierre de orden | revisiones + rentabilidad |
@@ -61,6 +61,8 @@ Los tres conceptos **nunca se mezclan**: vendido ≠ producido ≠ cobrado. Toda
 - Producido cuenta piezas finales una sola vez; los avances por proceso son operativos, no KPI de piezas.
 - Cobrado cuenta pagos aplicados; los anticipos cuentan al aplicarse, no al facturarse.
 - Órdenes internas (TI) se reportan aparte en todas las áreas (ventas = 0).
+
+**Aproximaciones del MVP (decisión final D5-A, 2026-10-06):** utilización (capacidad nominal), WIP (tarifa interna más reciente; partidas sin tarifa valen 0) y scrap (atribuido a órdenes con actividad del rango) se aceptan como estimaciones operativas con fórmulas documentadas y sustituibles; no se presentan como cifras contables exactas (etiquetado “aprox.” en el dashboard).
 
 **Tareas:** RPC/consultas de dashboard actualizadas a `estado_rfq`/nuevos estados (B3/B5), tarjetas de KPIs nuevos (calidad, propuestas en seguimiento, utilización real), pruebas unitarias de fórmulas contra fixtures y E2E de dashboard por rol. Cerrar el diccionario con el PO antes de construir paneles avanzados (§18 "pendiente").
 
@@ -92,10 +94,10 @@ El documento describe la plataforma actual como referencia, no como obligación 
 ## 9.7 Estado de implementación (2026-10-06) — cierre del plan
 
 - **Diccionario §9.3 cerrado con el PO** (alcance completo aprobado 2026-10-06) e implementado en `public.obtener_kpis_sii(p_inicio, p_fin, p_actor_id)` (migración `20261007210001`): ventas (vendido con TC congelado, tasa de cierre, propuestas en seguimiento), producción (horas reales vs estimadas, utilización, WIP valorado, piezas finales), calidad (retrabajos, scrap, no conformidades), rentabilidad (margen estimado vs real) y cobranza (cobros vigentes, aging 0-30/31-60/61-90/90+, promesas), con TI aparte y reglas anti doble conteo.
-  - Aproximaciones documentadas: utilización usa capacidad nominal (equipos × jornada) × días del rango; el WIP se valora con la tarifa interna más reciente de la partida (las partidas sin tarifa se cuentan y valen 0); el scrap de partida se atribuye a órdenes con actividad en el rango.
+  - Aproximaciones documentadas (aceptadas por el cliente, D5-A 2026-10-06): utilización usa capacidad nominal (equipos × jornada del turno — override > capacidad del turno > 8 h estándar, corrección de auditoría `20261007230006`) × días del rango; el WIP se valora con la tarifa interna más reciente de la partida (las partidas sin tarifa se cuentan y valen 0); el scrap de partida se atribuye a órdenes con actividad en el rango. El dashboard las rotula como estimaciones operativas, no cifras contables.
 - **UI:** sección “KPIs del mes” en `/dashboard` (`SeccionKpisSii`), filtrada por permiso del área (ventas, producción, calidad, rentabilidad/cobranza) según decisión del PO.
 - **UX (§9.2):** checklist `orca-ui-review` aplicado a las pantallas SII nuevas; sin patrones de color prohibidos (grep), estados homologados con `BadgeEstado` (se añadieron `emitida`, `recibida`, `conciliado`), estados de carga/vacío/error presentes y capturas claro/oscuro/tablet en `.ai-shared/qa/`.
-- **Evidencia:** pgTAP `sii_b9_kpis` 18/18 · global **1100/1100** · unit 955/955 · E2E `kpis-dashboard` 1/1 (+ regresión de badges 3/3) · build OK · capturas 2/2 en `.ai-shared/qa/sii-b9/visual/`.
+- **Evidencia:** pgTAP `sii_b9_kpis` 19/19 · global **1110/1110** · unit 960/960 · E2E `kpis-dashboard` 1/1 (+ regresión de badges 3/3) · build OK · capturas 2/2 en `.ai-shared/qa/sii-b9/visual/`. Auditoría 2026-10-07: utilización con la jornada del turno (migración `20261007230006`).
 - **Compuertas Go Live (§9.1):** GL1–GL4 tienen bloque, evidencia y auditoría en `docs/plan-erp-sii/paralelo/VERIFICACION-COORDINADOR.md` (auditorías 1–16); “Después” (B8) quedó implementado localmente completo. La aceptación remota/CI y la publicación siguen pendientes del PO.
 - **Transferencia (§9.5):** el traspaso por bloque vive en `docs/plan-erp-sii/` (bloques + ADRs en `.ai-shared/memory/decisions/`), con migraciones, pruebas y evidencia por ola; el diccionario y las decisiones del cliente quedan en el anexo.
 - **Documento vivo (§23):** las reglas nuevas (F1–F5, B9) se registraron primero como decisión (ADR `ADR-SII-B8-FINANZAS-20261006.md` y este plan) y después en el sistema.
@@ -113,11 +115,11 @@ El documento describe la plataforma actual como referencia, no como obligación 
 | 5 | Primera pieza | Configurable por proceso; inicialmente activa en Láser Fibra, Láser CO₂, Doblado CNC, CNC Router y Maquinado/Fabricación; Soldadura y Acabado configurables después | B6 |
 | 6 | Inspección lotes grandes | Configurable por proceso (10 o 20) | B6 |
 | 7 | Pausa > 1 h | La máquina puede reclamarse para otro trabajo automáticamente, con trazabilidad | B6 |
-| 8 | Horas extra | Al exceder la jornada configurada del turno (no hardcodear 8 h); autoriza Management/Admin; **pendiente definir jornada exacta** | B6 |
+| 8 | Horas extra | Al exceder la jornada configurada del turno; autoriza Management/Admin. **Jornada final: 8 h estándar por turno, ajustable por recurso (2026-10-06)** | B6 |
 | 9 | Cierre administrativo | Al 100 % de cantidades entregadas; el cobro se controla aparte en CxC | B5 |
 | 10 | Entregas | Siempre: cantidades, entrega/recibe y fecha. Industrial: hoja con sello/fecha/firma + digitalización; no industrial: preferencia firma digital; evidencia fotográfica disponible; futuro configurable por cliente | B7 |
 | 11 | Margen mínimo | Sin mínimo bloqueante por ahora | B4 |
 
 **Decisiones técnicas ya tomadas por el plan (no requieren cliente):** `CNC-MMYY_XX` 2 dígitos según documento con tope y ajuste administrativo; PDF server-side tras spike B4.6; la cola RFQ reemplaza el Kanban por `etapa`; RFQ `CONVERTED` no retorna; `PENDING_FINANCIAL` reservado hasta B8; costo de máquina manual (motor postergado); perfiles de inspección por cliente en fase posterior.
 
-**Único pendiente real del cliente:** la jornada exacta por turno (para horas extra), que no bloquea B0/B1.
+**Decisiones finales del cliente (2026-10-06, D1–D5):** la jornada exacta quedó resuelta (8 h estándar por turno, ajustable por recurso); folios derivados con prefijo de origen (D1-B); recordatorios de promesas 2 días antes + al vencer (D3-A); plazo de `credito` por días del cliente (D4-B); aproximaciones KPI aceptadas y rotuladas (D5-A). Respuestas y detalle en `decisiones-pendientes-cliente-final.md`. No quedan pendientes reales del cliente del plan B1–B9.

@@ -1,6 +1,6 @@
 # B8 — Finanzas (fase posterior)
 
-Referencias del documento: §14 completo (facturación/CxC, cobranza, compras/gastos/CxP, tesorería), §6.1 (folios `RP-MMYY_XX-YY`, `CG-MMYY_####`), §16.5 (qué postergar).
+Referencias del documento: §14 completo (facturación/CxC, cobranza, compras/gastos/CxP, tesorería), §6.1 (folios `RP-O-MMYY_XX-YY` / `RP-OI-MMYY_XX-YY`, `CG-MMYY_####`), §16.5 (qué postergar).
 Depende de: B7. **Este bloque es de diseño con validación del PO; las fases F1–F5 se implementan solo con autorización explícita (repetida por fase).** F1–F5 quedaron implementadas y verificadas el 2026-10-06 (§8.5–§8.9); el bloque está completo localmente a falta del commit del PO. El primer Go Live puede operar sin sustituir facturación/cobro (§14).
 
 **Objetivo:** dejar la arquitectura lista para conectar `Entrega → Facturación → CxC → Cobranza` y `Compras/Gastos/CxP → Tesorería`, sin romper lo ya construido (CxC con pagos idempotentes, reversos, anulación, anticipos y monedero; gastos con OCR).
@@ -13,7 +13,7 @@ Depende de: B7. **Este bloque es de diseño con validación del PO; las fases F1
 |---|---|---|
 | Facturación | Adjuntar folio fiscal a una AR existente (`registrar_factura_ar`) | Borrador administrativo de factura, folio fiscal propio por periodo, términos por cliente, vínculo explícito entrega→factura |
 | CxC | AR con saldo, aging, pagos, reversos, anulación, anticipos, monedero | Promesa de pago; términos por cliente ya existen (`condiciones_pago` + `dias_credito` B2) |
-| Cobranza | Pago aplicado a una AR; sobrepago a monedero | Aplicaciones many-to-many de un pago a varias AR; folio de recibo `RP-MMYY_XX-YY` |
+| Cobranza | Pago aplicado a una AR; sobrepago a monedero | Aplicaciones many-to-many de un pago a varias AR; folio de recibo `RP-O-MMYY_XX-YY` / `RP-OI-MMYY_XX-YY` |
 | Compras/Gastos/CxP | `gastos` con `GTO-######`, estado de pago, OCR | Compras/órdenes de compra, pagos a proveedores, CxP formal, folio `CG-MMYY_####` |
 | Tesorería | Catálogo de cuentas + flujo informativo | 2 cuentas bancarias + efectivo como cuentas contables; transferencias internas (no ingreso/gasto); saldos |
 
@@ -83,7 +83,7 @@ Regla clave: **las transferencias internas entre cuentas no son ingreso ni gasto
 
 | Fase | Alcance | Depende | Estado |
 |---|---|---|---|
-| F1 | Folio `RP-MMYY_XX-YY` para recibos nuevos + `solicitud_id` en cobros legacy | B7 | **COMPLETADA localmente 2026-10-06** (§8.5): migraciones `20261007160001/0002`, pgTAP 12/12, E2E `cobranza-folio-rp`; la idempotencia por `solicitud_id` ya existía. |
+| F1 | Folio `RP-O-MMYY_XX-YY` / `RP-OI-MMYY_XX-YY` para recibos nuevos + `solicitud_id` en cobros legacy | B7 | **COMPLETADA localmente 2026-10-06** (§8.5): migraciones `20261007160001/0002` y `20261007230001` (prefijo D1-B), pgTAP 12/12, E2E `cobranza-folio-rp`; la idempotencia por `solicitud_id` ya existía. |
 | F2 | Factura borrador + vínculo entrega→facturación→CxC (sin timbrado CFDI) | F1 | **COMPLETADA localmente 2026-10-06** (§8.6): migración `20261007170001`, pgTAP 19/19, E2E `facturacion-flujo`; UI `/facturacion`. |
 | F3 | Aplicaciones many-to-many + promesas de pago (**con recordatorios**, decisión PO 2026-10-06) | F1 | **COMPLETADA localmente 2026-10-06** (§8.7): migraciones `20261007180001`–`0005`, pgTAP 27/27, E2E `cobranza-cobro-multiple`; UI en `/cobranza`. |
 | F4 | Compras/CxP con folio `CG-MMYY_####` y pagos a proveedores | F2 | **COMPLETADA localmente 2026-10-06** (§8.8): migraciones `20261007190001/0002`, pgTAP 29/29, E2E `compras-flujo`; UI `/compras`. |
@@ -101,9 +101,9 @@ Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP
 2. ¿Los gastos migran a folio `CG-MMYY_####` para registros nuevos conservando `GTO-######` históricos? **Decidido: sí, nuevos registros con `CG`; los históricos conservan `GTO` (fase F4).**
 3. ¿Promesas de pago requieren recordatorios/notificaciones? **Decidido: sí, con recordatorios (fase F3).**
 
-## 8.5 Estado F1 — folio de recibo `RP-MMYY_XX-YY` (2026-10-06)
+## 8.5 Estado F1 — folio de recibo `RP-O-MMYY_XX-YY` (2026-10-06)
 
-- **Derivación decidida por el PO:** espejo del `NE` — `XX` = sufijo del `folio_sii` de la orden (`O-/OI-MMYY_XX`); `YY` = consecutivo de recibos de esa orden (`CASE` a partir de 100). Órdenes históricas sin `folio_sii` conservan `REC-######`.
+- **Derivación decidida por el PO:** espejo del `NE` — `XX` = folio completo de la orden con su prefijo (`O-/OI-MMYY_XX`, decisión final D1-B); `YY` = consecutivo de recibos de esa orden (`CASE` a partir de 100). Órdenes históricas sin `folio_sii` conservan `REC-######`; los cobros repartidos conservan `RP-MMYY_0000-YY`.
 - **Migraciones:** `20261007160001_sii_b8_folio_recibo.sql` (CHECK dual `REC`/`RP`, `privado.siguiente_folio_recibo` con advisory lock por orden, `registrar_pago_ar_atomico` y `aplicar_saldo_favor_ar` recreadas sin cambiar firmas) y `20261007160002_sii_b8_folio_recibo_limpieza.sql` (retira el índice redundante; ya existía `pagos_ar_folio_recibo_key`).
 - **Regla clave:** la idempotencia por `solicitud_id` no cambió; un reintento devuelve el mismo folio. Los folios nunca se reutilizan (el conteo incluye recibos reversados).
 - **Evidencia:** pgTAP `sii_b8_folio_recibo` 12/12 (espejo OI, consecutivo 01→02, monedero 03, fallback REC, idempotencia, CHECK y unicidad) · pgTAP global 980/980 · unit 935/935 · E2E `cobranza-folio-rp` + regresión de cobranza 6/6 · build OK · capturas en `.ai-shared/qa/sii-b8-f1/visual/`.
@@ -125,7 +125,7 @@ Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP
 - **UI:** botón “Cobro múltiple” y modal con selección de cliente/facturas y montos por AR; botón “Promesa” por cuenta con alta/cancelación; los recordatorios se materializan al abrir `/cobranza` o el centro de notificaciones (idempotente).
 - **Compatibilidad:** el flujo 1-AR y el modal de facturación por AR quedan intactos; el reverso conserva valores históricos y funciona con recibos repartidos.
 - **Evidencia:** pgTAP `sii_b8_cobros_promesas` 27/27 · global 1026/1026 · unit 944/944 · E2E `cobranza-cobro-multiple` 1/1 + regresión cobranza/facturación 5/5 · build OK · capturas 2/2 en `.ai-shared/qa/sii-b8-f3/visual/`.
-- **Pendiente del PO:** aplicar en remoto `20261007180001`–`20261007180005` (tras `20261007170001`). Riesgo heredado: colisión de folios `O-`/`OI-` sigue pendiente de decisión.
+- **Pendiente del PO:** aplicar en remoto `20261007180001`–`20261007180005` (tras `20261007170001`). La colisión de folios `O-`/`OI-` quedó resuelta con la decisión final D1-B (prefijo de origen) en §8.10.
 
 ## 8.8 Estado F4 — Compras/CxP con folio CG y pagos a proveedores (2026-10-06)
 
@@ -144,3 +144,11 @@ Cada fase repite los gates §0.9 y exige autorización explícita del PO. El ERP
 - **UI:** ruta `/tesoreria` (Finanzas) con tarjetas por cuenta (banco/efectivo, saldo actual, conciliados), captura de saldo inicial, registro de transferencias y conciliación/desconciliación por movimiento con auditoría.
 - **Evidencia:** pgTAP `sii_b8_tesoreria` 27/27 · global 1082/1082 · unit 951/951 · E2E `tesoreria-flujo` 1/1 · build OK (ruta `/tesoreria`) · capturas 4/4 en `.ai-shared/qa/sii-b8-f5/visual/`.
 - **Pendiente del PO:** aplicar en remoto `20261007200001`–`0003` (tras `20261007190002`). Con F5 cerrada, **B8 queda completo localmente** a falta de commit y publicación.
+
+## 8.10 Decisiones finales del cliente (2026-10-06) — folios RP y plazo de crédito
+
+- **D1-B — folios derivados con prefijo de origen:** `RP-` (y `NE-`) conservan el prefijo `O-`/`OI-` del folio de la orden (`RP-O-2610_05-01`, `RP-OI-2610_05-01`); los históricos `REC-######` y los repartidos `RP-MMYY_0000-YY` no cambian. Implementado en `20261007230001_sii_folios_derivados_prefijo.sql` (CHECKs, `privado.siguiente_folio_entrega`, `privado.siguiente_folio_recibo`); sin renumeración manual.
+- **D4-B — plazo de `credito` por cliente:** el vencimiento usa `clientes.dias_credito` (configurado por Management/Admin); sin días configurados la operación falla con `cliente_credito_sin_dias` (entrega total o emisión de factura) y el alta de cliente exige `dias_credito` explícitos al habilitar crédito (`dias_credito_requeridos`). `contado` (0), `15_dias` (15) y `30_dias` (30) conservan su regla; sin condición rige el fallback 30. Implementado en `20261007230002_sii_credito_dias_cliente.sql` (`archivar_orden_al_entregar`, `emitir_factura`, `crear_cliente_con_contacto`); ajustes de UI/servicios en `/cobranza` (sugerencia de vencimiento) y `/clientes`.
+- **Nota:** la migración `20261007220001_sii_b8_emitir_factura_credito.sql` (crédito 45 fijo) queda superada por D4-B; se conserva como historia y el remoto la aplica seguida de `20261007230002`.
+- **Evidencia local (2026-10-07):** pgTAP global 1110/1110 · unit 960/960 · integración 227/227 (residuales locales neutralizados) · typecheck/lint 0 · build OK · E2E `cobranza-folio-rp`, `kpis-dashboard`, `cobranza-flujo`, `entregas-flujo`, `clientes-ficha`, `facturacion-flujo` y `dashboard-roles` en verde. Pendiente del PO: aplicar en remoto `20261007220001` y `20261007230001`/`20261007230002` en orden.
+- **Corrección de auditoría B5–B9 (2026-10-07):** reverso de cobro reactiva la promesa si la AR deja de estar pagada (migración `20261007230005`); además `20261007230003` (umbral de horas extra = jornada del turno), `20261007230004` (RLS de evidencia de entrega con `entrega_evidencia`) y `20261007230006` (utilización KPI con jornada del turno). pgTAP global 1110/1110.

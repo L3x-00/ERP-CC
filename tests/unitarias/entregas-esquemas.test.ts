@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { traducirErrorEntrega } from '@/modulos/entregas/servicios/errores-entrega';
 import {
+  esquemaActualizarFechaEntrega,
   esquemaRegistrarEntrega,
   esquemaSubirEvidenciaEntrega,
 } from '@/modulos/entregas/validaciones/esquemas-entregas';
@@ -72,6 +73,28 @@ describe('esquemaRegistrarEntrega (SII-B7.1)', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('valida la corrección de fecha de entrega con CAS', () => {
+    const valido = esquemaActualizarFechaEntrega.safeParse({
+      entregaId: ORDEN,
+      fechaEntrega: '2026-10-07T12:00:00.000Z',
+      actualizadoEn: '2026-10-07T18:30:00.000Z',
+    });
+    expect(valido.success).toBe(true);
+    expect(
+      esquemaActualizarFechaEntrega.safeParse({
+        entregaId: ORDEN,
+        fechaEntrega: '2026-10-07',
+        actualizadoEn: '2026-10-07T18:30:00.000Z',
+      }).success,
+    ).toBe(false);
+    expect(
+      esquemaActualizarFechaEntrega.safeParse({
+        entregaId: ORDEN,
+        fechaEntrega: '2026-10-07T12:00:00.000Z',
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('traducirErrorEntrega (SII-B7.1)', () => {
@@ -81,6 +104,9 @@ describe('traducirErrorEntrega (SII-B7.1)', () => {
     expect(traducirErrorEntrega('cantidad_entrega_excede_producida')).toContain('producido');
     expect(traducirErrorEntrega('cantidad_entrega_excede_pendiente')).toContain('pendiente');
     expect(traducirErrorEntrega('contacto_invalido')).toContain('contacto');
+    expect(traducirErrorEntrega('entrega_desactualizada')).toContain('recarga');
+    expect(traducirErrorEntrega('fecha_entrega_invalida')).toContain('anterior');
+    expect(traducirErrorEntrega('fecha_entrega_futura')).toContain('futura');
   });
 
   it('incluye el estado en el detalle de orden no entregable', () => {

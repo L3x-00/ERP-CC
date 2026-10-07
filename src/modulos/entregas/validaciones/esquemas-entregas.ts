@@ -53,6 +53,15 @@ export const esquemaFirmarEvidenciaEntrega = z
   .object({ archivoId: uuid })
   .strict();
 
+/** Corrección de la fecha de entrega (§7.1, CAS con `actualizadoEn`). */
+export const esquemaActualizarFechaEntrega = z
+  .object({
+    entregaId: uuid,
+    fechaEntrega: z.iso.datetime({ offset: true, message: 'La fecha de entrega no es válida' }),
+    actualizadoEn: z.iso.datetime({ offset: true, message: 'La versión de la entrega no es válida' }),
+  })
+  .strict();
+
 /** Identificador de orden para preparar/listar entregas. */
 export const esquemaOrdenEntrega = z.object({ ordenId: uuid }).strict();
 
@@ -63,5 +72,6 @@ export type RenglonEntregaInput = z.infer<typeof esquemaRenglonEntrega>;
 export type RegistrarEntregaInput = z.infer<typeof esquemaRegistrarEntrega>;
 export type SubirEvidenciaEntregaInput = z.infer<typeof esquemaSubirEvidenciaEntrega>;
 export type FirmarEvidenciaEntregaInput = z.infer<typeof esquemaFirmarEvidenciaEntrega>;
+export type ActualizarFechaEntregaInput = z.infer<typeof esquemaActualizarFechaEntrega>;
 export type OrdenEntregaInput = z.infer<typeof esquemaOrdenEntrega>;
 export type EntregaPorIdInput = z.infer<typeof esquemaEntregaPorId>;

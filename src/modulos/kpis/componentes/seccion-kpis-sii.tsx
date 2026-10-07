@@ -28,15 +28,15 @@ function metricasPorArea(area: AreaKpis, kpis: KpisSii): MetricaKpi[] {
       return [
         { etiqueta: 'Horas reales', valor: numero(kpis.produccion.horasReales), testid: 'kpi-horas-reales' },
         { etiqueta: 'Horas estimadas (ruteo)', valor: numero(kpis.produccion.horasEstimadas), testid: 'kpi-horas-estimadas' },
-        { etiqueta: 'Utilización por máquina', valor: porcentaje(kpis.produccion.utilizacionPorcentaje), testid: 'kpi-utilizacion' },
-        { etiqueta: 'WIP (órdenes)', valor: numero(kpis.produccion.wipOrdenes), testid: 'kpi-wip' },
-        { etiqueta: 'WIP a costo estimado', valor: formatearMoneda(kpis.produccion.wipCostoEstimadoMxn, 'MXN'), testid: 'kpi-wip-costo' },
+        { etiqueta: 'Utilización de máquinas (aprox.)', valor: porcentaje(kpis.produccion.utilizacionPorcentaje), testid: 'kpi-utilizacion' },
+        { etiqueta: 'WIP: órdenes en proceso (aprox.)', valor: numero(kpis.produccion.wipOrdenes), testid: 'kpi-wip' },
+        { etiqueta: 'WIP a costo estimado (aprox.)', valor: formatearMoneda(kpis.produccion.wipCostoEstimadoMxn, 'MXN'), testid: 'kpi-wip-costo' },
         { etiqueta: 'Piezas producidas (final)', valor: numero(kpis.produccion.piezasProducidas), testid: 'kpi-piezas' },
       ];
     case 'calidad':
       return [
         { etiqueta: 'Retrabajos', valor: numero(kpis.calidad.retrabajos), testid: 'kpi-retrabajos' },
-        { etiqueta: 'Scrap', valor: numero(kpis.calidad.scrap), testid: 'kpi-scrap' },
+        { etiqueta: 'Scrap (aprox.)', valor: numero(kpis.calidad.scrap), testid: 'kpi-scrap' },
         { etiqueta: 'No conformidades', valor: numero(kpis.calidad.noConformidades), testid: 'kpi-no-conformidades' },
       ];
     case 'rentabilidad':
@@ -65,7 +65,8 @@ function metricasPorArea(area: AreaKpis, kpis: KpisSii): MetricaKpi[] {
 /**
  * SII-B9: sección “KPIs” del dashboard con el diccionario §9.3 filtrado por
  * permiso del área (producción/calidad, ventas y finanzas) y TI aparte en las
- * fórmulas del RPC.
+ * fórmulas del RPC. D5-A: utilización, WIP y scrap se presentan como
+ * estimaciones operativas del MVP, no como cifras contables exactas.
  */
 export async function SeccionKpisSii() {
   const usuario = await obtenerUsuarioServidor();
@@ -106,6 +107,10 @@ export async function SeccionKpisSii() {
         <p className="text-sm text-texto-secundario">
           Diccionario §9.3: vendido ≠ producido ≠ cobrado; TI aparte y sin doble conteo. Periodo del
           mes en curso.
+        </p>
+        <p className="text-xs text-texto-secundario">
+          Utilización, WIP y scrap son estimaciones operativas del MVP con las fórmulas documentadas
+          en el plan (§9.3); no son cifras contables exactas.
         </p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">

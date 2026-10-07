@@ -36,6 +36,21 @@ export function traducirErrorEntrega(mensaje: string, detalle?: string): string 
   if (mensaje.includes('firma_evidencia_invalida') || mensaje.includes('clase_evidencia_invalida')) {
     return 'La evidencia o firma no es válida para la entrega';
   }
+  if (mensaje.includes('entrega_inexistente')) {
+    return 'La entrega ya no existe';
+  }
+  if (mensaje.includes('entrega_desactualizada')) {
+    return 'La entrega cambió; recarga antes de editarla';
+  }
+  if (mensaje.includes('fecha_entrega_invalida')) {
+    return 'La fecha no puede ser anterior al día de generación de la nota';
+  }
+  if (mensaje.includes('fecha_entrega_futura')) {
+    return 'La fecha de entrega no puede ser futura';
+  }
+  if (mensaje.includes('datos_fecha_entrega_invalidos')) {
+    return 'La fecha de entrega no es válida';
+  }
   console.error('[ENTREGAS] Error no traducido:', mensaje);
   return 'No se pudo completar la operación de entrega';
 }

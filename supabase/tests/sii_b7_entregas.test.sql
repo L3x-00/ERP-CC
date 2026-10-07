@@ -1,4 +1,4 @@
--- SII-B7 — Entregas: folio NE-MMYY_XX-YY, parciales por ITxx, idempotencia y AR.
+-- SII-B7 — Entregas: folio NE-O-MMYY_XX-YY, parciales por ITxx, idempotencia y AR.
 -- Verifica: consecutivo/unicidad del folio (9→10 y 99→100), cantidades contra
 -- producido y pendiente, idempotencia por solicitud, activación de AR al 100 %,
 -- herencia legacy, backfill de codigo_item, privilegios y RLS.
@@ -6,7 +6,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(51);
+SELECT plan(59);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores y permisos
@@ -228,7 +228,7 @@ SELECT is(
     '00000000-0000-4000-8000-0000000b7a02',
     '11111111-1111-4111-8111-111111111111',
     '00000000-0000-4000-8000-0000000b7a02') ->> 'folioSii'),
-  'NE-1026_01-01', 'La primera entrega usa el folio NE-MMYY_XX-01'
+  'NE-O-1026_01-01', 'La primera entrega usa el folio NE-O-MMYY_XX-01'
 );
 SELECT is(
   (SELECT es_parcial FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
@@ -271,6 +271,41 @@ SELECT is(
   (SELECT count(*) FROM public.notas_entrega WHERE orden_id = (SELECT valor FROM b7_ids WHERE nombre = 'o1')),
   1::bigint, 'La solicitud repetida no duplica la nota'
 );
+
+-- Fecha de entrega editable con CAS (§7.1, corrección de auditoría 2026-10-07).
+SELECT has_column('public', 'notas_entrega', 'actualizado_en', 'notas_entrega.actualizado_en existe');
+SELECT throws_ok($$
+  SELECT * FROM public.actualizar_fecha_entrega(
+    (SELECT id FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    now(),
+    (SELECT actualizado_en FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    '00000000-0000-4000-8000-0000000b7a03')
+$$, '42501', 'sin_permiso_entrega', 'Un vendedor sin entrega_generar no edita la fecha');
+SELECT throws_ok($$
+  SELECT * FROM public.actualizar_fecha_entrega(
+    (SELECT id FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    (SELECT creado_en - interval '1 day' FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    (SELECT actualizado_en FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    '00000000-0000-4000-8000-0000000b7a01')
+$$, '23514', 'fecha_entrega_invalida', 'La fecha no puede ser anterior al día de generación');
+SELECT throws_ok($$
+  SELECT * FROM public.actualizar_fecha_entrega(
+    (SELECT id FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    now(),
+    '2000-01-01T00:00:00Z'::timestamptz,
+    '00000000-0000-4000-8000-0000000b7a01')
+$$, '23514', 'entrega_desactualizada', 'Un token CAS obsoleto no edita la fecha');
+SELECT lives_ok($$
+  SELECT * FROM public.actualizar_fecha_entrega(
+    (SELECT id FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    now(),
+    (SELECT actualizado_en FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+    '00000000-0000-4000-8000-0000000b7a01')
+$$, 'El admin con token vigente corrige la fecha');
+SELECT is(
+  (SELECT fecha_entrega::date FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+  current_date, 'La fecha corregida queda persistida'
+);
 -- Con producida 8 y solicitada 10, pedir 9 excede lo producido pero no lo
 -- pendiente: el guard de producción es el que manda.
 SELECT throws_ok(
@@ -299,7 +334,7 @@ SELECT is(
     '00000000-0000-4000-8000-0000000b7a02',
     '22222222-2222-4222-8222-222222222222',
     '00000000-0000-4000-8000-0000000b7a02') ->> 'folioSii'),
-  'NE-1026_01-02', 'La segunda entrega de la orden usa -02'
+  'NE-O-1026_01-02', 'La segunda entrega de la orden usa -02'
 );
 SELECT is(
   (SELECT es_parcial FROM public.notas_entrega WHERE solicitud_id = '22222222-2222-4222-8222-222222222222'),
@@ -320,7 +355,7 @@ SELECT is(
 );
 SELECT throws_ok(
   format('INSERT INTO public.notas_entrega (folio, folio_sii, orden_id, recibido_por, creado_por) VALUES (%L, %L, %L, %L, %L)',
-    'NE-999998', 'NE-1026_01-01', (SELECT valor::text FROM b7_ids WHERE nombre = 'o1'),
+    'NE-999998', 'NE-O-1026_01-01', (SELECT valor::text FROM b7_ids WHERE nombre = 'o1'),
     'Otro receptor', '00000000-0000-4000-8000-0000000b7a02'),
   '23505', NULL, 'El folio SII repetido se rechaza'
 );
@@ -331,7 +366,7 @@ SELECT throws_ok(
 INSERT INTO public.notas_entrega (folio, folio_sii, orden_id, recibido_por, creado_por)
 SELECT
   'NE-' || lpad((700000 + g)::text, 6, '0'),
-  'NE-1026_02-' || CASE WHEN g < 100 THEN lpad(g::text, 2, '0') ELSE g::text END,
+  'NE-O-1026_02-' || CASE WHEN g < 100 THEN lpad(g::text, 2, '0') ELSE g::text END,
   (SELECT valor FROM b7_ids WHERE nombre = 'o3'),
   'Receptor consecutivo',
   '00000000-0000-4000-8000-0000000b7a02'
@@ -339,13 +374,13 @@ FROM generate_series(1, 9) AS g;
 
 SELECT is(
   privado.siguiente_folio_entrega((SELECT valor FROM b7_ids WHERE nombre = 'o3')),
-  'NE-1026_02-10', 'El consecutivo 9→10 no trunca con ceros'
+  'NE-O-1026_02-10', 'El consecutivo 9→10 no trunca con ceros'
 );
 
 INSERT INTO public.notas_entrega (folio, folio_sii, orden_id, recibido_por, creado_por)
 SELECT
   'NE-' || lpad((710000 + g)::text, 6, '0'),
-  'NE-1026_03-' || CASE WHEN g < 100 THEN lpad(g::text, 2, '0') ELSE g::text END,
+  'NE-O-1026_03-' || CASE WHEN g < 100 THEN lpad(g::text, 2, '0') ELSE g::text END,
   (SELECT valor FROM b7_ids WHERE nombre = 'o3b'),
   'Receptor consecutivo',
   '00000000-0000-4000-8000-0000000b7a02'
@@ -353,11 +388,11 @@ FROM generate_series(1, 99) AS g;
 
 SELECT is(
   privado.siguiente_folio_entrega((SELECT valor FROM b7_ids WHERE nombre = 'o3b')),
-  'NE-1026_03-100', 'El consecutivo 99→100 no desborda a ##'
+  'NE-O-1026_03-100', 'El consecutivo 99→100 no desborda a ##'
 );
 SELECT is(
   privado.siguiente_folio_entrega((SELECT valor FROM b7_ids WHERE nombre = 'o4')),
-  'NE-1026_09-01', 'Las órdenes internas OI- también derivan su folio'
+  'NE-OI-1026_09-01', 'Las órdenes internas OI- también derivan su folio'
 );
 SELECT is(
   privado.siguiente_folio_entrega((SELECT valor FROM b7_ids WHERE nombre = 'o2')),
@@ -430,6 +465,23 @@ SELECT ok(
   NOT has_function_privilege('authenticated', 'privado.siguiente_folio_entrega(uuid)', 'EXECUTE'),
   'authenticated no calcula folios internos'
 );
+
+-- La evidencia/firma de entrega se lee con `entrega_evidencia` (§7.2 regla 6).
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '00000000-0000-4000-8000-0000000b7a02', 'role', 'authenticated')::text, true);
+SET LOCAL ROLE authenticated;
+SELECT ok(
+  privado.puede_ver_archivo('entrega', gen_random_uuid()),
+  'contador con entrega_evidencia lee la evidencia de entrega'
+);
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '00000000-0000-4000-8000-0000000b7a03', 'role', 'authenticated')::text, true);
+SELECT ok(
+  NOT privado.puede_ver_archivo('entrega', gen_random_uuid()),
+  'vendedor sin permiso no lee evidencia de entrega'
+);
+RESET ROLE;
+SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
 SELECT * FROM finish();
 ROLLBACK;

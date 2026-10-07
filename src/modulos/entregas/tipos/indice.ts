@@ -22,6 +22,8 @@ export type Entrega = {
   fechaEntrega: string;
   creadoPor: string;
   creadoEn: string;
+  /** Token CAS para ediciones (fecha de entrega). */
+  actualizadoEn: string;
 };
 
 /** Renglón de entrega (inmutable) con su ITxx. */
@@ -81,6 +83,7 @@ export function filaAEntrega(fila: FilaNotaEntrega): Entrega {
     fechaEntrega: fila.fecha_entrega,
     creadoPor: fila.creado_por,
     creadoEn: fila.creado_en,
+    actualizadoEn: fila.actualizado_en,
   };
 }
 

@@ -77,7 +77,7 @@ async function iniciarSesion(page: Page, contexto: Contexto): Promise<void> {
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
-test.describe('Cobranza SII-B8 F1: folio de recibo RP-MMYY_XX-YY', () => {
+test.describe('Cobranza SII-B8 F1: folio de recibo RP-O-MMYY_XX-YY', () => {
   test.skip(
     process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
     'Requiere E2E_HABILITAR_PRUEBAS_REMOTAS=si y credenciales del stack local.',
@@ -97,16 +97,16 @@ test.describe('Cobranza SII-B8 F1: folio de recibo RP-MMYY_XX-YY', () => {
       await fila.getByRole('button', { name: 'Cobrar' }).click();
       await page.getByLabel('Monto').fill('40');
       await page.getByRole('button', { name: 'Registrar pago' }).click();
-      await expect(page.getByTestId('recibo-persistido')).toContainText('RP-9999_95-01');
+      await expect(page.getByTestId('recibo-persistido')).toContainText('RP-O-9999_95-01');
 
       await fila.getByRole('button', { name: 'Cobrar' }).click();
       await page.getByLabel('Monto').fill('60');
       await page.getByRole('button', { name: 'Registrar pago' }).click();
-      await expect(page.getByTestId('recibo-persistido')).toContainText('RP-9999_95-02');
+      await expect(page.getByTestId('recibo-persistido')).toContainText('RP-O-9999_95-02');
 
       const { data: pagos } = await admin.from('pagos_ar')
         .select('folio_recibo').eq('ar_id', contexto.arId).order('creado_en');
-      expect(pagos?.map((pago) => pago.folio_recibo)).toEqual(['RP-9999_95-01', 'RP-9999_95-02']);
+      expect(pagos?.map((pago) => pago.folio_recibo)).toEqual(['RP-O-9999_95-01', 'RP-O-9999_95-02']);
 
       mkdirSync('.ai-shared/qa/sii-b8-f1/visual', { recursive: true });
       for (const oscuro of [false, true]) {

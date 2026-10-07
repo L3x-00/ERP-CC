@@ -5,7 +5,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(75);
+SELECT plan(76);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000b2a01', 'sii-b2-admin@prueba.local'),
@@ -43,6 +43,8 @@ SELECT lives_ok($$
       'rfc', 'ABC010101AA1',
       'correo', 'contacto@acmeb2.mx',
       'condiciones_pago', 'credito',
+      'credito_habilitado', true,
+      'dias_credito', 60,
       'contacto', jsonb_build_object(
         'nombre', 'Ana Compras',
         'puesto', 'Compras',
@@ -83,9 +85,20 @@ SELECT is(
 );
 SELECT is(
   (SELECT dias_credito FROM public.clientes WHERE razon_social = 'ACME B2 SA de CV'),
-  45,
-  'condiciones_pago credito deriva 45 días'
+  60,
+  'los días de crédito son los capturados explícitamente (D4-B)'
 );
+
+SELECT throws_ok($$
+  SELECT public.crear_cliente_con_contacto(
+    jsonb_build_object(
+      'nombre_comercial', 'Credito Sin Dias B2',
+      'razon_social', 'Credito Requiere Dias B2 SA',
+      'condiciones_pago', 'credito'
+    ),
+    '00000000-0000-4000-8000-0000000b2a01'
+  )
+$$, '22023', 'dias_credito_requeridos', 'crédito exige días explícitos (D4-B)');
 
 -- -----------------------------------------------------------------------------
 -- 2. Folio único, no reutilizable e inmutable

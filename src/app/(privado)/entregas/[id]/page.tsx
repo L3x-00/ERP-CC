@@ -46,6 +46,7 @@ export default async function PaginaDetalleEntrega({
     <DetalleEntrega
       inicial={{ detalle, evidencias }}
       puedeEvidencia={puedeEvidencia}
+      puedeEditar={puedeGenerar}
       puedeFacturar={puedeFacturar}
     />
   );

@@ -9,7 +9,7 @@ export const ETIQUETA_CLASE_EVIDENCIA: Record<ClaseEvidenciaEntrega, string> = {
 };
 
 /**
- * Formatea el consecutivo de entrega de una orden (YY de `NE-MMYY_XX-YY`).
+ * Formatea el consecutivo de entrega de una orden (YY de `NE-O-MMYY_XX-YY`).
  * Usa `CASE`-equivalente: 2 dígitos hasta 99 y sin truncar desde 100
  * (nunca `lpad` fijo).
  */
@@ -20,15 +20,18 @@ export function formatearConsecutivoEntrega(numero: number): string {
   return numero < 100 ? String(numero).padStart(2, '0') : String(numero);
 }
 
-/** Deriva `MMYY_XX` del folio de orden `O-`/`OI-`; `null` si no aplica. */
+/**
+ * Base del folio derivado (decisión cliente D1-B): el folio SII completo de la
+ * orden `O-MMYY_XX` / `OI-MMYY_XX`, para que `NE-`/`RP-` conserven el prefijo
+ * de origen; `null` si la orden es histórica o el folio no aplica.
+ */
 export function derivarBaseFolioOrden(folioOrdenSii: string | null): string | null {
   if (!folioOrdenSii) return null;
-  const coincidencia = /^O(?:I)?-(.+)$/.exec(folioOrdenSii);
-  return coincidencia?.[1] ?? null;
+  return /^OI?-[0-9]{4}_[0-9]{2,3}$/.test(folioOrdenSii) ? folioOrdenSii : null;
 }
 
 /**
- * Construye el folio SII de una entrega: `NE-MMYY_XX-YY`.
+ * Construye el folio SII de una entrega: `NE-O-MMYY_XX-YY` / `NE-OI-MMYY_XX-YY`.
  * `null` cuando la orden es histórica (sin `folio_sii`).
  */
 export function construirFolioEntrega(

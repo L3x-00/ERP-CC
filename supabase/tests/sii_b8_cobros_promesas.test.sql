@@ -36,7 +36,7 @@ VALUES
 CREATE TEMP TABLE f3 (clave text PRIMARY KEY, valor jsonb);
 CREATE TEMP TABLE f3_ids AS SELECT gen_random_uuid() AS sol_a, gen_random_uuid() AS sol_b, gen_random_uuid() AS sol_legacy;
 
-SELECT plan(27);
+SELECT plan(28);
 
 -- 1-5. Cobro repartido A: 120 pagados = 60+40 aplicados + 20 al monedero.
 INSERT INTO f3 (clave, valor)
@@ -151,7 +151,7 @@ INSERT INTO f3 (clave, valor)
 SELECT 'pago_c', to_jsonb(pago.*) FROM public.registrar_pago_ar_atomico(
   '00000000-0000-4000-8000-00000000b833', 100, 'MXN', 1, 'efectivo', NULL,
   '00000000-0000-4000-8000-00000000b811', gen_random_uuid()) AS pago;
-SELECT is((SELECT valor ->> 'folio_recibo' FROM f3 WHERE clave = 'pago_c'), 'RP-9999_83-01',
+SELECT is((SELECT valor ->> 'folio_recibo' FROM f3 WHERE clave = 'pago_c'), 'RP-O-9999_83-01',
   'El pago de una orden SII conserva el folio RP espejo del NE');
 SELECT is((SELECT count(*) FROM public.aplicaciones_pago
   WHERE pago_id = (SELECT (valor ->> 'pago_id')::uuid FROM f3 WHERE clave = 'pago_c')), 1::bigint,
@@ -165,6 +165,16 @@ SELECT 'pago_d', to_jsonb(pago.*) FROM public.registrar_pago_ar_atomico(
 SELECT is((SELECT estado FROM public.promesas_pago
   WHERE id = (SELECT (valor ->> 'id')::uuid FROM f3 WHERE clave = 'prom_c')), 'CUMPLIDA',
   'La promesa pasa a CUMPLIDA al pagarse la AR');
+
+-- 22b. El reverso reactiva la promesa si la AR deja de estar pagada.
+UPDATE f3 SET valor = valor || to_jsonb(reverso.*)
+FROM public.reversar_pago_ar(
+  (SELECT (valor ->> 'pago_id')::uuid FROM f3 WHERE clave = 'pago_d'),
+  'Reverso para reactivar la promesa', '00000000-0000-4000-8000-00000000b811') AS reverso
+WHERE f3.clave = 'pago_d';
+SELECT is((SELECT estado FROM public.promesas_pago
+  WHERE id = (SELECT (valor ->> 'id')::uuid FROM f3 WHERE clave = 'prom_c')), 'VIGENTE',
+  'El reverso reactiva la promesa de una AR que deja de estar pagada');
 
 -- 23-25. Recordatorio previo idempotente (2 días antes) para la promesa de b831.
 INSERT INTO f3 (clave, valor)

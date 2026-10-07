@@ -128,7 +128,7 @@ INSERT INTO b9 (clave, valor)
 SELECT 'kpis', public.obtener_kpis_sii('2098-01-01T00:00:00Z', '2098-02-01T00:00:00Z',
   '00000000-0000-4000-8000-00000000e201');
 
-SELECT plan(18);
+SELECT plan(19);
 
 -- 1-3. Ventas: una venta por revisión cerrada, TI fuera, TC congelado.
 SELECT is((SELECT (valor -> 'ventas' ->> 'vendidoMxn')::numeric FROM b9 WHERE clave = 'kpis'),
@@ -173,6 +173,18 @@ SELECT ok((SELECT valor -> 'rentabilidad' ->> 'margenRealPorcentaje' IS NULL FRO
 -- 14. Utilización por máquina.
 SELECT ok((SELECT (valor -> 'produccion' ->> 'utilizacionPorcentaje')::numeric FROM b9 WHERE clave = 'kpis') > 0,
   'La utilización usa horas reales ÷ capacidad nominal del periodo');
+
+-- 14b. D2-A: sin override, la capacidad nominal usa la jornada del turno.
+UPDATE public.recursos_planeacion SET capacidad_jornada_override_horas = NULL
+WHERE id = '00000000-0000-4000-8000-00000000e203';
+INSERT INTO public.capacidades_recurso_turno (recurso_id, turno, horas_capacidad)
+VALUES ('00000000-0000-4000-8000-00000000e203', 'matutino', 4);
+SELECT ok((
+  SELECT (public.obtener_kpis_sii('2098-01-01T00:00:00Z', '2098-02-01T00:00:00Z',
+    '00000000-0000-4000-8000-00000000e201') -> 'produccion' ->> 'utilizacionPorcentaje')::numeric
+) > (
+  SELECT (valor -> 'produccion' ->> 'utilizacionPorcentaje')::numeric FROM b9 WHERE clave = 'kpis'
+), 'La utilización usa la capacidad del turno cuando no hay override (D2-A)');
 
 -- 15-18. Cobranza: cobros vigentes, aging por tramos y promesas (deltas globales).
 SELECT is((SELECT (valor -> 'cobranza' ->> 'cobrosPeriodoMxn')::numeric FROM b9 WHERE clave = 'kpis'),

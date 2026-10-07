@@ -11,7 +11,7 @@ export type ResultadoFirmaEvidencia = { url: string };
 /**
  * SII-B7.2: firma una URL corta (120 s) para leer evidencia/firma de una
  * entrega. La visibilidad la impone la RLS de `archivos` para `entrega`
- * (`entrega_generar`/`orden_vista`/`ver_finanzas`).
+ * (`entrega_evidencia`/`entrega_generar`/`orden_vista`/`ver_finanzas`).
  */
 export async function firmarEvidenciaEntregaAccion(
   entrada: unknown,

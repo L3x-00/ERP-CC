@@ -48,7 +48,7 @@ VALUES
 
 CREATE TEMP TABLE b8f (clave text PRIMARY KEY, valor jsonb);
 
-SELECT plan(19);
+SELECT plan(22);
 
 -- 1-4. Borrador idempotente por entrega.
 INSERT INTO b8f (clave, valor)
@@ -154,7 +154,7 @@ SELECT ok((SELECT fecha_vencimiento IS NULL AND folio_factura_remision = 'FAC-00
   FROM public.cuentas_por_cobrar WHERE id = '00000000-0000-4000-8000-00000000b9b3'),
   'Facturar una AR por entregar deja el vencimiento en NULL (D-04 intacto)');
 
--- 16-17. Privilegios y RLS.
+-- 18-22. Privilegios, RLS y plazo de crédito configurable al emitir.
 SELECT ok(NOT has_function_privilege('authenticated',
   'public.emitir_factura(uuid,timestamptz,text,text,text,uuid,uuid)', 'EXECUTE'),
   'authenticated no ejecuta emitir_factura');
@@ -162,6 +162,66 @@ SELECT ok(has_table_privilege('authenticated', 'public.facturas', 'SELECT')
   AND NOT has_table_privilege('authenticated', 'public.facturas', 'INSERT')
   AND NOT has_table_privilege('authenticated', 'public.facturas', 'UPDATE'),
   'facturas es solo lectura para authenticated');
+
+INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condiciones_pago, credito_habilitado, dias_credito)
+VALUES ('00000000-0000-4000-8000-00000000b7aa', 'Cliente crédito F2', 'Cliente crédito F2 SA', 'activo', 'credito', true, 21);
+INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
+VALUES ('00000000-0000-4000-8000-00000000b7ab', 'OP-994904', 'O-9999_94',
+  '00000000-0000-4000-8000-00000000b7aa', 'completada', now() + interval '30 days');
+INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
+VALUES ('00000000-0000-4000-8000-00000000b7ac', 'NE-000904', '00000000-0000-4000-8000-00000000b7ab',
+  'Recepción crédito', '00000000-0000-4000-8000-00000000b901');
+INSERT INTO public.cuentas_por_cobrar (
+  id, orden_id, cliente_id, monto_total, saldo_pendiente, moneda, estado,
+  cobrable_desde, fecha_vencimiento, monto_subtotal, monto_iva
+) VALUES ('00000000-0000-4000-8000-00000000b7ad', '00000000-0000-4000-8000-00000000b7ab',
+  '00000000-0000-4000-8000-00000000b7aa', 116, 116, 'MXN', 'pendiente',
+  now() - interval '40 days', now() - interval '5 days', 100, 16);
+
+INSERT INTO b8f (clave, valor)
+SELECT 'f5', to_jsonb(factura.*) FROM public.crear_factura_borrador(
+  '00000000-0000-4000-8000-00000000b7ac', '{"total": 116}'::jsonb,
+  '00000000-0000-4000-8000-00000000b901') AS factura;
+UPDATE b8f SET valor = valor || to_jsonb(factura.*)
+FROM public.emitir_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f5'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f5'),
+  'FAC-CREDITO-1', NULL, NULL, '00000000-0000-4000-8000-00000000b901') AS factura
+WHERE b8f.clave = 'f5';
+SELECT ok((
+  SELECT abs(extract(epoch FROM (cuenta.fecha_vencimiento - now())) / 86400.0 - 21) < 1
+  FROM public.cuentas_por_cobrar AS cuenta WHERE cuenta.id = '00000000-0000-4000-8000-00000000b7ad'
+), 'Emitir una AR de crédito usa los días configurados del cliente (21)');
+SELECT ok((
+  SELECT abs(extract(epoch FROM (cuenta.fecha_vencimiento - now())) / 86400.0 - 30) < 1
+  FROM public.cuentas_por_cobrar AS cuenta WHERE cuenta.id = '00000000-0000-4000-8000-00000000b906'
+), 'Emitir una AR de 30 días fija vencimiento a 30 días');
+
+-- D4-B: crédito sin días configurados no permite emitir.
+INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condiciones_pago)
+VALUES ('00000000-0000-4000-8000-00000000b7ae', 'Cliente crédito sin días', 'Cliente crédito sin días SA', 'activo', 'credito');
+INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
+VALUES ('00000000-0000-4000-8000-00000000b7af', 'OP-994905', 'O-9999_90',
+  '00000000-0000-4000-8000-00000000b7ae', 'completada', now() + interval '30 days');
+INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
+VALUES ('00000000-0000-4000-8000-00000000b7b0', 'NE-000905', '00000000-0000-4000-8000-00000000b7af',
+  'Recepción crédito sin días', '00000000-0000-4000-8000-00000000b901');
+INSERT INTO public.cuentas_por_cobrar (
+  id, orden_id, cliente_id, monto_total, saldo_pendiente, moneda, estado,
+  cobrable_desde, fecha_vencimiento, monto_subtotal, monto_iva
+) VALUES ('00000000-0000-4000-8000-00000000b7b1', '00000000-0000-4000-8000-00000000b7af',
+  '00000000-0000-4000-8000-00000000b7ae', 116, 116, 'MXN', 'pendiente',
+  now() - interval '5 days', now() + interval '10 days', 100, 16);
+INSERT INTO b8f (clave, valor)
+SELECT 'f6', to_jsonb(factura.*) FROM public.crear_factura_borrador(
+  '00000000-0000-4000-8000-00000000b7b0', '{"total": 116}'::jsonb,
+  '00000000-0000-4000-8000-00000000b901') AS factura;
+SELECT throws_ok($$SELECT * FROM public.emitir_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f6'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f6'),
+  'FAC-CREDITO-SIN-DIAS', NULL, NULL, '00000000-0000-4000-8000-00000000b901')$$,
+  '23514', 'cliente_credito_sin_dias',
+  'Crédito sin días configurados no se factura (D4-B)');
 
 SELECT * FROM finish();
 ROLLBACK;

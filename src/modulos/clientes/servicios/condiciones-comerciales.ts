@@ -4,11 +4,10 @@ import type {
 } from '@/modulos/clientes/tipos/indice';
 
 /** Días de crédito que representa cada condición de pago heredada. */
-const DIAS_POR_CONDICION: Record<CondicionesPagoCliente, number> = {
+const DIAS_POR_CONDICION: Record<Exclude<CondicionesPagoCliente, 'credito'>, number> = {
   contado: 0,
   '15_dias': 15,
   '30_dias': 30,
-  credito: 45,
 };
 
 /** Crédito y condición de pago coherentes entre sí (SII-B2.4). */
@@ -34,10 +33,18 @@ export function condicionesDesdeCredito(
   return 'credito';
 }
 
-/** Deriva crédito/días desde `condiciones_pago` (mapeo histórico del plan). */
+/**
+ * Deriva crédito/días desde `condiciones_pago` (mapeo histórico del plan).
+ * `credito` no tiene días implícitos (D4-B): exige capturarlos aparte.
+ *
+ * @throws RangeError si la condición es `credito` sin días explícitos.
+ */
 export function derivarCreditoDeCondiciones(
   condiciones: CondicionesPagoCliente,
 ): CreditoResuelto {
+  if (condiciones === 'credito') {
+    throw new RangeError('dias_credito_requeridos');
+  }
   return {
     creditoHabilitado: condiciones !== 'contado',
     diasCredito: DIAS_POR_CONDICION[condiciones],
@@ -50,10 +57,10 @@ export function derivarCreditoDeCondiciones(
  *
  * - `creditoHabilitado` explícito manda (false ⇒ 0 días y contado).
  * - Sin crédito explícito pero con días > 0 ⇒ crédito habilitado.
- * - Solo `condicionesPago` ⇒ mapeo histórico.
+ * - Solo `condicionesPago` ⇒ mapeo histórico; `credito` exige días (D4-B).
  * - Nada ⇒ `null` (no hay nada que sincronizar).
  *
- * @throws RangeError si los días están fuera de 1..365 con crédito habilitado.
+ * @throws RangeError si hay crédito sin días explícitos o días fuera de 1..365.
  */
 export function resolverCredito(entrada: {
   creditoHabilitado?: boolean;
@@ -78,7 +85,10 @@ export function resolverCredito(entrada: {
     creditoHabilitado === true ||
     (diasCredito !== undefined && diasCredito !== null && diasCredito > 0)
   ) {
-    const dias = diasCredito ?? 45;
+    if (diasCredito === undefined || diasCredito === null) {
+      throw new RangeError('dias_credito_requeridos');
+    }
+    const dias = diasCredito;
     if (!Number.isInteger(dias) || dias < 1 || dias > 365) {
       throw new RangeError('dias_credito_invalidos');
     }

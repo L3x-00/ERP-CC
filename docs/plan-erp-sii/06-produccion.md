@@ -62,7 +62,7 @@ create index ix_sesiones_corrida on public.sesiones_trabajo (corrida_id);
 | Material/aclaración > 1 h puede liberar máquina | los motivos `MATERIAL`/`DUDA` tienen `libera_maquina=true`; RPC `reclamar_recurso_liberado(recurso_id, actor)` libera el recurso si existe sesión pausada ≥ 60 min con motivo liberable (marca `recurso_liberado=true`); al reanudar se revalida capacidad/locks |
 | Al terminar se registra cantidad producida | se conserva el cierre actual (metas por proceso + piezas) con `corrida_id` |
 | Fin de jornada se cierra; no continúa al día siguiente | RPC `cerrar_jornada(fecha, actor)`: cierra sesiones activas con causa `FIN_JORNADA`; se invoca al primer ingreso del día en piso/planeación y por acción de supervisor; ninguna sesión cruza de fecha |
-| Horas extra requiere autorización | tabla `autorizaciones_hora_extra` (orden_id, sesion_id?, horas_autorizadas, motivo, autorizado_por, estado, creado_en) y RPC `autorizar_horas_extra`; el cierre de sesión exige autorización vigente cuando se excede **la jornada configurada del turno** (no hardcodear 8 h; autoriza Management/Admin; jornada exacta pendiente de definir por el PO) |
+| Horas extra requiere autorización | tabla `autorizaciones_hora_extra` (orden_id, sesion_id?, horas_autorizadas, motivo, autorizado_por, estado, creado_en) y RPC `autorizar_horas_extra`; el cierre de sesión exige autorización vigente cuando se excede **la jornada configurada del turno** (autoriza Management/Admin). Jornada estándar: **8 h por turno, ajustable por recurso** (decisión final 2026-10-06) |
 | Eventos críticos antes de iniciar | `verificaciones_inicio_sesion` (sesión, checklist jsonb con material, espesor, cantidad, revisión/archivo vigente, proceso/equipo, observaciones) obligatorio: sin checklist completo no inicia la sesión |
 
 ```sql
@@ -136,7 +136,7 @@ alter table public.catalogo_procesos
 
 **Tareas:** migración + RPC `registrar_inspeccion` con permisos `CALIDAD_LIBERAR_PRIMERA_PIEZA`/`CALIDAD_INSPECCIONAR`; gates en avance/cierre; UI de calidad en piso y ficha de orden; pgTAP del gate de primera pieza y referencias; E2E de lote con primera pieza.
 
-**Configuración pendiente (PO):** la jornada exacta por turno se define en Configuración y alimenta la autorización de horas extra y el cierre de jornada; revisar `capacidades_recurso_turno`/`configuracion_sistema`. Hasta que el PO la defina, nunca se hardcodean 8 h: se usa la jornada configurada vigente y se registra la respuesta cuando llegue.
+**Jornada (resuelta, decisión final 2026-10-06):** jornada estándar inicial de 8 h por turno, ajustable/configurable por recurso (override o capacidad por turno en Planeación); las horas extra se autorizan al exceder la jornada configurada vigente. Corrección de auditoría (2026-10-07, migración `20261007230003`): el umbral de horas extra usa la **jornada del turno** (excepción > override > capacidad del turno > 8 h), no la capacidad instalada `equipos × jornada`.
 
 ---
 

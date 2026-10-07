@@ -270,9 +270,9 @@ test.describe('Entregas SII-B7 ola 2: folio NE, parciales, evidencia y firma', (
       await page.getByTestId('confirmar-registrar-entrega').click();
       await expect(page.getByTestId('entrega-mensaje')).toContainText('NE-');
       const { data: notaParcial } = await admin.from('notas_entrega')
-        .select('id, folio, folio_sii, es_parcial').eq('orden_id', contexto.ordenId).single();
+        .select('id, folio, folio_sii, es_parcial, fecha_entrega').eq('orden_id', contexto.ordenId).single();
       expect(notaParcial?.es_parcial).toBe(true);
-      expect(notaParcial?.folio_sii).toMatch(new RegExp(`^NE-${contexto.ordenFolioSii.replace(/^O-/, '')}-01$`));
+      expect(notaParcial?.folio_sii).toMatch(new RegExp(`^NE-${contexto.ordenFolioSii}-01$`));
       contexto.notaIds.push(notaParcial!.id);
       const { data: renglonParcial } = await admin.from('partidas_nota_entrega')
         .select('codigo_item, cantidad_entregada').eq('nota_entrega_id', notaParcial!.id).single();
@@ -286,7 +286,20 @@ test.describe('Entregas SII-B7 ola 2: folio NE, parciales, evidencia y firma', (
       await expect(page.getByTestId('detalle-partes')).toContainText('Recepción B7 E2E');
       await expect(page.getByTestId('renglon-entrega-IT01')).toContainText('1');
 
+      // Fecha de entrega editable (§7.1, corrección 2026-10-07): corregirla
+      // y verificar la persistencia con CAS.
+      const fechaNota = notaParcial!.fecha_entrega.slice(0, 10);
+      await page.getByTestId('fecha-entrega-edicion').fill(fechaNota);
+      await page.getByTestId('guardar-fecha-entrega').click();
+      await expect(page.getByTestId('detalle-mensaje')).toContainText('Fecha de entrega actualizada');
+      await expect.poll(async () => {
+        const { data } = await admin.from('notas_entrega')
+          .select('fecha_entrega').eq('id', notaParcial!.id).single();
+        return data?.fecha_entrega.slice(0, 10) ?? null;
+      }).toBe(fechaNota);
+
       const lienzo = page.getByTestId('firma-canvas');
+      await lienzo.scrollIntoViewIfNeeded();
       const caja = await lienzo.boundingBox();
       if (!caja) throw new Error('Sin lienzo de firma');
       await page.mouse.move(caja.x + 40, caja.y + 90);
@@ -344,7 +357,7 @@ test.describe('Entregas SII-B7 ola 2: folio NE, parciales, evidencia y firma', (
         .order('creado_en', { ascending: false }).limit(1).single();
       contexto.notaIds.push(notaFinal!.id);
       expect(notaFinal?.es_parcial).toBe(false);
-      expect(notaFinal?.folio_sii).toMatch(new RegExp(`^NE-${contexto.ordenFolioSii.replace(/^O-/, '')}-02$`));
+      expect(notaFinal?.folio_sii).toMatch(new RegExp(`^NE-${contexto.ordenFolioSii}-02$`));
 
       // Regresión de entrega total: archivo de la orden y activación de la AR.
       await expect.poll(async () => {

@@ -82,13 +82,21 @@ Cada cierre de bloque debe reportar: archivos cambiados, migraciones (aplicadas 
 | B2 Clientes | 2.1–2.8 | **COMPLETADO** (verificado y commiteado) | `b98a56a` | pgTAP 75/75 · concurrencia 10/10 · integración 226/226 · E2E 6/6 · capturas 12/12 |
 | B3 RFQ | 3.1–3.9 | **COMPLETADO** (olas 1 y 2 verificadas y commiteadas) | `452bfcf`, `a0cd4f3` | pgTAP 744/744 · integración 226/226 · E2E 46/46 · unit 886/886 |
 | B4 Propuestas | 4.1–4.9 | **COMPLETADO** (olas 1 y 2 commiteadas: UI, PDF interno y envío atómico) | `6b0c524`, `5aa3ca9` | pgTAP 912/912 global · E2E propuestas-flujo verde |
-| B5 Orden | 5.1–5.6 | **COMPLETADO localmente**: ola 1 `7aaee76`; ola 2 (UI ficha/alta SII + consumidores) verificada 2026-10-06, **pendiente commit** | `7aaee76` | pgTAP 968/968 · unit 932/932 · integración 226/227 (flake PIN aislado) · E2E focal 1/1 + regresión 10/10 · capturas 4/4 |
-| B6 Producción | 6.1–6.4 | **COMPLETADO** (olas 1 y 2 commiteadas: modelo + UI de piso/calidad) | `247fe31`, `78933f0` | pgTAP 968/968 · unit 932/932 · E2E corridas-calidad verde |
-| B7 Entregas | 7.1–7.3 | **COMPLETADO localmente**: ola 1 `b4c4487`; ola 2 (UI `/entregas`, evidencia y firma) verificada 2026-10-06, **pendiente commit** | `b4c4487` | pgTAP 968/968 global (B7 51/51) · unit 935/935 · E2E focal 1/1 + regresión producción/cobranza 7/7 · capturas 8/8 |
-| B8 Finanzas | 8.1–8.4 | **COMPLETADO localmente**: F1–F5 implementadas y verificadas 2026-10-06 (pendiente commit); solo B9 queda del plan | — | pgTAP B8 12/12+19/19+27/27+29/29+27/27 · global 1082/1082 · unit 951/951 · E2E B8 5/5 + regresiones 17/17 · capturas 16/16 |
-| B9 Estrategia/KPIs | 9.1–9.6 | **COMPLETADO localmente**: diccionario §9.3 implementado (RPC + sección dashboard por permiso), UX revisado y compuertas documentadas 2026-10-06 (pendiente commit) | — | pgTAP `sii_b9_kpis` 18/18 · global 1100/1100 · unit 955/955 · E2E `kpis-dashboard` 1/1 · capturas 2/2 |
+| B5 Orden | 5.1–5.6 | **COMPLETADO + auditado 2026-10-07** (ola 1 `7aaee76`, ola 2 `b3740bc`): documento de orden desde snapshot | `7aaee76`, `b3740bc` | pgTAP `sii_b5_orden` + global 1110/1110 · E2E estados/flujo/edición/heredadas 4/4 · unit 960/960 |
+| B6 Producción | 6.1–6.4 | **COMPLETADO + auditado 2026-10-07** (olas 1 y 2: modelo + UI de piso/calidad; umbral de horas extra = jornada del turno) | `247fe31`, `78933f0` | pgTAP `sii_b6_produccion` 75/75 · global 1110/1110 · E2E piso/corridas/avance 4/4 |
+| B7 Entregas | 7.1–7.3 | **COMPLETADO + auditado 2026-10-07** (ola 1 `b4c4487`, ola 2 `7ce25d2`; folio `NE-O-`/`NE-OI-`, RLS con `entrega_evidencia` y fecha de entrega editable con CAS) | `b4c4487`, `7ce25d2` | pgTAP `sii_b7_entregas` 59/59 · global 1116/1116 · E2E `entregas-flujo` verde · capturas 8/8 |
+| B8 Finanzas | 8.1–8.4 | **COMPLETADO + auditado 2026-10-07**: F1–F5 implementadas y verificadas; reverso reactiva la promesa de pago | `4880ce3`…`07c56e1` | pgTAP B8 12/12+22/22+28/28+29/29+27/27 · global 1110/1110 · E2E B8 4/4 + regresiones · capturas 16/16 |
+| B9 Estrategia/KPIs | 9.1–9.6 | **COMPLETADO + auditado 2026-10-07**: diccionario §9.3, dashboard por permiso y “aprox.” (D5-A); utilización con jornada del turno | `903d170` | pgTAP `sii_b9_kpis` 19/19 · global 1110/1110 · unit 960/960 · E2E `kpis-dashboard` 1/1 · capturas 2/2 |
 
 **Plan SII/CC completo localmente (B1–B9)** al 2026-10-06: pendientes del PO únicamente el commit/publicación, las migraciones remotas y la aceptación/CI. `supabase db reset` local + fixture sigue recomendado para acelerar suites.
+
+**Decisiones finales del cliente (D1–D5) aplicadas 2026-10-06:** folios derivados con prefijo `NE-O-`/`NE-OI-` (y `RP-` equivalente; migración `20261007230001`), plazo de `credito` por días del cliente con validación (migración `20261007230002`), jornada 8 h ajustable y recordatorios de promesas confirmados, y KPIs aproximados rotulados como estimaciones operativas. Detalle en `decisiones-pendientes-cliente-final.md`.
+
+**Auditoría funcional B5–B9 (2026-10-07):** corregidos 6 defectos con migraciones `20261007230003` (umbral de horas extra = jornada del turno), `20261007230004` (RLS de evidencia de entrega con `entrega_evidencia`), `20261007230005` (el reverso reactiva la promesa de pago), `20261007230006` (utilización KPI con jornada del turno), `20261007230007` (fecha de entrega editable con CAS) y el documento de orden leyendo el snapshot (`documento-orden-servicio.ts`). Evidencia final: pgTAP global **1116/1116** · unit **961/961** · integración **227/227** · typecheck/lint 0 · build OK · E2E por bloque verdes.
+
+**Migraciones pendientes de aplicar en remoto (orden):** `20261007220001` → `20261007230001` → `20261007230002` → `20261007230003` → `20261007230004` → `20261007230005` → `20261007230006` → `20261007230007`.
+
+**Mantenimiento local (opcional):** los e2e/integración dejan usuarios `@orca.local`; si se acumulan operadores con PIN, el escaneo bcrypt del PIN puede exceder el timeout de PostgREST. Neutralizar los residuales antes de correr integración: `UPDATE public.usuarios SET pin_operador = NULL, pin_cambiado_en = now(), activo = false WHERE email LIKE '%@orca.local' AND rol = 'operador' AND pin_operador IS NOT NULL;`
 
 Al avanzar, reemplazar `PENDIENTE` por el estado real y enlazar handoff/PR. Este archivo es la única fuente de verdad del avance del plan.
 

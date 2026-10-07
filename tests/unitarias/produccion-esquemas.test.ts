@@ -149,6 +149,7 @@ describe('mappers de Producción', () => {
     entregado_por_id: null,
     recibido_por_id: null,
     solicitud_id: null,
+    actualizado_en: '2026-08-14T22:00:00.000Z',
     fecha_entrega: '2026-08-14T22:00:00.000Z',
   };
   const filaPartidaNota: FilaPartidaNotaEntrega = {

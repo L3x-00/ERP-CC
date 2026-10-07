@@ -65,11 +65,11 @@ describe('resolverCredito (coherencia comercial B2.4)', () => {
       diasCredito: 30,
       condicionesPago: '30_dias',
     });
-    expect(resolverCredito({ condicionesPago: 'credito' })).toEqual({
-      creditoHabilitado: true,
-      diasCredito: 45,
-      condicionesPago: 'credito',
-    });
+  });
+
+  it('credito sin días explícitos exige capturarlos (D4-B)', () => {
+    expect(() => resolverCredito({ condicionesPago: 'credito' })).toThrow(RangeError);
+    expect(() => derivarCreditoDeCondiciones('credito')).toThrow(RangeError);
   });
 
   it('lo explícito manda: crédito apagado ⇒ 0 días y contado', () => {
@@ -80,12 +80,8 @@ describe('resolverCredito (coherencia comercial B2.4)', () => {
     });
   });
 
-  it('crédito encendido sin días usa 45 y mapea 15/30 a su condición', () => {
-    expect(resolverCredito({ creditoHabilitado: true })).toEqual({
-      creditoHabilitado: true,
-      diasCredito: 45,
-      condicionesPago: 'credito',
-    });
+  it('crédito encendido exige días explícitos y mapea 15/30 a su condición', () => {
+    expect(() => resolverCredito({ creditoHabilitado: true })).toThrow(RangeError);
     expect(resolverCredito({ creditoHabilitado: true, diasCredito: 15 })).toEqual({
       creditoHabilitado: true,
       diasCredito: 15,

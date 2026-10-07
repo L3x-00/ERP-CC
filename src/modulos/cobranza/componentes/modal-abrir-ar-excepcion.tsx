@@ -8,15 +8,27 @@ import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { abrirCuentaPorCobrarAccion, obtenerOrdenesSinArAccion } from '@/modulos/cobranza/acciones/indice';
 import type { OrdenSinAr } from '@/modulos/cobranza/acciones/obtener-ordenes-sin-ar';
 
+/**
+ * D4-B: sugiere el vencimiento con la regla vigente; `credito` usa los días
+ * configurados del cliente (vacío si no están: hay que completarlos antes).
+ */
 function vencimientoSugerido(orden: OrdenSinAr): string {
   const dias = orden.condicionPago === 'contado' ? 0
     : orden.condicionPago === '15_dias' ? 15
-      : orden.condicionPago === 'credito' ? 45 : 30;
+      : orden.condicionPago === '30_dias' ? 30
+        : orden.condicionPago === 'credito' ? orden.diasCredito : 30;
+  if (dias === null || !Number.isFinite(dias)) return '';
   const fecha = new Date(orden.fechaEntrega);
   fecha.setDate(fecha.getDate() + dias);
   const mes = String(fecha.getMonth() + 1).padStart(2, '0');
   const dia = String(fecha.getDate()).padStart(2, '0');
   return `${fecha.getFullYear()}-${mes}-${dia}`;
+}
+
+/** D4-B: crédito del cliente sin días configurados. */
+function creditoSinDias(orden: OrdenSinAr): boolean {
+  return orden.condicionPago === 'credito'
+    && (orden.diasCredito === null || orden.diasCredito < 1);
 }
 
 /** Alta excepcional: solo órdenes ya entregadas y sin cuenta, con confirmación del importe. */
@@ -81,6 +93,12 @@ export function ModalAbrirArExcepcion({
   async function guardar(abrirAbono: boolean): Promise<void> {
     if (!orden) return;
     setError(null);
+    if (creditoSinDias(orden)) {
+      setError(
+        'El cliente tiene crédito sin días configurados; completa esa condición en su ficha antes de continuar.',
+      );
+      return;
+    }
     const importe = Number(monto);
     const cambio = moneda === 'MXN' ? 1 : Number(tipoCambio);
     if (!Number.isFinite(importe) || importe <= 0 || !Number.isFinite(cambio) || cambio <= 0 || !vencimiento || !folio.trim()) {
@@ -142,6 +160,9 @@ export function ModalAbrirArExcepcion({
           </label>
           {!cargando && ordenes.length === 0 && !error && <p className="text-sm text-texto-secundario">No aparecen órdenes entre las 50 más recientes; busca por folio para consultar una anterior.</p>}
           {orden && <>
+            {creditoSinDias(orden) && <p role="alert" className="rounded-md bg-superficie-2 p-3 text-sm text-peligro-texto">
+              El cliente tiene la condición <strong>crédito</strong> sin días configurados. Captura los días en su ficha para sugerir el vencimiento y poder guardar.
+            </p>}
             <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
               Cliente: {orden.clienteNombre}. Entrega: {new Date(orden.fechaEntrega).toLocaleDateString('es-MX')}.
               {orden.totalSugerido !== null

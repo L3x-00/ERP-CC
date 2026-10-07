@@ -10,6 +10,7 @@ import { formatearFecha } from '@/compartido/utilidades/formatear';
 import {
   firmarEvidenciaEntregaAccion,
 } from '@/modulos/entregas/acciones/firmar-evidencia-entrega';
+import { actualizarFechaEntregaAccion } from '@/modulos/entregas/acciones/actualizar-fecha-entrega';
 import {
   obtenerEntregaDetalleAccion,
   type DetalleEntregaCompleto,
@@ -26,10 +27,12 @@ import { ETIQUETA_CLASE_EVIDENCIA } from '@/modulos/entregas/utilidades/indice';
 export function DetalleEntrega({
   inicial,
   puedeEvidencia,
+  puedeEditar = false,
   puedeFacturar = false,
 }: {
   inicial: DetalleEntregaCompleto;
   puedeEvidencia: boolean;
+  puedeEditar?: boolean;
   puedeFacturar?: boolean;
 }) {
   const [datos, setDatos] = useState<DetalleEntregaCompleto>(inicial);
@@ -37,6 +40,8 @@ export function DetalleEntrega({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [fechaEntrega, setFechaEntrega] = useState(inicial.detalle.entrega.fechaEntrega.slice(0, 10));
+  const [guardandoFecha, setGuardandoFecha] = useState(false);
   const entradaArchivo = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -91,6 +96,37 @@ export function DetalleEntrega({
     }
   }
 
+  async function guardarFechaEntrega(): Promise<void> {
+    setMensaje(null);
+    setError(null);
+    setGuardandoFecha(true);
+    try {
+      const respuesta = await actualizarFechaEntregaAccion({
+        entregaId: entrega.id,
+        fechaEntrega: new Date(`${fechaEntrega}T12:00:00.000Z`).toISOString(),
+        actualizadoEn: entrega.actualizadoEn,
+      });
+      if (!respuesta.exito || !respuesta.datos) {
+        setError(respuesta.exito ? 'No se recibió la fecha actualizada' : respuesta.error);
+        return;
+      }
+      const { fechaEntrega: fechaGuardada, actualizadoEn } = respuesta.datos;
+      setDatos((previo) => ({
+        ...previo,
+        detalle: {
+          ...previo.detalle,
+          entrega: { ...previo.detalle.entrega, fechaEntrega: fechaGuardada, actualizadoEn },
+        },
+      }));
+      setFechaEntrega(fechaGuardada.slice(0, 10));
+      setMensaje('Fecha de entrega actualizada');
+    } catch {
+      setError('No se pudo actualizar la fecha. Intenta de nuevo.');
+    } finally {
+      setGuardandoFecha(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5" data-testid="detalle-entrega">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -132,6 +168,38 @@ export function DetalleEntrega({
 
       {error ? <p role="alert" className="text-sm text-peligro-texto" data-testid="detalle-error">{error}</p> : null}
       {mensaje ? <p role="status" className="text-sm text-exito-texto" data-testid="detalle-mensaje">{mensaje}</p> : null}
+
+      {puedeEditar ? (
+        <section
+          className="flex flex-wrap items-end gap-3 rounded-lg border border-borde p-4"
+          aria-labelledby="titulo-fecha-entrega"
+          data-testid="seccion-fecha-entrega"
+        >
+          <div className="grid gap-1">
+            <h2 id="titulo-fecha-entrega" className="text-sm font-semibold">Fecha de entrega</h2>
+            <p className="text-xs text-texto-secundario">
+              Registrada: {formatearFecha(entrega.fechaEntrega)}. Corrígela solo dentro del rango
+              permitido: no antes del día de generación ni en el futuro.
+            </p>
+          </div>
+          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+            Nueva fecha
+            <input
+              type="date"
+              className="min-h-11 rounded-md border border-borde bg-superficie px-3 py-2 text-sm"
+              data-testid="fecha-entrega-edicion"
+              value={fechaEntrega}
+              min={entrega.creadoEn.slice(0, 10)}
+              onChange={(evento) => setFechaEntrega(evento.target.value)}
+            />
+          </label>
+          <Button type="button" tamano="sm" disabled={guardandoFecha}
+            data-testid="guardar-fecha-entrega"
+            onClick={() => void guardarFechaEntrega()}>
+            {guardandoFecha ? 'Guardando…' : 'Actualizar fecha'}
+          </Button>
+        </section>
+      ) : null}
 
       <section className="overflow-x-auto rounded-lg border border-borde" aria-labelledby="titulo-renglones">
         <h2 id="titulo-renglones" className="border-b border-borde bg-superficie-2 px-4 py-2 text-sm font-semibold">

@@ -1820,6 +1820,7 @@ export type Database = {
       }
       notas_entrega: {
         Row: {
+          actualizado_en: string
           creado_en: string
           creado_por: string
           entregado_por_id: string | null
@@ -1835,6 +1836,7 @@ export type Database = {
           solicitud_id: string | null
         }
         Insert: {
+          actualizado_en?: string
           creado_en?: string
           creado_por: string
           entregado_por_id?: string | null
@@ -1850,6 +1852,7 @@ export type Database = {
           solicitud_id?: string | null
         }
         Update: {
+          actualizado_en?: string
           creado_en?: string
           creado_por?: string
           entregado_por_id?: string | null
@@ -5496,6 +5499,20 @@ export type Database = {
           p_inicio: string
         }
         Returns: Json
+      }
+      actualizar_fecha_entrega: {
+        Args: {
+          p_actualizado_en_esperado: string
+          p_actor_id: string
+          p_correlation_id?: string
+          p_fecha_entrega: string
+          p_nota_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          fecha_entrega: string
+          id: string
+        }[]
       }
       registrar_entrega: {
         Args: {

@@ -42,10 +42,105 @@ export type DocumentoOrden = {
   totales: { subtotal: number; descuento: number; iva: number; ivaPorcentaje: number; total: number; moneda: 'MXN' | 'USD' };
 };
 
+/** Detalle comercial congelado en `ordenes_produccion.snapshot_json` (§5.4). */
+export type ComercialSnapshot = {
+  lineas: DocumentoOrden['lineas'];
+  totales: DocumentoOrden['totales'];
+  folioCotizacion: string | null;
+  nombreContacto: string | null;
+  poCliente: string | null;
+  notas: string | null;
+};
+
+function aNumero(valor: unknown): number | null {
+  if (typeof valor === 'number' && Number.isFinite(valor)) return valor;
+  if (typeof valor === 'string' && valor.trim() !== '') {
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : null;
+  }
+  return null;
+}
+
+function aTexto(valor: unknown): string | null {
+  return typeof valor === 'string' && valor.trim() !== '' ? valor : null;
+}
+
+/**
+ * Lee el detalle comercial desde el snapshot de la orden (B5 §5.4.3). Devuelve
+ * `null` cuando la orden no tiene snapshot (histórica): el llamador conserva la
+ * lectura viva de la cotización como grandfathering.
+ *
+ * Las cantidades/precios/IVA/moneda salen del snapshot congelado al aceptar la
+ * revisión; `poCliente` se incluye cuando el snapshot lo trae (pipeline es
+ * inmutable tras CONVERTED, por lo que el respaldo vivo no puede divergir).
+ */
+export function comercialDesdeSnapshot(snapshot: unknown): ComercialSnapshot | null {
+  if (typeof snapshot !== 'object' || snapshot === null) return null;
+  const raiz = snapshot as {
+    items?: unknown;
+    totales?: Record<string, unknown>;
+    cabecera?: Record<string, unknown>;
+    origen?: Record<string, unknown>;
+    observaciones?: unknown;
+  };
+  if (!Array.isArray(raiz.items) || raiz.items.length === 0) return null;
+
+  const items = raiz.items.filter(
+    (item): item is Record<string, unknown> => typeof item === 'object' && item !== null,
+  );
+
+  const lineas: DocumentoOrden['lineas'] = [];
+  for (const item of items) {
+    const precioUnitario = aNumero(item.precio_unitario);
+    if (precioUnitario === null) continue;
+    lineas.push({
+      descripcion: aTexto(item.descripcion) ?? aTexto(item.codigo) ?? aTexto(item.codigo_item) ?? '',
+      cantidad: aNumero(item.cantidad) ?? 0,
+      precioUnitario,
+      esDescuento: item.es_descuento === true,
+    });
+  }
+
+  const totalesSnapshot = raiz.totales ?? {};
+  const cabecera = raiz.cabecera ?? {};
+  const origen = raiz.origen ?? {};
+  const monedaSnapshot = aTexto(totalesSnapshot.moneda) ?? aTexto(cabecera.moneda) ?? 'MXN';
+  const moneda: 'MXN' | 'USD' = monedaSnapshot === 'USD' ? 'USD' : 'MXN';
+  const ivaPorcentaje =
+    aNumero(totalesSnapshot.iva_porcentaje) ?? aNumero(cabecera.iva_porcentaje) ?? 16;
+
+  const subtotal = aNumero(totalesSnapshot.subtotal);
+  const descuento = aNumero(totalesSnapshot.descuento);
+  const iva = aNumero(totalesSnapshot.iva);
+  const total = aNumero(totalesSnapshot.total);
+  const totales: DocumentoOrden['totales'] =
+    subtotal !== null && descuento !== null && iva !== null && total !== null
+      ? { subtotal, descuento, iva, total, ivaPorcentaje, moneda }
+      : calcularTotalesCotizacion(
+          lineas.map<LineaCotizacionEntrada>((linea) => ({ ...linea })),
+          ivaPorcentaje,
+          moneda,
+        );
+
+  const contacto = typeof cabecera.contacto === 'object' && cabecera.contacto !== null
+    ? (cabecera.contacto as Record<string, unknown>)
+    : null;
+
+  return {
+    lineas,
+    totales,
+    folioCotizacion: aTexto(cabecera.folio_legacy) ?? aTexto(origen.propuesta_folio),
+    nombreContacto: aTexto(contacto?.nombre),
+    poCliente: aTexto(cabecera.po_cliente),
+    notas: aTexto(raiz.observaciones),
+  };
+}
+
 /**
  * Compone el documento de una orden con lo que se va a fabricar (partidas) y el
- * detalle comercial de su cotización de origen (líneas con precio, descuentos
- * restados, IVA de la oportunidad). La orden y sus vínculos se leen bajo RLS del
+ * detalle comercial **congelado en el snapshot** de la aceptación (B5 §5.4.3);
+ * las órdenes históricas sin snapshot conservan la lectura viva de su
+ * cotización como grandfathering. La orden y sus vínculos se leen bajo RLS del
  * usuario; la empresa sale de la configuración (no es un secreto).
  *
  * No genera PDF: el navegador imprime el HTML (mismo patrón que el recibo de
@@ -57,11 +152,13 @@ export async function obtenerDocumentoOrdenServicio(
 ): Promise<DocumentoOrden | null> {
   const { data: orden, error: errorOrden } = await cliente
     .from('ordenes_produccion')
-    .select('folio, estado, prioridad, fecha_compromiso, es_interna, cliente_id, cotizacion_id, creado_en')
+    .select('folio, estado, prioridad, fecha_compromiso, es_interna, cliente_id, cotizacion_id, snapshot_json, notas, creado_en')
     .eq('id', ordenId)
     .maybeSingle();
   if (errorOrden) throw new Error(`No se pudo leer la orden: ${errorOrden.message}`);
   if (!orden) return null;
+
+  const comercial = comercialDesdeSnapshot(orden.snapshot_json);
 
   const [partidasResultado, clienteResultado, cotizacionResultado, empresa] = await Promise.all([
     cliente
@@ -91,7 +188,29 @@ export async function obtenerDocumentoOrdenServicio(
   let lineas: DocumentoOrden['lineas'] = [];
   let ivaPorcentaje = 16;
   let moneda = 'MXN';
-  if (orden.cotizacion_id) {
+  let totales: DocumentoOrden['totales'] = {
+    subtotal: 0,
+    descuento: 0,
+    iva: 0,
+    ivaPorcentaje: 16,
+    total: 0,
+    moneda: 'MXN',
+  };
+  let folioCotizacion: string | null = null;
+  let nombreContacto: string | null = null;
+  let poCliente: string | null = null;
+  let notas: string | null = orden.notas ?? null;
+
+  if (comercial) {
+    lineas = comercial.lineas;
+    totales = comercial.totales;
+    folioCotizacion = comercial.folioCotizacion;
+    nombreContacto = comercial.nombreContacto;
+    // El snapshot actual no incluye el PO del cliente; el pipeline no es
+    // editable después de CONVERTED, por lo que el respaldo vivo es estable.
+    poCliente = comercial.poCliente ?? cotizacionResultado.data?.po_cliente ?? null;
+    notas = orden.notas ?? comercial.notas ?? null;
+  } else if (orden.cotizacion_id) {
     const { data: filasLineas, error: errorLineas } = await cliente
       .from('cotizacion_lineas')
       .select('descripcion, cantidad, precio_unitario, es_descuento')
@@ -111,16 +230,20 @@ export async function obtenerDocumentoOrdenServicio(
       .eq('id', orden.cotizacion_id)
       .maybeSingle();
     moneda = oportunidad?.moneda ?? 'MXN';
-  }
-  ivaPorcentaje = Number(cotizacionResultado.data?.iva_porcentaje ?? 16);
+    ivaPorcentaje = Number(cotizacionResultado.data?.iva_porcentaje ?? 16);
 
-  const entradas: LineaCotizacionEntrada[] = lineas.map((linea) => ({
-    descripcion: linea.descripcion,
-    cantidad: linea.cantidad,
-    precioUnitario: linea.precioUnitario,
-    esDescuento: linea.esDescuento,
-  }));
-  const totales = calcularTotalesCotizacion(entradas, ivaPorcentaje, moneda === 'USD' ? 'USD' : 'MXN');
+    const entradas: LineaCotizacionEntrada[] = lineas.map((linea) => ({
+      descripcion: linea.descripcion,
+      cantidad: linea.cantidad,
+      precioUnitario: linea.precioUnitario,
+      esDescuento: linea.esDescuento,
+    }));
+    totales = calcularTotalesCotizacion(entradas, ivaPorcentaje, moneda === 'USD' ? 'USD' : 'MXN');
+    folioCotizacion = cotizacionResultado.data?.folio_cnc ?? null;
+    nombreContacto = cotizacionResultado.data?.nombre_contacto ?? null;
+    poCliente = cotizacionResultado.data?.po_cliente ?? null;
+    notas = orden.notas ?? cotizacionResultado.data?.notas ?? null;
+  }
 
   return {
     empresa: {
@@ -137,10 +260,10 @@ export async function obtenerDocumentoOrdenServicio(
       prioridad: orden.prioridad,
       fechaCompromiso: orden.fecha_compromiso,
       esInterna: orden.es_interna,
-      folioCotizacion: cotizacionResultado.data?.folio_cnc ?? null,
-      poCliente: cotizacionResultado.data?.po_cliente ?? null,
-      notas: cotizacionResultado.data?.notas ?? null,
-      nombreContacto: cotizacionResultado.data?.nombre_contacto ?? null,
+      folioCotizacion,
+      poCliente,
+      notas,
+      nombreContacto,
       creadoEn: orden.creado_en,
     },
     cliente: clienteResultado.data

@@ -53,8 +53,8 @@ Patrones vigentes que se conservan: folios atómicos `SECURITY DEFINER` solo `se
 | Orden de trabajo | `ordenes_produccion` | Nace de `accepted_revision_id` + snapshot; folio `O-MMYY_XX` (históricos `OP-` se conservan) |
 | Orden interna | `es_interna` con mismo folio | Folio `OI-MMYY_XX` además de la bandera |
 | Corrida | No existe | Nueva tabla `corridas` + `corrida_items` |
-| Entrega NE-MMYY_XX-YY | `notas_entrega` `NE-######` | Nueva columna `folio_sii`; históricos conservan `NE-######` |
-| Recibo RP-MMYY_XX-YY | `pagos_ar.folio_recibo REC-######` | Nueva columna `folio_sii`; históricos conservan `REC-` |
+| Entrega NE-O-MMYY_XX-YY / NE-OI-MMYY_XX-YY | `notas_entrega` `NE-######` | Nueva columna `folio_sii`; históricos conservan `NE-######` |
+| Recibo RP-O-MMYY_XX-YY / RP-OI-MMYY_XX-YY | `pagos_ar.folio_recibo REC-######` | Nueva columna `folio_sii`; históricos conservan `REC-` |
 | Compra/Gasto CG-MMYY_#### | `gastos.folio GTO-######` | Nueva columna `folio_sii` |
 | Cliente CLI-#### | No existe | Nueva columna `folio` en `clientes` + backfill |
 | Actividad | Bitácora admin en Configuración | Vista `/actividad` con permisos, `correlationId`, sin IDs técnicos |
@@ -83,8 +83,8 @@ Formato: contexto → decisión → alternativas → consecuencias → estado.
 - **Consecuencias:** doble nomenclatura transitoria documentada; `cotizacion_lineas` queda como tabla legacy de solo lectura tras el backfill y se elimina en una limpieza posterior autorizada.
 
 ### ADR-SII-02 — Esquema de folios del documento
-- **Contexto:** formatos exigidos (RFQ-MMYY_XX, CNC-MMYY_XX-A, O-/OI-MMYY_XX, NE-/RP-MMYY_XX-YY, CG-MMYY_####, CLI-####, ITxx) distintos de los actuales.
-- **Decisión:** adoptar el formato del documento para **documentos nuevos**; los históricos conservan su folio (grandfathering). Implementar un generador genérico `generar_folio_periodico(p_tipo text)` sobre `contador_folios` (clave `tipo|MMYY`), con tope y error `folio_periodo_agotado`, sin reutilización. Nuevas columnas `folio_sii` (nullable, único) cuando la columna existente tiene CHECK: no se relaja el CHECK histórico.
+- **Contexto:** formatos exigidos (RFQ-MMYY_XX, CNC-MMYY_XX-A, O-/OI-MMYY_XX, NE-/RP-O(|OI)-MMYY_XX-YY, CG-MMYY_####, CLI-####, ITxx) distintos de los actuales.
+- **Decisión:** adoptar el formato del documento para **documentos nuevos**; los históricos conservan su folio (grandfathering). Implementar un generador genérico `generar_folio_periodico(p_tipo text)` sobre `contador_folios` (clave `tipo|MMYY`), con tope y error `folio_periodo_agotado`, sin reutilización. Nuevas columnas `folio_sii` (nullable, único) cuando la columna existente tiene CHECK: no se relaja el CHECK histórico. Los derivados de orden (NE/RP) conservan el prefijo O-/OI- del folio de origen (decisión final D1-B, 2026-10-06) para desambiguar órdenes comercial e interna del mismo mes sin renumeración manual.
 - **Consecuencias:** dos formatos conviven; toda UI muestra `folio_sii ?? folio`. La pestaña Folios de Configuración se generaliza a todos los tipos con continuidad administrativa (nunca retroceder).
 
 ### ADR-SII-03 — Origen de la Orden
@@ -129,8 +129,8 @@ Formato: contexto → decisión → alternativas → consecuencias → estado.
 | Propuesta/revisión | `CNC-MMYY_XX-A`…`-Z` (sufijo = revisión) | contador `CNC` + letra de revisión | `folio_cnc CNC-MMYY-####` |
 | Orden | `O-MMYY_XX` | `generar_folio_periodico('O')` | `OP-######` |
 | Orden interna | `OI-MMYY_XX` | `generar_folio_periodico('OI')` | bandera `es_interna` |
-| Entrega | `NE-MMYY_XX-YY` (XX orden, YY parcial) | derivado de orden + consecutivo de entregas | `NE-######` |
-| Recibo de pago | `RP-MMYY_XX-YY` | `generar_folio_periodico('RP')` + consecutivo | `REC-######` |
+| Entrega | `NE-O-MMYY_XX-YY` / `NE-OI-MMYY_XX-YY` (XX = folio de orden con prefijo, YY parcial) | derivado de orden + consecutivo de entregas | `NE-######` |
+| Recibo de pago | `RP-O-MMYY_XX-YY` / `RP-OI-MMYY_XX-YY` (repartidos `RP-MMYY_0000-YY`) | derivado de la orden + consecutivo | `REC-######` |
 | Compra/Gasto | `CG-MMYY_####` | `generar_folio_periodico('CG')` | `GTO-######` |
 | Cliente | `CLI-####` | secuencia global atómica | — |
 | Ítem | `IT01`…`IT99` (por RFQ) | contador por RFQ | `cotizacion_lineas.orden` |
@@ -216,9 +216,9 @@ Regla: ninguna prueba mutante contra remoto. Entorno local con Supabase CLI; `.e
 
 ## 0.12 Decisiones del cliente (resueltas 2026-10-05)
 
-Todas las decisiones abiertas fueron respondidas por el cliente; el detalle está en `09-estrategia-y-kpis.md` (anexo). Resumen: precios/ruteo los edita Customer Service y costo/margen solo Management/Admin; órdenes internas por alta directa autorizada; archivos para LISTO y primera pieza configurables por proceso; lotes según proceso; máquina reclamable tras 1 h de pausa con traza; horas extra sobre la jornada configurada del turno (por definir) con autorización Management/Admin; cierre administrativo al 100 % entregado; entregas industriales con hoja firmada digitalizada y no industriales con firma digital preferente; sin margen mínimo bloqueante.
+Todas las decisiones abiertas fueron respondidas por el cliente; el detalle está en `09-estrategia-y-kpis.md` (anexo). Resumen: precios/ruteo los edita Customer Service y costo/margen solo Management/Admin; órdenes internas por alta directa autorizada; archivos para LISTO y primera pieza configurables por proceso; lotes según proceso; máquina reclamable tras 1 h de pausa con traza; horas extra sobre la jornada configurada del turno (8 h estándar ajustable por recurso, decisión final 2026-10-06) con autorización Management/Admin; cierre administrativo al 100 % entregado; entregas industriales con hoja firmada digitalizada y no industriales con firma digital preferente; sin margen mínimo bloqueante.
 
-**Único pendiente:** jornada exacta por turno (B6, no bloquea B0/B1).
+**Decisiones finales 2026-10-06 (D1–D5):** folios derivados con prefijo de orden (`NE-O-…`/`NE-OI-…`, igual para `RP-`); jornada 8 h estándar ajustable por recurso; recordatorios de promesas 2 días antes + al vencer; plazo de `credito` = días configurados del cliente (sin 45 fijo; sin días configurados no se usa crédito); aproximaciones KPI del MVP aceptadas y rotuladas como estimaciones operativas. Detalle y respuestas en `decisiones-pendientes-cliente-final.md`.
 
 ## 0.13 Tareas de B0
 

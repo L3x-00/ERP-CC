@@ -5,7 +5,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(74);
+SELECT plan(75);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: actores, cliente, recursos, orden/partidas y programaciones
@@ -359,8 +359,17 @@ SELECT lives_ok($$
 $$, 'La referencia 10 (intervalo) es válida');
 
 -- -----------------------------------------------------------------------------
--- 52-56. Horas extra y cierre de jornada
+-- 52-57. Horas extra y cierre de jornada
 -- -----------------------------------------------------------------------------
+-- D2-A: el umbral es la jornada del turno, no la capacidad instalada
+-- (equipos × jornada). Con 3 equipos y jornada de 4 h el umbral sigue en 4 h.
+UPDATE public.recursos_planeacion SET cantidad_equipos = 3
+WHERE id = '00000000-0000-4000-8000-00000000b605';
+SELECT is(privado.obtener_jornada_recurso_turno(
+  '00000000-0000-4000-8000-00000000b605', current_date, 'matutino'),
+  4::numeric,
+  'La jornada del turno no multiplica por la cantidad de equipos');
+
 UPDATE public.programacion_areas SET estado_planeacion = 'en_preparacion'
 WHERE id = '00000000-0000-4000-8000-00000000b60a';
 INSERT INTO b6 (clave, valor)

@@ -80,7 +80,7 @@ alter table public.partidas_orden_produccion
 
 1. La orden muestra ítems `ITxx` con cantidad, material, espesor, operaciones, archivos vivos y observaciones **desde su snapshot** (no releyendo propuesta viva).
 2. Cambios posteriores a la aceptación (cantidad, alcance, archivos) se registran como **eventos de cambio de orden** (`orden_eventos_cambio`: orden_id, tipo, detalle jsonb, motivo, actor, `correlation_id`, creado_en) y ajustan la partida con CAS y permiso `ORDEN_EDITAR` solo cuando la orden no ha entrado a producción; nunca sobrescriben archivos/revisiones vigentes (si se reemplaza un archivo vivo, el anterior queda `vigente=false` con `reemplaza_a`, ADR-SII-06).
-3. El documento imprimible de orden/orden de servicio lee el snapshot (no la cotización viva), corrigiendo el comportamiento actual.
+3. El documento imprimible de orden/orden de servicio lee el snapshot (no la cotización viva), corrigiendo el comportamiento actual. **Implementado 2026-10-07 (auditoría):** `documento-orden-servicio.ts` lee líneas, precios, descuentos, IVA/moneda, folio, contacto y observaciones del `snapshot_json`, con grandfathering para órdenes históricas sin snapshot.
 
 **Tareas:** migración `orden_eventos_cambio` + RPC `ajustar_orden_post_aceptacion` (CAS, solo pre-producción, motivo obligatorio) + actualización de `documento-orden-servicio.ts` al snapshot; pgTAP de inmutabilidad post-producción.
 

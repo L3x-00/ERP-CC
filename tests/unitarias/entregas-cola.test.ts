@@ -29,6 +29,7 @@ function fila(extra: {
       fechaEntrega: '2026-10-06T10:00:00.000Z',
       creadoPor: 'usuario-1',
       creadoEn: '2026-10-06T10:00:00.000Z',
+      actualizadoEn: '2026-10-06T10:00:00.000Z',
       renglones: [],
     },
     ordenFolio: extra.ordenFolio ?? 'OP-000001',

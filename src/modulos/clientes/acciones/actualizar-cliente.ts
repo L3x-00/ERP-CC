@@ -59,8 +59,13 @@ export async function actualizarClienteAccion(
       diasCredito: cambios.diasCredito,
       condicionesPago: cambios.condicionesPago,
     });
-  } catch {
-    return { exito: false, error: 'Días de crédito inválidos' };
+  } catch (error) {
+    const requeridos =
+      error instanceof RangeError && error.message === 'dias_credito_requeridos';
+    return {
+      exito: false,
+      error: requeridos ? 'Indica los días de crédito del cliente' : 'Días de crédito inválidos',
+    };
   }
 
   // Solo se incluyen columnas realmente presentes en la entrada (edición parcial).

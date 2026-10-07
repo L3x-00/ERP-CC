@@ -15,6 +15,8 @@ export interface OrdenSinAr {
   clienteNombre: string;
   fechaEntrega: string;
   condicionPago: string | null;
+  /** D4-B: días de crédito configurados en el cliente (nulo si no aplica). */
+  diasCredito: number | null;
   cotizacionId: string | null;
   monedaSugerida: 'MXN' | 'USD';
   subtotalSugerido: number | null;
@@ -52,7 +54,7 @@ export async function obtenerOrdenesSinArAccion(busqueda: unknown): Promise<Resp
   const cotizacionesIds = [...new Set(ordenes.map((orden) => orden.cotizacion_id).filter((id): id is string => !!id))];
   const [cuentas, clientes, cotizaciones, configuracion] = await Promise.all([
     admin.from('cuentas_por_cobrar').select('orden_id').in('orden_id', ids),
-    admin.from('clientes').select('id, nombre_comercial, condiciones_pago, estado').in('id', clientesIds),
+    admin.from('clientes').select('id, nombre_comercial, condiciones_pago, dias_credito, estado').in('id', clientesIds),
     cotizacionesIds.length
       ? admin.from('pipeline').select('id, moneda, iva_porcentaje').in('id', cotizacionesIds)
       : Promise.resolve({ data: [], error: null }),
@@ -95,6 +97,7 @@ export async function obtenerOrdenesSinArAccion(busqueda: unknown): Promise<Resp
     disponibles.push({
       id: orden.id, folio: orden.folio, clienteNombre: cliente.nombre_comercial,
       fechaEntrega: orden.archivada_en, condicionPago: cliente.condiciones_pago,
+      diasCredito: cliente.dias_credito === null ? null : Number(cliente.dias_credito),
       cotizacionId: orden.cotizacion_id,
       monedaSugerida: moneda,
       subtotalSugerido: totales?.subtotal ?? null,
