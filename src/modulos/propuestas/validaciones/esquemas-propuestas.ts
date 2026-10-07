@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { CATEGORIAS_COSTO, ESTADOS_PROPIESTA } from '@/modulos/propuestas/tipos/indice';
+import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
 
 const uuid = z.uuid('Identificador inválido');
 const actualizadoEn = z.string().trim().min(1, 'Falta la versión del registro');
@@ -151,13 +152,21 @@ export const esquemaFirmarArchivoPropuesta = z
   .object({ archivoId: uuid })
   .strict();
 
-/** Metadatos de subida de un archivo propio de la revisión. */
-export const esquemaSubirArchivoPropuesta = z
-  .object({
-    revisionId: uuid,
-    tema: z.enum(['general', 'tecnico']).default('general'),
-    nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido'),
-  })
+/** Destino de un archivo propio de la revisión (el binario sube directo a Storage). */
+const destinoArchivoPropuesta = {
+  revisionId: uuid,
+  tema: z.enum(['general', 'tecnico']).default('general'),
+  nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido').max(250),
+};
+
+/** Metadatos para preparar la subida directa de un archivo de la revisión (H-B1-29). */
+export const esquemaPrepararArchivoPropuesta = z
+  .object({ ...destinoArchivoPropuesta, ...camposPrepararSubida })
+  .strict();
+
+/** Confirmación de la subida directa ya completada en Storage. */
+export const esquemaConfirmarArchivoPropuesta = z
+  .object({ ...destinoArchivoPropuesta, ...campoRutaSubida })
   .strict();
 
 /** Filtros de la cola de propuestas. */
@@ -186,5 +195,6 @@ export type MotivoPropuestaInput = z.infer<typeof esquemaMotivoPropuesta>;
 export type GenerarPdfRevisionInput = z.infer<typeof esquemaGenerarPdfRevision>;
 export type EnviarRevisionInput = z.infer<typeof esquemaEnviarRevision>;
 export type FirmarArchivoPropuestaInput = z.infer<typeof esquemaFirmarArchivoPropuesta>;
-export type SubirArchivoPropuestaInput = z.infer<typeof esquemaSubirArchivoPropuesta>;
+export type PrepararArchivoPropuestaInput = z.infer<typeof esquemaPrepararArchivoPropuesta>;
+export type ConfirmarArchivoPropuestaInput = z.infer<typeof esquemaConfirmarArchivoPropuesta>;
 export type FiltrosPropuestasInput = z.infer<typeof esquemaFiltrosPropuestas>;

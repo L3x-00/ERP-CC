@@ -4,24 +4,26 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { firmarLecturaArchivo, registrarArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
+import { esquemaDescartarSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
 import {
-  construirRutaArchivo,
-  descartarSubidaArchivo,
-  firmarLecturaArchivo,
-  registrarArchivo,
-} from '@/nucleo/almacenamiento/archivos/servicio';
-import {
-  sanearNombreArchivo,
-  validarSubidaArchivo,
-  type EntidadArchivo,
-} from '@/nucleo/almacenamiento/archivos/validaciones';
+  confirmarSubidaDirecta,
+  descartarSubidaDirecta,
+  prepararSubidaDirecta,
+  type SubidaPreparada,
+} from '@/nucleo/almacenamiento/archivos/subida-directa';
+import { sanearNombreArchivo, type EntidadArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
 import { BUCKET_ADJUNTOS } from '@/nucleo/almacenamiento/constantes';
+import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/compartido/tipos/supabase';
 
 import {
+  esquemaConfirmarArchivoRfq,
   esquemaFirmarArchivoRfq,
   esquemaListarArchivosRfq,
-  esquemaSubirArchivoRfq,
+  esquemaPrepararArchivoRfq,
 } from '../validaciones/esquemas-rfq';
 import { mensajeErrorRfq } from './utilidades-acciones';
 
@@ -39,107 +41,114 @@ export type ArchivoRfq = {
 
 const ESTADOS_SIN_CARGA = ['CLOSED', 'CANCELLED'];
 
-/**
- * Server Action: sube un archivo general (`entidad='rfq'`) o por ítem
- * (`entidad='rfq_item'`) al bucket privado y registra su metadata en el modelo
- * único `archivos` (B1.9/E3). El RFQ debe existir y no estar cerrado.
- */
-export async function subirArchivoRfqAccion(
-  formData: FormData,
-): Promise<RespuestaAccion<{ id: string }>> {
+type DestinoArchivoRfq = { entidad: EntidadArchivo; entidadId: string };
+
+/** Usuario con permiso para adjuntar archivos del RFQ, o el error público. */
+async function usuarioEditorRfq(): Promise<{ usuario: UsuarioAutenticado } | { error: string }> {
   const usuario = await obtenerUsuarioServidor();
-  if (!usuario) {
-    return { exito: false, error: 'No autorizado' };
-  }
+  if (!usuario) return { error: 'No autorizado' };
   if (!(await can(usuario, 'rfq_editar'))) {
-    return { exito: false, error: 'Sin permiso para adjuntar archivos del RFQ' };
+    return { error: 'Sin permiso para adjuntar archivos del RFQ' };
   }
+  return { usuario };
+}
 
-  const archivo = formData.get('archivo');
-  if (!(archivo instanceof File)) {
-    return { exito: false, error: 'Archivo requerido' };
-  }
-
-  const itemIdCrudo = formData.get('itemId');
-  const analisis = esquemaSubirArchivoRfq.safeParse({
-    rfqId: formData.get('rfqId'),
-    clase: formData.get('clase'),
-    ...(typeof itemIdCrudo === 'string' && itemIdCrudo !== '' ? { itemId: itemIdCrudo } : {}),
-  });
-  if (!analisis.success) {
-    return { exito: false, error: 'Datos de archivo inválidos' };
-  }
-  const { rfqId, itemId, clase } = analisis.data;
-
-  const admin = crearClienteSupabaseAdmin();
+/**
+ * Vínculo del archivo: general del RFQ (`rfq`) o de un ítem activo
+ * (`rfq_item`). El RFQ debe existir y no estar cerrado ni cancelado.
+ */
+async function resolverDestinoRfq(
+  admin: SupabaseClient<Database>,
+  rfqId: string,
+  itemId?: string,
+): Promise<DestinoArchivoRfq | { error: string }> {
   const { data: rfq } = await admin
     .from('pipeline')
     .select('id, estado_rfq')
     .eq('id', rfqId)
     .maybeSingle();
-  if (!rfq) {
-    return { exito: false, error: 'El RFQ no existe' };
-  }
+  if (!rfq) return { error: 'El RFQ no existe' };
   if (ESTADOS_SIN_CARGA.includes(rfq.estado_rfq)) {
-    return { exito: false, error: 'El RFQ está cerrado; no admite archivos nuevos' };
+    return { error: 'El RFQ está cerrado; no admite archivos nuevos' };
   }
+  if (!itemId) return { entidad: 'rfq', entidadId: rfqId };
 
-  let entidad: EntidadArchivo = 'rfq';
-  let entidadId = rfqId;
-  if (itemId) {
-    const { data: item } = await admin
-      .from('rfq_items')
-      .select('id, rfq_id, estado')
-      .eq('id', itemId)
-      .maybeSingle();
-    if (!item || item.rfq_id !== rfqId) {
-      return { exito: false, error: 'El ítem no pertenece a este RFQ' };
-    }
-    if (item.estado !== 'activo') {
-      return { exito: false, error: 'No se adjuntan archivos a un ítem cancelado' };
-    }
-    entidad = 'rfq_item';
-    entidadId = itemId;
-  }
+  const { data: item } = await admin
+    .from('rfq_items')
+    .select('id, rfq_id, estado')
+    .eq('id', itemId)
+    .maybeSingle();
+  if (!item || item.rfq_id !== rfqId) return { error: 'El ítem no pertenece a este RFQ' };
+  if (item.estado !== 'activo') return { error: 'No se adjuntan archivos a un ítem cancelado' };
+  return { entidad: 'rfq_item', entidadId: itemId };
+}
 
-  const validacion = validarSubidaArchivo(entidad, {
-    nombre: archivo.name,
-    tamano: archivo.size,
+/**
+ * Server Action: emite la URL firmada para subir un archivo general o por ítem
+ * directo a Storage (H-B1-29: el binario no pasa por la Server Action, cuyo
+ * cuerpo está limitado a 1 MiB). Solo recibe metadatos.
+ */
+export async function prepararSubidaArchivoRfqAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<SubidaPreparada>> {
+  const analisis = esquemaPrepararArchivoRfq.safeParse(entrada);
+  if (!analisis.success) return { exito: false, error: 'Datos de archivo inválidos' };
+  const editor = await usuarioEditorRfq();
+  if ('error' in editor) return { exito: false, error: editor.error };
+
+  const { rfqId, itemId, nombre, tamano, mime } = analisis.data;
+  const admin = crearClienteSupabaseAdmin();
+  const destino = await resolverDestinoRfq(admin, rfqId, itemId);
+  if ('error' in destino) return { exito: false, error: destino.error };
+
+  const preparada = await prepararSubidaDirecta(admin, {
+    bucket: BUCKET_ADJUNTOS,
+    ...destino,
+    usuarioId: editor.usuario.id,
+    solicitud: { nombre, tamano, mime },
   });
-  if (!validacion.ok) {
-    return { exito: false, error: validacion.error };
-  }
+  return preparada.ok ? { exito: true, datos: preparada.datos } : { exito: false, error: preparada.error };
+}
 
-  const mime = archivo.type || 'application/octet-stream';
-  const ruta = construirRutaArchivo(entidad, entidadId, archivo.name);
-  const { error: errorSubida } = await admin.storage
-    .from(BUCKET_ADJUNTOS)
-    .upload(ruta, archivo, { contentType: mime, upsert: false });
-  if (errorSubida) {
-    return { exito: false, error: 'No se pudo subir el archivo' };
-  }
-
-  let id: string;
-  try {
-    const registrado = await registrarArchivo(admin, {
-      entidad,
-      entidadId,
-      clase,
-      nombreOriginal: archivo.name,
-      nombreErp: sanearNombreArchivo(archivo.name),
-      bucket: BUCKET_ADJUNTOS,
-      rutaStorage: ruta,
-      mime,
-      tamanoBytes: archivo.size,
-      subidoPor: usuario.id,
-    });
-    id = registrado.id;
-  } catch {
-    await descartarSubidaArchivo(admin, BUCKET_ADJUNTOS, ruta);
-    return { exito: false, error: 'No se pudo registrar el archivo' };
-  }
-
+/**
+ * Server Action: revalida el objeto ya subido (ruta del usuario y del registro,
+ * extensión, tamaño real) y lo registra en el modelo único `archivos`
+ * (B1.9/E3). Si algo falla, la carga pendiente propia se descarta.
+ */
+export async function confirmarArchivoRfqAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<{ id: string }>> {
   const correlationId = nuevoCorrelationId();
+  const analisis = esquemaConfirmarArchivoRfq.safeParse(entrada);
+  if (!analisis.success) return { exito: false, error: 'Datos de archivo inválidos' };
+  const editor = await usuarioEditorRfq();
+  if ('error' in editor) return { exito: false, error: editor.error };
+  const { usuario } = editor;
+
+  const { rfqId, itemId, clase, nombre, ruta } = analisis.data;
+  const admin = crearClienteSupabaseAdmin();
+  const destino = await resolverDestinoRfq(admin, rfqId, itemId);
+  if ('error' in destino) return { exito: false, error: destino.error };
+
+  const confirmada = await confirmarSubidaDirecta(
+    admin,
+    { bucket: BUCKET_ADJUNTOS, ...destino, usuarioId: usuario.id, ruta, nombre },
+    (objeto) =>
+      registrarArchivo(admin, {
+        ...destino,
+        clase,
+        nombreOriginal: nombre,
+        nombreErp: sanearNombreArchivo(nombre),
+        bucket: BUCKET_ADJUNTOS,
+        rutaStorage: ruta,
+        mime: objeto.mime,
+        tamanoBytes: objeto.tamano,
+        subidoPor: usuario.id,
+      }),
+  );
+  if (!confirmada.ok) return { exito: false, error: confirmada.error };
+
+  const { id } = confirmada.datos;
   await registrarLog(
     usuario,
     'subir_archivo_rfq',
@@ -148,8 +157,24 @@ export async function subirArchivoRfqAccion(
     { archivoId: id, clase, ...(itemId ? { itemId } : {}) },
     correlationId,
   );
-
   return { exito: true, datos: { id } };
+}
+
+/** Server Action: descarta una subida directa inconclusa del propio usuario. */
+export async function descartarSubidaArchivoRfqAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<null>> {
+  const analisis = esquemaDescartarSubida.safeParse(entrada);
+  if (!analisis.success) return { exito: false, error: 'Ruta inválida' };
+  const editor = await usuarioEditorRfq();
+  if ('error' in editor) return { exito: false, error: editor.error };
+
+  const descartada = await descartarSubidaDirecta(crearClienteSupabaseAdmin(), {
+    bucket: BUCKET_ADJUNTOS,
+    ruta: analisis.data.ruta,
+    usuarioId: editor.usuario.id,
+  });
+  return descartada.ok ? { exito: true, datos: null } : { exito: false, error: descartada.error };
 }
 
 /**

@@ -8,11 +8,15 @@ import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
 import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
+import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
+import { validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
 
 import {
+  confirmarArchivoRfqAccion,
+  descartarSubidaArchivoRfqAccion,
   firmarArchivoRfqAccion,
   listarArchivosRfqAccion,
-  subirArchivoRfqAccion,
+  prepararSubidaArchivoRfqAccion,
 } from '../acciones/archivos-rfq';
 
 const CLASES = ['CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS'] as const;
@@ -31,24 +35,35 @@ export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
   });
   const archivos = listado.data?.exito ? (listado.data.datos ?? []) : [];
 
+  // El binario sube directo a Storage con URL firmada (H-B1-29); las acciones
+  // solo reciben metadatos y el servidor revalida el objeto real al confirmar.
   const subida = useMutation({
-    mutationFn: async (entrada: { clase: string; itemId: string; archivo: File }) => {
-      const formData = new FormData();
-      formData.set('rfqId', rfq.id);
-      formData.set('clase', entrada.clase);
-      if (entrada.itemId) formData.set('itemId', entrada.itemId);
-      formData.set('archivo', entrada.archivo);
-      return subirArchivoRfqAccion(formData);
+    mutationFn: (entrada: { clase: (typeof CLASES)[number]; itemId: string; archivo: File }) => {
+      const destino = {
+        rfqId: rfq.id,
+        clase: entrada.clase,
+        nombre: entrada.archivo.name,
+        ...(entrada.itemId ? { itemId: entrada.itemId } : {}),
+      };
+      return subirArchivoDirecto(entrada.archivo, {
+        preparar: () =>
+          prepararSubidaArchivoRfqAccion({
+            ...destino,
+            tamano: entrada.archivo.size,
+            mime: entrada.archivo.type,
+          }),
+        confirmar: (ruta) => confirmarArchivoRfqAccion({ ...destino, ruta }),
+        descartar: (ruta) => descartarSubidaArchivoRfqAccion({ ruta }),
+      });
     },
-    onSuccess: (respuesta) => {
-      if (!respuesta.exito) {
-        setMensaje(respuesta.error);
-        return;
-      }
+    onSuccess: () => {
       setMensaje(null);
       setArchivo(null);
       void clienteConsultas.invalidateQueries({ queryKey: ['rfq-archivos', rfq.id] });
       void clienteConsultas.invalidateQueries({ queryKey: ['rfq', rfq.id] });
+    },
+    onError: (error) => {
+      setMensaje(error instanceof Error ? error.message : 'No se pudo subir el archivo');
     },
   });
 
@@ -56,6 +71,14 @@ export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
     evento.preventDefault();
     if (!archivo) {
       setMensaje('Selecciona un archivo');
+      return;
+    }
+    const validacion = validarSubidaArchivo(itemId ? 'rfq_item' : 'rfq', {
+      nombre: archivo.name,
+      tamano: archivo.size,
+    });
+    if (!validacion.ok) {
+      setMensaje(validacion.error);
       return;
     }
     setMensaje(null);

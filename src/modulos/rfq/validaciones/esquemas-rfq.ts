@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
+
 import { ACCIONES_RFQ } from '../tipos/indice';
 
 const escalaDosDecimales = (valor: number): boolean =>
@@ -96,12 +98,21 @@ export const esquemaDatosGeneralesRfq = z
   );
 
 /** Entrada de subida de archivo del RFQ (general o por ítem). */
-export const esquemaSubirArchivoRfq = z
-  .object({
-    rfqId: z.uuid(),
-    itemId: z.uuid().optional(),
-    clase: z.enum(['CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS']),
-  })
+const destinoArchivoRfq = {
+  rfqId: z.uuid(),
+  itemId: z.uuid().optional(),
+  clase: z.enum(['CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS']),
+  nombre: z.string().trim().min(1).max(250),
+};
+
+/** Metadatos para preparar la subida directa (H-B1-29): el binario no pasa por la acción. */
+export const esquemaPrepararArchivoRfq = z
+  .object({ ...destinoArchivoRfq, ...camposPrepararSubida })
+  .strict();
+
+/** Confirmación de una subida directa ya completada en Storage. */
+export const esquemaConfirmarArchivoRfq = z
+  .object({ ...destinoArchivoRfq, ...campoRutaSubida })
   .strict();
 
 /** Entrada de lectura de archivos del RFQ. */
@@ -111,7 +122,8 @@ export const esquemaListarArchivosRfq = z.object({ rfqId: z.uuid() }).strict();
 export const esquemaFirmarArchivoRfq = z.object({ archivoId: z.uuid() }).strict();
 
 export type DatosGeneralesRfqInput = z.infer<typeof esquemaDatosGeneralesRfq>;
-export type SubirArchivoRfqInput = z.infer<typeof esquemaSubirArchivoRfq>;
+export type PrepararArchivoRfqInput = z.infer<typeof esquemaPrepararArchivoRfq>;
+export type ConfirmarArchivoRfqInput = z.infer<typeof esquemaConfirmarArchivoRfq>;
 
 export type DatosItemRfqInput = z.infer<typeof esquemaDatosItemRfq>;
 export type GuardarItemRfqInput = z.infer<typeof esquemaGuardarItemRfq>;

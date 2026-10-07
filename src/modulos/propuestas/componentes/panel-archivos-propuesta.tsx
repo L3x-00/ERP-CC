@@ -7,7 +7,13 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { firmarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
-import { subirArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/subir-archivo-propuesta';
+import {
+  confirmarArchivoPropuestaAccion,
+  descartarSubidaArchivoPropuestaAccion,
+  prepararSubidaArchivoPropuestaAccion,
+} from '@/modulos/propuestas/acciones/subir-archivo-propuesta';
+import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
+import { validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
 import type { ArchivoPropuesta } from '@/modulos/propuestas/servicios/obtener-propuesta';
 import type { PropuestaItem, RevisionPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { claveDetallePropuesta } from './claves-consulta';
@@ -55,18 +61,30 @@ export function PanelArchivosPropuesta({
       setMensaje('Selecciona un archivo');
       return;
     }
+    const validacion = validarSubidaArchivo('propuesta_revision', {
+      nombre: archivo.name,
+      tamano: archivo.size,
+    });
+    if (!validacion.ok) {
+      setMensaje(validacion.error);
+      return;
+    }
     setSubiendo(true);
     setMensaje(null);
-    const fd = new FormData();
-    fd.set('revisionId', revision.id);
-    fd.set('tema', tema);
-    fd.set('nombreArchivo', archivo.name);
-    fd.set('archivo', archivo);
-    const respuesta = await subirArchivoPropuestaAccion(fd);
-    setSubiendo(false);
-    if (!respuesta.exito) {
-      setMensaje(respuesta.error);
+    // El binario sube directo a Storage (H-B1-29); las acciones solo ven metadatos.
+    const destino = { revisionId: revision.id, tema, nombreArchivo: archivo.name };
+    try {
+      await subirArchivoDirecto(archivo, {
+        preparar: () =>
+          prepararSubidaArchivoPropuestaAccion({ ...destino, tamano: archivo.size, mime: archivo.type }),
+        confirmar: (ruta) => confirmarArchivoPropuestaAccion({ ...destino, ruta }),
+        descartar: (ruta) => descartarSubidaArchivoPropuestaAccion({ ruta }),
+      });
+    } catch (error) {
+      setMensaje(error instanceof Error ? error.message : 'No se pudo subir el archivo');
       return;
+    } finally {
+      setSubiendo(false);
     }
     setArchivo(null);
     setMensaje('Archivo subido.');

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { CLASES_EVIDENCIA_ENTREGA } from '@/modulos/entregas/tipos/indice';
+import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
 
 const uuid = z.uuid('Identificador inválido');
 
@@ -39,13 +40,21 @@ export const esquemaRegistrarEntrega = z
     { message: 'No se puede repetir una partida en la misma entrega' },
   );
 
-/** Metadatos de evidencia/firma de una entrega (binario en FormData). */
-export const esquemaSubirEvidenciaEntrega = z
-  .object({
-    notaId: uuid,
-    clase: z.enum(CLASES_EVIDENCIA_ENTREGA),
-    nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido'),
-  })
+/** Destino de evidencia/firma de una entrega (el binario sube directo a Storage). */
+const destinoEvidenciaEntrega = {
+  notaId: uuid,
+  clase: z.enum(CLASES_EVIDENCIA_ENTREGA),
+  nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido').max(250),
+};
+
+/** Preparación de la subida directa (H-B1-29): solo metadatos, nunca el binario. */
+export const esquemaPrepararEvidenciaEntrega = z
+  .object({ ...destinoEvidenciaEntrega, ...camposPrepararSubida })
+  .strict();
+
+/** Confirmación de la subida directa ya completada en Storage. */
+export const esquemaConfirmarEvidenciaEntrega = z
+  .object({ ...destinoEvidenciaEntrega, ...campoRutaSubida })
   .strict();
 
 /** Firma corta de un archivo de entrega. */
@@ -70,7 +79,8 @@ export const esquemaEntregaPorId = z.object({ entregaId: uuid }).strict();
 
 export type RenglonEntregaInput = z.infer<typeof esquemaRenglonEntrega>;
 export type RegistrarEntregaInput = z.infer<typeof esquemaRegistrarEntrega>;
-export type SubirEvidenciaEntregaInput = z.infer<typeof esquemaSubirEvidenciaEntrega>;
+export type PrepararEvidenciaEntregaInput = z.infer<typeof esquemaPrepararEvidenciaEntrega>;
+export type ConfirmarEvidenciaEntregaInput = z.infer<typeof esquemaConfirmarEvidenciaEntrega>;
 export type FirmarEvidenciaEntregaInput = z.infer<typeof esquemaFirmarEvidenciaEntrega>;
 export type ActualizarFechaEntregaInput = z.infer<typeof esquemaActualizarFechaEntrega>;
 export type OrdenEntregaInput = z.infer<typeof esquemaOrdenEntrega>;

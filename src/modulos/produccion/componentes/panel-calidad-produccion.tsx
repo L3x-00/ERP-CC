@@ -12,12 +12,16 @@ import { ETIQUETAS_TIPO_INSPECCION, referenciasLotePermitidas } from '@/modulos/
 import type { TipoInspeccion } from '@/modulos/produccion/tipos/corridas';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 
+import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
+import { validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
+
 import { registrarInspeccionAccion } from '../acciones/indice';
+import { firmarFotoInspeccionAccion, obtenerInspeccionesOrdenAccion } from '../acciones/consultas-b6';
 import {
-  firmarFotoInspeccionAccion,
-  obtenerInspeccionesOrdenAccion,
-  subirFotoInspeccionAccion,
-} from '../acciones/consultas-b6';
+  confirmarFotoInspeccionAccion,
+  descartarFotoInspeccionAccion,
+  prepararFotoInspeccionAccion,
+} from '../acciones/subir-foto-inspeccion';
 import type { CorridaDetalle } from '../servicios/consultas-b6-servicio';
 import { CLAVE_INSPECCIONES_ORDEN } from './claves-consulta';
 
@@ -112,6 +116,15 @@ export function PanelCalidadProduccion({
       }
     }
 
+    const subidas = fotos ? Array.from(fotos) : [];
+    for (const foto of subidas) {
+      const validacion = validarSubidaArchivo('inspeccion_calidad', { nombre: foto.name, tamano: foto.size });
+      if (!validacion.ok) {
+        setMensaje(`La foto ${foto.name} no es válida: ${validacion.error}`);
+        return;
+      }
+    }
+
     setProcesando(true);
     const respuesta = await registrarInspeccionAccion({
       ordenId: orden.id,
@@ -136,24 +149,29 @@ export function PanelCalidadProduccion({
       return;
     }
 
-    const subidas = fotos ? Array.from(fotos) : [];
+    // Cada foto sube directo a Storage (H-B1-29); al primer fallo se informa sin
+    // ocultarlo tras el mensaje de éxito.
+    const inspeccionId = respuesta.datos.id;
+    let falloFoto: string | null = null;
     for (const foto of subidas) {
-      const formData = new FormData();
-      formData.set('inspeccionId', respuesta.datos.id);
-      formData.set('archivo', foto);
-      const subida = await subirFotoInspeccionAccion(formData);
-      if (!subida.exito) {
-        setMensaje(`Inspección registrada, pero una foto falló: ${subida.error}`);
+      const destino = { inspeccionId, nombre: foto.name };
+      try {
+        await subirArchivoDirecto(foto, {
+          preparar: () => prepararFotoInspeccionAccion({ ...destino, tamano: foto.size, mime: foto.type }),
+          confirmar: (ruta) => confirmarFotoInspeccionAccion({ ...destino, ruta }),
+          descartar: (ruta) => descartarFotoInspeccionAccion({ ruta }),
+        });
+      } catch (error) {
+        falloFoto = error instanceof Error ? error.message : 'No se pudo subir la foto';
         break;
       }
     }
 
     setProcesando(false);
-    setMensaje(
-      subidas.length > 0
-        ? `Inspección ${ETIQUETAS_TIPO_INSPECCION[tipo].toLowerCase()} registrada con ${subidas.length} foto(s)`
-        : `Inspección ${ETIQUETAS_TIPO_INSPECCION[tipo].toLowerCase()} registrada`,
-    );
+    let resumen = `Inspección ${ETIQUETAS_TIPO_INSPECCION[tipo].toLowerCase()} registrada`;
+    if (falloFoto) resumen = `Inspección registrada, pero una foto falló: ${falloFoto}`;
+    else if (subidas.length > 0) resumen += ` con ${subidas.length} foto(s)`;
+    setMensaje(resumen);
     setDialogo(false);
     await clienteConsultas.invalidateQueries({ queryKey: CLAVE_INSPECCIONES_ORDEN });
   }

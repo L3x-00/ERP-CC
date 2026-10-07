@@ -15,9 +15,15 @@ import {
   obtenerEntregaDetalleAccion,
   type DetalleEntregaCompleto,
 } from '@/modulos/entregas/acciones/obtener-entrega-detalle';
-import { vincularEvidenciaEntregaAccion } from '@/modulos/entregas/acciones/vincular-evidencia-entrega';
+import {
+  confirmarEvidenciaEntregaAccion,
+  descartarEvidenciaEntregaAccion,
+  prepararEvidenciaEntregaAccion,
+} from '@/modulos/entregas/acciones/vincular-evidencia-entrega';
 import { CapturaFirma } from '@/modulos/entregas/componentes/captura-firma';
 import { ETIQUETA_CLASE_EVIDENCIA } from '@/modulos/entregas/utilidades/indice';
+import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
+import { validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
 
 /**
  * SII-B7.2/B7.3: detalle de una nota con renglones por ITxx, evidencias y
@@ -55,21 +61,29 @@ export function DetalleEntrega({
   }
 
   async function subirArchivo(archivo: File, clase: 'evidencia' | 'firma_escaneada' | 'firma'): Promise<boolean> {
-    const formulario = new FormData();
-    formulario.append('notaId', entrega.id);
-    formulario.append('clase', clase);
-    formulario.append('nombreArchivo', archivo.name);
-    formulario.append('archivo', archivo);
-    const respuesta = await vincularEvidenciaEntregaAccion(formulario);
-    if (respuesta.exito && respuesta.datos) {
-      setMensaje(`${ETIQUETA_CLASE_EVIDENCIA[clase]} adjuntada (versión ${respuesta.datos.version}).`);
+    const validacion = validarSubidaArchivo('entrega', { nombre: archivo.name, tamano: archivo.size });
+    if (!validacion.ok) {
+      setMensaje(null);
+      setError(validacion.error);
+      return false;
+    }
+    // El binario sube directo a Storage (H-B1-29); las acciones solo ven metadatos.
+    const destino = { notaId: entrega.id, clase, nombreArchivo: archivo.name };
+    try {
+      const { version } = await subirArchivoDirecto(archivo, {
+        preparar: () => prepararEvidenciaEntregaAccion({ ...destino, tamano: archivo.size, mime: archivo.type }),
+        confirmar: (ruta) => confirmarEvidenciaEntregaAccion({ ...destino, ruta }),
+        descartar: (ruta) => descartarEvidenciaEntregaAccion({ ruta }),
+      });
+      setMensaje(`${ETIQUETA_CLASE_EVIDENCIA[clase]} adjuntada (versión ${version}).`);
       setError(null);
       await actualizar();
       return true;
+    } catch (causa) {
+      setMensaje(null);
+      setError(causa instanceof Error ? causa.message : 'No se pudo adjuntar');
+      return false;
     }
-    setMensaje(null);
-    setError(respuesta.exito ? 'No se pudo adjuntar' : respuesta.error);
-    return false;
   }
 
   async function enviarSeleccion(): Promise<void> {

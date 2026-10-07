@@ -1,17 +1,9 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
-import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import {
-  construirRutaArchivo,
-  descartarSubidaArchivo,
-  firmarLecturaArchivo,
-  registrarArchivo,
-} from '@/nucleo/almacenamiento/archivos/servicio';
-import { sanearNombreArchivo, validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
-import { BUCKET_ADJUNTOS } from '@/nucleo/almacenamiento/constantes';
+import { firmarLecturaArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
 import {
   obtenerAutorizacionesHoraExtraServicio,
@@ -31,7 +23,6 @@ import {
   esquemaConsultarAutorizacionesHoraExtra,
   esquemaConsultarCorridas,
   esquemaConsultarInspecciones,
-  esquemaSubirFotoInspeccion,
 } from '@/modulos/produccion/validaciones/corridas';
 
 import { obtenerActorProduccion } from './utilidades-acciones';
@@ -166,74 +157,6 @@ export async function obtenerInspeccionesOrdenAccion(
     console.error('[PRODUCCION] Error al cargar inspecciones:', error);
     return { exito: false, error: 'No se pudieron cargar las inspecciones' };
   }
-}
-
-/** Sube una foto de evidencia y la registra en `archivos` (inspeccion_calidad). */
-export async function subirFotoInspeccionAccion(
-  formData: FormData,
-): Promise<RespuestaAccion<{ id: string }>> {
-  const actor = await obtenerActorProduccion();
-  if (!actor) return { exito: false, error: 'No autorizado' };
-  const autorizado = (await can(actor, 'calidad_inspeccionar'))
-    || (await can(actor, 'calidad_liberar_primera_pieza'))
-    || (await can(actor, 'gestionar_produccion'));
-  if (!autorizado) return { exito: false, error: 'Sin permiso para adjuntar evidencia' };
-
-  const archivo = formData.get('archivo');
-  if (!(archivo instanceof File)) return { exito: false, error: 'Archivo requerido' };
-
-  const analisis = esquemaSubirFotoInspeccion.safeParse({
-    inspeccionId: formData.get('inspeccionId'),
-  });
-  if (!analisis.success) return { exito: false, error: 'Inspección inválida' };
-
-  const admin = crearClienteSupabaseAdmin();
-  const { data: inspeccion } = await admin
-    .from('inspecciones_calidad')
-    .select('id, orden_id')
-    .eq('id', analisis.data.inspeccionId)
-    .maybeSingle();
-  if (!inspeccion) return { exito: false, error: 'La inspección no existe' };
-
-  const validacion = validarSubidaArchivo('inspeccion_calidad', {
-    nombre: archivo.name,
-    tamano: archivo.size,
-  });
-  if (!validacion.ok) return { exito: false, error: validacion.error };
-
-  const mime = archivo.type || 'application/octet-stream';
-  const ruta = construirRutaArchivo('inspeccion_calidad', inspeccion.id, archivo.name);
-  const { error: errorSubida } = await admin.storage
-    .from(BUCKET_ADJUNTOS)
-    .upload(ruta, archivo, { contentType: mime, upsert: false });
-  if (errorSubida) return { exito: false, error: 'No se pudo subir la foto' };
-
-  let id: string;
-  try {
-    const registrado = await registrarArchivo(admin, {
-      entidad: 'inspeccion_calidad',
-      entidadId: inspeccion.id,
-      clase: 'EVIDENCIA',
-      nombreOriginal: archivo.name,
-      nombreErp: sanearNombreArchivo(archivo.name),
-      bucket: BUCKET_ADJUNTOS,
-      rutaStorage: ruta,
-      mime,
-      tamanoBytes: archivo.size,
-      subidoPor: actor.id,
-    });
-    id = registrado.id;
-  } catch {
-    await descartarSubidaArchivo(admin, BUCKET_ADJUNTOS, ruta);
-    return { exito: false, error: 'No se pudo registrar la foto' };
-  }
-
-  await registrarLog(actor, 'subir_foto_inspeccion', 'produccion', inspeccion.orden_id, {
-    inspeccionId: inspeccion.id,
-    archivoId: id,
-  }, nuevoCorrelationId());
-
-  return { exito: true, datos: { id } };
 }
 
 /** Firma una URL corta de lectura para una foto de inspección. */

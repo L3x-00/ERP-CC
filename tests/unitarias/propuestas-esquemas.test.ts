@@ -26,7 +26,8 @@ import {
   esquemaFiltrosPropuestas,
   esquemaGenerarPdfRevision,
   esquemaRegistrarSeguimientoPropuesta,
-  esquemaSubirArchivoPropuesta,
+  esquemaConfirmarArchivoPropuesta,
+  esquemaPrepararArchivoPropuesta,
 } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 
 const ID = '11111111-1111-4111-8111-111111111111';
@@ -295,17 +296,22 @@ describe('validaciones de la ola 2 (envío, PDF y filtros)', () => {
     expect(esquemaFiltrosPropuestas.safeParse({ rfqId: 'no-uuid' }).success).toBe(false);
   });
 
-  it('la subida de archivos valida tema y nombre', () => {
+  it('la subida directa valida tema, nombre y solo metadatos del binario', () => {
+    const destino = { revisionId: ID, tema: 'tecnico', nombreArchivo: 'plano.dxf' };
     expect(
-      esquemaSubirArchivoPropuesta.safeParse({
-        revisionId: ID,
-        tema: 'tecnico',
-        nombreArchivo: 'plano.dxf',
-      }).success,
+      esquemaPrepararArchivoPropuesta.safeParse({ ...destino, tamano: 2 * 1024 * 1024, mime: '' })
+        .success,
     ).toBe(true);
     expect(
-      esquemaSubirArchivoPropuesta.safeParse({ revisionId: ID, nombreArchivo: '' }).success,
+      esquemaPrepararArchivoPropuesta.safeParse({ ...destino, nombreArchivo: '', tamano: 1, mime: '' })
+        .success,
     ).toBe(false);
+    expect(
+      esquemaPrepararArchivoPropuesta.safeParse({ ...destino, tamano: 1, mime: '', archivo: 'binario' })
+        .success,
+    ).toBe(false);
+    expect(esquemaConfirmarArchivoPropuesta.safeParse({ ...destino, ruta: 'x/y.dxf' }).success).toBe(true);
+    expect(esquemaConfirmarArchivoPropuesta.safeParse({ ...destino, ruta: '' }).success).toBe(false);
   });
 
   it('traduce los errores nuevos de envío y PDF', () => {

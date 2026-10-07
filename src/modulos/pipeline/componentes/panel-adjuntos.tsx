@@ -8,7 +8,7 @@ import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { obtenerAdjuntosAccion } from '@/modulos/pipeline/acciones/obtener-adjuntos';
 import { obtenerUrlAdjuntoAccion } from '@/modulos/pipeline/acciones/obtener-url-adjunto';
 import { eliminarAdjuntoAccion } from '@/modulos/pipeline/acciones/eliminar-adjunto';
-import { agregarArchivoAdjuntoAccion } from '@/modulos/pipeline/acciones/agregar-archivo-adjunto';
+import { subirAdjuntoPipeline } from '@/modulos/pipeline/subir-adjunto-cliente';
 
 const EXTENSIONES = '.pdf,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,.doc,.docx';
 
@@ -51,19 +51,15 @@ export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId:
     setOcupado(true);
     setError(null);
     try {
-      const resultados = await Promise.all(
-        Array.from(archivos).map((archivo) => {
-          const formData = new FormData();
-          formData.set('pipelineId', pipelineId);
-          formData.set('archivo', archivo);
-          return agregarArchivoAdjuntoAccion(formData);
-        }),
+      // Cada binario sube directo a Storage (H-B1-29); se reporta el primer fallo.
+      const resultados = await Promise.allSettled(
+        Array.from(archivos).map((archivo) => subirAdjuntoPipeline(pipelineId, archivo)),
       );
-      const fallo = resultados.find((resultado) => !resultado.exito);
-      if (fallo && !fallo.exito) setError(fallo.error);
+      const fallo = resultados.find((resultado) => resultado.status === 'rejected');
+      if (fallo && fallo.status === 'rejected') {
+        setError(fallo.reason instanceof Error ? fallo.reason.message : 'No se pudieron subir los archivos');
+      }
       await clienteConsultas.invalidateQueries({ queryKey: clave });
-    } catch {
-      setError('No se pudieron subir los archivos');
     } finally {
       setOcupado(false);
       if (inputRef.current) inputRef.current.value = '';

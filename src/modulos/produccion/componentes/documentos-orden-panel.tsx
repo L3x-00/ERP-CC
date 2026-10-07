@@ -16,7 +16,12 @@ import {
   type EntregablesOrden,
 } from '@/modulos/produccion/acciones/obtener-documentos-orden';
 import { obtenerUrlDocumentoOrdenAccion } from '@/modulos/produccion/acciones/obtener-url-documento-orden';
-import { subirDocumentoOrdenAccion } from '@/modulos/produccion/acciones/subir-documento-orden';
+import {
+  confirmarDocumentoOrdenAccion,
+  descartarDocumentoOrdenAccion,
+  prepararDocumentoOrdenAccion,
+} from '@/modulos/produccion/acciones/subir-documento-orden';
+import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
 
 /** Clave de consulta de entregables; se invalida al subir o generar una nota. */
 export const CLAVE_ENTREGABLES_ORDEN = ['produccion', 'entregables-orden'] as const;
@@ -87,24 +92,21 @@ export function DocumentosOrdenPanel({
       return;
     }
 
-    const formulario = new FormData();
-    formulario.set('ordenId', ordenId);
-    formulario.set('archivo', archivo);
-
     setSubiendo(true);
     setMensaje(null);
+    // El binario sube directo a Storage (H-B1-29); las acciones solo ven metadatos.
+    const destino = { ordenId, nombre: archivo.name };
     try {
-      const resultado = await subirDocumentoOrdenAccion(formulario);
-      if (!resultado.exito) {
-        setMensaje(resultado.error ?? 'No se pudo subir el documento');
-        return;
-      }
+      const { nombre } = await subirArchivoDirecto(archivo, {
+        preparar: () => prepararDocumentoOrdenAccion({ ...destino, tamano: archivo.size, mime: archivo.type }),
+        confirmar: (ruta) => confirmarDocumentoOrdenAccion({ ...destino, ruta }),
+        descartar: (ruta) => descartarDocumentoOrdenAccion({ ruta }),
+      });
       if (entradaArchivo.current) entradaArchivo.current.value = '';
-      setMensaje(`Documento ${resultado.datos?.nombre ?? ''} subido`);
+      setMensaje(`Documento ${nombre} subido`);
       await refrescar().catch(() => console.error('[PRODUCCION] Documento subido; lista pendiente de actualizar'));
     } catch (error) {
-      console.error('[PRODUCCION] Error de comunicación al subir documento:', error);
-      setMensaje('No se pudo comunicar la subida; vuelve a intentarlo');
+      setMensaje(error instanceof Error ? error.message : 'No se pudo subir el documento');
     } finally {
       setSubiendo(false);
     }

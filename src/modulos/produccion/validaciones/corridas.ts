@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
+
 /**
  * Validaciones del borde de las acciones B6 (corridas, pausas, jornada, horas
  * extra y calidad). Las RPC revalidan todo en SQL (defensa en profundidad).
@@ -121,7 +123,17 @@ export type EstadoCorridaInput = z.infer<typeof esquemaEstadoCorrida>;
 export type AutorizarHorasExtraInput = z.infer<typeof esquemaAutorizarHorasExtra>;
 export type RegistrarInspeccionInput = z.infer<typeof esquemaRegistrarInspeccion>;
 
-/** Entrada de subida de foto de inspección (multipart). */
-export const esquemaSubirFotoInspeccion = z
-  .object({ inspeccionId: z.uuid('ID de inspección inválido') })
+const destinoFotoInspeccion = {
+  inspeccionId: z.uuid('ID de inspección inválido'),
+  nombre: z.string().trim().min(1).max(250),
+};
+
+/** Preparación de la subida directa de una foto de inspección (H-B1-29): solo metadatos. */
+export const esquemaPrepararFotoInspeccion = z
+  .object({ ...destinoFotoInspeccion, ...camposPrepararSubida })
+  .strict();
+
+/** Confirmación de la subida directa ya completada en Storage. */
+export const esquemaConfirmarFotoInspeccion = z
+  .object({ ...destinoFotoInspeccion, ...campoRutaSubida })
   .strict();

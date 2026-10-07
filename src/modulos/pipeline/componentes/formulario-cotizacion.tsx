@@ -24,7 +24,7 @@ import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { CotizadorTecnico } from '@/modulos/cotizador/componentes/cotizador-tecnico';
 import { obtenerCatalogoTarifasAccion } from '@/modulos/cotizador/acciones/obtener-catalogo-tarifas';
-import { agregarArchivoAdjuntoAccion } from '@/modulos/pipeline/acciones/agregar-archivo-adjunto';
+import { subirAdjuntoPipeline } from '@/modulos/pipeline/subir-adjunto-cliente';
 import { claveAdjuntos } from '@/modulos/pipeline/componentes/panel-adjuntos';
 import { normalizarProcesosConPrevios } from '@/modulos/pipeline/utilidades/procesos';
 import type { CotizacionTecnicaCalculada } from '@/modulos/cotizador/tipos/indice';
@@ -325,12 +325,14 @@ export function FormularioCotizacion({
 
   /** Adjunta a la oportunidad el plano leído en el cotizador (COT-04/05/06, RFQ-19). */
   async function adjuntarPlano(archivo: File): Promise<boolean> {
-    const formData = new FormData();
-    formData.set('pipelineId', pipelineId);
-    formData.set('archivo', archivo);
-    const respuesta = await agregarArchivoAdjuntoAccion(formData);
-    if (respuesta.exito) await clienteConsultas.invalidateQueries({ queryKey: claveAdjuntos(pipelineId) });
-    return respuesta.exito;
+    try {
+      // El plano sube directo a Storage (H-B1-29), sin pasar por la Server Action.
+      await subirAdjuntoPipeline(pipelineId, archivo);
+      await clienteConsultas.invalidateQueries({ queryKey: claveAdjuntos(pipelineId) });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function aplicarCalculo(indice: number, calculo: CotizacionTecnicaCalculada): void {
