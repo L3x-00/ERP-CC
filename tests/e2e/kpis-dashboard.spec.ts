@@ -87,7 +87,8 @@ test.describe('KPIs SII-B9: sección del dashboard por permiso de área', () => 
       }
       await page.locator('html').evaluate((elemento) => elemento.classList.remove('dark'));
 
-      await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+      await page.getByTestId('menu-usuario').click();
+      await page.getByRole('menuitem', { name: 'Cerrar sesión' }).click();
       await page.waitForURL((url) => url.pathname === '/iniciar-sesion');
       await iniciarSesion(page, contexto.correoVendedor, contexto.contrasena);
       await page.goto('/dashboard');

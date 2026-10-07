@@ -62,6 +62,7 @@ const RUTAS: Record<string, string[]> = {
   menu: ['M4 7h16M4 12h16M4 17h16'],
   cerrar: ['M6 6l12 12M18 6 6 18'],
   contraer: ['M9 6l6 6-6 6'],
+  chevron: ['M6 9l6 6 6-6'],
   campana: [
     'M15 17H9m9-2V10a6 6 0 0 0-12 0v5l-2 2h16l-2-2Z',
     'M10 21a2 2 0 0 0 4 0',
