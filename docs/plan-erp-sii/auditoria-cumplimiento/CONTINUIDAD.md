@@ -30,6 +30,7 @@
 | 2026-10-07 | Tanda 2 de lentes (L3 archivos, L4 Actividad/UX/alcance) — workflow `wf_be9bc2c3-f72` | En curso (si se corta por límite: `Workflow({scriptPath: <script de wf_797b616a-06e>, resumeFromRunId: "wf_be9bc2c3-f72", args: ["L3","L4"]})` reutiliza lo terminado) |
 | 2026-10-07 | Corrección RBAC (H-B1-03/05/06/07/09/13) — commit `ac35c5b`, migración `20261008000001` (solo local) | Hecho: pgTAP 24/24 + 16/16, concurrencia 2/2, unitarias 962/962, typecheck/lint 0. H-B1-02 diferido a B2/B3/B4 (otorgar permisos legacy abriría mutaciones) |
 | 2026-10-07 | Guardián probado en sesión real: aviso al 83 % (5 h, reinicia 13:30) | Pausa preventiva: sin lanzar trabajo nuevo hasta el reinicio |
+| 2026-10-07 | Tanda 2 terminada (`wf_be9bc2c3-f72`, 2/2 agentes) | 18 hallazgos registrados como H-B1-29..46 "Por clasificar" en `B1-hallazgos.md` (1 Crítico: subidas limitadas a 1 MB). **PAUSA al 89 %** hasta el reinicio de las 13:30 |
 
 ## Hipótesis propias pendientes de verificar (B1)
 
@@ -43,6 +44,7 @@
 
 ## Siguiente paso
 
+0. **Al reanudar (tras 13:30):** clasificar H-B1-29..46 (leer detalle con `ConvertFrom-Json` del output de la tarea `wpyqhfrye` o del journal de `wf_be9bc2c3-f72`), separar B1 / diferidos / propuestos, y sumar los de B1 a la lista de correcciones. Prioridad: H-B1-29 (Crítico, subida directa con URL firmada), H-B1-30 (IDOR firma), H-B1-38/39 (Actividad: paginación y etiquetas), H-B1-40 (logs append-only).
 1. ~~RBAC (a y b)~~ hecho en `ac35c5b`.
    c. **Siguiente:** catálogos — migración `20261008000002`: columna `actualizado_por` (y `actualizado_en` donde falte) en los 6 catálogos de B1; `privado.registrar_version_catalogo()` toma el actor de `new.actualizado_por`; servicios con CAS por `actualizado_en` esperado (`catalogo_desactualizado`); `ejecutarAccionCatalogo` con `nuevoCorrelationId()`; historial muestra el nombre del usuario (H-B1-14, H-B1-15, H-B1-22, H-B1-24 parcial). Prueba primero en `supabase/tests/sii_b1_catalogos.test.sql` (hoy afirma actor NULL en líneas 144-148).
    - Para pruebas de integración cargar el entorno local: `supabase status -o env` → `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (sin imprimir valores).

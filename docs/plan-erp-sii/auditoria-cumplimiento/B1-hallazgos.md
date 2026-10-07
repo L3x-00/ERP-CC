@@ -41,3 +41,30 @@ Estados: **Pendiente** (B1, se corrige en esta auditoría) · **Resuelto** (comm
 - Parciales: R-B1-02, 05, 06, 09, 11, 12, 19, 21, 22, 23, 24, 43, 47, 48.
 - No cubierto: R-B1-41 (permisos/usuarios y catálogos).
 - Pendientes de tanda 2: R-B1-26..38, 44, 46, 49, 50.
+
+## Tanda 2 (L3 archivos, L4 Actividad/UX/alcance) — registrada antes de pausa por uso (89 %)
+
+Detalle y evidencia: resultado del workflow `wf_be9bc2c3-f72` (journal en la carpeta de la sesión). Se clasifican al reanudar.
+
+| ID | Sev. | Tipo | Req. | Descripción | Estado |
+|---|---|---|---|---|---|
+| H-B1-29 | Critico | Bug | R-B1-25, R-B1-50 | [L3] Subidas por Server Action limitadas a 1 MB: falla cualquier plano o foto de más de 1 MB | Por clasificar (B1) |
+| H-B1-30 | Requerido | Seguridad | R-B1-27, R-B1-11 | [L3] IDOR: firmarArchivoRfqAccion firma cualquier archivo de cualquier entidad | Por clasificar (B3) |
+| H-B1-31 | Requerido | Incumplimiento | R-B1-31, R-B1-32, R-B1-30 | [L3] Reemplazo implícito y sin aviso cuando coincide el nombre saneado (nombre_erp) | Por clasificar (B1) |
+| H-B1-32 | Requerido | Incumplimiento | R-B1-43, R-B1-31, R-B1-32 | [L3] Borrado físico de adjuntos históricos y políticas de Storage que permiten borrar o subir directo | Por clasificar (B1) |
+| H-B1-33 | Requerido | Bug | R-B1-27, R-B1-47 | [L3] Las rutas nuevas rfq/<id>/… no se pueden abrir en el pipeline ni en Producción | Por clasificar (B1) |
+| H-B1-34 | Opcional | Seguridad | R-B1-11, R-B1-04 | [L3] La RLS de archivos trata distinto 'rfq' y 'rfq_item' | Por clasificar (B1) |
+| H-B1-35 | Opcional | Mantenibilidad | R-B1-28, R-B1-32 | [L3] Tres flujos heredados siguen escribiendo fuera del modelo único de archivos | Por clasificar (B1) |
+| H-B1-36 | Opcional | Bug | R-B1-31, R-B1-40 | [L3] Compensación incompleta: archivos huérfanos y PDF previo que pierde la vigencia | Por clasificar (B1) |
+| H-B1-37 | Opcional | Prueba faltante | R-B1-26, R-B1-27, R-B1-43 | [L3] Pruebas faltantes: RLS por entidad, políticas de storage y firmas por objeto | Por clasificar (B1) |
+| H-B1-38 | Requerido | Bug | R-B1-33, R-B1-50 | [L4] Paginación de /actividad rota: 'Siguiente' envía un cursor anidado que el esquema .strict() rechaza | Por clasificar (B1) |
+| H-B1-39 | Requerido | Incumplimiento | R-B1-33, R-B1-34, R-B1-38 | [L4] obtener_actividad solo resuelve etiqueta y enlace para pipeline, clientes y ordenes; el RFQ usa el folio OP en vez de folio_rfq | Por clasificar (B1) |
+| H-B1-40 | Requerido | Seguridad | R-B1-37, R-B1-22 | [L4] La tabla logs no es append-only en la BD: service_role puede hacer UPDATE, DELETE y TRUNCATE y ningún trigger lo impide | Por clasificar (B1) |
+| H-B1-41 | Opcional | UX | R-B1-33, R-B1-34, R-B1-38, R-B1-50 | [L4] Filtros y textos de Actividad dependen de códigos técnicos: Acción y Registro exactos, módulos incompletos y 154 de 163 acciones sin etiqueta | Por clasificar (B1) |
+| H-B1-42 | Opcional | UX | R-B1-33, R-B1-50 | [L4] Las lecturas inundan Actividad: 55.8% de los eventos son consultas (consultar_dashboard, consultar_comentarios) | Por clasificar (B1) |
+| H-B1-43 | Opcional | Fuera de alcance | R-B1-34, R-B1-46, R-B1-50 | [L4] La pestaña Bitácora duplica Actividad y muestra códigos y UUID crudos (propuesta: fusionarla) | Por clasificar (B1) |
+| H-B1-44 | Opcional | UX | R-B1-34, R-B1-46, R-B1-22 | [L4] El historial de versiones de Catálogos base muestra 'Actor <fragmento de UUID>' y el snapshot crudo (id, material_id, creado_en) | Por clasificar (B1) |
+| H-B1-45 | Opcional | UX | R-B1-04, R-B1-48, R-B1-33 | [L4] La pestaña 'Actividad' del RFQ se muestra a Servicio al Cliente sin permiso y aparece como error | Por clasificar (B3) |
+| H-B1-46 | Opcional | Fuera de alcance | R-B1-19, R-B1-46, R-B1-49, R-B1-50 | [L4] Alcance de las 12 pestañas de Configuración: qué pide el documento, qué depende de cada una y recomendación | Por clasificar (B1) |
+
+Cobertura tanda 2: R-B1-26 CUBIERTO · R-B1-27 PARCIAL · R-B1-28 CUBIERTO · R-B1-29 CUBIERTO · R-B1-30 PARCIAL · R-B1-31 PARCIAL · R-B1-32 PARCIAL · R-B1-43 PARCIAL · R-B1-33 PARCIAL · R-B1-34 PARCIAL · R-B1-35 CUBIERTO · R-B1-36 CUBIERTO · R-B1-37 PARCIAL · R-B1-38 PARCIAL · R-B1-44 CUBIERTO · R-B1-46 PARCIAL · R-B1-49 CUBIERTO · R-B1-50 PARCIAL
