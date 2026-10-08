@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; P0, C1.1, C1.2a y C1.3 completados localmente; **C1.2b en curso** (punto de control `8bc9697` + `98ceffd`, 2026-10-08).
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0 y C1 completos localmente** (2026-10-08); **C2 es el siguiente bloque**.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -73,17 +73,17 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 **Avance**
 
 - [x] C1.2a: modal accesible, alta `INCOMPLETE`, campos DC-01, permiso `rfq_crear`, navegación al mismo RFQ y `Continuar captura`.
-- [ ] C1.2b: integrar Ítems, Archivos y Revisar como pasos operables del mismo flujo, con reanudación E2E después de interrumpir.
+- [x] C1.2b: integrar Ítems, Archivos y Revisar como pasos operables del mismo flujo, con reanudación E2E después de interrumpir.
   - [x] UI de Claude: navegación de cinco pasos y panel Revisar (`8bc9697`).
   - [x] Integración Codex: cálculo del primer paso pendiente, `?continuar=1` y ficha montada (`98ceffd`); unitarias 1052/1052, typecheck y lint 0.
-  - [ ] Revisión cruzada Codex de la UI de Claude.
-  - [ ] E2E de interrumpir y reanudar (cliente existente/nuevo), revisión visual 320/1440 claro/oscuro y cierre del corte.
+  - [x] Revisión cruzada de la UI de Claude: corregido un paso previo con faltantes que se mostraba como completado.
+  - [x] E2E de interrumpir y reanudar en el mismo RFQ (2/2 con el flujo completo y archivo de 2 MiB), revisión visual 320/1440 claro/oscuro. Corregida la carrera en la que "Continuar captura" sobrescribía la navegación del usuario.
 
 **Aceptación**
 
-- [ ] Pasos: Cliente → Solicitud → Ítems → Archivos → Revisar.
-- [ ] Orden de compra/Horas estimadas no aparecen; Fecha requerida por cliente es opcional y claramente distinta de Fecha compromiso.
-- [ ] Cerrar después de guardar deja `INCOMPLETO`; Continuar captura recupera datos y archivos confirmados.
+- [x] Pasos: Cliente → Solicitud → Ítems → Archivos → Revisar.
+- [x] Orden de compra/Horas estimadas no aparecen; Fecha requerida por cliente es opcional y claramente distinta de Fecha compromiso.
+- [x] Cerrar después de guardar deja `INCOMPLETO`; Continuar captura recupera datos y archivos confirmados.
 
 **Verificación:** validaciones, integración de reanudación y E2E cliente existente/nuevo/interrupción.
 **Dependencias:** P0.4. **Tamaño:** dividir contrato servidor y UI en encargos M independientes.
@@ -106,9 +106,9 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 ### Checkpoint C1
 
-- [ ] RFQ nuevo puede iniciarse, interrumpirse y reanudarse sin pérdida.
-- [ ] Typecheck, lint, unitarias/integración focales y revisión responsive verdes.
-- [ ] Commit(s) atómicos aceptados por Codex.
+- [x] RFQ nuevo puede iniciarse, interrumpirse y reanudarse sin pérdida.
+- [x] Typecheck, lint, unitarias/integración focales y revisión responsive verdes.
+- [x] Commits atómicos locales (C1.2b cerrado por Claude a pedido del PO; Codex revisa al retomar).
 
 ## C2 — RFQ versionado, estados y documentos
 

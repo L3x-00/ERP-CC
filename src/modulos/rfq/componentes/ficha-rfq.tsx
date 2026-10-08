@@ -94,6 +94,8 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
   }, [continuar, validacionDatos]);
 
   function seleccionarPasoCaptura(paso: PasoCapturaRfq): void {
+    // Navegar a mano cancela el salto de "Continuar captura" si la validación aún no llega.
+    continuidadAplicada.current = true;
     setPasoCaptura(paso);
     setPestana(pestanaPorPasoCaptura(paso));
     setEditandoResumen(paso === 'solicitud');
@@ -172,6 +174,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
             role="tab"
             aria-selected={pestana === opcion.clave}
             onClick={() => {
+              continuidadAplicada.current = true;
               setPestana(opcion.clave);
               if (opcion.clave === 'resumen') setPasoCaptura('solicitud');
               if (opcion.clave === 'items' || opcion.clave === 'archivos' || opcion.clave === 'revisar') {

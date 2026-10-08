@@ -115,9 +115,14 @@ async function limpiarContexto(contexto: ContextoRfq): Promise<void> {
   const { admin, rfqId } = contexto;
   if (rfqId) {
     const { data: items } = await admin.from('rfq_items').select('id').eq('rfq_id', rfqId);
-    const carpetas = [`rfq/${rfqId}`, ...(items ?? []).map((item) => `rfq_item/${item.id}`)];
-    for (const carpeta of carpetas) {
+    // La subida directa (H-B1-29) anida `<entidad>/<id>/<usuario>/<archivo>`: se recorren subcarpetas.
+    const pendientes = [`rfq/${rfqId}`, ...(items ?? []).map((item) => `rfq_item/${item.id}`)];
+    while (pendientes.length > 0) {
+      const carpeta = pendientes.pop()!;
       const { data: objetos } = await admin.storage.from('adjuntos-cotizacion').list(carpeta, { limit: 100 });
+      for (const objeto of objetos ?? []) {
+        if (objeto.id === null) pendientes.push(`${carpeta}/${objeto.name}`);
+      }
       const rutas = (objetos ?? []).filter((objeto) => objeto.id !== null).map((objeto) => `${carpeta}/${objeto.name}`);
       if (rutas.length > 0) await admin.storage.from('adjuntos-cotizacion').remove(rutas);
     }
@@ -138,11 +143,40 @@ async function limpiarContexto(contexto: ContextoRfq): Promise<void> {
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
 }
 
+/** Llena el modal "Nuevo RFQ" ya abierto, ligando el cliente de la fixture. */
+async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string> {
+  const { admin, empresa } = contexto;
+  await page.getByLabel('Nombre del contacto').fill('Contacto QA');
+  await page.getByLabel('Empresa', { exact: true }).fill(empresa);
+  await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
+  await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
+  await page.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
+
+  await expect(page.getByTestId('ficha-rfq')).toBeVisible();
+  const rfq = await admin.from('pipeline').select('id').eq('empresa', empresa).single();
+  if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
+  contexto.rfqId = rfq.data.id;
+  await expect.poll(() => new URL(page.url()).searchParams.get('rfq')).toBe(contexto.rfqId);
+  await expect(page.getByTestId('ficha-rfq')).toContainText('Incompleto');
+  return rfq.data.id;
+}
+
+/** Agrega un ítem con material, espesor y la operación de la fixture. */
+async function agregarItem(page: Page, contexto: ContextoRfq, descripcion: string, cantidad: string): Promise<void> {
+  await page.getByRole('button', { name: 'Agregar ítem' }).click();
+  await page.getByLabel('Descripción', { exact: true }).fill(descripcion);
+  await page.getByLabel('Cantidad').fill(cantidad);
+  await page.getByLabel('Material').selectOption({ label: contexto.materialNombre });
+  await page.getByLabel('Espesor').selectOption({ label: '5 mm' });
+  await page.getByLabel(contexto.procesoNombre).check();
+  await page.getByRole('button', { name: 'Guardar ítem' }).click();
+}
+
 test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
   test('crear RFQ, ítems con espesor y operaciones, archivo, gate LISTO y ITxx sin reutilizar', async ({ page }) => {
     test.skip(!correoAdmin || !contrasenaAdmin, 'Requiere administrador del stack local');
     const contexto = await prepararContexto();
-    const { admin, empresa, sufijo } = contexto;
+    const { admin, sufijo } = contexto;
 
     try {
       await iniciarSesion(page);
@@ -170,19 +204,8 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
       }
-      await page.getByLabel('Nombre del contacto').fill('Contacto QA');
-      await page.getByLabel('Empresa', { exact: true }).fill(empresa);
-      await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
-      await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
-      await page.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
-
+      const rfqId = await completarAlta(page, contexto);
       const ficha = page.getByTestId('ficha-rfq');
-      await expect(ficha).toBeVisible();
-      const rfq = await admin.from('pipeline').select('id').eq('empresa', empresa).single();
-      if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
-      contexto.rfqId = rfq.data.id;
-      await expect.poll(() => new URL(page.url()).searchParams.get('rfq')).toBe(contexto.rfqId);
-      await expect(ficha).toContainText('Incompleto');
 
       // 2. Ítems: material con espesor dependiente y operaciones del catálogo.
       await ficha.getByRole('tab', { name: 'Ítems' }).click();
@@ -225,13 +248,7 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
       await expect(page.getByRole('row', { name: /IT02/ })).toContainText('Cancelado');
 
-      await page.getByRole('button', { name: 'Agregar ítem' }).click();
-      await page.getByLabel('Descripción', { exact: true }).fill('Pieza siguiente E2E');
-      await page.getByLabel('Cantidad').fill('2');
-      await page.getByLabel('Material').selectOption({ label: contexto.materialNombre });
-      await page.getByLabel('Espesor').selectOption({ label: '5 mm' });
-      await page.getByLabel(contexto.procesoNombre).check();
-      await page.getByRole('button', { name: 'Guardar ítem' }).click();
+      await agregarItem(page, contexto, 'Pieza siguiente E2E', '2');
       // IT02 cancelado no se reutiliza: el siguiente código es IT03.
       await expect(page.getByRole('row', { name: /IT03/ })).toBeVisible();
       await expect(page.getByRole('row', { name: /IT03/ })).toContainText('Pieza siguiente E2E');
@@ -291,7 +308,7 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       const canalGuardado = await admin
         .from('pipeline')
         .select('canal, canal_detalle')
-        .eq('id', contexto.rfqId)
+        .eq('id', rfqId)
         .single();
       expect(canalGuardado.error).toBeNull();
       expect(canalGuardado.data).toMatchObject({
@@ -302,17 +319,18 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       const propuestasTrasEditar = await admin
         .from('propuestas')
         .select('id', { count: 'exact', head: true })
-        .eq('rfq_id', contexto.rfqId);
+        .eq('rfq_id', rfqId);
       expect(propuestasTrasEditar.error).toBeNull();
       expect(propuestasTrasEditar.count).toBe(0);
 
-      // 5. Archivo técnico general.
+      // 5. Archivo técnico general de 2 MiB: supera el límite de 1 MiB de las
+      // Server Actions, así que prueba la subida directa a Storage (H-B1-29).
       await ficha.getByRole('tab', { name: 'Archivos' }).click();
       await page.getByLabel('Tipo').selectOption('DIBUJO');
       await page.getByLabel('Archivo').setInputFiles({
         name: 'plano-e2e.dxf',
         mimeType: 'application/octet-stream',
-        buffer: Buffer.from('0\nSECTION\nEOF'),
+        buffer: Buffer.alloc(2 * 1024 * 1024, '0\n'),
       });
       await page.getByRole('button', { name: 'Subir archivo' }).click();
       await expect(page.getByTestId('panel-archivos-rfq')).toContainText('plano-e2e.dxf');
@@ -323,7 +341,7 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       await page.getByRole('button', { name: 'Confirmar y marcar listo' }).click();
       await expect(ficha).toContainText('Listo para propuesta');
 
-      const estado = await admin.from('pipeline').select('estado_rfq').eq('id', contexto.rfqId).single();
+      const estado = await admin.from('pipeline').select('estado_rfq').eq('id', rfqId).single();
       expect(estado.data?.estado_rfq).toBe('READY_FOR_PROPOSAL');
 
       if (process.env.E2E_CAPTURAR_VISUAL === '1') {
@@ -348,6 +366,83 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
         await page.setViewportSize({ width: 1440, height: 900 });
         await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
       }
+    } finally {
+      await limpiarContexto(contexto);
+    }
+  });
+
+  test('interrumpir la captura y continuarla en el mismo RFQ sin perder datos (C1.2b)', async ({ page }) => {
+    test.skip(!correoAdmin || !contrasenaAdmin, 'Requiere administrador del stack local');
+    const contexto = await prepararContexto();
+    const { admin, empresa } = contexto;
+
+    try {
+      await iniciarSesion(page);
+      await page.goto('/rfq');
+      await page.getByRole('button', { name: 'Nuevo RFQ' }).click();
+      const rfqId = await completarAlta(page, contexto);
+      const ficha = page.getByTestId('ficha-rfq');
+
+      // Ítem guardado antes de interrumpir.
+      await ficha.getByRole('tab', { name: 'Ítems' }).click();
+      await agregarItem(page, contexto, 'Pieza reanudada E2E', '4');
+      await expect(page.getByTestId('tabla-items-rfq')).toContainText('IT01');
+
+      // Interrupción: se abandona la ficha y se vuelve a la cola.
+      await page.goto('/rfq');
+      const fila = page.getByRole('row', { name: new RegExp(empresa) });
+      await fila.getByRole('link', { name: 'Continuar captura' }).click();
+      await expect.poll(() => new URL(page.url()).searchParams.get('continuar')).toBe('1');
+      await expect.poll(() => new URL(page.url()).searchParams.get('rfq')).toBe(rfqId);
+
+      // Reanuda en el primer paso con faltantes.
+      const navegacion = page.getByTestId('navegacion-captura-rfq');
+      await expect(navegacion).toBeVisible();
+      const pasoActual = navegacion.locator('[aria-current="step"]');
+      await expect(pasoActual).toHaveAttribute('data-faltantes', 'si');
+      expect(['cliente', 'solicitud']).toContain(await pasoActual.getAttribute('data-paso'));
+
+      // Lo guardado antes de interrumpir sigue en el mismo RFQ.
+      await navegacion.getByRole('button', { name: /Ítems/ }).click();
+      await expect(page.getByTestId('tabla-items-rfq')).toContainText('Pieza reanudada E2E');
+
+      // Revisar agrupa los faltantes y no cambia el estado.
+      await navegacion.getByRole('button', { name: /Revisar/ }).click();
+      const revision = page.getByTestId('panel-revision-rfq');
+      await expect(revision.getByTestId('revision-checklist')).toBeVisible();
+      await expect(revision.getByTestId('revision-seccion-archivos')).toHaveAttribute('data-faltantes', 'si');
+      await expect(revision.getByRole('button', { name: 'Ir a Archivos' })).toBeVisible();
+
+      if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+        for (const [nombre, ancho, alto] of [
+          ['movil', 320, 900],
+          ['escritorio', 1440, 900],
+        ] as const) {
+          await page.setViewportSize({ width: ancho, height: alto });
+          for (const tema of ['claro', 'oscuro'] as const) {
+            await page.locator('html').evaluate((nodo, oscuro) => nodo.classList.toggle('dark', oscuro), tema === 'oscuro');
+            const anchoDocumento = await page.evaluate(() => document.documentElement.scrollWidth);
+            expect(anchoDocumento).toBeLessThanOrEqual(ancho);
+            await page.screenshot({
+              path: `${carpetaVisual}/rfq-captura-revisar-${nombre}-${tema}.png`,
+              fullPage: true,
+              animations: 'disabled',
+            });
+          }
+        }
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
+      }
+
+      // Sin duplicados ni propuesta implícita: el mismo RFQ sigue incompleto.
+      const filas = await admin.from('pipeline').select('id, estado_rfq').eq('empresa', empresa);
+      expect(filas.error).toBeNull();
+      expect(filas.data).toEqual([{ id: rfqId, estado_rfq: 'INCOMPLETE' }]);
+      const propuestas = await admin
+        .from('propuestas')
+        .select('id', { count: 'exact', head: true })
+        .eq('rfq_id', rfqId);
+      expect(propuestas.count).toBe(0);
     } finally {
       await limpiarContexto(contexto);
     }

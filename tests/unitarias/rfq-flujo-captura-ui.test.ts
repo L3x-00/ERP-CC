@@ -165,6 +165,15 @@ describe('NavegacionCapturaRfq — cinco pasos del flujo durable (C1.2b)', () =>
     expect(porPaso.get('archivos')!.textContent).not.toMatch(/faltan datos/i);
   });
 
+  it('un paso previo con faltantes no se presenta como completado', () => {
+    renderizarNavegacion({ pasoActual: 'revisar', pasosConFaltantes: ['cliente'] });
+
+    const cliente = pasosPorClave().get('cliente')!;
+    expect(cliente.dataset.estado).toBe('pendiente');
+    expect(cliente.textContent).not.toMatch(/completado|✓/i);
+    expect(pasosPorClave().get('solicitud')!.dataset.estado).toBe('completado');
+  });
+
   it('cada paso es un botón operable por teclado que informa la selección', () => {
     const { onSeleccionar } = renderizarNavegacion({ pasoActual: 'cliente' });
 

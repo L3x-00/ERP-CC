@@ -291,6 +291,34 @@ describe('FichaRfq — edición explícita del Resumen (C1.1b)', () => {
     expect(screen.getByRole('tab', { name: 'Ítems' }).getAttribute('aria-selected')).toBe('true');
   });
 
+  it('Continuar captura no sobrescribe la navegación que el usuario ya hizo', async () => {
+    let resolverValidacion: (valor: unknown) => void = () => undefined;
+    validarRfqListoAccionMock.mockReturnValue(
+      new Promise((resolver) => {
+        resolverValidacion = resolver;
+      }),
+    );
+    await renderizarFicha(true);
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Archivos' })).toBeDefined());
+
+    // El usuario navega antes de que llegue la validación.
+    fireEvent.click(screen.getByRole('tab', { name: 'Archivos' }));
+    expect(screen.getByTestId('stub-archivos-rfq')).toBeDefined();
+
+    resolverValidacion({
+      exito: true,
+      datos: {
+        listo: false,
+        secciones: { cliente: [], general: [], items: ['al menos un ítem activo'], archivos: [], seguimiento: [] },
+      },
+    });
+    await waitFor(() => expect(validarRfqListoAccionMock).toHaveBeenCalled());
+    await new Promise((resolver) => setTimeout(resolver, 0));
+
+    expect(screen.getByRole('tab', { name: 'Archivos' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('stub-archivos-rfq')).toBeDefined();
+  });
+
   it('abre FormularioGeneralRfq con "Editar resumen" y lo cierra con "Cancelar edición" sin refetch', async () => {
     await renderizarFicha();
 

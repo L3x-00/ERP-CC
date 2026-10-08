@@ -64,9 +64,11 @@ export function NavegacionCapturaRfq({
     >
       <ol className="flex flex-wrap items-stretch gap-2">
         {PASOS.map((paso, indice) => {
-          const estado: EstadoPaso =
-            indice === indiceActual ? 'actual' : indice < indiceActual ? 'completado' : 'pendiente';
           const conFaltantes = pasosConFaltantes.includes(paso.clave);
+          // Un paso previo con faltantes sigue pendiente: no se muestra como completado.
+          let estado: EstadoPaso = 'pendiente';
+          if (indice === indiceActual) estado = 'actual';
+          else if (indice < indiceActual && !conFaltantes) estado = 'completado';
 
           return (
             <li key={paso.clave} className="min-w-0 flex-auto">
