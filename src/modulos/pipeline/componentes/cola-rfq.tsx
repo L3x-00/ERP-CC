@@ -3,6 +3,13 @@
 import { useMemo, useState } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/compartido/componentes/ui/dialog';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { ControlesPipeline } from '@/modulos/pipeline/componentes/controles-pipeline';
@@ -40,10 +47,15 @@ function responsablesDistintos(
  * Cola de trabajo RFQ (CLI-01): lista única en tabla, con filtros por
  * estado/cliente/responsable/próxima acción vencida, y alta de RFQ. Las
  * acciones de negocio viven en la ficha (`/rfq?rfq=<id>`), no en la cola.
+ *
+ * C1.2a: el alta ocurre en un `Dialog` modal guiado. Los errores conservan los
+ * datos capturados y, mientras se guarda, el diálogo no puede cerrarse para
+ * evitar reintentos que creen RFQ duplicados.
  */
 export function ColaRfq() {
   const { data, isLoading, isError } = usarPipeline();
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [altaAbierta, setAltaAbierta] = useState(false);
+  const [altaEnviando, setAltaEnviando] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosTablero>(FILTROS_TABLERO_INICIAL);
 
   const oportunidades = useMemo(() => data ?? [], [data]);
@@ -68,16 +80,37 @@ export function ColaRfq() {
   return (
     <div className="flex flex-col gap-4" data-testid="cola-rfq">
       <div className="flex flex-wrap items-center justify-end gap-4">
-        <Button type="button" onClick={() => setMostrarFormulario((previo) => !previo)}>
-          {mostrarFormulario ? 'Cerrar formulario' : 'Nuevo RFQ'}
+        <Button
+          type="button"
+          onClick={() => {
+            setAltaEnviando(false);
+            setAltaAbierta(true);
+          }}
+        >
+          Nuevo RFQ
         </Button>
       </div>
 
-      {mostrarFormulario && (
-        <div className="rounded-lg border border-borde bg-superficie p-4 shadow-sm">
-          <FormularioProspecto />
-        </div>
-      )}
+      <Dialog
+        open={altaAbierta}
+        onOpenChange={(abierta) => {
+          if (abierta || !altaEnviando) setAltaAbierta(abierta);
+        }}
+      >
+        <DialogContent className="max-w-[760px]">
+          <DialogHeader>
+            <DialogTitle>Nuevo RFQ</DialogTitle>
+            <DialogDescription>
+              Captura el cliente y la solicitud. Al guardar, el RFQ queda como Incompleto y
+              continúas con ítems y archivos en su ficha, sin perder lo capturado.
+            </DialogDescription>
+          </DialogHeader>
+          <FormularioProspecto
+            onCambioEnvio={setAltaEnviando}
+            onExito={() => setAltaAbierta(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {hayDatos && (
         <>

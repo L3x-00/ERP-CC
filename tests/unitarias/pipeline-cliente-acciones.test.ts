@@ -34,6 +34,7 @@ vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
   registrarLog: (...args: unknown[]) => registrarLogMock(...args),
+  nuevoCorrelationId: () => 'corr-rfq-1',
 }));
 vi.mock('@/nucleo/supabase/servidor', () => ({
   crearClienteSupabaseServidor: async () => ({ marca: 'servidor' }),
@@ -124,7 +125,7 @@ const ALTA_BASE = { nombreContacto: 'Ana Pérez', empresa: 'Metanor' };
 beforeEach(() => {
   vi.clearAllMocks();
   obtenerUsuarioMock.mockResolvedValue(VENDEDOR);
-  canMock.mockResolvedValue(false);
+  canMock.mockImplementation(async (_usuario: unknown, permiso: string) => permiso === 'rfq_crear');
   generarFolioMock.mockResolvedValue('OP-000001');
   singleMock.mockResolvedValue({ data: { id: OPORTUNIDAD_ID }, error: null });
   eqMock.mockResolvedValue({ error: null });
@@ -133,6 +134,50 @@ beforeEach(() => {
 });
 
 describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
+  it('rechaza antes de generar folio cuando falta rfq_crear', async () => {
+    canMock.mockResolvedValue(false);
+
+    const respuesta = await crearProspectoAccion(ALTA_BASE);
+
+    expect(respuesta).toEqual({ exito: false, error: 'Sin permiso para crear RFQ' });
+    expect(generarFolioMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('inicia el RFQ como INCOMPLETE y conserva la fecha requerida del cliente', async () => {
+    await crearProspectoAccion({
+      ...ALTA_BASE,
+      fechaRequerida: '2026-11-20',
+    });
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        estado_rfq: 'INCOMPLETE',
+        fecha_requerida: '2026-11-20',
+      }),
+    );
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      VENDEDOR,
+      'crear',
+      'pipeline',
+      OPORTUNIDAD_ID,
+      { folioOp: 'OP-000001', clienteId: null, estadoRfq: 'INCOMPLETE' },
+      'corr-rfq-1',
+    );
+  });
+
+  it('ignora PO y horas estimadas legadas aunque un cliente antiguo las envíe', async () => {
+    await crearProspectoAccion({
+      ...ALTA_BASE,
+      poCliente: 'PO-LEGACY',
+      horasEstimadas: 8,
+    });
+
+    const insercion = insertMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(insercion.po_cliente).toBeNull();
+    expect(insercion.horas_estimadas).toBeNull();
+  });
+
   it('liga el cliente y hereda sus condiciones de pago', async () => {
     const respuesta = await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
 

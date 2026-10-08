@@ -10,6 +10,9 @@ Estado: vivo durante la implementación de `DC-01..DC-15`. Este reporte separa d
 | RFQ-01 | Alta, regresión de pruebas | Al retirar el tablero, tres E2E seguían buscando tarjetas `article`; los flujos de alta/Realtime/aceptación ya no podían localizar RFQ. | Selectores acoplados a la representación Kanban eliminada. | Selectores migrados a filas accesibles de tabla; una referencia residual detectada por TypeScript también se corrigió. | E2E 4/4, typecheck y lint focal verdes; commit `7bd9945`. |
 | RFQ-02 | Baja, visual | El aviso de RFQ no editable mostraba `;. Marca`, con puntuación incorrecta. | Dos fragmentos JSX contenían puntuación duplicada. | Texto corregido a dos oraciones legibles. | Lint/typecheck focales del incremento donde se integre. |
 | RFQ-03 | Media, funcional/UX | Al guardar el nuevo Resumen, las tarjetas reaparecían pero desaparecía de inmediato la confirmación “Datos guardados”. | El mensaje pertenecía al formulario que se desmontaba tras el guardado. | La ficha conserva y anuncia la confirmación con `role=status`; se limpia al volver a editar. | Detectado por E2E local; prueba unitaria y repetición E2E incluidas en C1.1b. |
+| RFQ-04 | Alta, seguridad/RBAC | Cualquier usuario autenticado podía invocar el alta de RFQ aunque no tuviera `rfq_crear`. | La Server Action validaba sesión, pero omitía el permiso específico antes de usar el cliente administrativo. | Se exige `rfq_crear` antes de generar folio o insertar; la denegación no toca la base. | TDD RED/GREEN en `pipeline-cliente-acciones.test.ts`; gate focal de C1.2a. |
+| RFQ-05 | Media, integridad | El alta aceptaba fechas inexistentes como `2026-02-31` porque solo validaba el patrón del texto. | Regex `YYYY-MM-DD` sin validación del calendario. | Fecha requerida del alta usa `z.iso.date()` y conserva su carácter opcional. | TDD RED/GREEN en `pipeline-datos-solicitud-esquema.test.ts`. |
+| RFQ-06 | Alta, concurrencia/UX | El modal podía cerrarse con Escape, overlay o la `X` mientras el alta seguía en curso; al reabrirlo era posible enviar otra solicitud y crear duplicados. | El estado de envío vivía únicamente dentro del formulario y el contenedor no protegía el cierre. | El formulario comunica el envío al diálogo; durante el guardado se bloquean cierre y segundo envío, y los errores restauran la interacción sin perder datos. | Prueba unitaria con promesa diferida en `rfq-alta-modal.test.ts`; revisión Codex posterior a la entrega de Claude. |
 | VIS-01 | Informativa | La petición de colores RFQ más claros podía inducir una paleta paralela o colores literales. | No había una paleta corporativa nueva; el ERP ya centraliza estados en tokens. | Se conserva la identidad y se verifica contraste antes de ajustar percepción/jerarquía. | Pares éxito/advertencia/peligro/info entre 6.84:1 y 8.88:1 en claro, y 6.93:1 a 7.66:1 en oscuro. |
 | CV-01 | Media, funcional, pendiente | Un RFQ `READY_FOR_PROPOSAL` se bloquea antes de crear Rev A. | La UI/servidor usan el estado READY como frontera de edición heredada. | Resolver en C2.1: la frontera aprobada es crear Rev A, junto con snapshot y congelamiento atómico. | Hallazgo reproducido durante caracterización; documentado en `CARACTERIZACION-CORTE-0.md`. |
 
@@ -17,6 +20,7 @@ Estado: vivo durante la implementación de `DC-01..DC-15`. Este reporte separa d
 
 - Cola RFQ únicamente en lista, sin selector/tablero y con filtros/alta/estados conservados: `7bd9945`.
 - Resumen RFQ en tarjetas de solo lectura, edición explícita, nombres históricos legibles y confirmación persistente de guardado.
+- Alta RFQ en modal guiado: Cliente/Solicitud crean el mismo RFQ como `INCOMPLETE`, sin PO ni horas estimadas, con Fecha requerida opcional, control `rfq_crear` y enlace `Continuar captura`.
 - Contratos compartidos de fechas, borrador, tarifa, Orden pendiente, Orden inmutable y Materiales/costos: `9230c3e`.
 - Caracterización y revisión visual local en 320/768/1024/1440 px, claro/oscuro: `e25a863` más evidencia C1.1b en `.ai-shared/qa/sii-b3-ola2/visual/`.
 
@@ -24,4 +28,4 @@ Estado: vivo durante la implementación de `DC-01..DC-15`. Este reporte separa d
 
 - La auditoría global B1–B9 continúa pausada.
 - No se han aplicado migraciones remotas, push, despliegue ni cambios en producción.
-- Los flujos futuros de Orden pendiente, consumo sin stock, canal configurable, wizard y vista operador aún no están implementados; figuran en `tasks/todo.md`.
+- Los pasos embebidos Ítems/Archivos/Revisar del wizard, Orden pendiente, consumo sin stock, canal configurable y vista operador aún no están implementados; figuran en `tasks/todo.md`.

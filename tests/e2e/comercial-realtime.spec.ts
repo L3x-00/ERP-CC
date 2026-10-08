@@ -117,12 +117,14 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     await a.getByLabel('Nombre del contacto').fill('QA Realtime');
     await a.getByLabel('Empresa', { exact: true }).fill(marca);
     await a.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
-    await expect(a.getByRole('row').filter({ hasText: marca })).toHaveCount(1);
+    await expect(a.getByTestId('ficha-rfq')).toBeVisible();
     const oportunidad = await admin.from('pipeline').select('id').eq('empresa', marca).single();
     if (oportunidad.error || !oportunidad.data) throw new Error(oportunidad.error?.message ?? 'Oportunidad no persistida');
     oportunidadId = oportunidad.data.id;
     await expect(fila).toHaveCount(1, { timeout: 6_000 });
-    await expect(contadorProspectos).toHaveText(String(prospectosIniciales + 1), { timeout: 6_000 });
+    // Un RFQ INCOMPLETE se sincroniza en la cola, pero todavía no cuenta como
+    // oportunidad activa del embudo hasta completar su captura.
+    await expect(contadorProspectos).toHaveText(String(prospectosIniciales), { timeout: 6_000 });
 
     // La identidad B pierde la conexión mientras A cambia el dato persistido.
     await contextoB.setOffline(true);

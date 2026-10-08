@@ -151,22 +151,38 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
 
       // 1. Alta del RFQ desde la cola.
       await page.getByRole('button', { name: 'Nuevo RFQ' }).click();
+      if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+        for (const [nombre, ancho, alto] of [
+          ['movil', 320, 800],
+          ['tablet', 768, 900],
+          ['escritorio', 1440, 900],
+        ] as const) {
+          await page.setViewportSize({ width: ancho, height: alto });
+          for (const tema of ['claro', 'oscuro'] as const) {
+            await page.locator('html').evaluate((nodo, oscuro) => nodo.classList.toggle('dark', oscuro), tema === 'oscuro');
+            await page.screenshot({
+              path: `${carpetaVisual}/rfq-alta-${nombre}-${tema}.png`,
+              fullPage: true,
+              animations: 'disabled',
+            });
+          }
+        }
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
+      }
       await page.getByLabel('Nombre del contacto').fill('Contacto QA');
       await page.getByLabel('Empresa', { exact: true }).fill(empresa);
-      await page.getByLabel('Cliente (opcional)').fill(empresa);
+      await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
       await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
       await page.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
 
-      const fila = page.getByRole('row').filter({ hasText: empresa });
-      await expect(fila).toHaveCount(1);
+      const ficha = page.getByTestId('ficha-rfq');
+      await expect(ficha).toBeVisible();
       const rfq = await admin.from('pipeline').select('id').eq('empresa', empresa).single();
       if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
       contexto.rfqId = rfq.data.id;
-
-      await fila.getByRole('link', { name: 'Abrir' }).click();
-      const ficha = page.getByTestId('ficha-rfq');
-      await expect(ficha).toBeVisible();
-      await expect(ficha).toContainText('Nuevo');
+      await expect.poll(() => new URL(page.url()).searchParams.get('rfq')).toBe(contexto.rfqId);
+      await expect(ficha).toContainText('Incompleto');
 
       // 2. Ítems: material con espesor dependiente y operaciones del catálogo.
       await ficha.getByRole('tab', { name: 'Ítems' }).click();

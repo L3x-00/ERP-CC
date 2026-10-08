@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; P0 y C1.1 completados localmente; C1.2 es el siguiente corte.
+Estado: decisiones `DC-01..DC-15` aceptadas; P0, C1.1 y C1.2a completados localmente; C1.2b es el siguiente corte.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -69,6 +69,11 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 **Dependencias:** P0.4. **Tamaño:** M, máximo cinco archivos por encargo.
 
 ### C1.2 Wizard durable y campos aprobados
+
+**Avance**
+
+- [x] C1.2a: modal accesible, alta `INCOMPLETE`, campos DC-01, permiso `rfq_crear`, navegación al mismo RFQ y `Continuar captura`.
+- [ ] C1.2b: integrar Ítems, Archivos y Revisar como pasos operables del mismo flujo, con reanudación E2E después de interrumpir.
 
 **Aceptación**
 

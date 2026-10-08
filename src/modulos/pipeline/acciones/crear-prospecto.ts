@@ -3,14 +3,15 @@
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { generarFolioOp } from '@/modulos/pipeline/servicios/generar-folio-op';
 import { obtenerClienteParaRfq } from '@/modulos/pipeline/servicios/obtener-cliente-para-rfq';
 import { esquemaCrearProspecto } from '@/modulos/pipeline/validaciones/esquemas-prospecto';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 /**
- * Crea un prospecto nuevo en el estado inicial del RFQ (NEW).
+ * Inicia un RFQ recuperable en estado INCOMPLETE.
  *
  * El folio OP se genera SIEMPRE vía RPC atómica (nunca contando filas ni en
  * cliente). El folio RFQ lo asigna el trigger de alta. El prospecto queda
@@ -34,6 +35,9 @@ export async function crearProspectoAccion(
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
+  if (!(await can(usuario, 'rfq_crear'))) {
+    return { exito: false, error: 'Sin permiso para crear RFQ' };
+  }
   const datos = analisis.data;
 
   // RFQ-02/03: si la RFQ nace ligada a un cliente, se verifica BAJO RLS que el
@@ -52,6 +56,7 @@ export async function crearProspectoAccion(
   }
 
   const admin = crearClienteSupabaseAdmin();
+  const correlationId = nuevoCorrelationId();
 
   let folioOp: string;
   try {
@@ -64,7 +69,7 @@ export async function crearProspectoAccion(
     .from('pipeline')
     .insert({
       folio_op: folioOp,
-      estado_rfq: 'NEW',
+      estado_rfq: 'INCOMPLETE',
       nombre_contacto: datos.nombreContacto,
       empresa: datos.empresa,
       // Correo opcional: cadena vacía se normaliza a null.
@@ -78,10 +83,11 @@ export async function crearProspectoAccion(
       iva_porcentaje: datos.ivaPorcentaje,
       etiquetas: datos.etiquetas,
       es_orden_interna: datos.esOrdenInterna,
-      // RFQ-01: datos de captura de la solicitud (cadenas vacías → null).
-      po_cliente: datos.poCliente?.trim() ? datos.poCliente.trim() : null,
+      // DC-01: PO y horas estimadas salen del alta. Las columnas legacy se
+      // conservan en null para no reintroducirlas mediante clientes antiguos.
+      po_cliente: null,
       fecha_requerida: datos.fechaRequerida ? datos.fechaRequerida : null,
-      horas_estimadas: datos.horasEstimadas ?? null,
+      horas_estimadas: null,
       notas: datos.notas?.trim() ? datos.notas.trim() : null,
     })
     .select('id')
@@ -91,7 +97,14 @@ export async function crearProspectoAccion(
     return { exito: false, error: 'No se pudo crear el prospecto' };
   }
 
-  await registrarLog(usuario, 'crear', 'pipeline', fila.id, { folioOp, clienteId });
+  await registrarLog(
+    usuario,
+    'crear',
+    'pipeline',
+    fila.id,
+    { folioOp, clienteId, estadoRfq: 'INCOMPLETE' },
+    correlationId,
+  );
 
   return { exito: true, datos: { id: fila.id, folioOp } };
 }
