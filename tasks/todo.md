@@ -42,9 +42,9 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Pruebas existentes o nuevas fijan: RFQ sin propuesta implícita, archivos versionados, revisión de Propuesta, aceptación y consumo congelado.
+- [x] Pruebas existentes o nuevas fijan: RFQ sin propuesta implícita, archivos versionados, revisión de Propuesta, aceptación y consumo congelado (`CARACTERIZACION-CORTE-0.md`).
 - [x] Los contratos de fechas, `INCOMPLETO`, tarifa Grupo/override, Orden pendiente y snapshot de consumo están documentados antes de migraciones (`CONTRATOS-CORTE-0.md`).
-- [ ] Se registra el baseline visual claro/oscuro en 320, 768, 1024 y 1440 px.
+- [x] Se registra el baseline visual claro/oscuro en 320, 768, 1024 y 1440 px, sin desbordamiento de página ni errores de consola.
 
 **Verificación:** pruebas focales RED/GREEN de caracterización y revisión visual registrada.
 **Dependencias:** P0.1–P0.3.
@@ -52,8 +52,8 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 ### Checkpoint P0
 
 - [x] Skill compartida sincronizada y validada para Codex/Claude.
-- [ ] Contratos listos para repartir trabajo sin editar archivos comunes.
-- [ ] `HANDOFF.md`, `ACTIVE_TASKS.md`, estado Git y gates baseline actualizados.
+- [x] Contratos listos para repartir trabajo sin editar archivos comunes.
+- [x] `HANDOFF.md`, `ACTIVE_TASKS.md`, estado Git y gates baseline actualizados.
 
 ## C1 — RFQ visual y alta recuperable
 
@@ -61,7 +61,7 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] RFQ abre únicamente en lista; no existe selector/tablero.
+- [x] RFQ abre únicamente en lista; no existe selector/tablero (`7bd9945`).
 - [ ] Resumen muestra Datos generales, Próxima acción y Descripción como tarjetas de solo lectura.
 - [ ] Estados verdes/amarillos/ámbar usan tokens accesibles en claro/oscuro.
 
