@@ -21,6 +21,7 @@ Estado: vivo durante la implementación de `DC-01..DC-15`. Este reporte separa d
 - Cola RFQ únicamente en lista, sin selector/tablero y con filtros/alta/estados conservados: `7bd9945`.
 - Resumen RFQ en tarjetas de solo lectura, edición explícita, nombres históricos legibles y confirmación persistente de guardado.
 - Alta RFQ en modal guiado: Cliente/Solicitud crean el mismo RFQ como `INCOMPLETE`, sin PO ni horas estimadas, con Fecha requerida opcional, control `rfq_crear` y enlace `Continuar captura`.
+- Formulario de ítems mantiene Espesor debajo de Material y explica si falta elegir material o si no existen espesores configurados.
 - Contratos compartidos de fechas, borrador, tarifa, Orden pendiente, Orden inmutable y Materiales/costos: `9230c3e`.
 - Caracterización y revisión visual local en 320/768/1024/1440 px, claro/oscuro: `e25a863` más evidencia C1.1b en `.ai-shared/qa/sii-b3-ola2/visual/`.
 

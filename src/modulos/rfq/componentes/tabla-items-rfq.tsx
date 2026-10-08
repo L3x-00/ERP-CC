@@ -339,23 +339,44 @@ export function TablaItemsRfq({
                   ))}
                 </Select>
               </label>
-              {espesoresDelMaterial.length > 0 && (
-                <label className="grid gap-1 text-sm font-medium" htmlFor="item-espesor">
+              <div className="grid gap-1 text-sm">
+                <label className="font-medium" htmlFor="item-espesor">
                   Espesor
-                  <Select
-                    id="item-espesor"
-                    value={borrador.espesorId}
-                    onChange={(evento) => setBorrador({ ...borrador, espesorId: evento.target.value })}
-                  >
-                    <option value="">Selecciona un espesor</option>
-                    {espesoresDelMaterial.map((espesor) => (
-                      <option key={espesor.id} value={espesor.id}>
-                        {espesor.etiqueta}
-                      </option>
-                    ))}
-                  </Select>
                 </label>
-              )}
+                <Select
+                  id="item-espesor"
+                  value={borrador.espesorId}
+                  disabled={!borrador.materialId || espesoresDelMaterial.length === 0}
+                  aria-describedby={
+                    !borrador.materialId || espesoresDelMaterial.length === 0
+                      ? 'item-espesor-ayuda'
+                      : undefined
+                  }
+                  onChange={(evento) =>
+                    setBorrador({ ...borrador, espesorId: evento.target.value })
+                  }
+                >
+                  <option value="">
+                    {!borrador.materialId
+                      ? 'Selecciona un material primero'
+                      : espesoresDelMaterial.length === 0
+                        ? 'Sin espesores configurados'
+                        : 'Selecciona un espesor'}
+                  </option>
+                  {espesoresDelMaterial.map((espesor) => (
+                    <option key={espesor.id} value={espesor.id}>
+                      {espesor.etiqueta}
+                    </option>
+                  ))}
+                </Select>
+                {(!borrador.materialId || espesoresDelMaterial.length === 0) && (
+                  <span id="item-espesor-ayuda" className="text-xs text-texto-secundario">
+                    {borrador.materialId
+                      ? 'Este material no tiene espesores configurados.'
+                      : 'Selecciona un material para ver sus espesores.'}
+                  </span>
+                )}
+              </div>
               <fieldset className="grid gap-1 rounded-md border border-borde p-2">
                 <legend className="px-1 text-sm font-medium">Operaciones solicitadas</legend>
                 <div className="flex flex-wrap gap-2">

@@ -187,6 +187,24 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       // 2. Ítems: material con espesor dependiente y operaciones del catálogo.
       await ficha.getByRole('tab', { name: 'Ítems' }).click();
       await page.getByRole('button', { name: 'Agregar ítem' }).click();
+      if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+        const dialogoItem = page.getByRole('dialog', { name: 'Nuevo ítem' });
+        for (const [nombre, ancho, alto] of [
+          ['movil', 320, 800],
+          ['escritorio', 1440, 900],
+        ] as const) {
+          await page.setViewportSize({ width: ancho, height: alto });
+          for (const tema of ['claro', 'oscuro'] as const) {
+            await page.locator('html').evaluate((nodo, oscuro) => nodo.classList.toggle('dark', oscuro), tema === 'oscuro');
+            await dialogoItem.screenshot({
+              path: `${carpetaVisual}/rfq-item-espesor-${nombre}-${tema}.png`,
+              animations: 'disabled',
+            });
+          }
+        }
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
+      }
       await page.getByLabel('Descripción', { exact: true }).fill('Pieza E2E');
       await page.getByLabel('Cantidad').fill('3');
       await page.getByLabel('Material').selectOption({ label: contexto.materialNombre });
