@@ -211,6 +211,7 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
 
       // 4. Completar Resumen (general + seguimiento).
       await ficha.getByRole('tab', { name: 'Resumen' }).click();
+      await page.getByRole('button', { name: 'Editar resumen' }).click();
       await page.getByLabel('Canal').fill('correo');
       await page.getByLabel('Fecha de solicitud').fill('2026-10-05');
       await page.getByLabel('Descripción general').fill(`Solicitud E2E ${sufijo}`);
@@ -255,8 +256,13 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       expect(estado.data?.estado_rfq).toBe('READY_FOR_PROPOSAL');
 
       if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+        await ficha.getByRole('tab', { name: 'Resumen' }).click();
+        await expect(page.getByTestId('rfq-datos-generales')).toBeVisible();
         for (const [nombre, ancho, alto] of [
-          ['escritorio', 1440, 900], ['tableta', 768, 1024],
+          ['movil', 320, 900],
+          ['tableta', 768, 1024],
+          ['laptop', 1024, 900],
+          ['escritorio', 1440, 900],
         ] as const) {
           await page.setViewportSize({ width: ancho, height: alto });
           for (const tema of ['claro', 'oscuro'] as const) {

@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; preparación en curso; producto aún sin modificar por este frente.
+Estado: decisiones `DC-01..DC-15` aceptadas; P0 y C1.1 completados localmente; C1.2 es el siguiente corte.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -62,8 +62,8 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 **Aceptación**
 
 - [x] RFQ abre únicamente en lista; no existe selector/tablero (`7bd9945`).
-- [ ] Resumen muestra Datos generales, Próxima acción y Descripción como tarjetas de solo lectura.
-- [ ] Estados verdes/amarillos/ámbar usan tokens accesibles en claro/oscuro.
+- [x] Resumen muestra Datos generales, Próxima acción y Descripción como tarjetas de solo lectura.
+- [x] Estados verdes/amarillos/ámbar usan tokens accesibles en claro/oscuro.
 
 **Verificación:** unitarias/componentes, E2E de navegación y revisión `orca-ui-review`.
 **Dependencias:** P0.4. **Tamaño:** M, máximo cinco archivos por encargo.

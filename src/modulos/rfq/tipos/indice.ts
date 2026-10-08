@@ -76,16 +76,33 @@ export type Rfq = {
   /** Columna legacy sincronizada por el puente de transición (se retira en ola 2). */
   etapa: string;
   clienteId: string | null;
+  /** Nombre comercial del cliente ligado, o null si no hay `clienteId`. */
+  clienteNombre: string | null;
+  /** Fallback histórico de `pipeline.empresa` cuando no hay cliente ligado o no se resolvió. */
+  empresa: string;
   contactoId: string | null;
+  /** Nombre del contacto ligado, o null si no hay `contactoId`. */
+  contactoNombre: string | null;
+  /** Fallback histórico de `pipeline.nombre_contacto`. */
+  nombreContacto: string;
   vendedorId: string;
   responsableId: string | null;
+  /**
+   * Nombre del responsable resuelto directo de `usuarios`, sin filtrar por
+   * `activo` — un responsable histórico desactivado debe seguir siendo legible.
+   */
+  responsableNombre: string | null;
   canal: string | null;
   fechaSolicitud: string | null;
+  /** `pipeline.fecha_requerida` (legacy, timestamptz): fecha informativa del cliente, no la fecha compromiso comercial. */
+  fechaRequeridaCliente: string | null;
   descripcionGeneral: string | null;
   proximaAccionCodigo: string | null;
   proximaAccionTexto: string | null;
   fechaProximaAccion: string | null;
   responsableProximaAccionId: string | null;
+  /** Nombre del responsable de la próxima acción, resuelto sin filtrar por `activo`. */
+  responsableProximaAccionNombre: string | null;
   actualizadoEn: string;
   items: RfqItem[];
 };
@@ -99,17 +116,28 @@ export type FilaRfq = {
   estado_rfq: string;
   etapa: string;
   cliente_id: string | null;
+  empresa: string;
   contacto_id: string | null;
+  nombre_contacto: string;
   vendedor_id: string;
   responsable_id: string | null;
   canal: string | null;
   fecha_solicitud: string | null;
+  fecha_requerida: string | null;
   descripcion_general: string | null;
   proxima_accion_codigo: string | null;
   proxima_accion_texto: string | null;
   fecha_proxima_accion: string | null;
   responsable_proxima_accion_id: string | null;
   actualizado_en: string;
+};
+
+/** Nombres resueltos fuera de la fila de `pipeline` (cliente, contacto, responsables). */
+export type NombresResueltosRfq = {
+  clienteNombre?: string | null;
+  contactoNombre?: string | null;
+  responsableNombre?: string | null;
+  responsableProximaAccionNombre?: string | null;
 };
 
 /** Fila cruda de `rfq_items` (snake_case). */
@@ -145,9 +173,15 @@ export function normalizarEstadoRfq(valor: string): EstadoRfq {
 
 /**
  * Convierte la fila de `pipeline` al tipo de dominio. `folio` prefiere el folio
- * RFQ y cae al histórico `folio_op` (grandfathering ADR-09).
+ * RFQ y cae al histórico `folio_op` (grandfathering ADR-09). `resueltos` trae
+ * los nombres de cliente/contacto/responsables resueltos aparte (fuera de
+ * `pipeline`); ausentes si no se consultaron.
  */
-export function filaARfq(fila: FilaRfq, items: RfqItem[] = []): Rfq {
+export function filaARfq(
+  fila: FilaRfq,
+  items: RfqItem[] = [],
+  resueltos: NombresResueltosRfq = {},
+): Rfq {
   return {
     id: fila.id,
     folio: fila.folio_rfq ?? fila.folio_op,
@@ -156,16 +190,23 @@ export function filaARfq(fila: FilaRfq, items: RfqItem[] = []): Rfq {
     estadoRfq: normalizarEstadoRfq(fila.estado_rfq),
     etapa: fila.etapa,
     clienteId: fila.cliente_id,
+    clienteNombre: resueltos.clienteNombre ?? null,
+    empresa: fila.empresa,
     contactoId: fila.contacto_id,
+    contactoNombre: resueltos.contactoNombre ?? null,
+    nombreContacto: fila.nombre_contacto,
     vendedorId: fila.vendedor_id,
     responsableId: fila.responsable_id,
+    responsableNombre: resueltos.responsableNombre ?? null,
     canal: fila.canal,
     fechaSolicitud: fila.fecha_solicitud,
+    fechaRequeridaCliente: fila.fecha_requerida,
     descripcionGeneral: fila.descripcion_general,
     proximaAccionCodigo: fila.proxima_accion_codigo,
     proximaAccionTexto: fila.proxima_accion_texto,
     fechaProximaAccion: fila.fecha_proxima_accion,
     responsableProximaAccionId: fila.responsable_proxima_accion_id,
+    responsableProximaAccionNombre: resueltos.responsableProximaAccionNombre ?? null,
     actualizadoEn: fila.actualizado_en,
     items,
   };

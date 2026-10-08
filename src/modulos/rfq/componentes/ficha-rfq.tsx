@@ -17,6 +17,7 @@ import { ActividadRfq } from './actividad-rfq';
 import { FormularioGeneralRfq } from './formulario-general-rfq';
 import { PanelAccionesRfq } from './panel-acciones-rfq';
 import { PanelArchivosRfq } from './panel-archivos-rfq';
+import { ResumenRfq } from './resumen-rfq';
 import { TablaItemsRfq } from './tabla-items-rfq';
 
 const PESTANAS = [
@@ -35,6 +36,8 @@ type PestanaRfq = (typeof PESTANAS)[number]['clave'];
  */
 export function FichaRfq({ rfqId }: { rfqId: string }) {
   const [pestana, setPestana] = useState<PestanaRfq>('resumen');
+  const [editandoResumen, setEditandoResumen] = useState(false);
+  const [resumenGuardado, setResumenGuardado] = useState(false);
 
   const consulta = useQuery({
     queryKey: ['rfq', rfqId],
@@ -125,15 +128,52 @@ export function FichaRfq({ rfqId }: { rfqId: string }) {
 
       {pestana === 'resumen' && (
         <div className="flex flex-col gap-4">
-          {catalogosDatos ? (
-            <FormularioGeneralRfq
-              key={rfq.actualizadoEn}
-              rfq={rfq}
-              catalogos={catalogosDatos}
-              onGuardado={() => void consulta.refetch()}
-            />
+          {editandoResumen ? (
+            <>
+              <div className="flex justify-end">
+                <Button
+                  variante="contorno"
+                  tamano="sm"
+                  onClick={() => setEditandoResumen(false)}
+                >
+                  Cancelar edición
+                </Button>
+              </div>
+              {catalogosDatos ? (
+                <FormularioGeneralRfq
+                  key={rfq.actualizadoEn}
+                  rfq={rfq}
+                  catalogos={catalogosDatos}
+                  onGuardado={() => {
+                    setResumenGuardado(true);
+                    setEditandoResumen(false);
+                    void consulta.refetch();
+                  }}
+                />
+              ) : (
+                <Skeleton className="h-64 w-full" />
+              )}
+            </>
           ) : (
-            <Skeleton className="h-64 w-full" />
+            <>
+              {resumenGuardado && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="rounded-md bg-exito-suave px-3 py-2 text-sm font-medium text-exito-texto"
+                >
+                  Datos guardados.
+                </p>
+              )}
+              <ResumenRfq
+                rfq={rfq}
+                catalogos={catalogosDatos}
+                onEditar={() => {
+                  setResumenGuardado(false);
+                  setEditandoResumen(true);
+                }}
+              />
+            </>
           )}
         </div>
       )}
