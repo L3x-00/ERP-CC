@@ -89,8 +89,8 @@ export function FormularioGeneralRfq({
     <form onSubmit={manejarEnvio} className="flex flex-col gap-4" noValidate data-testid="resumen-rfq">
       {!editable && (
         <p className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
-          El RFQ está en {rfq.estadoRfq === 'READY_FOR_PROPOSAL' ? 'Listo para propuesta' : 'estado terminal'};
-          . Marca Incompleto para editar los datos generales.
+          El RFQ está en {rfq.estadoRfq === 'READY_FOR_PROPOSAL' ? 'Listo para propuesta' : 'estado terminal'}.
+          Marca Incompleto para editar los datos generales.
         </p>
       )}
 
