@@ -14,7 +14,7 @@ import {
 } from '../tipos/indice';
 
 const COLUMNAS_RFQ =
-  'id, folio_op, folio_cnc, folio_rfq, estado_rfq, etapa, cliente_id, empresa, contacto_id, nombre_contacto, vendedor_id, responsable_id, canal, canal_detalle, fecha_solicitud, fecha_requerida, descripcion_general, proxima_accion_codigo, proxima_accion_texto, fecha_proxima_accion, responsable_proxima_accion_id, actualizado_en';
+  'id, folio_op, folio_cnc, folio_rfq, estado_rfq, etapa, cliente_id, condiciones_pago, empresa, contacto_id, nombre_contacto, vendedor_id, responsable_id, canal, canal_detalle, fecha_solicitud, fecha_requerida, descripcion_general, proxima_accion_codigo, proxima_accion_texto, fecha_proxima_accion, responsable_proxima_accion_id, actualizado_en';
 
 const COLUMNAS_ITEM =
   'id, rfq_id, numero, codigo, descripcion, cantidad, material_id, espesor_id, acabado, notas, estado, creado_en, actualizado_en';

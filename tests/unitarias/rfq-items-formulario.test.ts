@@ -25,6 +25,7 @@ const RFQ: Rfq = {
   estadoRfq: 'INCOMPLETE',
   etapa: 'prospecto',
   clienteId: null,
+  condicionesPago: null,
   clienteNombre: null,
   empresa: 'Cliente QA',
   contactoId: null,

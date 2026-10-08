@@ -22,7 +22,7 @@ import {
 const CLASES = ['CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS'] as const;
 
 /** Pestaña Archivos: generales (`rfq`) y por ítem (`rfq_item`) del modelo E3. */
-export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
+export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () => void }) {
   const clienteConsultas = useQueryClient();
   const [clase, setClase] = useState<(typeof CLASES)[number]>('CAD');
   const [itemId, setItemId] = useState('');
@@ -61,6 +61,7 @@ export function PanelArchivosRfq({ rfq }: { rfq: Rfq }) {
       setArchivo(null);
       void clienteConsultas.invalidateQueries({ queryKey: ['rfq-archivos', rfq.id] });
       void clienteConsultas.invalidateQueries({ queryKey: ['rfq', rfq.id] });
+      onCambio?.();
     },
     onError: (error) => {
       setMensaje(error instanceof Error ? error.message : 'No se pudo subir el archivo');

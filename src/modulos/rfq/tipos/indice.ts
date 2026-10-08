@@ -1,3 +1,5 @@
+import type { CondicionesPago } from '@/modulos/pipeline/tipos/indice';
+
 /** Estados del ciclo de vida de un RFQ (ADR-SII-07, §3.2). */
 export const ESTADOS_RFQ = [
   'NEW',
@@ -76,6 +78,7 @@ export type Rfq = {
   /** Columna legacy sincronizada por el puente de transición (se retira en ola 2). */
   etapa: string;
   clienteId: string | null;
+  condicionesPago: CondicionesPago | null;
   /** Nombre comercial del cliente ligado, o null si no hay `clienteId`. */
   clienteNombre: string | null;
   /** Fallback histórico de `pipeline.empresa` cuando no hay cliente ligado o no se resolvió. */
@@ -117,6 +120,7 @@ export type FilaRfq = {
   estado_rfq: string;
   etapa: string;
   cliente_id: string | null;
+  condiciones_pago: CondicionesPago | null;
   empresa: string;
   contacto_id: string | null;
   nombre_contacto: string;
@@ -192,6 +196,7 @@ export function filaARfq(
     estadoRfq: normalizarEstadoRfq(fila.estado_rfq),
     etapa: fila.etapa,
     clienteId: fila.cliente_id,
+    condicionesPago: fila.condiciones_pago,
     clienteNombre: resueltos.clienteNombre ?? null,
     empresa: fila.empresa,
     contactoId: fila.contacto_id,

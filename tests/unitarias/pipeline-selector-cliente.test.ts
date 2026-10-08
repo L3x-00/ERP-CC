@@ -266,7 +266,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
 
     await waitFor(() => {
-      expect(empujarRutaMock).toHaveBeenCalledWith('/rfq?rfq=op-1');
+      expect(empujarRutaMock).toHaveBeenCalledWith('/rfq?rfq=op-1&continuar=1');
     });
     expect(empujarRutaMock).toHaveBeenCalledTimes(1);
     expect(alExito).toHaveBeenCalledWith('op-1');

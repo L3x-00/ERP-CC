@@ -98,7 +98,7 @@ export function TablaOportunidades({
                 </TablaCelda>
                 <TablaCelda className="text-right">
                   <Link
-                    href={`/rfq?rfq=${oportunidad.id}`}
+                    href={`/rfq?rfq=${oportunidad.id}${incompleto ? '&continuar=1' : ''}`}
                     className="text-xs font-semibold text-acento hover:underline"
                   >
                     {incompleto ? 'Continuar captura' : 'Abrir'}

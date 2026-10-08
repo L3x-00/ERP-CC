@@ -179,7 +179,7 @@ export function FormularioProspecto({
         onExito?.(id);
         // DC-03: la captura continúa en la ficha del MISMO RFQ (`INCOMPLETE`).
         // El id devuelto es el único folio del alta; no se crea un segundo RFQ.
-        router.push(`/rfq?rfq=${id}`);
+        router.push(`/rfq?rfq=${id}&continuar=1`);
       }
     } catch {
       setError('Error de conexión. Intenta de nuevo.');

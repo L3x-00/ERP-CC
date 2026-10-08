@@ -11,9 +11,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { CatalogosRfq } from '@/modulos/rfq/acciones/obtener-catalogos';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
 
-const { obtenerRfqAccionMock, obtenerCatalogosRfqAccionMock } = vi.hoisted(() => ({
+const { obtenerRfqAccionMock, obtenerCatalogosRfqAccionMock, validarRfqListoAccionMock } = vi.hoisted(() => ({
   obtenerRfqAccionMock: vi.fn(),
   obtenerCatalogosRfqAccionMock: vi.fn(),
+  validarRfqListoAccionMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/rfq/acciones/obtener-rfq', () => ({
@@ -21,6 +22,9 @@ vi.mock('@/modulos/rfq/acciones/obtener-rfq', () => ({
 }));
 vi.mock('@/modulos/rfq/acciones/obtener-catalogos', () => ({
   obtenerCatalogosRfqAccion: (...args: unknown[]) => obtenerCatalogosRfqAccionMock(...args),
+}));
+vi.mock('@/modulos/rfq/acciones/validar-rfq-listo', () => ({
+  validarRfqListoAccion: (...args: unknown[]) => validarRfqListoAccionMock(...args),
 }));
 vi.mock('@/modulos/rfq/componentes/panel-acciones-rfq', () => ({
   PanelAccionesRfq: () => createElement('div', { 'data-testid': 'stub-acciones-rfq' }),
@@ -58,6 +62,7 @@ const RFQ_BASE: Rfq = {
   estadoRfq: 'INCOMPLETE',
   etapa: 'contactado',
   clienteId: 'cliente-1',
+  condicionesPago: 'contado',
   clienteNombre: 'Metales del Norte SA de CV',
   empresa: 'Empresa legada SA',
   contactoId: 'contacto-1',
@@ -248,10 +253,14 @@ describe('ResumenRfq — tarjetas de solo lectura (C1.1b)', () => {
 });
 
 describe('FichaRfq — edición explícita del Resumen (C1.1b)', () => {
-  async function renderizarFicha() {
+  async function renderizarFicha(continuar = false) {
     const cliente = new QueryClient();
     return render(
-      createElement(QueryClientProvider, { client: cliente }, createElement(FichaRfq, { rfqId: 'rfq-1' })),
+      createElement(
+        QueryClientProvider,
+        { client: cliente },
+        createElement(FichaRfq, { rfqId: 'rfq-1', continuar }),
+      ),
     );
   }
 
@@ -259,6 +268,27 @@ describe('FichaRfq — edición explícita del Resumen (C1.1b)', () => {
     vi.clearAllMocks();
     obtenerRfqAccionMock.mockResolvedValue({ exito: true, datos: RFQ_BASE });
     obtenerCatalogosRfqAccionMock.mockResolvedValue({ exito: true, datos: CATALOGOS });
+    validarRfqListoAccionMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        listo: false,
+        secciones: {
+          cliente: [],
+          general: [],
+          items: ['al menos un ítem activo'],
+          archivos: [],
+          seguimiento: [],
+        },
+      },
+    });
+  });
+
+  it('Continuar captura reanuda el mismo RFQ en el primer paso pendiente', async () => {
+    await renderizarFicha(true);
+
+    await waitFor(() => expect(screen.getByTestId('stub-items-rfq')).toBeDefined());
+    expect(validarRfqListoAccionMock).toHaveBeenCalledWith({ rfqId: 'rfq-1' });
+    expect(screen.getByRole('tab', { name: 'Ítems' }).getAttribute('aria-selected')).toBe('true');
   });
 
   it('abre FormularioGeneralRfq con "Editar resumen" y lo cierra con "Cancelar edición" sin refetch', async () => {

@@ -176,7 +176,7 @@ describe('TablaOportunidades — reanudación de captura (DC-03)', () => {
     );
 
     const enlace = screen.getByRole('link', { name: 'Continuar captura' });
-    expect(enlace.getAttribute('href')).toBe('/rfq?rfq=op-1');
+    expect(enlace.getAttribute('href')).toBe('/rfq?rfq=op-1&continuar=1');
     expect(screen.queryByRole('link', { name: 'Abrir' })).toBeNull();
   });
 
