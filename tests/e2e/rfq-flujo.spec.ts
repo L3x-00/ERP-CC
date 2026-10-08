@@ -157,13 +157,13 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
       await page.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
 
-      const tarjeta = page.locator('article', { hasText: empresa });
-      await expect(tarjeta).toHaveCount(1);
+      const fila = page.getByRole('row').filter({ hasText: empresa });
+      await expect(fila).toHaveCount(1);
       const rfq = await admin.from('pipeline').select('id').eq('empresa', empresa).single();
       if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
       contexto.rfqId = rfq.data.id;
 
-      await tarjeta.getByRole('link', { name: 'Abrir RFQ' }).click();
+      await fila.getByRole('link', { name: 'Abrir' }).click();
       const ficha = page.getByTestId('ficha-rfq');
       await expect(ficha).toBeVisible();
       await expect(ficha).toContainText('Nuevo');
@@ -226,6 +226,13 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       await responsables.selectOption(valorResponsable!);
       await page.getByRole('button', { name: 'Guardar datos' }).click();
       await expect(page.getByText('Datos guardados.')).toBeVisible();
+
+      const propuestasTrasEditar = await admin
+        .from('propuestas')
+        .select('id', { count: 'exact', head: true })
+        .eq('rfq_id', contexto.rfqId);
+      expect(propuestasTrasEditar.error).toBeNull();
+      expect(propuestasTrasEditar.count).toBe(0);
 
       // 5. Archivo técnico general.
       await ficha.getByRole('tab', { name: 'Archivos' }).click();

@@ -243,11 +243,23 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
     try {
       await iniciarSesion(page);
 
-      // 1. RFQ listo → pestaña Propuestas → crear propuesta A.
+      // 1. Navegar por el RFQ no crea una propuesta implícita.
       await page.goto(`/rfq?rfq=${rfqId}`);
       const fichaRfq = page.getByTestId('ficha-rfq');
       await expect(fichaRfq).toBeVisible();
+      await fichaRfq.getByRole('tab', { name: 'Resumen' }).click();
+      await fichaRfq.getByRole('tab', { name: 'Ítems' }).click();
+      await fichaRfq.getByRole('tab', { name: 'Archivos' }).click();
       await fichaRfq.getByRole('tab', { name: 'Propuestas' }).click();
+
+      const propuestasAntes = await admin
+        .from('propuestas')
+        .select('id', { count: 'exact', head: true })
+        .eq('rfq_id', rfqId);
+      expect(propuestasAntes.error).toBeNull();
+      expect(propuestasAntes.count).toBe(0);
+
+      // 2. Solo la acción explícita crea Propuesta Rev A.
       await page.getByRole('button', { name: 'Crear propuesta' }).click();
 
       const ficha = page.getByTestId('ficha-propuesta');
@@ -270,7 +282,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       contexto.revisionIds.push(revisionA.data.id);
       await expect(ficha).toContainText(revisionA.data.folio_revision);
 
-      // 2. Editar ítems (precio) y costos.
+      // 3. Editar ítems (precio) y costos.
       await page.getByRole('tab', { name: 'Ítems' }).click();
       await page.getByLabel('Precio IT01').fill('100');
       await page.getByRole('row', { name: /IT01/ }).getByRole('button', { name: 'Guardar' }).click();
@@ -282,7 +294,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: 'Guardar costos' }).click();
       await expect(page.getByRole('status')).toContainText('Costos guardados.');
 
-      // 3. Validar (la revisión queda lista para enviar).
+      // 4. Validar (la revisión queda lista para enviar).
       await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
       await expect
         .poll(async () => {
@@ -295,20 +307,20 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         })
         .toBe('READY_TO_SEND');
 
-      // 4. Generar PDF y verlo en la pestaña PDFs.
+      // 5. Generar PDF y verlo en la pestaña PDFs.
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
       await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
       await page.getByRole('tab', { name: 'PDFs' }).click();
       await expect(page.getByTestId('panel-pdfs-propuesta')).toContainText('vigente');
 
-      // 5. Seguimiento: próxima acción obligatoria para enviar.
+      // 6. Seguimiento: próxima acción obligatoria para enviar.
       await page.getByRole('tab', { name: 'Seguimiento' }).click();
       await page.getByLabel('Acción de seguimiento').selectOption('FOLLOW_UP');
       await page.getByLabel('Fecha de la próxima acción').fill('2026-11-15');
       await page.getByRole('button', { name: 'Registrar seguimiento' }).click();
       await expect(page.getByRole('status')).toContainText('Seguimiento registrado.');
 
-      // 6. Enviar con canal y destino (congela atómicamente).
+      // 7. Enviar con canal y destino (congela atómicamente).
       await ficha.getByRole('button', { name: 'Enviar', exact: true }).first().click();
       await page.getByLabel('Destino de envío').fill('compras@cliente.mx');
       await page.getByRole('button', { name: 'Confirmar envío' }).click();
@@ -340,7 +352,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       await capturar(page, 'ficha-enviada');
 
-      // 7. Nueva revisión B con motivo.
+      // 8. Nueva revisión B con motivo.
       await page.getByRole('button', { name: /^A · Enviada/ }).click();
       await ficha.getByRole('button', { name: 'Nueva revisión', exact: true }).first().click();
       await page.getByLabel('Motivo').fill('El cliente pidió ajustar precios');
@@ -364,7 +376,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         .single();
       contexto.revisionIds.push(revisionB.data!.id);
 
-      // 8. Aceptar la revisión ANTERIOR (A) aunque exista una B posterior.
+      // 9. Aceptar la revisión ANTERIOR (A) aunque exista una B posterior.
       await page.getByRole('button', { name: /^A · Enviada/ }).click();
       await page.getByRole('button', { name: 'Aceptar revisión' }).click();
       await expect
@@ -378,7 +390,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         })
         .toBe(revisionA.data.id);
 
-      // 9. Confirmar venta (SALE_CONFIRMED habilita la orden en B5).
+      // 10. Confirmar venta (SALE_CONFIRMED habilita la orden en B5).
       await page.getByRole('button', { name: 'Confirmar venta' }).click();
       await expect
         .poll(async () => {

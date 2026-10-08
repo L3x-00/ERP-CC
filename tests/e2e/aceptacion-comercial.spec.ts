@@ -181,8 +181,8 @@ async function crearRfqSimple(
     await pagina.getByLabel(/Orden interna \(TI\)/).check();
   }
   await pagina.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
-  const tarjeta = pagina.locator('article', { hasText: opciones.empresa });
-  await expect(tarjeta).toBeVisible();
+  const fila = pagina.getByRole('row').filter({ hasText: opciones.empresa });
+  await expect(fila).toBeVisible();
 }
 
 /**

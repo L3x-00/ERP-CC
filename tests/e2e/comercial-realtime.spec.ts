@@ -111,17 +111,17 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     const contadorProspectos = embudo.locator('li').filter({ hasText: 'Prospecto' }).locator('span').last();
     const prospectosIniciales = Number(await contadorProspectos.textContent());
     expect(Number.isFinite(prospectosIniciales)).toBe(true);
-    const tarjeta = b.locator('article').filter({ hasText: marca });
-    await expect(tarjeta).toHaveCount(0);
+    const fila = b.getByRole('row').filter({ hasText: marca });
+    await expect(fila).toHaveCount(0);
     await a.getByRole('button', { name: 'Nuevo RFQ' }).click();
     await a.getByLabel('Nombre del contacto').fill('QA Realtime');
     await a.getByLabel('Empresa', { exact: true }).fill(marca);
     await a.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
-    await expect(a.locator('article').filter({ hasText: marca })).toHaveCount(1);
+    await expect(a.getByRole('row').filter({ hasText: marca })).toHaveCount(1);
     const oportunidad = await admin.from('pipeline').select('id').eq('empresa', marca).single();
     if (oportunidad.error || !oportunidad.data) throw new Error(oportunidad.error?.message ?? 'Oportunidad no persistida');
     oportunidadId = oportunidad.data.id;
-    await expect(tarjeta).toHaveCount(1, { timeout: 6_000 });
+    await expect(fila).toHaveCount(1, { timeout: 6_000 });
     await expect(contadorProspectos).toHaveText(String(prospectosIniciales + 1), { timeout: 6_000 });
 
     // La identidad B pierde la conexión mientras A cambia el dato persistido.
@@ -129,12 +129,12 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     const cambio = await admin.from('pipeline').update({ empresa: `${marca} RECONEXION` }).eq('id', oportunidadId);
     if (cambio.error) throw cambio.error;
     await contextoB.setOffline(false);
-    await expect(tarjeta).toContainText('RECONEXION', { timeout: 10_000 });
+    await expect(fila).toContainText('RECONEXION', { timeout: 10_000 });
 
     const bajaOportunidad = await admin.from('pipeline').delete().eq('id', oportunidadId);
     if (bajaOportunidad.error) throw bajaOportunidad.error;
     oportunidadId = '';
-    await expect(tarjeta).toHaveCount(0, { timeout: 6_000 });
+    await expect(fila).toHaveCount(0, { timeout: 6_000 });
     await expect(contadorProspectos).toHaveText(String(prospectosIniciales), { timeout: 6_000 });
 
     // A08: una edición de áreas de operador en A se refleja en Configuración B.
