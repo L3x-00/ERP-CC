@@ -53,8 +53,13 @@ async function peticion(ruta, metodo, cuerpo) {
 }
 
 async function crearUsuario(correo, nombre, rol) {
-  const existentes = await peticion('/auth/v1/admin/users?page=1&per_page=100', 'GET');
-  const yaExiste = (existentes?.users ?? []).find((usuario) => usuario.email === correo);
+  let yaExiste;
+  for (let pagina = 1; pagina <= 100 && !yaExiste; pagina += 1) {
+    const existentes = await peticion(`/auth/v1/admin/users?page=${pagina}&per_page=100`, 'GET');
+    const usuarios = existentes?.users ?? [];
+    yaExiste = usuarios.find((usuario) => usuario.email === correo);
+    if (usuarios.length < 100) break;
+  }
   let usuario = yaExiste;
   if (!usuario) {
     usuario = await peticion('/auth/v1/admin/users', 'POST', {
