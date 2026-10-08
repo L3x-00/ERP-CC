@@ -43,7 +43,7 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 **Aceptación**
 
 - [ ] Pruebas existentes o nuevas fijan: RFQ sin propuesta implícita, archivos versionados, revisión de Propuesta, aceptación y consumo congelado.
-- [ ] Los contratos de fechas, `INCOMPLETO`, tarifa Grupo/override, Orden pendiente y snapshot de consumo están documentados antes de migraciones.
+- [x] Los contratos de fechas, `INCOMPLETO`, tarifa Grupo/override, Orden pendiente y snapshot de consumo están documentados antes de migraciones (`CONTRATOS-CORTE-0.md`).
 - [ ] Se registra el baseline visual claro/oscuro en 320, 768, 1024 y 1440 px.
 
 **Verificación:** pruebas focales RED/GREEN de caracterización y revisión visual registrada.
@@ -51,7 +51,7 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 ### Checkpoint P0
 
-- [ ] Skill compartida sincronizada.
+- [x] Skill compartida sincronizada y validada para Codex/Claude.
 - [ ] Contratos listos para repartir trabajo sin editar archivos comunes.
 - [ ] `HANDOFF.md`, `ACTIVE_TASKS.md`, estado Git y gates baseline actualizados.
 
