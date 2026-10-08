@@ -89,12 +89,12 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 **Avance**
 
 - [x] C1.3a: Espesor permanece visible debajo de Material y explica los estados sin selección/sin catálogo.
-- [ ] C1.3b: catálogo configurable de canales y regla de detalle para “Otro”.
+- [x] C1.3b: catálogo configurable de canales y regla de detalle para “Otro”.
 
 **Aceptación**
 
-- [ ] Catálogo inicial contiene WhatsApp, Correo, Teléfono, Visita, Referido y Otro.
-- [ ] “Otro” exige detalle y valores históricos sobreviven a una desactivación.
+- [x] Catálogo inicial contiene WhatsApp, Correo, Teléfono, Visita, Referido y Otro.
+- [x] “Otro” exige detalle y valores históricos sobreviven a una desactivación.
 - [x] Espesor aparece debajo de Material o muestra por qué el material no tiene espesores.
 
 **Verificación:** pgTAP/validación, integración y E2E del formulario.

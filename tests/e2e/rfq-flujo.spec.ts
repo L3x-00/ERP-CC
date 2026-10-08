@@ -246,7 +246,8 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       // 4. Completar Resumen (general + seguimiento).
       await ficha.getByRole('tab', { name: 'Resumen' }).click();
       await page.getByRole('button', { name: 'Editar resumen' }).click();
-      await page.getByLabel('Canal').fill('correo');
+      await page.getByLabel('Canal').selectOption('OTRO');
+      await page.getByLabel('Detalle del canal Otro').fill(`Feria industrial ${sufijo}`);
       await page.getByLabel('Fecha de solicitud').fill('2026-10-05');
       await page.getByLabel('Descripción general').fill(`Solicitud E2E ${sufijo}`);
       await page.getByLabel('Contacto del cliente').selectOption({ label: `Contacto RFQ ${sufijo}` });
@@ -259,8 +260,44 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       const opcionesResponsable = await responsables.locator('option').all();
       const valorResponsable = await opcionesResponsable[1]?.getAttribute('value');
       await responsables.selectOption(valorResponsable!);
+      if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+        for (const [nombre, ancho, alto] of [
+          ['movil', 320, 900],
+          ['escritorio', 1440, 900],
+        ] as const) {
+          await page.setViewportSize({ width: ancho, height: alto });
+          for (const tema of ['claro', 'oscuro'] as const) {
+            await page.locator('html').evaluate(
+              (nodo, oscuro) => nodo.classList.toggle('dark', oscuro),
+              tema === 'oscuro',
+            );
+            await page.evaluate(() => {
+              (document.activeElement as HTMLElement | null)?.blur();
+              window.scrollTo(0, 0);
+            });
+            await page.screenshot({
+              path: `${carpetaVisual}/rfq-canal-otro-${nombre}-${tema}.png`,
+              fullPage: true,
+              animations: 'disabled',
+            });
+          }
+        }
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
+      }
       await page.getByRole('button', { name: 'Guardar datos' }).click();
       await expect(page.getByText('Datos guardados.')).toBeVisible();
+
+      const canalGuardado = await admin
+        .from('pipeline')
+        .select('canal, canal_detalle')
+        .eq('id', contexto.rfqId)
+        .single();
+      expect(canalGuardado.error).toBeNull();
+      expect(canalGuardado.data).toMatchObject({
+        canal: 'OTRO',
+        canal_detalle: `Feria industrial ${sufijo}`,
+      });
 
       const propuestasTrasEditar = await admin
         .from('propuestas')

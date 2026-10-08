@@ -66,7 +66,8 @@ const RFQ_BASE: Rfq = {
   vendedorId: 'vend-1',
   responsableId: 'usuario-1',
   responsableNombre: 'Luis Operador (inactivo)',
-  canal: 'Teléfono',
+  canal: 'TELEFONO',
+  canalDetalle: null,
   fechaSolicitud: '2026-01-01',
   fechaRequeridaCliente: '2026-02-15T00:00:00+00:00',
   descripcionGeneral: 'Corte de lámina calibre 14',
@@ -83,6 +84,10 @@ const CATALOGOS: CatalogosRfq = {
   materiales: [],
   espesores: [],
   procesos: [],
+  canales: [
+    { codigo: 'TELEFONO', nombre: 'Teléfono', esOtro: false, activo: true },
+    { codigo: 'OTRO', nombre: 'Otro', esOtro: true, activo: true },
+  ],
   proximasAcciones: [
     { codigo: 'LLAMAR', nombre: 'Llamar al cliente', esOtro: false },
     { codigo: 'OTRO', nombre: 'Otro', esOtro: true },
@@ -131,6 +136,12 @@ describe('ResumenRfq — tarjetas de solo lectura (C1.1b)', () => {
 
     expect(screen.getByText('Empresa legada SA')).toBeDefined();
     expect(screen.getByText('Contacto legado')).toBeDefined();
+  });
+
+  it('resuelve el nombre del canal y muestra el detalle de Otro', () => {
+    renderizarResumen({ ...RFQ_BASE, canal: 'OTRO', canalDetalle: 'Feria industrial' });
+
+    expect(screen.getByText('Otro: Feria industrial')).toBeDefined();
   });
 
   it('usa el fallback legado si el nombre resuelto llega vacío', () => {

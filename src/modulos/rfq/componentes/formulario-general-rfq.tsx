@@ -15,6 +15,16 @@ import {
   type CatalogosRfq,
 } from '../acciones/obtener-catalogos';
 
+function resolverCanalInicial(rfq: Rfq, catalogos: CatalogosRfq): string {
+  if (!rfq.canal) return '';
+  const opcion = catalogos.canales.find(
+    (canal) =>
+      canal.codigo.localeCompare(rfq.canal!, 'es', { sensitivity: 'base' }) === 0 ||
+      canal.nombre.localeCompare(rfq.canal!, 'es', { sensitivity: 'base' }) === 0,
+  );
+  return opcion?.codigo ?? rfq.canal;
+}
+
 /**
  * Formulario de datos generales y seguimiento del RFQ (pestaña Resumen).
  * Solo se habilita en estados donde el RFQ sigue capturándose; en READY debe
@@ -29,7 +39,8 @@ export function FormularioGeneralRfq({
   catalogos: CatalogosRfq;
   onGuardado: () => void;
 }) {
-  const [canal, setCanal] = useState(rfq.canal ?? '');
+  const [canal, setCanal] = useState(() => resolverCanalInicial(rfq, catalogos));
+  const [canalDetalle, setCanalDetalle] = useState(rfq.canalDetalle ?? '');
   const [fechaSolicitud, setFechaSolicitud] = useState(rfq.fechaSolicitud ?? '');
   const [descripcionGeneral, setDescripcionGeneral] = useState(rfq.descripcionGeneral ?? '');
   const [contactoId, setContactoId] = useState(rfq.contactoId ?? '');
@@ -55,9 +66,20 @@ export function FormularioGeneralRfq({
   const accionSeleccionada = catalogos.proximasAcciones.find(
     (accion) => accion.codigo === proximaAccionCodigo,
   );
+  const canalSeleccionado = catalogos.canales.find((opcion) => opcion.codigo === canal);
+  const canalesVisibles = catalogos.canales.filter(
+    (opcion) => opcion.activo || opcion.codigo === canal,
+  );
+  const canalHistoricoSinCatalogar =
+    canal !== '' && !catalogos.canales.some((opcion) => opcion.codigo === canal);
 
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
+    if (canalSeleccionado?.esOtro && !canalDetalle.trim()) {
+      setGuardado(false);
+      setMensaje('Escribe el detalle del canal Otro');
+      return;
+    }
     setEnviando(true);
     setMensaje(null);
     setGuardado(false);
@@ -66,6 +88,7 @@ export function FormularioGeneralRfq({
       rfqId: rfq.id,
       actualizadoEn: rfq.actualizadoEn,
       canal: canal.trim() || null,
+      canalDetalle: canalSeleccionado?.esOtro ? canalDetalle.trim() || null : null,
       fechaSolicitud: fechaSolicitud || null,
       descripcionGeneral: descripcionGeneral.trim() || null,
       contactoId: contactoId || null,
@@ -97,15 +120,45 @@ export function FormularioGeneralRfq({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="flex flex-col gap-1">
           <Label htmlFor="rfq-canal">Canal</Label>
-          <Input
+          <Select
             id="rfq-canal"
             value={canal}
-            onChange={(evento) => setCanal(evento.target.value)}
-            maxLength={80}
+            onChange={(evento) => {
+              const codigo = evento.target.value;
+              setCanal(codigo);
+              const siguiente = catalogos.canales.find((opcion) => opcion.codigo === codigo);
+              if (!siguiente?.esOtro) setCanalDetalle('');
+            }}
             disabled={!editable}
-            placeholder="correo, teléfono, visita…"
-          />
+          >
+            <option value="">Sin canal</option>
+            {canalHistoricoSinCatalogar && (
+              <option value={canal}>{canal} (histórico)</option>
+            )}
+            {canalesVisibles.map((opcion) => (
+              <option key={opcion.codigo} value={opcion.codigo}>
+                {opcion.nombre}{opcion.activo ? '' : ' (inactivo)'}
+              </option>
+            ))}
+          </Select>
+          <p className="text-xs text-texto-secundario">
+            Selecciona cómo llegó la solicitud del cliente.
+          </p>
         </div>
+        {canalSeleccionado?.esOtro && (
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="rfq-canal-detalle">Detalle del canal Otro</Label>
+            <Input
+              id="rfq-canal-detalle"
+              value={canalDetalle}
+              onChange={(evento) => setCanalDetalle(evento.target.value)}
+              maxLength={300}
+              disabled={!editable}
+              aria-required="true"
+              placeholder="Ej. feria industrial o alianza comercial"
+            />
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           <Label htmlFor="rfq-fecha-solicitud">Fecha de solicitud</Label>
           <Input

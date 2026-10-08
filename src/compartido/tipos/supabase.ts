@@ -2460,6 +2460,7 @@ export type Database = {
         Row: {
           actualizado_en: string
           canal: string | null
+          canal_detalle: string | null
           cliente_id: string | null
           condiciones_pago: string | null
           contacto_id: string | null
@@ -2502,6 +2503,7 @@ export type Database = {
         Insert: {
           actualizado_en?: string
           canal?: string | null
+          canal_detalle?: string | null
           cliente_id?: string | null
           condiciones_pago?: string | null
           contacto_id?: string | null
@@ -2544,6 +2546,7 @@ export type Database = {
         Update: {
           actualizado_en?: string
           canal?: string | null
+          canal_detalle?: string | null
           cliente_id?: string | null
           condiciones_pago?: string | null
           contacto_id?: string | null
@@ -3936,6 +3939,36 @@ export type Database = {
           pin_operador?: string | null
           rol?: string
           ultimo_login_at?: string | null
+        }
+        Relationships: []
+      }
+      catalogo_canales: {
+        Row: {
+          activo: boolean
+          codigo: string
+          creado_en: string
+          es_otro: boolean
+          id: string
+          nombre: string
+          orden: number
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          creado_en?: string
+          es_otro?: boolean
+          id?: string
+          nombre: string
+          orden?: number
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          creado_en?: string
+          es_otro?: boolean
+          id?: string
+          nombre?: string
+          orden?: number
         }
         Relationships: []
       }

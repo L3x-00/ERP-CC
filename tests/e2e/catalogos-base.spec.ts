@@ -46,9 +46,28 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
 
     const sufijo = randomUUID().slice(0, 6).toUpperCase();
     const codigoMaterial = `E2E_MAT_${sufijo}`;
+    const codigoCanal = 'E2E_CANAL_QA';
     let materialId: string | null = null;
+    let canalId: string | null = null;
+    let canalPreexistente = false;
     let procesoId: string | null = null;
     let procesoOriginal: boolean | null = null;
+
+    const canalExistente = await admin
+      .from('catalogo_canales')
+      .select('id')
+      .eq('codigo', codigoCanal)
+      .maybeSingle();
+    if (canalExistente.error) throw canalExistente.error;
+    if (canalExistente.data) {
+      canalId = canalExistente.data.id;
+      canalPreexistente = true;
+      const reactivar = await admin
+        .from('catalogo_canales')
+        .update({ nombre: 'Canal E2E QA', activo: true, orden: 90 })
+        .eq('id', canalId);
+      if (reactivar.error) throw reactivar.error;
+    }
 
     try {
       await iniciarSesion(page, acceso);
@@ -129,6 +148,32 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await expect(page.getByTestId('catalogos-historial')).toBeVisible();
       await expect(page.getByTestId('catalogos-historial-lista')).toContainText('Versión 2');
       await expect(page.getByTestId('catalogos-historial-lista')).toContainText('requiere_archivo_tecnico');
+      await page.getByTestId('catalogos-historial-cerrar').click();
+
+      // --- Canal RFQ configurable ---
+      if (!canalPreexistente) {
+        await page.getByTestId('catalogo-canal-nuevo').click();
+        await page.getByTestId('catalogo-canal-codigo').fill(codigoCanal);
+        await page.getByTestId('catalogo-canal-nombre').fill('Canal E2E QA');
+        await page.getByTestId('catalogo-canal-orden').fill('90');
+        await page.getByTestId('catalogo-canal-guardar').click();
+        await expect(page.getByTestId('catalogos-confirmacion')).toContainText('Canal guardado');
+      }
+      await expect(page.getByTestId(`fila-canal-${codigoCanal}`)).toBeVisible();
+      const canalCreado = await admin
+        .from('catalogo_canales')
+        .select('id, codigo, activo')
+        .eq('codigo', codigoCanal)
+        .single();
+      if (canalCreado.error) throw canalCreado.error;
+      canalId = canalCreado.data.id;
+      expect(canalCreado.data.activo).toBe(true);
+
+      await page.getByTestId(`editar-canal-${codigoCanal}`).click();
+      await expect(page.getByTestId('catalogo-canal-codigo')).toBeDisabled();
+      await page.getByTestId('catalogo-canal-nombre').fill('Canal actualizado E2E');
+      await page.getByTestId('catalogo-canal-guardar').click();
+      await expect(page.getByTestId('catalogos-confirmacion')).toContainText('Canal guardado');
 
       // --- Capturas 1440/768 × claro/oscuro ---
       mkdirSync('.ai-shared/qa/sii-b1-e2/visual', { recursive: true });
@@ -150,7 +195,33 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       }
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.locator('html').evaluate((elemento) => elemento.classList.remove('dark'));
-      await page.getByTestId('catalogos-historial-cerrar').click();
+
+      // --- Canales RFQ: escritorio/móvil × claro/oscuro ---
+      for (const [nombre, ancho, alto] of [
+        ['escritorio', 1440, 900],
+        ['movil', 320, 1800],
+      ] as const) {
+        await page.setViewportSize({ width: ancho, height: alto });
+        for (const tema of ['claro', 'oscuro'] as const) {
+          await page
+            .locator('html')
+            .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
+          const seccionCanales = page.getByRole('region', { name: 'Canales RFQ' });
+          await seccionCanales.scrollIntoViewIfNeeded();
+          if (ancho === 320) {
+            const sinDesborde = await seccionCanales.evaluate(
+              (seccion) => seccion.scrollWidth <= seccion.clientWidth + 1,
+            );
+            expect(sinDesborde).toBe(true);
+            const anchoDocumento = await page.evaluate(() => document.documentElement.scrollWidth);
+            expect(anchoDocumento).toBeLessThanOrEqual(320);
+          }
+          await seccionCanales.screenshot({
+            path: `.ai-shared/qa/sii-b1-e2/visual/catalogos-canales-${nombre}-${tema}.png`,
+            animations: 'disabled',
+          });
+        }
+      }
     } finally {
       // Los catálogos no se borran (trigger `catalogo_sin_borrado`): la limpieza del
       // fixture es desactivar, y las versiones del fixture se retiran para no acumular.
@@ -169,6 +240,10 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
         await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_materiales').eq('entidad_id', materialId);
         await admin.from('catalogo_espesores').update({ activo: false }).eq('material_id', materialId);
         await admin.from('catalogo_materiales').update({ activo: false }).eq('id', materialId);
+      }
+      if (canalId) {
+        await admin.from('catalogo_canales').update({ activo: false }).eq('id', canalId);
+        await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_canales').eq('entidad_id', canalId);
       }
     }
   });

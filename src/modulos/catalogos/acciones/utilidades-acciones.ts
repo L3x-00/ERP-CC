@@ -26,6 +26,9 @@ export function mensajeErrorCatalogo(error: unknown): string {
     return 'Ya existe un registro con ese código o combinación';
   }
   if (codigo === '23503') return 'La referencia seleccionada no existe';
+  if (detalle.includes('codigo_canal_inmutable')) {
+    return 'El código del canal es estable; crea otro canal si necesitas un código distinto';
+  }
   if (codigo === '23514') return 'Los datos no cumplen una regla del catálogo';
   if (detalle.includes('catalogo_sin_borrado')) return 'Los catálogos no se borran: usa activo/inactivo';
   if (detalle.includes('catalogo_no_encontrado')) return 'El registro ya no existe';

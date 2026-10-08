@@ -11,6 +11,13 @@ import { mensajeErrorRfq } from './utilidades-acciones';
 
 const ESTADOS_EDITABLES = ['NEW', 'INCOMPLETE', 'WAITING_CUSTOMER', 'WAITING_TECHNICAL'];
 
+function coincideCanal(valor: string, codigo: string, nombre: string): boolean {
+  return (
+    valor.localeCompare(codigo, 'es', { sensitivity: 'base' }) === 0 ||
+    valor.localeCompare(nombre, 'es', { sensitivity: 'base' }) === 0
+  );
+}
+
 /**
  * Server Action: actualiza los datos generales y de seguimiento del RFQ con
  * compare-and-set sobre `actualizado_en`. Solo en estados donde el RFQ sigue
@@ -37,7 +44,7 @@ export async function actualizarDatosRfqAccion(
 
   const { data: rfq, error: errorRfq } = await admin
     .from('pipeline')
-    .select('id, estado_rfq, cliente_id, actualizado_en')
+    .select('id, estado_rfq, cliente_id, canal, actualizado_en')
     .eq('id', datos.rfqId)
     .maybeSingle();
   if (errorRfq || !rfq) {
@@ -93,10 +100,51 @@ export async function actualizarDatosRfqAccion(
     }
   }
 
+  let canal = datos.canal ?? null;
+  let canalDetalle = datos.canalDetalle ?? null;
+  if (canal) {
+    const { data: canales, error: errorCanales } = await admin
+      .from('catalogo_canales')
+      .select('codigo, nombre, es_otro, activo');
+    if (errorCanales) {
+      return { exito: false, error: 'No se pudo validar el canal seleccionado' };
+    }
+
+    const seleccionado = (canales ?? []).find((opcion) =>
+      coincideCanal(canal!, opcion.codigo, opcion.nombre),
+    );
+    if (!seleccionado) {
+      const esHistoricoSinCatalogar =
+        rfq.canal !== null &&
+        rfq.canal.localeCompare(canal, 'es', { sensitivity: 'base' }) === 0;
+      if (!esHistoricoSinCatalogar) {
+        return { exito: false, error: 'Selecciona un canal vigente del catálogo' };
+      }
+      canal = rfq.canal;
+      canalDetalle = null;
+    } else {
+      const actual = rfq.canal
+        ? (canales ?? []).find((opcion) => coincideCanal(rfq.canal!, opcion.codigo, opcion.nombre))
+        : null;
+      const conservaHistorico = actual?.codigo === seleccionado.codigo;
+      if (!seleccionado.activo && !conservaHistorico) {
+        return { exito: false, error: 'El canal seleccionado ya no está activo' };
+      }
+      if (seleccionado.es_otro && !canalDetalle?.trim()) {
+        return { exito: false, error: 'Escribe el detalle del canal Otro' };
+      }
+      canal = seleccionado.codigo;
+      canalDetalle = seleccionado.es_otro ? canalDetalle?.trim() ?? null : null;
+    }
+  } else {
+    canalDetalle = null;
+  }
+
   const { data: actualizado, error } = await admin
     .from('pipeline')
     .update({
-      canal: datos.canal ?? null,
+      canal,
+      canal_detalle: canalDetalle,
       fecha_solicitud: datos.fechaSolicitud ?? null,
       descripcion_general: datos.descripcionGeneral ?? null,
       contacto_id: datos.contactoId ?? null,

@@ -79,7 +79,8 @@ export const esquemaDatosGeneralesRfq = z
   .object({
     rfqId: z.uuid(),
     actualizadoEn: z.iso.datetime({ offset: true }),
-    canal: z.string().trim().max(80).nullish(),
+    canal: z.string().trim().max(49).nullish(),
+    canalDetalle: z.string().trim().max(300).nullish(),
     fechaSolicitud: fechaDia.nullish(),
     descripcionGeneral: z.string().trim().max(2000).nullish(),
     contactoId: z.uuid().nullish(),

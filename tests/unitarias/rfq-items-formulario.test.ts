@@ -34,6 +34,7 @@ const RFQ: Rfq = {
   responsableId: null,
   responsableNombre: null,
   canal: null,
+  canalDetalle: null,
   fechaSolicitud: null,
   fechaRequeridaCliente: null,
   descripcionGeneral: null,
@@ -60,6 +61,7 @@ const CATALOGOS: CatalogosRfq = {
     },
   ],
   procesos: [],
+  canales: [],
   proximasAcciones: [],
   usuarios: [],
 };

@@ -23,6 +23,9 @@ export function mensajeErrorRfq(codigo: string, detalles?: string | null): strin
   if (codigo.includes('items_agotados')) return 'El RFQ alcanzó el máximo de 99 ítems';
   if (codigo.includes('item_cancelado')) return 'El ítem está cancelado';
   if (codigo.includes('rfq_no_editable')) return 'El RFQ ya no admite cambios en su estado actual';
+  if (codigo.includes('canal_otro_requiere_detalle')) return 'Escribe el detalle del canal Otro';
+  if (codigo.includes('canal_rfq_inactivo')) return 'El canal seleccionado ya no está activo';
+  if (codigo.includes('canal_rfq_no_catalogado')) return 'Selecciona un canal vigente del catálogo';
   if (codigo.includes('actualizado_en_requerido')) return 'Falta el token de actualización; recarga la pantalla';
   if (codigo.includes('item_inexistente')) return 'El ítem no existe';
   if (codigo.includes('rfq_inexistente')) return 'El RFQ no existe';

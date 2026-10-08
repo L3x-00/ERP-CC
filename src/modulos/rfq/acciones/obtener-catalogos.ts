@@ -12,6 +12,7 @@ export type CatalogosRfq = {
   materiales: { id: string; codigo: string; nombre: string }[];
   espesores: { id: string; materialId: string; etiqueta: string; espesorMm: number }[];
   procesos: { id: string; codigo: string; nombre: string; requiereArchivoTecnico: boolean }[];
+  canales: { codigo: string; nombre: string; esOtro: boolean; activo: boolean }[];
   proximasAcciones: { codigo: string; nombre: string; esOtro: boolean }[];
   usuarios: { id: string; nombre: string; rol: string }[];
 };
@@ -30,7 +31,7 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
   }
 
   const admin = crearClienteSupabaseAdmin();
-  const [materiales, espesores, procesos, proximasAcciones, usuarios] = await Promise.all([
+  const [materiales, espesores, procesos, canales, proximasAcciones, usuarios] = await Promise.all([
     admin
       .from('catalogo_materiales')
       .select('id, codigo, nombre')
@@ -45,6 +46,10 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
       .from('catalogo_procesos')
       .select('id, codigo, nombre, requiere_archivo_tecnico')
       .eq('activo', true)
+      .order('orden'),
+    admin
+      .from('catalogo_canales')
+      .select('codigo, nombre, es_otro, activo')
       .order('orden'),
     admin
       .from('catalogo_proximas_acciones')
@@ -62,6 +67,7 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
     materiales.error ||
     espesores.error ||
     procesos.error ||
+    canales.error ||
     proximasAcciones.error ||
     usuarios.error
   ) {
@@ -88,6 +94,12 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
         codigo: fila.codigo,
         nombre: fila.nombre,
         requiereArchivoTecnico: fila.requiere_archivo_tecnico,
+      })),
+      canales: (canales.data ?? []).map((fila) => ({
+        codigo: fila.codigo,
+        nombre: fila.nombre,
+        esOtro: fila.es_otro,
+        activo: fila.activo,
       })),
       proximasAcciones: (proximasAcciones.data ?? []).map((fila) => ({
         codigo: fila.codigo,

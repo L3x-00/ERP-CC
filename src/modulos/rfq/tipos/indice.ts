@@ -93,6 +93,7 @@ export type Rfq = {
    */
   responsableNombre: string | null;
   canal: string | null;
+  canalDetalle: string | null;
   fechaSolicitud: string | null;
   /** `pipeline.fecha_requerida` (legacy, timestamptz): fecha informativa del cliente, no la fecha compromiso comercial. */
   fechaRequeridaCliente: string | null;
@@ -122,6 +123,7 @@ export type FilaRfq = {
   vendedor_id: string;
   responsable_id: string | null;
   canal: string | null;
+  canal_detalle: string | null;
   fecha_solicitud: string | null;
   fecha_requerida: string | null;
   descripcion_general: string | null;
@@ -199,6 +201,7 @@ export function filaARfq(
     responsableId: fila.responsable_id,
     responsableNombre: resueltos.responsableNombre ?? null,
     canal: fila.canal,
+    canalDetalle: fila.canal_detalle,
     fechaSolicitud: fila.fecha_solicitud,
     fechaRequeridaCliente: fila.fecha_requerida,
     descripcionGeneral: fila.descripcion_general,

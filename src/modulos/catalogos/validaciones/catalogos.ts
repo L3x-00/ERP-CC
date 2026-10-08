@@ -93,6 +93,18 @@ export const esquemaGuardarProximaAccion = z
   })
   .strict();
 
+/** Canal de origen del RFQ (DC-02); solo uno puede ser "Otro". */
+export const esquemaGuardarCanal = z
+  .object({
+    id: idOpcional,
+    codigo: codigoCatalogo,
+    nombre: nombreCatalogo,
+    esOtro: z.boolean().default(false),
+    activo: z.boolean().default(true),
+    orden: ordenCatalogo.default(0),
+  })
+  .strict();
+
 /** Alternar activo/inactivo sin exponer DELETE (regla de oro del catálogo). */
 export const esquemaAlternarActivo = z
   .object({
@@ -121,6 +133,7 @@ export type GuardarProcesoInput = z.infer<typeof esquemaGuardarProceso>;
 export type GuardarGrupoEquipoInput = z.infer<typeof esquemaGuardarGrupoEquipo>;
 export type GuardarGrupoPlaneadoInput = z.infer<typeof esquemaGuardarGrupoPlaneado>;
 export type GuardarProximaAccionInput = z.infer<typeof esquemaGuardarProximaAccion>;
+export type GuardarCanalInput = z.infer<typeof esquemaGuardarCanal>;
 export type AlternarActivoInput = z.infer<typeof esquemaAlternarActivo>;
 export type ConsultaCatalogosBaseInput = z.infer<typeof esquemaConsultaCatalogosBase>;
 export type ListarVersionesInput = z.infer<typeof esquemaListarVersiones>;

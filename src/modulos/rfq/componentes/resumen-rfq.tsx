@@ -70,6 +70,18 @@ function textoProximaAccion(rfq: Rfq, catalogos: CatalogosRfq | null): string {
   return accion.nombre;
 }
 
+/** Conserva valores históricos y resuelve los códigos nuevos al nombre visible. */
+function textoCanal(rfq: Rfq, catalogos: CatalogosRfq | null): string {
+  if (!rfq.canal) return SIN_VALOR;
+  const canal = catalogos?.canales.find(
+    (opcion) =>
+      opcion.codigo.localeCompare(rfq.canal!, 'es', { sensitivity: 'base' }) === 0 ||
+      opcion.nombre.localeCompare(rfq.canal!, 'es', { sensitivity: 'base' }) === 0,
+  );
+  const nombre = canal?.nombre ?? rfq.canal;
+  return canal?.esOtro && rfq.canalDetalle ? `${nombre}: ${rfq.canalDetalle}` : nombre;
+}
+
 /**
  * Pestaña Resumen del RFQ (solo lectura): tres tarjetas (datos generales,
  * próxima acción, descripción) con `Editar resumen` como única puerta hacia
@@ -118,7 +130,7 @@ export function ResumenRfq({
             <Campo etiqueta="Folio" valor={rfq.folio} />
             <Campo etiqueta="Cliente" valor={clienteTexto} />
             <Campo etiqueta="Contacto" valor={contactoTexto} />
-            <Campo etiqueta="Canal" valor={rfq.canal ?? SIN_VALOR} />
+            <Campo etiqueta="Canal" valor={textoCanal(rfq, catalogos)} />
             <Campo
               etiqueta="Fecha de solicitud"
               valor={formatearFechaCalendario(rfq.fechaSolicitud)}

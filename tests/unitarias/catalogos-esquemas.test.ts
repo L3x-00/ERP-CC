@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   esquemaAlternarActivo,
   esquemaConsultaCatalogosBase,
+  esquemaGuardarCanal,
   esquemaGuardarEspesor,
   esquemaGuardarGrupoEquipo,
   esquemaGuardarGrupoPlaneado,
@@ -93,6 +94,35 @@ describe('esquemas de catálogos base', () => {
     expect(esquemaGuardarProximaAccion.safeParse({ codigo: 'follow_up', nombre: 'Seguimiento' }).success).toBe(true);
   });
 
+  it('valida canales RFQ y su marca de "Otro" (DC-02)', () => {
+    const otro = esquemaGuardarCanal.safeParse({ codigo: 'otro', nombre: 'Otro', esOtro: true });
+    expect(otro.success).toBe(true);
+    if (otro.success) {
+      expect(otro.data.codigo).toBe('OTRO');
+      expect(otro.data.esOtro).toBe(true);
+      expect(otro.data.activo).toBe(true);
+      expect(otro.data.orden).toBe(0);
+    }
+
+    const whatsapp = esquemaGuardarCanal.safeParse({
+      id: MATERIAL_UUID,
+      codigo: 'WHATSAPP',
+      nombre: 'WhatsApp',
+      esOtro: false,
+      activo: true,
+      orden: 10,
+    });
+    expect(whatsapp.success).toBe(true);
+    if (whatsapp.success) expect(whatsapp.data.esOtro).toBe(false);
+
+    expect(esquemaGuardarCanal.safeParse({ codigo: 'con espacio', nombre: 'Correo' }).success).toBe(false);
+    expect(esquemaGuardarCanal.safeParse({ codigo: 'C', nombre: 'Correo' }).success).toBe(false);
+    expect(esquemaGuardarCanal.safeParse({ codigo: 'CORREO', nombre: 'C' }).success).toBe(false);
+    expect(esquemaGuardarCanal.safeParse({ codigo: 'CORREO', nombre: 'Correo', orden: -1 }).success).toBe(false);
+    expect(esquemaGuardarCanal.safeParse({ codigo: 'CORREO', nombre: 'Correo', extra: 1 }).success).toBe(false);
+    expect(esquemaGuardarCanal.safeParse({ codigo: 'CORREO', nombre: 'Correo', id: 'no-uuid' }).success).toBe(false);
+  });
+
   it('valida alternar activo con entidad permitida', () => {
     const valido = esquemaAlternarActivo.safeParse({
       entidad: 'catalogo_materiales',
@@ -100,6 +130,9 @@ describe('esquemas de catálogos base', () => {
       activo: false,
     });
     expect(valido.success).toBe(true);
+    expect(
+      esquemaAlternarActivo.safeParse({ entidad: 'catalogo_canales', id: MATERIAL_UUID, activo: false }).success,
+    ).toBe(true);
     expect(
       esquemaAlternarActivo.safeParse({ entidad: 'tabla_inexistente', id: MATERIAL_UUID, activo: false }).success,
     ).toBe(false);
@@ -113,6 +146,9 @@ describe('esquemas de catálogos base', () => {
 
     expect(
       esquemaListarVersiones.safeParse({ entidad: 'catalogo_procesos', entidadId: MATERIAL_UUID }).success,
+    ).toBe(true);
+    expect(
+      esquemaListarVersiones.safeParse({ entidad: 'catalogo_canales', entidadId: MATERIAL_UUID }).success,
     ).toBe(true);
     expect(
       esquemaListarVersiones.safeParse({ entidad: 'catalogo_procesos', entidadId: 'x' }).success,

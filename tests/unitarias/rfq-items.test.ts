@@ -127,7 +127,7 @@ describe('esquemas Zod de RFQ', () => {
     const base = {
       rfqId: UUID,
       actualizadoEn: '2026-10-05T10:00:00+00:00',
-      canal: 'correo',
+      canal: 'CORREO',
       fechaSolicitud: '2026-10-01',
       descripcionGeneral: 'Solicitud de prueba',
       proximaAccionCodigo: 'FOLLOW_UP',
@@ -144,6 +144,15 @@ describe('esquemas Zod de RFQ', () => {
       proximaAccionTexto: 'Llamar al comprador',
     }).success).toBe(true);
     expect(esquemaDatosGeneralesRfq.safeParse({ ...base, fechaSolicitud: '01/10/2026' }).success).toBe(false);
+    expect(esquemaDatosGeneralesRfq.safeParse({
+      ...base,
+      canal: 'OTRO',
+      canalDetalle: 'Feria industrial',
+    }).success).toBe(true);
+    expect(esquemaDatosGeneralesRfq.safeParse({
+      ...base,
+      canalDetalle: 'x'.repeat(301),
+    }).success).toBe(false);
   });
 
   it('etiqueta la próxima acción del catálogo y humaniza códigos nuevos', () => {
