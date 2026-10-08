@@ -142,7 +142,7 @@ export const esquemaConfirmarArchivoRfq = z
 export const esquemaListarArchivosRfq = z.object({ rfqId: z.uuid() }).strict();
 
 /** Entrada para firmar la lectura de un archivo. */
-export const esquemaFirmarArchivoRfq = z.object({ archivoId: z.uuid() }).strict();
+export const esquemaFirmarArchivoRfq = z.object({ rfqId: z.uuid(), archivoId: z.uuid() }).strict();
 
 export type DatosGeneralesRfqInput = z.infer<typeof esquemaDatosGeneralesRfq>;
 export type PrepararArchivoRfqInput = z.infer<typeof esquemaPrepararArchivoRfq>;

@@ -147,9 +147,14 @@ export const esquemaEnviarRevision = z
   })
   .strict();
 
-/** Firma corta de un archivo de propuesta (PDF o adjunto). */
+/**
+ * Firma corta de un archivo de propuesta (PDF o adjunto). `propuestaId` es
+ * obligatorio: la RLS de `archivos` autoriza por entidad, así que sin el
+ * contexto de la propuesta abierta un archivo visible de otra propuesta/RFQ
+ * también se firmaría.
+ */
 export const esquemaFirmarArchivoPropuesta = z
-  .object({ archivoId: uuid })
+  .object({ propuestaId: uuid, archivoId: uuid })
   .strict();
 
 /** Destino de un archivo propio de la revisión (el binario sube directo a Storage). */

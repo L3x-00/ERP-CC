@@ -1,6 +1,6 @@
 # Plan de corrección — observaciones del cliente 2026-10-07
 
-Estado: **decisiones funcionales `DC-01..DC-15` aceptadas; plan reforzado y entorno en preparación. La implementación se ejecutará por cortes verticales, no como cambio masivo**.
+Estado: **decisiones funcionales `DC-01..DC-15` aceptadas; P0, C1 y C2 cerrados localmente. El siguiente corte vertical es C3.1 (ítems nuevos y revisiones de Propuesta)**.
 
 ## 1. Objetivo y límites
 

@@ -46,13 +46,13 @@ function reglaDocumentoPiso(nombre: string, tamano?: number): string | null {
 }
 
 /**
- * Sesión, permiso de Producción y carpeta de la orden: los documentos viven en
- * la carpeta de la oportunidad de origen, así que la orden debe tenerla.
+ * Sesión, permiso de Producción y destino canónico de la Orden. Los archivos
+ * agregados durante la ejecución no reabren ni modifican el RFQ de origen.
  */
 async function carpetaDeOrden(
   admin: ClienteAdmin,
   ordenId: string,
-): Promise<{ usuario: UsuarioAutenticado; ordenIdReal: string; cotizacionId: string } | { error: string }> {
+): Promise<{ usuario: UsuarioAutenticado; ordenIdReal: string } | { error: string }> {
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) return { error: 'No autorizado' };
   if (!(await can(usuario, 'gestionar_produccion'))) {
@@ -61,10 +61,7 @@ async function carpetaDeOrden(
   try {
     const orden = await obtenerOrdenDocumental(admin, ordenId);
     if (!orden) return { error: 'La orden no existe' };
-    if (!orden.cotizacionId) {
-      return { error: 'La orden no tiene cotización de origen para guardar documentos' };
-    }
-    return { usuario, ordenIdReal: orden.id, cotizacionId: orden.cotizacionId };
+    return { usuario, ordenIdReal: orden.id };
   } catch (error) {
     console.error('[PRODUCCION] Error al cargar la orden del documento:', error);
     return { error: 'No se pudo subir el documento' };
@@ -73,8 +70,8 @@ async function carpetaDeOrden(
 
 /**
  * Emite la URL firmada para subir un documento durante la ejecución (ORD-09)
- * directo a Storage (H-B1-29). La ruta queda bajo `rfq/<cotización>/…`, que la
- * lectura posterior (`validarRutaDocumento`) reconoce.
+ * directo a Storage (H-B1-29). La ruta queda bajo `orden/<orden>/…`; los planos
+ * heredados permanecen referenciados por ID desde el snapshot aceptado.
  */
 export async function prepararDocumentoOrdenAccion(
   entrada: unknown,
@@ -91,8 +88,8 @@ export async function prepararDocumentoOrdenAccion(
 
   const preparada = await prepararSubidaDirecta(admin, {
     bucket: BUCKET_ADJUNTOS,
-    entidad: 'rfq',
-    entidadId: carpeta.cotizacionId,
+    entidad: 'orden',
+    entidadId: carpeta.ordenIdReal,
     usuarioId: carpeta.usuario.id,
     solicitud: { nombre, tamano, mime },
   });
@@ -117,15 +114,15 @@ export async function confirmarDocumentoOrdenAccion(
   const admin = crearClienteSupabaseAdmin();
   const carpeta = await carpetaDeOrden(admin, ordenId);
   if ('error' in carpeta) return { exito: false, error: carpeta.error };
-  const { usuario, ordenIdReal, cotizacionId } = carpeta;
+  const { usuario, ordenIdReal } = carpeta;
 
   const confirmada = await confirmarSubidaDirecta(
     admin,
-    { bucket: BUCKET_ADJUNTOS, entidad: 'rfq', entidadId: cotizacionId, usuarioId: usuario.id, ruta, nombre },
+    { bucket: BUCKET_ADJUNTOS, entidad: 'orden', entidadId: ordenIdReal, usuarioId: usuario.id, ruta, nombre },
     (objeto) =>
       registrarArchivo(admin, {
-        entidad: 'rfq',
-        entidadId: cotizacionId,
+        entidad: 'orden',
+        entidadId: ordenIdReal,
         clase: 'OTROS',
         nombreOriginal: nombre,
         nombreErp: sanearNombreArchivo(nombre),
@@ -138,7 +135,14 @@ export async function confirmarDocumentoOrdenAccion(
   );
   if (!confirmada.ok) return { exito: false, error: confirmada.error };
 
-  await registrarLog(usuario, 'subir_documento_orden', 'produccion', ordenIdReal, { ruta }, correlationId);
+  await registrarLog(
+    usuario,
+    'subir_documento_orden',
+    'produccion',
+    ordenIdReal,
+    { archivoId: confirmada.datos.id },
+    correlationId,
+  );
   return { exito: true, datos: { ruta, nombre: nombreDocumentoSeguro(nombre) } };
 }
 

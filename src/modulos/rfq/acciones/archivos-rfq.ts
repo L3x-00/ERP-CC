@@ -27,7 +27,12 @@ import {
 } from '../validaciones/esquemas-rfq';
 import { mensajeErrorRfq } from './utilidades-acciones';
 
-/** Archivo vigente del RFQ o de uno de sus ítems. */
+/**
+ * Archivo del RFQ o de uno de sus ítems, vigente o histórico. El linaje de
+ * versiones se identifica por `entidad + entidadId + temaCodigo + nombreErp`
+ * (DC-04): una versión nueva es otra fila que apunta a la anterior con
+ * `reemplazaA`, nunca una sobrescritura del blob.
+ */
 export type ArchivoRfq = {
   id: string;
   entidad: 'rfq' | 'rfq_item';
@@ -35,7 +40,11 @@ export type ArchivoRfq = {
   itemCodigo: string | null;
   clase: string;
   nombreOriginal: string;
+  nombreErp: string | null;
+  temaCodigo: string | null;
   version: number;
+  vigente: boolean;
+  reemplazaA: string | null;
   creadoEn: string;
 };
 
@@ -178,8 +187,9 @@ export async function descartarSubidaArchivoRfqAccion(
 }
 
 /**
- * Server Action: lista los archivos vigentes del RFQ y de sus ítems, con el
- * código ITxx del ítem cuando aplica.
+ * Server Action: lista los archivos del RFQ y de sus ítems —incluidas las
+ * versiones no vigentes (CLI-06)—, con el código ITxx del ítem cuando aplica.
+ * La interfaz decide qué mostrar por defecto; aquí no se oculta historial.
  */
 export async function listarArchivosRfqAccion(
   entrada: unknown,
@@ -209,13 +219,13 @@ export async function listarArchivosRfqAccion(
   const codigoPorItem = new Map((items ?? []).map((item) => [item.id, item.codigo]));
   const idsItems = [...codigoPorItem.keys()];
 
-  const columnas = 'id, entidad, entidad_id, clase, nombre_original, version, creado_en';
+  const columnas =
+    'id, entidad, entidad_id, clase, nombre_original, nombre_erp, tema_codigo, version, vigente, reemplaza_a, creado_en';
   const { data: generales, error: errorGenerales } = await admin
     .from('archivos')
     .select(columnas)
     .eq('entidad', 'rfq')
-    .eq('entidad_id', rfqId)
-    .eq('vigente', true);
+    .eq('entidad_id', rfqId);
   if (errorGenerales) {
     return { exito: false, error: 'No se pudieron listar los archivos' };
   }
@@ -226,8 +236,7 @@ export async function listarArchivosRfqAccion(
       .from('archivos')
       .select(columnas)
       .eq('entidad', 'rfq_item')
-      .in('entidad_id', idsItems)
-      .eq('vigente', true);
+      .in('entidad_id', idsItems);
     if (error) {
       return { exito: false, error: 'No se pudieron listar los archivos' };
     }
@@ -242,7 +251,11 @@ export async function listarArchivosRfqAccion(
       itemCodigo: codigoPorItem.get(fila.entidad_id) ?? null,
       clase: fila.clase,
       nombreOriginal: fila.nombre_original,
+      nombreErp: fila.nombre_erp,
+      temaCodigo: fila.tema_codigo,
       version: fila.version,
+      vigente: fila.vigente,
+      reemplazaA: fila.reemplaza_a,
       creadoEn: fila.creado_en,
     }))
     .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1));
@@ -250,7 +263,34 @@ export async function listarArchivosRfqAccion(
   return { exito: true, datos: archivos };
 }
 
-/** Server Action: firma una URL de lectura corta (≤300 s) del archivo. */
+/**
+ * Entrada de firma con el RFQ de contexto. `rfq_vista` autoriza "ver RFQ", no
+ * "leer cualquier blob del sistema": la acción firma con el cliente admin, así
+ * que el archivo debe comprobarse contra este RFQ concreto o sus ítems.
+ */
+/** `true` si el archivo es del RFQ indicado o de uno de sus ítems. */
+async function archivoEsDelRfq(
+  admin: SupabaseClient<Database>,
+  rfqId: string,
+  archivoId: string,
+): Promise<boolean> {
+  const { data: archivo } = await admin
+    .from('archivos')
+    .select('entidad, entidad_id')
+    .eq('id', archivoId)
+    .maybeSingle();
+  if (!archivo) return false;
+  if (archivo.entidad === 'rfq') return archivo.entidad_id === rfqId;
+  if (archivo.entidad !== 'rfq_item') return false;
+
+  const { data: items } = await admin.from('rfq_items').select('id').eq('rfq_id', rfqId);
+  return (items ?? []).some((item) => item.id === archivo.entidad_id);
+}
+
+/**
+ * Server Action: firma una URL de lectura corta (≤300 s) del archivo, vigente
+ * o histórico, siempre que pertenezca al RFQ recibido o a uno de sus ítems.
+ */
 export async function firmarArchivoRfqAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<{ url: string }>> {
@@ -266,8 +306,14 @@ export async function firmarArchivoRfqAccion(
     return { exito: false, error: 'Sin permiso para ver RFQ' };
   }
 
+  const { rfqId, archivoId } = resultado.data;
+  const admin = crearClienteSupabaseAdmin();
+  if (!(await archivoEsDelRfq(admin, rfqId, archivoId))) {
+    return { exito: false, error: mensajeErrorRfq('archivo_no_encontrado') };
+  }
+
   try {
-    const url = await firmarLecturaArchivo(crearClienteSupabaseAdmin(), resultado.data.archivoId);
+    const url = await firmarLecturaArchivo(admin, archivoId);
     return { exito: true, datos: { url } };
   } catch {
     return { exito: false, error: mensajeErrorRfq('archivo_no_encontrado') };

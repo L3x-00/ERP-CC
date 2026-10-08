@@ -100,6 +100,12 @@ function esObjeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
 }
 
+function esArchivoSnapshot(valor: unknown): valor is ArchivoSnapshotOrden {
+  return esObjeto(valor)
+    && typeof valor.archivo_id === 'string'
+    && valor.archivo_id.length > 0;
+}
+
 /** Guard defensivo para leer `snapshot_json` sin confiar en su forma. */
 export function esSnapshotOrdenSii(valor: unknown): valor is SnapshotOrdenSii {
   if (!esObjeto(valor)) return false;
@@ -107,10 +113,15 @@ export function esSnapshotOrdenSii(valor: unknown): valor is SnapshotOrdenSii {
   if (typeof valor.orden_id !== 'string') return false;
   if (!esObjeto(valor.origen) || !esObjeto(valor.cabecera)) return false;
   if (!Array.isArray(valor.items) || !Array.isArray(valor.archivos)) return false;
-  return valor.items.every((item) => esObjeto(item));
+  if (!valor.archivos.every((archivo) => esArchivoSnapshot(archivo))) return false;
+  return valor.items.every(
+    (item) => esObjeto(item)
+      && (item.archivos === undefined || Array.isArray(item.archivos))
+      && (item.archivos === undefined || item.archivos.every((archivo) => esArchivoSnapshot(archivo))),
+  );
 }
 
-/** Extrae los ids de archivos vivos referenciados por un snapshot. */
+/** Extrae los IDs exactos —vigentes o históricos— referenciados por un snapshot. */
 export function archivosReferenciados(snapshot: SnapshotOrdenSii): string[] {
   const ids = new Set<string>();
   for (const archivo of snapshot.archivos) {

@@ -67,7 +67,7 @@ export async function registrarArchivo(
   return { id: data.id, version: data.version };
 }
 
-/** Firma una URL corta de lectura validando la vigencia del archivo. */
+/** Firma una URL corta para un archivo cuya pertenencia ya validó el llamador. */
 export async function firmarLecturaArchivo(
   admin: ClienteAdmin,
   archivoId: string,

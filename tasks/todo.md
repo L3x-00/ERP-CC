@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2.1 y C2.2 completos localmente** (2026-10-08); **siguiente: C2.3**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1 y C2 completos localmente** (2026-10-08); **siguiente: C3.1**.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -142,18 +142,22 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] “Ver versiones” incluye metadata no vigente y no ofrece borrado físico.
-- [ ] DXF/DWG aparecen en ayuda/selector y suben/descargan correctamente, incluido >1 MiB.
-- [ ] Archivos de `rfq_item` llegan autorizadamente a Propuesta, Orden y piso sin duplicar blobs.
+- [x] “Ver versiones” incluye metadata no vigente y no ofrece borrado físico.
+- [x] DXF/DWG aparecen en ayuda/selector y suben/descargan correctamente, incluido >1 MiB.
+- [x] Archivos de `rfq_item` llegan autorizadamente a Propuesta, Orden y piso sin duplicar blobs.
 
 **Verificación:** integración Storage/RLS, E2E de versión repetida y E2E de piso.
 **Dependencias:** P0.4; coordinar con H-B1-29 parcial sin reimplementarlo.
 
+**Hecho:** RFQ y Propuesta muestran la versión vigente por defecto y abren el historial en solo lectura; ambas firmas validan pertenencia al RFQ/Propuesta abiertos. Orden y Producción consumen por ID la versión exacta congelada en el snapshot aceptado, conservan el código ITxx y registran archivos posteriores bajo la Orden sin reabrir el RFQ. El DTO operativo no expone el snapshot comercial; las referencias faltantes y cargas legadas quedan visibles sin incorporar cambios vivos. E2E RFQ repite un DXF de 2 MiB y descarga v1 histórica; E2E de piso abre el DXF congelado y conserva dos versiones de un DWG de 2 MiB. Sin migración nueva.
+
 ### Checkpoint C2
 
-- [ ] RFQ conserva versiones y documentos independientes.
-- [ ] Ningún flujo implícito crea propuesta ni borra historial.
-- [ ] SQL focal, integración, concurrencia, UI y E2E verdes.
+- [x] RFQ conserva versiones y documentos independientes.
+- [x] Ningún flujo implícito crea propuesta ni borra historial.
+- [x] SQL focal previo, integración, concurrencia, UI y E2E verdes.
+
+**Gates de cierre C2:** 1107/1107 unitarias; 246/246 integración en serie (la primera corrida paralela mostró interferencia entre suites y los 16 casos afectados pasaron aislados); typecheck, lint y build verdes; E2E RFQ 2/2, Propuesta 1/1 y Producción 2/2. pgTAP C2.1/C2.2 ya estaba verde y C2.3 no añadió SQL.
 
 ## C3 — Propuesta, ruteo y costos
 

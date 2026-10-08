@@ -95,6 +95,11 @@ describe('esquemas Zod de RFQ', () => {
     expect(esquemaCambiarEstadoRfq.safeParse({
       rfqId: UUID,
       accion: 'poner_en_espera_cliente',
+      proximaAccion: {
+        codigo: 'FOLLOW_UP',
+        fecha: '2026-10-08',
+        responsableId: UUID,
+      },
       actualizadoEn: '2026-10-05T10:00:00+00:00',
     }).success).toBe(true);
     expect(esquemaCambiarEstadoRfq.safeParse({

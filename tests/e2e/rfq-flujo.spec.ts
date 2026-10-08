@@ -336,6 +336,51 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       await page.getByRole('button', { name: 'Subir archivo' }).click();
       await expect(page.getByTestId('panel-archivos-rfq')).toContainText('plano-e2e.dxf');
 
+      // C2.3: repetir el mismo nombre crea otra versión sin borrar la anterior.
+      await page.getByLabel('Archivo').setInputFiles({
+        name: 'plano-e2e.dxf',
+        mimeType: 'application/octet-stream',
+        buffer: Buffer.alloc(2 * 1024 * 1024 + 64, '1\n'),
+      });
+      await page.getByRole('button', { name: 'Subir archivo' }).click();
+      const panelArchivos = page.getByTestId('panel-archivos-rfq');
+      await expect(panelArchivos.getByRole('button', { name: 'Ver versiones (1)' })).toBeVisible();
+
+      const versionesArchivo = await admin
+        .from('archivos')
+        .select('id, version, vigente')
+        .eq('entidad', 'rfq')
+        .eq('entidad_id', rfqId)
+        .eq('nombre_original', 'plano-e2e.dxf')
+        .order('version', { ascending: false });
+      expect(versionesArchivo.error).toBeNull();
+      expect(versionesArchivo.data).toHaveLength(2);
+      const versionVigente = versionesArchivo.data?.find((fila) => fila.vigente);
+      const versionHistorica = versionesArchivo.data?.find((fila) => !fila.vigente);
+      expect(versionVigente?.version).toBe(2);
+      expect(versionHistorica?.version).toBe(1);
+
+      await expect(panelArchivos.getByTestId(`archivo-rfq-${versionVigente!.id}`)).toContainText(
+        'Vigente',
+      );
+      await panelArchivos.getByRole('button', { name: 'Ver versiones (1)' }).click();
+      const filaHistorica = panelArchivos.getByTestId(`archivo-rfq-${versionHistorica!.id}`);
+      await expect(filaHistorica).toContainText('Histórica');
+      await expect(panelArchivos.getByRole('button', { name: /Quitar|Eliminar/ })).toHaveCount(0);
+      const [lecturaHistorica] = await Promise.all([
+        page.waitForEvent('popup'),
+        filaHistorica.getByRole('button', { name: /^Abrir / }).click(),
+      ]);
+      await expect.poll(async () => (await page.request.get(lecturaHistorica.url())).status()).toBe(200);
+      await lecturaHistorica.close();
+
+      if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+        await panelArchivos.screenshot({
+          path: `${carpetaVisual}/rfq-archivos-versiones-escritorio-claro.png`,
+          animations: 'disabled',
+        });
+      }
+
       // 6. Marcar listo con todo completo.
       await page.getByRole('button', { name: 'Marcar listo' }).click();
       await expect(page.getByTestId('validacion-listo')).toContainText('cumple todos los requisitos');
