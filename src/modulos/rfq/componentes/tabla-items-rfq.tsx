@@ -22,6 +22,7 @@ import {
 } from '@/compartido/componentes/diseno/tabla';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { Rfq, RfqItem } from '@/modulos/rfq/tipos/indice';
+import { esDefinicionRfqEditable, motivoDefinicionRfqBloqueada } from '@/modulos/rfq/utilidades/estados';
 
 import { cancelarItemRfqAccion } from '../acciones/cancelar-item-rfq';
 import { guardarItemRfqAccion } from '../acciones/guardar-item-rfq';
@@ -82,11 +83,7 @@ export function TablaItemsRfq({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  const editable =
-    rfq.estadoRfq === 'NEW' ||
-    rfq.estadoRfq === 'INCOMPLETE' ||
-    rfq.estadoRfq === 'WAITING_CUSTOMER' ||
-    rfq.estadoRfq === 'WAITING_TECHNICAL';
+  const editable = esDefinicionRfqEditable(rfq.estadoRfq);
 
   const nombreMaterial = useMemo(
     () => new Map((catalogos?.materiales ?? []).map((m) => [m.id, m.nombre])),
@@ -193,7 +190,7 @@ export function TablaItemsRfq({
 
       {!editable && (
         <p className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
-          El RFQ no admite cambios de ítems en su estado actual.
+          {motivoDefinicionRfqBloqueada(rfq.estadoRfq)}
         </p>
       )}
 

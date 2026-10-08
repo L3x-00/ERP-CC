@@ -6,6 +6,7 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
+import { registrarVersionRfq } from '../servicios/registrar-version-rfq';
 import { valorJsonAItemRfq, type RfqItem } from '../tipos/indice';
 import { esquemaCancelarItemRfq } from '../validaciones/esquemas-rfq';
 import { mensajeErrorRfq } from './utilidades-acciones';
@@ -34,7 +35,8 @@ export async function cancelarItemRfqAccion(
   const { itemId, motivo } = resultado.data;
   const correlationId = nuevoCorrelationId();
 
-  const { data, error } = await crearClienteSupabaseAdmin().rpc('cancelar_item_rfq', {
+  const admin = crearClienteSupabaseAdmin();
+  const { data, error } = await admin.rpc('cancelar_item_rfq', {
     p_item_id: itemId,
     p_motivo: motivo ?? '',
     p_actor_id: usuario.id,
@@ -54,6 +56,12 @@ export async function cancelarItemRfqAccion(
     return { exito: false, error: 'Respuesta inválida del servidor' };
   }
 
+  await registrarVersionRfq(admin, {
+    rfqId: item.rfqId,
+    causa: 'ITEM',
+    actorId: usuario.id,
+    correlationId,
+  });
   await registrarLog(
     usuario,
     'cancelar_item_rfq',

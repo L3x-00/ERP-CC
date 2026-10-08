@@ -3,7 +3,7 @@
 import { Button } from '@/compartido/componentes/ui/button';
 import type { CatalogosRfq } from '@/modulos/rfq/acciones/obtener-catalogos';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
-import { esEstadoTerminal } from '@/modulos/rfq/utilidades/estados';
+import { esDefinicionRfqEditable, motivoDefinicionRfqBloqueada } from '@/modulos/rfq/utilidades/estados';
 
 const SIN_VALOR = '—';
 
@@ -97,7 +97,7 @@ export function ResumenRfq({
   catalogos: CatalogosRfq | null;
   onEditar: () => void;
 }) {
-  const editable = !esEstadoTerminal(rfq.estadoRfq) && rfq.estadoRfq !== 'READY_FOR_PROPOSAL';
+  const editable = esDefinicionRfqEditable(rfq.estadoRfq);
   const clienteTexto = rfq.clienteNombre?.trim() || rfq.empresa;
   const contactoTexto = rfq.contactoNombre?.trim() || rfq.nombreContacto;
 
@@ -113,9 +113,7 @@ export function ResumenRfq({
 
       {!editable && (
         <p className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
-          El RFQ está en{' '}
-          {rfq.estadoRfq === 'READY_FOR_PROPOSAL' ? 'Listo para propuesta' : 'estado terminal'}.{' '}
-          Marca Incompleto para editar los datos generales.
+          {motivoDefinicionRfqBloqueada(rfq.estadoRfq)}
         </p>
       )}
 

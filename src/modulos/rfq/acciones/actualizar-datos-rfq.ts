@@ -6,10 +6,12 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
+import { registrarVersionRfq } from '../servicios/registrar-version-rfq';
 import { esquemaDatosGeneralesRfq } from '../validaciones/esquemas-rfq';
 import { mensajeErrorRfq } from './utilidades-acciones';
 
-const ESTADOS_EDITABLES = ['NEW', 'INCOMPLETE', 'WAITING_CUSTOMER', 'WAITING_TECHNICAL'];
+// CV-01/DC-05: la frontera de inmutabilidad es crear Rev A, no marcarlo listo.
+const ESTADOS_EDITABLES = ['NEW', 'INCOMPLETE', 'WAITING_CUSTOMER', 'WAITING_TECHNICAL', 'READY_FOR_PROPOSAL'];
 
 function coincideCanal(valor: string, codigo: string, nombre: string): boolean {
   return (
@@ -53,7 +55,7 @@ export async function actualizarDatosRfqAccion(
   if (!ESTADOS_EDITABLES.includes(rfq.estado_rfq)) {
     return {
       exito: false,
-      error: 'El RFQ ya no admite cambios en su estado actual; marca Incompleto para editarlo',
+      error: 'El RFQ ya no admite cambios: quedó congelado al crear la Propuesta Rev A',
     };
   }
   if (rfq.actualizado_en !== datos.actualizadoEn) {
@@ -164,6 +166,12 @@ export async function actualizarDatosRfqAccion(
   }
 
   const correlationId = nuevoCorrelationId();
+  await registrarVersionRfq(admin, {
+    rfqId: datos.rfqId,
+    causa: 'CABECERA',
+    actorId: usuario.id,
+    correlationId,
+  });
   await registrarLog(
     usuario,
     'actualizar_datos_rfq',

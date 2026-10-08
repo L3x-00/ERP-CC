@@ -282,6 +282,20 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       contexto.revisionIds.push(revisionA.data.id);
       await expect(ficha).toContainText(revisionA.data.folio_revision);
 
+      // C2.1: crear Rev A registra la versión final y congela la definición del RFQ.
+      const versionFinal = await admin
+        .from('rfq_versiones')
+        .select('causa')
+        .eq('rfq_id', rfqId)
+        .eq('causa', 'CREAR_REV_A');
+      expect(versionFinal.error).toBeNull();
+      expect(versionFinal.data).toHaveLength(1);
+      const cambioTardio = await admin
+        .from('pipeline')
+        .update({ descripcion_general: 'Cambio tras Rev A' })
+        .eq('id', rfqId);
+      expect(cambioTardio.error?.message).toContain('rfq_congelado');
+
       // 3. Editar ítems (precio) y costos.
       await page.getByRole('tab', { name: 'Ítems' }).click();
       await page.getByLabel('Precio IT01').fill('100');

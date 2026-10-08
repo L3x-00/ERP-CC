@@ -29,6 +29,9 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('rfq_no_apto_para_propuesta')) {
     return 'El RFQ debe estar LISTO para propuesta para crear la propuesta';
   }
+  if (mensaje.includes('rfq_no_listo')) {
+    return 'El RFQ se editó y ya no cumple los requisitos; revísalo antes de crear la propuesta';
+  }
   if (mensaje.includes('rfq_sin_cliente')) {
     return 'El RFQ no tiene un cliente válido ligado';
   }

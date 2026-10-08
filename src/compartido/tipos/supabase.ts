@@ -3788,6 +3788,57 @@ export type Database = {
           },
         ]
       }
+      rfq_versiones: {
+        Row: {
+          actor_id: string | null
+          causa: string
+          correlation_id: string | null
+          creado_en: string
+          id: string
+          numero: number
+          rfq_id: string
+          snapshot_cabecera: Json
+          snapshot_items: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          causa: string
+          correlation_id?: string | null
+          creado_en?: string
+          id?: string
+          numero: number
+          rfq_id: string
+          snapshot_cabecera: Json
+          snapshot_items: Json
+        }
+        Update: {
+          actor_id?: string | null
+          causa?: string
+          correlation_id?: string | null
+          creado_en?: string
+          id?: string
+          numero?: number
+          rfq_id?: string
+          snapshot_cabecera?: Json
+          snapshot_items?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfq_versiones_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_versiones_rfq_id_fkey"
+            columns: ["rfq_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sesiones_trabajo: {
         Row: {
           actualizado_en: string
@@ -5496,6 +5547,15 @@ export type Database = {
           entidad: string
           entidad_id: string
         }[]
+      }
+      registrar_version_rfq: {
+        Args: {
+          p_actor_id: string
+          p_causa: string
+          p_correlation_id?: string
+          p_rfq_id: string
+        }
+        Returns: number
       }
       registrar_saldo_inicial: {
         Args: {

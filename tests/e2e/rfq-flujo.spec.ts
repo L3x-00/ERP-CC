@@ -344,6 +344,19 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       const estado = await admin.from('pipeline').select('estado_rfq').eq('id', rfqId).single();
       expect(estado.data?.estado_rfq).toBe('READY_FOR_PROPOSAL');
 
+      // C2.1: Listo sigue editable hasta crear Rev A (CV-01) y cada guardado dejó versión.
+      await ficha.getByRole('tab', { name: 'Resumen' }).click();
+      await expect(page.getByRole('button', { name: 'Editar resumen' })).toBeVisible();
+      const versiones = await admin
+        .from('rfq_versiones')
+        .select('numero, causa')
+        .eq('rfq_id', rfqId)
+        .order('numero');
+      expect(versiones.error).toBeNull();
+      expect(versiones.data?.map((version) => version.causa)).toEqual(
+        expect.arrayContaining(['ITEM', 'CABECERA']),
+      );
+
       if (process.env.E2E_CAPTURAR_VISUAL === '1') {
         await ficha.getByRole('tab', { name: 'Resumen' }).click();
         await expect(page.getByTestId('rfq-datos-generales')).toBeVisible();

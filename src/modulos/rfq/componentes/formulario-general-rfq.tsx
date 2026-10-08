@@ -7,7 +7,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
-import { esEstadoTerminal } from '@/modulos/rfq/utilidades/estados';
+import { esDefinicionRfqEditable, motivoDefinicionRfqBloqueada } from '@/modulos/rfq/utilidades/estados';
 
 import { actualizarDatosRfqAccion } from '../acciones/actualizar-datos-rfq';
 import {
@@ -61,8 +61,7 @@ export function FormularioGeneralRfq({
     enabled: Boolean(rfq.clienteId),
   });
 
-  const editable =
-    !esEstadoTerminal(rfq.estadoRfq) && rfq.estadoRfq !== 'READY_FOR_PROPOSAL';
+  const editable = esDefinicionRfqEditable(rfq.estadoRfq);
   const accionSeleccionada = catalogos.proximasAcciones.find(
     (accion) => accion.codigo === proximaAccionCodigo,
   );
@@ -112,8 +111,7 @@ export function FormularioGeneralRfq({
     <form onSubmit={manejarEnvio} className="flex flex-col gap-4" noValidate data-testid="resumen-rfq">
       {!editable && (
         <p className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
-          El RFQ está en {rfq.estadoRfq === 'READY_FOR_PROPOSAL' ? 'Listo para propuesta' : 'estado terminal'}.
-          Marca Incompleto para editar los datos generales.
+          {motivoDefinicionRfqBloqueada(rfq.estadoRfq)}
         </p>
       )}
 

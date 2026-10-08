@@ -237,12 +237,18 @@ describe('ResumenRfq — tarjetas de solo lectura (C1.1b)', () => {
     expect(onEditar).toHaveBeenCalledTimes(1);
   });
 
-  it('oculta "Editar resumen" en READY_FOR_PROPOSAL y en estados terminales', () => {
-    for (const estado of ['READY_FOR_PROPOSAL', 'CONVERTED', 'CLOSED', 'CANCELLED'] as const) {
+  it('oculta "Editar resumen" solo en estados terminales (CV-01: Listo sigue editable)', () => {
+    for (const estado of ['CONVERTED', 'CLOSED', 'CANCELLED'] as const) {
       cleanup();
       renderizarResumen({ ...RFQ_BASE, estadoRfq: estado });
       expect(screen.queryByRole('button', { name: 'Editar resumen' })).toBeNull();
     }
+    cleanup();
+    renderizarResumen({ ...RFQ_BASE, estadoRfq: 'CONVERTED' });
+    expect(screen.getByText(/congelado al crear la Propuesta Rev A/)).toBeDefined();
+    cleanup();
+    renderizarResumen({ ...RFQ_BASE, estadoRfq: 'READY_FOR_PROPOSAL' });
+    expect(screen.getByRole('button', { name: 'Editar resumen' })).toBeDefined();
   });
 
   it('funciona sin catálogos cargados (fallback al texto/código crudo de la acción)', () => {
@@ -355,14 +361,21 @@ describe('FichaRfq — edición explícita del Resumen (C1.1b)', () => {
     await waitFor(() => expect(obtenerRfqAccionMock).toHaveBeenCalledTimes(2));
   });
 
-  it('en READY_FOR_PROPOSAL se mantiene solo lectura: no hay botón "Editar resumen"', async () => {
+  it('READY_FOR_PROPOSAL sigue editable hasta crear Rev A (CV-01); CONVERTED queda en solo lectura', async () => {
     obtenerRfqAccionMock.mockResolvedValue({
       exito: true,
       datos: { ...RFQ_BASE, estadoRfq: 'READY_FOR_PROPOSAL' },
     });
-
     await renderizarFicha();
+    await waitFor(() => expect(screen.getByTestId('resumen-rfq')).toBeDefined());
+    expect(screen.getByRole('button', { name: 'Editar resumen' })).toBeDefined();
 
+    cleanup();
+    obtenerRfqAccionMock.mockResolvedValue({
+      exito: true,
+      datos: { ...RFQ_BASE, estadoRfq: 'CONVERTED' },
+    });
+    await renderizarFicha();
     await waitFor(() => expect(screen.getByTestId('resumen-rfq')).toBeDefined());
     expect(screen.queryByRole('button', { name: 'Editar resumen' })).toBeNull();
   });

@@ -10,6 +10,11 @@ export function mensajeErrorRfq(codigo: string, detalles?: string | null): strin
   if (codigo.includes('item_desactualizado')) return 'El ítem cambió; recarga antes de reintentar';
   if (codigo.includes('rfq_transicion_invalida')) return 'La acción no es válida para el estado actual';
   if (codigo.includes('motivo_requerido')) return 'El motivo es obligatorio (mínimo 3 caracteres)';
+  if (codigo.includes('proxima_accion_requerida')) return 'Indica la próxima acción para este cambio de estado';
+  if (codigo.includes('proxima_accion_invalida')) return 'La próxima acción elegida no está vigente';
+  if (codigo.includes('proxima_accion_detalle_requerido')) return 'Describe la próxima acción "Otro"';
+  if (codigo.includes('proxima_accion_fecha_invalida')) return 'La fecha de la próxima acción no puede estar en el pasado';
+  if (codigo.includes('proxima_accion_responsable_invalido')) return 'Elige un responsable activo para la próxima acción';
   if (codigo.includes('rfq_no_listo')) return resumenNoListo(detalles);
   if (codigo.includes('item_con_documentos')) {
     return 'El ítem tiene documentos vinculados; no se puede cancelar';
@@ -22,6 +27,9 @@ export function mensajeErrorRfq(codigo: string, detalles?: string | null): strin
   if (codigo.includes('proceso_invalido')) return 'Hay un proceso inactivo o inexistente en la selección';
   if (codigo.includes('items_agotados')) return 'El RFQ alcanzó el máximo de 99 ítems';
   if (codigo.includes('item_cancelado')) return 'El ítem está cancelado';
+  if (codigo.includes('rfq_congelado')) {
+    return 'El RFQ quedó congelado al crear la Propuesta Rev A; los cambios van en una nueva revisión';
+  }
   if (codigo.includes('rfq_no_editable')) return 'El RFQ ya no admite cambios en su estado actual';
   if (codigo.includes('canal_otro_requiere_detalle')) return 'Escribe el detalle del canal Otro';
   if (codigo.includes('canal_rfq_inactivo')) return 'El canal seleccionado ya no está activo';

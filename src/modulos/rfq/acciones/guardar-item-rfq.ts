@@ -7,6 +7,7 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
+import { registrarVersionRfq } from '../servicios/registrar-version-rfq';
 import { valorJsonAItemRfq, type RfqItem } from '../tipos/indice';
 import { esquemaGuardarItemRfq, type DatosItemRfqInput } from '../validaciones/esquemas-rfq';
 import { mensajeErrorRfq } from './utilidades-acciones';
@@ -82,6 +83,12 @@ export async function guardarItemRfqAccion(
     return { exito: false, error: 'Respuesta inválida del servidor' };
   }
 
+  await registrarVersionRfq(admin, {
+    rfqId: item.rfqId,
+    causa: 'ITEM',
+    actorId: usuario.id,
+    correlationId,
+  });
   await registrarLog(
     usuario,
     itemId ? 'actualizar_item_rfq' : 'crear_item_rfq',

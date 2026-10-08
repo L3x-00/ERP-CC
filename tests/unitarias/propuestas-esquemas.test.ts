@@ -315,6 +315,7 @@ describe('validaciones de la ola 2 (envío, PDF y filtros)', () => {
   });
 
   it('traduce los errores nuevos de envío y PDF', () => {
+    expect(traducirErrorPropuesta('rfq_no_listo')).toContain('requisitos');
     expect(traducirErrorPropuesta('pdf_requerido')).toContain('PDF');
     expect(traducirErrorPropuesta('pdf_archivo_invalido')).toContain('PDF');
     expect(traducirErrorPropuesta('revision_no_apta_pdf')).toContain('PDF');
