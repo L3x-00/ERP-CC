@@ -164,7 +164,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
         />
       )}
 
-      <PanelAccionesRfq rfq={rfq} onCambio={() => void consulta.refetch()} />
+      <PanelAccionesRfq rfq={rfq} catalogos={catalogosDatos} onCambio={() => void consulta.refetch()} />
 
       <div role="tablist" aria-label="Secciones del RFQ" className="flex flex-wrap gap-1 border-b border-borde">
         {PESTANAS.filter((opcion) => opcion.clave !== 'revisar' || capturaIncompleta).map((opcion) => (

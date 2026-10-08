@@ -15,7 +15,8 @@ import { mensajeErrorRfq } from './utilidades-acciones';
 /**
  * Server Action: único camino de cambio de estado del RFQ. Valida sesión,
  * permiso por acción con `can()` y delega en la RPC que revalida transición,
- * CAS y (en `marcar_listo`) la validación LISTO completa. Registra el evento
+ * CAS, la próxima acción de las transiciones no terminales (C2.2) y, en
+ * `marcar_listo`, la validación LISTO completa. Registra el evento
  * en `logs` con el mismo `correlationId` que los `rfq_eventos`.
  */
 export async function cambiarEstadoRfqAccion(
@@ -31,7 +32,7 @@ export async function cambiarEstadoRfqAccion(
     return { exito: false, error: 'No autorizado' };
   }
 
-  const { rfqId, accion, motivo, actualizadoEn } = resultado.data;
+  const { rfqId, accion, motivo, proximaAccion, actualizadoEn } = resultado.data;
 
   if (!(await can(usuario, permisoDeAccionRfq(accion)))) {
     return { exito: false, error: 'Sin permiso para esta acción' };
@@ -40,6 +41,15 @@ export async function cambiarEstadoRfqAccion(
   const correlationId = nuevoCorrelationId();
   const args: Record<string, unknown> = { actualizado_en: actualizadoEn };
   if (motivo) args.motivo = motivo;
+  // C2.2: la próxima acción se guarda en la misma operación que el estado.
+  if (proximaAccion) {
+    args.proxima_accion = {
+      codigo: proximaAccion.codigo,
+      texto: proximaAccion.texto ?? null,
+      fecha: proximaAccion.fecha,
+      responsable_id: proximaAccion.responsableId,
+    };
+  }
 
   const { data, error } = await crearClienteSupabaseAdmin().rpc('cambiar_estado_rfq', {
     p_rfq_id: rfqId,

@@ -7,6 +7,12 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT plan(56);
 
+-- C2.2: las transiciones no terminales exigen la próxima acción en la misma operación.
+CREATE FUNCTION pg_temp.b3_proxima() RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object('codigo', 'FOLLOW_UP', 'fecha', current_date,
+    'responsable_id', '00000000-0000-4000-8000-00000000b303')
+$$;
+
 -- -----------------------------------------------------------------------------
 -- Fixtures: usuarios, cliente/contacto, catálogos de prueba y RPCs de apoyo
 -- -----------------------------------------------------------------------------
@@ -158,33 +164,33 @@ $$, '42501', 'sin_permiso_rfq', 'Vendedor sin rfq_cerrar no cierra');
 SELECT throws_ok($$
   SELECT public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b311',
-    'marcar_incompleto', jsonb_build_object('actualizado_en', now()),
+    'marcar_incompleto', jsonb_build_object('proxima_accion', pg_temp.b3_proxima(), 'actualizado_en', now()),
     '00000000-0000-4000-8000-00000000b304')
 $$, '42501', 'sin_permiso_rfq', 'Operador no edita RFQ');
 SELECT throws_ok($$
   SELECT public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b311',
-    'poner_en_espera_cliente', jsonb_build_object('actualizado_en', '2000-01-01T00:00:00+00'),
+    'poner_en_espera_cliente', jsonb_build_object('proxima_accion', pg_temp.b3_proxima(), 'actualizado_en', '2000-01-01T00:00:00+00'),
     '00000000-0000-4000-8000-00000000b303')
 $$, '23514', 'rfq_desactualizado', 'CAS rechaza tokens viejos');
 SELECT is(
   public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b311', 'poner_en_espera_cliente',
-    jsonb_build_object('actualizado_en',
+    jsonb_build_object('proxima_accion', pg_temp.b3_proxima(), 'actualizado_en',
       (SELECT actualizado_en FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b311')),
     '00000000-0000-4000-8000-00000000b303'),
   'WAITING_CUSTOMER', 'NEW → WAITING_CUSTOMER');
 SELECT throws_ok($$
   SELECT public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b311', 'poner_en_espera_tecnica',
-    jsonb_build_object('actualizado_en',
+    jsonb_build_object('proxima_accion', pg_temp.b3_proxima(), 'actualizado_en',
       (SELECT actualizado_en FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b311')),
     '00000000-0000-4000-8000-00000000b303')
 $$, '23514', 'rfq_transicion_invalida', 'WAITING_CUSTOMER no pasa a espera técnica');
 SELECT is(
   public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b311', 'marcar_incompleto',
-    jsonb_build_object('actualizado_en',
+    jsonb_build_object('proxima_accion', pg_temp.b3_proxima(), 'actualizado_en',
       (SELECT actualizado_en FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b311')),
     '00000000-0000-4000-8000-00000000b303'),
   'INCOMPLETE', 'WAITING_CUSTOMER → INCOMPLETE');
@@ -218,7 +224,7 @@ SELECT is(
 SELECT throws_ok($$
   SELECT public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b312', 'marcar_listo',
-    jsonb_build_object('actualizado_en',
+    jsonb_build_object('proxima_accion', pg_temp.b3_proxima(), 'actualizado_en',
       (SELECT actualizado_en FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b312')),
     '00000000-0000-4000-8000-00000000b303')
 $$, '23514', 'rfq_no_listo', 'Marcar listo revalida en servidor');
@@ -350,7 +356,7 @@ SELECT is(
 SELECT is(
   public.cambiar_estado_rfq(
     '00000000-0000-4000-8000-00000000b320', 'marcar_listo',
-    jsonb_build_object('actualizado_en',
+    jsonb_build_object('proxima_accion', pg_temp.b3_proxima(), 'actualizado_en',
       (SELECT actualizado_en FROM public.pipeline WHERE id = '00000000-0000-4000-8000-00000000b320')),
     '00000000-0000-4000-8000-00000000b303'),
   'READY_FOR_PROPOSAL', 'marcar_listo transiciona cuando no hay faltantes');

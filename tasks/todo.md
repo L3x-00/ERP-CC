@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0 y C1 completos localmente** (2026-10-08); **C2 es el siguiente bloque**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2.1 y C2.2 completos localmente** (2026-10-08); **siguiente: C2.3**.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -116,23 +116,27 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Cada versión append-only congela cabecera + ítems, actor, fecha y causa.
-- [ ] Crear explícitamente Propuesta Rev A congela el RFQ; navegar o editar nunca crea propuesta.
-- [ ] Bajas de ítems son lógicas y un ITxx no se reutiliza.
+- [x] Cada versión append-only congela cabecera + ítems, actor, fecha y causa.
+- [x] Crear explícitamente Propuesta Rev A congela el RFQ; navegar o editar nunca crea propuesta.
+- [x] Bajas de ítems son lógicas y un ITxx no se reutiliza.
 
 **Verificación:** pgTAP append-only/CAS/RBAC, carrera de dos conexiones e integración.
 **Dependencias:** C1.2.
+
+**Hecho (`9b43580`):** migración `20261008160000` solo local; versión por guardado (cabecera/ítem) y versión final atómica al crear Rev A con revalidación si el RFQ se editó en la app; congelamiento `rfq_congelado`; CV-01 resuelto (Listo editable hasta Rev A); RFQ legados sin versión final no se bloquean. pgTAP 29/29, E2E RFQ + Propuestas 3/3. Pendiente menor: la versión por guardado se registra después del guardado (no en la misma transacción); la carrera de dos conexiones no tiene prueba dedicada.
 
 ### C2.2 Próxima acción por transición
 
 **Aceptación**
 
-- [ ] Transiciones no terminales exigen próxima acción en la misma operación.
-- [ ] Estados terminales no exigen acción futura y solicitan motivo/resultado según contrato.
-- [ ] Fallar seguimiento revierte la transición completa.
+- [x] Transiciones no terminales exigen próxima acción en la misma operación.
+- [x] Estados terminales no exigen acción futura y solicitan motivo/resultado según contrato.
+- [x] Fallar seguimiento revierte la transición completa.
 
 **Verificación:** pgTAP, integración por estado y E2E comercial.
 **Dependencias:** P0.4.
+
+**Hecho:** migración `20261008170000` solo local; `cambiar_estado_rfq` exige y guarda la próxima acción en transiciones no terminales, limpia la pendiente en cerrar/cancelar y revierte todo si falla; diálogo de próxima acción en el panel de acciones. pgTAP 12/12 + B3 adaptado.
 
 ### C2.3 Historial documental y archivos ITxx
 

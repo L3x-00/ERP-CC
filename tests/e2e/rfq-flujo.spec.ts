@@ -272,7 +272,8 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       const valorResponsableGeneral = await selectoresResponsable.locator('option').nth(1).getAttribute('value');
       await selectoresResponsable.selectOption(valorResponsableGeneral!);
       await page.getByLabel('Acción', { exact: true }).selectOption('FOLLOW_UP');
-      await page.getByLabel('Fecha', { exact: true }).fill('2026-10-15');
+      // C2.2 rechaza fechas pasadas: la próxima acción va una semana adelante.
+      await page.getByLabel('Fecha', { exact: true }).fill(new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10));
       const responsables = page.getByLabel('Responsable de la acción');
       const opcionesResponsable = await responsables.locator('option').all();
       const valorResponsable = await opcionesResponsable[1]?.getAttribute('value');
