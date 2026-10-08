@@ -46,6 +46,17 @@
 
 El historial remoto termina en `20260912000001`. Faltan **108** versiones locales en ese historial: desde `20260914044042` hasta `20261008170000`. Antes de `db push`: comprobar si alguna se aplicó a mano por SQL Editor (objetos existentes sin fila en el historial) y, en ese caso, reconciliarla con `supabase migration repair --status applied <versión> --linked`. Aplicar junto con el despliegue del código de `feature/observaciones-cliente`. Pausa por límite de uso (97 %).
 
+### Comparación de esquema local vs remoto (2026-10-08, solo lectura)
+
+El PO aplicó las migraciones pegándolas en el SQL Editor. Comparé la huella (funciones, columnas, triggers, políticas e índices) con `supabase db query --linked -f huella.sql`; el script está en el scratchpad de la sesión. Resultado: local 1533 elementos, remoto 1483.
+
+- **No aplicadas en remoto:**
+  - `20260925110000_a20_ar16_cfg12.sql`: faltan `anular_cuenta_por_cobrar`, `consolidar_ar_faltantes`, `previsualizar_consolidacion_ar_faltantes`, `privado.monto_comercial_orden` y las columnas `cuentas_por_cobrar.anulada_en/anulada_por/motivo_anulacion`.
+  - `20261008131134`, `20261008160000` y `20261008170000`.
+- **Aplicada con otro contenido:** `20261007130002_sii_b6_produccion_acciones.sql`. `cerrar_jornada`, `crear_corrida`, `registrar_inspeccion`, `iniciar_sesion_trabajo_operador` y `privado.corrida_siguiente_codigo` difieren del archivo, que tiene un único commit `247fe31`. Pendiente: comparar los cuerpos.
+- **Deriva antigua:** al remoto le falta el índice único `proveedores_rfc_key` (de `20260707000002`, que sí figura en el historial).
+- **Siguiente:** confirmar la diferencia de B6. Luego `migration repair --status applied` para las 104 restantes, y aplicar en orden las 4 faltantes (más B6 si corresponde) junto con el despliegue.
+
 ## Pausa de control (2026-10-07) — cómo reanudar
 
 1. **Motivo:** el PO prioriza la tarea "observaciones del cliente". El cliente corrigió requisitos, así que la fuente de verdad de esta auditoría puede haber cambiado.
