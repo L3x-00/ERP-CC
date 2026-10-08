@@ -42,6 +42,10 @@
 | 2026-10-07 | Entregables y lock de Skills versionados a pedido del PO | `356d275` (auditoría global 2026-09-22 + informe hito 4) y `3866ec7` (`skills-lock.json`) |
 | 2026-10-07 ~16:15 | **Pausa de control del PO** | Nueva tarea prioritaria: observaciones del cliente, que corrigió su documento a partir de observaciones. La auditoría queda congelada aquí |
 
+## Remoto verificado 2026-10-08 (`supabase migration list --linked`, solo lectura)
+
+El historial remoto termina en `20260912000001`. Faltan **108** versiones locales en ese historial: desde `20260914044042` hasta `20261008170000`. Antes de `db push`: comprobar si alguna se aplicó a mano por SQL Editor (objetos existentes sin fila en el historial) y, en ese caso, reconciliarla con `supabase migration repair --status applied <versión> --linked`. Aplicar junto con el despliegue del código de `feature/observaciones-cliente`. Pausa por límite de uso (97 %).
+
 ## Pausa de control (2026-10-07) — cómo reanudar
 
 1. **Motivo:** el PO prioriza la tarea "observaciones del cliente". El cliente corrigió requisitos, así que la fuente de verdad de esta auditoría puede haber cambiado.
