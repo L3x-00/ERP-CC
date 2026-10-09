@@ -6,10 +6,12 @@ import { usarClientes } from '@/modulos/clientes/hooks/usar-clientes';
 import { AltaRapidaCliente } from '@/modulos/pipeline/componentes/alta-rapida-cliente';
 import { clienteAClienteRfq, type ClienteRfq } from '@/modulos/pipeline/tipos/indice';
 import { ETIQUETA_CONDICIONES_PAGO } from '@/modulos/pipeline/utilidades/indice';
+import { CLASE_CAMPO_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { cn } from '@/compartido/utilidades/cn';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +37,8 @@ type Props = {
   /** Datos ya capturados en la RFQ, para precargar el alta rápida. */
   sugerencias?: Sugerencias;
   soloLectura?: boolean;
+  /** Marca el selector con borde rojo suave cuando falta el cliente. */
+  invalido?: boolean;
 };
 
 /**
@@ -56,6 +60,7 @@ export function SelectorCliente({
   onSeleccionar,
   sugerencias,
   soloLectura = false,
+  invalido = false,
 }: Props) {
   const [abiertoBuscador, setAbiertoBuscador] = useState(false);
   const [enAlta, setEnAlta] = useState(false);
@@ -93,7 +98,12 @@ export function SelectorCliente({
 
   if (seleccionado && !abiertoBuscador) {
     return (
-      <div className="flex flex-col gap-2 rounded-lg border border-borde px-4 py-3">
+      <div
+        className={cn(
+          'flex flex-col gap-2 rounded-lg border px-4 py-3',
+          invalido ? 'border-peligro/40 bg-peligro-suave' : 'border-borde',
+        )}
+      >
         <span className="text-sm font-medium text-texto-primario">Cliente</span>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-texto-primario">{seleccionado.razonSocial}</span>
@@ -130,14 +140,25 @@ export function SelectorCliente({
 
   if (soloLectura) {
     return (
-      <div className="rounded-lg border border-borde px-4 py-3 text-sm text-texto-secundario">
+      <div
+        className={cn(
+          'rounded-lg border px-4 py-3 text-sm text-texto-secundario',
+          invalido ? 'border-peligro/40 bg-peligro-suave' : 'border-borde',
+        )}
+      >
         Sin cliente del catálogo ligado.
       </div>
     );
   }
 
   return (
-    <div ref={contenedorRef} className="flex flex-col gap-3 rounded-lg border border-borde px-4 py-3">
+    <div
+      ref={contenedorRef}
+      className={cn(
+        'flex flex-col gap-3 rounded-lg border px-4 py-3',
+        invalido ? 'border-peligro/40 bg-peligro-suave' : 'border-borde',
+      )}
+    >
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="relative flex min-w-60 flex-1 flex-col gap-1">
           <Label htmlFor="rfq-buscar-cliente">Cliente (opcional)</Label>
@@ -152,6 +173,8 @@ export function SelectorCliente({
             onFocus={() => setAbiertoBuscador(true)}
             aria-expanded={abiertoBuscador}
             aria-controls="rfq-clientes-sugerencias"
+            aria-invalid={invalido}
+            className={invalido ? CLASE_CAMPO_FALTANTE : undefined}
             placeholder="Buscar por razón social, nombre comercial o RFC"
           />
           {abiertoBuscador ? (

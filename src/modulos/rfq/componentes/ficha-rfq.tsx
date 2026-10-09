@@ -75,6 +75,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
   });
   const catalogosDatos = catalogos.data?.exito ? (catalogos.data.datos ?? null) : null;
   const validacionDatos = validacion.data?.exito ? (validacion.data.datos ?? null) : null;
+  const faltantes = validacionDatos?.secciones;
   const errorValidacion = validacion.isError
     ? 'No se pudo revisar el avance del RFQ'
     : validacion.data && !validacion.data.exito
@@ -216,6 +217,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
                 oportunidadId={rfq.id}
                 clienteId={rfq.clienteId}
                 condicionesPago={rfq.condicionesPago}
+                faltantesCliente={faltantes?.cliente}
                 onCambio={refrescarCaptura}
               />
             </section>
@@ -235,6 +237,11 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
                   key={rfq.actualizadoEn}
                   rfq={rfq}
                   catalogos={catalogosDatos}
+                  faltantes={{
+                    cliente: faltantes?.cliente,
+                    general: faltantes?.general,
+                    seguimiento: faltantes?.seguimiento,
+                  }}
                   onGuardado={() => {
                     setResumenGuardado(true);
                     setEditandoResumen(false);
@@ -259,6 +266,11 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
               <ResumenRfq
                 rfq={rfq}
                 catalogos={catalogosDatos}
+                faltantes={{
+                  cliente: faltantes?.cliente,
+                  general: faltantes?.general,
+                  seguimiento: faltantes?.seguimiento,
+                }}
                 onEditar={() => {
                   setResumenGuardado(false);
                   setEditandoResumen(true);
@@ -273,11 +285,18 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
         <TablaItemsRfq
           rfq={rfq}
           catalogos={catalogosDatos}
+          faltantes={faltantes?.items}
           onCambio={refrescarCaptura}
         />
       )}
 
-      {pestana === 'archivos' && <PanelArchivosRfq rfq={rfq} onCambio={() => void validacion.refetch()} />}
+      {pestana === 'archivos' && (
+        <PanelArchivosRfq
+          rfq={rfq}
+          faltantes={faltantes?.archivos}
+          onCambio={() => void validacion.refetch()}
+        />
+      )}
 
       {pestana === 'revisar' && capturaIncompleta && (
         <PanelRevisionRfq
