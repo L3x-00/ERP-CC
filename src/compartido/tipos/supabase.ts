@@ -2736,6 +2736,14 @@ export type Database = {
       }
       propuesta_item_ruteo: {
         Row: {
+          costeado_en: string | null
+          costo_run: number | null
+          costo_setup: number | null
+          costo_total: number | null
+          recurso_id: string | null
+          tarifa_fuente: string | null
+          tarifa_hora: number | null
+          tarifa_moneda: string | null
           grupo_equipo_id: string | null
           grupo_planeado_id: string | null
           id: string
@@ -2748,6 +2756,14 @@ export type Database = {
           total_horas: number | null
         }
         Insert: {
+          costeado_en?: string | null
+          costo_run?: number | null
+          costo_setup?: number | null
+          costo_total?: number | null
+          recurso_id?: string | null
+          tarifa_fuente?: string | null
+          tarifa_hora?: number | null
+          tarifa_moneda?: string | null
           grupo_equipo_id?: string | null
           grupo_planeado_id?: string | null
           id?: string
@@ -2760,6 +2776,14 @@ export type Database = {
           total_horas?: number | null
         }
         Update: {
+          costeado_en?: string | null
+          costo_run?: number | null
+          costo_setup?: number | null
+          costo_total?: number | null
+          recurso_id?: string | null
+          tarifa_fuente?: string | null
+          tarifa_hora?: number | null
+          tarifa_moneda?: string | null
           grupo_equipo_id?: string | null
           grupo_planeado_id?: string | null
           id?: string
@@ -3854,6 +3878,62 @@ export type Database = {
             columns: ["rfq_id"]
             isOneToOne: false
             referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitudes_orden: {
+        Row: {
+          actualizado_en: string
+          causa_codigo: string | null
+          causa_detalle: string | null
+          creado_en: string
+          creado_por: string | null
+          estado: string
+          fecha_compromiso_comercial: string
+          id: string
+          intentos: number
+          orden_id: string | null
+          propuesta_id: string
+          revision_id: string
+          ultimo_intento_por: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          causa_codigo?: string | null
+          causa_detalle?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fecha_compromiso_comercial: string
+          id?: string
+          intentos?: number
+          orden_id?: string | null
+          propuesta_id: string
+          revision_id: string
+          ultimo_intento_por?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          causa_codigo?: string | null
+          causa_detalle?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fecha_compromiso_comercial?: string
+          id?: string
+          intentos?: number
+          orden_id?: string | null
+          propuesta_id?: string
+          revision_id?: string
+          ultimo_intento_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_orden_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
             referencedColumns: ["id"]
           },
         ]
@@ -5549,6 +5629,14 @@ export type Database = {
           entidad: string
           entidad_id: string
         }[]
+      }
+      costear_ruteo_revision: {
+        Args: { p_actor_id: string; p_correlation_id?: string; p_revision_id: string }
+        Returns: Json
+      }
+      procesar_solicitud_orden: {
+        Args: { p_actor_id: string; p_correlation_id?: string; p_revision_id: string }
+        Returns: Json
       }
       resolver_tarifa_hora: {
         Args: { p_grupo_equipo_id: string; p_recurso_id?: string }

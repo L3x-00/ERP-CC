@@ -126,6 +126,15 @@ export type RuteoItemPropuesta = {
   runHoras: number;
   totalHoras: number;
   requiereRevision: boolean;
+  /** Snapshot de costeo (C3.3); null mientras el renglón no se costea. */
+  recursoId: string | null;
+  tarifaHora: number | null;
+  tarifaMoneda: MonedaPropuesta | null;
+  tarifaFuente: 'GRUPO' | 'RECURSO' | null;
+  costoSetup: number | null;
+  costoRun: number | null;
+  costoTotal: number | null;
+  costeadoEn: string | null;
 };
 
 /** Fila del costeo interno por categoría. */
@@ -187,6 +196,10 @@ export type TotalesPropuesta = {
   ivaPorcentaje: number;
   iva: number;
   total: number;
+  /** Costo manual que sí suma (sin `maquina` cuando el ruteo está costeado). */
+  costoManual: number;
+  /** Costo del ruteo costeado (C3.3). */
+  costoRuteo: number;
   costoTotal: number;
   /** `(subtotal − costoTotal) / subtotal` a 4 decimales; `null` si subtotal = 0. */
   margen: number | null;
@@ -421,6 +434,14 @@ export function filaARuteoPropuesta(fila: FilaRuteoPropuesta): RuteoItemPropuest
     runHoras: Number(fila.run_horas),
     totalHoras: Number(fila.total_horas ?? Number(fila.setup_horas) + Number(fila.run_horas)),
     requiereRevision: fila.requiere_revision,
+    recursoId: fila.recurso_id,
+    tarifaHora: fila.tarifa_hora === null ? null : Number(fila.tarifa_hora),
+    tarifaMoneda: fila.tarifa_moneda === 'USD' ? 'USD' : fila.tarifa_moneda === 'MXN' ? 'MXN' : null,
+    tarifaFuente: fila.tarifa_fuente === 'RECURSO' ? 'RECURSO' : fila.tarifa_fuente === 'GRUPO' ? 'GRUPO' : null,
+    costoSetup: fila.costo_setup === null ? null : Number(fila.costo_setup),
+    costoRun: fila.costo_run === null ? null : Number(fila.costo_run),
+    costoTotal: fila.costo_total === null ? null : Number(fila.costo_total),
+    costeadoEn: fila.costeado_en,
   };
 }
 

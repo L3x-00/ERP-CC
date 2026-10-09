@@ -100,6 +100,8 @@ const filaRuteo = z
     procesoId: uuid,
     grupoEquipoId: uuid.nullable().optional(),
     grupoPlaneadoId: uuid.nullable().optional(),
+    /** C3.3: máquina opcional del mismo grupo (usa su tarifa propia si la tiene). */
+    recursoId: uuid.nullable().optional(),
     setupHoras: z.number().nonnegative().max(10_000).default(0),
     runHoras: z.number().nonnegative().max(100_000).default(0),
   })
@@ -159,6 +161,8 @@ export const esquemaAceptarRevision = z
   .object({
     revisionId: uuid,
     actualizadoEn,
+    /** C4.1/DC-09: fecha prometida al cliente; distinta de la fecha requerida. */
+    fechaCompromisoComercial: z.iso.date({ message: 'Indica la fecha compromiso comercial' }),
     canal: z.string().trim().max(60).optional(),
     destino: z.string().trim().max(120).optional(),
   })

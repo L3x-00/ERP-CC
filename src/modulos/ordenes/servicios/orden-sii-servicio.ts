@@ -72,14 +72,25 @@ export async function crearOrdenDesdeRevisionServicio(
   cliente: ClienteOrdenesSii,
   entrada: { revisionId: string; actorId: string; correlationId: string },
 ): Promise<OrdenSiiCreada> {
-  const { data, error } = await cliente.rpc('crear_orden_desde_revision', {
+  // C4.1/DC-09: la Orden se crea a través de la solicitud durable. Si un gate
+  // falla, la solicitud queda «Orden pendiente» (BLOCKED) con la causa y la
+  // aceptación se conserva; reintentar converge en una sola Orden.
+  const { data, error } = await cliente.rpc('procesar_solicitud_orden', {
     p_revision_id: entrada.revisionId,
     p_actor_id: entrada.actorId,
     p_correlation_id: entrada.correlationId,
   });
-  const fila = data?.[0];
-  if (error || !fila) lanzarDesdeRpc(error);
-  return { id: fila.id, folio: fila.folio, folioSii: fila.folio_sii, yaExistia: fila.ya_existia };
+  if (error || !data || typeof data !== 'object' || Array.isArray(data)) lanzarDesdeRpc(error);
+  const resultado = data as Record<string, unknown>;
+  if (resultado.estado !== 'CREATED' || typeof resultado.ordenId !== 'string') {
+    lanzarDesdeRpc({ message: String(resultado.causa ?? 'solicitud_orden_bloqueada') });
+  }
+  return {
+    id: resultado.ordenId,
+    folio: String(resultado.folio ?? ''),
+    folioSii: String(resultado.folioSii ?? ''),
+    yaExistia: resultado.yaExistia === true,
+  };
 }
 
 function datosInternosAJson(entrada: CrearOrdenInternaInput): Json {

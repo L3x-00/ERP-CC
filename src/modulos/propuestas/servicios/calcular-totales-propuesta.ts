@@ -26,18 +26,28 @@ export type ItemCalculablePropuesta = {
  * - `descuento` = Σ cantidad × precio de los ítems ACTIVOS marcados descuento;
  * - `subtotal` = bruto − descuento (2 decimales);
  * - `iva` = subtotal × ivaPorcentaje / 100 (2 decimales); `total` = subtotal + IVA;
- * - `margen` = (subtotal − costoTotal) / subtotal (4 decimales); `null` si subtotal = 0.
+ * - costo = costo manual (`costoTotal` de entrada) − manual `maquina` si hay ruteo
+ *   costeado + `costoRuteo` (C3.3: el ruteo costeado sustituye al manual de máquina);
+ * - `margen` = (subtotal − costo) / subtotal (4 decimales); `null` si subtotal = 0.
  *
  * La misma tabla de casos se prueba en `tests/unitarias/propuestas-totales.test.ts`
  * y en `supabase/tests/sii_b4_propuestas.test.sql`.
  */
 export function calcularTotalesPropuesta(entrada: {
   items: readonly ItemCalculablePropuesta[];
+  /** Suma de todos los costos manuales de la revisión. */
   costoTotal: number;
+  /** Parte manual de categoría `maquina` (se descuenta si hay ruteo costeado). */
+  costoManualMaquina?: number;
+  /** Costo del ruteo costeado; > 0 o renglones costeados activan la sustitución. */
+  costoRuteo?: number;
+  ruteoCosteado?: boolean;
   ivaPorcentaje: number;
   moneda: MonedaPropuesta;
 }): TotalesPropuesta {
   const { items, costoTotal, ivaPorcentaje, moneda } = entrada;
+  const costoRuteo = Number.isFinite(entrada.costoRuteo) ? (entrada.costoRuteo ?? 0) : 0;
+  const maquinaExcluida = entrada.ruteoCosteado ? (entrada.costoManualMaquina ?? 0) : 0;
   const activos = items.filter((item) => item.activo);
 
   const bruto = activos.reduce(
@@ -52,7 +62,8 @@ export function calcularTotalesPropuesta(entrada: {
   const subtotal = redondear(bruto - descuento);
   const iva = redondear(subtotal * (ivaPorcentaje / 100));
   const total = redondear(subtotal + iva);
-  const costo = Number.isFinite(costoTotal) ? costoTotal : 0;
+  const costoManual = (Number.isFinite(costoTotal) ? costoTotal : 0) - maquinaExcluida;
+  const costo = costoManual + costoRuteo;
   const margen = subtotal === 0 ? null : redondearMargen((subtotal - costo) / subtotal);
 
   return {
@@ -62,6 +73,8 @@ export function calcularTotalesPropuesta(entrada: {
     ivaPorcentaje,
     iva,
     total,
+    costoManual: redondearMargen(costoManual),
+    costoRuteo: redondearMargen(costoRuteo),
     costoTotal: costo,
     margen,
     moneda,

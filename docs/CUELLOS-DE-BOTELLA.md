@@ -10,6 +10,8 @@ Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de 
 | `An invalid response was received from the upstream server` | Carga de suites paralelas contra el gateway local de Supabase | Igual que arriba; no reintentar a ciegas |
 | `toomanyrequests: Rate exceeded` al levantar Supabase | Límite de descargas de Docker Hub | Es infraestructura: relanzar solo el job fallido (`gh run rerun <id> --failed`), sin tocar código |
 
+| "CI en verde" que en realidad era de otro commit | Se vigiló la última corrida de la rama sin comprobar su `headSha`; además el PR ya estaba fusionado y los commits nuevos no tenían PR abierto, así que no corría CI | Antes de reportar CI, comprobar que la corrida corresponde al commit (`gh run list --json headSha`). Tras un merge del PO, abrir un PR nuevo para los commits siguientes |
+
 **Regla de diagnóstico:** ante un CI rojo, leer primero `gh run view <id> --log-failed` y clasificar cada fallo como **infraestructura** (relanzar), **aislamiento de prueba** (corregir la prueba) o **defecto** (corregir el producto). Revisar todos los jobs fallidos antes de corregir: arreglar un fallo, esperar 15 minutos y descubrir el siguiente fue el bucle más caro.
 
 ## 2. Pruebas que pasan en local y fallan en la app

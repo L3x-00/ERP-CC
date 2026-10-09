@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2, C3.1 y C3.2 completos localmente** (2026-10-09); **siguiente: C3.3**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2, C3 y C4.1 completos localmente** (2026-10-09); pendientes menores: revisión financiera de C3 y prueba de dos conexiones de C4.1; **siguiente: C4.2**.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -191,17 +191,19 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Preparación + operación usan la misma tarifa en el MVP.
-- [ ] Cada fila congela tarifa, fuente, grupo, recurso opcional y fecha.
-- [ ] Desglose y total/margen evitan doble conteo con costos manuales.
+- [x] Preparación + operación usan la misma tarifa en el MVP.
+- [x] Cada fila congela tarifa, fuente, grupo, recurso opcional y fecha.
+- [x] Desglose y total/margen evitan doble conteo con costos manuales.
 
 **Verificación:** paridad SQL/TypeScript, redondeo/moneda, unitarias y E2E.
 **Dependencias:** C3.1–C3.2.
 
+**Hecho (Claude, 2026-10-09):** migración `20261009160000` (solo local): snapshot por renglón en `propuesta_item_ruteo` (recurso, tarifa, moneda, fuente, costo preparación/operación/total, `costeado_en`, CHECK de coherencia); `costear_ruteo_revision` (DRAFT, `propuesta_editar_costo`, todo o nada; bloquea sin tarifa y con moneda distinta, sin convertir); `calcular_totales_revision` suma ruteo costeado y deja de sumar el manual `maquina` cuando hay ruteo costeado, expone `costoManual`/`costoRuteo`; espejo TS compatible. UI: botón «Costear ruteo». Editar el ruteo reinserta renglones y obliga a recostear; una revisión nueva no copia el snapshot. pgTAP 14/14 (RED previo), regresión B4/B5/C3.1 241/241, unitarias 139/139. **Máquina por renglón (C3.3b):** migración `20261009170000`: `editar_ruteo_item` acepta `recurso_id` (activa y del mismo grupo; `recurso_grupo_distinto`) y `crear_nueva_revision` la copia; el editor ofrece «Máquina (tarifa del grupo)» filtrada por grupo, sin exponer costos. pgTAP 16/16. **Pendiente:** revisión financiera y conversión de moneda (hoy se bloquea).
+
 ### Checkpoint C3
 
-- [ ] Dos revisiones conservan sus propios ítems y costos históricos.
-- [ ] Cambiar una tarifa no altera revisiones previas.
+- [x] Dos revisiones conservan sus propios ítems y costos históricos.
+- [x] Cambiar una tarifa no altera revisiones previas.
 - [ ] Gates focales y revisión financiera aprobados.
 
 ## C4 — Aceptación y Orden inmutable
@@ -210,12 +212,23 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Comercial acepta una revisión exacta y confirma Fecha compromiso.
-- [ ] La misma transacción guarda aceptación + solicitud única de orden.
-- [ ] Un gate fallido conserva `Orden pendiente`, causa y reintento; carreras crean exactamente una Orden.
+- [x] Comercial acepta una revisión exacta y confirma Fecha compromiso.
+- [x] La misma transacción guarda aceptación + solicitud única de orden.
+- [x] Un gate fallido conserva `Orden pendiente`, causa y reintento; carreras crean exactamente una Orden.
 
 **Verificación:** pgTAP, concurrencia, permisos aceptar/reintentar e integración de crédito/FX.
 **Dependencias:** C3.3.
+
+**Avance (Claude, 2026-10-09):** migración `20261009180000` (solo local):
+- `aceptar_revision` exige `fecha_compromiso_comercial` (congelada en la revisión) y crea `solicitudes_orden` (PENDING, única por revisión) en la misma transacción.
+- `procesar_solicitud_orden` (exige `orden_liberar`) intenta crear la Orden en una subtransacción: si un gate falla deja BLOCKED con `causa_codigo`/`causa_detalle` sin revertir la aceptación; reprocesar es idempotente (una sola Orden).
+- Backfill de revisiones ya aceptadas.
+- «Crear orden desde revisión» (módulo Órdenes) ya pasa por la solicitud; aceptar en la UI pide la fecha.
+- pgTAP 13/13 (RED previo) y consumidores B4/B5/B9/C3 218/218; unitarias 19/19; E2E Propuestas/Entregas/Órdenes.
+
+**UI (mismo día):** panel «Orden pendiente» en la ficha de propuesta (`propuesta-orden-pendiente`), con fecha compromiso, causa legible (`ordenes/utilidades/mensajes-orden.ts`), intentos y «Crear orden/Reintentar» (`propuesta-reintentar-orden`, permiso `orden_liberar`); con la Orden creada muestra el folio. El E2E de Propuestas verifica la solicitud PENDING tras aceptar.
+
+**Pendiente menor:** prueba de dos conexiones procesando a la vez (la defensa es `FOR UPDATE` de la solicitud + índice único de la Orden). La copia de la fecha compromiso a la Orden queda en C4.2.
 
 ### C4.2 Snapshot comercial y cambios operativos
 

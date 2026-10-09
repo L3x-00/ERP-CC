@@ -32,6 +32,7 @@ export async function editarRuteoItemAccion(
     proceso_id: fila.procesoId,
     grupo_equipo_id: fila.grupoEquipoId ?? null,
     grupo_planeado_id: fila.grupoPlaneadoId ?? null,
+    recurso_id: fila.recursoId ?? null,
     setup_horas: fila.setupHoras,
     run_horas: fila.runHoras,
   }));

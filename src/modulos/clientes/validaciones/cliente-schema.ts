@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
+
 /**
  * RFC mexicano (persona moral: 12; física: 13). Se valida el formato, no la
  * existencia. Se normaliza a mayúsculas antes de validar en el esquema.
@@ -132,16 +134,29 @@ export const esquemaAsignarTierManual = z.object({
 });
 
 /** Metadatos de subida de documento (el binario viaja como FormData aparte). */
-export const esquemaSubirDocumento = z.object({
+const destinoDocumentoCliente = {
   clienteId: z.uuid('Identificador inválido'),
   tipo: z.enum(['csf', 'contrato', 'identificacion', 'comprobante_domicilio', 'otro']),
-  nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido'),
+  nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido').max(250),
   /**
    * Nombre ERP forzado: reemplazar un documento conserva su clave de
    * versionado aunque el binario elegido tenga otro nombre de archivo.
    */
   nombreErp: z.string().trim().min(1).max(255).optional(),
-});
+};
+
+/** Destino de un documento del cliente (el binario sube directo a Storage). */
+export const esquemaSubirDocumento = z.object(destinoDocumentoCliente).strict();
+
+/** Preparación de la subida directa (H-B1-29): solo metadatos. */
+export const esquemaPrepararDocumentoCliente = z
+  .object({ ...destinoDocumentoCliente, ...camposPrepararSubida })
+  .strict();
+
+/** Confirmación de la subida directa ya completada en Storage. */
+export const esquemaConfirmarDocumentoCliente = z
+  .object({ ...destinoDocumentoCliente, ...campoRutaSubida })
+  .strict();
 
 /**
  * Contacto adicional del cliente — OBS-02. Nombre obligatorio; el resto

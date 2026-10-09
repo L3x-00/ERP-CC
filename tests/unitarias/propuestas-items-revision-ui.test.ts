@@ -46,6 +46,7 @@ const CATALOGOS: CatalogosPropuesta = {
   procesos: [],
   gruposEquipo: [],
   gruposPlaneados: [],
+  recursos: [],
   proximasAcciones: [],
   materiales: [
     { id: MATERIAL_ACERO_ID, codigo: 'ACE', nombre: 'Acero' },

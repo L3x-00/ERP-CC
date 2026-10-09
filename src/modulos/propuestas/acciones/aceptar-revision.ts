@@ -36,6 +36,7 @@ export async function aceptarRevisionAccion(
         p_revision_id: datos.revisionId,
         p_datos: comoJson({
           actualizado_en: datos.actualizadoEn,
+          fecha_compromiso_comercial: datos.fechaCompromisoComercial,
           ...(datos.canal !== undefined ? { canal: datos.canal } : {}),
           ...(datos.destino !== undefined ? { destino: datos.destino } : {}),
         }),
