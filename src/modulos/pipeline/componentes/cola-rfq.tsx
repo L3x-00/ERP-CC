@@ -97,12 +97,13 @@ export function ColaRfq() {
           if (abierta || !altaEnviando) setAltaAbierta(abierta);
         }}
       >
-        <DialogContent className="max-w-[760px]">
+        <DialogContent className="max-w-[960px]">
           <DialogHeader>
             <DialogTitle>Nuevo RFQ</DialogTitle>
             <DialogDescription>
-              Captura el cliente y la solicitud. Al guardar, el RFQ queda como Incompleto y
-              continúas con ítems y archivos en su ficha, sin perder lo capturado.
+              Captura cliente, solicitud, ítems y archivos en esta misma ventana. Al finalizar, el
+              RFQ queda como Incompleto en la cola y sigue editable: todavía no se crea ninguna
+              propuesta.
             </DialogDescription>
           </DialogHeader>
           <FormularioProspecto

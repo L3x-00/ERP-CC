@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { Cliente } from '@/modulos/clientes/tipos/indice';
+import type { Rfq } from '@/modulos/rfq/tipos/indice';
 
 const {
   crearProspectoMock,
@@ -13,6 +14,9 @@ const {
   refrescarRutaMock,
   usarClientesMock,
   usarClienteMock,
+  obtenerRfqMock,
+  obtenerCatalogosMock,
+  listarArchivosMock,
 } = vi.hoisted(() => ({
   crearProspectoMock: vi.fn(),
   crearClienteMock: vi.fn(),
@@ -20,6 +24,9 @@ const {
   refrescarRutaMock: vi.fn(),
   usarClientesMock: vi.fn(),
   usarClienteMock: vi.fn(),
+  obtenerRfqMock: vi.fn(),
+  obtenerCatalogosMock: vi.fn(),
+  listarArchivosMock: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -37,10 +44,66 @@ vi.mock('@/modulos/clientes/hooks/usar-clientes', () => ({
 vi.mock('@/modulos/clientes/hooks/usar-cliente', () => ({
   usarCliente: (...args: unknown[]) => usarClienteMock(...args),
 }));
+vi.mock('@/modulos/rfq/acciones/obtener-rfq', () => ({
+  obtenerRfqAccion: (...args: unknown[]) => obtenerRfqMock(...args),
+}));
+vi.mock('@/modulos/rfq/acciones/obtener-catalogos', () => ({
+  obtenerCatalogosRfqAccion: (...args: unknown[]) => obtenerCatalogosMock(...args),
+}));
+vi.mock('@/modulos/rfq/acciones/archivos-rfq', () => ({
+  listarArchivosRfqAccion: (...args: unknown[]) => listarArchivosMock(...args),
+  prepararSubidaArchivoRfqAccion: vi.fn(),
+  confirmarArchivoRfqAccion: vi.fn(),
+  descartarSubidaArchivoRfqAccion: vi.fn(),
+  firmarArchivoRfqAccion: vi.fn(),
+}));
+vi.mock('@/nucleo/almacenamiento/archivos/subida-navegador', () => ({
+  subirArchivoDirecto: vi.fn(),
+}));
 
 import { FormularioProspecto } from '@/modulos/pipeline/componentes/formulario-prospecto';
 
 const CLIENTE_ID = '11111111-1111-4111-8111-111111111111';
+
+const RFQ_CAPTURADO: Rfq = {
+  id: 'op-1',
+  folio: 'RFQ-1026_01',
+  folioOp: 'OP-000001',
+  folioCnc: null,
+  estadoRfq: 'INCOMPLETE',
+  etapa: 'contactado',
+  clienteId: null,
+  condicionesPago: null,
+  clienteNombre: null,
+  empresa: 'Cliente QA',
+  contactoId: null,
+  contactoNombre: null,
+  nombreContacto: 'Ana QA',
+  vendedorId: 'vend-1',
+  responsableId: null,
+  responsableNombre: null,
+  canal: null,
+  canalDetalle: null,
+  fechaSolicitud: null,
+  fechaRequeridaCliente: null,
+  descripcionGeneral: null,
+  proximaAccionCodigo: null,
+  proximaAccionTexto: null,
+  fechaProximaAccion: null,
+  responsableProximaAccionId: null,
+  responsableProximaAccionNombre: null,
+  actualizadoEn: '2026-10-08T00:00:00.000Z',
+  items: [],
+};
+
+const CATALOGOS_VACIOS = {
+  materiales: [],
+  espesores: [],
+  procesos: [],
+  canales: [],
+  proximasAcciones: [],
+  usuarios: [],
+};
 
 const CLIENTE: Cliente = {
   id: CLIENTE_ID,
@@ -95,6 +158,9 @@ beforeEach(() => {
   });
   crearProspectoMock.mockResolvedValue({ exito: true, datos: { id: 'op-1', folioOp: 'OP-000001' } });
   crearClienteMock.mockResolvedValue({ exito: true, datos: { id: CLIENTE_ID } });
+  obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CAPTURADO });
+  obtenerCatalogosMock.mockResolvedValue({ exito: true, datos: CATALOGOS_VACIOS });
+  listarArchivosMock.mockResolvedValue({ exito: true, datos: [] });
 });
 
 afterEach(() => {
@@ -125,7 +191,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     fireEvent.focus(campo(/Cliente \(opcional\)/));
     fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
     await screen.findByText('Cambiar cliente');
-    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     await waitFor(() => {
       expect(crearProspectoMock).toHaveBeenCalledWith(
@@ -143,7 +209,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quitar' }));
 
     expect(campo(/Nombre del contacto/).value).toBe('Ana Pérez');
-    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     await waitFor(() => {
       expect(crearProspectoMock).toHaveBeenCalledTimes(1);
@@ -220,7 +286,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Empresa/), { target: { value: 'Aceros Baja SA' } });
     fireEvent.change(campo(/Fecha requerida por cliente/), { target: { value: '2026-12-01' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     await waitFor(() => {
       expect(crearProspectoMock).toHaveBeenCalledTimes(1);
@@ -237,7 +303,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
@@ -253,7 +319,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     renderizarFormulario();
 
     fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
@@ -263,17 +329,24 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     expect(empujarRutaMock).not.toHaveBeenCalled();
   });
 
-  it('el éxito continúa la captura en la ficha del mismo RFQ y avisa al contenedor', async () => {
+  it('el éxito continúa en ítems dentro del mismo modal, sin navegar, y avisa al finalizar', async () => {
     const alExito = vi.fn();
     render(envolver(createElement(FormularioProspecto, { onExito: alExito })));
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+
+    expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
+    expect(empujarRutaMock).not.toHaveBeenCalled();
+    expect(alExito).not.toHaveBeenCalled();
+
+    await screen.findByText('Sin ítems capturados.');
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con archivos' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Finalizar captura' }));
 
     await waitFor(() => {
-      expect(empujarRutaMock).toHaveBeenCalledWith('/rfq?rfq=op-1&continuar=1');
+      expect(alExito).toHaveBeenCalledWith('op-1');
     });
-    expect(empujarRutaMock).toHaveBeenCalledTimes(1);
-    expect(alExito).toHaveBeenCalledWith('op-1');
+    expect(empujarRutaMock).not.toHaveBeenCalled();
   });
 });

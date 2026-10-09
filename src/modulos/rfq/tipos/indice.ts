@@ -243,6 +243,155 @@ export function filaARfqItem(
   };
 }
 
+/** Causas de una versión registrada en `rfq_versiones` (C2.1/DC-04). */
+export const CAUSAS_VERSION_RFQ = ['CABECERA', 'ITEM', 'CREAR_REV_A'] as const;
+
+export type CausaVersionRfq = (typeof CAUSAS_VERSION_RFQ)[number];
+
+/** Cabecera congelada de una versión (`snapshot_cabecera`). */
+export type SnapshotCabeceraRfq = {
+  folio: string | null;
+  estadoRfq: EstadoRfq;
+  clienteId: string | null;
+  contactoId: string | null;
+  empresa: string | null;
+  nombreContacto: string | null;
+  canal: string | null;
+  canalDetalle: string | null;
+  fechaSolicitud: string | null;
+  fechaRequerida: string | null;
+  descripcionGeneral: string | null;
+  responsableId: string | null;
+  moneda: string | null;
+  actualizadoEn: string | null;
+};
+
+/** Ítem congelado de una versión (`snapshot_items`). */
+export type SnapshotItemRfq = {
+  id: string;
+  codigo: string;
+  numero: number;
+  estado: string;
+  descripcion: string;
+  cantidad: number;
+  materialId: string | null;
+  espesorId: string | null;
+  acabado: string | null;
+  notas: string | null;
+  operaciones: RfqItemOperacion[];
+};
+
+/** Versión del RFQ con actor resuelto; la pinta el Historial (solo lectura). */
+export type VersionRfq = {
+  id: string;
+  numero: number;
+  causa: CausaVersionRfq;
+  actorId: string | null;
+  actorNombre: string | null;
+  creadoEn: string;
+  cabecera: SnapshotCabeceraRfq;
+  items: SnapshotItemRfq[];
+};
+
+const CAUSAS_VALIDAS_VERSION = new Set<string>(CAUSAS_VERSION_RFQ);
+
+/** Etiqueta legible de la causa de una versión. */
+export function etiquetaCausaVersion(causa: CausaVersionRfq): string {
+  if (causa === 'ITEM') return 'Cambio de ítems';
+  if (causa === 'CREAR_REV_A') return 'Versión final (Propuesta Rev A)';
+  return 'Datos generales';
+}
+
+function textoOpcional(valor: unknown): string | null {
+  return typeof valor === 'string' && valor.length > 0 ? valor : null;
+}
+
+function normalizarOperacionVersion(valor: unknown): RfqItemOperacion | null {
+  if (valor === null || typeof valor !== 'object' || Array.isArray(valor)) return null;
+  const fila = valor as Record<string, unknown>;
+  if (typeof fila.proceso_id !== 'string') return null;
+  return {
+    procesoId: fila.proceso_id,
+    orden: typeof fila.orden === 'number' ? fila.orden : 0,
+  };
+}
+
+function normalizarItemVersion(valor: unknown): SnapshotItemRfq | null {
+  if (valor === null || typeof valor !== 'object' || Array.isArray(valor)) return null;
+  const fila = valor as Record<string, unknown>;
+  if (typeof fila.id !== 'string' || typeof fila.codigo !== 'string') return null;
+  const operaciones = Array.isArray(fila.operaciones)
+    ? fila.operaciones
+        .map(normalizarOperacionVersion)
+        .filter((operacion): operacion is RfqItemOperacion => operacion !== null)
+    : [];
+  return {
+    id: fila.id,
+    codigo: fila.codigo,
+    numero: typeof fila.numero === 'number' ? fila.numero : 0,
+    estado: typeof fila.estado === 'string' ? fila.estado : 'activo',
+    descripcion: typeof fila.descripcion === 'string' ? fila.descripcion : '',
+    cantidad: typeof fila.cantidad === 'number' ? fila.cantidad : 0,
+    materialId: textoOpcional(fila.material_id),
+    espesorId: textoOpcional(fila.espesor_id),
+    acabado: textoOpcional(fila.acabado),
+    notas: textoOpcional(fila.notas),
+    operaciones,
+  };
+}
+
+function normalizarCabeceraVersion(valor: unknown): SnapshotCabeceraRfq {
+  const fila =
+    valor !== null && typeof valor === 'object' && !Array.isArray(valor)
+      ? (valor as Record<string, unknown>)
+      : {};
+  return {
+    folio: textoOpcional(fila.folio_rfq),
+    estadoRfq: normalizarEstadoRfq(typeof fila.estado_rfq === 'string' ? fila.estado_rfq : ''),
+    clienteId: textoOpcional(fila.cliente_id),
+    contactoId: textoOpcional(fila.contacto_id),
+    empresa: textoOpcional(fila.empresa),
+    nombreContacto: textoOpcional(fila.nombre_contacto),
+    canal: textoOpcional(fila.canal),
+    canalDetalle: textoOpcional(fila.canal_detalle),
+    fechaSolicitud: textoOpcional(fila.fecha_solicitud),
+    fechaRequerida: textoOpcional(fila.fecha_requerida),
+    descripcionGeneral: textoOpcional(fila.descripcion_general),
+    responsableId: textoOpcional(fila.responsable_id),
+    moneda: textoOpcional(fila.moneda),
+    actualizadoEn: textoOpcional(fila.actualizado_en),
+  };
+}
+
+/**
+ * Normaliza una fila cruda de `rfq_versiones` (jsonb snake_case) al dominio.
+ * Devuelve null si no tiene forma utilizable; nunca lanza.
+ */
+export function normalizarVersionRfq(valor: unknown, actorNombre: string | null = null): VersionRfq | null {
+  if (valor === null || typeof valor !== 'object' || Array.isArray(valor)) return null;
+  const fila = valor as Record<string, unknown>;
+  if (typeof fila.id !== 'string' || typeof fila.numero !== 'number') return null;
+  const causa = typeof fila.causa === 'string' && CAUSAS_VALIDAS_VERSION.has(fila.causa)
+    ? (fila.causa as CausaVersionRfq)
+    : null;
+  if (!causa) return null;
+  const items = Array.isArray(fila.snapshot_items)
+    ? fila.snapshot_items
+        .map(normalizarItemVersion)
+        .filter((item): item is SnapshotItemRfq => item !== null)
+    : [];
+  return {
+    id: fila.id,
+    numero: fila.numero,
+    causa,
+    actorId: textoOpcional(fila.actor_id),
+    actorNombre,
+    creadoEn: typeof fila.creado_en === 'string' ? fila.creado_en : '',
+    cabecera: normalizarCabeceraVersion(fila.snapshot_cabecera),
+    items,
+  };
+}
+
 /**
  * Mapea defensivamente el jsonb devuelto por las RPC de ítems (snake_case).
  * Devuelve null si el valor no tiene forma de ítem; nunca lanza.

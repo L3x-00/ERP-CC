@@ -150,13 +150,19 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   await page.getByLabel('Empresa', { exact: true }).fill(empresa);
   await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
   await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
-  await page.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar con ítems' }).click();
 
-  await expect(page.getByTestId('ficha-rfq')).toBeVisible();
+  // El asistente sigue en el mismo modal: ítems y archivos sin cambiar de pantalla.
+  await expect(page.getByTestId('alta-rfq-items')).toBeVisible();
   const rfq = await admin.from('pipeline').select('id').eq('empresa', empresa).single();
   if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
   contexto.rfqId = rfq.data.id;
-  await expect.poll(() => new URL(page.url()).searchParams.get('rfq')).toBe(contexto.rfqId);
+
+  await page.getByRole('button', { name: 'Finalizar más tarde' }).click();
+  await expect(page.getByTestId('alta-rfq-items')).toBeHidden();
+
+  // La ficha del MISMO RFQ continúa la captura (DC-03), sin crear otro folio.
+  await page.goto(`/rfq?rfq=${rfq.data.id}&continuar=1`);
   await expect(page.getByTestId('ficha-rfq')).toContainText('Incompleto');
   return rfq.data.id;
 }
