@@ -93,10 +93,12 @@ export type RevisionPropuesta = {
   actualizadoEn: string;
 };
 
-/** Ítem de la propuesta (ITxx estable heredado del RFQ). */
+/** Ítem de la propuesta (ITxx estable heredado del RFQ o alta propia de una revisión). */
 export type PropuestaItem = {
   id: string;
   revisionId: string;
+  /** Revisión donde nació el ITxx; se conserva al copiarlo a revisiones posteriores. */
+  revisionOrigenId: string;
   rfqItemId: string | null;
   codigo: string;
   descripcion: string;
@@ -319,6 +321,7 @@ export function filaAItemPropuesta(fila: FilaItemPropuesta): PropuestaItem {
   return {
     id: fila.id,
     revisionId: fila.revision_id,
+    revisionOrigenId: fila.revision_origen_id,
     rfqItemId: fila.rfq_item_id,
     codigo: fila.codigo,
     descripcion: fila.descripcion,
@@ -332,6 +335,76 @@ export function filaAItemPropuesta(fila: FilaItemPropuesta): PropuestaItem {
     activo: fila.activo,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
+  };
+}
+
+/** Texto obligatorio de un JSON crudo; `null` si falta o no es texto. */
+function jsonTextoRequerido(objeto: Record<string, unknown>, clave: string): string | null {
+  const valor = objeto[clave];
+  return typeof valor === 'string' && valor.length > 0 ? valor : null;
+}
+
+/** Numérico de un JSON crudo: Postgres puede serializar `numeric` como texto. */
+function jsonNumeroRequerido(objeto: Record<string, unknown>, clave: string): number | null {
+  const valor = objeto[clave];
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
+  if (typeof valor === 'string' && valor.trim() !== '') {
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : null;
+  }
+  return null;
+}
+
+/**
+ * C3.1: convierte la fila JSON que devuelve `agregar_item_propuesta` en un
+ * `PropuestaItem`. Devuelve `null` si falta cualquier campo obligatorio: el
+ * cliente nunca inventa `id`, `codigo` ni la revisión de origen, así que una
+ * respuesta incompleta se trata como error del servidor.
+ */
+export function jsonAItemPropuesta(valor: unknown): PropuestaItem | null {
+  if (valor === null || typeof valor !== 'object' || Array.isArray(valor)) return null;
+  const objeto = valor as Record<string, unknown>;
+
+  const id = jsonTextoRequerido(objeto, 'id');
+  const revisionId = jsonTextoRequerido(objeto, 'revision_id');
+  const revisionOrigenId = jsonTextoRequerido(objeto, 'revision_origen_id');
+  const codigo = jsonTextoRequerido(objeto, 'codigo');
+  const descripcion = jsonTextoRequerido(objeto, 'descripcion');
+  const creadoEn = jsonTextoRequerido(objeto, 'creado_en');
+  const actualizadoEn = jsonTextoRequerido(objeto, 'actualizado_en');
+  const cantidad = jsonNumeroRequerido(objeto, 'cantidad');
+  const precioUnitario = jsonNumeroRequerido(objeto, 'precio_unitario');
+  if (
+    id === null ||
+    revisionId === null ||
+    revisionOrigenId === null ||
+    codigo === null ||
+    descripcion === null ||
+    creadoEn === null ||
+    actualizadoEn === null ||
+    cantidad === null ||
+    precioUnitario === null
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    revisionId,
+    revisionOrigenId,
+    rfqItemId: textoONull(objeto.rfq_item_id),
+    codigo,
+    descripcion,
+    cantidad,
+    materialId: textoONull(objeto.material_id),
+    espesorId: textoONull(objeto.espesor_id),
+    acabado: textoONull(objeto.acabado),
+    notas: textoONull(objeto.notas),
+    precioUnitario,
+    esDescuento: objeto.es_descuento === true,
+    activo: objeto.activo !== false,
+    creadoEn,
+    actualizadoEn,
   };
 }
 

@@ -12,19 +12,28 @@ import {
   prepararSubidaDirecta,
   type SubidaPreparada,
 } from '@/nucleo/almacenamiento/archivos/subida-directa';
-import { sanearNombreArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
+import {
+  sanearNombreArchivo,
+  type EntidadArchivo,
+} from '@/nucleo/almacenamiento/archivos/validaciones';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
-  esquemaConfirmarArchivoPropuesta,
-  esquemaPrepararArchivoPropuesta,
-} from '@/modulos/propuestas/validaciones/esquemas-propuestas';
+  esquemaConfirmarSubidaArchivoPropuesta,
+  esquemaPrepararSubidaArchivoPropuesta,
+} from '@/modulos/propuestas/validaciones/esquemas-archivos-propuesta';
 
 const BUCKET = 'propuestas-archivos';
 
 export type ResultadoSubirArchivo = { id: string; version: number };
 
 type ClienteAdmin = ReturnType<typeof crearClienteSupabaseAdmin>;
+
+/** Vínculo del archivo: cabecera de la revisión o un ítem suyo (C3.1). */
+type DestinoArchivoPropuesta = {
+  entidad: Extract<EntidadArchivo, 'propuesta_revision' | 'propuesta_item'>;
+  entidadId: string;
+};
 
 /**
  * Sesión, permiso y revisión en borrador. Se revalida al preparar y al
@@ -52,25 +61,54 @@ async function editorDeRevision(
 }
 
 /**
- * SII-B4.8: emite la URL firmada para subir un archivo propio de la revisión
- * DRAFT (general o técnico) directo a Storage (H-B1-29). Solo metadatos.
+ * C3.1: resuelve el destino del archivo. Un `itemId` debe pertenecer
+ * exactamente a la revisión recibida y seguir activo: el ítem de otra revisión
+ * (incluso de la misma propuesta) o dado de baja no admite destino nuevo, y sus
+ * archivos históricos se conservan por separado. Se resuelve en los dos pasos
+ * para que la baja del ítem entre preparar y confirmar no cuele metadata.
+ */
+async function resolverDestinoArchivo(
+  admin: ClienteAdmin,
+  revisionId: string,
+  itemId?: string,
+): Promise<DestinoArchivoPropuesta | { error: string }> {
+  if (!itemId) return { entidad: 'propuesta_revision', entidadId: revisionId };
+
+  const { data: item } = await admin
+    .from('propuesta_items')
+    .select('id, revision_id, activo')
+    .eq('id', itemId)
+    .maybeSingle();
+  if (!item || item.revision_id !== revisionId) {
+    return { error: 'El ítem no pertenece a esta revisión' };
+  }
+  if (!item.activo) return { error: 'No se adjuntan archivos a un ítem dado de baja' };
+  return { entidad: 'propuesta_item', entidadId: itemId };
+}
+
+/**
+ * SII-B4.8 / C3.1: emite la URL firmada para subir un archivo propio de la
+ * revisión DRAFT (general o técnico) o de uno de sus ítems, directo a Storage
+ * (H-B1-29). Solo metadatos. El perfil de validación y el prefijo de la ruta
+ * los decide la entidad del destino resuelto.
  */
 export async function prepararSubidaArchivoPropuestaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<SubidaPreparada>> {
-  const analisis = esquemaPrepararArchivoPropuesta.safeParse(entrada);
+  const analisis = esquemaPrepararSubidaArchivoPropuesta.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
-  const { revisionId, nombreArchivo, tamano, mime } = analisis.data;
+  const { revisionId, itemId, nombreArchivo, tamano, mime } = analisis.data;
   const admin = crearClienteSupabaseAdmin();
   const editor = await editorDeRevision(admin, revisionId);
   if ('error' in editor) return { exito: false, error: editor.error };
+  const destino = await resolverDestinoArchivo(admin, revisionId, itemId);
+  if ('error' in destino) return { exito: false, error: destino.error };
 
   const preparada = await prepararSubidaDirecta(admin, {
     bucket: BUCKET,
-    entidad: 'propuesta_revision',
-    entidadId: revisionId,
+    ...destino,
     usuarioId: editor.usuario.id,
     solicitud: { nombre: nombreArchivo, tamano, mime },
   });
@@ -78,38 +116,39 @@ export async function prepararSubidaArchivoPropuestaAccion(
 }
 
 /**
- * SII-B4.8: revalida el objeto subido y lo registra en el modelo único
- * `archivos` (`entidad='propuesta_revision'`); las revisiones enviadas quedan
- * congeladas y no admiten adjuntos nuevos.
+ * SII-B4.8 / C3.1: revalida el objeto subido y lo registra en el modelo único
+ * `archivos` (`entidad='propuesta_revision'` o `'propuesta_item'`); las
+ * revisiones enviadas quedan congeladas y no admiten adjuntos nuevos. La
+ * auditoría se ancla a la revisión y nombra el ítem cuando el destino es suyo.
  */
 export async function confirmarArchivoPropuestaAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<ResultadoSubirArchivo>> {
   const correlationId = nuevoCorrelationId();
-  const analisis = esquemaConfirmarArchivoPropuesta.safeParse(entrada);
+  const analisis = esquemaConfirmarSubidaArchivoPropuesta.safeParse(entrada);
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
-  const { revisionId, tema, nombreArchivo, ruta } = analisis.data;
+  const { revisionId, itemId, tema, nombreArchivo, ruta } = analisis.data;
   const admin = crearClienteSupabaseAdmin();
   const editor = await editorDeRevision(admin, revisionId);
   if ('error' in editor) return { exito: false, error: editor.error };
   const { usuario } = editor;
+  const destino = await resolverDestinoArchivo(admin, revisionId, itemId);
+  if ('error' in destino) return { exito: false, error: destino.error };
 
   const confirmada = await confirmarSubidaDirecta(
     admin,
     {
       bucket: BUCKET,
-      entidad: 'propuesta_revision',
-      entidadId: revisionId,
+      ...destino,
       usuarioId: usuario.id,
       ruta,
       nombre: nombreArchivo,
     },
     (objeto) =>
       registrarArchivo(admin, {
-        entidad: 'propuesta_revision',
-        entidadId: revisionId,
+        ...destino,
         temaCodigo: tema,
         clase: tema,
         nombreOriginal: nombreArchivo,
@@ -129,7 +168,7 @@ export async function confirmarArchivoPropuestaAccion(
     'subir_archivo_propuesta',
     'propuestas',
     revisionId,
-    { archivoId: id, tema, version },
+    { archivoId: id, tema, version, ...(itemId ? { itemId } : {}) },
     correlationId,
   );
   return { exito: true, datos: { id, version } };

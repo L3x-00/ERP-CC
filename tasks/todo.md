@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1 y C2 completos localmente** (2026-10-08); **siguiente: C3.1**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2 y C3.1 completos localmente** (2026-10-09); **siguiente: C3.2**.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -165,12 +165,14 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Una nueva revisión puede agregar IT consecutivo estable sin modificar RFQ.
-- [ ] Se registra la revisión de origen; quitar ítems/procesos es lógico.
-- [ ] Historial abre versiones anteriores en solo lectura.
+- [x] Una nueva revisión puede agregar IT consecutivo estable sin modificar RFQ.
+- [x] Se registra la revisión de origen; quitar ítems/procesos conserva la revisión previa y la baja del ítem es lógica.
+- [x] Historial abre versiones anteriores en solo lectura.
 
 **Verificación:** pgTAP de numeración/concurrencia, unitarias e E2E de dos revisiones.
 **Dependencias:** C2.1.
+
+**Evidencia 2026-10-09:** pgTAP C3.1 55/55, concurrencia 1/1, 129 unitarias focales/consumidoras del snapshot, typecheck/lint focales, build y E2E Propuesta/Orden 2/2. IT03 nace en B, no aparece en A, marca B como origen, no toca RFQ, invalida costeo previo y recibe un DXF de más de 1 MiB como `propuesta_item`. La revisión siguiente conserva los archivos de cabecera y del mismo ITxx; Orden congela A..revisión aceptada por identidad estable y excluye revisiones futuras sin copiar blobs.
 
 ### C3.2 Tarifa estándar de Grupo y override de recurso
 

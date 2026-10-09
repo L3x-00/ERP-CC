@@ -1,6 +1,6 @@
 # Plan de corrección — observaciones del cliente 2026-10-07
 
-Estado: **decisiones funcionales `DC-01..DC-15` aceptadas; P0, C1 y C2 cerrados localmente. El siguiente corte vertical es C3.1 (ítems nuevos y revisiones de Propuesta)**.
+Estado: **decisiones funcionales `DC-01..DC-15` aceptadas; P0, C1, C2 y C3.1 cerrados localmente. El siguiente corte vertical es C3.2 (tarifa estándar de Grupo y override de recurso)**.
 
 ## 1. Objetivo y límites
 

@@ -2818,6 +2818,7 @@ export type Database = {
           notas: string | null
           precio_unitario: number
           revision_id: string
+          revision_origen_id: string
           rfq_item_id: string | null
         }
         Insert: {
@@ -2835,6 +2836,7 @@ export type Database = {
           notas?: string | null
           precio_unitario?: number
           revision_id: string
+          revision_origen_id?: string
           rfq_item_id?: string | null
         }
         Update: {
@@ -2852,6 +2854,7 @@ export type Database = {
           notas?: string | null
           precio_unitario?: number
           revision_id?: string
+          revision_origen_id?: string
           rfq_item_id?: string | null
         }
         Relationships: [
@@ -2872,6 +2875,13 @@ export type Database = {
           {
             foreignKeyName: "propuesta_items_revision_id_fkey"
             columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_items_revision_origen_fkey"
+            columns: ["revision_origen_id"]
             isOneToOne: false
             referencedRelation: "propuesta_revisiones"
             referencedColumns: ["id"]
@@ -5784,6 +5794,15 @@ export type Database = {
           p_actor: string
           p_actualizado_en: string
           p_correlation_id?: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      agregar_item_propuesta: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
           p_revision_id: string
         }
         Returns: Json

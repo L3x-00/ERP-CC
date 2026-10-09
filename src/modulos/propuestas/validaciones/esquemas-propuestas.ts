@@ -21,6 +21,47 @@ export const esquemaCrearNuevaRevision = z
   .object({ revisionOrigen: uuid, motivo })
   .strict();
 
+/** Cantidad comercial: positiva, hasta 1e9 y con 2 decimales como máximo. */
+const cantidadItem = z
+  .number()
+  .positive('La cantidad debe ser mayor a 0')
+  .max(1_000_000_000, 'La cantidad excede el máximo permitido')
+  .refine((valor) => Number(valor.toFixed(2)) === valor, {
+    message: 'La cantidad admite máximo 2 decimales',
+  });
+
+/**
+ * C3.1: alta de un ítem propio de una revisión B..Z en DRAFT. El cliente no
+ * manda `id`, `codigo` ni `revisionOrigenId`: el `ITxx` consecutivo y la
+ * revisión de origen los asigna el servidor bajo lock de propuesta. El precio
+ * puede omitirse (lo exige `propuesta_editar_precio` solo si viene).
+ */
+export const esquemaAgregarItemPropuesta = z
+  .object({
+    revisionId: uuid,
+    descripcion: z
+      .string()
+      .trim()
+      .min(1, 'La descripción del ítem es obligatoria')
+      .max(300, 'La descripción no puede exceder 300 caracteres'),
+    cantidad: cantidadItem,
+    materialId: uuid.optional(),
+    espesorId: uuid.optional(),
+    acabado: z.string().trim().max(120, 'El acabado no puede exceder 120 caracteres').optional(),
+    notas: z.string().trim().max(2000, 'Las notas no pueden exceder 2000 caracteres').optional(),
+    precioUnitario: z
+      .number()
+      .nonnegative('El precio no puede ser negativo')
+      .max(1_000_000_000, 'El precio excede el máximo permitido')
+      .optional(),
+    esDescuento: z.boolean().optional(),
+  })
+  .strict()
+  .refine((datos) => datos.espesorId === undefined || datos.materialId !== undefined, {
+    message: 'Selecciona el material antes del espesor',
+    path: ['espesorId'],
+  });
+
 /**
  * Edición parcial de un ítem DRAFT. `actualizadoEn` es el token CAS del ítem;
  * los campos ausentes se conservan. Debe venir al menos un campo editable.
@@ -187,6 +228,7 @@ export const esquemaFiltrosPropuestas = z
 
 export type CrearPropuestaInput = z.infer<typeof esquemaCrearPropuesta>;
 export type CrearNuevaRevisionInput = z.infer<typeof esquemaCrearNuevaRevision>;
+export type AgregarItemPropuestaInput = z.infer<typeof esquemaAgregarItemPropuesta>;
 export type EditarItemPropuestaInput = z.infer<typeof esquemaEditarItemPropuesta>;
 export type EditarRuteoItemInput = z.infer<typeof esquemaEditarRuteoItem>;
 export type EditarCostosRevisionInput = z.infer<typeof esquemaEditarCostosRevision>;
