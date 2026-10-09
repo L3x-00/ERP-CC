@@ -139,14 +139,24 @@ describe('validaciones Zod de propuestas (B4)', () => {
     ).toBe(false);
   });
 
-  it('aceptar exige token y permite canal/destino opcionales', () => {
+  it('aceptar exige token y fecha compromiso (C4.1) y permite canal/destino opcionales', () => {
+    const fechaCompromisoComercial = '2026-11-15';
     expect(
       esquemaAceptarRevision.safeParse({ revisionId: ID, actualizadoEn: VERSION }).success,
+    ).toBe(false);
+    expect(
+      esquemaAceptarRevision.safeParse({ revisionId: ID, actualizadoEn: VERSION, fechaCompromisoComercial })
+        .success,
     ).toBe(true);
+    expect(
+      esquemaAceptarRevision.safeParse({ revisionId: ID, actualizadoEn: VERSION, fechaCompromisoComercial: '2026-02-31' })
+        .success,
+    ).toBe(false);
     expect(
       esquemaAceptarRevision.safeParse({
         revisionId: ID,
         actualizadoEn: VERSION,
+        fechaCompromisoComercial,
         canal: 'correo',
         destino: 'compras@cliente.mx',
       }).success,

@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2 y C3.1–C3.3 completos localmente** (2026-10-09); falta la revisión financiera del checkpoint C3; **siguiente: C4.1**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2 y C3 completos localmente; C4.1 en curso (servidor listo, falta UI «Orden pendiente»)** (2026-10-09); falta la revisión financiera del checkpoint C3.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -212,12 +212,24 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Comercial acepta una revisión exacta y confirma Fecha compromiso.
-- [ ] La misma transacción guarda aceptación + solicitud única de orden.
+- [x] Comercial acepta una revisión exacta y confirma Fecha compromiso.
+- [x] La misma transacción guarda aceptación + solicitud única de orden.
 - [ ] Un gate fallido conserva `Orden pendiente`, causa y reintento; carreras crean exactamente una Orden.
 
 **Verificación:** pgTAP, concurrencia, permisos aceptar/reintentar e integración de crédito/FX.
 **Dependencias:** C3.3.
+
+**Avance (Claude, 2026-10-09):** migración `20261009180000` (solo local):
+- `aceptar_revision` exige `fecha_compromiso_comercial` (congelada en la revisión) y crea `solicitudes_orden` (PENDING, única por revisión) en la misma transacción.
+- `procesar_solicitud_orden` (exige `orden_liberar`) intenta crear la Orden en una subtransacción: si un gate falla deja BLOCKED con `causa_codigo`/`causa_detalle` sin revertir la aceptación; reprocesar es idempotente (una sola Orden).
+- Backfill de revisiones ya aceptadas.
+- «Crear orden desde revisión» (módulo Órdenes) ya pasa por la solicitud; aceptar en la UI pide la fecha.
+- pgTAP 13/13 (RED previo) y consumidores B4/B5/B9/C3 218/218; unitarias 19/19; E2E Propuestas/Entregas/Órdenes.
+
+**Falta para cerrar C4.1:**
+- UI de «Orden pendiente» en la ficha de propuesta (selectores `propuesta-orden-pendiente`/`propuesta-reintentar-orden`) con causa legible y botón Reintentar.
+- Prueba de dos conexiones procesando a la vez.
+- Copiar la fecha compromiso comercial a la Orden (C4.2).
 
 ### C4.2 Snapshot comercial y cambios operativos
 

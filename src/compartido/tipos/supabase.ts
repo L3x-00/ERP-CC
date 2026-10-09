@@ -5578,6 +5578,10 @@ export type Database = {
         Args: { p_actor_id: string; p_correlation_id?: string; p_revision_id: string }
         Returns: Json
       }
+      procesar_solicitud_orden: {
+        Args: { p_actor_id: string; p_correlation_id?: string; p_revision_id: string }
+        Returns: Json
+      }
       resolver_tarifa_hora: {
         Args: { p_grupo_equipo_id: string; p_recurso_id?: string }
         Returns: Json

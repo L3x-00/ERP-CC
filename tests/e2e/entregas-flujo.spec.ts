@@ -116,7 +116,11 @@ async function prepararContexto(): Promise<Contexto> {
   if (errorEnviar) throw new Error(`No se envió: ${errorEnviar.message}`);
   const { error: errorAceptar } = await admin.rpc('aceptar_revision', {
     p_revision_id: revisionId,
-    p_datos: { actualizado_en: await leerRevision(), canal: 'correo', destino: 'compras@cliente.mx' } as Json,
+    p_datos: {
+      actualizado_en: await leerRevision(), canal: 'correo', destino: 'compras@cliente.mx',
+      // C4.1: aceptar confirma la fecha compromiso comercial.
+      fecha_compromiso_comercial: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
+    } as Json,
     p_actor: usuarioId,
   });
   if (errorAceptar) throw new Error(`No se aceptó: ${errorAceptar.message}`);

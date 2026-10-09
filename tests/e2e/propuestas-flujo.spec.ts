@@ -469,6 +469,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: /^A · Enviada/ }).click();
       await page.getByRole('tab', { name: 'Ítems' }).click();
       await expect(page.getByRole('row', { name: /IT03/ })).toHaveCount(0);
+      // C4.1: la fecha compromiso comercial es obligatoria al aceptar.
+      await page.getByLabel('Fecha compromiso comercial').fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
       await page.getByRole('button', { name: 'Aceptar revisión' }).click();
       await expect
         .poll(async () => {

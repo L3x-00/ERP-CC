@@ -57,7 +57,10 @@ Uso semanal al registrar: 90 % (reinicio 2026-10-13 04:00). Rama `feature/observ
   2. `20261009170000_c3_3b_recurso_en_ruteo.sql`
 
   Las anteriores (hasta `20261009140000`) las aplicó el PO a mano. El historial `supabase_migrations` remoto no las refleja: no usar `db push` sin `migration repair` (ver `docs/CUELLOS-DE-BOTELLA.md`).
-- **Siguiente:** C4.1, aceptación durable y «Orden pendiente».
+- **C3.3b y H-B1-29 cerrados** (máquina por renglón; documentos de cliente por subida directa).
+- **C4.1 en curso:** migración `20261009180000` (solicitud durable + `procesar_solicitud_orden`), servidor y aceptación con fecha listos. Falta la UI «Orden pendiente» con Reintentar y la prueba de dos conexiones. Ver `tasks/todo.md`.
+- **Decisión tomada (contrato §6):** aceptar + congelar la fecha + crear la solicitud van en una transacción; la Orden la crea `procesar_solicitud_orden` (permiso `orden_liberar`, idempotente), así que el comercial no necesita `orden_liberar` para aceptar.
+- *(Histórico)* Siguiente que se tenía: C4.1, aceptación durable y «Orden pendiente».
   - `crear_orden_desde_revision` exige `orden_liberar`, que el comercial no tiene. Definir si la Orden se crea con el actor que acepta o por un proceso con permiso propio, antes de escribir la solicitud única (`PENDING/BLOCKED/CREATED`) y el reintento idempotente.
   - Separar `fecha_compromiso_comercial` (contrato §3.1/§6).
 - **Pendientes menores:**

@@ -32,6 +32,9 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('tarifa_moneda_distinta')) {
     return 'La tarifa está en otra moneda que la propuesta; ajusta la moneda de la tarifa del grupo o de la máquina.';
   }
+  if (mensaje.includes('fecha_compromiso_requerida') || mensaje.includes('fecha_compromiso_invalida')) {
+    return 'Indica una fecha compromiso comercial válida para aceptar la revisión.';
+  }
   if (mensaje.includes('ruteo_vacio')) {
     return 'No hay renglones de ruteo en ítems activos para costear.';
   }

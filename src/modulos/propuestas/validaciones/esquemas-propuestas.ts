@@ -161,6 +161,8 @@ export const esquemaAceptarRevision = z
   .object({
     revisionId: uuid,
     actualizadoEn,
+    /** C4.1/DC-09: fecha prometida al cliente; distinta de la fecha requerida. */
+    fechaCompromisoComercial: z.iso.date({ message: 'Indica la fecha compromiso comercial' }),
     canal: z.string().trim().max(60).optional(),
     destino: z.string().trim().max(120).optional(),
   })

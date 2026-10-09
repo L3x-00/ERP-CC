@@ -44,6 +44,8 @@ export function PanelAccionesPropuesta({
   const [procesando, setProcesando] = useState(false);
   const [canal, setCanal] = useState('correo');
   const [destino, setDestino] = useState('');
+  // C4.1/DC-09: la fecha compromiso comercial se confirma al aceptar.
+  const [fechaCompromiso, setFechaCompromiso] = useState('');
   const [motivo, setMotivo] = useState('');
 
   const estado = revision.estado;
@@ -126,16 +128,29 @@ export function PanelAccionesPropuesta({
         )}
 
         {(estado === 'SENT' || estado === 'FOLLOW_UP') && permisos.aceptar && (
-          <Button
-            tamano="sm"
-            onClick={() => void ejecutar(() => aceptarRevisionAccion({
-              revisionId: revision.id,
-              actualizadoEn: revision.actualizadoEn,
-            }))}
-            disabled={procesando}
-          >
-            Aceptar revisión
-          </Button>
+          <span className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-xs text-texto-secundario">
+              Fecha compromiso comercial
+              <Input
+                type="date"
+                value={fechaCompromiso}
+                onChange={(evento) => setFechaCompromiso(evento.target.value)}
+                aria-label="Fecha compromiso comercial"
+              />
+            </label>
+            <Button
+              tamano="sm"
+              onClick={() => void ejecutar(() => aceptarRevisionAccion({
+                revisionId: revision.id,
+                actualizadoEn: revision.actualizadoEn,
+                fechaCompromisoComercial: fechaCompromiso,
+              }))}
+              disabled={procesando || !fechaCompromiso}
+              title={!fechaCompromiso ? 'Indica la fecha compromiso comercial' : undefined}
+            >
+              Aceptar revisión
+            </Button>
+          </span>
         )}
 
         {estado === 'ACCEPTED' && esAceptada && permisos.aceptar && (

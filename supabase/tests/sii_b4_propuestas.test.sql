@@ -601,7 +601,9 @@ SELECT lives_ok(
     jsonb_build_object(
       'actualizado_en', (SELECT actualizado_en::text FROM public.propuesta_revisiones
         WHERE id = (SELECT valor FROM b4_ids WHERE nombre = 'p1a')),
-      'canal', 'correo', 'destino', 'compras@cliente.mx')::text,
+      'canal', 'correo', 'destino', 'compras@cliente.mx',
+      -- C4.1: aceptar confirma la fecha compromiso comercial.
+      'fecha_compromiso_comercial', (current_date + 30)::text)::text,
     '00000000-0000-4000-8000-0000000b4a03'),
   'El gerente acepta la revisión A aunque exista una B posterior'
 );
