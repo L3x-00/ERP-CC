@@ -47,9 +47,10 @@ test.describe.serial('SII-B1.10 Actividad', () => {
         razon_social: razonSocial,
         nombre_comercial: `Actividad ${sufijo}`,
         estado: 'activo',
-      }).select('id').single();
+      }).select('id, folio').single();
       if (cliente.error) throw cliente.error;
       clienteId = cliente.data.id;
+      const folioCliente = cliente.data.folio ?? razonSocial;
 
       const folioOp = await admin.rpc('generar_folio_op');
       if (folioOp.error || !folioOp.data) throw new Error(folioOp.error?.message ?? 'Sin folio OP');
@@ -61,9 +62,10 @@ test.describe.serial('SII-B1.10 Actividad', () => {
         empresa: `Empresa Actividad ${sufijo}`,
         nombre_contacto: 'Contacto Actividad',
         etapa: 'prospecto',
-      }).select('id').single();
+      }).select('id, folio_rfq').single();
       if (pipeline.error) throw pipeline.error;
       pipelineId = pipeline.data.id;
+      const folioRfq = pipeline.data.folio_rfq ?? folioCnc;
 
       const folioOrden = await admin.rpc('generar_folio_orden', { p_prefijo: 'OP' });
       if (folioOrden.error || !folioOrden.data) throw new Error(folioOrden.error?.message ?? 'Sin folio de orden');
@@ -73,9 +75,10 @@ test.describe.serial('SII-B1.10 Actividad', () => {
         estado: 'borrador',
         prioridad: 'normal',
         fecha_compromiso: '2100-12-31T00:00:00Z',
-      }).select('id').single();
+      }).select('id, folio, folio_sii').single();
       if (orden.error) throw orden.error;
       ordenId = orden.data.id;
+      const folioOrdenVisible = orden.data.folio_sii ?? orden.data.folio;
 
       const eventos = await admin.from('logs').insert([
         {
@@ -112,11 +115,11 @@ test.describe.serial('SII-B1.10 Actividad', () => {
       await expect(grupo).toHaveCount(1);
       await expect(grupo).toContainText('2 eventos');
 
-      const enlacePipeline = vista.getByRole('link', { name: folioCnc });
+      const enlacePipeline = vista.getByRole('link', { name: folioRfq });
       await expect(enlacePipeline).toHaveAttribute('href', `/rfq?rfq=${pipelineId}`);
-      const enlaceCliente = vista.getByRole('link', { name: razonSocial });
+      const enlaceCliente = vista.getByRole('link', { name: folioCliente });
       await expect(enlaceCliente).toHaveAttribute('href', `/clientes?cliente=${clienteId}`);
-      const enlaceOrden = vista.getByRole('link', { name: folioOrden.data });
+      const enlaceOrden = vista.getByRole('link', { name: folioOrdenVisible });
       await expect(enlaceOrden).toHaveAttribute('href', `/ordenes?ordenId=${ordenId}`);
 
       // Ningún UUID técnico visible (ni el correlacionado ni el recurso sin tabla).
