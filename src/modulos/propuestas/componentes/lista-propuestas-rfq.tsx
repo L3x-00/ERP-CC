@@ -77,8 +77,8 @@ export function ListaPropuestasRfq({
           titulo="Sin propuestas"
           descripcion={
             estadoRfq === 'READY_FOR_PROPOSAL'
-              ? 'Crea la propuesta A desde este RFQ listo.'
-              : 'El RFQ debe estar listo para propuesta para crear la primera propuesta.'
+              ? 'Crea la propuesta A desde este RFQ listo. Nada se crea ni se envía al cliente hasta que uses «Crear propuesta».'
+              : 'El RFQ debe estar listo para propuesta para crear la primera. Capturar ítems o archivos no crea propuestas ni envía nada al cliente.'
           }
         />
       )}

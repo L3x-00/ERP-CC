@@ -164,7 +164,7 @@ async function iniciarSesion(pagina: Page, contexto: ContextoAceptacion): Promis
   await pagina.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
-/** Crea un RFQ desde la cola nueva. */
+/** Crea un RFQ desde la cola nueva (asistente en el mismo modal). */
 async function crearRfqSimple(
   pagina: Page,
   contexto: ContextoAceptacion,
@@ -180,7 +180,18 @@ async function crearRfqSimple(
   if (opciones.interna) {
     await pagina.getByLabel(/Orden interna \(TI\)/).check();
   }
-  await pagina.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
+  await pagina.getByRole('button', { name: 'Continuar con ítems' }).click();
+  await expect(pagina.getByTestId('alta-rfq-items')).toBeVisible();
+  await pagina.getByRole('button', { name: 'Finalizar más tarde' }).click();
+  await expect(pagina.getByTestId('alta-rfq-items')).toBeHidden();
+
+  const rfq = await contexto.admin
+    .from('pipeline')
+    .select('id')
+    .eq('empresa', opciones.empresa)
+    .single();
+  if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
+  await pagina.goto(`/rfq?rfq=${rfq.data.id}`);
   await expect(pagina.getByTestId('ficha-rfq')).toBeVisible();
 }
 

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { crearProspectoAccion } from '@/modulos/pipeline/acciones/crear-prospecto';
 import { SelectorCliente } from '@/modulos/pipeline/componentes/selector-cliente';
@@ -16,81 +15,83 @@ import type {
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { obtenerCatalogosRfqAccion } from '@/modulos/rfq/acciones/obtener-catalogos';
+import { obtenerRfqAccion } from '@/modulos/rfq/acciones/obtener-rfq';
+import { PanelArchivosRfq } from '@/modulos/rfq/componentes/panel-archivos-rfq';
+import { TablaItemsRfq } from '@/modulos/rfq/componentes/tabla-items-rfq';
 
 /**
- * Etapas del alta de RFQ (C1.2). `captura` son las que se llenan en este
- * formulario; `ficha` continúan en `/rfq?rfq=<id>` sobre el MISMO RFQ, que nace
- * `INCOMPLETE` (DC-03). No se presentan como embebidas aquí porque todavía no
- * lo están: Items/Archivos/Revisar llegan en C1.2b.
+ * Pasos del alta guiada (DC-03): todo se captura dentro del mismo modal, sin
+ * abandonar la pantalla de la cola. El RFQ se crea al continuar a Ítems y
+ * queda `INCOMPLETE`; si la captura se interrumpe, se reanuda sobre el MISMO
+ * RFQ desde la cola («Continuar captura»).
  */
-const ETAPAS_ALTA_RFQ = [
-  { clave: 'cliente', titulo: 'Cliente', donde: 'captura' },
-  { clave: 'solicitud', titulo: 'Solicitud', donde: 'captura' },
-  { clave: 'items', titulo: 'Ítems', donde: 'ficha' },
-  { clave: 'archivos', titulo: 'Archivos', donde: 'ficha' },
-  { clave: 'revisar', titulo: 'Revisar', donde: 'ficha' },
+const PASOS_ALTA = [
+  { clave: 'solicitud', titulo: 'Cliente y solicitud' },
+  { clave: 'items', titulo: 'Ítems' },
+  { clave: 'archivos', titulo: 'Archivos' },
 ] as const;
 
-/** Indicador de las cinco etapas del alta, con dónde ocurre cada una. */
-function EtapasAltaRfq() {
+type PasoAltaRfq = (typeof PASOS_ALTA)[number]['clave'];
+
+/** Indicador de los tres pasos del alta; marca el actual y los completados. */
+function PasosAltaRfq({ paso }: { paso: PasoAltaRfq }) {
+  const indiceActual = PASOS_ALTA.findIndex((opcion) => opcion.clave === paso);
   return (
     <div data-testid="etapas-alta-rfq" className="flex flex-col gap-2">
       <ol aria-label="Etapas del alta de RFQ" className="flex flex-wrap items-center gap-2">
-        {ETAPAS_ALTA_RFQ.map((etapa, indice) => {
-          const enCaptura = etapa.donde === 'captura';
+        {PASOS_ALTA.map((opcion, indice) => {
+          const actual = opcion.clave === paso;
+          const completado = indice < indiceActual;
           return (
             <li
-              key={etapa.clave}
+              key={opcion.clave}
+              aria-current={actual ? 'step' : undefined}
               className={
-                enCaptura
+                actual
                   ? 'flex items-center gap-1.5 rounded-full border border-acento bg-acento-suave px-3 py-1 text-xs font-semibold text-acento'
                   : 'flex items-center gap-1.5 rounded-full border border-dashed border-borde bg-superficie px-3 py-1 text-xs font-medium text-texto-secundario'
               }
             >
               <span aria-hidden="true" className="font-mono">
-                {indice + 1}
+                {completado ? '✓' : indice + 1}
               </span>
-              {etapa.titulo}
+              {opcion.titulo}
               <span className="sr-only">
-                {enCaptura ? ' — se captura aquí' : ' — continúa en la ficha del RFQ'}
+                {actual ? ' — en curso' : completado ? ' — completado' : ' — pendiente'}
               </span>
             </li>
           );
         })}
       </ol>
       <p className="text-xs text-texto-secundario">
-        Aquí capturas <strong className="font-semibold">Cliente</strong> y{' '}
-        <strong className="font-semibold">Solicitud</strong>. Al guardar, el RFQ queda como{' '}
-        <strong className="font-semibold">Incompleto</strong> y la captura de Ítems, Archivos y
-        Revisar continúa en la ficha del RFQ: no se crea otro folio.
+        Captura todo sin salir de esta ventana. Al continuar, el RFQ se guarda como{' '}
+        <strong className="font-semibold">Incompleto</strong> y sigue editable desde su ficha.
       </p>
     </div>
   );
 }
 
 /**
- * Formulario controlado para iniciar un RFQ recuperable. Envía los datos a
- * `crearProspectoAccion`; solo el éxito limpia los campos, avisa al contenedor
- * (`onExito`) y continúa la captura en la ficha del mismo RFQ. Campos numéricos
- * como `ivaPorcentaje` y `etiquetas` los resuelve el esquema por defecto.
+ * Alta de RFQ en un solo asistente: Cliente y solicitud → Ítems → Archivos.
+ * Reutiliza las mismas Server Actions de la ficha (crear prospecto, guardar
+ * ítem, subir archivo); nunca navega ni crea la Propuesta: eso solo ocurre con
+ * la acción explícita «Crear propuesta» en la ficha de un RFQ listo.
  *
- * RFQ-02/03: permite elegir (o dar de alta) el cliente del catálogo sin salir
- * del formulario. Al elegirlo se heredan sus condiciones de pago y se rellenan
- * solo los campos de contacto que estén vacíos — nunca se pisa lo ya capturado.
- *
- * DC-01: el alta ya no captura Orden de compra ni Horas estimadas. `Fecha
- * requerida por cliente` se conserva como dato informativo y NO es la fecha
- * compromiso, que se confirma al aceptar una revisión.
+ * DC-01: no captura Orden de compra ni Horas estimadas; `Fecha requerida por
+ * cliente` es informativa y no la Fecha compromiso.
+ * RFQ-02/03: el cliente del catálogo (o el alta rápida) se elige sin salir.
  */
 export function FormularioProspecto({
   onExito,
   onCambioEnvio,
 }: {
-  onExito?: (id: string) => void;
+  onExito?: (id?: string) => void;
   onCambioEnvio?: (enviando: boolean) => void;
 }) {
-  const router = useRouter();
   const clienteConsultas = useQueryClient();
+  const [paso, setPaso] = useState<PasoAltaRfq>('solicitud');
+  const [rfqId, setRfqId] = useState<string | null>(null);
   const [cliente, setCliente] = useState<ClienteRfq | null>(null);
   const [condicionesHeredadas, setCondicionesHeredadas] = useState(false);
   const [nombreContacto, setNombreContacto] = useState('');
@@ -105,6 +106,25 @@ export function FormularioProspecto({
   const [notas, setNotas] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  const rfqConsulta = useQuery({
+    queryKey: ['rfq', rfqId ?? ''],
+    queryFn: () => obtenerRfqAccion({ rfqId: rfqId ?? '' }),
+    enabled: rfqId !== null,
+  });
+  const catalogosConsulta = useQuery({
+    queryKey: ['rfq-catalogos'],
+    queryFn: () => obtenerCatalogosRfqAccion(),
+    staleTime: 60_000,
+    enabled: rfqId !== null,
+  });
+
+  const rfq = rfqConsulta.data?.exito ? rfqConsulta.data.datos : undefined;
+  const catalogos = catalogosConsulta.data?.exito ? (catalogosConsulta.data.datos ?? null) : null;
+  const errorRfq =
+    rfqConsulta.isError || (rfqConsulta.data && !rfqConsulta.data.exito)
+      ? 'No se pudo cargar el RFQ capturado.'
+      : null;
 
   /**
    * Aplica el cliente elegido a la captura: hereda sus condiciones de pago y
@@ -142,7 +162,14 @@ export function FormularioProspecto({
     setNotas('');
   }
 
-  async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
+  function reiniciarCaptura(): void {
+    limpiar();
+    setRfqId(null);
+    setPaso('solicitud');
+    setError(null);
+  }
+
+  async function crearRfqYContinuar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setError(null);
     setEnviando(true);
@@ -166,20 +193,16 @@ export function FormularioProspecto({
       if (!respuesta.exito) {
         setError(respuesta.error);
       } else if (!respuesta.datos) {
-        // Sin id no hay a dónde continuar la captura: se conserva el borrador
-        // en el modal en vez de limpiarlo y perderlo.
+        // Sin id no hay a dónde continuar: se conserva el borrador en el modal
+        // en vez de limpiarlo y perderlo.
         setError('No se pudo continuar la captura. Intenta de nuevo.');
       } else {
-        const { id } = respuesta.datos;
-        limpiar();
-        // El tablero vive en una consulta de TanStack Query (`['pipeline']`):
+        setRfqId(respuesta.datos.id);
+        // La cola vive en una consulta de TanStack Query (`['pipeline']`):
         // navegar no la invalida por sí solo y con `refetchOnWindowFocus`
         // desactivado la fila nueva no aparecería al volver a la cola.
         await clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
-        onExito?.(id);
-        // DC-03: la captura continúa en la ficha del MISMO RFQ (`INCOMPLETE`).
-        // El id devuelto es el único folio del alta; no se crea un segundo RFQ.
-        router.push(`/rfq?rfq=${id}&continuar=1`);
+        setPaso('items');
       }
     } catch {
       setError('Error de conexión. Intenta de nuevo.');
@@ -189,185 +212,295 @@ export function FormularioProspecto({
     }
   }
 
+  function refrescarRfq(): void {
+    void rfqConsulta.refetch();
+  }
+
+  function finalizar(): void {
+    const id = rfqId ?? undefined;
+    void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+    reiniciarCaptura();
+    onExito?.(id);
+  }
+
   return (
-    <form onSubmit={manejarEnvio} className="flex flex-col gap-4" noValidate>
-      <EtapasAltaRfq />
+    <div className="flex flex-col gap-4">
+      <PasosAltaRfq paso={paso} />
 
-      <h3 className="text-sm font-semibold text-texto-primario">1. Cliente</h3>
+      {paso === 'solicitud' && (
+        <form onSubmit={crearRfqYContinuar} className="flex flex-col gap-4" noValidate>
+          <h3 className="text-sm font-semibold text-texto-primario">1. Cliente</h3>
 
-      <div className="flex flex-col gap-2">
-        <SelectorCliente
-          seleccionado={cliente}
-          onSeleccionar={aplicarCliente}
-          sugerencias={{ empresa, contacto: nombreContacto, correo, telefono }}
-        />
-        {cliente && (
-          <ResumenClienteRfq
-            clienteId={cliente.id}
-            condicionesPago={condicionesPago === '' ? null : condicionesPago}
-          />
-        )}
-      </div>
+          <div className="flex flex-col gap-2">
+            <SelectorCliente
+              seleccionado={cliente}
+              onSeleccionar={aplicarCliente}
+              sugerencias={{ empresa, contacto: nombreContacto, correo, telefono }}
+            />
+            {cliente && (
+              <ResumenClienteRfq
+                clienteId={cliente.id}
+                condicionesPago={condicionesPago === '' ? null : condicionesPago}
+              />
+            )}
+          </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-contacto">Nombre del contacto</Label>
-          <Input
-            id="prospecto-contacto"
-            type="text"
-            value={nombreContacto}
-            onChange={(evento) => setNombreContacto(evento.target.value)}
-            placeholder="Nombre y apellido"
-          />
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-contacto">Nombre del contacto</Label>
+              <Input
+                id="prospecto-contacto"
+                type="text"
+                value={nombreContacto}
+                onChange={(evento) => setNombreContacto(evento.target.value)}
+                placeholder="Nombre y apellido"
+              />
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-empresa">Empresa</Label>
-          <Input
-            id="prospecto-empresa"
-            type="text"
-            value={empresa}
-            onChange={(evento) => setEmpresa(evento.target.value)}
-            placeholder="Razón social o nombre comercial"
-          />
-        </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-empresa">Empresa</Label>
+              <Input
+                id="prospecto-empresa"
+                type="text"
+                value={empresa}
+                onChange={(evento) => setEmpresa(evento.target.value)}
+                placeholder="Razón social o nombre comercial"
+              />
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-correo">Correo (opcional)</Label>
-          <Input
-            id="prospecto-correo"
-            type="email"
-            value={correo}
-            onChange={(evento) => setCorreo(evento.target.value)}
-            placeholder="contacto@empresa.com"
-          />
-        </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-correo">Correo (opcional)</Label>
+              <Input
+                id="prospecto-correo"
+                type="email"
+                value={correo}
+                onChange={(evento) => setCorreo(evento.target.value)}
+                placeholder="contacto@empresa.com"
+              />
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-telefono">Teléfono (opcional)</Label>
-          <Input
-            id="prospecto-telefono"
-            type="tel"
-            value={telefono}
-            onChange={(evento) => setTelefono(evento.target.value)}
-            placeholder="664 000 0000"
-          />
-        </div>
-      </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-telefono">Teléfono (opcional)</Label>
+              <Input
+                id="prospecto-telefono"
+                type="tel"
+                value={telefono}
+                onChange={(evento) => setTelefono(evento.target.value)}
+                placeholder="664 000 0000"
+              />
+            </div>
+          </div>
 
-      <h3 className="text-sm font-semibold text-texto-primario">2. Solicitud</h3>
+          <h3 className="text-sm font-semibold text-texto-primario">2. Solicitud</h3>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-moneda">Moneda</Label>
-          <Select
-            id="prospecto-moneda"
-            value={moneda}
-            onChange={(evento) => setMoneda(evento.target.value as MonedaPipeline)}
-          >
-            <option value="MXN">MXN — Peso mexicano</option>
-            <option value="USD">USD — Dólar estadounidense</option>
-          </Select>
-        </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-moneda">Moneda</Label>
+              <Select
+                id="prospecto-moneda"
+                value={moneda}
+                onChange={(evento) => setMoneda(evento.target.value as MonedaPipeline)}
+              >
+                <option value="MXN">MXN — Peso mexicano</option>
+                <option value="USD">USD — Dólar estadounidense</option>
+              </Select>
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-prioridad">Prioridad</Label>
-          <Select
-            id="prospecto-prioridad"
-            value={prioridad}
-            onChange={(evento) => setPrioridad(evento.target.value as PrioridadPipeline)}
-          >
-            <option value="baja">Baja</option>
-            <option value="normal">Normal</option>
-            <option value="alta">Alta</option>
-            <option value="urgente">Urgente</option>
-          </Select>
-        </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-prioridad">Prioridad</Label>
+              <Select
+                id="prospecto-prioridad"
+                value={prioridad}
+                onChange={(evento) => setPrioridad(evento.target.value as PrioridadPipeline)}
+              >
+                <option value="baja">Baja</option>
+                <option value="normal">Normal</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </Select>
+            </div>
 
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <Label htmlFor="prospecto-condiciones">Condiciones de pago (opcional)</Label>
-          <Select
-            id="prospecto-condiciones"
-            value={condicionesPago}
-            onChange={(evento) => {
-              setCondicionesPago(evento.target.value as CondicionesPago | '');
-              setCondicionesHeredadas(false);
-            }}
-          >
-            <option value="">Sin especificar</option>
-            <option value="contado">Contado</option>
-            <option value="15_dias">15 días</option>
-            <option value="30_dias">30 días</option>
-            <option value="credito">Crédito</option>
-          </Select>
-          {condicionesHeredadas && (
-            <span className="text-xs text-texto-secundario">
-              Heredadas del cliente seleccionado. Puedes cambiarlas para esta RFQ.
-            </span>
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="prospecto-condiciones">Condiciones de pago (opcional)</Label>
+              <Select
+                id="prospecto-condiciones"
+                value={condicionesPago}
+                onChange={(evento) => {
+                  setCondicionesPago(evento.target.value as CondicionesPago | '');
+                  setCondicionesHeredadas(false);
+                }}
+              >
+                <option value="">Sin especificar</option>
+                <option value="contado">Contado</option>
+                <option value="15_dias">15 días</option>
+                <option value="30_dias">30 días</option>
+                <option value="credito">Crédito</option>
+              </Select>
+              {condicionesHeredadas && (
+                <span className="text-xs text-texto-secundario">
+                  Heredadas del cliente seleccionado. Puedes cambiarlas para esta RFQ.
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="prospecto-fecha-requerida">
+                Fecha requerida por cliente (opcional)
+              </Label>
+              <Input
+                id="prospecto-fecha-requerida"
+                type="date"
+                value={fechaRequerida}
+                onChange={(evento) => setFechaRequerida(evento.target.value)}
+                aria-describedby="prospecto-ayuda-fecha-requerida"
+              />
+              <span
+                id="prospecto-ayuda-fecha-requerida"
+                data-testid="ayuda-fecha-requerida"
+                className="text-xs text-texto-secundario"
+              >
+                Dato informativo de lo que pide el cliente. No es la Fecha compromiso: esa se
+                confirma al aceptar una revisión de la propuesta.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="prospecto-notas">Notas (opcional)</Label>
+              <Textarea
+                id="prospecto-notas"
+                value={notas}
+                onChange={(evento) => setNotas(evento.target.value)}
+                rows={2}
+                maxLength={2000}
+              />
+            </div>
+
+            <label
+              htmlFor="prospecto-orden-interna"
+              className="flex items-start gap-2 sm:col-span-2"
+            >
+              <input
+                id="prospecto-orden-interna"
+                type="checkbox"
+                className="mt-1"
+                checked={esOrdenInterna}
+                onChange={(evento) => setEsOrdenInterna(evento.target.checked)}
+              />
+              <span className="text-sm">
+                <span className="font-medium text-texto-primario">Orden interna (TI)</span>
+                <span className="block text-texto-secundario">
+                  Trabajo interno: al aprobar no genera cuenta por cobrar ni cuenta como venta a
+                  cliente.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          {error !== null && (
+            <p role="alert" className="text-sm text-peligro-texto">
+              {error}
+            </p>
           )}
-        </div>
 
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <Label htmlFor="prospecto-fecha-requerida">
-            Fecha requerida por cliente (opcional)
-          </Label>
-          <Input
-            id="prospecto-fecha-requerida"
-            type="date"
-            value={fechaRequerida}
-            onChange={(evento) => setFechaRequerida(evento.target.value)}
-            aria-describedby="prospecto-ayuda-fecha-requerida"
-          />
-          <span
-            id="prospecto-ayuda-fecha-requerida"
-            data-testid="ayuda-fecha-requerida"
-            className="text-xs text-texto-secundario"
-          >
-            Dato informativo de lo que pide el cliente. No es la Fecha compromiso: esa se confirma
-            al aceptar una revisión de la propuesta.
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <Label htmlFor="prospecto-notas">Notas (opcional)</Label>
-          <Textarea
-            id="prospecto-notas"
-            value={notas}
-            onChange={(evento) => setNotas(evento.target.value)}
-            rows={2}
-            maxLength={2000}
-          />
-        </div>
-
-        <label
-          htmlFor="prospecto-orden-interna"
-          className="flex items-start gap-2 sm:col-span-2"
-        >
-          <input
-            id="prospecto-orden-interna"
-            type="checkbox"
-            className="mt-1"
-            checked={esOrdenInterna}
-            onChange={(evento) => setEsOrdenInterna(evento.target.checked)}
-          />
-          <span className="text-sm">
-            <span className="font-medium text-texto-primario">Orden interna (TI)</span>
-            <span className="block text-texto-secundario">
-              Trabajo interno: al aprobar no genera cuenta por cobrar ni cuenta como venta a cliente.
-            </span>
-          </span>
-        </label>
-      </div>
-
-      {error !== null && (
-        <p role="alert" className="text-sm text-peligro-texto">
-          {error}
-        </p>
+          <div className="flex justify-end">
+            <Button type="submit" tamano="lg" disabled={enviando}>
+              {enviando ? 'Creando RFQ…' : 'Continuar con ítems'}
+            </Button>
+          </div>
+        </form>
       )}
 
-      <Button type="submit" tamano="lg" disabled={enviando}>
-        {enviando ? 'Guardando…' : 'Crear RFQ'}
-      </Button>
-    </form>
+      {paso === 'items' && (
+        <section className="flex flex-col gap-3" data-testid="alta-rfq-items">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-texto-primario">Ítems de la solicitud</h3>
+            <p className="text-sm text-texto-secundario">
+              Agrega los ítems con material y espesor del catálogo. Se guardan en este mismo RFQ.
+            </p>
+          </div>
+
+          {errorRfq !== null ? (
+            <div className="flex flex-col gap-2">
+              <p role="alert" className="text-sm text-peligro-texto">
+                {errorRfq}
+              </p>
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                className="self-start"
+                onClick={refrescarRfq}
+              >
+                Reintentar
+              </Button>
+            </div>
+          ) : rfq ? (
+            <TablaItemsRfq rfq={rfq} catalogos={catalogos} onCambio={refrescarRfq} />
+          ) : (
+            <p role="status" aria-live="polite" className="text-sm text-texto-secundario">
+              Cargando el RFQ…
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-4">
+            <Button type="button" variante="contorno" tamano="sm" onClick={finalizar}>
+              Finalizar más tarde
+            </Button>
+            <Button type="button" tamano="sm" disabled={!rfq} onClick={() => setPaso('archivos')}>
+              Continuar con archivos
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {paso === 'archivos' && (
+        <section className="flex flex-col gap-3" data-testid="alta-rfq-archivos">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-texto-primario">Archivos del RFQ</h3>
+            <p className="text-sm text-texto-secundario">
+              Sube planos, dibujos o especificaciones ahora o déjalos para después. El binario sube
+              directo a Storage.
+            </p>
+          </div>
+
+          {errorRfq !== null ? (
+            <div className="flex flex-col gap-2">
+              <p role="alert" className="text-sm text-peligro-texto">
+                {errorRfq}
+              </p>
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                className="self-start"
+                onClick={refrescarRfq}
+              >
+                Reintentar
+              </Button>
+            </div>
+          ) : rfq ? (
+            <PanelArchivosRfq rfq={rfq} onCambio={refrescarRfq} />
+          ) : (
+            <p role="status" aria-live="polite" className="text-sm text-texto-secundario">
+              Cargando el RFQ…
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-4">
+            <Button type="button" variante="contorno" tamano="sm" onClick={() => setPaso('items')}>
+              Volver a ítems
+            </Button>
+            <Button type="button" tamano="sm" onClick={finalizar}>
+              Finalizar captura
+            </Button>
+          </div>
+
+          <p className="text-xs text-texto-secundario">
+            El RFQ queda como Incompleto; podrás marcarlo Listo desde su ficha cuando esté
+            completo. Crear propuesta solo ocurre con esa acción explícita.
+          </p>
+        </section>
+      )}
+    </div>
   );
 }

@@ -116,8 +116,10 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     await a.getByRole('button', { name: 'Nuevo RFQ' }).click();
     await a.getByLabel('Nombre del contacto').fill('QA Realtime');
     await a.getByLabel('Empresa', { exact: true }).fill(marca);
-    await a.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
-    await expect(a.getByTestId('ficha-rfq')).toBeVisible();
+    await a.getByRole('button', { name: 'Continuar con ítems' }).click();
+    await expect(a.getByTestId('alta-rfq-items')).toBeVisible();
+    await a.getByRole('button', { name: 'Finalizar más tarde' }).click();
+    await expect(a.getByTestId('alta-rfq-items')).toBeHidden();
     const oportunidad = await admin.from('pipeline').select('id').eq('empresa', marca).single();
     if (oportunidad.error || !oportunidad.data) throw new Error(oportunidad.error?.message ?? 'Oportunidad no persistida');
     oportunidadId = oportunidad.data.id;

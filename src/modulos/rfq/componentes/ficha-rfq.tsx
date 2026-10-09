@@ -21,6 +21,7 @@ import { obtenerCatalogosRfqAccion } from '../acciones/obtener-catalogos';
 import { validarRfqListoAccion } from '../acciones/validar-rfq-listo';
 import { ListaPropuestasRfq } from '@/modulos/propuestas/componentes/lista-propuestas-rfq';
 import { ActividadRfq } from './actividad-rfq';
+import { DialogoHistorialRfq } from './dialogo-historial-rfq';
 import { FormularioGeneralRfq } from './formulario-general-rfq';
 import {
   NavegacionCapturaRfq,
@@ -52,6 +53,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
   const [pasoCaptura, setPasoCaptura] = useState<PasoCapturaRfq>('solicitud');
   const [editandoResumen, setEditandoResumen] = useState(false);
   const [resumenGuardado, setResumenGuardado] = useState(false);
+  const [historialAbierto, setHistorialAbierto] = useState(false);
   const continuidadAplicada = useRef(false);
 
   const consulta = useQuery({
@@ -151,9 +153,16 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
             {rfq.descripcionGeneral ?? 'Sin descripción general'}
           </p>
         </div>
-        <Button variante="contorno" tamano="sm" onClick={() => void consulta.refetch()}>
-          Actualizar
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {rfq.estadoRfq !== 'CONVERTED' && (
+            <Button variante="contorno" tamano="sm" onClick={() => setHistorialAbierto(true)}>
+              Historial
+            </Button>
+          )}
+          <Button variante="contorno" tamano="sm" onClick={() => void consulta.refetch()}>
+            Actualizar
+          </Button>
+        </div>
       </div>
 
       {capturaIncompleta && (
@@ -293,6 +302,10 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
       )}
 
       {pestana === 'actividad' && <ActividadRfq rfqId={rfq.id} />}
+
+      {historialAbierto && (
+        <DialogoHistorialRfq rfqId={rfq.id} abierto onCambioApertura={setHistorialAbierto} />
+      )}
     </div>
   );
 }
