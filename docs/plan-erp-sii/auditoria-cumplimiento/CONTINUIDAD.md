@@ -58,7 +58,9 @@ Uso semanal al registrar: 90 % (reinicio 2026-10-13 04:00). Rama `feature/observ
 
   Las anteriores (hasta `20261009140000`) las aplicó el PO a mano. El historial `supabase_migrations` remoto no las refleja: no usar `db push` sin `migration repair` (ver `docs/CUELLOS-DE-BOTELLA.md`).
 - **C3.3b y H-B1-29 cerrados** (máquina por renglón; documentos de cliente por subida directa).
-- **C4.1 en curso:** migración `20261009180000` (solicitud durable + `procesar_solicitud_orden`), servidor y aceptación con fecha listos. Falta la UI «Orden pendiente» con Reintentar y la prueba de dos conexiones. Ver `tasks/todo.md`.
+- **C4.1 completo** (`b88d439` servidor + `63d27be` UI «Orden pendiente» con Reintentar). Solo falta la prueba de integración con dos conexiones que procesan la misma solicitud a la vez. Para armar el fixture conviene usar las RPC (`crear_propuesta` → enviar → `aceptar_revision`), porque los triggers de B4 bloquean cambios directos de estado vía API.
+- **Siguiente corte: C4.2** (snapshot comercial inmutable y cambios operativos con historial). Incluye copiar `solicitudes_orden.fecha_compromiso_comercial` a la Orden y separarla de la fecha operativa (contrato §3.1/§7).
+- **PR #33 abierto** con C3.3, C3.3b, H-B1-29 y C4.1. Migraciones a aplicar en remoto, en orden: `20261009160000`, `20261009170000`, `20261009180000`.
 - **Decisión tomada (contrato §6):** aceptar + congelar la fecha + crear la solicitud van en una transacción; la Orden la crea `procesar_solicitud_orden` (permiso `orden_liberar`, idempotente), así que el comercial no necesita `orden_liberar` para aceptar.
 - *(Histórico)* Siguiente que se tenía: C4.1, aceptación durable y «Orden pendiente».
   - `crear_orden_desde_revision` exige `orden_liberar`, que el comercial no tiene. Definir si la Orden se crea con el actor que acepta o por un proceso con permiso propio, antes de escribir la solicitud única (`PENDING/BLOCKED/CREATED`) y el reintento idempotente.
