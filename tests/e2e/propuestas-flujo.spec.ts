@@ -483,6 +483,15 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         })
         .toBe(revisionA.data.id);
 
+      // C4.1: la aceptación deja una solicitud de Orden visible como «Orden pendiente».
+      await expect(page.getByTestId('propuesta-orden-pendiente')).toBeVisible();
+      const solicitud = await admin
+        .from('solicitudes_orden')
+        .select('estado')
+        .eq('revision_id', revisionA.data.id)
+        .single();
+      expect(solicitud.data?.estado).toBe('PENDING');
+
       // 10. Confirmar venta (SALE_CONFIRMED habilita la orden en B5).
       await page.getByRole('button', { name: 'Confirmar venta' }).click();
       await expect

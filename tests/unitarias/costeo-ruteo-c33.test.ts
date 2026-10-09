@@ -41,3 +41,13 @@ describe('costeo de ruteo sin doble conteo (C3.3)', () => {
     expect(traducirErrorPropuesta('ruteo_vacio')).toContain('No hay renglones');
   });
 });
+
+describe('Orden pendiente (C4.1)', () => {
+  it('traduce la causa del gate a un mensaje legible', async () => {
+    const { mensajeCausaOrden } = await import('@/modulos/ordenes/utilidades/mensajes-orden');
+    expect(mensajeCausaOrden('cliente_no_activo')).toContain('no está activo');
+    expect(mensajeCausaOrden('credito_limite_excedido: detalle')).toContain('límite de crédito');
+    expect(mensajeCausaOrden('otro_error')).toContain('reintenta');
+    expect(mensajeCausaOrden(null)).toContain('aún no se ha procesado');
+  });
+});

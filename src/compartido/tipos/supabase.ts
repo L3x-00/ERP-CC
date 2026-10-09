@@ -3882,6 +3882,62 @@ export type Database = {
           },
         ]
       }
+      solicitudes_orden: {
+        Row: {
+          actualizado_en: string
+          causa_codigo: string | null
+          causa_detalle: string | null
+          creado_en: string
+          creado_por: string | null
+          estado: string
+          fecha_compromiso_comercial: string
+          id: string
+          intentos: number
+          orden_id: string | null
+          propuesta_id: string
+          revision_id: string
+          ultimo_intento_por: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          causa_codigo?: string | null
+          causa_detalle?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fecha_compromiso_comercial: string
+          id?: string
+          intentos?: number
+          orden_id?: string | null
+          propuesta_id: string
+          revision_id: string
+          ultimo_intento_por?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          causa_codigo?: string | null
+          causa_detalle?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fecha_compromiso_comercial?: string
+          id?: string
+          intentos?: number
+          orden_id?: string | null
+          propuesta_id?: string
+          revision_id?: string
+          ultimo_intento_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_orden_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sesiones_trabajo: {
         Row: {
           actualizado_en: string

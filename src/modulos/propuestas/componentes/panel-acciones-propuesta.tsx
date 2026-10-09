@@ -8,6 +8,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { aceptarRevisionAccion } from '@/modulos/propuestas/acciones/aceptar-revision';
+import { PanelOrdenPendiente } from '@/modulos/propuestas/componentes/panel-orden-pendiente';
 import { cerrarPropuestaAccion } from '@/modulos/propuestas/acciones/cerrar-propuesta';
 import { confirmarVentaAccion } from '@/modulos/propuestas/acciones/confirmar-venta';
 import { crearNuevaRevisionAccion } from '@/modulos/propuestas/acciones/crear-nueva-revision';
@@ -151,6 +152,10 @@ export function PanelAccionesPropuesta({
               Aceptar revisión
             </Button>
           </span>
+        )}
+
+        {(estado === 'ACCEPTED' || estado === 'SALE_CONFIRMED') && esAceptada && (
+          <PanelOrdenPendiente revisionId={revision.id} />
         )}
 
         {estado === 'ACCEPTED' && esAceptada && permisos.aceptar && (
