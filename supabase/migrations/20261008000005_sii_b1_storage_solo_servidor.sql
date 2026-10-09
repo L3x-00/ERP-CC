@@ -38,5 +38,6 @@ CREATE POLICY adjuntos_seleccionar
     )
   );
 
-COMMENT ON POLICY adjuntos_seleccionar ON storage.objects IS
-  'Lectura privada de adjuntos RFQ legacy y nuevos; las escrituras se preparan y confirman en servidor.';
+-- No se usa COMMENT ON POLICY sobre storage.objects: Supabase administra la
+-- tabla con un owner distinto al rol de migraciones y esa operación cosmética
+-- impediría una instalación fresca. La descripción funcional vive arriba.
