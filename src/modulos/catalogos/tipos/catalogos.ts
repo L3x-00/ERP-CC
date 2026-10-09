@@ -48,6 +48,9 @@ export interface ProcesoCatalogo {
   creadoEn: string;
 }
 
+/** Moneda de costeo de la tarifa por hora (C3.2/DC-07). */
+export type MonedaTarifa = 'MXN' | 'USD';
+
 export interface GrupoEquipoCatalogo {
   id: string;
   codigo: string;
@@ -55,6 +58,9 @@ export interface GrupoEquipoCatalogo {
   activo: boolean;
   orden: number;
   creadoEn: string;
+  /** Tarifa estándar por hora; null = sin configurar (el costeo se bloquea). */
+  tarifaHora: number | null;
+  tarifaMoneda: MonedaTarifa;
 }
 
 export interface GrupoPlaneadoCatalogo {
@@ -162,6 +168,8 @@ export interface FilaGrupoEquipoCatalogo {
   activo: boolean;
   orden: number;
   creado_en: string;
+  tarifa_hora: number | null;
+  tarifa_moneda: string;
 }
 
 export interface FilaGrupoPlaneadoCatalogo {
@@ -257,6 +265,8 @@ export function filaAGrupoEquipo(fila: FilaGrupoEquipoCatalogo): GrupoEquipoCata
     activo: fila.activo,
     orden: fila.orden,
     creadoEn: fila.creado_en,
+    tarifaHora: fila.tarifa_hora === null ? null : Number(fila.tarifa_hora),
+    tarifaMoneda: fila.tarifa_moneda === 'USD' ? 'USD' : 'MXN',
   };
 }
 

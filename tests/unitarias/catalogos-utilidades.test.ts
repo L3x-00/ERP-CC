@@ -60,6 +60,8 @@ function datosBase(): CatalogosBase {
         activo: true,
         orden: 0,
         creadoEn: '2026-10-05T00:00:00.000Z',
+        tarifaHora: 850,
+        tarifaMoneda: 'MXN',
       },
       {
         id: 'g2',
@@ -68,6 +70,8 @@ function datosBase(): CatalogosBase {
         activo: false,
         orden: 1,
         creadoEn: '2026-10-05T00:00:00.000Z',
+        tarifaHora: null,
+        tarifaMoneda: 'MXN',
       },
     ],
     gruposPlaneados: [],

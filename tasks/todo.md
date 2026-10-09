@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2 y C3.1 completos localmente** (2026-10-09); **siguiente: C3.2**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2, C3.1 y C3.2 completos localmente** (2026-10-09); **siguiente: C3.3**.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -178,12 +178,14 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] `grupos_equipo` posee tarifa estándar versionada y Configuración permite mantenerla.
-- [ ] El override de recurso tiene indicador explícito; cero no equivale a “sin override”.
-- [ ] Falta de tarifa bloquea el costeo con mensaje accionable.
+- [x] `grupos_equipo` posee tarifa estándar versionada y Configuración permite mantenerla.
+- [x] El override de recurso tiene indicador explícito; cero no equivale a “sin override”.
+- [x] Falta de tarifa bloquea el costeo con mensaje accionable.
 
 **Verificación:** pgTAP de constraints/historial, servicios y UI de Configuración.
 **Dependencias:** P0.4.
+
+**Hecho (Claude, 2026-10-09):** migración `20261009140000` (solo local): `grupos_equipo.tarifa_hora` (NULL = sin configurar) + `tarifa_moneda` MXN/USD, versionadas por `versiones_catalogo`; override explícito en `recursos_planeacion` (`tarifa_override_activa/hora/moneda`, CHECK); `resolver_tarifa_hora` (override > grupo) con `tarifa_no_configurada`/`tarifa_sin_grupo` y DETAIL accionable. Configuración: «Tarifas por grupo de equipo» y «Tarifas por máquina». El editor de ruteo marca grupos «(sin tarifa)» sin exponer montos. `costo_hora_interno` no se tocó. pgTAP 16/16, unitarias focales 85/85, E2E Catálogos. **Riesgo para C4.3:** `recursos_planeacion` (incluido `costo_hora_interno`) es legible con `ver_planeacion`.
 
 ### C3.3 Snapshot y desglose de ruteo
 

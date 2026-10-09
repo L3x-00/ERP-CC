@@ -247,4 +247,87 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       }
     }
   });
+
+  test('el admin fija la tarifa de un grupo y una tarifa propia en cero para una máquina (C3.2)', async ({ page }) => {
+    const acceso = credenciales('ADMIN');
+    test.skip(!acceso, 'Faltan E2E_CONFIGURACION_ADMIN_EMAIL/PASSWORD.');
+    if (!acceso) return;
+    const admin = clienteAdmin();
+    test.skip(!admin, 'Faltan NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY.');
+    if (!admin) return;
+
+    const sufijo = randomUUID().slice(0, 6).toUpperCase();
+    const grupo = await admin
+      .from('grupos_equipo')
+      .insert({ codigo: `E2E_GRP_${sufijo}`, nombre: `Grupo E2E ${sufijo}`, orden: 99 })
+      .select('id, codigo, nombre')
+      .single();
+    if (grupo.error) throw grupo.error;
+    const recurso = await admin
+      .from('recursos_planeacion')
+      .insert({ codigo: `E2E-REC-${sufijo}`, area: 'sheet_metal', nombre: `Máquina E2E ${sufijo}`, grupo_equipo_id: grupo.data.id })
+      .select('id, codigo, nombre')
+      .single();
+    if (recurso.error) throw recurso.error;
+
+    try {
+      await iniciarSesion(page, acceso);
+      await page.goto('/configuracion');
+      await page.getByRole('tab', { name: 'Catálogos base' }).click();
+
+      // Grupo sin tarifa: se marca y la máquina avisa que usará la del grupo.
+      const filaGrupo = page.getByTestId(`tarifa-grupo-${grupo.data.codigo}`);
+      await expect(filaGrupo).toContainText('Sin tarifa');
+      await filaGrupo.getByRole('button', { name: 'Editar tarifa' }).click();
+      await filaGrupo.getByLabel(`Tarifa por hora de ${grupo.data.nombre}`).fill('850.5');
+      await filaGrupo.getByLabel(`Moneda de la tarifa de ${grupo.data.nombre}`).selectOption('USD');
+      await filaGrupo.getByRole('button', { name: 'Guardar' }).click();
+      await expect(page.getByTestId('catalogos-confirmacion')).toContainText(`Tarifa de ${grupo.data.nombre} guardada`);
+      await expect(filaGrupo).toContainText('USD/h');
+
+      const grupoGuardado = await admin
+        .from('grupos_equipo')
+        .select('tarifa_hora, tarifa_moneda')
+        .eq('id', grupo.data.id)
+        .single();
+      expect(grupoGuardado.data).toEqual({ tarifa_hora: 850.5, tarifa_moneda: 'USD' });
+      const versiones = await admin
+        .from('versiones_catalogo')
+        .select('version')
+        .eq('entidad', 'grupos_equipo')
+        .eq('entidad_id', grupo.data.id);
+      expect(versiones.data?.length ?? 0).toBeGreaterThanOrEqual(2);
+
+      // Tarifa propia en cero: válida y explícita, distinta de "sin tarifa".
+      const filaRecurso = page.getByTestId(`tarifa-recurso-${recurso.data.codigo}`);
+      await expect(filaRecurso).toContainText(`Usa la tarifa de ${grupo.data.nombre}`);
+      await filaRecurso.getByRole('button', { name: 'Editar tarifa' }).click();
+      await filaRecurso.getByLabel('Tarifa propia', { exact: true }).check();
+      await filaRecurso.getByLabel(`Tarifa propia por hora de ${recurso.data.nombre}`).fill('0');
+      await filaRecurso.getByRole('button', { name: 'Guardar' }).click();
+      await expect(filaRecurso).toContainText('Tarifa propia: 0.00 MXN/h');
+      const conOverride = await admin
+        .from('recursos_planeacion')
+        .select('tarifa_override_activa, tarifa_override_hora, tarifa_override_moneda')
+        .eq('id', recurso.data.id)
+        .single();
+      expect(conOverride.data).toEqual({ tarifa_override_activa: true, tarifa_override_hora: 0, tarifa_override_moneda: 'MXN' });
+
+      // Retirarla vuelve a la tarifa del grupo.
+      await filaRecurso.getByRole('button', { name: 'Editar tarifa' }).click();
+      await filaRecurso.getByLabel('Tarifa propia', { exact: true }).uncheck();
+      await filaRecurso.getByRole('button', { name: 'Guardar' }).click();
+      await expect(filaRecurso).toContainText(`Usa la tarifa de ${grupo.data.nombre}`);
+      const sinOverride = await admin
+        .from('recursos_planeacion')
+        .select('tarifa_override_activa, tarifa_override_hora')
+        .eq('id', recurso.data.id)
+        .single();
+      expect(sinOverride.data).toEqual({ tarifa_override_activa: false, tarifa_override_hora: null });
+    } finally {
+      await admin.from('recursos_planeacion').delete().eq('id', recurso.data.id);
+      await admin.from('versiones_catalogo').delete().eq('entidad', 'grupos_equipo').eq('entidad_id', grupo.data.id);
+      await admin.from('grupos_equipo').update({ activo: false }).eq('id', grupo.data.id);
+    }
+  });
 });

@@ -6,7 +6,8 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 
 export type CatalogosPropuesta = {
   procesos: { id: string; codigo: string; nombre: string }[];
-  gruposEquipo: { id: string; codigo: string; nombre: string }[];
+  /** `sinTarifa`: el grupo no tiene tarifa por hora (C3.2); nunca se expone el monto. */
+  gruposEquipo: { id: string; codigo: string; nombre: string; sinTarifa: boolean }[];
   gruposPlaneados: { id: string; codigo: string; nombre: string }[];
   proximasAcciones: { codigo: string; nombre: string; esOtro: boolean }[];
   /** C3.1: materiales activos para el alta de un ítem propio de la revisión. */
@@ -42,7 +43,7 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         .order('orden', { ascending: true }),
       servidor
         .from('grupos_equipo')
-        .select('id, codigo, nombre')
+        .select('id, codigo, nombre, tarifa_hora')
         .eq('activo', true)
         .order('orden', { ascending: true }),
       servidor
@@ -79,6 +80,7 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         id: fila.id,
         codigo: fila.codigo,
         nombre: fila.nombre,
+        sinTarifa: fila.tarifa_hora === null,
       })),
       gruposPlaneados: (gruposPlaneados.data ?? []).map((fila) => ({
         id: fila.id,

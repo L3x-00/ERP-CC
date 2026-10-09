@@ -230,7 +230,7 @@ export function PanelRuteoCosteo({
                     <option value="">Equipo…</option>
                     {(catalogos?.gruposEquipo ?? []).map((grupo) => (
                       <option key={grupo.id} value={grupo.id}>
-                        {grupo.nombre}
+                        {grupo.sinTarifa ? `${grupo.nombre} (sin tarifa)` : grupo.nombre}
                       </option>
                     ))}
                   </Select>

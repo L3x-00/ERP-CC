@@ -67,8 +67,17 @@ export const esquemaGuardarProceso = z
   })
   .strict();
 
-/** Grupo de equipo (B1.6). */
-export const esquemaGuardarGrupoEquipo = z
+/** Tarifa por hora: no negativa, máximo 4 decimales; null = sin configurar. */
+export const tarifaHoraCatalogo = z
+  .number({ message: 'La tarifa debe ser un número' })
+  .min(0, 'La tarifa no puede ser negativa')
+  .max(1_000_000, 'La tarifa es demasiado alta')
+  .refine((valor) => Math.abs(valor * 10_000 - Math.round(valor * 10_000)) < 1e-6, 'Máximo 4 decimales');
+
+export const monedaTarifaCatalogo = z.enum(['MXN', 'USD']);
+
+/** Grupo planeado (B1.6). */
+export const esquemaGuardarGrupoPlaneado = z
   .object({
     id: idOpcional,
     codigo: codigoCatalogo,
@@ -78,8 +87,14 @@ export const esquemaGuardarGrupoEquipo = z
   })
   .strict();
 
-/** Grupo planeado (B1.6). */
-export const esquemaGuardarGrupoPlaneado = esquemaGuardarGrupoEquipo;
+/** Grupo de equipo (B1.6) con tarifa estándar por hora (C3.2/DC-07). */
+export const esquemaGuardarGrupoEquipo = esquemaGuardarGrupoPlaneado
+  .extend({
+    // Opcionales: un guardado que no las envía conserva la tarifa vigente.
+    tarifaHora: tarifaHoraCatalogo.nullable().optional(),
+    tarifaMoneda: monedaTarifaCatalogo.optional(),
+  })
+  .strict();
 
 /** Próxima acción comercial (B1.7); solo una puede ser "Otro". */
 export const esquemaGuardarProximaAccion = z
