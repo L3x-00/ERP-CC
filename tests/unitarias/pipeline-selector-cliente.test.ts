@@ -6,17 +6,24 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 
 import type { Cliente } from '@/modulos/clientes/tipos/indice';
 
-const { crearProspectoMock, crearClienteMock, refrescarRutaMock, usarClientesMock, usarClienteMock } =
-  vi.hoisted(() => ({
-    crearProspectoMock: vi.fn(),
-    crearClienteMock: vi.fn(),
-    refrescarRutaMock: vi.fn(),
-    usarClientesMock: vi.fn(),
-    usarClienteMock: vi.fn(),
-  }));
+const {
+  crearProspectoMock,
+  crearClienteMock,
+  empujarRutaMock,
+  refrescarRutaMock,
+  usarClientesMock,
+  usarClienteMock,
+} = vi.hoisted(() => ({
+  crearProspectoMock: vi.fn(),
+  crearClienteMock: vi.fn(),
+  empujarRutaMock: vi.fn(),
+  refrescarRutaMock: vi.fn(),
+  usarClientesMock: vi.fn(),
+  usarClienteMock: vi.fn(),
+}));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: refrescarRutaMock }),
+  useRouter: () => ({ push: empujarRutaMock, refresh: refrescarRutaMock }),
 }));
 vi.mock('@/modulos/pipeline/acciones/crear-prospecto', () => ({
   crearProspectoAccion: (...args: unknown[]) => crearProspectoMock(...args),
@@ -148,7 +155,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     renderizarFormulario();
 
     fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
-    fireEvent.change(campo(/Orden de compra/), { target: { value: 'PO-99' } });
+    fireEvent.change(campo(/Fecha requerida por cliente/), { target: { value: '2026-11-20' } });
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo cliente' }));
 
     fireEvent.change(await screen.findByLabelText(/Razón social/), {
@@ -165,7 +172,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     expect(await screen.findByText('Aceros Baja SA')).toBeDefined();
     // …y la captura previa de la oportunidad sigue intacta.
     expect(campo(/Notas/).value).toBe('Urge cotizar');
-    expect(campo(/Orden de compra/).value).toBe('PO-99');
+    expect(campo(/Fecha requerida por cliente/).value).toBe('2026-11-20');
   });
 
   it('un fallo del alta rápida no cierra el formulario ni selecciona nada', async () => {
@@ -185,5 +192,88 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     // El diálogo sigue abierto para reintentar y nada quedó seleccionado.
     expect(screen.getByRole('dialog')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Cambiar cliente' })).toBeNull();
+  });
+});
+
+describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-03)', () => {
+  it('no muestra Orden de compra ni Horas estimadas', () => {
+    renderizarFormulario();
+
+    expect(screen.queryByLabelText(/Orden de compra/)).toBeNull();
+    expect(screen.queryByLabelText(/Horas estimadas/)).toBeNull();
+    // Orden interna (TI) es otra cosa y se conserva.
+    expect(screen.getByLabelText(/Orden interna \(TI\)/)).toBeDefined();
+  });
+
+  it('conserva Fecha requerida por cliente y aclara que no es la Fecha compromiso', () => {
+    renderizarFormulario();
+
+    expect(screen.getByLabelText(/Fecha requerida por cliente \(opcional\)/)).toBeDefined();
+    expect(screen.getByTestId('ayuda-fecha-requerida').textContent).toMatch(
+      /no es la Fecha compromiso/i,
+    );
+  });
+
+  it('envía la fecha requerida y nunca PO ni horas estimadas', async () => {
+    renderizarFormulario();
+
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Empresa/), { target: { value: 'Aceros Baja SA' } });
+    fireEvent.change(campo(/Fecha requerida por cliente/), { target: { value: '2026-12-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+
+    await waitFor(() => {
+      expect(crearProspectoMock).toHaveBeenCalledTimes(1);
+    });
+    const entrada = crearProspectoMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entrada.fechaRequerida).toBe('2026-12-01');
+    expect(entrada).not.toHaveProperty('poCliente');
+    expect(entrada).not.toHaveProperty('horasEstimadas');
+  });
+
+  it('un error del servidor conserva la captura y no navega', async () => {
+    crearProspectoMock.mockResolvedValue({ exito: false, error: 'No se pudo crear el prospecto' });
+    renderizarFormulario();
+
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      'No se pudo crear el prospecto',
+    );
+    expect(campo(/Nombre del contacto/).value).toBe('Ana QA');
+    expect(campo(/Notas/).value).toBe('Urge cotizar');
+    expect(empujarRutaMock).not.toHaveBeenCalled();
+  });
+
+  it('un fallo de conexión conserva la captura y no navega', async () => {
+    crearProspectoMock.mockRejectedValue(new Error('offline'));
+    renderizarFormulario();
+
+    fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      'Error de conexión. Intenta de nuevo.',
+    );
+    expect(campo(/Notas/).value).toBe('Urge cotizar');
+    expect(empujarRutaMock).not.toHaveBeenCalled();
+  });
+
+  it('el éxito continúa la captura en la ficha del mismo RFQ y avisa al contenedor', async () => {
+    const alExito = vi.fn();
+    render(envolver(createElement(FormularioProspecto, { onExito: alExito })));
+
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear RFQ' }));
+
+    await waitFor(() => {
+      expect(empujarRutaMock).toHaveBeenCalledWith('/rfq?rfq=op-1&continuar=1');
+    });
+    expect(empujarRutaMock).toHaveBeenCalledTimes(1);
+    expect(alExito).toHaveBeenCalledWith('op-1');
   });
 });

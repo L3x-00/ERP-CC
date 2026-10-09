@@ -8,6 +8,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { editarItemPropuestaAccion } from '@/modulos/propuestas/acciones/editar-item-propuesta';
+import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
 import { calcularTotalesPropuesta } from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
 import type {
   CostoRevisionPropuesta,
@@ -18,6 +19,7 @@ import type {
 } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
 import { claveDetallePropuesta } from './claves-consulta';
+import { FormularioAltaItemPropuesta } from './formulario-alta-item-propuesta';
 
 type Borrador = {
   descripcion: string;
@@ -27,22 +29,34 @@ type Borrador = {
   activo: boolean;
 };
 
+/** C3.1: un ítem propio solo nace en una revisión B..Z (la A copia el RFQ). */
+function admiteItemPropio(letra: string): boolean {
+  return letra.length === 1 && letra >= 'B' && letra <= 'Z';
+}
+
 /**
- * SII-B4.5/4.11: editor de ítems de una revisión DRAFT con totales en vivo
- * (espejo TS del cálculo SQL). El precio exige `propuesta_editar_precio` y el
- * resto `propuesta_editar_articulo`; ITxx nunca se edita ni se reutiliza.
+ * SII-B4.5/4.11 + C3.1: editor de ítems de una revisión DRAFT con totales en
+ * vivo (espejo TS del cálculo SQL). El precio exige `propuesta_editar_precio` y
+ * el resto `propuesta_editar_articulo`; ITxx nunca se edita ni se reutiliza y el
+ * alta de un ítem propio solo existe en revisiones B..Z en borrador.
  */
 export function EditorItemsPropuesta({
   revision,
+  revisiones,
   items,
   ruteo,
   costos,
+  catalogos,
+  errorCatalogos = null,
   permisos,
 }: {
   revision: RevisionPropuesta;
+  revisiones: RevisionPropuesta[];
   items: PropuestaItem[];
   ruteo: RuteoItemPropuesta[];
   costos: CostoRevisionPropuesta[];
+  catalogos: CatalogosPropuesta | null;
+  errorCatalogos?: string | null;
   permisos: PermisosPropuesta;
 }) {
   const queryClient = useQueryClient();
@@ -52,6 +66,12 @@ export function EditorItemsPropuesta({
 
   const esBorrador = revision.estado === 'DRAFT';
   const itemsRevision = items.filter((item) => item.revisionId === revision.id);
+  const puedeAgregar = esBorrador && admiteItemPropio(revision.letra) && permisos.editarArticulo;
+
+  const letraPorRevision = useMemo(
+    () => new Map(revisiones.map((fila) => [fila.id, fila.letra])),
+    [revisiones],
+  );
 
   function valorDe(item: PropuestaItem): Borrador {
     return (
@@ -138,7 +158,7 @@ export function EditorItemsPropuesta({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-sm">
+        <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-borde text-left text-xs text-texto-secundario">
               <th className="px-2 py-2">ITxx</th>
@@ -146,6 +166,7 @@ export function EditorItemsPropuesta({
               <th className="px-2 py-2">Cantidad</th>
               <th className="px-2 py-2">Precio unitario</th>
               <th className="px-2 py-2">Importe</th>
+              <th className="px-2 py-2">Origen</th>
               <th className="px-2 py-2">Estado</th>
               <th className="px-2 py-2" />
             </tr>
@@ -157,8 +178,13 @@ export function EditorItemsPropuesta({
               const requiereRevisionItem = ruteo.some(
                 (fila) => fila.itemId === item.id && fila.requiereRevision,
               );
+              const letraOrigen = letraPorRevision.get(item.revisionOrigenId) ?? null;
               return (
-                <tr key={item.id} className="border-b border-borde/60">
+                <tr
+                  key={item.id}
+                  className="border-b border-borde/60"
+                  data-testid={`item-propuesta-${item.id}`}
+                >
                   <td className="px-2 py-2 font-mono text-xs">{item.codigo}</td>
                   <td className="px-2 py-2">
                     <Input
@@ -193,6 +219,9 @@ export function EditorItemsPropuesta({
                   </td>
                   <td className="px-2 py-2 tabular-nums">
                     {formatearMoneda(valor.esDescuento ? -importe : importe, totales.moneda)}
+                  </td>
+                  <td className="px-2 py-2 text-xs text-texto-secundario">
+                    {letraOrigen === null ? '—' : `Agregado en Rev ${letraOrigen}`}
                   </td>
                   <td className="px-2 py-2">
                     <div className="flex flex-col gap-1">
@@ -246,9 +275,24 @@ export function EditorItemsPropuesta({
         <p className="text-sm text-texto-secundario">La revisión no tiene ítems.</p>
       )}
 
+      {puedeAgregar && (
+        <FormularioAltaItemPropuesta
+          revision={revision}
+          catalogos={catalogos}
+          errorCatalogos={errorCatalogos}
+          puedeEditarPrecio={permisos.editarPrecio}
+        />
+      )}
+
       {!esBorrador && (
         <p className="text-xs text-texto-secundario">
           La revisión está congelada; crea una nueva revisión para cambiar ítems.
+        </p>
+      )}
+
+      {esBorrador && !admiteItemPropio(revision.letra) && (
+        <p className="text-xs text-texto-secundario">
+          La revisión A hereda los ítems del RFQ; los ítems nuevos se agregan desde la revisión B.
         </p>
       )}
 

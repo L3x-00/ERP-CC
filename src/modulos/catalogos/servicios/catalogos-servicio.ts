@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/compartido/tipos/supabase';
 import {
+  filaACanal,
   filaAEspesor,
   filaAGrupoEquipo,
   filaAGrupoPlaneado,
@@ -10,6 +11,7 @@ import {
   filaAProximaAccion,
   filaAVersion,
   type AreaTrabajoOpcion,
+  type CanalCatalogo,
   type EspesorCatalogo,
   type GrupoEquipoCatalogo,
   type GrupoPlaneadoCatalogo,
@@ -20,6 +22,7 @@ import {
 } from '@/modulos/catalogos/tipos/indice';
 import type {
   AlternarActivoInput,
+  GuardarCanalInput,
   GuardarEspesorInput,
   GuardarGrupoEquipoInput,
   GuardarGrupoPlaneadoInput,
@@ -39,6 +42,7 @@ export interface DatosCatalogosBaseServicio {
   gruposEquipo: GrupoEquipoCatalogo[];
   gruposPlaneados: GrupoPlaneadoCatalogo[];
   proximasAcciones: ProximaAccionCatalogo[];
+  canales: CanalCatalogo[];
   areasTrabajo: AreaTrabajoOpcion[];
 }
 
@@ -121,6 +125,19 @@ export async function listarProximasAcciones(
   return (data ?? []).map((fila) => filaAProximaAccion(fila));
 }
 
+export async function listarCanales(
+  cliente: ClienteCatalogos = crearClienteSupabaseAdmin(),
+  soloActivos = false,
+): Promise<CanalCatalogo[]> {
+  let consulta = cliente.from('catalogo_canales').select('*');
+  if (soloActivos) consulta = consulta.eq('activo', true);
+  const { data, error } = await consulta
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((fila) => filaACanal(fila));
+}
+
 /** Catálogo de taller de solo lectura para enlazar procesos (B1.5). */
 export async function listarAreasTrabajoOpciones(
   cliente: ClienteCatalogos = crearClienteSupabaseAdmin(),
@@ -138,17 +155,35 @@ export async function obtenerCatalogosBaseServicio(
   cliente: ClienteCatalogos = crearClienteSupabaseAdmin(),
   soloActivos = false,
 ): Promise<DatosCatalogosBaseServicio> {
-  const [materiales, espesores, procesos, gruposEquipo, gruposPlaneados, proximasAcciones, areasTrabajo] =
-    await Promise.all([
-      listarMateriales(cliente, soloActivos),
-      listarEspesores(cliente, soloActivos),
-      listarProcesos(cliente, soloActivos),
-      listarGruposEquipo(cliente, soloActivos),
-      listarGruposPlaneados(cliente, soloActivos),
-      listarProximasAcciones(cliente, soloActivos),
-      listarAreasTrabajoOpciones(cliente),
-    ]);
-  return { materiales, espesores, procesos, gruposEquipo, gruposPlaneados, proximasAcciones, areasTrabajo };
+  const [
+    materiales,
+    espesores,
+    procesos,
+    gruposEquipo,
+    gruposPlaneados,
+    proximasAcciones,
+    canales,
+    areasTrabajo,
+  ] = await Promise.all([
+    listarMateriales(cliente, soloActivos),
+    listarEspesores(cliente, soloActivos),
+    listarProcesos(cliente, soloActivos),
+    listarGruposEquipo(cliente, soloActivos),
+    listarGruposPlaneados(cliente, soloActivos),
+    listarProximasAcciones(cliente, soloActivos),
+    listarCanales(cliente, soloActivos),
+    listarAreasTrabajoOpciones(cliente),
+  ]);
+  return {
+    materiales,
+    espesores,
+    procesos,
+    gruposEquipo,
+    gruposPlaneados,
+    proximasAcciones,
+    canales,
+    areasTrabajo,
+  };
 }
 
 export async function guardarMaterialServicio(
@@ -268,6 +303,29 @@ export async function guardarProximaAccionServicio(
 }
 
 /**
+ * Alta/edición de un canal RFQ. La unicidad de "Otro" la impone un índice
+ * parcial de la base; aquí no se replica para no divergir de ella.
+ */
+export async function guardarCanalServicio(
+  cliente: ClienteCatalogos,
+  entrada: GuardarCanalInput,
+): Promise<CanalCatalogo> {
+  const payload: Database['public']['Tables']['catalogo_canales']['Insert'] = {
+    codigo: entrada.codigo,
+    nombre: entrada.nombre,
+    es_otro: entrada.esOtro,
+    activo: entrada.activo,
+    orden: entrada.orden,
+  };
+  const consulta = entrada.id
+    ? cliente.from('catalogo_canales').update(payload).eq('id', entrada.id).select('*').single()
+    : cliente.from('catalogo_canales').insert(payload).select('*').single();
+  const { data, error } = await consulta;
+  if (error) throw error;
+  return filaACanal(data);
+}
+
+/**
  * Alterna activo/inactivo. No existe DELETE en la aplicación ni en la base:
  * los códigos retirados se desactivan y permanecen visibles en históricos.
  */
@@ -339,6 +397,17 @@ export async function alternarActivoServicio(
       case 'catalogo_proximas_acciones': {
         const { data, error } = await cliente
           .from('catalogo_proximas_acciones')
+          .update({ activo })
+          .eq('id', id)
+          .select('id')
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error('catalogo_no_encontrado');
+        return { id: data.id, activo };
+      }
+      case 'catalogo_canales': {
+        const { data, error } = await cliente
+          .from('catalogo_canales')
           .update({ activo })
           .eq('id', id)
           .select('id')

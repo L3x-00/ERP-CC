@@ -131,7 +131,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
   }
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5" data-testid="pagina-configuracion">
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5" data-testid="pagina-configuracion">
       <SincronizadorConfiguracionRealtime />
       <header>
         <h1 className="text-2xl font-bold text-texto-primario">Configuración del sistema</h1>
@@ -168,7 +168,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         id={`panel-configuracion-${pestana}`}
         role="tabpanel"
         aria-labelledby={`tab-configuracion-${pestana}`}
-        className="rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:p-6"
+        className="min-w-0 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:p-6"
       >
         {pestana === 'empresa' ? (
           <PestanaEmpresa

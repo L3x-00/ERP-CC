@@ -4,7 +4,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(27);
+SELECT plan(35);
 
 -- -----------------------------------------------------------------------------
 -- Actores de prueba (el rol se actualiza sobre el perfil creado por el trigger)
@@ -26,13 +26,45 @@ WHERE id = '00000000-0000-4000-8000-00000000b103';
 INSERT INTO public.clientes (id, razon_social, nombre_comercial, estado) VALUES
   ('00000000-0000-4000-8000-00000000b104', 'Cliente Etiqueta SA de CV', 'Etiqueta', 'activo');
 
-INSERT INTO public.pipeline (id, folio_op, folio_cnc, nombre_contacto, empresa, vendedor_id) VALUES
-  ('00000000-0000-4000-8000-00000000b105', 'OP-B1ACT-TEST', 'CNC-1124-9001',
+INSERT INTO public.pipeline (id, folio_op, folio_cnc, folio_rfq, nombre_contacto, empresa, vendedor_id) VALUES
+  ('00000000-0000-4000-8000-00000000b105', 'OP-B1ACT-TEST', 'CNC-1124-9001', 'RFQ-1026_90',
    'Contacto Etiqueta', 'Empresa Etiqueta', '00000000-0000-4000-8000-00000000b101');
 
 INSERT INTO public.ordenes_produccion (id, folio, cliente_id, estado, fecha_compromiso) VALUES
   ('00000000-0000-4000-8000-00000000b106', 'OP-990001',
    '00000000-0000-4000-8000-00000000b104', 'borrador', now());
+
+INSERT INTO public.propuestas (
+  id, rfq_id, cliente_id, folio_cnc, responsable_id, creado_por
+) VALUES (
+  '00000000-0000-4000-8000-00000000b107',
+  '00000000-0000-4000-8000-00000000b105',
+  '00000000-0000-4000-8000-00000000b104',
+  'CNC-1026_90',
+  '00000000-0000-4000-8000-00000000b101',
+  '00000000-0000-4000-8000-00000000b101'
+);
+INSERT INTO public.propuesta_revisiones (
+  id, propuesta_id, letra, folio_revision, creado_por
+) VALUES (
+  '00000000-0000-4000-8000-00000000b108',
+  '00000000-0000-4000-8000-00000000b107',
+  'A', 'CNC-1026_90-A', '00000000-0000-4000-8000-00000000b101'
+);
+
+INSERT INTO public.cuentas_bancarias (
+  id, banco, numero_cuenta, moneda, titular, tipo
+) VALUES (
+  '00000000-0000-4000-8000-00000000b109',
+  'Banco Prueba', '00001234', 'MXN', 'ORCA Prueba', 'banco'
+);
+INSERT INTO public.movimientos_tesoreria (
+  id, cuenta_id, tipo, monto, moneda, creado_por
+) VALUES (
+  '00000000-0000-4000-8000-00000000b10a',
+  '00000000-0000-4000-8000-00000000b109',
+  'TRANSFERENCIA_SALIDA', 100, 'MXN', '00000000-0000-4000-8000-00000000b101'
+);
 
 -- Logs de etiquetas/contexto: pipeline, cliente, orden y un recurso libre (UUID sin tabla)
 INSERT INTO public.logs (
@@ -53,7 +85,23 @@ INSERT INTO public.logs (
   ('00000000-0000-4000-8000-00000000b114', '00000000-0000-4000-8000-00000000b101',
    'Admin Actividad B1', 'admin', 'configurar', 'sistema',
    '00000000-0000-4000-8000-00000000b1ff', '{"clave":"valor"}',
-   NULL, '2026-10-01T09:00:03+00');
+   NULL, '2026-10-01T09:00:03+00'),
+  ('00000000-0000-4000-8000-00000000b115', '00000000-0000-4000-8000-00000000b101',
+   'Admin Actividad B1', 'admin', 'enviar_revision', 'propuestas',
+   '00000000-0000-4000-8000-00000000b108', NULL,
+   NULL, '2026-10-01T09:00:04+00'),
+  ('00000000-0000-4000-8000-00000000b116', '00000000-0000-4000-8000-00000000b101',
+   'Admin Actividad B1', 'admin', 'registrar_inspeccion', 'produccion',
+   '00000000-0000-4000-8000-00000000b106', NULL,
+   NULL, '2026-10-01T09:00:05+00'),
+  ('00000000-0000-4000-8000-00000000b117', '00000000-0000-4000-8000-00000000b101',
+   'Admin Actividad B1', 'admin', 'registrar_saldo_inicial', 'tesoreria',
+   '00000000-0000-4000-8000-00000000b109', NULL,
+   NULL, '2026-10-01T09:00:06+00'),
+  ('00000000-0000-4000-8000-00000000b118', '00000000-0000-4000-8000-00000000b101',
+   'Admin Actividad B1', 'admin', 'registrar_transferencia', 'tesoreria',
+   '00000000-0000-4000-8000-00000000b10a', NULL,
+   NULL, '2026-10-01T09:00:07+00');
 
 -- Logs de paginación estable (5 eventos con instantes crecientes)
 INSERT INTO public.logs (
@@ -142,17 +190,17 @@ SELECT is(
   (SELECT recurso_etiqueta FROM public.obtener_actividad(
     '00000000-0000-4000-8000-00000000b101'::uuid,
     p_recurso_id => '00000000-0000-4000-8000-00000000b105') LIMIT 1),
-  'CNC-1124-9001', 'Pipeline resuelve al folio CNC');
+  'RFQ-1026_90', 'RFQ resuelve primero al folio RFQ vigente');
 SELECT is(
   (SELECT entidad FROM public.obtener_actividad(
     '00000000-0000-4000-8000-00000000b101'::uuid,
     p_recurso_id => '00000000-0000-4000-8000-00000000b105') LIMIT 1),
   'pipeline', 'Pipeline se marca como entidad pipeline');
-SELECT is(
+SELECT matches(
   (SELECT recurso_etiqueta FROM public.obtener_actividad(
     '00000000-0000-4000-8000-00000000b101'::uuid,
     p_recurso_id => '00000000-0000-4000-8000-00000000b104') LIMIT 1),
-  'Cliente Etiqueta SA de CV', 'Cliente resuelve a la razón social');
+  '^CLI-[0-9]{4,}$', 'Cliente resuelve a su folio visible');
 SELECT is(
   (SELECT entidad FROM public.obtener_actividad(
     '00000000-0000-4000-8000-00000000b101'::uuid,
@@ -161,12 +209,14 @@ SELECT is(
 SELECT is(
   (SELECT recurso_etiqueta FROM public.obtener_actividad(
     '00000000-0000-4000-8000-00000000b101'::uuid,
-    p_recurso_id => '00000000-0000-4000-8000-00000000b106') LIMIT 1),
+    p_recurso_id => '00000000-0000-4000-8000-00000000b106',
+    p_modulo => 'ordenes') LIMIT 1),
   'OP-990001', 'Orden resuelve al folio');
 SELECT is(
   (SELECT entidad FROM public.obtener_actividad(
     '00000000-0000-4000-8000-00000000b101'::uuid,
-    p_recurso_id => '00000000-0000-4000-8000-00000000b106') LIMIT 1),
+    p_recurso_id => '00000000-0000-4000-8000-00000000b106',
+    p_modulo => 'ordenes') LIMIT 1),
   'orden', 'Orden se marca como entidad orden');
 SELECT is(
   (SELECT entidad FROM public.obtener_actividad(
@@ -178,6 +228,50 @@ SELECT is(
     '00000000-0000-4000-8000-00000000b101'::uuid,
     p_recurso_id => '00000000-0000-4000-8000-00000000b1ff') LIMIT 1),
   NULL, 'Sin etiqueta resoluble no se inventa texto');
+
+SELECT is(
+  (SELECT recurso_etiqueta FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b108') LIMIT 1),
+  'CNC-1026_90-A', 'Propuestas resuelve una revisión a su folio visible');
+SELECT is(
+  (SELECT entidad FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b108') LIMIT 1),
+  'propuesta', 'La revisión se marca como entidad propuesta');
+SELECT is(
+  (SELECT recurso_etiqueta FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b106',
+    p_modulo => 'produccion') LIMIT 1),
+  'OP-990001', 'Producción resuelve la orden al folio visible');
+SELECT is(
+  (SELECT entidad FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b106',
+    p_modulo => 'produccion') LIMIT 1),
+  'produccion', 'El evento de piso se marca como entidad produccion');
+SELECT is(
+  (SELECT recurso_etiqueta FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b109') LIMIT 1),
+  'Banco Prueba · •••1234 · MXN', 'Tesorería resuelve una cuenta sin exponer el número completo');
+SELECT is(
+  (SELECT entidad FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b109') LIMIT 1),
+  'tesoreria', 'La cuenta se marca como entidad tesoreria');
+SELECT is(
+  (SELECT recurso_etiqueta FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b10a') LIMIT 1),
+  'Transferencia Salida · Banco Prueba · •••1234',
+  'Tesorería resuelve una transferencia a su cuenta y tipo legibles');
+SELECT is(
+  (SELECT entidad FROM public.obtener_actividad(
+    '00000000-0000-4000-8000-00000000b101'::uuid,
+    p_recurso_id => '00000000-0000-4000-8000-00000000b10a') LIMIT 1),
+  'tesoreria', 'La transferencia se marca como entidad tesoreria');
 
 -- -----------------------------------------------------------------------------
 -- 21. Cursor incompleto rechazado

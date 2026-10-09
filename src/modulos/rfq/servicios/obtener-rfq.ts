@@ -8,12 +8,13 @@ import {
   type FilaRfq,
   type FilaRfqItem,
   type FilaRfqItemOperacion,
+  type NombresResueltosRfq,
   type Rfq,
   type RfqItemOperacion,
 } from '../tipos/indice';
 
 const COLUMNAS_RFQ =
-  'id, folio_op, folio_cnc, folio_rfq, estado_rfq, etapa, cliente_id, contacto_id, vendedor_id, responsable_id, canal, fecha_solicitud, descripcion_general, proxima_accion_codigo, proxima_accion_texto, fecha_proxima_accion, responsable_proxima_accion_id, actualizado_en';
+  'id, folio_op, folio_cnc, folio_rfq, estado_rfq, etapa, cliente_id, condiciones_pago, empresa, contacto_id, nombre_contacto, vendedor_id, responsable_id, canal, canal_detalle, fecha_solicitud, fecha_requerida, descripcion_general, proxima_accion_codigo, proxima_accion_texto, fecha_proxima_accion, responsable_proxima_accion_id, actualizado_en';
 
 const COLUMNAS_ITEM =
   'id, rfq_id, numero, codigo, descripcion, cantidad, material_id, espesor_id, acabado, notas, estado, creado_en, actualizado_en';
@@ -79,5 +80,62 @@ export async function obtenerRfqConItems(
     filaARfqItem(item as FilaRfqItem, operacionesPorItem.get(item.id) ?? []),
   );
 
-  return filaARfq(fila as unknown as FilaRfq, items);
+  const filaTipada = fila as unknown as FilaRfq;
+  const resueltos = await resolverNombresRfq(cliente, filaTipada);
+
+  return filaARfq(filaTipada, items, resueltos);
+}
+
+/**
+ * Resuelve cliente/contacto/responsables por id, sin filtrar por `activo`:
+ * un responsable histórico desactivado debe seguir siendo legible en el
+ * Resumen del RFQ. Un fallo de alguna consulta deja ese nombre en null (la
+ * ficha cae al fallback legado de `pipeline`), nunca rompe la carga del RFQ.
+ */
+async function resolverNombresRfq(
+  cliente: SupabaseClient<Database>,
+  fila: FilaRfq,
+): Promise<NombresResueltosRfq> {
+  const idsResponsables = Array.from(
+    new Set(
+      [fila.responsable_id, fila.responsable_proxima_accion_id].filter(
+        (valor): valor is string => Boolean(valor),
+      ),
+    ),
+  );
+
+  const [clienteResuelto, contactoResuelto, usuariosResueltos] = await Promise.all([
+    fila.cliente_id
+      ? cliente
+          .from('clientes')
+          .select('nombre_comercial, razon_social')
+          .eq('id', fila.cliente_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    fila.contacto_id
+      ? cliente.from('contactos_cliente').select('nombre').eq('id', fila.contacto_id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    idsResponsables.length > 0
+      ? cliente.from('usuarios').select('id, nombre_completo').in('id', idsResponsables)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const nombresPorUsuario = new Map<string, string>();
+  for (const usuario of usuariosResueltos.data ?? []) {
+    nombresPorUsuario.set(usuario.id, usuario.nombre_completo);
+  }
+
+  return {
+    clienteNombre:
+      clienteResuelto.data?.nombre_comercial.trim() ||
+      clienteResuelto.data?.razon_social.trim() ||
+      null,
+    contactoNombre: contactoResuelto.data?.nombre ?? null,
+    responsableNombre: fila.responsable_id
+      ? nombresPorUsuario.get(fila.responsable_id) ?? null
+      : null,
+    responsableProximaAccionNombre: fila.responsable_proxima_accion_id
+      ? nombresPorUsuario.get(fila.responsable_proxima_accion_id) ?? null
+      : null,
+  };
 }

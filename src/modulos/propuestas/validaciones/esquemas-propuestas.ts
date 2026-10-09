@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { CATEGORIAS_COSTO, ESTADOS_PROPIESTA } from '@/modulos/propuestas/tipos/indice';
+import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
 
 const uuid = z.uuid('Identificador inválido');
 const actualizadoEn = z.string().trim().min(1, 'Falta la versión del registro');
@@ -19,6 +20,47 @@ export const esquemaCrearPropuesta = z
 export const esquemaCrearNuevaRevision = z
   .object({ revisionOrigen: uuid, motivo })
   .strict();
+
+/** Cantidad comercial: positiva, hasta 1e9 y con 2 decimales como máximo. */
+const cantidadItem = z
+  .number()
+  .positive('La cantidad debe ser mayor a 0')
+  .max(1_000_000_000, 'La cantidad excede el máximo permitido')
+  .refine((valor) => Number(valor.toFixed(2)) === valor, {
+    message: 'La cantidad admite máximo 2 decimales',
+  });
+
+/**
+ * C3.1: alta de un ítem propio de una revisión B..Z en DRAFT. El cliente no
+ * manda `id`, `codigo` ni `revisionOrigenId`: el `ITxx` consecutivo y la
+ * revisión de origen los asigna el servidor bajo lock de propuesta. El precio
+ * puede omitirse (lo exige `propuesta_editar_precio` solo si viene).
+ */
+export const esquemaAgregarItemPropuesta = z
+  .object({
+    revisionId: uuid,
+    descripcion: z
+      .string()
+      .trim()
+      .min(1, 'La descripción del ítem es obligatoria')
+      .max(300, 'La descripción no puede exceder 300 caracteres'),
+    cantidad: cantidadItem,
+    materialId: uuid.optional(),
+    espesorId: uuid.optional(),
+    acabado: z.string().trim().max(120, 'El acabado no puede exceder 120 caracteres').optional(),
+    notas: z.string().trim().max(2000, 'Las notas no pueden exceder 2000 caracteres').optional(),
+    precioUnitario: z
+      .number()
+      .nonnegative('El precio no puede ser negativo')
+      .max(1_000_000_000, 'El precio excede el máximo permitido')
+      .optional(),
+    esDescuento: z.boolean().optional(),
+  })
+  .strict()
+  .refine((datos) => datos.espesorId === undefined || datos.materialId !== undefined, {
+    message: 'Selecciona el material antes del espesor',
+    path: ['espesorId'],
+  });
 
 /**
  * Edición parcial de un ítem DRAFT. `actualizadoEn` es el token CAS del ítem;
@@ -146,18 +188,31 @@ export const esquemaEnviarRevision = z
   })
   .strict();
 
-/** Firma corta de un archivo de propuesta (PDF o adjunto). */
+/**
+ * Firma corta de un archivo de propuesta (PDF o adjunto). `propuestaId` es
+ * obligatorio: la RLS de `archivos` autoriza por entidad, así que sin el
+ * contexto de la propuesta abierta un archivo visible de otra propuesta/RFQ
+ * también se firmaría.
+ */
 export const esquemaFirmarArchivoPropuesta = z
-  .object({ archivoId: uuid })
+  .object({ propuestaId: uuid, archivoId: uuid })
   .strict();
 
-/** Metadatos de subida de un archivo propio de la revisión. */
-export const esquemaSubirArchivoPropuesta = z
-  .object({
-    revisionId: uuid,
-    tema: z.enum(['general', 'tecnico']).default('general'),
-    nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido'),
-  })
+/** Destino de un archivo propio de la revisión (el binario sube directo a Storage). */
+const destinoArchivoPropuesta = {
+  revisionId: uuid,
+  tema: z.enum(['general', 'tecnico']).default('general'),
+  nombreArchivo: z.string().trim().min(1, 'Nombre de archivo requerido').max(250),
+};
+
+/** Metadatos para preparar la subida directa de un archivo de la revisión (H-B1-29). */
+export const esquemaPrepararArchivoPropuesta = z
+  .object({ ...destinoArchivoPropuesta, ...camposPrepararSubida })
+  .strict();
+
+/** Confirmación de la subida directa ya completada en Storage. */
+export const esquemaConfirmarArchivoPropuesta = z
+  .object({ ...destinoArchivoPropuesta, ...campoRutaSubida })
   .strict();
 
 /** Filtros de la cola de propuestas. */
@@ -173,6 +228,7 @@ export const esquemaFiltrosPropuestas = z
 
 export type CrearPropuestaInput = z.infer<typeof esquemaCrearPropuesta>;
 export type CrearNuevaRevisionInput = z.infer<typeof esquemaCrearNuevaRevision>;
+export type AgregarItemPropuestaInput = z.infer<typeof esquemaAgregarItemPropuesta>;
 export type EditarItemPropuestaInput = z.infer<typeof esquemaEditarItemPropuesta>;
 export type EditarRuteoItemInput = z.infer<typeof esquemaEditarRuteoItem>;
 export type EditarCostosRevisionInput = z.infer<typeof esquemaEditarCostosRevision>;
@@ -186,5 +242,6 @@ export type MotivoPropuestaInput = z.infer<typeof esquemaMotivoPropuesta>;
 export type GenerarPdfRevisionInput = z.infer<typeof esquemaGenerarPdfRevision>;
 export type EnviarRevisionInput = z.infer<typeof esquemaEnviarRevision>;
 export type FirmarArchivoPropuestaInput = z.infer<typeof esquemaFirmarArchivoPropuesta>;
-export type SubirArchivoPropuestaInput = z.infer<typeof esquemaSubirArchivoPropuesta>;
+export type PrepararArchivoPropuestaInput = z.infer<typeof esquemaPrepararArchivoPropuesta>;
+export type ConfirmarArchivoPropuestaInput = z.infer<typeof esquemaConfirmarArchivoPropuesta>;
 export type FiltrosPropuestasInput = z.infer<typeof esquemaFiltrosPropuestas>;

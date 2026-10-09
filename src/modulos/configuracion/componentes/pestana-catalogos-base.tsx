@@ -10,6 +10,7 @@ import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-v
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 import {
   alternarActivoAccion,
+  guardarCanalAccion,
   guardarEspesorAccion,
   guardarGrupoEquipoAccion,
   guardarGrupoPlaneadoAccion,
@@ -116,7 +117,10 @@ export function PestanaCatalogosBase() {
   };
 
   return (
-    <div className="grid gap-8" data-testid="pagina-catalogos-base">
+    <div
+      className="scroll-sutil grid min-w-0 grid-cols-[minmax(0,1fr)] gap-8 overflow-x-auto"
+      data-testid="pagina-catalogos-base"
+    >
       <header>
         <h2 className="text-lg font-semibold text-texto-primario">Catálogos base</h2>
         <p className="text-sm text-texto-secundario">
@@ -137,6 +141,7 @@ export function PestanaCatalogosBase() {
       <SeccionGruposEquipo {...propsBase} />
       <SeccionGruposPlaneados {...propsBase} />
       <SeccionProximasAcciones {...propsBase} />
+      <SeccionCanales {...propsBase} />
 
       <p className="text-xs text-texto-terciario" data-testid="catalogos-conteos">
         {SECCIONES_CATALOGOS_BASE.map(
@@ -1360,6 +1365,212 @@ function SeccionProximasAcciones(props: PropsSeccion) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function SeccionCanales(props: PropsSeccion) {
+  const { datos, puedeEditar, onRefrescar, onMensaje, onError, onHistorial } = props;
+  const [editando, setEditando] = useState<{
+    id?: string;
+    codigo: string;
+    nombre: string;
+    esOtro: boolean;
+    activo: boolean;
+    orden: string;
+  } | null>(null);
+  const [guardando, setGuardando] = useState(false);
+
+  async function guardar(borrador: NonNullable<typeof editando>): Promise<void> {
+    setGuardando(true);
+    const respuesta = await guardarCanalAccion({
+      id: borrador.id,
+      codigo: borrador.codigo,
+      nombre: borrador.nombre,
+      esOtro: borrador.esOtro,
+      activo: borrador.activo,
+      orden: Number(borrador.orden) || 0,
+    });
+    setGuardando(false);
+    const resultado = mensajeRespuesta(respuesta, 'Canal guardado');
+    if (resultado.error) {
+      onError(resultado.error);
+      return;
+    }
+    setEditando(null);
+    await onRefrescar();
+    onMensaje(resultado.ok);
+  }
+
+  return (
+    <section className="grid min-w-0 gap-3" aria-label="Canales RFQ">
+      <CabeceraSeccion
+        titulo="Canales RFQ"
+        descripcion={SECCIONES_CATALOGOS_BASE[6].descripcion}
+        puedeEditar={puedeEditar}
+        onNuevo={() => setEditando({ codigo: '', nombre: '', esOtro: false, activo: true, orden: '0' })}
+        testid="catalogo-canal-nuevo"
+        etiquetaNuevo="Nuevo canal"
+      />
+      {editando ? (
+        <form
+          className="grid gap-3 rounded-lg border border-borde bg-superficie-2/60 p-3 sm:grid-cols-2"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            void guardar(editando);
+          }}
+          aria-label="Canal RFQ"
+          data-testid="catalogo-canal-formulario"
+        >
+          <p className="text-sm font-semibold text-texto-primario sm:col-span-2">
+            {editando.id ? 'Editar canal' : 'Nuevo canal'}
+          </p>
+          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+            Código
+            <Input
+              value={editando.codigo}
+              onChange={(evento) =>
+                setEditando((actual) => (actual ? { ...actual, codigo: evento.target.value.toUpperCase() } : actual))
+              }
+              disabled={!puedeEditar || Boolean(editando.id)}
+              maxLength={49}
+              required
+              data-testid="catalogo-canal-codigo"
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+            Nombre
+            <Input
+              value={editando.nombre}
+              onChange={(evento) =>
+                setEditando((actual) => (actual ? { ...actual, nombre: evento.target.value } : actual))
+              }
+              disabled={!puedeEditar}
+              maxLength={120}
+              required
+              data-testid="catalogo-canal-nombre"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-xs font-medium text-texto-secundario">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-acento"
+              checked={editando.esOtro}
+              onChange={(evento) =>
+                setEditando((actual) => (actual ? { ...actual, esOtro: evento.target.checked } : actual))
+              }
+              disabled={!puedeEditar}
+              data-testid="catalogo-canal-es-otro"
+            />
+            Exige detalle libre (&quot;Otro&quot;)
+          </label>
+          <label className="flex items-center gap-2 text-xs font-medium text-texto-secundario">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-acento"
+              checked={editando.activo}
+              onChange={(evento) =>
+                setEditando((actual) => (actual ? { ...actual, activo: evento.target.checked } : actual))
+              }
+              disabled={!puedeEditar}
+              data-testid="catalogo-canal-activo"
+            />
+            Activo
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+            Orden
+            <Input
+              type="number"
+              min="0"
+              step="1"
+              value={editando.orden}
+              onChange={(evento) =>
+                setEditando((actual) => (actual ? { ...actual, orden: evento.target.value } : actual))
+              }
+              disabled={!puedeEditar}
+              data-testid="catalogo-canal-orden"
+            />
+          </label>
+          <p className="text-xs text-texto-terciario sm:col-span-2">
+            Solo un canal puede exigir detalle libre; los canales retirados se desactivan y siguen
+            visibles en el historial.
+          </p>
+          <div className="flex gap-2 sm:col-span-2">
+            <Button type="submit" tamano="sm" disabled={!puedeEditar || guardando} data-testid="catalogo-canal-guardar">
+              {guardando ? 'Guardando…' : editando.id ? 'Guardar cambios' : 'Crear'}
+            </Button>
+            <Button
+              type="button"
+              variante="contorno"
+              tamano="sm"
+              onClick={() => setEditando(null)}
+              data-testid="catalogo-canal-cancelar"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </form>
+      ) : null}
+      {datos.canales.length === 0 ? (
+        <EstadoVacio titulo="Sin canales" descripcion="Crea el primer canal de origen del RFQ." />
+      ) : (
+        <ul className="grid min-w-0 gap-2" data-testid="lista-canales">
+          {datos.canales.map((canal) => (
+            <li
+              key={canal.id}
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-borde bg-superficie px-3 py-2"
+              data-testid={`fila-canal-${canal.codigo}`}
+            >
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm">
+                <span className="font-mono text-xs text-texto-secundario">{canal.codigo}</span>
+                <span className="font-medium text-texto-primario">{canal.nombre}</span>
+                {canal.esOtro ? <Badge variante="info">Texto libre</Badge> : null}
+                {etiquetaEstado(canal.activo)}
+                <span className="text-xs text-texto-terciario">Orden {canal.orden}</span>
+              </span>
+              <span className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                <BotonHistorial
+                  etiqueta={canal.nombre}
+                  onClick={() =>
+                    onHistorial({
+                      entidad: 'catalogo_canales',
+                      entidadId: canal.id,
+                      etiqueta: canal.nombre,
+                    })
+                  }
+                  testid={`historial-canal-${canal.codigo}`}
+                />
+                <Button
+                  variante="contorno"
+                  tamano="sm"
+                  disabled={!puedeEditar}
+                  onClick={() =>
+                    setEditando({
+                      id: canal.id,
+                      codigo: canal.codigo,
+                      nombre: canal.nombre,
+                      esOtro: canal.esOtro,
+                      activo: canal.activo,
+                      orden: String(canal.orden),
+                    })
+                  }
+                  data-testid={`editar-canal-${canal.codigo}`}
+                >
+                  Editar
+                </Button>
+                <BotonActivo
+                  activo={canal.activo}
+                  puedeEditar={puedeEditar}
+                  onClick={() =>
+                    void alternar('catalogo_canales', canal.id, !canal.activo, props, `Canal ${canal.codigo}`)
+                  }
+                  testid={`alternar-canal-${canal.codigo}`}
+                />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

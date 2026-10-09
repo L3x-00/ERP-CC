@@ -18,25 +18,44 @@ import {
   ETIQUETAS_ACCION_RFQ,
   resumirFaltantes,
 } from '@/modulos/rfq/utilidades/estados';
+import {
+  faltantesProximaAccion,
+  fechaHoyLocal,
+  proximaAccionInicial,
+  type ProximaAccionCaptura,
+} from '@/modulos/rfq/utilidades/proxima-accion';
+import { esAccionTerminalRfq } from '@/modulos/rfq/validaciones/esquemas-rfq';
 
 import { cambiarEstadoRfqAccion } from '../acciones/cambiar-estado-rfq';
+import type { CatalogosRfq } from '../acciones/obtener-catalogos';
 import { validarRfqListoAccion } from '../acciones/validar-rfq-listo';
-
-const ACCIONES_CON_MOTIVO: readonly AccionRfq[] = ['cerrar', 'cancelar'];
+import { CamposProximaAccion } from './campos-proxima-accion';
 
 /**
  * Acciones de negocio del RFQ según su estado (ADR-SII-07). `marcar_listo`
  * abre el panel de faltantes de `validar_rfq_listo` (consulta imperativa en
- * cada apertura, sin caché) y solo permite confirmar cuando no hay pendientes;
- * cerrar/cancelar exigen motivo.
+ * cada apertura, sin caché) y solo permite confirmar cuando no hay pendientes.
+ * C2.2/DC-06: toda transición no terminal pide la próxima acción y la guarda
+ * en la misma operación; cerrar/cancelar exigen motivo y no acción futura.
  */
-export function PanelAccionesRfq({ rfq, onCambio }: { rfq: Rfq; onCambio: () => void }) {
+export function PanelAccionesRfq({
+  rfq,
+  catalogos,
+  onCambio,
+}: {
+  rfq: Rfq;
+  catalogos: CatalogosRfq | null;
+  onCambio: () => void;
+}) {
   const clienteConsultas = useQueryClient();
   const [mostrarListo, setMostrarListo] = useState(false);
   const [validacionDatos, setValidacionDatos] = useState<ValidacionRfqListo | null>(null);
   const [validando, setValidando] = useState(false);
   const [accionMotivo, setAccionMotivo] = useState<AccionRfq | null>(null);
+  const [accionSeguimiento, setAccionSeguimiento] = useState<AccionRfq | null>(null);
   const [motivo, setMotivo] = useState('');
+  const hoy = fechaHoyLocal();
+  const [proxima, setProxima] = useState<ProximaAccionCaptura>(() => proximaAccionInicial(rfq, hoy));
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -44,9 +63,12 @@ export function PanelAccionesRfq({ rfq, onCambio }: { rfq: Rfq; onCambio: () => 
   const listo = validacionDatos?.listo ?? false;
 
   const acciones = ACCIONES_POR_ESTADO[rfq.estadoRfq];
+  const faltantesSeguimiento = faltantesProximaAccion(proxima, catalogos?.proximasAcciones ?? [], hoy);
+  const seguimientoCompleto = catalogos !== null && faltantesSeguimiento.length === 0;
 
   /** Valida fresco contra el servidor cada vez que se abre el panel de LISTO. */
   async function abrirValidacionListo(): Promise<void> {
+    setProxima(proximaAccionInicial(rfq, hoy));
     setMostrarListo(true);
     setValidando(true);
     setValidacionDatos(null);
@@ -67,6 +89,16 @@ export function PanelAccionesRfq({ rfq, onCambio }: { rfq: Rfq; onCambio: () => 
       accion,
       actualizadoEn: rfq.actualizadoEn,
       ...(motivoAccion ? { motivo: motivoAccion } : {}),
+      ...(esAccionTerminalRfq(accion)
+        ? {}
+        : {
+            proximaAccion: {
+              codigo: proxima.codigo,
+              ...(proxima.texto.trim() ? { texto: proxima.texto.trim() } : {}),
+              fecha: proxima.fecha,
+              responsableId: proxima.responsableId,
+            },
+          }),
     });
     setEnviando(false);
 
@@ -77,6 +109,7 @@ export function PanelAccionesRfq({ rfq, onCambio }: { rfq: Rfq; onCambio: () => 
 
     setMostrarListo(false);
     setAccionMotivo(null);
+    setAccionSeguimiento(null);
     setMotivo('');
     void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
     onCambio();
@@ -104,8 +137,11 @@ export function PanelAccionesRfq({ rfq, onCambio }: { rfq: Rfq; onCambio: () => 
             disabled={enviando}
             onClick={() => {
               if (accion === 'marcar_listo') void abrirValidacionListo();
-              else if (ACCIONES_CON_MOTIVO.includes(accion)) setAccionMotivo(accion);
-              else void ejecutar(accion);
+              else if (esAccionTerminalRfq(accion)) setAccionMotivo(accion);
+              else {
+                setProxima(proximaAccionInicial(rfq, hoy));
+                setAccionSeguimiento(accion);
+              }
             }}
           >
             {ETIQUETAS_ACCION_RFQ[accion]}
@@ -149,13 +185,23 @@ export function PanelAccionesRfq({ rfq, onCambio }: { rfq: Rfq; onCambio: () => 
                 </div>
               )}
 
+              {catalogos && (
+                <CamposProximaAccion
+                  idBase="rfq-listo-proxima"
+                  valor={proxima}
+                  onCambio={setProxima}
+                  catalogos={catalogos}
+                  hoy={hoy}
+                />
+              )}
+
               <div className="flex justify-end gap-2">
                 <Button variante="contorno" tamano="sm" onClick={() => setMostrarListo(false)}>
                   Cancelar
                 </Button>
                 <Button
                   tamano="sm"
-                  disabled={!listo || enviando}
+                  disabled={!listo || !seguimientoCompleto || enviando}
                   onClick={() => void ejecutar('marcar_listo')}
                 >
                   Confirmar y marcar listo
@@ -193,6 +239,42 @@ export function PanelAccionesRfq({ rfq, onCambio }: { rfq: Rfq; onCambio: () => 
               tamano="sm"
               disabled={motivo.trim().length < 3 || enviando}
               onClick={() => accionMotivo && void ejecutar(accionMotivo, motivo.trim())}
+            >
+              Confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={accionSeguimiento !== null} onOpenChange={(valor) => !valor && setAccionSeguimiento(null)}>
+        <DialogContent aria-label={accionSeguimiento ? ETIQUETAS_ACCION_RFQ[accionSeguimiento] : 'Acción'}>
+          <DialogHeader>
+            <DialogTitle>{accionSeguimiento ? ETIQUETAS_ACCION_RFQ[accionSeguimiento] : ''}</DialogTitle>
+            <DialogDescription>
+              Indica la próxima acción: se guarda junto con el cambio de estado.
+            </DialogDescription>
+          </DialogHeader>
+          {catalogos ? (
+            <CamposProximaAccion
+              idBase="rfq-transicion-proxima"
+              valor={proxima}
+              onCambio={setProxima}
+              catalogos={catalogos}
+              hoy={hoy}
+            />
+          ) : (
+            <p className="text-sm text-texto-secundario">Cargando catálogos…</p>
+          )}
+          {catalogos && faltantesSeguimiento.length > 0 && (
+            <p className="text-xs text-texto-secundario">Falta: {faltantesSeguimiento.join(', ')}.</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variante="contorno" tamano="sm" onClick={() => setAccionSeguimiento(null)}>
+              Volver
+            </Button>
+            <Button
+              tamano="sm"
+              disabled={!seguimientoCompleto || enviando}
+              onClick={() => accionSeguimiento && void ejecutar(accionSeguimiento)}
             >
               Confirmar
             </Button>

@@ -13,6 +13,7 @@ export const SECCIONES_CATALOGOS_BASE = [
   { id: 'gruposEquipo', titulo: 'Grupos de equipo', descripcion: 'Categorías de recursos de planeación.' },
   { id: 'gruposPlaneados', titulo: 'Grupos planeados', descripcion: 'Etapas macro de planeación.' },
   { id: 'proximasAcciones', titulo: 'Próximas acciones', descripcion: 'Seguimiento comercial controlado.' },
+  { id: 'canales', titulo: 'Canales RFQ', descripcion: 'Origen de la solicitud; solo un canal pide detalle libre.' },
 ] as const;
 
 export type SeccionCatalogosBase = (typeof SECCIONES_CATALOGOS_BASE)[number]['id'];
@@ -39,6 +40,7 @@ export function contarRegistrosPorSeccion(datos: CatalogosBase): Record<SeccionC
     gruposEquipo: contar(datos.gruposEquipo),
     gruposPlaneados: contar(datos.gruposPlaneados),
     proximasAcciones: contar(datos.proximasAcciones),
+    canales: contar(datos.canales),
   };
 }
 

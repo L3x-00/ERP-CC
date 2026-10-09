@@ -57,7 +57,14 @@ export function filaALog(fila: FilaLog): Log {
 }
 
 /** Entidad de negocio resuelta por la RPC para construir el enlace del registro. */
-export type EntidadActividad = 'pipeline' | 'cliente' | 'orden' | 'otro';
+export type EntidadActividad =
+  | 'pipeline'
+  | 'cliente'
+  | 'orden'
+  | 'propuesta'
+  | 'produccion'
+  | 'tesoreria'
+  | 'otro';
 
 /** Filtros validados de la vista Actividad (cursor opcional para paginar). */
 export type FiltrosActividad = {
@@ -120,7 +127,14 @@ export type DatosActividad = {
   hayMas: boolean;
 };
 
-const ENTIDADES_ACTIVIDAD: readonly EntidadActividad[] = ['pipeline', 'cliente', 'orden'];
+const ENTIDADES_ACTIVIDAD: readonly EntidadActividad[] = [
+  'pipeline',
+  'cliente',
+  'orden',
+  'propuesta',
+  'produccion',
+  'tesoreria',
+];
 
 /**
  * Convierte una fila de la RPC de Actividad al tipo de dominio. `contexto`

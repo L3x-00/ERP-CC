@@ -16,7 +16,12 @@ import {
   type EntregablesOrden,
 } from '@/modulos/produccion/acciones/obtener-documentos-orden';
 import { obtenerUrlDocumentoOrdenAccion } from '@/modulos/produccion/acciones/obtener-url-documento-orden';
-import { subirDocumentoOrdenAccion } from '@/modulos/produccion/acciones/subir-documento-orden';
+import {
+  confirmarDocumentoOrdenAccion,
+  descartarDocumentoOrdenAccion,
+  prepararDocumentoOrdenAccion,
+} from '@/modulos/produccion/acciones/subir-documento-orden';
+import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
 
 /** Clave de consulta de entregables; se invalida al subir o generar una nota. */
 export const CLAVE_ENTREGABLES_ORDEN = ['produccion', 'entregables-orden'] as const;
@@ -26,6 +31,92 @@ function formatearTamano(bytes: number | null): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function etiquetaOrigenDocumento(origen: string, itemCodigo: string | null): string {
+  if (origen === 'rfq_item') return itemCodigo ? `RFQ · ${itemCodigo}` : 'RFQ · ítem';
+  if (origen === 'propuesta_item') return itemCodigo ? `Propuesta · ${itemCodigo}` : 'Propuesta · ítem';
+  if (origen === 'rfq') return 'RFQ';
+  if (origen === 'propuesta_revision') return 'Revisión aceptada';
+  if (origen === 'propuesta') return 'Propuesta';
+  if (origen === 'orden') return 'Orden';
+  if (origen === 'orden_legacy') return 'Documento previo de la Orden';
+  if (origen === 'rfq_legacy') return 'Carpeta de origen (Orden legada)';
+  if (origen === 'snapshot') return 'Documento congelado';
+  return 'Documento de origen';
+}
+
+function etiquetaVinculoDocumento(documento: EntregablesOrden['documentos'][number]): string {
+  if (documento.congelado) return 'versión aceptada';
+  if (documento.origen === 'orden') return 'agregado a la orden';
+  if (documento.origen === 'orden_legacy') return 'agregado previamente a la orden';
+  if (documento.origen === 'rfq_legacy') return 'origen de una orden legada';
+  return '';
+}
+
+type MensajeInterfaz = { texto: string; tipo: 'estado' | 'error' };
+type LinajeDocumentoOrden = { representante: EntregablesOrden['documentos'][number]; historicas: EntregablesOrden['documentos'] };
+
+function agruparDocumentosOrden(
+  documentos: EntregablesOrden['documentos'],
+): LinajeDocumentoOrden[] {
+  const grupos = new Map<string, EntregablesOrden['documentos']>();
+  for (const documento of documentos) {
+    const grupo = grupos.get(documento.linaje);
+    if (grupo) grupo.push(documento);
+    else grupos.set(documento.linaje, [documento]);
+  }
+  return [...grupos.values()].flatMap((grupo) => {
+    const ordenadas = [...grupo].sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+    const representante = ordenadas.find((documento) => documento.vigente === true) ?? ordenadas[0];
+    if (!representante) return [];
+    return [{
+      representante,
+      historicas: ordenadas.filter((documento) => documento.id !== representante.id),
+    }];
+  });
+}
+
+function FilaDocumentoOrden({
+  documento,
+  onAbrir,
+}: {
+  documento: EntregablesOrden['documentos'][number];
+  onAbrir: (archivoId: string) => Promise<void>;
+}) {
+  const origen = etiquetaOrigenDocumento(documento.origen, documento.itemCodigo);
+  const vinculo = etiquetaVinculoDocumento(documento);
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm" data-testid={`documento-orden-${documento.id}`}>
+      <span className="min-w-0 flex-1 truncate" title={documento.nombre}>
+        {documento.nombre}
+        <span className="ml-2 text-xs text-texto-secundario">
+          {formatearTamano(documento.tamano)}
+          {` · ${origen}`}
+          {documento.version !== null ? ` · v${documento.version}` : ''}
+          {documento.vigente === false ? ' · histórica' : ''}
+          {vinculo ? ` · ${vinculo}` : ''}
+          {documento.creadoEn ? ` · ${formatearFecha(documento.creadoEn)}` : ''}
+        </span>
+        {!documento.disponible && (
+          <span className="block text-xs font-medium text-peligro-texto" role="alert">
+            Documento congelado no disponible; avisa a Comercial.
+          </span>
+        )}
+      </span>
+      {documento.disponible && (
+        <Button
+          type="button"
+          variante="contorno"
+          tamano="sm"
+          aria-label={`Abrir ${documento.nombre}, ${origen}${documento.version !== null ? `, versión ${documento.version}` : ''}`}
+          onClick={() => void onAbrir(documento.id)}
+        >
+          Abrir
+        </Button>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -45,9 +136,10 @@ export function DocumentosOrdenPanel({
   const clienteConsultas = useQueryClient();
   const entradaArchivo = useRef<HTMLInputElement>(null);
   const [subiendo, setSubiendo] = useState(false);
-  const [mensaje, setMensaje] = useState<string | null>(null);
-  const [mensajeSalida, setMensajeSalida] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<MensajeInterfaz | null>(null);
+  const [mensajeSalida, setMensajeSalida] = useState<MensajeInterfaz | null>(null);
   const [subiendoSalida, setSubiendoSalida] = useState(false);
+  const [linajesAbiertos, setLinajesAbiertos] = useState<readonly string[]>([]);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_ENTREGABLES_ORDEN, ordenId],
@@ -62,6 +154,7 @@ export function DocumentosOrdenPanel({
     staleTime: 30_000,
   });
   const datos = consulta.data ?? null;
+  const linajesDocumentos = agruparDocumentosOrden(datos?.documentos ?? []);
   const consultaArchivos = useQuery({
     queryKey: [...CLAVE_ARCHIVOS_SESION, ordenId],
     queryFn: async (): Promise<ArchivoSesionResumen[]> => {
@@ -83,38 +176,41 @@ export function DocumentosOrdenPanel({
     if (!ordenId) return;
     const archivo = entradaArchivo.current?.files?.[0];
     if (!archivo) {
-      setMensaje('Selecciona un archivo para subir');
+      setMensaje({ texto: 'Selecciona un archivo para subir', tipo: 'error' });
       return;
     }
 
-    const formulario = new FormData();
-    formulario.set('ordenId', ordenId);
-    formulario.set('archivo', archivo);
-
     setSubiendo(true);
     setMensaje(null);
+    // El binario sube directo a Storage (H-B1-29); las acciones solo ven metadatos.
+    const destino = { ordenId, nombre: archivo.name };
     try {
-      const resultado = await subirDocumentoOrdenAccion(formulario);
-      if (!resultado.exito) {
-        setMensaje(resultado.error ?? 'No se pudo subir el documento');
-        return;
-      }
+      const { nombre } = await subirArchivoDirecto(archivo, {
+        preparar: () => prepararDocumentoOrdenAccion({ ...destino, tamano: archivo.size, mime: archivo.type }),
+        confirmar: (ruta) => confirmarDocumentoOrdenAccion({ ...destino, ruta }),
+        descartar: (ruta) => descartarDocumentoOrdenAccion({ ruta }),
+      });
       if (entradaArchivo.current) entradaArchivo.current.value = '';
-      setMensaje(`Documento ${resultado.datos?.nombre ?? ''} subido`);
+      setMensaje({ texto: `Documento ${nombre} subido`, tipo: 'estado' });
       await refrescar().catch(() => console.error('[PRODUCCION] Documento subido; lista pendiente de actualizar'));
     } catch (error) {
-      console.error('[PRODUCCION] Error de comunicación al subir documento:', error);
-      setMensaje('No se pudo comunicar la subida; vuelve a intentarlo');
+      setMensaje({
+        texto: error instanceof Error ? error.message : 'No se pudo subir el documento',
+        tipo: 'error',
+      });
     } finally {
       setSubiendo(false);
     }
   }, [ordenId, refrescar]);
 
-  const abrirDocumento = useCallback(async (ruta: string) => {
+  const abrirDocumento = useCallback(async (archivoId: string) => {
     if (!ordenId) return;
-    const resultado = await obtenerUrlDocumentoOrdenAccion({ ordenId, ruta });
+    const resultado = await obtenerUrlDocumentoOrdenAccion({ ordenId, archivoId });
     if (!resultado.exito || !resultado.datos) {
-      setMensaje(!resultado.exito ? resultado.error : 'No se pudo abrir el documento');
+      setMensaje({
+        texto: !resultado.exito ? resultado.error : 'No se pudo abrir el documento',
+        tipo: 'error',
+      });
       return;
     }
     window.open(resultado.datos.url, '_blank', 'noopener,noreferrer');
@@ -126,7 +222,7 @@ export function DocumentosOrdenPanel({
     const formulario = evento.currentTarget;
     const archivo = new FormData(formulario).get('archivoSalida');
     if (!(archivo instanceof File)) {
-      setMensajeSalida('Selecciona un archivo de salida final');
+      setMensajeSalida({ texto: 'Selecciona un archivo de salida final', tipo: 'error' });
       return;
     }
     setSubiendoSalida(true);
@@ -134,12 +230,15 @@ export function DocumentosOrdenPanel({
     try {
       await subirArchivoSesionDesdeNavegador(sesionFinalId, 'salida_final', archivo);
       formulario.reset();
-      setMensajeSalida('Archivo de salida final asociado');
+      setMensajeSalida({ texto: 'Archivo de salida final asociado', tipo: 'estado' });
       await clienteConsultas.invalidateQueries({ queryKey: CLAVE_ARCHIVOS_SESION }).catch(() => {
-        setMensajeSalida('Archivo asociado; actualiza la lista para verlo');
+        setMensajeSalida({ texto: 'Archivo asociado; actualiza la lista para verlo', tipo: 'estado' });
       });
     } catch (error) {
-      setMensajeSalida(error instanceof Error ? error.message : 'No se pudo subir la salida final');
+      setMensajeSalida({
+        texto: error instanceof Error ? error.message : 'No se pudo subir la salida final',
+        tipo: 'error',
+      });
     } finally {
       setSubiendoSalida(false);
     }
@@ -149,7 +248,10 @@ export function DocumentosOrdenPanel({
     if (!ordenId) return;
     const resultado = await obtenerUrlArchivoSesionAccion({ ordenId, archivoId: id });
     if (!resultado.exito || !resultado.datos) {
-      setMensajeSalida(resultado.exito ? 'No se pudo abrir el archivo' : resultado.error);
+      setMensajeSalida({
+        texto: resultado.exito ? 'No se pudo abrir el archivo' : resultado.error,
+        tipo: 'error',
+      });
       return;
     }
     window.open(resultado.datos.url, '_blank', 'noopener,noreferrer');
@@ -193,53 +295,70 @@ export function DocumentosOrdenPanel({
               </span>
             </div>
 
-            {datos.documentos.length === 0 ? (
+            {linajesDocumentos.length === 0 ? (
               <p className="text-sm text-texto-secundario">Sin documentos en la carpeta de la orden.</p>
             ) : (
               <ul className="flex flex-col gap-1.5" data-testid="lista-documentos-orden">
-                {datos.documentos.map((documento) => (
+                {linajesDocumentos.map(({ representante, historicas }) => (
                   <li
-                    key={documento.ruta}
-                    className="flex items-center justify-between gap-2 border-b border-borde/60 pb-1.5 text-sm"
+                    key={representante.id}
+                    className="flex flex-col gap-1.5 border-b border-borde/60 pb-1.5"
                   >
-                    <span className="min-w-0 flex-1 truncate" title={documento.nombre}>
-                      {documento.nombre}
-                      <span className="ml-2 text-xs text-texto-secundario">
-                        {formatearTamano(documento.tamano)}
-                        {documento.creadoEn ? ` · ${formatearFecha(documento.creadoEn)}` : ''}
-                      </span>
-                    </span>
-                    <Button
-                      type="button"
-                      variante="contorno"
-                      tamano="sm"
-                      onClick={() => void abrirDocumento(documento.ruta)}
-                    >
-                      Abrir
-                    </Button>
+                    <FilaDocumentoOrden documento={representante} onAbrir={abrirDocumento} />
+                    {historicas.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        <Button
+                          type="button"
+                          variante="fantasma"
+                          tamano="sm"
+                          className="self-start"
+                          aria-expanded={linajesAbiertos.includes(representante.linaje)}
+                          aria-controls={`versiones-orden-${representante.id}`}
+                          onClick={() => setLinajesAbiertos((abiertos) =>
+                            abiertos.includes(representante.linaje)
+                              ? abiertos.filter((linaje) => linaje !== representante.linaje)
+                              : [...abiertos, representante.linaje])}
+                        >
+                          {linajesAbiertos.includes(representante.linaje)
+                            ? 'Ocultar versiones'
+                            : `Ver versiones (${historicas.length})`}
+                        </Button>
+                        {linajesAbiertos.includes(representante.linaje) && (
+                          <ul id={`versiones-orden-${representante.id}`} className="flex flex-col gap-1.5 border-l border-borde pl-3">
+                            {historicas.map((historica) => (
+                              <li key={historica.id}>
+                                <FilaDocumentoOrden documento={historica} onAbrir={abrirDocumento} />
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
 
-            {datos.orden.cotizacionId ? (
-              <form className="flex flex-wrap items-end gap-2" onSubmit={subir} data-testid="subir-documento-orden">
-                <label className="grid flex-1 gap-1 text-sm font-medium text-texto-secundario">
-                  Nuevo documento (PDF, plano o imagen, hasta 20 MB)
-                  <Input ref={entradaArchivo} type="file" aria-label="Archivo de la orden" />
-                </label>
-                <Button type="submit" tamano="sm" disabled={subiendo}>
-                  {subiendo ? 'Subiendo…' : 'Subir'}
-                </Button>
-              </form>
-            ) : (
-              <p className="text-xs text-texto-secundario">
-                La orden no tiene cotización de origen; no hay carpeta donde guardar documentos.
-              </p>
-            )}
+            <form className="flex flex-wrap items-end gap-2" onSubmit={subir} data-testid="subir-documento-orden">
+              <label className="grid flex-1 gap-1 text-sm font-medium text-texto-secundario">
+                Nuevo documento (PDF, DXF, DWG, plano o imagen, hasta 20 MiB)
+                <Input
+                  ref={entradaArchivo}
+                  type="file"
+                  accept=".pdf,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai,.png,.jpg,.jpeg,.webp"
+                  aria-label="Archivo de la orden"
+                />
+              </label>
+              <Button type="submit" tamano="sm" disabled={subiendo}>
+                {subiendo ? 'Subiendo…' : 'Subir'}
+              </Button>
+            </form>
             {mensaje && (
-              <p role="status" className="text-sm text-texto-primario">
-                {mensaje}
+              <p
+                role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+                className={mensaje.tipo === 'error' ? 'text-sm text-peligro-texto' : 'text-sm text-texto-primario'}
+              >
+                {mensaje.texto}
               </p>
             )}
           </div>
@@ -291,7 +410,16 @@ export function DocumentosOrdenPanel({
                   {subiendoSalida ? 'Subiendo…' : 'Subir salida'}
                 </Button>
               </form> : <p className="mt-2 text-xs text-texto-secundario">Disponible cuando la orden tenga una sesión finalizada.</p>}
-              {mensajeSalida ? <p role="status" className="mt-2 text-sm text-texto-secundario">{mensajeSalida}</p> : null}
+              {mensajeSalida ? (
+                <p
+                  role={mensajeSalida.tipo === 'error' ? 'alert' : 'status'}
+                  className={mensajeSalida.tipo === 'error'
+                    ? 'mt-2 text-sm text-peligro-texto'
+                    : 'mt-2 text-sm text-texto-secundario'}
+                >
+                  {mensajeSalida.texto}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

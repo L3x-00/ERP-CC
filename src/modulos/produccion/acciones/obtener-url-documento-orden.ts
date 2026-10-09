@@ -4,22 +4,22 @@ import { z } from 'zod';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
+  listarDocumentosOrden,
   obtenerOrdenDocumental,
-  validarRutaDocumento,
 } from '@/modulos/produccion/servicios/documentos-orden-servicio';
-import { BUCKET_ADJUNTOS } from '@/nucleo/almacenamiento/constantes';
-import { crearUrlDescarga } from '@/nucleo/almacenamiento/descargar-archivo';
+import { firmarLecturaArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const esquema = z
-  .object({ ordenId: z.uuid(), ruta: z.string().min(1).max(500) })
+  .object({ ordenId: z.uuid(), archivoId: z.uuid() })
   .strict();
 
 /**
  * URL firmada de corta vida para abrir un documento de la orden desde el piso.
- * La ruta debe pertenecer a la carpeta de la oportunidad de esa orden; la firma
- * se emite con service_role tras validar el permiso, nunca con RLS de Pipeline.
+ * El ID debe estar congelado en el snapshot, pertenecer al historial propio de
+ * la Orden o corresponder a una carga previa recuperada por auditoría. La firma
+ * se emite con service_role solo después de comprobar pertenencia y disponibilidad.
  */
 export async function obtenerUrlDocumentoOrdenAccion(
   entrada: unknown,
@@ -37,11 +37,14 @@ export async function obtenerUrlDocumentoOrdenAccion(
     const admin = crearClienteSupabaseAdmin();
     const orden = await obtenerOrdenDocumental(admin, analisis.data.ordenId);
     if (!orden) return { exito: false, error: 'La orden no existe' };
-    if (!validarRutaDocumento(analisis.data.ruta, orden.cotizacionId)) {
+    const documentos = await listarDocumentosOrden(admin, orden);
+    if (!documentos.some(
+      (documento) => documento.id === analisis.data.archivoId && documento.disponible,
+    )) {
       return { exito: false, error: 'El documento no pertenece a esta orden' };
     }
 
-    const url = await crearUrlDescarga(admin, BUCKET_ADJUNTOS, analisis.data.ruta, 300);
+    const url = await firmarLecturaArchivo(admin, analisis.data.archivoId, 300);
     return { exito: true, datos: { url } };
   } catch (error) {
     console.error('[PRODUCCION] Error al firmar documento de la orden:', error);

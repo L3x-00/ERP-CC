@@ -119,23 +119,33 @@ export async function obtenerPropuestaPorId(
   };
 }
 
-/** Archivo vinculado a la propuesta (propio, heredado del RFQ o por ítem). */
+/**
+ * Archivo vinculado a la propuesta (propio, heredado del RFQ o por ítem),
+ * vigente o histórico. El linaje de versiones se identifica por
+ * `entidad + entidadId + temaCodigo + nombreErp` (DC-04).
+ */
 export type ArchivoPropuesta = {
   id: string;
   entidad: string;
   entidadId: string;
   temaCodigo: string | null;
   nombreOriginal: string;
+  nombreErp: string | null;
   rutaStorage: string;
   bucket: string;
   mime: string;
   tamanoBytes: number;
   version: number;
   vigente: boolean;
+  reemplazaA: string | null;
   creadoEn: string;
 };
 
-/** Carga los archivos visibles de la propuesta: propios, heredados y por ítem. */
+/**
+ * Carga los archivos visibles de la propuesta: propios, heredados y por ítem,
+ * incluidas las versiones no vigentes (CLI-06). La interfaz muestra la vigente
+ * por defecto y revela el historial bajo demanda; aquí no se oculta metadata.
+ */
 export async function obtenerArchivosDePropuesta(
   cliente: SupabaseClient<Database>,
   entrada: {
@@ -160,7 +170,6 @@ export async function obtenerArchivosDePropuesta(
   const { data, error } = await cliente
     .from('archivos')
     .select('*')
-    .eq('vigente', true)
     .or(filtros.join(','))
     .order('creado_en', { ascending: false });
   if (error) {
@@ -174,12 +183,14 @@ export async function obtenerArchivosDePropuesta(
     entidadId: fila.entidad_id,
     temaCodigo: fila.tema_codigo,
     nombreOriginal: fila.nombre_original,
+    nombreErp: fila.nombre_erp,
     rutaStorage: fila.ruta_storage,
     bucket: fila.bucket,
     mime: fila.mime,
     tamanoBytes: Number(fila.tamano_bytes),
     version: fila.version,
     vigente: fila.vigente,
+    reemplazaA: fila.reemplaza_a,
     creadoEn: fila.creado_en,
   }));
 }

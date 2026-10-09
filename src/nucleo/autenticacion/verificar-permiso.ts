@@ -35,18 +35,18 @@ export async function can(usuario: UsuarioAutenticado, permiso: string): Promise
     const { crearClienteSupabaseServidor } = await import('../supabase/servidor');
     const cliente = await crearClienteSupabaseServidor();
 
-    const { data, error } = await cliente
-      .from('permisos_rol')
-      .select('permiso')
-      .eq('rol', usuario.rol)
-      .eq('permiso', permiso)
-      .limit(1);
+    // Un permiso desactivado en el catálogo no concede acceso aunque siga
+    // asignado al rol (mismo criterio que los helpers SQL de RLS).
+    const [asignacion, catalogo] = await Promise.all([
+      cliente.from('permisos_rol').select('permiso').eq('rol', usuario.rol).eq('permiso', permiso).limit(1),
+      cliente.from('permisos').select('codigo').eq('codigo', permiso).eq('activo', true).limit(1),
+    ]);
 
-    if (error || !data) {
+    if (asignacion.error || catalogo.error || !asignacion.data || !catalogo.data) {
       return false;
     }
 
-    return data.length > 0;
+    return asignacion.data.length > 0 && catalogo.data.length > 0;
   } catch {
     return false;
   }

@@ -91,6 +91,35 @@ function datosBase(): CatalogosBase {
         creadoEn: '2026-10-05T00:00:00.000Z',
       },
     ],
+    canales: [
+      {
+        id: 'c1',
+        codigo: 'WHATSAPP',
+        nombre: 'WhatsApp',
+        esOtro: false,
+        activo: true,
+        orden: 10,
+        creadoEn: '2026-10-08T00:00:00.000Z',
+      },
+      {
+        id: 'c2',
+        codigo: 'OTRO',
+        nombre: 'Otro',
+        esOtro: true,
+        activo: true,
+        orden: 60,
+        creadoEn: '2026-10-08T00:00:00.000Z',
+      },
+      {
+        id: 'c3',
+        codigo: 'FAX',
+        nombre: 'Fax',
+        esOtro: false,
+        activo: false,
+        orden: 70,
+        creadoEn: '2026-10-08T00:00:00.000Z',
+      },
+    ],
     areasTrabajo: [],
     puedeEditar: true,
   };
@@ -110,10 +139,19 @@ function usuario(rol: UsuarioAutenticado['rol'], activo: boolean, permisos: stri
 }
 
 describe('utilidades de catálogos base', () => {
-  it('expone seis secciones únicas y bien ordenadas', () => {
+  it('expone siete secciones únicas y bien ordenadas', () => {
     const ids = SECCIONES_CATALOGOS_BASE.map((seccion) => seccion.id);
-    expect(ids).toEqual(['materiales', 'espesores', 'procesos', 'gruposEquipo', 'gruposPlaneados', 'proximasAcciones']);
+    expect(ids).toEqual([
+      'materiales',
+      'espesores',
+      'procesos',
+      'gruposEquipo',
+      'gruposPlaneados',
+      'proximasAcciones',
+      'canales',
+    ]);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(SECCIONES_CATALOGOS_BASE[6].titulo).toBe('Canales RFQ');
   });
 
   it('cuenta activos e inactivos por sección', () => {
@@ -123,6 +161,13 @@ describe('utilidades de catálogos base', () => {
     expect(conteos.gruposEquipo).toEqual({ total: 2, activos: 1, inactivos: 1 });
     expect(conteos.proximasAcciones).toEqual({ total: 2, activos: 1, inactivos: 1 });
     expect(conteos.procesos).toEqual({ total: 0, activos: 0, inactivos: 0 });
+    expect(conteos.canales).toEqual({ total: 3, activos: 2, inactivos: 1 });
+  });
+
+  it('solo ofrece canales activos para capturas nuevas y conserva los inactivos', () => {
+    const { canales } = datosBase();
+    expect(soloActivos(canales).map((canal) => canal.codigo)).toEqual(['WHATSAPP', 'OTRO']);
+    expect(canales).toHaveLength(3);
   });
 
   it('filtra espesores por material y respeta el orden administrativo', () => {

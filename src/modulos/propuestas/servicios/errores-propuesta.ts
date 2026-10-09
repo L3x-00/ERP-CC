@@ -29,6 +29,9 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('rfq_no_apto_para_propuesta')) {
     return 'El RFQ debe estar LISTO para propuesta para crear la propuesta';
   }
+  if (mensaje.includes('rfq_no_listo')) {
+    return 'El RFQ se editó y ya no cumple los requisitos; revísalo antes de crear la propuesta';
+  }
   if (mensaje.includes('rfq_sin_cliente')) {
     return 'El RFQ no tiene un cliente válido ligado';
   }
@@ -117,11 +120,44 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('responsable_invalido')) {
     return 'El responsable de la próxima acción no es válido';
   }
+  // C3.1: el alta de un ítem propio solo existe en revisiones B..Z en borrador.
+  if (mensaje.includes('item_nuevo_solo_revision')) {
+    return 'Un ítem nuevo solo se puede agregar en una revisión B o posterior en borrador';
+  }
+  if (mensaje.includes('item_descripcion_invalida')) {
+    return 'La descripción del ítem es obligatoria (máximo 300 caracteres)';
+  }
+  if (mensaje.includes('item_cantidad_invalida')) {
+    return 'La cantidad del ítem debe ser mayor a 0 con máximo 2 decimales';
+  }
+  if (mensaje.includes('item_precio_invalido')) {
+    return 'El precio unitario del ítem no es válido';
+  }
+  if (mensaje.includes('espesor_sin_material')) {
+    return 'Selecciona el material antes del espesor';
+  }
+  if (mensaje.includes('espesor_requerido')) {
+    return 'El material seleccionado exige elegir un espesor';
+  }
+  if (mensaje.includes('espesor_invalido')) {
+    return 'El espesor seleccionado no está vigente para ese material';
+  }
+  if (mensaje.includes('material_invalido')) {
+    return 'El material seleccionado no está vigente en el catálogo';
+  }
+  if (mensaje.includes('item_acabado_invalido')) {
+    return 'El acabado del ítem no puede exceder 120 caracteres';
+  }
+  if (mensaje.includes('item_notas_invalidas')) {
+    return 'Las notas del ítem no pueden exceder 2000 caracteres';
+  }
+  if (mensaje.includes('revision_origen_invalida')) {
+    return 'La revisión de origen del ítem no pertenece a esta propuesta';
+  }
+  if (mensaje.includes('revision_origen_inmutable')) {
+    return 'La revisión donde nació el ítem no se puede modificar';
+  }
   if (
-    mensaje.includes('item_cantidad_invalida') ||
-    mensaje.includes('item_precio_invalido') ||
-    mensaje.includes('item_descripcion_invalida') ||
-    mensaje.includes('material_invalido') ||
     mensaje.includes('espesor') ||
     mensaje.includes('propuesta_datos_invalidos')
   ) {

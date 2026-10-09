@@ -81,6 +81,12 @@ describe('presentación sin UUID crudo', () => {
       .toBe(`/clientes?cliente=${id}`);
     expect(enlaceRegistroActividad(registro({ id: 'c', entidad: 'orden', recursoId: id })))
       .toBe(`/ordenes?ordenId=${id}`);
+    expect(enlaceRegistroActividad(registro({ id: 'p', entidad: 'propuesta', recursoId: id })))
+      .toBe('/propuestas');
+    expect(enlaceRegistroActividad(registro({ id: 'r', entidad: 'produccion', recursoId: id })))
+      .toBe('/produccion');
+    expect(enlaceRegistroActividad(registro({ id: 't', entidad: 'tesoreria', recursoId: id })))
+      .toBe('/tesoreria');
     expect(enlaceRegistroActividad(registro({ id: 'd', entidad: 'otro', recursoId: id }))).toBeNull();
     expect(enlaceRegistroActividad(registro({ id: 'e', entidad: 'cliente', recursoId: 'CLI-0001' }))).toBeNull();
   });

@@ -6,7 +6,6 @@ import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import { registrarLog } from '@/nucleo/auditoria/registrar-log';
-import { BUCKET_ADJUNTOS } from '@/nucleo/almacenamiento/constantes';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 const esquema = z
@@ -14,9 +13,9 @@ const esquema = z
   .strict();
 
 /**
- * Retira un adjunto de la oportunidad. La RLS de `storage.objects` (DELETE)
- * restringe el borrado al dueño/admin/`ver_pipeline_equipo`; aquí además se
- * valida que la ruta pertenezca a la oportunidad y se registra en auditoría.
+ * Retira un adjunto de la vista sin borrar el binario ni su metadata histórica.
+ * La oportunidad se valida con el cliente del usuario y la fila se marca como
+ * no vigente mediante el cliente administrativo del servidor.
  */
 export async function eliminarAdjuntoAccion(
   entrada: unknown,
@@ -39,13 +38,18 @@ export async function eliminarAdjuntoAccion(
   const cargada = await obtenerOportunidadPorId(servidor, pipelineId);
   if (!cargada) return { exito: false, error: 'No encontrada' };
 
-  const { error } = await servidor.storage.from(BUCKET_ADJUNTOS).remove([ruta]);
-  if (error) return { exito: false, error: 'No se pudo eliminar el archivo' };
-
-  // La historia no se borra en silencio: la metadata queda con vigente=false.
   const admin = crearClienteSupabaseAdmin();
-  await admin.from('archivos').update({ vigente: false }).eq('ruta_storage', ruta);
+  const { data: retirado, error } = await admin
+    .from('archivos')
+    .update({ vigente: false })
+    .eq('ruta_storage', ruta)
+    .eq('entidad', 'rfq')
+    .eq('entidad_id', pipelineId)
+    .eq('vigente', true)
+    .select('id')
+    .maybeSingle();
+  if (error || !retirado) return { exito: false, error: 'No se pudo retirar el archivo' };
 
-  await registrarLog(usuario, 'eliminar_adjunto', 'pipeline', pipelineId, { ruta });
+  await registrarLog(usuario, 'retirar_adjunto', 'pipeline', pipelineId, { ruta });
   return { exito: true, datos: { ruta } };
 }

@@ -6,21 +6,21 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import {
   listarDocumentosOrden,
   obtenerOrdenDocumental,
+  type DocumentoOrden,
   type OrdenDocumental,
 } from '@/modulos/produccion/servicios/documentos-orden-servicio';
 import {
   listarNotasEntregaOrden,
   type NotaEntregaResumen,
 } from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';
-import type { ArchivoAdjunto } from '@/modulos/pipeline/servicios/listar-adjuntos';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const esquema = z.object({ ordenId: z.uuid() }).strict();
 
 export interface EntregablesOrden {
-  orden: OrdenDocumental;
-  documentos: ArchivoAdjunto[];
+  orden: Pick<OrdenDocumental, 'id' | 'folio' | 'cotizacionId' | 'cotizacionFolio'>;
+  documentos: DocumentoOrden[];
   notas: NotaEntregaResumen[];
 }
 
@@ -51,7 +51,13 @@ export async function obtenerDocumentosOrdenAccion(
       listarDocumentosOrden(admin, orden),
       listarNotasEntregaOrden(admin, orden.id),
     ]);
-    return { exito: true, datos: { orden, documentos, notas } };
+    const ordenPublica: EntregablesOrden['orden'] = {
+      id: orden.id,
+      folio: orden.folio,
+      cotizacionId: orden.cotizacionId,
+      cotizacionFolio: orden.cotizacionFolio,
+    };
+    return { exito: true, datos: { orden: ordenPublica, documentos, notas } };
   } catch (error) {
     console.error('[PRODUCCION] Error al consultar entregables de la orden:', error);
     return { exito: false, error: 'No se pudieron consultar los entregables de la orden' };

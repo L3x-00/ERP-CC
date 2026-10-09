@@ -18,16 +18,77 @@ import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 
 /**
- * Formulario controlado para crear una nueva oportunidad (prospecto). Envía los
- * datos a `crearProspectoAccion`; en éxito limpia los campos y refresca la ruta
- * para que el tablero muestre la oportunidad recién creada. Campos numéricos
+ * Etapas del alta de RFQ (C1.2). `captura` son las que se llenan en este
+ * formulario; `ficha` continúan en `/rfq?rfq=<id>` sobre el MISMO RFQ, que nace
+ * `INCOMPLETE` (DC-03). No se presentan como embebidas aquí porque todavía no
+ * lo están: Items/Archivos/Revisar llegan en C1.2b.
+ */
+const ETAPAS_ALTA_RFQ = [
+  { clave: 'cliente', titulo: 'Cliente', donde: 'captura' },
+  { clave: 'solicitud', titulo: 'Solicitud', donde: 'captura' },
+  { clave: 'items', titulo: 'Ítems', donde: 'ficha' },
+  { clave: 'archivos', titulo: 'Archivos', donde: 'ficha' },
+  { clave: 'revisar', titulo: 'Revisar', donde: 'ficha' },
+] as const;
+
+/** Indicador de las cinco etapas del alta, con dónde ocurre cada una. */
+function EtapasAltaRfq() {
+  return (
+    <div data-testid="etapas-alta-rfq" className="flex flex-col gap-2">
+      <ol aria-label="Etapas del alta de RFQ" className="flex flex-wrap items-center gap-2">
+        {ETAPAS_ALTA_RFQ.map((etapa, indice) => {
+          const enCaptura = etapa.donde === 'captura';
+          return (
+            <li
+              key={etapa.clave}
+              className={
+                enCaptura
+                  ? 'flex items-center gap-1.5 rounded-full border border-acento bg-acento-suave px-3 py-1 text-xs font-semibold text-acento'
+                  : 'flex items-center gap-1.5 rounded-full border border-dashed border-borde bg-superficie px-3 py-1 text-xs font-medium text-texto-secundario'
+              }
+            >
+              <span aria-hidden="true" className="font-mono">
+                {indice + 1}
+              </span>
+              {etapa.titulo}
+              <span className="sr-only">
+                {enCaptura ? ' — se captura aquí' : ' — continúa en la ficha del RFQ'}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="text-xs text-texto-secundario">
+        Aquí capturas <strong className="font-semibold">Cliente</strong> y{' '}
+        <strong className="font-semibold">Solicitud</strong>. Al guardar, el RFQ queda como{' '}
+        <strong className="font-semibold">Incompleto</strong> y la captura de Ítems, Archivos y
+        Revisar continúa en la ficha del RFQ: no se crea otro folio.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Formulario controlado para iniciar un RFQ recuperable. Envía los datos a
+ * `crearProspectoAccion`; solo el éxito limpia los campos, avisa al contenedor
+ * (`onExito`) y continúa la captura en la ficha del mismo RFQ. Campos numéricos
  * como `ivaPorcentaje` y `etiquetas` los resuelve el esquema por defecto.
  *
  * RFQ-02/03: permite elegir (o dar de alta) el cliente del catálogo sin salir
  * del formulario. Al elegirlo se heredan sus condiciones de pago y se rellenan
  * solo los campos de contacto que estén vacíos — nunca se pisa lo ya capturado.
+ *
+ * DC-01: el alta ya no captura Orden de compra ni Horas estimadas. `Fecha
+ * requerida por cliente` se conserva como dato informativo y NO es la fecha
+ * compromiso, que se confirma al aceptar una revisión.
  */
-export function FormularioProspecto() {
+export function FormularioProspecto({
+  onExito,
+  onCambioEnvio,
+}: {
+  onExito?: (id: string) => void;
+  onCambioEnvio?: (enviando: boolean) => void;
+}) {
   const router = useRouter();
   const clienteConsultas = useQueryClient();
   const [cliente, setCliente] = useState<ClienteRfq | null>(null);
@@ -40,9 +101,7 @@ export function FormularioProspecto() {
   const [prioridad, setPrioridad] = useState<PrioridadPipeline>('normal');
   const [condicionesPago, setCondicionesPago] = useState<CondicionesPago | ''>('');
   const [esOrdenInterna, setEsOrdenInterna] = useState(false);
-  const [poCliente, setPoCliente] = useState('');
   const [fechaRequerida, setFechaRequerida] = useState('');
-  const [horasEstimadas, setHorasEstimadas] = useState('');
   const [notas, setNotas] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -79,9 +138,7 @@ export function FormularioProspecto() {
     setPrioridad('normal');
     setCondicionesPago('');
     setEsOrdenInterna(false);
-    setPoCliente('');
     setFechaRequerida('');
-    setHorasEstimadas('');
     setNotas('');
   }
 
@@ -89,6 +146,7 @@ export function FormularioProspecto() {
     evento.preventDefault();
     setError(null);
     setEnviando(true);
+    onCambioEnvio?.(true);
 
     try {
       const respuesta = await crearProspectoAccion({
@@ -101,33 +159,42 @@ export function FormularioProspecto() {
         esOrdenInterna,
         ...(cliente ? { clienteId: cliente.id } : {}),
         ...(condicionesPago !== '' ? { condicionesPago } : {}),
-        ...(poCliente.trim() ? { poCliente: poCliente.trim() } : {}),
         ...(fechaRequerida ? { fechaRequerida } : {}),
-        ...(horasEstimadas.trim() !== '' && Number.isFinite(Number(horasEstimadas))
-          ? { horasEstimadas: Number(horasEstimadas) }
-          : {}),
         ...(notas.trim() ? { notas: notas.trim() } : {}),
       });
 
-      if (respuesta.exito) {
+      if (!respuesta.exito) {
+        setError(respuesta.error);
+      } else if (!respuesta.datos) {
+        // Sin id no hay a dónde continuar la captura: se conserva el borrador
+        // en el modal en vez de limpiarlo y perderlo.
+        setError('No se pudo continuar la captura. Intenta de nuevo.');
+      } else {
+        const { id } = respuesta.datos;
         limpiar();
         // El tablero vive en una consulta de TanStack Query (`['pipeline']`):
-        // `router.refresh()` no la invalida por sí solo y con
-        // `refetchOnWindowFocus` desactivado la tarjeta nueva no aparecería.
+        // navegar no la invalida por sí solo y con `refetchOnWindowFocus`
+        // desactivado la fila nueva no aparecería al volver a la cola.
         await clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
-        router.refresh();
-      } else {
-        setError(respuesta.error);
+        onExito?.(id);
+        // DC-03: la captura continúa en la ficha del MISMO RFQ (`INCOMPLETE`).
+        // El id devuelto es el único folio del alta; no se crea un segundo RFQ.
+        router.push(`/rfq?rfq=${id}&continuar=1`);
       }
     } catch {
       setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setEnviando(false);
+      onCambioEnvio?.(false);
     }
-
-    setEnviando(false);
   }
 
   return (
     <form onSubmit={manejarEnvio} className="flex flex-col gap-4" noValidate>
+      <EtapasAltaRfq />
+
+      <h3 className="text-sm font-semibold text-texto-primario">1. Cliente</h3>
+
       <div className="flex flex-col gap-2">
         <SelectorCliente
           seleccionado={cliente}
@@ -186,7 +253,11 @@ export function FormularioProspecto() {
             placeholder="664 000 0000"
           />
         </div>
+      </div>
 
+      <h3 className="text-sm font-semibold text-texto-primario">2. Solicitud</h3>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="prospecto-moneda">Moneda</Label>
           <Select
@@ -236,38 +307,25 @@ export function FormularioProspecto() {
           )}
         </div>
 
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-po">Orden de compra (PO, opcional)</Label>
-          <Input
-            id="prospecto-po"
-            type="text"
-            value={poCliente}
-            onChange={(evento) => setPoCliente(evento.target.value)}
-            maxLength={60}
-            placeholder="PO del cliente"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-fecha-requerida">Fecha requerida (opcional)</Label>
+        <div className="flex flex-col gap-1 sm:col-span-2">
+          <Label htmlFor="prospecto-fecha-requerida">
+            Fecha requerida por cliente (opcional)
+          </Label>
           <Input
             id="prospecto-fecha-requerida"
             type="date"
             value={fechaRequerida}
             onChange={(evento) => setFechaRequerida(evento.target.value)}
+            aria-describedby="prospecto-ayuda-fecha-requerida"
           />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="prospecto-horas">Horas estimadas (opcional)</Label>
-          <Input
-            id="prospecto-horas"
-            type="number"
-            min="0"
-            step="0.5"
-            value={horasEstimadas}
-            onChange={(evento) => setHorasEstimadas(evento.target.value)}
-          />
+          <span
+            id="prospecto-ayuda-fecha-requerida"
+            data-testid="ayuda-fecha-requerida"
+            className="text-xs text-texto-secundario"
+          >
+            Dato informativo de lo que pide el cliente. No es la Fecha compromiso: esa se confirma
+            al aceptar una revisión de la propuesta.
+          </span>
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">

@@ -83,6 +83,13 @@ export function FichaPropuesta({
     ?? revisiones[revisiones.length - 1]
     ?? null;
   const catalogosDatos = (catalogos.data?.exito ? catalogos.data.datos : null) ?? null;
+  const errorCatalogos =
+    catalogosDatos?.errorItems ??
+    (catalogos.data && !catalogos.data.exito
+      ? catalogos.data.error
+      : catalogos.error instanceof Error
+        ? 'No se pudieron cargar los catálogos de la propuesta.'
+        : null);
   const empresa = revisionActiva?.snapshotCabecera.empresa
     ?? revisionActiva?.snapshotCabecera.cliente?.razonSocial
     ?? 'Sin cliente';
@@ -162,9 +169,12 @@ export function FichaPropuesta({
           {pestana === 'items' && (
             <EditorItemsPropuesta
               revision={revisionActiva}
+              revisiones={revisiones}
               items={detalle.items}
               ruteo={detalle.ruteo}
               costos={detalle.costos}
+              catalogos={catalogosDatos}
+              errorCatalogos={errorCatalogos}
               permisos={permisos}
             />
           )}
@@ -181,6 +191,7 @@ export function FichaPropuesta({
           {pestana === 'archivos' && (
             <PanelArchivosPropuesta
               revision={revisionActiva}
+              revisiones={revisiones}
               archivosPropios={detalle.archivosPropios}
               archivosHeredados={detalle.archivosHeredados}
               archivosPorItem={detalle.archivosPorItem}

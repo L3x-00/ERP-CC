@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { traducirErrorEntrega } from '@/modulos/entregas/servicios/errores-entrega';
 import {
   esquemaActualizarFechaEntrega,
+  esquemaConfirmarEvidenciaEntrega,
+  esquemaPrepararEvidenciaEntrega,
   esquemaRegistrarEntrega,
-  esquemaSubirEvidenciaEntrega,
 } from '@/modulos/entregas/validaciones/esquemas-entregas';
 
 const ORDEN = '11111111-1111-4111-8111-111111111111';
@@ -57,19 +58,30 @@ describe('esquemaRegistrarEntrega (SII-B7.1)', () => {
     ).toBe(false);
   });
 
-  it('valida la clase de evidencia/firma', () => {
+  it('valida la clase de evidencia/firma y solo metadatos del binario', () => {
+    const metadatos = { tamano: 2 * 1024 * 1024, mime: 'image/png' };
     expect(
-      esquemaSubirEvidenciaEntrega.safeParse({
+      esquemaPrepararEvidenciaEntrega.safeParse({
         notaId: ORDEN,
         clase: 'firma',
         nombreArchivo: 'firma.png',
+        ...metadatos,
       }).success,
     ).toBe(true);
     expect(
-      esquemaSubirEvidenciaEntrega.safeParse({
+      esquemaPrepararEvidenciaEntrega.safeParse({
         notaId: ORDEN,
         clase: 'otro',
         nombreArchivo: 'x.png',
+        ...metadatos,
+      }).success,
+    ).toBe(false);
+    expect(
+      esquemaConfirmarEvidenciaEntrega.safeParse({
+        notaId: ORDEN,
+        clase: 'evidencia',
+        nombreArchivo: 'x.png',
+        ruta: '',
       }).success,
     ).toBe(false);
   });

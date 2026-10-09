@@ -20,10 +20,9 @@ export const esquemaCrearProspecto = z.object({
   // RFQ-02: cliente existente (o recién dado de alta) al que se liga la RFQ.
   // Opcional: una RFQ puede nacer sin cliente en el catálogo y ligarse después.
   clienteId: z.uuid('Cliente inválido').optional(),
-  // RFQ-01: datos de captura de la solicitud (opcionales en el alta).
-  poCliente: z.string().max(60).optional(),
-  fechaRequerida: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida').optional().or(z.literal('')),
-  horasEstimadas: z.number().min(0).max(100000).optional(),
+  // DC-01: dato informativo opcional del cliente. No equivale a la fecha
+  // compromiso comercial, que se confirma al aceptar una revisión.
+  fechaRequerida: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),
   notas: z.string().max(2000).optional(),
 });
 

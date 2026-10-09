@@ -175,14 +175,13 @@ async function crearRfqSimple(
   await pagina.getByLabel('Nombre del contacto').fill('Ana QA');
   await pagina.getByLabel('Empresa', { exact: true }).fill(opciones.empresa);
   await pagina.getByLabel('Correo (opcional)').fill('ana.qa@qa-func.local');
-  await pagina.getByLabel('Cliente (opcional)').fill(contexto.empresa);
+  await pagina.getByLabel('Cliente (opcional)', { exact: true }).fill(contexto.empresa);
   await pagina.getByRole('button', { name: new RegExp(contexto.empresa) }).first().click();
   if (opciones.interna) {
     await pagina.getByLabel(/Orden interna \(TI\)/).check();
   }
   await pagina.getByRole('button', { name: 'Crear RFQ', exact: true }).click();
-  const tarjeta = pagina.locator('article', { hasText: opciones.empresa });
-  await expect(tarjeta).toBeVisible();
+  await expect(pagina.getByTestId('ficha-rfq')).toBeVisible();
 }
 
 /**

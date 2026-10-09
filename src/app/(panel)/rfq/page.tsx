@@ -18,12 +18,13 @@ export default async function PaginaRfq({ searchParams }: ParametrosPaginaRfq) {
       : typeof parametros.oportunidad === 'string'
         ? parametros.oportunidad
         : undefined;
+  const continuar = parametros.continuar === '1';
 
   if (rfqId) {
     return (
       <>
         <SincronizadorPipelineRealtime />
-        <FichaRfq rfqId={rfqId} />
+        <FichaRfq rfqId={rfqId} continuar={continuar} />
       </>
     );
   }

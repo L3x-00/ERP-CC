@@ -1,4 +1,5 @@
 export { alternarActivoAccion } from './alternar-activo';
+export { guardarCanalAccion } from './guardar-canal';
 export { guardarEspesorAccion } from './guardar-espesor';
 export { guardarGrupoEquipoAccion } from './guardar-grupo-equipo';
 export { guardarGrupoPlaneadoAccion } from './guardar-grupo-planeado';

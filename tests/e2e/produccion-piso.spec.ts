@@ -28,6 +28,8 @@ type ContextoE2E = {
   ordenId: string;
   partidaId: string;
   programacionId: string;
+  archivoOrigenId: string;
+  rutaArchivoOrigen: string;
 };
 
 function requerirVariable(nombre: string): string {
@@ -115,6 +117,40 @@ async function prepararContexto(): Promise<ContextoE2E> {
   }).select('id').single();
   if (errorOrden || !orden) throw new Error(`No se pudo crear orden E2E: ${errorOrden?.message ?? 'sin orden'}`);
 
+  const rfqItemId = randomUUID();
+  const rutaArchivoOrigen = `rfq_item/${rfqItemId}/${randomUUID()}.dxf`;
+  const planoOrigen = Buffer.alloc(2 * 1024 * 1024 + 128, 0x20);
+  planoOrigen.write('0\nSECTION\n2\nHEADER\n');
+  const { error: errorObjetoOrigen } = await admin.storage
+    .from('adjuntos-cotizacion')
+    .upload(rutaArchivoOrigen, planoOrigen, { contentType: 'application/dxf' });
+  if (errorObjetoOrigen) throw new Error(`No se pudo subir plano origen E2E: ${errorObjetoOrigen.message}`);
+  const { data: archivoOrigen, error: errorArchivoOrigen } = await admin.from('archivos').insert({
+    entidad: 'rfq_item',
+    entidad_id: rfqItemId,
+    clase: 'CAD',
+    nombre_original: 'plano-it01-e2e.dxf',
+    nombre_erp: 'plano-it01-e2e.dxf',
+    bucket: 'adjuntos-cotizacion',
+    ruta_storage: rutaArchivoOrigen,
+    mime: 'application/dxf',
+    tamano_bytes: planoOrigen.byteLength,
+  }).select('id').single();
+  if (errorArchivoOrigen || !archivoOrigen) {
+    throw new Error(`No se pudo registrar plano origen E2E: ${errorArchivoOrigen?.message ?? 'sin archivo'}`);
+  }
+  const { error: errorSnapshot } = await admin.from('ordenes_produccion').update({
+    snapshot_json: {
+      version: 1,
+      orden_id: orden.id,
+      origen: {},
+      cabecera: {},
+      items: [],
+      archivos: [{ archivo_id: archivoOrigen.id }],
+    },
+  }).eq('id', orden.id);
+  if (errorSnapshot) throw new Error(`No se pudo congelar plano E2E: ${errorSnapshot.message}`);
+
   const { data: partida, error: errorPartida } = await admin.from('partidas_orden_produccion').insert({
     orden_id: orden.id,
     codigo_pieza: `E2E-PRD-${sufijo}`,
@@ -149,12 +185,24 @@ async function prepararContexto(): Promise<ContextoE2E> {
   return {
     admin, correoAdministrador, contrasenaAdministrador, pinOperador, administradorId, operadorId,
     clienteId: cliente.id, recursoId: recurso.id, ordenId: orden.id, partidaId: partida.id,
-    programacionId: preparada[0].id,
+    programacionId: preparada[0].id, archivoOrigenId: archivoOrigen.id, rutaArchivoOrigen,
   };
 }
 
 async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
   const { admin } = contexto;
+  const { data: documentosOrden } = await admin.from('archivos')
+    .select('id, ruta_storage, bucket')
+    .eq('entidad', 'orden')
+    .eq('entidad_id', contexto.ordenId);
+  for (const documento of documentosOrden ?? []) {
+    await admin.storage.from(documento.bucket).remove([documento.ruta_storage]);
+  }
+  if (documentosOrden?.length) {
+    await admin.from('archivos').delete().in('id', documentosOrden.map((documento) => documento.id));
+  }
+  await admin.from('archivos').delete().eq('id', contexto.archivoOrigenId);
+  await admin.storage.from('adjuntos-cotizacion').remove([contexto.rutaArchivoOrigen]);
   const { data: archivos } = await admin.from('archivos_sesion_produccion')
     .select('id, ruta, sesiones_trabajo!inner(orden_id)')
     .eq('sesiones_trabajo.orden_id', contexto.ordenId);
@@ -294,8 +342,46 @@ test.describe.serial('piso de Producción y entregas', () => {
     await expect(dialogoNota.getByTestId('documento-nota-entrega')).toContainText('Almacén E2E');
     await page.keyboard.press('Escape');
     await expect(dialogoNota).toBeHidden();
-    // Orden manual sin cotización: el piso lo informa en vez de ofrecer una carpeta.
-    await expect(panelEntregables).toContainText('no hay carpeta donde guardar documentos');
+    // C2.3: el plano exacto congelado en la Orden llega al piso sin copiar el blob.
+    const planoOrigen = panelEntregables.locator('li').filter({ hasText: 'plano-it01-e2e.dxf' });
+    await expect(planoOrigen).toContainText('RFQ · ítem');
+    await expect(planoOrigen).toContainText('versión aceptada');
+    const [planoLectura] = await Promise.all([
+      page.waitForEvent('popup'),
+      planoOrigen.getByRole('button', { name: /^Abrir plano-it01-e2e\.dxf/ }).click(),
+    ]);
+    await expect.poll(async () => (await page.request.get(planoLectura.url())).status()).toBe(200);
+    await planoLectura.close();
+    const dwgOrden = Buffer.alloc(2 * 1024 * 1024 + 64, 0x20);
+    dwgOrden.write('AC1032');
+    await panelEntregables.getByLabel('Archivo de la orden').setInputFiles({
+      name: 'ajuste-en-piso.dwg',
+      mimeType: 'image/vnd.dwg',
+      buffer: dwgOrden,
+    });
+    await panelEntregables.getByRole('button', { name: 'Subir', exact: true }).click();
+    await expect(panelEntregables).toContainText('Documento ajuste-en-piso.dwg subido');
+    const documentoOrden = panelEntregables.locator('li').filter({ hasText: 'ajuste-en-piso.dwg' });
+    await expect(documentoOrden).toContainText('agregado a la orden');
+    const dwgOrdenV2 = Buffer.alloc(2 * 1024 * 1024 + 96, 0x20);
+    dwgOrdenV2.write('AC1032-V2');
+    await panelEntregables.getByLabel('Archivo de la orden').setInputFiles({
+      name: 'ajuste-en-piso.dwg',
+      mimeType: 'image/vnd.dwg',
+      buffer: dwgOrdenV2,
+    });
+    await panelEntregables.getByRole('button', { name: 'Subir', exact: true }).click();
+    await expect(panelEntregables.getByRole('button', { name: 'Ver versiones (1)' })).toBeVisible();
+    await panelEntregables.getByRole('button', { name: 'Ver versiones (1)' }).click();
+    await expect(panelEntregables.getByText('histórica', { exact: false })).toBeVisible();
+    const [dwgHistorico] = await Promise.all([
+      page.waitForEvent('popup'),
+      panelEntregables
+        .getByRole('button', { name: /Abrir ajuste-en-piso\.dwg, Orden, versión 1/ })
+        .click(),
+    ]);
+    await expect.poll(async () => (await page.request.get(dwgHistorico.url())).status()).toBe(200);
+    await dwgHistorico.close();
     await observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)
       .getByRole('button', { name: 'Operar orden' }).click();
     await expect(observador.getByTestId('panel-documentos-orden')).toContainText('Sin archivos de salida final');

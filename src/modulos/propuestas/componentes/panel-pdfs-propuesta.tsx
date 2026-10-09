@@ -22,12 +22,16 @@ export function PanelPdfsPropuesta({
   const [mensaje, setMensaje] = useState<string | null>(null);
 
   async function ver(archivoId: string): Promise<void> {
-    const respuesta = await firmarArchivoPropuestaAccion({ archivoId });
+    setMensaje(null);
+    const respuesta = await firmarArchivoPropuestaAccion({
+      propuestaId: revision.propuestaId,
+      archivoId,
+    });
     if (!respuesta.exito) {
       setMensaje(respuesta.error);
       return;
     }
-    window.open(respuesta.datos?.url, '_blank', 'noopener');
+    window.open(respuesta.datos?.url, '_blank', 'noopener,noreferrer');
   }
 
   const historial = [...pdfs].sort((a, b) => b.version - a.version);
@@ -60,7 +64,14 @@ export function PanelPdfsPropuesta({
                   <span>{formatearFecha(pdf.creadoEn)}</span>
                 </span>
               </div>
-              <Button variante="fantasma" tamano="sm" onClick={() => void ver(pdf.archivoId)}>
+              <Button
+                variante="fantasma"
+                tamano="sm"
+                aria-label={`Ver PDF de la revisión ${revision.letra}, versión ${pdf.version} (${
+                  pdf.vigente ? 'vigente' : 'reemplazado'
+                })`}
+                onClick={() => void ver(pdf.archivoId)}
+              >
                 Ver
               </Button>
             </li>

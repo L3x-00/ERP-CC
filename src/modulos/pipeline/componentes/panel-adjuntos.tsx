@@ -8,7 +8,7 @@ import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { obtenerAdjuntosAccion } from '@/modulos/pipeline/acciones/obtener-adjuntos';
 import { obtenerUrlAdjuntoAccion } from '@/modulos/pipeline/acciones/obtener-url-adjunto';
 import { eliminarAdjuntoAccion } from '@/modulos/pipeline/acciones/eliminar-adjunto';
-import { agregarArchivoAdjuntoAccion } from '@/modulos/pipeline/acciones/agregar-archivo-adjunto';
+import { subirAdjuntoPipeline } from '@/modulos/pipeline/subir-adjunto-cliente';
 
 const EXTENSIONES = '.pdf,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv,.doc,.docx';
 
@@ -27,8 +27,8 @@ function formatearTamano(bytes: number | null): string {
 /**
  * Adjuntos de una oportunidad (RFQ-19, OBS-06, DOC-04): lista con nombre,
  * tamaño y fecha; subida múltiple, apertura por URL firmada y retiro. En modo
- * consulta solo permite abrir. La seguridad la impone la RLS del bucket, acotada
- * por carpeta = `pipelineId`.
+ * consulta solo permite abrir. Las acciones de servidor validan el acceso a la
+ * oportunidad antes de operar sobre la ruta privada `rfq/<pipelineId>/...`.
  */
 export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId: string; soloLectura?: boolean }) {
   const clienteConsultas = useQueryClient();
@@ -51,19 +51,15 @@ export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId:
     setOcupado(true);
     setError(null);
     try {
-      const resultados = await Promise.all(
-        Array.from(archivos).map((archivo) => {
-          const formData = new FormData();
-          formData.set('pipelineId', pipelineId);
-          formData.set('archivo', archivo);
-          return agregarArchivoAdjuntoAccion(formData);
-        }),
+      // Cada binario sube directo a Storage (H-B1-29); se reporta el primer fallo.
+      const resultados = await Promise.allSettled(
+        Array.from(archivos).map((archivo) => subirAdjuntoPipeline(pipelineId, archivo)),
       );
-      const fallo = resultados.find((resultado) => !resultado.exito);
-      if (fallo && !fallo.exito) setError(fallo.error);
+      const fallo = resultados.find((resultado) => resultado.status === 'rejected');
+      if (fallo && fallo.status === 'rejected') {
+        setError(fallo.reason instanceof Error ? fallo.reason.message : 'No se pudieron subir los archivos');
+      }
       await clienteConsultas.invalidateQueries({ queryKey: clave });
-    } catch {
-      setError('No se pudieron subir los archivos');
     } finally {
       setOcupado(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -77,7 +73,7 @@ export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId:
     else setError(respuesta.exito ? 'No se pudo generar el enlace' : respuesta.error);
   }
 
-  async function quitar(ruta: string): Promise<void> {
+  async function retirar(ruta: string): Promise<void> {
     setOcupado(true);
     setError(null);
     try {
@@ -144,8 +140,8 @@ export function PanelAdjuntos({ pipelineId, soloLectura = false }: { pipelineId:
                   Abrir
                 </Button>
                 {!soloLectura && (
-                  <Button type="button" variante="destructivo" tamano="sm" disabled={ocupado} onClick={() => void quitar(adjunto.ruta)}>
-                    Quitar
+                  <Button type="button" variante="destructivo" tamano="sm" disabled={ocupado} onClick={() => void retirar(adjunto.ruta)}>
+                    Retirar
                   </Button>
                 )}
               </div>

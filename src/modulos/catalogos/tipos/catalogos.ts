@@ -8,6 +8,7 @@ export const ENTIDADES_CATALOGO = [
   'grupos_equipo',
   'grupos_planeados',
   'catalogo_proximas_acciones',
+  'catalogo_canales',
 ] as const;
 export type EntidadCatalogo = (typeof ENTIDADES_CATALOGO)[number];
 
@@ -75,6 +76,17 @@ export interface ProximaAccionCatalogo {
   creadoEn: string;
 }
 
+/** Canal de origen del RFQ (DC-02); solo uno puede ser "Otro". */
+export interface CanalCatalogo {
+  id: string;
+  codigo: string;
+  nombre: string;
+  esOtro: boolean;
+  activo: boolean;
+  orden: number;
+  creadoEn: string;
+}
+
 export interface VersionCatalogo {
   id: string;
   entidad: EntidadCatalogo;
@@ -100,6 +112,7 @@ export interface CatalogosBase {
   gruposEquipo: GrupoEquipoCatalogo[];
   gruposPlaneados: GrupoPlaneadoCatalogo[];
   proximasAcciones: ProximaAccionCatalogo[];
+  canales: CanalCatalogo[];
   areasTrabajo: AreaTrabajoOpcion[];
   /** El usuario puede mutar (permiso `catalogo_editar` o admin). */
   puedeEditar: boolean;
@@ -161,6 +174,16 @@ export interface FilaGrupoPlaneadoCatalogo {
 }
 
 export interface FilaProximaAccionCatalogo {
+  id: string;
+  codigo: string;
+  nombre: string;
+  es_otro: boolean;
+  activo: boolean;
+  orden: number;
+  creado_en: string;
+}
+
+export interface FilaCanalCatalogo {
   id: string;
   codigo: string;
   nombre: string;
@@ -249,6 +272,18 @@ export function filaAGrupoPlaneado(fila: FilaGrupoPlaneadoCatalogo): GrupoPlanea
 }
 
 export function filaAProximaAccion(fila: FilaProximaAccionCatalogo): ProximaAccionCatalogo {
+  return {
+    id: fila.id,
+    codigo: fila.codigo,
+    nombre: fila.nombre,
+    esOtro: fila.es_otro,
+    activo: fila.activo,
+    orden: fila.orden,
+    creadoEn: fila.creado_en,
+  };
+}
+
+export function filaACanal(fila: FilaCanalCatalogo): CanalCatalogo {
   return {
     id: fila.id,
     codigo: fila.codigo,

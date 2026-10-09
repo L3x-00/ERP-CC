@@ -42,12 +42,21 @@ describe('esquemas de administración de accesos', () => {
     expect(resultado.success).toBe(false);
   });
 
-  it('acepta un rol editable con permisos del catálogo', () => {
+  it('acepta un rol editable con permisos del catálogo y el conjunto esperado', () => {
     const resultado = esquemaActualizarPermisosRol.safeParse({
       rol: 'vendedor',
       permisos: ['rfq_vista', 'cliente_vista'],
+      permisosEsperados: ['rfq_vista'],
     });
     expect(resultado.success).toBe(true);
+  });
+
+  it('exige el conjunto esperado para el control optimista de la matriz', () => {
+    const resultado = esquemaActualizarPermisosRol.safeParse({
+      rol: 'vendedor',
+      permisos: ['rfq_vista'],
+    });
+    expect(resultado.success).toBe(false);
   });
 
   it('rechaza permisos fuera del catálogo', () => {

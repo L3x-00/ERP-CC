@@ -5,6 +5,7 @@ import { mensajeErrorRfq } from '@/modulos/rfq/acciones/utilidades-acciones';
 describe('mensajes de error de RFQ', () => {
   it('traduce los códigos estables a mensajes públicos', () => {
     expect(mensajeErrorRfq('sin_permiso_rfq')).toContain('permiso');
+    expect(mensajeErrorRfq('rfq_congelado')).toContain('Rev A');
     expect(mensajeErrorRfq('rfq_desactualizado')).toContain('recarga');
     expect(mensajeErrorRfq('item_desactualizado')).toContain('recarga');
     expect(mensajeErrorRfq('rfq_transicion_invalida')).toContain('estado actual');

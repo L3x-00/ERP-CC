@@ -61,16 +61,29 @@ describe('esquemaCrearProspecto — captura RFQ-01 opcional', () => {
     expect(r.success).toBe(true);
   });
 
-  it('acepta captura completa', () => {
+  it('acepta Fecha requerida por cliente y notas en el alta', () => {
+    const r = esquemaCrearProspecto.safeParse({
+      nombreContacto: 'Ana',
+      empresa: 'Aceros del Norte',
+      fechaRequerida: '2026-10-01',
+      notas: 'x',
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it('retira PO y horas estimadas del contrato validado de alta', () => {
     const r = esquemaCrearProspecto.safeParse({
       nombreContacto: 'Ana',
       empresa: 'Aceros del Norte',
       poCliente: 'PO-9',
-      fechaRequerida: '2026-10-01',
       horasEstimadas: 4,
-      notas: 'x',
     });
+
     expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data).not.toHaveProperty('poCliente');
+      expect(r.data).not.toHaveProperty('horasEstimadas');
+    }
   });
 
   it('rechaza fecha de captura mal formada', () => {
@@ -78,6 +91,15 @@ describe('esquemaCrearProspecto — captura RFQ-01 opcional', () => {
       nombreContacto: 'Ana',
       empresa: 'Aceros del Norte',
       fechaRequerida: '2026/10/01',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('rechaza una fecha requerida inexistente aunque respete YYYY-MM-DD', () => {
+    const r = esquemaCrearProspecto.safeParse({
+      nombreContacto: 'Ana',
+      empresa: 'Aceros del Norte',
+      fechaRequerida: '2026-02-31',
     });
     expect(r.success).toBe(false);
   });

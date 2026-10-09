@@ -45,6 +45,21 @@ export function esEstadoTerminal(estado: EstadoRfq): boolean {
   return estado === 'CONVERTED' || estado === 'CLOSED' || estado === 'CANCELLED';
 }
 
+/**
+ * CV-01/DC-05: cabecera e ítems se editan hasta crear la Propuesta Rev A
+ * (incluido `READY_FOR_PROPOSAL`); el servidor revalida al crearla.
+ */
+export function esDefinicionRfqEditable(estado: EstadoRfq): boolean {
+  return !esEstadoTerminal(estado);
+}
+
+/** Por qué la definición del RFQ ya no se edita. */
+export function motivoDefinicionRfqBloqueada(estado: EstadoRfq): string {
+  return estado === 'CONVERTED'
+    ? 'El RFQ quedó congelado al crear la Propuesta Rev A; los cambios van en una nueva revisión de la propuesta.'
+    : 'El RFQ está cerrado o cancelado y ya no admite cambios.';
+}
+
 /** Etiqueta legible por estado del RFQ. */
 export const ETIQUETAS_ESTADO_RFQ: Record<EstadoRfq, string> = {
   NEW: 'Nuevo',

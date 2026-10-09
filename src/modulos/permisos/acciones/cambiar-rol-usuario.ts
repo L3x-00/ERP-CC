@@ -2,7 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 import { esquemaCambiarRolUsuario } from '../validaciones/esquemas-permisos';
@@ -17,7 +17,11 @@ function mensajeError(codigo: string): string {
   return 'No se pudo cambiar el rol';
 }
 
-/** Cambia el rol de un usuario (solo admin activo, con motivo). */
+/**
+ * Cambia el rol de un usuario (solo admin activo, con motivo). La RPC audita
+ * el cambio (rol anterior y nuevo) en la misma transacción; aquí solo se
+ * registra el rechazo.
+ */
 export async function cambiarRolUsuarioAccion(entrada: unknown): Promise<RespuestaAccion> {
   const resultado = esquemaCambiarRolUsuario.safeParse(entrada);
   if (!resultado.success) {
@@ -29,6 +33,7 @@ export async function cambiarRolUsuarioAccion(entrada: unknown): Promise<Respues
     return { exito: false, error: 'Solo un administrador activo puede cambiar roles' };
   }
 
+  const correlationId = nuevoCorrelationId();
   const { usuarioId, rol, motivo } = resultado.data;
   const clienteAdmin = crearClienteSupabaseAdmin();
   const { error } = await clienteAdmin.rpc('cambiar_rol_usuario', {
@@ -36,16 +41,16 @@ export async function cambiarRolUsuarioAccion(entrada: unknown): Promise<Respues
     p_rol: rol,
     p_actor_id: usuario.id,
     p_motivo: motivo,
+    p_correlation_id: correlationId,
   });
 
   if (error) {
     console.error('[USUARIOS] Error al cambiar rol:', error.message);
     await registrarLog(usuario, 'cambiar_rol_usuario_rechazado', 'usuarios', usuarioId, {
       codigo: error.message.slice(0, 120),
-    });
+    }, correlationId);
     return { exito: false, error: mensajeError(error.message) };
   }
 
-  await registrarLog(usuario, 'cambiar_rol_usuario', 'usuarios', usuarioId, { rol, motivo });
   return { exito: true };
 }

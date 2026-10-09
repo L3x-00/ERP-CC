@@ -29,41 +29,44 @@ SELECT throws_ok($$
 $$, '23503', NULL, 'La FK rechaza permisos fuera del catálogo');
 
 -- 4-9. Privilegios: solo service_role ejecuta las RPC administrativas
+--      (firmas con conjunto esperado y correlation_id: auditoría B1, H-B1-05/09)
 SELECT ok(NOT has_function_privilege('authenticated',
-  'public.actualizar_permisos_rol(text,text[],uuid)', 'EXECUTE'),
+  'public.actualizar_permisos_rol(text,text[],uuid,text[],uuid)', 'EXECUTE'),
   'authenticated no puede actualizar la matriz');
 SELECT ok(has_function_privilege('service_role',
-  'public.actualizar_permisos_rol(text,text[],uuid)', 'EXECUTE'),
+  'public.actualizar_permisos_rol(text,text[],uuid,text[],uuid)', 'EXECUTE'),
   'service_role puede actualizar la matriz');
 SELECT ok(NOT has_function_privilege('authenticated',
-  'public.cambiar_rol_usuario(uuid,text,uuid,text)', 'EXECUTE'),
+  'public.cambiar_rol_usuario(uuid,text,uuid,text,uuid)', 'EXECUTE'),
   'authenticated no puede cambiar roles');
 SELECT ok(has_function_privilege('service_role',
-  'public.cambiar_rol_usuario(uuid,text,uuid,text)', 'EXECUTE'),
+  'public.cambiar_rol_usuario(uuid,text,uuid,text,uuid)', 'EXECUTE'),
   'service_role puede cambiar roles');
 SELECT ok(NOT has_function_privilege('authenticated',
-  'public.cambiar_estado_usuario(uuid,boolean,uuid,text)', 'EXECUTE'),
+  'public.cambiar_estado_usuario(uuid,boolean,uuid,text,uuid)', 'EXECUTE'),
   'authenticated no puede cambiar estados');
 SELECT ok(has_function_privilege('service_role',
-  'public.cambiar_estado_usuario(uuid,boolean,uuid,text)', 'EXECUTE'),
+  'public.cambiar_estado_usuario(uuid,boolean,uuid,text,uuid)', 'EXECUTE'),
   'service_role puede cambiar estados');
 
 -- 10-13. actualizar_permisos_rol: guardas
 SELECT throws_ok($$
   SELECT public.actualizar_permisos_rol('vendedor', ARRAY['rfq_vista'],
-    '00000000-0000-4000-8000-0000000b1a03'::uuid)
+    '00000000-0000-4000-8000-0000000b1a03'::uuid, ARRAY[]::text[])
 $$, '42501', 'sin_permiso_permisos', 'Un vendedor no administra la matriz');
 SELECT throws_ok($$
   SELECT public.actualizar_permisos_rol('admin', ARRAY['rfq_vista'],
-    '00000000-0000-4000-8000-0000000b1a01'::uuid)
+    '00000000-0000-4000-8000-0000000b1a01'::uuid, ARRAY[]::text[])
 $$, '22023', 'admin_permisos_inmutables', 'El rol admin no es editable');
 SELECT throws_ok($$
   SELECT public.actualizar_permisos_rol('vendedor', ARRAY['no_existe'],
-    '00000000-0000-4000-8000-0000000b1a01'::uuid)
+    '00000000-0000-4000-8000-0000000b1a01'::uuid,
+    (SELECT array_agg(permiso) FROM public.permisos_rol WHERE rol = 'vendedor'))
 $$, '22023', 'permiso_desconocido', 'Rechaza códigos fuera del catálogo');
 SELECT is(
   (SELECT public.actualizar_permisos_rol('vendedor', ARRAY['rfq_vista', 'cliente_vista'],
-    '00000000-0000-4000-8000-0000000b1a01'::uuid)),
+    '00000000-0000-4000-8000-0000000b1a01'::uuid,
+    (SELECT array_agg(permiso) FROM public.permisos_rol WHERE rol = 'vendedor'))),
   2,
   'Reemplaza la matriz del rol y devuelve el total asignado'
 );

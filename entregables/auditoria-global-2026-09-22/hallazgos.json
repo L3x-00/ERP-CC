@@ -1,0 +1,316 @@
+[
+  {
+    "id": "A01",
+    "nivel": "ALTA",
+    "titulo": "La última migración reabre la lectura del hash del PIN",
+    "observado": "El SELECT de pin_operador por API autenticada fue aceptado para los cinco roles probados sobre su propia fila. Los usuarios temporales tenían PIN nulo: se verificó el permiso de lectura, sin extraer hashes reales. La migración 20260921000004 concede SELECT a toda usuarios y revierte la protección por columna de 20260911000004.",
+    "impacto": "Se pierde una protección de credenciales explícita. RLS limita las filas, pero no oculta esta columna; un administrador puede leer todas las filas autorizadas. No se demostró lectura de otros usuarios por un vendedor.",
+    "fuente": "supabase/migrations/20260921000004_grants_base_instalacion_limpia.sql:12; supabase/migrations/20260911000004_auditoria_seguridad_rls_y_folios.sql:22",
+    "evidencia": "seguridad-resultados.json; funciones-locales.json; politicas-locales.json",
+    "correccion": "Restablecer SELECT solo de columnas seguras mediante una migración nueva. Comprobar que pin_operador falla para authenticated y que el acceso del servidor sigue funcionando.",
+    "criterios": [
+      "ACC-01",
+      "ACC-02",
+      "CFG-05"
+    ]
+  },
+  {
+    "id": "A02",
+    "nivel": "ALTA",
+    "titulo": "Cancelar una orden conserva la deuda y el crédito ocupado",
+    "observado": "Aprobación real por RPC de una cotización de 1000 + IVA; cancelación real por cambiar_estado_orden. La orden terminó cancelada y la AR siguió pendiente con saldo 1160 y cobrable_desde nulo.",
+    "impacto": "El cálculo de crédito suma AR pendiente/parcial sin excluir órdenes canceladas. El estado de cuenta puede conservar una deuda de trabajo cancelado. Los anticipos existentes requieren una regla explícita de devolución o saldo a favor.",
+    "fuente": "supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:26; src/modulos/pipeline/acciones/marcar-ganada.ts:58; src/modulos/cobranza/servicios/estado-cuenta-servicio.ts:76",
+    "evidencia": "invariantes.log (AUDIT_CANCELACION); probar-invariantes.sql",
+    "correccion": "Unificar cancelación de orden y tratamiento de AR en una transacción. Probar sin pagos, con anticipo y con solicitud repetida; no borrar pagos ni historia.",
+    "criterios": [
+      "ORD-12",
+      "AR-03",
+      "AR-14",
+      "RFQ-16",
+      "OBS-16",
+      "OBS-22",
+      "OBS-27",
+      "ORD-10"
+    ]
+  },
+  {
+    "id": "A03",
+    "nivel": "ALTA",
+    "titulo": "La rentabilidad incluye el IVA dentro de la utilidad",
+    "observado": "En fixture SQL local, venta base 1000, IVA 160 y costo 500: obtener_rentabilidad_orden devolvió venta 1160 y utilidad 660. La venta neta y utilidad según D-11 serían 1000 y 500. Se simuló la activación financiera de la AR en el fixture; no es un nuevo E2E de entrega.",
+    "impacto": "La utilidad queda inflada por el impuesto. Contradice D-11 adoptada en la aceptación y la propuesta de rentabilidad neta del PDF. Debe reconciliarse también el indicador ejecutivo.",
+    "fuente": "supabase/migrations/20260921000003_obs29_desglose_ti_periodo.sql:81; docs/aceptacion-funcional-2026-09-19/README.md (D-11)",
+    "evidencia": "invariantes.log (AUDIT_IVA); referencia-pdf.txt (D-11)",
+    "correccion": "Persistir o recuperar de manera histórica subtotal e IVA, y calcular margen sobre ingreso neto. Probar tasas 0/8/16, descuentos y moneda extranjera sin usar una tasa actual para reescribir ventas pasadas.",
+    "criterios": [
+      "DAS-02",
+      "ORD-11",
+      "OBS-29"
+    ]
+  },
+  {
+    "id": "A04",
+    "nivel": "ALTA",
+    "titulo": "El dashboard duplica costos que el detalle excluye",
+    "observado": "Con consumo de material por 500, el costo de la orden fue 500. Al registrar gasto materia_prima por el mismo importe, la tarjeta mantuvo 500, pero la utilidad ejecutiva pasó de -500 a -1000.",
+    "impacto": "Dos pantallas presentan resultados incompatibles sobre la misma operación; el ajuste contra duplicados de OBS-29 no llegó al dashboard.",
+    "fuente": "supabase/migrations/20260919000005_d04_ar_al_aprobar_anticipos.sql:645; supabase/migrations/20260921000003_obs29_desglose_ti_periodo.sql:109",
+    "evidencia": "invariantes.log (AUDIT_FINANZAS), transacción local revertida",
+    "correccion": "Usar la misma regla de reconocimiento de costos en rentabilidad por orden, resumen ejecutivo y costo TI. Probar material, nómina, otros gastos, cancelados y periodos.",
+    "criterios": [
+      "DAS-02",
+      "ORD-11",
+      "OBS-29"
+    ]
+  },
+  {
+    "id": "A05",
+    "nivel": "ALTA",
+    "titulo": "Un fallo al guardar áreas elimina las restricciones del operador",
+    "observado": "Se ejecutó la función real actualizarAreasOperadorServicio contra Postgres local. Partiendo de ACABADOS, la entrada ACABADOS/acabados pasó Zod, se normalizó a duplicados, borró la asignación y falló al insertar. Después del error quedaron cero áreas.",
+    "impacto": "Cero áreas significa sin restricción en el helper SQL. Un error de guardado amplía permisos de taller en lugar de conservar la configuración anterior.",
+    "fuente": "src/modulos/configuracion/servicios/configuracion-servicio.ts:285; src/modulos/configuracion/validaciones/configuracion.ts:137; supabase/migrations/20260921000002_obs14_taxonomia_operadores_areas.sql:176",
+    "evidencia": "areas-resultados.json; areas.log; copia-aislada/tests/integracion/auditoria-areas.test.ts",
+    "correccion": "Reemplazar áreas en una transacción con validación previa de códigos y duplicados. Ante error, conservar la asignación completa anterior. Probar también código inexistente y dos ediciones simultáneas.",
+    "criterios": [
+      "CFG-05",
+      "PRD-11",
+      "OBS-09"
+    ]
+  },
+  {
+    "id": "A06",
+    "nivel": "ALTA",
+    "titulo": "La jerarquía de tres niveles omite la restricción de área",
+    "observado": "Se creó METAL_MECANICA → subárea → proceso, con macroárea solo en la raíz. area_planeacion_catalogo devolvió NULL para el proceso y operador_habilitado_area devolvió true para un operador de ACABADOS. La revisión de TypeScript confirmó la misma búsqueda de un solo padre en el tablero y un filtro por código exacto en la terminal PIN; estas variantes de UI no se reprodujeron con tres niveles.",
+    "impacto": "El modelo permite área/subárea/proceso, pero el helper busca un solo padre. La ausencia de macroárea se interpreta como libre acceso.",
+    "fuente": "supabase/migrations/20260921000002_obs14_taxonomia_operadores_areas.sql:143; src/modulos/produccion/servicios/tablero-produccion-servicio.ts:53; src/modulos/ordenes/componentes/control-piso-panel.tsx:76",
+    "evidencia": "invariantes.log (AUDIT_JERARQUIA), helper real ejecutado; no se recorrió la asignación completa en navegador",
+    "correccion": "Resolver ancestros con control de ciclos o exigir macroárea coherente en cada nivel. Probar tres niveles y rechazo del operador ajeno mediante la RPC de asignación e inicio.",
+    "criterios": [
+      "CFG-06",
+      "PRD-11",
+      "OBS-09",
+      "OBS-14",
+      "PRD-02",
+      "OBS-05"
+    ]
+  },
+  {
+    "id": "A07",
+    "nivel": "MEDIA",
+    "titulo": "Clientes y Comercial no se actualizan entre sesiones",
+    "observado": "Dos sesiones independientes de navegador: alta de cliente y oportunidad desde la interfaz en A; persistencia confirmada en BD; B no mostró los cambios después de seis segundos y sí después de recargar.",
+    "impacto": "La persistencia funciona, pero el trabajo compartido en tiempo real no cubre estos módulos. staleTime de cinco minutos no es un intervalo de sondeo; tampoco hay escucha Realtime en sus hooks.",
+    "fuente": "src/modulos/clientes/hooks/usar-clientes.ts:14; src/modulos/pipeline/hooks/usar-pipeline.ts:14; src/app/proveedores.tsx:19",
+    "evidencia": "sincronizacion-resultados.json; clientes-sin-actualizar.png; pipeline-sin-actualizar.png",
+    "correccion": "Añadir invalidación autorizada de consultas de lista y detalle, publicar las tablas necesarias y comprobar alta/edición/retiro entre dos identidades, sin depender de recargas.",
+    "criterios": [
+      "ACC-08",
+      "CLI-01",
+      "RFQ-01",
+      "RFQ-13",
+      "OBS-02",
+      "OBS-03"
+    ]
+  },
+  {
+    "id": "A08",
+    "nivel": "MEDIA",
+    "titulo": "El dashboard escucha tablas ausentes de la publicación Realtime",
+    "observado": "El catálogo PostgreSQL local publica 25 tablas y no incluye pipeline ni cotizacion_lineas, aunque SincronizadorDashboardRealtime se suscribe a ambas. Tampoco publica operadores_areas, agregada en el último bloque.",
+    "impacto": "Los cambios comerciales no pueden generar los eventos esperados por el dashboard en una instalación migrada. Para operadores_areas además faltan consumidores específicos. Verificación estructural; no se midió aquí un cambio de KPI por WebSocket.",
+    "fuente": "src/modulos/dashboard/componentes/sincronizador-dashboard-realtime.tsx:10; supabase/migrations/20260921000002_obs14_taxonomia_operadores_areas.sql",
+    "evidencia": "catalogo-db-local.json; mapa-realtime.json",
+    "correccion": "Reconciliar publicación y suscriptores con todas las tablas que alimentan cada vista. Verificar visibilidad por RLS y recuperación de datos tras reconexión.",
+    "criterios": [
+      "ACC-08",
+      "DAS-01",
+      "DAS-05",
+      "OBS-09"
+    ]
+  },
+  {
+    "id": "A09",
+    "nivel": "MEDIA",
+    "titulo": "La desactivación no corta la lectura directa del pipeline propio",
+    "observado": "Después de desactivar un vendedor en usuarios, su token previamente emitido siguió leyendo una oportunidad propia. La edición directa y guardar_cotizacion_atomica fueron rechazadas.",
+    "impacto": "La aplicación bloquea la sesión, pero la política de lectura acepta vendedor_id=auth.uid sin comprobar activo. No se observó acceso a oportunidades de otro vendedor.",
+    "fuente": "supabase/migrations/20260706000006_endurecer_rls_pipeline_storage.sql; politicas-locales.json (pipeline_seleccionar, cotizacion_lineas_seleccionar)",
+    "evidencia": "seguridad-resultados.json (usuario_desactivado_token_vigente)",
+    "correccion": "Exigir identidad activa también en las ramas de propiedad de RLS y comprobar tokens antiguos tras desactivación; cubrir adjuntos y líneas asociadas.",
+    "criterios": [
+      "ACC-01",
+      "ACC-04"
+    ]
+  },
+  {
+    "id": "A10",
+    "nivel": "MEDIA",
+    "titulo": "Existe una prueba de integración fallida fuera de los controles de CI",
+    "observado": "Suite completa de integración sobre copia aislada de main: 67 correctas y 1 fallida. gastos-acciones.test.ts espera registrar el gasto, pero el mock del cliente no implementa from para obtenerConfiguracionGeneral; lanza TypeError. Los E2E de gastos sí pasan.",
+    "impacto": "Es un defecto de la verificación, no evidencia de que el registro real de gastos falle. CI ejecuta unitarias, E2E y solo concurrencia de integración, por lo que sigue verde.",
+    "fuente": "tests/integracion/gastos-acciones.test.ts:31; tests/integracion/gastos-acciones.test.ts:118; .github/workflows/ci.yml",
+    "evidencia": "integracion.log; integracion-exit.txt; ci-final.json",
+    "correccion": "Actualizar el doble de prueba para representar la lectura de configuración y ejecutar toda integración aislada en CI. Exigir cero fallos y cero omisiones no justificadas.",
+    "criterios": []
+  },
+  {
+    "id": "A11",
+    "nivel": "MEDIA",
+    "titulo": "La suite genérica puede usar producción aunque se exporten variables locales",
+    "observado": "Varios tests leen primero .env.local y solo después process.env. El archivo del repositorio apunta al proyecto remoto. Se evitó el riesgo ejecutando una copia del commit sin .env.local y con credenciales de loopback.",
+    "impacto": "Una ejecución normal de test:integracion desde el repositorio puede insertar o borrar datos de prueba remotos. No se ejecutó esa ruta ni se demostró daño en producción.",
+    "fuente": "tests/integracion/inventario-movimientos.test.ts:13; tests/integracion/pipeline-folios-concurrencia.test.ts:19; supabase/semillas/e2e-local.mjs:10",
+    "evidencia": "copia-aislada; entorno-local.ps1; revisión del orden de carga de entorno",
+    "correccion": "Exigir loopback en todo script mutador de QA y dar prioridad al entorno explícito. Separar configuración remota y de pruebas; bloquear URL externa antes de cualquier escritura.",
+    "criterios": []
+  },
+  {
+    "id": "A12",
+    "nivel": "MEDIA",
+    "titulo": "La documentación de aceptación no sustenta el cierre de todos los requisitos",
+    "observado": "El catálogo tiene 164 filas (134 capacidades y 30 observaciones). cobertura-por-id.md conserva 57 completas/68 parciales/38 ausentes/1 no verificable y 14 E2E; el cierre posterior declara todos los OBS y 24 E2E. La auditoría actual reconcilió individualmente las 164 filas y 41 escenarios: subsisten capacidades ausentes, parciales y variantes no ejecutadas. Los documentos de aceptación del producto no reflejan estas brechas.",
+    "impacto": "No se puede convertir “implementado” ni “24 pruebas verdes” en aceptación integral. Por ejemplo, un mismo escenario tiene variantes de permisos, error, persistencia y concurrencia no necesariamente cubiertas.",
+    "fuente": "docs/aceptacion-funcional-2026-09-19/cobertura-por-id.md:8; docs/aceptacion-funcional-2026-09-19/decisiones-cliente-backlog.md:71",
+    "evidencia": "matriz-164.csv; escenarios-41.csv; referencia-pdf.txt",
+    "correccion": "Reconciliar cada requisito con evidencia de su resultado esperado y cada variante de los 41 escenarios. Mantener separado lo implementado, lo revisado y lo ejecutado.",
+    "criterios": []
+  },
+  {
+    "id": "A13",
+    "nivel": "ALTA",
+    "titulo": "Dos aprobaciones simultáneas superan el límite de crédito",
+    "observado": "La acción real marcarGanadaAccion aprobó dos oportunidades distintas de 80 MXN para un mismo cliente con límite 100, sin autorización de sobregiro. Ambas leyeron la cartera antes de ejecutar su RPC; la AR persistida sumó 160.",
+    "impacto": "El bloqueo por oportunidad evita duplicados de una RFQ, pero no protege el crédito compartido del cliente. La prueba usa una barrera antes de las RPC reales para reproducir el intercalado de dos solicitudes.",
+    "fuente": "src/modulos/pipeline/acciones/marcar-ganada.ts:134-179; supabase/migrations/20260921000001_obs04_estacion_linea_cotizacion.sql",
+    "evidencia": "aprobacion-resultados.json; aprobacion.log; copia-aislada/tests/integracion/auditoria-aprobacion.test.ts",
+    "correccion": "Evaluar y reservar el crédito dentro de la misma transacción que crea la AR, serializando por cliente. Dos oportunidades de 80 con límite 100 deben permitir como máximo una aprobación ordinaria; cubrir sobregiro autorizado e idempotencia.",
+    "criterios": [
+      "CLI-04",
+      "RFQ-16"
+    ]
+  },
+  {
+    "id": "A14",
+    "nivel": "ALTA",
+    "titulo": "Aprobar puede cambiar al cliente seleccionado y eludir su crédito",
+    "observado": "Una oportunidad vinculada explícitamente a un cliente con límite 1 y un nombre comercial diferente se aprobó por 80. La acción ignoró clienteId, volvió a buscar/promover por nombre/correo y creó otro cliente con límite 0. Pipeline y orden quedaron vinculados al cliente nuevo.",
+    "impacto": "Se rompe la conservación de identidad comercial: historia, condiciones y cartera quedan fragmentadas. El gate evalúa el nuevo cliente sin límite en lugar del seleccionado.",
+    "fuente": "src/modulos/pipeline/acciones/marcar-ganada.ts:120-129; src/modulos/pipeline/servicios/promover-a-cliente.ts",
+    "evidencia": "aprobacion-resultados.json; prueba servicio real con Postgres local, autenticación de gerente y clientes reales; mocks limitados a adaptadores de entorno y log",
+    "correccion": "Conservar el clienteId ya seleccionado y comprobar su vigencia/autorización. Promover solo cuando no existe vínculo. Verificar que el ID se conserva en RFQ, orden y AR, incluso con nombre comercial/correo distinto.",
+    "criterios": [
+      "CLI-03",
+      "RFQ-02",
+      "RFQ-03",
+      "RFQ-15",
+      "RFQ-16",
+      "TRA-02",
+      "OBS-02",
+      "OBS-07"
+    ]
+  },
+  {
+    "id": "A15",
+    "nivel": "MEDIA",
+    "titulo": "El desglose repite las horas estimadas al cambiar la tarifa",
+    "observado": "Una programación de 2 horas y dos sesiones de 1 hora, a tarifas históricas 100 y 200, devolvieron dos filas con 2 horas estimadas cada una. Los costos reales 100+200=300 se conservaron correctamente.",
+    "impacto": "El detalle por estación presenta 4 horas estimadas al sumar sus filas, frente a 2 realmente programadas. No es una duplicación del costo histórico, sino de la base para comparar estimado y real.",
+    "fuente": "supabase/migrations/20260921000003_obs29_desglose_ti_periodo.sql:193-220",
+    "evidencia": "probar-tarifas-plazo.sql; tarifas-plazo.log (AUDIT_TARIFAS); transacción revertida",
+    "correccion": "Separar el total estimado por estación de los grupos de tarifa, o distribuirlo sin duplicarlo. Con dos tarifas, las filas deben conservar estimado total 2, real 2 y costo 300.",
+    "criterios": [
+      "OBS-29",
+      "ORD-11"
+    ]
+  },
+  {
+    "id": "A16",
+    "nivel": "MEDIA",
+    "titulo": "La condición crédito vence a 30 días en lugar de 45",
+    "observado": "Cliente con condiciones_pago=credito; aprobación y nota de entrega total reales. La AR activada fijó fecha_vencimiento 30 días después de cobrable_desde. El catálogo AR-04 exige 45 para esta condición; no se encontró decisión posterior que reemplace ese plazo.",
+    "impacto": "El sistema adelanta vencimientos, alertas y cartera vencida quince días respecto al requisito de referencia. Los valores contado/15/30 tienen ramas explícitas, pero credito cae en ELSE 30.",
+    "fuente": "supabase/migrations/20260919000005_d04_ar_al_aprobar_anticipos.sql:412-418; docs/auditoria-funcional-2026-09-13/fuentes/catalogo.csv (AR-04)",
+    "evidencia": "probar-tarifas-plazo.sql; tarifas-plazo.log (AUDIT_PLAZO)",
+    "correccion": "Aplicar 45 días para credito o registrar la decisión de negocio que lo sustituya; comprobar cada condición al entregar y preservar vencimientos históricos.",
+    "criterios": [
+      "AR-04"
+    ]
+  },
+  {
+    "id": "A17",
+    "nivel": "MEDIA",
+    "titulo": "Falta la administración de operadores y PIN desde la aplicación",
+    "observado": "Configuración permite asignar áreas a operadores existentes, pero no crear/retirar operadores ni definir/verificar PIN duplicados. Las acciones de permisos no tienen consumidores de interfaz. El texto pide dar de alta operadores sin ofrecer ese recorrido.",
+    "impacto": "El ciclo de administración de personas de taller queda dependiendo de operaciones externas a la app. Los roles/RLS existentes no sustituyen el CRUD operativo solicitado por CFG-05.",
+    "fuente": "src/modulos/configuracion/componentes/pestana-areas-trabajo.tsx:310-361; src/modulos/configuracion/componentes/operacion-configuracion.tsx:19-26; src/modulos/permisos/acciones/asignar-permiso.ts",
+    "evidencia": "revision-catalogo.md N9; comprobación Codex de componentes, rutas y consumidores; evidencia estática, no prueba fallida de UI",
+    "correccion": "Exponer alta, retiro, asignación y cambio seguro de PIN con permisos administrativos, validación de duplicados y bitácora. Probar revocación con sesiones existentes y protección de hash A01.",
+    "criterios": [
+      "CFG-05"
+    ]
+  },
+  {
+    "id": "A18",
+    "nivel": "MEDIA",
+    "titulo": "La bitácora se guarda pero no puede consultarse en la aplicación",
+    "observado": "Existe TablaLogs y se persisten eventos; ninguna ruta o componente importa esa tabla. Configuración no ofrece pestaña de actividad. La evidencia de E2E consulta logs directamente en BD, no una pantalla del usuario.",
+    "impacto": "La trazabilidad durable existe, pero el administrador no puede realizar el seguimiento funcional requerido por CFG-13/PRD-18 desde el producto.",
+    "fuente": "src/modulos/auditoria/componentes/tabla-logs.tsx:27; src/modulos/configuracion/componentes/operacion-configuracion.tsx:19-26",
+    "evidencia": "revision-catalogo.md N6; búsqueda de TablaLogs en src y revisión de navegación/configuración",
+    "correccion": "Montar una consulta autorizada y paginada de actividad por fecha, actor y registro; probar permisos y enlace al objeto sin exponer datos sensibles.",
+    "criterios": [
+      "CFG-13",
+      "PRD-18"
+    ]
+  },
+  {
+    "id": "A19",
+    "nivel": "MEDIA",
+    "titulo": "El ciclo de gastos no cubre edición, proveedor y reapertura del comprobante",
+    "observado": "La tabla ofrece cambiar a pagado/cancelado y rentabilidad, pero no editar el gasto ni reabrir su comprobante. El formulario no ofrece selector de proveedor y la tabla muestra proveedorId como UUID. No hay tipo fijo/variable ni filtro por proveedor/IVA.",
+    "impacto": "Registrar y pagar funciona en las pruebas, pero no completa el CRUD y consulta definidos en GAS-01/02/06/07/09. El OCR con stub no resuelve el acceso posterior al documento guardado.",
+    "fuente": "src/modulos/gastos/componentes/tabla-gastos.tsx:65-91; src/modulos/gastos/componentes/modal-registrar-gasto.tsx:239-276; src/modulos/gastos/componentes/operacion-gastos.tsx:206-236",
+    "evidencia": "revision-catalogo.md; inspección Codex de tabla/formulario/acciones; gastos-ocr y gastos-rentabilidad verifican solo los recorridos existentes",
+    "correccion": "Completar edición con política según estado, selección/nombre de proveedor, filtros y acceso autorizado al comprobante persistido. Verificar cancelación de edición, efecto contable, históricos y permisos.",
+    "criterios": [
+      "GAS-01",
+      "GAS-02",
+      "GAS-06",
+      "GAS-07",
+      "GAS-09"
+    ]
+  },
+  {
+    "id": "A20",
+    "nivel": "MEDIA",
+    "titulo": "Quedan capacidades funcionales de órdenes, taller y cartera sin cubrir",
+    "observado": "La reconciliación por ID localizó ausencias de repetición de trabajos, ingreso heredado, resumen/comparativa de órdenes, historial/reanudación/reactivación del taller, cola de trabajos sin planificar, acciones desde calendario, alta manual de CxC, tratamiento heredado y anulación/corrección financiera. La AR automática nace sin folio_factura_remision; sí se puede buscar por orden/cliente.",
+    "impacto": "El cierre histórico de observaciones no demuestra cobertura del catálogo completo. Algunas funciones tienen reemplazos válidos documentados, que se separaron de estas brechas; no se exige edición de una cotización inmutable ni doble descuento de inventario.",
+    "fuente": "matriz-164.csv y escenarios-41.csv; src/modulos/ordenes/servicios/reglas-transicion.ts; src/modulos/planeacion/componentes/operacion-planeacion.tsx; src/modulos/cobranza/componentes/operacion-cobranza.tsx; supabase/migrations/20260919000005_d04_ar_al_aprobar_anticipos.sql:341-349",
+    "evidencia": "Segunda revisión Claude de 164 filas y reconciliación Codex; ausencias estáticas, no resultados de pruebas que no pudieron ejecutarse; folio nulo observado en tarifas-plazo.log",
+    "correccion": "Resolver cada fila ausente/parcial del catálogo mediante implementación o sustitución de alcance expresamente documentada, conservando el resultado de negocio. Adjuntar después evidencia de sus variantes, no solo botones o tests relacionados.",
+    "criterios": [
+      "CLI-08",
+      "ORD-02",
+      "ORD-06",
+      "ORD-07",
+      "ORD-11",
+      "PRD-06",
+      "PRD-09",
+      "PRD-15",
+      "PRD-17",
+      "PLA-05",
+      "PLA-06",
+      "AR-01",
+      "AR-02",
+      "AR-08",
+      "AR-09",
+      "AR-16",
+      "CFG-04",
+      "CFG-12"
+    ]
+  }
+]

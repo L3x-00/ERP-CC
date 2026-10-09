@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  filaACanal,
   filaAEspesor,
   filaAGrupoEquipo,
   filaAMaterial,
@@ -81,6 +82,39 @@ describe('mappers defensivos de catálogos', () => {
       creado_en: '2026-10-05T00:00:00.000Z',
     });
     expect(accion.esOtro).toBe(true);
+  });
+
+  it('mapea canales RFQ con su marca de "Otro" (DC-02)', () => {
+    const otro = filaACanal({
+      id: 'c1',
+      codigo: 'OTRO',
+      nombre: 'Otro',
+      es_otro: true,
+      activo: true,
+      orden: 60,
+      creado_en: '2026-10-08T00:00:00.000Z',
+    });
+    expect(otro).toEqual({
+      id: 'c1',
+      codigo: 'OTRO',
+      nombre: 'Otro',
+      esOtro: true,
+      activo: true,
+      orden: 60,
+      creadoEn: '2026-10-08T00:00:00.000Z',
+    });
+
+    const inactivo = filaACanal({
+      id: 'c2',
+      codigo: 'FAX',
+      nombre: 'Fax',
+      es_otro: false,
+      activo: false,
+      orden: 70,
+      creado_en: '2026-10-08T00:00:00.000Z',
+    });
+    expect(inactivo.esOtro).toBe(false);
+    expect(inactivo.activo).toBe(false);
   });
 
   it('mapea versiones y protege snapshots no-objeto', () => {

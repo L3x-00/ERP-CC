@@ -22,6 +22,7 @@ import {
 } from '@/compartido/componentes/diseno/tabla';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { Rfq, RfqItem } from '@/modulos/rfq/tipos/indice';
+import { esDefinicionRfqEditable, motivoDefinicionRfqBloqueada } from '@/modulos/rfq/utilidades/estados';
 
 import { cancelarItemRfqAccion } from '../acciones/cancelar-item-rfq';
 import { guardarItemRfqAccion } from '../acciones/guardar-item-rfq';
@@ -82,11 +83,7 @@ export function TablaItemsRfq({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  const editable =
-    rfq.estadoRfq === 'NEW' ||
-    rfq.estadoRfq === 'INCOMPLETE' ||
-    rfq.estadoRfq === 'WAITING_CUSTOMER' ||
-    rfq.estadoRfq === 'WAITING_TECHNICAL';
+  const editable = esDefinicionRfqEditable(rfq.estadoRfq);
 
   const nombreMaterial = useMemo(
     () => new Map((catalogos?.materiales ?? []).map((m) => [m.id, m.nombre])),
@@ -193,7 +190,7 @@ export function TablaItemsRfq({
 
       {!editable && (
         <p className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
-          El RFQ no admite cambios de ítems en su estado actual.
+          {motivoDefinicionRfqBloqueada(rfq.estadoRfq)}
         </p>
       )}
 
@@ -339,23 +336,44 @@ export function TablaItemsRfq({
                   ))}
                 </Select>
               </label>
-              {espesoresDelMaterial.length > 0 && (
-                <label className="grid gap-1 text-sm font-medium" htmlFor="item-espesor">
+              <div className="grid gap-1 text-sm">
+                <label className="font-medium" htmlFor="item-espesor">
                   Espesor
-                  <Select
-                    id="item-espesor"
-                    value={borrador.espesorId}
-                    onChange={(evento) => setBorrador({ ...borrador, espesorId: evento.target.value })}
-                  >
-                    <option value="">Selecciona un espesor</option>
-                    {espesoresDelMaterial.map((espesor) => (
-                      <option key={espesor.id} value={espesor.id}>
-                        {espesor.etiqueta}
-                      </option>
-                    ))}
-                  </Select>
                 </label>
-              )}
+                <Select
+                  id="item-espesor"
+                  value={borrador.espesorId}
+                  disabled={!borrador.materialId || espesoresDelMaterial.length === 0}
+                  aria-describedby={
+                    !borrador.materialId || espesoresDelMaterial.length === 0
+                      ? 'item-espesor-ayuda'
+                      : undefined
+                  }
+                  onChange={(evento) =>
+                    setBorrador({ ...borrador, espesorId: evento.target.value })
+                  }
+                >
+                  <option value="">
+                    {!borrador.materialId
+                      ? 'Selecciona un material primero'
+                      : espesoresDelMaterial.length === 0
+                        ? 'Sin espesores configurados'
+                        : 'Selecciona un espesor'}
+                  </option>
+                  {espesoresDelMaterial.map((espesor) => (
+                    <option key={espesor.id} value={espesor.id}>
+                      {espesor.etiqueta}
+                    </option>
+                  ))}
+                </Select>
+                {(!borrador.materialId || espesoresDelMaterial.length === 0) && (
+                  <span id="item-espesor-ayuda" className="text-xs text-texto-secundario">
+                    {borrador.materialId
+                      ? 'Este material no tiene espesores configurados.'
+                      : 'Selecciona un material para ver sus espesores.'}
+                  </span>
+                )}
+              </div>
               <fieldset className="grid gap-1 rounded-md border border-borde p-2">
                 <legend className="px-1 text-sm font-medium">Operaciones solicitadas</legend>
                 <div className="flex flex-wrap gap-2">

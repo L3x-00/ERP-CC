@@ -1,6 +1,6 @@
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 
 /** Módulo de auditoría de todos los catálogos base. */
 export const MODULO_CATALOGOS = 'catalogos';
@@ -26,6 +26,9 @@ export function mensajeErrorCatalogo(error: unknown): string {
     return 'Ya existe un registro con ese código o combinación';
   }
   if (codigo === '23503') return 'La referencia seleccionada no existe';
+  if (detalle.includes('codigo_canal_inmutable')) {
+    return 'El código del canal es estable; crea otro canal si necesitas un código distinto';
+  }
   if (codigo === '23514') return 'Los datos no cumplen una regla del catálogo';
   if (detalle.includes('catalogo_sin_borrado')) return 'Los catálogos no se borran: usa activo/inactivo';
   if (detalle.includes('catalogo_no_encontrado')) return 'El registro ya no existe';
@@ -43,15 +46,16 @@ export async function ejecutarAccionCatalogo<T>(
   ejecutar: () => Promise<T>,
   detalles: Record<string, unknown> = {},
 ): Promise<RespuestaAccion<T>> {
+  const correlationId = nuevoCorrelationId();
   try {
     const datos = await ejecutar();
-    await registrarLog(usuario, accion, MODULO_CATALOGOS, recursoId, detalles);
+    await registrarLog(usuario, accion, MODULO_CATALOGOS, recursoId, detalles, correlationId);
     return { exito: true, datos };
   } catch (error) {
     console.error(`[CATALOGOS] ${accion}:`, error);
     await registrarLog(usuario, `${accion}_rechazada`, MODULO_CATALOGOS, recursoId, {
       codigo: codigoPostgres(error) ?? 'error_servicio_catalogos',
-    });
+    }, correlationId);
     return { exito: false, error: mensajeErrorCatalogo(error) };
   }
 }

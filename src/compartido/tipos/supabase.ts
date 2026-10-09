@@ -2460,6 +2460,7 @@ export type Database = {
         Row: {
           actualizado_en: string
           canal: string | null
+          canal_detalle: string | null
           cliente_id: string | null
           condiciones_pago: string | null
           contacto_id: string | null
@@ -2502,6 +2503,7 @@ export type Database = {
         Insert: {
           actualizado_en?: string
           canal?: string | null
+          canal_detalle?: string | null
           cliente_id?: string | null
           condiciones_pago?: string | null
           contacto_id?: string | null
@@ -2544,6 +2546,7 @@ export type Database = {
         Update: {
           actualizado_en?: string
           canal?: string | null
+          canal_detalle?: string | null
           cliente_id?: string | null
           condiciones_pago?: string | null
           contacto_id?: string | null
@@ -2815,6 +2818,7 @@ export type Database = {
           notas: string | null
           precio_unitario: number
           revision_id: string
+          revision_origen_id: string
           rfq_item_id: string | null
         }
         Insert: {
@@ -2832,6 +2836,7 @@ export type Database = {
           notas?: string | null
           precio_unitario?: number
           revision_id: string
+          revision_origen_id?: string
           rfq_item_id?: string | null
         }
         Update: {
@@ -2849,6 +2854,7 @@ export type Database = {
           notas?: string | null
           precio_unitario?: number
           revision_id?: string
+          revision_origen_id?: string
           rfq_item_id?: string | null
         }
         Relationships: [
@@ -2869,6 +2875,13 @@ export type Database = {
           {
             foreignKeyName: "propuesta_items_revision_id_fkey"
             columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_items_revision_origen_fkey"
+            columns: ["revision_origen_id"]
             isOneToOne: false
             referencedRelation: "propuesta_revisiones"
             referencedColumns: ["id"]
@@ -3785,6 +3798,57 @@ export type Database = {
           },
         ]
       }
+      rfq_versiones: {
+        Row: {
+          actor_id: string | null
+          causa: string
+          correlation_id: string | null
+          creado_en: string
+          id: string
+          numero: number
+          rfq_id: string
+          snapshot_cabecera: Json
+          snapshot_items: Json
+        }
+        Insert: {
+          actor_id?: string | null
+          causa: string
+          correlation_id?: string | null
+          creado_en?: string
+          id?: string
+          numero: number
+          rfq_id: string
+          snapshot_cabecera: Json
+          snapshot_items: Json
+        }
+        Update: {
+          actor_id?: string | null
+          causa?: string
+          correlation_id?: string | null
+          creado_en?: string
+          id?: string
+          numero?: number
+          rfq_id?: string
+          snapshot_cabecera?: Json
+          snapshot_items?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfq_versiones_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfq_versiones_rfq_id_fkey"
+            columns: ["rfq_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sesiones_trabajo: {
         Row: {
           actualizado_en: string
@@ -3936,6 +4000,36 @@ export type Database = {
           pin_operador?: string | null
           rol?: string
           ultimo_login_at?: string | null
+        }
+        Relationships: []
+      }
+      catalogo_canales: {
+        Row: {
+          activo: boolean
+          codigo: string
+          creado_en: string
+          es_otro: boolean
+          id: string
+          nombre: string
+          orden: number
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          creado_en?: string
+          es_otro?: boolean
+          id?: string
+          nombre: string
+          orden?: number
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          creado_en?: string
+          es_otro?: boolean
+          id?: string
+          nombre?: string
+          orden?: number
         }
         Relationships: []
       }
@@ -4822,13 +4916,20 @@ export type Database = {
         }[]
       }
       actualizar_permisos_rol: {
-        Args: { p_actor_id: string; p_permisos: string[]; p_rol: string }
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_permisos: string[]
+          p_permisos_esperados: string[]
+          p_rol: string
+        }
         Returns: number
       }
       cambiar_estado_usuario: {
         Args: {
           p_activo: boolean
           p_actor_id: string
+          p_correlation_id?: string
           p_motivo: string
           p_usuario_id: string
         }
@@ -4837,6 +4938,7 @@ export type Database = {
       cambiar_rol_usuario: {
         Args: {
           p_actor_id: string
+          p_correlation_id?: string
           p_motivo: string
           p_rol: string
           p_usuario_id: string
@@ -5433,6 +5535,15 @@ export type Database = {
           entidad_id: string
         }[]
       }
+      registrar_version_rfq: {
+        Args: {
+          p_actor_id: string
+          p_causa: string
+          p_correlation_id?: string
+          p_rfq_id: string
+        }
+        Returns: number
+      }
       registrar_saldo_inicial: {
         Args: {
           p_actor_id: string
@@ -5660,6 +5771,15 @@ export type Database = {
           p_actor: string
           p_actualizado_en: string
           p_correlation_id?: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      agregar_item_propuesta: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
           p_revision_id: string
         }
         Returns: Json

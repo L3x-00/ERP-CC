@@ -45,7 +45,7 @@ export function TablaOportunidades({
             <TablaEncabezadoCelda>Próxima acción</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Responsable</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Orden</TablaEncabezadoCelda>
-            <TablaEncabezadoCelda className="text-right">Abrir</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda className="text-right">Acción</TablaEncabezadoCelda>
           </tr>
         </TablaEncabezado>
         <TablaCuerpo>
@@ -53,6 +53,9 @@ export function TablaOportunidades({
             const prioridad = ESTILO_PRIORIDAD[oportunidad.prioridad];
             const vencida = proximaAccionVencida(oportunidad, hoy);
             const folio = oportunidad.folioRfq ?? oportunidad.folioCnc ?? oportunidad.folioOp;
+            // DC-03: un alta interrumpida se reanuda sobre el MISMO RFQ, nunca
+            // clonándolo ni generando otro folio.
+            const incompleto = oportunidad.estadoRfq === 'INCOMPLETE';
             return (
               <TablaFila key={oportunidad.id}>
                 <TablaCelda className="font-mono text-xs">{folio}</TablaCelda>
@@ -95,10 +98,10 @@ export function TablaOportunidades({
                 </TablaCelda>
                 <TablaCelda className="text-right">
                   <Link
-                    href={`/rfq?rfq=${oportunidad.id}`}
+                    href={`/rfq?rfq=${oportunidad.id}${incompleto ? '&continuar=1' : ''}`}
                     className="text-xs font-semibold text-acento hover:underline"
                   >
-                    Abrir
+                    {incompleto ? 'Continuar captura' : 'Abrir'}
                   </Link>
                 </TablaCelda>
               </TablaFila>

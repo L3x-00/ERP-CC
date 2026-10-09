@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
+
 import { ACCIONES_RFQ } from '../tipos/indice';
 
 const escalaDosDecimales = (valor: number): boolean =>
@@ -38,19 +40,41 @@ export const esquemaGuardarItemRfq = z
     { message: 'Indica el RFQ (alta) o el ítem con su token de actualización (edición)' },
   );
 
+/** Próxima acción que acompaña una transición no terminal (C2.2/DC-06). */
+export const esquemaProximaAccionTransicion = z
+  .object({
+    codigo: z.string().trim().min(1, 'Elige la próxima acción').max(50),
+    texto: z.string().trim().max(300).optional(),
+    fecha: z.iso.date({ message: 'Indica la fecha de la próxima acción' }),
+    responsableId: z.uuid({ message: 'Elige el responsable de la próxima acción' }),
+  })
+  .strict();
+
+const ACCIONES_TERMINALES_RFQ = ['cerrar', 'cancelar'] as const;
+
+/** Las transiciones terminales piden motivo; el resto, la próxima acción. */
+export function esAccionTerminalRfq(accion: (typeof ACCIONES_RFQ)[number]): boolean {
+  return (ACCIONES_TERMINALES_RFQ as readonly string[]).includes(accion);
+}
+
 /** Entrada de `cambiarEstadoRfqAccion`. */
 export const esquemaCambiarEstadoRfq = z
   .object({
     rfqId: z.uuid(),
     accion: z.enum(ACCIONES_RFQ),
     motivo: z.string().trim().min(3).max(300).optional(),
+    proximaAccion: esquemaProximaAccionTransicion.optional(),
     actualizadoEn: z.iso.datetime({ offset: true }),
   })
   .strict()
-  .refine(
-    (entrada) => !(entrada.accion === 'cerrar' || entrada.accion === 'cancelar') || Boolean(entrada.motivo),
-    { message: 'El motivo es obligatorio', path: ['motivo'] },
-  );
+  .refine((entrada) => !esAccionTerminalRfq(entrada.accion) || Boolean(entrada.motivo), {
+    message: 'El motivo es obligatorio',
+    path: ['motivo'],
+  })
+  .refine((entrada) => esAccionTerminalRfq(entrada.accion) || Boolean(entrada.proximaAccion), {
+    message: 'Indica la próxima acción',
+    path: ['proximaAccion'],
+  });
 
 /** Entrada de `cancelarItemRfqAccion`. */
 export const esquemaCancelarItemRfq = z
@@ -77,7 +101,8 @@ export const esquemaDatosGeneralesRfq = z
   .object({
     rfqId: z.uuid(),
     actualizadoEn: z.iso.datetime({ offset: true }),
-    canal: z.string().trim().max(80).nullish(),
+    canal: z.string().trim().max(49).nullish(),
+    canalDetalle: z.string().trim().max(300).nullish(),
     fechaSolicitud: fechaDia.nullish(),
     descripcionGeneral: z.string().trim().max(2000).nullish(),
     contactoId: z.uuid().nullish(),
@@ -96,23 +121,34 @@ export const esquemaDatosGeneralesRfq = z
   );
 
 /** Entrada de subida de archivo del RFQ (general o por ítem). */
-export const esquemaSubirArchivoRfq = z
-  .object({
-    rfqId: z.uuid(),
-    itemId: z.uuid().optional(),
-    clase: z.enum(['CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS']),
-  })
+const destinoArchivoRfq = {
+  rfqId: z.uuid(),
+  itemId: z.uuid().optional(),
+  clase: z.enum(['CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS']),
+  nombre: z.string().trim().min(1).max(250),
+};
+
+/** Metadatos para preparar la subida directa (H-B1-29): el binario no pasa por la acción. */
+export const esquemaPrepararArchivoRfq = z
+  .object({ ...destinoArchivoRfq, ...camposPrepararSubida })
+  .strict();
+
+/** Confirmación de una subida directa ya completada en Storage. */
+export const esquemaConfirmarArchivoRfq = z
+  .object({ ...destinoArchivoRfq, ...campoRutaSubida })
   .strict();
 
 /** Entrada de lectura de archivos del RFQ. */
 export const esquemaListarArchivosRfq = z.object({ rfqId: z.uuid() }).strict();
 
 /** Entrada para firmar la lectura de un archivo. */
-export const esquemaFirmarArchivoRfq = z.object({ archivoId: z.uuid() }).strict();
+export const esquemaFirmarArchivoRfq = z.object({ rfqId: z.uuid(), archivoId: z.uuid() }).strict();
 
 export type DatosGeneralesRfqInput = z.infer<typeof esquemaDatosGeneralesRfq>;
-export type SubirArchivoRfqInput = z.infer<typeof esquemaSubirArchivoRfq>;
+export type PrepararArchivoRfqInput = z.infer<typeof esquemaPrepararArchivoRfq>;
+export type ConfirmarArchivoRfqInput = z.infer<typeof esquemaConfirmarArchivoRfq>;
 
 export type DatosItemRfqInput = z.infer<typeof esquemaDatosItemRfq>;
 export type GuardarItemRfqInput = z.infer<typeof esquemaGuardarItemRfq>;
 export type CambiarEstadoRfqInput = z.infer<typeof esquemaCambiarEstadoRfq>;
+export type ProximaAccionTransicionInput = z.infer<typeof esquemaProximaAccionTransicion>;

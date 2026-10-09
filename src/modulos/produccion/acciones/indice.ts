@@ -6,7 +6,11 @@ export { obtenerTableroProduccionAccion } from '@/modulos/produccion/acciones/ob
 export { obtenerDocumentosOrdenAccion } from '@/modulos/produccion/acciones/obtener-documentos-orden';
 export type { EntregablesOrden } from '@/modulos/produccion/acciones/obtener-documentos-orden';
 export { obtenerUrlDocumentoOrdenAccion } from '@/modulos/produccion/acciones/obtener-url-documento-orden';
-export { subirDocumentoOrdenAccion } from '@/modulos/produccion/acciones/subir-documento-orden';
+export {
+  confirmarDocumentoOrdenAccion,
+  descartarDocumentoOrdenAccion,
+  prepararDocumentoOrdenAccion,
+} from '@/modulos/produccion/acciones/subir-documento-orden';
 export { obtenerDocumentoNotaEntregaAccion } from '@/modulos/produccion/acciones/obtener-documento-nota-entrega';
 export { crearCorridaAccion } from '@/modulos/produccion/acciones/crear-corrida';
 export {
@@ -25,6 +29,10 @@ export {
   obtenerCorridasOrdenAccion,
   obtenerInspeccionesOrdenAccion,
   obtenerRecursosLiberablesAccion,
-  subirFotoInspeccionAccion,
 } from '@/modulos/produccion/acciones/consultas-b6';
+export {
+  confirmarFotoInspeccionAccion,
+  descartarFotoInspeccionAccion,
+  prepararFotoInspeccionAccion,
+} from '@/modulos/produccion/acciones/subir-foto-inspeccion';
 export type { CatalogosPiso } from '@/modulos/produccion/acciones/consultas-b6';
