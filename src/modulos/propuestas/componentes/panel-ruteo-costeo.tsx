@@ -27,6 +27,7 @@ type FilaRuteoBorrador = {
   procesoId: string;
   grupoEquipoId: string;
   grupoPlaneadoId: string;
+  recursoId: string;
   setupHoras: string;
   runHoras: string;
 };
@@ -70,6 +71,7 @@ export function PanelRuteoCosteo({
         procesoId: fila.procesoId,
         grupoEquipoId: fila.grupoEquipoId ?? '',
         grupoPlaneadoId: fila.grupoPlaneadoId ?? '',
+        recursoId: fila.recursoId ?? '',
         setupHoras: String(fila.setupHoras),
         runHoras: String(fila.runHoras),
       }));
@@ -124,6 +126,7 @@ export function PanelRuteoCosteo({
         procesoId: fila.procesoId,
         grupoEquipoId: fila.grupoEquipoId || null,
         grupoPlaneadoId: fila.grupoPlaneadoId || null,
+        recursoId: fila.recursoId || null,
         setupHoras: Number(fila.setupHoras) || 0,
         runHoras: Number(fila.runHoras) || 0,
       })),
@@ -235,7 +238,7 @@ export function PanelRuteoCosteo({
                     value={fila.grupoEquipoId}
                     onChange={(evento) => {
                       const copia = [...filas];
-                      copia[indice] = { ...fila, grupoEquipoId: evento.target.value };
+                      copia[indice] = { ...fila, grupoEquipoId: evento.target.value, recursoId: '' };
                       actualizarFilas(item.id, copia);
                     }}
                     disabled={!esBorrador || !permisos.editarRuteo}
@@ -247,6 +250,25 @@ export function PanelRuteoCosteo({
                         {grupo.sinTarifa ? `${grupo.nombre} (sin tarifa)` : grupo.nombre}
                       </option>
                     ))}
+                  </Select>
+                  <Select
+                    value={fila.recursoId}
+                    onChange={(evento) => {
+                      const copia = [...filas];
+                      copia[indice] = { ...fila, recursoId: evento.target.value };
+                      actualizarFilas(item.id, copia);
+                    }}
+                    disabled={!esBorrador || !permisos.editarRuteo || !fila.grupoEquipoId}
+                    aria-label={`Máquina ${item.codigo} fila ${indice + 1}`}
+                  >
+                    <option value="">Máquina (tarifa del grupo)</option>
+                    {(catalogos?.recursos ?? [])
+                      .filter((recurso) => recurso.grupoEquipoId === fila.grupoEquipoId)
+                      .map((recurso) => (
+                        <option key={recurso.id} value={recurso.id}>
+                          {recurso.nombre}
+                        </option>
+                      ))}
                   </Select>
                   <Select
                     value={fila.grupoPlaneadoId}
@@ -326,6 +348,7 @@ export function PanelRuteoCosteo({
                           procesoId: '',
                           grupoEquipoId: '',
                           grupoPlaneadoId: '',
+                          recursoId: '',
                           setupHoras: '0',
                           runHoras: '0',
                         },

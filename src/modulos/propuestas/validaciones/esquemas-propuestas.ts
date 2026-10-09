@@ -100,6 +100,8 @@ const filaRuteo = z
     procesoId: uuid,
     grupoEquipoId: uuid.nullable().optional(),
     grupoPlaneadoId: uuid.nullable().optional(),
+    /** C3.3: máquina opcional del mismo grupo (usa su tarifa propia si la tiene). */
+    recursoId: uuid.nullable().optional(),
     setupHoras: z.number().nonnegative().max(10_000).default(0),
     runHoras: z.number().nonnegative().max(100_000).default(0),
   })

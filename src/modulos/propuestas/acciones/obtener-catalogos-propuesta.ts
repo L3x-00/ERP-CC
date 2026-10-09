@@ -9,6 +9,8 @@ export type CatalogosPropuesta = {
   /** `sinTarifa`: el grupo no tiene tarifa por hora (C3.2); nunca se expone el monto. */
   gruposEquipo: { id: string; codigo: string; nombre: string; sinTarifa: boolean }[];
   gruposPlaneados: { id: string; codigo: string; nombre: string }[];
+  /** Máquinas activas para el ruteo (C3.3); nunca incluye costos. */
+  recursos: { id: string; nombre: string; grupoEquipoId: string | null }[];
   proximasAcciones: { codigo: string; nombre: string; esOtro: boolean }[];
   /** C3.1: materiales activos para el alta de un ítem propio de la revisión. */
   materiales: { id: string; codigo: string; nombre: string }[];
@@ -33,6 +35,14 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
 
   const { crearClienteSupabaseServidor } = await import('@/nucleo/supabase/servidor');
   const servidor = await crearClienteSupabaseServidor();
+
+  // Solo columnas no financieras: la tarifa o el costo de la máquina no viajan.
+  const { crearClienteSupabaseAdmin } = await import('@/nucleo/supabase/admin');
+  const recursos = await crearClienteSupabaseAdmin()
+    .from('recursos_planeacion')
+    .select('id, nombre, grupo_equipo_id')
+    .eq('activo', true)
+    .order('codigo');
 
   const [procesos, gruposEquipo, gruposPlaneados, acciones, materiales, espesores] =
     await Promise.all([
@@ -86,6 +96,11 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         id: fila.id,
         codigo: fila.codigo,
         nombre: fila.nombre,
+      })),
+      recursos: (recursos.data ?? []).map((fila) => ({
+        id: fila.id,
+        nombre: fila.nombre,
+        grupoEquipoId: fila.grupo_equipo_id,
       })),
       proximasAcciones: (acciones.data ?? []).map((fila) => ({
         codigo: fila.codigo,

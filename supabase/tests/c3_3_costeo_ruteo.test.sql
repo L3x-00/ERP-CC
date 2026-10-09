@@ -6,7 +6,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(14);
+SELECT plan(16);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000c3301', 'c33-admin@prueba.local'),
@@ -125,7 +125,38 @@ SELECT is(
    JOIN public.propuesta_items AS i ON i.id = rt.item_id WHERE i.revision_id = (SELECT revision_id FROM c33)),
   'RECURSO', 'el renglón registra la fuente RECURSO');
 
--- 14. Privilegios
+-- 14-15. La máquina del renglón se elige al editar el ruteo (mismo grupo)
+INSERT INTO public.grupos_equipo (id, codigo, nombre)
+VALUES ('00000000-0000-4000-8000-0000000c3312', 'C33DOBLEZ', 'Doblez C33');
+INSERT INTO public.recursos_planeacion (id, codigo, area, nombre, grupo_equipo_id)
+VALUES ('00000000-0000-4000-8000-0000000c3313', 'C33-D1', 'sheet_metal', 'Dobladora C33',
+        '00000000-0000-4000-8000-0000000c3312');
+CREATE TEMP TABLE c33_ruteo ON COMMIT DROP AS
+SELECT i.id AS item_id, rt.proceso_id, r.actualizado_en
+FROM public.propuesta_items AS i
+JOIN public.propuesta_item_ruteo AS rt ON rt.item_id = i.id
+JOIN public.propuesta_revisiones AS r ON r.id = i.revision_id
+WHERE i.revision_id = (SELECT revision_id FROM c33);
+SELECT throws_ok(
+  format($$SELECT public.editar_ruteo_item(%L, %L::jsonb, %L)$$,
+    (SELECT item_id FROM c33_ruteo),
+    jsonb_build_object('actualizado_en', (SELECT actualizado_en FROM c33_ruteo), 'filas', jsonb_build_array(
+      jsonb_build_object('proceso_id', (SELECT proceso_id FROM c33_ruteo),
+        'grupo_equipo_id', '00000000-0000-4000-8000-0000000c3310',
+        'recurso_id', '00000000-0000-4000-8000-0000000c3313', 'setup_horas', 1, 'run_horas', 1))),
+    '00000000-0000-4000-8000-0000000c3301'),
+  '22023', 'recurso_grupo_distinto', 'la máquina debe pertenecer al grupo del renglón');
+SELECT lives_ok(
+  format($$SELECT public.editar_ruteo_item(%L, %L::jsonb, %L)$$,
+    (SELECT item_id FROM c33_ruteo),
+    jsonb_build_object('actualizado_en', (SELECT actualizado_en FROM c33_ruteo), 'filas', jsonb_build_array(
+      jsonb_build_object('proceso_id', (SELECT proceso_id FROM c33_ruteo),
+        'grupo_equipo_id', '00000000-0000-4000-8000-0000000c3310',
+        'recurso_id', '00000000-0000-4000-8000-0000000c3311', 'setup_horas', 1, 'run_horas', 1))),
+    '00000000-0000-4000-8000-0000000c3301'),
+  'guarda la máquina del mismo grupo en el renglón');
+
+-- 16. Privilegios
 SELECT ok(
   NOT has_function_privilege('authenticated', 'public.costear_ruteo_revision(uuid, uuid, uuid)', 'EXECUTE'),
   'authenticated no ejecuta el costeo');

@@ -42,6 +42,29 @@
 | 2026-10-07 | Entregables y lock de Skills versionados a pedido del PO | `356d275` (auditoría global 2026-09-22 + informe hito 4) y `3866ec7` (`skills-lock.json`) |
 | 2026-10-07 ~16:15 | **Pausa de control del PO** | Nueva tarea prioritaria: observaciones del cliente, que corrigió su documento a partir de observaciones. La auditoría queda congelada aquí |
 
+## Punto de control 2026-10-09 — observaciones del cliente (trabajo activo; la auditoría B1–B9 sigue en pausa)
+
+Uso semanal al registrar: 90 % (reinicio 2026-10-13 04:00). Rama `feature/observaciones-cliente`.
+
+- **Fusionado a `main` por el PO:**
+  - PR #31: P0, C1, C2, C3.1 y correcciones de CI.
+  - PR #32: C3.2 tarifas y `docs/CUELLOS-DE-BOTELLA.md`.
+- **PR #33 (abierto):**
+  - C3.3: costeo de ruteo congelado sin doble conteo (`3f44551`).
+  - C3.3b: máquina por renglón, en el commit siguiente de esta misma rama.
+- **Migraciones para aplicar en remoto con el despliegue del PR #33, en orden:**
+  1. `20261009160000_c3_3_snapshot_costeo_ruteo.sql`
+  2. `20261009170000_c3_3b_recurso_en_ruteo.sql`
+
+  Las anteriores (hasta `20261009140000`) las aplicó el PO a mano. El historial `supabase_migrations` remoto no las refleja: no usar `db push` sin `migration repair` (ver `docs/CUELLOS-DE-BOTELLA.md`).
+- **Siguiente:** C4.1, aceptación durable y «Orden pendiente».
+  - `crear_orden_desde_revision` exige `orden_liberar`, que el comercial no tiene. Definir si la Orden se crea con el actor que acepta o por un proceso con permiso propio, antes de escribir la solicitud única (`PENDING/BLOCKED/CREATED`) y el reintento idempotente.
+  - Separar `fecha_compromiso_comercial` (contrato §3.1/§6).
+- **Pendientes menores:**
+  - Revisión financiera del costeo C3.3.
+  - Conversión de moneda en el costeo (hoy se bloquea con `tarifa_moneda_distinta`).
+  - Riesgo para C4.3: `recursos_planeacion.costo_hora_interno` es legible con `ver_planeacion`.
+
 ## Remoto verificado 2026-10-08 (`supabase migration list --linked`, solo lectura)
 
 El historial remoto termina en `20260912000001`. Faltan **108** versiones locales en ese historial: desde `20260914044042` hasta `20261008170000`. Antes de `db push`: comprobar si alguna se aplicó a mano por SQL Editor (objetos existentes sin fila en el historial) y, en ese caso, reconciliarla con `supabase migration repair --status applied <versión> --linked`. Aplicar junto con el despliegue del código de `feature/observaciones-cliente`. Pausa por límite de uso (97 %).
