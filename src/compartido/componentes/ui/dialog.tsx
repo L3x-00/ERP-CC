@@ -7,7 +7,8 @@ import { cn } from '@/compartido/utilidades/cn';
 /**
  * Diálogo modal accesible (shadcn/ui sobre Radix). Overlay atenuado con blur,
  * foco atrapado, cierre con Esc, superficie del sistema y entrada animada
- * (respeta `prefers-reduced-motion`). El pie puede fijarse con `DialogFooter`.
+ * (respeta `prefers-reduced-motion`). El pie de acciones fluye al final sin
+ * tapar los campos.
  */
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -46,14 +47,11 @@ export function DialogHeader({ className, ...props }: ComponentProps<'div'>) {
   return <div className={cn('flex flex-col gap-1 pr-8', className)} {...props} />;
 }
 
-/** Pie de acciones; se mantiene visible al hacer scroll del contenido. */
+/** Pie de acciones; fluye con el contenido y nunca se solapa con los campos. */
 export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
-      className={cn(
-        'sticky bottom-0 -mx-6 -mb-6 flex flex-wrap justify-end gap-2 border-t border-borde bg-superficie px-6 py-4',
-        className,
-      )}
+      className={cn('flex flex-wrap justify-end gap-2 border-t border-borde pt-4', className)}
       {...props}
     />
   );

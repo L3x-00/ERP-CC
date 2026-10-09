@@ -3,23 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/compartido/utilidades/cn';
-import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
 import { usarTiendaUI } from '@/estado/tienda-ui';
-import { cerrarSesionAccion } from '@/modulos/autenticacion/acciones/cerrar-sesion';
 import { Icono } from './iconos';
 import { ORDEN_GRUPOS, type ModuloNavegacion } from './modulos-navegacion';
 
 export type UsuarioChasis = {
   nombreCompleto: string;
   rol: string;
-};
-
-const ETIQUETA_ROL: Record<string, string> = {
-  admin: 'Administrador',
-  vendedor: 'Ventas',
-  gerente: 'Gerencia',
-  contador: 'Contabilidad',
-  operador: 'Operador',
 };
 
 function estaActivo(pathname: string, href: string): boolean {
@@ -80,50 +70,7 @@ function ContenidoNavegacion({
   );
 }
 
-function PieUsuario({
-  usuario,
-  contraida,
-  alNavegar,
-}: {
-  usuario: UsuarioChasis;
-  contraida: boolean;
-  alNavegar?: () => void;
-}) {
-  return (
-    <div className="border-t border-borde p-2">
-      <div className={cn('flex items-center gap-2 rounded-md p-2', contraida && 'justify-center')}>
-        <AvatarIniciales nombre={usuario.nombreCompleto} tamano="sm" />
-        {!contraida ? (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-texto-primario">
-              {usuario.nombreCompleto}
-            </p>
-            <p className="truncate text-xs text-texto-secundario">
-              {ETIQUETA_ROL[usuario.rol] ?? usuario.rol}
-            </p>
-          </div>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        onClick={() => {
-          alNavegar?.();
-          void cerrarSesionAccion();
-        }}
-        className={cn(
-          'mt-1 flex min-h-10 w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-peligro-suave hover:text-peligro-texto',
-          contraida && 'justify-center px-0',
-        )}
-      >
-        <Icono nombre="cerrar" className="h-4 w-4" />
-        {!contraida ? 'Cerrar sesión' : null}
-      </button>
-    </div>
-  );
-}
-
 type PropsBarraLateral = {
-  usuario: UsuarioChasis;
   modulos: readonly ModuloNavegacion[];
   abiertoMovil: boolean;
   onCerrarMovil: () => void;
@@ -133,7 +80,7 @@ type PropsBarraLateral = {
  * Navegación principal: 240px expandida / 64px colapsada en escritorio y
  * drawer deslizante en mobile. Consume `barraLateralContraida` de Zustand.
  */
-export function BarraLateral({ usuario, modulos, abiertoMovil, onCerrarMovil }: PropsBarraLateral) {
+export function BarraLateral({ modulos, abiertoMovil, onCerrarMovil }: PropsBarraLateral) {
   const contraida = usarTiendaUI((estado) => estado.barraLateralContraida);
   const contraerBarra = usarTiendaUI((estado) => estado.contraerBarra);
   const expandirBarra = usarTiendaUI((estado) => estado.expandirBarra);
@@ -160,7 +107,6 @@ export function BarraLateral({ usuario, modulos, abiertoMovil, onCerrarMovil }: 
         </div>
 
         <ContenidoNavegacion modulos={modulos} contraida={contraida} />
-        <PieUsuario usuario={usuario} contraida={contraida} />
 
         <button
           type="button"
@@ -198,7 +144,6 @@ export function BarraLateral({ usuario, modulos, abiertoMovil, onCerrarMovil }: 
               </button>
             </div>
             <ContenidoNavegacion modulos={modulos} contraida={false} alNavegar={onCerrarMovil} />
-            <PieUsuario usuario={usuario} contraida={false} alNavegar={onCerrarMovil} />
           </div>
         </div>
       ) : null}

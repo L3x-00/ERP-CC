@@ -308,30 +308,67 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     const panelOperadores = page.getByTestId('areas-operadores');
     await expect(panelOperadores).toBeVisible();
 
-    /** Guarda reintentando una vez si el clic se pierde por un re-render de Realtime. */
-    async function guardarOperadorConReintento(operadorId: string): Promise<void> {
-      for (let intento = 0; intento < 2; intento += 1) {
+    /**
+     * Guarda el operador verificando la persistencia real en `operadores_areas`
+     * (la RPC reemplaza el conjunto completo). Reintenta el clic si un
+     * re-render de Realtime lo pierde y re-marca los códigos requeridos por si
+     * la selección local se restableció antes de guardar.
+     */
+    async function guardarOperadorConReintento(
+      operadorId: string,
+      codigosRequeridos: readonly string[] = [],
+    ): Promise<void> {
+      async function areasSeleccionadas(): Promise<string[]> {
+        const prefijo = `areas-operador-check-${operadorId}-`;
+        return panelOperadores
+          .locator(`input[data-testid^="${prefijo}"]`)
+          .evaluateAll(
+            (nodos, prefijoCasilla) =>
+              nodos
+                .filter((nodo) => (nodo as HTMLInputElement).checked)
+                .map((nodo) =>
+                  (nodo as HTMLInputElement).dataset.testid!.slice(prefijoCasilla.length),
+                )
+                .sort(),
+            prefijo,
+          );
+      }
+      /** Estado persistido del operador; null si la consulta falla (se reintenta). */
+      async function areasPersistidas(): Promise<string[] | null> {
+        const { data, error } = await datos.admin
+          .from('operadores_areas')
+          .select('area_codigo')
+          .eq('operador_id', operadorId);
+        return error ? null : (data ?? []).map((fila) => fila.area_codigo).sort();
+      }
+      async function guardarYVerificar(timeout: number): Promise<boolean> {
+        for (const codigo of codigosRequeridos) {
+          await panelOperadores
+            .getByTestId(`areas-operador-check-${operadorId}-${codigo}`)
+            .check();
+        }
+        const esperadas = await areasSeleccionadas();
         await panelOperadores.getByTestId(`guardar-areas-operador-${operadorId}`).click();
         try {
-          await expect(panelOperadores.getByRole('status').filter({ hasText: 'guardadas' }))
-            .toBeVisible({ timeout: 8_000 });
-          return;
+          await expect.poll(areasPersistidas, { timeout }).toEqual(esperadas);
+          return true;
         } catch {
-          // Reintenta una vez.
+          return false;
         }
       }
-      await expect(panelOperadores.getByRole('status').filter({ hasText: 'guardadas' }))
-        .toBeVisible({ timeout: 20_000 });
+      if (await guardarYVerificar(10_000)) return;
+      // El clic pudo perderse por un re-render de Realtime; reintenta una vez.
+      await expect.poll(async () => guardarYVerificar(20_000), { timeout: 25_000 }).toBe(true);
     }
 
     await panelOperadores
       .getByTestId(`areas-operador-check-${datos.operadorAId}-METAL_MECANICA`)
       .check();
-    await guardarOperadorConReintento(datos.operadorAId);
+    await guardarOperadorConReintento(datos.operadorAId, ['METAL_MECANICA']);
     await panelOperadores
       .getByTestId(`areas-operador-check-${datos.operadorBId}-FABRICACION_DIGITAL`)
       .check();
-    await guardarOperadorConReintento(datos.operadorBId);
+    await guardarOperadorConReintento(datos.operadorBId, ['FABRICACION_DIGITAL']);
 
     await expect
       .poll(async () => {
@@ -359,7 +396,7 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
       `areas-operador-check-${datos.operadorAId}-${codigoProceso}`,
     );
     await opcionProceso.check();
-    await guardarOperadorConReintento(datos.operadorAId);
+    await guardarOperadorConReintento(datos.operadorAId, ['METAL_MECANICA', codigoProceso]);
     // Verifica que la asignación quedó persistida antes de desactivar el área.
     await expect
       .poll(

@@ -28,7 +28,6 @@ export function ChasisApp({ usuario, modulos = MODULOS_NAVEGACION, children }: P
   return (
     <div className="flex min-h-screen bg-fondo">
       <BarraLateral
-        usuario={usuario}
         modulos={modulos}
         abiertoMovil={abiertoMovil}
         onCerrarMovil={() => setAbiertoMovil(false)}
@@ -39,6 +38,7 @@ export function ChasisApp({ usuario, modulos = MODULOS_NAVEGACION, children }: P
           grupo={moduloActivo?.grupo}
           usuarioId={usuario.id}
           nombreUsuario={usuario.nombreCompleto}
+          rolUsuario={usuario.rol}
           onAbrirMenu={() => setAbiertoMovil(true)}
         />
         <main className="flex-1 p-4 md:p-6">{children}</main>

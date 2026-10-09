@@ -5255,30 +5255,7 @@ export type Database = {
           p_proveedor_id: string
           p_tipo_cambio: number
         }
-        Returns: {
-          actualizado_en: string
-          categoria: string
-          comprobante_url: string | null
-          creado_en: string
-          creado_por: string
-          datos_ocr_json: Json | null
-          descripcion: string
-          estado_pago: string
-          fecha_gasto: string
-          fecha_vencimiento: string | null
-          folio: string
-          folio_comprobante: string | null
-          id: string
-          metodo_pago: string | null
-          moneda: string
-          monto_iva: number
-          monto_subtotal: number
-          monto_total: number
-          notas: string | null
-          orden_id: string | null
-          proveedor_id: string | null
-          tipo_cambio: number
-        }[]
+        Returns: Database["public"]["Tables"]["gastos"]["Row"][]
         SetofOptions: {
           from: "*"
           to: "gastos"

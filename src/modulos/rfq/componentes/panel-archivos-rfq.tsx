@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
@@ -145,6 +146,10 @@ export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () =>
   }
 
   const itemsActivos = rfq.items.filter((item) => item.estado === 'activo');
+  const itemSeleccionado = itemsActivos.find((item) => item.id === itemId);
+  const destino = itemSeleccionado
+    ? `Ítem ${itemSeleccionado.codigo} — ${itemSeleccionado.descripcion}`
+    : 'General del RFQ';
   const linajes = agruparLinajes(archivos);
 
   return (
@@ -168,7 +173,7 @@ export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () =>
           </Select>
         </label>
         <label className="grid gap-1 text-sm font-medium" htmlFor="archivo-item">
-          Vínculo
+          ¿A qué pertenece?
           <Select
             id="archivo-item"
             value={itemId}
@@ -201,9 +206,10 @@ export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () =>
       </form>
 
       <p id="archivo-rfq-ayuda" className="text-xs text-texto-secundario">
-        Formatos aceptados: PDF, DXF, DWG, STEP/STP, IGS/IGES, EPS/AI, imágenes y hojas de cálculo.
-        Hasta 20 MiB por archivo (el binario sube directo a Storage). Volver a subir el mismo nombre
-        crea una versión nueva; la anterior se conserva en «Ver versiones».
+        Se adjuntará a <span className="font-medium text-texto-primario">{destino}</span>. Formatos
+        aceptados: PDF, DXF, DWG, STEP/STP, IGS/IGES, EPS/AI, imágenes y hojas de cálculo. Hasta 20
+        MiB por archivo (el binario sube directo a Storage). Volver a subir el mismo nombre crea una
+        versión nueva; la anterior se conserva en «Ver versiones».
       </p>
 
       {mensaje !== null && (
@@ -282,15 +288,18 @@ function FilaArchivoRfq({
       data-testid={`archivo-rfq-${archivo.id}`}
       className="flex flex-wrap items-center justify-between gap-2"
     >
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-w-0 flex-col gap-1">
         <span className="truncate text-sm font-medium">{archivo.nombreOriginal}</span>
-        <span className="text-xs text-texto-secundario">
-          {archivo.clase}
-          {archivo.itemCodigo ? ` · ${archivo.itemCodigo}` : ' · General'}
-          {` · v${archivo.version}`}
-          {archivo.vigente ? ' · Vigente' : ' · Histórica'}
-          {' · '}
-          {formatearFecha(archivo.creadoEn)} {formatearHora(archivo.creadoEn)}
+        <span className="flex flex-wrap items-center gap-1.5 text-xs text-texto-secundario">
+          <Badge variante={archivo.entidad === 'rfq_item' ? 'info' : 'neutro'}>
+            {archivo.entidad === 'rfq_item' ? `Ítem ${archivo.itemCodigo}` : 'General del RFQ'}
+          </Badge>
+          <Badge variante="neutro">{archivo.clase}</Badge>
+          <Badge variante={archivo.vigente ? 'exito' : 'neutro'}>v{archivo.version}</Badge>
+          <span>{archivo.vigente ? 'Vigente' : 'Histórica'}</span>
+          <span>
+            {formatearFecha(archivo.creadoEn)} {formatearHora(archivo.creadoEn)}
+          </span>
         </span>
       </div>
       <Button

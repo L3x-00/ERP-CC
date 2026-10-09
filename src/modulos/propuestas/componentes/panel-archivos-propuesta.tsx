@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
@@ -226,63 +227,76 @@ export function PanelArchivosPropuesta({
   return (
     <section className="flex flex-col gap-4" data-testid="panel-archivos-propuesta">
       {esBorrador && puedeSubir && (
-        <form onSubmit={subir} className="flex flex-wrap items-end gap-2 rounded-lg border border-borde p-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Destino</span>
-            <Select
-              value={destinoItem}
-              onChange={(evento) => setDestinoItemId(evento.target.value)}
-              aria-label="Destino del archivo"
-              disabled={subiendo}
-            >
-              <option value="">Revisión {revision.letra}</option>
-              {itemsDestino.map((item) => (
-                <option key={item.id} value={item.id}>
-                  Ítem {item.codigo} · {item.descripcion}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Tipo</span>
-            <Select
-              value={tema}
-              onChange={(evento) => setTema(evento.target.value as 'general' | 'tecnico')}
-              aria-label="Tipo de archivo de propuesta"
-              disabled={subiendo}
-            >
-              <option value="general">General</option>
-              <option value="tecnico">Técnico</option>
-            </Select>
-          </label>
-          <input
-            key={versionSelector}
-            type="file"
-            aria-label="Archivo de la propuesta"
-            accept={EXTENSIONES_ACEPTADAS}
-            aria-describedby="archivo-propuesta-ayuda"
-            onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
-            disabled={subiendo}
-            className="text-sm"
-          />
-          <Button type="submit" tamano="sm" disabled={subiendo}>
-            {subiendo ? 'Subiendo…' : 'Subir archivo'}
-          </Button>
-          {mensaje && (
-            <span role="status" className="text-xs text-texto-secundario">
-              {mensaje}
-            </span>
-          )}
-          {errorSubida && (
-            <span role="alert" className="text-xs text-peligro-texto">
-              {errorSubida}
-            </span>
-          )}
-          <p id="archivo-propuesta-ayuda" className="basis-full text-xs text-texto-secundario">
+        <form onSubmit={subir} className="flex flex-col gap-3 rounded-lg border border-borde p-3">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-sm font-semibold text-texto-primario">
+              Subir archivo a {destinoItem ? 'un ítem' : `la revisión ${revision.folioRevision}`}
+            </h3>
+            <p className="text-xs text-texto-secundario">
+              El destino identifica a quién pertenece el documento; los archivos anteriores se
+              conservan por revisión y los del RFQ se heredan sin duplicarse.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Destino</span>
+              <Select
+                value={destinoItem}
+                onChange={(evento) => setDestinoItemId(evento.target.value)}
+                aria-label="Destino del archivo"
+                disabled={subiendo}
+              >
+                <option value="">Revisión {revision.letra}</option>
+                {itemsDestino.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    Ítem {item.codigo} · {item.descripcion}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Tipo</span>
+              <Select
+                value={tema}
+                onChange={(evento) => setTema(evento.target.value as 'general' | 'tecnico')}
+                aria-label="Tipo de archivo de propuesta"
+                disabled={subiendo}
+              >
+                <option value="general">General (comercial)</option>
+                <option value="tecnico">Técnico (CAD/planos)</option>
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Archivo</span>
+              <input
+                key={versionSelector}
+                type="file"
+                aria-label="Archivo de la propuesta"
+                accept={EXTENSIONES_ACEPTADAS}
+                aria-describedby="archivo-propuesta-ayuda"
+                onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
+                disabled={subiendo}
+                className="text-sm"
+              />
+            </label>
+            <Button type="submit" tamano="sm" disabled={subiendo}>
+              {subiendo ? 'Subiendo…' : 'Subir archivo'}
+            </Button>
+            {mensaje && (
+              <span role="status" className="text-xs text-texto-secundario">
+                {mensaje}
+              </span>
+            )}
+            {errorSubida && (
+              <span role="alert" className="text-xs text-peligro-texto">
+                {errorSubida}
+              </span>
+            )}
+          </div>
+          <p id="archivo-propuesta-ayuda" className="text-xs text-texto-secundario">
             Formatos aceptados: PDF, DXF, DWG, STEP/STP, IGS/IGES, EPS/AI, imágenes y hojas de
-            cálculo. Hasta 20 MiB por archivo. Elige un ítem para documentarlo por separado.
-            Repetir el mismo nombre en el mismo destino crea una versión nueva y conserva la
-            anterior en «Ver versiones».
+            cálculo. Hasta 20 MiB por archivo. Repetir el mismo nombre en el mismo destino crea
+            una versión nueva y conserva la anterior en «Ver versiones».
           </p>
         </form>
       )}
@@ -367,11 +381,16 @@ function Grupo({
   vacio: string;
   children: React.ReactNode;
 }) {
-  const tieneHijos = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  const cantidad = Array.isArray(children) ? children.length : children ? 1 : 0;
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-texto-primario">{titulo}</h3>
-      {tieneHijos ? (
+      <h3 className="text-sm font-semibold text-texto-primario">
+        {titulo}
+        {cantidad > 0 ? (
+          <span className="ml-1.5 text-xs font-normal text-texto-tenue">({cantidad})</span>
+        ) : null}
+      </h3>
+      {cantidad > 0 ? (
         <ul className="flex flex-col divide-y divide-borde">{children}</ul>
       ) : (
         <p className="text-sm text-texto-secundario">{vacio}</p>
@@ -389,16 +408,24 @@ function FilaArchivo({
   chip: string;
   onVer: (id: string) => Promise<void>;
 }) {
+  const variante =
+    archivo.entidad === 'propuesta_item' ||
+    archivo.entidad === 'rfq_item' ||
+    archivo.temaCodigo === 'tecnico'
+      ? 'info'
+      : 'neutro';
   return (
     <div
       data-testid={`archivo-propuesta-${archivo.id}`}
-      className="flex items-center justify-between gap-2 text-sm"
+      className="flex items-center justify-between gap-2 py-2 text-sm"
     >
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-w-0 flex-col gap-1">
         <span className="truncate font-medium">{archivo.nombreOriginal}</span>
-        <span className="text-xs text-texto-secundario">
-          {chip} · v{archivo.version} · {archivo.vigente ? 'Vigente' : 'Histórica'} ·{' '}
-          {formatearFecha(archivo.creadoEn)}
+        <span className="flex flex-wrap items-center gap-1.5 text-xs text-texto-secundario">
+          <Badge variante={variante}>{chip}</Badge>
+          <Badge variante="neutro">v{archivo.version}</Badge>
+          <span>{archivo.vigente ? 'Vigente' : 'Histórica'}</span>
+          <span>{formatearFecha(archivo.creadoEn)}</span>
         </span>
       </div>
       <Button

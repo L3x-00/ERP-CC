@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -140,20 +141,20 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
         </svg>
         {noLeidas > 0 && <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-peligro px-1 text-center text-[10px] font-bold leading-5 text-white">{noLeidas > 99 ? '99+' : noLeidas}</span>}
       </button>
-      {abierto && (
+      {abierto && createPortal(
         <>
           <button
             type="button"
             aria-label="Cerrar centro de notificaciones"
             onClick={() => setAbierto(false)}
-            className="fixed inset-0 z-30 bg-black/40"
+            className="fixed inset-0 z-50 bg-black/40"
           />
           <aside
             id="centro-notificaciones-panel"
             role="dialog"
             aria-modal="true"
             aria-label="Centro de notificaciones"
-            className="deslizar-derecha fixed right-0 top-0 z-40 flex h-full w-[min(24rem,100vw)] flex-col border-l border-borde bg-superficie shadow-lg"
+            className="deslizar-derecha fixed right-0 top-0 z-50 flex h-full w-[min(24rem,100vw)] flex-col border-l border-borde bg-superficie shadow-lg"
           >
             <div className="flex items-center justify-between gap-2 border-b border-borde px-4 py-3">
               <div className="flex items-baseline gap-2">
@@ -201,7 +202,8 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
               </ul>
             </div>
           </aside>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );

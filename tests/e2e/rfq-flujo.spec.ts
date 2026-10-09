@@ -303,8 +303,26 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
       }
-      await page.getByRole('button', { name: 'Guardar datos' }).click();
-      await expect(page.getByText('Datos guardados.')).toBeVisible();
+      const formularioResumen = page.getByTestId('resumen-rfq');
+      const exitoResumen = formularioResumen.getByText('Datos guardados.');
+      // Un re-render de Realtime puede perder el clic: reintenta una vez y
+      // expón el error real de la acción si el guardado fue rechazado.
+      for (let intento = 0; intento < 2; intento += 1) {
+        const botonGuardar = formularioResumen.getByRole('button', { name: 'Guardar datos' });
+        if (await botonGuardar.isEnabled()) await botonGuardar.click();
+        try {
+          await expect(exitoResumen).toBeVisible({ timeout: 10_000 });
+          break;
+        } catch (error) {
+          const alerta = formularioResumen.getByRole('alert');
+          if ((await alerta.count()) > 0) {
+            throw new Error(
+              `El guardado del Resumen falló: ${(await alerta.first().innerText()).trim()}`,
+            );
+          }
+          if (intento === 1) throw error;
+        }
+      }
 
       const canalGuardado = await admin
         .from('pipeline')

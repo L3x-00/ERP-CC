@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { firmarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
@@ -49,14 +50,20 @@ export function PanelPdfsPropuesta({
         <ul className="flex flex-col divide-y divide-borde">
           {historial.map((pdf) => (
             <li key={pdf.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-              <span>
-                v{pdf.version} · {formatearFecha(pdf.creadoEn)}{' '}
-                {pdf.vigente ? (
-                  <span className="font-medium text-acento">vigente</span>
-                ) : (
-                  <span className="text-texto-tenue">reemplazado</span>
-                )}
-              </span>
+              <div className="flex min-w-0 flex-col gap-1">
+                <span className="truncate font-medium">
+                  Propuesta {revision.folioRevision}.pdf
+                </span>
+                <span className="flex flex-wrap items-center gap-1.5 text-xs text-texto-secundario">
+                  <Badge variante="neutro">v{pdf.version}</Badge>
+                  {pdf.vigente ? (
+                    <Badge variante="exito">vigente</Badge>
+                  ) : (
+                    <Badge variante="neutro">reemplazado</Badge>
+                  )}
+                  <span>{formatearFecha(pdf.creadoEn)}</span>
+                </span>
+              </div>
               <Button
                 variante="fantasma"
                 tamano="sm"
