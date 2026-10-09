@@ -1,108 +1,129 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
+import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
-import { registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
+import { registrarArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
+import { esquemaDescartarSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
 import {
-  construirRutaArchivo,
-  descartarSubidaArchivo,
-  registrarArchivo,
-} from '@/nucleo/almacenamiento/archivos/servicio';
-import { sanearNombreArchivo, validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
-import { esquemaSubirDocumento } from '@/modulos/clientes/validaciones/cliente-schema';
+  confirmarSubidaDirecta,
+  descartarSubidaDirecta,
+  prepararSubidaDirecta,
+  type SubidaPreparada,
+} from '@/nucleo/almacenamiento/archivos/subida-directa';
+import { sanearNombreArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
+import {
+  esquemaConfirmarDocumentoCliente,
+  esquemaPrepararDocumentoCliente,
+} from '@/modulos/clientes/validaciones/cliente-schema';
 
 const BUCKET = 'documentos-cliente';
 
-/**
- * Sube un documento del cliente (CSF, contrato, etc.) al bucket privado y
- * registra su metadata en el modelo único `archivos` (SII-B1.9, ADR-SII-06).
- *
- * Recibe `FormData` (el binario no serializa como JSON). Valida metadatos con
- * Zod y el archivo con el perfil de la entidad `cliente`. La ruta
- * `<entidad>/<clienteId>/<uuid>-<nombre>` evita colisiones y mantiene la RLS
- * por carpeta. Si el metadato falla tras subir, se limpia el binario.
- */
-export async function subirDocumentoClienteAccion(
-  formData: FormData,
-): Promise<RespuestaAccion<{ id: string }>> {
+/** Sesión y permiso de documentos de cliente, y cliente existente. */
+async function autorizarDocumento(
+  clienteId: string,
+): Promise<{ usuario: UsuarioAutenticado } | { error: string }> {
   const usuario = await obtenerUsuarioServidor();
-  if (!usuario) {
-    return { exito: false, error: 'No autorizado' };
-  }
-
-  const analisis = esquemaSubirDocumento.safeParse({
-    clienteId: formData.get('clienteId'),
-    tipo: formData.get('tipo'),
-    nombreArchivo: formData.get('nombreArchivo'),
-    nombreErp: formData.get('nombreErp') ?? undefined,
-  });
-  if (!analisis.success) {
-    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
-  }
-
+  if (!usuario) return { error: 'No autorizado' };
   const [puedeVerClientes, puedeDocumentar] = await Promise.all([
     can(usuario, 'ver_clientes'),
     can(usuario, 'cliente_documentos'),
   ]);
-  if (!puedeVerClientes && !puedeDocumentar) {
-    return { exito: false, error: 'Sin permiso para subir documentos' };
-  }
+  if (!puedeVerClientes && !puedeDocumentar) return { error: 'Sin permiso para subir documentos' };
+  const { data } = await crearClienteSupabaseAdmin()
+    .from('clientes')
+    .select('id')
+    .eq('id', clienteId)
+    .maybeSingle();
+  if (!data) return { error: 'El cliente no existe' };
+  return { usuario };
+}
 
-  const archivo = formData.get('archivo');
-  if (!(archivo instanceof File)) {
-    return { exito: false, error: 'Archivo requerido' };
+/**
+ * Emite la URL firmada para subir un documento del cliente (CSF, contrato,
+ * etc.) directo a Storage (H-B1-29: el binario no pasa por la Server Action).
+ */
+export async function prepararDocumentoClienteAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<SubidaPreparada>> {
+  const analisis = esquemaPrepararDocumentoCliente.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
+  const { clienteId, nombreArchivo, tamano, mime } = analisis.data;
+  const acceso = await autorizarDocumento(clienteId);
+  if ('error' in acceso) return { exito: false, error: acceso.error };
 
-  const validacion = validarSubidaArchivo('cliente', {
-    nombre: archivo.name,
-    tamano: archivo.size,
+  const preparada = await prepararSubidaDirecta(crearClienteSupabaseAdmin(), {
+    bucket: BUCKET,
+    entidad: 'cliente',
+    entidadId: clienteId,
+    usuarioId: acceso.usuario.id,
+    solicitud: { nombre: nombreArchivo, tamano, mime },
   });
-  if (!validacion.ok) {
-    return { exito: false, error: validacion.error };
-  }
+  return preparada.ok ? { exito: true, datos: preparada.datos } : { exito: false, error: preparada.error };
+}
 
-  const { clienteId, tipo, nombreArchivo, nombreErp: nombreErpForzado } = analisis.data;
-  // Reemplazar un documento conserva su nombre ERP (clave de versionado) aunque
-  // el binario elegido tenga otro nombre de archivo (SII-B2.6).
-  const nombreErp = sanearNombreArchivo(nombreErpForzado ?? nombreArchivo);
-  const ruta = construirRutaArchivo('cliente', clienteId, nombreArchivo);
-  const mime = archivo.type || 'application/octet-stream';
+/**
+ * Revalida el objeto subido y registra su metadata en el modelo único
+ * `archivos` (SII-B1.9, ADR-SII-06). Reemplazar conserva el nombre ERP (clave
+ * de versionado) aunque el binario tenga otro nombre (SII-B2.6).
+ */
+export async function confirmarDocumentoClienteAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<{ id: string }>> {
+  const correlationId = nuevoCorrelationId();
+  const analisis = esquemaConfirmarDocumentoCliente.safeParse(entrada);
+  if (!analisis.success) {
+    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+  const { clienteId, tipo, nombreArchivo, nombreErp: nombreErpForzado, ruta } = analisis.data;
+  const acceso = await autorizarDocumento(clienteId);
+  if ('error' in acceso) return { exito: false, error: acceso.error };
+  const { usuario } = acceso;
   const admin = crearClienteSupabaseAdmin();
 
-  const { error: errorSubida } = await admin.storage
-    .from(BUCKET)
-    .upload(ruta, archivo, { contentType: mime, upsert: false });
-  if (errorSubida) {
-    return { exito: false, error: 'No se pudo subir el archivo' };
-  }
+  const confirmada = await confirmarSubidaDirecta(
+    admin,
+    { bucket: BUCKET, entidad: 'cliente', entidadId: clienteId, usuarioId: usuario.id, ruta, nombre: nombreArchivo },
+    (objeto) =>
+      registrarArchivo(admin, {
+        entidad: 'cliente',
+        entidadId: clienteId,
+        temaCodigo: tipo,
+        clase: 'documento',
+        nombreOriginal: nombreArchivo,
+        nombreErp: sanearNombreArchivo(nombreErpForzado ?? nombreArchivo),
+        bucket: BUCKET,
+        rutaStorage: ruta,
+        mime: objeto.mime,
+        tamanoBytes: objeto.tamano,
+        subidoPor: usuario.id,
+      }),
+  );
+  if (!confirmada.ok) return { exito: false, error: confirmada.error };
 
-  try {
-    const registrado = await registrarArchivo(admin, {
-      entidad: 'cliente',
-      entidadId: clienteId,
-      temaCodigo: tipo,
-      clase: 'documento',
-      nombreOriginal: nombreArchivo,
-      nombreErp,
-      bucket: BUCKET,
-      rutaStorage: ruta,
-      mime,
-      tamanoBytes: archivo.size,
-      subidoPor: usuario.id,
-    });
+  const { id, version } = confirmada.datos;
+  await registrarLog(usuario, 'subir_documento', 'clientes', clienteId, { archivoId: id, tipo, version }, correlationId);
+  return { exito: true, datos: { id } };
+}
 
-    await registrarLog(usuario, 'subir_documento', 'clientes', clienteId, {
-      archivoId: registrado.id,
-      tipo,
-      version: registrado.version,
-    });
+/** Descarta una subida directa inconclusa del propio usuario. */
+export async function descartarDocumentoClienteAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<null>> {
+  const analisis = esquemaDescartarSubida.safeParse(entrada);
+  if (!analisis.success) return { exito: false, error: 'Ruta inválida' };
+  const usuario = await obtenerUsuarioServidor();
+  if (!usuario) return { exito: false, error: 'No autorizado' };
 
-    return { exito: true, datos: { id: registrado.id } };
-  } catch {
-    // El binario quedaría huérfano si no se pudo registrar el metadato.
-    await descartarSubidaArchivo(admin, BUCKET, ruta);
-    return { exito: false, error: 'No se pudo registrar el documento' };
-  }
+  const descartada = await descartarSubidaDirecta(crearClienteSupabaseAdmin(), {
+    bucket: BUCKET,
+    ruta: analisis.data.ruta,
+    usuarioId: usuario.id,
+  });
+  return descartada.ok ? { exito: true, datos: null } : { exito: false, error: descartada.error };
 }

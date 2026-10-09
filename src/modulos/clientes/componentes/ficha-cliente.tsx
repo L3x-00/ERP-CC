@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { usarCliente } from '@/modulos/clientes/hooks/usar-cliente';
-import { subirDocumentoClienteAccion } from '@/modulos/clientes/acciones/subir-documento-cliente';
+import { subirDocumentoCliente } from '@/modulos/clientes/subir-documento-cliente-navegador';
 import { asignarTierManualAccion } from '@/modulos/clientes/acciones/asignar-tier-manual';
 import { cambiarEstadoClienteAccion } from '@/modulos/clientes/acciones/cambiar-estado-cliente';
 import { BadgeTier } from '@/modulos/clientes/componentes/badge-tier';
@@ -420,23 +420,17 @@ function FilaDocumento({
   async function reemplazar(archivo: File): Promise<void> {
     setSubiendo(true);
     setMensaje(null);
-    const fd = new FormData();
-    fd.set('clienteId', clienteId);
-    fd.set('tipo', documento.tipo);
-    fd.set('nombreArchivo', archivo.name);
-    // Mismo nombre ERP ⇒ el trigger de versionado crea una versión nueva.
-    fd.set('nombreErp', documento.nombreErp ?? documento.nombreArchivo);
-    fd.set('archivo', archivo);
     try {
-      const respuesta = await subirDocumentoClienteAccion(fd);
-      if (!respuesta.exito) {
-        setMensaje(respuesta.error);
-        return;
-      }
+      // Mismo nombre ERP ⇒ el trigger de versionado crea una versión nueva.
+      // El binario sube directo a Storage (H-B1-29).
+      await subirDocumentoCliente(
+        { clienteId, tipo: documento.tipo, nombreErp: documento.nombreErp ?? documento.nombreArchivo },
+        archivo,
+      );
       setMensaje('Documento reemplazado (nueva versión).');
       await esperarRefresco();
-    } catch {
-      setMensaje('No se pudo reemplazar el documento');
+    } catch (causa) {
+      setMensaje(causa instanceof Error ? causa.message : 'No se pudo reemplazar el documento');
     } finally {
       setSubiendo(false);
       setReemplazando(false);
@@ -548,22 +542,13 @@ function FormularioDocumento({ clienteId }: { clienteId: string }) {
       return;
     }
     setSubiendo(true);
-    const fd = new FormData();
-    fd.set('clienteId', clienteId);
-    fd.set('tipo', tipo);
-    fd.set('nombreArchivo', archivo.name);
-    fd.set('archivo', archivo);
-
     try {
-      const respuesta = await subirDocumentoClienteAccion(fd);
-      if (respuesta.exito) {
-        setArchivo(null);
-        await queryClient.invalidateQueries({ queryKey: ['cliente', clienteId] });
-      } else {
-        setError(respuesta.error);
-      }
-    } catch {
-      setError('Error de conexión');
+      // El binario sube directo a Storage (H-B1-29).
+      await subirDocumentoCliente({ clienteId, tipo }, archivo);
+      setArchivo(null);
+      await queryClient.invalidateQueries({ queryKey: ['cliente', clienteId] });
+    } catch (causa) {
+      setError(causa instanceof Error ? causa.message : 'No se pudo subir el documento');
     }
     setSubiendo(false);
   }

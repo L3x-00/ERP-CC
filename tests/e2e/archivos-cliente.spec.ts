@@ -54,7 +54,11 @@ test('SII-B1.9: documento de cliente versionado en `archivos`', async ({ page })
     await page.getByRole('button', { name: 'Documentos', exact: true }).click();
 
     const entrada = page.locator('input[type="file"]');
-    const contenido = Buffer.from('%PDF-1.4 documento de prueba SII-B1.9');
+    // 2 MiB: supera el límite de 1 MiB de las Server Actions (subida directa, H-B1-29).
+    const contenido = Buffer.concat([
+      Buffer.from('%PDF-1.4 documento de prueba SII-B1.9\n'),
+      Buffer.alloc(2 * 1024 * 1024, 32),
+    ]);
 
     await entrada.setInputFiles({ name: 'csf-prueba.pdf', mimeType: 'application/pdf', buffer: contenido });
     await page.getByRole('button', { name: 'Subir' }).click();
