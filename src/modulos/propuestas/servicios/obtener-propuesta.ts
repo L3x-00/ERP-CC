@@ -247,6 +247,8 @@ export async function obtenerTotalesRevision(
     ivaPorcentaje: numero('ivaPorcentaje'),
     iva: numero('iva'),
     total: numero('total'),
+    costoManual: numero('costoManual'),
+    costoRuteo: numero('costoRuteo'),
     costoTotal: numero('costoTotal'),
     margen: typeof margen === 'number' && Number.isFinite(margen) ? margen : null,
     moneda: (bruto.moneda === 'USD' ? 'USD' : 'MXN') as MonedaPropuesta,

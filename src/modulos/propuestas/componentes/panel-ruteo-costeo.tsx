@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { costearRuteoRevisionAccion } from '@/modulos/propuestas/acciones/costear-ruteo-revision';
 import { editarCostosRevisionAccion } from '@/modulos/propuestas/acciones/editar-costos-revision';
 import { editarRuteoItemAccion } from '@/modulos/propuestas/acciones/editar-ruteo-item';
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
@@ -161,6 +162,19 @@ export function PanelRuteoCosteo({
     // Refresca el token CAS antes de confirmar: evita guardar con una versión obsoleta.
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
     setMensaje('Costos guardados.');
+  }
+
+  async function costearRuteo(): Promise<void> {
+    setGuardando('ruteo-costeo');
+    setMensaje(null);
+    const respuesta = await costearRuteoRevisionAccion({ revisionId: revision.id });
+    setGuardando(null);
+    if (!respuesta.exito) {
+      setMensaje(respuesta.error);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+    setMensaje(`Ruteo costeado: ${respuesta.datos?.renglones ?? 0} renglón(es).`);
   }
 
   return (
@@ -335,6 +349,22 @@ export function PanelRuteoCosteo({
       </div>
 
       <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2" data-testid="costeo-ruteo">
+          <p className="text-sm text-texto-secundario">
+            Costo del ruteo: {formatearMoneda(totales.costoRuteo, totales.moneda)}
+            {totales.costoRuteo > 0 ? ' · sustituye al costo manual de máquina' : ' · sin costear'}
+          </p>
+          {esBorrador && permisos.editarCosto && (
+            <Button
+              tamano="sm"
+              variante="contorno"
+              onClick={() => void costearRuteo()}
+              disabled={guardando === 'ruteo-costeo'}
+            >
+              {guardando === 'ruteo-costeo' ? '…' : 'Costear ruteo'}
+            </Button>
+          )}
+        </div>
         <h3 className="text-sm font-semibold text-texto-primario">Costeo interno</h3>
         <div className="grid gap-2 sm:grid-cols-2">
           {CATEGORIAS_COSTO.map((categoria) => (

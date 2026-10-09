@@ -1,3 +1,5 @@
+import { mensajeTarifaFaltante } from '@/modulos/propuestas/servicios/resolver-tarifa';
+
 /**
  * Traduce los errores tipados de las RPC de propuestas a mensajes legibles.
  *
@@ -23,6 +25,16 @@ function extraerFaltantes(detalle: string | undefined): string[] {
 }
 
 export function traducirErrorPropuesta(mensaje: string, detalle?: string): string {
+  // C3.2/C3.3: el costeo bloqueado dice qué configurar.
+  if (/tarifa_no_configurada|tarifa_sin_grupo|recurso_inexistente/.test(mensaje)) {
+    return mensajeTarifaFaltante(mensaje, detalle);
+  }
+  if (mensaje.includes('tarifa_moneda_distinta')) {
+    return 'La tarifa está en otra moneda que la propuesta; ajusta la moneda de la tarifa del grupo o de la máquina.';
+  }
+  if (mensaje.includes('ruteo_vacio')) {
+    return 'No hay renglones de ruteo en ítems activos para costear.';
+  }
   if (mensaje.includes('sin_permiso_propuesta')) {
     return 'Sin permiso para realizar esta acción sobre la propuesta';
   }

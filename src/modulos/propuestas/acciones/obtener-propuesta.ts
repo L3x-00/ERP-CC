@@ -93,9 +93,15 @@ export async function obtenerPropuestaAccion(
 
   const revisiones: RevisionConTotales[] = datos.revisiones.map((revision) => {
     const itemsRevision = datos.items.filter((item) => item.revisionId === revision.id);
-    const costoTotal = datos.costos
-      .filter((costo) => costo.revisionId === revision.id)
+    const costosRevision = datos.costos.filter((costo) => costo.revisionId === revision.id);
+    const costoTotal = costosRevision.reduce((suma, costo) => suma + costo.monto, 0);
+    const costoManualMaquina = costosRevision
+      .filter((costo) => costo.categoria === 'maquina')
       .reduce((suma, costo) => suma + costo.monto, 0);
+    const idsActivos = new Set(itemsRevision.filter((item) => item.activo).map((item) => item.id));
+    const ruteoCosteado = datos.ruteo.filter(
+      (fila) => idsActivos.has(fila.itemId) && fila.costeadoEn !== null,
+    );
     return {
       ...revision,
       totales: calcularTotalesPropuesta({
@@ -106,6 +112,9 @@ export async function obtenerPropuestaAccion(
           activo: item.activo,
         })),
         costoTotal,
+        costoManualMaquina,
+        costoRuteo: ruteoCosteado.reduce((suma, fila) => suma + (fila.costoTotal ?? 0), 0),
+        ruteoCosteado: ruteoCosteado.length > 0,
         ivaPorcentaje: revision.snapshotCabecera.ivaPorcentaje,
         moneda: revision.snapshotCabecera.moneda,
       }),

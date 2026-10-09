@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2, C3.1 y C3.2 completos localmente** (2026-10-09); **siguiente: C3.3**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2 y C3.1–C3.3 completos localmente** (2026-10-09); falta la revisión financiera del checkpoint C3; **siguiente: C4.1**.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -191,17 +191,19 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Preparación + operación usan la misma tarifa en el MVP.
-- [ ] Cada fila congela tarifa, fuente, grupo, recurso opcional y fecha.
-- [ ] Desglose y total/margen evitan doble conteo con costos manuales.
+- [x] Preparación + operación usan la misma tarifa en el MVP.
+- [x] Cada fila congela tarifa, fuente, grupo, recurso opcional y fecha.
+- [x] Desglose y total/margen evitan doble conteo con costos manuales.
 
 **Verificación:** paridad SQL/TypeScript, redondeo/moneda, unitarias y E2E.
 **Dependencias:** C3.1–C3.2.
 
+**Hecho (Claude, 2026-10-09):** migración `20261009160000` (solo local): snapshot por renglón en `propuesta_item_ruteo` (recurso, tarifa, moneda, fuente, costo preparación/operación/total, `costeado_en`, CHECK de coherencia); `costear_ruteo_revision` (DRAFT, `propuesta_editar_costo`, todo o nada; bloquea sin tarifa y con moneda distinta, sin convertir); `calcular_totales_revision` suma ruteo costeado y deja de sumar el manual `maquina` cuando hay ruteo costeado, expone `costoManual`/`costoRuteo`; espejo TS compatible. UI: botón «Costear ruteo». Editar el ruteo reinserta renglones y obliga a recostear; una revisión nueva no copia el snapshot. pgTAP 14/14 (RED previo), regresión B4/B5/C3.1 241/241, unitarias 139/139. **Pendiente:** revisión financiera; conversión de moneda (hoy se bloquea); elegir máquina por renglón en la UI (la columna `recurso_id` existe pero el editor aún no la ofrece).
+
 ### Checkpoint C3
 
-- [ ] Dos revisiones conservan sus propios ítems y costos históricos.
-- [ ] Cambiar una tarifa no altera revisiones previas.
+- [x] Dos revisiones conservan sus propios ítems y costos históricos.
+- [x] Cambiar una tarifa no altera revisiones previas.
 - [ ] Gates focales y revisión financiera aprobados.
 
 ## C4 — Aceptación y Orden inmutable
