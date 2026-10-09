@@ -4,6 +4,12 @@ import { Button } from '@/compartido/componentes/ui/button';
 import type { CatalogosRfq } from '@/modulos/rfq/acciones/obtener-catalogos';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
 import { esDefinicionRfqEditable, motivoDefinicionRfqBloqueada } from '@/modulos/rfq/utilidades/estados';
+import {
+  CLASE_OBLIGATORIO,
+  analizarFaltantesCliente,
+  analizarFaltantesGenerales,
+  analizarFaltantesSeguimiento,
+} from '@/modulos/rfq/utilidades/faltantes';
 
 const SIN_VALOR = '—';
 
@@ -48,10 +54,31 @@ function formatearFechaHora(valor: string): string {
   }).format(fecha);
 }
 
-function Campo({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+function Campo({
+  etiqueta,
+  valor,
+  faltante = false,
+  obligatorio = false,
+}: {
+  etiqueta: string;
+  valor: string;
+  faltante?: boolean;
+  obligatorio?: boolean;
+}) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs font-medium text-texto-secundario">{etiqueta}</span>
+    <div
+      data-faltante={faltante ? 'si' : 'no'}
+      className={
+        faltante
+          ? 'flex flex-col gap-0.5 rounded-md border border-peligro/40 bg-peligro-suave px-2 py-1'
+          : 'flex flex-col gap-0.5'
+      }
+    >
+      <span
+        className={`text-xs font-medium text-texto-secundario ${obligatorio ? CLASE_OBLIGATORIO : ''}`}
+      >
+        {etiqueta}
+      </span>
       <span className="text-sm text-texto-primario">{valor || SIN_VALOR}</span>
     </div>
   );
@@ -92,14 +119,23 @@ export function ResumenRfq({
   rfq,
   catalogos,
   onEditar,
+  faltantes,
 }: {
   rfq: Rfq;
   catalogos: CatalogosRfq | null;
   onEditar: () => void;
+  faltantes?: {
+    cliente?: readonly string[];
+    general?: readonly string[];
+    seguimiento?: readonly string[];
+  };
 }) {
   const editable = esDefinicionRfqEditable(rfq.estadoRfq);
   const clienteTexto = rfq.clienteNombre?.trim() || rfq.empresa;
   const contactoTexto = rfq.contactoNombre?.trim() || rfq.nombreContacto;
+  const fCliente = analizarFaltantesCliente(faltantes?.cliente ?? []);
+  const fGeneral = analizarFaltantesGenerales(faltantes?.general ?? []);
+  const fSeguimiento = analizarFaltantesSeguimiento(faltantes?.seguimiento ?? []);
 
   return (
     <div className="flex flex-col gap-4" data-testid="resumen-rfq">
@@ -126,18 +162,40 @@ export function ResumenRfq({
           <h2 className="mb-3 text-sm font-semibold text-texto-primario">Datos generales</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo etiqueta="Folio" valor={rfq.folio} />
-            <Campo etiqueta="Cliente" valor={clienteTexto} />
-            <Campo etiqueta="Contacto" valor={contactoTexto} />
-            <Campo etiqueta="Canal" valor={textoCanal(rfq, catalogos)} />
+            <Campo
+              etiqueta="Cliente"
+              valor={clienteTexto}
+              obligatorio
+              faltante={fCliente.cliente}
+            />
+            <Campo
+              etiqueta="Contacto"
+              valor={contactoTexto}
+              obligatorio
+              faltante={fCliente.contacto}
+            />
+            <Campo
+              etiqueta="Canal"
+              valor={textoCanal(rfq, catalogos)}
+              obligatorio
+              faltante={fGeneral.canal}
+            />
             <Campo
               etiqueta="Fecha de solicitud"
               valor={formatearFechaCalendario(rfq.fechaSolicitud)}
+              obligatorio
+              faltante={fGeneral.fechaSolicitud}
             />
             <Campo
               etiqueta="Fecha requerida por cliente"
               valor={formatearFechaCalendario(rfq.fechaRequeridaCliente)}
             />
-            <Campo etiqueta="Responsable" valor={rfq.responsableNombre ?? SIN_VALOR} />
+            <Campo
+              etiqueta="Responsable"
+              valor={rfq.responsableNombre ?? SIN_VALOR}
+              obligatorio
+              faltante={fGeneral.responsable}
+            />
             <Campo etiqueta="Última modificación" valor={formatearFechaHora(rfq.actualizadoEn)} />
           </div>
         </section>
@@ -149,11 +207,23 @@ export function ResumenRfq({
         >
           <h2 className="mb-3 text-sm font-semibold text-texto-primario">Próxima acción</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo etiqueta="Acción" valor={textoProximaAccion(rfq, catalogos)} />
-            <Campo etiqueta="Fecha" valor={formatearFechaCalendario(rfq.fechaProximaAccion)} />
+            <Campo
+              etiqueta="Acción"
+              valor={textoProximaAccion(rfq, catalogos)}
+              obligatorio
+              faltante={fSeguimiento.proximaAccion}
+            />
+            <Campo
+              etiqueta="Fecha"
+              valor={formatearFechaCalendario(rfq.fechaProximaAccion)}
+              obligatorio
+              faltante={fSeguimiento.fechaProximaAccion}
+            />
             <Campo
               etiqueta="Responsable"
               valor={rfq.responsableProximaAccionNombre ?? SIN_VALOR}
+              obligatorio
+              faltante={fSeguimiento.responsableProximaAccion}
             />
           </div>
         </section>
@@ -163,8 +233,17 @@ export function ResumenRfq({
           data-testid="rfq-descripcion"
           className="rounded-lg border border-borde bg-superficie p-4 shadow-sm"
         >
-          <h2 className="mb-3 text-sm font-semibold text-texto-primario">Descripción general</h2>
-          <p className="whitespace-pre-wrap text-sm text-texto-primario">
+          <h2 className={`mb-3 text-sm font-semibold text-texto-primario ${CLASE_OBLIGATORIO}`}>
+            Descripción general
+          </h2>
+          <p
+            data-faltante={fGeneral.descripcionGeneral ? 'si' : 'no'}
+            className={
+              fGeneral.descripcionGeneral
+                ? 'whitespace-pre-wrap rounded-md border border-peligro/40 bg-peligro-suave px-2 py-1 text-sm text-texto-primario'
+                : 'whitespace-pre-wrap text-sm text-texto-primario'
+            }
+          >
             {rfq.descripcionGeneral || SIN_VALOR}
           </p>
         </section>

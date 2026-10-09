@@ -8,6 +8,11 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
 import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
+import {
+  CLASE_CAMPO_FALTANTE,
+  CLASE_OBLIGATORIO,
+  faltaArchivoTecnico,
+} from '@/modulos/rfq/utilidades/faltantes';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
 import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
 import { validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
@@ -63,7 +68,15 @@ function agruparLinajes(archivos: readonly ArchivoRfq[]): LinajeArchivoRfq[] {
 }
 
 /** Pestaña Archivos: generales (`rfq`) y por ítem (`rfq_item`) del modelo E3. */
-export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () => void }) {
+export function PanelArchivosRfq({
+  rfq,
+  onCambio,
+  faltantes,
+}: {
+  rfq: Rfq;
+  onCambio?: () => void;
+  faltantes?: readonly string[];
+}) {
   const clienteConsultas = useQueryClient();
   const [clase, setClase] = useState<(typeof CLASES)[number]>('CAD');
   const [itemId, setItemId] = useState('');
@@ -71,6 +84,8 @@ export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () =>
   const [versionSelector, setVersionSelector] = useState(0);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [linajesAbiertos, setLinajesAbiertos] = useState<readonly string[]>([]);
+
+  const faltaTecnico = faltaArchivoTecnico(faltantes ?? []);
 
   const listado = useQuery({
     queryKey: ['rfq-archivos', rfq.id],
@@ -187,7 +202,10 @@ export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () =>
             ))}
           </Select>
         </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="archivo-input">
+        <label
+          className={`grid gap-1 text-sm font-medium ${faltaTecnico ? CLASE_OBLIGATORIO : ''}`}
+          htmlFor="archivo-input"
+        >
           Archivo
           <Input
             key={versionSelector}
@@ -195,6 +213,8 @@ export function PanelArchivosRfq({ rfq, onCambio }: { rfq: Rfq; onCambio?: () =>
             type="file"
             accept={EXTENSIONES_ACEPTADAS}
             aria-describedby="archivo-rfq-ayuda"
+            aria-invalid={faltaTecnico}
+            className={faltaTecnico ? CLASE_CAMPO_FALTANTE : undefined}
             onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
           />
         </label>

@@ -7,12 +7,14 @@ import { SelectorCliente } from '@/modulos/pipeline/componentes/selector-cliente
 import { ResumenClienteRfq } from '@/modulos/pipeline/componentes/resumen-cliente-rfq';
 import { usarCliente } from '@/modulos/clientes/hooks/usar-cliente';
 import { clienteAClienteRfq, type ClienteRfq, type CondicionesPago } from '@/modulos/pipeline/tipos/indice';
+import { analizarFaltantesCliente } from '@/modulos/rfq/utilidades/faltantes';
 
 type Props = {
   oportunidadId: string;
   clienteId: string | null;
   condicionesPago: CondicionesPago | null;
   soloLectura?: boolean;
+  faltantesCliente?: readonly string[];
   onCambio?: (datos: { clienteId: string | null; condicionesPago: CondicionesPago | null }) => void;
 };
 
@@ -30,12 +32,14 @@ export function GestorClienteOportunidad({
   clienteId,
   condicionesPago,
   soloLectura = false,
+  faltantesCliente,
   onCambio,
 }: Props) {
   const [heredarCondiciones, setHeredarCondiciones] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const { data, isLoading } = usarCliente(clienteId);
+  const faltaCliente = analizarFaltantesCliente(faltantesCliente ?? []).cliente;
 
   const seleccionado: ClienteRfq | null = data ? clienteAClienteRfq(data.cliente) : null;
 
@@ -76,7 +80,13 @@ export function GestorClienteOportunidad({
         seleccionado={seleccionado}
         onSeleccionar={(elegido) => void asignar(elegido)}
         soloLectura={soloLectura || guardando}
+        invalido={faltaCliente}
       />
+      {faltaCliente && (
+        <p className="text-xs font-medium text-peligro-texto">
+          Falta ligar un cliente del catálogo para poder marcar Listo.
+        </p>
+      )}
       {clienteId !== null && (
         <ResumenClienteRfq clienteId={clienteId} condicionesPago={condicionesPago} />
       )}

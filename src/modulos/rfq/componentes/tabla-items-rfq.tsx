@@ -23,6 +23,14 @@ import {
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { Rfq, RfqItem } from '@/modulos/rfq/tipos/indice';
 import { esDefinicionRfqEditable, motivoDefinicionRfqBloqueada } from '@/modulos/rfq/utilidades/estados';
+import {
+  CLASE_CAMPO_FALTANTE,
+  CLASE_OBLIGATORIO,
+  analizarFaltantesItem,
+  etiquetasFaltantesItem,
+  faltaItemActivo,
+  type FaltantesItem,
+} from '@/modulos/rfq/utilidades/faltantes';
 
 import { cancelarItemRfqAccion } from '../acciones/cancelar-item-rfq';
 import { guardarItemRfqAccion } from '../acciones/guardar-item-rfq';
@@ -71,10 +79,12 @@ export function TablaItemsRfq({
   rfq,
   catalogos,
   onCambio,
+  faltantes,
 }: {
   rfq: Rfq;
   catalogos: CatalogosRfq | null;
   onCambio: () => void;
+  faltantes?: readonly string[];
 }) {
   const [borrador, setBorrador] = useState<BorradorItem | null>(null);
   const [itemEditando, setItemEditando] = useState<RfqItem | null>(null);
@@ -84,6 +94,11 @@ export function TablaItemsRfq({
   const [enviando, setEnviando] = useState(false);
 
   const editable = esDefinicionRfqEditable(rfq.estadoRfq);
+  const faltantesItems = faltantes ?? [];
+  const sinItemsActivos = faltaItemActivo(faltantesItems);
+  const faltantesEditando: FaltantesItem = itemEditando
+    ? analizarFaltantesItem(faltantesItems, itemEditando.codigo)
+    : { material: false, espesor: false, operaciones: false };
 
   const nombreMaterial = useMemo(
     () => new Map((catalogos?.materiales ?? []).map((m) => [m.id, m.nombre])),
@@ -101,6 +116,7 @@ export function TablaItemsRfq({
   const espesoresDelMaterial = (catalogos?.espesores ?? []).filter(
     (espesor) => espesor.materialId === (borrador?.materialId ?? ''),
   );
+  const espesorObligatorio = espesoresDelMaterial.length > 0 || faltantesEditando.espesor;
 
   function abrirNuevo(): void {
     setItemEditando(null);
@@ -201,7 +217,14 @@ export function TablaItemsRfq({
       )}
 
       {rfq.items.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-borde px-4 py-6 text-center text-sm text-texto-secundario">
+        <p
+          data-faltante={sinItemsActivos ? 'si' : 'no'}
+          className={
+            sinItemsActivos
+              ? 'rounded-lg border border-dashed border-peligro/40 bg-peligro-suave px-4 py-6 text-center text-sm text-peligro-texto'
+              : 'rounded-lg border border-dashed border-borde px-4 py-6 text-center text-sm text-texto-secundario'
+          }
+        >
           Sin ítems capturados.
         </p>
       ) : (
@@ -219,69 +242,85 @@ export function TablaItemsRfq({
               </tr>
             </TablaEncabezado>
             <TablaCuerpo>
-              {rfq.items.map((item) => (
-                <TablaFila key={item.id}>
-                  <TablaCelda className="font-mono text-xs">{item.codigo}</TablaCelda>
-                  <TablaCelda>
-                    <span className="font-medium">{item.descripcion}</span>
-                    {item.acabado && (
-                      <span className="block text-xs text-texto-secundario">Acabado: {item.acabado}</span>
-                    )}
-                  </TablaCelda>
-                  <TablaCelda className="text-right tabular-nums">
-                    {formatearNumero(item.cantidad, 2)}
-                  </TablaCelda>
-                  <TablaCelda className="text-texto-secundario">
-                    {item.materialId ? (nombreMaterial.get(item.materialId) ?? 'Material') : '—'}
-                    {item.espesorId ? ` · ${nombreEspesor.get(item.espesorId) ?? ''}` : ''}
-                  </TablaCelda>
-                  <TablaCelda className="text-texto-secundario">
-                    {item.operaciones.length > 0
-                      ? item.operaciones
-                          .map((operacion) => nombreProceso.get(operacion.procesoId) ?? 'Proceso')
-                          .join(', ')
-                      : '—'}
-                  </TablaCelda>
-                  <TablaCelda>
-                    {item.estado === 'cancelado' ? (
-                      <span className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs text-texto-secundario">
-                        Cancelado
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-exito-suave px-2.5 py-0.5 text-xs text-exito-texto">
-                        Activo
-                      </span>
-                    )}
-                  </TablaCelda>
-                  <TablaCelda className="text-right">
-                    {item.estado === 'activo' && editable ? (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variante="contorno"
-                          tamano="sm"
-                          onClick={() => abrirEdicion(item)}
+              {rfq.items.map((item) => {
+                const etiquetasFaltantes =
+                  item.estado === 'activo'
+                    ? etiquetasFaltantesItem(analizarFaltantesItem(faltantesItems, item.codigo))
+                    : [];
+                return (
+                  <TablaFila key={item.id}>
+                    <TablaCelda className="font-mono text-xs">{item.codigo}</TablaCelda>
+                    <TablaCelda>
+                      <span className="font-medium">{item.descripcion}</span>
+                      {item.acabado && (
+                        <span className="block text-xs text-texto-secundario">
+                          Acabado: {item.acabado}
+                        </span>
+                      )}
+                      {etiquetasFaltantes.length > 0 && (
+                        <span
+                          data-testid={`item-faltantes-${item.codigo}`}
+                          className="block text-xs font-medium text-peligro-texto"
                         >
-                          Editar
-                        </Button>
-                        <Button
-                          type="button"
-                          variante="destructivo"
-                          tamano="sm"
-                          onClick={() => {
-                            setMensaje(null);
-                            setItemCancelar(item);
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-texto-tenue">—</span>
-                    )}
-                  </TablaCelda>
-                </TablaFila>
-              ))}
+                          Falta: {etiquetasFaltantes.join(', ')}
+                        </span>
+                      )}
+                      </TablaCelda>
+                    <TablaCelda className="text-right tabular-nums">
+                      {formatearNumero(item.cantidad, 2)}
+                    </TablaCelda>
+                    <TablaCelda className="text-texto-secundario">
+                      {item.materialId ? (nombreMaterial.get(item.materialId) ?? 'Material') : '—'}
+                      {item.espesorId ? ` · ${nombreEspesor.get(item.espesorId) ?? ''}` : ''}
+                    </TablaCelda>
+                    <TablaCelda className="text-texto-secundario">
+                      {item.operaciones.length > 0
+                        ? item.operaciones
+                            .map((operacion) => nombreProceso.get(operacion.procesoId) ?? 'Proceso')
+                            .join(', ')
+                        : '—'}
+                    </TablaCelda>
+                    <TablaCelda>
+                      {item.estado === 'cancelado' ? (
+                        <span className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs text-texto-secundario">
+                          Cancelado
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-exito-suave px-2.5 py-0.5 text-xs text-exito-texto">
+                          Activo
+                        </span>
+                      )}
+                    </TablaCelda>
+                    <TablaCelda className="text-right">
+                      {item.estado === 'activo' && editable ? (
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variante="contorno"
+                            tamano="sm"
+                            onClick={() => abrirEdicion(item)}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            type="button"
+                            variante="destructivo"
+                            tamano="sm"
+                            onClick={() => {
+                              setMensaje(null);
+                              setItemCancelar(item);
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-texto-tenue">—</span>
+                      )}
+                    </TablaCelda>
+                  </TablaFila>
+                );
+              })}
             </TablaCuerpo>
           </Tabla>
         </TablaContenedor>
@@ -297,7 +336,10 @@ export function TablaItemsRfq({
           </DialogHeader>
           {borrador && (
             <form onSubmit={guardarItem} className="flex flex-col gap-3" noValidate>
-              <label className="grid gap-1 text-sm font-medium" htmlFor="item-descripcion">
+              <label
+                className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                htmlFor="item-descripcion"
+              >
                 Descripción
                 <Input
                   id="item-descripcion"
@@ -308,7 +350,10 @@ export function TablaItemsRfq({
                   maxLength={300}
                 />
               </label>
-              <label className="grid gap-1 text-sm font-medium" htmlFor="item-cantidad">
+              <label
+                className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                htmlFor="item-cantidad"
+              >
                 Cantidad
                 <Input
                   id="item-cantidad"
@@ -319,7 +364,10 @@ export function TablaItemsRfq({
                   onChange={(evento) => setBorrador({ ...borrador, cantidad: evento.target.value })}
                 />
               </label>
-              <label className="grid gap-1 text-sm font-medium" htmlFor="item-material">
+              <label
+                className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                htmlFor="item-material"
+              >
                 Material
                 <Select
                   id="item-material"
@@ -327,6 +375,9 @@ export function TablaItemsRfq({
                   onChange={(evento) =>
                     setBorrador({ ...borrador, materialId: evento.target.value, espesorId: '' })
                   }
+                  aria-required="true"
+                  aria-invalid={faltantesEditando.material}
+                  className={faltantesEditando.material ? CLASE_CAMPO_FALTANTE : undefined}
                 >
                   <option value="">Sin material</option>
                   {(catalogos?.materiales ?? []).map((material) => (
@@ -337,13 +388,19 @@ export function TablaItemsRfq({
                 </Select>
               </label>
               <div className="grid gap-1 text-sm">
-                <label className="font-medium" htmlFor="item-espesor">
+                <label
+                  className={`font-medium ${espesorObligatorio ? CLASE_OBLIGATORIO : ''}`}
+                  htmlFor="item-espesor"
+                >
                   Espesor
                 </label>
                 <Select
                   id="item-espesor"
                   value={borrador.espesorId}
                   disabled={!borrador.materialId || espesoresDelMaterial.length === 0}
+                  aria-required={espesorObligatorio}
+                  aria-invalid={faltantesEditando.espesor}
+                  className={faltantesEditando.espesor ? CLASE_CAMPO_FALTANTE : undefined}
                   aria-describedby={
                     !borrador.materialId || espesoresDelMaterial.length === 0
                       ? 'item-espesor-ayuda'
@@ -374,8 +431,17 @@ export function TablaItemsRfq({
                   </span>
                 )}
               </div>
-              <fieldset className="grid gap-1 rounded-md border border-borde p-2">
-                <legend className="px-1 text-sm font-medium">Operaciones solicitadas</legend>
+              <fieldset
+                data-faltante={faltantesEditando.operaciones ? 'si' : 'no'}
+                className={
+                  faltantesEditando.operaciones
+                    ? 'grid gap-1 rounded-md border border-peligro/40 bg-peligro-suave p-2'
+                    : 'grid gap-1 rounded-md border border-borde p-2'
+                }
+              >
+                <legend className={`px-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}>
+                  Operaciones solicitadas
+                </legend>
                 <div className="flex flex-wrap gap-2">
                   {(catalogos?.procesos ?? []).map((proceso) => (
                     <label
@@ -393,6 +459,11 @@ export function TablaItemsRfq({
                     </label>
                   ))}
                 </div>
+                {faltantesEditando.operaciones && (
+                  <p className="text-xs font-medium text-peligro-texto">
+                    Falta al menos una operación solicitada.
+                  </p>
+                )}
               </fieldset>
               <label className="grid gap-1 text-sm font-medium" htmlFor="item-acabado">
                 Acabado (opcional)

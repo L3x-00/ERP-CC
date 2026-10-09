@@ -8,6 +8,13 @@ import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
 import { esDefinicionRfqEditable, motivoDefinicionRfqBloqueada } from '@/modulos/rfq/utilidades/estados';
+import {
+  CLASE_CAMPO_FALTANTE,
+  CLASE_OBLIGATORIO,
+  analizarFaltantesCliente,
+  analizarFaltantesGenerales,
+  analizarFaltantesSeguimiento,
+} from '@/modulos/rfq/utilidades/faltantes';
 
 import { actualizarDatosRfqAccion } from '../acciones/actualizar-datos-rfq';
 import {
@@ -34,10 +41,16 @@ export function FormularioGeneralRfq({
   rfq,
   catalogos,
   onGuardado,
+  faltantes,
 }: {
   rfq: Rfq;
   catalogos: CatalogosRfq;
   onGuardado: () => void;
+  faltantes?: {
+    cliente?: readonly string[];
+    general?: readonly string[];
+    seguimiento?: readonly string[];
+  };
 }) {
   const [canal, setCanal] = useState(() => resolverCanalInicial(rfq, catalogos));
   const [canalDetalle, setCanalDetalle] = useState(rfq.canalDetalle ?? '');
@@ -62,6 +75,14 @@ export function FormularioGeneralRfq({
   });
 
   const editable = esDefinicionRfqEditable(rfq.estadoRfq);
+  const fCliente = analizarFaltantesCliente(faltantes?.cliente ?? []);
+  const fGeneral = analizarFaltantesGenerales(faltantes?.general ?? []);
+  const fSeguimiento = analizarFaltantesSeguimiento(faltantes?.seguimiento ?? []);
+  const faltaSeguimiento =
+    fSeguimiento.proximaAccion ||
+    fSeguimiento.detalleProximaAccion ||
+    fSeguimiento.fechaProximaAccion ||
+    fSeguimiento.responsableProximaAccion;
   const accionSeleccionada = catalogos.proximasAcciones.find(
     (accion) => accion.codigo === proximaAccionCodigo,
   );
@@ -117,7 +138,7 @@ export function FormularioGeneralRfq({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rfq-canal">Canal</Label>
+          <Label htmlFor="rfq-canal" className={CLASE_OBLIGATORIO}>Canal</Label>
           <Select
             id="rfq-canal"
             value={canal}
@@ -128,6 +149,9 @@ export function FormularioGeneralRfq({
               if (!siguiente?.esOtro) setCanalDetalle('');
             }}
             disabled={!editable}
+            aria-required="true"
+            aria-invalid={fGeneral.canal}
+            className={fGeneral.canal ? CLASE_CAMPO_FALTANTE : undefined}
           >
             <option value="">Sin canal</option>
             {canalHistoricoSinCatalogar && (
@@ -158,22 +182,28 @@ export function FormularioGeneralRfq({
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rfq-fecha-solicitud">Fecha de solicitud</Label>
+          <Label htmlFor="rfq-fecha-solicitud" className={CLASE_OBLIGATORIO}>Fecha de solicitud</Label>
           <Input
             id="rfq-fecha-solicitud"
             type="date"
             value={fechaSolicitud}
             onChange={(evento) => setFechaSolicitud(evento.target.value)}
             disabled={!editable}
+            aria-required="true"
+            aria-invalid={fGeneral.fechaSolicitud}
+            className={fGeneral.fechaSolicitud ? CLASE_CAMPO_FALTANTE : undefined}
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rfq-responsable">Responsable</Label>
+          <Label htmlFor="rfq-responsable" className={CLASE_OBLIGATORIO}>Responsable</Label>
           <Select
             id="rfq-responsable"
             value={responsableId}
             onChange={(evento) => setResponsableId(evento.target.value)}
             disabled={!editable}
+            aria-required="true"
+            aria-invalid={fGeneral.responsable}
+            className={fGeneral.responsable ? CLASE_CAMPO_FALTANTE : undefined}
           >
             <option value="">Sin responsable</option>
             {catalogos.usuarios.map((usuario) => (
@@ -185,7 +215,7 @@ export function FormularioGeneralRfq({
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-          <Label htmlFor="rfq-descripcion">Descripción general</Label>
+          <Label htmlFor="rfq-descripcion" className={CLASE_OBLIGATORIO}>Descripción general</Label>
           <Textarea
             id="rfq-descripcion"
             value={descripcionGeneral}
@@ -193,16 +223,22 @@ export function FormularioGeneralRfq({
             rows={2}
             maxLength={2000}
             disabled={!editable}
+            aria-required="true"
+            aria-invalid={fGeneral.descripcionGeneral}
+            className={fGeneral.descripcionGeneral ? CLASE_CAMPO_FALTANTE : undefined}
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rfq-contacto">Contacto del cliente</Label>
+          <Label htmlFor="rfq-contacto" className={CLASE_OBLIGATORIO}>Contacto del cliente</Label>
           <Select
             id="rfq-contacto"
             value={contactoId}
             onChange={(evento) => setContactoId(evento.target.value)}
             disabled={!editable || !rfq.clienteId}
+            aria-required="true"
+            aria-invalid={fCliente.contacto}
+            className={fCliente.contacto ? CLASE_CAMPO_FALTANTE : undefined}
           >
             <option value="">
               {rfq.clienteId ? 'Sin contacto' : 'El RFQ no tiene cliente ligado'}
@@ -217,15 +253,23 @@ export function FormularioGeneralRfq({
         </div>
       </div>
 
-      <fieldset className="grid gap-4 rounded-lg border border-borde p-3 sm:grid-cols-2 lg:grid-cols-4">
-        <legend className="px-1 text-sm font-semibold">Próxima acción</legend>
+      <fieldset
+        data-faltante={faltaSeguimiento ? 'si' : 'no'}
+        className="grid gap-4 rounded-lg border border-borde p-3 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <legend className={`px-1 text-sm font-semibold ${CLASE_OBLIGATORIO}`}>
+          Próxima acción
+        </legend>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rfq-proxima-accion">Acción</Label>
+          <Label htmlFor="rfq-proxima-accion" className={CLASE_OBLIGATORIO}>Acción</Label>
           <Select
             id="rfq-proxima-accion"
             value={proximaAccionCodigo}
             onChange={(evento) => setProximaAccionCodigo(evento.target.value)}
             disabled={!editable}
+            aria-required="true"
+            aria-invalid={fSeguimiento.proximaAccion}
+            className={fSeguimiento.proximaAccion ? CLASE_CAMPO_FALTANTE : undefined}
           >
             <option value="">Sin próxima acción</option>
             {catalogos.proximasAcciones.map((accion) => (
@@ -237,33 +281,44 @@ export function FormularioGeneralRfq({
         </div>
         {accionSeleccionada?.esOtro && (
           <div className="flex flex-col gap-1">
-            <Label htmlFor="rfq-proxima-texto">Detalle (Otro)</Label>
+            <Label htmlFor="rfq-proxima-texto" className={CLASE_OBLIGATORIO}>Detalle (Otro)</Label>
             <Input
               id="rfq-proxima-texto"
               value={proximaAccionTexto}
               onChange={(evento) => setProximaAccionTexto(evento.target.value)}
               maxLength={300}
               disabled={!editable}
+              aria-required="true"
+              aria-invalid={fSeguimiento.detalleProximaAccion}
+              className={fSeguimiento.detalleProximaAccion ? CLASE_CAMPO_FALTANTE : undefined}
             />
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rfq-proxima-fecha">Fecha</Label>
+          <Label htmlFor="rfq-proxima-fecha" className={CLASE_OBLIGATORIO}>Fecha</Label>
           <Input
             id="rfq-proxima-fecha"
             type="date"
             value={fechaProximaAccion}
             onChange={(evento) => setFechaProximaAccion(evento.target.value)}
             disabled={!editable}
+            aria-required="true"
+            aria-invalid={fSeguimiento.fechaProximaAccion}
+            className={fSeguimiento.fechaProximaAccion ? CLASE_CAMPO_FALTANTE : undefined}
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rfq-proxima-responsable">Responsable de la acción</Label>
+          <Label htmlFor="rfq-proxima-responsable" className={CLASE_OBLIGATORIO}>
+            Responsable de la acción
+          </Label>
           <Select
             id="rfq-proxima-responsable"
             value={responsableProximaAccionId}
             onChange={(evento) => setResponsableProximaAccionId(evento.target.value)}
             disabled={!editable}
+            aria-required="true"
+            aria-invalid={fSeguimiento.responsableProximaAccion}
+            className={fSeguimiento.responsableProximaAccion ? CLASE_CAMPO_FALTANTE : undefined}
           >
             <option value="">Sin responsable</option>
             {catalogos.usuarios.map((usuario) => (
