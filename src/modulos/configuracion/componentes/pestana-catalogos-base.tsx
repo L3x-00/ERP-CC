@@ -35,6 +35,9 @@ import {
   soloActivos,
 } from '@/modulos/catalogos/utilidades/indice';
 
+import { SeccionTarifasGrupos } from './seccion-tarifas-grupos';
+import { SeccionTarifasRecursos } from './seccion-tarifas-recursos';
+
 const CLAVE_CATALOGOS_BASE = ['configuracion', 'catalogos-base'] as const;
 const claveVersiones = (entidad: EntidadCatalogo, entidadId: string) =>
   ['configuracion', 'catalogos-base', 'versiones', entidad, entidadId] as const;
@@ -139,6 +142,21 @@ export function PestanaCatalogosBase() {
       <SeccionEspesores {...propsBase} />
       <SeccionProcesos {...propsBase} />
       <SeccionGruposEquipo {...propsBase} />
+      <SeccionTarifasGrupos
+        grupos={datos.gruposEquipo}
+        puedeEditar={datos.puedeEditar}
+        onGuardado={async (texto) => {
+          await refrescar();
+          onMensaje(texto);
+        }}
+        onError={onError}
+      />
+      <SeccionTarifasRecursos
+        grupos={datos.gruposEquipo}
+        puedeEditar={datos.puedeEditar}
+        onMensaje={onMensaje}
+        onError={onError}
+      />
       <SeccionGruposPlaneados {...propsBase} />
       <SeccionProximasAcciones {...propsBase} />
       <SeccionCanales {...propsBase} />

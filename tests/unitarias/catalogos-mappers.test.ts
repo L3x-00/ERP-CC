@@ -69,8 +69,18 @@ describe('mappers defensivos de catálogos', () => {
       activo: false,
       orden: 0,
       creado_en: '2026-10-05T00:00:00.000Z',
+      tarifa_hora: 850.5,
+      tarifa_moneda: 'USD',
     });
     expect(grupo.activo).toBe(false);
+    expect(grupo.tarifaHora).toBe(850.5);
+    expect(grupo.tarifaMoneda).toBe('USD');
+    expect(
+      filaAGrupoEquipo({
+        id: 'g2', codigo: 'SIN_TARIFA', nombre: 'Sin tarifa', activo: true, orden: 0,
+        creado_en: '2026-10-05T00:00:00.000Z', tarifa_hora: null, tarifa_moneda: 'MXN',
+      }).tarifaHora,
+    ).toBeNull();
 
     const accion = filaAProximaAccion({
       id: 'a1',

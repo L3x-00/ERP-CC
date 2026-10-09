@@ -3335,6 +3335,9 @@ export type Database = {
       }
       recursos_planeacion: {
         Row: {
+          tarifa_override_activa: boolean
+          tarifa_override_hora: number | null
+          tarifa_override_moneda: string | null
           activo: boolean
           actualizado_en: string
           area: string
@@ -3348,6 +3351,9 @@ export type Database = {
           nombre: string
         }
         Insert: {
+          tarifa_override_activa?: boolean
+          tarifa_override_hora?: number | null
+          tarifa_override_moneda?: string | null
           activo?: boolean
           actualizado_en?: string
           area: string
@@ -3361,6 +3367,9 @@ export type Database = {
           nombre: string
         }
         Update: {
+          tarifa_override_activa?: boolean
+          tarifa_override_hora?: number | null
+          tarifa_override_moneda?: string | null
           activo?: boolean
           actualizado_en?: string
           area?: string
@@ -4196,6 +4205,8 @@ export type Database = {
       }
       grupos_equipo: {
         Row: {
+          tarifa_hora: number | null
+          tarifa_moneda: string
           activo: boolean
           codigo: string
           creado_en: string
@@ -4204,6 +4215,8 @@ export type Database = {
           orden: number
         }
         Insert: {
+          tarifa_hora?: number | null
+          tarifa_moneda?: string
           activo?: boolean
           codigo: string
           creado_en?: string
@@ -4212,6 +4225,8 @@ export type Database = {
           orden?: number
         }
         Update: {
+          tarifa_hora?: number | null
+          tarifa_moneda?: string
           activo?: boolean
           codigo?: string
           creado_en?: string
@@ -5534,6 +5549,10 @@ export type Database = {
           entidad: string
           entidad_id: string
         }[]
+      }
+      resolver_tarifa_hora: {
+        Args: { p_grupo_equipo_id: string; p_recurso_id?: string }
+        Returns: Json
       }
       registrar_version_rfq: {
         Args: {
