@@ -13,7 +13,11 @@ const {
   ErrorOrdenMock,
   ErrorOrdenSiiMock,
 } = vi.hoisted(() => {
-  class ErrorOrdenMock extends Error {}
+  class ErrorOrdenMock extends Error {
+    constructor(public readonly codigo: string) {
+      super(codigo);
+    }
+  }
   class ErrorOrdenSiiMock extends Error {
     constructor(public readonly codigo: string) {
       super(codigo);
@@ -116,13 +120,13 @@ beforeEach(() => {
     id: '44444444-4444-4444-8444-444444444444',
     costoUnitarioMomento: 25,
     cantidadTotal: 3,
-    movimientoInventarioId: '55555555-5555-4555-8555-555555555555',
+    movimientoInventarioId: null,
   });
   registrarConsumoOperadorMock.mockResolvedValue({
     id: '44444444-4444-4444-8444-444444444444',
     costoUnitarioMomento: 25,
     cantidadTotal: 3,
-    movimientoInventarioId: '55555555-5555-4555-8555-555555555555',
+    movimientoInventarioId: null,
   });
   registrarTiempoMock.mockResolvedValue({
     id: '66666666-6666-4666-8666-666666666666',
@@ -181,6 +185,54 @@ describe('seguridad de acciones de órdenes', () => {
       error: 'Sin permiso para registrar consumo de material',
     });
     expect(registrarConsumoMock).not.toHaveBeenCalled();
+  });
+
+  it('envía el actor autorizado al servicio de consumo canónico y audita sin movimiento', async () => {
+    canMock.mockResolvedValue(true);
+
+    const entrada = {
+      partidaId: '77777777-7777-4777-8777-777777777777',
+      materialId: '88888888-8888-4888-8888-888888888888',
+      cantidadUsada: 3,
+      cantidadScrap: 0,
+    };
+    const respuesta = await registrarConsumoAccion(entrada);
+
+    expect(respuesta.exito).toBe(true);
+    expect(registrarConsumoMock).toHaveBeenCalledWith(expect.anything(), entrada, USUARIO_SIN_PERMISOS.id);
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      USUARIO_SIN_PERMISOS,
+      'registrar_consumo_material',
+      'ordenes',
+      '44444444-4444-4444-8444-444444444444',
+      expect.objectContaining({ movimientoInventarioId: null }),
+      'correlacion-prueba',
+    );
+  });
+
+  it('explica cómo corregir un consumo sin costo confirmado', async () => {
+    canMock.mockResolvedValue(true);
+    registrarConsumoMock.mockRejectedValue(new ErrorOrdenMock('costo_material_no_configurado'));
+
+    const respuesta = await registrarConsumoAccion({
+      partidaId: '77777777-7777-4777-8777-777777777777',
+      materialId: '88888888-8888-4888-8888-888888888888',
+      cantidadUsada: 3,
+      cantidadScrap: 0,
+    });
+
+    expect(respuesta).toEqual({
+      exito: false,
+      error: 'El material no tiene un costo confirmado. Configúralo en Materiales y costos.',
+    });
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      USUARIO_SIN_PERMISOS,
+      'consumo_material_rechazado',
+      'ordenes',
+      '77777777-7777-4777-8777-777777777777',
+      expect.objectContaining({ codigo: 'costo_material_no_configurado' }),
+      'correlacion-prueba',
+    );
   });
 
   it('rechaza una marca de tiempo cuyo operador no coincide con la sesión PIN', async () => {

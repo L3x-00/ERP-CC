@@ -95,37 +95,42 @@ describe('servicios transaccionales de órdenes', () => {
     ).rejects.toMatchObject({ codigo: 'estado_conflicto' });
   });
 
-  it('registra consumo y scrap solo mediante la RPC atómica', async () => {
+  it('registra consumo canónico sin exigir movimiento de inventario', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: [
         {
           id: '44444444-4444-4444-8444-444444444444',
           costo_unitario_momento: 25,
           cantidad_total: 3.5,
-          movimiento_inventario_id: '55555555-5555-4555-8555-555555555555',
+          movimiento_inventario_id: null,
         },
       ],
       error: null,
     });
 
-    const resultado = await registrarConsumoMaterialServicio(clienteConRpc(rpc), {
-      partidaId: '22222222-2222-4222-8222-222222222222',
-      materialId: '33333333-3333-4333-8333-333333333333',
-      cantidadUsada: 3,
-      cantidadScrap: 0.5,
-    });
+    const resultado = await registrarConsumoMaterialServicio(
+      clienteConRpc(rpc),
+      {
+        partidaId: '22222222-2222-4222-8222-222222222222',
+        materialId: '33333333-3333-4333-8333-333333333333',
+        cantidadUsada: 3,
+        cantidadScrap: 0.5,
+      },
+      '66666666-6666-4666-8666-666666666666',
+    );
 
     expect(resultado).toEqual({
       id: '44444444-4444-4444-8444-444444444444',
       costoUnitarioMomento: 25,
       cantidadTotal: 3.5,
-      movimientoInventarioId: '55555555-5555-4555-8555-555555555555',
+      movimientoInventarioId: null,
     });
     expect(rpc).toHaveBeenCalledWith('registrar_consumo_material_op', {
       p_partida_id: '22222222-2222-4222-8222-222222222222',
       p_material_id: '33333333-3333-4333-8333-333333333333',
       p_cantidad_usada: 3,
       p_cantidad_scrap: 0.5,
+      p_actor_id: '66666666-6666-4666-8666-666666666666',
     });
   });
 
@@ -171,19 +176,21 @@ describe('servicios transaccionales de órdenes', () => {
           id: '44444444-4444-4444-8444-444444444444',
           costo_unitario_momento: 25,
           cantidad_total: 3,
-          movimiento_inventario_id: '55555555-5555-4555-8555-555555555555',
+          movimiento_inventario_id: null,
         },
       ],
       error: null,
     });
 
-    await registrarConsumoMaterialOperadorServicio(clienteConRpc(rpc), {
+    const resultado = await registrarConsumoMaterialOperadorServicio(clienteConRpc(rpc), {
       partidaId: '22222222-2222-4222-8222-222222222222',
       materialId: '33333333-3333-4333-8333-333333333333',
       operadorId: '66666666-6666-4666-8666-666666666666',
       cantidadUsada: 3,
       cantidadScrap: 0,
     });
+
+    expect(resultado.movimientoInventarioId).toBeNull();
 
     expect(rpc).toHaveBeenCalledWith('registrar_consumo_material_operador_op', {
       p_partida_id: '22222222-2222-4222-8222-222222222222',

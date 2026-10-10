@@ -28,6 +28,7 @@ type ContextoE2E = {
   administradorId: string;
   operadorId: string;
   clienteId: string;
+  materialLegacyId: string;
   materialId: string;
   ordenId: string | null;
   partidaId: string | null;
@@ -125,7 +126,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     throw new Error(`No se pudo crear el cliente E2E: ${errorCliente?.message ?? 'sin cliente'}`);
   }
 
-  const { data: material, error: errorMaterial } = await admin
+  const { data: materialLegacy, error: errorMaterial } = await admin
     .from('materiales')
     .insert({
       codigo: `E2E-${sufijo}`,
@@ -142,9 +143,34 @@ async function prepararContexto(): Promise<ContextoE2E> {
     })
     .select('id')
     .single();
-  if (errorMaterial || !material) {
+  if (errorMaterial || !materialLegacy) {
     throw new Error(`No se pudo crear el material E2E: ${errorMaterial?.message ?? 'sin material'}`);
   }
+
+  const { data: material, error: errorCatalogo } = await admin
+    .from('catalogo_materiales')
+    .insert({
+      codigo: `E2EC_${sufijo.toUpperCase()}`,
+      nombre: `Material canónico E2E ${sufijo}`,
+      unidad_base: 'pieza',
+      material_legacy_id: materialLegacy.id,
+    })
+    .select('id, actualizado_en')
+    .single();
+  if (errorCatalogo || !material) {
+    throw new Error(`No se creó el material canónico E2E: ${errorCatalogo?.message ?? 'sin material'}`);
+  }
+  const { error: errorCosto } = await admin.rpc('confirmar_costo_material', {
+    p_material_id: material.id,
+    p_costo: 50,
+    p_moneda: 'MXN',
+    p_fecha_efectiva: '2099-01-01',
+    p_fuente: 'MANUAL',
+    p_referencia: '',
+    p_actor_id: administradorId,
+    p_actualizado_en: material.actualizado_en,
+  });
+  if (errorCosto) throw new Error(`No se confirmó el costo E2E: ${errorCosto.message}`);
 
   return {
     admin,
@@ -154,6 +180,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     administradorId,
     operadorId,
     clienteId: cliente.id,
+    materialLegacyId: materialLegacy.id,
     materialId: material.id,
     ordenId: null,
     partidaId: null,
@@ -184,7 +211,7 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
     await contexto.admin.from('movimientos_inventario').delete().eq('orden_id', contexto.ordenId);
     await contexto.admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   }
-  await contexto.admin.from('materiales').delete().eq('id', contexto.materialId);
+  await contexto.admin.from('catalogo_materiales').update({ activo: false }).eq('id', contexto.materialId);
   await contexto.admin.from('clientes').delete().eq('id', contexto.clienteId);
   if (recursos.length > 0) {
     await contexto.admin.from('logs').delete().in('recurso_id', recursos);
@@ -193,8 +220,8 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
     .from('logs')
     .delete()
     .in('usuario_id', [contexto.administradorId, contexto.operadorId]);
-  await contexto.admin.from('usuarios').delete().in('id', [contexto.administradorId, contexto.operadorId]);
-  await contexto.admin.auth.admin.deleteUser(contexto.administradorId);
+  await contexto.admin.from('usuarios').update({ activo: false }).eq('id', contexto.administradorId);
+  await contexto.admin.from('usuarios').delete().eq('id', contexto.operadorId);
   await contexto.admin.auth.admin.deleteUser(contexto.operadorId);
 }
 
@@ -232,7 +259,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await page.getByLabel('Fecha compromiso').fill('2099-12-31');
     await page.getByLabel('Código de pieza').fill('PIEZA-E2E');
     await page.getByLabel('Cantidad').fill('5');
-    await page.getByLabel('Material (opcional)').selectOption(contexto.materialId);
+    await page.getByLabel('Material (opcional)').selectOption(contexto.materialLegacyId);
     await page.getByTestId('enviar-orden').click();
 
     await expect
@@ -367,7 +394,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
 
     const { data: consumo, error: errorConsumo } = await contexto.admin
       .from('registros_consumo_material')
-      .select('id, cantidad_usada, cantidad_scrap')
+      .select('id, cantidad_usada, cantidad_scrap, catalogo_material_id, unidad_base, costo_unitario_origen, moneda_costo, tipo_cambio, origen')
       .eq('partida_id', contexto.partidaId)
       .single();
     expect(errorConsumo).toBeNull();
@@ -375,6 +402,14 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     contexto.consumoId = consumo!.id;
     expect(Number(consumo!.cantidad_usada)).toBe(3);
     expect(Number(consumo!.cantidad_scrap)).toBe(0);
+    expect(consumo).toMatchObject({
+      catalogo_material_id: contexto.materialId,
+      unidad_base: 'pieza',
+      costo_unitario_origen: 50,
+      moneda_costo: 'MXN',
+      tipo_cambio: 1,
+      origen: 'NUEVO',
+    });
 
     const { data: tiempo } = await contexto.admin
       .from('registros_tiempo_operador')
@@ -387,9 +422,9 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     const { data: material } = await contexto.admin
       .from('materiales')
       .select('stock_actual_control')
-      .eq('id', contexto.materialId)
+      .eq('id', contexto.materialLegacyId)
       .single();
-    expect(Number(material?.stock_actual_control)).toBe(17);
+    expect(Number(material?.stock_actual_control)).toBe(20);
 
     const { data: logs } = await contexto.admin
       .from('logs')

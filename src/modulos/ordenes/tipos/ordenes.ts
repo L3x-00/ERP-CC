@@ -105,7 +105,7 @@ export interface RegistroTiempo {
   actualizadoEn: string;
 }
 
-/** Consumo real de material asociado a una partida, en unidad de control. */
+/** Consumo real asociado a una partida; los nuevos usan la unidad canónica. */
 export interface RegistroConsumoMaterial {
   id: string;
   partidaId: string;
@@ -257,7 +257,7 @@ export function filaAPartida(fila: FilaPartida): Partida {
     cantidadProducida: Number(fila.cantidad_producida),
     cantidadScrap: Number(fila.cantidad_scrap),
     unidadMedida: fila.unidad_medida,
-    materialId: fila.material_id,
+    materialId: fila.catalogo_material_id ?? fila.material_id,
     tiempoEstimadoMinutos: Number(fila.tiempo_estimado_minutos),
     tiempoRealMinutos: Number(fila.tiempo_real_minutos),
     maquinaAsignada: fila.maquina_asignada,
@@ -288,7 +288,7 @@ export function filaARegistroConsumoMaterial(
   return {
     id: fila.id,
     partidaId: fila.partida_id,
-    materialId: fila.material_id,
+    materialId: fila.catalogo_material_id ?? fila.material_id ?? '',
     cantidadUsada: Number(fila.cantidad_usada),
     cantidadScrap: Number(fila.cantidad_scrap),
     costoUnitarioMomento: Number(fila.costo_unitario_momento),

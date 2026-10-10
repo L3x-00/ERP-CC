@@ -28,8 +28,7 @@ export type MaterialPiso = {
   id: string;
   codigo: string;
   nombre: string;
-  stockActualControl: number;
-  unidadControl: string;
+  unidadBase: string;
 };
 
 type PropsControlPisoPanel = {
@@ -508,8 +507,7 @@ export function ControlPisoPanel({
               <option value="">Selecciona un material</option>
               {materiales.map((material) => (
                 <option key={material.id} value={material.id}>
-                  {material.codigo} — {material.nombre} ({material.stockActualControl}{' '}
-                  {material.unidadControl})
+                  {material.codigo} — {material.nombre} ({material.unidadBase})
                 </option>
               ))}
             </Select>

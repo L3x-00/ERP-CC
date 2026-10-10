@@ -17,6 +17,7 @@ type Contexto = {
   clienteId: string;
   ordenesIds: string[];
   materialId: string | null;
+  catalogoMaterialId: string | null;
 };
 
 const contexto: Contexto = {
@@ -25,6 +26,7 @@ const contexto: Contexto = {
   clienteId: '',
   ordenesIds: [],
   materialId: null,
+  catalogoMaterialId: null,
 };
 
 async function crearUsuarioAdmin(admin: SupabaseClient<Database>, sufijo: string): Promise<string> {
@@ -97,17 +99,22 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
     await admin.from('pagos_ar').delete().in('ar_id', await idsDeAr(admin));
     await admin.from('cuentas_por_cobrar').delete().in('orden_id', contexto.ordenesIds);
     await admin.from('registros_consumo_material').delete().in('partida_id', await idsDePartidas(admin));
-    if (contexto.materialId) {
-      await admin.from('movimientos_inventario').delete().eq('material_id', contexto.materialId);
-      await admin.from('materiales').delete().eq('id', contexto.materialId);
+    if (contexto.catalogoMaterialId) {
+      await admin.from('catalogo_materiales').update({ activo: false }).eq('id', contexto.catalogoMaterialId);
     }
     await admin.from('partidas_orden_produccion').delete().in('orden_id', contexto.ordenesIds);
     await admin.from('ordenes_produccion').delete().in('id', contexto.ordenesIds);
     if (contexto.clienteId) await admin.from('clientes').delete().eq('id', contexto.clienteId);
     if (contexto.usuarioId) {
       await admin.from('logs').delete().eq('usuario_id', contexto.usuarioId);
-      await admin.from('usuarios').delete().eq('id', contexto.usuarioId);
-      await admin.auth.admin.deleteUser(contexto.usuarioId);
+      // C6.1 conserva al actor en el historial append-only de costos. Una vez
+      // confirmado el fixture no se destruye esa evidencia: solo se desactiva.
+      if (contexto.catalogoMaterialId) {
+        await admin.from('usuarios').update({ activo: false }).eq('id', contexto.usuarioId);
+      } else {
+        await admin.from('usuarios').delete().eq('id', contexto.usuarioId);
+        await admin.auth.admin.deleteUser(contexto.usuarioId);
+      }
     }
   });
 
@@ -275,24 +282,11 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
     expect(count).toBe(1);
   });
 
-  it('dos consumos simultáneos no dejan stock negativo ni descuentan dos veces', async () => {
+  it('dos consumos simultáneos se registran una vez cada uno sin tocar stock ni kardex', async () => {
     const admin = contexto.admin;
     const ordenId = await crearOrden(admin, contexto.clienteId, 'en_proceso');
     const sufijo = randomUUID().slice(0, 6);
-    const { data: partida, error: errorPartida } = await admin
-      .from('partidas_orden_produccion')
-      .insert({
-        orden_id: ordenId,
-        codigo_pieza: `E2E-CONC-${sufijo}`,
-        descripcion: 'Partida de concurrencia',
-        cantidad_solicitada: 1,
-        unidad_medida: 'pieza',
-      })
-      .select('id')
-      .single();
-    if (errorPartida || !partida) throw new Error(`Sin partida E2E: ${errorPartida?.message}`);
-
-    const { data: material, error: errorMaterial } = await admin
+    const { data: materialLegado, error: errorMaterial } = await admin
       .from('materiales')
       .insert({
         codigo: `MAT-CONC-${sufijo}`,
@@ -307,8 +301,46 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
       })
       .select('id')
       .single();
-    if (errorMaterial || !material) throw new Error(`Sin material E2E: ${errorMaterial?.message}`);
-    contexto.materialId = material.id;
+    if (errorMaterial || !materialLegado) throw new Error(`Sin material E2E: ${errorMaterial?.message}`);
+    contexto.materialId = materialLegado.id;
+
+    const { data: material, error: errorCatalogo } = await admin
+      .from('catalogo_materiales')
+      .insert({
+        codigo: `MATC_${sufijo.toUpperCase()}`,
+        nombre: `Material canónico Concurrencia ${sufijo}`,
+        unidad_base: 'kg',
+        material_legacy_id: materialLegado.id,
+      })
+      .select('id, actualizado_en')
+      .single();
+    if (errorCatalogo || !material) throw new Error(`Sin material canónico: ${errorCatalogo?.message}`);
+    contexto.catalogoMaterialId = material.id;
+    const { error: errorCosto } = await admin.rpc('confirmar_costo_material', {
+      p_material_id: material.id,
+      p_costo: 10,
+      p_moneda: 'MXN',
+      p_fecha_efectiva: '2099-01-01',
+      p_fuente: 'MANUAL',
+      p_referencia: '',
+      p_actor_id: contexto.usuarioId,
+      p_actualizado_en: material.actualizado_en,
+    });
+    if (errorCosto) throw new Error(`Sin costo confirmado: ${errorCosto.message}`);
+
+    const { data: partida, error: errorPartida } = await admin
+      .from('partidas_orden_produccion')
+      .insert({
+        orden_id: ordenId,
+        codigo_pieza: `E2E-CONC-${sufijo}`,
+        descripcion: 'Partida de concurrencia',
+        cantidad_solicitada: 20,
+        unidad_medida: 'pieza',
+        catalogo_material_id: material.id,
+      })
+      .select('id')
+      .single();
+    if (errorPartida || !partida) throw new Error(`Sin partida E2E: ${errorPartida?.message}`);
 
     const clienteA = crearClienteServicio();
     const clienteB = crearClienteServicio();
@@ -317,6 +349,7 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
       p_material_id: material.id,
       p_cantidad_usada: 7,
       p_cantidad_scrap: 0,
+      p_actor_id: contexto.usuarioId,
     };
 
     const [respuestaA, respuestaB] = await Promise.all([
@@ -324,20 +357,26 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
       clienteB.rpc('registrar_consumo_material_op', argumentos),
     ]);
 
-    const exitos = [respuestaA, respuestaB].filter((respuesta) => respuesta.error === null);
-    expect(exitos).toHaveLength(1);
+    expect(respuestaA.error).toBeNull();
+    expect(respuestaB.error).toBeNull();
 
     const { data: materialFinal } = await admin
       .from('materiales')
       .select('stock_actual_control')
-      .eq('id', material.id)
+      .eq('id', materialLegado.id)
       .single();
-    expect(Number(materialFinal?.stock_actual_control)).toBe(3);
+    expect(Number(materialFinal?.stock_actual_control)).toBe(10);
 
     const { count } = await admin
       .from('registros_consumo_material')
       .select('id', { count: 'exact', head: true })
       .eq('partida_id', partida.id);
-    expect(count).toBe(1);
+    expect(count).toBe(2);
+
+    const { count: movimientos } = await admin
+      .from('movimientos_inventario')
+      .select('id', { count: 'exact', head: true })
+      .eq('material_id', materialLegado.id);
+    expect(movimientos).toBe(0);
   });
 });

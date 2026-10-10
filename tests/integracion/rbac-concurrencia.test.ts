@@ -19,6 +19,14 @@ suite('guarda de último admin y matriz con control optimista', () => {
   let adminsAjenos: string[] = [];
   let matrizContadorOriginal: string[] | null = null;
 
+  async function actualizarActividadPorLotes(ids: string[], activo: boolean): Promise<void> {
+    for (let inicio = 0; inicio < ids.length; inicio += 100) {
+      const lote = ids.slice(inicio, inicio + 100);
+      const { error } = await servicio.from('usuarios').update({ activo }).in('id', lote);
+      if (error) throw error;
+    }
+  }
+
   async function crearAdmin(): Promise<string> {
     const creada = await servicio.auth.admin.createUser({
       email: `rbac-${randomUUID()}@orca.local`, password: `Rbac!${randomUUID()}`, email_confirm: true,
@@ -54,7 +62,7 @@ suite('guarda de último admin y matriz con control optimista', () => {
   afterAll(async () => {
     if (!servicio) return;
     if (adminsAjenos.length) {
-      await servicio.from('usuarios').update({ activo: true }).in('id', adminsAjenos);
+      await actualizarActividadPorLotes(adminsAjenos, true);
     }
     if (matrizContadorOriginal) {
       await servicio.from('permisos_rol').delete().eq('rol', 'contador');
@@ -76,8 +84,7 @@ suite('guarda de último admin y matriz con control optimista', () => {
     if (error) throw error;
     adminsAjenos = otros.map((fila) => fila.id);
     if (adminsAjenos.length) {
-      const { error: errorBaja } = await servicio.from('usuarios').update({ activo: false }).in('id', adminsAjenos);
-      if (errorBaja) throw errorBaja;
+      await actualizarActividadPorLotes(adminsAjenos, false);
     }
 
     for (let intento = 0; intento < 8; intento++) {

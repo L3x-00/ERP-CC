@@ -2320,6 +2320,7 @@ export type Database = {
         Row: {
           actualizado_en: string
           area_trabajo_codigo: string | null
+          catalogo_material_id: string | null
           cantidad_producida: number
           cantidad_scrap: number
           cantidad_solicitada: number
@@ -2343,6 +2344,7 @@ export type Database = {
         Insert: {
           actualizado_en?: string
           area_trabajo_codigo?: string | null
+          catalogo_material_id?: string | null
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada: number
@@ -2366,6 +2368,7 @@ export type Database = {
         Update: {
           actualizado_en?: string
           area_trabajo_codigo?: string | null
+          catalogo_material_id?: string | null
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada?: number
@@ -2387,6 +2390,13 @@ export type Database = {
           unidad_medida?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "partidas_orden_produccion_catalogo_material_id_fkey"
+            columns: ["catalogo_material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "partidas_orden_produccion_material_id_fkey"
             columns: ["material_id"]
@@ -3486,33 +3496,68 @@ export type Database = {
       }
       registros_consumo_material: {
         Row: {
+          actor_id: string | null
           cantidad_scrap: number
           cantidad_usada: number
+          catalogo_material_id: string | null
+          costo_unitario_origen: number | null
           costo_unitario_momento: number
           creado_en: string
           id: string
-          material_id: string
+          material_id: string | null
+          moneda_costo: string | null
+          origen: string
           partida_id: string
+          tipo_cambio: number | null
+          unidad_base: string | null
         }
         Insert: {
+          actor_id?: string | null
           cantidad_scrap?: number
           cantidad_usada?: number
+          catalogo_material_id?: string | null
+          costo_unitario_origen?: number | null
           costo_unitario_momento: number
           creado_en?: string
           id?: string
-          material_id: string
+          material_id?: string | null
+          moneda_costo?: string | null
+          origen?: string
           partida_id: string
+          tipo_cambio?: number | null
+          unidad_base?: string | null
         }
         Update: {
+          actor_id?: string | null
           cantidad_scrap?: number
           cantidad_usada?: number
+          catalogo_material_id?: string | null
+          costo_unitario_origen?: number | null
           costo_unitario_momento?: number
           creado_en?: string
           id?: string
-          material_id?: string
+          material_id?: string | null
+          moneda_costo?: string | null
+          origen?: string
           partida_id?: string
+          tipo_cambio?: number | null
+          unidad_base?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registros_consumo_material_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_consumo_material_catalogo_material_id_fkey"
+            columns: ["catalogo_material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registros_consumo_material_material_id_fkey"
             columns: ["material_id"]
@@ -5449,6 +5494,7 @@ export type Database = {
       }
       registrar_consumo_material_op: {
         Args: {
+          p_actor_id: string
           p_cantidad_scrap: number
           p_cantidad_usada: number
           p_material_id: string
@@ -5458,7 +5504,7 @@ export type Database = {
           cantidad_total: number
           costo_unitario_momento: number
           id: string
-          movimiento_inventario_id: string
+          movimiento_inventario_id: string | null
         }[]
       }
       registrar_consumo_material_operador_op: {
@@ -5473,7 +5519,7 @@ export type Database = {
           cantidad_total: number
           costo_unitario_momento: number
           id: string
-          movimiento_inventario_id: string
+          movimiento_inventario_id: string | null
         }[]
       }
       editar_gasto_a19: {

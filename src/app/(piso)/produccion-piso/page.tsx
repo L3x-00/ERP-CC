@@ -47,9 +47,10 @@ export default async function PaginaProduccionPiso() {
   ];
   const resultadoMateriales = idsMateriales.length
     ? await admin
-        .from('materiales')
-        .select('id, codigo, nombre, stock_actual_control, unidad_control')
+        .from('catalogo_materiales')
+        .select('id, codigo, nombre, unidad_base')
         .in('id', idsMateriales)
+        .eq('activo', true)
         .order('nombre', { ascending: true })
     : { data: [], error: null };
 
@@ -72,8 +73,7 @@ export default async function PaginaProduccionPiso() {
     id: material.id,
     codigo: material.codigo,
     nombre: material.nombre,
-    stockActualControl: Number(material.stock_actual_control),
-    unidadControl: material.unidad_control,
+    unidadBase: material.unidad_base,
   }));
 
   const areas = (resultadoAreas.data ?? []).map((area) => ({

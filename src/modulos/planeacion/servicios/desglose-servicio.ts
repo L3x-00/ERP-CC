@@ -17,7 +17,7 @@ async function consultarPartidas(
   const { data, error } = await cliente
     .from('partidas_orden_produccion')
     .select(
-      'id, orden_id, codigo_pieza, codigo_item, propuesta_item_id, descripcion, area_trabajo_codigo, procesos, es_externo, proveedor_externo, maquina_asignada, material_id, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, tiempo_estimado_minutos, tiempo_real_minutos, operador_asignado_id, creado_en, actualizado_en',
+      'id, orden_id, codigo_pieza, codigo_item, propuesta_item_id, descripcion, area_trabajo_codigo, procesos, es_externo, proveedor_externo, maquina_asignada, material_id, catalogo_material_id, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, tiempo_estimado_minutos, tiempo_real_minutos, operador_asignado_id, creado_en, actualizado_en',
     )
     .in('id', ids);
   if (error) throw new Error('No se pudieron cargar las partidas para Planeación');
@@ -26,11 +26,20 @@ async function consultarPartidas(
 
 async function consultarMateriales(
   cliente: SupabaseClient<Database>,
-  ids: readonly string[],
+  idsLegado: readonly string[],
+  idsCatalogo: readonly string[],
 ): Promise<Map<string, string>> {
-  if (ids.length === 0) return new Map();
-  const { data } = await cliente.from('materiales').select('id, nombre').in('id', ids);
-  return new Map((data ?? []).map((material) => [material.id, material.nombre]));
+  const [legado, catalogo] = await Promise.all([
+    idsLegado.length === 0
+      ? Promise.resolve({ data: [] as { id: string; nombre: string }[] })
+      : cliente.from('materiales').select('id, nombre').in('id', idsLegado),
+    idsCatalogo.length === 0
+      ? Promise.resolve({ data: [] as { id: string; nombre: string }[] })
+      : cliente.from('catalogo_materiales').select('id, nombre').in('id', idsCatalogo),
+  ]);
+  return new Map(
+    [...(legado.data ?? []), ...(catalogo.data ?? [])].map((material) => [material.id, material.nombre]),
+  );
 }
 
 async function consultarAreas(
@@ -81,7 +90,11 @@ function mapearPartida(
     esExterno: fila.es_externo,
     proveedorExterno: fila.proveedor_externo,
     maquinaAsignada: fila.maquina_asignada,
-    materialNombre: fila.material_id ? (materiales.get(fila.material_id) ?? null) : null,
+    materialNombre: fila.catalogo_material_id
+      ? (materiales.get(fila.catalogo_material_id) ?? null)
+      : fila.material_id
+        ? (materiales.get(fila.material_id) ?? null)
+        : null,
     cantidadSolicitada: numero(fila.cantidad_solicitada),
     cantidadProducida: numero(fila.cantidad_producida),
     cantidadScrap: numero(fila.cantidad_scrap),
@@ -112,6 +125,13 @@ export async function obtenerDesglosePartidasServicio(
         .filter((valor): valor is string => valor !== null),
     ),
   ];
+  const catalogoMaterialIds = [
+    ...new Set(
+      filas
+        .map((fila) => fila.catalogo_material_id)
+        .filter((valor): valor is string => valor !== null),
+    ),
+  ];
   const areaCodigos = [
     ...new Set(
       filas
@@ -122,7 +142,7 @@ export async function obtenerDesglosePartidasServicio(
   const ordenIds = [...new Set(filas.map((fila) => fila.orden_id))];
 
   const [materiales, areas, folios] = await Promise.all([
-    consultarMateriales(cliente, materialIds),
+    consultarMateriales(cliente, materialIds, catalogoMaterialIds),
     consultarAreas(cliente, areaCodigos),
     consultarFolios(cliente, ordenIds),
   ]);

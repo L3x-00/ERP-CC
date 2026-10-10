@@ -38,6 +38,7 @@ type ContextoE2E = {
   usuarioId: string;
   clienteId: string;
   proveedorId: string;
+  materialLegacyId: string;
   materialId: string;
   ordenId: string;
   folioOrden: string;
@@ -50,6 +51,7 @@ type RecursosCreados = {
   usuarioId: string | null;
   clienteId: string | null;
   proveedorId: string | null;
+  materialLegacyId: string | null;
   materialId: string | null;
   ordenId: string | null;
   folioOrden: string | null;
@@ -74,7 +76,7 @@ async function limpiarRecursos(admin: SupabaseClient<Database>, recursos: Recurs
   if (recursos.programacionId) await admin.from('programacion_areas').delete().eq('id', recursos.programacionId);
   if (recursos.partidaId) await admin.from('partidas_orden_produccion').delete().eq('id', recursos.partidaId);
   if (recursos.ordenId) await admin.from('ordenes_produccion').delete().eq('id', recursos.ordenId);
-  if (recursos.materialId) await admin.from('materiales').delete().eq('id', recursos.materialId);
+  if (recursos.materialId) await admin.from('catalogo_materiales').update({ activo: false }).eq('id', recursos.materialId);
   if (recursos.proveedorId) await admin.from('proveedores').delete().eq('id', recursos.proveedorId);
   if (recursos.recursoId) {
     await admin.from('capacidades_recurso_turno').delete().eq('recurso_id', recursos.recursoId);
@@ -83,8 +85,7 @@ async function limpiarRecursos(admin: SupabaseClient<Database>, recursos: Recurs
   if (recursos.clienteId) await admin.from('clientes').delete().eq('id', recursos.clienteId);
   if (recursos.usuarioId) {
     await admin.from('logs').delete().eq('usuario_id', recursos.usuarioId);
-    await admin.from('usuarios').delete().eq('id', recursos.usuarioId);
-    await admin.auth.admin.deleteUser(recursos.usuarioId);
+    await admin.from('usuarios').update({ activo: false }).eq('id', recursos.usuarioId);
   }
 }
 
@@ -97,6 +98,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     usuarioId: null,
     clienteId: null,
     proveedorId: null,
+    materialLegacyId: null,
     materialId: null,
     ordenId: null,
     folioOrden: null,
@@ -118,6 +120,8 @@ async function prepararContexto(): Promise<ContextoE2E> {
       rol: 'admin', activo: true, nombre_completo: `Administrador Gastos ${sufijo}`,
     }).eq('id', recursos.usuarioId);
     if (errorPerfil) throw new Error(`No se configuró perfil E2E: ${errorPerfil.message}`);
+    const usuarioId = recursos.usuarioId;
+    if (!usuarioId) throw new Error('El usuario E2E no tiene ID');
 
     const { data: cliente, error: errorCliente } = await admin.from('clientes').insert({
       nombre_comercial: `Cliente Gastos E2E ${sufijo}`,
@@ -137,7 +141,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     if (errorProveedor || !proveedor) throw new Error(`No se creó proveedor E2E: ${errorProveedor?.message ?? 'sin proveedor'}`);
     recursos.proveedorId = proveedor.id;
 
-    const { data: material, error: errorMaterial } = await admin.from('materiales').insert({
+    const { data: materialLegacy, error: errorMaterial } = await admin.from('materiales').insert({
       codigo: `E2E-GTO-${sufijo}`,
       nombre: 'Material E2E de rentabilidad',
       categoria: 'insumo',
@@ -149,8 +153,28 @@ async function prepararContexto(): Promise<ContextoE2E> {
       stock_actual_control: 100,
       proveedor_id: proveedor.id,
     }).select('id').single();
-    if (errorMaterial || !material) throw new Error(`No se creó material E2E: ${errorMaterial?.message ?? 'sin material'}`);
+    if (errorMaterial || !materialLegacy) throw new Error(`No se creó material E2E: ${errorMaterial?.message ?? 'sin material'}`);
+    recursos.materialLegacyId = materialLegacy.id;
+
+    const { data: material, error: errorCatalogo } = await admin.from('catalogo_materiales').insert({
+      codigo: `E2EG_${sufijo}`,
+      nombre: 'Material canónico E2E de rentabilidad',
+      unidad_base: 'pieza',
+      material_legacy_id: materialLegacy.id,
+    }).select('id, actualizado_en').single();
+    if (errorCatalogo || !material) throw new Error(`No se creó material canónico E2E: ${errorCatalogo?.message ?? 'sin material'}`);
     recursos.materialId = material.id;
+    const { error: errorCosto } = await admin.rpc('confirmar_costo_material', {
+      p_material_id: material.id,
+      p_costo: 200,
+      p_moneda: 'MXN',
+      p_fecha_efectiva: '2099-01-01',
+      p_fuente: 'MANUAL',
+      p_referencia: '',
+      p_actor_id: usuarioId,
+      p_actualizado_en: material.actualizado_en,
+    });
+    if (errorCosto) throw new Error(`No se confirmó costo E2E: ${errorCosto.message}`);
 
     const { data: folio, error: errorFolio } = await admin.rpc('generar_folio_orden', { p_prefijo: 'OP' });
     if (errorFolio || !folio) throw new Error(`No se generó folio E2E: ${errorFolio?.message ?? 'sin folio'}`);
@@ -174,15 +198,12 @@ async function prepararContexto(): Promise<ContextoE2E> {
       cantidad_solicitada: 10,
       cantidad_producida: 10,
       unidad_medida: 'pieza',
-      material_id: material.id,
+      material_id: materialLegacy.id,
       tiempo_estimado_minutos: 360,
       tiempo_real_minutos: 390,
     }).select('id').single();
     if (errorPartida || !partida) throw new Error(`No se creó partida E2E: ${errorPartida?.message ?? 'sin partida'}`);
     recursos.partidaId = partida.id;
-    const usuarioId = recursos.usuarioId;
-    if (!usuarioId) throw new Error('El usuario E2E no tiene ID');
-
     const { data: recurso, error: errorRecurso } = await admin.from('recursos_planeacion').insert({
       codigo: `E2EGTO-${sufijo}`,
       area: 'taller',
@@ -211,6 +232,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
 
     const { error: errorConsumo } = await admin.rpc('registrar_consumo_material_op', {
       p_partida_id: partida.id, p_material_id: material.id, p_cantidad_usada: 3, p_cantidad_scrap: 0.5,
+      p_actor_id: usuarioId,
     });
     if (errorConsumo) throw new Error(`No se creó consumo E2E: ${errorConsumo.message}`);
     const { error: errorCompletar } = await admin
@@ -249,6 +271,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
       usuarioId: recursos.usuarioId,
       clienteId: recursos.clienteId,
       proveedorId: recursos.proveedorId,
+      materialLegacyId: recursos.materialLegacyId,
       materialId: recursos.materialId,
       ordenId: recursos.ordenId,
       folioOrden: recursos.folioOrden,
