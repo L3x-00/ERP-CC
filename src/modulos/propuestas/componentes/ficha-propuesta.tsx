@@ -4,13 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
-import { Button } from '@/compartido/componentes/ui/button';
 import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { usarCatalogosPropuesta, usarPropuesta } from '@/modulos/propuestas/hooks/usar-propuesta';
 import type { PermisosPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
 import { ActividadPropuesta } from './actividad-propuesta';
+import { BotonNuevaVersionPropuesta } from './dialogo-nueva-version-propuesta';
 import { EditorItemsPropuesta } from './editor-items-propuesta';
 import { PanelAccionesPropuesta } from './panel-acciones-propuesta';
 import { PanelArchivosPropuesta } from './panel-archivos-propuesta';
@@ -112,13 +112,16 @@ export function FichaPropuesta({
           </div>
           <p className="text-sm text-texto-secundario">{empresa}</p>
         </div>
-        <Button
-          variante="contorno"
-          tamano="sm"
-          onClick={() => void consulta.refetch()}
-        >
-          Actualizar
-        </Button>
+        {revisionActiva && (
+          <BotonNuevaVersionPropuesta
+            propuestaId={propuesta.id}
+            revisionId={revisionActiva.id}
+            letra={revisionActiva.letra}
+            estado={revisionActiva.estado}
+            puedeCrear={permisos.crearRevision}
+            onVersionCreada={(revisionId) => setRevisionActivaId(revisionId)}
+          />
+        )}
       </header>
 
       <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Revisiones de la propuesta">
@@ -165,7 +168,13 @@ export function FichaPropuesta({
 
       {revisionActiva && (
         <>
-          {pestana === 'resumen' && <ResumenPropuesta detalle={detalle} />}
+          {pestana === 'resumen' && (
+            <ResumenPropuesta
+              detalle={detalle}
+              revisionActivaId={revisionActiva.id}
+              onVerRevision={(revisionId) => setRevisionActivaId(revisionId)}
+            />
+          )}
           {pestana === 'items' && (
             <EditorItemsPropuesta
               revision={revisionActiva}
@@ -219,7 +228,15 @@ export function FichaPropuesta({
   );
 }
 
-function ResumenPropuesta({ detalle }: { detalle: DetallePropuestaFicha }) {
+function ResumenPropuesta({
+  detalle,
+  revisionActivaId,
+  onVerRevision,
+}: {
+  detalle: DetallePropuestaFicha;
+  revisionActivaId: string;
+  onVerRevision: (revisionId: string) => void;
+}) {
   const { propuesta, revisiones } = detalle;
   return (
     <div className="flex flex-col gap-4">
@@ -237,45 +254,77 @@ function ResumenPropuesta({ detalle }: { detalle: DetallePropuestaFicha }) {
         <Dato etiqueta="Creada" valor={formatearFecha(propuesta.creadoEn)} />
       </dl>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm" data-testid="tabla-revisiones-propuesta">
-          <thead>
-            <tr className="border-b border-borde text-left text-xs text-texto-secundario">
-              <th className="px-2 py-2">Revisión</th>
-              <th className="px-2 py-2">Estado</th>
-              <th className="px-2 py-2">Motivo</th>
-              <th className="px-2 py-2 text-right">Subtotal</th>
-              <th className="px-2 py-2 text-right">Total</th>
-              <th className="px-2 py-2 text-right">Margen</th>
-              <th className="px-2 py-2">Validada</th>
-            </tr>
-          </thead>
-          <tbody>
-            {revisiones.map((revision) => (
-              <tr key={revision.id} className="border-b border-borde/60">
-                <td className="px-2 py-2 font-mono text-xs">{revision.folioRevision}</td>
-                <td className="px-2 py-2">{ETIQUETA_ESTADO_PROPIESTA[revision.estado]}</td>
-                <td className="px-2 py-2 text-xs text-texto-secundario">
-                  {revision.motivoCreacion ?? '—'}
-                </td>
-                <td className="px-2 py-2 text-right tabular-nums">
-                  {formatearMoneda(revision.totales.subtotal, revision.totales.moneda)}
-                </td>
-                <td className="px-2 py-2 text-right tabular-nums">
-                  {formatearMoneda(revision.totales.total, revision.totales.moneda)}
-                </td>
-                <td className="px-2 py-2 text-right tabular-nums">
-                  {revision.totales.margen === null
-                    ? '—'
-                    : `${(revision.totales.margen * 100).toFixed(2)}%`}
-                </td>
-                <td className="px-2 py-2 text-xs text-texto-secundario">
-                  {revision.validadaEn ? formatearFecha(revision.validadaEn) : '—'}
-                </td>
+      <div className="flex flex-col gap-2" data-testid="historial-versiones-propuesta">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-sm font-semibold text-texto-primario">Historial de versiones</h2>
+          <p className="text-xs text-texto-secundario">
+            Cada modificación se conserva como una versión independiente; las anteriores se abren
+            en solo lectura.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm" data-testid="tabla-revisiones-propuesta">
+            <thead>
+              <tr className="border-b border-borde text-left text-xs text-texto-secundario">
+                <th className="px-2 py-2">Versión</th>
+                <th className="px-2 py-2">Estado</th>
+                <th className="px-2 py-2">Motivo</th>
+                <th className="px-2 py-2 text-right">Subtotal</th>
+                <th className="px-2 py-2 text-right">Total</th>
+                <th className="px-2 py-2 text-right">Margen</th>
+                <th className="px-2 py-2">Validada</th>
+                <th className="px-2 py-2 text-right">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {revisiones.map((revision) => {
+                const esActiva = revision.id === revisionActivaId;
+                return (
+                  <tr
+                    key={revision.id}
+                    className={`border-b border-borde/60 ${esActiva ? 'bg-superficie-2' : ''}`}
+                  >
+                    <td className="px-2 py-2 font-mono text-xs">{revision.folioRevision}</td>
+                    <td className="px-2 py-2">
+                      {ETIQUETA_ESTADO_PROPIESTA[revision.estado]}
+                      {esActiva && (
+                        <span className="ml-1 text-xs text-texto-secundario">· viendo</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-xs text-texto-secundario">
+                      {revision.motivoCreacion ?? '—'}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {formatearMoneda(revision.totales.subtotal, revision.totales.moneda)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {formatearMoneda(revision.totales.total, revision.totales.moneda)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">
+                      {revision.totales.margen === null
+                        ? '—'
+                        : `${(revision.totales.margen * 100).toFixed(2)}%`}
+                    </td>
+                    <td className="px-2 py-2 text-xs text-texto-secundario">
+                      {revision.validadaEn ? formatearFecha(revision.validadaEn) : '—'}
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => onVerRevision(revision.id)}
+                        disabled={esActiva}
+                        aria-label={`Ver versión ${revision.folioRevision}`}
+                        className="text-xs font-semibold text-acento hover:underline disabled:cursor-default disabled:text-texto-tenue disabled:no-underline"
+                      >
+                        Ver
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -11,7 +11,6 @@ import { aceptarRevisionAccion } from '@/modulos/propuestas/acciones/aceptar-rev
 import { PanelOrdenPendiente } from '@/modulos/propuestas/componentes/panel-orden-pendiente';
 import { cerrarPropuestaAccion } from '@/modulos/propuestas/acciones/cerrar-propuesta';
 import { confirmarVentaAccion } from '@/modulos/propuestas/acciones/confirmar-venta';
-import { crearNuevaRevisionAccion } from '@/modulos/propuestas/acciones/crear-nueva-revision';
 import { enviarRevisionAccion } from '@/modulos/propuestas/acciones/enviar-revision';
 import { generarPdfRevisionAccion } from '@/modulos/propuestas/acciones/generar-pdf-revision';
 import { rechazarPropuestaAccion } from '@/modulos/propuestas/acciones/rechazar-propuesta';
@@ -23,7 +22,7 @@ import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indic
 import { claveDetallePropuesta } from './claves-consulta';
 import type { DetallePropuestaFicha, RevisionConTotales } from '@/modulos/propuestas/acciones/obtener-propuesta';
 
-type Formulario = 'ninguno' | 'enviar' | 'nueva' | 'rechazar' | 'cerrar';
+type Formulario = 'ninguno' | 'enviar' | 'rechazar' | 'cerrar';
 
 /**
  * SII-B4.11: acciones de negocio de la revisión activa (arriba de la ficha).
@@ -171,17 +170,6 @@ export function PanelAccionesPropuesta({
           </Button>
         )}
 
-        {(estado === 'SENT' || estado === 'FOLLOW_UP' || estado === 'ACCEPTED') && permisos.crearRevision && (
-          <Button
-            tamano="sm"
-            variante="contorno"
-            onClick={() => setFormulario(formulario === 'nueva' ? 'ninguno' : 'nueva')}
-            disabled={procesando}
-          >
-            Nueva revisión
-          </Button>
-        )}
-
         {['DRAFT', 'READY_TO_SEND', 'SENT', 'FOLLOW_UP'].includes(estado) && permisos.cerrar && (
           <>
             <Button
@@ -250,12 +238,10 @@ export function PanelAccionesPropuesta({
         </div>
       )}
 
-      {(formulario === 'nueva' || formulario === 'rechazar' || formulario === 'cerrar') && (
+      {(formulario === 'rechazar' || formulario === 'cerrar') && (
         <div className="flex flex-col gap-2 rounded-base border border-borde p-2">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">
-              {formulario === 'nueva' ? 'Motivo de la nueva revisión' : 'Motivo'}
-            </span>
+            <span className="font-medium">Motivo</span>
             <textarea
               value={motivo}
               onChange={(evento) => setMotivo(evento.target.value)}
@@ -268,14 +254,8 @@ export function PanelAccionesPropuesta({
           <div className="flex items-center gap-2">
             <Button
               tamano="sm"
-              variante={formulario === 'nueva' ? 'primario' : 'destructivo'}
+              variante="destructivo"
               onClick={() => {
-                if (formulario === 'nueva') {
-                  return void ejecutar(() => crearNuevaRevisionAccion({
-                    revisionOrigen: revision.id,
-                    motivo,
-                  }));
-                }
                 if (formulario === 'rechazar') {
                   return void ejecutar(() => rechazarPropuestaAccion({
                     revisionId: revision.id,
@@ -291,11 +271,7 @@ export function PanelAccionesPropuesta({
               }}
               disabled={procesando || motivo.trim().length < 3}
             >
-              {formulario === 'nueva'
-                ? 'Crear revisión'
-                : formulario === 'rechazar'
-                  ? 'Confirmar rechazo'
-                  : 'Confirmar cierre'}
+              {formulario === 'rechazar' ? 'Confirmar rechazo' : 'Confirmar cierre'}
             </Button>
             <Button tamano="sm" variante="fantasma" onClick={() => setFormulario('ninguno')}>
               Cancelar

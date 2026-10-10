@@ -409,11 +409,20 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       await capturar(page, 'ficha-enviada');
 
-      // 8. Nueva revisión B con motivo.
+      // 8. Nueva versión B con motivo (CTA del encabezado, obs. cliente).
       await page.getByRole('button', { name: /^A · Enviada/ }).click();
-      await ficha.getByRole('button', { name: 'Nueva revisión', exact: true }).first().click();
-      await page.getByLabel('Motivo').fill('El cliente pidió ajustar precios');
-      await page.getByRole('button', { name: 'Crear revisión' }).click();
+      await page.getByRole('tab', { name: 'Resumen' }).click();
+      const historial = page.getByTestId('historial-versiones-propuesta');
+      await expect(historial).toContainText('Historial de versiones');
+      await expect(historial).toContainText(revisionA.data.folio_revision);
+      const dialogoVersion = page.getByTestId('dialogo-nueva-version');
+      await page.getByTestId('boton-crear-nueva-version').click();
+      await expect(dialogoVersion).toBeVisible();
+      await capturar(page, 'dialogo-nueva-version');
+      await dialogoVersion
+        .getByLabel('Motivo de la nueva versión')
+        .fill('El cliente pidió ajustar precios');
+      await dialogoVersion.getByRole('button', { name: 'Crear versión' }).click();
       await expect
         .poll(async () => {
           const { data } = await admin

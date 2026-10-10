@@ -88,7 +88,7 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
     return 'Registra la próxima acción antes de enviar';
   }
   if (mensaje.includes('revision_congelada')) {
-    return 'La revisión está congelada; crea una nueva revisión para cambiar el contenido';
+    return 'La versión está congelada; crea una nueva versión para cambiar el contenido';
   }
   if (mensaje.includes('revision_no_editable')) {
     return 'Solo se pueden editar revisiones en borrador';

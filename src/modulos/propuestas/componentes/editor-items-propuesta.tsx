@@ -286,7 +286,7 @@ export function EditorItemsPropuesta({
 
       {!esBorrador && (
         <p className="text-xs text-texto-secundario">
-          La revisión está congelada; crea una nueva revisión para cambiar ítems.
+          La versión está congelada; crea una nueva versión para cambiar ítems.
         </p>
       )}
 
