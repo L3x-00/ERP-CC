@@ -201,6 +201,11 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await expect(fila).toBeVisible();
       await expect(page.getByTestId(`estado-orden-${folio}`)).toContainText('Confirmada');
       await expect(fila.getByRole('button', { name: 'Iniciar', exact: true })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: 'Procesos', exact: true })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: /Seleccionar|Quitar selección/u })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: 'Comentarios', exact: true })).toBeVisible();
+      await expect(fila.getByRole('button', { name: /Documento/u })).toBeVisible();
 
       // Programar todas las partidas (paso de Planeación) → PLANIFICADA.
       const { data: partidas } = await admin.from('partidas_orden_produccion')

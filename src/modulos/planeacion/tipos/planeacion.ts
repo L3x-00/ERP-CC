@@ -117,6 +117,12 @@ export interface CargaCapacidadDiaria {
 
 /** Filas crudas snake_case derivadas directamente de los tipos generados de Supabase. */
 export type FilaRecursoPlaneacion = Tables<'recursos_planeacion'>;
+export type FilaRecursoPlaneacionOperativo = Pick<
+  FilaRecursoPlaneacion,
+  'id' | 'codigo' | 'nombre' | 'area' | 'activo' | 'creado_en' | 'actualizado_en'
+>;
+export const COLUMNAS_RECURSO_PLANEACION_OPERATIVO =
+  'id, codigo, nombre, area, activo, creado_en, actualizado_en';
 export type FilaCapacidadRecursoTurno = Tables<'capacidades_recurso_turno'>;
 export type FilaExcepcionCapacidadRecurso = Tables<'excepciones_capacidad_recurso'>;
 export type FilaProgramacionArea = Tables<'programacion_areas'>;
@@ -139,7 +145,9 @@ function validarValorEnumerado<T extends string>(
   return valor as T;
 }
 
-export function filaARecursoPlaneacion(fila: FilaRecursoPlaneacion): RecursoPlaneacion {
+export function filaARecursoPlaneacion(
+  fila: FilaRecursoPlaneacionOperativo,
+): RecursoPlaneacion {
   return {
     id: fila.id,
     codigo: fila.codigo,

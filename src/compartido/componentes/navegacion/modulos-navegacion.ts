@@ -48,7 +48,7 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     etiqueta: 'Órdenes',
     grupo: 'Operación',
     icono: 'documento',
-    permisos: ['aprobar_ordenes', 'gestionar_produccion'],
+    permisos: ['orden_vista'],
   },
   {
     href: '/planeacion',

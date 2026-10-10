@@ -15,8 +15,8 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
  * Cambia el estado con compare-and-set. Las transiciones ordinarias requieren
- * aprobación; cancelar una orden ya en proceso exige su permiso específico y
- * el motivo validado en Zod y Postgres.
+ * aprobación; toda cancelación queda reservada a `orden_cancelar` y conserva
+ * el motivo validado en Zod, Postgres y auditoría.
  */
 export async function cambiarEstadoOrdenAccion(
   entrada: unknown,
@@ -36,16 +36,14 @@ export async function cambiarEstadoOrdenAccion(
   if (!esTransicionOrdenValida(datos.estadoActual, datos.estado)) {
     return { exito: false, error: 'La transición de estado no está permitida' };
   }
-  const esCancelacionEnProceso =
-    datos.estadoActual === 'en_proceso' &&
-    datos.estado === 'cancelada';
-  const permisoRequerido = esCancelacionEnProceso
-    ? 'cancelar_ordenes_en_proceso'
+  const esCancelacion = datos.estado === 'cancelada';
+  const permisoRequerido = esCancelacion
+    ? 'orden_cancelar'
     : 'aprobar_ordenes';
 
   if (!(await can(usuario, permisoRequerido))) {
-    if (esCancelacionEnProceso) {
-      return { exito: false, error: 'Sin permiso para cancelar una orden en proceso' };
+    if (esCancelacion) {
+      return { exito: false, error: 'Sin permiso para cancelar la orden' };
     }
     return { exito: false, error: 'Sin permiso para actualizar órdenes' };
   }

@@ -93,8 +93,10 @@ async function clienteComentarios() {
   return creados[0];
 }
 
-const usuarioAutor = await crearUsuario('e2e-comentarios-autor@orca.local', 'Autor E2E', 'vendedor');
-const usuarioMencion = await crearUsuario('e2e-comentarios-mencion@orca.local', 'MencionE2E', 'vendedor');
+// Los dos usuarios abren la cola de Órdenes. C4.3 exige `orden_vista` en la
+// ruta, por lo que el fixture debe representar usuarios operativos autorizados.
+const usuarioAutor = await crearUsuario('e2e-comentarios-autor@orca.local', 'Autor E2E', 'gerente');
+const usuarioMencion = await crearUsuario('e2e-comentarios-mencion@orca.local', 'MencionE2E', 'gerente');
 
 const cliente = await clienteComentarios();
 const folio = await peticion('/rest/v1/rpc/generar_folio_orden', 'POST', { p_prefijo: 'OP' });

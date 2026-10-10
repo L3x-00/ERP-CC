@@ -200,7 +200,6 @@ describe('mappers B6', () => {
       corrida_id: UUID2,
       fecha_inicio: '2026-10-05T10:00:00Z',
       fecha_fin: null,
-      costo_hora_interno: 100,
       horas_brutas: 0,
       horas_netas: 0,
       piezas_producidas: 0,

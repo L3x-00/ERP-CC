@@ -13,20 +13,26 @@ type ParametrosPaginaOrden = {
 /** Ficha de una orden SII-B5: snapshot, partidas, entregas y actividad. */
 export default async function PaginaOrden({ params }: ParametrosPaginaOrden) {
   const { id } = await params;
-  const [ficha, usuario] = await Promise.all([
-    obtenerFichaOrdenServicio(crearClienteSupabaseAdmin(), id),
-    obtenerUsuarioServidor(),
+  const usuario = await obtenerUsuarioServidor();
+  if (!usuario || !(await can(usuario, 'orden_vista'))) notFound();
+
+  const [puedeLiberar, puedeCerrar, puedeCancelar, puedeVerFinanzas] = await Promise.all([
+    can(usuario, 'orden_liberar'),
+    can(usuario, 'orden_cerrar_admin'),
+    can(usuario, 'orden_cancelar'),
+    can(usuario, 'ver_finanzas'),
   ]);
+  const ficha = await obtenerFichaOrdenServicio(crearClienteSupabaseAdmin(), id, {
+    incluirFinanzas: puedeVerFinanzas,
+  });
   if (!ficha) notFound();
 
-  const permisos = usuario
-    ? {
-      puedeLiberar: await can(usuario, 'orden_liberar'),
-      puedeCerrar: await can(usuario, 'orden_cerrar_admin'),
-      puedeAjustar: await can(usuario, 'orden_editar'),
-      puedeAdministrar: await can(usuario, 'aprobar_ordenes'),
-    }
-    : { puedeLiberar: false, puedeCerrar: false, puedeAjustar: false, puedeAdministrar: false };
+  const permisos = {
+    puedeLiberar,
+    puedeCerrar,
+    puedeCancelar,
+    puedeVerFinanzas,
+  };
 
   return <FichaOrden ficha={ficha} permisos={permisos} />;
 }
