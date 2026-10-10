@@ -11,9 +11,14 @@ const EVENTO_OPERACION_LOCAL = 'ordenes:piso-operacion-local';
  * Sincroniza una terminal PIN sin exponer una clave privilegiada al navegador.
  * El EventSource sólo recibe una señal sin payload desde una ruta que vuelve a
  * validar la cookie HMAC; la ruta RSC carga después los datos ya acotados al
- * operador asignado.
+ * operador asignado. En la vista de administrador revalida su sesión y sale a
+ * `rutaAlExpirar` si deja de ser válida.
  */
-export function SincronizadorPisoRealtime() {
+export function SincronizadorPisoRealtime({
+  rutaAlExpirar = '/operador',
+}: {
+  rutaAlExpirar?: string;
+}) {
   const router = useRouter();
   const temporizadorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bloquearHastaRef = useRef(0);
@@ -37,7 +42,7 @@ export function SincronizadorPisoRealtime() {
     }
 
     eventos.addEventListener('cambio', programarRefresco);
-    eventos.addEventListener('sesion_expirada', () => router.replace('/operador'));
+    eventos.addEventListener('sesion_expirada', () => router.replace(rutaAlExpirar));
     window.addEventListener(EVENTO_OPERACION_LOCAL, bloquearRefrescoPorOperacionLocal);
 
     return () => {
@@ -49,7 +54,7 @@ export function SincronizadorPisoRealtime() {
         temporizadorRef.current = null;
       }
     };
-  }, [router]);
+  }, [router, rutaAlExpirar]);
 
   return null;
 }

@@ -3,7 +3,8 @@ import { IndicadorSesion } from '@/modulos/autenticacion/componentes/indicador-s
 import { BannerVistaOperador } from '@/modulos/autenticacion/componentes/banner-vista-operador';
 import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
-import { obtenerOrdenesConPartidasDeOperadorServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import { obtenerOrdenesConPartidasDePisoServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   obtenerContextoSesionOperadorActiva,
   obtenerSesionOperadorFirmada,
@@ -14,20 +15,29 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 /**
  * Página de producción en piso. Revalida la cookie HMAC y la cuenta de operador
  * antes de cargar solo OP en proceso mediante un cliente privado de servidor.
+ * Un administrador con sesión del sistema ve el piso completo en solo lectura
+ * sin PIN; la terminal de operador (sin sesión) sigue entrando con su PIN.
  */
 export default async function PaginaProduccionPiso() {
-  const [contexto, sesionFirmada] = await Promise.all([
+  const [contexto, sesionFirmada, usuario] = await Promise.all([
     obtenerContextoSesionOperadorActiva(),
     obtenerSesionOperadorFirmada(),
+    obtenerUsuarioServidor(),
   ]);
-  if (!contexto) {
-    redirect(sesionFirmada && sesionOperadorEsDelegada(sesionFirmada) ? '/produccion' : '/operador');
+  const esVistaAdmin = !contexto && usuario?.rol === 'admin' && usuario.activo;
+  if (!contexto && !esVistaAdmin) {
+    redirect(
+      sesionFirmada && sesionOperadorEsDelegada(sesionFirmada) ? '/produccion' : '/operador',
+    );
   }
-  const { operador, sesion, administrador } = contexto;
-  const esDelegada = sesionOperadorEsDelegada(sesion);
+  const sesion = contexto?.sesion ?? null;
+  const operador = contexto?.operador ?? usuario!;
+  const administrador = contexto?.administrador ?? null;
+  const esDelegada = sesion !== null && sesionOperadorEsDelegada(sesion);
+  const soloLectura = esVistaAdmin || esDelegada;
 
   const admin = crearClienteSupabaseAdmin();
-  const ordenes = await obtenerOrdenesConPartidasDeOperadorServicio(admin, operador.id);
+  const ordenes = await obtenerOrdenesConPartidasDePisoServicio(admin, contexto?.operador.id ?? null);
   const idsMateriales = [
     ...new Set(
       ordenes.flatMap(({ partidas }) =>
@@ -75,12 +85,24 @@ export default async function PaginaProduccionPiso() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <SincronizadorPisoRealtime />
-      {esDelegada && administrador ? (
+      <SincronizadorPisoRealtime rutaAlExpirar={esVistaAdmin ? '/produccion' : '/operador'} />
+      {esVistaAdmin ? (
+        <div
+          role="status"
+          data-testid="banner-vista-admin"
+          className="rounded-lg border border-acento/40 bg-acento-suave px-4 py-3"
+        >
+          <p className="text-sm font-semibold text-acento">Vista de administrador — solo lectura</p>
+          <p className="text-xs text-texto-secundario">
+            Ves el piso completo sin PIN. Los registros de producción siguen siendo de los
+            operadores.
+          </p>
+        </div>
+      ) : esDelegada && administrador ? (
         <BannerVistaOperador
           nombreOperador={operador.nombreCompleto}
           nombreAdministrador={administrador.nombreCompleto}
-          expiraEn={sesion.expiraEn ?? sesion.iniciadaEn}
+          expiraEn={sesion!.expiraEn ?? sesion!.iniciadaEn}
         />
       ) : (
         <IndicadorSesion nombreUsuario={operador.nombreCompleto} esOperador />
@@ -91,7 +113,7 @@ export default async function PaginaProduccionPiso() {
         ordenes={ordenes}
         materiales={materiales}
         areas={areas}
-        soloLectura={esDelegada}
+        soloLectura={soloLectura}
       />
     </div>
   );

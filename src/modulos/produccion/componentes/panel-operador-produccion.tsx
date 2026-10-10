@@ -19,6 +19,8 @@ export interface PropsPanelOperadorProduccion {
   orden: OrdenTableroProduccion | null;
   sesionActiva: SesionActivaProduccion | null;
   operadorDisponible: boolean;
+  /** Vista de administrador: ofrece el piso completo en solo lectura, sin PIN. */
+  esAdmin?: boolean;
   procesando: boolean;
   /** SII-B6: corrida elegida en el panel de corridas (opcional). */
   corridaId?: string | null;
@@ -59,6 +61,7 @@ export function PanelOperadorProduccion({
   orden,
   sesionActiva,
   operadorDisponible,
+  esAdmin = false,
   procesando,
   corridaId = null,
   motivosPausa,
@@ -193,7 +196,9 @@ export function PanelOperadorProduccion({
       <p className="mt-1 text-sm text-texto-secundario">
         {operadorDisponible
           ? 'La identidad de piso está confirmada por sesión HMAC.'
-          : 'Ingresa por /operador con tu PIN antes de iniciar o cerrar una sesión.'}
+          : esAdmin
+            ? 'Vista de administrador: puedes ver el piso completo en solo lectura, sin PIN.'
+            : 'Ingresa por /operador con tu PIN antes de iniciar o cerrar una sesión.'}
       </p>
       {corridaId ? (
         <p className="mt-1 text-xs text-texto-secundario">
@@ -201,16 +206,29 @@ export function PanelOperadorProduccion({
         </p>
       ) : null}
       {!operadorDisponible ? (
-        <Button
-          type="button"
-          variante="contorno"
-          tamano="sm"
-          className="mt-2 self-start"
-          data-testid="abrir-terminal-operador"
-          onClick={() => enrutador.push('/operador')}
-        >
-          Abrir terminal de operador (/operador)
-        </Button>
+        esAdmin ? (
+          <Button
+            type="button"
+            variante="contorno"
+            tamano="sm"
+            className="mt-2 self-start"
+            data-testid="abrir-vista-piso-admin"
+            onClick={() => enrutador.push('/produccion-piso')}
+          >
+            Ver piso (solo lectura)
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variante="contorno"
+            tamano="sm"
+            className="mt-2 self-start"
+            data-testid="abrir-terminal-operador"
+            onClick={() => enrutador.push('/operador')}
+          >
+            Abrir terminal de operador (/operador)
+          </Button>
+        )
       ) : null}
       {mensaje ? <p className="mt-3 text-sm text-texto-primario" role="status">{mensaje}</p> : null}
 

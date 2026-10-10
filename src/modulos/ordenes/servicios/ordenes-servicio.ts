@@ -570,19 +570,22 @@ export async function obtenerOrdenesConPartidasServicio(
 }
 
 /**
- * Carga únicamente las partidas asignadas a un operador de piso y las OP a las
- * que pertenecen. La consulta usa el cliente admin sólo después de validar la
- * cookie PIN en el servidor; nunca se envían partidas ajenas al navegador.
+ * Órdenes en proceso con sus partidas para el control de piso. Con operador se
+ * acota a sus partidas asignadas; sin operador (vista de administrador) devuelve
+ * todo el piso.
  */
-export async function obtenerOrdenesConPartidasDeOperadorServicio(
+export async function obtenerOrdenesConPartidasDePisoServicio(
   admin: SupabaseClient<Database>,
-  operadorId: string,
+  operadorId: string | null,
 ): Promise<OrdenConPartidas[]> {
-  const { data: filasPartidas, error: errorPartidas } = await admin
+  let consulta = admin
     .from('partidas_orden_produccion')
     .select('*')
-    .eq('operador_asignado_id', operadorId)
     .order('creado_en', { ascending: true });
+  if (operadorId !== null) {
+    consulta = consulta.eq('operador_asignado_id', operadorId);
+  }
+  const { data: filasPartidas, error: errorPartidas } = await consulta;
 
   if (errorPartidas) {
     throw new ErrorOrden('desconocido', errorPartidas.message);
@@ -614,6 +617,13 @@ export async function obtenerOrdenesConPartidasDeOperadorServicio(
     const orden = filaAOrdenOperativa(filaOrden);
     return { orden, partidas: partidasPorOrden.get(orden.id) ?? [] };
   });
+}
+
+export async function obtenerOrdenesConPartidasDeOperadorServicio(
+  admin: SupabaseClient<Database>,
+  operadorId: string,
+): Promise<OrdenConPartidas[]> {
+  return obtenerOrdenesConPartidasDePisoServicio(admin, operadorId);
 }
 
 /** Lista el historial de consumo de una partida para cálculo de merma y costo real. */

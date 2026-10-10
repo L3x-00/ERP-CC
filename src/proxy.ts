@@ -15,7 +15,9 @@ const RUTAS_PUBLICAS = ['/iniciar-sesion', '/operador'];
  * Middleware de autenticación:
  * - Refresca sesión Supabase (cookies) en cada request — necesario para que el
  *   token no expire silenciosamente (patrón canónico de @supabase/ssr).
- * - /produccion-piso* requiere sesión de operador (cookie firmada, timeout).
+ * - /produccion-piso* requiere sesión de operador (cookie firmada, timeout);
+ *   un usuario del sistema autenticado entra en solo lectura (la página decide
+ *   por rol, sin PIN).
  * - Usuario autenticado en /iniciar-sesion → redirige a /dashboard.
  * - Sin sesión en ruta protegida → redirige a /iniciar-sesion.
  */
@@ -67,13 +69,17 @@ export async function proxy(request: NextRequest) {
       || sesionOperadorVencidaAbsoluta(sesionOperador);
 
     if (esRutaPiso && sesionInvalida) {
-      const url = request.nextUrl.clone();
-      url.pathname = sesionOperador && sesionOperadorEsDelegada(sesionOperador)
-        ? '/produccion'
-        : '/operador';
-      const redireccion = NextResponse.redirect(url);
-      if (valorCookie) redireccion.cookies.delete(COOKIE_SESION_OPERADOR);
-      return redireccion;
+      // Un administrador con sesión del sistema entra al piso en solo lectura
+      // sin PIN; la terminal de operador (sin sesión) sigue exigiendo PIN.
+      if (!user) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/operador';
+        const redireccion = NextResponse.redirect(url);
+        if (valorCookie) redireccion.cookies.delete(COOKIE_SESION_OPERADOR);
+        return redireccion;
+      }
+      if (valorCookie) response.cookies.delete(COOKIE_SESION_OPERADOR);
+      return response;
     }
 
     if (esEntradaProduccion && sesionOperador && sesionOperadorEsDelegada(sesionOperador)) {
