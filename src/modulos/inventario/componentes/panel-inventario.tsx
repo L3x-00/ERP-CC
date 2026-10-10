@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MetricasInventario } from '@/modulos/inventario/componentes/metricas-inventario';
 import { FiltrosInventario } from '@/modulos/inventario/componentes/filtros-inventario';
+import { PanelCostosMateriales } from '@/modulos/inventario/componentes/panel-costos-materiales';
 import { TablaMateriales } from '@/modulos/inventario/componentes/tabla-materiales';
 import { TablaMovimientos } from '@/modulos/inventario/componentes/tabla-movimientos';
 import { ModalCrearMaterial } from '@/modulos/inventario/componentes/modal-crear-material';
@@ -10,22 +11,25 @@ import { ModalRegistrarEntrada } from '@/modulos/inventario/componentes/modal-re
 import { ModalRegistrarSalida } from '@/modulos/inventario/componentes/modal-registrar-salida';
 import { SincronizadorInventarioRealtime } from '@/modulos/inventario/componentes/sincronizador-inventario-realtime';
 
-type Pestana = 'catalogo' | 'historial';
+type Pestana = 'costos' | 'catalogo' | 'historial';
 
 /**
  * Contenedor cliente del módulo de inventario: métricas, pestañas
- * (Catálogo / Historial) y los modales. Toda la lógica de datos vive en hooks;
- * la ruta App Router solo monta este contenedor.
+ * (Materiales y costos / Catálogo / Historial) y los modales legados. Toda la
+ * lógica de datos vive en hooks; la ruta App Router solo monta este contenedor.
  */
 export function PanelInventario() {
-  const [pestana, setPestana] = useState<Pestana>('catalogo');
+  const [pestana, setPestana] = useState<Pestana>('costos');
 
   return (
     <div className="flex flex-col gap-4">
       <SincronizadorInventarioRealtime />
-      <MetricasInventario />
+      {pestana !== 'costos' && <MetricasInventario />}
 
-      <nav className="flex gap-1 border-b border-borde">
+      <nav className="flex flex-wrap gap-1 border-b border-borde">
+        <BotonPestana activa={pestana === 'costos'} onClick={() => setPestana('costos')}>
+          Materiales y costos
+        </BotonPestana>
         <BotonPestana activa={pestana === 'catalogo'} onClick={() => setPestana('catalogo')}>
           Catálogo de materiales
         </BotonPestana>
@@ -34,7 +38,9 @@ export function PanelInventario() {
         </BotonPestana>
       </nav>
 
-      {pestana === 'catalogo' ? (
+      {pestana === 'costos' ? (
+        <PanelCostosMateriales />
+      ) : pestana === 'catalogo' ? (
         <div className="flex flex-col gap-3">
           <FiltrosInventario />
           <TablaMateriales />
@@ -43,7 +49,7 @@ export function PanelInventario() {
         <TablaMovimientos />
       )}
 
-      {/* Modales (su apertura la controla la tienda Zustand). */}
+      {/* Modales legados (su apertura la controla la tienda Zustand). */}
       <ModalCrearMaterial />
       <ModalRegistrarEntrada />
       <ModalRegistrarSalida />

@@ -194,8 +194,9 @@ SELECT ok(
   'anon no puede leer catálogos'
 );
 SELECT ok(
-  has_table_privilege('authenticated', 'public.catalogo_materiales', 'SELECT'),
-  'authenticated puede leer catálogos con la política de permiso'
+  has_column_privilege('authenticated', 'public.catalogo_materiales', 'nombre', 'SELECT')
+    AND has_column_privilege('authenticated', 'public.catalogo_materiales', 'unidad_base', 'SELECT'),
+  'authenticated puede leer las columnas públicas del catálogo sin ver costos'
 );
 SELECT ok(
   NOT has_table_privilege('authenticated', 'public.catalogo_materiales', 'INSERT'),
