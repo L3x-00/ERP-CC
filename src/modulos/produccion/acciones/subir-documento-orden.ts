@@ -3,7 +3,6 @@
 import { z } from 'zod';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
-import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   EXTENSIONES_DOCUMENTO_ORDEN,
   TAMANO_MAXIMO_DOCUMENTO_ORDEN,
@@ -27,6 +26,7 @@ import { extensionDe, sanearNombreArchivo } from '@/nucleo/almacenamiento/archiv
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { obtenerActorProduccionParaMutacion } from '@/modulos/produccion/acciones/utilidades-acciones';
 
 const destinoDocumento = { ordenId: z.uuid(), nombre: z.string().trim().min(1).max(250) };
 const esquemaPreparar = z.object({ ...destinoDocumento, ...camposPrepararSubida }).strict();
@@ -53,7 +53,10 @@ async function carpetaDeOrden(
   admin: ClienteAdmin,
   ordenId: string,
 ): Promise<{ usuario: UsuarioAutenticado; ordenIdReal: string } | { error: string }> {
-  const usuario = await obtenerUsuarioServidor();
+  const usuario = await obtenerActorProduccionParaMutacion(
+    'subir_documento_orden',
+    ordenId,
+  );
   if (!usuario) return { error: 'No autorizado' };
   if (!(await can(usuario, 'gestionar_produccion'))) {
     return { error: 'Sin permiso para subir documentos de producción' };
@@ -152,7 +155,10 @@ export async function descartarDocumentoOrdenAccion(
 ): Promise<RespuestaAccion<null>> {
   const analisis = esquemaDescartarSubida.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: 'Ruta inválida' };
-  const usuario = await obtenerUsuarioServidor();
+  const usuario = await obtenerActorProduccionParaMutacion(
+    'descartar_documento_orden',
+    analisis.data.ruta,
+  );
   if (!usuario) return { exito: false, error: 'No autorizado' };
 
   const descartada = await descartarSubidaDirecta(crearClienteSupabaseAdmin(), {

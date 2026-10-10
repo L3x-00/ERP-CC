@@ -11,7 +11,7 @@ import {
 import { mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-servicio';
 import { esquemaCerrarJornada } from '@/modulos/produccion/validaciones/corridas';
 
-import { obtenerActorProduccion } from './utilidades-acciones';
+import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 /**
  * SII-B6.2: cierra las sesiones activas del día con causa FIN_JORNADA; ninguna
@@ -25,7 +25,10 @@ export async function cerrarJornadaAccion(
     return { exito: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    'cerrar_jornada',
+    resultado.data.fecha,
+  );
   if (!actor) return { exito: false, error: 'No autorizado' };
   if (!(await can(actor, 'gestionar_produccion'))) {
     return { exito: false, error: 'Sin permiso para cerrar la jornada' };

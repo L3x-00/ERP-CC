@@ -36,6 +36,7 @@ Estado: vivo durante la implementación de `DC-01..DC-15`. Este reporte separa d
 | ORD-01 | Alta, confidencialidad | Roles operativos podían leer el snapshot comercial, importes/condición de pago y costos o tarifas internos mediante consultas directas o `select('*')`. | Las tablas concedían SELECT completo a `authenticated` y los servicios reutilizaban filas financieras. | C4.3 revoca SELECT de tabla y concede listas positivas; Orden, Planeación, Producción y sesiones usan DTO/proyecciones operativas sin campos financieros. | pgTAP de privilegios 17/17, integración RBAC real 3/3 y E2E Producción 2/2. |
 | ORD-02 | Alta, autorización | Una cuenta con `ver_finanzas` pero sin acceso a Órdenes podía invocar directamente la acción del documento comercial. | La Server Action comprobaba solo el permiso financiero antes de usar `service_role`. | El documento exige conjuntamente `orden_vista` y `ver_finanzas` antes de consultar con privilegios administrativos. | Prueba mutante falló 3/3 al debilitar el gate; suite restaurada 3/3 y focal total 52/52. |
 | ORD-03 | Media, funcional/UX | La cola ofrecía Editar, Procesos y Seleccionar aunque el alcance comercial ya estaba congelado; Seleccionar solo desplazaba un hilo de comentarios. | La UI conservaba mutaciones y estado de selección anteriores al contrato de Orden inmutable. | Se retiran esas acciones y Ajustar; Comentarios abre un diálogo por Orden, mientras la reprogramación permitida permanece en Planeación. Cancelar requiere `orden_cancelar`. | Unitarias de cola/ficha, E2E Órdenes/Comentarios 2/2 y typecheck/lint/build. |
+| ACC-01 | Alta, seguridad/UX | Una vista delegada podía volver a `/produccion`, mostrar controles administrativos y quedar bloqueada silenciosamente; al expirar, su cookie podía seguir interceptando mutaciones. | La delegación solo se señalizaba en la ruta de piso y el proxy no limpiaba la cookie vencida. | Mientras está vigente, `/produccion` regresa a la vista de piso con banner permanente; al vencer, el proxy elimina la cookie. Las mutaciones se siguen rechazando en servidor. | E2E C5 2/2, prueba mutante del gate y 35/35 focales. |
 
 ## Entregas funcionales
 
@@ -47,6 +48,7 @@ Estado: vivo durante la implementación de `DC-01..DC-15`. Este reporte separa d
 - RFQ versionado y congelado al crear Propuesta Rev A; transiciones no terminales con próxima acción atómica.
 - Historial de archivos RFQ/Propuesta en solo lectura, CAD de más de 1 MiB por subida directa y documentos de ITxx conservados por ID exacto hasta Orden/Producción sin duplicar blobs.
 - Revisiones B..Z agregan ítems ITxx consecutivos sin modificar RFQ, conservan revisión de origen/baja lógica y permiten adjuntar planos propios; el linaje A..revisión aceptada sigue visible y queda congelado en Orden/Producción sin duplicar blobs.
+- Acceso operativo C5: PIN táctil continuo y vista administrativa temporal sin PIN, con operador/motivo/administrador real auditados, banner persistente, salida explícita y bloqueo de toda escritura productiva en servidor.
 - Contratos compartidos de fechas, borrador, tarifa, Orden pendiente, Orden inmutable y Materiales/costos: `9230c3e`.
 - Caracterización y revisión visual local en 320/768/1024/1440 px, claro/oscuro: `e25a863` más evidencia C1.1b en `.ai-shared/qa/sii-b3-ola2/visual/`.
 
@@ -55,4 +57,4 @@ Estado: vivo durante la implementación de `DC-01..DC-15`. Este reporte separa d
 - La auditoría global B1–B9 continúa pausada.
 - El esquema remoto confirmó los objetos de C1/C2, aunque el historial de migraciones CLI no refleja varias aplicaciones manuales; las migraciones nuevas se aplican por archivo exacto y no mediante `db push` masivo.
 - Los gates locales prueban implementación, no sustituyen por sí solos CI, despliegue ni aceptación funcional del Product Owner; esas evidencias se registran en el handoff de integración.
-- Permanecen C3.2–C7: tarifas/ruteo, aceptación y Orden pendiente, vista operador y Materiales/costos sin stock formal; figuran en `tasks/todo.md`.
+- Permanecen C6–C7: Materiales/costos sin stock formal y cierre transversal; figuran en `tasks/todo.md`.

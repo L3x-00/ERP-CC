@@ -9,7 +9,7 @@ import type { Corrida } from '@/modulos/produccion/tipos/corridas';
 import { esquemaCrearCorrida } from '@/modulos/produccion/validaciones/corridas';
 import { mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-servicio';
 
-import { obtenerActorProduccion } from './utilidades-acciones';
+import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 /**
  * SII-B6.1: crea una corrida con ítems compatibles (misma orden, proceso y
@@ -21,7 +21,10 @@ export async function crearCorridaAccion(entrada: unknown): Promise<RespuestaAcc
     return { exito: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    'crear_corrida',
+    resultado.data.ordenId,
+  );
   if (!actor) return { exito: false, error: 'No autorizado' };
   if (!(await can(actor, 'gestionar_produccion'))) {
     return { exito: false, error: 'Sin permiso para crear corridas' };

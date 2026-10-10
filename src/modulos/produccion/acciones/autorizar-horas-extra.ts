@@ -11,7 +11,7 @@ import {
 import { mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-servicio';
 import { esquemaAutorizarHorasExtra } from '@/modulos/produccion/validaciones/corridas';
 
-import { obtenerActorProduccion } from './utilidades-acciones';
+import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 /**
  * SII-B6.2: registra una autorización de horas extra (Management/Admin) que el
@@ -25,7 +25,10 @@ export async function autorizarHorasExtraAccion(
     return { exito: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    'autorizar_horas_extra',
+    resultado.data.ordenId,
+  );
   if (!actor) return { exito: false, error: 'No autorizado' };
   if (!(await can(actor, 'aprobar_ordenes'))) {
     return { exito: false, error: 'Sin permiso para autorizar horas extra' };

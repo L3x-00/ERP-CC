@@ -11,7 +11,7 @@ import {
 import { mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-servicio';
 import { esquemaReclamarRecurso } from '@/modulos/produccion/validaciones/corridas';
 
-import { obtenerActorProduccion } from './utilidades-acciones';
+import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 /**
  * SII-B6.2: reclama un recurso con sesión pausada ≥60 min por motivo
@@ -25,7 +25,10 @@ export async function reclamarRecursoAccion(
     return { exito: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    'reclamar_recurso_liberado',
+    resultado.data.recursoId,
+  );
   if (!actor) return { exito: false, error: 'No autorizado' };
   const autorizado =
     (await can(actor, 'gestionar_produccion')) || (await can(actor, 'gestionar_planeacion'));

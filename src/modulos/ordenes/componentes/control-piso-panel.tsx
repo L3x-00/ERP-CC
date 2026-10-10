@@ -39,6 +39,7 @@ type PropsControlPisoPanel = {
   materiales: MaterialPiso[];
   /** OBS-09: catálogo de taller para etiquetas y filtro por familia de área. */
   areas?: readonly AreaPiso[];
+  soloLectura?: boolean;
 };
 
 type OperacionPiso = 'tiempo' | 'avance' | 'consumo' | null;
@@ -60,6 +61,7 @@ export function ControlPisoPanel({
   ordenes,
   materiales,
   areas = [],
+  soloLectura = false,
 }: PropsControlPisoPanel) {
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
@@ -287,7 +289,9 @@ export function ControlPisoPanel({
       <header className="flex flex-col gap-1 border-b border-borde pb-4">
         <h1 className="text-2xl font-bold text-texto-primario">Control de piso</h1>
         <p className="text-sm text-texto-secundario">
-          Registra tiempo, piezas y material. Las operaciones se validan en el servidor.
+          {soloLectura
+            ? 'Consulta el trabajo asignado sin modificar la producción.'
+            : 'Registra tiempo, piezas y material. Las operaciones se validan en el servidor.'}
         </p>
       </header>
 
@@ -405,6 +409,15 @@ export function ControlPisoPanel({
       </div>
       )}
 
+      {soloLectura ? (
+        <div
+          data-testid="vista-operador-solo-lectura"
+          className="rounded-lg border border-info bg-info-suave p-4 text-sm text-info-texto"
+          role="status"
+        >
+          Vista de solo lectura. No puedes registrar tiempos, avances ni consumos.
+        </div>
+      ) : (
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
           <h2 className="text-lg font-semibold text-texto-primario">Tiempo de operación</h2>
@@ -541,6 +554,7 @@ export function ControlPisoPanel({
           </Button>
         </section>
       </div>
+      )}
 
       {error && (
         <p role="alert" className="rounded-md border border-peligro/40 bg-peligro-suave px-3 py-2 text-sm font-medium text-peligro-texto">

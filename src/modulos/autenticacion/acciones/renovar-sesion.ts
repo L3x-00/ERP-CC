@@ -11,6 +11,7 @@ import {
   deserializarSesionOperador,
   serializarSesionOperador,
   sesionOperadorExpirada,
+  sesionOperadorEsDelegada,
   sesionOperadorVencidaAbsoluta,
 } from '@/nucleo/autenticacion/sesion';
 import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
@@ -38,6 +39,9 @@ export async function renovarSesionAccion(): Promise<
     }
 
     const sesion = await deserializarSesionOperador(valorCookie);
+    if (sesion && sesionOperadorEsDelegada(sesion)) {
+      return { exito: false, error: 'La vista delegada no se puede renovar' };
+    }
     if (!sesion || sesionOperadorExpirada(sesion) || sesionOperadorVencidaAbsoluta(sesion)
       || !(await obtenerOperadorConSesionActiva())) {
       almacenCookies.delete(COOKIE_SESION_OPERADOR);

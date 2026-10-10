@@ -1,9 +1,11 @@
 'use client';
 
 import { cerrarSesionAccion } from '@/modulos/autenticacion/acciones/cerrar-sesion';
+import { cerrarVistaOperadorAccion } from '@/modulos/autenticacion/acciones/cerrar-vista-operador';
 import { renovarSesionAccion } from '@/modulos/autenticacion/acciones/renovar-sesion';
 import { usarCountdown } from '@/modulos/autenticacion/hooks/usar-countdown';
 import { TIMEOUT_SESION_OPERADOR_MINUTOS } from '@/nucleo/autenticacion/constantes';
+import { Button } from '@/compartido/componentes/ui/button';
 
 /** Props del indicador de sesión. */
 type PropsIndicadorSesion = {
@@ -31,7 +33,7 @@ function CountdownOperador() {
   const { segundosRestantes, reiniciar } = usarCountdown(
     TIMEOUT_SESION_OPERADOR_MINUTOS * 60,
     () => {
-      void cerrarSesionAccion();
+      void cerrarVistaOperadorAccion();
     },
   );
 
@@ -44,14 +46,14 @@ function CountdownOperador() {
         return;
       }
 
-      await cerrarSesionAccion();
+      await cerrarVistaOperadorAccion();
     } catch {
       // La renovación falló por red: se conserva la cuenta actual.
     }
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       <span
         aria-live="polite"
         className="font-mono text-sm tabular-nums"
@@ -59,13 +61,21 @@ function CountdownOperador() {
       >
         {formatearCountdown(segundosRestantes)}
       </span>
-      <button
+      <Button
         type="button"
         onClick={manejarRenovar}
-        className="rounded-base bg-primario px-3 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+        tamano="lg"
       >
         Renovar
-      </button>
+      </Button>
+      <Button
+        type="button"
+        onClick={() => void cerrarVistaOperadorAccion()}
+        variante="contorno"
+        tamano="lg"
+      >
+        Salir
+      </Button>
     </div>
   );
 }

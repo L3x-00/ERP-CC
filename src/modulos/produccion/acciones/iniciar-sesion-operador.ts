@@ -1,7 +1,7 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
-import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import {
@@ -20,7 +20,10 @@ export async function iniciarSesionOperadorAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const operador = await obtenerOperadorConSesionActiva();
+  const operador = await obtenerOperadorParaMutacion(
+    'iniciar_sesion_trabajo',
+    analisis.data.partidaId,
+  );
   if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
 
   try {

@@ -8,7 +8,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaRegistrarAvancePartida } from '@/modulos/ordenes/validaciones/ordenes';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
-import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -25,7 +25,10 @@ export async function registrarAvancePartidaAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const operador = await obtenerOperadorConSesionActiva();
+  const operador = await obtenerOperadorParaMutacion(
+    'registrar_avance_partida',
+    analisis.data.partidaId,
+  );
   if (!operador) {
     return { exito: false, error: 'Sesión de operador no válida' };
   }
