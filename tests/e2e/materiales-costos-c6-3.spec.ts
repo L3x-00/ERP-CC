@@ -30,7 +30,7 @@ async function iniciarSesion(page: Page, acceso: Credenciales): Promise<void> {
   await page.waitForURL((url) => url.pathname === '/dashboard');
 }
 
-test.describe('C6.3 Materiales y costos sin operación diaria de inventario', () => {
+test.describe('Materiales y costos — lógica ligera sin inventario formal (obs. cliente)', () => {
   test.beforeEach(() => {
     test.skip(
       process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
@@ -38,7 +38,7 @@ test.describe('C6.3 Materiales y costos sin operación diaria de inventario', ()
     );
   });
 
-  test('navega por costos y conserva existencias/kardex en solo lectura', async ({ page }) => {
+  test('muestra solo catálogo, costos e historial; nunca existencias ni kardex', async ({ page }) => {
     const acceso = credencialesAdmin();
     const admin = clienteAdmin();
     test.skip(!acceso, 'Faltan credenciales del admin E2E.');
@@ -55,6 +55,8 @@ test.describe('C6.3 Materiales y costos sin operación diaria de inventario', ()
     });
 
     try {
+      // El inventario legado sigue existiendo en base (no se destruye historia),
+      // pero el módulo no debe mostrarlo en ninguna vista.
       const material = await admin
         .from('materiales')
         .insert({
@@ -94,19 +96,20 @@ test.describe('C6.3 Materiales y costos sin operación diaria de inventario', ()
       await expect(
         page.getByRole('main').getByRole('heading', { name: 'Materiales y costos' }),
       ).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Costos vigentes' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Existencias históricas' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Kardex histórico' })).toBeVisible();
-      await expect(page.getByRole('button', { name: /^(Entrada|Salida|Nuevo material)$/ })).toHaveCount(0);
 
-      await page.getByRole('button', { name: 'Existencias históricas' }).click();
-      await expect(page.getByText('Histórico · Solo lectura')).toBeVisible();
-      await expect(page.getByText(codigo)).toBeVisible();
-      await expect(page.getByRole('columnheader', { name: 'Existencia histórica' })).toBeVisible();
-      await expect(page.getByText('Reordenar')).toHaveCount(0);
-
-      await page.getByRole('button', { name: 'Kardex histórico' }).click();
-      await expect(page.getByText(folio)).toBeVisible();
+      // Lógica ligera: catálogo de costos con historial; sin vistas de stock.
+      await expect(page.getByTestId('panel-costos-materiales')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Materiales', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Historial de costos' })).toBeVisible();
+      await expect(page.getByRole('button', { name: /existencias/i })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /kardex/i })).toHaveCount(0);
+      await expect(
+        page.getByRole('button', { name: /^(Entrada|Salida|Nuevo material|Reordenar)$/ }),
+      ).toHaveCount(0);
+      // El material del inventario legado no aparece en el módulo.
+      await expect(page.getByText(codigo)).toHaveCount(0);
+      await expect(page.getByText(`Existencia histórica ${sufijo}`)).toHaveCount(0);
+      await expect(page.getByText('Histórico · Solo lectura')).toHaveCount(0);
 
       mkdirSync('.ai-shared/qa/c6-3/visual', { recursive: true });
       for (const [nombre, ancho, alto] of [

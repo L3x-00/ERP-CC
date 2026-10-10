@@ -22,6 +22,13 @@ Estas decisiones sustituyen las recomendaciones provisionales de `PREGUNTAS-PARA
 | DC-14 | Materiales en MXN/USD y unidad base configurable. El consumo congela costo, moneda, tipo de cambio, unidad y cantidad. | Snapshot económico completo por consumo y conversión reproducible. |
 | DC-15 | Mantener identidad actual; usar tokens semánticos accesibles. No existe paleta corporativa obligatoria. | No copiar colores literales de las capturas; validar contraste, estados y temas con tokens. |
 
+## Refinamientos posteriores
+
+| Fecha | Autor | Requisito afectado | Ajuste |
+| --- | --- | --- | --- |
+| 2026-10-10 | Product Owner | DC-12 | El módulo visible «Materiales y costos» deja de mostrar las vistas históricas de existencias y kardex para reflejar la lógica ligera del cliente (catálogo con unidad base, costo vigente e historial; consumo y costo congelado viven en las órdenes). Los datos y servicios legados no se destruyen: permanecen en base y sus RLS endurecidas, sin exponerse en la interfaz. |
+| 2026-10-10 | Product Owner | DC-08 | La ficha de Propuesta reemplaza el botón «Actualizar» por «Crear nueva versión», con diálogo de motivo y «Historial de versiones» navegable en solo lectura; el vocabulario visible de la acción pasa de «revisión» a «versión». |
+
 ## Invariantes transversales
 
 - Ninguna navegación o edición crea una Propuesta implícitamente.

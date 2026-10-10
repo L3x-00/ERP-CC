@@ -366,6 +366,21 @@ archivos), **pgTAP 1437/1437**, **integración 266/266**, **concurrencia 12/12**
 de `procesar_solicitud_orden`, conversión de moneda del costeo). Remoto, CI, despliegue y
 aceptación del cliente siguen fuera de este cierre local.
 
+## Ajustes post-cierre 2026-10-10 — Propuesta e inventario ligero (autorizados por el PO)
+
+- [x] **Propuesta (obs. #8):** el encabezado de la ficha usa «Crear nueva versión» en lugar de
+  «Actualizar»; diálogo con motivo que copia ítems/ruteo/costos en la letra siguiente; el Resumen
+  muestra «Historial de versiones» navegable con apertura en solo lectura; el vocabulario de la
+  acción visible pasa de «revisión» a «versión» (mensajes de congelamiento incluidos). La aceptación
+  ya crea la Orden automáticamente (C7).
+- [x] **Materiales y costos (DC-12 refinado):** el módulo expone solo la lógica ligera —catálogo con
+  unidad base, costo vigente e historial, y propuestas de compra/gasto—; se retiran las pestañas de
+  existencias y kardex y sus componentes, sin borrar datos, servicios legados ni RLS. El consumo y
+  su costo congelado viven en las órdenes.
+- Evidencia: unitarias focales del diálogo/panel/página, E2E de Propuestas completo y E2E de
+  Materiales y costos (con material y kardex legados insertados que no deben aparecer) y capturas
+  320/768/1024/1440 claro/oscuro.
+
 ## Protocolo de continuidad
 
 - [ ] A 20 % o menos: no iniciar tarea L; terminar el incremento y actualizar evidencia.
