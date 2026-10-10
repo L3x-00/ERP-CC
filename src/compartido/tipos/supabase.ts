@@ -4133,33 +4133,203 @@ export type Database = {
           activo: boolean
           actualizado_en: string
           codigo: string
+          costo_confirmado_en: string | null
+          costo_confirmado_por: string | null
+          costo_vigente: number | null
           creado_en: string
+          fecha_vigencia_costo: string | null
           id: string
+          material_legacy_id: string | null
           metadata: Json
+          moneda_costo: string
           nombre: string
           orden: number
+          unidad_base: string
         }
         Insert: {
           activo?: boolean
           actualizado_en?: string
           codigo: string
+          costo_confirmado_en?: string | null
+          costo_confirmado_por?: string | null
+          costo_vigente?: number | null
           creado_en?: string
+          fecha_vigencia_costo?: string | null
           id?: string
+          material_legacy_id?: string | null
           metadata?: Json
+          moneda_costo?: string
           nombre: string
           orden?: number
+          unidad_base?: string
         }
         Update: {
           activo?: boolean
           actualizado_en?: string
           codigo?: string
+          costo_confirmado_en?: string | null
+          costo_confirmado_por?: string | null
+          costo_vigente?: number | null
           creado_en?: string
+          fecha_vigencia_costo?: string | null
           id?: string
+          material_legacy_id?: string | null
           metadata?: Json
+          moneda_costo?: string
           nombre?: string
           orden?: number
+          unidad_base?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "catalogo_materiales_costo_confirmado_por_fkey"
+            columns: ["costo_confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalogo_materiales_material_legacy_id_fkey"
+            columns: ["material_legacy_id"]
+            isOneToOne: true
+            referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historial_costos_material: {
+        Row: {
+          actor_id: string
+          confirmado_en: string
+          costo_anterior: number | null
+          costo_nuevo: number
+          fecha_efectiva: string
+          fuente: string
+          id: string
+          material_id: string
+          moneda_anterior: string | null
+          moneda_nueva: string
+          propuesta_id: string | null
+          referencia: string | null
+        }
+        Insert: {
+          actor_id: string
+          confirmado_en?: string
+          costo_anterior?: number | null
+          costo_nuevo: number
+          fecha_efectiva: string
+          fuente: string
+          id?: string
+          material_id: string
+          moneda_anterior?: string | null
+          moneda_nueva: string
+          propuesta_id?: string | null
+          referencia?: string | null
+        }
+        Update: {
+          actor_id?: string
+          confirmado_en?: string
+          costo_anterior?: number | null
+          costo_nuevo?: number
+          fecha_efectiva?: string
+          fuente?: string
+          id?: string
+          material_id?: string
+          moneda_anterior?: string | null
+          moneda_nueva?: string
+          propuesta_id?: string | null
+          referencia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historial_costos_material_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_costos_material_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historial_costos_material_propuesta_id_fkey"
+            columns: ["propuesta_id"]
+            isOneToOne: false
+            referencedRelation: "propuestas_costo_material"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propuestas_costo_material: {
+        Row: {
+          confirmado_en: string | null
+          confirmado_por: string | null
+          costo_propuesto: number
+          estado: string
+          fecha_efectiva: string
+          fuente: string
+          id: string
+          material_id: string
+          moneda: string
+          propuesto_en: string
+          propuesto_por: string
+          referencia: string
+        }
+        Insert: {
+          confirmado_en?: string | null
+          confirmado_por?: string | null
+          costo_propuesto: number
+          estado?: string
+          fecha_efectiva: string
+          fuente: string
+          id?: string
+          material_id: string
+          moneda: string
+          propuesto_en?: string
+          propuesto_por: string
+          referencia: string
+        }
+        Update: {
+          confirmado_en?: string | null
+          confirmado_por?: string | null
+          costo_propuesto?: number
+          estado?: string
+          fecha_efectiva?: string
+          fuente?: string
+          id?: string
+          material_id?: string
+          moneda?: string
+          propuesto_en?: string
+          propuesto_por?: string
+          referencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propuestas_costo_material_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuestas_costo_material_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuestas_costo_material_propuesto_por_fkey"
+            columns: ["propuesto_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       catalogo_espesores: {
         Row: {
@@ -5916,6 +6086,37 @@ export type Database = {
           p_revision_id: string
         }
         Returns: Json
+      }
+      confirmar_costo_material: {
+        Args: {
+          p_actor_id: string
+          p_actualizado_en: string
+          p_costo: number
+          p_fecha_efectiva: string
+          p_fuente: string
+          p_material_id: string
+          p_moneda: string
+          p_propuesta_id?: string
+          p_referencia: string
+        }
+        Returns: {
+          actualizado_en: string
+          costo_vigente: number
+          material_id: string
+          moneda_costo: string
+        }[]
+      }
+      proponer_costo_material: {
+        Args: {
+          p_actor_id: string
+          p_costo: number
+          p_fecha_efectiva: string
+          p_fuente: string
+          p_material_id: string
+          p_moneda: string
+          p_referencia: string
+        }
+        Returns: string
       }
       confirmar_venta: {
         Args: {

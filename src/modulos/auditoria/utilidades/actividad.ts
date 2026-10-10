@@ -44,6 +44,8 @@ const ETIQUETAS_ACCION: Record<string, string> = {
   actualizar_item_rfq: 'Edición de ítem RFQ',
   cancelar_item_rfq: 'Cancelación de ítem RFQ',
   subir_archivo_rfq: 'Archivo del RFQ',
+  proponer_costo_material: 'Propuesta de costo de material',
+  confirmar_costo_material: 'Confirmación de costo de material',
   eliminar: 'Eliminación',
   iniciar_sesion: 'Inicio de sesión',
   cerrar_sesion: 'Cierre de sesión',
