@@ -106,6 +106,7 @@ export function FormularioProspecto({
   const [notas, setNotas] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [subiendoArchivo, setSubiendoArchivo] = useState(false);
 
   const rfqConsulta = useQuery({
     queryKey: ['rfq', rfqId ?? ''],
@@ -216,7 +217,18 @@ export function FormularioProspecto({
     void rfqConsulta.refetch();
   }
 
+  /**
+   * Una subida directa a Storage no debe abandonarse al cerrar: mientras haya
+   * una en vuelo, el modal queda bloqueado (mismo mecanismo del alta) y los
+   * botones de paso se deshabilitan.
+   */
+  function manejarSubidaArchivo(subiendo: boolean): void {
+    setSubiendoArchivo(subiendo);
+    onCambioEnvio?.(subiendo);
+  }
+
   function finalizar(): void {
+    if (subiendoArchivo) return;
     const id = rfqId ?? undefined;
     void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
     reiniciarCaptura();
@@ -479,18 +491,35 @@ export function FormularioProspecto({
               </Button>
             </div>
           ) : rfq ? (
-            <PanelArchivosRfq rfq={rfq} onCambio={refrescarRfq} />
+            <PanelArchivosRfq rfq={rfq} onCambio={refrescarRfq} onSubiendo={manejarSubidaArchivo} />
           ) : (
             <p role="status" aria-live="polite" className="text-sm text-texto-secundario">
               Cargando el RFQ…
             </p>
           )}
 
+          {subiendoArchivo && (
+            <p role="status" aria-live="polite" className="text-sm font-medium text-acento">
+              Subiendo archivo… espera a que termine antes de finalizar.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-4">
-            <Button type="button" variante="contorno" tamano="sm" onClick={() => setPaso('items')}>
+            <Button
+              type="button"
+              variante="contorno"
+              tamano="sm"
+              disabled={subiendoArchivo}
+              onClick={() => setPaso('items')}
+            >
               Volver a ítems
             </Button>
-            <Button type="button" tamano="sm" onClick={finalizar}>
+            <Button
+              type="button"
+              tamano="sm"
+              disabled={subiendoArchivo}
+              onClick={finalizar}
+            >
               Finalizar captura
             </Button>
           </div>

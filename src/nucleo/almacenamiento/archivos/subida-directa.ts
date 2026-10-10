@@ -99,12 +99,21 @@ export async function verificarSubidaDirecta(
   if (errorVinculo) return { ok: false, error: 'No se pudo verificar el archivo' };
   if (vinculado) return { ok: false, error: 'El archivo ya está vinculado' };
 
-  const { data: objetos, error } = await admin.storage
-    .from(bucket)
-    .list(prefijo.slice(0, -1), { search: archivo, limit: 2 });
-  const objeto = objetos?.find((item) => item.name === archivo);
-  const tamano = Number(objeto?.metadata?.size ?? 0);
-  if (error || !objeto) return { ok: false, error: 'El archivo no se subió completo' };
+  // El backend de Storage puede tardar en reflejar el objeto recién subido:
+  // se reintenta una vez antes de fallar cerrado y descartar la carga.
+  const buscarObjeto = async () => {
+    const { data, error } = await admin.storage
+      .from(bucket)
+      .list(prefijo.slice(0, -1), { search: archivo, limit: 2 });
+    return error ? null : data?.find((item) => item.name === archivo) ?? null;
+  };
+  let objeto = await buscarObjeto();
+  if (!objeto) {
+    await new Promise((resolver) => setTimeout(resolver, 700));
+    objeto = await buscarObjeto();
+  }
+  if (!objeto) return { ok: false, error: 'El archivo no se subió completo' };
+  const tamano = Number(objeto.metadata?.size ?? 0);
 
   const validacion = validarSubidaArchivo(entidad, { nombre, tamano });
   if (!validacion.ok) return validacion;

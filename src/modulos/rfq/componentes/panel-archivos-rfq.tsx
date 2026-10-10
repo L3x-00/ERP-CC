@@ -72,10 +72,13 @@ export function PanelArchivosRfq({
   rfq,
   onCambio,
   faltantes,
+  onSubiendo,
 }: {
   rfq: Rfq;
   onCambio?: () => void;
   faltantes?: readonly string[];
+  /** Avisa al contenedor mientras una subida está en vuelo (evita cerrar a medias). */
+  onSubiendo?: (subiendo: boolean) => void;
 }) {
   const clienteConsultas = useQueryClient();
   const [clase, setClase] = useState<(typeof CLASES)[number]>('CAD');
@@ -113,6 +116,12 @@ export function PanelArchivosRfq({
         confirmar: (ruta) => confirmarArchivoRfqAccion({ ...destino, ruta }),
         descartar: (ruta) => descartarSubidaArchivoRfqAccion({ ruta }),
       });
+    },
+    onMutate: () => {
+      onSubiendo?.(true);
+    },
+    onSettled: () => {
+      onSubiendo?.(false);
     },
     onSuccess: () => {
       setMensaje(null);

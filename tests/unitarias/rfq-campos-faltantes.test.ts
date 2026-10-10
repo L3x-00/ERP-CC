@@ -46,6 +46,10 @@ vi.mock('@/modulos/rfq/acciones/obtener-catalogos', () => ({
   obtenerContactosClienteRfqAccion: (...args: unknown[]) => contactosMock(...args),
   obtenerCatalogosRfqAccion: vi.fn(),
 }));
+vi.mock('@/modulos/rfq/acciones/contactos-rfq', () => ({
+  obtenerContactoPrincipalRfqAccion: vi.fn().mockResolvedValue({ exito: true, datos: null }),
+  asegurarContactoRfqAccion: vi.fn(),
+}));
 
 import type { CatalogosRfq } from '@/modulos/rfq/acciones/obtener-catalogos';
 import { FormularioGeneralRfq } from '@/modulos/rfq/componentes/formulario-general-rfq';

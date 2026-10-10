@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
@@ -15,8 +15,16 @@ import {
   analizarFaltantesGenerales,
   analizarFaltantesSeguimiento,
 } from '@/modulos/rfq/utilidades/faltantes';
+import {
+  VALOR_CONTACTO_PRINCIPAL,
+  opcionesContactoRfq,
+} from '@/modulos/rfq/utilidades/contacto-rfq';
 
 import { actualizarDatosRfqAccion } from '../acciones/actualizar-datos-rfq';
+import {
+  asegurarContactoRfqAccion,
+  obtenerContactoPrincipalRfqAccion,
+} from '../acciones/contactos-rfq';
 import {
   obtenerContactosClienteRfqAccion,
   type CatalogosRfq,
@@ -57,6 +65,7 @@ export function FormularioGeneralRfq({
   const [fechaSolicitud, setFechaSolicitud] = useState(rfq.fechaSolicitud ?? '');
   const [descripcionGeneral, setDescripcionGeneral] = useState(rfq.descripcionGeneral ?? '');
   const [contactoId, setContactoId] = useState(rfq.contactoId ?? '');
+  const [contactoLibre, setContactoLibre] = useState('');
   const [responsableId, setResponsableId] = useState(rfq.responsableId ?? '');
   const [proximaAccionCodigo, setProximaAccionCodigo] = useState(rfq.proximaAccionCodigo ?? '');
   const [proximaAccionTexto, setProximaAccionTexto] = useState(rfq.proximaAccionTexto ?? '');
@@ -73,6 +82,24 @@ export function FormularioGeneralRfq({
     queryFn: () => obtenerContactosClienteRfqAccion({ clienteId: rfq.clienteId }),
     enabled: Boolean(rfq.clienteId),
   });
+  const principalConsulta = useQuery({
+    queryKey: ['rfq-contacto-principal', rfq.clienteId],
+    queryFn: () => obtenerContactoPrincipalRfqAccion({ clienteId: rfq.clienteId }),
+    enabled: Boolean(rfq.clienteId),
+  });
+  const clienteConsultas = useQueryClient();
+
+  const contactosLista = contactos.data?.exito ? (contactos.data.datos ?? []) : [];
+  const principal = principalConsulta.data?.exito ? (principalConsulta.data.datos ?? null) : null;
+  const opcionesContacto = opcionesContactoRfq(contactosLista, principal);
+  const consultasContactoListas = !contactos.isLoading && !principalConsulta.isLoading;
+  const contactoSinDatos =
+    Boolean(rfq.clienteId) && consultasContactoListas && opcionesContacto.length === 0;
+  const ayudaContacto = !rfq.clienteId
+    ? 'Liga un cliente para elegir su contacto.'
+    : contactoSinDatos
+      ? 'El cliente no tiene datos de contacto; se creará al guardar.'
+      : 'Sugerido con los datos del cliente; puedes elegirlo o cambiarlo.';
 
   const editable = esDefinicionRfqEditable(rfq.estadoRfq);
   const fCliente = analizarFaltantesCliente(faltantes?.cliente ?? []);
@@ -93,6 +120,36 @@ export function FormularioGeneralRfq({
   const canalHistoricoSinCatalogar =
     canal !== '' && !catalogos.canales.some((opcion) => opcion.codigo === canal);
 
+  /**
+   * Resuelve el `contacto_id` a guardar: los contactos existentes se usan tal
+   * cual; el contacto propio del cliente o el nombre escrito se materializan en
+   * `contactos_cliente` (el gate LISTO exige un contacto vigente del cliente).
+   */
+  async function resolverContactoId(): Promise<string | null> {
+    if (!rfq.clienteId) return null;
+
+    if (contactoSinDatos) {
+      const nombre = contactoLibre.trim();
+      if (!nombre) return rfq.contactoId ?? null;
+      const respuesta = await asegurarContactoRfqAccion({ clienteId: rfq.clienteId, nombre });
+      if (!respuesta.exito) throw new Error(respuesta.error);
+      return respuesta.datos?.id ?? null;
+    }
+
+    if (contactoId === VALOR_CONTACTO_PRINCIPAL && principal) {
+      const respuesta = await asegurarContactoRfqAccion({
+        clienteId: rfq.clienteId,
+        nombre: principal.nombre?.trim() || 'Contacto del cliente',
+        ...(principal.correo ? { correo: principal.correo } : {}),
+        ...(principal.telefono ? { telefono: principal.telefono } : {}),
+      });
+      if (!respuesta.exito) throw new Error(respuesta.error);
+      return respuesta.datos?.id ?? null;
+    }
+
+    return contactoId || null;
+  }
+
   async function manejarEnvio(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (canalSeleccionado?.esOtro && !canalDetalle.trim()) {
@@ -104,28 +161,38 @@ export function FormularioGeneralRfq({
     setMensaje(null);
     setGuardado(false);
 
-    const respuesta = await actualizarDatosRfqAccion({
-      rfqId: rfq.id,
-      actualizadoEn: rfq.actualizadoEn,
-      canal: canal.trim() || null,
-      canalDetalle: canalSeleccionado?.esOtro ? canalDetalle.trim() || null : null,
-      fechaSolicitud: fechaSolicitud || null,
-      descripcionGeneral: descripcionGeneral.trim() || null,
-      contactoId: contactoId || null,
-      responsableId: responsableId || null,
-      proximaAccionCodigo: proximaAccionCodigo || null,
-      proximaAccionTexto: proximaAccionTexto.trim() || null,
-      fechaProximaAccion: fechaProximaAccion || null,
-      responsableProximaAccionId: responsableProximaAccionId || null,
-    });
-    setEnviando(false);
+    try {
+      const contactoIdFinal = await resolverContactoId();
+      const respuesta = await actualizarDatosRfqAccion({
+        rfqId: rfq.id,
+        actualizadoEn: rfq.actualizadoEn,
+        canal: canal.trim() || null,
+        canalDetalle: canalSeleccionado?.esOtro ? canalDetalle.trim() || null : null,
+        fechaSolicitud: fechaSolicitud || null,
+        descripcionGeneral: descripcionGeneral.trim() || null,
+        contactoId: contactoIdFinal,
+        responsableId: responsableId || null,
+        proximaAccionCodigo: proximaAccionCodigo || null,
+        proximaAccionTexto: proximaAccionTexto.trim() || null,
+        fechaProximaAccion: fechaProximaAccion || null,
+        responsableProximaAccionId: responsableProximaAccionId || null,
+      });
+      setEnviando(false);
 
-    if (!respuesta.exito) {
-      setMensaje(respuesta.error);
-      return;
+      if (!respuesta.exito) {
+        setMensaje(respuesta.error);
+        return;
+      }
+      void clienteConsultas.invalidateQueries({ queryKey: ['rfq-contactos', rfq.clienteId] });
+      void clienteConsultas.invalidateQueries({
+        queryKey: ['rfq-contacto-principal', rfq.clienteId],
+      });
+      setGuardado(true);
+      onGuardado();
+    } catch (error) {
+      setEnviando(false);
+      setMensaje(error instanceof Error ? error.message : 'No se pudo guardar el contacto');
     }
-    setGuardado(true);
-    onGuardado();
   }
 
   return (
@@ -231,25 +298,52 @@ export function FormularioGeneralRfq({
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="rfq-contacto" className={CLASE_OBLIGATORIO}>Contacto del cliente</Label>
-          <Select
-            id="rfq-contacto"
-            value={contactoId}
-            onChange={(evento) => setContactoId(evento.target.value)}
-            disabled={!editable || !rfq.clienteId}
-            aria-required="true"
-            aria-invalid={fCliente.contacto}
-            className={fCliente.contacto ? CLASE_CAMPO_FALTANTE : undefined}
-          >
-            <option value="">
-              {rfq.clienteId ? 'Sin contacto' : 'El RFQ no tiene cliente ligado'}
-            </option>
-            {(contactos.data?.exito ? (contactos.data.datos ?? []) : []).map((contacto) => (
-              <option key={contacto.id} value={contacto.id}>
-                {contacto.nombre}
-                {contacto.correo ? ` · ${contacto.correo}` : ''}
-              </option>
-            ))}
-          </Select>
+          {!rfq.clienteId ? (
+            <Select
+              id="rfq-contacto"
+              value=""
+              disabled
+              aria-invalid={fCliente.contacto}
+              className={fCliente.contacto ? CLASE_CAMPO_FALTANTE : undefined}
+              aria-describedby="rfq-contacto-ayuda"
+            >
+              <option value="">El RFQ no tiene cliente ligado</option>
+            </Select>
+          ) : contactoSinDatos ? (
+            <Input
+              id="rfq-contacto"
+              value={contactoLibre}
+              onChange={(evento) => setContactoLibre(evento.target.value)}
+              maxLength={120}
+              placeholder="Nombre del contacto"
+              disabled={!editable}
+              aria-required="true"
+              aria-invalid={fCliente.contacto}
+              aria-describedby="rfq-contacto-ayuda"
+              className={fCliente.contacto ? CLASE_CAMPO_FALTANTE : undefined}
+            />
+          ) : (
+            <Select
+              id="rfq-contacto"
+              value={contactoId}
+              onChange={(evento) => setContactoId(evento.target.value)}
+              disabled={!editable || !consultasContactoListas}
+              aria-required="true"
+              aria-invalid={fCliente.contacto}
+              aria-describedby="rfq-contacto-ayuda"
+              className={fCliente.contacto ? CLASE_CAMPO_FALTANTE : undefined}
+            >
+              <option value="">Sin contacto</option>
+              {opcionesContacto.map((opcion) => (
+                <option key={opcion.valor} value={opcion.valor}>
+                  {opcion.etiqueta}
+                </option>
+              ))}
+            </Select>
+          )}
+          <span id="rfq-contacto-ayuda" className="text-xs text-texto-secundario">
+            {ayudaContacto}
+          </span>
         </div>
       </div>
 

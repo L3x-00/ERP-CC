@@ -87,6 +87,22 @@ export const esquemaCancelarItemRfq = z
 /** Entrada de lectura de un RFQ. */
 export const esquemaObtenerRfq = z.object({ rfqId: z.uuid() }).strict();
 
+/** Entrada de lectura del contacto principal del cliente (Solicitud del RFQ). */
+export const esquemaObtenerContactoPrincipalRfq = z.object({ clienteId: z.uuid() }).strict();
+
+/**
+ * Entrada para asegurar un contacto del cliente desde el RFQ: si el cliente no
+ * tiene filas en `contactos_cliente`, se crea una con estos datos.
+ */
+export const esquemaAsegurarContactoRfq = z
+  .object({
+    clienteId: z.uuid(),
+    nombre: z.string().trim().min(1, 'Escribe el nombre del contacto').max(120),
+    correo: z.email({ message: 'El correo no es válido' }).max(200).nullish(),
+    telefono: z.string().trim().max(40).nullish(),
+  })
+  .strict();
+
 /** Entrada de validación LISTO. */
 export const esquemaValidarRfqListo = z.object({ rfqId: z.uuid() }).strict();
 
