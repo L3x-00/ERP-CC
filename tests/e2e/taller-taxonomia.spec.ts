@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
@@ -150,8 +150,12 @@ async function prepararContexto(): Promise<ContextoE2E> {
     `Admin Taxonomía ${sufijo}`,
     'admin',
   );
-  const pinA = '4826';
-  const pinB = '7319';
+  // PIN aleatorio por corrida: un PIN fijo puede coincidir con operadores
+  // residuales de ejecuciones anteriores, y `buscarOperadorPorPin` falla
+  // cerrado cuando el PIN identifica a más de un operador activo.
+  const pinA = String(randomInt(100000, 999999));
+  let pinB = String(randomInt(100000, 999999));
+  while (pinB === pinA) pinB = String(randomInt(100000, 999999));
   const operadorAId = await crearUsuario(
     admin,
     `e2e-tax-opa-${sufijo}@orca.local`,
@@ -166,8 +170,16 @@ async function prepararContexto(): Promise<ContextoE2E> {
     `Operador CNC ${sufijo}`,
     'operador',
   );
-  await admin.from('usuarios').update({ pin_operador: await bcrypt.hash(pinA, 10) }).eq('id', operadorAId);
-  await admin.from('usuarios').update({ pin_operador: await bcrypt.hash(pinB, 10) }).eq('id', operadorBId);
+  const guardadoPinA = await admin
+    .from('usuarios')
+    .update({ pin_operador: await bcrypt.hash(pinA, 10) })
+    .eq('id', operadorAId);
+  if (guardadoPinA.error) throw new Error(`No se guardó el PIN A: ${guardadoPinA.error.message}`);
+  const guardadoPinB = await admin
+    .from('usuarios')
+    .update({ pin_operador: await bcrypt.hash(pinB, 10) })
+    .eq('id', operadorBId);
+  if (guardadoPinB.error) throw new Error(`No se guardó el PIN B: ${guardadoPinB.error.message}`);
 
   const { data: cliente, error: errorCliente } = await admin
     .from('clientes')

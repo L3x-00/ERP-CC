@@ -129,7 +129,7 @@ describe('esquemaFirmarArchivoPropuesta — contexto obligatorio', () => {
 });
 
 describe('firmarArchivoPropuestaAccion — archivos del árbol de la propuesta', () => {
-  it('firma un archivo de la propuesta por 120 s', async () => {
+  it('firma un archivo de la propuesta por 300 s', async () => {
     const { cliente } = clienteFalso(tablasBase(archivoDe('propuesta', PROPUESTA_ID)));
     clienteMock.mockResolvedValue(cliente);
 
@@ -139,7 +139,7 @@ describe('firmarArchivoPropuestaAccion — archivos del árbol de la propuesta',
     });
 
     expect(respuesta).toEqual({ exito: true, datos: { url: 'https://firmada/propuesta' } });
-    expect(firmarLecturaMock).toHaveBeenCalledWith({ admin: true }, ARCHIVO_ID, 120);
+    expect(firmarLecturaMock).toHaveBeenCalledWith({ admin: true }, ARCHIVO_ID, 300);
   });
 
   it('firma un archivo propio de una revisión de la propuesta', async () => {

@@ -27,7 +27,7 @@ export function PanelRecursosLiberados() {
     queryFn: async () => {
       const resultado = await obtenerRecursosLiberablesAccion();
       if (!resultado.exito || !resultado.datos) {
-        throw new Error(resultado.exito ? 'La consulta no devolvi� datos' : resultado.error);
+        throw new Error(resultado.exito ? 'La consulta no devolvió datos' : resultado.error);
       }
       return resultado.datos;
     },

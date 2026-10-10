@@ -114,7 +114,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     queryFn: async (): Promise<CatalogosPiso> => {
       const resultado = await obtenerCatalogosPisoAccion();
       if (!resultado.exito || !resultado.datos) {
-        throw new Error(resultado.exito ? 'La consulta no devolvi� datos' : resultado.error);
+        throw new Error(resultado.exito ? 'La consulta no devolvió datos' : resultado.error);
       }
       return resultado.datos;
     },
@@ -128,7 +128,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       if (!ordenSeleccionada) return [];
       const resultado = await obtenerCorridasOrdenAccion({ ordenId: ordenSeleccionada.id });
       if (!resultado.exito || !resultado.datos) {
-        throw new Error(resultado.exito ? 'La consulta no devolvi� datos' : resultado.error);
+        throw new Error(resultado.exito ? 'La consulta no devolvió datos' : resultado.error);
       }
       return resultado.datos;
     },

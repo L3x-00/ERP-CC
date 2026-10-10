@@ -5,7 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 import { costearRuteoRevisionAccion } from '@/modulos/propuestas/acciones/costear-ruteo-revision';
 import { editarCostosRevisionAccion } from '@/modulos/propuestas/acciones/editar-costos-revision';
 import { editarRuteoItemAccion } from '@/modulos/propuestas/acciones/editar-ruteo-item';
@@ -19,6 +19,7 @@ import {
   type PropuestaItem,
   type RevisionPropuesta,
   type RuteoItemPropuesta,
+  type TotalesPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_CATEGORIA_COSTO } from '@/modulos/propuestas/utilidades/indice';
 import { claveDetallePropuesta } from './claves-consulta';
@@ -92,6 +93,17 @@ export function PanelRuteoCosteo({
     return base;
   }, [costosBorrador, costos, revision.id]);
 
+  // C3.3: el ruteo costeado sustituye al costo manual de máquina y alimenta el
+  // desglose «costo total estimado de fabricación» (tiempo por uso por proceso).
+  const ruteoActivoCosteado = useMemo(() => {
+    const idsActivos = new Set(
+      itemsRevision.filter((item) => item.activo).map((item) => item.id),
+    );
+    return ruteo.filter(
+      (fila) => idsActivos.has(fila.itemId) && fila.costeadoEn !== null,
+    );
+  }, [itemsRevision, ruteo]);
+
   const totales = useMemo(
     () =>
       calcularTotalesPropuesta({
@@ -105,10 +117,16 @@ export function PanelRuteoCosteo({
           (suma, categoria) => suma + (Number(costosActuales[categoria]) || 0),
           0,
         ),
+        costoManualMaquina: Number(costosActuales.maquina) || 0,
+        costoRuteo: ruteoActivoCosteado.reduce(
+          (suma, fila) => suma + (fila.costoTotal ?? 0),
+          0,
+        ),
+        ruteoCosteado: ruteoActivoCosteado.length > 0,
         ivaPorcentaje: revision.snapshotCabecera.ivaPorcentaje,
         moneda: revision.snapshotCabecera.moneda,
       }),
-    [itemsRevision, costosActuales, revision.snapshotCabecera],
+    [itemsRevision, costosActuales, ruteoActivoCosteado, revision.snapshotCabecera],
   );
 
   async function guardarRuteo(item: PropuestaItem): Promise<void> {
@@ -216,122 +234,143 @@ export function PanelRuteoCosteo({
               )}
 
               {filas.map((fila, indice) => (
-                <div key={indice} className="grid gap-2 sm:grid-cols-6">
-                  <Select
-                    value={fila.procesoId}
-                    onChange={(evento) => {
-                      const copia = [...filas];
-                      copia[indice] = { ...fila, procesoId: evento.target.value };
-                      actualizarFilas(item.id, copia);
-                    }}
-                    disabled={!esBorrador || !permisos.editarRuteo}
-                    aria-label={`Proceso ${item.codigo} fila ${indice + 1}`}
-                  >
-                    <option value="">Proceso…</option>
-                    {(catalogos?.procesos ?? []).map((proceso) => (
-                      <option key={proceso.id} value={proceso.id}>
-                        {proceso.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={fila.grupoEquipoId}
-                    onChange={(evento) => {
-                      const copia = [...filas];
-                      copia[indice] = { ...fila, grupoEquipoId: evento.target.value, recursoId: '' };
-                      actualizarFilas(item.id, copia);
-                    }}
-                    disabled={!esBorrador || !permisos.editarRuteo}
-                    aria-label={`Grupo de equipo ${item.codigo} fila ${indice + 1}`}
-                  >
-                    <option value="">Equipo…</option>
-                    {(catalogos?.gruposEquipo ?? []).map((grupo) => (
-                      <option key={grupo.id} value={grupo.id}>
-                        {grupo.sinTarifa ? `${grupo.nombre} (sin tarifa)` : grupo.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={fila.recursoId}
-                    onChange={(evento) => {
-                      const copia = [...filas];
-                      copia[indice] = { ...fila, recursoId: evento.target.value };
-                      actualizarFilas(item.id, copia);
-                    }}
-                    disabled={!esBorrador || !permisos.editarRuteo || !fila.grupoEquipoId}
-                    aria-label={`Máquina ${item.codigo} fila ${indice + 1}`}
-                  >
-                    <option value="">Máquina (tarifa del grupo)</option>
-                    {(catalogos?.recursos ?? [])
-                      .filter((recurso) => recurso.grupoEquipoId === fila.grupoEquipoId)
-                      .map((recurso) => (
-                        <option key={recurso.id} value={recurso.id}>
-                          {recurso.nombre}
+                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-texto-secundario">Proceso</span>
+                    <Select
+                      value={fila.procesoId}
+                      onChange={(evento) => {
+                        const copia = [...filas];
+                        copia[indice] = { ...fila, procesoId: evento.target.value };
+                        actualizarFilas(item.id, copia);
+                      }}
+                      disabled={!esBorrador || !permisos.editarRuteo}
+                      aria-label={`Proceso ${item.codigo} fila ${indice + 1}`}
+                    >
+                      <option value="">Proceso…</option>
+                      {(catalogos?.procesos ?? []).map((proceso) => (
+                        <option key={proceso.id} value={proceso.id}>
+                          {proceso.nombre}
                         </option>
                       ))}
-                  </Select>
-                  <Select
-                    value={fila.grupoPlaneadoId}
-                    onChange={(evento) => {
-                      const copia = [...filas];
-                      copia[indice] = { ...fila, grupoPlaneadoId: evento.target.value };
-                      actualizarFilas(item.id, copia);
-                    }}
-                    disabled={!esBorrador || !permisos.editarRuteo}
-                    aria-label={`Grupo planeado ${item.codigo} fila ${indice + 1}`}
-                  >
-                    <option value="">Planeado…</option>
-                    {(catalogos?.gruposPlaneados ?? []).map((grupo) => (
-                      <option key={grupo.id} value={grupo.id}>
-                        {grupo.nombre}
-                      </option>
-                    ))}
-                  </Select>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={fila.setupHoras}
-                    onChange={(evento) => {
-                      const copia = [...filas];
-                      copia[indice] = { ...fila, setupHoras: evento.target.value };
-                      actualizarFilas(item.id, copia);
-                    }}
-                    disabled={!esBorrador || !permisos.editarRuteo}
-                    aria-label={`Setup horas ${item.codigo} fila ${indice + 1}`}
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={fila.runHoras}
-                    onChange={(evento) => {
-                      const copia = [...filas];
-                      copia[indice] = { ...fila, runHoras: evento.target.value };
-                      actualizarFilas(item.id, copia);
-                    }}
-                    disabled={!esBorrador || !permisos.editarRuteo}
-                    aria-label={`Run horas ${item.codigo} fila ${indice + 1}`}
-                  />
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs tabular-nums text-texto-secundario">
-                      {(Number(fila.setupHoras) || 0) + (Number(fila.runHoras) || 0)} h
-                    </span>
-                    {esBorrador && permisos.editarRuteo && (
-                      <Button
-                        variante="fantasma"
-                        tamano="sm"
-                        aria-label={`Quitar fila ${indice + 1} de ${item.codigo}`}
-                        onClick={() =>
-                          actualizarFilas(
-                            item.id,
-                            filas.filter((_, posicion) => posicion !== indice),
-                          )
-                        }
-                      >
-                        ×
-                      </Button>
-                    )}
+                    </Select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-texto-secundario">Grupo de equipo</span>
+                    <Select
+                      value={fila.grupoEquipoId}
+                      onChange={(evento) => {
+                        const copia = [...filas];
+                        copia[indice] = { ...fila, grupoEquipoId: evento.target.value, recursoId: '' };
+                        actualizarFilas(item.id, copia);
+                      }}
+                      disabled={!esBorrador || !permisos.editarRuteo}
+                      aria-label={`Grupo de equipo ${item.codigo} fila ${indice + 1}`}
+                    >
+                      <option value="">Equipo…</option>
+                      {(catalogos?.gruposEquipo ?? []).map((grupo) => (
+                        <option key={grupo.id} value={grupo.id}>
+                          {grupo.sinTarifa ? `${grupo.nombre} (sin tarifa)` : grupo.nombre}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-texto-secundario">Máquina (opcional)</span>
+                    <Select
+                      value={fila.recursoId}
+                      onChange={(evento) => {
+                        const copia = [...filas];
+                        copia[indice] = { ...fila, recursoId: evento.target.value };
+                        actualizarFilas(item.id, copia);
+                      }}
+                      disabled={!esBorrador || !permisos.editarRuteo || !fila.grupoEquipoId}
+                      aria-label={`Máquina ${item.codigo} fila ${indice + 1}`}
+                    >
+                      <option value="">Máquina (tarifa del grupo)</option>
+                      {(catalogos?.recursos ?? [])
+                        .filter((recurso) => recurso.grupoEquipoId === fila.grupoEquipoId)
+                        .map((recurso) => (
+                          <option key={recurso.id} value={recurso.id}>
+                            {recurso.nombre}
+                          </option>
+                        ))}
+                    </Select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-texto-secundario">Grupo planeado</span>
+                    <Select
+                      value={fila.grupoPlaneadoId}
+                      onChange={(evento) => {
+                        const copia = [...filas];
+                        copia[indice] = { ...fila, grupoPlaneadoId: evento.target.value };
+                        actualizarFilas(item.id, copia);
+                      }}
+                      disabled={!esBorrador || !permisos.editarRuteo}
+                      aria-label={`Grupo planeado ${item.codigo} fila ${indice + 1}`}
+                    >
+                      <option value="">Planeado…</option>
+                      {(catalogos?.gruposPlaneados ?? []).map((grupo) => (
+                        <option key={grupo.id} value={grupo.id}>
+                          {grupo.nombre}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-texto-secundario">Preparación (h)</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={fila.setupHoras}
+                      onChange={(evento) => {
+                        const copia = [...filas];
+                        copia[indice] = { ...fila, setupHoras: evento.target.value };
+                        actualizarFilas(item.id, copia);
+                      }}
+                      disabled={!esBorrador || !permisos.editarRuteo}
+                      aria-label={`Setup horas ${item.codigo} fila ${indice + 1}`}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-texto-secundario">Operación (h)</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={fila.runHoras}
+                      onChange={(evento) => {
+                        const copia = [...filas];
+                        copia[indice] = { ...fila, runHoras: evento.target.value };
+                        actualizarFilas(item.id, copia);
+                      }}
+                      disabled={!esBorrador || !permisos.editarRuteo}
+                      aria-label={`Run horas ${item.codigo} fila ${indice + 1}`}
+                    />
+                  </label>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-texto-secundario">Total (h)</span>
+                    <div className="flex h-9 items-center gap-1">
+                      <span className="text-sm tabular-nums text-texto-secundario">
+                        {formatearNumero((Number(fila.setupHoras) || 0) + (Number(fila.runHoras) || 0))} h
+                      </span>
+                      {esBorrador && permisos.editarRuteo && (
+                        <Button
+                          variante="fantasma"
+                          tamano="sm"
+                          aria-label={`Quitar fila ${indice + 1} de ${item.codigo}`}
+                          onClick={() =>
+                            actualizarFilas(
+                              item.id,
+                              filas.filter((_, posicion) => posicion !== indice),
+                            )
+                          }
+                        >
+                          ×
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -421,6 +460,13 @@ export function PanelRuteoCosteo({
         )}
       </div>
 
+      <DesgloseFabricacion
+        filas={ruteoActivoCosteado}
+        items={itemsRevision}
+        catalogos={catalogos}
+        totales={totales}
+      />
+
       {mensaje && (
         <p role="status" className="text-sm text-texto-secundario">
           {mensaje}
@@ -435,6 +481,131 @@ function Resumen({ etiqueta, valor }: { etiqueta: string; valor: string }) {
     <div className="flex flex-col">
       <span className="text-xs text-texto-secundario">{etiqueta}</span>
       <span className="font-medium tabular-nums">{valor}</span>
+    </div>
+  );
+}
+
+/**
+ * C3.3 / observación del cliente: «Costo total estimado de fabricación» debajo
+ * del Costeo interno. Deriva el tiempo por uso de cada proceso (preparación +
+ * operación × tarifa congelada) para saber el costo por proceso y el total
+ * estimado, sin duplicar el costeo manual.
+ */
+function DesgloseFabricacion({
+  filas,
+  items,
+  catalogos,
+  totales,
+}: {
+  filas: RuteoItemPropuesta[];
+  items: PropuestaItem[];
+  catalogos: CatalogosPropuesta | null;
+  totales: TotalesPropuesta;
+}) {
+  const nombreProceso = (procesoId: string): string =>
+    catalogos?.procesos.find((proceso) => proceso.id === procesoId)?.nombre ?? 'Proceso';
+  const nombreGrupo = (grupoId: string | null): string | null =>
+    grupoId ? (catalogos?.gruposEquipo.find((grupo) => grupo.id === grupoId)?.nombre ?? null) : null;
+  const nombreRecurso = (recursoId: string | null): string | null =>
+    recursoId ? (catalogos?.recursos.find((recurso) => recurso.id === recursoId)?.nombre ?? null) : null;
+
+  return (
+    <div className="flex flex-col gap-2" data-testid="costeo-fabricacion">
+      <h3 className="text-sm font-semibold text-texto-primario">
+        Costo total estimado de fabricación
+      </h3>
+      {filas.length === 0 && (
+        <p className="text-xs text-texto-secundario">
+          Sin ruteo costeado todavía. Pulsa «Costear ruteo» para ver el tiempo por uso y el costo
+          de cada proceso.
+        </p>
+      )}
+      <div className="overflow-x-auto rounded-lg border border-borde">
+        <table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="bg-superficie-2 text-xs text-texto-secundario">
+            <tr>
+              <th scope="col" className="px-3 py-2 font-medium">Ítem</th>
+              <th scope="col" className="px-3 py-2 font-medium">Proceso</th>
+              <th scope="col" className="px-3 py-2 font-medium">Máquina / grupo</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Preparación (h)</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Operación (h)</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Total (h)</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Tarifa (h)</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">Costo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filas.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-3 py-3 text-xs text-texto-secundario">
+                  El desglose se llena al costear el ruteo.
+                </td>
+              </tr>
+            ) : (
+              filas.map((fila) => {
+                const item = items.find((candidato) => candidato.id === fila.itemId);
+                const maquina = nombreRecurso(fila.recursoId) ?? nombreGrupo(fila.grupoEquipoId);
+                const monedaFila = fila.tarifaMoneda ?? totales.moneda;
+                return (
+                  <tr key={fila.id} className="border-t border-borde">
+                    <td className="px-3 py-2 font-mono text-xs">{item?.codigo ?? '—'}</td>
+                    <td className="px-3 py-2">{nombreProceso(fila.procesoId)}</td>
+                    <td className="px-3 py-2">
+                      {maquina ?? '—'}
+                      {fila.tarifaFuente === 'RECURSO' && (
+                        <span className="ml-1 text-xs text-texto-secundario">(tarifa propia)</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {formatearNumero(fila.setupHoras)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {formatearNumero(fila.runHoras)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {formatearNumero(fila.totalHoras)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {fila.tarifaHora === null
+                        ? '—'
+                        : `${formatearMoneda(fila.tarifaHora, monedaFila)}/h`}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {formatearMoneda(fila.costoTotal ?? 0, monedaFila)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+          <tfoot className="border-t border-borde bg-superficie-2">
+            <tr>
+              <td colSpan={7} className="px-3 py-2 text-right font-medium">
+                Costo de ruteo (tiempo por uso)
+              </td>
+              <td className="px-3 py-2 text-right font-medium tabular-nums">
+                {formatearMoneda(totales.costoRuteo, totales.moneda)}
+              </td>
+            </tr>
+            <tr>
+              <td colSpan={7} className="px-3 py-2 text-right text-texto-secundario">
+                Otros costos manuales
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums text-texto-secundario">
+                {formatearMoneda(totales.costoManual, totales.moneda)}
+              </td>
+            </tr>
+            <tr>
+              <td colSpan={7} className="px-3 py-2 text-right font-semibold">
+                Total estimado de fabricación
+              </td>
+              <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                {formatearMoneda(totales.costoTotal, totales.moneda)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }

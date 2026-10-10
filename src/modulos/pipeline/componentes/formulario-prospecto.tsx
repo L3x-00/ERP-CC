@@ -15,7 +15,10 @@ import type {
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
-import { obtenerCatalogosRfqAccion } from '@/modulos/rfq/acciones/obtener-catalogos';
+import {
+  obtenerCatalogosRfqAccion,
+  obtenerContactosClienteRfqAccion,
+} from '@/modulos/rfq/acciones/obtener-catalogos';
 import { obtenerRfqAccion } from '@/modulos/rfq/acciones/obtener-rfq';
 import { PanelArchivosRfq } from '@/modulos/rfq/componentes/panel-archivos-rfq';
 import { TablaItemsRfq } from '@/modulos/rfq/componentes/tabla-items-rfq';
@@ -104,6 +107,13 @@ export function FormularioProspecto({
   const [esOrdenInterna, setEsOrdenInterna] = useState(false);
   const [fechaRequerida, setFechaRequerida] = useState('');
   const [notas, setNotas] = useState('');
+  // Observación del cliente: datos del Resumen capturados desde el mismo modal.
+  const [canal, setCanal] = useState('');
+  const [canalDetalle, setCanalDetalle] = useState('');
+  const [fechaSolicitud, setFechaSolicitud] = useState(() => new Date().toISOString().slice(0, 10));
+  const [descripcionGeneral, setDescripcionGeneral] = useState('');
+  const [responsableId, setResponsableId] = useState('');
+  const [contactoId, setContactoId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [subiendoArchivo, setSubiendoArchivo] = useState(false);
@@ -117,11 +127,30 @@ export function FormularioProspecto({
     queryKey: ['rfq-catalogos'],
     queryFn: () => obtenerCatalogosRfqAccion(),
     staleTime: 60_000,
-    enabled: rfqId !== null,
+  });
+  const contactosConsulta = useQuery({
+    queryKey: ['rfq-contactos-alta', cliente?.id ?? ''],
+    queryFn: () => obtenerContactosClienteRfqAccion({ clienteId: cliente!.id }),
+    enabled: cliente !== null,
   });
 
   const rfq = rfqConsulta.data?.exito ? rfqConsulta.data.datos : undefined;
   const catalogos = catalogosConsulta.data?.exito ? (catalogosConsulta.data.datos ?? null) : null;
+  const contactos = contactosConsulta.data?.exito ? (contactosConsulta.data.datos ?? []) : [];
+  const canalSeleccionado = catalogos?.canales.find((opcion) => opcion.codigo === canal);
+  // Autocompletado (observación del cliente): con un cliente ligado se
+  // preselecciona su contacto principal; el usuario puede cambiarlo.
+  const contactoEfectivoId =
+    contactoId || (cliente && contactos.length > 0 ? contactos[0].id : '');
+
+  function elegirContacto(valor: string): void {
+    setContactoId(valor);
+    const contacto = contactos.find((candidato) => candidato.id === valor);
+    if (!contacto) return;
+    setNombreContacto((actual) => (actual.trim() ? actual : contacto.nombre));
+    setCorreo((actual) => (actual.trim() ? actual : contacto.correo ?? ''));
+    setTelefono((actual) => (actual.trim() ? actual : contacto.telefono ?? ''));
+  }
   const errorRfq =
     rfqConsulta.isError || (rfqConsulta.data && !rfqConsulta.data.exito)
       ? 'No se pudo cargar el RFQ capturado.'
@@ -134,6 +163,7 @@ export function FormularioProspecto({
    */
   function aplicarCliente(elegido: ClienteRfq | null): void {
     setCliente(elegido);
+    setContactoId('');
     if (!elegido) {
       setCondicionesHeredadas(false);
       return;
@@ -161,6 +191,12 @@ export function FormularioProspecto({
     setEsOrdenInterna(false);
     setFechaRequerida('');
     setNotas('');
+    setCanal('');
+    setCanalDetalle('');
+    setFechaSolicitud(new Date().toISOString().slice(0, 10));
+    setDescripcionGeneral('');
+    setResponsableId('');
+    setContactoId('');
   }
 
   function reiniciarCaptura(): void {
@@ -173,15 +209,30 @@ export function FormularioProspecto({
   async function crearRfqYContinuar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setError(null);
+    if (canalSeleccionado?.esOtro && !canalDetalle.trim()) {
+      setError('Escribe el detalle del canal Otro');
+      return;
+    }
     setEnviando(true);
     onCambioEnvio?.(true);
 
     try {
+      // Autocompletado con el contacto registrado: lo capturado a mano manda;
+      // el contacto elegido (o el principal del cliente) completa lo vacío.
+      const contactoEfectivo = contactos.find(
+        (candidato) => candidato.id === contactoEfectivoId,
+      );
+      const nombreContactoFinal = nombreContacto.trim()
+        ? nombreContacto
+        : (contactoEfectivo?.nombre ?? '');
+      const correoFinal = correo.trim() ? correo : (contactoEfectivo?.correo ?? '');
+      const telefonoFinal = telefono.trim() ? telefono : (contactoEfectivo?.telefono ?? '');
+
       const respuesta = await crearProspectoAccion({
-        nombreContacto,
+        nombreContacto: nombreContactoFinal,
         empresa,
-        correo,
-        telefono,
+        correo: correoFinal,
+        telefono: telefonoFinal,
         moneda,
         prioridad,
         esOrdenInterna,
@@ -189,6 +240,14 @@ export function FormularioProspecto({
         ...(condicionesPago !== '' ? { condicionesPago } : {}),
         ...(fechaRequerida ? { fechaRequerida } : {}),
         ...(notas.trim() ? { notas: notas.trim() } : {}),
+        ...(canal ? { canal } : {}),
+        ...(canalSeleccionado?.esOtro && canalDetalle.trim()
+          ? { canalDetalle: canalDetalle.trim() }
+          : {}),
+        ...(fechaSolicitud ? { fechaSolicitud } : {}),
+        ...(descripcionGeneral.trim() ? { descripcionGeneral: descripcionGeneral.trim() } : {}),
+        ...(responsableId ? { responsableId } : {}),
+        ...(contactoEfectivoId ? { contactoId: contactoEfectivoId } : {}),
       });
 
       if (!respuesta.exito) {
@@ -406,6 +465,111 @@ export function FormularioProspecto({
                 </span>
               </span>
             </label>
+          </div>
+
+          <h3 className="text-sm font-semibold text-texto-primario">3. Canal y seguimiento</h3>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-canal">Canal</Label>
+              <Select
+                id="prospecto-canal"
+                value={canal}
+                onChange={(evento) => {
+                  const codigo = evento.target.value;
+                  setCanal(codigo);
+                  const siguiente = catalogos?.canales.find((opcion) => opcion.codigo === codigo);
+                  if (!siguiente?.esOtro) setCanalDetalle('');
+                }}
+                disabled={catalogos === null}
+              >
+                <option value="">Sin canal</option>
+                {(catalogos?.canales ?? [])
+                  .filter((opcion) => opcion.activo)
+                  .map((opcion) => (
+                    <option key={opcion.codigo} value={opcion.codigo}>
+                      {opcion.nombre}
+                    </option>
+                  ))}
+              </Select>
+              <span className="text-xs text-texto-secundario">
+                Cómo llegó la solicitud. También se puede completar desde el Resumen.
+              </span>
+            </div>
+
+            {canalSeleccionado?.esOtro && (
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="prospecto-canal-detalle">Detalle del canal Otro</Label>
+                <Input
+                  id="prospecto-canal-detalle"
+                  value={canalDetalle}
+                  onChange={(evento) => setCanalDetalle(evento.target.value)}
+                  maxLength={300}
+                  placeholder="Ej. feria industrial o alianza comercial"
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-fecha-solicitud">Fecha de solicitud</Label>
+              <Input
+                id="prospecto-fecha-solicitud"
+                type="date"
+                value={fechaSolicitud}
+                onChange={(evento) => setFechaSolicitud(evento.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-responsable">Responsable</Label>
+              <Select
+                id="prospecto-responsable"
+                value={responsableId}
+                onChange={(evento) => setResponsableId(evento.target.value)}
+              >
+                <option value="">Sin responsable</option>
+                {(catalogos?.usuarios ?? []).map((usuario) => (
+                  <option key={usuario.id} value={usuario.id}>
+                    {usuario.nombre}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {cliente && contactos.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="prospecto-contacto-registrado">Contacto del cliente</Label>
+                <Select
+                  id="prospecto-contacto-registrado"
+                  value={contactoEfectivoId}
+                  onChange={(evento) => elegirContacto(evento.target.value)}
+                >
+                  <option value="">Sin contacto registrado</option>
+                  {contactos.map((contacto) => (
+                    <option key={contacto.id} value={contacto.id}>
+                      {contacto.correo
+                        ? `${contacto.nombre} · ${contacto.correo}`
+                        : contacto.nombre}
+                    </option>
+                  ))}
+                </Select>
+                <span className="text-xs text-texto-secundario">
+                  Se autocompleta con los contactos registrados del cliente.
+                </span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="prospecto-descripcion-general">Descripción general</Label>
+              <Textarea
+                id="prospecto-descripcion-general"
+                value={descripcionGeneral}
+                onChange={(evento) => setDescripcionGeneral(evento.target.value)}
+                rows={2}
+                maxLength={2000}
+                placeholder="Qué pide el cliente y alcance esperado"
+              />
+            </div>
           </div>
 
           {error !== null && (

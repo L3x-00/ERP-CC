@@ -54,7 +54,7 @@ export function PanelCorridasProduccion({
       if (!orden) return [];
       const resultado = await obtenerCorridasOrdenAccion({ ordenId: orden.id });
       if (!resultado.exito || !resultado.datos) {
-        throw new Error(resultado.exito ? 'La consulta no devolvi� datos' : resultado.error);
+        throw new Error(resultado.exito ? 'La consulta no devolvió datos' : resultado.error);
       }
       return resultado.datos;
     },

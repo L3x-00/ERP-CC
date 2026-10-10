@@ -155,11 +155,9 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {rfq.estadoRfq !== 'CONVERTED' && (
-            <Button variante="contorno" tamano="sm" onClick={() => setHistorialAbierto(true)}>
-              Historial
-            </Button>
-          )}
+          <Button variante="contorno" tamano="sm" onClick={() => setHistorialAbierto(true)}>
+            Historial
+          </Button>
           <Button variante="contorno" tamano="sm" onClick={() => void consulta.refetch()}>
             Actualizar
           </Button>

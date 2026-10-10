@@ -76,11 +76,11 @@ async function archivoPerteneceALaPropuesta(
 }
 
 /**
- * SII-B4.8: firma una URL corta (120 s) para leer un archivo ligado a la
- * propuesta abierta. Dos comprobaciones con el cliente RLS del usuario antes de
- * usar `service_role`: que pueda leer esa propuesta concreta y que el archivo
- * cuelgue de su árbol documental. La vigencia no importa — una versión
- * histórica del linaje se abre igual (CLI-06).
+ * SII-B4.8: firma una URL corta (300 s, igual que RFQ/Orden) para leer un
+ * archivo ligado a la propuesta abierta. Dos comprobaciones con el cliente RLS
+ * del usuario antes de usar `service_role`: que pueda leer esa propuesta
+ * concreta y que el archivo cuelgue de su árbol documental. La vigencia no
+ * importa — una versión histórica del linaje se abre igual (CLI-06).
  */
 export async function firmarArchivoPropuestaAccion(
   entrada: unknown,
@@ -125,7 +125,7 @@ export async function firmarArchivoPropuestaAccion(
       return { exito: false, error: 'El archivo no pertenece a esta propuesta' };
     }
 
-    const url = await firmarLecturaArchivo(crearClienteSupabaseAdmin(), archivoId, 120);
+    const url = await firmarLecturaArchivo(crearClienteSupabaseAdmin(), archivoId, 300);
     return { exito: true, datos: { url } };
   } catch {
     return { exito: false, error: 'No se pudo firmar el archivo' };

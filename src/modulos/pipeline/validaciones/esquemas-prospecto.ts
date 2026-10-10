@@ -24,6 +24,15 @@ export const esquemaCrearProspecto = z.object({
   // compromiso comercial, que se confirma al aceptar una revisión.
   fechaRequerida: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),
   notas: z.string().max(2000).optional(),
+  // Observación del cliente: la captura inicial en un solo modal también
+  // completa los datos del Resumen (canal controlado, fecha de solicitud,
+  // responsable, descripción y contacto autocompletado del cliente).
+  canal: z.string().trim().max(60).optional(),
+  canalDetalle: z.string().trim().max(300).optional(),
+  fechaSolicitud: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),
+  descripcionGeneral: z.string().trim().max(2000).optional(),
+  responsableId: z.uuid('Responsable inválido').optional(),
+  contactoId: z.uuid('Contacto inválido').optional(),
 });
 
 /** Datos validados para crear un prospecto. */

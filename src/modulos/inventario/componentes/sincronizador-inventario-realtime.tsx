@@ -84,7 +84,9 @@ export function SincronizadorInventarioRealtime() {
       data-conectado={conectado ? 'true' : 'false'}
       aria-live="polite"
     >
-      {conectado ? 'Sincronización de Inventario conectada' : 'Sincronización de Inventario conectando'}
+      {conectado
+        ? 'Sincronización de materiales y costos conectada'
+        : 'Sincronización de materiales y costos conectando'}
     </span>
   );
 }
