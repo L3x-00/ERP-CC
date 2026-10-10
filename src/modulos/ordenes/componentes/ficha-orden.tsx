@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -14,10 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
-import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
+import { Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
-import { ajustarOrdenPostAceptacionAccion } from '@/modulos/ordenes/acciones/ajustar-orden-post-aceptacion';
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
 import { cerrarOrdenAdministrativaAccion } from '@/modulos/ordenes/acciones/cerrar-orden-administrativa';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
@@ -28,8 +27,8 @@ import { cn } from '@/compartido/utilidades/cn';
 export interface PermisosFichaOrden {
   puedeLiberar: boolean;
   puedeCerrar: boolean;
-  puedeAjustar: boolean;
-  puedeAdministrar: boolean;
+  puedeCancelar: boolean;
+  puedeVerFinanzas: boolean;
 }
 
 type PestanaFicha = 'resumen' | 'partidas' | 'ruta' | 'archivos' | 'entregas' | 'actividad' | 'documento';
@@ -43,18 +42,6 @@ const PESTANAS: readonly [PestanaFicha, string][] = [
   ['actividad', 'Actividad'],
   ['documento', 'Documento'],
 ];
-
-function ahoraLocal(): string {
-  const ahora = new Date();
-  const local = new Date(ahora.getTime() - ahora.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-}
-
-function aFechaHoraLocal(fecha: string): string {
-  const valor = new Date(fecha);
-  const local = new Date(valor.getTime() - valor.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
-}
 
 function formatearFechaCalendario(fecha: string): string {
   const [anioTexto, mesTexto, diaTexto] = fecha.slice(0, 10).split('-');
@@ -162,18 +149,14 @@ export function FichaOrden({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
   const [cerrando, setCerrando] = useState(false);
-  const [ajustando, setAjustando] = useState(false);
   const [motivo, setMotivo] = useState('');
-  const [ajuste, setAjuste] = useState({
-    prioridad: ficha.orden.prioridad,
-    fecha: aFechaHoraLocal(ficha.orden.fechaOperativa),
-    notas: ficha.orden.notas ?? '',
-  });
 
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
   const esTerminal = estado === 'CERRADA' || estado === 'CANCELADA';
-  const preProduccion = estado === 'CONFIRMADA' || estado === 'PLANIFICADA' || estado === 'LISTA';
+  const pestanas = permisos.puedeVerFinanzas
+    ? PESTANAS
+    : PESTANAS.filter(([id]) => id !== 'documento');
 
   const ruta = useMemo(
     () => (ficha.snapshot?.items ?? []).filter((item) => !item.es_descuento),
@@ -240,56 +223,6 @@ export function FichaOrden({
     if (exito) setCerrando(false);
   }
 
-  async function guardarAjuste(evento: FormEvent<HTMLFormElement>): Promise<void> {
-    evento.preventDefault();
-    if (ajuste.fecha === '') {
-      setError('Indica la fecha operativa.');
-      return;
-    }
-    const fechaOperativa = new Date(ajuste.fecha);
-    if (Number.isNaN(fechaOperativa.getTime())) {
-      setError('La fecha operativa no es válida.');
-      return;
-    }
-    const cambios: Record<string, unknown> = {};
-    if (ajuste.prioridad !== ficha.orden.prioridad) cambios.prioridad = ajuste.prioridad;
-    if (ajuste.fecha !== aFechaHoraLocal(ficha.orden.fechaOperativa)) {
-      cambios.fechaOperativa = fechaOperativa.toISOString();
-    }
-    if (ajuste.notas.trim() !== (ficha.orden.notas ?? '')) {
-      cambios.notas = ajuste.notas.trim();
-    }
-    if (Object.keys(cambios).length === 0) {
-      setError('Indica al menos un cambio para ajustar la orden.');
-      return;
-    }
-    const exito = await ejecutar(
-      () => ajustarOrdenPostAceptacionAccion({
-        ordenId: ficha.orden.id,
-        actualizadoEn: ficha.orden.actualizadoEn,
-        motivo: motivo.trim(),
-        cambios,
-      }),
-      `Orden ${folio} ajustada con trazabilidad`,
-    );
-    if (exito) {
-      setAjustando(false);
-      setMotivo('');
-    }
-  }
-
-  function abrirAjuste(): void {
-    setError(null);
-    setMensaje(null);
-    setMotivo('');
-    setAjuste({
-      prioridad: ficha.orden.prioridad,
-      fecha: aFechaHoraLocal(ficha.orden.fechaOperativa),
-      notas: ficha.orden.notas ?? '',
-    });
-    setAjustando(true);
-  }
-
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5" data-testid="ficha-orden">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -316,14 +249,7 @@ export function FichaOrden({
               {ocupado ? 'Liberando…' : 'Liberar'}
             </Button>
           )}
-          {permisos.puedeAjustar && preProduccion && (
-            <Button variante="secundario" tamano="sm" disabled={ocupado}
-              onClick={abrirAjuste}
-              data-testid="ficha-ajustar">
-              Ajustar
-            </Button>
-          )}
-          {permisos.puedeAdministrar && !esTerminal && estado !== 'PRODUCCION_COMPLETADA' && (
+          {permisos.puedeCancelar && !esTerminal && estado !== 'PRODUCCION_COMPLETADA' && (
             <Button variante="destructivo" tamano="sm" disabled={ocupado}
               onClick={() => { setError(null); setMensaje(null); setMotivo(''); setCancelando(true); }}
               data-testid="ficha-cancelar">
@@ -340,7 +266,7 @@ export function FichaOrden({
         </div>
       </header>
 
-      {error && !cancelando && !cerrando && !ajustando ? (
+      {error && !cancelando && !cerrando ? (
         <p role="alert" className="text-sm text-peligro-texto" data-testid="ficha-error">{error}</p>
       ) : null}
       {mensaje ? (
@@ -348,7 +274,7 @@ export function FichaOrden({
       ) : null}
 
       <div role="tablist" aria-label="Secciones de la orden" className="flex flex-wrap gap-1 border-b border-borde print:hidden">
-        {PESTANAS.map(([id, etiqueta]) => (
+        {pestanas.map(([id, etiqueta]) => (
           <button
             key={id}
             type="button"
@@ -388,27 +314,33 @@ export function FichaOrden({
               </Tarjeta>
             )}
           </dl>
-          <Totales totales={ficha.totales} />
-          <div className="rounded-md border border-borde p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">Origen (snapshot)</p>
-            {ficha.snapshot ? (
-              <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
-                {Object.entries(ficha.snapshot.origen).map(([clave, valor]) => (
-                  <div key={clave} className="flex gap-2">
-                    <dt className="text-texto-secundario">{clave}:</dt>
-                    <dd className="truncate">{claveValor(valor)}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="mt-2 text-sm text-texto-secundario">
-                Orden histórica sin snapshot (OP-######): conserva sus datos legacy.
-              </p>
-            )}
-            {ficha.orden.notas ? (
-              <p className="mt-3 whitespace-pre-wrap text-sm text-texto-secundario">Observaciones: {ficha.orden.notas}</p>
-            ) : null}
-          </div>
+          {permisos.puedeVerFinanzas ? (
+            <>
+              <Totales totales={ficha.totales} />
+              <div className="rounded-md border border-borde p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">Origen (snapshot)</p>
+                {ficha.snapshot ? (
+                  <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
+                    {Object.entries(ficha.snapshot.origen).map(([clave, valor]) => (
+                      <div key={clave} className="flex gap-2">
+                        <dt className="text-texto-secundario">{clave}:</dt>
+                        <dd className="truncate">{claveValor(valor)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm text-texto-secundario">
+                    Orden histórica sin snapshot (OP-######): conserva sus datos legacy.
+                  </p>
+                )}
+              </div>
+            </>
+          ) : null}
+          {ficha.orden.notas ? (
+            <p className="rounded-md border border-borde p-3 whitespace-pre-wrap text-sm text-texto-secundario">
+              Observaciones: {ficha.orden.notas}
+            </p>
+          ) : null}
         </section>
       ) : null}
 
@@ -552,7 +484,7 @@ export function FichaOrden({
         </section>
       ) : null}
 
-      {pestana === 'documento' ? (
+      {permisos.puedeVerFinanzas && pestana === 'documento' ? (
         <section className="grid gap-4" data-testid="ficha-panel-documento">
           <div className="flex justify-end print:hidden">
             <Button variante="contorno" tamano="sm" onClick={() => window.print()}>
@@ -642,49 +574,6 @@ export function FichaOrden({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={ajustando} onOpenChange={(abierto) => (!abierto ? setAjustando(false) : undefined)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ajustar orden {folio}</DialogTitle>
-            <DialogDescription>
-              Solo antes de producción. El ajuste exige motivo y queda trazado como evento de cambio.
-            </DialogDescription>
-          </DialogHeader>
-          <form className="grid gap-3" onSubmit={(evento) => void guardarAjuste(evento)}>
-            <label className="grid gap-1 text-sm font-medium">
-              Prioridad
-              <Select value={ajuste.prioridad}
-                onChange={(evento) => setAjuste((actual) => ({ ...actual, prioridad: evento.target.value }))}>
-                <option value="baja">Baja</option>
-                <option value="normal">Normal</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
-              </Select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium">
-              Fecha operativa
-              <Input type="datetime-local" value={ajuste.fecha} min={ahoraLocal()}
-                onChange={(evento) => setAjuste((actual) => ({ ...actual, fecha: evento.target.value }))} />
-            </label>
-            <label className="grid gap-1 text-sm font-medium">
-              Notas
-              <Textarea value={ajuste.notas}
-                onChange={(evento) => setAjuste((actual) => ({ ...actual, notas: evento.target.value }))} />
-            </label>
-            <label className="grid gap-1 text-sm font-medium">
-              Motivo del ajuste (mínimo 3 caracteres)
-              <Input value={motivo} onChange={(evento) => setMotivo(evento.target.value)} required minLength={3} maxLength={500} />
-            </label>
-            {error ? <p role="alert" className="text-sm text-peligro-texto">{error}</p> : null}
-            <DialogFooter>
-              <Button type="button" variante="contorno" onClick={() => setAjustando(false)}>Volver</Button>
-              <Button type="submit" data-testid="ficha-confirmar-ajuste" disabled={ocupado || motivo.trim().length < 3}>
-                {ocupado ? 'Guardando…' : 'Guardar ajuste'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

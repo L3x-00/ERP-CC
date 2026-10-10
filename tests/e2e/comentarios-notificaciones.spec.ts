@@ -80,27 +80,27 @@ test.describe.serial('comentarios contextuales y notificaciones', () => {
     let observador: Page | null = null;
     try {
       await iniciarSesion(page, accesoAutor);
-    await page.goto('/ordenes');
-    const fila = page.getByRole('row', { name: new RegExp(folioOrden.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')) });
-    await expect(fila).toBeVisible();
-    await fila.getByRole('button', { name: 'Seleccionar' }).click();
-    const hilo = page.getByTestId('hilo-comentarios');
-    await expect(hilo).toBeVisible();
-    await hilo.getByLabel('Nuevo comentario').fill(`${marcador} @${destinatarioNombre}`);
-    await hilo.getByRole('button', { name: 'Comentar' }).click();
-    await expect(hilo).toContainText(marcador);
+      await page.goto('/ordenes');
+      const fila = page.getByRole('row', { name: new RegExp(folioOrden.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')) });
+      await expect(fila).toBeVisible();
+      await fila.getByRole('button', { name: 'Comentarios' }).click();
+      const hilo = page.getByRole('dialog').getByTestId('hilo-comentarios');
+      await expect(hilo).toBeVisible();
+      await hilo.getByLabel('Nuevo comentario').fill(`${marcador} @${destinatarioNombre}`);
+      await hilo.getByRole('button', { name: 'Comentar' }).click();
+      await expect(hilo).toContainText(marcador);
 
-    await expect.poll(async () => {
-      const resultado = await admin
-        .from('comentarios_registro')
-        .select('id, menciones_json')
-        .eq('entidad_tipo', 'orden')
-        .eq('entidad_id', ordenId)
-        .ilike('contenido', `%${marcador}%`)
-        .maybeSingle();
-      const menciones = resultado.data?.menciones_json;
-      return Array.isArray(menciones) && menciones.includes(destinatarioId);
-    }).toBe(true);
+      await expect.poll(async () => {
+        const resultado = await admin
+          .from('comentarios_registro')
+          .select('id, menciones_json')
+          .eq('entidad_tipo', 'orden')
+          .eq('entidad_id', ordenId)
+          .ilike('contenido', `%${marcador}%`)
+          .maybeSingle();
+        const menciones = resultado.data?.menciones_json;
+        return Array.isArray(menciones) && menciones.includes(destinatarioId);
+      }).toBe(true);
 
       observador = await browser.newPage();
       await iniciarSesion(observador, accesoDestinatario);

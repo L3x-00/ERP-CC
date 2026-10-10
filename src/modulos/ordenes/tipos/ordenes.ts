@@ -67,6 +67,9 @@ export interface Orden {
   actualizadoEn: string;
 }
 
+/** Orden sin condición de pago ni montos; contrato serializable a Operación. */
+export type OrdenOperativa = Omit<Orden, 'condicionPago' | 'montoSinIva' | 'montoIva'>;
+
 export interface Partida {
   id: string;
   ordenId: string;
@@ -125,6 +128,34 @@ export interface RegistroAvancePartida {
 
 /** Filas crudas snake_case derivadas directamente de Supabase local. */
 export type FilaOrden = Tables<'ordenes_produccion'>;
+export type FilaOrdenOperativa = Pick<
+  FilaOrden,
+  | 'id'
+  | 'folio'
+  | 'cliente_id'
+  | 'cotizacion_id'
+  | 'estado'
+  | 'estado_sii'
+  | 'folio_sii'
+  | 'prioridad'
+  | 'fecha_compromiso'
+  | 'fecha_inicio'
+  | 'fecha_fin'
+  | 'motivo_cancelacion'
+  | 'es_interna'
+  | 'archivada_en'
+  | 'id_historico'
+  | 'referencia_externa'
+  | 'notas'
+  | 'fecha_trabajo'
+  | 'horas_estimadas'
+  | 'orden_origen_id'
+  | 'creado_en'
+  | 'actualizado_en'
+>;
+
+/** Lista positiva compartida por Órdenes y Producción; nunca usar `select('*')`. */
+export const COLUMNAS_ORDEN_OPERATIVA = 'id, folio, cliente_id, cotizacion_id, estado, estado_sii, folio_sii, prioridad, fecha_compromiso, fecha_inicio, fecha_fin, motivo_cancelacion, es_interna, archivada_en, id_historico, referencia_externa, notas, fecha_trabajo, horas_estimadas, orden_origen_id, creado_en, actualizado_en';
 export type FilaPartida = Tables<'partidas_orden_produccion'>;
 export type FilaRegistroTiempo = Tables<'registros_tiempo_operador'>;
 export type FilaRegistroConsumoMaterial = Tables<'registros_consumo_material'>;
@@ -172,6 +203,41 @@ export function filaAOrden(fila: FilaOrden): Orden {
       : validarValorEnumerado(fila.condicion_pago, CONDICIONES_PAGO_ORDEN, 'condición de pago'),
     montoSinIva: fila.monto_sin_iva === null ? null : Number(fila.monto_sin_iva),
     montoIva: fila.monto_iva === null ? null : Number(fila.monto_iva),
+    notas: fila.notas,
+    fechaTrabajo: fila.fecha_trabajo,
+    horasEstimadas: fila.horas_estimadas === null ? null : Number(fila.horas_estimadas),
+    ordenOrigenId: fila.orden_origen_id,
+    creadoEn: fila.creado_en,
+    actualizadoEn: fila.actualizado_en,
+  };
+}
+
+/** Mapea solo columnas operativas y evita materializar finanzas en el proceso. */
+export function filaAOrdenOperativa(fila: FilaOrdenOperativa): OrdenOperativa {
+  const estado = validarValorEnumerado(fila.estado, ESTADOS_ORDEN_PRODUCCION, 'estado de orden');
+  return {
+    id: fila.id,
+    folio: fila.folio,
+    clienteId: fila.cliente_id,
+    cotizacionId: fila.cotizacion_id,
+    estado,
+    estadoSii: esEstadoSiiOrden(fila.estado_sii)
+      ? fila.estado_sii
+      : ESTADO_LEGACY_A_SII[estado],
+    folioSii: fila.folio_sii,
+    prioridad: validarValorEnumerado(
+      fila.prioridad,
+      PRIORIDADES_ORDEN_PRODUCCION,
+      'prioridad de orden',
+    ),
+    fechaCompromiso: fila.fecha_compromiso,
+    fechaInicio: fila.fecha_inicio,
+    fechaFin: fila.fecha_fin,
+    motivoCancelacion: fila.motivo_cancelacion,
+    esInterna: fila.es_interna,
+    archivadaEn: fila.archivada_en,
+    idHistorico: fila.id_historico,
+    referenciaExterna: fila.referencia_externa,
     notas: fila.notas,
     fechaTrabajo: fila.fecha_trabajo,
     horasEstimadas: fila.horas_estimadas === null ? null : Number(fila.horas_estimadas),

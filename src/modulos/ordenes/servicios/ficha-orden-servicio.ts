@@ -40,14 +40,27 @@ function totalesDeSnapshot(snapshot: unknown): TotalesSnapshot | null {
 export async function obtenerFichaOrdenServicio(
   cliente: ClienteFichaOrden,
   ordenId: string,
+  opciones: { incluirFinanzas?: boolean } = {},
 ): Promise<FichaOrden | null> {
   const { data: orden, error } = await cliente
     .from('ordenes_produccion')
-    .select('*')
+    .select(
+      'id, folio, folio_sii, estado_sii, estado, prioridad, fecha_compromiso_comercial, fecha_operativa, archivada_en, es_interna, id_historico, referencia_externa, notas, creado_en, actualizado_en, cerrada_admin_en, cerrada_admin_por, cliente_id',
+    )
     .eq('id', ordenId)
     .maybeSingle();
   if (error) throw error;
   if (!orden) return null;
+
+  const snapshotResp = opciones.incluirFinanzas
+    ? await cliente
+      .from('ordenes_produccion')
+      .select('snapshot_json')
+      .eq('id', ordenId)
+      .maybeSingle()
+    : { data: null, error: null };
+  if (snapshotResp.error) throw snapshotResp.error;
+  const snapshotJson = snapshotResp.data?.snapshot_json ?? null;
 
   const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp] = await Promise.all([
     cliente
@@ -132,7 +145,7 @@ export async function obtenerFichaOrdenServicio(
       : {},
   }));
 
-  const snapshot = esSnapshotOrdenSii(orden.snapshot_json) ? orden.snapshot_json : null;
+  const snapshot = esSnapshotOrdenSii(snapshotJson) ? snapshotJson : null;
   const archivos: ArchivoFicha[] = [];
   if (snapshot) {
     for (const archivo of snapshot.archivos) {
@@ -188,11 +201,11 @@ export async function obtenerFichaOrdenServicio(
       clienteNombre: clienteFila
         ? clienteFila.nombre_comercial || clienteFila.razon_social
         : null,
-      moneda: totalesDeSnapshot(orden.snapshot_json)?.moneda ?? null,
+      moneda: totalesDeSnapshot(snapshotJson)?.moneda ?? null,
     },
     partidas,
     snapshot,
-    totales: totalesDeSnapshot(orden.snapshot_json),
+    totales: totalesDeSnapshot(snapshotJson),
     entregas: (notasResp.data ?? []).map((nota) => ({
       id: nota.id,
       folio: nota.folio,

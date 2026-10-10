@@ -1,3 +1,5 @@
+import { notFound } from 'next/navigation';
+
 import { crearOrdenAccion } from '@/modulos/ordenes/acciones/crear-orden';
 import { FormularioOrden } from '@/modulos/ordenes/componentes/formulario-orden';
 import { PanelAltaOrdenSii } from '@/modulos/ordenes/componentes/panel-alta-orden-sii';
@@ -23,22 +25,37 @@ type ParametrosPaginaOrdenes = {
 export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOrdenes) {
   const parametros = searchParams ? await searchParams : {};
   const ordenInicialId = typeof parametros.ordenId === 'string' ? parametros.ordenId : undefined;
+  const usuario = await obtenerUsuarioServidor();
+  if (!usuario || !(await can(usuario, 'orden_vista'))) notFound();
+
+  const [mostrarVentas, puedeAdministrar, puedeLiberar, puedeCerrar, puedeCancelar] = await Promise.all([
+    can(usuario, 'ver_finanzas'),
+    can(usuario, 'aprobar_ordenes'),
+    can(usuario, 'orden_liberar'),
+    can(usuario, 'orden_cerrar_admin'),
+    can(usuario, 'orden_cancelar'),
+  ]);
   const cliente = await crearClienteSupabaseServidor();
-  const [ordenesConPartidas, resultadoClientes, resultadoMateriales, resultadoAreas, usuario] = await Promise.all([
+  const [ordenesConPartidas, resultadoClientes, resultadoMateriales, resultadoAreas] = await Promise.all([
     obtenerOrdenesConPartidasServicio(cliente),
-    cliente
-      .from('clientes')
-      .select('id, nombre_comercial, razon_social')
-      .eq('estado', 'activo')
-      .order('razon_social', { ascending: true }),
-    cliente.from('materiales').select('id, codigo, nombre').order('nombre', { ascending: true }),
-    cliente
-      .from('areas_trabajo_config')
-      .select('codigo, nombre')
-      .eq('activo', true)
-      .order('orden', { ascending: true })
-      .order('nombre', { ascending: true }),
-    obtenerUsuarioServidor(),
+    puedeAdministrar
+      ? cliente
+        .from('clientes')
+        .select('id, nombre_comercial, razon_social')
+        .eq('estado', 'activo')
+        .order('razon_social', { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    puedeAdministrar
+      ? cliente.from('materiales').select('id, codigo, nombre').order('nombre', { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    puedeAdministrar
+      ? cliente
+        .from('areas_trabajo_config')
+        .select('codigo, nombre')
+        .eq('activo', true)
+        .order('orden', { ascending: true })
+        .order('nombre', { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (resultadoClientes.error || resultadoMateriales.error || resultadoAreas.error) {
@@ -46,8 +63,6 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   }
 
   const idsOrdenes = ordenesConPartidas.map(({ orden }) => orden.id);
-  const mostrarVentas = usuario ? await can(usuario, 'ver_finanzas') : false;
-  const puedeAdministrar = usuario ? await can(usuario, 'aprobar_ordenes') : false;
   const datosComparativa = await obtenerDatosComparativaServicio(
     crearClienteSupabaseAdmin(), idsOrdenes, mostrarVentas,
   );
@@ -128,14 +143,14 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
 
       <ComparativaOrdenes filas={comparativa} mostrarVentas={mostrarVentas} />
 
-      <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-alta-sii">
+      {puedeAdministrar ? <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-alta-sii">
         <h2 id="titulo-alta-sii" className="mb-4 text-lg font-semibold">
           Alta desde propuesta aceptada
         </h2>
         <PanelAltaOrdenSii clientes={clientes} />
-      </section>
+      </section> : null}
 
-      <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-crear-op">
+      {puedeAdministrar ? <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-crear-op">
         <h2 id="titulo-crear-op" className="mb-4 text-lg font-semibold">
           Nueva orden de producción
         </h2>
@@ -143,7 +158,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
         <div className="mt-5 border-t border-borde pt-4">
           <PanelOrdenHeredada clientes={clientes} areas={areas} />
         </div>
-      </section>
+      </section> : null}
 
       <section className="flex flex-col gap-4" aria-labelledby="titulo-lista-op">
         <div>
@@ -151,15 +166,19 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
             Órdenes registradas
           </h2>
           <p className="text-sm text-texto-secundario">
-            Selecciona una orden para conservar el contexto al abrir el control de piso.
+            Consulta el detalle, los comentarios y el seguimiento operativo de cada orden.
           </p>
         </div>
         <TablaOrdenes
           ordenes={ordenes}
           ordenInicialId={ordenInicialId}
-          usuarioActualId={usuario?.id}
-          puedeEliminarTodos={usuario?.rol === 'admin'}
+          usuarioActualId={usuario.id}
+          puedeEliminarTodos={usuario.rol === 'admin'}
           puedeAdministrar={puedeAdministrar}
+          puedeLiberar={puedeLiberar}
+          puedeCerrar={puedeCerrar}
+          puedeCancelar={puedeCancelar}
+          puedeVerFinanzas={mostrarVentas}
         />
       </section>
     </div>

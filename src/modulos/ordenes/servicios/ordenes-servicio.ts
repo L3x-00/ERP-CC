@@ -1,14 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Json, Database } from '@/compartido/tipos/supabase';
 import {
+  COLUMNAS_ORDEN_OPERATIVA,
   ESTADOS_ORDEN_PRODUCCION,
-  filaAOrden,
+  filaAOrdenOperativa,
   filaAPartida,
   filaARegistroConsumoMaterial,
   filaARegistroTiempo,
   type EstadoOrden,
-  type FilaOrden,
-  type Orden,
+  type FilaOrdenOperativa,
+  type OrdenOperativa,
   type Partida,
   type RegistroConsumoMaterial,
   type RegistroTiempo,
@@ -101,7 +102,7 @@ export type OrdenConEstadoActualizado = {
 };
 
 export type OrdenConPartidas = {
-  orden: Orden;
+  orden: OrdenOperativa;
   partidas: Partida[];
 };
 
@@ -474,7 +475,7 @@ export async function obtenerOrdenConPartidasServicio(
 ): Promise<OrdenConPartidas | null> {
   const { data: filaOrden, error: errorOrden } = await cliente
     .from('ordenes_produccion')
-    .select('*')
+    .select(COLUMNAS_ORDEN_OPERATIVA)
     .eq('id', ordenId)
     .maybeSingle();
 
@@ -494,7 +495,7 @@ export async function obtenerOrdenConPartidasServicio(
   }
 
   return {
-    orden: filaAOrden(filaOrden),
+    orden: filaAOrdenOperativa(filaOrden),
     partidas: (filasPartidas ?? []).map(filaAPartida),
   };
 }
@@ -511,7 +512,9 @@ export async function obtenerOrdenesConPartidasServicio(
   cliente: SupabaseClient<Database>,
   estados?: readonly EstadoOrden[],
 ): Promise<OrdenConPartidas[]> {
-  let consultaOrdenes = cliente.from('ordenes_produccion').select('*, pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc)');
+  let consultaOrdenes = cliente
+    .from('ordenes_produccion')
+    .select(`${COLUMNAS_ORDEN_OPERATIVA}, pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc)`);
   if (estados && estados.length > 0) {
     consultaOrdenes = consultaOrdenes.in('estado', estados);
   }
@@ -526,7 +529,7 @@ export async function obtenerOrdenesConPartidasServicio(
   const ordenes = (filasOrdenes ?? []).map((fila) => {
     const { pipeline: cotizacion, ...base } = fila;
     return {
-      ...filaAOrden(base as FilaOrden),
+      ...filaAOrdenOperativa(base as FilaOrdenOperativa),
       folioCotizacionCnc: cotizacion?.folio_cnc ?? null,
     };
   });
@@ -591,7 +594,7 @@ export async function obtenerOrdenesConPartidasDeOperadorServicio(
   const idsOrdenes = [...new Set(partidas.map((partida) => partida.ordenId))];
   const { data: filasOrdenes, error: errorOrdenes } = await admin
     .from('ordenes_produccion')
-    .select('*')
+    .select(COLUMNAS_ORDEN_OPERATIVA)
     .in('id', idsOrdenes)
     .eq('estado', 'en_proceso')
     .order('creado_en', { ascending: false });
@@ -608,7 +611,7 @@ export async function obtenerOrdenesConPartidasDeOperadorServicio(
   }
 
   return (filasOrdenes ?? []).map((filaOrden) => {
-    const orden = filaAOrden(filaOrden);
+    const orden = filaAOrdenOperativa(filaOrden);
     return { orden, partidas: partidasPorOrden.get(orden.id) ?? [] };
   });
 }
