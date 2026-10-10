@@ -15,9 +15,8 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso-inventario';
 
 /**
- * Solicita a Postgres el consumo de material de una partida. El stock, kardex
- * y CPP se resuelven en la RPC atómica; esta acción solo protege la entrada,
- * autorización y auditoría de la operación.
+ * Solicita a Postgres el consumo de material de una partida. La RPC congela el
+ * costo confirmado y no modifica stock, kardex ni reservas.
  */
 export async function registrarConsumoAccion(
   entrada: unknown,
@@ -40,6 +39,7 @@ export async function registrarConsumoAccion(
     const consumo = await registrarConsumoMaterialServicio(
       crearClienteSupabaseAdmin(),
       analisis.data,
+      usuario.id,
     );
     await registrarLog(usuario, 'registrar_consumo_material', 'ordenes', consumo.id, {
       partidaId: analisis.data.partidaId,
@@ -56,13 +56,13 @@ export async function registrarConsumoAccion(
       codigo,
       materialId: analisis.data.materialId,
     }, correlationId);
-    return { exito: false, error: 'No se pudo registrar el consumo de material' };
+    return { exito: false, error: mensajeConsumo(codigo) };
   }
 }
 
 /**
  * Variante exclusiva para piso: el operador se autentica por PIN firmado y
- * vigente. Conserva la misma RPC atómica de inventario que usa administración.
+ * vigente y registra el mismo snapshot económico sin operar inventario.
  */
 export async function registrarConsumoOperadorAccion(
   entrada: unknown,
@@ -101,6 +101,22 @@ export async function registrarConsumoOperadorAccion(
       codigo,
       materialId: analisis.data.materialId,
     }, correlationId);
-    return { exito: false, error: 'No se pudo registrar el consumo de material' };
+    return { exito: false, error: mensajeConsumo(codigo) };
   }
+}
+
+function mensajeConsumo(codigo: ErrorOrden['codigo']): string {
+  if (codigo === 'costo_material_no_configurado') {
+    return 'El material no tiene un costo confirmado. Configúralo en Materiales y costos.';
+  }
+  if (codigo === 'tipo_cambio_no_configurado') {
+    return 'Configura el tipo de cambio USD antes de registrar el consumo.';
+  }
+  if (codigo === 'material_inexistente_o_inactivo') {
+    return 'El material ya no está disponible.';
+  }
+  if (codigo === 'material_no_corresponde_partida') {
+    return 'El material no corresponde a la partida seleccionada.';
+  }
+  return 'No se pudo registrar el consumo de material';
 }

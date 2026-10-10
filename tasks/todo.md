@@ -301,9 +301,9 @@ E2E C5 2/2, typecheck, lint focal y build del E2E. Sin migración.
 
 **Aceptación**
 
-- [ ] `catalogo_materiales` es canónico, con unidad base, MXN/USD y costo vigente.
-- [ ] Compra/Gasto propone; solo confirmación autorizada cambia el maestro.
-- [ ] Historial append-only congela anterior/nuevo/moneda/fecha/fuente/actor.
+- [x] `catalogo_materiales` es canónico, con unidad base, MXN/USD y costo vigente.
+- [x] Compra/Gasto propone; solo confirmación autorizada cambia el maestro.
+- [x] Historial append-only congela anterior/nuevo/moneda/fecha/fuente/actor.
 
 **Verificación:** pgTAP/RBAC/concurrencia, integración y UI de Materiales y costos.
 **Dependencias:** P0.4.
@@ -312,12 +312,18 @@ E2E C5 2/2, typecheck, lint focal y build del E2E. Sin migración.
 
 **Aceptación**
 
-- [ ] Consumo congela cantidad, unidad, costo, moneda y tipo de cambio.
-- [ ] Registrar consumo no crea entradas, salidas, reservas ni cambios de existencia.
-- [ ] Rentabilidad suma legado y nuevo sin doble conteo.
+- [x] Consumo congela cantidad, unidad, costo, moneda y tipo de cambio.
+- [x] Registrar consumo no crea entradas, salidas, reservas ni cambios de existencia.
+- [x] Rentabilidad suma legado y nuevo sin doble conteo.
 
 **Verificación:** pgTAP, integración, reconciliación antes/después y E2E.
 **Dependencias:** C6.1.
+
+**Cierre local C6.2:** el servicio y Piso consumen `catalogo_materiales`; la RPC de cinco
+argumentos congela unidad/costo/moneda/tipo de cambio/actor, devuelve movimiento nulo y no toca
+stock, reservas ni kardex. Legado y nuevo conservan orígenes separados y rentabilidad los suma una
+vez. Gates: pgTAP 1428/1428, unitarias 1266/1266, integración 266/266, concurrencia 12/12,
+E2E focal 8/8, typecheck, lint y build. C6.3 permanece separado.
 
 ### C6.3 Retiro operativo del inventario legado
 

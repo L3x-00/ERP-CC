@@ -44,6 +44,28 @@
 
 ## Punto de control 2026-10-09 — observaciones del cliente (trabajo activo; la auditoría B1–B9 sigue en pausa)
 
+### Punto de control 2026-10-10 — C6.2 completo localmente, pendiente PR/CI
+
+- Rama `feature/c6-2-consumo-sin-stock`, base `main`/`419eff1`.
+- La migración `20261010130000_c6_2_consumo_sin_stock.sql` convierte el consumo nuevo al catálogo
+  canónico: snapshot de cantidad, unidad, costo original, moneda, tipo de cambio, costo MXN y actor;
+  retorna movimiento nulo y no toca stock, reservas ni kardex. El consumo legado conserva
+  `origen=LEGADO` y la rentabilidad suma ambos orígenes una sola vez.
+- Aplicación: RPC administrativa de cinco argumentos con actor, variante de operador con las
+  validaciones de Piso, DTO con movimiento nullable, selector de Piso sin existencias y resolución
+  canónica/legada en Órdenes y Planeación.
+- Seguridad: mutaciones solo `service_role`; `authenticated` no ejecuta las RPC ni puede leer las
+  columnas financieras del snapshot. No se ampliaron permisos ni RLS.
+- Cross-review Codex corrigió un error de sintaxis reproducible en el backfill de la migración y la
+  revalidó completa dentro de `BEGIN/ROLLBACK`. También robusteció el test RBAC para actualizar
+  fixtures acumulados en lotes y evitar `URI too long`. Sin BLOCKER/HIGH conocido.
+- Gates: pgTAP global 1428/1428, unitarias 1266/1266, integración 266/266, concurrencia 12/12,
+  E2E focal 8/8, typecheck, lint y build. El E2E cubre snapshot, stock intacto, Piso y rentabilidad.
+- Según el traspaso recibido, C6.2 ya está aplicada en Supabase remoto; no volver a aplicar ni usar
+  `db push`. Falta publicar código mediante PR y verificar CI/deploy antes de afirmar producción.
+- Claude Code no participó: sesión `9ad3256e-5c51-4a09-9ac6-8a8f4c662466` terminó con 429, cero
+  tokens y sin archivos editados. C6.3 visual permanece fuera de este corte.
+
 ### Punto de control 2026-10-10 — C5 completo localmente
 
 - Rama `feature/c5-acceso-operativo`, apilada sobre C4.3/PR #37.

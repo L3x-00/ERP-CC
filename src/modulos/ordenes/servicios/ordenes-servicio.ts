@@ -44,7 +44,11 @@ export type CodigoErrorOrden =
   | 'stock_insuficiente'
   | 'partida_inexistente'
   | 'material_inexistente'
+  | 'material_inexistente_o_inactivo'
   | 'material_no_corresponde_partida'
+  | 'costo_material_no_configurado'
+  | 'tipo_cambio_no_configurado'
+  | 'sin_permiso_materiales'
   | 'cantidad_consumo_invalida'
   | 'cantidad_avance_invalida'
   | 'cantidad_producida_excede_solicitada'
@@ -110,7 +114,7 @@ export type ConsumoMaterialRegistrado = {
   id: string;
   costoUnitarioMomento: number;
   cantidadTotal: number;
-  movimientoInventarioId: string;
+  movimientoInventarioId: string | null;
 };
 
 export type AvancePartidaRegistrado = {
@@ -179,6 +183,9 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   }
   if (mensaje.includes('stock_insuficiente')) return 'stock_insuficiente';
   if (mensaje.includes('partida_inexistente')) return 'partida_inexistente';
+  if (mensaje.includes('material_inexistente_o_inactivo')) {
+    return 'material_inexistente_o_inactivo';
+  }
   if (mensaje.includes('material_inexistente')) return 'material_inexistente';
   if (mensaje.includes('material_no_corresponde_partida')) {
     return 'material_no_corresponde_partida';
@@ -186,6 +193,9 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('cantidad_consumo_invalida')) {
     return 'cantidad_consumo_invalida';
   }
+  if (mensaje.includes('costo_material_no_configurado')) return 'costo_material_no_configurado';
+  if (mensaje.includes('tipo_cambio_no_configurado')) return 'tipo_cambio_no_configurado';
+  if (mensaje.includes('sin_permiso_materiales')) return 'sin_permiso_materiales';
   if (mensaje.includes('cantidad_avance_invalida')) return 'cantidad_avance_invalida';
   if (mensaje.includes('cantidad_producida_excede_solicitada')) {
     return 'cantidad_producida_excede_solicitada';
@@ -644,23 +654,25 @@ export async function obtenerConsumosPartidaServicio(
 }
 
 /**
- * Registra usado y scrap mediante la RPC que bloquea inventario, crea kardex y
- * persiste el costo CPP histórico en una única transacción PostgreSQL.
+ * Registra usado y scrap con el costo confirmado del catálogo canónico. La RPC
+ * congela moneda/unidad/TC y no toca inventario, kardex ni reservas (C6.2).
  */
 export async function registrarConsumoMaterialServicio(
   admin: SupabaseClient<Database>,
   entrada: RegistrarConsumoMaterialInput,
+  actorId: string,
 ): Promise<ConsumoMaterialRegistrado> {
   const { data, error } = await admin.rpc('registrar_consumo_material_op', {
     p_partida_id: entrada.partidaId,
     p_material_id: entrada.materialId,
     p_cantidad_usada: entrada.cantidadUsada,
     p_cantidad_scrap: entrada.cantidadScrap,
+    p_actor_id: actorId,
   });
 
   if (error) lanzarErrorOrden(error.message);
   const fila = data?.[0];
-  if (!fila?.id || !fila.movimiento_inventario_id) {
+  if (!fila?.id) {
     throw new ErrorOrden('desconocido');
   }
 
@@ -673,8 +685,8 @@ export async function registrarConsumoMaterialServicio(
 }
 
 /**
- * Consumo desde piso: además de la transacción de inventario, Postgres verifica
- * que la partida esté asignada al operador autenticado por PIN.
+ * Consumo desde piso: Postgres verifica la asignación y congela el costo del
+ * catálogo sin generar una salida de inventario.
  */
 export async function registrarConsumoMaterialOperadorServicio(
   admin: SupabaseClient<Database>,
@@ -690,7 +702,7 @@ export async function registrarConsumoMaterialOperadorServicio(
 
   if (error) lanzarErrorOrden(error.message);
   const fila = data?.[0];
-  if (!fila?.id || !fila.movimiento_inventario_id) {
+  if (!fila?.id) {
     throw new ErrorOrden('desconocido');
   }
 
