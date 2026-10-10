@@ -1,9 +1,9 @@
 import { Skeleton, SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 
-/** Carga de la pantalla: título, acciones y tabla con la estructura real. */
+/** Carga de Materiales y costos con una estructura equivalente a la pantalla real. */
 export default function Cargando() {
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6" aria-busy="true" aria-label="Cargando inventario">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6" aria-busy="true" aria-label="Cargando materiales y costos">
       <div className="flex flex-col gap-2">
         <Skeleton className="h-8 w-72" />
         <Skeleton className="h-4 w-96 max-w-full" />

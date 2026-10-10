@@ -38,7 +38,7 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
   },
   {
     href: '/inventario',
-    etiqueta: 'Inventario',
+    etiqueta: 'Materiales y costos',
     grupo: 'Operación',
     icono: 'caja',
     permisos: ['gestionar_inventario', 'ver_finanzas'],

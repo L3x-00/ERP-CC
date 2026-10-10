@@ -30,6 +30,7 @@ vi.mock('@/modulos/inventario/acciones/registrar-salida-accion', () => ({
 }));
 
 import { TablaMateriales } from '@/modulos/inventario/componentes/tabla-materiales';
+import { FiltrosInventario } from '@/modulos/inventario/componentes/filtros-inventario';
 import { FormularioSalida } from '@/modulos/inventario/componentes/modal-registrar-salida';
 import { usarInventarioTienda } from '@/estado/inventario-tienda';
 
@@ -84,7 +85,7 @@ describe('TablaMateriales', () => {
     expect(screen.getByText('Acero')).toBeTruthy();
   });
 
-  it('muestra badge de alerta solo en materiales bajo el stock mínimo', () => {
+  it('muestra existencias legadas en solo lectura sin semáforos ni acciones de stock', () => {
     materialesMock.mockReturnValue({
       data: {
         registros: [
@@ -99,9 +100,19 @@ describe('TablaMateriales', () => {
 
     render(createElement(TablaMateriales));
 
-    // Un único badge "Reordenar" (solo el material bajo mínimo).
-    const badges = screen.getAllByText('Reordenar');
-    expect(badges).toHaveLength(1);
+    expect(screen.getByRole('columnheader', { name: /existencia histórica/i })).toBeTruthy();
+    expect(screen.queryByText('Reordenar')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Entrada' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Salida' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull();
+  });
+
+  it('no ofrece crear materiales ni filtrar por alertas de stock', () => {
+    render(createElement(FiltrosInventario));
+
+    expect(screen.getByRole('searchbox', { name: /buscar material/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /nuevo material/i })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /alerta de stock/i })).toBeNull();
   });
 });
 

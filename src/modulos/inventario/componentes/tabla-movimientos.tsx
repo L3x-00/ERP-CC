@@ -54,8 +54,8 @@ export function TablaMovimientos() {
   if (movimientos.length === 0) {
     return (
       <EstadoVacio
-        titulo="Sin movimientos"
-        descripcion="Aún no se han registrado entradas, salidas ni ajustes de inventario."
+        titulo="Sin movimientos históricos"
+        descripcion="No hay entradas, salidas ni ajustes del inventario anterior para consultar."
       />
     );
   }

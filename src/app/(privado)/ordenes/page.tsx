@@ -46,7 +46,12 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
         .order('razon_social', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     puedeAdministrar
-      ? cliente.from('materiales').select('id, codigo, nombre').order('nombre', { ascending: true })
+      // El inventario legado quedó restringido por RLS (C6.3); el servidor lee
+      // solo la proyección necesaria para el alta de orden.
+      ? crearClienteSupabaseAdmin()
+          .from('materiales')
+          .select('id, codigo, nombre')
+          .order('nombre', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     puedeAdministrar
       ? cliente
