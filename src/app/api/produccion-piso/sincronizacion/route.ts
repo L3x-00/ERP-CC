@@ -4,6 +4,7 @@ import { TIMEOUT_SESION_OPERADOR_MINUTOS } from '@/nucleo/autenticacion/constant
 import { obtenerContextoSesionOperadorActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,15 +34,21 @@ function codificarEvento(nombre: string, datos: Record<string, never> = {}): Uin
  */
 export async function GET(request: Request): Promise<Response> {
   const contexto = await obtenerContextoSesionOperadorActiva();
-  if (!contexto) {
+  const usuarioDirecto = contexto ? null : await obtenerUsuarioServidor();
+  if (!contexto && !(usuarioDirecto?.rol === 'admin' && usuarioDirecto.activo)) {
     return new Response(null, { status: 401 });
   }
-  const { operador, sesion, administrador } = contexto;
+  const operador = contexto?.operador ?? null;
+  const sesion = contexto?.sesion ?? null;
+  const administrador = contexto?.administrador ?? null;
+  const administradorDirectoId = usuarioDirecto?.id ?? null;
 
   const codificador = new TextEncoder();
-  const expiraEn = sesionOperadorEsDelegada(sesion)
+  const expiraEn = sesion && sesionOperadorEsDelegada(sesion)
     ? new Date(sesion.expiraEn ?? '').getTime()
-    : Date.now() + TIMEOUT_SESION_OPERADOR_MINUTOS * 60 * 1000;
+    : operador
+      ? Date.now() + TIMEOUT_SESION_OPERADOR_MINUTOS * 60 * 1000
+      : Number.POSITIVE_INFINITY;
   let canal: RealtimeChannel | null = null;
   let intervaloKeepAlive: ReturnType<typeof setInterval> | null = null;
   let intervaloSesion: ReturnType<typeof setInterval> | null = null;
@@ -101,7 +108,7 @@ export async function GET(request: Request): Promise<Response> {
       }
 
       const supabase = crearClienteSupabaseAdmin();
-      canal = supabase.channel(`relay-piso-${operador.id}-${randomUUID()}`);
+      canal = supabase.channel(`relay-piso-${operador?.id ?? administradorDirectoId}-${randomUUID()}`);
       for (const tabla of TABLAS_PISO) {
         canal.on(
           'postgres_changes',
@@ -161,6 +168,20 @@ export async function GET(request: Request): Promise<Response> {
 
       intervaloSesion = setInterval(() => {
         void (async () => {
+          if (operador === null) {
+            const { data: adminActual } = await supabase
+              .from('usuarios')
+              .select('id')
+              .eq('id', administradorDirectoId ?? '')
+              .eq('rol', 'admin')
+              .eq('activo', true)
+              .maybeSingle();
+            if (!adminActual) {
+              enviar('sesion_expirada');
+              void cerrar?.();
+            }
+            return;
+          }
           const [{ data: operadorActual, error }, { data: administradorActual }] = await Promise.all([
             supabase
           .from('usuarios')

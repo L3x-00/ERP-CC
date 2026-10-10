@@ -299,6 +299,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
           orden={ordenSeleccionada}
           sesionActiva={sesionActiva}
           operadorDisponible={operadorId !== null}
+          esAdmin={esAdmin}
           procesando={procesando}
           corridaId={corridaSeleccionadaId}
           motivosPausa={catalogosPiso?.motivos ?? []}

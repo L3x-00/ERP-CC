@@ -342,6 +342,30 @@ test.describe.serial('piso de Producción y entregas', () => {
     }
   });
 
+  test('el administrador ve el piso completo en solo lectura sin PIN', async ({ page }) => {
+    const caso = await prepararContexto();
+    try {
+      const { error: errorEstado } = await caso.admin
+        .from('ordenes_produccion')
+        .update({ estado: 'en_proceso' })
+        .eq('id', caso.ordenId);
+      if (errorEstado) throw new Error(`No se pudo abrir el trabajo admin: ${errorEstado.message}`);
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await iniciarSesionAdministrador(page, caso);
+
+      // Sin sesión de operador ni delegación: el admin entra directo al piso.
+      await page.goto('/produccion-piso');
+      await expect(page.getByTestId('banner-vista-admin')).toContainText('Vista de administrador');
+      await expect(page.getByTestId('control-piso')).toBeVisible();
+      await expect(page.getByTestId('selector-orden-piso')).toHaveValue(caso.ordenId);
+      await expect(page.getByTestId('iniciar-tiempo')).toHaveCount(0);
+      await expect(page.getByTestId('registrar-avance')).toHaveCount(0);
+      await expect(page.getByTestId('registrar-consumo')).toHaveCount(0);
+    } finally {
+      await limpiarContexto(caso);
+    }
+  });
+
   test('inicia con PIN, completa la partida y genera entregas parcial y total sincronizadas', async ({ page, browser }) => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const contextoPrueba = contexto;
