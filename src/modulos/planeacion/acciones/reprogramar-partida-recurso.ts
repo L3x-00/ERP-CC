@@ -32,12 +32,17 @@ export async function reprogramarPartidaRecursoAccion(
   try {
     const programacion = await reprogramarPartidaRecursoServicio(
       crearClienteSupabaseAdmin(),
-      analisis.data,
+      {
+        ...analisis.data,
+        actorId: usuario.id,
+        correlationId,
+      },
     );
     await registrarLog(usuario, 'reprogramar_partida_recurso', 'planeacion', programacion.id, {
       recursoId: analisis.data.recursoId,
       fechaProgramada: analisis.data.fechaProgramada,
       turno: analisis.data.turno,
+      motivo: analisis.data.motivo,
       marcaEsperada: analisis.data.actualizadoEnEsperado,
     }, correlationId);
     return { exito: true, datos: programacion };

@@ -32,7 +32,11 @@ export async function programarPartidaRecursoAccion(
   try {
     const programacion = await programarPartidaRecursoServicio(
       crearClienteSupabaseAdmin(),
-      analisis.data,
+      {
+        ...analisis.data,
+        actorId: usuario.id,
+        correlationId,
+      },
     );
     await registrarLog(usuario, 'programar_partida_recurso', 'planeacion', programacion.id, {
       ordenId: analisis.data.ordenId,

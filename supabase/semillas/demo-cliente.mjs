@@ -704,8 +704,8 @@ async function crearOrden(especificacion, ids) {  const partidas = especificacio
   return { id: creada.id, folio: creada.folio, partidas: filas ?? [] };
 }
 
-async function programarPartida(ordenId, partidaId, indicePartida, configuracion) {
-  const [programacion] = await rpc('programar_partida_recurso', {
+async function programarPartida(ordenId, partidaId, indicePartida, configuracion, actorId) {
+  const [programacion] = await rpc('programar_partida_recurso_auditada', {
     p_orden_id: ordenId,
     p_partida_id: partidaId,
     p_recurso_id: ID.recurso(configuracion.recurso),
@@ -714,6 +714,7 @@ async function programarPartida(ordenId, partidaId, indicePartida, configuracion
     p_turno: configuracion.turno,
     p_horas_estimadas: configuracion.horas,
     p_orden_prioridad: indicePartida + 2,
+    p_actor_id: actorId,
   });
   return programacion;
 }
@@ -769,7 +770,7 @@ async function sembrarOrdenes(ids) {
     const especificacion = ORDENES.find((o) => o.clave === clave);
     await marcarProgramada(orden);
     for (const plan of especificacion.programar) {
-      await programarPartida(orden.id, orden.partidas[plan.partida].id, plan.partida, plan);
+      await programarPartida(orden.id, orden.partidas[plan.partida].id, plan.partida, plan, ids.gerencia);
     }
   }
   paso('Programaciones futuras listas');
@@ -780,7 +781,7 @@ async function sembrarOrdenes(ids) {
     const especificacion = ORDENES.find((o) => o.clave === 'preparacion');
     const plan = especificacion.preparar;
     await marcarProgramada(orden);
-    const programacion = await programarPartida(orden.id, orden.partidas[plan.partida].id, plan.partida, plan);
+    const programacion = await programarPartida(orden.id, orden.partidas[plan.partida].id, plan.partida, plan, ids.gerencia);
     const preparada = await activarPreparacion(programacion);
     await rpc('asignar_operador_a_partida_op', {
       p_partida_id: orden.partidas[plan.partida].id,
@@ -797,7 +798,7 @@ async function sembrarOrdenes(ids) {
     const plan = especificacion.activa;
     const partida = orden.partidas[plan.partida];
     await marcarProgramada(orden);
-    const programacion = await programarPartida(orden.id, partida.id, plan.partida, plan);
+    const programacion = await programarPartida(orden.id, partida.id, plan.partida, plan, ids.gerencia);
     await activarPreparacion(programacion);
     await rpc('asignar_operador_a_partida_op', { p_partida_id: partida.id, p_operador_id: ids[plan.operador] });
     await rpc('iniciar_sesion_trabajo_operador', {
@@ -828,7 +829,7 @@ async function sembrarOrdenes(ids) {
     const plan = especificacion.pausa;
     const partida = orden.partidas[plan.partida];
     await marcarProgramada(orden);
-    const programacion = await programarPartida(orden.id, partida.id, plan.partida, plan);
+    const programacion = await programarPartida(orden.id, partida.id, plan.partida, plan, ids.gerencia);
     await activarPreparacion(programacion);
     await rpc('asignar_operador_a_partida_op', { p_partida_id: partida.id, p_operador_id: ids[plan.operador] });
     const [sesion] = await rpc('iniciar_sesion_trabajo_operador', {

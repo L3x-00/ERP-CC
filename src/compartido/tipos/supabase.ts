@@ -2054,8 +2054,10 @@ export type Database = {
           estado: string
           estado_sii: string
           fecha_compromiso: string
+          fecha_compromiso_comercial: string | null
           fecha_fin: string | null
           fecha_inicio: string | null
+          fecha_operativa: string
           fecha_trabajo: string | null
           folio: string
           folio_sii: string | null
@@ -2087,8 +2089,10 @@ export type Database = {
           estado?: string
           estado_sii?: string
           fecha_compromiso: string
+          fecha_compromiso_comercial?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null
+          fecha_operativa?: string
           fecha_trabajo?: string | null
           folio: string
           folio_sii?: string | null
@@ -2120,8 +2124,10 @@ export type Database = {
           estado?: string
           estado_sii?: string
           fecha_compromiso?: string
+          fecha_compromiso_comercial?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null
+          fecha_operativa?: string
           fecha_trabajo?: string | null
           folio?: string
           folio_sii?: string | null
@@ -5218,6 +5224,25 @@ export type Database = {
           id: string
         }[]
       }
+      programar_partida_recurso_auditada: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_fecha_programada: string
+          p_horas_estimadas: number
+          p_orden_id: string
+          p_orden_prioridad: number
+          p_partida_id: string
+          p_recurso_id: string
+          p_secuencia: number
+          p_turno: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          id: string
+        }[]
+      }
       reemplazar_areas_operador: {
         Args: { p_actor_id: string; p_areas: string[]; p_operador_id: string }
         Returns: {
@@ -5797,6 +5822,25 @@ export type Database = {
           p_actualizado_en_esperado: string
           p_fecha_programada: string
           p_horas_estimadas: number
+          p_orden_prioridad: number
+          p_programacion_id: string
+          p_recurso_id: string
+          p_turno: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          id: string
+        }[]
+      }
+      reprogramar_partida_recurso_auditada: {
+        Args: {
+          p_actor_id: string
+          p_actualizado_en_esperado: string
+          p_correlation_id?: string
+          p_fecha_programada: string
+          p_horas_estimadas: number
+          p_motivo: string
           p_orden_prioridad: number
           p_programacion_id: string
           p_recurso_id: string

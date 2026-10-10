@@ -48,6 +48,17 @@ async function ejecutar() {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
+  const { data: actor, error: errorActor } = await cliente
+    .from('usuarios')
+    .select('id')
+    .in('rol', ['admin', 'gerente'])
+    .eq('activo', true)
+    .limit(1)
+    .maybeSingle();
+  if (errorActor || !actor) {
+    throw new Error('La prueba CAS requiere un usuario admin o gerente activo.');
+  }
+
   let limpiezaConfirmada = false;
   try {
     const { data: ordenCreada, error: errorOrden } = await cliente.rpc('crear_orden_manual', {
@@ -80,7 +91,7 @@ async function ejecutar() {
       throw new Error(`No se obtuvo partida temporal: ${errorPartida?.message ?? 'sin partida'}`);
     }
 
-    const { data: programada, error: errorProgramar } = await cliente.rpc('programar_partida_recurso', {
+    const { data: programada, error: errorProgramar } = await cliente.rpc('programar_partida_recurso_auditada', {
       p_orden_id: temporales.ordenId,
       p_partida_id: partida.id,
       p_recurso_id: recursoPruebaId,
@@ -89,6 +100,8 @@ async function ejecutar() {
       p_turno: 'matutino',
       p_horas_estimadas: 2,
       p_orden_prioridad: 1,
+      p_actor_id: actor.id,
+      p_correlation_id: randomUUID(),
     });
     if (errorProgramar || !programada?.[0]) {
       throw new Error(`No se programó partida temporal: ${errorProgramar?.message ?? 'sin resultado'}`);
@@ -96,7 +109,7 @@ async function ejecutar() {
     temporales.programacionId = programada[0].id;
 
     const { data: reprogramada, error: errorReprogramar } = await cliente.rpc(
-      'reprogramar_partida_recurso',
+      'reprogramar_partida_recurso_auditada',
       {
         p_programacion_id: temporales.programacionId,
         p_recurso_id: recursoPruebaId,
@@ -105,6 +118,9 @@ async function ejecutar() {
         p_horas_estimadas: 3,
         p_orden_prioridad: 1,
         p_actualizado_en_esperado: programada[0].actualizado_en,
+        p_motivo: 'Prueba de compare-and-set',
+        p_actor_id: actor.id,
+        p_correlation_id: randomUUID(),
       },
     );
     if (errorReprogramar || !reprogramada?.[0]) {
@@ -115,7 +131,7 @@ async function ejecutar() {
       'La marca de actualización no cambió entre solicitudes independientes.',
     );
 
-    const { error: errorConflicto } = await cliente.rpc('reprogramar_partida_recurso', {
+    const { error: errorConflicto } = await cliente.rpc('reprogramar_partida_recurso_auditada', {
       p_programacion_id: temporales.programacionId,
       p_recurso_id: recursoPruebaId,
       p_fecha_programada: '2026-09-17',
@@ -123,6 +139,9 @@ async function ejecutar() {
       p_horas_estimadas: 3,
       p_orden_prioridad: 1,
       p_actualizado_en_esperado: programada[0].actualizado_en,
+      p_motivo: 'Prueba de versión obsoleta',
+      p_actor_id: actor.id,
+      p_correlation_id: randomUUID(),
     });
     asegurar(
       errorConflicto?.message.includes('programacion_conflicto'),

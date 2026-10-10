@@ -40,6 +40,8 @@ describe('servicios transaccionales de Planeación', () => {
       turno: 'matutino',
       horasEstimadas: 4.5,
       ordenPrioridad: 2,
+      actorId: '55555555-5555-4555-8555-555555555555',
+      correlationId: '66666666-6666-4666-8666-666666666666',
     });
 
     expect(resultado).toEqual({
@@ -47,7 +49,7 @@ describe('servicios transaccionales de Planeación', () => {
       estadoPlaneacion: 'programada',
       actualizadoEn: ACTUALIZADO_EN,
     });
-    expect(rpc).toHaveBeenCalledWith('programar_partida_recurso', {
+    expect(rpc).toHaveBeenCalledWith('programar_partida_recurso_auditada', {
       p_orden_id: ORDEN_ID,
       p_partida_id: PARTIDA_ID,
       p_recurso_id: RECURSO_ID,
@@ -56,6 +58,8 @@ describe('servicios transaccionales de Planeación', () => {
       p_turno: 'matutino',
       p_horas_estimadas: 4.5,
       p_orden_prioridad: 2,
+      p_actor_id: '55555555-5555-4555-8555-555555555555',
+      p_correlation_id: '66666666-6666-4666-8666-666666666666',
     });
   });
 
@@ -78,10 +82,13 @@ describe('servicios transaccionales de Planeación', () => {
       turno: 'vespertino',
       horasEstimadas: 3,
       ordenPrioridad: 3,
+      motivo: 'Cambio de capacidad',
       actualizadoEnEsperado: ACTUALIZADO_EN,
+      actorId: '55555555-5555-4555-8555-555555555555',
+      correlationId: '66666666-6666-4666-8666-666666666666',
     });
 
-    expect(rpc).toHaveBeenCalledWith('reprogramar_partida_recurso', {
+    expect(rpc).toHaveBeenCalledWith('reprogramar_partida_recurso_auditada', {
       p_programacion_id: PROGRAMACION_ID,
       p_recurso_id: RECURSO_ID,
       p_fecha_programada: '2026-09-16',
@@ -89,6 +96,9 @@ describe('servicios transaccionales de Planeación', () => {
       p_horas_estimadas: 3,
       p_orden_prioridad: 3,
       p_actualizado_en_esperado: ACTUALIZADO_EN,
+      p_motivo: 'Cambio de capacidad',
+      p_actor_id: '55555555-5555-4555-8555-555555555555',
+      p_correlation_id: '66666666-6666-4666-8666-666666666666',
     });
   });
 
@@ -130,7 +140,10 @@ describe('servicios transaccionales de Planeación', () => {
         turno: 'vespertino',
         horasEstimadas: 3,
         ordenPrioridad: 3,
+        motivo: 'Cambio de capacidad',
         actualizadoEnEsperado: ACTUALIZADO_EN,
+        actorId: '55555555-5555-4555-8555-555555555555',
+        correlationId: '66666666-6666-4666-8666-666666666666',
       }),
     ).rejects.toMatchObject({ codigo: 'programacion_conflicto' });
   });

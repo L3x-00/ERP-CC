@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { Button } from '@/compartido/componentes/ui/button';
+import { Textarea } from '@/compartido/componentes/ui/input';
+import { Label } from '@/compartido/componentes/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -34,7 +36,7 @@ export interface PropsDialogoReprogramacionPlaneacion {
   desglose?: DesglosePartidaPlaneacion;
   carga?: CargaCapacidadDiaria;
   onCerrar: () => void;
-  onConfirmar: (fecha: string) => Promise<RespuestaAccion<unknown>>;
+  onConfirmar: (fecha: string, motivo: string) => Promise<RespuestaAccion<unknown>>;
   onBuscarHueco?: () => Promise<RespuestaAccion<HuecoDisponible | null>>;
 }
 
@@ -57,6 +59,7 @@ export function DialogoReprogramacionPlaneacion({
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hueco, setHueco] = useState<HuecoDisponible | null>(null);
+  const [motivo, setMotivo] = useState('');
 
   const esMismoDia = fechaPropuesta === programacion.fechaProgramada;
   const evaluacion = evaluarAsignacionTurno(carga, programacion.horasEstimadas, {
@@ -66,10 +69,14 @@ export function DialogoReprogramacionPlaneacion({
 
   async function confirmar(): Promise<void> {
     if (enviando || esMismoDia) return;
+    if (motivo.trim().length < 3) {
+      setError('Indica el motivo de la reprogramación');
+      return;
+    }
     setError(null);
     setEnviando(true);
     try {
-      const resultado = await onConfirmar(fechaPropuesta);
+      const resultado = await onConfirmar(fechaPropuesta, motivo.trim());
       if (!resultado.exito) setError(resultado.error);
     } catch {
       setError('No se pudo reprogramar la partida');
@@ -168,7 +175,19 @@ export function DialogoReprogramacionPlaneacion({
             </p>
           ) : null}
 
-          <p role="alert" aria-live="assertive" className="min-h-4 text-xs text-red-600">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="motivo-reprogramacion-arrastre">Motivo de la reprogramación</Label>
+            <Textarea
+              id="motivo-reprogramacion-arrastre"
+              value={motivo}
+              maxLength={500}
+              rows={3}
+              onChange={(evento) => setMotivo(evento.target.value)}
+              placeholder="Ej. Cambio de capacidad o prioridad"
+            />
+          </div>
+
+          <p role="alert" aria-live="assertive" className="min-h-4 text-xs text-peligro-texto">
             {error ?? ''}
           </p>
         </div>
@@ -190,7 +209,7 @@ export function DialogoReprogramacionPlaneacion({
           </Button>
           <Button
             type="button"
-            disabled={enviando || esMismoDia}
+            disabled={enviando || esMismoDia || motivo.trim().length < 3}
             onClick={() => void confirmar()}
             data-testid="confirmar-reprogramacion-planeacion"
           >

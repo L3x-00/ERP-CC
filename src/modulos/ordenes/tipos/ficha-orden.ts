@@ -61,7 +61,8 @@ export interface FichaOrden {
     estadoSii: EstadoSiiOrden;
     estadoLegacy: string;
     prioridad: string;
-    fechaCompromiso: string;
+    fechaCompromisoComercial: string | null;
+    fechaOperativa: string;
     archivadaEn: string | null;
     esInterna: boolean;
     idHistorico: string | null;

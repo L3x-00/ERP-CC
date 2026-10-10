@@ -18,7 +18,6 @@ import {
 const ORDEN_ID = '00000000-0000-4000-8000-0000000b5001';
 const CLIENTE_ID = '00000000-0000-4000-8000-0000000b5002';
 const REVISION_ID = '00000000-0000-4000-8000-0000000b5003';
-const PARTIDA_ID = '00000000-0000-4000-8000-0000000b5004';
 const FECHA = '2026-10-06T12:00:00.000Z';
 
 describe('estados SII de la orden (B5)', () => {
@@ -132,7 +131,7 @@ describe('esquemas de acciones B5', () => {
     expect(esquemaCerrarOrdenAdministrativa.safeParse({ ordenId: 'no-uuid', actualizadoEn: FECHA }).success).toBe(false);
   });
 
-  it('valida el ajuste post-aceptación (motivo, cambios y partidas)', () => {
+  it('limita el ajuste post-aceptación a fecha operativa, prioridad y notas', () => {
     const base = {
       ordenId: ORDEN_ID,
       actualizadoEn: FECHA,
@@ -145,15 +144,15 @@ describe('esquemas de acciones B5', () => {
     expect(esquemaAjustarOrdenPostAceptacion.safeParse({ ...base, cambios: { forzar: true } }).success).toBe(false);
     expect(esquemaAjustarOrdenPostAceptacion.safeParse({
       ...base,
-      cambios: { partidas: [{ partidaId: PARTIDA_ID, cantidadSolicitada: 3 }] },
+      cambios: { fechaOperativa: '2026-10-08T12:00:00.000Z' },
     }).success).toBe(true);
     expect(esquemaAjustarOrdenPostAceptacion.safeParse({
       ...base,
-      cambios: { partidas: [{ partidaId: PARTIDA_ID }] },
+      cambios: { fechaCompromiso: '2026-10-08T12:00:00.000Z' },
     }).success).toBe(false);
     expect(esquemaAjustarOrdenPostAceptacion.safeParse({
       ...base,
-      cambios: { partidas: [{ partidaId: PARTIDA_ID, cantidadSolicitada: 0 }] },
+      cambios: { partidas: [{ partidaId: ORDEN_ID, cantidadSolicitada: 3 }] },
     }).success).toBe(false);
   });
 });

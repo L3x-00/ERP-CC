@@ -141,6 +141,7 @@ export function OperacionPlaneacion({
                 turno: datos.turno,
                 horasEstimadas: datos.horasEstimadas,
                 ordenPrioridad: datos.ordenPrioridad,
+                motivo: datos.motivo,
                 actualizadoEnEsperado: programacionSeleccionada.actualizadoEn,
               })
             : { exito: false as const, error: 'Selecciona una programación para reprogramarla' };
@@ -190,7 +191,7 @@ export function OperacionPlaneacion({
   );
 
   const confirmarReprogramacionArrastre = useCallback(
-    async (fecha: string): Promise<ResultadoAsignacionPlaneacion> => {
+    async (fecha: string, motivo: string): Promise<ResultadoAsignacionPlaneacion> => {
       if (!arrastre) return { exito: false, error: 'La reprogramación ya no está disponible' };
       const resultado = await reprogramarPartidaRecursoAccion({
         programacionId: arrastre.programacion.id,
@@ -199,6 +200,7 @@ export function OperacionPlaneacion({
         turno: arrastre.programacion.turno,
         horasEstimadas: arrastre.programacion.horasEstimadas,
         ordenPrioridad: arrastre.programacion.ordenPrioridad,
+        motivo,
         actualizadoEnEsperado: arrastre.programacion.actualizadoEn,
       });
       if (resultado.exito) {

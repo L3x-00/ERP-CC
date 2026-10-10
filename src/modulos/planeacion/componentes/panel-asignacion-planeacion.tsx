@@ -3,7 +3,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { Button } from '@/compartido/componentes/ui/button';
-import { Input, Select } from '@/compartido/componentes/ui/input';
+import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import {
   evaluarAsignacionTurno,
@@ -50,7 +50,7 @@ export type DatosAsignacionPlaneacion =
       partidaId: string;
       secuencia: number;
     })
-  | (DatosComunesAsignacion & { tipo: 'reprogramar' });
+  | (DatosComunesAsignacion & { tipo: 'reprogramar'; motivo: string });
 
 /** Resultado estándar de las Server Actions, sin adaptar ni exponer errores internos. */
 export type ResultadoAsignacionPlaneacion = RespuestaAccion<unknown>;
@@ -111,6 +111,7 @@ export function PanelAsignacionPlaneacion({
     programacion ? String(programacion.ordenPrioridad) : '1',
   );
   const [secuencia, setSecuencia] = useState('1');
+  const [motivo, setMotivo] = useState('');
   const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [preparando, setPreparando] = useState(false);
@@ -133,6 +134,7 @@ export function PanelAsignacionPlaneacion({
     setTurno(programacion?.turno ?? 'matutino');
     setHorasEstimadas(programacion ? String(programacion.horasEstimadas) : '');
     setOrdenPrioridad(programacion ? String(programacion.ordenPrioridad) : '1');
+    setMotivo('');
     setErrorFormulario(null);
     setHueco(null);
   }
@@ -231,6 +233,10 @@ export function PanelAsignacionPlaneacion({
       setErrorFormulario('La prioridad debe ser un entero mayor a 0');
       return;
     }
+    if (programacion && motivo.trim().length < 3) {
+      setErrorFormulario('Indica el motivo de la reprogramación');
+      return;
+    }
     if (
       !programacion
       && (partidaId === '' || !Number.isInteger(secuenciaNumerica) || secuenciaNumerica <= 0)
@@ -250,6 +256,7 @@ export function PanelAsignacionPlaneacion({
             turno,
             horasEstimadas: horas,
             ordenPrioridad: prioridad,
+            motivo: motivo.trim(),
           }
         : (() => {
             const partida = partidasProgramables.find((actual) => actual.partidaId === partidaId);
@@ -391,6 +398,20 @@ export function PanelAsignacionPlaneacion({
         </Select>
       </div>
 
+      {programacion ? (
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="planeacion-motivo">Motivo de la reprogramación</Label>
+          <Textarea
+            id="planeacion-motivo"
+            value={motivo}
+            maxLength={500}
+            rows={3}
+            onChange={(evento) => setMotivo(evento.target.value)}
+            placeholder="Ej. Ajuste por disponibilidad de máquina"
+          />
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-1">
         <Label htmlFor="planeacion-fecha">Fecha programada</Label>
         <Input
@@ -501,7 +522,7 @@ export function PanelAsignacionPlaneacion({
         </section>
       ) : null}
 
-      <p role="alert" aria-live="assertive" className="min-h-4 text-xs text-red-600">
+      <p role="alert" aria-live="assertive" className="min-h-4 text-xs text-peligro-texto">
         {errorFormulario ?? ''}
       </p>
 

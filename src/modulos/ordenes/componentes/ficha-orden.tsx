@@ -50,10 +50,75 @@ function ahoraLocal(): string {
   return local.toISOString().slice(0, 16);
 }
 
+function aFechaHoraLocal(fecha: string): string {
+  const valor = new Date(fecha);
+  const local = new Date(valor.getTime() - valor.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function formatearFechaCalendario(fecha: string): string {
+  const [anioTexto, mesTexto, diaTexto] = fecha.slice(0, 10).split('-');
+  const anio = Number(anioTexto);
+  const mes = Number(mesTexto);
+  const dia = Number(diaTexto);
+  const valor = new Date(Date.UTC(anio, mes - 1, dia));
+  if (
+    !Number.isFinite(anio)
+    || !Number.isFinite(mes)
+    || !Number.isFinite(dia)
+    || valor.getUTCFullYear() !== anio
+    || valor.getUTCMonth() !== mes - 1
+    || valor.getUTCDate() !== dia
+  ) return '—';
+  return new Intl.DateTimeFormat('es-MX', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(valor);
+}
+
 function claveValor(valor: unknown): string {
   if (valor === null || valor === undefined) return '—';
   if (typeof valor === 'object') return JSON.stringify(valor);
   return String(valor);
+}
+
+const ETIQUETAS_CAMBIO: Readonly<Record<string, string>> = {
+  fecha_operativa: 'Fecha operativa',
+  fecha_programada: 'Fecha programada',
+  prioridad: 'Prioridad',
+  notas: 'Notas',
+  recurso_id: 'Recurso',
+  turno: 'Turno',
+  horas_estimadas: 'Horas estimadas',
+  orden_prioridad: 'Prioridad de secuencia',
+};
+
+function ResumenCambio({ detalle }: { detalle: Record<string, unknown> }) {
+  const anterior = typeof detalle.anterior === 'object' && detalle.anterior !== null
+    ? detalle.anterior as Record<string, unknown>
+    : null;
+  const nuevo = typeof detalle.nuevo === 'object' && detalle.nuevo !== null
+    ? detalle.nuevo as Record<string, unknown>
+    : null;
+  if (!anterior && !nuevo) return null;
+
+  const claves = [...new Set([...Object.keys(anterior ?? {}), ...Object.keys(nuevo ?? {})])]
+    .filter((clave) => clave !== 'programacion_id' && clave !== 'partida_id')
+    .filter((clave) => claveValor(anterior?.[clave]) !== claveValor(nuevo?.[clave]));
+  if (claves.length === 0) return null;
+
+  return (
+    <dl className="mt-2 grid gap-1 text-xs text-texto-secundario sm:grid-cols-2">
+      {claves.map((clave) => (
+        <div key={clave} className="flex flex-wrap gap-1">
+          <dt className="font-medium text-texto-primario">{ETIQUETAS_CAMBIO[clave] ?? clave}:</dt>
+          <dd>{anterior ? `${claveValor(anterior[clave])} → ` : ''}{claveValor(nuevo?.[clave])}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 function Tarjeta({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -99,7 +164,11 @@ export function FichaOrden({
   const [cerrando, setCerrando] = useState(false);
   const [ajustando, setAjustando] = useState(false);
   const [motivo, setMotivo] = useState('');
-  const [ajuste, setAjuste] = useState({ prioridad: ficha.orden.prioridad, fecha: '', notas: '' });
+  const [ajuste, setAjuste] = useState({
+    prioridad: ficha.orden.prioridad,
+    fecha: aFechaHoraLocal(ficha.orden.fechaOperativa),
+    notas: ficha.orden.notas ?? '',
+  });
 
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
@@ -173,10 +242,21 @@ export function FichaOrden({
 
   async function guardarAjuste(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
+    if (ajuste.fecha === '') {
+      setError('Indica la fecha operativa.');
+      return;
+    }
+    const fechaOperativa = new Date(ajuste.fecha);
+    if (Number.isNaN(fechaOperativa.getTime())) {
+      setError('La fecha operativa no es válida.');
+      return;
+    }
     const cambios: Record<string, unknown> = {};
     if (ajuste.prioridad !== ficha.orden.prioridad) cambios.prioridad = ajuste.prioridad;
-    if (ajuste.fecha !== '') cambios.fechaCompromiso = new Date(ajuste.fecha).toISOString();
-    if (ajuste.notas.trim() !== '' && ajuste.notas.trim() !== (ficha.orden.notas ?? '')) {
+    if (ajuste.fecha !== aFechaHoraLocal(ficha.orden.fechaOperativa)) {
+      cambios.fechaOperativa = fechaOperativa.toISOString();
+    }
+    if (ajuste.notas.trim() !== (ficha.orden.notas ?? '')) {
       cambios.notas = ajuste.notas.trim();
     }
     if (Object.keys(cambios).length === 0) {
@@ -192,7 +272,22 @@ export function FichaOrden({
       }),
       `Orden ${folio} ajustada con trazabilidad`,
     );
-    if (exito) setAjustando(false);
+    if (exito) {
+      setAjustando(false);
+      setMotivo('');
+    }
+  }
+
+  function abrirAjuste(): void {
+    setError(null);
+    setMensaje(null);
+    setMotivo('');
+    setAjuste({
+      prioridad: ficha.orden.prioridad,
+      fecha: aFechaHoraLocal(ficha.orden.fechaOperativa),
+      notas: ficha.orden.notas ?? '',
+    });
+    setAjustando(true);
   }
 
   return (
@@ -209,8 +304,7 @@ export function FichaOrden({
             )}
           </div>
           <p className="text-sm text-texto-secundario">
-            {ficha.orden.clienteNombre ?? 'Cliente sin nombre'} · Compromiso {formatearFecha(ficha.orden.fechaCompromiso)} ·
-            Prioridad {ficha.orden.prioridad}
+            {ficha.orden.clienteNombre ?? 'Cliente sin nombre'} · Operativa {formatearFecha(ficha.orden.fechaOperativa)} · Prioridad {ficha.orden.prioridad}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">
@@ -224,14 +318,14 @@ export function FichaOrden({
           )}
           {permisos.puedeAjustar && preProduccion && (
             <Button variante="secundario" tamano="sm" disabled={ocupado}
-              onClick={() => { setError(null); setMensaje(null); setAjustando(true); }}
+              onClick={abrirAjuste}
               data-testid="ficha-ajustar">
               Ajustar
             </Button>
           )}
           {permisos.puedeAdministrar && !esTerminal && estado !== 'PRODUCCION_COMPLETADA' && (
             <Button variante="destructivo" tamano="sm" disabled={ocupado}
-              onClick={() => { setError(null); setMensaje(null); setCancelando(true); }}
+              onClick={() => { setError(null); setMensaje(null); setMotivo(''); setCancelando(true); }}
               data-testid="ficha-cancelar">
               Cancelar
             </Button>
@@ -281,6 +375,12 @@ export function FichaOrden({
             <Tarjeta titulo="Folio legacy">{ficha.orden.folio}</Tarjeta>
             <Tarjeta titulo="Creada">{formatearFecha(ficha.orden.creadoEn)}</Tarjeta>
             <Tarjeta titulo="Partidas">{ficha.partidas.length}</Tarjeta>
+            <Tarjeta titulo="Compromiso comercial">
+              {ficha.orden.fechaCompromisoComercial
+                ? formatearFechaCalendario(ficha.orden.fechaCompromisoComercial)
+                : 'No aplica / orden legada'}
+            </Tarjeta>
+            <Tarjeta titulo="Fecha operativa">{formatearFecha(ficha.orden.fechaOperativa)}</Tarjeta>
             {ficha.orden.cerradaAdminEn && (
               <Tarjeta titulo="Cierre administrativo">
                 {formatearFecha(ficha.orden.cerradaAdminEn)}
@@ -444,6 +544,7 @@ export function FichaOrden({
                     {formatearFecha(evento.creadoEn)}{evento.actorNombre ? ` · ${evento.actorNombre}` : ''}
                     {evento.motivo ? ` · ${evento.motivo}` : ''}
                   </p>
+                  <ResumenCambio detalle={evento.detalle} />
                 </li>
               ))}
             </ol>
@@ -462,7 +563,10 @@ export function FichaOrden({
             <header className="border-b border-borde pb-3">
               <h2 className="text-lg font-bold">Orden de servicio {folio}</h2>
               <p className="text-sm text-texto-secundario">
-                {ficha.orden.clienteNombre ?? ''} · Compromiso {formatearFecha(ficha.orden.fechaCompromiso)}
+                {ficha.orden.clienteNombre ?? ''} · Compromiso comercial{' '}
+                {ficha.orden.fechaCompromisoComercial
+                  ? formatearFechaCalendario(ficha.orden.fechaCompromisoComercial)
+                  : 'no disponible'}
               </p>
             </header>
             {ficha.snapshot ? (
@@ -558,7 +662,7 @@ export function FichaOrden({
               </Select>
             </label>
             <label className="grid gap-1 text-sm font-medium">
-              Fecha compromiso
+              Fecha operativa
               <Input type="datetime-local" value={ajuste.fecha} min={ahoraLocal()}
                 onChange={(evento) => setAjuste((actual) => ({ ...actual, fecha: evento.target.value }))} />
             </label>

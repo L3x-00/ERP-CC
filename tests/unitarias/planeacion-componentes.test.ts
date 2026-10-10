@@ -188,6 +188,9 @@ describe('operación de Planeación en cliente', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
     fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
+    fireEvent.change(screen.getByLabelText('Motivo de la reprogramación'), {
+      target: { value: 'Cambio de capacidad' },
+    });
     fireEvent.click(screen.getByTestId('guardar-asignacion-planeacion'));
 
     await waitFor(() => expect(reprogramarMock).toHaveBeenCalledTimes(1));
@@ -196,6 +199,7 @@ describe('operación de Planeación en cliente', () => {
         programacionId: DATOS.programaciones[0].id,
         actualizadoEnEsperado: '2026-09-01T12:00:00+00:00',
         fechaProgramada: '2026-09-16',
+        motivo: 'Cambio de capacidad',
       }),
     );
     expect(invalidarSpy).toHaveBeenCalledWith({ queryKey: ['planeacion', 'calendario'] });
@@ -273,12 +277,16 @@ describe('operación de Planeación en cliente', () => {
     expect(dialogo.textContent).toContain('OP-000001 · PIEZA-E2E');
     expect(reprogramarMock).not.toHaveBeenCalled();
 
+    fireEvent.change(screen.getByLabelText('Motivo de la reprogramación'), {
+      target: { value: 'Cambio de capacidad' },
+    });
     fireEvent.click(screen.getByTestId('confirmar-reprogramacion-planeacion'));
     await waitFor(() =>
       expect(reprogramarMock).toHaveBeenCalledWith(
         expect.objectContaining({
           programacionId: DATOS.programaciones[0].id,
           fechaProgramada: '2026-09-16',
+          motivo: 'Cambio de capacidad',
         }),
       ),
     );
