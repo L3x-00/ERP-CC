@@ -31,6 +31,8 @@ export type CodigoErrorPlaneacion =
   | 'recurso_ocupado'
   | 'capacidad_no_disponible'
   | 'capacidad_insuficiente'
+  | 'sin_permiso_planeacion'
+  | 'motivo_reprogramacion_requerido'
   | 'transicion_preparacion_no_permitida'
   | 'rango_fechas_invalido'
   | 'desconocido';
@@ -58,7 +60,15 @@ export type ReprogramarPartidaRecursoEntrada = {
   turno: TurnoPlaneacion;
   horasEstimadas: number;
   ordenPrioridad: number;
+  motivo: string;
   actualizadoEnEsperado: string;
+  actorId: string;
+  correlationId: string;
+};
+
+export type ProgramarPartidaRecursoEntrada = ProgramarOrdenInput & {
+  actorId: string;
+  correlationId: string;
 };
 
 export type FiltrosCalendarioPlaneacion = {
@@ -91,6 +101,8 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
     'recurso_ocupado',
     'capacidad_no_disponible',
     'capacidad_insuficiente',
+    'sin_permiso_planeacion',
+    'motivo_reprogramacion_requerido',
     'transicion_preparacion_no_permitida',
     'rango_fechas_invalido',
   ];
@@ -129,9 +141,9 @@ function programacionActualizadaDesdeRpc(fila: {
 /** Programa una partida mediante la RPC que bloquea capacidad dentro de PostgreSQL. */
 export async function programarPartidaRecursoServicio(
   admin: SupabaseClient<Database>,
-  entrada: ProgramarOrdenInput,
+  entrada: ProgramarPartidaRecursoEntrada,
 ): Promise<ProgramacionActualizada> {
-  const { data, error } = await admin.rpc('programar_partida_recurso', {
+  const { data, error } = await admin.rpc('programar_partida_recurso_auditada', {
     p_orden_id: entrada.ordenId,
     p_partida_id: entrada.partidaId,
     p_recurso_id: entrada.recursoId,
@@ -140,6 +152,8 @@ export async function programarPartidaRecursoServicio(
     p_turno: entrada.turno,
     p_horas_estimadas: entrada.horasEstimadas,
     p_orden_prioridad: entrada.ordenPrioridad,
+    p_actor_id: entrada.actorId,
+    p_correlation_id: entrada.correlationId,
   });
 
   if (error) lanzarErrorPlaneacion(error.message);
@@ -151,7 +165,7 @@ export async function reprogramarPartidaRecursoServicio(
   admin: SupabaseClient<Database>,
   entrada: ReprogramarPartidaRecursoEntrada,
 ): Promise<ProgramacionActualizada> {
-  const { data, error } = await admin.rpc('reprogramar_partida_recurso', {
+  const { data, error } = await admin.rpc('reprogramar_partida_recurso_auditada', {
     p_programacion_id: entrada.programacionId,
     p_recurso_id: entrada.recursoId,
     p_fecha_programada: entrada.fechaProgramada,
@@ -159,6 +173,9 @@ export async function reprogramarPartidaRecursoServicio(
     p_horas_estimadas: entrada.horasEstimadas,
     p_orden_prioridad: entrada.ordenPrioridad,
     p_actualizado_en_esperado: entrada.actualizadoEnEsperado,
+    p_motivo: entrada.motivo,
+    p_actor_id: entrada.actorId,
+    p_correlation_id: entrada.correlationId,
   });
 
   if (error) lanzarErrorPlaneacion(error.message);
@@ -304,6 +321,10 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
       return 'La programación o el recurso ya no están disponibles';
     case 'orden_partida_inconsistente':
       return 'La partida no pertenece a la orden seleccionada';
+    case 'sin_permiso_planeacion':
+      return 'Ya no tienes permiso para modificar la Planeación';
+    case 'motivo_reprogramacion_requerido':
+      return 'Indica el motivo de la reprogramación';
     case 'programacion_duplicada':
       return 'La partida ya tiene una programación equivalente';
     default:

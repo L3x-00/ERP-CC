@@ -86,6 +86,16 @@ async function verificarDatosFicticios(cliente) {
 }
 
 async function sembrarDatosFicticios(cliente) {
+  const { data: actor, error: errorActor } = await cliente
+    .from('usuarios')
+    .select('id')
+    .in('rol', ['admin', 'gerente'])
+    .eq('activo', true)
+    .limit(1)
+    .maybeSingle();
+  if (errorActor || !actor) {
+    throw new Error('La semilla de Planeación requiere un usuario admin o gerente activo.');
+  }
   const recursos = [
     {
       id: identificadores.recursos[0],
@@ -274,7 +284,7 @@ async function sembrarDatosFicticios(cliente) {
     if (errorExistente) throw new Error(`No se verificó programación ficticia: ${errorExistente.message}`);
     if (existente) continue;
 
-    const { error: errorProgramacion } = await cliente.rpc('programar_partida_recurso', {
+    const { error: errorProgramacion } = await cliente.rpc('programar_partida_recurso_auditada', {
       p_orden_id: programacion.ordenId,
       p_partida_id: programacion.partidaId,
       p_recurso_id: programacion.recursoId,
@@ -283,6 +293,7 @@ async function sembrarDatosFicticios(cliente) {
       p_turno: programacion.turno,
       p_horas_estimadas: programacion.horasEstimadas,
       p_orden_prioridad: programacion.ordenPrioridad,
+      p_actor_id: actor.id,
     });
     if (errorProgramacion) {
       throw new Error(`No se creó programación ficticia: ${errorProgramacion.message}`);

@@ -71,7 +71,7 @@ async function obtenerOCrearOperadorFicticio(cliente) {
   return operadorId;
 }
 
-async function asegurarProgramacionPreparada(cliente, operadorId) {
+async function asegurarProgramacionPreparada(cliente, operadorId, actorId) {
   const { data: programacion, error: errorProgramacion } = await cliente
     .from('programacion_areas')
     .select('id, recurso_id, estado_planeacion, actualizado_en')
@@ -83,7 +83,7 @@ async function asegurarProgramacionPreparada(cliente, operadorId) {
 
   let actual = programacion;
   if (!actual) {
-    const { error } = await cliente.rpc('programar_partida_recurso', {
+    const { error } = await cliente.rpc('programar_partida_recurso_auditada', {
       p_orden_id: identificadores.ordenes[0],
       p_partida_id: identificadores.partidas[0],
       p_recurso_id: identificadores.recurso,
@@ -92,6 +92,7 @@ async function asegurarProgramacionPreparada(cliente, operadorId) {
       p_turno: 'matutino',
       p_horas_estimadas: 3,
       p_orden_prioridad: 1,
+      p_actor_id: actorId,
     });
     if (error) throw new Error(`No se pudo crear programación de Producción: ${error.message}`);
     const { data, error: errorRelectura } = await cliente
@@ -105,7 +106,7 @@ async function asegurarProgramacionPreparada(cliente, operadorId) {
   }
 
   if (actual.estado_planeacion === 'programada' && actual.recurso_id !== identificadores.recurso) {
-    const { error } = await cliente.rpc('reprogramar_partida_recurso', {
+    const { error } = await cliente.rpc('reprogramar_partida_recurso_auditada', {
       p_programacion_id: actual.id,
       p_recurso_id: identificadores.recurso,
       p_fecha_programada: '2026-09-22',
@@ -113,6 +114,8 @@ async function asegurarProgramacionPreparada(cliente, operadorId) {
       p_horas_estimadas: 3,
       p_orden_prioridad: 1,
       p_actualizado_en_esperado: actual.actualizado_en,
+      p_motivo: 'Recuperación de fixture de Producción',
+      p_actor_id: actorId,
     });
     if (error) throw new Error(`No se pudo recuperar programación ficticia: ${error.message}`);
     const { data, error: errorRelectura } = await cliente
@@ -166,6 +169,16 @@ async function sembrarDatosFicticios(cliente) {
     throw new Error('Primero ejecuta la semilla de Planeación: faltan los recursos SIM-PLN.');
   }
   const operadorId = await obtenerOCrearOperadorFicticio(cliente);
+  const { data: actor, error: errorActor } = await cliente
+    .from('usuarios')
+    .select('id')
+    .in('rol', ['admin', 'gerente'])
+    .eq('activo', true)
+    .limit(1)
+    .maybeSingle();
+  if (errorActor || !actor) {
+    throw new Error('La semilla de Producción requiere un usuario admin o gerente activo.');
+  }
   const { error: errorOrdenes } = await cliente.from('ordenes_produccion').upsert([
     {
       id: identificadores.ordenes[0], folio: 'OP-900104', cliente_id: identificadores.cliente,
@@ -202,7 +215,7 @@ async function sembrarDatosFicticios(cliente) {
   ], { onConflict: 'id', ignoreDuplicates: true });
   if (errorPartidas) throw new Error(`No se crearon partidas ficticias de Producción: ${errorPartidas.message}`);
 
-  await asegurarProgramacionPreparada(cliente, operadorId);
+  await asegurarProgramacionPreparada(cliente, operadorId, actor.id);
   await asegurarNota(cliente, identificadores.ordenes[1], identificadores.partidas[1], operadorId, 4);
   await asegurarNota(cliente, identificadores.ordenes[2], identificadores.partidas[2], operadorId, 4);
 }

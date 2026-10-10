@@ -165,7 +165,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
   }).select('id').single();
   if (errorPartida || !partida) throw new Error(`No se pudo crear partida E2E: ${errorPartida?.message ?? 'sin partida'}`);
 
-  const { data: programacion, error: errorProgramacion } = await admin.rpc('programar_partida_recurso', {
+  const { data: programacion, error: errorProgramacion } = await admin.rpc('programar_partida_recurso_auditada', {
     p_orden_id: orden.id,
     p_partida_id: partida.id,
     p_recurso_id: recurso.id,
@@ -174,6 +174,8 @@ async function prepararContexto(): Promise<ContextoE2E> {
     p_turno: 'matutino',
     p_horas_estimadas: 2,
     p_orden_prioridad: 1,
+    p_actor_id: administradorId,
+    p_correlation_id: randomUUID(),
   });
   if (errorProgramacion || !programacion?.[0]) throw new Error(`No se pudo programar partida E2E: ${errorProgramacion?.message ?? 'sin programación'}`);
   const { data: preparada, error: errorPreparada } = await admin.rpc('activar_modo_preparacion', {

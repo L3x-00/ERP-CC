@@ -107,7 +107,13 @@ describe('acciones seguras de Planeación', () => {
     const respuesta = await programarPartidaRecursoAccion(ENTRADA_PROGRAMAR);
 
     expect(respuesta).toEqual({ exito: true, datos: PROGRAMACION });
-    expect(programarMock).toHaveBeenCalledTimes(1);
+    expect(programarMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        actorId: USUARIO.id,
+        correlationId: 'correlacion-prueba',
+      }),
+    );
     expect(registrarLogMock).toHaveBeenCalledWith(
       USUARIO,
       'programar_partida_recurso',
@@ -132,6 +138,7 @@ describe('acciones seguras de Planeación', () => {
       ...ENTRADA_PROGRAMAR,
       programacionId: 'no-es-uuid',
       actualizadoEnEsperado: PROGRAMACION.actualizadoEn,
+      motivo: 'Cambio de turno',
     });
 
     expect(respuesta.exito).toBe(false);
@@ -149,12 +156,21 @@ describe('acciones seguras de Planeación', () => {
       horasEstimadas: 3,
       ordenPrioridad: 2,
       actualizadoEnEsperado: PROGRAMACION.actualizadoEn,
+      motivo: 'Cambio de turno',
     });
 
     expect(respuesta).toEqual({
       exito: false,
       error: 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo',
     });
+    expect(reprogramarMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        motivo: 'Cambio de turno',
+        actorId: USUARIO.id,
+        correlationId: 'correlacion-prueba',
+      }),
+    );
     expect(registrarLogMock).toHaveBeenCalledWith(
       USUARIO,
       'reprogramacion_partida_rechazada',

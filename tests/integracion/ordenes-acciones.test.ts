@@ -9,9 +9,16 @@ const {
   registrarConsumoMock,
   registrarConsumoOperadorMock,
   registrarTiempoMock,
+  ajustarOrdenMock,
   ErrorOrdenMock,
+  ErrorOrdenSiiMock,
 } = vi.hoisted(() => {
   class ErrorOrdenMock extends Error {}
+  class ErrorOrdenSiiMock extends Error {
+    constructor(public readonly codigo: string) {
+      super(codigo);
+    }
+  }
 
   return {
     obtenerUsuarioMock: vi.fn(),
@@ -22,7 +29,9 @@ const {
     registrarConsumoMock: vi.fn(),
     registrarConsumoOperadorMock: vi.fn(),
     registrarTiempoMock: vi.fn(),
+    ajustarOrdenMock: vi.fn(),
     ErrorOrdenMock,
+    ErrorOrdenSiiMock,
   };
 });
 
@@ -51,8 +60,14 @@ vi.mock('@/modulos/ordenes/servicios/ordenes-servicio', () => ({
   registrarTiempoOperadorServicio: (...args: unknown[]) => registrarTiempoMock(...args),
   mensajeErrorOrden: () => 'No se pudo actualizar la orden',
 }));
+vi.mock('@/modulos/ordenes/servicios/orden-sii-servicio', () => ({
+  ErrorOrdenSii: ErrorOrdenSiiMock,
+  ajustarOrdenPostAceptacionServicio: (...args: unknown[]) => ajustarOrdenMock(...args),
+  codigoErrorOrdenSii: () => 'desconocido',
+}));
 
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
+import { ajustarOrdenPostAceptacionAccion } from '@/modulos/ordenes/acciones/ajustar-orden-post-aceptacion';
 import { registrarConsumoAccion } from '@/modulos/ordenes/acciones/registrar-consumo';
 import { registrarTiempoOperadorAccion } from '@/modulos/ordenes/acciones/registrar-tiempo-operador';
 
@@ -117,6 +132,11 @@ beforeEach(() => {
     notas: null,
     creadoEn: '2026-08-12T11:00:00.000Z',
     actualizadoEn: '2026-08-12T11:00:00.000Z',
+  });
+  ajustarOrdenMock.mockResolvedValue({
+    id: CAMBIO_ESTADO.ordenId,
+    estadoSii: 'PLANIFICADA',
+    actualizadoEn: '2026-08-12T12:00:00.000Z',
   });
 });
 
@@ -196,6 +216,39 @@ describe('seguridad de acciones de órdenes', () => {
       '66666666-6666-4666-8666-666666666666',
       expect.objectContaining({ partidaId: '77777777-7777-4777-8777-777777777777' }),
       expect.anything(),
+    );
+  });
+
+  it('rechaza cambios comerciales antes de invocar el ajuste operativo', async () => {
+    const respuesta = await ajustarOrdenPostAceptacionAccion({
+      ordenId: CAMBIO_ESTADO.ordenId,
+      actualizadoEn: '2026-08-12T10:00:00.000Z',
+      motivo: 'Cambio solicitado',
+      cambios: { fechaCompromiso: '2026-09-20T18:00:00.000Z' },
+    });
+
+    expect(respuesta.exito).toBe(false);
+    expect(ajustarOrdenMock).not.toHaveBeenCalled();
+  });
+
+  it('autoriza el ajuste operativo y fija actor y correlación del servidor', async () => {
+    canMock.mockResolvedValue(true);
+
+    const respuesta = await ajustarOrdenPostAceptacionAccion({
+      ordenId: CAMBIO_ESTADO.ordenId,
+      actualizadoEn: '2026-08-12T10:00:00.000Z',
+      motivo: 'Reprogramación confirmada',
+      cambios: { fechaOperativa: '2026-09-20T18:00:00.000Z' },
+    });
+
+    expect(respuesta.exito).toBe(true);
+    expect(ajustarOrdenMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        actorId: USUARIO_SIN_PERMISOS.id,
+        correlationId: 'correlacion-prueba',
+        cambios: { fechaOperativa: '2026-09-20T18:00:00.000Z' },
+      }),
     );
   });
 });

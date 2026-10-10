@@ -59,19 +59,7 @@ export const esquemaCerrarOrdenAdministrativa = z
   .object({ ordenId: ID, actualizadoEn: FECHA_HORA })
   .strict();
 
-const CAMBIO_PARTIDA = z
-  .object({
-    partidaId: ID,
-    cantidadSolicitada: z.number().positive('La cantidad debe ser mayor que cero').optional(),
-    descripcion: z.string().trim().min(1).max(300).optional(),
-  })
-  .strict()
-  .refine(
-    (partida) => partida.cantidadSolicitada !== undefined || partida.descripcion !== undefined,
-    'Cada partida ajustada requiere cantidad o descripción',
-  );
-
-/** Ajustes posteriores a la aceptación, solo antes de producción (§5.4). */
+/** Ajustes operativos posteriores a la aceptación, solo antes de producción (DC-10). */
 export const esquemaAjustarOrdenPostAceptacion = z
   .object({
     ordenId: ID,
@@ -79,18 +67,16 @@ export const esquemaAjustarOrdenPostAceptacion = z
     motivo: z.string().trim().min(3, 'Indica el motivo del ajuste').max(500),
     cambios: z
       .object({
-        fechaCompromiso: FECHA_HORA.optional(),
+        fechaOperativa: FECHA_HORA.optional(),
         prioridad: z.enum(PRIORIDADES).optional(),
         notas: z.string().trim().max(2000).optional(),
-        partidas: z.array(CAMBIO_PARTIDA).min(1).max(200).optional(),
       })
       .strict()
       .refine(
         (cambios) =>
-          cambios.fechaCompromiso !== undefined
+          cambios.fechaOperativa !== undefined
           || cambios.prioridad !== undefined
-          || cambios.notas !== undefined
-          || cambios.partidas !== undefined,
+          || cambios.notas !== undefined,
         'Indica al menos un cambio',
       ),
   })

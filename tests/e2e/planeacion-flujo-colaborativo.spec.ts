@@ -312,7 +312,7 @@ test.describe.serial('Planeación colaborativa completa', () => {
       .eq('id', contextoPrueba.programacionId!)
       .single();
     expect(errorProgramacion).toBeNull();
-    const { error: errorReprogramacion } = await contextoPrueba.admin.rpc('reprogramar_partida_recurso', {
+    const { error: errorReprogramacion } = await contextoPrueba.admin.rpc('reprogramar_partida_recurso_auditada', {
       p_programacion_id: contextoPrueba.programacionId!,
       p_recurso_id: contextoPrueba.recursoId,
       p_fecha_programada: '2099-12-31',
@@ -320,6 +320,9 @@ test.describe.serial('Planeación colaborativa completa', () => {
       p_horas_estimadas: 4,
       p_orden_prioridad: 1,
       p_actualizado_en_esperado: programacionActual!.actualizado_en,
+      p_motivo: 'Validación colaborativa E2E',
+      p_actor_id: contextoPrueba.usuarioId,
+      p_correlation_id: randomUUID(),
     });
     expect(errorReprogramacion).toBeNull();
 
@@ -334,7 +337,10 @@ test.describe.serial('Planeación colaborativa completa', () => {
         .getByTestId(`programacion-${contextoPrueba.programacionId}`),
     ).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Seleccionar' }).click();
+    await page
+      .getByTestId(`programacion-${contextoPrueba.programacionId}`)
+      .getByRole('button', { name: 'Seleccionar' })
+      .click();
     await page.getByTestId('activar-preparacion-planeacion').click();
     await expect
       .poll(async () => {
@@ -442,6 +448,7 @@ test.describe.serial('Planeación colaborativa completa', () => {
       .getByTestId(`programacion-${primera!.id}`)
       .dragTo(page.getByTestId('columna-2099-12-30'));
     await expect(page.getByTestId('dialogo-reprogramacion-planeacion')).toBeVisible();
+    await page.getByLabel('Motivo de la reprogramación').fill('Ajuste E2E por arrastre');
     await page.getByTestId('confirmar-reprogramacion-planeacion').click();
     await expect
       .poll(async () => {

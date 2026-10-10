@@ -61,6 +61,11 @@ export const esquemaReprogramarPartidaRecurso = z
       .int('La prioridad debe ser un número entero')
       .positive('La prioridad debe ser mayor a 0')
       .max(9999, 'La prioridad no puede exceder 9999'),
+    motivo: z
+      .string()
+      .trim()
+      .min(3, 'Indica el motivo de la reprogramación')
+      .max(500, 'El motivo no puede exceder 500 caracteres'),
     actualizadoEnEsperado: z.iso.datetime({
       offset: true,
       message: 'Marca de actualización inválida',

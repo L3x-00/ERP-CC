@@ -152,7 +152,7 @@ export async function obtenerDocumentoOrdenServicio(
 ): Promise<DocumentoOrden | null> {
   const { data: orden, error: errorOrden } = await cliente
     .from('ordenes_produccion')
-    .select('folio, estado, prioridad, fecha_compromiso, es_interna, cliente_id, cotizacion_id, snapshot_json, notas, creado_en')
+    .select('folio, estado, prioridad, fecha_compromiso, fecha_compromiso_comercial, fecha_operativa, es_interna, cliente_id, cotizacion_id, snapshot_json, notas, creado_en')
     .eq('id', ordenId)
     .maybeSingle();
   if (errorOrden) throw new Error(`No se pudo leer la orden: ${errorOrden.message}`);
@@ -258,7 +258,11 @@ export async function obtenerDocumentoOrdenServicio(
       folio: orden.folio,
       estado: orden.estado,
       prioridad: orden.prioridad,
-      fechaCompromiso: orden.fecha_compromiso,
+      // El compromiso es fecha calendario: fijar mediodía UTC evita mostrar el
+      // día anterior en zonas horarias negativas al formatearlo en el cliente.
+      fechaCompromiso: orden.fecha_compromiso_comercial
+        ? `${orden.fecha_compromiso_comercial}T12:00:00.000Z`
+        : orden.fecha_compromiso,
       esInterna: orden.es_interna,
       folioCotizacion,
       poCliente,

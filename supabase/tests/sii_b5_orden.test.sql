@@ -651,7 +651,7 @@ SELECT is(
 );
 SELECT is(
   (SELECT count(*)::integer FROM public.orden_eventos_cambio
-   WHERE orden_id = (SELECT valor FROM b5_ids WHERE nombre = 'orden_ti') AND tipo = 'ajuste_post_aceptacion'),
+   WHERE orden_id = (SELECT valor FROM b5_ids WHERE nombre = 'orden_ti') AND tipo = 'ajuste_operativo'),
   1, 'El ajuste deja evento trazable'
 );
 SELECT throws_ok(format(

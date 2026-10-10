@@ -44,8 +44,9 @@ const CODIGOS_CONOCIDOS = [
   'motivo_requerido',
   'cambios_requeridos',
   'campo_invalido',
-  'partidas_invalidas',
-  'partida_invalida',
+  'cambios_sin_diferencias',
+  'fecha_operativa_invalida',
+  'fecha_operativa_requerida',
   'notas_invalidas',
 ] as const;
 
@@ -166,16 +167,11 @@ export async function cerrarOrdenAdministrativaServicio(
 }
 
 function cambiosAJson(cambios: AjustarOrdenPostAceptacionInput['cambios']): Json {
-  return {
-    fecha_compromiso: cambios.fechaCompromiso ?? null,
-    prioridad: cambios.prioridad ?? null,
-    notas: cambios.notas ?? null,
-    partidas: (cambios.partidas ?? []).map((partida) => ({
-      partida_id: partida.partidaId,
-      cantidad_solicitada: partida.cantidadSolicitada ?? null,
-      descripcion: partida.descripcion ?? null,
-    })),
-  };
+  const salida: Record<string, Json> = {};
+  if (cambios.fechaOperativa !== undefined) salida.fecha_operativa = cambios.fechaOperativa;
+  if (cambios.prioridad !== undefined) salida.prioridad = cambios.prioridad;
+  if (cambios.notas !== undefined) salida.notas = cambios.notas;
+  return salida;
 }
 
 export async function ajustarOrdenPostAceptacionServicio(
