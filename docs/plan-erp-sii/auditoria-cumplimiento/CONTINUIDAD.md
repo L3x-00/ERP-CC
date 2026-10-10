@@ -44,6 +44,26 @@
 
 ## Punto de control 2026-10-09 — observaciones del cliente (trabajo activo; la auditoría B1–B9 sigue en pausa)
 
+### Punto de control 2026-10-10 — C5 completo localmente
+
+- Rama `feature/c5-acceso-operativo`, apilada sobre C4.3/PR #37.
+- C5.1 conserva el acceso PIN existente y presenta un flujo táctil continuo: PIN, selección de
+  trabajo y salida, sin precios ni rutas administrativas.
+- C5.2 permite a Administración abrir durante 15 minutos una vista firmada de un operador sin
+  conocer su PIN. Conserva administrador real, operador, motivo y expiración; muestra banner
+  permanente y salida explícita; no se renueva.
+- La protección es de servidor: acciones de tiempo, avance, consumo, sesiones, corridas, calidad,
+  documentos, notas y demás mutaciones de Producción rechazan y auditan una cookie delegada.
+  Operador y administrador se revalidan; la navegación no puede ocultar una delegación activa y
+  el proxy limpia la cookie al expirar.
+- Cross-review Codex corrigió un HIGH de navegación/cookie y amplió el gate a cargas documentales.
+  La prueba mutante debilitó el gate y falló como se esperaba; restaurado, volvió a verde.
+- Gates: 35/35 pruebas focales, E2E táctil/delegado 2/2, typecheck, lint focal, build del E2E y
+  `git diff --check`. Sin migración.
+- Claude Code fue reintentado para revisión en solo lectura; la sesión
+  `4eadb524-1851-4359-bc40-a5ae2794d473` terminó 429 con cero tokens. No se le atribuye revisión.
+- Siguiente corte: C6 Materiales y costos sin stock formal. Auditoría B1–B9 permanece en pausa.
+
 ### Punto de control 2026-10-10 — C4.3 completo localmente
 
 - Rama `feature/c4-3-confidencialidad-ordenes`, apilada sobre C4.2/PR #36.

@@ -40,6 +40,7 @@ vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
 }));
 vi.mock('@/nucleo/autenticacion/obtener-operador-sesion', () => ({
   obtenerOperadorConSesionActiva: () => obtenerOperadorMock(),
+  obtenerOperadorParaMutacion: () => obtenerOperadorMock(),
 }));
 vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
   can: (...args: unknown[]) => canMock(...args),

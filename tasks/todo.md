@@ -272,9 +272,9 @@ E2E Producción 2/2, typecheck, lint focal y build del E2E. Migración C4.3 solo
 
 **Aceptación**
 
-- [ ] Ingreso, selección de trabajo y salida forman un flujo continuo en móvil/tablet.
-- [ ] PIN correcto/incorrecto, rate limit, revocación y expiración conservan seguridad vigente.
-- [ ] No aparecen precios ni rutas administrativas.
+- [x] Ingreso, selección de trabajo y salida forman un flujo continuo en móvil/tablet.
+- [x] PIN correcto/incorrecto, rate limit, revocación y expiración conservan seguridad vigente.
+- [x] No aparecen precios ni rutas administrativas.
 
 **Verificación:** unitarias, integración de sesión y E2E táctil.
 **Dependencias:** C4.3.
@@ -283,12 +283,17 @@ E2E Producción 2/2, typecheck, lint focal y build del E2E. Migración C4.3 solo
 
 **Aceptación**
 
-- [ ] Administración entra sin conocer PIN, con operador, admin real, motivo y expiración auditados.
-- [ ] Banner permanente y salida explícita identifican la delegación.
-- [ ] Toda mutación productiva se rechaza en el MVP.
+- [x] Administración entra sin conocer PIN, con operador, admin real, motivo y expiración auditados.
+- [x] Banner permanente y salida explícita identifican la delegación.
+- [x] Toda mutación productiva se rechaza en el MVP.
 
 **Verificación:** RBAC negativo, expiración/revocación, auditoría y E2E.
 **Dependencias:** C5.1.
+
+**Cierre local C5:** sesión delegada firmada de 15 minutos sin renovación; revalidación de
+administrador/operador; servidor bloquea y audita mutaciones de Órdenes y Producción; navegación
+PIN y delegada verificada en tablet. Gates: 35/35 pruebas focales, prueba mutante efectiva,
+E2E C5 2/2, typecheck, lint focal y build del E2E. Sin migración.
 
 ## C6 — Materiales y costos sin stock
 

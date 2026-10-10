@@ -10,7 +10,7 @@ import {
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { esquemaRegistrarConsumoMaterial } from '@/modulos/ordenes/validaciones/ordenes';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
-import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso-inventario';
 
@@ -73,7 +73,10 @@ export async function registrarConsumoOperadorAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const operador = await obtenerOperadorConSesionActiva();
+  const operador = await obtenerOperadorParaMutacion(
+    'registrar_consumo_material',
+    analisis.data.partidaId,
+  );
   if (!operador) {
     return { exito: false, error: 'Sesión de operador no válida' };
   }

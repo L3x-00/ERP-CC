@@ -11,7 +11,13 @@ import type { SesionOperador } from '@/modulos/autenticacion/tipos/indice';
 // cargar el módulo o de forma diferida dentro de cada función.
 process.env.SECRETO_SESION_OPERADOR = 'secreto-de-pruebas-con-longitud-suficiente-32+';
 
-const { deserializarSesionOperador, serializarSesionOperador, sesionOperadorExpirada, sesionOperadorRevocadaPorPin } =
+const {
+  deserializarSesionOperador,
+  serializarSesionOperador,
+  sesionOperadorEsDelegada,
+  sesionOperadorExpirada,
+  sesionOperadorRevocadaPorPin,
+} =
   await import('@/nucleo/autenticacion/sesion');
 
 /**
@@ -112,5 +118,35 @@ describe('sesionOperadorExpirada', () => {
 
     // Una hora después de iniciar, pero solo 10 min tras la última actividad.
     expect(sesionOperadorExpirada(sesion, new Date('2026-07-03T10:10:00.000Z'))).toBe(false);
+  });
+
+  it('la vista delegada vence en su fecha fija aunque cambie la ultima actividad', () => {
+    const sesion = crearSesion({
+      modo: 'delegada',
+      administradorId: '00000000-0000-4000-8000-000000000003',
+      nombreAdministrador: 'Administradora Uno',
+      motivoDelegacion: 'Validar instrucciones del trabajo',
+      expiraEn: '2026-07-03T10:15:00.000Z',
+      ultimaActividadEn: '2026-07-03T10:14:59.000Z',
+    });
+
+    expect(sesionOperadorExpirada(sesion, new Date('2026-07-03T10:14:59.000Z'))).toBe(false);
+    expect(sesionOperadorExpirada(sesion, new Date('2026-07-03T10:15:00.001Z'))).toBe(true);
+  });
+});
+
+describe('modo de sesion de operador', () => {
+  it('trata una cookie historica sin modo como acceso PIN', () => {
+    expect(sesionOperadorEsDelegada(crearSesion())).toBe(false);
+  });
+
+  it('identifica una vista administrativa delegada', () => {
+    expect(sesionOperadorEsDelegada(crearSesion({
+      modo: 'delegada',
+      administradorId: '00000000-0000-4000-8000-000000000003',
+      nombreAdministrador: 'Administradora Uno',
+      motivoDelegacion: 'Validar instrucciones del trabajo',
+      expiraEn: '2026-07-03T10:15:00.000Z',
+    }))).toBe(true);
   });
 });

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { TIMEOUT_SESION_OPERADOR_MINUTOS } from '@/nucleo/autenticacion/constantes';
-import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { obtenerContextoSesionOperadorActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 export const runtime = 'nodejs';
@@ -31,13 +32,16 @@ function codificarEvento(nombre: string, datos: Record<string, never> = {}): Uin
  * se transmite un cambio, fila, token o costo fuera de RLS.
  */
 export async function GET(request: Request): Promise<Response> {
-  const operador = await obtenerOperadorConSesionActiva();
-  if (!operador) {
+  const contexto = await obtenerContextoSesionOperadorActiva();
+  if (!contexto) {
     return new Response(null, { status: 401 });
   }
+  const { operador, sesion, administrador } = contexto;
 
   const codificador = new TextEncoder();
-  const expiraEn = Date.now() + TIMEOUT_SESION_OPERADOR_MINUTOS * 60 * 1000;
+  const expiraEn = sesionOperadorEsDelegada(sesion)
+    ? new Date(sesion.expiraEn ?? '').getTime()
+    : Date.now() + TIMEOUT_SESION_OPERADOR_MINUTOS * 60 * 1000;
   let canal: RealtimeChannel | null = null;
   let intervaloKeepAlive: ReturnType<typeof setInterval> | null = null;
   let intervaloSesion: ReturnType<typeof setInterval> | null = null;
@@ -156,20 +160,27 @@ export async function GET(request: Request): Promise<Response> {
       });
 
       intervaloSesion = setInterval(() => {
-        void supabase
+        void (async () => {
+          const [{ data: operadorActual, error }, { data: administradorActual }] = await Promise.all([
+            supabase
           .from('usuarios')
           .select('id, pin_cambiado_en')
           .eq('id', operador.id)
           .eq('rol', 'operador')
           .eq('activo', true)
-          .maybeSingle()
-          .then(({ data: operadorActual, error }) => {
-            if (Date.now() >= expiraEn || error || !operadorActual
-              || operadorActual.pin_cambiado_en !== (operador.pinCambiadoEn ?? null)) {
-              enviar('sesion_expirada');
-              void cerrar?.();
-            }
-          });
+          .maybeSingle(),
+            administrador
+              ? supabase.from('usuarios').select('id').eq('id', administrador.id)
+                .eq('rol', 'admin').eq('activo', true).maybeSingle()
+              : Promise.resolve({ data: null, error: null }),
+          ]);
+          if (Date.now() >= expiraEn || error || !operadorActual
+            || operadorActual.pin_cambiado_en !== (operador.pinCambiadoEn ?? null)
+            || (administrador !== null && !administradorActual)) {
+            enviar('sesion_expirada');
+            void cerrar?.();
+          }
+        })();
       }, MS_REVALIDACION_SESION);
     },
     cancel() {

@@ -96,6 +96,13 @@ export type SesionOperador = {
   iniciadaEn: string; // ISO 8601
   ultimaActividadEn: string; // ISO 8601
   timeoutMinutos: number; // 15, 30, etc.
+  /** Las cookies historicas sin modo se interpretan como acceso por PIN. */
+  modo?: 'pin' | 'delegada';
+  administradorId?: string;
+  nombreAdministrador?: string;
+  motivoDelegacion?: string;
+  /** La delegacion tiene una fecha fija y no se prolonga por actividad. */
+  expiraEn?: string;
   pinCambiadoEn?: string | null; // versión al emitir la cookie HMAC
 };
 

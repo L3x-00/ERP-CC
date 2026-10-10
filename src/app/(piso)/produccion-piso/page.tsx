@@ -1,9 +1,14 @@
 import { redirect } from 'next/navigation';
 import { IndicadorSesion } from '@/modulos/autenticacion/componentes/indicador-sesion';
+import { BannerVistaOperador } from '@/modulos/autenticacion/componentes/banner-vista-operador';
 import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
 import { obtenerOrdenesConPartidasDeOperadorServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
-import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import {
+  obtenerContextoSesionOperadorActiva,
+  obtenerSesionOperadorFirmada,
+} from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -11,10 +16,15 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
  * antes de cargar solo OP en proceso mediante un cliente privado de servidor.
  */
 export default async function PaginaProduccionPiso() {
-  const operador = await obtenerOperadorConSesionActiva();
-  if (!operador) {
-    redirect('/operador');
+  const [contexto, sesionFirmada] = await Promise.all([
+    obtenerContextoSesionOperadorActiva(),
+    obtenerSesionOperadorFirmada(),
+  ]);
+  if (!contexto) {
+    redirect(sesionFirmada && sesionOperadorEsDelegada(sesionFirmada) ? '/produccion' : '/operador');
   }
+  const { operador, sesion, administrador } = contexto;
+  const esDelegada = sesionOperadorEsDelegada(sesion);
 
   const admin = crearClienteSupabaseAdmin();
   const ordenes = await obtenerOrdenesConPartidasDeOperadorServicio(admin, operador.id);
@@ -66,13 +76,22 @@ export default async function PaginaProduccionPiso() {
   return (
     <div className="flex flex-col gap-6 p-6">
       <SincronizadorPisoRealtime />
-      <IndicadorSesion nombreUsuario={operador.nombreCompleto} esOperador />
+      {esDelegada && administrador ? (
+        <BannerVistaOperador
+          nombreOperador={operador.nombreCompleto}
+          nombreAdministrador={administrador.nombreCompleto}
+          expiraEn={sesion.expiraEn ?? sesion.iniciadaEn}
+        />
+      ) : (
+        <IndicadorSesion nombreUsuario={operador.nombreCompleto} esOperador />
+      )}
       <ControlPisoPanel
         operadorId={operador.id}
         nombreOperador={operador.nombreCompleto}
         ordenes={ordenes}
         materiales={materiales}
         areas={areas}
+        soloLectura={esDelegada}
       />
     </div>
   );

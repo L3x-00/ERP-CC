@@ -8,6 +8,7 @@ import { cerrarJornadaServicio, obtenerDatosTableroProduccionServicio } from '@/
 import { hoyIso, sumarDias } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
+import { SelectorVistaOperador } from '@/modulos/autenticacion/componentes/selector-vista-operador';
 
 /** Entrada RSC al piso: los datos llegan con RLS y las mutaciones siguen en Server Actions. */
 type ParametrosPaginaProduccion = {
@@ -19,6 +20,7 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
   const ordenInicialId = typeof parametros.ordenId === 'string' ? parametros.ordenId : undefined;
   const usuario = await obtenerUsuarioServidor();
   if (!usuario || !(await can(usuario, 'gestionar_produccion'))) notFound();
+  const admin = crearClienteSupabaseAdmin();
 
   const [cliente, operador] = await Promise.all([
     crearClienteSupabaseServidor(),
@@ -27,7 +29,7 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
   // SII-B6.2: ninguna sesión debe cruzar de fecha. Al abrir el piso se cierra la
   // jornada de ayer si quedó trabajo activo; un fallo aquí nunca bloquea la carga.
   try {
-    await cerrarJornadaServicio(crearClienteSupabaseAdmin(), {
+    await cerrarJornadaServicio(admin, {
       fecha: sumarDias(hoyIso(), -1),
       actorId: usuario.id,
       correlationId: nuevoCorrelationId(),
@@ -38,8 +40,19 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
   const datosIniciales = await obtenerDatosTableroProduccionServicio(
     cliente,
     {},
-    crearClienteSupabaseAdmin(),
+    admin,
   );
+  const operadores = usuario.rol === 'admin'
+    ? ((await admin
+        .from('usuarios')
+        .select('id, nombre_completo')
+        .eq('rol', 'operador')
+        .eq('activo', true)
+        .order('nombre_completo')).data ?? []).map((entrada) => ({
+        id: entrada.id,
+        nombre: entrada.nombre_completo,
+      }))
+    : [];
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-produccion">
@@ -49,6 +62,7 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
           Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la página.
         </p>
       </header>
+      {usuario.rol === 'admin' ? <SelectorVistaOperador operadores={operadores} /> : null}
       <OperacionProduccion
         datosIniciales={datosIniciales}
         operadorId={operador?.id ?? null}

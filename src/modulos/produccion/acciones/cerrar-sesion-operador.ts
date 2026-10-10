@@ -7,7 +7,7 @@ import {
   obtenerIdentificadorSolicitante,
   registrarIntentoFallido,
 } from '@/nucleo/autenticacion/limitar-intentos';
-import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { confirmarPinDeOperador } from '@/nucleo/autenticacion/pin-operador';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -32,7 +32,10 @@ export async function cerrarSesionOperadorAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const operador = await obtenerOperadorConSesionActiva();
+  const operador = await obtenerOperadorParaMutacion(
+    'cerrar_sesion_trabajo',
+    analisis.data.sesionId,
+  );
   if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
 
   const identificador = await obtenerIdentificadorSolicitante();

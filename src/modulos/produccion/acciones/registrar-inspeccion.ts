@@ -9,7 +9,7 @@ import { mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-serv
 import type { InspeccionCalidad } from '@/modulos/produccion/tipos/corridas';
 import { esquemaRegistrarInspeccion } from '@/modulos/produccion/validaciones/corridas';
 
-import { obtenerActorProduccion } from './utilidades-acciones';
+import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 /**
  * SII-B6.3: registra una inspección de primera pieza, referencia de lote o
@@ -24,7 +24,10 @@ export async function registrarInspeccionAccion(
     return { exito: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    'registrar_inspeccion',
+    resultado.data.ordenId,
+  );
   if (!actor) return { exito: false, error: 'No autorizado' };
 
   const permiso = resultado.data.tipo === 'PRIMERA_PIEZA'

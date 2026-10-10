@@ -74,6 +74,7 @@ export async function validarPinAccion(
       ultimaActividadEn: ahora,
       timeoutMinutos: TIMEOUT_SESION_OPERADOR_MINUTOS,
       pinCambiadoEn: operador.pinCambiadoEn ?? null,
+      modo: 'pin',
     };
 
     const valorCookie = await serializarSesionOperador(sesion);
