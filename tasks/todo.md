@@ -245,17 +245,25 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Comentarios se reubican antes de retirar Seleccionar; se retiran mutaciones comerciales no permitidas.
-- [ ] La ruta exige permiso y el servidor no serializa finanzas a roles operativos.
-- [ ] Cancelación queda solo para Administración y permanece auditada.
+- [x] Comentarios se reubican antes de retirar Seleccionar; se retiran mutaciones comerciales no permitidas.
+- [x] La ruta exige permiso y el servidor no serializa finanzas a roles operativos.
+- [x] Cancelación queda solo para Administración y permanece auditada.
 
 **Verificación:** RBAC negativo sobre payload, unitarias, integración y E2E admin/operador.
 **Dependencias:** C4.2.
 
+**Cierre local (Codex, 2026-10-10):** proyecciones positivas para Orden, recursos y sesiones de
+Producción; privilegios por columna reservan snapshot/importes/condición de pago, tarifas/costo
+interno y costo histórico de sesión a servicios autorizados. Las rutas exigen `orden_vista`, el
+documento exige además `ver_finanzas` y cancelar exige `orden_cancelar`. La cola ya no ofrece
+Editar/Procesos/Seleccionar y los comentarios se abren por Orden; la reprogramación operativa
+permanece en Planeación. Evidencia: pgTAP 17/17, unitarias focales 52/52, integración 10/10,
+E2E Producción 2/2, typecheck, lint focal y build del E2E. Migración C4.3 solo local.
+
 ### Checkpoint C4
 
 - [ ] Aceptación nunca se pierde y Orden nunca se duplica.
-- [ ] Operación no recibe campos financieros.
+- [x] Operación no recibe campos financieros.
 - [ ] Cobranza, crédito y documentos de Orden sin regresión.
 
 ## C5 — Acceso operativo
@@ -264,9 +272,9 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Ingreso, selección de trabajo y salida forman un flujo continuo en móvil/tablet.
-- [ ] PIN correcto/incorrecto, rate limit, revocación y expiración conservan seguridad vigente.
-- [ ] No aparecen precios ni rutas administrativas.
+- [x] Ingreso, selección de trabajo y salida forman un flujo continuo en móvil/tablet.
+- [x] PIN correcto/incorrecto, rate limit, revocación y expiración conservan seguridad vigente.
+- [x] No aparecen precios ni rutas administrativas.
 
 **Verificación:** unitarias, integración de sesión y E2E táctil.
 **Dependencias:** C4.3.
@@ -275,12 +283,17 @@ Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un due
 
 **Aceptación**
 
-- [ ] Administración entra sin conocer PIN, con operador, admin real, motivo y expiración auditados.
-- [ ] Banner permanente y salida explícita identifican la delegación.
-- [ ] Toda mutación productiva se rechaza en el MVP.
+- [x] Administración entra sin conocer PIN, con operador, admin real, motivo y expiración auditados.
+- [x] Banner permanente y salida explícita identifican la delegación.
+- [x] Toda mutación productiva se rechaza en el MVP.
 
 **Verificación:** RBAC negativo, expiración/revocación, auditoría y E2E.
 **Dependencias:** C5.1.
+
+**Cierre local C5:** sesión delegada firmada de 15 minutos sin renovación; revalidación de
+administrador/operador; servidor bloquea y audita mutaciones de Órdenes y Producción; navegación
+PIN y delegada verificada en tablet. Gates: 35/35 pruebas focales, prueba mutante efectiva,
+E2E C5 2/2, typecheck, lint focal y build del E2E. Sin migración.
 
 ## C6 — Materiales y costos sin stock
 

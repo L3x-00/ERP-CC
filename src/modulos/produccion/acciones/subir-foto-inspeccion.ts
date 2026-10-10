@@ -20,7 +20,7 @@ import {
   esquemaPrepararFotoInspeccion,
 } from '@/modulos/produccion/validaciones/corridas';
 
-import { obtenerActorProduccion } from './utilidades-acciones';
+import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 type ClienteAdmin = ReturnType<typeof crearClienteSupabaseAdmin>;
 
@@ -29,7 +29,10 @@ async function autorizarFoto(
   admin: ClienteAdmin,
   inspeccionId: string,
 ): Promise<{ actor: UsuarioAutenticado; ordenId: string } | { error: string }> {
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    'subir_foto_inspeccion',
+    inspeccionId,
+  );
   if (!actor) return { error: 'No autorizado' };
   const autorizado = (await can(actor, 'calidad_inspeccionar'))
     || (await can(actor, 'calidad_liberar_primera_pieza'))
@@ -112,7 +115,10 @@ export async function descartarFotoInspeccionAccion(
 ): Promise<RespuestaAccion<null>> {
   const analisis = esquemaDescartarSubida.safeParse(entrada);
   if (!analisis.success) return { exito: false, error: 'Ruta inválida' };
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    'descartar_foto_inspeccion',
+    analisis.data.ruta,
+  );
   if (!actor) return { exito: false, error: 'No autorizado' };
 
   const descartada = await descartarSubidaDirecta(crearClienteSupabaseAdmin(), {

@@ -11,7 +11,7 @@ import {
 import { mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-servicio';
 import { esquemaEstadoCorrida } from '@/modulos/produccion/validaciones/corridas';
 
-import { obtenerActorProduccion } from './utilidades-acciones';
+import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 async function ejecutarCambio(
   accion: 'iniciar' | 'completar' | 'cancelar',
@@ -22,7 +22,10 @@ async function ejecutarCambio(
     return { exito: false, error: resultado.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const actor = await obtenerActorProduccion();
+  const actor = await obtenerActorProduccionParaMutacion(
+    `${accion}_corrida`,
+    resultado.data.corridaId,
+  );
   if (!actor) return { exito: false, error: 'No autorizado' };
 
   const permiso = accion === 'cancelar' ? 'gestionar_produccion' : 'produccion_operar';

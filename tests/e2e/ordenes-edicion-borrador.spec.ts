@@ -25,7 +25,7 @@ function clienteAdmin(): SupabaseClient<Database> | null {
   return url && clave ? createClient<Database>(url, clave, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 }
 
-test.describe('Edición de órdenes en borrador (ORD-05)', () => {
+test.describe('Órdenes inmutables en la cola (CLI-12)', () => {
   test.beforeEach(() => {
     test.skip(
       process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
@@ -33,7 +33,7 @@ test.describe('Edición de órdenes en borrador (ORD-05)', () => {
     );
   });
 
-  test('edita prioridad, fecha y partidas en borrador y bloquea fuera de él', async ({ page }) => {
+  test('retira Editar y Procesos incluso en borrador y conserva acciones de consulta', async ({ page }) => {
     const acceso = credenciales('ADMIN');
     test.skip(!acceso, 'Faltan E2E_CONFIGURACION_ADMIN_EMAIL/PASSWORD.');
     if (!acceso) return;
@@ -83,71 +83,25 @@ test.describe('Edición de órdenes en borrador (ORD-05)', () => {
 
       const fila = page.getByRole('row', { name: new RegExp(folio) });
       await expect(fila).toBeVisible();
-      await fila.getByTestId(`editar-orden-${folio}`).click();
-
-      const dialogo = page.getByRole('dialog', { name: new RegExp(`Editar orden ${folio}`) });
-      await expect(dialogo).toBeVisible();
-      await dialogo.getByLabel('Prioridad').selectOption('alta');
-      await dialogo.getByLabel('Fecha de compromiso').fill('2026-11-20');
-      await dialogo.getByTestId('partida-cantidad-0').fill('5');
-      await dialogo.getByTestId('orden-guardar-edicion').click();
-
-      await expect(dialogo).toBeHidden();
-      const filaActualizada = page.getByRole('row', { name: new RegExp(folio) });
-      await expect(filaActualizada).toContainText('Alta');
-      await expect(filaActualizada).toContainText('0/5');
+      await expect(fila.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: 'Procesos', exact: true })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: /Seleccionar|Quitar selección/u })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: 'Comentarios', exact: true })).toBeVisible();
+      await expect(fila.getByRole('link', { name: 'Abrir', exact: true })).toBeVisible();
 
       const { data: ordenGuardada } = await admin
         .from('ordenes_produccion')
-        .select('prioridad, actualizado_en')
+        .select('prioridad')
         .eq('id', ordenId)
         .single();
-      expect(ordenGuardada?.prioridad).toBe('alta');
-      expect(new Date(ordenGuardada?.actualizado_en ?? 0).getTime()).toBeGreaterThan(0);
+      expect(ordenGuardada?.prioridad).toBe('normal');
 
       const { data: partidas } = await admin
         .from('partidas_orden_produccion')
-        .select('cantidad_solicitada')
+        .select('cantidad_solicitada, procesos')
         .eq('orden_id', ordenId);
-      expect(Number(partidas?.[0]?.cantidad_solicitada)).toBe(5);
-
-      await filaActualizada.getByTestId(`configurar-procesos-${folio}`).click();
-      const ruta = page.getByRole('dialog', { name: new RegExp(`Procesos de ${folio}`) });
-      await expect(ruta).toBeVisible();
-      await ruta.getByRole('button', { name: 'Agregar proceso' }).click();
-      await ruta.getByLabel('Nombre').nth(0).fill('Corte');
-      await ruta.getByLabel('Meta de piezas').nth(0).fill('7');
-      await ruta.getByLabel('Nombre').nth(1).fill('Pulido');
-      await expect(ruta.getByLabel('Meta de piezas').nth(1)).toHaveValue('5');
-      if (process.env.E2E_CAPTURAR_VISUAL === 'si') {
-        await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ord07-escritorio.png' });
-        await page.setViewportSize({ width: 390, height: 844 });
-        await page.evaluate(() => document.documentElement.classList.add('dark'));
-        await page.waitForTimeout(200);
-        await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ord07-movil-oscuro.png' });
-        await page.setViewportSize({ width: 1280, height: 720 });
-        await page.evaluate(() => document.documentElement.classList.remove('dark'));
-      }
-      await ruta.getByRole('button', { name: 'Guardar procesos' }).click();
-      await expect(ruta).toBeHidden();
-
-      const { data: partidaConfigurada } = await admin.from('partidas_orden_produccion')
-        .select('id, procesos').eq('orden_id', ordenId).single();
-      const { data: metas } = await admin.from('metas_proceso_partida')
-        .select('secuencia, nombre, meta_piezas')
-        .eq('partida_id', partidaConfigurada?.id ?? '').order('secuencia');
-      expect(partidaConfigurada?.procesos).toEqual(['Corte', 'Pulido']);
-      expect(metas?.map((meta) => [meta.secuencia, meta.nombre, Number(meta.meta_piezas)]))
-        .toEqual([[1, 'Corte', 7], [2, 'Pulido', 5]]);
-
-      // SII-B5: el estado deja de cambiarse a mano desde la cola; se usa el
-      // puente legacy para programar y verificar el bloqueo de edición.
-      await admin.from('ordenes_produccion').update({ estado: 'programada' }).eq('id', ordenId);
-      await page.reload();
-      const filaProgramada = page.getByRole('row', { name: new RegExp(folio) });
-      await expect(filaProgramada).toContainText('Planificada');
-      await expect(filaProgramada.getByTestId(`editar-orden-${folio}`)).toHaveCount(0);
-      await expect(filaProgramada.getByTestId(`configurar-procesos-${folio}`)).toHaveCount(0);
+      expect(Number(partidas?.[0]?.cantidad_solicitada)).toBe(2);
+      expect(partidas?.[0]?.procesos).toEqual([]);
     } finally {
       await admin.from('ordenes_produccion').delete().eq('id', ordenId);
       await admin.from('clientes').delete().eq('id', cliente.id);

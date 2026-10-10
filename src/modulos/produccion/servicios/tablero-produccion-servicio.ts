@@ -1,22 +1,26 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
-  filaAOrden,
+  COLUMNAS_ORDEN_OPERATIVA,
+  filaAOrdenOperativa,
   filaAPartida,
-  type Orden,
+  type OrdenOperativa,
   type Partida,
 } from '@/modulos/ordenes/tipos/ordenes';
 import {
+  COLUMNAS_RECURSO_PLANEACION_OPERATIVO,
   filaAProgramacionArea,
   filaARecursoPlaneacion,
   type ProgramacionArea,
   type RecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import {
+  COLUMNAS_SESION_TRABAJO_OPERATIVA,
   filaAMetaProcesoPartida,
   filaANotaEntrega,
   filaASesionTrabajo,
   type EstadoKanbanProduccion,
+  type FilaSesionTrabajoOperativa,
   type MetaProcesoPartida,
   type NotaEntrega,
   type SesionTrabajo,
@@ -39,7 +43,7 @@ export interface PartidaTableroProduccion extends Partida {
   metasProceso: MetaProcesoAvance[];
 }
 
-export interface OrdenTableroProduccion extends Orden {
+export interface OrdenTableroProduccion extends OrdenOperativa {
   estadoKanban: EstadoKanbanProduccion;
   partidas: PartidaTableroProduccion[];
   sesiones: SesionTrabajo[];
@@ -89,7 +93,7 @@ export function partidaProduccionCompleta(partida: PartidaTableroProduccion): bo
 
 /** Deriva una columna de UI desde hechos persistidos; no escribe etiquetas en la OP. */
 export function obtenerEstadoKanbanProduccion(
-  orden: Orden,
+  orden: OrdenOperativa,
   partidas: readonly PartidaTableroProduccion[],
   sesiones: readonly SesionTrabajo[],
 ): EstadoKanbanProduccion {
@@ -112,10 +116,11 @@ export function obtenerEstadoKanbanProduccion(
 
 /** PostgREST limita cada respuesta; paginar evita recortar el historial de producción. */
 async function obtenerTodasLasSesiones(cliente: SupabaseClient<Database>) {
-  const sesiones: Database['public']['Tables']['sesiones_trabajo']['Row'][] = [];
+  const sesiones: FilaSesionTrabajoOperativa[] = [];
   const TAMANO_PAGINA = 500;
   for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
-    const { data, error } = await cliente.from('sesiones_trabajo').select('*')
+    const { data, error } = await cliente.from('sesiones_trabajo')
+      .select(COLUMNAS_SESION_TRABAJO_OPERATIVA)
       .order('creado_en').order('id').range(inicio, inicio + TAMANO_PAGINA - 1);
     if (error) throw new Error(`No se pudo cargar el historial de Producción: ${error.message}`);
     sesiones.push(...(data ?? []));
@@ -169,13 +174,21 @@ export async function obtenerDatosTableroProduccionServicio(
     : { data: [], error: null };
 
   const [resultadoOrdenes, resultadoPartidas, resultadoProgramaciones, sesiones, resultadoNotas, resultadoRenglones, resultadoRecursos, resultadoMetas, avancesProceso] = await Promise.all([
-    cliente.from('ordenes_produccion').select('*').neq('estado', 'cancelada').order('fecha_compromiso'),
+    cliente
+      .from('ordenes_produccion')
+      .select(COLUMNAS_ORDEN_OPERATIVA)
+      .neq('estado', 'cancelada')
+      .order('fecha_compromiso'),
     cliente.from('partidas_orden_produccion').select('*').order('creado_en'),
     cliente.from('programacion_areas').select('*').neq('estado_planeacion', 'cancelada').order('secuencia'),
     obtenerTodasLasSesiones(cliente),
     cliente.from('notas_entrega').select('*').order('creado_en', { ascending: false }),
     cliente.from('partidas_nota_entrega').select('*'),
-    cliente.from('recursos_planeacion').select('*').eq('activo', true).order('codigo'),
+    cliente
+      .from('recursos_planeacion')
+      .select(COLUMNAS_RECURSO_PLANEACION_OPERATIVO)
+      .eq('activo', true)
+      .order('codigo'),
     cliente.from('metas_proceso_partida').select('*').order('partida_id').order('secuencia'),
     obtenerAvancesProceso(cliente),
   ]);
@@ -297,7 +310,7 @@ export async function obtenerDatosTableroProduccionServicio(
     notasPorOrden.set(nota.ordenId, actuales);
   }
 
-  const ordenes = (resultadoOrdenes.data ?? []).map(filaAOrden).map((orden) => {
+  const ordenes = (resultadoOrdenes.data ?? []).map(filaAOrdenOperativa).map((orden) => {
     const partidas = partidasPorOrden.get(orden.id) ?? [];
     const sesiones = sesionesPorOrden.get(orden.id) ?? [];
     return {

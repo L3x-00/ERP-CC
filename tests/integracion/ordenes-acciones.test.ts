@@ -40,6 +40,7 @@ vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
 }));
 vi.mock('@/nucleo/autenticacion/obtener-operador-sesion', () => ({
   obtenerOperadorConSesionActiva: () => obtenerOperadorMock(),
+  obtenerOperadorParaMutacion: () => obtenerOperadorMock(),
 }));
 vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
   can: (...args: unknown[]) => canMock(...args),
@@ -161,7 +162,7 @@ describe('seguridad de acciones de órdenes', () => {
 
     expect(respuesta).toEqual({
       exito: false,
-      error: 'Sin permiso para cancelar una orden en proceso',
+      error: 'Sin permiso para cancelar la orden',
     });
     expect(cambiarEstadoMock).not.toHaveBeenCalled();
     expect(registrarLogMock).not.toHaveBeenCalled();

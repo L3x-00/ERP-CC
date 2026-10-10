@@ -1,7 +1,6 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
-import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   generarNotaEntregaServicio,
   mensajeErrorEntrega,
@@ -11,6 +10,7 @@ import { esquemaCrearNotaEntrega } from '@/modulos/produccion/validaciones/indic
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { obtenerActorProduccionParaMutacion } from '@/modulos/produccion/acciones/utilidades-acciones';
 
 export async function generarNotaEntregaAccion(
   entrada: unknown,
@@ -21,7 +21,10 @@ export async function generarNotaEntregaAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const usuario = await obtenerUsuarioServidor();
+  const usuario = await obtenerActorProduccionParaMutacion(
+    'generar_nota_entrega',
+    analisis.data.ordenId,
+  );
   if (!usuario) return { exito: false, error: 'No autorizado' };
   if (!(await can(usuario, 'gestionar_produccion'))) {
     return { exito: false, error: 'Sin permiso para generar notas de entrega' };

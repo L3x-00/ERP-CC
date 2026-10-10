@@ -44,6 +44,46 @@
 
 ## Punto de control 2026-10-09 — observaciones del cliente (trabajo activo; la auditoría B1–B9 sigue en pausa)
 
+### Punto de control 2026-10-10 — C5 completo localmente
+
+- Rama `feature/c5-acceso-operativo`, apilada sobre C4.3/PR #37.
+- C5.1 conserva el acceso PIN existente y presenta un flujo táctil continuo: PIN, selección de
+  trabajo y salida, sin precios ni rutas administrativas.
+- C5.2 permite a Administración abrir durante 15 minutos una vista firmada de un operador sin
+  conocer su PIN. Conserva administrador real, operador, motivo y expiración; muestra banner
+  permanente y salida explícita; no se renueva.
+- La protección es de servidor: acciones de tiempo, avance, consumo, sesiones, corridas, calidad,
+  documentos, notas y demás mutaciones de Producción rechazan y auditan una cookie delegada.
+  Operador y administrador se revalidan; la navegación no puede ocultar una delegación activa y
+  el proxy limpia la cookie al expirar.
+- Cross-review Codex corrigió un HIGH de navegación/cookie y amplió el gate a cargas documentales.
+  La prueba mutante debilitó el gate y falló como se esperaba; restaurado, volvió a verde.
+- Gates: 35/35 pruebas focales, E2E táctil/delegado 2/2, typecheck, lint focal, build del E2E y
+  `git diff --check`. Sin migración.
+- Claude Code fue reintentado para revisión en solo lectura; la sesión
+  `4eadb524-1851-4359-bc40-a5ae2794d473` terminó 429 con cero tokens. No se le atribuye revisión.
+- Siguiente corte: C6 Materiales y costos sin stock formal. Auditoría B1–B9 permanece en pausa.
+
+### Punto de control 2026-10-10 — C4.3 completo localmente
+
+- Rama `feature/c4-3-confidencialidad-ordenes`, apilada sobre C4.2/PR #36.
+- C4.3 elimina Editar/Procesos/Seleccionar/Ajustar de Órdenes y conserva comentarios por Orden;
+  rutas, documentos y cancelación quedan sujetos a `orden_vista`, `ver_finanzas` y
+  `orden_cancelar`, respectivamente.
+- La migración `20261010010303_c4_3_confidencialidad_ordenes.sql`, aplicada solo en Supabase
+  local, retira SELECT completo a `authenticated` y concede listas positivas: Operación no puede
+  leer snapshot/importes/condición de pago, costo/tarifa de recursos ni costo histórico de sesión.
+- Gates locales: pgTAP 17/17, unitarias focales 52/52, integración 10/10, E2E Producción 2/2,
+  typecheck, lint focal y build del E2E. El E2E de Órdenes y Comentarios ya había quedado 2/2 en
+  la misma rama antes del ajuste final de sesiones.
+- Cross-review Codex: se corrigieron dos HIGH (Server Action de documento sin `orden_vista` y
+  costo histórico de sesión expuesto). La prueba mutante de autorización falló 3/3 al debilitar
+  el gate y volvió a verde tras restaurarlo. Claude Code intentó la revisión solo lectura con
+  `claude-opus-5-5`, sesión `29f437a1-2103-4d06-bf62-59f622160c5c`, pero agotó el límite semanal
+  sin entregar informe; no se le atribuye aprobación.
+- Pendiente: push/PR/CI, aplicación remota coordinada después de C4.2, despliegue y aceptación PO.
+  No usar `db push` mientras el historial remoto siga divergido.
+
 Uso semanal al registrar: 90 % (reinicio 2026-10-13 04:00). Rama `feature/observaciones-cliente`.
 
 - **Fusionado a `main` por el PO:**

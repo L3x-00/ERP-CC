@@ -87,6 +87,18 @@ export async function deserializarSesionOperador(
       return null;
     }
 
+    if (sesion.modo !== undefined && sesion.modo !== 'pin' && sesion.modo !== 'delegada') {
+      return null;
+    }
+
+    if (sesionOperadorEsDelegada(sesion)) {
+      const expiracion = new Date(sesion.expiraEn ?? '').getTime();
+      if (!sesion.administradorId || !sesion.nombreAdministrador
+        || !sesion.motivoDelegacion || !Number.isFinite(expiracion)) {
+        return null;
+      }
+    }
+
     return sesion;
   } catch {
     return null;
@@ -97,9 +109,18 @@ export async function deserializarSesionOperador(
  * Verifica si la sesión de operador expiró por inactividad.
  */
 export function sesionOperadorExpirada(sesion: SesionOperador, ahora: Date = new Date()): boolean {
+  if (sesionOperadorEsDelegada(sesion)) {
+    const expiraEn = new Date(sesion.expiraEn ?? '').getTime();
+    return !Number.isFinite(expiraEn) || ahora.getTime() > expiraEn;
+  }
   const ultimaActividad = new Date(sesion.ultimaActividadEn).getTime();
   const limite = ultimaActividad + sesion.timeoutMinutos * 60 * 1000;
   return ahora.getTime() > limite;
+}
+
+/** Las cookies previas a C5 no traen modo y conservan semantica de PIN. */
+export function sesionOperadorEsDelegada(sesion: SesionOperador): boolean {
+  return sesion.modo === 'delegada';
 }
 
 /**

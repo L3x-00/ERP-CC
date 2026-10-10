@@ -30,9 +30,13 @@ const {
 
 vi.mock('@/nucleo/autenticacion/obtener-operador-sesion', () => ({
   obtenerOperadorConSesionActiva: () => obtenerOperadorMock(),
+  obtenerOperadorParaMutacion: () => obtenerOperadorMock(),
 }));
 vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
   obtenerUsuarioServidor: () => obtenerUsuarioMock(),
+}));
+vi.mock('@/modulos/produccion/acciones/utilidades-acciones', () => ({
+  obtenerActorProduccionParaMutacion: () => obtenerUsuarioMock(),
 }));
 vi.mock('@/nucleo/autenticacion/pin-operador', () => ({
   confirmarPinDeOperador: (...argumentos: unknown[]) => confirmarPinOperadorMock(...argumentos),

@@ -11,6 +11,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
+import { obtenerActorProduccionParaMutacion } from '@/modulos/produccion/acciones/utilidades-acciones';
 
 const nombreArchivo = z.string().trim().min(1).max(250);
 const sesionId = z.uuid();
@@ -38,6 +39,12 @@ async function usuarioAutorizado() {
   return usuario;
 }
 
+async function usuarioAutorizadoParaMutacion(accion: string, recursoId: string) {
+  const usuario = await obtenerActorProduccionParaMutacion(accion, recursoId);
+  if (!usuario || !(await can(usuario, 'gestionar_produccion'))) return null;
+  return usuario;
+}
+
 async function sesionAdmiteClase(
   admin: SupabaseClient<Database>, id: string, tipo: ClaseArchivoProduccion,
 ): Promise<boolean> {
@@ -57,7 +64,10 @@ export async function prepararSubidaArchivoSesionAccion(entrada: unknown): Promi
 > {
   const validado = esquemaPreparar.safeParse(entrada);
   if (!validado.success) return { exito: false, error: 'Archivo inválido o mayor a 20 MiB' };
-  const usuario = await usuarioAutorizado();
+  const usuario = await usuarioAutorizadoParaMutacion(
+    'preparar_archivo_sesion',
+    validado.data.sesionId,
+  );
   if (!usuario) return { exito: false, error: 'Sin permiso de Producción' };
   const ext = extension(validado.data.nombre);
   const mimeEsperado = MIME_POR_EXTENSION[ext];
@@ -80,7 +90,10 @@ export async function confirmarArchivoSesionAccion(entrada: unknown): Promise<Re
   const correlationId = nuevoCorrelationId();
   const validado = esquemaConfirmar.safeParse(entrada);
   if (!validado.success) return { exito: false, error: 'Archivo inválido' };
-  const usuario = await usuarioAutorizado();
+  const usuario = await usuarioAutorizadoParaMutacion(
+    'confirmar_archivo_sesion',
+    validado.data.sesionId,
+  );
   if (!usuario) return { exito: false, error: 'Sin permiso de Producción' };
   const prefijo = `${validado.data.sesionId}/${usuario.id}/`;
   const ruta = validado.data.ruta;
@@ -167,7 +180,10 @@ export async function obtenerUrlArchivoSesionAccion(entrada: unknown): Promise<R
 export async function descartarSubidaArchivoSesionAccion(entrada: unknown): Promise<RespuestaAccion<null>> {
   const validado = esquemaDescartar.safeParse(entrada);
   if (!validado.success) return { exito: false, error: 'Ruta inválida' };
-  const usuario = await usuarioAutorizado();
+  const usuario = await usuarioAutorizadoParaMutacion(
+    'descartar_archivo_sesion',
+    validado.data.ruta,
+  );
   if (!usuario) return { exito: false, error: 'Sin permiso de Producción' };
   const partes = validado.data.ruta.split('/');
   if (partes.length !== 3 || partes[1] !== usuario.id || !z.uuid().safeParse(partes[0]).success

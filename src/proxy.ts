@@ -3,7 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { COOKIE_SESION_OPERADOR } from '@/nucleo/autenticacion/constantes';
 import {
   deserializarSesionOperador,
+  sesionOperadorEsDelegada,
   sesionOperadorExpirada,
+  sesionOperadorVencidaAbsoluta,
 } from '@/nucleo/autenticacion/sesion';
 
 /** Rutas públicas: sin autenticación requerida. */
@@ -51,20 +53,40 @@ export async function proxy(request: NextRequest) {
     (ruta) => pathname === ruta || pathname.startsWith(ruta + '/'),
   );
 
-  // Zona de piso: sesión de operador propia (no Supabase Auth).
-  if (pathname.startsWith('/produccion-piso')) {
+  const esRutaPiso = pathname.startsWith('/produccion-piso');
+  const esEntradaProduccion = pathname === '/produccion';
+
+  // La vista delegada permanece en piso hasta que se cierre explícitamente.
+  // Al vencer, se elimina su cookie para no bloquear después la operación admin.
+  if (esRutaPiso || esEntradaProduccion) {
     const valorCookie = request.cookies.get(COOKIE_SESION_OPERADOR)?.value;
     const sesionOperador = valorCookie
       ? await deserializarSesionOperador(valorCookie)
       : null;
+    const sesionInvalida = !sesionOperador || sesionOperadorExpirada(sesionOperador)
+      || sesionOperadorVencidaAbsoluta(sesionOperador);
 
-    if (!sesionOperador || sesionOperadorExpirada(sesionOperador)) {
+    if (esRutaPiso && sesionInvalida) {
       const url = request.nextUrl.clone();
-      url.pathname = '/operador';
-      return NextResponse.redirect(url);
+      url.pathname = sesionOperador && sesionOperadorEsDelegada(sesionOperador)
+        ? '/produccion'
+        : '/operador';
+      const redireccion = NextResponse.redirect(url);
+      if (valorCookie) redireccion.cookies.delete(COOKIE_SESION_OPERADOR);
+      return redireccion;
     }
 
-    return response;
+    if (esEntradaProduccion && sesionOperador && sesionOperadorEsDelegada(sesionOperador)) {
+      if (sesionInvalida) {
+        response.cookies.delete(COOKIE_SESION_OPERADOR);
+      } else {
+        const url = request.nextUrl.clone();
+        url.pathname = '/produccion-piso';
+        return NextResponse.redirect(url);
+      }
+    }
+
+    if (esRutaPiso) return response;
   }
 
   // Autenticado en login → directo al dashboard segmentado.

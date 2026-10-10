@@ -5,7 +5,7 @@ import { registrarTiempoOperadorServicio } from '@/modulos/ordenes/servicios/ord
 import type { RegistroTiempo } from '@/modulos/ordenes/tipos/ordenes';
 import { esquemaRegistrarTiempoOperador } from '@/modulos/ordenes/validaciones/ordenes';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
-import { obtenerOperadorConSesionActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
@@ -22,7 +22,10 @@ export async function registrarTiempoOperadorAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const operador = await obtenerOperadorConSesionActiva();
+  const operador = await obtenerOperadorParaMutacion(
+    'registrar_tiempo_operador',
+    analisis.data.partidaId,
+  );
   if (!operador || analisis.data.operadorId !== operador.id) {
     return { exito: false, error: 'Sesión de operador no válida' };
   }

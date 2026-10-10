@@ -151,7 +151,7 @@ describe('cambiarEstadoOrdenAccion', () => {
     expect(cambiarEstadoMock).not.toHaveBeenCalled();
   });
 
-  it('exige permiso extra al cancelar una orden en proceso', async () => {
+  it('exige orden_cancelar para cualquier cancelacion administrativa', async () => {
     canMock.mockResolvedValue(false);
 
     const respuesta = await cambiarEstadoOrdenAccion({
@@ -163,8 +163,9 @@ describe('cambiarEstadoOrdenAccion', () => {
 
     expect(respuesta).toEqual({
       exito: false,
-      error: 'Sin permiso para cancelar una orden en proceso',
+      error: 'Sin permiso para cancelar la orden',
     });
+    expect(canMock).toHaveBeenCalledWith(USUARIO, 'orden_cancelar');
     expect(cambiarEstadoMock).not.toHaveBeenCalled();
   });
 

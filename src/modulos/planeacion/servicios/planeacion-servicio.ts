@@ -277,7 +277,11 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
 ): Promise<DatosCalendarioPlaneacion> {
   const [programaciones, respuestaRecursos] = await Promise.all([
     obtenerProgramacionesCalendarioServicio(cliente, filtros),
-    cliente.from('recursos_planeacion').select('*').eq('activo', true).order('codigo'),
+    cliente
+      .from('recursos_planeacion')
+      .select('id, codigo, nombre, area, activo, creado_en, actualizado_en')
+      .eq('activo', true)
+      .order('codigo'),
   ]);
 
   if (respuestaRecursos.error) lanzarErrorPlaneacion(respuestaRecursos.error.message);

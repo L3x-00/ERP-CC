@@ -1,20 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 
 import type { FichaOrden as DatosFichaOrden } from '@/modulos/ordenes/tipos/ficha-orden';
 
-const { ajustarMock, refrescarMock } = vi.hoisted(() => ({
-  ajustarMock: vi.fn(),
-  refrescarMock: vi.fn(),
-}));
-
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: refrescarMock, push: vi.fn() }),
-}));
-vi.mock('@/modulos/ordenes/acciones/ajustar-orden-post-aceptacion', () => ({
-  ajustarOrdenPostAceptacionAccion: (...args: unknown[]) => ajustarMock(...args),
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
 }));
 vi.mock('@/modulos/ordenes/acciones/cambiar-estado-orden', () => ({
   cambiarEstadoOrdenAccion: vi.fn(),
@@ -58,54 +50,54 @@ const FICHA: DatosFichaOrden = {
   archivos: [],
 };
 
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
+afterEach(() => cleanup());
 
-describe('ficha de Orden C4.2', () => {
-  it('separa el compromiso comercial de la fecha operativa editable', async () => {
-    ajustarMock.mockResolvedValue({
-      exito: true,
-      datos: { id: FICHA.orden.id, estadoSii: 'PLANIFICADA', actualizadoEn: '2026-10-09T13:00:00.000Z' },
-    });
+describe('ficha de Orden C4.3', () => {
+  it('conserva separadas las fechas y retira el ajuste comercial de la ficha', () => {
     render(createElement(FichaOrden, {
       ficha: FICHA,
       permisos: {
         puedeLiberar: false,
         puedeCerrar: false,
-        puedeAjustar: true,
-        puedeAdministrar: false,
+        puedeCancelar: false,
+        puedeVerFinanzas: false,
       },
     }));
 
     expect(screen.getByText('15 de noviembre de 2026')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('ficha-ajustar'));
+    expect(screen.getByText(/Operativa/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ajustar' })).toBeNull();
+  });
 
-    const dialogo = screen.getByRole('dialog');
-    expect(within(dialogo).getByText('Fecha operativa')).toBeTruthy();
-    expect(within(dialogo).queryByText('Fecha compromiso')).toBeNull();
+  it('no ofrece documento ni totales comerciales a quien carece de ver_finanzas', () => {
+    render(createElement(FichaOrden, {
+      ficha: FICHA,
+      permisos: {
+        puedeLiberar: false,
+        puedeCerrar: false,
+        puedeCancelar: false,
+        puedeVerFinanzas: false,
+      },
+    }));
 
-    fireEvent.change(within(dialogo).getByLabelText('Prioridad'), { target: { value: 'alta' } });
-    fireEvent.change(within(dialogo).getByLabelText('Fecha operativa'), {
-      target: { value: '2026-11-20T10:30' },
-    });
-    fireEvent.change(within(dialogo).getByLabelText('Notas'), {
-      target: { value: 'Programar en turno vespertino' },
-    });
-    fireEvent.change(within(dialogo).getByLabelText('Motivo del ajuste (mínimo 3 caracteres)'), {
-      target: { value: 'Cambio acordado con Planeación' },
-    });
-    fireEvent.click(within(dialogo).getByTestId('ficha-confirmar-ajuste'));
+    expect(screen.queryByRole('tab', { name: 'Documento' })).toBeNull();
+    expect(screen.queryByText('Sin totales comerciales en el snapshot.')).toBeNull();
+    expect(screen.queryByText('Origen (snapshot)')).toBeNull();
+  });
 
-    await waitFor(() => expect(ajustarMock).toHaveBeenCalledTimes(1));
-    const entrada = ajustarMock.mock.calls[0]?.[0] as { cambios: Record<string, unknown> };
-    expect(entrada.cambios).toEqual({
-      prioridad: 'alta',
-      fechaOperativa: expect.any(String),
-      notas: 'Programar en turno vespertino',
-    });
-    expect(entrada.cambios).not.toHaveProperty('fechaCompromiso');
-    expect(refrescarMock).toHaveBeenCalledTimes(1);
+  it('mantiene el documento comercial para una cuenta autorizada', () => {
+    render(createElement(FichaOrden, {
+      ficha: FICHA,
+      permisos: {
+        puedeLiberar: false,
+        puedeCerrar: false,
+        puedeCancelar: false,
+        puedeVerFinanzas: true,
+      },
+    }));
+
+    expect(screen.getByRole('tab', { name: 'Documento' })).toBeTruthy();
+    expect(screen.getByText('Sin totales comerciales en el snapshot.')).toBeTruthy();
+    expect(screen.getByText('Origen (snapshot)')).toBeTruthy();
   });
 });

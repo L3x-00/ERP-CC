@@ -6,8 +6,6 @@ import { useRouter } from 'next/navigation';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
 import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
-import { EditarOrdenDialog } from '@/modulos/ordenes/componentes/editar-orden-dialog';
-import { ConfigurarProcesosDialog } from '@/modulos/ordenes/componentes/configurar-procesos-dialog';
 import { ReactivarOrdenDialog } from '@/modulos/ordenes/componentes/reactivar-orden-dialog';
 import { RepetirOrdenDialog } from '@/modulos/ordenes/componentes/repetir-orden-dialog';
 
@@ -177,6 +175,10 @@ type PropsTablaOrdenes = {
   puedeEliminarTodos?: boolean;
   /** CLI-08/PRD-15: repetir y reactivar son acciones administrativas. */
   puedeAdministrar?: boolean;
+  puedeLiberar?: boolean;
+  puedeCerrar?: boolean;
+  puedeCancelar?: boolean;
+  puedeVerFinanzas?: boolean;
 };
 
 /**
@@ -191,12 +193,14 @@ export function TablaOrdenes({
   usuarioActualId,
   puedeEliminarTodos = false,
   puedeAdministrar = false,
+  puedeLiberar = false,
+  puedeCerrar = false,
+  puedeCancelar = false,
+  puedeVerFinanzas = false,
 }: PropsTablaOrdenes) {
   const router = useRouter();
-  const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
   const filtroMaquina = usarTiendaOrdenes((estado) => estado.filtroMaquina);
   const filtrosEstado = usarTiendaOrdenes((estado) => estado.filtrosEstado);
-  const seleccionarOrden = usarTiendaOrdenes((estado) => estado.seleccionarOrden);
   const establecerFiltroMaquina = usarTiendaOrdenes((estado) => estado.establecerFiltroMaquina);
   const alternarFiltroEstado = usarTiendaOrdenes((estado) => estado.alternarFiltroEstado);
   const limpiarFiltros = usarTiendaOrdenes((estado) => estado.limpiarFiltros);
@@ -205,8 +209,7 @@ export function TablaOrdenes({
   const [mensajeAccion, setMensajeAccion] = useState<string | null>(null);
   const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
   const [ordenCerrando, setOrdenCerrando] = useState<OrdenTabla | null>(null);
-  const [ordenEditando, setOrdenEditando] = useState<OrdenTabla | null>(null);
-  const [ordenConfigurando, setOrdenConfigurando] = useState<OrdenTabla | null>(null);
+  const [ordenComentarios, setOrdenComentarios] = useState<OrdenTabla | null>(null);
   const [ordenAdjuntos, setOrdenAdjuntos] = useState<OrdenTabla | null>(null);
   const [ordenRepitiendo, setOrdenRepitiendo] = useState<OrdenTabla | null>(null);
   const [ordenReactivando, setOrdenReactivando] = useState<OrdenTabla | null>(null);
@@ -223,13 +226,16 @@ export function TablaOrdenes({
   }, []);
 
   useEffect(() => {
-    if (ordenInicialId && enlaceProcesado.current !== ordenInicialId
-      && ordenes.some((orden) => orden.id === ordenInicialId)) {
-      enlaceProcesado.current = ordenInicialId;
+    const ordenEnlazada = ordenInicialId
+      ? ordenes.find((orden) => orden.id === ordenInicialId)
+      : undefined;
+    if (ordenEnlazada && enlaceProcesado.current !== ordenInicialId) {
+      enlaceProcesado.current = ordenEnlazada.id;
       limpiarFiltros();
-      seleccionarOrden(ordenInicialId);
+      setBandeja(ordenEnlazada.archivadaEn ? 'archivo' : 'activas');
+      setOrdenComentarios(ordenEnlazada);
     }
-  }, [ordenInicialId, ordenes, limpiarFiltros, seleccionarOrden]);
+  }, [ordenInicialId, ordenes, limpiarFiltros]);
 
   const maquinas = useMemo(() => {
     const encontradas = new Set<string>();
@@ -257,10 +263,6 @@ export function TablaOrdenes({
       }),
     [ordenes, filtrosEstado, filtroMaquina, bandeja],
   );
-
-  function alSeleccionarOrden(ordenId: string): void {
-    seleccionarOrden(ordenId === ordenActivaId ? null : ordenId);
-  }
 
   function alRefrescar(): void {
     router.refresh();
@@ -493,15 +495,12 @@ export function TablaOrdenes({
             <TablaCuerpo>
               {ordenesVisibles.map((orden) => {
                 const avance = calcularAvance(orden.partidas);
-                const activa = orden.id === ordenActivaId;
                 const dias = diasParaCompromiso(orden.fechaCompromiso);
                 const folioVisible = orden.folioSii ?? orden.folio;
 
                 return (
                   <TablaFila
                     key={orden.id}
-                    seleccionada={activa}
-                    aria-selected={activa}
                     data-testid={`fila-orden-${folioVisible}`}
                   >
                     <th
@@ -579,7 +578,7 @@ export function TablaOrdenes({
                         >
                           Abrir
                         </Link>
-                        {orden.estadoSii === 'PLANIFICADA' && (
+                        {puedeLiberar && orden.estadoSii === 'PLANIFICADA' && (
                           <button
                             type="button"
                             data-testid={`liberar-orden-${folioVisible}`}
@@ -591,7 +590,7 @@ export function TablaOrdenes({
                             {ordenActualizandoId === orden.id ? 'Liberando…' : 'Liberar'}
                           </button>
                         )}
-                        {orden.estadoSii === 'PRODUCCION_COMPLETADA' && puedeAdministrar && (
+                        {orden.estadoSii === 'PRODUCCION_COMPLETADA' && puedeCerrar && (
                           <button
                             type="button"
                             data-testid={`cerrar-administrativa-${folioVisible}`}
@@ -606,22 +605,16 @@ export function TablaOrdenes({
                             Cerrar administrativa
                           </button>
                         )}
-                        {orden.estado === 'borrador' && (
-                          <><button
-                            type="button"
-                            data-testid={`editar-orden-${orden.folio}`}
-                            onClick={() => setOrdenEditando(orden)}
-                            disabled={ordenActualizandoId !== null}
-                            className={CLASE_BOTON_SECUNDARIO}
-                          >
-                            Editar
-                          </button>
-                          <button type="button" className={CLASE_BOTON_SECUNDARIO}
-                            data-testid={`configurar-procesos-${orden.folio}`}
-                            disabled={ordenActualizandoId !== null}
-                            onClick={() => setOrdenConfigurando(orden)}>Procesos</button></>
-                        )}
-                        <DocumentoOrdenBoton ordenId={orden.id} folio={folioVisible} />
+                        <button
+                          type="button"
+                          onClick={() => setOrdenComentarios(orden)}
+                          className={CLASE_BOTON_SECUNDARIO}
+                        >
+                          Comentarios
+                        </button>
+                        {puedeVerFinanzas ? (
+                          <DocumentoOrdenBoton ordenId={orden.id} folio={folioVisible} />
+                        ) : null}
                         {puedeAdministrar
                           && (orden.idHistorico !== null
                             || orden.estadoSii === 'PRODUCCION_COMPLETADA'
@@ -661,7 +654,8 @@ export function TablaOrdenes({
                             Adjuntos
                           </button>
                         )}
-                        {orden.estadoSii !== 'CERRADA'
+                        {puedeCancelar
+                          && orden.estadoSii !== 'CERRADA'
                           && orden.estadoSii !== 'CANCELADA'
                           && orden.estadoSii !== 'PRODUCCION_COMPLETADA' && (
                           <button
@@ -674,14 +668,6 @@ export function TablaOrdenes({
                             Cancelar
                           </button>
                         )}
-                        <button
-                          type="button"
-                          aria-pressed={activa}
-                          onClick={() => alSeleccionarOrden(orden.id)}
-                          className={CLASE_BOTON_SECUNDARIO}
-                        >
-                          {activa ? 'Quitar selección' : 'Seleccionar'}
-                        </button>
                       </div>
                     </TablaCelda>
                   </TablaFila>
@@ -703,38 +689,37 @@ export function TablaOrdenes({
         </p>
       )}
 
-      {ordenActivaId && ordenes.some((orden) => orden.id === ordenActivaId) && (
-        <div className="rounded-base border border-borde p-4">
-          <HiloComentarios
-            entidadTipo="orden"
-            entidadId={ordenActivaId}
-            usuarioActualId={usuarioActualId}
-            puedeEliminarTodos={puedeEliminarTodos}
-            titulo={`Comentarios de ${ordenes.find((orden) => orden.id === ordenActivaId)?.folioSii
-              ?? ordenes.find((orden) => orden.id === ordenActivaId)?.folio ?? 'la orden'}`}
-          />
-        </div>
-      )}
-
       <p aria-live="polite" className="text-sm text-texto-secundario">
         {ordenesVisibles.length} de {ordenes.length} orden(es)
       </p>
 
-      {ordenEditando ? (
-        <EditarOrdenDialog
-          key={`editar-orden-${ordenEditando.id}-${ordenEditando.actualizadoEn}`}
-          orden={ordenEditando}
-          onCerrar={() => setOrdenEditando(null)}
-          onGuardado={alRefrescar}
-        />
-      ) : null}
-
-      {ordenConfigurando ? <ConfigurarProcesosDialog
-        key={`procesos-${ordenConfigurando.id}-${ordenConfigurando.actualizadoEn}`}
-        orden={ordenConfigurando}
-        onCerrar={() => setOrdenConfigurando(null)}
-        onGuardado={alRefrescar}
-      /> : null}
+      <Dialog
+        open={ordenComentarios !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setOrdenComentarios(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Comentarios de {ordenComentarios?.folioSii ?? ordenComentarios?.folio ?? 'la orden'}
+            </DialogTitle>
+            <DialogDescription>
+              Seguimiento interno vinculado exclusivamente a esta orden.
+            </DialogDescription>
+          </DialogHeader>
+          {ordenComentarios ? (
+            <HiloComentarios
+              key={ordenComentarios.id}
+              entidadTipo="orden"
+              entidadId={ordenComentarios.id}
+              usuarioActualId={usuarioActualId}
+              puedeEliminarTodos={puedeEliminarTodos}
+              titulo={`Comentarios de ${ordenComentarios.folioSii ?? ordenComentarios.folio}`}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {ordenAdjuntos ? (
         <AdjuntosOrdenDialog
