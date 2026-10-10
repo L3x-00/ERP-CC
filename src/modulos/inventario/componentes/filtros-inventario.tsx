@@ -3,22 +3,14 @@
 import { useEffect, useState } from 'react';
 import { usarInventarioTienda } from '@/estado/inventario-tienda';
 import { Input, Select } from '@/compartido/componentes/ui/input';
-import { Button } from '@/compartido/componentes/ui/button';
 import type { CategoriaMaterial } from '@/modulos/inventario/tipos/inventario';
 import { ETIQUETA_CATEGORIA } from '@/modulos/inventario/utilidades/indice';
 
-/**
- * Barra de filtros del catálogo: buscador por código/nombre, filtro por categoría
- * y switch para ver solo materiales en alerta de stock mínimo. Lee/escribe la
- * tienda Zustand de inventario. Incluye el disparador de "Nuevo material".
- */
+/** Filtros de solo lectura para las existencias conservadas del inventario legado. */
 export function FiltrosInventario() {
   const categoria = usarInventarioTienda((e) => e.categoria);
-  const soloAlerta = usarInventarioTienda((e) => e.soloAlerta);
   const setBusqueda = usarInventarioTienda((e) => e.setBusqueda);
   const setCategoria = usarInventarioTienda((e) => e.setCategoria);
-  const setSoloAlerta = usarInventarioTienda((e) => e.setSoloAlerta);
-  const abrirModal = usarInventarioTienda((e) => e.abrirModal);
 
   // Buscador con debounce: el texto se mantiene local y se vuelca a la tienda
   // (que dispara la consulta) 300 ms después de la última tecla.
@@ -29,22 +21,26 @@ export function FiltrosInventario() {
   }, [texto, setBusqueda]);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm font-medium text-texto-primario">
+        Buscar material histórico
         <Input
           type="search"
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Buscar por código o nombre…"
-          className="w-64"
+          className="w-full"
           aria-label="Buscar material"
         />
+      </label>
+      <label className="flex flex-col gap-1 text-sm font-medium text-texto-primario">
+        Categoría
         <Select
           value={categoria ?? ''}
           onChange={(e) =>
             setCategoria(e.target.value ? (e.target.value as CategoriaMaterial) : null)
           }
-          className="w-auto"
+          className="w-full sm:w-auto"
           aria-label="Filtrar por categoría"
         >
           <option value="">Todas las categorías</option>
@@ -54,17 +50,7 @@ export function FiltrosInventario() {
             </option>
           ))}
         </Select>
-        <label className="flex items-center gap-2 text-sm text-texto-secundario">
-          <input
-            type="checkbox"
-            checked={soloAlerta}
-            onChange={(e) => setSoloAlerta(e.target.checked)}
-            className="h-4 w-4 accent-acento"
-          />
-          Solo alerta de stock
-        </label>
-      </div>
-      <Button onClick={() => abrirModal('crear-material')}>Nuevo material</Button>
+      </label>
     </div>
   );
 }

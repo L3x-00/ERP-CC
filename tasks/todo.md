@@ -329,12 +329,21 @@ E2E focal 8/8, typecheck, lint y build. C6.3 permanece separado.
 
 **Aceptación**
 
-- [ ] Navegación diaria usa “Materiales y costos”; no ofrece stock/entradas/salidas/reservas.
-- [ ] Movimientos, existencias y kardex previos siguen consultables en solo lectura.
-- [ ] Ninguna tabla ni historia se elimina.
+- [x] Navegación diaria usa “Materiales y costos”; no ofrece stock/entradas/salidas/reservas.
+- [x] Movimientos, existencias y kardex previos siguen consultables en solo lectura.
+- [x] Ninguna tabla ni historia se elimina.
 
 **Verificación:** RBAC, consultas históricas, E2E de navegación y reconciliación.
 **Dependencias:** C6.2.
+
+**Cierre local C6.3:** `/inventario` conserva su ruta y pasa a “Materiales y costos”. Costos es la
+vista principal; existencias y kardex legados quedan identificados como históricos y solo lectura,
+sin semáforos ni disparadores de altas, entradas o salidas. Las tres Server Actions legadas rechazan
+en servidor y auditan intentos autorizados. Migración mínima `20261011120000` reemplaza las
+políticas `USING (true)` de `materiales` y `reservas_material` por RBAC de
+`gestionar_inventario`/admin (pgTAP focal 9/9), sin borrar tablas ni datos. Gates: focales,
+unitarias, pgTAP global, integración C6, E2E navegación en cuatro anchos y dos temas, typecheck,
+lint y build.
 
 ## C7 — Cierre
 

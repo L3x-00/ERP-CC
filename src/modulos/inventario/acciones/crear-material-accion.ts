@@ -1,19 +1,14 @@
 'use server';
 
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
-import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { esquemaCrearMaterial } from '@/modulos/inventario/validaciones/inventario';
-import { crearMaterialServicio } from '@/modulos/inventario/servicios/inventario-servicio';
 import { puedeGestionarInventario } from '@/modulos/inventario/servicios/permiso-inventario';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 /**
- * Server Action: crea un material del catálogo.
- *
- * Patrón: 'use server' → Zod safeParse → `can` (configuración/aprobar_ordenes)
- * → servicio → `registrarLog`. Errores al cliente siempre genéricos; la causa
- * real se loguea internamente. Nunca lanza al cliente.
+ * Compatibilidad del inventario legado. Desde C6.3 rechaza nuevas altas y deja
+ * una traza cuando un usuario autorizado intenta usar un cliente antiguo.
  */
 export async function crearMaterialAccion(
   entrada: unknown,
@@ -33,16 +28,13 @@ export async function crearMaterialAccion(
     return { exito: false, error: 'Sin permiso para gestionar materiales' };
   }
 
-  const admin = crearClienteSupabaseAdmin();
-
-  try {
-    const material = await crearMaterialServicio(admin, analisis.data);
-    await registrarLog(usuario, 'crear', 'inventario', material.id, {
-      codigo: material.codigo,
-    }, correlationId);
-    return { exito: true, datos: { id: material.id } };
-  } catch (error) {
-    console.error('[INVENTARIO] Error al crear material:', error);
-    return { exito: false, error: 'No se pudo crear el material' };
-  }
+  await registrarLog(
+    usuario,
+    'operacion_inventario_retirada',
+    'inventario',
+    analisis.data.codigo,
+    { operacion: 'crear_material' },
+    correlationId,
+  );
+  return { exito: false, error: 'El inventario legado está disponible solo para consulta' };
 }
