@@ -148,6 +148,7 @@ export function FichaPropuesta({
           key={revisionActiva.id}
           detalle={detalle}
           revision={revisionActiva}
+          catalogos={catalogosDatos}
           permisos={permisos}
         />
       )}

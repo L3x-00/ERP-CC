@@ -160,7 +160,8 @@ export function PanelAccionesRfq({
           <DialogHeader>
             <DialogTitle>Marcar listo para propuesta</DialogTitle>
             <DialogDescription>
-              El servidor revalida estos requisitos al confirmar; si algo falta, la acción se rechaza.
+              El servidor revalida estos requisitos al confirmar; si algo falta, la acción se
+              rechaza. La próxima acción es obligatoria: se guarda en la misma operación.
             </DialogDescription>
           </DialogHeader>
 

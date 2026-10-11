@@ -351,8 +351,13 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: 'Guardar costos' }).click();
       await expect(page.getByRole('status')).toContainText('Costos guardados.');
 
-      // 4. Validar (la revisión queda lista para enviar).
+      // 4. Validar: obs. cliente 2026-10-11 — modal obligatorio de próxima acción.
       await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
+      const dialogoValidar = page.getByTestId('dialogo-seguimiento-propuesta');
+      await expect(dialogoValidar).toBeVisible();
+      await capturar(page, 'dialogo-validar-seguimiento');
+      await dialogoValidar.getByRole('button', { name: 'Registrar y validar' }).click();
+      await expect(ficha.getByTestId('validacion-resultado')).toContainText('Propuesta validada');
       await expect
         .poll(async () => {
           const { data } = await admin
@@ -363,6 +368,14 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
           return data?.estado;
         })
         .toBe('READY_TO_SEND');
+      // La próxima acción quedó registrada al validar (obligatoria en el flujo).
+      const seguimientoValidado = await admin
+        .from('propuesta_revision_acciones')
+        .select('id, codigo')
+        .eq('revision_id', revisionA.data.id)
+        .eq('codigo', 'FOLLOW_UP');
+      expect(seguimientoValidado.error).toBeNull();
+      expect(seguimientoValidado.data?.length ?? 0).toBeGreaterThan(0);
 
       // 5. Generar PDF y verlo en la pestaña PDFs.
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
@@ -373,12 +386,20 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('tab', { name: 'PDFs' }).click();
       await expect(page.getByTestId('panel-pdfs-propuesta')).toContainText('vigente');
 
-      // 6. Seguimiento: próxima acción obligatoria para enviar.
+      // 6. Seguimiento posterior en modal (obs. cliente: captura en modal).
       await page.getByRole('tab', { name: 'Seguimiento' }).click();
-      await page.getByLabel('Acción de seguimiento').selectOption('FOLLOW_UP');
-      await page.getByLabel('Fecha de la próxima acción').fill('2026-11-15');
-      await page.getByRole('button', { name: 'Registrar seguimiento' }).click();
-      await expect(page.getByRole('status')).toContainText('Seguimiento registrado.');
+      await page.getByTestId('abrir-registrar-seguimiento').click();
+      const dialogoSeguimiento = page.getByTestId('dialogo-seguimiento-propuesta');
+      await expect(dialogoSeguimiento).toBeVisible();
+      await dialogoSeguimiento
+        .getByLabel('Fecha de la próxima acción')
+        .fill(new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10));
+      await dialogoSeguimiento
+        .getByRole('button', { name: 'Registrar seguimiento' })
+        .click();
+      await expect(
+        page.getByTestId('panel-seguimiento-propuesta').getByRole('status'),
+      ).toContainText('Seguimiento registrado.');
 
       // 7. Enviar con canal y destino (congela atómicamente).
       await ficha.getByRole('button', { name: 'Enviar', exact: true }).first().click();

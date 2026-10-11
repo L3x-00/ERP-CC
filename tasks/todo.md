@@ -366,6 +366,16 @@ archivos), **pgTAP 1437/1437**, **integración 266/266**, **concurrencia 12/12**
 de `procesar_solicitud_orden`, conversión de moneda del costeo). Remoto, CI, despliegue y
 aceptación del cliente siguen fuera de este cierre local.
 
+## Ajustes post-cierre 2026-10-11 — Seguimiento en modal (autorizado por el PO)
+
+- [x] **Propuesta:** «Validar» abre un modal obligatorio de próxima acción; el servidor registra
+  el seguimiento y valida con token CAS fresco, sin duplicar en reintentos. La pestaña Seguimiento
+  conserva el historial y captura con el mismo modal.
+- [x] **RFQ:** el modal de «Marcar listo» ya exigía la próxima acción; se refuerza el texto de
+  obligatoriedad. Transiciones no terminales siguen pidiéndola en su modal.
+- Evidencia: unitarias de la acción combinada (7) y del modal (5), E2E de Propuestas y RFQ verdes,
+  captura `dialogo-validar-seguimiento` 1440/768 claro/oscuro.
+
 ## Ajustes post-cierre 2026-10-10 — Propuesta e inventario ligero (autorizados por el PO)
 
 - [x] **Propuesta (obs. #8):** el encabezado de la ficha usa «Crear nueva versión» en lugar de
