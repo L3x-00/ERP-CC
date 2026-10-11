@@ -367,6 +367,9 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       // 5. Generar PDF y verlo en la pestaña PDFs.
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
       await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
+      // Obs. PO: el resultado de «Generar PDF» debe ser visible y abrible.
+      await expect(ficha.getByTestId('pdf-resultado')).toContainText('PDF generado (v1).');
+      await expect(ficha.getByRole('button', { name: 'Ver PDF' })).toBeVisible();
       await page.getByRole('tab', { name: 'PDFs' }).click();
       await expect(page.getByTestId('panel-pdfs-propuesta')).toContainText('vigente');
 

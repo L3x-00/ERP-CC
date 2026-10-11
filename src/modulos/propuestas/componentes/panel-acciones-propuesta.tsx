@@ -12,6 +12,7 @@ import { PanelOrdenPendiente } from '@/modulos/propuestas/componentes/panel-orde
 import { cerrarPropuestaAccion } from '@/modulos/propuestas/acciones/cerrar-propuesta';
 import { confirmarVentaAccion } from '@/modulos/propuestas/acciones/confirmar-venta';
 import { enviarRevisionAccion } from '@/modulos/propuestas/acciones/enviar-revision';
+import { firmarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
 import { generarPdfRevisionAccion } from '@/modulos/propuestas/acciones/generar-pdf-revision';
 import { rechazarPropuestaAccion } from '@/modulos/propuestas/acciones/rechazar-propuesta';
 import { validarRevisionAccion } from '@/modulos/propuestas/acciones/validar-revision';
@@ -41,6 +42,10 @@ export function PanelAccionesPropuesta({
   const queryClient = useQueryClient();
   const [formulario, setFormulario] = useState<Formulario>('ninguno');
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [exito, setExito] = useState<string | null>(null);
+  const [pdfGenerado, setPdfGenerado] = useState<{ archivoId: string; version: number } | null>(
+    null,
+  );
   const [procesando, setProcesando] = useState(false);
   const [canal, setCanal] = useState('correo');
   const [destino, setDestino] = useState('');
@@ -63,16 +68,77 @@ export function PanelAccionesPropuesta({
   async function ejecutar(accion: () => Promise<{ exito: boolean; error?: string }>): Promise<void> {
     setProcesando(true);
     setMensaje(null);
-    const respuesta = await accion();
-    setProcesando(false);
-    if (!respuesta.exito) {
-      setMensaje(respuesta.error ?? 'No se pudo completar la acción');
-      return;
+    setExito(null);
+    try {
+      const respuesta = await accion();
+      if (!respuesta.exito) {
+        setMensaje(respuesta.error ?? 'No se pudo completar la acción');
+        return;
+      }
+      setFormulario('ninguno');
+      setMotivo('');
+      setDestino('');
+      await refrescar();
+    } catch {
+      setMensaje('No se pudo completar la acción. Revisa la conexión e inténtalo de nuevo.');
+    } finally {
+      setProcesando(false);
     }
-    setFormulario('ninguno');
-    setMotivo('');
-    setDestino('');
-    await refrescar();
+  }
+
+  /**
+   * Genera (o regenera) el PDF de la revisión y deja un resultado visible:
+   * antes, una regeneración idempotente no cambiaba nada en pantalla y parecía
+   * que el botón «no hacía nada» (obs. Product Owner 2026-10-11).
+   */
+  async function generarPdf(): Promise<void> {
+    setProcesando(true);
+    setMensaje(null);
+    setExito(null);
+    setPdfGenerado(null);
+    try {
+      const respuesta = await generarPdfRevisionAccion({ revisionId: revision.id });
+      if (!respuesta.exito) {
+        setMensaje(respuesta.error);
+        return;
+      }
+      const datos = respuesta.datos;
+      if (datos) {
+        setPdfGenerado({ archivoId: datos.archivoId, version: datos.version });
+        setExito(
+          datos.yaExistia
+            ? `El PDF de esta versión ya existía (v${datos.version}), sin cambios de contenido.`
+            : `PDF generado (v${datos.version}).`,
+        );
+      }
+      await refrescar();
+    } catch {
+      setMensaje('No se pudo generar el PDF. Revisa la conexión e inténtalo de nuevo.');
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  /** Abre con URL firmada el PDF recién generado (buckets privados). */
+  async function verPdfGenerado(archivoId: string): Promise<void> {
+    setMensaje(null);
+    try {
+      const respuesta = await firmarArchivoPropuestaAccion({
+        propuestaId: detalle.propuesta.id,
+        archivoId,
+      });
+      if (!respuesta.exito) {
+        setMensaje(respuesta.error);
+        return;
+      }
+      if (!respuesta.datos) {
+        setMensaje('No se pudo abrir el PDF');
+        return;
+      }
+      window.open(respuesta.datos.url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setMensaje('No se pudo abrir el PDF');
+    }
   }
 
   return (
@@ -109,7 +175,7 @@ export function PanelAccionesPropuesta({
           <Button
             tamano="sm"
             variante="contorno"
-            onClick={() => void ejecutar(() => generarPdfRevisionAccion({ revisionId: revision.id }))}
+            onClick={() => void generarPdf()}
             disabled={procesando}
           >
             {pdfVigente ? 'Regenerar PDF' : 'Generar PDF'}
@@ -283,6 +349,27 @@ export function PanelAccionesPropuesta({
       {pdfVigente && (
         <p className="text-xs text-texto-secundario">
           PDF vigente v{pdfVigente.version} · {formatearFecha(pdfVigente.creadoEn)}
+        </p>
+      )}
+
+      {exito !== null && (
+        // aria-live sin role=status: el mensaje se anuncia sin colisionar con
+        // los status de otros paneles que las pruebas ya monitorean.
+        <p
+          data-testid="pdf-resultado"
+          aria-live="polite"
+          className="text-sm font-medium text-exito-texto"
+        >
+          {exito}{' '}
+          {pdfGenerado && (
+            <button
+              type="button"
+              onClick={() => void verPdfGenerado(pdfGenerado.archivoId)}
+              className="font-semibold text-acento underline-offset-2 hover:underline"
+            >
+              Ver PDF
+            </button>
+          )}
         </p>
       )}
 

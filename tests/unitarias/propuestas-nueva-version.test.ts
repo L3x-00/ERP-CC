@@ -71,12 +71,21 @@ describe('BotonNuevaVersionPropuesta (obs. cliente)', () => {
     expect(screen.queryByTestId('boton-crear-nueva-version')).toBeNull();
   });
 
-  it('en borrador queda deshabilitado con explicación', () => {
+  it('en borrador no se muestra: esa versión se edita directamente', () => {
     montar({ estado: 'DRAFT' });
 
+    expect(screen.queryByTestId('boton-crear-nueva-version')).toBeNull();
+  });
+
+  it('en «Listo para enviar» está habilitado y anuncia la versión siguiente', async () => {
+    montar({ estado: 'READY_TO_SEND' });
+
     const boton = screen.getByTestId('boton-crear-nueva-version') as HTMLButtonElement;
-    expect(boton.disabled).toBe(true);
-    expect(boton.getAttribute('title')).toContain('Edita esta versión');
+    expect(boton.disabled).toBe(false);
+
+    fireEvent.click(boton);
+    const dialogo = await screen.findByTestId('dialogo-nueva-version');
+    expect(dialogo.textContent).toContain('versión B');
   });
 
   it('crea la versión con motivo y avisa la nueva revisión', async () => {
