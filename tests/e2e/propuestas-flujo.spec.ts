@@ -219,6 +219,22 @@ async function limpiarContexto(contexto: Contexto): Promise<void> {
       'entidad_id',
       (revisiones ?? []).map((revision) => revision.id),
     );
+    // La Orden creada automáticamente al aceptar debe retirarse antes de borrar
+    // la propuesta (FK sin cascada desde `ordenes_produccion`).
+    if (idsRevisiones.length > 0) {
+      const { data: ordenes } = await admin
+        .from('ordenes_produccion')
+        .select('id')
+        .in('propuesta_revision_id', idsRevisiones);
+      const idsOrdenes = (ordenes ?? []).map((orden) => orden.id);
+      if (idsOrdenes.length > 0) {
+        await admin.from('cuentas_por_cobrar').delete().in('orden_id', idsOrdenes);
+        await admin.from('sesiones_trabajo').delete().in('orden_id', idsOrdenes);
+        await admin.from('programacion_areas').delete().in('orden_id', idsOrdenes);
+        await admin.from('orden_eventos_cambio').delete().in('orden_id', idsOrdenes);
+        await admin.from('ordenes_produccion').delete().in('id', idsOrdenes);
+      }
+    }
     await admin.from('propuestas').delete().eq('id', contexto.propuestaId);
   }
   await admin.from('pipeline').delete().eq('id', contexto.rfqId);
@@ -325,6 +341,11 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByRole('status')).toContainText('IT01');
 
       await page.getByRole('tab', { name: 'Ruteo/Costeo' }).click();
+      // Obs. cliente: etiquetas visibles del ruteo y desglose de fabricación.
+      await expect(page.getByText('Preparación (h)').first()).toBeVisible();
+      await expect(page.getByText('Operación (h)').first()).toBeVisible();
+      await expect(page.getByText('Costo total estimado de fabricación')).toBeVisible();
+      await capturar(page, 'ruteo-etiquetas-costeo');
       await page.getByLabel('Costo Material').fill('400');
       await page.getByLabel('Costo Máquina').fill('100');
       await page.getByRole('button', { name: 'Guardar costos' }).click();
@@ -388,11 +409,20 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       await capturar(page, 'ficha-enviada');
 
-      // 8. Nueva revisión B con motivo.
+      // 8. Nueva versión B con motivo (CTA del encabezado, obs. cliente).
       await page.getByRole('button', { name: /^A · Enviada/ }).click();
-      await ficha.getByRole('button', { name: 'Nueva revisión', exact: true }).first().click();
-      await page.getByLabel('Motivo').fill('El cliente pidió ajustar precios');
-      await page.getByRole('button', { name: 'Crear revisión' }).click();
+      await page.getByRole('tab', { name: 'Resumen' }).click();
+      const historial = page.getByTestId('historial-versiones-propuesta');
+      await expect(historial).toContainText('Historial de versiones');
+      await expect(historial).toContainText(revisionA.data.folio_revision);
+      const dialogoVersion = page.getByTestId('dialogo-nueva-version');
+      await page.getByTestId('boton-crear-nueva-version').click();
+      await expect(dialogoVersion).toBeVisible();
+      await capturar(page, 'dialogo-nueva-version');
+      await dialogoVersion
+        .getByLabel('Motivo de la nueva versión')
+        .fill('El cliente pidió ajustar precios');
+      await dialogoVersion.getByRole('button', { name: 'Crear versión' }).click();
       await expect
         .poll(async () => {
           const { data } = await admin
@@ -483,17 +513,21 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         })
         .toBe(revisionA.data.id);
 
-      // C4.1: la aceptación deja una solicitud de Orden visible como «Orden pendiente».
-      await expect(page.getByTestId('propuesta-orden-pendiente')).toBeVisible();
+      // C4.1/DC-09 + observación del cliente: la aceptación deja una solicitud
+      // durable y, con permiso de liberar, la Orden nace de inmediato.
+      await expect(page.getByTestId('propuesta-orden-creada')).toBeVisible();
       const solicitud = await admin
         .from('solicitudes_orden')
-        .select('estado')
+        .select('estado, orden_id')
         .eq('revision_id', revisionA.data.id)
         .single();
-      expect(solicitud.data?.estado).toBe('PENDING');
-
-      // 10. Confirmar venta (SALE_CONFIRMED habilita la orden en B5).
-      await page.getByRole('button', { name: 'Confirmar venta' }).click();
+      expect(solicitud.data?.estado).toBe('CREATED');
+      const ordenCreada = await admin
+        .from('ordenes_produccion')
+        .select('id, folio, folio_sii')
+        .eq('propuesta_revision_id', revisionA.data.id)
+        .single();
+      expect(ordenCreada.error).toBeNull();
       await expect
         .poll(async () => {
           const { data } = await admin
@@ -505,7 +539,11 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         })
         .toBe('SALE_CONFIRMED');
 
-      await capturar(page, 'ficha-venta-confirmada');
+      // 10. La propuesta aceptada ya aparece en Órdenes sin capturar de nuevo.
+      await capturar(page, 'ficha-orden-creada');
+      await page.goto('/ordenes');
+      const folioOrden = ordenCreada.data!.folio_sii ?? ordenCreada.data!.folio;
+      await expect(page.getByTestId(`fila-orden-${folioOrden}`)).toBeVisible();
     } finally {
       await limpiarContexto(contexto);
     }

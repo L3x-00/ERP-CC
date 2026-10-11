@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
@@ -57,6 +57,7 @@ vi.mock('@/modulos/rfq/acciones/obtener-rfq', () => ({
 }));
 vi.mock('@/modulos/rfq/acciones/obtener-catalogos', () => ({
   obtenerCatalogosRfqAccion: (...args: unknown[]) => obtenerCatalogosMock(...args),
+  obtenerContactosClienteRfqAccion: vi.fn().mockResolvedValue({ exito: true, datos: [] }),
 }));
 vi.mock('@/modulos/rfq/acciones/archivos-rfq', () => ({
   listarArchivosRfqAccion: (...args: unknown[]) => listarArchivosMock(...args),
@@ -234,6 +235,40 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     expect(empujarRutaMock).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Continuar con archivos' })).toBeDefined();
   });
+
+  it('captura Canal y datos del Resumen dentro del mismo modal (obs. cliente)', async () => {
+    obtenerCatalogosMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        materiales: [],
+        espesores: [],
+        procesos: [],
+        canales: [{ codigo: 'WHATSAPP', nombre: 'WhatsApp', esOtro: false, activo: true }],
+        proximasAcciones: [],
+        usuarios: [{ id: 'u-1', nombre: 'Ana Admin', rol: 'admin' }],
+      },
+    });
+    render(envolver(createElement(ColaRfq)));
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
+
+    fireEvent.change(screen.getByLabelText('Nombre del contacto'), {
+      target: { value: 'Ana Pérez' },
+    });
+    fireEvent.change(screen.getByLabelText('Empresa'), { target: { value: 'Metanor' } });
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'WhatsApp' })).toBeDefined(),
+    );
+    fireEvent.change(screen.getByLabelText('Canal'), { target: { value: 'WHATSAPP' } });
+    fireEvent.change(screen.getByLabelText('Descripción general'), {
+      target: { value: 'Corte láser' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+
+    expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
+    expect(crearProspectoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ canal: 'WHATSAPP', descripcionGeneral: 'Corte láser' }),
+    );
+  });
 });
 
 describe('TablaOportunidades — reanudación de captura (DC-03)', () => {
@@ -257,14 +292,14 @@ describe('TablaOportunidades — reanudación de captura (DC-03)', () => {
     expect(screen.queryByRole('link', { name: 'Continuar captura' })).toBeNull();
   });
 
-  it('un RFQ CONVERTED ya no ofrece Historial (la propuesta está creada)', () => {
+  it('un RFQ CONVERTED conserva Historial para consultar sus versiones (solo lectura)', () => {
     render(
       createElement(TablaOportunidades, {
         oportunidades: [{ ...OPORTUNIDAD, estadoRfq: 'CONVERTED' }],
       }),
     );
 
-    expect(screen.queryByRole('button', { name: 'Historial' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Historial' })).toBeDefined();
     expect(screen.getByRole('link', { name: 'Abrir' })).toBeDefined();
   });
 });

@@ -10,29 +10,16 @@ import type { Material } from '@/modulos/inventario/tipos/inventario';
 afterEach(() => cleanup());
 
 // --- Mocks de dependencias de datos ------------------------------------------
-const { materialesMock, registrarSalidaMock } = vi.hoisted(() => ({
-  materialesMock: vi.fn(),
+const { registrarSalidaMock } = vi.hoisted(() => ({
   registrarSalidaMock: vi.fn(),
 }));
 
-vi.mock('@/modulos/inventario/hooks/usar-materiales', () => ({
-  usarMateriales: () => materialesMock(),
-}));
 // Las Server Actions importan módulos de servidor: se mockean.
-vi.mock('@/modulos/inventario/acciones/crear-material-accion', () => ({
-  crearMaterialAccion: vi.fn(),
-}));
-vi.mock('@/modulos/inventario/acciones/registrar-entrada-accion', () => ({
-  registrarEntradaAccion: vi.fn(),
-}));
 vi.mock('@/modulos/inventario/acciones/registrar-salida-accion', () => ({
   registrarSalidaAccion: (...args: unknown[]) => registrarSalidaMock(...args),
 }));
 
-import { TablaMateriales } from '@/modulos/inventario/componentes/tabla-materiales';
-import { FiltrosInventario } from '@/modulos/inventario/componentes/filtros-inventario';
 import { FormularioSalida } from '@/modulos/inventario/componentes/modal-registrar-salida';
-import { usarInventarioTienda } from '@/estado/inventario-tienda';
 
 function material(sobre: Partial<Material>): Material {
   return {
@@ -63,60 +50,7 @@ function conProvider(cliente: QueryClient) {
   };
 }
 
-describe('TablaMateriales', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    usarInventarioTienda.setState({ busqueda: '', categoria: null, soloAlerta: false, orden: 'nombre' });
-  });
-
-  it('renderiza los materiales con sus datos', () => {
-    materialesMock.mockReturnValue({
-      data: {
-        registros: [material({ id: 'm1', codigo: 'AC-1', nombre: 'Acero' })],
-        total: 1,
-      },
-      isLoading: false,
-      isError: false,
-    });
-
-    render(createElement(TablaMateriales));
-
-    expect(screen.getByText('AC-1')).toBeTruthy();
-    expect(screen.getByText('Acero')).toBeTruthy();
-  });
-
-  it('muestra existencias legadas en solo lectura sin semáforos ni acciones de stock', () => {
-    materialesMock.mockReturnValue({
-      data: {
-        registros: [
-          material({ id: 'm1', codigo: 'AC-1', nombre: 'Normal', stockActualControl: 100, stockMinimoControl: 10 }),
-          material({ id: 'm2', codigo: 'AC-2', nombre: 'Bajo', stockActualControl: 5, stockMinimoControl: 10 }),
-        ],
-        total: 2,
-      },
-      isLoading: false,
-      isError: false,
-    });
-
-    render(createElement(TablaMateriales));
-
-    expect(screen.getByRole('columnheader', { name: /existencia histórica/i })).toBeTruthy();
-    expect(screen.queryByText('Reordenar')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Entrada' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Salida' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull();
-  });
-
-  it('no ofrece crear materiales ni filtrar por alertas de stock', () => {
-    render(createElement(FiltrosInventario));
-
-    expect(screen.getByRole('searchbox', { name: /buscar material/i })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /nuevo material/i })).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: /alerta de stock/i })).toBeNull();
-  });
-});
-
-describe('FormularioSalida — bloqueo de stock negativo', () => {
+describe('FormularioSalida — bloqueo de stock negativo (legado sin montar)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     registrarSalidaMock.mockResolvedValue({ exito: true, datos: { id: 'x', folio: 'SAL-000001' } });

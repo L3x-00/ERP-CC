@@ -106,16 +106,14 @@ export function TablaOportunidades({
                   </TablaCelda>
                   <TablaCelda className="text-right">
                     <div className="flex items-center justify-end gap-3">
-                      {oportunidad.estadoRfq !== 'CONVERTED' && (
-                        <Button
-                          type="button"
-                          variante="fantasma"
-                          tamano="sm"
-                          onClick={() => setHistorialId(oportunidad.id)}
-                        >
-                          Historial
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        variante="fantasma"
+                        tamano="sm"
+                        onClick={() => setHistorialId(oportunidad.id)}
+                      >
+                        Historial
+                      </Button>
                       <Link
                         href={`/rfq?rfq=${oportunidad.id}${incompleto ? '&continuar=1' : ''}`}
                         className="text-xs font-semibold text-acento hover:underline"

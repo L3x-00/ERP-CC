@@ -81,7 +81,7 @@ export function PanelPdfsPropuesta({
 
       {revision.estado === 'SENT' && (
         <p className="text-xs text-texto-secundario">
-          La revisión enviada es inmutable: un cambio requiere una nueva revisión con su propio PDF.
+          La versión enviada es inmutable: un cambio requiere una nueva versión con su propio PDF.
         </p>
       )}
 

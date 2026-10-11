@@ -97,9 +97,12 @@ test('CFG-13/PRD-18: admin consulta actividad paginada sin detalles sensibles', 
     await expect(vista.getByText('13 registros')).toBeVisible();
     await expect(vista).not.toContainText(secreto);
 
-    await vista.getByLabel('Actor').fill('A18 Enlace');
-    await vista.getByLabel('Registro').fill('');
+    // Se filtra por el registro ÚNICO de esta corrida: en el stack local
+    // pueden quedar enlaces «A18 Enlace» de ejecuciones anteriores.
+    await vista.getByLabel('Actor').fill('');
+    await vista.getByLabel('Registro').fill(oportunidadId);
     const enlace = vista.getByRole('link', { name: 'Abrir registro' });
+    await expect(enlace).toHaveCount(1);
     await expect(enlace).toHaveAttribute('href', `/rfq?rfq=${oportunidadId}`);
     await enlace.click();
     await expect(page).toHaveURL(new RegExp(`/rfq\\?rfq=${oportunidadId}$`));

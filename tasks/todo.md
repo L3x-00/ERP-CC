@@ -1,6 +1,6 @@
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
-Estado: decisiones `DC-01..DC-15` aceptadas; **P0, C1, C2, C3 y C4.1 completos localmente** (2026-10-09); pendientes menores: revisión financiera de C3 y prueba de dos conexiones de C4.1; **siguiente: C4.2**.
+Estado: decisiones `DC-01..DC-15` aceptadas; **P0 y C1–C6 completos** y fusionados a `main` (PR #31–#43); **C7 (cierre local) completo el 2026-10-10** sobre `main` `f642036` + árbol de trabajo. Pendientes menores declarados: prueba de dos conexiones de `procesar_solicitud_orden` y conversión de moneda del costeo. Remoto, CI, despliegue y aceptación quedan en manos del PO.
 
 Regla de coordinación: antes de cada tarea, `ACTIVE_TASKS.md` debe fijar un dueño, archivos exclusivos y gates. Codex y Claude no editan el mismo archivo a la vez. Solo Codex integra mediante Git.
 
@@ -347,11 +347,39 @@ lint y build.
 
 ## C7 — Cierre
 
-- [ ] Ejecutar typecheck, lint, unitarias, build y, según cambios, pgTAP, integración, concurrencia y E2E.
-- [ ] Aplicar `code-simplification`, `cross-review`, revisión visual/accesible y seguridad.
-- [ ] Actualizar ADR, documentación y memoria compartida.
-- [ ] Entregar `REPORTE-HALLAZGOS-Y-CORRECCIONES.md` con síntoma, causa, severidad, corrección, evidencia y pendientes.
-- [ ] Separar claramente verificación local, remoto, despliegue y aceptación del cliente.
+- [x] Ejecutar typecheck, lint, unitarias, build y, según cambios, pgTAP, integración, concurrencia y E2E.
+- [x] Aplicar `code-simplification`, `cross-review`, revisión visual/accesible y seguridad.
+- [x] Actualizar ADR, documentación y memoria compartida.
+- [x] Entregar `REPORTE-HALLAZGOS-Y-CORRECCIONES.md` con síntoma, causa, severidad, corrección, evidencia y pendientes.
+- [x] Separar claramente verificación local, remoto, despliegue y aceptación del cliente.
+
+**Cierre local (2026-10-10):** revisión de cumplimiento contra las observaciones originales con
+cinco brechas corregidas: etiquetas visibles del ruteo, desglose «costo total estimado de
+fabricación» (con el margen del panel usando el snapshot costeado), Orden automática al aceptar
+(disparo idempotente con `orden_liberar`, BLOCKED con causa si un gate falla), Historial RFQ
+visible también en `CONVERTED` y firma de Propuesta a 300 s; además, el modal de alta captura
+Canal/Fecha/Responsable/Descripción/Contacto y el tope de menciones sube de 200 a 1000 usuarios.
+Gates finales sobre el árbol de trabajo: typecheck y lint 0, **1288/1288 unitarias** (166
+archivos), **pgTAP 1437/1437**, **integración 266/266**, **concurrencia 12/12**, build OK y
+**E2E 62/62** (1 skip intencional) en 20.8 min con capturas 320/768/1440 claro/oscuro. ADR-0015 y
+`REPORTE-HALLAZGOS-Y-CORRECCIONES.md` actualizados; pendientes menores declarados (dos conexiones
+de `procesar_solicitud_orden`, conversión de moneda del costeo). Remoto, CI, despliegue y
+aceptación del cliente siguen fuera de este cierre local.
+
+## Ajustes post-cierre 2026-10-10 — Propuesta e inventario ligero (autorizados por el PO)
+
+- [x] **Propuesta (obs. #8):** el encabezado de la ficha usa «Crear nueva versión» en lugar de
+  «Actualizar»; diálogo con motivo que copia ítems/ruteo/costos en la letra siguiente; el Resumen
+  muestra «Historial de versiones» navegable con apertura en solo lectura; el vocabulario de la
+  acción visible pasa de «revisión» a «versión» (mensajes de congelamiento incluidos). La aceptación
+  ya crea la Orden automáticamente (C7).
+- [x] **Materiales y costos (DC-12 refinado):** el módulo expone solo la lógica ligera —catálogo con
+  unidad base, costo vigente e historial, y propuestas de compra/gasto—; se retiran las pestañas de
+  existencias y kardex y sus componentes, sin borrar datos, servicios legados ni RLS. El consumo y
+  su costo congelado viven en las órdenes.
+- Evidencia: unitarias focales del diálogo/panel/página, E2E de Propuestas completo y E2E de
+  Materiales y costos (con material y kardex legados insertados que no deben aparecer) y capturas
+  320/768/1024/1440 claro/oscuro.
 
 ## Protocolo de continuidad
 

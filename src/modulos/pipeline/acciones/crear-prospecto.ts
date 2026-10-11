@@ -8,6 +8,7 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { generarFolioOp } from '@/modulos/pipeline/servicios/generar-folio-op';
 import { obtenerClienteParaRfq } from '@/modulos/pipeline/servicios/obtener-cliente-para-rfq';
 import { esquemaCrearProspecto } from '@/modulos/pipeline/validaciones/esquemas-prospecto';
+import { mensajeErrorRfq } from '@/modulos/rfq/acciones/utilidades-acciones';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 /**
@@ -55,7 +56,37 @@ export async function crearProspectoAccion(
     condicionesPago = condicionesPago ?? clienteRfq.condicionesPago;
   }
 
+  // Observación del cliente: el modal de alta captura también el contacto
+  // registrado y el responsable. Los vínculos se validan aquí (el canal lo
+  // revalida el trigger `validar_canal_rfq`).
+  if (datos.contactoId && !clienteId) {
+    return { exito: false, error: 'Elige un cliente antes del contacto' };
+  }
+
   const admin = crearClienteSupabaseAdmin();
+
+  if (datos.contactoId && clienteId) {
+    const { data: contacto } = await admin
+      .from('contactos_cliente')
+      .select('id, cliente_id, activo')
+      .eq('id', datos.contactoId)
+      .maybeSingle();
+    if (!contacto || !contacto.activo || contacto.cliente_id !== clienteId) {
+      return { exito: false, error: 'El contacto no pertenece al cliente' };
+    }
+  }
+
+  if (datos.responsableId) {
+    const { data: responsable } = await admin
+      .from('usuarios')
+      .select('id, activo')
+      .eq('id', datos.responsableId)
+      .maybeSingle();
+    if (!responsable || !responsable.activo) {
+      return { exito: false, error: 'El responsable no está activo' };
+    }
+  }
+
   const correlationId = nuevoCorrelationId();
 
   let folioOp: string;
@@ -89,12 +120,28 @@ export async function crearProspectoAccion(
       fecha_requerida: datos.fechaRequerida ? datos.fechaRequerida : null,
       horas_estimadas: null,
       notas: datos.notas?.trim() ? datos.notas.trim() : null,
+      // Observación del cliente: datos del Resumen capturados desde el alta.
+      canal: datos.canal?.trim() ? datos.canal.trim() : null,
+      canal_detalle: datos.canalDetalle?.trim() ? datos.canalDetalle.trim() : null,
+      fecha_solicitud: datos.fechaSolicitud ? datos.fechaSolicitud : null,
+      descripcion_general: datos.descripcionGeneral?.trim()
+        ? datos.descripcionGeneral.trim()
+        : null,
+      responsable_id: datos.responsableId ?? null,
+      contacto_id: datos.contactoId ?? null,
     })
     .select('id')
     .single();
 
   if (error || !fila) {
-    return { exito: false, error: 'No se pudo crear el prospecto' };
+    const traducido = mensajeErrorRfq(error?.message ?? '');
+    return {
+      exito: false,
+      error:
+        traducido === 'No se pudo completar la operación'
+          ? 'No se pudo crear el prospecto'
+          : traducido,
+    };
   }
 
   await registrarLog(

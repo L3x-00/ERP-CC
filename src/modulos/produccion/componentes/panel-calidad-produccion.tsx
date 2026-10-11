@@ -61,7 +61,7 @@ export function PanelCalidadProduccion({
       if (!orden) return [];
       const respuesta = await obtenerInspeccionesOrdenAccion({ ordenId: orden.id });
       if (!respuesta.exito || !respuesta.datos) {
-        throw new Error(respuesta.exito ? 'La consulta no devolvi� datos' : respuesta.error);
+        throw new Error(respuesta.exito ? 'La consulta no devolvió datos' : respuesta.error);
       }
       return respuesta.datos;
     },

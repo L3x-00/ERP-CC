@@ -10,6 +10,7 @@ const {
   singleMock,
   updateMock,
   eqMock,
+  seleccionMaybeSingleMock,
   generarFolioMock,
   obtenerClienteParaRfqMock,
   obtenerOportunidadMock,
@@ -21,6 +22,7 @@ const {
   singleMock: vi.fn(),
   updateMock: vi.fn(),
   eqMock: vi.fn(),
+  seleccionMaybeSingleMock: vi.fn(),
   generarFolioMock: vi.fn(),
   obtenerClienteParaRfqMock: vi.fn(),
   obtenerOportunidadMock: vi.fn(),
@@ -41,7 +43,7 @@ vi.mock('@/nucleo/supabase/servidor', () => ({
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({
-    from: () => ({
+    from: (tabla: string) => ({
       insert: (valores: unknown) => {
         insertMock(valores);
         return { select: () => ({ single: () => singleMock() }) };
@@ -49,6 +51,13 @@ vi.mock('@/nucleo/supabase/admin', () => ({
       update: (valores: unknown) => {
         updateMock(valores);
         return { eq: (columna: string, valor: string) => eqMock(columna, valor) };
+      },
+      select: () => {
+        const cadena = {
+          eq: () => cadena,
+          maybeSingle: () => seleccionMaybeSingleMock(tabla),
+        };
+        return cadena;
       },
     }),
   }),
@@ -69,6 +78,8 @@ import { asignarClienteOportunidadAccion } from '@/modulos/pipeline/acciones/asi
 const OPORTUNIDAD_ID = '11111111-1111-4111-8111-111111111111';
 const CLIENTE_ID = '33333333-3333-4333-8333-333333333333';
 const VENDEDOR_ID = '22222222-2222-4222-8222-222222222222';
+const RESPONSABLE_ID = '44444444-4444-4444-8444-444444444444';
+const CONTACTO_ID = '55555555-5555-4555-8555-555555555555';
 
 const VENDEDOR = {
   id: VENDEDOR_ID,
@@ -129,6 +140,15 @@ beforeEach(() => {
   generarFolioMock.mockResolvedValue('OP-000001');
   singleMock.mockResolvedValue({ data: { id: OPORTUNIDAD_ID }, error: null });
   eqMock.mockResolvedValue({ error: null });
+  seleccionMaybeSingleMock.mockImplementation(async (tabla: string) => {
+    if (tabla === 'usuarios') {
+      return { data: { id: RESPONSABLE_ID, activo: true }, error: null };
+    }
+    if (tabla === 'contactos_cliente') {
+      return { data: { id: CONTACTO_ID, cliente_id: CLIENTE_ID, activo: true }, error: null };
+    }
+    return { data: null, error: null };
+  });
   obtenerOportunidadMock.mockResolvedValue({ oportunidad: OPORTUNIDAD, lineas: [] });
   obtenerClienteParaRfqMock.mockResolvedValue({ id: CLIENTE_ID, condicionesPago: '30_dias' });
 });
@@ -217,6 +237,91 @@ describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
     expect(respuesta).toEqual({ exito: false, error: 'Cliente no válido' });
     expect(insertMock).not.toHaveBeenCalled();
     expect(registrarLogMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('crearProspectoAccion — Resumen capturado desde el alta (obs. cliente)', () => {
+  it('persiste canal, fecha de solicitud, descripción y responsable', async () => {
+    await crearProspectoAccion({
+      ...ALTA_BASE,
+      canal: 'WHATSAPP',
+      fechaSolicitud: '2026-10-10',
+      descripcionGeneral: 'Corte de lámina calibre 14',
+      responsableId: RESPONSABLE_ID,
+    });
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canal: 'WHATSAPP',
+        fecha_solicitud: '2026-10-10',
+        descripcion_general: 'Corte de lámina calibre 14',
+        responsable_id: RESPONSABLE_ID,
+      }),
+    );
+  });
+
+  it('traduce el rechazo del canal fuera del catálogo', async () => {
+    singleMock.mockResolvedValue({
+      data: null,
+      error: { message: 'canal_rfq_no_catalogado' },
+    });
+
+    const respuesta = await crearProspectoAccion({ ...ALTA_BASE, canal: 'NO_EXISTE' });
+
+    expect(respuesta).toEqual({ exito: false, error: 'Selecciona un canal vigente del catálogo' });
+  });
+
+  it('traduce la exigencia de detalle del canal "Otro"', async () => {
+    singleMock.mockResolvedValue({
+      data: null,
+      error: { message: 'canal_otro_requiere_detalle' },
+    });
+
+    const respuesta = await crearProspectoAccion({ ...ALTA_BASE, canal: 'OTRO' });
+
+    expect(respuesta).toEqual({ exito: false, error: 'Escribe el detalle del canal Otro' });
+  });
+
+  it('rechaza un contacto que no pertenece al cliente', async () => {
+    seleccionMaybeSingleMock.mockImplementation(async (tabla: string) =>
+      tabla === 'contactos_cliente'
+        ? { data: { id: CONTACTO_ID, cliente_id: 'otro-cliente', activo: true }, error: null }
+        : { data: null, error: null },
+    );
+
+    const respuesta = await crearProspectoAccion({
+      ...ALTA_BASE,
+      clienteId: CLIENTE_ID,
+      contactoId: CONTACTO_ID,
+    });
+
+    expect(respuesta).toEqual({ exito: false, error: 'El contacto no pertenece al cliente' });
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('liga el contacto registrado del cliente', async () => {
+    await crearProspectoAccion({
+      ...ALTA_BASE,
+      clienteId: CLIENTE_ID,
+      contactoId: CONTACTO_ID,
+    });
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cliente_id: CLIENTE_ID, contacto_id: CONTACTO_ID }),
+    );
+  });
+
+  it('rechaza un responsable inactivo', async () => {
+    seleccionMaybeSingleMock.mockImplementation(async (tabla: string) =>
+      tabla === 'usuarios'
+        ? { data: { id: RESPONSABLE_ID, activo: false }, error: null }
+        : { data: null, error: null },
+    );
+
+    const respuesta = await crearProspectoAccion({ ...ALTA_BASE, responsableId: RESPONSABLE_ID });
+
+    expect(respuesta).toEqual({ exito: false, error: 'El responsable no está activo' });
+    expect(insertMock).not.toHaveBeenCalled();
   });
 });
 

@@ -17,8 +17,7 @@ vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
 }));
 vi.mock('next/navigation', () => ({ redirect: (ruta: string) => redirectMock(ruta) }));
 vi.mock('@/modulos/inventario/componentes/panel-inventario', () => ({
-  PanelInventario: ({ puedeVerHistorico }: { puedeVerHistorico: boolean }) =>
-    createElement('div', { 'data-testid': 'panel', 'data-historico': puedeVerHistorico }),
+  PanelInventario: () => createElement('div', { 'data-testid': 'panel' }),
 }));
 
 import PaginaInventario from '@/app/(panel)/inventario/page';
@@ -34,22 +33,24 @@ function usuario(permisos: string[]) {
   };
 }
 
-describe('página Materiales y costos C6.3', () => {
-  it('muestra costos sin exponer el legado a un usuario solo financiero', async () => {
+describe('página Materiales y costos — lógica ligera', () => {
+  it('muestra el catálogo con permiso financiero y explica el modelo sin inventario', async () => {
     usuarioMock.mockResolvedValue(usuario(['ver_finanzas']));
 
     render(await PaginaInventario());
 
     expect(screen.getByRole('heading', { name: 'Materiales y costos' })).toBeTruthy();
-    expect(screen.getByTestId('panel').getAttribute('data-historico')).toBe('false');
+    expect(screen.getByText(/sin existencias ni operación de almacén/i)).toBeTruthy();
+    expect(screen.getByTestId('panel')).toBeTruthy();
   });
 
-  it('habilita la consulta histórica con gestionar_inventario', async () => {
+  it('también entra con gestionar_inventario (legado conservado sin mostrarlo)', async () => {
     usuarioMock.mockResolvedValue(usuario(['gestionar_inventario']));
 
     render(await PaginaInventario());
 
-    expect(screen.getByTestId('panel').getAttribute('data-historico')).toBe('true');
+    expect(screen.getByRole('heading', { name: 'Materiales y costos' })).toBeTruthy();
+    expect(screen.queryByText(/inventario histórico/i)).toBeNull();
   });
 
   it('rechaza el acceso directo sin permisos del módulo', async () => {

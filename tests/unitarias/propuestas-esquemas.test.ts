@@ -193,7 +193,7 @@ describe('utilidades de estado (B4)', () => {
 describe('traducción de errores tipados (B4)', () => {
   it('traduce los códigos principales', () => {
     expect(traducirErrorPropuesta('sin_permiso_propuesta')).toContain('Sin permiso');
-    expect(traducirErrorPropuesta('revision_congelada')).toContain('nueva revisión');
+    expect(traducirErrorPropuesta('revision_congelada')).toContain('nueva versión');
     expect(traducirErrorPropuesta('limite_revisiones_alcanzado')).toContain('letra Z');
     expect(traducirErrorPropuesta('item_desactualizado')).toContain('cambió');
   });

@@ -150,12 +150,23 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   await page.getByLabel('Empresa', { exact: true }).fill(empresa);
   await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
   await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
+  // Obs. cliente: el modal de alta también captura el Canal y la descripción
+  // general (antes solo se completaban dentro de la ficha).
+  await page.getByLabel('Canal', { exact: true }).selectOption('CORREO');
+  await page.getByLabel('Descripción general').fill(`Alta modal ${contexto.sufijo}`);
   await page.getByRole('button', { name: 'Continuar con ítems' }).click();
 
   // El asistente sigue en el mismo modal: ítems y archivos sin cambiar de pantalla.
   await expect(page.getByTestId('alta-rfq-items')).toBeVisible();
-  const rfq = await admin.from('pipeline').select('id').eq('empresa', empresa).single();
+  const rfq = await admin
+    .from('pipeline')
+    .select('id, canal, descripcion_general, fecha_solicitud')
+    .eq('empresa', empresa)
+    .single();
   if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
+  expect(rfq.data.canal).toBe('CORREO');
+  expect(rfq.data.descripcion_general).toBe(`Alta modal ${contexto.sufijo}`);
+  expect(rfq.data.fecha_solicitud).toBeTruthy();
   contexto.rfqId = rfq.data.id;
 
   await page.getByRole('button', { name: 'Finalizar más tarde' }).click();

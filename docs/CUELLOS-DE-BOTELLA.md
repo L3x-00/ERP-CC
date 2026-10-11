@@ -23,6 +23,10 @@ Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de 
 | Un E2E dejará de pasar en una fecha concreta | Fechas futuras escritas a mano (`2026-10-15`) | Fechas relativas a `Date.now()` en fixtures y E2E |
 | Endurecer una regla rompe decenas de pruebas ajenas | Los fixtures insertan estados imposibles por la UI (RFQ "Listo" sin requisitos) | Al endurecer un invariante, acotarlo a los registros creados por el flujo nuevo o migrar fixtures en el mismo corte; ejecutar antes el pgTAP de los bloques consumidores |
 | El diálogo "Nuevo ítem" se cerraba solo | Un efecto asíncrono ("Continuar captura") sobrescribía la navegación del usuario | Todo salto automático se cancela si el usuario navegó antes de que llegue el dato |
+| `taller-taxonomia`: "PIN inválido" y el log muestra `Acceso de piso rechazado: duplicado` | PIN fijo en el spec (4826/7319) + operadores residuales de corridas previas con el mismo PIN; `buscarOperadorPorPin` falla cerrado ante duplicados | Los E2E que crean operadores generan PIN aleatorio por corrida y verifican el guardado |
+| `bitacora-configuracion`: strict mode con varios "Abrir registro" del mismo actor | El actor del enlace es fijo ("A18 Enlace") y la base local acumula ejecuciones previas, aunque el `recurso_id` sea único | Localizar por el identificador único de la corrida (`recurso_id`), no por campos compartidos |
+| Una mención `@Nombre` real no se resuelve en local (`menciones_json` vacío) | `obtenerUsuariosMencionables` truncaba a 200 ordenados por nombre y la base local supera 357 activos de E2E | La lista de mencionables no debe truncar por debajo de la operación real (tope actual 1000); al diagnosticar menciones, contar usuarios activos antes de culpar al parser |
+| `planeacion-bolsa-acciones` falla solo en la corrida completa: «Caben en capacidad libre (12)» sin la partida del spec | La vista previa de la bolsa corta a 12 sugerencias y los residuos de corridas anteriores (partidas `E2E-*`/`PLA5-*` sin planear) las llenan; el spec pasa aislado y en CI (base fresca) | Antes de una corrida completa local, limpiar residuales E2E de Planeación (marcar sus órdenes `CANCELADA` o borrarlas si no hay FKs); no depender del orden de una lista con tope para datos compartidos |
 
 ## 3. Migraciones y base remota
 
@@ -40,6 +44,7 @@ Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de 
 | Avance lento por correr toda la suite en cada cambio | Gates completos en cada incremento | Por cambio: pruebas de lo editado más `pnpm typecheck` y lint focal. Suite completa al cierre de bloque o en CI |
 | Un agente continúa el corte de otro sin saber qué quedó probado | Commits WIP sin estado claro | Todo commit de trabajo incompleto dice en el mensaje qué falta y qué gates se corrieron |
 | Scripts de shell rotos por comillas | Heredocs largos con comillas mezcladas | Para scripts de más de unas líneas, escribir el archivo y ejecutarlo |
+| El comando muere en cuanto un proceso nativo escribe en stderr (p. ej. el banner del WebServer de Playwright) | El wrapper `entorno-local.ps1` restaura `$ErrorActionPreference` a `Stop`; con esa preferencia, un aviso nativo de stderr se convierte en error terminante | Tras invocar el wrapper, fijar `$ErrorActionPreference = 'Continue'` en la misma sesión antes de lanzar suites |
 
 ## 5. Integración a producción
 

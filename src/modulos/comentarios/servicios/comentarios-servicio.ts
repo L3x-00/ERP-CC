@@ -241,12 +241,15 @@ export async function marcarNotificacionComoLeida(
 export async function obtenerUsuariosMencionables(
   admin: ClienteComentarios,
 ): Promise<MencionUsuario[]> {
+  // El parser resuelve `@Nombre` contra esta lista: un tope bajo dejaría
+  // menciones reales sin resolver (y sin notificación) en instalaciones con
+  // muchos usuarios activos. Solo viajan id y nombre; 1000 cubre la operación.
   const { data, error } = await admin
     .from('usuarios')
     .select('id, nombre_completo')
     .eq('activo', true)
     .order('nombre_completo', { ascending: true })
-    .limit(200);
+    .limit(1000);
   if (error) lanzarErrorComentarios(error.message);
   return (data ?? []).map((usuario) => ({ id: usuario.id, nombre: usuario.nombre_completo }));
 }

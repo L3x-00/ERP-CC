@@ -116,7 +116,7 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
 }
 
 /** Contacto vigente de un cliente para los selectores del RFQ. */
-export type ContactoRfq = { id: string; nombre: string; correo: string | null };
+export type ContactoRfq = { id: string; nombre: string; correo: string | null; telefono: string | null };
 
 const esquemaContactosCliente = z.object({ clienteId: z.uuid() }).strict();
 
@@ -138,7 +138,7 @@ export async function obtenerContactosClienteRfqAccion(
 
   const { data, error } = await crearClienteSupabaseAdmin()
     .from('contactos_cliente')
-    .select('id, nombre, correo')
+    .select('id, nombre, correo, telefono')
     .eq('cliente_id', resultado.data.clienteId)
     .eq('activo', true)
     .order('es_principal', { ascending: false })
@@ -154,6 +154,7 @@ export async function obtenerContactosClienteRfqAccion(
       id: fila.id,
       nombre: fila.nombre,
       correo: fila.correo,
+      telefono: fila.telefono,
     })),
   };
 }
