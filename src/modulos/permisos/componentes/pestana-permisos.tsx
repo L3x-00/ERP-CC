@@ -64,11 +64,13 @@ export function PestanaPermisos() {
 
   // Patrón React de estado derivado: al llegar datos nuevos (carga o refetch
   // tras guardar), se reinicia el borrador durante el render, sin efectos.
+  // La confirmación y el error del guardado NO se limpian aquí: el refetch que
+  // dispara el propio guardado llegaría antes de que el usuario alcance a ver
+  // el mensaje (carrera detectada en CI: «Permisos guardados» desaparecía).
+  // Se limpian al editar (`alternar`) o al iniciar otra acción.
   if (consulta.data && consulta.data !== baseSincronizada) {
     setBaseSincronizada(consulta.data);
     setSeleccion(copiarAsignaciones(consulta.data.asignaciones));
-    setMensaje(null);
-    setError(null);
   }
 
   const grupos = useMemo(
