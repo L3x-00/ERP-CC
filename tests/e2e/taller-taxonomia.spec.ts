@@ -359,7 +359,12 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
             .getByTestId(`areas-operador-check-${operadorId}-${codigo}`)
             .check();
         }
-        const esperadas = await areasSeleccionadas();
+        // Con códigos requeridos la expectativa es la intención de la prueba, no
+        // lo que el DOM alcance a reflejar si un re-render de Realtime pierde el
+        // clic: así el reintento vuelve a guardar hasta persistir el conjunto.
+        const esperadas = codigosRequeridos.length > 0
+          ? [...new Set(codigosRequeridos)].sort()
+          : await areasSeleccionadas();
         await panelOperadores.getByTestId(`guardar-areas-operador-${operadorId}`).click();
         try {
           await expect.poll(areasPersistidas, { timeout }).toEqual(esperadas);
