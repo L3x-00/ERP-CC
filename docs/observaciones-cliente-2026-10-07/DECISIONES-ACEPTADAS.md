@@ -29,6 +29,7 @@ Estas decisiones sustituyen las recomendaciones provisionales de `PREGUNTAS-PARA
 | 2026-10-10 | Product Owner | DC-12 | El módulo visible «Materiales y costos» deja de mostrar las vistas históricas de existencias y kardex para reflejar la lógica ligera del cliente (catálogo con unidad base, costo vigente e historial; consumo y costo congelado viven en las órdenes). Los datos y servicios legados no se destruyen: permanecen en base y sus RLS endurecidas, sin exponerse en la interfaz. |
 | 2026-10-10 | Product Owner | DC-08 | La ficha de Propuesta reemplaza el botón «Actualizar» por «Crear nueva versión», con diálogo de motivo y «Historial de versiones» navegable en solo lectura; el vocabulario visible de la acción pasa de «revisión» a «versión». |
 | 2026-10-11 | Product Owner | DC-08 | «Listo para enviar» también admite «Crear nueva versión» (migración `20261011130000`): permite ajustar antes de enviar sin editar la revisión validada, que queda en el historial. En borrador no se ofrece (se edita directamente). El resultado de «Generar PDF» se muestra explícitamente con acceso «Ver PDF». |
+| 2026-10-11 | Product Owner | DC-06 | El seguimiento de la Propuesta se captura en un modal: «Validar» lo exige (el servidor registra la próxima acción y luego valida, sin duplicar en reintentos) y la pestaña Seguimiento lo reutiliza para registros posteriores. En RFQ la próxima acción sigue siendo obligatoria en el modal de «Marcar listo» y en cada transición de estado. |
 
 ## Invariantes transversales
 

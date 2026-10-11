@@ -15,7 +15,8 @@ import { enviarRevisionAccion } from '@/modulos/propuestas/acciones/enviar-revis
 import { firmarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
 import { generarPdfRevisionAccion } from '@/modulos/propuestas/acciones/generar-pdf-revision';
 import { rechazarPropuestaAccion } from '@/modulos/propuestas/acciones/rechazar-propuesta';
-import { validarRevisionAccion } from '@/modulos/propuestas/acciones/validar-revision';
+import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
+import { DialogoSeguimientoPropuesta } from './dialogo-seguimiento-propuesta';
 import type {
   PermisosPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
@@ -33,16 +34,20 @@ type Formulario = 'ninguno' | 'enviar' | 'rechazar' | 'cerrar';
 export function PanelAccionesPropuesta({
   detalle,
   revision,
+  catalogos,
   permisos,
 }: {
   detalle: DetallePropuestaFicha;
   revision: RevisionConTotales;
+  catalogos: CatalogosPropuesta | null;
   permisos: PermisosPropuesta;
 }) {
   const queryClient = useQueryClient();
   const [formulario, setFormulario] = useState<Formulario>('ninguno');
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
+  const [exitoValidacion, setExitoValidacion] = useState<string | null>(null);
+  const [validarAbierto, setValidarAbierto] = useState(false);
   const [pdfGenerado, setPdfGenerado] = useState<{ archivoId: string; version: number } | null>(
     null,
   );
@@ -160,10 +165,11 @@ export function PanelAccionesPropuesta({
         {esBorrador && permisos.validar && (
           <Button
             tamano="sm"
-            onClick={() => void ejecutar(() => validarRevisionAccion({
-              revisionId: revision.id,
-              actualizadoEn: revision.actualizadoEn,
-            }))}
+            onClick={() => {
+              setMensaje(null);
+              setExitoValidacion(null);
+              setValidarAbierto(true);
+            }}
             disabled={procesando || requiereRevision}
             title={requiereRevision ? 'Confirma ruteo y costeo antes de validar' : undefined}
           >
@@ -373,10 +379,34 @@ export function PanelAccionesPropuesta({
         </p>
       )}
 
+      {exitoValidacion !== null && (
+        <p className="text-sm font-medium text-exito-texto" data-testid="validacion-resultado">
+          {exitoValidacion}
+        </p>
+      )}
+
       {mensaje && (
         <p role="alert" className="text-sm text-peligro-texto">
           {mensaje}
         </p>
+      )}
+
+      {validarAbierto && (
+        <DialogoSeguimientoPropuesta
+          modo="validar"
+          revision={revision}
+          catalogos={catalogos}
+          puedeRegistrar={permisos.seguimiento}
+          onCerrar={() => setValidarAbierto(false)}
+          onExito={({ seguimientoRegistrado }) => {
+            setExitoValidacion(
+              seguimientoRegistrado
+                ? 'Propuesta validada y seguimiento registrado.'
+                : 'Propuesta validada (el seguimiento ya estaba registrado).',
+            );
+            void refrescar();
+          }}
+        />
       )}
 
       <p className="text-xs text-texto-secundario">

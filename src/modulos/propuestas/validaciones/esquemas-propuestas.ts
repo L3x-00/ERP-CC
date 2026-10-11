@@ -156,6 +156,23 @@ export const esquemaValidarRevision = z
   .object({ revisionId: uuid, actualizadoEn })
   .strict();
 
+/**
+ * Obs. cliente 2026-10-11: validar exige registrar la próxima acción en el
+ * mismo flujo (modal). El servidor registra el seguimiento y luego valida la
+ * revisión, de modo que no puede quedar «Lista para enviar» sin seguimiento.
+ */
+export const esquemaValidarConSeguimiento = z
+  .object({
+    revisionId: uuid,
+    actualizadoEn,
+    codigo: z.string().trim().min(2).max(49),
+    textoOtro: z.string().trim().max(300).optional(),
+    fecha: z.iso.date({ message: 'Fecha inválida' }),
+    canal: z.string().trim().max(60).optional(),
+    nota: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+
 /** Aceptación de la revisión exacta. */
 export const esquemaAceptarRevision = z
   .object({
