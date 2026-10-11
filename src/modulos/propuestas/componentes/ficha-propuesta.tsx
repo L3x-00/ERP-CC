@@ -144,7 +144,12 @@ export function FichaPropuesta({
       </div>
 
       {revisionActiva && (
-        <PanelAccionesPropuesta detalle={detalle} revision={revisionActiva} permisos={permisos} />
+        <PanelAccionesPropuesta
+          key={revisionActiva.id}
+          detalle={detalle}
+          revision={revisionActiva}
+          permisos={permisos}
+        />
       )}
 
       <div className="flex flex-wrap gap-1 border-b border-borde">
