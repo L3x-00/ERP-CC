@@ -38,7 +38,7 @@ export async function actualizarClienteAccion(
     return { exito: false, error: 'Sin permiso para editar clientes' };
   }
 
-  const { id, ...cambios } = analisis.data;
+  const { id, contactoPrincipal, ...cambios } = analisis.data;
 
   // Días de crédito: solo Management/Admin (SII-B2.4).
   const tocaCredito =
@@ -90,11 +90,70 @@ export async function actualizarClienteAccion(
     parche.direccion_envio = (cambios.direccionEnvio ?? null) as Json | null;
   }
 
-  if (Object.keys(parche).length === 0) {
+  const sincronizaContacto = contactoPrincipal !== undefined;
+  if (Object.keys(parche).length === 0 && !sincronizaContacto) {
     return { exito: false, error: 'Sin cambios' };
   }
 
   const admin = crearClienteSupabaseAdmin();
+
+  // Obs. cliente 2026-10-12: el contacto principal se edita desde el formulario
+  // maestro. Si existe principal activo se actualiza; si no, se crea; el nombre
+  // se sincroniza en la columna legada `clientes.contacto` (ficha, cobranza, RFQ).
+  let resultadoContacto: 'actualizado' | 'creado' | null = null;
+  if (sincronizaContacto && contactoPrincipal) {
+    const nombreContacto = contactoPrincipal.nombre.trim();
+    const datosContacto = {
+      nombre: nombreContacto,
+      puesto: contactoPrincipal.puesto?.trim() || null,
+      correo: contactoPrincipal.correo ? contactoPrincipal.correo.toLowerCase() : null,
+      telefono: contactoPrincipal.telefono?.trim() || null,
+    };
+
+    const { data: principal, error: errorPrincipal } = await admin
+      .from('contactos_cliente')
+      .select('id')
+      .eq('cliente_id', id)
+      .eq('es_principal', true)
+      .eq('activo', true)
+      .maybeSingle();
+    if (errorPrincipal) {
+      console.error('[CLIENTES] No se pudo leer el contacto principal:', errorPrincipal.message);
+      return { exito: false, error: 'No se pudo actualizar el contacto principal' };
+    }
+
+    if (principal) {
+      const { error: errorContacto } = await admin
+        .from('contactos_cliente')
+        .update(datosContacto)
+        .eq('id', principal.id);
+      if (errorContacto) {
+        console.error('[CLIENTES] No se pudo actualizar el contacto principal:', errorContacto.message);
+        return { exito: false, error: 'No se pudo actualizar el contacto principal' };
+      }
+      resultadoContacto = 'actualizado';
+    } else {
+      const { error: errorContacto } = await admin.from('contactos_cliente').insert({
+        cliente_id: id,
+        ...datosContacto,
+        es_principal: true,
+        activo: true,
+        creado_por: usuario.id,
+      });
+      if (errorContacto) {
+        console.error('[CLIENTES] No se pudo crear el contacto principal:', errorContacto.message);
+        return { exito: false, error: 'No se pudo crear el contacto principal' };
+      }
+      resultadoContacto = 'creado';
+    }
+
+    parche.contacto = nombreContacto;
+  }
+
+  if (Object.keys(parche).length === 0) {
+    return { exito: false, error: 'Sin cambios' };
+  }
+
   const { error } = await admin.from('clientes').update(parche).eq('id', id);
 
   if (error) {
@@ -111,6 +170,7 @@ export async function actualizarClienteAccion(
     id,
     {
       campos: Object.keys(parche),
+      ...(resultadoContacto ? { contactoPrincipal: resultadoContacto } : {}),
     },
     nuevoCorrelationId(),
   );

@@ -116,12 +116,17 @@ export const esquemaCrearCliente = z
 /**
  * Edición de cliente. Requiere `id`; el resto es parcial (solo lo que cambia).
  * El estado NO se edita aquí: cambia solo por `cambiar_estado_cliente`.
+ * Obs. cliente 2026-10-12: la edición también puede actualizar (o crear) el
+ * contacto principal del cliente.
  */
 export const esquemaActualizarCliente = z
   .object(camposCliente)
   .omit({ estado: true })
   .partial()
-  .extend({ id: z.uuid('Identificador inválido') })
+  .extend({
+    id: z.uuid('Identificador inválido'),
+    contactoPrincipal: esquemaContactoPrincipal.optional(),
+  })
   .superRefine(validarCoherenciaCredito);
 
 /**
