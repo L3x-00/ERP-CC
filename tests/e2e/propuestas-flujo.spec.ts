@@ -320,6 +320,24 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       contexto.revisionIds.push(revisionA.data.id);
       await expect(ficha).toContainText(revisionA.data.folio_revision);
 
+      // Obs. cliente 2026-10-12 (3): la cola muestra la columna RFQ con el
+      // folio del RFQ de origen y enlaza a su ficha.
+      await page.goto('/propuestas');
+      const rfqFila = await admin
+        .from('pipeline')
+        .select('folio_rfq, folio_op')
+        .eq('id', rfqId)
+        .single();
+      const folioRfq = rfqFila.data?.folio_rfq ?? rfqFila.data?.folio_op;
+      expect(folioRfq).toBeTruthy();
+      const filaCola = page.getByRole('row', { name: new RegExp(propuesta.data.folio_cnc) });
+      await expect(filaCola.getByRole('link', { name: folioRfq! })).toHaveAttribute(
+        'href',
+        `/rfq?rfq=${rfqId}`,
+      );
+      await page.goto(`/propuestas?propuesta=${propuesta.data.id}`);
+      await expect(ficha).toBeVisible();
+
       // C2.1: crear Rev A registra la versión final y congela la definición del RFQ.
       const versionFinal = await admin
         .from('rfq_versiones')

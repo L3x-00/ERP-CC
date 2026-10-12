@@ -109,7 +109,7 @@ export function ColaPropuestas() {
         </label>
       </div>
 
-      {consulta.isLoading && <SkeletonTabla columnas={6} filas={6} />}
+      {consulta.isLoading && <SkeletonTabla columnas={7} filas={6} />}
 
       {consulta.isError && (
         <p role="alert" className="text-sm text-peligro-texto">
@@ -136,6 +136,7 @@ export function ColaPropuestas() {
             <TablaEncabezado>
               <tr>
                 <TablaEncabezadoCelda>Folio</TablaEncabezadoCelda>
+                <TablaEncabezadoCelda>RFQ</TablaEncabezadoCelda>
                 <TablaEncabezadoCelda>Cliente</TablaEncabezadoCelda>
                 <TablaEncabezadoCelda>Estado</TablaEncabezadoCelda>
                 <TablaEncabezadoCelda>Revisión</TablaEncabezadoCelda>
@@ -153,6 +154,18 @@ export function ColaPropuestas() {
                     >
                       {fila.folioCnc}
                     </Link>
+                  </TablaCelda>
+                  <TablaCelda className="font-mono text-xs">
+                    {fila.folioRfq ? (
+                      <Link
+                        href={`/rfq?rfq=${fila.rfqId}`}
+                        className="text-acento hover:underline"
+                      >
+                        {fila.folioRfq}
+                      </Link>
+                    ) : (
+                      '—'
+                    )}
                   </TablaCelda>
                   <TablaCelda>{fila.empresa ?? '—'}</TablaCelda>
                   <TablaCelda>
