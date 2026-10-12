@@ -87,6 +87,49 @@ export async function crearProspectoAccion(
     }
   }
 
+  // Ajuste cliente 2026-10-12: la próxima acción se captura unificada con canal
+  // y seguimiento. Viaja completa (acción + fecha + responsable) o ausente.
+  const tocaProximaAccion =
+    datos.proximaAccionCodigo !== undefined
+    || datos.fechaProximaAccion !== undefined
+    || datos.responsableProximaAccionId !== undefined;
+  let proximaAccionTexto: string | null = null;
+  let fechaProximaAccion: string | null = null;
+  if (tocaProximaAccion) {
+    fechaProximaAccion = datos.fechaProximaAccion?.trim() || null;
+    if (!datos.proximaAccionCodigo || !fechaProximaAccion || !datos.responsableProximaAccionId) {
+      return {
+        exito: false,
+        error: 'Completa la próxima acción: acción, fecha y responsable de la acción',
+      };
+    }
+    const { data: accion } = await admin
+      .from('catalogo_proximas_acciones')
+      .select('codigo, es_otro, activo')
+      .eq('codigo', datos.proximaAccionCodigo)
+      .maybeSingle();
+    if (!accion || !accion.activo) {
+      return { exito: false, error: 'La próxima acción seleccionada no está vigente' };
+    }
+    proximaAccionTexto = datos.proximaAccionTexto?.trim() || null;
+    if (accion.es_otro && (!proximaAccionTexto || proximaAccionTexto.length < 3)) {
+      return { exito: false, error: 'Describe la acción "Otro" de la próxima acción' };
+    }
+    // Se tolera "ayer" en UTC para no rechazar el "hoy" local del usuario.
+    const pisoFecha = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (fechaProximaAccion < pisoFecha) {
+      return { exito: false, error: 'La fecha de la próxima acción no puede estar en el pasado' };
+    }
+    const { data: responsableAccion } = await admin
+      .from('usuarios')
+      .select('id, activo')
+      .eq('id', datos.responsableProximaAccionId)
+      .maybeSingle();
+    if (!responsableAccion || !responsableAccion.activo) {
+      return { exito: false, error: 'El responsable de la próxima acción no está activo' };
+    }
+  }
+
   const correlationId = nuevoCorrelationId();
 
   let folioOp: string;
@@ -129,6 +172,14 @@ export async function crearProspectoAccion(
         : null,
       responsable_id: datos.responsableId ?? null,
       contacto_id: datos.contactoId ?? null,
+      // Ajuste cliente 2026-10-12: la próxima acción nace con el RFQ cuando se
+      // capturó en el alta (unificada con canal y seguimiento).
+      proxima_accion_codigo: tocaProximaAccion ? (datos.proximaAccionCodigo ?? null) : null,
+      proxima_accion_texto: tocaProximaAccion ? proximaAccionTexto : null,
+      fecha_proxima_accion: tocaProximaAccion ? fechaProximaAccion : null,
+      responsable_proxima_accion_id: tocaProximaAccion
+        ? (datos.responsableProximaAccionId ?? null)
+        : null,
     })
     .select('id')
     .single();

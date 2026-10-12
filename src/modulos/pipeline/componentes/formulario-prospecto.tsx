@@ -20,6 +20,8 @@ import {
   obtenerContactosClienteRfqAccion,
 } from '@/modulos/rfq/acciones/obtener-catalogos';
 import { obtenerRfqAccion } from '@/modulos/rfq/acciones/obtener-rfq';
+import { CLASE_OBLIGATORIO } from '@/modulos/rfq/utilidades/faltantes';
+import { faltantesProximaAccion, fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
 import { PanelArchivosRfq } from '@/modulos/rfq/componentes/panel-archivos-rfq';
 import { TablaItemsRfq } from '@/modulos/rfq/componentes/tabla-items-rfq';
 
@@ -114,6 +116,12 @@ export function FormularioProspecto({
   const [descripcionGeneral, setDescripcionGeneral] = useState('');
   const [responsableId, setResponsableId] = useState('');
   const [contactoId, setContactoId] = useState('');
+  // Ajuste cliente 2026-10-12: la próxima acción se captura unificada con
+  // canal y seguimiento (misma sección, al final del paso).
+  const [proximaAccionCodigo, setProximaAccionCodigo] = useState('');
+  const [proximaAccionTexto, setProximaAccionTexto] = useState('');
+  const [fechaProximaAccion, setFechaProximaAccion] = useState('');
+  const [responsableProximaAccionId, setResponsableProximaAccionId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [subiendoArchivo, setSubiendoArchivo] = useState(false);
@@ -138,6 +146,11 @@ export function FormularioProspecto({
   const catalogos = catalogosConsulta.data?.exito ? (catalogosConsulta.data.datos ?? null) : null;
   const contactos = contactosConsulta.data?.exito ? (contactosConsulta.data.datos ?? []) : [];
   const canalSeleccionado = catalogos?.canales.find((opcion) => opcion.codigo === canal);
+  const accionSeleccionada = (catalogos?.proximasAcciones ?? []).find(
+    (opcion) => opcion.codigo === proximaAccionCodigo,
+  );
+  const esOtroAccion = accionSeleccionada?.esOtro ?? false;
+  const hoy = fechaHoyLocal();
   // Autocompletado (observación del cliente): con un cliente ligado se
   // preselecciona su contacto principal; el usuario puede cambiarlo.
   const contactoEfectivoId =
@@ -213,6 +226,27 @@ export function FormularioProspecto({
       setError('Escribe el detalle del canal Otro');
       return;
     }
+    // Ajuste cliente 2026-10-12: la próxima acción viaja completa o ausente.
+    const tocaProximaAccion =
+      proximaAccionCodigo !== ''
+      || fechaProximaAccion !== ''
+      || responsableProximaAccionId !== '';
+    if (tocaProximaAccion) {
+      const faltantes = faltantesProximaAccion(
+        {
+          codigo: proximaAccionCodigo,
+          texto: proximaAccionTexto,
+          fecha: fechaProximaAccion,
+          responsableId: responsableProximaAccionId,
+        },
+        catalogos?.proximasAcciones ?? [],
+        fechaHoyLocal(),
+      );
+      if (faltantes.length > 0) {
+        setError(`Completa la próxima acción: ${faltantes.join(', ')}.`);
+        return;
+      }
+    }
     setEnviando(true);
     onCambioEnvio?.(true);
 
@@ -248,6 +282,14 @@ export function FormularioProspecto({
         ...(descripcionGeneral.trim() ? { descripcionGeneral: descripcionGeneral.trim() } : {}),
         ...(responsableId ? { responsableId } : {}),
         ...(contactoEfectivoId ? { contactoId: contactoEfectivoId } : {}),
+        ...(tocaProximaAccion && proximaAccionCodigo
+          ? {
+              proximaAccionCodigo,
+              ...(proximaAccionTexto.trim() ? { proximaAccionTexto: proximaAccionTexto.trim() } : {}),
+              fechaProximaAccion,
+              responsableProximaAccionId,
+            }
+          : {}),
       });
 
       if (!respuesta.exito) {
@@ -467,11 +509,19 @@ export function FormularioProspecto({
             </label>
           </div>
 
-          <h3 className="text-sm font-semibold text-texto-primario">3. Canal y seguimiento</h3>
+          <h3 className="text-sm font-semibold text-texto-primario">
+            3. Canal, seguimiento y próxima acción
+          </h3>
+          <p className="text-xs text-texto-secundario">
+            Los campos con <span className="font-semibold text-peligro-texto">*</span> son
+            obligatorios para dejar el RFQ listo para propuesta.
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="prospecto-canal">Canal</Label>
+              <Label htmlFor="prospecto-canal" className={CLASE_OBLIGATORIO}>
+                Canal
+              </Label>
               <Select
                 id="prospecto-canal"
                 value={canal}
@@ -482,6 +532,7 @@ export function FormularioProspecto({
                   if (!siguiente?.esOtro) setCanalDetalle('');
                 }}
                 disabled={catalogos === null}
+                aria-required="true"
               >
                 <option value="">Sin canal</option>
                 {(catalogos?.canales ?? [])
@@ -492,40 +543,53 @@ export function FormularioProspecto({
                     </option>
                   ))}
               </Select>
-              <span className="text-xs text-texto-secundario">
-                Cómo llegó la solicitud. También se puede completar desde el Resumen.
-              </span>
+              <span className="text-xs text-texto-secundario">Cómo llegó la solicitud.</span>
             </div>
 
             {canalSeleccionado?.esOtro && (
               <div className="flex flex-col gap-1">
-                <Label htmlFor="prospecto-canal-detalle">Detalle del canal Otro</Label>
+                <Label htmlFor="prospecto-canal-detalle" className={CLASE_OBLIGATORIO}>
+                  Detalle del canal Otro
+                </Label>
                 <Input
                   id="prospecto-canal-detalle"
                   value={canalDetalle}
                   onChange={(evento) => setCanalDetalle(evento.target.value)}
                   maxLength={300}
+                  aria-required="true"
                   placeholder="Ej. feria industrial o alianza comercial"
                 />
               </div>
             )}
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="prospecto-fecha-solicitud">Fecha de solicitud</Label>
+              <Label htmlFor="prospecto-fecha-solicitud" className={CLASE_OBLIGATORIO}>
+                Fecha de solicitud
+              </Label>
               <Input
                 id="prospecto-fecha-solicitud"
                 type="date"
                 value={fechaSolicitud}
                 onChange={(evento) => setFechaSolicitud(evento.target.value)}
+                aria-required="true"
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="prospecto-responsable">Responsable</Label>
+              <Label htmlFor="prospecto-responsable" className={CLASE_OBLIGATORIO}>
+                Responsable
+              </Label>
               <Select
                 id="prospecto-responsable"
                 value={responsableId}
-                onChange={(evento) => setResponsableId(evento.target.value)}
+                aria-required="true"
+                onChange={(evento) => {
+                  const valor = evento.target.value;
+                  setResponsableId(valor);
+                  // Autocompletado: el responsable de la acción arranca con el
+                  // responsable del seguimiento si aún no se eligió.
+                  setResponsableProximaAccionId((actual) => (actual === '' ? valor : actual));
+                }}
               >
                 <option value="">Sin responsable</option>
                 {(catalogos?.usuarios ?? []).map((usuario) => (
@@ -560,15 +624,96 @@ export function FormularioProspecto({
             )}
 
             <div className="flex flex-col gap-1 sm:col-span-2">
-              <Label htmlFor="prospecto-descripcion-general">Descripción general</Label>
+              <Label htmlFor="prospecto-descripcion-general" className={CLASE_OBLIGATORIO}>
+                Descripción general
+              </Label>
               <Textarea
                 id="prospecto-descripcion-general"
                 value={descripcionGeneral}
                 onChange={(evento) => setDescripcionGeneral(evento.target.value)}
                 rows={2}
                 maxLength={2000}
+                aria-required="true"
                 placeholder="Qué pide el cliente y alcance esperado"
               />
+            </div>
+          </div>
+
+          <h4 className="text-sm font-semibold text-texto-primario">Próxima acción</h4>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-proxima-accion" className={CLASE_OBLIGATORIO}>
+                Acción
+              </Label>
+              <Select
+                id="prospecto-proxima-accion"
+                value={proximaAccionCodigo}
+                aria-required="true"
+                onChange={(evento) => {
+                  const codigo = evento.target.value;
+                  setProximaAccionCodigo(codigo);
+                  const siguiente = (catalogos?.proximasAcciones ?? []).find(
+                    (opcion) => opcion.codigo === codigo,
+                  );
+                  if (!siguiente?.esOtro) setProximaAccionTexto('');
+                }}
+              >
+                <option value="">Sin acción</option>
+                {(catalogos?.proximasAcciones ?? []).map((accion) => (
+                  <option key={accion.codigo} value={accion.codigo}>
+                    {accion.nombre}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {esOtroAccion && (
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="prospecto-proxima-accion-detalle" className={CLASE_OBLIGATORIO}>
+                  Detalle de la acción (Otro)
+                </Label>
+                <Input
+                  id="prospecto-proxima-accion-detalle"
+                  value={proximaAccionTexto}
+                  onChange={(evento) => setProximaAccionTexto(evento.target.value)}
+                  maxLength={300}
+                  aria-required="true"
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-fecha-proxima-accion" className={CLASE_OBLIGATORIO}>
+                Fecha de la próxima acción
+              </Label>
+              <Input
+                id="prospecto-fecha-proxima-accion"
+                type="date"
+                min={hoy}
+                value={fechaProximaAccion}
+                onChange={(evento) => setFechaProximaAccion(evento.target.value)}
+                aria-required="true"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-responsable-proxima-accion" className={CLASE_OBLIGATORIO}>
+                Responsable de la acción
+              </Label>
+              <Select
+                id="prospecto-responsable-proxima-accion"
+                value={responsableProximaAccionId}
+                onChange={(evento) => setResponsableProximaAccionId(evento.target.value)}
+                aria-required="true"
+              >
+                <option value="">Sin responsable</option>
+                {(catalogos?.usuarios ?? []).map((usuario) => (
+                  <option key={usuario.id} value={usuario.id}>
+                    {usuario.nombre}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
 

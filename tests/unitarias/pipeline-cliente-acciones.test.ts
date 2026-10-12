@@ -325,6 +325,101 @@ describe('crearProspectoAccion — Resumen capturado desde el alta (obs. cliente
   });
 });
 
+describe('crearProspectoAccion — próxima acción capturada en el alta (ajuste cliente)', () => {
+  const fechaFutura = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+
+  function conCatalogos(opciones: { accion: unknown }): void {
+    seleccionMaybeSingleMock.mockImplementation(async (tabla: string) => {
+      if (tabla === 'catalogo_proximas_acciones') {
+        return { data: opciones.accion, error: null };
+      }
+      if (tabla === 'usuarios') {
+        return { data: { id: RESPONSABLE_ID, activo: true }, error: null };
+      }
+      return { data: null, error: null };
+    });
+  }
+
+  it('persiste la próxima acción completa junto con el RFQ', async () => {
+    conCatalogos({ accion: { codigo: 'FOLLOW_UP', es_otro: false, activo: true } });
+
+    await crearProspectoAccion({
+      ...ALTA_BASE,
+      proximaAccionCodigo: 'FOLLOW_UP',
+      fechaProximaAccion: fechaFutura,
+      responsableProximaAccionId: RESPONSABLE_ID,
+    });
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        proxima_accion_codigo: 'FOLLOW_UP',
+        fecha_proxima_accion: fechaFutura,
+        responsable_proxima_accion_id: RESPONSABLE_ID,
+      }),
+    );
+  });
+
+  it('exige la próxima acción completa (acción + fecha + responsable)', async () => {
+    const respuesta = await crearProspectoAccion({
+      ...ALTA_BASE,
+      proximaAccionCodigo: 'FOLLOW_UP',
+      fechaProximaAccion: fechaFutura,
+    });
+
+    expect(respuesta).toEqual({
+      exito: false,
+      error: 'Completa la próxima acción: acción, fecha y responsable de la acción',
+    });
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza una acción fuera del catálogo vigente', async () => {
+    const respuesta = await crearProspectoAccion({
+      ...ALTA_BASE,
+      proximaAccionCodigo: 'NO_EXISTE',
+      fechaProximaAccion: fechaFutura,
+      responsableProximaAccionId: RESPONSABLE_ID,
+    });
+
+    expect(respuesta).toEqual({
+      exito: false,
+      error: 'La próxima acción seleccionada no está vigente',
+    });
+  });
+
+  it('la acción "Otro" exige detalle', async () => {
+    conCatalogos({ accion: { codigo: 'OTRO', es_otro: true, activo: true } });
+
+    const respuesta = await crearProspectoAccion({
+      ...ALTA_BASE,
+      proximaAccionCodigo: 'OTRO',
+      fechaProximaAccion: fechaFutura,
+      responsableProximaAccionId: RESPONSABLE_ID,
+    });
+
+    expect(respuesta).toEqual({
+      exito: false,
+      error: 'Describe la acción "Otro" de la próxima acción',
+    });
+  });
+
+  it('rechaza una fecha de próxima acción en el pasado', async () => {
+    conCatalogos({ accion: { codigo: 'FOLLOW_UP', es_otro: false, activo: true } });
+
+    const respuesta = await crearProspectoAccion({
+      ...ALTA_BASE,
+      proximaAccionCodigo: 'FOLLOW_UP',
+      fechaProximaAccion: '2020-01-01',
+      responsableProximaAccionId: RESPONSABLE_ID,
+    });
+
+    expect(respuesta).toEqual({
+      exito: false,
+      error: 'La fecha de la próxima acción no puede estar en el pasado',
+    });
+  });
+});
+
 describe('asignarClienteOportunidadAccion', () => {
   it('liga el cliente y hereda condiciones cuando se pide', async () => {
     const respuesta = await asignarClienteOportunidadAccion({
