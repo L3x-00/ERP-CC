@@ -18,6 +18,9 @@ type Contexto = {
   ordenId: string;
   ordenFolioSii: string;
   ordenTiId: string;
+  /** Catálogo propio del fixture para la TI (no depende de semillas del entorno). */
+  materialId: string;
+  espesorId: string;
 };
 
 async function iniciarSesion(page: Page, correo: string, contrasena: string): Promise<void> {
@@ -131,10 +134,22 @@ async function prepararContexto(): Promise<Contexto> {
   }).select('id').single();
   if (errorRecurso || !recurso) throw new Error(`Sin recurso: ${errorRecurso?.message}`);
 
+  // La TI captura material/espesor del catálogo: el fixture crea los suyos para
+  // no depender de semillas ni de residuos de otras corridas (CI con base fresca).
+  const { data: material, error: errorMaterial } = await admin.from('catalogo_materiales').insert({
+    codigo: `B5MAT-${sufijo.toUpperCase()}`, nombre: `Material B5 ${sufijo}`,
+  }).select('id').single();
+  if (errorMaterial || !material) throw new Error(`Sin material: ${errorMaterial?.message}`);
+  const { data: espesor, error: errorEspesor } = await admin.from('catalogo_espesores').insert({
+    material_id: material.id, etiqueta: '5 mm', espesor_mm: 5,
+  }).select('id').single();
+  if (errorEspesor || !espesor) throw new Error(`Sin espesor: ${errorEspesor?.message}`);
+
   return {
     admin, correo, contrasena, usuarioId, clienteId: cliente.id, rfqId: rfq.id,
     propuestaId, revisionId, recursoId: recurso.id, operadorId,
     ordenId: '', ordenFolioSii: '', ordenTiId: '',
+    materialId: material.id, espesorId: espesor.id,
   };
 }
 
@@ -161,6 +176,12 @@ async function limpiarContexto(contexto: Contexto): Promise<void> {
   await admin.from('propuestas').delete().eq('rfq_id', contexto.rfqId);
   await admin.from('pipeline').delete().eq('id', contexto.rfqId);
   await admin.from('recursos_planeacion').delete().eq('id', contexto.recursoId);
+  // Catálogos del fixture: el borrado está bloqueado (trigger catalogo_sin_borrado);
+  // se desactivan y se retiran sus versiones, como en el resto de E2E.
+  await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_espesores').eq('entidad_id', contexto.espesorId);
+  await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_materiales').eq('entidad_id', contexto.materialId);
+  await admin.from('catalogo_espesores').update({ activo: false }).eq('id', contexto.espesorId);
+  await admin.from('catalogo_materiales').update({ activo: false }).eq('id', contexto.materialId);
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
   await admin.from('logs').delete().in('usuario_id', [contexto.usuarioId, contexto.operadorId]);
   await admin.from('usuarios').delete().in('id', [contexto.usuarioId, contexto.operadorId]);
@@ -325,22 +346,15 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await expect(page.getByTestId('ficha-panel-documento')).toContainText(`Orden de servicio ${folio}`);
 
       // Orden interna (TI) sin cliente, con material/espesor/proceso del
-      // catálogo, creada desde la UI y cancelada con motivo (obs. cliente 5).
+      // catálogo del fixture, creada desde la UI y cancelada con motivo (obs. cliente 5).
       await page.goto('/ordenes');
-      const { data: materialConEspesor } = await admin
-        .from('catalogo_espesores')
-        .select('material_id, id')
-        .eq('activo', true)
-        .limit(1)
-        .single();
-      if (!materialConEspesor) throw new Error('Sin espesores de catálogo para la TI E2E');
       await page.getByTestId('abrir-alta-interna').click();
       await page.getByTestId('interna-descripcion').fill('Mantenimiento interno E2E');
       await page.getByTestId('interna-motivo').fill('Mantenimiento interno E2E');
       await page.getByTestId('interna-item-descripcion-0').fill('Base TI E2E');
       await page.getByTestId('interna-item-cantidad-0').fill('1');
-      await page.getByTestId('interna-item-material-0').selectOption(materialConEspesor.material_id);
-      await page.getByTestId('interna-item-espesor-0').selectOption(materialConEspesor.id);
+      await page.getByTestId('interna-item-material-0').selectOption(contexto.materialId);
+      await page.getByTestId('interna-item-espesor-0').selectOption(contexto.espesorId);
       await page.locator('[data-testid^="interna-item-proceso-0-"]').first().check();
       await page.getByTestId('confirmar-alta-interna').click();
       await expect(page.getByTestId('alta-mensaje')).toContainText('Orden interna OI-');
@@ -361,7 +375,7 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
         .select('catalogo_material_id, procesos')
         .eq('orden_id', ti!.id)
         .single();
-      expect(partidaTi?.catalogo_material_id).not.toBeNull();
+      expect(partidaTi?.catalogo_material_id).toBe(contexto.materialId);
       expect(partidaTi?.procesos?.length ?? 0).toBeGreaterThan(0);
       await page.reload();
       const filaTi = page.getByTestId(`fila-orden-${folioTi}`);
