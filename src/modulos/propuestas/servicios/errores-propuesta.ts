@@ -99,6 +99,9 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('revision_desactualizada')) {
     return 'La revisión cambió desde que la cargaste; actualízala e inténtalo de nuevo';
   }
+  if (mensaje.includes('propuesta_ya_aceptada')) {
+    return 'La propuesta ya tiene una versión aceptada; las demás quedan solo como historial';
+  }
   if (mensaje.includes('revision_no_aceptada')) {
     return 'La revisión indicada no es la aceptada de la propuesta';
   }

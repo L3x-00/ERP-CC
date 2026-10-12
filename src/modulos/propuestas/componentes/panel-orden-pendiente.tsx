@@ -56,7 +56,9 @@ export function PanelOrdenPendiente({ revisionId }: { revisionId: string }) {
       </p>
       <p className="text-texto-primario">
         {solicitud.causa ?? 'La aceptación está registrada; la orden aún no se ha creado.'}
-        {solicitud.intentos > 0 ? ` (intentos: ${solicitud.intentos})` : ''}
+        {solicitud.intentos > 0
+          ? ` · ${solicitud.intentos} ${solicitud.intentos === 1 ? 'intento fallido' : 'intentos fallidos'}`
+          : ''}
       </p>
       {solicitud.puedeReintentar ? (
         <div>

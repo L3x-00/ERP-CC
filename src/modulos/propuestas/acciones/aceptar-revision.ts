@@ -2,7 +2,6 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
-import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
@@ -30,11 +29,11 @@ export type ResultadoAceptarRevision = {
 /**
  * SII-B4.10 + C4.1/DC-09: acepta la revisión exacta (SENT/FOLLOW_UP) y fija
  * `accepted_revision_id`; puede ser una revisión anterior a la última. La misma
- * RPC crea la solicitud durable de Orden y, acto seguido, quien puede liberar
- * órdenes dispara el intento inmediato e idempotente (observación del cliente:
- * la propuesta aceptada llega sola a Órdenes). Un gate fallido deja la
- * solicitud BLOCKED con causa y no revierte la aceptación; el panel de la ficha
- * ofrece «Reintentar» sin duplicar la Orden.
+ * RPC crea la solicitud durable de Orden y, acto seguido, la aceptación dispara
+ * el intento inmediato e idempotente (obs. cliente 2026-10-12: la propuesta
+ * aceptada llega sola a Órdenes, sin depender de `orden_liberar` del actor).
+ * Un gate fallido deja la solicitud BLOCKED con causa y no revierte la
+ * aceptación; el panel de la ficha ofrece «Reintentar» sin duplicar la Orden.
  */
 export async function aceptarRevisionAccion(
   entrada: unknown,
@@ -84,15 +83,16 @@ export async function aceptarRevisionAccion(
 }
 
 /**
- * Intento inmediato de creación de la Orden tras aceptar. Solo lo ejecuta un
- * actor con `orden_liberar` (la RPC lo revalida); si un gate falla, la
- * solicitud queda BLOCKED y la aceptación se conserva — este helper NUNCA
- * revierte ni falla la aceptación.
+ * Intento inmediato de creación de la Orden tras aceptar. Obs. cliente
+ * 2026-10-12: la aceptación (ya autorizada por `propuesta_aceptar`) siempre
+ * intenta crear la Orden; la RPC revalida que el actor pueda liberar o aceptar.
+ * Si un gate falla, la solicitud queda BLOCKED y la aceptación se conserva —
+ * este helper NUNCA revierte ni falla la aceptación.
  */
 async function intentarOrdenInmediata(revisionId: string): Promise<OrdenSiiCreada | null> {
   try {
     const usuario = await obtenerUsuarioServidor();
-    if (!usuario || !(await can(usuario, 'orden_liberar'))) {
+    if (!usuario) {
       return null;
     }
     const correlationId = nuevoCorrelationId();

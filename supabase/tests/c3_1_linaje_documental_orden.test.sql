@@ -213,16 +213,14 @@ INSERT INTO public.archivos (
    'application/dxf', 2048, '00000000-0000-4000-8000-00000c31d001');
 
 -- -----------------------------------------------------------------------------
--- 4. B aceptada y C posterior (DRAFT) con archivos que no deben congelarse
+-- 4. C posterior (DRAFT) creada ANTES de aceptar B; B aceptada después.
+-- Obs. cliente 2026-10-12: una propuesta aceptada ya no admite versiones
+-- nuevas, así que C se crea con B en SENT y queda DRAFT como historial
+-- posterior para probar que sus archivos no se congelan en la Orden.
 -- -----------------------------------------------------------------------------
 SELECT set_config('sii.b4_rpc', 'on', true);
-UPDATE public.propuesta_revisiones SET estado = 'ACCEPTED'
+UPDATE public.propuesta_revisiones SET estado = 'SENT'
 WHERE id = (SELECT valor FROM c31d_ids WHERE nombre = 'rev_b');
-UPDATE public.propuestas
-SET estado = 'ACCEPTED',
-    accepted_revision_id = (SELECT valor FROM c31d_ids WHERE nombre = 'rev_b'),
-    revision_vigente_id = (SELECT valor FROM c31d_ids WHERE nombre = 'rev_b')
-WHERE id = (SELECT valor FROM c31d_ids WHERE nombre = 'propuesta');
 
 SELECT lives_ok(
   format(
@@ -231,8 +229,17 @@ SELECT lives_ok(
     'Revision posterior en borrador',
     '00000000-0000-4000-8000-00000c31d001'
   ),
-  'Se crea la revisión C posterior a la aceptada'
+  'Se crea la revisión C posterior a B antes de la aceptación'
 );
+
+SELECT set_config('sii.b4_rpc', 'on', true);
+UPDATE public.propuesta_revisiones SET estado = 'ACCEPTED'
+WHERE id = (SELECT valor FROM c31d_ids WHERE nombre = 'rev_b');
+UPDATE public.propuestas
+SET estado = 'ACCEPTED',
+    accepted_revision_id = (SELECT valor FROM c31d_ids WHERE nombre = 'rev_b'),
+    revision_vigente_id = (SELECT valor FROM c31d_ids WHERE nombre = 'rev_b')
+WHERE id = (SELECT valor FROM c31d_ids WHERE nombre = 'propuesta');
 INSERT INTO c31d_ids
 SELECT 'rev_c', id FROM public.propuesta_revisiones
 WHERE propuesta_id = (SELECT valor FROM c31d_ids WHERE nombre = 'propuesta') AND letra = 'C';

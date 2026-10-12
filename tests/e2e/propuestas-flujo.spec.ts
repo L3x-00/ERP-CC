@@ -377,7 +377,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       expect(seguimientoValidado.error).toBeNull();
       expect(seguimientoValidado.data?.length ?? 0).toBeGreaterThan(0);
 
-      // 5. Generar PDF y verlo en la pestaña PDFs.
+      // 5. Generar PDF v1 y verlo en la pestaña PDFs.
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
       await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
       // Obs. PO: el resultado de «Generar PDF» debe ser visible y abrible.
@@ -385,6 +385,47 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(ficha.getByRole('button', { name: 'Ver PDF' })).toBeVisible();
       await page.getByRole('tab', { name: 'PDFs' }).click();
       await expect(page.getByTestId('panel-pdfs-propuesta')).toContainText('vigente');
+      await page.getByRole('tab', { name: 'Resumen' }).click();
+
+      // 5b. Obs. cliente 2026-10-12: «Editar» en Lista para enviar devuelve la
+      // revisión a borrador, invalida el PDF vigente, se revalida y regenera.
+      await ficha.getByTestId('boton-editar-revision').click();
+      const dialogoEditar = page.getByTestId('dialogo-editar-revision');
+      await expect(dialogoEditar).toBeVisible();
+      await capturar(page, 'dialogo-editar-revision');
+      await dialogoEditar
+        .getByLabel('Motivo de la edición')
+        .fill('Ajustar cantidades antes de enviar');
+      await dialogoEditar.getByRole('button', { name: 'Editar versión' }).click();
+      await expect
+        .poll(async () => {
+          const { data } = await admin
+            .from('propuesta_revisiones')
+            .select('estado')
+            .eq('id', revisionA.data.id)
+            .single();
+          return data?.estado;
+        })
+        .toBe('DRAFT');
+      // El PDF vigente queda invalidado: hay que regenerarlo.
+      await expect(page.getByText(/PDF vigente v1/)).toHaveCount(0);
+      await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
+      await expect(dialogoValidar).toBeVisible();
+      await dialogoValidar.getByRole('button', { name: 'Registrar y validar' }).click();
+      await expect
+        .poll(async () => {
+          const { data } = await admin
+            .from('propuesta_revisiones')
+            .select('estado')
+            .eq('id', revisionA.data.id)
+            .single();
+          return data?.estado;
+        })
+        .toBe('READY_TO_SEND');
+      // Sin cambios de contenido, regenerar reactiva el mismo PDF (v1).
+      await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
+      await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
+      await expect(ficha.getByTestId('pdf-resultado')).toContainText('ya existía');
 
       // 6. Seguimiento posterior en modal (obs. cliente: captura en modal).
       await page.getByRole('tab', { name: 'Seguimiento' }).click();
@@ -563,7 +604,16 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         })
         .toBe('SALE_CONFIRMED');
 
-      // 10. La propuesta aceptada ya aparece en Órdenes sin capturar de nuevo.
+      // 10. Obs. cliente 2026-10-12: tras aceptar, las demás versiones quedan
+      // como historial de solo lectura (sin acciones de negocio).
+      await page.getByRole('button', { name: /^B · / }).click();
+      await expect(page.getByTestId('panel-acciones-solo-lectura')).toBeVisible();
+      await expect(page.getByText('Versión histórica')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Aceptar revisión' })).toHaveCount(0);
+      await expect(page.getByTestId('boton-crear-nueva-version')).toHaveCount(0);
+      await expect(page.getByTestId('boton-editar-revision')).toHaveCount(0);
+
+      // 11. La propuesta aceptada ya aparece en Órdenes sin capturar de nuevo.
       await capturar(page, 'ficha-orden-creada');
       await page.goto('/ordenes');
       const folioOrden = ordenCreada.data!.folio_sii ?? ordenCreada.data!.folio;

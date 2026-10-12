@@ -98,11 +98,28 @@ export async function generarPdfRevisionAccion(
   // Idempotencia por contenido: si ya existe el mismo PDF, no se regenera.
   const { data: existente } = await admin
     .from('propuesta_pdfs')
-    .select('id, archivo_id, version')
+    .select('id, archivo_id, version, vigente')
     .eq('revision_id', revision.id)
     .eq('contenido_hash', hash)
     .maybeSingle();
   if (existente) {
+    if (!existente.vigente) {
+      // Obs. cliente 2026-10-12: al reabrir («Editar») el PDF vigente queda
+      // invalidado; si el contenido no cambió, regenerarlo lo reactiva.
+      const { error: errorDesmarcar } = await admin
+        .from('propuesta_pdfs')
+        .update({ vigente: false })
+        .eq('revision_id', revision.id)
+        .eq('vigente', true);
+      const { error: errorVigencia } = await admin
+        .from('propuesta_pdfs')
+        .update({ vigente: true })
+        .eq('id', existente.id);
+      if (errorDesmarcar || errorVigencia) {
+        console.error('[PROPUESTAS] No se pudo reactivar el PDF vigente:', errorVigencia?.message);
+        return { exito: false, error: 'No se pudo reactivar el PDF de la propuesta' };
+      }
+    }
     return {
       exito: true,
       datos: {

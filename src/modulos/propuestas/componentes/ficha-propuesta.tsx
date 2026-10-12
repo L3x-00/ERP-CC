@@ -10,6 +10,7 @@ import { usarCatalogosPropuesta, usarPropuesta } from '@/modulos/propuestas/hook
 import type { PermisosPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
 import { ActividadPropuesta } from './actividad-propuesta';
+import { BotonEditarRevision } from './dialogo-editar-revision';
 import { BotonNuevaVersionPropuesta } from './dialogo-nueva-version-propuesta';
 import { EditorItemsPropuesta } from './editor-items-propuesta';
 import { PanelAccionesPropuesta } from './panel-acciones-propuesta';
@@ -94,6 +95,28 @@ export function FichaPropuesta({
     ?? revisionActiva?.snapshotCabecera.cliente?.razonSocial
     ?? 'Sin cliente';
 
+  // Obs. cliente 2026-10-12: tras la aceptación, las demás versiones quedan
+  // solo como historial (sin acciones ni edición).
+  const esHistorial =
+    revisionActiva !== null
+    && propuesta.acceptedRevisionId !== null
+    && propuesta.acceptedRevisionId !== revisionActiva.id;
+  const permisosRevision: PermisosPropuesta = esHistorial
+    ? {
+        editarArticulo: false,
+        editarPrecio: false,
+        editarRuteo: false,
+        editarCosto: false,
+        validar: false,
+        generarPdf: false,
+        enviar: false,
+        seguimiento: false,
+        aceptar: false,
+        crearRevision: false,
+        cerrar: false,
+      }
+    : permisos;
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4" data-testid="ficha-propuesta">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -112,15 +135,26 @@ export function FichaPropuesta({
           </div>
           <p className="text-sm text-texto-secundario">{empresa}</p>
         </div>
-        {revisionActiva && (
-          <BotonNuevaVersionPropuesta
-            propuestaId={propuesta.id}
-            revisionId={revisionActiva.id}
-            letra={revisionActiva.letra}
-            estado={revisionActiva.estado}
-            puedeCrear={permisos.crearRevision}
-            onVersionCreada={(revisionId) => setRevisionActivaId(revisionId)}
-          />
+        {revisionActiva && !esHistorial && (
+          revisionActiva.estado === 'READY_TO_SEND' ? (
+            <BotonEditarRevision
+              propuestaId={propuesta.id}
+              revisionId={revisionActiva.id}
+              letra={revisionActiva.letra}
+              actualizadoEn={revisionActiva.actualizadoEn}
+              puedeEditar={permisos.validar}
+              onReabierta={() => setRevisionActivaId(revisionActiva.id)}
+            />
+          ) : (
+            <BotonNuevaVersionPropuesta
+              propuestaId={propuesta.id}
+              revisionId={revisionActiva.id}
+              letra={revisionActiva.letra}
+              estado={revisionActiva.estado}
+              puedeCrear={permisos.crearRevision}
+              onVersionCreada={(revisionId) => setRevisionActivaId(revisionId)}
+            />
+          )
         )}
       </header>
 
@@ -149,7 +183,8 @@ export function FichaPropuesta({
           detalle={detalle}
           revision={revisionActiva}
           catalogos={catalogosDatos}
-          permisos={permisos}
+          permisos={permisosRevision}
+          soloLectura={esHistorial}
         />
       )}
 
@@ -190,7 +225,7 @@ export function FichaPropuesta({
               costos={detalle.costos}
               catalogos={catalogosDatos}
               errorCatalogos={errorCatalogos}
-              permisos={permisos}
+              permisos={permisosRevision}
             />
           )}
           {pestana === 'ruteo' && (
@@ -200,7 +235,7 @@ export function FichaPropuesta({
               ruteo={detalle.ruteo}
               costos={detalle.costos}
               catalogos={catalogosDatos}
-              permisos={permisos}
+              permisos={permisosRevision}
             />
           )}
           {pestana === 'archivos' && (
@@ -211,7 +246,7 @@ export function FichaPropuesta({
               archivosHeredados={detalle.archivosHeredados}
               archivosPorItem={detalle.archivosPorItem}
               items={detalle.items}
-              puedeSubir={permisos.editarArticulo}
+              puedeSubir={permisosRevision.editarArticulo}
             />
           )}
           {pestana === 'pdfs' && (
@@ -222,7 +257,7 @@ export function FichaPropuesta({
               revision={revisionActiva}
               acciones={detalle.acciones}
               catalogos={catalogosDatos}
-              permisos={permisos}
+              permisos={permisosRevision}
             />
           )}
           {pestana === 'actividad' && (

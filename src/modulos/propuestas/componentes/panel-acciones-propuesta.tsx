@@ -36,11 +36,13 @@ export function PanelAccionesPropuesta({
   revision,
   catalogos,
   permisos,
+  soloLectura = false,
 }: {
   detalle: DetallePropuestaFicha;
   revision: RevisionConTotales;
   catalogos: CatalogosPropuesta | null;
   permisos: PermisosPropuesta;
+  soloLectura?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [formulario, setFormulario] = useState<Formulario>('ninguno');
@@ -82,6 +84,34 @@ export function PanelAccionesPropuesta({
   );
   const canalEsOtro = canalSeleccionado?.esOtro ?? false;
   const canalEnvio = canalEsOtro ? canalDetalle.trim() : canalEfectivo;
+
+  // Obs. cliente 2026-10-12: tras la aceptación, las demás versiones quedan
+  // inhabilitadas y solo se muestran para consulta del historial.
+  if (soloLectura) {
+    return (
+      <section
+        className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie-2 p-3"
+        data-testid="panel-acciones-solo-lectura"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-semibold text-texto-secundario">
+            Revisión {revision.letra}
+          </span>
+          <BadgeEstado estado={estado} etiqueta={ETIQUETA_ESTADO_PROPIESTA[estado]} />
+        </div>
+        <p className="text-xs text-texto-secundario">
+          Versión histórica: la propuesta ya tiene una revisión aceptada; esta versión se conserva
+          solo para consulta.
+        </p>
+        <p className="text-xs text-texto-secundario">
+          Totales de la revisión: {formatearMoneda(revision.totales.subtotal, revision.totales.moneda)} + IVA ={' '}
+          <span className="font-medium text-texto-primario">
+            {formatearMoneda(revision.totales.total, revision.totales.moneda)}
+          </span>
+        </p>
+      </section>
+    );
+  }
 
   async function refrescar(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(detalle.propuesta.id) });
