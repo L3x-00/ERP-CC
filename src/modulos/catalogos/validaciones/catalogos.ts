@@ -56,6 +56,8 @@ export const esquemaGuardarProceso = z
       .toUpperCase()
       .regex(PREFIJO_CORRIDA, 'El prefijo de corrida debe ser de 2 a 4 letras'),
     grupoPlaneadoId: z.uuid('Grupo planeado inválido').nullish(),
+    /** Obs. cliente 2026-10-12 (4b): grupo de equipo por defecto del proceso. */
+    grupoEquipoId: z.uuid('Grupo de equipo inválido').nullish(),
     areaTrabajoCodigo: codigoCatalogo.nullish(),
     requiereArchivoTecnico: z.boolean().default(true),
     requierePrimeraPieza: z.boolean().default(false),

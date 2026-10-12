@@ -47,6 +47,7 @@ describe('mappers defensivos de catálogos', () => {
       nombre: 'Láser fibra',
       prefijo_corrida: 'LAS',
       grupo_planeado_id: null,
+      grupo_equipo_id: null,
       area_trabajo_codigo: null,
       requiere_archivo_tecnico: true,
       requiere_primera_pieza: true,
@@ -56,6 +57,7 @@ describe('mappers defensivos de catálogos', () => {
       creado_en: '2026-10-05T00:00:00.000Z',
     });
     expect(proceso.grupoPlaneadoId).toBeNull();
+    expect(proceso.grupoEquipoId).toBeNull();
     expect(proceso.areaTrabajoCodigo).toBeNull();
     expect(proceso.requiereArchivoTecnico).toBe(true);
     expect(proceso.intervaloInspeccionLote).toBe(10);

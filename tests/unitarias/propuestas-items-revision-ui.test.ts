@@ -49,6 +49,7 @@ const CATALOGOS: CatalogosPropuesta = {
   recursos: [],
   proximasAcciones: [],
   canales: [],
+  areasTrabajo: [],
   materiales: [
     { id: MATERIAL_ACERO_ID, codigo: 'ACE', nombre: 'Acero' },
     { id: MATERIAL_ALUMINIO_ID, codigo: 'ALU', nombre: 'Aluminio' },

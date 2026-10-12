@@ -82,6 +82,33 @@ export function PanelRuteoCosteo({
     setRuteoBorrador((actual) => ({ ...actual, [itemId]: filas }));
   }
 
+  const catalogoProcesos = catalogos?.procesos ?? [];
+
+  /** Obs. cliente 2026-10-12 (4b): el área configurada rotula el proceso. */
+  const nombreArea = (codigo: string | null): string | null =>
+    codigo
+      ? (catalogos?.areasTrabajo.find((area) => area.codigo === codigo)?.nombre ?? null)
+      : null;
+
+  /**
+   * Tarifa vigente de un renglón para el costo estimado en vivo: el override de
+   * la máquina si está configurado; si no, la tarifa del grupo de equipo. Solo
+   * llega con permiso de costo (los montos vienen en null para el resto).
+   */
+  function tarifaDeFila(fila: FilaRuteoBorrador): { tarifa: number; moneda: 'MXN' | 'USD' } | null {
+    if (fila.recursoId) {
+      const recurso = (catalogos?.recursos ?? []).find((item) => item.id === fila.recursoId);
+      if (recurso?.tarifaHora != null && recurso.tarifaMoneda) {
+        return { tarifa: recurso.tarifaHora, moneda: recurso.tarifaMoneda };
+      }
+    }
+    const grupo = (catalogos?.gruposEquipo ?? []).find((item) => item.id === fila.grupoEquipoId);
+    if (grupo?.tarifaHora != null && grupo.tarifaMoneda) {
+      return { tarifa: grupo.tarifaHora, moneda: grupo.tarifaMoneda };
+    }
+    return null;
+  }
+
   const costosActuales = useMemo(() => {
     if (costosBorrador) return costosBorrador;
     const base = Object.fromEntries(
@@ -233,26 +260,42 @@ export function PanelRuteoCosteo({
                 <p className="text-xs text-texto-secundario">Sin ruteo capturado.</p>
               )}
 
-              {filas.map((fila, indice) => (
-                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+              {filas.map((fila, indice) => {
+                const tarifa = permisos.editarCosto ? tarifaDeFila(fila) : null;
+                const horasFila = (Number(fila.setupHoras) || 0) + (Number(fila.runHoras) || 0);
+                return (
+                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
                   <label className="flex flex-col gap-1">
                     <span className="text-xs text-texto-secundario">Proceso</span>
                     <Select
                       value={fila.procesoId}
                       onChange={(evento) => {
+                        const procesoId = evento.target.value;
+                        const proceso = catalogoProcesos.find((item) => item.id === procesoId);
                         const copia = [...filas];
-                        copia[indice] = { ...fila, procesoId: evento.target.value };
+                        // Obs. cliente 4b: el grupo configurado en el proceso se
+                        // autocompleta (el usuario puede ajustarlo después).
+                        copia[indice] = {
+                          ...fila,
+                          procesoId,
+                          grupoEquipoId: proceso?.grupoEquipoId ?? '',
+                          grupoPlaneadoId: proceso?.grupoPlaneadoId ?? '',
+                          recursoId: '',
+                        };
                         actualizarFilas(item.id, copia);
                       }}
                       disabled={!esBorrador || !permisos.editarRuteo}
                       aria-label={`Proceso ${item.codigo} fila ${indice + 1}`}
                     >
                       <option value="">Proceso…</option>
-                      {(catalogos?.procesos ?? []).map((proceso) => (
-                        <option key={proceso.id} value={proceso.id}>
-                          {proceso.nombre}
-                        </option>
-                      ))}
+                      {catalogoProcesos.map((proceso) => {
+                        const area = nombreArea(proceso.areaTrabajoCodigo);
+                        return (
+                          <option key={proceso.id} value={proceso.id}>
+                            {area ? `${proceso.nombre} · ${area}` : proceso.nombre}
+                          </option>
+                        );
+                      })}
                     </Select>
                   </label>
                   <label className="flex flex-col gap-1">
@@ -353,7 +396,7 @@ export function PanelRuteoCosteo({
                     <span className="text-xs text-texto-secundario">Total (h)</span>
                     <div className="flex h-9 items-center gap-1">
                       <span className="text-sm tabular-nums text-texto-secundario">
-                        {formatearNumero((Number(fila.setupHoras) || 0) + (Number(fila.runHoras) || 0))} h
+                        {formatearNumero(horasFila)} h
                       </span>
                       {esBorrador && permisos.editarRuteo && (
                         <Button
@@ -372,8 +415,36 @@ export function PanelRuteoCosteo({
                       )}
                     </div>
                   </div>
+                  {permisos.editarCosto && (
+                    // Obs. cliente 2026-10-12 (4b): costo estimado en vivo al
+                    // capturar horas, con la tarifa del grupo o de la máquina.
+                    <div
+                      className="flex flex-col gap-1"
+                      data-testid={`costo-estimado-${item.codigo}-${indice + 1}`}
+                    >
+                      <span className="text-xs text-texto-secundario">Costo estimado</span>
+                      {tarifa === null ? (
+                        <span className="flex h-9 items-center text-xs text-advertencia-texto">
+                          Sin tarifa configurada
+                        </span>
+                      ) : (
+                        <span className="flex h-9 flex-col justify-center text-sm leading-tight">
+                          <span className="tabular-nums">
+                            {formatearMoneda(horasFila * tarifa.tarifa, tarifa.moneda)}
+                          </span>
+                          <span className="text-xs text-texto-secundario">
+                            {formatearMoneda(tarifa.tarifa, tarifa.moneda)}/h
+                            {tarifa.moneda !== revision.snapshotCabecera.moneda
+                              ? ' · otra moneda que la propuesta'
+                              : ''}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
 
               {esBorrador && permisos.editarRuteo && (
                 <div className="flex items-center gap-2">

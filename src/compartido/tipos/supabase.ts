@@ -4420,6 +4420,7 @@ export type Database = {
           area_trabajo_codigo: string | null
           codigo: string
           creado_en: string
+          grupo_equipo_id: string | null
           grupo_planeado_id: string | null
           id: string
           intervalo_inspeccion_lote: number | null
@@ -4434,6 +4435,7 @@ export type Database = {
           area_trabajo_codigo?: string | null
           codigo: string
           creado_en?: string
+          grupo_equipo_id?: string | null
           grupo_planeado_id?: string | null
           id?: string
           intervalo_inspeccion_lote?: number | null
@@ -4448,6 +4450,7 @@ export type Database = {
           area_trabajo_codigo?: string | null
           codigo?: string
           creado_en?: string
+          grupo_equipo_id?: string | null
           grupo_planeado_id?: string | null
           id?: string
           intervalo_inspeccion_lote?: number | null
@@ -4464,6 +4467,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "areas_trabajo_config"
             referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "catalogo_procesos_grupo_equipo_id_fkey"
+            columns: ["grupo_equipo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_equipo"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "catalogo_procesos_grupo_planeado_id_fkey"

@@ -5,7 +5,7 @@
 // snapshot costeado, sin sumar dos veces el costo manual de máquina.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/modulos/propuestas/acciones/costear-ruteo-revision', () => ({
@@ -31,7 +31,10 @@ import type {
 const REVISION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ITEM_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const PROCESO_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const PROCESO_SECUNDARIO_ID = '99999999-9999-4999-8999-999999999999';
 const GRUPO_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const RECURSO_ID = '88888888-8888-4888-8888-888888888888';
+const AREA_CODIGO = 'LASER';
 
 const REVISION = {
   id: REVISION_ID,
@@ -128,12 +131,47 @@ const COSTOS = [
 ] as unknown as CostoRevisionPropuesta[];
 
 const CATALOGOS: CatalogosPropuesta = {
-  procesos: [{ id: PROCESO_ID, codigo: 'LAS', nombre: 'Láser' }],
-  gruposEquipo: [{ id: GRUPO_ID, codigo: 'GLAS', nombre: 'Grupo Láser', sinTarifa: false }],
+  procesos: [
+    {
+      id: PROCESO_ID,
+      codigo: 'LAS',
+      nombre: 'Láser',
+      grupoEquipoId: GRUPO_ID,
+      grupoPlaneadoId: null,
+      areaTrabajoCodigo: AREA_CODIGO,
+    },
+    {
+      id: PROCESO_SECUNDARIO_ID,
+      codigo: 'DOB',
+      nombre: 'Doblez',
+      grupoEquipoId: null,
+      grupoPlaneadoId: null,
+      areaTrabajoCodigo: null,
+    },
+  ],
+  gruposEquipo: [
+    {
+      id: GRUPO_ID,
+      codigo: 'GLAS',
+      nombre: 'Grupo Láser',
+      sinTarifa: false,
+      tarifaHora: 100,
+      tarifaMoneda: 'MXN',
+    },
+  ],
   gruposPlaneados: [],
-  recursos: [],
+  recursos: [
+    {
+      id: RECURSO_ID,
+      nombre: 'Máquina 1',
+      grupoEquipoId: GRUPO_ID,
+      tarifaHora: 150,
+      tarifaMoneda: 'MXN',
+    },
+  ],
   proximasAcciones: [],
   canales: [],
+  areasTrabajo: [{ codigo: AREA_CODIGO, nombre: 'Área Láser' }],
   materiales: [],
   espesores: [],
   errorItems: null,
@@ -153,7 +191,7 @@ const PERMISOS = {
   cerrar: true,
 } as PermisosPropuesta;
 
-function montar() {
+function montar(parcial: { catalogos?: CatalogosPropuesta; permisos?: PermisosPropuesta } = {}) {
   const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     createElement(
@@ -164,8 +202,8 @@ function montar() {
         items: [ITEM],
         ruteo: RUTEO,
         costos: COSTOS,
-        catalogos: CATALOGOS,
-        permisos: PERMISOS,
+        catalogos: parcial.catalogos ?? CATALOGOS,
+        permisos: parcial.permisos ?? PERMISOS,
       }),
     ),
   );
@@ -234,5 +272,73 @@ describe('costo total estimado de fabricación (obs. cliente)', () => {
     const desglose = within(screen.getByTestId('costeo-fabricacion'));
     expect(desglose.getByText(/Pulsa «Costear ruteo»/)).toBeDefined();
     expect(desglose.getByText('El desglose se llena al costear el ruteo.')).toBeDefined();
+  });
+});
+
+describe('ruteo 4b: grupo por proceso y costo en vivo (obs. cliente)', () => {
+  it('al elegir un proceso autocompleta su grupo de equipo y rotula el área', () => {
+    montar();
+
+    expect(
+      screen.getAllByRole('option', { name: 'Láser · Área Láser' }).length,
+    ).toBeGreaterThan(0);
+
+    const procesoFila2 = screen.getByLabelText('Proceso IT01 fila 2') as HTMLSelectElement;
+    const grupoFila2 = screen.getByLabelText('Grupo de equipo IT01 fila 2') as HTMLSelectElement;
+    expect(grupoFila2.value).toBe(GRUPO_ID);
+
+    fireEvent.change(procesoFila2, { target: { value: PROCESO_SECUNDARIO_ID } });
+    expect(grupoFila2.value).toBe('');
+
+    fireEvent.change(procesoFila2, { target: { value: PROCESO_ID } });
+    expect(grupoFila2.value).toBe(GRUPO_ID);
+  });
+
+  it('muestra el costo estimado en vivo con la tarifa del grupo', () => {
+    montar();
+
+    // 3 h × $100/h y 1 h × $100/h antes de costear.
+    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$300.00');
+    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$100.00/h');
+    expect(screen.getByTestId('costo-estimado-IT01-2').textContent).toContain('$100.00');
+  });
+
+  it('usa el override de la máquina cuando está seleccionada', () => {
+    montar();
+
+    const recursoFila2 = screen.getByLabelText('Máquina IT01 fila 2') as HTMLSelectElement;
+    fireEvent.change(recursoFila2, { target: { value: RECURSO_ID } });
+
+    expect(screen.getByTestId('costo-estimado-IT01-2').textContent).toContain('$150.00');
+  });
+
+  it('avisa cuando el renglón no tiene tarifa configurada', () => {
+    montar();
+
+    fireEvent.change(screen.getByLabelText('Proceso IT01 fila 2'), {
+      target: { value: PROCESO_SECUNDARIO_ID },
+    });
+
+    expect(screen.getByTestId('costo-estimado-IT01-2').textContent).toContain(
+      'Sin tarifa configurada',
+    );
+  });
+
+  it('avisa cuando la tarifa está en otra moneda que la propuesta', () => {
+    const catalogosUsd: CatalogosPropuesta = {
+      ...CATALOGOS,
+      gruposEquipo: [{ ...CATALOGOS.gruposEquipo[0]!, tarifaMoneda: 'USD' }],
+    };
+    montar({ catalogos: catalogosUsd });
+
+    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain(
+      'otra moneda que la propuesta',
+    );
+  });
+
+  it('sin permiso de costo no se muestra el costo estimado', () => {
+    montar({ permisos: { ...PERMISOS, editarCosto: false } });
+
+    expect(screen.queryByTestId('costo-estimado-IT01-1')).toBeNull();
   });
 });

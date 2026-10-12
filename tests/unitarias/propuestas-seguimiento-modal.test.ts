@@ -50,6 +50,7 @@ const CATALOGOS = {
   ],
   materiales: [],
   espesores: [],
+  areasTrabajo: [],
   errorItems: null,
 } as CatalogosPropuesta;
 
