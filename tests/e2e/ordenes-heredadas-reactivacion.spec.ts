@@ -168,71 +168,74 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
     if (contexto) await limpiarContexto(contexto);
   });
 
-  test('E2E-14: captura heredada con ID único y repetición con folio nuevo', async ({ page }) => {
+  test('E2E-14: orden heredada por RPC, ID único y repetición con folio nuevo', async ({ page }) => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const caso = contexto;
     await iniciarSesionAdministrador(page, caso);
     await page.goto('/ordenes');
 
+    // Obs. cliente 2026-10-12 (5): la captura heredada ya no vive en la UI; la
+    // orden histórica se siembra por la RPC y la UI se prueba con «Repetir».
     const idHistorico = `E2E-HIST-${randomUUID().slice(0, 6).toUpperCase()}`;
-    await page.getByTestId('abrir-orden-heredada').click();
-    await page.getByTestId('historica-cliente').selectOption(caso.clienteId);
-    await page.getByTestId('historica-id').fill(idHistorico);
-    await page.getByTestId('historica-fecha-trabajo').fill('2026-06-15');
-    await page.getByTestId('historica-fecha-compromiso').fill('2026-12-15');
-    await page.getByTestId('historica-subtotal').fill('1000');
-    await page.getByTestId('historica-iva').fill('160');
-    await page.getByTestId('historica-partida-codigo-0').fill('HIST-PZA-1');
-    await page.getByTestId('historica-partida-cantidad-0').fill('5');
-    await page.getByTestId('historica-partida-procesos-0').fill('Corte, Doblado');
-    await page.getByTestId('historica-crear').click();
+    const datosHistorica = {
+      p_cliente_id: caso.clienteId,
+      p_actor_id: caso.administradorId,
+      p_id_historico: idHistorico,
+      p_fecha_trabajo: '2026-06-15',
+      p_fecha_compromiso: '2026-12-15T18:00:00.000Z',
+      p_condicion_pago: 'contado',
+      p_referencia_externa: '',
+      p_monto_sin_iva: 1000,
+      p_monto_iva: 160,
+      p_horas_estimadas: 5,
+      p_notas: '',
+      p_partidas: [{
+        codigo_pieza: 'HIST-PZA-1',
+        descripcion: 'Pieza heredada E2E',
+        cantidad_solicitada: 5,
+        unidad_medida: 'pza',
+        procesos: ['Corte', 'Doblado'],
+      }],
+    };
+    const { data: creadaHistorica, error: errorHistorica } = await caso.admin
+      .rpc('crear_orden_historica', datosHistorica);
+    const historica = creadaHistorica?.[0];
+    if (errorHistorica || !historica) {
+      throw new Error(`Sin orden heredada E2E: ${errorHistorica?.message ?? 'sin fila'}`);
+    }
+    expect(historica.folio).toMatch(/^OP-/);
+    caso.ordenesCreadas.push(historica.id);
 
-    // El alta abre los adjuntos del folio nuevo; se cierra para ver el estado del panel.
-    await expect(page.getByRole('dialog')).toContainText('Archivos de OP-');
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('status').filter({ hasText: 'creada con su cuenta por cobrar' }).first()).toBeVisible();
-    const mensajeAlta = await page.getByRole('status').filter({ hasText: 'creada con su cuenta por cobrar' }).first().textContent();
-    const folioHistoricoVisible = /OP-\d{6}/.exec(mensajeAlta ?? '')?.[0] ?? '';
-    expect(folioHistoricoVisible).not.toBe('');
-    await expect(page.getByRole('row', { name: new RegExp(folioHistoricoVisible) })).toContainText('Planificada');
-
-    // ID repetido: se rechaza con mensaje explícito.
-    await page.getByTestId('abrir-orden-heredada').click();
-    await page.getByTestId('historica-cliente').selectOption(caso.clienteId);
-    await page.getByTestId('historica-id').fill(idHistorico.toLowerCase());
-    await page.getByTestId('historica-fecha-trabajo').fill('2026-06-15');
-    await page.getByTestId('historica-fecha-compromiso').fill('2026-12-15');
-    await page.getByTestId('historica-subtotal').fill('50');
-    await page.getByTestId('historica-iva').fill('8');
-    await page.getByTestId('historica-partida-codigo-0').fill('HIST-PZA-2');
-    await page.getByTestId('historica-partida-cantidad-0').fill('1');
-    await page.getByTestId('historica-crear').click();
-    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('ya está registrado');
-    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+    // ID repetido: la RPC lo rechaza con mensaje explícito.
+    const duplicado = await caso.admin.rpc('crear_orden_historica', {
+      ...datosHistorica,
+      p_id_historico: idHistorico.toLowerCase(),
+      p_monto_sin_iva: 50,
+      p_monto_iva: 8,
+    });
+    expect(duplicado.error?.message ?? '').toContain('id_historico_duplicado');
 
     // La orden heredada ya está en la tabla; se repite desde su fila.
-    const { data: historica } = await caso.admin.from('ordenes_produccion')
-      .select('id, folio').eq('id_historico', idHistorico.toLowerCase()).single();
-    expect(historica?.folio).toMatch(/^OP-/);
-    caso.ordenesCreadas.push(historica!.id);
-    const filaHistorica = page.getByRole('row', { name: new RegExp(historica!.folio) });
+    await page.reload();
+    const filaHistorica = page.getByRole('row', { name: new RegExp(historica.folio) });
     await expect(filaHistorica).toContainText('Planificada');
-    await page.getByTestId(`repetir-orden-${historica!.folio}`).click();
+    await page.getByTestId(`repetir-orden-${historica.folio}`).click();
     await page.getByTestId('repetir-fecha-compromiso').fill('2027-01-20');
     await page.getByTestId('confirmar-repetir-orden').click();
     await expect(page.getByRole('dialog').getByRole('status')).toContainText('Trabajo repetido en la orden');
     const mensaje = await page.getByRole('dialog').getByRole('status').textContent();
     const folioNuevo = /OP-\d{6}/.exec(mensaje ?? '')?.[0] ?? '';
     expect(folioNuevo).not.toBe('');
-    expect(folioNuevo).not.toBe(historica!.folio);
+    expect(folioNuevo).not.toBe(historica.folio);
     await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).first().click();
     await expect(page.getByRole('row', { name: new RegExp(folioNuevo) })).toContainText('Planificada');
 
-    const { data: repetida } = await caso.admin.from('ordenes_produccion')
+    const { data: repetida } = await caso.admin
+      .from('ordenes_produccion')
       .select('id, estado, id_historico, orden_origen_id').eq('folio', folioNuevo).single();
     expect(repetida?.estado).toBe('programada');
     expect(repetida?.id_historico).toBeNull();
-    expect(repetida?.orden_origen_id).toBe(historica!.id);
+    expect(repetida?.orden_origen_id).toBe(historica.id);
     caso.ordenesCreadas.push(repetida!.id);
     if (process.env.E2E_CAPTURAR_VISUAL === 'si') {
       await page.screenshot({

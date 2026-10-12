@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 
 import { PanelOrdenInterna } from '@/modulos/ordenes/componentes/panel-orden-interna';
-import { PanelOrdenHeredada } from '@/modulos/ordenes/componentes/panel-orden-heredada';
 import { ComparativaOrdenes } from '@/modulos/ordenes/componentes/comparativa-ordenes';
 import { SincronizadorOrdenesRealtime } from '@/modulos/ordenes/componentes/sincronizador-ordenes-realtime';
 import { TablaOrdenes, type OrdenTabla } from '@/modulos/ordenes/componentes/tabla-ordenes';
@@ -10,6 +9,7 @@ import { obtenerDatosComparativaServicio } from '@/modulos/ordenes/servicios/dat
 import { compararOrdenes } from '@/modulos/ordenes/utilidades/comparativa-ordenes';
 import { fechaKpiMexico } from '@/modulos/ordenes/utilidades/fecha-kpi';
 import { resumirOrdenes } from '@/modulos/ordenes/utilidades/resumen-ordenes';
+import { obtenerCatalogosRfqAccion } from '@/modulos/rfq/acciones/obtener-catalogos';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
@@ -36,16 +36,9 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   ]);
   const cliente = await crearClienteSupabaseServidor();
   const puedeVerAltas = puedeAdministrar || puedeCrearInterna;
-  const [ordenesConPartidas, resultadoClientes, resultadoAreas] = await Promise.all([
+  const [ordenesConPartidas, resultadoAreas, catalogosRfq] = await Promise.all([
     obtenerOrdenesConPartidasServicio(cliente),
     puedeVerAltas
-      ? cliente
-        .from('clientes')
-        .select('id, nombre_comercial, razon_social')
-        .eq('estado', 'activo')
-        .order('razon_social', { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
-    puedeAdministrar
       ? cliente
         .from('areas_trabajo_config')
         .select('codigo, nombre')
@@ -53,10 +46,11 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
         .order('orden', { ascending: true })
         .order('nombre', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
+    puedeCrearInterna ? obtenerCatalogosRfqAccion() : Promise.resolve(null),
   ]);
 
-  if (resultadoClientes.error || resultadoAreas.error) {
-    throw new Error('No se pudieron cargar las opciones para las altas administrativas');
+  if (resultadoAreas.error) {
+    throw new Error('No se pudieron cargar las áreas para el alta interna');
   }
 
   const idsOrdenes = ordenesConPartidas.map(({ orden }) => orden.id);
@@ -96,10 +90,6 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     })),
   }));
 
-  const clientes = (resultadoClientes.data ?? []).map((clienteActual) => ({
-    id: clienteActual.id,
-    nombre: clienteActual.nombre_comercial || clienteActual.razon_social,
-  }));
   const areas = (resultadoAreas.data ?? []).map((area) => ({
     codigo: area.codigo,
     nombre: area.nombre,
@@ -111,9 +101,8 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Órdenes de producción</h1>
         <p className="text-sm text-texto-secundario">
-          Las órdenes nacen al aceptar una propuesta y se siguen aquí por estado y proceso; el
-          alta directa no está disponible. El registro de piso se opera desde terminales con
-          sesión de operador.
+          Las órdenes nacen al aceptar una propuesta y se siguen aquí por estado y proceso. El
+          trabajo interno se registra con «Nueva orden interna» (no cobrable).
         </p>
       </header>
 
@@ -136,23 +125,12 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
 
       <ComparativaOrdenes filas={comparativa} mostrarVentas={mostrarVentas} />
 
-      {puedeVerAltas ? <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-altas-autorizadas">
-        <h2 id="titulo-altas-autorizadas" className="text-lg font-semibold">
-          Altas autorizadas
-        </h2>
-        <p className="mb-4 mt-1 text-sm text-texto-secundario">
-          La orden comercial nace automáticamente al aceptar una propuesta; aquí solo se registran
-          las excepciones con autorización.
-        </p>
-        <div className="flex flex-col gap-5">
-          {puedeCrearInterna ? <PanelOrdenInterna clientes={clientes} /> : null}
-          {puedeAdministrar ? (
-            <div className="border-t border-borde pt-4">
-              <PanelOrdenHeredada clientes={clientes} areas={areas} />
-            </div>
-          ) : null}
-        </div>
-      </section> : null}
+      {puedeCrearInterna ? (
+        <PanelOrdenInterna
+          catalogos={catalogosRfq?.exito ? (catalogosRfq.datos ?? null) : null}
+          areas={areas}
+        />
+      ) : null}
 
       <section className="flex flex-col gap-4" aria-labelledby="titulo-lista-op">
         <div>

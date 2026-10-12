@@ -324,12 +324,24 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await page.getByTestId('ficha-pestana-documento').click();
       await expect(page.getByTestId('ficha-panel-documento')).toContainText(`Orden de servicio ${folio}`);
 
-      // Orden interna (TI) creada desde la UI y cancelada con motivo.
+      // Orden interna (TI) sin cliente, con material/espesor/proceso del
+      // catálogo, creada desde la UI y cancelada con motivo (obs. cliente 5).
       await page.goto('/ordenes');
+      const { data: materialConEspesor } = await admin
+        .from('catalogo_espesores')
+        .select('material_id, id')
+        .eq('activo', true)
+        .limit(1)
+        .single();
+      if (!materialConEspesor) throw new Error('Sin espesores de catálogo para la TI E2E');
       await page.getByTestId('abrir-alta-interna').click();
+      await page.getByTestId('interna-descripcion').fill('Mantenimiento interno E2E');
       await page.getByTestId('interna-motivo').fill('Mantenimiento interno E2E');
       await page.getByTestId('interna-item-descripcion-0').fill('Base TI E2E');
       await page.getByTestId('interna-item-cantidad-0').fill('1');
+      await page.getByTestId('interna-item-material-0').selectOption(materialConEspesor.material_id);
+      await page.getByTestId('interna-item-espesor-0').selectOption(materialConEspesor.id);
+      await page.locator('[data-testid^="interna-item-proceso-0-"]').first().check();
       await page.getByTestId('confirmar-alta-interna').click();
       await expect(page.getByTestId('alta-mensaje')).toContainText('Orden interna OI-');
       // La TI no lleva cliente: se identifica por el folio SII del mensaje.
@@ -342,8 +354,15 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
         return data?.id ?? null;
       }).not.toBeNull();
       const { data: ti } = await admin.from('ordenes_produccion')
-        .select('id, folio_sii').eq('folio_sii', folioTi).single();
+        .select('id, folio_sii, cliente_id').eq('folio_sii', folioTi).single();
+      expect(ti?.cliente_id).toBeNull();
       contexto.ordenTiId = ti!.id;
+      const { data: partidaTi } = await admin.from('partidas_orden_produccion')
+        .select('catalogo_material_id, procesos')
+        .eq('orden_id', ti!.id)
+        .single();
+      expect(partidaTi?.catalogo_material_id).not.toBeNull();
+      expect(partidaTi?.procesos?.length ?? 0).toBeGreaterThan(0);
       await page.reload();
       const filaTi = page.getByTestId(`fila-orden-${folioTi}`);
       await filaTi.getByTestId('cambiar-estado-cancelada').click();

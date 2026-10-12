@@ -13,16 +13,16 @@ export const esquemaCrearOrdenDesdeRevision = z
 
 const ITEM_INTERNO = z
   .object({
-    codigoItem: z
-      .string()
-      .trim()
-      .toUpperCase()
-      .regex(/^IT[0-9]{2,}$/, 'El código de ítem debe ser ITxx')
-      .optional(),
+    codigoItem: z.string().trim().toUpperCase().max(20, 'El código no puede exceder 20 caracteres').optional(),
     descripcion: z.string().trim().min(1, 'La descripción del ítem es requerida').max(300),
     cantidad: z.number().positive('La cantidad debe ser mayor que cero'),
+    /** Obs. cliente 2026-10-12 (5): partida con catálogos y unidad. */
+    unidad: z.string().trim().max(40).optional(),
+    materialId: ID.optional(),
+    espesorId: ID.optional(),
     material: z.string().trim().max(120).optional(),
     espesor: z.string().trim().max(120).optional(),
+    procesoIds: z.array(ID).max(20, 'Demasiados procesos para un ítem').optional(),
     procesos: z
       .array(z.string().trim().min(1).max(60))
       .max(20, 'Demasiados procesos para un ítem')
@@ -31,10 +31,12 @@ const ITEM_INTERNO = z
   })
   .strict();
 
-/** Alta directa de orden interna (TI) autorizada (§5.5). */
+/**
+ * Alta directa de orden interna (TI) autorizada (§5.5). Obs. cliente
+ * 2026-10-12 (5): la orden interna no refiere a un cliente (no es cobrable).
+ */
 export const esquemaCrearOrdenInterna = z
   .object({
-    clienteId: ID,
     fechaCompromiso: FECHA_HORA,
     prioridad: z.enum(PRIORIDADES).default('normal'),
     descripcion: z.string().trim().max(300).optional(),
@@ -87,7 +89,6 @@ export interface CrearOrdenDesdeRevisionInput {
 }
 
 export interface CrearOrdenInternaInput {
-  clienteId: string;
   fechaCompromiso: string;
   prioridad: (typeof PRIORIDADES)[number];
   descripcion?: string;

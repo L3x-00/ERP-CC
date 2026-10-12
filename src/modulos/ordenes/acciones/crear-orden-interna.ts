@@ -23,6 +23,9 @@ const MENSAJES: Readonly<Record<string, string>> = {
   prioridad_invalida: 'La prioridad no es válida.',
   items_requeridos: 'La orden interna requiere al menos un ítem.',
   item_invalido: 'Revisa descripción, cantidades y procesos de los ítems.',
+  material_invalido: 'El material seleccionado no está activo en el catálogo.',
+  espesor_invalido: 'El espesor seleccionado no pertenece al material o no está activo.',
+  proceso_invalido: 'Algún proceso seleccionado no está activo en el catálogo.',
 };
 
 export async function crearOrdenInternaAccion(
@@ -55,7 +58,7 @@ export async function crearOrdenInternaAccion(
   } catch (error) {
     const codigo = error instanceof ErrorOrdenSii ? error.codigo : codigoErrorOrdenSii(String(error));
     console.error('[ORDENES] Error al crear orden interna:', error);
-    await registrarLog(usuario, 'crear_orden_interna_rechazada', 'ordenes', analisis.data.clienteId, {
+    await registrarLog(usuario, 'crear_orden_interna_rechazada', 'ordenes', 'orden_interna', {
       codigo,
     }, correlationId);
     return { exito: false, error: MENSAJES[codigo] ?? 'No se pudo crear la orden interna' };

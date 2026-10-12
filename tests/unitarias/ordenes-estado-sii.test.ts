@@ -16,7 +16,6 @@ import {
 } from '@/modulos/ordenes/validaciones/orden-sii';
 
 const ORDEN_ID = '00000000-0000-4000-8000-0000000b5001';
-const CLIENTE_ID = '00000000-0000-4000-8000-0000000b5002';
 const REVISION_ID = '00000000-0000-4000-8000-0000000b5003';
 const FECHA = '2026-10-06T12:00:00.000Z';
 
@@ -86,30 +85,47 @@ describe('esquemas de acciones B5', () => {
     expect(esquemaCrearOrdenDesdeRevision.safeParse({}).success).toBe(false);
   });
 
+  const MATERIAL_ID = '11111111-1111-4111-8111-111111111111';
+  const ESPESOR_ID = '22222222-2222-4222-8222-222222222222';
+  const PROCESO_ID = '33333333-3333-4333-8333-333333333333';
+
   const internaValida = {
-    clienteId: CLIENTE_ID,
     fechaCompromiso: FECHA,
     prioridad: 'normal' as const,
     motivoAutorizacion: 'Trabajo interno de mantenimiento',
     items: [
       {
+        codigoItem: 'HERR-01',
         descripcion: 'Base para prensa',
         cantidad: 2,
-        material: 'ACERO_CARBON',
-        espesor: '6 mm',
-        procesos: ['Corte', 'Doblado'],
+        unidad: 'pieza',
+        materialId: MATERIAL_ID,
+        espesorId: ESPESOR_ID,
+        procesoIds: [PROCESO_ID],
         tiempoEstimadoMinutos: 45,
       },
     ],
   };
 
-  it('valida la orden interna y rechaza autorización/ítems inválidos', () => {
+  it('valida la orden interna sin cliente y rechaza autorización/ítems inválidos', () => {
     const valido = esquemaCrearOrdenInterna.safeParse(internaValida);
     expect(valido.success).toBe(true);
     if (valido.success) {
       expect(valido.data.items[0].tiempoEstimadoMinutos).toBe(45);
+      expect(valido.data.items[0].materialId).toBe(MATERIAL_ID);
       expect(valido.data.prioridad).toBe('normal');
     }
+    // El payload anterior (material/espesor/procesos en texto) sigue válido.
+    expect(esquemaCrearOrdenInterna.safeParse({
+      ...internaValida,
+      items: [{
+        descripcion: 'Base para prensa',
+        cantidad: 1,
+        material: 'ACERO_CARBON',
+        espesor: '6 mm',
+        procesos: ['Corte', 'Doblado'],
+      }],
+    }).success).toBe(true);
     expect(esquemaCrearOrdenInterna.safeParse({ ...internaValida, motivoAutorizacion: 'no' }).success).toBe(false);
     expect(esquemaCrearOrdenInterna.safeParse({ ...internaValida, items: [] }).success).toBe(false);
     expect(esquemaCrearOrdenInterna.safeParse({
@@ -119,7 +135,11 @@ describe('esquemas de acciones B5', () => {
     expect(esquemaCrearOrdenInterna.safeParse({ ...internaValida, fechaCompromiso: 'ayer' }).success).toBe(false);
     expect(esquemaCrearOrdenInterna.safeParse({
       ...internaValida,
-      items: [{ ...internaValida.items[0], codigoItem: 'XX01' }],
+      items: [{ ...internaValida.items[0], codigoItem: 'C'.repeat(21) }],
+    }).success).toBe(false);
+    expect(esquemaCrearOrdenInterna.safeParse({
+      ...internaValida,
+      items: [{ ...internaValida.items[0], materialId: 'no-uuid' }],
     }).success).toBe(false);
   });
 

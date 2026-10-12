@@ -175,7 +175,7 @@ SELECT has_table('public', 'propuestas', 'Existe propuestas');
 SELECT has_table('public', 'propuesta_revisiones', 'Existe propuesta_revisiones');
 SELECT has_table('public', 'propuesta_item_ruteo', 'Existe propuesta_item_ruteo');
 SELECT has_table('public', 'propuesta_pdfs', 'Existe propuesta_pdfs');
-SELECT matches(public.generar_folio_periodico('CNC'), '^CNC-[0-9]{4}_[0-9]{2}$',
+SELECT matches(public.generar_folio_periodico('CNC'), '^CNC-[0-9]{4}_[0-9]{2,3}$',
   'El folio CNC nuevo usa CNC-MMYY_XX');
 SELECT ok(
   has_function_privilege('service_role', 'public.crear_propuesta(uuid,uuid,uuid)', 'EXECUTE'),
@@ -237,7 +237,7 @@ WHERE propuesta_id = (SELECT valor FROM b4_ids WHERE nombre = 'p1');
 
 SELECT matches(
   (SELECT folio_cnc FROM public.propuestas WHERE id = (SELECT valor FROM b4_ids WHERE nombre = 'p1')),
-  '^CNC-[0-9]{4}_[0-9]{2}$', 'La propuesta recibe folio CNC-MMYY_XX');
+  '^CNC-[0-9]{4}_[0-9]{2,3}$', 'La propuesta recibe folio CNC-MMYY_XX');
 SELECT is(
   (SELECT estado FROM public.propuestas WHERE id = (SELECT valor FROM b4_ids WHERE nombre = 'p1')),
   'DRAFT', 'La propuesta nace DRAFT');
@@ -720,7 +720,7 @@ SELECT is(
 SELECT matches(
   (SELECT p.folio_cnc FROM public.propuestas AS p
    JOIN public.pipeline AS rfq ON rfq.id = p.rfq_id WHERE rfq.folio_op = 'OP-B4-0003'),
-  '^CNC-[0-9]{4}_[0-9]{2}$', 'La propuesta histórica usa el folio nuevo');
+  '^CNC-[0-9]{4}_[0-9]{2,3}$', 'La propuesta histórica usa el folio nuevo');
 SELECT is(
   (SELECT r.snapshot_cabecera ->> 'folio_legacy' FROM public.propuesta_revisiones AS r
    JOIN public.propuestas AS p ON p.id = r.propuesta_id

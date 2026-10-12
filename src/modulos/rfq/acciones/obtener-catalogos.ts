@@ -11,7 +11,14 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 export type CatalogosRfq = {
   materiales: { id: string; codigo: string; nombre: string }[];
   espesores: { id: string; materialId: string; etiqueta: string; espesorMm: number }[];
-  procesos: { id: string; codigo: string; nombre: string; requiereArchivoTecnico: boolean }[];
+  procesos: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    requiereArchivoTecnico: boolean;
+    /** Obs. cliente 2026-10-12 (5): área configurada del proceso (TI autocompleta). */
+    areaTrabajoCodigo?: string | null;
+  }[];
   canales: { codigo: string; nombre: string; esOtro: boolean; activo: boolean }[];
   proximasAcciones: { codigo: string; nombre: string; esOtro: boolean }[];
   usuarios: { id: string; nombre: string; rol: string }[];
@@ -44,7 +51,7 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
       .order('orden'),
     admin
       .from('catalogo_procesos')
-      .select('id, codigo, nombre, requiere_archivo_tecnico')
+      .select('id, codigo, nombre, requiere_archivo_tecnico, area_trabajo_codigo')
       .eq('activo', true)
       .order('orden'),
     admin
@@ -94,6 +101,7 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
         codigo: fila.codigo,
         nombre: fila.nombre,
         requiereArchivoTecnico: fila.requiere_archivo_tecnico,
+        areaTrabajoCodigo: fila.area_trabajo_codigo,
       })),
       canales: (canales.data ?? []).map((fila) => ({
         codigo: fila.codigo,

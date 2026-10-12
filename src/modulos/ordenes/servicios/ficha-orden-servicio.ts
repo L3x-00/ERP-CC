@@ -69,11 +69,14 @@ export async function obtenerFichaOrdenServicio(
       .eq('orden_id', ordenId)
       .order('codigo_item', { ascending: true, nullsFirst: false })
       .order('creado_en', { ascending: true }),
-    cliente
-      .from('clientes')
-      .select('nombre_comercial, razon_social')
-      .eq('id', orden.cliente_id)
-      .maybeSingle(),
+    // Obs. cliente 2026-10-12 (5): la orden interna no tiene cliente (null).
+    orden.cliente_id
+      ? cliente
+        .from('clientes')
+        .select('nombre_comercial, razon_social')
+        .eq('id', orden.cliente_id)
+        .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
     cliente
       .from('notas_entrega')
       .select('id, folio, folio_sii, es_parcial, recibido_por, creado_en')
