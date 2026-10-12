@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Json, Database } from '@/compartido/tipos/supabase';
+import { dividirEnLotes } from '@/modulos/ordenes/utilidades/lotes';
 import {
   COLUMNAS_ORDEN_OPERATIVA,
   ESTADOS_ORDEN_PRODUCCION,
@@ -546,17 +547,21 @@ export async function obtenerOrdenesConPartidasServicio(
   if (ordenes.length === 0) return [];
 
   const idsOrdenes = ordenes.map((orden) => orden.id);
-  const { data: filasPartidas, error: errorPartidas } = await cliente
-    .from('partidas_orden_produccion')
-    .select('*, metas_proceso_partida(id, secuencia, nombre, meta_piezas)')
-    .in('orden_id', idsOrdenes)
-    .order('creado_en', { ascending: true });
-  if (errorPartidas) {
-    throw new ErrorOrden('desconocido', errorPartidas.message);
-  }
+  // Lotes acotados evitan URLs de miles de ids (límite 414 del gateway).
+  const filasPartidas = (
+    await Promise.all(dividirEnLotes(idsOrdenes).map(async (lote) => {
+      const { data, error } = await cliente
+        .from('partidas_orden_produccion')
+        .select('*, metas_proceso_partida(id, secuencia, nombre, meta_piezas)')
+        .in('orden_id', lote)
+        .order('creado_en', { ascending: true });
+      if (error) throw new ErrorOrden('desconocido', error.message);
+      return data ?? [];
+    }))
+  ).flat();
 
   const partidasPorOrden = new Map<string, Partida[]>();
-  for (const fila of filasPartidas ?? []) {
+  for (const fila of filasPartidas) {
     const partida: Partida = {
       ...filaAPartida(fila),
       metasProceso: (fila.metas_proceso_partida ?? [])

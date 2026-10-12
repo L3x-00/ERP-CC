@@ -253,35 +253,25 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
     await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
-    await page.goto('/ordenes');
-    await expect(page.getByTestId('crear-orden')).toHaveAttribute('data-hidratado', 'true');
-    await page.getByLabel('Cliente').selectOption(contexto.clienteId);
-    await page.getByLabel('Fecha compromiso').fill('2099-12-31');
-    await page.getByLabel('Código de pieza').fill('PIEZA-E2E');
-    await page.getByLabel('Cantidad').fill('5');
-    await page.getByLabel('Material (opcional)').selectOption(contexto.materialLegacyId);
-    await page.getByTestId('enviar-orden').click();
-
-    await expect
-      .poll(async () => {
-        const { data } = await contexto.admin
-          .from('ordenes_produccion')
-          .select('id, folio')
-          .eq('cliente_id', contexto.clienteId)
-          .maybeSingle();
-        if (data) contexto.ordenId = data.id;
-        return data?.folio ?? null;
-      })
-      .toMatch(/^OP-\d{6}$/);
-
-    const { data: orden, error: errorOrden } = await contexto.admin
-      .from('ordenes_produccion')
-      .select('id, folio')
-      .eq('id', contexto.ordenId!)
-      .single();
-    expect(errorOrden).toBeNull();
-    expect(orden).not.toBeNull();
-    const folio = orden!.folio;
+    // El alta directa salió de la UI (la orden comercial nace de la propuesta
+    // aceptada); esta prueba crea la OP por la RPC de servicio como los demás
+    // specs de órdenes.
+    const { data: ordenesCreadas, error: errorCrearOrden } = await contexto.admin.rpc('crear_orden_manual', {
+      p_cliente_id: contexto.clienteId,
+      p_fecha_compromiso: '2099-12-31T18:00:00.000Z',
+      p_prioridad: 'normal',
+      p_partidas: [{
+        codigo_pieza: 'PIEZA-E2E',
+        cantidad_solicitada: 5,
+        unidad_medida: 'pza',
+        material_id: contexto.materialLegacyId,
+        tiempo_estimado_minutos: 0,
+      }],
+    });
+    expect(errorCrearOrden).toBeNull();
+    const folio = ordenesCreadas![0].folio;
+    contexto.ordenId = ordenesCreadas![0].id;
+    expect(folio).toMatch(/^OP-\d{6}$/);
 
     const { data: partidaAsignada, error: errorAsignacion } = await contexto.admin
       .from('partidas_orden_produccion')
@@ -305,6 +295,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
       .eq('id', contexto.partidaId);
     expect(errorOperadorAsignado).toBeNull();
 
+    await page.goto('/ordenes');
     const filaOrden = page.getByRole('row', { name: new RegExp(folio) });
     await expect(filaOrden).toBeVisible();
     const resumen = page.getByRole('region', { name: 'Resumen operativo de órdenes' });
@@ -439,8 +430,8 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     const acciones = new Set((logs ?? []).map((log) => log.accion));
     // SII-B5: la cola ya no expone Iniciar/Completar; la prueba avanza el estado
     // con updates administrativos, así que `cambiar_estado_orden` ya no se registra.
+    // La creación salió de la UI, así que tampoco se emite `crear_orden_manual`.
     const accionesEsperadas = [
-      'crear_orden_manual',
       'registrar_tiempo_operador',
       'registrar_avance_partida',
       'registrar_consumo_material',
