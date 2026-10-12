@@ -1,8 +1,6 @@
 import { notFound } from 'next/navigation';
 
-import { crearOrdenAccion } from '@/modulos/ordenes/acciones/crear-orden';
-import { FormularioOrden } from '@/modulos/ordenes/componentes/formulario-orden';
-import { PanelAltaOrdenSii } from '@/modulos/ordenes/componentes/panel-alta-orden-sii';
+import { PanelOrdenInterna } from '@/modulos/ordenes/componentes/panel-orden-interna';
 import { PanelOrdenHeredada } from '@/modulos/ordenes/componentes/panel-orden-heredada';
 import { ComparativaOrdenes } from '@/modulos/ordenes/componentes/comparativa-ordenes';
 import { SincronizadorOrdenesRealtime } from '@/modulos/ordenes/componentes/sincronizador-ordenes-realtime';
@@ -28,30 +26,24 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   const usuario = await obtenerUsuarioServidor();
   if (!usuario || !(await can(usuario, 'orden_vista'))) notFound();
 
-  const [mostrarVentas, puedeAdministrar, puedeLiberar, puedeCerrar, puedeCancelar] = await Promise.all([
+  const [mostrarVentas, puedeAdministrar, puedeCrearInterna, puedeLiberar, puedeCerrar, puedeCancelar] = await Promise.all([
     can(usuario, 'ver_finanzas'),
     can(usuario, 'aprobar_ordenes'),
+    can(usuario, 'orden_crear_interna'),
     can(usuario, 'orden_liberar'),
     can(usuario, 'orden_cerrar_admin'),
     can(usuario, 'orden_cancelar'),
   ]);
   const cliente = await crearClienteSupabaseServidor();
-  const [ordenesConPartidas, resultadoClientes, resultadoMateriales, resultadoAreas] = await Promise.all([
+  const puedeVerAltas = puedeAdministrar || puedeCrearInterna;
+  const [ordenesConPartidas, resultadoClientes, resultadoAreas] = await Promise.all([
     obtenerOrdenesConPartidasServicio(cliente),
-    puedeAdministrar
+    puedeVerAltas
       ? cliente
         .from('clientes')
         .select('id, nombre_comercial, razon_social')
         .eq('estado', 'activo')
         .order('razon_social', { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
-    puedeAdministrar
-      // El inventario legado quedó restringido por RLS (C6.3); el servidor lee
-      // solo la proyección necesaria para el alta de orden.
-      ? crearClienteSupabaseAdmin()
-          .from('materiales')
-          .select('id, codigo, nombre')
-          .order('nombre', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     puedeAdministrar
       ? cliente
@@ -63,8 +55,8 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       : Promise.resolve({ data: [], error: null }),
   ]);
 
-  if (resultadoClientes.error || resultadoMateriales.error || resultadoAreas.error) {
-    throw new Error('No se pudieron cargar las opciones para crear la orden');
+  if (resultadoClientes.error || resultadoAreas.error) {
+    throw new Error('No se pudieron cargar las opciones para las altas administrativas');
   }
 
   const idsOrdenes = ordenesConPartidas.map(({ orden }) => orden.id);
@@ -108,11 +100,6 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     id: clienteActual.id,
     nombre: clienteActual.nombre_comercial || clienteActual.razon_social,
   }));
-  const materiales = (resultadoMateriales.data ?? []).map((material) => ({
-    id: material.id,
-    codigo: material.codigo,
-    nombre: material.nombre,
-  }));
   const areas = (resultadoAreas.data ?? []).map((area) => ({
     codigo: area.codigo,
     nombre: area.nombre,
@@ -124,8 +111,9 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Órdenes de producción</h1>
         <p className="text-sm text-texto-secundario">
-          Planeación y seguimiento operativo de órdenes. El registro de piso se opera desde
-          terminales con sesión de operador.
+          Las órdenes nacen al aceptar una propuesta y se siguen aquí por estado y proceso; el
+          alta directa no está disponible. El registro de piso se opera desde terminales con
+          sesión de operador.
         </p>
       </header>
 
@@ -148,20 +136,21 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
 
       <ComparativaOrdenes filas={comparativa} mostrarVentas={mostrarVentas} />
 
-      {puedeAdministrar ? <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-alta-sii">
-        <h2 id="titulo-alta-sii" className="mb-4 text-lg font-semibold">
-          Alta desde propuesta aceptada
+      {puedeVerAltas ? <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-altas-autorizadas">
+        <h2 id="titulo-altas-autorizadas" className="text-lg font-semibold">
+          Altas autorizadas
         </h2>
-        <PanelAltaOrdenSii clientes={clientes} />
-      </section> : null}
-
-      {puedeAdministrar ? <section className="rounded-base border border-borde p-5" aria-labelledby="titulo-crear-op">
-        <h2 id="titulo-crear-op" className="mb-4 text-lg font-semibold">
-          Nueva orden de producción
-        </h2>
-        <FormularioOrden clientes={clientes} materiales={materiales} alCrearOrden={crearOrdenAccion} />
-        <div className="mt-5 border-t border-borde pt-4">
-          <PanelOrdenHeredada clientes={clientes} areas={areas} />
+        <p className="mb-4 mt-1 text-sm text-texto-secundario">
+          La orden comercial nace automáticamente al aceptar una propuesta; aquí solo se registran
+          las excepciones con autorización.
+        </p>
+        <div className="flex flex-col gap-5">
+          {puedeCrearInterna ? <PanelOrdenInterna clientes={clientes} /> : null}
+          {puedeAdministrar ? (
+            <div className="border-t border-borde pt-4">
+              <PanelOrdenHeredada clientes={clientes} areas={areas} />
+            </div>
+          ) : null}
         </div>
       </section> : null}
 

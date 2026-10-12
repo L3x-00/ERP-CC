@@ -182,11 +182,17 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await page.goto('/ordenes');
       await expect(page.getByTestId('tabla-ordenes')).toBeVisible();
 
-      // Alta desde revisión aceptada (acción existente, UI nueva).
-      await page.getByTestId('abrir-alta-desde-revision').click();
-      await page.getByTestId('seleccion-revision').selectOption(contexto.revisionId);
-      await page.getByTestId('confirmar-alta-desde-revision').click();
-      await expect(page.getByTestId('alta-mensaje')).toContainText('Orden O-');
+      // Órdenes es un reflejo de las propuestas aceptadas: la cola ya no ofrece
+      // alta directa ni alta manual desde revisión (OBS-08A crea la solicitud
+      // durable al aceptar; aquí se procesa de forma idempotente).
+      await expect(page.getByTestId('crear-orden')).toHaveCount(0);
+      await expect(page.getByTestId('abrir-alta-desde-revision')).toHaveCount(0);
+      const { error: errorProcesar } = await admin.rpc('procesar_solicitud_orden', {
+        p_revision_id: contexto.revisionId,
+        p_actor_id: contexto.usuarioId,
+        p_correlation_id: randomUUID(),
+      });
+      if (errorProcesar) throw new Error(`Sin orden: ${errorProcesar.message}`);
       await expect.poll(async () => {
         const { data } = await admin.from('ordenes_produccion')
           .select('id, folio_sii, estado_sii').eq('propuesta_revision_id', contexto.revisionId).maybeSingle();
@@ -197,6 +203,7 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       contexto.ordenId = orden!.id;
       contexto.ordenFolioSii = orden!.folio_sii!;
       const folio = contexto.ordenFolioSii;
+      await page.reload();
       const fila = page.getByTestId(`fila-orden-${folio}`);
       await expect(fila).toBeVisible();
       await expect(page.getByTestId(`estado-orden-${folio}`)).toContainText('Confirmada');

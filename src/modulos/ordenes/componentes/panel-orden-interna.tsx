@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/compartido/componentes/ui/button';
@@ -14,14 +13,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
-import { crearOrdenDesdeRevisionAccion } from '@/modulos/ordenes/acciones/crear-orden-desde-revision';
 import { crearOrdenInternaAccion } from '@/modulos/ordenes/acciones/crear-orden-interna';
-import {
-  obtenerRevisionesAceptadasAccion,
-  type RevisionAceptada,
-} from '@/modulos/ordenes/acciones/obtener-revisiones-aceptadas';
-
-const CLAVE_REVISIONES = ['ordenes', 'revisiones-aceptadas'] as const;
 
 type ItemInterno = {
   descripcion: string;
@@ -40,15 +32,15 @@ function ahoraLocal(): string {
   return local.toISOString().slice(0, 16);
 }
 
-export function PanelAltaOrdenSii({ clientes }: { clientes: { id: string; nombre: string }[] }) {
+/**
+ * Alta directa autorizada de una orden interna (TI): sin propuesta comercial,
+ * sin venta y sin cuenta por cobrar; el motivo de autorización queda auditado.
+ */
+export function PanelOrdenInterna({ clientes }: { clientes: { id: string; nombre: string }[] }) {
   const router = useRouter();
-  const consultas = useQueryClient();
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
-
-  const [desdeRevision, setDesdeRevision] = useState(false);
-  const [revisionId, setRevisionId] = useState('');
 
   const [interna, setInterna] = useState(false);
   const [clienteId, setClienteId] = useState(clientes[0]?.id ?? '');
@@ -58,52 +50,9 @@ export function PanelAltaOrdenSii({ clientes }: { clientes: { id: string; nombre
   const [descripcion, setDescripcion] = useState('');
   const [items, setItems] = useState<ItemInterno[]>([{ ...ITEM_VACIO }]);
 
-  const revisiones = useQuery({
-    queryKey: CLAVE_REVISIONES,
-    queryFn: async (): Promise<RevisionAceptada[]> => {
-      const respuesta = await obtenerRevisionesAceptadasAccion();
-      if (!respuesta.exito || !respuesta.datos) {
-        throw new Error(respuesta.exito ? 'Sin revisiones' : respuesta.error);
-      }
-      return respuesta.datos;
-    },
-    enabled: desdeRevision,
-    staleTime: 10_000,
-  });
-
   function limpiar(): void {
     setError(null);
     setMensaje(null);
-  }
-
-  async function crearDesdeRevision(): Promise<void> {
-    if (revisionId === '') {
-      setError('Selecciona la revisión aceptada.');
-      return;
-    }
-    limpiar();
-    setOcupado(true);
-    try {
-      const respuesta = await crearOrdenDesdeRevisionAccion({ revisionId });
-      if (!respuesta.exito || !respuesta.datos) {
-        setError(respuesta.exito ? 'No se recibió la orden' : respuesta.error);
-        return;
-      }
-      const datos = respuesta.datos;
-      setMensaje(
-        datos.yaExistia
-          ? `La revisión ya tenía la orden ${datos.folioSii}`
-          : `Orden ${datos.folioSii} creada desde la revisión`,
-      );
-      setDesdeRevision(false);
-      setRevisionId('');
-      await consultas.invalidateQueries({ queryKey: CLAVE_REVISIONES });
-      router.refresh();
-    } catch {
-      setError('No se pudo crear la orden desde la revisión.');
-    } finally {
-      setOcupado(false);
-    }
   }
 
   async function crearInterna(): Promise<void> {
@@ -155,73 +104,24 @@ export function PanelAltaOrdenSii({ clientes }: { clientes: { id: string; nombre
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="alta-orden-sii">
+    <div className="flex flex-col gap-3" data-testid="alta-orden-interna">
       <div className="flex flex-wrap items-center gap-2">
-        <Button variante="secundario" tamano="sm" disabled={ocupado}
-          data-testid="abrir-alta-desde-revision"
-          onClick={() => { limpiar(); setDesdeRevision(true); }}>
-          Crear desde revisión aceptada
-        </Button>
         <Button variante="contorno" tamano="sm" disabled={ocupado || clientes.length === 0}
           data-testid="abrir-alta-interna"
           onClick={() => { limpiar(); setInterna(true); }}>
           Nueva orden interna (TI)
         </Button>
         <span className="text-xs text-texto-secundario">
-          La orden comercial nace de la revisión aceptada; la TI exige autorización de Management/Admin.
+          La TI exige autorización de Management/Admin.
         </span>
       </div>
 
-      {error && !desdeRevision && !interna ? (
+      {error && !interna ? (
         <p role="alert" className="text-sm text-peligro-texto" data-testid="alta-error">{error}</p>
       ) : null}
       {mensaje ? (
         <p role="status" className="text-sm text-exito-texto" data-testid="alta-mensaje">{mensaje}</p>
       ) : null}
-
-      <Dialog open={desdeRevision} onOpenChange={(abierto) => (!abierto ? setDesdeRevision(false) : undefined)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Crear orden desde revisión aceptada</DialogTitle>
-            <DialogDescription>
-              Solo se ofrecen revisiones ACCEPTED/SALE_CONFIRMED sin orden. La RPC revalida la
-              aceptación, el cliente y el crédito.
-            </DialogDescription>
-          </DialogHeader>
-          {revisiones.isPending ? <p className="text-sm text-texto-secundario">Cargando revisiones…</p> : null}
-          {revisiones.isError ? (
-            <p role="alert" className="text-sm text-peligro-texto">No se pudieron cargar las revisiones.</p>
-          ) : null}
-          {revisiones.data && revisiones.data.length === 0 ? (
-            <p className="text-sm text-texto-secundario">No hay revisiones aceptadas pendientes de orden.</p>
-          ) : null}
-          {revisiones.data && revisiones.data.length > 0 ? (
-            <label className="grid gap-1 text-sm font-medium">
-              Revisión aceptada
-              <Select value={revisionId} data-testid="seleccion-revision"
-                onChange={(evento) => setRevisionId(evento.target.value)}>
-                <option value="">Selecciona…</option>
-                {revisiones.data.map((revision) => (
-                  <option key={revision.revisionId} value={revision.revisionId}>
-                    {revision.folioRevision} · {revision.clienteNombre}
-                    {revision.folioRfq ? ` · ${revision.folioRfq}` : ''}
-                    {revision.esInterna ? ' · TI' : ''}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          ) : null}
-          {error ? <p role="alert" className="text-sm text-peligro-texto">{error}</p> : null}
-          <DialogFooter>
-            <Button type="button" variante="contorno" onClick={() => setDesdeRevision(false)}>Volver</Button>
-            <Button type="button" data-testid="confirmar-alta-desde-revision"
-              disabled={ocupado || revisionId === ''}
-              onClick={() => void crearDesdeRevision()}>
-              {ocupado ? 'Creando…' : 'Crear orden'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={interna} onOpenChange={(abierto) => (!abierto ? setInterna(false) : undefined)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
