@@ -12,6 +12,11 @@ export type CatalogosPropuesta = {
   /** Máquinas activas para el ruteo (C3.3); nunca incluye costos. */
   recursos: { id: string; nombre: string; grupoEquipoId: string | null }[];
   proximasAcciones: { codigo: string; nombre: string; esOtro: boolean }[];
+  /**
+   * DC-02: canales configurados (compartidos con RFQ). `esOtro` exige detalle;
+   * `activo` permite ocultar retirados sin romper seguimientos históricos.
+   */
+  canales: { codigo: string; nombre: string; esOtro: boolean; activo: boolean }[];
   /** C3.1: materiales activos para el alta de un ítem propio de la revisión. */
   materiales: { id: string; codigo: string; nombre: string }[];
   /** C3.1: espesores activos; `materialId` permite filtrarlos en el formulario. */
@@ -37,14 +42,16 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
   const servidor = await crearClienteSupabaseServidor();
 
   // Solo columnas no financieras: la tarifa o el costo de la máquina no viajan.
+  // Los canales se leen con admin (igual que RFQ) para no depender de `catalogo_ver`.
   const { crearClienteSupabaseAdmin } = await import('@/nucleo/supabase/admin');
-  const recursos = await crearClienteSupabaseAdmin()
+  const admin = crearClienteSupabaseAdmin();
+  const recursos = await admin
     .from('recursos_planeacion')
     .select('id, nombre, grupo_equipo_id')
     .eq('activo', true)
     .order('codigo');
 
-  const [procesos, gruposEquipo, gruposPlaneados, acciones, materiales, espesores] =
+  const [procesos, gruposEquipo, gruposPlaneados, acciones, materiales, espesores, canales] =
     await Promise.all([
       servidor
         .from('catalogo_procesos')
@@ -76,6 +83,10 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         .select('id, material_id, etiqueta, espesor_mm')
         .eq('activo', true)
         .order('orden', { ascending: true }),
+      admin
+        .from('catalogo_canales')
+        .select('codigo, nombre, es_otro, activo')
+        .order('orden', { ascending: true }),
     ]);
 
   return {
@@ -106,6 +117,12 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         codigo: fila.codigo,
         nombre: fila.nombre,
         esOtro: fila.es_otro,
+      })),
+      canales: (canales.data ?? []).map((fila) => ({
+        codigo: fila.codigo,
+        nombre: fila.nombre,
+        esOtro: fila.es_otro,
+        activo: fila.activo,
       })),
       materiales: (materiales.data ?? []).map((fila) => ({
         id: fila.id,

@@ -52,7 +52,8 @@ export function PanelAccionesPropuesta({
     null,
   );
   const [procesando, setProcesando] = useState(false);
-  const [canal, setCanal] = useState('correo');
+  const [canal, setCanal] = useState('');
+  const [canalDetalle, setCanalDetalle] = useState('');
   const [destino, setDestino] = useState('');
   // C4.1/DC-09: la fecha compromiso comercial se confirma al aceptar.
   const [fechaCompromiso, setFechaCompromiso] = useState('');
@@ -64,6 +65,23 @@ export function PanelAccionesPropuesta({
   const pdfVigente = revision.pdfs.find((pdf) => pdf.vigente) ?? null;
   const tieneAccion = detalle.acciones.some((accion) => accion.revisionId === revision.id);
   const esAceptada = detalle.propuesta.acceptedRevisionId === revision.id;
+
+  // Obs. cliente 2026-10-12: el canal de envío sale del catálogo configurado
+  // (DC-02). Si el catálogo no cargó, se conservan las opciones históricas.
+  const canalesActivos = (catalogos?.canales ?? []).filter((opcion) => opcion.activo);
+  const canalEfectivo =
+    canal ||
+    canalesActivos.find((opcion) => opcion.codigo === 'CORREO')?.codigo ||
+    canalesActivos[0]?.codigo ||
+    'correo';
+  const canalSeleccionado = (catalogos?.canales ?? []).find(
+    (opcion) => opcion.codigo === canalEfectivo,
+  );
+  const canalesVisibles = (catalogos?.canales ?? []).filter(
+    (opcion) => opcion.activo || opcion.codigo === canalEfectivo,
+  );
+  const canalEsOtro = canalSeleccionado?.esOtro ?? false;
+  const canalEnvio = canalEsOtro ? canalDetalle.trim() : canalEfectivo;
 
   async function refrescar(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(detalle.propuesta.id) });
@@ -275,12 +293,46 @@ export function PanelAccionesPropuesta({
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Canal</span>
-              <Select value={canal} onChange={(evento) => setCanal(evento.target.value)} aria-label="Canal de envío">
-                <option value="correo">Correo</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="entrega">Entrega física</option>
+              <Select
+                value={canalEfectivo}
+                onChange={(evento) => {
+                  const codigoCanal = evento.target.value;
+                  setCanal(codigoCanal);
+                  const siguiente = (catalogos?.canales ?? []).find(
+                    (opcion) => opcion.codigo === codigoCanal,
+                  );
+                  if (!siguiente?.esOtro) setCanalDetalle('');
+                }}
+                aria-label="Canal de envío"
+              >
+                {canalesVisibles.length === 0 ? (
+                  <>
+                    <option value="correo">Correo</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="entrega">Entrega física</option>
+                  </>
+                ) : (
+                  canalesVisibles.map((opcion) => (
+                    <option key={opcion.codigo} value={opcion.codigo}>
+                      {opcion.nombre}
+                      {opcion.activo ? '' : ' (inactivo)'}
+                    </option>
+                  ))
+                )}
               </Select>
             </label>
+            {canalEsOtro && (
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">Detalle del canal (Otro)</span>
+                <Input
+                  value={canalDetalle}
+                  onChange={(evento) => setCanalDetalle(evento.target.value)}
+                  maxLength={60}
+                  aria-label="Detalle del canal Otro de envío"
+                  placeholder="Ej. feria industrial"
+                />
+              </label>
+            )}
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Destino</span>
               <Input
@@ -296,10 +348,14 @@ export function PanelAccionesPropuesta({
               tamano="sm"
               onClick={() => void ejecutar(() => enviarRevisionAccion({
                 revisionId: revision.id,
-                canal,
+                canal: canalEnvio,
                 destino,
               }))}
-              disabled={procesando || destino.trim() === ''}
+              disabled={
+                procesando ||
+                destino.trim() === '' ||
+                (canalEsOtro && canalDetalle.trim().length < 3)
+              }
             >
               Confirmar envío
             </Button>

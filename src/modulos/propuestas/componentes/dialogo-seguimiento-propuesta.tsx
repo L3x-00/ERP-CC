@@ -53,6 +53,7 @@ export function DialogoSeguimientoPropuesta({
   const [textoOtro, setTextoOtro] = useState('');
   const [fecha, setFecha] = useState(hoyIso());
   const [canal, setCanal] = useState('');
+  const [canalDetalle, setCanalDetalle] = useState('');
   const [nota, setNota] = useState('');
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
@@ -63,8 +64,23 @@ export function DialogoSeguimientoPropuesta({
   const esOtro = accionSeleccionada?.esOtro ?? false;
   const catalogoListo = catalogos !== null && (catalogos.proximasAcciones ?? []).length > 0;
   const detalleValido = !esOtro || textoOtro.trim().length >= 3;
+  // Obs. cliente 2026-10-12: el canal sale del catálogo configurado (DC-02); el
+  // canal «Otro» exige detalle, que se guarda como texto del seguimiento.
+  const canalSeleccionado = (catalogos?.canales ?? []).find(
+    (opcion) => opcion.codigo === canal,
+  );
+  const canalesVisibles = (catalogos?.canales ?? []).filter(
+    (opcion) => opcion.activo || opcion.codigo === canal,
+  );
+  const canalEsOtro = canalSeleccionado?.esOtro ?? false;
+  const detalleCanalValido = !canalEsOtro || canalDetalle.trim().length >= 3;
   const formularioValido =
-    puedeRegistrar && catalogoListo && codigo !== '' && fecha !== '' && detalleValido;
+    puedeRegistrar &&
+    catalogoListo &&
+    codigo !== '' &&
+    fecha !== '' &&
+    detalleValido &&
+    detalleCanalValido;
 
   async function enviar(): Promise<void> {
     if (!formularioValido || procesando) return;
@@ -77,7 +93,9 @@ export function DialogoSeguimientoPropuesta({
         codigo,
         ...(esOtro ? { textoOtro: textoOtro.trim() } : {}),
         fecha,
-        ...(canal.trim() ? { canal: canal.trim() } : {}),
+        ...(canal
+          ? { canal: canalEsOtro ? canalDetalle.trim() : canal }
+          : {}),
         ...(nota.trim() ? { nota: nota.trim() } : {}),
       };
       if (modo === 'validar') {
@@ -168,13 +186,39 @@ export function DialogoSeguimientoPropuesta({
             )}
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Canal (opcional)</span>
-              <Input
+              <Select
                 value={canal}
-                onChange={(evento) => setCanal(evento.target.value)}
-                maxLength={60}
+                onChange={(evento) => {
+                  const codigoCanal = evento.target.value;
+                  setCanal(codigoCanal);
+                  const siguiente = (catalogos?.canales ?? []).find(
+                    (opcion) => opcion.codigo === codigoCanal,
+                  );
+                  if (!siguiente?.esOtro) setCanalDetalle('');
+                }}
                 aria-label="Canal del seguimiento"
-              />
+              >
+                <option value="">Sin canal</option>
+                {canalesVisibles.map((opcion) => (
+                  <option key={opcion.codigo} value={opcion.codigo}>
+                    {opcion.nombre}
+                    {opcion.activo ? '' : ' (inactivo)'}
+                  </option>
+                ))}
+              </Select>
             </label>
+            {canalEsOtro && (
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">Detalle del canal (Otro)</span>
+                <Input
+                  value={canalDetalle}
+                  onChange={(evento) => setCanalDetalle(evento.target.value)}
+                  maxLength={60}
+                  aria-label="Detalle del canal Otro"
+                  placeholder="Ej. feria industrial"
+                />
+              </label>
+            )}
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Nota (opcional)</span>
               <Input
