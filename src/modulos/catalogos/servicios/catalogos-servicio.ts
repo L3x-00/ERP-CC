@@ -232,6 +232,7 @@ export async function guardarProcesoServicio(
     nombre: entrada.nombre,
     prefijo_corrida: entrada.prefijoCorrida,
     grupo_planeado_id: entrada.grupoPlaneadoId ?? null,
+    grupo_equipo_id: entrada.grupoEquipoId ?? null,
     area_trabajo_codigo: entrada.areaTrabajoCodigo ?? null,
     requiere_archivo_tecnico: entrada.requiereArchivoTecnico,
     requiere_primera_pieza: entrada.requierePrimeraPieza,

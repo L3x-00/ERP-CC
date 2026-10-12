@@ -39,6 +39,8 @@ export interface ProcesoCatalogo {
   nombre: string;
   prefijoCorrida: string;
   grupoPlaneadoId: string | null;
+  /** Obs. cliente 2026-10-12 (4b): grupo de equipo por defecto del proceso. */
+  grupoEquipoId: string | null;
   areaTrabajoCodigo: string | null;
   requiereArchivoTecnico: boolean;
   requierePrimeraPieza: boolean;
@@ -152,6 +154,7 @@ export interface FilaProcesoCatalogo {
   nombre: string;
   prefijo_corrida: string;
   grupo_planeado_id: string | null;
+  grupo_equipo_id: string | null;
   area_trabajo_codigo: string | null;
   requiere_archivo_tecnico: boolean;
   requiere_primera_pieza: boolean;
@@ -247,6 +250,7 @@ export function filaAProceso(fila: FilaProcesoCatalogo): ProcesoCatalogo {
     nombre: fila.nombre,
     prefijoCorrida: fila.prefijo_corrida,
     grupoPlaneadoId: fila.grupo_planeado_id,
+    grupoEquipoId: fila.grupo_equipo_id,
     areaTrabajoCodigo: fila.area_trabajo_codigo,
     requiereArchivoTecnico: fila.requiere_archivo_tecnico,
     requierePrimeraPieza: fila.requiere_primera_pieza,

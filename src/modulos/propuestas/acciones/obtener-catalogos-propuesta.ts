@@ -5,18 +5,48 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
 export type CatalogosPropuesta = {
-  procesos: { id: string; codigo: string; nombre: string }[];
-  /** `sinTarifa`: el grupo no tiene tarifa por hora (C3.2); nunca se expone el monto. */
-  gruposEquipo: { id: string; codigo: string; nombre: string; sinTarifa: boolean }[];
+  /** Obs. cliente 2026-10-12 (4b): el grupo de equipo/planeado del proceso se autocompleta en el ruteo. */
+  procesos: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    grupoEquipoId: string | null;
+    grupoPlaneadoId: string | null;
+    areaTrabajoCodigo: string | null;
+  }[];
+  /**
+   * `sinTarifa`: el grupo no tiene tarifa por hora (C3.2). `tarifaHora`/
+   * `tarifaMoneda` solo viajan con permiso `propuesta_editar_costo`; para el
+   * resto van en null (nunca se expone el monto).
+   */
+  gruposEquipo: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    sinTarifa: boolean;
+    tarifaHora: number | null;
+    tarifaMoneda: 'MXN' | 'USD' | null;
+  }[];
   gruposPlaneados: { id: string; codigo: string; nombre: string }[];
-  /** Máquinas activas para el ruteo (C3.3); nunca incluye costos. */
-  recursos: { id: string; nombre: string; grupoEquipoId: string | null }[];
+  /**
+   * Máquinas activas para el ruteo (C3.3). `tarifaHora`/`tarifaMoneda` son el
+   * override efectivo de la máquina y solo viajan con `propuesta_editar_costo`.
+   */
+  recursos: {
+    id: string;
+    nombre: string;
+    grupoEquipoId: string | null;
+    tarifaHora: number | null;
+    tarifaMoneda: 'MXN' | 'USD' | null;
+  }[];
   proximasAcciones: { codigo: string; nombre: string; esOtro: boolean }[];
   /**
    * DC-02: canales configurados (compartidos con RFQ). `esOtro` exige detalle;
    * `activo` permite ocultar retirados sin romper seguimientos históricos.
    */
   canales: { codigo: string; nombre: string; esOtro: boolean; activo: boolean }[];
+  /** Áreas de trabajo activas: rotulan el proceso en el ruteo. */
+  areasTrabajo: { codigo: string; nombre: string }[];
   /** C3.1: materiales activos para el alta de un ítem propio de la revisión. */
   materiales: { id: string; codigo: string; nombre: string }[];
   /** C3.1: espesores activos; `materialId` permite filtrarlos en el formulario. */
@@ -37,30 +67,41 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
   if (!(await can(usuario, 'propuesta_vista'))) {
     return { exito: false, error: 'Sin permiso para ver propuestas' };
   }
+  // Las tarifas del ruteo solo viajan a quien puede ver el costo interno.
+  const puedeVerCosto = await can(usuario, 'propuesta_editar_costo');
 
   const { crearClienteSupabaseServidor } = await import('@/nucleo/supabase/servidor');
   const servidor = await crearClienteSupabaseServidor();
 
-  // Solo columnas no financieras: la tarifa o el costo de la máquina no viajan.
-  // Los canales se leen con admin (igual que RFQ) para no depender de `catalogo_ver`.
+  // Los recursos y las áreas se leen con admin (no financiero): el ruteo no
+  // depende de permisos de planeación/configuración del usuario.
   const { crearClienteSupabaseAdmin } = await import('@/nucleo/supabase/admin');
   const admin = crearClienteSupabaseAdmin();
-  const recursos = await admin
-    .from('recursos_planeacion')
-    .select('id, nombre, grupo_equipo_id')
-    .eq('activo', true)
-    .order('codigo');
+  const [recursos, areasTrabajo] = await Promise.all([
+    admin
+      .from('recursos_planeacion')
+      .select(
+        'id, nombre, grupo_equipo_id, tarifa_override_activa, tarifa_override_hora, tarifa_override_moneda',
+      )
+      .eq('activo', true)
+      .order('codigo'),
+    admin
+      .from('areas_trabajo_config')
+      .select('codigo, nombre')
+      .eq('activo', true)
+      .order('nombre'),
+  ]);
 
   const [procesos, gruposEquipo, gruposPlaneados, acciones, materiales, espesores, canales] =
     await Promise.all([
       servidor
         .from('catalogo_procesos')
-        .select('id, codigo, nombre')
+        .select('id, codigo, nombre, grupo_equipo_id, grupo_planeado_id, area_trabajo_codigo')
         .eq('activo', true)
         .order('orden', { ascending: true }),
       servidor
         .from('grupos_equipo')
-        .select('id, codigo, nombre, tarifa_hora')
+        .select('id, codigo, nombre, tarifa_hora, tarifa_moneda')
         .eq('activo', true)
         .order('orden', { ascending: true }),
       servidor
@@ -96,12 +137,22 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         id: fila.id,
         codigo: fila.codigo,
         nombre: fila.nombre,
+        grupoEquipoId: fila.grupo_equipo_id,
+        grupoPlaneadoId: fila.grupo_planeado_id,
+        areaTrabajoCodigo: fila.area_trabajo_codigo,
       })),
       gruposEquipo: (gruposEquipo.data ?? []).map((fila) => ({
         id: fila.id,
         codigo: fila.codigo,
         nombre: fila.nombre,
         sinTarifa: fila.tarifa_hora === null,
+        tarifaHora:
+          puedeVerCosto && fila.tarifa_hora !== null ? Number(fila.tarifa_hora) : null,
+        tarifaMoneda: puedeVerCosto
+          ? fila.tarifa_moneda === 'USD'
+            ? 'USD'
+            : 'MXN'
+          : null,
       })),
       gruposPlaneados: (gruposPlaneados.data ?? []).map((fila) => ({
         id: fila.id,
@@ -112,6 +163,22 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         id: fila.id,
         nombre: fila.nombre,
         grupoEquipoId: fila.grupo_equipo_id,
+        tarifaHora:
+          puedeVerCosto
+          && fila.tarifa_override_activa
+          && fila.tarifa_override_hora !== null
+            ? Number(fila.tarifa_override_hora)
+            : null,
+        tarifaMoneda:
+          puedeVerCosto && fila.tarifa_override_activa
+            ? fila.tarifa_override_moneda === 'USD'
+              ? 'USD'
+              : 'MXN'
+            : null,
+      })),
+      areasTrabajo: (areasTrabajo.data ?? []).map((fila) => ({
+        codigo: fila.codigo,
+        nombre: fila.nombre,
       })),
       proximasAcciones: (acciones.data ?? []).map((fila) => ({
         codigo: fila.codigo,

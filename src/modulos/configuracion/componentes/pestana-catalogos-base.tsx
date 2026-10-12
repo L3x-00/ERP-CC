@@ -704,6 +704,7 @@ function SeccionProcesos(props: PropsSeccion) {
     nombre: string;
     prefijoCorrida: string;
     grupoPlaneadoId: string;
+    grupoEquipoId: string;
     areaTrabajoCodigo: string;
     requiereArchivoTecnico: boolean;
     requierePrimeraPieza: boolean;
@@ -714,6 +715,7 @@ function SeccionProcesos(props: PropsSeccion) {
   const [guardando, setGuardando] = useState(false);
 
   const gruposActivos = soloActivos(datos.gruposPlaneados);
+  const equiposActivos = soloActivos(datos.gruposEquipo);
   const areasActivas = datos.areasTrabajo.filter((area) => area.activo);
 
   function nuevo(): void {
@@ -722,6 +724,7 @@ function SeccionProcesos(props: PropsSeccion) {
       nombre: '',
       prefijoCorrida: '',
       grupoPlaneadoId: '',
+      grupoEquipoId: '',
       areaTrabajoCodigo: '',
       requiereArchivoTecnico: true,
       requierePrimeraPieza: false,
@@ -739,6 +742,7 @@ function SeccionProcesos(props: PropsSeccion) {
       nombre: borrador.nombre,
       prefijoCorrida: borrador.prefijoCorrida,
       grupoPlaneadoId: borrador.grupoPlaneadoId || null,
+      grupoEquipoId: borrador.grupoEquipoId || null,
       areaTrabajoCodigo: borrador.areaTrabajoCodigo || null,
       requiereArchivoTecnico: borrador.requiereArchivoTecnico,
       requierePrimeraPieza: borrador.requierePrimeraPieza,
@@ -761,6 +765,11 @@ function SeccionProcesos(props: PropsSeccion) {
   function etiquetaGrupo(proceso: ProcesoCatalogo): string {
     const grupo = datos.gruposPlaneados.find((item) => item.id === proceso.grupoPlaneadoId);
     return grupo ? grupo.nombre : '—';
+  }
+
+  function etiquetaEquipo(proceso: ProcesoCatalogo): string {
+    const equipo = datos.gruposEquipo.find((item) => item.id === proceso.grupoEquipoId);
+    return equipo ? equipo.nombre : '—';
   }
 
   return (
@@ -842,6 +851,24 @@ function SeccionProcesos(props: PropsSeccion) {
               {gruposActivos.map((grupo) => (
                 <option key={grupo.id} value={grupo.id}>
                   {grupo.nombre}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+            Grupo de equipo
+            <Select
+              value={editando.grupoEquipoId}
+              onChange={(evento) =>
+                setEditando((actual) => (actual ? { ...actual, grupoEquipoId: evento.target.value } : actual))
+              }
+              disabled={!puedeEditar}
+              data-testid="catalogo-proceso-grupo-equipo"
+            >
+              <option value="">Sin equipo</option>
+              {equiposActivos.map((equipo) => (
+                <option key={equipo.id} value={equipo.id}>
+                  {equipo.nombre}
                 </option>
               ))}
             </Select>
@@ -956,6 +983,7 @@ function SeccionProcesos(props: PropsSeccion) {
               <th scope="col" className="px-3 py-2 font-semibold">Proceso</th>
               <th scope="col" className="px-3 py-2 font-semibold">Corrida</th>
               <th scope="col" className="px-3 py-2 font-semibold">Grupo</th>
+              <th scope="col" className="px-3 py-2 font-semibold">Equipo</th>
               <th scope="col" className="px-3 py-2 font-semibold">Archivo técnico</th>
               <th scope="col" className="px-3 py-2 font-semibold">Primera pieza</th>
               <th scope="col" className="px-3 py-2 font-semibold">Lote</th>
@@ -972,6 +1000,7 @@ function SeccionProcesos(props: PropsSeccion) {
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">{proceso.prefijoCorrida}</td>
                 <td className="px-3 py-2">{etiquetaGrupo(proceso)}</td>
+                <td className="px-3 py-2">{etiquetaEquipo(proceso)}</td>
                 <td className="px-3 py-2">{proceso.requiereArchivoTecnico ? 'Sí' : 'No'}</td>
                 <td className="px-3 py-2">{proceso.requierePrimeraPieza ? 'Sí' : 'No'}</td>
                 <td className="px-3 py-2">
@@ -1002,6 +1031,7 @@ function SeccionProcesos(props: PropsSeccion) {
                           nombre: proceso.nombre,
                           prefijoCorrida: proceso.prefijoCorrida,
                           grupoPlaneadoId: proceso.grupoPlaneadoId ?? '',
+                          grupoEquipoId: proceso.grupoEquipoId ?? '',
                           areaTrabajoCodigo: proceso.areaTrabajoCodigo ?? '',
                           requiereArchivoTecnico: proceso.requiereArchivoTecnico,
                           requierePrimeraPieza: proceso.requierePrimeraPieza,
