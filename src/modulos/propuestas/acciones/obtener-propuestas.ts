@@ -11,6 +11,9 @@ export type FilaColaPropuesta = {
   id: string;
   folioCnc: string;
   estado: EstadoPropuesta;
+  /** Obs. cliente 2026-10-12: RFQ de origen del folio (columna «RFQ»). */
+  rfqId: string;
+  folioRfq: string | null;
   empresa: string | null;
   clienteRazonSocial: string | null;
   responsableId: string;
@@ -31,9 +34,11 @@ type FilaCruda = {
   id: string;
   folio_cnc: string;
   estado: string;
+  rfq_id: string;
   responsable_id: string;
   actualizado_en: string;
   clientes: { razon_social: string } | null;
+  pipeline: { folio_rfq: string | null; folio_op: string | null } | null;
   propuesta_revisiones: {
     letra: string;
     folio_revision: string;
@@ -69,8 +74,9 @@ export async function obtenerPropuestasAccion(
   let consulta = servidor
     .from('propuestas')
     .select(
-      'id, folio_cnc, estado, responsable_id, actualizado_en, '
+      'id, folio_cnc, estado, rfq_id, responsable_id, actualizado_en, '
       + 'clientes!propuestas_cliente_id_fkey(razon_social), '
+      + 'pipeline!propuestas_rfq_id_fkey(folio_rfq, folio_op), '
       + 'propuesta_revisiones!propuesta_revisiones_propuesta_id_fkey('
       + 'letra, folio_revision, estado, requiere_revision_ruteo, requiere_revision_costeo, '
       + 'propuesta_revision_acciones(codigo, fecha))',
@@ -119,6 +125,8 @@ export async function obtenerPropuestasAccion(
       id: fila.id,
       folioCnc: fila.folio_cnc,
       estado: fila.estado as EstadoPropuesta,
+      rfqId: fila.rfq_id,
+      folioRfq: fila.pipeline?.folio_rfq ?? fila.pipeline?.folio_op ?? null,
       empresa: fila.clientes?.razon_social ?? null,
       clienteRazonSocial: fila.clientes?.razon_social ?? null,
       responsableId: fila.responsable_id,
