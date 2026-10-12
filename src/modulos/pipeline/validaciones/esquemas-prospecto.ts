@@ -33,6 +33,12 @@ export const esquemaCrearProspecto = z.object({
   descripcionGeneral: z.string().trim().max(2000).optional(),
   responsableId: z.uuid('Responsable inválido').optional(),
   contactoId: z.uuid('Contacto inválido').optional(),
+  // Ajuste cliente 2026-10-12: canal/seguimiento y próxima acción se capturan
+  // unificados en el alta; la próxima acción viaja completa o ausente.
+  proximaAccionCodigo: z.string().trim().min(1).max(49).optional(),
+  proximaAccionTexto: z.string().trim().max(300).optional(),
+  fechaProximaAccion: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),
+  responsableProximaAccionId: z.uuid('Responsable de la acción inválido').optional(),
 });
 
 /** Datos validados para crear un prospecto. */

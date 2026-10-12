@@ -154,19 +154,32 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   // general (antes solo se completaban dentro de la ficha).
   await page.getByLabel('Canal', { exact: true }).selectOption('CORREO');
   await page.getByLabel('Descripción general').fill(`Alta modal ${contexto.sufijo}`);
+  // Ajuste cliente 2026-10-12: la sección unificada captura además responsable
+  // y próxima acción (el responsable de la acción se autocompleta).
+  const dialogoAlta = page.getByRole('dialog', { name: 'Nuevo RFQ' });
+  await dialogoAlta.getByLabel('Responsable', { exact: true }).selectOption({ index: 1 });
+  await expect(dialogoAlta.getByLabel('Responsable de la acción')).not.toHaveValue('');
+  await dialogoAlta.getByLabel('Acción', { exact: true }).selectOption({ index: 1 });
+  await dialogoAlta
+    .getByLabel('Fecha de la próxima acción')
+    .fill(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
   await page.getByRole('button', { name: 'Continuar con ítems' }).click();
 
   // El asistente sigue en el mismo modal: ítems y archivos sin cambiar de pantalla.
   await expect(page.getByTestId('alta-rfq-items')).toBeVisible();
   const rfq = await admin
     .from('pipeline')
-    .select('id, canal, descripcion_general, fecha_solicitud')
+    .select('id, canal, descripcion_general, fecha_solicitud, responsable_id, proxima_accion_codigo, fecha_proxima_accion, responsable_proxima_accion_id')
     .eq('empresa', empresa)
     .single();
   if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
   expect(rfq.data.canal).toBe('CORREO');
   expect(rfq.data.descripcion_general).toBe(`Alta modal ${contexto.sufijo}`);
   expect(rfq.data.fecha_solicitud).toBeTruthy();
+  expect(rfq.data.responsable_id).toBeTruthy();
+  expect(rfq.data.proxima_accion_codigo).toBeTruthy();
+  expect(rfq.data.fecha_proxima_accion).toBeTruthy();
+  expect(rfq.data.responsable_proxima_accion_id).toBeTruthy();
   contexto.rfqId = rfq.data.id;
 
   await page.getByRole('button', { name: 'Finalizar más tarde' }).click();
@@ -495,12 +508,15 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       await expect.poll(() => new URL(page.url()).searchParams.get('continuar')).toBe('1');
       await expect.poll(() => new URL(page.url()).searchParams.get('rfq')).toBe(rfqId);
 
-      // Reanuda en el primer paso con faltantes.
+      // Reanuda en el primer paso con faltantes (con la sección unificada ya
+      // capturada, el primer pendiente de este fixture son los archivos).
       const navegacion = page.getByTestId('navegacion-captura-rfq');
       await expect(navegacion).toBeVisible();
       const pasoActual = navegacion.locator('[aria-current="step"]');
       await expect(pasoActual).toHaveAttribute('data-faltantes', 'si');
-      expect(['cliente', 'solicitud']).toContain(await pasoActual.getAttribute('data-paso'));
+      expect(['cliente', 'solicitud', 'items', 'archivos']).toContain(
+        await pasoActual.getAttribute('data-paso'),
+      );
 
       // Lo guardado antes de interrumpir sigue en el mismo RFQ.
       await navegacion.getByRole('button', { name: /Ítems/ }).click();

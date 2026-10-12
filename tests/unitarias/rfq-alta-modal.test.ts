@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
@@ -268,6 +268,83 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     expect(crearProspectoMock).toHaveBeenCalledWith(
       expect.objectContaining({ canal: 'WHATSAPP', descripcionGeneral: 'Corte láser' }),
     );
+  });
+
+  it('unifica Canal/seguimiento con la Próxima acción y la persiste en el alta (ajuste cliente)', async () => {
+    const usuarioId = '11111111-1111-4111-8111-111111111111';
+    obtenerCatalogosMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        materiales: [],
+        espesores: [],
+        procesos: [],
+        canales: [{ codigo: 'CORREO', nombre: 'Correo', esOtro: false, activo: true }],
+        proximasAcciones: [{ codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false }],
+        usuarios: [{ id: usuarioId, nombre: 'Ana Admin', rol: 'admin' }],
+      },
+    });
+    const fechaFutura = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+    render(envolver(createElement(ColaRfq)));
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
+    const dialogo = within(screen.getByRole('dialog'));
+
+    fireEvent.change(dialogo.getByLabelText('Nombre del contacto'), {
+      target: { value: 'Ana Pérez' },
+    });
+    fireEvent.change(dialogo.getByLabelText('Empresa'), { target: { value: 'Metanor' } });
+    await waitFor(() => expect(dialogo.getByRole('option', { name: 'Correo' })).toBeDefined());
+    fireEvent.change(dialogo.getByLabelText('Canal'), { target: { value: 'CORREO' } });
+    fireEvent.change(dialogo.getByLabelText('Responsable'), { target: { value: usuarioId } });
+    fireEvent.change(dialogo.getByLabelText('Descripción general'), {
+      target: { value: 'Corte láser' },
+    });
+    fireEvent.change(dialogo.getByLabelText('Acción'), { target: { value: 'FOLLOW_UP' } });
+    fireEvent.change(dialogo.getByLabelText('Fecha de la próxima acción'), {
+      target: { value: fechaFutura },
+    });
+    fireEvent.click(dialogo.getByRole('button', { name: 'Continuar con ítems' }));
+
+    expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
+    expect(crearProspectoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canal: 'CORREO',
+        responsableId: usuarioId,
+        descripcionGeneral: 'Corte láser',
+        proximaAccionCodigo: 'FOLLOW_UP',
+        fechaProximaAccion: fechaFutura,
+        // El responsable de la acción se autocompleta con el del seguimiento.
+        responsableProximaAccionId: usuarioId,
+      }),
+    );
+  });
+
+  it('una próxima acción a medias exige completarla antes de continuar', async () => {
+    obtenerCatalogosMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        materiales: [],
+        espesores: [],
+        procesos: [],
+        canales: [{ codigo: 'CORREO', nombre: 'Correo', esOtro: false, activo: true }],
+        proximasAcciones: [{ codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false }],
+        usuarios: [{ id: '11111111-1111-4111-8111-111111111111', nombre: 'Ana Admin', rol: 'admin' }],
+      },
+    });
+    render(envolver(createElement(ColaRfq)));
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
+    const dialogo = within(screen.getByRole('dialog'));
+    fireEvent.change(dialogo.getByLabelText('Nombre del contacto'), {
+      target: { value: 'Ana Pérez' },
+    });
+    fireEvent.change(dialogo.getByLabelText('Empresa'), { target: { value: 'Metanor' } });
+    await waitFor(() => expect(dialogo.getByRole('option', { name: 'Seguimiento' })).toBeDefined());
+    fireEvent.change(dialogo.getByLabelText('Acción'), { target: { value: 'FOLLOW_UP' } });
+    fireEvent.click(dialogo.getByRole('button', { name: 'Continuar con ítems' }));
+
+    expect(await dialogo.findByRole('alert')).toBeDefined();
+    expect(dialogo.getByRole('alert').textContent).toContain('Completa la próxima acción');
+    expect(crearProspectoMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('alta-rfq-items')).toBeNull();
   });
 });
 
