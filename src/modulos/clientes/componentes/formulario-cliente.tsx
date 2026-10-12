@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { crearClienteAccion } from '@/modulos/clientes/acciones/crear-cliente';
 import { actualizarClienteAccion } from '@/modulos/clientes/acciones/actualizar-cliente';
+import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
 import type {
   Cliente,
   Direccion,
@@ -29,6 +31,14 @@ type FormularioDireccion = {
   estado: string;
   codigoPostal: string;
   pais: string;
+};
+
+/** Valores editables del contacto principal capturados en el formulario. */
+type ContactoFormulario = {
+  nombre: string;
+  puesto: string;
+  correo: string;
+  telefono: string;
 };
 
 const DIRECCION_VACIA: FormularioDireccion = {
@@ -85,8 +95,9 @@ type Props = {
 /**
  * Formulario maestro de alta/edición (SII-B2.2/B2.7). En alta llama a la RPC
  * atómica `crearClienteAccion` (cliente + contacto principal); en edición a
- * `actualizarClienteAccion`. Secciones: General, Contacto principal (alta),
- * Comercial y Direcciones. El estado no se edita aquí: cambia por acción.
+ * `actualizarClienteAccion`, que también actualiza (o crea) el contacto
+ * principal. Secciones: General, Contacto principal, Comercial y Direcciones.
+ * El estado no se edita aquí: cambia por acción.
  */
 export function FormularioCliente({
   cliente,
@@ -102,10 +113,7 @@ export function FormularioCliente({
   const [rfc, setRfc] = useState(cliente?.rfc ?? '');
   const [correo, setCorreo] = useState(cliente?.correo ?? '');
   const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
-  const [contactoNombre, setContactoNombre] = useState('');
-  const [contactoPuesto, setContactoPuesto] = useState('');
-  const [contactoCorreo, setContactoCorreo] = useState('');
-  const [contactoTelefono, setContactoTelefono] = useState('');
+  const [contactoEdicion, setContactoEdicion] = useState<ContactoFormulario | null>(null);
   const [moneda, setMoneda] = useState<MonedaCliente>(cliente?.moneda ?? 'MXN');
   const [creditoHabilitado, setCreditoHabilitado] = useState(
     cliente?.creditoHabilitado ?? false,
@@ -126,6 +134,39 @@ export function FormularioCliente({
 
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  // Obs. cliente 2026-10-12: en edición se precarga el contacto principal
+  // activo (lectura RLS del navegador) para poder actualizarlo aquí mismo. Los
+  // valores se derivan de la consulta hasta que el usuario edita algún campo,
+  // momento en que pasan a estado local (sin pisar lo escrito).
+  const clienteConsultas = useQueryClient();
+  const consultaContactoPrincipal = useQuery({
+    queryKey: ['cliente-contacto-principal', cliente?.id ?? 'nuevo'],
+    enabled: edicion,
+    queryFn: async () => {
+      const supabase = crearClienteSupabase();
+      const { data, error: errorConsulta } = await supabase
+        .from('contactos_cliente')
+        .select('nombre, puesto, correo, telefono')
+        .eq('cliente_id', cliente!.id)
+        .eq('es_principal', true)
+        .eq('activo', true)
+        .maybeSingle();
+      if (errorConsulta) throw new Error(errorConsulta.message);
+      return data;
+    },
+  });
+  const principalContacto = consultaContactoPrincipal.data ?? null;
+  const contactoValores: ContactoFormulario = contactoEdicion ?? {
+    nombre: principalContacto?.nombre ?? '',
+    puesto: principalContacto?.puesto ?? '',
+    correo: principalContacto?.correo ?? '',
+    telefono: principalContacto?.telefono ?? '',
+  };
+
+  function setCampoContacto(campo: keyof ContactoFormulario, valor: string): void {
+    setContactoEdicion({ ...contactoValores, [campo]: valor });
+  }
 
   function diasResueltos(): number {
     return creditoHabilitado ? Math.max(1, Math.min(365, Number(diasCredito) || 0)) : 0;
@@ -163,11 +204,33 @@ export function FormularioCliente({
         const limite = Number(limiteCredito) || 0;
         if (limite !== cliente.limiteCredito) cambios.limiteCredito = limite;
 
+        // Obs. cliente 2026-10-12: el contacto principal se actualiza (o crea)
+        // desde aquí; sin nombre no se toca y sin lectura previa no se envía.
+        const contactoCompleto = {
+          nombre: contactoValores.nombre.trim(),
+          puesto: contactoValores.puesto.trim(),
+          correo: contactoValores.correo.trim(),
+          telefono: contactoValores.telefono.trim(),
+        };
+        const contactoCambio =
+          consultaContactoPrincipal.isSuccess
+          && contactoCompleto.nombre !== ''
+          && (principalContacto === null
+            || contactoCompleto.nombre !== principalContacto.nombre
+            || contactoCompleto.puesto !== (principalContacto.puesto ?? '')
+            || contactoCompleto.correo !== (principalContacto.correo ?? '')
+            || contactoCompleto.telefono !== (principalContacto.telefono ?? ''));
+        if (contactoCambio) cambios.contactoPrincipal = contactoCompleto;
+
         const respuesta = await actualizarClienteAccion(cambios);
         if (!respuesta.exito) {
           setError(respuesta.error);
           return;
         }
+        // La próxima apertura debe releer el principal ya actualizado.
+        void clienteConsultas.invalidateQueries({
+          queryKey: ['cliente-contacto-principal', cliente.id],
+        });
       } else {
         const respuesta = await crearClienteAccion({
           razonSocial,
@@ -182,13 +245,13 @@ export function FormularioCliente({
           diasCredito: diasResueltos(),
           direccionFiscal,
           direccionEnvio,
-          ...(contactoNombre.trim()
+          ...(contactoValores.nombre.trim()
             ? {
                 contactoPrincipal: {
-                  nombre: contactoNombre,
-                  puesto: contactoPuesto,
-                  correo: contactoCorreo,
-                  telefono: contactoTelefono,
+                  nombre: contactoValores.nombre,
+                  puesto: contactoValores.puesto,
+                  correo: contactoValores.correo,
+                  telefono: contactoValores.telefono,
                 },
               }
             : {}),
@@ -242,41 +305,43 @@ export function FormularioCliente({
         </div>
       </section>
 
-      {!edicion && (
-        <SeccionColapsable
-          titulo="Contacto principal"
-          descripcion="Se crea junto con el cliente en una sola operación (alta atómica)."
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Campo
-              id="cli-contacto-nombre"
-              etiqueta="Nombre del contacto"
-              valor={contactoNombre}
-              onCambio={setContactoNombre}
-            />
-            <Campo
-              id="cli-contacto-puesto"
-              etiqueta="Puesto o área (opcional)"
-              valor={contactoPuesto}
-              onCambio={setContactoPuesto}
-            />
-            <Campo
-              id="cli-contacto-correo"
-              etiqueta="Correo del contacto (opcional)"
-              tipo="email"
-              valor={contactoCorreo}
-              onCambio={setContactoCorreo}
-            />
-            <Campo
-              id="cli-contacto-telefono"
-              etiqueta="Teléfono del contacto (opcional)"
-              tipo="tel"
-              valor={contactoTelefono}
-              onCambio={setContactoTelefono}
-            />
-          </div>
-        </SeccionColapsable>
-      )}
+      <SeccionColapsable
+        titulo="Contacto principal"
+        descripcion={
+          edicion
+            ? 'Actualiza los datos del contacto principal; si no existe, se crea al completar el nombre. Déjalo vacío para no modificarlo.'
+            : 'Se crea junto con el cliente en una sola operación (alta atómica).'
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo
+            id="cli-contacto-nombre"
+            etiqueta="Nombre del contacto"
+            valor={contactoValores.nombre}
+            onCambio={(v) => setCampoContacto('nombre', v)}
+          />
+          <Campo
+            id="cli-contacto-puesto"
+            etiqueta="Puesto o área (opcional)"
+            valor={contactoValores.puesto}
+            onCambio={(v) => setCampoContacto('puesto', v)}
+          />
+          <Campo
+            id="cli-contacto-correo"
+            etiqueta="Correo del contacto (opcional)"
+            tipo="email"
+            valor={contactoValores.correo}
+            onCambio={(v) => setCampoContacto('correo', v)}
+          />
+          <Campo
+            id="cli-contacto-telefono"
+            etiqueta="Teléfono del contacto (opcional)"
+            tipo="tel"
+            valor={contactoValores.telefono}
+            onCambio={(v) => setCampoContacto('telefono', v)}
+          />
+        </div>
+      </SeccionColapsable>
 
       <SeccionColapsable titulo="Comercial">
         <div className="grid gap-4 sm:grid-cols-2">

@@ -276,6 +276,40 @@ test.describe.serial('ficha de cliente B2: alta atómica, comercial y estado', (
 
     await capturar(page, 'ficha-contactos');
 
+    // --- Obs. cliente 2026-10-12: editar el contacto principal desde el
+    // formulario maestro del cliente (precargado y actualizado) ----------------
+    await ficha.getByRole('button', { name: 'Editar' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar cliente' })).toBeVisible();
+    await page.getByRole('button', { name: 'Contacto principal' }).click();
+    await expect(page.getByLabel('Nombre del contacto')).toHaveValue('Beto Finanzas');
+    await page.getByLabel('Nombre del contacto').fill('Carla Compras');
+    await page.getByLabel('Puesto o área (opcional)').fill('Compras');
+    await page
+      .getByLabel('Correo del contacto (opcional)')
+      .fill(`carla-${datos.sufijo}@metalesficha.mx`);
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('heading', { name: 'Editar cliente' })).toBeHidden();
+
+    await expect
+      .poll(async () => {
+        const { data } = await datos.admin
+          .from('contactos_cliente')
+          .select('nombre, puesto, es_principal, activo')
+          .eq('cliente_id', clienteId)
+          .eq('es_principal', true)
+          .eq('activo', true);
+        return data;
+      })
+      .toMatchObject([{ nombre: 'Carla Compras', puesto: 'Compras' }]);
+
+    const { data: clienteContacto } = await datos.admin
+      .from('clientes')
+      .select('contacto')
+      .eq('id', clienteId)
+      .single();
+    expect(clienteContacto?.contacto).toBe('Carla Compras');
+    await capturar(page, 'editar-contacto-principal');
+
     // --- Lista con folio (captura) --------------------------------------------
     await page.goto('/clientes');
     await page.getByRole('searchbox', { name: 'Buscar clientes' }).fill(datos.razonSocial);
