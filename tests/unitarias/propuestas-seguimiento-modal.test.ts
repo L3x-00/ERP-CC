@@ -43,6 +43,11 @@ const CATALOGOS = {
     { codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false },
     { codigo: 'OTRO', nombre: 'Otro', esOtro: true },
   ],
+  canales: [
+    { codigo: 'WHATSAPP', nombre: 'WhatsApp', esOtro: false, activo: true },
+    { codigo: 'OTRO', nombre: 'Otro', esOtro: true, activo: true },
+    { codigo: 'FAX', nombre: 'Fax', esOtro: false, activo: false },
+  ],
   materiales: [],
   espesores: [],
   errorItems: null,
@@ -140,6 +145,48 @@ describe('DialogoSeguimientoPropuesta (obs. cliente)', () => {
       target: { value: 'Feria industrial' },
     });
     expect(confirmar.disabled).toBe(false);
+  });
+
+  it('el canal es un desplegable del catálogo y envía el código configurado', async () => {
+    montar({ modo: 'registrar' });
+
+    const canalSelect = screen.getByLabelText('Canal del seguimiento') as HTMLSelectElement;
+    const opciones = Array.from(canalSelect.options).map((opcion) => opcion.value);
+    expect(opciones).toContain('WHATSAPP');
+    expect(opciones).not.toContain('FAX');
+
+    fireEvent.change(canalSelect, { target: { value: 'WHATSAPP' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar seguimiento' }));
+
+    await waitFor(() =>
+      expect(registrarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ canal: 'WHATSAPP' }),
+      ),
+    );
+  });
+
+  it('el canal «Otro» exige detalle y envía el texto capturado', async () => {
+    montar({ modo: 'registrar' });
+
+    fireEvent.change(screen.getByLabelText('Canal del seguimiento'), {
+      target: { value: 'OTRO' },
+    });
+    const confirmar = screen.getByRole('button', {
+      name: 'Registrar seguimiento',
+    }) as HTMLButtonElement;
+    expect(confirmar.disabled).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('Detalle del canal Otro'), {
+      target: { value: 'Feria industrial' },
+    });
+    expect(confirmar.disabled).toBe(false);
+
+    fireEvent.click(confirmar);
+    await waitFor(() =>
+      expect(registrarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ canal: 'Feria industrial' }),
+      ),
+    );
   });
 
   it('sin permiso de seguimiento avisa y no permite confirmar', () => {

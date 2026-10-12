@@ -42,6 +42,11 @@ export function PanelSeguimientoPropuesta({
     .filter((accion) => accion.revisionId === revision.id)
     .sort((a, b) => b.creadoEn.localeCompare(a.creadoEn));
 
+  // El canal se guarda como código del catálogo (o el texto de «Otro»); se
+  // muestra el nombre configurado cuando existe.
+  const nombreCanal = (valor: string): string =>
+    catalogos?.canales.find((opcion) => opcion.codigo === valor)?.nombre ?? valor;
+
   async function refrescar(): Promise<void> {
     await queryClient.invalidateQueries({
       queryKey: claveDetallePropuesta(revision.propuestaId),
@@ -79,7 +84,7 @@ export function PanelSeguimientoPropuesta({
               </span>
               <span className="text-xs text-texto-secundario">
                 {accion.fecha ? formatearFecha(accion.fecha) : 'Sin fecha'}
-                {accion.canal ? ` · ${accion.canal}` : ''}
+                {accion.canal ? ` · ${nombreCanal(accion.canal)}` : ''}
                 {accion.nota ? ` · ${accion.nota}` : ''}
               </span>
             </li>

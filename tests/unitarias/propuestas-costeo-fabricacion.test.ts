@@ -133,6 +133,7 @@ const CATALOGOS: CatalogosPropuesta = {
   gruposPlaneados: [],
   recursos: [],
   proximasAcciones: [],
+  canales: [],
   materiales: [],
   espesores: [],
   errorItems: null,
