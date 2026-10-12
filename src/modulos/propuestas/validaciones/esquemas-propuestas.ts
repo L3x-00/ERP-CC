@@ -21,6 +21,14 @@ export const esquemaCrearNuevaRevision = z
   .object({ revisionOrigen: uuid, motivo })
   .strict();
 
+/**
+ * Obs. cliente 2026-10-12: el botón «Editar» de una revisión LISTA PARA ENVIAR
+ * la devuelve a borrador con motivo (se puede ajustar y volver a validar/enviar).
+ */
+export const esquemaReabrirRevision = z
+  .object({ revisionId: uuid, actualizadoEn, motivo })
+  .strict();
+
 /** Cantidad comercial: positiva, hasta 1e9 y con 2 decimales como máximo. */
 const cantidadItem = z
   .number()
@@ -249,6 +257,7 @@ export const esquemaFiltrosPropuestas = z
 
 export type CrearPropuestaInput = z.infer<typeof esquemaCrearPropuesta>;
 export type CrearNuevaRevisionInput = z.infer<typeof esquemaCrearNuevaRevision>;
+export type ReabrirRevisionInput = z.infer<typeof esquemaReabrirRevision>;
 export type AgregarItemPropuestaInput = z.infer<typeof esquemaAgregarItemPropuesta>;
 export type EditarItemPropuestaInput = z.infer<typeof esquemaEditarItemPropuesta>;
 export type EditarRuteoItemInput = z.infer<typeof esquemaEditarRuteoItem>;

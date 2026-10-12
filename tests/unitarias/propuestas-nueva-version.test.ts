@@ -24,6 +24,7 @@ const REVISION_B_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 function montar(parcial: {
   estado?: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'READY_TO_SEND';
   puedeCrear?: boolean;
+  bloqueada?: boolean;
   onVersionCreada?: (revisionId: string, letra: string) => void;
 }) {
   const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -37,6 +38,7 @@ function montar(parcial: {
         letra: 'A',
         estado: parcial.estado ?? 'SENT',
         puedeCrear: parcial.puedeCrear ?? true,
+        bloqueada: parcial.bloqueada ?? false,
         onVersionCreada: parcial.onVersionCreada,
       }),
     ),
@@ -77,15 +79,22 @@ describe('BotonNuevaVersionPropuesta (obs. cliente)', () => {
     expect(screen.queryByTestId('boton-crear-nueva-version')).toBeNull();
   });
 
-  it('en «Listo para enviar» está habilitado y anuncia la versión siguiente', async () => {
+  it('en «Listo para enviar» ya no se muestra: el ajuste se hace con Editar', () => {
     montar({ estado: 'READY_TO_SEND' });
 
-    const boton = screen.getByTestId('boton-crear-nueva-version') as HTMLButtonElement;
-    expect(boton.disabled).toBe(false);
+    expect(screen.queryByTestId('boton-crear-nueva-version')).toBeNull();
+  });
 
-    fireEvent.click(boton);
-    const dialogo = await screen.findByTestId('dialogo-nueva-version');
-    expect(dialogo.textContent).toContain('versión B');
+  it('en estado aceptado no se muestra', () => {
+    montar({ estado: 'ACCEPTED' });
+
+    expect(screen.queryByTestId('boton-crear-nueva-version')).toBeNull();
+  });
+
+  it('con la propuesta ya aceptada no se muestra aunque la revisión esté enviada', () => {
+    montar({ estado: 'SENT', bloqueada: true });
+
+    expect(screen.queryByTestId('boton-crear-nueva-version')).toBeNull();
   });
 
   it('crea la versión con motivo y avisa la nueva revisión', async () => {

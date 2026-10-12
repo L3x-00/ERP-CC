@@ -2,13 +2,28 @@
 export const MENSAJES_ORDEN: Readonly<Record<string, string>> = {
   revision_no_aceptada: 'La orden solo nace de la revisión aceptada vigente.',
   revision_inexistente: 'La revisión ya no existe.',
-  cliente_no_activo: 'El cliente de la propuesta no está activo.',
+  cliente_no_activo:
+    'El cliente de la propuesta no está activo. Actívalo en Clientes y vuelve a intentar.',
   credito_limite_excedido: 'El cliente excede su límite de crédito; requiere autorización de un administrador.',
   tipo_cambio_usd_requerido: 'Configura el tipo de cambio USD antes de confirmar una venta en dólares.',
   propuesta_sin_items_fabricables: 'La revisión no tiene ítems fabricables.',
   sin_permiso_orden: 'No tienes permiso para crear órdenes.',
   cliente_no_corresponde_orden: 'El cliente no corresponde a la orden existente.',
 };
+
+/** Etiqueta legible del estado del cliente para la causa de «Orden pendiente». */
+export function etiquetaEstadoCliente(estado: string | null | undefined): string {
+  switch (estado) {
+    case 'prospecto':
+      return 'Prospecto (aún no es cliente activo)';
+    case 'inactivo':
+      return 'Inactivo';
+    case 'activo':
+      return 'Activo';
+    default:
+      return 'desconocido';
+  }
+}
 
 /** Causa legible de una «Orden pendiente» a partir del código del gate (C4.1). */
 export function mensajeCausaOrden(codigo: string | null): string {
