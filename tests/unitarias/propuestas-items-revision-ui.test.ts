@@ -3,10 +3,11 @@
 // (sin `.tsx`), así que el componente se monta con `createElement` en vez de
 // JSX (mismo patrón que `propuestas-archivos-historial.test.ts`).
 //
-// C3.1 (UI): el alta de un ítem propio aparece solo en una revisión B..Z en
-// DRAFT y con permiso de artículo; filtra espesores por material, bloquea el
-// doble envío, conserva lo capturado ante error, anuncia el `ITxx` asignado y
-// etiqueta cada fila con la revisión donde el ítem fue agregado.
+// C3.1 (UI): el alta de un ítem propio aparece en una revisión en DRAFT (obs.
+// cliente 2026-10-13: también la A) y con permiso de artículo; filtra espesores
+// por material, bloquea el doble envío, conserva lo capturado ante error, anuncia
+// el `ITxx` asignado y etiqueta cada fila con su origen. La tabla muestra material
+// y espesor, y la ausencia de ítems activos se marca en rojo para poder validar.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -25,6 +26,7 @@ vi.mock('@/modulos/propuestas/acciones/editar-item-propuesta', () => ({
 }));
 
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
+import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { EditorItemsPropuesta } from '@/modulos/propuestas/componentes/editor-items-propuesta';
 import type {
   PermisosPropuesta,
@@ -130,6 +132,7 @@ function renderizarEditor(
     permisos?: PermisosPropuesta;
     catalogos?: CatalogosPropuesta | null;
     items?: PropuestaItem[];
+    faltantes?: FaltantesValidacionPropuesta | null;
   } = {},
 ) {
   const clienteConsultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -145,6 +148,7 @@ function renderizarEditor(
         costos: [],
         catalogos: opciones.catalogos === undefined ? CATALOGOS : opciones.catalogos,
         permisos: opciones.permisos ?? PERMISOS_COMPLETOS,
+        faltantes: opciones.faltantes ?? null,
       }),
     ),
   );
@@ -168,7 +172,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe('EditorItemsPropuesta — alta visible solo en B..Z DRAFT', () => {
+describe('EditorItemsPropuesta — alta visible en cualquier revisión DRAFT', () => {
   it('ofrece el alta en una revisión B en borrador con permiso de artículo', () => {
     renderizarEditor();
 
@@ -176,11 +180,25 @@ describe('EditorItemsPropuesta — alta visible solo en B..Z DRAFT', () => {
     expect(screen.getByRole('button', { name: 'Agregar ítem' })).toBeDefined();
   });
 
-  it('no ofrece el alta en la revisión A, ni siquiera en borrador', () => {
+  it('ofrece el alta también en la revisión A en borrador (obs. cliente 2026-10-13)', () => {
     renderizarEditor({ revisionActiva: REVISION_A, items: [] });
 
-    expect(screen.queryByTestId('alta-item-propuesta')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Agregar ítem' })).toBeNull();
+    expect(screen.getByTestId('alta-item-propuesta')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Agregar ítem' })).toBeDefined();
+    expect(screen.queryByText(/hereda los ítems del RFQ/i)).toBeNull();
+  });
+
+  it('en la revisión A agrega el ítem enviando su revisión', async () => {
+    renderizarEditor({ revisionActiva: REVISION_A, items: [] });
+
+    llenarMinimo();
+    enviarAlta();
+
+    await waitFor(() =>
+      expect(agregarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ revisionId: REV_A_ID, descripcion: 'Placa base', cantidad: 4 }),
+      ),
+    );
   });
 
   it('no ofrece el alta en una revisión B que ya no es borrador', () => {
@@ -407,5 +425,82 @@ describe('EditorItemsPropuesta — revisión de origen por fila', () => {
     expect(screen.queryByTestId('alta-item-propuesta')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Guardar' })).toBeNull();
     expect((screen.getByLabelText('Descripción IT01') as HTMLInputElement).disabled).toBe(true);
+  });
+});
+
+describe('EditorItemsPropuesta — material y espesor del RFQ (obs. cliente 2026-10-13)', () => {
+  it('muestra el material y el espesor capturados en cada ítem', () => {
+    renderizarEditor({
+      items: [
+        item({
+          id: ITEM_HEREDADO_ID,
+          materialId: MATERIAL_ACERO_ID,
+          espesorId: ESPESOR_ACERO_3_ID,
+        }),
+        item({ id: ITEM_NUEVO_ID, codigo: 'IT05' }),
+      ],
+    });
+
+    expect(screen.getByRole('columnheader', { name: 'Material' })).toBeDefined();
+    expect(screen.getByRole('columnheader', { name: 'Espesor' })).toBeDefined();
+    expect(screen.getByTestId('material-IT01').textContent).toBe('Acero');
+    expect(screen.getByTestId('espesor-IT01').textContent).toBe('3 mm');
+    // Sin material capturado no se inventa nada.
+    expect(screen.getByTestId('material-IT05').textContent).toBe('—');
+    expect(screen.getByTestId('espesor-IT05').textContent).toBe('—');
+  });
+
+  it('un material que ya no está en el catálogo activo se muestra como guion, no rompe la tabla', () => {
+    renderizarEditor({
+      items: [item({ id: ITEM_HEREDADO_ID, materialId: 'retirado', espesorId: 'retirado' })],
+    });
+
+    expect(screen.getByTestId('material-IT01').textContent).toBe('—');
+  });
+
+  it('distingue el ítem heredado del RFQ del agregado en la propuesta', () => {
+    renderizarEditor({
+      items: [
+        item({ id: ITEM_HEREDADO_ID, rfqItemId: 'rfq-item-1' }),
+        item({ id: ITEM_NUEVO_ID, codigo: 'IT05', revisionOrigenId: REV_A_ID }),
+      ],
+    });
+
+    expect(screen.getByTestId(`item-propuesta-${ITEM_HEREDADO_ID}`).textContent).toContain(
+      'Heredado del RFQ',
+    );
+    expect(screen.getByTestId(`item-propuesta-${ITEM_NUEVO_ID}`).textContent).toContain(
+      'Agregado en Rev A',
+    );
+  });
+});
+
+describe('EditorItemsPropuesta — ítem obligatorio para validar (obs. cliente 2026-10-13)', () => {
+  const SIN_ITEMS = {
+    sinItemsActivos: true,
+    itemsSinRuteo: [],
+    itemsSinCostear: [],
+    sinArchivos: false,
+    confirmaciones: [],
+    contenido: ['al menos un ítem activo'],
+    mensajes: ['al menos un ítem activo'],
+  } satisfies FaltantesValidacionPropuesta;
+
+  it('sin ítems activos marca el estado vacío en rojo y explica qué falta', () => {
+    renderizarEditor({ revisionActiva: REVISION_A, items: [], faltantes: SIN_ITEMS });
+
+    const vacio = screen.getByText('La revisión no tiene ítems.');
+    expect(vacio.getAttribute('data-faltante')).toBe('si');
+    expect(vacio.className).toContain('border-peligro');
+    expect(screen.getByTestId('faltante-items').textContent).toMatch(/al menos un ítem activo/i);
+  });
+
+  it('sin el faltante no hay marca roja ni aviso', () => {
+    renderizarEditor({ revisionActiva: REVISION_A, items: [] });
+
+    expect(screen.getByText('La revisión no tiene ítems.').getAttribute('data-faltante')).toBe(
+      'no',
+    );
+    expect(screen.queryByTestId('faltante-items')).toBeNull();
   });
 });

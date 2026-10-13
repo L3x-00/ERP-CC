@@ -1,6 +1,7 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
+import { mensajeBloqueoValidacion } from '@/modulos/propuestas/servicios/faltantes-validacion';
 import type { EstadoPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { esquemaValidarRevision } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 import {
@@ -17,6 +18,8 @@ export type ResultadoValidarRevision = {
 /**
  * SII-B4.4/4.9: valida la revisión DRAFT (→ READY_TO_SEND). Se bloquea con
  * `requiere_revision_pendiente` cuando faltan confirmaciones o ítems completos.
+ * Obs. cliente 2026-10-13: antes de la RPC exige ítem, ruteo costeado por
+ * proceso y al menos un archivo (misma regla que marca la ficha en rojo).
  */
 export async function validarRevisionAccion(
   entrada: unknown,
@@ -37,6 +40,7 @@ export async function validarRevisionAccion(
       },
       accion: 'validar_revision',
       detalles: { revisionId: datos.revisionId },
+      verificarAntes: (admin) => mensajeBloqueoValidacion(admin, datos.revisionId),
     },
     datos.revisionId,
   );

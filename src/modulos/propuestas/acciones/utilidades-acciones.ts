@@ -41,8 +41,19 @@ export type SolicitudRpcPropuesta = {
   args: Record<string, unknown>;
   /** Acción estable para la bitácora. */
   accion: string;
+  /**
+   * Nombre del parámetro del actor en la RPC. Casi todas usan `p_actor`;
+   * `costear_ruteo_revision` (C3.3) declaró `p_actor_id`.
+   */
+  parametroActor?: string;
   /** Detalles de auditoría (sin secretos). */
   detalles?: Record<string, unknown>;
+  /**
+   * Regla de negocio que debe cumplirse antes de ejecutar la RPC, evaluada con
+   * el cliente admin ya autenticado y autorizado. Devuelve el mensaje que se
+   * muestra al usuario, o null si puede continuar.
+   */
+  verificarAntes?: (admin: ReturnType<typeof crearClienteSupabaseAdmin>) => Promise<string | null>;
 };
 
 type ErrorRpc = { message: string; details?: string | null } | null;
@@ -72,13 +83,27 @@ export async function ejecutarRpcPropuesta(
 
   const correlationId = nuevoCorrelationId();
   const admin = crearClienteSupabaseAdmin();
+
+  const bloqueo = solicitud.verificarAntes ? await solicitud.verificarAntes(admin) : null;
+  if (bloqueo) {
+    await registrarLog(
+      usuario,
+      `${solicitud.accion}_rechazado`,
+      'propuestas',
+      recursoId,
+      { codigo: 'contenido_incompleto' },
+      correlationId,
+    );
+    return { exito: false, error: bloqueo };
+  }
+
   const llamarRpc = admin.rpc.bind(admin) as (
     nombre: string,
     args: Record<string, unknown>,
   ) => PromiseLike<{ data: unknown; error: ErrorRpc }>;
   const { data, error } = await llamarRpc(solicitud.rpc, {
     ...solicitud.args,
-    p_actor: usuario.id,
+    [solicitud.parametroActor ?? 'p_actor']: usuario.id,
     p_correlation_id: correlationId,
   });
 

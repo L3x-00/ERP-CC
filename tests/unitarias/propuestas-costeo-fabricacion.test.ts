@@ -5,7 +5,7 @@
 // snapshot costeado, sin sumar dos veces el costo manual de máquina.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/modulos/propuestas/acciones/costear-ruteo-revision', () => ({
@@ -19,7 +19,10 @@ vi.mock('@/modulos/propuestas/acciones/editar-ruteo-item', () => ({
 }));
 
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
+import { costearRuteoRevisionAccion } from '@/modulos/propuestas/acciones/costear-ruteo-revision';
+import { editarCostosRevisionAccion } from '@/modulos/propuestas/acciones/editar-costos-revision';
 import { PanelRuteoCosteo } from '@/modulos/propuestas/componentes/panel-ruteo-costeo';
+import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import type {
   CostoRevisionPropuesta,
   PermisosPropuesta,
@@ -191,7 +194,14 @@ const PERMISOS = {
   cerrar: true,
 } as PermisosPropuesta;
 
-function montar(parcial: { catalogos?: CatalogosPropuesta; permisos?: PermisosPropuesta } = {}) {
+function montar(
+  parcial: {
+    catalogos?: CatalogosPropuesta;
+    permisos?: PermisosPropuesta;
+    ruteo?: RuteoItemPropuesta[];
+    faltantes?: FaltantesValidacionPropuesta | null;
+  } = {},
+) {
   const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     createElement(
@@ -200,10 +210,11 @@ function montar(parcial: { catalogos?: CatalogosPropuesta; permisos?: PermisosPr
       createElement(PanelRuteoCosteo, {
         revision: REVISION,
         items: [ITEM],
-        ruteo: RUTEO,
+        ruteo: parcial.ruteo ?? RUTEO,
         costos: COSTOS,
         catalogos: parcial.catalogos ?? CATALOGOS,
         permisos: parcial.permisos ?? PERMISOS,
+        faltantes: parcial.faltantes ?? null,
       }),
     ),
   );
@@ -303,13 +314,20 @@ describe('ruteo 4b: grupo por proceso y costo en vivo (obs. cliente)', () => {
     expect(screen.getByTestId('costo-estimado-IT01-2').textContent).toContain('$100.00');
   });
 
-  it('usa el override de la máquina cuando está seleccionada', () => {
+  it('ya no ofrece el campo Máquina (la tarifa sale del grupo de equipo)', () => {
     montar();
 
-    const recursoFila2 = screen.getByLabelText('Máquina IT01 fila 2') as HTMLSelectElement;
-    fireEvent.change(recursoFila2, { target: { value: RECURSO_ID } });
+    expect(screen.queryByLabelText(/^Máquina IT01/)).toBeNull();
+    expect(screen.queryByText('Máquina (opcional)')).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Máquina (tarifa del grupo)' })).toBeNull();
+  });
 
-    expect(screen.getByTestId('costo-estimado-IT01-2').textContent).toContain('$150.00');
+  it('un renglón histórico con override de máquina conserva su costo en vivo', () => {
+    montar({
+      ruteo: [filaRuteo({ id: 'r9', recursoId: RECURSO_ID, setupHoras: 0, runHoras: 1, totalHoras: 1 })],
+    });
+
+    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$150.00');
   });
 
   it('avisa cuando el renglón no tiene tarifa configurada', () => {
@@ -340,5 +358,184 @@ describe('ruteo 4b: grupo por proceso y costo en vivo (obs. cliente)', () => {
     montar({ permisos: { ...PERMISOS, editarCosto: false } });
 
     expect(screen.queryByTestId('costo-estimado-IT01-1')).toBeNull();
+  });
+});
+
+describe('ruteo: el grupo de equipo se rellena con el mismo nombre del proceso (obs. cliente 2026-10-13)', () => {
+  const GRUPO_ROUTER_ID = '77777777-7777-4777-8777-777777777777';
+  const PROCESO_ROUTER_ID = '66666666-6666-4666-8666-666666666666';
+  const catalogoRouter: CatalogosPropuesta = {
+    ...CATALOGOS,
+    procesos: [
+      ...CATALOGOS.procesos,
+      {
+        id: PROCESO_ROUTER_ID,
+        codigo: 'ROUTER',
+        nombre: 'CNC Router',
+        grupoEquipoId: null,
+        grupoPlaneadoId: null,
+        areaTrabajoCodigo: null,
+      },
+    ],
+    gruposEquipo: [
+      ...CATALOGOS.gruposEquipo,
+      {
+        id: GRUPO_ROUTER_ID,
+        codigo: 'CNC_ROUTER',
+        nombre: 'CNC ROUTER',
+        sinTarifa: true,
+        tarifaHora: null,
+        tarifaMoneda: null,
+      },
+    ],
+  };
+
+  it('sin grupo configurado en el proceso, elige el grupo que se llama igual', () => {
+    montar({ catalogos: catalogoRouter });
+
+    const proceso = screen.getByLabelText('Proceso IT01 fila 2') as HTMLSelectElement;
+    const grupo = screen.getByLabelText('Grupo de equipo IT01 fila 2') as HTMLSelectElement;
+
+    fireEvent.change(proceso, { target: { value: PROCESO_ROUTER_ID } });
+
+    expect(grupo.value).toBe(GRUPO_ROUTER_ID);
+  });
+
+  it('la fila que nace del RFQ (proceso sin grupo) ya llega con el grupo sugerido y avisa que falta guardar', () => {
+    const filaDelRfq = filaRuteo({
+      id: 'rfq-1',
+      procesoId: PROCESO_ROUTER_ID,
+      grupoEquipoId: null,
+    });
+    montar({ catalogos: catalogoRouter, ruteo: [filaDelRfq] });
+
+    const grupo = screen.getByLabelText('Grupo de equipo IT01 fila 1') as HTMLSelectElement;
+    expect(grupo.value).toBe(GRUPO_ROUTER_ID);
+    expect(screen.getByTestId('ruteo-sin-guardar-IT01').textContent).toMatch(/Guardar ruteo/);
+  });
+
+  it('no costea con datos sin guardar: pide guardar el ruteo primero', async () => {
+    const filaDelRfq = filaRuteo({
+      id: 'rfq-1',
+      procesoId: PROCESO_ROUTER_ID,
+      grupoEquipoId: null,
+    });
+    montar({ catalogos: catalogoRouter, ruteo: [filaDelRfq] });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Costear ruteo' }));
+
+    expect(await screen.findByText('Guarda el ruteo de IT01 antes de costear.')).toBeDefined();
+    expect(costearRuteoRevisionAccion).not.toHaveBeenCalled();
+  });
+
+  it('un ruteo ya guardado con su grupo no muestra aviso de cambios sin guardar', () => {
+    montar({ catalogos: catalogoRouter });
+
+    expect(screen.queryByTestId('ruteo-sin-guardar-IT01')).toBeNull();
+  });
+
+  it('sin permiso de ruteo no se inventan valores: el grupo vacío sigue vacío', () => {
+    const filaDelRfq = filaRuteo({
+      id: 'rfq-1',
+      procesoId: PROCESO_ROUTER_ID,
+      grupoEquipoId: null,
+    });
+    montar({
+      catalogos: catalogoRouter,
+      ruteo: [filaDelRfq],
+      permisos: { ...PERMISOS, editarRuteo: false },
+    });
+
+    expect((screen.getByLabelText('Grupo de equipo IT01 fila 1') as HTMLSelectElement).value).toBe('');
+    expect(screen.queryByTestId('ruteo-sin-guardar-IT01')).toBeNull();
+  });
+
+  it('si no hay un grupo con ese nombre lo deja vacío para elegirlo', () => {
+    montar({ catalogos: catalogoRouter });
+
+    const grupo = screen.getByLabelText('Grupo de equipo IT01 fila 2') as HTMLSelectElement;
+    fireEvent.change(screen.getByLabelText('Proceso IT01 fila 2'), {
+      target: { value: PROCESO_SECUNDARIO_ID },
+    });
+
+    expect(grupo.value).toBe('');
+  });
+});
+
+describe('costeo interno: solo Material y Otros (obs. cliente 2026-10-13)', () => {
+  it('ofrece únicamente Material y Otros', () => {
+    montar();
+
+    expect(screen.getByLabelText('Costo Material')).toBeDefined();
+    expect(screen.getByLabelText('Costo Otros')).toBeDefined();
+    for (const retirada of ['Máquina', 'Mano de obra', 'Gastos directos', 'Subcontratación']) {
+      expect(screen.queryByLabelText(`Costo ${retirada}`)).toBeNull();
+    }
+  });
+
+  it('un costo histórico de categoría retirada se avisa y sigue sumando al total', () => {
+    montar();
+
+    const nota = screen.getByTestId('costos-categorias-retiradas');
+    expect(nota.textContent).toContain('Máquina');
+    expect(nota.textContent).toContain('$999.00');
+  });
+
+  it('al guardar conserva las categorías retiradas y guarda Otros como gastos directos', async () => {
+    vi.mocked(editarCostosRevisionAccion).mockResolvedValue({ exito: true, datos: undefined });
+    montar();
+
+    fireEvent.change(screen.getByLabelText('Costo Otros'), { target: { value: '25' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar costos' }));
+
+    await waitFor(() => expect(editarCostosRevisionAccion).toHaveBeenCalledTimes(1));
+    expect(editarCostosRevisionAccion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        costos: expect.arrayContaining([
+          { categoria: 'material', monto: 50 },
+          { categoria: 'maquina', monto: 999 },
+          { categoria: 'gastos_directos', monto: 25 },
+        ]),
+      }),
+    );
+  });
+});
+
+describe('validar: ruteo y costeo por proceso en rojo suave (obs. cliente 2026-10-13)', () => {
+  const faltantes = (parcial: Partial<FaltantesValidacionPropuesta>): FaltantesValidacionPropuesta => ({
+    sinItemsActivos: false,
+    itemsSinRuteo: [],
+    itemsSinCostear: [],
+    sinArchivos: false,
+    confirmaciones: [],
+    contenido: [],
+    mensajes: [],
+    ...parcial,
+  });
+
+  it('un ítem sin ruteo se marca y explica qué agregar', () => {
+    montar({ ruteo: [], faltantes: faltantes({ itemsSinRuteo: ['IT01'] }) });
+
+    const mensaje = screen.getByTestId('faltante-ruteo-IT01');
+    expect(mensaje.textContent).toMatch(/al menos un proceso/i);
+    expect(mensaje.closest('[data-faltante]')?.getAttribute('data-faltante')).toBe('si');
+  });
+
+  it('un ruteo sin costear se marca y resalta el botón Costear ruteo', () => {
+    montar({ faltantes: faltantes({ itemsSinCostear: ['IT01'] }) });
+
+    expect(screen.getByTestId('faltante-costeo-IT01').textContent).toMatch(/Costear ruteo/);
+    const boton = screen.getByRole('button', { name: 'Costear ruteo' });
+    expect(boton.className).not.toContain('border-borde');
+  });
+
+  it('sin faltantes no hay marcas rojas', () => {
+    montar();
+
+    expect(screen.queryByTestId('faltante-ruteo-IT01')).toBeNull();
+    expect(screen.queryByTestId('faltante-costeo-IT01')).toBeNull();
+    expect(
+      document.querySelector('[data-faltante="si"]'),
+    ).toBeNull();
   });
 });

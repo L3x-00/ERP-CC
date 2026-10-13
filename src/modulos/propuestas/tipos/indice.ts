@@ -27,6 +27,14 @@ export const CATEGORIAS_COSTO = [
 
 export type CategoriaCosto = (typeof CATEGORIAS_COSTO)[number];
 
+/**
+ * Obs. cliente 2026-10-13: el costeo interno solo captura Material y Otros; el
+ * tiempo de máquina y mano de obra salen del ruteo costeado. Las demás categorías
+ * siguen siendo válidas en base (datos históricos) pero ya no se editan.
+ * «Otros» se guarda en la categoría `gastos_directos`.
+ */
+export const CATEGORIAS_COSTO_EDITABLES = ['material', 'gastos_directos'] as const;
+
 /** Moneda de la propuesta (heredada del RFQ). */
 export type MonedaPropuesta = 'MXN' | 'USD';
 

@@ -76,6 +76,7 @@ export function PanelArchivosPropuesta({
   archivosPorItem,
   items,
   puedeSubir,
+  faltaArchivo = false,
 }: {
   revision: RevisionPropuesta;
   revisiones: RevisionPropuesta[];
@@ -84,6 +85,8 @@ export function PanelArchivosPropuesta({
   archivosPorItem: ArchivoPropuesta[];
   items: PropuestaItem[];
   puedeSubir: boolean;
+  /** Obs. cliente 2026-10-13: validar exige al menos un archivo; marca el campo en rojo. */
+  faltaArchivo?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [tema, setTema] = useState<'general' | 'tecnico'>('general');
@@ -335,12 +338,21 @@ export function PanelArchivosPropuesta({
                 multiple
                 aria-label="Archivo de la propuesta"
                 accept={EXTENSIONES_ACEPTADAS}
-                aria-describedby="archivo-propuesta-ayuda"
+                aria-describedby={
+                  faltaArchivo
+                    ? 'archivo-propuesta-ayuda archivo-propuesta-requerido'
+                    : 'archivo-propuesta-ayuda'
+                }
+                aria-invalid={faltaArchivo}
                 onChange={(evento) =>
                   setArchivosSeleccionados(Array.from(evento.target.files ?? []))
                 }
                 disabled={subiendo}
-                className="text-sm"
+                className={
+                  faltaArchivo
+                    ? 'rounded-md border border-peligro/50 px-2 py-1 text-sm'
+                    : 'text-sm'
+                }
               />
             </label>
             <Button type="submit" tamano="sm" disabled={subiendo}>
@@ -354,6 +366,17 @@ export function PanelArchivosPropuesta({
             anterior en «Ver versiones».
           </p>
         </form>
+      )}
+
+      {faltaArchivo && (
+        <p
+          id="archivo-propuesta-requerido"
+          data-testid="archivo-propuesta-requerido"
+          className="text-xs font-medium text-peligro-texto"
+        >
+          Sube al menos un archivo (planos, dibujos o especificaciones) para poder validar la
+          propuesta.
+        </p>
       )}
 
       {mensaje && (

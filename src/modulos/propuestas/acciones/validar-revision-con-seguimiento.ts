@@ -2,6 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { mensajeBloqueoValidacion } from '@/modulos/propuestas/servicios/faltantes-validacion';
 import type { EstadoPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { esquemaValidarConSeguimiento } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 import {
@@ -25,6 +26,10 @@ export type ResultadoValidarConSeguimiento = {
  * validar deja la revisión en READY_TO_SEND; por eso se registra primero y se
  * relee el token CAS antes de validar. Un reintento tras un bloqueo de
  * validación no duplica un seguimiento idéntico al último registrado.
+ *
+ * Obs. cliente 2026-10-13: la propuesta debe estar completa (ítem, ruteo
+ * costeado por proceso y archivo) ANTES de registrar la próxima acción; así una
+ * propuesta incompleta no deja seguimientos huérfanos.
  */
 export async function validarRevisionConSeguimientoAccion(
   entrada: unknown,
@@ -64,6 +69,9 @@ export async function validarRevisionConSeguimientoAccion(
     && (ultima.texto_otro ?? '') === (datos.textoOtro ?? '')
     && ultima.fecha === datos.fecha;
 
+  const verificarContenido = (admin: Parameters<typeof mensajeBloqueoValidacion>[0]) =>
+    mensajeBloqueoValidacion(admin, datos.revisionId);
+
   let token = revision.actualizado_en;
   let seguimientoRegistrado = false;
   if (!esDuplicado) {
@@ -84,6 +92,7 @@ export async function validarRevisionConSeguimientoAccion(
         },
         accion: 'validar_revision_seguimiento',
         detalles: { revisionId: datos.revisionId, codigo: datos.codigo, fecha: datos.fecha },
+        verificarAntes: verificarContenido,
       },
       datos.revisionId,
     );
@@ -108,6 +117,9 @@ export async function validarRevisionConSeguimientoAccion(
       },
       accion: 'validar_revision',
       detalles: { revisionId: datos.revisionId, seguimientoRegistrado },
+      // Si el seguimiento se registró arriba ya se comprobó; en el reintento sin
+      // seguimiento nuevo esta es la primera (y única) comprobación.
+      ...(esDuplicado ? { verificarAntes: verificarContenido } : {}),
     },
     datos.revisionId,
   );
