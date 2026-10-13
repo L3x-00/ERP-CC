@@ -34,13 +34,13 @@ function usuario(permisos: string[]) {
 }
 
 describe('página Materiales y costos — lógica ligera', () => {
-  it('muestra el catálogo con permiso financiero y explica el modelo sin inventario', async () => {
+  it('muestra el catálogo con permiso financiero y explica el modelo vigente', async () => {
     usuarioMock.mockResolvedValue(usuario(['ver_finanzas']));
 
     render(await PaginaInventario());
 
     expect(screen.getByRole('heading', { name: 'Materiales y costos' })).toBeTruthy();
-    expect(screen.getByText(/sin existencias ni operación de almacén/i)).toBeTruthy();
+    expect(screen.getByText(/existencias como saldo manual con historial/i)).toBeTruthy();
     expect(screen.getByTestId('panel')).toBeTruthy();
   });
 

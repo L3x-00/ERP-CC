@@ -143,11 +143,9 @@ function usuario(rol: UsuarioAutenticado['rol'], activo: boolean, permisos: stri
 }
 
 describe('utilidades de catálogos base', () => {
-  it('expone siete secciones únicas y bien ordenadas', () => {
+  it('expone cinco secciones únicas y bien ordenadas', () => {
     const ids = SECCIONES_CATALOGOS_BASE.map((seccion) => seccion.id);
     expect(ids).toEqual([
-      'materiales',
-      'espesores',
       'procesos',
       'gruposEquipo',
       'gruposPlaneados',
@@ -155,13 +153,11 @@ describe('utilidades de catálogos base', () => {
       'canales',
     ]);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(SECCIONES_CATALOGOS_BASE[6].titulo).toBe('Canales RFQ');
+    expect(SECCIONES_CATALOGOS_BASE[4].titulo).toBe('Canales RFQ');
   });
 
   it('cuenta activos e inactivos por sección', () => {
     const conteos = contarRegistrosPorSeccion(datosBase());
-    expect(conteos.materiales).toEqual({ total: 2, activos: 1, inactivos: 1 });
-    expect(conteos.espesores).toEqual({ total: 4, activos: 3, inactivos: 1 });
     expect(conteos.gruposEquipo).toEqual({ total: 2, activos: 1, inactivos: 1 });
     expect(conteos.proximasAcciones).toEqual({ total: 2, activos: 1, inactivos: 1 });
     expect(conteos.procesos).toEqual({ total: 0, activos: 0, inactivos: 0 });

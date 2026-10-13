@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
@@ -11,10 +11,8 @@ import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skelet
 import {
   alternarActivoAccion,
   guardarCanalAccion,
-  guardarEspesorAccion,
   guardarGrupoEquipoAccion,
   guardarGrupoPlaneadoAccion,
-  guardarMaterialAccion,
   guardarProcesoAccion,
   guardarProximaAccionAccion,
   listarVersionesAccion,
@@ -30,9 +28,9 @@ import type {
 } from '@/modulos/catalogos/tipos/indice';
 import {
   contarRegistrosPorSeccion,
-  espesoresDeMaterial,
   SECCIONES_CATALOGOS_BASE,
   soloActivos,
+  type SeccionCatalogosBase,
 } from '@/modulos/catalogos/utilidades/indice';
 
 import { SeccionTarifasGrupos } from './seccion-tarifas-grupos';
@@ -41,6 +39,11 @@ import { SeccionTarifasRecursos } from './seccion-tarifas-recursos';
 const CLAVE_CATALOGOS_BASE = ['configuracion', 'catalogos-base'] as const;
 const claveVersiones = (entidad: EntidadCatalogo, entidadId: string) =>
   ['configuracion', 'catalogos-base', 'versiones', entidad, entidadId] as const;
+
+/** Descripción de la sección por id (los índices dejaron de ser estables). */
+function descripcionSeccion(id: SeccionCatalogosBase): string {
+  return SECCIONES_CATALOGOS_BASE.find((seccion) => seccion.id === id)?.descripcion ?? '';
+}
 
 export interface HistorialSeleccionado {
   entidad: EntidadCatalogo;
@@ -138,8 +141,6 @@ export function PestanaCatalogosBase() {
         ) : null}
       </header>
 
-      <SeccionMateriales {...propsBase} />
-      <SeccionEspesores {...propsBase} />
       <SeccionProcesos {...propsBase} />
       <SeccionGruposEquipo {...propsBase} />
       <SeccionTarifasGrupos
@@ -383,319 +384,6 @@ function FormularioSimple({
   );
 }
 
-function SeccionMateriales(props: PropsSeccion) {
-  const { datos, puedeEditar, onRefrescar, onMensaje, onError, onHistorial } = props;
-  const [editando, setEditando] = useState<FormularioCatalogo | null>(null);
-  const [guardando, setGuardando] = useState(false);
-
-  async function guardar(borrador: FormularioCatalogo): Promise<void> {
-    setGuardando(true);
-    const respuesta = await guardarMaterialAccion({
-      id: borrador.id,
-      codigo: borrador.codigo,
-      nombre: borrador.nombre,
-      activo: borrador.activo,
-      orden: Number(borrador.orden) || 0,
-    });
-    setGuardando(false);
-    const resultado = mensajeRespuesta(respuesta, 'Material guardado');
-    if (resultado.error) {
-      onError(resultado.error);
-      return;
-    }
-    setEditando(null);
-    await onRefrescar();
-    onMensaje(resultado.ok);
-  }
-
-  return (
-    <section className="grid gap-3" aria-labelledby="catalogos-materiales">
-      <CabeceraSeccion
-        titulo="Materiales"
-        descripcion={SECCIONES_CATALOGOS_BASE[0].descripcion}
-        puedeEditar={puedeEditar}
-        onNuevo={() => setEditando({ ...FORMULARIO_VACIO })}
-        testid="catalogo-material-nuevo"
-        etiquetaNuevo="Nuevo material"
-      />
-      <FormularioSimple
-        titulo={editando?.id ? 'Editar material' : 'Nuevo material'}
-        item={editando}
-        puedeEditar={puedeEditar}
-        guardando={guardando}
-        onGuardar={(borrador) => void guardar(borrador)}
-        onCancelar={() => setEditando(null)}
-        testidPrefijo="catalogo-material"
-      />
-      {datos.materiales.length === 0 ? (
-        <EstadoVacio titulo="Sin materiales" descripcion="Crea el primer material del catálogo." />
-      ) : (
-        <ul className="grid gap-2" data-testid="lista-materiales">
-          {datos.materiales.map((material) => (
-            <li
-              key={material.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde bg-superficie px-3 py-2"
-              data-testid={`fila-material-${material.codigo}`}
-            >
-              <span className="flex items-center gap-2 text-sm">
-                <span className="font-mono text-xs text-texto-secundario">{material.codigo}</span>
-                <span className="font-medium text-texto-primario">{material.nombre}</span>
-                {etiquetaEstado(material.activo)}
-              </span>
-              <span className="flex gap-2">
-                <BotonHistorial
-                  etiqueta={material.nombre}
-                  onClick={() =>
-                    onHistorial({
-                      entidad: 'catalogo_materiales',
-                      entidadId: material.id,
-                      etiqueta: material.nombre,
-                    })
-                  }
-                  testid={`historial-material-${material.codigo}`}
-                />
-                <Button
-                  variante="contorno"
-                  tamano="sm"
-                  disabled={!puedeEditar}
-                  onClick={() =>
-                    setEditando({
-                      id: material.id,
-                      codigo: material.codigo,
-                      nombre: material.nombre,
-                      activo: material.activo,
-                      orden: String(material.orden),
-                    })
-                  }
-                  data-testid={`editar-material-${material.codigo}`}
-                >
-                  Editar
-                </Button>
-                <BotonActivo
-                  activo={material.activo}
-                  puedeEditar={puedeEditar}
-                  onClick={() =>
-                    void alternar('catalogo_materiales', material.id, !material.activo, props, `Material ${material.codigo}`)
-                  }
-                  testid={`alternar-material-${material.codigo}`}
-                />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function SeccionEspesores(props: PropsSeccion) {
-  const { datos, puedeEditar, onRefrescar, onMensaje, onError, onHistorial } = props;
-  const materialesActivos = soloActivos(datos.materiales);
-  const [materialId, setMaterialId] = useState<string>(materialesActivos[0]?.id ?? datos.materiales[0]?.id ?? '');
-  const [editando, setEditando] = useState<{
-    id?: string;
-    etiqueta: string;
-    espesorMm: string;
-    activo: boolean;
-    orden: string;
-  } | null>(null);
-  const [guardando, setGuardando] = useState(false);
-
-  const materialSeleccionado = datos.materiales.find((material) => material.id === materialId) ?? null;
-  const espesores = useMemo(
-    () => (materialId ? espesoresDeMaterial(datos.espesores, materialId, true) : []),
-    [datos.espesores, materialId],
-  );
-
-  async function guardar(borrador: NonNullable<typeof editando>): Promise<void> {
-    if (!materialId) {
-      onError('Selecciona un material para el espesor');
-      return;
-    }
-    setGuardando(true);
-    const respuesta = await guardarEspesorAccion({
-      id: borrador.id,
-      materialId,
-      etiqueta: borrador.etiqueta,
-      espesorMm: Number(borrador.espesorMm),
-      activo: borrador.activo,
-      orden: Number(borrador.orden) || 0,
-    });
-    setGuardando(false);
-    const resultado = mensajeRespuesta(respuesta, 'Espesor guardado');
-    if (resultado.error) {
-      onError(resultado.error);
-      return;
-    }
-    setEditando(null);
-    await onRefrescar();
-    onMensaje(resultado.ok);
-  }
-
-  return (
-    <section className="grid gap-3" aria-labelledby="catalogos-espesores">
-      <CabeceraSeccion
-        titulo="Espesores por material"
-        descripcion={SECCIONES_CATALOGOS_BASE[1].descripcion}
-        puedeEditar={puedeEditar}
-        onNuevo={() => setEditando({ etiqueta: '', espesorMm: '', activo: true, orden: '0' })}
-        testid="catalogo-espesor-nuevo"
-        etiquetaNuevo="Nuevo espesor"
-      />
-      <label className="grid max-w-sm gap-1 text-xs font-medium text-texto-secundario">
-        Material
-        <Select
-          value={materialId}
-          onChange={(evento) => {
-            setMaterialId(evento.target.value);
-            setEditando(null);
-          }}
-          data-testid="catalogo-espesor-material"
-        >
-          {datos.materiales.map((material) => (
-            <option key={material.id} value={material.id}>
-              {material.nombre}
-              {material.activo ? '' : ' (inactivo)'}
-            </option>
-          ))}
-        </Select>
-      </label>
-
-      {editando && materialSeleccionado ? (
-        <form
-          className="grid gap-3 rounded-lg border border-borde bg-superficie-2/60 p-3 sm:grid-cols-3"
-          onSubmit={(evento) => {
-            evento.preventDefault();
-            void guardar(editando);
-          }}
-          aria-label="Espesor"
-          data-testid="catalogo-espesor-formulario"
-        >
-          <p className="text-sm font-semibold text-texto-primario sm:col-span-3">
-            {editando.id ? 'Editar espesor' : `Nuevo espesor para ${materialSeleccionado.nombre}`}
-          </p>
-          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
-            Etiqueta
-            <Input
-              value={editando.etiqueta}
-              onChange={(evento) => setEditando((actual) => (actual ? { ...actual, etiqueta: evento.target.value } : actual))}
-              placeholder='p. ej. 3 mm o 1/8"'
-              disabled={!puedeEditar}
-              maxLength={40}
-              required
-              data-testid="catalogo-espesor-etiqueta"
-            />
-          </label>
-          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
-            Espesor (mm)
-            <Input
-              type="number"
-              min="0.001"
-              step="0.001"
-              value={editando.espesorMm}
-              onChange={(evento) =>
-                setEditando((actual) => (actual ? { ...actual, espesorMm: evento.target.value } : actual))
-              }
-              disabled={!puedeEditar}
-              required
-              data-testid="catalogo-espesor-mm"
-            />
-          </label>
-          <label className="grid gap-1 text-xs font-medium text-texto-secundario">
-            Orden
-            <Input
-              type="number"
-              min="0"
-              step="1"
-              value={editando.orden}
-              onChange={(evento) =>
-                setEditando((actual) => (actual ? { ...actual, orden: evento.target.value } : actual))
-              }
-              disabled={!puedeEditar}
-              data-testid="catalogo-espesor-orden"
-            />
-          </label>
-          <div className="flex items-center gap-2 sm:col-span-3">
-            <Button type="submit" tamano="sm" disabled={!puedeEditar || guardando} data-testid="catalogo-espesor-guardar">
-              {guardando ? 'Guardando…' : editando.id ? 'Guardar cambios' : 'Crear'}
-            </Button>
-            <Button variante="contorno" tamano="sm" onClick={() => setEditando(null)} data-testid="catalogo-espesor-cancelar">
-              Cancelar
-            </Button>
-          </div>
-        </form>
-      ) : null}
-
-      {espesores.length === 0 ? (
-        <EstadoVacio
-          titulo="Sin espesores"
-          descripcion="Agrega el primer espesor para el material seleccionado."
-        />
-      ) : (
-        <ul className="grid gap-2" data-testid="lista-espesores">
-          {espesores.map((espesor) => (
-            <li
-              key={espesor.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde bg-superficie px-3 py-2"
-              data-testid={`fila-espesor-${espesor.id}`}
-            >
-              <span className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-texto-primario">{espesor.etiqueta}</span>
-                <span className="font-mono text-xs text-texto-secundario">{espesor.espesorMm} mm</span>
-                {etiquetaEstado(espesor.activo)}
-              </span>
-              <span className="flex gap-2">
-                <BotonHistorial
-                  etiqueta={espesor.etiqueta}
-                  onClick={() =>
-                    onHistorial({
-                      entidad: 'catalogo_espesores',
-                      entidadId: espesor.id,
-                      etiqueta: espesor.etiqueta,
-                    })
-                  }
-                  testid={`historial-espesor-${espesor.id}`}
-                />
-                <Button
-                  variante="contorno"
-                  tamano="sm"
-                  disabled={!puedeEditar}
-                  onClick={() =>
-                    setEditando({
-                      id: espesor.id,
-                      etiqueta: espesor.etiqueta,
-                      espesorMm: String(espesor.espesorMm),
-                      activo: espesor.activo,
-                      orden: String(espesor.orden),
-                    })
-                  }
-                  data-testid={`editar-espesor-${espesor.id}`}
-                >
-                  Editar
-                </Button>
-                <BotonActivo
-                  activo={espesor.activo}
-                  puedeEditar={puedeEditar}
-                  onClick={() =>
-                    void alternar(
-                      'catalogo_espesores',
-                      espesor.id,
-                      !espesor.activo,
-                      props,
-                      `Espesor ${espesor.etiqueta}`,
-                    )
-                  }
-                  testid={`alternar-espesor-${espesor.id}`}
-                />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 function SeccionProcesos(props: PropsSeccion) {
   const { datos, puedeEditar, onRefrescar, onMensaje, onError, onHistorial } = props;
   const [editando, setEditando] = useState<{
@@ -776,7 +464,7 @@ function SeccionProcesos(props: PropsSeccion) {
     <section className="grid gap-3" aria-labelledby="catalogos-procesos">
       <CabeceraSeccion
         titulo="Procesos"
-        descripcion={SECCIONES_CATALOGOS_BASE[2].descripcion}
+        descripcion={descripcionSeccion('procesos')}
         puedeEditar={puedeEditar}
         onNuevo={nuevo}
         testid="catalogo-proceso-nuevo"
@@ -1117,7 +805,7 @@ function SeccionGruposEquipo(props: PropsSeccion) {
     <SeccionGrupo
       {...props}
       titulo="Grupos de equipo"
-      descripcion={SECCIONES_CATALOGOS_BASE[3].descripcion}
+      descripcion={descripcionSeccion('gruposEquipo')}
       entidad="grupos_equipo"
       items={props.datos.gruposEquipo}
       guardar={(borrador) => guardarGrupoEquipoAccion(borrador)}
@@ -1132,7 +820,7 @@ function SeccionGruposPlaneados(props: PropsSeccion) {
     <SeccionGrupo
       {...props}
       titulo="Grupos planeados"
-      descripcion={SECCIONES_CATALOGOS_BASE[4].descripcion}
+      descripcion={descripcionSeccion('gruposPlaneados')}
       entidad="grupos_planeados"
       items={props.datos.gruposPlaneados}
       guardar={(borrador) => guardarGrupoPlaneadoAccion(borrador)}
@@ -1255,7 +943,7 @@ function SeccionProximasAcciones(props: PropsSeccion) {
     <section className="grid gap-3" aria-labelledby="catalogos-proximas-acciones">
       <CabeceraSeccion
         titulo="Próximas acciones"
-        descripcion={SECCIONES_CATALOGOS_BASE[5].descripcion}
+        descripcion={descripcionSeccion('proximasAcciones')}
         puedeEditar={puedeEditar}
         onNuevo={() =>
           setEditando({ codigo: '', nombre: '', esOtro: false, activo: true, orden: '0' })
@@ -1454,7 +1142,7 @@ function SeccionCanales(props: PropsSeccion) {
     <section className="grid min-w-0 gap-3" aria-label="Canales RFQ">
       <CabeceraSeccion
         titulo="Canales RFQ"
-        descripcion={SECCIONES_CATALOGOS_BASE[6].descripcion}
+        descripcion={descripcionSeccion('canales')}
         puedeEditar={puedeEditar}
         onNuevo={() => setEditando({ codigo: '', nombre: '', esOtro: false, activo: true, orden: '0' })}
         testid="catalogo-canal-nuevo"

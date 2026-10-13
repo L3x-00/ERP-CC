@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 
 import type {
+  EspesorMaterialCosto,
   MaterialCosto,
   MonedaCosto,
   PropuestaCostoMaterial,
@@ -82,10 +83,11 @@ type FilaMaterialListado = {
   costo_confirmado_en: string | null;
   costo_confirmado_por: string | null;
   actualizado_en: string;
+  padre_id: string | null;
 };
 
 const COLUMNAS_MATERIAL =
-  'id, codigo, nombre, activo, orden, unidad_base, moneda_costo, costo_vigente, fecha_vigencia_costo, costo_confirmado_en, costo_confirmado_por, actualizado_en';
+  'id, codigo, nombre, activo, orden, unidad_base, moneda_costo, costo_vigente, fecha_vigencia_costo, costo_confirmado_en, costo_confirmado_por, actualizado_en, padre_id';
 
 async function nombresDeUsuarios(
   cliente: SupabaseClient<Database>,
@@ -143,12 +145,15 @@ function aMaterialCosto(
   fila: FilaMaterialListado,
   nombres: Map<string, string>,
   pendientes: Map<string, number>,
+  espesores: readonly EspesorMaterialCosto[],
 ): MaterialCosto {
   return {
     id: fila.id,
     codigo: fila.codigo,
     nombre: fila.nombre,
     activo: fila.activo,
+    orden: fila.orden,
+    padreId: fila.padre_id,
     unidadBase: fila.unidad_base,
     monedaCosto: monedaDe(fila.moneda_costo),
     costoVigente: fila.costo_vigente === null ? null : Number(fila.costo_vigente),
@@ -159,12 +164,42 @@ function aMaterialCosto(
       : null,
     actualizadoEn: fila.actualizado_en,
     propuestasPendientes: pendientes.get(fila.id) ?? 0,
+    espesores: [...espesores],
   };
 }
 
+/** Espesores del catálogo agrupados por material (obs. 8: edición en el módulo). */
+async function listarEspesoresPorMaterial(
+  cliente: SupabaseClient<Database>,
+): Promise<Map<string, EspesorMaterialCosto[]>> {
+  const { data, error } = await cliente
+    .from('catalogo_espesores')
+    .select('id, material_id, etiqueta, espesor_mm, activo, orden')
+    .order('orden')
+    .order('espesor_mm');
+  if (error) {
+    console.error('[MATERIALES] Error al listar espesores:', error.message);
+    return new Map();
+  }
+  const mapa = new Map<string, EspesorMaterialCosto[]>();
+  for (const fila of data ?? []) {
+    const lista = mapa.get(fila.material_id) ?? [];
+    lista.push({
+      id: fila.id,
+      etiqueta: fila.etiqueta,
+      espesorMm: Number(fila.espesor_mm),
+      activo: fila.activo,
+      orden: fila.orden,
+    });
+    mapa.set(fila.material_id, lista);
+  }
+  return mapa;
+}
+
 /**
- * Materiales del catálogo canónico con su costo vigente, quién lo confirmó y
- * cuántas propuestas pendientes tiene cada uno (C6.1).
+ * Materiales del catálogo canónico con su costo vigente, quién lo confirmó,
+ * cuántas propuestas pendientes tiene cada uno (C6.1) y —obs. 8— su grupo y
+ * espesores para editarlos desde el módulo.
  */
 export async function listarMaterialesCostos(
   cliente: SupabaseClient<Database>,
@@ -178,11 +213,14 @@ export async function listarMaterialesCostos(
     throw new ErrorCostoMaterial('desconocido');
   }
   const filas = data ?? [];
-  const [nombres, pendientes] = await Promise.all([
+  const [nombres, pendientes, espesores] = await Promise.all([
     nombresDeUsuarios(cliente, filas.map((fila) => fila.costo_confirmado_por)),
     contarPropuestasPendientes(cliente),
+    listarEspesoresPorMaterial(cliente),
   ]);
-  return filas.map((fila) => aMaterialCosto(fila, nombres, pendientes));
+  return filas.map((fila) =>
+    aMaterialCosto(fila, nombres, pendientes, espesores.get(fila.id) ?? []),
+  );
 }
 
 /** Propuestas de costo pendientes de confirmación, de la más nueva a la más vieja. */

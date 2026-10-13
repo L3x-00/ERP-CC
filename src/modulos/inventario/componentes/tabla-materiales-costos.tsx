@@ -17,18 +17,21 @@ import type { MaterialCosto } from '../tipos/materiales-costos';
 import { formatearFechaDia } from '../utilidades/materiales-costos';
 
 /**
- * Catálogo canónico con costo vigente (C6.1). Solo lectura salvo las acciones
- * de costo, que se muestran si el actor puede gestionar materiales.
+ * Catálogo canónico con costo vigente (C6.1) y jerarquía de grupos (obs. 8):
+ * los subítems se muestran indentados bajo su material padre. Solo lectura
+ * salvo las acciones, que se muestran si el actor puede gestionar.
  */
 export function TablaMaterialesCostos({
   materiales,
   puedeGestionar,
+  onEditar,
   onProponer,
   onCostoManual,
   onHistorial,
 }: {
   materiales: readonly MaterialCosto[];
   puedeGestionar: boolean;
+  onEditar: (material: MaterialCosto) => void;
   onProponer: (material: MaterialCosto) => void;
   onCostoManual: (material: MaterialCosto) => void;
   onHistorial: (material: MaterialCosto) => void;
@@ -36,9 +39,20 @@ export function TablaMaterialesCostos({
   if (materiales.length === 0) {
     return (
       <p className="rounded-lg border border-dashed border-borde px-4 py-6 text-center text-sm text-texto-secundario">
-        Sin materiales en el catálogo. Los materiales se administran desde Configuración.
+        Sin materiales en el catálogo. Crea el primero con «Nuevo material».
       </p>
     );
+  }
+
+  const raices = materiales.filter((material) => material.padreId === null);
+  const hijos = materiales.filter((material) => material.padreId !== null);
+  const filas: { material: MaterialCosto; grupo: string | null; subitems: number }[] = [];
+  for (const raiz of raices) {
+    const subitems = hijos.filter((hijo) => hijo.padreId === raiz.id);
+    filas.push({ material: raiz, grupo: null, subitems: subitems.length });
+    for (const hijo of subitems) {
+      filas.push({ material: hijo, grupo: raiz.nombre, subitems: 0 });
+    }
   }
 
   return (
@@ -49,6 +63,7 @@ export function TablaMaterialesCostos({
             <TablaEncabezadoCelda>Código</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Nombre</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Unidad</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Espesores</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Costo vigente</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Vigente desde</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Confirmó</TablaEncabezadoCelda>
@@ -57,16 +72,38 @@ export function TablaMaterialesCostos({
           </tr>
         </TablaEncabezado>
         <TablaCuerpo>
-          {materiales.map((material) => (
-            <TablaFila key={material.id}>
+          {filas.map(({ material, grupo, subitems }) => (
+            <TablaFila key={material.id} data-testid={`fila-material-${material.codigo}`}>
               <TablaCelda className="font-mono text-xs">{material.codigo}</TablaCelda>
               <TablaCelda>
-                <span className="font-medium">{material.nombre}</span>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {grupo && (
+                    <span aria-hidden="true" className="text-texto-tenue">
+                      ↳
+                    </span>
+                  )}
+                  <span className="font-medium">{material.nombre}</span>
+                  {subitems > 0 && (
+                    <Badge variante="neutro">
+                      Grupo · {subitems} subítem{subitems === 1 ? '' : 's'}
+                    </Badge>
+                  )}
+                </span>
                 {!material.activo && (
                   <span className="block text-xs text-texto-secundario">Inactivo</span>
                 )}
+                {grupo && (
+                  <span className="block text-xs text-texto-tenue">Grupo: {grupo}</span>
+                )}
               </TablaCelda>
               <TablaCelda className="text-texto-secundario">{material.unidadBase}</TablaCelda>
+              <TablaCelda className="text-texto-secundario">
+                {material.espesores.length === 0
+                  ? '—'
+                  : material.espesores
+                      .map((espesor) => espesor.etiqueta + (espesor.activo ? '' : ' (inactivo)'))
+                      .join(', ')}
+              </TablaCelda>
               <TablaCelda className="tabular-nums">
                 {material.costoVigente === null ? (
                   <span className="text-texto-tenue">Sin costo</span>
@@ -99,6 +136,15 @@ export function TablaMaterialesCostos({
                   </Button>
                   {puedeGestionar && (
                     <>
+                      <Button
+                        type="button"
+                        variante="contorno"
+                        tamano="sm"
+                        aria-label={`Editar ${material.nombre}`}
+                        onClick={() => onEditar(material)}
+                      >
+                        Editar
+                      </Button>
                       <Button
                         type="button"
                         variante="contorno"

@@ -1016,6 +1016,58 @@ export type Database = {
           },
         ]
       }
+      saldos_material: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string
+          creado_en: string
+          espesor_id: string | null
+          id: string
+          material_id: string
+          saldo: number
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por: string
+          creado_en?: string
+          espesor_id?: string | null
+          id?: string
+          material_id: string
+          saldo?: number
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string
+          creado_en?: string
+          espesor_id?: string | null
+          id?: string
+          material_id?: string
+          saldo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saldos_material_actualizado_por_fkey"
+            columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldos_material_espesor_id_fkey"
+            columns: ["espesor_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_espesores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldos_material_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuentas_bancarias: {
         Row: {
           activa: boolean
@@ -1752,6 +1804,61 @@ export type Database = {
             columns: ["orden_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_saldo_material: {
+        Row: {
+          actor_id: string
+          creado_en: string
+          espesor_id: string | null
+          id: string
+          material_id: string
+          motivo: string
+          saldo_anterior: number
+          saldo_nuevo: number
+        }
+        Insert: {
+          actor_id: string
+          creado_en?: string
+          espesor_id?: string | null
+          id?: string
+          material_id: string
+          motivo: string
+          saldo_anterior: number
+          saldo_nuevo: number
+        }
+        Update: {
+          actor_id?: string
+          creado_en?: string
+          espesor_id?: string | null
+          id?: string
+          material_id?: string
+          motivo?: string
+          saldo_anterior?: number
+          saldo_nuevo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_saldo_material_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_saldo_material_espesor_id_fkey"
+            columns: ["espesor_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_espesores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_saldo_material_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
             referencedColumns: ["id"]
           },
         ]
@@ -4195,6 +4302,7 @@ export type Database = {
           moneda_costo: string
           nombre: string
           orden: number
+          padre_id: string | null
           unidad_base: string
         }
         Insert: {
@@ -4212,6 +4320,7 @@ export type Database = {
           moneda_costo?: string
           nombre: string
           orden?: number
+          padre_id?: string | null
           unidad_base?: string
         }
         Update: {
@@ -4229,6 +4338,7 @@ export type Database = {
           moneda_costo?: string
           nombre?: string
           orden?: number
+          padre_id?: string | null
           unidad_base?: string
         }
         Relationships: [
@@ -6148,6 +6258,22 @@ export type Database = {
           p_revision_id: string
         }
         Returns: Json
+      }
+      ajustar_saldo_material: {
+        Args: {
+          p_actor_id: string
+          p_espesor_id: string | null
+          p_material_id: string
+          p_motivo: string
+          p_nuevo_saldo: number
+        }
+        Returns: {
+          actualizado_en: string
+          espesor_id: string
+          material_id: string
+          saldo_anterior: number
+          saldo_nuevo: number
+        }[]
       }
       confirmar_costo_material: {
         Args: {

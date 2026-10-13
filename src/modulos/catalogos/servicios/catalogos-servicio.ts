@@ -195,6 +195,10 @@ export async function guardarMaterialServicio(
     nombre: entrada.nombre,
     activo: entrada.activo,
     orden: entrada.orden,
+    // Obs. 8: unidad base y grupo se envían solo cuando el llamador los captura;
+    // el guardado legado de Configuración los conserva intactos.
+    ...(entrada.unidadBase !== undefined ? { unidad_base: entrada.unidadBase } : {}),
+    ...(entrada.padreId !== undefined ? { padre_id: entrada.padreId ?? null } : {}),
   };
   const consulta = entrada.id
     ? cliente.from('catalogo_materiales').update(payload).eq('id', entrada.id).select('*').single()

@@ -17,7 +17,7 @@ const ordenCatalogo = z.number().int().min(0, 'El orden no puede ser negativo').
 
 const idOpcional = z.uuid('ID inválido').optional();
 
-/** Material editable (B1.3). */
+/** Material editable (B1.3; obs. 8: + unidad base y grupo/padre opcionales). */
 export const esquemaGuardarMaterial = z
   .object({
     id: idOpcional,
@@ -25,6 +25,8 @@ export const esquemaGuardarMaterial = z
     nombre: nombreCatalogo,
     activo: z.boolean().default(true),
     orden: ordenCatalogo.default(0),
+    unidadBase: z.string().trim().min(1, 'La unidad es requerida').max(30).optional(),
+    padreId: z.uuid('Grupo inválido').nullish(),
   })
   .strict();
 

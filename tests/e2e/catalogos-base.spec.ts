@@ -36,7 +36,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
     );
   });
 
-  test('el admin crea material + espesor, edita un proceso y revisa el historial', async ({ page }) => {
+  test('el admin edita un proceso y administra canales, con historial', async ({ page }) => {
     const acceso = credenciales('ADMIN');
     test.skip(!acceso, 'Faltan E2E_CONFIGURACION_ADMIN_EMAIL/PASSWORD.');
     if (!acceso) return;
@@ -44,10 +44,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
     test.skip(!admin, 'Faltan NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY.');
     if (!admin) return;
 
-    const sufijo = randomUUID().slice(0, 6).toUpperCase();
-    const codigoMaterial = `E2E_MAT_${sufijo}`;
     const codigoCanal = 'E2E_CANAL_QA';
-    let materialId: string | null = null;
     let canalId: string | null = null;
     let canalPreexistente = false;
     let procesoId: string | null = null;
@@ -76,42 +73,11 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await page.getByRole('tab', { name: 'Catálogos base' }).click();
       await expect(page.getByTestId('pagina-catalogos-base')).toBeVisible();
 
-      // --- Material nuevo ---
-      await page.getByTestId('catalogo-material-nuevo').click();
-      await page.getByTestId('catalogo-material-codigo').fill(codigoMaterial);
-      await page.getByTestId('catalogo-material-nombre').fill(`Material E2E ${sufijo}`);
-      await page.getByTestId('catalogo-material-guardar').click();
-      await expect(page.getByTestId('catalogos-confirmacion')).toContainText('Material guardado');
-      await expect(page.getByTestId(`fila-material-${codigoMaterial}`)).toBeVisible();
-
-      const materialCreado = await admin
-        .from('catalogo_materiales')
-        .select('id, activo')
-        .eq('codigo', codigoMaterial)
-        .single();
-      if (materialCreado.error) throw materialCreado.error;
-      const materialIdCreado = materialCreado.data.id;
-      materialId = materialIdCreado;
-      expect(materialCreado.data.activo).toBe(true);
-
-      // --- Espesor dependiente del material ---
-      await page.getByTestId('catalogo-espesor-material').selectOption(materialIdCreado);
-      await page.getByTestId('catalogo-espesor-nuevo').click();
-      await page.getByTestId('catalogo-espesor-etiqueta').fill('5 mm');
-      await page.getByTestId('catalogo-espesor-mm').fill('5');
-      await page.getByTestId('catalogo-espesor-guardar').click();
-      await expect(page.getByTestId('catalogos-confirmacion')).toContainText('Espesor guardado');
-      await expect
-        .poll(async () => {
-          const { data } = await admin
-            .from('catalogo_espesores')
-            .select('id')
-            .eq('material_id', materialIdCreado)
-            .eq('etiqueta', '5 mm');
-          return data?.length ?? 0;
-        })
-        .toBe(1);
-      await expect(page.getByTestId('lista-espesores')).toContainText('5 mm');
+      // Obs. cliente 2026-10-13 (8): Materiales/Espesores se administran en
+      // «Materiales y costos»; aquí ya no se ofrecen sus secciones.
+      await expect(page.getByTestId('catalogo-material-nuevo')).toHaveCount(0);
+      await expect(page.getByTestId('catalogo-espesor-nuevo')).toHaveCount(0);
+      await expect(page.getByTestId('lista-materiales')).toHaveCount(0);
 
       // --- Proceso: alternar requiere_archivo_tecnico ---
       const proceso = await admin
@@ -227,19 +193,6 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       // fixture es desactivar, y las versiones del fixture se retiran para no acumular.
       if (procesoId && procesoOriginal !== null) {
         await admin.from('catalogo_procesos').update({ requiere_archivo_tecnico: procesoOriginal }).eq('id', procesoId);
-      }
-      if (materialId) {
-        const { data: espesores } = await admin
-          .from('catalogo_espesores')
-          .select('id')
-          .eq('material_id', materialId);
-        const idsEspesores = (espesores ?? []).map((fila) => fila.id);
-        if (idsEspesores.length > 0) {
-          await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_espesores').in('entidad_id', idsEspesores);
-        }
-        await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_materiales').eq('entidad_id', materialId);
-        await admin.from('catalogo_espesores').update({ activo: false }).eq('material_id', materialId);
-        await admin.from('catalogo_materiales').update({ activo: false }).eq('id', materialId);
       }
       if (canalId) {
         await admin.from('catalogo_canales').update({ activo: false }).eq('id', canalId);

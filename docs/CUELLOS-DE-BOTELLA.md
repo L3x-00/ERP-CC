@@ -50,6 +50,7 @@ Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de 
 | Un agente continúa el corte de otro sin saber qué quedó probado | Commits WIP sin estado claro | Todo commit de trabajo incompleto dice en el mensaje qué falta y qué gates se corrieron |
 | Scripts de shell rotos por comillas | Heredocs largos con comillas mezcladas | Para scripts de más de unas líneas, escribir el archivo y ejecutarlo |
 | El comando muere en cuanto un proceso nativo escribe en stderr (p. ej. el banner del WebServer de Playwright) | El wrapper `entorno-local.ps1` restaura `$ErrorActionPreference` a `Stop`; con esa preferencia, un aviso nativo de stderr se convierte en error terminante | Tras invocar el wrapper, fijar `$ErrorActionPreference = 'Continue'` en la misma sesión antes de lanzar suites |
+| Un E2E pasa en local y falla solo en CI por datos de catálogo | El fixture de `ordenes-estados-sii` (TI) dependía de un catálogo sembrado que puede no estar activo en la base fresca de CI | Los fixtures E2E no deben depender de catálogos sembrados: cada spec crea su propio catálogo (proceso/material) y lo desactiva al limpiar (`599868f`) |
 
 ## 5. Integración a producción
 
