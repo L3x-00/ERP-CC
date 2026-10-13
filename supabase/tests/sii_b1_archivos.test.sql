@@ -2,7 +2,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(11);
+SELECT plan(15);
 
 -- 1-4. Tabla y privilegios
 SELECT has_table('public', 'archivos', 'Existe la tabla de archivos');
@@ -56,6 +56,14 @@ SELECT throws_ok($$
   VALUES ('cliente', '00000000-0000-4000-8000-0000000b19c1', 'documento', 'x.pdf', 'x.pdf',
     'documentos-cliente', 'cliente/b19c1/x.pdf', 'application/pdf', 0)
 $$, '23514', NULL, 'Rechaza archivos vacíos');
+
+-- 12-15. Retiro trazable (obs. cliente 2026-10-13, 6): marcador e índice parcial
+SELECT has_column('public', 'archivos', 'retirado_en', 'Existe retirado_en (marcador de retiro)');
+SELECT has_column('public', 'archivos', 'retirado_por', 'Existe retirado_por (quién retiró)');
+SELECT has_index('public', 'archivos', 'ix_archivos_activos',
+  'Existe el índice parcial de archivos activos');
+SELECT is((SELECT retirado_en FROM public.archivos WHERE id = '00000000-0000-4000-8000-0000000b1902'),
+  NULL, 'Un archivo recién registrado nace sin retiro marcado');
 
 SELECT * FROM finish();
 ROLLBACK;

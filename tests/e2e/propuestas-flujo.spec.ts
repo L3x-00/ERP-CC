@@ -369,6 +369,52 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: 'Guardar costos' }).click();
       await expect(page.getByRole('status')).toContainText('Costos guardados.');
 
+      // 3b. Obs. cliente 2026-10-13 (6): multi-subida y «Quitar» con historial.
+      await page.getByRole('tab', { name: 'Archivos' }).click();
+      const nombreUno = `ficha-general-${contexto.sufijo}.pdf`;
+      const nombreDos = `ficha-auxiliar-${contexto.sufijo}.dxf`;
+      await page.getByLabel('Archivo de la propuesta').setInputFiles([
+        { name: nombreUno, mimeType: 'application/pdf', buffer: Buffer.alloc(1024 * 256, 0x42) },
+        { name: nombreDos, mimeType: 'application/dxf', buffer: Buffer.alloc(1024 * 128, 0x43) },
+      ]);
+      await page.getByRole('button', { name: 'Subir archivos' }).click();
+      await expect(page.getByRole('status')).toContainText('2 archivos subidos.');
+      const archivosSubidos = await admin
+        .from('archivos')
+        .select('id, nombre_original, retirado_en')
+        .eq('entidad', 'propuesta_revision')
+        .eq('entidad_id', revisionA.data.id)
+        .in('nombre_original', [nombreUno, nombreDos]);
+      expect(archivosSubidos.error).toBeNull();
+      expect(archivosSubidos.data).toHaveLength(2);
+      await capturar(page, 'archivos-multi-subida');
+
+      // «Quitar» el segundo: desaparece de la vista principal y la fila queda
+      // con marcador y actor (historial auditable; el binario se conserva).
+      const archivoQuitar = archivosSubidos.data!.find(
+        (fila) => fila.nombre_original === nombreDos,
+      )!;
+      await page.getByRole('button', { name: `Quitar ${nombreDos}, versión 1` }).click();
+      await expect(page.getByRole('status')).toContainText('Archivo quitado.');
+      await expect(page.getByTestId(`archivo-propuesta-${archivoQuitar.id}`)).toHaveCount(0);
+      const retirado = await admin
+        .from('archivos')
+        .select('retirado_en, retirado_por')
+        .eq('id', archivoQuitar.id)
+        .single();
+      expect(retirado.error).toBeNull();
+      expect(retirado.data?.retirado_en).toBeTruthy();
+      expect(retirado.data?.retirado_por).toBeTruthy();
+      const logRetiro = await admin
+        .from('logs')
+        .select('accion, recurso_id')
+        .eq('accion', 'retirar_archivo_propuesta')
+        .eq('recurso_id', revisionA.data.id)
+        .maybeSingle();
+      expect(logRetiro.error).toBeNull();
+      expect(logRetiro.data?.accion).toBe('retirar_archivo_propuesta');
+      await capturar(page, 'archivos-quitar');
+
       // 4. Validar: obs. cliente 2026-10-11 — modal obligatorio de próxima acción.
       await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
       const dialogoValidar = page.getByTestId('dialogo-seguimiento-propuesta');
@@ -489,6 +535,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         .update({ precio_unitario: 1 })
         .eq('id', itemA1!.id);
       expect(intentoDirecto.error?.message ?? '').toContain('revision_congelada');
+
+      // Obs. cliente 6: una revisión enviada no ofrece Quitar (solo lectura).
+      await page.getByRole('tab', { name: 'Archivos' }).click();
+      await expect(page.getByRole('button', { name: /^Quitar / })).toHaveCount(0);
 
       await capturar(page, 'ficha-enviada');
 

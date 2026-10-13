@@ -8,7 +8,14 @@
 // defecto y permite consultar/abrir las históricas sin ofrecer borrado.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const {
@@ -18,6 +25,7 @@ const {
   confirmarSubidaMock,
   descartarSubidaMock,
   subirDirectoMock,
+  retirarMock,
 } = vi.hoisted(() => ({
   firmarMock: vi.fn(),
   abrirVentanaMock: vi.fn(),
@@ -25,10 +33,14 @@ const {
   confirmarSubidaMock: vi.fn(),
   descartarSubidaMock: vi.fn(),
   subirDirectoMock: vi.fn(),
+  retirarMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/propuestas/acciones/firmar-archivo-propuesta', () => ({
   firmarArchivoPropuestaAccion: (...argumentos: unknown[]) => firmarMock(...argumentos),
+}));
+vi.mock('@/modulos/propuestas/acciones/retirar-archivo-propuesta', () => ({
+  retirarArchivoPropuestaAccion: (...argumentos: unknown[]) => retirarMock(...argumentos),
 }));
 vi.mock('@/modulos/propuestas/acciones/subir-archivo-propuesta', () => ({
   prepararSubidaArchivoPropuestaAccion: (...argumentos: unknown[]) =>
@@ -68,15 +80,19 @@ const PROPIO_V1 = 'e2222222-2222-4222-8222-222222222222';
 const HEREDADO = 'e3333333-3333-4333-8333-333333333333';
 const POR_ITEM = 'e4444444-4444-4444-8444-444444444444';
 
-type ConsultaFalsa = { eq: Record<string, unknown>; or: string[] };
+type ConsultaFalsa = { eq: Record<string, unknown>; is: Record<string, unknown>; or: string[] };
 
-/** Cadena mínima de PostgREST para `archivos` con `.or()` y `.order()`. */
+/** Cadena mínima de PostgREST para `archivos` con `.or()`, `.is()` y `.order()`. */
 function clienteFalso(filas: unknown[]) {
-  const consulta: ConsultaFalsa = { eq: {}, or: [] };
+  const consulta: ConsultaFalsa = { eq: {}, is: {}, or: [] };
   const cadena = {
     select: () => cadena,
     eq: (columna: string, valor: unknown) => {
       consulta.eq[columna] = valor;
+      return cadena;
+    },
+    is: (columna: string, valor: unknown) => {
+      consulta.is[columna] = valor;
       return cadena;
     },
     or: (expresion: string) => {
@@ -102,6 +118,8 @@ function archivo(parcial: Partial<ArchivoPropuesta> & { id: string }): ArchivoPr
     version: 1,
     vigente: true,
     reemplazaA: null,
+    retiradoEn: null,
+    retiradoPor: null,
     creadoEn: '2026-10-01T15:00:00.000Z',
     ...parcial,
   };
@@ -202,6 +220,7 @@ function renderizarPanel() {
 beforeEach(() => {
   vi.clearAllMocks();
   firmarMock.mockResolvedValue({ exito: true, datos: { url: 'https://firmada/propuesta' } });
+  retirarMock.mockResolvedValue({ exito: true, datos: { retirados: 2 } });
   prepararSubidaMock.mockResolvedValue({
     exito: true,
     datos: { bucket: 'propuestas-archivos', ruta: 'ruta/pendiente.dxf', token: 't', mime: 'x' },
@@ -237,6 +256,19 @@ function elegirArchivo(nombre = 'brida.dxf', tamano = 2048): File {
     target: { files: [archivo] },
   });
   return archivo;
+}
+
+/** Selecciona un lote de archivos (multi-subida) creando cada `File`. */
+function elegirArchivos(nombres: readonly string[], tamano = 2048): File[] {
+  const archivos = nombres.map((nombre) => {
+    const creado = new File(['x'], nombre, { type: 'application/octet-stream' });
+    Object.defineProperty(creado, 'size', { value: tamano });
+    return creado;
+  });
+  fireEvent.change(screen.getByLabelText('Archivo de la propuesta'), {
+    target: { files: archivos },
+  });
+  return archivos;
 }
 
 afterEach(() => {
@@ -289,6 +321,8 @@ describe('obtenerArchivosDePropuesta — linaje completo', () => {
     });
 
     expect('vigente' in consulta.eq).toBe(false);
+    // Obs. cliente 6: la vista principal excluye los retirados sin ocultar historial.
+    expect(consulta.is.retirado_en).toBeNull();
     expect(archivos).toHaveLength(2);
     expect(archivos[0]).toMatchObject({
       id: PROPIO_V2,
@@ -410,7 +444,7 @@ describe('PanelArchivosPropuesta — vigente por defecto y «Ver versiones»', (
     );
   });
 
-  it('expande el historial del linaje de forma accesible y no ofrece borrado', async () => {
+  it('expande el historial accesible y ofrece Quitar solo al representante propio en borrador', async () => {
     renderizarPanel();
 
     const boton = screen.getByRole('button', { name: /ver versiones/i });
@@ -420,10 +454,66 @@ describe('PanelArchivosPropuesta — vigente por defecto y «Ver versiones»', (
     fireEvent.click(boton);
 
     expect(screen.getByTestId(`archivo-propuesta-${PROPIO_V1}`)).toBeDefined();
-    expect(screen.queryByRole('button', { name: /eliminar|quitar|borrar/i })).toBeNull();
+    // El representante propio ofrece Quitar (obs. cliente 6); una versión
+    // histórica no, y los heredados del RFQ tampoco se quitan.
+    expect(screen.getByRole('button', { name: 'Quitar cotizacion.pdf, versión 2' })).toBeDefined();
+    const filaHistorica = within(screen.getByTestId(`archivo-propuesta-${PROPIO_V1}`));
+    expect(filaHistorica.queryByRole('button', { name: /quitar|eliminar|borrar/i })).toBeNull();
+    const filaHeredada = within(screen.getByTestId(`archivo-propuesta-${HEREDADO}`));
+    expect(filaHeredada.queryByRole('button', { name: /quitar|eliminar|borrar/i })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /ocultar versiones/i }));
     expect(screen.queryByTestId(`archivo-propuesta-${PROPIO_V1}`)).toBeNull();
+  });
+
+  it('quita el archivo propio con la propuesta abierta y avisa del retiro', async () => {
+    renderizarPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar cotizacion.pdf, versión 2' }));
+
+    await waitFor(() => {
+      expect(retirarMock).toHaveBeenCalledWith({
+        propuestaId: PROPUESTA_ID,
+        archivoId: PROPIO_V2,
+      });
+      expect(screen.getByRole('status').textContent).toContain('Archivo quitado.');
+    });
+  });
+
+  it('anuncia el rechazo del retiro en una región de alerta', async () => {
+    retirarMock.mockResolvedValue({
+      exito: false,
+      error: 'Solo se quitan archivos de revisiones en borrador',
+    });
+    renderizarPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar cotizacion.pdf, versión 2' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('borrador');
+    });
+  });
+
+  it('no ofrece Quitar ni subida cuando la revisión ya no es borrador', () => {
+    const clienteConsultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      createElement(
+        QueryClientProvider,
+        { client: clienteConsultas },
+        createElement(PanelArchivosPropuesta, {
+          revision: { ...REVISION, estado: 'SENT' } as RevisionPropuesta,
+          revisiones: [REVISION, REVISION_OTRA],
+          archivosPropios: PROPIOS,
+          archivosHeredados: HEREDADOS,
+          archivosPorItem: POR_ITEMS,
+          items: ITEMS,
+          puedeSubir: true,
+        }),
+      ),
+    );
+
+    expect(screen.queryByRole('button', { name: /subir archivos/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^quitar /i })).toBeNull();
   });
 
   it('abre una versión histórica autorizada', async () => {
@@ -541,7 +631,7 @@ describe('PanelArchivosPropuesta — destino del archivo (revisión o ítem)', (
     renderizarPanel();
 
     elegirArchivo('cotizacion.pdf', 1024);
-    fireEvent.click(screen.getByRole('button', { name: /subir archivo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /subir archivos/i }));
 
     await waitFor(() => {
       expect(prepararSubidaMock).toHaveBeenCalledWith({
@@ -552,6 +642,72 @@ describe('PanelArchivosPropuesta — destino del archivo (revisión o ítem)', (
         mime: 'application/octet-stream',
       });
     });
+  });
+
+  it('sube varios archivos en un solo envío (allSettled)', async () => {
+    renderizarPanel();
+
+    elegirArchivos(['brida.dxf', 'soporte.pdf']);
+    fireEvent.click(screen.getByRole('button', { name: /subir archivos/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain('2 archivos subidos.');
+    });
+    expect(prepararSubidaMock).toHaveBeenCalledTimes(2);
+    expect(prepararSubidaMock).toHaveBeenCalledWith(
+      expect.objectContaining({ nombreArchivo: 'brida.dxf' }),
+    );
+    expect(prepararSubidaMock).toHaveBeenCalledWith(
+      expect.objectContaining({ nombreArchivo: 'soporte.pdf' }),
+    );
+  });
+
+  it('un archivo inválido no bloquea al válido y el resumen lo informa', async () => {
+    renderizarPanel();
+
+    elegirArchivos(['notas.txt', 'brida.dxf']);
+    fireEvent.click(screen.getByRole('button', { name: /subir archivos/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain('1 de 2 archivos subidos.');
+    });
+    expect(prepararSubidaMock).toHaveBeenCalledTimes(1);
+    expect(prepararSubidaMock).toHaveBeenCalledWith(
+      expect.objectContaining({ nombreArchivo: 'brida.dxf' }),
+    );
+    expect(screen.getByRole('alert').textContent).toContain('notas.txt');
+  });
+
+  it('un fallo de un archivo no impide el resto del lote', async () => {
+    subirDirectoMock.mockImplementation(
+      async (
+        archivo: File,
+        pasos: {
+          preparar: () => Promise<{ exito: boolean; datos?: { ruta: string }; error?: string }>;
+          confirmar: (ruta: string) => Promise<{ exito: boolean; datos?: unknown; error?: string }>;
+        },
+      ) => {
+        if (archivo.name === 'falla.dxf') throw new Error('red caída');
+        const preparada = await pasos.preparar();
+        if (!preparada.exito || !preparada.datos) {
+          throw new Error(preparada.error ?? 'No se pudo preparar el archivo');
+        }
+        const confirmada = await pasos.confirmar(preparada.datos.ruta);
+        if (!confirmada.exito) {
+          throw new Error(confirmada.error ?? 'No se pudo vincular el archivo');
+        }
+        return confirmada.datos;
+      },
+    );
+    renderizarPanel();
+
+    elegirArchivos(['falla.dxf', 'brida.dxf']);
+    fireEvent.click(screen.getByRole('button', { name: /subir archivos/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toContain('1 de 2 archivos subidos.');
+    });
+    expect(screen.getByRole('alert').textContent).toContain('red caída');
   });
 
   it('valida la extensión contra el perfil del ítem sin llamar al servidor', async () => {

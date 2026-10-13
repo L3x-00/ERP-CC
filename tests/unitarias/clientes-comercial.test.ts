@@ -214,6 +214,8 @@ describe('mapeos de ficha (B2)', () => {
       nombre_original: 'CSF 2026.pdf',
       reemplaza_a: '55555555-5555-4555-8555-555555555555',
       ruta_storage: 'cliente/abc/uuid-csf.pdf',
+      retirado_en: null,
+      retirado_por: null,
       subido_por: null,
       tamano_bytes: 1234,
       tema_codigo: 'csf',
