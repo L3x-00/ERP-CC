@@ -10,6 +10,10 @@ import type { CatalogosRfq } from '../acciones/obtener-catalogos';
  * Campos de la próxima acción que acompaña un cambio de estado no terminal
  * (C2.2/DC-06). Presentacional: el panel decide cuándo es obligatoria y el
  * servidor la guarda en la misma operación que el estado.
+ *
+ * `sinResponsable` permite reutilizarlo cuando el responsable ya se elige en
+ * otro campo (modal de «Finalizar captura» del alta: un único responsable para
+ * el RFQ y la próxima acción); ese valor viaja igual en `valor.responsableId`.
  */
 export function CamposProximaAccion({
   idBase,
@@ -17,12 +21,14 @@ export function CamposProximaAccion({
   onCambio,
   catalogos,
   hoy,
+  sinResponsable = false,
 }: {
   idBase: string;
   valor: ProximaAccionCaptura;
   onCambio: (valor: ProximaAccionCaptura) => void;
   catalogos: Pick<CatalogosRfq, 'proximasAcciones' | 'usuarios'>;
   hoy: string;
+  sinResponsable?: boolean;
 }) {
   const accion = catalogos.proximasAcciones.find((opcion) => opcion.codigo === valor.codigo);
 
@@ -65,21 +71,23 @@ export function CamposProximaAccion({
           onChange={(evento) => onCambio({ ...valor, fecha: evento.target.value })}
         />
       </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <Label htmlFor={`${idBase}-responsable`}>Responsable de la acción a seguir</Label>
-        <Select
-          id={`${idBase}-responsable`}
-          value={valor.responsableId}
-          onChange={(evento) => onCambio({ ...valor, responsableId: evento.target.value })}
-        >
-          <option value="">Elige un responsable</option>
-          {catalogos.usuarios.map((usuario) => (
-            <option key={usuario.id} value={usuario.id}>
-              {usuario.nombre}
-            </option>
-          ))}
-        </Select>
-      </div>
+      {!sinResponsable && (
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor={`${idBase}-responsable`}>Responsable de la acción a seguir</Label>
+          <Select
+            id={`${idBase}-responsable`}
+            value={valor.responsableId}
+            onChange={(evento) => onCambio({ ...valor, responsableId: evento.target.value })}
+          >
+            <option value="">Elige un responsable</option>
+            {catalogos.usuarios.map((usuario) => (
+              <option key={usuario.id} value={usuario.id}>
+                {usuario.nombre}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
     </fieldset>
   );
 }
