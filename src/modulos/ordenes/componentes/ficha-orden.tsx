@@ -237,7 +237,9 @@ export function FichaOrden({
             )}
           </div>
           <p className="text-sm text-texto-secundario">
-            {ficha.orden.clienteNombre ?? 'Cliente sin nombre'} · Operativa {formatearFecha(ficha.orden.fechaOperativa)} · Prioridad {ficha.orden.prioridad}
+            {ficha.orden.clienteNombre
+              ?? (ficha.orden.esInterna ? 'Trabajo interno' : 'Cliente sin nombre')}{' '}
+            · Operativa {formatearFecha(ficha.orden.fechaOperativa)} · Prioridad {ficha.orden.prioridad}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 print:hidden">

@@ -26,6 +26,9 @@ const CODIGOS_CONOCIDOS = [
   'tipo_cambio_usd_requerido',
   'propuesta_sin_items_fabricables',
   'orden_interna_datos_invalidos',
+  'material_invalido',
+  'espesor_invalido',
+  'proceso_invalido',
   'autorizacion_requerida',
   'motivo_autorizacion_requerido',
   'autorizador_invalido',
@@ -96,7 +99,6 @@ export async function crearOrdenDesdeRevisionServicio(
 
 function datosInternosAJson(entrada: CrearOrdenInternaInput): Json {
   return {
-    cliente_id: entrada.clienteId,
     fecha_compromiso: entrada.fechaCompromiso,
     prioridad: entrada.prioridad,
     descripcion: entrada.descripcion ?? null,
@@ -105,8 +107,12 @@ function datosInternosAJson(entrada: CrearOrdenInternaInput): Json {
       codigo_item: item.codigoItem ?? null,
       descripcion: item.descripcion,
       cantidad: item.cantidad,
+      unidad: item.unidad ?? null,
+      material_id: item.materialId ?? null,
+      espesor_id: item.espesorId ?? null,
       material: item.material ?? null,
       espesor: item.espesor ?? null,
+      proceso_ids: item.procesoIds ?? [],
       procesos: item.procesos ?? [],
       tiempo_estimado_minutos: item.tiempoEstimadoMinutos,
     })),
