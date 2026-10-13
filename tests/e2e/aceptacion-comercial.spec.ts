@@ -173,6 +173,7 @@ async function crearRfqSimple(
   await pagina.goto('/rfq');
   await pagina.getByRole('button', { name: 'Nuevo RFQ' }).click();
   await pagina.getByLabel('Nombre del contacto').fill('Ana QA');
+  await pagina.getByLabel('Teléfono', { exact: true }).fill('664 000 0000');
   await pagina.getByLabel('Empresa', { exact: true }).fill(opciones.empresa);
   await pagina.getByLabel('Correo (opcional)').fill('ana.qa@qa-func.local');
   await pagina.getByLabel('Cliente (opcional)', { exact: true }).fill(contexto.empresa);

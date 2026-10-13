@@ -8,7 +8,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
-import type { Rfq } from '@/modulos/rfq/tipos/indice';
+import type { ArchivoRfq } from '@/modulos/rfq/acciones/archivos-rfq';
+import type { Rfq, RfqItem } from '@/modulos/rfq/tipos/indice';
 
 const {
   usarPipelineMock,
@@ -153,6 +154,46 @@ const RFQ_CAPTURADO: Rfq = {
   items: [],
 };
 
+const ITEM_ACTIVO: RfqItem = {
+  id: 'item-1',
+  rfqId: 'op-1',
+  numero: 1,
+  codigo: 'IT01',
+  descripcion: 'Brida de acero',
+  cantidad: 4,
+  materialId: null,
+  espesorId: null,
+  acabado: null,
+  notas: null,
+  estado: 'activo',
+  creadoEn: '2026-10-08T00:00:00.000Z',
+  actualizadoEn: '2026-10-08T00:00:00.000Z',
+  operaciones: [],
+};
+
+const ARCHIVO: ArchivoRfq = {
+  id: 'archivo-1',
+  entidad: 'rfq',
+  entidadId: 'op-1',
+  itemCodigo: null,
+  clase: 'DIBUJO',
+  nombreOriginal: 'plano.pdf',
+  nombreErp: 'plano.pdf',
+  temaCodigo: null,
+  version: 1,
+  vigente: true,
+  reemplazaA: null,
+  creadoEn: '2026-10-08T00:00:00.000Z',
+};
+
+/** Captura los datos mínimos del contacto (nombre y teléfono son obligatorios). */
+function capturarContacto(): void {
+  fireEvent.change(screen.getByLabelText('Nombre del contacto'), {
+    target: { value: 'Ana Pérez' },
+  });
+  fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '664 111 2233' } });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   usarPipelineMock.mockReturnValue({ data: [OPORTUNIDAD], isLoading: false, isError: false });
@@ -223,6 +264,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     );
     render(envolver(createElement(ColaRfq)));
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
+    capturarContacto();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByRole('button', { name: 'Creando RFQ…' })).toBeDefined();
@@ -237,6 +279,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
   it('tras crear, continúa en ítems dentro del mismo modal sin navegar', async () => {
     render(envolver(createElement(ColaRfq)));
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
+    capturarContacto();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
@@ -247,10 +290,14 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
 
   /** Crea el RFQ y navega hasta el paso Archivos con el RFQ ya cargado. */
   async function llegarAPasoArchivos(): Promise<void> {
-    fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
-    fireEvent.change(screen.getByLabelText('Nombre del contacto'), {
-      target: { value: 'Ana Pérez' },
+    // Para avanzar de paso el RFQ ya debe tener un ítem activo y un archivo subido.
+    obtenerRfqMock.mockResolvedValue({
+      exito: true,
+      datos: { ...RFQ_CAPTURADO, items: [ITEM_ACTIVO] },
     });
+    listarArchivosMock.mockResolvedValue({ exito: true, datos: [ARCHIVO] });
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
+    capturarContacto();
     fireEvent.change(screen.getByLabelText('Empresa'), { target: { value: 'Metanor' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
@@ -261,6 +308,11 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con archivos' }));
     expect(await screen.findByTestId('alta-rfq-archivos')).toBeDefined();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Finalizar captura' }).hasAttribute('disabled'),
+      ).toBe(false),
+    );
   }
 
   it('el paso Cliente y solicitud ya no captura canal, responsable ni próxima acción (obs. cliente)', () => {
@@ -386,9 +438,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
   it('“Finalizar más tarde” cierra la captura sin abrir el modal de seguimiento', async () => {
     render(envolver(createElement(ColaRfq)));
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
-    fireEvent.change(screen.getByLabelText('Nombre del contacto'), {
-      target: { value: 'Ana Pérez' },
-    });
+    capturarContacto();
     fireEvent.change(screen.getByLabelText('Empresa'), { target: { value: 'Metanor' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();

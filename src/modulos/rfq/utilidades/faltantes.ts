@@ -8,6 +8,9 @@
 export const CLASE_CAMPO_FALTANTE =
   'border-peligro/50 focus:border-peligro focus:ring-peligro/15';
 
+/** Mensaje breve bajo un campo con dato faltante («Completa …»). */
+export const CLASE_MENSAJE_FALTANTE = 'text-xs font-medium text-peligro-texto';
+
 /**
  * Asterisco de campo obligatorio como pseudo-elemento: no altera el texto del
  * label, así las consultas por etiqueta (accesibles, pruebas y E2E) no cambian.

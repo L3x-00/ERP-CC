@@ -25,6 +25,28 @@ export type ResultadoSeguimientoPropuestaUi = {
   seguimientoRegistrado: boolean;
 };
 
+type CanalRfqOrigen = { canal: string; canalDetalle: string | null };
+
+/**
+ * Traduce el canal guardado en el RFQ (código del catálogo, o el nombre en
+ * registros históricos) a la opción del catálogo vigente de la propuesta. Un
+ * valor que ya no existe en el catálogo no se adivina: el campo queda vacío.
+ */
+function resolverCanalRfq(
+  canales: CatalogosPropuesta['canales'],
+  origen: CanalRfqOrigen | null | undefined,
+): { codigo: string; detalle: string } {
+  if (!origen) return { codigo: '', detalle: '' };
+  const coincide = (valor: string): boolean =>
+    valor.localeCompare(origen.canal, 'es', { sensitivity: 'base' }) === 0;
+  const opcion = canales.find((candidata) => coincide(candidata.codigo) || coincide(candidata.nombre));
+  if (!opcion) return { codigo: '', detalle: '' };
+  return {
+    codigo: opcion.codigo,
+    detalle: opcion.esOtro ? (origen.canalDetalle ?? '').slice(0, 60) : '',
+  };
+}
+
 /**
  * Obs. cliente 2026-10-11: la próxima acción de la Propuesta se captura en un
  * modal. En modo `validar` el servidor registra el seguimiento y valida la
@@ -32,13 +54,16 @@ export type ResultadoSeguimientoPropuestaUi = {
  * modo `registrar` solo agrega un seguimiento al historial.
  *
  * El componente se monta únicamente cuando el modal está abierto, así que los
- * campos arrancan limpios en cada apertura.
+ * campos arrancan limpios en cada apertura. Obs. cliente 2026-10-13: con
+ * `canalRfq` el canal arranca con el capturado en el RFQ de origen; si la
+ * persona lo cambia, manda lo que elija.
  */
 export function DialogoSeguimientoPropuesta({
   modo,
   revision,
   catalogos,
   puedeRegistrar,
+  canalRfq,
   onCerrar,
   onExito,
 }: {
@@ -46,14 +71,17 @@ export function DialogoSeguimientoPropuesta({
   revision: RevisionPropuesta;
   catalogos: CatalogosPropuesta | null;
   puedeRegistrar: boolean;
+  canalRfq?: CanalRfqOrigen | null;
   onCerrar: () => void;
   onExito?: (resultado: ResultadoSeguimientoPropuestaUi) => void;
 }) {
   const [codigo, setCodigo] = useState('FOLLOW_UP');
   const [textoOtro, setTextoOtro] = useState('');
   const [fecha, setFecha] = useState(hoyIso());
-  const [canal, setCanal] = useState('');
-  const [canalDetalle, setCanalDetalle] = useState('');
+  // `null` = la persona aún no tocó el campo: rige el canal del RFQ. Derivarlo
+  // así (y no copiarlo a un estado inicial) cubre el catálogo que llega tarde.
+  const [canalElegido, setCanalElegido] = useState<string | null>(null);
+  const [canalDetalleElegido, setCanalDetalleElegido] = useState<string | null>(null);
   const [nota, setNota] = useState('');
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
@@ -66,6 +94,9 @@ export function DialogoSeguimientoPropuesta({
   const detalleValido = !esOtro || textoOtro.trim().length >= 3;
   // Obs. cliente 2026-10-12: el canal sale del catálogo configurado (DC-02); el
   // canal «Otro» exige detalle, que se guarda como texto del seguimiento.
+  const canalPrellenado = resolverCanalRfq(catalogos?.canales ?? [], canalRfq);
+  const canal = canalElegido ?? canalPrellenado.codigo;
+  const canalDetalle = canalDetalleElegido ?? canalPrellenado.detalle;
   const canalSeleccionado = (catalogos?.canales ?? []).find(
     (opcion) => opcion.codigo === canal,
   );
@@ -190,11 +221,9 @@ export function DialogoSeguimientoPropuesta({
                 value={canal}
                 onChange={(evento) => {
                   const codigoCanal = evento.target.value;
-                  setCanal(codigoCanal);
-                  const siguiente = (catalogos?.canales ?? []).find(
-                    (opcion) => opcion.codigo === codigoCanal,
-                  );
-                  if (!siguiente?.esOtro) setCanalDetalle('');
+                  setCanalElegido(codigoCanal);
+                  // Volver al canal del RFQ recupera también su detalle; otro canal parte limpio.
+                  setCanalDetalleElegido(codigoCanal === canalPrellenado.codigo ? null : '');
                 }}
                 aria-label="Canal del seguimiento"
               >
@@ -212,7 +241,7 @@ export function DialogoSeguimientoPropuesta({
                 <span className="font-medium">Detalle del canal (Otro)</span>
                 <Input
                   value={canalDetalle}
-                  onChange={(evento) => setCanalDetalle(evento.target.value)}
+                  onChange={(evento) => setCanalDetalleElegido(evento.target.value)}
                   maxLength={60}
                   aria-label="Detalle del canal Otro"
                   placeholder="Ej. feria industrial"

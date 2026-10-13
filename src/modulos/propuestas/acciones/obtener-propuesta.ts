@@ -8,6 +8,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { calcularTotalesPropuesta } from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
 import {
   obtenerArchivosDePropuesta,
+  obtenerCanalRfq,
   obtenerIdsItemsRfq,
   obtenerPdfsDeRevisiones,
   obtenerPropuestaPorId,
@@ -43,6 +44,8 @@ export type DetallePropuestaFicha = {
   archivosPropios: ArchivoPropuesta[];
   archivosHeredados: ArchivoPropuesta[];
   archivosPorItem: ArchivoPropuesta[];
+  /** Canal del RFQ de origen: prellena el canal al validar la propuesta. */
+  canalRfq: { canal: string; canalDetalle: string | null } | null;
 };
 
 /**
@@ -73,8 +76,9 @@ export async function obtenerPropuestaAccion(
 
   const revisionIds = datos.revisiones.map((revision) => revision.id);
   const itemIds = datos.items.map((item) => item.id);
-  const [rfqItemIds, pdfs, archivos] = await Promise.all([
+  const [rfqItemIds, canalRfq, pdfs, archivos] = await Promise.all([
     obtenerIdsItemsRfq(servidor, datos.propuesta.rfqId),
+    obtenerCanalRfq(servidor, datos.propuesta.rfqId),
     obtenerPdfsDeRevisiones(servidor, revisionIds),
     obtenerArchivosDePropuesta(servidor, {
       revisionIds,
@@ -142,6 +146,7 @@ export async function obtenerPropuestaAccion(
         ...archivos.filter((archivo) => archivo.entidad === 'rfq'),
         ...archivosRfqItems.filter((archivo) => archivo.entidad === 'rfq_item'),
       ],
+      canalRfq,
     },
   };
 }

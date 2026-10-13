@@ -19,10 +19,19 @@ import {
   obtenerCatalogosRfqAccion,
   obtenerContactosClienteRfqAccion,
 } from '@/modulos/rfq/acciones/obtener-catalogos';
+import { listarArchivosRfqAccion } from '@/modulos/rfq/acciones/archivos-rfq';
 import { obtenerRfqAccion } from '@/modulos/rfq/acciones/obtener-rfq';
 import { DialogoFinalizarCapturaRfq } from '@/modulos/rfq/componentes/dialogo-finalizar-captura-rfq';
 import { PanelArchivosRfq } from '@/modulos/rfq/componentes/panel-archivos-rfq';
 import { TablaItemsRfq } from '@/modulos/rfq/componentes/tabla-items-rfq';
+import {
+  CLASE_CAMPO_FALTANTE,
+  CLASE_MENSAJE_FALTANTE,
+  CLASE_OBLIGATORIO,
+} from '@/modulos/rfq/utilidades/faltantes';
+
+/** Mismo faltante que reporta `validar_rfq_listo`; reutiliza el estado vacío rojo de la tabla. */
+const FALTANTE_ITEM_ACTIVO = ['al menos un ítem activo'] as const;
 
 /**
  * Pasos del alta guiada (DC-03): todo se captura dentro del mismo modal, sin
@@ -136,6 +145,13 @@ export function FormularioProspecto({
     enabled: cliente !== null,
   });
 
+  // Misma clave que `PanelArchivosRfq`: comparten caché y la subida invalida ambos.
+  const archivosConsulta = useQuery({
+    queryKey: ['rfq-archivos', rfqId ?? ''],
+    queryFn: () => listarArchivosRfqAccion({ rfqId: rfqId ?? '' }),
+    enabled: rfqId !== null && paso === 'archivos',
+  });
+
   const rfq = rfqConsulta.data?.exito ? rfqConsulta.data.datos : undefined;
   const catalogos = catalogosConsulta.data?.exito ? (catalogosConsulta.data.datos ?? null) : null;
   const contactos = contactosConsulta.data?.exito ? (contactosConsulta.data.datos ?? []) : [];
@@ -143,6 +159,27 @@ export function FormularioProspecto({
   // preselecciona su contacto principal; el usuario puede cambiarlo.
   const contactoEfectivoId =
     contactoId || (cliente && contactos.length > 0 ? contactos[0].id : '');
+
+  // Lo capturado a mano manda; el contacto elegido (o el principal del cliente)
+  // completa lo vacío. La validación del paso usa estos mismos valores finales.
+  const contactoEfectivo = contactos.find((candidato) => candidato.id === contactoEfectivoId);
+  const nombreContactoFinal = nombreContacto.trim()
+    ? nombreContacto
+    : (contactoEfectivo?.nombre ?? '');
+  const correoFinal = correo.trim() ? correo : (contactoEfectivo?.correo ?? '');
+  const telefonoFinal = telefono.trim() ? telefono : (contactoEfectivo?.telefono ?? '');
+
+  // Obs. cliente 2026-10-13: nombre del contacto y teléfono son obligatorios para
+  // crear el RFQ; ítem y archivo, para avanzar de paso. El servidor lo revalida.
+  const faltaNombreContacto = nombreContactoFinal.trim().length < 2;
+  const faltaTelefono = telefonoFinal.trim() === '';
+  const faltantesCliente = [
+    faltaNombreContacto ? 'nombre del contacto' : null,
+    faltaTelefono ? 'teléfono' : null,
+  ].filter((item): item is string => item !== null);
+  const sinItemsActivos = rfq !== undefined && !rfq.items.some((item) => item.estado === 'activo');
+  const sinArchivos =
+    !archivosConsulta.data?.exito || (archivosConsulta.data.datos ?? []).length === 0;
 
   function elegirContacto(valor: string): void {
     setContactoId(valor);
@@ -205,22 +242,12 @@ export function FormularioProspecto({
 
   async function crearRfqYContinuar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
+    if (faltantesCliente.length > 0) return;
     setError(null);
     setEnviando(true);
     onCambioEnvio?.(true);
 
     try {
-      // Autocompletado con el contacto registrado: lo capturado a mano manda;
-      // el contacto elegido (o el principal del cliente) completa lo vacío.
-      const contactoEfectivo = contactos.find(
-        (candidato) => candidato.id === contactoEfectivoId,
-      );
-      const nombreContactoFinal = nombreContacto.trim()
-        ? nombreContacto
-        : (contactoEfectivo?.nombre ?? '');
-      const correoFinal = correo.trim() ? correo : (contactoEfectivo?.correo ?? '');
-      const telefonoFinal = telefono.trim() ? telefono : (contactoEfectivo?.telefono ?? '');
-
       const respuesta = await crearProspectoAccion({
         nombreContacto: nombreContactoFinal,
         empresa,
@@ -276,6 +303,13 @@ export function FormularioProspecto({
     if (subiendoArchivo) return;
     const id = rfqId ?? undefined;
     void clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] });
+    if (id) {
+      // El RFQ se leyó durante el alta y `staleTime` (5 min) lo daría por fresco:
+      // sin invalidar, la ficha abriría con el Resumen previo al modal de
+      // «Finalizar captura» (canal, fecha, descripción y próxima acción vacíos).
+      void clienteConsultas.invalidateQueries({ queryKey: ['rfq', id] });
+      void clienteConsultas.invalidateQueries({ queryKey: ['rfq-validacion-listo', id] });
+    }
     reiniciarCaptura();
     onExito?.(id);
   }
@@ -327,14 +361,25 @@ export function FormularioProspecto({
             )}
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="prospecto-contacto">Nombre del contacto</Label>
+              <Label htmlFor="prospecto-contacto" className={CLASE_OBLIGATORIO}>
+                Nombre del contacto
+              </Label>
               <Input
                 id="prospecto-contacto"
                 type="text"
                 value={nombreContacto}
                 onChange={(evento) => setNombreContacto(evento.target.value)}
                 placeholder="Nombre y apellido"
+                aria-required="true"
+                aria-invalid={faltaNombreContacto}
+                aria-describedby={faltaNombreContacto ? 'prospecto-contacto-error' : undefined}
+                className={faltaNombreContacto ? CLASE_CAMPO_FALTANTE : undefined}
               />
+              {faltaNombreContacto && (
+                <span id="prospecto-contacto-error" className={CLASE_MENSAJE_FALTANTE}>
+                  Completa el nombre del contacto.
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col gap-1">
@@ -360,14 +405,25 @@ export function FormularioProspecto({
             </div>
 
             <div className="flex flex-col gap-1">
-              <Label htmlFor="prospecto-telefono">Teléfono (opcional)</Label>
+              <Label htmlFor="prospecto-telefono" className={CLASE_OBLIGATORIO}>
+                Teléfono
+              </Label>
               <Input
                 id="prospecto-telefono"
                 type="tel"
                 value={telefono}
                 onChange={(evento) => setTelefono(evento.target.value)}
                 placeholder="664 000 0000"
+                aria-required="true"
+                aria-invalid={faltaTelefono}
+                aria-describedby={faltaTelefono ? 'prospecto-telefono-error' : undefined}
+                className={faltaTelefono ? CLASE_CAMPO_FALTANTE : undefined}
               />
+              {faltaTelefono && (
+                <span id="prospecto-telefono-error" className={CLASE_MENSAJE_FALTANTE}>
+                  Completa el teléfono del contacto.
+                </span>
+              )}
             </div>
           </div>
 
@@ -482,8 +538,13 @@ export function FormularioProspecto({
             </p>
           )}
 
-          <div className="flex justify-end">
-            <Button type="submit" tamano="lg" disabled={enviando}>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {faltantesCliente.length > 0 && (
+              <p data-testid="alta-rfq-faltantes-cliente" className={CLASE_MENSAJE_FALTANTE}>
+                Para continuar completa: {faltantesCliente.join(' y ')}.
+              </p>
+            )}
+            <Button type="submit" tamano="lg" disabled={enviando || faltantesCliente.length > 0}>
               {enviando ? 'Creando RFQ…' : 'Continuar con ítems'}
             </Button>
           </div>
@@ -515,10 +576,21 @@ export function FormularioProspecto({
               </Button>
             </div>
           ) : rfq ? (
-            <TablaItemsRfq rfq={rfq} catalogos={catalogos} onCambio={refrescarRfq} />
+            <TablaItemsRfq
+              rfq={rfq}
+              catalogos={catalogos}
+              onCambio={refrescarRfq}
+              faltantes={sinItemsActivos ? FALTANTE_ITEM_ACTIVO : undefined}
+            />
           ) : (
             <p role="status" aria-live="polite" className="text-sm text-texto-secundario">
               Cargando el RFQ…
+            </p>
+          )}
+
+          {sinItemsActivos && (
+            <p data-testid="alta-rfq-items-requerido" className={CLASE_MENSAJE_FALTANTE}>
+              Crea al menos un ítem para continuar con los archivos.
             </p>
           )}
 
@@ -526,7 +598,12 @@ export function FormularioProspecto({
             <Button type="button" variante="contorno" tamano="sm" onClick={finalizar}>
               Finalizar más tarde
             </Button>
-            <Button type="button" tamano="sm" disabled={!rfq} onClick={() => setPaso('archivos')}>
+            <Button
+              type="button"
+              tamano="sm"
+              disabled={!rfq || sinItemsActivos}
+              onClick={() => setPaso('archivos')}
+            >
               Continuar con archivos
             </Button>
           </div>
@@ -538,8 +615,8 @@ export function FormularioProspecto({
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-semibold text-texto-primario">Archivos del RFQ</h3>
             <p className="text-sm text-texto-secundario">
-              Sube planos, dibujos o especificaciones ahora o déjalos para después. El binario sube
-              directo a Storage.
+              Sube al menos un plano, dibujo o especificación para finalizar la captura. El binario
+              sube directo a Storage.
             </p>
           </div>
 
@@ -559,7 +636,12 @@ export function FormularioProspecto({
               </Button>
             </div>
           ) : rfq ? (
-            <PanelArchivosRfq rfq={rfq} onCambio={refrescarRfq} onSubiendo={manejarSubidaArchivo} />
+            <PanelArchivosRfq
+              rfq={rfq}
+              onCambio={refrescarRfq}
+              onSubiendo={manejarSubidaArchivo}
+              archivoRequerido
+            />
           ) : (
             <p role="status" aria-live="polite" className="text-sm text-texto-secundario">
               Cargando el RFQ…
@@ -585,7 +667,7 @@ export function FormularioProspecto({
             <Button
               type="button"
               tamano="sm"
-              disabled={subiendoArchivo || !rfq}
+              disabled={subiendoArchivo || !rfq || sinArchivos}
               onClick={() => setFinalizarAbierto(true)}
             >
               Finalizar captura

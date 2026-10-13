@@ -210,6 +210,29 @@ export async function obtenerIdsItemsRfq(
   return (data ?? []).map((fila) => fila.id);
 }
 
+/**
+ * Canal capturado en el RFQ de origen (código del catálogo y, para «Otro», su
+ * detalle). Sirve para prellenar el canal al validar la propuesta; un fallo de
+ * lectura o un RFQ sin canal devuelve null y el campo queda para elegir a mano.
+ */
+export async function obtenerCanalRfq(
+  cliente: SupabaseClient<Database>,
+  rfqId: string,
+): Promise<{ canal: string; canalDetalle: string | null } | null> {
+  const { data, error } = await cliente
+    .from('pipeline')
+    .select('canal, canal_detalle')
+    .eq('id', rfqId)
+    .maybeSingle();
+  if (error) {
+    console.error('[PROPUESTAS] No se pudo leer el canal del RFQ:', error.message);
+    return null;
+  }
+  const canal = data?.canal?.trim();
+  if (!canal) return null;
+  return { canal, canalDetalle: data?.canal_detalle?.trim() || null };
+}
+
 /** PDFs registrados (vigentes e históricos) de las revisiones indicadas. */
 export async function obtenerPdfsDeRevisiones(
   cliente: SupabaseClient<Database>,

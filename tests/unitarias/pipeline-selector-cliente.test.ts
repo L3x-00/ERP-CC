@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { Cliente } from '@/modulos/clientes/tipos/indice';
-import type { Rfq } from '@/modulos/rfq/tipos/indice';
+import type { ArchivoRfq } from '@/modulos/rfq/acciones/archivos-rfq';
+import type { Rfq, RfqItem } from '@/modulos/rfq/tipos/indice';
 
 const {
   crearProspectoMock,
@@ -100,6 +101,40 @@ const RFQ_CAPTURADO: Rfq = {
   items: [],
 };
 
+const ITEM_ACTIVO: RfqItem = {
+  id: 'item-1',
+  rfqId: 'op-1',
+  numero: 1,
+  codigo: 'IT01',
+  descripcion: 'Brida de acero',
+  cantidad: 4,
+  materialId: null,
+  espesorId: null,
+  acabado: null,
+  notas: null,
+  estado: 'activo',
+  creadoEn: '2026-10-08T00:00:00.000Z',
+  actualizadoEn: '2026-10-08T00:00:00.000Z',
+  operaciones: [],
+};
+
+const RFQ_CON_ITEM: Rfq = { ...RFQ_CAPTURADO, items: [ITEM_ACTIVO] };
+
+const ARCHIVO: ArchivoRfq = {
+  id: 'archivo-1',
+  entidad: 'rfq',
+  entidadId: 'op-1',
+  itemCodigo: null,
+  clase: 'DIBUJO',
+  nombreOriginal: 'plano.pdf',
+  nombreErp: 'plano.pdf',
+  temaCodigo: null,
+  version: 1,
+  vigente: true,
+  reemplazaA: null,
+  creadoEn: '2026-10-08T00:00:00.000Z',
+};
+
 const CATALOGOS_VACIOS = {
   materiales: [],
   espesores: [],
@@ -146,6 +181,14 @@ function renderizarFormulario() {
 /** Campo del formulario por su etiqueta visible. */
 function campo(etiqueta: RegExp): HTMLInputElement {
   return screen.getByLabelText(etiqueta) as HTMLInputElement;
+}
+
+/** Espera a que el botón exista y deje de estar bloqueado. */
+async function esperarBotonHabilitado(nombre: string): Promise<void> {
+  await waitFor(() => {
+    const boton = screen.getByRole('button', { name: nombre });
+    expect(boton.hasAttribute('disabled')).toBe(false);
+  });
 }
 
 beforeEach(() => {
@@ -288,6 +331,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     renderizarFormulario();
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
     fireEvent.change(campo(/Empresa/), { target: { value: 'Aceros Baja SA' } });
     fireEvent.change(campo(/Fecha requerida por cliente/), { target: { value: '2026-12-01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
@@ -306,6 +350,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     renderizarFormulario();
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
     fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
@@ -322,6 +367,8 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     crearProspectoMock.mockRejectedValue(new Error('offline'));
     renderizarFormulario();
 
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
     fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
@@ -335,19 +382,24 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
 
   it('el éxito continúa en ítems dentro del mismo modal, sin navegar, y avisa al finalizar', async () => {
     const alExito = vi.fn();
+    // Con ítem y archivo ya capturados, los pasos del alta dejan avanzar.
+    obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CON_ITEM });
+    listarArchivosMock.mockResolvedValue({ exito: true, datos: [ARCHIVO] });
     render(envolver(createElement(FormularioProspecto, { onExito: alExito })));
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
     expect(empujarRutaMock).not.toHaveBeenCalled();
     expect(alExito).not.toHaveBeenCalled();
 
-    await screen.findByText('Sin ítems capturados.');
+    await esperarBotonHabilitado('Continuar con archivos');
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con archivos' }));
     // «Finalizar captura» abre el modal obligatorio del seguimiento; no cierra en seco.
-    fireEvent.click(await screen.findByRole('button', { name: 'Finalizar captura' }));
+    await esperarBotonHabilitado('Finalizar captura');
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar captura' }));
     expect(await screen.findByTestId('dialogo-finalizar-captura')).toBeDefined();
     expect(alExito).not.toHaveBeenCalled();
 
@@ -361,5 +413,158 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
       expect(alExito).toHaveBeenCalledWith('op-1');
     });
     expect(empujarRutaMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('FormularioProspecto — datos mínimos obligatorios del alta (obs. cliente 2026-10-13)', () => {
+  /** Captura el contacto completo y llega al paso Ítems. */
+  async function llegarAItems(): Promise<void> {
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+    expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
+  }
+
+  function botonBloqueado(nombre: string): boolean {
+    return screen.getByRole('button', { name: nombre }).hasAttribute('disabled');
+  }
+
+  it('bloquea “Continuar con ítems” y marca en rojo nombre y teléfono hasta completarlos', () => {
+    renderizarFormulario();
+
+    expect(botonBloqueado('Continuar con ítems')).toBe(true);
+    expect(campo(/Nombre del contacto/).getAttribute('aria-invalid')).toBe('true');
+    expect(campo(/Teléfono/).getAttribute('aria-invalid')).toBe('true');
+    expect(campo(/Nombre del contacto/).className).toContain('border-peligro');
+    expect(campo(/Teléfono/).className).toContain('border-peligro');
+    expect(screen.getByText('Completa el nombre del contacto.')).toBeDefined();
+    expect(screen.getByText('Completa el teléfono del contacto.')).toBeDefined();
+    expect(screen.getByTestId('alta-rfq-faltantes-cliente').textContent).toContain(
+      'nombre del contacto y teléfono',
+    );
+
+    // Solo el nombre: el botón sigue bloqueado y únicamente el teléfono queda marcado.
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    expect(botonBloqueado('Continuar con ítems')).toBe(true);
+    expect(campo(/Nombre del contacto/).getAttribute('aria-invalid')).toBe('false');
+    expect(screen.queryByText('Completa el nombre del contacto.')).toBeNull();
+    expect(screen.getByText('Completa el teléfono del contacto.')).toBeDefined();
+
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+    expect(botonBloqueado('Continuar con ítems')).toBe(false);
+    expect(screen.queryByTestId('alta-rfq-faltantes-cliente')).toBeNull();
+    expect(crearProspectoMock).not.toHaveBeenCalled();
+  });
+
+  it('un teléfono en blanco no cuenta como capturado', () => {
+    renderizarFormulario();
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '   ' } });
+
+    expect(botonBloqueado('Continuar con ítems')).toBe(true);
+  });
+
+  it('el cliente del catálogo completa nombre y teléfono y habilita el avance', async () => {
+    renderizarFormulario();
+
+    fireEvent.focus(campo(/Cliente \(opcional\)/));
+    fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
+
+    await waitFor(() => expect(botonBloqueado('Continuar con ítems')).toBe(false));
+    expect(campo(/Teléfono/).value).toBe('664 000 0000');
+  });
+
+  it('bloquea “Continuar con archivos” y marca el estado vacío hasta crear un ítem', async () => {
+    renderizarFormulario();
+    await llegarAItems();
+
+    expect(await screen.findByText('Sin ítems capturados.')).toBeDefined();
+    expect(botonBloqueado('Continuar con archivos')).toBe(true);
+    expect(screen.getByTestId('alta-rfq-items-requerido').textContent).toContain(
+      'al menos un ítem',
+    );
+    expect(
+      screen.getByTestId('tabla-items-rfq').querySelector('[data-faltante="si"]'),
+    ).not.toBeNull();
+  });
+
+  it('un ítem cancelado no habilita el avance', async () => {
+    obtenerRfqMock.mockResolvedValue({
+      exito: true,
+      datos: { ...RFQ_CAPTURADO, items: [{ ...ITEM_ACTIVO, estado: 'cancelado' }] },
+    });
+    renderizarFormulario();
+    await llegarAItems();
+
+    await screen.findByTestId('tabla-items-rfq');
+    expect(botonBloqueado('Continuar con archivos')).toBe(true);
+    expect(screen.getByTestId('alta-rfq-items-requerido')).toBeDefined();
+  });
+
+  it('con un ítem activo desaparece el aviso y se puede continuar', async () => {
+    obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CON_ITEM });
+    renderizarFormulario();
+    await llegarAItems();
+
+    await esperarBotonHabilitado('Continuar con archivos');
+    expect(screen.queryByTestId('alta-rfq-items-requerido')).toBeNull();
+  });
+
+  it('bloquea “Finalizar captura” y marca el archivo en rojo hasta subir uno', async () => {
+    obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CON_ITEM });
+    renderizarFormulario();
+    await llegarAItems();
+    await esperarBotonHabilitado('Continuar con archivos');
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con archivos' }));
+
+    expect(await screen.findByTestId('alta-rfq-archivos')).toBeDefined();
+    expect(await screen.findByTestId('archivo-rfq-requerido')).toBeDefined();
+    expect(botonBloqueado('Finalizar captura')).toBe(true);
+    const entrada = screen.getByLabelText(/^Archivo/) as HTMLInputElement;
+    expect(entrada.getAttribute('aria-invalid')).toBe('true');
+    expect(entrada.className).toContain('border-peligro');
+  });
+
+  it('con un archivo subido se habilita “Finalizar captura” y desaparece el aviso', async () => {
+    obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CON_ITEM });
+    listarArchivosMock.mockResolvedValue({ exito: true, datos: [ARCHIVO] });
+    renderizarFormulario();
+    await llegarAItems();
+    await esperarBotonHabilitado('Continuar con archivos');
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con archivos' }));
+
+    await esperarBotonHabilitado('Finalizar captura');
+    expect(screen.queryByTestId('archivo-rfq-requerido')).toBeNull();
+  });
+});
+
+describe('FormularioProspecto — la ficha no hereda el RFQ previo al modal final (obs. cliente 1)', () => {
+  it('al finalizar invalida el RFQ y su validación para que la ficha relea el Resumen guardado', async () => {
+    const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidar = vi.spyOn(consultas, 'invalidateQueries');
+    obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CON_ITEM });
+    const alExito = vi.fn();
+    render(
+      createElement(
+        QueryClientProvider,
+        { client: consultas },
+        createElement(FormularioProspecto, { onExito: alExito }),
+      ),
+    );
+
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+    await screen.findByTestId('alta-rfq-items');
+    await esperarBotonHabilitado('Continuar con archivos');
+    invalidar.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar más tarde' }));
+
+    await waitFor(() => expect(alExito).toHaveBeenCalledWith('op-1'));
+    const claves = invalidar.mock.calls.map(([filtros]) => JSON.stringify(filtros?.queryKey));
+    expect(claves).toContain(JSON.stringify(['rfq', 'op-1']));
+    expect(claves).toContain(JSON.stringify(['rfq-validacion-listo', 'op-1']));
+    expect(claves).toContain(JSON.stringify(['pipeline']));
   });
 });
