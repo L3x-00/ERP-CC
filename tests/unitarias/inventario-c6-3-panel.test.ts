@@ -12,14 +12,15 @@ vi.mock('@/modulos/inventario/componentes/panel-costos-materiales', () => ({
 import { PanelInventario } from '@/modulos/inventario/componentes/panel-inventario';
 
 describe('PanelInventario — lógica ligera acordada con el cliente', () => {
-  it('muestra solo el catálogo de costos, sin existencias ni kardex', () => {
+  it('delega en el módulo sin operación de kardex legado', () => {
     render(createElement(PanelInventario));
 
     expect(screen.getByText('Contenido de costos')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /existencias/i })).toBeNull();
+    // Obs. 8: las existencias son saldo manual dentro del módulo; nunca kardex
+    // ni operaciones de almacén legadas.
     expect(screen.queryByRole('button', { name: /kardex/i })).toBeNull();
     expect(
-      screen.queryByRole('button', { name: /entrada|salida|reserva|ajuste|reordenar/i }),
+      screen.queryByRole('button', { name: /entrada|salida|reserva|reordenar/i }),
     ).toBeNull();
   });
 });

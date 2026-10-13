@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
+import { Button } from '@/compartido/componentes/ui/button';
+
 import {
   listarHistorialCostosAccion,
   listarMaterialesCostosAccion,
@@ -10,12 +12,14 @@ import {
 } from '../acciones/consultar-materiales-costos-accion';
 import type { MaterialCosto, PropuestaCostoMaterial } from '../tipos/materiales-costos';
 import { ModalConfirmarCosto } from './modal-confirmar-costo';
+import { ModalGuardarMaterial } from './modal-guardar-material';
 import { ModalProponerCosto } from './modal-proponer-costo';
+import { PanelExistencias } from './panel-existencias';
 import { TablaHistorialCostos } from './tabla-historial-costos';
 import { TablaMaterialesCostos } from './tabla-materiales-costos';
 import { TablaPropuestasCosto } from './tabla-propuestas-costo';
 
-type SubPestana = 'materiales' | 'propuestas' | 'historial';
+type SubPestana = 'materiales' | 'existencias' | 'propuestas' | 'historial';
 
 type ModalAbierto =
   | { tipo: 'proponer'; material: MaterialCosto }
@@ -24,9 +28,10 @@ type ModalAbierto =
   | null;
 
 /**
- * C6.1: maestro e historial de costos de materiales. Una compra o gasto propone
- * y solo la confirmación autorizada cambia el maestro; el historial es de solo
- * lectura. La lectura de costos exige `gestionar_inventario` o `ver_finanzas`.
+ * C6.1 + obs. 8: maestro e historial de costos de materiales, alta/edición de
+ * materiales con grupos y espesores, y existencias como saldo manual con
+ * historial. La lectura exige `gestionar_inventario` o `ver_finanzas`; el
+ * ajuste de saldo y la edición del catálogo exigen `gestionar_inventario`.
  */
 export function PanelCostosMateriales() {
   const [pestana, setPestana] = useState<SubPestana>('materiales');
@@ -36,6 +41,10 @@ export function PanelCostosMateriales() {
     nombre: string;
   } | null>(null);
   const [modal, setModal] = useState<ModalAbierto>(null);
+  // `undefined` = cerrado; `null` = alta; material = edición.
+  const [modalMaterial, setModalMaterial] = useState<{ material: MaterialCosto | null } | null>(
+    null,
+  );
 
   const materiales = useQuery({
     queryKey: ['inventario', 'costos', 'materiales'],
@@ -83,11 +92,22 @@ export function PanelCostosMateriales() {
           {resumen.total} material(es) · {resumen.conCosto} con costo confirmado ·{' '}
           {resumen.pendientes} propuesta(s) pendiente(s)
         </p>
+        {pestana === 'materiales' && vista?.puedeGestionar && (
+          <Button type="button" tamano="sm" onClick={() => setModalMaterial({ material: null })}>
+            Nuevo material
+          </Button>
+        )}
       </div>
 
       <nav className="flex flex-wrap gap-1 border-b border-borde" aria-label="Materiales y costos">
         <BotonSubPestana activa={pestana === 'materiales'} onClick={() => setPestana('materiales')}>
           Materiales
+        </BotonSubPestana>
+        <BotonSubPestana
+          activa={pestana === 'existencias'}
+          onClick={() => setPestana('existencias')}
+        >
+          Existencias
         </BotonSubPestana>
         <BotonSubPestana
           activa={pestana === 'propuestas'}
@@ -116,6 +136,7 @@ export function PanelCostosMateriales() {
         <TablaMaterialesCostos
           materiales={vista.materiales}
           puedeGestionar={vista.puedeGestionar}
+          onEditar={(material) => setModalMaterial({ material })}
           onProponer={(material) => setModal({ tipo: 'proponer', material })}
           onCostoManual={(material) => setModal({ tipo: 'manual', material })}
           onHistorial={(material) => {
@@ -123,6 +144,10 @@ export function PanelCostosMateriales() {
             setPestana('historial');
           }}
         />
+      )}
+
+      {vista !== undefined && pestana === 'existencias' && (
+        <PanelExistencias materiales={vista.materiales} puedeGestionar={vista.puedeGestionar} />
       )}
 
       {vista !== undefined && pestana === 'propuestas' && (
@@ -158,6 +183,13 @@ export function PanelCostosMateriales() {
           material={modal.material}
           propuesta={modal.propuesta}
           onCerrar={() => setModal(null)}
+        />
+      )}
+      {modalMaterial && vista !== undefined && (
+        <ModalGuardarMaterial
+          material={modalMaterial.material}
+          materiales={vista.materiales}
+          onCerrar={() => setModalMaterial(null)}
         />
       )}
     </div>

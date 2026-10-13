@@ -28,6 +28,9 @@ const MATERIAL_CON_COSTO: MaterialCosto = {
   codigo: 'ACERO',
   nombre: 'Acero',
   activo: true,
+  orden: 0,
+  padreId: null,
+  espesores: [],
   unidadBase: 'kg',
   monedaCosto: 'USD',
   costoVigente: 12.5,
@@ -91,6 +94,7 @@ describe('TablaMaterialesCostos (C6.1)', () => {
       createElement(TablaMaterialesCostos, {
         materiales: [MATERIAL_CON_COSTO, MATERIAL_SIN_COSTO],
         puedeGestionar: false,
+        onEditar: vi.fn(),
         onProponer: vi.fn(),
         onCostoManual: vi.fn(),
         onHistorial: vi.fn(),
@@ -103,17 +107,20 @@ describe('TablaMaterialesCostos (C6.1)', () => {
     expect(screen.getByText('2')).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Proponer' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Costo manual' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Editar/ })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Historial' })).toHaveLength(2);
   });
 
-  it('con permiso abre proponer, costo manual e historial del material correcto', () => {
+  it('con permiso abre proponer, costo manual, editar e historial del material correcto', () => {
     const onProponer = vi.fn();
     const onCostoManual = vi.fn();
+    const onEditar = vi.fn();
     const onHistorial = vi.fn();
     render(
       createElement(TablaMaterialesCostos, {
         materiales: [MATERIAL_CON_COSTO, MATERIAL_SIN_COSTO],
         puedeGestionar: true,
+        onEditar,
         onProponer,
         onCostoManual,
         onHistorial,
@@ -122,10 +129,12 @@ describe('TablaMaterialesCostos (C6.1)', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Proponer' })[0]!);
     fireEvent.click(screen.getAllByRole('button', { name: 'Costo manual' })[1]!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar MDF' })[0]!);
     fireEvent.click(screen.getAllByRole('button', { name: 'Historial' })[0]!);
 
     expect(onProponer.mock.calls[0]?.[0]).toMatchObject({ id: 'm-1' });
     expect(onCostoManual.mock.calls[0]?.[0]).toMatchObject({ id: 'm-2' });
+    expect(onEditar.mock.calls[0]?.[0]).toMatchObject({ id: 'm-2' });
     expect(onHistorial.mock.calls[0]?.[0]).toMatchObject({ id: 'm-1' });
   });
 });

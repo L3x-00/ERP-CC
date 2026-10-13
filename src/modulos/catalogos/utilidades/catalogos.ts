@@ -7,8 +7,6 @@ import type {
 
 /** Secciones visibles de la pestaña Configuración → Catálogos base. */
 export const SECCIONES_CATALOGOS_BASE = [
-  { id: 'materiales', titulo: 'Materiales', descripcion: 'Base de RFQ, propuesta y orden.' },
-  { id: 'espesores', titulo: 'Espesores por material', descripcion: 'El espesor depende del material elegido.' },
   { id: 'procesos', titulo: 'Procesos', descripcion: 'Operación solicitada, ruteo y prefijo de corridas.' },
   { id: 'gruposEquipo', titulo: 'Grupos de equipo', descripcion: 'Categorías de recursos de planeación.' },
   { id: 'gruposPlaneados', titulo: 'Grupos planeados', descripcion: 'Etapas macro de planeación.' },
@@ -34,8 +32,6 @@ export function contarRegistrosPorSeccion(datos: CatalogosBase): Record<SeccionC
     return { total: items.length, activos, inactivos: items.length - activos };
   };
   return {
-    materiales: contar(datos.materiales),
-    espesores: contar(datos.espesores),
     procesos: contar(datos.procesos),
     gruposEquipo: contar(datos.gruposEquipo),
     gruposPlaneados: contar(datos.gruposPlaneados),

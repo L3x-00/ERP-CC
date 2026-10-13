@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
 /**
- * Materiales y costos: catálogo maestro con costo vigente e historial.
- * El consumo y su costo congelado viven en las órdenes; sin inventario formal.
+ * Materiales y costos: catálogo maestro con grupos, espesores, costo vigente e
+ * historial, y existencias como saldo manual con historial (obs. 8). El consumo
+ * y su costo congelado viven en las órdenes.
  */
 export default async function PaginaInventario() {
   const usuario = await obtenerUsuarioServidor();
@@ -26,9 +27,9 @@ export default async function PaginaInventario() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-texto-primario">Materiales y costos</h1>
         <p className="text-sm text-texto-secundario">
-          Catálogo maestro de materiales con unidad base, costo vigente e historial. El consumo se
-          registra en las órdenes y su costo queda congelado ahí; sin existencias ni operación de
-          almacén.
+          Catálogo maestro de materiales con unidad base, grupos, espesores, costo vigente e
+          historial de costos, y existencias como saldo manual con historial. El consumo se registra
+          en las órdenes y su costo queda congelado ahí.
         </p>
       </header>
       <PanelInventario />
