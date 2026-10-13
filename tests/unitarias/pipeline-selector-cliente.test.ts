@@ -47,6 +47,10 @@ vi.mock('@/modulos/clientes/hooks/usar-cliente', () => ({
 vi.mock('@/modulos/rfq/acciones/obtener-rfq', () => ({
   obtenerRfqAccion: (...args: unknown[]) => obtenerRfqMock(...args),
 }));
+// El modal de «Finalizar captura» importa la acción con CAS; en jsdom se aísla.
+vi.mock('@/modulos/rfq/acciones/actualizar-datos-rfq', () => ({
+  actualizarDatosRfqAccion: vi.fn(),
+}));
 vi.mock('@/modulos/rfq/acciones/obtener-catalogos', () => ({
   obtenerCatalogosRfqAccion: (...args: unknown[]) => obtenerCatalogosMock(...args),
 }));
@@ -342,7 +346,16 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
 
     await screen.findByText('Sin ítems capturados.');
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con archivos' }));
+    // «Finalizar captura» abre el modal obligatorio del seguimiento; no cierra en seco.
     fireEvent.click(await screen.findByRole('button', { name: 'Finalizar captura' }));
+    expect(await screen.findByTestId('dialogo-finalizar-captura')).toBeDefined();
+    expect(alExito).not.toHaveBeenCalled();
+
+    // Cancelar el modal devuelve al paso Archivos; «Finalizar más tarde» sigue
+    // cerrando la captura sin modal desde el paso Ítems.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a ítems' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar más tarde' }));
 
     await waitFor(() => {
       expect(alExito).toHaveBeenCalledWith('op-1');

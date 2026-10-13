@@ -143,30 +143,60 @@ async function limpiarContexto(contexto: ContextoRfq): Promise<void> {
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
 }
 
-/** Llena el modal "Nuevo RFQ" ya abierto, ligando el cliente de la fixture. */
+/** Llena el modal "Nuevo RFQ", finaliza la captura con el seguimiento y abre la ficha. */
 async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string> {
   const { admin, empresa } = contexto;
   await page.getByLabel('Nombre del contacto').fill('Contacto QA');
   await page.getByLabel('Empresa', { exact: true }).fill(empresa);
   await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
   await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
-  // Obs. cliente: el modal de alta también captura el Canal y la descripción
-  // general (antes solo se completaban dentro de la ficha).
-  await page.getByLabel('Canal', { exact: true }).selectOption('CORREO');
-  await page.getByLabel('Descripción general').fill(`Alta modal ${contexto.sufijo}`);
-  // Ajuste cliente 2026-10-12: la sección unificada captura además responsable
-  // y próxima acción (el responsable de la acción se autocompleta).
-  const dialogoAlta = page.getByRole('dialog', { name: 'Nuevo RFQ' });
-  await dialogoAlta.getByLabel('Responsable', { exact: true }).selectOption({ index: 1 });
-  await expect(dialogoAlta.getByLabel('Responsable de la acción')).not.toHaveValue('');
-  await dialogoAlta.getByLabel('Acción', { exact: true }).selectOption({ index: 1 });
-  await dialogoAlta
-    .getByLabel('Fecha de la próxima acción')
-    .fill(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
   await page.getByRole('button', { name: 'Continuar con ítems' }).click();
 
   // El asistente sigue en el mismo modal: ítems y archivos sin cambiar de pantalla.
   await expect(page.getByTestId('alta-rfq-items')).toBeVisible();
+  const rfqCreado = await admin.from('pipeline').select('id').eq('empresa', empresa).single();
+  if (rfqCreado.error || !rfqCreado.data) {
+    throw new Error(rfqCreado.error?.message ?? 'RFQ no creado');
+  }
+  contexto.rfqId = rfqCreado.data.id;
+
+  await page.getByRole('button', { name: 'Continuar con archivos' }).click();
+  await expect(page.getByTestId('alta-rfq-archivos')).toBeVisible();
+
+  // Obs. cliente 2026-10-13: «Finalizar captura» exige el modal de canal,
+  // seguimiento y próxima acción, con un único responsable para ambos.
+  await page.getByRole('button', { name: 'Finalizar captura' }).click();
+  const dialogo = page.getByTestId('dialogo-finalizar-captura');
+  await expect(dialogo).toBeVisible();
+  await dialogo.getByLabel('Canal', { exact: true }).selectOption('CORREO');
+  await dialogo.getByLabel('Descripción general').fill(`Alta modal ${contexto.sufijo}`);
+  await dialogo.getByLabel('Responsable', { exact: true }).selectOption({ index: 1 });
+  await dialogo.getByLabel('Acción a seguir').selectOption({ index: 1 });
+  await dialogo
+    .getByLabel('Fecha de la acción')
+    .fill(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
+  if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+    for (const [nombre, ancho, alto] of [
+      ['movil', 320, 800],
+      ['escritorio', 1440, 900],
+    ] as const) {
+      await page.setViewportSize({ width: ancho, height: alto });
+      for (const tema of ['claro', 'oscuro'] as const) {
+        await page.locator('html').evaluate((nodo, oscuro) => nodo.classList.toggle('dark', oscuro), tema === 'oscuro');
+        await page.screenshot({
+          path: `${carpetaVisual}/rfq-finalizar-captura-${nombre}-${tema}.png`,
+          fullPage: true,
+          animations: 'disabled',
+        });
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
+  }
+  await dialogo.getByRole('button', { name: 'Guardar y finalizar' }).click();
+  await expect(dialogo).toBeHidden();
+
+  // El seguimiento quedó persistido y el responsable único alimentó ambos campos.
   const rfq = await admin
     .from('pipeline')
     .select('id, canal, descripcion_general, fecha_solicitud, responsable_id, proxima_accion_codigo, fecha_proxima_accion, responsable_proxima_accion_id')
@@ -179,11 +209,8 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   expect(rfq.data.responsable_id).toBeTruthy();
   expect(rfq.data.proxima_accion_codigo).toBeTruthy();
   expect(rfq.data.fecha_proxima_accion).toBeTruthy();
-  expect(rfq.data.responsable_proxima_accion_id).toBeTruthy();
+  expect(rfq.data.responsable_proxima_accion_id).toBe(rfq.data.responsable_id);
   contexto.rfqId = rfq.data.id;
-
-  await page.getByRole('button', { name: 'Finalizar más tarde' }).click();
-  await expect(page.getByTestId('alta-rfq-items')).toBeHidden();
 
   // La ficha del MISMO RFQ continúa la captura (DC-03), sin crear otro folio.
   await page.goto(`/rfq?rfq=${rfq.data.id}&continuar=1`);
