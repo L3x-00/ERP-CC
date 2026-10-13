@@ -146,7 +146,10 @@ async function limpiarContexto(contexto: ContextoRfq): Promise<void> {
 /** Llena el modal "Nuevo RFQ", finaliza la captura con el seguimiento y abre la ficha. */
 async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string> {
   const { admin, empresa } = contexto;
+  // Obs. cliente 2026-10-13: nombre y teléfono del contacto son obligatorios.
   await page.getByLabel('Nombre del contacto').fill('Contacto QA');
+  await expect(page.getByRole('button', { name: 'Continuar con ítems' })).toBeDisabled();
+  await page.getByLabel('Teléfono', { exact: true }).fill('664 111 2233');
   await page.getByLabel('Empresa', { exact: true }).fill(empresa);
   await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
   await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
@@ -160,8 +163,30 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   }
   contexto.rfqId = rfqCreado.data.id;
 
+  // Sin ítem activo no se avanza; el estado vacío avisa qué falta.
+  await expect(page.getByRole('button', { name: 'Continuar con archivos' })).toBeDisabled();
+  await expect(page.getByTestId('alta-rfq-items-requerido')).toBeVisible();
+  await agregarItem(page, contexto, 'Pieza E2E', '3');
+  await expect(page.getByTestId('tabla-items-rfq')).toContainText('IT01');
+  await expect(page.getByTestId('alta-rfq-items-requerido')).toBeHidden();
+
   await page.getByRole('button', { name: 'Continuar con archivos' }).click();
   await expect(page.getByTestId('alta-rfq-archivos')).toBeVisible();
+
+  // Sin archivo no se finaliza. La clase OTROS no cuenta como archivo técnico:
+  // el gate LISTO del flujo sigue pidiéndolo más adelante.
+  await expect(page.getByRole('button', { name: 'Finalizar captura' })).toBeDisabled();
+  await expect(page.getByTestId('archivo-rfq-requerido')).toBeVisible();
+  await page.getByLabel('Tipo').selectOption('OTROS');
+  await page.getByLabel('Archivo').setInputFiles({
+    name: 'referencia-alta-e2e.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('pieza,cantidad\nPieza E2E,3\n'),
+  });
+  await page.getByRole('button', { name: 'Subir archivo' }).click();
+  await expect(page.getByTestId('panel-archivos-rfq')).toContainText('referencia-alta-e2e.csv');
+  await expect(page.getByTestId('archivo-rfq-requerido')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Finalizar captura' })).toBeEnabled();
 
   // Obs. cliente 2026-10-13: «Finalizar captura» exige el modal de canal,
   // seguimiento y próxima acción, con un único responsable para ambos.
@@ -211,6 +236,19 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   expect(rfq.data.fecha_proxima_accion).toBeTruthy();
   expect(rfq.data.responsable_proxima_accion_id).toBe(rfq.data.responsable_id);
   contexto.rfqId = rfq.data.id;
+
+  // Obs. cliente 2026-10-13: abrir el RFQ recién creado desde la cola es una
+  // navegación en cliente (la caché del alta sigue viva). El Resumen debe mostrar
+  // lo guardado en «Finalizar captura», no el RFQ leído antes de ese modal.
+  await page
+    .getByRole('row', { name: new RegExp(empresa) })
+    .getByRole('link', { name: 'Continuar captura' })
+    .click();
+  await page.getByRole('tab', { name: 'Resumen' }).click();
+  await expect(page.getByTestId('rfq-descripcion')).toContainText(`Alta modal ${contexto.sufijo}`);
+  await expect(page.getByTestId('rfq-datos-generales')).toContainText('Correo');
+  await expect(page.getByTestId('rfq-datos-generales').locator('[data-faltante="si"]')).toHaveCount(0);
+  await expect(page.getByTestId('rfq-proxima-accion').locator('[data-faltante="si"]')).toHaveCount(0);
 
   // La ficha del MISMO RFQ continúa la captura (DC-03), sin crear otro folio.
   await page.goto(`/rfq?rfq=${rfq.data.id}&continuar=1`);
@@ -266,6 +304,7 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
 
       // 2. Ítems: material con espesor dependiente y operaciones del catálogo.
       await ficha.getByRole('tab', { name: 'Ítems' }).click();
+      await expect(page.getByTestId('tabla-items-rfq')).toContainText('IT01');
       await page.getByRole('button', { name: 'Agregar ítem' }).click();
       if (process.env.E2E_CAPTURAR_VISUAL === '1') {
         const dialogoItem = page.getByRole('dialog', { name: 'Nuevo ítem' });
@@ -285,15 +324,7 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
       }
-      await page.getByLabel('Descripción', { exact: true }).fill('Pieza E2E');
-      await page.getByLabel('Cantidad').fill('3');
-      await page.getByLabel('Material').selectOption({ label: contexto.materialNombre });
-      await page.getByLabel('Espesor').selectOption({ label: '5 mm' });
-      await page.getByLabel(contexto.procesoNombre).check();
-      await page.getByRole('button', { name: 'Guardar ítem' }).click();
-      await expect(page.getByTestId('tabla-items-rfq')).toContainText('IT01');
-
-      await page.getByRole('button', { name: 'Agregar ítem' }).click();
+      // IT01 «Pieza E2E» (material, espesor y operación) se creó en el alta.
       await page.getByLabel('Descripción', { exact: true }).fill('Pieza cancelada E2E');
       await page.getByLabel('Cantidad').fill('1');
       await page.getByRole('button', { name: 'Guardar ítem' }).click();

@@ -131,7 +131,7 @@ const OPORTUNIDAD: Oportunidad = {
   actualizadoEn: '2026-09-01T10:00:00Z',
 };
 
-const ALTA_BASE = { nombreContacto: 'Ana Pérez', empresa: 'Metanor' };
+const ALTA_BASE = { nombreContacto: 'Ana Pérez', empresa: 'Metanor', telefono: '664 000 0000' };
 
 beforeEach(() => {
   vi.clearAllMocks();

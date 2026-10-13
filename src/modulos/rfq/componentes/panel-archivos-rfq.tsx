@@ -10,6 +10,7 @@ import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear
 import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 import {
   CLASE_CAMPO_FALTANTE,
+  CLASE_MENSAJE_FALTANTE,
   CLASE_OBLIGATORIO,
   faltaArchivoTecnico,
 } from '@/modulos/rfq/utilidades/faltantes';
@@ -73,12 +74,15 @@ export function PanelArchivosRfq({
   onCambio,
   faltantes,
   onSubiendo,
+  archivoRequerido = false,
 }: {
   rfq: Rfq;
   onCambio?: () => void;
   faltantes?: readonly string[];
   /** Avisa al contenedor mientras una subida está en vuelo (evita cerrar a medias). */
   onSubiendo?: (subiendo: boolean) => void;
+  /** Alta guiada: marca el campo en rojo mientras no haya ningún archivo subido. */
+  archivoRequerido?: boolean;
 }) {
   const clienteConsultas = useQueryClient();
   const [clase, setClase] = useState<(typeof CLASES)[number]>('CAD');
@@ -95,6 +99,8 @@ export function PanelArchivosRfq({
     queryFn: () => listarArchivosRfqAccion({ rfqId: rfq.id }),
   });
   const archivos = listado.data?.exito ? (listado.data.datos ?? []) : [];
+  const archivoPendiente = archivoRequerido && !listado.isLoading && archivos.length === 0;
+  const marcarFaltante = faltaTecnico || archivoPendiente;
 
   // El binario sube directo a Storage con URL firmada (H-B1-29); las acciones
   // solo reciben metadatos y el servidor revalida el objeto real al confirmar.
@@ -212,7 +218,7 @@ export function PanelArchivosRfq({
           </Select>
         </label>
         <label
-          className={`grid gap-1 text-sm font-medium ${faltaTecnico ? CLASE_OBLIGATORIO : ''}`}
+          className={`grid gap-1 text-sm font-medium ${marcarFaltante ? CLASE_OBLIGATORIO : ''}`}
           htmlFor="archivo-input"
         >
           Archivo
@@ -221,9 +227,11 @@ export function PanelArchivosRfq({
             id="archivo-input"
             type="file"
             accept={EXTENSIONES_ACEPTADAS}
-            aria-describedby="archivo-rfq-ayuda"
-            aria-invalid={faltaTecnico}
-            className={faltaTecnico ? CLASE_CAMPO_FALTANTE : undefined}
+            aria-describedby={
+              archivoPendiente ? 'archivo-rfq-ayuda archivo-rfq-requerido' : 'archivo-rfq-ayuda'
+            }
+            aria-invalid={marcarFaltante}
+            className={marcarFaltante ? CLASE_CAMPO_FALTANTE : undefined}
             onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
           />
         </label>
@@ -241,6 +249,12 @@ export function PanelArchivosRfq({
         versión nueva; la anterior se conserva en «Ver versiones».
       </p>
 
+      {archivoPendiente && (
+        <p id="archivo-rfq-requerido" data-testid="archivo-rfq-requerido" className={CLASE_MENSAJE_FALTANTE}>
+          Sube al menos un archivo para finalizar la captura.
+        </p>
+      )}
+
       {mensaje !== null && (
         <p role="alert" className="text-sm text-peligro-texto">
           {mensaje}
@@ -250,7 +264,13 @@ export function PanelArchivosRfq({
       {listado.isLoading && <p className="text-sm text-texto-secundario">Cargando archivos…</p>}
 
       {!listado.isLoading && linajes.length === 0 && (
-        <p className="rounded-lg border border-dashed border-borde px-4 py-6 text-center text-sm text-texto-secundario">
+        <p
+          className={
+            archivoPendiente
+              ? 'rounded-lg border border-dashed border-peligro/40 bg-peligro-suave px-4 py-6 text-center text-sm text-peligro-texto'
+              : 'rounded-lg border border-dashed border-borde px-4 py-6 text-center text-sm text-texto-secundario'
+          }
+        >
           Sin archivos cargados.
         </p>
       )}

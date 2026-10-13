@@ -100,7 +100,7 @@ describe('clienteRfqDesdeAlta', () => {
 });
 
 describe('esquemaCrearProspecto con cliente (RFQ-02)', () => {
-  const BASE = { nombreContacto: 'Ana Pérez', empresa: 'Metanor' };
+  const BASE = { nombreContacto: 'Ana Pérez', empresa: 'Metanor', telefono: '664 000 0000' };
 
   it('acepta la RFQ sin cliente del catálogo', () => {
     const analisis = esquemaCrearProspecto.safeParse(BASE);
@@ -116,6 +116,19 @@ describe('esquemaCrearProspecto con cliente (RFQ-02)', () => {
   it('rechaza un clienteId que no es uuid', () => {
     const analisis = esquemaCrearProspecto.safeParse({ ...BASE, clienteId: 'metanor' });
     expect(analisis.success).toBe(false);
+  });
+
+  it('exige el teléfono del contacto (obs. cliente 2026-10-13)', () => {
+    const sinTelefono = { nombreContacto: BASE.nombreContacto, empresa: BASE.empresa };
+    expect(esquemaCrearProspecto.safeParse(sinTelefono).success).toBe(false);
+
+    const enBlanco = esquemaCrearProspecto.safeParse({ ...BASE, telefono: '   ' });
+    expect(enBlanco.success).toBe(false);
+    expect(!enBlanco.success && enBlanco.error.issues[0]?.message).toBe('Teléfono requerido');
+  });
+
+  it('exige el nombre del contacto', () => {
+    expect(esquemaCrearProspecto.safeParse({ ...BASE, nombreContacto: '' }).success).toBe(false);
   });
 });
 

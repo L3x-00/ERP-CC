@@ -53,10 +53,11 @@ describe('esquemaDatosOportunidad (RFQ-01)', () => {
 });
 
 describe('esquemaCrearProspecto — captura RFQ-01 opcional', () => {
-  it('crea sin campos de captura (todos opcionales)', () => {
+  it('crea con solo los datos obligatorios del contacto', () => {
     const r = esquemaCrearProspecto.safeParse({
       nombreContacto: 'Ana',
       empresa: 'Aceros del Norte',
+      telefono: '664 000 0000',
     });
     expect(r.success).toBe(true);
   });
@@ -65,6 +66,7 @@ describe('esquemaCrearProspecto — captura RFQ-01 opcional', () => {
     const r = esquemaCrearProspecto.safeParse({
       nombreContacto: 'Ana',
       empresa: 'Aceros del Norte',
+      telefono: '664 000 0000',
       fechaRequerida: '2026-10-01',
       notas: 'x',
     });
@@ -75,6 +77,7 @@ describe('esquemaCrearProspecto — captura RFQ-01 opcional', () => {
     const r = esquemaCrearProspecto.safeParse({
       nombreContacto: 'Ana',
       empresa: 'Aceros del Norte',
+      telefono: '664 000 0000',
       poCliente: 'PO-9',
       horasEstimadas: 4,
     });
@@ -90,6 +93,7 @@ describe('esquemaCrearProspecto — captura RFQ-01 opcional', () => {
     const r = esquemaCrearProspecto.safeParse({
       nombreContacto: 'Ana',
       empresa: 'Aceros del Norte',
+      telefono: '664 000 0000',
       fechaRequerida: '2026/10/01',
     });
     expect(r.success).toBe(false);
@@ -99,6 +103,7 @@ describe('esquemaCrearProspecto — captura RFQ-01 opcional', () => {
     const r = esquemaCrearProspecto.safeParse({
       nombreContacto: 'Ana',
       empresa: 'Aceros del Norte',
+      telefono: '664 000 0000',
       fechaRequerida: '2026-02-31',
     });
     expect(r.success).toBe(false);

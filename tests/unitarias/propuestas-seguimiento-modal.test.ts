@@ -58,6 +58,7 @@ function montar(parcial: {
   modo?: 'validar' | 'registrar';
   puedeRegistrar?: boolean;
   catalogos?: CatalogosPropuesta | null;
+  canalRfq?: { canal: string; canalDetalle: string | null } | null;
   onExito?: (resultado: { seguimientoRegistrado: boolean }) => void;
   onCerrar?: () => void;
 }) {
@@ -67,6 +68,7 @@ function montar(parcial: {
       revision: REVISION,
       catalogos: parcial.catalogos === undefined ? CATALOGOS : parcial.catalogos,
       puedeRegistrar: parcial.puedeRegistrar ?? true,
+      canalRfq: parcial.canalRfq,
       onCerrar: parcial.onCerrar ?? (() => {}),
       onExito: parcial.onExito,
     }),
@@ -211,5 +213,103 @@ describe('DialogoSeguimientoPropuesta (obs. cliente)', () => {
       expect(screen.getByText('Confirma ruteo antes de validar')).toBeDefined(),
     );
     expect(onCerrar).not.toHaveBeenCalled();
+  });
+});
+
+describe('DialogoSeguimientoPropuesta — canal prellenado desde el RFQ (obs. cliente 2026-10-13)', () => {
+  function selectCanal(): HTMLSelectElement {
+    return screen.getByLabelText('Canal del seguimiento') as HTMLSelectElement;
+  }
+
+  it('al validar, el canal arranca con el capturado en el RFQ y se envía', async () => {
+    montar({ modo: 'validar', canalRfq: { canal: 'WHATSAPP', canalDetalle: null } });
+
+    expect(selectCanal().value).toBe('WHATSAPP');
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar y validar' }));
+
+    await waitFor(() =>
+      expect(validarMock).toHaveBeenCalledWith(expect.objectContaining({ canal: 'WHATSAPP' })),
+    );
+  });
+
+  it('el canal «Otro» del RFQ trae también su detalle', async () => {
+    montar({ modo: 'validar', canalRfq: { canal: 'OTRO', canalDetalle: 'Feria industrial' } });
+
+    expect(selectCanal().value).toBe('OTRO');
+    expect((screen.getByLabelText('Detalle del canal Otro') as HTMLInputElement).value).toBe(
+      'Feria industrial',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar y validar' }));
+
+    await waitFor(() =>
+      expect(validarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ canal: 'Feria industrial' }),
+      ),
+    );
+  });
+
+  it('reconoce un canal histórico guardado con el nombre en vez del código', () => {
+    montar({ canalRfq: { canal: 'whatsapp', canalDetalle: null } });
+
+    expect(selectCanal().value).toBe('WHATSAPP');
+  });
+
+  it('un canal del RFQ que ya no existe en el catálogo deja el campo vacío', () => {
+    montar({ canalRfq: { canal: 'Telegrama', canalDetalle: null } });
+
+    expect(selectCanal().value).toBe('');
+  });
+
+  it('sin canal en el RFQ el campo queda vacío y no envía canal', async () => {
+    montar({ modo: 'validar', canalRfq: null });
+
+    expect(selectCanal().value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar y validar' }));
+
+    await waitFor(() => expect(validarMock).toHaveBeenCalled());
+    expect(validarMock.mock.calls[0]?.[0]).not.toHaveProperty('canal');
+  });
+
+  it('lo que la persona elija manda sobre el canal del RFQ', async () => {
+    montar({ modo: 'validar', canalRfq: { canal: 'OTRO', canalDetalle: 'Feria industrial' } });
+
+    fireEvent.change(selectCanal(), { target: { value: 'WHATSAPP' } });
+    expect(screen.queryByLabelText('Detalle del canal Otro')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar y validar' }));
+
+    await waitFor(() =>
+      expect(validarMock).toHaveBeenCalledWith(expect.objectContaining({ canal: 'WHATSAPP' })),
+    );
+
+    // Volver al canal del RFQ recupera su detalle.
+    cleanup();
+    montar({ modo: 'validar', canalRfq: { canal: 'OTRO', canalDetalle: 'Feria industrial' } });
+    fireEvent.change(selectCanal(), { target: { value: 'WHATSAPP' } });
+    fireEvent.change(selectCanal(), { target: { value: 'OTRO' } });
+    expect((screen.getByLabelText('Detalle del canal Otro') as HTMLInputElement).value).toBe(
+      'Feria industrial',
+    );
+  });
+
+  it('si el catálogo llega después de abrir el modal, igual se prellena', () => {
+    const vista = montar({
+      modo: 'validar',
+      catalogos: null,
+      canalRfq: { canal: 'WHATSAPP', canalDetalle: null },
+    });
+    expect(screen.queryByLabelText('Canal del seguimiento')).toBeNull();
+
+    vista.rerender(
+      createElement(DialogoSeguimientoPropuesta, {
+        modo: 'validar',
+        revision: REVISION,
+        catalogos: CATALOGOS,
+        puedeRegistrar: true,
+        canalRfq: { canal: 'WHATSAPP', canalDetalle: null },
+        onCerrar: () => {},
+      }),
+    );
+
+    expect(selectCanal().value).toBe('WHATSAPP');
   });
 });

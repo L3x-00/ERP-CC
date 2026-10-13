@@ -483,6 +483,7 @@ export function PanelAccionesPropuesta({
           revision={revision}
           catalogos={catalogos}
           puedeRegistrar={permisos.seguimiento}
+          canalRfq={detalle.canalRfq}
           onCerrar={() => setValidarAbierto(false)}
           onExito={({ seguimientoRegistrado }) => {
             setExitoValidacion(
