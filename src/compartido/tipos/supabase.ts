@@ -222,6 +222,8 @@ export type Database = {
           nombre_erp: string | null
           nombre_original: string
           reemplaza_a: string | null
+          retirado_en: string | null
+          retirado_por: string | null
           ruta_storage: string
           subido_por: string | null
           tamano_bytes: number
@@ -241,6 +243,8 @@ export type Database = {
           nombre_erp?: string | null
           nombre_original: string
           reemplaza_a?: string | null
+          retirado_en?: string | null
+          retirado_por?: string | null
           ruta_storage: string
           subido_por?: string | null
           tamano_bytes: number
@@ -260,6 +264,8 @@ export type Database = {
           nombre_erp?: string | null
           nombre_original?: string
           reemplaza_a?: string | null
+          retirado_en?: string | null
+          retirado_por?: string | null
           ruta_storage?: string
           subido_por?: string | null
           tamano_bytes?: number

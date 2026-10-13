@@ -138,13 +138,16 @@ export type ArchivoPropuesta = {
   version: number;
   vigente: boolean;
   reemplazaA: string | null;
+  retiradoEn: string | null;
+  retiradoPor: string | null;
   creadoEn: string;
 };
 
 /**
  * Carga los archivos visibles de la propuesta: propios, heredados y por ítem,
- * incluidas las versiones no vigentes (CLI-06). La interfaz muestra la vigente
- * por defecto y revela el historial bajo demanda; aquí no se oculta metadata.
+ * incluidas las versiones no vigentes (CLI-06). La vista principal excluye los
+ * retirados (obs. cliente 6): `retirado_en IS NULL`; las filas retiradas se
+ * conservan en base como historial y auditoría.
  */
 export async function obtenerArchivosDePropuesta(
   cliente: SupabaseClient<Database>,
@@ -171,6 +174,7 @@ export async function obtenerArchivosDePropuesta(
     .from('archivos')
     .select('*')
     .or(filtros.join(','))
+    .is('retirado_en', null)
     .order('creado_en', { ascending: false });
   if (error) {
     console.error('[PROPUESTAS] No se pudieron cargar los archivos:', error.message);
@@ -191,6 +195,8 @@ export async function obtenerArchivosDePropuesta(
     version: fila.version,
     vigente: fila.vigente,
     reemplazaA: fila.reemplaza_a,
+    retiradoEn: fila.retirado_en,
+    retiradoPor: fila.retirado_por,
     creadoEn: fila.creado_en,
   }));
 }

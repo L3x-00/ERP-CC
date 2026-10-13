@@ -29,3 +29,17 @@ export type PrepararSubidaArchivoPropuestaInput = z.infer<
 export type ConfirmarSubidaArchivoPropuestaInput = z.infer<
   typeof esquemaConfirmarSubidaArchivoPropuesta
 >;
+
+/**
+ * Obs. cliente 2026-10-13 (6): retiro (soft-delete) de un archivo propio de la
+ * propuesta. La propuesta abierta acompaña la operación (igual que la firma):
+ * el servidor comprueba pertenencia, estado borrador y permiso.
+ */
+export const esquemaRetirarArchivoPropuesta = z
+  .object({
+    propuestaId: z.uuid('Identificador de propuesta inválido'),
+    archivoId: z.uuid('Identificador de archivo inválido'),
+  })
+  .strict();
+
+export type RetirarArchivoPropuestaInput = z.infer<typeof esquemaRetirarArchivoPropuesta>;

@@ -8,6 +8,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { firmarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
+import { retirarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/retirar-archivo-propuesta';
 import {
   confirmarArchivoPropuestaAccion,
   descartarSubidaArchivoPropuestaAccion,
@@ -62,7 +63,10 @@ function agruparLinajes(archivos: readonly ArchivoPropuesta[]): LinajeArchivoPro
  * SII-B4.8/4.11: archivos de la revisión: heredados del RFQ (sin duplicar),
  * propios (subida en DRAFT) y por ítem, con lectura por URL firmada corta.
  * CLI-06: la versión vigente se muestra por defecto y «Ver versiones» revela el
- * historial del linaje en solo lectura (sin quitar ni eliminar).
+ * historial del linaje en solo lectura.
+ * Obs. cliente 2026-10-13 (6): la subida acepta varios archivos a la vez
+ * (`allSettled`, un fallo no bloquea a los demás) y los archivos propios de una
+ * revisión en borrador ofrecen «Quitar» (retiro trazable, sin borrado).
  */
 export function PanelArchivosPropuesta({
   revision,
@@ -83,18 +87,21 @@ export function PanelArchivosPropuesta({
 }) {
   const queryClient = useQueryClient();
   const [tema, setTema] = useState<'general' | 'tecnico'>('general');
-  const [archivo, setArchivo] = useState<File | null>(null);
+  const [archivosSeleccionados, setArchivosSeleccionados] = useState<File[]>([]);
   const [destinoItemId, setDestinoItemId] = useState('');
   const [versionSelector, setVersionSelector] = useState(0);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [errorSubida, setErrorSubida] = useState<string | null>(null);
-  // El rechazo al abrir se muestra aparte del formulario: este solo existe en
-  // DRAFT y el error de lectura también aplica a revisiones ya enviadas.
+  // Errores de acción sobre filas existentes (abrir o quitar archivos); se
+  // muestran aparte del formulario, que solo existe en DRAFT.
   const [errorApertura, setErrorApertura] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [retirandoId, setRetirandoId] = useState<string | null>(null);
   const [linajesAbiertos, setLinajesAbiertos] = useState<readonly string[]>([]);
 
   const esBorrador = revision.estado === 'DRAFT';
+  // Quitar: solo archivos propios y solo en borrador con permiso de edición.
+  const puedeQuitar = esBorrador && puedeSubir;
   const itemsRevision = items.filter((item) => item.revisionId === revision.id);
   // C3.1: las filas de revisión e ítem cambian de UUID en cada copia profunda.
   // La lectura histórica se resuelve hasta la revisión abierta (nunca desde una
@@ -139,49 +146,100 @@ export function PanelArchivosPropuesta({
     window.open(respuesta.datos?.url, '_blank', 'noopener,noreferrer');
   }
 
+  /** Obs. cliente 6: retira el documento propio (soft-delete con historial). */
+  async function quitar(archivoId: string): Promise<void> {
+    if (retirandoId !== null) return;
+    setRetirandoId(archivoId);
+    setMensaje(null);
+    setErrorApertura(null);
+    const respuesta = await retirarArchivoPropuestaAccion({
+      propuestaId: revision.propuestaId,
+      archivoId,
+    });
+    setRetirandoId(null);
+    if (!respuesta.exito) {
+      setErrorApertura(respuesta.error);
+      return;
+    }
+    setMensaje('Archivo quitado.');
+    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+  }
+
+  /** Sube un archivo con el contrato directo a Storage (prepara/confirma/descarta). */
+  async function subirUno(candidato: File): Promise<void> {
+    const destino = {
+      revisionId: revision.id,
+      ...(destinoItem ? { itemId: destinoItem } : {}),
+      tema,
+      nombreArchivo: candidato.name,
+    };
+    await subirArchivoDirecto(candidato, {
+      preparar: () =>
+        prepararSubidaArchivoPropuestaAccion({
+          ...destino,
+          tamano: candidato.size,
+          mime: candidato.type,
+        }),
+      confirmar: (ruta) => confirmarArchivoPropuestaAccion({ ...destino, ruta }),
+      descartar: (ruta) => descartarSubidaArchivoPropuestaAccion({ ruta }),
+    });
+  }
+
   async function subir(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (subiendo) return;
     setMensaje(null);
     setErrorSubida(null);
-    if (!archivo) {
-      setErrorSubida('Selecciona un archivo');
+    if (archivosSeleccionados.length === 0) {
+      setErrorSubida('Selecciona al menos un archivo');
       return;
     }
+    const totalSeleccionados = archivosSeleccionados.length;
     // El perfil depende del destino: la cabecera valida como
     // `propuesta_revision` y el ítem como `propuesta_item`.
-    const validacion = validarSubidaArchivo(entidadDestino, {
-      nombre: archivo.name,
-      tamano: archivo.size,
-    });
-    if (!validacion.ok) {
-      setErrorSubida(validacion.error);
-      return;
-    }
-    setSubiendo(true);
-    // El binario sube directo a Storage (H-B1-29); las acciones solo ven metadatos.
-    const destino = {
-      revisionId: revision.id,
-      ...(destinoItem ? { itemId: destinoItem } : {}),
-      tema,
-      nombreArchivo: archivo.name,
-    };
-    try {
-      await subirArchivoDirecto(archivo, {
-        preparar: () =>
-          prepararSubidaArchivoPropuestaAccion({ ...destino, tamano: archivo.size, mime: archivo.type }),
-        confirmar: (ruta) => confirmarArchivoPropuestaAccion({ ...destino, ruta }),
-        descartar: (ruta) => descartarSubidaArchivoPropuestaAccion({ ruta }),
+    const validos: File[] = [];
+    const rechazados: string[] = [];
+    for (const candidato of archivosSeleccionados) {
+      const validacion = validarSubidaArchivo(entidadDestino, {
+        nombre: candidato.name,
+        tamano: candidato.size,
       });
-    } catch (error) {
-      setErrorSubida(error instanceof Error ? error.message : 'No se pudo subir el archivo');
-      return;
-    } finally {
-      setSubiendo(false);
+      if (validacion.ok) validos.push(candidato);
+      else rechazados.push(`${candidato.name}: ${validacion.error}`);
     }
-    setArchivo(null);
+    if (validos.length === 0) {
+      setErrorSubida(rechazados.join(' · '));
+      return;
+    }
+
+    setSubiendo(true);
+    // Obs. cliente 6: el lote sube en paralelo y un fallo no bloquea al resto.
+    const resultados = await Promise.allSettled(validos.map((candidato) => subirUno(candidato)));
+    setSubiendo(false);
+
+    let subidos = 0;
+    const fallidos: string[] = [];
+    resultados.forEach((resultado, indice) => {
+      if (resultado.status === 'fulfilled') {
+        subidos += 1;
+      } else {
+        const motivo =
+          resultado.reason instanceof Error ? resultado.reason.message : 'No se pudo subir';
+        fallidos.push(`${validos[indice]?.name ?? 'archivo'}: ${motivo}`);
+      }
+    });
+
+    setArchivosSeleccionados([]);
     setVersionSelector((version) => version + 1);
-    setMensaje('Archivo subido.');
+    const problemas = [...rechazados, ...fallidos];
+    if (subidos === 0) {
+      setErrorSubida(problemas.join(' · '));
+    } else if (problemas.length === 0) {
+      setMensaje(subidos === 1 ? 'Archivo subido.' : `${subidos} archivos subidos.`);
+    } else {
+      setMensaje(`${subidos} de ${totalSeleccionados} archivos subidos.`);
+      setErrorSubida(problemas.join(' · '));
+    }
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
   }
 
@@ -211,6 +269,7 @@ export function PanelArchivosPropuesta({
   function renderizarLinajes(
     archivos: readonly ArchivoPropuesta[],
     chip: (archivo: ArchivoPropuesta) => string,
+    onQuitar?: (id: string) => Promise<void>,
   ): React.ReactNode[] {
     return agruparLinajes(archivos).map((linaje) => (
       <LinajeArchivo
@@ -220,6 +279,8 @@ export function PanelArchivosPropuesta({
         abierto={linajesAbiertos.includes(linaje.representante.id)}
         onAlternar={alternarLinaje}
         onVer={ver}
+        {...(onQuitar ? { onQuitar } : {})}
+        retirandoId={retirandoId}
       />
     ));
   }
@@ -230,7 +291,7 @@ export function PanelArchivosPropuesta({
         <form onSubmit={subir} className="flex flex-col gap-3 rounded-lg border border-borde p-3">
           <div className="flex flex-col gap-0.5">
             <h3 className="text-sm font-semibold text-texto-primario">
-              Subir archivo a {destinoItem ? 'un ítem' : `la revisión ${revision.folioRevision}`}
+              Subir archivos a {destinoItem ? 'un ítem' : `la revisión ${revision.folioRevision}`}
             </h3>
             <p className="text-xs text-texto-secundario">
               El destino identifica a quién pertenece el documento; los archivos anteriores se
@@ -271,34 +332,40 @@ export function PanelArchivosPropuesta({
               <input
                 key={versionSelector}
                 type="file"
+                multiple
                 aria-label="Archivo de la propuesta"
                 accept={EXTENSIONES_ACEPTADAS}
                 aria-describedby="archivo-propuesta-ayuda"
-                onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
+                onChange={(evento) =>
+                  setArchivosSeleccionados(Array.from(evento.target.files ?? []))
+                }
                 disabled={subiendo}
                 className="text-sm"
               />
             </label>
             <Button type="submit" tamano="sm" disabled={subiendo}>
-              {subiendo ? 'Subiendo…' : 'Subir archivo'}
+              {subiendo ? 'Subiendo…' : 'Subir archivos'}
             </Button>
-            {mensaje && (
-              <span role="status" className="text-xs text-texto-secundario">
-                {mensaje}
-              </span>
-            )}
-            {errorSubida && (
-              <span role="alert" className="text-xs text-peligro-texto">
-                {errorSubida}
-              </span>
-            )}
           </div>
           <p id="archivo-propuesta-ayuda" className="text-xs text-texto-secundario">
-            Formatos aceptados: PDF, DXF, DWG, STEP/STP, IGS/IGES, EPS/AI, imágenes y hojas de
-            cálculo. Hasta 20 MiB por archivo. Repetir el mismo nombre en el mismo destino crea
-            una versión nueva y conserva la anterior en «Ver versiones».
+            Puedes seleccionar varios archivos a la vez. Formatos aceptados: PDF, DXF, DWG,
+            STEP/STP, IGS/IGES, EPS/AI, imágenes y hojas de cálculo. Hasta 20 MiB por archivo.
+            Repetir el mismo nombre en el mismo destino crea una versión nueva y conserva la
+            anterior en «Ver versiones».
           </p>
         </form>
+      )}
+
+      {mensaje && (
+        <p role="status" className="text-sm text-texto-secundario">
+          {mensaje}
+        </p>
+      )}
+
+      {errorSubida && (
+        <p role="alert" className="text-sm text-peligro-texto">
+          {errorSubida}
+        </p>
       )}
 
       {errorApertura && (
@@ -308,7 +375,7 @@ export function PanelArchivosPropuesta({
       )}
 
       <Grupo titulo="De la revisión" vacio="Sin archivos propios.">
-        {renderizarLinajes(propiosRevision, etiquetaRevision)}
+        {renderizarLinajes(propiosRevision, etiquetaRevision, puedeQuitar ? quitar : undefined)}
       </Grupo>
 
       <Grupo titulo="Heredados del RFQ" vacio="Sin archivos heredados.">
@@ -318,7 +385,11 @@ export function PanelArchivosPropuesta({
       </Grupo>
 
       <Grupo titulo="Por ítem de la propuesta" vacio="Sin archivos por ítem.">
-        {renderizarLinajes(archivosItemsRevision, (fila) => etiquetaItem(fila.entidadId))}
+        {renderizarLinajes(
+          archivosItemsRevision,
+          (fila) => etiquetaItem(fila.entidadId),
+          puedeQuitar ? quitar : undefined,
+        )}
       </Grupo>
     </section>
   );
@@ -331,17 +402,27 @@ function LinajeArchivo({
   abierto,
   onAlternar,
   onVer,
+  onQuitar,
+  retirandoId,
 }: {
   linaje: LinajeArchivoPropuesta;
   chip: (archivo: ArchivoPropuesta) => string;
   abierto: boolean;
   onAlternar: (id: string) => void;
   onVer: (id: string) => Promise<void>;
+  onQuitar?: (id: string) => Promise<void>;
+  retirandoId: string | null;
 }) {
   const { representante, historicas } = linaje;
   return (
     <li className="flex flex-col gap-1 py-2">
-      <FilaArchivo archivo={representante} chip={chip(representante)} onVer={onVer} />
+      <FilaArchivo
+        archivo={representante}
+        chip={chip(representante)}
+        onVer={onVer}
+        {...(onQuitar ? { onQuitar } : {})}
+        quitando={retirandoId === representante.id}
+      />
       {historicas.length > 0 && (
         <>
           <Button
@@ -403,10 +484,14 @@ function FilaArchivo({
   archivo,
   chip,
   onVer,
+  onQuitar,
+  quitando = false,
 }: {
   archivo: ArchivoPropuesta;
   chip: string;
   onVer: (id: string) => Promise<void>;
+  onQuitar?: (id: string) => Promise<void>;
+  quitando?: boolean;
 }) {
   const variante =
     archivo.entidad === 'propuesta_item' ||
@@ -428,14 +513,27 @@ function FilaArchivo({
           <span>{formatearFecha(archivo.creadoEn)}</span>
         </span>
       </div>
-      <Button
-        variante="fantasma"
-        tamano="sm"
-        aria-label={`Ver ${archivo.nombreOriginal}, versión ${archivo.version}`}
-        onClick={() => void onVer(archivo.id)}
-      >
-        Ver
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button
+          variante="fantasma"
+          tamano="sm"
+          aria-label={`Ver ${archivo.nombreOriginal}, versión ${archivo.version}`}
+          onClick={() => void onVer(archivo.id)}
+        >
+          Ver
+        </Button>
+        {onQuitar && (
+          <Button
+            variante="destructivo"
+            tamano="sm"
+            disabled={quitando}
+            aria-label={`Quitar ${archivo.nombreOriginal}, versión ${archivo.version}`}
+            onClick={() => void onQuitar(archivo.id)}
+          >
+            {quitando ? 'Quitando…' : 'Quitar'}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
