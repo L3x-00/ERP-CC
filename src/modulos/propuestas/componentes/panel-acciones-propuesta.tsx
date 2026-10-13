@@ -21,10 +21,14 @@ import type {
   PermisosPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
+import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { claveDetallePropuesta } from './claves-consulta';
 import type { DetallePropuestaFicha, RevisionConTotales } from '@/modulos/propuestas/acciones/obtener-propuesta';
 
 type Formulario = 'ninguno' | 'enviar' | 'rechazar' | 'cerrar';
+
+/** Pestañas de la ficha a las que el aviso de «falta para validar» puede llevar. */
+export type DestinoFaltante = 'items' | 'ruteo' | 'archivos';
 
 /**
  * SII-B4.11: acciones de negocio de la revisión activa (arriba de la ficha).
@@ -37,12 +41,17 @@ export function PanelAccionesPropuesta({
   catalogos,
   permisos,
   soloLectura = false,
+  faltantes = null,
+  onIrA,
 }: {
   detalle: DetallePropuestaFicha;
   revision: RevisionConTotales;
   catalogos: CatalogosPropuesta | null;
   permisos: PermisosPropuesta;
   soloLectura?: boolean;
+  /** Lo que impide validar (solo en borrador); bloquea «Validar» y se lista en rojo. */
+  faltantes?: FaltantesValidacionPropuesta | null;
+  onIrA?: (destino: DestinoFaltante) => void;
 }) {
   const queryClient = useQueryClient();
   const [formulario, setFormulario] = useState<Formulario>('ninguno');
@@ -67,6 +76,8 @@ export function PanelAccionesPropuesta({
   const pdfVigente = revision.pdfs.find((pdf) => pdf.vigente) ?? null;
   const tieneAccion = detalle.acciones.some((accion) => accion.revisionId === revision.id);
   const esAceptada = detalle.propuesta.acceptedRevisionId === revision.id;
+  const mensajesFaltantes = esBorrador ? (faltantes?.mensajes ?? []) : [];
+  const incompleta = mensajesFaltantes.length > 0;
 
   // Obs. cliente 2026-10-12: el canal de envío sale del catálogo configurado
   // (DC-02). Si el catálogo no cargó, se conservan las opciones históricas.
@@ -218,8 +229,14 @@ export function PanelAccionesPropuesta({
               setExitoValidacion(null);
               setValidarAbierto(true);
             }}
-            disabled={procesando || requiereRevision}
-            title={requiereRevision ? 'Confirma ruteo y costeo antes de validar' : undefined}
+            disabled={procesando || requiereRevision || incompleta}
+            title={
+              incompleta
+                ? 'Completa lo marcado en rojo antes de validar'
+                : requiereRevision
+                  ? 'Confirma ruteo y costeo antes de validar'
+                  : undefined
+            }
           >
             Validar
           </Button>
@@ -311,6 +328,44 @@ export function PanelAccionesPropuesta({
           </>
         )}
       </div>
+
+      {incompleta && (
+        <div
+          data-testid="faltantes-validacion"
+          className="flex flex-col gap-2 rounded-md border border-peligro/40 bg-peligro-suave px-3 py-2"
+        >
+          <p className="text-sm font-medium text-peligro-texto">
+            Para validar la propuesta falta:
+          </p>
+          <ul className="list-disc pl-5 text-sm text-peligro-texto">
+            {mensajesFaltantes.map((mensajeFaltante) => (
+              <li key={mensajeFaltante}>{mensajeFaltante}</li>
+            ))}
+          </ul>
+          {onIrA && (
+            <div className="flex flex-wrap gap-2">
+              {faltantes?.sinItemsActivos && (
+                <Button variante="contorno" tamano="sm" onClick={() => onIrA('items')}>
+                  Ir a Ítems
+                </Button>
+              )}
+              {(faltantes?.itemsSinRuteo.length ?? 0) +
+                (faltantes?.itemsSinCostear.length ?? 0) +
+                (faltantes?.confirmaciones.length ?? 0) >
+                0 && (
+                <Button variante="contorno" tamano="sm" onClick={() => onIrA('ruteo')}>
+                  Ir a Ruteo/Costeo
+                </Button>
+              )}
+              {faltantes?.sinArchivos && (
+                <Button variante="contorno" tamano="sm" onClick={() => onIrA('archivos')}>
+                  Ir a Archivos
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {estado === 'READY_TO_SEND' && !tieneAccion && (
         <p className="text-xs text-advertencia-texto">

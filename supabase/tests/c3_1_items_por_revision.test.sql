@@ -5,7 +5,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(26);
+SELECT plan(30);
 
 SELECT has_column(
   'public', 'propuesta_items', 'revision_origen_id',
@@ -100,15 +100,35 @@ SELECT ok(
   'Los ítems iniciales nacen en la revisión A'
 );
 
-SELECT throws_ok(
+-- Obs. cliente 2026-10-13 (DC-08): la revisión A también admite ítems nuevos.
+SELECT lives_ok(
   format(
     'SELECT public.agregar_item_propuesta(%L, %L::jsonb, %L)',
     (SELECT valor::text FROM c31_ids WHERE nombre = 'rev_a'),
-    '{"descripcion":"No permitido en A","cantidad":1}',
+    '{"descripcion":"Agregado en A","cantidad":2}',
     '00000000-0000-4000-8000-0000000c3101'
   ),
-  '23514', 'item_nuevo_solo_revision',
-  'Rev A no admite ítems ajenos al RFQ congelado'
+  'Rev A admite agregar un ítem propio en borrador'
+);
+INSERT INTO c31_ids
+SELECT 'item_a', id FROM public.propuesta_items
+WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_a') AND codigo = 'IT03';
+SELECT is(
+  (SELECT codigo FROM public.propuesta_items WHERE id = (SELECT valor FROM c31_ids WHERE nombre = 'item_a')),
+  'IT03', 'El ítem agregado en A recibe el siguiente ITxx'
+);
+SELECT is(
+  (SELECT revision_origen_id FROM public.propuesta_items WHERE id = (SELECT valor FROM c31_ids WHERE nombre = 'item_a')),
+  (SELECT valor FROM c31_ids WHERE nombre = 'rev_a'),
+  'El ítem agregado en A registra A como revisión de origen'
+);
+SELECT is(
+  (SELECT rfq_item_id FROM public.propuesta_items WHERE id = (SELECT valor FROM c31_ids WHERE nombre = 'item_a')),
+  NULL::uuid, 'El ítem agregado en A no inventa vínculo con RFQ'
+);
+SELECT is(
+  (SELECT count(*) FROM public.rfq_items WHERE rfq_id = '00000000-0000-4000-8000-0000000c3120'),
+  2::bigint, 'Agregar en A no modifica los ítems del RFQ congelado'
 );
 
 SELECT set_config('sii.b4_rpc', 'on', true);
@@ -160,11 +180,11 @@ SELECT lives_ok(
 );
 INSERT INTO c31_ids
 SELECT 'item_b', id FROM public.propuesta_items
-WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_b') AND codigo = 'IT03';
+WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_b') AND codigo = 'IT04';
 
 SELECT is(
   (SELECT codigo FROM public.propuesta_items WHERE id = (SELECT valor FROM c31_ids WHERE nombre = 'item_b')),
-  'IT03', 'El servidor asigna el siguiente ITxx de la propuesta'
+  'IT04', 'El servidor asigna el siguiente ITxx de la propuesta'
 );
 SELECT is(
   (SELECT revision_origen_id FROM public.propuesta_items WHERE id = (SELECT valor FROM c31_ids WHERE nombre = 'item_b')),
@@ -211,7 +231,7 @@ SELECT lives_ok(
   format(
     'SELECT public.agregar_item_propuesta(%L, %L::jsonb, %L)',
     (SELECT valor::text FROM c31_ids WHERE nombre = 'rev_b'),
-    '{"descripcion":"No reutiliza IT03","cantidad":1}',
+    '{"descripcion":"No reutiliza IT04","cantidad":1}',
     '00000000-0000-4000-8000-0000000c3101'
   ),
   'Un ítem inactivo no libera su ITxx'
@@ -220,7 +240,7 @@ SELECT is(
   (SELECT max((substring(codigo FROM 3))::integer)
    FROM public.propuesta_items
    WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_b')),
-  5, 'La numeración avanza a IT05 sin reutilizar IT03'
+  6, 'La numeración avanza a IT06 sin reutilizar IT04'
 );
 
 SELECT throws_ok(
@@ -256,13 +276,13 @@ WHERE propuesta_id = (SELECT valor FROM c31_ids WHERE nombre = 'propuesta') AND 
 
 SELECT is(
   (SELECT revision_origen_id FROM public.propuesta_items
-   WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_c') AND codigo = 'IT03'),
+   WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_c') AND codigo = 'IT04'),
   (SELECT valor FROM c31_ids WHERE nombre = 'rev_b'),
-  'IT03 conserva B como revisión donde fue agregado'
+  'IT04 conserva B como revisión donde fue agregado'
 );
 SELECT is(
   (SELECT activo FROM public.propuesta_items
-   WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_c') AND codigo = 'IT03'),
+   WHERE revision_id = (SELECT valor FROM c31_ids WHERE nombre = 'rev_c') AND codigo = 'IT04'),
   false, 'La baja lógica del ítem se conserva al crear C'
 );
 

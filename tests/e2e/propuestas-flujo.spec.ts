@@ -33,6 +33,7 @@ type Contexto = {
   materialId: string;
   espesorId: string;
   procesoId: string;
+  grupoId: string;
   rfqId: string;
   rfqItemIds: string[];
   propuestaId?: string;
@@ -78,6 +79,21 @@ async function prepararContexto(): Promise<Contexto> {
     .single();
   if (espesor.error || !espesor.data) throw new Error(espesor.error?.message ?? 'Sin espesor');
 
+  // Obs. cliente 2026-10-13: validar exige ruteo costeado por proceso, así que el
+  // grupo de equipo del proceso lleva tarifa (se sugiere solo al abrir el ruteo).
+  const grupo = await admin
+    .from('grupos_equipo')
+    .insert({
+      codigo: `E2EP_GRP_${sufijo}`,
+      nombre: `Grupo E2E P ${sufijo}`,
+      orden: 99,
+      tarifa_hora: 100,
+      tarifa_moneda: 'MXN',
+    })
+    .select('id')
+    .single();
+  if (grupo.error || !grupo.data) throw new Error(grupo.error?.message ?? 'Sin grupo de equipo');
+
   const proceso = await admin
     .from('catalogo_procesos')
     .insert({
@@ -85,6 +101,7 @@ async function prepararContexto(): Promise<Contexto> {
       nombre: `Proceso E2E P ${sufijo}`,
       prefijo_corrida: 'QPE',
       requiere_archivo_tecnico: false,
+      grupo_equipo_id: grupo.data.id,
       activo: true,
     })
     .select('id')
@@ -157,10 +174,26 @@ async function prepararContexto(): Promise<Contexto> {
     materialId: material.data.id,
     espesorId: espesor.data.id,
     procesoId: proceso.data.id,
+    grupoId: grupo.data.id,
     rfqId: rfq.data.id,
     rfqItemIds: items.data.map((item) => item.id),
     revisionIds: [],
   };
+}
+
+async function idItemPropuesta(
+  admin: SupabaseClient<Database>,
+  revisionId: string,
+  codigo: string,
+): Promise<string> {
+  const { data, error } = await admin
+    .from('propuesta_items')
+    .select('id')
+    .eq('revision_id', revisionId)
+    .eq('codigo', codigo)
+    .single();
+  if (error || !data) throw new Error(error?.message ?? `Sin ítem ${codigo}`);
+  return data.id;
 }
 
 async function usuarioAdminId(admin: SupabaseClient<Database>): Promise<string> {
@@ -239,10 +272,12 @@ async function limpiarContexto(contexto: Contexto): Promise<void> {
   }
   await admin.from('pipeline').delete().eq('id', contexto.rfqId);
   await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_procesos').eq('entidad_id', contexto.procesoId);
+  await admin.from('versiones_catalogo').delete().eq('entidad', 'grupos_equipo').eq('entidad_id', contexto.grupoId);
   await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_espesores').eq('entidad_id', contexto.espesorId);
   await admin.from('versiones_catalogo').delete().eq('entidad', 'catalogo_materiales').eq('entidad_id', contexto.materialId);
   await admin.from('catalogo_espesores').update({ activo: false }).eq('id', contexto.espesorId);
   await admin.from('catalogo_procesos').update({ activo: false }).eq('id', contexto.procesoId);
+  await admin.from('grupos_equipo').update({ activo: false }).eq('id', contexto.grupoId);
   await admin.from('catalogo_materiales').update({ activo: false }).eq('id', contexto.materialId);
   await admin.from('contactos_cliente').delete().eq('id', contexto.contactoId);
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
@@ -271,6 +306,77 @@ async function capturar(page: Page, nombre: string): Promise<void> {
 }
 
 test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisiones y aceptación', () => {
+  test('Rev A admite ítems nuevos y no se valida sin ruteo costeado ni archivo', async ({ page }) => {
+    test.skip(!correoAdmin || !contrasenaAdmin, 'Requiere administrador del stack local');
+    const contexto = await prepararContexto();
+    const { admin, rfqId } = contexto;
+
+    try {
+      await iniciarSesion(page);
+      await page.goto(`/rfq?rfq=${rfqId}`);
+      await page.getByTestId('ficha-rfq').getByRole('tab', { name: 'Propuestas' }).click();
+      await page.getByRole('button', { name: 'Crear propuesta' }).click();
+      const ficha = page.getByTestId('ficha-propuesta');
+      await expect(ficha).toBeVisible();
+
+      const propuesta = await admin.from('propuestas').select('id').eq('rfq_id', rfqId).single();
+      if (propuesta.error || !propuesta.data) throw new Error('Propuesta no persistida');
+      contexto.propuestaId = propuesta.data.id;
+      const revisionA = await admin
+        .from('propuesta_revisiones')
+        .select('id')
+        .eq('propuesta_id', propuesta.data.id)
+        .eq('letra', 'A')
+        .single();
+      if (revisionA.error || !revisionA.data) throw new Error('Revisión A no persistida');
+      contexto.revisionIds.push(revisionA.data.id);
+
+      // Obs. cliente 2026-10-13: la revisión A ya ofrece «Agregar ítem» (DC-08).
+      await page.getByRole('tab', { name: 'Ítems' }).click();
+      await page.locator('#alta-item-descripcion').fill('Ítem agregado en revisión A');
+      await page.locator('#alta-item-cantidad').fill('2');
+      await page.locator('#alta-item-material').selectOption(contexto.materialId);
+      await page.locator('#alta-item-espesor').selectOption(contexto.espesorId);
+      await page.getByRole('button', { name: 'Agregar ítem' }).click();
+      await expect(page.getByText('Ítem IT03 agregado en la revisión A.')).toBeVisible();
+      await expect(page.getByTestId('material-IT03')).toContainText(`Material E2E P ${contexto.sufijo}`);
+      await expect(page.getByTestId('espesor-IT03')).toContainText('6 mm');
+
+      const itemNuevo = await admin
+        .from('propuesta_items')
+        .select('codigo, revision_origen_id, rfq_item_id, material_id, espesor_id')
+        .eq('revision_id', revisionA.data.id)
+        .eq('codigo', 'IT03')
+        .single();
+      expect(itemNuevo.error).toBeNull();
+      expect(itemNuevo.data).toMatchObject({
+        codigo: 'IT03',
+        revision_origen_id: revisionA.data.id,
+        rfq_item_id: null,
+        material_id: contexto.materialId,
+        espesor_id: contexto.espesorId,
+      });
+      const itemsRfq = await admin
+        .from('rfq_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('rfq_id', rfqId);
+      expect(itemsRfq.count).toBe(2);
+
+      // El ítem nuevo no tiene ruteo y la propuesta no tiene archivos: no se valida.
+      await expect(ficha.getByRole('button', { name: 'Validar', exact: true }).first()).toBeDisabled();
+      const faltantes = ficha.getByTestId('faltantes-validacion');
+      await expect(faltantes).toContainText('ítem IT03: ruteo por proceso');
+      await expect(faltantes).toContainText('al menos un archivo');
+      await capturar(page, 'propuesta-faltantes-validar');
+
+      // Los atajos llevan a la pestaña que corresponde.
+      await faltantes.getByRole('button', { name: 'Ir a Archivos' }).click();
+      await expect(page.getByTestId('archivo-propuesta-requerido')).toBeVisible();
+    } finally {
+      await limpiarContexto(contexto);
+    }
+  });
+
   test('RFQ LISTO → propuesta A → editar → validar → PDF → enviar → B → aceptar A → venta', async ({
     page,
   }) => {
@@ -354,6 +460,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       // 3. Editar ítems (precio) y costos.
       await page.getByRole('tab', { name: 'Ítems' }).click();
+      // Obs. cliente 2026-10-13: la tabla muestra el material y el espesor del RFQ.
+      await expect(page.getByTestId('material-IT01')).toContainText(`Material E2E P ${contexto.sufijo}`);
+      await expect(page.getByTestId('espesor-IT01')).toContainText('6 mm');
+      await expect(page.getByTestId('item-propuesta-' + (await idItemPropuesta(admin, revisionA.data.id, 'IT01')))).toContainText('Heredado del RFQ');
       await page.getByLabel('Precio IT01').fill('100');
       await page.getByRole('row', { name: /IT01/ }).getByRole('button', { name: 'Guardar' }).click();
       await expect(page.getByRole('status')).toContainText('IT01');
@@ -364,13 +474,44 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByText('Operación (h)').first()).toBeVisible();
       await expect(page.getByText('Costo total estimado de fabricación')).toBeVisible();
       await capturar(page, 'ruteo-etiquetas-costeo');
+
+      // Obs. cliente 2026-10-13: sin máquina; el grupo de equipo se sugiere desde el
+      // proceso aunque la fila nazca del RFQ; solo Material y Otros en el costeo.
+      await expect(page.getByLabel(/^Máquina IT01/)).toHaveCount(0);
+      await expect(page.getByLabel('Grupo de equipo IT01 fila 1')).toHaveValue(contexto.grupoId);
+      await expect(page.getByLabel('Grupo de equipo IT02 fila 1')).toHaveValue(contexto.grupoId);
+      await expect(page.getByLabel('Costo Máquina')).toHaveCount(0);
+      await expect(page.getByLabel('Costo Mano de obra')).toHaveCount(0);
+
+      // Validar está bloqueado y la ficha dice qué falta (en rojo suave).
+      const botonValidar = ficha.getByRole('button', { name: 'Validar', exact: true }).first();
+      await expect(botonValidar).toBeDisabled();
+      const faltantes = ficha.getByTestId('faltantes-validacion');
+      await expect(faltantes).toContainText('al menos un archivo');
+      await expect(faltantes).toContainText('ítem IT01: costear el ruteo');
+
+      // Costear antes de guardar lo sugerido no está permitido.
+      await page.getByRole('button', { name: 'Costear ruteo' }).click();
+      await expect(page.getByRole('status')).toContainText('Guarda el ruteo de');
+      const botonesGuardarRuteo = page.getByRole('button', { name: 'Guardar ruteo' });
+      await botonesGuardarRuteo.nth(0).click();
+      await expect(page.getByRole('status')).toContainText('Ruteo de IT01 guardado.');
+      await botonesGuardarRuteo.nth(1).click();
+      await expect(page.getByRole('status')).toContainText('Ruteo de IT02 guardado.');
+      await expect(faltantes).toContainText('ítem IT01: costear el ruteo');
+      await page.getByRole('button', { name: 'Costear ruteo' }).click();
+      await expect(page.getByRole('status')).toContainText('Ruteo costeado');
+      await expect(faltantes).not.toContainText('costear el ruteo');
+
       await page.getByLabel('Costo Material').fill('400');
-      await page.getByLabel('Costo Máquina').fill('100');
+      await page.getByLabel('Costo Otros').fill('100');
       await page.getByRole('button', { name: 'Guardar costos' }).click();
       await expect(page.getByRole('status')).toContainText('Costos guardados.');
 
       // 3b. Obs. cliente 2026-10-13 (6): multi-subida y «Quitar» con historial.
       await page.getByRole('tab', { name: 'Archivos' }).click();
+      await expect(page.getByTestId('archivo-propuesta-requerido')).toBeVisible();
+      await expect(page.getByLabel('Archivo de la propuesta')).toHaveAttribute('aria-invalid', 'true');
       const nombreUno = `ficha-general-${contexto.sufijo}.pdf`;
       const nombreDos = `ficha-auxiliar-${contexto.sufijo}.dxf`;
       await page.getByLabel('Archivo de la propuesta').setInputFiles([
@@ -379,6 +520,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       ]);
       await page.getByRole('button', { name: 'Subir archivos' }).click();
       await expect(page.getByRole('status')).toContainText('2 archivos subidos.');
+      await expect(page.getByTestId('archivo-propuesta-requerido')).toBeHidden();
       const archivosSubidos = await admin
         .from('archivos')
         .select('id, nombre_original, retirado_en')

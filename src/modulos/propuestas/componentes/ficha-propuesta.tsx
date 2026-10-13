@@ -9,6 +9,7 @@ import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { usarCatalogosPropuesta, usarPropuesta } from '@/modulos/propuestas/hooks/usar-propuesta';
 import type { PermisosPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
+import { calcularFaltantesValidacion } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { ActividadPropuesta } from './actividad-propuesta';
 import { BotonEditarRevision } from './dialogo-editar-revision';
 import { BotonNuevaVersionPropuesta } from './dialogo-nueva-version-propuesta';
@@ -117,6 +118,23 @@ export function FichaPropuesta({
       }
     : permisos;
 
+  // Obs. cliente 2026-10-13: validar exige ítem, ruteo costeado y archivo; la
+  // ficha lo marca en rojo y bloquea «Validar» (el servidor lo revalida).
+  const faltantesValidacion =
+    revisionActiva !== null && revisionActiva.estado === 'DRAFT' && !esHistorial
+      ? calcularFaltantesValidacion({
+          revision: revisionActiva,
+          revisiones,
+          items: detalle.items,
+          ruteo: detalle.ruteo,
+          archivos: [
+            ...detalle.archivosPropios,
+            ...detalle.archivosHeredados,
+            ...detalle.archivosPorItem,
+          ],
+        })
+      : null;
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4" data-testid="ficha-propuesta">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -185,6 +203,8 @@ export function FichaPropuesta({
           catalogos={catalogosDatos}
           permisos={permisosRevision}
           soloLectura={esHistorial}
+          faltantes={faltantesValidacion}
+          onIrA={setPestana}
         />
       )}
 
@@ -226,6 +246,7 @@ export function FichaPropuesta({
               catalogos={catalogosDatos}
               errorCatalogos={errorCatalogos}
               permisos={permisosRevision}
+              faltantes={faltantesValidacion}
             />
           )}
           {pestana === 'ruteo' && (
@@ -236,6 +257,7 @@ export function FichaPropuesta({
               costos={detalle.costos}
               catalogos={catalogosDatos}
               permisos={permisosRevision}
+              faltantes={faltantesValidacion}
             />
           )}
           {pestana === 'archivos' && (
@@ -247,6 +269,7 @@ export function FichaPropuesta({
               archivosPorItem={detalle.archivosPorItem}
               items={detalle.items}
               puedeSubir={permisosRevision.editarArticulo}
+              faltaArchivo={faltantesValidacion?.sinArchivos === true}
             />
           )}
           {pestana === 'pdfs' && (

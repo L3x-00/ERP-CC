@@ -24,6 +24,8 @@ export async function costearRuteoRevisionAccion(
       permiso: 'propuesta_editar_costo',
       rpc: 'costear_ruteo_revision',
       args: { p_revision_id: revisionId },
+      // La RPC de C3.3 nombra distinto su parámetro de actor.
+      parametroActor: 'p_actor_id',
       accion: 'costear_ruteo_revision',
       detalles: { revisionId },
     },

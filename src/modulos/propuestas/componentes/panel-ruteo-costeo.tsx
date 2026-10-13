@@ -13,6 +13,7 @@ import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-c
 import { calcularTotalesPropuesta } from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
 import {
   CATEGORIAS_COSTO,
+  CATEGORIAS_COSTO_EDITABLES,
   type CategoriaCosto,
   type CostoRevisionPropuesta,
   type PermisosPropuesta,
@@ -22,6 +23,9 @@ import {
   type TotalesPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_CATEGORIA_COSTO } from '@/modulos/propuestas/utilidades/indice';
+import { resolverGrupoEquipoDelProceso } from '@/modulos/propuestas/utilidades/ruteo-proceso';
+import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
+import { CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
 
 type FilaRuteoBorrador = {
@@ -37,6 +41,12 @@ type FilaRuteoBorrador = {
  * SII-B4.5/4.9/4.11: ruteo estimado por ítem y costeo por categoría de una
  * revisión DRAFT, con totales en vivo. Guardar el ruteo/costeo confirma los
  * flags "Requiere revisión".
+ *
+ * Obs. cliente 2026-10-13: al elegir el proceso se rellena el grupo de equipo
+ * (el configurado o el que se llama igual); la máquina ya no se captura (la
+ * tarifa sale del grupo); y el costeo interno solo pide Material y Otros, porque
+ * máquina y mano de obra ya salen del ruteo costeado. Lo que falta para validar
+ * (ruteo y costeo por proceso de cada ítem) se marca en rojo suave.
  */
 export function PanelRuteoCosteo({
   revision,
@@ -45,6 +55,7 @@ export function PanelRuteoCosteo({
   costos,
   catalogos,
   permisos,
+  faltantes = null,
 }: {
   revision: RevisionPropuesta;
   items: PropuestaItem[];
@@ -52,6 +63,8 @@ export function PanelRuteoCosteo({
   costos: CostoRevisionPropuesta[];
   catalogos: CatalogosPropuesta | null;
   permisos: PermisosPropuesta;
+  /** Lo que impide validar (solo en borrador); marca en rojo los ítems pendientes. */
+  faltantes?: FaltantesValidacionPropuesta | null;
 }) {
   const queryClient = useQueryClient();
   const [ruteoBorrador, setRuteoBorrador] = useState<Record<string, FilaRuteoBorrador[] | undefined>>({});
@@ -61,6 +74,26 @@ export function PanelRuteoCosteo({
 
   const esBorrador = revision.estado === 'DRAFT';
   const itemsRevision = items.filter((item) => item.revisionId === revision.id);
+  const costearPendiente = (faltantes?.itemsSinCostear.length ?? 0) > 0;
+
+  const catalogoProcesos = catalogos?.procesos ?? [];
+
+  /**
+   * Obs. cliente 2026-10-13: las filas que nacen del RFQ traen el proceso pero no
+   * el grupo de equipo. En un borrador editable el grupo (y el planeado) vacíos se
+   * sugieren desde el proceso para no repetir el dato; solo se persiste al guardar.
+   */
+  function sugerenciaDeFila(fila: RuteoItemPropuesta): { grupoEquipoId: string; grupoPlaneadoId: string } {
+    if (!esBorrador || !permisos.editarRuteo) return { grupoEquipoId: '', grupoPlaneadoId: '' };
+    const proceso = catalogoProcesos.find((candidato) => candidato.id === fila.procesoId);
+    if (!proceso) return { grupoEquipoId: '', grupoPlaneadoId: '' };
+    return {
+      grupoEquipoId: fila.grupoEquipoId
+        ? ''
+        : resolverGrupoEquipoDelProceso(proceso, catalogos?.gruposEquipo ?? []),
+      grupoPlaneadoId: fila.grupoPlaneadoId ? '' : (proceso.grupoPlaneadoId ?? ''),
+    };
+  }
 
   function filasDe(itemId: string): FilaRuteoBorrador[] {
     const borrador = ruteoBorrador[itemId];
@@ -68,21 +101,33 @@ export function PanelRuteoCosteo({
     return ruteo
       .filter((fila) => fila.itemId === itemId)
       .sort((a, b) => a.secuencia - b.secuencia)
-      .map((fila) => ({
-        procesoId: fila.procesoId,
-        grupoEquipoId: fila.grupoEquipoId ?? '',
-        grupoPlaneadoId: fila.grupoPlaneadoId ?? '',
-        recursoId: fila.recursoId ?? '',
-        setupHoras: String(fila.setupHoras),
-        runHoras: String(fila.runHoras),
-      }));
+      .map((fila) => {
+        const sugerida = sugerenciaDeFila(fila);
+        return {
+          procesoId: fila.procesoId,
+          grupoEquipoId: fila.grupoEquipoId ?? sugerida.grupoEquipoId,
+          grupoPlaneadoId: fila.grupoPlaneadoId ?? sugerida.grupoPlaneadoId,
+          recursoId: fila.recursoId ?? '',
+          setupHoras: String(fila.setupHoras),
+          runHoras: String(fila.runHoras),
+        };
+      });
+  }
+
+  /** El ítem muestra datos (editados o sugeridos) que todavía no están en la base. */
+  function ruteoSinGuardar(itemId: string): boolean {
+    if (ruteoBorrador[itemId]) return true;
+    return ruteo
+      .filter((fila) => fila.itemId === itemId)
+      .some((fila) => {
+        const sugerida = sugerenciaDeFila(fila);
+        return sugerida.grupoEquipoId !== '' || sugerida.grupoPlaneadoId !== '';
+      });
   }
 
   function actualizarFilas(itemId: string, filas: FilaRuteoBorrador[]): void {
     setRuteoBorrador((actual) => ({ ...actual, [itemId]: filas }));
   }
-
-  const catalogoProcesos = catalogos?.procesos ?? [];
 
   /** Obs. cliente 2026-10-12 (4b): el área configurada rotula el proceso. */
   const nombreArea = (codigo: string | null): string | null =>
@@ -156,6 +201,13 @@ export function PanelRuteoCosteo({
     [itemsRevision, costosActuales, ruteoActivoCosteado, revision.snapshotCabecera],
   );
 
+  /** Categorías históricas ya sin captura que aún tienen monto: no se ocultan del total. */
+  const categoriasRetiradasConMonto = CATEGORIAS_COSTO.filter(
+    (categoria) =>
+      !(CATEGORIAS_COSTO_EDITABLES as readonly CategoriaCosto[]).includes(categoria) &&
+      (Number(costosActuales[categoria]) || 0) > 0,
+  );
+
   async function guardarRuteo(item: PropuestaItem): Promise<void> {
     const filas = filasDe(item.id);
     if (filas.some((fila) => fila.procesoId === '')) {
@@ -213,6 +265,13 @@ export function PanelRuteoCosteo({
   }
 
   async function costearRuteo(): Promise<void> {
+    const pendientes = itemsRevision
+      .filter((item) => item.activo && ruteoSinGuardar(item.id))
+      .map((item) => item.codigo);
+    if (pendientes.length > 0) {
+      setMensaje(`Guarda el ruteo de ${pendientes.join(', ')} antes de costear.`);
+      return;
+    }
     setGuardando('ruteo-costeo');
     setMensaje(null);
     const respuesta = await costearRuteoRevisionAccion({ revisionId: revision.id });
@@ -244,8 +303,16 @@ export function PanelRuteoCosteo({
           const requiereRevisionItem = ruteo.some(
             (fila) => fila.itemId === item.id && fila.requiereRevision,
           );
+          const sinRuteoItem = faltantes?.itemsSinRuteo.includes(item.codigo) === true;
+          const sinCostearItem = faltantes?.itemsSinCostear.includes(item.codigo) === true;
           return (
-            <div key={item.id} className="flex flex-col gap-2 rounded-lg border border-borde p-3">
+            <div
+              key={item.id}
+              data-faltante={sinRuteoItem || sinCostearItem ? 'si' : 'no'}
+              className={`flex flex-col gap-2 rounded-lg border p-3 ${
+                sinRuteoItem || sinCostearItem ? 'border-peligro/50' : 'border-borde'
+              }`}
+            >
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-mono text-xs">{item.codigo}</span>
                 <span className="font-medium">{item.descripcion}</span>
@@ -259,12 +326,30 @@ export function PanelRuteoCosteo({
               {filas.length === 0 && (
                 <p className="text-xs text-texto-secundario">Sin ruteo capturado.</p>
               )}
+              {sinRuteoItem && (
+                <p data-testid={`faltante-ruteo-${item.codigo}`} className={CLASE_MENSAJE_FALTANTE}>
+                  Agrega al menos un proceso al ruteo de {item.codigo} y guarda el ruteo.
+                </p>
+              )}
+              {ruteoSinGuardar(item.id) && esBorrador && permisos.editarRuteo && (
+                <p
+                  data-testid={`ruteo-sin-guardar-${item.codigo}`}
+                  className="text-xs font-medium text-advertencia-texto"
+                >
+                  Cambios sin guardar en el ruteo de {item.codigo}: pulsa «Guardar ruteo».
+                </p>
+              )}
+              {sinCostearItem && (
+                <p data-testid={`faltante-costeo-${item.codigo}`} className={CLASE_MENSAJE_FALTANTE}>
+                  Falta costear el ruteo de {item.codigo}: pulsa «Costear ruteo».
+                </p>
+              )}
 
               {filas.map((fila, indice) => {
                 const tarifa = permisos.editarCosto ? tarifaDeFila(fila) : null;
                 const horasFila = (Number(fila.setupHoras) || 0) + (Number(fila.runHoras) || 0);
                 return (
-                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                   <label className="flex flex-col gap-1">
                     <span className="text-xs text-texto-secundario">Proceso</span>
                     <Select
@@ -273,12 +358,15 @@ export function PanelRuteoCosteo({
                         const procesoId = evento.target.value;
                         const proceso = catalogoProcesos.find((item) => item.id === procesoId);
                         const copia = [...filas];
-                        // Obs. cliente 4b: el grupo configurado en el proceso se
-                        // autocompleta (el usuario puede ajustarlo después).
+                        // Obs. cliente 4b + 2026-10-13: el grupo de equipo se rellena
+                        // solo (el configurado en el proceso o el que se llama igual);
+                        // el usuario puede ajustarlo después.
                         copia[indice] = {
                           ...fila,
                           procesoId,
-                          grupoEquipoId: proceso?.grupoEquipoId ?? '',
+                          grupoEquipoId: proceso
+                            ? resolverGrupoEquipoDelProceso(proceso, catalogos?.gruposEquipo ?? [])
+                            : '',
                           grupoPlaneadoId: proceso?.grupoPlaneadoId ?? '',
                           recursoId: '',
                         };
@@ -316,28 +404,6 @@ export function PanelRuteoCosteo({
                           {grupo.sinTarifa ? `${grupo.nombre} (sin tarifa)` : grupo.nombre}
                         </option>
                       ))}
-                    </Select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-xs text-texto-secundario">Máquina (opcional)</span>
-                    <Select
-                      value={fila.recursoId}
-                      onChange={(evento) => {
-                        const copia = [...filas];
-                        copia[indice] = { ...fila, recursoId: evento.target.value };
-                        actualizarFilas(item.id, copia);
-                      }}
-                      disabled={!esBorrador || !permisos.editarRuteo || !fila.grupoEquipoId}
-                      aria-label={`Máquina ${item.codigo} fila ${indice + 1}`}
-                    >
-                      <option value="">Máquina (tarifa del grupo)</option>
-                      {(catalogos?.recursos ?? [])
-                        .filter((recurso) => recurso.grupoEquipoId === fila.grupoEquipoId)
-                        .map((recurso) => (
-                          <option key={recurso.id} value={recurso.id}>
-                            {recurso.nombre}
-                          </option>
-                        ))}
                     </Select>
                   </label>
                   <label className="flex flex-col gap-1">
@@ -490,7 +556,7 @@ export function PanelRuteoCosteo({
           {esBorrador && permisos.editarCosto && (
             <Button
               tamano="sm"
-              variante="contorno"
+              variante={costearPendiente ? 'primario' : 'contorno'}
               onClick={() => void costearRuteo()}
               disabled={guardando === 'ruteo-costeo'}
             >
@@ -500,7 +566,7 @@ export function PanelRuteoCosteo({
         </div>
         <h3 className="text-sm font-semibold text-texto-primario">Costeo interno</h3>
         <div className="grid gap-2 sm:grid-cols-2">
-          {CATEGORIAS_COSTO.map((categoria) => (
+          {CATEGORIAS_COSTO_EDITABLES.map((categoria) => (
             <label key={categoria} className="flex flex-col gap-1 text-sm">
               <span className="font-medium">{ETIQUETA_CATEGORIA_COSTO[categoria]}</span>
               <Input
@@ -517,6 +583,18 @@ export function PanelRuteoCosteo({
             </label>
           ))}
         </div>
+        {categoriasRetiradasConMonto.length > 0 && (
+          <p data-testid="costos-categorias-retiradas" className="text-xs text-texto-secundario">
+            Costos de categorías que ya no se capturan (se conservan en el total):{' '}
+            {categoriasRetiradasConMonto
+              .map(
+                (categoria) =>
+                  `${ETIQUETA_CATEGORIA_COSTO[categoria]} ${formatearMoneda(Number(costosActuales[categoria]), totales.moneda)}`,
+              )
+              .join(' · ')}
+            .
+          </p>
+        )}
         {esBorrador && permisos.editarCosto && (
           <div>
             <Button tamano="sm" onClick={() => void guardarCostos()} disabled={guardando === 'costos'}>

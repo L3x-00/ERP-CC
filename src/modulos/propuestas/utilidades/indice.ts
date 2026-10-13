@@ -19,7 +19,7 @@ export const ETIQUETA_CATEGORIA_COSTO: Record<CategoriaCosto, string> = {
   material: 'Material',
   maquina: 'Máquina',
   mano_obra: 'Mano de obra',
-  gastos_directos: 'Gastos directos',
+  gastos_directos: 'Otros',
   subcontratacion: 'Subcontratación',
 };
 
