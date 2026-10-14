@@ -201,7 +201,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
     }
   });
 
-  test('el admin fija la tarifa de un grupo y una tarifa propia en cero para una máquina (C3.2)', async ({ page }) => {
+  test('el tarifario es uno solo en Tarifas / TC: vínculo con una estación, tarifa propia y máquina (C3.2)', async ({ page }) => {
     const acceso = credenciales('ADMIN');
     test.skip(!acceso, 'Faltan E2E_CONFIGURACION_ADMIN_EMAIL/PASSWORD.');
     if (!acceso) return;
@@ -226,24 +226,65 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
     try {
       await iniciarSesion(page, acceso);
       await page.goto('/configuracion');
-      await page.getByRole('tab', { name: 'Catálogos base' }).click();
 
-      // Grupo sin tarifa: se marca y la máquina avisa que usará la del grupo.
+      // Obs. cliente 2026-10-13: las tarifas por grupo y por máquina viven solo en
+      // «Tarifas / TC»; «Catálogos base» ya no las duplica.
+      await page.getByRole('tab', { name: 'Catálogos base' }).click();
+      await expect(page.getByTestId('catalogos-tarifas-en-tarifas-tc')).toBeVisible();
+      await expect(page.getByTestId('seccion-tarifas-grupos')).toHaveCount(0);
+      await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
+      await expect(page.getByTestId('tarifario-ruteo')).toBeVisible();
+
+      // Grupo sin tarifa ni estación: se marca y se avisa.
       const filaGrupo = page.getByTestId(`tarifa-grupo-${grupo.data.codigo}`);
       await expect(filaGrupo).toContainText('Sin tarifa');
+      if (['1', 'si'].includes(process.env.E2E_CAPTURAR_VISUAL ?? '')) {
+        await page.screenshot({
+          path: '.ai-shared/qa/sii-b4-ola2/visual/propuesta-config-tarifas-tc-1440-claro.png',
+          fullPage: true,
+          animations: 'disabled',
+        });
+      }
+
+      // Se vincula a una estación de Tarifas / TC: ya no queda sin tarifa.
+      const tarifaRouter = await admin.rpc('tarifa_estacion_hora', { p_estacion: 'router' });
+      expect(tarifaRouter.error).toBeNull();
+      const textoRouter = new Intl.NumberFormat('es-MX', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      }).format(Number(tarifaRouter.data));
       await filaGrupo.getByRole('button', { name: 'Editar tarifa' }).click();
-      await filaGrupo.getByLabel(`Tarifa por hora de ${grupo.data.nombre}`).fill('850.5');
+      await filaGrupo
+        .getByLabel(`Estación de Tarifas / TC de ${grupo.data.nombre}`)
+        .selectOption('router');
+      await filaGrupo.getByRole('button', { name: 'Guardar' }).click();
+      await expect(page.getByTestId('tarifario-confirmacion')).toContainText(`Tarifa de ${grupo.data.nombre} guardada`);
+      await expect(filaGrupo).toContainText(`${textoRouter} MXN/h`);
+      await expect(filaGrupo).toContainText('Tarifas / TC · Router CNC');
+      const vinculado = await admin
+        .from('grupos_equipo')
+        .select('tarifa_hora, estacion_tarifa')
+        .eq('id', grupo.data.id)
+        .single();
+      expect(vinculado.data).toEqual({ tarifa_hora: null, estacion_tarifa: 'router' });
+      const resuelta = await admin.rpc('resolver_tarifa_hora', { p_grupo_equipo_id: grupo.data.id });
+      expect(resuelta.error).toBeNull();
+      expect(resuelta.data).toMatchObject({ fuente: 'ESTACION', moneda: 'MXN', estacion: 'router' });
+
+      // Una tarifa propia (texto libre) sustituye a la de la estación.
+      await filaGrupo.getByRole('button', { name: 'Editar tarifa' }).click();
+      await filaGrupo.getByLabel(`Tarifa por hora de ${grupo.data.nombre}`).fill('$850.50');
       await filaGrupo.getByLabel(`Moneda de la tarifa de ${grupo.data.nombre}`).selectOption('USD');
       await filaGrupo.getByRole('button', { name: 'Guardar' }).click();
-      await expect(page.getByTestId('catalogos-confirmacion')).toContainText(`Tarifa de ${grupo.data.nombre} guardada`);
       await expect(filaGrupo).toContainText('USD/h');
+      await expect(filaGrupo).toContainText('Tarifa propia del grupo');
 
       const grupoGuardado = await admin
         .from('grupos_equipo')
-        .select('tarifa_hora, tarifa_moneda')
+        .select('tarifa_hora, tarifa_moneda, estacion_tarifa')
         .eq('id', grupo.data.id)
         .single();
-      expect(grupoGuardado.data).toEqual({ tarifa_hora: 850.5, tarifa_moneda: 'USD' });
+      expect(grupoGuardado.data).toEqual({ tarifa_hora: 850.5, tarifa_moneda: 'USD', estacion_tarifa: 'router' });
       const versiones = await admin
         .from('versiones_catalogo')
         .select('version')

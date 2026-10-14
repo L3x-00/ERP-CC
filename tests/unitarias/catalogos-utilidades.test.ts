@@ -62,6 +62,7 @@ function datosBase(): CatalogosBase {
         creadoEn: '2026-10-05T00:00:00.000Z',
         tarifaHora: 850,
         tarifaMoneda: 'MXN',
+        estacionTarifa: null,
       },
       {
         id: 'g2',
@@ -72,6 +73,7 @@ function datosBase(): CatalogosBase {
         creadoEn: '2026-10-05T00:00:00.000Z',
         tarifaHora: null,
         tarifaMoneda: 'MXN',
+        estacionTarifa: null,
       },
     ],
     gruposPlaneados: [],
@@ -125,6 +127,7 @@ function datosBase(): CatalogosBase {
       },
     ],
     areasTrabajo: [],
+    tarifasEstacion: { laser: 650, router: 550, doblado: 600, soldadura: 450, mano_obra: 350, acabado: 300 },
     puedeEditar: true,
   };
 }

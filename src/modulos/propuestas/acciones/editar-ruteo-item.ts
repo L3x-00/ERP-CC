@@ -1,6 +1,7 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
+import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { esquemaEditarRuteoItem } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 import {
   ejecutarRpcPropuesta,
@@ -13,7 +14,34 @@ export type ResultadoEditarRuteoItem = {
   itemId: string;
   filas: number;
   requiereRevisionRuteo: boolean;
+  /**
+   * Token CAS vigente de la revisión tras guardar (la RPC lo avanza). Permite
+   * guardar el ruteo de varios ítems seguidos sin recargar la ficha; ausente si
+   * no se pudo leer.
+   */
+  actualizadoEn?: string;
 };
+
+/** Lee el `actualizado_en` de la revisión del ítem; nunca rompe un guardado ya hecho. */
+async function leerTokenRevision(itemId: string): Promise<string | undefined> {
+  try {
+    const admin = crearClienteSupabaseAdmin();
+    const { data: item } = await admin
+      .from('propuesta_items')
+      .select('revision_id')
+      .eq('id', itemId)
+      .maybeSingle();
+    if (!item) return undefined;
+    const { data: revision } = await admin
+      .from('propuesta_revisiones')
+      .select('actualizado_en')
+      .eq('id', item.revision_id)
+      .maybeSingle();
+    return revision?.actualizado_en ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * SII-B4.5/4.9: reemplaza el ruteo estimado de un ítem DRAFT. Guardar el ruteo
@@ -52,12 +80,14 @@ export async function editarRuteoItemAccion(
   );
   if (!respuesta.exito) return respuesta;
 
+  const actualizadoEn = await leerTokenRevision(datos.itemId);
   return {
     exito: true,
     datos: {
       itemId: datos.itemId,
       filas: leerNumero(respuesta.datos, 'filas') ?? 0,
       requiereRevisionRuteo: leerBooleano(respuesta.datos, 'requiereRevisionRuteo') ?? false,
+      ...(actualizadoEn !== undefined ? { actualizadoEn } : {}),
     },
   };
 }

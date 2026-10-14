@@ -4632,6 +4632,7 @@ export type Database = {
       }
       grupos_equipo: {
         Row: {
+          estacion_tarifa: string | null
           tarifa_hora: number | null
           tarifa_moneda: string
           activo: boolean
@@ -4642,6 +4643,7 @@ export type Database = {
           orden: number
         }
         Insert: {
+          estacion_tarifa?: string | null
           tarifa_hora?: number | null
           tarifa_moneda?: string
           activo?: boolean
@@ -4652,6 +4654,7 @@ export type Database = {
           orden?: number
         }
         Update: {
+          estacion_tarifa?: string | null
           tarifa_hora?: number | null
           tarifa_moneda?: string
           activo?: boolean
@@ -6008,6 +6011,10 @@ export type Database = {
       resolver_tarifa_hora: {
         Args: { p_grupo_equipo_id: string; p_recurso_id?: string }
         Returns: Json
+      }
+      tarifa_estacion_hora: {
+        Args: { p_estacion: string }
+        Returns: number
       }
       registrar_version_rfq: {
         Args: {

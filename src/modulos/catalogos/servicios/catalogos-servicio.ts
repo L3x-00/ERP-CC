@@ -263,6 +263,7 @@ export async function guardarGrupoEquipoServicio(
     orden: entrada.orden,
     ...(entrada.tarifaHora !== undefined ? { tarifa_hora: entrada.tarifaHora } : {}),
     ...(entrada.tarifaMoneda !== undefined ? { tarifa_moneda: entrada.tarifaMoneda } : {}),
+    ...(entrada.estacionTarifa !== undefined ? { estacion_tarifa: entrada.estacionTarifa } : {}),
   };
   const consulta = entrada.id
     ? cliente.from('grupos_equipo').update(payload).eq('id', entrada.id).select('*').single()

@@ -16,7 +16,6 @@ import {
   guardarProcesoAccion,
   guardarProximaAccionAccion,
   listarVersionesAccion,
-  obtenerCatalogosBaseAccion,
 } from '@/modulos/catalogos/acciones/indice';
 import type {
   CatalogosBase,
@@ -33,10 +32,8 @@ import {
   type SeccionCatalogosBase,
 } from '@/modulos/catalogos/utilidades/indice';
 
-import { SeccionTarifasGrupos } from './seccion-tarifas-grupos';
-import { SeccionTarifasRecursos } from './seccion-tarifas-recursos';
+import { CLAVE_CATALOGOS_BASE, consultarCatalogosBase } from './consulta-catalogos-base';
 
-const CLAVE_CATALOGOS_BASE = ['configuracion', 'catalogos-base'] as const;
 const claveVersiones = (entidad: EntidadCatalogo, entidadId: string) =>
   ['configuracion', 'catalogos-base', 'versiones', entidad, entidadId] as const;
 
@@ -72,13 +69,7 @@ export function PestanaCatalogosBase() {
   const clienteQuery = useQueryClient();
   const consulta = useQuery({
     queryKey: CLAVE_CATALOGOS_BASE,
-    queryFn: async (): Promise<CatalogosBase> => {
-      const respuesta = await obtenerCatalogosBaseAccion({ soloActivos: false });
-      if (!respuesta.exito || !respuesta.datos) {
-        throw new Error(respuesta.exito ? 'Catálogos ausentes' : respuesta.error);
-      }
-      return respuesta.datos;
-    },
+    queryFn: consultarCatalogosBase,
     staleTime: 0,
   });
 
@@ -143,21 +134,14 @@ export function PestanaCatalogosBase() {
 
       <SeccionProcesos {...propsBase} />
       <SeccionGruposEquipo {...propsBase} />
-      <SeccionTarifasGrupos
-        grupos={datos.gruposEquipo}
-        puedeEditar={datos.puedeEditar}
-        onGuardado={async (texto) => {
-          await refrescar();
-          onMensaje(texto);
-        }}
-        onError={onError}
-      />
-      <SeccionTarifasRecursos
-        grupos={datos.gruposEquipo}
-        puedeEditar={datos.puedeEditar}
-        onMensaje={onMensaje}
-        onError={onError}
-      />
+      <p
+        className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario"
+        data-testid="catalogos-tarifas-en-tarifas-tc"
+      >
+        La tarifa por hora de cada grupo de equipo y de cada máquina se configura en la pestaña{' '}
+        <span className="font-medium text-texto-primario">Tarifas / TC</span>, junto con las tarifas por
+        estación: es un solo tarifario.
+      </p>
       <SeccionGruposPlaneados {...propsBase} />
       <SeccionProximasAcciones {...propsBase} />
       <SeccionCanales {...propsBase} />

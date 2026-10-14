@@ -72,7 +72,9 @@ export function EditorTarifasEstaciones({ valor, onCambio, deshabilitado }: Edit
     <div className="grid gap-4">
       <p className="text-sm text-texto-secundario">
         Estas tarifas precargan el cotizador. Cambiarlas afecta solo a las cotizaciones nuevas; las cotizaciones ya
-        calculadas conservan las tarifas con que se guardaron.
+        calculadas conservan las tarifas con que se guardaron. La «Tarifa máquina por hora» (y las de soldadura,
+        mano de obra y acabado) también costea el ruteo de las propuestas para los grupos de equipo vinculados a
+        cada estación, en «Tarifario del ruteo».
       </p>
 
       <Seccion titulo="Corte láser">

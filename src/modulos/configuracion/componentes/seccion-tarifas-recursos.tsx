@@ -12,7 +12,10 @@ import {
 } from '@/modulos/catalogos/acciones/indice';
 import type { GrupoEquipoCatalogo, MonedaTarifa } from '@/modulos/catalogos/tipos/indice';
 
-import { textoTarifa } from './seccion-tarifas-grupos';
+import type { EstacionTarifa } from '@/modulos/catalogos/utilidades/tarifa-estacion';
+import { parsearMonto, textoMonto } from '@/compartido/utilidades/monto';
+
+import { resumenTarifaGrupo, textoTarifa } from './seccion-tarifas-grupos';
 
 const CLAVE_TARIFAS_RECURSOS = ['configuracion', 'tarifas-recursos'] as const;
 
@@ -24,11 +27,13 @@ type Borrador = { id: string; propia: boolean; tarifa: string; moneda: MonedaTar
  */
 export function SeccionTarifasRecursos({
   grupos,
+  tarifasEstacion,
   puedeEditar,
   onMensaje,
   onError,
 }: {
   grupos: GrupoEquipoCatalogo[];
+  tarifasEstacion: Record<EstacionTarifa, number>;
   puedeEditar: boolean;
   onMensaje: (mensaje: string) => void;
   onError: (mensaje: string) => void;
@@ -52,11 +57,14 @@ export function SeccionTarifasRecursos({
     }
     const grupo = recurso.grupoEquipoId ? grupoPorId.get(recurso.grupoEquipoId) : undefined;
     if (!grupo) return 'Sin grupo de equipo ni tarifa propia: su costeo quedará bloqueado';
-    return `Usa la tarifa de ${grupo.nombre}: ${textoTarifa(grupo)}`;
+    const resumen = resumenTarifaGrupo(grupo, tarifasEstacion);
+    return `Usa la tarifa de ${grupo.nombre}: ${
+      resumen === null ? 'Sin tarifa' : `${resumen.texto} (${resumen.origen})`
+    }`;
   }
 
   async function guardar(valor: Borrador): Promise<void> {
-    const tarifa = Number(valor.tarifa);
+    const tarifa = parsearMonto(valor.tarifa) ?? Number.NaN;
     if (valor.propia && (valor.tarifa.trim() === '' || !Number.isFinite(tarifa) || tarifa < 0)) {
       onError('La tarifa propia debe ser un número mayor o igual a 0');
       return;
@@ -118,10 +126,9 @@ export function SeccionTarifasRecursos({
                   {editando.propia ? (
                     <>
                       <Input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        min={0}
-                        step="0.01"
+                        autoComplete="off"
                         value={editando.tarifa}
                         onChange={(evento) => setBorrador({ ...editando, tarifa: evento.target.value })}
                         aria-label={`Tarifa propia por hora de ${recurso.nombre}`}
@@ -155,7 +162,7 @@ export function SeccionTarifasRecursos({
                     setBorrador({
                       id: recurso.id,
                       propia: recurso.overrideActivo,
-                      tarifa: recurso.tarifaHora === null ? '' : String(recurso.tarifaHora),
+                      tarifa: recurso.tarifaHora === null ? '' : textoMonto(recurso.tarifaHora),
                       moneda: recurso.moneda ?? 'MXN',
                     })
                   }

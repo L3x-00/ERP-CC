@@ -70,6 +70,14 @@ function datos(puedeEditar = true): CatalogosBase {
       },
     ],
     areasTrabajo: [],
+    tarifasEstacion: {
+      laser: 650,
+      router: 550,
+      doblado: 600,
+      soldadura: 450,
+      mano_obra: 350,
+      acabado: 300,
+    },
     puedeEditar,
   };
 }

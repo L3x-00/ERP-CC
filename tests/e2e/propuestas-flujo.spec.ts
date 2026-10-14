@@ -79,16 +79,16 @@ async function prepararContexto(): Promise<Contexto> {
     .single();
   if (espesor.error || !espesor.data) throw new Error(espesor.error?.message ?? 'Sin espesor');
 
-  // Obs. cliente 2026-10-13: validar exige ruteo costeado por proceso, así que el
-  // grupo de equipo del proceso lleva tarifa (se sugiere solo al abrir el ruteo).
+  // Obs. cliente 2026-10-13: validar exige ruteo costeado por proceso. El grupo
+  // no lleva tarifa propia: la toma de Tarifas / TC por su estación vinculada
+  // (un solo tarifario) y se sugiere solo al abrir el ruteo.
   const grupo = await admin
     .from('grupos_equipo')
     .insert({
       codigo: `E2EP_GRP_${sufijo}`,
       nombre: `Grupo E2E P ${sufijo}`,
       orden: 99,
-      tarifa_hora: 100,
-      tarifa_moneda: 'MXN',
+      estacion_tarifa: 'laser',
     })
     .select('id')
     .single();
@@ -331,14 +331,21 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       if (revisionA.error || !revisionA.data) throw new Error('Revisión A no persistida');
       contexto.revisionIds.push(revisionA.data.id);
 
-      // Obs. cliente 2026-10-13: la revisión A ya ofrece «Agregar ítem» (DC-08).
+      // Obs. cliente 2026-10-13: la revisión A ya ofrece «Nuevo ítem» (DC-08) y el
+      // formulario es plegable: solo se muestra al pulsar el botón.
       await page.getByRole('tab', { name: 'Ítems' }).click();
+      await expect(page.locator('#alta-item-descripcion')).toHaveCount(0);
+      await capturar(page, 'propuesta-items-formulario-cerrado');
+      await page.getByRole('button', { name: 'Nuevo ítem' }).click();
+      await expect(page.getByText(/Agregar ítem a la revisión/)).toHaveCount(0);
+      await capturar(page, 'propuesta-items-formulario-abierto');
       await page.locator('#alta-item-descripcion').fill('Ítem agregado en revisión A');
       await page.locator('#alta-item-cantidad').fill('2');
       await page.locator('#alta-item-material').selectOption(contexto.materialId);
       await page.locator('#alta-item-espesor').selectOption(contexto.espesorId);
       await page.getByRole('button', { name: 'Agregar ítem' }).click();
-      await expect(page.getByText('Ítem IT03 agregado en la revisión A.')).toBeVisible();
+      await expect(page.getByText('Ítem IT03 agregado.')).toBeVisible();
+      await expect(page.locator('#alta-item-descripcion')).toHaveCount(0);
       await expect(page.getByTestId('material-IT03')).toContainText(`Material E2E P ${contexto.sufijo}`);
       await expect(page.getByTestId('espesor-IT03')).toContainText('6 mm');
 
@@ -480,6 +487,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByLabel(/^Máquina IT01/)).toHaveCount(0);
       await expect(page.getByLabel('Grupo de equipo IT01 fila 1')).toHaveValue(contexto.grupoId);
       await expect(page.getByLabel('Grupo de equipo IT02 fila 1')).toHaveValue(contexto.grupoId);
+      await expect(page.getByTestId('costo-estimado-IT01-1')).toContainText('Tarifas / TC · Corte láser');
       await expect(page.getByLabel('Costo Máquina')).toHaveCount(0);
       await expect(page.getByLabel('Costo Mano de obra')).toHaveCount(0);
 
@@ -490,23 +498,51 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(faltantes).toContainText('al menos un archivo');
       await expect(faltantes).toContainText('ítem IT01: costear el ruteo');
 
-      // Costear antes de guardar lo sugerido no está permitido.
+      // Las filas sugeridas avisan que falta guardarlas; «Costear ruteo» las guarda
+      // (de todos los ítems, encadenando el token) y costea en un solo paso.
+      await expect(page.getByTestId('ruteo-sin-guardar-IT01')).toBeVisible();
+      await expect(page.getByTestId('ruteo-sin-guardar-IT02')).toBeVisible();
       await page.getByRole('button', { name: 'Costear ruteo' }).click();
-      await expect(page.getByRole('status')).toContainText('Guarda el ruteo de');
-      const botonesGuardarRuteo = page.getByRole('button', { name: 'Guardar ruteo' });
-      await botonesGuardarRuteo.nth(0).click();
-      await expect(page.getByRole('status')).toContainText('Ruteo de IT01 guardado.');
-      await botonesGuardarRuteo.nth(1).click();
-      await expect(page.getByRole('status')).toContainText('Ruteo de IT02 guardado.');
-      await expect(faltantes).toContainText('ítem IT01: costear el ruteo');
-      await page.getByRole('button', { name: 'Costear ruteo' }).click();
-      await expect(page.getByRole('status')).toContainText('Ruteo costeado');
+      await expect(page.getByRole('status')).toContainText('Ruteo guardado y costeado: 2 renglón(es).');
+      await expect(page.getByTestId('ruteo-sin-guardar-IT01')).toHaveCount(0);
       await expect(faltantes).not.toContainText('costear el ruteo');
+      const ruteoCosteado = await admin
+        .from('propuesta_item_ruteo')
+        .select('grupo_equipo_id, tarifa_fuente, tarifa_moneda, costeado_en')
+        .in(
+          'item_id',
+          [await idItemPropuesta(admin, revisionA.data.id, 'IT01'), await idItemPropuesta(admin, revisionA.data.id, 'IT02')],
+        );
+      expect(ruteoCosteado.error).toBeNull();
+      expect(ruteoCosteado.data).toHaveLength(2);
+      for (const fila of ruteoCosteado.data ?? []) {
+        expect(fila).toMatchObject({
+          grupo_equipo_id: contexto.grupoId,
+          tarifa_fuente: 'ESTACION',
+          tarifa_moneda: 'MXN',
+        });
+        expect(fila.costeado_en).toBeTruthy();
+      }
+      await capturar(page, 'propuesta-ruteo-costeado');
 
-      await page.getByLabel('Costo Material').fill('400');
-      await page.getByLabel('Costo Otros').fill('100');
+      // Los montos son texto libre (símbolo, miles) y llevan detalle opcional.
+      await expect(page.getByLabel('Costo Material')).toHaveAttribute('type', 'text');
+      await page.getByLabel('Costo Material').fill('$400.00');
+      await page.getByLabel('Detalle de Material').fill('Lámina E2E 6 mm');
+      await page.getByLabel('Costo Otros').fill('1,00');
+      await page.getByLabel('Detalle de Otros').fill('Embalaje');
       await page.getByRole('button', { name: 'Guardar costos' }).click();
       await expect(page.getByRole('status')).toContainText('Costos guardados.');
+      const costosGuardados = await admin
+        .from('propuesta_revision_costos')
+        .select('categoria, monto, nota')
+        .eq('revision_id', revisionA.data.id)
+        .order('categoria');
+      expect(costosGuardados.error).toBeNull();
+      expect(costosGuardados.data).toEqual([
+        { categoria: 'gastos_directos', monto: 1, nota: 'Embalaje' },
+        { categoria: 'material', monto: 400, nota: 'Lámina E2E 6 mm' },
+      ]);
 
       // 3b. Obs. cliente 2026-10-13 (6): multi-subida y «Quitar» con historial.
       await page.getByRole('tab', { name: 'Archivos' }).click();
@@ -521,6 +557,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: 'Subir archivos' }).click();
       await expect(page.getByRole('status')).toContainText('2 archivos subidos.');
       await expect(page.getByTestId('archivo-propuesta-requerido')).toBeHidden();
+      await capturar(page, 'propuesta-archivos-subidos');
       const archivosSubidos = await admin
         .from('archivos')
         .select('id, nombre_original, retirado_en')
@@ -558,6 +595,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await capturar(page, 'archivos-quitar');
 
       // 4. Validar: obs. cliente 2026-10-11 — modal obligatorio de próxima acción.
+      await expect(ficha.getByTestId('faltantes-validacion')).toHaveCount(0);
+      await capturar(page, 'propuesta-lista-para-validar');
       await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
       const dialogoValidar = page.getByTestId('dialogo-seguimiento-propuesta');
       await expect(dialogoValidar).toBeVisible();
@@ -720,10 +759,11 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       // C3.1: B admite ítems nuevos con IT consecutivo y origen propio sin tocar el RFQ.
       await page.getByRole('button', { name: /^B · Borrador/ }).click();
       await page.getByRole('tab', { name: 'Ítems' }).click();
+      await page.getByRole('button', { name: 'Nuevo ítem' }).click();
       await page.locator('#alta-item-descripcion').fill('Ítem agregado en revisión B');
       await page.locator('#alta-item-cantidad').fill('3');
       await page.getByRole('button', { name: 'Agregar ítem' }).click();
-      await expect(page.getByText('Ítem IT03 agregado en la revisión B.')).toBeVisible();
+      await expect(page.getByText('Ítem IT03 agregado.')).toBeVisible();
 
       const itemNuevo = await admin
         .from('propuesta_items')
