@@ -133,10 +133,12 @@ function renderizarEditor(
     catalogos?: CatalogosPropuesta | null;
     items?: PropuestaItem[];
     faltantes?: FaltantesValidacionPropuesta | null;
+    /** Por defecto abre el formulario plegable (la mayoría de pruebas lo usan). */
+    abrirAlta?: boolean;
   } = {},
 ) {
   const clienteConsultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const vista = render(
     createElement(
       QueryClientProvider,
       { client: clienteConsultas },
@@ -152,6 +154,11 @@ function renderizarEditor(
       }),
     ),
   );
+  if (opciones.abrirAlta !== false) {
+    const boton = screen.queryByRole('button', { name: 'Nuevo ítem' });
+    if (boton) fireEvent.click(boton);
+  }
+  return vista;
 }
 
 function llenarMinimo(): void {
@@ -186,6 +193,30 @@ describe('EditorItemsPropuesta — alta visible en cualquier revisión DRAFT', (
     expect(screen.getByTestId('alta-item-propuesta')).toBeDefined();
     expect(screen.getByRole('button', { name: 'Agregar ítem' })).toBeDefined();
     expect(screen.queryByText(/hereda los ítems del RFQ/i)).toBeNull();
+  });
+
+  it('el formulario es plegable: solo aparece al pulsar «Nuevo ítem» y se puede cancelar', () => {
+    renderizarEditor({ abrirAlta: false });
+
+    // Cerrado: solo el botón, sin campos ni título redundante.
+    expect(screen.getByRole('button', { name: 'Nuevo ítem' }).getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+    expect(screen.queryByTestId('alta-item-propuesta')).toBeNull();
+    expect(screen.queryByLabelText(/^Descripción \*$/)).toBeNull();
+    expect(screen.queryByText(/Agregar ítem a la revisión/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo ítem' }));
+    expect(screen.getByTestId('alta-item-propuesta')).toBeDefined();
+    expect(screen.queryByText(/Agregar ítem a la revisión/)).toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/^Descripción \*$/), { target: { value: 'Borrador' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByTestId('alta-item-propuesta')).toBeNull();
+
+    // Al reabrir, lo capturado antes de cancelar no queda.
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo ítem' }));
+    expect((screen.getByLabelText(/^Descripción \*$/) as HTMLInputElement).value).toBe('');
   });
 
   it('en la revisión A agrega el ítem enviando su revisión', async () => {
@@ -286,6 +317,8 @@ describe('EditorItemsPropuesta — material, espesor y envío', () => {
     await waitFor(() => expect(agregarMock).toHaveBeenCalledTimes(1));
     expect(agregarMock.mock.calls[0]?.[0]).not.toHaveProperty('precioUnitario');
 
+    // Tras agregar, el formulario se pliega: se reabre para el siguiente ítem.
+    fireEvent.click(await screen.findByRole('button', { name: 'Nuevo ítem' }));
     llenarMinimo();
     fireEvent.change(screen.getByLabelText(/Precio unitario/), { target: { value: '250.5' } });
     fireEvent.click(screen.getByLabelText(/^Es descuento/));
@@ -320,7 +353,7 @@ describe('EditorItemsPropuesta — material, espesor y envío', () => {
 
     enVuelo.resolver?.({ exito: true, datos: ITEM_CREADO });
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Agregar ítem' })).toBeDefined();
+      expect(screen.getByRole('button', { name: 'Nuevo ítem' })).toBeDefined();
     });
   });
 
@@ -359,7 +392,7 @@ describe('EditorItemsPropuesta — material, espesor y envío', () => {
     );
   });
 
-  it('anuncia el ITxx asignado y limpia el formulario solo tras el éxito', async () => {
+  it('anuncia el ITxx asignado, cierra el formulario y lo deja limpio solo tras el éxito', async () => {
     renderizarEditor();
 
     llenarMinimo();
@@ -367,12 +400,17 @@ describe('EditorItemsPropuesta — material, espesor y envío', () => {
     enviarAlta();
 
     await waitFor(() => {
-      const anuncio = screen.getByText(/Ítem IT07 agregado/);
+      const anuncio = screen.getByText('Ítem IT07 agregado.');
       expect(anuncio.getAttribute('role')).toBe('status');
     });
+    // Se pliega para no ocupar la pantalla; al reabrir no queda nada capturado.
+    expect(screen.queryByTestId('alta-item-propuesta')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo ítem' }));
     expect((screen.getByLabelText(/^Descripción \*$/) as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText(/^Cantidad \*$/) as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('Acabado (opcional)') as HTMLInputElement).value).toBe('');
+    // Al volver a abrir, el aviso anterior desaparece.
+    expect(screen.queryByText('Ítem IT07 agregado.')).toBeNull();
   });
 
   it('no permite enviar mientras los catálogos no cargan', () => {
@@ -402,6 +440,7 @@ describe('EditorItemsPropuesta — material, espesor y envío', () => {
       ),
     );
 
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo ítem' }));
     expect(screen.getByRole('alert').textContent).toMatch(/no se pudieron cargar/i);
   });
 });

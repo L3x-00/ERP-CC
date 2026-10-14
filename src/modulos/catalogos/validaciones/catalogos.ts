@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ENTIDADES_CATALOGO } from '@/modulos/catalogos/tipos/indice';
+import { ESTACIONES_TARIFA } from '@/modulos/catalogos/utilidades/tarifa-estacion';
 
 const CODIGO_CATALOGO = /^[A-Z0-9][A-Z0-9_-]{1,48}$/;
 const PREFIJO_CORRIDA = /^[A-Z]{2,4}$/;
@@ -97,6 +98,8 @@ export const esquemaGuardarGrupoEquipo = esquemaGuardarGrupoPlaneado
     // Opcionales: un guardado que no las envía conserva la tarifa vigente.
     tarifaHora: tarifaHoraCatalogo.nullable().optional(),
     tarifaMoneda: monedaTarifaCatalogo.optional(),
+    // Obs. cliente 2026-10-13: vínculo con Tarifas / TC (null = sin vínculo).
+    estacionTarifa: z.enum(ESTACIONES_TARIFA).nullable().optional(),
   })
   .strict();
 

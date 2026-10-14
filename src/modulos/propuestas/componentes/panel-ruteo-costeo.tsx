@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
+import { parsearMonto } from '@/compartido/utilidades/monto';
 import { costearRuteoRevisionAccion } from '@/modulos/propuestas/acciones/costear-ruteo-revision';
 import { editarCostosRevisionAccion } from '@/modulos/propuestas/acciones/editar-costos-revision';
 import { editarRuteoItemAccion } from '@/modulos/propuestas/acciones/editar-ruteo-item';
@@ -25,8 +26,14 @@ import {
 import { ETIQUETA_CATEGORIA_COSTO } from '@/modulos/propuestas/utilidades/indice';
 import { resolverGrupoEquipoDelProceso } from '@/modulos/propuestas/utilidades/ruteo-proceso';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
-import { CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
+import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
+
+/** Monto escrito en un campo de costo: 0 si está vacío, null si no es un monto válido. */
+function montoDeTexto(texto: string): number | null {
+  const limpio = texto.trim();
+  return limpio === '' ? 0 : parsearMonto(limpio);
+}
 
 type FilaRuteoBorrador = {
   procesoId: string;
@@ -69,6 +76,7 @@ export function PanelRuteoCosteo({
   const queryClient = useQueryClient();
   const [ruteoBorrador, setRuteoBorrador] = useState<Record<string, FilaRuteoBorrador[] | undefined>>({});
   const [costosBorrador, setCostosBorrador] = useState<Record<CategoriaCosto, string> | null>(null);
+  const [notasBorrador, setNotasBorrador] = useState<Record<CategoriaCosto, string> | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
 
@@ -140,16 +148,22 @@ export function PanelRuteoCosteo({
    * la máquina si está configurado; si no, la tarifa del grupo de equipo. Solo
    * llega con permiso de costo (los montos vienen en null para el resto).
    */
-  function tarifaDeFila(fila: FilaRuteoBorrador): { tarifa: number; moneda: 'MXN' | 'USD' } | null {
+  function tarifaDeFila(
+    fila: FilaRuteoBorrador,
+  ): { tarifa: number; moneda: 'MXN' | 'USD'; origen: string } | null {
     if (fila.recursoId) {
       const recurso = (catalogos?.recursos ?? []).find((item) => item.id === fila.recursoId);
       if (recurso?.tarifaHora != null && recurso.tarifaMoneda) {
-        return { tarifa: recurso.tarifaHora, moneda: recurso.tarifaMoneda };
+        return { tarifa: recurso.tarifaHora, moneda: recurso.tarifaMoneda, origen: 'Tarifa de la máquina' };
       }
     }
     const grupo = (catalogos?.gruposEquipo ?? []).find((item) => item.id === fila.grupoEquipoId);
     if (grupo?.tarifaHora != null && grupo.tarifaMoneda) {
-      return { tarifa: grupo.tarifaHora, moneda: grupo.tarifaMoneda };
+      return {
+        tarifa: grupo.tarifaHora,
+        moneda: grupo.tarifaMoneda,
+        origen: grupo.origenTarifa ?? 'Tarifa del grupo',
+      };
     }
     return null;
   }
@@ -164,6 +178,22 @@ export function PanelRuteoCosteo({
     }
     return base;
   }, [costosBorrador, costos, revision.id]);
+
+  // Obs. cliente 2026-10-13: Material y Otros aceptan detalle libre además del monto.
+  const notasActuales = useMemo(() => {
+    if (notasBorrador) return notasBorrador;
+    const base = Object.fromEntries(
+      CATEGORIAS_COSTO.map((categoria) => [categoria, '']),
+    ) as Record<CategoriaCosto, string>;
+    for (const costo of costos.filter((fila) => fila.revisionId === revision.id)) {
+      base[costo.categoria] = costo.nota ?? '';
+    }
+    return base;
+  }, [notasBorrador, costos, revision.id]);
+
+  function montoDe(categoria: CategoriaCosto): number | null {
+    return montoDeTexto(costosActuales[categoria]);
+  }
 
   // C3.3: el ruteo costeado sustituye al costo manual de máquina y alimenta el
   // desglose «costo total estimado de fabricación» (tiempo por uso por proceso).
@@ -186,10 +216,10 @@ export function PanelRuteoCosteo({
           activo: item.activo,
         })),
         costoTotal: CATEGORIAS_COSTO.reduce(
-          (suma, categoria) => suma + (Number(costosActuales[categoria]) || 0),
+          (suma, categoria) => suma + (montoDeTexto(costosActuales[categoria]) ?? 0),
           0,
         ),
-        costoManualMaquina: Number(costosActuales.maquina) || 0,
+        costoManualMaquina: montoDeTexto(costosActuales.maquina) ?? 0,
         costoRuteo: ruteoActivoCosteado.reduce(
           (suma, fila) => suma + (fila.costoTotal ?? 0),
           0,
@@ -205,7 +235,7 @@ export function PanelRuteoCosteo({
   const categoriasRetiradasConMonto = CATEGORIAS_COSTO.filter(
     (categoria) =>
       !(CATEGORIAS_COSTO_EDITABLES as readonly CategoriaCosto[]).includes(categoria) &&
-      (Number(costosActuales[categoria]) || 0) > 0,
+      (montoDe(categoria) ?? 0) > 0,
   );
 
   async function guardarRuteo(item: PropuestaItem): Promise<void> {
@@ -240,12 +270,23 @@ export function PanelRuteoCosteo({
   }
 
   async function guardarCostos(): Promise<void> {
+    const invalidas = CATEGORIAS_COSTO.filter((categoria) => montoDe(categoria) === null);
+    if (invalidas.length > 0) {
+      setMensaje(
+        `Revisa el monto de ${invalidas.map((categoria) => ETIQUETA_CATEGORIA_COSTO[categoria]).join(', ')}: escribe un número, por ejemplo 1250.50.`,
+      );
+      return;
+    }
     const filas = CATEGORIAS_COSTO.filter(
       (categoria) => costosActuales[categoria].trim() !== '',
-    ).map((categoria) => ({
-      categoria,
-      monto: Number(costosActuales[categoria]) || 0,
-    }));
+    ).map((categoria) => {
+      const nota = notasActuales[categoria].trim();
+      return {
+        categoria,
+        monto: montoDe(categoria) ?? 0,
+        ...(nota !== '' ? { nota } : {}),
+      };
+    });
     setGuardando('costos');
     setMensaje(null);
     const respuesta = await editarCostosRevisionAccion({
@@ -259,29 +300,73 @@ export function PanelRuteoCosteo({
       return;
     }
     setCostosBorrador(null);
+    setNotasBorrador(null);
     // Refresca el token CAS antes de confirmar: evita guardar con una versión obsoleta.
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
     setMensaje('Costos guardados.');
   }
 
+  /**
+   * Obs. cliente 2026-10-13: «Costear ruteo» primero guarda el ruteo pendiente
+   * (editado o sugerido) de cada ítem, con el token vigente que devuelve cada
+   * guardado, y después costea: un solo paso en vez de guardar ítem por ítem.
+   */
   async function costearRuteo(): Promise<void> {
-    const pendientes = itemsRevision
-      .filter((item) => item.activo && ruteoSinGuardar(item.id))
-      .map((item) => item.codigo);
-    if (pendientes.length > 0) {
-      setMensaje(`Guarda el ruteo de ${pendientes.join(', ')} antes de costear.`);
-      return;
+    const pendientes = itemsRevision.filter((item) => item.activo && ruteoSinGuardar(item.id));
+    for (const item of pendientes) {
+      if (filasDe(item.id).some((fila) => fila.procesoId === '')) {
+        setMensaje(`Cada fila de ruteo de ${item.codigo} requiere un proceso.`);
+        return;
+      }
     }
+
     setGuardando('ruteo-costeo');
     setMensaje(null);
+    let token = revision.actualizadoEn;
+    let guardados = 0;
+    for (const item of pendientes) {
+      const respuesta = await editarRuteoItemAccion({
+        itemId: item.id,
+        actualizadoEn: token,
+        filas: filasDe(item.id).map((fila) => ({
+          procesoId: fila.procesoId,
+          grupoEquipoId: fila.grupoEquipoId || null,
+          grupoPlaneadoId: fila.grupoPlaneadoId || null,
+          recursoId: fila.recursoId || null,
+          setupHoras: montoDeTexto(fila.setupHoras) ?? 0,
+          runHoras: montoDeTexto(fila.runHoras) ?? 0,
+        })),
+      });
+      if (!respuesta.exito) {
+        setGuardando(null);
+        setMensaje(respuesta.error);
+        await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+        return;
+      }
+      guardados += 1;
+      setRuteoBorrador((actual) => ({ ...actual, [item.id]: undefined }));
+      if (respuesta.datos?.actualizadoEn === undefined && guardados < pendientes.length) {
+        // Sin token fresco no se puede encadenar: se recarga y se pide repetir.
+        setGuardando(null);
+        await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+        setMensaje('Ruteo guardado. Pulsa «Costear ruteo» otra vez para continuar.');
+        return;
+      }
+      token = respuesta.datos?.actualizadoEn ?? token;
+    }
+
     const respuesta = await costearRuteoRevisionAccion({ revisionId: revision.id });
     setGuardando(null);
+    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
     if (!respuesta.exito) {
-      setMensaje(respuesta.error);
+      setMensaje(
+        guardados > 0 ? `Ruteo guardado, pero no se pudo costear: ${respuesta.error}` : respuesta.error,
+      );
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
-    setMensaje(`Ruteo costeado: ${respuesta.datos?.renglones ?? 0} renglón(es).`);
+    setMensaje(
+      `${guardados > 0 ? 'Ruteo guardado y costeado' : 'Ruteo costeado'}: ${respuesta.datos?.renglones ?? 0} renglón(es).`,
+    );
   }
 
   return (
@@ -336,10 +421,11 @@ export function PanelRuteoCosteo({
                   data-testid={`ruteo-sin-guardar-${item.codigo}`}
                   className="text-xs font-medium text-advertencia-texto"
                 >
-                  Cambios sin guardar en el ruteo de {item.codigo}: pulsa «Guardar ruteo».
+                  Cambios sin guardar en el ruteo de {item.codigo}: pulsa «Guardar ruteo» (o «Costear ruteo»,
+                  que también lo guarda).
                 </p>
               )}
-              {sinCostearItem && (
+              {sinCostearItem && !ruteoSinGuardar(item.id) && (
                 <p data-testid={`faltante-costeo-${item.codigo}`} className={CLASE_MENSAJE_FALTANTE}>
                   Falta costear el ruteo de {item.codigo}: pulsa «Costear ruteo».
                 </p>
@@ -490,8 +576,13 @@ export function PanelRuteoCosteo({
                     >
                       <span className="text-xs text-texto-secundario">Costo estimado</span>
                       {tarifa === null ? (
-                        <span className="flex h-9 items-center text-xs text-advertencia-texto">
-                          Sin tarifa configurada
+                        <span className="flex min-h-9 flex-col justify-center text-xs leading-tight text-advertencia-texto">
+                          <span>Sin tarifa configurada</span>
+                          <span className="text-texto-secundario">
+                            {fila.grupoEquipoId
+                              ? 'Vincula el grupo a una estación en Configuración → Tarifas / TC.'
+                              : 'Elige el grupo de equipo.'}
+                          </span>
                         </span>
                       ) : (
                         <span className="flex h-9 flex-col justify-center text-sm leading-tight">
@@ -499,7 +590,7 @@ export function PanelRuteoCosteo({
                             {formatearMoneda(horasFila * tarifa.tarifa, tarifa.moneda)}
                           </span>
                           <span className="text-xs text-texto-secundario">
-                            {formatearMoneda(tarifa.tarifa, tarifa.moneda)}/h
+                            {formatearMoneda(tarifa.tarifa, tarifa.moneda)}/h · {tarifa.origen}
                             {tarifa.moneda !== revision.snapshotCabecera.moneda
                               ? ' · otra moneda que la propuesta'
                               : ''}
@@ -566,22 +657,50 @@ export function PanelRuteoCosteo({
         </div>
         <h3 className="text-sm font-semibold text-texto-primario">Costeo interno</h3>
         <div className="grid gap-2 sm:grid-cols-2">
-          {CATEGORIAS_COSTO_EDITABLES.map((categoria) => (
-            <label key={categoria} className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">{ETIQUETA_CATEGORIA_COSTO[categoria]}</span>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={costosActuales[categoria]}
-                onChange={(evento) =>
-                  setCostosBorrador({ ...costosActuales, [categoria]: evento.target.value })
-                }
-                disabled={!esBorrador || !permisos.editarCosto}
-                aria-label={`Costo ${ETIQUETA_CATEGORIA_COSTO[categoria]}`}
-              />
-            </label>
-          ))}
+          {CATEGORIAS_COSTO_EDITABLES.map((categoria) => {
+            const etiqueta = ETIQUETA_CATEGORIA_COSTO[categoria];
+            const montoInvalido = montoDe(categoria) === null;
+            return (
+              <div key={categoria} className="flex flex-col gap-1 text-sm">
+                <label htmlFor={`costo-${categoria}`} className="font-medium">
+                  {etiqueta}
+                </label>
+                <Input
+                  id={`costo-${categoria}`}
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0.00"
+                  value={costosActuales[categoria]}
+                  onChange={(evento) =>
+                    setCostosBorrador({ ...costosActuales, [categoria]: evento.target.value })
+                  }
+                  disabled={!esBorrador || !permisos.editarCosto}
+                  aria-label={`Costo ${etiqueta}`}
+                  aria-invalid={montoInvalido}
+                  aria-describedby={montoInvalido ? `costo-${categoria}-error` : undefined}
+                  className={montoInvalido ? CLASE_CAMPO_FALTANTE : undefined}
+                />
+                {montoInvalido && (
+                  <span id={`costo-${categoria}-error`} className={CLASE_MENSAJE_FALTANTE}>
+                    Escribe un monto válido, por ejemplo 1250.50.
+                  </span>
+                )}
+                <Input
+                  type="text"
+                  maxLength={500}
+                  autoComplete="off"
+                  placeholder="Detalle (opcional)"
+                  value={notasActuales[categoria]}
+                  onChange={(evento) =>
+                    setNotasBorrador({ ...notasActuales, [categoria]: evento.target.value })
+                  }
+                  disabled={!esBorrador || !permisos.editarCosto}
+                  aria-label={`Detalle de ${etiqueta}`}
+                />
+              </div>
+            );
+          })}
         </div>
         {categoriasRetiradasConMonto.length > 0 && (
           <p data-testid="costos-categorias-retiradas" className="text-xs text-texto-secundario">
@@ -589,7 +708,7 @@ export function PanelRuteoCosteo({
             {categoriasRetiradasConMonto
               .map(
                 (categoria) =>
-                  `${ETIQUETA_CATEGORIA_COSTO[categoria]} ${formatearMoneda(Number(costosActuales[categoria]), totales.moneda)}`,
+                  `${ETIQUETA_CATEGORIA_COSTO[categoria]} ${formatearMoneda(montoDe(categoria) ?? 0, totales.moneda)}`,
               )
               .join(' · ')}
             .

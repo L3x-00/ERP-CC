@@ -6,7 +6,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 export type TarifaResuelta = {
   tarifa: number;
   moneda: 'MXN' | 'USD';
-  fuente: 'GRUPO' | 'RECURSO';
+  fuente: 'GRUPO' | 'RECURSO' | 'ESTACION';
   grupoEquipoId: string | null;
   recursoId: string | null;
 };
@@ -31,7 +31,7 @@ export function mensajeTarifaFaltante(codigo: string, detalle?: string | null): 
   const datos = leerDetalle(detalle);
   if (codigo.includes('tarifa_no_configurada')) {
     const grupo = typeof datos.grupo === 'string' ? `«${datos.grupo}»` : 'del equipo';
-    return `El grupo de equipo ${grupo} no tiene tarifa por hora. Configúrala en Configuración → Catálogos base → Tarifas por grupo de equipo.`;
+    return `El grupo de equipo ${grupo} no tiene tarifa por hora ni una estación de Tarifas / TC vinculada. Configúrala en Configuración → Tarifas / TC → Tarifas por grupo de equipo.`;
   }
   if (codigo.includes('tarifa_sin_grupo')) {
     const recurso = typeof datos.recurso === 'string' ? `«${datos.recurso}»` : '';
@@ -42,7 +42,7 @@ export function mensajeTarifaFaltante(codigo: string, detalle?: string | null): 
   return 'No se pudo resolver la tarifa por hora del ruteo.';
 }
 
-/** Resuelve la tarifa de un renglón: override de la máquina > tarifa del grupo. */
+/** Resuelve la tarifa de un renglón: override de la máquina > tarifa propia del grupo > estación de Tarifas / TC. */
 export async function resolverTarifaHora(
   admin: SupabaseClient<Database>,
   entrada: { grupoEquipoId: string | null; recursoId?: string | null },
@@ -60,7 +60,7 @@ export async function resolverTarifaHora(
     datos: {
       tarifa: Number(fila.tarifa),
       moneda: fila.moneda === 'USD' ? 'USD' : 'MXN',
-      fuente: fila.fuente === 'RECURSO' ? 'RECURSO' : 'GRUPO',
+      fuente: fila.fuente === 'RECURSO' ? 'RECURSO' : fila.fuente === 'ESTACION' ? 'ESTACION' : 'GRUPO',
       grupoEquipoId: typeof fila.grupo_equipo_id === 'string' ? fila.grupo_equipo_id : null,
       recursoId: typeof fila.recurso_id === 'string' ? fila.recurso_id : null,
     },

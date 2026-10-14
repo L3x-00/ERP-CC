@@ -7,6 +7,7 @@ import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { actualizarTipoCambioAccion, guardarTarifasCotizadorAccion } from '@/modulos/configuracion/acciones/indice';
 import type { ConfiguracionSistema, TarifasCotizadorConfig } from '@/modulos/configuracion/tipos/indice';
 import { EditorTarifasEstaciones } from '@/modulos/configuracion/componentes/editor-tarifas-estaciones';
+import { SeccionTarifarioRuteo } from '@/modulos/configuracion/componentes/seccion-tarifario-ruteo';
 
 const HORAS_VIGENCIA_TIPO_CAMBIO = 24;
 
@@ -62,6 +63,7 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
   }
 
   return (
+    <div className="grid gap-8">
     <form className="grid gap-4" onSubmit={guardar} aria-label="Tarifas del cotizador">
       <div className="rounded-lg border border-acento/30 bg-acento-suave p-4">
         <div className="flex flex-wrap items-end justify-between gap-2">
@@ -114,5 +116,7 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
         {mensaje ? <p role="status" className="text-sm text-texto-secundario">{mensaje}</p> : null}
       </div>
     </form>
+    <SeccionTarifarioRuteo />
+    </div>
   );
 }

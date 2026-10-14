@@ -1,4 +1,8 @@
 import type { Json } from '@/compartido/tipos/supabase';
+import {
+  esEstacionTarifa,
+  type EstacionTarifa,
+} from '@/modulos/catalogos/utilidades/tarifa-estacion';
 
 /** Tablas de catálogo versionadas (coinciden con `versiones_catalogo.entidad`). */
 export const ENTIDADES_CATALOGO = [
@@ -60,9 +64,11 @@ export interface GrupoEquipoCatalogo {
   activo: boolean;
   orden: number;
   creadoEn: string;
-  /** Tarifa estándar por hora; null = sin configurar (el costeo se bloquea). */
+  /** Tarifa propia por hora; null = usa la de la estación vinculada (si hay) o no hay tarifa. */
   tarifaHora: number | null;
   tarifaMoneda: MonedaTarifa;
+  /** Estación de Tarifas / TC de la que toma la tarifa cuando no tiene una propia. */
+  estacionTarifa: EstacionTarifa | null;
 }
 
 export interface GrupoPlaneadoCatalogo {
@@ -122,6 +128,8 @@ export interface CatalogosBase {
   proximasAcciones: ProximaAccionCatalogo[];
   canales: CanalCatalogo[];
   areasTrabajo: AreaTrabajoOpcion[];
+  /** Tarifa por hora (MXN) vigente de cada estación de Configuración → Tarifas / TC. */
+  tarifasEstacion: Record<EstacionTarifa, number>;
   /** El usuario puede mutar (permiso `catalogo_editar` o admin). */
   puedeEditar: boolean;
 }
@@ -173,6 +181,7 @@ export interface FilaGrupoEquipoCatalogo {
   creado_en: string;
   tarifa_hora: number | null;
   tarifa_moneda: string;
+  estacion_tarifa: string | null;
 }
 
 export interface FilaGrupoPlaneadoCatalogo {
@@ -271,6 +280,7 @@ export function filaAGrupoEquipo(fila: FilaGrupoEquipoCatalogo): GrupoEquipoCata
     creadoEn: fila.creado_en,
     tarifaHora: fila.tarifa_hora === null ? null : Number(fila.tarifa_hora),
     tarifaMoneda: fila.tarifa_moneda === 'USD' ? 'USD' : 'MXN',
+    estacionTarifa: esEstacionTarifa(fila.estacion_tarifa) ? fila.estacion_tarifa : null,
   };
 }
 

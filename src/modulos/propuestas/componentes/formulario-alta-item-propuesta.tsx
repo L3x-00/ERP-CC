@@ -32,7 +32,11 @@ const ALTA_VACIA: BorradorAlta = {
   esDescuento: false,
 };
 
-/** C3.1: captura un ítem propio en una revisión B..Z sin modificar el RFQ. */
+/**
+ * C3.1 + obs. cliente 2026-10-13: captura un ítem propio en la revisión sin
+ * modificar el RFQ. El formulario es plegable: solo aparece al pulsar «Nuevo
+ * ítem» y se cierra al agregar (o al cancelar) para no ocupar la pantalla.
+ */
 export function FormularioAltaItemPropuesta({
   revision,
   catalogos,
@@ -49,6 +53,7 @@ export function FormularioAltaItemPropuesta({
   const [errorAlta, setErrorAlta] = useState<string | null>(null);
   const [exitoAlta, setExitoAlta] = useState<string | null>(null);
   const [enviandoAlta, setEnviandoAlta] = useState(false);
+  const [abierto, setAbierto] = useState(false);
   // El `disabled` no bloquea dos submits por teclado antes del siguiente render.
   const altaEnVueloRef = useRef(false);
 
@@ -106,8 +111,9 @@ export function FormularioAltaItemPropuesta({
       }
 
       setAlta(ALTA_VACIA);
+      setAbierto(false);
       await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
-      setExitoAlta(`Ítem ${codigo} agregado en la revisión ${revision.letra}.`);
+      setExitoAlta(`Ítem ${codigo} agregado.`);
     } catch {
       setErrorAlta('No se pudo agregar el ítem. Intenta nuevamente.');
     } finally {
@@ -116,19 +122,49 @@ export function FormularioAltaItemPropuesta({
     }
   }
 
+  function cancelar(): void {
+    setAbierto(false);
+    setAlta(ALTA_VACIA);
+    setErrorAlta(null);
+  }
+
+  if (!abierto) {
+    return (
+      <div className="flex flex-wrap items-center gap-3" data-testid="alta-item-propuesta-cerrado">
+        <Button
+          type="button"
+          tamano="sm"
+          variante="contorno"
+          aria-expanded={false}
+          aria-controls="alta-item-propuesta"
+          onClick={() => {
+            setExitoAlta(null);
+            setAbierto(true);
+          }}
+        >
+          Nuevo ítem
+        </Button>
+        {exitoAlta !== null && (
+          <p role="status" className="text-sm text-exito-texto">
+            {exitoAlta}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <form
+      id="alta-item-propuesta"
       onSubmit={agregar}
       noValidate
+      aria-label="Nuevo ítem"
       data-testid="alta-item-propuesta"
       className="flex flex-col gap-3 rounded-lg border border-borde p-3"
     >
-      <div className="flex flex-col gap-0.5">
-        <h3 className="text-sm font-semibold">Agregar ítem a la revisión {revision.letra}</h3>
-        <p className="text-xs text-texto-secundario">
-          El código ITxx lo asigna el servidor y no modifica el RFQ de origen.
-        </p>
-      </div>
+      <p className="text-xs text-texto-secundario">
+        El código ITxx se asigna solo y el RFQ de origen no cambia.
+      </p>
 
       {(catalogos === null || errorCatalogos !== null) && (
         <p
@@ -172,7 +208,7 @@ export function FormularioAltaItemPropuesta({
             onChange={(evento) => setAlta({ ...alta, cantidad: evento.target.value })}
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="alta-item-material">
+        <label className="grid content-start gap-1 text-sm font-medium" htmlFor="alta-item-material">
           Material
           <Select
             id="alta-item-material"
@@ -225,7 +261,7 @@ export function FormularioAltaItemPropuesta({
             </span>
           )}
         </div>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="alta-item-acabado">
+        <label className="grid content-start gap-1 text-sm font-medium" htmlFor="alta-item-acabado">
           Acabado (opcional)
           <Input
             id="alta-item-acabado"
@@ -235,7 +271,7 @@ export function FormularioAltaItemPropuesta({
           />
         </label>
         {puedeEditarPrecio && (
-          <label className="grid gap-1 text-sm font-medium" htmlFor="alta-item-precio">
+          <label className="grid content-start gap-1 text-sm font-medium" htmlFor="alta-item-precio">
             Precio unitario (opcional)
             <Input
               id="alta-item-precio"
@@ -274,13 +310,10 @@ export function FormularioAltaItemPropuesta({
           {errorAlta}
         </p>
       )}
-      {exitoAlta !== null && (
-        <p role="status" className="text-sm text-exito-texto">
-          {exitoAlta}
-        </p>
-      )}
-
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button type="button" tamano="sm" variante="fantasma" onClick={cancelar} disabled={enviandoAlta}>
+          Cancelar
+        </Button>
         <Button
           type="submit"
           tamano="sm"

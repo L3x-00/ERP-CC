@@ -3,6 +3,8 @@
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { obtenerCatalogosBaseServicio } from '@/modulos/catalogos/servicios/indice';
+import { tarifasPorEstacion } from '@/modulos/catalogos/utilidades/tarifa-estacion';
+import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/configuracion-servicio';
 import type { CatalogosBase } from '@/modulos/catalogos/tipos/indice';
 import { esquemaConsultaCatalogosBase } from '@/modulos/catalogos/validaciones/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
@@ -28,12 +30,19 @@ export async function obtenerCatalogosBaseAccion(
   }
 
   try {
-    const datos = await obtenerCatalogosBaseServicio(
-      crearClienteSupabaseAdmin(),
-      analisis.data.soloActivos,
-    );
+    const admin = crearClienteSupabaseAdmin();
+    const datos = await obtenerCatalogosBaseServicio(admin, analisis.data.soloActivos);
     const puedeEditar = await can(usuario, 'catalogo_editar');
-    return { exito: true, datos: { ...datos, puedeEditar } };
+    // Tarifas / TC es el tarifario único: el catálogo de grupos lo muestra vinculado.
+    const configuracion = await obtenerConfiguracionGeneral(admin);
+    return {
+      exito: true,
+      datos: {
+        ...datos,
+        tarifasEstacion: tarifasPorEstacion(configuracion.tarifas.estaciones),
+        puedeEditar,
+      },
+    };
   } catch (error) {
     console.error('[CATALOGOS] Error al consultar catálogos base:', error);
     return { exito: false, error: 'No se pudieron consultar los catálogos' };
