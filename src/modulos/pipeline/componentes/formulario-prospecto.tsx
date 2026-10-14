@@ -177,6 +177,10 @@ export function FormularioProspecto({
     faltaNombreContacto ? 'nombre del contacto' : null,
     faltaTelefono ? 'teléfono' : null,
   ].filter((item): item is string => item !== null);
+  // Con un cliente elegido el contacto principal se liga al crear el RFQ; si el alta
+  // se enviara antes de que carguen sus contactos, el RFQ nacería sin contacto
+  // vigente («Cliente: faltan datos»). Un error de carga no bloquea el alta.
+  const cargandoContactos = cliente !== null && contactosConsulta.isPending;
   const sinItemsActivos = rfq !== undefined && !rfq.items.some((item) => item.estado === 'activo');
   const sinArchivos =
     !archivosConsulta.data?.exito || (archivosConsulta.data.datos ?? []).length === 0;
@@ -242,7 +246,7 @@ export function FormularioProspecto({
 
   async function crearRfqYContinuar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
-    if (faltantesCliente.length > 0) return;
+    if (faltantesCliente.length > 0 || cargandoContactos) return;
     setError(null);
     setEnviando(true);
     onCambioEnvio?.(true);
@@ -539,12 +543,21 @@ export function FormularioProspecto({
           )}
 
           <div className="flex flex-wrap items-center justify-end gap-3">
+            {cargandoContactos && (
+              <p role="status" aria-live="polite" className="text-xs text-texto-secundario">
+                Cargando los contactos del cliente…
+              </p>
+            )}
             {faltantesCliente.length > 0 && (
               <p data-testid="alta-rfq-faltantes-cliente" className={CLASE_MENSAJE_FALTANTE}>
                 Para continuar completa: {faltantesCliente.join(' y ')}.
               </p>
             )}
-            <Button type="submit" tamano="lg" disabled={enviando || faltantesCliente.length > 0}>
+            <Button
+              type="submit"
+              tamano="lg"
+              disabled={enviando || faltantesCliente.length > 0 || cargandoContactos}
+            >
               {enviando ? 'Creando RFQ…' : 'Continuar con ítems'}
             </Button>
           </div>

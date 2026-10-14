@@ -18,6 +18,7 @@ const {
   obtenerRfqMock,
   obtenerCatalogosMock,
   listarArchivosMock,
+  contactosMock,
 } = vi.hoisted(() => ({
   crearProspectoMock: vi.fn(),
   crearClienteMock: vi.fn(),
@@ -28,6 +29,7 @@ const {
   obtenerRfqMock: vi.fn(),
   obtenerCatalogosMock: vi.fn(),
   listarArchivosMock: vi.fn(),
+  contactosMock: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -54,6 +56,7 @@ vi.mock('@/modulos/rfq/acciones/actualizar-datos-rfq', () => ({
 }));
 vi.mock('@/modulos/rfq/acciones/obtener-catalogos', () => ({
   obtenerCatalogosRfqAccion: (...args: unknown[]) => obtenerCatalogosMock(...args),
+  obtenerContactosClienteRfqAccion: (...args: unknown[]) => contactosMock(...args),
 }));
 vi.mock('@/modulos/rfq/acciones/archivos-rfq', () => ({
   listarArchivosRfqAccion: (...args: unknown[]) => listarArchivosMock(...args),
@@ -208,6 +211,7 @@ beforeEach(() => {
   obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CAPTURADO });
   obtenerCatalogosMock.mockResolvedValue({ exito: true, datos: CATALOGOS_VACIOS });
   listarArchivosMock.mockResolvedValue({ exito: true, datos: [] });
+  contactosMock.mockResolvedValue({ exito: true, datos: [] });
 });
 
 afterEach(() => {
@@ -238,6 +242,8 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     fireEvent.focus(campo(/Cliente \(opcional\)/));
     fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
     await screen.findByText('Cambiar cliente');
+    // Con un cliente elegido el alta espera a que carguen sus contactos.
+    await esperarBotonHabilitado('Continuar con ítems');
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     await waitFor(() => {
@@ -566,5 +572,75 @@ describe('FormularioProspecto — la ficha no hereda el RFQ previo al modal fina
     expect(claves).toContain(JSON.stringify(['rfq', 'op-1']));
     expect(claves).toContain(JSON.stringify(['rfq-validacion-listo', 'op-1']));
     expect(claves).toContain(JSON.stringify(['pipeline']));
+  });
+});
+
+describe('FormularioProspecto — espera los contactos del cliente antes de crear el RFQ', () => {
+  const CONTACTO_ID = '22222222-2222-4222-8222-222222222222';
+
+  it('con los contactos aún cargando bloquea «Continuar con ítems» y luego liga el contacto', async () => {
+    let resolverContactos: ((valor: unknown) => void) | undefined;
+    contactosMock.mockReturnValue(
+      new Promise((resolver) => {
+        resolverContactos = resolver;
+      }),
+    );
+    renderizarFormulario();
+
+    fireEvent.focus(campo(/Cliente \(opcional\)/));
+    fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
+    await screen.findByText('Cambiar cliente');
+
+    // Nombre y teléfono ya vienen del cliente, pero sin contactos aún no se continúa:
+    // enviar ahora crearía el RFQ sin contacto vigente («Cliente: faltan datos»).
+    const continuar = screen.getByRole('button', { name: 'Continuar con ítems' }) as HTMLButtonElement;
+    expect(continuar.disabled).toBe(true);
+    expect(screen.getByText('Cargando los contactos del cliente…')).toBeDefined();
+    fireEvent.click(continuar);
+    expect(crearProspectoMock).not.toHaveBeenCalled();
+
+    resolverContactos?.({
+      exito: true,
+      datos: [{ id: CONTACTO_ID, nombre: 'Ana Pérez', correo: 'ana@metanor.mx', telefono: '664 000 0000' }],
+    });
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Continuar con ítems' }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+    expect(screen.queryByText('Cargando los contactos del cliente…')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+    await waitFor(() => expect(crearProspectoMock).toHaveBeenCalledTimes(1));
+    expect(crearProspectoMock.mock.calls[0]?.[0]).toMatchObject({
+      clienteId: CLIENTE_ID,
+      contactoId: CONTACTO_ID,
+    });
+  });
+
+  it('si los contactos no se pueden cargar no bloquea el alta', async () => {
+    contactosMock.mockRejectedValue(new Error('sin conexión'));
+    renderizarFormulario();
+
+    fireEvent.focus(campo(/Cliente \(opcional\)/));
+    fireEvent.click(screen.getByText('Metales del Norte SA de CV'));
+    await screen.findByText('Cambiar cliente');
+
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Continuar con ítems' }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+  });
+
+  it('sin cliente del catálogo no espera ningún contacto', () => {
+    renderizarFormulario();
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+
+    expect(
+      (screen.getByRole('button', { name: 'Continuar con ítems' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(contactosMock).not.toHaveBeenCalled();
   });
 });
