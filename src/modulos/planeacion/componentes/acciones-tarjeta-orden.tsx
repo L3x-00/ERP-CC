@@ -3,14 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
-import { ReactivarOrdenDialog } from '@/modulos/ordenes/componentes/reactivar-orden-dialog';
 import { ESTADO_LEGACY_A_SII } from '@/modulos/ordenes/tipos/orden-sii';
 import type { ProgramacionArea } from '@/modulos/planeacion/tipos/indice';
 
 export interface PropsAccionesTarjetaOrden {
   programacion: ProgramacionArea;
-  /** PRD-15: Reactivar se reserva a administradores. */
-  puedeAdministrar: boolean;
   onRefrescar: () => void;
 }
 
@@ -20,18 +17,16 @@ const CLASE_ACCION =
 /**
  * PLA-06 + SII-B5: acciones de negocio de la tarjeta semanal. El estado deriva
  * del avance (ADR-SII-07): iniciar/pausar/reanudar manuales se eliminaron; la
- * sesión de piso y el avance deciden el estado. Liberar y Reactivar se ofrecen
- * según `estado_sii`.
+ * sesión de piso y el avance deciden el estado. Liberar se ofrece según `estado_sii`.
+ * Reactivar se retiró (C8.1): la cola de Órdenes y esta tarjeta no revierten estados.
  */
 export function AccionesTarjetaOrden({
   programacion,
-  puedeAdministrar,
   onRefrescar,
 }: PropsAccionesTarjetaOrden) {
   const enrutador = useRouter();
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reactivando, setReactivando] = useState(false);
   const estadoSii = programacion.ordenEstadoSii
     ?? (programacion.ordenEstado ? ESTADO_LEGACY_A_SII[programacion.ordenEstado] : undefined);
 
@@ -108,27 +103,8 @@ export function AccionesTarjetaOrden({
           Imprimir
         </button>
       ) : null}
-      {(estadoSii === 'PRODUCCION_COMPLETADA' || estadoSii === 'CERRADA') && puedeAdministrar ? (
-        <button
-          type="button"
-          className={CLASE_ACCION}
-          data-testid={`accion-reactivar-${programacion.ordenId}`}
-          onClick={() => setReactivando(true)}
-        >
-          Reactivar
-        </button>
-      ) : null}
       {procesando ? <span className="text-[11px] text-texto-tenue">Actualizando…</span> : null}
       {error ? <span role="alert" className="text-[11px] text-peligro-texto">{error}</span> : null}
-
-      {reactivando && programacion.ordenActualizadoEn ? (
-        <ReactivarOrdenDialog
-          ordenId={programacion.ordenId}
-          folio={programacion.ordenFolio ?? 'OP'}
-          actualizadoEn={programacion.ordenActualizadoEn}
-          onCerrar={() => setReactivando(false)}
-        />
-      ) : null}
     </div>
   );
 }

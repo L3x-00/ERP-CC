@@ -35,8 +35,6 @@ export interface PropsTarjetaProgramacionPlaneacion {
   seleccionada: boolean;
   arrastrable?: boolean;
   compacta?: boolean;
-  /** PLA-06: acciones de la orden visibles en la tarjeta semanal. */
-  puedeAdministrar?: boolean;
   onRefrescarOperacion?: () => void;
   onSeleccionar?: (programacion: ProgramacionArea) => void;
 }
@@ -55,7 +53,6 @@ export function TarjetaProgramacionPlaneacion({
   seleccionada,
   arrastrable = false,
   compacta = false,
-  puedeAdministrar = false,
   onRefrescarOperacion,
   onSeleccionar,
 }: PropsTarjetaProgramacionPlaneacion) {
@@ -163,7 +160,6 @@ export function TarjetaProgramacionPlaneacion({
       {!compacta && onRefrescarOperacion ? (
         <AccionesTarjetaOrden
           programacion={programacion}
-          puedeAdministrar={puedeAdministrar}
           onRefrescar={onRefrescarOperacion}
         />
       ) : null}

@@ -29,8 +29,6 @@ export interface PropsVistaCalendario {
   onSeleccionarProgramacion: (programacion: ProgramacionArea) => void;
   onSolicitarReprogramacion?: (programacion: ProgramacionArea, fechaDestino: string) => void;
   onAbrirDia?: (fecha: string) => void;
-  /** PLA-06: acciones de orden desde la tarjeta semanal. */
-  puedeAdministrar?: boolean;
   onRefrescarOperacion?: () => void;
 }
 
@@ -86,7 +84,6 @@ function TarjetaConContexto({
       seleccionada={programacion.id === props.programacionSeleccionadaId}
       compacta={compacta}
       arrastrable={props.onSolicitarReprogramacion !== undefined}
-      puedeAdministrar={props.puedeAdministrar}
       onRefrescarOperacion={props.onRefrescarOperacion}
       onSeleccionar={props.onSeleccionarProgramacion}
     />

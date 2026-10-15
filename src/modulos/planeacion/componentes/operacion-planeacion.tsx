@@ -37,8 +37,6 @@ export interface PropsOperacionPlaneacion {
   desglosePartidas?: readonly DesglosePartidaPlaneacion[];
   /** PLA-05: pausadas sin plan, activas sin fecha hoy y sugerencias por hueco. */
   bolsa?: BolsaPlaneacion;
-  /** PLA-06/PRD-15: Reactivar solo para administradores. */
-  puedeAdministrar?: boolean;
 }
 
 interface SolicitudArrastre {
@@ -58,7 +56,6 @@ export function OperacionPlaneacion({
   partidasProgramables,
   desglosePartidas = [],
   bolsa,
-  puedeAdministrar = false,
 }: PropsOperacionPlaneacion) {
   const clienteConsultas = useQueryClient();
   const enrutador = useRouter();
@@ -288,7 +285,6 @@ export function OperacionPlaneacion({
         desglosePartidas={desglosePartidas}
         onSeleccionarProgramacion={alSeleccionar}
         onSolicitarReprogramacion={solicitarReprogramacion}
-        puedeAdministrar={puedeAdministrar}
         onRefrescarOperacion={refrescarEstructuraOperacion}
       />
       <aside className="rounded-base border border-borde p-4" aria-label="Asignación de recurso">

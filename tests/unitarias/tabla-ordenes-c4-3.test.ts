@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 
 import type { OrdenTabla } from '@/modulos/ordenes/componentes/tabla-ordenes';
 
@@ -22,19 +22,6 @@ vi.mock('@/estado/uso-tienda-ordenes', () => ({
     limpiarFiltros: limpiarFiltrosMock,
   }),
 }));
-vi.mock('@/modulos/comentarios/componentes/indice', () => ({
-  HiloComentarios: ({ entidadId, titulo }: { entidadId: string; titulo: string }) =>
-    createElement('div', { 'data-testid': 'hilo-comentarios', 'data-entidad-id': entidadId }, titulo),
-}));
-vi.mock('@/modulos/ordenes/componentes/documento-orden-boton', () => ({
-  DocumentoOrdenBoton: ({ folio }: { folio: string }) =>
-    createElement('button', { type: 'button' }, `Documento ${folio}`),
-}));
-vi.mock('@/modulos/ordenes/componentes/adjuntos-orden-dialog', () => ({ AdjuntosOrdenDialog: () => null }));
-vi.mock('@/modulos/ordenes/componentes/reactivar-orden-dialog', () => ({ ReactivarOrdenDialog: () => null }));
-vi.mock('@/modulos/ordenes/componentes/repetir-orden-dialog', () => ({ RepetirOrdenDialog: () => null }));
-vi.mock('@/modulos/ordenes/acciones/cambiar-estado-orden', () => ({ cambiarEstadoOrdenAccion: vi.fn() }));
-vi.mock('@/modulos/ordenes/acciones/cerrar-orden-administrativa', () => ({ cerrarOrdenAdministrativaAccion: vi.fn() }));
 vi.mock('@/modulos/ordenes/acciones/liberar-orden', () => ({ liberarOrdenAccion: vi.fn() }));
 
 import { TablaOrdenes } from '@/modulos/ordenes/componentes/tabla-ordenes';
@@ -97,36 +84,23 @@ describe('TablaOrdenes C4.3', () => {
     expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
   });
 
-  it('abre y cambia el hilo de comentarios por una accion explicita de cada fila', async () => {
+  // C8.1: el hilo de comentarios vive en la ficha (pestaña Comentarios); la fila solo abre.
+  it('ya no ofrece Comentarios en ninguna fila ni monta diálogos', () => {
     render(createElement(TablaOrdenes, { ordenes: ORDENES }));
 
     const primera = screen.getByTestId('fila-orden-O-1026_01');
-    fireEvent.click(within(primera).getByRole('button', { name: 'Comentarios' }));
-    expect(await screen.findByRole('dialog')).toBeTruthy();
-    expect(screen.getByTestId('hilo-comentarios').getAttribute('data-entidad-id')).toBe(ORDENES[0].id);
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(within(primera).queryByRole('button', { name: 'Comentarios' })).toBeNull();
+    expect(within(primera).getByTestId('abrir-ficha-O-1026_01')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Archivo' }));
     const segunda = screen.getByTestId('fila-orden-O-1026_02');
-    fireEvent.click(within(segunda).getByRole('button', { name: 'Comentarios' }));
-    expect(screen.getByTestId('hilo-comentarios').getAttribute('data-entidad-id')).toBe(ORDENES[1].id);
+    expect(within(segunda).queryByRole('button', { name: 'Comentarios' })).toBeNull();
+    expect(within(segunda).getByTestId('abrir-ficha-O-1026_02')).toBeTruthy();
   });
 
-  it('abre el comentario enlazado, limpia filtros y muestra la bandeja correspondiente', async () => {
-    render(createElement(TablaOrdenes, {
-      ordenes: ORDENES,
-      ordenInicialId: ORDENES[1].id,
-    }));
-
-    await waitFor(() => expect(limpiarFiltrosMock).toHaveBeenCalledTimes(1));
-    expect(screen.getByTestId('hilo-comentarios').getAttribute('data-entidad-id')).toBe(ORDENES[1].id);
-    expect(screen.getByTestId('fila-orden-O-1026_02')).toBeTruthy();
-  });
-
-  it('muestra el documento solo con permiso financiero', () => {
-    render(createElement(TablaOrdenes, { ordenes: [ORDENES[0]], puedeVerFinanzas: true }));
-    expect(screen.getByRole('button', { name: 'Documento O-1026_01' })).toBeTruthy();
+  it('no ofrece el documento en la fila: se imprime desde la pestaña Documento de la ficha', () => {
+    render(createElement(TablaOrdenes, { ordenes: [ORDENES[0]] }));
+    expect(screen.queryByRole('button', { name: 'Documento O-1026_01' })).toBeNull();
   });
 });
