@@ -76,6 +76,8 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     estadoSii: orden.estadoSii,
     prioridad: orden.prioridad,
     fechaCompromiso: orden.fechaCompromiso,
+    fechaCompromisoComercial: orden.fechaCompromisoComercial ?? null,
+    fechaOperativa: orden.fechaOperativa,
     actualizadoEn: orden.actualizadoEn,
     archivadaEn: orden.archivadaEn,
     esInterna: orden.esInterna,

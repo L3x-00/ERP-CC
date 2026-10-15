@@ -43,7 +43,12 @@ export interface Orden {
   /** SII-B5.2: O-MMYY_XX / OI-MMYY_XX; null en históricos OP-######. */
   folioSii: string | null;
   prioridad: PrioridadOrden;
+  /** Espejo legacy de la fecha operativa (C4.2); la promesa al cliente es `fechaCompromisoComercial`. */
   fechaCompromiso: string;
+  /** C4.2/DC-10: promesa original al cliente (fecha); null en órdenes internas o anteriores al flujo SII. */
+  fechaCompromisoComercial?: string | null;
+  /** C4.2/DC-10: fecha interna que Planeación puede reprogramar con historial. */
+  fechaOperativa?: string;
   fechaInicio: string | null;
   fechaFin: string | null;
   motivoCancelacion: string | null;
@@ -139,6 +144,8 @@ export type FilaOrdenOperativa = Pick<
   | 'folio_sii'
   | 'prioridad'
   | 'fecha_compromiso'
+  | 'fecha_compromiso_comercial'
+  | 'fecha_operativa'
   | 'fecha_inicio'
   | 'fecha_fin'
   | 'motivo_cancelacion'
@@ -155,7 +162,7 @@ export type FilaOrdenOperativa = Pick<
 >;
 
 /** Lista positiva compartida por Órdenes y Producción; nunca usar `select('*')`. */
-export const COLUMNAS_ORDEN_OPERATIVA = 'id, folio, cliente_id, cotizacion_id, estado, estado_sii, folio_sii, prioridad, fecha_compromiso, fecha_inicio, fecha_fin, motivo_cancelacion, es_interna, archivada_en, id_historico, referencia_externa, notas, fecha_trabajo, horas_estimadas, orden_origen_id, creado_en, actualizado_en';
+export const COLUMNAS_ORDEN_OPERATIVA = 'id, folio, cliente_id, cotizacion_id, estado, estado_sii, folio_sii, prioridad, fecha_compromiso, fecha_compromiso_comercial, fecha_operativa, fecha_inicio, fecha_fin, motivo_cancelacion, es_interna, archivada_en, id_historico, referencia_externa, notas, fecha_trabajo, horas_estimadas, orden_origen_id, creado_en, actualizado_en';
 export type FilaPartida = Tables<'partidas_orden_produccion'>;
 export type FilaRegistroTiempo = Tables<'registros_tiempo_operador'>;
 export type FilaRegistroConsumoMaterial = Tables<'registros_consumo_material'>;
@@ -191,6 +198,8 @@ export function filaAOrden(fila: FilaOrden): Orden {
       'prioridad de orden',
     ),
     fechaCompromiso: fila.fecha_compromiso,
+    fechaCompromisoComercial: fila.fecha_compromiso_comercial,
+    fechaOperativa: fila.fecha_operativa,
     fechaInicio: fila.fecha_inicio,
     fechaFin: fila.fecha_fin,
     motivoCancelacion: fila.motivo_cancelacion,
@@ -231,6 +240,8 @@ export function filaAOrdenOperativa(fila: FilaOrdenOperativa): OrdenOperativa {
       'prioridad de orden',
     ),
     fechaCompromiso: fila.fecha_compromiso,
+    fechaCompromisoComercial: fila.fecha_compromiso_comercial,
+    fechaOperativa: fila.fecha_operativa,
     fechaInicio: fila.fecha_inicio,
     fechaFin: fila.fecha_fin,
     motivoCancelacion: fila.motivo_cancelacion,

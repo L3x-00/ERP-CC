@@ -1,5 +1,6 @@
 import type { OrdenConPartidas } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { fechaKpiMexico } from '@/modulos/ordenes/utilidades/fecha-kpi';
+import { fechaPromesaOrden } from '@/modulos/ordenes/utilidades/fecha-promesa';
 
 export type ResumenOrdenes = {
   total: number;
@@ -26,7 +27,7 @@ export function resumirOrdenes(
     if (orden.estadoSii === 'CANCELADA') continue;
     resumen.total++;
     if (orden.estadoSii === 'EN_PRODUCCION') resumen.enProceso++;
-    if (orden.fechaCompromiso.slice(0, 10) < hoy
+    if (fechaPromesaOrden(orden) < hoy
       && !ordenesConEntregaFinal.has(orden.id)) resumen.atrasadas++;
     if (ordenesConEntregaFinal.has(orden.id)) resumen.entregadas++;
     if (orden.esInterna) {
