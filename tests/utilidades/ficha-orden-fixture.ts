@@ -31,7 +31,7 @@ export const PERMISOS_BASE: PermisosFichaOrden = {
   puedeLiberar: false,
   puedeCerrar: false,
   puedeCancelar: false,
-  puedeVerFinanzas: false,
+  puedeVerTotales: false,
   puedeAdjuntar: false,
   puedeEliminarTodos: false,
   puedeVerRfq: false,
@@ -114,7 +114,7 @@ export function fichaCompleta(cambios: Partial<FichaOrden['orden']> = {}): Ficha
   };
 }
 
-/** La misma ficha pero con snapshot y totales, como la recibe un rol con `ver_finanzas`. */
+/** La misma ficha pero con snapshot y totales, como la recibe un rol con `orden_ver_totales`. */
 export function fichaConSnapshot(cambios: Partial<FichaOrden['orden']> = {}): FichaOrden {
   const base = fichaCompleta(cambios);
   return {

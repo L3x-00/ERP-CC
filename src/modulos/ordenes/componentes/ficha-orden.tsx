@@ -39,7 +39,7 @@ export interface PermisosFichaOrden {
   puedeLiberar: boolean;
   puedeCerrar: boolean;
   puedeCancelar: boolean;
-  puedeVerFinanzas: boolean;
+  puedeVerTotales: boolean;
   /** Adjuntos legacy: mismo permiso (`aprobar_ordenes`) que exigen sus Server Actions. */
   puedeAdjuntar: boolean;
   /** Comentarios: quien puede borrar los de otros (admin). */
@@ -74,10 +74,10 @@ export function FichaOrden({
   pestanaInicial?: PestanaFicha;
 }) {
   const router = useRouter();
-  const pestanas = permisos.puedeVerFinanzas
+  const pestanas = permisos.puedeVerTotales
     ? PESTANAS
     : PESTANAS.filter(([id]) => id !== 'documento');
-  // Una pestaña pedida que el usuario no puede ver (p. ej. Documento sin ver_finanzas) cae en Resumen.
+  // Una pestaña pedida que el usuario no puede ver (p. ej. Documento sin orden_ver_totales) cae en Resumen.
   const [pestana, setPestana] = useState<PestanaFicha>(
     () => pestanas.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen',
   );
@@ -267,7 +267,7 @@ export function FichaOrden({
               </Tarjeta>
             )}
           </dl>
-          {permisos.puedeVerFinanzas ? <Totales totales={ficha.totales} /> : null}
+          {permisos.puedeVerTotales ? <Totales totales={ficha.totales} /> : null}
           <PanelOrigenComercialFicha
             origen={ficha.origen}
             puedeVerRfq={permisos.puedeVerRfq}
@@ -291,7 +291,7 @@ export function FichaOrden({
 
       {pestana === 'actividad' ? <PanelActividadFicha eventos={ficha.eventos} /> : null}
 
-      {permisos.puedeVerFinanzas && pestana === 'documento' ? (
+      {permisos.puedeVerTotales && pestana === 'documento' ? (
         <PanelDocumentoFicha ficha={ficha} folio={folio} />
       ) : null}
 

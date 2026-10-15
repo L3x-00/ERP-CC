@@ -54,7 +54,7 @@ const PERMISOS = {
   puedeLiberar: false,
   puedeCerrar: false,
   puedeCancelar: false,
-  puedeVerFinanzas: true,
+  puedeVerTotales: true,
   puedeAdjuntar: false,
   puedeEliminarTodos: false,
   puedeVerRfq: false,
@@ -88,10 +88,10 @@ describe('ficha de Orden C8.1 · pregunta guía por pestaña (R19)', () => {
     expect(screen.getByTestId('ficha-pregunta-pestana').textContent).toBe(pregunta);
   });
 
-  it('una pestanaInicial que el usuario no puede ver cae en Resumen (Documento sin ver_finanzas)', () => {
+  it('una pestanaInicial que el usuario no puede ver cae en Resumen (Documento sin orden_ver_totales)', () => {
     render(createElement(FichaOrden, {
       ficha: FICHA,
-      permisos: { ...PERMISOS, puedeVerFinanzas: false },
+      permisos: { ...PERMISOS, puedeVerTotales: false },
       usuarioActualId: 'u-1',
       pestanaInicial: 'documento',
     }));

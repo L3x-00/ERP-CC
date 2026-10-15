@@ -54,6 +54,7 @@ export type Permiso =
   | 'orden_cerrar_admin'
   | 'orden_cancelar'
   | 'orden_crear_interna'
+  | 'orden_ver_totales'
   // Producción (B6)
   | 'produccion_operar'
   | 'calidad_liberar_primera_pieza'

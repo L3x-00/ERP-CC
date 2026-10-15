@@ -95,10 +95,10 @@ function crearCliente(snapshotJson: unknown) {
 }
 
 describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanzas', () => {
-  it('sin ver_finanzas: el snapshot se lee en servidor pero no sale ningún precio, costo ni total', async () => {
+  it('sin orden_ver_totales: el snapshot se lee en servidor pero no sale ningún precio, costo ni total', async () => {
     const { cliente, columnasOrden } = crearCliente(snapshot(ORIGEN_COMPLETO));
 
-    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirFinanzas: false });
+    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: false });
     expect(ficha).not.toBeNull();
     const serializado = JSON.stringify(ficha);
 
@@ -122,7 +122,7 @@ describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanza
   it('el origen sale campo a campo (lista blanca) y a cualquier rol con orden_vista', async () => {
     const { cliente } = crearCliente(snapshot(ORIGEN_COMPLETO));
 
-    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirFinanzas: false });
+    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: false });
 
     expect(ficha?.origen).toEqual({
       rfqId: ID_RFQ,
@@ -137,10 +137,10 @@ describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanza
     ]);
   });
 
-  it('con ver_finanzas conserva snapshot, totales, moneda y archivos como antes', async () => {
+  it('con orden_ver_totales conserva snapshot, totales, moneda y archivos como antes', async () => {
     const { cliente } = crearCliente(snapshot(ORIGEN_COMPLETO));
 
-    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirFinanzas: true });
+    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: true });
 
     expect(ficha?.snapshot).not.toBeNull();
     expect(ficha?.totales?.total).toBe(44444.44);
@@ -156,7 +156,7 @@ describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanza
   ])('%s no tiene origen comercial', async (_caso, snapshotJson) => {
     const { cliente } = crearCliente(snapshotJson);
 
-    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirFinanzas: false });
+    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: false });
     expect(ficha?.origen).toBeNull();
   });
 });

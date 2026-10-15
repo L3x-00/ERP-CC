@@ -64,7 +64,7 @@ describe('ficha de Orden C4.3', () => {
         puedeLiberar: false,
         puedeCerrar: false,
         puedeCancelar: false,
-        puedeVerFinanzas: false,
+        puedeVerTotales: false,
         puedeAdjuntar: false,
         puedeEliminarTodos: false,
         puedeVerRfq: false,
@@ -78,14 +78,14 @@ describe('ficha de Orden C4.3', () => {
     expect(screen.queryByRole('button', { name: 'Ajustar' })).toBeNull();
   });
 
-  it('no ofrece documento ni totales comerciales a quien carece de ver_finanzas', () => {
+  it('no ofrece documento ni totales comerciales a quien carece de orden_ver_totales', () => {
     render(createElement(FichaOrden, {
       ficha: FICHA,
       permisos: {
         puedeLiberar: false,
         puedeCerrar: false,
         puedeCancelar: false,
-        puedeVerFinanzas: false,
+        puedeVerTotales: false,
         puedeAdjuntar: false,
         puedeEliminarTodos: false,
         puedeVerRfq: false,
@@ -108,7 +108,7 @@ describe('ficha de Orden C4.3', () => {
         puedeLiberar: false,
         puedeCerrar: false,
         puedeCancelar: false,
-        puedeVerFinanzas: true,
+        puedeVerTotales: true,
         puedeAdjuntar: false,
         puedeEliminarTodos: false,
         puedeVerRfq: false,

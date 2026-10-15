@@ -12,14 +12,14 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 /**
  * Documento de la orden (ORD-03) y Orden de Servicio imprimible (DOC-01/03).
  * Incluye precios, totales y moneda; solo se compone después de autorizar
- * `ver_finanzas`. El cliente operativo nunca consulta el snapshot comercial.
+ * `orden_ver_totales`. El cliente operativo nunca consulta el snapshot comercial.
  */
 export async function obtenerDocumentoOrdenAccion(
   ordenId: unknown,
 ): Promise<RespuestaAccion<DocumentoOrden>> {
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) return { exito: false, error: 'No autorizado' };
-  if (!(await can(usuario, 'orden_vista')) || !(await can(usuario, 'ver_finanzas'))) {
+  if (!(await can(usuario, 'orden_vista')) || !(await can(usuario, 'orden_ver_totales'))) {
     return { exito: false, error: 'Sin permiso para ver información financiera de la orden' };
   }
   if (typeof ordenId !== 'string' || ordenId.length === 0) {

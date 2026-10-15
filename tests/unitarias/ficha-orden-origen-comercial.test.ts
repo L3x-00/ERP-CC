@@ -52,7 +52,7 @@ describe('enlaces del origen comercial', () => {
 });
 
 describe('ficha de Orden C8.2 · Origen comercial', () => {
-  it('muestra RFQ, Propuesta y Revisión aceptada por folio a un rol SIN ver_finanzas', () => {
+  it('muestra RFQ, Propuesta y Revisión aceptada por folio a un rol SIN orden_ver_totales', () => {
     montar(fichaCompleta());
 
     const bloque = screen.getByTestId('ficha-origen-comercial');
@@ -63,7 +63,7 @@ describe('ficha de Orden C8.2 · Origen comercial', () => {
     expect(revision.textContent).toContain('CNC-1026_07-B');
     expect(revision.textContent).toContain('Revisión B');
     expect(bloque.textContent).not.toMatch(PATRON_UUID);
-    // Sin ver_finanzas: ni totales ni el antiguo volcado del snapshot.
+    // Sin orden_ver_totales: ni totales ni el antiguo volcado del snapshot.
     expect(screen.queryByText('Origen (snapshot)')).toBeNull();
     expect(screen.queryByText('Subtotal')).toBeNull();
     expect(screen.queryByText('Total')).toBeNull();
@@ -95,8 +95,8 @@ describe('ficha de Orden C8.2 · Origen comercial', () => {
     expect(within(screen.getByTestId('ficha-origen-rfq')).queryByRole('link')).toBeNull();
   });
 
-  it('con ver_finanzas el origen sigue ahí junto a los totales, sin volcar el snapshot', () => {
-    montar(fichaConSnapshot(), { ...PERMISOS_BASE, puedeVerFinanzas: true });
+  it('con orden_ver_totales el origen sigue ahí junto a los totales, sin volcar el snapshot', () => {
+    montar(fichaConSnapshot(), { ...PERMISOS_BASE, puedeVerTotales: true });
 
     expect(screen.getByTestId('ficha-origen-comercial')).toBeTruthy();
     expect(screen.getByText('Subtotal')).toBeTruthy();
