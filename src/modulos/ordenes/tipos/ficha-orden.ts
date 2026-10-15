@@ -35,14 +35,40 @@ export interface EventoFicha {
   detalle: Record<string, unknown>;
 }
 
+/**
+ * Archivo congelado en la orden, ya derivado para mostrarse: Origen («RFQ», «Propuesta Rev A»),
+ * Asociado a (ITxx o «(general)») y Tipo (por clase; «-» si no se conoce). `archivoId` solo sirve
+ * para abrirlo: la pantalla nunca lo imprime.
+ */
 export interface ArchivoFicha {
   archivoId: string;
   nombreOriginal: string | null;
   nombreErp: string | null;
-  clase: string | null;
-  mime: string | null;
-  origen: 'revision' | 'item';
-  itemCodigo: string | null;
+  origen: string;
+  asociadoA: string;
+  tipo: string;
+  /** false cuando el archivo del snapshot ya no tiene fila (no se puede abrir). */
+  disponible: boolean;
+}
+
+/** Ítem de la hoja de trabajo: solo lo que el piso necesita para fabricar; nunca economía. */
+export interface ItemHojaTrabajo {
+  codigoItem: string;
+  descripcion: string | null;
+  cantidad: number | null;
+  material: string | null;
+  espesor: string | null;
+  procesos: string[];
+  observaciones: string | null;
+}
+
+/** Hoja de trabajo (R17): el documento de la orden sin precios, costos, totales ni moneda. */
+export interface HojaTrabajoOrden {
+  folio: string;
+  clienteNombre: string | null;
+  observacionesOrden: string | null;
+  items: ItemHojaTrabajo[];
+  archivos: ArchivoFicha[];
 }
 
 export interface TotalesSnapshot {
@@ -111,7 +137,10 @@ export interface FichaOrden {
   totales: TotalesSnapshot | null;
   entregas: EntregaFicha[];
   eventos: EventoFicha[];
+  /** Archivos congelados con su tabla Origen/Asociado/Tipo; visibles para todo rol con orden_vista. */
   archivos: ArchivoFicha[];
+  /** Hoja de trabajo sin economía; null en órdenes sin snapshot válido. Visible con orden_vista. */
+  hojaTrabajo: HojaTrabajoOrden | null;
 }
 
 /** Ids de las pestañas de la ficha, en el orden en que se muestran. */

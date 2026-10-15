@@ -67,6 +67,7 @@ const FICHA: DatosFichaOrden = {
   entregas: [],
   eventos: [],
   archivos: [],
+  hojaTrabajo: null,
 };
 
 const FICHA_HISTORICA: DatosFichaOrden = {
@@ -121,11 +122,11 @@ describe('ficha de Orden C8.1 · Comentarios como destino', () => {
     expect(screen.getByRole('tab', { name: 'Comentarios' }).getAttribute('aria-selected')).toBe('true');
   });
 
-  it('Comentarios sigue disponible sin orden_ver_totales (la pestaña Documento no)', () => {
+  it('Comentarios y Documento (hoja de trabajo) siguen disponibles sin orden_ver_totales', () => {
     montar(FICHA, { puedeVerTotales: false });
 
     expect(screen.getByRole('tab', { name: 'Comentarios' })).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'Documento' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Documento' })).toBeTruthy();
   });
 });
 

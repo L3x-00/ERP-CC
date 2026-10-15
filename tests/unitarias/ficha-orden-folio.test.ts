@@ -80,7 +80,7 @@ describe('ficha de Orden C8.2 · identidad: «Folio» y «Referencia migrada»',
   });
 
   it('el documento de una orden sin snapshot usa una redacción neutra', () => {
-    montar({ ...fichaCompleta({ folioSii: null }), snapshot: null });
+    montar({ ...fichaCompleta({ folioSii: null }), snapshot: null, hojaTrabajo: null });
     fireEvent.click(screen.getByTestId('ficha-pestana-documento'));
 
     const documento = screen.getByTestId('ficha-panel-documento');

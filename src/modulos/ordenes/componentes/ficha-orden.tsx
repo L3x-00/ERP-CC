@@ -74,12 +74,9 @@ export function FichaOrden({
   pestanaInicial?: PestanaFicha;
 }) {
   const router = useRouter();
-  const pestanas = permisos.puedeVerTotales
-    ? PESTANAS
-    : PESTANAS.filter(([id]) => id !== 'documento');
-  // Una pestaña pedida que el usuario no puede ver (p. ej. Documento sin orden_ver_totales) cae en Resumen.
+  // Documento es visible siempre (R17): sin orden_ver_totales es la hoja de trabajo, sin Totales.
   const [pestana, setPestana] = useState<PestanaFicha>(
-    () => pestanas.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen',
+    () => PESTANAS.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen',
   );
   const [adjuntando, setAdjuntando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -213,7 +210,7 @@ export function FichaOrden({
       ) : null}
 
       <div role="tablist" aria-label="Secciones de la orden" className="flex flex-wrap gap-1 border-b border-borde print:hidden">
-        {pestanas.map(([id, etiqueta]) => (
+        {PESTANAS.map(([id, etiqueta]) => (
           <button
             key={id}
             type="button"
@@ -280,14 +277,14 @@ export function FichaOrden({
 
       {pestana === 'ruta' ? <PanelRutaFicha ruta={ficha.ruta} /> : null}
 
-      {pestana === 'archivos' ? <PanelArchivosFicha archivos={ficha.archivos} /> : null}
+      {pestana === 'archivos' ? <PanelArchivosFicha ordenId={ficha.orden.id} archivos={ficha.archivos} /> : null}
 
       {pestana === 'entregas' ? <PanelEntregasFicha ordenId={ficha.orden.id} entregas={ficha.entregas} /> : null}
 
       {pestana === 'actividad' ? <PanelActividadFicha eventos={ficha.eventos} /> : null}
 
-      {permisos.puedeVerTotales && pestana === 'documento' ? (
-        <PanelDocumentoFicha ficha={ficha} folio={folio} />
+      {pestana === 'documento' ? (
+        <PanelDocumentoFicha ficha={ficha} folio={folio} puedeVerTotales={permisos.puedeVerTotales} />
       ) : null}
 
       {pestana === 'comentarios' ? (

@@ -67,6 +67,11 @@ export interface ArchivoSnapshotOrden {
   nombre_original?: string | null;
   nombre_erp?: string | null;
   mime?: string | null;
+  /** Presentes en los snapshots que congeló `crear_orden_desde_revision`; ausentes en órdenes previas. */
+  entidad?: string | null;
+  revision_id?: string | null;
+  revision_letra?: string | null;
+  item_id?: string | null;
 }
 
 export interface ItemSnapshotOrden {

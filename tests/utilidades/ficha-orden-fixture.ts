@@ -1,4 +1,5 @@
 import type {
+  ArchivoFicha,
   FichaOrden,
   OrigenComercialFicha,
 } from '@/modulos/ordenes/tipos/ficha-orden';
@@ -25,6 +26,17 @@ export const ORIGEN_COMERCIAL: OrigenComercialFicha = {
   propuestaFolio: 'CNC-1026_07',
   revisionFolio: 'CNC-1026_07-B',
   revisionLetra: 'B',
+};
+
+/** Archivo sin nombre y con su id interno: la pantalla no debe imprimir el id. */
+const ARCHIVO_FICHA: ArchivoFicha = {
+  archivoId: ID_ARCHIVO,
+  nombreOriginal: null,
+  nombreErp: null,
+  origen: 'RFQ',
+  asociadoA: 'IT01',
+  tipo: 'CAD',
+  disponible: true,
 };
 
 export const PERMISOS_BASE: PermisosFichaOrden = {
@@ -112,15 +124,22 @@ export function fichaCompleta(cambios: Partial<FichaOrden['orden']> = {}): Ficha
         },
       },
     ],
-    archivos: [{
-      archivoId: ID_ARCHIVO,
-      nombreOriginal: null,
-      nombreErp: null,
-      clase: 'cad',
-      mime: null,
-      origen: 'item',
-      itemCodigo: 'IT01',
-    }],
+    archivos: [ARCHIVO_FICHA],
+    hojaTrabajo: {
+      folio: cambios.folioSii === null ? 'OP-008201' : cambios.folioSii ?? 'O-1026_01',
+      clienteNombre: 'Cliente C8.2',
+      observacionesOrden: 'Turno matutino',
+      items: [{
+        codigoItem: 'IT01',
+        descripcion: 'Soporte lateral',
+        cantidad: 4,
+        material: 'Acero A36',
+        espesor: '3 mm',
+        procesos: ['Corte láser', 'Doblez'],
+        observaciones: 'Rebabar bordes',
+      }],
+      archivos: [ARCHIVO_FICHA],
+    },
   };
 }
 
