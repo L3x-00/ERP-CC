@@ -64,6 +64,16 @@ export function fichaCompleta(cambios: Partial<FichaOrden['orden']> = {}): Ficha
       ...cambios,
     },
     origen: ORIGEN_COMERCIAL,
+    ruta: [
+      {
+        codigoItem: 'IT01',
+        descripcion: 'Soporte lateral',
+        pasos: [
+          { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 1 },
+          { secuencia: 2, proceso: 'Doblez', prepHoras: null, operacionHoras: null },
+        ],
+      },
+    ],
     partidas: [{
       id: ID_PARTIDA,
       codigoPieza: 'PZA-1',

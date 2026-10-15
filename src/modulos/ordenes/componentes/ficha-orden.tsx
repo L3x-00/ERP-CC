@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -92,11 +92,6 @@ export function FichaOrden({
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
   const esTerminal = estado === 'CERRADA' || estado === 'CANCELADA';
-
-  const ruta = useMemo(
-    () => (ficha.snapshot?.items ?? []).filter((item) => !item.es_descuento),
-    [ficha.snapshot],
-  );
 
   async function ejecutar(accion: () => Promise<{ exito: boolean; error?: string }>, ok: string): Promise<boolean> {
     setOcupado(true);
@@ -283,7 +278,7 @@ export function FichaOrden({
 
       {pestana === 'partidas' ? <PanelPartidasFicha partidas={ficha.partidas} /> : null}
 
-      {pestana === 'ruta' ? <PanelRutaFicha ruta={ruta} /> : null}
+      {pestana === 'ruta' ? <PanelRutaFicha ruta={ficha.ruta} /> : null}
 
       {pestana === 'archivos' ? <PanelArchivosFicha archivos={ficha.archivos} /> : null}
 

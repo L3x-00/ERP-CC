@@ -116,6 +116,19 @@ suite('C4.3: proyecciones positivas para roles operativos', () => {
     expect(completa.data).toBeNull();
   });
 
+  // C8.3 (R18): cada columna comercial se rechaza por separado, no solo en bloque.
+  it('rechaza por separado snapshot_json, monto_sin_iva, monto_iva y condicion_pago', async () => {
+    const columnas = ['snapshot_json', 'monto_sin_iva', 'monto_iva', 'condicion_pago'] as const;
+    const resultados = await Promise.all(
+      columnas.map((columna) => gerente.from('ordenes_produccion').select(columna).eq('id', ordenId)),
+    );
+
+    for (const [indice, resultado] of resultados.entries()) {
+      expect(resultado.error?.code, columnas[indice]).toBe('42501');
+      expect(resultado.data, columnas[indice]).toBeNull();
+    }
+  });
+
   it('permite consultar el recurso operativo y rechaza costos y tarifas', async () => {
     const [operativo, confidencial, lecturaPrivilegiada] = await Promise.all([
       gerente.from('recursos_planeacion')

@@ -43,7 +43,16 @@ function snapshot(origen: Record<string, unknown>): Record<string, unknown> {
       precio_unitario: 12345.67,
       costo_unitario: 9999.99,
       es_descuento: false,
-      ruteo: [],
+      ruteo: [
+        {
+          secuencia: 2, proceso_nombre: 'Doblez', setup_horas: 0.5, run_horas: 1.5, total_horas: 2,
+          tarifa_hora: 987.65, costo_total: 1357.89,
+        },
+        {
+          secuencia: 1, proceso_nombre: 'Corte láser', setup_horas: '0.25', run_horas: 1,
+          tarifa_hora: 987.65, requiere_revision: false,
+        },
+      ],
       archivos: [{ archivo_id: ID_ARCHIVO, nombre_original: 'plano-secreto.dxf' }],
     }],
     archivos: [],
@@ -67,12 +76,14 @@ const ORIGEN_COMPLETO = {
 /** Cliente Supabase mínimo: cada tabla responde vacío salvo la orden y su snapshot. */
 function crearCliente(snapshotJson: unknown) {
   const columnasOrden: string[] = [];
+  const columnasPorTabla: Record<string, string[]> = {};
   const cliente = {
     from(tabla: string) {
       let columnas = '*';
       const constructor: Record<string, unknown> = {};
       constructor.select = (valor: string) => {
         columnas = valor;
+        (columnasPorTabla[tabla] ??= []).push(valor);
         if (tabla === 'ordenes_produccion') columnasOrden.push(valor);
         return constructor;
       };
@@ -91,7 +102,7 @@ function crearCliente(snapshotJson: unknown) {
       return constructor;
     },
   };
-  return { cliente: cliente as unknown as ClienteFichaOrden, columnasOrden };
+  return { cliente: cliente as unknown as ClienteFichaOrden, columnasOrden, columnasPorTabla };
 }
 
 describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanzas', () => {
@@ -116,6 +127,53 @@ describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanza
       'COMISION-OCULTA', 'plano-secreto.dxf', '"subtotal"', '"iva"', '"total"',
     ]) {
       expect(serializado).not.toContain(secreto);
+    }
+  });
+
+  // R08: la ruta se lee del snapshot interno para cualquier rol con orden_vista, por lista blanca.
+  it('sin orden_ver_totales la ruta sale poblada y ordenada, sin tarifas ni costos', async () => {
+    const { cliente } = crearCliente(snapshot(ORIGEN_COMPLETO));
+
+    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: false });
+    const serializado = JSON.stringify(ficha);
+
+    expect(ficha?.ruta).toEqual([{
+      codigoItem: 'IT01',
+      descripcion: null,
+      pasos: [
+        { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.25, operacionHoras: 1 },
+        { secuencia: 2, proceso: 'Doblez', prepHoras: 0.5, operacionHoras: 1.5 },
+      ],
+    }]);
+    for (const secreto of ['987.65', '1357.89', 'tarifa_hora', 'costo_total', 'total_horas', 'requiere_revision']) {
+      expect(serializado).not.toContain(secreto);
+    }
+  });
+
+  it('con orden_ver_totales la ruta es la misma (la proyección no depende del permiso)', async () => {
+    const { cliente } = crearCliente(snapshot(ORIGEN_COMPLETO));
+    const sinTotales = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: false });
+    const conTotales = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: true });
+    expect(conTotales?.ruta).toEqual(sinTotales?.ruta);
+  });
+
+  it('una orden sin snapshot no tiene ruta', async () => {
+    const { cliente } = crearCliente(null);
+    const ficha = await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: false });
+    expect(ficha?.ruta).toEqual([]);
+  });
+
+  // R18: las partidas se leen con columnas explícitas (nunca select('*')) y sin columnas económicas.
+  it('lee las partidas con columnas explícitas y sin precios ni costos', async () => {
+    const { cliente, columnasPorTabla } = crearCliente(snapshot(ORIGEN_COMPLETO));
+    await obtenerFichaOrdenServicio(cliente, ID_ORDEN, { incluirTotales: false });
+
+    const columnas = columnasPorTabla.partidas_orden_produccion ?? [];
+    expect(columnas.length).toBeGreaterThan(0);
+    for (const seleccion of columnas) {
+      expect(seleccion).not.toBe('*');
+      expect(seleccion).not.toMatch(/precio|costo|monto|tarifa/iu);
+      expect(seleccion).toContain('codigo_item');
     }
   });
 

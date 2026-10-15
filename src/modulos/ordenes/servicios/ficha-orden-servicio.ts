@@ -14,7 +14,11 @@ import {
   ESTADO_LEGACY_A_SII,
   type SnapshotOrdenSii,
 } from '@/modulos/ordenes/tipos/orden-sii';
+import { proyectarRutaFicha } from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
 import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
+
+const COLUMNAS_PARTIDA_FICHA =
+  'id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
 
 export type ClienteFichaOrden = SupabaseClient<Database>;
 
@@ -98,7 +102,7 @@ export async function obtenerFichaOrdenServicio(
   const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp] = await Promise.all([
     cliente
       .from('partidas_orden_produccion')
-      .select('*')
+      .select(COLUMNAS_PARTIDA_FICHA)
       .eq('orden_id', ordenId)
       .order('codigo_item', { ascending: true, nullsFirst: false })
       .order('creado_en', { ascending: true }),
@@ -240,6 +244,7 @@ export async function obtenerFichaOrdenServicio(
     },
     origen,
     partidas,
+    ruta: proyectarRutaFicha(snapshotLeido),
     snapshot,
     totales,
     entregas: (notasResp.data ?? []).map((nota) => ({

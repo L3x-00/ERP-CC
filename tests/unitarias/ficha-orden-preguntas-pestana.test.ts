@@ -42,6 +42,7 @@ const FICHA: DatosFichaOrden = {
     moneda: 'MXN',
   },
   origen: null,
+  ruta: [],
   partidas: [],
   snapshot: null,
   totales: null,

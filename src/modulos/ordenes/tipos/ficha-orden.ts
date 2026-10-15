@@ -66,6 +66,20 @@ export interface OrigenComercialFicha {
   revisionLetra: string | null;
 }
 
+/** Paso de la ruta de un ítem: proceso y horas estimadas; nunca tarifa, costo ni precio. */
+export interface PasoRutaFicha {
+  secuencia: number;
+  proceso: string;
+  prepHoras: number | null;
+  operacionHoras: number | null;
+}
+
+export interface RutaItemFicha {
+  codigoItem: string;
+  descripcion: string | null;
+  pasos: PasoRutaFicha[];
+}
+
 export interface FichaOrden {
   orden: {
     id: string;
@@ -91,6 +105,8 @@ export interface FichaOrden {
   /** Visible para todo rol con orden_vista; null en órdenes internas o anteriores al flujo SII. */
   origen: OrigenComercialFicha | null;
   partidas: PartidaFicha[];
+  /** Ruta por ítem proyectada por lista blanca; visible para todo rol con orden_vista. */
+  ruta: RutaItemFicha[];
   snapshot: SnapshotOrdenSii | null;
   totales: TotalesSnapshot | null;
   entregas: EntregaFicha[];
