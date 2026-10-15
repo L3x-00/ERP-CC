@@ -23,7 +23,6 @@ type ParametrosPaginaOrdenes = {
 /** Centro administrativo de OP; la lectura se resuelve en un Server Component. */
 export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOrdenes) {
   const parametros = searchParams ? await searchParams : {};
-  const ordenInicialId = typeof parametros.ordenId === 'string' ? parametros.ordenId : undefined;
   const usuario = await obtenerUsuarioServidor();
   if (!usuario || !(await can(usuario, 'orden_vista'))) notFound();
 
@@ -33,13 +32,11 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   const idEnlazado = esquemaIdOrdenEnlace.safeParse(parametros.ordenId);
   if (idEnlazado.success) redirect(`/ordenes/${idEnlazado.data}?pestana=comentarios`);
 
-  const [mostrarVentas, puedeAdministrar, puedeCrearInterna, puedeLiberar, puedeCerrar, puedeCancelar] = await Promise.all([
+  const [mostrarVentas, puedeAdministrar, puedeCrearInterna, puedeLiberar] = await Promise.all([
     can(usuario, 'ver_finanzas'),
     can(usuario, 'aprobar_ordenes'),
     can(usuario, 'orden_crear_interna'),
     can(usuario, 'orden_liberar'),
-    can(usuario, 'orden_cerrar_admin'),
-    can(usuario, 'orden_cancelar'),
   ]);
   const cliente = await crearClienteSupabaseServidor();
   const puedeVerAltas = puedeAdministrar || puedeCrearInterna;
@@ -148,17 +145,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
             Consulta el detalle, los comentarios y el seguimiento operativo de cada orden.
           </p>
         </div>
-        <TablaOrdenes
-          ordenes={ordenes}
-          ordenInicialId={ordenInicialId}
-          usuarioActualId={usuario.id}
-          puedeEliminarTodos={usuario.rol === 'admin'}
-          puedeAdministrar={puedeAdministrar}
-          puedeLiberar={puedeLiberar}
-          puedeCerrar={puedeCerrar}
-          puedeCancelar={puedeCancelar}
-          puedeVerFinanzas={mostrarVentas}
-        />
+        <TablaOrdenes ordenes={ordenes} puedeLiberar={puedeLiberar} />
       </section>
     </div>
   );

@@ -153,14 +153,7 @@ function tonoAvance(
 
 type PropsTablaOrdenes = {
   ordenes: OrdenTabla[];
-  ordenInicialId?: string;
-  usuarioActualId?: string;
-  puedeEliminarTodos?: boolean;
-  puedeAdministrar?: boolean;
   puedeLiberar?: boolean;
-  puedeCerrar?: boolean;
-  puedeCancelar?: boolean;
-  puedeVerFinanzas?: boolean;
 };
 
 /**
@@ -169,11 +162,7 @@ type PropsTablaOrdenes = {
  * el destino de Comentarios, Adjuntos, Cancelar, Cerrar y Documento) y una sola acción
  * contextual: Liberar. El estado deriva de la programación, las sesiones y las metas.
  */
-export function TablaOrdenes({
-  ordenes,
-  ordenInicialId,
-  puedeLiberar = false,
-}: PropsTablaOrdenes) {
+export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdenes) {
   const router = useRouter();
   const filtroMaquina = usarTiendaOrdenes((estado) => estado.filtroMaquina);
   const filtrosEstado = usarTiendaOrdenes((estado) => estado.filtrosEstado);
@@ -183,9 +172,7 @@ export function TablaOrdenes({
   const [ordenActualizandoId, setOrdenActualizandoId] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [mensajeAccion, setMensajeAccion] = useState<string | null>(null);
-  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
-    ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
-      ? 'archivo' : 'activas');
+  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>('activas');
   const [hidratado, setHidratado] = useState(false);
 
   useEffect(() => {
