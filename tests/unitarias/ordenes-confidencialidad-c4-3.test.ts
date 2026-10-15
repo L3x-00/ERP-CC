@@ -53,6 +53,15 @@ describe('C4.3 proyeccion operativa de ordenes', () => {
     expect(COLUMNAS_ORDEN_OPERATIVA).not.toContain('snapshot_json');
   });
 
+  it('trae el compromiso comercial y la fecha operativa (fechas, no finanzas) y las mapea', () => {
+    expect(COLUMNAS_ORDEN_OPERATIVA).toContain('fecha_compromiso_comercial');
+    expect(COLUMNAS_ORDEN_OPERATIVA).toContain('fecha_operativa');
+
+    const orden = filaAOrdenOperativa(FILA_ORDEN);
+    expect(orden.fechaCompromisoComercial).toBe('2026-10-20');
+    expect(orden.fechaOperativa).toBe('2026-10-18T18:00:00.000Z');
+  });
+
   it('no serializa finanzas aunque la fila de origen las contenga', () => {
     const payload = filaAOrdenOperativa(FILA_ORDEN);
     const serializado = JSON.stringify(payload);

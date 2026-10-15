@@ -47,6 +47,7 @@ describe('ficha de Orden C8.2 · identidad: «Folio» y «Referencia migrada»',
     montar(fichaConSnapshot({ folioSii: 'O-1026_01' }));
 
     expect(tarjeta('Folio').textContent).toContain('O-1026_01');
+    expect(screen.queryByText('Folio anterior')).toBeNull();
     expect(screen.queryByText('Folio legacy')).toBeNull();
     expect(textoDeTodasLasPestanas()).not.toMatch(/legacy|legad/iu);
   });
@@ -65,14 +66,15 @@ describe('ficha de Orden C8.2 · identidad: «Folio» y «Referencia migrada»',
     expect(screen.queryByText('Referencia migrada')).toBeNull();
   });
 
-  it('una orden anterior al flujo SII (OP-######) muestra su folio bajo «Folio» y textos neutros', () => {
+  it('una orden anterior al flujo SII (OP-######) muestra su folio bajo «Folio anterior» y textos neutros (O-11)', () => {
     montar(fichaConSnapshot({
       folioSii: null,
       idHistorico: 'HIST-2024-001',
       fechaCompromisoComercial: null,
     }));
 
-    expect(tarjeta('Folio').textContent).toContain('OP-008201');
+    expect(tarjeta('Folio anterior').textContent).toContain('OP-008201');
+    expect(screen.queryByText('Folio', { exact: true })).toBeNull();
     expect(screen.getByText('Sin compromiso comercial registrado')).toBeTruthy();
     expect(textoDeTodasLasPestanas()).not.toMatch(/legacy|legad/iu);
   });

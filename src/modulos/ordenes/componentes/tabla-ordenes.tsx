@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { fechaKpiMexico } from '@/modulos/ordenes/utilidades/fecha-kpi';
+import { fechaPromesaOrden } from '@/modulos/ordenes/utilidades/fecha-promesa';
+import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import {
@@ -55,7 +58,12 @@ export type OrdenTabla = {
   /** SII-B5.3: estado derivado del avance. */
   estadoSii: EstadoSiiOrden;
   prioridad: PrioridadOrden;
+  /** Espejo de la fecha operativa; sirve de respaldo si no hay compromiso comercial. */
   fechaCompromiso: string;
+  /** O-06 A: promesa original al cliente (fecha); null en internas o anteriores al flujo SII. */
+  fechaCompromisoComercial?: string | null;
+  /** Fecha interna reprogramable por Planeación; se muestra debajo de la promesa si difiere. */
+  fechaOperativa?: string;
   /** Token de versión (ORD-05/B5) para acciones con compare-and-set. */
   actualizadoEn: string;
   /** OBS-21: fecha de archivo al completar la entrega; null si sigue activa. */
@@ -112,16 +120,16 @@ function calcularAvance(partidas: PartidaTabla[]): {
   return { porcentaje, producido, solicitado, scrap };
 }
 
-/** Días naturales entre hoy y la fecha de compromiso (negativo = vencida). */
-function diasParaCompromiso(fechaCompromiso: string): number {
-  const compromiso = new Date(fechaCompromiso);
+/** Días naturales entre hoy y la promesa (YYYY-MM-DD; negativo = vencida). */
+function diasParaCompromiso(promesa: string): number {
+  const [anio, mes, dia] = promesa.slice(0, 10).split('-').map(Number);
+  const compromiso = new Date(anio, mes - 1, dia);
   if (Number.isNaN(compromiso.getTime())) {
     return Number.POSITIVE_INFINITY;
   }
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const dia = new Date(compromiso.getFullYear(), compromiso.getMonth(), compromiso.getDate());
-  return Math.round((dia.getTime() - hoy.getTime()) / 86_400_000);
+  return Math.round((compromiso.getTime() - hoy.getTime()) / 86_400_000);
 }
 
 /** Semáforo de la fecha de compromiso con las utilidades semánticas del sistema. */
@@ -132,8 +140,7 @@ function claseCompromiso(dias: number): string {
 }
 
 /** Explicación para el `title` del semáforo de compromiso. */
-function tituloCompromiso(dias: number, fechaCompromiso: string): string {
-  const fecha = formatearFecha(fechaCompromiso);
+function tituloCompromiso(dias: number, fecha: string): string {
   if (dias < 0) return `Compromiso vencido hace ${Math.abs(dias)} días — ${fecha}`;
   if (dias === 0) return `Vence hoy — ${fecha}`;
   if (dias <= 3) return `Vence en ${dias} día(s) — ${fecha}`;
@@ -366,7 +373,12 @@ export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdene
             <TablaCuerpo>
               {ordenesVisibles.map((orden) => {
                 const avance = calcularAvance(orden.partidas);
-                const dias = diasParaCompromiso(orden.fechaCompromiso);
+                const promesa = fechaPromesaOrden(orden);
+                const dias = diasParaCompromiso(promesa);
+                const promesaLegible = formatearFechaCalendario(promesa);
+                const operativa = orden.fechaOperativa && fechaKpiMexico(orden.fechaOperativa) !== promesa
+                  ? orden.fechaOperativa
+                  : null;
                 const folioVisible = orden.folioSii ?? orden.folio;
 
                 return (
@@ -414,8 +426,16 @@ export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdene
                       {ETIQUETA_PRIORIDAD[orden.prioridad]}
                     </TablaCelda>
                     <TablaCelda className={`whitespace-nowrap ${claseCompromiso(dias)}`}>
-                      <span title={tituloCompromiso(dias, orden.fechaCompromiso)}>
-                        {formatearFecha(orden.fechaCompromiso)}
+                      <span data-testid={`compromiso-orden-${folioVisible}`}>
+                        <span title={tituloCompromiso(dias, promesaLegible)}>{promesaLegible}</span>
+                        {operativa ? (
+                          <span
+                            data-testid={`operativa-orden-${folioVisible}`}
+                            className="block text-xs font-normal text-texto-tenue"
+                          >
+                            Operativa {formatearFecha(operativa)}
+                          </span>
+                        ) : null}
                       </span>
                     </TablaCelda>
                     <TablaCelda className="whitespace-nowrap text-texto-secundario">

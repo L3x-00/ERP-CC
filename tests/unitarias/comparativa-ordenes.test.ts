@@ -42,6 +42,23 @@ describe('comparativa KPI', () => {
     expect(filas[0]).toMatchObject({ eficiencia: null, puntual: null, ventaMxn: null });
   });
 
+  // O-06 A: el KPI usa la promesa original (compromiso comercial), no la fecha operativa reprogramada.
+  it('mide la puntualidad contra el compromiso comercial aunque la fecha operativa se haya movido', () => {
+    const base = ordenes[0] as OrdenConPartidas;
+    const reprogramadaTarde = {
+      ...base,
+      orden: { ...base.orden, fechaCompromisoComercial: '2026-09-20', fechaCompromiso: '2026-09-30T23:59:59Z' } as Orden,
+    };
+    const entrega = [{ orden_id: 'op-1', creado_en: '2026-09-25T18:00:00Z' }];
+    expect(compararOrdenes([reprogramadaTarde], [], entrega, [])[0]?.puntual).toBe(false);
+
+    const reprogramadaTemprano = {
+      ...base,
+      orden: { ...base.orden, fechaCompromisoComercial: '2026-09-30', fechaCompromiso: '2026-09-15T23:59:59Z' } as Orden,
+    };
+    expect(compararOrdenes([reprogramadaTemprano], [], entrega, [])[0]?.puntual).toBe(true);
+  });
+
   it('evalúa puntualidad en la fecha operativa mexicana', () => {
     const filas = compararOrdenes(ordenes, [],
       [{ orden_id: 'op-1', creado_en: '2026-09-21T02:00:00Z' }], []);

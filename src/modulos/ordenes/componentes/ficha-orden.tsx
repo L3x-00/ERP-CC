@@ -246,7 +246,9 @@ export function FichaOrden({
         <section className="grid gap-4" data-testid="ficha-panel-resumen">
           <dl className="grid gap-3 sm:grid-cols-4">
             <Tarjeta titulo="Estado SII">{estado}</Tarjeta>
-            <Tarjeta titulo="Folio">{ficha.orden.folioSii ?? ficha.orden.folio}</Tarjeta>
+            <Tarjeta titulo={ficha.orden.folioSii ? 'Folio' : 'Folio anterior'}>
+              {ficha.orden.folioSii ?? ficha.orden.folio}
+            </Tarjeta>
             {ficha.orden.idHistorico !== null && (
               <Tarjeta titulo="Referencia migrada">{ficha.orden.idHistorico}</Tarjeta>
             )}

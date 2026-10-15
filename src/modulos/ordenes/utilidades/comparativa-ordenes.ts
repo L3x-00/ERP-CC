@@ -1,5 +1,6 @@
 import type { OrdenConPartidas } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { fechaKpiMexico } from '@/modulos/ordenes/utilidades/fecha-kpi';
+import { fechaPromesaOrden } from '@/modulos/ordenes/utilidades/fecha-promesa';
 
 export type SesionComparativa = { orden_id: string; estado_sesion: string; motivo_pausa: string | null };
 export type EntregaComparativa = { orden_id: string; creado_en: string };
@@ -55,7 +56,7 @@ export function compararOrdenes(
         horasEstimadas: estimadas,
         horasReales: reales,
         eficiencia: reales > 0 ? estimadas / reales * 100 : null,
-        puntual: entrega ? fechaKpiMexico(entrega) <= orden.fechaCompromiso.slice(0, 10) : null,
+        puntual: entrega ? fechaKpiMexico(entrega) <= fechaPromesaOrden(orden) : null,
         sesiones: actividad?.total ?? 0,
         incidencias: actividad?.pausas ?? 0,
         ventaMxn: cuentas ? ventaPorOrden.get(orden.id) ?? null : null,

@@ -18,6 +18,23 @@ function trabajo(
 }
 
 describe('resumen operativo de órdenes', () => {
+  // O-06 A (cliente, 2026-10-15): la puntualidad se mide contra el compromiso comercial; la fecha
+  // operativa (espejo en `fechaCompromiso`) puede reprogramarse sin mover la promesa original.
+  it('cuenta como atrasada una orden vencida en su compromiso comercial aunque Planeación la reprogramó', () => {
+    const reprogramada = trabajo('reprogramada', 'EN_PRODUCCION', '2026-09-30T18:00:00Z', false, '2026-09-01', 0);
+    reprogramada.orden.fechaCompromisoComercial = '2026-09-10';
+    expect(resumirOrdenes([reprogramada], new Set(), '2026-09-23').atrasadas).toBe(1);
+  });
+  it('no cuenta como atrasada una orden dentro de su compromiso comercial aunque la fecha operativa ya pasó', () => {
+    const adelantada = trabajo('adelantada', 'EN_PRODUCCION', '2026-09-10T18:00:00Z', false, '2026-09-01', 0);
+    adelantada.orden.fechaCompromisoComercial = '2026-10-05';
+    expect(resumirOrdenes([adelantada], new Set(), '2026-09-23').atrasadas).toBe(0);
+  });
+  it('sin compromiso comercial (interna o anterior al flujo SII) usa la fecha que tenga', () => {
+    const sinComercial = trabajo('sin-comercial', 'EN_PRODUCCION', '2026-09-10T18:00:00Z', false, '2026-09-01', 0);
+    sinComercial.orden.fechaCompromisoComercial = null;
+    expect(resumirOrdenes([sinComercial], new Set(), '2026-09-23').atrasadas).toBe(1);
+  });
   it('atribuye una TI al mes de México en el borde UTC', () => {
     const resumen = resumirOrdenes([
       trabajo('ti-borde', 'EN_PRODUCCION', '2026-10-15', true, '2026-10-01T02:00:00Z', 0),
