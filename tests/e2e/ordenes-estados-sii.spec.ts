@@ -340,10 +340,17 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
 
       // Ficha: snapshot, partidas ITxx, actividad y documento.
       await expect(page.getByTestId('ficha-estado')).toContainText('Cerrada');
+      // C8.2: identidad y origen comercial por folio, sin identificadores internos.
+      await expect(page.getByTestId('ficha-origen-comercial')).toContainText('Revisión aceptada');
+      await expect(page.getByTestId('ficha-origen-rfq')).not.toContainText('No disponible');
+      expect(await page.getByTestId('ficha-panel-resumen').textContent())
+        .not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|legacy/iu);
       await page.getByTestId('ficha-pestana-partidas').click();
       await expect(page.getByTestId('ficha-panel-partidas')).toContainText('IT01');
       await page.getByTestId('ficha-pestana-actividad').click();
-      await expect(page.getByTestId('ficha-panel-actividad')).toContainText('orden_creada');
+      // C8.2 (R10, Fase 1): Actividad en español, sin snake_case ni identificadores.
+      await expect(page.getByTestId('ficha-panel-actividad')).toContainText('Orden creada');
+      await expect(page.getByTestId('ficha-panel-actividad')).not.toContainText('orden_creada');
       await page.getByTestId('ficha-pestana-documento').click();
       await expect(page.getByTestId('ficha-panel-documento')).toContainText(`Orden de servicio ${folio}`);
 
