@@ -85,6 +85,19 @@ describe('ficha de Orden C8.1 · pregunta guía por pestaña (R19)', () => {
     expect(screen.getByTestId('ficha-pregunta-pestana').textContent).toBe(pregunta);
   });
 
+  it('una pestanaInicial que el usuario no puede ver cae en Resumen (Documento sin ver_finanzas)', () => {
+    render(createElement(FichaOrden, {
+      ficha: FICHA,
+      permisos: { ...PERMISOS, puedeVerFinanzas: false },
+      usuarioActualId: 'u-1',
+      pestanaInicial: 'documento',
+    }));
+
+    expect(screen.getByRole('tab', { name: 'Resumen' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('ficha-pregunta-pestana').textContent).toBe('¿Qué es esta Orden?');
+    expect(screen.queryByTestId('ficha-panel-documento')).toBeNull();
+  });
+
   it('abre en Resumen con su pregunta y conserva los data-testid previos de las pestañas', () => {
     render(createElement(FichaOrden, { ficha: FICHA, permisos: PERMISOS, usuarioActualId: 'u-1' }));
 

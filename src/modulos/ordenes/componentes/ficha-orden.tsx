@@ -72,8 +72,9 @@ export function FichaOrden({
   const pestanas = permisos.puedeVerFinanzas
     ? PESTANAS
     : PESTANAS.filter(([id]) => id !== 'documento');
+  // Una pestaña pedida que el usuario no puede ver (p. ej. Documento sin ver_finanzas) cae en Resumen.
   const [pestana, setPestana] = useState<PestanaFicha>(
-    () => (pestanas.some(([id]) => id === pestanaInicial) ? pestanaInicial ?? 'resumen' : 'resumen'),
+    () => pestanas.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen',
   );
   const [adjuntando, setAdjuntando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
