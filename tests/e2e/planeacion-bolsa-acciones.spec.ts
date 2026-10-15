@@ -191,19 +191,18 @@ test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)
     await expect(page.getByTestId(`accion-sesion-${ordenAcciones}`)).toBeVisible();
     await expect(page.getByTestId(`accion-bandeja-${ordenAcciones}`)).toBeVisible();
 
-    // Reactivar solo aparece en admin y devuelve una Lista a operación.
-    await expect(page.getByTestId(`accion-reactivar-${ordenCompletada}`)).toBeVisible();
-    await page.getByTestId(`accion-reactivar-${ordenCompletada}`).click();
-    await page.getByTestId('confirmar-reactivar-orden').click();
-    await expect(page.getByRole('dialog').getByRole('status')).toContainText('reactivada');
-    await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).first().click();
-    await expect.poll(async () => (
+    // C8.1: Reactivar se retiró de la tarjeta (aunque el usuario sea admin); la orden
+    // completada conserva sus acciones de consulta y su estado no cambia.
+    await expect(page.getByTestId(`acciones-tarjeta-${ordenCompletada}`)).toBeVisible();
+    await expect(page.getByTestId(`accion-imprimir-${ordenCompletada}`)).toBeVisible();
+    await expect(page.getByTestId(`accion-reactivar-${ordenCompletada}`)).toHaveCount(0);
+    expect((
       await admin.from('ordenes_produccion').select('estado').eq('id', ordenCompletada).single()
-    ).data?.estado).toBe('en_proceso');
+    ).data?.estado).toBe('completada');
 
-    // Bandeja navega al detalle de la orden y Producción respeta ?ordenId.
+    // Bandeja abre la ficha de la orden (el enlace /ordenes?ordenId= redirige a Comentarios).
     await page.getByTestId(`accion-bandeja-${ordenAcciones}`).click();
-    await page.waitForURL((url) => url.pathname === '/ordenes');
-    expect(page.url()).toContain(`ordenId=${ordenAcciones}`);
+    await page.waitForURL((url) => url.pathname === `/ordenes/${ordenAcciones}`);
+    expect(page.url()).toContain('pestana=comentarios');
   });
 });

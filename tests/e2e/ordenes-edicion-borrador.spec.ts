@@ -88,7 +88,10 @@ test.describe('Órdenes inmutables en la cola (CLI-12)', () => {
       await expect(fila.getByRole('button', { name: /Seleccionar|Quitar selección/u })).toHaveCount(0);
       await expect(fila.getByRole('link', { name: 'Abrir', exact: true })).toBeVisible();
 
-      // C8.1: Comentarios vive en la ficha, no en la fila de la cola.
+      // C8.1: la fila solo abre (y libera); Comentarios y el resto viven en la ficha.
+      await expect(fila.getByRole('button', {
+        name: /Comentarios|Cancelar|Cerrar|Adjuntos|Documento|Repetir|Reactivar/u,
+      })).toHaveCount(0);
       await fila.getByRole('link', { name: 'Abrir', exact: true }).click();
       await page.waitForURL((url) => url.pathname === `/ordenes/${ordenId}`);
       await expect(page.getByRole('tab', { name: 'Comentarios', exact: true })).toBeVisible();
