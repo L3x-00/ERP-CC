@@ -60,6 +60,7 @@ const FICHA: DatosFichaOrden = {
     moneda: 'MXN',
   },
   origen: null,
+  ruta: [],
   partidas: [],
   snapshot: null,
   totales: null,
@@ -77,7 +78,7 @@ const PERMISOS = {
   puedeLiberar: false,
   puedeCerrar: false,
   puedeCancelar: false,
-  puedeVerFinanzas: false,
+  puedeVerTotales: false,
   puedeAdjuntar: true,
   puedeEliminarTodos: false,
   puedeVerRfq: false,
@@ -120,8 +121,8 @@ describe('ficha de Orden C8.1 · Comentarios como destino', () => {
     expect(screen.getByRole('tab', { name: 'Comentarios' }).getAttribute('aria-selected')).toBe('true');
   });
 
-  it('Comentarios sigue disponible sin ver_finanzas (la pestaña Documento no)', () => {
-    montar(FICHA, { puedeVerFinanzas: false });
+  it('Comentarios sigue disponible sin orden_ver_totales (la pestaña Documento no)', () => {
+    montar(FICHA, { puedeVerTotales: false });
 
     expect(screen.getByRole('tab', { name: 'Comentarios' })).toBeTruthy();
     expect(screen.queryByRole('tab', { name: 'Documento' })).toBeNull();

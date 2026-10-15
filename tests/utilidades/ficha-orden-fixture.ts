@@ -31,7 +31,7 @@ export const PERMISOS_BASE: PermisosFichaOrden = {
   puedeLiberar: false,
   puedeCerrar: false,
   puedeCancelar: false,
-  puedeVerFinanzas: false,
+  puedeVerTotales: false,
   puedeAdjuntar: false,
   puedeEliminarTodos: false,
   puedeVerRfq: false,
@@ -64,6 +64,16 @@ export function fichaCompleta(cambios: Partial<FichaOrden['orden']> = {}): Ficha
       ...cambios,
     },
     origen: ORIGEN_COMERCIAL,
+    ruta: [
+      {
+        codigoItem: 'IT01',
+        descripcion: 'Soporte lateral',
+        pasos: [
+          { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 1 },
+          { secuencia: 2, proceso: 'Doblez', prepHoras: null, operacionHoras: null },
+        ],
+      },
+    ],
     partidas: [{
       id: ID_PARTIDA,
       codigoPieza: 'PZA-1',
@@ -114,7 +124,7 @@ export function fichaCompleta(cambios: Partial<FichaOrden['orden']> = {}): Ficha
   };
 }
 
-/** La misma ficha pero con snapshot y totales, como la recibe un rol con `ver_finanzas`. */
+/** La misma ficha pero con snapshot y totales, como la recibe un rol con `orden_ver_totales`. */
 export function fichaConSnapshot(cambios: Partial<FichaOrden['orden']> = {}): FichaOrden {
   const base = fichaCompleta(cambios);
   return {

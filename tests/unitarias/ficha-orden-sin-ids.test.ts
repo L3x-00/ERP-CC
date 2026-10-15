@@ -43,18 +43,18 @@ function textoPorPestana(ficha: DatosFichaOrden, permisos: PermisosFichaOrden): 
 }
 
 const ESCENARIOS: readonly [string, () => DatosFichaOrden, PermisosFichaOrden][] = [
-  ['sin ver_finanzas ni enlaces', () => fichaCompleta(), PERMISOS_BASE],
+  ['sin orden_ver_totales ni enlaces', () => fichaCompleta(), PERMISOS_BASE],
   [
-    'con ver_finanzas y snapshot',
+    'con orden_ver_totales y snapshot',
     () => fichaConSnapshot(),
-    { ...PERMISOS_BASE, puedeVerFinanzas: true },
+    { ...PERMISOS_BASE, puedeVerTotales: true },
   ],
   [
     'con todos los permisos',
     () => fichaConSnapshot(),
     {
       ...PERMISOS_BASE,
-      puedeVerFinanzas: true,
+      puedeVerTotales: true,
       puedeVerRfq: true,
       puedeVerPropuesta: true,
       puedeAdjuntar: true,

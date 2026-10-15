@@ -6,7 +6,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(59);
+SELECT plan(60);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores y permisos
@@ -476,9 +476,21 @@ SELECT ok(
 );
 SELECT set_config('request.jwt.claims',
   json_build_object('sub', '00000000-0000-4000-8000-0000000b7a03', 'role', 'authenticated')::text, true);
+-- C8.3 (O-04): Customer Service (vendedor) recibe orden_vista para consultar la ficha de la Orden;
+-- `puede_ver_archivo` admite orden_vista para la evidencia de entrega, así que ahora la lee.
+SELECT ok(
+  privado.puede_ver_archivo('entrega', gen_random_uuid()),
+  'vendedor (Customer Service, con orden_vista) lee la evidencia de entrega'
+);
+-- Un rol sin orden_vista ni permisos de entrega o finanzas (operador activo) sigue sin leerla.
+RESET ROLE;
+UPDATE public.usuarios SET activo = true WHERE id = '00000000-0000-4000-8000-0000000b7a04';
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '00000000-0000-4000-8000-0000000b7a04', 'role', 'authenticated')::text, true);
+SET LOCAL ROLE authenticated;
 SELECT ok(
   NOT privado.puede_ver_archivo('entrega', gen_random_uuid()),
-  'vendedor sin permiso no lee evidencia de entrega'
+  'operador sin permisos de entrega ni orden_vista no lee evidencia de entrega'
 );
 RESET ROLE;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);

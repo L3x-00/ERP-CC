@@ -14,7 +14,11 @@ import {
   ESTADO_LEGACY_A_SII,
   type SnapshotOrdenSii,
 } from '@/modulos/ordenes/tipos/orden-sii';
+import { proyectarRutaFicha } from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
 import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
+
+const COLUMNAS_PARTIDA_FICHA =
+  'id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
 
 export type ClienteFichaOrden = SupabaseClient<Database>;
 
@@ -68,7 +72,7 @@ function extraerOrigenComercial(snapshot: SnapshotOrdenSii | null): OrigenComerc
 export async function obtenerFichaOrdenServicio(
   cliente: ClienteFichaOrden,
   ordenId: string,
-  opciones: { incluirFinanzas?: boolean } = {},
+  opciones: { incluirTotales?: boolean } = {},
 ): Promise<FichaOrden | null> {
   const { data: orden, error } = await cliente
     .from('ordenes_produccion')
@@ -81,8 +85,8 @@ export async function obtenerFichaOrdenServicio(
   if (!orden) return null;
 
   // El snapshot se lee SIEMPRE en servidor para extraer el origen comercial a cualquier rol con
-  // orden_vista, pero solo sale completo (ítems, archivos, totales, moneda) con ver_finanzas.
-  const incluirFinanzas = opciones.incluirFinanzas === true;
+  // orden_vista, pero solo sale completo (ítems, archivos, totales, moneda) con orden_ver_totales.
+  const incluirTotales = opciones.incluirTotales === true;
   const snapshotResp = await cliente
     .from('ordenes_produccion')
     .select('snapshot_json')
@@ -92,13 +96,13 @@ export async function obtenerFichaOrdenServicio(
   const snapshotJson = snapshotResp.data?.snapshot_json ?? null;
   const snapshotLeido = esSnapshotOrdenSii(snapshotJson) ? snapshotJson : null;
   const origen = extraerOrigenComercial(snapshotLeido);
-  const snapshot = incluirFinanzas ? snapshotLeido : null;
-  const totales = incluirFinanzas ? totalesDeSnapshot(snapshotJson) : null;
+  const snapshot = incluirTotales ? snapshotLeido : null;
+  const totales = incluirTotales ? totalesDeSnapshot(snapshotJson) : null;
 
   const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp] = await Promise.all([
     cliente
       .from('partidas_orden_produccion')
-      .select('*')
+      .select(COLUMNAS_PARTIDA_FICHA)
       .eq('orden_id', ordenId)
       .order('codigo_item', { ascending: true, nullsFirst: false })
       .order('creado_en', { ascending: true }),
@@ -240,6 +244,7 @@ export async function obtenerFichaOrdenServicio(
     },
     origen,
     partidas,
+    ruta: proyectarRutaFicha(snapshotLeido),
     snapshot,
     totales,
     entregas: (notasResp.data ?? []).map((nota) => ({

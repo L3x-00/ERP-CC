@@ -88,6 +88,20 @@ describe('/ordenes/[id] · destino de la ficha (C8.1)', () => {
     expect(elemento.props.permisos).toMatchObject({ puedeVerRfq: true, puedeVerPropuesta: true });
   });
 
+  // O-04: la puerta de precios, totales y documento comercial es orden_ver_totales; ver_finanzas
+  // (Cobranza, Gastos, Compras, Tesorería) ya no la abre.
+  it('la puerta de precios y totales es orden_ver_totales, no ver_finanzas', async () => {
+    permisosConcedidos.add('ver_finanzas');
+    let elemento = await renderizar();
+    expect(elemento.props.permisos).toMatchObject({ puedeVerTotales: false });
+    expect(fichaMock).toHaveBeenLastCalledWith(expect.anything(), ID_ORDEN, { incluirTotales: false });
+
+    permisosConcedidos.add('orden_ver_totales');
+    elemento = await renderizar();
+    expect(elemento.props.permisos).toMatchObject({ puedeVerTotales: true });
+    expect(fichaMock).toHaveBeenLastCalledWith(expect.anything(), ID_ORDEN, { incluirTotales: true });
+  });
+
   it('sin rfq_vista ni propuesta_vista los enlaces del origen quedan deshabilitados', async () => {
     const elemento = await renderizar();
     expect(elemento.props.permisos).toMatchObject({ puedeVerRfq: false, puedeVerPropuesta: false });

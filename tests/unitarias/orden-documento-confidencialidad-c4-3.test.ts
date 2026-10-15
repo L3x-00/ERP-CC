@@ -44,7 +44,7 @@ beforeEach(() => {
 describe('C4.3 documento comercial de Orden', () => {
   it('rechaza a quien tiene finanzas pero no puede ver Ordenes', async () => {
     permisoMock.mockImplementation(
-      async (_usuario: unknown, permiso: string) => permiso === 'ver_finanzas',
+      async (_usuario: unknown, permiso: string) => permiso === 'orden_ver_totales',
     );
 
     await expect(obtenerDocumentoOrdenAccion(ORDEN_ID)).resolves.toEqual({
@@ -57,13 +57,13 @@ describe('C4.3 documento comercial de Orden', () => {
     expect(adminMock).not.toHaveBeenCalled();
   });
 
-  it('rechaza antes de consultar datos si falta ver_finanzas', async () => {
+  it('rechaza antes de consultar datos si falta orden_ver_totales', async () => {
     await expect(obtenerDocumentoOrdenAccion(ORDEN_ID)).resolves.toEqual({
       exito: false,
       error: 'Sin permiso para ver información financiera de la orden',
     });
     expect(permisoMock).toHaveBeenNthCalledWith(1, USUARIO, 'orden_vista');
-    expect(permisoMock).toHaveBeenNthCalledWith(2, USUARIO, 'ver_finanzas');
+    expect(permisoMock).toHaveBeenNthCalledWith(2, USUARIO, 'orden_ver_totales');
     expect(servicioMock).not.toHaveBeenCalled();
     expect(adminMock).not.toHaveBeenCalled();
     expect(servidorMock).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe('C4.3 documento comercial de Orden', () => {
 
     expect(respuesta.exito).toBe(true);
     expect(permisoMock).toHaveBeenNthCalledWith(1, USUARIO, 'orden_vista');
-    expect(permisoMock).toHaveBeenNthCalledWith(2, USUARIO, 'ver_finanzas');
+    expect(permisoMock).toHaveBeenNthCalledWith(2, USUARIO, 'orden_ver_totales');
     expect(servicioMock).toHaveBeenCalledWith({ tipo: 'admin' }, ORDEN_ID);
     expect(servidorMock).not.toHaveBeenCalled();
   });

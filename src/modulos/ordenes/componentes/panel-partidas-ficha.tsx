@@ -1,4 +1,5 @@
 import type { PartidaFicha } from '@/modulos/ordenes/tipos/ficha-orden';
+import { resumirProcesos } from '@/modulos/ordenes/utilidades/procesos';
 
 export function PanelPartidasFicha({ partidas }: { partidas: PartidaFicha[] }) {
   return (
@@ -28,7 +29,7 @@ export function PanelPartidasFicha({ partidas }: { partidas: PartidaFicha[] }) {
               <td className="px-3 py-2 tabular-nums">{partida.cantidadProducida}</td>
               <td className="px-3 py-2 tabular-nums">{partida.cantidadScrap}</td>
               <td className="px-3 py-2 text-xs text-texto-secundario">
-                {partida.procesos.length > 0 ? partida.procesos.join(' · ') : '—'}
+                {resumirProcesos(partida.procesos)}
               </td>
             </tr>
           ))}

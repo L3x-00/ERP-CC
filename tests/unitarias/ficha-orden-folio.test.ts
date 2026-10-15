@@ -19,7 +19,7 @@ vi.mock('@/modulos/ordenes/componentes/adjuntos-orden-dialog', () => ({ Adjuntos
 
 import { FichaOrden } from '@/modulos/ordenes/componentes/ficha-orden';
 
-const PERMISOS_FINANZAS = { ...PERMISOS_BASE, puedeVerFinanzas: true };
+const PERMISOS_FINANZAS = { ...PERMISOS_BASE, puedeVerTotales: true };
 
 function montar(ficha: DatosFichaOrden, permisos = PERMISOS_FINANZAS) {
   return render(createElement(FichaOrden, { ficha, permisos, usuarioActualId: 'u-folio' }));

@@ -21,18 +21,18 @@ export default async function PaginaOrden({ params, searchParams }: ParametrosPa
   if (!usuario || !(await can(usuario, 'orden_vista'))) notFound();
 
   const [
-    puedeLiberar, puedeCerrar, puedeCancelar, puedeVerFinanzas, puedeAdjuntar, puedeVerRfq, puedeVerPropuesta,
+    puedeLiberar, puedeCerrar, puedeCancelar, puedeVerTotales, puedeAdjuntar, puedeVerRfq, puedeVerPropuesta,
   ] = await Promise.all([
     can(usuario, 'orden_liberar'),
     can(usuario, 'orden_cerrar_admin'),
     can(usuario, 'orden_cancelar'),
-    can(usuario, 'ver_finanzas'),
+    can(usuario, 'orden_ver_totales'),
     can(usuario, 'aprobar_ordenes'),
     can(usuario, 'rfq_vista'),
     can(usuario, 'propuesta_vista'),
   ]);
   const ficha = await obtenerFichaOrdenServicio(crearClienteSupabaseAdmin(), id, {
-    incluirFinanzas: puedeVerFinanzas,
+    incluirTotales: puedeVerTotales,
   });
   if (!ficha) notFound();
 
@@ -40,7 +40,7 @@ export default async function PaginaOrden({ params, searchParams }: ParametrosPa
     puedeLiberar,
     puedeCerrar,
     puedeCancelar,
-    puedeVerFinanzas,
+    puedeVerTotales,
     puedeAdjuntar,
     puedeEliminarTodos: usuario.rol === 'admin',
     puedeVerRfq,
