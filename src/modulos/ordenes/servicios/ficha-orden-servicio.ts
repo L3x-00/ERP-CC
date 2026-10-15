@@ -5,12 +5,14 @@ import type {
   ArchivoFicha,
   EventoFicha,
   FichaOrden,
+  OrigenComercialFicha,
   PartidaFicha,
   TotalesSnapshot,
 } from '@/modulos/ordenes/tipos/ficha-orden';
 import {
   esSnapshotOrdenSii,
   ESTADO_LEGACY_A_SII,
+  type SnapshotOrdenSii,
 } from '@/modulos/ordenes/tipos/orden-sii';
 import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
 
@@ -36,6 +38,32 @@ function totalesDeSnapshot(snapshot: unknown): TotalesSnapshot | null {
   };
 }
 
+function textoOpcional(valor: unknown): string | null {
+  return typeof valor === 'string' && valor.trim() !== '' ? valor : null;
+}
+
+/**
+ * Origen comercial por lista blanca, campo a campo: jamás se copia el snapshot ni se
+ * propaga una clave que no esté aquí (el snapshot trae precios y costos). Sin ningún
+ * folio humano (orden interna, snapshot antiguo) no hay origen que mostrar.
+ */
+function extraerOrigenComercial(snapshot: SnapshotOrdenSii | null): OrigenComercialFicha | null {
+  if (!snapshot) return null;
+  const origen = snapshot.origen;
+  const rfqFolio = textoOpcional(origen.rfq_folio);
+  const propuestaFolio = textoOpcional(origen.propuesta_folio);
+  const revisionFolio = textoOpcional(origen.revision_folio);
+  if (rfqFolio === null && propuestaFolio === null && revisionFolio === null) return null;
+  return {
+    rfqId: textoOpcional(origen.rfq_id),
+    rfqFolio,
+    propuestaId: textoOpcional(origen.propuesta_id),
+    propuestaFolio,
+    revisionFolio,
+    revisionLetra: textoOpcional(origen.letra),
+  };
+}
+
 /** Lee la ficha completa de una orden para la ruta /ordenes/[id]. */
 export async function obtenerFichaOrdenServicio(
   cliente: ClienteFichaOrden,
@@ -52,15 +80,20 @@ export async function obtenerFichaOrdenServicio(
   if (error) throw error;
   if (!orden) return null;
 
-  const snapshotResp = opciones.incluirFinanzas
-    ? await cliente
-      .from('ordenes_produccion')
-      .select('snapshot_json')
-      .eq('id', ordenId)
-      .maybeSingle()
-    : { data: null, error: null };
+  // El snapshot se lee SIEMPRE en servidor para extraer el origen comercial a cualquier rol con
+  // orden_vista, pero solo sale completo (ítems, archivos, totales, moneda) con ver_finanzas.
+  const incluirFinanzas = opciones.incluirFinanzas === true;
+  const snapshotResp = await cliente
+    .from('ordenes_produccion')
+    .select('snapshot_json')
+    .eq('id', ordenId)
+    .maybeSingle();
   if (snapshotResp.error) throw snapshotResp.error;
   const snapshotJson = snapshotResp.data?.snapshot_json ?? null;
+  const snapshotLeido = esSnapshotOrdenSii(snapshotJson) ? snapshotJson : null;
+  const origen = extraerOrigenComercial(snapshotLeido);
+  const snapshot = incluirFinanzas ? snapshotLeido : null;
+  const totales = incluirFinanzas ? totalesDeSnapshot(snapshotJson) : null;
 
   const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp] = await Promise.all([
     cliente
@@ -148,7 +181,6 @@ export async function obtenerFichaOrdenServicio(
       : {},
   }));
 
-  const snapshot = esSnapshotOrdenSii(snapshotJson) ? snapshotJson : null;
   const archivos: ArchivoFicha[] = [];
   if (snapshot) {
     for (const archivo of snapshot.archivos) {
@@ -204,11 +236,12 @@ export async function obtenerFichaOrdenServicio(
       clienteNombre: clienteFila
         ? clienteFila.nombre_comercial || clienteFila.razon_social
         : null,
-      moneda: totalesDeSnapshot(snapshotJson)?.moneda ?? null,
+      moneda: totales?.moneda ?? null,
     },
+    origen,
     partidas,
     snapshot,
-    totales: totalesDeSnapshot(snapshotJson),
+    totales,
     entregas: (notasResp.data ?? []).map((nota) => ({
       id: nota.id,
       folio: nota.folio,

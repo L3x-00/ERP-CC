@@ -27,7 +27,7 @@ const FICHA: DatosFichaOrden = {
   orden: {
     id: '00000000-0000-4000-8000-0000000c4201',
     folio: 'OP-004201',
-    folioSii: 'OP-1026_01-01',
+    folioSii: 'O-1026_01',
     estadoSii: 'PLANIFICADA',
     estadoLegacy: 'programada',
     prioridad: 'normal',
@@ -45,6 +45,7 @@ const FICHA: DatosFichaOrden = {
     clienteNombre: 'Cliente C4.2',
     moneda: 'MXN',
   },
+  origen: null,
   partidas: [],
   snapshot: null,
   totales: null,
@@ -66,6 +67,8 @@ describe('ficha de Orden C4.3', () => {
         puedeVerFinanzas: false,
         puedeAdjuntar: false,
         puedeEliminarTodos: false,
+        puedeVerRfq: false,
+        puedeVerPropuesta: false,
       },
       usuarioActualId: 'u-c42',
     }));
@@ -85,6 +88,8 @@ describe('ficha de Orden C4.3', () => {
         puedeVerFinanzas: false,
         puedeAdjuntar: false,
         puedeEliminarTodos: false,
+        puedeVerRfq: false,
+        puedeVerPropuesta: false,
       },
       usuarioActualId: 'u-c42',
     }));
@@ -92,6 +97,8 @@ describe('ficha de Orden C4.3', () => {
     expect(screen.queryByRole('tab', { name: 'Documento' })).toBeNull();
     expect(screen.queryByText('Sin totales comerciales en el snapshot.')).toBeNull();
     expect(screen.queryByText('Origen (snapshot)')).toBeNull();
+    // El origen comercial (folios, sin precios) sí lo ve cualquier rol con orden_vista.
+    expect(screen.getByText('Origen comercial')).toBeTruthy();
   });
 
   it('mantiene el documento comercial para una cuenta autorizada', () => {
@@ -104,12 +111,14 @@ describe('ficha de Orden C4.3', () => {
         puedeVerFinanzas: true,
         puedeAdjuntar: false,
         puedeEliminarTodos: false,
+        puedeVerRfq: false,
+        puedeVerPropuesta: false,
       },
       usuarioActualId: 'u-c42',
     }));
 
     expect(screen.getByRole('tab', { name: 'Documento' })).toBeTruthy();
     expect(screen.getByText('Sin totales comerciales en el snapshot.')).toBeTruthy();
-    expect(screen.getByText('Origen (snapshot)')).toBeTruthy();
+    expect(screen.getByText('Origen comercial')).toBeTruthy();
   });
 });

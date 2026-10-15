@@ -41,6 +41,7 @@ const FICHA: DatosFichaOrden = {
     clienteNombre: 'Cliente C8.1',
     moneda: 'MXN',
   },
+  origen: null,
   partidas: [],
   snapshot: null,
   totales: null,
@@ -56,6 +57,8 @@ const PERMISOS = {
   puedeVerFinanzas: true,
   puedeAdjuntar: false,
   puedeEliminarTodos: false,
+  puedeVerRfq: false,
+  puedeVerPropuesta: false,
 };
 
 // Rótulo de la pestaña → pregunta guía (R19 de la nota del cliente).

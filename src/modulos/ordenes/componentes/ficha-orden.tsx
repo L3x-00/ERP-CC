@@ -22,10 +22,11 @@ import { PanelActividadFicha } from '@/modulos/ordenes/componentes/panel-activid
 import { PanelArchivosFicha } from '@/modulos/ordenes/componentes/panel-archivos-ficha';
 import { PanelDocumentoFicha } from '@/modulos/ordenes/componentes/panel-documento-ficha';
 import { PanelEntregasFicha } from '@/modulos/ordenes/componentes/panel-entregas-ficha';
+import { PanelOrigenComercialFicha } from '@/modulos/ordenes/componentes/panel-origen-ficha';
 import { PanelPartidasFicha } from '@/modulos/ordenes/componentes/panel-partidas-ficha';
 import { PanelRutaFicha } from '@/modulos/ordenes/componentes/panel-ruta-ficha';
 import { Tarjeta, Totales } from '@/modulos/ordenes/componentes/tarjeta-ficha';
-import { claveValor, formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
+import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
 import { cerrarOrdenAdministrativaAccion } from '@/modulos/ordenes/acciones/cerrar-orden-administrativa';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
@@ -43,6 +44,10 @@ export interface PermisosFichaOrden {
   puedeAdjuntar: boolean;
   /** Comentarios: quien puede borrar los de otros (admin). */
   puedeEliminarTodos: boolean;
+  /** Origen comercial: el folio del RFQ enlaza a /rfq solo con `rfq_vista`. */
+  puedeVerRfq: boolean;
+  /** Origen comercial: Propuesta y Revisión enlazan a /propuestas solo con `propuesta_vista`. */
+  puedeVerPropuesta: boolean;
 }
 
 const PESTANAS: readonly [PestanaFicha, string][] = [
@@ -241,13 +246,16 @@ export function FichaOrden({
         <section className="grid gap-4" data-testid="ficha-panel-resumen">
           <dl className="grid gap-3 sm:grid-cols-4">
             <Tarjeta titulo="Estado SII">{estado}</Tarjeta>
-            <Tarjeta titulo="Folio legacy">{ficha.orden.folio}</Tarjeta>
+            <Tarjeta titulo="Folio">{ficha.orden.folioSii ?? ficha.orden.folio}</Tarjeta>
+            {ficha.orden.idHistorico !== null && (
+              <Tarjeta titulo="Referencia migrada">{ficha.orden.idHistorico}</Tarjeta>
+            )}
             <Tarjeta titulo="Creada">{formatearFecha(ficha.orden.creadoEn)}</Tarjeta>
             <Tarjeta titulo="Partidas">{ficha.partidas.length}</Tarjeta>
             <Tarjeta titulo="Compromiso comercial">
               {ficha.orden.fechaCompromisoComercial
                 ? formatearFechaCalendario(ficha.orden.fechaCompromisoComercial)
-                : 'No aplica / orden legada'}
+                : 'Sin compromiso comercial registrado'}
             </Tarjeta>
             <Tarjeta titulo="Fecha operativa">{formatearFecha(ficha.orden.fechaOperativa)}</Tarjeta>
             {ficha.orden.cerradaAdminEn && (
@@ -257,28 +265,12 @@ export function FichaOrden({
               </Tarjeta>
             )}
           </dl>
-          {permisos.puedeVerFinanzas ? (
-            <>
-              <Totales totales={ficha.totales} />
-              <div className="rounded-md border border-borde p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">Origen (snapshot)</p>
-                {ficha.snapshot ? (
-                  <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
-                    {Object.entries(ficha.snapshot.origen).map(([clave, valor]) => (
-                      <div key={clave} className="flex gap-2">
-                        <dt className="text-texto-secundario">{clave}:</dt>
-                        <dd className="truncate">{claveValor(valor)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : (
-                  <p className="mt-2 text-sm text-texto-secundario">
-                    Orden histórica sin snapshot (OP-######): conserva sus datos legacy.
-                  </p>
-                )}
-              </div>
-            </>
-          ) : null}
+          {permisos.puedeVerFinanzas ? <Totales totales={ficha.totales} /> : null}
+          <PanelOrigenComercialFicha
+            origen={ficha.origen}
+            puedeVerRfq={permisos.puedeVerRfq}
+            puedeVerPropuesta={permisos.puedeVerPropuesta}
+          />
           {ficha.orden.notas ? (
             <p className="rounded-md border border-borde p-3 whitespace-pre-wrap text-sm text-texto-secundario">
               Observaciones: {ficha.orden.notas}

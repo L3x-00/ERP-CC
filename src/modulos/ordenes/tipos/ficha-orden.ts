@@ -53,6 +53,19 @@ export interface TotalesSnapshot {
   moneda: string | null;
 }
 
+/**
+ * Origen comercial congelado en el snapshot de la orden. Solo folios humanos y los ids
+ * que usan los enlaces; el texto visible nunca muestra los ids.
+ */
+export interface OrigenComercialFicha {
+  rfqId: string | null;
+  rfqFolio: string | null;
+  propuestaId: string | null;
+  propuestaFolio: string | null;
+  revisionFolio: string | null;
+  revisionLetra: string | null;
+}
+
 export interface FichaOrden {
   orden: {
     id: string;
@@ -75,6 +88,8 @@ export interface FichaOrden {
     clienteNombre: string | null;
     moneda: string | null;
   };
+  /** Visible para todo rol con orden_vista; null en órdenes internas o anteriores al flujo SII. */
+  origen: OrigenComercialFicha | null;
   partidas: PartidaFicha[];
   snapshot: SnapshotOrdenSii | null;
   totales: TotalesSnapshot | null;
