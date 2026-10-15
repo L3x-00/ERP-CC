@@ -59,6 +59,7 @@ const FICHA: DatosFichaOrden = {
     clienteNombre: 'Cliente C8.1',
     moneda: 'MXN',
   },
+  origen: null,
   partidas: [],
   snapshot: null,
   totales: null,
@@ -79,6 +80,8 @@ const PERMISOS = {
   puedeVerFinanzas: false,
   puedeAdjuntar: true,
   puedeEliminarTodos: false,
+  puedeVerRfq: false,
+  puedeVerPropuesta: false,
 };
 
 function montar(

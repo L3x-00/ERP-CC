@@ -8,7 +8,7 @@ export function PanelArchivosFicha({ archivos }: { archivos: ArchivoFicha[] }) {
       ) : archivos.map((archivo) => (
         <div key={`${archivo.archivoId}-${archivo.itemCodigo ?? 'rev'}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde px-3 py-2 text-sm">
           <span className="font-medium text-texto-primario">
-            {archivo.nombreErp ?? archivo.nombreOriginal ?? archivo.archivoId}
+            {archivo.nombreErp ?? archivo.nombreOriginal ?? 'Archivo sin nombre'}
           </span>
           <span className="text-xs text-texto-secundario">
             {archivo.clase ?? 'general'} · {archivo.origen === 'item' ? `ítem ${archivo.itemCodigo}` : 'revisión'}

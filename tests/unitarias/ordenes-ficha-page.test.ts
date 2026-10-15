@@ -78,6 +78,21 @@ describe('/ordenes/[id] · destino de la ficha (C8.1)', () => {
     });
   });
 
+  it('resuelve con rfq_vista y propuesta_vista si habilitan los enlaces del origen comercial', async () => {
+    permisosConcedidos.add('rfq_vista');
+    let elemento = await renderizar();
+    expect(elemento.props.permisos).toMatchObject({ puedeVerRfq: true, puedeVerPropuesta: false });
+
+    permisosConcedidos.add('propuesta_vista');
+    elemento = await renderizar();
+    expect(elemento.props.permisos).toMatchObject({ puedeVerRfq: true, puedeVerPropuesta: true });
+  });
+
+  it('sin rfq_vista ni propuesta_vista los enlaces del origen quedan deshabilitados', async () => {
+    const elemento = await renderizar();
+    expect(elemento.props.permisos).toMatchObject({ puedeVerRfq: false, puedeVerPropuesta: false });
+  });
+
   it('sin rol admin ni aprobar_ordenes no concede borrar comentarios ajenos ni Adjuntos', async () => {
     const elemento = await renderizar();
     expect(elemento.props.permisos).toMatchObject({

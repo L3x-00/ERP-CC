@@ -41,7 +41,7 @@ export function PanelDocumentoFicha({ ficha, folio }: { ficha: FichaOrden; folio
           </div>
         ) : (
           <p className="mt-4 text-sm text-texto-secundario">
-            Documento histórico basado en partidas legacy:
+            Orden anterior al flujo SII; documento basado en sus partidas:
             {' '}{ficha.partidas.map((partida) => partida.descripcion ?? partida.codigoPieza).join(' · ')}
           </p>
         )}
