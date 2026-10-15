@@ -347,6 +347,12 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
         .not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|legacy/iu);
       await page.getByTestId('ficha-pestana-partidas').click();
       await expect(page.getByTestId('ficha-panel-partidas')).toContainText('IT01');
+      // C8.3a (R08): la Ruta es una tabla por ítem con Estado «Pendiente» (sin tarifas ni costos).
+      await page.getByTestId('ficha-pestana-ruta').click();
+      const panelRuta = page.getByTestId('ficha-panel-ruta');
+      await expect(panelRuta).toContainText('IT01');
+      await expect(panelRuta.getByRole('columnheader', { name: 'Operación estimada' })).toBeVisible();
+      await expect(panelRuta).toContainText('Pendiente');
       await page.getByTestId('ficha-pestana-actividad').click();
       // C8.2 (R10, Fase 1): Actividad en español, sin snake_case ni identificadores.
       await expect(page.getByTestId('ficha-panel-actividad')).toContainText('Orden creada');
