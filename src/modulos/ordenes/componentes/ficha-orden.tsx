@@ -16,6 +16,8 @@ import {
 import { Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
 import { PanelActividadFicha } from '@/modulos/ordenes/componentes/panel-actividad-ficha';
 import { PanelArchivosFicha } from '@/modulos/ordenes/componentes/panel-archivos-ficha';
 import { PanelDocumentoFicha } from '@/modulos/ordenes/componentes/panel-documento-ficha';
@@ -27,8 +29,9 @@ import { claveValor, formatearFechaCalendario } from '@/modulos/ordenes/utilidad
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
 import { cerrarOrdenAdministrativaAccion } from '@/modulos/ordenes/acciones/cerrar-orden-administrativa';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
-import type { FichaOrden as DatosFicha } from '@/modulos/ordenes/tipos/ficha-orden';
+import type { FichaOrden as DatosFicha, PestanaFicha } from '@/modulos/ordenes/tipos/ficha-orden';
 import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
+import { PREGUNTAS_PESTANA } from '@/modulos/ordenes/utilidades/preguntas-pestana';
 import { cn } from '@/compartido/utilidades/cn';
 
 export interface PermisosFichaOrden {
@@ -36,9 +39,11 @@ export interface PermisosFichaOrden {
   puedeCerrar: boolean;
   puedeCancelar: boolean;
   puedeVerFinanzas: boolean;
+  /** Adjuntos legacy: mismo permiso (`aprobar_ordenes`) que exigen sus Server Actions. */
+  puedeAdjuntar: boolean;
+  /** Comentarios: quien puede borrar los de otros (admin). */
+  puedeEliminarTodos: boolean;
 }
-
-type PestanaFicha = 'resumen' | 'partidas' | 'ruta' | 'archivos' | 'entregas' | 'actividad' | 'documento';
 
 const PESTANAS: readonly [PestanaFicha, string][] = [
   ['resumen', 'Resumen'],
@@ -48,18 +53,29 @@ const PESTANAS: readonly [PestanaFicha, string][] = [
   ['entregas', 'Entregas'],
   ['actividad', 'Actividad'],
   ['documento', 'Documento'],
+  ['comentarios', 'Comentarios'],
 ];
 
 /** Ficha de orden SII-B5: snapshot congelado + acciones de negocio por estado. */
 export function FichaOrden({
   ficha,
   permisos,
+  usuarioActualId,
+  pestanaInicial,
 }: {
   ficha: DatosFicha;
   permisos: PermisosFichaOrden;
+  usuarioActualId: string;
+  pestanaInicial?: PestanaFicha;
 }) {
   const router = useRouter();
-  const [pestana, setPestana] = useState<PestanaFicha>('resumen');
+  const pestanas = permisos.puedeVerFinanzas
+    ? PESTANAS
+    : PESTANAS.filter(([id]) => id !== 'documento');
+  const [pestana, setPestana] = useState<PestanaFicha>(
+    () => (pestanas.some(([id]) => id === pestanaInicial) ? pestanaInicial ?? 'resumen' : 'resumen'),
+  );
+  const [adjuntando, setAdjuntando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -70,9 +86,6 @@ export function FichaOrden({
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
   const esTerminal = estado === 'CERRADA' || estado === 'CANCELADA';
-  const pestanas = permisos.puedeVerFinanzas
-    ? PESTANAS
-    : PESTANAS.filter(([id]) => id !== 'documento');
 
   const ruta = useMemo(
     () => (ficha.snapshot?.items ?? []).filter((item) => !item.es_descuento),
@@ -181,6 +194,13 @@ export function FichaOrden({
               Cerrar administrativa
             </Button>
           )}
+          {ficha.orden.idHistorico !== null && permisos.puedeAdjuntar && (
+            <Button variante="contorno" tamano="sm" disabled={ocupado}
+              onClick={() => setAdjuntando(true)}
+              data-testid="ficha-adjuntos">
+              Adjuntos
+            </Button>
+          )}
         </div>
       </header>
 
@@ -211,6 +231,10 @@ export function FichaOrden({
           </button>
         ))}
       </div>
+
+      <p className="text-sm text-texto-secundario print:hidden" data-testid="ficha-pregunta-pestana">
+        {PREGUNTAS_PESTANA[pestana]}
+      </p>
 
       {pestana === 'resumen' ? (
         <section className="grid gap-4" data-testid="ficha-panel-resumen">
@@ -274,6 +298,27 @@ export function FichaOrden({
 
       {permisos.puedeVerFinanzas && pestana === 'documento' ? (
         <PanelDocumentoFicha ficha={ficha} folio={folio} />
+      ) : null}
+
+      {pestana === 'comentarios' ? (
+        <section data-testid="ficha-panel-comentarios">
+          <HiloComentarios
+            key={ficha.orden.id}
+            entidadTipo="orden"
+            entidadId={ficha.orden.id}
+            usuarioActualId={usuarioActualId}
+            puedeEliminarTodos={permisos.puedeEliminarTodos}
+            titulo={`Comentarios de ${folio}`}
+          />
+        </section>
+      ) : null}
+
+      {adjuntando ? (
+        <AdjuntosOrdenDialog
+          ordenId={ficha.orden.id}
+          folio={folio}
+          onCerrar={() => setAdjuntando(false)}
+        />
       ) : null}
 
       <Dialog open={cancelando} onOpenChange={(abierto) => (!abierto ? setCancelando(false) : undefined)}>

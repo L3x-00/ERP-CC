@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import { PanelOrdenInterna } from '@/modulos/ordenes/componentes/panel-orden-interna';
 import { ComparativaOrdenes } from '@/modulos/ordenes/componentes/comparativa-ordenes';
@@ -9,6 +9,7 @@ import { obtenerDatosComparativaServicio } from '@/modulos/ordenes/servicios/dat
 import { compararOrdenes } from '@/modulos/ordenes/utilidades/comparativa-ordenes';
 import { fechaKpiMexico } from '@/modulos/ordenes/utilidades/fecha-kpi';
 import { resumirOrdenes } from '@/modulos/ordenes/utilidades/resumen-ordenes';
+import { esquemaIdOrdenEnlace } from '@/modulos/ordenes/validaciones/ficha-orden';
 import { obtenerCatalogosRfqAccion } from '@/modulos/rfq/acciones/obtener-catalogos';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -25,6 +26,12 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   const ordenInicialId = typeof parametros.ordenId === 'string' ? parametros.ordenId : undefined;
   const usuario = await obtenerUsuarioServidor();
   if (!usuario || !(await can(usuario, 'orden_vista'))) notFound();
+
+  // Enlaces profundos antiguos (correo de menciones, bitácora, historial, Planeación):
+  // van DESPUÉS de orden_vista para que quien no puede ver órdenes reciba 404 y no
+  // un 307 que delate qué ids existen.
+  const idEnlazado = esquemaIdOrdenEnlace.safeParse(parametros.ordenId);
+  if (idEnlazado.success) redirect(`/ordenes/${idEnlazado.data}?pestana=comentarios`);
 
   const [mostrarVentas, puedeAdministrar, puedeCrearInterna, puedeLiberar, puedeCerrar, puedeCancelar] = await Promise.all([
     can(usuario, 'ver_finanzas'),

@@ -17,6 +17,9 @@ vi.mock('@/modulos/ordenes/acciones/cerrar-orden-administrativa', () => ({
 vi.mock('@/modulos/ordenes/acciones/liberar-orden', () => ({
   liberarOrdenAccion: vi.fn(),
 }));
+// HiloComentarios usa useQuery: esta prueba renderiza la ficha sin QueryClientProvider.
+vi.mock('@/modulos/comentarios/componentes/indice', () => ({ HiloComentarios: () => null }));
+vi.mock('@/modulos/ordenes/componentes/adjuntos-orden-dialog', () => ({ AdjuntosOrdenDialog: () => null }));
 
 import { FichaOrden } from '@/modulos/ordenes/componentes/ficha-orden';
 
@@ -61,7 +64,10 @@ describe('ficha de Orden C4.3', () => {
         puedeCerrar: false,
         puedeCancelar: false,
         puedeVerFinanzas: false,
+        puedeAdjuntar: false,
+        puedeEliminarTodos: false,
       },
+      usuarioActualId: 'u-c42',
     }));
 
     expect(screen.getByText('15 de noviembre de 2026')).toBeTruthy();
@@ -77,7 +83,10 @@ describe('ficha de Orden C4.3', () => {
         puedeCerrar: false,
         puedeCancelar: false,
         puedeVerFinanzas: false,
+        puedeAdjuntar: false,
+        puedeEliminarTodos: false,
       },
+      usuarioActualId: 'u-c42',
     }));
 
     expect(screen.queryByRole('tab', { name: 'Documento' })).toBeNull();
@@ -93,7 +102,10 @@ describe('ficha de Orden C4.3', () => {
         puedeCerrar: false,
         puedeCancelar: false,
         puedeVerFinanzas: true,
+        puedeAdjuntar: false,
+        puedeEliminarTodos: false,
       },
+      usuarioActualId: 'u-c42',
     }));
 
     expect(screen.getByRole('tab', { name: 'Documento' })).toBeTruthy();
