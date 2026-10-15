@@ -152,7 +152,7 @@ async function iniciarSesionAdministrador(
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
-test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CLI-08/PRD-15)', () => {
+test.describe.serial('órdenes heredadas y cola sin Repetir/Reactivar (ORD-06 / C8.1)', () => {
   test.skip(
     process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
     'Requiere E2E_HABILITAR_PRUEBAS_REMOTAS=si para crear datos temporales en Supabase local.',
@@ -168,14 +168,15 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
     if (contexto) await limpiarContexto(contexto);
   });
 
-  test('E2E-14: orden heredada por RPC, ID único y repetición con folio nuevo', async ({ page }) => {
+  test('E2E-14: orden heredada por RPC, ID único, Adjuntos en la ficha y sin Repetir', async ({ page }) => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const caso = contexto;
     await iniciarSesionAdministrador(page, caso);
     await page.goto('/ordenes');
 
     // Obs. cliente 2026-10-12 (5): la captura heredada ya no vive en la UI; la
-    // orden histórica se siembra por la RPC y la UI se prueba con «Repetir».
+    // orden histórica se siembra por la RPC. C8.1 retiró «Repetir» de la cola: la UI
+    // solo expone Abrir y, en la ficha, Adjuntos (archivos legacy).
     const idHistorico = `E2E-HIST-${randomUUID().slice(0, 6).toUpperCase()}`;
     const datosHistorica = {
       p_cliente_id: caso.clienteId,
@@ -215,37 +216,28 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
     });
     expect(duplicado.error?.message ?? '').toContain('id_historico_duplicado');
 
-    // La orden heredada ya está en la tabla; se repite desde su fila.
+    // La orden heredada está en la cola sin Repetir/Reactivar ni controles de la ficha.
     await page.reload();
     const filaHistorica = page.getByRole('row', { name: new RegExp(historica.folio) });
     await expect(filaHistorica).toContainText('Planificada');
-    await page.getByTestId(`repetir-orden-${historica.folio}`).click();
-    await page.getByTestId('repetir-fecha-compromiso').fill('2027-01-20');
-    await page.getByTestId('confirmar-repetir-orden').click();
-    await expect(page.getByRole('dialog').getByRole('status')).toContainText('Trabajo repetido en la orden');
-    const mensaje = await page.getByRole('dialog').getByRole('status').textContent();
-    const folioNuevo = /OP-\d{6}/.exec(mensaje ?? '')?.[0] ?? '';
-    expect(folioNuevo).not.toBe('');
-    expect(folioNuevo).not.toBe(historica.folio);
-    await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).first().click();
-    await expect(page.getByRole('row', { name: new RegExp(folioNuevo) })).toContainText('Planificada');
+    await expect(page.getByTestId(`repetir-orden-${historica.folio}`)).toHaveCount(0);
+    await expect(page.getByTestId(`reactivar-orden-${historica.folio}`)).toHaveCount(0);
+    await expect(filaHistorica.getByRole('button', {
+      name: /Repetir|Reactivar|Comentarios|Adjuntos|Cancelar|Documento/u,
+    })).toHaveCount(0);
 
-    const { data: repetida } = await caso.admin
-      .from('ordenes_produccion')
-      .select('id, estado, id_historico, orden_origen_id').eq('folio', folioNuevo).single();
-    expect(repetida?.estado).toBe('programada');
-    expect(repetida?.id_historico).toBeNull();
-    expect(repetida?.orden_origen_id).toBe(historica.id);
-    caso.ordenesCreadas.push(repetida!.id);
-    if (process.env.E2E_CAPTURAR_VISUAL === 'si') {
-      await page.screenshot({
-        path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ord06-cli08-escritorio.png',
-        fullPage: true,
-      });
-    }
+    // Sus archivos legacy se abren desde la ficha (Adjuntos solo en órdenes con ID histórico).
+    await filaHistorica.getByRole('link', { name: 'Abrir', exact: true }).click();
+    await page.waitForURL((url) => url.pathname === `/ordenes/${historica.id}`);
+    await page.getByTestId('ficha-adjuntos').click();
+    const dialogoAdjuntos = page.getByRole('dialog', { name: `Archivos de ${historica.folio}` });
+    await expect(dialogoAdjuntos).toBeVisible();
+    await expect(dialogoAdjuntos).toContainText('Sin archivos adjuntos.');
+    await page.keyboard.press('Escape');
+    await expect(dialogoAdjuntos).toBeHidden();
   });
 
-  test('E2E-21: el admin reactiva una Lista y no puede reactivar una entregada', async ({ page }) => {
+  test('E2E-21: la cola ya no ofrece Reactivar ni Repetir, tampoco en la bandeja Archivo', async ({ page }) => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const caso = contexto;
     const completada = await crearCompletada(caso);
@@ -254,32 +246,32 @@ test.describe.serial('órdenes heredadas, repetición y reactivación (ORD-06/CL
 
     const fila = page.getByRole('row', { name: new RegExp(completada.folio) });
     await expect(fila).toContainText('Producción completada');
-    await page.getByTestId(`reactivar-orden-${completada.folio}`).click();
-    await page.getByTestId('confirmar-reactivar-orden').click();
-    await expect(page.getByRole('dialog').getByRole('status')).toContainText('reactivada');
-    await page.getByRole('dialog').getByRole('button', { name: 'Cerrar', exact: true }).first().click();
-    await expect(page.getByRole('row', { name: new RegExp(completada.folio) })).toContainText('En producción');
+    await expect(page.getByTestId(`reactivar-orden-${completada.folio}`)).toHaveCount(0);
+    await expect(page.getByTestId(`repetir-orden-${completada.folio}`)).toHaveCount(0);
+    await expect(fila.getByRole('button', { name: /Reactivar|Repetir/u })).toHaveCount(0);
 
-    const { data: sesiones } = await caso.admin.from('sesiones_trabajo')
-      .select('id').eq('orden_id', completada.ordenId);
-    expect(sesiones ?? []).toHaveLength(1);
-    const { data: avances } = await caso.admin.from('registros_avance_partida')
-      .select('id, cantidad_producida').in('partida_id', (
-        await caso.admin.from('partidas_orden_produccion').select('id').eq('orden_id', completada.ordenId)
-      ).data?.map((filaActual) => filaActual.id) ?? []);
-    expect(avances ?? []).toHaveLength(1);
+    // Una orden del flujo actual (sin ID histórico) no ofrece Adjuntos legacy en su ficha.
+    await fila.getByRole('link', { name: 'Abrir', exact: true }).click();
+    await page.waitForURL((url) => url.pathname === `/ordenes/${completada.ordenId}`);
+    await expect(page.getByTestId('ficha-orden')).toBeVisible();
+    await expect(page.getByTestId('ficha-adjuntos')).toHaveCount(0);
+    await page.goto('/ordenes');
 
-    // Orden archivada por entrega: el rechazo debe ser visible y no cambiar el estado.
+    // Orden archivada por entrega: tampoco hay camino de UI para reactivarla.
     const entregada = await crearCompletada(caso);
     await caso.admin.from('ordenes_produccion')
       .update({ archivada_en: new Date().toISOString() }).eq('id', entregada.ordenId);
     await page.reload();
     await page.getByTestId('bandeja-archivo').click();
-    await page.getByTestId(`reactivar-orden-${entregada.folio}`).click();
-    await page.getByTestId('confirmar-reactivar-orden').click();
-    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('entrega o cobros registrados');
-    const { data: sigue } = await caso.admin.from('ordenes_produccion')
-      .select('estado').eq('id', entregada.ordenId).single();
-    expect(sigue?.estado).toBe('completada');
+    const filaEntregada = page.getByRole('row', { name: new RegExp(entregada.folio) });
+    await expect(filaEntregada).toBeVisible();
+    await expect(page.getByTestId(`reactivar-orden-${entregada.folio}`)).toHaveCount(0);
+    await expect(page.getByTestId(`repetir-orden-${entregada.folio}`)).toHaveCount(0);
+    await expect(filaEntregada.getByRole('button', { name: /Reactivar|Repetir/u })).toHaveCount(0);
+
+    // Sin camino de UI, ambas órdenes conservan su estado.
+    const { data: estados } = await caso.admin.from('ordenes_produccion')
+      .select('id, estado').in('id', [completada.ordenId, entregada.ordenId]);
+    expect((estados ?? []).map((orden) => orden.estado)).toEqual(['completada', 'completada']);
   });
 });

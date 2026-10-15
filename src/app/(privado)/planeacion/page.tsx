@@ -31,7 +31,6 @@ export default async function PaginaPlaneacion() {
 
   const puedeVer = await can(usuario, 'ver_planeacion');
   if (!puedeVer && !(await can(usuario, 'gestionar_planeacion'))) notFound();
-  const puedeAdministrar = await can(usuario, 'aprobar_ordenes');
 
   const cliente = await crearClienteSupabaseServidor();
   // Misma convención que el cliente (`hoyIso`): fecha local del operador, no UTC.
@@ -124,7 +123,6 @@ export default async function PaginaPlaneacion() {
         partidasProgramables={partidasProgramables}
         desglosePartidas={desglosePartidas}
         bolsa={bolsa}
-        puedeAdministrar={puedeAdministrar}
       />
       <PanelCapacidadInstalada />
     </div>

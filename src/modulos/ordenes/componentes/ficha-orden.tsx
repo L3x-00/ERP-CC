@@ -1,7 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
-import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -17,11 +16,22 @@ import {
 import { Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
+import { PanelActividadFicha } from '@/modulos/ordenes/componentes/panel-actividad-ficha';
+import { PanelArchivosFicha } from '@/modulos/ordenes/componentes/panel-archivos-ficha';
+import { PanelDocumentoFicha } from '@/modulos/ordenes/componentes/panel-documento-ficha';
+import { PanelEntregasFicha } from '@/modulos/ordenes/componentes/panel-entregas-ficha';
+import { PanelPartidasFicha } from '@/modulos/ordenes/componentes/panel-partidas-ficha';
+import { PanelRutaFicha } from '@/modulos/ordenes/componentes/panel-ruta-ficha';
+import { Tarjeta, Totales } from '@/modulos/ordenes/componentes/tarjeta-ficha';
+import { claveValor, formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
 import { cerrarOrdenAdministrativaAccion } from '@/modulos/ordenes/acciones/cerrar-orden-administrativa';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
-import type { FichaOrden as DatosFicha, TotalesSnapshot } from '@/modulos/ordenes/tipos/ficha-orden';
+import type { FichaOrden as DatosFicha, PestanaFicha } from '@/modulos/ordenes/tipos/ficha-orden';
 import type { EstadoOrden } from '@/modulos/ordenes/tipos/ordenes';
+import { PREGUNTAS_PESTANA } from '@/modulos/ordenes/utilidades/preguntas-pestana';
 import { cn } from '@/compartido/utilidades/cn';
 
 export interface PermisosFichaOrden {
@@ -29,9 +39,11 @@ export interface PermisosFichaOrden {
   puedeCerrar: boolean;
   puedeCancelar: boolean;
   puedeVerFinanzas: boolean;
+  /** Adjuntos legacy: mismo permiso (`aprobar_ordenes`) que exigen sus Server Actions. */
+  puedeAdjuntar: boolean;
+  /** Comentarios: quien puede borrar los de otros (admin). */
+  puedeEliminarTodos: boolean;
 }
-
-type PestanaFicha = 'resumen' | 'partidas' | 'ruta' | 'archivos' | 'entregas' | 'actividad' | 'documento';
 
 const PESTANAS: readonly [PestanaFicha, string][] = [
   ['resumen', 'Resumen'],
@@ -41,109 +53,30 @@ const PESTANAS: readonly [PestanaFicha, string][] = [
   ['entregas', 'Entregas'],
   ['actividad', 'Actividad'],
   ['documento', 'Documento'],
+  ['comentarios', 'Comentarios'],
 ];
-
-function formatearFechaCalendario(fecha: string): string {
-  const [anioTexto, mesTexto, diaTexto] = fecha.slice(0, 10).split('-');
-  const anio = Number(anioTexto);
-  const mes = Number(mesTexto);
-  const dia = Number(diaTexto);
-  const valor = new Date(Date.UTC(anio, mes - 1, dia));
-  if (
-    !Number.isFinite(anio)
-    || !Number.isFinite(mes)
-    || !Number.isFinite(dia)
-    || valor.getUTCFullYear() !== anio
-    || valor.getUTCMonth() !== mes - 1
-    || valor.getUTCDate() !== dia
-  ) return '—';
-  return new Intl.DateTimeFormat('es-MX', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  }).format(valor);
-}
-
-function claveValor(valor: unknown): string {
-  if (valor === null || valor === undefined) return '—';
-  if (typeof valor === 'object') return JSON.stringify(valor);
-  return String(valor);
-}
-
-const ETIQUETAS_CAMBIO: Readonly<Record<string, string>> = {
-  fecha_operativa: 'Fecha operativa',
-  fecha_programada: 'Fecha programada',
-  prioridad: 'Prioridad',
-  notas: 'Notas',
-  recurso_id: 'Recurso',
-  turno: 'Turno',
-  horas_estimadas: 'Horas estimadas',
-  orden_prioridad: 'Prioridad de secuencia',
-};
-
-function ResumenCambio({ detalle }: { detalle: Record<string, unknown> }) {
-  const anterior = typeof detalle.anterior === 'object' && detalle.anterior !== null
-    ? detalle.anterior as Record<string, unknown>
-    : null;
-  const nuevo = typeof detalle.nuevo === 'object' && detalle.nuevo !== null
-    ? detalle.nuevo as Record<string, unknown>
-    : null;
-  if (!anterior && !nuevo) return null;
-
-  const claves = [...new Set([...Object.keys(anterior ?? {}), ...Object.keys(nuevo ?? {})])]
-    .filter((clave) => clave !== 'programacion_id' && clave !== 'partida_id')
-    .filter((clave) => claveValor(anterior?.[clave]) !== claveValor(nuevo?.[clave]));
-  if (claves.length === 0) return null;
-
-  return (
-    <dl className="mt-2 grid gap-1 text-xs text-texto-secundario sm:grid-cols-2">
-      {claves.map((clave) => (
-        <div key={clave} className="flex flex-wrap gap-1">
-          <dt className="font-medium text-texto-primario">{ETIQUETAS_CAMBIO[clave] ?? clave}:</dt>
-          <dd>{anterior ? `${claveValor(anterior[clave])} → ` : ''}{claveValor(nuevo?.[clave])}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Tarjeta({ titulo, children }: { titulo: string; children: ReactNode }) {
-  return (
-    <div className="rounded-md border border-borde bg-superficie-2 p-3">
-      <p className="text-xs text-texto-secundario">{titulo}</p>
-      <div className="mt-1 text-sm font-semibold text-texto-primario">{children}</div>
-    </div>
-  );
-}
-
-function Totales({ totales }: { totales: TotalesSnapshot | null }) {
-  if (!totales || totales.total === null) {
-    return <p className="text-sm text-texto-secundario">Sin totales comerciales en el snapshot.</p>;
-  }
-  const moneda = totales.moneda ?? 'MXN';
-  const formato = (valor: number | null) =>
-    valor === null ? '—' : `${moneda} ${valor.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-  return (
-    <dl className="grid gap-2 sm:grid-cols-4">
-      <Tarjeta titulo="Subtotal">{formato(totales.subtotal)}</Tarjeta>
-      <Tarjeta titulo="Descuento">{formato(totales.descuento)}</Tarjeta>
-      <Tarjeta titulo="IVA">{formato(totales.iva)}</Tarjeta>
-      <Tarjeta titulo="Total">{formato(totales.total)}</Tarjeta>
-    </dl>
-  );
-}
 
 /** Ficha de orden SII-B5: snapshot congelado + acciones de negocio por estado. */
 export function FichaOrden({
   ficha,
   permisos,
+  usuarioActualId,
+  pestanaInicial,
 }: {
   ficha: DatosFicha;
   permisos: PermisosFichaOrden;
+  usuarioActualId: string;
+  pestanaInicial?: PestanaFicha;
 }) {
   const router = useRouter();
-  const [pestana, setPestana] = useState<PestanaFicha>('resumen');
+  const pestanas = permisos.puedeVerFinanzas
+    ? PESTANAS
+    : PESTANAS.filter(([id]) => id !== 'documento');
+  // Una pestaña pedida que el usuario no puede ver (p. ej. Documento sin ver_finanzas) cae en Resumen.
+  const [pestana, setPestana] = useState<PestanaFicha>(
+    () => pestanas.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen',
+  );
+  const [adjuntando, setAdjuntando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -154,9 +87,6 @@ export function FichaOrden({
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
   const esTerminal = estado === 'CERRADA' || estado === 'CANCELADA';
-  const pestanas = permisos.puedeVerFinanzas
-    ? PESTANAS
-    : PESTANAS.filter(([id]) => id !== 'documento');
 
   const ruta = useMemo(
     () => (ficha.snapshot?.items ?? []).filter((item) => !item.es_descuento),
@@ -265,6 +195,13 @@ export function FichaOrden({
               Cerrar administrativa
             </Button>
           )}
+          {ficha.orden.idHistorico !== null && permisos.puedeAdjuntar && (
+            <Button variante="contorno" tamano="sm" disabled={ocupado}
+              onClick={() => setAdjuntando(true)}
+              data-testid="ficha-adjuntos">
+              Adjuntos
+            </Button>
+          )}
         </div>
       </header>
 
@@ -295,6 +232,10 @@ export function FichaOrden({
           </button>
         ))}
       </div>
+
+      <p className="text-sm text-texto-secundario print:hidden" data-testid="ficha-pregunta-pestana">
+        {PREGUNTAS_PESTANA[pestana]}
+      </p>
 
       {pestana === 'resumen' ? (
         <section className="grid gap-4" data-testid="ficha-panel-resumen">
@@ -346,192 +287,39 @@ export function FichaOrden({
         </section>
       ) : null}
 
-      {pestana === 'partidas' ? (
-        <section className="overflow-x-auto rounded-lg border border-borde" data-testid="ficha-panel-partidas">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
-            <thead>
-              <tr className="bg-superficie-2 text-left text-texto-secundario">
-                <th scope="col" className="px-3 py-2 font-semibold">Ítem</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Descripción</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Solicitado</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Producido</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Scrap</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Procesos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ficha.partidas.map((partida) => (
-                <tr key={partida.id} className="border-t border-borde" data-testid={`ficha-partida-${partida.codigoItem ?? partida.codigoPieza}`}>
-                  <td className="px-3 py-2 font-mono text-xs">
-                    {partida.codigoItem ?? partida.codigoPieza}
-                    {partida.codigoItem && partida.codigoItem !== partida.codigoPieza ? (
-                      <span className="block text-texto-tenue">{partida.codigoPieza}</span>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2">{partida.descripcion ?? '—'}</td>
-                  <td className="px-3 py-2 tabular-nums">{partida.cantidadSolicitada} {partida.unidadMedida}</td>
-                  <td className="px-3 py-2 tabular-nums">{partida.cantidadProducida}</td>
-                  <td className="px-3 py-2 tabular-nums">{partida.cantidadScrap}</td>
-                  <td className="px-3 py-2 text-xs text-texto-secundario">
-                    {partida.procesos.length > 0 ? partida.procesos.join(' · ') : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ) : null}
+      {pestana === 'partidas' ? <PanelPartidasFicha partidas={ficha.partidas} /> : null}
 
-      {pestana === 'ruta' ? (
-        <section className="grid gap-3" data-testid="ficha-panel-ruta">
-          {ruta.length === 0 ? (
-            <p className="text-sm text-texto-secundario">Sin ruteo en el snapshot.</p>
-          ) : ruta.map((item) => (
-            <article key={item.codigo ?? item.codigo_item} className="rounded-md border border-borde p-3">
-              <h3 className="font-mono text-sm font-semibold">{item.codigo ?? item.codigo_item}</h3>
-              <ol className="mt-2 grid gap-1 text-sm">
-                {(item.ruteo ?? []).map((paso, indice) => (
-                  <li key={indice} className="flex flex-wrap gap-2 text-texto-secundario">
-                    <span className="font-semibold text-texto-primario">{String((paso as Record<string, unknown>).secuencia ?? indice + 1)}.</span>
-                    <span>{String((paso as Record<string, unknown>).proceso_nombre ?? 'Proceso')}</span>
-                    <span>setup {claveValor((paso as Record<string, unknown>).setup_horas)} h · run {claveValor((paso as Record<string, unknown>).run_horas)} h</span>
-                  </li>
-                ))}
-                {(item.operaciones ?? []).length > 0 && (item.ruteo ?? []).length === 0 ? (
-                  (item.operaciones ?? []).map((operacion, indice) => (
-                    <li key={indice} className="text-texto-secundario">
-                      {String((operacion as Record<string, unknown>).nombre ?? (operacion as Record<string, unknown>).codigo ?? 'Operación')}
-                    </li>
-                  ))
-                ) : null}
-              </ol>
-            </article>
-          ))}
-        </section>
-      ) : null}
+      {pestana === 'ruta' ? <PanelRutaFicha ruta={ruta} /> : null}
 
-      {pestana === 'archivos' ? (
-        <section className="grid gap-2" data-testid="ficha-panel-archivos">
-          {ficha.archivos.length === 0 ? (
-            <p className="text-sm text-texto-secundario">Sin archivos vivos referenciados por el snapshot.</p>
-          ) : ficha.archivos.map((archivo) => (
-            <div key={`${archivo.archivoId}-${archivo.itemCodigo ?? 'rev'}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde px-3 py-2 text-sm">
-              <span className="font-medium text-texto-primario">
-                {archivo.nombreErp ?? archivo.nombreOriginal ?? archivo.archivoId}
-              </span>
-              <span className="text-xs text-texto-secundario">
-                {archivo.clase ?? 'general'} · {archivo.origen === 'item' ? `ítem ${archivo.itemCodigo}` : 'revisión'}
-              </span>
-            </div>
-          ))}
-        </section>
-      ) : null}
+      {pestana === 'archivos' ? <PanelArchivosFicha archivos={ficha.archivos} /> : null}
 
-      {pestana === 'entregas' ? (
-        <section className="grid gap-3" data-testid="ficha-panel-entregas">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-texto-secundario">
-              Entregas parciales o totales con folio NE; evidencia y firma se capturan en el detalle.
-            </p>
-            <Link
-              href={`/entregas?orden=${ficha.orden.id}`}
-              className="rounded-md border border-borde px-3 py-1.5 text-sm font-semibold text-acento hover:bg-superficie-2"
-              data-testid="ficha-preparar-entrega"
-            >
-              Preparar entrega
-            </Link>
-          </div>
-          {ficha.entregas.length === 0 ? (
-            <p className="text-sm text-texto-secundario">Sin notas de entrega registradas.</p>
-          ) : ficha.entregas.map((entrega) => (
-            <article key={entrega.id} className="rounded-md border border-borde p-3 text-sm">
-              <div className="flex flex-wrap justify-between gap-2">
-                <Link
-                  href={`/entregas/${entrega.id}`}
-                  className="font-mono font-semibold text-acento underline"
-                  data-testid={`ficha-entrega-${entrega.folioSii ?? entrega.folio}`}
-                >
-                  {entrega.folioSii ?? entrega.folio}
-                </Link>
-                <span className="text-texto-secundario">
-                  {entrega.esParcial ? 'Parcial' : 'Total'} · {entrega.recibidoPor} · {formatearFecha(entrega.creadoEn)}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-texto-secundario">
-                {entrega.partidas.reduce((suma, renglon) => suma + renglon.cantidadEntregada, 0)} piezas entregadas
-              </p>
-            </article>
-          ))}
-        </section>
-      ) : null}
+      {pestana === 'entregas' ? <PanelEntregasFicha ordenId={ficha.orden.id} entregas={ficha.entregas} /> : null}
 
-      {pestana === 'actividad' ? (
-        <section className="grid gap-2" data-testid="ficha-panel-actividad">
-          {ficha.eventos.length === 0 ? (
-            <p className="text-sm text-texto-secundario">Sin eventos de orden registrados.</p>
-          ) : (
-            <ol className="grid gap-2">
-              {ficha.eventos.map((evento) => (
-                <li key={evento.id} className="rounded-md border border-borde px-3 py-2 text-sm">
-                  <p className="font-medium text-texto-primario">{evento.tipo}</p>
-                  <p className="text-xs text-texto-secundario">
-                    {formatearFecha(evento.creadoEn)}{evento.actorNombre ? ` · ${evento.actorNombre}` : ''}
-                    {evento.motivo ? ` · ${evento.motivo}` : ''}
-                  </p>
-                  <ResumenCambio detalle={evento.detalle} />
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-      ) : null}
+      {pestana === 'actividad' ? <PanelActividadFicha eventos={ficha.eventos} /> : null}
 
       {permisos.puedeVerFinanzas && pestana === 'documento' ? (
-        <section className="grid gap-4" data-testid="ficha-panel-documento">
-          <div className="flex justify-end print:hidden">
-            <Button variante="contorno" tamano="sm" onClick={() => window.print()}>
-              Imprimir
-            </Button>
-          </div>
-          <article className="rounded-lg border border-borde p-6">
-            <header className="border-b border-borde pb-3">
-              <h2 className="text-lg font-bold">Orden de servicio {folio}</h2>
-              <p className="text-sm text-texto-secundario">
-                {ficha.orden.clienteNombre ?? ''} · Compromiso comercial{' '}
-                {ficha.orden.fechaCompromisoComercial
-                  ? formatearFechaCalendario(ficha.orden.fechaCompromisoComercial)
-                  : 'no disponible'}
-              </p>
-            </header>
-            {ficha.snapshot ? (
-              <div className="mt-4 grid gap-3 text-sm">
-                {(ficha.snapshot.items ?? []).filter((item) => !item.es_descuento).map((item) => (
-                  <div key={item.codigo ?? item.codigo_item} className="rounded-md bg-superficie-2 p-3">
-                    <p className="font-semibold">
-                      {item.codigo ?? item.codigo_item} · {item.descripcion ?? ''}
-                    </p>
-                    <p className="text-xs text-texto-secundario">
-                      {claveValor(item.cantidad)} · {item.material ?? 'sin material'} · {item.espesor ?? 'sin espesor'}
-                    </p>
-                    {(item.ruteo ?? []).length > 0 ? (
-                      <p className="text-xs text-texto-secundario">
-                        {(item.ruteo ?? []).map((paso) => String((paso as Record<string, unknown>).proceso_nombre ?? '')).join(' → ')}
-                      </p>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-4 text-sm text-texto-secundario">
-                Documento histórico basado en partidas legacy:
-                {' '}{ficha.partidas.map((partida) => partida.descripcion ?? partida.codigoPieza).join(' · ')}
-              </p>
-            )}
-            <div className="mt-4">
-              <Totales totales={ficha.totales} />
-            </div>
-          </article>
+        <PanelDocumentoFicha ficha={ficha} folio={folio} />
+      ) : null}
+
+      {pestana === 'comentarios' ? (
+        <section data-testid="ficha-panel-comentarios">
+          <HiloComentarios
+            key={ficha.orden.id}
+            entidadTipo="orden"
+            entidadId={ficha.orden.id}
+            usuarioActualId={usuarioActualId}
+            puedeEliminarTodos={permisos.puedeEliminarTodos}
+            titulo={`Comentarios de ${folio}`}
+          />
         </section>
+      ) : null}
+
+      {adjuntando ? (
+        <AdjuntosOrdenDialog
+          ordenId={ficha.orden.id}
+          folio={folio}
+          onCerrar={() => setAdjuntando(false)}
+        />
       ) : null}
 
       <Dialog open={cancelando} onOpenChange={(abierto) => (!abierto ? setCancelando(false) : undefined)}>

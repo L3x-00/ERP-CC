@@ -1,13 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
-import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
-import { DocumentoOrdenBoton } from '@/modulos/ordenes/componentes/documento-orden-boton';
-import { ReactivarOrdenDialog } from '@/modulos/ordenes/componentes/reactivar-orden-dialog';
-import { RepetirOrdenDialog } from '@/modulos/ordenes/componentes/repetir-orden-dialog';
 
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -22,20 +17,8 @@ import {
   TablaFila,
 } from '@/compartido/componentes/diseno/tabla';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/compartido/componentes/ui/dialog';
 import { Button } from '@/compartido/componentes/ui/button';
-import { Textarea } from '@/compartido/componentes/ui/input';
-import { Label } from '@/compartido/componentes/ui/label';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
-import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
-import { cerrarOrdenAdministrativaAccion } from '@/modulos/ordenes/acciones/cerrar-orden-administrativa';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
 import {
   ESTADOS_SII_ORDEN,
@@ -170,34 +153,16 @@ function tonoAvance(
 
 type PropsTablaOrdenes = {
   ordenes: OrdenTabla[];
-  ordenInicialId?: string;
-  usuarioActualId?: string;
-  puedeEliminarTodos?: boolean;
-  /** CLI-08/PRD-15: repetir y reactivar son acciones administrativas. */
-  puedeAdministrar?: boolean;
   puedeLiberar?: boolean;
-  puedeCerrar?: boolean;
-  puedeCancelar?: boolean;
-  puedeVerFinanzas?: boolean;
 };
 
 /**
- * Cola de órdenes de producción (estados SII-B5): filtra por máquina y estado,
- * muestra el avance agregado y ofrece solo acciones de negocio — Liberar,
- * Cancelar y Cierre administrativo. Iniciar/Pausar/Completar se eliminaron:
- * el estado deriva de la programación, las sesiones y las metas.
+ * Cola de órdenes de producción (estados SII-B5): responde «qué necesita atención».
+ * Filtra por máquina y estado, muestra el avance agregado y ofrece Abrir (la ficha es
+ * el destino de Comentarios, Adjuntos, Cancelar, Cerrar y Documento) y una sola acción
+ * contextual: Liberar. El estado deriva de la programación, las sesiones y las metas.
  */
-export function TablaOrdenes({
-  ordenes,
-  ordenInicialId,
-  usuarioActualId,
-  puedeEliminarTodos = false,
-  puedeAdministrar = false,
-  puedeLiberar = false,
-  puedeCerrar = false,
-  puedeCancelar = false,
-  puedeVerFinanzas = false,
-}: PropsTablaOrdenes) {
+export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdenes) {
   const router = useRouter();
   const filtroMaquina = usarTiendaOrdenes((estado) => estado.filtroMaquina);
   const filtrosEstado = usarTiendaOrdenes((estado) => estado.filtrosEstado);
@@ -207,35 +172,13 @@ export function TablaOrdenes({
   const [ordenActualizandoId, setOrdenActualizandoId] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [mensajeAccion, setMensajeAccion] = useState<string | null>(null);
-  const [ordenCancelando, setOrdenCancelando] = useState<OrdenTabla | null>(null);
-  const [ordenCerrando, setOrdenCerrando] = useState<OrdenTabla | null>(null);
-  const [ordenComentarios, setOrdenComentarios] = useState<OrdenTabla | null>(null);
-  const [ordenAdjuntos, setOrdenAdjuntos] = useState<OrdenTabla | null>(null);
-  const [ordenRepitiendo, setOrdenRepitiendo] = useState<OrdenTabla | null>(null);
-  const [ordenReactivando, setOrdenReactivando] = useState<OrdenTabla | null>(null);
-  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>(() =>
-    ordenInicialId && ordenes.find((orden) => orden.id === ordenInicialId)?.archivadaEn
-      ? 'archivo' : 'activas');
-  const [motivoCancelacion, setMotivoCancelacion] = useState('');
+  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>('activas');
   const [hidratado, setHidratado] = useState(false);
-  const enlaceProcesado = useRef<string | null>(null);
 
   useEffect(() => {
     const marco = requestAnimationFrame(() => setHidratado(true));
     return () => cancelAnimationFrame(marco);
   }, []);
-
-  useEffect(() => {
-    const ordenEnlazada = ordenInicialId
-      ? ordenes.find((orden) => orden.id === ordenInicialId)
-      : undefined;
-    if (ordenEnlazada && enlaceProcesado.current !== ordenInicialId) {
-      enlaceProcesado.current = ordenEnlazada.id;
-      limpiarFiltros();
-      setBandeja(ordenEnlazada.archivadaEn ? 'archivo' : 'activas');
-      setOrdenComentarios(ordenEnlazada);
-    }
-  }, [ordenInicialId, ordenes, limpiarFiltros]);
 
   const maquinas = useMemo(() => {
     const encontradas = new Set<string>();
@@ -273,34 +216,6 @@ export function TablaOrdenes({
     setMensajeAccion(null);
   }
 
-  async function cambiarEstado(
-    orden: OrdenTabla,
-    estado: EstadoOrden,
-    motivo?: string,
-  ): Promise<boolean> {
-    limpiarMensajes();
-    setOrdenActualizandoId(orden.id);
-    try {
-      const respuesta = await cambiarEstadoOrdenAccion({
-        ordenId: orden.id,
-        estadoActual: orden.estado,
-        estado,
-        ...(motivo ? { motivoCancelacion: motivo } : {}),
-      });
-      if (!respuesta.exito) {
-        setErrorAccion(respuesta.error);
-        return false;
-      }
-      router.refresh();
-      return true;
-    } catch {
-      setErrorAccion('No se pudo actualizar la orden. Intenta de nuevo.');
-      return false;
-    } finally {
-      setOrdenActualizandoId(null);
-    }
-  }
-
   async function liberar(orden: OrdenTabla): Promise<void> {
     limpiarMensajes();
     setOrdenActualizandoId(orden.id);
@@ -319,50 +234,6 @@ export function TablaOrdenes({
       setErrorAccion('No se pudo liberar la orden. Intenta de nuevo.');
     } finally {
       setOrdenActualizandoId(null);
-    }
-  }
-
-  async function cerrarAdministrativa(): Promise<void> {
-    if (!ordenCerrando) return;
-    limpiarMensajes();
-    setOrdenActualizandoId(ordenCerrando.id);
-    try {
-      const respuesta = await cerrarOrdenAdministrativaAccion({
-        ordenId: ordenCerrando.id,
-        actualizadoEn: ordenCerrando.actualizadoEn,
-      });
-      if (!respuesta.exito) {
-        setErrorAccion(respuesta.error);
-        return;
-      }
-      setMensajeAccion(`Orden ${ordenCerrando.folioSii ?? ordenCerrando.folio} cerrada administrativamente`);
-      setOrdenCerrando(null);
-      router.refresh();
-    } catch {
-      setErrorAccion('No se pudo cerrar la orden. Intenta de nuevo.');
-    } finally {
-      setOrdenActualizandoId(null);
-    }
-  }
-
-  function abrirCancelacion(orden: OrdenTabla): void {
-    limpiarMensajes();
-    setMotivoCancelacion('');
-    setOrdenCancelando(orden);
-  }
-
-  async function confirmarCancelacion(): Promise<void> {
-    if (!ordenCancelando) return;
-    const motivo = motivoCancelacion.trim();
-    if (motivo.length < 3) {
-      setErrorAccion('El motivo de cancelación es obligatorio (mínimo 3 caracteres).');
-      return;
-    }
-    const exito = await cambiarEstado(ordenCancelando, 'cancelada', motivo);
-    if (exito) {
-      setMensajeAccion(`Orden ${ordenCancelando.folioSii ?? ordenCancelando.folio} cancelada`);
-      setOrdenCancelando(null);
-      setMotivoCancelacion('');
     }
   }
 
@@ -590,84 +461,6 @@ export function TablaOrdenes({
                             {ordenActualizandoId === orden.id ? 'Liberando…' : 'Liberar'}
                           </button>
                         )}
-                        {orden.estadoSii === 'PRODUCCION_COMPLETADA' && puedeCerrar && (
-                          <button
-                            type="button"
-                            data-testid={`cerrar-administrativa-${folioVisible}`}
-                            onClick={() => {
-                              limpiarMensajes();
-                              setOrdenCerrando(orden);
-                            }}
-                            disabled={ordenActualizandoId !== null}
-                            className={CLASE_BOTON_SECUNDARIO}
-                            title="Cierre administrativo al 100 % entregado (independiente del cobro)"
-                          >
-                            Cerrar administrativa
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setOrdenComentarios(orden)}
-                          className={CLASE_BOTON_SECUNDARIO}
-                        >
-                          Comentarios
-                        </button>
-                        {puedeVerFinanzas ? (
-                          <DocumentoOrdenBoton ordenId={orden.id} folio={folioVisible} />
-                        ) : null}
-                        {puedeAdministrar
-                          && (orden.idHistorico !== null
-                            || orden.estadoSii === 'PRODUCCION_COMPLETADA'
-                            || orden.estadoSii === 'CERRADA') && (
-                          <button
-                            type="button"
-                            data-testid={`repetir-orden-${folioVisible}`}
-                            onClick={() => setOrdenRepitiendo(orden)}
-                            disabled={ordenActualizandoId !== null}
-                            className={CLASE_BOTON_SECUNDARIO}
-                            title="Crea un trabajo nuevo reutilizando solo datos comerciales y técnicos"
-                          >
-                            Repetir
-                          </button>
-                        )}
-                        {puedeAdministrar
-                          && (orden.estadoSii === 'PRODUCCION_COMPLETADA' || orden.estadoSii === 'CERRADA') && (
-                          <button
-                            type="button"
-                            data-testid={`reactivar-orden-${folioVisible}`}
-                            onClick={() => setOrdenReactivando(orden)}
-                            disabled={ordenActualizandoId !== null}
-                            className={CLASE_BOTON_SECUNDARIO}
-                            title="Devuelve la orden a operación conservando las sesiones previas"
-                          >
-                            Reactivar
-                          </button>
-                        )}
-                        {orden.idHistorico !== null && (
-                          <button
-                            type="button"
-                            data-testid={`adjuntos-orden-${folioVisible}`}
-                            onClick={() => setOrdenAdjuntos(orden)}
-                            disabled={ordenActualizandoId !== null}
-                            className={CLASE_BOTON_SECUNDARIO}
-                          >
-                            Adjuntos
-                          </button>
-                        )}
-                        {puedeCancelar
-                          && orden.estadoSii !== 'CERRADA'
-                          && orden.estadoSii !== 'CANCELADA'
-                          && orden.estadoSii !== 'PRODUCCION_COMPLETADA' && (
-                          <button
-                            type="button"
-                            data-testid="cambiar-estado-cancelada"
-                            onClick={() => abrirCancelacion(orden)}
-                            disabled={ordenActualizandoId !== null}
-                            className={CLASE_BOTON_SECUNDARIO}
-                          >
-                            Cancelar
-                          </button>
-                        )}
                       </div>
                     </TablaCelda>
                   </TablaFila>
@@ -678,7 +471,7 @@ export function TablaOrdenes({
         </TablaContenedor>
       )}
 
-      {errorAccion && !ordenCancelando && !ordenCerrando && (
+      {errorAccion && (
         <p role="alert" className="text-sm text-peligro-texto" data-testid="ordenes-error">
           {errorAccion}
         </p>
@@ -692,128 +485,6 @@ export function TablaOrdenes({
       <p aria-live="polite" className="text-sm text-texto-secundario">
         {ordenesVisibles.length} de {ordenes.length} orden(es)
       </p>
-
-      <Dialog
-        open={ordenComentarios !== null}
-        onOpenChange={(abierto) => {
-          if (!abierto) setOrdenComentarios(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Comentarios de {ordenComentarios?.folioSii ?? ordenComentarios?.folio ?? 'la orden'}
-            </DialogTitle>
-            <DialogDescription>
-              Seguimiento interno vinculado exclusivamente a esta orden.
-            </DialogDescription>
-          </DialogHeader>
-          {ordenComentarios ? (
-            <HiloComentarios
-              key={ordenComentarios.id}
-              entidadTipo="orden"
-              entidadId={ordenComentarios.id}
-              usuarioActualId={usuarioActualId}
-              puedeEliminarTodos={puedeEliminarTodos}
-              titulo={`Comentarios de ${ordenComentarios.folioSii ?? ordenComentarios.folio}`}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      {ordenAdjuntos ? (
-        <AdjuntosOrdenDialog
-          ordenId={ordenAdjuntos.id}
-          folio={ordenAdjuntos.folioSii ?? ordenAdjuntos.folio}
-          onCerrar={() => setOrdenAdjuntos(null)}
-        />
-      ) : null}
-
-      {ordenRepitiendo ? (
-        <RepetirOrdenDialog
-          ordenOrigenId={ordenRepitiendo.id}
-          folioOrigen={ordenRepitiendo.folioSii ?? ordenRepitiendo.folio}
-          onCerrar={() => setOrdenRepitiendo(null)}
-        />
-      ) : null}
-
-      {ordenReactivando ? (
-        <ReactivarOrdenDialog
-          ordenId={ordenReactivando.id}
-          folio={ordenReactivando.folioSii ?? ordenReactivando.folio}
-          actualizadoEn={ordenReactivando.actualizadoEn}
-          onCerrar={() => setOrdenReactivando(null)}
-        />
-      ) : null}
-
-      <Dialog open={ordenCancelando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCancelando(null) : undefined)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cancelar orden {ordenCancelando?.folioSii ?? ordenCancelando?.folio}</DialogTitle>
-            <DialogDescription>
-              La cancelación es definitiva. Captura el motivo; quedará en la auditoría.
-            </DialogDescription>
-          </DialogHeader>
-          {errorAccion ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="motivo-cancelacion-orden">Motivo (mínimo 3 caracteres)</Label>
-            <Textarea
-              id="motivo-cancelacion-orden"
-              value={motivoCancelacion}
-              onChange={(evento) => setMotivoCancelacion(evento.target.value)}
-              disabled={ordenActualizandoId !== null}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variante="contorno"
-              onClick={() => setOrdenCancelando(null)}
-              disabled={ordenActualizandoId !== null}
-            >
-              Volver
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void confirmarCancelacion()}
-              disabled={ordenActualizandoId !== null || motivoCancelacion.trim().length < 3}
-            >
-              {ordenActualizandoId !== null ? 'Cancelando…' : 'Confirmar cancelación'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={ordenCerrando !== null} onOpenChange={(abierto) => (!abierto ? setOrdenCerrando(null) : undefined)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cierre administrativo de {ordenCerrando?.folioSii ?? ordenCerrando?.folio}</DialogTitle>
-            <DialogDescription>
-              Cierra la orden con el 100 % de las cantidades entregadas. Es independiente del cobro
-              y no modifica la producción registrada.
-            </DialogDescription>
-          </DialogHeader>
-          {errorAccion ? <p role="alert" className="text-sm text-peligro-texto">{errorAccion}</p> : null}
-          <DialogFooter>
-            <Button
-              type="button"
-              variante="contorno"
-              onClick={() => setOrdenCerrando(null)}
-              disabled={ordenActualizandoId !== null}
-            >
-              Volver
-            </Button>
-            <Button
-              type="button"
-              data-testid="confirmar-cierre-administrativo"
-              onClick={() => void cerrarAdministrativa()}
-              disabled={ordenActualizandoId !== null}
-            >
-              {ordenActualizandoId !== null ? 'Cerrando…' : 'Confirmar cierre'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

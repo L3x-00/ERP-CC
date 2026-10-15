@@ -82,3 +82,17 @@ export interface FichaOrden {
   eventos: EventoFicha[];
   archivos: ArchivoFicha[];
 }
+
+/** Ids de las pestañas de la ficha, en el orden en que se muestran. */
+export const PESTANAS_FICHA = [
+  'resumen',
+  'partidas',
+  'ruta',
+  'archivos',
+  'entregas',
+  'actividad',
+  'documento',
+  'comentarios',
+] as const;
+
+export type PestanaFicha = (typeof PESTANAS_FICHA)[number];

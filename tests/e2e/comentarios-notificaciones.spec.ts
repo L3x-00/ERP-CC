@@ -83,8 +83,11 @@ test.describe.serial('comentarios contextuales y notificaciones', () => {
       await page.goto('/ordenes');
       const fila = page.getByRole('row', { name: new RegExp(folioOrden.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')) });
       await expect(fila).toBeVisible();
-      await fila.getByRole('button', { name: 'Comentarios' }).click();
-      const hilo = page.getByRole('dialog').getByTestId('hilo-comentarios');
+      // C8.1: el hilo vive en la pestaña Comentarios de la ficha (ya no hay diálogo en la fila).
+      await fila.getByRole('link', { name: 'Abrir', exact: true }).click();
+      await page.waitForURL((url) => url.pathname === `/ordenes/${ordenId}`);
+      await page.getByTestId('ficha-pestana-comentarios').click();
+      const hilo = page.getByTestId('ficha-panel-comentarios').getByTestId('hilo-comentarios');
       await expect(hilo).toBeVisible();
       await hilo.getByLabel('Nuevo comentario').fill(`${marcador} @${destinatarioNombre}`);
       await hilo.getByRole('button', { name: 'Comentar' }).click();
@@ -120,7 +123,9 @@ test.describe.serial('comentarios contextuales y notificaciones', () => {
         return resultado.data?.leida ?? null;
       }).toBe(false);
       await dialogo.getByRole('button', { name: new RegExp(marcador) }).click();
-      await expect(observador).toHaveURL(new RegExp(`/ordenes\\?ordenId=${ordenId}`));
+      // El enlace de la notificación (/ordenes?ordenId=) redirige a la ficha con Comentarios activa.
+      await expect(observador).toHaveURL(new RegExp(`/ordenes/${ordenId}\\?pestana=comentarios`));
+      await expect(observador.getByTestId('ficha-panel-comentarios')).toBeVisible();
       await expect.poll(async () => {
         const resultado = await admin
           .from('notificaciones_usuario')

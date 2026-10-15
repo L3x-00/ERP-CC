@@ -21,8 +21,6 @@ import type {
   CambiarEstadoOrdenInput,
   CrearOrdenHistoricaInput,
   CrearOrdenManualInput,
-  ReactivarOrdenInput,
-  RepetirOrdenInput,
   AsignarOperadorPartidaInput,
   RegistrarConsumoMaterialInput,
   RegistrarAvancePartidaInput,
@@ -292,67 +290,6 @@ export async function crearOrdenHistoricaServicio(
   const creada = validarResultadoCreacion(fila ?? null);
   if (!fila?.cuenta_id) throw new ErrorOrden('desconocido');
   return { id: creada.id, folio: creada.folio, cuentaId: fila.cuenta_id };
-}
-
-/** CLI-08: la repetición puede no tener precio conocido y devuelve cuenta nula. */
-export type RepeticionCreada = OrdenCreada & {
-  cuentaId: string | null;
-};
-
-/**
- * CLI-08: repite un trabajo histórico o completado clonando solo sus datos
- * comerciales/técnicos. PostgreSQL revalida permiso, estado de origen y crea la
- * OP con folio nuevo, partidas en cero y su propia AR borrador.
- */
-export async function repetirOrdenServicio(
-  admin: SupabaseClient<Database>,
-  entrada: RepetirOrdenInput & { actorId: string },
-): Promise<RepeticionCreada> {
-  const { data, error } = await admin.rpc('repetir_orden_op', {
-    p_orden_origen_id: entrada.ordenOrigenId,
-    p_actor_id: entrada.actorId,
-    p_fecha_compromiso: entrada.fechaCompromiso,
-  });
-  if (error) lanzarErrorOrden(error.message);
-  const fila = data?.[0];
-  const creada = validarResultadoCreacion(fila ?? null);
-  return { id: creada.id, folio: creada.folio, cuentaId: fila?.cuenta_id ?? null };
-}
-
-/** PRD-15: la reactivación conserva todo y solo devuelve la orden a operación. */
-export type OrdenReactivada = {
-  id: string;
-  estado: EstadoOrden;
-  fechaInicio: string | null;
-  fechaFin: string | null;
-  actualizadoEn: string;
-};
-
-/**
- * PRD-15: devuelve una orden completada sin entrega ni cobros a operación.
- * PostgreSQL revalida el permiso administrativo, el CAS y que la ejecución
- * previa y los documentos financieros sigan intactos.
- */
-export async function reactivarOrdenServicio(
-  admin: SupabaseClient<Database>,
-  entrada: ReactivarOrdenInput & { actorId: string },
-): Promise<OrdenReactivada> {
-  const { data, error } = await admin.rpc('reactivar_orden_op', {
-    p_orden_id: entrada.ordenId,
-    p_actualizado_en: entrada.actualizadoEn,
-    p_actor_id: entrada.actorId,
-  });
-  if (error) lanzarErrorOrden(error.message);
-  const fila = data?.[0];
-  if (!fila?.id) throw new ErrorOrden('desconocido');
-
-  return {
-    id: fila.id,
-    estado: estadoDeBaseDeDatos(fila.estado),
-    fechaInicio: fila.fecha_inicio,
-    fechaFin: fila.fecha_fin,
-    actualizadoEn: fila.actualizado_en,
-  };
 }
 
 /** Aprueba Pipeline y crea su OP sin exponer una ventana entre ambas escrituras. */
