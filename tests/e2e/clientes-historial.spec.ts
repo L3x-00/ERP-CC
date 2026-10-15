@@ -265,8 +265,9 @@ test.describe.serial('historial navegable y notas de taller (OBS-11)', () => {
     await expect(notas).toContainText(datos.nota);
     await expect(notas).toContainText('Operador Historial');
 
-    // El enlace de la orden navega al registro original.
+    // El enlace de la orden (href histórico /ordenes?ordenId=) redirige a la ficha, con Comentarios activa.
     await enlaceOrden.click();
-    await expect(page).toHaveURL(new RegExp(`/ordenes\\?ordenId=${datos.ordenId}`));
+    await expect(page).toHaveURL(new RegExp(`/ordenes/${datos.ordenId}\\?pestana=comentarios`));
+    await expect(page.getByTestId('ficha-panel-comentarios')).toBeVisible();
   });
 });

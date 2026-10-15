@@ -171,6 +171,7 @@ async function limpiarContexto(contexto: Contexto): Promise<void> {
     await admin.from('sesiones_trabajo').delete().eq('orden_id', ordenId);
     await admin.from('programacion_areas').delete().eq('orden_id', ordenId);
     await admin.from('orden_eventos_cambio').delete().eq('orden_id', ordenId);
+    await admin.from('comentarios_registro').delete().eq('entidad_tipo', 'orden').eq('entidad_id', ordenId);
     await admin.from('ordenes_produccion').delete().eq('id', ordenId);
   }
   await admin.from('propuestas').delete().eq('rfq_id', contexto.rfqId);
@@ -196,6 +197,9 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
   );
 
   test('revisión aceptada → planificar → liberar → producir → cerrar + TI cancelada', async ({ page }) => {
+    // Ciclo de vida completo en un solo caso (~60 pasos + 4 capturas fullPage de la cola): con
+    // `next dev` y una base local cargada de órdenes residuales supera los 120 s por defecto.
+    test.setTimeout(300_000);
     const contexto = await prepararContexto();
     const { admin } = contexto;
     try {
@@ -232,8 +236,7 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await expect(fila.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0);
       await expect(fila.getByRole('button', { name: 'Procesos', exact: true })).toHaveCount(0);
       await expect(fila.getByRole('button', { name: /Seleccionar|Quitar selección/u })).toHaveCount(0);
-      await expect(fila.getByRole('button', { name: 'Comentarios', exact: true })).toBeVisible();
-      await expect(fila.getByRole('button', { name: /Documento/u })).toBeVisible();
+      await expect(fila.getByTestId(`abrir-ficha-${folio}`)).toBeVisible();
 
       // Programar todas las partidas (paso de Planeación) → PLANIFICADA.
       const { data: partidas } = await admin.from('partidas_orden_produccion')
@@ -320,23 +323,22 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       });
       if (errorEntrega) throw new Error(`Sin entrega: ${errorEntrega.message}`);
       await page.reload();
-      // La entrega total archiva la orden (OBS-21): el cierre administrativo se
-      // ejecuta desde la bandeja Archivo.
+      // La entrega total archiva la orden (OBS-21): se localiza en la bandeja Archivo
+      // y el cierre administrativo se ejecuta desde su ficha (C8.1).
       await page.getByTestId('bandeja-archivo').click();
       await expect(page.getByTestId(`fila-orden-${folio}`)).toBeVisible();
-      await page.getByTestId(`cerrar-administrativa-${folio}`).click();
-      await page.getByTestId('confirmar-cierre-administrativo').click();
-      await expect(page.getByTestId('ordenes-mensaje')).toContainText('cerrada');
+      await page.getByTestId(`abrir-ficha-${folio}`).click();
+      await page.waitForURL((url) => url.pathname === `/ordenes/${contexto.ordenId}`);
+      await expect(page.getByTestId('ficha-orden')).toBeVisible();
+      await page.getByTestId('ficha-cerrar').click();
+      await page.getByTestId('ficha-confirmar-cierre').click();
+      await expect(page.getByTestId('ficha-mensaje')).toContainText('cerrada');
       await expect.poll(async () => {
         const { data } = await admin.from('ordenes_produccion').select('estado_sii').eq('id', contexto.ordenId).single();
         return data?.estado_sii;
       }).toBe('CERRADA');
-      await expect(page.getByTestId(`estado-orden-${folio}`)).toContainText('Cerrada');
 
       // Ficha: snapshot, partidas ITxx, actividad y documento.
-      await page.getByTestId(`abrir-ficha-${folio}`).click();
-      await page.waitForURL((url) => url.pathname === `/ordenes/${contexto.ordenId}`);
-      await expect(page.getByTestId('ficha-orden')).toBeVisible();
       await expect(page.getByTestId('ficha-estado')).toContainText('Cerrada');
       await page.getByTestId('ficha-pestana-partidas').click();
       await expect(page.getByTestId('ficha-panel-partidas')).toContainText('IT01');
@@ -345,9 +347,23 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await page.getByTestId('ficha-pestana-documento').click();
       await expect(page.getByTestId('ficha-panel-documento')).toContainText(`Orden de servicio ${folio}`);
 
+      // C8.1: Comentarios se publican desde la ficha (hilo de la orden).
+      await page.getByTestId('ficha-pestana-comentarios').click();
+      await expect(page.getByTestId('ficha-pregunta-pestana')).toHaveText('¿Qué se ha conversado?');
+      const hiloFicha = page.getByTestId('ficha-panel-comentarios').getByTestId('hilo-comentarios');
+      const comentarioFicha = `E2E-FICHA-${randomUUID()}`;
+      await hiloFicha.getByLabel('Nuevo comentario').fill(comentarioFicha);
+      await hiloFicha.getByRole('button', { name: 'Comentar' }).click();
+      await expect(hiloFicha).toContainText(comentarioFicha);
+
+      // La cola refleja el cierre en la bandeja Archivo.
+      await page.goto('/ordenes');
+      await page.getByTestId('bandeja-archivo').click();
+      await expect(page.getByTestId(`estado-orden-${folio}`)).toContainText('Cerrada');
+      await page.getByTestId('bandeja-activas').click();
+
       // Orden interna (TI) sin cliente, con material/espesor/proceso del
       // catálogo del fixture, creada desde la UI y cancelada con motivo (obs. cliente 5).
-      await page.goto('/ordenes');
       await page.getByTestId('abrir-alta-interna').click();
       await page.getByTestId('interna-descripcion').fill('Mantenimiento interno E2E');
       await page.getByTestId('interna-motivo').fill('Mantenimiento interno E2E');
@@ -379,13 +395,16 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       expect(partidaTi?.procesos?.length ?? 0).toBeGreaterThan(0);
       await page.reload();
       const filaTi = page.getByTestId(`fila-orden-${folioTi}`);
-      await filaTi.getByTestId('cambiar-estado-cancelada').click();
+      await filaTi.getByTestId(`abrir-ficha-${folioTi}`).click();
+      await page.waitForURL((url) => url.pathname === `/ordenes/${contexto.ordenTiId}`);
+      await page.getByTestId('ficha-cancelar').click();
       await page.getByLabel('Motivo (mínimo 3 caracteres)').fill('Cancelación E2E');
-      await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
+      await page.getByTestId('ficha-confirmar-cancelacion').click();
       await expect.poll(async () => {
         const { data } = await admin.from('ordenes_produccion').select('estado_sii').eq('id', contexto.ordenTiId).single();
         return data?.estado_sii;
       }).toBe('CANCELADA');
+      await page.goto('/ordenes');
       await expect(page.getByTestId(`estado-orden-${folioTi}`)).toContainText('Cancelada');
 
       // Capturas 1440/768 × claro/oscuro de la cola con ambos chips.

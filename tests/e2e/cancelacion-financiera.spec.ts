@@ -54,10 +54,13 @@ test('cancelación sin pagos libera la deuda; con anticipo conserva orden, pago 
       await page.goto('/ordenes');
       const fila = page.getByRole('row', { name: new RegExp(orden.folio) });
       await expect(fila).toBeVisible();
-      await fila.getByTestId('cambiar-estado-cancelada').click();
+      // C8.1: la cancelación vive en la ficha; la cola solo ofrece Abrir (+ Liberar).
+      await fila.getByRole('link', { name: 'Abrir', exact: true }).click();
+      await page.waitForURL((url) => url.pathname === `/ordenes/${orden.id}`);
+      await page.getByTestId('ficha-cancelar').click();
       const dialogo = page.getByRole('dialog', { name: `Cancelar orden ${orden.folio}` });
       await dialogo.getByLabel('Motivo (mínimo 3 caracteres)').fill('Cancelación solicitada en prueba A02');
-      await dialogo.getByRole('button', { name: 'Confirmar cancelación' }).click();
+      await dialogo.getByTestId('ficha-confirmar-cancelacion').click();
       if (conAnticipo) {
         await expect(dialogo.getByRole('alert')).toContainText('La orden tiene cobranza registrada');
         await expect(dialogo).toBeVisible();
