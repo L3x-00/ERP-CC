@@ -53,6 +53,7 @@ const FICHA: DatosFichaOrden = {
   entregas: [],
   eventos: [],
   archivos: [],
+  hojaTrabajo: null,
 };
 
 afterEach(() => cleanup());
@@ -79,7 +80,7 @@ describe('ficha de Orden C4.3', () => {
     expect(screen.queryByRole('button', { name: 'Ajustar' })).toBeNull();
   });
 
-  it('no ofrece documento ni totales comerciales a quien carece de orden_ver_totales', () => {
+  it('ofrece la pestaña Documento sin totales comerciales a quien carece de orden_ver_totales', () => {
     render(createElement(FichaOrden, {
       ficha: FICHA,
       permisos: {
@@ -95,7 +96,8 @@ describe('ficha de Orden C4.3', () => {
       usuarioActualId: 'u-c42',
     }));
 
-    expect(screen.queryByRole('tab', { name: 'Documento' })).toBeNull();
+    // R17: el Documento es visible siempre; sin orden_ver_totales es la hoja de trabajo (sin Totales).
+    expect(screen.getByRole('tab', { name: 'Documento' })).toBeTruthy();
     expect(screen.queryByText('Sin totales comerciales en el snapshot.')).toBeNull();
     expect(screen.queryByText('Origen (snapshot)')).toBeNull();
     // El origen comercial (folios, sin precios) sí lo ve cualquier rol con orden_vista.

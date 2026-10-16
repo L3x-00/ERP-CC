@@ -353,12 +353,20 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await expect(panelRuta).toContainText('IT01');
       await expect(panelRuta.getByRole('columnheader', { name: 'Operación estimada' })).toBeVisible();
       await expect(panelRuta).toContainText('Pendiente');
+      // C8.3b (R09): Archivos vivos es visible, sin identificadores internos ni la palabra «snapshot».
+      await page.getByTestId('ficha-pestana-archivos').click();
+      const panelArchivos = page.getByTestId('ficha-panel-archivos');
+      await expect(panelArchivos).toBeVisible();
+      expect(await panelArchivos.textContent())
+        .not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|snapshot/iu);
       await page.getByTestId('ficha-pestana-actividad').click();
       // C8.2 (R10, Fase 1): Actividad en español, sin snake_case ni identificadores.
       await expect(page.getByTestId('ficha-panel-actividad')).toContainText('Orden creada');
       await expect(page.getByTestId('ficha-panel-actividad')).not.toContainText('orden_creada');
       await page.getByTestId('ficha-pestana-documento').click();
       await expect(page.getByTestId('ficha-panel-documento')).toContainText(`Orden de servicio ${folio}`);
+      // C8.3b (R17): la hoja de trabajo trae los ITxx de la orden.
+      await expect(page.getByTestId('ficha-panel-documento')).toContainText('IT01');
 
       // C8.1: Comentarios se publican desde la ficha (hilo de la orden).
       await page.getByTestId('ficha-pestana-comentarios').click();

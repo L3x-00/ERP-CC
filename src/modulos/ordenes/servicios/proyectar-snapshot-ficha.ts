@@ -11,11 +11,11 @@ function esObjeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
 }
 
-function texto(valor: unknown): string | null {
+export function texto(valor: unknown): string | null {
   return typeof valor === 'string' && valor.trim() !== '' ? valor.trim() : null;
 }
 
-function numero(valor: unknown): number | null {
+export function numero(valor: unknown): number | null {
   const convertido = typeof valor === 'number' ? valor : typeof valor === 'string' && valor.trim() !== ''
     ? Number(valor)
     : Number.NaN;
@@ -48,6 +48,11 @@ function pasosDelItem(item: SnapshotOrdenSii['items'][number]): PasoRutaFicha[] 
     });
   }
   return pasos.sort((a, b) => a.secuencia - b.secuencia);
+}
+
+/** Nombres de los procesos de un ítem en el orden de su ruta, sin horas ni tarifas. */
+export function nombresProcesosDelItem(item: SnapshotOrdenSii['items'][number]): string[] {
+  return pasosDelItem(item).map((paso) => paso.proceso);
 }
 
 /** Ruta por ítem (ITxx) y paso: proceso y horas estimadas, sin tarifa, costo ni precio. */

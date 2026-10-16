@@ -49,6 +49,7 @@ const FICHA: DatosFichaOrden = {
   entregas: [],
   eventos: [],
   archivos: [],
+  hojaTrabajo: null,
 };
 
 const PERMISOS = {
@@ -89,7 +90,7 @@ describe('ficha de Orden C8.1 · pregunta guía por pestaña (R19)', () => {
     expect(screen.getByTestId('ficha-pregunta-pestana').textContent).toBe(pregunta);
   });
 
-  it('una pestanaInicial que el usuario no puede ver cae en Resumen (Documento sin orden_ver_totales)', () => {
+  it('la pestaña Documento abre aun sin orden_ver_totales: es la hoja de trabajo (R17)', () => {
     render(createElement(FichaOrden, {
       ficha: FICHA,
       permisos: { ...PERMISOS, puedeVerTotales: false },
@@ -97,9 +98,9 @@ describe('ficha de Orden C8.1 · pregunta guía por pestaña (R19)', () => {
       pestanaInicial: 'documento',
     }));
 
-    expect(screen.getByRole('tab', { name: 'Resumen' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByTestId('ficha-pregunta-pestana').textContent).toBe('¿Qué es esta Orden?');
-    expect(screen.queryByTestId('ficha-panel-documento')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Documento' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('ficha-pregunta-pestana').textContent).toBe('¿Qué puedo imprimir?');
+    expect(screen.getByTestId('ficha-panel-documento')).toBeTruthy();
   });
 
   it('abre en Resumen con su pregunta y conserva los data-testid previos de las pestañas', () => {

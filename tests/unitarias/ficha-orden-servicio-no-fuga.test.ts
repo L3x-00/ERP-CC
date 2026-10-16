@@ -53,7 +53,7 @@ function snapshot(origen: Record<string, unknown>): Record<string, unknown> {
           tarifa_hora: 987.65, requiere_revision: false,
         },
       ],
-      archivos: [{ archivo_id: ID_ARCHIVO, nombre_original: 'plano-secreto.dxf' }],
+      archivos: [{ archivo_id: ID_ARCHIVO, nombre_original: 'plano-ejemplo.dxf' }],
     }],
     archivos: [],
     totales: { subtotal: 11111.11, descuento: 222.22, iva: 3333.33, total: 44444.44, moneda: 'USD' },
@@ -120,11 +120,12 @@ describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanza
     expect(ficha?.snapshot).toBeNull();
     expect(ficha?.totales).toBeNull();
     expect(ficha?.orden.moneda).toBeNull();
-    expect(ficha?.archivos).toEqual([]);
+    // R09: los archivos son operativos (sin economía) y los ve todo rol con orden_vista.
+    expect(ficha?.archivos.map((archivo) => archivo.nombreOriginal)).toEqual(['plano-ejemplo.dxf']);
     for (const secreto of [
       '12345.67', '9999.99', '11111.11', '222.22', '3333.33', '44444.44', '777.77',
       'USD', 'precio_unitario', 'costo_unitario', 'condicion_pago', 'XAXX010101000',
-      'COMISION-OCULTA', 'plano-secreto.dxf', '"subtotal"', '"iva"', '"total"',
+      'COMISION-OCULTA', '"subtotal"', '"iva"', '"total"',
     ]) {
       expect(serializado).not.toContain(secreto);
     }
@@ -203,7 +204,7 @@ describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanza
     expect(ficha?.snapshot).not.toBeNull();
     expect(ficha?.totales?.total).toBe(44444.44);
     expect(ficha?.orden.moneda).toBe('USD');
-    expect(ficha?.archivos.map((archivo) => archivo.nombreOriginal)).toEqual(['plano-secreto.dxf']);
+    expect(ficha?.archivos.map((archivo) => archivo.nombreOriginal)).toEqual(['plano-ejemplo.dxf']);
     expect(ficha?.origen?.rfqFolio).toBe('RFQ-1026_05');
   });
 

@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/compartido/tipos/supabase';
 import type {
-  ArchivoFicha,
   EventoFicha,
   FichaOrden,
   OrigenComercialFicha,
@@ -14,6 +13,8 @@ import {
   ESTADO_LEGACY_A_SII,
   type SnapshotOrdenSii,
 } from '@/modulos/ordenes/tipos/orden-sii';
+import { listarArchivosFichaOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
+import { proyectarHojaTrabajo } from '@/modulos/ordenes/servicios/hoja-trabajo-orden-servicio';
 import { proyectarRutaFicha } from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
 import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
 
@@ -77,7 +78,7 @@ export async function obtenerFichaOrdenServicio(
   const { data: orden, error } = await cliente
     .from('ordenes_produccion')
     .select(
-      'id, folio, folio_sii, estado_sii, estado, prioridad, fecha_compromiso_comercial, fecha_operativa, archivada_en, es_interna, id_historico, referencia_externa, notas, creado_en, actualizado_en, cerrada_admin_en, cerrada_admin_por, cliente_id',
+      'id, folio, folio_sii, estado_sii, estado, prioridad, fecha_compromiso_comercial, fecha_operativa, archivada_en, es_interna, id_historico, referencia_externa, notas, creado_en, actualizado_en, cerrada_admin_en, cerrada_admin_por, cliente_id, propuesta_revision_id',
     )
     .eq('id', ordenId)
     .maybeSingle();
@@ -99,7 +100,7 @@ export async function obtenerFichaOrdenServicio(
   const snapshot = incluirTotales ? snapshotLeido : null;
   const totales = incluirTotales ? totalesDeSnapshot(snapshotJson) : null;
 
-  const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp] = await Promise.all([
+  const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp, archivos] = await Promise.all([
     cliente
       .from('partidas_orden_produccion')
       .select(COLUMNAS_PARTIDA_FICHA)
@@ -128,6 +129,11 @@ export async function obtenerFichaOrdenServicio(
     orden.cerrada_admin_por
       ? cliente.from('usuarios').select('nombre_completo').eq('id', orden.cerrada_admin_por).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    // R09: los archivos son operativos (sin economía) y se leen para todo rol con orden_vista.
+    listarArchivosFichaOrden(cliente, {
+      snapshot: snapshotLeido,
+      propuestaRevisionId: orden.propuesta_revision_id,
+    }),
   ]);
 
   if (partidasResp.error) throw partidasResp.error;
@@ -185,39 +191,12 @@ export async function obtenerFichaOrdenServicio(
       : {},
   }));
 
-  const archivos: ArchivoFicha[] = [];
-  if (snapshot) {
-    for (const archivo of snapshot.archivos) {
-      archivos.push({
-        archivoId: archivo.archivo_id,
-        nombreOriginal: archivo.nombre_original ?? null,
-        nombreErp: archivo.nombre_erp ?? null,
-        clase: archivo.clase ?? null,
-        mime: archivo.mime ?? null,
-        origen: 'revision',
-        itemCodigo: null,
-      });
-    }
-    for (const item of snapshot.items) {
-      for (const archivo of item.archivos ?? []) {
-        archivos.push({
-          archivoId: archivo.archivo_id,
-          nombreOriginal: archivo.nombre_original ?? null,
-          nombreErp: archivo.nombre_erp ?? null,
-          clase: archivo.clase ?? null,
-          mime: archivo.mime ?? null,
-          origen: 'item',
-          itemCodigo: item.codigo ?? item.codigo_item ?? null,
-        });
-      }
-    }
-  }
-
   const estadoSii = esEstadoSiiOrden(orden.estado_sii)
     ? orden.estado_sii
     : ESTADO_LEGACY_A_SII[orden.estado as keyof typeof ESTADO_LEGACY_A_SII] ?? 'CONFIRMADA';
 
   const clienteFila = clienteResp.data;
+  const clienteNombre = clienteFila ? clienteFila.nombre_comercial || clienteFila.razon_social : null;
   return {
     orden: {
       id: orden.id,
@@ -237,9 +216,7 @@ export async function obtenerFichaOrdenServicio(
       actualizadoEn: orden.actualizado_en,
       cerradaAdminEn: orden.cerrada_admin_en,
       cerradaAdminPorNombre: cerradaPorResp.data?.nombre_completo ?? null,
-      clienteNombre: clienteFila
-        ? clienteFila.nombre_comercial || clienteFila.razon_social
-        : null,
+      clienteNombre,
       moneda: totales?.moneda ?? null,
     },
     origen,
@@ -258,5 +235,13 @@ export async function obtenerFichaOrdenServicio(
     })),
     eventos,
     archivos,
+    // R17: la hoja de trabajo sale por lista blanca para todo rol con orden_vista, con o sin totales.
+    hojaTrabajo: proyectarHojaTrabajo({
+      snapshot: snapshotLeido,
+      folio: orden.folio_sii ?? orden.folio,
+      clienteNombre,
+      observacionesOrden: orden.notas,
+      archivos,
+    }),
   };
 }
