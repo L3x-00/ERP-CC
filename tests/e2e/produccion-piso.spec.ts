@@ -287,6 +287,30 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(page.getByTestId('selector-orden-piso')).toHaveValue(caso.ordenId);
       await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
 
+      // C8.3c (O-05 C): el operador con PIN abre la hoja de trabajo sin precios y sus archivos.
+      await page.getByTestId('abrir-hoja-trabajo').click();
+      await page.waitForURL(`**/produccion-piso/hoja/${caso.ordenId}`);
+      const hoja = page.getByTestId('hoja-trabajo-piso');
+      await expect(hoja).toContainText('Orden de servicio');
+      await expect(hoja).toContainText('plano-it01-e2e.dxf');
+      expect(await hoja.textContent()).not.toMatch(/\$|\bMXN\b|\bUSD\b|Subtotal|\bIVA\b|snapshot/u);
+      // Un .dxf se descarga: la ventana nueva queda en blanco, así que se comprueba la petición firmada.
+      const peticionFirmada = page.context().waitForEvent(
+        'request',
+        (peticion) => peticion.url().includes('/storage/v1/object/sign/'),
+      );
+      const [ventanaArchivo] = await Promise.all([
+        page.waitForEvent('popup'),
+        hoja.getByRole('button', { name: /plano-it01-e2e\.dxf/u }).click(),
+      ]);
+      expect((await peticionFirmada).url()).toContain('/storage/v1/object/sign/');
+      await ventanaArchivo.close();
+      // Una orden que no está en su piso no se abre ni revela si existe.
+      const ajena = await page.goto(`/produccion-piso/hoja/${randomUUID()}`);
+      expect(ajena?.status()).toBe(404);
+      await page.goto('/produccion-piso');
+      await expect(page.getByTestId('control-piso')).toBeVisible();
+
       await page.getByRole('button', { name: 'Salir', exact: true }).click();
       await page.waitForURL('**/operador');
       await expect(page.getByTestId('teclado-pin')).toBeVisible();

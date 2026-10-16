@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
@@ -315,6 +316,13 @@ export function ControlPisoPanel({
               </span>
             )}
           </p>
+          <Link
+            href={`/produccion-piso/hoja/${ordenActiva.orden.id}`}
+            className="self-start text-sm font-semibold text-acento hover:underline"
+            data-testid="abrir-hoja-trabajo"
+          >
+            Hoja de trabajo (sin precios)
+          </Link>
           {partidaActiva ? (
             <div className="flex flex-col gap-2">
               <p className="text-sm text-texto-secundario">
