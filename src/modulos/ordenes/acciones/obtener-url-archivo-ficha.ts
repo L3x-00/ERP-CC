@@ -4,8 +4,7 @@ import { z } from 'zod';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
-import { listarArchivosFichaOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
-import { esSnapshotOrdenSii } from '@/modulos/ordenes/tipos/orden-sii';
+import { archivoPerteneceAOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
 import { firmarLecturaArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -34,21 +33,9 @@ export async function obtenerUrlArchivoFichaAccion(
 
   try {
     const admin = crearClienteSupabaseAdmin();
-    const { data: orden, error } = await admin
-      .from('ordenes_produccion')
-      .select('snapshot_json, propuesta_revision_id')
-      .eq('id', analisis.data.ordenId)
-      .maybeSingle();
-    if (error) throw error;
-    if (!orden) return { exito: false, error: 'La orden no existe' };
-
-    const archivos = await listarArchivosFichaOrden(admin, {
-      snapshot: esSnapshotOrdenSii(orden.snapshot_json) ? orden.snapshot_json : null,
-      propuestaRevisionId: orden.propuesta_revision_id,
-    });
-    if (!archivos.some((archivo) => archivo.archivoId === analisis.data.archivoId && archivo.disponible)) {
-      return { exito: false, error: 'El archivo no pertenece a esta orden' };
-    }
+    const pertenece = await archivoPerteneceAOrden(admin, analisis.data.ordenId, analisis.data.archivoId);
+    if (pertenece === null) return { exito: false, error: 'La orden no existe' };
+    if (!pertenece) return { exito: false, error: 'El archivo no pertenece a esta orden' };
 
     const url = await firmarLecturaArchivo(admin, analisis.data.archivoId, 300);
     return { exito: true, datos: { url } };

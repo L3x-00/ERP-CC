@@ -2,7 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/compartido/tipos/supabase';
 import type { ArchivoFicha } from '@/modulos/ordenes/tipos/ficha-orden';
-import { archivosReferenciados, type SnapshotOrdenSii } from '@/modulos/ordenes/tipos/orden-sii';
+import {
+  archivosReferenciados,
+  esSnapshotOrdenSii,
+  type SnapshotOrdenSii,
+} from '@/modulos/ordenes/tipos/orden-sii';
 import {
   derivarArchivosFicha,
   type FilaArchivoFicha,
@@ -53,4 +57,29 @@ export async function listarArchivosFichaOrden(
   }
 
   return derivarArchivosFicha(entrada.snapshot, filas, vinculos);
+}
+
+/**
+ * ¿El archivo figura en la lista que la ficha muestra de esta orden (congelado, existente, vigente
+ * y no retirado)? `null` si la orden no existe. Es la comprobación de pertenencia previa a firmar
+ * cualquier URL: la firma usa service_role, así que no se firma nada que esta lista no contenga.
+ */
+export async function archivoPerteneceAOrden(
+  cliente: SupabaseClient<Database>,
+  ordenId: string,
+  archivoId: string,
+): Promise<boolean | null> {
+  const { data: orden, error } = await cliente
+    .from('ordenes_produccion')
+    .select('snapshot_json, propuesta_revision_id')
+    .eq('id', ordenId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!orden) return null;
+
+  const archivos = await listarArchivosFichaOrden(cliente, {
+    snapshot: esSnapshotOrdenSii(orden.snapshot_json) ? orden.snapshot_json : null,
+    propuestaRevisionId: orden.propuesta_revision_id,
+  });
+  return archivos.some((archivo) => archivo.archivoId === archivoId && archivo.disponible);
 }

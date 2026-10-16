@@ -98,3 +98,20 @@
     outline-color: var(--acento);
   }
 }
+
+/* La hoja de trabajo del piso se imprime en claro aunque la terminal fuerce el tema oscuro. */
+@media print {
+  .hoja-impresion {
+    color-scheme: light;
+    --fondo: #f8f9fa;
+    --superficie: #ffffff;
+    --superficie-2: #f1f3f5;
+    --borde: #e2e8f0;
+    --borde-fuerte: #cbd5e1;
+    --texto-primario: #1e293b;
+    --texto-secundario: #64748b;
+    --texto-tenue: #94a3b8;
+    background: #ffffff;
+    color: #1e293b;
+  }
+}

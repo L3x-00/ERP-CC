@@ -103,3 +103,22 @@ export async function obtenerOperadorParaMutacion(
   }
   return null;
 }
+
+export type AccesoLecturaPiso = {
+  /** Operador cuyo trabajo se consulta; null en la vista de administrador, que ve todo el piso. */
+  operadorId: string | null;
+};
+
+/**
+ * Quién puede LEER el piso: la terminal de operador (cookie de PIN vigente, también la vista delegada
+ * de un admin, que solo bloquea escrituras) o un administrador con sesión del sistema. Es el mismo
+ * criterio de la página /produccion-piso; las mutaciones siguen usando `obtenerOperadorParaMutacion`.
+ */
+export async function obtenerAccesoLecturaPiso(): Promise<AccesoLecturaPiso | null> {
+  const contexto = await obtenerContextoSesionOperadorActiva();
+  if (contexto) return { operadorId: contexto.operador.id };
+
+  const usuario = await obtenerUsuarioServidor();
+  if (usuario?.rol === 'admin' && usuario.activo) return { operadorId: null };
+  return null;
+}
