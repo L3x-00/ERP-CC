@@ -9,6 +9,9 @@ import {
 import { obtenerAccesoLecturaPiso } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
+// La autorización combina cookie HMAC y estado actual de la orden; nunca puede reutilizarse entre solicitudes.
+export const dynamic = 'force-dynamic';
+
 /**
  * Hoja de trabajo (sin precios) de una orden del piso. Revalida la sesión de piso aunque el proxy ya
  * filtró /produccion-piso, y solo abre órdenes que están en el piso de ese operador: un id ajeno es 404.

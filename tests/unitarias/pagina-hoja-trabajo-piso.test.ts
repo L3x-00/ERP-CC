@@ -26,7 +26,7 @@ vi.mock('@/modulos/ordenes/servicios/hoja-trabajo-lectura-servicio', () => ({
 }));
 vi.mock('@/modulos/ordenes/componentes/hoja-trabajo-piso', () => ({ HojaTrabajoPiso: componenteHoja }));
 
-import PaginaHojaTrabajoPiso from '@/app/(piso)/produccion-piso/hoja/[ordenId]/page';
+import PaginaHojaTrabajoPiso, { dynamic } from '@/app/(piso)/produccion-piso/hoja/[ordenId]/page';
 
 const ORDEN_ID = '00000000-0000-4000-8000-0000000c8371';
 const OPERADOR_ID = '00000000-0000-4000-8000-0000000c8372';
@@ -45,6 +45,10 @@ beforeEach(() => {
 });
 
 describe('/produccion-piso/hoja/[ordenId] (C8.3c)', () => {
+  it('se renderiza dinámicamente porque autorización y hoja dependen de la sesión y del piso actual', () => {
+    expect(dynamic).toBe('force-dynamic');
+  });
+
   it('sin sesión de piso manda a la terminal del operador y no lee nada', async () => {
     accesoMock.mockResolvedValue(null);
 
