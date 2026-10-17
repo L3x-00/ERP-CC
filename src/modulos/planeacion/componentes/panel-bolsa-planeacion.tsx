@@ -108,6 +108,11 @@ export function PanelBolsaPlaneacion({
                 <span className="font-mono text-[11px] font-medium">
                   {sugerencia.folio} · {sugerencia.codigoPieza}
                 </span>
+                {sugerencia.operacionNombre ? (
+                  <span className="text-texto-secundario">
+                    Operación: {sugerencia.secuencia} · {sugerencia.operacionNombre}
+                  </span>
+                ) : null}
                 <span className="text-texto-secundario">
                   {sugerencia.recursoCodigo} · {sugerencia.fecha} / {sugerencia.turno} ·{' '}
                   {sugerencia.horas} h (quedan {sugerencia.horasDisponibles.toFixed(2)} h)

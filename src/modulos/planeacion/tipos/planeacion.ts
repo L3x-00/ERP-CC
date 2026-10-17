@@ -67,6 +67,10 @@ export interface ProgramacionArea {
   estadoPlaneacion: EstadoPlaneacion;
   creadoEn: string;
   actualizadoEn: string;
+  /** C9.0: operación del ruteo programada; `null` en las filas heredadas por área. */
+  metaProcesoId: string | null;
+  /** C9.0: nombre de la operación para rótulos; `null`/ausente en heredadas. */
+  operacionNombre?: string | null;
   /** PLA-06: contexto de la orden para las acciones de la tarjeta (opcional). */
   ordenFolio?: string;
   ordenEstado?: EstadoOrden;
@@ -74,6 +78,18 @@ export interface ProgramacionArea {
   ordenEstadoSii?: EstadoSiiOrden;
   ordenActualizadoEn?: string;
   ordenEsInterna?: boolean;
+}
+
+/**
+ * C9.0/P-01 B: operación del ruteo de una partida con su estado de programación.
+ * La UI la usa para elegir «Secuencia · Operación» en lugar de teclear un número.
+ */
+export interface OperacionProgramablePartida {
+  metaProcesoId: string;
+  secuencia: number;
+  nombre: string;
+  /** Ya existe una fila de programación vigente (no cancelada) para la operación. */
+  programada: boolean;
 }
 
 /**
@@ -204,6 +220,21 @@ export function filaAProgramacionArea(fila: FilaProgramacionArea): ProgramacionA
     ),
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
+    metaProcesoId: fila.meta_proceso_id,
+  };
+}
+
+/** Fila de calendario con el embed de la operación del ruteo (C9.0). */
+export type FilaProgramacionAreaConOperacion = FilaProgramacionArea & {
+  metas_proceso_partida: { nombre: string } | null;
+};
+
+export function filaAProgramacionAreaConOperacion(
+  fila: FilaProgramacionAreaConOperacion,
+): ProgramacionArea {
+  return {
+    ...filaAProgramacionArea(fila),
+    operacionNombre: fila.metas_proceso_partida?.nombre ?? null,
   };
 }
 

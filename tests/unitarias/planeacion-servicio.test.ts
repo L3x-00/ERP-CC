@@ -54,6 +54,49 @@ describe('servicios transaccionales de Planeación', () => {
       p_partida_id: PARTIDA_ID,
       p_recurso_id: RECURSO_ID,
       p_secuencia: 1,
+      p_meta_proceso_id: null,
+      p_fecha_programada: '2026-09-15',
+      p_turno: 'matutino',
+      p_horas_estimadas: 4.5,
+      p_orden_prioridad: 2,
+      p_actor_id: '55555555-5555-4555-8555-555555555555',
+      p_correlation_id: '66666666-6666-4666-8666-666666666666',
+    });
+  });
+
+  it('programa por operación con secuencia nula (la deriva PostgreSQL de la meta)', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: PROGRAMACION_ID,
+          estado_planeacion: 'programada',
+          actualizado_en: ACTUALIZADO_EN,
+        },
+      ],
+      error: null,
+    });
+    const META_ID = '77777777-7777-4777-8777-777777777777';
+
+    await programarPartidaRecursoServicio(clienteConRpc(rpc), {
+      ordenId: ORDEN_ID,
+      partidaId: PARTIDA_ID,
+      recursoId: RECURSO_ID,
+      secuencia: null,
+      metaProcesoId: META_ID,
+      fechaProgramada: '2026-09-15',
+      turno: 'matutino',
+      horasEstimadas: 4.5,
+      ordenPrioridad: 2,
+      actorId: '55555555-5555-4555-8555-555555555555',
+      correlationId: '66666666-6666-4666-8666-666666666666',
+    });
+
+    expect(rpc).toHaveBeenCalledWith('programar_partida_recurso_auditada', {
+      p_orden_id: ORDEN_ID,
+      p_partida_id: PARTIDA_ID,
+      p_recurso_id: RECURSO_ID,
+      p_secuencia: null,
+      p_meta_proceso_id: META_ID,
       p_fecha_programada: '2026-09-15',
       p_turno: 'matutino',
       p_horas_estimadas: 4.5,

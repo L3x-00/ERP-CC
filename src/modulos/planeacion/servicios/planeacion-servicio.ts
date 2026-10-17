@@ -3,10 +3,11 @@ import type { Database } from '@/compartido/tipos/supabase';
 import {
   ESTADOS_PLANEACION,
   filaACargaCapacidadDiaria,
-  filaAProgramacionArea,
+  filaAProgramacionAreaConOperacion,
   filaARecursoPlaneacion,
   type CargaCapacidadDiaria,
   type EstadoPlaneacion,
+  type FilaProgramacionAreaConOperacion,
   type ProgramacionArea,
   type RecursoPlaneacion,
   type TurnoPlaneacion,
@@ -33,6 +34,7 @@ export type CodigoErrorPlaneacion =
   | 'capacidad_insuficiente'
   | 'sin_permiso_planeacion'
   | 'motivo_reprogramacion_requerido'
+  | 'meta_proceso_no_corresponde'
   | 'transicion_preparacion_no_permitida'
   | 'rango_fechas_invalido'
   | 'desconocido';
@@ -103,6 +105,7 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
     'capacidad_insuficiente',
     'sin_permiso_planeacion',
     'motivo_reprogramacion_requerido',
+    'meta_proceso_no_corresponde',
     'transicion_preparacion_no_permitida',
     'rango_fechas_invalido',
   ];
@@ -147,13 +150,14 @@ export async function programarPartidaRecursoServicio(
     p_orden_id: entrada.ordenId,
     p_partida_id: entrada.partidaId,
     p_recurso_id: entrada.recursoId,
-    p_secuencia: entrada.secuencia,
+    p_secuencia: entrada.secuencia ?? null,
     p_fecha_programada: entrada.fechaProgramada,
     p_turno: entrada.turno,
     p_horas_estimadas: entrada.horasEstimadas,
     p_orden_prioridad: entrada.ordenPrioridad,
     p_actor_id: entrada.actorId,
     p_correlation_id: entrada.correlationId,
+    p_meta_proceso_id: entrada.metaProcesoId ?? null,
   });
 
   if (error) lanzarErrorPlaneacion(error.message);
@@ -221,7 +225,7 @@ export async function obtenerProgramacionesCalendarioServicio(
 ): Promise<ProgramacionArea[]> {
   let consulta = cliente
     .from('programacion_areas')
-    .select('*')
+    .select('*, metas_proceso_partida!programacion_areas_meta_proceso_id_fkey (nombre)')
     .gte('fecha_programada', filtros.fechaInicio)
     .lte('fecha_programada', filtros.fechaFin);
 
@@ -238,7 +242,9 @@ export async function obtenerProgramacionesCalendarioServicio(
     .order('orden_prioridad', { ascending: true });
 
   if (error) lanzarErrorPlaneacion(error.message);
-  const programaciones = (data ?? []).map(filaAProgramacionArea);
+  const programaciones = (data ?? []).map((fila) =>
+    filaAProgramacionAreaConOperacion(fila as FilaProgramacionAreaConOperacion),
+  );
   const ordenIds = [...new Set(programaciones.map((programacion) => programacion.ordenId))];
   if (ordenIds.length === 0) return programaciones;
 
@@ -331,6 +337,8 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
       return 'Indica el motivo de la reprogramación';
     case 'programacion_duplicada':
       return 'La partida ya tiene una programación equivalente';
+    case 'meta_proceso_no_corresponde':
+      return 'La operación elegida no pertenece a la partida';
     default:
       return accion === 'programar'
         ? 'No se pudo programar la partida'

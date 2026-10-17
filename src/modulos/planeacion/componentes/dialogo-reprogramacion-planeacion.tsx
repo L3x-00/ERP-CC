@@ -125,6 +125,12 @@ export function DialogoReprogramacionPlaneacion({
             </p>
             <p className="text-texto-secundario">{textoODefecto(desglose?.descripcion)}</p>
             <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              {programacion.operacionNombre ? (
+                <div className="col-span-2">
+                  <dt className="text-texto-secundario">Operación</dt>
+                  <dd>{programacion.secuencia} · {programacion.operacionNombre}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="text-texto-secundario">De</dt>
                 <dd>{programacion.fechaProgramada}</dd>

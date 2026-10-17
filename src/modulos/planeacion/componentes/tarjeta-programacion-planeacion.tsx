@@ -89,6 +89,12 @@ export function TarjetaProgramacionPlaneacion({
 
       {!compacta ? (
         <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+          {programacion.operacionNombre ? (
+            <div className="col-span-2">
+              <dt className="text-texto-secundario">Operación</dt>
+              <dd>{programacion.secuencia} · {programacion.operacionNombre}</dd>
+            </div>
+          ) : null}
           <div>
             <dt className="text-texto-secundario">Área</dt>
             <dd>{desglose ? etiquetaArea(desglose) : textoODefecto(null)}</dd>
@@ -129,7 +135,9 @@ export function TarjetaProgramacionPlaneacion({
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-2">
         <span className="text-texto-secundario">
           {compacta
-            ? `${recurso?.codigo ?? 'Recurso'} · ${programacion.horasEstimadas} h`
+            ? `${programacion.operacionNombre ? `${programacion.operacionNombre} · ` : ''}${
+                recurso?.codigo ?? 'Recurso'
+              } · ${programacion.horasEstimadas} h`
             : `${recurso ? `${recurso.codigo} · ${recurso.nombre}` : 'Recurso'} · ${
                 ETIQUETA_TURNO[programacion.turno]
               } · ${programacion.horasEstimadas} h · prioridad ${programacion.ordenPrioridad}`}
