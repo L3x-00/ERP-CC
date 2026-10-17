@@ -175,8 +175,11 @@ test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)
       return data?.length ?? 0;
     }).toBe(1);
     const { data: asignada } = await admin.from('programacion_areas')
-      .select('estado_planeacion').eq('partida_id', partidaSugerida).single();
+      .select('estado_planeacion, meta_proceso_id').eq('partida_id', partidaSugerida).single();
     expect(asignada?.estado_planeacion).toBe('programada');
+    // C9.0: la sugerencia asigna la operación pendiente del ruteo, no una
+    // secuencia manual.
+    expect(asignada?.meta_proceso_id).not.toBeNull();
 
     // Acciones SII de la tarjeta: Liberar (PLANIFICADA→LISTA) y acceso a sesión;
     // iniciar/pausar/reanudar manuales se retiraron (el avance deriva el estado).

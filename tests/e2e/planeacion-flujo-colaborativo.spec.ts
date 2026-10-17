@@ -111,6 +111,7 @@ async function crearPartida(
       descripcion: 'Partida temporal para sincronización de Planeación',
       cantidad_solicitada: 1,
       unidad_medida: 'pieza',
+      procesos: ['Corte'],
     })
     .select('id')
     .single();
@@ -272,6 +273,11 @@ test.describe.serial('Planeación colaborativa completa', () => {
     await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
     await aplicarRangoCalendario(page);
     await page.getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaId);
+    // C9.0/P-01 B: con ruteo el panel programa por operación y preselecciona la
+    // primera pendiente; sin ruteo conservaría la captura manual de secuencia.
+    const selectorOperacion = page.getByLabel('Operación');
+    await expect(selectorOperacion).toBeVisible();
+    await expect(selectorOperacion.locator('option:checked')).toContainText('Corte');
     await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
     await page.getByLabel('Fecha programada').fill('2099-12-30');
     await page.getByLabel('Horas estimadas').fill('4');
@@ -288,6 +294,17 @@ test.describe.serial('Planeación colaborativa completa', () => {
         return data?.estado_planeacion ?? null;
       })
       .toBe('programada');
+    // C9.0: la fila creada queda ligada a la operación del ruteo.
+    await expect
+      .poll(async () => {
+        const { data } = await contextoPrueba.admin
+          .from('programacion_areas')
+          .select('meta_proceso_id')
+          .eq('partida_id', contextoPrueba.partidaId)
+          .maybeSingle();
+        return data?.meta_proceso_id ?? null;
+      })
+      .not.toBeNull();
     await expect(
       page
         .getByTestId('columna-2099-12-30')
@@ -384,6 +401,7 @@ test.describe.serial('Planeación colaborativa completa', () => {
     const resumen = page.getByTestId('resumen-programacion-planeacion');
     await expect(resumen).toContainText('2099-12-28');
     await expect(resumen).toContainText('Capacidad tras guardar');
+    await expect(resumen).toContainText('Operación: 1 · Corte');
     await page.getByTestId('guardar-asignacion-planeacion').click();
 
     await expect
