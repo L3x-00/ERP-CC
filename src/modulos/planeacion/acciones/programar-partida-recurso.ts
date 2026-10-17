@@ -42,6 +42,7 @@ export async function programarPartidaRecursoAccion(
       ordenId: analisis.data.ordenId,
       partidaId: analisis.data.partidaId,
       recursoId: analisis.data.recursoId,
+      metaProcesoId: analisis.data.metaProcesoId ?? null,
       fechaProgramada: analisis.data.fechaProgramada,
       turno: analisis.data.turno,
     }, correlationId);

@@ -34,6 +34,7 @@ function programacion(estadoSii: EstadoSiiOrden): ProgramacionArea {
     estadoPlaneacion: 'programada',
     creadoEn: '2026-10-10T01:00:00.000Z',
     actualizadoEn: '2026-10-10T01:00:00.000Z',
+    metaProcesoId: null,
     ordenFolio: 'OP-008141',
     ordenEstadoSii: estadoSii,
     ordenActualizadoEn: '2026-10-10T01:00:00.000Z',

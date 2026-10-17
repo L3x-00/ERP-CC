@@ -6,6 +6,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
 import { obtenerBolsaPlaneacionServicio } from '@/modulos/planeacion/servicios/bolsa-planeacion-servicio';
 import { obtenerDatosCalendarioPlaneacionServicio } from '@/modulos/planeacion/servicios/planeacion-servicio';
+import type { OperacionProgramablePartida } from '@/modulos/planeacion/tipos/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
@@ -105,22 +106,71 @@ export default async function PaginaPlaneacion() {
         etiqueta: desglose
           ? `${desglose.folio} · ${desglose.codigoPieza}${descripcion}`
           : `OP · ${partida.id.slice(0, 8)}`,
+        operaciones: [],
       };
     });
+
+  // C9.0/P-01 B: cada partida viaja con su ruteo y qué operaciones ya tienen
+  // programación vigente, para preseleccionar la siguiente pendiente.
+  const idsPartidasProgramables = partidasProgramables.map((partida) => partida.partidaId);
+  const { data: metasPartidas, error: errorMetasPartidas } = idsPartidasProgramables.length === 0
+    ? { data: [], error: null }
+    : await cliente
+        .from('metas_proceso_partida')
+        .select('id, partida_id, secuencia, nombre')
+        .in('partida_id', idsPartidasProgramables)
+        .order('secuencia', { ascending: true });
+  const { data: metasCubiertas, error: errorMetasCubiertas } = idsPartidasProgramables.length === 0
+    ? { data: [], error: null }
+    : await cliente
+        .from('programacion_areas')
+        .select('meta_proceso_id')
+        .in('partida_id', idsPartidasProgramables)
+        .not('meta_proceso_id', 'is', null)
+        .neq('estado_planeacion', 'cancelada');
+  if (errorMetasPartidas || errorMetasCubiertas) {
+    throw new Error('No se pudieron cargar las operaciones de las partidas');
+  }
+
+  const metasPorPartida = new Map<string, { id: string; secuencia: number; nombre: string }[]>();
+  for (const meta of metasPartidas ?? []) {
+    const lista = metasPorPartida.get(meta.partida_id) ?? [];
+    lista.push({ id: meta.id, secuencia: Number(meta.secuencia), nombre: meta.nombre });
+    metasPorPartida.set(meta.partida_id, lista);
+  }
+  const idsMetasCubiertas = new Set(
+    (metasCubiertas ?? [])
+      .map((fila) => fila.meta_proceso_id)
+      .filter((id): id is string => id !== null),
+  );
+  const partidasConOperaciones: PartidaProgramablePlaneacion[] = partidasProgramables.map(
+    (partida) => ({
+      ...partida,
+      operaciones: (metasPorPartida.get(partida.partidaId) ?? []).map(
+        (meta): OperacionProgramablePartida => ({
+          metaProcesoId: meta.id,
+          secuencia: meta.secuencia,
+          nombre: meta.nombre,
+          programada: idsMetasCubiertas.has(meta.id),
+        }),
+      ),
+    }),
+  );
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-planeacion">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold">Planeación y capacidad</h1>
         <p className="text-sm text-texto-secundario">
-          Programación transaccional por recurso, fecha y turno. La capacidad y los candados se
-          validan en PostgreSQL; el calendario se actualiza al cambiar cualquier usuario.
+          Cada operación del ruteo se programa en su recurso, fecha, turno y horas. La capacidad y
+          los candados se validan en PostgreSQL; el calendario se actualiza al cambiar cualquier
+          usuario.
         </p>
       </header>
       <OperacionPlaneacion
         datosIniciales={datosIniciales}
         rangoInicial={{ fechaInicio, fechaFin }}
-        partidasProgramables={partidasProgramables}
+        partidasProgramables={partidasConOperaciones}
         desglosePartidas={desglosePartidas}
         bolsa={bolsa}
       />

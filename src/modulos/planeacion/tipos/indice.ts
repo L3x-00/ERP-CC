@@ -7,6 +7,7 @@ export {
   filaACapacidadRecursoTurno,
   filaAExcepcionCapacidadRecurso,
   filaAProgramacionArea,
+  filaAProgramacionAreaConOperacion,
   filaACargaCapacidadDiaria,
 } from '@/modulos/planeacion/tipos/planeacion';
 
@@ -18,6 +19,7 @@ export type {
   CapacidadRecursoTurno,
   ExcepcionCapacidadRecurso,
   ProgramacionArea,
+  OperacionProgramablePartida,
   CargaCapacidadDiaria,
   DesglosePartidaPlaneacion,
   FilaRecursoPlaneacion,
@@ -25,5 +27,6 @@ export type {
   FilaCapacidadRecursoTurno,
   FilaExcepcionCapacidadRecurso,
   FilaProgramacionArea,
+  FilaProgramacionAreaConOperacion,
   FilaCargaCapacidadDiaria,
 } from '@/modulos/planeacion/tipos/planeacion';

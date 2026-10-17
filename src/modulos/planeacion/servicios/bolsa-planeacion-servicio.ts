@@ -27,6 +27,9 @@ export interface SugerenciaBolsa extends PartidaBolsa {
   fecha: string;
   turno: TurnoPlaneacion;
   secuencia: number;
+  /** C9.0: operación pendiente sugerida; `null` en partidas sin ruteo (heredadas). */
+  metaProcesoId: string | null;
+  operacionNombre: string | null;
   horasDisponibles: number;
 }
 
@@ -79,7 +82,11 @@ type FilaPartida = Pick<
 >;
 type FilaProgramacion = Pick<
   Database['public']['Tables']['programacion_areas']['Row'],
-  'partida_id' | 'secuencia' | 'estado_planeacion' | 'fecha_programada'
+  'partida_id' | 'secuencia' | 'estado_planeacion' | 'fecha_programada' | 'meta_proceso_id'
+>;
+type FilaMeta = Pick<
+  Database['public']['Tables']['metas_proceso_partida']['Row'],
+  'id' | 'partida_id' | 'secuencia' | 'nombre'
 >;
 
 const ESTADOS_ACTIVOS_PROGRAMACION = ['programada', 'en_preparacion', 'en_proceso', 'bloqueada'];
@@ -113,7 +120,7 @@ export async function obtenerBolsaPlaneacionServicio(
       .select('id, orden_id, codigo_pieza, area_trabajo_codigo, procesos, tiempo_estimado_minutos')
       .in('orden_id', ordenesActivas.map((orden) => orden.id)),
     cliente.from('programacion_areas')
-      .select('partida_id, secuencia, estado_planeacion, fecha_programada')
+      .select('partida_id, secuencia, estado_planeacion, fecha_programada, meta_proceso_id')
       .in('orden_id', ordenesActivas.map((orden) => orden.id)),
     cliente.from('recursos_planeacion').select('id, codigo').eq('activo', true),
   ]);
@@ -123,21 +130,54 @@ export async function obtenerBolsaPlaneacionServicio(
 
   const partidasFilas = (partidas ?? []) as FilaPartida[];
   const programacionesFilas = (programaciones ?? []) as FilaProgramacion[];
+  const { data: metas, error: errorMetas } = partidasFilas.length === 0
+    ? { data: [], error: null }
+    : await cliente.from('metas_proceso_partida')
+        .select('id, partida_id, secuencia, nombre')
+        .in('partida_id', partidasFilas.map((partida) => partida.id))
+        .order('secuencia', { ascending: true });
+  if (errorMetas) {
+    throw new Error('No se pudo calcular la bolsa de Planeación');
+  }
+  const metasFilas = (metas ?? []) as FilaMeta[];
   const codigoPorRecurso = new Map(
     (recursosRespuesta.data ?? []).map((recurso) => [recurso.id, recurso.codigo]),
   );
 
   const activasPorPartida = new Map<string, FilaProgramacion[]>();
   const secuenciasPorPartida = new Map<string, number[]>();
+  const metasPorPartida = new Map<string, FilaMeta[]>();
+  // C9.0: una operación está cubierta si alguna fila viva la referencia; las
+  // filas heredadas (meta NULL) cubren la partida completa y conservan la
+  // exclusión histórica de la bolsa (no se sugiere trabajo ya planeado).
+  const metasCubiertas = new Set<string>();
+  const partidasConFilaHeredada = new Set<string>();
+  for (const meta of metasFilas) {
+    const lista = metasPorPartida.get(meta.partida_id) ?? [];
+    lista.push(meta);
+    metasPorPartida.set(meta.partida_id, lista);
+  }
   for (const programacion of programacionesFilas) {
     const secuencias = secuenciasPorPartida.get(programacion.partida_id) ?? [];
     secuencias.push(Number(programacion.secuencia));
     secuenciasPorPartida.set(programacion.partida_id, secuencias);
+    if (programacion.estado_planeacion !== 'cancelada') {
+      if (programacion.meta_proceso_id) metasCubiertas.add(programacion.meta_proceso_id);
+      else partidasConFilaHeredada.add(programacion.partida_id);
+    }
     if (ESTADOS_ACTIVOS_PROGRAMACION.includes(programacion.estado_planeacion)) {
       const activas = activasPorPartida.get(programacion.partida_id) ?? [];
       activas.push(programacion);
       activasPorPartida.set(programacion.partida_id, activas);
     }
+  }
+
+  /** Primera operación del ruteo sin fila viva; `null` si no hay o ya está todo. */
+  function operacionPendiente(partidaId: string): FilaMeta | null {
+    if (partidasConFilaHeredada.has(partidaId)) return null;
+    const pendientes = (metasPorPartida.get(partidaId) ?? [])
+      .filter((meta) => !metasCubiertas.has(meta.id));
+    return pendientes[0] ?? null;
   }
 
   function aBolsa(partida: FilaPartida): PartidaBolsa {
@@ -169,12 +209,15 @@ export async function obtenerBolsaPlaneacionServicio(
       ))
     .map(aBolsa);
 
-  // Sugerencias: partidas sin planear de órdenes vivas que caben en el primer
-  // hueco libre del horizonte. La RPC revalida capacidad y candados al asignar.
-  const sinPlan = partidasFilas.filter(
-    (partida) => (activasPorPartida.get(partida.id) ?? []).length === 0
-      && !pausadasSinPlan.some((pendiente) => pendiente.partidaId === partida.id),
-  );
+  // Sugerencias: partidas de órdenes vivas con trabajo por planear (la siguiente
+  // operación pendiente del ruteo, o la partida completa si es heredada) que cabe
+  // en el primer hueco libre del horizonte. La RPC revalida capacidad y candados.
+  const sinPlan = partidasFilas.filter((partida) => (
+    !pausadasSinPlan.some((pendiente) => pendiente.partidaId === partida.id)
+    && ((metasPorPartida.get(partida.id) ?? []).length > 0
+      ? operacionPendiente(partida.id) !== null
+      : (activasPorPartida.get(partida.id) ?? []).length === 0)
+  ));
   const cargas = sinPlan.length === 0
     ? []
     : await obtenerCargaCapacidadDiariaServicio(admin, hoy, fechaMas(hoy, horizonteDias - 1));
@@ -185,13 +228,18 @@ export async function obtenerBolsaPlaneacionServicio(
     const item = aBolsa(partida);
     const hueco = elegirHueco(item.horas, cargasRestantes, codigoPorRecurso);
     if (!hueco) continue;
+    const pendiente = operacionPendiente(partida.id);
     sugerencias.push({
       ...item,
       recursoId: hueco.carga.recursoId,
       recursoCodigo: codigoPorRecurso.get(hueco.carga.recursoId) ?? 'Recurso',
       fecha: hueco.carga.fechaProgramada,
       turno: hueco.carga.turno,
-      secuencia: siguienteSecuencia(secuenciasPorPartida.get(partida.id) ?? []),
+      secuencia: pendiente
+        ? Number(pendiente.secuencia)
+        : siguienteSecuencia(secuenciasPorPartida.get(partida.id) ?? []),
+      metaProcesoId: pendiente?.id ?? null,
+      operacionNombre: pendiente?.nombre ?? null,
       horasDisponibles: hueco.horasDisponibles,
     });
     // El hueco sugerido se descuenta solo en la vista previa; PostgreSQL decide

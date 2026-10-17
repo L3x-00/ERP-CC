@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { DesglosePartidaPlaneacion } from '@/modulos/planeacion/tipos/indice';
 import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
+import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 
 const {
   activarPreparacionMock,
@@ -92,6 +93,7 @@ const DATOS: DatosCalendarioPlaneacion = {
       estadoPlaneacion: 'programada',
       creadoEn: '2026-09-01T12:00:00.000Z',
       actualizadoEn: '2026-09-01T12:00:00+00:00',
+      metaProcesoId: null,
     },
   ],
 };
@@ -123,18 +125,24 @@ function crearWrapper(cliente: QueryClient) {
   };
 }
 
-function renderizarOperacion(cliente: QueryClient): void {
+const PARTIDAS_POR_DEFECTO: PartidaProgramablePlaneacion[] = [
+  {
+    ordenId: '33333333-3333-4333-8333-333333333333',
+    partidaId: '55555555-5555-4555-8555-555555555555',
+    etiqueta: 'OP-000001 · PIEZA-E2E',
+    operaciones: [],
+  },
+];
+
+function renderizarOperacion(
+  cliente: QueryClient,
+  partidas: PartidaProgramablePlaneacion[] = PARTIDAS_POR_DEFECTO,
+): void {
   render(
     createElement(OperacionPlaneacion, {
       datosIniciales: DATOS,
       rangoInicial: { fechaInicio: '2026-09-15', fechaFin: '2026-09-21' },
-      partidasProgramables: [
-        {
-          ordenId: '33333333-3333-4333-8333-333333333333',
-          partidaId: '55555555-5555-4555-8555-555555555555',
-          etiqueta: 'OP-000001 · PIEZA-E2E',
-        },
-      ],
+      partidasProgramables: partidas,
       desglosePartidas: [DESGLOSE],
     }),
     { wrapper: crearWrapper(cliente) },
@@ -289,6 +297,56 @@ describe('operación de Planeación en cliente', () => {
           motivo: 'Cambio de capacidad',
         }),
       ),
+    );
+  });
+
+  it('programa por operación del ruteo preseleccionando la pendiente (C9.0)', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente, [
+      {
+        ordenId: '33333333-3333-4333-8333-333333333333',
+        partidaId: '55555555-5555-4555-8555-555555555555',
+        etiqueta: 'OP-000001 · PIEZA-E2E',
+        operaciones: [
+          {
+            metaProcesoId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            secuencia: 1,
+            nombre: 'Corte',
+            programada: true,
+          },
+          {
+            metaProcesoId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            secuencia: 2,
+            nombre: 'Doblez',
+            programada: false,
+          },
+        ],
+      },
+    ]);
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: '55555555-5555-4555-8555-555555555555' },
+    });
+    const selectorOperacion = screen.getByLabelText('Operación') as HTMLSelectElement;
+    expect(selectorOperacion.value).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    expect(screen.queryByLabelText('Secuencia')).toBeNull();
+
+    fireEvent.change(screen.getAllByLabelText('Recurso').at(-1)!, {
+      target: { value: '11111111-1111-4111-8111-111111111111' },
+    });
+    fireEvent.change(screen.getByLabelText('Fecha programada'), {
+      target: { value: '2026-09-17' },
+    });
+    fireEvent.change(screen.getByLabelText('Horas estimadas'), { target: { value: '2' } });
+    fireEvent.click(screen.getByTestId('guardar-asignacion-planeacion'));
+
+    await waitFor(() => expect(programarMock).toHaveBeenCalledTimes(1));
+    expect(programarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        partidaId: '55555555-5555-4555-8555-555555555555',
+        secuencia: null,
+        metaProcesoId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      }),
     );
   });
 });

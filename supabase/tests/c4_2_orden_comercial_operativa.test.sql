@@ -193,11 +193,11 @@ SELECT is(
 
 SELECT ok(
   NOT has_function_privilege('service_role',
-    'public.programar_partida_recurso(uuid,uuid,uuid,smallint,date,text,numeric,integer)', 'EXECUTE'),
+    'public.programar_partida_recurso(uuid,uuid,uuid,smallint,date,text,numeric,integer,uuid)', 'EXECUTE'),
   'service_role no puede saltar el wrapper auditado de programación');
 SELECT ok(
   has_function_privilege('service_role',
-    'public.programar_partida_recurso_auditada(uuid,uuid,uuid,smallint,date,text,numeric,integer,uuid,uuid)', 'EXECUTE'),
+    'public.programar_partida_recurso_auditada(uuid,uuid,uuid,smallint,date,text,numeric,integer,uuid,uuid,uuid)', 'EXECUTE'),
   'service_role ejecuta programación auditada');
 SELECT ok(
   NOT has_function_privilege('authenticated',

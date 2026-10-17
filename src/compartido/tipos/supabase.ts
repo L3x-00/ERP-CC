@@ -2768,6 +2768,7 @@ export type Database = {
           fecha_programada: string
           horas_estimadas: number
           id: string
+          meta_proceso_id: string | null
           orden_id: string
           orden_prioridad: number
           partida_id: string
@@ -2782,6 +2783,7 @@ export type Database = {
           fecha_programada: string
           horas_estimadas: number
           id?: string
+          meta_proceso_id?: string | null
           orden_id: string
           orden_prioridad?: number
           partida_id: string
@@ -2796,6 +2798,7 @@ export type Database = {
           fecha_programada?: string
           horas_estimadas?: number
           id?: string
+          meta_proceso_id?: string | null
           orden_id?: string
           orden_prioridad?: number
           partida_id?: string
@@ -2804,6 +2807,13 @@ export type Database = {
           turno?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "programacion_areas_meta_proceso_id_fkey"
+            columns: ["meta_proceso_id"]
+            isOneToOne: false
+            referencedRelation: "metas_proceso_partida"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "programacion_areas_orden_id_fkey"
             columns: ["orden_id"]
@@ -5555,11 +5565,12 @@ export type Database = {
         Args: {
           p_fecha_programada: string
           p_horas_estimadas: number
+          p_meta_proceso_id?: string | null
           p_orden_id: string
           p_orden_prioridad?: number
           p_partida_id: string
           p_recurso_id: string
-          p_secuencia: number
+          p_secuencia: number | null
           p_turno: string
         }
         Returns: {
@@ -5574,11 +5585,12 @@ export type Database = {
           p_correlation_id?: string
           p_fecha_programada: string
           p_horas_estimadas: number
+          p_meta_proceso_id?: string | null
           p_orden_id: string
           p_orden_prioridad: number
           p_partida_id: string
           p_recurso_id: string
-          p_secuencia: number
+          p_secuencia: number | null
           p_turno: string
         }
         Returns: {

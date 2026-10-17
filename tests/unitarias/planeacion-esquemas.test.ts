@@ -6,11 +6,13 @@ import {
 import {
   filaACapacidadRecursoTurno,
   filaAProgramacionArea,
+  filaAProgramacionAreaConOperacion,
   filaARecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import type {
   FilaCapacidadRecursoTurno,
   FilaProgramacionArea,
+  FilaProgramacionAreaConOperacion,
   FilaRecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 
@@ -18,6 +20,7 @@ const uuidOrden = '11111111-1111-4111-8111-111111111111';
 const uuidPartida = '22222222-2222-4222-8222-222222222222';
 const uuidRecurso = '33333333-3333-4333-8333-333333333333';
 const uuidProgramacion = '44444444-4444-4444-8444-444444444444';
+const uuidMeta = '99999999-9999-4999-8999-999999999999';
 
 const programacionValida = {
   ordenId: uuidOrden,
@@ -102,6 +105,44 @@ describe('esquemaProgramarOrden', () => {
     });
 
     expect(resultado.success).toBe(false);
+  });
+
+  it('acepta la operación del ruteo con secuencia nula (C9.0)', () => {
+    const resultado = esquemaProgramarOrden.safeParse({
+      ...programacionValida,
+      secuencia: null,
+      metaProcesoId: uuidMeta,
+    });
+
+    expect(resultado.success).toBe(true);
+    if (resultado.success) {
+      expect(resultado.data.metaProcesoId).toBe(uuidMeta);
+      expect(resultado.data.secuencia).toBeNull();
+    }
+  });
+
+  it('rechaza secuencia manual y operación del ruteo juntas (C9.0)', () => {
+    const resultado = esquemaProgramarOrden.safeParse({
+      ...programacionValida,
+      metaProcesoId: uuidMeta,
+    });
+
+    expect(resultado.success).toBe(false);
+    if (!resultado.success) {
+      expect(resultado.error.issues[0]?.path).toEqual(['secuencia']);
+    }
+  });
+
+  it('rechaza sin secuencia y sin operación: la secuencia es obligatoria en heredadas (C9.0)', () => {
+    const resultado = esquemaProgramarOrden.safeParse({
+      ...programacionValida,
+      secuencia: null,
+    });
+
+    expect(resultado.success).toBe(false);
+    if (!resultado.success) {
+      expect(resultado.error.issues[0]?.path).toEqual(['secuencia']);
+    }
   });
 
   it.each([0, -3, 24.5, 48])('rechaza horasEstimadas fuera de rango: %s', (horas) => {
@@ -252,6 +293,7 @@ describe('mappers de Planeación', () => {
     estado_planeacion: 'en_preparacion',
     creado_en: '2026-08-01T12:00:00.000Z',
     actualizado_en: '2026-08-10T12:00:00.000Z',
+    meta_proceso_id: null,
   };
 
   it('mapea un recurso a camelCase conservando área y estado activo', () => {
@@ -288,7 +330,21 @@ describe('mappers de Planeación', () => {
       estadoPlaneacion: 'en_preparacion',
       creadoEn: '2026-08-01T12:00:00.000Z',
       actualizadoEn: '2026-08-10T12:00:00.000Z',
+      metaProcesoId: null,
     });
+  });
+
+  it('mapea la fila con operación del ruteo al nombre de la meta (C9.0)', () => {
+    const filaConOperacion: FilaProgramacionAreaConOperacion = {
+      ...filaProgramacion,
+      meta_proceso_id: uuidMeta,
+      metas_proceso_partida: { nombre: 'Doblez' },
+    };
+
+    const programacion = filaAProgramacionAreaConOperacion(filaConOperacion);
+
+    expect(programacion.metaProcesoId).toBe(uuidMeta);
+    expect(programacion.operacionNombre).toBe('Doblez');
   });
 
   it('mapea todas las áreas del contrato', () => {

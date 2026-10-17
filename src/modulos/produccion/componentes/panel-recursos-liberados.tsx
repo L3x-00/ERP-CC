@@ -79,6 +79,7 @@ export function PanelRecursosLiberados() {
                   <strong>{recurso.recursoNombre}</strong>
                   <span className="font-mono text-xs text-texto-secundario"> ({recurso.recursoCodigo})</span>
                   {' · '}{recurso.ordenFolio} · {recurso.partidaCodigo}
+                  {recurso.operacionNombre ? ` · ${recurso.operacionNombre}` : ''}
                 </span>
                 <Button
                   type="button"

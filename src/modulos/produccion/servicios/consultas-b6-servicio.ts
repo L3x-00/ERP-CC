@@ -57,6 +57,8 @@ export type RecursoLiberable = {
   recursoId: string;
   recursoCodigo: string;
   recursoNombre: string;
+  /** C9.0: operación del ruteo de la sesión pausada; nula en programaciones heredadas. */
+  operacionNombre: string | null;
   motivoCodigo: string;
   motivoNombre: string;
   pausadaDesde: string | null;
@@ -202,7 +204,7 @@ export async function obtenerRecursosLiberablesServicio(
   const { data, error } = await admin
     .from('sesiones_trabajo')
     .select(
-      'id, orden_id, partida_id, fecha_fin, motivo_pausa_codigo, catalogo_motivos_pausa!sesiones_trabajo_motivo_pausa_codigo_fkey (nombre, libera_maquina), ordenes_produccion!sesiones_trabajo_orden_id_fkey (folio), partidas_orden_produccion!sesiones_trabajo_partida_id_fkey (codigo_pieza), programacion_areas!sesiones_trabajo_programacion_id_fkey (recurso_id, recursos_planeacion!programacion_areas_recurso_id_fkey (codigo, nombre))',
+      'id, orden_id, partida_id, fecha_fin, motivo_pausa_codigo, catalogo_motivos_pausa!sesiones_trabajo_motivo_pausa_codigo_fkey (nombre, libera_maquina), ordenes_produccion!sesiones_trabajo_orden_id_fkey (folio), partidas_orden_produccion!sesiones_trabajo_partida_id_fkey (codigo_pieza), programacion_areas!sesiones_trabajo_programacion_id_fkey (recurso_id, meta_proceso_id, metas_proceso_partida!programacion_areas_meta_proceso_id_fkey (nombre), recursos_planeacion!programacion_areas_recurso_id_fkey (codigo, nombre))',
     )
     .eq('estado_sesion', 'pausada')
     .eq('recurso_liberado', false)
@@ -224,6 +226,8 @@ export async function obtenerRecursosLiberablesServicio(
     partidas_orden_produccion: { codigo_pieza: string } | null;
     programacion_areas: {
       recurso_id: string;
+      meta_proceso_id: string | null;
+      metas_proceso_partida: { nombre: string } | null;
       recursos_planeacion: { codigo: string; nombre: string } | null;
     } | null;
   }[])
@@ -239,6 +243,7 @@ export async function obtenerRecursosLiberablesServicio(
       recursoId: fila.programacion_areas!.recurso_id,
       recursoCodigo: fila.programacion_areas!.recursos_planeacion?.codigo ?? '—',
       recursoNombre: fila.programacion_areas!.recursos_planeacion?.nombre ?? '',
+      operacionNombre: fila.programacion_areas!.metas_proceso_partida?.nombre ?? null,
       motivoCodigo: fila.motivo_pausa_codigo!,
       motivoNombre: fila.catalogo_motivos_pausa?.nombre ?? fila.motivo_pausa_codigo!,
       pausadaDesde: fila.fecha_fin,

@@ -13,6 +13,7 @@ import {
   TURNOS_PLANEACION,
   type CargaCapacidadDiaria,
   type DesglosePartidaPlaneacion,
+  type OperacionProgramablePartida,
   type ProgramacionArea,
   type RecursoPlaneacion,
   type TurnoPlaneacion,
@@ -32,6 +33,12 @@ export interface PartidaProgramablePlaneacion {
   ordenId: string;
   partidaId: string;
   etiqueta: string;
+  /**
+   * C9.0/P-01 B: operaciones del ruteo con su estado de programación. Con
+   * operaciones el panel elige «Secuencia · Operación»; sin ruteo conserva la
+   * captura manual de secuencia (partidas heredadas).
+   */
+  operaciones: readonly OperacionProgramablePartida[];
 }
 
 type DatosComunesAsignacion = {
@@ -48,7 +55,10 @@ export type DatosAsignacionPlaneacion =
       tipo: 'crear';
       ordenId: string;
       partidaId: string;
-      secuencia: number;
+      /** C9.0: nula cuando se programa una operación del ruteo. */
+      secuencia: number | null;
+      /** C9.0: operación del ruteo; nula en partidas heredadas. */
+      metaProcesoId: string | null;
     })
   | (DatosComunesAsignacion & { tipo: 'reprogramar'; motivo: string });
 
@@ -83,6 +93,13 @@ export interface PropsPanelAsignacionPlaneacion {
 
 const MENSAJE_ERROR_GENERICO = 'No se pudo guardar la programación';
 
+/** C9.0: preselecciona la primera operación pendiente del ruteo (o la primera). */
+function operacionInicial(partida?: PartidaProgramablePlaneacion): string {
+  const operaciones = partida?.operaciones ?? [];
+  const pendiente = operaciones.find((operacion) => !operacion.programada);
+  return (pendiente ?? operaciones[0])?.metaProcesoId ?? '';
+}
+
 /**
  * Panel de asignación/reprogramación. Solo valida la forma del formulario;
  * capacidad, candados y concurrencia pertenecen a la RPC transaccional. La
@@ -111,6 +128,7 @@ export function PanelAsignacionPlaneacion({
     programacion ? String(programacion.ordenPrioridad) : '1',
   );
   const [secuencia, setSecuencia] = useState('1');
+  const [operacionId, setOperacionId] = useState('');
   const [motivo, setMotivo] = useState('');
   const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -154,6 +172,16 @@ export function PanelAsignacionPlaneacion({
       ? `${desgloseSeleccionado.folio} · ${desgloseSeleccionado.codigoPieza}`
       : 'Partida seleccionada'
     : partidasProgramables.find((partida) => partida.partidaId === partidaId)?.etiqueta;
+
+  // C9.0: con ruteo se programa por operación; sin ruteo se conserva la
+  // secuencia manual de las partidas heredadas.
+  const operacionesDePartida = programacion
+    ? []
+    : partidasProgramables.find((partida) => partida.partidaId === partidaId)?.operaciones ?? [];
+  const usaOperaciones = operacionesDePartida.length > 0;
+  const operacionElegida = operacionesDePartida.find(
+    (operacion) => operacion.metaProcesoId === operacionId,
+  );
 
   const horasNumero = Number(horasEstimadas);
   const horasValidas = Number.isFinite(horasNumero) && horasNumero > 0;
@@ -237,11 +265,20 @@ export function PanelAsignacionPlaneacion({
       setErrorFormulario('Indica el motivo de la reprogramación');
       return;
     }
+    if (!programacion && partidaId === '') {
+      setErrorFormulario('Selecciona una partida');
+      return;
+    }
+    if (!programacion && usaOperaciones && operacionId === '') {
+      setErrorFormulario('Selecciona la operación del ruteo');
+      return;
+    }
     if (
       !programacion
-      && (partidaId === '' || !Number.isInteger(secuenciaNumerica) || secuenciaNumerica <= 0)
+      && !usaOperaciones
+      && (!Number.isInteger(secuenciaNumerica) || secuenciaNumerica <= 0)
     ) {
-      setErrorFormulario('Selecciona una partida e indica una secuencia válida');
+      setErrorFormulario('Indica una secuencia válida');
       return;
     }
 
@@ -261,11 +298,13 @@ export function PanelAsignacionPlaneacion({
         : (() => {
             const partida = partidasProgramables.find((actual) => actual.partidaId === partidaId);
             if (!partida) return null;
+            const conOperaciones = partida.operaciones.length > 0;
             return {
               tipo: 'crear' as const,
               ordenId: partida.ordenId,
               partidaId: partida.partidaId,
-              secuencia: secuenciaNumerica,
+              secuencia: conOperaciones ? null : secuenciaNumerica,
+              metaProcesoId: conOperaciones ? operacionId : null,
               recursoId,
               fechaProgramada,
               turno,
@@ -359,7 +398,15 @@ export function PanelAsignacionPlaneacion({
             <Select
               id="planeacion-partida"
               value={partidaId}
-              onChange={(evento) => setPartidaId(evento.target.value)}
+              onChange={(evento) => {
+                const nuevaPartidaId = evento.target.value;
+                setPartidaId(nuevaPartidaId);
+                setOperacionId(
+                  operacionInicial(
+                    partidasProgramables.find((partida) => partida.partidaId === nuevaPartidaId),
+                  ),
+                );
+              }}
             >
               <option value="">Selecciona una partida</option>
               {partidasProgramables.map((partida) => (
@@ -367,18 +414,37 @@ export function PanelAsignacionPlaneacion({
               ))}
             </Select>
           </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="planeacion-secuencia">Secuencia</Label>
-            <Input
-              id="planeacion-secuencia"
-              type="number"
-              min="1"
-              step="1"
-              inputMode="numeric"
-              value={secuencia}
-              onChange={(evento) => setSecuencia(evento.target.value)}
-            />
-          </div>
+          {usaOperaciones ? (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="planeacion-operacion">Operación</Label>
+              <Select
+                id="planeacion-operacion"
+                value={operacionId}
+                onChange={(evento) => setOperacionId(evento.target.value)}
+              >
+                <option value="">Selecciona una operación</option>
+                {operacionesDePartida.map((operacion) => (
+                  <option key={operacion.metaProcesoId} value={operacion.metaProcesoId}>
+                    {operacion.secuencia} · {operacion.nombre}
+                    {operacion.programada ? ' (ya programada)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="planeacion-secuencia">Secuencia</Label>
+              <Input
+                id="planeacion-secuencia"
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                value={secuencia}
+                onChange={(evento) => setSecuencia(evento.target.value)}
+              />
+            </div>
+          )}
         </>
       ) : null}
 
@@ -470,6 +536,12 @@ export function PanelAsignacionPlaneacion({
         >
           <p className="font-medium">Resumen antes de guardar</p>
           {etiquetaPartida ? <p>Partida: {etiquetaPartida}</p> : null}
+          {!programacion && operacionElegida ? (
+            <p>Operación: {operacionElegida.secuencia} · {operacionElegida.nombre}</p>
+          ) : null}
+          {programacion?.operacionNombre ? (
+            <p>Operación: {programacion.secuencia} · {programacion.operacionNombre}</p>
+          ) : null}
           <p>
             {programacion ? 'Reprogramar' : 'Programar'} en{' '}
             {recursos.find((recurso) => recurso.id === recursoId)?.codigo ?? 'recurso'} ·{' '}

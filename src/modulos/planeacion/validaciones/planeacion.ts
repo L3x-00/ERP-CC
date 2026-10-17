@@ -6,6 +6,8 @@ import { ESTADOS_PLANEACION, TURNOS_PLANEACION } from '@/modulos/planeacion/tipo
 /**
  * Programa una partida en un recurso concreto. `horasEstimadas` se acota a 24 porque
  * una asignación no puede exceder la capacidad máxima teórica de un día de recurso.
+ * C9.0/P-01 B: la operación (`metaProcesoId`) sustituye a la secuencia manual; con
+ * operación la secuencia viaja nula y PostgreSQL la deriva de la meta del ruteo.
  */
 export const esquemaProgramarOrden = z
   .object({
@@ -15,7 +17,9 @@ export const esquemaProgramarOrden = z
     secuencia: z
       .number()
       .int('La secuencia debe ser un número entero')
-      .positive('La secuencia debe ser mayor a 0'),
+      .positive('La secuencia debe ser mayor a 0')
+      .nullish(),
+    metaProcesoId: z.uuid('ID de operación inválido').nullish(),
     fechaProgramada: z.iso.date({ message: 'Fecha programada inválida' }),
     turno: z.enum(TURNOS_PLANEACION),
     horasEstimadas: z
@@ -28,7 +32,27 @@ export const esquemaProgramarOrden = z
       .positive('La prioridad debe ser mayor a 0')
       .default(1),
   })
-  .strict();
+  .strict()
+  .superRefine((datos, contexto) => {
+    const tieneOperacion = datos.metaProcesoId !== null && datos.metaProcesoId !== undefined;
+    const tieneSecuencia = datos.secuencia !== null && datos.secuencia !== undefined;
+
+    if (tieneOperacion && tieneSecuencia) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['secuencia'],
+        message: 'Con operación del ruteo la secuencia se deriva de la meta',
+      });
+      return;
+    }
+    if (!tieneOperacion && !tieneSecuencia) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['secuencia'],
+        message: 'Indica la secuencia o una operación del ruteo',
+      });
+    }
+  });
 
 /**
  * Alterna el modo preparación de una programación. `actualizadoEnEsperado` es el
