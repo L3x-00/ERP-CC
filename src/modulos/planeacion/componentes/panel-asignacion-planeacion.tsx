@@ -9,6 +9,7 @@ import {
   evaluarAsignacionTurno,
   type HuecoDisponible,
 } from '@/modulos/planeacion/servicios/indice';
+import { InsigniaSaturacion } from '@/modulos/planeacion/componentes/insignia-saturacion';
 import {
   TURNOS_PLANEACION,
   type CargaCapacidadDiaria,
@@ -26,6 +27,11 @@ import {
   formatearDuracionMinutos,
   textoODefecto,
 } from '@/modulos/planeacion/utilidades/desglose';
+import { formatearHoras } from '@/modulos/planeacion/utilidades/carga-semanal';
+import {
+  evaluarCompatibilidadRecurso,
+  type CompatibilidadRecursosPlaneacion,
+} from '@/modulos/planeacion/utilidades/compatibilidad';
 import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
 
 /** Partida que el usuario puede asignar sin revelar datos no autorizados. */
@@ -39,6 +45,8 @@ export interface PartidaProgramablePlaneacion {
    * captura manual de secuencia (partidas heredadas).
    */
   operaciones: readonly OperacionProgramablePartida[];
+  /** C9.2/P06: máxima secuencia vigente + 1; 1 cuando no hay programaciones. */
+  secuenciaSugerida: number;
 }
 
 type DatosComunesAsignacion = {
@@ -84,11 +92,19 @@ export interface PropsPanelAsignacionPlaneacion {
   desglosePartidas?: readonly DesglosePartidaPlaneacion[];
   /** Carga confirmada del rango visible para la previsualización de capacidad. */
   cargas?: readonly CargaCapacidadDiaria[];
+  /** C9.2/P06: total de partidas antes del tope, para avisar «mostrando N de M». */
+  partidasTotal?: number;
+  /** C9.2/P10+P-04: grupos de equipo para la compatibilidad del recurso (tolerante). */
+  compatibilidad?: CompatibilidadRecursosPlaneacion;
+  /** C9.2/P09: hay una consulta de capacidad en curso para una fecha fuera del rango. */
+  verificandoCapacidad?: boolean;
   onEnviar: (datos: DatosAsignacionPlaneacion) => Promise<ResultadoAsignacionPlaneacion>;
   onActivarPreparacion?: () => Promise<ResultadoAsignacionPlaneacion>;
   onCancelar?: () => void;
   /** Busca el siguiente día hábil con capacidad comprobada (OBS-19). */
   onProponerHueco?: (entrada: EntradaProponerHueco) => Promise<ResultadoProponerHueco>;
+  /** C9.2/P09: notifica la fecha capturada para consultar capacidad fuera del rango. */
+  onCambiarFecha?: (fecha: string) => void;
 }
 
 const MENSAJE_ERROR_GENERICO = 'No se pudo guardar la programación';
@@ -111,10 +127,14 @@ export function PanelAsignacionPlaneacion({
   programacion,
   desglosePartidas = [],
   cargas = [],
+  partidasTotal,
+  compatibilidad,
+  verificandoCapacidad = false,
   onEnviar,
   onActivarPreparacion,
   onCancelar,
   onProponerHueco,
+  onCambiarFecha,
 }: PropsPanelAsignacionPlaneacion) {
   const recursosActivos = recursos.filter((recurso) => recurso.activo);
   const [partidaId, setPartidaId] = useState('');
@@ -135,6 +155,27 @@ export function PanelAsignacionPlaneacion({
   const [preparando, setPreparando] = useState(false);
   const [hueco, setHueco] = useState<{ clave: string; datos: HuecoDisponible } | null>(null);
   const [buscandoHueco, setBuscandoHueco] = useState(false);
+
+  // C9.2/P10+P-04: compatibilidad entre el ruteo de la partida elegida y el grupo
+  // del recurso. Con «sin dato» de cualquier lado no se advierte ni bloquea; los
+  // compatibles se ofrecen primero y elegir otro grupo impide guardar (la RPC
+  // `recurso_incompatible` conserva la última palabra).
+  const partidaEfectivaId = programacion?.partidaId ?? partidaId;
+  const gruposRequeridos = compatibilidad?.gruposRequeridosPorPartida[partidaEfectivaId] ?? null;
+  const estadoCompatibilidadSeleccionada = evaluarCompatibilidadRecurso(
+    gruposRequeridos,
+    compatibilidad?.grupoPorRecurso[recursoId]?.id ?? null,
+  );
+  const recursosPorCompatibilidad = recursosActivos
+    .map((recurso) => {
+      const grupo = compatibilidad?.grupoPorRecurso[recurso.id] ?? null;
+      return {
+        recurso,
+        grupo,
+        estado: evaluarCompatibilidadRecurso(gruposRequeridos, grupo?.id ?? null),
+      };
+    })
+    .sort((a, b) => (a.estado === 'compatible' ? 0 : 1) - (b.estado === 'compatible' ? 0 : 1));
 
   const desglosePorId = useMemo(
     () => new Map(desglosePartidas.map((desglose) => [desglose.partidaId, desglose])),
@@ -200,6 +241,11 @@ export function PanelAsignacionPlaneacion({
   const evaluacion = evaluarAsignacionTurno(cargaDelSlot, horasValidas ? horasNumero : 0, {
     horasEnSlot: mismoSlot && programacion ? programacion.horasEstimadas : 0,
   });
+  // C9.2/P09: el aviso dice cuántas horas se exceden, con las horas del turno.
+  const excesoHoras = Math.max(0, evaluacion.horasProgramadas - evaluacion.horasCapacidad);
+  const textoAvisoCapacidad = evaluacion.sinCapacidad
+    ? 'El recurso no tiene capacidad disponible en el turno seleccionado. Puedes buscar el siguiente día hábil con hueco.'
+    : `Excede la capacidad por ${formatearHoras(excesoHoras)} h (${formatearHoras(evaluacion.horasProgramadas)}/${formatearHoras(evaluacion.horasCapacidad)} h). Puedes buscar el siguiente día hábil con hueco.`;
   const puedePrevisualizar = recursoId !== '' && fechaProgramada !== '' && horasValidas;
 
   function limpiarEstadoBuscador(): void {
@@ -237,6 +283,7 @@ export function PanelAsignacionPlaneacion({
   function usarHueco(): void {
     if (!huecoVigente) return;
     setFechaProgramada(huecoVigente.fecha);
+    onCambiarFecha?.(huecoVigente.fecha);
     setHueco(null);
     setErrorFormulario(null);
   }
@@ -401,11 +448,11 @@ export function PanelAsignacionPlaneacion({
               onChange={(evento) => {
                 const nuevaPartidaId = evento.target.value;
                 setPartidaId(nuevaPartidaId);
-                setOperacionId(
-                  operacionInicial(
-                    partidasProgramables.find((partida) => partida.partidaId === nuevaPartidaId),
-                  ),
+                const partidaElegida = partidasProgramables.find(
+                  (partida) => partida.partidaId === nuevaPartidaId,
                 );
+                setOperacionId(operacionInicial(partidaElegida));
+                setSecuencia(String(partidaElegida?.secuenciaSugerida ?? 1));
               }}
             >
               <option value="">Selecciona una partida</option>
@@ -414,6 +461,15 @@ export function PanelAsignacionPlaneacion({
               ))}
             </Select>
           </div>
+          {partidasTotal !== undefined && partidasTotal > partidasProgramables.length ? (
+            <p
+              role="status"
+              className="text-xs text-texto-secundario"
+              data-testid="aviso-partidas-truncadas-planeacion"
+            >
+              Mostrando {partidasProgramables.length} de {partidasTotal} partidas.
+            </p>
+          ) : null}
           {usaOperaciones ? (
             <div className="flex flex-col gap-1">
               <Label htmlFor="planeacion-operacion">Operación</Label>
@@ -456,12 +512,23 @@ export function PanelAsignacionPlaneacion({
           onChange={(evento) => setRecursoId(evento.target.value)}
         >
           <option value="">Selecciona un recurso</option>
-          {recursosActivos.map((recurso) => (
+          {recursosPorCompatibilidad.map(({ recurso, grupo, estado }) => (
             <option key={recurso.id} value={recurso.id}>
-              {recurso.codigo} · {recurso.nombre}
+              {recurso.codigo} · {recurso.nombre} — {grupo?.nombre ?? 'sin grupo'}
+              {estado === 'incompatible' ? ' (otro grupo)' : ''}
             </option>
           ))}
         </Select>
+        {estadoCompatibilidadSeleccionada === 'incompatible' ? (
+          <p
+            role="status"
+            className="text-xs text-peligro-texto"
+            data-testid="aviso-compatibilidad-planeacion"
+          >
+            El recurso es de otro grupo de equipo del que pide el ruteo de la partida. Elige un
+            equipo compatible para guardar.
+          </p>
+        ) : null}
       </div>
 
       {programacion ? (
@@ -484,7 +551,10 @@ export function PanelAsignacionPlaneacion({
           id="planeacion-fecha"
           type="date"
           value={fechaProgramada}
-          onChange={(evento) => setFechaProgramada(evento.target.value)}
+          onChange={(evento) => {
+            setFechaProgramada(evento.target.value);
+            onCambiarFecha?.(evento.target.value);
+          }}
         />
       </div>
 
@@ -548,15 +618,36 @@ export function PanelAsignacionPlaneacion({
             {fechaProgramada} · {ETIQUETA_TURNO[turno]} · {horasNumero} h · prioridad{' '}
             {ordenPrioridad || '1'}
           </p>
-          <p className={evaluacion.cabe ? 'text-texto-secundario' : 'text-peligro-texto'}>
-            {evaluacion.sinCapacidad
-              ? 'Sin capacidad configurada para ese recurso, fecha y turno'
-              : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
-          </p>
-          {!evaluacion.cabe ? (
-            <p role="status" className="text-peligro-texto" data-testid="aviso-capacidad-insuficiente">
-              El recurso no tiene capacidad disponible en el turno seleccionado. Puedes buscar el
-              siguiente día hábil con hueco.
+          {verificandoCapacidad ? (
+            <p
+              role="status"
+              className="text-texto-secundario"
+              data-testid="verificando-capacidad-planeacion"
+            >
+              Verificando capacidad…
+            </p>
+          ) : (
+            <p className={evaluacion.cabe ? 'text-texto-secundario' : 'text-peligro-texto'}>
+              {evaluacion.sinCapacidad
+                ? 'Sin capacidad configurada para ese recurso, fecha y turno'
+                : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
+            </p>
+          )}
+          {!verificandoCapacidad && !evaluacion.cabe ? (
+            <p
+              role="status"
+              className="flex items-center gap-1.5 text-peligro-texto"
+              data-testid="aviso-capacidad-insuficiente"
+            >
+              {!evaluacion.sinCapacidad ? (
+                <InsigniaSaturacion
+                  nivel="sobrecargado"
+                  variante="celda"
+                  horasProgramadas={evaluacion.horasProgramadas}
+                  horasCapacidad={evaluacion.horasCapacidad}
+                />
+              ) : null}
+              {textoAvisoCapacidad}
             </p>
           ) : null}
           {onProponerHueco && !evaluacion.cabe ? (
@@ -599,7 +690,11 @@ export function PanelAsignacionPlaneacion({
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={enviando || preparando} data-testid="guardar-asignacion-planeacion">
+        <Button
+          type="submit"
+          disabled={enviando || preparando || estadoCompatibilidadSeleccionada === 'incompatible'}
+          data-testid="guardar-asignacion-planeacion"
+        >
           {enviando ? 'Guardando…' : programacion ? 'Reprogramar' : 'Programar'}
         </Button>
         {programacion &&

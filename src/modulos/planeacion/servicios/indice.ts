@@ -11,6 +11,13 @@ export {
 
 export { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
 
+export { obtenerCompatibilidadRecursosServicio } from '@/modulos/planeacion/servicios/compatibilidad-servicio';
+
+export type {
+  EntradaCompatibilidadPlaneacion,
+  PartidaCompatibilidadPlaneacion,
+} from '@/modulos/planeacion/servicios/compatibilidad-servicio';
+
 export {
   elegirHueco,
   horasSugeridas,

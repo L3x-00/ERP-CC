@@ -30,6 +30,7 @@ import type {
   DesglosePartidaPlaneacion,
   ProgramacionArea,
 } from '@/modulos/planeacion/tipos/indice';
+import type { CompatibilidadRecursosPlaneacion } from '@/modulos/planeacion/utilidades/compatibilidad';
 
 export interface PropsOperacionPlaneacion {
   datosIniciales: DatosCalendarioPlaneacion;
@@ -38,6 +39,10 @@ export interface PropsOperacionPlaneacion {
   desglosePartidas?: readonly DesglosePartidaPlaneacion[];
   /** PLA-05: pausadas sin plan, activas sin fecha hoy y sugerencias por hueco. */
   bolsa?: BolsaPlaneacion;
+  /** C9.2/P06: total de partidas antes del tope del selector. */
+  partidasTotal?: number;
+  /** C9.2/P10+P-04: grupos de equipo para la compatibilidad del recurso. */
+  compatibilidad?: CompatibilidadRecursosPlaneacion;
 }
 
 interface SolicitudArrastre {
@@ -57,6 +62,8 @@ export function OperacionPlaneacion({
   partidasProgramables,
   desglosePartidas = [],
   bolsa,
+  partidasTotal,
+  compatibilidad,
 }: PropsOperacionPlaneacion) {
   const clienteConsultas = useQueryClient();
   const enrutador = useRouter();
@@ -72,6 +79,7 @@ export function OperacionPlaneacion({
   const [bolsaProcesando, setBolsaProcesando] = useState(false);
   const [bolsaMensaje, setBolsaMensaje] = useState<string | null>(null);
   const [bolsaError, setBolsaError] = useState<string | null>(null);
+  const [fechaSolicitada, setFechaSolicitada] = useState('');
 
   const consultarCalendario = useCallback(
     async (filtros: {
@@ -107,6 +115,24 @@ export function OperacionPlaneacion({
       ? datosIniciales
       : { recursos: datosIniciales.recursos, cargas: [], programaciones: [] }
   );
+
+  // C9.2/P09: si la fecha capturada en el panel cae fuera del rango visible, se
+  // consulta ese día con la misma acción del calendario antes de previsualizar;
+  // dentro del rango la carga ya viaja en `datosCalendario` y no hay consulta extra.
+  const fueraDelRango =
+    fechaSolicitada !== ''
+    && (fechaSolicitada < rangoEfectivo.fechaInicio || fechaSolicitada > rangoEfectivo.fechaFin);
+  const consultaFechaFueraDeRango = useQuery({
+    queryKey: [...CLAVE_CALENDARIO_PLANEACION, 'capacidad-fecha', fechaSolicitada],
+    queryFn: () => consultarCalendario({ fechaInicio: fechaSolicitada, fechaFin: fechaSolicitada }),
+    enabled: fueraDelRango,
+    staleTime: 15_000,
+  });
+  const cargasPanel =
+    fueraDelRango && consultaFechaFueraDeRango.data
+      ? consultaFechaFueraDeRango.data.cargas
+      : datosCalendario.cargas;
+  const verificandoCapacidad = fueraDelRango && consultaFechaFueraDeRango.isFetching;
 
   const desglosePorPartidaId = useMemo(
     () => new Map(desglosePartidas.map((desglose) => [desglose.partidaId, desglose])),
@@ -170,6 +196,7 @@ export function OperacionPlaneacion({
   }, [actualizarCalendario, programacionSeleccionada]);
 
   const alSeleccionar = useCallback((programacion: ProgramacionArea | null): void => {
+    setFechaSolicitada(programacion?.fechaProgramada ?? '');
     setProgramacionSeleccionada((anterior) => {
       if (
         anterior?.id === programacion?.id
@@ -224,6 +251,7 @@ export function OperacionPlaneacion({
   function cancelarSeleccion(): void {
     seleccionarProgramacion(null);
     setProgramacionSeleccionada(null);
+    setFechaSolicitada('');
   }
 
   const refrescarEstructuraOperacion = useCallback((): void => {
@@ -305,11 +333,15 @@ export function OperacionPlaneacion({
           partidasProgramables={partidasProgramables}
           programacion={programacionSeleccionada}
           desglosePartidas={desglosePartidas}
-          cargas={datosCalendario.cargas}
+          cargas={cargasPanel}
+          partidasTotal={partidasTotal}
+          compatibilidad={compatibilidad}
+          verificandoCapacidad={verificandoCapacidad}
           onEnviar={enviarAsignacion}
           onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
           onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
           onProponerHueco={proponerHuecoPanel}
+          onCambiarFecha={setFechaSolicitada}
         />
         <PanelBolsaPlaneacion
           bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}

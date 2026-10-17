@@ -8,7 +8,10 @@ import type {
   DesglosePartidaPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
-import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
+import {
+  PanelAsignacionPlaneacion,
+  type PartidaProgramablePlaneacion,
+} from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 
 const {
   activarPreparacionMock,
@@ -47,6 +50,7 @@ vi.mock('@/modulos/planeacion/componentes/sincronizador-planeacion-realtime', ()
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-planeacion';
 import { TarjetaProgramacionPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-programacion-planeacion';
+import type { CompatibilidadRecursosPlaneacion } from '@/modulos/planeacion/utilidades/compatibilidad';
 
 afterEach(() => cleanup());
 
@@ -138,13 +142,20 @@ const PARTIDAS_POR_DEFECTO: PartidaProgramablePlaneacion[] = [
     ordenId: '33333333-3333-4333-8333-333333333333',
     partidaId: '55555555-5555-4555-8555-555555555555',
     etiqueta: 'OP-000001 · PIEZA-E2E',
+    secuenciaSugerida: 1,
     operaciones: [],
   },
 ];
 
+interface ExtrasRenderizadoOperacion {
+  partidasTotal?: number;
+  compatibilidad?: CompatibilidadRecursosPlaneacion;
+}
+
 function renderizarOperacion(
   cliente: QueryClient,
   partidas: PartidaProgramablePlaneacion[] = PARTIDAS_POR_DEFECTO,
+  extras: ExtrasRenderizadoOperacion = {},
 ): void {
   render(
     createElement(OperacionPlaneacion, {
@@ -152,6 +163,7 @@ function renderizarOperacion(
       rangoInicial: { fechaInicio: '2026-09-15', fechaFin: '2026-09-21' },
       partidasProgramables: partidas,
       desglosePartidas: [DESGLOSE],
+      ...extras,
     }),
     { wrapper: crearWrapper(cliente) },
   );
@@ -315,6 +327,7 @@ describe('operación de Planeación en cliente', () => {
         ordenId: '33333333-3333-4333-8333-333333333333',
         partidaId: '55555555-5555-4555-8555-555555555555',
         etiqueta: 'OP-000001 · PIEZA-E2E',
+        secuenciaSugerida: 2,
         operaciones: [
           {
             metaProcesoId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -523,5 +536,178 @@ describe('operación de Planeación en cliente', () => {
 
     fireEvent.click(screen.getByTestId(`abrir-orden-${programacion.id}`));
     expect(empujarRutaMock).toHaveBeenCalledWith(`/ordenes?ordenId=${programacion.ordenId}`);
+  });
+
+  it('precarga la secuencia sugerida al elegir una partida heredada (C9.2/P06)', () => {
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: DATOS.recursos,
+        partidasProgramables: [{ ...PARTIDAS_POR_DEFECTO[0], secuenciaSugerida: 7 }],
+        onEnviar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: PARTIDAS_POR_DEFECTO[0].partidaId },
+    });
+
+    expect((screen.getByLabelText('Secuencia') as HTMLInputElement).value).toBe('7');
+  });
+
+  it('avisa cuántas partidas quedaron fuera del tope del selector (C9.2/P06)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente, undefined, { partidasTotal: 305 });
+
+    expect(screen.getByTestId('aviso-partidas-truncadas-planeacion').textContent).toContain(
+      'Mostrando 1 de 305 partidas',
+    );
+  });
+
+  it('lista primero los recursos compatibles y elegir otro grupo impide guardar (C9.2/P10/P-04)', () => {
+    const recursoCompatible = { ...DATOS.recursos[0] };
+    const recursoOtroGrupo = {
+      ...DATOS.recursos[0],
+      id: '99999999-9999-4999-8999-999999999999',
+      codigo: 'DBL-01',
+      nombre: 'Dobladora',
+    };
+    const partida = PARTIDAS_POR_DEFECTO[0];
+    const compatibilidad: CompatibilidadRecursosPlaneacion = {
+      grupoPorRecurso: {
+        [recursoCompatible.id]: { id: 'grupo-laser', nombre: 'Láser' },
+        [recursoOtroGrupo.id]: { id: 'grupo-doblez', nombre: 'Doblez' },
+      },
+      gruposRequeridosPorPartida: { [partida.partidaId]: ['grupo-laser'] },
+    };
+
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: [recursoOtroGrupo, recursoCompatible],
+        partidasProgramables: [partida],
+        compatibilidad,
+        onEnviar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: partida.partidaId },
+    });
+
+    const selector = screen.getByLabelText('Recurso') as HTMLSelectElement;
+    const opciones = within(selector).getAllByRole('option');
+    expect(opciones[1].textContent).toContain('CNC-01');
+    expect(opciones[1].textContent).toContain('Láser');
+    expect(opciones[1].textContent).not.toContain('(otro grupo)');
+    expect(opciones[2].textContent).toContain('Doblez');
+    expect(opciones[2].textContent).toContain('(otro grupo)');
+
+    fireEvent.change(selector, { target: { value: recursoOtroGrupo.id } });
+
+    // P-04 (respuesta del cliente): elegir otro grupo impide guardar además del
+    // candado `recurso_incompatible` de la RPC.
+    expect(screen.getByTestId('aviso-compatibilidad-planeacion').textContent).toContain(
+      'otro grupo',
+    );
+    expect(
+      (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    fireEvent.change(selector, { target: { value: recursoCompatible.id } });
+
+    expect(screen.queryByTestId('aviso-compatibilidad-planeacion')).toBeNull();
+    expect(
+      (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('el aviso de sobrecapacidad muestra el exceso en horas antes de guardar (C9.2/P09)', () => {
+    const carga: CargaCapacidadDiaria = {
+      recursoId: '11111111-1111-4111-8111-111111111111',
+      area: 'taller',
+      fechaProgramada: '2026-09-16',
+      turno: 'matutino',
+      horasCapacidad: 8,
+      horasProgramadas: 8,
+      horasDisponibles: 0,
+      porcentajeOcupacion: 100,
+      sobrecargado: true,
+    };
+
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: DATOS.recursos,
+        partidasProgramables: PARTIDAS_POR_DEFECTO,
+        cargas: [carga],
+        onEnviar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: PARTIDAS_POR_DEFECTO[0].partidaId },
+    });
+    fireEvent.change(screen.getByLabelText('Recurso'), {
+      target: { value: '11111111-1111-4111-8111-111111111111' },
+    });
+    fireEvent.change(screen.getByLabelText('Fecha programada'), {
+      target: { value: '2026-09-16' },
+    });
+    fireEvent.change(screen.getByLabelText('Horas estimadas'), { target: { value: '4' } });
+
+    const aviso = screen.getByTestId('aviso-capacidad-insuficiente');
+    expect(aviso.textContent).toContain('Excede la capacidad por 4 h (12/8 h)');
+    expect(within(aviso).getByTestId('insignia-saturacion-sobrecargado')).toBeTruthy();
+    // La RPC es la autoridad: el aviso no deshabilita Guardar (C9.2/P09).
+    expect(
+      (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('una fecha fuera del rango consulta la capacidad real con «Verificando capacidad…» (C9.2/P09)', async () => {
+    let resolverConsulta: (resultado: { exito: true; datos: typeof DATOS }) => void = () => {};
+    obtenerCalendarioMock.mockImplementation(
+      (filtros: { fechaInicio: string; fechaFin: string }) => {
+        if (filtros.fechaInicio === filtros.fechaFin) {
+          return new Promise<{ exito: true; datos: typeof DATOS }>((resolver) => {
+            resolverConsulta = resolver;
+          });
+        }
+        return Promise.resolve({ exito: true, datos: DATOS });
+      },
+    );
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.change(screen.getByLabelText('Fecha programada'), {
+      target: { value: '2026-10-05' },
+    });
+
+    expect(await screen.findByTestId('verificando-capacidad-planeacion')).toBeTruthy();
+    expect(
+      screen.queryByText('Sin capacidad configurada para ese recurso, fecha y turno'),
+    ).toBeNull();
+    expect(obtenerCalendarioMock).toHaveBeenCalledTimes(1);
+    expect(obtenerCalendarioMock).toHaveBeenCalledWith({
+      fechaInicio: '2026-10-05',
+      fechaFin: '2026-10-05',
+    });
+
+    resolverConsulta({ exito: true, datos: DATOS });
+    await waitFor(() =>
+      expect(screen.queryByTestId('verificando-capacidad-planeacion')).toBeNull(),
+    );
+  });
+
+  it('dentro del rango la capacidad viaja en el calendario y no hay consulta extra (C9.2/P09)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.change(screen.getByLabelText('Fecha programada'), {
+      target: { value: '2026-09-16' },
+    });
+
+    expect(screen.queryByTestId('verificando-capacidad-planeacion')).toBeNull();
+    expect(obtenerCalendarioMock).not.toHaveBeenCalled();
   });
 });
