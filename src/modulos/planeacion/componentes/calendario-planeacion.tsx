@@ -121,6 +121,14 @@ export function CalendarioPlaneacion({
   const [fechaInicio, setFechaInicio] = useState(rangoEfectivo.fechaInicio);
   const [fechaFin, setFechaFin] = useState(rangoEfectivo.fechaFin);
   const [vista, setVista] = useState<VistaPlaneacion>('semana');
+  // C9.1/P-02: «Más filtros» (área y turnos) se pliega; si hay un filtro amplio
+  // activo vuelve a abrirse para que el filtro aplicado no quede escondido. La
+  // elección manual del usuario, una vez hecha, manda sobre el valor derivado.
+  const filtrosPliegueActivos = area !== null || turnos.length > 0;
+  const [pliegueAbiertoManualmente, setPliegueAbiertoManualmente] = useState<boolean | null>(
+    null,
+  );
+  const masFiltrosAbierto = pliegueAbiertoManualmente ?? filtrosPliegueActivos;
 
   const recursosPorId = useMemo(
     () => new Map(datos.recursos.map((recurso) => [recurso.id, recurso])),
@@ -203,6 +211,7 @@ export function CalendarioPlaneacion({
   function restablecerFiltros(): void {
     setFechaInicio(rangoInicial.fechaInicio);
     setFechaFin(rangoInicial.fechaFin);
+    setVista('semana');
     limpiarFiltros();
   }
 
@@ -241,94 +250,6 @@ export function CalendarioPlaneacion({
         </p>
       </div>
 
-      <div className="grid gap-3 rounded-base border border-borde p-3 md:grid-cols-3">
-        <label className="flex flex-col gap-1 text-xs">
-          Fecha inicial
-          <Input
-            type="date"
-            value={fechaInicio}
-            onChange={(evento) => setFechaInicio(evento.target.value)}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs">
-          Fecha final
-          <Input
-            type="date"
-            value={fechaFin}
-            onChange={(evento) => setFechaFin(evento.target.value)}
-          />
-        </label>
-        <div className="flex items-end gap-2">
-          <Button type="button" variante="contorno" onClick={aplicarRango}>
-            Aplicar rango
-          </Button>
-          <Button type="button" variante="fantasma" onClick={restablecerFiltros}>
-            Limpiar filtros
-          </Button>
-        </div>
-
-        <label className="flex flex-col gap-1 text-xs">
-          Área
-          <Select
-            value={area ?? ''}
-            onChange={(evento) => establecerArea((evento.target.value || null) as AreaPlaneacion | null)}
-          >
-            <option value="">Todas las áreas</option>
-            {AREAS_PLANEACION.map((valor) => (
-              <option key={valor} value={valor}>{ETIQUETA_AREA[valor]}</option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs">
-          Recurso
-          <Select
-            value={recursoId ?? ''}
-            onChange={(evento) => establecerRecurso(evento.target.value || null)}
-          >
-            <option value="">Todos los recursos</option>
-            {datos.recursos
-              .filter((recurso) => area === null || recurso.area === area)
-              .map((recurso) => (
-                <option key={recurso.id} value={recurso.id}>
-                  {recurso.codigo} · {recurso.nombre}
-                </option>
-              ))}
-          </Select>
-        </label>
-        <fieldset className="flex flex-wrap gap-2 text-xs">
-          <legend className="mb-1">Turnos</legend>
-          {TURNOS_PLANEACION.map((valor) => (
-            <label key={valor} className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={turnos.includes(valor)}
-                onChange={() => alternarTurno(valor)}
-              />
-              {ETIQUETA_TURNO[valor]}
-            </label>
-          ))}
-        </fieldset>
-        <fieldset className="flex flex-wrap gap-2 text-xs md:col-span-3">
-          <legend className="mb-1">Estados</legend>
-          {ESTADOS_PLANEACION.map((valor) => (
-            <label key={valor} className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={estados.includes(valor)}
-                onChange={() => {
-                  establecerEstados(
-                    estados.includes(valor)
-                      ? estados.filter((estado) => estado !== valor)
-                      : [...estados, valor],
-                  );
-                }}
-              />
-              {ETIQUETA_ESTADO[valor]}
-            </label>
-          ))}
-        </fieldset>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Navegación del calendario">
         <div className="flex gap-1" role="group" aria-label="Vista del calendario">
           {VISTAS_PLANEACION.map((valor) => (
@@ -359,6 +280,108 @@ export function CalendarioPlaneacion({
             ? etiquetaMes(rangoEfectivo.fechaInicio)
             : etiquetaRango(rangoEfectivo)}
         </span>
+      </div>
+
+      <div className="grid gap-3 rounded-base border border-borde p-3 md:grid-cols-3">
+        <label className="flex flex-col gap-1 text-xs">
+          Fecha inicial
+          <Input
+            type="date"
+            value={fechaInicio}
+            onChange={(evento) => setFechaInicio(evento.target.value)}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs">
+          Fecha final
+          <Input
+            type="date"
+            value={fechaFin}
+            onChange={(evento) => setFechaFin(evento.target.value)}
+          />
+        </label>
+        <div className="flex items-end gap-2">
+          <Button type="button" variante="contorno" onClick={aplicarRango}>
+            Aplicar rango
+          </Button>
+          <Button type="button" variante="fantasma" onClick={restablecerFiltros}>
+            Limpiar filtros
+          </Button>
+        </div>
+
+        <label className="flex flex-col gap-1 text-xs">
+          Recurso
+          <Select
+            value={recursoId ?? ''}
+            onChange={(evento) => establecerRecurso(evento.target.value || null)}
+          >
+            <option value="">Todos los recursos</option>
+            {datos.recursos
+              .filter((recurso) => area === null || recurso.area === area)
+              .map((recurso) => (
+                <option key={recurso.id} value={recurso.id}>
+                  {recurso.codigo} · {recurso.nombre} ({ETIQUETA_AREA[recurso.area]})
+                </option>
+              ))}
+          </Select>
+        </label>
+        <details
+          open={masFiltrosAbierto}
+          onToggle={(evento) => setPliegueAbiertoManualmente(evento.currentTarget.open)}
+          data-testid="mas-filtros-planeacion"
+          className="md:col-span-2"
+        >
+          <summary className="cursor-pointer text-xs font-medium text-texto-secundario">
+            Más filtros (área y turnos)
+          </summary>
+          <div className="mt-2 grid gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs">
+              Área
+              <Select
+                value={area ?? ''}
+                onChange={(evento) =>
+                  establecerArea((evento.target.value || null) as AreaPlaneacion | null)
+                }
+              >
+                <option value="">Todas las áreas</option>
+                {AREAS_PLANEACION.map((valor) => (
+                  <option key={valor} value={valor}>{ETIQUETA_AREA[valor]}</option>
+                ))}
+              </Select>
+            </label>
+            <fieldset className="flex flex-wrap gap-2 text-xs">
+              <legend className="mb-1">Turnos</legend>
+              {TURNOS_PLANEACION.map((valor) => (
+                <label key={valor} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={turnos.includes(valor)}
+                    onChange={() => alternarTurno(valor)}
+                  />
+                  {ETIQUETA_TURNO[valor]}
+                </label>
+              ))}
+            </fieldset>
+          </div>
+        </details>
+        <fieldset className="flex flex-wrap gap-2 text-xs md:col-span-3">
+          <legend className="mb-1">Estados</legend>
+          {ESTADOS_PLANEACION.map((valor) => (
+            <label key={valor} className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={estados.includes(valor)}
+                onChange={() => {
+                  establecerEstados(
+                    estados.includes(valor)
+                      ? estados.filter((estado) => estado !== valor)
+                      : [...estados, valor],
+                  );
+                }}
+              />
+              {ETIQUETA_ESTADO[valor]}
+            </label>
+          ))}
+        </fieldset>
       </div>
 
       <div aria-busy={actualizando}>

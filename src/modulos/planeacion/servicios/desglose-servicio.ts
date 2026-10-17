@@ -83,6 +83,7 @@ function mapearPartida(
     ordenId: fila.orden_id,
     folio: folios.get(fila.orden_id) ?? 'OP',
     codigoPieza: fila.codigo_pieza,
+    codigoItem: fila.codigo_item,
     descripcion: fila.descripcion,
     areaCodigo,
     areaNombre: areaCodigo ? (areas.get(areaCodigo) ?? null) : null,

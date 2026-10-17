@@ -481,5 +481,15 @@ test.describe.serial('Planeación colaborativa completa', () => {
     await expect(
       page.getByTestId('columna-2099-12-28').getByTestId(`programacion-${primera!.id}`),
     ).toHaveCount(0);
+
+    // C9.1/P-08: el título abre un resumen rápido dentro de Planeación; el botón
+    // «Abrir orden» lleva a la ficha correcta de la orden.
+    await page.getByTestId(`resumen-orden-${primera!.id}`).click();
+    const resumenOrden = page.getByTestId('resumen-orden-planeacion');
+    await expect(resumenOrden).toBeVisible();
+    await expect(resumenOrden).toContainText('Abrir orden');
+    await page.getByTestId(`abrir-orden-${primera!.id}`).click();
+    await page.waitForURL((url) => url.pathname === `/ordenes/${contextoPrueba.ordenId}`);
+    expect(page.url()).toContain('pestana=comentarios');
   });
 });

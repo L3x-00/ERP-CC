@@ -24,6 +24,7 @@ import {
   type ResultadoProponerHueco,
 } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { SincronizadorPlaneacionRealtime } from '@/modulos/planeacion/componentes/sincronizador-planeacion-realtime';
+import { ResumenCargaSemanal } from '@/modulos/planeacion/componentes/resumen-carga-semanal';
 import type { BolsaPlaneacion, DatosCalendarioPlaneacion, SugerenciaBolsa } from '@/modulos/planeacion/servicios/indice';
 import type {
   DesglosePartidaPlaneacion,
@@ -276,6 +277,15 @@ export function OperacionPlaneacion({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="xl:col-span-2">
+        <ResumenCargaSemanal
+          cargas={datosCalendario.cargas}
+          recursos={datosCalendario.recursos}
+          rango={rangoEfectivo}
+          filtroRecursoId={recursoId}
+          cargando={consulta.isFetching}
+        />
+      </div>
       <SincronizadorPlaneacionRealtime
         alCambiarEstructuraOperacion={refrescarEstructuraOperacion}
       />
