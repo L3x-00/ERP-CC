@@ -156,7 +156,13 @@ describe('loteo de consultas de órdenes (límite 414 del gateway)', () => {
 
     const datos = await obtenerDatosComparativaServicio(cliente, [], true);
 
-    expect(datos).toEqual({ sesiones: [], entregas: [], cuentas: [] });
+    expect(datos).toEqual({
+      sesiones: [],
+      entregas: [],
+      cuentas: [],
+      entregadaPorPartida: {},
+      entregadaPorOrden: {},
+    });
     expect(llamadas).toHaveLength(0);
   });
 });

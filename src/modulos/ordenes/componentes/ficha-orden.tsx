@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -27,6 +27,7 @@ import { PanelPartidasFicha } from '@/modulos/ordenes/componentes/panel-partidas
 import { PanelRutaFicha } from '@/modulos/ordenes/componentes/panel-ruta-ficha';
 import { Tarjeta, Totales } from '@/modulos/ordenes/componentes/tarjeta-ficha';
 import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
+import { calcularSaldoEntrega, etiquetaEntrega } from '@/modulos/ordenes/utilidades/entrega-orden';
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
 import { cerrarOrdenAdministrativaAccion } from '@/modulos/ordenes/acciones/cerrar-orden-administrativa';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
@@ -89,6 +90,32 @@ export function FichaOrden({
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
   const esTerminal = estado === 'CERRADA' || estado === 'CANCELADA';
+
+  // R12/R13 (C8.4): saldo de entrega espejo del cierre SQL; la RPC manda.
+  const entregadaPorPartida = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const entrega of ficha.entregas) {
+      for (const renglon of entrega.partidas) {
+        mapa.set(renglon.partidaId, (mapa.get(renglon.partidaId) ?? 0) + renglon.cantidadEntregada);
+      }
+    }
+    return mapa;
+  }, [ficha.entregas]);
+  const saldoEntrega = calcularSaldoEntrega(
+    ficha.partidas.map((partida) => ({
+      cantidadSolicitada: partida.cantidadSolicitada,
+      cantidadProducida: partida.cantidadProducida,
+      cantidadEntregada: entregadaPorPartida.get(partida.id) ?? 0,
+    })),
+  );
+  const etiquetaEntregaTexto = etiquetaEntrega({
+    estadoSii: estado,
+    solicitado: saldoEntrega.solicitado,
+    entregado: saldoEntrega.entregado,
+  });
+  const motivoCierreBloqueado = saldoEntrega.requiereDecisionFaltante
+    ? 'Producción cerró con faltante; requiere decisión del PO'
+    : `Faltan ${saldoEntrega.faltan} piezas por entregar`;
 
   async function ejecutar(accion: () => Promise<{ exito: boolean; error?: string }>, ok: string): Promise<boolean> {
     setOcupado(true);
@@ -157,6 +184,11 @@ export function FichaOrden({
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-mono text-2xl font-bold text-texto-primario" data-testid="ficha-folio">{folio}</h1>
             <span data-testid="ficha-estado"><BadgeEstado estado={estado} /></span>
+            {etiquetaEntregaTexto ? (
+              <span data-testid="ficha-etiqueta-entrega" className="rounded-full bg-superficie-2 px-2 py-0.5 text-xs font-semibold text-texto-secundario">
+                {etiquetaEntregaTexto}
+              </span>
+            ) : null}
             {ficha.orden.esInterna && (
               <span className="rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario">
                 TI
@@ -186,7 +218,8 @@ export function FichaOrden({
             </Button>
           )}
           {permisos.puedeCerrar && estado === 'PRODUCCION_COMPLETADA' && (
-            <Button tamano="sm" disabled={ocupado}
+            <Button tamano="sm" disabled={ocupado || !saldoEntrega.cierrePermitido}
+              title={saldoEntrega.cierrePermitido ? undefined : motivoCierreBloqueado}
               onClick={() => { setError(null); setMensaje(null); setCerrando(true); }}
               data-testid="ficha-cerrar">
               Cerrar administrativa
@@ -279,7 +312,14 @@ export function FichaOrden({
 
       {pestana === 'archivos' ? <PanelArchivosFicha ordenId={ficha.orden.id} archivos={ficha.archivos} /> : null}
 
-      {pestana === 'entregas' ? <PanelEntregasFicha ordenId={ficha.orden.id} entregas={ficha.entregas} /> : null}
+      {pestana === 'entregas' ? (
+        <PanelEntregasFicha
+          ordenId={ficha.orden.id}
+          entregas={ficha.entregas}
+          puedeEntregar={estado === 'PRODUCCION_COMPLETADA'}
+          saldo={saldoEntrega}
+        />
+      ) : null}
 
       {pestana === 'actividad' ? <PanelActividadFicha eventos={ficha.eventos} /> : null}
 

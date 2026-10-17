@@ -89,6 +89,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
       cantidadSolicitada: partida.cantidadSolicitada,
       cantidadProducida: partida.cantidadProducida,
       cantidadScrap: partida.cantidadScrap,
+      cantidadEntregada: datosComparativa.entregadaPorPartida[partida.id] ?? 0,
       unidadMedida: partida.unidadMedida,
       tiempoEstimadoMinutos: partida.tiempoEstimadoMinutos,
       maquinaAsignada: partida.maquinaAsignada,
