@@ -1,6 +1,10 @@
 export { CLAVE_CALENDARIO_PLANEACION } from './claves-consulta';
 export { SincronizadorPlaneacionRealtime } from './sincronizador-planeacion-realtime';
 export type { PropsSincronizadorPlaneacionRealtime } from './sincronizador-planeacion-realtime';
+export { InsigniaSaturacion } from './insignia-saturacion';
+export type { PropsInsigniaSaturacion } from './insignia-saturacion';
+export { ResumenCargaSemanal } from './resumen-carga-semanal';
+export type { PropsResumenCargaSemanal } from './resumen-carga-semanal';
 export { CalendarioPlaneacion } from './calendario-planeacion';
 export type {
   FiltrosConsultaCalendario,

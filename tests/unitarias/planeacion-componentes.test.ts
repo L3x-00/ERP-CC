@@ -2,8 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { DesglosePartidaPlaneacion } from '@/modulos/planeacion/tipos/indice';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type {
+  CargaCapacidadDiaria,
+  DesglosePartidaPlaneacion,
+} from '@/modulos/planeacion/tipos/indice';
 import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
 import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 
@@ -21,10 +24,13 @@ const {
   reprogramarMock: vi.fn(),
 }));
 
-const { refrescarRutaMock } = vi.hoisted(() => ({ refrescarRutaMock: vi.fn() }));
+const { empujarRutaMock, refrescarRutaMock } = vi.hoisted(() => ({
+  empujarRutaMock: vi.fn(),
+  refrescarRutaMock: vi.fn(),
+}));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: refrescarRutaMock }),
+  useRouter: () => ({ push: empujarRutaMock, refresh: refrescarRutaMock }),
 }));
 
 vi.mock('@/modulos/planeacion/acciones/indice', () => ({
@@ -40,6 +46,7 @@ vi.mock('@/modulos/planeacion/componentes/sincronizador-planeacion-realtime', ()
 
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-planeacion';
+import { TarjetaProgramacionPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-programacion-planeacion';
 
 afterEach(() => cleanup());
 
@@ -103,6 +110,7 @@ const DESGLOSE: DesglosePartidaPlaneacion = {
   ordenId: '33333333-3333-4333-8333-333333333333',
   folio: 'OP-000001',
   codigoPieza: 'PIEZA-E2E',
+  codigoItem: 'ITM-000001',
   descripcion: 'Partida temporal',
   areaCodigo: null,
   areaNombre: null,
@@ -348,5 +356,172 @@ describe('operación de Planeación en cliente', () => {
         metaProcesoId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       }),
     );
+  });
+
+  it('pinta el resumen de carga semanal antes de los filtros, con ocupadas/capacidad y libre (C9.1)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    const resumen = screen.getByTestId('resumen-carga-semanal');
+    expect(resumen.textContent).toContain('CNC-01 · CNC principal');
+    expect(resumen.textContent).toContain('4/8 h');
+    expect(resumen.textContent).toContain('Libre');
+    expect(screen.getByTestId('libre-CNC-01').textContent).toBe('4 h');
+
+    const insignia = within(resumen).getByTestId('insignia-saturacion-cerca-del-limite');
+    expect(insignia.getAttribute('aria-label')).toBe('Cerca del límite: 8/8 h');
+
+    const fechaInicial = screen.getByLabelText('Fecha inicial');
+    expect(resumen.compareDocumentPosition(fechaInicial) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it('mientras la capacidad carga no declara «Sin turnos definidos» (C9.1)', () => {
+    obtenerCalendarioMock.mockImplementation(() => new Promise(() => {}));
+    usarTiendaPlaneacion.setState({
+      rango: { fechaInicio: '2026-09-15', fechaFin: '2026-09-21' },
+    });
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    expect(screen.getByText('Cargando capacidad…')).toBeTruthy();
+    expect(screen.queryByText('Sin turnos definidos')).toBeNull();
+  });
+
+  it('las vistas y la navegación se pintan antes que los filtros del calendario (C9.1/P-02)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    const navegacion = screen.getByRole('group', { name: 'Navegación del calendario' });
+    const fechaInicial = screen.getByLabelText('Fecha inicial');
+    expect(
+      navegacion.compareDocumentPosition(fechaInicial) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('Área y Turnos viven en «Más filtros», cerrado sin filtros activos (C9.1/P-02)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    const pliegue = screen.getByTestId('mas-filtros-planeacion') as HTMLDetailsElement;
+    expect(pliegue.open).toBe(false);
+    expect(within(pliegue).getByLabelText('Área')).toBeTruthy();
+    expect(within(pliegue).getByText('Turnos')).toBeTruthy();
+  });
+
+  it('con área activa el pliegue abre (C9.1/P-02)', () => {
+    usarTiendaPlaneacion.setState({ area: 'taller' });
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    const pliegue = screen.getByTestId('mas-filtros-planeacion') as HTMLDetailsElement;
+    expect(pliegue.open).toBe(true);
+  });
+
+  it('la opción de recurso incluye su área (C9.1/P-02)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    const selectorRecurso = screen.getAllByLabelText('Recurso')[0] as HTMLElement;
+    expect(within(selectorRecurso).getByText('CNC-01 · CNC principal (Taller)')).toBeTruthy();
+  });
+
+  it('Limpiar filtros vuelve a la vista Semana (C9.1/P-02)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    fireEvent.click(screen.getByTestId('vista-planeacion-mes'));
+    expect(screen.getByTestId('vista-mes')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+    expect(screen.getByTestId('vista-semana')).toBeTruthy();
+  });
+
+  it('la tarjeta compacta muestra Ítem, procesos y horas (C9.1/P-04)', () => {
+    render(
+      createElement(TarjetaProgramacionPlaneacion, {
+        programacion: DATOS.programaciones[0],
+        desglose: DESGLOSE,
+        seleccionada: false,
+        compacta: true,
+      }),
+    );
+
+    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    expect(within(tarjeta).getByText('Ítem ITM-000001')).toBeTruthy();
+    expect(within(tarjeta).getByText('Procesos: Por definir')).toBeTruthy();
+    expect(tarjeta.textContent).toContain('4 h');
+  });
+
+  it('la tarjeta declara Ítem «Por definir», procesos capturados y ya no muestra Avance (C9.1)', () => {
+    render(
+      createElement(TarjetaProgramacionPlaneacion, {
+        programacion: DATOS.programaciones[0],
+        desglose: { ...DESGLOSE, codigoItem: null, procesos: ['Corte', 'Doblez'] },
+        seleccionada: false,
+      }),
+    );
+
+    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    const bloqueItem = within(tarjeta).getByText('Ítem').closest('div');
+    expect(bloqueItem?.textContent).toContain('Por definir');
+    expect(tarjeta.textContent).toContain('Corte, Doblez');
+    expect(tarjeta.textContent).toContain('Tiempo estimado');
+    expect(tarjeta.textContent).not.toContain('Avance');
+  });
+
+  it('la tarjeta sobrecargada muestra el semáforo «Sobrecargado» con horas (C9.1/P-03)', () => {
+    const cargaSobrecargada: CargaCapacidadDiaria = {
+      recursoId: '11111111-1111-4111-8111-111111111111',
+      area: 'taller',
+      fechaProgramada: '2026-09-15',
+      turno: 'matutino',
+      horasCapacidad: 8,
+      horasProgramadas: 9,
+      horasDisponibles: 0,
+      porcentajeOcupacion: 112.5,
+      sobrecargado: true,
+    };
+
+    render(
+      createElement(TarjetaProgramacionPlaneacion, {
+        programacion: DATOS.programaciones[0],
+        desglose: DESGLOSE,
+        carga: cargaSobrecargada,
+        recurso: DATOS.recursos[0],
+        seleccionada: false,
+      }),
+    );
+
+    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    const insignia = within(tarjeta).getByTestId('insignia-saturacion-sobrecargado');
+    expect(insignia.textContent).toContain('Sobrecargado');
+    expect(insignia.textContent).toContain('9/8 h');
+    expect(insignia.getAttribute('aria-label')).toBe('Sobrecargado: 9/8 h');
+  });
+
+  it('el título abre el resumen rápido sin seleccionar y «Abrir orden» navega a la ficha (C9.1/P-08)', async () => {
+    const seleccionarMock = vi.fn();
+    const programacion = DATOS.programaciones[0];
+    render(
+      createElement(TarjetaProgramacionPlaneacion, {
+        programacion,
+        desglose: DESGLOSE,
+        seleccionada: false,
+        onSeleccionar: seleccionarMock,
+      }),
+    );
+
+    const titulo = screen.getByTestId(`resumen-orden-${programacion.id}`);
+    expect(titulo.getAttribute('draggable')).toBe('false');
+    fireEvent.click(titulo);
+
+    expect(seleccionarMock).not.toHaveBeenCalled();
+    const dialogo = await screen.findByTestId('resumen-orden-planeacion');
+    expect(dialogo.textContent).toContain('OP-000001');
+
+    fireEvent.click(screen.getByTestId(`abrir-orden-${programacion.id}`));
+    expect(empujarRutaMock).toHaveBeenCalledWith(`/ordenes?ordenId=${programacion.ordenId}`);
   });
 });

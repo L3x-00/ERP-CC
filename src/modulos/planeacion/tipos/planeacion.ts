@@ -102,6 +102,8 @@ export interface DesglosePartidaPlaneacion {
   ordenId: string;
   folio: string;
   codigoPieza: string;
+  /** C9.1/P-04: ítem del catálogo de la partida; `null` se declara "Por definir". */
+  codigoItem: string | null;
   descripcion: string | null;
   areaCodigo: string | null;
   areaNombre: string | null;

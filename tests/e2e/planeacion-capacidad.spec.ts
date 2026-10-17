@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import type { Database } from '@/compartido/tipos/supabase';
 
 function cargarEntornoLocal(): void {
@@ -141,5 +141,250 @@ test.describe.serial('capacidad instalada de Planeación (D-02)', () => {
       .eq('modulo', 'planeacion')
       .eq('usuario_id', datos.administradorId);
     expect((logs ?? []).some((log) => log.accion === 'actualizar_capacidad_recurso')).toBe(true);
+  });
+});
+
+type ContextoCargaSemanalE2E = {
+  admin: SupabaseClient<Database>;
+  correo: string;
+  contrasena: string;
+  administradorId: string;
+  clienteId: string;
+  ordenId: string;
+  partidaId: string;
+  recursoId: string;
+  codigo: string;
+};
+
+type RangoSemanalRelativo = { inicio: string; fin: string };
+
+function fechaLocalIso(fecha: Date): string {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+/** Semana ISO (lunes a domingo) que contiene hoy en la fecha local del navegador. */
+function semanaLocalRelativa(base: Date): RangoSemanalRelativo {
+  const lunes = new Date(base);
+  lunes.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+  const domingo = new Date(lunes);
+  domingo.setDate(lunes.getDate() + 6);
+  return { inicio: fechaLocalIso(lunes), fin: fechaLocalIso(domingo) };
+}
+
+/**
+ * Aplica un rango relativo reintentando: mientras la consulta inicial está en
+ * vuelo, un re-render puede reemplazar los inputs y perder el primer onChange.
+ */
+async function aplicarRangoRelativo(pagina: Page, rango: RangoSemanalRelativo): Promise<void> {
+  const aviso = pagina.locator(
+    'section[aria-labelledby="titulo-calendario-planeacion"] p[aria-live="polite"]',
+  );
+  await expect(aviso).toContainText(/programaciones ·/);
+  let aplicado = false;
+  for (let intento = 0; intento < 3 && !aplicado; intento += 1) {
+    await pagina.getByLabel('Fecha inicial').fill(rango.inicio);
+    await pagina.getByLabel('Fecha final').fill(rango.fin);
+    await pagina.getByRole('button', { name: 'Aplicar rango' }).click();
+    await pagina.waitForTimeout(300);
+    aplicado = ((await aviso.textContent()) ?? '').includes(rango.inicio);
+  }
+  await expect(aviso).toContainText(rango.inicio);
+}
+
+/** Contexto mínimo para la carga semanal: un recurso con un turno de 8 h y una partida. */
+async function prepararContextoCargaSemanal(): Promise<ContextoCargaSemanalE2E> {
+  const admin = createClient<Database>(
+    requerirVariable('NEXT_PUBLIC_SUPABASE_URL'),
+    requerirVariable('SUPABASE_SERVICE_ROLE_KEY'),
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const sufijo = randomUUID().slice(0, 8);
+  const correo = `e2e-semanal-${sufijo}@orca.local`;
+  const contrasena = `E2e!${randomUUID()}Cs1`;
+  const { data: usuarioAuth, error: errorAuth } = await admin.auth.admin.createUser({
+    email: correo,
+    password: contrasena,
+    email_confirm: true,
+    user_metadata: { nombre_completo: `Administrador Semanal ${sufijo}` },
+  });
+  if (errorAuth || !usuarioAuth.user) {
+    throw new Error(`No se creó administrador E2E: ${errorAuth?.message ?? 'sin usuario'}`);
+  }
+  const administradorId = usuarioAuth.user.id;
+  const { error: errorPerfil } = await admin.from('usuarios').update({
+    rol: 'admin', activo: true, nombre_completo: `Administrador Semanal ${sufijo}`,
+  }).eq('id', administradorId);
+  if (errorPerfil) throw new Error(`No se preparó perfil E2E: ${errorPerfil.message}`);
+
+  const { data: cliente, error: errorCliente } = await admin.from('clientes').insert({
+    nombre_comercial: `Cliente Semanal E2E ${sufijo}`,
+    razon_social: `Cliente Semanal E2E ${sufijo} SA de CV`,
+    estado: 'activo',
+  }).select('id').single();
+  if (errorCliente || !cliente) {
+    throw new Error(`No se creó cliente E2E: ${errorCliente?.message ?? 'sin cliente'}`);
+  }
+
+  const { data: folio, error: errorFolio } = await admin.rpc('generar_folio_orden', {
+    p_prefijo: 'OP',
+  });
+  if (errorFolio || !folio) {
+    throw new Error(`No se generó folio E2E: ${errorFolio?.message ?? 'sin folio'}`);
+  }
+  const { data: orden, error: errorOrden } = await admin.from('ordenes_produccion').insert({
+    folio,
+    cliente_id: cliente.id,
+    estado: 'programada',
+    prioridad: 'normal',
+    fecha_compromiso: '2100-01-15T00:00:00.000Z',
+  }).select('id').single();
+  if (errorOrden || !orden) {
+    throw new Error(`No se creó orden E2E: ${errorOrden?.message ?? 'sin orden'}`);
+  }
+
+  const { data: partida, error: errorPartida } = await admin
+    .from('partidas_orden_produccion')
+    .insert({
+      orden_id: orden.id,
+      codigo_pieza: `PZA-SEM-${sufijo}`,
+      descripcion: 'Partida temporal para la carga semanal',
+      cantidad_solicitada: 1,
+      unidad_medida: 'pieza',
+      procesos: ['Corte'],
+    })
+    .select('id')
+    .single();
+  if (errorPartida || !partida) {
+    throw new Error(`No se creó partida E2E: ${errorPartida?.message ?? 'sin partida'}`);
+  }
+
+  const codigo = `E2E-SEM-${sufijo.toUpperCase()}`;
+  const { data: recurso, error: errorRecurso } = await admin.from('recursos_planeacion').insert({
+    codigo,
+    nombre: `Centro de maquinado E2E ${sufijo}`,
+    area: 'sheet_metal',
+    activo: true,
+  }).select('id').single();
+  if (errorRecurso || !recurso) {
+    throw new Error(`No se creó recurso E2E: ${errorRecurso?.message ?? 'sin recurso'}`);
+  }
+  const { error: errorCapacidad } = await admin.from('capacidades_recurso_turno').insert({
+    recurso_id: recurso.id,
+    turno: 'matutino',
+    horas_capacidad: 8,
+  });
+  if (errorCapacidad) throw new Error(`No se creó capacidad E2E: ${errorCapacidad.message}`);
+
+  return {
+    admin,
+    correo,
+    contrasena,
+    administradorId,
+    clienteId: cliente.id,
+    ordenId: orden.id,
+    partidaId: partida.id,
+    recursoId: recurso.id,
+    codigo,
+  };
+}
+
+async function limpiarContextoCargaSemanal(contexto: ContextoCargaSemanalE2E): Promise<void> {
+  const { admin } = contexto;
+  await admin.from('programacion_areas').delete().eq('partida_id', contexto.partidaId);
+  await admin.from('partidas_orden_produccion').delete().eq('orden_id', contexto.ordenId);
+  await admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
+  await admin.from('clientes').delete().eq('id', contexto.clienteId);
+  await admin.from('capacidades_recurso_turno').delete().eq('recurso_id', contexto.recursoId);
+  await admin.from('recursos_planeacion').delete().eq('id', contexto.recursoId);
+  await admin.from('logs').delete().eq('usuario_id', contexto.administradorId);
+  await admin.from('usuarios').delete().eq('id', contexto.administradorId);
+  await admin.auth.admin.deleteUser(contexto.administradorId);
+}
+
+test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
+  test.skip(
+    process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
+    'Requiere E2E_HABILITAR_PRUEBAS_REMOTAS=si para crear datos temporales en Supabase remoto.',
+  );
+
+  let contexto: ContextoCargaSemanalE2E | null = null;
+
+  test.beforeAll(async () => { contexto = await prepararContextoCargaSemanal(); });
+  test.afterAll(async () => { if (contexto) await limpiarContextoCargaSemanal(contexto); });
+
+  test('el resumen semanal refleja la carga 6/8 h y la sobrecarga se declara Sobrecargado', async ({ page }) => {
+    if (!contexto) throw new Error('No se preparó el contexto E2E');
+    const datos = contexto;
+    const semana = semanaLocalRelativa(new Date());
+    const fechaHoy = fechaLocalIso(new Date());
+
+    await page.goto('/iniciar-sesion');
+    await page.getByLabel('Correo electrónico').fill(datos.correo);
+    await page.getByRole('textbox', { name: 'Contraseña' }).fill(datos.contrasena);
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
+
+    await page.goto('/planeacion');
+    await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
+    const resumen = page.getByTestId('resumen-carga-semanal');
+    await expect(resumen).toBeVisible();
+
+    // P-01: el resumen vive en el DOM antes de los filtros del calendario.
+    const antesDeFiltros = await page.evaluate(() => {
+      const bloque = document.querySelector('[data-testid="resumen-carga-semanal"]');
+      const fecha = document.querySelector('input[type="date"]');
+      if (!bloque || !fecha) return false;
+      return (bloque.compareDocumentPosition(fecha) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    });
+    expect(antesDeFiltros).toBe(true);
+
+    // P-01: en vista Mensual (rango > 7 días) el resumen avisa que no aplica.
+    await page.getByTestId('vista-planeacion-mes').click();
+    await expect(page.getByTestId('resumen-carga-semanal-aviso')).toBeVisible();
+    await page.getByTestId('vista-planeacion-semana').click();
+
+    // Semana de hoy (relativa a Date.now(), sin fechas fijas).
+    await aplicarRangoRelativo(page, semana);
+    await expect(resumen).toContainText(datos.codigo);
+
+    // Programar 6 h hoy en el turno matutino: la celda pasa a 6/8 h.
+    await page.getByLabel('Partida', { exact: true }).selectOption(datos.partidaId);
+    await page.getByLabel('Recurso').last().selectOption(datos.recursoId);
+    await page.getByLabel('Fecha programada').fill(fechaHoy);
+    await page.getByLabel('Horas estimadas').fill('6');
+    await page.getByTestId('guardar-asignacion-planeacion').click();
+    await expect
+      .poll(async () => {
+        const { data } = await datos.admin
+          .from('programacion_areas')
+          .select('id')
+          .eq('partida_id', datos.partidaId);
+        return data?.length ?? 0;
+      })
+      .toBe(1);
+
+    // '6/8 h' con auto-espera; no se asevera ausencia de 'Sin turnos definidos'.
+    await expect(resumen).toContainText('6/8 h');
+    await expect(resumen.locator('[aria-label="Cerca del límite: 6/8 h"]')).toBeVisible();
+
+    // Si la jornada baja a 4 h, el mismo día se declara Sobrecargado con horas.
+    const { error: errorCapacidad } = await datos.admin
+      .from('capacidades_recurso_turno')
+      .update({ horas_capacidad: 4 })
+      .eq('recurso_id', datos.recursoId)
+      .eq('turno', 'matutino');
+    expect(errorCapacidad).toBeNull();
+
+    await page.reload();
+    await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
+    await aplicarRangoRelativo(page, semana);
+    const resumenTrasRecarga = page.getByTestId('resumen-carga-semanal');
+    await expect(resumenTrasRecarga).toContainText('6/4 h');
+    await expect(
+      resumenTrasRecarga.locator('[aria-label="Sobrecargado: 6/4 h"]'),
+    ).toBeVisible();
   });
 });

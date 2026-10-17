@@ -13,6 +13,7 @@ import {
   seleccionarPrimerHueco,
   type CargaRecursoTurno,
 } from '@/modulos/planeacion/servicios/indice';
+import { ETIQUETA_SEMAFORO, nivelSemaforo } from '@/modulos/planeacion/utilidades/etiquetas';
 
 const cargaBase: CargaRecursoTurno = {
   recursoId: '11111111-1111-4111-8111-111111111111',
@@ -229,5 +230,26 @@ describe('previsualización de asignación y primer hueco (OBS-18/OBS-19)', () =
         desdeFecha: '2026-09-18',
       }),
     ).toBeNull();
+  });
+});
+
+describe('semáforo de presentación de carga (C9.1, P-06)', () => {
+  it('reduce las cinco clasificaciones a tres niveles de presentación', () => {
+    expect(nivelSemaforo('libre')).toBe('disponible');
+    expect(nivelSemaforo('holgado')).toBe('disponible');
+    expect(nivelSemaforo('ajustado')).toBe('cerca-del-limite');
+    expect(nivelSemaforo('saturado')).toBe('cerca-del-limite');
+    expect(nivelSemaforo('sobrecargado')).toBe('sobrecargado');
+  });
+
+  it('usa los umbrales 70/100 del cliente: 70 % es «Cerca del límite» y el 100 % exacto también', () => {
+    expect(nivelSemaforo(clasificarSaturacion(10, 7))).toBe('cerca-del-limite');
+    expect(nivelSemaforo(clasificarSaturacion(8, 8))).toBe('cerca-del-limite');
+    expect(nivelSemaforo(clasificarSaturacion(8, 8.01))).toBe('sobrecargado');
+    expect(ETIQUETA_SEMAFORO).toEqual({
+      disponible: 'Disponible',
+      'cerca-del-limite': 'Cerca del límite',
+      sobrecargado: 'Sobrecargado',
+    });
   });
 });

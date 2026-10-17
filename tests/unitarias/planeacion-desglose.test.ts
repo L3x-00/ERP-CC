@@ -30,6 +30,7 @@ const desgloseBase: DesglosePartidaPlaneacion = {
   ordenId: '33333333-3333-4333-8333-333333333333',
   folio: 'OP-000123',
   codigoPieza: 'PZA-01',
+  codigoItem: 'ITM-000123',
   descripcion: 'Charola de acero',
   areaCodigo: 'corte_laser',
   areaNombre: 'Corte láser',
