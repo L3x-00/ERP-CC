@@ -26,6 +26,11 @@ describe('etiquetas de eventos de la orden (R10, Fase 1)', () => {
     ['ajuste_operativo', 'Ajuste operativo'],
     ['programacion_inicial', 'Planeación inicial'],
     ['reprogramacion_operativa', 'Reprogramación operativa'],
+    ['orden_planificada', 'Orden planificada'],
+    ['produccion_iniciada', 'Producción iniciada'],
+    ['produccion_completada', 'Producción completada'],
+    ['orden_cancelada', 'Orden cancelada'],
+    ['orden_entregada', 'Orden entregada'],
   ])('«%s» se muestra como «%s»', (tipo, etiqueta) => {
     expect(etiquetaEvento(tipo)).toBe(etiqueta);
   });
@@ -37,7 +42,7 @@ describe('etiquetas de eventos de la orden (R10, Fase 1)', () => {
   });
 
   it('un tipo nuevo sin entrada cae en una etiqueta legible, nunca en snake_case', () => {
-    expect(etiquetaEvento('produccion_iniciada')).toBe('Produccion iniciada');
+    expect(etiquetaEvento('agenda_inexistente_futura')).toBe('Agenda inexistente futura');
     expect(etiquetaEvento('evento-raro_nuevo')).toBe('Evento raro nuevo');
     expect(etiquetaEvento('')).toBe('Evento');
     expect(etiquetaEvento('  ')).toBe('Evento');
