@@ -152,6 +152,7 @@ type ContextoCargaSemanalE2E = {
   clienteId: string;
   ordenId: string;
   partidaId: string;
+  partidaSecundariaId: string;
   recursoId: string;
   codigo: string;
 };
@@ -261,6 +262,24 @@ async function prepararContextoCargaSemanal(): Promise<ContextoCargaSemanalE2E> 
     throw new Error(`No se creó partida E2E: ${errorPartida?.message ?? 'sin partida'}`);
   }
 
+  const { data: partidaSecundaria, error: errorPartidaSecundaria } = await admin
+    .from('partidas_orden_produccion')
+    .insert({
+      orden_id: orden.id,
+      codigo_pieza: `PZA-SEM2-${sufijo}`,
+      descripcion: 'Segunda partida temporal para el aviso de sobrecapacidad',
+      cantidad_solicitada: 1,
+      unidad_medida: 'pieza',
+      procesos: ['Corte'],
+    })
+    .select('id')
+    .single();
+  if (errorPartidaSecundaria || !partidaSecundaria) {
+    throw new Error(
+      `No se creó la segunda partida E2E: ${errorPartidaSecundaria?.message ?? 'sin partida'}`,
+    );
+  }
+
   const codigo = `E2E-SEM-${sufijo.toUpperCase()}`;
   const { data: recurso, error: errorRecurso } = await admin.from('recursos_planeacion').insert({
     codigo,
@@ -286,6 +305,7 @@ async function prepararContextoCargaSemanal(): Promise<ContextoCargaSemanalE2E> 
     clienteId: cliente.id,
     ordenId: orden.id,
     partidaId: partida.id,
+    partidaSecundariaId: partidaSecundaria.id,
     recursoId: recurso.id,
     codigo,
   };
@@ -293,7 +313,7 @@ async function prepararContextoCargaSemanal(): Promise<ContextoCargaSemanalE2E> 
 
 async function limpiarContextoCargaSemanal(contexto: ContextoCargaSemanalE2E): Promise<void> {
   const { admin } = contexto;
-  await admin.from('programacion_areas').delete().eq('partida_id', contexto.partidaId);
+  await admin.from('programacion_areas').delete().eq('recurso_id', contexto.recursoId);
   await admin.from('partidas_orden_produccion').delete().eq('orden_id', contexto.ordenId);
   await admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
@@ -386,5 +406,61 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await expect(
       resumenTrasRecarga.locator('[aria-label="Sobrecargado: 6/4 h"]'),
     ).toBeVisible();
+  });
+
+  test('el aviso de sobrecapacidad muestra el exceso en horas antes de guardar (C9.2/P09)', async ({
+    page,
+  }) => {
+    if (!contexto) throw new Error('No se preparó el contexto E2E');
+    const datos = contexto;
+    const fechaHoy = fechaLocalIso(new Date());
+    const semana = semanaLocalRelativa(new Date());
+
+    // Base determinista: 6 h programadas hoy en matutino y jornada de 8 h. La
+    // prueba anterior pudo dejar horas programadas u otra capacidad; se
+    // reemplazan para que 4 h nuevas excedan la jornada por 2 h.
+    const { error: errorLimpieza } = await datos.admin
+      .from('programacion_areas')
+      .delete()
+      .eq('recurso_id', datos.recursoId);
+    expect(errorLimpieza).toBeNull();
+    const { error: errorCapacidad } = await datos.admin
+      .from('capacidades_recurso_turno')
+      .update({ horas_capacidad: 8 })
+      .eq('recurso_id', datos.recursoId)
+      .eq('turno', 'matutino');
+    expect(errorCapacidad).toBeNull();
+    const { error: errorBase } = await datos.admin.from('programacion_areas').insert({
+      orden_id: datos.ordenId,
+      partida_id: datos.partidaId,
+      recurso_id: datos.recursoId,
+      secuencia: 1,
+      fecha_programada: fechaHoy,
+      turno: 'matutino',
+      horas_estimadas: 6,
+      orden_prioridad: 1,
+      estado_planeacion: 'programada',
+    });
+    expect(errorBase).toBeNull();
+
+    await page.goto('/iniciar-sesion');
+    await page.getByLabel('Correo electrónico').fill(datos.correo);
+    await page.getByRole('textbox', { name: 'Contraseña' }).fill(datos.contrasena);
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
+
+    await page.goto('/planeacion');
+    await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
+    await aplicarRangoRelativo(page, semana);
+
+    // C9.2/P09: 6 h existentes + 4 h nuevas exceden la jornada de 8 h.
+    await page.getByLabel('Partida', { exact: true }).selectOption(datos.partidaSecundariaId);
+    await page.getByLabel('Recurso').last().selectOption(datos.recursoId);
+    await page.getByLabel('Fecha programada').fill(fechaHoy);
+    await page.getByLabel('Horas estimadas').fill('4');
+
+    const aviso = page.getByTestId('aviso-capacidad-insuficiente');
+    await expect(aviso).toContainText('Excede la capacidad por 2 h (10/8 h)');
+    await expect(aviso.getByTestId('insignia-saturacion-sobrecargado')).toBeVisible();
   });
 });

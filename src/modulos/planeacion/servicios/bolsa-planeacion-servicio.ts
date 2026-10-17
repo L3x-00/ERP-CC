@@ -89,7 +89,12 @@ type FilaMeta = Pick<
   'id' | 'partida_id' | 'secuencia' | 'nombre'
 >;
 
-const ESTADOS_ACTIVOS_PROGRAMACION = ['programada', 'en_preparacion', 'en_proceso', 'bloqueada'];
+export const ESTADOS_ACTIVOS_PROGRAMACION = [
+  'programada',
+  'en_preparacion',
+  'en_proceso',
+  'bloqueada',
+];
 
 function fechaMas(fecha: string, dias: number): string {
   const instante = new Date(`${fecha}T00:00:00.000Z`);

@@ -30,6 +30,7 @@ export type CodigoErrorPlaneacion =
   | 'recurso_inexistente'
   | 'recurso_inactivo'
   | 'recurso_ocupado'
+  | 'recurso_incompatible'
   | 'capacidad_no_disponible'
   | 'capacidad_insuficiente'
   | 'sin_permiso_planeacion'
@@ -101,6 +102,7 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
     'recurso_inexistente',
     'recurso_inactivo',
     'recurso_ocupado',
+    'recurso_incompatible',
     'capacidad_no_disponible',
     'capacidad_insuficiente',
     'sin_permiso_planeacion',
@@ -323,6 +325,8 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
       return 'El recurso no tiene capacidad disponible en el turno seleccionado';
     case 'recurso_ocupado':
       return 'El recurso ya está ocupado en preparación o producción';
+    case 'recurso_incompatible':
+      return 'El recurso es de otro grupo de equipo del que pide el ruteo de la partida';
     case 'programacion_conflicto':
       return 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo';
     case 'programacion_inexistente':
