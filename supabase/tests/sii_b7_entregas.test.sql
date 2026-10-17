@@ -88,15 +88,15 @@ INSERT INTO public.ordenes_produccion (
   folio, folio_sii, cliente_id, estado, estado_sii, prioridad, fecha_compromiso
 ) VALUES
   ('O-1026_01', 'O-1026_01', (SELECT valor FROM b7_ids WHERE nombre = 'cliente'),
-   'en_proceso', 'EN_PRODUCCION', 'normal', now() + interval '15 days'),
+   'completada', 'PRODUCCION_COMPLETADA', 'normal', now() + interval '15 days'),
   ('OP-000123', NULL, (SELECT valor FROM b7_ids WHERE nombre = 'cliente'),
-   'en_proceso', 'EN_PRODUCCION', 'normal', now() + interval '15 days'),
+   'completada', 'PRODUCCION_COMPLETADA', 'normal', now() + interval '15 days'),
   ('O-1026_02', 'O-1026_02', (SELECT valor FROM b7_ids WHERE nombre = 'cliente'),
-   'en_proceso', 'EN_PRODUCCION', 'normal', now() + interval '15 days'),
+   'completada', 'PRODUCCION_COMPLETADA', 'normal', now() + interval '15 days'),
   ('O-1026_03', 'O-1026_03', (SELECT valor FROM b7_ids WHERE nombre = 'cliente'),
-   'en_proceso', 'EN_PRODUCCION', 'normal', now() + interval '15 days'),
+   'completada', 'PRODUCCION_COMPLETADA', 'normal', now() + interval '15 days'),
   ('OI-1026_09', 'OI-1026_09', (SELECT valor FROM b7_ids WHERE nombre = 'cliente'),
-   'en_proceso', 'EN_PRODUCCION', 'normal', now() + interval '15 days'),
+   'completada', 'PRODUCCION_COMPLETADA', 'normal', now() + interval '15 days'),
   ('O-1026_04', 'O-1026_04', (SELECT valor FROM b7_ids WHERE nombre = 'cliente'),
    'borrador', 'CONFIRMADA', 'normal', now() + interval '15 days');
 

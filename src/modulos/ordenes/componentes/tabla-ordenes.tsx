@@ -10,6 +10,7 @@ import { fechaPromesaOrden } from '@/modulos/ordenes/utilidades/fecha-promesa';
 import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
+import { calcularSaldoEntrega } from '@/modulos/ordenes/utilidades/entrega-orden';
 import {
   Tabla,
   TablaCelda,
@@ -43,6 +44,8 @@ export type PartidaTabla = {
   unidadMedida: string;
   tiempoEstimadoMinutos: number;
   maquinaAsignada: string | null;
+  /** C8.4/R13: entregado acumulado de esta partida en notas (opcional; 0 si no llegó). */
+  cantidadEntregada?: number | null;
   metasProceso: { id: string; secuencia: number; nombre: string; metaPiezas: number }[];
 };
 
@@ -147,12 +150,14 @@ function tituloCompromiso(dias: number, fecha: string): string {
   return `Fecha de compromiso: ${fecha}`;
 }
 
-/** Tono de la barra de avance según estado SII y fecha de compromiso. */
+/** Tono de la barra de avance según estado SII, fecha y entrega (R13: no es verde «terminado» mientras falte entrega). */
 function tonoAvance(
   estadoSii: EstadoSiiOrden,
   dias: number,
+  entregaCompleta = true,
 ): 'acento' | 'exito' | 'advertencia' | 'peligro' {
-  if (estadoSii === 'PRODUCCION_COMPLETADA' || estadoSii === 'CERRADA') return 'exito';
+  if (estadoSii === 'CERRADA') return 'exito';
+  if (estadoSii === 'PRODUCCION_COMPLETADA') return entregaCompleta ? 'exito' : 'acento';
   if (estadoSii === 'CANCELADA') return 'advertencia';
   if (dias < 0) return 'peligro';
   return 'acento';
@@ -373,6 +378,11 @@ export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdene
             <TablaCuerpo>
               {ordenesVisibles.map((orden) => {
                 const avance = calcularAvance(orden.partidas);
+                const saldoEntrega = calcularSaldoEntrega(orden.partidas);
+                const entregaCompleta =
+                  saldoEntrega.solicitado > 0 && saldoEntrega.cierrePermitido;
+                const mostrarEntrega =
+                  saldoEntrega.entregado > 0 || orden.estadoSii === 'PRODUCCION_COMPLETADA';
                 const promesa = fechaPromesaOrden(orden);
                 const dias = diasParaCompromiso(promesa);
                 const promesaLegible = formatearFechaCalendario(promesa);
@@ -420,6 +430,11 @@ export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdene
                     <TablaCelda>
                       <span data-testid={`estado-orden-${folioVisible}`}>
                         <BadgeEstado estado={orden.estadoSii} />
+                        {mostrarEntrega ? (
+                          <span data-testid={`entrega-orden-${folioVisible}`} className="block text-xs font-normal tabular-nums text-texto-secundario">
+                            Entregado {saldoEntrega.entregado}/{saldoEntrega.solicitado}
+                          </span>
+                        ) : null}
                       </span>
                     </TablaCelda>
                     <TablaCelda className={CLASE_PRIORIDAD[orden.prioridad]}>
@@ -450,7 +465,7 @@ export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdene
                       <div className="flex items-center gap-2">
                         <BarraProgreso
                           valor={avance.porcentaje}
-                          tono={tonoAvance(orden.estadoSii, dias)}
+                          tono={tonoAvance(orden.estadoSii, dias, entregaCompleta)}
                           etiqueta={`Avance de la orden ${folioVisible}`}
                           mostrarPorcentaje
                           className="w-24"
