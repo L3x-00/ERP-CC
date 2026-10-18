@@ -18,6 +18,7 @@ import { Label } from '@/compartido/componentes/ui/label';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
+import { CrearOrdenBasadaEnAnteriorDialog } from '@/modulos/ordenes/componentes/crear-orden-basada-anterior-dialog';
 import { PanelActividadFicha } from '@/modulos/ordenes/componentes/panel-actividad-ficha';
 import { PanelArchivosFicha } from '@/modulos/ordenes/componentes/panel-archivos-ficha';
 import { PanelDocumentoFicha } from '@/modulos/ordenes/componentes/panel-documento-ficha';
@@ -43,6 +44,8 @@ export interface PermisosFichaOrden {
   puedeVerTotales: boolean;
   /** Adjuntos legacy: mismo permiso (`aprobar_ordenes`) que exigen sus Server Actions. */
   puedeAdjuntar: boolean;
+  /** C8.6: mismo permiso de aprobación que exige la RPC para crear una OP técnica nueva. */
+  puedeCrearBasadaEnAnterior?: boolean;
   /** Comentarios: quien puede borrar los de otros (admin). */
   puedeEliminarTodos: boolean;
   /** Origen comercial: el folio del RFQ enlaza a /rfq solo con `rfq_vista`. */
@@ -80,6 +83,7 @@ export function FichaOrden({
     () => PESTANAS.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen',
   );
   const [adjuntando, setAdjuntando] = useState(false);
+  const [creandoBasadaEnAnterior, setCreandoBasadaEnAnterior] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -90,6 +94,9 @@ export function FichaOrden({
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
   const esTerminal = estado === 'CERRADA' || estado === 'CANCELADA';
+  const puedeCrearBasadaEnAnterior = permisos.puedeCrearBasadaEnAnterior === true
+    && ficha.orden.idHistorico === null
+    && (estado === 'PRODUCCION_COMPLETADA' || estado === 'CERRADA');
 
   // R12/R13 (C8.4): saldo de entrega espejo del cierre SQL; la RPC manda.
   const entregadaPorPartida = useMemo(() => {
@@ -205,6 +212,16 @@ export function FichaOrden({
           <Button variante="contorno" tamano="sm" onClick={() => router.push('/ordenes')}>
             Volver a la cola
           </Button>
+          {puedeCrearBasadaEnAnterior ? (
+            <Button
+              variante="contorno"
+              tamano="sm"
+              onClick={() => setCreandoBasadaEnAnterior(true)}
+              data-testid="ficha-crear-basada-en-anterior"
+            >
+              Nueva basada en esta
+            </Button>
+          ) : null}
           {permisos.puedeLiberar && estado === 'PLANIFICADA' && (
             <Button tamano="sm" disabled={ocupado} onClick={() => void liberar()} data-testid="ficha-liberar">
               {ocupado ? 'Liberando…' : 'Liberar'}
@@ -274,6 +291,9 @@ export function FichaOrden({
             <Tarjeta titulo={ficha.orden.folioSii ? 'Folio' : 'Folio anterior'}>
               {ficha.orden.folioSii ?? ficha.orden.folio}
             </Tarjeta>
+            {ficha.orden.ordenOrigenFolio ? (
+              <Tarjeta titulo="Basada en">{ficha.orden.ordenOrigenFolio}</Tarjeta>
+            ) : null}
             {ficha.orden.idHistorico !== null && (
               <Tarjeta titulo="Referencia migrada">{ficha.orden.idHistorico}</Tarjeta>
             )}
@@ -347,6 +367,13 @@ export function FichaOrden({
           onCerrar={() => setAdjuntando(false)}
         />
       ) : null}
+
+      <CrearOrdenBasadaEnAnteriorDialog
+        abierto={creandoBasadaEnAnterior}
+        ordenOrigenId={ficha.orden.id}
+        folioOrigen={folio}
+        onCerrar={() => setCreandoBasadaEnAnterior(false)}
+      />
 
       <Dialog open={cancelando} onOpenChange={(abierto) => (!abierto ? setCancelando(false) : undefined)}>
         <DialogContent>

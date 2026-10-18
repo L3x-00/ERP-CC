@@ -5,6 +5,7 @@ import {
   aprobarOportunidadYCrearOrdenServicio,
   asignarOperadorPartidaServicio,
   cambiarEstadoOrdenServicio,
+  crearOrdenBasadaEnAnteriorServicio,
   crearOrdenManualServicio,
   obtenerOrdenesConPartidasServicio,
   registrarConsumoMaterialServicio,
@@ -29,7 +30,29 @@ const ENTRADA_MANUAL = {
   ],
 };
 
+const ENTRADA_BASADA_EN_ANTERIOR = {
+  ordenOrigenId: '22222222-2222-4222-8222-222222222222',
+  actorId: '11111111-1111-4111-8111-111111111111',
+  fechaCompromiso: '2026-11-15T18:00:00.000Z',
+};
+
 describe('servicios transaccionales de órdenes', () => {
+  it('delegada la orden basada a la RPC sin enviar precios ni datos comerciales', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ id: '33333333-3333-4333-8333-333333333333', folio: 'OP-001005' }],
+      error: null,
+    });
+
+    const resultado = await crearOrdenBasadaEnAnteriorServicio(clienteConRpc(rpc), ENTRADA_BASADA_EN_ANTERIOR);
+
+    expect(resultado).toEqual({ id: '33333333-3333-4333-8333-333333333333', folio: 'OP-001005' });
+    expect(rpc).toHaveBeenCalledWith('crear_orden_basada_en_anterior', {
+      p_actor_id: ENTRADA_BASADA_EN_ANTERIOR.actorId,
+      p_orden_origen_id: ENTRADA_BASADA_EN_ANTERIOR.ordenOrigenId,
+      p_fecha_compromiso: ENTRADA_BASADA_EN_ANTERIOR.fechaCompromiso,
+    });
+  });
+
   it('manda cabecera y partidas a la RPC manual sin calcular folio en TypeScript', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: [{ id: '22222222-2222-4222-8222-222222222222', folio: 'OP-001004' }],

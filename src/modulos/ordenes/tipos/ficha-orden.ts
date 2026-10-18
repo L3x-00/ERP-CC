@@ -119,6 +119,8 @@ export interface FichaOrden {
     archivadaEn: string | null;
     esInterna: boolean;
     idHistorico: string | null;
+    /** Folio humano de la OP que originó esta; no expone su identificador interno. */
+    ordenOrigenFolio?: string | null;
     referenciaExterna: string | null;
     notas: string | null;
     creadoEn: string;
