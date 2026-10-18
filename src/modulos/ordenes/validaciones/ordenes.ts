@@ -29,6 +29,12 @@ export const esquemaCrearOrden = z.object({
 /** Una orden manual no puede apropiarse de una cotización de Pipeline. */
 export const esquemaCrearOrdenManual = esquemaCrearOrden.omit({ cotizacionId: true }).strict();
 
+/** C8.6/O-03 B: una nueva OP basada recibe solo origen y nuevo compromiso. */
+export const esquemaCrearOrdenBasadaEnAnterior = z.object({
+  ordenOrigenId: z.uuid('ID de orden de origen inválido'),
+  fechaCompromiso: z.iso.datetime({ message: 'Fecha de compromiso inválida' }),
+}).strict();
+
 /** ORD-06: partida heredada con área del catálogo, procesos y proveedor externo. */
 export const esquemaPartidaOrdenHistorica = esquemaPartidaOrden
   .extend({
@@ -157,6 +163,7 @@ export const esquemaAsignarOperadorPartida = z.object({
 export type PartidaOrdenInput = z.infer<typeof esquemaPartidaOrden>;
 export type CrearOrdenInput = z.infer<typeof esquemaCrearOrden>;
 export type CrearOrdenManualInput = z.infer<typeof esquemaCrearOrdenManual>;
+export type CrearOrdenBasadaEnAnteriorInput = z.infer<typeof esquemaCrearOrdenBasadaEnAnterior>;
 export type CrearOrdenHistoricaInput = z.infer<typeof esquemaCrearOrdenHistorica>;
 export type ActualizarOrdenBorradorInput = z.infer<typeof esquemaActualizarOrdenBorrador>;
 export type ConfigurarMetasProcesoInput = z.infer<typeof esquemaConfigurarMetasProceso>;

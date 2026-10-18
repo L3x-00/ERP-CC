@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   esquemaCambiarEstadoOrden,
   esquemaCrearOrden,
+  esquemaCrearOrdenBasadaEnAnterior,
   esquemaCrearOrdenHistorica,
   esquemaRegistrarConsumoMaterial,
   esquemaRegistrarTiempoOperador,
@@ -97,6 +98,26 @@ describe('esquemaCrearOrden', () => {
 
   it('rechaza prioridad fuera del enum', () => {
     expect(esquemaCrearOrden.safeParse({ ...ordenValida, prioridad: 'crítica' }).success).toBe(false);
+  });
+});
+
+describe('esquemaCrearOrdenBasadaEnAnterior', () => {
+  const entradaValida = {
+    ordenOrigenId: uuidOrden,
+    fechaCompromiso: '2026-11-15T18:00:00.000Z',
+  };
+
+  it('acepta únicamente el origen y el nuevo compromiso de la orden basada', () => {
+    expect(esquemaCrearOrdenBasadaEnAnterior.safeParse(entradaValida).success).toBe(true);
+  });
+
+  it('rechaza un origen inválido, una fecha no ISO o campos comerciales inyectados', () => {
+    expect(esquemaCrearOrdenBasadaEnAnterior.safeParse({ ...entradaValida, ordenOrigenId: 'orden-1' }).success)
+      .toBe(false);
+    expect(esquemaCrearOrdenBasadaEnAnterior.safeParse({ ...entradaValida, fechaCompromiso: '15/11/2026' }).success)
+      .toBe(false);
+    expect(esquemaCrearOrdenBasadaEnAnterior.safeParse({ ...entradaValida, montoSinIva: 100 }).success)
+      .toBe(false);
   });
 });
 

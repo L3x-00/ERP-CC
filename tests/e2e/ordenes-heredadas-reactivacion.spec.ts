@@ -1,4 +1,5 @@
 ﻿import { randomUUID } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { expect, test } from '@playwright/test';
 import type { Database } from '@/compartido/tipos/supabase';
@@ -273,5 +274,72 @@ test.describe.serial('órdenes heredadas y cola sin Repetir/Reactivar (ORD-06 / 
     const { data: estados } = await caso.admin.from('ordenes_produccion')
       .select('id, estado').in('id', [completada.ordenId, entregada.ordenId]);
     expect((estados ?? []).map((orden) => orden.estado)).toEqual(['completada', 'completada']);
+  });
+
+  test('C8.6: crea una OP técnica desde la ficha de una orden actual terminada', async ({ page }) => {
+    if (!contexto) throw new Error('No se preparó el contexto E2E');
+    const caso = contexto;
+    const erroresConsola: string[] = [];
+    page.on('console', (mensaje) => {
+      if (mensaje.type() === 'error') erroresConsola.push(mensaje.text());
+    });
+    const origen = await crearCompletada(caso);
+    await iniciarSesionAdministrador(page, caso);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/ordenes');
+    const filaOrigen = page.getByRole('row', { name: new RegExp(origen.folio) });
+    await expect(filaOrigen).toBeVisible();
+    await filaOrigen.getByRole('link', { name: 'Abrir', exact: true }).click();
+    await page.waitForURL((url) => url.pathname === `/ordenes/${origen.ordenId}`);
+
+    await expect(page.getByTestId('ficha-crear-basada-en-anterior')).toBeVisible();
+    await page.getByTestId('ficha-crear-basada-en-anterior').click();
+    const dialogo = page.getByRole('dialog', { name: `Nueva orden basada en ${origen.folio}` });
+    await expect(dialogo).toContainText('solo datos técnicos');
+    await expect(dialogo).toContainText('No copia precios ni cuentas por cobrar');
+    await expect(dialogo.getByLabel('Fecha de compromiso')).toBeFocused();
+    const directorioVisual = '.ai-shared/qa/c8-6/visual';
+    mkdirSync(directorioVisual, { recursive: true });
+    await page.screenshot({ path: `${directorioVisual}/orden-basada-desktop-claro.png`, fullPage: true });
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    await page.screenshot({ path: `${directorioVisual}/orden-basada-desktop-oscuro.png`, fullPage: true });
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.screenshot({ path: `${directorioVisual}/orden-basada-tablet-oscuro.png`, fullPage: true });
+    await page.evaluate(() => document.documentElement.classList.remove('dark'));
+    await page.screenshot({ path: `${directorioVisual}/orden-basada-tablet-claro.png`, fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: `${directorioVisual}/orden-basada-movil-claro.png`, fullPage: true });
+    await dialogo.getByTestId('orden-basada-fecha-compromiso').fill('2099-12-31');
+    await dialogo.getByTestId('confirmar-orden-basada').click();
+    await page.waitForURL((url) => (
+      url.pathname.startsWith('/ordenes/') && url.pathname !== `/ordenes/${origen.ordenId}`
+    ));
+
+    const ordenNuevaId = page.url().split('/').at(-1);
+    if (!ordenNuevaId) throw new Error('La navegación no devolvió el identificador de la nueva OP');
+    caso.ordenesCreadas.push(ordenNuevaId);
+    const { data: nueva, error: errorNueva } = await caso.admin
+      .from('ordenes_produccion')
+      .select('folio, orden_origen_id, cotizacion_id, referencia_externa, condicion_pago, monto_sin_iva, monto_iva')
+      .eq('id', ordenNuevaId)
+      .single();
+    if (errorNueva || !nueva) throw new Error(`No se encontró la nueva OP: ${errorNueva?.message ?? 'sin fila'}`);
+    expect(nueva.folio).not.toBe(origen.folio);
+    expect(nueva).toMatchObject({
+      orden_origen_id: origen.ordenId,
+      cotizacion_id: null,
+      referencia_externa: null,
+      condicion_pago: null,
+      monto_sin_iva: null,
+      monto_iva: null,
+    });
+    const { count, error: errorCxc } = await caso.admin
+      .from('cuentas_por_cobrar')
+      .select('id', { count: 'exact', head: true })
+      .eq('orden_id', ordenNuevaId);
+    if (errorCxc) throw new Error(`No se pudo comprobar CxC: ${errorCxc.message}`);
+    expect(count).toBe(0);
+    await expect(page.getByTestId('ficha-panel-resumen')).toContainText(`Basada en${origen.folio}`);
+    expect(erroresConsola).toEqual([]);
   });
 });

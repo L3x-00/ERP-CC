@@ -4,6 +4,7 @@ const {
   obtenerUsuarioMock,
   canMock,
   registrarLogMock,
+  crearOrdenBasadaMock,
   crearOrdenManualMock,
   cambiarEstadoMock,
   ErrorOrdenMock,
@@ -14,6 +15,7 @@ const {
     obtenerUsuarioMock: vi.fn(),
     canMock: vi.fn(),
     registrarLogMock: vi.fn(),
+    crearOrdenBasadaMock: vi.fn(),
     crearOrdenManualMock: vi.fn(),
     cambiarEstadoMock: vi.fn(),
     ErrorOrdenMock,
@@ -35,11 +37,13 @@ vi.mock('@/nucleo/supabase/admin', () => ({
 }));
 vi.mock('@/modulos/ordenes/servicios/ordenes-servicio', () => ({
   ErrorOrden: ErrorOrdenMock,
+  crearOrdenBasadaEnAnteriorServicio: (...args: unknown[]) => crearOrdenBasadaMock(...args),
   crearOrdenManualServicio: (...args: unknown[]) => crearOrdenManualMock(...args),
   cambiarEstadoOrdenServicio: (...args: unknown[]) => cambiarEstadoMock(...args),
 }));
 
 import { cambiarEstadoOrdenAccion } from '@/modulos/ordenes/acciones/cambiar-estado-orden';
+import { crearOrdenBasadaEnAnteriorAccion } from '@/modulos/ordenes/acciones/crear-orden-basada-anterior';
 import { crearOrdenManualAccion } from '@/modulos/ordenes/acciones/crear-orden-manual';
 
 const USUARIO = {
@@ -69,11 +73,19 @@ const CAMBIO_A_PROGRAMADA = {
   estadoActual: 'borrador',
   estado: 'programada',
 };
+const ENTRADA_BASADA_EN_ANTERIOR = {
+  ordenOrigenId: CAMBIO_A_PROGRAMADA.ordenId,
+  fechaCompromiso: '2026-11-15T18:00:00.000Z',
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
   obtenerUsuarioMock.mockResolvedValue(USUARIO);
   canMock.mockResolvedValue(true);
+  crearOrdenBasadaMock.mockResolvedValue({
+    id: '33333333-3333-4333-8333-333333333333',
+    folio: 'OP-001005',
+  });
   crearOrdenManualMock.mockResolvedValue({
     id: CAMBIO_A_PROGRAMADA.ordenId,
     folio: 'OP-001003',
@@ -83,6 +95,38 @@ beforeEach(() => {
     estado: 'programada',
     fechaInicio: null,
     fechaFin: null,
+  });
+});
+
+describe('crearOrdenBasadaEnAnteriorAccion', () => {
+  it('autoriza, conserva el actor en la RPC y audita sin datos comerciales', async () => {
+    const respuesta = await crearOrdenBasadaEnAnteriorAccion(ENTRADA_BASADA_EN_ANTERIOR);
+
+    expect(respuesta).toEqual({
+      exito: true,
+      datos: { id: '33333333-3333-4333-8333-333333333333', folio: 'OP-001005' },
+    });
+    expect(crearOrdenBasadaMock).toHaveBeenCalledWith(expect.anything(), {
+      ...ENTRADA_BASADA_EN_ANTERIOR,
+      actorId: USUARIO.id,
+    });
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      USUARIO,
+      'crear_orden_basada_en_anterior',
+      'ordenes',
+      '33333333-3333-4333-8333-333333333333',
+      { ordenOrigenId: ENTRADA_BASADA_EN_ANTERIOR.ordenOrigenId, folioNuevo: 'OP-001005' },
+      expect.anything(),
+    );
+  });
+
+  it('no llama la base sin aprobar_ordenes', async () => {
+    canMock.mockResolvedValue(false);
+
+    const respuesta = await crearOrdenBasadaEnAnteriorAccion(ENTRADA_BASADA_EN_ANTERIOR);
+
+    expect(respuesta).toEqual({ exito: false, error: 'Sin permiso para crear órdenes basadas en otra' });
+    expect(crearOrdenBasadaMock).not.toHaveBeenCalled();
   });
 });
 

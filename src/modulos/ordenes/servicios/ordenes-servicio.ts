@@ -19,6 +19,7 @@ import type {
   ActualizarOrdenBorradorInput,
   ConfigurarMetasProcesoInput,
   CambiarEstadoOrdenInput,
+  CrearOrdenBasadaEnAnteriorInput,
   CrearOrdenHistoricaInput,
   CrearOrdenManualInput,
   AsignarOperadorPartidaInput,
@@ -66,6 +67,10 @@ export type CodigoErrorOrden =
   | 'id_historico_duplicado'
   | 'orden_no_repetible'
   | 'sin_permiso_repetir_orden'
+  | 'orden_basada_invalida'
+  | 'sin_permiso_crear_orden_basada'
+  | 'orden_origen_legacy_no_admitida'
+  | 'orden_origen_no_finalizada'
   | 'orden_sin_partidas'
   | 'orden_no_reactivable'
   | 'orden_entregada_no_reactivable'
@@ -216,6 +221,10 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   if (mensaje.includes('id_historico_duplicado')) return 'id_historico_duplicado';
   if (mensaje.includes('orden_no_repetible')) return 'orden_no_repetible';
   if (mensaje.includes('sin_permiso_repetir_orden')) return 'sin_permiso_repetir_orden';
+  if (mensaje.includes('orden_basada_invalida')) return 'orden_basada_invalida';
+  if (mensaje.includes('sin_permiso_crear_orden_basada')) return 'sin_permiso_crear_orden_basada';
+  if (mensaje.includes('orden_origen_legacy_no_admitida')) return 'orden_origen_legacy_no_admitida';
+  if (mensaje.includes('orden_origen_no_finalizada')) return 'orden_origen_no_finalizada';
   if (mensaje.includes('orden_sin_partidas')) return 'orden_sin_partidas';
   if (mensaje.includes('orden_entregada_no_reactivable')) return 'orden_entregada_no_reactivable';
   if (mensaje.includes('orden_no_reactivable')) return 'orden_no_reactivable';
@@ -256,6 +265,21 @@ export async function crearOrdenManualServicio(
     p_partidas: partidasAJson(entrada.partidas),
   };
   const { data, error } = await admin.rpc('crear_orden_manual', argumentos);
+
+  if (error) lanzarErrorOrden(error.message);
+  return validarResultadoCreacion(data?.[0] ?? null);
+}
+
+/** C8.6/O-03 B: crea una OP nueva sin precio, cotización ni cuenta por cobrar. */
+export async function crearOrdenBasadaEnAnteriorServicio(
+  admin: SupabaseClient<Database>,
+  entrada: CrearOrdenBasadaEnAnteriorInput & { actorId: string },
+): Promise<OrdenCreada> {
+  const { data, error } = await admin.rpc('crear_orden_basada_en_anterior', {
+    p_actor_id: entrada.actorId,
+    p_orden_origen_id: entrada.ordenOrigenId,
+    p_fecha_compromiso: entrada.fechaCompromiso,
+  });
 
   if (error) lanzarErrorOrden(error.message);
   return validarResultadoCreacion(data?.[0] ?? null);

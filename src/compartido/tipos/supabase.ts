@@ -6180,6 +6180,17 @@ export type Database = {
           id: string
         }[]
       }
+      crear_orden_basada_en_anterior: {
+        Args: {
+          p_actor_id: string
+          p_fecha_compromiso: string
+          p_orden_origen_id: string
+        }
+        Returns: {
+          folio: string
+          id: string
+        }[]
+      }
       reprogramar_partida_recurso: {
         Args: {
           p_actualizado_en_esperado: string

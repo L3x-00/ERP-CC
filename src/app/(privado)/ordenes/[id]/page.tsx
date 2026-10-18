@@ -42,6 +42,7 @@ export default async function PaginaOrden({ params, searchParams }: ParametrosPa
     puedeCancelar,
     puedeVerTotales,
     puedeAdjuntar,
+    puedeCrearBasadaEnAnterior: puedeAdjuntar,
     puedeEliminarTodos: usuario.rol === 'admin',
     puedeVerRfq,
     puedeVerPropuesta,

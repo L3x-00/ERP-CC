@@ -78,7 +78,7 @@ export async function obtenerFichaOrdenServicio(
   const { data: orden, error } = await cliente
     .from('ordenes_produccion')
     .select(
-      'id, folio, folio_sii, estado_sii, estado, prioridad, fecha_compromiso_comercial, fecha_operativa, archivada_en, es_interna, id_historico, referencia_externa, notas, creado_en, actualizado_en, cerrada_admin_en, cerrada_admin_por, cliente_id, propuesta_revision_id',
+      'id, folio, folio_sii, estado_sii, estado, prioridad, fecha_compromiso_comercial, fecha_operativa, archivada_en, es_interna, id_historico, orden_origen_id, referencia_externa, notas, creado_en, actualizado_en, cerrada_admin_en, cerrada_admin_por, cliente_id, propuesta_revision_id',
     )
     .eq('id', ordenId)
     .maybeSingle();
@@ -100,7 +100,7 @@ export async function obtenerFichaOrdenServicio(
   const snapshot = incluirTotales ? snapshotLeido : null;
   const totales = incluirTotales ? totalesDeSnapshot(snapshotJson) : null;
 
-  const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp, archivos] = await Promise.all([
+  const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp, archivos, origenOrdenResp] = await Promise.all([
     cliente
       .from('partidas_orden_produccion')
       .select(COLUMNAS_PARTIDA_FICHA)
@@ -134,12 +134,20 @@ export async function obtenerFichaOrdenServicio(
       snapshot: snapshotLeido,
       propuestaRevisionId: orden.propuesta_revision_id,
     }),
+    orden.orden_origen_id
+      ? cliente
+        .from('ordenes_produccion')
+        .select('folio, folio_sii')
+        .eq('id', orden.orden_origen_id)
+        .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (partidasResp.error) throw partidasResp.error;
   if (clienteResp.error) throw clienteResp.error;
   if (notasResp.error) throw notasResp.error;
   if (eventosResp.error) throw eventosResp.error;
+  if (origenOrdenResp.error) throw origenOrdenResp.error;
 
   const partidas: PartidaFicha[] = (partidasResp.data ?? []).map((partida) => ({
     id: partida.id,
@@ -210,6 +218,7 @@ export async function obtenerFichaOrdenServicio(
       archivadaEn: orden.archivada_en,
       esInterna: orden.es_interna,
       idHistorico: orden.id_historico,
+      ordenOrigenFolio: origenOrdenResp.data?.folio_sii ?? origenOrdenResp.data?.folio ?? null,
       referenciaExterna: orden.referencia_externa,
       notas: orden.notas,
       creadoEn: orden.creado_en,
