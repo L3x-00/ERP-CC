@@ -40,6 +40,8 @@ function carga(
     turno,
     horasCapacidad,
     horasProgramadas,
+    horasReales: 0,
+    horasExceso: 0,
     horasDisponibles: Math.max(0, horasCapacidad - horasProgramadas),
     porcentajeOcupacion:
       horasProgramadas === 0

@@ -12,7 +12,11 @@ import {
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
 import { CalendarioPlaneacion } from '@/modulos/planeacion/componentes/calendario-planeacion';
-import { CLAVE_CALENDARIO_PLANEACION } from '@/modulos/planeacion/componentes/claves-consulta';
+import {
+  CLAVE_CALENDARIO_PLANEACION,
+  CLAVE_DETALLE_PROGRAMACION,
+} from '@/modulos/planeacion/componentes/claves-consulta';
+import { DetalleProgramacionPlaneacion } from '@/modulos/planeacion/componentes/detalle-programacion-planeacion';
 import { DialogoReprogramacionPlaneacion } from '@/modulos/planeacion/componentes/dialogo-reprogramacion-planeacion';
 import { PanelBolsaPlaneacion } from '@/modulos/planeacion/componentes/panel-bolsa-planeacion';
 import {
@@ -140,7 +144,10 @@ export function OperacionPlaneacion({
   );
 
   const actualizarCalendario = useCallback(async (): Promise<void> => {
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CALENDARIO_PLANEACION });
+    await Promise.all([
+      clienteConsultas.invalidateQueries({ queryKey: CLAVE_CALENDARIO_PLANEACION }),
+      clienteConsultas.invalidateQueries({ queryKey: CLAVE_DETALLE_PROGRAMACION }),
+    ]);
   }, [clienteConsultas]);
 
   const enviarAsignacion = useCallback(
@@ -343,6 +350,9 @@ export function OperacionPlaneacion({
           onProponerHueco={proponerHuecoPanel}
           onCambiarFecha={setFechaSolicitada}
         />
+        {programacionSeleccionada ? (
+          <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
+        ) : null}
         <PanelBolsaPlaneacion
           bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}
           procesando={bolsaProcesando}

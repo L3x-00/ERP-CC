@@ -66,7 +66,7 @@ describe('SincronizadorPlaneacionRealtime', () => {
       alCambiarEstructuraOperacion: refrescarRsc,
     }), { wrapper: crearWrapper(cliente) });
 
-    await waitFor(() => expect(realtime.canal.on).toHaveBeenCalledTimes(6));
+    await waitFor(() => expect(realtime.canal.on).toHaveBeenCalledTimes(7));
     const tablas = realtime.canal.on.mock.calls.map((llamada) => (
       (llamada[1] as { table: string }).table
     ));
@@ -75,17 +75,19 @@ describe('SincronizadorPlaneacionRealtime', () => {
       'capacidades_recurso_turno',
       'excepciones_capacidad_recurso',
       'programacion_areas',
+      'sesiones_trabajo',
       'ordenes_produccion',
       'partidas_orden_produccion',
     ]);
 
     vi.useFakeTimers();
     realtime.manejadores[0]?.();
-    realtime.manejadores[5]?.();
+    realtime.manejadores[6]?.();
     await vi.advanceTimersByTimeAsync(350);
 
-    expect(invalidarSpy).toHaveBeenCalledTimes(1);
+    expect(invalidarSpy).toHaveBeenCalledTimes(2);
     expect(invalidarSpy).toHaveBeenCalledWith({ queryKey: ['planeacion', 'calendario'] });
+    expect(invalidarSpy).toHaveBeenCalledWith({ queryKey: ['planeacion', 'detalle-programacion'] });
     expect(refrescarRsc).toHaveBeenCalledTimes(1);
   });
 

@@ -1,4 +1,10 @@
-export { CLAVE_CALENDARIO_PLANEACION } from './claves-consulta';
+export {
+  CLAVE_CALENDARIO_PLANEACION,
+  CLAVE_DETALLE_PROGRAMACION,
+  claveDetalleProgramacion,
+} from './claves-consulta';
+export { DetalleProgramacionPlaneacion } from './detalle-programacion-planeacion';
+export type { PropsDetalleProgramacionPlaneacion } from './detalle-programacion-planeacion';
 export { SincronizadorPlaneacionRealtime } from './sincronizador-planeacion-realtime';
 export type { PropsSincronizadorPlaneacionRealtime } from './sincronizador-planeacion-realtime';
 export { InsigniaSaturacion } from './insignia-saturacion';

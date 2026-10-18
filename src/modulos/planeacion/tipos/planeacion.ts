@@ -128,9 +128,40 @@ export interface CargaCapacidadDiaria {
   turno: TurnoPlaneacion;
   horasCapacidad: number;
   horasProgramadas: number;
+  horasReales: number;
+  horasExceso: number;
   horasDisponibles: number;
   porcentajeOcupacion: number;
   sobrecargado: boolean;
+}
+
+/** Estado legible anterior o nuevo de una reprogramación; nunca expone IDs internos. */
+export interface EstadoHistorialProgramacion {
+  recurso: string;
+  fechaProgramada: string;
+  turno: string;
+  horasEstimadas: number;
+  ordenPrioridad: number;
+}
+
+export interface HistorialReprogramacion {
+  creadoEn: string;
+  actorNombre: string;
+  motivo: string;
+  anterior: EstadoHistorialProgramacion;
+  nuevo: EstadoHistorialProgramacion;
+}
+
+/** Proyección explícita del detalle C9.3; excluye UUID y JSON crudo de auditoría. */
+export interface DetalleProgramacion {
+  responsableNombre: string;
+  recursoNombre: string;
+  grupoEquipoNombre: string | null;
+  horasEstimadas: number;
+  horasReales: number;
+  horasExceso: number;
+  recursoLiberado: boolean;
+  historial: HistorialReprogramacion[];
 }
 
 /** Filas crudas snake_case derivadas directamente de los tipos generados de Supabase. */
@@ -250,6 +281,8 @@ export function filaACargaCapacidadDiaria(
     turno: validarValorEnumerado(fila.turno, TURNOS_PLANEACION, 'turno de carga'),
     horasCapacidad: Number(fila.horas_capacidad),
     horasProgramadas: Number(fila.horas_programadas),
+    horasReales: Number(fila.horas_reales),
+    horasExceso: Number(fila.horas_exceso),
     horasDisponibles: Number(fila.horas_disponibles),
     porcentajeOcupacion: Number(fila.porcentaje_ocupacion),
     sobrecargado: fila.sobrecargado,

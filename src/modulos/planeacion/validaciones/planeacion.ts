@@ -150,9 +150,17 @@ export const esquemaConsultarCalendarioPlaneacion = z
     }
   });
 
+/** Identificador mínimo para leer el detalle operativo de una programación. */
+export const esquemaObtenerDetalleProgramacion = z
+  .object({
+    programacionId: z.uuid('ID de programación inválido'),
+  })
+  .strict();
+
 export type ProgramarOrdenInput = z.infer<typeof esquemaProgramarOrden>;
 export type CambiarModoPreparacionInput = z.infer<typeof esquemaCambiarModoPreparacion>;
 export type ReprogramarPartidaRecursoInput = z.infer<typeof esquemaReprogramarPartidaRecurso>;
 export type ActivarModoPreparacionInput = z.infer<typeof esquemaActivarModoPreparacion>;
 export type ConsultarCalendarioPlaneacionInput = z.infer<typeof esquemaConsultarCalendarioPlaneacion>;
 export type ProponerHuecoPlaneacionInput = z.infer<typeof esquemaProponerHuecoPlaneacion>;
+export type ObtenerDetalleProgramacionInput = z.infer<typeof esquemaObtenerDetalleProgramacion>;

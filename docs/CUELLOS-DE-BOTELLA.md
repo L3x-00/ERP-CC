@@ -43,6 +43,10 @@ Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de 
 | `supabase test db` o el E2E focal mueren «a la vez» con `LegacyDbConnectError … Connection timed out` | pgTAP y Playwright lanzados en paralelo compiten por las conexiones del stack local | Correr pgTAP y E2E en serie, nunca en paralelo; si ya ocurrió, repetir el que falló cuando el stack se libere |
 | Un E2E que verifica un aviso de validación falla por strict mode (`resolved to 2 elements`) o captura el nodo equivocado | El mismo texto puede emitirse en dos capas: el aviso calculado por el cliente y el mensaje mapeado del servidor tras el submit (capacidad, `recurso_incompatible`, etc.) | Asertar por contenedor único (`data-testid` o el `role="alert"` del formulario) y elegir conscientemente qué capa se prueba; no usar `getByText` suelto para textos repetibles |
 
+| `supabase gen types typescript --local` propone miles de cambios ajenos al contrato nuevo | El esquema local puede arrastrar deriva respecto de las migraciones canónicas; el generador refleja toda esa deriva y no solo la RPC incorporada | Inspeccionar primero el tamaño y el diff. Si hay deriva conocida, recuperar la versión canónica y aplicar únicamente el contrato nuevo verificado; nunca aceptar una regeneración masiva para cerrar una tanda |
+
+| Al sumar `orden_eventos_cambio` al canal Realtime de Planeación, dejan de recibirse incluso cambios válidos de programación | La tabla de auditoría no pertenece a la publicación local; una sola tabla no publicada invalida la suscripción del canal completo | Consultar `pg_publication_tables` antes de ampliar un canal. Mantener el canal operativo con tablas publicadas (`sesiones_trabajo`) y aislar las fuentes opcionales en otro canal solo si están publicadas |
+
 ## 3. Migraciones y base remota
 
 | Síntoma | Causa real | Regla |

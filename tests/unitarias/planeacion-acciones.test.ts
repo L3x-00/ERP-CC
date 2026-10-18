@@ -8,6 +8,7 @@ const {
   reprogramarMock,
   activarPreparacionMock,
   obtenerCalendarioMock,
+  obtenerDetalleMock,
   ErrorPlaneacionMock,
 } = vi.hoisted(() => {
   class ErrorPlaneacionMock extends Error {
@@ -24,6 +25,7 @@ const {
     reprogramarMock: vi.fn(),
     activarPreparacionMock: vi.fn(),
     obtenerCalendarioMock: vi.fn(),
+    obtenerDetalleMock: vi.fn(),
     ErrorPlaneacionMock,
   };
 });
@@ -54,11 +56,13 @@ vi.mock('@/modulos/planeacion/servicios/indice', () => ({
   reprogramarPartidaRecursoServicio: (...args: unknown[]) => reprogramarMock(...args),
   activarModoPreparacionServicio: (...args: unknown[]) => activarPreparacionMock(...args),
   obtenerDatosCalendarioPlaneacionServicio: (...args: unknown[]) => obtenerCalendarioMock(...args),
+  obtenerDetalleProgramacionServicio: (...args: unknown[]) => obtenerDetalleMock(...args),
 }));
 
 import {
   activarModoPreparacionAccion,
   obtenerCalendarioPlaneacionAccion,
+  obtenerDetalleProgramacionAccion,
   programarPartidaRecursoAccion,
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
@@ -100,6 +104,16 @@ beforeEach(() => {
   reprogramarMock.mockResolvedValue(PROGRAMACION);
   activarPreparacionMock.mockResolvedValue({ ...PROGRAMACION, estadoPlaneacion: 'en_preparacion' });
   obtenerCalendarioMock.mockResolvedValue({ recursos: [], cargas: [], programaciones: [] });
+  obtenerDetalleMock.mockResolvedValue({
+    responsableNombre: 'Planeador ORCA',
+    recursoNombre: 'LAS-01 · Láser',
+    grupoEquipoNombre: 'LAS · Láser',
+    horasEstimadas: 8,
+    horasReales: 3,
+    horasExceso: 0,
+    recursoLiberado: false,
+    historial: [],
+  });
 });
 
 describe('acciones seguras de Planeación', () => {
@@ -213,5 +227,51 @@ describe('acciones seguras de Planeación', () => {
 
     expect(respuesta.exito).toBe(false);
     expect(obtenerCalendarioMock).not.toHaveBeenCalled();
+  });
+
+  it('consulta el detalle con permiso de lectura y sin auditoría de lectura', async () => {
+    canMock.mockResolvedValueOnce(true);
+
+    const respuesta = await obtenerDetalleProgramacionAccion({
+      programacionId: PROGRAMACION.id,
+    });
+
+    expect(respuesta.exito).toBe(true);
+    expect(obtenerDetalleMock).toHaveBeenCalledTimes(1);
+    expect(registrarLogMock).not.toHaveBeenCalled();
+  });
+
+  it('rechaza el detalle antes del servicio cuando el UUID es inválido', async () => {
+    const respuesta = await obtenerDetalleProgramacionAccion({ programacionId: 'no-es-uuid' });
+
+    expect(respuesta.exito).toBe(false);
+    expect(obtenerDetalleMock).not.toHaveBeenCalled();
+  });
+
+  it('no permite consultar el detalle sin ver ni gestionar Planeación', async () => {
+    canMock.mockResolvedValue(false);
+
+    const respuesta = await obtenerDetalleProgramacionAccion({
+      programacionId: PROGRAMACION.id,
+    });
+
+    expect(respuesta).toEqual({ exito: false, error: 'Sin permiso para consultar Planeación' });
+    expect(obtenerDetalleMock).not.toHaveBeenCalled();
+  });
+
+  it('normaliza fallos internos del detalle sin filtrar mensajes técnicos', async () => {
+    const errorInterno = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    obtenerDetalleMock.mockRejectedValue(new Error('detalle SQL sensible'));
+
+    const respuesta = await obtenerDetalleProgramacionAccion({
+      programacionId: PROGRAMACION.id,
+    });
+
+    expect(respuesta).toEqual({
+      exito: false,
+      error: 'No se pudo consultar el detalle de la programación',
+    });
+    expect(JSON.stringify(respuesta)).not.toContain('SQL sensible');
+    errorInterno.mockRestore();
   });
 });
