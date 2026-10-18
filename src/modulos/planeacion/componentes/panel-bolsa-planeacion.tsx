@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import { resumirProcesos } from '@/modulos/ordenes/utilidades/procesos';
 import type {
   BolsaPlaneacion,
   PartidaBolsa,
@@ -18,12 +19,16 @@ export interface PropsPanelBolsaPlaneacion {
 }
 
 function ItemBolsa({ partida }: { partida: PartidaBolsa }) {
+  const resumenProcesos = partida.procesos.length > 0
+    ? ` · ${resumirProcesos(partida.procesos)}`
+    : '';
+
   return (
     <li className="flex flex-col gap-0.5 rounded-base border border-borde p-2 text-xs">
       <span className="font-mono text-[11px] font-medium">{partida.folio} · {partida.codigoPieza}</span>
       <span className="text-texto-secundario">
         {partida.horas} h · {partida.areaCodigo ?? 'área por definir'}
-        {partida.procesos.length > 0 ? ` · ${partida.procesos.join(', ')}` : ''}
+        {resumenProcesos}
       </span>
     </li>
   );

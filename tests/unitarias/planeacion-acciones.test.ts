@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/compartido/tipos/supabase';
 
 const {
-  obtenerUsuarioMock,
   canMock,
-  registrarLogMock,
+  crearClienteAdminMock,
+  crearClienteServidorMock,
+  ErrorPlaneacionMock,
+  obtenerUsuarioMock,
+  obtenerCalendarioMock,
+  obtenerDetalleMock,
   programarMock,
   reprogramarMock,
   activarPreparacionMock,
-  obtenerCalendarioMock,
-  obtenerDetalleMock,
-  ErrorPlaneacionMock,
+  registrarLogMock,
 } = vi.hoisted(() => {
   class ErrorPlaneacionMock extends Error {
     constructor(public readonly codigo: string) {
@@ -18,15 +22,17 @@ const {
   }
 
   return {
-    obtenerUsuarioMock: vi.fn(),
     canMock: vi.fn(),
-    registrarLogMock: vi.fn(),
+    crearClienteAdminMock: vi.fn(),
+    crearClienteServidorMock: vi.fn(),
+    ErrorPlaneacionMock,
+    obtenerUsuarioMock: vi.fn(),
+    obtenerCalendarioMock: vi.fn(),
+    obtenerDetalleMock: vi.fn(),
     programarMock: vi.fn(),
     reprogramarMock: vi.fn(),
     activarPreparacionMock: vi.fn(),
-    obtenerCalendarioMock: vi.fn(),
-    obtenerDetalleMock: vi.fn(),
-    ErrorPlaneacionMock,
+    registrarLogMock: vi.fn(),
   };
 });
 
@@ -34,30 +40,37 @@ vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
   obtenerUsuarioServidor: () => obtenerUsuarioMock(),
 }));
 vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
-  can: (...args: unknown[]) => canMock(...args),
+  can: (...argumentos: unknown[]) => canMock(...argumentos),
 }));
 vi.mock('@/nucleo/auditoria/registrar-log', () => ({
-  registrarLog: (...args: unknown[]) => registrarLogMock(...args),
+  registrarLog: (...argumentos: unknown[]) => registrarLogMock(...argumentos),
   nuevoCorrelationId: () => 'correlacion-prueba',
 }));
 vi.mock('@/nucleo/supabase/admin', () => ({
-  crearClienteSupabaseAdmin: () => ({ rpc: vi.fn(), from: vi.fn() }),
+  crearClienteSupabaseAdmin: () => crearClienteAdminMock(),
 }));
 vi.mock('@/nucleo/supabase/servidor', () => ({
-  crearClienteSupabaseServidor: () => Promise.resolve({ from: vi.fn() }),
+  crearClienteSupabaseServidor: () => crearClienteServidorMock(),
 }));
-vi.mock('@/modulos/planeacion/servicios/indice', () => ({
-  ErrorPlaneacion: ErrorPlaneacionMock,
-  mensajeErrorPlaneacion: (error: Error) =>
-    error.message === 'programacion_conflicto'
-      ? 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo'
-      : 'No se pudo actualizar la programación',
-  programarPartidaRecursoServicio: (...args: unknown[]) => programarMock(...args),
-  reprogramarPartidaRecursoServicio: (...args: unknown[]) => reprogramarMock(...args),
-  activarModoPreparacionServicio: (...args: unknown[]) => activarPreparacionMock(...args),
-  obtenerDatosCalendarioPlaneacionServicio: (...args: unknown[]) => obtenerCalendarioMock(...args),
-  obtenerDetalleProgramacionServicio: (...args: unknown[]) => obtenerDetalleMock(...args),
-}));
+vi.mock('@/modulos/planeacion/servicios/indice', async (importarOriginal) => {
+  const original = await importarOriginal<typeof import('@/modulos/planeacion/servicios/indice')>();
+  return {
+    ...original,
+    ErrorPlaneacion: ErrorPlaneacionMock,
+    mensajeErrorPlaneacion: (error: Error) => (
+      error.message === 'programacion_conflicto'
+        ? 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo'
+        : 'No se pudo actualizar la programación'
+    ),
+    programarPartidaRecursoServicio: (...argumentos: unknown[]) => programarMock(...argumentos),
+    reprogramarPartidaRecursoServicio: (...argumentos: unknown[]) => reprogramarMock(...argumentos),
+    activarModoPreparacionServicio: (...argumentos: unknown[]) => activarPreparacionMock(...argumentos),
+    obtenerDatosCalendarioPlaneacionServicio: (...argumentos: unknown[]) => (
+      obtenerCalendarioMock(...argumentos)
+    ),
+    obtenerDetalleProgramacionServicio: (...argumentos: unknown[]) => obtenerDetalleMock(...argumentos),
+  };
+});
 
 import {
   activarModoPreparacionAccion,
@@ -66,6 +79,91 @@ import {
   programarPartidaRecursoAccion,
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
+import { proponerHuecoReprogramacionAccion } from '@/modulos/planeacion/acciones/proponer-hueco-reprogramacion';
+
+type RespuestaLectura = { data: unknown; error: null };
+
+interface ConsultaDeSoloLectura extends PromiseLike<RespuestaLectura> {
+  select(columnas: string): ConsultaDeSoloLectura;
+  eq(campo: string, valor: string | boolean): ConsultaDeSoloLectura;
+  maybeSingle(): ConsultaDeSoloLectura;
+  insert(datos: unknown): never;
+  update(datos: unknown): never;
+  upsert(datos: unknown): never;
+  delete(): never;
+}
+
+function crearClienteDeLectura(
+  operaciones: string[],
+): SupabaseClient<Database> {
+  const respuesta: RespuestaLectura = { data: { id: '33333333-3333-4333-8333-333333333333' }, error: null };
+  const promesa = Promise.resolve(respuesta);
+  const mutacionProhibida = (operacion: string): never => {
+    operaciones.push(operacion);
+    throw new Error(`Buscar hueco no puede ejecutar ${operacion}`);
+  };
+  const consulta: ConsultaDeSoloLectura = {
+    select() {
+      operaciones.push('select');
+      return consulta;
+    },
+    eq() {
+      operaciones.push('eq');
+      return consulta;
+    },
+    maybeSingle() {
+      operaciones.push('maybeSingle');
+      return consulta;
+    },
+    insert() {
+      return mutacionProhibida('insert');
+    },
+    update() {
+      return mutacionProhibida('update');
+    },
+    upsert() {
+      return mutacionProhibida('upsert');
+    },
+    delete() {
+      return mutacionProhibida('delete');
+    },
+    then: promesa.then.bind(promesa),
+  };
+
+  return {
+    from() {
+      operaciones.push('from');
+      return consulta;
+    },
+  } as unknown as SupabaseClient<Database>;
+}
+
+function crearAdministradorDeCapacidad(operaciones: string[]): SupabaseClient<Database> {
+  return {
+    rpc(nombre: string) {
+      operaciones.push(`rpc:${nombre}`);
+      if (nombre !== 'obtener_carga_capacidad_diaria') {
+        throw new Error(`Buscar hueco no puede invocar ${nombre}`);
+      }
+      return Promise.resolve({
+        data: [{
+          recurso_id: '33333333-3333-4333-8333-333333333333',
+          area: 'taller',
+          fecha_programada: '2026-10-19',
+          turno: 'matutino',
+          horas_capacidad: 8,
+          horas_programadas: 4,
+          horas_reales: 0,
+          horas_exceso: 0,
+          horas_disponibles: 4,
+          porcentaje_ocupacion: 50,
+          sobrecargado: false,
+        }],
+        error: null,
+      });
+    },
+  } as unknown as SupabaseClient<Database>;
+}
 
 const USUARIO = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -90,7 +188,7 @@ const ENTRADA_PROGRAMAR = {
   recursoId: '55555555-5555-4555-8555-555555555555',
   secuencia: 1,
   fechaProgramada: '2026-09-15',
-  turno: 'matutino',
+  turno: 'matutino' as const,
   horasEstimadas: 4,
   ordenPrioridad: 2,
 };
@@ -114,6 +212,8 @@ beforeEach(() => {
     recursoLiberado: false,
     historial: [],
   });
+  crearClienteAdminMock.mockReturnValue({ rpc: vi.fn(), from: vi.fn() });
+  crearClienteServidorMock.mockResolvedValue({ from: vi.fn() });
 });
 
 describe('acciones seguras de Planeación', () => {
@@ -207,8 +307,6 @@ describe('acciones seguras de Planeación', () => {
   });
 
   it('permite consultar el calendario al permiso de lectura sin escribir auditoría', async () => {
-    canMock.mockResolvedValueOnce(true);
-
     const respuesta = await obtenerCalendarioPlaneacionAccion({
       fechaInicio: '2026-09-15',
       fechaFin: '2026-09-21',
@@ -230,8 +328,6 @@ describe('acciones seguras de Planeación', () => {
   });
 
   it('consulta el detalle con permiso de lectura y sin auditoría de lectura', async () => {
-    canMock.mockResolvedValueOnce(true);
-
     const respuesta = await obtenerDetalleProgramacionAccion({
       programacionId: PROGRAMACION.id,
     });
@@ -273,5 +369,30 @@ describe('acciones seguras de Planeación', () => {
     });
     expect(JSON.stringify(respuesta)).not.toContain('SQL sensible');
     errorInterno.mockRestore();
+  });
+});
+
+describe('proponerHuecoReprogramacionAccion', () => {
+  it('solo consulta el recurso y la RPC de capacidad al previsualizar (C9.4/P-18)', async () => {
+    const operacionesCliente: string[] = [];
+    const operacionesAdmin: string[] = [];
+    obtenerUsuarioMock.mockResolvedValue({ id: 'actor-planeacion' });
+    canMock.mockResolvedValue(true);
+    crearClienteServidorMock.mockResolvedValue(crearClienteDeLectura(operacionesCliente));
+    crearClienteAdminMock.mockReturnValue(crearAdministradorDeCapacidad(operacionesAdmin));
+
+    const resultado = await proponerHuecoReprogramacionAccion({
+      recursoId: '33333333-3333-4333-8333-333333333333',
+      turno: 'matutino',
+      horasEstimadas: 2,
+      desdeFecha: '2026-10-19',
+    });
+
+    expect(resultado).toEqual({
+      exito: true,
+      datos: expect.objectContaining({ fecha: '2026-10-19', horasDisponibles: 4 }),
+    });
+    expect(operacionesCliente).toEqual(['from', 'select', 'eq', 'eq', 'maybeSingle']);
+    expect(operacionesAdmin).toEqual(['rpc:obtener_carga_capacidad_diaria']);
   });
 });
