@@ -140,8 +140,7 @@ export function calcularCostoManoObraMxn(
 export function calcularCostoGastosDirectosMxn(
   gastos: readonly Gasto[],
   ordenId: string,
-): { costo: number; considerados: number; excluidos: number; incluidos: number } {
-  let costo = 0;
+): { costo: number; considerados: number; excluidos: number; incluidos: number } {  let costo = 0;
   let considerados = 0;
   let excluidos = 0;
   let incluidos = 0;
@@ -159,7 +158,8 @@ export function calcularCostoGastosDirectosMxn(
       excluidos += 1;
       continue;
     }
-    const importe = convertirAMxn(gasto.montoTotal, gasto.tipoCambio);
+    // F11/F-08: el costo se mide sin IVA; el total solo representa el desembolso.
+    const importe = convertirAMxn(gasto.montoSubtotal, gasto.tipoCambio);
     if (importe === null) {
       excluidos += 1;
       continue;
