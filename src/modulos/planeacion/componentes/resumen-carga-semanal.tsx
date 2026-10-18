@@ -26,7 +26,7 @@ export interface PropsResumenCargaSemanal {
 
 /**
  * C9.1/P-01: «¿cuántas horas tiene ocupadas cada equipo y cuánto queda?» —
- * tabla Equipo × días con ocupadas/capacidad y columna de capacidad libre,
+ * tabla Equipo × días con horas pendientes/capacidad y columna de capacidad libre,
  * montada antes de los filtros del calendario.
  */
 export function ResumenCargaSemanal({
@@ -49,7 +49,7 @@ export function ResumenCargaSemanal({
           Carga semanal
         </h2>
         <p className="text-xs text-texto-secundario">
-          Horas ocupadas/capacidad por equipo; la columna Libre es lo que resta en el rango.
+          Horas pendientes/capacidad por equipo; la columna Libre es lo que resta en el rango.
         </p>
       </div>
 
@@ -69,7 +69,7 @@ export function ResumenCargaSemanal({
         <div className="overflow-x-auto">
           <table className="w-full min-w-max border-collapse text-xs">
             <caption className="sr-only">
-              Ocupación de capacidad por equipo y día, con la capacidad libre del rango
+              Capacidad pendiente por equipo y día, con la capacidad libre del rango
             </caption>
             <thead>
               <tr className="border-b border-borde text-left">

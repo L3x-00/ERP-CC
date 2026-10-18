@@ -16,6 +16,8 @@ function carga(parcial: Partial<CargaCapacidadDiaria> & {
     area: 'taller',
     horasCapacidad: 8,
     horasProgramadas: 8 - parcial.horasDisponibles,
+    horasReales: 0,
+    horasExceso: 0,
     porcentajeOcupacion: 0,
     sobrecargado: false,
     ...parcial,

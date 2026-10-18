@@ -5477,7 +5477,9 @@ export type Database = {
           fecha_programada: string
           horas_capacidad: number
           horas_disponibles: number
+          horas_exceso: number
           horas_programadas: number
+          horas_reales: number
           porcentaje_ocupacion: number
           recurso_id: string
           sobrecargado: boolean

@@ -11,6 +11,8 @@ export {
 
 export { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
 
+export { obtenerDetalleProgramacionServicio } from '@/modulos/planeacion/servicios/detalle-programacion-servicio';
+
 export { obtenerCompatibilidadRecursosServicio } from '@/modulos/planeacion/servicios/compatibilidad-servicio';
 
 export type {

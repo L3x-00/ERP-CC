@@ -4,7 +4,10 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
-import { CLAVE_CALENDARIO_PLANEACION } from '@/modulos/planeacion/componentes/claves-consulta';
+import {
+  CLAVE_CALENDARIO_PLANEACION,
+  CLAVE_DETALLE_PROGRAMACION,
+} from '@/modulos/planeacion/componentes/claves-consulta';
 
 /** Tablas de Planeación que actualizan la proyección cacheada de calendario. */
 const TABLAS_CALENDARIO = [
@@ -12,6 +15,7 @@ const TABLAS_CALENDARIO = [
   'capacidades_recurso_turno',
   'excepciones_capacidad_recurso',
   'programacion_areas',
+  'sesiones_trabajo',
 ] as const;
 
 /** OP y partidas actualizan las opciones RSC del formulario de asignación. */
@@ -66,6 +70,9 @@ export function SincronizadorPlaneacionRealtime({
         if (!desmontado) {
           void clienteConsultas.invalidateQueries({
             queryKey: CLAVE_CALENDARIO_PLANEACION,
+          });
+          void clienteConsultas.invalidateQueries({
+            queryKey: CLAVE_DETALLE_PROGRAMACION,
           });
           if (requiereRefrescoRsc) alCambiarEstructuraOperacion?.();
           requiereRefrescoRsc = false;

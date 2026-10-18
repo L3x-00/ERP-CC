@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   esquemaCambiarModoPreparacion,
+  esquemaObtenerDetalleProgramacion,
   esquemaProgramarOrden,
 } from '@/modulos/planeacion/validaciones/indice';
 import {
@@ -251,6 +252,24 @@ describe('esquemaCambiarModoPreparacion', () => {
     });
 
     expect(resultado.success).toBe(false);
+  });
+});
+
+describe('esquemaObtenerDetalleProgramacion', () => {
+  it('acepta únicamente el UUID de la programación', () => {
+    expect(
+      esquemaObtenerDetalleProgramacion.safeParse({ programacionId: uuidProgramacion }),
+    ).toEqual({ success: true, data: { programacionId: uuidProgramacion } });
+
+    expect(
+      esquemaObtenerDetalleProgramacion.safeParse({ programacionId: 'programacion-1' }).success,
+    ).toBe(false);
+    expect(
+      esquemaObtenerDetalleProgramacion.safeParse({
+        programacionId: uuidProgramacion,
+        actorId: uuidOrden,
+      }).success,
+    ).toBe(false);
   });
 });
 

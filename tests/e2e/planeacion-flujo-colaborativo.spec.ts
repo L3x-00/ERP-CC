@@ -264,7 +264,7 @@ test.describe.serial('Planeación colaborativa completa', () => {
   test('programa, activa preparación y sincroniza una reprogramación externa sin recargar', async ({
     page,
     context,
-  }) => {
+  }, testInfo) => {
     const contextoPrueba = contexto;
     if (!contextoPrueba) throw new Error('El contexto E2E no fue preparado');
     await iniciarSesion(page, contextoPrueba);
@@ -358,6 +358,24 @@ test.describe.serial('Planeación colaborativa completa', () => {
       .getByTestId(`programacion-${contextoPrueba.programacionId}`)
       .getByRole('button', { name: 'Seleccionar' })
       .click();
+    const detalle = page.getByTestId('detalle-programacion-planeacion');
+    await expect(detalle).toBeVisible();
+    await expect(detalle).toContainText('Planeador E2E');
+    await expect(detalle).toContainText('Estimadas');
+    await expect(detalle).toContainText('Reales');
+    await expect(detalle).toContainText('Exceso');
+    await expect(detalle).toContainText('Validación colaborativa E2E');
+    if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+      const tamanoOriginal = page.viewportSize() ?? { width: 1280, height: 720 };
+      for (const ancho of [1440, 1024, 390]) {
+        await page.setViewportSize({ width: ancho, height: 900 });
+        await detalle.screenshot({
+          path: testInfo.outputPath(`c9-3-detalle-${ancho}.png`),
+          animations: 'disabled',
+        });
+      }
+      await page.setViewportSize(tamanoOriginal);
+    }
     await page.getByTestId('activar-preparacion-planeacion').click();
     await expect
       .poll(async () => {

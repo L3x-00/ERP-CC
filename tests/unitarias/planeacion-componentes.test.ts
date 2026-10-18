@@ -16,12 +16,14 @@ import {
 const {
   activarPreparacionMock,
   obtenerCalendarioMock,
+  obtenerDetalleMock,
   programarMock,
   proponerHuecoMock,
   reprogramarMock,
 } = vi.hoisted(() => ({
   activarPreparacionMock: vi.fn(),
   obtenerCalendarioMock: vi.fn(),
+  obtenerDetalleMock: vi.fn(),
   programarMock: vi.fn(),
   proponerHuecoMock: vi.fn(),
   reprogramarMock: vi.fn(),
@@ -39,6 +41,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/modulos/planeacion/acciones/indice', () => ({
   activarModoPreparacionAccion: (...args: unknown[]) => activarPreparacionMock(...args),
   obtenerCalendarioPlaneacionAccion: (...args: unknown[]) => obtenerCalendarioMock(...args),
+  obtenerDetalleProgramacionAccion: (...args: unknown[]) => obtenerDetalleMock(...args),
   programarPartidaRecursoAccion: (...args: unknown[]) => programarMock(...args),
   proponerHuecoReprogramacionAccion: (...args: unknown[]) => proponerHuecoMock(...args),
   reprogramarPartidaRecursoAccion: (...args: unknown[]) => reprogramarMock(...args),
@@ -74,6 +77,8 @@ const DATOS: DatosCalendarioPlaneacion = {
       turno: 'matutino',
       horasCapacidad: 8,
       horasProgramadas: 4,
+      horasReales: 0,
+      horasExceso: 0,
       horasDisponibles: 4,
       porcentajeOcupacion: 50,
       sobrecargado: false,
@@ -85,6 +90,8 @@ const DATOS: DatosCalendarioPlaneacion = {
       turno: 'matutino',
       horasCapacidad: 8,
       horasProgramadas: 8,
+      horasReales: 0,
+      horasExceso: 0,
       horasDisponibles: 0,
       porcentajeOcupacion: 100,
       sobrecargado: false,
@@ -181,6 +188,37 @@ describe('operación de Planeación en cliente', () => {
       programacionSeleccionadaId: null,
     });
     obtenerCalendarioMock.mockResolvedValue({ exito: true, datos: DATOS });
+    obtenerDetalleMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        responsableNombre: 'Ana Planeación',
+        recursoNombre: 'CNC-01 · CNC principal',
+        grupoEquipoNombre: 'CNC · Centros de maquinado',
+        horasEstimadas: 4,
+        horasReales: 5,
+        horasExceso: 1,
+        recursoLiberado: false,
+        historial: [{
+          creadoEn: '2026-09-14T10:00:00.000Z',
+          actorNombre: 'Bruno Planeación',
+          motivo: 'Ajuste de turno',
+          anterior: {
+            recurso: 'CNC-02 · CNC respaldo',
+            fechaProgramada: '2026-09-14',
+            turno: 'matutino',
+            horasEstimadas: 4,
+            ordenPrioridad: 2,
+          },
+          nuevo: {
+            recurso: 'CNC-01 · CNC principal',
+            fechaProgramada: '2026-09-15',
+            turno: 'matutino',
+            horasEstimadas: 4,
+            ordenPrioridad: 1,
+          },
+        }],
+      },
+    });
     programarMock.mockResolvedValue({ exito: true, datos: { id: 'nueva' } });
     reprogramarMock.mockResolvedValue({ exito: true, datos: { id: DATOS.programaciones[0].id } });
     proponerHuecoMock.mockResolvedValue({
@@ -231,6 +269,55 @@ describe('operación de Planeación en cliente', () => {
       }),
     );
     expect(invalidarSpy).toHaveBeenCalledWith({ queryKey: ['planeacion', 'calendario'] });
+    expect(invalidarSpy).toHaveBeenCalledWith({ queryKey: ['planeacion', 'detalle-programacion'] });
+  });
+
+  it('carga el detalle al seleccionar y muestra responsable, grupo, horas e historial', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    expect(screen.queryByTestId('detalle-programacion-planeacion')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+
+    const detalle = await screen.findByTestId('detalle-programacion-planeacion');
+    await waitFor(() => expect(obtenerDetalleMock).toHaveBeenCalledWith({
+      programacionId: DATOS.programaciones[0].id,
+    }));
+    expect(detalle.textContent).toContain('Ana Planeación');
+    expect(detalle.textContent).toContain('CNC · Centros de maquinado');
+    expect(detalle.textContent).toContain('5 h');
+    expect(detalle.textContent).toContain('1 h');
+    expect(detalle.textContent).toContain('Ajuste de turno');
+    expect(detalle.textContent).toContain('Bruno Planeación');
+  });
+
+  it('ofrece reintentar cuando el detalle falla', async () => {
+    obtenerDetalleMock
+      .mockResolvedValueOnce({ exito: false, error: 'Fallo temporal' })
+      .mockResolvedValueOnce({
+        exito: true,
+        datos: {
+          responsableNombre: 'Ana Planeación',
+          recursoNombre: 'CNC-01 · CNC principal',
+          grupoEquipoNombre: null,
+          horasEstimadas: 4,
+          horasReales: 0,
+          horasExceso: 0,
+          recursoLiberado: false,
+          historial: [],
+        },
+      });
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    renderizarOperacion(cliente);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    const contenedor = await screen.findByTestId('detalle-programacion-planeacion');
+    const alerta = await within(contenedor).findByRole('alert');
+    expect(alerta.textContent).toContain('No se pudo cargar el detalle');
+    fireEvent.click(within(alerta).getByRole('button', { name: 'Reintentar' }));
+
+    expect(await screen.findByText('Sin reprogramaciones registradas.')).toBeTruthy();
+    expect(obtenerDetalleMock).toHaveBeenCalledTimes(2);
   });
 
   it('activa preparación solo desde una programación seleccionada', async () => {
@@ -492,6 +579,8 @@ describe('operación de Planeación en cliente', () => {
       turno: 'matutino',
       horasCapacidad: 8,
       horasProgramadas: 9,
+      horasReales: 0,
+      horasExceso: 1,
       horasDisponibles: 0,
       porcentajeOcupacion: 112.5,
       sobrecargado: true,
@@ -628,6 +717,8 @@ describe('operación de Planeación en cliente', () => {
       turno: 'matutino',
       horasCapacidad: 8,
       horasProgramadas: 8,
+      horasReales: 0,
+      horasExceso: 0,
       horasDisponibles: 0,
       porcentajeOcupacion: 100,
       sobrecargado: true,
