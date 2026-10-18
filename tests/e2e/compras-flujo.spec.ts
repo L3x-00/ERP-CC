@@ -82,6 +82,8 @@ test.describe('Compras SII-B8 F4: folio CG, CxP y pagos a proveedores', () => {
       await iniciarSesion(page, contexto);
       await page.goto('/compras');
       await expect(page.getByTestId('cola-compras')).toBeVisible();
+      await expect(page.locator('body')).not.toContainText('no entra a la rentabilidad');
+      await expect(page.getByText(/Con Orden, la compra se clasifica por rubro/)).toBeVisible();
 
       // 1. Alta en borrador con folio CG.
       await page.getByTestId('nueva-compra').click();

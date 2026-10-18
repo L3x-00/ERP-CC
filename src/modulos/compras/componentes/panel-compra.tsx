@@ -65,7 +65,7 @@ export function PanelCompra({
           <DialogDescription>
             {modo === 'pagar'
               ? 'El pago se registra en la moneda de la compra y reduce el saldo; al saldarse queda PAGADA.'
-              : 'Folio CG-MMYY_#### de la serie compartida compras/gastos. La compra no entra a la rentabilidad de órdenes.'}
+              : 'Folio CG-MMYY_#### de la serie compartida compras/gastos. Con Orden, la compra se clasifica por rubro de costo; sin Orden es gasto indirecto.'}
           </DialogDescription>
         </DialogHeader>
 

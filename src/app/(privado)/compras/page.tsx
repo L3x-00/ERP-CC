@@ -30,7 +30,8 @@ export default async function PaginaCompras() {
         <h1 className="text-2xl font-bold">Compras</h1>
         <p className="text-sm text-texto-secundario">
           Órdenes de compra con folio CG-MMYY_####, cuenta por pagar por saldo y pagos parciales a
-          proveedores. Las compras no entran a la rentabilidad de las órdenes.
+          proveedores. Con Orden, la compra se clasifica por rubro de costo (material,
+          subcontratación o gastos directos); sin Orden es gasto indirecto.
         </p>
       </header>
       <ColaCompras inicial={cola} puedeGestionar={puedeGestionar} />
