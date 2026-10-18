@@ -734,6 +734,9 @@ export type Database = {
         Row: {
           actualizado_en: string
           cancelada_en: string | null
+          cantidad: number | null
+          concepto: string | null
+          costo_unitario: number | null
           creado_en: string
           creado_por: string
           estado: string
@@ -741,6 +744,7 @@ export type Database = {
           fecha_vencimiento: string | null
           folio_sii: string
           id: string
+          material_id: string | null
           moneda: string
           monto_iva: number
           monto_subtotal: number
@@ -749,12 +753,17 @@ export type Database = {
           notas: string | null
           orden_id: string | null
           proveedor_id: string
+          rubro_costo: string | null
           saldo_pendiente: number
           tipo_cambio: number
+          unidad: string | null
         }
         Insert: {
           actualizado_en?: string
           cancelada_en?: string | null
+          cantidad?: number | null
+          concepto?: string | null
+          costo_unitario?: number | null
           creado_en?: string
           creado_por: string
           estado?: string
@@ -762,6 +771,7 @@ export type Database = {
           fecha_vencimiento?: string | null
           folio_sii: string
           id?: string
+          material_id?: string | null
           moneda?: string
           monto_iva?: number
           monto_subtotal: number
@@ -770,12 +780,17 @@ export type Database = {
           notas?: string | null
           orden_id?: string | null
           proveedor_id: string
+          rubro_costo?: string | null
           saldo_pendiente: number
           tipo_cambio?: number
+          unidad?: string | null
         }
         Update: {
           actualizado_en?: string
           cancelada_en?: string | null
+          cantidad?: number | null
+          concepto?: string | null
+          costo_unitario?: number | null
           creado_en?: string
           creado_por?: string
           estado?: string
@@ -783,6 +798,7 @@ export type Database = {
           fecha_vencimiento?: string | null
           folio_sii?: string
           id?: string
+          material_id?: string | null
           moneda?: string
           monto_iva?: number
           monto_subtotal?: number
@@ -791,8 +807,10 @@ export type Database = {
           notas?: string | null
           orden_id?: string | null
           proveedor_id?: string
+          rubro_costo?: string | null
           saldo_pendiente?: number
           tipo_cambio?: number
+          unidad?: string | null
         }
         Relationships: [
           {
@@ -5906,19 +5924,38 @@ export type Database = {
           sobrepago_pago: number
         }[]
       }
+      asignar_rubro_costo_compra: {
+        Args: {
+          p_actor_id: string
+          p_compra_id: string
+          p_correlation_id?: string
+          p_rubro_costo: string
+        }
+        Returns: {
+          actualizado_en: string
+          id: string
+          rubro_costo: string
+        }[]
+      }
       actualizar_compra_borrador: {
         Args: {
           p_actualizado_en_esperado: string
           p_actor_id: string
+          p_cantidad?: number | null
           p_compra_id: string
+          p_concepto?: string | null
+          p_costo_unitario?: number | null
           p_fecha_vencimiento: string | null
+          p_material_id?: string | null
           p_moneda: string
           p_monto_iva: number
           p_monto_subtotal: number
           p_notas: string | null
           p_orden_id: string | null
           p_proveedor_id: string
+          p_rubro_costo?: string | null
           p_tipo_cambio: number
+          p_unidad?: string | null
         }
         Returns: {
           actualizado_en: string
@@ -5951,15 +5988,21 @@ export type Database = {
       crear_compra: {
         Args: {
           p_actor_id: string
+          p_cantidad?: number | null
+          p_concepto?: string | null
           p_correlation_id?: string
+          p_costo_unitario?: number | null
           p_fecha_vencimiento: string | null
+          p_material_id?: string | null
           p_moneda: string
           p_monto_iva: number
           p_monto_subtotal: number
           p_notas: string | null
           p_orden_id: string | null
           p_proveedor_id: string
+          p_rubro_costo?: string | null
           p_tipo_cambio: number
+          p_unidad?: string | null
         }
         Returns: {
           actualizado_en: string

@@ -3,6 +3,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 import {
   filaACompra,
   type CompraCola,
+  type MaterialOpcion,
   type OrdenOpcion,
   type ProveedorOpcion,
 } from '@/modulos/compras/tipos/indice';
@@ -11,6 +12,9 @@ export type ColaCompras = {
   compras: CompraCola[];
   proveedores: ProveedorOpcion[];
   ordenes: OrdenOpcion[];
+  materiales: MaterialOpcion[];
+  /** C10.1/F08: último costo unitario capturado por material (solo lectura). */
+  ultimosCostos: Record<string, number>;
 };
 
 /** SII-B8 F4: cola de compras con proveedor/orden legibles y catálogos del alta. */
@@ -18,7 +22,7 @@ export async function obtenerColaCompras(
   cliente: SupabaseClient<Database>,
   limite = 200,
 ): Promise<ColaCompras> {
-  const [comprasResp, proveedoresResp, ordenesResp] = await Promise.all([
+  const [comprasResp, proveedoresResp, ordenesResp, materialesResp, costosResp] = await Promise.all([
     cliente
       .from('compras')
       .select('*')
@@ -33,6 +37,19 @@ export async function obtenerColaCompras(
       .select('id, folio, folio_sii')
       .order('creado_en', { ascending: false })
       .limit(200),
+    cliente
+      .from('catalogo_materiales')
+      .select('id, codigo, nombre')
+      .eq('activo', true)
+      .order('nombre', { ascending: true }),
+    cliente
+      .from('compras')
+      .select('material_id, costo_unitario')
+      .not('material_id', 'is', null)
+      .not('costo_unitario', 'is', null)
+      .neq('estado', 'CANCELADA')
+      .order('fecha_compra', { ascending: false })
+      .limit(500),
   ]);
   if (comprasResp.error) {
     throw new Error('No se pudieron cargar las compras');
@@ -54,6 +71,14 @@ export async function obtenerColaCompras(
     ordenFolio: fila.orden_id ? (folioOrdenMap.get(fila.orden_id) ?? null) : null,
   }));
 
+  // Solo lectura: la compra más reciente con costo unitario define la referencia.
+  const ultimosCostos: Record<string, number> = {};
+  for (const fila of costosResp.data ?? []) {
+    if (fila.material_id && fila.costo_unitario !== null && !(fila.material_id in ultimosCostos)) {
+      ultimosCostos[fila.material_id] = Number(fila.costo_unitario);
+    }
+  }
+
   return {
     compras,
     proveedores: (proveedoresResp.data ?? []).map((proveedor) => ({
@@ -65,6 +90,12 @@ export async function obtenerColaCompras(
       folio: orden.folio,
       folioSii: orden.folio_sii ?? null,
     })),
+    materiales: (materialesResp.data ?? []).map((material) => ({
+      id: material.id,
+      codigo: material.codigo,
+      nombre: material.nombre,
+    })),
+    ultimosCostos,
   };
 }
 

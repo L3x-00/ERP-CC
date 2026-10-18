@@ -45,3 +45,41 @@ describe('esquemas de compras (SII-B8 F4)', () => {
     expect(esquemaPagarCompra.safeParse({ ...base, monto: 50, metodoPago: 'otro' }).success).toBe(false);
   });
 });
+
+const ORDEN = '00000000-0000-4000-8000-000000000002';
+const MATERIAL = '00000000-0000-4000-8000-000000000003';
+
+describe('esquemas de compras (C10.1/F06/F08)', () => {
+  it('con Orden exige rubro de costo; sin Orden puede quedar sin rubro', () => {
+    expect(esquemaCrearCompra.safeParse(compra({ ordenId: ORDEN })).success).toBe(false);
+    expect(esquemaCrearCompra.safeParse(compra({ ordenId: ORDEN, rubroCosto: 'material' })).success).toBe(true);
+    expect(esquemaCrearCompra.safeParse(compra()).success).toBe(true);
+    expect(esquemaCrearCompra.safeParse(compra({ ordenId: ORDEN, rubroCosto: 'otro' })).success).toBe(false);
+  });
+
+  it('los rubros válidos son material, subcontratación y gastos directos', () => {
+    for (const rubroCosto of ['material', 'subcontratacion', 'gastos_directos']) {
+      expect(esquemaCrearCompra.safeParse(compra({ ordenId: ORDEN, rubroCosto })).success, rubroCosto).toBe(true);
+    }
+  });
+
+  it('la cantidad debe ser positiva y el costo unitario no negativo', () => {
+    expect(esquemaCrearCompra.safeParse(compra({ cantidad: 0 })).success).toBe(false);
+    expect(esquemaCrearCompra.safeParse(compra({ cantidad: -2 })).success).toBe(false);
+    expect(esquemaCrearCompra.safeParse(compra({ cantidad: 2, costoUnitario: -1 })).success).toBe(false);
+    expect(esquemaCrearCompra.safeParse(compra({ cantidad: 2, costoUnitario: 50, concepto: 'Placa' })).success).toBe(true);
+  });
+
+  it('con cantidad y costo unitario el subtotal debe cuadrar con tolerancia 0.01', () => {
+    const detalle = { cantidad: 2, costoUnitario: 100, concepto: 'Placa de acero' };
+    expect(esquemaCrearCompra.safeParse(compra({ montoSubtotal: 200, ...detalle })).success).toBe(true);
+    expect(esquemaCrearCompra.safeParse(compra({ montoSubtotal: 200.01, ...detalle })).success).toBe(true);
+    expect(esquemaCrearCompra.safeParse(compra({ montoSubtotal: 200.02, ...detalle })).success).toBe(false);
+  });
+
+  it('el detalle de material exige concepto o material del catálogo', () => {
+    expect(esquemaCrearCompra.safeParse(compra({ cantidad: 2 })).success).toBe(false);
+    expect(esquemaCrearCompra.safeParse(compra({ cantidad: 2, materialId: MATERIAL })).success).toBe(true);
+    expect(esquemaCrearCompra.safeParse(compra({ cantidad: 2, concepto: 'Servicio de corte' })).success).toBe(true);
+  });
+});

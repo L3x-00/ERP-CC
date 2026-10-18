@@ -146,7 +146,7 @@ test.describe.serial('costo de producción de trabajos internos (TI)', () => {
     await expect(tarjeta).toContainText('Costo de producción');
     await expect(tarjeta).toContainText(datos.folioOrden);
     await expect(tarjeta).toContainText('Trabajo interno (TI)');
-    await expect(tarjeta.getByTestId('rentabilidad-ti-costo')).toContainText('$1,160.00');
+    await expect(tarjeta.getByTestId('rentabilidad-ti-costo')).toContainText('$1,000.00');
     await expect(tarjeta).not.toContainText('Venta explícita');
     await expect(tarjeta).not.toContainText('Margen');
 
@@ -154,7 +154,7 @@ test.describe.serial('costo de producción de trabajos internos (TI)', () => {
       p_orden_id: datos.ordenId,
     });
     expect(Number(calculo?.[0]?.monto_venta_mxn)).toBe(0);
-    expect(Number(calculo?.[0]?.costo_gastos_directos_mxn)).toBe(1160);
-    expect(Number(calculo?.[0]?.costo_total_mxn)).toBe(1160);
+    expect(Number(calculo?.[0]?.costo_gastos_directos_mxn)).toBe(1000);
+    expect(Number(calculo?.[0]?.costo_total_mxn)).toBe(1000);
   });
 });

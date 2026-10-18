@@ -20,7 +20,19 @@ import {
   pagarCompraAccion,
   type ResultadoPagarCompra,
 } from '@/modulos/compras/acciones/pagar-compra';
-import type { CompraCola, OrdenOpcion, ProveedorOpcion } from '@/modulos/compras/tipos/indice';
+import {
+  AvisoNivelCosto,
+  CamposCostoCompra,
+  ClasificarRubroCompra,
+  type ValoresCostoCompra,
+} from '@/modulos/compras/componentes/campos-costo-compra';
+import type {
+  CompraCola,
+  MaterialOpcion,
+  OrdenOpcion,
+  ProveedorOpcion,
+  RubroCostoCompra,
+} from '@/modulos/compras/tipos/indice';
 
 export type ModoPanelCompra = 'crear' | 'editar' | 'estado' | 'cancelar' | 'pagar';
 
@@ -30,6 +42,8 @@ export function PanelCompra({
   compra,
   proveedores,
   ordenes,
+  materiales,
+  ultimosCostos,
   abierto,
   onCerrar,
   onActualizada,
@@ -38,6 +52,8 @@ export function PanelCompra({
   compra: CompraCola | null;
   proveedores: ProveedorOpcion[];
   ordenes: OrdenOpcion[];
+  materiales: MaterialOpcion[];
+  ultimosCostos: Record<string, number>;
   abierto: boolean;
   onCerrar: () => void;
   onActualizada: () => Promise<void> | void;
@@ -69,17 +85,26 @@ export function PanelCompra({
           </DialogDescription>
         </DialogHeader>
 
+        {compra ? <AvisoNivelCosto compra={compra} /> : null}
+
         {mensaje ? (
           <div className="rounded-md border border-exito-texto/40 bg-exito-suave p-3 text-sm" data-testid="compra-mensaje">
             <p className="font-semibold">{mensaje}</p>
           </div>
         ) : null}
 
+        {!mensaje && compra && compra.ordenId && compra.rubroCosto === null
+          && compra.estado !== 'CANCELADA' ? (
+            <ClasificarRubroCompra compra={compra} onExito={(texto) => void completar(texto)} />
+          ) : null}
+
         {(modo === 'crear' || modo === 'editar') && !mensaje ? (
           <FormularioCompra
             compra={modo === 'editar' ? compra : null}
             proveedores={proveedores}
             ordenes={ordenes}
+            materiales={materiales}
+            ultimosCostos={ultimosCostos}
             onExito={(texto) => void completar(texto)}
           />
         ) : null}
@@ -110,11 +135,15 @@ function FormularioCompra({
   compra,
   proveedores,
   ordenes,
+  materiales,
+  ultimosCostos,
   onExito,
 }: {
   compra: CompraCola | null;
   proveedores: ProveedorOpcion[];
   ordenes: OrdenOpcion[];
+  materiales: MaterialOpcion[];
+  ultimosCostos: Record<string, number>;
   onExito: (texto: string) => void;
 }) {
   const [proveedorId, setProveedorId] = useState(compra?.proveedorId ?? '');
@@ -125,8 +154,30 @@ function FormularioCompra({
   const [tipoCambio, setTipoCambio] = useState(compra ? String(compra.tipoCambio) : '1');
   const [vencimiento, setVencimiento] = useState(compra?.fechaVencimiento?.slice(0, 10) ?? '');
   const [notas, setNotas] = useState(compra?.notas ?? '');
+  const [costo, setCosto] = useState<ValoresCostoCompra>({
+    rubroCosto: (compra?.rubroCosto ?? '') as RubroCostoCompra | '',
+    concepto: compra?.concepto ?? '',
+    materialId: compra?.materialId ?? '',
+    cantidad: compra?.cantidad != null ? String(compra.cantidad) : '',
+    unidad: compra?.unidad ?? '',
+    costoUnitario: compra?.costoUnitario != null ? String(compra.costoUnitario) : '',
+  });
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+
+  function cambiarCosto(parcial: Partial<ValoresCostoCompra>): void {
+    const siguiente = { ...costo, ...parcial };
+    setCosto(siguiente);
+    // C10.1/F08: el subtotal se deriva cuando hay cantidad y costo unitario.
+    if (siguiente.cantidad.trim() !== '' && siguiente.costoUnitario.trim() !== '') {
+      const cantidad = Number(siguiente.cantidad);
+      const costoUnitario = Number(siguiente.costoUnitario);
+      if (Number.isFinite(cantidad) && Number.isFinite(costoUnitario)
+        && cantidad > 0 && costoUnitario >= 0) {
+        setSubtotal(String(Math.round(cantidad * costoUnitario * 10_000) / 10_000));
+      }
+    }
+  }
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -141,6 +192,12 @@ function FormularioCompra({
       tipoCambio: Number(tipoCambio),
       fechaVencimiento: vencimiento === '' ? null : vencimiento,
       notas: notas.trim() === '' ? null : notas.trim(),
+      rubroCosto: costo.rubroCosto === '' ? null : costo.rubroCosto,
+      concepto: costo.concepto.trim() === '' ? null : costo.concepto.trim(),
+      materialId: costo.materialId === '' ? null : costo.materialId,
+      cantidad: costo.cantidad.trim() === '' ? null : Number(costo.cantidad),
+      unidad: costo.unidad.trim() === '' ? null : costo.unidad.trim(),
+      costoUnitario: costo.costoUnitario.trim() === '' ? null : Number(costo.costoUnitario),
     };
     if (compra) {
       const respuesta = await actualizarCompraAccion({
@@ -225,10 +282,16 @@ function FormularioCompra({
           <Input className="min-h-11" data-testid="compra-notas"
             value={notas} onChange={(evento) => setNotas(evento.target.value)} />
         </label>
+        <CamposCostoCompra
+          valores={costo}
+          materiales={materiales}
+          ultimosCostos={ultimosCostos}
+          onCambiar={cambiarCosto}
+        />
       </div>
       {error ? <p role="alert" className="text-sm text-peligro-texto" data-testid="compra-error">{error}</p> : null}
       <DialogFooter>
-        <Button type="submit" disabled={ocupado || proveedorId === ''}
+        <Button type="submit" disabled={ocupado || proveedorId === '' || (ordenId !== '' && costo.rubroCosto === '')}
           data-testid={compra ? 'confirmar-editar-compra' : 'confirmar-crear-compra'}>
           {ocupado ? 'Guardando…' : compra ? 'Guardar cambios' : 'Crear compra'}
         </Button>

@@ -5,6 +5,17 @@ export const ESTADOS_COMPRA = ['BORRADOR', 'CONFIRMADA', 'RECIBIDA', 'PAGADA', '
 
 export type EstadoCompra = (typeof ESTADOS_COMPRA)[number];
 
+/** C10.1/F06: rubros con los que una compra alimenta el costo de la Orden. */
+export const RUBROS_COSTO_COMPRA = ['material', 'subcontratacion', 'gastos_directos'] as const;
+
+export type RubroCostoCompra = (typeof RUBROS_COSTO_COMPRA)[number];
+
+export const ETIQUETA_RUBRO_COSTO_COMPRA: Record<RubroCostoCompra, string> = {
+  material: 'Material',
+  subcontratacion: 'Subcontratación',
+  gastos_directos: 'Gastos directos',
+};
+
 /** Compra/orden de compra con folio CG y saldo por pagar. */
 export type Compra = {
   id: string;
@@ -23,6 +34,14 @@ export type Compra = {
   notas: string | null;
   motivoCancelacion: string | null;
   actualizadoEn: string;
+  /** C10.1/F06: null en históricas aún sin clasificar. */
+  rubroCosto: RubroCostoCompra | null;
+  /** C10.1/F08: detalle mínimo de material, nullable. */
+  concepto: string | null;
+  materialId: string | null;
+  cantidad: number | null;
+  unidad: string | null;
+  costoUnitario: number | null;
 };
 
 /** Compra de la cola con proveedor/orden legibles. */
@@ -33,6 +52,8 @@ export type CompraCola = Compra & {
 
 export type ProveedorOpcion = { id: string; nombre: string };
 export type OrdenOpcion = { id: string; folio: string; folioSii: string | null };
+/** C10.1/F08: opción del catálogo para el detalle de material. */
+export type MaterialOpcion = { id: string; codigo: string; nombre: string };
 
 export const ETIQUETA_ESTADO_COMPRA: Record<EstadoCompra, string> = {
   BORRADOR: 'Borrador',
@@ -61,5 +82,11 @@ export function filaACompra(fila: Tables<'compras'>): Compra {
     notas: fila.notas ?? null,
     motivoCancelacion: fila.motivo_cancelacion ?? null,
     actualizadoEn: fila.actualizado_en,
+    rubroCosto: (fila.rubro_costo as RubroCostoCompra | null) ?? null,
+    concepto: fila.concepto ?? null,
+    materialId: fila.material_id ?? null,
+    cantidad: fila.cantidad === null ? null : Number(fila.cantidad),
+    unidad: fila.unidad ?? null,
+    costoUnitario: fila.costo_unitario === null ? null : Number(fila.costo_unitario),
   };
 }
