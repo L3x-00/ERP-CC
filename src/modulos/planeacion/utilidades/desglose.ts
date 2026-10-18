@@ -1,4 +1,5 @@
 import type { DesglosePartidaPlaneacion } from '@/modulos/planeacion/tipos/indice';
+import { resumirProcesos } from '@/modulos/ordenes/utilidades/procesos';
 
 /**
  * Presentación pura del desglose de una partida (OBS-08). Los campos que el
@@ -63,7 +64,7 @@ export function etiquetaAvancePartida(desglose: DesglosePartidaPlaneacion): stri
 /** Procesos solicitados o "Por definir" cuando el catálogo aún no los captura. */
 export function etiquetaProcesos(desglose: DesglosePartidaPlaneacion): string {
   const procesos = desglose.procesos.map((proceso) => proceso.trim()).filter(Boolean);
-  return procesos.length === 0 ? TEXTO_POR_DEFINIR : procesos.join(', ');
+  return procesos.length === 0 ? TEXTO_POR_DEFINIR : resumirProcesos(procesos);
 }
 
 /** Material asignado con su cantidad solicitada, o "Por definir". */

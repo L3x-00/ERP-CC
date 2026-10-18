@@ -52,6 +52,8 @@ vi.mock('@/modulos/planeacion/componentes/sincronizador-planeacion-realtime', ()
 
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-planeacion';
+import { AccionesTarjetaOrden } from '@/modulos/planeacion/componentes/acciones-tarjeta-orden';
+import { PanelBolsaPlaneacion } from '@/modulos/planeacion/componentes/panel-bolsa-planeacion';
 import { TarjetaProgramacionPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-programacion-planeacion';
 import type { CompatibilidadRecursosPlaneacion } from '@/modulos/planeacion/utilidades/compatibilidad';
 
@@ -566,7 +568,7 @@ describe('operación de Planeación en cliente', () => {
     const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
     const bloqueItem = within(tarjeta).getByText('Ítem').closest('div');
     expect(bloqueItem?.textContent).toContain('Por definir');
-    expect(tarjeta.textContent).toContain('Corte, Doblez');
+    expect(tarjeta.textContent).toContain('Corte · Doblez');
     expect(tarjeta.textContent).toContain('Tiempo estimado');
     expect(tarjeta.textContent).not.toContain('Avance');
   });
@@ -800,5 +802,51 @@ describe('operación de Planeación en cliente', () => {
 
     expect(screen.queryByTestId('verificando-capacidad-planeacion')).toBeNull();
     expect(obtenerCalendarioMock).not.toHaveBeenCalled();
+  });
+
+  it('resume los procesos de la bolsa con la misma regla de Órdenes (C9.4/P-19)', () => {
+    render(
+      createElement(PanelBolsaPlaneacion, {
+        bolsa: {
+          pausadasSinPlan: [{
+            partidaId: '55555555-5555-4555-8555-555555555555',
+            ordenId: DATOS.programaciones[0].ordenId,
+            folio: 'OP-000001',
+            codigoPieza: 'PIEZA-E2E',
+            areaCodigo: 'taller',
+            procesos: [' Corte ', 'corte', 'Doblez'],
+            horas: 2,
+            estimadoMinutos: 120,
+          }],
+          activasSinFechaHoy: [],
+          sugerencias: [],
+        },
+        procesando: false,
+        mensaje: null,
+        error: null,
+        onAsignar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    expect(screen.getByTestId('bolsa-pausadas').textContent).toContain(
+      'Corte (2 operaciones) · Doblez',
+    );
+  });
+
+  it('no vuelve a ofrecer reactivación desde la tarjeta de Planeación (C9.4/P-19)', () => {
+    const programacion = {
+      ...DATOS.programaciones[0],
+      ordenEstadoSii: 'PLANIFICADA' as const,
+      ordenActualizadoEn: '2026-09-01T12:00:00.000Z',
+    };
+    render(
+      createElement(AccionesTarjetaOrden, {
+        programacion,
+        onRefrescar: vi.fn(),
+      }),
+    );
+
+    expect(screen.queryByTestId(`accion-reactivar-${programacion.ordenId}`)).toBeNull();
+    expect(screen.queryByRole('button', { name: /reactivar/i })).toBeNull();
   });
 });

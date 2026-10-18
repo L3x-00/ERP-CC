@@ -127,7 +127,11 @@ describe('desglose de partida (OBS-08)', () => {
     expect(etiquetaAvancePartida(desgloseBase)).toContain('6 pendientes');
     expect(etiquetaAvancePartida({ ...desgloseBase, cantidadScrap: 1 })).toContain('1 merma');
     expect(etiquetaMaterial(desgloseBase)).toBe('Acero 1045 · 10 pieza');
-    expect(etiquetaProcesos(desgloseBase)).toBe('Corte, Doblez');
+    expect(etiquetaProcesos(desgloseBase)).toBe('Corte · Doblez');
+    expect(etiquetaProcesos({
+      ...desgloseBase,
+      procesos: [' Corte ', 'corte', 'Doblez'],
+    })).toBe('Corte (2 operaciones) · Doblez');
     expect(etiquetaArea(desgloseBase)).toBe('Corte láser');
     expect(formatearDuracionMinutos(150)).toBe('2 h 30 min');
     expect(formatearDuracionMinutos(45)).toBe('45 min');

@@ -5,11 +5,16 @@ import {
   esquemaProgramarOrden,
 } from '@/modulos/planeacion/validaciones/indice';
 import {
+  ESTADOS_PLANEACION,
   filaACapacidadRecursoTurno,
   filaAProgramacionArea,
   filaAProgramacionAreaConOperacion,
   filaARecursoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
+import {
+  ETIQUETA_ESTADO,
+  VARIANTE_ESTADO,
+} from '@/modulos/planeacion/utilidades/etiquetas';
 import type {
   FilaCapacidadRecursoTurno,
   FilaProgramacionArea,
@@ -386,6 +391,19 @@ describe('mappers de Planeación', () => {
           .estadoPlaneacion,
       ).toBe(estado);
     }
+  });
+
+  it('mantiene exactamente los seis estados con etiqueta y variante publicables (C9.4/P-16)', () => {
+    expect(ESTADOS_PLANEACION).toEqual([
+      'programada',
+      'en_preparacion',
+      'en_proceso',
+      'bloqueada',
+      'completada',
+      'cancelada',
+    ]);
+    expect(Object.keys(ETIQUETA_ESTADO)).toEqual([...ESTADOS_PLANEACION]);
+    expect(Object.keys(VARIANTE_ESTADO)).toEqual([...ESTADOS_PLANEACION]);
   });
 
   it('rechaza un área corrupta en el recurso', () => {
