@@ -375,6 +375,7 @@ DECLARE
   v_rubro text := NULLIF(lower(btrim(coalesce(p_rubro_costo, ''))), '');
 BEGIN
   IF p_compra_id IS NULL OR p_actor_id IS NULL
+     OR v_rubro IS NULL
      OR v_rubro NOT IN ('material', 'subcontratacion', 'gastos_directos')
      OR NOT privado.actor_con_permiso(p_actor_id, 'registrar_gastos') THEN
     RAISE EXCEPTION 'datos_compra_invalidos' USING ERRCODE = 'check_violation';

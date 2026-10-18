@@ -10,6 +10,7 @@ import type {
   CompraCola,
   MaterialOpcion,
   RubroCostoCompra,
+  UltimoCostoMaterial,
 } from '@/modulos/compras/tipos/indice';
 import {
   ETIQUETA_RUBRO_COSTO_COMPRA,
@@ -34,7 +35,7 @@ export function CamposCostoCompra({
 }: {
   valores: ValoresCostoCompra;
   materiales: MaterialOpcion[];
-  ultimosCostos: Record<string, number>;
+  ultimosCostos: Record<string, UltimoCostoMaterial>;
   onCambiar: (parcial: Partial<ValoresCostoCompra>) => void;
 }) {
   const ultimoCosto = valores.materialId === '' ? null : ultimosCostos[valores.materialId];
@@ -119,7 +120,7 @@ export function CamposCostoCompra({
       <p className="text-xs text-texto-secundario sm:col-span-2" data-testid="compra-costo-ayuda">
         El detalle de material es solo un registro: no mueve inventario ni actualiza el maestro de costos.
         {ultimoCosto !== undefined && ultimoCosto !== null
-          ? ` Último costo registrado en compras: ${formatearMoneda(ultimoCosto, 'MXN')}.`
+          ? ` Último costo registrado en compras: ${formatearMoneda(ultimoCosto.costo, ultimoCosto.moneda)}.`
           : ''}
       </p>
     </>

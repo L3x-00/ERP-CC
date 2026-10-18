@@ -261,9 +261,11 @@ export function ModalRegistrarGasto({
                 Con Orden: costo directo de esa Orden. Sin Orden: gasto indirecto, no se reparte
                 entre órdenes.
               </span>
-              <span className="text-xs text-texto-secundario">
-                Si este costo ya está en una Compra de esta Orden, no lo captures de nuevo.
-              </span>
+              {ordenId ? (
+                <span className="text-xs text-texto-secundario">
+                  Si este costo ya está en una Compra de esta Orden, no lo captures de nuevo.
+                </span>
+              ) : null}
               {ordenesOpciones.isError ? (
                 <span role="alert" className="text-xs text-peligro-texto">
                   No se pudieron cargar las órdenes.

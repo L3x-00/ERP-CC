@@ -140,7 +140,8 @@ export function calcularCostoManoObraMxn(
 export function calcularCostoGastosDirectosMxn(
   gastos: readonly Gasto[],
   ordenId: string,
-): { costo: number; considerados: number; excluidos: number; incluidos: number } {  let costo = 0;
+): { costo: number; considerados: number; excluidos: number; incluidos: number } {
+  let costo = 0;
   let considerados = 0;
   let excluidos = 0;
   let incluidos = 0;

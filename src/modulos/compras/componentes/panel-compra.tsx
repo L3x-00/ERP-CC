@@ -32,6 +32,7 @@ import type {
   OrdenOpcion,
   ProveedorOpcion,
   RubroCostoCompra,
+  UltimoCostoMaterial,
 } from '@/modulos/compras/tipos/indice';
 
 export type ModoPanelCompra = 'crear' | 'editar' | 'estado' | 'cancelar' | 'pagar';
@@ -53,7 +54,7 @@ export function PanelCompra({
   proveedores: ProveedorOpcion[];
   ordenes: OrdenOpcion[];
   materiales: MaterialOpcion[];
-  ultimosCostos: Record<string, number>;
+  ultimosCostos: Record<string, UltimoCostoMaterial>;
   abierto: boolean;
   onCerrar: () => void;
   onActualizada: () => Promise<void> | void;
@@ -93,7 +94,7 @@ export function PanelCompra({
           </div>
         ) : null}
 
-        {!mensaje && compra && compra.ordenId && compra.rubroCosto === null
+        {!mensaje && modo !== 'editar' && compra && compra.ordenId && compra.rubroCosto === null
           && compra.estado !== 'CANCELADA' ? (
             <ClasificarRubroCompra compra={compra} onExito={(texto) => void completar(texto)} />
           ) : null}
@@ -143,7 +144,7 @@ function FormularioCompra({
   proveedores: ProveedorOpcion[];
   ordenes: OrdenOpcion[];
   materiales: MaterialOpcion[];
-  ultimosCostos: Record<string, number>;
+  ultimosCostos: Record<string, UltimoCostoMaterial>;
   onExito: (texto: string) => void;
 }) {
   const [proveedorId, setProveedorId] = useState(compra?.proveedorId ?? '');

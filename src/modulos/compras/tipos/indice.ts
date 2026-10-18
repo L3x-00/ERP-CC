@@ -54,6 +54,8 @@ export type ProveedorOpcion = { id: string; nombre: string };
 export type OrdenOpcion = { id: string; folio: string; folioSii: string | null };
 /** C10.1/F08: opción del catálogo para el detalle de material. */
 export type MaterialOpcion = { id: string; codigo: string; nombre: string };
+/** C10.1/F08: último costo unitario capturado en compras (referencia de lectura). */
+export type UltimoCostoMaterial = { costo: number; moneda: 'MXN' | 'USD' };
 
 export const ETIQUETA_ESTADO_COMPRA: Record<EstadoCompra, string> = {
   BORRADOR: 'Borrador',

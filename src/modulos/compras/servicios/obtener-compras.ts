@@ -6,6 +6,7 @@ import {
   type MaterialOpcion,
   type OrdenOpcion,
   type ProveedorOpcion,
+  type UltimoCostoMaterial,
 } from '@/modulos/compras/tipos/indice';
 
 export type ColaCompras = {
@@ -14,7 +15,7 @@ export type ColaCompras = {
   ordenes: OrdenOpcion[];
   materiales: MaterialOpcion[];
   /** C10.1/F08: último costo unitario capturado por material (solo lectura). */
-  ultimosCostos: Record<string, number>;
+  ultimosCostos: Record<string, UltimoCostoMaterial>;
 };
 
 /** SII-B8 F4: cola de compras con proveedor/orden legibles y catálogos del alta. */
@@ -44,7 +45,7 @@ export async function obtenerColaCompras(
       .order('nombre', { ascending: true }),
     cliente
       .from('compras')
-      .select('material_id, costo_unitario')
+      .select('material_id, costo_unitario, moneda')
       .not('material_id', 'is', null)
       .not('costo_unitario', 'is', null)
       .neq('estado', 'CANCELADA')
@@ -72,10 +73,13 @@ export async function obtenerColaCompras(
   }));
 
   // Solo lectura: la compra más reciente con costo unitario define la referencia.
-  const ultimosCostos: Record<string, number> = {};
+  const ultimosCostos: Record<string, UltimoCostoMaterial> = {};
   for (const fila of costosResp.data ?? []) {
     if (fila.material_id && fila.costo_unitario !== null && !(fila.material_id in ultimosCostos)) {
-      ultimosCostos[fila.material_id] = Number(fila.costo_unitario);
+      ultimosCostos[fila.material_id] = {
+        costo: Number(fila.costo_unitario),
+        moneda: fila.moneda === 'USD' ? 'USD' : 'MXN',
+      };
     }
   }
 

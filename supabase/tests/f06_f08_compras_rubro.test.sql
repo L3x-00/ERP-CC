@@ -4,7 +4,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(35);
+SELECT plan(36);
 
 INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
   ('00000000-0000-4000-8000-0000000f0601', 'f06-admin@prueba.local', '{}'::jsonb),
@@ -207,6 +207,11 @@ SELECT throws_ok($$SELECT * FROM public.asignar_rubro_costo_compra(
   '00000000-0000-4000-8000-0000000f0620', 'otro',
   '00000000-0000-4000-8000-0000000f0601')$$,
   '23514', 'datos_compra_invalidos', 'El rubro inválido se rechaza antes de escribir');
+
+SELECT throws_ok($$SELECT * FROM public.asignar_rubro_costo_compra(
+  '00000000-0000-4000-8000-0000000f0620', NULL,
+  '00000000-0000-4000-8000-0000000f0601')$$,
+  '23514', 'datos_compra_invalidos', 'Un rubro nulo no clasifica la compra');
 
 -- 32. Crear, confirmar y recibir una compra no inserta gastos. --------------
 CREATE TEMP TABLE gastos_antes AS SELECT count(*)::integer AS total FROM public.gastos;
