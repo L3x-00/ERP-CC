@@ -123,9 +123,7 @@ export function FormularioProspecto({
   const [prioridad, setPrioridad] = useState<PrioridadPipeline>('normal');
   const [condicionesPago, setCondicionesPago] = useState<CondicionesPago | ''>('');
   const [esOrdenInterna, setEsOrdenInterna] = useState(false);
-  // WhatsApp es el canal habitual de entrada. Si se retira del catálogo, la
-  // validación visual impide avanzar hasta que se elija otro canal vigente.
-  const [canal, setCanal] = useState('WHATSAPP');
+  const [canal, setCanal] = useState('');
   const [canalDetalle, setCanalDetalle] = useState('');
   const [descripcionGeneral, setDescripcionGeneral] = useState('');
   const fechaRegistro = fechaHoyLocal();
@@ -191,8 +189,17 @@ export function FormularioProspecto({
   const sinItemsActivos = rfq !== undefined && !rfq.items.some((item) => item.estado === 'activo');
   const sinArchivos =
     !archivosConsulta.data?.exito || (archivosConsulta.data.datos ?? []).length === 0;
-  const canalSeleccionado = catalogos?.canales.find((opcion) => opcion.codigo === canal);
-  const faltaCanal = canalSeleccionado === undefined || !canalSeleccionado.activo;
+  // WhatsApp es el canal habitual de entrada. Se deriva del catálogo para no
+  // seleccionar un código inexistente durante su carga ni uno desactivado.
+  const canalPredeterminado = catalogos?.canales.find(
+    (opcion) => opcion.codigo === 'WHATSAPP' && opcion.activo,
+  )?.codigo ?? '';
+  const canalEfectivo = canal || canalPredeterminado || 'WHATSAPP';
+  const canalSeleccionado = catalogos?.canales.find((opcion) => opcion.codigo === canalEfectivo);
+  // Mientras llega el catálogo se conserva el valor predeterminado; el
+  // servidor vuelve a validar el canal al crear el RFQ.
+  const faltaCanal =
+    catalogos !== null && (canalSeleccionado === undefined || !canalSeleccionado.activo);
   const faltaDescripcion = descripcionGeneral.trim() === '';
 
   function elegirContacto(valor: string): void {
@@ -241,7 +248,7 @@ export function FormularioProspecto({
     setPrioridad('normal');
     setCondicionesPago('');
     setEsOrdenInterna(false);
-    setCanal('WHATSAPP');
+    setCanal('');
     setCanalDetalle('');
     setDescripcionGeneral('');
     setContactoId('');
@@ -280,7 +287,7 @@ export function FormularioProspecto({
         esOrdenInterna,
         ...(cliente ? { clienteId: cliente.id } : {}),
         ...(condicionesPago !== '' ? { condicionesPago } : {}),
-        canal,
+        canal: canalEfectivo,
         ...(canalSeleccionado?.esOtro ? { canalDetalle: canalDetalle.trim() } : {}),
         descripcionGeneral: descripcionGeneral.trim(),
         ...(contactoEfectivoId ? { contactoId: contactoEfectivoId } : {}),
@@ -539,7 +546,7 @@ export function FormularioProspecto({
               <Label htmlFor="prospecto-canal" className={CLASE_OBLIGATORIO}>Canal</Label>
               <Select
                 id="prospecto-canal"
-                value={canal}
+                value={canalEfectivo}
                 onChange={(evento) => {
                   const siguiente = evento.target.value;
                   setCanal(siguiente);

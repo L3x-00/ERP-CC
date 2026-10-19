@@ -142,7 +142,7 @@ const CATALOGOS_VACIOS = {
   materiales: [],
   espesores: [],
   procesos: [],
-  canales: [],
+  canales: [{ codigo: 'WHATSAPP', nombre: 'WhatsApp', esOtro: false, activo: true }],
   proximasAcciones: [],
   usuarios: [],
 };
@@ -178,7 +178,11 @@ function envolver(nodo: ReactNode) {
 }
 
 function renderizarFormulario() {
-  return render(envolver(createElement(FormularioProspecto)));
+  const vista = render(envolver(createElement(FormularioProspecto)));
+  fireEvent.change(screen.getByLabelText('Descripción'), {
+    target: { value: 'Solicitud de prueba' },
+  });
+  return vista;
 }
 
 /** Campo del formulario por su etiqueta visible. */
@@ -273,8 +277,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
   it('el alta rápida crea el cliente, lo selecciona y no pierde el borrador', async () => {
     renderizarFormulario();
 
-    fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
-    fireEvent.change(campo(/Fecha requerida por cliente/), { target: { value: '2026-11-20' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Urge cotizar' } });
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo cliente' }));
 
     fireEvent.change(await screen.findByLabelText(/Razón social/), {
@@ -290,8 +293,7 @@ describe('FormularioProspecto con selector de cliente (RFQ-02/03)', () => {
     // El cliente recién creado queda seleccionado en la RFQ…
     expect(await screen.findByText('Aceros Baja SA')).toBeDefined();
     // …y la captura previa de la oportunidad sigue intacta.
-    expect(campo(/Notas/).value).toBe('Urge cotizar');
-    expect(campo(/Fecha requerida por cliente/).value).toBe('2026-11-20');
+    expect(screen.getByLabelText('Descripción')).toHaveProperty('value', 'Urge cotizar');
   });
 
   it('un fallo del alta rápida no cierra el formulario ni selecciona nada', async () => {
@@ -324,29 +326,29 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     expect(screen.getByLabelText(/Orden interna \(TI\)/)).toBeDefined();
   });
 
-  it('conserva Fecha requerida por cliente y aclara que no es la Fecha compromiso', () => {
+  it('muestra la fecha de registro y el responsable autocompletados', () => {
     renderizarFormulario();
 
-    expect(screen.getByLabelText(/Fecha requerida por cliente \(opcional\)/)).toBeDefined();
-    expect(screen.getByTestId('ayuda-fecha-requerida').textContent).toMatch(
-      /no es la Fecha compromiso/i,
-    );
+    expect(screen.getByLabelText('Fecha de registro')).toHaveProperty('disabled', true);
+    expect(screen.getByLabelText('Responsable')).toHaveProperty('disabled', true);
   });
 
-  it('envía la fecha requerida y nunca PO ni horas estimadas', async () => {
+  it('envía canal y descripción, sin PO ni horas estimadas', async () => {
     renderizarFormulario();
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
     fireEvent.change(campo(/Empresa/), { target: { value: 'Aceros Baja SA' } });
-    fireEvent.change(campo(/Fecha requerida por cliente/), { target: { value: '2026-12-01' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Corte láser' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     await waitFor(() => {
       expect(crearProspectoMock).toHaveBeenCalledTimes(1);
     });
     const entrada = crearProspectoMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(entrada.fechaRequerida).toBe('2026-12-01');
+    expect(entrada.canal).toBe('WHATSAPP');
+    expect(entrada.descripcionGeneral).toBe('Corte láser');
+    expect(entrada).not.toHaveProperty('fechaRequerida');
     expect(entrada).not.toHaveProperty('poCliente');
     expect(entrada).not.toHaveProperty('horasEstimadas');
   });
@@ -357,7 +359,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
-    fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Urge cotizar' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByRole('alert')).toHaveProperty(
@@ -365,7 +367,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
       'No se pudo crear el prospecto',
     );
     expect(campo(/Nombre del contacto/).value).toBe('Ana QA');
-    expect(campo(/Notas/).value).toBe('Urge cotizar');
+    expect(screen.getByLabelText('Descripción')).toHaveProperty('value', 'Urge cotizar');
     expect(empujarRutaMock).not.toHaveBeenCalled();
   });
 
@@ -375,14 +377,14 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
 
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
-    fireEvent.change(campo(/Notas/), { target: { value: 'Urge cotizar' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Urge cotizar' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
       'Error de conexión. Intenta de nuevo.',
     );
-    expect(campo(/Notas/).value).toBe('Urge cotizar');
+    expect(screen.getByLabelText('Descripción')).toHaveProperty('value', 'Urge cotizar');
     expect(empujarRutaMock).not.toHaveBeenCalled();
   });
 
@@ -393,6 +395,7 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     listarArchivosMock.mockResolvedValue({ exito: true, datos: [ARCHIVO] });
     render(envolver(createElement(FormularioProspecto, { onExito: alExito })));
 
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Solicitud de prueba' } });
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
@@ -427,6 +430,7 @@ describe('FormularioProspecto — datos mínimos obligatorios del alta (obs. cli
   async function llegarAItems(): Promise<void> {
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Solicitud de prueba' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
   }
@@ -558,6 +562,7 @@ describe('FormularioProspecto — la ficha no hereda el RFQ previo al modal fina
       ),
     );
 
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Solicitud de prueba' } });
     fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
     fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
