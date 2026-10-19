@@ -4,7 +4,7 @@ Esta carpeta registra el avance funcional y técnico del ERP de CC Manufacturing
 
 ## Estado actual (2026-10-19)
 
-Las correcciones del cliente para **Órdenes C8, Planeación C9 y Finanzas C10** están cerradas localmente. Finanzas C10.1–C10.3 están fusionadas y sus migraciones aplicadas en remoto; C10.4 (aceptación E2E y registro) está en el PR de cierre. La aceptación del cliente/PO y cualquier corrección futura parten de `origin/main`.
+Las correcciones del cliente para **Órdenes C8, Planeación C9 y Finanzas C10** están cerradas. Finanzas C10.1–C10.4 están fusionadas y sus migraciones aplicadas en remoto; C10.4 (aceptación E2E y registro) se fusionó en **#82** (merge `77339e6`). La aceptación del cliente/PO y cualquier corrección futura parten de `origin/main`.
 
 - [Checkpoint de ejecución](observaciones-cliente-2026-10-07/CHECKPOINT-EJECUCION.md) — estado reanudable.
 - [Decisiones aceptadas](observaciones-cliente-2026-10-07/DECISIONES-ACEPTADAS.md) — fuente funcional.

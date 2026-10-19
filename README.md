@@ -4,7 +4,7 @@ ERP de CC Manufacturing Group para cotización, órdenes, planeación, producci�
 
 ## Estado actual (2026-10-19)
 
-- **Órdenes C8, Planeación C9 y Finanzas C10 cerrados localmente.** C10.1–C10.3 fusionados; C10.4 (aceptación de punta a punta y registro) en el PR de cierre. El PO fusiona cada PR y aplica las migraciones en remoto.
+- **Órdenes C8, Planeación C9 y Finanzas C10 cerrados.** C10.1–C10.4 fusionados; C10.4 (aceptación de punta a punta y registro) en **#82**, merge `77339e6`. El PO fusiona cada PR y aplica las migraciones en remoto.
 - **Finanzas C10:** costo estimado/comprometido/real por Orden, margen sin IVA, una factura por entrega, cancelación bloqueada con cobros aplicados, flujo por cuenta en Tesorería y reversos visibles. F10 (ajuste manual del costo real) queda **parcial** por decisión del PO.
 - No hay migraciones pendientes de Finanzas. Las migraciones nuevas se crean y aplican **solo en local**; el PO las aplica en remoto antes del despliegue.
 
