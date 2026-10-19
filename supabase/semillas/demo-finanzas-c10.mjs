@@ -3,8 +3,9 @@
  * Demo C10 — propuestas con costeo, compras, facturas y tesorería.
  *
  * Se ejecuta DESPUÉS de `demo-cliente.mjs sembrar` sobre el stack LOCAL.
- * No limpia ni toca remoto. Es una semilla de presentación: datos ficticios
- * coherentes con los módulos de Finanzas y Compras.
+ * También admite el proyecto remoto autorizado con `DEMO_DESTINO=remoto` y
+ * `CONFIRMAR_DEMO_REMOTO=<ref>`; el modo local sigue siendo el predeterminado.
+ * Es una semilla de presentación: datos ficticios coherentes.
  *
  * Uso:
  *   $env:CONFIRMAR_DEMO='si'; node supabase/semillas/demo-finanzas-c10.mjs
@@ -28,7 +29,19 @@ function requerir(nombre) {
 if (process.env.CONFIRMAR_DEMO !== 'si') {
   throw new Error('Define CONFIRMAR_DEMO=si para sembrar la demo de Finanzas.');
 }
-exigirSupabaseLocal('Demo Finanzas C10');
+if (process.env.DEMO_DESTINO === 'remoto') {
+  const ref = 'pwnecbcynnqnvfwmvrnn';
+  if (process.env.CONFIRMAR_DEMO_REMOTO !== ref) {
+    throw new Error(`Define CONFIRMAR_DEMO_REMOTO=${ref} para sembrar el proyecto remoto.`);
+  }
+  const host = new URL(requerir('NEXT_PUBLIC_SUPABASE_URL')).hostname;
+  if (host !== `${ref}.supabase.co`) {
+    throw new Error(`El host remoto no coincide con el proyecto autorizado (${ref}).`);
+  }
+  console.log(`MODO REMOTO AUTORIZADO: ${ref}`);
+} else {
+  exigirSupabaseLocal('Demo Finanzas C10');
+}
 
 const db = createClient(
   requerir('NEXT_PUBLIC_SUPABASE_URL'),
@@ -68,8 +81,10 @@ async function obtenerBase() {
   const { data: ordenes, error: errorOrdenes } = await db
     .from('ordenes_produccion')
     .select('id,folio,cliente_id,estado,propuesta_revision_id,snapshot_json')
-    .in('folio', ['OP-001007', 'OP-001009', 'OP-001011']);
-  if (errorOrdenes || (ordenes ?? []).length < 3) throw new Error('Faltan órdenes demo');
+    .eq('estado', 'completada')
+    .order('folio')
+    .limit(3);
+  if (errorOrdenes || (ordenes ?? []).length < 3) throw new Error('Faltan órdenes completadas demo');
 
   return {
     adminId: admin.id,
@@ -81,9 +96,9 @@ async function obtenerBase() {
 }
 
 const PROPUESTAS = [
-  { orden: 'OP-001007', folio: 'CNC-8101_01', venta: 300000, costo: 208000 },
-  { orden: 'OP-001009', folio: 'CNC-8102_01', venta: 160000, costo: 112000 },
-  { orden: 'OP-001011', folio: 'CNC-8103_01', venta: 220000, costo: 151000 },
+  { folio: 'CNC-8101_01', venta: 300000, costo: 208000 },
+  { folio: 'CNC-8102_01', venta: 160000, costo: 112000 },
+  { folio: 'CNC-8103_01', venta: 220000, costo: 151000 },
 ];
 
 async function sembrarPropuestas(base) {
@@ -98,8 +113,8 @@ async function sembrarPropuestas(base) {
   if (!pipelines || pipelines.length < 3) throw new Error('Faltan oportunidades demo');
 
   for (const [indice, definicion] of PROPUESTAS.entries()) {
-    const orden = base.ordenes.find((fila) => fila.folio === definicion.orden);
-    if (!orden) throw new Error(`No existe ${definicion.orden}`);
+    const orden = base.ordenes[indice];
+    if (!orden) throw new Error(`No hay orden completada para ${definicion.folio}`);
     const pipeline = pipelines[indice];
     const propuestaId = randomUUID();
     const revisionId = randomUUID();
@@ -129,7 +144,7 @@ async function sembrarPropuestas(base) {
     await insertar('propuesta_items', [{
       revision_id: revisionId,
       codigo: 'IT01',
-      descripcion: `Fabricación de pieza para ${definicion.orden}`,
+      descripcion: `Fabricación de pieza para ${orden.folio}`,
       cantidad: 1,
       material_id: base.materialId,
       precio_unitario: definicion.venta,
@@ -161,7 +176,7 @@ async function sembrarPropuestas(base) {
       fecha_compromiso_comercial: new Date(Date.now() + 7 * 86_400_000).toISOString(),
     }).eq('id', orden.id);
     if (errorOrden) throw new Error(`Vincular propuesta a ${definicion.orden}: ${errorOrden.message}`);
-    paso(`${definicion.folio} · estimado ${definicion.venta} · ${definicion.orden}`);
+    paso(`${definicion.folio} · estimado ${definicion.venta} · ${orden.folio}`);
   }
 }
 
@@ -177,26 +192,25 @@ async function sembrarCompras(base) {
   const banco = base.bancos.find((fila) => fila.moneda === 'MXN');
   if (!banco) throw new Error('Falta cuenta MXN');
 
-  const orden = (folio) => base.ordenes.find((fila) => fila.folio === folio);
   const compras = [
     {
       id: randomUUID(), folio: 'CG-8101_0001', proveedor: proveedores.data[0].id,
-      orden: orden('OP-001007'), estado: 'RECIBIDA', subtotal: 120000, iva: 19200,
+      orden: base.ordenes[0], estado: 'RECIBIDA', subtotal: 120000, iva: 19200,
       rubro: 'material', recibida: true,
     },
     {
       id: randomUUID(), folio: 'CG-8102_0001', proveedor: proveedores.data[1].id,
-      orden: orden('OP-001009'), estado: 'CONFIRMADA', subtotal: 9000, iva: 1440,
+      orden: base.ordenes[1], estado: 'CONFIRMADA', subtotal: 9000, iva: 1440,
       rubro: 'subcontratacion', recibida: false,
     },
     {
       id: randomUUID(), folio: 'CG-8103_0001', proveedor: proveedores.data[2].id,
-      orden: orden('OP-001011'), estado: 'RECIBIDA', subtotal: 18000, iva: 2880,
+      orden: base.ordenes[2], estado: 'RECIBIDA', subtotal: 18000, iva: 2880,
       rubro: 'gastos_directos', recibida: true,
     },
     {
       id: randomUUID(), folio: 'CG-8104_0001', proveedor: proveedores.data[0].id,
-      orden: orden('OP-001007'), estado: 'PAGADA', subtotal: 5000, iva: 800,
+      orden: base.ordenes[0], estado: 'PAGADA', subtotal: 5000, iva: 800,
       rubro: 'subcontratacion', recibida: false,
     },
   ];
