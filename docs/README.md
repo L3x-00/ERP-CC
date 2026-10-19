@@ -2,6 +2,16 @@
 
 Esta carpeta registra el avance funcional y técnico del ERP de CC Manufacturing Group. El código y las migraciones del repositorio son la fuente de verdad ejecutable; estos documentos explican el alcance, las decisiones y el estado de cada entrega.
 
+## Estado actual (2026-10-19)
+
+Las correcciones del cliente para **Órdenes C8, Planeación C9 y Finanzas C10** están cerradas localmente. Finanzas C10.1–C10.3 están fusionadas y sus migraciones aplicadas en remoto; C10.4 (aceptación E2E y registro) está en el PR de cierre. La aceptación del cliente/PO y cualquier corrección futura parten de `origin/main`.
+
+- [Checkpoint de ejecución](observaciones-cliente-2026-10-07/CHECKPOINT-EJECUCION.md) — estado reanudable.
+- [Decisiones aceptadas](observaciones-cliente-2026-10-07/DECISIONES-ACEPTADAS.md) — fuente funcional.
+- [Reporte de hallazgos](observaciones-cliente-2026-10-07/REPORTE-HALLAZGOS-Y-CORRECCIONES.md).
+- [CUELLOS-DE-BOTELLA.md](CUELLOS-DE-BOTELLA.md) — fallos reales y prevención.
+- [ADR-0016 — cierre de Finanzas C10](../.ai-shared/memory/decisions/ADR-0016-cierre-finanzas-c10.md).
+
 ## Documentos transversales
 
 - [Auditoría funcional y paridad — 164 requisitos, 13-09-2026](auditoria-funcional-2026-09-13/README.md): inventario completo y evidencia local; aceptación E2E pendiente. Los estados de fase del historial no equivalen a aceptación de este catálogo.
