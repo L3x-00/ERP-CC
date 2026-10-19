@@ -117,6 +117,7 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     await a.getByLabel('Nombre del contacto').fill('QA Realtime');
     await a.getByLabel('Teléfono', { exact: true }).fill('664 000 0000');
     await a.getByLabel('Empresa', { exact: true }).fill(marca);
+    await a.getByLabel('Descripción').fill(`Solicitud ${marca}`);
     await a.getByRole('button', { name: 'Continuar con ítems' }).click();
     await expect(a.getByTestId('alta-rfq-items')).toBeVisible();
     await a.getByRole('button', { name: 'Finalizar más tarde' }).click();
