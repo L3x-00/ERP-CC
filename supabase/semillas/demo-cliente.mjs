@@ -20,6 +20,9 @@
  * `ales_2_@hotmail.com`. Siembra una historia coherente: configuración,
  * catálogos, clientes, pipeline, órdenes en todos los estados, producción,
  * inventario, cobranza con pagos, gastos, comentarios/notificaciones y metas.
+ *
+ * Modo remoto: `DEMO_DESTINO=remoto` + `CONFIRMAR_DEMO_REMOTO=<ref>`; solo para
+ * el proyecto autorizado por el PO. Sin esas variables opera solo en loopback.
  */
 
 import { randomBytes } from 'node:crypto';
@@ -52,7 +55,23 @@ if (MODO !== 'verificar') {
 
 // Guardia de aislamiento ANTES de abrir cliente: este script BORRA todas las
 // tablas transaccionales. `.env.local` apunta al proyecto remoto.
-exigirSupabaseLocal('Semilla de demo comercial');
+// El modo remoto requiere una confirmación explícita y un ref exacto.
+if (process.env.DEMO_DESTINO === 'remoto') {
+  const ref = 'pwnecbcynnqnvfwmvrnn';
+  if (process.env.CONFIRMAR_DEMO_REMOTO !== ref) {
+    throw new Error(`Define CONFIRMAR_DEMO_REMOTO=${ref} para sembrar el proyecto remoto.`);
+  }
+  if (MODO === 'limpiar' || MODO === 'todo') {
+    throw new Error('En remoto usa el truncado SQL revisado y luego el modo `sembrar`; `limpiar`/`todo` son solo locales.');
+  }
+  const host = new URL(requerirVariable('NEXT_PUBLIC_SUPABASE_URL')).hostname;
+  if (host !== `${ref}.supabase.co`) {
+    throw new Error(`El host remoto no coincide con el proyecto autorizado (${ref}).`);
+  }
+  console.log(`MODO REMOTO AUTORIZADO: ${ref}`);
+} else {
+  exigirSupabaseLocal('Semilla de demo comercial');
+}
 
 const cliente = createClient(
   requerirVariable('NEXT_PUBLIC_SUPABASE_URL'),
