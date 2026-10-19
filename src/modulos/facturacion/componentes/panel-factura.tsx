@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { actualizarFacturaBorradorAccion } from '@/modulos/facturacion/acciones/actualizar-factura-borrador';
 import { cancelarFacturaAccion } from '@/modulos/facturacion/acciones/cancelar-factura';
 import { crearFacturaBorradorAccion } from '@/modulos/facturacion/acciones/crear-factura-borrador';
@@ -76,7 +77,7 @@ export function PanelFactura({
           <DialogTitle>{titulos[modo]}</DialogTitle>
           <DialogDescription>
             {modo === 'crear'
-              ? 'Se precargan los montos de la cuenta por cobrar; puedes ajustarlos antes de emitir.'
+              ? 'Se precargan los montos disponibles por facturar de la cuenta por cobrar; puedes ajustarlos antes de emitir.'
               : modo === 'emitir'
                 ? 'Captura el folio fiscal del PAC; al emitir se vincula la cuenta por cobrar de la orden.'
                 : modo === 'cancelar'
@@ -170,6 +171,7 @@ function FormularioCrearFactura({
     orden: { folioSii: string | null; folio: string };
     cliente: { nombre: string };
     ar: { subtotal: number | null; iva: number | null; total: number; folioFacturaRemision: string | null } | null;
+    disponible: { facturado: number; total: number; subtotal: number | null; iva: number | null };
     facturaActiva: { id: string; estado: string } | null;
   } | null;
   cargando: boolean;
@@ -212,11 +214,22 @@ function FormularioCrearFactura({
               ] ?? preparacion.facturaActiva.estado}; se mostrará sin duplicar.
             </p>
           ) : null}
+          <p className="text-xs text-texto-secundario" data-testid="factura-disponible">
+            Disponible por facturar en la CxC: {formatearMoneda(preparacion.disponible.total)}
+            {preparacion.disponible.facturado > 0
+              ? ` · ya facturado ${formatearMoneda(preparacion.disponible.facturado)}`
+              : ''}.
+          </p>
+          {preparacion.disponible.total === 0 && preparacion.disponible.facturado > 0 ? (
+            <p role="status" className="text-sm text-advertencia-texto" data-testid="factura-sin-disponible">
+              La cuenta por cobrar ya está facturada por completo.
+            </p>
+          ) : null}
           <FormularioMontos
             datosIniciales={{
-              subtotal: preparacion.ar?.subtotal ?? null,
-              iva: preparacion.ar?.iva ?? null,
-              total: preparacion.ar?.total ?? null,
+              subtotal: preparacion.disponible.subtotal,
+              iva: preparacion.disponible.iva,
+              total: preparacion.disponible.total,
               rfcReceptor: '',
             }}
             testidPrefijo="crear"
@@ -451,7 +464,7 @@ function FormularioCancelarFactura({
     }
     await onExito(
       factura.estado === 'EMITIDA'
-        ? 'Factura cancelada; la cuenta por cobrar quedó desvinculada para re-facturar.'
+        ? 'Factura cancelada; la cuenta por cobrar se actualizó y la entrega puede re-facturarse.'
         : 'Borrador cancelado.',
     );
   }

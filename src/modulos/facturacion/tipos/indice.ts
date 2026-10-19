@@ -12,6 +12,8 @@ export type Factura = {
   clienteId: string;
   ordenId: string;
   entregaId: string;
+  /** C10.2b: CxC de la Orden; varias facturas pueden compartirla. */
+  cuentaId: string | null;
   subtotal: number | null;
   iva: number | null;
   total: number | null;
@@ -21,6 +23,8 @@ export type Factura = {
   emitidaEn: string | null;
   canceladaEn: string | null;
   motivoCancelacion: string | null;
+  /** C10.2b: vencimiento calculado al emitir (se conserva por factura). */
+  fechaVencimiento: string | null;
   creadoPor: string | null;
   creadoEn: string;
   actualizadoEn: string;
@@ -36,6 +40,7 @@ export function filaAFactura(fila: FilaFactura): Factura {
     clienteId: fila.cliente_id,
     ordenId: fila.orden_id,
     entregaId: fila.entrega_id,
+    cuentaId: fila.cuenta_id ?? null,
     subtotal: fila.subtotal === null ? null : Number(fila.subtotal),
     iva: fila.iva === null ? null : Number(fila.iva),
     total: fila.total === null ? null : Number(fila.total),
@@ -45,6 +50,7 @@ export function filaAFactura(fila: FilaFactura): Factura {
     emitidaEn: fila.emitida_en ?? null,
     canceladaEn: fila.cancelada_en ?? null,
     motivoCancelacion: fila.motivo_cancelacion ?? null,
+    fechaVencimiento: fila.fecha_vencimiento ?? null,
     creadoPor: fila.creado_por ?? null,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,

@@ -68,7 +68,8 @@ async function limpiarContexto(contexto: Contexto): Promise<void> {
   const { admin } = contexto;
   await admin.from('facturas').delete().eq('orden_id', contexto.ordenId);
   await admin.from('cuentas_por_cobrar').delete().eq('id', contexto.arId);
-  await admin.from('notas_entrega').delete().eq('id', contexto.entregaId);
+  // Cubre la entrega base y cualquier entrega adicional del caso de dos facturas.
+  await admin.from('notas_entrega').delete().eq('orden_id', contexto.ordenId);
   await admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
   await admin.from('logs').delete().eq('usuario_id', contexto.usuarioId);
@@ -190,6 +191,85 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
       }
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.locator('html').evaluate((elemento) => elemento.classList.remove('dark'));
+    } finally {
+      await limpiarContexto(contexto);
+    }
+  });
+
+  test('dos entregas de la misma orden → dos facturas → cancelar la segunda revierte el puntero', async ({ page }) => {
+    const contexto = await prepararContexto();
+    const { admin } = contexto;
+    let entrega2Id = '';
+    try {
+      const folio2 = `NE-${String((Date.now() + 1) % 1_000_000).padStart(6, '0')}`;
+      const { data: nota2, error: errorNota2 } = await admin.from('notas_entrega').insert({
+        folio: folio2, orden_id: contexto.ordenId, recibido_por: 'Recepción F2 dos',
+        creado_por: contexto.usuarioId,
+      }).select('id').single();
+      if (errorNota2 || !nota2) throw new Error(errorNota2?.message ?? 'Sin segunda entrega');
+      entrega2Id = nota2.id;
+
+      await iniciarSesion(page, contexto);
+      await page.goto('/facturacion');
+      await expect(page.getByTestId('cola-facturas')).toBeVisible();
+
+      // 1. Primera entrega: el disponible es el total de la CxC; se factura la mitad.
+      await page.getByTestId('nueva-factura').click();
+      await page.getByTestId('select-entrega-factura').selectOption(contexto.entregaId);
+      await expect(page.getByTestId('crear-total')).toHaveValue('116');
+      await page.getByTestId('crear-subtotal').fill('50');
+      await page.getByTestId('crear-iva').fill('8');
+      await page.getByTestId('crear-total').fill('58');
+      await page.getByTestId('confirmar-crear-factura').click();
+      await expect(page.getByTestId('factura-mensaje')).toBeVisible();
+      const { data: f1 } = await admin.from('facturas')
+        .select('id').eq('entrega_id', contexto.entregaId).single();
+      await page.getByTestId('cerrar-panel-factura').click();
+      await page.getByTestId(`emitir-factura-${f1!.id}`).click();
+      await page.getByTestId('factura-folio-fiscal').fill('FAC-E2E-DOS-1');
+      await page.getByTestId('confirmar-emitir-factura').click();
+      await expect(page.getByTestId('factura-mensaje')).toBeVisible();
+      await page.getByTestId('cerrar-panel-factura').click();
+      await expect.poll(async () => {
+        const { data } = await admin.from('cuentas_por_cobrar')
+          .select('factura_id').eq('id', contexto.arId).single();
+        return data?.factura_id ?? null;
+      }).toBe(f1!.id);
+
+      // 2. Segunda entrega: el disponible ya es solo lo no facturado (58).
+      await page.getByTestId('nueva-factura').click();
+      await page.getByTestId('select-entrega-factura').selectOption(entrega2Id);
+      await expect(page.getByTestId('crear-total')).toHaveValue('58');
+      await page.getByTestId('confirmar-crear-factura').click();
+      await expect(page.getByTestId('factura-mensaje')).toBeVisible();
+      const { data: f2 } = await admin.from('facturas')
+        .select('id').eq('entrega_id', entrega2Id).single();
+      await page.getByTestId('cerrar-panel-factura').click();
+      await page.getByTestId(`emitir-factura-${f2!.id}`).click();
+      await page.getByTestId('factura-folio-fiscal').fill('FAC-E2E-DOS-2');
+      await page.getByTestId('confirmar-emitir-factura').click();
+      await expect(page.getByTestId('factura-mensaje')).toBeVisible();
+      await page.getByTestId('cerrar-panel-factura').click();
+      await expect.poll(async () => {
+        const { data } = await admin.from('cuentas_por_cobrar')
+          .select('factura_id').eq('id', contexto.arId).single();
+        return data?.factura_id ?? null;
+      }).toBe(f2!.id);
+      const { data: emitidas } = await admin.from('facturas')
+        .select('id, estado').eq('orden_id', contexto.ordenId).eq('estado', 'EMITIDA');
+      expect(emitidas?.length).toBe(2);
+
+      // 3. Cancelar la segunda devuelve el puntero a la primera.
+      await page.reload();
+      await page.getByTestId(`cancelar-factura-${f2!.id}`).click();
+      await page.getByTestId('factura-motivo').fill('Error de captura de la segunda entrega');
+      await page.getByTestId('confirmar-cancelar-factura').click();
+      await expect(page.getByTestId('factura-mensaje')).toBeVisible();
+      await expect.poll(async () => {
+        const { data } = await admin.from('cuentas_por_cobrar')
+          .select('factura_id, folio_factura_remision').eq('id', contexto.arId).single();
+        return data ? `${data.factura_id}:${data.folio_factura_remision}` : null;
+      }).toBe(`${f1!.id}:FAC-E2E-DOS-1`);
     } finally {
       await limpiarContexto(contexto);
     }

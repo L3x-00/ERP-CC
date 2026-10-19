@@ -41,3 +41,37 @@ export function totalFacturado(facturas: readonly FacturaCola[]): number {
     0,
   );
 }
+
+export type DisponibleFactura = {
+  facturado: number;
+  total: number;
+  subtotal: number | null;
+  iva: number | null;
+};
+
+function redondear2(valor: number): number {
+  return Math.round(valor * 100) / 100;
+}
+
+/**
+ * C10.2b/F-03 A: monto que aún se puede facturar de una CxC.
+ * La CxC es una por Orden; las facturas por entrega la consumen parcialmente.
+ * Reparte el disponible con la proporción subtotal/IVA de la cuenta.
+ */
+export function calcularDisponibleFactura(
+  cuenta: { monto_total: number; monto_subtotal: number | null; monto_iva: number | null } | null,
+  facturado: number,
+): DisponibleFactura {
+  if (!cuenta) return { facturado: 0, total: 0, subtotal: null, iva: null };
+  const total = redondear2(Math.max(0, cuenta.monto_total - facturado));
+  if (total === 0) return { facturado, total: 0, subtotal: 0, iva: 0 };
+  const factor = cuenta.monto_total > 0 ? total / cuenta.monto_total : 0;
+  return {
+    facturado: redondear2(facturado),
+    total,
+    subtotal: cuenta.monto_subtotal === null
+      ? null
+      : redondear2(cuenta.monto_subtotal * factor),
+    iva: cuenta.monto_iva === null ? null : redondear2(cuenta.monto_iva * factor),
+  };
+}

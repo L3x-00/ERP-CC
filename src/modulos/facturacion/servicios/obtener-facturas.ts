@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import { filaAFactura, type Factura } from '@/modulos/facturacion/tipos/indice';
+import { calcularDisponibleFactura } from '@/modulos/facturacion/utilidades/indice';
 
 /** Factura de la cola con el contexto de su entrega, orden y cliente. */
 export type FacturaCola = Factura & {
@@ -187,6 +188,13 @@ export type PreparacionFactura = {
     estado: string;
     cobrable: boolean;
   } | null;
+  /** C10.2b: monto aún facturable de la CxC, ya descontadas las facturas activas. */
+  disponible: {
+    facturado: number;
+    total: number;
+    subtotal: number | null;
+    iva: number | null;
+  };
   facturaActiva: Factura | null;
 };
 
@@ -206,7 +214,7 @@ export async function prepararFacturaEntrega(
   if (!nota) return null;
 
   const orden = nota.ordenes_produccion as unknown as OrdenEmbed | null;
-  const [cuentaResp, facturaResp] = await Promise.all([
+  const [cuentaResp, facturaResp, emitidasResp] = await Promise.all([
     orden
       ? cliente
         .from('cuentas_por_cobrar')
@@ -220,9 +228,30 @@ export async function prepararFacturaEntrega(
       .eq('entrega_id', entregaId)
       .neq('estado', 'CANCELADA')
       .maybeSingle(),
+    orden
+      ? cliente
+        .from('facturas')
+        .select('total')
+        .eq('orden_id', orden.id)
+        .eq('estado', 'EMITIDA')
+      : Promise.resolve({ data: [] as { total: number | null }[] }),
   ]);
 
   const cuenta = cuentaResp.data;
+  const facturado = (emitidasResp.data ?? []).reduce(
+    (suma, factura) => suma + Number(factura.total ?? 0),
+    0,
+  );
+  const disponible = calcularDisponibleFactura(
+    cuenta
+      ? {
+        monto_total: Number(cuenta.monto_total),
+        monto_subtotal: cuenta.monto_subtotal === null ? null : Number(cuenta.monto_subtotal),
+        monto_iva: cuenta.monto_iva === null ? null : Number(cuenta.monto_iva),
+      }
+      : null,
+    facturado,
+  );
 
   return {
     entrega: {
@@ -254,6 +283,7 @@ export async function prepararFacturaEntrega(
         cobrable: cuenta.cobrable_desde !== null,
       }
       : null,
+    disponible,
     facturaActiva: facturaResp.data ? filaAFactura(facturaResp.data) : null,
   };
 }

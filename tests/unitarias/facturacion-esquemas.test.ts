@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { FacturaCola } from '@/modulos/facturacion/servicios/obtener-facturas';
 import {
+  calcularDisponibleFactura,
   filtrarFacturas,
   totalFacturado,
 } from '@/modulos/facturacion/utilidades/indice';
@@ -18,6 +19,7 @@ function factura(extra: Partial<FacturaCola> & { id: string }): FacturaCola {
     clienteId: 'cliente-1',
     ordenId: 'orden-1',
     entregaId: 'entrega-1',
+    cuentaId: extra.cuentaId ?? null,
     subtotal: extra.subtotal === undefined ? 100 : extra.subtotal,
     iva: extra.iva === undefined ? 16 : extra.iva,
     total: extra.total === undefined ? 116 : extra.total,
@@ -27,6 +29,7 @@ function factura(extra: Partial<FacturaCola> & { id: string }): FacturaCola {
     emitidaEn: extra.emitidaEn ?? null,
     canceladaEn: extra.canceladaEn ?? null,
     motivoCancelacion: extra.motivoCancelacion ?? null,
+    fechaVencimiento: extra.fechaVencimiento ?? null,
     creadoPor: 'usuario-1',
     creadoEn: '2026-10-06T10:00:00.000Z',
     actualizadoEn: '2026-10-06T10:00:00.000Z',
@@ -92,5 +95,29 @@ describe('cola de facturas (SII-B8 F2)', () => {
       factura({ id: 'c', estado: 'CANCELADA', total: 999 }),
     ];
     expect(totalFacturado(cola)).toBe(300);
+  });
+});
+
+describe('disponible por facturar (C10.2b)', () => {
+  it('descuenta las facturas activas y reparte subtotal/IVA de la CxC', () => {
+    const cuenta = { monto_total: 116, monto_subtotal: 100, monto_iva: 16 };
+    expect(calcularDisponibleFactura(cuenta, 0)).toEqual({
+      facturado: 0, total: 116, subtotal: 100, iva: 16,
+    });
+    expect(calcularDisponibleFactura(cuenta, 58)).toEqual({
+      facturado: 58, total: 58, subtotal: 50, iva: 8,
+    });
+    expect(calcularDisponibleFactura(cuenta, 116)).toEqual({
+      facturado: 116, total: 0, subtotal: 0, iva: 0,
+    });
+  });
+
+  it('no baja de cero y sin CxC devuelve cero', () => {
+    expect(calcularDisponibleFactura({
+      monto_total: 100, monto_subtotal: 86.21, monto_iva: 13.79,
+    }, 150)).toEqual({ facturado: 150, total: 0, subtotal: 0, iva: 0 });
+    expect(calcularDisponibleFactura(null, 0)).toEqual({
+      facturado: 0, total: 0, subtotal: null, iva: null,
+    });
   });
 });
