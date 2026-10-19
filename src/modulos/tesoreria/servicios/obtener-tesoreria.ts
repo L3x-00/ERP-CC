@@ -1,14 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
-  type CuentaTesoreria,
-  type DatosTesoreria,
-  type MovimientoTesoreria,
-} from '@/modulos/tesoreria/tipos/indice';
-
-function redondear(valor: number): number {
-  return Math.round((valor + Number.EPSILON) * 100) / 100;
-}
+  calcularSaldosTesoreria,
+  type CobroCalculo,
+  type CuentaCalculo,
+  type GastoCalculo,
+  type PagoCompraCalculo,
+  type TransferenciaCalculo,
+} from '@/modulos/tesoreria/servicios/calcular-saldos-tesoreria';
+import type { DatosTesoreria } from '@/modulos/tesoreria/tipos/indice';
 
 function etiquetaCuenta(cuenta: {
   banco: string;
@@ -22,51 +22,64 @@ function etiquetaCuenta(cuenta: {
 }
 
 /**
- * SII-B8 F5: saldos por cuenta (inicial + movimientos vivos en la moneda de la
- * cuenta) y lista de movimientos (cobros, pagos a proveedor, gastos pagados y
- * transferencias) con su marca de conciliación.
- *
- * Las transferencias internas no son ingreso/gasto: solo mueven saldo entre
- * cuentas. Los gastos en moneda distinta a la cuenta solo se convierten cuando
- * la cuenta es MXN (con el TC del gasto); el caso inverso se omite y se refleja
- * en el flujo informativo existente.
+ * SII-B8 F5 + C10.3: lee las fuentes y delega el acumulado en una función pura.
+ * Los cobros reversados se conservan como movimiento original marcado y su
+ * reverso negativo; el neto es cero. Los gastos en moneda distinta a la cuenta
+ * solo se convierten cuando la cuenta es MXN (con el TC del gasto).
  */
 export async function obtenerTesoreria(
   cliente: SupabaseClient<Database>,
   limiteMovimientos = 300,
 ): Promise<DatosTesoreria> {
-  const [cuentasResp, saldosResp, cobrosResp, pagosCompraResp, gastosResp, transferResp, conciliacionesResp] =
-    await Promise.all([
-      cliente
-        .from('cuentas_bancarias')
-        .select('id, banco, numero_cuenta, moneda, activa, tipo')
-        .order('banco', { ascending: true }),
-      cliente.from('saldos_iniciales_tesoreria').select('cuenta_id, monto, moneda, tipo_cambio'),
-      cliente
-        .from('pagos_ar')
-        .select('id, cuenta_bancaria_id, folio_recibo, monto_pagado, moneda_pago, creado_en')
-        .not('cuenta_bancaria_id', 'is', null),
-      cliente
-        .from('pagos_compra')
-        .select('id, compra_id, monto, fecha_pago, referencia, cuenta_bancaria_id')
-        .not('cuenta_bancaria_id', 'is', null),
-      cliente
-        .from('gastos')
-        .select('id, folio, folio_sii, monto_total, moneda, tipo_cambio, fecha_gasto, cuenta_bancaria_id')
-        .not('cuenta_bancaria_id', 'is', null)
-        .eq('estado_pago', 'pagado'),
-      cliente
-        .from('movimientos_tesoreria')
-        .select('id, cuenta_id, tipo, monto, moneda, referencia, par_movimiento_id, creado_en'),
-      cliente.from('conciliaciones_tesoreria').select('entidad, entidad_id, conciliado_en'),
-    ]);
+  const [
+    cuentasResp,
+    saldosResp,
+    cobrosResp,
+    reversosResp,
+    pagosCompraResp,
+    gastosResp,
+    transferResp,
+    conciliacionesResp,
+  ] = await Promise.all([
+    cliente
+      .from('cuentas_bancarias')
+      .select('id, banco, numero_cuenta, moneda, activa, tipo')
+      .order('banco', { ascending: true }),
+    cliente.from('saldos_iniciales_tesoreria').select('cuenta_id, monto, moneda, tipo_cambio'),
+    cliente
+      .from('pagos_ar')
+      .select('id, cuenta_bancaria_id, folio_recibo, monto_pagado, moneda_pago, creado_en')
+      .not('cuenta_bancaria_id', 'is', null),
+    cliente.from('reversos_pago_ar').select('id, pago_id, creado_en'),
+    cliente
+      .from('pagos_compra')
+      .select('id, compra_id, monto, fecha_pago, referencia, cuenta_bancaria_id')
+      .not('cuenta_bancaria_id', 'is', null),
+    cliente
+      .from('gastos')
+      .select('id, folio, folio_sii, monto_total, moneda, tipo_cambio, fecha_gasto, cuenta_bancaria_id')
+      .not('cuenta_bancaria_id', 'is', null)
+      .eq('estado_pago', 'pagado'),
+    cliente
+      .from('movimientos_tesoreria')
+      .select('id, cuenta_id, tipo, monto, moneda, referencia, par_movimiento_id, creado_en'),
+    cliente.from('conciliaciones_tesoreria').select('entidad, entidad_id, conciliado_en'),
+  ]);
 
   if (cuentasResp.error) throw new Error('No se pudieron cargar las cuentas de tesorería');
+  if (cobrosResp.error) throw new Error('No se pudieron cargar los cobros de tesorería');
+  if (reversosResp.error) throw new Error('No se pudieron cargar los reversos de cobros');
+  if (pagosCompraResp.error) throw new Error('No se pudieron cargar los pagos a proveedores');
+  if (gastosResp.error) throw new Error('No se pudieron cargar los gastos pagados');
+  if (transferResp.error) throw new Error('No se pudieron cargar las transferencias');
 
   const cuentasCatalogo = cuentasResp.data ?? [];
-  const cuentaPorId = new Map(cuentasCatalogo.map((cuenta) => [cuenta.id, cuenta]));
   const saldoInicialPorCuenta = new Map(
     (saldosResp.data ?? []).map((saldo) => [saldo.cuenta_id, Number(saldo.monto)]),
+  );
+  const cuentaPorId = new Map(cuentasCatalogo.map((cuenta) => [cuenta.id, cuenta]));
+  const reversoPorPago = new Map(
+    (reversosResp.data ?? []).map((reverso) => [reverso.pago_id, reverso]),
   );
 
   const compraIds = [...new Set((pagosCompraResp.data ?? []).map((pago) => pago.compra_id))];
@@ -81,78 +94,55 @@ export async function obtenerTesoreria(
     }
   }
 
-  const conciliadoPorEntidad = new Map(
-    (conciliacionesResp.data ?? []).map((conciliacion) => [
-      `${conciliacion.entidad}:${conciliacion.entidad_id}`,
-      conciliacion.conciliado_en,
-    ]),
-  );
+  const cuentas: CuentaCalculo[] = cuentasCatalogo.map((cuenta) => ({
+    id: cuenta.id,
+    etiqueta: etiquetaCuenta(cuenta),
+    tipo: cuenta.tipo === 'efectivo' ? 'efectivo' : 'banco',
+    moneda: cuenta.moneda,
+    activa: cuenta.activa,
+    saldoInicial: saldoInicialPorCuenta.get(cuenta.id) ?? null,
+  }));
 
-  const movimientos: MovimientoTesoreria[] = [];
-  const acumuladoPorCuenta = new Map<string, number>();
+  const cobros: CobroCalculo[] = (cobrosResp.data ?? []).map((cobro) => {
+    const reverso = reversoPorPago.get(cobro.id);
+    return {
+      id: cobro.id,
+      cuentaId: cobro.cuenta_bancaria_id as string,
+      folio: cobro.folio_recibo,
+      fecha: cobro.creado_en,
+      monto: Number(cobro.monto_pagado),
+      moneda: cobro.moneda_pago,
+      reversado: Boolean(reverso),
+      reversoId: reverso?.id ?? null,
+      reversoFecha: reverso?.creado_en ?? null,
+    };
+  });
 
-  for (const cuenta of cuentasCatalogo) {
-    acumuladoPorCuenta.set(cuenta.id, 0);
-  }
-
-  function registrar(
-    entidad: MovimientoTesoreria['entidad'],
-    entidadId: string,
-    cuentaId: string,
-    referencia: string,
-    fecha: string,
-    monto: number,
-    moneda: string,
-    signo: 1 | -1,
-  ): void {
-    const cuenta = cuentaPorId.get(cuentaId);
-    if (!cuenta || moneda !== cuenta.moneda) return;
-    movimientos.push({
-      entidad,
-      entidadId,
-      cuentaId,
-      cuentaEtiqueta: etiquetaCuenta(cuenta),
-      referencia,
-      fecha,
-      monto: redondear(monto),
-      moneda: cuenta.moneda,
-      signo,
-      conciliadoEn: conciliadoPorEntidad.get(`${entidad}:${entidadId}`) ?? null,
-    });
-    acumuladoPorCuenta.set(cuentaId, (acumuladoPorCuenta.get(cuentaId) ?? 0) + signo * monto);
-  }
-
-  for (const cobro of cobrosResp.data ?? []) {
-    // El motor de pagos valida que la cuenta comparta la moneda de pago.
-    registrar('cobro', cobro.id, cobro.cuenta_bancaria_id as string, cobro.folio_recibo,
-      cobro.creado_en, Number(cobro.monto_pagado), cobro.moneda_pago, 1);
-  }
-
-  for (const pago of pagosCompraResp.data ?? []) {
+  const pagosCompra: PagoCompraCalculo[] = (pagosCompraResp.data ?? []).map((pago) => {
     const compra = compraPorId.get(pago.compra_id);
-    registrar('pago_compra', pago.id, pago.cuenta_bancaria_id as string,
-      compra?.folio ?? 'Pago a proveedor', pago.fecha_pago, Number(pago.monto),
-      compra?.moneda ?? 'MXN', -1);
-  }
+    return {
+      id: pago.id,
+      cuentaId: pago.cuenta_bancaria_id as string,
+      referencia: compra?.folio ?? 'Pago a proveedor',
+      fecha: pago.fecha_pago,
+      monto: Number(pago.monto),
+      moneda: compra?.moneda ?? 'MXN',
+    };
+  });
 
-  for (const gasto of gastosResp.data ?? []) {
-    const cuenta = cuentaPorId.get(gasto.cuenta_bancaria_id as string);
-    if (!cuenta) continue;
-    let monto = Number(gasto.monto_total);
-    if (gasto.moneda !== cuenta.moneda) {
-      if (cuenta.moneda === 'MXN' && gasto.moneda === 'USD') {
-        monto = monto * Number(gasto.tipo_cambio);
-      } else {
-        continue;
-      }
-    }
-    registrar('gasto', gasto.id, cuenta.id, gasto.folio_sii ?? gasto.folio,
-      gasto.fecha_gasto, monto, cuenta.moneda, -1);
-  }
+  const gastos: GastoCalculo[] = (gastosResp.data ?? []).map((gasto) => ({
+    id: gasto.id,
+    cuentaId: gasto.cuenta_bancaria_id as string,
+    referencia: gasto.folio_sii ?? gasto.folio,
+    fecha: gasto.fecha_gasto,
+    monto: Number(gasto.monto_total),
+    moneda: gasto.moneda,
+    tipoCambio: Number(gasto.tipo_cambio),
+  }));
 
   const transferencias = transferResp.data ?? [];
   const transferenciaPorId = new Map(transferencias.map((movimiento) => [movimiento.id, movimiento]));
-  for (const movimiento of transferencias) {
+  const transferenciasCalculo: TransferenciaCalculo[] = transferencias.map((movimiento) => {
     const contraparte = movimiento.par_movimiento_id
       ? transferenciaPorId.get(movimiento.par_movimiento_id)
       : undefined;
@@ -161,27 +151,35 @@ export async function obtenerTesoreria(
       ?? (cuentaContraparte
         ? `Transferencia ${movimiento.tipo === 'TRANSFERENCIA_SALIDA' ? 'a' : 'de'} ${etiquetaCuenta(cuentaContraparte)}`
         : 'Transferencia interna');
-    registrar('transferencia', movimiento.id, movimiento.cuenta_id, referencia,
-      movimiento.creado_en, Number(movimiento.monto), movimiento.moneda,
-      movimiento.tipo === 'TRANSFERENCIA_ENTRADA' ? 1 : -1);
-  }
-
-  const cuentas: CuentaTesoreria[] = cuentasCatalogo.map((cuenta) => {
-    const movimientosCuenta = movimientos.filter((movimiento) => movimiento.cuentaId === cuenta.id);
     return {
-      id: cuenta.id,
-      etiqueta: etiquetaCuenta(cuenta),
-      tipo: (cuenta.tipo === 'efectivo' ? 'efectivo' : 'banco') as 'banco' | 'efectivo',
-      moneda: cuenta.moneda,
-      activa: cuenta.activa,
-      saldoInicial: saldoInicialPorCuenta.get(cuenta.id) ?? null,
-      saldoActual: redondear((saldoInicialPorCuenta.get(cuenta.id) ?? 0) + (acumuladoPorCuenta.get(cuenta.id) ?? 0)),
-      conciliados: movimientosCuenta.filter((movimiento) => movimiento.conciliadoEn !== null).length,
-      movimientos: movimientosCuenta.length,
+      id: movimiento.id,
+      cuentaId: movimiento.cuenta_id,
+      referencia,
+      fecha: movimiento.creado_en,
+      monto: Number(movimiento.monto),
+      moneda: movimiento.moneda,
+      signo: movimiento.tipo === 'TRANSFERENCIA_ENTRADA' ? 1 : -1,
     };
   });
 
-  movimientos.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+  const conciliadoPorEntidad = new Map(
+    (conciliacionesResp.data ?? []).map((conciliacion) => [
+      `${conciliacion.entidad}:${conciliacion.entidad_id}`,
+      conciliacion.conciliado_en,
+    ]),
+  );
 
-  return { cuentas, movimientos: movimientos.slice(0, limiteMovimientos) };
+  const datos = calcularSaldosTesoreria({
+    cuentas,
+    cobros,
+    pagosCompra,
+    gastos,
+    transferencias: transferenciasCalculo,
+    conciliadoPorEntidad,
+  });
+
+  return {
+    cuentas: datos.cuentas,
+    movimientos: datos.movimientos.slice(0, limiteMovimientos),
+  };
 }

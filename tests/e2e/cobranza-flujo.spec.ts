@@ -220,6 +220,7 @@ test.describe.serial('flujo de Cobranza AR', () => {
 
     await page.goto('/cobranza');
     await expect(page.getByTestId('operacion-cobranza')).toBeVisible();
+    await expect(page.getByTestId('flujo-cuentas-tesoreria')).toHaveCount(0);
     const fila = page.getByRole('row', { name: new RegExp(datos.folioOrden) });
     const { data: referencia } = await datos.admin.from('cuentas_por_cobrar')
       .select('referencia_interna, folio_factura_remision').eq('id', datos.arId).single();

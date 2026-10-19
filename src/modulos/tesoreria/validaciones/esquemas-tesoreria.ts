@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { ENTIDADES_TESORERIA } from '@/modulos/tesoreria/tipos/indice';
+import { ENTIDADES_CONCILIABLES_TESORERIA } from '@/modulos/tesoreria/tipos/indice';
 
 const uuid = z.uuid('Identificador inválido');
 const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida');
@@ -33,14 +33,14 @@ export const esquemaTransferencia = z
 export const esquemaConciliacion = z
   .object({
     cuentaId: uuid,
-    entidad: z.enum(ENTIDADES_TESORERIA),
+    entidad: z.enum(ENTIDADES_CONCILIABLES_TESORERIA),
     entidadId: uuid,
   })
   .strict();
 
 export const esquemaDesconciliacion = z
   .object({
-    entidad: z.enum(ENTIDADES_TESORERIA),
+    entidad: z.enum(ENTIDADES_CONCILIABLES_TESORERIA),
     entidadId: uuid,
   })
   .strict();

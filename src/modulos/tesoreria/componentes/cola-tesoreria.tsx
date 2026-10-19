@@ -159,6 +159,11 @@ export function ColaTesoreria({
                     <span className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">
                       {ETIQUETA_ENTIDAD_TESORERIA[movimiento.entidad]}
                     </span>
+                    {movimiento.reversado ? (
+                      <span className="ml-2 inline-flex rounded-full bg-advertencia-suave px-2 py-0.5 text-xs font-medium text-advertencia-texto">
+                        Reversado
+                      </span>
+                    ) : null}
                     <span className="block font-mono text-xs">{movimiento.referencia}</span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
@@ -166,11 +171,15 @@ export function ColaTesoreria({
                   </td>
                   <td className="px-4 py-3">
                     <span data-testid={`conciliacion-${movimiento.entidad}-${movimiento.entidadId}`}>
-                      <BadgeEstado estado={movimiento.conciliadoEn ? 'conciliado' : 'pendiente'} />
+                      {movimiento.entidad === 'reverso_cobro' ? (
+                        <span className="text-xs text-texto-secundario">Contra-registro</span>
+                      ) : (
+                        <BadgeEstado estado={movimiento.conciliadoEn ? 'conciliado' : 'pendiente'} />
+                      )}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    {puedeOperar ? (
+                    {puedeOperar && movimiento.entidad !== 'reverso_cobro' ? (
                       movimiento.conciliadoEn ? (
                         <Button type="button" variante="contorno" tamano="sm"
                           data-testid={`desconciliar-${movimiento.entidad}-${movimiento.entidadId}`}

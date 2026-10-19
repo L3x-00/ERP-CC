@@ -1,9 +1,12 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 
+import type { Database } from '@/compartido/tipos/supabase';
 import {
   calcularFlujoPorCuenta,
+  obtenerFlujoCuentasServicio,
   type MovimientoCuenta,
-} from '@/modulos/cobranza/servicios/flujo-cuentas-servicio';
+} from '@/modulos/tesoreria/servicios/flujo-cuentas-servicio';
 
 const CUENTA_A = '11111111-1111-4111-8111-111111111111';
 const CUENTA_B = '22222222-2222-4222-8222-222222222222';
@@ -64,5 +67,56 @@ describe('calcularFlujoPorCuenta (OBS-24)', () => {
       egresoMxn: 50,
       netoMxn: -50,
     });
+  });
+});
+
+type ConsultaFalsa = {
+  select: () => ConsultaFalsa;
+  order: () => ConsultaFalsa;
+  neq: () => ConsultaFalsa;
+  then: <T>(
+    onfulfilled: (valor: { data: unknown[]; error: null }) => T | PromiseLike<T>,
+  ) => Promise<T>;
+};
+
+function consulta(data: unknown[]): ConsultaFalsa {
+  const q: ConsultaFalsa = {
+    select: () => q,
+    order: () => q,
+    neq: () => q,
+    then: (onfulfilled) => Promise.resolve({ data, error: null }).then(onfulfilled),
+  };
+  return q;
+}
+
+describe('lector del flujo por cuenta (C10.3/F-14)', () => {
+  it('omite los cobros reversados y conserva el gasto', async () => {
+    const tablas: Record<string, unknown[]> = {
+      cuentas_bancarias: [{
+        id: CUENTA_A, banco: 'Banco A', numero_cuenta: '0000000001', moneda: 'MXN', activa: true,
+      }],
+      pagos_ar: [
+        {
+          id: 'pago-1', cuenta_bancaria_id: CUENTA_A, monto_pagado: 100,
+          moneda_pago: 'MXN', tipo_cambio_pago: 1,
+        },
+        {
+          id: 'pago-2', cuenta_bancaria_id: CUENTA_A, monto_pagado: 50,
+          moneda_pago: 'MXN', tipo_cambio_pago: 1,
+        },
+      ],
+      reversos_pago_ar: [{ pago_id: 'pago-2' }],
+      gastos: [{
+        cuenta_bancaria_id: CUENTA_A, monto_total: 30, moneda: 'MXN',
+        tipo_cambio: 1, estado_pago: 'pagado',
+      }],
+    };
+    const cliente = {
+      from: (tabla: string) => consulta(tablas[tabla] ?? []),
+    } as unknown as SupabaseClient<Database>;
+
+    const filas = await obtenerFlujoCuentasServicio(cliente);
+
+    expect(filas[0]).toMatchObject({ ingresoMxn: 100, egresoMxn: 30, netoMxn: 70 });
   });
 });

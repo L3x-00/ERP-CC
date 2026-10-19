@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { FacturaCola } from '@/modulos/facturacion/servicios/obtener-facturas';
+import { traducirErrorFactura } from '@/modulos/facturacion/servicios/errores-factura';
 import {
   calcularDisponibleFactura,
   filtrarFacturas,
@@ -119,5 +120,9 @@ describe('disponible por facturar (C10.2b)', () => {
     expect(calcularDisponibleFactura(null, 0)).toEqual({
       facturado: 0, total: 0, subtotal: null, iva: null,
     });
+  });
+
+  it('traduce el bloqueo de F-12 (cobros aplicados)', () => {
+    expect(traducirErrorFactura('factura_con_cobros')).toContain('cobros aplicados');
   });
 });

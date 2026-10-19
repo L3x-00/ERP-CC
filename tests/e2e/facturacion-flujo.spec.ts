@@ -40,7 +40,7 @@ async function prepararContexto(): Promise<Contexto> {
 
   const folioOrden = `OP-${String(Date.now()).slice(-6)}`;
   const { data: orden, error: errorOrden } = await admin.from('ordenes_produccion').insert({
-    folio: folioOrden, folio_sii: 'O-9999_94', cliente_id: cliente.id,
+    folio: folioOrden, folio_sii: null, cliente_id: cliente.id,
     estado: 'completada', fecha_compromiso: '2099-12-30T10:00:00.000Z',
   }).select('id').single();
   if (errorOrden || !orden) throw new Error(`Sin orden: ${errorOrden?.message}`);
@@ -94,6 +94,7 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
   test('borrador desde entrega → emitir con folio → cancelar desvincula → re-facturar', async ({ page }) => {
     const contexto = await prepararContexto();
     const { admin } = contexto;
+    const folioFiscal = `FAC-E2E-${randomUUID().slice(0, 8)}`;
     try {
       await iniciarSesion(page, contexto);
       await page.goto('/facturacion');
@@ -119,7 +120,7 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
       // 2. Emisión con folio fiscal capturado: vincula la AR.
       await expect(page.getByTestId(`estado-factura-${borrador!.id}`)).toContainText('Borrador');
       await page.getByTestId(`emitir-factura-${borrador!.id}`).click();
-      await page.getByTestId('factura-folio-fiscal').fill('FAC-E2E-F2-0001');
+      await page.getByTestId('factura-folio-fiscal').fill(folioFiscal);
       await page.getByTestId('factura-rfc-receptor').fill('XAXX010101000');
       await page.getByTestId('confirmar-emitir-factura').click();
       await expect(page.getByTestId('factura-mensaje')).toBeVisible();
@@ -130,15 +131,15 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
       }).toBe(contexto.entregaId);
       const { data: facturaEmitida } = await admin.from('facturas')
         .select('estado, folio_fiscal, emitida_en').eq('id', borrador!.id).single();
-      expect(facturaEmitida).toMatchObject({ estado: 'EMITIDA', folio_fiscal: 'FAC-E2E-F2-0001' });
+      expect(facturaEmitida).toMatchObject({ estado: 'EMITIDA', folio_fiscal: folioFiscal });
       expect(facturaEmitida?.emitida_en).not.toBeNull();
       const { data: arVinculada } = await admin.from('cuentas_por_cobrar')
         .select('factura_id, folio_factura_remision, fecha_vencimiento').eq('id', contexto.arId).single();
       expect(arVinculada?.factura_id).toBe(borrador!.id);
-      expect(arVinculada?.folio_factura_remision).toBe('FAC-E2E-F2-0001');
+      expect(arVinculada?.folio_factura_remision).toBe(folioFiscal);
       expect(arVinculada?.fecha_vencimiento).not.toBeNull();
       await page.getByTestId('cerrar-panel-factura').click();
-      await expect(page.getByTestId(`folio-fiscal-${borrador!.id}`)).toContainText('FAC-E2E-F2-0001');
+      await expect(page.getByTestId(`folio-fiscal-${borrador!.id}`)).toContainText(folioFiscal);
 
       // 3. Cancelar con motivo: desvincula la AR y conserva el vencimiento.
       await page.getByTestId(`cancelar-factura-${borrador!.id}`).click();
@@ -199,11 +200,13 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
   test('dos entregas de la misma orden → dos facturas → cancelar la segunda revierte el puntero', async ({ page }) => {
     const contexto = await prepararContexto();
     const { admin } = contexto;
+    const folio1 = `FAC-E2E-DOS-${randomUUID().slice(0, 8)}-1`;
+    const folio2 = `FAC-E2E-DOS-${randomUUID().slice(0, 8)}-2`;
     let entrega2Id = '';
     try {
-      const folio2 = `NE-${String((Date.now() + 1) % 1_000_000).padStart(6, '0')}`;
+      const folioEntrega2 = `NE-${String((Date.now() + 1) % 1_000_000).padStart(6, '0')}`;
       const { data: nota2, error: errorNota2 } = await admin.from('notas_entrega').insert({
-        folio: folio2, orden_id: contexto.ordenId, recibido_por: 'Recepción F2 dos',
+        folio: folioEntrega2, orden_id: contexto.ordenId, recibido_por: 'Recepción F2 dos',
         creado_por: contexto.usuarioId,
       }).select('id').single();
       if (errorNota2 || !nota2) throw new Error(errorNota2?.message ?? 'Sin segunda entrega');
@@ -226,7 +229,7 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
         .select('id').eq('entrega_id', contexto.entregaId).single();
       await page.getByTestId('cerrar-panel-factura').click();
       await page.getByTestId(`emitir-factura-${f1!.id}`).click();
-      await page.getByTestId('factura-folio-fiscal').fill('FAC-E2E-DOS-1');
+      await page.getByTestId('factura-folio-fiscal').fill(folio1);
       await page.getByTestId('confirmar-emitir-factura').click();
       await expect(page.getByTestId('factura-mensaje')).toBeVisible();
       await page.getByTestId('cerrar-panel-factura').click();
@@ -246,7 +249,7 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
         .select('id').eq('entrega_id', entrega2Id).single();
       await page.getByTestId('cerrar-panel-factura').click();
       await page.getByTestId(`emitir-factura-${f2!.id}`).click();
-      await page.getByTestId('factura-folio-fiscal').fill('FAC-E2E-DOS-2');
+      await page.getByTestId('factura-folio-fiscal').fill(folio2);
       await page.getByTestId('confirmar-emitir-factura').click();
       await expect(page.getByTestId('factura-mensaje')).toBeVisible();
       await page.getByTestId('cerrar-panel-factura').click();
@@ -269,7 +272,7 @@ test.describe('Facturación SII-B8 F2: borrador, emisión vinculada a CxC y re-f
         const { data } = await admin.from('cuentas_por_cobrar')
           .select('factura_id, folio_factura_remision').eq('id', contexto.arId).single();
         return data ? `${data.factura_id}:${data.folio_factura_remision}` : null;
-      }).toBe(`${f1!.id}:FAC-E2E-DOS-1`);
+      }).toBe(`${f1!.id}:${folio1}`);
     } finally {
       await limpiarContexto(contexto);
     }
