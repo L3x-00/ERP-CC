@@ -19,3 +19,5 @@ export type {
   DatosComprobanteOCRValidados,
   TipoMimeComprobante,
 } from '@/modulos/gastos/validaciones/gastos';
+
+export { esquemaConciliacionCostosOrden } from '@/modulos/gastos/validaciones/conciliacion';

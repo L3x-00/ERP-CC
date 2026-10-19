@@ -34,6 +34,8 @@ export type Compra = {
   notas: string | null;
   motivoCancelacion: string | null;
   actualizadoEn: string;
+  /** C10.2/F-02: momento de recepción; null si se pagó sin recibir. */
+  recibidaEn: string | null;
   /** C10.1/F06: null en históricas aún sin clasificar. */
   rubroCosto: RubroCostoCompra | null;
   /** C10.1/F08: detalle mínimo de material, nullable. */
@@ -84,6 +86,7 @@ export function filaACompra(fila: Tables<'compras'>): Compra {
     notas: fila.notas ?? null,
     motivoCancelacion: fila.motivo_cancelacion ?? null,
     actualizadoEn: fila.actualizado_en,
+    recibidaEn: fila.recibida_en ?? null,
     rubroCosto: (fila.rubro_costo as RubroCostoCompra | null) ?? null,
     concepto: fila.concepto ?? null,
     materialId: fila.material_id ?? null,

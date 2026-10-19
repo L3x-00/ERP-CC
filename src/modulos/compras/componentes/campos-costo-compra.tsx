@@ -132,7 +132,7 @@ export function AvisoNivelCosto({ compra }: { compra: CompraCola }) {
   if (!compra.ordenId) return null;
   return (
     <p className="text-xs text-texto-secundario" data-testid="compra-nivel-costo">
-      {describirNivelCosto(compra.estado)} Rubro: {compra.rubroCosto
+      {describirNivelCosto(compra)} Rubro: {compra.rubroCosto
         ? ETIQUETA_RUBRO_COSTO_COMPRA[compra.rubroCosto]
         : 'sin clasificar'}.
     </p>

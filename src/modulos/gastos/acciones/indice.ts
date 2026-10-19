@@ -8,4 +8,5 @@ export { cambiarEstadoGastoAccion } from '@/modulos/gastos/acciones/cambiar-esta
 export { obtenerGastosAccion } from '@/modulos/gastos/acciones/obtener-gastos';
 export { obtenerDesgloseRentabilidadOrdenAccion } from '@/modulos/gastos/acciones/obtener-desglose-rentabilidad';
 export { obtenerRentabilidadOrdenAccion } from '@/modulos/gastos/acciones/obtener-rentabilidad-orden';
+export { obtenerConciliacionCostosOrdenAccion } from '@/modulos/gastos/acciones/obtener-conciliacion-costos-orden';
 export { procesarComprobanteOcrAccion } from '@/modulos/gastos/acciones/procesar-comprobante-ocr';

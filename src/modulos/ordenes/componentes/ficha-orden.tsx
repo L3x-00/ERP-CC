@@ -17,6 +17,7 @@ import { Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
+import { SeccionConciliacionOrden } from '@/modulos/gastos/componentes/seccion-conciliacion-orden';
 import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
 import { CrearOrdenBasadaEnAnteriorDialog } from '@/modulos/ordenes/componentes/crear-orden-basada-anterior-dialog';
 import { PanelActividadFicha } from '@/modulos/ordenes/componentes/panel-actividad-ficha';
@@ -52,6 +53,8 @@ export interface PermisosFichaOrden {
   puedeVerRfq: boolean;
   /** Origen comercial: Propuesta y Revisión enlazan a /propuestas solo con `propuesta_vista`. */
   puedeVerPropuesta: boolean;
+  /** C10.2/F-07 B: pestaña Costos visible solo con `ver_finanzas`. */
+  puedeVerCostos?: boolean;
 }
 
 const PESTANAS: readonly [PestanaFicha, string][] = [
@@ -62,6 +65,7 @@ const PESTANAS: readonly [PestanaFicha, string][] = [
   ['entregas', 'Entregas'],
   ['actividad', 'Actividad'],
   ['documento', 'Documento'],
+  ['costos', 'Costos'],
   ['comentarios', 'Comentarios'],
 ];
 
@@ -79,9 +83,13 @@ export function FichaOrden({
 }) {
   const router = useRouter();
   // Documento es visible siempre (R17): sin orden_ver_totales es la hoja de trabajo, sin Totales.
-  const [pestana, setPestana] = useState<PestanaFicha>(
-    () => PESTANAS.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen',
+  const pestanasVisibles = PESTANAS.filter(
+    ([id]) => id !== 'costos' || permisos.puedeVerCostos === true,
   );
+  const [pestana, setPestana] = useState<PestanaFicha>(() => {
+    const inicial = PESTANAS.find(([id]) => id === pestanaInicial)?.[0] ?? 'resumen';
+    return inicial === 'costos' && permisos.puedeVerCostos !== true ? 'resumen' : inicial;
+  });
   const [adjuntando, setAdjuntando] = useState(false);
   const [creandoBasadaEnAnterior, setCreandoBasadaEnAnterior] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -260,7 +268,7 @@ export function FichaOrden({
       ) : null}
 
       <div role="tablist" aria-label="Secciones de la orden" className="flex flex-wrap gap-1 border-b border-borde print:hidden">
-        {PESTANAS.map(([id, etiqueta]) => (
+        {pestanasVisibles.map(([id, etiqueta]) => (
           <button
             key={id}
             type="button"
@@ -345,6 +353,12 @@ export function FichaOrden({
 
       {pestana === 'documento' ? (
         <PanelDocumentoFicha ficha={ficha} folio={folio} puedeVerTotales={permisos.puedeVerTotales} />
+      ) : null}
+
+      {pestana === 'costos' && permisos.puedeVerCostos === true ? (
+        <section data-testid="ficha-panel-costos">
+          <SeccionConciliacionOrden ordenId={ficha.orden.id} />
+        </section>
       ) : null}
 
       {pestana === 'comentarios' ? (

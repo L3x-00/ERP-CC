@@ -38,3 +38,5 @@ export {
 } from '@/modulos/gastos/servicios/gastos-servicio';
 
 export type { CodigoErrorGastos } from '@/modulos/gastos/servicios/gastos-servicio';
+
+export { obtenerConciliacionCostosOrdenServicio } from '@/modulos/gastos/servicios/conciliacion-servicio';

@@ -23,6 +23,7 @@ export type CodigoErrorGastos =
   | 'usuario_sin_permiso'
   | 'estado_invalido'
   | 'conflicto_version'
+  | 'conciliacion_invalida'
   | 'desconocido';
 
 export class ErrorGastos extends Error {
@@ -264,6 +265,7 @@ export function mensajeErrorGastos(error: unknown): string {
       usuario_sin_permiso: 'No tienes permiso para operar gastos',
       estado_invalido: 'La transición del gasto no está permitida',
       conflicto_version: 'El gasto cambió en otra pantalla; vuelve a consultar',
+      conciliacion_invalida: 'No se pudo consultar la conciliación de la Orden',
     };
     return mensajes[error.codigo] ?? 'No se pudo procesar el gasto';
   }

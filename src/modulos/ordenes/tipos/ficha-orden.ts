@@ -154,6 +154,7 @@ export const PESTANAS_FICHA = [
   'entregas',
   'actividad',
   'documento',
+  'costos',
   'comentarios',
 ] as const;
 

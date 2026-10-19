@@ -21,6 +21,7 @@ import {
 } from '@/modulos/gastos/acciones/indice';
 import { CLAVE_GASTOS, CLAVE_RENTABILIDAD_GASTOS } from '@/modulos/gastos/componentes/claves-consulta';
 import { ModalRegistrarGasto } from '@/modulos/gastos/componentes/modal-registrar-gasto';
+import { SeccionConciliacionOrden } from '@/modulos/gastos/componentes/seccion-conciliacion-orden';
 import { SincronizadorGastosRealtime } from '@/modulos/gastos/componentes/sincronizador-gastos-realtime';
 import { TablaGastos } from '@/modulos/gastos/componentes/tabla-gastos';
 import { TarjetaRentabilidadOrden } from '@/modulos/gastos/componentes/tarjeta-rentabilidad-orden';
@@ -335,6 +336,7 @@ export function OperacionGastos({ datosIniciales }: { datosIniciales: Gasto[] })
       ) : null}
       {rentabilidad.isError ? <p role="alert" className="text-sm text-peligro-texto">No se pudo consultar la rentabilidad.</p> : null}
       <TarjetaRentabilidadOrden datos={rentabilidad.data ?? null} desglose={desgloseRentabilidad.data ?? null} />
+      {ordenRentabilidad ? <SeccionConciliacionOrden ordenId={ordenRentabilidad} /> : null}
       <ModalRegistrarGasto key={revisionModal} abierto={modalAbierto} gastoEditar={gastoEditar} proveedores={proveedores.data ?? []} procesando={procesando} ocrEnCurso={usarTiendaGastos((estado) => estado.ocrEnCurso)} onAbiertoChange={cambiarModalAbierto} onGuardar={guardar} onVerComprobante={(gasto) => void verComprobante(gasto)} onOcr={procesarOcr} />
     </div>
   );
