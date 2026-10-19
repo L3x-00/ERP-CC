@@ -33,7 +33,14 @@ function ContenidoNavegacion({
         const items = modulos.filter((modulo) => modulo.grupo === grupo);
         if (items.length === 0) return null;
         return (
-          <div key={grupo} className="flex flex-col gap-1">
+          <div
+            key={grupo}
+            className={cn(
+              'flex flex-col gap-1',
+              grupo === 'Sistema'
+                && 'sticky bottom-0 z-10 -mx-2 mt-auto border-t border-borde bg-superficie px-2 pb-1 pt-2',
+            )}
+          >
             {!contraida ? (
               <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-texto-tenue">
                 {grupo}
