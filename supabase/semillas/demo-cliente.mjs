@@ -1213,7 +1213,6 @@ async function verificar() {
     notificaciones_usuario: 8,
     metas_vendedor: 1,
     areas_trabajo_config: 10,
-    cuentas_bancarias: 4,
     proveedores: 4,
   };
   let fallos = 0;
@@ -1227,6 +1226,7 @@ async function verificar() {
 
   // La auditoría es viva: crece con cada sesión real, por eso solo se informa.
   console.log(`  INFO logs: ${await contar('logs')} (crece con el uso real)`);
+  console.log(`  INFO cuentas_bancarias: ${await contar('cuentas_bancarias')} (demo base 3; Finanzas agrega HSBC)`);
 
   const { data: ordenes } = await cliente.from('ordenes_produccion').select('estado');
   const porEstado = {};
