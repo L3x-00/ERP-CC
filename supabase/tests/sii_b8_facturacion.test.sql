@@ -48,7 +48,7 @@ VALUES
 
 CREATE TEMP TABLE b8f (clave text PRIMARY KEY, valor jsonb);
 
-SELECT plan(38);
+SELECT plan(41);
 
 -- 1-4. Borrador idempotente por entrega.
 INSERT INTO b8f (clave, valor)
@@ -325,6 +325,45 @@ SELECT is((SELECT factura_id FROM public.cuentas_por_cobrar
   WHERE id = '00000000-0000-4000-8000-00000000b9d3'),
   (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f9'),
   'La CxC vuelve a apuntar a la factura más reciente');
+
+-- F-12: un cobro aplicado bloquea la cancelación; su reverso la permite.
+INSERT INTO public.pagos_ar (
+  id, ar_id, folio_recibo, solicitud_id, monto_pagado, moneda_pago,
+  tipo_cambio_pago, monto_aplicado_ar, monto_sobrepago_ar, metodo_pago, creado_por
+) VALUES (
+  '00000000-0000-4000-8000-00000000b9f0', '00000000-0000-4000-8000-00000000b9d3',
+  'REC-991901', gen_random_uuid(), 10, 'MXN', 1, 10, 0, 'efectivo',
+  '00000000-0000-4000-8000-00000000b901'
+);
+INSERT INTO public.aplicaciones_pago (id, pago_id, cuenta_id, monto)
+VALUES ('00000000-0000-4000-8000-00000000b9f2',
+  '00000000-0000-4000-8000-00000000b9f0', '00000000-0000-4000-8000-00000000b9d3', 10);
+SELECT throws_ok($$SELECT * FROM public.cancelar_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f9'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f9'),
+  'No debe cancelarse con cobros', '00000000-0000-4000-8000-00000000b901')$$,
+  '23514', 'factura_con_cobros',
+  'Una factura con cobro aplicado no se cancela (F-12)');
+INSERT INTO public.reversos_pago_ar (
+  id, pago_id, ar_id, motivo, monto_aplicado_reverso, monto_sobrepago_reverso,
+  monedero_revertido_mxn, creado_por
+) VALUES (
+  '00000000-0000-4000-8000-00000000b9f1', '00000000-0000-4000-8000-00000000b9f0',
+  '00000000-0000-4000-8000-00000000b9d3', 'Cobro reversado', 10, 0, 0,
+  '00000000-0000-4000-8000-00000000b901'
+);
+UPDATE b8f SET valor = valor || to_jsonb(factura.*)
+FROM public.cancelar_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f9'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f9'),
+  'Cobro reversado; se puede cancelar', '00000000-0000-4000-8000-00000000b901') AS factura
+WHERE b8f.clave = 'f9';
+SELECT is((SELECT valor ->> 'estado' FROM b8f WHERE clave = 'f9'), 'CANCELADA',
+  'Un cobro reversado ya no bloquea la cancelación');
+SELECT is((SELECT factura_id FROM public.cuentas_por_cobrar
+  WHERE id = '00000000-0000-4000-8000-00000000b9d3'),
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f7'),
+  'Al cancelar la factura con cobro reversado, la CxC vuelve a la primera');
 
 -- Guardarraíl: la suma de facturas activas no puede exceder la CxC.
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)

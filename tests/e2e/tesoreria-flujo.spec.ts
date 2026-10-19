@@ -86,6 +86,7 @@ test.describe('Tesorería SII-B8 F5: saldos, transferencias internas y conciliac
       await iniciarSesion(page, contexto);
       await page.goto('/tesoreria');
       await expect(page.getByTestId('cola-tesoreria')).toBeVisible();
+      await expect(page.getByTestId('flujo-cuentas-tesoreria')).toBeVisible();
 
       // 1. Saldo inicial del banco: 1,000 + cobro 500 = 1,500.
       await page.getByTestId(`saldo-inicial-${contexto.bancoId}`).click();

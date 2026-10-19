@@ -22,6 +22,9 @@ export function traducirErrorFactura(mensaje: string, detalle?: string): string 
     return 'La factura excede el saldo por facturar de la cuenta por cobrar';
   }
   if (codigo.includes('factura_ya_cancelada')) return 'La factura ya estaba cancelada';
+  if (codigo.includes('factura_con_cobros')) {
+    return 'No se cancela una factura con cobros aplicados; reversa los cobros primero';
+  }
   if (codigo.includes('datos_factura_invalidos')) return 'Datos de factura inválidos';
   if (codigo.includes('datos_cancelacion_invalidos')) {
     return 'Indica un motivo de cancelación (3 a 500 caracteres)';

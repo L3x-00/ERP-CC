@@ -86,19 +86,21 @@ export function calcularFlujoPorCuenta(
 /**
  * Lee cobros y gastos (bajo el alcance del cliente recibido, nunca service role
  * en rutas de usuario) y devuelve el flujo neto por cuenta. Los gastos
- * cancelados no cuentan; los movimientos sin cuenta se agrupan aparte.
+ * cancelados no cuentan; los cobros reversados tampoco (neto cero y sin ruido
+ * en el flujo). Los movimientos sin cuenta se agrupan aparte.
  */
 export async function obtenerFlujoCuentasServicio(
   cliente: SupabaseClient<Database>,
 ): Promise<FlujoCuenta[]> {
-  const [cuentas, pagos, gastos] = await Promise.all([
+  const [cuentas, pagos, reversos, gastos] = await Promise.all([
     cliente
       .from('cuentas_bancarias')
       .select('id, banco, numero_cuenta, moneda, activa')
       .order('banco', { ascending: true }),
     cliente
       .from('pagos_ar')
-      .select('cuenta_bancaria_id, monto_pagado, moneda_pago, tipo_cambio_pago'),
+      .select('id, cuenta_bancaria_id, monto_pagado, moneda_pago, tipo_cambio_pago'),
+    cliente.from('reversos_pago_ar').select('pago_id'),
     cliente
       .from('gastos')
       .select('cuenta_bancaria_id, monto_total, moneda, tipo_cambio, estado_pago')
@@ -107,8 +109,10 @@ export async function obtenerFlujoCuentasServicio(
 
   if (cuentas.error) throw new Error(`No se pudieron leer las cuentas: ${cuentas.error.message}`);
   if (pagos.error) throw new Error(`No se pudieron leer los pagos: ${pagos.error.message}`);
+  if (reversos.error) throw new Error(`No se pudieron leer los reversos: ${reversos.error.message}`);
   if (gastos.error) throw new Error(`No se pudieron leer los gastos: ${gastos.error.message}`);
 
+  const pagosReversados = new Set((reversos.data ?? []).map((reverso) => reverso.pago_id));
   const catalogo = (cuentas.data ?? []).map((cuenta) => ({
     id: cuenta.id,
     etiqueta: `${cuenta.banco} · …${String(cuenta.numero_cuenta).slice(-4)} · ${cuenta.moneda}${
@@ -117,13 +121,15 @@ export async function obtenerFlujoCuentasServicio(
   }));
 
   const movimientos: MovimientoCuenta[] = [
-    ...(pagos.data ?? []).map((pago) => ({
-      cuentaId: pago.cuenta_bancaria_id,
-      moneda: pago.moneda_pago,
-      monto: Number(pago.monto_pagado),
-      tipoCambio: Number(pago.tipo_cambio_pago),
-      tipo: 'ingreso' as const,
-    })),
+    ...(pagos.data ?? [])
+      .filter((pago) => !pagosReversados.has(pago.id))
+      .map((pago) => ({
+        cuentaId: pago.cuenta_bancaria_id,
+        moneda: pago.moneda_pago,
+        monto: Number(pago.monto_pagado),
+        tipoCambio: Number(pago.tipo_cambio_pago),
+        tipo: 'ingreso' as const,
+      })),
     ...(gastos.data ?? []).map((gasto) => ({
       cuentaId: gasto.cuenta_bancaria_id,
       moneda: gasto.moneda,
