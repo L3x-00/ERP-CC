@@ -357,7 +357,13 @@ export function FichaOrden({
 
       {pestana === 'costos' && permisos.puedeVerCostos === true ? (
         <section data-testid="ficha-panel-costos">
-          <SeccionConciliacionOrden ordenId={ficha.orden.id} />
+          {ficha.orden.esInterna ? (
+            <p className="rounded-md border border-borde p-4 text-sm text-texto-secundario">
+              Orden interna (TI): no tiene venta ni conciliación comercial.
+            </p>
+          ) : (
+            <SeccionConciliacionOrden ordenId={ficha.orden.id} />
+          )}
         </section>
       ) : null}
 
