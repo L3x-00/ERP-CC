@@ -143,7 +143,7 @@ async function limpiarContexto(contexto: ContextoRfq): Promise<void> {
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
 }
 
-/** Llena el modal "Nuevo RFQ", finaliza la captura con el seguimiento y abre la ficha. */
+/** Llena el modal "Nuevo RFQ", finaliza con la próxima acción y abre la ficha. */
 async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string> {
   const { admin, empresa } = contexto;
   // Obs. cliente 2026-10-13: nombre y teléfono del contacto son obligatorios.
@@ -153,6 +153,10 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   await page.getByLabel('Empresa', { exact: true }).fill(empresa);
   await page.getByLabel('Cliente (opcional)', { exact: true }).fill(empresa);
   await page.getByRole('button', { name: new RegExp(empresa) }).first().click();
+  await expect(page.getByLabel('Fecha de registro')).toBeDisabled();
+  await expect(page.locator('#prospecto-responsable')).toBeDisabled();
+  await page.getByLabel('Canal', { exact: true }).selectOption('CORREO');
+  await page.getByLabel('Descripción', { exact: true }).fill(`Alta modal ${contexto.sufijo}`);
   await page.getByRole('button', { name: 'Continuar con ítems' }).click();
 
   // El asistente sigue en el mismo modal: ítems y archivos sin cambiar de pantalla.
@@ -188,14 +192,14 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   await expect(page.getByTestId('archivo-rfq-requerido')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Finalizar captura' })).toBeEnabled();
 
-  // Obs. cliente 2026-10-13: «Finalizar captura» exige el modal de canal,
-  // seguimiento y próxima acción, con un único responsable para ambos.
+  // «Finalizar captura» muestra el resumen ya capturado y sólo pide la
+  // próxima acción. El responsable queda asociado al creador del RFQ.
   await page.getByRole('button', { name: 'Finalizar captura' }).click();
   const dialogo = page.getByTestId('dialogo-finalizar-captura');
   await expect(dialogo).toBeVisible();
-  await dialogo.getByLabel('Canal', { exact: true }).selectOption('CORREO');
-  await dialogo.getByLabel('Descripción general').fill(`Alta modal ${contexto.sufijo}`);
-  await dialogo.getByLabel('Responsable', { exact: true }).selectOption({ index: 1 });
+  await expect(dialogo.getByRole('region', { name: 'Resumen del RFQ' })).toContainText(
+    `Alta modal ${contexto.sufijo}`,
+  );
   await dialogo.getByLabel('Acción a seguir').selectOption({ index: 1 });
   await dialogo
     .getByLabel('Fecha de la acción')

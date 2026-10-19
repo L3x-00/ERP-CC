@@ -164,7 +164,7 @@ describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
-  it('inicia el RFQ como INCOMPLETE y conserva la fecha requerida del cliente', async () => {
+  it('inicia el RFQ como INCOMPLETE con la fecha de registro del sistema', async () => {
     await crearProspectoAccion({
       ...ALTA_BASE,
       fechaRequerida: '2026-11-20',
@@ -173,8 +173,12 @@ describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         estado_rfq: 'INCOMPLETE',
-        fecha_requerida: '2026-11-20',
+        fecha_requerida: null,
+        fecha_solicitud: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       }),
+    );
+    expect((insertMock.mock.calls[0]?.[0] as Record<string, unknown>).fecha_solicitud).not.toBe(
+      '2026-11-20',
     );
     expect(registrarLogMock).toHaveBeenCalledWith(
       VENDEDOR,
@@ -241,7 +245,7 @@ describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
 });
 
 describe('crearProspectoAccion — Resumen capturado desde el alta (obs. cliente)', () => {
-  it('persiste canal, fecha de solicitud, descripción y responsable', async () => {
+  it('persiste canal y descripción, y usa fecha y responsable del servidor', async () => {
     await crearProspectoAccion({
       ...ALTA_BASE,
       canal: 'WHATSAPP',
@@ -253,11 +257,14 @@ describe('crearProspectoAccion — Resumen capturado desde el alta (obs. cliente
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         canal: 'WHATSAPP',
-        fecha_solicitud: '2026-10-10',
+        fecha_solicitud: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         descripcion_general: 'Corte de lámina calibre 14',
-        responsable_id: RESPONSABLE_ID,
+        responsable_id: VENDEDOR.id,
       }),
     );
+    const insercion = insertMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(insercion.fecha_solicitud).not.toBe('2026-10-10');
+    expect(insercion.responsable_id).not.toBe(RESPONSABLE_ID);
   });
 
   it('traduce el rechazo del canal fuera del catálogo', async () => {
@@ -311,7 +318,7 @@ describe('crearProspectoAccion — Resumen capturado desde el alta (obs. cliente
     );
   });
 
-  it('rechaza un responsable inactivo', async () => {
+  it('ignora el responsable recibido y asigna al usuario autenticado', async () => {
     seleccionMaybeSingleMock.mockImplementation(async (tabla: string) =>
       tabla === 'usuarios'
         ? { data: { id: RESPONSABLE_ID, activo: false }, error: null }
@@ -320,8 +327,10 @@ describe('crearProspectoAccion — Resumen capturado desde el alta (obs. cliente
 
     const respuesta = await crearProspectoAccion({ ...ALTA_BASE, responsableId: RESPONSABLE_ID });
 
-    expect(respuesta).toEqual({ exito: false, error: 'El responsable no está activo' });
-    expect(insertMock).not.toHaveBeenCalled();
+    expect(respuesta.exito).toBe(true);
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ responsable_id: VENDEDOR.id }),
+    );
   });
 });
 

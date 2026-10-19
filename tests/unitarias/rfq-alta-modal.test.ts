@@ -194,6 +194,12 @@ function capturarContacto(): void {
   fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '664 111 2233' } });
 }
 
+async function completarSolicitudInicial(): Promise<void> {
+  await waitFor(() => expect(screen.getByLabelText('Canal')).not.toHaveProperty('disabled', true));
+  fireEvent.change(screen.getByLabelText('Canal'), { target: { value: 'CORREO' } });
+  fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Corte láser' } });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   usarPipelineMock.mockReturnValue({ data: [OPORTUNIDAD], isLoading: false, isError: false });
@@ -207,7 +213,17 @@ beforeEach(() => {
   obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CAPTURADO });
   obtenerCatalogosMock.mockResolvedValue({
     exito: true,
-    datos: { materiales: [], espesores: [], procesos: [], canales: [], proximasAcciones: [], usuarios: [] },
+    datos: {
+      materiales: [],
+      espesores: [],
+      procesos: [],
+      canales: [
+        { codigo: 'WHATSAPP', nombre: 'WhatsApp', esOtro: false, activo: true },
+        { codigo: 'CORREO', nombre: 'Correo', esOtro: false, activo: true },
+      ],
+      proximasAcciones: [{ codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false }],
+      usuarios: [{ id: 'vend-1', nombre: 'Vendedor', rol: 'ventas' }],
+    },
   });
   listarArchivosMock.mockResolvedValue({ exito: true, datos: [] });
   actualizarDatosMock.mockResolvedValue({
@@ -265,6 +281,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     render(envolver(createElement(ColaRfq)));
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
     capturarContacto();
+    await completarSolicitudInicial();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByRole('button', { name: 'Creando RFQ…' })).toBeDefined();
@@ -280,6 +297,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     render(envolver(createElement(ColaRfq)));
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
     capturarContacto();
+    await completarSolicitudInicial();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
 
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
@@ -299,6 +317,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
     capturarContacto();
     fireEvent.change(screen.getByLabelText('Empresa'), { target: { value: 'Metanor' } });
+    await completarSolicitudInicial();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
     await waitFor(() =>
@@ -315,24 +334,32 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     );
   }
 
-  it('el paso Cliente y solicitud ya no captura canal, responsable ni próxima acción (obs. cliente)', () => {
+  it('captura los datos generales antes de los ítems y reserva la próxima acción para el cierre', () => {
     render(envolver(createElement(ColaRfq)));
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
     const dialogo = within(screen.getByRole('dialog'));
 
     expect(dialogo.getByLabelText('Nombre del contacto')).toBeDefined();
-    expect(dialogo.queryByLabelText('Canal')).toBeNull();
-    expect(dialogo.queryByLabelText('Fecha de solicitud')).toBeNull();
-    expect(dialogo.queryByLabelText('Responsable')).toBeNull();
-    expect(dialogo.queryByLabelText('Descripción general')).toBeNull();
+    expect(dialogo.getByLabelText('Fecha de registro')).toHaveProperty('disabled', true);
+    expect(dialogo.getByLabelText('Responsable')).toHaveProperty('disabled', true);
+    expect(dialogo.getByLabelText('Descripción')).toBeDefined();
+    expect(dialogo.queryByLabelText('Notas (opcional)')).toBeNull();
     expect(dialogo.queryByLabelText('Acción a seguir')).toBeNull();
     expect(dialogo.queryByLabelText('Fecha de la acción')).toBeNull();
-    // La solicitud básica se conserva en el paso.
+    // La solicitud básica se conserva en el paso inicial.
     expect(dialogo.getByLabelText('Moneda')).toBeDefined();
-    expect(dialogo.getByLabelText('Notas (opcional)')).toBeDefined();
   });
 
-  it('“Finalizar captura” abre el modal y persiste el seguimiento con un único responsable', async () => {
+  it('preselecciona WhatsApp cuando el canal está vigente', async () => {
+    render(envolver(createElement(ColaRfq)));
+    fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
+
+    await waitFor(() =>
+      expect((screen.getByLabelText('Canal') as HTMLSelectElement).value).toBe('WHATSAPP'),
+    );
+  });
+
+  it('“Finalizar captura” resume el RFQ y persiste únicamente la próxima acción', async () => {
     const usuarioId = '11111111-1111-4111-8111-111111111111';
     obtenerCatalogosMock.mockResolvedValue({
       exito: true,
@@ -349,20 +376,20 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     render(envolver(createElement(ColaRfq)));
     await llegarAPasoArchivos();
 
-    // El alta nace sin canal ni seguimiento: eso se captura en el modal final.
+    // Los datos generales nacen completos; el cierre solo captura seguimiento.
     expect(crearProspectoMock).toHaveBeenCalledTimes(1);
-    expect(crearProspectoMock.mock.calls[0]?.[0]).not.toHaveProperty('canal');
+    expect(crearProspectoMock.mock.calls[0]?.[0]).toMatchObject({
+      canal: 'CORREO',
+      descripcionGeneral: 'Corte láser',
+    });
     expect(crearProspectoMock.mock.calls[0]?.[0]).not.toHaveProperty('proximaAccionCodigo');
 
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar captura' }));
     const dialogo = within(await screen.findByTestId('dialogo-finalizar-captura'));
 
-    await waitFor(() => expect(dialogo.getByRole('option', { name: 'Correo' })).toBeDefined());
-    fireEvent.change(dialogo.getByLabelText('Canal'), { target: { value: 'CORREO' } });
-    fireEvent.change(dialogo.getByLabelText('Descripción general'), {
-      target: { value: 'Corte láser' },
-    });
-    fireEvent.change(dialogo.getByLabelText('Responsable'), { target: { value: usuarioId } });
+    expect(dialogo.getByRole('region', { name: 'Resumen del RFQ' })).toBeDefined();
+    expect(dialogo.queryByLabelText('Canal')).toBeNull();
+    expect(dialogo.queryByLabelText('Responsable')).toBeNull();
     fireEvent.change(dialogo.getByLabelText('Acción a seguir'), {
       target: { value: 'FOLLOW_UP' },
     });
@@ -377,20 +404,19 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
       expect.objectContaining({
         rfqId: 'op-1',
         actualizadoEn: RFQ_CAPTURADO.actualizadoEn,
-        canal: 'CORREO',
-        descripcionGeneral: 'Corte láser',
-        responsableId: usuarioId,
+        canal: RFQ_CAPTURADO.canal,
+        descripcionGeneral: RFQ_CAPTURADO.descripcionGeneral,
+        responsableId: RFQ_CAPTURADO.vendedorId,
         proximaAccionCodigo: 'FOLLOW_UP',
         fechaProximaAccion: fechaFutura,
-        // Un único responsable alimenta el RFQ y la próxima acción.
-        responsableProximaAccionId: usuarioId,
+        responsableProximaAccionId: RFQ_CAPTURADO.vendedorId,
       }),
     );
     // Al confirmar se cierra el alta completa: no queda ningún diálogo abierto.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('el modal no permite finalizar hasta completar los campos obligatorios', async () => {
+  it('el modal no permite finalizar hasta completar acción y fecha', async () => {
     const usuarioId = '11111111-1111-4111-8111-111111111111';
     obtenerCatalogosMock.mockResolvedValue({
       exito: true,
@@ -411,23 +437,15 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
 
     const confirmar = dialogo.getByRole('button', { name: 'Guardar y finalizar' });
     expect(confirmar.hasAttribute('disabled')).toBe(true);
-    expect(dialogo.getByTestId('faltantes-finalizar').textContent).toContain('canal');
-
-    fireEvent.change(dialogo.getByLabelText('Canal'), { target: { value: 'CORREO' } });
-    fireEvent.change(dialogo.getByLabelText('Descripción general'), {
-      target: { value: 'Corte láser' },
-    });
+    expect(dialogo.getByTestId('faltantes-finalizar').textContent).toContain('próxima acción');
     fireEvent.change(dialogo.getByLabelText('Acción a seguir'), {
       target: { value: 'FOLLOW_UP' },
     });
-    fireEvent.change(dialogo.getByLabelText('Fecha de la acción'), {
-      target: { value: fechaFutura },
-    });
-    // Aún falta el responsable único.
+    // Solo falta la fecha de la acción.
     expect(confirmar.hasAttribute('disabled')).toBe(true);
-    expect(dialogo.getByTestId('faltantes-finalizar').textContent).toContain('responsable');
+    expect(dialogo.getByTestId('faltantes-finalizar').textContent).toContain('fecha de la próxima acción');
 
-    fireEvent.change(dialogo.getByLabelText('Responsable'), { target: { value: usuarioId } });
+    fireEvent.change(dialogo.getByLabelText('Fecha de la acción'), { target: { value: fechaFutura } });
     expect(confirmar.hasAttribute('disabled')).toBe(false);
     expect(dialogo.queryByTestId('faltantes-finalizar')).toBeNull();
 
@@ -440,6 +458,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
     capturarContacto();
     fireEvent.change(screen.getByLabelText('Empresa'), { target: { value: 'Metanor' } });
+    await completarSolicitudInicial();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
 

@@ -29,6 +29,7 @@ import {
   CLASE_MENSAJE_FALTANTE,
   CLASE_OBLIGATORIO,
 } from '@/modulos/rfq/utilidades/faltantes';
+import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
 
 /** Mismo faltante que reporta `validar_rfq_listo`; reutiliza el estado vacío rojo de la tabla. */
 const FALTANTE_ITEM_ACTIVO = ['al menos un ítem activo'] as const;
@@ -91,9 +92,10 @@ function PasosAltaRfq({ paso }: { paso: PasoAltaRfq }) {
  * ítem, subir archivo); nunca navega ni crea la Propuesta: eso solo ocurre con
  * la acción explícita «Crear propuesta» en la ficha de un RFQ listo.
  *
- * Obs. cliente 2026-10-13: canal, seguimiento y próxima acción (con un único
- * responsable) se capturan en el modal obligatorio de «Finalizar captura»;
- * «Finalizar más tarde» sigue cerrando la captura sin modal.
+ * Los datos generales necesarios para registrar el RFQ se capturan antes de
+ * los ítems. La fecha y el responsable son informativos y los fija el servidor
+ * con el usuario autenticado; «Finalizar captura» queda solo para la próxima
+ * acción y el resumen.
  *
  * DC-01: no captura Orden de compra ni Horas estimadas; `Fecha requerida por
  * cliente` es informativa y no la Fecha compromiso.
@@ -102,9 +104,11 @@ function PasosAltaRfq({ paso }: { paso: PasoAltaRfq }) {
 export function FormularioProspecto({
   onExito,
   onCambioEnvio,
+  responsableActual,
 }: {
   onExito?: (id?: string) => void;
   onCambioEnvio?: (enviando: boolean) => void;
+  responsableActual?: { id: string; nombre: string };
 }) {
   const clienteConsultas = useQueryClient();
   const [paso, setPaso] = useState<PasoAltaRfq>('solicitud');
@@ -119,10 +123,10 @@ export function FormularioProspecto({
   const [prioridad, setPrioridad] = useState<PrioridadPipeline>('normal');
   const [condicionesPago, setCondicionesPago] = useState<CondicionesPago | ''>('');
   const [esOrdenInterna, setEsOrdenInterna] = useState(false);
-  const [fechaRequerida, setFechaRequerida] = useState('');
-  const [notas, setNotas] = useState('');
-  // Obs. cliente 2026-10-13: canal, seguimiento y próxima acción se capturan en
-  // el modal obligatorio de «Finalizar captura», no en este paso.
+  const [canal, setCanal] = useState('');
+  const [canalDetalle, setCanalDetalle] = useState('');
+  const [descripcionGeneral, setDescripcionGeneral] = useState('');
+  const fechaRegistro = fechaHoyLocal();
   const [finalizarAbierto, setFinalizarAbierto] = useState(false);
   const [contactoId, setContactoId] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +159,7 @@ export function FormularioProspecto({
   const rfq = rfqConsulta.data?.exito ? rfqConsulta.data.datos : undefined;
   const catalogos = catalogosConsulta.data?.exito ? (catalogosConsulta.data.datos ?? null) : null;
   const contactos = contactosConsulta.data?.exito ? (contactosConsulta.data.datos ?? []) : [];
+
   // Autocompletado (observación del cliente): con un cliente ligado se
   // preselecciona su contacto principal; el usuario puede cambiarlo.
   const contactoEfectivoId =
@@ -184,6 +189,18 @@ export function FormularioProspecto({
   const sinItemsActivos = rfq !== undefined && !rfq.items.some((item) => item.estado === 'activo');
   const sinArchivos =
     !archivosConsulta.data?.exito || (archivosConsulta.data.datos ?? []).length === 0;
+  // WhatsApp es el canal habitual de entrada. Se deriva del catálogo para no
+  // seleccionar un código inexistente durante su carga ni uno desactivado.
+  const canalPredeterminado = catalogos?.canales.find(
+    (opcion) => opcion.codigo === 'WHATSAPP' && opcion.activo,
+  )?.codigo ?? '';
+  const canalEfectivo = canal || canalPredeterminado || 'WHATSAPP';
+  const canalSeleccionado = catalogos?.canales.find((opcion) => opcion.codigo === canalEfectivo);
+  // Mientras llega el catálogo se conserva el valor predeterminado; el
+  // servidor vuelve a validar el canal al crear el RFQ.
+  const faltaCanal =
+    catalogos !== null && (canalSeleccionado === undefined || !canalSeleccionado.activo);
+  const faltaDescripcion = descripcionGeneral.trim() === '';
 
   function elegirContacto(valor: string): void {
     setContactoId(valor);
@@ -231,8 +248,9 @@ export function FormularioProspecto({
     setPrioridad('normal');
     setCondicionesPago('');
     setEsOrdenInterna(false);
-    setFechaRequerida('');
-    setNotas('');
+    setCanal('');
+    setCanalDetalle('');
+    setDescripcionGeneral('');
     setContactoId('');
   }
 
@@ -246,7 +264,14 @@ export function FormularioProspecto({
 
   async function crearRfqYContinuar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
-    if (faltantesCliente.length > 0 || cargandoContactos) return;
+    if (
+      faltantesCliente.length > 0 ||
+      cargandoContactos ||
+      faltaCanal ||
+      faltaDescripcion ||
+      (canalSeleccionado?.esOtro && !canalDetalle.trim())
+    )
+      return;
     setError(null);
     setEnviando(true);
     onCambioEnvio?.(true);
@@ -262,8 +287,9 @@ export function FormularioProspecto({
         esOrdenInterna,
         ...(cliente ? { clienteId: cliente.id } : {}),
         ...(condicionesPago !== '' ? { condicionesPago } : {}),
-        ...(fechaRequerida ? { fechaRequerida } : {}),
-        ...(notas.trim() ? { notas: notas.trim() } : {}),
+        canal: canalEfectivo,
+        ...(canalSeleccionado?.esOtro ? { canalDetalle: canalDetalle.trim() } : {}),
+        descripcionGeneral: descripcionGeneral.trim(),
         ...(contactoEfectivoId ? { contactoId: contactoEfectivoId } : {}),
       });
 
@@ -483,35 +509,89 @@ export function FormularioProspecto({
               )}
             </div>
 
-            <div className="flex flex-col gap-1 sm:col-span-2">
-              <Label htmlFor="prospecto-fecha-requerida">
-                Fecha requerida por cliente (opcional)
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-fecha-registro" className={CLASE_OBLIGATORIO}>
+                Fecha de registro
               </Label>
               <Input
-                id="prospecto-fecha-requerida"
+                id="prospecto-fecha-registro"
                 type="date"
-                value={fechaRequerida}
-                onChange={(evento) => setFechaRequerida(evento.target.value)}
-                aria-describedby="prospecto-ayuda-fecha-requerida"
+                value={fechaRegistro}
+                disabled
               />
-              <span
-                id="prospecto-ayuda-fecha-requerida"
-                data-testid="ayuda-fecha-requerida"
-                className="text-xs text-texto-secundario"
-              >
-                Dato informativo de lo que pide el cliente. No es la Fecha compromiso: esa se
-                confirma al aceptar una revisión de la propuesta.
+              <span className="text-xs text-texto-secundario">
+                Se registra automáticamente con la fecha actual del sistema.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-responsable" className={CLASE_OBLIGATORIO}>
+                Responsable
+              </Label>
+              <Input
+                id="prospecto-responsable"
+                value={
+                  responsableActual
+                    ? `${responsableActual.nombre} · ${responsableActual.id}`
+                    : 'Usuario autenticado'
+                }
+                disabled
+              />
+              <span className="text-xs text-texto-secundario">
+                Se asigna automáticamente a quien registra el RFQ.
               </span>
             </div>
 
             <div className="flex flex-col gap-1 sm:col-span-2">
-              <Label htmlFor="prospecto-notas">Notas (opcional)</Label>
+              <Label htmlFor="prospecto-canal" className={CLASE_OBLIGATORIO}>Canal</Label>
+              <Select
+                id="prospecto-canal"
+                value={canalEfectivo}
+                onChange={(evento) => {
+                  const siguiente = evento.target.value;
+                  setCanal(siguiente);
+                  if (!catalogos?.canales.find((opcion) => opcion.codigo === siguiente)?.esOtro) {
+                    setCanalDetalle('');
+                  }
+                }}
+                disabled={catalogosConsulta.isPending}
+                aria-required="true"
+                aria-invalid={faltaCanal}
+                className={faltaCanal ? CLASE_CAMPO_FALTANTE : undefined}
+              >
+                <option value="">Selecciona el canal</option>
+                {(catalogos?.canales ?? []).filter((opcion) => opcion.activo).map((opcion) => (
+                  <option key={opcion.codigo} value={opcion.codigo}>{opcion.nombre}</option>
+                ))}
+              </Select>
+            </div>
+
+            {canalSeleccionado?.esOtro && (
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <Label htmlFor="prospecto-canal-detalle" className={CLASE_OBLIGATORIO}>
+                  Detalle del canal Otro
+                </Label>
+                <Input
+                  id="prospecto-canal-detalle"
+                  value={canalDetalle}
+                  onChange={(evento) => setCanalDetalle(evento.target.value)}
+                  maxLength={300}
+                  aria-required="true"
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="prospecto-descripcion" className={CLASE_OBLIGATORIO}>Descripción</Label>
               <Textarea
-                id="prospecto-notas"
-                value={notas}
-                onChange={(evento) => setNotas(evento.target.value)}
+                id="prospecto-descripcion"
+                value={descripcionGeneral}
+                onChange={(evento) => setDescripcionGeneral(evento.target.value)}
                 rows={2}
                 maxLength={2000}
+                aria-required="true"
+                aria-invalid={faltaDescripcion}
+                className={faltaDescripcion ? CLASE_CAMPO_FALTANTE : undefined}
               />
             </div>
 
@@ -548,15 +628,26 @@ export function FormularioProspecto({
                 Cargando los contactos del cliente…
               </p>
             )}
-            {faltantesCliente.length > 0 && (
+            {(faltantesCliente.length > 0 || faltaCanal || faltaDescripcion) && (
               <p data-testid="alta-rfq-faltantes-cliente" className={CLASE_MENSAJE_FALTANTE}>
-                Para continuar completa: {faltantesCliente.join(' y ')}.
+                Para continuar completa: {[
+                  ...faltantesCliente,
+                  ...(faltaCanal ? ['canal'] : []),
+                  ...(faltaDescripcion ? ['descripción'] : []),
+                ].join(' y ')}.
               </p>
             )}
             <Button
               type="submit"
               tamano="lg"
-              disabled={enviando || faltantesCliente.length > 0 || cargandoContactos}
+              disabled={
+                enviando ||
+                faltantesCliente.length > 0 ||
+                cargandoContactos ||
+                faltaCanal ||
+                faltaDescripcion ||
+                (canalSeleccionado?.esOtro && !canalDetalle.trim())
+              }
             >
               {enviando ? 'Creando RFQ…' : 'Continuar con ítems'}
             </Button>

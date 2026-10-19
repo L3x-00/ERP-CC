@@ -56,9 +56,8 @@ export async function crearProspectoAccion(
     condicionesPago = condicionesPago ?? clienteRfq.condicionesPago;
   }
 
-  // Observación del cliente: el modal de alta captura también el contacto
-  // registrado y el responsable. Los vínculos se validan aquí (el canal lo
-  // revalida el trigger `validar_canal_rfq`).
+  // El contacto sí puede venir del formulario; el responsable siempre es el
+  // usuario autenticado que crea el RFQ, nunca un id enviado por el navegador.
   if (datos.contactoId && !clienteId) {
     return { exito: false, error: 'Elige un cliente antes del contacto' };
   }
@@ -73,17 +72,6 @@ export async function crearProspectoAccion(
       .maybeSingle();
     if (!contacto || !contacto.activo || contacto.cliente_id !== clienteId) {
       return { exito: false, error: 'El contacto no pertenece al cliente' };
-    }
-  }
-
-  if (datos.responsableId) {
-    const { data: responsable } = await admin
-      .from('usuarios')
-      .select('id, activo')
-      .eq('id', datos.responsableId)
-      .maybeSingle();
-    if (!responsable || !responsable.activo) {
-      return { exito: false, error: 'El responsable no está activo' };
     }
   }
 
@@ -131,6 +119,7 @@ export async function crearProspectoAccion(
   }
 
   const correlationId = nuevoCorrelationId();
+  const fechaRegistro = new Date().toISOString().slice(0, 10);
 
   let folioOp: string;
   try {
@@ -160,17 +149,16 @@ export async function crearProspectoAccion(
       // DC-01: PO y horas estimadas salen del alta. Las columnas legacy se
       // conservan en null para no reintroducirlas mediante clientes antiguos.
       po_cliente: null,
-      fecha_requerida: datos.fechaRequerida ? datos.fechaRequerida : null,
+      fecha_requerida: null,
       horas_estimadas: null,
-      notas: datos.notas?.trim() ? datos.notas.trim() : null,
-      // Observación del cliente: datos del Resumen capturados desde el alta.
-      canal: datos.canal?.trim() ? datos.canal.trim() : null,
+      notas: null,
+      // Los datos generales se capturan antes de los ítems. La fecha y el
+      // responsable son autoritativos del servidor para evitar alteraciones.
+      canal: datos.canal?.trim() || null,
       canal_detalle: datos.canalDetalle?.trim() ? datos.canalDetalle.trim() : null,
-      fecha_solicitud: datos.fechaSolicitud ? datos.fechaSolicitud : null,
-      descripcion_general: datos.descripcionGeneral?.trim()
-        ? datos.descripcionGeneral.trim()
-        : null,
-      responsable_id: datos.responsableId ?? null,
+      fecha_solicitud: fechaRegistro,
+      descripcion_general: datos.descripcionGeneral?.trim() || null,
+      responsable_id: usuario.id,
       contacto_id: datos.contactoId ?? null,
       // Ajuste cliente 2026-10-12: la próxima acción nace con el RFQ cuando se
       // capturó en el alta (unificada con canal y seguimiento).

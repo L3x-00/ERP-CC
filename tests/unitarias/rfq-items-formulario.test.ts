@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CatalogosRfq } from '@/modulos/rfq/acciones/obtener-catalogos';
 import { TablaItemsRfq } from '@/modulos/rfq/componentes/tabla-items-rfq';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
 
+const { guardarItemMock } = vi.hoisted(() => ({ guardarItemMock: vi.fn() }));
+
 vi.mock('@/modulos/rfq/acciones/guardar-item-rfq', () => ({
-  guardarItemRfqAccion: vi.fn(),
+  guardarItemRfqAccion: (...args: unknown[]) => guardarItemMock(...args),
 }));
 vi.mock('@/modulos/rfq/acciones/cancelar-item-rfq', () => ({
   cancelarItemRfqAccion: vi.fn(),
@@ -16,6 +18,7 @@ vi.mock('@/modulos/rfq/acciones/cancelar-item-rfq', () => ({
 
 const MATERIAL_CON_ESPESOR = '10000000-0000-4000-8000-000000000001';
 const MATERIAL_SIN_ESPESOR = '10000000-0000-4000-8000-000000000002';
+const PROCESO_ACABADO = '50000000-0000-4000-8000-000000000001';
 
 const RFQ: Rfq = {
   id: '20000000-0000-4000-8000-000000000001',
@@ -61,13 +64,20 @@ const CATALOGOS: CatalogosRfq = {
       espesorMm: 3,
     },
   ],
-  procesos: [],
+  procesos: [
+    { id: PROCESO_ACABADO, codigo: 'ACABADO', nombre: 'Acabado', requiereArchivoTecnico: false },
+  ],
   canales: [],
   proximasAcciones: [],
   usuarios: [],
 };
 
 afterEach(cleanup);
+
+beforeEach(() => {
+  guardarItemMock.mockReset();
+  guardarItemMock.mockResolvedValue({ exito: true, datos: {} });
+});
 
 describe('Formulario de ítem RFQ — relación Material/Espesor (C1.3)', () => {
   it('mantiene Espesor debajo de Material y explica por qué no se puede elegir', () => {
@@ -87,5 +97,24 @@ describe('Formulario de ítem RFQ — relación Material/Espesor (C1.3)', () => 
     const espesorDisponible = screen.getByRole('combobox', { name: 'Espesor' }) as HTMLSelectElement;
     expect(espesorDisponible.disabled).toBe(false);
     expect(screen.getByRole('option', { name: '3 mm' })).toBeDefined();
+  });
+
+  it('exige detalles solo cuando se selecciona la operación Acabado', () => {
+    render(createElement(TablaItemsRfq, { rfq: RFQ, catalogos: CATALOGOS, onCambio: vi.fn() }));
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ítem' }));
+
+    expect(screen.queryByLabelText('Detalles del acabado')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Acabado'));
+
+    const detalle = screen.getByLabelText('Detalles del acabado');
+    expect(detalle.getAttribute('required')).not.toBeNull();
+    expect(detalle.getAttribute('aria-required')).toBe('true');
+    expect(detalle.getAttribute('aria-invalid')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ítem' }));
+    expect(screen.getByRole('alert').textContent).toContain('detalles del acabado');
+    expect(guardarItemMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByLabelText('Acabado'));
+    expect(screen.queryByLabelText('Detalles del acabado')).toBeNull();
   });
 });

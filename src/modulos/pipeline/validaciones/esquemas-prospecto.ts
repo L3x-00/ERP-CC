@@ -21,13 +21,16 @@ export const esquemaCrearProspecto = z.object({
   // RFQ-02: cliente existente (o recién dado de alta) al que se liga la RFQ.
   // Opcional: una RFQ puede nacer sin cliente en el catálogo y ligarse después.
   clienteId: z.uuid('Cliente inválido').optional(),
-  // DC-01: dato informativo opcional del cliente. No equivale a la fecha
-  // compromiso comercial, que se confirma al aceptar una revisión.
+  // Campo legado: el alta nueva no lo captura; la fecha de registro se asigna
+  // en el servidor y no equivale a la fecha compromiso comercial.
   fechaRequerida: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),
   notas: z.string().max(2000).optional(),
   // Observación del cliente: la captura inicial en un solo modal también
   // completa los datos del Resumen (canal controlado, fecha de solicitud,
   // responsable, descripción y contacto autocompletado del cliente).
+  // El modal de alta exige ambos campos antes de permitir pasar a ítems. Se
+  // mantienen opcionales en este contrato para no invalidar altas legadas que
+  // completan su resumen en un flujo posterior.
   canal: z.string().trim().max(60).optional(),
   canalDetalle: z.string().trim().max(300).optional(),
   fechaSolicitud: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),

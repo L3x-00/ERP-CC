@@ -11,10 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
-import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
-import { Label } from '@/compartido/componentes/ui/label';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
-import { CLASE_OBLIGATORIO } from '@/modulos/rfq/utilidades/faltantes';
 import {
   faltantesProximaAccion,
   fechaHoyLocal,
@@ -26,10 +23,9 @@ import type { CatalogosRfq } from '../acciones/obtener-catalogos';
 import { CamposProximaAccion } from './campos-proxima-accion';
 
 /**
- * Obs. cliente 2026-10-13: «Finalizar captura» abre este modal obligatorio con
- * canal, seguimiento y próxima acción (antes vivían en el paso Cliente y
- * solicitud del alta). Un único «Responsable» alimenta el del RFQ y el de la
- * próxima acción para eliminar el campo redundante.
+ * El cierre conserva únicamente la próxima acción y un resumen no editable.
+ * Canal, descripción, fecha y responsable ya quedaron guardados antes de los
+ * ítems; el responsable de la acción es el mismo responsable del RFQ.
  *
  * El guardado reutiliza la acción con CAS y permiso `rfq_editar`, que revalida
  * canal vigente, contacto del cliente y responsables activos; el RFQ conserva
@@ -51,38 +47,22 @@ export function DialogoFinalizarCapturaRfq({
   onCambioEnvio?: (enviando: boolean) => void;
 }) {
   const hoy = fechaHoyLocal();
-  const [canal, setCanal] = useState(rfq.canal ?? '');
-  const [canalDetalle, setCanalDetalle] = useState(rfq.canalDetalle ?? '');
-  const [fechaSolicitud, setFechaSolicitud] = useState(
-    rfq.fechaSolicitud?.slice(0, 10) || hoy,
-  );
-  const [descripcionGeneral, setDescripcionGeneral] = useState(rfq.descripcionGeneral ?? '');
   const [proxima, setProxima] = useState<ProximaAccionCaptura>(() => {
     const fecha = rfq.fechaProximaAccion?.slice(0, 10) ?? '';
     return {
       codigo: rfq.proximaAccionCodigo ?? '',
       texto: rfq.proximaAccionTexto ?? '',
       fecha: fecha && fecha >= hoy ? fecha : '',
-      responsableId: rfq.responsableId ?? rfq.responsableProximaAccionId ?? '',
+      responsableId: rfq.responsableId ?? rfq.vendedorId,
     };
   });
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
-  const canalSeleccionado = (catalogos?.canales ?? []).find((opcion) => opcion.codigo === canal);
-  const canalesVisibles = (catalogos?.canales ?? []).filter(
-    (opcion) => opcion.activo || opcion.codigo === canal,
-  );
-  const canalHistoricoSinCatalogar =
-    canal !== '' && !(catalogos?.canales ?? []).some((opcion) => opcion.codigo === canal);
   const faltantesSeguimiento = catalogos
     ? faltantesProximaAccion(proxima, catalogos.proximasAcciones, hoy)
     : [];
   const faltantes = [
-    canal === '' ? 'canal' : null,
-    canalSeleccionado?.esOtro && !canalDetalle.trim() ? 'detalle del canal Otro' : null,
-    fechaSolicitud === '' ? 'fecha de solicitud' : null,
-    descripcionGeneral.trim() === '' ? 'descripción general' : null,
     ...faltantesSeguimiento,
   ].filter((item): item is string => item !== null);
   const formularioCompleto = catalogos !== null && faltantes.length === 0;
@@ -96,18 +76,18 @@ export function DialogoFinalizarCapturaRfq({
       const respuesta = await actualizarDatosRfqAccion({
         rfqId: rfq.id,
         actualizadoEn: rfq.actualizadoEn,
-        canal: canal.trim() || null,
-        canalDetalle: canalSeleccionado?.esOtro ? canalDetalle.trim() : null,
-        fechaSolicitud: fechaSolicitud || null,
-        descripcionGeneral: descripcionGeneral.trim(),
+        canal: rfq.canal,
+        canalDetalle: rfq.canalDetalle,
+        fechaSolicitud: rfq.fechaSolicitud?.slice(0, 10) ?? null,
+        descripcionGeneral: rfq.descripcionGeneral,
         // La acción reescribe la fila completa: se conserva el contacto ligado
         // durante el alta para no borrarlo al guardar este seguimiento.
         contactoId: rfq.contactoId ?? null,
-        responsableId: proxima.responsableId,
+        responsableId: rfq.responsableId ?? rfq.vendedorId,
         proximaAccionCodigo: proxima.codigo,
         proximaAccionTexto: proxima.texto.trim() || null,
         fechaProximaAccion: proxima.fecha,
-        responsableProximaAccionId: proxima.responsableId,
+        responsableProximaAccionId: rfq.responsableId ?? rfq.vendedorId,
       });
       if (!respuesta.exito) {
         setMensaje(respuesta.error);
@@ -138,8 +118,7 @@ export function DialogoFinalizarCapturaRfq({
         <DialogHeader>
           <DialogTitle>Finalizar captura</DialogTitle>
           <DialogDescription>
-            Canal, seguimiento y próxima acción: los campos con * son obligatorios para dejar el
-            RFQ listo para propuesta. El responsable elegido aplica al RFQ y a la próxima acción.
+            Confirma la acción y la fecha de seguimiento. Los datos generales ya quedaron registrados.
           </DialogDescription>
         </DialogHeader>
 
@@ -149,106 +128,16 @@ export function DialogoFinalizarCapturaRfq({
           </p>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="rfq-finalizar-canal" className={CLASE_OBLIGATORIO}>
-                  Canal
-                </Label>
-                <Select
-                  id="rfq-finalizar-canal"
-                  value={canal}
-                  onChange={(evento) => {
-                    const codigo = evento.target.value;
-                    setCanal(codigo);
-                    const siguiente = catalogos.canales.find(
-                      (opcion) => opcion.codigo === codigo,
-                    );
-                    if (!siguiente?.esOtro) setCanalDetalle('');
-                  }}
-                  aria-required="true"
-                >
-                  <option value="">Sin canal</option>
-                  {canalHistoricoSinCatalogar && (
-                    <option value={canal}>{canal} (histórico)</option>
-                  )}
-                  {canalesVisibles.map((opcion) => (
-                    <option key={opcion.codigo} value={opcion.codigo}>
-                      {opcion.nombre}
-                      {opcion.activo ? '' : ' (inactivo)'}
-                    </option>
-                  ))}
-                </Select>
-                <span className="text-xs text-texto-secundario">Cómo llegó la solicitud.</span>
-              </div>
-
-              {canalSeleccionado?.esOtro && (
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="rfq-finalizar-canal-detalle" className={CLASE_OBLIGATORIO}>
-                    Detalle del canal Otro
-                  </Label>
-                  <Input
-                    id="rfq-finalizar-canal-detalle"
-                    value={canalDetalle}
-                    onChange={(evento) => setCanalDetalle(evento.target.value)}
-                    maxLength={300}
-                    aria-required="true"
-                    placeholder="Ej. feria industrial o alianza comercial"
-                  />
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="rfq-finalizar-fecha-solicitud" className={CLASE_OBLIGATORIO}>
-                  Fecha de solicitud
-                </Label>
-                <Input
-                  id="rfq-finalizar-fecha-solicitud"
-                  type="date"
-                  value={fechaSolicitud}
-                  onChange={(evento) => setFechaSolicitud(evento.target.value)}
-                  aria-required="true"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="rfq-finalizar-responsable" className={CLASE_OBLIGATORIO}>
-                  Responsable
-                </Label>
-                <Select
-                  id="rfq-finalizar-responsable"
-                  value={proxima.responsableId}
-                  onChange={(evento) =>
-                    setProxima({ ...proxima, responsableId: evento.target.value })
-                  }
-                  aria-required="true"
-                >
-                  <option value="">Sin responsable</option>
-                  {catalogos.usuarios.map((usuario) => (
-                    <option key={usuario.id} value={usuario.id}>
-                      {usuario.nombre}
-                    </option>
-                  ))}
-                </Select>
-                <span className="text-xs text-texto-secundario">
-                  Se usa para el seguimiento y como responsable de la próxima acción.
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1 sm:col-span-2">
-                <Label htmlFor="rfq-finalizar-descripcion" className={CLASE_OBLIGATORIO}>
-                  Descripción general
-                </Label>
-                <Textarea
-                  id="rfq-finalizar-descripcion"
-                  value={descripcionGeneral}
-                  onChange={(evento) => setDescripcionGeneral(evento.target.value)}
-                  rows={2}
-                  maxLength={2000}
-                  aria-required="true"
-                  placeholder="Qué pide el cliente y alcance esperado"
-                />
-              </div>
-            </div>
+            <section aria-label="Resumen del RFQ" className="rounded-lg border border-borde bg-superficie-2 p-3">
+              <h3 className="text-sm font-semibold text-texto-primario">Resumen del RFQ</h3>
+              <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                <div><dt className="text-texto-secundario">Cliente</dt><dd>{rfq.clienteNombre ?? rfq.empresa}</dd></div>
+                <div><dt className="text-texto-secundario">Canal</dt><dd>{rfq.canal ?? 'Sin canal'}</dd></div>
+                <div><dt className="text-texto-secundario">Fecha de registro</dt><dd>{rfq.fechaSolicitud ?? 'Sin fecha'}</dd></div>
+                <div><dt className="text-texto-secundario">Responsable</dt><dd>{rfq.responsableNombre ?? 'Usuario que registró el RFQ'}</dd></div>
+                <div className="sm:col-span-2"><dt className="text-texto-secundario">Descripción</dt><dd>{rfq.descripcionGeneral ?? 'Sin descripción'}</dd></div>
+              </dl>
+            </section>
 
             <CamposProximaAccion
               idBase="rfq-finalizar-proxima"

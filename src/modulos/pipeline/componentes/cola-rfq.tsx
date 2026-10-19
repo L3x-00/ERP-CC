@@ -52,7 +52,11 @@ function responsablesDistintos(
  * datos capturados y, mientras se guarda, el diálogo no puede cerrarse para
  * evitar reintentos que creen RFQ duplicados.
  */
-export function ColaRfq() {
+export function ColaRfq({
+  responsableActual,
+}: {
+  responsableActual?: { id: string; nombre: string };
+}) {
   const { data, isLoading, isError } = usarPipeline();
   const [altaAbierta, setAltaAbierta] = useState(false);
   const [altaEnviando, setAltaEnviando] = useState(false);
@@ -107,6 +111,7 @@ export function ColaRfq() {
             </DialogDescription>
           </DialogHeader>
           <FormularioProspecto
+            responsableActual={responsableActual}
             onCambioEnvio={setAltaEnviando}
             onExito={() => setAltaAbierta(false)}
           />

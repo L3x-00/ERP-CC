@@ -1,6 +1,7 @@
 import { SincronizadorPipelineRealtime } from '@/modulos/pipeline/componentes/sincronizador-pipeline-realtime';
 import { ColaRfq } from '@/modulos/pipeline/componentes/cola-rfq';
 import { FichaRfq } from '@/modulos/rfq/componentes/ficha-rfq';
+import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
 type ParametrosPaginaRfq = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -29,6 +30,8 @@ export default async function PaginaRfq({ searchParams }: ParametrosPaginaRfq) {
     );
   }
 
+  const usuario = await obtenerUsuarioServidor();
+
   return (
     <div className="flex flex-col gap-4">
       <SincronizadorPipelineRealtime />
@@ -38,7 +41,11 @@ export default async function PaginaRfq({ searchParams }: ParametrosPaginaRfq) {
           Solicitudes de cotización: captura, ítems ITxx, archivos y gate LISTO.
         </p>
       </header>
-      <ColaRfq />
+      <ColaRfq
+        responsableActual={
+          usuario ? { id: usuario.id, nombre: usuario.nombreCompleto } : undefined
+        }
+      />
     </div>
   );
 }
