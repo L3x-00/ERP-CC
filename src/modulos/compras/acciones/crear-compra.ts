@@ -43,6 +43,12 @@ export async function crearCompraAccion(
     p_notas: datos.notas ?? null,
     p_actor_id: usuario.id,
     p_correlation_id: correlationId,
+    p_rubro_costo: datos.rubroCosto ?? null,
+    p_concepto: datos.concepto ?? null,
+    p_material_id: datos.materialId ?? null,
+    p_cantidad: datos.cantidad ?? null,
+    p_unidad: datos.unidad ?? null,
+    p_costo_unitario: datos.costoUnitario ?? null,
   });
 
   const fila = Array.isArray(data) ? data[0] : null;

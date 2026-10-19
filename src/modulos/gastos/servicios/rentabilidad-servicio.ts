@@ -159,7 +159,8 @@ export function calcularCostoGastosDirectosMxn(
       excluidos += 1;
       continue;
     }
-    const importe = convertirAMxn(gasto.montoTotal, gasto.tipoCambio);
+    // F11/F-08: el costo se mide sin IVA; el total solo representa el desembolso.
+    const importe = convertirAMxn(gasto.montoSubtotal, gasto.tipoCambio);
     if (importe === null) {
       excluidos += 1;
       continue;

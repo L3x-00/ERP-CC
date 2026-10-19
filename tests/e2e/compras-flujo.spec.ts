@@ -82,20 +82,33 @@ test.describe('Compras SII-B8 F4: folio CG, CxP y pagos a proveedores', () => {
       await iniciarSesion(page, contexto);
       await page.goto('/compras');
       await expect(page.getByTestId('cola-compras')).toBeVisible();
+      await expect(page.locator('body')).not.toContainText('no entra a la rentabilidad');
+      await expect(page.getByText(/Con Orden, la compra se clasifica por rubro/)).toBeVisible();
 
-      // 1. Alta en borrador con folio CG.
+      // 1. Alta en borrador con folio CG, Orden y rubro.
       await page.getByTestId('nueva-compra').click();
       await expect(page.getByTestId('panel-compra')).toBeVisible();
       await page.getByTestId('compra-proveedor').selectOption(contexto.proveedorId);
-      await page.getByTestId('compra-subtotal').fill('200');
+      await page.getByTestId('compra-orden').selectOption(contexto.ordenId);
+      await expect(page.getByTestId('confirmar-crear-compra')).toBeDisabled();
+      await page.getByTestId('compra-rubro-costo').selectOption('material');
+      await page.getByTestId('compra-concepto').fill('Placa E2E');
+      await page.getByTestId('compra-cantidad').fill('2');
+      await page.getByTestId('compra-unidad').fill('PZA');
+      await page.getByTestId('compra-costo-unitario').fill('100');
+      await expect(page.getByTestId('compra-subtotal')).toHaveValue('200');
       await page.getByTestId('compra-iva').fill('32');
       await page.getByTestId('confirmar-crear-compra').click();
       await expect(page.getByTestId('compra-mensaje')).toContainText('CG-');
       const { data: compra } = await admin.from('compras')
-        .select('id, folio_sii, estado, saldo_pendiente').eq('proveedor_id', contexto.proveedorId).single();
+        .select('id, folio_sii, estado, saldo_pendiente, rubro_costo, cantidad, costo_unitario')
+        .eq('proveedor_id', contexto.proveedorId).single();
       expect(compra?.folio_sii).toMatch(/^CG-\d{4}_\d{4,}$/);
       expect(compra?.estado).toBe('BORRADOR');
       expect(Number(compra?.saldo_pendiente)).toBe(232);
+      expect(compra?.rubro_costo).toBe('material');
+      expect(Number(compra?.cantidad)).toBe(2);
+      expect(Number(compra?.costo_unitario)).toBe(100);
       contexto.compraId = compra!.id;
       await page.getByTestId('cerrar-panel-compra').click();
 

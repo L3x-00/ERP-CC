@@ -18,7 +18,7 @@ VALUES ('00000000-0000-4000-8000-00000000c103', 'Aceros F4', 'Aceros F4 SA de CV
   'Contacto F4', 'proveedor-f4@prueba.local', '5555555555');
 
 CREATE TEMP TABLE f4 (clave text PRIMARY KEY, valor jsonb);
-SELECT plan(29);
+SELECT plan(31);
 
 -- 1-2. Alta de compra: BORRADOR, folio CG y saldo total.
 INSERT INTO f4 (clave, valor)
@@ -196,8 +196,15 @@ SELECT ok(has_table_privilege('authenticated', 'public.compras', 'SELECT')
   AND NOT has_table_privilege('authenticated', 'public.compras', 'INSERT'),
   'compras es solo lectura para authenticated');
 SELECT ok(NOT has_function_privilege('authenticated',
-  'public.crear_compra(uuid,uuid,numeric,numeric,text,numeric,date,text,uuid,uuid)', 'EXECUTE'),
+  'public.crear_compra(uuid,uuid,numeric,numeric,text,numeric,date,text,uuid,uuid,text,text,uuid,numeric,text,numeric)', 'EXECUTE'),
   'authenticated no ejecuta crear_compra');
+SELECT ok(to_regprocedure(
+  'public.crear_compra(uuid,uuid,numeric,numeric,text,numeric,date,text,uuid,uuid)') IS NULL,
+  'La firma vieja de crear_compra ya no existe');
+SELECT is((SELECT count(*)::integer FROM pg_proc AS p
+  INNER JOIN pg_namespace AS n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND p.proname = 'crear_compra'), 1,
+  'crear_compra conserva un solo overload');
 SELECT ok(NOT has_function_privilege('authenticated',
   'public.pagar_compra(uuid,numeric,text,text,uuid,text,uuid,uuid)', 'EXECUTE'),
   'authenticated no ejecuta pagar_compra');

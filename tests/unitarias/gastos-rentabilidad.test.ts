@@ -91,6 +91,21 @@ describe('mano de obra y gastos', () => {
     ], ORDEN)).toEqual({ costo: 500, considerados: 1, excluidos: 3, incluidos: 0 });
   });
 
+  it('F11: el costo directo usa el subtotal, nunca el total con IVA', () => {
+    expect(calcularCostoGastosDirectosMxn([
+      gasto({ montoSubtotal: 5_000, montoIva: 800, montoTotal: 5_800 }),
+    ], ORDEN)).toEqual({ costo: 5_000, considerados: 1, excluidos: 0, incluidos: 0 });
+  });
+
+  it('caracterización: un gasto MXN con TC distinto de 1 se excluye (hallazgo abierto)', () => {
+    // A03: el espejo TS rechaza un MXN con TC != 1 para no inflar el costo; SQL no
+    // aplica esa guarda. Se fija aquí para que nadie la cambie sin decidirlo.
+    expect(calcularCostoGastosDirectosMxn([
+      gasto({ montoSubtotal: 1_000, montoIva: 160, montoTotal: 1_160, moneda: 'MXN', tipoCambio: 1.1 }),
+      gasto({ montoSubtotal: 200, montoIva: 32, montoTotal: 232, moneda: 'USD', tipoCambio: 18.5 }),
+    ], ORDEN)).toEqual({ costo: 3_700, considerados: 1, excluidos: 1, incluidos: 0 });
+  });
+
   it('OBS-29: material y nómina no se duplican en el costo directo', () => {
     expect(calcularCostoGastosDirectosMxn([
       gasto({ montoTotal: 2_000, montoSubtotal: 2_000, montoIva: 0, categoria: 'materia_prima' }),
@@ -135,10 +150,10 @@ describe('margen y rentabilidad', () => {
     expect(resultado.ingresoMxn).toBe(18_500);
     expect(resultado.costoMaterialesMxn).toBe(2_750);
     expect(resultado.costoManoObraMxn).toBe(3_000);
-    expect(resultado.costoGastosDirectosMxn).toBe(1_160);
-    expect(resultado.costoTotalMxn).toBe(6_910);
-    expect(resultado.utilidadBrutaMxn).toBe(11_590);
-    expect(resultado.margenPorcentaje).toBe(62.65);
+    expect(resultado.costoGastosDirectosMxn).toBe(1_000);
+    expect(resultado.costoTotalMxn).toBe(6_750);
+    expect(resultado.utilidadBrutaMxn).toBe(11_750);
+    expect(resultado.margenPorcentaje).toBe(63.51);
     expect(resultado.componentesFaltantes).toEqual([]);
   });
 
@@ -212,12 +227,12 @@ describe('margen y rentabilidad', () => {
       ingreso: null,
       materiales: [{ cantidadUsada: 4, cantidadScrap: 0, costoUnitarioMomento: 100 }],
       sesiones: [{ horasNetas: 2, costoHoraInterno: 50 }],
-      gastos: [gasto({ montoTotal: 232 })],
+      gastos: [gasto({ montoSubtotal: 200, montoIva: 32, montoTotal: 232 })],
     });
     expect(resultado.esInterna).toBe(true);
     expect(resultado.folio).toBe('OP-001000');
     expect(resultado.ingresoMxn).toBe(0);
-    expect(resultado.costoTotalMxn).toBe(732);
+    expect(resultado.costoTotalMxn).toBe(700);
     expect(resultado.margenPorcentaje).toBeNull();
     expect(resultado.componentesFaltantes).toEqual([]);
   });

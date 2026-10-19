@@ -185,6 +185,8 @@ export function ColaCompras({
         compra={panel?.compra ?? null}
         proveedores={datos.proveedores}
         ordenes={datos.ordenes}
+        materiales={datos.materiales}
+        ultimosCostos={datos.ultimosCostos}
         abierto={panel !== null}
         onCerrar={() => setPanel(null)}
         onActualizada={() => void actualizar()}

@@ -5,6 +5,16 @@ export function traducirErrorCompra(mensaje: string, detalle?: string): string {
   if (codigo.includes('proveedor_inexistente')) return 'El proveedor no existe';
   if (codigo.includes('orden_inexistente')) return 'La orden vinculada no existe';
   if (codigo.includes('compra_inexistente')) return 'La compra no existe';
+  if (codigo.includes('compra_no_encontrada')) return 'La compra no existe';
+  if (codigo.includes('rubro_costo_requerido')) return 'Con Orden, el rubro de costo es obligatorio';
+  if (codigo.includes('rubro_costo_invalido')) return 'Selecciona un rubro de costo válido';
+  if (codigo.includes('subtotal_material_incoherente')) return 'El subtotal debe cuadrar con cantidad × costo unitario (±0.01)';
+  if (codigo.includes('cantidad_compra_invalida')) return 'La cantidad debe ser mayor a 0';
+  if (codigo.includes('costo_unitario_compra_invalido')) return 'El costo unitario no puede ser negativo';
+  if (codigo.includes('material_inexistente')) return 'El material del catálogo no existe';
+  if (codigo.includes('compra_sin_orden')) return 'Solo una compra con Orden puede clasificarse por rubro';
+  if (codigo.includes('compra_cancelada')) return 'Una compra cancelada no se puede clasificar';
+  if (codigo.includes('rubro_ya_asignado')) return 'La compra ya tiene un rubro asignado; recarga para ver el valor actual';
   if (codigo.includes('compra_no_editable')) return `Solo los borradores se editan${detalle ? ` (${detalle})` : ''}`;
   if (codigo.includes('compra_no_pagable')) return `La compra no admite pagos en su estado${detalle ? ` (${detalle})` : ''}`;
   if (codigo.includes('compra_desactualizada')) return 'La compra cambió en otra sesión; recarga e inténtalo de nuevo';
