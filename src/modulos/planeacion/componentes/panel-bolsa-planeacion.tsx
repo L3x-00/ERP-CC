@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import { resumirProcesos } from '@/modulos/ordenes/utilidades/procesos';
 import type {
   BolsaPlaneacion,
@@ -50,17 +51,13 @@ export function PanelBolsaPlaneacion({
     + bolsa.sugerencias.length;
 
   return (
-    <section
-      className="mt-4 border-t border-borde pt-4"
-      aria-labelledby="titulo-bolsa-planeacion"
-      data-testid="bolsa-planeacion"
+    <SeccionDesplegable
+      titulo="Trabajo por liberar"
+      descripcion={`${total} pendiente${total === 1 ? '' : 's'}`}
+      dataTestId="bolsa-planeacion"
+      dataTestIdBoton="toggle-bolsa-planeacion"
+      claseContenido="pt-0"
     >
-      <header className="flex items-center justify-between gap-2">
-        <h2 id="titulo-bolsa-planeacion" className="text-sm font-medium">
-          Trabajo por liberar
-        </h2>
-        <span className="text-xs text-texto-secundario">{total} pendiente(s)</span>
-      </header>
       {mensaje ? <p role="status" className="mt-2 text-xs text-exito-texto">{mensaje}</p> : null}
       {error ? <p role="alert" className="mt-2 text-xs text-peligro-texto">{error}</p> : null}
 
@@ -138,6 +135,6 @@ export function PanelBolsaPlaneacion({
           </ul>
         )}
       </section>
-    </section>
+    </SeccionDesplegable>
   );
 }

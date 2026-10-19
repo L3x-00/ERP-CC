@@ -11,6 +11,11 @@ import type { Database } from '@/compartido/tipos/supabase';
  * (el backend rechaza rangos mayores a 31 días).
  */
 async function aplicarRangoCalendario(pagina: Page): Promise<void> {
+  const toggleFiltros = pagina.getByTestId('toggle-filtros-planeacion');
+  if ((await toggleFiltros.getAttribute('aria-expanded')) === 'false') {
+    await toggleFiltros.click();
+  }
+  await expect(toggleFiltros).toHaveAttribute('aria-expanded', 'true');
   const aviso = pagina.locator(
     'section[aria-labelledby="titulo-calendario-planeacion"] p[aria-live="polite"]',
   );
@@ -24,6 +29,14 @@ async function aplicarRangoCalendario(pagina: Page): Promise<void> {
     aplicado = ((await aviso.textContent()) ?? '').includes('2099-12-28');
   }
   await expect(aviso).toContainText('2099-12-28');
+}
+
+async function abrirProgramarPartida(pagina: Page): Promise<void> {
+  const toggle = pagina.getByTestId('toggle-programar-partida');
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
 /** Carga únicamente valores locales de prueba; nunca muestra secretos en la salida. */
@@ -271,14 +284,37 @@ test.describe.serial('Planeación colaborativa completa', () => {
 
     await page.goto('/planeacion');
     await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
+    if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+      const tamanoOriginal = page.viewportSize() ?? { width: 1280, height: 720 };
+      for (const ancho of [1440, 1024, 390]) {
+        await page.setViewportSize({ width: ancho, height: 900 });
+        await page.screenshot({
+          path: testInfo.outputPath(`planeacion-inicial-${ancho}.png`),
+          fullPage: true,
+          animations: 'disabled',
+        });
+      }
+      await page.setViewportSize(tamanoOriginal);
+    }
     await aplicarRangoCalendario(page);
-    await page.getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaId);
+    await abrirProgramarPartida(page);
+    if (process.env.E2E_CAPTURAR_VISUAL === '1') {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.screenshot({
+        path: testInfo.outputPath('planeacion-panel-abierto-1440.png'),
+        fullPage: true,
+        animations: 'disabled',
+      });
+    }
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaId);
     // C9.0/P-01 B: con ruteo el panel programa por operación y preselecciona la
     // primera pendiente; sin ruteo conservaría la captura manual de secuencia.
     const selectorOperacion = page.getByLabel('Operación');
     await expect(selectorOperacion).toBeVisible();
     await expect(selectorOperacion.locator('option:checked')).toContainText('Corte');
-    await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Recurso').selectOption(contextoPrueba.recursoId);
     await page.getByLabel('Fecha programada').fill('2099-12-30');
     await page.getByLabel('Horas estimadas').fill('4');
     await page.getByTestId('guardar-asignacion-planeacion').click();
@@ -411,8 +447,11 @@ test.describe.serial('Planeación colaborativa completa', () => {
     await aplicarRangoCalendario(page);
 
     // OBS-18: programar sin IDs internos, con desglose y resumen previos.
-    await page.getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaSecundariaId);
-    await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
+    await abrirProgramarPartida(page);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaSecundariaId);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Recurso').selectOption(contextoPrueba.recursoId);
     await page.getByLabel('Fecha programada').fill('2099-12-28');
     await page.getByLabel('Horas estimadas').fill('8');
     await expect(page.getByTestId('desglose-partida-planeacion')).toContainText('Por definir');
@@ -453,8 +492,11 @@ test.describe.serial('Planeación colaborativa completa', () => {
 
     // OBS-19: el turno se llena, el guardado se bloquea y se propone el
     // siguiente día hábil con hueco, que se confirma con "Usar esta fecha".
-    await page.getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaTerciariaId);
-    await page.getByLabel('Recurso').last().selectOption(contextoPrueba.recursoId);
+    await abrirProgramarPartida(page);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaTerciariaId);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Recurso').selectOption(contextoPrueba.recursoId);
     await page.getByLabel('Fecha programada').fill('2099-12-28');
     await page.getByLabel('Horas estimadas').fill('1');
     await expect(page.getByTestId('aviso-capacidad-insuficiente')).toBeVisible();
@@ -477,12 +519,20 @@ test.describe.serial('Planeación colaborativa completa', () => {
         return (data ?? []).map((fila) => fila.fecha_programada).join(',');
       })
       .toContain('2099-12-29');
+    // El panel se cierra al guardar y libera el ancho del calendario; espera el
+    // layout estable antes de arrastrar para no mover el origen a mitad del gesto.
+    await expect(page.getByTestId('toggle-programar-partida')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
 
     // PLA-02: arrastrar la tarjeta a otro día abre confirmación; recién al
     // confirmar se mueve, y la columna original queda libre.
     await page
-      .getByTestId(`programacion-${primera!.id}`)
-      .dragTo(page.getByTestId('columna-2099-12-30'));
+      .getByTestId(`asa-arrastre-${primera!.id}`)
+      .dragTo(page.getByTestId('columna-2099-12-30'), {
+        targetPosition: { x: 10, y: 10 },
+      });
     await expect(page.getByTestId('dialogo-reprogramacion-planeacion')).toBeVisible();
     await page.getByLabel('Motivo de la reprogramación').fill('Ajuste E2E por arrastre');
     await page.getByTestId('confirmar-reprogramacion-planeacion').click();

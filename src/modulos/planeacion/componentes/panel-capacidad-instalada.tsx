@@ -12,6 +12,7 @@ import {
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 
 const CLAVE_CAPACIDAD = ['planeacion', 'capacidad-instalada'] as const;
 
@@ -63,15 +64,14 @@ export function PanelCapacidadInstalada() {
   });
 
   return (
-    <section
-      className="rounded-lg border border-borde bg-superficie p-4"
-      aria-labelledby="titulo-capacidad-instalada"
-      data-testid="panel-capacidad-instalada"
+    <SeccionDesplegable
+      titulo="Capacidad instalada"
+      descripcion="Equipos × jornada; la jornada estándar es de 8 h y puede sobrescribirse"
+      dataTestId="panel-capacidad-instalada"
+      dataTestIdBoton="toggle-capacidad-instalada"
+      claseContenido="pt-0"
     >
-      <h2 id="titulo-capacidad-instalada" className="text-base font-semibold text-texto-primario">
-        Capacidad instalada
-      </h2>
-      <p className="mt-1 text-sm text-texto-secundario">
+      <p className="text-sm text-texto-secundario">
         Capacidad por jornada = equipos × jornada. La jornada estándar es de 8 h y puede
         sobrescribirse por recurso (por ejemplo, un turno de 6 h).
       </p>
@@ -94,7 +94,7 @@ export function PanelCapacidadInstalada() {
           ))}
         </ul>
       )}
-    </section>
+    </SeccionDesplegable>
   );
 }
 

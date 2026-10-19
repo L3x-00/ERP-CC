@@ -12,6 +12,7 @@ import {
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
 import { CalendarioPlaneacion } from '@/modulos/planeacion/componentes/calendario-planeacion';
+import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import {
   CLAVE_CALENDARIO_PLANEACION,
   CLAVE_DETALLE_PROGRAMACION,
@@ -84,6 +85,7 @@ export function OperacionPlaneacion({
   const [bolsaMensaje, setBolsaMensaje] = useState<string | null>(null);
   const [bolsaError, setBolsaError] = useState<string | null>(null);
   const [fechaSolicitada, setFechaSolicitada] = useState('');
+  const [panelAbierto, setPanelAbierto] = useState(false);
 
   const consultarCalendario = useCallback(
     async (filtros: {
@@ -178,7 +180,10 @@ export function OperacionPlaneacion({
               })
             : { exito: false as const, error: 'Selecciona una programación para reprogramarla' };
 
-      if (resultado.exito) await actualizarCalendario();
+      if (resultado.exito) {
+        await actualizarCalendario();
+        setPanelAbierto(false);
+      }
       return resultado;
     },
     [actualizarCalendario, programacionSeleccionada],
@@ -204,6 +209,7 @@ export function OperacionPlaneacion({
 
   const alSeleccionar = useCallback((programacion: ProgramacionArea | null): void => {
     setFechaSolicitada(programacion?.fechaProgramada ?? '');
+    if (programacion) setPanelAbierto(true);
     setProgramacionSeleccionada((anterior) => {
       if (
         anterior?.id === programacion?.id
@@ -259,6 +265,7 @@ export function OperacionPlaneacion({
     seleccionarProgramacion(null);
     setProgramacionSeleccionada(null);
     setFechaSolicitada('');
+    setPanelAbierto(false);
   }
 
   const refrescarEstructuraOperacion = useCallback((): void => {
@@ -311,8 +318,12 @@ export function OperacionPlaneacion({
     : undefined;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="xl:col-span-2">
+    <div
+      className={`grid gap-6 transition-[grid-template-columns] duration-200 motion-reduce:transition-none ${
+        panelAbierto ? 'xl:grid-cols-[minmax(0,1fr)_22rem]' : 'xl:grid-cols-1'
+      }`}
+    >
+      <div className={panelAbierto ? 'xl:col-span-2' : 'xl:col-span-full'}>
         <ResumenCargaSemanal
           cargas={datosCalendario.cargas}
           recursos={datosCalendario.recursos}
@@ -334,32 +345,48 @@ export function OperacionPlaneacion({
         onSolicitarReprogramacion={solicitarReprogramacion}
         onRefrescarOperacion={refrescarEstructuraOperacion}
       />
-      <aside className="rounded-base border border-borde p-4" aria-label="Asignación de recurso">
-        <PanelAsignacionPlaneacion
-          recursos={datosCalendario.recursos}
-          partidasProgramables={partidasProgramables}
-          programacion={programacionSeleccionada}
-          desglosePartidas={desglosePartidas}
-          cargas={cargasPanel}
-          partidasTotal={partidasTotal}
-          compatibilidad={compatibilidad}
-          verificandoCapacidad={verificandoCapacidad}
-          onEnviar={enviarAsignacion}
-          onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
-          onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
-          onProponerHueco={proponerHuecoPanel}
-          onCambiarFecha={setFechaSolicitada}
-        />
-        {programacionSeleccionada ? (
-          <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
-        ) : null}
-        <PanelBolsaPlaneacion
-          bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}
-          procesando={bolsaProcesando}
-          mensaje={bolsaMensaje}
-          error={bolsaError}
-          onAsignar={asignarSugerencia}
-        />
+      <aside className="min-w-0 xl:self-start" aria-label="Asignación de recurso">
+        <SeccionDesplegable
+          titulo={programacionSeleccionada ? 'Reprogramar partida' : 'Programar partida'}
+          descripcion={
+            programacionSeleccionada
+              ? 'Ajusta recurso, fecha, turno u horas de la programación seleccionada'
+              : 'Partida, recurso, fecha, turno y horas'
+          }
+          abierto={panelAbierto}
+          onAbiertoChange={setPanelAbierto}
+          dataTestId="panel-programar-partida"
+          dataTestIdBoton="toggle-programar-partida"
+          claseContenido="pt-0"
+        >
+          <PanelAsignacionPlaneacion
+            recursos={datosCalendario.recursos}
+            partidasProgramables={partidasProgramables}
+            programacion={programacionSeleccionada}
+            desglosePartidas={desglosePartidas}
+            cargas={cargasPanel}
+            partidasTotal={partidasTotal}
+            compatibilidad={compatibilidad}
+            verificandoCapacidad={verificandoCapacidad}
+            onEnviar={enviarAsignacion}
+            onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
+            onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
+            onProponerHueco={proponerHuecoPanel}
+            onCambiarFecha={setFechaSolicitada}
+          />
+          {programacionSeleccionada ? (
+            <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
+          ) : null}
+        </SeccionDesplegable>
+        <div className="mt-4">
+          <PanelBolsaPlaneacion
+            bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}
+            procesando={bolsaProcesando}
+            mensaje={bolsaMensaje}
+            error={bolsaError}
+            onAsignar={asignarSugerencia}
+          />
+        </div>
       </aside>
 
       {arrastre ? (
