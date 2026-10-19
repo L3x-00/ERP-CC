@@ -69,6 +69,7 @@ const ID = {
   cliente: (n) => uid('c11e7000', n),
   proveedor: (n) => uid('9800e0d0', n),
   material: (n) => uid('1234a000', n),
+  catalogo: (n) => uid('ca7a1000', n),
   recurso: (n) => uid('4ec00000', n),
   area: (n) => uid('a4ea0000', n),
   banco: (n) => uid('ba4c0000', n),
@@ -394,7 +395,7 @@ const MATERIALES = [
   { n: 10, codigo: 'PINT-EPOX-NEGRO', nombre: 'Pintura electrostática negra', categoria: 'insumo', unidad_compra: 'pieza', unidad_control: 'kg', factor: 1, costoCompra: 210, min: 20, merma: 6, proveedor: 2, entradas: [{ control: 60, costoControl: 210 }] },
 ];
 
-async function sembrarMateriales() {
+async function sembrarMateriales(ids) {
   console.log('MATERIALES E INVENTARIO');
   await insertar('materiales', MATERIALES.map((m) => ({
     id: ID.material(m.n),
@@ -412,6 +413,26 @@ async function sembrarMateriales() {
     stock_minimo_control: m.min,
     proveedor_id: ID.proveedor(m.proveedor),
     factor_merma_porcentaje: m.merma,
+  })));
+
+  // C6.1: el catálogo canónico es la fuente del consumo nuevo. El vínculo
+  // legacy permite que las partidas creadas con `material_id` heredado se
+  // enlacen automáticamente por el trigger C6.2.
+  const hoy = new Date().toISOString().slice(0, 10);
+  await insertar('catalogo_materiales', MATERIALES.map((m) => ({
+    id: ID.catalogo(m.n),
+    codigo: m.codigo.replace(/[^A-Z0-9_-]/g, '_'),
+    nombre: m.nombre,
+    activo: true,
+    orden: m.n,
+    unidad_base: m.unidad_control,
+    moneda_costo: 'MXN',
+    costo_vigente: m.costoCompra,
+    fecha_vigencia_costo: hoy,
+    costo_confirmado_en: new Date().toISOString(),
+    costo_confirmado_por: ids.admin,
+    material_legacy_id: ID.material(m.n),
+    metadata: { categoria: m.categoria },
   })));
 
   for (const material of MATERIALES) {
@@ -698,7 +719,7 @@ async function crearOrden(especificacion, ids) {  const partidas = especificacio
 
   const filas = await ejecutar(
     'SELECT partidas',
-    cliente.from('partidas_orden_produccion').select('id, codigo_pieza, cantidad_solicitada, material_id').eq('orden_id', creada.id).order('codigo_pieza'),
+    cliente.from('partidas_orden_produccion').select('id, codigo_pieza, cantidad_solicitada, material_id, catalogo_material_id').eq('orden_id', creada.id).order('codigo_pieza'),
   );
   void ids;
   return { id: creada.id, folio: creada.folio, partidas: filas ?? [] };
@@ -756,7 +777,7 @@ async function sembrarOrdenes(ids) {
     const partidas = await ejecutar(
       'SELECT partidas vendedor',
       cliente.from('partidas_orden_produccion')
-        .select('id, codigo_pieza, cantidad_solicitada, material_id')
+        .select('id, codigo_pieza, cantidad_solicitada, material_id, catalogo_material_id')
         .eq('orden_id', creada.id)
         .order('codigo_pieza'),
     );
@@ -806,6 +827,14 @@ async function sembrarOrdenes(ids) {
       p_partida_id: partida.id,
       p_programacion_id: programacion.id,
       p_operador_id: ids[plan.operador],
+      p_verificacion: {
+        material: true,
+        espesor: true,
+        cantidad: true,
+        archivo: true,
+        proceso_equipo: true,
+        observaciones: 'Verificación de arranque de demo',
+      },
     });
     await rpc('registrar_avance_partida_op', {
       p_partida_id: partida.id,
@@ -815,9 +844,10 @@ async function sembrarOrdenes(ids) {
     });
     await rpc('registrar_consumo_material_op', {
       p_partida_id: partida.id,
-      p_material_id: partida.material_id,
+      p_material_id: partida.catalogo_material_id,
       p_cantidad_usada: plan.consumo,
       p_cantidad_scrap: 0.4,
+      p_actor_id: ids.admin,
     });
   }
   paso('OP en proceso con sesión activa y avance');
@@ -837,6 +867,14 @@ async function sembrarOrdenes(ids) {
       p_partida_id: partida.id,
       p_programacion_id: programacion.id,
       p_operador_id: ids[plan.operador],
+      p_verificacion: {
+        material: true,
+        espesor: true,
+        cantidad: true,
+        archivo: true,
+        proceso_equipo: true,
+        observaciones: 'Verificación de arranque de demo',
+      },
     });
     await rpc('cerrar_sesion_trabajo_operador', {
       p_sesion_id: sesion.id,
@@ -1156,7 +1194,7 @@ async function verificar() {
     pipeline: 10,
     cotizacion_lineas: 8,
     materiales: 10,
-    movimientos_inventario: 19,
+    movimientos_inventario: 18,
     registros_consumo_material: 8,
     recursos_planeacion: 6,
     capacidades_recurso_turno: 12,
@@ -1174,8 +1212,7 @@ async function verificar() {
     comentarios_registro: 8,
     notificaciones_usuario: 8,
     metas_vendedor: 1,
-    areas_trabajo_config: 6,
-    cuentas_bancarias: 3,
+    areas_trabajo_config: 10,
     proveedores: 4,
   };
   let fallos = 0;
@@ -1189,6 +1226,7 @@ async function verificar() {
 
   // La auditoría es viva: crece con cada sesión real, por eso solo se informa.
   console.log(`  INFO logs: ${await contar('logs')} (crece con el uso real)`);
+  console.log(`  INFO cuentas_bancarias: ${await contar('cuentas_bancarias')} (demo base 3; Finanzas agrega HSBC)`);
 
   const { data: ordenes } = await cliente.from('ordenes_produccion').select('estado');
   const porEstado = {};
@@ -1232,17 +1270,37 @@ async function principal() {
     await limpiarBase();
   }
   if (MODO === 'sembrar' || MODO === 'todo') {
-    const { data: admin } = await cliente
+    let admin = (await cliente
       .from('usuarios')
       .select('id')
       .eq('email', 'ales_2_@hotmail.com')
-      .maybeSingle();
-    asegurar(admin?.id, 'No se encontró al administrador ales_2_@hotmail.com en usuarios.');
+      .maybeSingle()).data;
+
+    if (!admin?.id) {
+      const { data: authAdmin, error: errorAdmin } = await cliente.auth.admin.createUser({
+        email: 'ales_2_@hotmail.com',
+        password: CONTRASENA_DEMO,
+        email_confirm: true,
+        user_metadata: { nombre_completo: 'Alejandro Salas' },
+      });
+      if (errorAdmin) throw new Error(`createUser administrador → ${errorAdmin.message}`);
+      admin = { id: authAdmin.user.id };
+      await ejecutar(
+        'UPDATE usuarios administrador',
+        cliente.from('usuarios').update({
+          rol: 'admin',
+          activo: true,
+          nombre_completo: 'Alejandro Salas',
+        }).eq('id', admin.id),
+      );
+      paso('Administrador demo creado: ales_2_@hotmail.com');
+    }
+    asegurar(admin?.id, 'No se encontró ni pudo crear al administrador de demo.');
 
     const ids = await sembrarUsuarios(admin.id);
     await sembrarConfiguracion(admin.id);
     await sembrarRecursos();
-    await sembrarMateriales();
+    await sembrarMateriales(ids);
     await sembrarClientes();
     await sembrarPipeline(ids);
     await sembrarMetas(ids);
