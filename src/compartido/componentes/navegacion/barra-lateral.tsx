@@ -28,7 +28,7 @@ function ContenidoNavegacion({
   const pathname = usePathname();
 
   return (
-    <nav className="scroll-sutil flex flex-1 flex-col gap-4 overflow-y-auto px-2 py-3" aria-label="Navegación principal">
+    <nav className="scroll-sutil flex flex-1 flex-col gap-2 overflow-y-auto px-2 py-2" aria-label="Navegación principal">
       {ORDEN_GRUPOS.map((grupo) => {
         const items = modulos.filter((modulo) => modulo.grupo === grupo);
         if (items.length === 0) return null;
@@ -51,7 +51,7 @@ function ContenidoNavegacion({
                   aria-current={activo ? 'page' : undefined}
                   title={contraida ? modulo.etiqueta : undefined}
                   className={cn(
-                    'flex min-h-11 items-center gap-3 rounded-md border-l-[3px] px-3 text-sm font-medium transition-colors',
+                    'flex min-h-10 items-center gap-3 rounded-md border-l-[3px] px-3 text-sm font-medium transition-colors',
                     activo
                       ? 'border-acento bg-acento-suave text-acento'
                       : 'border-transparent text-texto-secundario hover:bg-superficie-2 hover:text-texto-primario',
