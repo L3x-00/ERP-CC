@@ -20,7 +20,10 @@ node supabase/semillas/demo-finanzas-c10.mjs
 # 4. Completar ítems de RFQ y propuestas comerciales adicionales
 node supabase/semillas/demo-comercial-rfq.mjs
 
-# 5. Arrancar la UI contra el stack local (sin tocar .env.local)
+# 5. Configurar tarifas de máquinas y espesores de materiales
+node supabase/semillas/demo-maquinas-materiales.mjs
+
+# 6. Arrancar la UI contra el stack local (sin tocar .env.local)
 powershell -File scripts/dev-local.ps1
 ```
 
@@ -45,6 +48,7 @@ $env:CONFIRMAR_DEMO = 'si'
 node supabase/semillas/demo-cliente.mjs sembrar
 node supabase/semillas/demo-finanzas-c10.mjs
 node supabase/semillas/demo-comercial-rfq.mjs
+node supabase/semillas/demo-maquinas-materiales.mjs
 ```
 
 El script exige que `NEXT_PUBLIC_SUPABASE_URL` sea exactamente el host de ese proyecto. No ejecutar `limpiar` ni `todo` en remoto: la limpieza remota se hace con el SQL transaccional revisado y un respaldo previo. La demo remota conserva `ales@gmail.com` y `ales_2_@hotmail.com`; este último se usa como administrador de presentación.
@@ -66,6 +70,7 @@ Los operadores se crean con contraseña aleatoria porque su acceso es por PIN; n
 - 8 clientes, 4 proveedores, 10 materiales canónicos/legacy, 10 oportunidades y 8 líneas.
 - 13 órdenes en todos los estados, 17 partidas, 13 programaciones, 9 sesiones, 2 entregas.
 - 10 RFQ con 20 ítems y operaciones de ruteo; 5 propuestas con revisión/costeo (3 de Finanzas y 2 comerciales adicionales).
+- 6 máquinas con tarifa por uso, 5 grupos con tarifa/hora y 17 espesores en 6 materiales.
 - 4 compras (material, subcontratación y gastos directos), 1 pago a proveedor y aviso de pago sin recepción.
 - 2 facturas (1 emitida, 1 borrador) vinculadas a entregas/CxC.
 - 6 CxC, 5 cobros, 10 gastos, saldos iniciales, transferencia enlazada y una conciliación.
