@@ -6,6 +6,7 @@ import {
   etiquetaAccion,
   etiquetaGrupoActividad,
   etiquetaModulo,
+  textoContextoActividad,
   textoRecurso,
 } from '@/modulos/auditoria/utilidades/actividad';
 import { enlaceRegistroActividad } from '@/modulos/auditoria/utilidades/enlace-registro';
@@ -71,6 +72,13 @@ describe('presentación sin UUID crudo', () => {
     expect(etiquetaAccion('actualizar_permisos_rol')).toBe('Actualizar permisos rol');
     expect(etiquetaModulo('pipeline')).toBe('RFQ');
     expect(etiquetaModulo('modulo_nuevo')).toBe('Modulo nuevo');
+  });
+
+  it('convierte el contexto técnico en una frase entendible', () => {
+    expect(textoContextoActividad({ cantidad: 1, entidadTipo: 'orden' }))
+      .toEqual(['1 orden relacionada']);
+    expect(textoContextoActividad({ cantidad: 2, entidadTipo: 'orden' }))
+      .toEqual(['2 órdenes relacionadas']);
   });
 
   it('construye enlaces solo para entidades resueltas y uuid válidos', () => {

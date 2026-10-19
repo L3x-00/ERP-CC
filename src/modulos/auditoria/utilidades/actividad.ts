@@ -63,6 +63,27 @@ const ETIQUETAS_ACCION: Record<string, string> = {
 
 const ETIQUETAS_MODULO = new Map(MODULOS_ACTIVIDAD.map((opcion) => [opcion.valor, opcion.etiqueta]));
 
+const ETIQUETAS_CONTEXTO: Record<string, string> = {
+  cantidad: 'Cantidad',
+  entidadTipo: 'Tipo de registro',
+};
+
+const ETIQUETAS_ENTIDAD: Record<string, string> = {
+  orden: 'orden',
+  cliente: 'cliente',
+  pipeline: 'RFQ',
+  propuesta: 'propuesta',
+  produccion: 'producción',
+};
+
+const ETIQUETAS_ENTIDAD_PLURAL: Record<string, string> = {
+  orden: 'órdenes',
+  cliente: 'clientes',
+  pipeline: 'RFQ',
+  propuesta: 'propuestas',
+  produccion: 'producciones',
+};
+
 function humanizar(codigo: string): string {
   const texto = codigo.replace(/_/g, ' ').trim();
   return texto.length > 0 ? texto.charAt(0).toUpperCase() + texto.slice(1) : codigo;
@@ -76,6 +97,31 @@ export function etiquetaAccion(accion: string): string {
 /** Etiqueta legible de un módulo; si no hay traducción, humaniza el código. */
 export function etiquetaModulo(modulo: string): string {
   return ETIQUETAS_MODULO.get(modulo) ?? humanizar(modulo);
+}
+
+/**
+ * Convierte el contexto técnico de la auditoría en frases legibles. La UI no
+ * debe exponer sus nombres de campos ni una estructura JSON a usuarios finales.
+ */
+export function textoContextoActividad(contexto: Record<string, unknown>): string[] {
+  const cantidad = contexto.cantidad;
+  const entidadTipo = contexto.entidadTipo;
+  if (typeof cantidad === 'number' && Number.isFinite(cantidad) && typeof entidadTipo === 'string') {
+    const entidad = cantidad === 1
+      ? (ETIQUETAS_ENTIDAD[entidadTipo] ?? humanizar(entidadTipo).toLowerCase())
+      : (ETIQUETAS_ENTIDAD_PLURAL[entidadTipo] ?? `${humanizar(entidadTipo).toLowerCase()}s`);
+    return [`${cantidad} ${entidad} relacionada${cantidad === 1 ? '' : 's'}`];
+  }
+
+  return Object.entries(contexto)
+    .filter(([, valor]) => valor !== null && valor !== undefined && valor !== '')
+    .map(([clave, valor]) => {
+      const etiqueta = ETIQUETAS_CONTEXTO[clave] ?? humanizar(clave);
+      const texto = typeof valor === 'string' && clave === 'entidadTipo'
+        ? (ETIQUETAS_ENTIDAD[valor] ?? humanizar(valor))
+        : String(valor);
+      return `${etiqueta}: ${texto}`;
+    });
 }
 
 /**

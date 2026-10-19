@@ -66,4 +66,40 @@ describe('paginación de la vista Actividad', () => {
     });
     expect(obtenerActividadMock.mock.calls[1]?.[0]).not.toHaveProperty('cursor');
   });
+
+  it('muestra el contexto como detalle legible y no como JSON', async () => {
+    obtenerActividadMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        registros: [
+          {
+            id: REGISTRO_ID,
+            creadoEn: CREADO_EN,
+            correlationId: null,
+            nombreUsuario: 'Ana Operadora',
+            rol: 'admin',
+            accion: 'actualizar',
+            modulo: 'ordenes',
+            recursoId: 'ORD-0001',
+            contexto: { cantidad: 1, entidadTipo: 'orden' },
+            recursoEtiqueta: 'Orden ORD-0001',
+            entidad: 'orden',
+          },
+        ],
+        hayMas: false,
+      },
+    });
+    const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      createElement(
+        QueryClientProvider,
+        { client: cliente },
+        createElement(TablaActividad, { esAdmin: true }),
+      ),
+    );
+
+    expect(await screen.findByText('1 orden relacionada')).toBeTruthy();
+    expect(screen.getByText('Ver detalle')).toBeTruthy();
+    expect(screen.queryByText(/entidadTipo/)).toBeNull();
+  });
 });

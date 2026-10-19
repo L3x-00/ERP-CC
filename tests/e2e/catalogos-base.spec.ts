@@ -72,6 +72,8 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await expect(page.getByTestId('pagina-configuracion')).toBeVisible();
       await page.getByRole('tab', { name: 'Catálogos base' }).click();
       await expect(page.getByTestId('pagina-catalogos-base')).toBeVisible();
+      await page.getByTestId('toggle-catalogo-canales-rfq').click();
+      await expect(page.getByTestId('toggle-catalogo-canales-rfq')).toHaveAttribute('aria-expanded', 'true');
 
       // Obs. cliente 2026-10-13 (8): Materiales/Espesores se administran en
       // «Materiales y costos»; aquí ya no se ofrecen sus secciones.
@@ -172,7 +174,8 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
           await page
             .locator('html')
             .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
-          const seccionCanales = page.getByRole('region', { name: 'Canales RFQ' });
+          await expect(page.getByRole('region', { name: 'Canales RFQ' })).toHaveCount(1);
+          const seccionCanales = page.getByTestId('catalogo-desplegable-canales-rfq');
           await seccionCanales.scrollIntoViewIfNeeded();
           if (ancho === 320) {
             const sinDesborde = await seccionCanales.evaluate(
