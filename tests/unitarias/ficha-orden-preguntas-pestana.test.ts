@@ -14,6 +14,9 @@ vi.mock('@/modulos/ordenes/acciones/liberar-orden', () => ({ liberarOrdenAccion:
 vi.mock('@/modulos/comentarios/componentes/indice', () => ({
   HiloComentarios: () => createElement('div', { 'data-testid': 'hilo-comentarios' }),
 }));
+vi.mock('@/modulos/gastos/componentes/seccion-conciliacion-orden', () => ({
+  SeccionConciliacionOrden: () => createElement('div', { 'data-testid': 'conciliacion-mock' }),
+}));
 vi.mock('@/modulos/ordenes/componentes/adjuntos-orden-dialog', () => ({ AdjuntosOrdenDialog: () => null }));
 
 import { FichaOrden } from '@/modulos/ordenes/componentes/ficha-orden';
@@ -61,6 +64,7 @@ const PERMISOS = {
   puedeEliminarTodos: false,
   puedeVerRfq: false,
   puedeVerPropuesta: false,
+  puedeVerCostos: true,
 };
 
 // Rótulo de la pestaña → pregunta guía (R19 de la nota del cliente).
@@ -72,13 +76,14 @@ const ESPERADO: readonly [string, string][] = [
   ['Entregas', '¿Qué se entregó?'],
   ['Actividad', '¿Qué ha pasado?'],
   ['Documento', '¿Qué puedo imprimir?'],
+  ['Costos', '¿Cuánto pensábamos gastar, cuánto comprometimos y cuánto gastamos?'],
   ['Comentarios', '¿Qué se ha conversado?'],
 ];
 
 afterEach(() => cleanup());
 
 describe('ficha de Orden C8.1 · pregunta guía por pestaña (R19)', () => {
-  it('declara la pregunta de las 8 pestañas', () => {
+  it('declara la pregunta de las 9 pestañas', () => {
     expect(Object.values(PREGUNTAS_PESTANA).sort()).toEqual(ESPERADO.map(([, pregunta]) => pregunta).sort());
   });
 
@@ -107,7 +112,7 @@ describe('ficha de Orden C8.1 · pregunta guía por pestaña (R19)', () => {
     render(createElement(FichaOrden, { ficha: FICHA, permisos: PERMISOS, usuarioActualId: 'u-1' }));
 
     expect(screen.getByTestId('ficha-pregunta-pestana').textContent).toBe('¿Qué es esta Orden?');
-    for (const id of ['resumen', 'partidas', 'ruta', 'archivos', 'entregas', 'actividad', 'documento', 'comentarios']) {
+    for (const id of ['resumen', 'partidas', 'ruta', 'archivos', 'entregas', 'actividad', 'documento', 'costos', 'comentarios']) {
       expect(screen.getByTestId(`ficha-pestana-${id}`)).toBeTruthy();
     }
   });
