@@ -17,11 +17,11 @@ INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condici
 VALUES ('00000000-0000-4000-8000-00000000b903', 'Cliente F2', 'Cliente F2 SA de CV', 'activo', '30_dias');
 
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso) VALUES
-  ('00000000-0000-4000-8000-00000000b904', 'OP-994901', 'O-9999_91',
+  ('00000000-0000-4000-8000-00000000b904', 'OP-994901', NULL,
    '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days'),
-  ('00000000-0000-4000-8000-00000000b907', 'OP-994902', 'O-9999_92',
+  ('00000000-0000-4000-8000-00000000b907', 'OP-994902', NULL,
    '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days'),
-  ('00000000-0000-4000-8000-00000000b9b1', 'OP-994903', 'O-9999_93',
+  ('00000000-0000-4000-8000-00000000b9b1', 'OP-994903', NULL,
    '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days');
 
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por) VALUES
@@ -173,7 +173,7 @@ SELECT ok(has_table_privilege('authenticated', 'public.facturas', 'SELECT')
 INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condiciones_pago, credito_habilitado, dias_credito)
 VALUES ('00000000-0000-4000-8000-00000000b7aa', 'Cliente crédito F2', 'Cliente crédito F2 SA', 'activo', 'credito', true, 21);
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
-VALUES ('00000000-0000-4000-8000-00000000b7ab', 'OP-994904', 'O-9999_94',
+VALUES ('00000000-0000-4000-8000-00000000b7ab', 'OP-994904', NULL,
   '00000000-0000-4000-8000-00000000b7aa', 'completada', now() + interval '30 days');
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000b7ac', 'NE-000904', '00000000-0000-4000-8000-00000000b7ab',
@@ -208,7 +208,7 @@ SELECT ok((
 INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condiciones_pago)
 VALUES ('00000000-0000-4000-8000-00000000b7ae', 'Cliente crédito sin días', 'Cliente crédito sin días SA', 'activo', 'credito');
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
-VALUES ('00000000-0000-4000-8000-00000000b7af', 'OP-994905', 'O-9999_90',
+VALUES ('00000000-0000-4000-8000-00000000b7af', 'OP-994905', NULL,
   '00000000-0000-4000-8000-00000000b7ae', 'completada', now() + interval '30 days');
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000b7b0', 'NE-000905', '00000000-0000-4000-8000-00000000b7af',
@@ -233,7 +233,7 @@ SELECT throws_ok($$SELECT * FROM public.emitir_factura(
 -- C10.2b: dos entregas de la misma Orden se facturan por separado; la CxC es
 -- una y el puntero se recalcula al cancelar la última factura activa.
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
-VALUES ('00000000-0000-4000-8000-00000000b9d0', 'OP-994906', 'O-9999_95',
+VALUES ('00000000-0000-4000-8000-00000000b9d0', 'OP-994906', NULL,
   '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days');
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
 VALUES
@@ -328,7 +328,7 @@ SELECT is((SELECT factura_id FROM public.cuentas_por_cobrar
 
 -- Guardarraíl: la suma de facturas activas no puede exceder la CxC.
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
-VALUES ('00000000-0000-4000-8000-00000000b9e0', 'OP-994907', 'O-9999_96',
+VALUES ('00000000-0000-4000-8000-00000000b9e0', 'OP-994907', NULL,
   '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days');
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000b9e1', 'NE-000908',
