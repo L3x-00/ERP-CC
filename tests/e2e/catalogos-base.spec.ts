@@ -174,7 +174,8 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
           await page
             .locator('html')
             .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
-          const seccionCanales = page.getByRole('region', { name: 'Canales RFQ' });
+          await expect(page.getByRole('region', { name: 'Canales RFQ' })).toHaveCount(1);
+          const seccionCanales = page.getByTestId('catalogo-desplegable-canales-rfq');
           await seccionCanales.scrollIntoViewIfNeeded();
           if (ancho === 320) {
             const sinDesborde = await seccionCanales.evaluate(

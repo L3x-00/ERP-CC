@@ -894,7 +894,7 @@ function SeccionGrupo(
   }
 
   return (
-    <section className="grid gap-3" aria-label={titulo}>
+    <section className="grid gap-3" aria-label={props.cabeceraCompacta ? undefined : titulo}>
       <CabeceraSeccion
         titulo={titulo}
         descripcion={descripcion}
@@ -963,7 +963,10 @@ function SeccionProximasAcciones(props: PropsSeccion) {
   }
 
   return (
-    <section className="grid gap-3" aria-labelledby="catalogos-proximas-acciones">
+    <section
+      className="grid gap-3"
+      aria-labelledby={props.cabeceraCompacta ? undefined : 'catalogos-proximas-acciones'}
+    >
       <CabeceraSeccion
         titulo="Próximas acciones"
         descripcion={descripcionSeccion('proximasAcciones')}
@@ -1163,7 +1166,7 @@ function SeccionCanales(props: PropsSeccion) {
   }
 
   return (
-    <section className="grid min-w-0 gap-3" aria-label="Canales RFQ">
+    <section className="grid min-w-0 gap-3" aria-label={props.cabeceraCompacta ? undefined : 'Canales RFQ'}>
       <CabeceraSeccion
         titulo="Canales RFQ"
         descripcion={descripcionSeccion('canales')}

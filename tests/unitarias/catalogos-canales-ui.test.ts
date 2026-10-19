@@ -109,6 +109,7 @@ describe('sección Canales RFQ en Configuración → Catálogos base (DC-02)', (
     fireEvent.click(screen.getByTestId('toggle-catalogo-canales-rfq'));
     expect(screen.getByTestId('toggle-catalogo-canales-rfq').getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByTestId('lista-canales').textContent).toContain('WhatsApp');
+    expect(screen.getAllByRole('region', { name: /Canales RFQ/ })).toHaveLength(1);
   });
 
   it('lista los canales con código, nombre, marca de Otro y estado', async () => {
