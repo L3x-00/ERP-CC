@@ -16,7 +16,12 @@ node supabase/semillas/demo-cliente.mjs sembrar
 
 # 3. Completar propuestas, compras, facturas y tesorería (C10)
 node supabase/semillas/demo-finanzas-c10.mjs
+
+# 4. Arrancar la UI contra el stack local (sin tocar .env.local)
+powershell -File scripts/dev-local.ps1
 ```
+
+La app queda en `http://127.0.0.1:3000`. `scripts/dev-local.ps1` exporta las claves del stack local para ese proceso; `.env.local` puede seguir apuntando al proyecto remoto sin afectar la demo.
 
 En PowerShell es más seguro exportar las variables desde `supabase status -o env` antes de ejecutar; `.env.local` puede apuntar al proyecto remoto.
 
