@@ -117,6 +117,13 @@ export function TablaItemsRfq({
     (espesor) => espesor.materialId === (borrador?.materialId ?? ''),
   );
   const espesorObligatorio = espesoresDelMaterial.length > 0 || faltantesEditando.espesor;
+  const requiereDetalleAcabado = Boolean(
+    borrador &&
+      catalogos?.procesos.some(
+        (proceso) => proceso.codigo === 'ACABADO' && borrador.procesoIds.includes(proceso.id),
+      ),
+  );
+  const faltaDetalleAcabado = requiereDetalleAcabado && !borrador?.acabado.trim();
 
   function abrirNuevo(): void {
     setItemEditando(null);
@@ -138,6 +145,11 @@ export function TablaItemsRfq({
             procesoIds: previo.procesoIds.includes(procesoId)
               ? previo.procesoIds.filter((id) => id !== procesoId)
               : [...previo.procesoIds, procesoId],
+            acabado:
+              previo.procesoIds.includes(procesoId) &&
+              catalogos?.procesos.find((proceso) => proceso.id === procesoId)?.codigo === 'ACABADO'
+                ? ''
+                : previo.acabado,
           }
         : previo,
     );
@@ -146,6 +158,10 @@ export function TablaItemsRfq({
   async function guardarItem(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (!borrador) return;
+    if (faltaDetalleAcabado) {
+      setMensaje('Describe los detalles del acabado solicitado.');
+      return;
+    }
     setEnviando(true);
     setMensaje(null);
 
@@ -465,15 +481,24 @@ export function TablaItemsRfq({
                   </p>
                 )}
               </fieldset>
-              <label className="grid gap-1 text-sm font-medium" htmlFor="item-acabado">
-                Acabado (opcional)
-                <Input
-                  id="item-acabado"
-                  value={borrador.acabado}
-                  onChange={(evento) => setBorrador({ ...borrador, acabado: evento.target.value })}
-                  maxLength={120}
-                />
-              </label>
+              {requiereDetalleAcabado && (
+                <label
+                  className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                  htmlFor="item-acabado"
+                >
+                  Detalles del acabado
+                  <Input
+                    id="item-acabado"
+                    value={borrador.acabado}
+                    onChange={(evento) => setBorrador({ ...borrador, acabado: evento.target.value })}
+                    maxLength={120}
+                    required
+                    aria-required="true"
+                    aria-invalid={faltaDetalleAcabado}
+                    className={faltaDetalleAcabado ? CLASE_CAMPO_FALTANTE : undefined}
+                  />
+                </label>
+              )}
               <label className="grid gap-1 text-sm font-medium" htmlFor="item-notas">
                 Notas (opcional)
                 <Textarea

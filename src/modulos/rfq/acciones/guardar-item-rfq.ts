@@ -51,6 +51,22 @@ export async function guardarItemRfqAccion(
   const { rfqId, itemId, actualizadoEn, datos } = resultado.data;
   const correlationId = nuevoCorrelationId();
   const admin = crearClienteSupabaseAdmin();
+
+  // El detalle solo es obligatorio para la operación Acabado. La comprobación
+  // se hace en servidor porque los ids de proceso llegan desde el navegador.
+  if (datos.procesoIds?.length && !datos.acabado?.trim()) {
+    const { data: procesos, error: errorProcesos } = await admin
+      .from('catalogo_procesos')
+      .select('codigo')
+      .in('id', datos.procesoIds);
+    if (errorProcesos) {
+      return { exito: false, error: 'No se pudo validar las operaciones del ítem' };
+    }
+    if ((procesos ?? []).some((proceso) => proceso.codigo === 'ACABADO')) {
+      return { exito: false, error: 'Describe los detalles del acabado solicitado' };
+    }
+  }
+
   const carga = datosParaRpc(datos);
 
   const respuesta = itemId
