@@ -25,6 +25,26 @@ La app queda en `http://127.0.0.1:3000`. `scripts/dev-local.ps1` exporta las cla
 
 En PowerShell es más seguro exportar las variables desde `supabase status -o env` antes de ejecutar; `.env.local` puede apuntar al proyecto remoto.
 
+## Remoto (solo con autorización explícita del PO)
+
+El modo remoto está apagado por defecto. Para el proyecto autorizado:
+
+```powershell
+# Respaldo obligatorio antes de borrar
+supabase db dump --linked -f backup-schema.sql
+supabase db dump --linked --data-only -f backup-data.sql
+
+# Limpieza transaccional revisada (preservar usuarios, roles y catálogos base)
+# + sembrar la demo
+$env:DEMO_DESTINO = 'remoto'
+$env:CONFIRMAR_DEMO_REMOTO = 'pwnecbcynnqnvfwmvrnn'
+$env:CONFIRMAR_DEMO = 'si'
+node supabase/semillas/demo-cliente.mjs sembrar
+node supabase/semillas/demo-finanzas-c10.mjs
+```
+
+El script exige que `NEXT_PUBLIC_SUPABASE_URL` sea exactamente el host de ese proyecto. No ejecutar `limpiar` ni `todo` en remoto: la limpieza remota se hace con el SQL transaccional revisado y un respaldo previo. La demo remota conserva `ales@gmail.com` y `ales_2_@hotmail.com`; este último se usa como administrador de presentación.
+
 ## Acceso
 
 | Rol | Correo | Contraseña |
