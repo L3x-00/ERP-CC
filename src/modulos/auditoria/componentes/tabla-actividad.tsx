@@ -19,6 +19,7 @@ import {
   etiquetaAccion,
   etiquetaGrupoActividad,
   etiquetaModulo,
+  textoContextoActividad,
   MODULOS_ACTIVIDAD,
   textoRecurso,
 } from '../utilidades/actividad';
@@ -264,6 +265,7 @@ function FilaActividad({
 }) {
   const enlace = enlaceRegistroActividad(registro);
   const texto = textoRecurso(registro);
+  const contexto = registro.contexto ? textoContextoActividad(registro.contexto) : [];
 
   return (
     <TablaFila data-testid="fila-actividad" className={cn(enGrupo && 'border-l-2 border-l-acento/60')}>
@@ -290,12 +292,12 @@ function FilaActividad({
       </TablaCelda>
       {esAdmin ? (
         <TablaCelda>
-          {registro.contexto ? (
+          {contexto.length > 0 ? (
             <details className="text-xs">
-              <summary className="cursor-pointer font-medium text-acento">Ver contexto</summary>
-              <pre className="mt-1 max-w-xs overflow-x-auto whitespace-pre-wrap break-words text-[11px] text-texto-secundario">
-                {JSON.stringify(registro.contexto, null, 2)}
-              </pre>
+              <summary className="cursor-pointer font-medium text-acento">Ver detalle</summary>
+              <ul className="mt-1 grid gap-1 text-texto-secundario">
+                {contexto.map((detalle, indice) => <li key={`${indice}-${detalle}`}>{detalle}</li>)}
+              </ul>
             </details>
           ) : (
             <span className="text-texto-tenue">—</span>

@@ -98,6 +98,19 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('sección Canales RFQ en Configuración → Catálogos base (DC-02)', () => {
+  it('mantiene Procesos visible y los demás catálogos plegados al abrir la pestaña', async () => {
+    render(envolver(createElement(PestanaCatalogosBase)));
+
+    expect(await screen.findByText('Procesos')).toBeTruthy();
+    const seccion = screen.getByTestId('catalogo-desplegable-canales-rfq');
+    expect(screen.getByTestId('toggle-catalogo-canales-rfq').getAttribute('aria-expanded')).toBe('false');
+    expect(seccion.textContent).toContain('Canales RFQ');
+
+    fireEvent.click(screen.getByTestId('toggle-catalogo-canales-rfq'));
+    expect(screen.getByTestId('toggle-catalogo-canales-rfq').getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByTestId('lista-canales').textContent).toContain('WhatsApp');
+  });
+
   it('lista los canales con código, nombre, marca de Otro y estado', async () => {
     render(envolver(createElement(PestanaCatalogosBase)));
 

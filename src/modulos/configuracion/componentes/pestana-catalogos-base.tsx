@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
@@ -8,6 +8,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
+import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import {
   alternarActivoAccion,
   guardarCanalAccion,
@@ -55,6 +56,7 @@ interface PropsSeccion {
   onMensaje: (texto: string) => void;
   onError: (texto: string) => void;
   onHistorial: (seleccion: HistorialSeleccionado) => void;
+  cabeceraCompacta?: boolean;
 }
 
 function etiquetaEstado(activo: boolean) {
@@ -133,7 +135,9 @@ export function PestanaCatalogosBase() {
       </header>
 
       <SeccionProcesos {...propsBase} />
-      <SeccionGruposEquipo {...propsBase} />
+      <SeccionCatalogoDesplegable id="grupos-equipo" titulo="Grupos de equipo" descripcion={descripcionSeccion('gruposEquipo')}>
+        <SeccionGruposEquipo {...propsBase} cabeceraCompacta />
+      </SeccionCatalogoDesplegable>
       <p
         className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario"
         data-testid="catalogos-tarifas-en-tarifas-tc"
@@ -142,9 +146,15 @@ export function PestanaCatalogosBase() {
         <span className="font-medium text-texto-primario">Tarifas / TC</span>, junto con las tarifas por
         estación: es un solo tarifario.
       </p>
-      <SeccionGruposPlaneados {...propsBase} />
-      <SeccionProximasAcciones {...propsBase} />
-      <SeccionCanales {...propsBase} />
+      <SeccionCatalogoDesplegable id="grupos-planeados" titulo="Grupos planeados" descripcion={descripcionSeccion('gruposPlaneados')}>
+        <SeccionGruposPlaneados {...propsBase} cabeceraCompacta />
+      </SeccionCatalogoDesplegable>
+      <SeccionCatalogoDesplegable id="proximas-acciones" titulo="Próximas acciones" descripcion={descripcionSeccion('proximasAcciones')}>
+        <SeccionProximasAcciones {...propsBase} cabeceraCompacta />
+      </SeccionCatalogoDesplegable>
+      <SeccionCatalogoDesplegable id="canales-rfq" titulo="Canales RFQ" descripcion={descripcionSeccion('canales')}>
+        <SeccionCanales {...propsBase} cabeceraCompacta />
+      </SeccionCatalogoDesplegable>
 
       <p className="text-xs text-texto-terciario" data-testid="catalogos-conteos">
         {SECCIONES_CATALOGOS_BASE.map(
@@ -168,6 +178,30 @@ export function PestanaCatalogosBase() {
         </p>
       ) : null}
     </div>
+  );
+}
+
+function SeccionCatalogoDesplegable({
+  id,
+  titulo,
+  descripcion,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  children: ReactNode;
+}) {
+  return (
+    <SeccionDesplegable
+      titulo={titulo}
+      descripcion={descripcion}
+      dataTestId={`catalogo-desplegable-${id}`}
+      dataTestIdBoton={`toggle-catalogo-${id}`}
+      claseContenido="pt-1"
+    >
+      {children}
+    </SeccionDesplegable>
   );
 }
 
@@ -240,6 +274,7 @@ function CabeceraSeccion({
   onNuevo,
   testid,
   etiquetaNuevo,
+  compacta = false,
 }: {
   titulo: string;
   descripcion: string;
@@ -247,13 +282,16 @@ function CabeceraSeccion({
   onNuevo: () => void;
   testid: string;
   etiquetaNuevo: string;
+  compacta?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <div>
-        <h3 className="text-base font-semibold text-texto-primario">{titulo}</h3>
-        <p className="text-xs text-texto-secundario">{descripcion}</p>
-      </div>
+    <div className={`flex flex-wrap gap-2 ${compacta ? 'justify-end' : 'items-start justify-between'}`}>
+      {!compacta ? (
+        <div>
+          <h3 className="text-base font-semibold text-texto-primario">{titulo}</h3>
+          <p className="text-xs text-texto-secundario">{descripcion}</p>
+        </div>
+      ) : null}
       <Button variante="secundario" tamano="sm" disabled={!puedeEditar} onClick={onNuevo} data-testid={testid}>
         {etiquetaNuevo}
       </Button>
@@ -864,6 +902,7 @@ function SeccionGrupo(
         onNuevo={() => setEditando({ ...FORMULARIO_VACIO })}
         testid={`${testidPrefijo}-nuevo`}
         etiquetaNuevo={`Nuevo (${titulo.toLowerCase()})`}
+        compacta={props.cabeceraCompacta}
       />
       <FormularioSimple
         titulo={editando?.id ? `Editar ${titulo.toLowerCase()}` : `Nuevo ${titulo.toLowerCase()}`}
@@ -934,6 +973,7 @@ function SeccionProximasAcciones(props: PropsSeccion) {
         }
         testid="catalogo-accion-nuevo"
         etiquetaNuevo="Nueva próxima acción"
+        compacta={props.cabeceraCompacta}
       />
       {editando ? (
         <form
@@ -1131,6 +1171,7 @@ function SeccionCanales(props: PropsSeccion) {
         onNuevo={() => setEditando({ codigo: '', nombre: '', esOtro: false, activo: true, orden: '0' })}
         testid="catalogo-canal-nuevo"
         etiquetaNuevo="Nuevo canal"
+        compacta={props.cabeceraCompacta}
       />
       {editando ? (
         <form

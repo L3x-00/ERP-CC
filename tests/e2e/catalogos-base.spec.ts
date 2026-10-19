@@ -72,6 +72,8 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await expect(page.getByTestId('pagina-configuracion')).toBeVisible();
       await page.getByRole('tab', { name: 'Catálogos base' }).click();
       await expect(page.getByTestId('pagina-catalogos-base')).toBeVisible();
+      await page.getByTestId('toggle-catalogo-canales-rfq').click();
+      await expect(page.getByTestId('toggle-catalogo-canales-rfq')).toHaveAttribute('aria-expanded', 'true');
 
       // Obs. cliente 2026-10-13 (8): Materiales/Espesores se administran en
       // «Materiales y costos»; aquí ya no se ofrecen sus secciones.
