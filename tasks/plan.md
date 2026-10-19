@@ -60,6 +60,7 @@ Baseline de preparación:
 | CLI-12 | Orden no editable y precios solo administrativos | Brecha confirmada. La cola aún muestra Editar y Procesos; “Seleccionar” abre el hilo de comentarios debajo y por eso se percibe sin función; la ficha permite Ajustar. El acceso PIN de piso ya evita precios, pero la ruta administrativa de Órdenes necesita gate de página y proyección financiera explícita. | Retirar mutaciones comerciales, reubicar comentarios antes de quitar “Seleccionar”, conservar solo operaciones permitidas y aplicar confidencialidad en servidor, ruta y UI. |
 | CLI-13 | Acceso PIN simple y vista administrativa como operador | Decisión cerrada. PIN táctil, hash seguro y sesión firmada existen; el flujo depende de volver a Producción y no hay delegación administrativa. | Flujo guiado y “Vista operador” temporal, auditada, sin PIN y estrictamente de solo lectura en el MVP. |
 | CLI-14 | Catálogo/consumo/costo sin stock | Decisión cerrada. El módulo actual maneja stock, entradas, salidas, reservas, kardex y CPP. Ya existen consumo real y costo congelado, pero están acoplados al descuento de stock. | Desacoplar consumo; catálogo en MXN/USD, unidad base, costo propuesto/confirmado e historial. Conservar inventario legado en solo lectura sin nuevas operaciones. |
+| CLI-15 | Finanzas: conciliación, facturación, cobranza y tesorería (C10.1–C10.4) | Cerrado localmente y en PR de cierre. Estimado/comprometido/real, margen estimado/real, factura por entrega, guarda de cancelación con cobros, flujo en Tesorería, reversos visibles y guardarraíles de costos. | Mantener F10 **parcial** (ajuste manual autorizado diferido), el flujo por cuenta como vista informativa de Tesorería y una factura por entrega; no reabrir sin nueva decisión del PO. |
 
 ## 4. Arquitectura recomendada
 
@@ -253,3 +254,12 @@ Durante la implementación se corregirán defectos funcionales o visuales encont
 ## 9. Criterio de finalización
 
 Cada corte se considera terminado solo después de revisión Codex, revisión independiente proporcional, gates verdes y evidencia. La validación técnica local no equivale a despliegue, producción ni aceptación del cliente; esas confirmaciones se reportarán por separado.
+
+## 10. Corte 10 — Finanzas C10.1–C10.4 (cierre local)
+
+**CLI-15.** El corte de Finanzas ejecutó y fusionó C10.1 (dashboard sin IVA y órdenes internas), C10.2 (conciliación estimado/comprometido/real y márgenes), C10.2b (una factura por entrega sobre una CxC), C10.3 (cancelación con cobros, flujo en Tesorería, reversos y guardarraíles) y C10.4 (aceptación de punta a punta y registro). PRs #78, #79, #80, #81 y el PR de cierre; migraciones `20261018220000`, `20261018230000`, `20261019090000`, `20261019120000` y `20261019150000` aplicadas en remoto por el PO.
+
+- **F10:** matriz fuente→concepto y columna Fuente aprobadas; el ajuste manual autorizado del costo real queda **diferido** y F10 se registra como **parcial**.
+- **F17/F18:** transferencias neutrales y pagos/movimientos sin efecto en conciliación/rentabilidad, con pruebas ejecutadas.
+- **F19/F20:** contratos con Órdenes/Planeación, confidencialidad y aceptación E2E; la coherencia de horas con C9.3 queda pendiente de C9.3.
+- **Límites:** una factura por entrega en el MVP; el flujo por cuenta es informativo y su fórmula no es el saldo conciliado; no se borra historial financiero.
