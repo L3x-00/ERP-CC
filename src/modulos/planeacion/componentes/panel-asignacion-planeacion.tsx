@@ -393,12 +393,9 @@ export function PanelAsignacionPlaneacion({
       className="flex flex-col gap-3"
       onSubmit={(evento) => void alEnviar(evento)}
       data-testid="panel-asignacion-planeacion"
+      aria-label={programacion ? 'Reprogramar partida' : 'Programar partida'}
       noValidate
     >
-      <h2 className="text-sm font-medium">
-        {programacion ? 'Reprogramar partida' : 'Programar partida'}
-      </h2>
-
       {desgloseSeleccionado ? (
         <section
           className="flex flex-col gap-1 rounded-base border border-borde bg-superficie-2 p-3 text-xs"

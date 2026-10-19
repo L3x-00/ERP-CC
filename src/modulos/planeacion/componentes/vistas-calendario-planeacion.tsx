@@ -147,7 +147,8 @@ export function VistaSemana(props: PropsVistaCalendario) {
   const porFecha = agruparPorFecha(props.programaciones);
 
   return (
-    <div data-testid="vista-semana" className="grid gap-3 md:grid-cols-7">
+    <div className="overflow-x-auto pb-1 xl:overflow-visible">
+      <div data-testid="vista-semana" className="grid min-w-[60rem] grid-cols-7 gap-2">
       {props.fechas.map((fecha) => {
         const programaciones = porFecha.get(fecha) ?? [];
         return (
@@ -162,7 +163,7 @@ export function VistaSemana(props: PropsVistaCalendario) {
               evento.preventDefault();
               soltarEnFecha(evento, fecha, props);
             }}
-            className="flex min-h-32 flex-col gap-2 rounded-base border border-borde bg-superficie-2 p-2"
+            className="flex min-h-24 flex-col gap-2 rounded-base border border-borde bg-superficie-2 p-2"
           >
             <header className="flex flex-col">
               <span className="text-xs font-medium">{etiquetaDia(fecha)}</span>
@@ -176,13 +177,14 @@ export function VistaSemana(props: PropsVistaCalendario) {
                   key={programacion.id}
                   programacion={programacion}
                   props={props}
-                  compacta={false}
+                  compacta
                 />
               ))
             )}
           </section>
         );
       })}
+      </div>
     </div>
   );
 }

@@ -162,6 +162,8 @@ test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)
 
     const bolsa = page.getByTestId('bolsa-planeacion');
     await expect(bolsa).toBeVisible();
+    await page.getByTestId('toggle-bolsa-planeacion').click();
+    await expect(page.getByTestId('toggle-bolsa-planeacion')).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByTestId('bolsa-pausadas')).toContainText('PLA5-PAUSA');
     await expect(page.getByTestId('bolsa-hoy')).toContainText('PLA5-HOY');
     await expect(page.getByTestId('bolsa-sugerencias')).toContainText('PLA5-SUG');

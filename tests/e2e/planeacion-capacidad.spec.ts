@@ -104,6 +104,8 @@ test.describe.serial('capacidad instalada de Planeación (D-02)', () => {
     await page.goto('/planeacion');
     const panel = page.getByTestId('panel-capacidad-instalada');
     await expect(panel).toBeVisible();
+    await page.getByTestId('toggle-capacidad-instalada').click();
+    await expect(page.getByTestId('toggle-capacidad-instalada')).toHaveAttribute('aria-expanded', 'true');
     const fila = panel.getByTestId(`capacidad-recurso-${datos.codigo}`);
     await expect(fila).toContainText('Equipos × jornada = 8 h por jornada');
 
@@ -180,6 +182,11 @@ function semanaLocalRelativa(base: Date): RangoSemanalRelativo {
  * vuelo, un re-render puede reemplazar los inputs y perder el primer onChange.
  */
 async function aplicarRangoRelativo(pagina: Page, rango: RangoSemanalRelativo): Promise<void> {
+  const toggleFiltros = pagina.getByTestId('toggle-filtros-planeacion');
+  if ((await toggleFiltros.getAttribute('aria-expanded')) === 'false') {
+    await toggleFiltros.click();
+  }
+  await expect(toggleFiltros).toHaveAttribute('aria-expanded', 'true');
   const aviso = pagina.locator(
     'section[aria-labelledby="titulo-calendario-planeacion"] p[aria-live="polite"]',
   );
@@ -193,6 +200,14 @@ async function aplicarRangoRelativo(pagina: Page, rango: RangoSemanalRelativo): 
     aplicado = ((await aviso.textContent()) ?? '').includes(rango.inicio);
   }
   await expect(aviso).toContainText(rango.inicio);
+}
+
+async function abrirProgramarPartida(pagina: Page): Promise<void> {
+  const toggle = pagina.getByTestId('toggle-programar-partida');
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 }
 
 /** Contexto mínimo para la carga semanal: un recurso con un turno de 8 h y una partida. */
@@ -371,8 +386,11 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await expect(resumen).toContainText(datos.codigo);
 
     // Programar 6 h hoy en el turno matutino: la celda pasa a 6/8 h.
-    await page.getByLabel('Partida', { exact: true }).selectOption(datos.partidaId);
-    await page.getByLabel('Recurso').last().selectOption(datos.recursoId);
+    await abrirProgramarPartida(page);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Partida', { exact: true }).selectOption(datos.partidaId);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Recurso').selectOption(datos.recursoId);
     await page.getByLabel('Fecha programada').fill(fechaHoy);
     await page.getByLabel('Horas estimadas').fill('6');
     await page.getByTestId('guardar-asignacion-planeacion').click();
@@ -454,8 +472,11 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await aplicarRangoRelativo(page, semana);
 
     // C9.2/P09: 6 h existentes + 4 h nuevas exceden la jornada de 8 h.
-    await page.getByLabel('Partida', { exact: true }).selectOption(datos.partidaSecundariaId);
-    await page.getByLabel('Recurso').last().selectOption(datos.recursoId);
+    await abrirProgramarPartida(page);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Partida', { exact: true }).selectOption(datos.partidaSecundariaId);
+    await page.getByTestId('panel-asignacion-planeacion')
+      .getByLabel('Recurso').selectOption(datos.recursoId);
     await page.getByLabel('Fecha programada').fill(fechaHoy);
     await page.getByLabel('Horas estimadas').fill('4');
 

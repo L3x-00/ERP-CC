@@ -5,6 +5,7 @@ import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import type { DatosCalendarioPlaneacion } from '@/modulos/planeacion/servicios/indice';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import {
   AREAS_PLANEACION,
   ESTADOS_PLANEACION,
@@ -129,6 +130,12 @@ export function CalendarioPlaneacion({
     null,
   );
   const masFiltrosAbierto = pliegueAbiertoManualmente ?? filtrosPliegueActivos;
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
+  const filtrosActivos =
+    (recursoId !== null ? 1 : 0) + (area !== null ? 1 : 0) + turnos.length + estados.length;
+  const descripcionFiltros = filtrosActivos > 0
+    ? `${filtrosActivos} filtro${filtrosActivos === 1 ? '' : 's'} activo${filtrosActivos === 1 ? '' : 's'}`
+    : 'Rango, recurso, área, turnos y estados';
 
   const recursosPorId = useMemo(
     () => new Map(datos.recursos.map((recurso) => [recurso.id, recurso])),
@@ -282,7 +289,16 @@ export function CalendarioPlaneacion({
         </span>
       </div>
 
-      <div className="grid gap-3 rounded-base border border-borde p-3 md:grid-cols-3">
+      <SeccionDesplegable
+        titulo="Filtros"
+        descripcion={descripcionFiltros}
+        abierto={filtrosAbiertos}
+        onAbiertoChange={setFiltrosAbiertos}
+        dataTestId="filtros-planeacion"
+        dataTestIdBoton="toggle-filtros-planeacion"
+        claseContenido="pt-0"
+      >
+        <div className="grid gap-3 md:grid-cols-3">
         <label className="flex flex-col gap-1 text-xs">
           Fecha inicial
           <Input
@@ -382,7 +398,8 @@ export function CalendarioPlaneacion({
             </label>
           ))}
         </fieldset>
-      </div>
+        </div>
+      </SeccionDesplegable>
 
       <div aria-busy={actualizando}>
         {vista === 'dia' ? (

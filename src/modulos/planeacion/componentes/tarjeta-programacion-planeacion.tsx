@@ -91,24 +91,43 @@ export function TarjetaProgramacionPlaneacion({
       onDragStart={arrastrable ? iniciarArrastre : undefined}
       className={
         seleccionada
-          ? 'flex flex-col gap-2 rounded-base border border-acento bg-superficie-2 p-3 text-xs'
-          : 'flex flex-col gap-2 rounded-base border border-borde bg-superficie p-3 text-xs'
+          ? `flex min-w-0 flex-col ${compacta ? 'gap-1.5 p-2.5' : 'gap-2 p-3'} rounded-base border border-acento bg-superficie-2 text-xs`
+          : `flex min-w-0 flex-col ${compacta ? 'gap-1.5 p-2.5' : 'gap-2 p-3'} rounded-base border border-borde bg-superficie text-xs`
       }
     >
-      <header className="flex items-start justify-between gap-2">
-        <button
-          type="button"
-          draggable={false}
-          data-testid={`resumen-orden-${programacion.id}`}
-          aria-label={`Ver resumen de la orden ${titulo}`}
-          onClick={() => setResumenAbierto(true)}
-          className="rounded-sm text-left font-mono text-[11px] font-medium underline decoration-dotted underline-offset-2 hover:text-acento focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:outline-none"
-        >
-          {titulo}
-        </button>
-        <Badge variante={VARIANTE_ESTADO[programacion.estadoPlaneacion]}>
-          {ETIQUETA_ESTADO[programacion.estadoPlaneacion]}
-        </Badge>
+      <header className="flex items-start gap-1.5">
+        {arrastrable ? (
+          <span
+            data-testid={`asa-arrastre-${programacion.id}`}
+            draggable
+            onDragStart={iniciarArrastre}
+            title="Arrastrar para reprogramar"
+            aria-hidden="true"
+            className="mt-0.5 shrink-0 cursor-grab select-none text-base leading-none text-texto-tenue active:cursor-grabbing"
+          >
+            ⠿
+          </span>
+        ) : null}
+        <div className={`flex min-w-0 flex-1 flex-col ${compacta ? 'gap-1' : 'gap-2'}`}>
+          <button
+            type="button"
+            draggable={false}
+            data-testid={`resumen-orden-${programacion.id}`}
+            aria-label={`Ver resumen de la orden ${titulo}`}
+            onClick={() => setResumenAbierto(true)}
+            className={`${compacta ? 'w-full' : 'min-w-0'} truncate rounded-sm text-left font-mono text-[11px] font-medium underline decoration-dotted underline-offset-2 hover:text-acento focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:outline-none`}
+          >
+            {titulo}
+          </button>
+          <span className="self-start">
+            <Badge
+              variante={VARIANTE_ESTADO[programacion.estadoPlaneacion]}
+              className={compacta ? 'px-2 py-0 text-[10px]' : undefined}
+            >
+              {ETIQUETA_ESTADO[programacion.estadoPlaneacion]}
+            </Badge>
+          </span>
+        </div>
       </header>
 
       {!compacta ? (
@@ -117,10 +136,10 @@ export function TarjetaProgramacionPlaneacion({
 
       {compacta ? (
         <>
-          <p className="truncate text-texto-secundario" title={`Ítem ${itemTexto}`}>
+          <p className="truncate text-[11px] text-texto-secundario" title={`Ítem ${itemTexto}`}>
             Ítem {itemTexto}
           </p>
-          <p className="truncate text-texto-secundario" title={procesosTexto}>
+          <p className="truncate text-[11px] text-texto-secundario" title={procesosTexto}>
             Procesos: {procesosTexto}
           </p>
         </>
@@ -171,8 +190,12 @@ export function TarjetaProgramacionPlaneacion({
         </dl>
       ) : null}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-2">
-        <span className="text-texto-secundario">
+      <footer
+        className={`flex flex-wrap items-center justify-between border-t border-borde ${
+          compacta ? 'gap-1.5 pt-1.5' : 'gap-2 pt-2'
+        }`}
+      >
+        <span className={`text-texto-secundario ${compacta ? 'min-w-0 flex-1 truncate' : ''}`}>
           {compacta
             ? `${programacion.operacionNombre ? `${programacion.operacionNombre} · ` : ''}${
                 recurso?.codigo ?? 'Recurso'
@@ -194,6 +217,7 @@ export function TarjetaProgramacionPlaneacion({
             variante="contorno"
             tamano="sm"
             onClick={() => onSeleccionar(programacion)}
+            className="shrink-0"
           >
             Seleccionar
           </Button>
@@ -238,6 +262,22 @@ export function TarjetaProgramacionPlaneacion({
               <dt className="text-texto-secundario">Procesos</dt>
               <dd>{procesosTexto}</dd>
             </div>
+            {desglose ? (
+              <>
+                <div>
+                  <dt className="text-texto-secundario">Área</dt>
+                  <dd>{etiquetaArea(desglose)}</dd>
+                </div>
+                <div>
+                  <dt className="text-texto-secundario">Material</dt>
+                  <dd>{etiquetaMaterial(desglose)}</dd>
+                </div>
+                <div>
+                  <dt className="text-texto-secundario">Tiempo estimado</dt>
+                  <dd>{formatearDuracionMinutos(desglose.tiempoEstimadoMinutos)}</dd>
+                </div>
+              </>
+            ) : null}
             {programacion.operacionNombre ? (
               <div className="col-span-2">
                 <dt className="text-texto-secundario">Operación</dt>
