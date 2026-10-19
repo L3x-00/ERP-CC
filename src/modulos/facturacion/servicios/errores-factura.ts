@@ -18,6 +18,9 @@ export function traducirErrorFactura(mensaje: string, detalle?: string): string 
   if (codigo.includes('cuenta_ya_facturada')) {
     return 'La cuenta por cobrar ya está vinculada a otra factura';
   }
+  if (codigo.includes('factura_excede_cuenta')) {
+    return 'La factura excede el saldo por facturar de la cuenta por cobrar';
+  }
   if (codigo.includes('factura_ya_cancelada')) return 'La factura ya estaba cancelada';
   if (codigo.includes('datos_factura_invalidos')) return 'Datos de factura inválidos';
   if (codigo.includes('datos_cancelacion_invalidos')) {

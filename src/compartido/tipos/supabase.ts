@@ -1363,9 +1363,11 @@ export type Database = {
           cliente_id: string
           creado_en: string
           creado_por: string | null
+          cuenta_id: string | null
           emitida_en: string | null
           entrega_id: string
           estado: string
+          fecha_vencimiento: string | null
           folio_fiscal: string | null
           id: string
           iva: number | null
@@ -1382,9 +1384,11 @@ export type Database = {
           cliente_id: string
           creado_en?: string
           creado_por?: string | null
+          cuenta_id?: string | null
           emitida_en?: string | null
           entrega_id: string
           estado?: string
+          fecha_vencimiento?: string | null
           folio_fiscal?: string | null
           id?: string
           iva?: number | null
@@ -1401,9 +1405,11 @@ export type Database = {
           cliente_id?: string
           creado_en?: string
           creado_por?: string | null
+          cuenta_id?: string | null
           emitida_en?: string | null
           entrega_id?: string
           estado?: string
+          fecha_vencimiento?: string | null
           folio_fiscal?: string | null
           id?: string
           iva?: number | null

@@ -17,11 +17,11 @@ INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condici
 VALUES ('00000000-0000-4000-8000-00000000b903', 'Cliente F2', 'Cliente F2 SA de CV', 'activo', '30_dias');
 
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso) VALUES
-  ('00000000-0000-4000-8000-00000000b904', 'OP-994901', 'O-9999_91',
+  ('00000000-0000-4000-8000-00000000b904', 'OP-994901', NULL,
    '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days'),
-  ('00000000-0000-4000-8000-00000000b907', 'OP-994902', 'O-9999_92',
+  ('00000000-0000-4000-8000-00000000b907', 'OP-994902', NULL,
    '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days'),
-  ('00000000-0000-4000-8000-00000000b9b1', 'OP-994903', 'O-9999_93',
+  ('00000000-0000-4000-8000-00000000b9b1', 'OP-994903', NULL,
    '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days');
 
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por) VALUES
@@ -48,7 +48,7 @@ VALUES
 
 CREATE TEMP TABLE b8f (clave text PRIMARY KEY, valor jsonb);
 
-SELECT plan(22);
+SELECT plan(38);
 
 -- 1-4. Borrador idempotente por entrega.
 INSERT INTO b8f (clave, valor)
@@ -78,10 +78,10 @@ UPDATE b8f SET valor = valor || to_jsonb(factura.*)
 FROM public.actualizar_factura_borrador(
   (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f1'),
   (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f1'),
-  '{"subtotal": 172.41, "iva": 27.59, "total": 200}'::jsonb,
+  '{"subtotal": 94.83, "iva": 15.17, "total": 110}'::jsonb,
   '00000000-0000-4000-8000-00000000b901') AS factura
 WHERE b8f.clave = 'f1';
-SELECT is((SELECT (valor ->> 'total')::numeric FROM b8f WHERE clave = 'f1'), 200::numeric,
+SELECT is((SELECT (valor ->> 'total')::numeric FROM b8f WHERE clave = 'f1'), 110::numeric,
   'La edición vigente actualiza los montos');
 
 -- 7-10. Emisión: folio capturado y vínculo a la AR.
@@ -100,6 +100,13 @@ SELECT is((SELECT factura_id FROM public.cuentas_por_cobrar
   WHERE id = '00000000-0000-4000-8000-00000000b906'),
   (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f1'),
   'La AR queda vinculada a la factura');
+SELECT is((SELECT cuenta_id FROM public.facturas
+  WHERE id = (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f1')),
+  '00000000-0000-4000-8000-00000000b906'::uuid,
+  'La factura guarda el vínculo autoritativo con su CxC');
+SELECT ok((SELECT fecha_vencimiento IS NOT NULL FROM public.facturas
+  WHERE id = (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f1')),
+  'La factura guarda el vencimiento calculado al emitir');
 SELECT ok((SELECT fecha_vencimiento > now() FROM public.cuentas_por_cobrar
   WHERE id = '00000000-0000-4000-8000-00000000b906'),
   'La AR cobrable recalcula vencimiento por términos del cliente (30 días)');
@@ -166,7 +173,7 @@ SELECT ok(has_table_privilege('authenticated', 'public.facturas', 'SELECT')
 INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condiciones_pago, credito_habilitado, dias_credito)
 VALUES ('00000000-0000-4000-8000-00000000b7aa', 'Cliente crédito F2', 'Cliente crédito F2 SA', 'activo', 'credito', true, 21);
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
-VALUES ('00000000-0000-4000-8000-00000000b7ab', 'OP-994904', 'O-9999_94',
+VALUES ('00000000-0000-4000-8000-00000000b7ab', 'OP-994904', NULL,
   '00000000-0000-4000-8000-00000000b7aa', 'completada', now() + interval '30 days');
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000b7ac', 'NE-000904', '00000000-0000-4000-8000-00000000b7ab',
@@ -201,7 +208,7 @@ SELECT ok((
 INSERT INTO public.clientes (id, nombre_comercial, razon_social, estado, condiciones_pago)
 VALUES ('00000000-0000-4000-8000-00000000b7ae', 'Cliente crédito sin días', 'Cliente crédito sin días SA', 'activo', 'credito');
 INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
-VALUES ('00000000-0000-4000-8000-00000000b7af', 'OP-994905', 'O-9999_90',
+VALUES ('00000000-0000-4000-8000-00000000b7af', 'OP-994905', NULL,
   '00000000-0000-4000-8000-00000000b7ae', 'completada', now() + interval '30 days');
 INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000b7b0', 'NE-000905', '00000000-0000-4000-8000-00000000b7af',
@@ -222,6 +229,132 @@ SELECT throws_ok($$SELECT * FROM public.emitir_factura(
   'FAC-CREDITO-SIN-DIAS', NULL, NULL, '00000000-0000-4000-8000-00000000b901')$$,
   '23514', 'cliente_credito_sin_dias',
   'Crédito sin días configurados no se factura (D4-B)');
+
+-- C10.2b: dos entregas de la misma Orden se facturan por separado; la CxC es
+-- una y el puntero se recalcula al cancelar la última factura activa.
+INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
+VALUES ('00000000-0000-4000-8000-00000000b9d0', 'OP-994906', NULL,
+  '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days');
+INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
+VALUES
+  ('00000000-0000-4000-8000-00000000b9d1', 'NE-000906', '00000000-0000-4000-8000-00000000b9d0',
+   'Recepción F2', '00000000-0000-4000-8000-00000000b901'),
+  ('00000000-0000-4000-8000-00000000b9d2', 'NE-000907', '00000000-0000-4000-8000-00000000b9d0',
+   'Recepción F2', '00000000-0000-4000-8000-00000000b901');
+INSERT INTO public.cuentas_por_cobrar (
+  id, orden_id, cliente_id, monto_total, saldo_pendiente, moneda, estado,
+  cobrable_desde, fecha_vencimiento, monto_subtotal, monto_iva
+) VALUES ('00000000-0000-4000-8000-00000000b9d3', '00000000-0000-4000-8000-00000000b9d0',
+  '00000000-0000-4000-8000-00000000b903', 116, 116, 'MXN', 'pendiente',
+  now(), now() + interval '30 days', 100, 16);
+
+INSERT INTO b8f (clave, valor)
+SELECT 'f7', to_jsonb(factura.*) FROM public.crear_factura_borrador(
+  '00000000-0000-4000-8000-00000000b9d1',
+  '{"subtotal":50,"iva":8,"total":58}'::jsonb,
+  '00000000-0000-4000-8000-00000000b901') AS factura;
+UPDATE b8f SET valor = valor || to_jsonb(factura.*)
+FROM public.emitir_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f7'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f7'),
+  'FAC-DOS-1', NULL, NULL, '00000000-0000-4000-8000-00000000b901') AS factura
+WHERE b8f.clave = 'f7';
+SELECT is((SELECT valor ->> 'estado' FROM b8f WHERE clave = 'f7'), 'EMITIDA',
+  'La primera entrega emite su factura sin bloquear la Orden');
+SELECT is((SELECT cuenta_id FROM public.facturas
+  WHERE id = (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f7')),
+  '00000000-0000-4000-8000-00000000b9d3'::uuid,
+  'La primera factura guarda su CxC');
+
+INSERT INTO b8f (clave, valor)
+SELECT 'f8', to_jsonb(factura.*) FROM public.crear_factura_borrador(
+  '00000000-0000-4000-8000-00000000b9d2',
+  '{"subtotal":50,"iva":8,"total":58}'::jsonb,
+  '00000000-0000-4000-8000-00000000b901') AS factura;
+UPDATE b8f SET valor = valor || to_jsonb(factura.*)
+FROM public.emitir_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f8'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f8'),
+  'FAC-DOS-2', NULL, NULL, '00000000-0000-4000-8000-00000000b901') AS factura
+WHERE b8f.clave = 'f8';
+SELECT is((SELECT valor ->> 'estado' FROM b8f WHERE clave = 'f8'), 'EMITIDA',
+  'La segunda entrega emite su propia factura (F-03 A)');
+SELECT is((SELECT count(*)::integer FROM public.facturas
+  WHERE cuenta_id = '00000000-0000-4000-8000-00000000b9d3' AND estado = 'EMITIDA'), 2,
+  'La CxC acumula dos facturas activas');
+SELECT is((SELECT factura_id FROM public.cuentas_por_cobrar
+  WHERE id = '00000000-0000-4000-8000-00000000b9d3'),
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f8'),
+  'La CxC apunta a la última factura emitida');
+SELECT is((SELECT folio_factura_remision FROM public.cuentas_por_cobrar
+  WHERE id = '00000000-0000-4000-8000-00000000b9d3'), 'FAC-DOS-2',
+  'El folio de la CxC es el de la última factura');
+
+UPDATE b8f SET valor = valor || to_jsonb(factura.*)
+FROM public.cancelar_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f8'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f8'),
+  'Error de captura de la segunda entrega', '00000000-0000-4000-8000-00000000b901') AS factura
+WHERE b8f.clave = 'f8';
+SELECT is((SELECT valor ->> 'estado' FROM b8f WHERE clave = 'f8'), 'CANCELADA',
+  'La segunda factura se cancela conservando historial');
+SELECT is((SELECT valor ->> 'estado' FROM b8f WHERE clave = 'f7'), 'EMITIDA',
+  'La primera factura sigue emitida');
+SELECT is((SELECT factura_id FROM public.cuentas_por_cobrar
+  WHERE id = '00000000-0000-4000-8000-00000000b9d3'),
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f7'),
+  'Al cancelar la última, la CxC vuelve a la primera factura');
+SELECT is((SELECT folio_factura_remision FROM public.cuentas_por_cobrar
+  WHERE id = '00000000-0000-4000-8000-00000000b9d3'), 'FAC-DOS-1',
+  'El folio de la CxC se recalcula a la primera factura');
+
+INSERT INTO b8f (clave, valor)
+SELECT 'f9', to_jsonb(factura.*) FROM public.crear_factura_borrador(
+  '00000000-0000-4000-8000-00000000b9d2',
+  '{"subtotal":50,"iva":8,"total":58}'::jsonb,
+  '00000000-0000-4000-8000-00000000b901') AS factura;
+UPDATE b8f SET valor = valor || to_jsonb(factura.*)
+FROM public.emitir_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f9'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f9'),
+  'FAC-DOS-3', NULL, NULL, '00000000-0000-4000-8000-00000000b901') AS factura
+WHERE b8f.clave = 'f9';
+SELECT is((SELECT valor ->> 'estado' FROM b8f WHERE clave = 'f9'), 'EMITIDA',
+  'La entrega cancelada se puede volver a facturar');
+SELECT is((SELECT factura_id FROM public.cuentas_por_cobrar
+  WHERE id = '00000000-0000-4000-8000-00000000b9d3'),
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f9'),
+  'La CxC vuelve a apuntar a la factura más reciente');
+
+-- Guardarraíl: la suma de facturas activas no puede exceder la CxC.
+INSERT INTO public.ordenes_produccion (id, folio, folio_sii, cliente_id, estado, fecha_compromiso)
+VALUES ('00000000-0000-4000-8000-00000000b9e0', 'OP-994907', NULL,
+  '00000000-0000-4000-8000-00000000b903', 'completada', now() + interval '30 days');
+INSERT INTO public.notas_entrega (id, folio, orden_id, recibido_por, creado_por)
+VALUES ('00000000-0000-4000-8000-00000000b9e1', 'NE-000908',
+  '00000000-0000-4000-8000-00000000b9e0', 'Recepción F2',
+  '00000000-0000-4000-8000-00000000b901');
+INSERT INTO public.cuentas_por_cobrar (
+  id, orden_id, cliente_id, monto_total, saldo_pendiente, moneda, estado,
+  cobrable_desde, fecha_vencimiento, monto_subtotal, monto_iva
+) VALUES ('00000000-0000-4000-8000-00000000b9e2', '00000000-0000-4000-8000-00000000b9e0',
+  '00000000-0000-4000-8000-00000000b903', 100, 100, 'MXN', 'pendiente',
+  now(), now() + interval '30 days', 86.21, 13.79);
+INSERT INTO b8f (clave, valor)
+SELECT 'f10', to_jsonb(factura.*) FROM public.crear_factura_borrador(
+  '00000000-0000-4000-8000-00000000b9e1',
+  '{"subtotal":103.45,"iva":16.55,"total":120}'::jsonb,
+  '00000000-0000-4000-8000-00000000b901') AS factura;
+SELECT throws_ok($$SELECT * FROM public.emitir_factura(
+  (SELECT (valor ->> 'id')::uuid FROM b8f WHERE clave = 'f10'),
+  (SELECT (valor ->> 'actualizado_en')::timestamptz FROM b8f WHERE clave = 'f10'),
+  'FAC-EXCEDE', NULL, NULL, '00000000-0000-4000-8000-00000000b901')$$,
+  '23514', 'factura_excede_cuenta',
+  'Una factura mayor que la CxC no se emite');
+
+SELECT ok(to_regclass('public.ux_cuentas_factura') IS NULL
+  AND to_regclass('public.ix_cuentas_factura') IS NOT NULL,
+  'El índice único de una factura por CxC se relajó a índice de búsqueda');
 
 SELECT * FROM finish();
 ROLLBACK;
