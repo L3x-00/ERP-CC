@@ -124,4 +124,32 @@ describe('ficha de Orden C4.3', () => {
     expect(screen.getByText('Sin totales comerciales en el snapshot.')).toBeTruthy();
     expect(screen.getByText('Origen comercial')).toBeTruthy();
   });
+
+  it('muestra la pestaña Costos solo con ver_finanzas (C10.2/F-07 B)', () => {
+    const permisos = {
+      puedeLiberar: false,
+      puedeCerrar: false,
+      puedeCancelar: false,
+      puedeVerTotales: false,
+      puedeAdjuntar: false,
+      puedeEliminarTodos: false,
+      puedeVerRfq: false,
+      puedeVerPropuesta: false,
+    };
+    const { rerender } = render(createElement(FichaOrden, {
+      ficha: FICHA,
+      permisos: { ...permisos, puedeVerCostos: false },
+      usuarioActualId: 'u-c42',
+    }));
+
+    expect(screen.queryByRole('tab', { name: 'Costos' })).toBeNull();
+
+    rerender(createElement(FichaOrden, {
+      ficha: FICHA,
+      permisos: { ...permisos, puedeVerCostos: true },
+      usuarioActualId: 'u-c42',
+    }));
+
+    expect(screen.getByRole('tab', { name: 'Costos' })).toBeTruthy();
+  });
 });

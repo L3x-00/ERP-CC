@@ -753,6 +753,7 @@ export type Database = {
           notas: string | null
           orden_id: string | null
           proveedor_id: string
+          recibida_en: string | null
           rubro_costo: string | null
           saldo_pendiente: number
           tipo_cambio: number
@@ -780,6 +781,7 @@ export type Database = {
           notas?: string | null
           orden_id?: string | null
           proveedor_id: string
+          recibida_en?: string | null
           rubro_costo?: string | null
           saldo_pendiente: number
           tipo_cambio?: number
@@ -807,6 +809,7 @@ export type Database = {
           notas?: string | null
           orden_id?: string | null
           proveedor_id?: string
+          recibida_en?: string | null
           rubro_costo?: string | null
           saldo_pendiente?: number
           tipo_cambio?: number
@@ -5524,6 +5527,10 @@ export type Database = {
           rubro: string
           tarifa_hora: number
         }[]
+      }
+      obtener_conciliacion_costos_orden: {
+        Args: { p_orden_id: string }
+        Returns: Json
       }
       obtener_metricas_dashboard_ejecutivo: {
         Args: { p_fecha_fin: string; p_fecha_inicio: string }

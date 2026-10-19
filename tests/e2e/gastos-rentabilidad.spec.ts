@@ -352,8 +352,11 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     await expect(page.getByTestId('rentabilidad-sin-desglose')).toHaveCount(0);
     // OBS-29: el gasto por defecto es `materia_prima` y ya está en el rubro de
     // material, así que no se suma: costo 700 + 975 = 1675; margen 83.25 %.
-    await expect(page.getByText('$1,675.00')).toBeVisible();
-    await expect(page.getByText('83.25 %')).toBeVisible();
+    // La tabla de conciliación (C10.2) también muestra el total real: se acota
+    // a la tarjeta para no depender de un texto global repetido.
+    const tarjetaRentabilidad = page.locator('section[aria-labelledby="titulo-rentabilidad"]');
+    await expect(tarjetaRentabilidad.getByText('$1,675.00')).toBeVisible();
+    await expect(tarjetaRentabilidad.getByText('83.25 %')).toBeVisible();
     await expect.poll(async () => {
       const { data } = await datos.admin.rpc('obtener_rentabilidad_orden', { p_orden_id: datos.ordenId });
       return data?.[0]

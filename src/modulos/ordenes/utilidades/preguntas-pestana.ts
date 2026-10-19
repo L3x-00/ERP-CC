@@ -9,5 +9,6 @@ export const PREGUNTAS_PESTANA: Readonly<Record<PestanaFicha, string>> = {
   entregas: '¿Qué se entregó?',
   actividad: '¿Qué ha pasado?',
   documento: '¿Qué puedo imprimir?',
+  costos: '¿Cuánto pensábamos gastar, cuánto comprometimos y cuánto gastamos?',
   comentarios: '¿Qué se ha conversado?',
 };

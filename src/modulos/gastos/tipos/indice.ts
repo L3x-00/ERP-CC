@@ -25,3 +25,19 @@ export type {
   CalculoRentabilidadOrden,
   DatosComprobanteOCR,
 } from '@/modulos/gastos/tipos/gastos';
+
+export {
+  CONCEPTOS_CONCILIACION,
+  FUENTES_CONCILIACION,
+  ETIQUETA_CONCEPTO_CONCILIACION,
+  ETIQUETA_FUENTE_CONCILIACION,
+} from '@/modulos/gastos/tipos/conciliacion';
+
+export type {
+  ConceptoConciliacion,
+  FuenteConciliacion,
+  FilaConciliacionCostos,
+  AvisoConciliacion,
+  TotalesConciliacion,
+  ConciliacionCostosOrden,
+} from '@/modulos/gastos/tipos/conciliacion';
