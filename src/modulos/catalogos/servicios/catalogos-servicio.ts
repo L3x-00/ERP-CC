@@ -199,6 +199,10 @@ export async function guardarMaterialServicio(
     // el guardado legado de Configuración los conserva intactos.
     ...(entrada.unidadBase !== undefined ? { unidad_base: entrada.unidadBase } : {}),
     ...(entrada.padreId !== undefined ? { padre_id: entrada.padreId ?? null } : {}),
+    // Ancho/largo opcionales: undefined conserva el valor (editor de Configuración
+    // que no los captura), null los limpia.
+    ...(entrada.anchoMm !== undefined ? { ancho_mm: entrada.anchoMm } : {}),
+    ...(entrada.largoMm !== undefined ? { largo_mm: entrada.largoMm } : {}),
   };
   const consulta = entrada.id
     ? cliente.from('catalogo_materiales').update(payload).eq('id', entrada.id).select('*').single()

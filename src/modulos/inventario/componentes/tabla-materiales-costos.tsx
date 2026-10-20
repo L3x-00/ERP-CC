@@ -14,7 +14,7 @@ import {
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 
 import type { MaterialCosto } from '../tipos/materiales-costos';
-import { formatearFechaDia } from '../utilidades/materiales-costos';
+import { formatearDimensionesMm, formatearFechaDia } from '../utilidades/materiales-costos';
 
 /**
  * Catálogo canónico con costo vigente (C6.1) y jerarquía de grupos (obs. 8):
@@ -63,6 +63,7 @@ export function TablaMaterialesCostos({
             <TablaEncabezadoCelda>Código</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Nombre</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Unidad</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Ancho × largo</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Espesores</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Costo vigente</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Vigente desde</TablaEncabezadoCelda>
@@ -97,6 +98,12 @@ export function TablaMaterialesCostos({
                 )}
               </TablaCelda>
               <TablaCelda className="text-texto-secundario">{material.unidadBase}</TablaCelda>
+              <TablaCelda
+                className="tabular-nums text-texto-secundario"
+                data-testid={`dimensiones-material-${material.codigo}`}
+              >
+                {formatearDimensionesMm(material.anchoMm, material.largoMm)}
+              </TablaCelda>
               <TablaCelda className="text-texto-secundario">
                 {material.espesores.length === 0
                   ? '—'

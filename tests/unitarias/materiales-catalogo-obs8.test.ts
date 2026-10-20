@@ -90,6 +90,8 @@ function material(parcial: Partial<MaterialCosto> & { id: string }): MaterialCos
     orden: 0,
     padreId: null,
     unidadBase: 'kg',
+    anchoMm: null,
+    largoMm: null,
     monedaCosto: 'MXN',
     costoVigente: 10,
     fechaVigenciaCosto: '2026-10-01',

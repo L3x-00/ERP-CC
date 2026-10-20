@@ -138,26 +138,45 @@ test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', (
       await modal.getByLabel('Nombre').fill(`Acero 1018 ${sufijo}`);
       await modal.getByLabel('Unidad base').fill('kg');
       await modal.getByLabel('Grupo (opcional)').selectOption({ label: `Acero al carbón ${sufijo}` });
+      await modal.getByLabel('Ancho (mm)').fill('1219.2');
+      await modal.getByLabel('Largo (mm)').fill('2438.4');
       await modal.getByRole('button', { name: 'Agregar espesor' }).click();
       await modal.getByLabel('Etiqueta').fill('5 mm');
-      await modal.getByLabel('mm').fill('5');
+      await modal.getByLabel('mm', { exact: true }).fill('5');
       await modal.getByLabel('Costo').fill('12.5');
       await modal.getByRole('button', { name: 'Crear material' }).click();
       await expect(modal).toBeHidden();
 
       const creado = await admin
         .from('catalogo_materiales')
-        .select('id, padre_id, unidad_base, costo_vigente, costo_confirmado_por')
+        .select('id, padre_id, unidad_base, ancho_mm, largo_mm, costo_vigente, costo_confirmado_por')
         .eq('codigo', codigoMaterial)
         .single();
       expect(creado.error).toBeNull();
       expect(creado.data).toMatchObject({
         padre_id: grupoId,
         unidad_base: 'kg',
+        ancho_mm: 1219.2,
+        largo_mm: 2438.4,
         costo_vigente: 12.5,
       });
       expect(creado.data?.costo_confirmado_por).toBeTruthy();
       materialId = creado.data!.id;
+
+      const filaMaterial = page.getByTestId(`fila-material-${codigoMaterial}`);
+      await expect(filaMaterial).toContainText('1,219.2 × 2,438.4 mm');
+      await filaMaterial.getByRole('button', { name: `Editar Acero 1018 ${sufijo}` }).click();
+      await expect(modal.getByLabel('Ancho (mm)')).toHaveValue('1219.2');
+      await expect(modal.getByLabel('Largo (mm)')).toHaveValue('2438.4');
+      await modal.getByLabel('Ancho (mm)').fill('1250');
+      await modal.getByLabel('Largo (mm)').fill('');
+      await modal.getByRole('button', { name: 'Guardar cambios' }).click();
+      await expect(modal).toBeHidden();
+      const editado = await admin.from('catalogo_materiales')
+        .select('ancho_mm, largo_mm').eq('id', materialId).single();
+      expect(editado.error).toBeNull();
+      expect(editado.data).toMatchObject({ ancho_mm: 1250, largo_mm: null });
+      await expect(filaMaterial).toContainText('Ancho 1,250 mm');
 
       const espesor = await admin
         .from('catalogo_espesores')

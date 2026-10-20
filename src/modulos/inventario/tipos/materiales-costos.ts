@@ -26,6 +26,9 @@ export type MaterialCosto = {
   orden: number;
   padreId: string | null;
   unidadBase: string;
+  /** Ancho y largo nominales opcionales en mm; null = sin dimensión registrada. */
+  anchoMm: number | null;
+  largoMm: number | null;
   monedaCosto: MonedaCosto;
   costoVigente: number | null;
   fechaVigenciaCosto: string | null;
