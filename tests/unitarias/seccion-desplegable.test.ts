@@ -36,6 +36,23 @@ describe('SeccionDesplegable', () => {
     expect(boton.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('recorta el contenido animado sin crear un contenedor desplazable', () => {
+    render(
+      createElement(
+        SeccionDesplegable,
+        { titulo: 'Programar partida', abiertoInicial: true, dataTestId: 'seccion' },
+        createElement('button', { type: 'submit' }, 'Programar'),
+      ),
+    );
+
+    const contenedor = screen.getByText('Programar').parentElement?.parentElement;
+    // Con `overflow-hidden` la caja es desplazable mientras su altura se anima: Playwright
+    // (scrollIntoView) o el foco la desplazan y el control se mueve bajo el puntero antes de
+    // soltar, de modo que el `click` cae en el ancestro y no envía el formulario.
+    expect(contenedor?.classList.contains('overflow-clip')).toBe(true);
+    expect(contenedor?.classList.contains('overflow-hidden')).toBe(false);
+  });
+
   it('respeta el estado controlado y notifica el cambio', () => {
     let abierto = false;
     const alternar = (siguiente: boolean) => { abierto = siguiente; };

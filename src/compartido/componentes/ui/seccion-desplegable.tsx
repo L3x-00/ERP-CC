@@ -97,7 +97,10 @@ export function SeccionDesplegable({
         }`}
         inert={!estaAbierto ? true : undefined}
       >
-        <div className={`min-h-0 overflow-hidden ${claseContenido}`}>
+        {/* `overflow-clip`, no `hidden`: mientras la altura se anima, un contenedor `hidden` es
+            desplazable (scrollIntoView, foco) y, al crecer, su scroll interno se reajusta y mueve
+            los controles bajo el puntero entre pulsar y soltar, con lo que el clic se pierde. */}
+        <div className={`min-h-0 overflow-clip ${claseContenido}`}>
           <div className="px-4 pb-4">{children}</div>
         </div>
       </div>
