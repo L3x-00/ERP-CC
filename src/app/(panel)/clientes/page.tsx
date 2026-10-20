@@ -4,7 +4,7 @@ import { SincronizadorClientesRealtime } from '@/modulos/clientes/componentes/si
 
 /**
  * Página de Clientes. Server Component: resuelve el usuario y sus permisos
- * (editar / comercial / finanzas) para habilitar las acciones de la lista y de
+ * (editar / comercial / finanzas / propuestas) para habilitar las acciones de la lista y de
  * la ficha; delega la lista interactiva a `TablaClientes`.
  */
 type ParametrosPaginaClientes = {
@@ -29,6 +29,7 @@ export default async function PaginaClientes({ searchParams }: ParametrosPaginaC
         puedeEditar={esAdmin || permisos.includes('cliente_editar')}
         puedeComercial={esAdmin || permisos.includes('cliente_comercial')}
         puedeFinanzas={esAdmin || permisos.includes('ver_finanzas')}
+        puedePropuestas={esAdmin || permisos.includes('propuesta_vista')}
       />
     </div>
   );
