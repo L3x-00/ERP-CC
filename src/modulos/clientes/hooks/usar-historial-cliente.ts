@@ -9,14 +9,23 @@ import { obtenerNotasOperativasClienteAccion } from '@/modulos/clientes/acciones
 import {
   obtenerCotizacionesCliente,
   obtenerOrdenesCliente,
+  obtenerPropuestasCliente,
 } from '@/modulos/clientes/servicios/obtener-historial-cliente';
 
 /** Raíz de las claves de consulta del historial (permite invalidar el bloque). */
 export const CLAVE_HISTORIAL_CLIENTE = ['clientes', 'historial'] as const;
 
-/** Clave de la página de cotizaciones de un cliente. */
-export function claveCotizacionesCliente(clienteId: string, pagina: number) {
-  return [...CLAVE_HISTORIAL_CLIENTE, 'cotizaciones', clienteId, pagina] as const;
+/**
+ * Clave de la página de cotizaciones de un cliente. Incluye si se consultan
+ * Propuestas: el importe mostrado depende de ello.
+ */
+export function claveCotizacionesCliente(clienteId: string, pagina: number, conPropuestas: boolean) {
+  return [...CLAVE_HISTORIAL_CLIENTE, 'cotizaciones', clienteId, pagina, conPropuestas] as const;
+}
+
+/** Clave de la página de propuestas de un cliente. */
+export function clavePropuestasCliente(clienteId: string, pagina: number) {
+  return [...CLAVE_HISTORIAL_CLIENTE, 'propuestas', clienteId, pagina] as const;
 }
 
 /** Clave de la página de órdenes de un cliente. */
@@ -32,10 +41,21 @@ export function claveNotasOperativasCliente(clienteId: string) {
 // Nombres internos con prefijo `use` para `react-hooks/rules-of-hooks` (detecta
 // hooks por `/^use[A-Z0-9]/`). Se exportan con el nombre en español vía alias.
 
-function useCotizacionesCliente(clienteId: string, pagina: number) {
+function useCotizacionesCliente(clienteId: string, pagina: number, conPropuestas: boolean) {
   return useQuery({
-    queryKey: claveCotizacionesCliente(clienteId, pagina),
-    queryFn: () => obtenerCotizacionesCliente(obtenerClienteSupabaseNavegador(), clienteId, pagina),
+    queryKey: claveCotizacionesCliente(clienteId, pagina, conPropuestas),
+    queryFn: () =>
+      obtenerCotizacionesCliente(obtenerClienteSupabaseNavegador(), clienteId, pagina, {
+        incluirPropuestas: conPropuestas,
+      }),
+    enabled: clienteId.length > 0,
+  });
+}
+
+function usePropuestasCliente(clienteId: string, pagina: number) {
+  return useQuery({
+    queryKey: clavePropuestasCliente(clienteId, pagina),
+    queryFn: () => obtenerPropuestasCliente(obtenerClienteSupabaseNavegador(), clienteId, pagina),
     enabled: clienteId.length > 0,
   });
 }
@@ -65,12 +85,21 @@ function useNotasOperativasCliente(clienteId: string) {
   });
 }
 
+type BloqueHistorial = 'ordenes' | 'cotizaciones' | 'propuestas';
+
 /**
- * Tablas del historial publicadas en Realtime desde A08.
+ * Tablas del historial publicadas en Realtime (A08 y SII-B4.1) y los bloques
+ * que se relee al cambiar cada una. Una Propuesta o su revisión también mueve
+ * el importe de la cotización de origen.
  */
-const TABLAS_HISTORIAL_REALTIME = [
-  'ordenes_produccion', 'partidas_orden_produccion', 'pipeline', 'cotizacion_lineas',
-] as const;
+const TABLAS_HISTORIAL_REALTIME: readonly (readonly [string, readonly BloqueHistorial[]])[] = [
+  ['ordenes_produccion', ['ordenes']],
+  ['partidas_orden_produccion', ['ordenes']],
+  ['pipeline', ['cotizaciones']],
+  ['cotizacion_lineas', ['cotizaciones']],
+  ['propuestas', ['propuestas', 'cotizaciones']],
+  ['propuesta_revisiones', ['propuestas', 'cotizaciones']],
+];
 
 /** Espera para agrupar ráfagas de eventos antes de invalidar (ms). */
 const ESPERA_AGRUPACION_MS = 350;
@@ -92,34 +121,28 @@ function useSincronizacionHistorialCliente(clienteId: string): void {
     const supabase = obtenerClienteSupabaseNavegador();
     let desmontado = false;
     let temporizador: ReturnType<typeof setTimeout> | null = null;
-    const pendientes = new Set<'ordenes' | 'cotizaciones'>();
+    const pendientes = new Set<BloqueHistorial>();
 
-    const invalidar = (bloque: 'ordenes' | 'cotizaciones' | 'todo'): void => {
-      if (bloque === 'todo') {
-        pendientes.add('ordenes');
-        pendientes.add('cotizaciones');
-      } else pendientes.add(bloque);
+    const invalidar = (bloques: readonly BloqueHistorial[]): void => {
+      for (const bloque of bloques) pendientes.add(bloque);
       if (temporizador) clearTimeout(temporizador);
       temporizador = setTimeout(() => {
         temporizador = null;
         if (desmontado) return;
-        if (pendientes.has('ordenes')) {
-          void clienteConsultas.invalidateQueries({ queryKey: [...CLAVE_HISTORIAL_CLIENTE, 'ordenes'] });
-        }
-        if (pendientes.has('cotizaciones')) {
-          void clienteConsultas.invalidateQueries({ queryKey: [...CLAVE_HISTORIAL_CLIENTE, 'cotizaciones'] });
+        for (const bloque of pendientes) {
+          void clienteConsultas.invalidateQueries({ queryKey: [...CLAVE_HISTORIAL_CLIENTE, bloque] });
         }
         pendientes.clear();
       }, ESPERA_AGRUPACION_MS);
     };
+    const todos: readonly BloqueHistorial[] = ['ordenes', 'cotizaciones', 'propuestas'];
 
     const canal: RealtimeChannel = supabase.channel(`historial-cliente-${clienteId}`);
-    for (const tabla of TABLAS_HISTORIAL_REALTIME) {
-      canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla },
-        () => invalidar(tabla === 'pipeline' || tabla === 'cotizacion_lineas' ? 'cotizaciones' : 'ordenes'));
+    for (const [tabla, bloques] of TABLAS_HISTORIAL_REALTIME) {
+      canal.on('postgres_changes', { event: '*', schema: 'public', table: tabla }, () => invalidar(bloques));
     }
-    canal.subscribe((estado) => { if (estado === 'SUBSCRIBED') invalidar('todo'); });
-    const alVolver = (): void => { if (navigator.onLine && document.visibilityState === 'visible') invalidar('todo'); };
+    canal.subscribe((estado) => { if (estado === 'SUBSCRIBED') invalidar(todos); });
+    const alVolver = (): void => { if (navigator.onLine && document.visibilityState === 'visible') invalidar(todos); };
     window.addEventListener('online', alVolver);
     document.addEventListener('visibilitychange', alVolver);
 
@@ -137,5 +160,6 @@ export {
   useCotizacionesCliente as usarCotizacionesCliente,
   useNotasOperativasCliente as usarNotasOperativasCliente,
   useOrdenesCliente as usarOrdenesCliente,
+  usePropuestasCliente as usarPropuestasCliente,
   useSincronizacionHistorialCliente as usarSincronizacionHistorialCliente,
 };

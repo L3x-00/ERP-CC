@@ -8,9 +8,15 @@ import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
 import { Badge } from '@/compartido/componentes/ui/badge';
-import { Button } from '@/compartido/componentes/ui/button';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
-import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
+import {
+  BloqueError,
+  BotonExpandir,
+  Paginador,
+  SkeletonHistorial,
+} from '@/modulos/clientes/componentes/bloques-historial';
+import { SeccionPropuestas } from '@/modulos/clientes/componentes/historial-propuestas-cliente';
+import { ImporteCotizacion } from '@/modulos/clientes/componentes/importe-cotizacion';
 import {
   usarCotizacionesCliente,
   usarNotasOperativasCliente,
@@ -24,36 +30,57 @@ import type {
 } from '@/modulos/clientes/tipos/historial';
 
 /**
- * Historial real del cliente: cotizaciones y órdenes de producción, cada una
- * con su propia paginación (una entidad no arrastra a la otra) y su propio
- * estado de carga/vacío/error.
+ * Historial real del cliente: cotizaciones, propuestas y órdenes de producción,
+ * cada una con su propia paginación (una entidad no arrastra a la otra) y su
+ * propio estado de carga/vacío/error.
  *
  * Lo que se ve depende de RLS: un usuario con `ver_clientes` pero sin acceso al
  * pipeline verá el bloque de cotizaciones vacío, no un error. No se muestran
- * importes de Cobranza ni costos.
+ * importes de Cobranza ni costos. `puedeVerPropuestas` (permiso `propuesta_vista`,
+ * resuelto en el servidor) solo decide si se consulta y muestra la sección de
+ * Propuestas y si el importe faltante se rotula «no visible para tu rol»; la
+ * RLS de Propuestas sigue siendo la autoridad.
  *
  * OBS-11: cada registro enlaza a su original (cotización → editor del pipeline,
  * orden → tablero de Órdenes) y las notas de taller de los operadores se
  * consultan automáticamente por Server Action bajo `ver_clientes` (D-14: son
  * notas internas, no se envían al cliente).
  */
-export function HistorialCliente({ clienteId }: { clienteId: string }) {
+export function HistorialCliente({
+  clienteId,
+  puedeVerPropuestas = false,
+}: {
+  clienteId: string;
+  puedeVerPropuestas?: boolean;
+}) {
   usarSincronizacionHistorialCliente(clienteId);
 
   return (
     <div className="flex flex-col gap-6" data-testid="historial-cliente">
-      <SeccionCotizaciones key={`cotizaciones-${clienteId}`} clienteId={clienteId} />
+      <SeccionCotizaciones
+        key={`cotizaciones-${clienteId}`}
+        clienteId={clienteId}
+        puedeVerPropuestas={puedeVerPropuestas}
+      />
+      {puedeVerPropuestas && <SeccionPropuestas key={`propuestas-${clienteId}`} clienteId={clienteId} />}
       <SeccionOrdenes key={`ordenes-${clienteId}`} clienteId={clienteId} />
       <SeccionNotas key={`notas-${clienteId}`} clienteId={clienteId} />
     </div>
   );
 }
 
-function SeccionCotizaciones({ clienteId }: { clienteId: string }) {
+function SeccionCotizaciones({
+  clienteId,
+  puedeVerPropuestas,
+}: {
+  clienteId: string;
+  puedeVerPropuestas: boolean;
+}) {
   const [pagina, setPagina] = useState(1);
   const { data, isLoading, isError, refetch, isFetching } = usarCotizacionesCliente(
     clienteId,
     pagina,
+    puedeVerPropuestas,
   );
 
   return (
@@ -131,11 +158,7 @@ function FilaCotizacion({ cotizacion }: { cotizacion: CotizacionHistorial }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BadgeEstado estado={cotizacion.estadoRfq} etiqueta={ETIQUETAS_ESTADO_RFQ[cotizacion.estadoRfq]} />
-          <span className="tabular-nums text-sm font-medium text-texto-primario">
-            {cotizacion.subtotal === null
-              ? 'Importe no disponible'
-              : formatearMoneda(cotizacion.subtotal, cotizacion.moneda)}
-          </span>
+          <ImporteCotizacion cotizacionId={cotizacion.id} importe={cotizacion.importe} />
           <BotonExpandir
             expandida={expandida}
             idDetalle={idDetalle}
@@ -153,8 +176,20 @@ function FilaCotizacion({ cotizacion }: { cotizacion: CotizacionHistorial }) {
             </p>
           )}
           {cotizacion.lineas?.length === 0 && (
-            <p className="text-sm text-texto-secundario">La cotización no tiene líneas.</p>
+            <p className="text-sm text-texto-secundario">
+              {cotizacion.importe.tipo === 'propuesta' || cotizacion.importe.tipo === 'pendiente'
+                ? 'Sin líneas en el cotizador anterior: el detalle está en la propuesta.'
+                : 'La cotización no tiene líneas.'}
+            </p>
           )}
+          {cotizacion.lineas &&
+            cotizacion.lineas.length > 0 &&
+            (cotizacion.importe.tipo === 'propuesta' || cotizacion.importe.tipo === 'pendiente') && (
+              <p className="pb-2 text-xs text-texto-secundario" data-testid={`nota-lineas-antiguas-${cotizacion.id}`}>
+                Líneas del cotizador anterior, solo como historial: el importe vigente es el de la
+                propuesta {cotizacion.importe.origen.folioRevision}.
+              </p>
+            )}
           {cotizacion.lineas && cotizacion.lineas.length > 0 && (
             <ul className="flex flex-col divide-y divide-borde">
               {cotizacion.lineas.map((linea) => (
@@ -380,109 +415,5 @@ function NotaOperativa({ nota }: { nota: NotaOperativaCliente }) {
       </div>
       <p className="mt-2 whitespace-pre-wrap text-sm text-texto-primario">{nota.texto}</p>
     </Tarjeta>
-  );
-}
-
-function BotonExpandir({
-  expandida,
-  idDetalle,
-  etiqueta,
-  onAlternar,
-}: {
-  expandida: boolean;
-  idDetalle: string;
-  etiqueta: string;
-  onAlternar: () => void;
-}) {
-  return (
-    <Button
-      variante="fantasma"
-      tamano="sm"
-      onClick={onAlternar}
-      aria-expanded={expandida}
-      aria-controls={idDetalle}
-      aria-label={`${expandida ? 'Ocultar' : 'Ver'} ${etiqueta}`}
-    >
-      {expandida ? 'Ocultar detalle' : 'Ver detalle'}
-    </Button>
-  );
-}
-
-function BloqueError({
-  mensaje,
-  reintentando,
-  onReintentar,
-}: {
-  mensaje: string;
-  reintentando: boolean;
-  onReintentar: () => void;
-}) {
-  return (
-    <div
-      role="alert"
-      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-peligro/30 bg-peligro-suave px-4 py-3 text-sm text-peligro-texto"
-    >
-      <span>{mensaje}</span>
-      <Button variante="contorno" tamano="sm" onClick={onReintentar} disabled={reintentando}>
-        {reintentando ? 'Reintentando…' : 'Reintentar'}
-      </Button>
-    </div>
-  );
-}
-
-function SkeletonHistorial({ etiqueta }: { etiqueta: string }) {
-  return (
-    <div className="flex flex-col gap-2" role="status" aria-label={etiqueta}>
-      {[0, 1, 2].map((indice) => (
-        <Skeleton key={indice} className="h-16 w-full" />
-      ))}
-    </div>
-  );
-}
-
-function Paginador({
-  etiqueta,
-  pagina,
-  total,
-  porPagina,
-  onCambiar,
-}: {
-  etiqueta: string;
-  pagina: number;
-  total: number;
-  porPagina: number;
-  onCambiar: (pagina: number) => void;
-}) {
-  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
-  if (totalPaginas <= 1) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-texto-secundario">
-      <span>
-        Página {pagina} de {totalPaginas}
-      </span>
-      <div className="flex items-center gap-2">
-        <Button
-          variante="contorno"
-          tamano="sm"
-          onClick={() => onCambiar(Math.max(1, pagina - 1))}
-          disabled={pagina <= 1}
-          aria-label={`Página anterior de ${etiqueta}`}
-        >
-          Anterior
-        </Button>
-        <Button
-          variante="contorno"
-          tamano="sm"
-          onClick={() => onCambiar(Math.min(totalPaginas, pagina + 1))}
-          disabled={pagina >= totalPaginas}
-          aria-label={`Página siguiente de ${etiqueta}`}
-        >
-          Siguiente
-        </Button>
-      </div>
-    </div>
   );
 }
