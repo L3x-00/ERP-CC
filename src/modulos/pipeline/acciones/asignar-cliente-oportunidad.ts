@@ -8,6 +8,7 @@ import { registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { obtenerOportunidadPorId } from '@/modulos/pipeline/servicios/obtener-oportunidad-por-id';
 import { obtenerClienteParaRfq } from '@/modulos/pipeline/servicios/obtener-cliente-para-rfq';
 import { esquemaAsignarClienteOportunidad } from '@/modulos/pipeline/validaciones/esquemas-prospecto';
+import { esDefinicionRfqEditable } from '@/modulos/rfq/utilidades/estados';
 import type { CondicionesPago } from '@/modulos/pipeline/tipos/indice';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
@@ -26,6 +27,8 @@ export type ResultadoAsignarCliente = {
  * A diferencia de `vincularDesdePipelineAccion` (que CREA el cliente a partir de
  * los textos de la oportunidad), aquí el cliente lo elige el usuario: no se crea
  * ni se enriquece nada del catálogo. El alta rápida usa `crearClienteAccion`.
+ *
+ * Si la oportunidad tenía un contacto de otro cliente, lo desliga (ver más abajo).
  *
  * Solo con la oportunidad abierta: una ganada ya derivó cliente y orden, y
  * repuntarla reescribiría el histórico. Lectura bajo RLS (oportunidad y
@@ -76,9 +79,32 @@ export async function asignarClienteOportunidadAccion(
   }
 
   const admin = crearClienteSupabaseAdmin();
+
+  // Un contacto de OTRO cliente deja de ser válido al cambiar de cliente: se
+  // desliga para que la ficha pueda vincular el vigente del nuevo (acción
+  // explícita `vincularContactoVigenteRfqAccion`, que exige sus propios permisos).
+  // Un contacto del mismo cliente se conserva siempre. Al desligar el cliente, o
+  // con el RFQ congelado, el contacto no se toca. Aquí nunca se crean contactos.
+  let limpiaContacto = false;
+  if (clienteId !== null && op.contactoId !== null && esDefinicionRfqEditable(op.estadoRfq)) {
+    const { data: actual, error: errorContacto } = await admin
+      .from('contactos_cliente')
+      .select('id, cliente_id, activo')
+      .eq('id', op.contactoId)
+      .maybeSingle();
+    if (errorContacto) {
+      return { exito: false, error: 'No se pudo revisar el contacto del cliente' };
+    }
+    limpiaContacto = actual?.cliente_id !== clienteId;
+  }
+
   const { error } = await admin
     .from('pipeline')
-    .update({ cliente_id: clienteId, condiciones_pago: condicionesPago })
+    .update({
+      cliente_id: clienteId,
+      condiciones_pago: condicionesPago,
+      ...(limpiaContacto ? { contacto_id: null } : {}),
+    })
     .eq('id', id);
   if (error) {
     return { exito: false, error: 'No se pudo asignar el cliente' };
@@ -87,6 +113,7 @@ export async function asignarClienteOportunidadAccion(
   await registrarLog(usuario, 'asignar_cliente_oportunidad', 'pipeline', id, {
     clienteId,
     condicionesPago,
+    ...(limpiaContacto ? { contactoDesligado: op.contactoId } : {}),
   });
 
   return { exito: true, datos: { clienteId, condicionesPago } };
