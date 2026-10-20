@@ -19,7 +19,9 @@ describe('costeo de ruteo sin doble conteo (C3.3)', () => {
     expect(totales.costoManual).toBe(50);
     expect(totales.costoRuteo).toBe(350);
     expect(totales.costoTotal).toBe(400);
-    expect(totales.margen).toBe(0.6);
+    // Venta 1,000 y costo 400 → utilidad 600 = 150 % sobre costo.
+    expect(totales.utilidadImporte).toBe(600);
+    expect(totales.utilidadPorcentaje).toBe(1.5);
   });
 
   it('sin ruteo costeado se conserva el costo manual completo', () => {

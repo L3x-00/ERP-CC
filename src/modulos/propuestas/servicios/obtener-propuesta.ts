@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
+import { calcularUtilidadSobreCosto } from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
 import {
   filaAAccionRevisionPropuesta,
   filaACostoRevisionPropuesta,
@@ -255,6 +256,7 @@ export async function obtenerPdfsDeRevisiones(
 export async function obtenerTotalesRevision(
   cliente: SupabaseClient<Database>,
   revisionId: string,
+  utilidadObjetivoPorcentaje?: number,
 ): Promise<TotalesPropuesta | null> {
   const { data, error } = await cliente.rpc('calcular_totales_revision', {
     p_revision_id: revisionId,
@@ -267,19 +269,25 @@ export async function obtenerTotalesRevision(
     const valor = bruto[clave];
     return typeof valor === 'number' && Number.isFinite(valor) ? valor : 0;
   };
-  const margen = bruto.margen;
+  const subtotal = numero('subtotal');
+  const costoTotal = numero('costoTotal');
 
   return {
     bruto: numero('bruto'),
     descuento: numero('descuento'),
-    subtotal: numero('subtotal'),
+    subtotal,
     ivaPorcentaje: numero('ivaPorcentaje'),
     iva: numero('iva'),
     total: numero('total'),
     costoManual: numero('costoManual'),
     costoRuteo: numero('costoRuteo'),
-    costoTotal: numero('costoTotal'),
-    margen: typeof margen === 'number' && Number.isFinite(margen) ? margen : null,
+    costoTotal,
+    // El SQL no calcula la utilidad sobre costo: se deriva aquí de subtotal y costo.
+    ...calcularUtilidadSobreCosto({
+      subtotal,
+      costo: costoTotal,
+      ...(utilidadObjetivoPorcentaje !== undefined ? { utilidadObjetivoPorcentaje } : {}),
+    }),
     moneda: (bruto.moneda === 'USD' ? 'USD' : 'MXN') as MonedaPropuesta,
   };
 }

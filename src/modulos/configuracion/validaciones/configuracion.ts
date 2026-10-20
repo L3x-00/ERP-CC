@@ -48,6 +48,8 @@ export const esquemaTarifasCotizador = z
     factorEficienciaLaser: numeroFinito('El factor de eficiencia láser', 0.01, 1),
     factorMermaMaterial: numeroFinito('El factor de merma', 0, 1),
     margenUtilidadDefault: numeroFinito('El margen de utilidad', 0, 100),
+    // Sobre costo: puede superar 100 (venta al doble del costo = 100 %).
+    utilidadObjetivoPropuestaPorcentaje: numeroFinito('La utilidad objetivo de propuestas', 0, 1_000),
     estaciones: esquemaCatalogoTarifas,
   })
   .strict();

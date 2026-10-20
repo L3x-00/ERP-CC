@@ -98,6 +98,10 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-margen-utilidad">Margen predeterminado (%)
           <Input id="configuracion-margen-utilidad" type="number" min="0" max="100" step="0.01" value={tarifas.margenUtilidadDefault} onChange={(e) => cambiarTarifa('margenUtilidadDefault', e.target.value)} required />
         </label>
+        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-utilidad-objetivo-propuesta">Utilidad objetivo de propuestas (% sobre costo)
+          <Input id="configuracion-utilidad-objetivo-propuesta" type="number" min="0" max="1000" step="0.01" value={tarifas.utilidadObjetivoPropuestaPorcentaje} onChange={(e) => cambiarTarifa('utilidadObjetivoPropuestaPorcentaje', e.target.value)} required />
+          <span className="text-xs font-normal text-texto-secundario">Debajo de este porcentaje la propuesta muestra una alerta y el precio mínimo recomendado; no la bloquea.</span>
+        </label>
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-tipo-cambio">Tipo de cambio USD/MXN
           <Input id="configuracion-tipo-cambio" data-testid="configuracion-tipo-cambio" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(e) => setTipoCambio(e.target.value)} required />
         </label>

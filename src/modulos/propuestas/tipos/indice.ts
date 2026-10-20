@@ -196,7 +196,10 @@ export type PdfRevisionPropuesta = {
   creadoEn: string;
 };
 
-/** Totales y margen de una revisión (espejo de `calcular_totales_revision`). */
+/**
+ * Totales de una revisión: subtotal/IVA/total/costo espejan `calcular_totales_revision`;
+ * la utilidad sobre costo es solo del dominio TS.
+ */
 export type TotalesPropuesta = {
   bruto: number;
   descuento: number;
@@ -208,9 +211,18 @@ export type TotalesPropuesta = {
   costoManual: number;
   /** Costo del ruteo costeado (C3.3). */
   costoRuteo: number;
+  /** Costo total estimado de fabricación (manual sin `maquina` si hay ruteo costeado + ruteo). */
   costoTotal: number;
-  /** `(subtotal − costoTotal) / subtotal` a 4 decimales; `null` si subtotal = 0. */
-  margen: number | null;
+  /** Venta sin IVA − costo total estimado (IVA fuera del cálculo). */
+  utilidadImporte: number;
+  /** `utilidadImporte / costoTotal` a 4 decimales (fracción); `null` si no hay costo. */
+  utilidadPorcentaje: number | null;
+  /** Objetivo vigente en % sobre costo con el que se evaluó la revisión. */
+  utilidadObjetivoPorcentaje: number;
+  /** `costoTotal × (1 + objetivo / 100)`, sin IVA; `null` si no hay costo. */
+  precioMinimoRecomendado: number | null;
+  /** `true` si la venta sin IVA queda debajo del precio mínimo recomendado. */
+  bajoObjetivo: boolean;
   moneda: MonedaPropuesta;
 };
 

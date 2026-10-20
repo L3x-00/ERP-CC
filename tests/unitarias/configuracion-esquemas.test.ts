@@ -43,9 +43,15 @@ describe('esquemas de configuración', () => {
       factorEficienciaLaser: 0.85,
       factorMermaMaterial: 0.08,
       margenUtilidadDefault: 30,
+      utilidadObjetivoPropuestaPorcentaje: 30,
       estaciones: CATALOGO_TARIFAS_DEFECTO,
     };
     expect(esquemaTarifasCotizador.safeParse(tarifas).success).toBe(true);
+    // Utilidad objetivo de propuestas: % sobre costo, configurable y acotado.
+    expect(esquemaTarifasCotizador.safeParse({ ...tarifas, utilidadObjetivoPropuestaPorcentaje: 45.5 }).success).toBe(true);
+    expect(esquemaTarifasCotizador.safeParse({ ...tarifas, utilidadObjetivoPropuestaPorcentaje: 150 }).success).toBe(true);
+    expect(esquemaTarifasCotizador.safeParse({ ...tarifas, utilidadObjetivoPropuestaPorcentaje: -1 }).success).toBe(false);
+    expect(esquemaTarifasCotizador.safeParse({ ...tarifas, utilidadObjetivoPropuestaPorcentaje: Number.NaN }).success).toBe(false);
     expect(esquemaTarifasCotizador.safeParse({ ...tarifas, costoHoraDefault: -1 }).success).toBe(false);
     expect(esquemaTarifasCotizador.safeParse({ ...tarifas, factorEficienciaLaser: 1.2 }).success).toBe(false);
     expect(esquemaTarifasCotizador.safeParse({ ...tarifas, margenUtilidadDefault: Number.NaN }).success).toBe(false);
