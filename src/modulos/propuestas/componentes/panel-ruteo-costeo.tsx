@@ -28,6 +28,7 @@ import { resolverGrupoEquipoDelProceso } from '@/modulos/propuestas/utilidades/r
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
+import { AvisoUtilidadPropuesta, CeldaUtilidadPropuesta } from './indicador-utilidad-propuesta';
 
 /** Monto escrito en un campo de costo: 0 si está vacío, null si no es un monto válido. */
 function montoDeTexto(texto: string): number | null {
@@ -63,6 +64,7 @@ export function PanelRuteoCosteo({
   catalogos,
   permisos,
   faltantes = null,
+  utilidadObjetivoPorcentaje,
 }: {
   revision: RevisionPropuesta;
   items: PropuestaItem[];
@@ -72,6 +74,8 @@ export function PanelRuteoCosteo({
   permisos: PermisosPropuesta;
   /** Lo que impide validar (solo en borrador); marca en rojo los ítems pendientes. */
   faltantes?: FaltantesValidacionPropuesta | null;
+  /** Utilidad objetivo vigente (% sobre costo) de Configuración. */
+  utilidadObjetivoPorcentaje: number;
 }) {
   const queryClient = useQueryClient();
   const [ruteoBorrador, setRuteoBorrador] = useState<Record<string, FilaRuteoBorrador[] | undefined>>({});
@@ -226,9 +230,10 @@ export function PanelRuteoCosteo({
         ),
         ruteoCosteado: ruteoActivoCosteado.length > 0,
         ivaPorcentaje: revision.snapshotCabecera.ivaPorcentaje,
+        utilidadObjetivoPorcentaje,
         moneda: revision.snapshotCabecera.moneda,
       }),
-    [itemsRevision, costosActuales, ruteoActivoCosteado, revision.snapshotCabecera],
+    [itemsRevision, costosActuales, ruteoActivoCosteado, revision.snapshotCabecera, utilidadObjetivoPorcentaje],
   );
 
   /** Categorías históricas ya sin captura que aún tienen monto: no se ocultan del total. */
@@ -375,11 +380,9 @@ export function PanelRuteoCosteo({
         <Resumen etiqueta="Subtotal" valor={formatearMoneda(totales.subtotal, totales.moneda)} />
         <Resumen etiqueta={`IVA (${totales.ivaPorcentaje}%)`} valor={formatearMoneda(totales.iva, totales.moneda)} />
         <Resumen etiqueta="Costo total" valor={formatearMoneda(totales.costoTotal, totales.moneda)} />
-        <Resumen
-          etiqueta="Margen"
-          valor={totales.margen === null ? '—' : `${(totales.margen * 100).toFixed(2)}%`}
-        />
+        <CeldaUtilidadPropuesta totales={totales} />
       </div>
+      <AvisoUtilidadPropuesta totales={totales} />
 
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-texto-primario">Ruteo estimado</h3>

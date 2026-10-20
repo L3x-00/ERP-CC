@@ -10,7 +10,7 @@
 // y espesor, y la ausencia de ítems activos se marca en rojo para poder validar.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const { agregarMock, editarMock } = vi.hoisted(() => ({
@@ -29,9 +29,11 @@ import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-c
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { EditorItemsPropuesta } from '@/modulos/propuestas/componentes/editor-items-propuesta';
 import type {
+  CostoRevisionPropuesta,
   PermisosPropuesta,
   PropuestaItem,
   RevisionPropuesta,
+  RuteoItemPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
 
 const PROPUESTA_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -133,6 +135,8 @@ function renderizarEditor(
     catalogos?: CatalogosPropuesta | null;
     items?: PropuestaItem[];
     faltantes?: FaltantesValidacionPropuesta | null;
+    ruteo?: RuteoItemPropuesta[];
+    costos?: CostoRevisionPropuesta[];
     /** Por defecto abre el formulario plegable (la mayoría de pruebas lo usan). */
     abrirAlta?: boolean;
   } = {},
@@ -146,11 +150,12 @@ function renderizarEditor(
         revision: opciones.revisionActiva ?? REVISION_B,
         revisiones: REVISIONES,
         items: opciones.items ?? ITEMS,
-        ruteo: [],
-        costos: [],
+        ruteo: opciones.ruteo ?? [],
+        costos: opciones.costos ?? [],
         catalogos: opciones.catalogos === undefined ? CATALOGOS : opciones.catalogos,
         permisos: opciones.permisos ?? PERMISOS_COMPLETOS,
         faltantes: opciones.faltantes ?? null,
+        utilidadObjetivoPorcentaje: 30,
       }),
     ),
   );
@@ -436,12 +441,69 @@ describe('EditorItemsPropuesta — material, espesor y envío', () => {
           catalogos: null,
           errorCatalogos: 'No se pudieron cargar los catálogos de la propuesta',
           permisos: PERMISOS_COMPLETOS,
+          utilidadObjetivoPorcentaje: 30,
         }),
       ),
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo ítem' }));
     expect(screen.getByRole('alert').textContent).toMatch(/no se pudieron cargar/i);
+  });
+});
+
+describe('EditorItemsPropuesta — utilidad estimada sobre costo (obs. cliente 2026-10-20)', () => {
+  const COSTOS = [
+    { id: 'c1', revisionId: REV_B_ID, categoria: 'material', monto: 100, nota: null },
+  ] as unknown as CostoRevisionPropuesta[];
+  const RUTEO = [
+    {
+      id: 'r1',
+      itemId: ITEM_HEREDADO_ID,
+      costoTotal: 100,
+      costeadoEn: '2026-10-10T00:00:00Z',
+    },
+  ] as unknown as RuteoItemPropuesta[];
+
+  it('incluye el ruteo costeado en el costo: igual que Ruteo/Costeo y Resumen', () => {
+    renderizarEditor({ costos: COSTOS, ruteo: RUTEO, abrirAlta: false });
+
+    // Venta 2×100 + 2×100 = 400; costo = material 100 + ruteo 100 = 200.
+    // (400 − 200) / 200 = 100 %. Sin el ruteo daría 300 %.
+    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('100.00%');
+    expect(screen.queryByText('Margen')).toBeNull();
+    expect(screen.getByTestId('precio-minimo-recomendado').textContent).toBe('$260.00');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('al dar de baja un ítem su ruteo deja de contar y el indicador se recalcula en vivo', () => {
+    renderizarEditor({ costos: COSTOS, ruteo: RUTEO, abrirAlta: false });
+
+    const fila = screen.getByTestId(`item-propuesta-${ITEM_HEREDADO_ID}`);
+    fireEvent.click(within(fila).getByLabelText(/Activo/));
+
+    // Venta 200; costo = material 100 (el ruteo del ítem inactivo no cuenta) → 100 %.
+    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('100.00%');
+  });
+
+  it('alerta cuando la venta queda debajo del precio mínimo y no bloquea guardar', () => {
+    const costosAltos = [
+      { id: 'c1', revisionId: REV_B_ID, categoria: 'material', monto: 500, nota: null },
+    ] as unknown as CostoRevisionPropuesta[];
+    renderizarEditor({ costos: costosAltos, ruteo: RUTEO, abrirAlta: false });
+
+    // Costo 600 contra venta 400 → −33.33 %.
+    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('-33.33%');
+    expect(screen.getByRole('alert').textContent).toContain('Utilidad por debajo del objetivo de 30 %');
+    expect(screen.getByTestId('precio-minimo-recomendado').textContent).toBe('$780.00');
+    const botones = screen.getAllByRole('button', { name: 'Guardar' }) as HTMLButtonElement[];
+    expect(botones.every((boton) => !boton.disabled)).toBe(true);
+  });
+
+  it('sin costo capturado indica qué falta en vez de mostrar un porcentaje engañoso', () => {
+    renderizarEditor({ abrirAlta: false });
+
+    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('—');
+    expect(screen.getByTestId('aviso-utilidad-propuesta').textContent).toContain('Sin costo estimado');
   });
 });
 

@@ -205,6 +205,7 @@ function montar(
     items?: PropuestaItem[];
     costos?: CostoRevisionPropuesta[];
     faltantes?: FaltantesValidacionPropuesta | null;
+    utilidadObjetivoPorcentaje?: number;
   } = {},
 ) {
   const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -220,6 +221,7 @@ function montar(
         catalogos: parcial.catalogos ?? CATALOGOS,
         permisos: parcial.permisos ?? PERMISOS,
         faltantes: parcial.faltantes ?? null,
+        utilidadObjetivoPorcentaje: parcial.utilidadObjetivoPorcentaje ?? 30,
       }),
     ),
   );
@@ -261,11 +263,52 @@ describe('costo total estimado de fabricación (obs. cliente)', () => {
     expect(desglose.getAllByText('$350.00').length).toBeGreaterThan(0);
   });
 
-  it('el margen usa el snapshot costeado y no el costo manual de máquina', () => {
+  it('la utilidad sobre costo usa el snapshot costeado y no el costo manual de máquina', () => {
     montar();
 
-    // subtotal 1000, costo 350 → margen 65 %.
-    expect(screen.getByText('65.00%')).toBeDefined();
+    // Venta sin IVA 1000, costo 350 → (1000 − 350) / 350 = 185.71 % sobre costo.
+    const celda = within(screen.getByTestId('utilidad-sobre-costo'));
+    expect(celda.getByText('Utilidad estimada % sobre costo')).toBeDefined();
+    expect(celda.getByText('185.71%')).toBeDefined();
+    expect(screen.queryByText('Margen')).toBeNull();
+  });
+
+  it('muestra el precio mínimo recomendado (costo × 1.30) sin alerta si la venta lo supera', () => {
+    montar();
+
+    const aviso = screen.getByTestId('aviso-utilidad-propuesta');
+    expect(aviso.getAttribute('data-bajo-objetivo')).toBe('no');
+    expect(within(aviso).getByTestId('precio-minimo-recomendado').textContent).toBe('$455.00');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('alerta, sin bloquear, cuando la utilidad queda debajo del objetivo', () => {
+    // Material 700 + ruteo costeado 300 = costo 1,000 contra venta 1,000 → 0 %.
+    const costosAltos = [
+      { ...COSTOS[0], monto: 700 },
+    ] as unknown as CostoRevisionPropuesta[];
+    montar({ costos: costosAltos });
+
+    const aviso = screen.getByTestId('aviso-utilidad-propuesta');
+    expect(aviso.getAttribute('data-bajo-objetivo')).toBe('si');
+    expect(within(aviso).getByRole('alert').textContent).toContain(
+      'Utilidad por debajo del objetivo de 30 %',
+    );
+    expect(within(aviso).getByTestId('precio-minimo-recomendado').textContent).toBe('$1,300.00');
+    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('0.00%');
+    // La propuesta sigue editable: el aviso no deshabilita nada.
+    expect(
+      (screen.getByLabelText('Setup horas IT01 fila 1') as HTMLInputElement).disabled,
+    ).toBe(false);
+  });
+
+  it('el objetivo configurado cambia el precio mínimo y la alerta sin tocar código', () => {
+    montar({ utilidadObjetivoPorcentaje: 200 });
+
+    // 185.71 % < 200 % → alerta; precio mínimo = 350 × 3.
+    const aviso = screen.getByTestId('aviso-utilidad-propuesta');
+    expect(aviso.getAttribute('data-bajo-objetivo')).toBe('si');
+    expect(within(aviso).getByTestId('precio-minimo-recomendado').textContent).toBe('$1,050.00');
   });
 
   it('sin filas costeadas explica cómo obtener el desglose', () => {
@@ -281,6 +324,7 @@ describe('costo total estimado de fabricación (obs. cliente)', () => {
           costos: [],
           catalogos: CATALOGOS,
           permisos: PERMISOS,
+          utilidadObjetivoPorcentaje: 30,
         }),
       ),
     );

@@ -9,7 +9,10 @@ import { Input } from '@/compartido/componentes/ui/input';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { editarItemPropuestaAccion } from '@/modulos/propuestas/acciones/editar-item-propuesta';
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
-import { calcularTotalesPropuesta } from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
+import {
+  calcularTotalesPropuesta,
+  resumirCostosRevision,
+} from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
 import type {
   CostoRevisionPropuesta,
   PermisosPropuesta,
@@ -22,6 +25,7 @@ import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidad
 import { CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
 import { FormularioAltaItemPropuesta } from './formulario-alta-item-propuesta';
+import { AvisoUtilidadPropuesta, CeldaUtilidadPropuesta } from './indicador-utilidad-propuesta';
 
 type Borrador = {
   descripcion: string;
@@ -49,6 +53,7 @@ export function EditorItemsPropuesta({
   errorCatalogos = null,
   permisos,
   faltantes = null,
+  utilidadObjetivoPorcentaje,
 }: {
   revision: RevisionPropuesta;
   revisiones: RevisionPropuesta[];
@@ -60,6 +65,8 @@ export function EditorItemsPropuesta({
   permisos: PermisosPropuesta;
   /** Lo que impide validar (solo en borrador); marca la ausencia de ítems en rojo. */
   faltantes?: FaltantesValidacionPropuesta | null;
+  /** Utilidad objetivo vigente (% sobre costo) de Configuración. */
+  utilidadObjetivoPorcentaje: number;
 }) {
   const queryClient = useQueryClient();
   const [borradores, setBorradores] = useState<Record<string, Borrador>>({});
@@ -101,6 +108,9 @@ export function EditorItemsPropuesta({
     setBorradores((actual) => ({ ...actual, [item.id]: { ...valorDe(item), ...parche } }));
   }
 
+  // El costo sale del mismo resumen que Ruteo/Costeo y Resumen (ruteo costeado de
+  // los ítems activos + costos manuales): con precio y cantidad en vivo, la
+  // utilidad no puede diferir entre pestañas.
   const totales = useMemo(
     () =>
       calcularTotalesPropuesta({
@@ -113,14 +123,19 @@ export function EditorItemsPropuesta({
             activo: valor.activo,
           };
         }),
-        costoTotal: costos
-          .filter((costo) => costo.revisionId === revision.id)
-          .reduce((suma, costo) => suma + costo.monto, 0),
+        ...resumirCostosRevision({
+          idsItemsActivos: new Set(
+            itemsRevision.filter((item) => valorDe(item).activo).map((item) => item.id),
+          ),
+          costos: costos.filter((costo) => costo.revisionId === revision.id),
+          ruteo,
+        }),
         ivaPorcentaje: revision.snapshotCabecera.ivaPorcentaje,
+        utilidadObjetivoPorcentaje,
         moneda: revision.snapshotCabecera.moneda,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [itemsRevision, borradores, costos, revision],
+    [itemsRevision, borradores, costos, ruteo, revision, utilidadObjetivoPorcentaje],
   );
 
   async function guardar(item: PropuestaItem): Promise<void> {
@@ -163,11 +178,9 @@ export function EditorItemsPropuesta({
         <Resumen etiqueta="Subtotal" valor={formatearMoneda(totales.subtotal, totales.moneda)} />
         <Resumen etiqueta={`IVA (${totales.ivaPorcentaje}%)`} valor={formatearMoneda(totales.iva, totales.moneda)} />
         <Resumen etiqueta="Total" valor={formatearMoneda(totales.total, totales.moneda)} />
-        <Resumen
-          etiqueta="Margen"
-          valor={totales.margen === null ? '—' : `${(totales.margen * 100).toFixed(2)}%`}
-        />
+        <CeldaUtilidadPropuesta totales={totales} />
       </div>
+      <AvisoUtilidadPropuesta totales={totales} />
 
       <div
         className={

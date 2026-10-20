@@ -5,7 +5,11 @@ import { z } from 'zod';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
-import { calcularTotalesPropuesta } from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
+import {
+  calcularTotalesPropuesta,
+  resumirCostosRevision,
+} from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
+import { obtenerUtilidadObjetivoPropuesta } from '@/modulos/propuestas/servicios/utilidad-objetivo';
 import {
   obtenerArchivosDePropuesta,
   obtenerCanalRfq,
@@ -46,6 +50,8 @@ export type DetallePropuestaFicha = {
   archivosPorItem: ArchivoPropuesta[];
   /** Canal del RFQ de origen: prellena el canal al validar la propuesta. */
   canalRfq: { canal: string; canalDetalle: string | null } | null;
+  /** Utilidad objetivo vigente (% sobre costo) de Configuración, para la ficha. */
+  utilidadObjetivoPorcentaje: number;
 };
 
 /**
@@ -76,7 +82,8 @@ export async function obtenerPropuestaAccion(
 
   const revisionIds = datos.revisiones.map((revision) => revision.id);
   const itemIds = datos.items.map((item) => item.id);
-  const [rfqItemIds, canalRfq, pdfs, archivos] = await Promise.all([
+  const [utilidadObjetivoPorcentaje, rfqItemIds, canalRfq, pdfs, archivos] = await Promise.all([
+    obtenerUtilidadObjetivoPropuesta(),
     obtenerIdsItemsRfq(servidor, datos.propuesta.rfqId),
     obtenerCanalRfq(servidor, datos.propuesta.rfqId),
     obtenerPdfsDeRevisiones(servidor, revisionIds),
@@ -97,15 +104,11 @@ export async function obtenerPropuestaAccion(
 
   const revisiones: RevisionConTotales[] = datos.revisiones.map((revision) => {
     const itemsRevision = datos.items.filter((item) => item.revisionId === revision.id);
-    const costosRevision = datos.costos.filter((costo) => costo.revisionId === revision.id);
-    const costoTotal = costosRevision.reduce((suma, costo) => suma + costo.monto, 0);
-    const costoManualMaquina = costosRevision
-      .filter((costo) => costo.categoria === 'maquina')
-      .reduce((suma, costo) => suma + costo.monto, 0);
-    const idsActivos = new Set(itemsRevision.filter((item) => item.activo).map((item) => item.id));
-    const ruteoCosteado = datos.ruteo.filter(
-      (fila) => idsActivos.has(fila.itemId) && fila.costeadoEn !== null,
-    );
+    const costos = resumirCostosRevision({
+      idsItemsActivos: new Set(itemsRevision.filter((item) => item.activo).map((item) => item.id)),
+      costos: datos.costos.filter((costo) => costo.revisionId === revision.id),
+      ruteo: datos.ruteo,
+    });
     return {
       ...revision,
       totales: calcularTotalesPropuesta({
@@ -115,11 +118,9 @@ export async function obtenerPropuestaAccion(
           esDescuento: item.esDescuento,
           activo: item.activo,
         })),
-        costoTotal,
-        costoManualMaquina,
-        costoRuteo: ruteoCosteado.reduce((suma, fila) => suma + (fila.costoTotal ?? 0), 0),
-        ruteoCosteado: ruteoCosteado.length > 0,
+        ...costos,
         ivaPorcentaje: revision.snapshotCabecera.ivaPorcentaje,
+        utilidadObjetivoPorcentaje,
         moneda: revision.snapshotCabecera.moneda,
       }),
       pdfs: pdfs.filter((pdf) => pdf.revisionId === revision.id),
@@ -147,6 +148,7 @@ export async function obtenerPropuestaAccion(
         ...archivosRfqItems.filter((archivo) => archivo.entidad === 'rfq_item'),
       ],
       canalRfq,
+      utilidadObjetivoPorcentaje,
     },
   };
 }

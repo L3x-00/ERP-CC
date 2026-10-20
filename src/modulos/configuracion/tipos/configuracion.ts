@@ -32,6 +32,11 @@ export interface TarifasCotizadorConfig {
   factorEficienciaLaser: number;
   factorMermaMaterial: number;
   margenUtilidadDefault: number;
+  /**
+   * Utilidad objetivo de las propuestas, en % sobre el costo total estimado de
+   * fabricación (no sobre la venta). Debajo de este valor la ficha avisa, sin bloquear.
+   */
+  utilidadObjetivoPropuestaPorcentaje: number;
   /** Catálogo detallado por estación que precarga el cotizador (CFG-10/OBS-30). */
   estaciones: CatalogoTarifasCotizador;
 }
@@ -158,12 +163,16 @@ export const CONFIGURACION_EMPRESA_DEFECTO: ConfiguracionEmpresa = {
   logoUrl: null,
 };
 
+/** Objetivo inicial de utilidad de las propuestas (% sobre costo). */
+export const UTILIDAD_OBJETIVO_PROPUESTA_DEFECTO = 30;
+
 export const TARIFAS_COTIZADOR_DEFECTO: TarifasCotizadorConfig = {
   costoHoraDefault: 650,
   segundosPorPierce: 8,
   factorEficienciaLaser: 0.85,
   factorMermaMaterial: 0.08,
   margenUtilidadDefault: 30,
+  utilidadObjetivoPropuestaPorcentaje: UTILIDAD_OBJETIVO_PROPUESTA_DEFECTO,
   estaciones: CATALOGO_TARIFAS_DEFECTO,
 };
 
@@ -251,6 +260,10 @@ function tarifasDesde(valor: Json): TarifasCotizadorConfig {
     ),
     factorMermaMaterial: numeroSeguro(objeto.factorMermaMaterial, TARIFAS_COTIZADOR_DEFECTO.factorMermaMaterial),
     margenUtilidadDefault: numeroSeguro(objeto.margenUtilidadDefault, TARIFAS_COTIZADOR_DEFECTO.margenUtilidadDefault),
+    utilidadObjetivoPropuestaPorcentaje: numeroSeguro(
+      objeto.utilidadObjetivoPropuestaPorcentaje,
+      TARIFAS_COTIZADOR_DEFECTO.utilidadObjetivoPropuestaPorcentaje,
+    ),
     estaciones: estacionesDesde(objeto.estaciones),
   };
 }

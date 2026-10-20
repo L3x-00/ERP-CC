@@ -41,6 +41,8 @@ describe('servicio central de configuración', () => {
     expect(resultado.empresa.razonSocial).toContain('CC Manufacturing');
     expect(resultado.tarifas.costoHoraDefault).toBe(900);
     expect(resultado.tarifas.margenUtilidadDefault).toBe(30);
+    // Configuraciones guardadas antes de este campo reciben el objetivo inicial de 30 %.
+    expect(resultado.tarifas.utilidadObjetivoPropuestaPorcentaje).toBe(30);
     expect(resultado.plantillasDoc.T1.colorAcento).toBe('#16A34A');
     expect(resultado.plantillasDoc.T1.textoPiePagina).toContain('CC Manufacturing');
   });
