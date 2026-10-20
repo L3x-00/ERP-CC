@@ -142,7 +142,7 @@ test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', (
       await modal.getByLabel('Largo (mm)').fill('2438.4');
       await modal.getByRole('button', { name: 'Agregar espesor' }).click();
       await modal.getByLabel('Etiqueta').fill('5 mm');
-      await modal.getByLabel('mm').fill('5');
+      await modal.getByLabel('mm', { exact: true }).fill('5');
       await modal.getByLabel('Costo').fill('12.5');
       await modal.getByRole('button', { name: 'Crear material' }).click();
       await expect(modal).toBeHidden();
