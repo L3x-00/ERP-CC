@@ -6,6 +6,7 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 
+import { asegurarContactoCliente } from '../servicios/contacto-vigente-cliente';
 import {
   esquemaAsegurarContactoRfq,
   esquemaObtenerContactoPrincipalRfq,
@@ -75,9 +76,7 @@ export async function asegurarContactoRfqAccion(
     return { exito: false, error: 'Sin permiso para editar el RFQ' };
   }
 
-  const { clienteId, nombre } = resultado.data;
-  const correo = resultado.data.correo?.trim() || null;
-  const telefono = resultado.data.telefono?.trim() || null;
+  const { clienteId, nombre, correo, telefono } = resultado.data;
   const admin = crearClienteSupabaseAdmin();
 
   const { data: cliente } = await admin
@@ -89,45 +88,22 @@ export async function asegurarContactoRfqAccion(
     return { exito: false, error: 'El cliente no existe' };
   }
 
-  const { data: existentes, error: errorContactos } = await admin
-    .from('contactos_cliente')
-    .select('id, nombre, correo, telefono')
-    .eq('cliente_id', clienteId)
-    .eq('activo', true);
-  if (errorContactos) {
-    return { exito: false, error: 'No se pudieron revisar los contactos del cliente' };
-  }
-
-  const nombreComparable = nombre.trim().toLowerCase();
-  const existente = (existentes ?? []).find(
-    (contacto) =>
-      contacto.nombre.trim().toLowerCase() === nombreComparable &&
-      (contacto.correo ?? '').trim().toLowerCase() === (correo ?? '').toLowerCase() &&
-      (contacto.telefono ?? '').trim() === (telefono ?? ''),
-  );
-  if (existente) {
-    return { exito: true, datos: { id: existente.id } };
-  }
-
-  const { data: creado, error: errorAlta } = await admin
-    .from('contactos_cliente')
-    .insert({
-      cliente_id: clienteId,
-      nombre: nombre.trim(),
-      correo,
-      telefono,
-      es_principal: false,
-      creado_por: usuario.id,
-    })
-    .select('id')
-    .single();
-  if (errorAlta || !creado) {
-    return { exito: false, error: 'No se pudo crear el contacto del cliente' };
-  }
-
-  await registrarLog(usuario, 'crear', 'clientes', clienteId, {
-    contactoId: creado.id,
-    origen: 'rfq_solicitud',
+  const contacto = await asegurarContactoCliente(admin, {
+    clienteId,
+    nombre,
+    correo,
+    telefono,
+    actorId: usuario.id,
   });
-  return { exito: true, datos: { id: creado.id } };
+  if (!contacto.exito) {
+    return { exito: false, error: contacto.error };
+  }
+
+  if (contacto.creado) {
+    await registrarLog(usuario, 'crear', 'clientes', clienteId, {
+      contactoId: contacto.id,
+      origen: 'rfq_solicitud',
+    });
+  }
+  return { exito: true, datos: { id: contacto.id } };
 }

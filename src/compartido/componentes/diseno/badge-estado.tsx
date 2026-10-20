@@ -72,6 +72,8 @@ const ESTADOS: Record<string, DefinicionEstado> = {
   converted: { tono: 'exito', etiqueta: 'Convertido' },
   closed: { tono: 'neutro', etiqueta: 'Cerrado' },
   cancelled: { tono: 'neutro', etiqueta: 'Cancelado' },
+  // Indicación de captura (no es un estado del ciclo de vida del RFQ).
+  captura_lista: { tono: 'exito', etiqueta: 'Listo para validar' },
 
   // Corridas (SII-B6)
   planificada: { tono: 'neutro', etiqueta: 'Planificada' },

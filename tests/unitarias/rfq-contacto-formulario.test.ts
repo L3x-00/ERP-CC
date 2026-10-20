@@ -76,11 +76,11 @@ function envolver(nodo: ReactNode) {
   return createElement(QueryClientProvider, { client: consultas }, nodo);
 }
 
-function renderizarFormulario() {
+function renderizarFormulario(rfq: Rfq = RFQ) {
   return render(
     envolver(
       createElement(FormularioGeneralRfq, {
-        rfq: RFQ,
+        rfq,
         catalogos: CATALOGOS,
         onGuardado: vi.fn(),
       }),
@@ -167,5 +167,105 @@ describe('FormularioGeneralRfq — Contacto del cliente (observación cliente)',
       );
     });
     expect(asegurarMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('FormularioGeneralRfq — contacto vigente del cliente por defecto', () => {
+  const CONTACTOS = [
+    { id: 'c-principal', nombre: 'Ana Pérez', correo: 'ana@metanor.mx', telefono: '664 000 0000' },
+    { id: 'c-2', nombre: 'Pedro', correo: 'pedro@x.com', telefono: null },
+  ];
+
+  async function guardar(): Promise<void> {
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos' }));
+    await waitFor(() => expect(actualizarMock).toHaveBeenCalledTimes(1));
+  }
+
+  it('contacto existente: sin contacto guardado preselecciona el principal registrado', async () => {
+    contactosMock.mockResolvedValue({ exito: true, datos: CONTACTOS });
+    renderizarFormulario();
+
+    const selector = (await screen.findByLabelText('Contacto del cliente')) as HTMLSelectElement;
+    await waitFor(() => expect(selector.value).toBe('c-principal'));
+
+    await guardar();
+    expect(actualizarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ contactoId: 'c-principal' }),
+    );
+    expect(asegurarMock).not.toHaveBeenCalled();
+  });
+
+  it('no sobrescribe el contacto ya ligado al RFQ aunque haya otro principal', async () => {
+    contactosMock.mockResolvedValue({ exito: true, datos: CONTACTOS });
+    renderizarFormulario({ ...RFQ, contactoId: 'c-2', contactoNombre: 'Pedro' });
+
+    const selector = (await screen.findByLabelText('Contacto del cliente')) as HTMLSelectElement;
+    await screen.findByRole('option', { name: 'Ana Pérez · ana@metanor.mx' });
+    await waitFor(() => expect(selector.value).toBe('c-2'));
+
+    await guardar();
+    expect(actualizarMock).toHaveBeenCalledWith(expect.objectContaining({ contactoId: 'c-2' }));
+  });
+
+  it('respeta la elección explícita de «Sin contacto» y no vuelve a aplicar la sugerencia', async () => {
+    contactosMock.mockResolvedValue({ exito: true, datos: CONTACTOS });
+    renderizarFormulario();
+
+    const selector = (await screen.findByLabelText('Contacto del cliente')) as HTMLSelectElement;
+    await waitFor(() => expect(selector.value).toBe('c-principal'));
+    fireEvent.change(selector, { target: { value: '' } });
+    await waitFor(() => expect(selector.value).toBe(''));
+
+    await guardar();
+    expect(actualizarMock).toHaveBeenCalledWith(expect.objectContaining({ contactoId: null }));
+  });
+
+  it('principal del cliente: sin contactos registrados usa sus datos y los materializa al guardar', async () => {
+    principalMock.mockResolvedValue({
+      exito: true,
+      datos: { nombre: 'Ana Pérez', correo: 'ana@metanor.mx', telefono: '664 000 0000' },
+    });
+    renderizarFormulario();
+
+    const selector = (await screen.findByLabelText('Contacto del cliente')) as HTMLSelectElement;
+    await waitFor(() => expect(selector.value).toBe(VALOR_CONTACTO_PRINCIPAL));
+
+    await guardar();
+    expect(asegurarMock).toHaveBeenCalledWith({
+      clienteId: 'cliente-1',
+      nombre: 'Ana Pérez',
+      correo: 'ana@metanor.mx',
+      telefono: '664 000 0000',
+    });
+    expect(actualizarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ contactoId: 'contacto-nuevo' }),
+    );
+  });
+
+  it('cliente con correo o teléfono pero sin nombre: no inventa un contacto', async () => {
+    principalMock.mockResolvedValue({
+      exito: true,
+      datos: { nombre: null, correo: 'compras@metanor.mx', telefono: null },
+    });
+    renderizarFormulario();
+
+    const selector = (await screen.findByLabelText('Contacto del cliente')) as HTMLSelectElement;
+    await screen.findByRole('option', { name: 'Contacto del cliente · compras@metanor.mx' });
+    expect(selector.value).toBe('');
+
+    await guardar();
+    expect(asegurarMock).not.toHaveBeenCalled();
+    expect(actualizarMock).toHaveBeenCalledWith(expect.objectContaining({ contactoId: null }));
+  });
+
+  it('sin datos del cliente: no crea ni liga nada hasta que el usuario escriba un nombre', async () => {
+    renderizarFormulario();
+
+    const entrada = await screen.findByPlaceholderText('Nombre del contacto');
+    expect((entrada as HTMLInputElement).value).toBe('');
+
+    await guardar();
+    expect(asegurarMock).not.toHaveBeenCalled();
+    expect(actualizarMock).toHaveBeenCalledWith(expect.objectContaining({ contactoId: null }));
   });
 });

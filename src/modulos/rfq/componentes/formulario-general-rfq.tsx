@@ -17,6 +17,7 @@ import {
 } from '@/modulos/rfq/utilidades/faltantes';
 import {
   VALOR_CONTACTO_PRINCIPAL,
+  contactoSugeridoRfq,
   opcionesContactoRfq,
 } from '@/modulos/rfq/utilidades/contacto-rfq';
 
@@ -64,7 +65,9 @@ export function FormularioGeneralRfq({
   const [canalDetalle, setCanalDetalle] = useState(rfq.canalDetalle ?? '');
   const [fechaSolicitud, setFechaSolicitud] = useState(rfq.fechaSolicitud ?? '');
   const [descripcionGeneral, setDescripcionGeneral] = useState(rfq.descripcionGeneral ?? '');
-  const [contactoId, setContactoId] = useState(rfq.contactoId ?? '');
+  // null = la persona aún no tocó el selector; '' ("Sin contacto") es una elección
+  // explícita y nunca se reemplaza por la sugerencia.
+  const [contactoElegido, setContactoElegido] = useState<string | null>(null);
   const [contactoLibre, setContactoLibre] = useState('');
   const [responsableId, setResponsableId] = useState(rfq.responsableId ?? '');
   const [proximaAccionCodigo, setProximaAccionCodigo] = useState(rfq.proximaAccionCodigo ?? '');
@@ -93,6 +96,12 @@ export function FormularioGeneralRfq({
   const principal = principalConsulta.data?.exito ? (principalConsulta.data.datos ?? null) : null;
   const opcionesContacto = opcionesContactoRfq(contactosLista, principal);
   const consultasContactoListas = !contactos.isLoading && !principalConsulta.isLoading;
+  // Precedencia: lo que eligió la persona > lo ya guardado en el RFQ > el contacto
+  // vigente del cliente (principal registrado o sus datos propios).
+  const contactoId =
+    contactoElegido
+    ?? rfq.contactoId
+    ?? (consultasContactoListas ? contactoSugeridoRfq(contactosLista, principal) : '');
   const contactoSinDatos =
     Boolean(rfq.clienteId) && consultasContactoListas && opcionesContacto.length === 0;
   const ayudaContacto = !rfq.clienteId
@@ -326,7 +335,7 @@ export function FormularioGeneralRfq({
             <Select
               id="rfq-contacto"
               value={contactoId}
-              onChange={(evento) => setContactoId(evento.target.value)}
+              onChange={(evento) => setContactoElegido(evento.target.value)}
               disabled={!editable || !consultasContactoListas}
               aria-required="true"
               aria-invalid={fCliente.contacto}
