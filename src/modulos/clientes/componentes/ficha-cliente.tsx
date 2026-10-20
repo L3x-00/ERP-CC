@@ -61,6 +61,7 @@ export function FichaCliente({
   puedeEditar = false,
   puedeComercial = false,
   puedeFinanzas = false,
+  puedePropuestas = false,
 }: {
   clienteId: string;
   esAdmin: boolean;
@@ -70,6 +71,8 @@ export function FichaCliente({
   puedeEditar?: boolean;
   puedeComercial?: boolean;
   puedeFinanzas?: boolean;
+  /** Permiso `propuesta_vista`: muestra las propuestas y el importe que sale de ellas en el Historial. */
+  puedePropuestas?: boolean;
 }) {
   const [pestana, setPestana] = useState<Pestana>('resumen');
   const router = useRouter();
@@ -185,7 +188,9 @@ export function FichaCliente({
                   versiones={data.versionesDocumentos}
                 />
               )}
-              {pestana === 'historial' && <HistorialCliente clienteId={clienteId} />}
+              {pestana === 'historial' && (
+                <HistorialCliente clienteId={clienteId} puedeVerPropuestas={puedePropuestas || esAdmin} />
+              )}
               {pestana === 'comentarios' && (
                 <HiloComentarios
                   entidadTipo="cliente"

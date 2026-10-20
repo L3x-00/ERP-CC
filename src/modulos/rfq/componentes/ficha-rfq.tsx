@@ -2,14 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { Button } from '@/compartido/componentes/ui/button';
 import { GestorClienteOportunidad } from '@/modulos/pipeline/componentes/gestor-cliente-oportunidad';
-import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
+import { esDefinicionRfqEditable } from '@/modulos/rfq/utilidades/estados';
 import {
   pasoSugeridoCaptura,
   pasosConFaltantesCaptura,
@@ -19,10 +18,12 @@ import {
 import { obtenerRfqAccion } from '../acciones/obtener-rfq';
 import { obtenerCatalogosRfqAccion } from '../acciones/obtener-catalogos';
 import { validarRfqListoAccion } from '../acciones/validar-rfq-listo';
+import { vincularContactoVigenteRfqAccion } from '../acciones/vincular-contacto-rfq';
 import { ListaPropuestasRfq } from '@/modulos/propuestas/componentes/lista-propuestas-rfq';
 import { ActividadRfq } from './actividad-rfq';
 import { DialogoHistorialRfq } from './dialogo-historial-rfq';
 import { FormularioGeneralRfq } from './formulario-general-rfq';
+import { IndicadorEstadoRfq } from './indicador-estado-rfq';
 import {
   NavegacionCapturaRfq,
   type PasoCapturaRfq,
@@ -72,10 +73,46 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
     queryKey: ['rfq-validacion-listo', rfqId],
     queryFn: () => validarRfqListoAccion({ rfqId }),
     enabled: capturaIncompleta,
+    // El verde de «Listo para validar» debe salir de una consulta reciente, no de
+    // una validación en caché de una visita anterior.
+    refetchOnMount: 'always',
   });
   const catalogosDatos = catalogos.data?.exito ? (catalogos.data.datos ?? null) : null;
   const validacionDatos = validacion.data?.exito ? (validacion.data.datos ?? null) : null;
+  // Mientras se revalida o si la última consulta falló, los datos en caché no
+  // bastan para afirmar que la captura está completa.
+  const validacionConfirmada =
+    validacion.isFetching || validacion.isError ? null : validacionDatos;
   const faltantes = validacionDatos?.secciones;
+
+  // Un RFQ existente y editable con cliente pero sin contacto se completa solo: se
+  // pide al servidor (escritura explícita, con sus permisos y auditoría) ligar el
+  // contacto vigente del cliente. Una vez por RFQ y cliente; si no procede, la
+  // ficha queda como estaba y el faltante sigue visible para corregirlo a mano.
+  const clienteConsultas = useQueryClient();
+  const vinculo = useMutation({
+    mutationFn: (idRfq: string) => vincularContactoVigenteRfqAccion({ rfqId: idRfq }),
+    onSuccess: async (respuesta) => {
+      if (!respuesta.exito || !respuesta.datos?.vinculado) return;
+      // Se espera la recarga para que el formulario no se reabra con datos viejos.
+      await Promise.all([
+        clienteConsultas.invalidateQueries({ queryKey: ['rfq', rfqId] }),
+        clienteConsultas.invalidateQueries({ queryKey: ['rfq-validacion-listo', rfqId] }),
+        clienteConsultas.invalidateQueries({ queryKey: ['rfq-contactos'] }),
+        clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] }),
+      ]);
+    },
+  });
+  const { mutate: vincularContacto } = vinculo;
+  const intentoVinculo = useRef<string | null>(null);
+  useEffect(() => {
+    if (!rfq || !rfq.clienteId || rfq.contactoId || !esDefinicionRfqEditable(rfq.estadoRfq)) return;
+    const clave = `${rfq.id}:${rfq.clienteId}`;
+    if (intentoVinculo.current === clave) return;
+    intentoVinculo.current = clave;
+    vincularContacto(rfq.id);
+  }, [rfq, vincularContacto]);
+
   const errorValidacion = validacion.isError
     ? 'No se pudo revisar el avance del RFQ'
     : validacion.data && !validacion.data.exito
@@ -145,7 +182,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
           </Link>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-mono text-xl font-bold">{folio}</h1>
-            <BadgeEstado estado={rfq.estadoRfq} etiqueta={ETIQUETAS_ESTADO_RFQ[rfq.estadoRfq]} />
+            <IndicadorEstadoRfq estadoRfq={rfq.estadoRfq} validacion={validacionConfirmada} />
             {rfq.folioCnc && (
               <span className="text-xs text-texto-secundario">CNC {rfq.folioCnc}</span>
             )}
@@ -230,7 +267,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
                   Cancelar edición
                 </Button>
               </div>
-              {catalogosDatos ? (
+              {catalogosDatos && !vinculo.isPending ? (
                 <FormularioGeneralRfq
                   key={rfq.actualizadoEn}
                   rfq={rfq}

@@ -169,6 +169,28 @@ export function estaListo(validacion: ValidacionRfqListo): boolean {
   return validacion.listo;
 }
 
+/** Etiqueta de la indicación de captura completa (no es un estado de negocio). */
+export const ETIQUETA_CAPTURA_LISTA = 'Listo para validar';
+
+/**
+ * ¿La captura en curso ya cumple todos los requisitos de `validar_rfq_listo`?
+ * Es solo una indicación para la persona que captura: el estado de negocio
+ * sigue siendo `INCOMPLETE` hasta que se ejecute «Marcar listo» (que revalida en
+ * el servidor), por lo que no equivale a «Listo para propuesta». Sin validación
+ * confirmada (pendiente, con error o sin consultar) nunca se declara completa.
+ */
+export function capturaRfqListaParaValidar(
+  estado: EstadoRfq,
+  validacion: ValidacionRfqListo | null | undefined,
+): boolean {
+  return (
+    estado === 'INCOMPLETE'
+    && validacion != null
+    && estaListo(validacion)
+    && seccionesConFaltantes(validacion).length === 0
+  );
+}
+
 /** Secciones que tienen al menos un faltante, en orden canónico. */
 export function seccionesConFaltantes(
   validacion: ValidacionRfqListo,

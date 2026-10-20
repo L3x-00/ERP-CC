@@ -9,6 +9,10 @@ import { generarFolioOp } from '@/modulos/pipeline/servicios/generar-folio-op';
 import { obtenerClienteParaRfq } from '@/modulos/pipeline/servicios/obtener-cliente-para-rfq';
 import { esquemaCrearProspecto } from '@/modulos/pipeline/validaciones/esquemas-prospecto';
 import { mensajeErrorRfq } from '@/modulos/rfq/acciones/utilidades-acciones';
+import {
+  resolverContactoVigenteCliente,
+  retirarContactoRecienCreado,
+} from '@/modulos/rfq/servicios/contacto-vigente-cliente';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 
 /**
@@ -22,7 +26,8 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
  * fija al usuario actual.
  *
  * RFQ-02/03: admite `clienteId` para que la RFQ nazca ligada a un cliente del
- * catálogo, heredando sus condiciones de pago si la captura no fijó otras.
+ * catálogo, heredando sus condiciones de pago si la captura no fijó otras. Si
+ * no se eligió contacto, se liga el contacto vigente del cliente.
  */
 export async function crearProspectoAccion(
   entrada: unknown,
@@ -128,6 +133,33 @@ export async function crearProspectoAccion(
     return { exito: false, error: 'No se pudo generar el folio' };
   }
 
+  // Sin contacto elegido, el RFQ nace ligado al contacto vigente del cliente
+  // (principal registrado o, si no tiene contactos, uno creado con sus datos o con
+  // el nombre ya capturado). Se resuelve al final para no dejar un contacto creado
+  // si falla una validación anterior; crearlo exige los mismos permisos que crear
+  // un contacto a mano (rfq_editar + cliente_editar), no solo rfq_crear.
+  let contactoId = datos.contactoId ?? null;
+  let contactoAutomatico: string | null = null;
+  let contactoCreado = false;
+  if (clienteId && !contactoId) {
+    const puedeCrear = (await can(usuario, 'rfq_editar')) && (await can(usuario, 'cliente_editar'));
+    const resolucion = await resolverContactoVigenteCliente(admin, {
+      clienteId,
+      actorId: usuario.id,
+      puedeCrear,
+      capturado: {
+        nombre: datos.nombreContacto,
+        correo: datos.correo,
+        telefono: datos.telefono,
+      },
+    });
+    if (resolucion.estado === 'vinculable') {
+      contactoId = resolucion.id;
+      contactoAutomatico = resolucion.id;
+      contactoCreado = resolucion.creado;
+    }
+  }
+
   const { data: fila, error } = await admin
     .from('pipeline')
     .insert({
@@ -159,7 +191,7 @@ export async function crearProspectoAccion(
       fecha_solicitud: fechaRegistro,
       descripcion_general: datos.descripcionGeneral?.trim() || null,
       responsable_id: usuario.id,
-      contacto_id: datos.contactoId ?? null,
+      contacto_id: contactoId,
       // Ajuste cliente 2026-10-12: la próxima acción nace con el RFQ cuando se
       // capturó en el alta (unificada con canal y seguimiento).
       proxima_accion_codigo: tocaProximaAccion ? (datos.proximaAccionCodigo ?? null) : null,
@@ -173,6 +205,9 @@ export async function crearProspectoAccion(
     .single();
 
   if (error || !fila) {
+    if (contactoCreado && contactoAutomatico) {
+      await retirarContactoRecienCreado(admin, contactoAutomatico);
+    }
     const traducido = mensajeErrorRfq(error?.message ?? '');
     return {
       exito: false,
@@ -183,12 +218,27 @@ export async function crearProspectoAccion(
     };
   }
 
+  if (contactoCreado && clienteId && contactoAutomatico) {
+    await registrarLog(
+      usuario,
+      'crear',
+      'clientes',
+      clienteId,
+      { contactoId: contactoAutomatico, origen: 'rfq_alta_automatico', rfqId: fila.id },
+      correlationId,
+    );
+  }
   await registrarLog(
     usuario,
     'crear',
     'pipeline',
     fila.id,
-    { folioOp, clienteId, estadoRfq: 'INCOMPLETE' },
+    {
+      folioOp,
+      clienteId,
+      estadoRfq: 'INCOMPLETE',
+      ...(contactoAutomatico ? { contactoAutomatico } : {}),
+    },
     correlationId,
   );
 

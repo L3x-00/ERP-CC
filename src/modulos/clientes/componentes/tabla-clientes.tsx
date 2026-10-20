@@ -47,6 +47,7 @@ export function TablaClientes({
   puedeEditar = esAdmin,
   puedeComercial = esAdmin,
   puedeFinanzas = esAdmin,
+  puedePropuestas = esAdmin,
 }: {
   esAdmin: boolean;
   usuarioActualId?: string;
@@ -54,6 +55,7 @@ export function TablaClientes({
   puedeEditar?: boolean;
   puedeComercial?: boolean;
   puedeFinanzas?: boolean;
+  puedePropuestas?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [textoBusqueda, setTextoBusqueda] = useState('');
@@ -358,6 +360,7 @@ export function TablaClientes({
           puedeEditar={puedeEditar}
           puedeComercial={puedeComercial}
           puedeFinanzas={puedeFinanzas}
+          puedePropuestas={puedePropuestas}
           onEditar={(cliente) => {
             setClienteVer(null);
             setClienteEditando(cliente);

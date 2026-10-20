@@ -90,6 +90,9 @@ export const esquemaObtenerRfq = z.object({ rfqId: z.uuid() }).strict();
 /** Entrada de lectura del contacto principal del cliente (Solicitud del RFQ). */
 export const esquemaObtenerContactoPrincipalRfq = z.object({ clienteId: z.uuid() }).strict();
 
+/** Entrada para vincular el contacto vigente del cliente a un RFQ existente. */
+export const esquemaVincularContactoRfq = z.object({ rfqId: z.uuid() }).strict();
+
 /**
  * Entrada para asegurar un contacto del cliente desde el RFQ: si el cliente no
  * tiene filas en `contactos_cliente`, se crea una con estos datos.

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   VALOR_CONTACTO_PRINCIPAL,
+  contactoSugeridoRfq,
   opcionesContactoRfq,
 } from '@/modulos/rfq/utilidades/contacto-rfq';
 
@@ -51,5 +52,33 @@ describe('opcionesContactoRfq — contacto del cliente en la Solicitud', () => {
       telefono: '664 123 4567',
     });
     expect(opciones[0]?.etiqueta).toBe('Ventas · 664 123 4567');
+  });
+});
+
+describe('contactoSugeridoRfq — contacto por defecto del cliente', () => {
+  const contactos = [
+    { id: 'c-principal', nombre: 'Ana Pérez', correo: 'ana@x.com' },
+    { id: 'c-2', nombre: 'Pedro', correo: null },
+  ];
+
+  it('con contactos vigentes sugiere el primero (el servidor lista el principal antes)', () => {
+    expect(contactoSugeridoRfq(contactos, null)).toBe('c-principal');
+    // Un contacto vigente real gana sobre los datos de cabecera del cliente.
+    expect(
+      contactoSugeridoRfq(contactos, { nombre: 'Otro', correo: null, telefono: null }),
+    ).toBe('c-principal');
+  });
+
+  it('sin contactos usa los datos propios del cliente cuando traen nombre', () => {
+    expect(
+      contactoSugeridoRfq([], { nombre: 'Ana Pérez', correo: 'ana@x.com', telefono: null }),
+    ).toBe(VALOR_CONTACTO_PRINCIPAL);
+  });
+
+  it('no inventa un contacto: sin nombre o sin datos no sugiere nada', () => {
+    expect(contactoSugeridoRfq([], null)).toBe('');
+    expect(contactoSugeridoRfq([], { nombre: null, correo: null, telefono: null })).toBe('');
+    expect(contactoSugeridoRfq([], { nombre: '  ', correo: 'a@x.com', telefono: '664 1' })).toBe('');
+    expect(contactoSugeridoRfq([], { nombre: null, correo: 'a@x.com', telefono: null })).toBe('');
   });
 });

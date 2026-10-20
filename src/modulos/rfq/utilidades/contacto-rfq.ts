@@ -8,6 +8,21 @@ export type ContactoClienteRfq = { id: string; nombre: string; correo: string | 
 export type OpcionContactoRfq = { valor: string; etiqueta: string };
 
 /**
+ * Contacto que se preselecciona cuando el RFQ aún no tiene uno guardado: el
+ * primero de los vigentes del cliente (el servidor lista el principal antes) o,
+ * si no hay ninguno, el contacto propio del cliente solo cuando trae nombre.
+ * Sin datos suficientes devuelve '' (nada que sugerir): jamás se inventa uno.
+ */
+export function contactoSugeridoRfq(
+  contactos: readonly ContactoClienteRfq[],
+  principal: ContactoPrincipalClienteRfq | null,
+): string {
+  const vigente = contactos[0];
+  if (vigente) return vigente.id;
+  return principal?.nombre?.trim() ? VALOR_CONTACTO_PRINCIPAL : '';
+}
+
+/**
  * Arma las opciones del campo "Contacto del cliente" de la Solicitud: primero
  * los contactos vigentes del cliente y, si el cliente trae datos propios que no
  * coinciden con ninguno, una opción para usarlos (se materializa al guardar).

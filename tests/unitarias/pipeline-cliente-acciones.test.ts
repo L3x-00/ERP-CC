@@ -14,6 +14,8 @@ const {
   generarFolioMock,
   obtenerClienteParaRfqMock,
   obtenerOportunidadMock,
+  resolverContactoMock,
+  retirarContactoMock,
 } = vi.hoisted(() => ({
   obtenerUsuarioMock: vi.fn(),
   canMock: vi.fn(),
@@ -26,6 +28,8 @@ const {
   generarFolioMock: vi.fn(),
   obtenerClienteParaRfqMock: vi.fn(),
   obtenerOportunidadMock: vi.fn(),
+  resolverContactoMock: vi.fn(),
+  retirarContactoMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
@@ -70,6 +74,10 @@ vi.mock('@/modulos/pipeline/servicios/obtener-cliente-para-rfq', () => ({
 }));
 vi.mock('@/modulos/pipeline/servicios/obtener-oportunidad-por-id', () => ({
   obtenerOportunidadPorId: (...args: unknown[]) => obtenerOportunidadMock(...args),
+}));
+vi.mock('@/modulos/rfq/servicios/contacto-vigente-cliente', () => ({
+  resolverContactoVigenteCliente: (...args: unknown[]) => resolverContactoMock(...args),
+  retirarContactoRecienCreado: (...args: unknown[]) => retirarContactoMock(...args),
 }));
 
 import { crearProspectoAccion } from '@/modulos/pipeline/acciones/crear-prospecto';
@@ -151,6 +159,9 @@ beforeEach(() => {
   });
   obtenerOportunidadMock.mockResolvedValue({ oportunidad: OPORTUNIDAD, lineas: [] });
   obtenerClienteParaRfqMock.mockResolvedValue({ id: CLIENTE_ID, condicionesPago: '30_dias' });
+  // Por defecto el cliente no tiene contacto vigente que sugerir.
+  resolverContactoMock.mockResolvedValue({ estado: 'sin_datos' });
+  retirarContactoMock.mockResolvedValue(undefined);
 });
 
 describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
@@ -536,5 +547,254 @@ describe('asignarClienteOportunidadAccion', () => {
 
     expect(respuesta).toEqual({ exito: false, error: 'No autorizado' });
     expect(obtenerOportunidadMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('crearProspectoAccion — contacto vigente del cliente por defecto', () => {
+  function conPermisos(...permisos: string[]): void {
+    canMock.mockImplementation(async (_usuario: unknown, permiso: string) =>
+      permisos.includes(permiso),
+    );
+  }
+
+  it('contacto existente/principal: sin elección explícita liga el contacto vigente del cliente', async () => {
+    resolverContactoMock.mockResolvedValue({ estado: 'vinculable', id: CONTACTO_ID, creado: false });
+
+    const respuesta = await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+
+    expect(respuesta.exito).toBe(true);
+    expect(resolverContactoMock).toHaveBeenCalledWith(expect.anything(), {
+      clienteId: CLIENTE_ID,
+      actorId: VENDEDOR_ID,
+      puedeCrear: false,
+      // El nombre, correo y teléfono ya capturados en el alta viajan como respaldo.
+      capturado: { nombre: 'Ana Pérez', correo: undefined, telefono: '664 000 0000' },
+    });
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cliente_id: CLIENTE_ID, contacto_id: CONTACTO_ID }),
+    );
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      VENDEDOR,
+      'crear',
+      'pipeline',
+      OPORTUNIDAD_ID,
+      { folioOp: 'OP-000001', clienteId: CLIENTE_ID, estadoRfq: 'INCOMPLETE', contactoAutomatico: CONTACTO_ID },
+      'corr-rfq-1',
+    );
+  });
+
+  it('crear el contacto exige rfq_editar y cliente_editar además de rfq_crear', async () => {
+    for (const permisos of [
+      ['rfq_crear', 'rfq_editar'],
+      ['rfq_crear', 'cliente_editar'],
+      ['rfq_crear'],
+    ]) {
+      resolverContactoMock.mockClear();
+      conPermisos(...permisos);
+      await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+      expect(resolverContactoMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ puedeCrear: false }),
+      );
+    }
+
+    resolverContactoMock.mockClear();
+    conPermisos('rfq_crear', 'rfq_editar', 'cliente_editar');
+    await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+    expect(resolverContactoMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ puedeCrear: true }),
+    );
+  });
+
+  it('principal del cliente: acepta el contacto creado con sus datos y audita la creación', async () => {
+    conPermisos('rfq_crear', 'rfq_editar', 'cliente_editar');
+    resolverContactoMock.mockResolvedValue({ estado: 'vinculable', id: CONTACTO_ID, creado: true });
+
+    await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ contacto_id: CONTACTO_ID }));
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      VENDEDOR,
+      'crear',
+      'clientes',
+      CLIENTE_ID,
+      { contactoId: CONTACTO_ID, origen: 'rfq_alta_automatico', rfqId: OPORTUNIDAD_ID },
+      'corr-rfq-1',
+    );
+    expect(retirarContactoMock).not.toHaveBeenCalled();
+  });
+
+  it('si el RFQ no se inserta retira el contacto recién creado', async () => {
+    conPermisos('rfq_crear', 'rfq_editar', 'cliente_editar');
+    resolverContactoMock.mockResolvedValue({ estado: 'vinculable', id: CONTACTO_ID, creado: true });
+    singleMock.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+    const respuesta = await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+
+    expect(respuesta.exito).toBe(false);
+    expect(retirarContactoMock).toHaveBeenCalledWith(expect.anything(), CONTACTO_ID);
+    expect(registrarLogMock).not.toHaveBeenCalled();
+  });
+
+  it('si el RFQ no se inserta no retira un contacto que ya existía', async () => {
+    resolverContactoMock.mockResolvedValue({ estado: 'vinculable', id: CONTACTO_ID, creado: false });
+    singleMock.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+    await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+
+    expect(retirarContactoMock).not.toHaveBeenCalled();
+  });
+
+  it('sin permiso para crear: solo liga contactos ya registrados y el RFQ nace igual', async () => {
+    resolverContactoMock.mockResolvedValue({ estado: 'sin_permiso' });
+
+    const respuesta = await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+
+    expect(respuesta.exito).toBe(true);
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ contacto_id: null }));
+    expect(retirarContactoMock).not.toHaveBeenCalled();
+  });
+
+  it('no sobrescribe el contacto elegido explícitamente', async () => {
+    resolverContactoMock.mockResolvedValue({ estado: 'vinculable', id: 'otro-contacto', creado: false });
+
+    await crearProspectoAccion({
+      ...ALTA_BASE,
+      clienteId: CLIENTE_ID,
+      contactoId: CONTACTO_ID,
+    });
+
+    expect(resolverContactoMock).not.toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ contacto_id: CONTACTO_ID }));
+  });
+
+  it('sin datos del cliente: el RFQ nace sin contacto, sin inventar uno', async () => {
+    resolverContactoMock.mockResolvedValue({ estado: 'sin_datos' });
+
+    const respuesta = await crearProspectoAccion({ ...ALTA_BASE, clienteId: CLIENTE_ID });
+
+    expect(respuesta.exito).toBe(true);
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cliente_id: CLIENTE_ID, contacto_id: null }),
+    );
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      VENDEDOR,
+      'crear',
+      'pipeline',
+      OPORTUNIDAD_ID,
+      { folioOp: 'OP-000001', clienteId: CLIENTE_ID, estadoRfq: 'INCOMPLETE' },
+      'corr-rfq-1',
+    );
+  });
+
+  it('sin cliente del catálogo no busca ningún contacto', async () => {
+    await crearProspectoAccion(ALTA_BASE);
+
+    expect(resolverContactoMock).not.toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ contacto_id: null }));
+  });
+});
+
+describe('asignarClienteOportunidadAccion — contacto al cambiar de cliente', () => {
+  const entrada = { id: OPORTUNIDAD_ID, clienteId: CLIENTE_ID, heredarCondiciones: true };
+
+  function conOportunidad(
+    contactoId: string | null,
+    estadoRfq: Oportunidad['estadoRfq'] = 'INCOMPLETE',
+  ): void {
+    obtenerOportunidadMock.mockResolvedValue({
+      oportunidad: { ...OPORTUNIDAD, estadoRfq, contactoId },
+      lineas: [],
+    });
+  }
+
+  // La captura en curso (INCOMPLETE) es donde se liga el cliente.
+  beforeEach(() => conOportunidad(null));
+
+  function contactoDeOtroCliente(): void {
+    seleccionMaybeSingleMock.mockImplementation(async (tabla: string) =>
+      tabla === 'contactos_cliente'
+        ? { data: { id: CONTACTO_ID, cliente_id: 'otro-cliente', activo: true }, error: null }
+        : { data: null, error: null },
+    );
+  }
+
+  it('nunca crea ni busca contactos: eso lo hace la acción de vinculación con sus permisos', async () => {
+    const respuesta = await asignarClienteOportunidadAccion(entrada);
+
+    expect(respuesta.exito).toBe(true);
+    expect(resolverContactoMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledWith({
+      cliente_id: CLIENTE_ID,
+      condiciones_pago: '30_dias',
+    });
+  });
+
+  it('conserva un contacto ya elegido que pertenece al nuevo cliente', async () => {
+    conOportunidad(CONTACTO_ID);
+
+    const respuesta = await asignarClienteOportunidadAccion(entrada);
+
+    expect(respuesta.exito).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith({
+      cliente_id: CLIENTE_ID,
+      condiciones_pago: '30_dias',
+    });
+  });
+
+  it('desliga un contacto que pertenece a otro cliente (ya no es válido para este RFQ)', async () => {
+    conOportunidad(CONTACTO_ID);
+    contactoDeOtroCliente();
+
+    await asignarClienteOportunidadAccion(entrada);
+
+    expect(updateMock).toHaveBeenCalledWith({
+      cliente_id: CLIENTE_ID,
+      condiciones_pago: '30_dias',
+      contacto_id: null,
+    });
+    expect(registrarLogMock).toHaveBeenCalledWith(
+      VENDEDOR,
+      'asignar_cliente_oportunidad',
+      'pipeline',
+      OPORTUNIDAD_ID,
+      { clienteId: CLIENTE_ID, condicionesPago: '30_dias', contactoDesligado: CONTACTO_ID },
+    );
+  });
+
+  it('no modifica el vínculo si falla la consulta del contacto', async () => {
+    conOportunidad(CONTACTO_ID);
+    seleccionMaybeSingleMock.mockImplementation(async (tabla: string) =>
+      tabla === 'contactos_cliente'
+        ? { data: null, error: { message: 'Error de lectura' } }
+        : { data: null, error: null },
+    );
+
+    const respuesta = await asignarClienteOportunidadAccion(entrada);
+
+    expect(respuesta.exito).toBe(false);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('un RFQ ya convertido (congelado) conserva su contacto aunque sea de otro cliente', async () => {
+    conOportunidad(CONTACTO_ID, 'CONVERTED');
+    contactoDeOtroCliente();
+
+    await asignarClienteOportunidadAccion(entrada);
+
+    expect(updateMock).toHaveBeenCalledWith({
+      cliente_id: CLIENTE_ID,
+      condiciones_pago: '30_dias',
+    });
+  });
+
+  it('al desligar el cliente no toca el contacto', async () => {
+    conOportunidad(CONTACTO_ID);
+    contactoDeOtroCliente();
+
+    await asignarClienteOportunidadAccion({ ...entrada, clienteId: null });
+
+    expect(updateMock).toHaveBeenCalledWith({ cliente_id: null, condiciones_pago: null });
   });
 });
