@@ -1,3 +1,5 @@
+import { dimensionMaterialMm } from '@/modulos/catalogos/validaciones/indice';
+
 import type { FuenteCosto } from '../tipos/materiales-costos';
 
 const ETIQUETAS_FUENTE: Record<FuenteCosto, string> = {
@@ -38,4 +40,34 @@ export function formatearFechaDia(valor: string | null): string {
     day: 'numeric',
     timeZone: 'UTC',
   }).format(fecha);
+}
+
+const FORMATO_DIMENSION_MM = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 3 });
+
+/**
+ * Interpreta el texto de un campo de dimensión (mm) del formulario: vacío es
+ * «sin dato» (null); con valor debe cumplir el mismo esquema que valida el
+ * servidor, para no divergir de él.
+ */
+export function interpretarDimensionMm(
+  texto: string,
+  etiqueta: 'ancho' | 'largo',
+): { valor: number | null } | { error: string } {
+  const limpio = texto.trim();
+  if (limpio === '') return { valor: null };
+  const analisis = dimensionMaterialMm(etiqueta).safeParse(Number(limpio));
+  if (!analisis.success) {
+    return { error: analisis.error.issues[0]?.message ?? `El ${etiqueta} no es válido` };
+  }
+  return { valor: analisis.data };
+}
+
+/** Ancho × largo en mm para listados; `—` si el material no tiene dimensiones. */
+export function formatearDimensionesMm(anchoMm: number | null, largoMm: number | null): string {
+  if (anchoMm !== null && largoMm !== null) {
+    return `${FORMATO_DIMENSION_MM.format(anchoMm)} × ${FORMATO_DIMENSION_MM.format(largoMm)} mm`;
+  }
+  if (anchoMm !== null) return `Ancho ${FORMATO_DIMENSION_MM.format(anchoMm)} mm`;
+  if (largoMm !== null) return `Largo ${FORMATO_DIMENSION_MM.format(largoMm)} mm`;
+  return '—';
 }

@@ -17,6 +17,7 @@ import { formatearMoneda } from '@/compartido/utilidades/formatear';
 
 import { usarMutacionesCostosMateriales } from '../hooks/usar-mutaciones-costos-materiales';
 import type { MaterialCosto, MonedaCosto } from '../tipos/materiales-costos';
+import { interpretarDimensionMm } from '../utilidades/materiales-costos';
 
 /** Fila editable de espesor dentro del modal (mm como texto para el input). */
 type FilaEspesor = {
@@ -34,6 +35,11 @@ function nuevaClave(): string {
 
 function hoy(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Texto del input de una dimensión opcional: vacío si el material no la tiene. */
+function textoDimension(valor: number | null | undefined): string {
+  return typeof valor === 'number' ? String(valor) : '';
 }
 
 function filaDesdeMaterial(material: MaterialCosto, indice: number): FilaEspesor {
@@ -66,6 +72,8 @@ export function ModalGuardarMaterial({
   const [codigo, setCodigo] = useState(material?.codigo ?? '');
   const [nombre, setNombre] = useState(material?.nombre ?? '');
   const [unidadBase, setUnidadBase] = useState(material?.unidadBase ?? '');
+  const [anchoMm, setAnchoMm] = useState(textoDimension(material?.anchoMm));
+  const [largoMm, setLargoMm] = useState(textoDimension(material?.largoMm));
   const [padreId, setPadreId] = useState(material?.padreId ?? '');
   const [activo, setActivo] = useState(material?.activo ?? true);
   const [orden, setOrden] = useState(String(material?.orden ?? 0));
@@ -111,6 +119,16 @@ export function ModalGuardarMaterial({
       setMensaje('Escribe la unidad base (p. ej. m2, kg, pieza)');
       return;
     }
+    const ancho = interpretarDimensionMm(anchoMm, 'ancho');
+    if ('error' in ancho) {
+      setMensaje(ancho.error);
+      return;
+    }
+    const largo = interpretarDimensionMm(largoMm, 'largo');
+    if ('error' in largo) {
+      setMensaje(largo.error);
+      return;
+    }
     if (espesores.some((fila) => !fila.etiqueta.trim() || !(Number(fila.espesorMm) > 0))) {
       setMensaje('Revisa la etiqueta y los mm de cada espesor');
       return;
@@ -123,6 +141,9 @@ export function ModalGuardarMaterial({
         codigo: codigo.trim().toUpperCase(),
         nombre: nombre.trim(),
         unidadBase: unidadBase.trim(),
+        // null limpia la dimensión guardada; el campo vacío es «sin dato».
+        anchoMm: ancho.valor,
+        largoMm: largo.valor,
         padreId: padreId || null,
         activo,
         orden: Number(orden) || 0,
@@ -256,6 +277,37 @@ export function ModalGuardarMaterial({
               <option value="rollo" />
             </datalist>
           </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="material-catalogo-ancho">Ancho (mm)</Label>
+            <Input
+              id="material-catalogo-ancho"
+              type="number"
+              inputMode="decimal"
+              min={0.001}
+              max={99999.999}
+              step={0.001}
+              value={anchoMm}
+              onChange={(evento) => setAnchoMm(evento.target.value)}
+              placeholder="Sin ancho"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="material-catalogo-largo">Largo (mm)</Label>
+            <Input
+              id="material-catalogo-largo"
+              type="number"
+              inputMode="decimal"
+              min={0.001}
+              max={99999.999}
+              step={0.001}
+              value={largoMm}
+              onChange={(evento) => setLargoMm(evento.target.value)}
+              placeholder="Sin largo"
+            />
+          </div>
+          <p className="text-xs text-texto-secundario sm:col-span-2">
+            Dimensiones opcionales del material (hasta 3 decimales). Déjalas vacías si no aplican.
+          </p>
           <div className="flex items-end gap-4">
             <label className="flex items-center gap-2 text-sm">
               <input

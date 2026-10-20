@@ -29,6 +29,12 @@ function mensajeGuardado(error: unknown): string {
   if (texto.includes('duplicate key') || texto.includes('catalogo_materiales_codigo_key')) {
     return 'Ya existe un material con ese código';
   }
+  if (texto.includes('catalogo_materiales_ancho_mm_valido')) {
+    return 'El ancho debe ser mayor que cero y no exceder el máximo soportado';
+  }
+  if (texto.includes('catalogo_materiales_largo_mm_valido')) {
+    return 'El largo debe ser mayor que cero y no exceder el máximo soportado';
+  }
   if (texto.includes('catalogo_espesores')) {
     return 'No se pudo guardar uno de los espesores';
   }
@@ -67,6 +73,9 @@ export async function guardarMaterialCatalogoAccion(
       orden: datos.orden,
       unidadBase: datos.unidadBase,
       padreId: datos.padreId ?? null,
+      // Omitidas se conservan en base; null limpia (ver guardarMaterialServicio).
+      ...(datos.anchoMm !== undefined ? { anchoMm: datos.anchoMm } : {}),
+      ...(datos.largoMm !== undefined ? { largoMm: datos.largoMm } : {}),
     });
     for (const espesor of datos.espesores) {
       await guardarEspesorServicio(admin, {
@@ -87,6 +96,8 @@ export async function guardarMaterialCatalogoAccion(
         codigo: material.codigo,
         unidadBase: datos.unidadBase,
         padreId: datos.padreId ?? null,
+        anchoMm: material.anchoMm,
+        largoMm: material.largoMm,
         espesores: datos.espesores.length,
       },
       correlationId,

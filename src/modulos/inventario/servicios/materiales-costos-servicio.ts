@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/compartido/tipos/supabase';
+import { dimensionMmDesdeFila } from '@/modulos/catalogos/tipos/indice';
 
 import type {
   EspesorMaterialCosto,
@@ -77,6 +78,8 @@ type FilaMaterialListado = {
   activo: boolean;
   orden: number;
   unidad_base: string;
+  ancho_mm: number | string | null;
+  largo_mm: number | string | null;
   moneda_costo: string;
   costo_vigente: number | null;
   fecha_vigencia_costo: string | null;
@@ -87,7 +90,7 @@ type FilaMaterialListado = {
 };
 
 const COLUMNAS_MATERIAL =
-  'id, codigo, nombre, activo, orden, unidad_base, moneda_costo, costo_vigente, fecha_vigencia_costo, costo_confirmado_en, costo_confirmado_por, actualizado_en, padre_id';
+  'id, codigo, nombre, activo, orden, unidad_base, ancho_mm, largo_mm, moneda_costo, costo_vigente, fecha_vigencia_costo, costo_confirmado_en, costo_confirmado_por, actualizado_en, padre_id';
 
 async function nombresDeUsuarios(
   cliente: SupabaseClient<Database>,
@@ -155,6 +158,8 @@ function aMaterialCosto(
     orden: fila.orden,
     padreId: fila.padre_id,
     unidadBase: fila.unidad_base,
+    anchoMm: dimensionMmDesdeFila(fila.ancho_mm),
+    largoMm: dimensionMmDesdeFila(fila.largo_mm),
     monedaCosto: monedaDe(fila.moneda_costo),
     costoVigente: fila.costo_vigente === null ? null : Number(fila.costo_vigente),
     fechaVigenciaCosto: fila.fecha_vigencia_costo,

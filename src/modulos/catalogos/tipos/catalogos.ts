@@ -22,6 +22,10 @@ export interface MaterialCatalogo {
   nombre: string;
   activo: boolean;
   orden: number;
+  /** Ancho nominal opcional en mm; null = sin dimensión registrada. */
+  anchoMm: number | null;
+  /** Largo nominal opcional en mm; null = sin dimensión registrada. */
+  largoMm: number | null;
   metadata: Record<string, unknown>;
   creadoEn: string;
   actualizadoEn: string;
@@ -141,6 +145,9 @@ export interface FilaMaterialCatalogo {
   nombre: string;
   activo: boolean;
   orden: number;
+  /** Opcionales: filas de consultas que no seleccionan las dimensiones. */
+  ancho_mm?: number | string | null;
+  largo_mm?: number | string | null;
   metadata: Json;
   creado_en: string;
   actualizado_en: string;
@@ -227,6 +234,16 @@ function esObjeto(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
 }
 
+/**
+ * Dimensión opcional en mm desde una fila (numeric puede llegar como texto).
+ * Ausente, nula o no finita se lee como «sin dimensión» (null).
+ */
+export function dimensionMmDesdeFila(valor: number | string | null | undefined): number | null {
+  if (valor === null || valor === undefined || valor === '') return null;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : null;
+}
+
 export function filaAMaterial(fila: FilaMaterialCatalogo): MaterialCatalogo {
   return {
     id: fila.id,
@@ -234,6 +251,8 @@ export function filaAMaterial(fila: FilaMaterialCatalogo): MaterialCatalogo {
     nombre: fila.nombre,
     activo: fila.activo,
     orden: fila.orden,
+    anchoMm: dimensionMmDesdeFila(fila.ancho_mm),
+    largoMm: dimensionMmDesdeFila(fila.largo_mm),
     metadata: esObjeto(fila.metadata) ? fila.metadata : {},
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,

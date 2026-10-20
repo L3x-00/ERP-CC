@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { dimensionMaterialMm } from '@/modulos/catalogos/validaciones/indice';
+
 const CODIGO_MATERIAL = /^[A-Z0-9][A-Z0-9_-]{1,48}$/;
 
 const escalaCuatroDecimales = (valor: number): boolean =>
@@ -24,6 +26,9 @@ export const esquemaGuardarMaterialInventario = z
     nombre: z.string().trim().min(2, 'El nombre es requerido').max(120),
     unidadBase: z.string().trim().min(1, 'La unidad es requerida').max(30),
     padreId: z.uuid('Grupo inválido').nullish(),
+    // Ancho y largo opcionales en mm: omitidos se conservan; null los limpia.
+    anchoMm: dimensionMaterialMm('ancho').nullish(),
+    largoMm: dimensionMaterialMm('largo').nullish(),
     activo: z.boolean().default(true),
     orden: ordenCatalogo.default(0),
     espesores: z

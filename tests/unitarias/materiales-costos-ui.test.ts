@@ -32,6 +32,8 @@ const MATERIAL_CON_COSTO: MaterialCosto = {
   padreId: null,
   espesores: [],
   unidadBase: 'kg',
+  anchoMm: null,
+  largoMm: null,
   monedaCosto: 'USD',
   costoVigente: 12.5,
   fechaVigenciaCosto: '2026-10-15',

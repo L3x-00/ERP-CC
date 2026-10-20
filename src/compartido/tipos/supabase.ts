@@ -4327,6 +4327,7 @@ export type Database = {
         Row: {
           activo: boolean
           actualizado_en: string
+          ancho_mm: number | null
           codigo: string
           costo_confirmado_en: string | null
           costo_confirmado_por: string | null
@@ -4334,6 +4335,7 @@ export type Database = {
           creado_en: string
           fecha_vigencia_costo: string | null
           id: string
+          largo_mm: number | null
           material_legacy_id: string | null
           metadata: Json
           moneda_costo: string
@@ -4345,6 +4347,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           actualizado_en?: string
+          ancho_mm?: number | null
           codigo: string
           costo_confirmado_en?: string | null
           costo_confirmado_por?: string | null
@@ -4352,6 +4355,7 @@ export type Database = {
           creado_en?: string
           fecha_vigencia_costo?: string | null
           id?: string
+          largo_mm?: number | null
           material_legacy_id?: string | null
           metadata?: Json
           moneda_costo?: string
@@ -4363,6 +4367,7 @@ export type Database = {
         Update: {
           activo?: boolean
           actualizado_en?: string
+          ancho_mm?: number | null
           codigo?: string
           costo_confirmado_en?: string | null
           costo_confirmado_por?: string | null
@@ -4370,6 +4375,7 @@ export type Database = {
           creado_en?: string
           fecha_vigencia_costo?: string | null
           id?: string
+          largo_mm?: number | null
           material_legacy_id?: string | null
           metadata?: Json
           moneda_costo?: string

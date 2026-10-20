@@ -18,6 +18,27 @@ const ordenCatalogo = z.number().int().min(0, 'El orden no puede ser negativo').
 
 const idOpcional = z.uuid('ID inválido').optional();
 
+/** Tope de `catalogo_materiales.ancho_mm/largo_mm` (mismo que el espesor). */
+export const DIMENSION_MATERIAL_MM_MAXIMA = 99_999.999;
+
+/**
+ * Ancho o largo del material en mm: positivo, finito y con tres decimales
+ * como máximo (la columna es numeric(10,3); más decimales se redondearían en
+ * silencio). Combinado con `.nullish()` en los esquemas: `undefined` conserva
+ * el valor guardado, `null` lo limpia.
+ */
+export function dimensionMaterialMm(etiqueta: 'ancho' | 'largo') {
+  return z
+    .number({ message: `El ${etiqueta} debe ser numérico` })
+    .refine(Number.isFinite, `El ${etiqueta} debe ser finito`)
+    .gt(0, `El ${etiqueta} debe ser mayor que cero`)
+    .max(DIMENSION_MATERIAL_MM_MAXIMA, `El ${etiqueta} excede el máximo soportado`)
+    .refine(
+      (valor) => Math.abs(valor * 1000 - Math.round(valor * 1000)) < 1e-6,
+      `El ${etiqueta} admite máximo 3 decimales`,
+    );
+}
+
 /** Material editable (B1.3; obs. 8: + unidad base y grupo/padre opcionales). */
 export const esquemaGuardarMaterial = z
   .object({
@@ -28,6 +49,9 @@ export const esquemaGuardarMaterial = z
     orden: ordenCatalogo.default(0),
     unidadBase: z.string().trim().min(1, 'La unidad es requerida').max(30).optional(),
     padreId: z.uuid('Grupo inválido').nullish(),
+    // Dimensiones opcionales: omitidas (undefined) se conservan; null las limpia.
+    anchoMm: dimensionMaterialMm('ancho').nullish(),
+    largoMm: dimensionMaterialMm('largo').nullish(),
   })
   .strict();
 

@@ -25,6 +25,8 @@ function material(id: string, codigo: string, activo = true, orden = 0): Materia
     nombre: `Material ${codigo}`,
     activo,
     orden,
+    anchoMm: null,
+    largoMm: null,
     metadata: {},
     creadoEn: '2026-10-05T00:00:00.000Z',
     actualizadoEn: '2026-10-05T00:00:00.000Z',
