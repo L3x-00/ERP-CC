@@ -231,6 +231,16 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await page.reload();
       const fila = page.getByTestId(`fila-orden-${folio}`);
       await expect(fila).toBeVisible();
+      const { data: propuestaOrigen, error: errorPropuestaOrigen } = await admin
+        .from('propuestas').select('folio_cnc').eq('id', contexto.propuestaId).single();
+      expect(errorPropuestaOrigen).toBeNull();
+      const enlacePropuesta = fila.getByTestId(`enlace-propuesta-${folio}`);
+      await expect(enlacePropuesta).toHaveText(propuestaOrigen!.folio_cnc);
+      await expect(enlacePropuesta).toHaveAttribute('href', `/propuestas?propuesta=${contexto.propuestaId}`);
+      await enlacePropuesta.click();
+      await page.waitForURL((url) => url.pathname === '/propuestas' && url.searchParams.get('propuesta') === contexto.propuestaId);
+      await page.goBack();
+      await expect(fila).toBeVisible();
       await expect(page.getByTestId(`estado-orden-${folio}`)).toContainText('Confirmada');
       await expect(fila.getByRole('button', { name: 'Iniciar', exact: true })).toHaveCount(0);
       await expect(fila.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0);

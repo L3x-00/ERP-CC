@@ -24,6 +24,7 @@ import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-v
 import { Button } from '@/compartido/componentes/ui/button';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
+import { enlacePropuestaOrigen } from '@/modulos/ordenes/utilidades/enlaces-origen';
 import {
   ESTADOS_SII_ORDEN,
   type EstadoSiiOrden,
@@ -49,6 +50,16 @@ export type PartidaTabla = {
   metasProceso: { id: string; secuencia: number; nombre: string; metaPiezas: number }[];
 };
 
+/**
+ * Propuesta de origen de la orden (revisión aceptada congelada). Solo folio humano, el id que
+ * arma el enlace y la letra de la revisión; ausente en órdenes internas manuales e históricas.
+ */
+export type OrigenPropuestaTabla = {
+  propuestaId: string;
+  propuestaFolio: string;
+  revisionLetra: string | null;
+};
+
 /** Orden tal como la necesita la tabla (proyección plana del servidor). */
 export type OrdenTabla = {
   id: string;
@@ -57,6 +68,8 @@ export type OrdenTabla = {
   folioSii: string | null;
   /** RFQ-10: folio comercial (CNC-…) de la cotización de origen, si es visible. */
   folioCotizacionCnc: string | null;
+  /** Propuesta de origen por folio; el enlace solo existe con `propuesta_vista`. */
+  origenPropuesta?: OrigenPropuestaTabla | null;
   estado: EstadoOrden;
   /** SII-B5.3: estado derivado del avance. */
   estadoSii: EstadoSiiOrden;
@@ -163,9 +176,58 @@ function tonoAvance(
   return 'acento';
 }
 
+const CLASE_ENLACE_PROPUESTA =
+  'rounded-sm font-mono text-acento underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40';
+
+/**
+ * Propuesta de origen bajo el folio de la orden: folio humano siempre; enlace a la propuesta
+ * solo con `propuesta_vista`. El nombre accesible del enlace incluye la orden para que sea único
+ * en la columna; el id interno nunca se imprime.
+ */
+function OrigenPropuestaOrden({
+  origen,
+  folioOrden,
+  puedeVer,
+}: {
+  origen: OrigenPropuestaTabla;
+  folioOrden: string;
+  puedeVer: boolean;
+}) {
+  const href = puedeVer ? enlacePropuestaOrigen(origen.propuestaId) : null;
+  const detalle = origen.revisionLetra
+    ? `Propuesta de origen, revisión aceptada ${origen.revisionLetra}`
+    : 'Propuesta de origen';
+
+  return (
+    <span
+      data-testid={`origen-propuesta-${folioOrden}`}
+      title={detalle}
+      className="font-sans text-xs font-normal text-texto-secundario"
+    >
+      Propuesta{' '}
+      {href !== null ? (
+        <Link
+          href={href}
+          // La cola puede listar cientos de órdenes: sin prefetch por fila (un destino distinto cada una).
+          prefetch={false}
+          data-testid={`enlace-propuesta-${folioOrden}`}
+          aria-label={`Propuesta ${origen.propuestaFolio}, origen de la orden ${folioOrden}`}
+          className={CLASE_ENLACE_PROPUESTA}
+        >
+          {origen.propuestaFolio}
+        </Link>
+      ) : (
+        <span className="font-mono">{origen.propuestaFolio}</span>
+      )}
+    </span>
+  );
+}
+
 type PropsTablaOrdenes = {
   ordenes: OrdenTabla[];
   puedeLiberar?: boolean;
+  /** Origen comercial: el folio de la propuesta enlaza a /propuestas solo con `propuesta_vista`. */
+  puedeVerPropuesta?: boolean;
 };
 
 /**
@@ -174,7 +236,11 @@ type PropsTablaOrdenes = {
  * el destino de Comentarios, Adjuntos, Cancelar, Cerrar y Documento) y una sola acción
  * contextual: Liberar. El estado deriva de la programación, las sesiones y las metas.
  */
-export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdenes) {
+export function TablaOrdenes({
+  ordenes,
+  puedeLiberar = false,
+  puedeVerPropuesta = false,
+}: PropsTablaOrdenes) {
   const router = useRouter();
   const filtroMaquina = usarTiendaOrdenes((estado) => estado.filtroMaquina);
   const filtrosEstado = usarTiendaOrdenes((estado) => estado.filtrosEstado);
@@ -419,6 +485,13 @@ export function TablaOrdenes({ ordenes, puedeLiberar = false }: PropsTablaOrdene
                           >
                             {orden.folioCotizacionCnc}
                           </span>
+                        )}
+                        {orden.origenPropuesta && (
+                          <OrigenPropuestaOrden
+                            origen={orden.origenPropuesta}
+                            folioOrden={folioVisible}
+                            puedeVer={puedeVerPropuesta}
+                          />
                         )}
                         {orden.archivadaEn && (
                           <span className="font-sans text-[10px] font-normal text-texto-tenue">

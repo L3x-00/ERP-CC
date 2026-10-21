@@ -6,6 +6,7 @@ import { SincronizadorOrdenesRealtime } from '@/modulos/ordenes/componentes/sinc
 import { TablaOrdenes, type OrdenTabla } from '@/modulos/ordenes/componentes/tabla-ordenes';
 import { obtenerOrdenesConPartidasServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { obtenerDatosComparativaServicio } from '@/modulos/ordenes/servicios/datos-comparativa-servicio';
+import { obtenerOrigenPropuestaOrdenesServicio } from '@/modulos/ordenes/servicios/origen-propuesta-ordenes-servicio';
 import { compararOrdenes } from '@/modulos/ordenes/utilidades/comparativa-ordenes';
 import { fechaKpiMexico } from '@/modulos/ordenes/utilidades/fecha-kpi';
 import { resumirOrdenes } from '@/modulos/ordenes/utilidades/resumen-ordenes';
@@ -32,12 +33,14 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   const idEnlazado = esquemaIdOrdenEnlace.safeParse(parametros.ordenId);
   if (idEnlazado.success) redirect(`/ordenes/${idEnlazado.data}?pestana=comentarios`);
 
-  const [mostrarVentas, puedeAdministrar, puedeCrearInterna, puedeLiberar] = await Promise.all([
-    can(usuario, 'ver_finanzas'),
-    can(usuario, 'aprobar_ordenes'),
-    can(usuario, 'orden_crear_interna'),
-    can(usuario, 'orden_liberar'),
-  ]);
+  const [mostrarVentas, puedeAdministrar, puedeCrearInterna, puedeLiberar, puedeVerPropuesta] =
+    await Promise.all([
+      can(usuario, 'ver_finanzas'),
+      can(usuario, 'aprobar_ordenes'),
+      can(usuario, 'orden_crear_interna'),
+      can(usuario, 'orden_liberar'),
+      can(usuario, 'propuesta_vista'),
+    ]);
   const cliente = await crearClienteSupabaseServidor();
   const puedeVerAltas = puedeAdministrar || puedeCrearInterna;
   const [ordenesConPartidas, resultadoAreas, catalogosRfq] = await Promise.all([
@@ -58,9 +61,13 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
   }
 
   const idsOrdenes = ordenesConPartidas.map(({ orden }) => orden.id);
-  const datosComparativa = await obtenerDatosComparativaServicio(
-    crearClienteSupabaseAdmin(), idsOrdenes, mostrarVentas,
-  );
+  const admin = crearClienteSupabaseAdmin();
+  // El folio de la propuesta de origen lo ve todo rol con orden_vista; propuesta_vista solo
+  // decide si es enlace (la RLS de propuestas no entra: se lee por la relación congelada).
+  const [datosComparativa, origenesPropuesta] = await Promise.all([
+    obtenerDatosComparativaServicio(admin, idsOrdenes, mostrarVentas),
+    obtenerOrigenPropuestaOrdenesServicio(admin, idsOrdenes),
+  ]);
   const hoy = fechaKpiMexico(new Date().toISOString());
   const resumen = resumirOrdenes(ordenesConPartidas,
     new Set(datosComparativa.entregas.map((nota) => nota.orden_id)), hoy);
@@ -72,6 +79,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
     folio: orden.folio,
     folioSii: orden.folioSii,
     folioCotizacionCnc: orden.folioCotizacionCnc ?? null,
+    origenPropuesta: origenesPropuesta[orden.id] ?? null,
     estado: orden.estado,
     estadoSii: orden.estadoSii,
     prioridad: orden.prioridad,
@@ -148,7 +156,11 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
             Consulta el detalle, los comentarios y el seguimiento operativo de cada orden.
           </p>
         </div>
-        <TablaOrdenes ordenes={ordenes} puedeLiberar={puedeLiberar} />
+        <TablaOrdenes
+          ordenes={ordenes}
+          puedeLiberar={puedeLiberar}
+          puedeVerPropuesta={puedeVerPropuesta}
+        />
       </section>
     </div>
   );
