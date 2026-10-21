@@ -40,6 +40,30 @@ vi.mock('@/modulos/propuestas/hooks/usar-propuesta', () => ({
           vencida: false,
           actualizadoEn: '2026-10-12T00:00:00+00:00',
         },
+        {
+          id: 'p-3',
+          folioCnc: 'CNC-0003',
+          estado: 'SENT',
+          rfqId: 'r-3',
+          folioRfq: 'OP-0003',
+          empresa: 'Beta',
+          clienteRazonSocial: 'Beta',
+          responsableId: 'u-1',
+          ultimaRevision: {
+            letra: 'B',
+            folioRevision: 'CNC-0003-B',
+            estado: 'SENT',
+            requiereRevisionRuteo: false,
+            requiereRevisionCosteo: false,
+          },
+          proximaAccion: {
+            codigo: 'WAIT_CUSTOMER_RESPONSE',
+            texto: 'Esperar respuesta del cliente',
+            fecha: '2026-10-19',
+          },
+          vencida: true,
+          actualizadoEn: '2026-10-12T00:00:00+00:00',
+        },
       ],
     },
   }),
@@ -69,5 +93,16 @@ describe('ColaPropuestas — columna RFQ (obs. cliente 3)', () => {
 
     const filaSinRfq = screen.getByRole('row', { name: /CNC-0002/ });
     expect(filaSinRfq.textContent).toContain('—');
+  });
+});
+
+describe('ColaPropuestas — revisión y próxima acción legibles (obs. cliente 2026-10-20)', () => {
+  it('muestra la revisión más reciente y la próxima acción en español con fecha de calendario', () => {
+    render(createElement(ColaPropuestas));
+
+    const fila = screen.getByRole('row', { name: /CNC-0003/ });
+    expect(fila.textContent).toContain('B · Enviada');
+    expect(fila.textContent).toContain('Esperar respuesta del cliente · 19 de octubre de 2026');
+    expect(fila.textContent).not.toContain('WAIT_CUSTOMER_RESPONSE');
   });
 });

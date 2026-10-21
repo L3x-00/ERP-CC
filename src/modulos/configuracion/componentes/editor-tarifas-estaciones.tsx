@@ -1,6 +1,8 @@
 'use client';
 
+import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
 import { Input } from '@/compartido/componentes/ui/input';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import {
   MATERIALES_COTIZADOR,
   type CatalogoTarifasCotizador,
@@ -44,14 +46,27 @@ function CampoNum({
   );
 }
 
-function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+/**
+ * Estación plegable: nace colapsada y su encabezado resume las tarifas vigentes
+ * para consultarlas sin desplegar. El contenido sigue montado (ver `PanelDesplegable`).
+ */
+function Seccion({
+  titulo,
+  resumen,
+  children,
+}: {
+  titulo: string;
+  resumen: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="grid gap-3 rounded-lg border border-borde p-3">
-      <h4 className="font-semibold text-texto-primario">{titulo}</h4>
-      {children}
-    </section>
+    <PanelDesplegable titulo={titulo} resumen={resumen} nivelTitulo="h4">
+      <div className="grid gap-3">{children}</div>
+    </PanelDesplegable>
   );
 }
+
+const porHora = (cantidad: number): string => `${formatearMoneda(cantidad)}/h`;
 
 export interface EditorTarifasEstacionesProps {
   valor: CatalogoTarifasCotizador;
@@ -77,7 +92,10 @@ export function EditorTarifasEstaciones({ valor, onCambio, deshabilitado }: Edit
         cada estación, en «Tarifario del ruteo».
       </p>
 
-      <Seccion titulo="Corte láser">
+      <Seccion
+        titulo="Corte láser"
+        resumen={`Máquina ${porHora(laser.maquinaHora)} · Preparación ${porHora(laser.preparacionHora)}`}
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <CampoNum etiqueta="Tarifa máquina por hora" valor={laser.maquinaHora} deshabilitado={deshabilitado}
             onCambio={(n) => onCambio({ ...valor, laser: { ...laser, maquinaHora: n } })} />
@@ -111,7 +129,10 @@ export function EditorTarifasEstaciones({ valor, onCambio, deshabilitado }: Edit
         </div>
       </Seccion>
 
-      <Seccion titulo="Router CNC">
+      <Seccion
+        titulo="Router CNC"
+        resumen={`Máquina ${porHora(router.maquinaHora)} · Preparación ${porHora(router.preparacionHora)}`}
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <CampoNum etiqueta="Tarifa máquina por hora" valor={router.maquinaHora} deshabilitado={deshabilitado}
             onCambio={(n) => onCambio({ ...valor, router: { ...router, maquinaHora: n } })} />
@@ -124,7 +145,10 @@ export function EditorTarifasEstaciones({ valor, onCambio, deshabilitado }: Edit
         </div>
       </Seccion>
 
-      <Seccion titulo="Dobladora">
+      <Seccion
+        titulo="Dobladora"
+        resumen={`Máquina ${porHora(doblado.maquinaHora)} · Preparación ${porHora(doblado.preparacionHora)}`}
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <CampoNum etiqueta="Tarifa máquina por hora" valor={doblado.maquinaHora} deshabilitado={deshabilitado}
             onCambio={(n) => onCambio({ ...valor, doblado: { ...doblado, maquinaHora: n } })} />
@@ -145,7 +169,10 @@ export function EditorTarifasEstaciones({ valor, onCambio, deshabilitado }: Edit
         </div>
       </Seccion>
 
-      <Seccion titulo="Fabricación">
+      <Seccion
+        titulo="Fabricación"
+        resumen={`Mano de obra ${porHora(fabricacion.manoObraHora)} · Soldadura ${porHora(fabricacion.soldaduraHora)}`}
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <CampoNum etiqueta="Tarifa mano de obra por hora" valor={fabricacion.manoObraHora} deshabilitado={deshabilitado}
             onCambio={(n) => onCambio({ ...valor, fabricacion: { ...fabricacion, manoObraHora: n } })} />

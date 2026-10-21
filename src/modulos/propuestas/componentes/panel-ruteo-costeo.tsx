@@ -52,7 +52,9 @@ type FilaRuteoBorrador = {
  *
  * Obs. cliente 2026-10-13: al elegir el proceso se rellena el grupo de equipo
  * (el configurado o el que se llama igual); la máquina ya no se captura (la
- * tarifa sale del grupo); y el costeo interno solo pide Material y Otros, porque
+ * tarifa sale del grupo); el grupo planeado ya no se captura en el ruteo: se
+ * hereda del proceso para que Planeación lo siga recibiendo; y el costeo
+ * interno solo pide Material y Otros, porque
  * máquina y mano de obra ya salen del ruteo costeado. Lo que falta para validar
  * (ruteo y costeo por proceso de cada ítem) se marca en rojo suave.
  */
@@ -438,7 +440,7 @@ export function PanelRuteoCosteo({
                 const tarifa = permisos.editarCosto ? tarifaDeFila(fila) : null;
                 const horasFila = (Number(fila.setupHoras) || 0) + (Number(fila.runHoras) || 0);
                 return (
-                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
                   <label className="flex flex-col gap-1">
                     <span className="text-xs text-texto-secundario">Proceso</span>
                     <Select
@@ -491,26 +493,6 @@ export function PanelRuteoCosteo({
                       {(catalogos?.gruposEquipo ?? []).map((grupo) => (
                         <option key={grupo.id} value={grupo.id}>
                           {grupo.sinTarifa ? `${grupo.nombre} (sin tarifa)` : grupo.nombre}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-xs text-texto-secundario">Grupo planeado</span>
-                    <Select
-                      value={fila.grupoPlaneadoId}
-                      onChange={(evento) => {
-                        const copia = [...filas];
-                        copia[indice] = { ...fila, grupoPlaneadoId: evento.target.value };
-                        actualizarFilas(item.id, copia);
-                      }}
-                      disabled={!esBorrador || !permisos.editarRuteo}
-                      aria-label={`Grupo planeado ${item.codigo} fila ${indice + 1}`}
-                    >
-                      <option value="">Planeado…</option>
-                      {(catalogos?.gruposPlaneados ?? []).map((grupo) => (
-                        <option key={grupo.id} value={grupo.id}>
-                          {grupo.nombre}
                         </option>
                       ))}
                     </Select>

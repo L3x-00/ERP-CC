@@ -237,6 +237,21 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await expect(page.getByTestId('seccion-tarifas-grupos')).toHaveCount(0);
       await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
       await expect(page.getByTestId('tarifario-ruteo')).toBeVisible();
+      // El tarifario nace plegado: el encabezado ya avisa que hay grupos sin tarifa y se despliega para editar.
+      const encabezadoTarifario = page
+        .getByTestId('tarifario-ruteo')
+        .getByRole('button', { name: /^Tarifario del ruteo/ });
+      await expect(encabezadoTarifario).toHaveAttribute('aria-expanded', 'false');
+      await expect(page.getByTestId('tarifario-resumen-sin-tarifa')).toBeVisible();
+      if (['1', 'si'].includes(process.env.E2E_CAPTURAR_VISUAL ?? '')) {
+        await page.screenshot({
+          path: '.ai-shared/qa/sii-b4-ola2/visual/config-tarifas-tc-1440-colapsado.png',
+          fullPage: true,
+          animations: 'disabled',
+        });
+      }
+      await encabezadoTarifario.click();
+      await expect(encabezadoTarifario).toHaveAttribute('aria-expanded', 'true');
 
       // Grupo sin tarifa ni estación: se marca y se avisa.
       const filaGrupo = page.getByTestId(`tarifa-grupo-${grupo.data.codigo}`);

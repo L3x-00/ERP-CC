@@ -6,6 +6,11 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import { esquemaFiltrosPropuestas } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 import type { EstadoPropuesta } from '@/modulos/propuestas/tipos/indice';
+import {
+  elegirProximaAccion,
+  elegirUltimaRevision,
+  textoProximaAccion,
+} from '@/modulos/propuestas/utilidades/cola-propuestas';
 
 export type FilaColaPropuesta = {
   id: string;
@@ -24,7 +29,8 @@ export type FilaColaPropuesta = {
     requiereRevisionRuteo: boolean;
     requiereRevisionCosteo: boolean;
   } | null;
-  proximaAccion: { codigo: string; fecha: string | null } | null;
+  /** `texto` ya viene en español (para «Otro», el detalle capturado). */
+  proximaAccion: { codigo: string; texto: string; fecha: string | null } | null;
   /** `true` si la próxima acción más próxima está vencida (fecha < hoy). */
   vencida: boolean;
   actualizadoEn: string;
@@ -45,7 +51,12 @@ type FilaCruda = {
     estado: string;
     requiere_revision_ruteo: boolean;
     requiere_revision_costeo: boolean;
-    propuesta_revision_acciones: { codigo: string; fecha: string | null }[];
+    propuesta_revision_acciones: {
+      codigo: string;
+      texto_otro: string | null;
+      fecha: string | null;
+      creado_en: string;
+    }[];
   }[];
 };
 
@@ -79,7 +90,7 @@ export async function obtenerPropuestasAccion(
       + 'pipeline!propuestas_rfq_id_fkey(folio_rfq, folio_op), '
       + 'propuesta_revisiones!propuesta_revisiones_propuesta_id_fkey('
       + 'letra, folio_revision, estado, requiere_revision_ruteo, requiere_revision_costeo, '
-      + 'propuesta_revision_acciones(codigo, fecha))',
+      + 'propuesta_revision_acciones(codigo, texto_otro, fecha, creado_en))',
     )
     .order('actualizado_en', { ascending: false })
     .limit(200);
@@ -110,16 +121,8 @@ export async function obtenerPropuestasAccion(
   const hoy = hoyIso();
   const filas = (data as unknown as FilaCruda[] | null) ?? [];
   const registros: FilaColaPropuesta[] = filas.map((fila) => {
-    const revisiones = fila.propuesta_revisiones ?? [];
-    const ultima = revisiones.find((revision) => revision.estado === 'DRAFT')
-      ?? revisiones[0]
-      ?? null;
-    const acciones = ultima?.propuesta_revision_acciones ?? [];
-    const proxima = acciones
-      .filter((accion) => accion.fecha !== null)
-      .sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? ''))[0]
-      ?? acciones[0]
-      ?? null;
+    const ultima = elegirUltimaRevision(fila.propuesta_revisiones ?? []);
+    const proxima = elegirProximaAccion(ultima?.propuesta_revision_acciones ?? []);
 
     return {
       id: fila.id,
@@ -139,7 +142,13 @@ export async function obtenerPropuestasAccion(
             requiereRevisionCosteo: ultima.requiere_revision_costeo,
           }
         : null,
-      proximaAccion: proxima ? { codigo: proxima.codigo, fecha: proxima.fecha } : null,
+      proximaAccion: proxima
+        ? {
+            codigo: proxima.codigo,
+            texto: textoProximaAccion(proxima.codigo, proxima.texto_otro),
+            fecha: proxima.fecha,
+          }
+        : null,
       vencida: proxima?.fecha != null && proxima.fecha < hoy,
       actualizadoEn: fila.actualizado_en,
     };

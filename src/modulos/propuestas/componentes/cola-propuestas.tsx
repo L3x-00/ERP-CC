@@ -19,6 +19,7 @@ import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-v
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { usarPropuestas } from '@/modulos/propuestas/hooks/usar-propuesta';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import {
   ESTADOS_PROPIESTA,
   type EstadoPropuesta,
@@ -194,7 +195,7 @@ export function ColaPropuestas() {
                   </TablaCelda>
                   <TablaCelda className={fila.vencida ? 'text-peligro-texto' : undefined}>
                     {fila.proximaAccion
-                      ? `${fila.proximaAccion.codigo}${fila.proximaAccion.fecha ? ` · ${fila.proximaAccion.fecha}` : ''}`
+                      ? `${fila.proximaAccion.texto}${fila.proximaAccion.fecha ? ` · ${formatearFechaCalendario(fila.proximaAccion.fecha)}` : ''}`
                       : '—'}
                   </TablaCelda>
                   <TablaCelda className="text-right text-xs tabular-nums">
