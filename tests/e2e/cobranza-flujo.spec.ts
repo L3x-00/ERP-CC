@@ -273,6 +273,8 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await expect(page.getByTestId('recibo-persistido')).toContainText(/REC-\d{6}/);
     await expect(page.getByTestId('recibo-persistido')).toContainText(referencia!.referencia_interna);
     await expect(page.getByTestId('recibo-persistido')).toContainText(`FAC-E2E-${datos.folioOrden}`);
+    const folioPrimerRecibo = (await page.getByTestId('recibo-persistido').textContent())?.match(/REC-\d{6}/)?.[0];
+    expect(folioPrimerRecibo).toBeDefined();
     await expect.poll(async () => {
       const { data } = await datos.admin.from('cuentas_por_cobrar').select('estado, saldo_pendiente').eq('id', datos.arId).single();
       return `${data?.estado}:${data?.saldo_pendiente}`;
@@ -286,6 +288,10 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.getByLabel('Tipo de cambio (MXN)').fill('18.5');
     await page.getByLabel('Referencia bancaria').fill('E2E-SOBREPAGO');
     await page.getByRole('button', { name: 'Registrar pago' }).click();
+    // La pantalla conserva el recibo del primer pago hasta que la acción del segundo termina (el
+    // recibo solo cambia al regresar la acción, ya con su log escrito): esperar a que cambie es lo
+    // que sincroniza el cierre del registro; con /REC-\d{6}/ a secas pasaría al instante.
+    await expect(page.getByTestId('recibo-persistido')).not.toContainText(folioPrimerRecibo!);
     await expect(page.getByTestId('recibo-persistido')).toContainText(/REC-\d{6}/);
     await expect.poll(async () => {
       const { data } = await datos.admin.from('cuentas_por_cobrar').select('estado, saldo_pendiente').eq('id', datos.arId).single();
@@ -299,8 +305,12 @@ test.describe.serial('flujo de Cobranza AR', () => {
     expect(Number(monedero?.saldo_a_favor)).toBe(185);
     const { data: movimientos } = await datos.admin.from('movimientos_saldo_favor').select('monto, moneda, tipo').eq('ar_id_origen', datos.arId);
     expect(movimientos).toContainEqual({ monto: 185, moneda: 'MXN', tipo: 'credito_sobrepago' });
-    const { data: logs } = await datos.admin.from('logs').select('accion').eq('modulo', 'cobranza').eq('usuario_id', datos.administradorId);
-    expect((logs ?? []).filter((log) => log.accion === 'registrar_pago_ar')).toHaveLength(2);
+    // La auditoría se inserta en una llamada aparte DESPUÉS de que la RPC confirma el pago: el estado
+    // de la cuenta ya puede verse cuando el log todavía no existe, así que se espera en vez de leer una vez.
+    await expect.poll(async () => {
+      const { data: logs } = await datos.admin.from('logs').select('accion').eq('modulo', 'cobranza').eq('usuario_id', datos.administradorId);
+      return (logs ?? []).filter((log) => log.accion === 'registrar_pago_ar').length;
+    }).toBe(2);
     await observador.close();
   });
 
