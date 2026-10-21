@@ -21,9 +21,11 @@ function horasTranscurridas(desde: string, ahora: number): number | null {
 export interface PestanaTarifasProps {
   configuracion: ConfiguracionSistema;
   onGuardado: (configuracion: ConfiguracionSistema) => void;
+  /** Atajo a «Catálogos base» (alta de grupos y máquinas); solo con permiso para verlo. */
+  onIrACatalogosBase?: () => void;
 }
 
-export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProps) {
+export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }: PestanaTarifasProps) {
   const [tarifas, setTarifas] = useState<TarifasCotizadorConfig>(configuracion.tarifas);
   const [tipoCambio, setTipoCambio] = useState(String(configuracion.tipoCambioUsd));
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
           </p>
         ) : null}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid items-start gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora predeterminado (MXN)
           <Input id="configuracion-costo-hora" type="number" min="0" step="0.01" value={tarifas.costoHoraDefault} onChange={(e) => cambiarTarifa('costoHoraDefault', e.target.value)} required />
         </label>
@@ -114,13 +116,16 @@ export function PestanaTarifas({ configuracion, onGuardado }: PestanaTarifasProp
           deshabilitado={guardando}
         />
       </fieldset>
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Barra pegada al borde inferior: con las estaciones desplegadas el botón queda a mano sin recorrer el formulario. */}
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-borde bg-superficie/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar tarifas y TC'}</Button>
         <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-texto-secundario">Vigente: {configuracion.tipoCambioUsd.toFixed(4)} MXN/USD</output>
         {mensaje ? <p role="status" className="text-sm text-texto-secundario">{mensaje}</p> : null}
       </div>
     </form>
-    <SeccionTarifarioRuteo />
+    <SeccionTarifarioRuteo
+      {...(onIrACatalogosBase ? { onIrACatalogosBase } : {})}
+    />
     </div>
   );
 }

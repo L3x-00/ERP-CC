@@ -182,6 +182,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
             key={`tarifas-${vigente.configuracion.actualizadoEn}`}
             configuracion={vigente.configuracion}
             onGuardado={actualizarConfiguracion}
+            {...(puedeVerCatalogosBase ? { onIrACatalogosBase: () => cambiarPestana('catalogos-base') } : {})}
           />
         ) : null}
         {pestana === 'catalogos' ? (
