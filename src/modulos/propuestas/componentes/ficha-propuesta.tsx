@@ -287,7 +287,11 @@ export function FichaPropuesta({
             />
           )}
           {pestana === 'actividad' && (
-            <ActividadPropuesta revision={revisionActiva} eventos={detalle.eventos} />
+            <ActividadPropuesta
+              revision={revisionActiva}
+              eventos={detalle.eventos}
+              catalogos={catalogosDatos}
+            />
           )}
         </>
       )}
