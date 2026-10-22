@@ -1,3 +1,23 @@
+## Corte 2026-10-22 — Plazo comercial del RFQ (obs. cliente punto 6) · PR #105
+
+Rama `feat/rfq-plazo-comercial` (apilada sobre #104).
+
+- [x] **Plazo comercial:** campo opcional de texto libre (≤ 120) en el alta del RFQ y en el Resumen; el Resumen
+  declara «Fecha compromiso comercial: Se confirma al aceptar la propuesta». No obliga a inventar una fecha ni
+  alimenta el compromiso ni la fecha operativa.
+- [x] **Versionado/congelamiento:** `plazo_comercial` entra al snapshot de `rfq_versiones` y a la cabecera congelada
+  al crear la Rev A; el historial de versiones muestra también la fecha requerida.
+- [x] **Aceptación de la Propuesta:** al confirmar la fecha compromiso se muestra «El cliente pidió… · Plazo
+  ofrecido…» como referencia (la fecha compromiso sigue siendo obligatoria).
+- [x] **Migración** `20261022120000_rfq_plazo_comercial.sql` (columna + dos funciones): aplicada solo en local;
+  **pendiente de aplicación remota por el PO antes o junto con el despliegue** (la ficha del RFQ la lee).
+- [ ] Plazo comercial en el PDF de la Propuesta: fuera de este corte.
+
+**Pruebas:** typecheck y ESLint focal 0; unitarias `rfq-`/`pipeline-`/`propuestas-`/`auditoria-` 70 archivos / 835 en
+verde; pgTAP `c2_1` 33/33 + `sii_b4_propuestas` 88, `b4_obs2` 25, `sii_b5_orden` 69, `sii_b3_rfq_consumidores` 17;
+E2E `rfq-flujo` 2/2 en loopback (el alta captura el plazo y el Resumen lo muestra). Suite completa, pgTAP completo y
+capturas visuales: no corridos.
+
 ## Corte 2026-10-21 — DC-06 (resultado al sustituir el seguimiento) y DC-09 (fecha compromiso desde la aceptación) · PR #104
 
 Rama `feat/rfq-seguimiento-resultado-y-dc09`, commits `f6ace27` y `b3f434b`.
