@@ -73,6 +73,7 @@ export function FormularioGeneralRfq({
   const [fechaRequeridaCliente, setFechaRequeridaCliente] = useState(
     rfq.fechaRequeridaCliente?.slice(0, 10) ?? '',
   );
+  const [plazoComercial, setPlazoComercial] = useState(rfq.plazoComercial ?? '');
   const [descripcionGeneral, setDescripcionGeneral] = useState(rfq.descripcionGeneral ?? '');
   // null = la persona aún no tocó el selector; '' ("Sin contacto") es una elección
   // explícita y nunca se reemplaza por la sugerencia.
@@ -206,6 +207,7 @@ export function FormularioGeneralRfq({
         canalDetalle: canalSeleccionado?.esOtro ? canalDetalle.trim() || null : null,
         fechaSolicitud: fechaSolicitud || null,
         fechaRequeridaCliente: fechaRequeridaCliente || null,
+        plazoComercial: plazoComercial.trim() || null,
         descripcionGeneral: descripcionGeneral.trim() || null,
         contactoId: contactoIdFinal,
         responsableId: responsableId || null,
@@ -287,6 +289,22 @@ export function FormularioGeneralRfq({
           <p id="rfq-fecha-requerida-ayuda" className="text-xs text-texto-secundario">
             Fecha solicitada por el cliente para recibir el trabajo. No representa todavía una
             fecha compromiso de nuestra empresa.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+          <Label htmlFor="rfq-plazo-comercial">Plazo comercial (opcional)</Label>
+          <Input
+            id="rfq-plazo-comercial"
+            value={plazoComercial}
+            onChange={(evento) => setPlazoComercial(evento.target.value)}
+            maxLength={120}
+            disabled={!editable}
+            placeholder="Ej. Fabricación 5-7 días"
+            aria-describedby="rfq-plazo-comercial-ayuda"
+          />
+          <p id="rfq-plazo-comercial-ayuda" className="text-xs text-texto-secundario">
+            Si el cliente no pidió una fecha, escribe aquí el plazo que ofreces. La fecha
+            compromiso se confirma después, al aceptar la propuesta.
           </p>
         </div>
         {canalSeleccionado?.esOtro && (

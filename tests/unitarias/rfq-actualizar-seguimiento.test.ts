@@ -205,3 +205,52 @@ describe('actualizarDatosRfqAccion — seguimiento al editar el Resumen (obs. 20
     });
   });
 });
+
+describe('actualizarDatosRfqAccion — plazo comercial (obs. cliente 2026-10-21)', () => {
+  // Misma acción vigente (solo se mueve la fecha): no pide resultado y aísla el plazo.
+  const SIN_CAMBIO_DE_ACCION = {
+    ...BASE,
+    proximaAccionCodigo: 'FOLLOW_UP',
+    fechaProximaAccion: enDias(9),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    obtenerUsuarioMock.mockResolvedValue({ id: USUARIO_ID, rol: 'vendedor', activo: true });
+    canMock.mockResolvedValue(true);
+    filaPipelineMock.mockResolvedValue(filaVigente());
+    rpcMock.mockResolvedValue({ error: null });
+  });
+
+  it('guarda el plazo recortado, sin tocar fecha compromiso ni fecha requerida', async () => {
+    const respuesta = await actualizarDatosRfqAccion({
+      ...SIN_CAMBIO_DE_ACCION,
+      plazoComercial: '  Fabricación 5-7 días  ',
+    });
+
+    expect(respuesta.exito).toBe(true);
+    const guardado = actualizarMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(guardado.plazo_comercial).toBe('Fabricación 5-7 días');
+    expect(guardado).not.toHaveProperty('fecha_requerida');
+    expect(guardado).not.toHaveProperty('fecha_compromiso');
+  });
+
+  it('un plazo vacío lo limpia y un campo ausente conserva el guardado', async () => {
+    await actualizarDatosRfqAccion({ ...SIN_CAMBIO_DE_ACCION, plazoComercial: '   ' });
+    expect(actualizarMock.mock.calls[0]?.[0]).toHaveProperty('plazo_comercial', null);
+
+    actualizarMock.mockClear();
+    await actualizarDatosRfqAccion(SIN_CAMBIO_DE_ACCION);
+    expect(actualizarMock.mock.calls[0]?.[0]).not.toHaveProperty('plazo_comercial');
+  });
+
+  it('rechaza un plazo de más de 120 caracteres antes de consultar nada', async () => {
+    const respuesta = await actualizarDatosRfqAccion({
+      ...SIN_CAMBIO_DE_ACCION,
+      plazoComercial: 'x'.repeat(121),
+    });
+
+    expect(respuesta).toEqual({ exito: false, error: 'El plazo admite máximo 120 caracteres' });
+    expect(actualizarMock).not.toHaveBeenCalled();
+  });
+});

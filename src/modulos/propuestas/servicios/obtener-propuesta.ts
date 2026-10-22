@@ -234,6 +234,30 @@ export async function obtenerCanalRfq(
   return { canal, canalDetalle: data?.canal_detalle?.trim() || null };
 }
 
+/**
+ * Fecha requerida por el cliente y plazo comercial del RFQ de origen. Son solo
+ * referencia al confirmar la fecha compromiso al aceptar; un fallo de lectura o
+ * un RFQ sin ninguno de los dos devuelve null y la ficha no muestra el aviso.
+ */
+export async function obtenerFechasRfq(
+  cliente: SupabaseClient<Database>,
+  rfqId: string,
+): Promise<{ fechaRequerida: string | null; plazoComercial: string | null } | null> {
+  const { data, error } = await cliente
+    .from('pipeline')
+    .select('fecha_requerida, plazo_comercial')
+    .eq('id', rfqId)
+    .maybeSingle();
+  if (error) {
+    console.error('[PROPUESTAS] No se pudieron leer las fechas del RFQ:', error.message);
+    return null;
+  }
+  const fechaRequerida = data?.fecha_requerida?.slice(0, 10) || null;
+  const plazoComercial = data?.plazo_comercial?.trim() || null;
+  if (!fechaRequerida && !plazoComercial) return null;
+  return { fechaRequerida, plazoComercial };
+}
+
 /** PDFs registrados (vigentes e históricos) de las revisiones indicadas. */
 export async function obtenerPdfsDeRevisiones(
   cliente: SupabaseClient<Database>,

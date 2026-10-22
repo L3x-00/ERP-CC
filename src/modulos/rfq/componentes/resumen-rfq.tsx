@@ -190,6 +190,11 @@ export function ResumenRfq({
               etiqueta="Fecha requerida por cliente"
               valor={formatearFechaCalendario(rfq.fechaRequeridaCliente)}
             />
+            <Campo etiqueta="Plazo comercial" valor={rfq.plazoComercial ?? SIN_VALOR} />
+            <Campo
+              etiqueta="Fecha compromiso comercial"
+              valor="Se confirma al aceptar la propuesta"
+            />
             <Campo
               etiqueta="Responsable"
               valor={rfq.responsableNombre ?? SIN_VALOR}

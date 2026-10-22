@@ -94,6 +94,7 @@ const RFQ_CAPTURADO: Rfq = {
   canalDetalle: null,
   fechaSolicitud: null,
   fechaRequeridaCliente: null,
+  plazoComercial: null,
   descripcionGeneral: null,
   proximaAccionCodigo: null,
   proximaAccionTexto: null,
@@ -370,6 +371,41 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     });
     const entrada = crearProspectoMock.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(entrada.fechaRequerida).toBe('2026-11-30');
+  });
+
+  it('envía el plazo comercial cuando no hay fecha del cliente, sin inventar una fecha', async () => {
+    renderizarFormulario();
+
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+    fireEvent.change(campo(/Empresa/), { target: { value: 'Aceros Baja SA' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Corte láser' } });
+    fireEvent.change(screen.getByLabelText(/Plazo comercial/), {
+      target: { value: '  Fabricación 5-7 días ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+
+    await waitFor(() => {
+      expect(crearProspectoMock).toHaveBeenCalledTimes(1);
+    });
+    const entrada = crearProspectoMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entrada.plazoComercial).toBe('Fabricación 5-7 días');
+    expect(entrada).not.toHaveProperty('fechaRequerida');
+  });
+
+  it('sin plazo comercial no lo envía: el campo es opcional', async () => {
+    renderizarFormulario();
+
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+    fireEvent.change(campo(/Empresa/), { target: { value: 'Aceros Baja SA' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Corte láser' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+
+    await waitFor(() => {
+      expect(crearProspectoMock).toHaveBeenCalledTimes(1);
+    });
+    expect(crearProspectoMock.mock.calls[0]?.[0]).not.toHaveProperty('plazoComercial');
   });
 
   it('un error del servidor conserva la captura y no navega', async () => {

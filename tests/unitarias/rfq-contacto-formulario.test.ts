@@ -52,6 +52,7 @@ const RFQ: Rfq = {
   canalDetalle: null,
   fechaSolicitud: null,
   fechaRequeridaCliente: null,
+  plazoComercial: null,
   descripcionGeneral: null,
   proximaAccionCodigo: null,
   proximaAccionTexto: null,

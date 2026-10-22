@@ -75,6 +75,7 @@ const RFQ_BASE: Rfq = {
   canalDetalle: null,
   fechaSolicitud: '2026-01-01',
   fechaRequeridaCliente: '2026-02-15T00:00:00+00:00',
+  plazoComercial: null,
   descripcionGeneral: 'Corte de lámina calibre 14',
   proximaAccionCodigo: 'OTRO',
   proximaAccionTexto: 'Visita a planta',
@@ -209,6 +210,15 @@ describe('ResumenRfq — tarjetas de solo lectura (C1.1b)', () => {
     } finally {
       process.env.TZ = zonaOriginal;
     }
+  });
+
+  it('muestra el plazo comercial y deja claro que la fecha compromiso se confirma al aceptar', () => {
+    renderizarResumen({ ...RFQ_BASE, plazoComercial: 'Fabricación 5-7 días' });
+
+    expect(screen.getByText('Plazo comercial')).toBeDefined();
+    expect(screen.getByText('Fabricación 5-7 días')).toBeDefined();
+    expect(screen.getByText('Fecha compromiso comercial')).toBeDefined();
+    expect(screen.getByText('Se confirma al aceptar la propuesta')).toBeDefined();
   });
 
   it('no normaliza silenciosamente una fecha calendario imposible', () => {

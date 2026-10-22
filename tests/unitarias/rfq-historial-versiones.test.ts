@@ -81,6 +81,7 @@ const VERSION_2: VersionRfq = {
     canalDetalle: null,
     fechaSolicitud: '2026-10-01',
     fechaRequerida: null,
+    plazoComercial: null,
     descripcionGeneral: 'Corte de lámina',
     responsableId: null,
     moneda: 'MXN',

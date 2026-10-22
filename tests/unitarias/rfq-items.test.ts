@@ -160,6 +160,19 @@ describe('esquemas Zod de RFQ', () => {
     }).success).toBe(false);
   });
 
+  it('acepta el plazo comercial como texto opcional de hasta 120 caracteres', () => {
+    const base = { rfqId: UUID, actualizadoEn: '2026-10-05T10:00:00+00:00' };
+    const conPlazo = esquemaDatosGeneralesRfq.safeParse({
+      ...base,
+      plazoComercial: '  Fabricación 5-7 días ',
+    });
+    expect(conPlazo.success && conPlazo.data.plazoComercial).toBe('Fabricación 5-7 días');
+    expect(esquemaDatosGeneralesRfq.safeParse({ ...base, plazoComercial: null }).success).toBe(true);
+    const sinCampo = esquemaDatosGeneralesRfq.safeParse(base);
+    expect(sinCampo.success && sinCampo.data.plazoComercial).toBeUndefined();
+    expect(esquemaDatosGeneralesRfq.safeParse({ ...base, plazoComercial: 'x'.repeat(121) }).success).toBe(false);
+  });
+
   it('acepta la fecha requerida por el cliente como opcional', () => {
     const base = {
       rfqId: UUID,

@@ -21,6 +21,7 @@ import type {
   PermisosPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
+import { textoReferenciaFechasRfq } from '@/modulos/propuestas/utilidades/referencia-fechas-rfq';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { claveDetallePropuesta } from './claves-consulta';
 import type { DetallePropuestaFicha, RevisionConTotales } from '@/modulos/propuestas/acciones/obtener-propuesta';
@@ -76,6 +77,7 @@ export function PanelAccionesPropuesta({
   const pdfVigente = revision.pdfs.find((pdf) => pdf.vigente) ?? null;
   const tieneAccion = detalle.acciones.some((accion) => accion.revisionId === revision.id);
   const esAceptada = detalle.propuesta.acceptedRevisionId === revision.id;
+  const referenciaFechasRfq = textoReferenciaFechasRfq(detalle.fechasRfq);
   const mensajesFaltantes = esBorrador ? (faltantes?.mensajes ?? []) : [];
   const incompleta = mensajesFaltantes.length > 0;
 
@@ -266,6 +268,14 @@ export function PanelAccionesPropuesta({
 
         {(estado === 'SENT' || estado === 'FOLLOW_UP') && permisos.aceptar && (
           <span className="flex flex-wrap items-end gap-2">
+            {referenciaFechasRfq && (
+              <span
+                className="w-full text-xs text-texto-secundario"
+                data-testid="referencia-fechas-rfq"
+              >
+                {referenciaFechasRfq}. La fecha compromiso la confirmas tú al aceptar.
+              </span>
+            )}
             <label className="flex flex-col gap-1 text-xs text-texto-secundario">
               Fecha compromiso comercial
               <Input

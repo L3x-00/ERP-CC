@@ -157,6 +157,9 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   await expect(page.locator('#prospecto-responsable')).toBeDisabled();
   await page.getByLabel('Canal', { exact: true }).selectOption('CORREO');
   await page.getByLabel('Descripción', { exact: true }).fill(`Alta modal ${contexto.sufijo}`);
+  // Obs. cliente 2026-10-21: sin fecha pedida se captura un plazo comercial en
+  // texto libre; la fecha requerida no se inventa y la compromiso queda pendiente.
+  await page.getByLabel(/Plazo comercial/).fill('Fabricación 5-7 días');
   await page.getByRole('button', { name: 'Continuar con ítems' }).click();
 
   // El asistente sigue en el mismo modal: ítems y archivos sin cambiar de pantalla.
@@ -228,11 +231,13 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   // El seguimiento quedó persistido y el responsable único alimentó ambos campos.
   const rfq = await admin
     .from('pipeline')
-    .select('id, canal, descripcion_general, fecha_solicitud, responsable_id, proxima_accion_codigo, fecha_proxima_accion, responsable_proxima_accion_id')
+    .select('id, canal, descripcion_general, fecha_solicitud, fecha_requerida, plazo_comercial, responsable_id, proxima_accion_codigo, fecha_proxima_accion, responsable_proxima_accion_id')
     .eq('empresa', empresa)
     .single();
   if (rfq.error || !rfq.data) throw new Error(rfq.error?.message ?? 'RFQ no persistido');
   expect(rfq.data.canal).toBe('CORREO');
+  expect(rfq.data.plazo_comercial).toBe('Fabricación 5-7 días');
+  expect(rfq.data.fecha_requerida).toBeNull();
   expect(rfq.data.descripcion_general).toBe(`Alta modal ${contexto.sufijo}`);
   expect(rfq.data.fecha_solicitud).toBeTruthy();
   expect(rfq.data.responsable_id).toBeTruthy();
@@ -251,6 +256,8 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   await page.getByRole('tab', { name: 'Resumen' }).click();
   await expect(page.getByTestId('rfq-descripcion')).toContainText(`Alta modal ${contexto.sufijo}`);
   await expect(page.getByTestId('rfq-datos-generales')).toContainText('Correo');
+  await expect(page.getByTestId('rfq-datos-generales')).toContainText('Fabricación 5-7 días');
+  await expect(page.getByTestId('rfq-datos-generales')).toContainText('Se confirma al aceptar la propuesta');
   await expect(page.getByTestId('rfq-datos-generales').locator('[data-faltante="si"]')).toHaveCount(0);
   await expect(page.getByTestId('rfq-proxima-accion').locator('[data-faltante="si"]')).toHaveCount(0);
 

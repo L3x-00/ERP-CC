@@ -172,6 +172,10 @@ export async function actualizarDatosRfqAccion(
       ...(datos.fechaRequeridaCliente !== undefined
         ? { fecha_requerida: datos.fechaRequeridaCliente }
         : {}),
+      // Igual que la fecha requerida: sin el campo se conserva; vacío lo limpia.
+      ...(datos.plazoComercial !== undefined
+        ? { plazo_comercial: datos.plazoComercial?.trim() || null }
+        : {}),
       descripcion_general: datos.descripcionGeneral ?? null,
       contacto_id: datos.contactoId ?? null,
       responsable_id: datos.responsableId ?? null,

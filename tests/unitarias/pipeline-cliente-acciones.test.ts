@@ -175,6 +175,17 @@ describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  it('guarda el plazo comercial como texto y lo deja en null si no viene', async () => {
+    await crearProspectoAccion({ ...ALTA_BASE, plazoComercial: 'Fabricación 5-7 días' });
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({ plazo_comercial: 'Fabricación 5-7 días', fecha_requerida: null }),
+    );
+
+    insertMock.mockClear();
+    await crearProspectoAccion(ALTA_BASE);
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({ plazo_comercial: null }));
+  });
+
   it('inicia el RFQ como INCOMPLETE con la fecha de registro del sistema y la fecha requerida aparte', async () => {
     await crearProspectoAccion({
       ...ALTA_BASE,

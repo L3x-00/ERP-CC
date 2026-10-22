@@ -78,6 +78,7 @@ function rfq(sobrescribir: Partial<Rfq> = {}): Rfq {
     canalDetalle: null,
     fechaSolicitud: '2026-01-01',
     fechaRequeridaCliente: null,
+    plazoComercial: null,
     descripcionGeneral: 'Corte de lámina calibre 14',
     proximaAccionCodigo: null,
     proximaAccionTexto: null,
