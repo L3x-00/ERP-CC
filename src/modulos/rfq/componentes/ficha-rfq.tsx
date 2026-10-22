@@ -20,6 +20,7 @@ import { obtenerCatalogosRfqAccion } from '../acciones/obtener-catalogos';
 import { validarRfqListoAccion } from '../acciones/validar-rfq-listo';
 import { vincularContactoVigenteRfqAccion } from '../acciones/vincular-contacto-rfq';
 import { ListaPropuestasRfq } from '@/modulos/propuestas/componentes/lista-propuestas-rfq';
+import { CLAVE_VALIDACION_COLA_RFQ } from '../hooks/usar-validacion-cola-rfq';
 import { ActividadRfq } from './actividad-rfq';
 import { DialogoHistorialRfq } from './dialogo-historial-rfq';
 import { FormularioGeneralRfq } from './formulario-general-rfq';
@@ -98,6 +99,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
       await Promise.all([
         clienteConsultas.invalidateQueries({ queryKey: ['rfq', rfqId] }),
         clienteConsultas.invalidateQueries({ queryKey: ['rfq-validacion-listo', rfqId] }),
+        clienteConsultas.invalidateQueries({ queryKey: [CLAVE_VALIDACION_COLA_RFQ] }),
         clienteConsultas.invalidateQueries({ queryKey: ['rfq-contactos'] }),
         clienteConsultas.invalidateQueries({ queryKey: ['pipeline'] }),
       ]);

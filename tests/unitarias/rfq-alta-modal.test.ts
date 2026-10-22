@@ -37,6 +37,9 @@ const {
   actualizarDatosMock: vi.fn(),
 }));
 
+vi.mock('@/modulos/rfq/acciones/validar-rfqs-listo-lote', () => ({
+  validarRfqsListoLoteAccion: vi.fn().mockResolvedValue({ exito: true, datos: {} }),
+}));
 vi.mock('@/modulos/pipeline/hooks/usar-pipeline', () => ({
   usarPipeline: (...args: unknown[]) => usarPipelineMock(...args),
 }));
@@ -472,9 +475,11 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
 describe('TablaOportunidades — reanudación de captura (DC-03)', () => {
   it('un RFQ INCOMPLETE ofrece “Continuar captura” sobre el mismo id y su Historial', () => {
     render(
-      createElement(TablaOportunidades, {
-        oportunidades: [{ ...OPORTUNIDAD, estadoRfq: 'INCOMPLETE' }],
-      }),
+      envolver(
+        createElement(TablaOportunidades, {
+          oportunidades: [{ ...OPORTUNIDAD, estadoRfq: 'INCOMPLETE' }],
+        }),
+      ),
     );
 
     const enlace = screen.getByRole('link', { name: 'Continuar captura' });
@@ -484,7 +489,7 @@ describe('TablaOportunidades — reanudación de captura (DC-03)', () => {
   });
 
   it('los demás estados conservan “Abrir”', () => {
-    render(createElement(TablaOportunidades, { oportunidades: [OPORTUNIDAD] }));
+    render(envolver(createElement(TablaOportunidades, { oportunidades: [OPORTUNIDAD] })));
 
     expect(screen.getByRole('link', { name: 'Abrir' }).getAttribute('href')).toBe('/rfq?rfq=op-1');
     expect(screen.queryByRole('link', { name: 'Continuar captura' })).toBeNull();
@@ -492,9 +497,11 @@ describe('TablaOportunidades — reanudación de captura (DC-03)', () => {
 
   it('un RFQ CONVERTED conserva Historial para consultar sus versiones (solo lectura)', () => {
     render(
-      createElement(TablaOportunidades, {
-        oportunidades: [{ ...OPORTUNIDAD, estadoRfq: 'CONVERTED' }],
-      }),
+      envolver(
+        createElement(TablaOportunidades, {
+          oportunidades: [{ ...OPORTUNIDAD, estadoRfq: 'CONVERTED' }],
+        }),
+      ),
     );
 
     expect(screen.getByRole('button', { name: 'Historial' })).toBeDefined();

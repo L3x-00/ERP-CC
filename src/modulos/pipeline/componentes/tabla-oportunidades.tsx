@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
   Tabla,
@@ -22,10 +21,13 @@ import { proximaAccionVencida } from '@/modulos/pipeline/servicios/filtrar-oport
 import { etiquetaProximaAccion } from '@/modulos/pipeline/utilidades/proxima-accion';
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
 import { DialogoHistorialRfq } from '@/modulos/rfq/componentes/dialogo-historial-rfq';
-import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
+import { IndicadorEstadoRfq } from '@/modulos/rfq/componentes/indicador-estado-rfq';
+import { usarValidacionColaRfq } from '@/modulos/rfq/hooks/usar-validacion-cola-rfq';
+import { validacionConfirmadaDeFila } from '@/modulos/rfq/utilidades/validacion-cola';
 
 /**
- * Vista de lista de la cola RFQ: folio, empresa/contacto, estado, prioridad,
+ * Vista de lista de la cola RFQ: folio, empresa/contacto, estado (con la
+ * indicación «Listo para validar» de la ficha, sin cambiar el estado), prioridad,
  * próxima acción con su fecha (vencida en rojo), responsable y orden. La fila
  * abre la ficha `/rfq?rfq=<id>`. Mientras no exista Propuesta Rev A, la fila
  * ofrece «Historial» con las versiones guardadas (solo lectura).
@@ -37,6 +39,8 @@ export function TablaOportunidades({
 }) {
   const hoy = new Date().toISOString().slice(0, 10);
   const [historialId, setHistorialId] = useState<string | null>(null);
+  // Misma validación de la ficha, en una sola consulta acotada para toda la tabla.
+  const validaciones = usarValidacionColaRfq(oportunidades);
 
   return (
     <>
@@ -72,9 +76,9 @@ export function TablaOportunidades({
                     </span>
                   </TablaCelda>
                   <TablaCelda>
-                    <BadgeEstado
-                      estado={oportunidad.estadoRfq}
-                      etiqueta={ETIQUETAS_ESTADO_RFQ[oportunidad.estadoRfq]}
+                    <IndicadorEstadoRfq
+                      estadoRfq={oportunidad.estadoRfq}
+                      validacion={validacionConfirmadaDeFila(validaciones, oportunidad.id)}
                     />
                   </TablaCelda>
                   <TablaCelda>

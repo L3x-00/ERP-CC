@@ -4,6 +4,7 @@
 // `createElement` en vez de JSX para mantener la extensión `.test.ts`.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
@@ -12,6 +13,9 @@ const { usarPipelineMock } = vi.hoisted(() => ({
   usarPipelineMock: vi.fn(),
 }));
 
+vi.mock('@/modulos/rfq/acciones/validar-rfqs-listo-lote', () => ({
+  validarRfqsListoLoteAccion: vi.fn().mockResolvedValue({ exito: true, datos: {} }),
+}));
 vi.mock('@/modulos/pipeline/hooks/usar-pipeline', () => ({
   usarPipeline: (...args: unknown[]) => usarPipelineMock(...args),
 }));
@@ -58,7 +62,8 @@ const OPORTUNIDAD: Oportunidad = {
 };
 
 function renderizarCola() {
-  return render(createElement(ColaRfq));
+  const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(createElement(QueryClientProvider, { client: consultas }, createElement(ColaRfq)));
 }
 
 afterEach(() => {

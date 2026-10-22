@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
 
-import { ACCIONES_RFQ } from '../tipos/indice';
+import { ACCIONES_RFQ, MAXIMO_RFQ_VALIDACION_LOTE } from '../tipos/indice';
 
 const escalaDosDecimales = (valor: number): boolean =>
   Math.abs(valor * 100 - Math.round(valor * 100)) < 1e-9;
@@ -108,6 +108,11 @@ export const esquemaAsegurarContactoRfq = z
 
 /** Entrada de validación LISTO. */
 export const esquemaValidarRfqListo = z.object({ rfqId: z.uuid() }).strict();
+
+/** Entrada de validación LISTO en lote (indicador de captura de la cola RFQ). */
+export const esquemaValidarRfqsListoLote = z
+  .object({ rfqIds: z.array(z.uuid()).min(1).max(MAXIMO_RFQ_VALIDACION_LOTE) })
+  .strict();
 
 /** Fecha ISO simple `YYYY-MM-DD`. */
 const fechaDia = z.iso.date();
