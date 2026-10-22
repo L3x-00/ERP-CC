@@ -34,6 +34,12 @@ export type DocumentoPropuesta = {
     telefono: string | null;
   } | null;
   condicionesPago: string | null;
+  /**
+   * Plazo comercial ofrecido, tal como se capturó en el RFQ («Fabricación 5-7
+   * días»). Es una oferta en texto, no la fecha compromiso: esa se confirma al
+   * aceptar y no se imprime aquí.
+   */
+  plazoComercial: string | null;
   items: ItemDocumentoPropuesta[];
   totales: {
     subtotal: number;
@@ -63,6 +69,7 @@ export function construirDocumentoPropuesta(entrada: {
     telefono: string | null;
   } | null;
   condicionesPago: string | null;
+  plazoComercial?: string | null;
   items: readonly {
     codigo: string;
     descripcion: string;
@@ -113,6 +120,7 @@ export function construirDocumentoPropuesta(entrada: {
         }
       : null,
     condicionesPago: entrada.condicionesPago,
+    plazoComercial: entrada.plazoComercial?.trim() || null,
     items,
     totales: {
       subtotal,

@@ -14,6 +14,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import { traducirErrorPropuesta } from '@/modulos/propuestas/servicios/errores-propuesta';
+import { obtenerFechasRfq } from '@/modulos/propuestas/servicios/obtener-propuesta';
 import { construirDocumentoPropuesta } from '@/modulos/propuestas/servicios/pdf/documento-propuesta';
 import { generarPdfBorrador } from '@/modulos/propuestas/servicios/pdf/escritor-pdf';
 import { jsonASnapshotCabecera } from '@/modulos/propuestas/tipos/indice';
@@ -68,6 +69,15 @@ export async function generarPdfRevisionAccion(
     .eq('revision_id', revision.id)
     .order('codigo', { ascending: true });
 
+  // El RFQ queda congelado al crear la Rev A, así que su plazo comercial es el
+  // mismo en todas las revisiones. Un fallo de lectura solo omite la línea.
+  const { data: propuesta } = await admin
+    .from('propuestas')
+    .select('rfq_id')
+    .eq('id', revision.propuesta_id)
+    .maybeSingle();
+  const fechasRfq = propuesta ? await obtenerFechasRfq(admin, propuesta.rfq_id) : null;
+
   const snapshot = jsonASnapshotCabecera(revision.snapshot_cabecera);
   const documento = construirDocumentoPropuesta({
     folioRevision: revision.folio_revision,
@@ -81,6 +91,7 @@ export async function generarPdfRevisionAccion(
     },
     contacto: snapshot.contacto,
     condicionesPago: snapshot.condicionesPago,
+    plazoComercial: fechasRfq?.plazoComercial ?? null,
     ivaPorcentaje: snapshot.ivaPorcentaje,
     items: (items ?? []).map((item) => ({
       codigo: item.codigo,
