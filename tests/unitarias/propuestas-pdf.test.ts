@@ -67,6 +67,7 @@ describe('documento público del PDF (SII-B4.7)', () => {
         'folioRevision',
         'items',
         'moneda',
+        'plazoComercial',
         'titulo',
         'totales',
       ].sort(),
@@ -85,6 +86,49 @@ describe('documento público del PDF (SII-B4.7)', () => {
     expect(documento.totales.subtotal).toBe(985);
     expect(documento.totales.iva).toBe(157.6);
     expect(documento.totales.total).toBe(1142.6);
+  });
+});
+
+describe('plazo comercial en el PDF (obs. cliente 2026-10-21)', () => {
+  const textoPdf = (documento: DocumentoPropuesta): string =>
+    generarPdfBorrador(documento).toString('latin1');
+
+  it('sin plazo no agrega la línea y el documento queda igual que antes', () => {
+    const documento = documentoEjemplo();
+    expect(documento.plazoComercial).toBeNull();
+    expect(textoPdf(documento)).not.toContain('Plazo comercial');
+  });
+
+  it('imprime el plazo capturado en el RFQ, recortado, sin inventar una fecha compromiso', () => {
+    const documento = { ...documentoEjemplo(), plazoComercial: 'Fabricación 5-7 días' };
+    const texto = textoPdf(documento);
+    expect(texto).toContain('Plazo comercial: Fabricaci');
+    expect(texto).toContain('5-7 d');
+    expect(texto.toLowerCase()).not.toContain('compromiso');
+  });
+
+  it('el constructor normaliza un plazo en blanco a null', () => {
+    const base = documentoEjemplo();
+    const documento = construirDocumentoPropuesta({
+      folioRevision: base.folioRevision,
+      fecha: base.fecha,
+      moneda: base.moneda,
+      cliente: base.cliente,
+      contacto: base.contacto,
+      condicionesPago: base.condicionesPago,
+      plazoComercial: '   ',
+      ivaPorcentaje: 16,
+      items: [],
+    });
+    expect(documento.plazoComercial).toBeNull();
+  });
+
+  it('un plazo largo se parte en varias líneas dentro de la página', () => {
+    const plazo = 'Fabricación 5-7 días hábiles después de recibir la orden de compra y el anticipo acordado';
+    const paginas = construirPaginas({ ...documentoEjemplo(), plazoComercial: plazo });
+    const lineas = paginas.flat().filter((linea) => linea.texto.includes('Plazo') || linea.texto.includes('anticipo'));
+    expect(lineas.length).toBeGreaterThan(1);
+    expect(Math.max(...lineas.map((linea) => linea.texto.length))).toBeLessThanOrEqual(85);
   });
 });
 

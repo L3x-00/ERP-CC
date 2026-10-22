@@ -123,6 +123,12 @@ export function construirPaginas(documento: DocumentoPropuesta): LineaPdf[][] {
   if (documento.condicionesPago) {
     agregar(`Condiciones de pago: ${documento.condicionesPago}`);
   }
+  if (documento.plazoComercial) {
+    const lineasPlazo = envolver(`Plazo comercial: ${documento.plazoComercial}`, 85);
+    lineasPlazo.forEach((linea, indice) => {
+      agregar(linea, indice === 0 ? {} : { x: X_SANGRIA });
+    });
+  }
   espacio(10);
 
   // Tabla de ítems (una línea por ítem; descripción envuelta con sangría).

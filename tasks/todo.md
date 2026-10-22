@@ -1,3 +1,14 @@
+## Corte 2026-10-22 — Plazo comercial en el PDF de la propuesta · PR #106
+
+Rama `feat/propuesta-pdf-plazo-comercial` (sobre `main` con #104 y #105 fusionados).
+
+- [x] **PDF:** el documento público imprime «Plazo comercial: …» con el plazo del RFQ de origen (ajuste de línea,
+  sin la línea si no hay plazo; nunca imprime la fecha compromiso). Cierra el pendiente de #105. Sin migración nueva;
+  depende de `20261022120000_rfq_plazo_comercial.sql` (#105).
+
+**Pruebas:** vitest `propuestas-` 28 archivos / 368 en verde (nuevas: `propuestas-pdf`, `propuestas-pdf-plazo-accion`);
+typecheck y ESLint focal 0; E2E `propuestas-flujo` 2/2 en loopback. Suite completa y vista del PDF en un lector: no corridos.
+
 ## Corte 2026-10-22 — Plazo comercial del RFQ (obs. cliente punto 6) · PR #105
 
 Rama `feat/rfq-plazo-comercial` (apilada sobre #104).
