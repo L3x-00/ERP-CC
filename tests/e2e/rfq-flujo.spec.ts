@@ -271,6 +271,15 @@ async function agregarItem(page: Page, contexto: ContextoRfq, descripcion: strin
   await page.getByRole('button', { name: 'Guardar ítem' }).click();
 }
 
+/**
+ * Regresa de la ficha a la cola con la navegación del menú lateral (cliente, sin
+ * recarga completa): la cola se monta de nuevo y debe volver a validar.
+ */
+async function volverALaCola(page: Page): Promise<void> {
+  await page.locator('a[href="/rfq"]').first().click();
+  await expect(page.getByTestId('cola-rfq')).toBeVisible();
+}
+
 test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
   test('crear RFQ, ítems con espesor y operaciones, archivo, gate LISTO y ITxx sin reutilizar', async ({ page }) => {
     test.skip(!correoAdmin || !contrasenaAdmin, 'Requiere administrador del stack local');
@@ -351,6 +360,22 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       await expect(validacion).toContainText('Faltan requisitos');
       await expect(validacion).toContainText('archivo técnico');
       await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+
+      // 3b. Coherencia con la cola (captura incompleta): faltan el archivo técnico y
+      // el Resumen, así que la MISMA fila sigue «Incompleto» y nunca «Listo para validar».
+      await volverALaCola(page);
+      const filaCola = page.getByRole('row', { name: new RegExp(contexto.empresa) });
+      const indicadorCola = filaCola.getByTestId('indicador-estado-rfq');
+      await expect(indicadorCola).toBeVisible();
+      await page.waitForLoadState('networkidle');
+      const folioCola = (await filaCola.locator('td').first().innerText()).trim();
+      expect(folioCola).not.toBe('');
+      await expect(indicadorCola).toHaveAttribute('data-estado-rfq', 'INCOMPLETE');
+      await expect(indicadorCola).toHaveAttribute('data-captura', 'incompleta');
+      await expect(indicadorCola).toContainText('Incompleto');
+      await expect(filaCola).not.toContainText('Listo para validar');
+      await filaCola.getByRole('link', { name: 'Continuar captura' }).click();
+      await expect(ficha).toContainText('Incompleto');
 
       // 4. Completar Resumen (general + seguimiento).
       await ficha.getByRole('tab', { name: 'Resumen' }).click();
@@ -496,6 +521,23 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
           animations: 'disabled',
         });
       }
+
+      // 5b. Coherencia con la cola (captura completa, ANTES de marcar listo): al volver
+      // de la ficha la misma fila pasa de «Incompleto» a «Listo para validar», pero el
+      // estado de negocio sigue INCOMPLETE y ninguna propuesta existe.
+      await volverALaCola(page);
+      await expect(indicadorCola).toHaveAttribute('data-captura', 'lista', { timeout: 20_000 });
+      await expect(indicadorCola).toContainText('Listo para validar');
+      await expect(indicadorCola).toHaveAttribute('data-estado-rfq', 'INCOMPLETE');
+      expect((await filaCola.locator('td').first().innerText()).trim()).toBe(folioCola);
+      const estadoAntesDeMarcar = await admin.from('pipeline').select('estado_rfq').eq('id', rfqId).single();
+      expect(estadoAntesDeMarcar.error).toBeNull();
+      expect(estadoAntesDeMarcar.data?.estado_rfq).toBe('INCOMPLETE');
+      await filaCola.getByRole('link', { name: 'Continuar captura' }).click();
+      // La ficha del mismo RFQ muestra la misma indicación (misma validación).
+      await expect(ficha.getByTestId('indicador-estado-rfq')).toHaveAttribute('data-captura', 'lista', {
+        timeout: 20_000,
+      });
 
       // 6. Marcar listo con todo completo.
       await page.getByRole('button', { name: 'Marcar listo' }).click();

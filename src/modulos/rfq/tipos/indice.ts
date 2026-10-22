@@ -37,6 +37,12 @@ export const SECCIONES_VALIDACION_RFQ = [
 
 export type SeccionValidacionRfq = (typeof SECCIONES_VALIDACION_RFQ)[number];
 
+/**
+ * Tope de RFQ por llamada de validación en lote (cola RFQ). Acota el trabajo del
+ * servidor en cada solicitud; la cola parte listas más largas en varios lotes.
+ */
+export const MAXIMO_RFQ_VALIDACION_LOTE = 100;
+
 /** Resultado de `validar_rfq_listo`: faltantes legibles por sección. */
 export type ValidacionRfqListo = {
   listo: boolean;
