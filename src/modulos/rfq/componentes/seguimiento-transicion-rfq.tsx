@@ -3,7 +3,6 @@
 import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import type { Rfq } from '@/modulos/rfq/tipos/indice';
 import {
-  RESULTADOS_PROXIMA_ACCION,
   proximaAccionTrasResultado,
   proximaAccionVencida,
   tieneProximaAccionVigente,
@@ -13,9 +12,10 @@ import {
 
 import type { CatalogosRfq } from '../acciones/obtener-catalogos';
 import { CamposProximaAccion } from './campos-proxima-accion';
-
-const CLASE_OPCION =
-  'flex cursor-pointer items-start gap-2 rounded-lg border border-borde bg-superficie p-3 text-sm has-[:checked]:border-acento has-[:checked]:bg-acento-suave has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-acento';
+import {
+  CLASE_OPCION_SEGUIMIENTO,
+  CamposResultadoSeguimiento,
+} from './campos-resultado-seguimiento';
 
 /**
  * Seguimiento de un cambio de estado: muestra la acción vigente y deja elegir
@@ -104,7 +104,7 @@ export function SeguimientoTransicionRfq({
       ) : (
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold">¿Qué hacemos con este seguimiento?</legend>
-          <label className={CLASE_OPCION}>
+          <label className={CLASE_OPCION_SEGUIMIENTO}>
             <input
               type="radio"
               name={`${idBase}-modo`}
@@ -119,7 +119,7 @@ export function SeguimientoTransicionRfq({
               </span>
             </span>
           </label>
-          <label className={CLASE_OPCION}>
+          <label className={CLASE_OPCION_SEGUIMIENTO}>
             <input
               type="radio"
               name={`${idBase}-modo`}
@@ -139,26 +139,11 @@ export function SeguimientoTransicionRfq({
 
       {valor.modo === 'cerrar' && (
         <>
-          <fieldset className="flex flex-col gap-2" data-testid="resultado-seguimiento">
-            <legend className="mb-1 text-sm font-semibold">¿Cómo terminó esta acción?</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {RESULTADOS_PROXIMA_ACCION.map((opcion) => (
-                <label key={opcion.valor} className={CLASE_OPCION}>
-                  <input
-                    type="radio"
-                    name={`${idBase}-resultado`}
-                    className="mt-1"
-                    checked={valor.resultado === opcion.valor}
-                    onChange={() => elegirResultado(opcion.valor)}
-                  />
-                  <span>
-                    <span className="font-medium">{opcion.etiqueta}</span>
-                    <span className="block text-texto-secundario">{opcion.ayuda}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <CamposResultadoSeguimiento
+            idBase={idBase}
+            valor={valor.resultado}
+            onCambio={elegirResultado}
+          />
 
           {valor.resultado !== '' && (
             <CamposProximaAccion

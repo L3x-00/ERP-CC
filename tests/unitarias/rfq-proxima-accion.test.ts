@@ -8,9 +8,13 @@ import {
   proximaAccionInicial,
   proximaAccionTrasResultado,
   proximaAccionVencida,
+  reemplazaProximaAccionVigente,
   seguimientoTransicionInicial,
 } from '@/modulos/rfq/utilidades/proxima-accion';
-import { esquemaCambiarEstadoRfq } from '@/modulos/rfq/validaciones/esquemas-rfq';
+import {
+  esquemaCambiarEstadoRfq,
+  esquemaDatosGeneralesRfq,
+} from '@/modulos/rfq/validaciones/esquemas-rfq';
 
 const ACCIONES = [
   { codigo: 'FOLLOW_UP', esOtro: false },
@@ -122,6 +126,30 @@ describe('seguimiento al cambiar de estado (obs. cliente 2026-10-21)', () => {
     }).success).toBe(false);
     expect(esquemaCambiarEstadoRfq.safeParse({
       ...base, proximaAccion, resultadoProximaAccion: 'inventado',
+    }).success).toBe(false);
+  });
+});
+
+describe('edición directa del Resumen (obs. cliente 2026-10-21)', () => {
+  it('solo cuenta como sustitución cambiar la acción o su detalle, no fecha ni responsable', () => {
+    const vigente = rfqCon({ proximaAccionCodigo: 'FOLLOW_UP', proximaAccionTexto: null });
+    expect(reemplazaProximaAccionVigente(rfqCon({}), { codigo: 'FOLLOW_UP', texto: '' })).toBe(false);
+    expect(reemplazaProximaAccionVigente(vigente, { codigo: 'FOLLOW_UP', texto: '' })).toBe(false);
+    expect(reemplazaProximaAccionVigente(vigente, { codigo: 'SEND_QUOTE', texto: '' })).toBe(true);
+    expect(reemplazaProximaAccionVigente(vigente, { codigo: '', texto: '' })).toBe(true);
+
+    const otro = rfqCon({ proximaAccionCodigo: 'OTHER', proximaAccionTexto: 'Visita a planta' });
+    expect(reemplazaProximaAccionVigente(otro, { codigo: 'OTHER', texto: ' Visita a planta ' })).toBe(false);
+    expect(reemplazaProximaAccionVigente(otro, { codigo: 'OTHER', texto: 'Llamada' })).toBe(true);
+  });
+
+  it('el esquema del Resumen acepta el resultado solo con un valor conocido', () => {
+    const base = { rfqId: USUARIO, actualizadoEn: '2026-10-08T10:00:00.000Z' };
+    expect(esquemaDatosGeneralesRfq.safeParse({
+      ...base, resultadoProximaAccion: 'sin_respuesta',
+    }).success).toBe(true);
+    expect(esquemaDatosGeneralesRfq.safeParse({
+      ...base, resultadoProximaAccion: 'inventado',
     }).success).toBe(false);
   });
 });

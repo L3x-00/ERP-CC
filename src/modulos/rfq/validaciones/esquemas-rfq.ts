@@ -152,6 +152,9 @@ export const esquemaDatosGeneralesRfq = z
     proximaAccionTexto: z.string().trim().max(300).nullish(),
     fechaProximaAccion: fechaDia.nullish(),
     responsableProximaAccionId: z.uuid().nullish(),
+    // Obs. cliente 2026-10-21: si el Resumen sustituye la acción vigente, se
+    // registra cómo terminó. El servidor exige el resultado solo en ese caso.
+    resultadoProximaAccion: z.enum(VALORES_RESULTADO_PROXIMA_ACCION).optional(),
   })
   .strict()
   .refine(
