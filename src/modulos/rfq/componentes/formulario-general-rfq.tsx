@@ -64,6 +64,10 @@ export function FormularioGeneralRfq({
   const [canal, setCanal] = useState(() => resolverCanalInicial(rfq, catalogos));
   const [canalDetalle, setCanalDetalle] = useState(rfq.canalDetalle ?? '');
   const [fechaSolicitud, setFechaSolicitud] = useState(rfq.fechaSolicitud ?? '');
+  // `fecha_requerida` es timestamptz legado: el input de fecha solo acepta YYYY-MM-DD.
+  const [fechaRequeridaCliente, setFechaRequeridaCliente] = useState(
+    rfq.fechaRequeridaCliente?.slice(0, 10) ?? '',
+  );
   const [descripcionGeneral, setDescripcionGeneral] = useState(rfq.descripcionGeneral ?? '');
   // null = la persona aún no tocó el selector; '' ("Sin contacto") es una elección
   // explícita y nunca se reemplaza por la sugerencia.
@@ -178,6 +182,7 @@ export function FormularioGeneralRfq({
         canal: canal.trim() || null,
         canalDetalle: canalSeleccionado?.esOtro ? canalDetalle.trim() || null : null,
         fechaSolicitud: fechaSolicitud || null,
+        fechaRequeridaCliente: fechaRequeridaCliente || null,
         descripcionGeneral: descripcionGeneral.trim() || null,
         contactoId: contactoIdFinal,
         responsableId: responsableId || null,
@@ -241,6 +246,21 @@ export function FormularioGeneralRfq({
           </Select>
           <p className="text-xs text-texto-secundario">
             Selecciona cómo llegó la solicitud del cliente.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="rfq-fecha-requerida">Fecha requerida por el cliente (opcional)</Label>
+          <Input
+            id="rfq-fecha-requerida"
+            type="date"
+            value={fechaRequeridaCliente}
+            onChange={(evento) => setFechaRequeridaCliente(evento.target.value)}
+            disabled={!editable}
+            aria-describedby="rfq-fecha-requerida-ayuda"
+          />
+          <p id="rfq-fecha-requerida-ayuda" className="text-xs text-texto-secundario">
+            Fecha solicitada por el cliente para recibir el trabajo. No representa todavía una
+            fecha compromiso de nuestra empresa.
           </p>
         </div>
         {canalSeleccionado?.esOtro && (

@@ -353,6 +353,25 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     expect(entrada).not.toHaveProperty('horasEstimadas');
   });
 
+  it('envía la fecha requerida por el cliente cuando se captura (opcional)', async () => {
+    renderizarFormulario();
+
+    fireEvent.change(campo(/Nombre del contacto/), { target: { value: 'Ana QA' } });
+    fireEvent.change(campo(/Teléfono/), { target: { value: '664 111 2233' } });
+    fireEvent.change(campo(/Empresa/), { target: { value: 'Aceros Baja SA' } });
+    fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Corte láser' } });
+    fireEvent.change(screen.getByLabelText(/Fecha requerida por el cliente/), {
+      target: { value: '2026-11-30' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
+
+    await waitFor(() => {
+      expect(crearProspectoMock).toHaveBeenCalledTimes(1);
+    });
+    const entrada = crearProspectoMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entrada.fechaRequerida).toBe('2026-11-30');
+  });
+
   it('un error del servidor conserva la captura y no navega', async () => {
     crearProspectoMock.mockResolvedValue({ exito: false, error: 'No se pudo crear el prospecto' });
     renderizarFormulario();

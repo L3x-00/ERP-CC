@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
 
 import { ACCIONES_RFQ, MAXIMO_RFQ_VALIDACION_LOTE } from '../tipos/indice';
+import { VALORES_RESULTADO_PROXIMA_ACCION } from '../utilidades/proxima-accion';
 
 const escalaDosDecimales = (valor: number): boolean =>
   Math.abs(valor * 100 - Math.round(valor * 100)) < 1e-9;
@@ -64,6 +65,11 @@ export const esquemaCambiarEstadoRfq = z
     accion: z.enum(ACCIONES_RFQ),
     motivo: z.string().trim().min(3).max(300).optional(),
     proximaAccion: esquemaProximaAccionTransicion.optional(),
+    // Obs. cliente 2026-10-21: cambiar de estado no obliga a capturar otra acción
+    // si la vigente sigue teniendo sentido; el servidor la conserva tal cual.
+    mantenerProximaAccion: z.literal(true).optional(),
+    // Cómo terminó la acción vigente cuando se sustituye por otra.
+    resultadoProximaAccion: z.enum(VALORES_RESULTADO_PROXIMA_ACCION).optional(),
     actualizadoEn: z.iso.datetime({ offset: true }),
   })
   .strict()
@@ -71,9 +77,18 @@ export const esquemaCambiarEstadoRfq = z
     message: 'El motivo es obligatorio',
     path: ['motivo'],
   })
-  .refine((entrada) => esAccionTerminalRfq(entrada.accion) || Boolean(entrada.proximaAccion), {
-    message: 'Indica la próxima acción',
-    path: ['proximaAccion'],
+  .refine(
+    (entrada) =>
+      esAccionTerminalRfq(entrada.accion)
+      || Boolean(entrada.proximaAccion) !== Boolean(entrada.mantenerProximaAccion),
+    {
+      message: 'Indica la próxima acción o deja la actual como está',
+      path: ['proximaAccion'],
+    },
+  )
+  .refine((entrada) => !entrada.mantenerProximaAccion || !entrada.resultadoProximaAccion, {
+    message: 'Si la acción actual se deja como está, no lleva resultado',
+    path: ['resultadoProximaAccion'],
   });
 
 /** Entrada de `cancelarItemRfqAccion`. */
@@ -128,6 +143,8 @@ export const esquemaDatosGeneralesRfq = z
     canal: z.string().trim().max(49).nullish(),
     canalDetalle: z.string().trim().max(300).nullish(),
     fechaSolicitud: fechaDia.nullish(),
+    // Opcional e informativa; ausente (`undefined`) conserva la guardada.
+    fechaRequeridaCliente: fechaDia.nullish(),
     descripcionGeneral: z.string().trim().max(2000).nullish(),
     contactoId: z.uuid().nullish(),
     responsableId: z.uuid().nullish(),

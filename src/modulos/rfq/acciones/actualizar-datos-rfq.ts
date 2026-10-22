@@ -148,6 +148,10 @@ export async function actualizarDatosRfqAccion(
       canal,
       canal_detalle: canalDetalle,
       fecha_solicitud: datos.fechaSolicitud ?? null,
+      // «Finalizar captura» no la envía: sin el campo se conserva la guardada.
+      ...(datos.fechaRequeridaCliente !== undefined
+        ? { fecha_requerida: datos.fechaRequeridaCliente }
+        : {}),
       descripcion_general: datos.descripcionGeneral ?? null,
       contacto_id: datos.contactoId ?? null,
       responsable_id: datos.responsableId ?? null,

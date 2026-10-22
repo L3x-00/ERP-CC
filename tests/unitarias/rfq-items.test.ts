@@ -160,6 +160,20 @@ describe('esquemas Zod de RFQ', () => {
     }).success).toBe(false);
   });
 
+  it('acepta la fecha requerida por el cliente como opcional', () => {
+    const base = {
+      rfqId: UUID,
+      actualizadoEn: '2026-10-05T10:00:00+00:00',
+    };
+    const conFecha = esquemaDatosGeneralesRfq.safeParse({ ...base, fechaRequeridaCliente: '2026-11-30' });
+    expect(conFecha.success && conFecha.data.fechaRequeridaCliente).toBe('2026-11-30');
+    expect(esquemaDatosGeneralesRfq.safeParse({ ...base, fechaRequeridaCliente: null }).success).toBe(true);
+    const sinCampo = esquemaDatosGeneralesRfq.safeParse(base);
+    // Ausente = conservar la guardada (el diálogo «Finalizar captura» no la envía).
+    expect(sinCampo.success && sinCampo.data.fechaRequeridaCliente).toBeUndefined();
+    expect(esquemaDatosGeneralesRfq.safeParse({ ...base, fechaRequeridaCliente: '30/11/2026' }).success).toBe(false);
+  });
+
   it('etiqueta la próxima acción del catálogo y humaniza códigos nuevos', () => {
     expect(etiquetaProximaAccion('FOLLOW_UP')).toBe('Seguimiento');
     expect(etiquetaProximaAccion('OTHER')).toBe('Otro');

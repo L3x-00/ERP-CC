@@ -126,6 +126,7 @@ export function FormularioProspecto({
   const [canal, setCanal] = useState('');
   const [canalDetalle, setCanalDetalle] = useState('');
   const [descripcionGeneral, setDescripcionGeneral] = useState('');
+  const [fechaRequeridaCliente, setFechaRequeridaCliente] = useState('');
   const fechaRegistro = fechaHoyLocal();
   const [finalizarAbierto, setFinalizarAbierto] = useState(false);
   const [contactoId, setContactoId] = useState('');
@@ -251,6 +252,7 @@ export function FormularioProspecto({
     setCanal('');
     setCanalDetalle('');
     setDescripcionGeneral('');
+    setFechaRequeridaCliente('');
     setContactoId('');
   }
 
@@ -290,6 +292,7 @@ export function FormularioProspecto({
         canal: canalEfectivo,
         ...(canalSeleccionado?.esOtro ? { canalDetalle: canalDetalle.trim() } : {}),
         descripcionGeneral: descripcionGeneral.trim(),
+        ...(fechaRequeridaCliente ? { fechaRequerida: fechaRequeridaCliente } : {}),
         ...(contactoEfectivoId ? { contactoId: contactoEfectivoId } : {}),
       });
 
@@ -542,7 +545,7 @@ export function FormularioProspecto({
               </span>
             </div>
 
-            <div className="flex flex-col gap-1 sm:col-span-2">
+            <div className="flex flex-col gap-1">
               <Label htmlFor="prospecto-canal" className={CLASE_OBLIGATORIO}>Canal</Label>
               <Select
                 id="prospecto-canal"
@@ -564,6 +567,23 @@ export function FormularioProspecto({
                   <option key={opcion.codigo} value={opcion.codigo}>{opcion.nombre}</option>
                 ))}
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="prospecto-fecha-requerida">
+                Fecha requerida por el cliente (opcional)
+              </Label>
+              <Input
+                id="prospecto-fecha-requerida"
+                type="date"
+                value={fechaRequeridaCliente}
+                onChange={(evento) => setFechaRequeridaCliente(evento.target.value)}
+                aria-describedby="prospecto-fecha-requerida-ayuda"
+              />
+              <span id="prospecto-fecha-requerida-ayuda" className="text-xs text-texto-secundario">
+                Fecha solicitada por el cliente para recibir el trabajo. No representa todavía una
+                fecha compromiso de nuestra empresa.
+              </span>
             </div>
 
             {canalSeleccionado?.esOtro && (
