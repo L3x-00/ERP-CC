@@ -101,6 +101,11 @@ function DetalleVersionRfq({
         <Campo etiqueta="Contacto" valor={version.cabecera.nombreContacto ?? ''} />
         <Campo etiqueta="Canal" valor={nombreCanal(version, catalogos)} />
         <Campo etiqueta="Fecha de solicitud" valor={version.cabecera.fechaSolicitud ?? ''} />
+        <Campo
+          etiqueta="Fecha requerida por el cliente"
+          valor={version.cabecera.fechaRequerida?.slice(0, 10) ?? ''}
+        />
+        <Campo etiqueta="Plazo comercial" valor={version.cabecera.plazoComercial ?? ''} />
         <div className="flex flex-col gap-0.5 sm:col-span-2">
           <span className="text-xs font-medium text-texto-secundario">Descripción general</span>
           <span className="whitespace-pre-wrap text-sm text-texto-primario">

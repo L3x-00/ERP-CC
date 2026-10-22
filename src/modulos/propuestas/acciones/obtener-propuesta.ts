@@ -13,6 +13,7 @@ import { obtenerUtilidadObjetivoPropuesta } from '@/modulos/propuestas/servicios
 import {
   obtenerArchivosDePropuesta,
   obtenerCanalRfq,
+  obtenerFechasRfq,
   obtenerIdsItemsRfq,
   obtenerPdfsDeRevisiones,
   obtenerPropuestaPorId,
@@ -50,6 +51,8 @@ export type DetallePropuestaFicha = {
   archivosPorItem: ArchivoPropuesta[];
   /** Canal del RFQ de origen: prellena el canal al validar la propuesta. */
   canalRfq: { canal: string; canalDetalle: string | null } | null;
+  /** Fecha requerida y plazo comercial del RFQ: referencia al confirmar el compromiso. */
+  fechasRfq: { fechaRequerida: string | null; plazoComercial: string | null } | null;
   /** Utilidad objetivo vigente (% sobre costo) de Configuración, para la ficha. */
   utilidadObjetivoPorcentaje: number;
 };
@@ -82,10 +85,11 @@ export async function obtenerPropuestaAccion(
 
   const revisionIds = datos.revisiones.map((revision) => revision.id);
   const itemIds = datos.items.map((item) => item.id);
-  const [utilidadObjetivoPorcentaje, rfqItemIds, canalRfq, pdfs, archivos] = await Promise.all([
+  const [utilidadObjetivoPorcentaje, rfqItemIds, canalRfq, fechasRfq, pdfs, archivos] = await Promise.all([
     obtenerUtilidadObjetivoPropuesta(),
     obtenerIdsItemsRfq(servidor, datos.propuesta.rfqId),
     obtenerCanalRfq(servidor, datos.propuesta.rfqId),
+    obtenerFechasRfq(servidor, datos.propuesta.rfqId),
     obtenerPdfsDeRevisiones(servidor, revisionIds),
     obtenerArchivosDePropuesta(servidor, {
       revisionIds,
@@ -148,6 +152,7 @@ export async function obtenerPropuestaAccion(
         ...archivosRfqItems.filter((archivo) => archivo.entidad === 'rfq_item'),
       ],
       canalRfq,
+      fechasRfq,
       utilidadObjetivoPorcentaje,
     },
   };

@@ -127,6 +127,7 @@ export function FormularioProspecto({
   const [canalDetalle, setCanalDetalle] = useState('');
   const [descripcionGeneral, setDescripcionGeneral] = useState('');
   const [fechaRequeridaCliente, setFechaRequeridaCliente] = useState('');
+  const [plazoComercial, setPlazoComercial] = useState('');
   const fechaRegistro = fechaHoyLocal();
   const [finalizarAbierto, setFinalizarAbierto] = useState(false);
   const [contactoId, setContactoId] = useState('');
@@ -253,6 +254,7 @@ export function FormularioProspecto({
     setCanalDetalle('');
     setDescripcionGeneral('');
     setFechaRequeridaCliente('');
+    setPlazoComercial('');
     setContactoId('');
   }
 
@@ -293,6 +295,7 @@ export function FormularioProspecto({
         ...(canalSeleccionado?.esOtro ? { canalDetalle: canalDetalle.trim() } : {}),
         descripcionGeneral: descripcionGeneral.trim(),
         ...(fechaRequeridaCliente ? { fechaRequerida: fechaRequeridaCliente } : {}),
+        ...(plazoComercial.trim() ? { plazoComercial: plazoComercial.trim() } : {}),
         ...(contactoEfectivoId ? { contactoId: contactoEfectivoId } : {}),
       });
 
@@ -583,6 +586,22 @@ export function FormularioProspecto({
               <span id="prospecto-fecha-requerida-ayuda" className="text-xs text-texto-secundario">
                 Fecha solicitada por el cliente para recibir el trabajo. No representa todavía una
                 fecha compromiso de nuestra empresa.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <Label htmlFor="prospecto-plazo-comercial">Plazo comercial (opcional)</Label>
+              <Input
+                id="prospecto-plazo-comercial"
+                value={plazoComercial}
+                onChange={(evento) => setPlazoComercial(evento.target.value)}
+                maxLength={120}
+                placeholder="Ej. Fabricación 5-7 días"
+                aria-describedby="prospecto-plazo-comercial-ayuda"
+              />
+              <span id="prospecto-plazo-comercial-ayuda" className="text-xs text-texto-secundario">
+                Si el cliente no pidió una fecha, escribe aquí el plazo que ofreces. La fecha
+                compromiso se confirma después, al aceptar la propuesta.
               </span>
             </div>
 

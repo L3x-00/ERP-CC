@@ -24,6 +24,9 @@ export const esquemaCrearProspecto = z.object({
   // Obs. cliente 2026-10-21: fecha que el cliente quisiera recibir el trabajo.
   // Opcional e informativa: no es la fecha compromiso comercial.
   fechaRequerida: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),
+  // Obs. cliente 2026-10-21: si el cliente no pide fecha, plazo comercial en texto
+  // libre («Fabricación 5-7 días»). Opcional; la fecha compromiso se confirma después.
+  plazoComercial: z.string().trim().max(120, 'El plazo admite máximo 120 caracteres').optional(),
   notas: z.string().max(2000).optional(),
   // Observación del cliente: la captura inicial en un solo modal también
   // completa los datos del Resumen (canal controlado, fecha de solicitud,

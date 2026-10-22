@@ -145,6 +145,8 @@ export const esquemaDatosGeneralesRfq = z
     fechaSolicitud: fechaDia.nullish(),
     // Opcional e informativa; ausente (`undefined`) conserva la guardada.
     fechaRequeridaCliente: fechaDia.nullish(),
+    // Plazo comercial en texto libre; ausente (`undefined`) conserva el guardado.
+    plazoComercial: z.string().trim().max(120, 'El plazo admite máximo 120 caracteres').nullish(),
     descripcionGeneral: z.string().trim().max(2000).nullish(),
     contactoId: z.uuid().nullish(),
     responsableId: z.uuid().nullish(),

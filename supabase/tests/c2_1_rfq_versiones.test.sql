@@ -7,7 +7,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(29);
+SELECT plan(33);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores y permisos
@@ -75,6 +75,10 @@ FROM (VALUES
 INSERT INTO c21 SELECT 'rfq_a', id FROM public.pipeline WHERE folio_op = 'OP-C21-A';
 INSERT INTO c21 SELECT 'rfq_b', id FROM public.pipeline WHERE folio_op = 'OP-C21-B';
 INSERT INTO c21 SELECT 'rfq_l', id FROM public.pipeline WHERE folio_op = 'OP-C21-L';
+
+-- Obs. cliente 2026-10-21: plazo comercial opcional del RFQ A (sin fecha pedida).
+UPDATE public.pipeline SET plazo_comercial = 'Fabricación 5-7 días'
+WHERE id = (SELECT valor FROM c21 WHERE nombre = 'rfq_a');
 
 CREATE TEMP TABLE c21_datos ON COMMIT DROP AS
 SELECT jsonb_build_object(
@@ -156,6 +160,14 @@ SELECT is(
   (SELECT snapshot_cabecera->>'descripcion_general' FROM public.rfq_versiones
    WHERE rfq_id = (SELECT valor FROM c21 WHERE nombre = 'rfq_a') AND numero = 1),
   'Pieza C21', 'el snapshot incluye la cabecera');
+SELECT is(
+  (SELECT snapshot_cabecera->>'plazo_comercial' FROM public.rfq_versiones
+   WHERE rfq_id = (SELECT valor FROM c21 WHERE nombre = 'rfq_a') AND numero = 1),
+  'Fabricación 5-7 días', 'el snapshot incluye el plazo comercial');
+SELECT throws_ok(
+  format($$UPDATE public.pipeline SET plazo_comercial = '' WHERE id = %L$$,
+    (SELECT valor FROM c21 WHERE nombre = 'rfq_b')),
+  '23514', NULL, 'el plazo comercial no puede ser una cadena vacía');
 
 -- -----------------------------------------------------------------------------
 -- 5. Inmutabilidad
@@ -209,6 +221,10 @@ SELECT throws_ok(
     (SELECT valor FROM c21 WHERE nombre = 'rfq_a')),
   '23514', 'rfq_congelado', 'la cabecera del RFQ congelado no cambia');
 SELECT throws_ok(
+  format($$UPDATE public.pipeline SET plazo_comercial = 'Fabricación 30 días' WHERE id = %L$$,
+    (SELECT valor FROM c21 WHERE nombre = 'rfq_a')),
+  '23514', 'rfq_congelado', 'el plazo comercial del RFQ congelado no cambia');
+SELECT throws_ok(
   format($$UPDATE public.rfq_items SET cantidad = 9 WHERE rfq_id = %L$$,
     (SELECT valor FROM c21 WHERE nombre = 'rfq_a')),
   '23514', 'rfq_congelado', 'los ítems del RFQ congelado no cambian');
@@ -220,6 +236,10 @@ SELECT lives_ok(
   format($$UPDATE public.pipeline SET descripcion_general = 'Legado editable' WHERE id = %L$$,
     (SELECT valor FROM c21 WHERE nombre = 'rfq_l')),
   'un RFQ legado convertido sin versión final no se bloquea');
+SELECT lives_ok(
+  format($$UPDATE public.pipeline SET plazo_comercial = 'Entrega 10 días' WHERE id = %L$$,
+    (SELECT valor FROM c21 WHERE nombre = 'rfq_l')),
+  'el plazo comercial de un RFQ legado sin versión final sí se edita');
 
 -- La aplicación escribe como service_role (sin USAGE sobre `privado`).
 GRANT SELECT ON c21 TO service_role;

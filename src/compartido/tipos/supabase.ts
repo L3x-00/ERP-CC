@@ -2646,6 +2646,7 @@ export type Database = {
           nombre_contacto: string
           notas: string | null
           notas_perdida: string | null
+          plazo_comercial: string | null
           po_cliente: string | null
           prioridad: string
           proxima_accion_codigo: string | null
@@ -2689,6 +2690,7 @@ export type Database = {
           nombre_contacto: string
           notas?: string | null
           notas_perdida?: string | null
+          plazo_comercial?: string | null
           po_cliente?: string | null
           prioridad?: string
           proxima_accion_codigo?: string | null
@@ -2732,6 +2734,7 @@ export type Database = {
           nombre_contacto?: string
           notas?: string | null
           notas_perdida?: string | null
+          plazo_comercial?: string | null
           po_cliente?: string | null
           prioridad?: string
           proxima_accion_codigo?: string | null

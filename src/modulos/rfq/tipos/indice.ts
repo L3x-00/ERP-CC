@@ -106,6 +106,12 @@ export type Rfq = {
   fechaSolicitud: string | null;
   /** `pipeline.fecha_requerida` (legacy, timestamptz): fecha informativa del cliente, no la fecha compromiso comercial. */
   fechaRequeridaCliente: string | null;
+  /**
+   * `pipeline.plazo_comercial`: plazo ofrecido en texto libre («Fabricación 5-7 días»)
+   * cuando el cliente no pide fecha. Informativo: la fecha compromiso comercial
+   * se confirma al aceptar la Propuesta.
+   */
+  plazoComercial: string | null;
   descripcionGeneral: string | null;
   proximaAccionCodigo: string | null;
   proximaAccionTexto: string | null;
@@ -136,6 +142,7 @@ export type FilaRfq = {
   canal_detalle: string | null;
   fecha_solicitud: string | null;
   fecha_requerida: string | null;
+  plazo_comercial: string | null;
   descripcion_general: string | null;
   proxima_accion_codigo: string | null;
   proxima_accion_texto: string | null;
@@ -215,6 +222,7 @@ export function filaARfq(
     canalDetalle: fila.canal_detalle,
     fechaSolicitud: fila.fecha_solicitud,
     fechaRequeridaCliente: fila.fecha_requerida,
+    plazoComercial: fila.plazo_comercial,
     descripcionGeneral: fila.descripcion_general,
     proximaAccionCodigo: fila.proxima_accion_codigo,
     proximaAccionTexto: fila.proxima_accion_texto,
@@ -266,6 +274,7 @@ export type SnapshotCabeceraRfq = {
   canalDetalle: string | null;
   fechaSolicitud: string | null;
   fechaRequerida: string | null;
+  plazoComercial: string | null;
   descripcionGeneral: string | null;
   responsableId: string | null;
   moneda: string | null;
@@ -362,6 +371,7 @@ function normalizarCabeceraVersion(valor: unknown): SnapshotCabeceraRfq {
     canalDetalle: textoOpcional(fila.canal_detalle),
     fechaSolicitud: textoOpcional(fila.fecha_solicitud),
     fechaRequerida: textoOpcional(fila.fecha_requerida),
+    plazoComercial: textoOpcional(fila.plazo_comercial),
     descripcionGeneral: textoOpcional(fila.descripcion_general),
     responsableId: textoOpcional(fila.responsable_id),
     moneda: textoOpcional(fila.moneda),

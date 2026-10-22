@@ -55,6 +55,7 @@ const RFQ: Rfq = {
   canalDetalle: null,
   fechaSolicitud: enDias(-2),
   fechaRequeridaCliente: null,
+  plazoComercial: null,
   descripcionGeneral: 'Corte de lámina',
   proximaAccionCodigo: 'FOLLOW_UP',
   proximaAccionTexto: null,

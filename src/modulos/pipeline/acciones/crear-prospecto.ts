@@ -184,6 +184,7 @@ export async function crearProspectoAccion(
       // Obs. cliente 2026-10-21: fecha requerida por el cliente, opcional. La
       // orden toma su compromiso de la aceptación, nunca de esta fecha.
       fecha_requerida: datos.fechaRequerida || null,
+      plazo_comercial: datos.plazoComercial || null,
       horas_estimadas: null,
       notas: null,
       // Los datos generales se capturan antes de los ítems. La fecha y el
