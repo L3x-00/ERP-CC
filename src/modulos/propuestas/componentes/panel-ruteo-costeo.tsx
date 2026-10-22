@@ -28,7 +28,6 @@ import { resolverGrupoEquipoDelProceso } from '@/modulos/propuestas/utilidades/r
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
-import { AvisoUtilidadPropuesta, CeldaUtilidadPropuesta } from './indicador-utilidad-propuesta';
 
 /** Monto escrito en un campo de costo: 0 si está vacío, null si no es un monto válido. */
 function montoDeTexto(texto: string): number | null {
@@ -378,13 +377,15 @@ export function PanelRuteoCosteo({
 
   return (
     <section className="flex flex-col gap-4" data-testid="panel-ruteo-costeo">
-      <div className="grid gap-2 rounded-lg border border-borde bg-superficie-2 p-3 text-sm sm:grid-cols-4">
-        <Resumen etiqueta="Subtotal" valor={formatearMoneda(totales.subtotal, totales.moneda)} />
+      <div
+        className="grid gap-2 rounded-lg border border-borde bg-superficie-2 p-3 text-sm sm:grid-cols-4"
+        data-testid="resumen-importes-propuesta"
+      >
+        <Resumen etiqueta="Subtotal de venta" valor={formatearMoneda(totales.subtotal, totales.moneda)} />
         <Resumen etiqueta={`IVA (${totales.ivaPorcentaje}%)`} valor={formatearMoneda(totales.iva, totales.moneda)} />
-        <Resumen etiqueta="Costo total" valor={formatearMoneda(totales.costoTotal, totales.moneda)} />
-        <CeldaUtilidadPropuesta totales={totales} />
+        <Resumen etiqueta="Total cliente" valor={formatearMoneda(totales.total, totales.moneda)} />
+        <Resumen etiqueta="Costo estimado total" valor={formatearMoneda(totales.costoTotal, totales.moneda)} />
       </div>
-      <AvisoUtilidadPropuesta totales={totales} />
 
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-texto-primario">Ruteo estimado</h3>
