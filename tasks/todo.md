@@ -1,3 +1,20 @@
+## Corte 2026-10-21 — DC-06 (resultado al sustituir el seguimiento) y DC-09 (fecha compromiso desde la aceptación) · PR #104
+
+Rama `feat/rfq-seguimiento-resultado-y-dc09`, commits `f6ace27` y `b3f434b`.
+
+- [x] **DC-06 Resumen:** cambiar o retirar la próxima acción vigente desde el Resumen (o cambiar el detalle de «Otro»)
+  exige un resultado (Completada / Sin respuesta / Reprogramada / Ya no aplica) y el servidor lo revalida contra la fila
+  guardada; queda en Actividad como `seguimiento_<resultado>` con la misma correlación. Mover solo fecha o responsable
+  conserva la acción y no pide resultado. Sin migración.
+- [x] **DC-09 Orden:** `crear_orden_desde_revision` toma `solicitudes_orden.fecha_compromiso_comercial` (respaldo en
+  `propuesta_revisiones`) y falla con `fecha_compromiso_comercial_requerida` (23514) si falta, en vez de
+  `coalesce(pipeline.fecha_requerida, now())`. Migración `20261022025747_dc09_orden_compromiso_desde_aceptacion.sql`,
+  aplicada en local y en remoto por el PO el 2026-10-21.
+- [ ] **DC-09 plazo comercial** («Fabricación 57 días»): pendiente, fuera de este corte.
+
+**Pruebas:** typecheck y ESLint focal 0; unitarias `rfq-` 27 archivos / 267 en verde; pgTAP focal 5 archivos / 153 en
+verde; E2E `rfq-flujo` 2/2 en loopback. Suite completa, pgTAP completo y capturas visuales: no corridos (los cubre CI).
+
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
 Estado: decisiones `DC-01..DC-15` aceptadas; **P0 y C1–C6 completos** y fusionados a `main` (PR #31–#43); **C7 (cierre local) completo el 2026-10-10** sobre `main` `f642036` + árbol de trabajo. Pendientes menores declarados: prueba de dos conexiones de `procesar_solicitud_orden` y conversión de moneda del costeo. Remoto, CI, despliegue y aceptación quedan en manos del PO.
