@@ -233,7 +233,8 @@ SELECT lives_ok(
 );
 
 SELECT set_config('sii.b4_rpc', 'on', true);
-UPDATE public.propuesta_revisiones SET estado = 'ACCEPTED'
+UPDATE public.propuesta_revisiones
+SET estado = 'ACCEPTED', fecha_compromiso_comercial = current_date + 20
 WHERE id = (SELECT valor FROM c31d_ids WHERE nombre = 'rev_b');
 UPDATE public.propuestas
 SET estado = 'ACCEPTED',
