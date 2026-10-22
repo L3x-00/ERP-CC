@@ -20,6 +20,10 @@ import {
   contactoSugeridoRfq,
   opcionesContactoRfq,
 } from '@/modulos/rfq/utilidades/contacto-rfq';
+import {
+  reemplazaProximaAccionVigente,
+  type ResultadoProximaAccion,
+} from '@/modulos/rfq/utilidades/proxima-accion';
 
 import { actualizarDatosRfqAccion } from '../acciones/actualizar-datos-rfq';
 import {
@@ -30,6 +34,7 @@ import {
   obtenerContactosClienteRfqAccion,
   type CatalogosRfq,
 } from '../acciones/obtener-catalogos';
+import { CamposResultadoSeguimiento } from './campos-resultado-seguimiento';
 
 function resolverCanalInicial(rfq: Rfq, catalogos: CatalogosRfq): string {
   if (!rfq.canal) return '';
@@ -80,6 +85,9 @@ export function FormularioGeneralRfq({
   const [responsableProximaAccionId, setResponsableProximaAccionId] = useState(
     rfq.responsableProximaAccionId ?? '',
   );
+  const [resultadoProximaAccion, setResultadoProximaAccion] = useState<
+    ResultadoProximaAccion | ''
+  >('');
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [guardado, setGuardado] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -123,6 +131,16 @@ export function FormularioGeneralRfq({
     fSeguimiento.detalleProximaAccion ||
     fSeguimiento.fechaProximaAccion ||
     fSeguimiento.responsableProximaAccion;
+  // Obs. cliente 2026-10-21: sustituir la acción vigente desde el Resumen exige
+  // decir cómo terminó; el servidor lo revalida contra la fila guardada.
+  const reemplazaSeguimiento = reemplazaProximaAccionVigente(rfq, {
+    codigo: proximaAccionCodigo,
+    texto: proximaAccionTexto,
+  });
+  const faltaResultadoSeguimiento = reemplazaSeguimiento && resultadoProximaAccion === '';
+  const nombreAccionVigente =
+    catalogos.proximasAcciones.find((accion) => accion.codigo === rfq.proximaAccionCodigo)?.nombre ??
+    rfq.proximaAccionCodigo;
   const accionSeleccionada = catalogos.proximasAcciones.find(
     (accion) => accion.codigo === proximaAccionCodigo,
   );
@@ -170,6 +188,11 @@ export function FormularioGeneralRfq({
       setMensaje('Escribe el detalle del canal Otro');
       return;
     }
+    if (faltaResultadoSeguimiento) {
+      setGuardado(false);
+      setMensaje('Indica cómo terminó la acción de seguimiento actual');
+      return;
+    }
     setEnviando(true);
     setMensaje(null);
     setGuardado(false);
@@ -190,6 +213,9 @@ export function FormularioGeneralRfq({
         proximaAccionTexto: proximaAccionTexto.trim() || null,
         fechaProximaAccion: fechaProximaAccion || null,
         responsableProximaAccionId: responsableProximaAccionId || null,
+        ...(reemplazaSeguimiento && resultadoProximaAccion !== ''
+          ? { resultadoProximaAccion }
+          : {}),
       });
       setEnviando(false);
 
@@ -451,6 +477,24 @@ export function FormularioGeneralRfq({
             ))}
           </Select>
         </div>
+
+        {reemplazaSeguimiento && (
+          <div
+            className="flex flex-col gap-2 rounded-lg bg-superficie-2 p-3 sm:col-span-2 lg:col-span-4"
+            data-testid="resultado-edicion-seguimiento"
+          >
+            <p className="text-sm" role="status">
+              Vas a sustituir la acción{' '}
+              <strong className="font-semibold">«{nombreAccionVigente}»</strong>. Indica cómo
+              terminó para conservar el historial.
+            </p>
+            <CamposResultadoSeguimiento
+              idBase="rfq-resumen"
+              valor={resultadoProximaAccion}
+              onCambio={setResultadoProximaAccion}
+            />
+          </div>
+        )}
       </fieldset>
 
       {mensaje !== null && (
@@ -459,9 +503,16 @@ export function FormularioGeneralRfq({
         </p>
       )}
       {guardado && <p className="text-sm font-medium text-exito-texto">Datos guardados.</p>}
+      {faltaResultadoSeguimiento && (
+        <p className="text-xs text-texto-secundario">Falta: cómo terminó la acción actual.</p>
+      )}
 
       <div className="flex justify-end">
-        <Button type="submit" tamano="lg" disabled={!editable || enviando}>
+        <Button
+          type="submit"
+          tamano="lg"
+          disabled={!editable || enviando || faltaResultadoSeguimiento}
+        >
           {enviando ? 'Guardando…' : 'Guardar datos'}
         </Button>
       </div>

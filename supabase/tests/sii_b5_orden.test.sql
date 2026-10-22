@@ -6,7 +6,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(66);
+SELECT plan(69);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores
@@ -99,10 +99,11 @@ INSERT INTO b5_ids (nombre, valor)
 SELECT 'propuesta1', id FROM public.propuestas WHERE folio_cnc = 'CNC-9001_01';
 
 INSERT INTO public.propuesta_revisiones (
-  propuesta_id, letra, folio_revision, estado, snapshot_cabecera, creado_por
+  propuesta_id, letra, folio_revision, estado, fecha_compromiso_comercial,
+  snapshot_cabecera, creado_por
 ) VALUES (
   (SELECT valor FROM b5_ids WHERE nombre = 'propuesta1'), 'A', 'CNC-9001_01-A',
-  'ACCEPTED',
+  'ACCEPTED', current_date + 30,
   jsonb_build_object(
     'version', 1,
     'cliente_id', (SELECT valor FROM b5_ids WHERE nombre = 'cliente'),
@@ -190,10 +191,12 @@ INSERT INTO public.propuestas (
 INSERT INTO b5_ids (nombre, valor)
 SELECT 'propuesta2', id FROM public.propuestas WHERE folio_cnc = 'CNC-9001_02';
 INSERT INTO public.propuesta_revisiones (
-  propuesta_id, letra, folio_revision, estado, snapshot_cabecera, creado_por
+  propuesta_id, letra, folio_revision, estado, fecha_compromiso_comercial,
+  snapshot_cabecera, creado_por
 ) VALUES (
   (SELECT valor FROM b5_ids WHERE nombre = 'propuesta2'), 'A', 'CNC-9001_02-A',
-  'ACCEPTED', jsonb_build_object('version', 1, 'moneda', 'MXN', 'iva_porcentaje', 16),
+  'ACCEPTED', current_date + 40,
+  jsonb_build_object('version', 1, 'moneda', 'MXN', 'iva_porcentaje', 16),
   '00000000-0000-4000-8000-0000000b5a03'
 );
 INSERT INTO b5_ids (nombre, valor)
@@ -339,6 +342,18 @@ SELECT is(
   (SELECT valor FROM b5_ids WHERE nombre = 'revision1'),
   'La orden queda ligada a la revisiÃ³n exacta'
 );
+SELECT is(
+  (SELECT fecha_compromiso_comercial FROM public.ordenes_produccion
+   WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
+  current_date + 30,
+  'La fecha compromiso comercial viene de la aceptación, no de pipeline.fecha_requerida'
+);
+SELECT ok((
+  SELECT fecha_compromiso::date = current_date + 30
+     AND fecha_operativa::date = current_date + 30
+  FROM public.ordenes_produccion
+  WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')
+), 'fecha_compromiso y fecha_operativa espejan la fecha de aceptación');
 SELECT is(
   (SELECT count(*)::integer FROM public.partidas_orden_produccion
    WHERE orden_id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
@@ -661,6 +676,40 @@ SELECT throws_ok(format(
   (SELECT actualizado_en::text FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden_ti')),
   '00000000-0000-4000-8000-0000000b5a03'),
   '22023', 'motivo_requerido', 'El ajuste exige motivo de 3 a 500 caracteres');
+
+-- DC-09: una revisión aceptada sin fecha compromiso comercial no inventa una
+-- fecha con la requerida del RFQ ni con now(); el alta falla de forma explícita.
+INSERT INTO public.propuestas (
+  rfq_id, cliente_id, folio_cnc, estado, responsable_id, creado_por
+) VALUES (
+  (SELECT valor FROM b5_ids WHERE nombre = 'rfq1'),
+  (SELECT valor FROM b5_ids WHERE nombre = 'cliente'),
+  'CNC-9001_04', 'ACCEPTED', '00000000-0000-4000-8000-0000000b5a03',
+  '00000000-0000-4000-8000-0000000b5a03'
+);
+INSERT INTO b5_ids (nombre, valor)
+SELECT 'propuesta_sin_fecha', id FROM public.propuestas WHERE folio_cnc = 'CNC-9001_04';
+INSERT INTO public.propuesta_revisiones (
+  propuesta_id, letra, folio_revision, estado, snapshot_cabecera, creado_por
+) VALUES (
+  (SELECT valor FROM b5_ids WHERE nombre = 'propuesta_sin_fecha'), 'A', 'CNC-9001_04-A',
+  'ACCEPTED', jsonb_build_object('version', 1, 'moneda', 'MXN', 'iva_porcentaje', 16),
+  '00000000-0000-4000-8000-0000000b5a03'
+);
+INSERT INTO b5_ids (nombre, valor)
+SELECT 'revision_sin_fecha', id FROM public.propuesta_revisiones
+WHERE folio_revision = 'CNC-9001_04-A';
+UPDATE public.propuestas
+SET accepted_revision_id = (SELECT valor FROM b5_ids WHERE nombre = 'revision_sin_fecha'),
+    revision_vigente_id = (SELECT valor FROM b5_ids WHERE nombre = 'revision_sin_fecha')
+WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'propuesta_sin_fecha');
+SELECT throws_ok(
+  format('SELECT public.crear_orden_desde_revision(%L, %L)',
+    (SELECT valor::text FROM b5_ids WHERE nombre = 'revision_sin_fecha'),
+    '00000000-0000-4000-8000-0000000b5a03'),
+  '23514', 'fecha_compromiso_comercial_requerida',
+  'Una revisión aceptada sin fecha compromiso no crea Orden'
+);
 
 SELECT * FROM finish();
 ROLLBACK;

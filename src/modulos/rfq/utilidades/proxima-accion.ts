@@ -54,6 +54,23 @@ export function etiquetaResultadoProximaAccion(resultado: ResultadoProximaAccion
   return RESULTADOS_PROXIMA_ACCION.find((opcion) => opcion.valor === resultado)?.etiqueta ?? resultado;
 }
 
+/**
+ * ¿La edición directa del Resumen sustituye la acción vigente? Solo cuenta
+ * cambiar la acción (o su detalle) o retirarla; mover la fecha o el responsable
+ * es ajustar la misma acción, no cerrarla. El servidor reevalúa esta regla
+ * contra la fila guardada, nunca contra lo que dicta el navegador.
+ */
+export function reemplazaProximaAccionVigente(
+  rfq: Pick<Rfq, 'proximaAccionCodigo' | 'proximaAccionTexto'>,
+  captura: Pick<ProximaAccionCaptura, 'codigo' | 'texto'>,
+): boolean {
+  if (!rfq.proximaAccionCodigo) return false;
+  if (captura.codigo !== rfq.proximaAccionCodigo) return true;
+  const textoNuevo = captura.texto.trim() || null;
+  const textoVigente = rfq.proximaAccionTexto?.trim() || null;
+  return textoNuevo !== textoVigente;
+}
+
 /** ¿El RFQ ya tiene una acción de seguimiento pendiente? */
 export function tieneProximaAccionVigente(
   rfq: Pick<Rfq, 'proximaAccionCodigo'>,

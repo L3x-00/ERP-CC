@@ -46,7 +46,9 @@ export async function actualizarDatosRfqAccion(
 
   const { data: rfq, error: errorRfq } = await admin
     .from('pipeline')
-    .select('id, estado_rfq, cliente_id, canal, actualizado_en')
+    .select(
+      'id, estado_rfq, cliente_id, canal, actualizado_en, proxima_accion_codigo, proxima_accion_texto, fecha_proxima_accion',
+    )
     .eq('id', datos.rfqId)
     .maybeSingle();
   if (errorRfq || !rfq) {
@@ -60,6 +62,24 @@ export async function actualizarDatosRfqAccion(
   }
   if (rfq.actualizado_en !== datos.actualizadoEn) {
     return { exito: false, error: 'El RFQ cambió; recarga antes de reintentar' };
+  }
+
+  // Obs. cliente 2026-10-21: la edición directa del Resumen sustituye la acción
+  // vigente solo con su resultado. Se compara contra la fila guardada, no contra
+  // el navegador; mover fecha o responsable conserva la misma acción.
+  const accionVigente = rfq.proxima_accion_codigo
+    ? {
+        codigo: rfq.proxima_accion_codigo,
+        texto: rfq.proxima_accion_texto?.trim() || null,
+        fecha: rfq.fecha_proxima_accion?.slice(0, 10) ?? null,
+      }
+    : null;
+  const sustituyeAccion =
+    accionVigente !== null &&
+    ((datos.proximaAccionCodigo ?? null) !== accionVigente.codigo ||
+      (datos.proximaAccionTexto?.trim() || null) !== accionVigente.texto);
+  if (sustituyeAccion && !datos.resultadoProximaAccion) {
+    return { exito: false, error: 'Indica cómo terminó la acción de seguimiento actual' };
   }
 
   // Validaciones de integridad de los vínculos elegidos.
@@ -176,12 +196,35 @@ export async function actualizarDatosRfqAccion(
     actorId: usuario.id,
     correlationId,
   });
+  // El resultado describe la acción anterior y queda en Actividad con una acción
+  // propia por resultado; comparte correlación con el guardado del Resumen.
+  if (sustituyeAccion && accionVigente && datos.resultadoProximaAccion) {
+    await registrarLog(
+      usuario,
+      `seguimiento_${datos.resultadoProximaAccion}`,
+      'pipeline',
+      datos.rfqId,
+      {
+        accionAnterior: accionVigente.codigo,
+        ...(accionVigente.fecha ? { fechaAnterior: accionVigente.fecha } : {}),
+        ...(datos.proximaAccionCodigo ? { accionNueva: datos.proximaAccionCodigo } : {}),
+        ...(datos.fechaProximaAccion ? { fechaNueva: datos.fechaProximaAccion } : {}),
+      },
+      correlationId,
+    );
+  }
+
   await registrarLog(
     usuario,
     'actualizar_datos_rfq',
     'pipeline',
     datos.rfqId,
-    { campos: Object.keys(datos).filter((clave) => clave !== 'rfqId' && clave !== 'actualizadoEn') },
+    {
+      campos: Object.keys(datos).filter(
+        (clave) =>
+          clave !== 'rfqId' && clave !== 'actualizadoEn' && clave !== 'resultadoProximaAccion',
+      ),
+    },
     correlationId,
   );
 
