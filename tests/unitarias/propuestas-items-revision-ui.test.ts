@@ -451,7 +451,24 @@ describe('EditorItemsPropuesta — material, espesor y envío', () => {
   });
 });
 
-describe('EditorItemsPropuesta — utilidad estimada sobre costo (obs. cliente 2026-10-20)', () => {
+describe('EditorItemsPropuesta — resumen de importes sin indicador de utilidad (obs. cliente 2026-10-21)', () => {
+  /** Valor mostrado debajo de una etiqueta del resumen de importes. */
+  function importe(etiqueta: string): string | null | undefined {
+    return within(screen.getByTestId('resumen-importes-propuesta')).getByText(etiqueta)
+      .nextElementSibling?.textContent;
+  }
+
+  function afirmarSinIndicadorDeUtilidad(): void {
+    expect(screen.queryByTestId('utilidad-sobre-costo')).toBeNull();
+    expect(screen.queryByTestId('aviso-utilidad-propuesta')).toBeNull();
+    expect(screen.queryByTestId('precio-minimo-recomendado')).toBeNull();
+    expect(screen.queryByText(/utilidad/i)).toBeNull();
+    expect(screen.queryByText(/precio m[ií]nimo/i)).toBeNull();
+    expect(screen.queryByText(/objetivo/i)).toBeNull();
+    expect(screen.queryByText('Margen')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  }
+
   const COSTOS = [
     { id: 'c1', revisionId: REV_B_ID, categoria: 'material', monto: 100, nota: null },
   ] as unknown as CostoRevisionPropuesta[];
@@ -464,46 +481,52 @@ describe('EditorItemsPropuesta — utilidad estimada sobre costo (obs. cliente 2
     },
   ] as unknown as RuteoItemPropuesta[];
 
-  it('incluye el ruteo costeado en el costo: igual que Ruteo/Costeo y Resumen', () => {
+  it('conserva subtotal de venta, IVA, total cliente y costo estimado (con ruteo costeado)', () => {
     renderizarEditor({ costos: COSTOS, ruteo: RUTEO, abrirAlta: false });
 
-    // Venta 2×100 + 2×100 = 400; costo = material 100 + ruteo 100 = 200.
-    // (400 − 200) / 200 = 100 %. Sin el ruteo daría 300 %.
-    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('100.00%');
-    expect(screen.queryByText('Margen')).toBeNull();
-    expect(screen.getByTestId('precio-minimo-recomendado').textContent).toBe('$260.00');
-    expect(screen.queryByRole('alert')).toBeNull();
+    // Venta 2×100 + 2×100 = 400 + IVA 16 % (64) = 464; costo = material 100 + ruteo 100 = 200.
+    expect(importe('Subtotal de venta')).toBe('$400.00');
+    expect(importe('IVA (16%)')).toBe('$64.00');
+    expect(importe('Total cliente')).toBe('$464.00');
+    expect(importe('Costo estimado total')).toBe('$200.00');
+    afirmarSinIndicadorDeUtilidad();
   });
 
-  it('al dar de baja un ítem su ruteo deja de contar y el indicador se recalcula en vivo', () => {
+  it('al dar de baja un ítem los importes se recalculan en vivo y su ruteo deja de contar', () => {
     renderizarEditor({ costos: COSTOS, ruteo: RUTEO, abrirAlta: false });
 
     const fila = screen.getByTestId(`item-propuesta-${ITEM_HEREDADO_ID}`);
     fireEvent.click(within(fila).getByLabelText(/Activo/));
 
-    // Venta 200; costo = material 100 (el ruteo del ítem inactivo no cuenta) → 100 %.
-    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('100.00%');
+    // Venta 200 + IVA 32 = 232; costo = material 100 (el ruteo del ítem inactivo no cuenta).
+    expect(importe('Subtotal de venta')).toBe('$200.00');
+    expect(importe('IVA (16%)')).toBe('$32.00');
+    expect(importe('Total cliente')).toBe('$232.00');
+    expect(importe('Costo estimado total')).toBe('$100.00');
+    afirmarSinIndicadorDeUtilidad();
   });
 
-  it('alerta cuando la venta queda debajo del precio mínimo y no bloquea guardar', () => {
+  it('con costo mayor que la venta no aparece alerta alguna ni se bloquea guardar', () => {
     const costosAltos = [
       { id: 'c1', revisionId: REV_B_ID, categoria: 'material', monto: 500, nota: null },
     ] as unknown as CostoRevisionPropuesta[];
     renderizarEditor({ costos: costosAltos, ruteo: RUTEO, abrirAlta: false });
 
-    // Costo 600 contra venta 400 → −33.33 %.
-    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('-33.33%');
-    expect(screen.getByRole('alert').textContent).toContain('Utilidad por debajo del objetivo de 30 %');
-    expect(screen.getByTestId('precio-minimo-recomendado').textContent).toBe('$780.00');
+    // Costo 600 contra venta 400: antes disparaba la alerta de objetivo; ya no se muestra.
+    expect(importe('Subtotal de venta')).toBe('$400.00');
+    expect(importe('Costo estimado total')).toBe('$600.00');
+    afirmarSinIndicadorDeUtilidad();
     const botones = screen.getAllByRole('button', { name: 'Guardar' }) as HTMLButtonElement[];
     expect(botones.every((boton) => !boton.disabled)).toBe(true);
   });
 
-  it('sin costo capturado indica qué falta en vez de mostrar un porcentaje engañoso', () => {
+  it('sin costo capturado no muestra aviso de utilidad ni de costo pendiente', () => {
     renderizarEditor({ abrirAlta: false });
 
-    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('—');
-    expect(screen.getByTestId('aviso-utilidad-propuesta').textContent).toContain('Sin costo estimado');
+    expect(importe('Subtotal de venta')).toBe('$400.00');
+    expect(importe('Costo estimado total')).toBe('$0.00');
+    expect(screen.queryByText(/Sin costo estimado/)).toBeNull();
+    afirmarSinIndicadorDeUtilidad();
   });
 });
 

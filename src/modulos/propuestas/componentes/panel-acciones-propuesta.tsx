@@ -8,6 +8,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { aceptarRevisionAccion } from '@/modulos/propuestas/acciones/aceptar-revision';
+import { PanelDisponibilidadPropuesta } from '@/modulos/propuestas/componentes/panel-disponibilidad-propuesta';
 import { PanelOrdenPendiente } from '@/modulos/propuestas/componentes/panel-orden-pendiente';
 import { cerrarPropuestaAccion } from '@/modulos/propuestas/acciones/cerrar-propuesta';
 import { confirmarVentaAccion } from '@/modulos/propuestas/acciones/confirmar-venta';
@@ -267,7 +268,7 @@ export function PanelAccionesPropuesta({
         )}
 
         {(estado === 'SENT' || estado === 'FOLLOW_UP') && permisos.aceptar && (
-          <span className="flex flex-wrap items-end gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap items-end gap-2">
             {referenciaFechasRfq && (
               <span
                 className="w-full text-xs text-texto-secundario"
@@ -285,6 +286,13 @@ export function PanelAccionesPropuesta({
                 aria-label="Fecha compromiso comercial"
               />
             </label>
+            {detalle.propuesta.acceptedRevisionId === null && (
+              <PanelDisponibilidadPropuesta
+                key={revision.id}
+                propuestaId={detalle.propuesta.id}
+                revisionId={revision.id}
+              />
+            )}
             <Button
               tamano="sm"
               onClick={() => void ejecutar(() => aceptarRevisionAccion({
@@ -297,7 +305,7 @@ export function PanelAccionesPropuesta({
             >
               Aceptar revisión
             </Button>
-          </span>
+          </div>
         )}
 
         {(estado === 'ACCEPTED' || estado === 'SALE_CONFIRMED') && esAceptada && (

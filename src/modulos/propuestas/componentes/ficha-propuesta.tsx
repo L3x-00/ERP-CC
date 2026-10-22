@@ -14,7 +14,6 @@ import { ActividadPropuesta } from './actividad-propuesta';
 import { BotonEditarRevision } from './dialogo-editar-revision';
 import { BotonNuevaVersionPropuesta } from './dialogo-nueva-version-propuesta';
 import { EditorItemsPropuesta } from './editor-items-propuesta';
-import { formatearObjetivoUtilidad, formatearUtilidadPorcentaje } from './indicador-utilidad-propuesta';
 import { PanelAccionesPropuesta } from './panel-acciones-propuesta';
 import { PanelArchivosPropuesta } from './panel-archivos-propuesta';
 import { PanelPdfsPropuesta } from './panel-pdfs-propuesta';
@@ -332,10 +331,6 @@ function ResumenPropuesta({
             Cada modificación se conserva como una versión independiente; las anteriores se abren
             en solo lectura.
           </p>
-          <p className="text-xs text-texto-secundario">
-            Utilidad estimada = (venta sin IVA − costo total estimado de fabricación) / costo total
-            estimado. El precio mínimo recomendado es el costo total × (1 + objetivo), sin IVA.
-          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm" data-testid="tabla-revisiones-propuesta">
@@ -344,10 +339,8 @@ function ResumenPropuesta({
                 <th className="px-2 py-2">Versión</th>
                 <th className="px-2 py-2">Estado</th>
                 <th className="px-2 py-2">Motivo</th>
-                <th className="px-2 py-2 text-right">Subtotal</th>
-                <th className="px-2 py-2 text-right">Total</th>
-                <th className="px-2 py-2 text-right">Utilidad estimada % sobre costo</th>
-                <th className="px-2 py-2 text-right">Precio mínimo recomendado</th>
+                <th className="px-2 py-2 text-right">Subtotal de venta</th>
+                <th className="px-2 py-2 text-right">Total cliente</th>
                 <th className="px-2 py-2">Validada</th>
                 <th className="px-2 py-2 text-right">Acciones</th>
               </tr>
@@ -375,25 +368,6 @@ function ResumenPropuesta({
                     </td>
                     <td className="px-2 py-2 text-right tabular-nums">
                       {formatearMoneda(revision.totales.total, revision.totales.moneda)}
-                    </td>
-                    <td
-                      className={`px-2 py-2 text-right tabular-nums ${
-                        revision.totales.bajoObjetivo ? 'font-semibold text-peligro-texto' : ''
-                      }`}
-                      data-testid={`utilidad-revision-${revision.letra}`}
-                      data-bajo-objetivo={revision.totales.bajoObjetivo ? 'si' : 'no'}
-                    >
-                      {formatearUtilidadPorcentaje(revision.totales.utilidadPorcentaje)}
-                      {revision.totales.bajoObjetivo && (
-                        <span className="ml-1 text-xs font-medium">
-                          · bajo objetivo ({formatearObjetivoUtilidad(revision.totales.utilidadObjetivoPorcentaje)})
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums">
-                      {revision.totales.precioMinimoRecomendado === null
-                        ? '—'
-                        : formatearMoneda(revision.totales.precioMinimoRecomendado, revision.totales.moneda)}
                     </td>
                     <td className="px-2 py-2 text-xs text-texto-secundario">
                       {revision.validadaEn ? formatearFecha(revision.validadaEn) : '—'}

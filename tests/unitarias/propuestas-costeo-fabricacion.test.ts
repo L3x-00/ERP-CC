@@ -227,6 +227,24 @@ function montar(
   );
 }
 
+/** Valor mostrado debajo de una etiqueta del resumen de importes. */
+function importe(etiqueta: string): string | null | undefined {
+  return within(screen.getByTestId('resumen-importes-propuesta')).getByText(etiqueta)
+    .nextElementSibling?.textContent;
+}
+
+/** Utilidad %, precio mínimo recomendado y alertas de objetivo salieron de la interfaz principal. */
+function afirmarSinIndicadorDeUtilidad(): void {
+  expect(screen.queryByTestId('utilidad-sobre-costo')).toBeNull();
+  expect(screen.queryByTestId('aviso-utilidad-propuesta')).toBeNull();
+  expect(screen.queryByTestId('precio-minimo-recomendado')).toBeNull();
+  expect(screen.queryByText(/utilidad/i)).toBeNull();
+  expect(screen.queryByText(/precio m[ií]nimo/i)).toBeNull();
+  expect(screen.queryByText(/objetivo/i)).toBeNull();
+  expect(screen.queryByText('Margen')).toBeNull();
+  expect(screen.queryByRole('alert')).toBeNull();
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -263,52 +281,39 @@ describe('costo total estimado de fabricación (obs. cliente)', () => {
     expect(desglose.getAllByText('$350.00').length).toBeGreaterThan(0);
   });
 
-  it('la utilidad sobre costo usa el snapshot costeado y no el costo manual de máquina', () => {
+  it('el resumen de importes usa el snapshot costeado y no el costo manual de máquina', () => {
     montar();
 
-    // Venta sin IVA 1000, costo 350 → (1000 − 350) / 350 = 185.71 % sobre costo.
-    const celda = within(screen.getByTestId('utilidad-sobre-costo'));
-    expect(celda.getByText('Utilidad estimada % sobre costo')).toBeDefined();
-    expect(celda.getByText('185.71%')).toBeDefined();
-    expect(screen.queryByText('Margen')).toBeNull();
+    // Venta sin IVA 1000 + IVA 16 % (160) = 1160; costo = ruteo 300 + material 50 = 350.
+    expect(importe('Subtotal de venta')).toBe('$1,000.00');
+    expect(importe('IVA (16%)')).toBe('$160.00');
+    expect(importe('Total cliente')).toBe('$1,160.00');
+    expect(importe('Costo estimado total')).toBe('$350.00');
+    afirmarSinIndicadorDeUtilidad();
   });
 
-  it('muestra el precio mínimo recomendado (costo × 1.30) sin alerta si la venta lo supera', () => {
-    montar();
-
-    const aviso = screen.getByTestId('aviso-utilidad-propuesta');
-    expect(aviso.getAttribute('data-bajo-objetivo')).toBe('no');
-    expect(within(aviso).getByTestId('precio-minimo-recomendado').textContent).toBe('$455.00');
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-
-  it('alerta, sin bloquear, cuando la utilidad queda debajo del objetivo', () => {
-    // Material 700 + ruteo costeado 300 = costo 1,000 contra venta 1,000 → 0 %.
+  it('con el costo igual a la venta no aparece alerta de objetivo y la propuesta sigue editable', () => {
+    // Material 700 + ruteo costeado 300 = costo 1,000 contra venta 1,000.
     const costosAltos = [
       { ...COSTOS[0], monto: 700 },
     ] as unknown as CostoRevisionPropuesta[];
     montar({ costos: costosAltos });
 
-    const aviso = screen.getByTestId('aviso-utilidad-propuesta');
-    expect(aviso.getAttribute('data-bajo-objetivo')).toBe('si');
-    expect(within(aviso).getByRole('alert').textContent).toContain(
-      'Utilidad por debajo del objetivo de 30 %',
-    );
-    expect(within(aviso).getByTestId('precio-minimo-recomendado').textContent).toBe('$1,300.00');
-    expect(screen.getByTestId('utilidad-sobre-costo').textContent).toContain('0.00%');
-    // La propuesta sigue editable: el aviso no deshabilita nada.
+    expect(importe('Subtotal de venta')).toBe('$1,000.00');
+    expect(importe('Costo estimado total')).toBe('$1,000.00');
+    afirmarSinIndicadorDeUtilidad();
     expect(
       (screen.getByLabelText('Setup horas IT01 fila 1') as HTMLInputElement).disabled,
     ).toBe(false);
   });
 
-  it('el objetivo configurado cambia el precio mínimo y la alerta sin tocar código', () => {
+  it('un objetivo de utilidad alto en Configuración no agrega alerta ni cambia los importes', () => {
     montar({ utilidadObjetivoPorcentaje: 200 });
 
-    // 185.71 % < 200 % → alerta; precio mínimo = 350 × 3.
-    const aviso = screen.getByTestId('aviso-utilidad-propuesta');
-    expect(aviso.getAttribute('data-bajo-objetivo')).toBe('si');
-    expect(within(aviso).getByTestId('precio-minimo-recomendado').textContent).toBe('$1,050.00');
+    expect(importe('Subtotal de venta')).toBe('$1,000.00');
+    expect(importe('Total cliente')).toBe('$1,160.00');
+    expect(importe('Costo estimado total')).toBe('$350.00');
+    afirmarSinIndicadorDeUtilidad();
   });
 
   it('sin filas costeadas explica cómo obtener el desglose', () => {

@@ -38,7 +38,70 @@ type Contexto = {
   rfqItemIds: string[];
   propuestaId?: string;
   revisionIds: string[];
+  disponibilidad?: { recursoId?: string; recursoSinTurnoId?: string; ordenId?: string; partidaId?: string };
 };
+
+/** Capacidad y carga aisladas para comprobar la consulta sin depender de la demo. */
+async function prepararDisponibilidad(contexto: Contexto): Promise<void> {
+  const { admin, sufijo } = contexto;
+  const creado: NonNullable<Contexto['disponibilidad']> = {};
+  contexto.disponibilidad = creado;
+
+  const recurso = await admin.from('recursos_planeacion').insert({
+    codigo: `E2EDISP-${sufijo}`, nombre: `Capacidad de prueba ${sufijo}`,
+    area: 'sheet_metal', grupo_equipo_id: contexto.grupoId, activo: true,
+  }).select('id').single();
+  if (recurso.error || !recurso.data) throw new Error(`Sin recurso: ${recurso.error?.message}`);
+  creado.recursoId = recurso.data.id;
+
+  const recursoSinTurno = await admin.from('recursos_planeacion').insert({
+    codigo: `E2ESINTURNO-${sufijo}`, nombre: `Equipo sin turno ${sufijo}`,
+    area: 'sheet_metal', grupo_equipo_id: contexto.grupoId, activo: true,
+  }).select('id').single();
+  if (recursoSinTurno.error || !recursoSinTurno.data) {
+    throw new Error(`Sin recurso sin turno: ${recursoSinTurno.error?.message}`);
+  }
+  creado.recursoSinTurnoId = recursoSinTurno.data.id;
+
+  const capacidad = await admin.from('capacidades_recurso_turno').insert({
+    recurso_id: creado.recursoId, turno: 'matutino', horas_capacidad: 8,
+  });
+  if (capacidad.error) throw new Error(`Sin capacidad: ${capacidad.error.message}`);
+
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Tijuana', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const campo = (tipo: string) => partes.find((parte) => parte.type === tipo)?.value;
+  const hoy = `${campo('year')}-${campo('month')}-${campo('day')}`;
+  const excepcion = await admin.from('excepciones_capacidad_recurso').insert({
+    recurso_id: creado.recursoId, fecha: sumarDias(hoy, 2), turno: 'matutino',
+    horas_capacidad: 0, motivo: 'Mantenimiento de prueba',
+  });
+  if (excepcion.error) throw new Error(`Sin excepción: ${excepcion.error.message}`);
+
+  const folio = await admin.rpc('generar_folio_orden', { p_prefijo: 'OP' });
+  if (folio.error || !folio.data) throw new Error(`Sin folio: ${folio.error?.message}`);
+  const orden = await admin.from('ordenes_produccion').insert({
+    folio: folio.data, cliente_id: contexto.clienteId, estado: 'programada', prioridad: 'normal',
+    fecha_compromiso: `${sumarDias(hoy, 30)}T00:00:00.000Z`,
+  }).select('id').single();
+  if (orden.error || !orden.data) throw new Error(`Sin orden de prueba: ${orden.error?.message}`);
+  creado.ordenId = orden.data.id;
+
+  const partida = await admin.from('partidas_orden_produccion').insert({
+    orden_id: creado.ordenId, codigo_pieza: `DISP-${sufijo}`,
+    descripcion: 'Trabajo ya programado para consulta E2E', cantidad_solicitada: 1,
+    unidad_medida: 'pieza', procesos: ['Corte'],
+  }).select('id').single();
+  if (partida.error || !partida.data) throw new Error(`Sin partida: ${partida.error?.message}`);
+  creado.partidaId = partida.data.id;
+
+  const programacion = await admin.from('programacion_areas').insert({
+    orden_id: creado.ordenId, partida_id: creado.partidaId, recurso_id: creado.recursoId,
+    fecha_programada: sumarDias(hoy, 1), turno: 'matutino', horas_estimadas: 4, secuencia: 1,
+  });
+  if (programacion.error) throw new Error(`Sin carga programada: ${programacion.error.message}`);
+}
 
 async function prepararContexto(): Promise<Contexto> {
   const admin = clienteAdmin();
@@ -210,6 +273,21 @@ async function usuarioAdminId(admin: SupabaseClient<Database>): Promise<string> 
 
 async function limpiarContexto(contexto: Contexto): Promise<void> {
   const { admin } = contexto;
+  if (contexto.disponibilidad?.partidaId) {
+    await admin.from('programacion_areas').delete().eq('partida_id', contexto.disponibilidad.partidaId);
+  }
+  if (contexto.disponibilidad?.ordenId) {
+    await admin.from('orden_eventos_cambio').delete().eq('orden_id', contexto.disponibilidad.ordenId);
+    await admin.from('ordenes_produccion').delete().eq('id', contexto.disponibilidad.ordenId);
+  }
+  if (contexto.disponibilidad?.recursoId) {
+    await admin.from('excepciones_capacidad_recurso').delete().eq('recurso_id', contexto.disponibilidad.recursoId);
+    await admin.from('capacidades_recurso_turno').delete().eq('recurso_id', contexto.disponibilidad.recursoId);
+    await admin.from('recursos_planeacion').delete().eq('id', contexto.disponibilidad.recursoId);
+  }
+  if (contexto.disponibilidad?.recursoSinTurnoId) {
+    await admin.from('recursos_planeacion').delete().eq('id', contexto.disponibilidad.recursoSinTurnoId);
+  }
   if (contexto.propuestaId) {
     const { data: revisiones } = await admin
       .from('propuesta_revisiones')
@@ -385,7 +463,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
   });
 
   test('RFQ LISTO → propuesta A → editar → validar → PDF → enviar → B → aceptar A → venta', async ({
-    page,
+    page, browser,
   }) => {
     test.skip(!correoAdmin || !contrasenaAdmin, 'Requiere administrador del stack local');
     const contexto = await prepararContexto();
@@ -814,8 +892,101 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: /^A · Enviada/ }).click();
       await page.getByRole('tab', { name: 'Ítems' }).click();
       await expect(page.getByRole('row', { name: /IT03/ })).toHaveCount(0);
+
+      // La consulta reutiliza la capacidad real del grupo y no crea ni reserva nada.
+      await prepararDisponibilidad(contexto);
+      const recursoId = contexto.disponibilidad!.recursoId!;
+      const fechaCompromiso = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+      await page.getByLabel('Fecha compromiso comercial').fill(fechaCompromiso);
+      const antes = await admin.from('programacion_areas').select('id, horas_estimadas', { count: 'exact' })
+        .eq('recurso_id', recursoId);
+      expect(antes.error).toBeNull();
+      expect(antes.count).toBe(1);
+
+      await page.getByRole('button', { name: 'Consultar disponibilidad' }).click();
+      const consulta = page.getByTestId('disponibilidad-propuesta');
+      await expect(consulta).toContainText(`Grupo E2E P ${contexto.sufijo}`);
+      await expect(consulta).toContainText(/104(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText(/100(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText('equipos activos sin turnos configurados');
+      await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
+
+      const despues = await admin.from('programacion_areas').select('id, horas_estimadas', { count: 'exact' })
+        .eq('recurso_id', recursoId);
+      expect(despues.error).toBeNull();
+      expect(despues.count).toBe(1);
+      expect(despues.data).toEqual(antes.data);
+      const solicitudesConsulta = await admin.from('solicitudes_orden').select('id', { count: 'exact', head: true })
+        .eq('revision_id', revisionA.data.id);
+      const ordenesConsulta = await admin.from('ordenes_produccion').select('id', { count: 'exact', head: true })
+        .eq('propuesta_revision_id', revisionA.data.id);
+      expect(solicitudesConsulta.error).toBeNull();
+      expect(ordenesConsulta.error).toBeNull();
+      expect(solicitudesConsulta.count).toBe(0);
+      expect(ordenesConsulta.count).toBe(0);
+      const propuestaSinAceptar = await admin.from('propuestas').select('accepted_revision_id')
+        .eq('id', propuesta.data.id).single();
+      const revisionSinAceptar = await admin.from('propuesta_revisiones').select('estado, fecha_compromiso_comercial')
+        .eq('id', revisionA.data.id).single();
+      expect(propuestaSinAceptar.error).toBeNull();
+      expect(propuestaSinAceptar.data?.accepted_revision_id).toBeNull();
+      expect(revisionSinAceptar.error).toBeNull();
+      expect(revisionSinAceptar.data).toMatchObject({ estado: 'SENT', fecha_compromiso_comercial: null });
+
+      // Una sesión real de gerencia comercial debe poder consultar la misma
+      // revisión y obtener el mismo resumen bajo sus propios permisos/RLS.
+      const contextoGerencia = await browser.newContext({ baseURL: new URL(page.url()).origin });
+      try {
+        const paginaGerencia = await contextoGerencia.newPage();
+        await paginaGerencia.goto('/iniciar-sesion');
+        await paginaGerencia.getByLabel('Correo electrónico').fill(process.env.E2E_COMENTARIOS_EMAIL!);
+        await paginaGerencia.getByRole('textbox', { name: 'Contraseña' }).fill(process.env.E2E_COMENTARIOS_PASSWORD!);
+        await paginaGerencia.getByRole('button', { name: 'Iniciar sesión' }).click();
+        await paginaGerencia.waitForURL((url) => ['/dashboard', '/tablero'].includes(url.pathname));
+        await paginaGerencia.goto(`/propuestas?propuesta=${propuesta.data.id}`);
+        await paginaGerencia.getByRole('button', { name: /^A · Enviada/ }).click();
+        await paginaGerencia.getByRole('button', { name: 'Consultar disponibilidad' }).click();
+        const consultaGerencia = paginaGerencia.getByTestId('disponibilidad-propuesta');
+        await expect(consultaGerencia).toContainText(`Grupo E2E P ${contexto.sufijo}`);
+        await expect(consultaGerencia).toContainText(/104(?:[.,]00)?\s*h/);
+        await expect(consultaGerencia).toContainText(/100(?:[.,]00)?\s*h/);
+      } finally {
+        await contextoGerencia.close();
+      }
+
+      // La evidencia visual es opcional y se conserva fuera de test-results.
+      if (['1', 'si'].includes(process.env.E2E_CAPTURAR_DISPONIBILIDAD ?? '')) {
+        const eraOscuro = await page.locator('html').evaluate((elemento) => elemento.classList.contains('dark'));
+        for (const [ancho, alto] of [[1440, 900], [1024, 900], [768, 1024], [390, 844], [320, 720]] as const) {
+          await page.setViewportSize({ width: ancho, height: alto });
+          const limites = await consulta.evaluate((elemento) => ({
+            derecha: elemento.getBoundingClientRect().right,
+            contenedor: elemento.parentElement?.closest('section')?.getBoundingClientRect().right ?? 0,
+            contenido: elemento.scrollWidth,
+            ancho: elemento.clientWidth,
+          }));
+          expect(limites.derecha).toBeLessThanOrEqual(limites.contenedor + 1);
+          expect(limites.contenido).toBeLessThanOrEqual(limites.ancho + 1);
+          await expect(consulta.getByText('Disponible', { exact: true })).toBeVisible();
+          for (const oscuro of [false, true]) {
+            await page.locator('html').evaluate((elemento, valor) => elemento.classList.toggle('dark', valor), oscuro);
+            await page.screenshot({ path: `${carpetaVisual}/disponibilidad-consulta-${ancho}-${oscuro ? 'oscuro' : 'claro'}.png`, fullPage: true, animations: 'disabled' });
+          }
+        }
+        await page.locator('html').evaluate((elemento, valor) => elemento.classList.toggle('dark', valor), eraOscuro);
+        await page.setViewportSize({ width: 1440, height: 900 });
+      }
+
+      // Al volver a consultar, una modificación externa de la carga se refleja
+      // sin que Comercial tenga que volver a introducir la fecha elegida.
+      const cargaActualizada = await admin.from('programacion_areas').update({ horas_estimadas: 6 })
+        .eq('partida_id', contexto.disponibilidad!.partidaId!);
+      expect(cargaActualizada.error).toBeNull();
+      await page.getByRole('button', { name: 'Volver a consultar' }).click();
+      await expect(consulta).toContainText(/98(?:[.,]00)?\s*h/);
+      await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
+
       // C4.1: la fecha compromiso comercial es obligatoria al aceptar.
-      await page.getByLabel('Fecha compromiso comercial').fill(new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10));
       await page.getByRole('button', { name: 'Aceptar revisión' }).click();
       await expect
         .poll(async () => {
@@ -833,16 +1004,19 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByTestId('propuesta-orden-creada')).toBeVisible();
       const solicitud = await admin
         .from('solicitudes_orden')
-        .select('estado, orden_id')
+        .select('estado, orden_id, fecha_compromiso_comercial')
         .eq('revision_id', revisionA.data.id)
         .single();
       expect(solicitud.data?.estado).toBe('CREATED');
+      expect(solicitud.data?.fecha_compromiso_comercial).toBe(fechaCompromiso);
       const ordenCreada = await admin
         .from('ordenes_produccion')
-        .select('id, folio, folio_sii')
+        .select('id, folio, folio_sii, fecha_compromiso_comercial')
         .eq('propuesta_revision_id', revisionA.data.id)
         .single();
       expect(ordenCreada.error).toBeNull();
+      expect(ordenCreada.data?.fecha_compromiso_comercial).toBe(fechaCompromiso);
+      expect(solicitud.data?.orden_id).toBe(ordenCreada.data?.id);
       await expect
         .poll(async () => {
           const { data } = await admin

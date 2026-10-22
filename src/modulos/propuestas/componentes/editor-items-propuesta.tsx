@@ -25,7 +25,6 @@ import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidad
 import { CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
 import { FormularioAltaItemPropuesta } from './formulario-alta-item-propuesta';
-import { AvisoUtilidadPropuesta, CeldaUtilidadPropuesta } from './indicador-utilidad-propuesta';
 
 type Borrador = {
   descripcion: string;
@@ -174,13 +173,15 @@ export function EditorItemsPropuesta({
 
   return (
     <section className="flex flex-col gap-3" data-testid="editor-items-propuesta">
-      <div className="grid gap-2 rounded-lg border border-borde bg-superficie-2 p-3 text-sm sm:grid-cols-4">
-        <Resumen etiqueta="Subtotal" valor={formatearMoneda(totales.subtotal, totales.moneda)} />
+      <div
+        className="grid gap-2 rounded-lg border border-borde bg-superficie-2 p-3 text-sm sm:grid-cols-4"
+        data-testid="resumen-importes-propuesta"
+      >
+        <Resumen etiqueta="Subtotal de venta" valor={formatearMoneda(totales.subtotal, totales.moneda)} />
         <Resumen etiqueta={`IVA (${totales.ivaPorcentaje}%)`} valor={formatearMoneda(totales.iva, totales.moneda)} />
-        <Resumen etiqueta="Total" valor={formatearMoneda(totales.total, totales.moneda)} />
-        <CeldaUtilidadPropuesta totales={totales} />
+        <Resumen etiqueta="Total cliente" valor={formatearMoneda(totales.total, totales.moneda)} />
+        <Resumen etiqueta="Costo estimado total" valor={formatearMoneda(totales.costoTotal, totales.moneda)} />
       </div>
-      <AvisoUtilidadPropuesta totales={totales} />
 
       <div
         className={

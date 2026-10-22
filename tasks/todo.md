@@ -46,6 +46,16 @@ Rama `feat/rfq-seguimiento-resultado-y-dc09`, commits `f6ace27` y `b3f434b`.
 **Pruebas:** typecheck y ESLint focal 0; unitarias `rfq-` 27 archivos / 267 en verde; pgTAP focal 5 archivos / 153 en
 verde; E2E `rfq-flujo` 2/2 en loopback. Suite completa, pgTAP completo y capturas visuales: no corridos (los cubre CI).
 
+## Corte 2026-10-22 — Disponibilidad y ajuste visual en Propuestas · PR #107
+
+Rama `codex/propuestas-disponibilidad-visual`, independiente del cambio de PDF en PR #106.
+
+- [x] Comercial consulta, junto a la fecha compromiso, un resumen informativo de carga y capacidad de los grupos del ruteo; no reserva, programa, crea Orden ni elige la fecha.
+- [x] El cambio visual retira el protagonismo de utilidad y precio recomendado; conserva los importes comerciales, el costo estimado y la información histórica.
+- [x] La consulta reutiliza los datos existentes y advierte ruteos o capacidad incompletos; no añade migraciones ni fórmulas de precio o rentabilidad.
+
+**Pruebas:** en la rama independiente, typecheck y ESLint focal sin errores; unitarias de Propuestas 27 archivos / 362 pruebas. En el árbol original, E2E del recorrido principal 1/1; consultar el PR para el estado del spec completo, CI y fusión a `main`.
+
 # Ejecución por cortes — observaciones del cliente 2026-10-07
 
 Estado: decisiones `DC-01..DC-15` aceptadas; **P0 y C1–C6 completos** y fusionados a `main` (PR #31–#43); **C7 (cierre local) completo el 2026-10-10** sobre `main` `f642036` + árbol de trabajo. Pendientes menores declarados: prueba de dos conexiones de `procesar_solicitud_orden` y conversión de moneda del costeo. Remoto, CI, despliegue y aceptación quedan en manos del PO.
