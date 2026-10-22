@@ -181,7 +181,9 @@ export async function crearProspectoAccion(
       // DC-01: PO y horas estimadas salen del alta. Las columnas legacy se
       // conservan en null para no reintroducirlas mediante clientes antiguos.
       po_cliente: null,
-      fecha_requerida: null,
+      // Obs. cliente 2026-10-21: fecha requerida por el cliente, opcional. La
+      // orden toma su compromiso de la aceptación, nunca de esta fecha.
+      fecha_requerida: datos.fechaRequerida || null,
       horas_estimadas: null,
       notas: null,
       // Los datos generales se capturan antes de los ítems. La fecha y el

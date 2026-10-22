@@ -175,7 +175,7 @@ describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
-  it('inicia el RFQ como INCOMPLETE con la fecha de registro del sistema', async () => {
+  it('inicia el RFQ como INCOMPLETE con la fecha de registro del sistema y la fecha requerida aparte', async () => {
     await crearProspectoAccion({
       ...ALTA_BASE,
       fechaRequerida: '2026-11-20',
@@ -184,7 +184,7 @@ describe('crearProspectoAccion con cliente del catálogo (RFQ-02/03)', () => {
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         estado_rfq: 'INCOMPLETE',
-        fecha_requerida: null,
+        fecha_requerida: '2026-11-20',
         fecha_solicitud: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       }),
     );

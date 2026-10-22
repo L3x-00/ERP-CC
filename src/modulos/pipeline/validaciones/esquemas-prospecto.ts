@@ -21,8 +21,8 @@ export const esquemaCrearProspecto = z.object({
   // RFQ-02: cliente existente (o recién dado de alta) al que se liga la RFQ.
   // Opcional: una RFQ puede nacer sin cliente en el catálogo y ligarse después.
   clienteId: z.uuid('Cliente inválido').optional(),
-  // Campo legado: el alta nueva no lo captura; la fecha de registro se asigna
-  // en el servidor y no equivale a la fecha compromiso comercial.
+  // Obs. cliente 2026-10-21: fecha que el cliente quisiera recibir el trabajo.
+  // Opcional e informativa: no es la fecha compromiso comercial.
   fechaRequerida: z.iso.date({ message: 'Fecha inválida' }).optional().or(z.literal('')),
   notas: z.string().max(2000).optional(),
   // Observación del cliente: la captura inicial en un solo modal también

@@ -19,24 +19,25 @@ import {
   resumirFaltantes,
 } from '@/modulos/rfq/utilidades/estados';
 import {
-  faltantesProximaAccion,
+  faltantesSeguimientoTransicion,
   fechaHoyLocal,
-  proximaAccionInicial,
-  type ProximaAccionCaptura,
+  seguimientoTransicionInicial,
+  tieneProximaAccionVigente,
 } from '@/modulos/rfq/utilidades/proxima-accion';
 import { esAccionTerminalRfq } from '@/modulos/rfq/validaciones/esquemas-rfq';
 
 import { cambiarEstadoRfqAccion } from '../acciones/cambiar-estado-rfq';
 import type { CatalogosRfq } from '../acciones/obtener-catalogos';
 import { validarRfqListoAccion } from '../acciones/validar-rfq-listo';
-import { CamposProximaAccion } from './campos-proxima-accion';
+import { SeguimientoTransicionRfq } from './seguimiento-transicion-rfq';
 
 /**
  * Acciones de negocio del RFQ según su estado (ADR-SII-07). `marcar_listo`
  * abre el panel de faltantes de `validar_rfq_listo` (consulta imperativa en
  * cada apertura, sin caché) y solo permite confirmar cuando no hay pendientes.
- * C2.2/DC-06: toda transición no terminal pide la próxima acción y la guarda
- * en la misma operación; cerrar/cancelar exigen motivo y no acción futura.
+ * C2.2/DC-06 + obs. cliente 2026-10-21: toda transición no terminal conserva la
+ * acción de seguimiento vigente o la sustituye pidiendo antes su resultado;
+ * cerrar/cancelar exigen motivo y no acción futura.
  */
 export function PanelAccionesRfq({
   rfq,
@@ -55,7 +56,7 @@ export function PanelAccionesRfq({
   const [accionSeguimiento, setAccionSeguimiento] = useState<AccionRfq | null>(null);
   const [motivo, setMotivo] = useState('');
   const hoy = fechaHoyLocal();
-  const [proxima, setProxima] = useState<ProximaAccionCaptura>(() => proximaAccionInicial(rfq, hoy));
+  const [seguimiento, setSeguimiento] = useState(() => seguimientoTransicionInicial(rfq, hoy));
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -63,12 +64,17 @@ export function PanelAccionesRfq({
   const listo = validacionDatos?.listo ?? false;
 
   const acciones = ACCIONES_POR_ESTADO[rfq.estadoRfq];
-  const faltantesSeguimiento = faltantesProximaAccion(proxima, catalogos?.proximasAcciones ?? [], hoy);
+  const faltantesSeguimiento = faltantesSeguimientoTransicion(
+    seguimiento,
+    tieneProximaAccionVigente(rfq),
+    catalogos?.proximasAcciones ?? [],
+    hoy,
+  );
   const seguimientoCompleto = catalogos !== null && faltantesSeguimiento.length === 0;
 
   /** Valida fresco contra el servidor cada vez que se abre el panel de LISTO. */
   async function abrirValidacionListo(): Promise<void> {
-    setProxima(proximaAccionInicial(rfq, hoy));
+    setSeguimiento(seguimientoTransicionInicial(rfq, hoy));
     setMostrarListo(true);
     setValidando(true);
     setValidacionDatos(null);
@@ -91,14 +97,21 @@ export function PanelAccionesRfq({
       ...(motivoAccion ? { motivo: motivoAccion } : {}),
       ...(esAccionTerminalRfq(accion)
         ? {}
-        : {
-            proximaAccion: {
-              codigo: proxima.codigo,
-              ...(proxima.texto.trim() ? { texto: proxima.texto.trim() } : {}),
-              fecha: proxima.fecha,
-              responsableId: proxima.responsableId,
-            },
-          }),
+        : seguimiento.modo === 'mantener'
+          ? { mantenerProximaAccion: true as const }
+          : {
+              proximaAccion: {
+                codigo: seguimiento.proxima.codigo,
+                ...(seguimiento.proxima.texto.trim()
+                  ? { texto: seguimiento.proxima.texto.trim() }
+                  : {}),
+                fecha: seguimiento.proxima.fecha,
+                responsableId: seguimiento.proxima.responsableId,
+              },
+              ...(seguimiento.resultado !== ''
+                ? { resultadoProximaAccion: seguimiento.resultado }
+                : {}),
+            }),
     });
     setEnviando(false);
 
@@ -139,7 +152,7 @@ export function PanelAccionesRfq({
               if (accion === 'marcar_listo') void abrirValidacionListo();
               else if (esAccionTerminalRfq(accion)) setAccionMotivo(accion);
               else {
-                setProxima(proximaAccionInicial(rfq, hoy));
+                setSeguimiento(seguimientoTransicionInicial(rfq, hoy));
                 setAccionSeguimiento(accion);
               }
             }}
@@ -160,8 +173,7 @@ export function PanelAccionesRfq({
           <DialogHeader>
             <DialogTitle>Marcar listo para propuesta</DialogTitle>
             <DialogDescription>
-              El servidor revalida estos requisitos al confirmar; si algo falta, la acción se
-              rechaza. La próxima acción es obligatoria: se guarda en la misma operación.
+              Revisamos que el RFQ tenga todo lo necesario antes de pasarlo a propuesta.
             </DialogDescription>
           </DialogHeader>
 
@@ -187,13 +199,17 @@ export function PanelAccionesRfq({
               )}
 
               {catalogos && (
-                <CamposProximaAccion
-                  idBase="rfq-listo-proxima"
-                  valor={proxima}
-                  onCambio={setProxima}
+                <SeguimientoTransicionRfq
+                  idBase="rfq-listo"
+                  rfq={rfq}
                   catalogos={catalogos}
                   hoy={hoy}
+                  valor={seguimiento}
+                  onCambio={setSeguimiento}
                 />
+              )}
+              {catalogos && faltantesSeguimiento.length > 0 && (
+                <p className="text-xs text-texto-secundario">Falta: {faltantesSeguimiento.join(', ')}.</p>
               )}
 
               <div className="flex justify-end gap-2">
@@ -218,7 +234,7 @@ export function PanelAccionesRfq({
           <DialogHeader>
             <DialogTitle>{accionMotivo ? ETIQUETAS_ACCION_RFQ[accionMotivo] : ''}</DialogTitle>
             <DialogDescription>
-              El motivo es obligatorio (mínimo 3 caracteres) y queda en la bitácora del RFQ.
+              Escribe el motivo (mínimo 3 letras). Queda guardado en la actividad del RFQ.
             </DialogDescription>
           </DialogHeader>
           <label className="grid gap-1 text-sm font-medium" htmlFor="rfq-motivo">
@@ -251,16 +267,17 @@ export function PanelAccionesRfq({
           <DialogHeader>
             <DialogTitle>{accionSeguimiento ? ETIQUETAS_ACCION_RFQ[accionSeguimiento] : ''}</DialogTitle>
             <DialogDescription>
-              Indica la próxima acción: se guarda junto con el cambio de estado.
+              Confirma qué pasa con el seguimiento de este RFQ al cambiar su estado.
             </DialogDescription>
           </DialogHeader>
           {catalogos ? (
-            <CamposProximaAccion
-              idBase="rfq-transicion-proxima"
-              valor={proxima}
-              onCambio={setProxima}
+            <SeguimientoTransicionRfq
+              idBase="rfq-transicion"
+              rfq={rfq}
               catalogos={catalogos}
               hoy={hoy}
+              valor={seguimiento}
+              onCambio={setSeguimiento}
             />
           ) : (
             <p className="text-sm text-texto-secundario">Cargando catálogos…</p>
