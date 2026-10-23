@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Rfq } from '@/modulos/rfq/tipos/indice';
+import type { Rfq, ValidacionRfqListo } from '@/modulos/rfq/tipos/indice';
 import {
   faltantesProximaAccion,
   faltantesSeguimientoTransicion,
@@ -8,6 +8,7 @@ import {
   proximaAccionInicial,
   proximaAccionTrasResultado,
   proximaAccionVencida,
+  puedeConfirmarMarcarListo,
   reemplazaProximaAccionVigente,
   seguimientoTransicionInicial,
 } from '@/modulos/rfq/utilidades/proxima-accion';
@@ -151,5 +152,56 @@ describe('edición directa del Resumen (obs. cliente 2026-10-21)', () => {
     expect(esquemaDatosGeneralesRfq.safeParse({
       ...base, resultadoProximaAccion: 'inventado',
     }).success).toBe(false);
+  });
+});
+
+function validacionCon(
+  secciones: Partial<ValidacionRfqListo['secciones']>,
+): ValidacionRfqListo {
+  return {
+    listo: false,
+    secciones: {
+      cliente: [],
+      general: [],
+      items: [],
+      archivos: [],
+      seguimiento: [],
+      ...secciones,
+    },
+  };
+}
+
+describe('confirmar «Marcar listo» con el seguimiento capturado en el modal', () => {
+  it('permite confirmar si el único pendiente es el seguimiento que el modal completó', () => {
+    const validacion = validacionCon({
+      seguimiento: ['próxima acción', 'fecha de próxima acción'],
+    });
+    expect(puedeConfirmarMarcarListo(validacion, { modo: 'cerrar' }, true)).toBe(true);
+  });
+
+  it('no permite confirmar si falta alguna sección fuera de seguimiento', () => {
+    const validacion = validacionCon({
+      general: ['canal'],
+      seguimiento: ['próxima acción'],
+    });
+    expect(puedeConfirmarMarcarListo(validacion, { modo: 'cerrar' }, true)).toBe(false);
+  });
+
+  it('exige el formulario local completo y la validación del servidor', () => {
+    const validacion = validacionCon({ seguimiento: ['próxima acción'] });
+    expect(puedeConfirmarMarcarListo(validacion, { modo: 'cerrar' }, false)).toBe(false);
+    expect(puedeConfirmarMarcarListo(null, { modo: 'cerrar' }, true)).toBe(false);
+  });
+
+  it('conservar la acción vigente no corrige faltantes de seguimiento del servidor', () => {
+    const validacion = validacionCon({
+      seguimiento: ['detalle de la próxima acción (Otro)'],
+    });
+    expect(puedeConfirmarMarcarListo(validacion, { modo: 'mantener' }, true)).toBe(false);
+    expect(puedeConfirmarMarcarListo(validacion, { modo: 'cerrar' }, true)).toBe(true);
+  });
+
+  it('sin faltantes de seguimiento permite confirmar con la acción vigente', () => {
+    expect(puedeConfirmarMarcarListo(validacionCon({}), { modo: 'mantener' }, true)).toBe(true);
   });
 });

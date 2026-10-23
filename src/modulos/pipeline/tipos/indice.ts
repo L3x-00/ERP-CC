@@ -67,6 +67,8 @@ export type Oportunidad = {
   clienteNombre?: string | null;
   /** Ola 2: nombre del responsable del RFQ (embebido), si existe. */
   responsableNombre?: string | null;
+  /** Obs. cliente 2026-10-23: nombre del responsable de la próxima acción en la cola. */
+  responsableProximaAccionNombre?: string | null;
   /** RFQ-01: datos de captura de la solicitud comercial. */
   poCliente: string | null;
   fechaRequerida: string | null;

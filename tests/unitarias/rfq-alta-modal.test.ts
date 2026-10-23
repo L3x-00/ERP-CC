@@ -81,6 +81,7 @@ vi.mock('@/nucleo/almacenamiento/archivos/subida-navegador', () => ({
 
 import { ColaRfq } from '@/modulos/pipeline/componentes/cola-rfq';
 import { TablaOportunidades } from '@/modulos/pipeline/componentes/tabla-oportunidades';
+import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
 
 const OPORTUNIDAD: Oportunidad = {
   id: 'op-1',
@@ -364,7 +365,6 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
   });
 
   it('“Finalizar captura” resume el RFQ y persiste únicamente la próxima acción', async () => {
-    const usuarioId = '11111111-1111-4111-8111-111111111111';
     obtenerCatalogosMock.mockResolvedValue({
       exito: true,
       datos: {
@@ -373,7 +373,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
         procesos: [],
         canales: [{ codigo: 'CORREO', nombre: 'Correo', esOtro: false, activo: true }],
         proximasAcciones: [{ codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false }],
-        usuarios: [{ id: usuarioId, nombre: 'Ana Admin', rol: 'admin' }],
+        usuarios: [{ id: 'vend-1', nombre: 'Vendedor', rol: 'ventas' }],
       },
     });
     const fechaFutura = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
@@ -394,6 +394,11 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     expect(dialogo.getByRole('region', { name: 'Resumen del RFQ' })).toBeDefined();
     expect(dialogo.queryByLabelText('Canal')).toBeNull();
     expect(dialogo.queryByLabelText('Responsable')).toBeNull();
+    // El responsable de la acción es el mismo que registra el RFQ: se muestra
+    // de solo lectura y no se puede alterar desde el cierre.
+    expect(
+      (dialogo.getByLabelText('Responsable de la acción a seguir') as HTMLInputElement).value,
+    ).toBe('Vendedor');
     fireEvent.change(dialogo.getByLabelText('Acción a seguir'), {
       target: { value: 'FOLLOW_UP' },
     });
@@ -420,8 +425,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('el modal no permite finalizar hasta completar acción y fecha', async () => {
-    const usuarioId = '11111111-1111-4111-8111-111111111111';
+  it('el modal autocompleta fecha y responsable, y no permite finalizar sin acción', async () => {
     obtenerCatalogosMock.mockResolvedValue({
       exito: true,
       datos: {
@@ -430,7 +434,7 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
         procesos: [],
         canales: [{ codigo: 'CORREO', nombre: 'Correo', esOtro: false, activo: true }],
         proximasAcciones: [{ codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false }],
-        usuarios: [{ id: usuarioId, nombre: 'Ana Admin', rol: 'admin' }],
+        usuarios: [{ id: 'vend-1', nombre: 'Vendedor', rol: 'ventas' }],
       },
     });
     const fechaFutura = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
@@ -442,10 +446,17 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     const confirmar = dialogo.getByRole('button', { name: 'Guardar y finalizar' });
     expect(confirmar.hasAttribute('disabled')).toBe(true);
     expect(dialogo.getByTestId('faltantes-finalizar').textContent).toContain('próxima acción');
+    // La fecha y el responsable llegan precargados; el responsable es fijo.
+    expect((dialogo.getByLabelText('Fecha de la acción') as HTMLInputElement).value)
+      .toBe(fechaHoyLocal());
+    expect(
+      (dialogo.getByLabelText('Responsable de la acción a seguir') as HTMLInputElement).value,
+    ).toBe('Vendedor');
     fireEvent.change(dialogo.getByLabelText('Acción a seguir'), {
       target: { value: 'FOLLOW_UP' },
     });
-    // Solo falta la fecha de la acción.
+    // Sin fecha no se puede guardar, aunque la acción ya esté elegida.
+    fireEvent.change(dialogo.getByLabelText('Fecha de la acción'), { target: { value: '' } });
     expect(confirmar.hasAttribute('disabled')).toBe(true);
     expect(dialogo.getByTestId('faltantes-finalizar').textContent).toContain('fecha de la próxima acción');
 
@@ -457,7 +468,18 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     await waitFor(() => expect(actualizarDatosMock).toHaveBeenCalledTimes(1));
   });
 
-  it('“Finalizar más tarde” cierra la captura sin abrir el modal de seguimiento', async () => {
+  it('“Finalizar más tarde” abre la próxima acción, autocompleta fecha y responsable y deja el RFQ incompleto', async () => {
+    obtenerCatalogosMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        materiales: [],
+        espesores: [],
+        procesos: [],
+        canales: [{ codigo: 'CORREO', nombre: 'Correo', esOtro: false, activo: true }],
+        proximasAcciones: [{ codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false }],
+        usuarios: [{ id: 'vend-1', nombre: 'Vendedor', rol: 'ventas' }],
+      },
+    });
     render(envolver(createElement(ColaRfq)));
     fireEvent.click(screen.getByRole('button', { name: 'Nuevo RFQ' }));
     capturarContacto();
@@ -465,11 +487,42 @@ describe('Alta RFQ en modal guiado (C1.2a, DC-01/DC-03)', () => {
     await completarSolicitudInicial();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar con ítems' }));
     expect(await screen.findByTestId('alta-rfq-items')).toBeDefined();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Finalizar más tarde' }).hasAttribute('disabled'),
+      ).toBe(false),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar más tarde' }));
 
-    expect(screen.queryByTestId('dialogo-finalizar-captura')).toBeNull();
-    expect(screen.queryByRole('dialog')).toBeNull();
+    const dialogo = within(await screen.findByTestId('dialogo-finalizar-captura'));
+    expect(screen.getByTestId('dialogo-finalizar-captura').getAttribute('data-motivo')).toBe('mas_tarde');
+    expect(dialogo.getByRole('heading', { name: 'Próxima acción' })).toBeDefined();
+    expect((dialogo.getByLabelText('Fecha de la acción') as HTMLInputElement).value)
+      .toBe(fechaHoyLocal());
+    expect(
+      (dialogo.getByLabelText('Responsable de la acción a seguir') as HTMLInputElement).value,
+    ).toBe('Vendedor');
+    expect(actualizarDatosMock).not.toHaveBeenCalled();
+
+    fireEvent.change(dialogo.getByLabelText('Acción a seguir'), {
+      target: { value: 'FOLLOW_UP' },
+    });
+    fireEvent.click(dialogo.getByRole('button', { name: 'Guardar y finalizar más tarde' }));
+
+    await waitFor(() => expect(actualizarDatosMock).toHaveBeenCalledTimes(1));
+    expect(actualizarDatosMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rfqId: 'op-1',
+        responsableId: 'vend-1',
+        proximaAccionCodigo: 'FOLLOW_UP',
+        fechaProximaAccion: fechaHoyLocal(),
+        responsableProximaAccionId: 'vend-1',
+      }),
+    );
+    // El RFQ queda en la cola como Incompleto y el alta se cierra.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(crearProspectoMock).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -94,8 +94,8 @@ function PasosAltaRfq({ paso }: { paso: PasoAltaRfq }) {
  *
  * Los datos generales necesarios para registrar el RFQ se capturan antes de
  * los ítems. La fecha y el responsable son informativos y los fija el servidor
- * con el usuario autenticado; «Finalizar captura» queda solo para la próxima
- * acción y el resumen.
+ * con el usuario autenticado; «Finalizar captura» y «Finalizar más tarde» solo
+ * capturan la próxima acción y el resumen antes de cerrar el alta.
  *
  * DC-01: no captura Orden de compra ni Horas estimadas; `Fecha requerida por
  * cliente` es informativa y no la Fecha compromiso.
@@ -130,6 +130,7 @@ export function FormularioProspecto({
   const [plazoComercial, setPlazoComercial] = useState('');
   const fechaRegistro = fechaHoyLocal();
   const [finalizarAbierto, setFinalizarAbierto] = useState(false);
+  const [finalizarMotivo, setFinalizarMotivo] = useState<'finalizar' | 'mas_tarde'>('finalizar');
   const [contactoId, setContactoId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -264,6 +265,7 @@ export function FormularioProspecto({
     setPaso('solicitud');
     setError(null);
     setFinalizarAbierto(false);
+    setFinalizarMotivo('finalizar');
   }
 
   async function crearRfqYContinuar(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -738,7 +740,16 @@ export function FormularioProspecto({
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-4">
-            <Button type="button" variante="contorno" tamano="sm" onClick={finalizar}>
+            <Button
+              type="button"
+              variante="contorno"
+              tamano="sm"
+              disabled={!rfq || subiendoArchivo}
+              onClick={() => {
+                setFinalizarMotivo('mas_tarde');
+                setFinalizarAbierto(true);
+              }}
+            >
               Finalizar más tarde
             </Button>
             <Button
@@ -807,14 +818,31 @@ export function FormularioProspecto({
             >
               Volver a ítems
             </Button>
-            <Button
-              type="button"
-              tamano="sm"
-              disabled={subiendoArchivo || !rfq || sinArchivos}
-              onClick={() => setFinalizarAbierto(true)}
-            >
-              Finalizar captura
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                disabled={subiendoArchivo || !rfq}
+                onClick={() => {
+                  setFinalizarMotivo('mas_tarde');
+                  setFinalizarAbierto(true);
+                }}
+              >
+                Finalizar más tarde
+              </Button>
+              <Button
+                type="button"
+                tamano="sm"
+                disabled={subiendoArchivo || !rfq || sinArchivos}
+                onClick={() => {
+                  setFinalizarMotivo('finalizar');
+                  setFinalizarAbierto(true);
+                }}
+              >
+                Finalizar captura
+              </Button>
+            </div>
           </div>
 
           <p className="text-xs text-texto-secundario">
@@ -828,6 +856,7 @@ export function FormularioProspecto({
         <DialogoFinalizarCapturaRfq
           rfq={rfq}
           catalogos={catalogos}
+          motivo={finalizarMotivo}
           onCerrar={() => setFinalizarAbierto(false)}
           onExito={() => {
             setFinalizarAbierto(false);
