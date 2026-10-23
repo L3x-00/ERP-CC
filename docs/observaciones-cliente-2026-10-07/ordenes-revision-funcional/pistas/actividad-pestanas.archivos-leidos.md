@@ -1,0 +1,56 @@
+# Pistas del area 'actividad-pestanas' (archivos que un intento anterior ya leyo; NO son hallazgos)
+
+Orden de primera lectura. Usalos para ir directo a lo importante.
+
+- src\modulos\ordenes\componentes\ficha-orden.tsx
+- src\modulos\ordenes\tipos\ficha-orden.ts
+- src\modulos\ordenes\servicios\ficha-orden-servicio.ts
+- supabase\tests\sii_b1_actividad.test.sql
+- supabase\tests\sii_b1_logs_append_only.test.sql
+- supabase\migrations\20261007120001_sii_b5_orden_base.sql
+- supabase\migrations\20261007120002_sii_b5_orden_estados.sql
+- supabase\migrations\20261007120005_sii_b5_derivaciones_definer.sql
+- supabase\migrations\20261009193327_c4_2_orden_comercial_operativa.sql
+- supabase\migrations\20261009120000_c3_1_linaje_documental_orden.sql
+- supabase\migrations\20261012100000_b4_obs2_flujo_versiones.sql
+- supabase\migrations\20261012130000_b5_obs5_orden_interna_sin_cliente.sql
+- src\modulos\ordenes\acciones\cambiar-estado-orden.ts
+- src\modulos\ordenes\acciones\liberar-orden.ts
+- src\nucleo\auditoria\registrar-log.ts
+- src\modulos\ordenes\servicios\ordenes-servicio.ts
+- supabase\migrations\20260922000002_a02_cancelacion_ar_atomica.sql
+- src\app\(privado)\ordenes\[id]\page.tsx
+- supabase\migrations\20261010010303_c4_3_confidencialidad_ordenes.sql
+- src\modulos\comentarios\componentes\hilo-comentarios.tsx
+- src\modulos\comentarios\tipos\comentarios.ts
+- src\modulos\ordenes\componentes\tabla-ordenes.tsx
+- src\app\(privado)\ordenes\page.tsx
+- supabase\migrations\20260910023504_fase_12_comentarios_base.sql
+- src\modulos\comentarios\acciones\obtener-comentarios.ts
+- src\modulos\comentarios\acciones\agregar-comentario.ts
+- src\modulos\auditoria\tipos\indice.ts
+- src\modulos\auditoria\utilidades\actividad.ts
+- src\modulos\auditoria\acciones\obtener-actividad.ts
+- src\modulos\rfq\componentes\actividad-rfq.tsx
+- src\modulos\ordenes\utilidades\mensajes-orden.ts
+- src\modulos\ordenes\tipos\orden-sii.ts
+- src\compartido\componentes\diseno\badge-estado.tsx
+- tests\unitarias\ficha-orden-c4-2.test.ts
+- tests\e2e\ordenes-estados-sii.spec.ts
+- supabase\tests\sii_b5_orden.test.sql
+- supabase\migrations\20260925090000_a20_prd15_reactivar_orden.sql
+- supabase\migrations\20261007140001_sii_b7_entregas.sql
+- supabase\migrations\20261007100002_sii_b3_rfq_base.sql
+- supabase\migrations\20261005100001_sii_b1_permisos_catalogo.sql
+- src\modulos\propuestas\componentes\actividad-propuesta.tsx
+- src\modulos\clientes\componentes\ficha-cliente.tsx
+- src\compartido\tipos\supabase.ts
+- supabase\migrations\20261008160000_c2_1_rfq_versiones_congelamiento.sql
+- supabase\migrations\20261008000004_sii_b1_logs_append_only.sql
+- tests\e2e\propuestas-flujo.spec.ts
+- tests\e2e\comentarios-notificaciones.spec.ts
+- supabase\migrations\20261007120004_sii_b5_consumidores_estado.sql
+- src\modulos\comentarios\servicios\notificar-menciones-correo.ts
+- supabase\migrations\20261007180005_sii_b8_recordatorios_notificaciones.sql
+- tests\unitarias\tabla-ordenes-c4-3.test.ts
+- src\modulos\propuestas\acciones\aceptar-revision.ts
