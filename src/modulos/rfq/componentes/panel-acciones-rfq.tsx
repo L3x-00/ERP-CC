@@ -147,7 +147,7 @@ export function PanelAccionesRfq({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie p-3" data-testid="acciones-rfq">
+    <div className="flex flex-col gap-2 rounded-xl bg-superficie p-3 shadow-suave" data-testid="acciones-rfq">
       <div className="flex flex-wrap items-center gap-2">
         {acciones.length === 0 && (
           <span className="text-sm text-texto-secundario">

@@ -23,9 +23,9 @@ export function SeccionVentasPipeline({ pipeline, cotizacionesSinSeguimiento, ti
     <section aria-labelledby="titulo-pipeline-dashboard" className="grid gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="titulo-pipeline-dashboard" className="text-xl font-semibold">{titulo}</h2><span className="text-sm text-texto-secundario">{cotizacionesSinSeguimiento} cotizaciones sin seguimiento</span></div>
       <Tarjeta>
-        <ul className="divide-y divide-borde">
+        <ul className="flex flex-col gap-0.5 p-2">
           {ETAPAS.map(([etapa, etiqueta]) => (
-            <li key={etapa} className="flex flex-wrap items-center justify-between gap-2 px-6 py-3">
+            <li key={etapa} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-2.5 transition-colors duration-150 hover:bg-superficie-2/60">
               <BadgeEstado estado={etapa} etiqueta={etiqueta} />
               <span className="text-sm font-semibold tabular-nums text-texto-primario">{pipeline[etapa]}</span>
             </li>

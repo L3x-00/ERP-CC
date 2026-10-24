@@ -13,12 +13,17 @@ Guía de uso del sistema de diseño implementado en 2026-09-11. Los tokens viven
   en tarjetas.
 - Texto: `text-texto-primario` (principal), `text-texto-secundario`
   (descripciones), `text-texto-tenue` (metadatos/hints). No usar `/60`, `/50`.
-- Bordes: `border-borde` (sutil) y `border-borde-fuerte` (inputs/botones).
+- Separación sin líneas: la estructura se apoya en elevación (`shadow-xs`,
+  `shadow-suave`, `shadow-elevada`, `shadow-lateral`, `shadow-cabecera`), ritmo
+  vertical y superficies (`bg-superficie-2/…`). No usar `divide-*` ni
+  `border-t/b` como divisor decorativo. `border-borde` queda para separaciones
+  imprescindibles y `border-borde-fuerte` solo para inputs y controles.
 - Estados del negocio SIEMPRE con `<BadgeEstado>`: un solo mapa de color,
   etiqueta y punto pulsante (`en_proceso`, `vencida`, `en_uso`).
 - Tamaños táctiles: en piso usar `Button tamano="piso"` (48px) o `"lg"` (44px).
 - Foco visible con anillo de acento (nunca `outline-none` sin reemplazo).
-- Animaciones 150–300ms; el sistema respeta `prefers-reduced-motion`.
+- Animaciones 150–300ms con `ease-suave`; el sistema respeta
+  `prefers-reduced-motion` (global y por utilidad).
 
 ## Primitivos
 
@@ -26,7 +31,7 @@ Guía de uso del sistema de diseño implementado en 2026-09-11. Los tokens viven
 
 | variante | uso | estilo |
 |---|---|---|
-| `primario` | acción principal | `bg-acento` + hover `bg-acento-hover` |
+| `primario` | acción principal | `bg-acento-hover text-white` + hover `bg-acento-activo`; en oscuro `bg-acento text-fondo` |
 | `secundario` | confirmaciones de negocio | `bg-secundario` |
 | `destructivo` | cancelar/eliminar | `bg-peligro-suave text-peligro-texto` |
 | `contorno` | acciones neutras | borde + superficie |
@@ -34,6 +39,7 @@ Guía de uso del sistema de diseño implementado en 2026-09-11. Los tokens viven
 
 Tamaños: `sm` 36px · `md` 40px (default) · `lg` 44px · `piso` 48px con
 `min-w-12`. Deshabilitado: `disabled:opacity-50 disabled:cursor-not-allowed`.
+Transición de 200ms con `ease-suave` y micro-escala al presionar.
 
 ### Input / Select / Textarea — `@/compartido/componentes/ui/input`
 
@@ -56,16 +62,34 @@ Accesible sobre Radix (`role="dialog"`, foco atrapado, Esc). En mobile ocupar
 ### Tarjeta — `@/compartido/componentes/diseno/tarjeta`
 
 `Tarjeta`, `TarjetaEncabezado`, `TarjetaTitulo`, `TarjetaDescripcion`,
-`TarjetaContenido`, `TarjetaPie`. Padding 16–24px; separador interno con
-`border-borde`, nunca `<hr>`.
+`TarjetaContenido`, `TarjetaPie`. Superficie `rounded-xl shadow-suave`, sin
+borde; encabezado y pie se separan con padding y espacio, nunca con `<hr>` ni
+divisorias.
 
 ### Tabla — `@/compartido/componentes/diseno/tabla`
 
-`TablaContenedor` (scroll-x), `Tabla`, `TablaEncabezado` (sticky, fondo
-`bg-superficie-2`), `TablaCuerpo` (zebra sutil), `TablaFila` (hover
+`TablaContenedor` (scroll-x, `rounded-xl shadow-suave`, sin borde), `Tabla`,
+`TablaEncabezado` (sticky, `bg-superficie-2/70` + `backdrop-blur`),
+`TablaCuerpo` (zebra sutil, sin `divide-y`), `TablaFila` (hover
 `bg-acento-suave`, props `seleccionada`/`clickable`), `TablaEncabezadoCelda`,
-`TablaCelda`. Filas objetivo ≥48px (`px-4 py-3`). Texto largo con `truncate` +
+`TablaCelda`. Filas objetivo ≥48px (`px-4 py-3.5`). Texto largo con `truncate` +
 `title`.
+
+### Paginacion — `@/compartido/componentes/diseno/paginacion`
+
+`Paginacion` informa el rango visible (`Mostrando 1–15 de N`) y permite saltar
+de página con `aria-current="page"` y flechas etiquetadas. La lógica genérica
+vive en `@/compartido/utilidades/paginar` (`paginar`, `numerosPagina`); cada
+módulo define su tamaño de página (RFQ: 15). Al cambiar filtros, volver a la
+página 1.
+
+### PanelDesplegable — `@/compartido/componentes/diseno/panel-desplegable`
+
+Panel colapsable con transición de altura/opacidad. El encabezado es un botón
+con `aria-expanded`/`aria-controls`; acepta `icono`, `resumen` visible cerrado y
+`accion` fuera del botón (para no anidar controles). El contenido permanece
+montado pero `inert` al cerrar, y se abre solo si un campo inválido intenta
+enviarse. Úsalo para bloques de filtros y formularios secundarios.
 
 ### BadgeEstado — `@/compartido/componentes/diseno/badge-estado`
 
@@ -112,7 +136,7 @@ solo el encabezado.
 
 | Token | Uso | Clases |
 |---|---|---|
-| Acento | acciones, selección, info | `bg-acento`, `bg-acento-suave`, `text-acento` |
+| Acento | acciones, selección, info | `bg-acento`, `bg-acento-suave`, `text-acento-texto` sobre superficies suaves |
 | Éxito | completado, pagado, stock ok | `bg-exito-suave text-exito-texto` |
 | Advertencia | pendiente, reorden, margen medio | `bg-advertencia-suave text-advertencia-texto` |
 | Peligro | vencido, cancelado, stock crítico | `bg-peligro-suave text-peligro-texto` |
@@ -125,7 +149,8 @@ Tiers: `bg-tier-bronce-suave text-tier-bronce` (y `plata`, `oro`, `platino`).
 El piso fuerza `.dark` en `(piso)/layout.tsx`. Los mismos tokens cambian de valor:
 no escribir paletas zinc/slate/cyan/emerald hardcodeadas. Los componentes deben
 verse correctos en ambos temas sin clases `dark:` adicionales salvo excepciones
-de contraste.
+de contraste (p. ej. el botón `primario`, que en oscuro usa texto `text-fondo`
+sobre `bg-acento`).
 
 ## Errores y éxito
 

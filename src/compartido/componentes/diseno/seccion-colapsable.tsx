@@ -24,13 +24,13 @@ export function SeccionColapsable({
   const idContenido = useId();
 
   return (
-    <section className="overflow-hidden rounded-lg border border-borde">
+    <section className="overflow-clip rounded-xl bg-superficie shadow-suave">
       <button
         type="button"
         aria-expanded={abierta}
         aria-controls={idContenido}
         onClick={() => setAbierta((valor) => !valor)}
-        className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-superficie-2/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
       >
         <span className="min-w-0">
           <span className="block text-sm font-semibold text-texto-primario">{titulo}</span>
@@ -46,7 +46,7 @@ export function SeccionColapsable({
           )}
         />
       </button>
-      <div id={idContenido} hidden={!abierta} className="border-t border-borde p-4">
+      <div id={idContenido} hidden={!abierta} className="px-4 pb-4 pt-1">
         {children}
       </div>
     </section>

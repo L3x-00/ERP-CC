@@ -21,7 +21,9 @@
   --fondo: #f8f9fa; /* lienzo: nunca blanco puro */
   --superficie: #ffffff; /* tarjetas, modales, tablas */
   --superficie-2: #f1f3f5; /* filas alternas, fondo de inputs */
-  --borde: #e2e8f0;
+  /* Borde estructural casi imperceptible: la separación la da la elevación.
+     Los controles interactivos usan `--borde-fuerte`. */
+  --borde: #e8edf4;
   --borde-fuerte: #cbd5e1;
 
   /* Texto */
@@ -33,6 +35,10 @@
   --acento: #3b82f6;
   --acento-suave: #eff6ff;
   --acento-hover: #2563eb;
+  /* Estado activo/presionado del acento (más oscuro que el hover). */
+  --acento-activo: #1e40af;
+  /* Texto legible sobre `--acento-suave` (AA en ambos temas). */
+  --acento-texto: #1d4ed8;
   --acento-anillo: rgba(59, 130, 246, 0.15);
 
   /* Semánticos */
@@ -78,15 +84,21 @@
   --esp-12: 48px;
   --esp-16: 64px;
 
-  /* Sombras */
-  --sombra-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
-  --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  /* Sombras: reemplazan las líneas divisorias como recurso de separación. */
+  --sombra-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --sombra-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -1px rgba(15, 23, 42, 0.05);
+  --sombra-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  --sombra-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --sombra-suave: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -20px rgba(15, 23, 42, 0.22);
+  --sombra-elevada: 0 2px 8px -4px rgba(15, 23, 42, 0.12), 0 18px 40px -16px rgba(15, 23, 42, 0.24);
+  --sombra-lateral: 10px 0 30px -24px rgba(15, 23, 42, 0.35);
+  --sombra-cabecera: 0 10px 24px -24px rgba(15, 23, 42, 0.45);
 
   /* Transiciones */
   --trans-rapida: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --trans-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --trans-lenta: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --curva-suave: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Alias históricos re-mapeados (compatibilidad) */
   --background: var(--fondo);
@@ -122,7 +134,8 @@
   --fondo: #0f172a;
   --superficie: #1e293b;
   --superficie-2: #334155;
-  --borde: #475569;
+  /* En oscuro el borde estructural se acerca a la superficie: separa sin dibujar cajas. */
+  --borde: #2a384e;
   --borde-fuerte: #64748b;
 
   --texto-primario: #f1f5f9;
@@ -132,6 +145,8 @@
   --acento: #60a5fa;
   --acento-suave: #1e3a5f;
   --acento-hover: #3b82f6;
+  --acento-activo: #1d4ed8;
+  --acento-texto: #bfdbfe;
   --acento-anillo: rgba(96, 165, 250, 0.35);
 
   --exito: #34d399;
@@ -150,6 +165,11 @@
   --sombra-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
   --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+  --sombra-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --sombra-suave: 0 1px 2px rgba(0, 0, 0, 0.28), 0 12px 32px -20px rgba(0, 0, 0, 0.6);
+  --sombra-elevada: 0 2px 10px -4px rgba(0, 0, 0, 0.45), 0 22px 48px -18px rgba(0, 0, 0, 0.7);
+  --sombra-lateral: 12px 0 34px -24px rgba(0, 0, 0, 0.75);
+  --sombra-cabecera: 0 12px 28px -24px rgba(0, 0, 0, 0.85);
 
   /* Alias dark del prompt */
   --dark-background: #0f172a;
@@ -199,6 +219,36 @@
 }
 .animar-entrada {
   animation: entrada-panel var(--trans-base);
+}
+
+/* Entrada del contenido de página: desplazamiento mínimo, sin rebotes. */
+@keyframes entrada-contenido {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animar-contenido {
+  animation: entrada-contenido 320ms var(--curva-suave) both;
+}
+
+/* Aparición escalonada de listas y tablas (máx. 6 pasos visibles). */
+@keyframes entrada-fila {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animar-fila {
+  animation: entrada-fila 260ms var(--curva-suave) both;
 }
 
 /* Deslizamiento lateral (drawer de navegación / panel de notificaciones) */
@@ -266,6 +316,8 @@
 @media (prefers-reduced-motion: reduce) {
   .punto-en-proceso,
   .animar-entrada,
+  .animar-contenido,
+  .animar-fila,
   .deslizar-derecha,
   .deslizar-izquierda,
   .skeleton-brillo {

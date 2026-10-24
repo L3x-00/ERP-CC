@@ -3,6 +3,8 @@
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
+import { Icono } from '@/compartido/componentes/navegacion/iconos';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import {
   ESTADOS_PIPELINE,
@@ -12,6 +14,7 @@ import {
 } from '@/modulos/pipeline/tipos/indice';
 import { ETIQUETA_ESTADO_RFQ } from '@/modulos/pipeline/utilidades/indice';
 import {
+  contarFiltrosActivos,
   hayFiltrosActivos,
   type FiltrosTablero,
 } from '@/modulos/pipeline/servicios/filtrar-oportunidades';
@@ -55,6 +58,11 @@ export interface ControlesPipelineProps {
  * Búsqueda + filtros de la cola RFQ (estado, cliente, responsable, próxima
  * acción vencida) y resumen por estado. Presentacional: no consulta datos; la
  * cola aplica los filtros en memoria.
+ *
+ * Todo el bloque vive dentro de un panel desplegable (cerrado por defecto) para
+ * reducir el scroll de la cola. El resumen y el contador de filtros activos
+ * siguen visibles con el panel cerrado, y «Limpiar» queda fuera del botón de
+ * despliegue para poder usarlo sin abrirlo.
  */
 export function ControlesPipeline({
   filtros,
@@ -68,11 +76,40 @@ export function ControlesPipeline({
   totalFiltrado,
   totalTotal,
 }: ControlesPipelineProps) {
+  const activos = contarFiltrosActivos(filtros);
+  const descripcion =
+    activos === 0
+      ? 'Sin filtros activos'
+      : `${activos} ${activos === 1 ? 'filtro activo' : 'filtros activos'}`;
+  const resumenCabecera = `${totalFiltrado} de ${totalTotal} RFQ · Envío ${formatearImportePorMoneda(
+    resumen.importeEnviado,
+  )}`;
+
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-3">
+    <PanelDesplegable
+      titulo="Filtros"
+      descripcion={descripcion}
+      resumen={resumenCabecera}
+      icono={<Icono nombre="embudo" className="h-4 w-4" />}
+      data-testid="controles-pipeline"
+      accion={
+        <Button
+          type="button"
+          variante="fantasma"
+          tamano="sm"
+          onClick={onLimpiar}
+          disabled={!hayFiltrosActivos(filtros)}
+          aria-label="Limpiar filtros"
+        >
+          Limpiar
+        </Button>
+      }
+    >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-2">
-          <Label htmlFor="pipeline-busqueda">Buscar</Label>
+          <Label htmlFor="pipeline-busqueda" className="text-xs text-texto-secundario">
+            Buscar
+          </Label>
           <Input
             id="pipeline-busqueda"
             type="search"
@@ -82,7 +119,9 @@ export function ControlesPipeline({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-estado">Estado</Label>
+          <Label htmlFor="pipeline-estado" className="text-xs text-texto-secundario">
+            Estado
+          </Label>
           <Select
             id="pipeline-estado"
             value={filtros.estadoRfq}
@@ -97,7 +136,9 @@ export function ControlesPipeline({
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-prioridad">Prioridad</Label>
+          <Label htmlFor="pipeline-prioridad" className="text-xs text-texto-secundario">
+            Prioridad
+          </Label>
           <Select
             id="pipeline-prioridad"
             value={filtros.prioridad}
@@ -112,7 +153,9 @@ export function ControlesPipeline({
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-etiqueta">Etiqueta</Label>
+          <Label htmlFor="pipeline-etiqueta" className="text-xs text-texto-secundario">
+            Etiqueta
+          </Label>
           <Select
             id="pipeline-etiqueta"
             value={filtros.etiqueta}
@@ -128,7 +171,9 @@ export function ControlesPipeline({
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-area">Área / departamento</Label>
+          <Label htmlFor="pipeline-area" className="text-xs text-texto-secundario">
+            Área / departamento
+          </Label>
           <Select
             id="pipeline-area"
             value={filtros.area}
@@ -144,7 +189,9 @@ export function ControlesPipeline({
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-cliente">Cliente</Label>
+          <Label htmlFor="pipeline-cliente" className="text-xs text-texto-secundario">
+            Cliente
+          </Label>
           <Select
             id="pipeline-cliente"
             value={filtros.clienteId}
@@ -160,7 +207,9 @@ export function ControlesPipeline({
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-responsable">Responsable</Label>
+          <Label htmlFor="pipeline-responsable" className="text-xs text-texto-secundario">
+            Responsable
+          </Label>
           <Select
             id="pipeline-responsable"
             value={filtros.responsableId}
@@ -176,7 +225,9 @@ export function ControlesPipeline({
           </Select>
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-desde">Desde</Label>
+          <Label htmlFor="pipeline-desde" className="text-xs text-texto-secundario">
+            Desde
+          </Label>
           <Input
             id="pipeline-desde"
             type="date"
@@ -186,7 +237,9 @@ export function ControlesPipeline({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="pipeline-hasta">Hasta</Label>
+          <Label htmlFor="pipeline-hasta" className="text-xs text-texto-secundario">
+            Hasta
+          </Label>
           <Input
             id="pipeline-hasta"
             type="date"
@@ -197,44 +250,62 @@ export function ControlesPipeline({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-superficie-2/50 px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-texto-secundario">
-          <span><strong className="text-texto-primario tabular-nums">{totalFiltrado}</strong> de {totalTotal} RFQ</span>
-          <span>Convertidos: <strong className="text-texto-primario tabular-nums">{resumen.ganadas}</strong></span>
-          <span>Cerrados/Cancelados: <strong className="text-texto-primario tabular-nums">{resumen.perdidas}</strong></span>
-          <span>Envío: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importeEnviado)}</strong></span>
-          <span>Pendiente: <strong className="text-texto-primario tabular-nums">{formatearImportePorMoneda(resumen.importePendiente)}</strong></span>
+          <span>
+            <strong className="text-texto-primario tabular-nums">{totalFiltrado}</strong> de{' '}
+            {totalTotal} RFQ
+          </span>
+          <span>
+            Convertidos:{' '}
+            <strong className="text-texto-primario tabular-nums">{resumen.ganadas}</strong>
+          </span>
+          <span>
+            Cerrados/Cancelados:{' '}
+            <strong className="text-texto-primario tabular-nums">{resumen.perdidas}</strong>
+          </span>
+          <span>
+            Envío:{' '}
+            <strong className="text-texto-primario tabular-nums">
+              {formatearImportePorMoneda(resumen.importeEnviado)}
+            </strong>
+          </span>
+          <span>
+            Pendiente:{' '}
+            <strong className="text-texto-primario tabular-nums">
+              {formatearImportePorMoneda(resumen.importePendiente)}
+            </strong>
+          </span>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label htmlFor="pipeline-proxima-vencida" className="flex items-center gap-1.5 text-sm text-texto-secundario">
+        <div className="flex flex-wrap items-center gap-4">
+          <label
+            htmlFor="pipeline-proxima-vencida"
+            className="flex items-center gap-2 text-sm text-texto-secundario"
+          >
             <input
               id="pipeline-proxima-vencida"
               type="checkbox"
+              className="h-4 w-4 rounded accent-acento"
               checked={filtros.proximaVencida}
               onChange={(evento) => onCambio({ proximaVencida: evento.target.checked })}
             />
             Próxima acción vencida
           </label>
-          <label htmlFor="pipeline-solo-ti" className="flex items-center gap-1.5 text-sm text-texto-secundario">
+          <label
+            htmlFor="pipeline-solo-ti"
+            className="flex items-center gap-2 text-sm text-texto-secundario"
+          >
             <input
               id="pipeline-solo-ti"
               type="checkbox"
+              className="h-4 w-4 rounded accent-acento"
               checked={filtros.soloInternas}
               onChange={(evento) => onCambio({ soloInternas: evento.target.checked })}
             />
             Solo internas (TI)
           </label>
-          <Button
-            type="button"
-            variante="contorno"
-            tamano="sm"
-            onClick={onLimpiar}
-            disabled={!hayFiltrosActivos(filtros)}
-          >
-            Limpiar filtros
-          </Button>
         </div>
       </div>
-    </div>
+    </PanelDesplegable>
   );
 }

@@ -1,3 +1,16 @@
+## Corte 2026-10-24 — Interfaz sin divisorias y cola RFQ renovada · PR #110
+
+Rama `feat/rfq-ui-sin-divisorias` (sobre `main` con #109 fusionado).
+
+- [x] **Sistema visual:** `--borde` casi imperceptible y separación por elevación (`shadow-xs/suave/elevada/lateral/cabecera`), ritmo y superficies suaves; animaciones de 150–300 ms con `ease-suave` y respeto a `prefers-reduced-motion`.
+- [x] **Contraste AA:** `--acento-texto` para texto sobre `--acento-suave`; botón `primario` con contraste AA en claro y oscuro.
+- [x] **RFQ cabecera:** título, subtítulo y «Nuevo RFQ» en la misma fila; el diálogo de alta vive en `ColaRfq`.
+- [x] **RFQ paginación:** 15 por página con rango visible, reinicio a página 1 al filtrar y componente `Paginacion` reutilizable.
+- [x] **RFQ filtros:** bloque completo colapsable, cerrado por defecto, con resumen y contador de filtros activos.
+- Sin migración.
+
+**Pruebas:** typecheck, ESLint (solo warning preexistente), 29 unitarias focales y `pnpm build` en verde. E2E focal y revisión visual en navegador no corridos: Docker/Supabase local no disponible. CI pendiente del head final.
+
 ## Corte 2026-10-24 — RFQ: conservar la próxima acción vigente al cambiar de estado · PR #109
 
 Rama `fix/rfq-seguimiento-vigente` (sobre `main` con #108 fusionado).

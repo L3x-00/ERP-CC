@@ -33,14 +33,9 @@ export default async function PaginaRfq({ searchParams }: ParametrosPaginaRfq) {
   const usuario = await obtenerUsuarioServidor();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <SincronizadorPipelineRealtime />
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold">RFQ</h1>
-        <p className="text-sm text-texto-secundario">
-          Solicitudes de cotización: captura, ítems ITxx, archivos y gate LISTO.
-        </p>
-      </header>
+      {/* La cabecera de página y «Nuevo RFQ» viven en `ColaRfq` para compartir fila. */}
       <ColaRfq
         responsableActual={
           usuario ? { id: usuario.id, nombre: usuario.nombreCompleto } : undefined

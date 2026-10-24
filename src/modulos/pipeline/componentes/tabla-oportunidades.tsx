@@ -145,7 +145,7 @@ export function TablaOportunidades({
                       </Button>
                       <Link
                         href={`/rfq?rfq=${oportunidad.id}${incompleto ? '&continuar=1' : ''}`}
-                        className="text-xs font-semibold text-acento hover:underline"
+                        className="inline-flex min-h-8 items-center rounded-lg px-2.5 text-xs font-semibold text-acento transition-colors duration-150 hover:bg-acento-suave"
                       >
                         {incompleto ? 'Continuar captura' : 'Abrir'}
                       </Link>

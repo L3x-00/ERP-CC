@@ -739,7 +739,7 @@ export function FormularioProspecto({
             </p>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-4">
             <Button
               type="button"
               variante="contorno"
@@ -808,7 +808,7 @@ export function FormularioProspecto({
             </p>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-4">
             <Button
               type="button"
               variante="contorno"

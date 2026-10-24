@@ -134,7 +134,7 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
         aria-expanded={abierto}
         aria-controls="centro-notificaciones-panel"
         onClick={() => setAbierto((actual) => !actual)}
-        className="relative rounded-base border border-borde-fuerte p-2 transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        className="relative rounded-full bg-superficie-2/60 p-2.5 transition-colors duration-200 hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
       >
         <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-none stroke-current" strokeWidth="1.8">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 17H9m9-2V10a6 6 0 0 0-12 0v5l-2 2h16l-2-2Zm-5 5h-2" />
@@ -154,9 +154,9 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
             role="dialog"
             aria-modal="true"
             aria-label="Centro de notificaciones"
-            className="deslizar-derecha fixed right-0 top-0 z-50 flex h-full w-[min(24rem,100vw)] flex-col border-l border-borde bg-superficie shadow-lg"
+            className="deslizar-derecha fixed right-0 top-0 z-50 flex h-full w-[min(24rem,100vw)] flex-col bg-superficie shadow-elevada"
           >
-            <div className="flex items-center justify-between gap-2 border-b border-borde px-4 py-3">
+            <div className="flex items-center justify-between gap-2 bg-superficie-2/40 px-4 py-4">
               <div className="flex items-baseline gap-2">
                 <h2 className="text-base font-semibold text-texto-primario">Notificaciones</h2>
                 <span className="text-xs text-texto-secundario">{noLeidas} sin leer</span>

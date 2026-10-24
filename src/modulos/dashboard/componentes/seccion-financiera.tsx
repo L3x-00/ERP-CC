@@ -48,12 +48,12 @@ export function SeccionFinanciera({
       <h2 id={`titulo-finanzas-${identificador}`} className="text-xl font-semibold">{titulo}</h2>
       {!soloAging ? (
         <Tarjeta>
-          <ul className="divide-y divide-borde">
+          <ul className="flex flex-col gap-0.5 p-2">
             {items.map(([tituloItem, valor, id]) => (
               <li
                 key={id}
                 id={identificador === 'dashboard' ? id : `${identificador}-${id}`}
-                className="flex flex-wrap items-center justify-between gap-2 px-6 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-2.5"
               >
                 <span className="text-sm text-texto-secundario">{tituloItem}</span>
                 <span className="text-sm font-semibold tabular-nums text-texto-primario">{valor}</span>
@@ -64,7 +64,7 @@ export function SeccionFinanciera({
       ) : null}
       {contador && !soloItems ? (
         <Tarjeta>
-          <ul className="divide-y divide-borde" aria-label="Antigüedad de cuentas por cobrar">
+          <ul className="flex flex-col gap-0.5 p-2" aria-label="Antigüedad de cuentas por cobrar">
             {([
               ['Corriente', contador.aging.corrienteMxn, 'alCorriente'],
               ['1–30 días', contador.aging.unoTreintaMxn, 'de1A30Dias'],
@@ -75,7 +75,7 @@ export function SeccionFinanciera({
               <li key={etiqueta}>
                 <Link
                   href={`/cobranza?aging=${slugDeBucketAging(bucket)}`}
-                  className="flex flex-wrap items-center justify-between gap-2 px-6 py-3 transition-colors hover:bg-superficie-2"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-2.5 transition-colors duration-150 hover:bg-superficie-2/60"
                   aria-label={`Ver en cobranza las cuentas: ${etiqueta}`}
                 >
                   <span className="text-sm text-texto-secundario">{etiqueta}</span>
