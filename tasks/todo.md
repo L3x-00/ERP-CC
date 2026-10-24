@@ -1,3 +1,14 @@
+## Corte 2026-10-24 — RFQ: conservar la próxima acción vigente al cambiar de estado · PR #109
+
+Rama `fix/rfq-seguimiento-vigente` (sobre `main` con #108 fusionado).
+
+- [x] **Marcar listo / transiciones:** con una acción vigente no se pregunta «¿Qué hacemos con este seguimiento?» ni se pide redefinirla; se conserva automáticamente con `mantenerProximaAccion`.
+- [x] **Sustitución:** se hace desde el Resumen, que mantiene el resultado mínimo. Una acción vencida o inexistente sí pide resultado y siguiente acción en el modal.
+- [x] **Pruebas:** cobertura nueva de «Marcar listo» con acción vigente; sustitución y reprogramación se prueban con una acción vencida.
+- Sin migración.
+
+**Pruebas:** tsc, ESLint focal, `pnpm build` y suite completa 2302/2302 en verde. E2E local no corrido por falta de Docker; CI pendiente del head final.
+
 ## Corte 2026-10-23 — RFQ: próxima acción al finalizar/validar y limpieza de Propuestas · PR #108
 
 Rama `feat/rfq-proxima-accion-validar` (sobre `main` con #106 y #107 fusionados).

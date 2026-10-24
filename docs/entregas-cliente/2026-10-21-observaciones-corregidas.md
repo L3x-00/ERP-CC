@@ -110,25 +110,23 @@ Este documento reúne las observaciones que nos compartieron, explica **qué se 
 
 ### 19. RFQ: seguimiento más simple al cambiar de estado
 
-**Qué se corrigió.** Antes, cada vez que cambiabas el estado de un RFQ (por ejemplo, ponerlo en espera del cliente) el sistema te pedía capturar de nuevo una próxima acción, aunque la que ya tenía siguiera teniendo sentido. Ahora el seguimiento funciona como una cadena sencilla:
+**Qué se corrigió.** Antes, cada vez que cambiabas el estado de un RFQ (por ejemplo, ponerlo en espera del cliente) el sistema te pedía confirmar o redefinir la próxima acción, aunque la que ya tenía siguiera teniendo sentido. Ahora el seguimiento funciona como una cadena sencilla:
 
-- Si el seguimiento actual sigue vigente, queda marcado **Dejarlo como está** y puedes confirmar el cambio sin capturar nada más.
-- Si quieres sustituirlo, eliges **Cerrarlo y definir otro**. Antes de definir el siguiente, el sistema pregunta **¿Cómo terminó esta acción?** con cuatro opciones: **Completada**, **Sin respuesta**, **Reprogramada** o **Ya no aplica**.
+- Si la próxima acción sigue vigente, **se conserva automáticamente** al cambiar el estado. Solo se muestra como referencia; no aparece la pregunta «¿Qué hacemos con este seguimiento?».
+- Para **sustituirla**, se hace desde el **Resumen** del RFQ. Ahí el sistema pide cómo terminó: **Completada**, **Sin respuesta**, **Reprogramada** o **Ya no aplica**.
 - **Reprogramada** conserva la misma acción y solo pide la nueva fecha.
-- Si la fecha del seguimiento **ya venció**, no se puede dejar como está: se pide cómo terminó y se define el siguiente.
-- Lo mismo aplica si cambias o retiras la próxima acción directamente en el **Resumen** del RFQ. Mover solo la fecha o el responsable no pide resultado, porque la acción es la misma.
+- Si la fecha **ya venció**, el cambio de estado sí pide cómo terminó y cuál es la siguiente; una acción vencida no puede conservarse.
+- Mover solo la fecha o el responsable en el Resumen no pide resultado, porque la acción es la misma.
 - El resultado queda registrado en la pestaña **Actividad** del RFQ (por ejemplo, «Seguimiento: sin respuesta del cliente»).
 
 **Cómo probarlo.**
 
-1. Abre un RFQ que ya tenga una próxima acción con fecha futura y pulsa **Poner en espera del cliente**.
-2. Observa el recuadro **Seguimiento actual** y la opción **Dejarlo como está** ya seleccionada. Pulsa **Confirmar**.
-3. Con el RFQ en espera, pulsa **Marcar incompleto** y elige **Cerrarlo y definir otro**. Comprueba que **Confirmar** no se habilita hasta elegir cómo terminó.
-4. Elige **Sin respuesta**, define la siguiente acción con su fecha y pulsa **Confirmar**.
-5. Abre la pestaña **Actividad** del RFQ.
-6. En la pestaña **Resumen**, cambia la acción en **Próxima acción** y observa el aviso antes de guardar.
+1. Abre un RFQ con una próxima acción futura y pulsa **Poner en espera del cliente**. Observa que el recuadro **Seguimiento actual** se muestra sin preguntas; pulsa **Confirmar**.
+2. Abre el **Resumen**, cambia la próxima acción y guarda. Comprueba que se pide cómo terminó la anterior.
+3. Abre un RFQ con una acción vencida y pulsa **Marcar incompleto**. Comprueba que sí pide cómo terminó y la siguiente acción.
+4. Revisa la pestaña **Actividad**.
 
-**Resultado esperado.** En el paso 2 el cambio se guarda sin pedir otra acción y el seguimiento sigue igual. En el paso 3, la acción nueva solo aparece después de elegir el resultado. En **Actividad** se lee «Seguimiento: sin respuesta del cliente» junto al cambio de estado. En el Resumen aparece «Vas a sustituir la acción…» y se pide cómo terminó antes de guardar.
+**Resultado esperado.** En el paso 1 el cambio se guarda sin pedir otra acción y el seguimiento sigue igual. En el paso 2 se pide el resultado antes de guardar la sustitución. En el paso 3 la acción vencida no se puede conservar. En **Actividad** se lee «Seguimiento: sin respuesta del cliente» cuando aplica.
 
 ### 20. RFQ: fecha requerida por el cliente separada de la fecha compromiso
 
