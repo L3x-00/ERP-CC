@@ -36,13 +36,13 @@ export function SeccionGastoCategoria({
     <section aria-labelledby={`titulo-gasto-categoria-${identificador}`} className="grid gap-3">
       <h2 id={`titulo-gasto-categoria-${identificador}`} className="text-xl font-semibold">{titulo}</h2>
       <Tarjeta>
-        <ul className="divide-y divide-borde" aria-label="Distribución de gasto por categoría">
+        <ul className="flex flex-col gap-0.5 p-2" aria-label="Distribución de gasto por categoría">
           {distribucion.map((fila) => {
             const porcentaje = total > 0 ? (fila.montoMxn / total) * 100 : 0;
             return (
               <li
                 key={fila.categoria}
-                className="flex flex-wrap items-center justify-between gap-2 px-6 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-2.5 transition-colors duration-150 hover:bg-superficie-2/60"
               >
                 <span className="text-sm text-texto-secundario">
                   {ETIQUETA_CATEGORIA[fila.categoria] ?? fila.categoria}

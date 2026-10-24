@@ -64,7 +64,7 @@ export function FiltroPeriodoGlobal({ filtro, onChange, disabled = false }: Filt
   };
 
   return (
-    <section aria-label="Filtro de periodo del dashboard" className="grid gap-3 rounded-base border border-borde bg-superficie p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <section aria-label="Filtro de periodo del dashboard" className="grid gap-3 rounded-xl bg-superficie p-4 shadow-suave sm:grid-cols-2 lg:grid-cols-4">
       <label className="grid gap-1 text-sm font-medium" htmlFor="periodo-dashboard">
         Periodo
         <Select

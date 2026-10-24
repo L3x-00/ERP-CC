@@ -213,7 +213,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
 
       <PanelAccionesRfq rfq={rfq} catalogos={catalogosDatos} onCambio={() => void consulta.refetch()} />
 
-      <div role="tablist" aria-label="Secciones del RFQ" className="flex flex-wrap gap-1 border-b border-borde">
+      <div role="tablist" aria-label="Secciones del RFQ" className="flex flex-wrap gap-1 rounded-xl bg-superficie-2/50 p-1">
         {PESTANAS.filter((opcion) => opcion.clave !== 'revisar' || capturaIncompleta).map((opcion) => (
           <button
             key={opcion.clave}
@@ -231,8 +231,8 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
             }}
             className={
               pestana === opcion.clave
-                ? 'border-b-2 border-acento px-3 py-2 text-sm font-semibold text-acento'
-                : 'border-b-2 border-transparent px-3 py-2 text-sm text-texto-secundario hover:text-texto-primario'
+                ? 'rounded-lg bg-superficie px-3.5 py-2 text-sm font-semibold text-texto-primario shadow-xs transition-all duration-200 ease-suave'
+                : 'rounded-lg px-3.5 py-2 text-sm text-texto-secundario transition-all duration-200 ease-suave hover:bg-superficie/70 hover:text-texto-primario'
             }
           >
             {opcion.etiqueta}
@@ -243,7 +243,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
       {pestana === 'resumen' && (
         <div className="flex flex-col gap-4">
           {capturaIncompleta && pasoCaptura === 'cliente' ? (
-            <section className="grid gap-3 rounded-lg border border-borde bg-superficie p-4" aria-label="Cliente del RFQ">
+            <section className="grid gap-3 rounded-xl bg-superficie p-4 shadow-suave" aria-label="Cliente del RFQ">
               <div>
                 <h2 className="text-base font-semibold text-texto-primario">Cliente</h2>
                 <p className="text-sm text-texto-secundario">

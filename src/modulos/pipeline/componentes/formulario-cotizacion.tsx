@@ -837,7 +837,7 @@ function ResumenTotales({
           {formatearMoneda(totales.iva, totales.moneda)}
         </span>
       </div>
-      <div className="flex items-center justify-between border-t border-borde pt-1">
+      <div className="flex items-center justify-between pt-1">
         <span className="font-semibold">
           Total ({totales.moneda}){incluirIva ? '' : ' sin IVA'}
         </span>

@@ -16,7 +16,7 @@ export function EstadoVacio({ titulo, descripcion, accion, icono, className }: P
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-borde-fuerte bg-superficie px-6 py-12 text-center',
+        'flex flex-col items-center justify-center gap-2 rounded-xl bg-superficie-2/40 px-6 py-12 text-center',
         className,
       )}
     >

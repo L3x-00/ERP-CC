@@ -7,7 +7,8 @@ type VarianteBoton = 'primario' | 'secundario' | 'destructivo' | 'contorno' | 'f
 type TamanoBoton = 'sm' | 'md' | 'lg' | 'piso';
 
 const VARIANTES: Record<VarianteBoton, string> = {
-  primario: 'bg-acento text-white hover:bg-acento-hover',
+  primario:
+    'bg-acento-hover text-white shadow-sm hover:bg-acento-activo hover:shadow-md dark:bg-acento dark:text-fondo dark:hover:bg-acento-texto dark:hover:text-fondo',
   secundario: 'bg-secundario text-white hover:opacity-90',
   destructivo:
     'border border-peligro/40 bg-peligro-suave text-peligro-texto hover:bg-peligro/10',
@@ -43,8 +44,8 @@ export function Button({
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors duration-150',
-        'disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-[background-color,color,box-shadow,transform] duration-200 ease-suave active:scale-[0.98]',
+        'disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:ring-offset-2 focus-visible:ring-offset-superficie',
         VARIANTES[variante],
         TAMANOS[tamano],

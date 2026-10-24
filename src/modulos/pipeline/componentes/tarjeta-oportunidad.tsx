@@ -154,7 +154,7 @@ export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportun
         </ul>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-borde pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
         <Link
           href={`/rfq?rfq=${oportunidad.id}`}
           className="text-xs font-semibold text-acento hover:underline"

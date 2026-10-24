@@ -157,7 +157,7 @@ export function ResumenRfq({
         <section
           aria-label="Datos generales"
           data-testid="rfq-datos-generales"
-          className="rounded-lg border border-borde bg-superficie p-4 shadow-sm lg:row-span-2"
+          className="rounded-xl bg-superficie p-4 shadow-suave lg:row-span-2"
         >
           <h2 className="mb-3 text-sm font-semibold text-texto-primario">Datos generales</h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -208,7 +208,7 @@ export function ResumenRfq({
         <section
           aria-label="Próxima acción"
           data-testid="rfq-proxima-accion"
-          className="rounded-lg border border-borde bg-superficie p-4 shadow-sm"
+          className="rounded-xl bg-superficie p-4 shadow-suave"
         >
           <h2 className="mb-3 text-sm font-semibold text-texto-primario">Próxima acción</h2>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -236,7 +236,7 @@ export function ResumenRfq({
         <section
           aria-label="Descripción general"
           data-testid="rfq-descripcion"
-          className="rounded-lg border border-borde bg-superficie p-4 shadow-sm"
+          className="rounded-xl bg-superficie p-4 shadow-suave"
         >
           <h2 className={`mb-3 text-sm font-semibold text-texto-primario ${CLASE_OBLIGATORIO}`}>
             Descripción general

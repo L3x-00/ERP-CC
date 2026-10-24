@@ -25,7 +25,7 @@ export function DialogContent({
       <DialogPrimitive.Content
         className={cn(
           'animar-entrada fixed left-1/2 top-1/2 z-50 grid w-[calc(100vw-2rem)] max-w-[640px] -translate-x-1/2 -translate-y-1/2 gap-4',
-          'max-h-[90vh] overflow-y-auto rounded-xl border border-borde bg-superficie p-6 shadow-lg',
+          'max-h-[90vh] overflow-y-auto rounded-2xl bg-superficie p-6 shadow-elevada ring-1 ring-borde/60',
           'scroll-sutil',
           className,
         )}
@@ -51,7 +51,7 @@ export function DialogHeader({ className, ...props }: ComponentProps<'div'>) {
 export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
-      className={cn('flex flex-wrap justify-end gap-2 border-t border-borde pt-4', className)}
+      className={cn('flex flex-wrap justify-end gap-2 pt-2', className)}
       {...props}
     />
   );

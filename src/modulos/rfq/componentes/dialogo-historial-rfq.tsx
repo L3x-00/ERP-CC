@@ -284,7 +284,7 @@ export function DialogoHistorialRfq({
                     <button
                       type="button"
                       onClick={() => setVersionSeleccionada(version)}
-                      className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-borde bg-superficie px-3 py-2 text-left hover:bg-superficie-2"
+                      className="flex w-full flex-wrap items-center justify-between gap-2 rounded-xl bg-superficie px-3 py-2 text-left shadow-xs transition-colors duration-150 hover:bg-superficie-2"
                       aria-label={`Ver versión ${version.numero} (${etiquetaCausaVersion(version.causa)})`}
                     >
                       <span className="flex flex-wrap items-center gap-2">

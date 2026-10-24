@@ -143,7 +143,7 @@ export function DialogoFinalizarCapturaRfq({
           </p>
         ) : (
           <div className="flex flex-col gap-4">
-            <section aria-label="Resumen del RFQ" className="rounded-lg border border-borde bg-superficie-2 p-3">
+            <section aria-label="Resumen del RFQ" className="rounded-xl bg-superficie-2/60 p-3">
               <h3 className="text-sm font-semibold text-texto-primario">Resumen del RFQ</h3>
               <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
                 <div><dt className="text-texto-secundario">Cliente</dt><dd>{rfq.clienteNombre ?? rfq.empresa}</dd></div>

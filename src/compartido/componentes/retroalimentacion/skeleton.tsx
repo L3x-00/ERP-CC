@@ -24,17 +24,20 @@ export function SkeletonTabla({
 }) {
   return (
     <div
-      className={cn('overflow-hidden rounded-lg border border-borde bg-superficie', className)}
+      className={cn('overflow-hidden rounded-xl bg-superficie shadow-suave', className)}
       role="status"
       aria-label="Cargando datos"
     >
-      <div className="flex gap-4 border-b border-borde bg-superficie-2 px-4 py-3">
+      <div className="flex gap-4 bg-superficie-2/70 px-4 py-3">
         {Array.from({ length: columnas }).map((_, indice) => (
           <Skeleton key={indice} className="h-3 flex-1" />
         ))}
       </div>
       {Array.from({ length: filas }).map((_, fila) => (
-        <div key={fila} className="flex gap-4 border-b border-borde px-4 py-4 last:border-b-0">
+        <div
+          key={fila}
+          className={cn('flex gap-4 px-4 py-4', fila % 2 === 1 && 'bg-superficie-2/25')}
+        >
           {Array.from({ length: columnas }).map((_, columna) => (
             <Skeleton key={columna} className="h-4 flex-1" />
           ))}

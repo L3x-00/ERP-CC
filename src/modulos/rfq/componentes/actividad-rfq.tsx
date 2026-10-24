@@ -38,7 +38,7 @@ export function ActividadRfq({ rfqId }: { rfqId: string }) {
       {registros.map((registro) => (
         <li
           key={registro.id}
-          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-borde bg-superficie px-3 py-2"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-superficie px-3 py-2 shadow-xs"
         >
           <div className="flex flex-col">
             <span className="text-sm font-medium">

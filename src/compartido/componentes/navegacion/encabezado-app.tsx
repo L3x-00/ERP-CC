@@ -57,7 +57,7 @@ function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
         aria-expanded={abierto}
         aria-label={`Menú de usuario: ${nombre}`}
         onClick={() => setAbierto((actual) => !actual)}
-        className="flex min-h-10 items-center gap-2 rounded-base border border-borde-fuerte py-1 pl-1 pr-2 transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        className="flex min-h-10 items-center gap-2 rounded-full bg-superficie-2/60 py-1 pl-1 pr-2.5 transition-colors duration-200 hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
       >
         <AvatarIniciales nombre={nombre} tamano="sm" />
         <span className="hidden max-w-40 truncate text-sm font-medium text-texto-secundario lg:inline-block">
@@ -65,16 +65,16 @@ function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
         </span>
         <Icono
           nombre="chevron"
-          className={cn('h-4 w-4 shrink-0 text-texto-tenue transition-transform', abierto && 'rotate-180')}
+          className={cn('h-4 w-4 shrink-0 text-texto-tenue transition-transform duration-300 ease-suave', abierto && 'rotate-180')}
         />
       </button>
       {abierto ? (
         <div
           role="menu"
           aria-label="Opciones de usuario"
-          className="absolute right-0 top-full z-50 mt-1 w-60 rounded-md border border-borde bg-superficie p-1 shadow-lg"
+          className="animar-entrada absolute right-0 top-full z-50 mt-2 w-60 rounded-xl bg-superficie p-1.5 shadow-elevada ring-1 ring-borde/60"
         >
-          <div className="border-b border-borde px-3 py-2">
+          <div className="rounded-lg bg-superficie-2/50 px-3 py-2">
             <p className="truncate text-sm font-semibold text-texto-primario">{nombre}</p>
             <p className="truncate text-xs text-texto-secundario">{ETIQUETA_ROL[rol] ?? rol}</p>
           </div>
@@ -85,7 +85,7 @@ function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
               setAbierto(false);
               void cerrarSesionAccion();
             }}
-            className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-md px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-peligro-suave hover:text-peligro-texto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+            className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-peligro-suave hover:text-peligro-texto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
           >
             <Icono nombre="cerrar" className="h-4 w-4" />
             Cerrar sesión
@@ -106,19 +106,22 @@ export function EncabezadoApp({
   onAbrirMenu,
 }: PropsEncabezado) {
   return (
-    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-borde bg-superficie/95 px-3 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 bg-superficie/80 px-3 shadow-cabecera backdrop-blur-xl md:px-6">
       <button
         type="button"
         onClick={onAbrirMenu}
         aria-label="Abrir menú de navegación"
-        className="rounded-md p-2 text-texto-secundario transition-colors hover:bg-superficie-2 hover:text-texto-primario md:hidden"
+        className="rounded-lg p-2 text-texto-secundario transition-colors hover:bg-superficie-2 hover:text-texto-primario md:hidden"
       >
         <Icono nombre="menu" />
       </button>
 
-      <div className="flex min-w-0 items-baseline gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {grupo ? (
-          <span className="hidden text-sm text-texto-tenue sm:inline">{grupo} /</span>
+          <span className="hidden items-center gap-2 text-sm text-texto-tenue sm:inline-flex">
+            {grupo}
+            <span aria-hidden="true" className="text-texto-tenue/70">›</span>
+          </span>
         ) : null}
         <h1 className="truncate text-base font-semibold text-texto-primario">{titulo}</h1>
       </div>

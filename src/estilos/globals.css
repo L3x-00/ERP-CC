@@ -34,6 +34,8 @@
   --color-acento: var(--acento);
   --color-acento-suave: var(--acento-suave);
   --color-acento-hover: var(--acento-hover);
+  --color-acento-activo: var(--acento-activo);
+  --color-acento-texto: var(--acento-texto);
 
   /* Semánticos */
   --color-exito: var(--exito);
@@ -74,6 +76,14 @@
   --shadow-sm: var(--sombra-sm);
   --shadow-md: var(--sombra-md);
   --shadow-lg: var(--sombra-lg);
+  --shadow-xs: var(--sombra-xs);
+  --shadow-suave: var(--sombra-suave);
+  --shadow-elevada: var(--sombra-elevada);
+  --shadow-lateral: var(--sombra-lateral);
+  --shadow-cabecera: var(--sombra-cabecera);
+
+  /* Curvas de movimiento */
+  --ease-suave: var(--curva-suave);
 }
 
 /* -----------------------------------------------------------------------------
@@ -91,11 +101,31 @@
     color: var(--color-texto-primario);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    transition:
+      background-color var(--trans-base),
+      color var(--trans-base);
   }
 
   /* Foco visible consistente en todo el sistema (no se oculta el ring). */
   :focus-visible {
     outline-color: var(--acento);
+  }
+
+  ::selection {
+    background: var(--acento-anillo);
+    color: var(--texto-primario);
+  }
+}
+
+/* Movimiento reducido: se conserva el cambio de estado, sin animación. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -181,9 +181,9 @@ export function SelectorCliente({
             <div
               id="rfq-clientes-sugerencias"
               aria-label="Clientes del catálogo"
-              className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-borde bg-superficie shadow-lg"
+              className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl bg-superficie shadow-elevada ring-1 ring-borde/60"
             >
-              <div className="flex items-center justify-between gap-2 border-b border-borde px-3 py-2">
+              <div className="flex items-center justify-between gap-2 bg-superficie-2/60 px-3 py-2">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-texto-tenue">
                   Clientes del catálogo
                 </span>

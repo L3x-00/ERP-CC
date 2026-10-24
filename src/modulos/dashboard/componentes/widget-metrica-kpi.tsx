@@ -23,7 +23,7 @@ export function WidgetMetricaKPI({ tarjeta }: { tarjeta: TarjetaMetrica }) {
   const señal = tarjeta.tendencia === 'subio' ? '↑' : tarjeta.tendencia === 'bajo' ? '↓' : '→';
   const textoTendencia = tarjeta.tendencia === 'subio' ? 'subió' : tarjeta.tendencia === 'bajo' ? 'bajó' : 'sin cambio';
   return (
-    <article className="rounded-lg border border-borde bg-superficie p-4 shadow-sm" aria-label={tarjeta.titulo} data-testid={`kpi-${tarjeta.id}`}>
+    <article className="rounded-xl bg-superficie p-4 shadow-suave transition-[box-shadow,transform] duration-200 ease-suave hover:-translate-y-0.5 hover:shadow-md" aria-label={tarjeta.titulo} data-testid={`kpi-${tarjeta.id}`}>
       <p className="text-xs font-medium text-texto-secundario">{tarjeta.titulo}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums text-texto-primario">{formatearValor(tarjeta)}</p>
       <p className={`mt-2 text-xs ${COLORES_TENDENCIA[tarjeta.tendencia]}`} aria-label={`Variación: ${textoTendencia}`}>

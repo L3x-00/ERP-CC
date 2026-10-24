@@ -45,21 +45,26 @@ export const FILTROS_TABLERO_INICIAL: FiltrosTablero = {
   soloInternas: false,
 };
 
+/** Cantidad de filtros activos (para el resumen del panel desplegable). */
+export function contarFiltrosActivos(filtros: FiltrosTablero): number {
+  let activos = 0;
+  if (filtros.texto.trim() !== '') activos += 1;
+  if (filtros.estadoRfq !== '') activos += 1;
+  if (filtros.prioridad !== '') activos += 1;
+  if (filtros.etiqueta !== '') activos += 1;
+  if (filtros.area !== '') activos += 1;
+  if (filtros.clienteId !== '') activos += 1;
+  if (filtros.responsableId !== '') activos += 1;
+  if (filtros.proximaVencida) activos += 1;
+  if (filtros.desde !== '') activos += 1;
+  if (filtros.hasta !== '') activos += 1;
+  if (filtros.soloInternas) activos += 1;
+  return activos;
+}
+
 /** ¿Hay algún filtro activo (para habilitar "Limpiar")? */
 export function hayFiltrosActivos(filtros: FiltrosTablero): boolean {
-  return (
-    filtros.texto.trim() !== '' ||
-    filtros.estadoRfq !== '' ||
-    filtros.prioridad !== '' ||
-    filtros.etiqueta !== '' ||
-    filtros.area !== '' ||
-    filtros.clienteId !== '' ||
-    filtros.responsableId !== '' ||
-    filtros.proximaVencida ||
-    filtros.desde !== '' ||
-    filtros.hasta !== '' ||
-    filtros.soloInternas
-  );
+  return contarFiltrosActivos(filtros) > 0;
 }
 
 function coincideTexto(oportunidad: Oportunidad, termino: string): boolean {

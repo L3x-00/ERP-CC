@@ -186,7 +186,7 @@ export function PanelArchivosRfq({
     <div className="flex flex-col gap-4" data-testid="panel-archivos-rfq">
       <form
         onSubmit={manejarEnvio}
-        className="grid gap-3 rounded-lg border border-borde bg-superficie p-3 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-3 rounded-xl bg-superficie-2/40 p-3 sm:grid-cols-2 lg:grid-cols-4"
       >
         <label className="grid gap-1 text-sm font-medium" htmlFor="archivo-clase">
           Tipo
@@ -280,7 +280,7 @@ export function PanelArchivosRfq({
           {linajes.map((linaje) => (
             <li
               key={linaje.representante.id}
-              className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie px-3 py-2"
+              className="flex flex-col gap-2 rounded-xl bg-superficie px-3 py-2 shadow-xs"
             >
               <FilaArchivoRfq archivo={linaje.representante} onAbrir={abrirArchivo} />
               {linaje.historicas.length > 0 && (

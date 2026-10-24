@@ -2,14 +2,15 @@ import type { ComponentProps } from 'react';
 import { cn } from '@/compartido/utilidades/cn';
 
 /**
- * Primitivos de tabla del sistema: contenedor con scroll horizontal, encabezado
- * fijo, filas de 48px, alternancia sutil y hover accionable.
+ * Primitivos de tabla del sistema: contenedor elevado con scroll horizontal,
+ * encabezado fijo, filas de 48px, alternancia sutil y hover accionable. Sin
+ * líneas divisorias: la separación la dan el ritmo vertical y el hover.
  */
 export function TablaContenedor({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       className={cn(
-        'scroll-sutil overflow-x-auto rounded-lg border border-borde bg-superficie',
+        'scroll-sutil overflow-x-auto rounded-xl bg-superficie shadow-suave',
         className,
       )}
       {...props}
@@ -25,7 +26,7 @@ export function TablaEncabezado({ className, ...props }: ComponentProps<'thead'>
   return (
     <thead
       className={cn(
-        'sticky top-0 z-10 bg-superficie-2 text-xs uppercase tracking-wide text-texto-secundario',
+        'sticky top-0 z-10 bg-superficie-2/70 text-[11px] uppercase tracking-[0.12em] text-texto-tenue backdrop-blur',
         className,
       )}
       {...props}
@@ -36,7 +37,7 @@ export function TablaEncabezado({ className, ...props }: ComponentProps<'thead'>
 export function TablaCuerpo({ className, ...props }: ComponentProps<'tbody'>) {
   return (
     <tbody
-      className={cn('divide-y divide-borde [&>tr:nth-child(even)]:bg-superficie-2/60', className)}
+      className={cn('[&>tr:nth-child(even)]:bg-superficie-2/25', className)}
       {...props}
     />
   );
@@ -52,7 +53,7 @@ export function TablaFila({ className, seleccionada = false, clickable = false, 
     <tr
       aria-selected={seleccionada || undefined}
       className={cn(
-        'transition-colors',
+        'transition-colors duration-150',
         clickable && 'cursor-pointer',
         seleccionada ? 'bg-acento-suave' : 'hover:bg-acento-suave/60',
         className,
@@ -67,5 +68,5 @@ export function TablaEncabezadoCelda({ className, ...props }: ComponentProps<'th
 }
 
 export function TablaCelda({ className, ...props }: ComponentProps<'td'>) {
-  return <td className={cn('px-4 py-3 align-middle', className)} {...props} />;
+  return <td className={cn('px-4 py-3.5 align-middle', className)} {...props} />;
 }

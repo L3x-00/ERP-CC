@@ -2,13 +2,14 @@ import type { ComponentProps } from 'react';
 import { cn } from '@/compartido/utilidades/cn';
 
 /**
- * Tarjeta/panel del sistema: superficie elevada sobre el lienzo gris.
+ * Tarjeta/panel del sistema: superficie elevada sobre el lienzo gris. La
+ * separación se logra con sombra y espacio, no con líneas divisorias.
  * Composición: Tarjeta > (TarjetaEncabezado | TarjetaContenido | TarjetaPie).
  */
 export function Tarjeta({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
-      className={cn('rounded-lg border border-borde bg-superficie shadow-sm', className)}
+      className={cn('rounded-xl bg-superficie shadow-suave', className)}
       {...props}
     />
   );
@@ -17,7 +18,7 @@ export function Tarjeta({ className, ...props }: ComponentProps<'div'>) {
 export function TarjetaEncabezado({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
-      className={cn('flex flex-col gap-1 border-b border-borde px-6 py-4', className)}
+      className={cn('flex flex-col gap-1 px-6 pb-2 pt-5', className)}
       {...props}
     />
   );
@@ -44,7 +45,7 @@ export function TarjetaPie({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center justify-end gap-2 border-t border-borde px-6 py-4',
+        'flex flex-wrap items-center justify-end gap-2 px-6 pb-5 pt-2',
         className,
       )}
       {...props}

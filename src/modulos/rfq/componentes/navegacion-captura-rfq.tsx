@@ -31,7 +31,7 @@ const ETIQUETAS_ESTADO: Record<EstadoPaso, string> = {
 
 const CLASES_ESTADO: Record<EstadoPaso, string> = {
   completado: 'border-borde-fuerte bg-superficie text-texto-primario',
-  actual: 'border-acento bg-acento-suave text-acento',
+  actual: 'border-acento bg-acento-suave text-acento-texto',
   pendiente: 'border-dashed border-borde bg-superficie text-texto-secundario',
 };
 
@@ -60,7 +60,7 @@ export function NavegacionCapturaRfq({
     <nav
       aria-label="Flujo de captura del RFQ"
       data-testid="navegacion-captura-rfq"
-      className="rounded-lg border border-borde bg-superficie p-2"
+      className="rounded-xl bg-superficie p-2 shadow-suave"
     >
       <ol className="flex flex-wrap items-stretch gap-2">
         {PASOS.map((paso, indice) => {
