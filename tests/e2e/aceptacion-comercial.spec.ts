@@ -193,7 +193,7 @@ async function crearRfqSimple(
   await expect(
     dialogoSeguimiento.getByLabel('Responsable de la acción a seguir'),
   ).not.toHaveValue('');
-  await dialogoSeguimiento.getByLabel('Acción a seguir').selectOption({ index: 1 });
+  await dialogoSeguimiento.getByLabel('Acción a seguir', { exact: true }).selectOption({ index: 1 });
   await dialogoSeguimiento.getByRole('button', { name: 'Guardar y finalizar más tarde' }).click();
   await expect(pagina.getByTestId('alta-rfq-items')).toBeHidden();
 

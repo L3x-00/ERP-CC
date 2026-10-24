@@ -203,7 +203,7 @@ async function completarAlta(page: Page, contexto: ContextoRfq): Promise<string>
   await expect(dialogo.getByRole('region', { name: 'Resumen del RFQ' })).toContainText(
     `Alta modal ${contexto.sufijo}`,
   );
-  await dialogo.getByLabel('Acción a seguir').selectOption({ index: 1 });
+  await dialogo.getByLabel('Acción a seguir', { exact: true }).selectOption({ index: 1 });
   await dialogo
     .getByLabel('Fecha de la acción')
     .fill(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));

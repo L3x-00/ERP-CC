@@ -129,7 +129,7 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     await expect(
       dialogoSeguimiento.getByLabel('Responsable de la acción a seguir'),
     ).not.toHaveValue('');
-    await dialogoSeguimiento.getByLabel('Acción a seguir').selectOption({ index: 1 });
+    await dialogoSeguimiento.getByLabel('Acción a seguir', { exact: true }).selectOption({ index: 1 });
     await dialogoSeguimiento.getByRole('button', { name: 'Guardar y finalizar más tarde' }).click();
     await expect(a.getByTestId('alta-rfq-items')).toBeHidden();
     const oportunidad = await admin.from('pipeline').select('id').eq('empresa', marca).single();
