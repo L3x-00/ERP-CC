@@ -12,15 +12,14 @@ import {
 
 import type { CatalogosRfq } from '../acciones/obtener-catalogos';
 import { CamposProximaAccion } from './campos-proxima-accion';
-import {
-  CLASE_OPCION_SEGUIMIENTO,
-  CamposResultadoSeguimiento,
-} from './campos-resultado-seguimiento';
+import { CamposResultadoSeguimiento } from './campos-resultado-seguimiento';
 
 /**
- * Seguimiento de un cambio de estado: muestra la acción vigente y deja elegir
- * entre dejarla como está o cerrarla (con su resultado) y definir la siguiente.
- * Presentacional: el panel guarda la decisión y el servidor la revalida.
+ * Seguimiento de un cambio de estado. Si la acción vigente sigue siendo válida
+ * se conserva automáticamente y solo se muestra como referencia: cambiar el
+ * estado no obliga a actualizarla. Cuando venció (o no existe) sí se pide cómo
+ * terminó y cuál es la siguiente. Presentacional: el panel guarda la decisión y
+ * el servidor la revalida.
  */
 export function SeguimientoTransicionRfq({
   idBase,
@@ -66,14 +65,6 @@ export function SeguimientoTransicionRfq({
   )?.nombre;
   const fecha = rfq.fechaProximaAccion ? formatearFechaCalendario(rfq.fechaProximaAccion) : null;
 
-  function elegirModo(modo: SeguimientoTransicion['modo']): void {
-    if (modo === 'mantener') {
-      onCambio({ modo, resultado: '', proxima: valor.proxima });
-      return;
-    }
-    onCambio({ modo, resultado: valor.resultado, proxima: valor.proxima });
-  }
-
   function elegirResultado(resultado: ResultadoProximaAccion): void {
     onCambio({ modo: 'cerrar', resultado, proxima: proximaAccionTrasResultado(rfq, resultado) });
   }
@@ -98,47 +89,10 @@ export function SeguimientoTransicionRfq({
       </div>
 
       {vencida ? (
-        <p className="text-sm text-texto-secundario">
-          Cuéntanos cómo terminó esta acción y define la siguiente.
-        </p>
-      ) : (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-semibold">¿Qué hacemos con este seguimiento?</legend>
-          <label className={CLASE_OPCION_SEGUIMIENTO}>
-            <input
-              type="radio"
-              name={`${idBase}-modo`}
-              className="mt-1"
-              checked={valor.modo === 'mantener'}
-              onChange={() => elegirModo('mantener')}
-            />
-            <span>
-              <span className="font-medium">Dejarlo como está</span>
-              <span className="block text-texto-secundario">
-                Sigue pendiente; cambiar el estado no lo modifica.
-              </span>
-            </span>
-          </label>
-          <label className={CLASE_OPCION_SEGUIMIENTO}>
-            <input
-              type="radio"
-              name={`${idBase}-modo`}
-              className="mt-1"
-              checked={valor.modo === 'cerrar'}
-              onChange={() => elegirModo('cerrar')}
-            />
-            <span>
-              <span className="font-medium">Cerrarlo y definir otro</span>
-              <span className="block text-texto-secundario">
-                Indica cómo terminó y qué sigue ahora.
-              </span>
-            </span>
-          </label>
-        </fieldset>
-      )}
-
-      {valor.modo === 'cerrar' && (
         <>
+          <p className="text-sm text-texto-secundario">
+            Cuéntanos cómo terminó esta acción y define la siguiente.
+          </p>
           <CamposResultadoSeguimiento
             idBase={idBase}
             valor={valor.resultado}
@@ -155,6 +109,10 @@ export function SeguimientoTransicionRfq({
             />
           )}
         </>
+      ) : (
+        <p className="text-sm text-texto-secundario">
+          Se conserva tal cual al cambiar el estado. Para sustituirla, edítala desde el Resumen.
+        </p>
       )}
     </div>
   );

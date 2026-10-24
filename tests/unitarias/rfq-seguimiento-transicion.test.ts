@@ -80,17 +80,21 @@ describe('seguimiento al cambiar de estado (panel de acciones del RFQ)', () => {
     vi.clearAllMocks();
   });
 
-  it('con una acción vigente muestra el seguimiento y por defecto la deja como está', async () => {
+  it('con una acción vigente no vuelve a preguntar: la conserva automáticamente', async () => {
     renderizarPanel(rfqCon(VIGENTE));
     abrirEsperaDelCliente();
 
     const bloque = await screen.findByTestId('seguimiento-transicion');
     expect(bloque.textContent).toContain('Dar seguimiento');
     expect(bloque.textContent).toContain('Ana Pérez');
-    expect(screen.getByLabelText(/Dejarlo como está/)).toHaveProperty('checked', true);
-    // No pide otra acción ni un resultado.
+    expect(bloque.textContent).toContain('Se conserva tal cual');
+    // Ya no se pregunta si se deja o se cambia: la acción vigente se mantiene.
+    expect(screen.queryByText(/¿Qué hacemos con este seguimiento?/)).toBeNull();
+    expect(screen.queryByLabelText(/Dejarlo como está/)).toBeNull();
+    expect(screen.queryByLabelText(/Cerrarlo y definir otro/)).toBeNull();
     expect(screen.queryByTestId('campos-proxima-accion')).toBeNull();
     expect(screen.queryByTestId('resultado-seguimiento')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Confirmar' })).toHaveProperty('disabled', false);
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
     await waitFor(() => expect(cambiarEstadoMock).toHaveBeenCalledTimes(1));
@@ -101,12 +105,14 @@ describe('seguimiento al cambiar de estado (panel de acciones del RFQ)', () => {
     expect(entrada).not.toHaveProperty('resultadoProximaAccion');
   });
 
-  it('para sustituirla pide primero el resultado y luego la nueva acción', async () => {
-    renderizarPanel(rfqCon(VIGENTE));
+  it('con la acción vencida pide el resultado y luego la nueva acción', async () => {
+    renderizarPanel(rfqCon({ ...VIGENTE, fechaProximaAccion: enDias(-3) }));
     abrirEsperaDelCliente();
-    await screen.findByTestId('seguimiento-transicion');
 
-    fireEvent.click(screen.getByLabelText(/Cerrarlo y definir otro/));
+    const bloque = await screen.findByTestId('seguimiento-transicion');
+    expect(bloque.textContent).toContain('Ya venció');
+    expect(screen.queryByLabelText(/Dejarlo como está/)).toBeNull();
+    expect(screen.queryByLabelText(/Cerrarlo y definir otro/)).toBeNull();
     const resultados = await screen.findByTestId('resultado-seguimiento');
     for (const etiqueta of ['Completada', 'Sin respuesta', 'Reprogramada', 'Ya no aplica']) {
       expect(resultados.textContent).toContain(etiqueta);
@@ -134,12 +140,11 @@ describe('seguimiento al cambiar de estado (panel de acciones del RFQ)', () => {
     expect(entrada).not.toHaveProperty('mantenerProximaAccion');
   });
 
-  it('«Reprogramada» conserva la acción y solo pide la nueva fecha', async () => {
-    renderizarPanel(rfqCon(VIGENTE));
+  it('«Reprogramada» conserva la acción vencida y solo pide la nueva fecha', async () => {
+    renderizarPanel(rfqCon({ ...VIGENTE, fechaProximaAccion: enDias(-3) }));
     abrirEsperaDelCliente();
     await screen.findByTestId('seguimiento-transicion');
 
-    fireEvent.click(screen.getByLabelText(/Cerrarlo y definir otro/));
     fireEvent.click(await screen.findByLabelText(/Reprogramada/));
 
     expect(await screen.findByLabelText('Acción a seguir')).toHaveProperty('value', 'FOLLOW_UP');
@@ -165,6 +170,45 @@ describe('seguimiento al cambiar de estado (panel de acciones del RFQ)', () => {
     expect(bloque.textContent).toContain('aún no tiene seguimiento');
     expect(screen.getByTestId('campos-proxima-accion')).toBeDefined();
     expect(screen.queryByTestId('resultado-seguimiento')).toBeNull();
+  });
+
+  it('al marcar listo con una acción vigente no pide actualizarla', async () => {
+    validarListoMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        listo: true,
+        secciones: {
+          cliente: [],
+          general: [],
+          items: [],
+          archivos: [],
+          seguimiento: [],
+        },
+      },
+    });
+    cambiarEstadoMock.mockResolvedValue({
+      exito: true,
+      datos: { estadoRfq: 'READY_FOR_PROPOSAL' },
+    });
+    renderizarPanel(rfqCon(VIGENTE));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar listo' }));
+    const dialogo = await screen.findByTestId('validacion-listo');
+    expect(dialogo.textContent).toContain('El RFQ cumple todos los requisitos.');
+    expect(dialogo.textContent).toContain('Dar seguimiento');
+    expect(dialogo.textContent).not.toContain('¿Qué hacemos con este seguimiento?');
+    expect(screen.queryByTestId('resultado-seguimiento')).toBeNull();
+    expect(screen.queryByTestId('campos-proxima-accion')).toBeNull();
+
+    const confirmar = screen.getByRole('button', { name: 'Confirmar y marcar listo' });
+    expect(confirmar).toHaveProperty('disabled', false);
+
+    fireEvent.click(confirmar);
+    await waitFor(() => expect(cambiarEstadoMock).toHaveBeenCalledTimes(1));
+    const entrada = cambiarEstadoMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entrada.accion).toBe('marcar_listo');
+    expect(entrada.mantenerProximaAccion).toBe(true);
+    expect(entrada).not.toHaveProperty('proximaAccion');
   });
 
   it('permite marcar listo capturando el seguimiento en el mismo modal de validación', async () => {
