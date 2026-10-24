@@ -16,11 +16,13 @@ import type { AccionRfq, Rfq, ValidacionRfqListo } from '@/modulos/rfq/tipos/ind
 import {
   ACCIONES_POR_ESTADO,
   ETIQUETAS_ACCION_RFQ,
+  etiquetaSeccion,
   resumirFaltantes,
 } from '@/modulos/rfq/utilidades/estados';
 import {
   faltantesSeguimientoTransicion,
   fechaHoyLocal,
+  puedeConfirmarMarcarListo,
   seguimientoTransicionInicial,
   tieneProximaAccionVigente,
 } from '@/modulos/rfq/utilidades/proxima-accion';
@@ -34,7 +36,9 @@ import { SeguimientoTransicionRfq } from './seguimiento-transicion-rfq';
 /**
  * Acciones de negocio del RFQ según su estado (ADR-SII-07). `marcar_listo`
  * abre el panel de faltantes de `validar_rfq_listo` (consulta imperativa en
- * cada apertura, sin caché) y solo permite confirmar cuando no hay pendientes.
+ * cada apertura, sin caché). Si el único pendiente es el seguimiento, el mismo
+ * modal lo captura y la transición lo guarda antes de revalidar; solo permite
+ * confirmar cuando no faltan otras secciones y el formulario local está completo.
  * C2.2/DC-06 + obs. cliente 2026-10-21: toda transición no terminal conserva la
  * acción de seguimiento vigente o la sustituye pidiendo antes su resultado;
  * cerrar/cancelar exigen motivo y no acción futura.
@@ -60,9 +64,6 @@ export function PanelAccionesRfq({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  const faltantes = validacionDatos ? resumirFaltantes(validacionDatos) : [];
-  const listo = validacionDatos?.listo ?? false;
-
   const acciones = ACCIONES_POR_ESTADO[rfq.estadoRfq];
   const faltantesSeguimiento = faltantesSeguimientoTransicion(
     seguimiento,
@@ -71,6 +72,23 @@ export function PanelAccionesRfq({
     hoy,
   );
   const seguimientoCompleto = catalogos !== null && faltantesSeguimiento.length === 0;
+  const puedeMarcarListo = puedeConfirmarMarcarListo(
+    validacionDatos,
+    seguimiento,
+    seguimientoCompleto,
+  );
+
+  // El seguimiento se captura en este mismo modal. Mientras el formulario local
+  // no esté completo se conserva el checklist del servidor; al completarlo se
+  // oculta el seguimiento para no mostrarlo como pendiente y dejar solo el
+  // mensaje de que ya se puede confirmar. El servidor revalida al confirmar.
+  const faltantes = validacionDatos
+    ? resumirFaltantes(validacionDatos).filter(
+        (faltante) =>
+          !puedeMarcarListo
+          || !faltante.startsWith(`${etiquetaSeccion('seguimiento')}: `),
+      )
+    : [];
 
   /** Valida fresco contra el servidor cada vez que se abre el panel de LISTO. */
   async function abrirValidacionListo(): Promise<void> {
@@ -181,11 +199,11 @@ export function PanelAccionesRfq({
 
           {!validando && validacionDatos && (
             <div className="flex flex-col gap-3" data-testid="validacion-listo">
-              {listo ? (
+              {puedeMarcarListo ? (
                 <p className="text-sm font-medium text-exito-texto">
                   El RFQ cumple todos los requisitos.
                 </p>
-              ) : (
+              ) : faltantes.length > 0 ? (
                 <div className="flex flex-col gap-2">
                   <p className="text-sm font-medium text-peligro-texto">
                     Faltan requisitos para marcar listo:
@@ -196,7 +214,11 @@ export function PanelAccionesRfq({
                     ))}
                   </ul>
                 </div>
-              )}
+              ) : catalogos ? (
+                <p className="text-sm text-texto-secundario">
+                  Completa la próxima acción para marcar listo.
+                </p>
+              ) : null}
 
               {catalogos && (
                 <SeguimientoTransicionRfq
@@ -218,7 +240,7 @@ export function PanelAccionesRfq({
                 </Button>
                 <Button
                   tamano="sm"
-                  disabled={!listo || !seguimientoCompleto || enviando}
+                  disabled={!puedeMarcarListo || enviando}
                   onClick={() => void ejecutar('marcar_listo')}
                 >
                   Confirmar y marcar listo

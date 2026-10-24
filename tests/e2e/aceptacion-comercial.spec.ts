@@ -185,6 +185,16 @@ async function crearRfqSimple(
   await pagina.getByRole('button', { name: 'Continuar con ítems' }).click();
   await expect(pagina.getByTestId('alta-rfq-items')).toBeVisible();
   await pagina.getByRole('button', { name: 'Finalizar más tarde' }).click();
+  // La captura incompleta exige próxima acción, fecha y responsable; la fecha y
+  // el responsable se autocompletan con quien registra el RFQ.
+  const dialogoSeguimiento = pagina.getByTestId('dialogo-finalizar-captura');
+  await expect(dialogoSeguimiento).toBeVisible();
+  await expect(dialogoSeguimiento.getByLabel('Fecha de la acción')).not.toHaveValue('');
+  await expect(
+    dialogoSeguimiento.getByLabel('Responsable de la acción a seguir'),
+  ).not.toHaveValue('');
+  await dialogoSeguimiento.getByLabel('Acción a seguir', { exact: true }).selectOption({ index: 1 });
+  await dialogoSeguimiento.getByRole('button', { name: 'Guardar y finalizar más tarde' }).click();
   await expect(pagina.getByTestId('alta-rfq-items')).toBeHidden();
 
   const rfq = await contexto.admin

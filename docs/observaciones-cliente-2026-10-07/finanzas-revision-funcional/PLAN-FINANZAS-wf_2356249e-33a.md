@@ -1,0 +1,1992 @@
+# Plan, crítica y análisis transversales (generado sin modelo desde el journal)
+Fuente: `wf_2356249e-33a/journal.jsonl` · 2026-10-14T23:18:53.977Z · plan: plan:final
+
+## Plan
+**Resumen ejecutivo:** PLAN FINAL de Finanzas (Corte 10), 4 tandas de 5 requisitos, misma estructura que el plan anterior. Se aplicaron TODOS los ajustes de la crítica respaldados por evidencia. Un solo ajuste se adaptó en vez de aplicarse literal: F08 se queda en T1 (requisitos fijos de 5 por tanda) pero como ÚLTIMO commit retirable (UI/Zod/tipos de material); sus columnas y parámetros SQL van nullable en la migración de Compras porque cambiar la firma de las RPC dos veces sería peor.
+
+Cambios respecto al plan anterior:
+1. Cobertura. (a) F08/RPC: el RETURNS TABLE de crear_compra y actualizar_compra_borrador NO cambia (el pgTAP usa to_jsonb(compra.*)); se reescribe la aserción has_function_privilege de sii_b8_compras.test.sql:199-200 (firma vieja de 10 args) y se añaden aserciones de que la firma vieja ya no existe y no hay overload ambiguo. Verificado: las llamadas existentes de sii_b8_compras (líneas 25, 117, 128, 143, 165) son posicionales de 9 argumentos con orden_id NULL, así que siguen válidas y la regla nueva 'rubro_costo_requerido' (solo con Orden) no las toca. (b) D11 resuelto con el mínimo: RPC pequeña `asignar_rubro_costo_compra` (service_role, solo si rubro IS NULL, con Orden y estado <> CANCELADA) con can(registrar_gastos) + registrarLog, porque actualizar_compra_borrador solo edita BORRADOR (190002:277-279) y sin ella el aviso 'N compras sin rubro' sería permanente. Sin default 'material'. (c) El rubro con Orden es obligatorio también en SQL, no solo en Zod. (d) CHECK de subtotal con tolerancia (abs <= 0.01, patrón a03:51), no igualdad exacta. (e) Columna Fuente y pie 'Ajuste manual: no disponible en este corte' se mueven a T2; F10 queda marcado parcial en la matriz del PR. (f) f03 gana tres casos: compra RECIBIDA de material sin Gasto suma al real (criterio 3), caso USD con TC del snapshot distinto de 1, y contrato de sesiones pausada/finalizada. (g) T3 fija con pgTAP que cancelar con cobros aplicados conserva el comportamiento actual (D8=A).
+2. Afirmaciones incorrectas corregidas. a15, sii_b9_kpis y a03_a04 NO se reescriben (ninguno siembra gastos con IVA; a03_a04 GTO-990301 tiene IVA 0): solo regresión. Se reescribe gastos-rentabilidad.test.ts (21 menciones de monto_total) y se crea f11_costo_sin_iva.test.sql. Se confirma con grep que dashboard-mappers.test.ts no depende de monto_total antes de listarlo. El Vitest de bordes del aging YA existe (cobranza-aging.test.ts:128-138): se quita del alcance y se cita como evidencia.
+3. Orden y colisión. Marcas 20261015xxxxxx posteriores a la última local (20261014110000) y a las tres reservas condicionales de Órdenes (120000, 130000, 140000 = permiso orden_ver_totales, que NO cambia el gate de la conciliación: sigue siendo ver_finanzas) y a las de Planeación: sin colisión; Finanzas no comparte objetos SQL con ellas, así que el orden de aplicación entre planes no importa. No se pre-registra CLI-17: se usa el siguiente libre al registrar (hoy el último registrado es CLI-14 en tasks/plan.md:62). Al abrir cada rama, `git status` no debe arrastrar la 20261014110000 modificada.
+4. Riesgos de bucle. (a) tamaño: la lógica nueva de Gastos va en `seccion-conciliacion-orden.tsx` (useQuery + render) y en Compras en `campos-material-compra.tsx`; operacion-gastos.tsx (341 líneas) y panel-compra.tsx (388) solo montan componentes, no crecen. (b) T1 en commits separables con push y CI verde tras los riesgosos. (c) Regla comprometido/real en TS y en SQL con tabla de casos idéntica en Vitest y pgTAP y comentario cruzado. (d) Despliegue antes de migración: con Orden el rubro se envía siempre, así que el PR lleva el aviso 'aplicar 100000 y 110000 ANTES del despliegue' y la skill cerrar-tanda marca el gate. (e) El saldo de Tesorería se extrae a la función pura `calcularSaldosTesoreria` (sin mock de la cadena de Supabase); un solo test con cliente simulado para el wiring de reversos. (f) Un solo E2E (T4), sembrado por service_role y UI solo en el último tramo; se retira el E2E que T2 creaba. (g) Aserción de caracterización TS vs SQL (gastos MXN con TC distinto de 1) para no corregirla sin querer.
+5. Sobrealcance. T3 limita F14 al rótulo del flujo por cuenta (la diferencia de egreso se registra como hallazgo diferido, no se cambia la fórmula). Los pgTAP de guardarraíl F15/F17/F18 se escriben en T3 (f15 y tesoreria-saldos) para que T4 sea solo E2E de aceptación, coordinación y registro documental; T4 conserva sus 5 requisitos como cierre con evidencia.
+6. Preguntas innecesarias. Solo 2 al PO: D1 (Material real; default C) y D7 (¿factura por entrega parcial?; default: documentar). Defaults adoptados salvo objeción: D2=A, D3=A, D4=A, D5=A, D6=diferido, D8=A, D9=A, D10=A, D11 = RPC de asignación. D12 se resuelve con `supabase migration list` y D13 con grep de tasks/plan.md al registrar.
+7. F19(a): el test de horas ya no es 'ejecutable cuando exista C9.3': se fija en T2 con un pgTAP (sesión pausada + finalizada) y en T4 la casilla queda 'pendiente de C9.3' sin marcar.
+
+Invariantes del diseño (sin cambios): función nueva `public.obtener_conciliacion_costos_orden(p_orden_id uuid) RETURNS jsonb` (service_role, STABLE); el estimado sale de `calcular_totales_revision` (c3_3:141-214, verificada) sin copiarse a snapshot_json; la venta base sale de snapshot_json.totales (b5:553-561); la tarjeta de rentabilidad no se edita; para una Orden sin compras el real total = costo_total_mxn de obtener_rentabilidad_orden. Descartados: ledger costos_orden, snapshot de costos, gastos.compra_id, F12 pesado, bloque en la ficha de Orden.
+
+**Orden general:** Orden global: C8.1 -> C8.2 -> C9.1 -> C8.3 -> C9.2 -> C8.4 -> C10.1 -> C10.2 -> C9.3 -> C9.4 -> C10.3 -> C10.4.
+
+Dependencias duras entre tandas de Finanzas: T2 requiere T1 fusionada y sus dos migraciones aplicadas en remoto (la función lee compras.rubro_costo y trabaja con subtotal). T3 requiere T2 (los pgTAP de guardarraíl llaman a la función). T4 requiere T2 y T3 y se rebasa sobre los cierres de Órdenes y Planeación.
+
+Colisión y marcas (verificado con Glob por el análisis previo): la última local es 20261014110000. Órdenes reserva condicionalmente 20261014120000, 130000 y 140000 (esta última, permiso orden_ver_totales); Planeación otras de la misma familia. Todas son anteriores a 20261015, así que las de Finanzas (20261015100000, 110000, 120000) no colisionan y se reconfirman con Glob al crear cada archivo. Finanzas no comparte objetos SQL con Órdenes/Planeación (ellas tocan privado.derivar_orden_*, programar/reprogramar y eventos; Finanzas toca rentabilidad, compras y una función nueva), por lo que el orden de aplicación en remoto entre planes no importa. orden_ver_totales no cambia el gate de la conciliación: sigue siendo can(ver_finanzas). Registrar 120000, 130000 y 140000 en COLA-DE-TRABAJO.md (T4).
+
+Ficha de Orden: no se editan ficha-orden.tsx ni ficha-orden-servicio.ts (D5=A); la conciliación vive en Gastos y no pasa por la proyección por lista blanca ni por snapshot_json.
+
+Documentos compartidos (DECISIONES-ACEPTADAS.md, tasks/plan.md, tasks/todo.md): solo T4 los edita, rebasando sobre C8.4 y C9.4. No se pre-registra CLI-17: se toma el siguiente CLI libre al registrar (hoy el último es CLI-14; CLI-15 y CLI-16 aún no existen en plan.md).
+
+Reglas del PO: una tanda = rama nueva desde origin/main + un PR; no se mergea ni se aplica nada en remoto; las migraciones las aplica el PO en orden y luego `supabase migration repair --status applied`; pruebas mutantes solo contra loopback (.env.local apunta a producción). Al abrir cada rama verificar que `git status` no arrastre la 20261014110000 modificada sin commit.
+
+### Tanda 1 — C10.1 · Costo siempre sin IVA y Compras como fuente del costo (rubro, datos de material, textos) · esfuerzo L
+**Objetivo:** Dejar los datos correctos antes de la vista. (1) Todo costo de gasto se calcula por subtotal en la tarjeta, el desglose, el Dashboard y el TI. (2) Una Compra puede ligarse a una Orden con un rubro de costo (material, subcontratación o gastos directos), obligatorio con Orden también en SQL, y las compras históricas sin rubro se pueden clasificar con una RPC mínima. (3) Datos mínimos de material en la compra (último commit, retirable). (4) Se corrigen los textos que dicen que la compra no entra a la rentabilidad. La tarjeta de rentabilidad no cambia de forma.
+**Requisitos:** F11, F09, F06, F07, F08
+- **porQueEstaAgrupacion:** F11 va primero porque es la base sin IVA sobre la que nace la vista de T2. F09, F06, F07 y F08 son lo mismo visto desde Compras y Gastos: qué es directo, cómo se clasifica la compra, que no se recaptura y qué datos pide. Es la tanda con más probabilidad de bucle de CI (4 funciones SQL redefinidas + 3 RPC con cambio de firma o nuevas), por eso se ordena en 4 commits separables con push y CI verde tras los riesgosos: (1) F11 SQL+TS+pgTAP, (2) textos F09, (3) Compras rubro + RPC, (4) F08 datos de material (UI/Zod/tipos), retirable porque ningún criterio del cliente lo exige. Las dos migraciones (100000 y 110000) se aplican juntas y en orden.
+- **ramaSugerida:** feat/finanzas-c10-1-costo-sin-iva-compras-fuente
+- **decisionesPOAntes:**
+  - Defaults adoptados salvo objeción del PO: D4=A (Dashboard y TI a subtotal en la misma migración), D2=A (comprometido = CONFIRMADA+RECIBIDA+PAGADA; real = RECIBIDA+PAGADA), D11 = clasificar históricas con la RPC asignar_rubro_costo_compra (sin default silencioso a 'material').
+  - D12 no se pregunta: correr `supabase migration list` antes de aplicar y anotar el resultado en el PR.
+  - D1 (Material real) no bloquea T1: solo guarda el rubro; sí bloquea T2.
+- **cambios:**
+  -
+    - **requisito:** F11
+    - **estadoActual:** Confirmado leyendo los cuerpos: la venta ya es neta, pero el costo suma gasto.monto_total (con IVA) en a03:388, a15:122 y 141, y 20261007120004:121,128,148,151,199,398 (todas definiciones vigentes: ninguna migración posterior redefine obtener_rentabilidad_orden, obtener_desglose_rentabilidad_orden, privado.metricas_ejecutivas_rango ni privado.costo_ti_rango). El tipo Gasto ya expone montoSubtotal (gastos.ts:54) y rentabilidad-servicio.ts:162 usa convertirAMxn(gasto.montoTotal, ...). TS excluye gastos MXN con TC distinto de 1 (158-161) y SQL no (a03:388).
+    - **cambio:** Una migración con CREATE OR REPLACE y misma firma/retorno de cuatro funciones, copiando cada cuerpo vigente COMPLETO: public.obtener_rentabilidad_orden(uuid) (cuerpo a03:279-445; sin DROP porque el retorno no cambia), public.obtener_desglose_rentabilidad_orden(uuid) (a15:4-156), privado.metricas_ejecutivas_rango(timestamptz,timestamptz,timestamptz) y privado.costo_ti_rango(timestamptz,timestamptz) (120004:27 y :364). En todas gasto.monto_total pasa a gasto.monto_subtotal; se repiten REVOKE/GRANT al final. Las definiciones de obs29/a04 están superadas y no se copian. TS: calcularCostoGastosDirectosMxn usa montoSubtotal. NO se corrige la exclusión TS de gastos MXN con TC≠1: se añade una aserción de caracterización en gastos-rentabilidad.test.ts para que nadie la corrija sin querer, y queda como hallazgo. Pruebas: a15, a03_a04 y sii_b9_kpis solo se CORREN (regresión, no se editan: ninguno siembra gastos con IVA). Se reescribe únicamente gastos-rentabilidad.test.ts (21 menciones de montoTotal/monto_total, fixtures con montoSubtotal distinto de montoTotal) y se crea f11_costo_sin_iva.test.sql con las 4 funciones. Antes de listarlos, grep de monto_total en dashboard-mappers.test.ts y gastos-desglose.test.ts: solo se editan si dependen de él.
+    - **archivos:**
+      - supabase/migrations/20261015100000_f11_costo_gastos_sin_iva.sql
+      - src/modulos/gastos/servicios/rentabilidad-servicio.ts
+      - supabase/tests/f11_costo_sin_iva.test.sql
+      - tests/unitarias/gastos-rentabilidad.test.ts
+  -
+    - **requisito:** F09
+    - **estadoActual:** Parcial. Directo/indirecto ya se decide solo por orden_id, sin reparto (a03:384-404). Los textos 'las compras no entran a la rentabilidad' están en src/app/(privado)/compras/page.tsx:33 y panel-compra.tsx:68 (grep confirmado) y en comentarios de 20261007190001 (líneas 7 y 48). tests/e2e/compras-flujo.spec.ts no menciona rentabilidad ni orden, así que cambiar el texto no lo rompe; la aserción 'ya no contiene el texto' es nueva. El campo 'Orden vinculada (opcional)' de modal-registrar-gasto.tsx:235 no explica la regla.
+    - **cambio:** Corregir los dos textos de UI. Línea de ayuda bajo 'Orden vinculada': 'Con Orden: costo directo de esa Orden. Sin Orden: gasto indirecto, no se reparte entre órdenes.' El COMMENT ON TABLE compras se corrige en la migración de Compras. Sin enum ni categoría nueva: el mapa categoría -> concepto (maquila_externa = Subcontratación; materia_prima y nomina no suman; resto = Gastos directos) vive solo dentro de la función de T2.
+    - **archivos:**
+      - src/app/(privado)/compras/page.tsx
+      - src/modulos/compras/componentes/panel-compra.tsx
+      - src/modulos/gastos/componentes/modal-registrar-gasto.tsx
+      - tests/e2e/compras-flujo.spec.ts
+  -
+    - **requisito:** F06
+    - **estadoActual:** Ausente. compras ya tiene orden_id, estados BORRADOR/CONFIRMADA/RECIBIDA/PAGADA/CANCELADA y subtotal/IVA/total (compras_base:12-45) pero ninguna función de rentabilidad la lee. pagar_compra acepta CONFIRMADA o RECIBIDA (190002:441) y deriva PAGADA al saldar (473), por lo que una PAGADA sin recepción es terminal. actualizar_compra_borrador solo edita BORRADOR (190002:277-279): una compra CONFIRMADA/RECIBIDA/PAGADA con Orden y sin rubro no se podría clasificar nunca.
+    - **cambio:** Columna `compras.rubro_costo text NULL CHECK IN ('material','subcontratacion','gastos_directos')`, nullable para no clasificar históricas a ciegas. Validación en DOS capas: Zod (`rubroCosto` obligatorio si hay `ordenId`) y SQL (crear_compra y actualizar_compra_borrador lanzan 'rubro_costo_requerido' si p_orden_id IS NOT NULL y p_rubro_costo IS NULL; las filas históricas no se ven afectadas). Helper puro `nivelDeCostoCompra(estado)` -> {comprometido, real}: CONFIRMADA = comprometido; RECIBIDA y PAGADA = comprometido y real; BORRADOR y CANCELADA = ninguno (D2=A). T2 aplica la MISMA regla en SQL: tabla de casos idéntica en Vitest y pgTAP, con comentario cruzado en ambos sitios para que no diverjan. Clasificación de históricas (D11, mínimo): RPC `public.asignar_rubro_costo_compra(p_compra_id uuid, p_rubro_costo text, p_actor_id uuid, p_correlation_id uuid DEFAULT NULL)`, service_role, bloquea la fila, solo si rubro_costo IS NULL, orden_id NOT NULL y estado <> 'CANCELADA' (errores 'compra_no_encontrada', 'compra_sin_orden', 'rubro_ya_asignado'); acción `asignarRubroCostoCompraAccion` con Zod, can(registrar_gastos), registrarLog y error genérico; selector pequeño en el panel para compras con Orden y sin rubro. El panel muestra 'Cuenta como costo comprometido / real' solo si hay Orden.
+    - **archivos:**
+      - supabase/migrations/20261015110000_f06_f08_compras_rubro_datos_minimos.sql
+      - src/modulos/compras/utilidades/indice.ts
+      - src/modulos/compras/validaciones/esquemas-compras.ts
+      - src/modulos/compras/tipos/indice.ts
+      - src/modulos/compras/acciones/crear-compra.ts
+      - src/modulos/compras/acciones/actualizar-compra.ts
+      - src/modulos/compras/acciones/asignar-rubro-costo-compra.ts
+      - src/modulos/compras/acciones/indice.ts
+      - src/modulos/compras/servicios/obtener-compras.ts
+      - src/modulos/compras/componentes/panel-compra.tsx
+      - tests/unitarias/compras-nivel-costo.test.ts
+      - tests/unitarias/compras-esquemas.test.ts
+      - tests/unitarias/compras-acciones-rubro.test.ts
+      - supabase/tests/f06_f08_compras_rubro.test.sql
+  -
+    - **requisito:** F07
+    - **estadoActual:** Ausente. No hay vínculo compra-gasto; solo comparten serie de folio CG. Tesorería resta pagos_compra y gastos pagados por separado (obtener-tesoreria.ts:49-57), así que capturar el mismo costo en ambos lados duplica la salida de dinero.
+    - **cambio:** La compra será fuente directa en T2, así que basta no exigir un Gasto: guardarraíl pgTAP de que crear, confirmar y recibir una compra NO inserta en `gastos`. Advertencia estática en el formulario de Gasto con Orden: 'Si este costo ya está en una Compra de esta Orden, no lo captures de nuevo'. Sin gastos.compra_id ni cambio de registrar_gasto (si el PO lo pide, es un corte aparte). La columna visible de Fuente (compra, gasto, consumo, sesión) se entrega en T2, no más tarde.
+    - **archivos:**
+      - src/modulos/gastos/componentes/modal-registrar-gasto.tsx
+      - supabase/tests/f06_f08_compras_rubro.test.sql
+  -
+    - **requisito:** F08
+    - **estadoActual:** Parcial. Existen proveedor, orden, subtotal, IVA, total, moneda, TC y vencimiento; faltan concepto/material, cantidad, unidad y costo unitario (compras_base:12-45; esquemas-compras.ts:8-22). crear_compra usa el permiso registrar_gastos (crear-compra.ts:29). Ningún criterio de aceptación del cliente exige este detalle (la nota lo marca 'recomendado').
+    - **cambio:** Columnas nullable en compras: concepto text, material_id uuid REFERENCES catalogo_materiales(id), cantidad numeric(14,4) CHECK > 0, unidad text, costo_unitario numeric(14,4) CHECK >= 0; CHECK de coherencia CON TOLERANCIA (si hay cantidad y costo_unitario, abs(monto_subtotal - cantidad*costo_unitario) <= 0.01, patrón a03:51; la igualdad exacta es frágil ante redondeo o descuento y daría un error genérico al usuario) y borde probado en pgTAP; índice (orden_id, estado) WHERE orden_id IS NOT NULL. crear_compra y actualizar_compra_borrador: DROP de la firma vieja de 10 args + CREATE con los parámetros nuevos AL FINAL con DEFAULT NULL (p_rubro_costo, p_concepto, p_material_id, p_cantidad, p_unidad, p_costo_unitario); el RETURNS TABLE NO cambia (el pgTAP compara con to_jsonb(compra.*)); REVOKE/GRANT a service_role. Las llamadas posicionales de 9 args de sii_b8_compras (líneas 25, 117, 128, 143, 165, todas con orden_id NULL) siguen válidas. sii_b8_compras.test.sql: se REESCRIBE la aserción has_function_privilege de las líneas 199-200 (firma exacta vieja, fallaría con 'function does not exist') con las firmas nuevas de ambas RPC, se añaden aserciones de que la firma vieja ya no existe (to_regprocedure IS NULL) y de que hay un solo overload por nombre, y se revisan las llamadas a actualizar_compra_borrador (líneas 53, 61, 108). El subtotal lo calcula TypeScript cuando hay cantidad y costo. 'Último costo registrado en compras' es solo lectura. Fuera: proponer costos al maestro (DC-13) e inventario. La UI va en `campos-material-compra.tsx` (rubro + material) para no crecer panel-compra.tsx (388 líneas), que solo lo monta. Este es el ÚLTIMO commit y es retirable si el ciclo se alarga (la parte SQL nullable es inocua).
+    - **archivos:**
+      - supabase/migrations/20261015110000_f06_f08_compras_rubro_datos_minimos.sql
+      - src/modulos/compras/componentes/campos-material-compra.tsx
+      - src/modulos/compras/componentes/panel-compra.tsx
+      - src/modulos/compras/validaciones/esquemas-compras.ts
+      - src/modulos/compras/tipos/indice.ts
+      - src/modulos/compras/acciones/crear-compra.ts
+      - src/modulos/compras/acciones/actualizar-compra.ts
+      - src/modulos/compras/servicios/obtener-compras.ts
+      - src/compartido/tipos/supabase.ts
+      - supabase/tests/sii_b8_compras.test.sql
+      - supabase/tests/f06_f08_compras_rubro.test.sql
+- **pasosEnOrden:**
+  - 0. Preflight (skill cerrar-tanda): rama nueva desde origin/main con C8.4 ya fusionada; leer docs/CUELLOS-DE-BOTELLA.md; `git status` NO debe arrastrar supabase/migrations/20261014110000 modificada; Glob de supabase/migrations para fijar marcas (> 20261014110000 y > reservas 120000/130000/140000 de Órdenes); `supabase migration list` para resolver D12 y anotarlo en el PR.
+  - 1. Caracterización verde antes de editar: grep de monto_total en tests/unitarias/dashboard-mappers.test.ts y gastos-desglose.test.ts; `pnpm vitest run` de gastos-rentabilidad, gastos-desglose, compras-esquemas, dashboard-mappers; pgTAP a03_a04, a15, sii_b8_compras, sii_b8_tesoreria y sii_b9_kpis sobre base local.
+  - 2. RED: (a) f11_costo_sin_iva.test.sql: gasto subtotal 5000, IVA 800, total 5800 ligado a Orden cuenta 5000 en las 4 funciones; gasto sin Orden no cambia ninguna Orden; (b) gastos-rentabilidad.test.ts con el mismo caso + aserción de caracterización del gasto MXN con TC≠1; (c) compras-nivel-costo.test.ts (tabla de casos compartida con T2); (d) compras-esquemas.test.ts (rubroCosto obligatorio con ordenId; cantidad > 0; tolerancia de subtotal); (e) f06_f08_compras_rubro.test.sql (columnas, CHECK de rubro, CHECK de subtotal con borde 0.01, 'rubro_costo_requerido' con Orden, asignar_rubro_costo_compra, no inserta en gastos, grants, firma vieja inexistente, un solo overload).
+  - 3. COMMIT 1 · GREEN F11: escribir 20261015100000_f11_costo_gastos_sin_iva.sql copiando cada cuerpo vigente completo (diff contra a03/a15/120004 limitado a las líneas de monto_total); `supabase migration up --local`; actualizar rentabilidad-servicio.ts; reescribir gastos-rentabilidad.test.ts; pgTAP f11 verde; a03_a04, a15 y sii_b9 corren sin editarse. Push y CI verde.
+  - 4. COMMIT 2 · textos F09: compras/page.tsx:33, panel-compra.tsx:68, ayuda y advertencia en modal-registrar-gasto.tsx; aserción E2E/render de que el texto viejo ya no aparece.
+  - 5. COMMIT 3 · Compras rubro + RPC (F06/F07): escribir 20261015110000_f06_f08_compras_rubro_datos_minimos.sql en este orden: columnas, CHECKs, índice, DROP + CREATE de crear_compra y actualizar_compra_borrador (copiar cuerpos vigentes de 20261007190002: crear_compra desde la línea 145, actualizar_compra_borrador desde la 228; añadir 'rubro_costo_requerido'), CREATE de asignar_rubro_costo_compra, REVOKE/GRANT, COMMENT ON TABLE corregido. Reescribir la aserción de privilegios de sii_b8_compras.test.sql:199-200 y revisar 53/61/108. Correr sii_b8_compras, sii_b8_tesoreria y c6_1_materiales_costos (FK a catalogo_materiales). TS: esquemas, tipos, acciones (parámetros reales copiados de la migración: p_rubro_costo, p_concepto, p_material_id, p_cantidad, p_unidad, p_costo_unitario), acción asignar-rubro-costo-compra, servicio, selector de rubro y etiqueta de nivel en el panel, utilidades/indice.ts. Push y CI verde.
+  - 6. COMMIT 4 · F08 (retirable): campos-material-compra.tsx, cálculo de subtotal, 'último costo registrado'. Si el PO no lo necesita ya, se descarta este commit sin afectar los criterios.
+  - 7. Regenerar src/compartido/tipos/supabase.ts UNA vez al final (`| Out-File -Encoding utf8`, nunca `>`); verificar que ESLint no lo rechace como binario.
+  - 8. Gates: `pnpm typecheck`; `pnpm exec eslint src/modulos/gastos src/modulos/compras 'src/app/(privado)/compras'`; Vitest focales; pgTAP focales; E2E `pnpm exec playwright test tests/e2e/compras-flujo.spec.ts tests/e2e/gastos-rentabilidad.spec.ts` solo contra loopback (editar un spec sin correrlo no se entrega).
+  - 9. Cierre con cerrar-tanda: PR con la plantilla, migraciones listadas EN ORDEN (100000 y luego 110000) como 'aplicadas solo en local' y con el aviso explícito 'aplicar ANTES del despliegue' (con Orden el servicio envía p_rubro_costo siempre, y esos parámetros no existen hasta aplicar 110000); commit final docs(cierre) tras abrir el PR y vigilar el CI del headSha real.
+- **criteriosAceptacion:**
+  - Un gasto con subtotal 5,000 e IVA 800 ligado a una Orden suma 5,000 al costo en la tarjeta, el desglose, el Dashboard y el costo TI (pgTAP f11 verde, 4 funciones).
+  - Un gasto sin Orden no cambia el costo de ninguna Orden (pgTAP).
+  - La pantalla de Compras ya no contiene el texto 'no entra(n) a la rentabilidad' (aserción E2E o de render).
+  - Crear una compra con Orden exige rubro de costo en Zod Y en SQL ('rubro_costo_requerido'); las compras históricas siguen válidas sin rubro y una compra histórica con Orden y sin rubro puede clasificarse con asignar_rubro_costo_compra (solo si rubro IS NULL y no CANCELADA).
+  - Con cantidad y costo unitario, el subtotal se calcula y el CHECK con tolerancia 0.01 lo respeta (borde probado).
+  - La firma vieja de 10 args de crear_compra/actualizar_compra_borrador ya no existe, hay un solo overload, las llamadas posicionales de 9 args siguen funcionando y la aserción has_function_privilege usa las firmas nuevas.
+  - Crear, confirmar o recibir una compra no inserta ninguna fila en gastos (pgTAP).
+  - nivelDeCostoCompra devuelve la tabla comprometido/real acordada (misma tabla de casos que usará T2).
+  - Las RPC nuevas/modificadas no son ejecutables por authenticated ni anon (has_function_privilege).
+  - typecheck, ESLint focal, Vitest y pgTAP focales en verde; a15, a03_a04 y sii_b9_kpis pasan sin edición; Dashboard y tarjeta coinciden en el costo de gastos de una misma Orden.
+- **migraciones:**
+  -
+    - **nombreSugerido:** 20261015100000_f11_costo_gastos_sin_iva.sql
+    - **proposito:** Costo de gastos por monto_subtotal en la tarjeta, el desglose, el Dashboard y el TI, sin cambiar firmas ni retornos.
+    - **objetos:**
+      - public.obtener_rentabilidad_orden(uuid)
+      - public.obtener_desglose_rentabilidad_orden(uuid)
+      - privado.metricas_ejecutivas_rango(timestamptz,timestamptz,timestamptz)
+      - privado.costo_ti_rango(timestamptz,timestamptz)
+    - **dependeDe:** 20260922000003, 20260923170507 y 20261007120004 aplicadas en remoto (confirmar con `supabase migration list`).
+    - **pgTAP:** Nuevo supabase/tests/f11_costo_sin_iva.test.sql con SET LOCAL ROLE service_role: gasto 5000+800 cuenta 5000 en las cuatro funciones; gasto sin Orden no cambia nada; has_function_privilege false para authenticated/anon y true para service_role. a03_a04, a15 y sii_b9_kpis solo como regresión (no se editan).
+  -
+    - **nombreSugerido:** 20261015110000_f06_f08_compras_rubro_datos_minimos.sql
+    - **proposito:** Rubro de costo obligatorio con Orden, RPC de asignación para históricas, datos mínimos de material y corrección del COMMENT de compras, sin romper llamadas posicionales.
+    - **objetos:**
+      - public.compras: rubro_costo, concepto, material_id, cantidad, unidad, costo_unitario (nullable) + CHECK de rubro, cantidad, costo y coherencia de subtotal con tolerancia 0.01
+      - ix_compras_orden_estado (orden_id, estado) WHERE orden_id IS NOT NULL
+      - public.crear_compra: DROP firma de 10 args + CREATE con 6 parámetros al final DEFAULT NULL y 'rubro_costo_requerido'
+      - public.actualizar_compra_borrador: ídem
+      - public.asignar_rubro_costo_compra(uuid, text, uuid, uuid) (nueva, service_role)
+      - COMMENT ON TABLE public.compras corregido
+    - **dependeDe:** 20261007190001 y 20261007190002 aplicadas en remoto (si no, falla con 'relation compras does not exist'); catalogo_materiales existente.
+    - **pgTAP:** Nuevo supabase/tests/f06_f08_compras_rubro.test.sql: CHECKs (incluido borde de tolerancia), 'rubro_costo_requerido' con Orden, históricas válidas, asignar_rubro_costo_compra (ok, rubro_ya_asignado, compra_sin_orden, CANCELADA), no inserta en gastos, grants, firma vieja inexistente, un solo overload, COMMENT sin la frase vieja. Reescribe la aserción sii_b8_compras.test.sql:199-200 y revisa 53/61/108.
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/gastos-rentabilidad.test.ts (existente; se reescribe: montoSubtotal + caracterización TC≠1)
+    - tests/unitarias/compras-nivel-costo.test.ts (nuevo; tabla compartida con pgTAP de T2)
+    - tests/unitarias/compras-esquemas.test.ts (se extiende: rubroCosto, cantidad, tolerancia de subtotal)
+    - tests/unitarias/compras-acciones-rubro.test.ts (nuevo: asignar rubro niega sin permiso, error genérico)
+    - tests/unitarias/gastos-desglose.test.ts y dashboard-mappers.test.ts (solo corren; se editan únicamente si el grep previo muestra dependencia de monto_total)
+  - **integracion:**
+    - tests/integracion/gastos-acciones.test.ts (regresión; confirmar que no depende de monto_total)
+    - Cobertura de firma de compras vía pgTAP (no existe integración de compras)
+  - **pgtap:**
+    - supabase/tests/f11_costo_sin_iva.test.sql (nuevo)
+    - supabase/tests/f06_f08_compras_rubro.test.sql (nuevo)
+    - supabase/tests/sii_b8_compras.test.sql (se reescribe la aserción de privilegios y se revisan llamadas a actualizar_compra_borrador)
+    - supabase/tests/a03_a04_ingreso_neto.test.sql, a15_estimado_por_tarifa.test.sql, sii_b9_kpis.test.sql, sii_b8_tesoreria.test.sql, c6_1_materiales_costos.test.sql (solo regresión)
+  - **e2e:**
+    - tests/e2e/compras-flujo.spec.ts (existente; se edita para rubro y texto nuevo y se EJECUTA)
+    - tests/e2e/gastos-rentabilidad.spec.ts y gastos-rentabilidad-ti.spec.ts (regresión: los testids de la tarjeta no cambian)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/gastos-rentabilidad.test.ts tests/unitarias/gastos-desglose.test.ts tests/unitarias/compras-esquemas.test.ts tests/unitarias/compras-nivel-costo.test.ts tests/unitarias/compras-acciones-rubro.test.ts tests/unitarias/dashboard-mappers.test.ts
+    - supabase migration up --local
+    - supabase test db supabase/tests/f11_costo_sin_iva.test.sql supabase/tests/f06_f08_compras_rubro.test.sql supabase/tests/a03_a04_ingreso_neto.test.sql supabase/tests/a15_estimado_por_tarifa.test.sql supabase/tests/sii_b8_compras.test.sql supabase/tests/sii_b8_tesoreria.test.sql supabase/tests/sii_b9_kpis.test.sql supabase/tests/c6_1_materiales_costos.test.sql
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/gastos src/modulos/compras 'src/app/(privado)/compras'
+    - pnpm exec playwright test tests/e2e/compras-flujo.spec.ts tests/e2e/gastos-rentabilidad.spec.ts (solo loopback)
+- **modulosAfectados:**
+  -
+    - **modulo:** Gastos / rentabilidad
+    - **que:** Costo de gastos pasa de total a subtotal en dos RPC y en el espejo TypeScript.
+    - **riesgo:** Baja el costo y sube el margen de Órdenes con gastos con IVA, incluidas las ya vistas por el cliente.
+    - **proteccion:** Aviso al PO en el PR; pgTAP RED primero; no se recalculan datos guardados, solo cambia la fórmula.
+  -
+    - **modulo:** Dashboard y KPIs
+    - **que:** privado.metricas_ejecutivas_rango y privado.costo_ti_rango usan subtotal (D4=A).
+    - **riesgo:** Si quedaran en total, Dashboard y tarjeta divergirían.
+    - **proteccion:** Misma migración y commit; f11 cubre las cuatro funciones; el margen estimado de obtener_kpis_sii queda como hallazgo aparte.
+  -
+    - **modulo:** Compras
+    - **que:** Columnas nuevas, 2 RPC con firma ampliada, 1 RPC nueva, Zod, panel y textos.
+    - **riesgo:** Overload ambiguo en PostgREST si no hay DROP; pgTAP por firma exacta; fixtures de otras pruebas.
+    - **proteccion:** DROP de la firma vieja, parámetros al final con DEFAULT NULL, RETURNS TABLE intacto, aserciones de overload único, correr sii_b8_compras, sii_b8_tesoreria y c6_1.
+  -
+    - **modulo:** Tesorería
+    - **que:** Sin cambios de código; lee compras y pagos_compra.
+    - **riesgo:** Doble salida si el usuario captura la misma compra como Gasto.
+    - **proteccion:** Advertencia en el formulario de Gasto; T2 hace que la compra cuente sin Gasto.
+  -
+    - **modulo:** Tipos Supabase
+    - **que:** src/compartido/tipos/supabase.ts se regenera una vez al final de T1.
+    - **riesgo:** UTF-16 por usar `>` en PowerShell; ESLint lo rechaza como binario.
+    - **proteccion:** `| Out-File -Encoding utf8` y lint focal.
+- **riesgos:**
+  -
+    - **riesgo:** Copiar un cuerpo viejo de una función (obs29/a04) y perder cambios posteriores.
+    - **mitigacion:** Usar siempre la última migración que redefine cada función (a03, a15, 120004) y hacer diff limitado a las líneas de monto_total.
+  -
+    - **riesgo:** El PO despliega código antes que la migración 110000: con Orden el servicio envía siempre p_rubro_costo y fallaría.
+    - **mitigacion:** El PR lleva 'aplicar 100000 y 110000 ANTES del despliegue' y la skill cerrar-tanda marca el gate; sin Orden no se envían campos nuevos.
+  -
+    - **riesgo:** Bucle de CI por tamaño (4 funciones + 3 RPC + Zod + UI).
+    - **mitigacion:** 4 commits separables, push y CI verde tras los commits 1 y 3; F08 al final y retirable.
+  -
+    - **riesgo:** Compras históricas CONFIRMADA/RECIBIDA con Orden quedan sin rubro y fuera de comprometido y real.
+    - **mitigacion:** asignar_rubro_costo_compra + aviso 'N compras sin rubro' en T2; nunca se asigna 'material' por defecto.
+  -
+    - **riesgo:** La regla comprometido/real diverge entre TS (T1) y SQL (T2).
+    - **mitigacion:** Tabla de casos idéntica en Vitest y pgTAP y comentario cruzado.
+  -
+    - **riesgo:** Un CHECK de subtotal demasiado estricto produce errores genéricos al usuario.
+    - **mitigacion:** Tolerancia 0.01 y borde probado.
+
+### Tanda 2 — C10.2 · Conciliación por Orden: Estimado / Comprometido / Real, Material independiente, Fuente y márgenes · esfuerzo L
+**Objetivo:** Una Orden muestra, dentro de Gastos y rentabilidad, una tabla por concepto (Material, Fabricación, Subcontratación, Gastos directos y Total) con Estimado, Comprometido, Real, Variación absoluta y porcentual y columna Fuente, más margen estimado y margen real sobre la misma venta base sin IVA. Responde: pensábamos gastar X, comprometimos Y, gastamos Z; margen esperado A y real B. Una Orden interna (TI) no muestra la tabla; una Orden sin Propuesta de origen muestra 'Sin estimado'.
+**Requisitos:** F01, F02, F03, F04, F05
+- **porQueEstaAgrupacion:** Los cinco requisitos son una sola función SQL de lectura, una acción, un tipo y un componente; separarlos obligaría a tocar la función varias veces y a aplicar más migraciones manuales. Va después de T1 porque lee gastos y compras sin IVA y rubro_costo. La función es nueva y no modifica ninguna RPC existente, así que la tarjeta actual no se rompe. La UI nueva vive en un contenedor propio (seccion-conciliacion-orden.tsx) para no engordar operacion-gastos.tsx. No lleva E2E propio (un solo E2E de aceptación en T4) para reducir el riesgo de bucle de CI.
+- **ramaSugerida:** feat/finanzas-c10-2-conciliacion-costos-orden
+- **dependeDeTandas:**
+  - 1
+- **decisionesPOAntes:**
+  - D1 (regla de Material real): la ÚNICA pregunta que bloquea T2. Default C: una sola fuente por Orden (compra recibida o pagada de rubro material si existe; si no, consumo), visible en la columna Fuente.
+  - Defaults adoptados salvo objeción: D2=A, D3=A (venta base = snapshot de la Orden), D5=A (vista solo en Gastos, sin bloque en la ficha).
+  - D12 se resuelve con `supabase migration list`, no con pregunta.
+- **cambios:**
+  -
+    - **requisito:** F01
+    - **estadoActual:** Parcial. La tarjeta de rentabilidad por Orden existe solo en Gastos con selector de Orden (operacion-gastos.tsx:158-169, render en :337; 341 líneas en total) y muestra solo el lado real (tarjeta-rentabilidad-orden.tsx:220-269). No hay estimado ni variación. operacion-gastos.tsx no referencia es_interna/esInterna y el payload actual no lo incluye.
+    - **cambio:** Función `public.obtener_conciliacion_costos_orden(p_orden_id uuid) RETURNS jsonb`, SECURITY DEFINER, STABLE, SET search_path = '', REVOKE a PUBLIC/anon/authenticated, GRANT a service_role, con COMMENT. El payload incluye `esInterna` (de ordenes_produccion.es_interna) y `tieneEstimado`: el componente oculta la tabla si esInterna y muestra 'Sin estimado' (nunca 0) si no hay revisión. Acción `obtenerConciliacionCostosOrdenAccion(entrada: unknown): Promise<RespuestaAccion<ConciliacionCostosOrden>>` con Zod (reusa esquemaConsultarRentabilidadOrden), obtenerUsuarioServidor, can(usuario,'ver_finanzas') y cliente admin, igual que obtener-rentabilidad-orden.ts; lectura, sin registrarLog como su acción hermana; errores genéricos vía mensajeErrorGastos; Zod de salida del payload. UI: el nuevo useQuery y su render viven en `seccion-conciliacion-orden.tsx` (que monta tabla-conciliacion-costos.tsx); operacion-gastos.tsx solo monta la sección debajo de la tarjeta y NO crece. Si la RPC falla: 'Conciliación no disponible' sin afectar la tarjeta (cubre código desplegado antes que la migración).
+    - **archivos:**
+      - supabase/migrations/20261015120000_f03_conciliacion_costos_orden.sql
+      - src/modulos/gastos/acciones/obtener-conciliacion-costos-orden.ts
+      - src/modulos/gastos/acciones/indice.ts
+      - src/modulos/gastos/servicios/conciliacion-servicio.ts
+      - src/modulos/gastos/servicios/indice.ts
+      - src/modulos/gastos/validaciones/conciliacion.ts
+      - src/modulos/gastos/validaciones/indice.ts
+      - src/modulos/gastos/tipos/conciliacion.ts
+      - src/modulos/gastos/tipos/indice.ts
+      - src/modulos/gastos/componentes/seccion-conciliacion-orden.tsx
+      - src/modulos/gastos/componentes/tabla-conciliacion-costos.tsx
+      - src/modulos/gastos/componentes/claves-consulta.ts
+      - src/modulos/gastos/componentes/operacion-gastos.tsx
+      - src/compartido/tipos/supabase.ts
+  -
+    - **requisito:** F02
+    - **estadoActual:** Ausente. El real tiene tres rubros (material, mano de obra, gastos); no hay Subcontratación: maquila_externa cae en gastos directos y materia_prima/nomina ligados a Orden no suman (a03:384-404).
+    - **cambio:** El payload trae `conceptos[]` con {concepto, estimado, comprometido, real, variacionAbs, variacionPct, fuentes[]} para material, fabricacion, subcontratacion y gastos_directos, más `totales`. variacionAbs = real - estimado; variacionPct = variacionAbs/estimado*100, null si el estimado es 0 o no existe; TypeScript solo formatea (una sola verdad). Mapa de reales dentro de la función: Fabricación = sesiones pausada/finalizada, horas_netas × costo_hora_interno congelado en la sesión (a03:375-382); Material según D1; Subcontratación = gastos maquila_externa (subtotal × TC) + compras RECIBIDA/PAGADA con rubro subcontratacion; Gastos directos = demás gastos con orden, no cancelados, sin materia_prima/nomina/maquila_externa, + compras recibidas/pagadas con rubro gastos_directos. materia_prima/nomina con Orden siguen sin sumar y se cuentan en avisos.gastosIncluidosEnRubros. La columna FUENTE (compra, gasto, consumo, sesión) se renderiza AQUÍ, a partir de fuentes[], con su test de render (no se difiere a T4). Pie de la tabla: 'Ajuste manual: no disponible en este corte' (F10 diferido, honesto frente a la sección 13 de la nota).
+    - **archivos:**
+      - supabase/migrations/20261015120000_f03_conciliacion_costos_orden.sql
+      - src/modulos/gastos/componentes/tabla-conciliacion-costos.tsx
+      - src/modulos/gastos/tipos/conciliacion.ts
+      - tests/unitarias/gastos-conciliacion.test.ts
+  -
+    - **requisito:** F03
+    - **estadoActual:** Ausente. Solo existe el nivel real. El estimado vive en propuesta_revision_costos y el ruteo costeado, no en snapshot_json (b5_orden_base:553-561). Los triggers de revisión congelada (b4:449-510) bloquean INSERT/UPDATE/DELETE en propuesta_items, ruteo y propuesta_revision_costos cuando la revisión no está en DRAFT; costear_ruteo_revision exige DRAFT (c3_3:83); una Orden solo nace de una revisión ACCEPTED, así que el estimado es inmune a cambios posteriores.
+    - **cambio:** Estimado: si ordenes_produccion.propuesta_revision_id es nulo -> tieneEstimado=false. Si no, se llama a public.calcular_totales_revision(propuesta_revision_id) (c3_3:141-214: STABLE, SECURITY DEFINER; devuelve subtotal, costoManual, costoRuteo, costoTotal y margen; con ruteo costeado excluye el manual 'maquina', 186-191) y se divide: material = costos categoría 'material'; subcontratación = 'subcontratacion'; gastos directos = 'gastos_directos'; Fabricación = costoTotal - material - subcontratacion - gastos_directos (así la suma siempre iguala costoTotal; categorías válidas en b4:327). Se convierte a MXN con snapshot_json->'totales'->>'tipo_cambio'. Comprometido: compras con orden_id y estado CONFIRMADA/RECIBIDA/PAGADA, monto_subtotal × TC (CASE moneda), por rubro_costo; sin rubro -> avisos.comprasSinRubro {n, importe}, no suman. Real: ver F02. Ningún nivel sobrescribe a otro; nada se copia al snapshot_json ni se recalcula con tarifa_estacion_hora. La regla estado->nivel replica nivelDeCostoCompra de T1 con la MISMA tabla de casos en el pgTAP y comentario cruzado.
+    - **archivos:**
+      - supabase/migrations/20261015120000_f03_conciliacion_costos_orden.sql
+      - supabase/tests/f03_conciliacion_costos.test.sql
+  -
+    - **requisito:** F04
+    - **estadoActual:** Parcial. Solo existe margen real = utilidad / venta neta, con venta neta de AR cobrables (a03:334-363), por lo que antes de entregar es 0 o NULL. snapshot_json.totales guarda subtotal, moneda y tipo_cambio (=1 si MXN) y la CxC nace con los mismos valores (b5:553-561 y 575-588), así que la venta base existe desde que se crea la Orden.
+    - **cambio:** ventaBaseMxn = snapshot_json->'totales'->>'subtotal' × tipo_cambio, aislada en UNA expresión de la función. margenEstimadoPct = (ventaBase - estimadoTotal)/ventaBase*100 y margenRealPct = (ventaBase - realTotal)/ventaBase*100, mismo denominador; NULL si la venta base es nula o <= 0 (y el estimado además si no hay estimado). La RPC obtener_rentabilidad_orden conserva su venta cobrable; la nota de la tabla aclara 'base: venta de la Propuesta aceptada sin IVA'. Ejemplo del cliente: 20,000 con costos 7,800 y 8,400 -> 61% y 58%. Caso USD: venta base, estimado y comprometido con TC del snapshot distinto de 1.
+    - **archivos:**
+      - supabase/migrations/20261015120000_f03_conciliacion_costos_orden.sql
+      - src/modulos/gastos/componentes/tabla-conciliacion-costos.tsx
+      - tests/unitarias/gastos-conciliacion.test.ts
+  -
+    - **requisito:** F05
+    - **estadoActual:** Parcial. Material ya es rubro independiente del real (consumo congelado en MXN: costo_unitario_momento = costo × TC, c6_2:194-214; rubro 'material' del desglose a15) y sin inventario formal. Faltan estimado comparado, comprometido y variación.
+    - **cambio:** La fila 'material' lleva estimado (categoría material), comprometido (compras con rubro material) y real según D1 con variación absoluta y %. Opción C (default): una sola fuente por Orden; si hay al menos una compra RECIBIDA o PAGADA de rubro material, el real es la suma de esas compras (fuente='compra') y el consumo se informa solo como `consumoReferencia`; si no hay ninguna, el real es el consumo (fuente='consumo'). Nunca se suman ambos. Testids propios en la fila Material para consultarla sin mirar el resto. Caso explícito en f03: 'compra RECIBIDA de material sin Gasto suma al real' (evidencia del criterio 3 de no recapturar).
+    - **archivos:**
+      - supabase/migrations/20261015120000_f03_conciliacion_costos_orden.sql
+      - src/modulos/gastos/componentes/tabla-conciliacion-costos.tsx
+      - supabase/tests/f03_conciliacion_costos.test.sql
+- **pasosEnOrden:**
+  - 0. Preflight: T1 fusionada y sus dos migraciones aplicadas por el PO (`supabase migration list`); rama nueva desde origin/main; `git status` sin la 20261014110000 modificada; Glob de migraciones y marca posterior a todas; leer a15_estimado_por_tarifa.test.sql y a03_a04_ingreso_neto.test.sql para reutilizar fixtures; leer operacion-gastos.tsx para el punto de montaje.
+  - 1. Caracterización verde: Vitest gastos-rentabilidad y gastos-desglose; pgTAP a03_a04, a15 y c6_2_consumo_sin_stock; E2E focal gastos-rentabilidad.spec.ts.
+  - 2. RED pgTAP f03_conciliacion_costos.test.sql (la función no existe): (a) ejemplo del cliente 5000/5450, 2000/1800, 0/500, 800/650, totales 7800/8400 y +600; (b) comprometido solo con CONFIRMADA/RECIBIDA/PAGADA (misma tabla de casos que compras-nivel-costo.test.ts); (c) compra recibida + consumo en Material no suman dos veces; (d) estimado 0 -> variacionPct null; (e) Orden sin propuesta_revision_id -> tieneEstimado=false; (f) estimado inmune a una revisión nueva y a un cambio de tarifario; (g) suma de conceptos del estimado = costoTotal de calcular_totales_revision; (h) Orden sin compras: real total = costo_total_mxn de obtener_rentabilidad_orden; (i) ambos márgenes con el mismo denominador (20000 -> 61 y 58); (j) STABLE y no ejecutable por authenticated/anon; (k) compras sin rubro en avisos y sin sumar; (l) esInterna=true para Orden interna; (m) compra RECIBIDA de material SIN Gasto suma al real; (n) caso USD con TC≠1 en venta base, estimado y comprometido; (o) contrato de horas: una sesión pausada y una finalizada suman, una en curso no (fija el filtro que citará C9.3); (p) matriz fuente -> concepto: compra de material -> Material; gasto directo -> Gastos directos; maquila_externa o compra de subcontratación -> Subcontratación; sesiones -> Fabricación; consumo -> Material solo como respaldo (D1).
+  - 3. RED Vitest: gastos-conciliacion (Zod de salida acepta null y rechaza basura; render de la tabla con testids y signos '+$450', '+9.0%', márgenes 61% y 58%, 'Sin estimado', oculta la tabla si esInterna, columna Fuente por fila, aviso de compras sin rubro, pie 'Ajuste manual: no disponible en este corte'); gastos-acciones-conciliacion (sin sesión, sin ver_finanzas, ordenId no uuid, error genérico).
+  - 4. GREEN SQL: escribir 20261015120000_f03_conciliacion_costos_orden.sql con fixtures por service_role; `supabase migration up --local`; pgTAP verde.
+  - 5. GREEN TypeScript: tipos, validaciones, servicio (rpc con `{ p_orden_id }`, nombre real), acción, claves de consulta, seccion-conciliacion-orden.tsx, tabla-conciliacion-costos.tsx, montaje mínimo en operacion-gastos.tsx.
+  - 6. Integración: tests/integracion/gastos-acciones.test.ts ejecuta la acción contra la base local con el nombre real de parámetro (no solo mock).
+  - 7. Regenerar tipos Supabase en UTF-8 (la función devuelve jsonb: probablemente solo añade su entrada en Functions).
+  - 8. Gates: typecheck; ESLint focal; Vitest y pgTAP focales; E2E de regresión gastos-rentabilidad.spec.ts y gastos-rentabilidad-ti.spec.ts contra loopback (el E2E nuevo de aceptación va solo en T4).
+  - 9. Cierre con cerrar-tanda: migración 120000 listada, 'aplicar antes del despliegue'; commit docs(cierre) tras abrir el PR.
+- **criteriosAceptacion:**
+  - Al elegir una Orden en Gastos y rentabilidad aparece la tabla con Material, Fabricación, Subcontratación, Gastos directos y Total, cada uno con Estimado, Comprometido, Real, Variación absoluta y %, columna Fuente, venta base sin IVA, margen estimado y margen real.
+  - Con el ejemplo del cliente (20,000 de venta; estimado 7,800; real 8,400) muestra variación total +600 y márgenes 61% y 58% (pgTAP y render).
+  - La fila Material se consulta por sí sola (estimado 5,000, comprometido 5,450, real 5,450, +450 = +9%) y no mezcla consumo y compra (pgTAP).
+  - Una compra CONFIRMADA ligada a la Orden aparece como comprometido y no como real; al pasar a RECIBIDA aparece también como real sin sobrescribir el comprometido; BORRADOR y CANCELADA no aparecen.
+  - Una compra RECIBIDA de material sin Gasto suma al real de la conciliación (no recaptura).
+  - Costos y venta base sin IVA (compra de 5,800 con IVA 800 cuenta 5,000); el caso USD con TC≠1 usa el TC del snapshot.
+  - Una Orden sin Propuesta de origen muestra 'Sin estimado' (no 0); una Orden interna no muestra la tabla; una compra sin rubro se avisa y no suma.
+  - Para una Orden sin compras, el total real de la tabla es igual al 'Costo total' de la tarjeta existente.
+  - Un usuario sin ver_finanzas recibe error genérico; la función no es ejecutable por authenticated ni anon.
+  - La tarjeta existente y sus testids no cambian; gastos-rentabilidad.spec.ts sigue verde; operacion-gastos.tsx no crece más que la línea de montaje.
+  - El pie de la tabla declara 'Ajuste manual: no disponible en este corte'.
+- **migraciones:**
+  -
+    - **nombreSugerido:** 20261015120000_f03_conciliacion_costos_orden.sql
+    - **proposito:** Función de solo lectura que arma la conciliación Estimado/Comprometido/Real por Orden. Sin tablas, sin columnas, sin RLS nueva.
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden(p_orden_id uuid) RETURNS jsonb
+      - COMMENT ON FUNCTION
+      - REVOKE ALL ... FROM PUBLIC, anon, authenticated; GRANT EXECUTE ... TO service_role
+    - **dependeDe:** T1 aplicada (compras.rubro_costo y subtotal); 20261007120001 (propuesta_revision_id, snapshot_json); 20261007110001 y 20261009160000 (propuesta_revision_costos, calcular_totales_revision); 20261010130000 (consumo en MXN); 20260922000003 (lógica de sesiones y exclusiones). La 20261014110000 (tarifario único) no es requisito: el estimado lee costos ya guardados; sin ella el estimado de Fabricación puede reflejar tarifas anteriores.
+    - **pgTAP:** Nuevo supabase/tests/f03_conciliacion_costos.test.sql con SET LOCAL ROLE service_role y los casos (a)-(p) del paso 2.
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/gastos-conciliacion.test.ts (nuevo: Zod de salida, render, signos y porcentajes, 'Sin estimado', esInterna, columna Fuente, aviso de compras sin rubro, pie de ajuste manual)
+    - tests/unitarias/gastos-acciones-conciliacion.test.ts (nuevo: sin sesión, sin ver_finanzas, ordenId no uuid, error genérico)
+    - tests/unitarias/gastos-rentabilidad.test.ts y gastos-desglose.test.ts (regresión)
+  - **integracion:**
+    - tests/integracion/gastos-acciones.test.ts (se extiende: la acción nueva contra la base local con p_orden_id)
+  - **pgtap:**
+    - supabase/tests/f03_conciliacion_costos.test.sql (nuevo)
+    - supabase/tests/a03_a04_ingreso_neto.test.sql, a15_estimado_por_tarifa.test.sql y c6_2_consumo_sin_stock.test.sql (regresión)
+  - **e2e:**
+    - tests/e2e/gastos-rentabilidad.spec.ts y gastos-rentabilidad-ti.spec.ts (regresión contra loopback). El E2E de aceptación se crea en T4.
+  - **comandosFocales:**
+    - supabase migration up --local
+    - supabase test db supabase/tests/f03_conciliacion_costos.test.sql supabase/tests/a03_a04_ingreso_neto.test.sql supabase/tests/a15_estimado_por_tarifa.test.sql supabase/tests/c6_2_consumo_sin_stock.test.sql
+    - pnpm vitest run tests/unitarias/gastos-conciliacion.test.ts tests/unitarias/gastos-acciones-conciliacion.test.ts tests/unitarias/gastos-rentabilidad.test.ts tests/unitarias/gastos-desglose.test.ts tests/integracion/gastos-acciones.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/gastos
+    - pnpm exec playwright test tests/e2e/gastos-rentabilidad.spec.ts tests/e2e/gastos-rentabilidad-ti.spec.ts (solo loopback)
+- **modulosAfectados:**
+  -
+    - **modulo:** Gastos y rentabilidad
+    - **que:** Función, servicio, acción, tipos, Zod y 2 componentes nuevos; operacion-gastos.tsx solo monta la sección.
+    - **riesgo:** Dos 'costo real' visibles (tarjeta y tabla) si hay compras recibidas de material.
+    - **proteccion:** Invariante pgTAP (h) para Órdenes sin compras; nota en la tabla; la tarjeta no se toca.
+  -
+    - **modulo:** Compras
+    - **que:** Solo lectura de compras.
+    - **riesgo:** Bajo.
+    - **proteccion:** La función es STABLE y no escribe (pgTAP).
+  -
+    - **modulo:** Órdenes / Planeación / Producción
+    - **que:** No se editan. Se leen propuesta_revision_id, es_interna, snapshot_json.totales, sesiones_trabajo y registros_consumo_material.
+    - **riesgo:** Medio: la fórmula de horas reales debe seguir siendo la que citará C9.3.
+    - **proteccion:** pgTAP (o) fija el filtro pausada/finalizada; la ficha de Orden y su proyección no se tocan; los costos nunca viajan por ficha-orden-servicio.ts.
+  -
+    - **modulo:** Propuestas
+    - **que:** Se consume calcular_totales_revision sin modificarla.
+    - **riesgo:** Medio: si Propuestas cambia el cálculo, cambia el estimado.
+    - **proteccion:** La conciliación depende de la función, no de una copia; pgTAP (g).
+  -
+    - **modulo:** Dashboard / KPIs
+    - **que:** Sin cambios.
+    - **riesgo:** Medio: obtener_kpis_sii calcula su margen estimado solo con propuesta_revision_costos, sin ruteo costeado (b9:200-210).
+    - **proteccion:** Hallazgo reportado; no se mezcla en este corte.
+- **riesgos:**
+  -
+    - **riesgo:** Doble conteo de Material entre consumo, compra recibida y gasto materia_prima.
+    - **mitigacion:** Regla de una fuente por Orden decidida por el PO (D1) antes de codificar; pgTAP (c) con las fuentes sobre una misma Orden; materia_prima/nomina siguen sin sumar y se avisan.
+  -
+    - **riesgo:** Estimado de Fabricación parcial o distinto si el ruteo no está costeado o el tarifario único no está en remoto.
+    - **mitigacion:** Fabricación = costoTotal menos los otros tres, lo que garantiza que cuadra con la Propuesta; 'Sin estimado' cuando no hay revisión; D12 con migration list.
+  -
+    - **riesgo:** Código desplegado antes que la migración 120000.
+    - **mitigacion:** La sección degrada a 'Conciliación no disponible' sin afectar la tarjeta; el PR exige aplicar antes del despliegue.
+  -
+    - **riesgo:** El PO cambia la venta base a la CxC cobrable (D3).
+    - **mitigacion:** Base aislada en una sola expresión; ajuste puntual y de su pgTAP (i).
+  -
+    - **riesgo:** Gasto maquila_externa y compra de subcontratación capturados ambos para el mismo trabajo.
+    - **mitigacion:** Advertencia del formulario (T1) y nota en la tabla; sin vínculo compra-gasto.
+  -
+    - **riesgo:** Realtime de Gastos no escucha compras.
+    - **mitigacion:** Refresco al cambiar de Orden e invalidación manual; no se añade compras a la lista de Realtime (requeriría publicación).
+
+### Tanda 3 — C10.3 · Facturación y Cobranza se conservan, saldos de Tesorería correctos y guardarraíles de costo · esfuerzo M
+**Objetivo:** Demostrar y blindar que Facturación y Cobranza siguen funcionando sin depender del costo real; que cancelar una factura desvincula la CxC y permite refacturar sin perder historial (incluido el comportamiento vigente con cobros aplicados); que el aging se mantiene; que el flujo por cuenta de Cobranza queda rotulado como informativo; corregir el único defecto real de saldos (cobro reversado que sigue sumando) con una función pura testeable; y fijar con pgTAP/Vitest los guardarraíles: indirectos no se reparten, Tesorería y transferencias no alteran la conciliación.
+**Requisitos:** F12, F13, F14, F15, F16
+- **porQueEstaAgrupacion:** Todo es cobros, facturas y saldos, sin tocar la conciliación. Cuatro de cinco son bloqueo con prueba de lo que ya cumple. Solo F16 cambia código (TypeScript sin migración, dos servicios con el mismo defecto). F12 pesado (varias facturas por CxC, redefinir emitir_factura) no bloquea ningún criterio y queda fuera por defecto (D7). Aquí también se escriben los guardarraíles F17/F18 (mismo archivo de pruebas de saldos y mismo f15) para que T4 sea solo aceptación y registro documental; F15 va aquí porque necesita la función de T2 para demostrar que el gasto indirecto no cambia ninguna Orden.
+- **ramaSugerida:** feat/finanzas-c10-3-cobranza-facturacion-saldos
+- **dependeDeTandas:**
+  - 2
+- **decisionesPOAntes:**
+  - Única pregunta real: D7 (¿el cliente factura entregas parciales de una misma Orden en la práctica?). Default si no responde: documentar la limitación y fijarla con prueba.
+  - Defaults adoptados salvo objeción: D8=A (cancelar con cobros aplicados no cambia), D9=A (flujo por cuenta se queda y se rotula), D10=A (reverso excluido del saldo).
+- **cambios:**
+  -
+    - **requisito:** F12
+    - **estadoActual:** Parcial. emitir_factura (vigente 20261007230002:160-172) busca la CxC por orden_id y lanza cuenta_ya_facturada si ya apunta a otra factura; la CxC es una por Orden, así que solo hay una factura emitida vigente por Orden.
+    - **cambio:** Sin migración por defecto. pgTAP fija que la segunda emisión sobre la misma Orden falla con cuenta_ya_facturada; el mensaje de errores-factura.ts dice qué hacer ('cancela la factura vigente para refacturar'). Limitación registrada para el PO (D7). Alternativa NO incluida: facturas.cuenta_id, varias emitidas por CxC y redefinir emitir_factura completa desde 230002 (corte aparte, después de C8.4, revisando registrar_factura_ar a20:56).
+    - **archivos:**
+      - supabase/tests/sii_b8_facturacion.test.sql
+      - src/modulos/facturacion/servicios/errores-factura.ts
+      - tests/unitarias/facturacion-esquemas.test.ts
+  -
+    - **requisito:** F13
+    - **estadoActual:** Cumple en el núcleo. cancelar_factura (20261007170001:371-400) exige registrar_pagos, motivo de 3 a 500 caracteres y CAS; deja factura_id y folio_factura_remision en NULL en la CxC; marca CANCELADA con cancelada_en y motivo sin borrar la fila. No valida pagos aplicados.
+    - **cambio:** Solo bloqueo con prueba, sin cambio de código ni esquema. Casos pgTAP: (1) cancelar y refacturar la misma entrega (CxC desvinculada, factura cancelada conserva motivo y fecha, la nueva se emite sin cuenta_ya_facturada); (2) cancelar con cobros ya aplicados CONSERVA el comportamiento actual (la CxC pierde la factura, los cobros persisten), para fijar el hallazgo D8=A.
+    - **archivos:**
+      - supabase/tests/sii_b8_facturacion.test.sql
+      - tests/e2e/facturacion-flujo.spec.ts
+  -
+    - **requisito:** F14
+    - **estadoActual:** Parcial. Aging, saldo, historial, promesa y acción de cobrar existen; el Vitest de bordes del aging YA existe (tests/unitarias/cobranza-aging.test.ts:128-138 cubre 0, -5, 1, 30, 31, 60, 61, 90 y 91). /cobranza/page.tsx importa obtenerFlujoCuentasServicio (línea 4), lo carga en paralelo (32-34) y muestra 'Flujo por cuenta' (45-69). Tesorería no tiene una vista de neto por cuenta equivalente. El egreso difiere: el flujo suma todo gasto no cancelado con monto_total (flujo-cuentas-servicio.ts:130) y Tesorería solo gastos pagados + pagos a proveedores.
+    - **cambio:** No se retira el flujo (reubicar antes de retirar). SOLO se rotula en la página como 'Informativo: el saldo real por cuenta está en Tesorería', con una frase que aclara qué cuenta como egreso. NO se cambia la fórmula (pagado vs no cancelado, ni subtotal vs total): la diferencia se registra como hallazgo diferido. Se QUITA del alcance el Vitest de bordes del aging y se cita cobranza-aging.test.ts:128-138 como evidencia del criterio 9. Prueba de independencia: con una Orden sin revisión ni costos, emitir factura y registrar un cobro funcionan (pgTAP).
+    - **archivos:**
+      - src/app/(privado)/cobranza/page.tsx
+      - supabase/tests/f15_guardarrailes_costos.test.sql
+  -
+    - **requisito:** F15
+    - **estadoActual:** Cumple. No hay reparto de indirectos en las RPC (a03:384-404), el costo TI es agregado por periodo y la conciliación bancaria es manual. No hay prueba que lo proteja.
+    - **cambio:** Solo bloqueo con prueba. pgTAP nuevo f15_guardarrailes_costos.test.sql (SET LOCAL ROLE service_role): (a) un gasto indirecto grande sin Orden no cambia obtener_conciliacion_costos_orden ni obtener_rentabilidad_orden de ninguna Orden; (b) ambas funciones son STABLE; (c) independencia de CxC y Facturación del costo real (Orden sin Propuesta ni costos: se emite factura, se cancela, se refactura y se cobra); (d) [guardarraíl F18] registrar un pago de compra, un movimiento y una transferencia (registrar_transferencia) no cambia la conciliación ni la rentabilidad de la Orden. Sin tabla ni columna de overhead, kardex, MRP ni motor de costos por recurso.
+    - **archivos:**
+      - supabase/tests/f15_guardarrailes_costos.test.sql
+  -
+    - **requisito:** F16
+    - **estadoActual:** Parcial. reversar_pago_ar (230005:60-153) solo restituye la CxC y el monedero e inserta en reversos_pago_ar (UNIQUE(pago_id), 20260925100000:24-35); NO borra ni compensa el pago en pagos_ar. obtener-tesoreria.ts:45-48 solo filtra cuenta_bancaria_id no nulo y flujo-cuentas-servicio.ts:99-101 selecciona pagos_ar sin id ni exclusión: un cobro reversado sigue sumando al saldo y al flujo. La política RLS reversos_pago_ar (20260925100000:40-50) permite admin, ver_finanzas o registrar_pagos; la acción de Tesorería exige registrar_pagos o ver_finanzas (obtener-tesoreria.ts:19-23) y obtener-flujo-cuentas.ts:20 / cobranza/page.tsx:18 exigen ver_finanzas, ambos dentro del conjunto de la política: el filtro con cliente de usuario no falla en silencio.
+    - **cambio:** Extraer el acumulado a una función PURA `calcularSaldosTesoreria(entradas)` en un archivo propio de servicios (entradas: cuentas, cobros con id, pago_ids reversados, pagos de compra, gastos pagados, movimientos/transferencias); obtenerTesoreria queda como lector que arma las entradas (lee pago_id de reversos_pago_ar en el mismo Promise.all). El flujo de Cobranza ya delega en calcularFlujoPorCuenta: se añade `id` al select de pagos_ar y se omiten los reversados en el lector. Sin migración ni RPC. Pruebas: la función pura se prueba directamente (cobro reversado no suma; saldo = inicial + cobro - pago_compra - gasto pagado; gasto sin cuenta no suma; par de transferencia SALIDA/ENTRADA no cambia la suma de saldos ni cuenta como ingreso o gasto [guardarraíl F17]); UN solo test con cliente simulado para el wiring de reversos_pago_ar (sin mockear toda la cadena from/select/not/eq).
+    - **archivos:**
+      - src/modulos/tesoreria/servicios/calcular-saldos-tesoreria.ts
+      - src/modulos/tesoreria/servicios/obtener-tesoreria.ts
+      - src/modulos/cobranza/servicios/flujo-cuentas-servicio.ts
+      - tests/unitarias/tesoreria-saldos.test.ts
+      - tests/unitarias/cobranza-flujo-cuentas.test.ts
+- **pasosEnOrden:**
+  - 0. Preflight: T2 fusionada; rama nueva desde origin/main; releer errores-factura.ts y sii_b8_facturacion.test.sql:121-139; no duplicar casos del aging ni tocar cobranza-aging.test.ts.
+  - 1. Caracterización verde: `pnpm vitest run tests/unitarias/cobranza-aging.test.ts tests/unitarias/cobranza-flujo-cuentas.test.ts tests/unitarias/tesoreria-esquemas.test.ts tests/unitarias/facturacion-esquemas.test.ts` y pgTAP sii_b8_facturacion, sii_b8_tesoreria y a20_factura_ar_existente.
+  - 2. RED F16/F17: tesoreria-saldos.test.ts sobre calcularSaldosTesoreria (cobro reversado no suma; fórmula; gasto sin cuenta; transferencia neutra) + 1 test de wiring con cliente simulado; ampliar cobranza-flujo-cuentas.test.ts con el caso de reverso. Deben fallar hoy.
+  - 3. GREEN F16: crear calcular-saldos-tesoreria.ts, hacer que obtener-tesoreria.ts lo use y lea reversos_pago_ar; filtro de reversados en flujo-cuentas-servicio.ts (con `id` en el select).
+  - 4. F12/F13: casos pgTAP en sii_b8_facturacion.test.sql (segunda emisión falla; cancelar y refacturar; cancelar con cobros conserva el comportamiento). Escribir primero la aserción del mensaje de cuenta_ya_facturada (RED) y luego ajustar errores-factura.ts; los demás casos fijan comportamiento vigente y pasan de inmediato (se anota así).
+  - 5. F14/F15: rótulo informativo en cobranza/page.tsx; pgTAP f15_guardarrailes_costos.test.sql (indirecto, STABLE, independencia, pagos_compra/movimientos/transferencias no alteran la conciliación).
+  - 6. Registrar como hallazgo diferido la diferencia de egreso entre flujo por cuenta (gasto no cancelado, monto_total) y Tesorería (gasto pagado).
+  - 7. Gates: typecheck; ESLint focal; Vitest y pgTAP focales; si se editó cobranza-flujo.spec.ts, tesoreria-flujo.spec.ts o facturacion-flujo.spec.ts, ejecutarlos contra loopback (el rótulo de /cobranza obliga a correr cobranza-flujo.spec.ts).
+  - 8. Cierre con cerrar-tanda. Migraciones: ninguna. Documentar para el PO la limitación F12 y los defaults D7 a D10.
+- **criteriosAceptacion:**
+  - Un cobro con fila en reversos_pago_ar deja de sumar al saldo de la cuenta en Tesorería y en el flujo de Cobranza; ambas pantallas coinciden (prueba de la función pura + wiring).
+  - Emitir una segunda factura sobre una Orden con factura vigente falla con mensaje claro; cancelar la primera desvincula la CxC y permite emitir la nueva; la cancelada conserva motivo y fecha; cancelar con cobros aplicados mantiene el comportamiento actual (pgTAP).
+  - El aging clasifica los bordes 0, 1, 30, 31, 60, 61, 90 y 91: evidencia existente tests/unitarias/cobranza-aging.test.ts:128-138 (no se agrega prueba nueva).
+  - /cobranza muestra el flujo por cuenta marcado como informativo sin romper su E2E y sin cambiar su fórmula.
+  - Un gasto indirecto grande sin Orden no cambia el costo de ninguna Orden ni la conciliación; pagos de compra, movimientos y transferencias tampoco (pgTAP f15).
+  - Un par de transferencia no cambia la suma de saldos ni aparece como ingreso o gasto (Vitest de la función pura).
+  - Con una Orden sin Propuesta ni costos, emitir factura y registrar cobro funcionan; las funciones de conciliación y rentabilidad son STABLE.
+  - No se agrega migración, tabla, columna de overhead, kardex, MRP ni motor de costos.
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/tesoreria-saldos.test.ts (nuevo: función pura + 1 test de wiring)
+    - tests/unitarias/cobranza-flujo-cuentas.test.ts (se extiende: reversados)
+    - tests/unitarias/facturacion-esquemas.test.ts (mensaje de error; si el error vive en otro test, usar el que ya cubre errores-factura)
+    - tests/unitarias/cobranza-aging.test.ts y tesoreria-esquemas.test.ts (regresión, sin editar)
+  - **integracion:**
+    - tests/integracion/cobranza-acciones.test.ts como regresión; no se esperan cambios
+  - **pgtap:**
+    - supabase/tests/f15_guardarrailes_costos.test.sql (nuevo)
+    - supabase/tests/sii_b8_facturacion.test.sql (se extiende)
+    - supabase/tests/sii_b8_tesoreria.test.sql y a20_factura_ar_existente.test.sql (regresión)
+  - **e2e:**
+    - tests/e2e/cobranza-flujo.spec.ts (ejecutar: cambia el rótulo de /cobranza)
+    - tests/e2e/facturacion-flujo.spec.ts y tesoreria-flujo.spec.ts (solo si se editan; contra loopback)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/tesoreria-saldos.test.ts tests/unitarias/cobranza-flujo-cuentas.test.ts tests/unitarias/cobranza-aging.test.ts tests/unitarias/facturacion-esquemas.test.ts
+    - supabase test db supabase/tests/f15_guardarrailes_costos.test.sql supabase/tests/sii_b8_facturacion.test.sql supabase/tests/sii_b8_tesoreria.test.sql supabase/tests/a20_factura_ar_existente.test.sql
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/tesoreria src/modulos/cobranza src/modulos/facturacion 'src/app/(privado)/cobranza'
+    - pnpm exec playwright test tests/e2e/cobranza-flujo.spec.ts (y tesoreria-flujo / facturacion-flujo si se editan; solo loopback)
+- **modulosAfectados:**
+  -
+    - **modulo:** Tesorería
+    - **que:** obtener-tesoreria.ts lee reversos_pago_ar y delega el acumulado en una función pura nueva.
+    - **riesgo:** Cambian saldos mostrados (bajan donde hubo reversos).
+    - **proteccion:** Pruebas de la función pura; aviso al PO; la política de reversos_pago_ar cubre admin, ver_finanzas y registrar_pagos, que es el conjunto que exige la acción.
+  -
+    - **modulo:** Cobranza
+    - **que:** flujo-cuentas-servicio.ts excluye reversados; rótulo informativo en la página.
+    - **riesgo:** Bajo.
+    - **proteccion:** cobranza-flujo-cuentas.test.ts y cobranza-flujo.spec.ts.
+  -
+    - **modulo:** Facturación
+    - **que:** Solo pruebas y un mensaje de error.
+    - **riesgo:** Bajo con D7=A; alto si se decide variar el vínculo CxC-factura.
+    - **proteccion:** No se toca emitir_factura ni cancelar_factura; si D7=B va en corte aparte redefiniendo la emitir_factura de 230002 completa.
+  -
+    - **modulo:** Gastos / conciliación
+    - **que:** Solo lectura en el pgTAP de guardarraíl.
+    - **riesgo:** Ninguno.
+    - **proteccion:** Funciones STABLE.
+- **riesgos:**
+  -
+    - **riesgo:** El cliente factura entregas parciales de una misma Orden y el sistema lo impide.
+    - **mitigacion:** Mensaje claro y D7 con la evidencia (emitir_factura:160-172); si se confirma, corte aparte con migración propia.
+  -
+    - **riesgo:** Cancelar una factura con cobros aplicados deja cobros contra una CxC sin factura.
+    - **mitigacion:** Se fija con pgTAP el comportamiento actual y queda como hallazgo (D8=A).
+  -
+    - **riesgo:** Retirar el flujo por cuenta de Cobranza sin reubicarlo elimina una vista en uso.
+    - **mitigacion:** No se retira; solo se rotula (D9=A).
+  -
+    - **riesgo:** Mock frágil de la cadena de Supabase genera bucle de ajustes de pruebas.
+    - **mitigacion:** Lógica en función pura; un solo test con cliente simulado para el wiring.
+  -
+    - **riesgo:** Un usuario de Tesorería sin lectura de reversos_pago_ar vería saldos inflados en silencio.
+    - **mitigacion:** El conjunto de la política coincide con los gates de las acciones; el test de wiring verifica que se consulta reversos_pago_ar.
+
+### Tanda 4 — C10.4 · Aceptación de punta a punta, fuentes con trazabilidad, coherencia con Órdenes/Planeación y registro documental · esfuerzo S
+**Objetivo:** Cerrar el corte con evidencia: un único E2E de aceptación que responde 'pensábamos gastar X; comprometimos Y; gastamos Z; margen esperado A y real B'; verificar que el mapa de fuentes del costo real (ya implementado y probado en T2) y los guardarraíles de Tesorería (ya probados en T3) están en verde y citados en la matriz; comprobar sin choques los contratos compartidos con Órdenes y Planeación; y dejar el registro documental. Es la tanda de cierre: sin migración ni cambio funcional previsto.
+**Requisitos:** F10, F17, F18, F19, F20
+- **porQueEstaAgrupacion:** Son cierres con evidencia de lo que otras tandas construyeron o de lo que ya cumple: F10 (matriz de fuentes y Fuente visible, hechas en T2; ajuste manual diferido, F10 queda parcial), F17 y F18 (pruebas escritas en T3: tesoreria-saldos y f15), F19 (coordinación) y F20 (aceptación + registro). Va al final porque edita DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md, que también editan los cierres de Órdenes y Planeación; se rebasa sobre ambos. Tras fusionar los guardarraíles en T3, esta tanda es solo E2E de aceptación + registro documental + verificación de contratos.
+- **ramaSugerida:** feat/finanzas-c10-4-aceptacion-contratos-registro
+- **dependeDeTandas:**
+  - 2
+  - 3
+- **decisionesPOAntes:**
+  - D6 (ajuste manual autorizado): default diferido; solo se pregunta si el PO lo exige, y entonces es una tanda aparte (admin explícito o un permiso nuevo único, motivo obligatorio, sin relajar CHECKs).
+  - D13 no se pregunta: grep de tasks/plan.md al registrar y tomar el siguiente CLI libre (hoy el último es CLI-14; CLI-15 y CLI-16 aún no existen).
+  - El resto de decisiones se registran como Refinamientos con los defaults adoptados.
+- **cambios:**
+  -
+    - **requisito:** F10
+    - **estadoActual:** Parcial. Material (consumo, a03:365-373), Fabricación (horas reales × tarifa congelada en la sesión, a03:375-382), gasto directo, subcontratación y compra existen tras T1/T2; la matriz fuente -> concepto y la columna Fuente se prueban en T2 (f03 caso p y render). No existe ajuste manual autorizado.
+    - **cambio:** Sin código nuevo. Se ejecuta f03 (matriz de fuentes) y el render de la columna Fuente y se citan en la matriz del PR. El E2E de aceptación verifica la columna Fuente en pantalla. La matriz del PR marca F10 como PARCIAL: el ajuste manual autorizado queda diferido (D6) y la tabla lo declara en su pie ('Ajuste manual: no disponible en este corte'). No se tocan los CHECK de importes de gastos.
+    - **archivos:**
+      - supabase/tests/f03_conciliacion_costos.test.sql
+      - tests/e2e/finanzas-conciliacion-orden.spec.ts
+  -
+    - **requisito:** F17
+    - **estadoActual:** Cumple. Las transferencias entran a obtener-tesoreria.ts (153-167) solo como signo sobre el saldo de cada cuenta y su neto es 0; el flujo por cuenta de Cobranza no lee movimientos_tesoreria (flujo-cuentas-servicio.ts:94-106). Ya hay una prueba de transferencias fuera de ingresos y gastos en sii_b8_tesoreria.test.sql:184-188.
+    - **cambio:** Sin código. La prueba de neutralidad (par SALIDA/ENTRADA no cambia la suma de saldos) se escribe en T3 (tesoreria-saldos.test.ts, función pura); aquí solo se ejecuta y se cita como evidencia del criterio 8 junto a sii_b8_tesoreria.test.sql:184-188.
+    - **archivos:**
+      - tests/unitarias/tesoreria-saldos.test.ts
+      - supabase/tests/sii_b8_tesoreria.test.sql
+  -
+    - **requisito:** F18
+    - **estadoActual:** Cumple. Ningún consumidor de cuentas_bancarias o movimientos_tesoreria calcula margen; la conciliación bancaria es un marcado manual. La función de T2 lee gastos, compras, consumo y sesiones, no pagos_compra ni movimientos_tesoreria.
+    - **cambio:** Sin código. El pgTAP (pagos de compra, movimientos y transferencias no cambian la conciliación ni la rentabilidad) se escribe en T3 dentro de f15_guardarrailes_costos.test.sql; aquí se ejecuta y se cita. Se descarta la prueba por grep sobre el código por frágil.
+    - **archivos:**
+      - supabase/tests/f15_guardarrailes_costos.test.sql
+  -
+    - **requisito:** F19
+    - **estadoActual:** Parcial. Los planes de Órdenes y Planeación no editan Finanzas. Contratos implícitos: lista blanca de la ficha y gate ver_finanzas, fórmula de horas reales, diccionario de eventos y marcas de migración (Órdenes reserva condicionalmente 20261014120000, 130000 y 140000; la 140000 es el permiso orden_ver_totales).
+    - **cambio:** Sin código de producto. (a) Horas reales: el filtro pausada/finalizada queda fijado por el pgTAP de T2 (caso o); la casilla del test de coherencia con C9.3 se deja como 'pendiente de C9.3' SIN marcar, y C9.3 cita el pgTAP de T2 (se retira el test finanzas-contratos-coherencia que no podía ser RED hoy). (b) Reejecutar ordenes-confidencialidad-c4-3 y ficha-orden-c4-2 para demostrar que Finanzas no añadió costos a la proyección. (c) Los eventos financieros van a registrarLog/actividad.ts, no al diccionario de eventos de Órdenes. (d) Registrar en COLA-DE-TRABAJO.md y en la CONTINUIDAD de Finanzas las marcas usadas (20261015100000, 110000, 120000), las reservas 120000/130000/140000 de Órdenes y el hecho de que orden_ver_totales no cambia el gate de la conciliación (sigue siendo ver_finanzas), más el orden global de tandas.
+    - **archivos:**
+      - tests/unitarias/ordenes-confidencialidad-c4-3.test.ts
+      - tests/unitarias/ficha-orden-c4-2.test.ts
+      - docs/observaciones-cliente-2026-10-07/COLA-DE-TRABAJO.md
+      - docs/observaciones-cliente-2026-10-07/finanzas-revision-funcional/CONTINUIDAD.md
+  -
+    - **requisito:** F20
+    - **estadoActual:** Ausente. Sin registro de la nota en Refinamientos ni en tasks/plan.md (la última CLI registrada es CLI-14, tasks/plan.md:62). Los criterios 1, 2, 4 y 6 solo se cumplen tras T2.
+    - **cambio:** Crear tests/e2e/finanzas-conciliacion-orden.spec.ts con el recorrido completo y la frase de aceptación. Para evitar el bucle de CI, los datos se SIEMBRAN por service_role directo (Orden con revisión de costos y snapshot, compra de material con rubro, recibida, gasto directo) con folios aleatorios y fechas relativas, y la UI se usa solo en el último tramo: seleccionar la Orden en Gastos y leer la tabla (estimado, comprometido, real, variación, Fuente, márgenes). Registro documental: 4 filas de Refinamientos en DECISIONES-ACEPTADAS.md (fecha 2026-10-14, autor Product Owner, sin DC nueva), una línea CLI con el siguiente número libre en tasks/plan.md (Corte 10), casillas con evidencia en tasks/todo.md (sin marcar las que no tengan prueba ejecutada), hallazgos incidentales en REPORTE-HALLAZGOS-Y-CORRECCIONES.md y la matriz criterio -> prueba -> resultado en el PR (F10 marcado parcial). Es el único PR que edita docs compartidos: se rebasa sobre los cierres de C8 y C9.
+    - **archivos:**
+      - tests/e2e/finanzas-conciliacion-orden.spec.ts
+      - docs/observaciones-cliente-2026-10-07/DECISIONES-ACEPTADAS.md
+      - docs/observaciones-cliente-2026-10-07/REPORTE-HALLAZGOS-Y-CORRECCIONES.md
+      - tasks/plan.md
+      - tasks/todo.md
+- **pasosEnOrden:**
+  - 0. Preflight: T2 y T3 fusionadas y C8.4 y C9.4 en main (necesario para rebasar documentos); rama nueva desde origin/main; `git status` sin la 20261014110000; grep de tasks/plan.md para fijar el siguiente CLI libre.
+  - 1. Caracterización verde: ordenes-confidencialidad-c4-3, ficha-orden-c4-2, gastos-conciliacion, tesoreria-saldos; pgTAP sii_b8_tesoreria, f03 y f15.
+  - 2. RED/aceptación: escribir el E2E de aceptación con siembra por service_role (Orden, revisión con costos y snapshot, compra de material con rubro, recepción, gasto directo) y UI solo para seleccionar la Orden y leer la tabla; no depender de catálogos sembrados ni de datos residuales. Debe fallar o no existir antes de escribirse; las verificaciones que fijan comportamiento vigente pasan de inmediato y se anota así.
+  - 3. Contratos: ejecutar las pruebas de confidencialidad; verificar que el pgTAP de horas de T2 existe y dejar la casilla 'pendiente de C9.3'; limpiar residuales E2E de Planeación y Órdenes antes de la corrida completa local.
+  - 4. Documentación: DECISIONES-ACEPTADAS.md (4 filas), plan.md (siguiente CLI libre y Corte 10), todo.md, REPORTE-HALLAZGOS, COLA-DE-TRABAJO (marcas y reservas 120000/130000/140000, nota de orden_ver_totales) y CONTINUIDAD. Reemplazar lo obsoleto, no acumular contradicciones.
+  - 5. Gates: typecheck; ESLint focal; Vitest y pgTAP focales; E2E de aceptación y tesoreria-flujo contra loopback.
+  - 6. Cierre con cerrar-tanda: PR con la tabla criterio -> prueba -> resultado, F10 marcado parcial. Migraciones: ninguna. Commit docs(cierre) tras abrir el PR y vigilar el CI del head real.
+- **criteriosAceptacion:**
+  - El E2E de aceptación recorre Orden -> Compra recibida -> Gasto directo -> Vista y muestra 'estimado X, comprometido Y, real Z, margen A y B' con la columna Fuente.
+  - Un par de transferencia no cambia la suma de saldos ni cuenta como ingreso o gasto (Vitest de T3 + sii_b8_tesoreria:184-188 ejecutados y citados).
+  - Pagos de compra, movimientos y transferencias no cambian la conciliación ni la rentabilidad (pgTAP f15 de T3 ejecutado y citado).
+  - La matriz fuente -> concepto está cubierta por f03 (T2) y la columna Fuente por su render y por el E2E.
+  - La ficha de Orden sin ver_finanzas no contiene costos estimados ni reales (confidencialidad en verde).
+  - DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md quedan con el registro de Finanzas sin contradecir a Órdenes y Planeación; ninguna casilla se marca sin prueba; la del test de horas con C9.3 queda 'pendiente de C9.3'.
+  - COLA-DE-TRABAJO.md lista las marcas 20261015100000/110000/120000 y las reservas de Órdenes 120000, 130000 y 140000, con la nota de que orden_ver_totales no cambia el gate ver_finanzas.
+  - Las 9 filas del mapa de criterios del cliente tienen evidencia ejecutada y su resultado está en el PR; F10 figura como parcial (ajuste manual diferido).
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/tesoreria-saldos.test.ts y gastos-conciliacion.test.ts (se ejecutan; ya escritos en T3 y T2)
+    - tests/unitarias/ordenes-confidencialidad-c4-3.test.ts y ficha-orden-c4-2.test.ts (regresión)
+  - **integracion:**
+    - Sin pruebas de integración nuevas; la acción de conciliación quedó cubierta en T2.
+  - **pgtap:**
+    - supabase/tests/f15_guardarrailes_costos.test.sql, sii_b8_tesoreria.test.sql y f03_conciliacion_costos.test.sql (se ejecutan; ya escritos)
+  - **e2e:**
+    - tests/e2e/finanzas-conciliacion-orden.spec.ts (nuevo; único E2E de aceptación, sembrado por service_role)
+    - tests/e2e/tesoreria-flujo.spec.ts (regresión)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/tesoreria-saldos.test.ts tests/unitarias/gastos-conciliacion.test.ts tests/unitarias/ordenes-confidencialidad-c4-3.test.ts tests/unitarias/ficha-orden-c4-2.test.ts
+    - supabase test db supabase/tests/f15_guardarrailes_costos.test.sql supabase/tests/sii_b8_tesoreria.test.sql supabase/tests/f03_conciliacion_costos.test.sql
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/gastos src/modulos/tesoreria
+    - pnpm exec playwright test tests/e2e/finanzas-conciliacion-orden.spec.ts tests/e2e/tesoreria-flujo.spec.ts (solo loopback)
+- **modulosAfectados:**
+  -
+    - **modulo:** Documentación compartida
+    - **que:** DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md.
+    - **riesgo:** Conflicto de rebase con los cierres de Órdenes y Planeación; numeración CLI.
+    - **proteccion:** Esta tanda va después de ambos; cada módulo agrega filas con su propia CLI y no reescribe las ajenas; el número CLI se toma con grep al registrar.
+  -
+    - **modulo:** Órdenes / Planeación
+    - **que:** Solo pruebas de lectura sobre contratos.
+    - **riesgo:** Medio: la fórmula de horas reales podría divergir de C9.3.
+    - **proteccion:** El pgTAP de T2 fija el filtro pausada/finalizada; C9.3 lo cita; casilla pendiente sin marcar.
+  -
+    - **modulo:** Tesorería
+    - **que:** Solo pruebas ejecutadas.
+    - **riesgo:** Bajo.
+    - **proteccion:** Si a futuro se agrega un total de ingresos o egresos, hay que filtrar la entidad 'transferencia'.
+- **riesgos:**
+  -
+    - **riesgo:** El E2E de aceptación depende de crear Orden desde Propuesta, compra, recepción y gasto en una sola corrida y entra en bucle de CI.
+    - **mitigacion:** Siembra por service_role directo con folios aleatorios y fechas relativas; la UI solo para el último tramo (seleccionar y leer la tabla); limpiar residuales de Planeación y Órdenes antes de la corrida completa local.
+  -
+    - **riesgo:** Marcar criterios o casillas sin prueba ejecutada.
+    - **mitigacion:** Cada casilla cita comando, resultado y PR; las que dependen del PO (D6) o de C9.3 quedan abiertas.
+  -
+    - **riesgo:** Colisión de numeración CLI o de marcas con los otros planes.
+    - **mitigacion:** grep de tasks/plan.md al registrar y Glob de migraciones; no pre-reservar.
+
+### Decisiones del PO
+-
+  - **id:** D1
+  - **pregunta:** Regla de Material real. El consumo de Producción (valuado al costo vigente del maestro) y la compra recibida describen el mismo material y no pueden sumarse. ¿Cuál es el real de Material por Orden? Es la ÚNICA decisión que bloquea la lógica de T2.
+  - **opciones:**
+    -
+      - **etiqueta:** A. Siempre el consumo; la compra es solo comprometido
+      - **pros:** Es el comportamiento actual; la tabla y la tarjeta coinciden siempre; cero riesgo de doble conteo.
+      - **contras:** Incumple F06 ('al recibir alimenta el costo real') para Material; el ejemplo del cliente (compra 5,450 = real 5,450) no se reflejaría si el consumo se valúa distinto.
+    -
+      - **etiqueta:** B. Siempre la compra recibida; el consumo es solo referencia
+      - **pros:** Coincide con el ejemplo del cliente y su sección 13.
+      - **contras:** Una Orden sin compras tendría Material real 0 aunque haya consumo; cambia el comportamiento actual y la tarjeta divergiría siempre.
+    -
+      - **etiqueta:** C. Una sola fuente por Orden y visible: compra RECIBIDA o PAGADA de rubro material si existe; si no, el consumo
+      - **pros:** Respeta F06 y no cambia las Órdenes sin compras (misma cifra que la tarjeta); nunca suma ambos; la columna Fuente lo muestra.
+      - **contras:** El real de Material cambia de fuente al recibirse la primera compra; hay que explicarlo en la nota de la tabla.
+  - **recomendacion:** C (default si el PO no objeta). Es la única opción que cumple la nota sin romper lo existente. Si el PO prefiere A, T2 se simplifica.
+  - **requisitos:**
+    - F05
+    - F06
+    - F10
+-
+  - **id:** D7
+  - **pregunta:** Facturación (F12): hoy solo puede haber una factura emitida vigente por Orden (cuenta_ya_facturada, 20261007230002:160-172). ¿El cliente factura entregas parciales de una misma Orden en la práctica?
+  - **opciones:**
+    -
+      - **etiqueta:** A. Documentar la limitación y fijarla con prueba
+      - **pros:** Sin migración de alto riesgo; Facturación y Cobranza siguen sin depender del costo real.
+      - **contras:** Si el cliente factura por entrega parcial, no podrá emitir la segunda factura.
+    -
+      - **etiqueta:** B. Corte aparte: varias facturas por CxC (facturas.cuenta_id, relajar el índice único y redefinir emitir_factura completa desde 230002)
+      - **pros:** Habilita 'factura por entrega' como pide la nota.
+      - **contras:** Migración de mayor riesgo del módulo; afecta Cobranza (folio denormalizado) y registrar_factura_ar (a20:56); comparte el trigger de entrega con Órdenes.
+  - **recomendacion:** A por defecto (T3 la documenta y fija con pgTAP). Si el PO confirma que sí se factura por entrega parcial, B como corte propio después de C8.4.
+  - **requisitos:**
+    - F12
+
+### Registro sugerido de decisiones
+## Para DECISIONES-ACEPTADAS.md — sección «Refinamientos posteriores» (pegar al final de la tabla; fecha 2026-10-14, autor Product Owner, sin DC nueva)
+
+Los valores entre corchetes son los defaults adoptados salvo objeción del PO; solo D1 y D7 se consultan.
+
+| 2026-10-14 | Product Owner | DC-07 / DC-13 | Revisión funcional de Finanzas (nota del cliente 2026-10-14). La rentabilidad por Orden conserva tres niveles de costo sin sobrescribirlos: **Estimado** (costeo de la revisión aceptada, calculado por `calcular_totales_revision`, sin copiarlo al snapshot de la Orden), **Comprometido** (compras vinculadas a la Orden en estado CONFIRMADA, RECIBIDA o PAGADA) y **Real** (consumo de material, horas reales de producción, gastos directos y compras recibidas o pagadas). La vista vive en Gastos y rentabilidad con selector de Orden, sin menú nuevo ni bloque en la ficha de Orden [D5=A]. |
+| 2026-10-14 | Product Owner | DC-07 | La rentabilidad se calcula siempre sin IVA: costos de gasto y de compra por `monto_subtotal`, y venta base = subtotal de la Propuesta aceptada convertido con el tipo de cambio de la Orden [D3=A]. Margen estimado y margen real usan ese mismo denominador. El IVA se conserva para control administrativo y Tesorería. Los gastos sin Orden son indirectos y no se reparten entre Órdenes. El Dashboard y el costo TI se alinean a subtotal [D4=A]. |
+| 2026-10-14 | Product Owner | DC-13 / DC-14 | Compras: la frase «las compras no entran a la rentabilidad de las órdenes» queda sin efecto. Una compra ligada a una Orden se clasifica por rubro de costo (material, subcontratación o gastos directos), obligatorio con Orden; cuenta como costo comprometido desde CONFIRMADA y como costo real desde RECIBIDA o PAGADA [D2=A], sin crear un Gasto ni recapturarla. Las compras históricas con Orden y sin rubro se clasifican con una acción explícita, nunca con un valor por defecto [D11]. Material real = una sola fuente por Orden: la compra recibida o pagada si existe, y si no, el consumo; nunca ambas [D1=C, pendiente de confirmación del PO]. Se capturan datos mínimos de material (concepto, material, cantidad, unidad y costo unitario) sin inventario ni cambio automático del maestro (DC-13). El ajuste manual autorizado queda diferido [D6]. |
+| 2026-10-14 | Product Owner | DC-12 | Cobranza, Facturación y Tesorería se conservan. Los cobros reversados no suman al saldo de la cuenta [D10=A]. Las transferencias internas no son ingreso ni gasto y Tesorería no alimenta la rentabilidad. El flujo por cuenta de Cobranza queda informativo [D9=A]. La Orden admite una factura emitida vigente por vez; cancelarla desvincula la CxC y permite refacturar sin borrar historial, incluso con cobros aplicados [D8=A]. Varias facturas por Orden no se construyen en este corte [D7=A, pendiente de confirmación del PO]. |
+
+Sin DC nueva: son Refinamientos sobre decisiones vigentes. Al registrar, Codex confirma con grep en DECISIONES-ACEPTADAS.md que DC-07, DC-12, DC-13 y DC-14 sigan siendo los autorizantes.
+
+## Para tasks/plan.md §3 — una línea nueva
+
+NO pre-registrar un número. Al registrar (tanda 4), hacer grep de `CLI-` en tasks/plan.md y tomar el siguiente libre (hoy el último registrado es CLI-14; CLI-15 y CLI-16 aún no existen, se prevén para Órdenes y Planeación).
+
+- CLI-<siguiente libre> Revisión funcional de Finanzas (nota del cliente 2026-10-14, F01-F20): conciliación Estimado / Comprometido / Real por Orden sin IVA, Compras como costo comprometido y real con rubro y datos mínimos, saldos de Tesorería sin cobros reversados y guardarraíles de alcance. Refinamientos de DC-07, DC-12, DC-13 y DC-14. Tandas 1 a 4 (Corte 10). Autorizante: decisión del Product Owner del 2026-10-14.
+
+## Para tasks/todo.md — Corte 10 (casillas con evidencia; no marcar las que no tengan prueba ejecutada)
+
+- [ ] T1 (C10.1) costo sin IVA y Compras como fuente: PR# ___, migraciones 20261015100000 y 20261015110000 (aplicar en ese orden y ANTES del despliegue), aplicadas en remoto por el PO: no.
+- [ ] T2 (C10.2) conciliación por Orden: PR# ___, migración 20261015120000 (aplicar antes del despliegue).
+- [ ] T3 (C10.3) Facturación, Cobranza y saldos: PR# ___, sin migración.
+- [ ] T4 (C10.4) aceptación, contratos y registro: PR# ___, sin migración.
+- [ ] Test de coherencia de horas reales con C9.3: pendiente de C9.3 (el filtro pausada/finalizada queda fijado por el pgTAP f03 de T2).
+- [ ] F10 ajuste manual autorizado: diferido (D6); F10 marcado parcial en la matriz del PR.
+- [ ] 9 criterios del cliente evidenciados (tabla criterio -> prueba -> resultado en el PR de T4). Cada casilla solo se marca con comando, resultado y PR.
+
+## Para COLA-DE-TRABAJO.md (T4)
+
+Marcas de migración de Finanzas: 20261015100000, 20261015110000, 20261015120000 (posteriores a la última local 20261014110000 y a las reservas condicionales de Órdenes 20261014120000, 20261014130000 y 20261014140000). Nota: el permiso `orden_ver_totales` (140000) NO cambia el gate de la conciliación, que sigue siendo `ver_finanzas`. Finanzas no comparte objetos SQL con Órdenes ni Planeación, por lo que el orden de aplicación entre planes no importa.
+
+## Para REPORTE-HALLAZGOS-Y-CORRECCIONES.md
+
+Registrar con ID, severidad, síntoma, causa, corrección y evidencia: (1) gastos con IVA en el costo (alta; corregido en T1); (2) cobros reversados que suman al saldo de Tesorería y al flujo de Cobranza (media; corregido en T3); (3) textos de Compras que contradecían la nota (baja; corregido en T1); (4) compras históricas con Orden fuera de BORRADOR sin posibilidad de clasificación (media; resuelto con asignar_rubro_costo_compra en T1). Diferidos a decisión del PO: diferencia de egreso entre flujo por cuenta (gasto no cancelado, monto_total) y Tesorería (gasto pagado); exclusión TS de gastos MXN con TC≠1 frente a SQL; margen estimado del KPI sin ruteo costeado; cancelar_factura sin validar pagos aplicados.
+
+### Mapa de criterios de aceptación
+-
+  - **criterio:** 1. Una Orden muestra venta sin IVA, costo estimado, costo real y variación
+  - **requisitos:**
+    - F01
+    - F02
+    - F04
+  - **tanda:** 2
+  - **evidenciaDeCierre:** pgTAP f03_conciliacion_costos.test.sql (ejemplo 7800/8400/+600 y márgenes 61/58) y render de tabla-conciliacion-costos.tsx en gastos-conciliacion.test.ts; lectura en pantalla en el E2E de aceptación de T4.
+-
+  - **criterio:** 2. Material estimado vs real puede consultarse de forma independiente
+  - **requisitos:**
+    - F05
+  - **tanda:** 2
+  - **evidenciaDeCierre:** pgTAP: fila 'material' con estimado 5000, comprometido 5450, real 5450, +450 = +9%; render de la fila con testids propios; el E2E de T4 la lee por separado.
+-
+  - **criterio:** 3. Una compra vinculada no obliga a recapturar el mismo costo como gasto
+  - **requisitos:**
+    - F06
+    - F07
+    - F08
+  - **tanda:** 1
+  - **evidenciaDeCierre:** T1: pgTAP f06_f08 'crear, confirmar y recibir una compra no inserta en gastos' + rubro capturable y obligatorio con Orden en Zod y SQL. T2: f03 caso (m) 'compra RECIBIDA de material sin Gasto suma al real'. T4: el E2E de aceptación lo recorre de punta a punta.
+-
+  - **criterio:** 4. El sistema distingue costo comprometido de costo real
+  - **requisitos:**
+    - F03
+    - F06
+  - **tanda:** 2
+  - **evidenciaDeCierre:** pgTAP f03 (b): CONFIRMADA suma a comprometido y no a real; RECIBIDA y PAGADA suman a ambos; BORRADOR y CANCELADA a ninguno, con la misma tabla de casos que compras-nivel-costo.test.ts (T1); columnas separadas en la tabla.
+-
+  - **criterio:** 5. IVA no forma parte del margen
+  - **requisitos:**
+    - F11
+  - **tanda:** 1
+  - **evidenciaDeCierre:** pgTAP f11_costo_sin_iva.test.sql: gasto 5000+800 cuenta 5000 en tarjeta, desglose, Dashboard y TI; gastos-rentabilidad.test.ts reescrito. En T2, compra de 5,800 cuenta 5,000 en la conciliación.
+-
+  - **criterio:** 6. Margen estimado y margen real se calculan con la misma base de venta sin IVA
+  - **requisitos:**
+    - F04
+  - **tanda:** 2
+  - **evidenciaDeCierre:** pgTAP f03 (i): venta base 20,000, estimado 7,800 y real 8,400 -> 61 y 58 con el mismo denominador; caso USD (n); Vitest de render de los dos márgenes.
+-
+  - **criterio:** 7. Gastos indirectos no se asignan automáticamente a órdenes
+  - **requisitos:**
+    - F09
+    - F15
+  - **tanda:** 3
+  - **evidenciaDeCierre:** T1: pgTAP f11 'un gasto sin Orden no cambia el costo de ninguna Orden'. T3: f15_guardarrailes_costos.test.sql prueba lo mismo sobre la conciliación y la rentabilidad, y que ambas son STABLE.
+-
+  - **criterio:** 8. Tesorería refleja movimientos bancarios sin duplicar ingresos/gastos por transferencias internas
+  - **requisitos:**
+    - F16
+    - F17
+    - F18
+  - **tanda:** 4
+  - **evidenciaDeCierre:** T3 escribe las pruebas: tesoreria-saldos.test.ts (cobro reversado excluido; par SALIDA/ENTRADA neutro) y f15 (pagos_compra, movimientos y transferencias no alteran la conciliación). T4 las ejecuta y las cita junto a sii_b8_tesoreria.test.sql:184-188.
+-
+  - **criterio:** 9. CxC y Facturación continúan operando sin depender del costo real
+  - **requisitos:**
+    - F12
+    - F13
+    - F14
+    - F15
+  - **tanda:** 3
+  - **evidenciaDeCierre:** pgTAP f15 (c): con una Orden sin Propuesta ni costos se emite factura, se cancela, se refactura y se cobra; sii_b8_facturacion (cancelar y refacturar; cancelar con cobros conserva el comportamiento); aging por cobranza-aging.test.ts:128-138 (ya existente); ningún cambio de Finanzas altera sus RPC (solo el mensaje de cuenta_ya_facturada).
+-
+  - **criterio:** Respuesta final del cliente: 'pensábamos gastar X; comprometimos Y; gastamos Z; margen esperado A y real B'
+  - **requisitos:**
+    - F20
+    - F19
+    - F10
+  - **tanda:** 4
+  - **evidenciaDeCierre:** tests/e2e/finanzas-conciliacion-orden.spec.ts ejecutado contra loopback (sembrado por service_role) con los valores en pantalla; tabla criterio -> prueba -> resultado en el PR con F10 marcado parcial (ajuste manual diferido); registro en DECISIONES-ACEPTADAS.md, tasks/plan.md (siguiente CLI libre y Corte 10) y tasks/todo.md.
+
+### Fuera de alcance
+- Contabilidad fiscal completa, timbrado CFDI y cualquier cierre financiero dentro de la Orden (sección 14 de la nota).
+- Inventario formal, kardex operativo nuevo, MRP o conexión automática de la compra con el costo vigente del maestro (DC-13 sigue siendo proponer y confirmar).
+- Distribución automática de overhead y costeo absorbente avanzado: los gastos sin Orden nunca se reparten entre Órdenes.
+- Motor avanzado de costos por recurso o costo estándar por partida con tarifas sin calibrar: Fabricación real = horas reales de sesión × tarifa congelada en la sesión.
+- Conciliación bancaria automática con estados de cuenta.
+- Ajuste manual autorizado de costo real (F10): diferido (D6); la tabla lo declara en su pie y F10 se marca parcial.
+- Facturación con varias facturas por CxC o agrupación de entregas (D7): no se redefine emitir_factura en este corte.
+- Tabla ledger costos_orden, copiar costos al snapshot_json de la Orden o columnas nuevas en las RPC existentes.
+- gastos.compra_id, crear automáticamente un Gasto desde la Compra o cambiar registrar_gasto.
+- Bloque de costos dentro de la ficha de Orden o cambios en ficha-orden.tsx / ficha-orden-servicio.ts (D5=A).
+- Mover el flujo por cuenta de Cobranza a Tesorería (D9) y cambiar su fórmula de egreso (solo se rotula).
+- Cambiar pagar_compra para exigir RECIBIDA antes de PAGADA (D2=A: no se toca).
+- Recalcular datos históricos guardados: solo cambia la fórmula, no se reescriben filas.
+- Un segundo E2E o E2E por tanda: se mantiene un único E2E de aceptación (T4).
+- Aplicar migraciones en remoto, mergear, desplegar o editar la migración local ya modificada 20261014110000.
+
+### Hallazgos que NO se tocarán sin aprobación
+- obtener_kpis_sii calcula su margen estimado solo con propuesta_revision_costos, sin ruteo costeado ni exclusión de máquina (20261007210001:200-210); diverge de calcular_totales_revision (c3_3:141-214). No se toca sin aprobación.
+- TS excluye gastos MXN con tipo de cambio distinto de 1 (rentabilidad-servicio.ts:158-161) y SQL no (a03:388). Solo se toca la línea de monto; se añade una aserción de caracterización para que no se corrija sin querer.
+- El flujo por cuenta de Cobranza suma todo gasto no cancelado con monto_total (flujo-cuentas-servicio.ts:130) mientras Tesorería cuenta gastos pagados y pagos a proveedores; la nota pide no mezclar flujo bancario con CxC. En T3 solo se rotula; la diferencia queda registrada como hallazgo diferido en REPORTE-HALLAZGOS.
+- registrar_gasto valida 9 categorías fijas aunque el CHECK de la tabla se relajó para categorías configurables (según lector; no re-verificado).
+- registrar_factura_ar (a20:56) escribe folio_factura_remision sin crear fila en facturas ni factura_id; la CxC puede tener folio sin factura.
+- cancelar_factura no valida pagos aplicados ni deja evento en la CxC (D8=A): se fija con pgTAP en T3.
+- cambiar_estado_compra no guarda fecha ni actor de recepción (según lector); pagar_compra permite pasar CONFIRMADA a PAGADA sin recibir (verificado en 190002:441; una PAGADA sin recepción es terminal y D2=A es consistente).
+- Tesorería omite sin aviso los movimientos de moneda distinta a la cuenta (según lector).
+- Un gasto materia_prima o nomina ligado a una Orden no suma al costo real (a03:384-404); sin consumo ni compra, el Material real se subestima.
+- El consumo valúa al costo vigente del maestro, no al de la compra, así que la variación de Material puede ser 0 aunque la compra haya costado más.
+- El Realtime de Gastos no escucha la tabla compras (sincronizador-gastos-realtime.tsx:9-14); requeriría publicación.
+- El borrador de factura precarga el total de toda la CxC sin validar contra la entrega (según lector; no re-verificado).
+- Estado remoto de 20261014100000 y 20261014110000 (la última sigue modificada en el árbol de trabajo): no verificable desde el repo; se resuelve con `supabase migration list`, no con pregunta al PO.
+- Verificado y cerrado: el tipo Gasto SÍ expone montoSubtotal (gastos.ts:54); a15 (líneas 122 y 141) y las definiciones vigentes de las 4 funciones de F11 quedaron confirmadas; a15, a03_a04 y sii_b9_kpis no necesitan reescritura.
+- Pendiente de leer al implementar (no re-verificado): errores-factura.ts, contenido de dashboard-mappers.test.ts y gastos-desglose.test.ts respecto a monto_total, y qué test cubre hoy los mensajes de error de facturación.
+
+## Crítica del plan
+- **veredicto:** aprobable_con_ajustes
+- **afirmacionesContrastadas:**
+  -
+    - **afirmacion:** calcular_totales_revision(p_revision_id) devuelve subtotal, costoManual, costoRuteo, costoTotal y margen, y es fuente única del estimado (c3_3:141-214)
+    - **resultado:** correcta
+    - **evidencia:** 20261009160000_c3_3_snapshot_costeo_ruteo.sql:141-214. La función es STABLE y SECURITY DEFINER. Devuelve exactamente esas claves (199-212). Con ruteo costeado excluye el manual 'maquina' (186-191). Las categorías válidas son material, maquina, mano_obra, gastos_directos y subcontratacion (b4_propuestas_base:327). Por eso 'Fabricación = costoTotal - material - subcontratación - gastos_directos' es coherente.
+  -
+    - **afirmacion:** snapshot_json.totales guarda subtotal, moneda y tipo_cambio, y la CxC nace con los mismos valores (b5:553-588)
+    - **resultado:** correcta
+    - **evidencia:** 20261007120001_sii_b5_orden_base.sql:553-561 (totales con subtotal, moneda y tipo_cambio = 1 si MXN) y 575-588 (INSERT en cuentas_por_cobrar con round(subtotal,4) y tipo_cambio_origen). La venta base desde el snapshot existe desde la creación de la Orden.
+  -
+    - **afirmacion:** El estimado es estable porque la revisión aceptada está congelada (triggers de revisión congelada)
+    - **resultado:** correcta
+    - **evidencia:** b4_propuestas_base:449-510: el trigger de hijos bloquea INSERT/UPDATE/DELETE en propuesta_items, ruteo y propuesta_revision_costos cuando la revisión no está en DRAFT. costear_ruteo_revision exige DRAFT (c3_3:83). Una Orden solo nace de una revisión ACCEPTED, así que el estimado es inmune a cambios posteriores.
+  -
+    - **afirmacion:** F11: los gastos se suman con monto_total en a03:388, a15:122/141 y 20261007120004:121,128,148,151,199,398, y esas son las definiciones vigentes
+    - **resultado:** correcta
+    - **evidencia:** Grep confirma cada línea (a03:388; a15:122 y 141; 120004:121,128,148,151,199,398). Un grep de FUNCTION sobre todas las migraciones muestra que ninguna migración posterior redefine obtener_rentabilidad_orden (la última es a03), obtener_desglose_rentabilidad_orden (la última es a15), privado.metricas_ejecutivas_rango ni privado.costo_ti_rango (las últimas son 120004). La migración sii_b9_kpis no tiene monto_total. Las 'líneas a verificar' de a15 del plan quedan verificadas.
+  -
+    - **afirmacion:** El tipo Gasto ya expone montoSubtotal, así que F11 en TypeScript es cambiar una línea (rentabilidad-servicio.ts:162)
+    - **resultado:** correcta
+    - **evidencia:** gastos.ts:54 (montoSubtotal: number) y 56 (montoTotal). rentabilidad-servicio.ts:162 usa convertirAMxn(gasto.montoTotal, ...). La exclusión de gastos MXN con TC distinto de 1 está en 158-161. El costo esperado es mínimo, pero tests/unitarias/gastos-rentabilidad.test.ts tiene 21 menciones de montoTotal/monto_total y se debe migrar.
+  -
+    - **afirmacion:** La política RLS de reversos_pago_ar (20260925100000:44-50) permite admin, ver_finanzas o registrar_pagos, y el filtro con cliente de usuario es viable
+    - **resultado:** correcta
+    - **evidencia:** 20260925100000_a20_ar08_ar09_movimientos.sql:40-50 (RLS activo, GRANT SELECT a authenticated, política con es_admin, ver_finanzas o registrar_pagos). obtener-tesoreria.ts (acción) exige registrar_pagos o ver_finanzas y usa el cliente de usuario. obtener-flujo-cuentas.ts:20 y cobranza/page.tsx:18 exigen ver_finanzas. Ambos gates quedan dentro del conjunto de la política, así que el filtro no falla en silencio. Hay precedente del filtro en SQL en sii_b9_kpis:230 y 230006:245.
+  -
+    - **afirmacion:** F16: un cobro reversado sigue sumando al saldo de Tesorería y al flujo de Cobranza
+    - **resultado:** correcta
+    - **evidencia:** reversar_pago_ar (230005:60-153) solo restituye la CxC y el monedero e inserta en reversos_pago_ar; no borra ni compensa el pago en pagos_ar. obtener-tesoreria.ts:45-48 solo filtra cuenta_bancaria_id no nulo. flujo-cuentas-servicio.ts:99-101 selecciona pagos_ar sin id ni exclusión, y también suma gastos con monto_total (130). Defecto real.
+  -
+    - **afirmacion:** Los textos 'las compras no entran a la rentabilidad' están en compras/page.tsx:33 y panel-compra.tsx:68
+    - **resultado:** correcta
+    - **evidencia:** Grep en src: page.tsx:33 y panel-compra.tsx:68. tests/e2e/compras-flujo.spec.ts no menciona rentabilidad ni orden, así que el cambio de texto no rompe ese E2E; la aserción de 'ya no contiene el texto' sí es nueva.
+  -
+    - **afirmacion:** pagar_compra permite pasar CONFIRMADA a PAGADA sin recibir (190002:441)
+    - **resultado:** correcta
+    - **evidencia:** 190002:441 acepta estados CONFIRMADA o RECIBIDA, y 473 deriva PAGADA al saldar. cambiar_estado_compra exige CONFIRMADA para pasar a RECIBIDA (367). Una PAGADA sin recepción es terminal, y D2=A es consistente.
+  -
+    - **afirmacion:** Cambiar crear_compra/actualizar_compra_borrador (DROP + CREATE con parámetros al final con DEFAULT NULL) solo exige 'ajustar sii_b8_compras.test.sql si llama por nombre de parámetro'
+    - **resultado:** imprecisa
+    - **evidencia:** sii_b8_compras.test.sql:199-200 hace has_function_privilege con la firma exacta 'crear_compra(uuid,uuid,numeric,numeric,text,numeric,date,text,uuid,uuid)'. Tras el DROP esa firma deja de existir y la prueba falla con 'function does not exist', aunque las llamadas posicionales (líneas 25, 117-176) sigan válidas. También hay llamadas a actualizar_compra_borrador (53, 61, 108). El plan debe decir que esa aserción se reescribe y que el RETURNS TABLE no cambia, porque el test usa to_jsonb(compra.*).
+  -
+    - **afirmacion:** Los pgTAP a15 y sii_b9_kpis 'asumían monto_total' y se reescriben en el mismo commit
+    - **resultado:** imprecisa
+    - **evidencia:** Grep en a15_estimado_por_tarifa.test.sql: sin monto_total/monto_iva/monto_subtotal. sii_b9_kpis.test.sql:118 solo siembra cuentas_por_cobrar. Los únicos INSERT en gastos con IVA son de a03_a04 (GTO-990301 con subtotal 500 e IVA 0; el segundo bloque en :218) y sii_b8_tesoreria (IVA 0). La regresión de a15 y sii_b9 es solo de corrida, no de reescritura. La cobertura real de Dashboard y TI exige el f11 pgTAP nuevo.
+  -
+    - **afirmacion:** T3 añade el Vitest de bordes del aging 'si aún no existe'
+    - **resultado:** imprecisa
+    - **evidencia:** cobranza-aging.test.ts:128-138 ya cubre 0, -5, 1, 30, 31, 60, 61, 90 y 91. Es trabajo innecesario y debe quitarse del alcance.
+  -
+    - **afirmacion:** Las marcas 20261015xxxxxx no colisionan con los planes de Órdenes y Planeación
+    - **resultado:** correcta
+    - **evidencia:** Glob: la última migración local es 20261014110000. El plan de Órdenes reserva condicionalmente 20261014120000, 130000 y 140000 (PLAN-ORDENES:745 y 1433-1494; la 140000 es el permiso orden_ver_totales, que el plan de Finanzas no menciona). Todas son anteriores a 20261015. Sin colisión. Conviene citar también la 140000 en COLA-DE-TRABAJO.
+  -
+    - **afirmacion:** El último CLI registrado es CLI-14 y Finanzas tomaría CLI-17
+    - **resultado:** correcta
+    - **evidencia:** tasks/plan.md:62 es CLI-14 y no hay CLI-15 ni CLI-16 registrados todavía. La numeración depende de que Órdenes y Planeación se registren antes.
+- **ajustes:**
+  -
+    - **donde:** T1/F08 · migración 20261015110000 · supabase/tests/sii_b8_compras.test.sql:199
+    - **problema:** El plan dice que el pgTAP solo se ajusta 'si llama por nombre de parámetro'. La aserción has_function_privilege usa la firma antigua de 10 args y fallará tras el DROP. El plan tampoco fija si el RETURNS TABLE de crear_compra y actualizar_compra_borrador cambia; el test usa to_jsonb(compra.*).
+    - **ajuste:** Declarar explícitamente que (a) el RETURNS TABLE no cambia (devolver el rubro solo si hace falta, y entonces actualizar las comparaciones), (b) se reescribe la aserción de privilegios con las firmas nuevas de crear_compra y actualizar_compra_borrador, y (c) se añaden aserciones de que la firma vieja ya no existe y no hay overload ambiguo.
+  -
+    - **donde:** T1/F06+D11 · compras históricas sin rubro
+    - **problema:** actualizar_compra_borrador solo edita BORRADOR (190002:277-279). Una compra CONFIRMADA o RECIBIDA con Orden y sin rubro nunca podrá clasificarse, así que el aviso 'N compras sin rubro' sería permanente y esa compra quedaría fuera del comprometido y del real.
+    - **ajuste:** Elegir el mínimo: (1) una RPC pequeña 'asignar_rubro_costo_compra' (service_role, solo si rubro IS NULL y estado <> CANCELADA, con can(registrar_gastos) y registrarLog), o (2) confirmar con el PO que hoy no hay compras con Orden fuera de BORRADOR y dejar solo el aviso. No elegir el default 'material' silencioso. Documentar la decisión.
+  -
+    - **donde:** T1/F06 · validación del rubro
+    - **problema:** El rubro es obligatorio con Orden solo en Zod. La RPC lo acepta nulo, y CLAUDE.md pide no confiar solo en el frontend.
+    - **ajuste:** En crear_compra y actualizar_compra_borrador lanzar 'rubro_costo_requerido' si p_orden_id IS NOT NULL y p_rubro_costo IS NULL. Las filas históricas no se ven afectadas. Añadir un caso pgTAP.
+  -
+    - **donde:** T1/F08 · CHECK monto_subtotal = round(cantidad*costo_unitario,4)
+    - **problema:** La igualdad exacta es frágil: un subtotal capturado con descuento o redondeo distinto violaría el CHECK y el usuario vería un error genérico. El patrón vigente en el repo usa tolerancia (a03:51, abs(...) <= 0.01).
+    - **ajuste:** Usar tolerancia (abs(subtotal - cantidad*costo_unitario) <= 0.01) o dejar la coherencia solo en Zod y quitar el CHECK. Probar el borde en pgTAP.
+  -
+    - **donde:** T1/F11 · pruebas a reescribir
+    - **problema:** El plan lista a15 y sii_b9_kpis como pruebas a reescribir 'porque asumían monto_total'. Ninguna siembra gastos con IVA. Lo realmente afectado es gastos-rentabilidad.test.ts (21 menciones de monto_total) y el pgTAP f11 nuevo. Se infla el esfuerzo y el riesgo de tocar fixtures sin necesidad.
+    - **ajuste:** Dejar a15, a03_a04 y sii_b9 solo como regresión (correr, no editar). Reescribir únicamente gastos-rentabilidad.test.ts (fixtures con montoSubtotal distinto de montoTotal) y crear f11_costo_sin_iva.test.sql con las 4 funciones. Confirmar con un grep previo que dashboard-mappers.test.ts no depende de monto_total antes de listarlo.
+  -
+    - **donde:** T2/F01 · Orden interna (TI)
+    - **problema:** El plan dice 'una Orden interna no muestra la tabla', pero no define quién lo decide. operacion-gastos.tsx no referencia es_interna/esInterna y el payload no incluye ese dato.
+    - **ajuste:** Hacer que la función devuelva 'esInterna' (de ordenes_produccion.es_interna) y 'tieneEstimado'. El componente oculta la tabla si esInterna y muestra 'Sin estimado' si no hay revisión. Añadir ambos casos al pgTAP y al render.
+  -
+    - **donde:** T2/F07+F10 · columna 'Fuente'
+    - **problema:** La trazabilidad de fuente (compra, gasto, consumo, sesión) es la mitad de F07/F10, pero la columna visible se difiere a T4, donde solo 'se prueba'. Si T2 se cierra sin ella, el criterio 3 queda a medias.
+    - **ajuste:** Mover a T2 el render de la columna Fuente (a partir de fuentes[]) con su test de render. T4 conserva solo el E2E de aceptación.
+  -
+    - **donde:** Convención de tamaño · operacion-gastos.tsx (341 líneas) y panel-compra.tsx (388 líneas)
+    - **problema:** CLAUDE.md marca como candidato a dividir todo archivo mayor a ~300 líneas. El plan agrega un useQuery y un render a operacion-gastos.tsx, y selector de rubro, campos de material y etiqueta de nivel a panel-compra.tsx, con lo que ambos crecen.
+    - **ajuste:** Poner el nuevo useQuery y su render dentro de tabla-conciliacion-costos.tsx (o un contenedor 'seccion-conciliacion-orden.tsx') y que operacion-gastos solo monte el componente. Crear 'campos-material-compra.tsx' para rubro y material en Compras. No ampliar los dos archivos grandes.
+  -
+    - **donde:** T3/F14 · cobranza-aging.test.ts
+    - **problema:** El Vitest de bordes del aging ya existe (cobranza-aging.test.ts:128-138). El paso 'añadir si falta' es trabajo muerto y alimenta un criterio ya cumplido.
+    - **ajuste:** Quitar el ítem de T3 y citar el test existente como evidencia del criterio 9.
+  -
+    - **donde:** T3/F16 · tests/unitarias/tesoreria-saldos.test.ts
+    - **problema:** El cálculo de saldos está inline en obtenerTesoreria, que encadena builders de Supabase (from/select/not/eq). Probarlo con un 'cliente simulado' obliga a un mock frágil de la cadena, que es el patrón de bucle que el plan quiere evitar.
+    - **ajuste:** Extraer el acumulado a una función pura 'calcularSaldosTesoreria(entradas)' en el mismo servicio y probarla directamente (cobros reversados, transferencias, gasto sin cuenta). obtenerTesoreria queda como lector. Mantener un solo test con cliente simulado para el wiring de reversos_pago_ar. Hacer lo mismo con el filtro en flujo-cuentas-servicio.ts, que ya delega en calcularFlujoPorCuenta.
+  -
+    - **donde:** T4/F19(a) · finanzas-contratos-coherencia.test.ts
+    - **problema:** El test de coherencia de horas con C9.3 es 'ejecutable cuando C9.3 esté en main'. No puede ser RED hoy y puede quedar como casilla sin prueba.
+    - **ajuste:** Escribir en T2 un pgTAP con una sesión pausada y una finalizada que fije el filtro (pausada/finalizada) y deje esa suma como contrato. Que C9.3 lo cite. En T4 dejar la casilla como 'pendiente de C9.3' sin marcarla.
+  -
+    - **donde:** Preguntas al PO (D1-D13)
+    - **problema:** Se plantean 13 decisiones, pero solo dos cambian el diseño. Las demás tienen un default sensato y ya implementable.
+    - **ajuste:** Pedir confirmación solo de D1 (Material real; default C) y D7 (¿factura por entrega parcial? default: documentar). Registrar el resto como 'defaults adoptados salvo objeción': D2=A, D3=A, D4=A, D5=A, D6=diferido, D8=A, D9=A, D10=A, D11 según el ajuste anterior. D12 se resuelve con `supabase migration list`, y D13 con un grep de plan.md al registrar.
+  -
+    - **donde:** COLA-DE-TRABAJO / marcas de migración
+    - **problema:** El plan cita las marcas sugeridas 120000 y 130000 de Órdenes y Planeación, pero el plan de Órdenes también sugiere 20261014140000 (permiso orden_ver_totales, que interactúa con el gate ver_finanzas). Ninguna colisiona con 20261015, pero el registro está incompleto.
+    - **ajuste:** En el registro de marcas y contratos (T4) listar 120000, 130000 y 140000, y el hecho de que orden_ver_totales no cambia el gate de la conciliación (sigue siendo ver_finanzas).
+  -
+    - **donde:** T1 · tamaño
+    - **problema:** La tanda reúne 4 funciones SQL redefinidas, 2 RPC con cambio de firma, columnas, Zod, panel y textos (5 requisitos, esfuerzo L). Es la que más probabilidad tiene de entrar en un bucle de CI si algo falla.
+    - **ajuste:** Mantener una rama pero ordenar commits separables: (1) F11 SQL+TS+pgTAP, (2) textos F09, (3) Compras rubro+RPC, (4) datos de material F08, con push y CI verde por commit. Si el PO no necesita F08 de inmediato (ningún criterio de aceptación lo exige), dejar su commit al final y retirable.
+- **coberturaFaltante:**
+  - F10: el ajuste manual autorizado se difiere (D6) sin dejar rastro visible. Para que sea honesto frente a la sección 13 de la nota, la tabla debe mostrar al pie 'Ajuste manual: no disponible en este corte' y la matriz del PR debe marcar F10 como parcial.
+  - F07 y F10: la columna visible de Fuente no está en el alcance de T2 (se difiere a T4). Debe entrar en T2.
+  - Criterio 3 ('no recapturar'): el pgTAP prueba que crear, confirmar y recibir una compra no inserta en gastos, pero no hay ninguna prueba de que la compra recibida aparezca en el real de la conciliación sin Gasto. Está cubierta solo por el caso (c) de f03 y el E2E de T4. Añadir en f03 un caso explícito 'compra RECIBIDA de material sin Gasto suma al real'.
+  - Cobranza: el 'flujo por cuenta' sigue sumando gasto.monto_total (con IVA) y todo gasto no cancelado, no solo pagado. La Tesorería usa estado_pago='pagado'. El plan lo rotula como informativo, pero la nota pide no mezclar flujo bancario con CxC. Debería registrarse como hallazgo diferido (ya hay una entrada parcial) en lugar de quedar solo como texto del rótulo.
+  - T2: no hay caso pgTAP para moneda USD (compra o Orden en USD con tipo de cambio del snapshot ≠ 1). El plan lo menciona como riesgo, pero no como caso. Añadirlo en f03 para estimado, comprometido y venta base.
+  - T3 F12/F13: no hay prueba de que cancelar con cobros aplicados deja el comportamiento actual (D8=A). Sería un caso pgTAP corto que fije el hallazgo.
+- **riesgosDeBucleNoCubiertos:**
+  - Fixtures de compras: otras pruebas insertan compras directamente o vía RPC. Con columnas nuevas nullable no deberían romperse, pero el único pgTAP que llama las RPC por firma es sii_b8_compras. Hay que correr también sii_b8_tesoreria (lee compras) antes de cerrar T1, y el plan ya lo menciona en pasos. Falta correr c6_1_materiales_costos si se toca catalogo_materiales.
+  - Doble verdad de nivelDeCostoCompra: la regla comprometido/real vive en TS (T1) y en SQL (T2). Si una cambia, divergen. Mitigarlo con una tabla de casos idéntica en Vitest y pgTAP, y un comentario cruzado en ambos sitios.
+  - Despliegue antes de migración en T1: el servicio de compras enviará p_rubro_costo y otros parámetros que no existen hasta aplicar 110000. El plan dice 'solo envía los campos nuevos si traen valor', pero con Orden el rubro es obligatorio y se enviará siempre. Añadir al PR el aviso explícito de aplicar 100000 y 110000 antes del despliegue de T1, o que el PO use la skill cerrar-tanda con ese gate marcado.
+  - El TS de rentabilidad-servicio.ts es un espejo del SQL. Con TC≠1 en MXN, TS excluye el gasto y SQL no (158-161 frente a a03:388). Al cambiar a subtotal, un test que compare TS contra SQL (si existiera) podría divergir. El plan lo deja como hallazgo, lo cual es correcto, pero debe incluir una aserción de caracterización para que no se corrija sin querer.
+  - E2E de aceptación (T4): depende de crear Orden desde Propuesta, compra, recepción y gasto en una sola corrida. Es el candidato más probable a bucle de CI. Mitigarlo sembrando por service_role directo (Orden, revisión con costos y snapshot) y usando la UI solo para el último tramo (selección y lectura de la tabla).
+- **sobrealcance:**
+  - No se coló APS, MRP ni optimización, y el plan descarta explícitamente ledger costos_orden, snapshot de costos, gastos.compra_id y F12 pesado. Alcance en general adecuado.
+  - T4 como tanda propia es casi toda prueba y documentación (F17, F18 y gran parte de F10 ya cumplen). Es aceptable por la coordinación de documentos compartidos, pero conviene fusionar los pgTAP de guardarraíl (F15/F17/F18) en T3 o T2 para que T4 sea solo el E2E de aceptación más el registro documental. Así se evita una tanda más que dependa del orden de rebase.
+  - T1/F08: ningún criterio de aceptación del cliente exige el detalle de material (la nota lo marca como 'recomendado'). Es el cambio con más superficie (RPC con firma nueva, UI, tipos) y se puede dejar como último commit retirable. No es sobrealcance, pero sí prescindible si el ciclo se alarga.
+  - F14: rotular y reescribir el texto del flujo por cuenta es suficiente, pero el plan menciona ajustar el 'egreso' del flujo. Si eso implica cambiar la fórmula (pagado frente a no cancelado), sería una reescritura. Limitarlo al rótulo y registrar la diferencia como hallazgo.
+- **problemasDeOrdenOColision:**
+  - Orden interno de T1 correcto: F11 antes de Compras y migraciones 100000 y luego 110000. Sin conflicto de archivos entre ambas, salvo src/compartido/tipos/supabase.ts, que se regenera una sola vez al final de T1 (paso 7). Mantenerlo así, y volver a regenerarlo en T2 solo si cambia el esquema (la función devuelve jsonb, así que probablemente solo añade la entrada en Functions).
+  - T2 depende de que T1 esté aplicada en remoto, pero sus pgTAP se ejecutan localmente. El riesgo real es el despliegue: el código de T2 llama una RPC que no existe hasta aplicar 120000. El plan lo mitiga con 'Conciliación no disponible' en lugar de romper. Correcto.
+  - 'Reubicar antes de retirar' se respeta: el flujo por cuenta se rotula y no se retira (D9=A).
+  - Contra el plan de Órdenes: no se editan ficha-orden.tsx ni ficha-orden-servicio.ts (D5=A) y la conciliación no pasa por la proyección. Sin colisión. Riesgo residual: las tres reservas condicionales de Órdenes (120000, 130000, 140000) y las de Planeación pueden aplicarse antes o después de 20261015; el orden global entre Finanzas y Órdenes no importa porque no comparten objetos.
+  - T4 y T1 (D1) tocan DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md solo en T4, y se rebasa sobre C8.4 y C9.4. Correcto. No registrar CLI-17 antes de que CLI-15 y CLI-16 existan (hoy no existen en plan.md): usar el siguiente libre al registrar.
+  - El árbol de trabajo tiene 20261014110000 modificada sin commit. El plan prohíbe editarla y no depende de ella. Verificar al abrir cada rama que `git status` no la arrastre al commit.
+- **preguntasInnecesarias:**
+  - D12 (¿están aplicadas las migraciones del tarifario único?): se resuelve con `supabase migration list` y no cambia ninguna tanda.
+  - D13 (CLI-16 o CLI-17): se resuelve con un grep de tasks/plan.md al registrar, sin consultar al PO.
+  - D2, D3, D4, D5, D8, D9, D10 y D11: tienen default sensato y conservador. Registrarlos como defaults adoptados y preguntar solo si el PO objeta.
+  - D6 (ajuste manual): el default diferido es suficiente; preguntar solo si el PO lo exige.
+  - D7 es la única pregunta factual con peso, y aun así tiene default (documentar la limitación). D1 es la única que bloquea la lógica de T2 (default C).
+
+## Transversal: impacto
+- **modulos:**
+  -
+    - **modulo:** Gastos (rentabilidad por Orden) — F01/F02/F03/F04/F05/F09/F11
+    - **requisitos:**
+      - F01
+      - F02
+      - F03
+      - F04
+      - F05
+      - F09
+      - F11
+    - **tipoRiesgo:** Cambio de RPC compartidas (obtener_rentabilidad_orden a03, obtener_desglose_rentabilidad_orden a15) y espejo TS; cambio de semántica del costo (monto_total a monto_subtotal) que mueve márgenes históricos.
+    - **mitigacion:** No tocar las dos RPC existentes para F01-F05: crear obtener_conciliacion_costos_orden(p_orden_id) nueva (service_role, REVOKE a PUBLIC/anon/authenticated). Cambio sin IVA (F11) en migración aparte con timestamp posterior, mismas firmas (CREATE OR REPLACE o DROP+CREATE para a03, que usa CREATE FUNCTION). Estimado leído de propuesta_revision_costos vía ordenes_produccion.propuesta_revision_id (columna existe, b5_orden_base:54). Mostrar «sin estimado» cuando la Orden no tiene revisión. Comprometido = compras CONFIRMADA/RECIBIDA con orden_id por monto_subtotal x TC. Tarjeta nueva dentro de tarjeta-rentabilidad-orden.tsx sin cambiar testids existentes. Descartado: columnas nuevas en las RPC vigentes, tabla materializada, congelar costos en snapshot_json.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - supabase/migrations/<nueva>_f01_conciliacion_costos_orden.sql
+      - supabase/migrations/<nueva posterior>_f11_costo_gastos_sin_iva.sql
+      - src/modulos/gastos/servicios/gastos-servicio.ts
+      - src/modulos/gastos/servicios/rentabilidad-servicio.ts
+      - src/modulos/gastos/tipos/gastos.ts
+      - src/modulos/gastos/validaciones/gastos.ts
+      - src/modulos/gastos/acciones/obtener-conciliacion-costos.ts
+      - src/modulos/gastos/acciones/indice.ts
+      - src/modulos/gastos/componentes/tarjeta-rentabilidad-orden.tsx
+      - src/modulos/gastos/componentes/tabla-conciliacion-costos.tsx
+      - src/modulos/gastos/componentes/operacion-gastos.tsx
+      - src/compartido/tipos/supabase.ts
+    - **archivosAfectadosSinTocar:**
+      - src/app/(privado)/gastos/page.tsx (importa servicios/indice y consultarGastosServicio)
+      - src/estado/uso-tienda-gastos.ts
+      - src/modulos/gastos/componentes/sincronizador-gastos-realtime.tsx (escucha gastos, cuentas_por_cobrar, registros_consumo_material, sesiones_trabajo; si compras entra al comprometido hay que agregar 'compras' a TABLAS_GASTOS, líneas 9-14, y habilitar Realtime en compras)
+      - src/modulos/configuracion/hooks/usar-catalogos-comerciales.ts, tipos/configuracion.ts, validaciones/configuracion.ts (categorías de gasto configurables: maquila_externa debe seguir existiendo para el mapeo a Subcontratación)
+      - supabase/migrations/20261007210001_sii_b9_kpis.sql (obtener_kpis_sii) y src/modulos/kpis (obtener-kpis.ts, seccion-kpis-sii.tsx, tipos/indice.ts)
+      - src/modulos/dashboard (dashboard-servicio.ts, tipos/dashboard.ts)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/gastos-rentabilidad.test.ts
+      - tests/unitarias/gastos-desglose.test.ts
+      - tests/integracion/gastos-acciones.test.ts
+      - supabase/tests/a03_a04_ingreso_neto.test.sql
+      - supabase/tests/a15_estimado_por_tarifa.test.sql
+      - supabase/tests/c6_2_consumo_sin_stock.test.sql
+      - tests/e2e/gastos-rentabilidad.spec.ts (7 usos de testids de la tarjeta)
+      - tests/e2e/gastos-rentabilidad-ti.spec.ts (2 usos)
+      - supabase/tests/sii_b9_kpis.test.sql
+      - tests/unitarias/dashboard-mappers.test.ts
+    - **pruebasFaltantes:**
+      - pgTAP: conciliación estimado/comprometido/real con ejemplo del cliente (5000/5450 etc.) y variación %, null si estimado 0
+      - pgTAP: Orden sin propuesta_revision_id devuelve «sin estimado», no 0
+      - pgTAP RED: gasto 1,160 total / 1,000 subtotal ligado a Orden suma 1,000 (rentabilidad y desglose)
+      - pgTAP: la nueva RPC no es ejecutable por authenticated/anon
+      - Unitaria: acción niega sin ver_finanzas
+      - Unitaria: margen estimado y real con la misma venta base (20000: 61 % vs 58 %)
+      - pgTAP RED guardarraíl: gasto sin Orden no cambia el costo de ninguna Orden
+      - E2E: seleccionar Orden muestra tabla Estimado/Real/Variación
+  -
+    - **modulo:** Compras (comprometido/real, datos mínimos, doble captura) — F06/F07/F08
+    - **requisitos:**
+      - F06
+      - F07
+      - F08
+    - **tipoRiesgo:** Doble conteo de material entre consumo (registros_consumo_material), compra RECIBIDA y gasto materia_prima; cambio de firma de crear_compra/actualizar_compra_borrador; textos de UI que contradicen la nota.
+    - **mitigacion:** Compra como fuente directa sin crear fila en gastos: la nueva RPC de conciliación lee compras con orden_id (comprometido = CONFIRMADA/RECIBIDA, subtotal x TC). Real de Material sigue siendo el consumo; la compra no se suma al real (decisión PO pendiente), así se evita doble conteo. Columnas nuevas nullable en compras (categoria_costo, concepto, cantidad, unidad, costo_unitario), sin NOT NULL para no romper históricas. Corregir texto de compras/page.tsx:33, panel-compra.tsx:68 y COMMENT/cabecera de sii_b8_compras_base (líneas 7 y 48) en el mismo cambio. Diferir gastos.compra_id y la conexión automática DC-13.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - supabase/migrations/<nueva>_f06_f08_compras_costo_material.sql
+      - src/modulos/compras/validaciones/esquemas-compras.ts
+      - src/modulos/compras/tipos/indice.ts
+      - src/modulos/compras/acciones/crear-compra.ts
+      - src/modulos/compras/acciones/actualizar-compra.ts
+      - src/modulos/compras/componentes/panel-compra.tsx
+      - src/modulos/compras/servicios/obtener-compras.ts
+      - src/app/(privado)/compras/page.tsx
+      - src/compartido/tipos/supabase.ts
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/compras/acciones/cambiar-estado-compra.ts y pagar-compra.ts
+      - src/modulos/compras/componentes/cola-compras.tsx y acciones/obtener-cola-compras.ts
+      - src/modulos/tesoreria/servicios/obtener-tesoreria.ts (lee compras y pagos_compra: monto distinto si se tocan montos/estados)
+      - src/compartido/componentes/navegacion/modulos-navegacion.ts:96 (ruta /compras)
+      - src/modulos/inventario (modal-guardar-material.tsx, materiales-costos-servicio.ts) solo si se conecta DC-13
+      - src/modulos/auditoria/utilidades/actividad.ts (etiquetas nuevas)
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b8_compras.test.sql
+      - tests/unitarias/compras-esquemas.test.ts
+      - tests/e2e/compras-flujo.spec.ts
+      - supabase/tests/sii_b8_tesoreria.test.sql
+      - supabase/tests/c6_1_materiales_costos.test.sql
+    - **pruebasFaltantes:**
+      - Vitest: textos de compras sin «no entran a la rentabilidad»
+      - Vitest: cantidad > 0 y concepto o material obligatorio cuando hay Orden
+      - pgTAP: compra CONFIRMADA suma a comprometido; BORRADOR/CANCELADA/sin orden_id no
+      - pgTAP: compra recibida más consumo no suman dos veces
+      - pgTAP: la compra no crea fila en gastos
+      - pgTAP: compras históricas siguen válidas
+  -
+    - **modulo:** Facturación y Cobranza (F12/F13/F14)
+    - **requisitos:**
+      - F12
+      - F13
+      - F14
+    - **tipoRiesgo:** Relajar la unicidad factura-CxC (ux_cuentas_factura, cuenta_ya_facturada en emitir_factura vigente 20261007230002) afecta Cobranza, que asume una factura por CxC; mover el flujo por cuenta sin reubicarlo elimina una vista en uso.
+    - **mitigacion:** F13 ya cumple (cancelar_factura desvincula la CxC sin borrar la fila): no tocar. F12 es la única migración arriesgada: diferirla o documentar la limitación; si se hace, redefinir emitir_factura completa a partir de 20261007230002 y reasignar la CxC a la factura previa al cancelar. F14: dejar el flujo por cuenta tal cual (informativo); si el PO exige separarlo, primero reubicarlo en Tesorería y luego retirarlo de /cobranza. Ningún cambio de Finanzas debe leer costos desde estos módulos (criterio 9).
+    - **riesgo:** alto
+    - **archivosTocados:**
+      - supabase/migrations/<nueva>_facturacion_varias_por_cuenta.sql (solo si el PO aprueba F12)
+      - src/modulos/facturacion/servicios/obtener-facturas.ts
+      - src/modulos/facturacion/servicios/errores-factura.ts
+      - src/modulos/facturacion/componentes/panel-factura.tsx
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/cobranza/componentes/tabla-cuentas-por-cobrar.tsx (folio_factura_remision)
+      - src/modulos/cobranza/tipos/cobranza.ts
+      - src/modulos/cobranza/servicios/historial-cobranza-servicio.ts
+      - src/modulos/cobranza/componentes/estado-cuenta-cliente-boton.tsx
+      - src/modulos/facturacion/acciones/emitir-factura.ts, cancelar-factura.ts, actualizar-factura-borrador.ts
+      - supabase/migrations/20260925000100_a20_factura_sobre_ar_existente.sql (registrar_factura_ar escribe folio sin factura_id)
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b8_facturacion.test.sql
+      - supabase/tests/a20_factura_ar_existente.test.sql
+      - tests/e2e/facturacion-flujo.spec.ts
+      - tests/unitarias/facturacion-esquemas.test.ts
+      - tests/e2e/cobranza-flujo.spec.ts
+      - tests/unitarias/cobranza-aging.test.ts
+    - **pruebasFaltantes:**
+      - pgTAP: dos entregas de una Orden emiten dos facturas sin cuenta_ya_facturada
+      - pgTAP: cancelar la segunda deja la CxC apuntando a la primera emitida
+      - Unitaria: clasificarBucketAging en bordes 0, 1, 30, 31, 60, 61, 90, 91
+  -
+    - **modulo:** Tesorería (F16/F17/F18) y flujo por cuenta de Cobranza
+    - **requisitos:**
+      - F16
+      - F17
+      - F18
+    - **tipoRiesgo:** El saldo se calcula en TypeScript y no excluye cobros reversados; el flujo de Cobranza tiene el mismo defecto y usa otra definición de egreso.
+    - **mitigacion:** Cambio mínimo sin migración: leer reversos_pago_ar en el Promise.all de obtener-tesoreria.ts y omitir esos pagos; mismo filtro en flujo-cuentas-servicio.ts. Verificar antes la política RLS de reversos_pago_ar (no verificada). F17 y F18 no requieren cambio; Tesorería no alimenta rentabilidad. No usar pagos_compra con IVA como fuente de costo.
+    - **riesgo:** bajo
+    - **archivosTocados:**
+      - src/modulos/tesoreria/servicios/obtener-tesoreria.ts
+      - src/modulos/cobranza/servicios/flujo-cuentas-servicio.ts
+    - **archivosAfectadosSinTocar:**
+      - src/app/(privado)/tesoreria/page.tsx
+      - src/app/(privado)/cobranza/page.tsx (importa obtenerFlujoCuentasServicio, líneas 4 y 32-34)
+      - src/modulos/cobranza/acciones/obtener-flujo-cuentas.ts
+      - src/modulos/cobranza/servicios/historial-cobranza-servicio.ts (único consumidor de reversos_pago_ar en src)
+      - src/modulos/gastos/acciones/obtener-cuentas-gasto.ts
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b8_tesoreria.test.sql
+      - tests/e2e/tesoreria-flujo.spec.ts
+      - tests/unitarias/tesoreria-esquemas.test.ts
+      - tests/unitarias/cobranza-flujo-cuentas.test.ts
+    - **pruebasFaltantes:**
+      - Unitaria con cliente simulado: un cobro con fila en reversos_pago_ar no suma al saldo
+      - Unitaria: saldo = inicial + cobro - pago_compra - gasto pagado
+      - pgTAP RED: movimientos y transferencias de Tesorería no modifican obtener_rentabilidad_orden
+  -
+    - **modulo:** Dashboard / KPIs (afectado, no tocado salvo decisión PO)
+    - **requisitos:**
+      - F04
+      - F11
+    - **tipoRiesgo:** Divergencia de cifras entre la tarjeta por Orden y el Dashboard/KPIs si solo se corrige F11 en la RPC por Orden.
+    - **mitigacion:** Es una decisión del PO. Por defecto no tocar el dashboard en este corte y avisarlo en el PR. Si se alinea, es una migración propia que redefine privado.metricas_ejecutivas_rango y privado.costo_ti_rango (vigentes en 20261007120004_sii_b5_consumidores_estado.sql, con gasto.monto_total en las líneas 121, 128, 148, 151, 199 y 398) y obtener_costo_ti_periodo (obs29); no se redefine obtener_metricas_dashboard_ejecutivo de a04, que ya no es la definición activa de esas líneas.
+    - **riesgo:** medio
+    - **archivosAfectadosSinTocar:**
+      - supabase/migrations/20261007210001_sii_b9_kpis.sql (obtener_kpis_sii: margen estimado desde propuesta_revision_costos de revisiones ACCEPTED/SALE_CONFIRMED por rango, líneas 183-218, y margen real desde metricas_ejecutivas_rango)
+      - src/modulos/kpis/servicios/obtener-kpis.ts, componentes/seccion-kpis-sii.tsx, tipos/indice.ts
+      - src/modulos/dashboard/servicios/dashboard-servicio.ts, tipos/dashboard.ts
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b9_kpis.test.sql
+      - supabase/tests/a03_a04_ingreso_neto.test.sql
+      - tests/unitarias/dashboard-mappers.test.ts
+      - tests/unitarias/dashboard-tarjetas.test.ts
+      - tests/unitarias/kpis-areas.test.ts
+      - tests/integracion/dashboard-acciones.test.ts
+      - tests/e2e/kpis-dashboard.spec.ts
+    - **pruebasFaltantes:**
+      - pgTAP: el margen estimado por Orden coincide con el estimado agregado de obtener_kpis_sii para una sola Orden
+  -
+    - **modulo:** Órdenes / Planeación / Producción (coherencia, F19)
+    - **requisitos:**
+      - F19
+    - **tipoRiesgo:** Edición simultánea de ficha-orden.tsx y ficha-orden-servicio.ts por las tandas C8 y C9; colisión de timestamp de migración; fórmula de horas reales duplicada.
+    - **mitigacion:** Si la vista vive solo en Gastos (decisión por defecto), no se toca Órdenes. Si el PO la quiere en la ficha, ese bloque va después de C8.3 y detrás del gate ver_finanzas. Fabricación real consume sesiones_trabajo igual que la RPC actual, sin segunda fórmula. Elegir timestamp libre con Glob; hoy están ocupados 20261014100000 y 20261014110000. La marca 20261014120000 está reservada según el lector, sin verificar.
+    - **riesgo:** medio
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts (sin referencias a costos ni rentabilidad: grep en src/modulos/ordenes sin resultados)
+      - src/modulos/produccion (sesiones_trabajo, registros_consumo_material alimentan el real)
+      - supabase/migrations/20261007120001_sii_b5_orden_base.sql (propuesta_revision_id, ordenes_produccion)
+      - supabase/migrations/20261014110000_tarifario_unico_estacion_grupo.sql (modificada localmente; puede alterar el estimado por tarifa)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/ficha-orden-c4-2.test.ts
+      - tests/unitarias/ordenes-confidencialidad-c4-3.test.ts
+      - supabase/tests/c4_3_confidencialidad_ordenes.test.ts
+      - supabase/tests/c6_2_consumo_sin_stock.test.sql
+      - supabase/tests/tarifario_unico_estacion.test.sql
+    - **pruebasFaltantes:**
+      - La ficha sin ver_finanzas no contiene costos estimados ni reales (solo si se agrega a la ficha)
+- **acoplamientosOcultos:**
+  -
+    - **descripcion:** El Dashboard ejecutivo y los KPIs SII calculan el costo de gastos con monto_total (con IVA) en funciones distintas de las RPC por Orden. Corregir F11 solo en a03/a15 hace que la tarjeta por Orden y el Dashboard/KPIs dejen de coincidir. Además la definición activa de esas líneas es privado.metricas_ejecutivas_rango y privado.costo_ti_rango de 20261007120004_sii_b5_consumidores_estado.sql, no a04 como sugerían los hallazgos.
+    - **evidencia:** 20261007120004_sii_b5_consumidores_estado.sql: CREATE de privado.metricas_ejecutivas_rango (línea 27) y privado.costo_ti_rango (línea 364); gasto.monto_total en líneas 121, 128, 148, 151, 199, 398. obtener_kpis_sii llama privado.metricas_ejecutivas_rango (20261007210001_sii_b9_kpis.sql:217) y toma margenPromedioPorcentaje (línea 218).
+    - **requisitos:**
+      - F11
+      - F04
+      - F09
+  -
+    - **descripcion:** obtener_kpis_sii calcula su margen estimado con otra base de venta (SUM de propuesta_items x TC del snapshot_cabecera) y de costo (SUM de propuesta_revision_costos.monto), por revisiones ACCEPTED/SALE_CONFIRMED con evento en el rango. La nueva conciliación por Orden debe reutilizar exactamente esta fuente de estimado y de venta, o el margen estimado por Orden diverge del KPI agregado (criterio 6).
+    - **evidencia:** 20261007210001_sii_b9_kpis.sql:183-215 (venta_estimada desde items y costo_estimado desde propuesta_revision_costos).
+    - **requisitos:**
+      - F01
+      - F03
+      - F04
+  -
+    - **descripcion:** La tarjeta de rentabilidad depende de testids estables en dos e2e. Si el componente nuevo reemplaza en vez de añadir, se rompen sin que tsc avise.
+    - **evidencia:** componentes/tarjeta-rentabilidad-orden.tsx expone desglose-rentabilidad, desglose-incluidos, tarjeta-rentabilidad-ti, rentabilidad-ti-costo, rentabilidad-venta-neta, rentabilidad-utilidad, rentabilidad-sin-desglose (MAPA-gastos línea 27); usados en tests/e2e/gastos-rentabilidad.spec.ts (7) y gastos-rentabilidad-ti.spec.ts (2).
+    - **requisitos:**
+      - F01
+      - F02
+  -
+    - **descripcion:** El Realtime de Gastos invalida solo cuatro tablas. Un comprometido que lea compras no se refresca en vivo salvo que se agregue 'compras' a la lista, lo que además exige que la tabla esté en la publicación realtime (no verificado).
+    - **evidencia:** src/modulos/gastos/componentes/sincronizador-gastos-realtime.tsx:9-14 (gastos, cuentas_por_cobrar, registros_consumo_material, sesiones_trabajo) y línea 43; claves de consulta en componentes/claves-consulta.ts.
+    - **requisitos:**
+      - F03
+      - F06
+  -
+    - **descripcion:** Tesorería ya resta pagos_compra y gastos pagados por separado, sin vínculo compra a gasto. Si el usuario captura el mismo costo como Compra y como Gasto, el saldo de la cuenta baja dos veces: la doble captura que la nota pide evitar es también un problema de Tesorería, no solo de rentabilidad.
+    - **evidencia:** src/modulos/tesoreria/servicios/obtener-tesoreria.ts:38-57 (consultas a pagos_ar, gastos y compras) y 75-79 (compras); hallazgo de los lectores sobre las líneas 131-151.
+    - **requisitos:**
+      - F07
+      - F16
+  -
+    - **descripcion:** El texto «Las compras no entran a la rentabilidad de las órdenes» está en tres lugares: la página de Compras, el panel y el comentario de la migración base. Cambiarlo sin tocar los tres deja mensajes contradictorios. No hay prueba que dependa del texto (grep sin coincidencias en tests/).
+    - **evidencia:** src/app/(privado)/compras/page.tsx:33; supabase/migrations/20261007190001_sii_b8_compras_base.sql:7; panel-compra.tsx:68 (según los lectores).
+    - **requisitos:**
+      - F09
+      - F06
+  -
+    - **descripcion:** La Orden enlaza su estimado por ordenes_produccion.propuesta_revision_id. Las órdenes internas o heredadas no tienen revisión, y el estimado de Fabricación puede cambiar con el tarifario único (20261014110000, modificado y sin commitear). La nueva RPC depende de esa columna y de las tablas del ruteo costeado, así que esa migración debe quedar aplicada antes de validar el estimado de Fabricación.
+    - **evidencia:** supabase/migrations/20261007120001_sii_b5_orden_base.sql:54; git status: M supabase/migrations/20261014110000_tarifario_unico_estacion_grupo.sql; 20261014100000_propuesta_item_en_revision_a.sql pendiente en remoto según la memoria del proyecto.
+    - **requisitos:**
+      - F01
+      - F03
+      - F19
+  -
+    - **descripcion:** Cobranza guarda el folio y el factura_id de una sola factura por CxC y tiene una segunda ruta (registrar_factura_ar) que escribe folio_factura_remision sin crear fila en facturas. Cualquier cambio de F12 debe cubrir ambas rutas y la tabla de cuentas por cobrar.
+    - **evidencia:** 20260925000100_a20_factura_sobre_ar_existente.sql:56; 20261007230002_sii_credito_dias_cliente.sql:160-172 (cuenta_ya_facturada); consumidores en src: cobranza/tipos/cobranza.ts, historial-cobranza-servicio.ts, estado-cuenta-cliente-boton.tsx, facturacion/acciones/*.
+    - **requisitos:**
+      - F12
+      - F13
+      - F14
+  -
+    - **descripcion:** Los tipos de Supabase son un archivo central. Todas las migraciones nuevas (RPC, columnas de compras) obligan a regenerar src/compartido/tipos/supabase.ts en UTF-8, y varias tandas en paralelo lo editan a la vez.
+    - **evidencia:** CLAUDE.md (regla de regenerar con Out-File -Encoding utf8); supabase.ts aparece en los greps de rentabilidad, compras, factura_id y reversos_pago_ar.
+    - **requisitos:**
+      - F01
+      - F06
+      - F08
+      - F11
+- **ordenSeguro:** Orden recomendado. (1) F11 primero: migración que usa gasto.monto_subtotal en obtener_rentabilidad_orden y en obtener_desglose_rentabilidad_orden, más el espejo TS. Define la base sin IVA que usarán F01-F05, y sus pruebas RED rompen a propósito las pgTAP que asumen monto_total, así que conviene que sea el cambio aislado. Decidir con el PO si el Dashboard (privado.metricas_ejecutivas_rango y privado.costo_ti_rango) se alinea en una migración aparte. (2) F06 y F08 juntos en una migración de Compras (columnas nullable más texto corregido), porque definen qué es «comprometido» antes de construir la vista. (3) F01, F02, F03, F04 y F05 como una sola función nueva obtener_conciliacion_costos_orden, con su acción, tipos y tabla dentro de la tarjeta existente. Va después de F11 y F06, porque lee gastos sin IVA y compras. Su timestamp debe ser posterior al de F11, y el estimado debe reutilizar la fuente de obtener_kpis_sii. (4) F07 y F10 se reducen a no crear la fila en gastos y a una columna de fuente en el desglose; el ajuste manual autorizado queda diferido hasta que el PO responda. (5) F16, con reversos, es independiente y puede ir en cualquier momento. (6) F12 solo si el PO lo aprueba: es la migración de mayor riesgo y no bloquea nada. F13, F14, F17 y F18 no requieren código. (7) F19 y F20 cierran la tanda: registro documental, pruebas de aceptación y coordinación con C8.3 y C9.3. La ficha de Orden no se toca antes de que cierre C8.3. Hay que reservar los timestamps con Glob antes de crear migraciones (20261014100000 y 20261014110000 ya están ocupados).
+- **paralelizables:**
+  - Tesorería F16 (obtener-tesoreria.ts y flujo-cuentas-servicio.ts): archivos exclusivos, sin migración, puede ir en paralelo con todo.
+  - Compras F06/F08 (esquemas, acciones, panel-compra.tsx, compras/page.tsx) frente a F11 (migración y rentabilidad-servicio.ts): sin archivos en común salvo supabase.ts, que se regenera una sola vez al final o por orden de merge.
+  - Textos y COMMENT de Compras (F09): no chocan con nada.
+  - F15 y F20 (pruebas pgTAP de guardarraíl, registro documental en DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md): solo documentos y supabase/tests.
+  - F12 y F13 (Facturación) frente a todo lo demás: archivos disjuntos, pero con riesgo alto y tras la decisión del PO.
+
+## Transversal: bd
+- **estrategiaMigraciones:** Propongo 2 migraciones obligatorias (una tanda de Finanzas, mismo PR) y 1 opcional diferible. Última migración local verificada: 20261014110000_tarifario_unico_estacion_grupo.sql (Glob de supabase/migrations). Planeación y Órdenes mencionan 20261014120000 y 20261014130000 como marcas opcionales (PLAN-PLANEACION-RESUMEN.md:94-95), así que Finanzas usa marcas más altas para no colisionar. Cada marca debe recomprobarse con Glob al crear el archivo.
+
+ORDEN:
+1) 20261014150000_f11_rentabilidad_gastos_sin_iva.sql (una sola intención: costo de gastos sin IVA, sin cambiar firmas ni columnas). CREATE OR REPLACE con cuerpo completo copiado de la última definición vigente de: public.obtener_rentabilidad_orden(uuid) (a03:279-445; el RETURNS TABLE no cambia, así que basta CREATE OR REPLACE y no hace falta el DROP de a03); public.obtener_desglose_rentabilidad_orden(uuid) (a15:4-156); privado.metricas_ejecutivas_rango(timestamptz,timestamptz,timestamptz) y privado.costo_ti_rango(timestamptz,timestamptz) (ambas vigentes en 20261007120004, que ya las había redefinido sobre a04/obs29). Cambio exacto: gasto.monto_total pasa a gasto.monto_subtotal. Líneas con monto_total en gastos: a03:388; 20261007120004:121,128,148,151,199,398; a15:122,141 (reportado, no releído por mí). Si alguna se omite el dashboard diverge de la tarjeta. Es un cambio de lógica sin datos que migrar.
+2) 20261014150100_f03_conciliacion_costos_orden.sql (F01-F05, F06, F07). Contiene: (a) ALTER TABLE public.compras ADD COLUMN IF NOT EXISTS rubro_costo text NOT NULL DEFAULT 'material' con CHECK IN ('material','subcontratacion','gastos_directos'). El default conserva compatibilidad y NO cambia las firmas de crear_compra/actualizar_compra_borrador. (b) Función nueva public.obtener_conciliacion_costos_orden(p_orden_id uuid), SECURITY DEFINER, STABLE, SET search_path = '', REVOKE ALL FROM PUBLIC, anon, authenticated y GRANT EXECUTE solo a service_role, con COMMENT. (c) COMMENT ON TABLE compras corregido (hoy dice 'no entra a rentabilidad', compras_base:7 y 48). Sin tabla nueva ni RLS nueva, pues no hay tabla nueva; compras ya tiene RLS y SELECT para authenticated (compras_base:128-135). Idempotente por IF NOT EXISTS y OR REPLACE.
+3) OPCIONAL 20261014150200_f08_compras_datos_minimos_material.sql: columnas nullable concepto, material_id, cantidad, unidad, costo_unitario en compras y DROP FUNCTION de las firmas viejas + CREATE de crear_compra y actualizar_compra_borrador con parámetros nuevos DEFAULT NULL. Va separada porque cambiar la firma crea un overload ambiguo si no se hace DROP y rompe a los llamadores TS (crear-compra.ts:35-46, actualizar-compra.ts:29-41) y sii_b8_compras.test.sql. Diferible: F08 no bloquea ningún criterio de aceptación del cliente.
+
+No requieren migración: F12 (diferir y documentar; si el PO lo exige, una migración propia que redefine emitir_factura completa desde 20261007230002), F13, F14, F15 (solo pgTAP guardarraíl), F16 (filtrar reversos_pago_ar en TS), F17, F18, F19, F20.
+
+MENOS TRABAJO MANUAL DEL PO: aplicar 1 y 2 juntas en el SQL Editor, en ese orden, y correr después `supabase migration repair --status applied 20261014150000 20261014150100 --linked`. Las dos son solo CREATE OR REPLACE y ADD COLUMN IF NOT EXISTS: se pueden re-ejecutar sin riesgo. Antes de aplicarlas, el PO debe confirmar en `supabase migration list` que el remoto tiene al menos 20260922000003, 20260923170507, 20261007120004, 20261007190001 y 20261007190002; si falta alguna, la 1 o la 2 fallan por 'relation compras does not exist' o por una definición base ausente.
+
+Regla para evitar doble conteo (a confirmar con el PO): comprometido = compras con orden_id en CONFIRMADA (y RECIBIDA/PAGADA ya no son comprometido); real material = consumo (registros_consumo_material) si materiales_considerados > 0, y solo si no hay consumo se usan las compras RECIBIDA/PAGADA con rubro_costo='material'; real subcontratación = gastos maquila_externa + compras RECIBIDA/PAGADA con rubro 'subcontratacion'. Descartado: gastos.compra_id y crear un Gasto desde la compra (duplica folios y datos).
+
+ENFOQUE PESADO DESCARTADO: tabla ledger costos_orden, columnas nuevas en obtener_rentabilidad_orden (DROP+CREATE rompe tipos y pgTAP), congelar el estimado en snapshot_json, y prorrateo de indirectos.
+
+TS que acompaña (resumen): gastos-servicio.ts agrega una rpc('obtener_conciliacion_costos_orden', { p_orden_id }); acción nueva con Zod, can(ver_finanzas) y registrarLog; tipos y tabla dentro de tarjeta-rentabilidad-orden.tsx; rentabilidad-servicio.ts (líneas 158-162 según el lector) pasa a montoSubtotal. Regenerar src/compartido/tipos/supabase.ts en UTF-8 con `| Out-File -Encoding utf8` tras la migración 2 (y 3 si se hace).
+- **porRequisito:**
+  -
+    - **id:** F01
+    - **requiereMigracion:** true
+    - **motivo:** No existe estimado ni variación en ninguna RPC (a03:279-300 devuelve solo reales). El estimado vive en propuesta_revision_costos (b4:144-150; categorías material, maquina, mano_obra, gastos_directos, subcontratacion en b4:326-327) y la Orden lo enlaza por ordenes_produccion.propuesta_revision_id (b5:54). Hace falta una función nueva de solo lectura que junte estimado y real.
+    - **nombreSugerido:** 20261014150100_f03_conciliacion_costos_orden.sql
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden(p_orden_id uuid) (nueva, RETURNS TABLE: concepto, estimado, comprometido, real, variacion_abs, variacion_pct, venta_base_mxn, margen_estimado, margen_real, tiene_estimado)
+      - public.obtener_rentabilidad_orden(uuid) sin cambios (a03)
+      - propuesta_revision_costos (solo lectura)
+    - **dependeDe:** 20260922000003 (a03), 20261007120001 (propuesta_revision_id), 20261007110001 (propuesta_revision_costos), 20261007190001 (compras). El árbol local pendiente 20261014100000/20261014110000 no la afecta (no tocan estos objetos).
+    - **compatibilidadHistorica:** Órdenes sin propuesta_revision_id (internas, heredadas) deben devolver tiene_estimado=false y estimado NULL, no 0. Sin datos que migrar.
+    - **pgTAP:** Nuevo supabase/tests/f03_conciliacion_costos.test.sql: estimado desde la revisión ligada, has_function_privilege false para authenticated/anon y true para service_role, orden sin revisión da NULL. No rompe ningún pgTAP existente al ser función nueva.
+    - **riesgo:** Fabricación estimada = maquina+mano_obra de la propuesta frente a sesiones reales; si el ruteo no está costeado el estimado es parcial. USD: convertir con el TC del snapshot, no con el vigente.
+  -
+    - **id:** F02
+    - **requiereMigracion:** true
+    - **motivo:** Se resuelve en la misma función de F01: una fila por concepto. Subcontratación separada solo dentro de la función nueva (maquila_externa de gastos + compras con rubro subcontratacion), sin tocar el rubro 'gasto' de a15.
+    - **nombreSugerido:** 20261014150100_f03_conciliacion_costos_orden.sql
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden
+    - **dependeDe:** Misma que F01; además 20260923170507 (a15) para la lógica de materia_prima/nomina que no suman (a03:384-404).
+    - **compatibilidadHistorica:** Sin cambios en datos. La variación porcentual es NULL cuando el estimado es 0.
+    - **pgTAP:** Mismo archivo nuevo; ejemplo del cliente 5000/5450, 2000/1800, 0/500, 800/650, total 7800/8400. Las pruebas a15 no se rompen.
+    - **riesgo:** Un gasto materia_prima ligado a Orden no suma al real (a03:391); sin consumo registrado el material real queda subestimado. Pregunta abierta al PO.
+  -
+    - **id:** F03
+    - **requiereMigracion:** true
+    - **motivo:** Falta el nivel comprometido. compras ya tiene orden_id y estado (compras_base:17-19) y monto_subtotal, así que se calcula en la función sin congelar nada en snapshot_json; el estimado es estable porque los triggers de revisión congelada existen (b4:426-508, reportado por el análisis previo).
+    - **nombreSugerido:** 20261014150100_f03_conciliacion_costos_orden.sql
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden
+      - public.compras (lectura)
+    - **dependeDe:** 20261007190001
+    - **compatibilidadHistorica:** Compras históricas con orden_id en CONFIRMADA pasan a contar como comprometido; es correcto y visible. Avisar al PO.
+    - **pgTAP:** BORRADOR, CANCELADA y sin orden_id no suman; CONFIRMADA suma a comprometido y no a real. sii_b8_compras.test.sql no se rompe porque no cambia ninguna firma.
+    - **riesgo:** Mezcla de monedas: convertir compra con compras.tipo_cambio (compras_base:28-29).
+  -
+    - **id:** F04
+    - **requiereMigracion:** true
+    - **motivo:** Los dos márgenes deben compartir denominador. obtener_rentabilidad_orden usa la venta de AR cobrables (a03:338-356) y queda NULL antes de la entrega; para el margen estimado se necesita una base previa. Se devuelve una venta_base única en la función nueva, sin tocar la RPC existente.
+    - **nombreSugerido:** 20261014150100_f03_conciliacion_costos_orden.sql
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden (columna venta_base_mxn)
+    - **dependeDe:** a03; b5 snapshot_json de la Orden. El análisis previo indicó snapshot_json.totales.subtotal; no lo releí y debe verificarse al implementar.
+    - **compatibilidadHistorica:** Si no hay desglose en AR ni snapshot, los márgenes quedan NULL (coherente con a03:360-363).
+    - **pgTAP:** a03_a04_ingreso_neto.test.sql sigue válido (no cambia la RPC). Nuevo caso: ambos márgenes con el mismo denominador.
+    - **riesgo:** Dos bases posibles (AR frente a snapshot): decidir una sola y avisar al PO. El dashboard calcula el margen estimado desde otra venta (b9_kpis:185-214) y puede diferir.
+  -
+    - **id:** F05
+    - **requiereMigracion:** true
+    - **motivo:** Material ya es rubro propio del real (a03:365-373 consumo con costo congelado). Se añade la fila 'material' con estimado (categoria='material'), comprometido y variación en la misma función; sin inventario.
+    - **nombreSugerido:** 20261014150100_f03_conciliacion_costos_orden.sql
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden
+      - registros_consumo_material (lectura)
+    - **dependeDe:** 20261010130000 (consumo sin stock)
+    - **compatibilidadHistorica:** Sin cambios de datos.
+    - **pgTAP:** c6_2_consumo_sin_stock.test.sql no se rompe. Nuevo caso: compra sin IVA 5450, estimado 5000 y consumo 5450 dan +450 y +9 %; anti doble conteo.
+    - **riesgo:** El consumo valúa al costo vigente del maestro, no al de la compra; si se suman compra RECIBIDA y consumo hay doble conteo (por eso la regla de la estrategia).
+  -
+    - **id:** F06
+    - **requiereMigracion:** true
+    - **motivo:** Una compra con orden_id necesita clasificarse por rubro (material o subcontratación) para alimentar el real. compras no tiene categoría.
+    - **nombreSugerido:** 20261014150100_f03_conciliacion_costos_orden.sql
+    - **objetos:**
+      - public.compras.rubro_costo (columna nueva NOT NULL DEFAULT 'material', CHECK en material, subcontratacion, gastos_directos)
+      - COMMENT ON TABLE public.compras (corrige compras_base:48)
+    - **dependeDe:** 20261007190001; última definición de crear_compra y actualizar_compra_borrador: 20261007190002 (líneas 145-155 y 228+).
+    - **compatibilidadHistorica:** El DEFAULT 'material' hace válidas todas las compras existentes sin backfill ni cambio de firma. Cambiar el rubro desde la UI exige tocar las RPC (migración 3 opcional) o un UPDATE por service_role vía una RPC pequeña.
+    - **pgTAP:** sii_b8_compras.test.sql sigue válido mientras no cambie la firma; añadir un caso del CHECK de rubro.
+    - **riesgo:** Sin UI para elegir rubro, todas las compras caen en material. Por eso conviene hacer la migración 3 si el PO quiere elegir subcontratación; alternativa mínima: inferir el rubro desde el selector de la acción.
+  -
+    - **id:** F07
+    - **requiereMigracion:** false
+    - **motivo:** La compra es fuente directa del comprometido y del real; basta no exigir un Gasto. No hace falta gastos.compra_id ni cambiar registrar_gasto (vigente en 20261007190002:9-28, con 18 parámetros). Descartado el vínculo para no cambiar la firma. Trazabilidad por fuente: columna 'fuente' en el resultado de la función nueva (consumo, sesión, gasto, compra), sin esquema.
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden (columna fuente)
+    - **dependeDe:** Migración 2
+    - **compatibilidadHistorica:** No aplica.
+    - **pgTAP:** Caso en el archivo nuevo: una compra RECIBIDA con orden suma una vez sin gasto.
+    - **riesgo:** Si el usuario captura también el Gasto, hay doble conteo. Mitigar con advertencia en el formulario (opcional, TS).
+  -
+    - **id:** F08
+    - **requiereMigracion:** true
+    - **motivo:** compras solo tiene cabecera (compras_base:12-45: sin concepto, cantidad, unidad ni costo unitario). Es la única migración de firma de RPC; diferible.
+    - **nombreSugerido:** 20261014150200_f08_compras_datos_minimos_material.sql (opcional)
+    - **objetos:**
+      - public.compras: concepto, material_id, cantidad, unidad, costo_unitario (nullable)
+      - public.crear_compra(uuid,uuid,numeric,numeric,text,numeric,date,text,uuid,uuid) -> DROP + CREATE con parámetros nuevos DEFAULT NULL
+      - public.actualizar_compra_borrador(...) -> DROP + CREATE
+    - **dependeDe:** 20261007190002 (última definición de ambas RPC).
+    - **compatibilidadHistorica:** Columnas nullable: las compras antiguas siguen válidas. No volverlas NOT NULL. Llamadores TS con nombres reales: crear-compra.ts:35-46 envía p_proveedor_id, p_orden_id, p_monto_subtotal, p_monto_iva, p_moneda, p_tipo_cambio, p_fecha_vencimiento, p_notas, p_actor_id, p_correlation_id; actualizar-compra.ts:29-41 envía p_compra_id, p_actualizado_en_esperado, p_proveedor_id, p_orden_id, p_monto_subtotal, p_monto_iva, p_moneda, p_tipo_cambio, p_fecha_vencimiento, p_notas, p_actor_id.
+    - **pgTAP:** Se rompe sii_b8_compras.test.sql si llama a las RPC por firma de 10 argumentos (hay que re-ejecutar y ajustar los casos).
+    - **riesgo:** Sin DROP de la firma vieja queda un overload ambiguo en PostgREST. Regenerar tipos en UTF-8.
+  -
+    - **id:** F09
+    - **requiereMigracion:** true
+    - **motivo:** La regla directo/indirecto por orden_id ya existe (a03:384-404, sin prorrateo). Lo que falta es calcular los gastos directos sin IVA y corregir el texto 'las compras no entran a la rentabilidad' (src/app/(privado)/compras/page.tsx:33, panel-compra.tsx:68, COMMENT en compras_base:48). Los textos son código; el COMMENT va en la migración 2.
+    - **nombreSugerido:** 20261014150000_f11_rentabilidad_gastos_sin_iva.sql
+    - **objetos:**
+      - public.obtener_rentabilidad_orden(uuid)
+      - public.obtener_desglose_rentabilidad_orden(uuid)
+    - **dependeDe:** a03 y a15
+    - **compatibilidadHistorica:** Los costos históricos bajan y el margen sube en órdenes con gastos con IVA; avisar al PO.
+    - **pgTAP:** Ver F11.
+    - **riesgo:** Categorías configurables nuevas caerían en 'gastos directos' (mapeo de presentación).
+  -
+    - **id:** F10
+    - **requiereMigracion:** true
+    - **motivo:** Material (consumo), mano de obra (horas reales x tarifa copiada a la sesión, a03:375-382) y gasto directo ya existen; la compra se incorpora con la función nueva. El ajuste manual autorizado no existe: se difiere (no entra en el MVP mínimo; si el PO lo pide, es una cuarta migración con permiso nuevo o rol admin).
+    - **nombreSugerido:** 20261014150100_f03_conciliacion_costos_orden.sql
+    - **objetos:**
+      - public.obtener_conciliacion_costos_orden (columna fuente)
+    - **dependeDe:** a03, 20261010130000, 20261007190001
+    - **compatibilidadHistorica:** Sin cambios de datos.
+    - **pgTAP:** Caso de fuente por fila en el archivo nuevo.
+    - **riesgo:** El ajuste manual con importes negativos tocaría los CHECK de gastos; por eso se aplaza.
+  -
+    - **id:** F11
+    - **requiereMigracion:** true
+    - **motivo:** Defecto confirmado leyendo el cuerpo: a03:388 suma gasto.monto_total x TC (con IVA) mientras la venta usa monto_subtotal (a03:340-341). gastos ya tiene monto_subtotal (fase_9_gastos_base:55-57). Mismo defecto en a15:122,141 y en el dashboard vigente (20261007120004:121,128,148,151,199,398, que ya no es a04).
+    - **nombreSugerido:** 20261014150000_f11_rentabilidad_gastos_sin_iva.sql
+    - **objetos:**
+      - public.obtener_rentabilidad_orden(uuid) (última definición: 20260922000003:279-445)
+      - public.obtener_desglose_rentabilidad_orden(uuid) (última: 20260923170507:4-156)
+      - privado.metricas_ejecutivas_rango(timestamptz,timestamptz,timestamptz) (última: 20261007120004:27)
+      - privado.costo_ti_rango(timestamptz,timestamptz) (última: 20261007120004:364)
+    - **dependeDe:** 20260922000003, 20260923170507, 20261007120004. public.obtener_metricas_dashboard_ejecutivo (a04:229) sigue llamando a la privada; no se redefine.
+    - **compatibilidadHistorica:** Misma firma y mismo RETURNS TABLE, así que CREATE OR REPLACE basta (a03 hizo DROP porque cambió el retorno, aquí no). Hay que conservar REVOKE/GRANT service_role tras el replace. Gastos antiguos sin monto_subtotal: la columna es NOT NULL en la tabla (fase_9_gastos_base:55, el análisis previo); verificar antes si hay gastos con subtotal 0 y total >0.
+    - **pgTAP:** a03_a04_ingreso_neto.test.sql inserta el gasto GTO-990301 con subtotal 500, IVA 0 y total 500 (líneas 124-127), así que sus aserciones (utilidad 500, margen 50) siguen verdes. Revisar el segundo gasto de la línea 219. Revisar también a15_estimado_por_tarifa.test.sql y sii_b9_kpis.test.sql si siembran gastos con IVA. Casos nuevos RED: gasto 5000 + IVA 800 = 5800 cuenta 5000 en rentabilidad, desglose y dashboard.
+    - **riesgo:** Cambia cifras ya vistas por el cliente. TS: rentabilidad-servicio.ts debe pasar a gasto.montoSubtotal en el mismo PR o la tarjeta y la RPC discrepan; hoy además TS excluye gastos MXN con TC distinto de 1 y SQL no.
+  -
+    - **id:** F12
+    - **requiereMigracion:** false
+    - **motivo:** La nota pide no asumir 1:1 en la arquitectura, no construir ya la agrupación. emitir_factura vigente (20261007230002:160-172) lanza cuenta_ya_facturada si la CxC apunta a otra factura; hoy una orden admite una factura emitida. Para el MVP se documenta la limitación. Si el PO exige varias facturas por CxC, hace falta una migración propia (facturas.cuenta_id, relajar ux_cuentas_factura y redefinir emitir_factura completa desde 230002).
+    - **nombreSugerido:** (diferida) 20261014160000_facturacion_varias_por_cuenta.sql
+    - **objetos:**
+      - public.emitir_factura (última: 20261007230002)
+      - public.cancelar_factura (20261007170001:371-400)
+      - ux_cuentas_factura
+    - **dependeDe:** 20261007230002
+    - **compatibilidadHistorica:** Backfill de facturas.cuenta_id por orden_id; registrar_factura_ar (20260925000100:56) escribe folio sin crear factura y debe convivir.
+    - **pgTAP:** sii_b8_facturacion.test.sql y a20_factura_ar_existente.test.sql se romperían si se cambia el vínculo.
+    - **riesgo:** Cobranza asume una factura por CxC (folio_factura_remision denormalizado).
+  -
+    - **id:** F13
+    - **requiereMigracion:** false
+    - **motivo:** cancelar_factura (20261007170001:371-400) ya pone factura_id y folio en NULL en la CxC y marca CANCELADA sin borrar la fila. No valida pagos aplicados; es una decisión del PO, no un fallo de la nota.
+    - **objetos:**
+      - public.cancelar_factura
+    - **pgTAP:** sii_b8_facturacion.test.sql ya la cubre (citado, no releído).
+    - **riesgo:** Cancelar con cobros deja pagos contra una CxC sin factura.
+  -
+    - **id:** F14
+    - **requiereMigracion:** false
+    - **motivo:** Aging, saldo, historial y promesas ya existen. El flujo por cuenta en /cobranza se mueve a Tesorería solo con TS, y se reubica antes de retirar. Nada de esquema.
+    - **pgTAP:** Ninguno afectado.
+    - **riesgo:** Retirar el flujo sin reubicarlo elimina una vista en uso.
+  -
+    - **id:** F15
+    - **requiereMigracion:** false
+    - **motivo:** Los guardarraíles se cumplen: no hay prorrateo en las RPC (a03:384-404). Se añaden pgTAP RED, sin cambios de esquema.
+    - **pgTAP:** Nuevo caso: un gasto sin orden no cambia el costo de ninguna orden.
+    - **riesgo:** Sin la prueba, un cambio futuro podría repartir indirectos.
+  -
+    - **id:** F16
+    - **requiereMigracion:** false
+    - **motivo:** El defecto de cobros reversados se corrige en TS: leer reversos_pago_ar en obtener-tesoreria.ts y flujo-cuentas-servicio.ts. Sin RPC nueva. Antes de implementar hay que verificar la política RLS de reversos_pago_ar (no encontrada ni leída por mí); como esos servicios usan service_role, el riesgo es bajo.
+    - **objetos:**
+      - reversos_pago_ar (lectura)
+    - **dependeDe:** 20261007230005
+    - **pgTAP:** sii_b8_tesoreria.test.sql no cubre reversos; añadir caso unitario TS.
+    - **riesgo:** Saldos inflados mientras no se corrija.
+  -
+    - **id:** F17
+    - **requiereMigracion:** false
+    - **motivo:** Las transferencias solo mueven saldo entre cuentas y la conciliación_obtener neto no las cuenta como ingreso o gasto (obtener-tesoreria.ts, según el análisis previo). Cumple.
+    - **pgTAP:** Ya cubierto en sii_b8_tesoreria.test.sql.
+    - **riesgo:** Si se añade un total de ingresos o egresos, hay que filtrar las transferencias.
+  -
+    - **id:** F18
+    - **requiereMigracion:** false
+    - **motivo:** Tesorería no alimenta rentabilidad y la función nueva de F01 no la consulta. Cumple; se mantiene por diseño: la función nueva lee gastos, compras, consumo y sesiones, no pagos_compra ni movimientos_tesoreria.
+    - **pgTAP:** Caso RED: pagos y transferencias no cambian obtener_conciliacion_costos_orden.
+    - **riesgo:** No usar pagos_compra (con IVA) como fuente de costo real.
+  -
+    - **id:** F19
+    - **requiereMigracion:** false
+    - **motivo:** Coordinación documental. Las marcas de migración opcionales de Planeación (20261014120000, 20261014130000) y Órdenes (20261014120000) ya chocan entre sí; Finanzas usa 20261014150000+ y debe recomprobar con Glob. La vista de costos debe reutilizar el gate ver_finanzas y no filtrar costos en la ficha sin ese permiso.
+    - **dependeDe:** C8.3 y C9.3 para horas reales; no bloquea las migraciones.
+    - **riesgo:** Dos tandas editando ficha-orden-servicio.ts.
+  -
+    - **id:** F20
+    - **requiereMigracion:** false
+    - **motivo:** Registro documental y E2E de aceptación; sin esquema.
+    - **dependeDe:** Migraciones 1 y 2 aplicadas.
+    - **riesgo:** Marcar criterios sin prueba.
+- **rpcsAfectadas:**
+  -
+    - **nombre:** public.obtener_rentabilidad_orden
+    - **ultimaDefinicion:** supabase/migrations/20260922000003_a03_ingreso_neto_sin_iva.sql:277-445 (DROP + CREATE; antes obs29 y d04)
+    - **cambio:** Migración 1: CREATE OR REPLACE con la misma firma y retorno; solo cambia a03:388 (monto_total -> monto_subtotal). Conservar REVOKE FROM PUBLIC, anon, authenticated y GRANT a service_role, SECURITY DEFINER, STABLE, search_path vacío.
+    - **llamadores:**
+      - src/modulos/gastos/servicios/gastos-servicio.ts:171 -> rpc('obtener_rentabilidad_orden', { p_orden_id: ordenId })
+    - **pgTAPQueSeRompe:**
+      - supabase/tests/a03_a04_ingreso_neto.test.sql: el gasto de las líneas 124-127 tiene subtotal 500 y total 500, no se rompe; revisar el de la línea 219
+      - tests/unitarias/gastos-rentabilidad.test.ts (espejo TS, pasa a montoSubtotal)
+    - **firma:** obtener_rentabilidad_orden(p_orden_id uuid) RETURNS TABLE(orden_id, monto_venta_mxn, monto_venta_facturado_mxn, monto_iva_mxn, venta_desglose_conocido, cuentas_sin_desglose, costo_materiales_mxn, costo_mano_obra_mxn, costo_gastos_directos_mxn, costo_total_mxn, utilidad_bruta_mxn, margen_porcentaje, margen_calculable, materiales_considerados, sesiones_consideradas, sesiones_sin_tarifa, gastos_considerados, gastos_excluidos, gastos_incluidos_en_rubros)
+  -
+    - **nombre:** public.obtener_desglose_rentabilidad_orden
+    - **ultimaDefinicion:** supabase/migrations/20260923170507_a15_distribuir_estimado_por_tarifa.sql:4-156 (CREATE OR REPLACE)
+    - **cambio:** Migración 1: sustituir monto_total por monto_subtotal en a15:122 y 141. Copiar el cuerpo completo de a15 (no el de obs29).
+    - **llamadores:**
+      - src/modulos/gastos/servicios/gastos-servicio.ts:250 -> rpc('obtener_desglose_rentabilidad_orden', { p_orden_id })
+    - **pgTAPQueSeRompe:**
+      - supabase/tests/a15_estimado_por_tarifa.test.sql: no verificado; solo se rompe si siembra gastos con IVA y asevera el total
+      - tests/unitarias/gastos-desglose.test.ts
+    - **firma:** obtener_desglose_rentabilidad_orden(p_orden_id uuid) RETURNS TABLE(rubro text, concepto text, referencia text, horas_estimadas numeric, horas_reales numeric, tarifa_hora numeric, importe numeric, nota text)
+  -
+    - **nombre:** privado.metricas_ejecutivas_rango
+    - **ultimaDefinicion:** supabase/migrations/20261007120004_sii_b5_consumidores_estado.sql:27 (REVOKE ALL en la 210); antes a04:39 y b3_rfq_consumidores:69
+    - **cambio:** Migración 1: monto_total -> monto_subtotal en la suma de gastos (líneas 121,128,148,151,199). Copiar el cuerpo completo vigente de 120004. Sigue siendo privada y la llama public.obtener_metricas_dashboard_ejecutivo (a04:229).
+    - **llamadores:**
+      - public.obtener_metricas_dashboard_ejecutivo(timestamptz,timestamptz) (SQL)
+      - src/modulos/dashboard/servicios/dashboard-servicio.ts (indirecto, parámetros no verificados)
+    - **pgTAPQueSeRompe:**
+      - supabase/tests/sii_b9_kpis.test.sql: solo si asevera costos con gastos con IVA (no verificado)
+      - tests/unitarias/dashboard-mappers.test.ts
+  -
+    - **nombre:** privado.costo_ti_rango
+    - **ultimaDefinicion:** supabase/migrations/20261007120004_sii_b5_consumidores_estado.sql:364 (REVOKE ALL en la 419); antes obs29:295
+    - **cambio:** Migración 1: monto_total -> monto_subtotal en la línea 398 (y las equivalentes de obs29 ya reemplazadas por esta definición).
+    - **llamadores:**
+      - privado.metricas_ejecutivas_rango y el desglose TI (SQL)
+    - **pgTAPQueSeRompe:**
+      - supabase/tests/obs29* si existe y asevera costo TI con IVA (no verificado)
+    - **firma:** privado.costo_ti_rango(timestamptz, timestamptz)
+  -
+    - **nombre:** public.obtener_conciliacion_costos_orden
+    - **ultimaDefinicion:** No existe; nueva en 20261014150100_f03_conciliacion_costos_orden.sql
+    - **cambio:** Función nueva de solo lectura, SECURITY DEFINER, STABLE, search_path vacío, GRANT solo service_role. Lee propuesta_revision_costos por ordenes_produccion.propuesta_revision_id, compras por orden_id, consumo, sesiones y gastos. Devuelve por concepto: estimado, comprometido, real, variación absoluta y %, venta_base y márgenes, y fuente.
+    - **llamadores:**
+      - Nuevo: src/modulos/gastos/servicios/gastos-servicio.ts con rpc('obtener_conciliacion_costos_orden', { p_orden_id: ordenId }); acción src/modulos/gastos/acciones/obtener-conciliacion-costos.ts
+    - **firma:** obtener_conciliacion_costos_orden(p_orden_id uuid) RETURNS TABLE(...)
+  -
+    - **nombre:** public.crear_compra y public.actualizar_compra_borrador (solo migración 3 opcional)
+    - **ultimaDefinicion:** supabase/migrations/20261007190002_sii_b8_compras_motores.sql:145-155 y 228-236
+    - **cambio:** Opcional (F08): DROP de la firma vieja y CREATE con parámetros nuevos (rubro_costo, concepto, cantidad, unidad, costo_unitario) DEFAULT NULL.
+    - **llamadores:**
+      - src/modulos/compras/acciones/crear-compra.ts:35-46
+      - src/modulos/compras/acciones/actualizar-compra.ts:29-41
+    - **pgTAPQueSeRompe:**
+      - supabase/tests/sii_b8_compras.test.sql (llamadas por firma)
+      - tests/unitarias/compras-esquemas.test.ts
+      - tests/e2e/compras-flujo.spec.ts
+    - **firma:** crear_compra(p_proveedor_id uuid, p_orden_id uuid, p_monto_subtotal numeric, p_monto_iva numeric, p_moneda text, p_tipo_cambio numeric, p_fecha_vencimiento date, p_notas text, p_actor_id uuid, p_correlation_id uuid DEFAULT NULL)
+- **permisosRlsPrivilegios:**
+  - Toda función nueva o redefinida: SECURITY DEFINER SET search_path = '', REVOKE ALL FROM PUBLIC, anon, authenticated y GRANT EXECUTE solo a service_role. Al hacer CREATE OR REPLACE se mantienen los grants previos, pero conviene repetir REVOKE/GRANT al final del archivo (patrón a03:443-445).
+  - No se crean tablas nuevas, así que no hay RLS nueva. compras y pagos_compra ya tienen RLS activo, política de SELECT y GRANT SELECT a authenticated (compras_base:128-144). La columna rubro_costo hereda esa política.
+  - Permiso para la acción nueva: can(usuario, PERMISOS.ver_finanzas) (el mismo que usa la tarjeta de rentabilidad; el nombre exacto debe verificarse en src/compartido/constantes/indice.ts, no lo releí). La conciliación expone costo estimado y real, y cae bajo la confidencialidad de costos de la Orden (C4.3, 20261010010303).
+  - La acción es de lectura: no requiere registrarLog salvo que el proyecto ya lo haga en obtener-rentabilidad; mantener el patrón de la acción hermana.
+  - Los triggers que llaman a privado.* siguen SECURITY DEFINER con search_path vacío; la migración 1 no crea ningún trigger nuevo.
+  - Lectura de reversos_pago_ar para F16: política RLS no verificada; el servicio usa el cliente admin del servidor, no el de usuario.
+- **hallazgos:**
+  - Los gastos suman monto_total (con IVA) en a03:388, a15:122,141 y en el dashboard vigente 20261007120004:121,128,148,151,199,398. Contradice la regla F11. Se corrige con la migración 1.
+  - El dashboard vigente NO es a04: privado.metricas_ejecutivas_rango y privado.costo_ti_rango fueron redefinidas en 20261007120004; hay que copiar de ahí, no de a04 (el análisis previo citaba a04).
+  - obtener_rentabilidad_orden mantiene el RETURNS TABLE, así que la migración 1 usa CREATE OR REPLACE sin DROP; a03 hizo DROP+CREATE solo porque cambió el retorno (a03:274-277).
+  - compras ya tiene orden_id, estados BORRADOR/CONFIRMADA/RECIBIDA/PAGADA/CANCELADA, monto_subtotal, monto_iva, moneda, tipo_cambio y fecha_vencimiento (compras_base:12-45); faltan concepto, cantidad, unidad y costo_unitario (F08). Los llamadores TS de crear_compra y actualizar_compra_borrador no envían rubro ni material.
+  - El estimado ya está disponible sin congelar en el snapshot: ordenes_produccion.propuesta_revision_id (b5:54) apunta a la revisión y propuesta_revision_costos guarda monto por categoría (material, maquina, mano_obra, gastos_directos, subcontratacion; b4:144-150 y 326-327). El dashboard ya lo usa en sii_b9_kpis:200-210, reutilizable como patrón.
+  - Planeación y Órdenes proponen la marca 20261014120000 (CONTINUIDAD.md de planeacion:18; PLAN-PLANEACION-RESUMEN.md:94-95). Finanzas debe usar marcas posteriores y recomprobarlas con Glob.
+  - Migraciones locales no aplicadas en remoto: 20261014100000_propuesta_item_en_revision_a.sql y 20261014110000_tarifario_unico_estacion_grupo.sql; esta última está modificada en el árbol (git status M). Ninguna toca gastos, compras ni las RPC de rentabilidad (grep de propuesta_revision_costos|obtener_rentabilidad|compras|gastos en 110000: 0 coincidencias). Si el PO aplica las migraciones de Finanzas sin ellas, funcionan, porque solo leen propuesta_revision_costos, cuyo esquema no cambia. Lo único afectado es el valor del estimado: sin el tarifario único el costeo de ruteo conserva las tarifas anteriores. El estimado se verá distinto, no roto.
+  - Si el remoto no tiene aplicadas las migraciones de B8 (20261007190001/190002), la migración 2 falla al referenciar public.compras. El historial remoto está desalineado; el PO debe comprobar con `supabase migration list` antes de aplicar.
+  - Mapeo estimado a real propuesto: Material = categoria 'material' frente a consumo; Fabricación = 'maquina' + 'mano_obra' frente a sesiones; Subcontratación = 'subcontratacion' frente a gastos maquila_externa y compras rubro 'subcontratacion'; Gastos directos = 'gastos_directos' frente al resto de gastos con orden_id sin materia_prima ni nomina.
+  - Preguntas para el PO que cambian la migración 2: (1) real de material = consumo o compra recibida; (2) PAGADA sin RECIBIDA cuenta como real; (3) venta base común = snapshot de la propuesta aceptada o AR; (4) alinear el dashboard a sin IVA; (5) ajuste manual autorizado: diferir.
+  - Limitación del análisis: no leí a15 completo (solo el encabezado; las líneas 122 y 141 son del análisis previo), ni a15_estimado_por_tarifa.test.sql, sii_b8_compras.test.sql, la política RLS de reversos_pago_ar ni src/compartido/constantes/indice.ts. Esas citas quedan sin verificar.
+- **migracionesPendientesRemoto:** Locales posiblemente sin aplicar en remoto: 20261014100000_propuesta_item_en_revision_a.sql (retira la guarda de agregar_item_propuesta) y 20261014110000_tarifario_unico_estacion_grupo.sql (modificada en el árbol de trabajo sin commit). No tocan gastos, compras, rentabilidad ni dashboard, así que las migraciones de Finanzas no dependen de ellas. Si el PO las aplica sin esas dos, funcionan igual; solo el valor del estimado de Fabricación (que proviene del costeo de ruteo del tarifario) puede cambiar cuando se apliquen después. Lo que sí necesitan en remoto: 20260922000003, 20260923170507, 20261007110001, 20261007120001, 20261007120004, 20261007190001 y 20261007190002; el historial remoto está desalineado, así que debe confirmarse con `supabase migration list` antes de aplicar. Tras aplicar a mano: `supabase migration repair --status applied <versión> --linked` para evitar drift.
+
+## Transversal: premortem
+- **riesgos:**
+  -
+    - **escenario:** R1. Redefinir obtener_rentabilidad_orden / obtener_desglose_rentabilidad_orden (cambio a subtotal sin IVA, F11) rompe pgTAP existentes (a03_a04, a15, sii_b9_kpis) y las acciones, que quedan con nombres de parámetros o columnas de retorno distintos. Cambiar el tipo de retorno exige DROP + CREATE (a03 usa CREATE FUNCTION sin OR REPLACE) y se pierden los GRANT a service_role.
+    - **probabilidad:** alta
+    - **impacto:** alto
+    - **requisitos:**
+      - F01
+      - F02
+      - F11
+    - **senalTemprana:** pgTAP a03_a04/a15 rojos tras la migración, o 'function ... not found' / 'permission denied' en la tarjeta de rentabilidad.
+    - **prevencion:** Dejar las RPC existentes con la misma firma y retorno: F11 con CREATE OR REPLACE solo cambiando monto_total por monto_subtotal. Poner la conciliación en una función nueva obtener_conciliacion_costos_orden (SECURITY DEFINER, search_path vacío, REVOKE PUBLIC/anon/authenticated, GRANT service_role). Reescribir los pgTAP de monto_total como RED primero. Añadir una prueba que verifique los nombres reales de los parámetros (lección 2, fila p_actor/p_actor_id). Cada pgTAP de mutaciones debe incluir SET LOCAL ROLE service_role.
+  -
+    - **escenario:** R2. Doble conteo de Material: se suman consumo (registros_consumo_material), compra RECIBIDA y gasto materia_prima. Se 'corrige' agregando una exclusión, luego otra, y los márgenes oscilan entre iteraciones.
+    - **probabilidad:** alta
+    - **impacto:** alto
+    - **requisitos:**
+      - F03
+      - F05
+      - F06
+      - F07
+      - F10
+    - **senalTemprana:** El pgTAP anti doble conteo falla de forma intermitente, o el real de material cambia al marcar una compra como RECIBIDA.
+    - **prevencion:** Decidir con el PO ANTES de codificar una regla única por rubro: la compra es solo comprometido (CONFIRMADA/RECIBIDA), el real de Material sigue siendo el consumo, y el gasto materia_prima ligado a Orden no suma (como hoy en a03 384-404). Documentar la regla en la migración. No crear filas en gastos desde la compra. Antes de escribir código, escribir el pgTAP con los tres orígenes sobre la misma Orden.
+  -
+    - **escenario:** R3. Cambiar gastos a subtotal sube los márgenes históricos y el dashboard (a04, obs29 TI, dashboard_respuesta_gastos) sigue con monto_total: la tarjeta de la Orden y los KPIs discrepan, y el cliente reporta 'cifras que no cuadran'. Se corrige un sitio, aparece otro.
+    - **probabilidad:** alta
+    - **impacto:** medio
+    - **requisitos:**
+      - F04
+      - F11
+      - F20
+    - **senalTemprana:** Mismo gasto con importes distintos en la tarjeta, el dashboard y costo_ti_rango; sii_b9_kpis y dashboard-mappers rojos.
+    - **prevencion:** Un solo grep inicial de monto_total en supabase/migrations y src (a03 L388, a15 L122/141, obs29 L113/253/272/329, a04 L130-208, dashboard_respuesta_gastos L113-132, rentabilidad-servicio.ts:162) y una sola migración que los cubra, incluido el espejo TS. Cada definición vigente se redefine completa partiendo de la última migración que la toca. Avisar al PO del cambio de márgenes.
+  -
+    - **escenario:** R4. Fixtures y E2E rotos por datos compartidos: pruebas con fechas fijas, órdenes o compras residuales, PIN fijos; planeacion-bolsa-acciones falla en la corrida completa por residuales E2E-*/PLA5-*; consultas .in(ids) con cientos de órdenes dan 414 URI too long.
+    - **probabilidad:** alta
+    - **impacto:** medio
+    - **requisitos:**
+      - F19
+      - F20
+    - **senalTemprana:** Pasa aislado y falla en la corrida completa (o al revés); 'URI too long' en el log del servidor; strict mode con varios elementos.
+    - **prevencion:** Fechas relativas a Date.now(); identificar por recurso_id único de la corrida; limpiar residuales E2E de Planeación y Órdenes antes de la corrida completa local; todo .in(ids) nuevo en lotes de 100 (dividirEnLotes de modulos/ordenes/utilidades/lotes.ts); el spec finanzas-conciliacion-orden crea su propio catálogo y no depende de datos sembrados.
+  -
+    - **escenario:** R5. Endurecer invariantes (compras con categoría/orden obligatoria, concepto obligatorio, CHECK sobre cantidad/costo) rompe fixtures de compras, tesorería y c6_1_materiales_costos que insertan estados imposibles por la UI.
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - F06
+      - F08
+    - **senalTemprana:** Fallan pgTAP ajenos (sii_b8_compras, sii_b8_tesoreria, c6_1) tras la migración de Compras.
+    - **prevencion:** Columnas nuevas de compras nullable y sin NOT NULL; validar la obligatoriedad solo en el esquema Zod del flujo nuevo (esquemas-compras.ts) y acotarla a compras con ordenId. Correr antes los pgTAP consumidores. No cambiar la firma de crear_compra sin buscar todos sus llamadores y regenerar los tipos.
+  -
+    - **escenario:** R6. Migraciones: colisión de timestamp con 20261014120000 (reservado) o con la 20261014110000 modificada localmente; el PO las aplica fuera de orden o la de F11 depende de objetos de la de F01 que aún no existen en remoto, y las Server Actions llaman a RPC inexistentes en producción.
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - F01
+      - F11
+      - F19
+    - **senalTemprana:** En producción 'function ... not found' tras el despliegue; migration list con diferencias; Glob muestra timestamps repetidos.
+    - **prevencion:** Glob de supabase/migrations para tomar una marca libre posterior a la última; un archivo por tanda con orden documentado en el PR; ninguna migración vacía. No tocar la 20261014110000 sin encargo. El PR lista las migraciones y su orden de aplicación. Tras la aplicación del PO, verificar por huella de esquema y reparar con migration repair; nunca db push.
+  -
+    - **escenario:** R7. Conflicto de edición con Órdenes (C8) y Planeación (C9) en ficha-orden-servicio.ts / ficha-orden.tsx, en la lista blanca del snapshot y en la fórmula de horas reales; se filtran costos a roles sin ver_finanzas.
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - F19
+      - F10
+    - **senalTemprana:** Conflictos de rebase en ficha-orden*; ordenes-confidencialidad-c4-3 rojo; dos cálculos distintos de horas reales.
+    - **prevencion:** La vista vive en la tarjeta de Gastos (can ver_finanzas) y no se toca la ficha de Orden en esta tanda; no se copian costos al snapshot_json. Ramas nuevas desde origin/main actualizado, después de C8.3 y C9.3. Reutilizar la fuente de horas existente (sesiones_trabajo.horas_netas); nada de un segundo cálculo.
+  -
+    - **escenario:** R8. Tesorería/Cobranza: se retira el 'Flujo por cuenta' de /cobranza sin reubicarlo, o se arregla el saldo por reversos (reversos_pago_ar) con una RLS que Tesorería no puede leer; los saldos de ambas pantallas no cuadran.
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - F14
+      - F16
+      - F17
+      - F18
+    - **senalTemprana:** E2E cobranza-flujo/tesoreria-flujo rojos; el saldo no cambia tras reversar un cobro.
+    - **prevencion:** Reubicar antes de retirar: primero Tesorería recibe la vista, luego se quita de Cobranza. Revisar la política de reversos_pago_ar antes de filtrar. Aplicar el mismo filtro en obtener-tesoreria.ts y flujo-cuentas-servicio.ts. No añadir totales de ingreso/egreso sin excluir transferencias.
+  -
+    - **escenario:** R9. Facturación múltiple por CxC (F12) relaja ux_cuentas_factura, rompe emitir_factura (vigente 20261007230002), registrar_factura_ar (a20) y la tabla de Cobranza; alcance que se infla para un MVP que solo pide no asumir 1:1.
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - F12
+      - F13
+      - F14
+    - **senalTemprana:** Se discute facturas.cuenta_id y backfill; los pgTAP sii_b8_facturacion y a20 empiezan a fallar.
+    - **prevencion:** Dejar F12 y F13 fuera del código del MVP: cumple el núcleo; documentar la limitación. Si el PO insiste, una tanda propia al final, redefiniendo la emitir_factura de 230002 completa.
+  -
+    - **escenario:** R10. El build o E2E local se lanza con errores de tipos ocultos o variables de producción; los tipos de Supabase regenerados quedan en UTF-16 y ESLint los rechaza como binario; CI vigilado es de otro headSha.
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - F20
+    - **senalTemprana:** 'Failed to type check' sin detalle; login que no redirige en E2E; ESLint 'File appears to be binary'; CI verde de un commit viejo.
+    - **prevencion:** pnpm typecheck antes de cualquier E2E; exportar las variables loopback antes de pnpm build; generar tipos con Out-File -Encoding utf8, nunca '>'; comprobar gh run list --json headSha contra el commit; si el PR ya se fusionó, abrir un PR nuevo desde una rama nueva de origin/main.
+- **patronesDeBucle:**
+  -
+    - **patron:** P1. Bucle de la RPC: migración -> Server Action -> prueba con mock verde -> fallo en producción por parámetro mal nombrado o grant perdido -> parche -> otra migración.
+    - **causa:** Mocks del helper de RPC; DROP+CREATE sin recrear los GRANT; nombres p_actor vs p_actor_id.
+    - **ruptura:** Orden: SQL + pgTAP con SET LOCAL ROLE service_role primero; luego una prueba de integración que ejecute la acción contra la base local; solo después UI. Lista de parámetros reales copiada de la migración. Función nueva en lugar de modificar las RPC vigentes.
+  -
+    - **patron:** P2. Bucle de doble conteo del costo: cada corrección de Material/Subcontratación crea un nuevo escenario de duplicado (consumo, compra, gasto, ajuste).
+    - **causa:** Regla de fuente única no decidida antes de codificar.
+    - **ruptura:** Primero decisión escrita del PO (qué es real por rubro) y el pgTAP de tres fuentes sobre una Orden; luego la función. Sin gasto automático desde compra; comprometido y real en columnas distintas.
+  -
+    - **patron:** P3. Bucle de la base IVA: corregir monto_total -> monto_subtotal en un sitio revela otro (dashboard, TI, espejo TS) y los pgTAP viejos se rompen uno a uno.
+    - **causa:** Muchas definiciones del mismo cálculo repartidas en 6 migraciones y TS.
+    - **ruptura:** Un inventario por grep antes de empezar y una sola migración F11 (OR REPLACE, misma firma) con los pgTAP RED reescritos en el mismo commit; el dashboard como paso explícito de la misma tanda o decisión del PO de diferirlo, documentada.
+  -
+    - **patron:** P4. Bucle de CI y datos residuales: pasa local, falla en CI (o al revés); se reintenta a ciegas; el siguiente job fallido aparece 15 minutos después.
+    - **causa:** Datos E2E compartidos, fechas fijas, .in grande, build sin loopback, tipos no verificados.
+    - **ruptura:** typecheck -> pruebas focales -> limpiar residuales -> E2E; ante CI rojo, leer --log-failed de todos los jobs y clasificar (infra / aislamiento / defecto) antes de tocar nada; confirmar el headSha.
+  -
+    - **patron:** P5. Bucle de alcance: la conciliación arrastra Facturación múltiple, ajuste manual autorizado, costo estándar, integración DC-13 y mover vistas, y cada pieza reabre pruebas ajenas y choca con C8/C9.
+    - **causa:** Intentar cubrir los 20 requisitos de un tirón en vez de ajustar lo mínimo.
+    - **ruptura:** Orden de 4 tandas: T1 F11 gastos sin IVA + textos de Compras (migración corta, pgTAP RED); T2 función obtener_conciliacion_costos_orden + tabla Estimado/Comprometido/Real/Variación y márgenes sobre una venta base (F01-F06, F10 parcial); T3 datos mínimos de Compras nullable (F08) y fuente por renglón (F07); T4 Tesorería: filtro de reversos, reubicar flujo, pruebas de aceptación F20. Diferir: F12/F13 en código, ajuste manual, DC-13 automático, líneas de compra por material.
+- **reglasDuras:**
+  - Rama nueva desde origin/main actualizado para cada tanda; si el PO ya fusionó, abrir un PR nuevo. No mergear.
+  - Leer docs/CUELLOS-DE-BOTELLA.md y el contrato de C8/C9 antes de editar; no tocar la 20261014110000 sin encargo.
+  - pnpm typecheck antes de cualquier E2E (el build oculta los errores de tipos).
+  - Exportar NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY locales (loopback) antes de pnpm build para E2E.
+  - Toda RPC llamada desde una Server Action lleva una prueba con los nombres reales de sus parámetros (copiados de la migración), no solo un mock.
+  - Funciones y triggers nuevos: SECURITY DEFINER, search_path vacío, REVOKE PUBLIC/anon/authenticated y GRANT service_role; los pgTAP de mutaciones incluyen SET LOCAL ROLE service_role.
+  - Si cambia el retorno de una función, DROP + CREATE y recrear los GRANT; si no cambia, CREATE OR REPLACE con la misma firma. La definición vigente es la de la migración más reciente que la redefine.
+  - Fixtures y E2E sin fechas fijas, sin PIN fijos y sin depender de catálogos sembrados ni de datos residuales; localizar por recurso_id único; limpiar residuales E2E de Planeación y Órdenes antes de la corrida completa local.
+  - Todo .in(ids) de lectura en lotes de 100 con dividirEnLotes.
+  - Reubicar antes de retirar (flujo por cuenta de Cobranza a Tesorería).
+  - No endurecer invariantes sin migrar fixtures: columnas nuevas nullable, obligatoriedad solo en Zod del flujo nuevo; correr antes los pgTAP consumidores.
+  - Tipos de Supabase regenerados en UTF-8 (Out-File -Encoding utf8), nunca '>' de PowerShell.
+  - Migraciones: marca libre posterior a la última (Glob), sin archivos vacíos, aplicadas por el PO en orden; verificar por huella y migration repair, nunca db push sin reconciliar.
+  - CI: confirmar que la corrida corresponde al headSha; ante rojo leer --log-failed de todos los jobs antes de corregir.
+  - Pruebas focales por cambio y suite completa solo al cierre del bloque; commit antes del 80 % de uso y checkpoint en HANDOFF al 90 %.
+  - Guardarraíles de alcance: sin overhead, kardex, MRP, costeo por recurso ni conciliación automática; la rentabilidad siempre sin IVA; los indirectos no se asignan; el costo de Orden no se copia al snapshot_json.
+  - Permisos: la nueva acción usa can(ver_finanzas) (sin permiso nuevo); Zod con safeParse, registrarLog sin romper la acción, errores genéricos al usuario.
+- **checklistPorTanda:**
+  -
+    - **tanda:** T1 - Rentabilidad sin IVA (F11, F09 textos, guardarraíl F15)
+    - **antes:**
+      - Grep de monto_total en supabase/migrations y src; listar todas las definiciones vigentes.
+      - Escribir primero los pgTAP RED: gasto 5000+800 suma 5000; gasto sin orden no cambia ninguna Orden.
+      - Obtener marca de migración libre con Glob.
+    - **durante:**
+      - CREATE OR REPLACE con la misma firma de obtener_rentabilidad_orden y obtener_desglose_rentabilidad_orden usando monto_subtotal; alinear rentabilidad-servicio.ts (montoSubtotal en el tipo Gasto y en el mapeo).
+      - Corregir textos de compras/page.tsx y panel-compra.tsx y el COMMENT de compras.
+      - Decidir con el PO si el dashboard y costo_ti_rango entran en la misma tanda; no dejarlo a medias sin documentarlo.
+    - **antesDelPR:**
+      - typecheck + pruebas focales (gastos-rentabilidad, gastos-desglose, a03_a04, a15).
+      - CI del headSha; migración listada con su orden de aplicación para el PO.
+  -
+    - **tanda:** T2 - Conciliación por Orden (F01-F06, F10 parcial, F19)
+    - **antes:**
+      - Rama nueva desde origin/main; confirmar C8.3 y C9.3 integrados.
+      - Respuestas del PO sobre la fuente única de Material, comprometido=CONFIRMADA/RECIBIDA y la venta base común.
+    - **durante:**
+      - Migración con una función nueva obtener_conciliacion_costos_orden (SECURITY DEFINER, search_path vacío, solo service_role); el estimado se lee de propuesta_revision_costos de la revisión de la Orden; Orden sin revisión muestra 'sin estimado'.
+      - Acción obtener-conciliacion-costos.ts con Zod (uuid), can(ver_finanzas); componente tabla-conciliacion-costos.tsx dentro de la tarjeta; variación como función pura; porcentaje null si el estimado es 0.
+      - Regenerar tipos en UTF-8.
+    - **antesDelPR:**
+      - pgTAP: tres niveles, BORRADOR/CANCELADA no cuentan, anti doble conteo, grants; prueba de parámetros reales; unitaria del ejemplo 7800/8400 y 61 %/58 %.
+      - typecheck antes del E2E; fixtures sin fechas fijas ni residuales.
+  -
+    - **tanda:** T3 - Compras y fuente (F07, F08)
+    - **antes:**
+      - Revisar los pgTAP consumidores (sii_b8_compras, c6_1_materiales_costos, tesoreria).
+      - Confirmar con el PO si la integración DC-13 se difiere.
+    - **durante:**
+      - Columnas nullable (concepto, cantidad, unidad, costo_unitario, material_id) y Zod con obligatoriedad solo con ordenId; subtotal calculado cuando hay cantidad y costo.
+      - Buscar todos los llamadores antes de cambiar la firma de crear_compra/actualizar_compra_borrador.
+      - Columna 'fuente' en el desglose; compra_id en gastos solo si el PO lo exige.
+    - **antesDelPR:**
+      - pgTAP de compras antiguas válidas y de no duplicar.
+      - Tipos Supabase en UTF-8; lotes de 100 en cualquier .in nuevo.
+  -
+    - **tanda:** T4 - Tesorería, Cobranza y aceptación (F14, F16-F18, F20)
+    - **antes:**
+      - Revisar la política RLS de reversos_pago_ar.
+      - Limpiar residuales E2E antes de la corrida completa.
+    - **durante:**
+      - Filtro de pagos reversados en obtener-tesoreria.ts y flujo-cuentas-servicio.ts.
+      - Si se mueve el flujo por cuenta: primero se añade a Tesorería, luego se retira de /cobranza.
+      - F12/F13: sin cambio de código salvo decisión explícita del PO; documentar.
+    - **antesDelPR:**
+      - Spec E2E finanzas-conciliacion-orden con la respuesta 'pensábamos X, comprometimos Y, gastamos Z, margen A/B'; tabla criterio->prueba sin casillas sin evidencia.
+      - Registro de Refinamientos en DECISIONES-ACEPTADAS.md y tasks; CI del headSha; el PO fusiona.
+
+## Transversal: coherencia
+- **conflictos:**
+  -
+    - **superficie:** Ficha de Orden (ficha-orden.tsx y ficha-orden-servicio.ts): ubicación de la vista de costos/rentabilidad y gate ver_finanzas
+    - **riesgo:** alto
+    - **archivos:**
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts (incluirFinanzas, línea 43/55)
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - src/modulos/gastos/componentes/tarjeta-rentabilidad-orden.tsx
+      - src/modulos/ordenes/acciones/obtener-documento-orden.ts:22
+    - **tandasEsteModulo:**
+      - C10.1 (vista Costos/Rentabilidad)
+    - **tandasOtroModulo:**
+      - C8.1 (extracción mecánica de paneles de ficha-orden.tsx)
+      - C8.2
+      - C8.3 (proyección por lista blanca)
+      - C8.4
+    - **regla:** Decisión: la vista de costos vive SOLO en Gastos y rentabilidad (tarjeta-rentabilidad-orden.tsx con selector de Orden), que ya existe y está tras ver_finanzas. La ficha de Orden NO añade bloque de costos (el plan de Órdenes la deja sin economía para roles sin ver_finanzas y edita ficha-orden.tsx en las 4 tandas). Como máximo, un enlace desde la ficha (gateado con ver_finanzas) hacia /gastos?orden=<id>, añadido después de C8.4. La acción de conciliación vive en src/modulos/gastos/acciones con can(ver_finanzas); nunca pasa por ficha-orden-servicio.ts ni por snapshot_json.
+    - **quienPrimero:** Órdenes (C8.1-C8.4) terminan antes de cualquier enlace desde la ficha. C10.1 no necesita tocar ficha en su alcance mínimo.
+  -
+    - **superficie:** snapshot_json de la Orden y estimado congelado
+    - **riesgo:** alto
+    - **archivos:**
+      - supabase/migrations/20261007120001_sii_b5_orden_base.sql:536-565 (snapshot sin costos)
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts:55-63,151-178
+      - propuesta_revision_costos y propuesta_item_ruteo (triggers de congelado en 20261007110001_sii_b4_propuestas_base.sql:426-508)
+    - **tandasEsteModulo:**
+      - C10.1/C10.2 (RPC obtener_conciliacion_costos_orden)
+    - **tandasOtroModulo:**
+      - C8.2 (origen {rfqId, propuestaId, revisionLetra} extraído del snapshot)
+      - C8.3 (proyección de ruta y hoja de trabajo desde snapshot)
+    - **regla:** Una sola fuente del estimado: la revisión aceptada (orden.propuesta_revision_id) leída por la RPC de Finanzas en SQL service_role; NO se copia costo al snapshot_json. Así C8 conserva su lista blanca (sin precios, sin costos) y C10 no obliga a cambiar el snapshot. Órdenes sin propuesta_revision_id (internas/heredadas) muestran 'sin estimado', no 0. Planeación no consume costos.
+    - **quienPrimero:** C8.2/C8.3 definen la proyección; C10 solo la reutiliza para el ID de revisión, sin ampliarla.
+  -
+    - **superficie:** Horas reales de producción (Fabricación real) vs Planeación C9.3 (estimado vs real por programación)
+    - **riesgo:** medio
+    - **archivos:**
+      - supabase/migrations/20260922000003_a03_ingreso_neto_sin_iva.sql:365-382 (mano de obra desde sesiones_trabajo × costo_hora_interno)
+      - src/modulos/produccion/servicios/sesiones-servicio.ts
+      - src/modulos/planeacion (servicio de detalle de C9.3: suma horas_netas por programacion_id)
+      - src/modulos/gastos/servicios/rentabilidad-servicio.ts
+    - **tandasEsteModulo:**
+      - C10.1 (Fabricación real)
+    - **tandasOtroModulo:**
+      - C9.3 (P13/P14)
+    - **regla:** Fabricación real = sesiones_trabajo en estado pausada/finalizada, horas_netas × costo_hora_interno congelado en la sesión (definición A03). C9.3 muestra horas (no importes) con la misma suma de horas_netas; no define costo. Misma tabla y mismo filtro de estados, dos consumidores (horas en C9.3, importe en C10). Sin segunda fórmula ni persistir 'horas reales' en otra tabla. Planeación nunca muestra costo_hora_interno.
+    - **quienPrimero:** Independiente; ambos son lectura. Alinear el filtro de estados de sesión en pruebas cuando existan las dos.
+  -
+    - **superficie:** Tarifario único (20261014110000, modificada localmente) y estimado de Fabricación
+    - **riesgo:** medio
+    - **archivos:**
+      - supabase/migrations/20261014110000_tarifario_unico_estacion_grupo.sql (tarifa_fuente GRUPO/RECURSO/ESTACION; estacion_tarifa en grupos_equipo)
+      - supabase/migrations/20261009160000_c3_3_snapshot_costeo_ruteo.sql
+    - **tandasEsteModulo:**
+      - C10.1 (estimado de Fabricación)
+    - **tandasOtroModulo:**
+      - Ninguna tanda C8/C9 (Planeación y Órdenes no tocan tarifas)
+    - **regla:** El estimado de Fabricación se lee del snapshot de costeo ya congelado en propuesta_item_ruteo/propuesta_revision_costos (tarifa copiada), no se recalcula con tarifa_estacion_hora ni grupos_equipo. Así cambios posteriores al tarifario no mueven el estimado. La migración 20261014110000 tiene que estar aplicada por el PO (hoy modificada y solo local) antes de mergear C10.1; Finanzas no la redefine.
+    - **quienPrimero:** PO aplica 20261014100000 y 20261014110000 antes de C10.1.
+  -
+    - **superficie:** Marcas de migración 2026101412xxxx/13xxxx y funciones SQL redefinidas
+    - **riesgo:** alto
+    - **archivos:**
+      - supabase/migrations/20261014120000_eventos_negocio_orden.sql (propuesta Órdenes Fase 2, opcional)
+      - supabase/migrations/20261014120000_planeacion_compatibilidad_recurso_grupo.sql (opcional Planeación)
+      - supabase/migrations/20261014130000_planeacion_capacidad_real_al_cerrar.sql (opcional Planeación)
+      - migraciones nuevas de C10 (conciliación, compras categoría/material, sin IVA)
+    - **tandasEsteModulo:**
+      - C10.1
+      - C10.2
+      - C10.3
+    - **tandasOtroModulo:**
+      - C8.2 Fase 2
+      - C9.2 opcional
+      - C9.3 opcional
+    - **regla:** Dos planes reservan la misma marca 20261014120000 (contradicción real). Regla: ninguna marca se pre-reserva; se asigna al crear el archivo con Glob de supabase/migrations/ y debe ser mayor que la última local (hoy 20261014110000). C10 usa marcas no menores a 20261015000000 y escritas después de que las migraciones de Órdenes/Planeación de su turno estén en main. No hay solape de funciones: Órdenes redefine privado.derivar_orden_* y Planeación programar/reprogramar; Finanzas redefine obtener_rentabilidad_orden, obtener_desglose_rentabilidad_orden (y privado.costo_ti_rango, dashboard a04), compras (crear_compra, actualizar_compra_borrador). CREATE OR REPLACE debe copiar la última definición completa.
+    - **quienPrimero:** Quien llegue primero a main; el siguiente rebasa y renombra.
+  -
+    - **superficie:** Redefinición de RPC de rentabilidad (obtener_rentabilidad_orden A03, obtener_desglose_rentabilidad_orden A15, costo_ti_rango obs29, dashboard a04 / sii_b9)
+    - **riesgo:** alto
+    - **archivos:**
+      - supabase/migrations/20260922000003_a03_ingreso_neto_sin_iva.sql:279-445
+      - supabase/migrations/20260923170507_a15_distribuir_estimado_por_tarifa.sql:4-156
+      - supabase/migrations/20260921000003_obs29_desglose_ti_periodo.sql
+      - supabase/migrations/20260922000004_a04_dashboard_costos_y_venta_neta.sql
+      - supabase/migrations/20261007210001_sii_b9_kpis.sql
+      - supabase/migrations/20260916000001_dashboard_respuesta_gastos.sql
+      - src/modulos/gastos/servicios/rentabilidad-servicio.ts:158-162
+    - **tandasEsteModulo:**
+      - F11 en la primera tanda que toque rentabilidad (C10.2 re-secuenciada)
+      - C10.1
+    - **tandasOtroModulo:**
+      - Ninguna directamente; indirecto: el Dashboard (otra fase) y C8/C9 no leen estas RPC
+    - **regla:** Una sola migración 'sin IVA' (gasto.monto_subtotal) que redefine TODAS las funciones que suman gastos (A03, A15, obs29, a04, kpis) más el espejo TS, en el mismo cambio, para que tarjeta y dashboard no diverjan. La conciliación nueva es una función aparte (no se hace DROP+CREATE sobre las RPC que consumen tipos y pruebas existentes). Compra entra solo en la función nueva y en el desglose, con regla anti doble conteo.
+    - **quienPrimero:** F11 (sin IVA) primero; luego fuentes (compras); luego la función de conciliación.
+  -
+    - **superficie:** Material real: consumo de Producción (registros_consumo_material) vs compra RECIBIDA vs gasto materia_prima (doble conteo)
+    - **riesgo:** alto
+    - **archivos:**
+      - supabase/migrations/20261010130000_c6_2_consumo_sin_stock.sql:96-140,204-216
+      - supabase/migrations/20260922000003_a03_ingreso_neto_sin_iva.sql:365-404 (materia_prima y nomina excluidos)
+      - src/modulos/ordenes/acciones/registrar-consumo.ts
+      - src/modulos/inventario/servicios/materiales-costos-servicio.ts (DC-13/DC-14)
+    - **tandasEsteModulo:**
+      - C10.2 (fuentes del costo real)
+      - C10.1 (fila Material)
+    - **tandasOtroModulo:**
+      - Ninguna C8/C9 (consumo y DC-13 son de Inventario/C6, ya hechos)
+    - **regla:** Contrato 'regla de Material real' única: real de Material = consumo congelado (comportamiento vigente) mientras no se decida otra cosa; comprometido = compras ligadas a Orden CONFIRMADA/RECIBIDA (subtotal × TC); compra RECIBIDA no se suma al consumo. Requiere decisión del PO (ver preguntas) antes de C10.2. Gastos materia_prima/nomina con Orden siguen excluidos. No se crea fila en gastos desde una compra.
+    - **quienPrimero:** Decisión del PO, luego C10.2.
+  -
+    - **superficie:** Textos y tests que fijan la regla 'las compras no entran a la rentabilidad'
+    - **riesgo:** bajo
+    - **archivos:**
+      - src/app/(privado)/compras/page.tsx:33
+      - src/modulos/compras/componentes/panel-compra.tsx (~68)
+      - supabase/migrations/20261007190001_sii_b8_compras_base.sql:7,48 (COMMENT, se corrige con COMMENT ON nuevo en la migración de C10.2)
+      - tests/e2e/compras-flujo.spec.ts
+    - **tandasEsteModulo:**
+      - C10.2
+    - **tandasOtroModulo:**
+      - Ninguna
+    - **regla:** Un solo commit cambia el texto y su aserción. Sin choque con C8/C9: grep en tests/unitarias de ficha-orden, tabla-ordenes y planeacion no encontró referencias a compras/gastos.
+    - **quienPrimero:** C10.2
+  -
+    - **superficie:** Diccionario de eventos (etiquetas-evento.ts) y actividad/auditoría
+    - **riesgo:** medio
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/etiquetas-evento.ts (nuevo en C8.2)
+      - src/modulos/auditoria/utilidades/actividad.ts
+    - **tandasEsteModulo:**
+      - C10.2 (etiquetas de compras/gastos/ajuste si se agregan)
+    - **tandasOtroModulo:**
+      - C8.2 (crea el diccionario)
+      - C9.3 (consume tipos programacion_inicial/reprogramacion_operativa)
+    - **regla:** Eventos financieros (compra, gasto, ajuste) van al registrarLog/actividad de auditoría (actividad.ts), NO a orden_eventos_cambio ni a etiquetas-evento.ts de Órdenes; ese diccionario es solo de eventos de Orden/Planeación. Si el PO pide ver eventos de costo en la Actividad de la Orden, se agregan después de C8.2 como entradas del diccionario, sin tocar la proyección.
+    - **quienPrimero:** C8.2
+  -
+    - **superficie:** Confidencialidad: roles con orden_vista sin ver_finanzas (gerente) y permiso nuevo para ajuste manual
+    - **riesgo:** medio
+    - **archivos:**
+      - supabase/migrations/20261005100001_sii_b1_permisos_catalogo.sql:164,183
+      - src/compartido/constantes/indice.ts (PERMISOS)
+      - src/modulos/ordenes/acciones/obtener-documento-orden.ts:22
+    - **tandasEsteModulo:**
+      - C10.1 (acceso a la vista)
+      - C10.2 (ajuste manual si se aprueba)
+    - **tandasOtroModulo:**
+      - C8.3 (hoja de trabajo sin precios), D5 de Órdenes
+    - **regla:** ver_finanzas gobierna RLS de cobranza/gastos/compras/tesorería y NO se siembra a nuevos roles por C8 (decisión D5=A). Costos estimados/reales exigen ver_finanzas (gate en la acción de Gastos); ninguna proyección de Órdenes los incluye. Ajuste manual: reutilizar admin explícito o un permiso nuevo único, decisión del PO, nunca relajar CHECKs globales.
+    - **quienPrimero:** Sin dependencia de orden; D5 se resuelve antes de C8.3 y C10 la respeta.
+  -
+    - **superficie:** Cobranza/Facturación/Tesorería vs cambios de Órdenes y Planeación (entrega, cierre, archivar_orden_al_entregar)
+    - **riesgo:** medio
+    - **archivos:**
+      - supabase/migrations/20261007230002_sii_credito_dias_cliente.sql:52-67,160-172 (trigger archivar_orden_al_entregar, emitir_factura)
+      - supabase/migrations/20261007170001_sii_b8_facturacion.sql
+      - src/modulos/cobranza/servicios/flujo-cuentas-servicio.ts
+      - src/modulos/tesoreria/servicios/obtener-tesoreria.ts
+      - src/modulos/ordenes (T4: calcularSaldoEntrega, cierre administrativo)
+    - **tandasEsteModulo:**
+      - C10.3 (F12/F13/F14)
+      - C10.4 (F16 reversos)
+    - **tandasOtroModulo:**
+      - C8.4 (saldo de entrega, etiqueta de entrega; sin migración)
+    - **regla:** C8.4 no cambia la RPC de cierre ni la CxC; C10.3 no toca estados de Orden ni entregas. La 'varias facturas por CxC' (F12) redefine emitir_factura completa (vigente 20261007230002) y no debe ejecutarse a la vez que cualquier cambio de Órdenes al trigger de entrega. Mínimo recomendado: diferir F12 (documentar limitación) y mover el flujo por cuenta de Cobranza a Tesorería solo después de reubicarlo.
+    - **quienPrimero:** C8.4 antes de F12; F13 sin cambios; F16 (filtro de reversos) independiente.
+  -
+    - **superficie:** Join de procesos / etiquetaProcesos (resumirProcesos)
+    - **riesgo:** bajo
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/procesos.ts (C8.3)
+      - src/modulos/planeacion (etiquetaProcesos)
+    - **tandasEsteModulo:**
+      - Ninguna
+    - **tandasOtroModulo:**
+      - C8.3
+      - C9.4/P19
+    - **regla:** Sin relación con Finanzas. Anotado solo para no crear un tercer formato: C10 no muestra procesos; si una vista de costos por partida los necesita, importa resumirProcesos de Órdenes.
+    - **quienPrimero:** C8.3
+- **contratosCompartidos:**
+  -
+    - **nombre:** CostoEstimadoCongelado
+    - **definicion:** El estimado por categoría (material, máquina, mano de obra, subcontratación, otros) de la Orden es el de propuesta_revision_costos de la revisión indicada por ordenes_produccion.propuesta_revision_id, inmutable por los triggers de revisión congelada. Se lee en SQL por una función service_role. No se copia a snapshot_json ni a ficha-orden-servicio.ts. Sin revisión: 'sin estimado' (null, nunca 0).
+    - **dueno:** Finanzas (C10.1), sobre datos de Propuestas
+    - **consumidores:**
+      - tarjeta-rentabilidad-orden.tsx
+      - Dashboard (margen estimado agregado, debe usar la misma fuente)
+  -
+    - **nombre:** VentaBaseSinIva
+    - **definicion:** Denominador único de los dos márgenes: la venta sin IVA de la Orden en MXN. Se elige una sola base (decisión del PO: snapshot_json.totales.subtotal × TC o monto_subtotal de la AR cobrable) y se devuelve en la función de conciliación; margen estimado y margen real usan el mismo valor y el mismo TC.
+    - **dueno:** Finanzas (C10.1)
+    - **consumidores:**
+      - tarjeta de rentabilidad
+      - Dashboard
+      - pruebas pgTAP a03_a04
+  -
+    - **nombre:** CostoSinIva
+    - **definicion:** Todo costo se computa con subtotal (gasto.monto_subtotal, compra.monto_subtotal) × tipo de cambio; el IVA queda solo en el control administrativo y Tesorería. Aplica a obtener_rentabilidad_orden, obtener_desglose_rentabilidad_orden, costo_ti_rango, a04, sii_b9 y al espejo TS de rentabilidad-servicio.ts. Se cambia en una sola migración y un solo cambio TS.
+    - **dueno:** Finanzas (primera tanda que toque rentabilidad)
+    - **consumidores:**
+      - Gastos
+      - Compras
+      - Dashboard
+      - tests/unitarias/gastos-rentabilidad.test.ts
+      - supabase/tests/a03_a04_ingreso_neto.test.sql
+  -
+    - **nombre:** TresNivelesDeCosto
+    - **definicion:** Estimado (revisión congelada), Comprometido (compras con orden_id en CONFIRMADA/RECIBIDA, subtotal × TC, sin crear Gasto) y Real (consumo de material congelado, sesiones de producción horas_netas × costo_hora_interno, gastos con orden_id sin cancelados ni materia_prima/nomina, más compra recibida si el PO lo decide, nunca ambos para el mismo material). Cada nivel se calcula aparte y ninguno sobrescribe a otro.
+    - **dueno:** Finanzas (C10.2 define fuentes, C10.1 las presenta)
+    - **consumidores:**
+      - tarjeta-rentabilidad-orden.tsx
+      - Compras (estado y categoría)
+      - Producción (consumo)
+  -
+    - **nombre:** HorasRealesProduccion
+    - **definicion:** Suma de horas_netas de sesiones_trabajo en estados pausada/finalizada, por programacion_id (C9.3) o por orden_id (C10). Planeación muestra horas; Finanzas multiplica por costo_hora_interno congelado en la sesión. Una sola tabla de origen y un solo filtro de estados.
+    - **dueno:** Producción (sesiones-servicio.ts)
+    - **consumidores:**
+      - C9.3 detalle de programación
+      - C10.1 Fabricación real
+      - A03/A15
+  -
+    - **nombre:** ProyeccionFichaPorListaBlanca
+    - **definicion:** ficha-orden-servicio.ts lee el snapshot solo en servidor y expone campos tipados por lista blanca (origen, ruta, archivos, hoja de trabajo), sin precios ni costos. Los costos de Finanzas no viajan por esta proyección: se obtienen por una acción de Gastos con can(ver_finanzas).
+    - **dueno:** Órdenes (C8.2-C8.3)
+    - **consumidores:**
+      - ficha de Orden
+      - Documento y hoja de trabajo
+      - Finanzas (solo para leer propuesta_revision_id, no los costos)
+  -
+    - **nombre:** RegistroDeMarcasDeMigracion
+    - **definicion:** Las marcas se asignan al crear cada archivo con Glob (mayor que la última local, hoy 20261014110000) y nunca se pre-reservan en planes. Finanzas arranca en 20261015000000 o superior; Órdenes Fase 2 y Planeación opcionales se renombran si colisionan.
+    - **dueno:** Codex (orquestador) vía COLA-DE-TRABAJO.md
+    - **consumidores:**
+      - C8.2 Fase 2
+      - C9.2 P10 opcional
+      - C9.3 P14 opcional
+      - C10.1-C10.4
+  -
+    - **nombre:** FuenteDeEventosFinancieros
+    - **definicion:** Eventos de Finanzas (compra, gasto, ajuste, factura) van a registrarLog/auditoría (actividad.ts). El diccionario etiquetas-evento.ts de Órdenes cubre únicamente tipos de orden_eventos_cambio (orden_*, programacion_inicial, reprogramacion_operativa, ajuste_operativo).
+    - **dueno:** Órdenes (diccionario) / Auditoría (actividad)
+    - **consumidores:**
+      - C8.2
+      - C9.3
+      - C10.2
+  -
+    - **nombre:** GateVerFinanzas
+    - **definicion:** Cualquier cifra de costo, margen o precio exige can(usuario,'ver_finanzas') en la Server Action; ver_finanzas no se siembra a nuevos roles. La hoja de trabajo de C8.3 y los payloads de Planeación nunca incluyen importes.
+    - **dueno:** Configuración/permisos (src/compartido/constantes/indice.ts)
+    - **consumidores:**
+      - C8.3
+      - C8.4/R16
+      - C9.3
+      - C10.1
+      - C10.2
+- **ordenGlobal:** Orden recomendado de las ocho tandas (cuatro de Órdenes y cuatro de Finanzas), con C9 intercalado según su propio plan: C8.1 -> C8.2 -> C9.1 -> C8.3 -> C9.2 -> C8.4 -> C10.2' (fuentes + F11 sin IVA) -> C10.1 -> C9.3 -> C9.4 -> C10.3 -> C10.4.
+
+Razones:
+1) C8.1 va primero: retira Reactivar y Repetir, poda puedeAdministrar y crea el redirect de ?ordenId. Finanzas no toca nada de eso y no debe empezar antes de que ficha-orden.tsx se estabilice.
+2) C8.2 y C8.3 fijan la proyección por lista blanca y el diccionario de eventos. Finanzas no necesita esa proyección salvo para leer propuesta_revision_id.
+3) C10.2 va antes de C10.1 porque la vista depende de los datos que alimenta: compras con categoría y orden, y la regla de Material. F11 (sin IVA) entra en C10.2, en la primera migración que toque rentabilidad. Si no, C10.1 mostraría cifras que se corregirían después y rompería sus pruebas. Orden dentro de C10.2: (a) migración y TS sin IVA, que redefine A03/A15/obs29/a04/kpis y el espejo TS; (b) compras: categoría, datos mínimos y textos; (c) fuentes en la conciliación.
+4) C10.1 después de C10.2: función nueva obtener_conciliacion_costos_orden (estimado, comprometido y real), acción con ver_finanzas y tabla dentro de la tarjeta existente. No hay bloque en la ficha de Orden (ver conflicto 1). Requiere que el PO haya aplicado 20261014100000 y 20261014110000.
+5) C10.1 y C10.2 no comparten archivos con C9 y solo editan Gastos y Compras. Pueden ir en paralelo a C9.1-C9.2 si el PO lo prefiere. Pero el cierre de Órdenes (C8.4) debe estar en main antes de cualquier migración de Finanzas, para evitar colisión de marcas y de rebases.
+6) C9.3 y C9.4 después: C9.3 lee horas con el mismo filtro que Fabricación real (contrato HorasRealesProduccion). C9.4/P20 y C10.4/F20 editan DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md, así que el registro documental se concentra en los PR de cierre: C9.4 primero, C10.4 se rebasa sobre él. Cada uno agrega sus filas con CLI separadas (CLI-15 Órdenes, CLI-16 Planeación, CLI-17 Finanzas).
+7) C10.3 (F12-F15) al final del bloque funcional: es independiente del costo, pero F12 redefine emitir_factura completa y comparte el trigger de entrega con C8.4. Mínimo: dejar F12 como limitación documentada y avanzar solo con F14 (decisión sobre el flujo por cuenta en Cobranza). C10.4 (F16-F20) cierra con el filtro de cobros reversados en Tesorería, que no requiere migración, más la prueba de aceptación E2E.
+
+Primera migración de Finanzas: usar marca >= 20261015000000, con Glob antes de crearla. Si una tanda tiene migración y no se aplica (el PO lo hace), no se arranca la siguiente que dependa de ella.
+- **contradiccionesConElOtroPlan:**
+  - Marca de migración duplicada: el plan de Órdenes reserva 20261014120000_eventos_negocio_orden.sql (Fase 2 opcional) y el de Planeación reserva 20261014120000_planeacion_compatibilidad_recurso_grupo.sql, más 20261014130000 para P14. Finanzas debe usar marcas posteriores y todos deben asignarse al crear el archivo.
+  - Los planes de Órdenes y Planeación afirman 'sin migraciones'/'migración opcional', mientras Finanzas requiere varias migraciones (sin IVA, compras categoría/material, conciliación). No hay conflicto de funciones, pero sí de secuencia de marcas.
+  - El plan de Órdenes dice que la ficha lleva el snapshot solo bajo incluirFinanzas y que no debe tener economía, mientras la hipótesis de C10.1 admite que la vista de costos viva 'dentro de la Orden'. Se resuelve ubicando la vista solo en Gastos (con filtro por Orden).
+  - El plan de Planeación ordena C8.1 -> C8.2 -> C9.1 -> C8.3 -> C9.2 -> C8.4 -> C9.3 -> C9.4 sin considerar C10; en la hipótesis de partida C10.2 iba antes de C10.1, pero ninguno de los dos reservó espacio para Finanzas. Aquí se intercala después de C8.4 y antes de C9.3/C9.4, sin dependencias duras con C9.
+  - Los tres planes proponen registro documental propio (CLI-15, CLI-16, CLI-17) en los mismos archivos: DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md. No se contradicen en contenido, pero exigen rebase secuencial en cada PR de cierre.
+  - No hay una contradicción de datos con la regla 'sin IVA': Órdenes y Planeación no calculan importes. El único texto en conflicto con la nota es 'las compras no entran a la rentabilidad' (compras/page.tsx:33), exclusivo de Finanzas.
+- **pruebasConjuntas:**
+  - Si Finanzas toca ficha-orden-servicio.ts, ejecutar tests/unitarias/ficha-orden-c4-2.test.ts, ordenes-confidencialidad-c4-3.test.ts y la prueba de no-fuga de C8.2 (JSON.stringify(ficha) sin ver_finanzas no contiene costos, importes ni snapshot). No se espera tocarlo.
+  - supabase/tests/a03_a04_ingreso_neto.test.sql, a15_estimado_por_tarifa.test.sql, sii_b9_kpis.test.sql, tests/unitarias/gastos-rentabilidad.test.ts, gastos-desglose.test.ts y dashboard-mappers.test.ts se actualizan en el mismo commit que la migración sin IVA. Pasan de monto_total a subtotal por diseño; no se corrigen en tandas aparte.
+  - tests/e2e/compras-flujo.spec.ts, compras-esquemas.test.ts y sii_b8_compras.test.sql cambian juntos: texto 'no entran a la rentabilidad', categoría, datos mínimos y estados.
+  - Prueba de un solo origen de horas: pgTAP o Vitest que, con una misma sesión, comprueba que la suma de horas_netas usada por C9.3 (detalle de programación) y por Fabricación real (A03/A15) coincide.
+  - Prueba de coherencia del estimado: pgTAP donde el estimado de la conciliación es inmune a una nueva revisión de la propuesta y no cambia al modificar el tarifario (grupos_equipo.estacion_tarifa, tarifa_estacion_hora).
+  - Prueba de no doble conteo de Material: compra RECIBIDA más consumo sobre la misma Orden no suman dos veces (supabase/tests/c6_2_consumo_sin_stock.test.sql + nueva de conciliación).
+  - Prueba guardarraíl en pgTAP: un gasto sin Orden y los movimientos o transferencias de Tesorería no cambian obtener_rentabilidad_orden ni la conciliación.
+  - E2E de aceptación tests/e2e/finanzas-conciliacion-orden.spec.ts crea sus datos propios (fechas relativas, folios aleatorios) para no chocar con residuales de ordenes-estados-sii.spec.ts ni planeacion-*.spec.ts.
+  - tests/e2e/cobranza-flujo.spec.ts y tesoreria-flujo.spec.ts se actualizan juntos si el flujo por cuenta cambia de pantalla o se excluyen cobros reversados. tests/unitarias/cobranza-flujo-cuentas.test.ts cambia en el mismo commit.
+  - Para cualquier migración de Finanzas: verificar con Glob que la marca sea posterior a las de Órdenes/Planeación ya presentes, correr los pgTAP de las tres áreas (c4_2, c4_3, sii_b5/b6/b7, a03, a15) antes de cerrar, y regenerar src/compartido/tipos/supabase.ts en UTF-8.
+- **preguntasPO:**
+  - ¿La vista Costos/Rentabilidad vive solo en Gastos y rentabilidad con filtro por Orden (recomendado: sí, sin bloque en la ficha de Orden)? Si el PO quiere también un enlace desde la ficha, va después de C8.4.
+  - ¿El Material real es el consumo de Producción (como hoy), la compra RECIBIDA, o consumo con compra RECIBIDA como respaldo? No pueden sumarse. Define C10.2.
+  - ¿Venta base común de los márgenes: la de la Propuesta aceptada (snapshot) o la de la CxC cobrable? Define C10.1 y su coherencia con el Dashboard.
+  - ¿Se alinea el Dashboard (a04, sii_b9, dashboard_respuesta_gastos) a costo sin IVA en la misma migración de F11, aceptando que los márgenes históricos cambian?
+  - ¿El PO ya aplicó en remoto 20261014100000 y 20261014110000? C10.1 depende del tarifario único para el estimado de Fabricación.
+  - ¿El ajuste manual autorizado (F10) se limita a admin o requiere un permiso nuevo? Es lo más pesado del paquete y es opcional en el MVP.
+  - ¿F12 (varias facturas por CxC) se difiere como limitación documentada? El cambio redefine emitir_factura y choca en tiempo con el trigger de entrega de Órdenes.
+  - ¿El flujo por cuenta se mueve de Cobranza a Tesorería (F14)? Si sí, primero se reubica en Tesorería y después se retira de /cobranza.

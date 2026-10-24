@@ -74,9 +74,10 @@ SELECT ok(
 SELECT ok(
   (ARRAY(SELECT codigo FROM public.catalogo_proximas_acciones ORDER BY codigo)) @> ARRAY[
     'FOLLOW_UP', 'CONFIRM_RECEIPT', 'WAIT_CUSTOMER_RESPONSE', 'REQUEST_APPROVAL_PO',
-    'RESOLVE_CUSTOMER_QUESTIONS', 'PREPARE_NEW_REVISION', 'OTHER'
+    'RESOLVE_CUSTOMER_QUESTIONS', 'PREPARE_NEW_REVISION', 'OTHER',
+    'REQUEST_MISSING_INFO', 'WAIT_CUSTOMER_FILE', 'CONFIRM_SPECIFICATION', 'COMPLETE_RFQ'
   ]::text[],
-  'Próximas acciones: 7 códigos incluido OTHER'
+  'Próximas acciones: catálogo base y acciones de captura incompleta'
 );
 
 -- 17-18. "Otro" único y su índice parcial.

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { Cliente } from '@/modulos/clientes/tipos/indice';
 import type { ArchivoRfq } from '@/modulos/rfq/acciones/archivos-rfq';
@@ -70,6 +70,7 @@ vi.mock('@/nucleo/almacenamiento/archivos/subida-navegador', () => ({
 }));
 
 import { FormularioProspecto } from '@/modulos/pipeline/componentes/formulario-prospecto';
+import { actualizarDatosRfqAccion } from '@/modulos/rfq/acciones/actualizar-datos-rfq';
 
 const CLIENTE_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -146,6 +147,12 @@ const CATALOGOS_VACIOS = {
   canales: [{ codigo: 'WHATSAPP', nombre: 'WhatsApp', esOtro: false, activo: true }],
   proximasAcciones: [],
   usuarios: [],
+};
+
+const CATALOGOS_CON_SEGUIMIENTO = {
+  ...CATALOGOS_VACIOS,
+  proximasAcciones: [{ codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false }],
+  usuarios: [{ id: 'vend-1', nombre: 'Vendedor', rol: 'ventas' }],
 };
 
 const CLIENTE: Cliente = {
@@ -448,6 +455,11 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     // Con ítem y archivo ya capturados, los pasos del alta dejan avanzar.
     obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CON_ITEM });
     listarArchivosMock.mockResolvedValue({ exito: true, datos: [ARCHIVO] });
+    obtenerCatalogosMock.mockResolvedValue({ exito: true, datos: CATALOGOS_CON_SEGUIMIENTO });
+    vi.mocked(actualizarDatosRfqAccion).mockResolvedValue({
+      exito: true,
+      datos: { actualizadoEn: '2026-10-08T01:00:00.000Z' },
+    });
     render(envolver(createElement(FormularioProspecto, { onExito: alExito })));
 
     fireEvent.change(screen.getByLabelText('Descripción'), { target: { value: 'Solicitud de prueba' } });
@@ -467,11 +479,17 @@ describe('FormularioProspecto — alta durable sin PO ni horas (C1.2a, DC-01/DC-
     expect(await screen.findByTestId('dialogo-finalizar-captura')).toBeDefined();
     expect(alExito).not.toHaveBeenCalled();
 
-    // Cancelar el modal devuelve al paso Archivos; «Finalizar más tarde» sigue
-    // cerrando la captura sin modal desde el paso Ítems.
+    // Cancelar el modal devuelve al paso Archivos; «Finalizar más tarde» abre el
+    // mismo modal de próxima acción desde Ítems y conserva el RFQ Incompleto.
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     fireEvent.click(screen.getByRole('button', { name: 'Volver a ítems' }));
+    await esperarBotonHabilitado('Finalizar más tarde');
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar más tarde' }));
+    const dialogo = await screen.findByTestId('dialogo-finalizar-captura');
+    fireEvent.change(within(dialogo).getByLabelText('Acción a seguir'), {
+      target: { value: 'FOLLOW_UP' },
+    });
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar y finalizar más tarde' }));
 
     await waitFor(() => {
       expect(alExito).toHaveBeenCalledWith('op-1');
@@ -608,6 +626,11 @@ describe('FormularioProspecto — la ficha no hereda el RFQ previo al modal fina
     const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const invalidar = vi.spyOn(consultas, 'invalidateQueries');
     obtenerRfqMock.mockResolvedValue({ exito: true, datos: RFQ_CON_ITEM });
+    obtenerCatalogosMock.mockResolvedValue({ exito: true, datos: CATALOGOS_CON_SEGUIMIENTO });
+    vi.mocked(actualizarDatosRfqAccion).mockResolvedValue({
+      exito: true,
+      datos: { actualizadoEn: '2026-10-08T01:00:00.000Z' },
+    });
     const alExito = vi.fn();
     render(
       createElement(
@@ -625,7 +648,13 @@ describe('FormularioProspecto — la ficha no hereda el RFQ previo al modal fina
     await esperarBotonHabilitado('Continuar con archivos');
     invalidar.mockClear();
 
+    await esperarBotonHabilitado('Finalizar más tarde');
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar más tarde' }));
+    const dialogo = await screen.findByTestId('dialogo-finalizar-captura');
+    fireEvent.change(within(dialogo).getByLabelText('Acción a seguir'), {
+      target: { value: 'FOLLOW_UP' },
+    });
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Guardar y finalizar más tarde' }));
 
     await waitFor(() => expect(alExito).toHaveBeenCalledWith('op-1'));
     const claves = invalidar.mock.calls.map(([filtros]) => JSON.stringify(filtros?.queryKey));

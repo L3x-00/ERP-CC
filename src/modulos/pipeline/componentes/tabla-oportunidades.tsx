@@ -20,10 +20,22 @@ import {
 import { proximaAccionVencida } from '@/modulos/pipeline/servicios/filtrar-oportunidades';
 import { etiquetaProximaAccion } from '@/modulos/pipeline/utilidades/proxima-accion';
 import type { Oportunidad } from '@/modulos/pipeline/tipos/indice';
+import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import { DialogoHistorialRfq } from '@/modulos/rfq/componentes/dialogo-historial-rfq';
 import { IndicadorEstadoRfq } from '@/modulos/rfq/componentes/indicador-estado-rfq';
 import { usarValidacionColaRfq } from '@/modulos/rfq/hooks/usar-validacion-cola-rfq';
 import { validacionConfirmadaDeFila } from '@/modulos/rfq/utilidades/validacion-cola';
+
+/**
+ * Texto de la próxima acción de la fila: nombre del catálogo y, para «Otro»,
+ * su detalle. Se muestra aunque la fecha aún no esté capturada.
+ */
+function textoProximaAccion(oportunidad: Oportunidad): string | null {
+  if (!oportunidad.proximaAccionCodigo) return null;
+  const etiqueta = etiquetaProximaAccion(oportunidad.proximaAccionCodigo);
+  const detalle = oportunidad.proximaAccionTexto?.trim();
+  return detalle ? `${etiqueta}: ${detalle}` : etiqueta;
+}
 
 /**
  * Vista de lista de la cola RFQ: folio, empresa/contacto, estado (con la
@@ -62,6 +74,7 @@ export function TablaOportunidades({
             {oportunidades.map((oportunidad) => {
               const prioridad = ESTILO_PRIORIDAD[oportunidad.prioridad];
               const vencida = proximaAccionVencida(oportunidad, hoy);
+              const accionSiguiente = textoProximaAccion(oportunidad);
               const folio = oportunidad.folioRfq ?? oportunidad.folioCnc ?? oportunidad.folioOp;
               // DC-03: un alta interrumpida se reanuda sobre el MISMO RFQ, nunca
               // clonándolo ni generando otro folio.
@@ -89,12 +102,24 @@ export function TablaOportunidades({
                     </span>
                   </TablaCelda>
                   <TablaCelda className={vencida ? 'font-semibold text-peligro-texto' : undefined}>
-                    {oportunidad.fechaProximaAccion
-                      ? `${etiquetaProximaAccion(oportunidad.proximaAccionCodigo)} · ${oportunidad.fechaProximaAccion}`
-                      : '—'}
+                    {accionSiguiente ? (
+                      <span className="flex flex-col gap-0.5">
+                        <span>{accionSiguiente}</span>
+                        <span className="text-xs font-normal text-texto-secundario">
+                          {oportunidad.fechaProximaAccion
+                            ? formatearFechaCalendario(oportunidad.fechaProximaAccion)
+                            : 'Sin fecha'}
+                        </span>
+                      </span>
+                    ) : (
+                      '—'
+                    )}
                   </TablaCelda>
                   <TablaCelda className="text-texto-secundario">
-                    {oportunidad.responsableNombre ?? oportunidad.clienteNombre ?? '—'}
+                    {oportunidad.responsableProximaAccionNombre
+                      ?? oportunidad.responsableNombre
+                      ?? oportunidad.clienteNombre
+                      ?? '—'}
                   </TablaCelda>
                   <TablaCelda className="text-texto-secundario">
                     {oportunidad.ordenVinculada ? (

@@ -40,7 +40,7 @@ export async function obtenerOportunidades(
   let consulta = cliente
     .from('pipeline')
     .select(
-      '*, cotizacion_lineas(cantidad, precio_unitario, es_descuento, area_trabajo_codigo), ordenes_produccion!ordenes_produccion_cotizacion_id_fkey(folio, estado), clientes(razon_social, nombre_comercial), responsable:usuarios!pipeline_responsable_id_fkey(nombre_completo)',
+      '*, cotizacion_lineas(cantidad, precio_unitario, es_descuento, area_trabajo_codigo), ordenes_produccion!ordenes_produccion_cotizacion_id_fkey(folio, estado), clientes(razon_social, nombre_comercial), responsable:usuarios!pipeline_responsable_id_fkey(nombre_completo), responsable_proxima:usuarios!pipeline_responsable_proxima_accion_id_fkey(nombre_completo)',
     );
 
   if (filtros?.estadoRfq) {
@@ -73,6 +73,7 @@ export async function obtenerOportunidades(
       ordenes_produccion: ordenes,
       clientes: clienteLigado,
       responsable: responsableLigado,
+      responsable_proxima: responsableProximaLigado,
       ...base
     } = fila;
     // RFQ-03: una línea de descuento se captura en positivo y aquí se resta.
@@ -110,6 +111,7 @@ export async function obtenerOportunidades(
       areasTrabajo,
       clienteNombre,
       responsableNombre: responsableLigado?.nombre_completo ?? null,
+      responsableProximaAccionNombre: responsableProximaLigado?.nombre_completo ?? null,
     };
   });
 }

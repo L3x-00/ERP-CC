@@ -1,0 +1,2426 @@
+# Plan, crítica y análisis transversales (generado sin modelo desde el journal)
+Fuente: `wf_302166f5-203/journal.jsonl` · 2026-10-14T17:40:19.087Z · plan: plan:final
+
+## Plan
+**Resumen ejecutivo:** PLAN FINAL: 4 tandas de 5 requisitos, secuenciales (rama nueva desde origin/main y PR por tanda; el PO fusiona antes de arrancar la siguiente; Claude no mergea ni hace commit/push sin encargo de Codex). Sin migraciones en ninguna tanda. Se aplican todos los ajustes de la crítica respaldados por evidencia (re-verifiqué en esta pasada tres: ordenes/page.tsx:23-27 lee searchParams y el notFound() de orden_vista está en la línea 27; /propuestas lee `?propuesta=` en src/app/(panel)/propuestas/page.tsx:18; la prop puedeAdministrar de Planeación solo alimenta Reactivar, cadena: planeacion/page.tsx:34,127 -> operacion-planeacion.tsx:41,61,291 -> calendario-planeacion.tsx:61,103,229 -> vistas-calendario-planeacion.tsx:33,89 -> tarjeta-programacion-planeacion.tsx:39,58,166 -> acciones-tarjeta-orden.tsx:13,28,111). Cambios respecto del plan anterior: (1) T1 ya no espera respuestas del PO: arranca con defaults D1=A (retirar UI y Server Actions, conservar RPC y migraciones), D2=A (Comentarios como 8.ª pestaña) y registro como Refinamientos posteriores; el PO puede revertirlos en el PR. Solo quedan 2 preguntas con default seguro (D3 scrap, necesaria antes de T4; D5 rol equivalente a Customer Service/Management, antes de T3/T4). (2) T1 incluye como primer commit la extracción mecánica de paneles de ficha-orden.tsx (581 líneas > 300 de CLAUDE.md) y la poda de puedeAdministrar en toda la cadena de Planeación. (3) El redirect de /ordenes?ordenId= va DESPUÉS de notFound() por orden_vista, valida con z.uuid() y [id]/page.tsx cambia su firma para recibir searchParams (Promise en Next 16). (4) Enlaces de Origen corregidos: RFQ -> /rfq?rfq=<id> (rfq_vista); Propuesta y Revisión -> /propuestas?propuesta=<propuestaId> (propuesta_vista). (5) R12 corregido: el árbitro es cerrar_orden_administrativa (20261007120002:201-212, suma simple por partida vs cantidad_solicitada); b7:422-450 no filtra notas anuladas, se retira esa mención; se añade caso producido<solicitado con texto distinto ('Producción cerró con faltante; requiere decisión del PO'). (6) R13 extiende obtenerDatosComparativaServicio (datos-comparativa-servicio.ts:43-58, ya carga notas_entrega en lotes) en vez de una consulta nueva. (7) R17: una sola proyección por lista blanca y reutilización del marcado de Documento sin Totales (sin servicio ni componente aparte); se reconoce que con el seed solo el gerente tiene orden_vista sin ver_finanzas (B1:164,183), por eso el criterio 11 se evidencia además con una prueba de caracterización del payload de Producción (camino real del operador). (8) Eliminadas del plan: las 3 migraciones condicionales de T4 (quedan como 'fuera del plan, requieren encargo propio'), el archivo ficha-orden-criterios-aceptacion.test.ts, el pgTAP opcional c8_compromiso_inmutable, DC-16..DC-22, CLI-16..24, la matriz de 164 y las casillas de C4.2 (sugeridos a Codex, no son alcance de las tandas), el cambio typeof->Zod en obtener-documento-orden.ts (no es de la nota) y el origen 'Orden' con adjuntos propios (hallazgo diferido). (9) R10 queda explícitamente PARCIAL (Fase 1; Fase 2 diferida a Planeación/Producción) en el Corte 8 con firma del PO. (10) Se descartan los bloques transversales ordenSeguro y checklistPorTanda: el único orden válido es T1..T4. Se conservan solo sus reglas duras (lotes de 100, typecheck antes de E2E, headSha, Out-File UTF-8, no incluir en commits la migración modificada 20261014110000_tarifario_unico_estacion_grupo.sql, que es de otro frente). Rechazo parcial: ninguno; matiz: el destino único del redirect se mantiene en ?pestana=comentarios (los menciones/bitácora son el uso principal) y se documenta que el botón Bandeja de Planeación también aterriza ahí.
+
+**Orden general:** Estricto T1 -> T2 -> T3 -> T4 (único orden válido). Motivo: ficha-orden.tsx y ficha-orden-servicio.ts se editan en las 4 tandas y tabla-ordenes.tsx en T1 y T4; no hay paralelismo seguro. Dentro de cada tanda: caracterización verde, luego RED, luego GREEN; cada PR corre completo (no solo líneas editadas) los specs E2E que toca, p. ej. ordenes-estados-sii.spec.ts (T1 edita 235, 327-328, 382; T2 la línea 344). T1: primer commit = extracción mecánica de paneles de ficha-orden.tsx sin cambiar testids y con ficha-orden-c4-2 en verde; después destino (Comentarios/Adjuntos/pestaña inicial + redirect), E2E migrados en verde con la cola intacta, y SOLO entonces recorte de cola, retiro de Reactivar/Repetir (cola + Planeación + poda de puedeAdministrar) y limpieza de props en commit aparte. T2 establece el patrón único de lectura segura del snapshot (variable local en servidor; snapshot/totales/moneda solo con incluirFinanzas; prueba de no-fuga RED primero); T3 lo extiende, no se invierte el orden. T4 cierra entrega/cierre y registra la evidencia (docs solo con autorización de Codex). Coordinación con Planeación (C9): T1 retira Reactivar y su cadena de props; si C9 se abre antes del merge de T1 habrá conflicto en acciones-tarjeta-orden.tsx, por eso T1 va primero. Gates por tanda: pnpm typecheck (borrar .next si hay tipos obsoletos) + eslint de lo editado (en T1 también src/modulos/planeacion completo) + vitest focal + E2E focal de los specs editados; suite completa solo al cierre de T4. No usar `git add -A`: 20261014110000_tarifario_unico_estacion_grupo.sql está modificada por otro frente y no debe entrar. Defaults asumidos sin pregunta al PO (revertibles en el PR): D1=A, D2=A, D4=A ('Entregado X/Y' / 'Entrega parcial X/Y', solo presentación), D6=A (hoja de trabajo en pestaña Documento para roles con orden_vista sin ver_finanzas; Producción no se toca), D7=A (Tipo por clase, ocultar retirados, sin descarga), D8=A (Estado de Ruta 'Pendiente' fijo), D9=A (R10 solo Fase 1), D10=A (idHistorico), D11=A (enlace solo con permiso del destino), D12 = decisión de Codex (Refinamientos posteriores + CLI-15 + Corte 8).
+
+### Tanda 1 — Cola mínima y ficha como destino · esfuerzo L
+**Objetivo:** La cola responde 'qué necesita atención' y abre la ficha: Folio/Estado/Prioridad/Compromiso/Partidas/Avance + Abrir + una sola acción contextual (Liberar). Comentarios, Adjuntos legacy, Cancelar, Cerrar y Documento viven en la ficha; /ordenes?ordenId= aterriza en la ficha; Reactivar y Repetir salen de la UI y de las Server Actions (cola y Planeación); cada pestaña muestra su pregunta.
+**Requisitos:** R01, R02, R14, R15, R19
+- **ramaSugerida:** feat/ordenes-cola-minima-ficha-destino
+- **porQueEstaAgrupacion:** Es un solo movimiento 'reubicar y luego retirar' sobre tabla-ordenes.tsx (R01/R02) cuya misma fila contiene Repetir y Reactivar (R14/R15), y Planeación importa ReactivarOrdenDialog (acciones-tarjeta-orden.tsx:6,111-131). Retirarlos en tandas distintas obliga a retocar la fila y la cadena puedeAdministrar varias veces. R19 aporta la pestaña Comentarios que R02 necesita como destino. Va primera por ser la de mayor superficie E2E (6 specs). Sin SQL ni aplicación manual del PO.
+- **cambios:**
+  -
+    - **requisito:** R01
+    - **estadoActual:** CUMPLE. Encabezados Folio, Estado, Prioridad, Compromiso, Partidas, Avance, Acciones (tabla-ordenes.tsx:484-494); enlace abrir-ficha-{folio} a /ordenes/{id} (574-580); semáforo, prioridad y barra de avance (537-571).
+    - **cambio:** Solo caracterización: prueba que fija los encabezados y el enlace Abrir. El Avance sigue siendo de producción (la etiqueta de entrega es R13, T4).
+    - **archivos:**
+      - tests/unitarias/tabla-ordenes-acciones-minimas.test.ts
+  -
+    - **requisito:** R02
+    - **estadoActual:** CONTRADICE. La fila tiene 9 controles (tabla-ordenes.tsx:574-669): Abrir 574, Liberar 581, Cerrar 593, Comentarios 608-614 (sin testid), Documento 615, Repetir 622-632, Reactivar 633-645, Adjuntos 646, Cancelar 657-669. La ficha ya tiene Liberar/Cancelar/Cerrar (ficha-orden.tsx:249-264, testids ficha-liberar/cancelar/cerrar; diálogos con error role=alert en 543 y 568) pero no Comentarios ni Adjuntos (HiloComentarios solo lo importa tabla-ordenes.tsx:6). ordenes/page.tsx:25 lee ordenId y lo pasa como ordenInicialId (144-154); la tabla lo consume en un efecto (217-238). Cinco sitios enlazan a /ordenes?ordenId=: notificar-menciones-correo.ts:46, enlace-registro.ts:15 y 31, historial-cliente.tsx:262 y 375, acciones-tarjeta-orden.tsx:66.
+    - **cambio:** Orden estricto. (0) Primer commit: extraer de ficha-orden.tsx paneles mecánicos (partidas, ruta, archivos, entregas, actividad, documento) a componentes pequeños, sin cambiar data-testid, con ficha-orden-c4-2 verde. (1) Ficha: pestaña Comentarios con HiloComentarios (entidadTipo 'orden', entidadId = orden.id, usuarioActualId, puedeEliminarTodos = usuario.rol==='admin' como en ordenes/page.tsx:147-148) y botón Adjuntos con AdjuntosOrdenDialog solo si orden.idHistorico !== null (mismo permiso que hoy gobierna adjuntos-orden). (2) FichaOrden admite pestanaInicial; [id]/page.tsx cambia su firma para recibir `searchParams?: Promise<...>` (Next 16, await), valida `pestana` con Zod enum de ids de pestaña. (3) ordenes/page.tsx: DESPUÉS de `if (!usuario || !(await can(usuario,'orden_vista'))) notFound()` (línea 27), si searchParams.ordenId pasa z.uuid() -> redirect(`/ordenes/${id}?pestana=comentarios`); id inválido no redirige y muestra la cola; así un usuario sin orden_vista recibe notFound() y no se filtra qué ids existen. Los 5 generadores de enlace NO se editan; el botón Bandeja de Planeación también aterriza en Comentarios (destino único, documentado). (4) Migrar E2E a la ficha y ejecutarlos en verde con la cola aún intacta. (5) Solo entonces recortar la fila a Abrir + Liberar (PLANIFICADA y puedeLiberar) y, en commit aparte, borrar estados/diálogos/props huérfanos de tabla-ordenes.tsx (puedeCerrar, puedeCancelar, puedeAdministrar de la tabla, puedeVerFinanzas, usuarioActualId, puedeEliminarTodos, ordenInicialId) y el efecto de ordenInicialId (su cambio de bandeja ya no hace falta: la ficha abre cualquier id). En ordenes/page.tsx la variable puedeAdministrar se conserva (alimenta puedeVerAltas, línea 38). Se conservan los tipos exportados de tabla-ordenes.tsx (los importan configurar-procesos-dialog.tsx:11 y editar-orden-dialog.tsx:20). Los can() de las Server Actions no cambian.
+    - **archivos:**
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - src/modulos/ordenes/componentes/panel-partidas-ficha.tsx (nuevo, extracción)
+      - src/modulos/ordenes/componentes/panel-ruta-ficha.tsx (nuevo, extracción)
+      - src/modulos/ordenes/componentes/panel-archivos-ficha.tsx (nuevo, extracción)
+      - src/modulos/ordenes/componentes/panel-entregas-ficha.tsx (nuevo, extracción)
+      - src/modulos/ordenes/componentes/panel-actividad-ficha.tsx (nuevo, extracción)
+      - src/modulos/ordenes/componentes/panel-documento-ficha.tsx (nuevo, extracción)
+      - src/modulos/ordenes/componentes/tabla-ordenes.tsx
+      - src/app/(privado)/ordenes/[id]/page.tsx
+      - src/app/(privado)/ordenes/page.tsx
+  -
+    - **requisito:** R14
+    - **estadoActual:** CONTRADICE la nota. Reactivar vivo: botón tabla-ordenes.tsx:633-645, ReactivarOrdenDialog (import l.10, montado ~741), acción reactivar-orden.ts, servicio ordenes-servicio.ts:336-344, esquema en validaciones/ordenes.ts:75; Planeación: acciones-tarjeta-orden.tsx:6,111-131. RPC public.reactivar_orden_op vigente en 20261007120004 (552+), un solo llamador TS (ordenes-servicio.ts:340-344). Grep de los símbolos en src/: ningún otro consumidor.
+    - **cambio:** D1=A: retirar botón, diálogo, Server Action, función de servicio y esquema Zod, en cola y tarjeta de Planeación en el mismo PR. En Planeación, además del botón e import, PODAR la prop puedeAdministrar y su cadena (solo existe para Reactivar): planeacion/page.tsx:34 (el can aprobar_ordenes) y :127 -> operacion-planeacion.tsx:41,61,291 -> calendario-planeacion.tsx:61,103,229 -> vistas-calendario-planeacion.tsx:33,89 -> tarjeta-programacion-planeacion.tsx:39,58,166 -> acciones-tarjeta-orden.tsx:13,28,111. El estado `reactivando` se va; ESTADO_LEGACY_A_SII sigue usándose (estadoSii). Grep final de esquemaReactivarOrden / ReactivarOrdenDialog / reactivarOrdenAccion / reactivarOrdenServicio / puedeAdministrar (en src/modulos/planeacion) = 0. NO se toca la RPC, las migraciones A20 (20260925090000) ni src/compartido/tipos/supabase.ts. 'Crear retrabajo' NO se implementa.
+    - **archivos:**
+      - src/modulos/ordenes/componentes/tabla-ordenes.tsx
+      - src/modulos/ordenes/componentes/reactivar-orden-dialog.tsx (eliminar)
+      - src/modulos/ordenes/acciones/reactivar-orden.ts (eliminar)
+      - src/modulos/ordenes/servicios/ordenes-servicio.ts
+      - src/modulos/ordenes/validaciones/ordenes.ts
+      - src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/vistas-calendario-planeacion.tsx
+      - src/modulos/planeacion/componentes/calendario-planeacion.tsx
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+      - src/app/(privado)/planeacion/page.tsx
+      - tests/unitarias/ordenes-esquemas.test.ts
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts
+  -
+    - **requisito:** R15
+    - **estadoActual:** CONTRADICE la nota. Repetir vivo: botón tabla-ordenes.tsx:622-632, RepetirOrdenDialog (título 'Repetir trabajo de {folio}', repetir-orden-dialog.tsx:71, montado ~733), acción repetir-orden.ts, servicio ordenes-servicio.ts:307-315, esquema en validaciones/ordenes.ts. repetir_orden_op (20261007120004:425) crea una Orden NUEVA con orden_origen_id.
+    - **cambio:** Retirar UI, Server Action, servicio y esquema igual que R14. La RPC y sus pruebas (tests/integracion/repetir-trabajo.test.ts, pgTAP a20_cli08) se conservan como base de la futura 'nueva Orden basada en la anterior' (no se implementa). ordenes-heredadas-reactivacion.spec.ts se reescribe a ausencia (toHaveCount(0) de repetir-orden-/reactivar-orden- en cola y accion-reactivar en Planeación).
+    - **archivos:**
+      - src/modulos/ordenes/componentes/tabla-ordenes.tsx
+      - src/modulos/ordenes/componentes/repetir-orden-dialog.tsx (eliminar)
+      - src/modulos/ordenes/acciones/repetir-orden.ts (eliminar)
+      - src/modulos/ordenes/servicios/ordenes-servicio.ts
+      - src/modulos/ordenes/validaciones/ordenes.ts
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+  -
+    - **requisito:** R19
+    - **estadoActual:** PARCIAL. Los 7 rótulos de pestaña ya coinciden con la nota (PESTANAS en ficha-orden.tsx:36-44, useState('resumen') en 146); falta la pregunta guía y el acceso a Comentarios.
+    - **cambio:** Constante PREGUNTAS_PESTANA (Resumen: ¿Qué es esta Orden?; Ítems / Partidas: ¿Qué hay que fabricar?; Ruta / Operaciones: ¿Cómo se hará?; Archivos vivos: ¿Con qué archivos?; Entregas: ¿Qué se entregó?; Actividad: ¿Qué ha pasado?; Documento: ¿Qué puedo imprimir?; Comentarios: ¿Qué se ha conversado?) en utilidad propia; párrafo bajo la barra con data-testid ficha-pregunta-pestana. Comentarios como 8.ª pestaña (D2=A, mantiene Actividad como audit log puro). Ningún data-testid existente cambia; Totales del Resumen no se tocan.
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/preguntas-pestana.ts (nuevo)
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+- **pasosEnOrden:**
+  - 0. Rama nueva desde origin/main. Leer AGENTS.md, CUELLOS-DE-BOTELLA.md, ACTIVE_TASKS.md. Sin pregunta previa al PO: D1=A, D2=A y registro como Refinamientos posteriores quedan declarados en la descripción del PR para que el PO los revierta si no está de acuerdo.
+  - 1. Caracterización verde antes de editar: pnpm vitest run tests/unitarias/tabla-ordenes-c4-3.test.ts tests/unitarias/ficha-orden-c4-2.test.ts. Leer props de AdjuntosOrdenDialog y el permiso del botón adjuntos-orden (tabla-ordenes.tsx ~646).
+  - 2. Commit mecánico: extraer paneles de ficha-orden.tsx (581 líneas) sin cambiar testids; ficha-orden-c4-2 sigue verde.
+  - 3. RED reubicación: ficha-orden-comentarios.test.ts (monta HiloComentarios con entidadId = orden.id vía mock de @/modulos/comentarios/componentes/indice —sin QueryClientProvider la prueba falla porque HiloComentarios usa useQuery—; pestaña Comentarios; Adjuntos solo con idHistorico; pestanaInicial='comentarios'), ordenes-page-redirect.test.ts (uuid válido tras orden_vista -> redirect a /ordenes/{id}?pestana=comentarios; no-uuid no redirige; usuario sin orden_vista -> notFound() y NO redirect), ficha-orden-preguntas-pestana.test.ts. Confirmar que fallan por la razón esperada.
+  - 4. GREEN reubicación: ficha-orden.tsx (pestaña Comentarios, Adjuntos, pestanaInicial, PREGUNTAS_PESTANA); [id]/page.tsx (searchParams Promise + Zod enum, usuarioActualId, puedeEliminarTodos, puedeAdjuntar); ordenes/page.tsx (redirect tras notFound). La cola NO se toca todavía.
+  - 5. Migrar E2E a la ficha y correrlos EN VERDE con la cola intacta: cancelacion-financiera.spec.ts:55-62 (ir a /ordenes/{id} localizando la orden por folio, esperar la navegación, ficha-cancelar + ficha-confirmar-cancelacion, alert dentro del diálogo 'La orden tiene cobranza registrada'); ordenes-estados-sii.spec.ts:235,327-328,382 (ficha-cerrar/ficha-confirmar-cierre/ficha-cancelar); ordenes-edicion-borrador.spec.ts:89; comentarios-notificaciones.spec.ts:86,123 (URL final /ordenes/{id}; está condicionada a E2E_COMENTARIOS_ORDEN_ID y se salta sola: correrla con la variable o cubrir con las unitarias de redirect e HiloComentarios, no dar el 'verde' por evidencia); clientes-historial.spec.ts:270 (URL final /ordenes/{id}; el href de :261 NO cambia).
+  - 6. RED cola: tabla-ordenes-acciones-minimas.test.ts (solo abrir-ficha-{folio} y, en PLANIFICADA con puedeLiberar, liberar-orden-{folio}; encabezados R01 intactos; sin Comentarios/Documento/Cancelar/Cerrar/Adjuntos/Repetir/Reactivar). Rojo contra tabla-ordenes.tsx:574-669.
+  - 7. GREEN cola: recortar la fila; retirar Repetir/Reactivar de cola y Planeación incluyendo la poda de puedeAdministrar; eliminar diálogos, acciones, servicio y esquemas; actualizar tabla-ordenes-c4-3.test.ts (invertir líneas 97, 104, 113, 130; quitar mocks de dialogs L33-35), ordenes-esquemas.test.ts:451-459, ordenes-heredadas-reactivacion.spec.ts y planeacion-bolsa-acciones.spec.ts:194. Commit aparte para props huérfanas. Grep de testids retirados en tests/ = 0 y de símbolos retirados en src/ = 0.
+  - 8. Verificación: pnpm typecheck (borrar .next), eslint de src/modulos/ordenes, src/modulos/planeacion (completo) y src/app/(privado)/ordenes y planeacion, vitest focal y E2E focal de los 7 specs. Entrega a Codex: archivos, resultados reales y pendientes. Documentación de cierre solo con encargo de Codex.
+- **criteriosAceptacion:**
+  - En /ordenes cada fila muestra Folio, Estado, Prioridad, Compromiso, Partidas y Avance y solo los controles Abrir y (si PLANIFICADA y con orden_liberar) Liberar; no hay Comentarios, Documento, Adjuntos, Cancelar, Cerrar, Repetir ni Reactivar.
+  - Abrir una orden lleva a /ordenes/{id}; en la ficha se puede publicar un comentario, cancelar con motivo (error de cobranza dentro del diálogo), cerrar administrativamente cuando proceda y, si la orden es histórica, abrir Adjuntos.
+  - /ordenes?ordenId={uuid} (correo de menciones, bitácora, historial de cliente, botón Bandeja de Planeación) termina en /ordenes/{uuid} con Comentarios activa; un ordenId no válido muestra la cola; un usuario sin orden_vista recibe notFound(), no un redirect.
+  - La tarjeta de Planeación ya no ofrece Reactivar y la cadena puedeAdministrar de Planeación no existe; la cola no ofrece Repetir/Reactivar; las RPC reactivar_orden_op y repetir_orden_op siguen existiendo (sin migración).
+  - Cada pestaña muestra su pregunta (7 + Comentarios) y todos los data-testid ficha-* previos siguen presentes.
+  - Los specs de cancelación, cierre, comentarios, borrador, historial, reactivación y planeación pasan contra la nueva UI; grep de testids retirados en tests/ = 0.
+- **modulosAfectados:**
+  -
+    - **modulo:** Comentarios
+    - **que:** Se reutiliza HiloComentarios en la ficha; el correo de menciones sigue generando /ordenes?ordenId=.
+    - **proteccion:** Redirect en ordenes/page.tsx; comentarios-menciones-correo.test.ts:38 y bitacora-enlaces.test.ts:13 fijan el href literal (candado de que los generadores NO se editan).
+    - **riesgo:** medio
+  -
+    - **modulo:** Auditoría / Bitácora
+    - **que:** enlace-registro.ts:15,31 apunta a /ordenes?ordenId=.
+    - **proteccion:** Mismo redirect; actividad-agrupacion.test.ts:83 y e2e actividad.spec.ts:123 no cambian.
+    - **riesgo:** medio
+  -
+    - **modulo:** Clientes
+    - **que:** historial-cliente.tsx:262,375 enlaza a /ordenes?ordenId=.
+    - **proteccion:** Redirect; solo cambia la URL final en clientes-historial.spec.ts:270; clientes-historial.test.ts:415 no cambia.
+    - **riesgo:** bajo
+  -
+    - **modulo:** Planeación
+    - **que:** Se retira Reactivar y se poda puedeAdministrar en 6 archivos; se conserva liberarOrdenAccion y el botón Bandeja (acciones-tarjeta-orden.tsx:66).
+    - **proteccion:** No hay pruebas unitarias de acciones-tarjeta-orden: su única protección es la E2E planeacion-bolsa-acciones (reescribir :194 a ausencia) + typecheck + eslint de todo src/modulos/planeacion.
+    - **riesgo:** medio
+  -
+    - **modulo:** Cobranza
+    - **que:** Repetir creaba una AR borrador; al retirar la UI no se altera ninguna AR existente.
+    - **proteccion:** repetir-trabajo.test.ts se conserva (la RPC queda).
+    - **riesgo:** bajo
+  -
+    - **modulo:** Órdenes (diálogos de edición)
+    - **que:** configurar-procesos-dialog.tsx y editar-orden-dialog.tsx importan tipos de tabla-ordenes.tsx.
+    - **proteccion:** No se renombra ni elimina ningún tipo exportado; typecheck desde cero.
+    - **riesgo:** bajo
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/tabla-ordenes-acciones-minimas.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-comentarios.test.ts (nueva, RED; mock de comentarios)
+    - tests/unitarias/ordenes-page-redirect.test.ts (nueva, RED; mock next/navigation, z.uuid, orden respecto de can(orden_vista))
+    - tests/unitarias/ficha-orden-preguntas-pestana.test.ts (nueva, RED)
+    - tests/unitarias/tabla-ordenes-c4-3.test.ts (invertir 97, 104, 113, 130; quitar mocks de dialogs)
+    - tests/unitarias/ficha-orden-c4-2.test.ts (nuevas props; mock de comentarios)
+    - tests/unitarias/ordenes-esquemas.test.ts (quitar esquemaReactivarOrden)
+    - Candados sin cambio: bitacora-enlaces, actividad-agrupacion, comentarios-menciones-correo, clientes-historial
+  - **integracion:**
+    - tests/integracion/reactivar-orden.test.ts y repetir-trabajo.test.ts: se conservan (la RPC permanece); solo loopback
+  - **pgtap:**
+    - Ninguno (sin SQL). Regresión opcional con stack local: a20_prd15_reactivar_orden y a20_cli08_repetir_trabajo siguen verdes
+  - **e2e:**
+    - tests/e2e/ordenes-estados-sii.spec.ts (completo)
+    - tests/e2e/ordenes-edicion-borrador.spec.ts
+    - tests/e2e/cancelacion-financiera.spec.ts
+    - tests/e2e/comentarios-notificaciones.spec.ts (con E2E_COMENTARIOS_ORDEN_ID)
+    - tests/e2e/clientes-historial.spec.ts
+    - tests/e2e/ordenes-heredadas-reactivacion.spec.ts (reescrita a ausencia)
+    - tests/e2e/planeacion-bolsa-acciones.spec.ts
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/tabla-ordenes-c4-3.test.ts tests/unitarias/tabla-ordenes-acciones-minimas.test.ts tests/unitarias/ficha-orden-comentarios.test.ts tests/unitarias/ficha-orden-preguntas-pestana.test.ts tests/unitarias/ficha-orden-c4-2.test.ts tests/unitarias/ordenes-page-redirect.test.ts tests/unitarias/ordenes-esquemas.test.ts tests/unitarias/bitacora-enlaces.test.ts tests/unitarias/actividad-agrupacion.test.ts tests/unitarias/comentarios-menciones-correo.test.ts tests/unitarias/clientes-historial.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/ordenes src/modulos/planeacion src/app/(privado)/ordenes src/app/(privado)/planeacion
+    - powershell -File .claude/skills/cerrar-tanda/scripts/e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts,tests/e2e/ordenes-edicion-borrador.spec.ts,tests/e2e/cancelacion-financiera.spec.ts,tests/e2e/comentarios-notificaciones.spec.ts,tests/e2e/clientes-historial.spec.ts,tests/e2e/ordenes-heredadas-reactivacion.spec.ts,tests/e2e/planeacion-bolsa-acciones.spec.ts
+- **riesgos:**
+  -
+    - **riesgo:** Retirar botones antes de reubicarlos rompe en cascada 7 specs E2E y los 5 deep links.
+    - **mitigacion:** Pasos 3-5 (destino + redirect + E2E migrados en verde) antes del paso 7; grep de testids retirados en tests/ = 0 como compuerta.
+  -
+    - **riesgo:** Redirect colocado antes de can(orden_vista) filtra qué ids existen (307 hacia una ficha que da 404).
+    - **mitigacion:** Va después del notFound() de la línea 27, validado con z.uuid(), con prueba que cubre el caso sin permiso.
+  -
+    - **riesgo:** El redirect cambia la URL final y rompe toHaveURL(/ordenes\?ordenId=/) en clientes-historial.spec.ts:270 y comentarios-notificaciones.spec.ts:123; esta última se salta sola sin E2E_COMENTARIOS_ORDEN_ID.
+    - **mitigacion:** Actualizar ambas aserciones en el mismo commit y correr la de comentarios con la variable o respaldarla con las unitarias.
+  -
+    - **riesgo:** Poda incompleta de puedeAdministrar deja una prop huérfana en 6 archivos de Planeación (lint/tsc) o rompe la E2E de Planeación sin prueba unitaria.
+    - **mitigacion:** Grep del símbolo en src/modulos/planeacion y planeacion/page.tsx = 0; eslint y typecheck de todo src/modulos/planeacion, no solo /componentes.
+  -
+    - **riesgo:** Adjuntos legacy (archivos_orden, bucket archivos-orden-historica) quedan inaccesibles si no se reubican.
+    - **mitigacion:** Botón Adjuntos en la ficha con idHistorico !== null; prueba RED.
+  -
+    - **riesgo:** ficha-orden-c4-2.test.ts renderiza FichaOrden sin QueryClientProvider y HiloComentarios usa useQuery.
+    - **mitigacion:** Mockear @/modulos/comentarios/componentes/indice en ese fixture y en ficha-orden-comentarios.test.ts.
+  -
+    - **riesgo:** Borrar Server Actions/esquemas deja imports huérfanos; limpiar props puede romper tipos exportados que usan los diálogos de edición.
+    - **mitigacion:** Grep de cada símbolo antes de borrar (lección 3 de CLAUDE.md); limpieza de props en commit aparte; typecheck desde cero.
+  -
+    - **riesgo:** C9 (Planeación) retira Reactivar a la vez y genera conflicto.
+    - **mitigacion:** T1 primero; C9 parte de main posterior al merge.
+
+### Tanda 2 — Ficha: identidad, origen comercial y actividad sin datos técnicos · esfuerzo M
+**Objetivo:** La ficha no muestra UUID ni términos técnicos: rótulo 'Folio' ('Referencia migrada' solo para lo migrado), Origen comercial con folios humanos y enlaces correctos según permiso para cualquier rol con orden_vista, Compromiso comercial vs Fecha operativa protegidos con prueba, y Actividad con etiquetas en español. Deja el patrón único de lectura segura del snapshot que usará T3.
+**Requisitos:** R03, R04, R05, R06, R10
+- **ramaSugerida:** fix/ordenes-ficha-folio-origen-sin-ids
+- **porQueEstaAgrupacion:** Todos tocan el Resumen/Actividad de la ficha y exigen la misma pieza de servicio (leer snapshot_json siempre en servidor para extraer el origen sin exponer precios). Hacerla aquí, con la prueba de no-fuga RED primero, evita que T3 y T4 la repitan. R06 es caracterización (BD y UI ya cumplen). R10 se limita a Fase 1 (sin SQL).
+- **cambios:**
+  -
+    - **requisito:** R03
+    - **estadoActual:** PARCIAL. Origen vuelca claves y valores crudos de snapshot.origen, incluidos UUID (ficha-orden.tsx:323-332, solo con ver_finanzas). Según el lector (no re-verificado): ResumenCambio solo oculta programacion_id/partida_id y rotula recurso_id con su UUID (74-107, 476); Archivos cae a archivoId (420); Actividad imprime evento.tipo crudo.
+    - **cambio:** Reemplazar el volcado por el bloque de R04; ResumenCambio omite cualquier clave terminada en _id; Archivos usa 'Archivo sin nombre' como respaldo (T3 lo rehace como tabla). Los UUID siguen en BD y solo en href/data-*, nunca en texto visible. No se cambia FichaOrden.orden.id (lo usan las acciones).
+    - **archivos:**
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - src/modulos/ordenes/componentes/panel-actividad-ficha.tsx
+      - tests/unitarias/ficha-orden-sin-ids.test.ts
+  -
+    - **requisito:** R04
+    - **estadoActual:** PARCIAL. Origen genérico, sin enlaces y solo con puedeVerFinanzas (ficha-orden.tsx:319-340); snapshot_json se carga únicamente con incluirFinanzas (ficha-orden-servicio.ts:55-63) y snapshot/totales/moneda dependen de él (207-211). El select de la orden (47-49) no incluye propuesta_revision_id. snapshot.origen ya congela rfq_folio, propuesta_folio, revision_folio (20261012100000:1337-1341); SnapshotOrdenSii.origen es Record<string, unknown> (tipos/orden-sii.ts:92), por eso la extracción por lista blanca necesita tipado nuevo.
+    - **cambio:** Servicio: leer snapshot_json SIEMPRE en una variable local del servidor; exponer un campo tipado origen {rfqId, rfqFolio, propuestaId, propuestaFolio, revisionFolio, revisionLetra}|null extraído campo a campo; snapshot, totales y moneda (207, 210, 211) siguen condicionados a incluirFinanzas. UI: tres filas RFQ / Propuesta / Revisión aceptada (folio + letra) fuera del bloque de finanzas. ENLACES (corregidos): RFQ -> `/rfq?rfq=<rfqId>` solo si page.tsx calcula puedeVerRfq (can rfq_vista); Propuesta y Revisión -> `/propuestas?propuesta=<propuestaId>` solo si puedeVerPropuesta (can propuesta_vista); /rfq NO lee `propuesta` (rfq/page.tsx:14-21) y /propuestas lo lee en propuestas/page.tsx:18. Sin permiso, texto plano. Sin origen (orden interna u OP- sin snapshot): 'Sin origen comercial'. Se descarta el join a rfq/propuestas: la Orden congela lo aceptado.
+    - **archivos:**
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - src/modulos/ordenes/tipos/ficha-orden.ts
+      - src/modulos/ordenes/tipos/orden-sii.ts (solo campos opcionales del origen)
+      - src/app/(privado)/ordenes/[id]/page.tsx (puedeVerRfq, puedeVerPropuesta)
+      - src/modulos/ordenes/utilidades/enlaces-origen.ts (nuevo, construye las dos rutas)
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - tests/unitarias/ficha-orden-origen-comercial.test.ts
+      - tests/unitarias/ficha-orden-servicio-no-fuga.test.ts
+  -
+    - **requisito:** R05
+    - **estadoActual:** CONTRADICE. Tarjeta fija `<Tarjeta titulo="Folio legacy">{ficha.orden.folio}</Tarjeta>` (ficha-orden.tsx:303); otros textos: 309 ('orden legada', no contiene 'legacy' literal), 335 y 526 contienen 'legacy'. Fixture con folioSii 'OP-1026_01-01' que no cumple el CHECK de folio_sii. Ningún test fija el rótulo 'Folio legacy'.
+    - **cambio:** Rótulo 'Folio' con valor folioSii ?? folio; tarjeta 'Referencia migrada' solo si idHistorico !== null (D10=A; referencia_externa no se trata como migrada sin evidencia); textos 309/335/526 pasan a redacción neutra ('Orden anterior al flujo SII', 'Sin compromiso comercial registrado'). Sin backfill ni renombrar columnas. Fixture a 'O-1026_01'. Criterio explícito sobre documento-orden-servicio.ts: buscar `legacy`/`folio_legacy` en su salida; SOLO si un rótulo visible al usuario dice 'legacy' se renombra en el mismo commit con su aserción; el dato folio_legacy del snapshot (ordenes-documento.test.ts:9) no cambia.
+    - **archivos:**
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - tests/unitarias/ficha-orden-c4-2.test.ts
+      - tests/unitarias/ficha-orden-folio.test.ts
+  -
+    - **requisito:** R06
+    - **estadoActual:** CUMPLE. Tarjetas 'Compromiso comercial' y 'Fecha operativa' separadas (ficha-orden.tsx:306-311), fijadas en ficha-orden-c4-2.test.ts:67-69; BD protegida por c4_2_orden_comercial_operativa.test.sql existente. ajustarOrdenPostAceptacionAccion no tiene consumidor de UI.
+    - **cambio:** Solo caracterización con las pruebas existentes (no se crea pgTAP nuevo ni UI de reprogramación, que pertenece a Planeación/C9). La columna Compromiso de la cola ya queda cubierta en T1.
+    - **archivos:**
+      - tests/unitarias/ficha-orden-c4-2.test.ts
+  -
+    - **requisito:** R10
+    - **estadoActual:** PARCIAL. Actividad lee orden_eventos_cambio (últimos 50, ficha-orden-servicio.ts:85-90) separada de Comentarios y logs. Existen orden_creada y orden_liberada; derivar_orden_planificada / en_produccion (20261007120002) y derivar_orden_completada (20261007120005) solo hacen UPDATE, sin evento. La UI imprime evento.tipo crudo; la E2E lo fija en ordenes-estados-sii.spec.ts:344.
+    - **cambio:** FASE 1 (sin SQL): utilidad etiquetas-evento.ts con diccionario tipo -> etiqueta en español (orden_creada='Orden creada', orden_interna_creada, orden_liberada='Orden liberada', cierre_administrativo, ajuste_post_aceptacion, ajuste_operativo, programacion_inicial='Planeación inicial', reprogramacion_operativa) y fallback que nunca muestra snake_case; actor null -> 'Sistema'; recurso_id no se muestra; actualizar la E2E :344 en el mismo commit. R10 queda PARCIAL: ORDEN_PLANIFICADA y PRODUCCION_INICIADA (ejemplos literales de la nota) NO se entregan; Fase 2 diferida a Planeación/Producción y registrada como tal en el Corte 8 con firma del PO (R10 no es uno de los 12 criterios). Sin migración.
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/etiquetas-evento.ts (nuevo)
+      - src/modulos/ordenes/componentes/panel-actividad-ficha.tsx
+      - tests/e2e/ordenes-estados-sii.spec.ts
+      - tests/unitarias/ordenes-etiquetas-evento.test.ts
+- **pasosEnOrden:**
+  - 0. Rama nueva desde origin/main (T1 fusionada). Caracterización: pnpm vitest run tests/unitarias/ficha-orden-c4-2.test.ts tests/unitarias/ordenes-confidencialidad-c4-3.test.ts tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts. La ficha ya viene dividida en paneles desde T1.
+  - 1. RED: ficha-orden-servicio-no-fuga.test.ts (cliente simulado, incluirFinanzas=false: JSON.stringify(ficha) sin precio_unitario/subtotal/iva/total/moneda aunque el snapshot se lea para el origen) PRIMERO; ficha-orden-sin-ids.test.ts (textContent sin patrón UUID ni rfq_id/propuesta_id/revision_id en todas las pestañas); ficha-orden-folio.test.ts ('O-1026_01' -> 'Folio', sin /legacy/i ni 'orden legada'; 'Referencia migrada' solo con idHistorico); ficha-orden-origen-comercial.test.ts (folios sin ver_finanzas; href exacto /rfq?rfq=<id> y /propuestas?propuesta=<id>; texto plano sin permiso; 'Sin origen comercial'); ordenes-etiquetas-evento.test.ts.
+  - 2. GREEN servicio: variable local de snapshot, campo origen por lista blanca (verificar contra tipos/orden-sii.ts las claves rfq_id/rfq_folio/propuesta_id/propuesta_folio/revision_folio/letra), snapshot/totales/moneda condicionados a incluirFinanzas; page.tsx calcula puedeVerRfq/puedeVerPropuesta con can().
+  - 3. GREEN UI: bloque Origen comercial, rótulos Folio/Referencia migrada, textos neutros, ResumenCambio sin claves _id, diccionario de eventos + 'Sistema'. Actualizar E2E :344 y fixture de folio; ordenes-estados-sii.spec.ts se corre completo.
+  - 4. Caracterización R06 (ya verde) y revisión de documento-orden-servicio.ts según el criterio de R05.
+  - 5. Verificación: typecheck, eslint src/modulos/ordenes y src/app/(privado)/ordenes, vitest focal, E2E ordenes-estados-sii. Documentación de cierre solo con encargo de Codex.
+- **criteriosAceptacion:**
+  - Ninguna pestaña de la ficha muestra un UUID ni las claves rfq_id / propuesta_id / revision_id (con o sin ver_finanzas).
+  - Origen comercial muestra RFQ, Propuesta y Revisión aceptada (con letra) por folio, también a un rol sin ver_finanzas; el RFQ enlaza a /rfq?rfq=<id> solo con rfq_vista; Propuesta y Revisión enlazan a /propuestas?propuesta=<id> solo con propuesta_vista; una orden interna muestra 'Sin origen comercial'.
+  - Una Orden creada en el ERP muestra 'Folio: O-MMYY_XX'; 'legacy' no aparece en la ficha; 'Referencia migrada' solo aparece con id_historico.
+  - Compromiso comercial y Fecha operativa siguen en tarjetas separadas (prueba existente verde).
+  - Actividad muestra eventos en español con actor o 'Sistema' y sin identificadores internos; R10 queda registrado como parcial (Fase 2 diferida).
+  - JSON.stringify de la ficha de un usuario sin ver_finanzas no contiene precio_unitario, subtotal, iva, total ni moneda.
+- **dependeDeTandas:**
+  - 1
+- **modulosAfectados:**
+  -
+    - **modulo:** Órdenes: confidencialidad C4.3
+    - **que:** El servicio empieza a leer snapshot_json para todo orden_vista (cliente admin, sin RLS).
+    - **proteccion:** Variable local + lista blanca de origen; snapshot/totales/moneda tras incluirFinanzas; prueba de no-fuga RED primero; ordenes-confidencialidad-c4-3.test.ts y orden-documento-confidencialidad-c4-3.test.ts sin relajar; COLUMNAS_ORDEN_OPERATIVA no cambia.
+    - **riesgo:** alto
+  -
+    - **modulo:** RFQ y Propuestas
+    - **que:** Destinos de enlace /rfq?rfq= y /propuestas?propuesta=.
+    - **proteccion:** Enlace solo con can() del destino; prueba del href exacto; no se modifica crear_orden_desde_revision.
+    - **riesgo:** bajo
+  -
+    - **modulo:** Documento de orden
+    - **que:** folio_legacy del snapshot en documento-orden-servicio.ts.
+    - **proteccion:** Solo se revisa con criterio explícito; ordenes-documento.test.ts:9 no cambia.
+    - **riesgo:** bajo
+  -
+    - **modulo:** Entregas
+    - **que:** obtener-entregas.ts ordena por fecha_compromiso (espejo de la operativa); no se toca.
+    - **proteccion:** Hallazgo registrado, sin cambios.
+    - **riesgo:** medio
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/ficha-orden-servicio-no-fuga.test.ts (nueva, RED primero)
+    - tests/unitarias/ficha-orden-sin-ids.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-folio.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-origen-comercial.test.ts (nueva, RED; incluye href exactos)
+    - tests/unitarias/ordenes-etiquetas-evento.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-c4-2.test.ts (L85 y L101 de 'Origen (snapshot)' a 'Origen comercial'; fixture folioSii válido)
+    - Candados: ordenes-confidencialidad-c4-3, orden-documento-confidencialidad-c4-3, ordenes-documento
+  - **integracion:**
+    - tests/integracion/c4-3-confidencialidad-ordenes.test.ts: regresión (solo loopback)
+  - **pgtap:**
+    - Ninguno nuevo. Regresión: c4_2_orden_comercial_operativa.test.sql sin tocar
+  - **e2e:**
+    - tests/e2e/ordenes-estados-sii.spec.ts (completo; L344 -> 'Orden creada')
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/ficha-orden-c4-2.test.ts tests/unitarias/ficha-orden-sin-ids.test.ts tests/unitarias/ficha-orden-folio.test.ts tests/unitarias/ficha-orden-origen-comercial.test.ts tests/unitarias/ficha-orden-servicio-no-fuga.test.ts tests/unitarias/ordenes-etiquetas-evento.test.ts tests/unitarias/ordenes-confidencialidad-c4-3.test.ts tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts tests/unitarias/ordenes-documento.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/ordenes src/app/(privado)/ordenes
+    - powershell -File .claude/skills/cerrar-tanda/scripts/e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts
+- **riesgos:**
+  -
+    - **riesgo:** Fuga de precios al leer el snapshot para roles sin ver_finanzas (la ficha usa service_role; la única barrera es can(orden_vista) + lista blanca).
+    - **mitigacion:** Prueba de no-fuga escrita primero; nunca spread del snapshot ni select('*'); el origen se extrae campo a campo.
+  -
+    - **riesgo:** Enlaces a rutas que no leen el parámetro (/rfq?propuesta= no abre nada).
+    - **mitigacion:** Rutas fijadas en un helper con prueba de href exacto; destinos verificados en rfq/page.tsx:14-21 y propuestas/page.tsx:18.
+  -
+    - **riesgo:** Órdenes antiguas sin rfq_folio / sin snapshot.
+    - **mitigacion:** Degradar a texto plano o 'Sin origen comercial'; guard esSnapshotOrdenSii sin endurecer.
+  -
+    - **riesgo:** E2E con texto crudo (orden_creada) y locators por UUID.
+    - **mitigacion:** Cambiar etiqueta y aserción en el mismo commit; locators por folio/testid; spec completo.
+  -
+    - **riesgo:** Tipo de evento nuevo sin entrada en el diccionario.
+    - **mitigacion:** Fallback legible genérico (sin snake_case) con prueba.
+
+### Tanda 3 — Ficha: qué se fabrica, cómo y con qué archivos, sin economía · esfuerzo L
+**Objetivo:** Ítems con procesos resumidos, Ruta como tabla estructurada heredada de la Propuesta (Pendiente hasta Producción), Archivos vivos con Origen / Asociado a / Tipo y hoja de trabajo sin precios para quien tiene orden_vista pero no ver_finanzas; la restricción económica se demuestra en el backend, incluido el camino real del operador (Producción).
+**Requisitos:** R07, R08, R09, R17, R18
+- **ramaSugerida:** feat/ordenes-ficha-ruta-archivos-hoja-trabajo
+- **porQueEstaAgrupacion:** R08, R09 y R17 consumen el mismo snapshot y hoy quedan vacíos sin ver_finanzas (ficha-orden-servicio.ts:55-63, 151-178); R18 es la prueba de que esa apertura no filtra economía. R07 comparte la tabla de Partidas. Se resuelve el gating una sola vez con una única proyección por lista blanca. Va tras T2, que ya dejó el patrón y la prueba de no-fuga. Sin SQL.
+- **cambios:**
+  -
+    - **requisito:** R07
+    - **estadoActual:** PARCIAL. partida.procesos viene de la fila (ficha-orden-servicio.ts:110) y se pinta con join(' · ') (ficha-orden.tsx:375-377) sin deduplicar; crear_orden_desde_revision guarda un nombre por renglón de ruteo (20261012100000:1277-1292), por lo que dos pasos Láser CO₂ salen 'Láser CO₂ · Láser CO₂'. Otros joins: documento-orden-boton.tsx:156, panel-bolsa-planeacion.tsx:26, planeacion/utilidades/desglose.ts:65-66 (fijado por planeacion-desglose.test.ts:36,115).
+    - **cambio:** Helper puro resumirProcesos(procesos, separador=' · ') en ordenes/utilidades/procesos.ts: agrupa por clave canónica (trim, minúsculas, sin acentos), conserva el nombre de la primera aparición; n=1 muestra el nombre, n>1 'Nombre (n operaciones)'; vacío '—'. Se aplica SOLO en la ficha. NO se cambia la RPC (rompería metas_proceso_partida, una meta por entrada). Planeación/documento quedan sin cambio.
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/procesos.ts (nuevo)
+      - src/modulos/ordenes/componentes/panel-partidas-ficha.tsx
+      - tests/unitarias/ordenes-resumir-procesos.test.ts
+      - tests/unitarias/ficha-orden-partidas-procesos.test.ts
+  -
+    - **requisito:** R08
+    - **estadoActual:** PARCIAL. Pestaña Ruta (ficha-orden.tsx:385-411) pinta un <ol> 'n. Proceso setup X h · run Y h' por ítem, sin tabla ni Estado, con 'setup/run' en inglés y castes Record<string, unknown> (395-403); lee snapshot.items sin es_descuento (161-164). El ruteo del snapshot trae secuencia, proceso_nombre, setup_horas, run_horas, total_horas, requiere_revision, sin tarifa ni costo (20261012100000:1197-1212). Sin ver_finanzas queda vacío.
+    - **cambio:** Proyección RutaFicha tipada por lista blanca en el servidor (codigoItem, secuencia, procesoNombre, prepHoras, operacionHoras), sin precio_unitario/tarifa/costo y sin es_descuento, leída del snapshot interno para cualquier orden_vista. UI: por ítem (encabezado ITxx) tabla # | Proceso | Prep. estimada | Operación estimada | Estado, Estado fijo 'Pendiente' (D8=A; derivarlo de metas_proceso_partida queda para Producción). Se descarta una tabla de operaciones por orden (duplicaría metas_proceso_partida).
+    - **archivos:**
+      - src/modulos/ordenes/servicios/proyectar-snapshot-ficha.ts (nuevo, ÚNICA proyección por lista blanca: ruta, ítems con material/espesor/notas para la hoja; función pura)
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - src/modulos/ordenes/tipos/ficha-orden.ts
+      - src/modulos/ordenes/componentes/panel-ruta-ficha.tsx
+      - tests/unitarias/ordenes-ruta-ficha.test.ts
+      - tests/unitarias/ficha-orden-ruta-tabla.test.ts
+  -
+    - **requisito:** R09
+    - **estadoActual:** PARCIAL. Archivos solo del snapshot con origen 'revision'|'item' (ficha-orden-servicio.ts:151-178); los rfq_item salen sin ITxx; Tipo es la clase cruda y heterogénea; la UI cae al UUID (ficha-orden.tsx:420) y dice 'snapshot' (416). crear_orden_desde_revision vigente en 20261012100000:967-1421 no filtra archivos.retirado_en (20261013100000).
+    - **cambio:** Sin migración: derivar en lectura con helper puro derivar-archivos-ficha.ts. Servicio: añadir propuesta_revision_id al select de la orden (47-49); consultar archivos con .in('id', ids únicos del snapshot) en lotes de 100 vía dividirEnLotes (id, entidad, entidad_id, clase, nombre_original, nombre_erp, mime, vigente, retirado_en); propuesta_items (rfq_item_id, codigo) de la revisión aceptada solo si hay archivos rfq_item. Origen por entidad (rfq/rfq_item = RFQ; propuesta_revision/propuesta_item = 'Propuesta Rev <letra>'; propuesta = Propuesta); Asociado a (propuesta_item = item.codigo del contenedor del snapshot, rfq_item = vía propuesta_items.rfq_item_id, resto '(general)'); Tipo solo por clase (CAD=CAD, DIBUJO=Plano, IMAGEN=Imagen, ESPECIFICACIONES=Especificaciones, OTROS=Otro, tecnico=Técnico; 'pdf', 'general', nula o desconocida = '-'), sin heurística por extensión (D7=A); excluir retirado_en no nulo; id del snapshot sin fila = 'No disponible'. DIFERIDO por no pedirlo la nota (queda como hallazgo): listar adjuntos propios con entidad 'orden' (Origen=Orden) y descarga. UI: tabla Archivo | Origen | Asociado a | Tipo con el patrón de Partidas, testid ficha-panel-archivos conservado, sin UUID ni 'snapshot'. NO se reutiliza construirDocumentosCongelados de Producción (pierde ITxx de revisiones previas, documentos-orden-servicio.ts:184-188).
+    - **archivos:**
+      - src/modulos/ordenes/servicios/derivar-archivos-ficha.ts (nuevo)
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - src/modulos/ordenes/tipos/ficha-orden.ts
+      - src/modulos/ordenes/tipos/orden-sii.ts (solo campos opcionales entidad, revision_id, revision_letra, item_id)
+      - src/modulos/ordenes/componentes/panel-archivos-ficha.tsx
+      - tests/unitarias/derivar-archivos-ficha.test.ts
+      - tests/unitarias/ficha-orden-archivos-tabla.test.ts
+  -
+    - **requisito:** R17
+    - **estadoActual:** AUSENTE. Sin ver_finanzas el snapshot es null (servicio 55-63), la pestaña Documento se oculta (ficha-orden.tsx:157-159) y Ruta/Archivos quedan vacíos; material y espesor viven solo en items[] del snapshot junto a precio_unitario. HALLAZGO de cobertura: con el seed, el único rol con orden_vista y sin ver_finanzas es gerente (20261005100001:164,183; contador sí tiene ver_finanzas); operador y vendedor no tienen orden_vista, de modo que la hoja de la ficha NO llega al operador ni a Customer Service sin cambiar la matriz de permisos. El camino real del operador es Producción (documentos-orden-servicio.ts).
+    - **cambio:** Sin servicio ni componente nuevos aparte: la misma proyección por lista blanca de proyectar-snapshot-ficha.ts expone por ítem codigo, descripcion, cantidad, material, espesor, procesos, observaciones/notas y archivos, más cliente y folio; sin precio_unitario, es_descuento, subtotales, IVA, total, costo, margen ni moneda (verificar nombres reales en ItemSnapshotOrden, tipos/orden-sii.ts:72-87). La pestaña Documento se muestra siempre: con puedeVerFinanzas el documento comercial actual; sin él, el MISMO marcado de impresión sin bloque Totales (hoja de trabajo). Sin acción nueva (la ficha ya autoriza con orden_vista). Se declara en el PR que la audiencia efectiva depende de la matriz de permisos (default D6=A: roles con orden_vista sin ver_finanzas); no se da orden_vista al operador ni se toca Producción. Evidencia del criterio 11 en el camino del operador: prueba de CARACTERIZACIÓN de que el payload de Producción (documentos-orden-servicio y la acción de piso) no contiene precios.
+    - **archivos:**
+      - src/modulos/ordenes/servicios/proyectar-snapshot-ficha.ts
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - src/modulos/ordenes/tipos/ficha-orden.ts
+      - src/modulos/ordenes/componentes/panel-documento-ficha.tsx
+      - tests/unitarias/ordenes-hoja-trabajo.test.ts
+      - tests/unitarias/ficha-orden-sin-finanzas.test.ts
+      - tests/unitarias/produccion-payload-sin-economia.test.ts
+  -
+    - **requisito:** R18
+    - **estadoActual:** PARCIAL (backend sólido, huecos puntuales). C4.3 (20261010010303:5-14) revoca SELECT de tabla a authenticated y concede columnas sin snapshot_json, monto_*, condicion_pago; el documento exige doble can() (obtener-documento-orden.ts:22-30). Hueco: partidas con select('*') (ficha-orden-servicio.ts:68), hoy sin columnas económicas. Realtime: ordenes_produccion y partidas están en supabase_realtime (20260812052820:808-833); no verificado si el payload respeta privilegios por columna.
+    - **cambio:** Columnas explícitas en partidas (id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo; verificar contra el tipo FichaOrden). Candados: prueba de serialización sin ver_finanzas sobre la ficha completa (ruta + archivos + hoja) e integración ampliada (authenticated no puede select snapshot_json / monto_sin_iva / condicion_pago / '*' en ordenes_produccion; partidas sin columnas de precio). Realtime: verificación manual en entorno real, solo hallazgo (no se tocan sincronizadores).
+    - **archivos:**
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - tests/unitarias/ficha-orden-servicio-no-fuga.test.ts
+      - tests/integracion/c4-3-confidencialidad-ordenes.test.ts
+- **pasosEnOrden:**
+  - 0. Rama nueva desde origin/main (T2 fusionada). Caracterización verde: ficha-orden-c4-2, ordenes-confidencialidad-c4-3, orden-documento-confidencialidad-c4-3, produccion-documentos-orden*.test.ts y planeacion-desglose.test.ts (se re-ejecutan al final).
+  - 1. RED (deben fallar por la razón esperada): ordenes-resumir-procesos, ficha-orden-partidas-procesos, ordenes-ruta-ficha (JSON sin tarifa_hora/costo_total/precio_unitario; orden por ITxx y secuencia; sin es_descuento), ficha-orden-ruta-tabla (cabeceras, 'Pendiente', sin 'setup'/'run'), derivar-archivos-ficha (rfq_item+CAD -> RFQ/IT01/CAD; propuesta_revision letra A clase pdf -> 'Propuesta Rev A'/(general)/'-'; propuesta_item de Rev A en orden de Rev B conserva ITxx; retirado_en excluido; id sin fila -> 'No disponible'; mapa de tipo defensivo), ficha-orden-archivos-tabla, ordenes-hoja-trabajo (lista blanca, ignora campos extra), ficha-orden-sin-finanzas (cliente simulado: ruta/archivos/hoja pobladas; snapshot, totales y moneda null), produccion-payload-sin-economia (caracterización: el payload de Producción no trae precio_unitario/subtotal/iva/total/moneda).
+  - 2. GREEN servicio: columnas explícitas de partidas; propuesta_revision_id en el select; proyecciones desde el snapshot interno en proyectar-snapshot-ficha.ts; lecturas .in en lotes de 100 con dividirEnLotes (ordenes/utilidades/lotes.ts); tipos sin any ni castes.
+  - 3. GREEN UI: resumirProcesos en Partidas; tabla de Ruta; tabla de Archivos; Documento muestra la hoja de trabajo (mismo marcado sin Totales) cuando falta ver_finanzas. Ningún data-testid existente se renombra; ficha-orden-c4-2 L83 pasa a 'pestaña Documento visible sin finanzas y sin Totales' (L84 se conserva).
+  - 4. Ampliar integración c4-3 (authenticated sin snapshot_json/monto_*/condicion_pago/select('*'); partidas sin precios). Si hay stack local: supabase test db c4_3_confidencialidad_ordenes.test.sql como regresión.
+  - 5. Verificación: typecheck, eslint src/modulos/ordenes, vitest focal (incluye produccion-documentos-orden*.test.ts y planeacion-desglose.test.ts), integración loopback, E2E ordenes-estados-sii (completo). Declarar en el PR la limitación de audiencia de la hoja y la verificación manual pendiente de Realtime.
+- **criteriosAceptacion:**
+  - Una partida con dos operaciones de Láser CO₂ muestra 'Láser CO₂ (2 operaciones)'; con un solo proceso, su nombre; sin procesos, '—'.
+  - Ruta / Operaciones muestra por ítem una tabla # | Proceso | Prep. estimada | Operación estimada | Estado ('Pendiente'), sin las palabras setup/run, visible para un rol con orden_vista aunque no tenga ver_finanzas.
+  - Archivos vivos muestra Archivo | Origen | Asociado a | Tipo: pieza.dxf = RFQ / IT01 / CAD y CNC-1026_04-A.pdf = Propuesta Rev A / (general) / '-'; sin UUID ni la palabra 'snapshot'; archivos retirados no aparecen.
+  - Un usuario con orden_vista y sin ver_finanzas ve en Documento una hoja con Cliente, Orden, ITxx, descripción, cantidad, material, espesor, procesos, observaciones y archivos, sin precio, costo, IVA, margen, total ni moneda.
+  - La respuesta serializada de la ficha para ese usuario, y el payload de Producción para el operador, no contienen precio_unitario, subtotal, iva, total, moneda, tarifa ni costo (pruebas automáticas).
+  - Con un JWT authenticated real, select de snapshot_json, monto_sin_iva, condicion_pago y select('*') sobre ordenes_produccion fallan (integración, solo loopback).
+- **decisionesPOAntes:**
+  - D5 en versión mínima (qué rol equivale a Customer Service/Management): default seguro = no sembrar ver_finanzas ni dar orden_vista al operador; no bloquea T3.
+- **dependeDeTandas:**
+  - 2
+- **modulosAfectados:**
+  -
+    - **modulo:** Órdenes: servicio de ficha y confidencialidad
+    - **que:** Una única proyección sirve ruta, archivos y hoja de trabajo a roles sin finanzas.
+    - **proteccion:** Lista blanca campo a campo; snapshot/totales/moneda tras incluirFinanzas; prueba de serialización; suites C4.3 (unitaria, integración, pgTAP) como regresión.
+    - **riesgo:** alto
+  -
+    - **modulo:** Producción
+    - **que:** No se toca documentos-orden-servicio.ts; sigue importando archivosReferenciados / esSnapshotOrdenSii y seguirá listando archivos retirados (la ficha los oculta).
+    - **proteccion:** Solo campos opcionales en orden-sii.ts; produccion-documentos-orden*.test.ts y c2-3-documentos-orden.test.ts como regresión; nueva caracterización de payload sin economía; incoherencia registrada como hallazgo.
+    - **riesgo:** medio
+  -
+    - **modulo:** Planeación
+    - **que:** desglose.ts / panel-bolsa-planeacion.tsx unen procesos con ', '.
+    - **proteccion:** No se tocan; planeacion-desglose.test.ts (36,115) sigue verde.
+    - **riesgo:** medio
+  -
+    - **modulo:** Documento de orden
+    - **que:** documento-orden-boton.tsx comparte marcado y el join propio de procesos (:156).
+    - **proteccion:** Sin cambios en el documento comercial; se reutiliza el marcado sin Totales.
+    - **riesgo:** bajo
+  -
+    - **modulo:** Realtime
+    - **que:** ordenes_produccion y partidas están publicadas y 5 sincronizadores del navegador se suscriben.
+    - **proteccion:** No se tocan; verificación manual en entorno real registrada como pendiente.
+    - **riesgo:** medio
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/ordenes-resumir-procesos.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-partidas-procesos.test.ts (nueva, RED)
+    - tests/unitarias/ordenes-ruta-ficha.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-ruta-tabla.test.ts (nueva, RED)
+    - tests/unitarias/derivar-archivos-ficha.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-archivos-tabla.test.ts (nueva, RED)
+    - tests/unitarias/ordenes-hoja-trabajo.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-sin-finanzas.test.ts (nueva, RED)
+    - tests/unitarias/produccion-payload-sin-economia.test.ts (nueva, caracterización)
+    - tests/unitarias/ficha-orden-servicio-no-fuga.test.ts (se extiende)
+    - tests/unitarias/ficha-orden-c4-2.test.ts (L83 cambia; L84 se conserva)
+    - Regresión: ordenes-confidencialidad-c4-3, orden-documento-confidencialidad-c4-3, produccion-documentos-orden, produccion-documentos-orden-acciones, produccion-documentos-orden-panel, planeacion-desglose
+  - **integracion:**
+    - tests/integracion/c4-3-confidencialidad-ordenes.test.ts (ampliar)
+    - tests/integracion/c2-3-documentos-orden.test.ts (regresión)
+  - **pgtap:**
+    - supabase/tests/c4_3_confidencialidad_ordenes.test.sql y c3_1_linaje_documental_orden.test.sql como regresión (sin editar)
+  - **e2e:**
+    - tests/e2e/ordenes-estados-sii.spec.ts (pestañas ruta, archivos, documento visibles)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/ordenes-resumir-procesos.test.ts tests/unitarias/ficha-orden-partidas-procesos.test.ts tests/unitarias/ordenes-ruta-ficha.test.ts tests/unitarias/ficha-orden-ruta-tabla.test.ts tests/unitarias/derivar-archivos-ficha.test.ts tests/unitarias/ficha-orden-archivos-tabla.test.ts tests/unitarias/ordenes-hoja-trabajo.test.ts tests/unitarias/ficha-orden-sin-finanzas.test.ts tests/unitarias/produccion-payload-sin-economia.test.ts tests/unitarias/ficha-orden-servicio-no-fuga.test.ts tests/unitarias/ficha-orden-c4-2.test.ts tests/unitarias/ordenes-confidencialidad-c4-3.test.ts tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts tests/unitarias/produccion-documentos-orden.test.ts tests/unitarias/produccion-documentos-orden-panel.test.ts tests/unitarias/planeacion-desglose.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/ordenes
+    - pnpm test:integracion -- tests/integracion/c4-3-confidencialidad-ordenes.test.ts tests/integracion/c2-3-documentos-orden.test.ts (solo loopback; validar-entorno.mjs corta si no lo es)
+    - supabase test db supabase/tests/c4_3_confidencialidad_ordenes.test.sql (solo si el stack local está arriba)
+    - powershell -File .claude/skills/cerrar-tanda/scripts/e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts
+- **riesgos:**
+  -
+    - **riesgo:** Fuga de precio_unitario / totales por spread del snapshot o select('*') al abrir la lectura a roles sin finanzas.
+    - **mitigacion:** Proyecciones por lista blanca; prueba JSON.stringify con campos extra; columnas explícitas; nada de spread.
+  -
+    - **riesgo:** La hoja de trabajo no llega a nadie del seed salvo gerente: el criterio 11 podría darse por cumplido solo con la ficha.
+    - **mitigacion:** Prueba de caracterización del payload de Producción (camino real del operador) y declaración en el PR de que la audiencia depende de la matriz de permisos.
+  -
+    - **riesgo:** Tipo de archivo es inferencia del ejemplo del cliente; archivos.clase es texto libre sin catálogo.
+    - **mitigacion:** Mapa defensivo con '-' por defecto; sin heurística por extensión.
+  -
+    - **riesgo:** Órdenes sin snapshot válido (histórico OP-######) muestran Ruta/Archivos vacíos.
+    - **mitigacion:** Mensaje 'Sin ruteo congelado' / 'Sin archivos congelados'; no caer a la carpeta viva del RFQ.
+  -
+    - **riesgo:** Lecturas .in(ids) nuevas con URI demasiado largo.
+    - **mitigacion:** dividirEnLotes de 100 en archivos y propuesta_items.
+  -
+    - **riesgo:** Un enlace de descarga sin can() propio sería una fuga (service_role).
+    - **mitigacion:** Descarga fuera de alcance; si se pide, acción nueva con can(orden_vista) y pertenencia contra la lista derivada.
+  -
+    - **riesgo:** Incoherencia ficha vs Producción en archivos retirados.
+    - **mitigacion:** Registrar como hallazgo; no tocar Producción.
+
+### Tanda 4 — Entrega, cierre administrativo, documento comercial y aceptación · esfuerzo M
+**Objetivo:** Producción completada deja de leerse como 'terminado': la ficha y la cola muestran el saldo de entrega (30/50 -> faltan 20), el botón de cierre se bloquea en la interfaz hasta el 100 % entregado (la RPC sigue siendo la autoridad), las entregas parciales y 'Preparar entrega' quedan protegidas con prueba, el documento comercial queda caracterizado por permiso y se cierran los 12 criterios con evidencia mínima de registro.
+**Requisitos:** R11, R12, R13, R16, R20
+- **ramaSugerida:** feat/ordenes-entrega-cierre-aceptacion
+- **porQueEstaAgrupacion:** R11, R12 y R13 son el mismo ciclo Producción -> Entrega -> Cierre y comparten calcularSaldoEntrega / etiquetaEntrega y la lectura de entregado. R16 es caracterización y R20 es registro documental mínimo. Sin migraciones: las tres migraciones condicionales del plan anterior (eventos Fase 2, regla de scrap, permiso orden_ver_totales) quedan FUERA del plan y requieren encargo propio. Va última porque la cola ya fue recortada (T1) y la ficha estabilizada (T2/T3).
+- **cambios:**
+  -
+    - **requisito:** R11
+    - **estadoActual:** CUMPLE. Panel Entregas con 'Preparar entrega' (/entregas?orden=<id>, ficha-preparar-entrega) y notas Parcial/Total (ficha-orden.tsx:430-466). registrar_entrega acepta EN_PRODUCCION y PRODUCCION_COMPLETADA, topa por producido y solicitado y calcula es_parcial (20261007140001:380-462).
+    - **cambio:** Caracterización: ficha-orden-entregas.test.ts fija el enlace y las notas Parcial; sii_b7_entregas y entregas-flujo como regresión. Sin cambio funcional (el enlace visible en cualquier estado queda como hallazgo).
+    - **archivos:**
+      - tests/unitarias/ficha-orden-entregas.test.ts
+  -
+    - **requisito:** R12
+    - **estadoActual:** PARCIAL. cerrar_orden_administrativa (única definición, 20261007120002:179-212) exige PRODUCCION_COMPLETADA (la rama CANCELADA 182-187 es inalcanzable) y, por partida, suma simple de partidas_nota_entrega.cantidad_entregada >= cantidad_solicitada (201-212, error orden_no_entregada_completa); la acción verifica can('orden_cerrar_admin') (cerrar-orden-administrativa.ts:16-58). La UI habilita el botón solo con estado + permiso (ficha-orden.tsx:261-267). Callejón con scrap: la entrega se topa por producido (b7:422-435) y el cierre compara con solicitado (no verificado con datos).
+    - **cambio:** Sin migración (D3=A por defecto). Función pura calcularSaldoEntrega(partidas) -> {solicitado, entregado, faltan, cierrePermitido} con la MISMA regla del SQL: cierrePermitido = para toda partida, sum(cantidad_entregada) >= cantidad_solicitada (espeja 20261007120002:201-212; NO hay filtro de notas anuladas en el SQL, no inventarlo). En la ficha, ficha-cerrar queda deshabilitado con 'Faltan N piezas por entregar' si entregado < solicitado y alguna partida aún puede recibir entrega; caso de borde: si producido < solicitado y todo lo producido ya está entregado, el botón se deshabilita con otro texto ('Producción cerró con faltante; requiere decisión del PO') en vez de un 'Faltan N' que el usuario no puede resolver. Usa datos que la ficha ya carga (servicio 120-128). La RPC no se toca; el saldo es solo ayuda visual.
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/entrega-orden.ts (nuevo)
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - tests/unitarias/ordenes-saldo-entrega.test.ts
+      - tests/unitarias/ficha-orden-cierre-bloqueado.test.ts
+      - supabase/tests/c8_cierre_requiere_entrega_completa.test.sql (nuevo: rechazo con 30/50, aceptación con 50/50)
+  -
+    - **requisito:** R13
+    - **estadoActual:** PARCIAL. No hay etiqueta entre producción completada y cerrada (estado_sii no cambia al entregar). La cola calcula Avance solo de producción (calcularAvance, tabla-ordenes.tsx:116-169) con tono verde para PRODUCCION_COMPLETADA y no recibe datos de entrega: con 50/50 producido y 30/50 entregado muestra 100 % sin señal de las 20 pendientes. obtenerDatosComparativaServicio ya carga notas_entrega por lotes (datos-comparativa-servicio.ts:43-58, cargarEnLotes) pero sin renglones.
+    - **cambio:** Solo presentación (D4=A): etiquetaEntrega({estadoSii, solicitado, entregado}) -> 'Pendiente de entrega' | 'Entrega parcial X/Y' | null. Ficha: encabezado y panel Entregas ('Entregado 30/50; faltan 20 por entregar', testid ficha-saldo-entrega). Cola: texto 'Entregado X/Y' bajo el Badge. La lectura NO abre un segundo recorrido: se EXTIENDE obtenerDatosComparativaServicio para devolver cantidadEntregada por partida (renglones de partidas_nota_entrega en lotes de 100 con cargarEnLotes/dividirEnLotes, suma simple igual que el SQL de cierre) y page.tsx lo mapea a un campo opcional cantidadEntregada de la partida de OrdenTabla (no rompe Producción/Planeación, que importan tipos/ordenes.ts). El tono verde del Avance no se muestra como 'terminado' mientras falte entrega (prueba RED propia). Se descarta un estado ENTREGA_PARCIAL.
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/entrega-orden.ts
+      - src/modulos/ordenes/servicios/datos-comparativa-servicio.ts
+      - src/modulos/ordenes/componentes/tabla-ordenes.tsx
+      - src/modulos/ordenes/componentes/panel-entregas-ficha.tsx
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - src/app/(privado)/ordenes/page.tsx
+      - src/modulos/ordenes/tipos/ordenes.ts
+      - tests/unitarias/ordenes-etiqueta-entrega.test.ts
+      - tests/unitarias/tabla-ordenes-entrega.test.ts
+  -
+    - **requisito:** R16
+    - **estadoActual:** CUMPLE (por permiso). obtenerDocumentoOrdenAccion exige can(orden_vista) y can(ver_finanzas), compone con service_role y devuelve errores genéricos (obtener-documento-orden.ts:17-37); el seed da ver_finanzas solo a admin y contador; gerente recibe orden_vista pero no ver_finanzas.
+    - **cambio:** Solo caracterización: orden-documento-confidencialidad-c4-3.test.ts y ordenes-documento.test.ts se conservan. Sin sembrar ver_finanzas (D5 default: un admin lo asigna por la matriz; si el PO pide un permiso fino, es un encargo propio con orden_ver_totales en PERMISOS, fuera de este plan). No se cambia el typeof a Zod en obtener-documento-orden.ts (no es de la nota; hallazgo menor).
+    - **archivos:**
+      - tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts
+  -
+    - **requisito:** R20
+    - **estadoActual:** PARCIAL (documental). tasks/ llega a CLI-14 y DECISIONES-ACEPTADAS.md a DC-15; CLI-15 y Corte 8 libres; COLA-DE-TRABAJO.md solo propone C8.1-C8.4. CLAUDE.md prohíbe a Claude tocar coordinación salvo encargo.
+    - **cambio:** Registro MÍNIMO, solo en el PR de cierre y con autorización de Codex: 4 filas en 'Refinamientos posteriores' (cola, Reactivar, Repetir, separación de fechas) + CLI-15 en tasks/plan.md + Corte 8 de 12 casillas en tasks/todo.md con la evidencia (comando y resultado real) que ya producen los RED de T1..T4 (sin archivo de pruebas nuevo de aceptación); R10 se registra 'parcial, Fase 2 diferida a Planeación/Producción' con firma del PO. Fuera de alcance de las tandas (sugerido a Codex): DC-16..DC-22, CLI-16..24, matriz de 164, casillas de C4.2. Nada de la sección 15 de la nota se implementa.
+    - **archivos:**
+      - docs/observaciones-cliente-2026-10-07/DECISIONES-ACEPTADAS.md
+      - tasks/plan.md
+      - tasks/todo.md
+- **pasosEnOrden:**
+  - 0. Rama nueva desde origin/main (T3 fusionada). D3 (scrap) y D5 con sus defaults seguros; si el PO responde D3 distinto de A, se abre un encargo aparte (la RPC no se toca en este plan). Caracterización verde: tabla-ordenes-c4-3, ficha-orden-c4-2, ordenes-estado-sii y orden-documento-confidencialidad-c4-3. Leer 20261007120002:179-212 (árbitro del cierre) y el mapeo de OrdenTabla (tipos/ordenes.ts, archivada_en en 198 y 238) antes de diseñar la lectura.
+  - 1. RED: ordenes-saldo-entrega (50/30 -> faltan 20, cierrePermitido=false; 50/50 -> true; caso producido<solicitado con todo lo producido entregado -> bloqueo con texto 'requiere decisión del PO'), ordenes-etiqueta-entrega (PRODUCCION_COMPLETADA,50,30 -> 'Entrega parcial 30/50'; ...,50,0 -> 'Pendiente de entrega'; CERRADA,50,50 -> null; EN_PRODUCCION,50,20 -> 'Entrega parcial 20/50'), ficha-orden-cierre-bloqueado (30/50 deshabilitado con 'Faltan 20'; 50/50 habilitado), tabla-ordenes-entrega (producción 50/50 + entrega 30/50 muestra 'Entregado 30/50' y no el tono verde de terminado), ficha-orden-entregas (caracterización R11), pgTAP c8_cierre_requiere_entrega_completa (firma real: p_orden_id, p_actualizado_en, p_actor_id, p_correlation_id).
+  - 2. Antes del GREEN, revisar fixtures: cualquier fixture PRODUCCION_COMPLETADA sin entregas que antes habilitaba el botón lo verá deshabilitado; revisar explícitamente tabla-ordenes-c4-3.test.ts y ficha-orden-c4-2.test.ts y las E2E que cierran (los que cierran crean antes su entrega 50/50).
+  - 3. GREEN: utilidades puras en entrega-orden.ts; ficha (etiqueta, saldo, botón deshabilitado); extensión de obtenerDatosComparativaServicio con renglones en lotes de 100; mapeo en page.tsx; cola (etiqueta).
+  - 4. Migrar ordenes-estados-sii.spec.ts (cierre vía ficha tras entrega 100 %; bloqueo visible con parcial) y correr entregas-flujo.spec.ts como regresión.
+  - 5. R16: solo correr las pruebas de caracterización.
+  - 6. R20 (solo con encargo de Codex): registrar las 4 filas de Refinamientos, CLI-15 y el Corte 8 con la evidencia real de cada tanda.
+  - 7. Cierre del bloque (única vez): suite completa unitaria, pgTAP, integración loopback, concurrencia con --no-file-parallelism, build con variables loopback y E2E focales de órdenes y entregas. Verificar headSha del CI antes de informar; dejar el PR en verde sin mergear.
+- **criteriosAceptacion:**
+  - Con producción 50/50 y entrega 30/50: la orden sigue abierta, la ficha muestra 'Entregado 30/50; faltan 20 por entregar' y la cola 'Entregado 30/50' sin presentar el avance como terminado.
+  - El botón de cierre administrativo de la ficha está deshabilitado con 'Faltan 20 piezas por entregar' hasta que la suma entregada alcance lo solicitado; con 50/50 se habilita y cierra; la RPC rechaza el cierre con 30/50 aunque se invoque directamente (pgTAP). Con producido<solicitado y todo lo producido entregado, el botón se deshabilita con un texto que no pide entregar lo imposible.
+  - 'Preparar entrega' sigue llevando a /entregas?orden=<id>, y las entregas parciales se listan como 'Parcial'.
+  - El documento comercial solo lo obtiene quien tiene orden_vista y ver_finanzas (pruebas de caracterización verdes).
+  - Los 12 criterios de la sección 16 tienen casilla en el Corte 8 con la prueba o comando real que los evidencia (cuando Codex autorice el registro); R10 figura como parcial.
+  - No se introdujo ninguna estructura de 'No agregar todavía' (retrabajo, repetición automática, reactivación genérica, cierre financiero, costos avanzados, inventario, planeación avanzada, capacidad, calidad).
+- **decisionesPOAntes:**
+  - D3 (scrap: qué es '100 % entregado' si producido < solicitado): default A = mantener la RPC; solo bloquear en UI y registrar el hallazgo; no bloquea T4.
+- **dependeDeTandas:**
+  - 1
+  - 2
+  - 3
+- **modulosAfectados:**
+  -
+    - **modulo:** Entregas
+    - **que:** Solo lectura; preparar-entrega.ts, registrar_entrega y obtener-entregas.ts no se tocan.
+    - **proteccion:** sii_b7_entregas.test.sql y entregas-flujo.spec.ts como regresión; el saldo del cliente es ayuda visual, la RPC es la autoridad.
+    - **riesgo:** bajo
+  -
+    - **modulo:** Cobranza
+    - **que:** La AR se activa por el trigger de entrega al 100 %, no por el cierre; el trigger puede lanzar cliente_credito_sin_dias.
+    - **proteccion:** No se toca la regla de cierre ni el trigger; hallazgo registrado.
+    - **riesgo:** bajo
+  -
+    - **modulo:** Dashboard / KPIs
+    - **que:** sii_b9_kpis lee cerrada_admin_en y estado_sii; no se agrega estado.
+    - **proteccion:** sii_b9_kpis.test.sql sin cambios.
+    - **riesgo:** bajo
+  -
+    - **modulo:** Producción y Planeación
+    - **que:** tipos/ordenes.ts (OrdenTabla) lo importan tablero-produccion-servicio.ts:9 y planeacion/tipos/planeacion.ts:3.
+    - **proteccion:** cantidadEntregada opcional; typecheck desde cero.
+    - **riesgo:** medio
+  -
+    - **modulo:** Comparativa de órdenes
+    - **que:** Se extiende datos-comparativa-servicio.ts con renglones de nota de entrega.
+    - **proteccion:** comparativa-ordenes y su prueba como regresión; lotes de 100.
+    - **riesgo:** medio
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/ordenes-saldo-entrega.test.ts (nueva, RED; incluye caso de faltante de producción)
+    - tests/unitarias/ordenes-etiqueta-entrega.test.ts (nueva, RED)
+    - tests/unitarias/ficha-orden-cierre-bloqueado.test.ts (nueva, RED)
+    - tests/unitarias/tabla-ordenes-entrega.test.ts (nueva, RED; incluye tono no-verde mientras falte entrega)
+    - tests/unitarias/ficha-orden-entregas.test.ts (nueva, caracterización R11)
+    - tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts y ordenes-documento.test.ts (se conservan)
+    - tests/unitarias/tabla-ordenes-c4-3.test.ts, ordenes-estado-sii.test.ts y ficha-orden-c4-2.test.ts (regresión; fixtures con campo opcional de entrega)
+  - **integracion:**
+    - Ninguna nueva; regresión de tests/integracion/c4-3-confidencialidad-ordenes.test.ts
+  - **pgtap:**
+    - supabase/tests/c8_cierre_requiere_entrega_completa.test.sql (nuevo; no editar sii_b5_orden.test.sql)
+    - Regresión: sii_b5_orden.test.sql, sii_b7_entregas.test.sql, sii_b9_kpis.test.sql
+  - **e2e:**
+    - tests/e2e/ordenes-estados-sii.spec.ts (cerrar vía ficha tras entrega 100 %; bloqueo visible con parcial)
+    - tests/e2e/entregas-flujo.spec.ts (regresión)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/ordenes-saldo-entrega.test.ts tests/unitarias/ordenes-etiqueta-entrega.test.ts tests/unitarias/ficha-orden-cierre-bloqueado.test.ts tests/unitarias/tabla-ordenes-entrega.test.ts tests/unitarias/ficha-orden-entregas.test.ts tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts tests/unitarias/ordenes-documento.test.ts tests/unitarias/tabla-ordenes-c4-3.test.ts tests/unitarias/ordenes-estado-sii.test.ts tests/unitarias/ficha-orden-c4-2.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/ordenes src/app/(privado)/ordenes
+    - supabase test db supabase/tests/c8_cierre_requiere_entrega_completa.test.sql supabase/tests/sii_b5_orden.test.sql supabase/tests/sii_b7_entregas.test.sql (solo con stack local arriba)
+    - powershell -File .claude/skills/cerrar-tanda/scripts/e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts,tests/e2e/entregas-flujo.spec.ts
+    - Solo al cierre del bloque: pnpm test, supabase test db completo, pnpm test:integracion, pnpm test:concurrencia, pnpm build con variables loopback, e2e completo
+- **riesgos:**
+  -
+    - **riesgo:** Callejón con scrap: la entrega se topa por producido y el cierre compara con solicitado; deshabilitar el botón con 'Faltan N' sin distinguir el caso dejaría al usuario ante una acción imposible.
+    - **mitigacion:** Texto distinto para producido<solicitado totalmente entregado; D3 con default A y hallazgo; cualquier cambio de regla de la RPC es encargo aparte con su pgTAP.
+  -
+    - **riesgo:** Doble fuente de verdad: el saldo del cliente difiere de la RPC.
+    - **mitigacion:** calcularSaldoEntrega espeja exactamente 20261007120002:201-212 (suma simple por partida vs solicitado); se trata como ayuda visual y la prueba pgTAP fija la RPC.
+  -
+    - **riesgo:** Fixtures de órdenes 'completada' sin entregas rompen pruebas ajenas al endurecer la UI del cierre.
+    - **mitigacion:** Revisión explícita de tabla-ordenes-c4-3.test.ts y ficha-orden-c4-2.test.ts antes del GREEN; los que cierran crean antes su entrega; la RPC no cambia.
+  -
+    - **riesgo:** La lectura agregada de la cola con .in(ids) produce 'URI too long' con base local cargada de residuales.
+    - **mitigacion:** Extender cargarEnLotes/dividirEnLotes de 100 en datos-comparativa-servicio.ts; limpiar residuales E2E antes de la corrida.
+  -
+    - **riesgo:** Cambiar OrdenTabla rompe Producción/Planeación.
+    - **mitigacion:** Campo opcional; typecheck desde cero.
+  -
+    - **riesgo:** El registro documental lo hace Claude sin autorización (CLAUDE.md prohíbe tocar coordinación).
+    - **mitigacion:** Paso 6 solo con encargo de Codex; el resto del contenido se entrega como texto sugerido.
+  -
+    - **riesgo:** Que el PO fusione T4 mientras la CI sigue en curso o se reporte el CI de otro commit.
+    - **mitigacion:** Comprobar headSha de la corrida antes de informar; no mergear.
+
+### Decisiones del PO
+-
+  - **id:** D3
+  - **pregunta:** Regla de cierre administrativo y scrap (R12): hoy la entrega se topa por lo producido, pero cerrar_orden_administrativa compara contra lo solicitado, de modo que una partida con producido < solicitado no puede cerrarse. ¿Qué es '100 % entregado'?
+  - **opciones:**
+    -
+      - **etiqueta:** A. Mantener: 100 % de lo solicitado (RPC actual); solo bloquear el botón en UI y mostrar el saldo
+      - **pros:** Coincide con la nota ('100 % de las cantidades'); sin migración; la RPC ya es la autoridad; no bloquea T4.
+      - **contras:** Una orden que cierra producción con faltante queda sin salida por la vía normal (no verificado con datos).
+    -
+      - **etiqueta:** B. Medir el 100 % contra lo producido
+      - **pros:** Elimina el callejón.
+      - **contras:** Redefine cerrar_orden_administrativa y probablemente el trigger de archivo/AR y KPIs; requiere migración y pgTAP propios; fuera de este plan.
+    -
+      - **etiqueta:** C. Permitir cierre con diferencia justificada (motivo y actor)
+      - **pros:** Cubre scrap real y faltantes aceptados.
+      - **contras:** Función nueva con permiso, motivo y auditoría; excede 'ajustar, no rehacer'; fuera de este plan.
+  - **recomendacion:** Opción A y no bloquear: T4 muestra un texto específico para el faltante de producción. Antes de abrir un encargo con B o C, verificar con datos reales si una orden llega a PRODUCCION_COMPLETADA con producido < solicitado.
+  - **requisitos:**
+    - R12
+    - R13
+-
+  - **id:** D5
+  - **pregunta:** Documento comercial y hoja de trabajo (R16/R17): ¿qué rol del seed equivale a Customer Service y a Management? Hoy ver_finanzas solo lo tienen admin y contador; el único rol con orden_vista y sin ver_finanzas es gerente; operador y vendedor no tienen orden_vista.
+  - **opciones:**
+    -
+      - **etiqueta:** A. Sin cambio de permisos: el admin asigna por la matriz lo que decida
+      - **pros:** Sin migración ni riesgo; la hoja de trabajo llega a quien tenga orden_vista sin ver_finanzas.
+      - **contras:** Con el seed la hoja de la ficha solo llega al gerente; el operador la ve por Producción.
+    -
+      - **etiqueta:** B. Permiso nuevo orden_ver_totales (encargo propio)
+      - **pros:** Acceso exacto a totales sin abrir cobranza.
+      - **contras:** Cambia PERMISOS, catálogo, acción y ficha y requiere migración que aplica el PO; fuera de este plan.
+  - **recomendacion:** Opción A. No sembrar ver_finanzas (gobierna RLS de cobranza, gastos, compras y tesorería) ni dar orden_vista al operador. El PO solo debe indicar qué roles reales corresponden a Customer Service y Management si quiere la opción B más adelante; no bloquea T3 ni T4.
+  - **requisitos:**
+    - R16
+    - R17
+    - R18
+
+### Registro sugerido de decisiones
+## Texto sugerido para docs/observaciones-cliente-2026-10-07/DECISIONES-ACEPTADAS.md (solo en el PR de cierre y con autorización de Codex; NO crear DC-16..DC-22)
+
+Agregar a la tabla «Refinamientos posteriores» (patrón vigente). Fecha 2026-10-13 (revisión funcional relevada por el PO), autor Product Owner:
+
+| Fecha | Autor | Requisito afectado | Ajuste |
+| --- | --- | --- | --- |
+| 2026-10-13 | Product Owner | DC-17 / C4.3 (ORD-01) | La cola de Órdenes conserva Folio, Estado, Prioridad, Compromiso, Partidas y Avance y deja una sola acción contextual (Liberar) además de Abrir; Comentarios, Documento, Adjuntos, Cancelar y Cerrar se atienden desde la ficha, cuya pestaña Comentarios recibe los enlaces /ordenes?ordenId=. |
+| 2026-10-13 | Product Owner | PRD-15 de A20 (revierte) | Reactivar deja de ofrecerse como acción genérica (cola y Planeación) y su Server Action se retira. La RPC reactivar_orden_op permanece en base sin uso. Si existe retrabajo se creará una acción explícita 'Crear retrabajo' con causa y trazabilidad (no implementada ahora). |
+| 2026-10-13 | Product Owner | CLI-08 'Repetir trabajo' de A20 (revierte) | Repetir deja de ofrecerse en la cola y su Server Action se retira. No se revive la misma Orden; si se requiere fabricar de nuevo se creará una Orden nueva basada en la anterior, con nuevo folio y referencia al origen (no implementada ahora). La RPC repetir_orden_op permanece en base. |
+| 2026-10-13 | Product Owner | DC-10 | Se confirma la separación Compromiso comercial / Fecha operativa; la promesa original no se modifica en silencio y la reprogramación pertenece a Planeación con historial. |
+
+## tasks/plan.md (§3), una sola línea nueva (verificar que CLI-15 siga libre; CLI-08 de plan.md es ruteo y es homónimo de 'Repetir trabajo' de la matriz vieja)
+
+- CLI-15 Revisión funcional de Órdenes (nota del cliente 2026-10-13, R01-R20): cola simplificada, ficha sin datos técnicos, ruta/archivos/hoja de trabajo sin economía, entrega/cierre y retiro de Reactivar/Repetir - refinamientos de DC-17, DC-10 y reversos de A20 - Tandas 1 a 4.
+
+## tasks/todo.md - Corte 8 (12 casillas, una por criterio de la sección 16, con tanda y evidencia real)
+
+C8.1 = Tanda 1 (cola simplificada, Reactivar, Repetir); C8.2 = Tanda 2 (IDs ocultos, folios navegables, Legacy, compromiso/operativa); C8.3 = Tanda 3 (procesos, ruta, archivos, operadores sin economía); C8.4 = Tanda 4 (cierre bloqueado hasta 100 % entregado). Notas obligatorias del corte: R10 PARCIAL (Fase 1 etiquetas/'Sistema'; ORDEN_PLANIFICADA y PRODUCCION_INICIADA diferidos a Planeación/Producción, firma del PO); la hoja de trabajo depende de la matriz de permisos (con el seed solo el gerente tiene orden_vista sin ver_finanzas); Realtime pendiente de verificación manual; D3 (scrap) abierta con default A.
+
+## Sugerido a Codex, fuera de las tandas
+
+DC-16..DC-22 como decisiones propias, CLI-16..CLI-24, actualización de la matriz de 164 (PRD-15 y CLI-08 vieja) y marcado de las casillas de C4.2.
+
+### Mapa de criterios de aceptación
+-
+  - **criterio:** IDs técnicos ocultos en UI
+  - **requisitos:**
+    - R03
+  - **tanda:** 2
+  - **evidenciaDeCierre:** tests/unitarias/ficha-orden-sin-ids.test.ts (ningún UUID ni rfq_id/propuesta_id/revision_id en el texto de ninguna pestaña, con y sin ver_finanzas); T3 elimina el respaldo al archivoId al reemplazar la lista por tabla (ficha-orden-archivos-tabla.test.ts).
+-
+  - **criterio:** Folios humanos navegables
+  - **requisitos:**
+    - R04
+  - **tanda:** 2
+  - **evidenciaDeCierre:** tests/unitarias/ficha-orden-origen-comercial.test.ts: folios de RFQ, Propuesta y Revisión (con letra) visibles sin ver_finanzas; href exactos /rfq?rfq=<id> y /propuestas?propuesta=<id> solo con rfq_vista / propuesta_vista; 'Sin origen comercial' en orden interna; ficha-orden-servicio-no-fuga.test.ts.
+-
+  - **criterio:** "Legacy" corregido donde no corresponda
+  - **requisitos:**
+    - R05
+  - **tanda:** 2
+  - **evidenciaDeCierre:** tests/unitarias/ficha-orden-folio.test.ts: 'Folio: O-1026_01', sin /legacy/i ni 'orden legada'; 'Referencia migrada' solo con id_historico.
+-
+  - **criterio:** Compromiso comercial separado de fecha operativa
+  - **requisitos:**
+    - R06
+    - R01
+  - **tanda:** 2
+  - **evidenciaDeCierre:** Caracterización ficha-orden-c4-2.test.ts:67-69 (tarjetas separadas) + pgTAP existente c4_2_orden_comercial_operativa.test.sql; columna Compromiso de la cola cubierta por tabla-ordenes-acciones-minimas.test.ts (T1).
+-
+  - **criterio:** Procesos resumidos correctamente en Ítems
+  - **requisitos:**
+    - R07
+  - **tanda:** 3
+  - **evidenciaDeCierre:** tests/unitarias/ordenes-resumir-procesos.test.ts y ficha-orden-partidas-procesos.test.ts: ['Láser CO₂','Láser CO₂'] -> 'Láser CO₂ (2 operaciones)'; planeacion-desglose.test.ts sigue verde.
+-
+  - **criterio:** Ruta presentada de forma estructurada
+  - **requisitos:**
+    - R08
+  - **tanda:** 3
+  - **evidenciaDeCierre:** tests/unitarias/ficha-orden-ruta-tabla.test.ts (cabeceras # | Proceso | Prep. estimada | Operación estimada | Estado, 'Pendiente', sin setup/run) + ordenes-ruta-ficha.test.ts (lista blanca) + visible sin ver_finanzas.
+-
+  - **criterio:** Archivos vivos muestran origen/tipo/asociación
+  - **requisitos:**
+    - R09
+  - **tanda:** 3
+  - **evidenciaDeCierre:** tests/unitarias/derivar-archivos-ficha.test.ts y ficha-orden-archivos-tabla.test.ts: pieza.dxf = RFQ / IT01 / CAD; CNC-1026_04-A.pdf = Propuesta Rev A / (general) / '-'; retirados excluidos; sin UUID. (Origen=Orden con adjuntos propios diferido y registrado como hallazgo.)
+-
+  - **criterio:** Cierre administrativo bloqueado hasta 100% entregado
+  - **requisitos:**
+    - R12
+    - R13
+    - R11
+  - **tanda:** 4
+  - **evidenciaDeCierre:** ficha-orden-cierre-bloqueado.test.ts (30/50 deshabilitado con 'Faltan 20'; 50/50 habilitado; caso producido<solicitado con texto distinto) + pgTAP c8_cierre_requiere_entrega_completa.test.sql (RPC rechaza con 30/50) + tabla-ordenes-entrega.test.ts (producción 50/50 y entrega 30/50 visible, sin tono de terminado) + ficha-orden-entregas.test.ts (R11).
+-
+  - **criterio:** Reactivar retirado o definido explícitamente
+  - **requisitos:**
+    - R14
+  - **tanda:** 1
+  - **evidenciaDeCierre:** tabla-ordenes-acciones-minimas.test.ts (sin reactivar-orden-*) + ordenes-heredadas-reactivacion.spec.ts y planeacion-bolsa-acciones.spec.ts reescritas a ausencia + grep de ReactivarOrdenDialog / reactivarOrdenAccion / puedeAdministrar (Planeación) en src/ = 0 + refinamiento del PO registrado (con autorización de Codex).
+-
+  - **criterio:** Repetir retirado o convertido posteriormente en nueva Orden
+  - **requisitos:**
+    - R15
+  - **tanda:** 1
+  - **evidenciaDeCierre:** tabla-ordenes-acciones-minimas.test.ts (sin repetir-orden-*) + grep de RepetirOrdenDialog / repetirOrdenAccion en src/ = 0; RPC repetir_orden_op conservada (repetir-trabajo.test.ts) como base futura.
+-
+  - **criterio:** Operadores sin acceso a información económica
+  - **requisitos:**
+    - R17
+    - R18
+    - R16
+  - **tanda:** 3
+  - **evidenciaDeCierre:** ordenes-hoja-trabajo.test.ts y ficha-orden-sin-finanzas.test.ts (JSON.stringify sin precio_unitario/subtotal/iva/total/moneda/tarifa/costo); produccion-payload-sin-economia.test.ts (camino real del operador: Producción); integración c4-3 ampliada (authenticated sin snapshot_json/monto_*/condicion_pago/select('*')) y pgTAP c4_3 17/17; R16 (documento comercial solo con ver_finanzas) con orden-documento-confidencialidad-c4-3.test.ts en T4. Limitación declarada: con el seed la hoja de la ficha solo alcanza al gerente; Realtime queda como verificación manual.
+-
+  - **criterio:** Cola de Órdenes simplificada
+  - **requisitos:**
+    - R01
+    - R02
+  - **tanda:** 1
+  - **evidenciaDeCierre:** tabla-ordenes-acciones-minimas.test.ts (encabezados Folio/Estado/Prioridad/Compromiso/Partidas/Avance y solo Abrir + Liberar) + E2E migrados a la ficha en verde + ordenes-page-redirect.test.ts (deep link tras orden_vista, z.uuid).
+
+### Fuera de alcance
+- Retrabajo avanzado y la acción 'Crear retrabajo' (solo queda registrado como futuro).
+- Repetición automática y la acción 'Nueva orden basada en la anterior' (la RPC repetir_orden_op se conserva, sin UI).
+- Reactivación genérica (se retira; no se redefine). No se borran RPC ni migraciones A20 ni src/compartido/tipos/supabase.ts.
+- Cierre financiero dentro de la Orden: CxC conserva su ciclo independiente; no se toca cuentas_por_cobrar ni el trigger archivar_orden_al_entregar.
+- Motor avanzado de costos, inventario formal, planeación avanzada, capacidad sofisticada, calidad avanzada (incluye una UI de reprogramación en la ficha: pertenece a Planeación/C9).
+- Las tres migraciones condicionales del plan anterior, cada una requiere encargo propio: (a) 20261014120000 eventos de negocio Fase 2 de R10 (ORDEN_PLANIFICADA, PRODUCCION_INICIADA; R10 queda parcial); (b) 20261014130000 regla de scrap en cerrar_orden_administrativa; (c) 20261014140000 permiso orden_ver_totales. Este plan no contiene migraciones.
+- Nuevo estado SII ENTREGA_PARCIAL, tabla de operaciones por orden con estado, redefinir crear_orden_desde_revision (procesos únicos, filtro retirado_en), vistas SQL por rol, vista del operador con PIN dentro de Órdenes, descarga de archivos desde la ficha, listado de adjuntos propios (entidad 'orden') en Archivos vivos, unificar el join de procesos de Planeación y documento, cambiar typeof por Zod en obtener-documento-orden.ts.
+- Registro documental ampliado: DC-16..DC-22, CLI-16..CLI-24, actualización de la matriz de 164 (COBERTURA_IMPLEMENTACION_ACTUAL.csv) y casillas de C4.2; quedan como sugerencia a Codex. Un archivo ficha-orden-criterios-aceptacion.test.ts y un pgTAP c8_compromiso_inmutable no se crean.
+- Cualquier acción remota: aplicar migraciones, supabase db push/repair, mergear, desplegar. Eso lo hace el PO.
+
+### Hallazgos que NO se tocarán sin aprobación
+- Realtime: ordenes_produccion y partidas_orden_produccion están publicadas (20260812052820:808-833) y cinco sincronizadores del navegador se suscriben; no se verificó si el payload respeta privilegios por columna (snapshot_json, monto_*). Requiere prueba manual en entorno real.
+- RLS USING (true) en ordenes_produccion y partidas para authenticated (cita del lector, fase_5 195-201 no reabierta); la protección depende de privilegios por columna C4.3 y can() en servidor.
+- Con el seed solo el gerente tiene orden_vista sin ver_finanzas (B1:164,183); operador y vendedor no tienen orden_vista: la hoja de trabajo de la ficha no llega al operador ni a Customer Service sin cambiar la matriz. El estado real de permisos_rol en producción no es verificable desde las migraciones locales.
+- Producción lista y firma archivos retirados (retirado_en) y pierde el ITxx de archivos de ítem de revisiones anteriores (documentos-orden-servicio.ts:184-188, 227-293); crear_orden_desde_revision (20261012100000:1143,1247) no filtra retirado_en. La ficha los ocultará, Producción no: incoherencia entre pantallas.
+- Dos canales de adjuntos propios de la Orden: archivos_orden (diálogo legado, bucket archivos-orden-historica) y archivos con entidad 'orden' (Producción); este último no se lista en Archivos vivos en este plan.
+- Trigger archivar_orden_al_entregar (20261007230002:52-67) puede lanzar cliente_credito_sin_dias al llegar al 100 % y revertir la entrega total; confirmar que la acción de entrega traduce ese código a un mensaje accionable.
+- Callejón del scrap: producido < solicitado impide llegar al 100 % entregado y cerrar (no verificado con datos).
+- Rama muerta en cerrar_orden_administrativa (20261007120002:182-187, CANCELADA inalcanzable) y mensaje impreciso de transicion_invalida en cerrar-orden-administrativa.ts:16-24.
+- 'Preparar entrega' aparece en cualquier estado, incluso CERRADA o CANCELADA (ficha-orden.tsx:436-442); el rechazo llega al registrar.
+- obtener-entregas.ts ordena por fecha_compromiso (espejo de la operativa): tras reprogramar, la promesa comercial deja de ser la referencia del orden/KPI (cita del lector, no re-verificada). Pregunta abierta: ¿el OTD se mide contra el compromiso comercial?
+- Matriz de 164 obsoleta (PRD-15 y CLI-08 vieja marcadas ausentes aunque A20 las implementó); homonimia CLI-08 entre plan.md (ruteo) y la matriz vieja; casillas de C4.2 sin marcar en tasks/todo.md:233-242. Sugeridos a Codex, no alcance de las tandas.
+- Join de procesos con separadores distintos en cuatro sitios (ficha ' · ', documento-orden-boton.tsx:156, panel-bolsa-planeacion.tsx:26, planeacion/utilidades/desglose.ts:65-66); solo se unifica la ficha.
+- La acción obtenerDocumentoOrdenAccion valida ordenId con typeof y no con Zod (línea 25); desvío menor de convención no tocado por no ser de la nota.
+- El árbol de trabajo muestra 20261014110000_tarifario_unico_estacion_grupo.sql modificada y las migraciones 20261014100000 y 20261014110000 solo locales: son de otro frente (Propuesta). No entran en ningún commit de estas tandas.
+- No verificados y aceptados como cita del lector hasta confirmarlos al implementar: rfq_vista / propuesta_vista como permisos reales (solo vistos como nombres en PERMISOS), nombres de material/espesor/notas en ItemSnapshotOrden, props de AdjuntosOrdenDialog, forma de OrdenTabla.partidas, el cuerpo de la RPC de cancelación y de registrar_entrega, y la forma exacta de obtenerDatosComparativaServicio (datos-comparativa-servicio.ts:43-58 citada por la crítica).
+- El botón Bandeja de Planeación y los demás deep links ?ordenId= aterrizan siempre en la pestaña Comentarios (destino único del redirect); si el PO prefiere otro destino por defecto, es un cambio de una línea en ordenes/page.tsx.
+
+## Crítica del plan
+- **veredicto:** aprobable_con_ajustes
+- **afirmacionesContrastadas:**
+  -
+    - **afirmacion:** Servicio de ficha: snapshot_json solo con incluirFinanzas (55-63); archivos solo del snapshot con origen 'revision'|'item' (151-178); moneda/snapshot/totales dependen de snapshotJson (207-211); partidas con select('*') (68).
+    - **resultado:** correcta
+    - **evidencia:** src/modulos/ordenes/servicios/ficha-orden-servicio.ts:55-63, 68, 151-178, 207-211. Sin ver_finanzas, snapshot, archivos, ruta y totales salen vacíos o null. El select de la orden (47-49) no incluye propuesta_revision_id, como indica el plan.
+  -
+    - **afirmacion:** [id]/page.tsx usa crearClienteSupabaseAdmin() con can(ver_finanzas) como incluirFinanzas (19-27).
+    - **resultado:** correcta
+    - **evidencia:** src/app/(privado)/ordenes/[id]/page.tsx:17-27. La página solo recibe `params`: para la pestaña inicial por query (?pestana=) hay que agregar `searchParams` (Promise en Next 16). El plan lo prevé pero sin precisar este cambio de firma.
+  -
+    - **afirmacion:** La fila de la cola tiene 9 controles y Repetir/Reactivar están en 630/643; Comentarios no tiene testid.
+    - **resultado:** correcta
+    - **evidencia:** src/modulos/ordenes/componentes/tabla-ordenes.tsx:574-670. Abrir 574, Liberar 581, Cerrar 593, Comentarios 608-614 (sin testid), Documento 615, Repetir 622-632, Reactivar 633-645, Adjuntos 646, Cancelar 657-669.
+  -
+    - **afirmacion:** El deep link ?ordenId= se consume en ordenes/page.tsx (25, 146) y la tabla abre Comentarios en un efecto.
+    - **resultado:** correcta
+    - **evidencia:** page.tsx:25 y 144-154 pasa ordenInicialId. tabla-ordenes.tsx:217-238 también cambia el filtro de bandeja si la orden está archivada. Al retirar ordenInicialId se pierde ese efecto, sin consecuencia porque la ficha abre cualquier id.
+  -
+    - **afirmacion:** Planeación importa ReactivarOrdenDialog (acciones-tarjeta-orden.tsx:6,111-131) y su botón Bandeja navega a /ordenes?ordenId= (66).
+    - **resultado:** correcta
+    - **evidencia:** src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx:6, 66, 111-131. Omisión del plan: la prop `puedeAdministrar` (13, 28) existe solo para Reactivar y se propaga por tarjeta-programacion-planeacion.tsx:39,58, vistas-calendario-planeacion.tsx:33,89 y calendario-planeacion.tsx:61,103,229. Quedaría huérfana. No hay pruebas unitarias de acciones-tarjeta-orden (grep en tests/unitarias sin resultados). Su única protección es la E2E planeacion-bolsa-acciones.
+  -
+    - **afirmacion:** Los símbolos de Reactivar y Repetir solo se usan en tabla-ordenes, acciones-tarjeta-orden, sus diálogos, acciones, servicio y validaciones.
+    - **resultado:** correcta
+    - **evidencia:** Grep en src/ de reactivarOrdenAccion|ReactivarOrdenDialog|repetirOrdenAccion|RepetirOrdenDialog|esquema*|*OrdenServicio: ordenes-servicio.ts:307,336; validaciones/ordenes.ts:69,75,173-174; las acciones y los diálogos. Ningún otro consumidor, así que el borrado en un solo PR es viable.
+  -
+    - **afirmacion:** Regla actual de cierre administrativo: exige PRODUCCION_COMPLETADA y entregado >= solicitado por partida (error orden_no_entregada_completa).
+    - **resultado:** imprecisa
+    - **evidencia:** supabase/migrations/20261007120002_sii_b5_orden_estados.sql:154-212 (única definición). La regla es correcta, y la rama CANCELADA (182-187) es inalcanzable. Imprecisión del plan: dice replicar 'el filtro de acumulado de b7 422-435'. Ese bloque (b7:422-450) no filtra nada, es suma simple de partidas_nota_entrega por partida y topa por producido y por solicitado. El saldo del botón debe espejar la suma de cerrar_orden_administrativa 201-212. Las notas anuladas que menciona el riesgo no existen en ese código. Confirmado el callejón del scrap: la entrega se topa por producido (b7:422-435) y el cierre compara con solicitado.
+  -
+    - **afirmacion:** El rótulo 'Folio legacy' sale de ficha-orden.tsx:303 y hay otros textos 'legacy' (335, 526); la pestaña inicial es useState('resumen') (146).
+    - **resultado:** correcta
+    - **evidencia:** ficha-orden.tsx:303 `<Tarjeta titulo="Folio legacy">{ficha.orden.folio}</Tarjeta>`, 335 y 526; useState en 146. El grep de 'legacy' en ese archivo solo devuelve 303, 335 y 526. No se verificó el texto 'orden legada' de la línea 309 (no contiene 'legacy'). Los tests que citan 'legacy' no fijan el rótulo de la ficha (tests/unitarias/ordenes-documento.test.ts:9 es dato del snapshot).
+  -
+    - **afirmacion:** snapshot.origen ya congela rfq_folio, propuesta_folio, revision_folio.
+    - **resultado:** correcta
+    - **evidencia:** supabase/migrations/20261012100000_b4_obs2_flujo_versiones.sql:1337,1339,1341. SnapshotOrdenSii.origen es Record<string, unknown> (tipos/orden-sii.ts:92), así que la extracción por lista blanca requiere tipado nuevo, como propone el plan.
+  -
+    - **afirmacion:** Enlaces de Origen: ?rfq=<id> y ?propuesta=<id> en /rfq (D11, R04).
+    - **resultado:** incorrecta
+    - **evidencia:** src/app/(panel)/rfq/page.tsx:14-21 solo lee `rfq` (y `oportunidad`). El deep link de propuesta es /propuestas?propuesta=<id> (src/app/(panel)/propuestas/page.tsx:18; lista-propuestas-rfq.tsx:52,92; cola-propuestas.tsx:152). Un enlace a /rfq?propuesta= no abriría nada.
+  -
+    - **afirmacion:** La ficha ya tiene Cancelar y Cerrar con diálogos que muestran el error dentro (para migrar cancelacion-financiera.spec) y le faltan Comentarios y Adjuntos.
+    - **resultado:** correcta
+    - **evidencia:** ficha-orden.tsx:249-264 (testids ficha-liberar/cancelar/cerrar), 537-577: ambos diálogos pintan `error` con role=alert dentro del diálogo (543, 568) y la etiqueta 'Motivo (mínimo 3 caracteres)' (545) coincide con el locator de cancelacion-financiera.spec.ts:59-62, que espera `dialogo.getByRole('alert')` con 'La orden tiene cobranza registrada'. La migración de la E2E es viable. HiloComentarios solo importado en tabla-ordenes.tsx:6.
+  -
+    - **afirmacion:** La cola necesita una consulta nueva para el entregado (R13).
+    - **resultado:** correcta
+    - **evidencia:** src/modulos/ordenes/servicios/datos-comparativa-servicio.ts:43-58 ya carga notas_entrega en lotes (cargarEnLotes) pero sin renglones (partidas_nota_entrega). Se puede extender esa función en vez de abrir un segundo recorrido en page.tsx.
+  -
+    - **afirmacion:** El rol operador no tiene orden_vista, por lo que la hoja de trabajo se materializa para roles con orden_vista sin ver_finanzas.
+    - **resultado:** imprecisa
+    - **evidencia:** supabase/migrations/20261005100001_sii_b1_permisos_catalogo.sql:164,183 y grep de orden_vista en migraciones: solo gerente y contador lo reciben en el seed (más admin). Contador tiene ver_finanzas; el gerente (Management) es el único con orden_vista sin ver_finanzas, justo el rol al que la nota 11 da información comercial. Con el seed, la hoja de trabajo de la pestaña Documento no llega a nadie del seed, ni al operador ni a Customer Service (vendedor sin orden_vista). El plan lo reconoce a medias, pero no lo toma como riesgo de cobertura del criterio 11.
+- **ajustes:**
+  -
+    - **donde:** T4/R12 (calcularSaldoEntrega) y riesgo 'doble fuente de verdad'
+    - **problema:** Dice replicar 'exactamente el filtro de acumulado de registrar_entrega (b7 422-435)'. Ese bloque no filtra. El árbitro del cierre es cerrar_orden_administrativa 201-212 (suma simple por partida vs cantidad_solicitada). Un implementador buscaría un filtro de notas anuladas que no existe.
+    - **ajuste:** Cambiar la redacción: cierrePermitido = para toda partida, sum(partidas_nota_entrega.cantidad_entregada) >= cantidad_solicitada, idéntico al SQL de 20261007120002:201-212. Quitar 'notas anuladas' del riesgo. Agregar un caso de borde en la prueba RED: producido<solicitado con todo lo producido entregado, con texto distinto ('Producción cerró con faltante; requiere decisión del PO') y no un 'Faltan N por entregar' inalcanzable.
+  -
+    - **donde:** T2/R04 y D11 (enlaces de Origen)
+    - **problema:** Los enlaces de propuesta y revisión se plantean como /rfq?propuesta=<id>, ruta que no lee ese parámetro. El destino real es /propuestas?propuesta=<id>.
+    - **ajuste:** RFQ -> /rfq?rfq=<id> con rfq_vista; Propuesta y Revisión -> /propuestas?propuesta=<propuestaId> con propuesta_vista. Corregir el texto de D11, el diseño de la prueba ficha-orden-origen-comercial.test.ts y el campo puedeVerPropuesta que calcula page.tsx.
+  -
+    - **donde:** T1/R14 (Planeación)
+    - **problema:** Retirar Reactivar de acciones-tarjeta-orden.tsx deja huérfana la prop puedeAdministrar y su cadena (tarjeta-programacion-planeacion.tsx, vistas-calendario-planeacion.tsx, calendario-planeacion.tsx y quien la pase). El plan solo lista el retiro del botón e import. El estado `reactivando` y ESTADO_LEGACY_A_SII siguen usándose (este último sí, para estadoSii).
+    - **ajuste:** Agregar a T1 la poda de `puedeAdministrar` en la cadena de Planeación (grep del símbolo en src/modulos/planeacion y el calendario/page que lo pase) en el commit de limpieza, y el eslint/typecheck de src/modulos/planeacion completo, no solo /componentes.
+  -
+    - **donde:** Paso 0 del plan y sección decisionesPO
+    - **problema:** Bloquea T1 hasta que el PO responda D1, D2 y D12, y suma 12 preguntas. La mayoría se resuelve con un default ya recomendado por el propio plan. D1: la nota (sección 10) ya dice 'retirarlas o deshabilitarlas', D1=A es el mínimo reversible y coherente. D2 (Comentarios como 8.ª pestaña) y D12 (patrón de registro) tienen default sensato.
+    - **ajuste:** Arrancar T1 con D1=A, D2=A y registro documental como 'Refinamientos posteriores' (patrón vigente), dejando constancia del default en el PR para que el PO lo revierta. Limitar las preguntas bloqueantes a D3 (scrap, necesaria solo para T4) y D5 (qué rol equivale a Customer Service/Management, necesaria para T3/T4). Ver preguntasInnecesarias.
+  -
+    - **donde:** T4/R20 y registroDecisiones (DC-16..DC-22, CLI-15..24, Corte 8, matriz 164)
+    - **problema:** El plan crea 7 DC nuevas y 10 CLI nuevas. El análisis de historial del mismo expediente recomienda no crear DC-16 y usar Refinamientos posteriores. Actualizar la matriz de 164 (COBERTURA_IMPLEMENTACION_ACTUAL.csv, ignorado por git) y los casilleros de C4.2 es trabajo ajeno a la nota. CLAUDE.md prohíbe que Claude toque coordinación/Git de integración salvo encargo.
+    - **ajuste:** Reducir a: 4 filas de Refinamientos (cola, Reactivar, Repetir, separación fecha) + CLI-15 en plan.md + Corte 8 de 12 casillas en todo.md, solo en el PR de cierre y con autorización de Codex. Sacar la matriz de 164, las casillas de C4.2 y DC-16..22 del alcance de las tandas (quedan como sugerencia a Codex).
+  -
+    - **donde:** T4/R20, prueba ficha-orden-criterios-aceptacion.test.ts
+    - **problema:** La prueba 'sin términos de No agregar todavía en src' no es una prueba de comportamiento y se rompería con cualquier mención legítima (p. ej. 'inventario' en otro módulo). Es ruido de bucle.
+    - **ajuste:** Limitarla a lo observable: la ficha y la cola renderizadas no contienen /legacy/i, ningún UUID, ni controles Reactivar/Repetir/Comentarios en fila. Esas aserciones ya existen en las RED de T1/T2; basta con que el Corte 8 apunte a ellas. Descartar el archivo nuevo.
+  -
+    - **donde:** T4 migraciones condicionales (20261014120000/130000/140000)
+    - **problema:** El plan ya prepara tres migraciones (eventos Fase 2, scrap, orden_ver_totales) con guías de SQL, aunque ninguna es parte de los 12 criterios y todas dependen de decisiones aún abiertas. Es sobreespecificación y deja el PR de T4 con riesgo de migración manual para el PO.
+    - **ajuste:** Eliminar las tres de la sección migraciones del plan. Declararlas 'fuera del plan; requieren encargo propio' con una sola línea cada una. El plan queda sin migraciones, lo que ya dice el resumen.
+  -
+    - **donde:** T3/R17 (hoja de trabajo) y criterio 11
+    - **problema:** Con el seed, orden_vista sin ver_finanzas = solo gerente (migración B1:164,183). El operador y el vendedor no tienen orden_vista. La hoja de trabajo en la pestaña Documento no llega a los destinatarios de la nota, y el criterio 'Operadores sin acceso a información económica' se evidencia solo con pruebas del servicio de ficha. El camino real del operador es Producción (documentos-orden-servicio.ts).
+    - **ajuste:** No crear servicio y componente aparte: proyectar una sola lista blanca (ruta/archivos/ítems con material y espesor) y reutilizar el marcado de Documento sin Totales. Agregar al criterio 11 una prueba de caracterización de que el payload de Producción (documentos-orden-servicio y la acción de piso) no contiene precios, y declarar en el PR que la audiencia de la hoja depende de la matriz de permisos (pregunta D5/D6 reformulada a un default: roles con orden_vista sin ver_finanzas).
+  -
+    - **donde:** T1 vs T2/T3: división de ficha-orden.tsx
+    - **problema:** ficha-orden.tsx ya tiene 581 líneas (> ~300 de CLAUDE.md). El plan condiciona la extracción de paneles a 'si supera ~500' en T2/T3, pero T1 ya agrega Comentarios, Adjuntos, pestana inicial y preguntas sobre un archivo grande. El riesgo de conflicto no es entre tandas (son secuenciales) sino de revisión dentro de cada PR.
+    - **ajuste:** Hacer la extracción mecánica de paneles (partidas, ruta, archivos, entregas, actividad, documento) como primer commit de T1, sin cambios de testids y con ficha-orden-c4-2 en verde. Después T2/T3 editan archivos pequeños.
+  -
+    - **donde:** Plan vs análisis transversales (ordenSeguro, checklistPorTanda)
+    - **problema:** El bloque transversal propone otro orden (servicio primero, ficha, presentación, cola, Reactivar al final) y un 'Tanda 1/2/3/4' distinto del plan. Genera confusión para quien ejecute.
+    - **ajuste:** Declarar el orden de tandas T1..T4 del plan como único y descartar los bloques ordenSeguro y checklistPorTanda. Conservar de ellos solo reglas duras (lotes de 100, typecheck antes de E2E, headSha).
+  -
+    - **donde:** T1, ordenes/page.tsx (redirect)
+    - **problema:** No se especifica dónde va el redirect. Si se coloca antes de can(orden_vista), un usuario sin permiso recibe 307 hacia una ficha que da 404, y se expone qué id existe. Además el botón 'Bandeja' de Planeación aterrizará en la pestaña Comentarios sin que el nombre lo diga.
+    - **ajuste:** Poner el redirect después de la comprobación `!usuario || !can(orden_vista) -> notFound()` (líneas 26-27). Validar uuid con Zod (z.uuid()). Valorar si el destino por defecto del deep link de Planeación debería ser /ordenes/{id} sin pestana; solo las menciones/bitácora van con ?pestana=comentarios (se pueden distinguir sin tocar los generadores únicamente con el default; mantener un solo destino y documentarlo).
+  -
+    - **donde:** T4/R13 (consulta agregada de la cola)
+    - **problema:** Se propone una consulta nueva en page.tsx/ordenes-servicio.ts. obtenerDatosComparativaServicio ya trae notas_entrega por lotes con service_role.
+    - **ajuste:** Extender esa función para devolver cantidadEntregada por partida (renglones de partidas_nota_entrega en lotes de 100) y mapearla en page.tsx; evita un segundo recorrido por todas las órdenes y reutiliza cargarEnLotes.
+  -
+    - **donde:** R10 (Actividad)
+    - **problema:** Fase 1 no cubre los ejemplos literales de la nota (ORDEN_PLANIFICADA, PRODUCCION_INICIADA). El plan lo diferirá, pero sin dejar constancia visible de que R10 queda parcial.
+    - **ajuste:** Registrar R10 en el Corte 8 como 'parcial, Fase 2 diferida a Planeación/Producción' con firma del PO (R10 no es uno de los 12 criterios). No agregar migración.
+  -
+    - **donde:** T2/R06 pgTAP opcional (c8_compromiso_inmutable_tras_reprogramar)
+    - **problema:** Ya existe c4_2_orden_comercial_operativa.test.sql y la tarjeta separada está fijada en ficha-orden-c4-2.test.ts. El archivo nuevo es opcional y requiere stack local.
+    - **ajuste:** Quitarlo del plan; R06 queda como caracterización unitaria existente.
+- **coberturaFaltante:**
+  - R10 solo parcial: Fase 1 (etiquetas, 'Sistema', sin recurso_id). Los eventos ORDEN_PLANIFICADA/PRODUCCION_INICIADA de la nota no se entregan. Debe quedar explícito como diferido en el Corte 8.
+  - Criterio 11 (operadores sin acceso económico): la evidencia propuesta es solo la ficha. Falta una prueba de caracterización del payload del camino real del operador (Producción: documentos-orden-servicio / acciones de piso). Además, con el seed, la hoja de trabajo de la ficha no alcanza al operador ni a Customer Service (solo gerente tiene orden_vista sin ver_finanzas).
+  - Poda de la prop puedeAdministrar y su cadena en Planeación (calendario, vistas, tarjeta) no está en 'cambios' de T1.
+  - T1: no hay prueba que cubra que ordenes/page.tsx no redirige ni 404 distinto a un usuario sin orden_vista (orden del redirect respecto de can()).
+  - R04: no hay prueba de que los enlaces /propuestas?propuesta= y /rfq?rfq= se construyen con los parámetros que sus páginas realmente leen.
+  - R12: sin caso de prueba para producido<solicitado con todo lo producido ya entregado (botón deshabilitado por una razón que el usuario no puede resolver).
+  - R13: la regla 'no mostrar tono verde de terminado mientras falte entrega' no tiene prueba RED propia (solo la etiqueta 'Entregado X/Y').
+  - Documento de orden (documento-orden-servicio.ts): el plan pide revisar si imprime folio_legacy con rótulo 'legacy' pero no define criterio ni prueba; queda como 'revisar'.
+- **preguntasInnecesarias:**
+  - D1 (Reactivar/Repetir): la nota ya dice 'retirarlas o deshabilitarlas'. Default: opción A (retirar UI y Server Actions, conservar RPC y migraciones). No bloquea T1.
+  - D2 (Comentarios): default opción A, 8.ª pestaña, que mantiene Actividad como audit log puro, como pide la nota.
+  - D4 (etiqueta de entrega): default A, texto 'Entregado X/Y' y 'Entrega parcial X/Y', solo presentación; es lo mínimo que cumple el ejemplo 30/50 de la nota.
+  - D6 (hoja de trabajo): default A, sin tocar Producción ni dar orden_vista al operador. Reformular como hallazgo, no como pregunta.
+  - D7 (Tipo/archivos retirados/adjuntos/descarga): default A, mapa por clase, ocultar retirados, sin descarga.
+  - D8 (Estado de Ruta): default 'Pendiente' fijo; la nota dice que la ejecución real queda en Producción.
+  - D9 (eventos Fase 2): default A, solo Fase 1. No requiere respuesta.
+  - D10 (folio y 'Referencia migrada'): default A, idHistorico. referencia_externa no debe tratarse como 'migrada' sin evidencia.
+  - D11 (enlaces de Origen): default A, enlace solo con permiso del destino, con la corrección de que Propuesta/Revisión van a /propuestas?propuesta=.
+  - D12 (registro documental): no es una pregunta de producto; lo decide Codex. Default: refinamientos posteriores + CLI-15 + Corte 8, sin DC-16..22.
+  - Realmente necesarias: D3 (scrap: qué es '100 % entregado' si producido < solicitado; antes de T4) y D5 en versión mínima (qué rol equivale a Customer Service y Management; antes de T3/T4). Ambas con default seguro (no tocar la RPC; no sembrar ver_finanzas), por lo que tampoco bloquean el avance.
+- **problemasDeOrdenOColision:**
+  - T1 y T4 editan tabla-ordenes.tsx; T1..T4 editan ficha-orden.tsx y T2/T3 ficha-orden-servicio.ts. Como las tandas son secuenciales con merge del PO entre ellas, no hay colisión, pero ficha-orden.tsx (581 líneas) debería dividirse en paneles en el primer commit de T1.
+  - 'Reubicar antes de retirar' se respeta dentro de T1 (destino + redirect + E2E migrados en verde antes de recortar la cola, pasos 3-6). Detalle faltante: el redirect debe ir después de la comprobación de orden_vista.
+  - T1 retira Reactivar en Planeación y el plan C9 'hereda' ese retiro; si C9 se abre antes que el merge de T1 habrá conflicto en acciones-tarjeta-orden.tsx y la cadena de puedeAdministrar. Mantener la nota de coordinación y ejecutar T1 primero.
+  - T2 edita tests/e2e/ordenes-estados-sii.spec.ts:344 ('orden_creada' -> 'Orden creada') y T1 ya modifica 235, 327-328 y 382 del mismo archivo; es secuencial y sin conflicto, pero cada PR debe correr ese spec completo, no solo sus líneas.
+  - T3 y T2 dependen del mismo patrón de lectura segura del snapshot: está bien que T2 lo establezca primero con la prueba de no-fuga. No invertir el orden.
+  - El git status inicial muestra supabase/migrations/20261014110000_tarifario_unico_estacion_grupo.sql modificada (otro frente). El plan no depende de ella; evitar incluirla en cualquier commit de estas tandas.
+  - El bloque transversal (ordenSeguro/checklistPorTanda) define otro orden y numeración de tandas que contradice el plan; debe descartarse.
+- **riesgosDeBucleNoCubiertos:**
+  - La E2E cancelacion-financiera.spec.ts:55-62 migrada a la ficha depende de que el error 'La orden tiene cobranza registrada' salga dentro del diálogo; la ficha lo hace (ficha-orden.tsx:543), pero la E2E debe esperar la navegación a /ordenes/{id} y localizar la orden por folio, no por la fila de la cola. Anotarlo en el paso 4 para evitar un ciclo de ajuste.
+  - comentarios-notificaciones.spec.ts y clientes-historial.spec.ts cambian URL final tras el redirect. El plan lo cubre, pero la E2E de comentarios está condicionada a E2E_COMENTARIOS_ORDEN_ID y se salta sola: su 'verde' no demuestra nada. Debe ejecutarse con la variable o cubrirse con la prueba unitaria del redirect y la de HiloComentarios.
+  - Pruebas de fixtures: ficha-orden-c4-2.test.ts renderiza FichaOrden sin QueryClientProvider; HiloComentarios usa useQuery. Hay que mockear @/modulos/comentarios/componentes/indice (el plan lo menciona solo en 'pruebas') o la prueba falla por proveedor ausente.
+  - Red de dependencia de fixtures al endurecer el botón de cierre en T4: cualquier fixture PRODUCCION_COMPLETADA sin entregas que antes habilitara el botón lo verá deshabilitado. El plan lo dice; añadir la revisión de tabla-ordenes-c4-3.test.ts y ficha-orden-c4-2.test.ts como paso explícito antes del GREEN.
+  - tabla-ordenes.tsx exporta tipos importados por configurar-procesos-dialog.tsx y editar-orden-dialog.tsx: el commit de limpieza de props puede romper typecheck si se borra una prop que usan esos diálogos. Ya está en riesgos; verificar con typecheck desde cero (rm .next).
+  - Lecturas con .in(ids) nuevas (archivos, propuesta_items, partidas_nota_entrega) deben ir por dividirEnLotes/cargarEnLotes de 100 (regla de CUELLOS). Está en T3/T4, pero no en la lista de pasos de T2 si se añade cualquier consulta para el origen (no hace falta: sale del snapshot).
+- **sobrealcance:**
+  - Las tres migraciones condicionales de T4 (eventos Fase 2, regla de scrap, permiso orden_ver_totales) y sus pgTAP: no son parte de los 12 criterios; eliminar del plan.
+  - DC-16..DC-22, CLI-15..24 y la actualización de la matriz de 164 y casillas de C4.2: el patrón vigente es Refinamientos posteriores. Reducir.
+  - ficha-orden-criterios-aceptacion.test.ts con barrido de términos de 'No agregar todavía': no es observable ni estable.
+  - pgTAP opcional c8_compromiso_inmutable_tras_reprogramar para R06 (ya hay c4_2).
+  - Nuevo servicio y componente separados para la hoja de trabajo (hoja-trabajo-orden-servicio.ts, hoja-trabajo-orden.tsx): reutilizar la proyección única y el marcado de Documento sin Totales.
+  - Extraer un helper completo derivar-archivos-ficha.ts con archivos 'orden' propios, propuesta_items y retirado_en: es necesario para R09, pero el caso 'entidad orden / adjuntos propios' no lo pide la nota; omitirlo si complica (Origen=Orden). Mantener RFQ/Propuesta Rev X con Asociado a y Tipo por clase.
+  - Cambiar obtener-documento-orden.ts de typeof a Zod: correcto según convención y barato, pero no es de la nota; mantenerlo solo si se toca el archivo por otra razón.
+  - Borrado de servicio (ordenes-servicio.ts), validaciones y pruebas de Reactivar/Repetir: aceptable por la nota, pero el enfoque más ligero (retirar UI y mantener la Server Action) deja un endpoint vivo sin pantalla. Se acepta la opción A, no el borrado adicional de migraciones ni RPC (correctamente excluido).
+
+## Transversal: impacto
+- **modulos:**
+  -
+    - **modulo:** Órdenes (cola)
+    - **requisitos:**
+      - R01
+      - R02
+      - R13
+      - R12
+    - **tipoRiesgo:** Retirar controles antes de reubicar rompe deep links y pruebas; limpieza de props; consulta agregada de entregas
+    - **mitigacion:** Orden estricto: 1) ficha recibe Comentarios y Adjuntos; 2) redirect en /ordenes/page.tsx de ?ordenId a /ordenes/{id}; 3) recién entonces recortar la fila a Abrir + Liberar y borrar estados, diálogos y props huérfanos. No tocar los tipos OrdenTabla exportados (los importan configurar-procesos-dialog.tsx:11 y editar-orden-dialog.tsx:20).
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - src/modulos/ordenes/componentes/tabla-ordenes.tsx
+      - src/app/(privado)/ordenes/page.tsx
+      - src/modulos/ordenes/servicios/ordenes-servicio.ts (solo si se agrega entregado agregado)
+      - src/modulos/ordenes/tipos/ordenes.ts (solo si se agrega entregado)
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/ordenes/componentes/configurar-procesos-dialog.tsx
+      - src/modulos/ordenes/componentes/editar-orden-dialog.tsx
+      - src/modulos/ordenes/componentes/control-piso-panel.tsx (importa OrdenConPartidas)
+      - src/modulos/ordenes/utilidades/resumen-ordenes.ts
+      - src/modulos/ordenes/utilidades/comparativa-ordenes.ts
+      - src/modulos/produccion/servicios/tablero-produccion-servicio.ts (importa tipos/ordenes)
+      - src/app/(piso)/produccion-piso/page.tsx (usa obtenerOrdenesConPartidasDePisoServicio, no cambia)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/tabla-ordenes-c4-3.test.ts (líneas 97, 104, 113, 130 fijan Cancelar ausente, Comentarios por fila y Documento por fila: se invierten)
+      - tests/e2e/ordenes-estados-sii.spec.ts (235 Comentarios en fila, 382 cambiar-estado-cancelada)
+      - tests/e2e/ordenes-edicion-borrador.spec.ts:89 (Comentarios en fila)
+      - tests/e2e/comentarios-notificaciones.spec.ts:86,123 (Comentarios en fila y URL /ordenes?ordenId=)
+      - tests/e2e/cancelacion-financiera.spec.ts:57 (cambiar-estado-cancelada en fila)
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts (6 usos de testids de cola)
+    - **pruebasFaltantes:**
+      - Unitaria: fila solo con abrir-ficha y liberar-orden (PLANIFICADA + permiso)
+      - Unitaria/E2E: /ordenes?ordenId=X redirige a /ordenes/X
+      - E2E migrados a ficha-cancelar y ficha-cerrar
+  -
+    - **modulo:** Órdenes (ficha, UI)
+    - **requisitos:**
+      - R03
+      - R04
+      - R05
+      - R07
+      - R08
+      - R09
+      - R10
+      - R11
+      - R12
+      - R13
+      - R19
+      - R02
+    - **tipoRiesgo:** ficha-orden.tsx concentra casi todos los requisitos: colisión de edición y archivo que crece mucho mas de 300 líneas; E2E fijan texto crudo
+    - **mitigacion:** Dividir en paneles (panel-ruta, panel-archivos, panel-actividad, panel-resumen) antes o durante el cambio; una sola persona/rama edita ficha-orden.tsx a la vez. Conservar todos los data-testid ficha-pestana-*, ficha-panel-*, ficha-cerrar, ficha-preparar-entrega. Reemplazar texto 'orden_creada' por etiqueta y actualizar el E2E en el mismo cambio.
+    - **riesgo:** alto
+    - **archivosTocados:**
+      - src/modulos/ordenes/componentes/ficha-orden.tsx
+      - src/app/(privado)/ordenes/[id]/page.tsx
+      - src/modulos/ordenes/utilidades/procesos.ts (nuevo)
+      - src/modulos/ordenes/utilidades/etiquetas-evento.ts (nuevo)
+      - src/modulos/ordenes/utilidades/indice.ts (calcularSaldoEntrega / etiquetaEntrega)
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx:106 (botón Imprimir navega a /ordenes/{id}, la ficha sigue siendo el destino)
+      - src/modulos/ordenes/componentes/documento-orden-boton.tsx (misma lista de procesos, join ', ' propio en :156)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/ficha-orden-c4-2.test.ts (83 y 99 fijan la pestaña Documento oculta/visible por ver_finanzas)
+      - tests/e2e/ordenes-estados-sii.spec.ts:341-346 (testids de panel-partidas, panel-actividad con texto 'orden_creada', panel-documento)
+    - **pruebasFaltantes:**
+      - Ficha sin UUID ni 'legacy'
+      - Etiquetas de evento y fallback
+      - Preguntas por pestaña
+      - Saldo de entrega 30/50 y botón cerrar deshabilitado
+      - Comentarios y Adjuntos en la ficha
+  -
+    - **modulo:** Órdenes (servicio de ficha y tipos)
+    - **requisitos:**
+      - R04
+      - R08
+      - R09
+      - R17
+      - R18
+    - **tipoRiesgo:** Fuga de precios al leer snapshot_json para roles sin ver_finanzas; cliente admin sin RLS
+    - **mitigacion:** Leer snapshot siempre en variable local del servidor y exponer solo proyecciones por lista blanca (origen con folios, RutaFicha, ArchivoFicha, hoja de trabajo); snapshot, totales y moneda siguen condicionados a incluirFinanzas. Prueba de no-fuga con JSON.stringify. Cambiar select('*') de partidas por columnas explícitas.
+    - **riesgo:** alto
+    - **archivosTocados:**
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - src/modulos/ordenes/tipos/ficha-orden.ts
+      - src/modulos/ordenes/tipos/orden-sii.ts (solo campos opcionales)
+      - src/modulos/ordenes/servicios/derivar-archivos-ficha.ts (nuevo)
+      - src/modulos/ordenes/servicios/hoja-trabajo-orden-servicio.ts (nuevo)
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/produccion/servicios/documentos-orden-servicio.ts (importa tipos/orden-sii: archivosReferenciados y esSnapshotOrdenSii deben quedar intactos)
+      - src/modulos/ordenes/servicios/documento-orden-servicio.ts (comparte forma del snapshot)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/ordenes-confidencialidad-c4-3.test.ts
+      - tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts
+      - tests/integracion/c4-3-confidencialidad-ordenes.test.ts
+      - supabase/tests/c4_3_confidencialidad_ordenes.test.sql
+      - tests/unitarias/produccion-documentos-orden*.test.ts y tests/integracion/c2-3-documentos-orden.test.ts (regresión)
+    - **pruebasFaltantes:**
+      - Servicio sin ver_finanzas: archivos, ruta y hoja de trabajo poblados; snapshot, totales y moneda null; sin precio_unitario
+      - Helper derivar-archivos-ficha
+      - Proyección RutaFicha
+  -
+    - **modulo:** Órdenes (Reactivar y Repetir)
+    - **requisitos:**
+      - R14
+      - R15
+    - **tipoRiesgo:** Retirada parcial deja imports huérfanos y consumidor en Planeación; RPC y migraciones ya aplicadas no se borran
+    - **mitigacion:** Retirar solo acceso de UI y Server Actions en una misma tanda con Planeación (acciones-tarjeta-orden.tsx:6,111-131). Dejar RPC y migraciones A20 (20260925080000, 20260925090000) intactas, con nota de refinamiento del PO. Alternativa mínima: ocultar botones sin borrar acciones. Antes de borrar, grep final de esquemaReactivarOrden/esquemaRepetirOrden.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - src/modulos/ordenes/componentes/tabla-ordenes.tsx
+      - src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx
+      - src/modulos/ordenes/componentes/reactivar-orden-dialog.tsx (retiro)
+      - src/modulos/ordenes/componentes/repetir-orden-dialog.tsx (retiro)
+      - src/modulos/ordenes/acciones/reactivar-orden.ts (retiro)
+      - src/modulos/ordenes/acciones/repetir-orden.ts (retiro)
+      - src/modulos/ordenes/servicios/ordenes-servicio.ts (funciones reactivar/repetir)
+      - src/modulos/ordenes/validaciones/ordenes.ts (esquemas)
+    - **archivosAfectadosSinTocar:**
+      - supabase/migrations/20260925080000_a20_cli08_repetir_trabajo.sql
+      - supabase/migrations/20260925090000_a20_prd15_reactivar_orden.sql
+      - supabase/migrations/20261007120004_sii_b5_consumidores_estado.sql (redefine consumidores del estado)
+      - supabase/migrations/20261010010303_c4_3_confidencialidad_ordenes.sql (menciona reactivar/orden_origen_id)
+      - src/compartido/tipos/supabase.ts (tipos generados de las RPC; no regenerar)
+    - **pruebasQueLoProtegen:**
+      - tests/integracion/reactivar-orden.test.ts
+      - tests/integracion/repetir-trabajo.test.ts
+      - supabase/tests/a20_prd15_reactivar_orden.test.sql
+      - supabase/tests/a20_cli08_repetir_trabajo.test.sql
+      - tests/unitarias/ordenes-esquemas.test.ts:8,451-459 (esquemaReactivarOrden)
+      - tests/unitarias/tabla-ordenes-c4-3.test.ts:34 (mock del diálogo)
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts:194 (Reactivar solo admin en Planeación)
+      - tests/integracion/orden-heredada.test.ts
+    - **pruebasFaltantes:**
+      - Prueba de que cola y tarjeta de Planeación ya no exponen Reactivar/Repetir
+  -
+    - **modulo:** Planeación
+    - **requisitos:**
+      - R02
+      - R07
+      - R10
+      - R14
+    - **tipoRiesgo:** Consumidor directo de liberarOrdenAccion, ReactivarOrdenDialog y del deep link /ordenes?ordenId=; comparte formato de procesos
+    - **mitigacion:** Mantener liberarOrdenAccion con firma y can() sin cambios. Con el redirect del deep link, el botón Bandeja (acciones-tarjeta-orden.tsx:66) funciona sin editarse. Reactivar (111-131) se retira en la misma tanda que Órdenes. Para R07, pasar separador ', ' si se unifica etiquetaProcesos. Cualquier migración de eventos (derivar_orden_planificada) toca el camino caliente de programación.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx (retirar Reactivar)
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/planeacion/utilidades/desglose.ts:64-66 (etiquetaProcesos)
+      - src/modulos/planeacion/componentes/panel-bolsa-planeacion.tsx:26
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx:101
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx:333
+      - src/modulos/planeacion/tipos/planeacion.ts (importa EstadoSiiOrden y EstadoOrden)
+      - src/modulos/planeacion/componentes/sincronizador-planeacion-realtime.tsx
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/planeacion-desglose.test.ts:36,115 (fija 'Corte, Doblez' y TEXTO_POR_DEFINIR)
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts:194
+    - **pruebasFaltantes:**
+      - Planeación sin botón Reactivar
+  -
+    - **modulo:** Producción (piso, panel, vista delegada)
+    - **requisitos:**
+      - R08
+      - R09
+      - R10
+      - R17
+      - R14
+    - **tipoRiesgo:** Solo verlo afectado: lee estado_sii y partidas.procesos como dato; eventos nuevos (Fase 2) viajan por derivar_orden_en_produccion/completada en el camino de sesiones; incoherencia de archivos retirados entre ficha y Producción
+    - **mitigacion:** No tocar archivos de Producción. No reutilizar construirDocumentosCongelados (pierde ITxx de revisiones previas). Si hay migración de eventos, insertar evento solo cuando el UPDATE afectó fila, conservando SECURITY DEFINER y search_path vacío de 20261007120005, y correr pgTAP de Producción.
+    - **riesgo:** medio
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/produccion/servicios/documentos-orden-servicio.ts (importa tipos/orden-sii; sigue mostrando archivos retirados)
+      - src/modulos/produccion/servicios/tablero-produccion-servicio.ts (importa tipos/ordenes)
+      - src/modulos/produccion/componentes/panel-corridas-produccion.tsx (procesos como dato)
+      - src/modulos/produccion/componentes/documentos-orden-panel.tsx
+      - src/modulos/ordenes/componentes/control-piso-panel.tsx
+      - src/app/(piso)/produccion-piso/page.tsx
+      - src/app/api/produccion-piso/sincronizacion/route.ts
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/produccion-documentos-orden.test.ts
+      - tests/unitarias/produccion-documentos-orden-acciones.test.ts
+      - tests/unitarias/produccion-documentos-orden-panel.test.ts
+      - tests/integracion/c2-3-documentos-orden.test.ts
+      - tests/e2e/produccion-piso.spec.ts
+    - **pruebasFaltantes:**
+      - pgTAP de evento produccion_iniciada una sola vez (solo Fase 2)
+  -
+    - **modulo:** Entregas
+    - **requisitos:**
+      - R06
+      - R11
+      - R12
+      - R13
+    - **tipoRiesgo:** Solo lectura; la fuente del saldo debe ser la misma que registrar_entrega
+    - **mitigacion:** No tocar RPC registrar_entrega ni preparar-entrega.ts; el enlace ficha-preparar-entrega a /entregas?orden=<id> se conserva. Calcular saldo en cliente solo como ayuda visual, dejando la RPC como autoridad.
+    - **riesgo:** bajo
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/entregas/acciones/preparar-entrega.ts
+      - src/modulos/entregas/tipos/indice.ts (menciona testids/estado de ficha; 1 coincidencia)
+      - src/modulos/entregas/servicios/obtener-entregas.ts (ordena por fecha_compromiso espejo de la operativa)
+      - src/modulos/entregas/servicios/errores-entrega.ts
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b7_entregas.test.sql
+      - tests/e2e/entregas-flujo.spec.ts (borra orden_eventos_cambio en :227)
+    - **pruebasFaltantes:**
+      - pgTAP: cierre rechazado con 30/50
+  -
+    - **modulo:** Cobranza
+    - **requisitos:**
+      - R12
+      - R15
+    - **tipoRiesgo:** CxC se activa por el trigger de entrega al 100 %, no por el cierre; Repetir crea una AR en borrador (A20)
+    - **mitigacion:** No cambiar la regla de cierre ni el trigger archivar_orden_al_entregar (20261007230002). Retirar Repetir en UI no altera ARs existentes. Si se cambia la regla de scrap, revisar el trigger y cliente_credito_sin_dias.
+    - **riesgo:** bajo
+    - **archivosAfectadosSinTocar:**
+      - supabase/migrations/20261007230002_sii_credito_dias_cliente.sql
+      - src/modulos/cobranza/componentes/operacion-cobranza.tsx:234 (usa ordenId local, no la URL)
+      - src/modulos/cobranza/componentes/sincronizador-cobranza-realtime.tsx
+      - src/modulos/cobranza/servicios/historial-cobranza-servicio.ts
+    - **pruebasQueLoProtegen:**
+      - tests/e2e/cancelacion-financiera.spec.ts
+      - tests/integracion/repetir-trabajo.test.ts
+  -
+    - **modulo:** Dashboard/KPIs
+    - **requisitos:**
+      - R12
+      - R13
+      - R10
+    - **tipoRiesgo:** Solo se afecta si cambia la regla de cierre o se agregan estados; las etiquetas de entrega son de UI
+    - **mitigacion:** No agregar estado SII nuevo (ENTREGA_PARCIAL descartado). Los KPIs (sii_b9_kpis) leen cerrada_admin_en y estado_sii, que no cambian.
+    - **riesgo:** bajo
+    - **archivosAfectadosSinTocar:**
+      - supabase/migrations/20261007210001_sii_b9_kpis.sql
+      - src/modulos/dashboard/componentes/sincronizador-dashboard-realtime.tsx
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b9_kpis.test.sql
+  -
+    - **modulo:** Propuestas y Pipeline/RFQ
+    - **requisitos:**
+      - R04
+      - R08
+      - R09
+    - **tipoRiesgo:** Solo destino de enlaces y origen de datos congelados (snapshot, archivos.clase)
+    - **mitigacion:** Enlazar RFQ/Propuesta solo si la página calcula can() del destino; si no, texto plano. No modificar crear_orden_desde_revision (vigente en 20261012100000_b4_obs2_flujo_versiones.sql, redefinida 3 veces). archivos.clase es texto libre: mapa de Tipo defensivo.
+    - **riesgo:** bajo
+    - **archivosAfectadosSinTocar:**
+      - src/app/(panel)/rfq/page.tsx (destino ?rfq= y ?propuesta=)
+      - src/modulos/rfq/acciones/archivos-rfq.ts
+      - src/modulos/propuestas/acciones/subir-archivo-propuesta.ts
+      - src/modulos/propuestas/acciones/generar-pdf-revision.ts
+      - src/modulos/ordenes/acciones/obtener-revisiones-aceptadas.ts
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/c3_1_linaje_documental_orden.test.sql
+      - tests/e2e/propuestas-flujo.spec.ts (borra orden_eventos_cambio :267)
+    - **pruebasFaltantes:**
+      - Enlaces de origen condicionados a permiso
+  -
+    - **modulo:** Clientes
+    - **requisitos:**
+      - R02
+    - **tipoRiesgo:** Depende del deep link /ordenes?ordenId=
+    - **mitigacion:** El redirect en /ordenes/page.tsx evita editar historial-cliente.tsx.
+    - **riesgo:** bajo
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/clientes/componentes/historial-cliente.tsx:262,375
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/clientes-historial.test.ts:415 (href literal)
+      - tests/e2e/clientes-historial.spec.ts:261,270 (espera URL /ordenes?ordenId= tras click: se rompe si el redirect cambia la URL final)
+  -
+    - **modulo:** Configuración (permisos/roles)
+    - **requisitos:**
+      - R16
+      - R17
+      - R18
+    - **tipoRiesgo:** ver_finanzas gobierna RLS de cobranza, gastos, compras y tesorería; asignarlo a gerente o vendedor amplía acceso fuera de Órdenes
+    - **mitigacion:** No sembrar ver_finanzas sin decisión del PO; si Customer Service debe ver totales de Orden sin ver cobranza, crear un permiso nuevo (orden_ver_totales) en PERMISOS en vez de ampliar ver_finanzas. Cualquier siembra idempotente con ON CONFLICT DO NOTHING en migración posterior a 20261014110000.
+    - **riesgo:** alto
+    - **archivosAfectadosSinTocar:**
+      - supabase/migrations/20261005100001_sii_b1_permisos_catalogo.sql
+      - supabase/migrations/20260814143339_fase_8_cobranza_base.sql
+      - src/modulos/ordenes/acciones/obtener-documento-orden.ts (can orden_vista + ver_finanzas; sin Zod, solo typeof)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts
+      - tests/unitarias/ordenes-documento.test.ts
+      - supabase/tests/c4_3_confidencialidad_ordenes.test.sql
+    - **pruebasFaltantes:**
+      - Prueba por rol si se crea un permiso nuevo
+  -
+    - **modulo:** Auditoría/Bitácora y Comentarios
+    - **requisitos:**
+      - R02
+      - R10
+    - **tipoRiesgo:** Enlaces a /ordenes?ordenId= generados por utilidades y correo; Actividad de la ficha no mezcla logs
+    - **mitigacion:** Resolver con el redirect de /ordenes/page.tsx, sin editar enlace-registro.ts ni notificar-menciones-correo.ts. No unificar Actividad con logs ni comentarios.
+    - **riesgo:** medio
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/auditoria/utilidades/enlace-registro.ts:15,31
+      - src/modulos/comentarios/servicios/notificar-menciones-correo.ts:46
+      - src/modulos/comentarios/componentes/hilo-comentarios.tsx (se reutiliza en la ficha)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/bitacora-enlaces.test.ts:13
+      - tests/unitarias/actividad-agrupacion.test.ts:83
+      - tests/unitarias/comentarios-menciones-correo.test.ts:38 (construirEnlaceEntidad literal)
+      - tests/e2e/actividad.spec.ts:123 (href literal)
+      - tests/e2e/comentarios-notificaciones.spec.ts:123
+  -
+    - **modulo:** Realtime/sincronizadores
+    - **requisitos:**
+      - R18
+      - R13
+    - **tipoRiesgo:** ordenes_produccion y partidas_orden_produccion están en la publicación supabase_realtime y cinco sincronizadores en navegador se suscriben; no verificado si Realtime emite columnas sin GRANT
+    - **mitigacion:** Verificar en entorno real antes de decidir. Los cambios de este paquete no tocan sincronizadores; solo si se confirma fuga, sacarlos de la suscripción de navegador y usar relay de señal vacía.
+    - **riesgo:** medio
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/ordenes/componentes/sincronizador-ordenes-realtime.tsx
+      - src/modulos/produccion/componentes/sincronizador-produccion-realtime.tsx
+      - src/modulos/dashboard/componentes/sincronizador-dashboard-realtime.tsx
+      - src/modulos/cobranza/componentes/sincronizador-cobranza-realtime.tsx
+      - src/modulos/planeacion/componentes/sincronizador-planeacion-realtime.tsx
+      - supabase/migrations/20260812052820_endurecimiento_seguridad_realtime.sql
+    - **pruebasQueLoProtegen:**
+      - tests/integracion/c4-3-confidencialidad-ordenes.test.ts
+    - **pruebasFaltantes:**
+      - Prueba manual de payload Realtime con rol authenticated
+  -
+    - **modulo:** Navegación y Notificaciones
+    - **requisitos:**
+      - R02
+      - R04
+    - **tipoRiesgo:** No se encontró uso de rutas de Órdenes en navegación lateral ni notificaciones fuera del correo de menciones (busqué /ordenes? y /ordenes/ en src/); los únicos consumidores son los listados en Clientes, Auditoría, Comentarios y Planeación
+    - **mitigacion:** Mantener la ruta /ordenes y /ordenes/[id]; no renombrar.
+    - **riesgo:** bajo
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/comentarios/servicios/notificar-menciones-correo.ts
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/comentarios-menciones-correo.test.ts
+  -
+    - **modulo:** Base de datos (eventos de actividad, Fase 2 opcional)
+    - **requisitos:**
+      - R10
+    - **tipoRiesgo:** Redefinir derivar_orden_* desde la versión equivocada degrada SECURITY DEFINER; triggers por fila duplican eventos; error en el camino caliente rompe el registro de piso
+    - **mitigacion:** Fase 1 sin migración (diccionario de etiquetas). Fase 2 solo con aprobación del PO: nueva migración posterior a 20261014110000 que parte de 20261007120002 (planificada, en_produccion) y 20261007120005 (completada, definer), INSERT solo si ROW_COUNT > 0, actor NULL rotulado Sistema.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - supabase/migrations/<nueva>_eventos_negocio_orden.sql (solo Fase 2)
+    - **archivosAfectadosSinTocar:**
+      - supabase/migrations/20261007120002_sii_b5_orden_estados.sql
+      - supabase/migrations/20261007120005_sii_b5_derivaciones_definer.sql
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b5_orden.test.sql
+      - supabase/tests/sii_b1_actividad.test.sql
+      - tests/e2e/ordenes-estados-sii.spec.ts:344
+    - **pruebasFaltantes:**
+      - pgTAP de un solo evento por transición (idempotente)
+- **acoplamientosOcultos:**
+  -
+    - **descripcion:** Cinco sitios dependen de la URL /ordenes?ordenId=<id> y de que la cola abra el diálogo de Comentarios: si se retira el diálogo sin redirect, enlaces de correo, bitácora, historial de cliente y el botón Bandeja de Planeación aterrizan en una cola sin comentarios.
+    - **evidencia:** src/modulos/comentarios/servicios/notificar-menciones-correo.ts:46; src/modulos/auditoria/utilidades/enlace-registro.ts:15,31; src/modulos/clientes/componentes/historial-cliente.tsx:262,375; src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx:66. Pruebas con el href literal: tests/unitarias/bitacora-enlaces.test.ts:13, actividad-agrupacion.test.ts:83, clientes-historial.test.ts:415, comentarios-menciones-correo.test.ts:38, tests/e2e/actividad.spec.ts:123.
+    - **requisitos:**
+      - R02
+  -
+    - **descripcion:** Un redirect de ?ordenId a /ordenes/{id} cambia la URL final y rompe las E2E que esperan la URL con query.
+    - **evidencia:** tests/e2e/clientes-historial.spec.ts:270 y tests/e2e/comentarios-notificaciones.spec.ts:123 usan toHaveURL con regex /ordenes\?ordenId=.
+    - **requisitos:**
+      - R02
+  -
+    - **descripcion:** Planeación importa liberarOrdenAccion y ReactivarOrdenDialog desde el módulo Órdenes; retirar Reactivar solo en Órdenes deja el import roto y Reactivar vivo en la tarjeta de Planeación.
+    - **evidencia:** src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx:5-6,111-131; tests/e2e/planeacion-bolsa-acciones.spec.ts:194.
+    - **requisitos:**
+      - R14
+      - R02
+  -
+    - **descripcion:** La E2E de la ficha fija el texto crudo 'orden_creada' en el panel de Actividad; etiquetar el evento la rompe.
+    - **evidencia:** tests/e2e/ordenes-estados-sii.spec.ts:344.
+    - **requisitos:**
+      - R10
+      - R03
+  -
+    - **descripcion:** Archivos y Ruta de la ficha dependen del snapshot y este solo se lee con ver_finanzas: R04, R07, R08, R09 y R17 comparten el mismo bloque del servicio y el mismo riesgo de fuga de precios; un cambio aislado en uno puede filtrar precio_unitario o dejar vacíos a los otros.
+    - **evidencia:** src/modulos/ordenes/servicios/ficha-orden-servicio.ts:55-63,151-178,207-211; src/app/(privado)/ordenes/[id]/page.tsx:25-27 (incluirFinanzas = can(ver_finanzas)); supabase/migrations/20261010010303_c4_3_confidencialidad_ordenes.sql:5-14.
+    - **requisitos:**
+      - R04
+      - R08
+      - R09
+      - R17
+      - R18
+  -
+    - **descripcion:** partidas.procesos se une con separadores distintos en cuatro sitios; Planeación tiene una prueba que fija el join ', ', así que unificar con otro separador rompe planeacion-desglose.test.ts.
+    - **evidencia:** src/modulos/ordenes/componentes/ficha-orden.tsx:376 (' · '); documento-orden-boton.tsx:156 (', '); planeacion/utilidades/desglose.ts:65-66; planeacion/componentes/panel-bolsa-planeacion.tsx:26; tests/unitarias/planeacion-desglose.test.ts:36,115.
+    - **requisitos:**
+      - R07
+  -
+    - **descripcion:** El arreglo de procesos con duplicados proviene de crear_orden_desde_revision y alimenta metas_proceso_partida (una meta por entrada); cambiar la RPC para deduplicar rompería metas de Producción. El resumen debe hacerse solo en presentación.
+    - **evidencia:** supabase/migrations/20261012100000_b4_obs2_flujo_versiones.sql:1277-1292,1306-1323; src/modulos/ordenes/acciones/configurar-metas-proceso.ts:32.
+    - **requisitos:**
+      - R07
+  -
+    - **descripcion:** El componente Documento de la cola (DocumentoOrdenBoton) y la pestaña Documento de la ficha dependen de ver_finanzas; la cola mockea ese componente. Reubicar acciones a la ficha no debe relajar el can() de obtenerDocumentoOrdenAccion.
+    - **evidencia:** src/modulos/ordenes/componentes/tabla-ordenes.tsx:615; ficha-orden.tsx:157-159; tests/unitarias/tabla-ordenes-c4-3.test.ts:29,130; src/modulos/ordenes/acciones/obtener-documento-orden.ts:17-37.
+    - **requisitos:**
+      - R16
+      - R17
+      - R02
+  -
+    - **descripcion:** Adjuntos legacy: el diálogo de la cola escribe en la tabla archivos_orden, mientras Producción guarda en archivos con entidad 'orden'. Archivos vivos derivados de archivos no mostrará los legacy; retirar el botón Adjuntos sin reubicarlo los deja inaccesibles.
+    - **evidencia:** src/modulos/ordenes/acciones/archivos-orden.ts:108; src/modulos/ordenes/componentes/adjuntos-orden-dialog.tsx; src/modulos/ordenes/subir-archivo-orden-cliente.ts; tests/integracion/orden-heredada.test.ts.
+    - **requisitos:**
+      - R02
+      - R09
+  -
+    - **descripcion:** Producción lista y firma archivos retirados (retirado_en) que la ficha nueva ocultará: dos pantallas muestran listas distintas para la misma orden. El RPC vigente tampoco filtra retirado_en.
+    - **evidencia:** supabase/migrations/20261013100000_b4_obs6_archivos_retiro.sql:6-18; src/modulos/produccion/servicios/documentos-orden-servicio.ts:227-293; RPC 20261012100000_b4_obs2_flujo_versiones.sql:1143,1247.
+    - **requisitos:**
+      - R09
+  -
+    - **descripcion:** Etiquetas de evento: el código de eventos (orden_creada, etc.) está acoplado a las RPC y solo hay un lector (ficha); no hay otro módulo que lea orden_eventos_cambio en src/, pero tres E2E la limpian como fixture, por lo que un cambio de nombre de evento no los rompe pero sí la prueba de actividad.
+    - **evidencia:** Grep de orden_eventos_cambio en src/ y tests/: solo ficha-orden-servicio.ts:86 y borrados en tests/e2e/propuestas-flujo.spec.ts:267, ordenes-estados-sii.spec.ts:173, entregas-flujo.spec.ts:227.
+    - **requisitos:**
+      - R10
+  -
+    - **descripcion:** El texto 'Folio legacy' solo aparece en ficha-orden.tsx y en pruebas; el grep en src/ no mostró otro módulo que dependa de él. Además 'legacy' sobrevive en líneas 309, 335 y 526 de la misma ficha y en el mapa ESTADO_LEGACY_A_SII (Planeación lo importa y no es un texto de UI).
+    - **evidencia:** Grep 'Folio legacy' en src/tests/supabase: 11 coincidencias solo en ficha-orden.tsx entre otros testids; src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx:7 importa ESTADO_LEGACY_A_SII. No se encontró ninguna prueba que busque literalmente 'Folio legacy' (revisé tests/ con ese patrón).
+    - **requisitos:**
+      - R05
+  -
+    - **descripcion:** El avance de la cola se calcula solo desde producción (calcularAvance) y el tono verde se activa por estado; agregar etiqueta de entrega requiere una consulta agregada de partidas_nota_entrega y tocar tipos/ordenes.ts que importan Producción y Planeación.
+    - **evidencia:** src/modulos/ordenes/componentes/tabla-ordenes.tsx:116-169; src/modulos/ordenes/tipos/ordenes.ts:266; importado por src/modulos/produccion/servicios/tablero-produccion-servicio.ts:9 y src/modulos/planeacion/tipos/planeacion.ts:3.
+    - **requisitos:**
+      - R13
+      - R12
+  -
+    - **descripcion:** Callejón con scrap: la entrega se topa por producido y el cierre compara con solicitado; deshabilitar el botón en UI sin resolver la regla deja órdenes imposibles de cerrar. Depende de decisión del PO antes de tocar RPC.
+    - **evidencia:** supabase/migrations/20261007140001_sii_b7_entregas.sql:422-450; supabase/migrations/20261007120002_sii_b5_orden_estados.sql:179-212.
+    - **requisitos:**
+      - R12
+- **ordenSeguro:** Orden recomendado. Paso 0 (sin código): el PO decide D3 (scrap/100 %), D4 (Comentarios como 8.ª pestaña o sección), D5/D6 (qué roles reciben la hoja de trabajo sin precios; si se crea permiso orden_ver_totales en lugar de ampliar ver_finanzas) y si Reactivar/Repetir se retiran por completo o solo se ocultan.
+
+Paso 1: servicio de ficha (R18/R17, R04, R08, R09). Es la base de seguridad: leer el snapshot siempre en servidor, exponer solo proyecciones por lista blanca (origen con folios, ruta, archivos, hoja de trabajo), mantener snapshot/totales/moneda tras incluirFinanzas y cambiar select('*') de partidas por columnas explícitas. Va primero porque Ruta, Archivos, Origen y la hoja de trabajo dependen del mismo bloque (ficha-orden-servicio.ts:55-63) y de una prueba de no-fuga RED que debe existir antes de ampliar lo que se lee.
+
+Paso 2: ficha, reubicar (R02 parte 1, R19). Agregar Comentarios (HiloComentarios) y Adjuntos legacy en la ficha, y cargar sus permisos desde [id]/page.tsx. Después, redirect de /ordenes?ordenId=X a /ordenes/X en /ordenes/page.tsx. Actualizar las E2E que esperan la URL con query (clientes-historial.spec.ts:270 y comentarios-notificaciones.spec.ts:123).
+
+Paso 3: ficha, presentación (R03, R04, R05, R07, R08, R09, R10 Fase 1, R12, R13). Texto/etiquetas, tabla de Ruta, tabla de Archivos, resumen de procesos, saldo de entrega. Todo en ficha-orden.tsx; mejor dividirlo en paneles antes para reducir colisiones. Ajustar la E2E de 'orden_creada' (ordenes-estados-sii.spec.ts:344) en el mismo cambio que etiqueta los eventos.
+
+Paso 4: retirar de la cola (R02 parte 2) con el Paso 2 ya integrado: quedan Abrir y Liberar; se limpian props, estados y diálogos. Se invierten las pruebas de tabla-ordenes-c4-3.test.ts y se migran las E2E que usan Comentarios/cambiar-estado-cancelada en la fila a los testids de la ficha (ficha-cancelar, ficha-cerrar, ficha-comentarios).
+
+Paso 5: Reactivar y Repetir (R14/R15), en una sola tanda que toque cola y Planeación (acciones-tarjeta-orden.tsx) a la vez. Va después del Paso 4 porque ambos editan tabla-ordenes.tsx. Se conservan la RPC y las migraciones A20 y se actualizan o retiran sus pruebas.
+
+Paso 6 (opcional, con aprobación del PO): migración de eventos de negocio (R10 Fase 2), siempre posterior a 20261014110000, y la siembra de permisos (R16). Va al final porque tienen mayor blast radius (camino caliente de Producción y RLS de ver_finanzas) y no bloquean los 12 criterios de aceptación.
+
+Cierre (R20): registrar CLI-15, Corte 8 y los refinamientos en la documentación solo con autorización del PO; no crear DC-16.
+- **paralelizables:**
+  - Paso 1 (ficha-orden-servicio.ts, tipos/ficha-orden.ts, derivar-archivos-ficha.ts, hoja-trabajo-orden-servicio.ts) con utilidades puras nuevas: utilidades/procesos.ts (R07), utilidades/etiquetas-evento.ts (R10) y la función de saldo en utilidades/indice.ts (R12/R13) con sus pruebas unitarias. No comparten archivo.
+  - Redirect en src/app/(privado)/ordenes/page.tsx (R02 paso 2) en paralelo con el servicio de ficha: tocan archivos distintos. Pero el redirect va antes que el recorte de la cola.
+  - Consulta agregada de entregas para la cola (ordenes-servicio.ts, tipos/ordenes.ts) en paralelo con ficha-orden.tsx, pero hay que coordinar con el Paso 4 porque ambos editan page.tsx y tabla-ordenes.tsx.
+  - Documentación (CLI-15, Corte 8, refinamientos) y actualización de la matriz de cobertura, que no comparten código.
+  - pgTAP nuevos (cierre con 30/50, eventos Fase 2) sobre supabase/tests, independientes del código de UI.
+  - NO paralelizables entre sí: todo lo que edita ficha-orden.tsx (R03, R04, R05, R07, R08, R09, R10, R12, R13, R19) y todo lo que edita tabla-ordenes.tsx (R02, R12, R13, R14, R15). Además Reactivar/Repetir y el recorte de la cola deben ir en serie.
+
+## Transversal: bd
+- **porRequisito:**
+  -
+    - **id:** R01
+    - **requiereMigracion:** false
+    - **motivo:** Solo presentación de la cola (tabla-ordenes.tsx); sin cambio en BD.
+  -
+    - **id:** R02
+    - **requiereMigracion:** false
+    - **motivo:** Reubicar Comentarios/Adjuntos/Cancelar/Cerrar a la ficha y redirigir /ordenes?ordenId= es solo UI. Las Server Actions conservan can() y las RPC no cambian (cerrar_orden_administrativa y liberar_orden se llaman con p_orden_id, p_actualizado_en, p_actor_id, p_correlation_id desde src/modulos/ordenes/servicios/orden-sii-servicio.ts:145-165).
+  -
+    - **id:** R03
+    - **requiereMigracion:** false
+    - **motivo:** Ocultar UUID es presentación en ficha-orden.tsx. Los ids siguen en BD.
+  -
+    - **id:** R04
+    - **requiereMigracion:** false
+    - **motivo:** Los folios ya están congelados en snapshot_json (lo escribe crear_orden_desde_revision, vigente en 20261012100000_b4_obs2_flujo_versiones.sql). Basta proyectarlos en servidor sin importes. snapshot_json está revocado a authenticated (20261010010303_c4_3_confidencialidad_ordenes.sql:5-14), así que se sigue leyendo con service_role (page.tsx:25 ya pasa crearClienteSupabaseAdmin()).
+    - **riesgo:** Fuga de precios si se pasa el snapshot completo al componente cliente. Proyectar con lista blanca.
+  -
+    - **id:** R05
+    - **requiereMigracion:** false
+    - **motivo:** Cambio de rótulo (ficha-orden.tsx:303, 309, 335). Hacer backfill de folio_sii o renombrar columnas sería destructivo y altera folios ya impresos.
+    - **compatibilidadHistorica:** Órdenes OP-###### sin folio_sii siguen mostrando su folio; 'Referencia migrada' solo con idHistorico.
+  -
+    - **id:** R06
+    - **requiereMigracion:** false
+    - **motivo:** Ya está resuelto en BD por 20261009193327_c4_2_orden_comercial_operativa.sql (trigger de inmutabilidad y RPC de ajuste con evento). Esa BD no se re-verificó en esta pasada.
+    - **pgTAP:** Opcional: aserción de que fecha_compromiso_comercial no cambia tras reprogramacion_operativa, en un archivo nuevo (no tocar c4_2_orden_comercial_operativa.test.sql).
+  -
+    - **id:** R07
+    - **requiereMigracion:** false
+    - **motivo:** Helper puro resumirProcesos en TS. Cambiar crear_orden_desde_revision para guardar procesos únicos rompería metas_proceso_partida (una meta por entrada) y exigiría reescribir una función de unas 450 líneas con backfill.
+  -
+    - **id:** R08
+    - **requiereMigracion:** false
+    - **motivo:** El ruteo estimado ya está en snapshot_json (items[].ruteo). Tabla estructurada y proyección con lista blanca (sin precio_unitario, tarifa ni costo) son TS. No hay tabla de operaciones por orden y no conviene crearla ahora: duplicaría metas_proceso_partida.
+    - **riesgo:** Operador (sin ver_finanzas) ve Ruta y Archivos vacíos hoy. Se resuelve en servidor, no en BD.
+  -
+    - **id:** R09
+    - **requiereMigracion:** false
+    - **motivo:** Origen, asociación y tipo se derivan en lectura de archivos.entidad, entidad_id, clase y revision_letra, que ya existen. Mejora futura separada: filtrar a.retirado_en IS NULL en crear_orden_desde_revision (líneas 1143 y 1247 de 20261012100000_b4_obs2_flujo_versiones.sql), pero esa función se redefiniría entera. No se recomienda en este corte.
+    - **compatibilidadHistorica:** Solo afectaría órdenes nuevas. La ficha filtra retirado_en en lectura, así que no hace falta.
+  -
+    - **id:** R10
+    - **requiereMigracion:** true
+    - **motivo:** Fase 1 (etiquetas en español, ocultar recurso_id, 'Sistema' si actor NULL) es solo TS. Fase 2 sí requiere migración: ORDEN_PLANIFICADA y PRODUCCION_INICIADA no existen hoy. privado.derivar_orden_planificada y privado.derivar_orden_en_produccion (20261007120002_sii_b5_orden_estados.sql:413-481) y privado.derivar_orden_completada (20261007120005_sii_b5_derivaciones_definer.sql:43-65) solo hacen UPDATE de estado_sii y no emiten evento. La tabla orden_eventos_cambio no cambia de esquema: su CHECK solo exige tipo de 2 a 60 caracteres (20261007120001_sii_b5_orden_base.sql:134).
+    - **nombreSugerido:** supabase/migrations/20261014120000_eventos_negocio_orden.sql
+    - **objetos:**
+      - privado.derivar_orden_planificada()
+      - privado.derivar_orden_en_produccion()
+      - privado.derivar_orden_completada()
+    - **dependeDe:** Nada de 20261014100000 ni 20261014110000: ninguna toca estado_sii, orden_eventos_cambio ni crear_orden_desde_revision (grep en ambas sin coincidencias). Solo exige marca de tiempo posterior.
+    - **compatibilidadHistorica:** Sin backfill: las órdenes ya planificadas, iniciadas o completadas no tendrán estos eventos retroactivos. La UI debe tolerar su ausencia.
+    - **pgTAP:** Archivo nuevo supabase/tests/c8_eventos_negocio_orden.test.sql. Casos: has_function_privilege sin EXECUTE para PUBLIC/anon/authenticated; prosecdef = true; transición a PLANIFICADA inserta un solo evento y una segunda programación no duplica; primera sesión inserta produccion_iniciada y la segunda no; completada inserta uno solo; actor_id NULL; SET LOCAL ROLE service_role escribiendo la sesión o el avance para probar que el trigger DEFINER inserta el evento. No rompe sii_b5_orden.test.sql (líneas 388 y 653 filtran por tipo orden_creada y ajuste_operativo; líneas 539 y 575 solo comprueban estado_sii) ni c4_2 (filtra por tipo) ni sii_b6 (193-196, solo has_trigger y estado).
+    - **riesgo:** Camino caliente: estos triggers corren en cada INSERT de sesión o avance de Producción y un error revierte el registro de piso. Hoy derivar_orden_planificada y derivar_orden_en_produccion son SECURITY INVOKER (sin la cláusula SECURITY DEFINER en 120002:413-471), y authenticated solo tiene SELECT sobre orden_eventos_cambio (base:153-155). Un INSERT de evento desde un trigger INVOKER fallaría con permission denied. Por eso hay que recrearlos como SECURITY DEFINER con search_path vacío, objetos calificados, y REVOKE ALL de PUBLIC, anon y authenticated. Usar UPDATE ... RETURNING id INTO v y insertar el evento solo si FOUND, para que sea idempotente por transición. No leí privado.sincronizar_estado_orden_sii más allá del arranque (base:160-169): es un trigger BEFORE UPDATE de estado_sii→estado legacy, y la derivación lo seguirá disparando igual.
+  -
+    - **id:** R11
+    - **requiereMigracion:** false
+    - **motivo:** registrar_entrega (20261007140001_sii_b7_entregas.sql:292, firma uuid,jsonb,text,uuid,uuid,uuid,uuid,uuid) ya permite parciales. La llama src/modulos/entregas/acciones/registrar-entrega.ts:66-74 con p_orden_id, p_renglones, p_recibido_por, p_contacto_id, p_entregado_por, p_solicitud_id, p_actor y p_correlation_id. Sin cambios.
+  -
+    - **id:** R12
+    - **requiereMigracion:** false
+    - **motivo:** La RPC cerrar_orden_administrativa (única definición, 20261007120002_sii_b5_orden_estados.sql:179-212) ya exige PRODUCCION_COMPLETADA y entregado >= solicitado por partida, con error orden_no_entregada_completa. Lo que falta es deshabilitar el botón en UI con el saldo, con una función pura TS. Cambiar la RPC solo haría falta si el PO decide que el scrap cuenta (producido < solicitado impide hoy llegar al 100 %, porque la entrega se topa por producido y el cierre compara con solicitado). En ese caso se redefiniría la RPC copiando la versión de b5 con CREATE OR REPLACE.
+    - **pgTAP:** Un caso RED nuevo (cierre rechazado con 30/50) iría en un archivo nuevo. sii_b5_orden.test.sql hoy cubre solo el caso sin entrega.
+    - **riesgo:** Rama muerta (182-187, CANCELADA en el NOT IN y luego otro IF). Inofensiva, pero no tocar sin necesidad.
+  -
+    - **id:** R13
+    - **requiereMigracion:** false
+    - **motivo:** Etiqueta de entrega derivada en TS ('Entrega parcial 30/50', 'Pendiente de entrega'). Un estado SII nuevo obligaría a cambiar CHECK, mapa legacy, RPC, KPIs, cobranza y pgTAP; se descarta. La cola necesita una consulta agregada de partidas_nota_entrega, sin cambio de esquema.
+  -
+    - **id:** R14
+    - **requiereMigracion:** false
+    - **motivo:** Retirar el botón, la acción reactivar-orden.ts y el diálogo basta. public.reactivar_orden_op(p_orden_id uuid, p_actualizado_en timestamptz, p_actor_id uuid) (definición vigente en 20261007120004_sii_b5_consumidores_estado.sql:552) queda sin llamador (solo la invoca ordenes-servicio.ts:340-344). Ya es SECURITY DEFINER con search_path vacío, exige aprobar_ordenes y rechaza órdenes entregadas o archivadas (597-615). Dejarla es inocuo y evita una migración destructiva; el cambio de BD solo sería REVOKE EXECUTE ... FROM service_role, y no aporta más que el riesgo de reconciliación. No se recomienda.
+    - **pgTAP:** supabase/tests/a20_prd15_reactivar_orden*.sql sigue pasando si la RPC permanece. Se rompería únicamente si el PO pide revocarla.
+  -
+    - **id:** R15
+    - **requiereMigracion:** false
+    - **motivo:** Igual que R14: retirar UI y acción. public.repetir_orden_op(p_orden_origen_id uuid, p_actor_id uuid, p_fecha_compromiso timestamptz) (vigente en 20261007120004_sii_b5_consumidores_estado.sql:425; la llama ordenes-servicio.ts:311-315) ya crea una Orden nueva con orden_origen_id. Es base válida para 'nueva Orden basada en la anterior' si el PO lo pide, sin migración ahora.
+    - **pgTAP:** supabase/tests/a20_cli08_repetir_trabajo*.sql sigue pasando si la RPC permanece.
+  -
+    - **id:** R16
+    - **requiereMigracion:** false
+    - **motivo:** El documento ya está protegido con can(orden_vista) y can(ver_finanzas) en obtener-documento-orden.ts. Solo si el PO decide dar ver_finanzas a gerente o vendedor haría falta una migración de datos en permisos_rol (INSERT ... ON CONFLICT DO NOTHING). No se recomienda: ver_finanzas gobierna también cobranza, gastos, compras y tesorería. Si se quiere un alcance acotado, mejor un permiso nuevo orden_ver_totales, que sí requeriría migración y cambios en PERMISOS (src/compartido/constantes/indice.ts).
+    - **riesgo:** Pendiente de decisión D5 del PO.
+  -
+    - **id:** R17
+    - **requiereMigracion:** false
+    - **motivo:** La hoja de trabajo sin economía es una proyección por lista blanca en servidor, a partir de snapshot_json leído con service_role, tras can(orden_vista). No hace falta vista SQL ni RLS nueva: C4.3 ya dejó los privilegios por columna y las lecturas van por service_role.
+  -
+    - **id:** R18
+    - **requiereMigracion:** false
+    - **motivo:** C4.3 (20261010010303_c4_3_confidencialidad_ordenes.sql:5-14) ya revoca el SELECT de tabla y concede por columna sin snapshot_json, monto_* ni condicion_pago. Pendiente de verificar en entorno real si Realtime (ordenes_produccion y partidas están en la publicación, 20260812052820) filtra columnas sin GRANT; si se confirma la fuga, la solución sería sacar la tabla de la publicación (migración puntual condicionada, por ahora no incluida). Reemplazar select('*') de partidas por columnas explícitas en ficha-orden-servicio.ts:68 es TS.
+    - **pgTAP:** Extender supabase/tests/c4_3_confidencialidad_ordenes.test.sql como candado RED, o mejor un archivo nuevo para no tocar las 17 aserciones existentes.
+  -
+    - **id:** R19
+    - **requiereMigracion:** false
+    - **motivo:** Microcopy de pestañas y reubicación de Comentarios: solo UI.
+  -
+    - **id:** R20
+    - **requiereMigracion:** false
+    - **motivo:** Gobernanza y documentación (CLI-15, Corte 8, refinamientos), no código. La numeración se verificó libre en tasks/plan.md y DECISIONES-ACEPTADAS.md según el hallazgo de historial.
+- **estrategiaMigraciones:** UNA sola migración opcional para todo el corte de Órdenes: supabase/migrations/20261014120000_eventos_negocio_orden.sql, dentro del Corte 8 (Fase 2 de R10). Hoy la última local es 20261014110000, así que la marca queda posterior; verificar con Glob que no haya colisión antes de crearla.
+
+Contenido: CREATE OR REPLACE de las tres derivar_* (privado.derivar_orden_planificada, privado.derivar_orden_en_produccion, privado.derivar_orden_completada), todas SECURITY DEFINER con SET search_path = '', cuerpo copiado de la última definición (planificada y en_produccion de 20261007120002:413-481; completada de 20261007120005:43-65; esta última ya es DEFINER y no debe degradarse). Cada una inserta en public.orden_eventos_cambio solo cuando el UPDATE afectó fila (UPDATE ... RETURNING id INTO v; IF FOUND). Tipos: orden_planificada, produccion_iniciada, produccion_completada. actor_id NULL, detalle '{}'. REVOKE ALL FROM PUBLIC, anon, authenticated con firma exacta '()'. Los triggers no se recrean (nombres y firma iguales). Cabecera con guarda de dependencia (existe orden_eventos_cambio y estado_sii) como la de 20261007120005. COMMENT ON FUNCTION actualizado.
+
+Idempotencia: CREATE OR REPLACE es re-ejecutable. Backfill: ninguno (no se inventan eventos para órdenes ya avanzadas). Sin cambio de tablas, columnas, grants ni RLS, así que NO hay que regenerar src/compartido/tipos/supabase.ts (si el PO lo hiciera, debe ser UTF-8 con Out-File -Encoding utf8, no con '>').
+
+Todo lo demás (R01-R09, R11-R20) es TS/UI y no genera migración. Si el PO responde a D3 que el scrap cuenta para el cierre, o a D5 que Customer Service/Management ven totales, se añadiría una segunda migración posterior (20261014130000_...): en el primer caso, redefinir cerrar_orden_administrativa; en el segundo, una migración de datos o un permiso nuevo en permisos_rol. Ambas siguen fuera del alcance por defecto.
+
+Trabajo manual del PO: aplicar a mano 20261014100000, 20261014110000 y 20261014120000 en ese orden desde el SQL Editor (o db push si el historial lo permite) y luego correr supabase migration repair --status applied para cada versión y supabase migration list. Si el PO aplica la de Órdenes sin las otras dos, no pasa nada funcional, porque no hay dependencia de objetos entre ellas (grep sin coincidencias de crear_orden_desde_revision, orden_eventos_cambio, registrar_entrega, cerrar_orden_administrativa o partidas_orden_produccion en las dos); el único efecto es el orden en el historial remoto, que es lo que ya está desalineado y se repara con migration repair. Una migración con marca menor que otra ya aplicada puede rechazarse en db push (out of order), por eso la marca es mayor que todas las locales. No ejecutar ninguna de las tres en remoto sin autorización de Codex.
+
+Descartado explícitamente: nuevo estado SII de entrega, tabla de operaciones por orden, redefinir crear_orden_desde_revision para procesos únicos o archivos retirados, vistas SQL por rol, borrar las RPC de reactivar o repetir, evento de cancelación (no leí el cuerpo de la RPC de cancelación, ver hallazgos).
+- **hallazgos:**
+  - privado.derivar_orden_planificada y privado.derivar_orden_en_produccion siguen siendo SECURITY INVOKER (20261007120002_sii_b5_orden_estados.sql:413-471). 20261007120005 solo convirtió a DEFINER la de completada y el trigger de meta final (asignar_meta_final_avance_partida). Para insertar eventos hay que pasarlas a DEFINER, de lo contrario authenticated no puede escribir en orden_eventos_cambio (solo tiene SELECT, 20261007120001_sii_b5_orden_base.sql:153-155).
+  - orden_eventos_cambio no restringe valores de tipo (CHECK solo de longitud 2-60, base:134), por lo que añadir tipos nuevos no necesita cambio de esquema. RLS: SELECT USING (true) para authenticated (base:148-151), sin escritura directa; service_role tiene todo.
+  - Las pgTAP existentes no se rompen con los eventos nuevos: sii_b5_orden.test.sql cuenta eventos filtrando por tipo (388 'orden_creada', 653 'ajuste_operativo'), y c4_2 y sii_b6 también filtran por tipo o solo comprueban estado y has_trigger.
+  - Las dos migraciones locales pendientes (20261014100000 y 20261014110000) están documentadas como solo locales (docs/.../ordenes-revision-funcional/CONTINUIDAD.md:65) y no tocan objetos de Órdenes, así que la migración de Órdenes es independiente de ellas salvo por el orden de marca de tiempo.
+  - Reactivar y repetir tienen RPC de definición vigente en 20261007120004_sii_b5_consumidores_estado.sql (repetir_orden_op en 425, reactivar_orden_op en 552), ambas SECURITY DEFINER con search_path vacío, y solo tienen un llamador cada una en TS (ordenes-servicio.ts:311 y 340). Retirar la UI y la acción deja la RPC sin llamador sin necesidad de migración. No grepeé otros llamadores de Planeación (acciones-tarjeta-orden.tsx); el hallazgo del historial dice que Planeación también trae Reactivar.
+  - registrar_entrega no cambia estado_sii y el trigger vigente archivar_orden_al_entregar (20261007230002_sii_credito_dias_cliente.sql) puede lanzar cliente_credito_sin_dias al llegar al 100 %. No hay eventos de entrega, cancelación, reactivación ni repetición en orden_eventos_cambio. Quedan fuera de la migración propuesta: no leí el cuerpo de la RPC de cancelación y los de entrega se abordarían en una migración posterior si el PO los exige.
+  - Los tipos de Supabase (src/compartido/tipos/supabase.ts) no se ven afectados por la migración propuesta: no cambia tablas ni firmas de RPC. Las firmas de las RPC consultadas coinciden con los nombres de parámetros que envía el TS (p_orden_id, p_actualizado_en, p_actor_id, p_correlation_id; p_orden_origen_id, p_actor_id, p_fecha_compromiso).
+  - Hallazgo de privilegios para R17/R18: la ficha lee con service_role (page.tsx:25), por lo que la seguridad del backend depende de can() en página/acción y de listas blancas en el servicio. Un 'select(*)' de partidas_orden_produccion hoy no trae columnas económicas, pero conviene fijar columnas explícitas.
+  - Dos CLI-08 homónimos y matriz obsoleta (según el historial) son riesgo de coordinación documental, no de BD.
+- **migracionesPendientesRemoto:** 20261014100000_propuesta_item_en_revision_a.sql y 20261014110000_tarifario_unico_estacion_grupo.sql constan como solo locales (docs/observaciones-cliente-2026-10-07/ordenes-revision-funcional/CONTINUIDAD.md:65 y DECISIONES-ACEPTADAS.md DC-08). No tienen dependencia de objetos con la migración propuesta 20261014120000_eventos_negocio_orden.sql (grep sin coincidencias). Aplicar la de Órdenes sin ellas es seguro funcionalmente; lo único que cambia es el orden en el historial remoto, que ya está desalineado y se reconcilia con supabase migration repair --status applied por versión. El archivo 20261014110000 aparece como modificado en el árbol de trabajo (git status), así que debe quedar commiteado antes de aplicarlo. Otras migraciones locales de c4.x (C4.3, 20261010010303) constan como 'solo local' en tasks/todo.md según el historial, y R17/R18 asumen que ya están en remoto; verificar. No verifiqué el estado remoto (sin acceso).
+- **rpcsAfectadas:**
+  -
+    - **nombre:** privado.derivar_orden_planificada
+    - **ultimaDefinicion:** supabase/migrations/20261007120002_sii_b5_orden_estados.sql:413-456 (SECURITY INVOKER, search_path vacío, trigger AFTER INSERT OR UPDATE OF estado_planeacion en programacion_areas)
+    - **cambio:** Recrear como SECURITY DEFINER, search_path = ''. UPDATE ... WHERE estado_sii = 'CONFIRMADA' RETURNING id; si FOUND, INSERT en public.orden_eventos_cambio (orden_id, tipo 'orden_planificada', detalle '{}', actor_id NULL). Sin backfill.
+    - **llamadores:**
+      - Trigger trigger_programacion_derivar_orden_planificada (no hay llamador TS directo; se dispara al insertar o actualizar programacion_areas desde Planeación)
+    - **pgTAPQueSeRompe:**
+      - Ninguno. sii_b5_orden.test.sql:539 solo comprueba estado_sii = PLANIFICADA; el evento extra no cambia sus conteos (filtra por tipo).
+  -
+    - **nombre:** privado.derivar_orden_en_produccion
+    - **ultimaDefinicion:** supabase/migrations/20261007120002_sii_b5_orden_estados.sql:459-481 (SECURITY INVOKER; trigger AFTER INSERT en sesiones_trabajo)
+    - **cambio:** Recrear como SECURITY DEFINER. UPDATE ... WHERE estado_sii IN ('CONFIRMADA','PLANIFICADA','LISTA') RETURNING id; si FOUND, evento 'produccion_iniciada' con actor NULL (solo en la primera sesión).
+    - **llamadores:**
+      - Trigger trigger_sesiones_derivar_orden_en_produccion; sesiones de trabajo registradas por Producción (no se leyeron las RPC de sesión)
+    - **pgTAPQueSeRompe:**
+      - Ninguno. sii_b5_orden.test.sql:575 comprueba estado y sii_b6_produccion.test.sql:193-196 el trigger y el estado.
+  -
+    - **nombre:** privado.derivar_orden_completada
+    - **ultimaDefinicion:** supabase/migrations/20261007120005_sii_b5_derivaciones_definer.sql:43-65 (SECURITY DEFINER, search_path vacío; trigger AFTER INSERT en registros_avance_partida; usa privado.orden_produccion_completa de 20260925060000_a20_prd09_avance_proceso_partida.sql:70)
+    - **cambio:** Mantener SECURITY DEFINER y search_path vacío. Añadir UPDATE ... RETURNING id y evento 'produccion_completada' si FOUND. No partir de la versión 120002, que era INVOKER.
+    - **llamadores:**
+      - Trigger trigger_avance_derivar_orden_completada, al insertar avances de partida
+    - **pgTAPQueSeRompe:**
+      - Ninguno por conteos. Ojo: orden_produccion_completa está revocada incluso a service_role (prd09:85), por lo que la función debe seguir siendo DEFINER.
+  -
+    - **nombre:** public.reactivar_orden_op(uuid, timestamptz, uuid)
+    - **ultimaDefinicion:** supabase/migrations/20261007120004_sii_b5_consumidores_estado.sql:552-619+
+    - **cambio:** Ninguno en SQL: se retira el botón, la acción reactivar-orden.ts y el diálogo; la RPC queda sin llamador.
+    - **llamadores:**
+      - src/modulos/ordenes/servicios/ordenes-servicio.ts:340-344 (p_orden_id, p_actualizado_en, p_actor_id)
+    - **pgTAPQueSeRompe:**
+      - Ninguno si la RPC se mantiene. tests/integracion/reactivar-orden.test.ts y tests/e2e/ordenes-heredadas-reactivacion.spec.ts son de TS y se retiran o reescriben con la UI.
+  -
+    - **nombre:** public.repetir_orden_op(uuid, uuid, timestamptz)
+    - **ultimaDefinicion:** supabase/migrations/20261007120004_sii_b5_consumidores_estado.sql:425-550
+    - **cambio:** Ninguno en SQL: se retira la UI y la acción; la RPC queda disponible por si el PO quiere 'nueva Orden basada en la anterior'.
+    - **llamadores:**
+      - src/modulos/ordenes/servicios/ordenes-servicio.ts:311-315 (p_orden_origen_id, p_actor_id, p_fecha_compromiso)
+    - **pgTAPQueSeRompe:**
+      - Ninguno si la RPC permanece.
+  -
+    - **nombre:** public.cerrar_orden_administrativa
+    - **ultimaDefinicion:** supabase/migrations/20261007120002_sii_b5_orden_estados.sql:179-212 (única definición, según el hallazgo de entregas-cierre)
+    - **cambio:** Ninguno por defecto (R12 ya cumple en backend). Solo si el PO decide el scrap por entregado vs producido habría que redefinirla.
+    - **llamadores:**
+      - src/modulos/ordenes/servicios/orden-sii-servicio.ts:160-165 (p_orden_id, p_actualizado_en, p_actor_id, p_correlation_id)
+    - **pgTAPQueSeRompe:**
+      - Ninguno por defecto. Un cambio de regla afectaría sii_b5_orden.test.sql (casos de cierre).
+  -
+    - **nombre:** public.orden_eventos_cambio (tabla)
+    - **ultimaDefinicion:** supabase/migrations/20261007120001_sii_b5_orden_base.sql:125-155
+    - **cambio:** Ninguno de esquema. Solo nuevos valores de tipo por inserción desde los triggers.
+    - **llamadores:**
+      - Lectura: ficha-orden-servicio.ts (últimos 50 eventos según el hallazgo de actividad)
+    - **pgTAPQueSeRompe:**
+      - Ninguno.
+- **permisosRlsPrivilegios:**
+  - orden_eventos_cambio: RLS activa, SELECT USING (true) para authenticated, sin escritura directa (base:146-155). La migración propuesta no cambia grants; las escrituras vienen de funciones DEFINER. Recordar que la política es USING(true): cualquier authenticated con SELECT de tabla ve los eventos de cualquier orden. No hay datos económicos en el detalle de los eventos nuevos ('{}').
+  - Funciones privado.derivar_*: REVOKE ALL FROM PUBLIC, anon, authenticated con firma exacta '()'. Verificar con has_function_privilege y prosecdef en pgTAP, y que proacl no quede con EXECUTE por defecto a PUBLIC.
+  - ordenes_produccion: C4.3 revoca SELECT de tabla a authenticated y concede por columna sin snapshot_json, monto_sin_iva, monto_iva ni condicion_pago (20261010010303:5-14). La ficha y el documento leen con service_role tras can(orden_vista) y can(ver_finanzas); la vista operador debe proyectar por lista blanca en servidor.
+  - Ninguna acción nueva muta datos sensibles en este corte, así que no hace falta un permiso nuevo en PERMISOS. La acción de cierre sigue con orden_cerrar_admin. Si el PO pide totales para Customer Service o Management, mejor un permiso nuevo orden_ver_totales que ampliar ver_finanzas (que además gobierna cobranza, gastos, compras y tesorería).
+  - Realtime: ordenes_produccion y partidas_orden_produccion están en la publicación supabase_realtime (20260812052820:808-833). No está verificado si el payload respeta privilegios por columna. Probar en entorno real antes de cerrar R18; mitigación si hay fuga: relay de señal vacía o retirar la tabla de la publicación (migración aparte, no incluida).
+  - El actor NULL en eventos de trigger debe rotularse 'Sistema' en la UI; no es un problema de FK (actor_id es nullable).
+
+## Transversal: pruebas
+- **porRequisito:**
+  -
+    - **id:** R01
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/tabla-ordenes-c4-3.test.ts
+        - **que:** Usa filas fila-orden-O-1026_01/_02 y rol button Comentarios; las columnas no se aserta. Sin cambio si solo se quitan acciones (los testids fila-orden-* se conservan).
+        - **cambiara:** false
+      -
+        - **archivo:** tests/e2e/ordenes-edicion-borrador.spec.ts
+        - **que:** L90: fila.getByRole('link',{name:'Abrir',exact:true}) visible (conservar el enlace Abrir).
+        - **cambiara:** false
+  -
+    - **id:** R02
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/tabla-ordenes-c4-3.test.ts
+        - **que:** L100-126: fireEvent.click(getByRole('button',{name:'Comentarios'})) en fila, dialog + mock hilo-comentarios con data-entidad-id; L117-126 prop ordenInicialId + limpiarFiltrosMock; L128-131 boton 'Documento O-1026_01' con puedeVerFinanzas; mocks de adjuntos/reactivar/repetir dialogs (L33-35). Los tests de Comentarios, ordenInicialId y Documento fallan/se eliminan al retirar; migrar a la ficha.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** Renderiza FichaOrden con permisos {puedeLiberar,puedeCerrar,puedeCancelar,puedeVerFinanzas}; si se añaden props (usuarioActualId, puedeEliminarTodos) hay que actualizar el fixture y mockear @/modulos/comentarios/componentes/indice.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/ordenes-estados-sii.spec.ts
+        - **que:** L235-236 fila.getByRole('button',{name:'Comentarios'}) y /Documento/ visibles; L255 liberar-orden-${folio}; L327-328 cerrar-administrativa-${folio} + confirmar-cierre-administrativo en bandeja-archivo; L382 filaTi.getByTestId('cambiar-estado-cancelada') + getByLabel('Motivo (mínimo 3 caracteres)') + botón 'Confirmar cancelación'.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/ordenes-edicion-borrador.spec.ts
+        - **que:** L89 espera botón 'Comentarios' visible en la fila: cambia a toHaveCount(0) en cola o se mueve a la ficha.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/cancelacion-financiera.spec.ts
+        - **que:** L55-60: getByRole('row',{name:folio}).getByTestId('cambiar-estado-cancelada'), dialog 'Cancelar orden ${folio}', botón 'Confirmar cancelación', alert 'La orden tiene cobranza registrada'. Migrar a /ordenes/{id} con ficha-cancelar + ficha-confirmar-cancelacion.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/comentarios-notificaciones.spec.ts
+        - **que:** L84-90: fila.getByRole('button',{name:'Comentarios'}) -> dialog hilo-comentarios; L123: toHaveURL(/ordenes\?ordenId=${ordenId}/) tras clic en notificación (con redirect la URL final es /ordenes/{id}). Está condicionado a E2E_COMENTARIOS_ORDEN_ID (skip si falta).
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/clientes-historial.spec.ts
+        - **que:** L261 href /ordenes?ordenId=${id} (se conserva, los enlaces no se tocan); L270 toHaveURL(/ordenes\?ordenId=.../) cambia a /ordenes/${id} por el redirect.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/actividad.spec.ts
+        - **que:** L123 solo aserta el href /ordenes?ordenId= (no cambia).
+        - **cambiara:** false
+      -
+        - **archivo:** tests/unitarias/actividad-agrupacion.test.ts, bitacora-enlaces.test.ts, comentarios-menciones-correo.test.ts, clientes-historial.test.ts
+        - **que:** Aserciones del string '/ordenes?ordenId=...' (actividad-agrupacion:83, bitacora-enlaces:13, menciones-correo:38, clientes-historial:415). No cambian porque el redirect evita tocar los generadores; son candado de que NO se editen.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/tabla-ordenes-acciones-minimas.test.ts
+        - **caso:** En fila PLANIFICADA con puedeLiberar solo existen abrir-ficha-{folio} y liberar-orden-{folio}; en CERRADA/CONFIRMADA solo abrir-ficha; no hay botones Comentarios/Documento/Cancelar/Cerrar/Repetir/Reactivar/Adjuntos. Falla hoy porque la fila renderiza hasta 9 controles (tabla-ordenes.tsx 572-671).
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-comentarios.test.ts
+        - **caso:** La ficha monta HiloComentarios (mock) con entidadId = orden.id; muestra Adjuntos solo si idHistorico !== null. Falla hoy: ficha-orden.tsx no importa HiloComentarios ni AdjuntosOrdenDialog.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ordenes-page-redirect.test.ts
+        - **caso:** El Server Component /ordenes con searchParams.ordenId=X llama redirect('/ordenes/X') (mock de next/navigation; validar UUID con Zod, ID inválido no redirige). Falla hoy: page.tsx lo pasa como ordenInicialId.
+      -
+        - **tipo:** e2e
+        - **archivo:** tests/e2e/ordenes-ficha-acciones.spec.ts
+        - **caso:** Desde la ficha: publicar comentario, cancelar con motivo (ficha-cancelar/ficha-confirmar-cancelacion) y deep link /ordenes?ordenId= termina en /ordenes/{id}. Falla hoy: no hay comentarios en la ficha ni redirect.
+  -
+    - **id:** R03
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** L99-101: con puedeVerFinanzas true espera getByText('Origen (snapshot)') y 'Sin totales comerciales en el snapshot.'; L85 queryByText('Origen (snapshot)') null sin finanzas. El rótulo 'Origen (snapshot)' se reemplaza por 'Origen comercial': L85 y L101 cambian.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/ordenes-estados-sii.spec.ts
+        - **que:** L344 espera texto crudo 'orden_creada' en ficha-panel-actividad; cambia con etiquetas en español.
+        - **cambiara:** true
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-sin-ids.test.ts
+        - **caso:** Ficha con snapshot.origen {rfq_id,propuesta_id,revision_id}, eventos con recurso_id UUID y archivo sin nombre: container.textContent no contiene regex UUID ni 'rfq_id/propuesta_id/revision_id' (ni orden.id). Falla hoy: ficha-orden.tsx 323-332 vuelca claves/valores, 476 imprime recurso_id y 420 cae a archivoId.
+  -
+    - **id:** R04
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** FICHA.snapshot=null y totales=null; L85/L101 dependen del bloque 'Origen (snapshot)' atado a puedeVerFinanzas. El fixture debe ampliarse con un campo origen tipado.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/unitarias/ordenes-confidencialidad-c4-3.test.ts
+        - **que:** COLUMNAS_ORDEN_OPERATIVA no contiene snapshot_json; si el servicio lee el snapshot en servidor esta lista NO debe cambiar (candado).
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-origen-comercial.test.ts
+        - **caso:** Con origen {rfqFolio, propuestaFolio, revisionLetra} muestra folios humanos con enlace solo si puedeVerRfq/puedeVerPropuesta; sin permiso texto plano; sin origen 'Sin origen comercial'; visible sin ver_finanzas y sin totales. Falla hoy: no existe el campo ni el bloque fuera de finanzas.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-servicio-no-fuga.test.ts
+        - **caso:** obtenerFichaOrdenServicio con cliente simulado e incluirFinanzas=false: JSON.stringify(ficha) no contiene precio_unitario, subtotal, iva, total ni moneda aunque el snapshot se lea para extraer origen/ruta/archivos.
+  -
+    - **id:** R05
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** Fixture L26-27: folio 'OP-004201', folioSii 'OP-1026_01-01' (no cumple CHECK folio_sii; cambiar a 'O-1026_01'). No hay aserción de 'Folio legacy' hoy; no se rompe, pero hay que evitar dejar el folio inválido.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/unitarias/ordenes-documento.test.ts
+        - **que:** L9 folio_legacy:'RFQ-1026_01' del snapshot de propuesta; es dato del documento, no el rótulo de la ficha (no cambia salvo que se renombre el rótulo impreso).
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-folio.test.ts
+        - **caso:** folioSii 'O-1026_01' e idHistorico null: se ve 'Folio' con 'O-1026_01' y container.textContent no contiene /legacy/i ni 'orden legada'; con idHistorico='X' aparece 'Referencia migrada'. Falla hoy: ficha-orden.tsx 303 'Folio legacy', 309 'orden legada', 335 'datos legacy'.
+  -
+    - **id:** R06
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** L67-69: getByText('15 de noviembre de 2026'), getByText(/Operativa/), queryByRole('button',{name:'Ajustar'}) null. Fija la separación; se conserva. Ojo fecha fija 2026-11-15 (solo formato, no depende de now).
+        - **cambiara:** false
+      -
+        - **archivo:** supabase/tests/c4_2_orden_comercial_operativa.test.sql
+        - **que:** pgTAP de trigger inmutable y RPC ajuste_operativo/reprogramación; se conserva intacto.
+        - **cambiara:** false
+  -
+    - **id:** R07
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/planeacion-desglose.test.ts
+        - **que:** L36 procesos ['Corte','Doblez'] y aserción de join ', ' y TEXTO_POR_DEFINIR (L36,115). Solo cambia si se unifica etiquetaProcesos; con el mínimo (solo la ficha) no cambia.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ordenes-resumir-procesos.test.ts
+        - **caso:** resumirProcesos(['Láser CO₂','Láser CO₂']) === 'Láser CO₂ (2 operaciones)'; ['Corte','Doblez','Corte'] => 'Corte (2 operaciones) · Doblez'; [] => '—'; variantes de acento/mayúsculas/espacios se agrupan. Falla: el módulo src/modulos/ordenes/utilidades/procesos.ts no existe (utilidades actuales: comparativa-ordenes, fecha-kpi, resumen-ordenes, lotes, mensajes-orden).
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-partidas-procesos.test.ts
+        - **caso:** Partida con procesos ['Láser CO₂','Láser CO₂'] en ficha-partida-IT01 muestra el resumen y no 'Láser CO₂ · Láser CO₂'. Falla hoy: ficha-orden.tsx 376 usa join(' · ').
+  -
+    - **id:** R08
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** Todas las fichas con snapshot:null; no cubre ruta. Fixture a ampliar con ruta tipada.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/unitarias/ordenes-confidencialidad-c4-3.test.ts
+        - **que:** Candado de proyección operativa: debe seguir sin snapshot_json en COLUMNAS_ORDEN_OPERATIVA.
+        - **cambiara:** false
+      -
+        - **archivo:** tests/integracion/c4-3-confidencialidad-ordenes.test.ts
+        - **que:** Confidencialidad C4.3 con JWT real (usa rpc generar_folio_orden p_prefijo, L53); regresión si se lee el snapshot para roles sin finanzas.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ordenes-ruta-ficha.test.ts
+        - **caso:** Proyección RutaFicha con lista blanca: snapshot con tarifa_hora, costo_total y precio_unitario => JSON.stringify no contiene esas claves; ordenada por ITxx y secuencia, sin es_descuento.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-ruta-tabla.test.ts
+        - **caso:** ficha-panel-ruta tiene encabezados # | Proceso | Prep. estimada | Operación estimada | Estado, celda 'Pendiente', y no contiene 'setup' ni 'run'. Falla hoy: ficha-orden.tsx 385-411 usa <ol> con 'setup X h · run Y h' (L397).
+      -
+        - **tipo:** integracion
+        - **archivo:** tests/integracion/c4-3-confidencialidad-ordenes.test.ts (ampliar)
+        - **caso:** Usuario con orden_vista y sin ver_finanzas obtiene la ruta y la respuesta no contiene precio, costo ni tarifa.
+  -
+    - **id:** R09
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** Fixture archivos: [] (L50); no se rompe, se extiende con el nuevo shape ArchivoFicha (origenTipo, revisionLetra, asociadoA, tipo, disponible).
+        - **cambiara:** true
+      -
+        - **archivo:** tests/unitarias/produccion-documentos-orden*.test.ts, tests/integracion/c2-3-documentos-orden.test.ts, supabase/tests/c3_1_linaje_documental_orden.test.sql
+        - **que:** Regresión: Producción no se toca; deben seguir verdes (según el análisis del área; no abiertos por mí).
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/derivar-archivos-ficha.test.ts
+        - **caso:** rfq_item + propuesta_items{rfq_item_id->IT01} + clase CAD => Origen RFQ, Asociado a IT01, Tipo CAD; propuesta_revision letra A clase 'pdf' => 'Propuesta Rev A', general, '-'; propuesta_item de Rev A en orden de Rev B conserva ITxx del snapshot; entidad 'orden' => Orden; retirado_en no nulo excluido; id sin fila => 'No disponible'; mapa clase CAD/DIBUJO=Plano/tecnico=Técnico, resto '-'. Falla: el helper no existe.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-archivos-tabla.test.ts
+        - **caso:** ficha-panel-archivos renderiza columnas Archivo | Origen | Asociado a | Tipo, '(general)' y sin UUID ni palabra 'snapshot'. Falla hoy: lista de texto con respaldo archivoId (L416-423).
+  -
+    - **id:** R10
+    - **existentes:**
+      -
+        - **archivo:** tests/e2e/ordenes-estados-sii.spec.ts
+        - **que:** L343-344: ficha-pestana-actividad -> ficha-panel-actividad toContainText('orden_creada'). Debe cambiar a 'Orden creada'.
+        - **cambiara:** true
+      -
+        - **archivo:** supabase/tests/sii_b5_orden.test.sql
+        - **que:** Cubre transiciones/derivaciones; solo cambia si Fase 2 (eventos en derivar_*) se aprueba: conteos de orden_eventos_cambio podrían variar.
+        - **cambiara:** false
+      -
+        - **archivo:** supabase/tests/sii_b1_actividad.test.sql
+        - **que:** Candado de Actividad separada de logs; se conserva.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ordenes-etiquetas-evento.test.ts
+        - **caso:** Cada tipo conocido (orden_creada, orden_liberada, cierre_administrativo, ajuste_operativo...) devuelve etiqueta en español; tipo desconocido no muestra snake_case; actor null => 'Sistema'. Falla: etiquetas-evento.ts no existe.
+      -
+        - **tipo:** pgtap
+        - **archivo:** supabase/tests/<nuevo>_eventos_negocio_orden.test.sql (solo Fase 2)
+        - **caso:** Pasar a PLANIFICADA / primera sesión inserta un único evento orden_planificada / produccion_iniciada (idempotente), incluyendo caso SET LOCAL ROLE service_role (CUELLOS §2: triggers SECURITY DEFINER, search_path vacío). Falla antes de la migración: derivar_* solo hacen UPDATE.
+  -
+    - **id:** R11
+    - **existentes:**
+      -
+        - **archivo:** tests/e2e/entregas-flujo.spec.ts
+        - **que:** Flujo /entregas; regresión, sin cambio.
+        - **cambiara:** false
+      -
+        - **archivo:** supabase/tests/sii_b7_entregas.test.sql
+        - **que:** Parciales/topes de registrar_entrega; sin cambio.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-entregas.test.ts
+        - **caso:** Panel Entregas conserva ficha-preparar-entrega (href /entregas?orden=<id>) y muestra 'Entregado 30/50' con notas ficha-entrega-{folio} Parcial. (Opcional, depende de texto aprobado por PO.)
+  -
+    - **id:** R12
+    - **existentes:**
+      -
+        - **archivo:** tests/e2e/ordenes-estados-sii.spec.ts
+        - **que:** L325-329: bandeja-archivo -> cerrar-administrativa-${folio} -> confirmar-cierre-administrativo en la COLA; se debe migrar a la ficha (ficha-cerrar + ficha-confirmar-cierre). El flujo hace entrega 100 % por rpc('registrar_entrega', {p_orden_id,p_renglones,p_recibido_por,p_entregado_por,p_solicitud_id,p_actor}) (L313-320).
+        - **cambiara:** true
+      -
+        - **archivo:** supabase/tests/sii_b5_orden.test.sql
+        - **que:** Cubre cierre sin entrega; se agrega el caso 30/50.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ordenes-saldo-entrega.test.ts
+        - **caso:** calcularSaldoEntrega(solicitado 50, entregado 30) => faltan 20, cierrePermitido=false; 50/50 => true. Falla: no existe.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-cierre-bloqueado.test.ts
+        - **caso:** PRODUCCION_COMPLETADA con 30/50 y puedeCerrar: ficha-cerrar deshabilitado con 'Faltan 20'; con 50/50 habilitado. Falla hoy: L261-267 lo habilita solo con estado+permiso.
+      -
+        - **tipo:** pgtap
+        - **archivo:** supabase/tests/sii_b5_orden.test.sql (ampliar)
+        - **caso:** cerrar_orden_administrativa rechaza con orden_no_entregada_completa con 30/50 y acepta con 50/50. Verifica la firma real de la RPC (CUELLOS §2).
+  -
+    - **id:** R13
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ordenes-estado-sii.test.ts
+        - **que:** L23/L37 mapeos estado_sii<->legacy; no cambian (no se agrega estado).
+        - **cambiara:** false
+      -
+        - **archivo:** tests/unitarias/tabla-ordenes-c4-3.test.ts
+        - **que:** Fixtures OrdenTabla sin campo de entrega; si se añade entregado al tipo OrdenTabla (partidas[].entregada o similar) el fixture se amplía.
+        - **cambiara:** true
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ordenes-etiqueta-entrega.test.ts
+        - **caso:** etiquetaEntrega(PRODUCCION_COMPLETADA,50,30)='Entrega parcial 30/50'; (...,50,0)='Pendiente de entrega'; (CERRADA,50,50)=null; (EN_PRODUCCION,50,20)='Entrega parcial 20/50'.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/tabla-ordenes-entrega.test.ts
+        - **caso:** Fila con producción 50/50 y entrega 30/50 muestra 'Entregado 30/50' y no el avance verde de 'terminado'.
+  -
+    - **id:** R14
+    - **existentes:**
+      -
+        - **archivo:** tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+        - **que:** L257-258 y L278-279: getByTestId(`reactivar-orden-${folio}`) y 'confirmar-reactivar-orden'. Se retiran o se reescriben (spec completo en lo de Reactivar).
+        - **cambiara:** true
+      -
+        - **archivo:** tests/e2e/planeacion-bolsa-acciones.spec.ts
+        - **que:** L195-199: accion-reactivar-${ordenCompletada} + confirmar-reactivar-orden + status 'reactivada' en Planeación. Cambia si se retira el punto de Planeación (C9).
+        - **cambiara:** true
+      -
+        - **archivo:** tests/integracion/reactivar-orden.test.ts
+        - **que:** Llama rpc('reactivar_orden_op', ...) (L130,152,169,185,200,208): fija la firma real de la RPC. Si se retira solo la UI, conservar (la RPC queda).
+        - **cambiara:** false
+      -
+        - **archivo:** supabase/tests/a20_prd15_reactivar_orden.test.sql
+        - **que:** pgTAP de la RPC; conservar si la RPC no se elimina.
+        - **cambiara:** false
+      -
+        - **archivo:** tests/unitarias/tabla-ordenes-c4-3.test.ts
+        - **que:** L34 mock de reactivar-orden-dialog; se elimina con el import.
+        - **cambiara:** true
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/tabla-ordenes-acciones-minimas.test.ts
+        - **caso:** No existe ningún control reactivar-orden-* en la fila (cubierto en R02).
+      -
+        - **tipo:** e2e
+        - **archivo:** tests/e2e/ordenes-heredadas-reactivacion.spec.ts (editar)
+        - **caso:** toHaveCount(0) para reactivar-orden-{folio} en la cola y accion-reactivar-{id} en Planeación (si C9 lo cubre).
+  -
+    - **id:** R15
+    - **existentes:**
+      -
+        - **archivo:** tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+        - **que:** L222-224: repetir-orden-${historica.folio} + confirmar-repetir-orden; se retira o se reubica en ficha como 'Nueva orden basada en...'.
+        - **cambiara:** true
+      -
+        - **archivo:** tests/integracion/repetir-trabajo.test.ts
+        - **que:** Prueba la RPC de repetir (orden_origen_id); se conserva mientras la RPC exista.
+        - **cambiara:** false
+      -
+        - **archivo:** supabase/tests/a20_cli08_repetir_trabajo.test.sql
+        - **que:** pgTAP de la RPC; se conserva.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/tabla-ordenes-acciones-minimas.test.ts
+        - **caso:** No existe repetir-orden-* en la fila (cubierto en R02).
+  -
+    - **id:** R16
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts
+        - **que:** 3 casos: rechaza con finanzas sin orden_vista (L45), rechaza sin ver_finanzas antes de consultar (L60), lee con service_role solo tras autorizar (L72). Se conservan como candado.
+        - **cambiara:** false
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** L99-101: tab 'Documento' con puedeVerFinanzas true. Se conserva.
+        - **cambiara:** false
+      -
+        - **archivo:** tests/unitarias/ordenes-documento.test.ts
+        - **que:** Composición del documento comercial; conservar.
+        - **cambiara:** false
+  -
+    - **id:** R17
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** L83: queryByRole('tab',{name:'Documento'}) null sin ver_finanzas. Si la hoja de trabajo se muestra en la pestaña Documento al operador, este test cambia a: la pestaña existe pero sin Totales (L84 queryByText('Sin totales comerciales...') null se conserva).
+        - **cambiara:** true
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ordenes-hoja-trabajo.test.ts
+        - **caso:** Lista blanca: snapshot con precio_unitario, subtotal, iva, total, costo, margen y moneda => JSON.stringify de la hoja no contiene ninguno; contiene cliente, folio, ITxx, descripción, cantidad, material, espesor, procesos, observaciones y archivos; ignora campos extra del snapshot.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-sin-finanzas.test.ts
+        - **caso:** Ficha sin ver_finanzas devuelve items/ruta/archivos con totales null y sin precio_unitario (cliente de Supabase simulado).
+  -
+    - **id:** R18
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ordenes-confidencialidad-c4-3.test.ts
+        - **que:** L49-67: COLUMNAS_ORDEN_OPERATIVA sin condicion_pago/monto_sin_iva/monto_iva/snapshot_json y filaAOrdenOperativa sin '75000','precio_unitario','costo_unitario','moneda'. Candado; no debe relajarse.
+        - **cambiara:** false
+      -
+        - **archivo:** tests/integracion/c4-3-confidencialidad-ordenes.test.ts
+        - **que:** JWT real contra C4.3; ampliar.
+        - **cambiara:** false
+      -
+        - **archivo:** supabase/tests/c4_3_confidencialidad_ordenes.test.sql
+        - **que:** pgTAP de privilegios por columna (17/17 según todo.md); conservar.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** integracion
+        - **archivo:** tests/integracion/c4-3-confidencialidad-ordenes.test.ts (ampliar)
+        - **caso:** Sesión authenticated: select('snapshot_json'), select('monto_sin_iva'), select('condicion_pago') y select('*') sobre ordenes_produccion fallan; partidas_orden_produccion sin columnas económicas.
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-servicio-no-fuga.test.ts
+        - **caso:** Partidas con columnas explícitas (no select('*')): una fila con precio inyectado no se serializa en la ficha.
+  -
+    - **id:** R19
+    - **existentes:**
+      -
+        - **archivo:** tests/unitarias/ficha-orden-c4-2.test.ts
+        - **que:** Usa roles de pestaña 'Documento'; añadir una pregunta por pestaña no los rompe.
+        - **cambiara:** false
+      -
+        - **archivo:** tests/e2e/ordenes-estados-sii.spec.ts
+        - **que:** L341-346 usa ficha-pestana-partidas/actividad/documento y ficha-panel-*; los testids se conservan.
+        - **cambiara:** false
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-preguntas-pestana.test.ts
+        - **caso:** Al activar cada pestaña (ficha-pestana-{id}) se muestra su pregunta: ¿Qué es esta Orden?, ¿Qué hay que fabricar?, ¿Cómo se hará?, ¿Con qué archivos?, ¿Qué se entregó?, ¿Qué ha pasado?, ¿Qué puedo imprimir?. Falla: PREGUNTAS_PESTANA no existe.
+  -
+    - **id:** R20
+    - **nuevasRED:**
+      -
+        - **tipo:** unitaria
+        - **archivo:** tests/unitarias/ficha-orden-criterios-aceptacion.test.ts
+        - **caso:** Agregado opcional: ficha renderizada no contiene /legacy/i, ningún UUID, ni botones Reactivar/Repetir, y no existen en src los términos de 'No agregar todavía' (sin reintroducción). Es la evidencia consolidada de los 12 criterios; cada criterio se cubre por el RED de su requisito.
+- **testids:**
+  -
+    - **testid:** tabla-ordenes
+    - **accion:** conservar
+    - **usadoEn:**
+      - src/modulos/ordenes/componentes/tabla-ordenes.tsx:371
+  -
+    - **testid:** fila-orden-{folioVisible}
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/unitarias/tabla-ordenes-c4-3.test.ts
+      - tests/e2e/ordenes-estados-sii.spec.ts:228,326,381
+      - tests/e2e/ordenes-edicion-borrador.spec.ts (por rol row)
+  -
+    - **testid:** estado-orden-{folioVisible}
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:230,252,261,275,334,389
+  -
+    - **testid:** abrir-ficha-{folioVisible}
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:337
+  -
+    - **testid:** liberar-orden-{folioVisible}
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:255
+  -
+    - **testid:** chip-estado-{estado}
+    - **accion:** conservar
+    - **usadoEn:**
+      - tabla-ordenes.tsx:410
+  -
+    - **testid:** bandeja-{valor}
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:325 (bandeja-archivo)
+  -
+    - **testid:** ordenes-error / ordenes-mensaje
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:256,329
+  -
+    - **testid:** cerrar-administrativa-{folioVisible}
+    - **accion:** retirar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:327 (migrar a ficha-cerrar)
+  -
+    - **testid:** confirmar-cierre-administrativo
+    - **accion:** retirar
+    - **usadoEn:**
+      - tabla-ordenes.tsx:808
+      - tests/e2e/ordenes-estados-sii.spec.ts:328 (la ficha ya usa ficha-confirmar-cierre)
+  -
+    - **testid:** cambiar-estado-cancelada
+    - **accion:** retirar
+    - **usadoEn:**
+      - tabla-ordenes.tsx:663
+      - tests/e2e/cancelacion-financiera.spec.ts:57
+      - tests/e2e/ordenes-estados-sii.spec.ts:382 (migrar a ficha-cancelar)
+  -
+    - **testid:** repetir-orden-{folioVisible}
+    - **accion:** retirar
+    - **usadoEn:**
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts:222
+  -
+    - **testid:** confirmar-repetir-orden
+    - **accion:** retirar
+    - **usadoEn:**
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts:224 (del diálogo; se retira con el diálogo si PO lo decide)
+  -
+    - **testid:** reactivar-orden-{folioVisible}
+    - **accion:** retirar
+    - **usadoEn:**
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts:257,278
+  -
+    - **testid:** confirmar-reactivar-orden / accion-reactivar-{ordenId}
+    - **accion:** retirar
+    - **usadoEn:**
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts:258,279
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts:195-197 (Planeación, depende de C9)
+  -
+    - **testid:** adjuntos-orden-{folioVisible}
+    - **accion:** renombrar
+    - **usadoEn:**
+      - tabla-ordenes.tsx:649 (sin spec que lo use); reubicar en la ficha como ficha-adjuntos
+  -
+    - **testid:** hilo-comentarios (mock en unitaria / HiloComentarios real)
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/unitarias/tabla-ordenes-c4-3.test.ts:27
+      - tests/e2e/comentarios-notificaciones.spec.ts:87 (pasa a la ficha)
+  -
+    - **testid:** ficha-orden, ficha-folio, ficha-estado
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:339-340
+  -
+    - **testid:** ficha-pestana-{id}
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:341,343,345
+  -
+    - **testid:** ficha-panel-resumen / partidas / ruta / archivos / entregas / actividad / documento
+    - **accion:** conservar
+    - **usadoEn:**
+      - tests/e2e/ordenes-estados-sii.spec.ts:342,344,346 (partidas, actividad, documento)
+  -
+    - **testid:** ficha-partida-{codigo}
+    - **accion:** conservar
+    - **usadoEn:**
+      - ficha-orden.tsx:364
+  -
+    - **testid:** ficha-liberar, ficha-cancelar, ficha-cerrar, ficha-confirmar-cancelacion, ficha-confirmar-cierre, ficha-error, ficha-mensaje
+    - **accion:** conservar
+    - **usadoEn:**
+      - ficha-orden.tsx:250-264,272,275,550,571 (hoy sin spec; usar en migración de E2E de cancelar/cerrar)
+  -
+    - **testid:** ficha-preparar-entrega, ficha-entrega-{folio}
+    - **accion:** conservar
+    - **usadoEn:**
+      - ficha-orden.tsx:439,452
+  -
+    - **testid:** ficha-comentarios / ficha-adjuntos / ficha-pregunta-pestana / ficha-origen-comercial / ficha-saldo-entrega (nuevos)
+    - **accion:** renombrar
+    - **usadoEn:**
+      - testids nuevos propuestos para las pruebas RED; no existen hoy
+- **comandosFocalesPorTanda:**
+  -
+    - **tanda:** T1 Cola mínima + reubicar Comentarios/Adjuntos + redirect (R01,R02,R14,R15)
+    - **comandos:**
+      - pnpm vitest run tests/unitarias/tabla-ordenes-c4-3.test.ts tests/unitarias/tabla-ordenes-acciones-minimas.test.ts tests/unitarias/ficha-orden-comentarios.test.ts tests/unitarias/ficha-orden-c4-2.test.ts tests/unitarias/ordenes-page-redirect.test.ts tests/unitarias/bitacora-enlaces.test.ts tests/unitarias/actividad-agrupacion.test.ts tests/unitarias/comentarios-menciones-correo.test.ts tests/unitarias/clientes-historial.test.ts
+      - pnpm typecheck
+      - pnpm exec eslint src/modulos/ordenes/componentes src/app/(privado)/ordenes tests/unitarias/tabla-ordenes-c4-3.test.ts
+      - powershell -File .claude/skills/cerrar-tanda/scripts/e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts,tests/e2e/ordenes-edicion-borrador.spec.ts,tests/e2e/cancelacion-financiera.spec.ts,tests/e2e/comentarios-notificaciones.spec.ts,tests/e2e/clientes-historial.spec.ts,tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+  -
+    - **tanda:** T2 Resumen: ids ocultos, origen con folios, Folio, etiquetas de Actividad, preguntas de pestaña (R03,R04,R05,R10 Fase 1,R19)
+    - **comandos:**
+      - pnpm vitest run tests/unitarias/ficha-orden-c4-2.test.ts tests/unitarias/ficha-orden-sin-ids.test.ts tests/unitarias/ficha-orden-origen-comercial.test.ts tests/unitarias/ficha-orden-folio.test.ts tests/unitarias/ordenes-etiquetas-evento.test.ts tests/unitarias/ficha-orden-preguntas-pestana.test.ts tests/unitarias/ordenes-confidencialidad-c4-3.test.ts
+      - pnpm typecheck
+      - pnpm exec eslint src/modulos/ordenes
+      - powershell -File .claude/skills/cerrar-tanda/scripts/e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts
+  -
+    - **tanda:** T3 Ítems, Ruta, Archivos y hoja de trabajo sin finanzas (R07,R08,R09,R17,R18)
+    - **comandos:**
+      - pnpm vitest run tests/unitarias/ordenes-resumir-procesos.test.ts tests/unitarias/ordenes-ruta-ficha.test.ts tests/unitarias/derivar-archivos-ficha.test.ts tests/unitarias/ordenes-hoja-trabajo.test.ts tests/unitarias/ficha-orden-servicio-no-fuga.test.ts tests/unitarias/ficha-orden-c4-2.test.ts tests/unitarias/orden-documento-confidencialidad-c4-3.test.ts tests/unitarias/ordenes-confidencialidad-c4-3.test.ts tests/unitarias/produccion-documentos-orden.test.ts tests/unitarias/produccion-documentos-orden-panel.test.ts tests/unitarias/planeacion-desglose.test.ts
+      - pnpm typecheck
+      - pnpm exec eslint src/modulos/ordenes
+      - pnpm test:integracion -- tests/integracion/c4-3-confidencialidad-ordenes.test.ts tests/integracion/c2-3-documentos-orden.test.ts (solo loopback; validar-entorno.mjs corta si no lo es)
+      - supabase test db supabase/tests/c4_3_confidencialidad_ordenes.test.sql (regresión, solo si el stack local esta arriba)
+      - e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts
+  -
+    - **tanda:** T4 Entregas / cierre / etiqueta de entrega (R11,R12,R13)
+    - **comandos:**
+      - pnpm vitest run tests/unitarias/ordenes-saldo-entrega.test.ts tests/unitarias/ordenes-etiqueta-entrega.test.ts tests/unitarias/ficha-orden-cierre-bloqueado.test.ts tests/unitarias/tabla-ordenes-entrega.test.ts tests/unitarias/ordenes-estado-sii.test.ts tests/unitarias/ficha-orden-c4-2.test.ts
+      - pnpm typecheck
+      - pnpm exec eslint src/modulos/ordenes src/app/(privado)/ordenes
+      - supabase test db supabase/tests/sii_b5_orden.test.sql (solo si se amplía; incluir caso 30/50)
+      - e2e-focal.ps1 -Specs tests/e2e/ordenes-estados-sii.spec.ts,tests/e2e/entregas-flujo.spec.ts
+  -
+    - **tanda:** T5 (opcional) Eventos de negocio Fase 2 / permisos ver_finanzas
+    - **comandos:**
+      - supabase migration up --local
+      - supabase test db supabase/tests/<nuevo>_eventos_negocio_orden.test.sql supabase/tests/sii_b5_orden.test.sql supabase/tests/sii_b1_actividad.test.sql (con casos SET LOCAL ROLE service_role)
+      - regenerar tipos con Out-File -Encoding utf8
+      - pnpm typecheck
+  -
+    - **tanda:** Gates que NO hace falta correr por tanda
+    - **comandos:**
+      - pnpm test completo, pnpm test:e2e completo y supabase test db completo (solo al cerrar el bloque o en CI)
+      - pnpm build (solo al cierre del bloque grande)
+      - pnpm test:concurrencia (no se toca CAS/locks/idempotencia)
+      - pgTAP/migraciones en T1-T4 si no hay SQL; skill orca-ui-review/-Visual solo si el PO pide capturas de la cola o ficha
+
+## Transversal: premortem
+- **riesgos:**
+  -
+    - **escenario:** Se retiran los botones de la cola (Comentarios, Cancelar, Cerrar, Documento, Adjuntos, Repetir, Reactivar) antes de reubicarlos y los E2E que los pulsan fallan en cascada; se parchean uno a uno en CI
+    - **probabilidad:** alta
+    - **impacto:** alto
+    - **requisitos:**
+      - R02
+      - R14
+      - R15
+    - **senalTemprana:** Rojo en cancelacion-financiera, ordenes-estados-sii, ordenes-heredadas-reactivacion, comentarios-notificaciones, planeacion-bolsa-acciones y tabla-ordenes-c4-3 (grep en tests/: 14 coincidencias en 5 archivos, 6 solo en reactivacion)
+    - **prevencion:** Orden fijo: (1) ficha con Comentarios, Adjuntos y Cancelar/Cerrar con testids ficha-*; (2) redirect /ordenes?ordenId=X a /ordenes/X; (3) migrar los E2E a la ficha; (4) solo entonces recortar la cola a Abrir+Liberar. Un grep de testids retirados en tests/ debe dar 0 antes del push.
+  -
+    - **escenario:** Los deep links /ordenes?ordenId= (correo de menciones, auditoría, historial de cliente, Planeación) quedan abriendo una cola sin diálogo
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - R02
+    - **senalTemprana:** comentarios-notificaciones.spec falla al seguir el enlace del correo; el enlace aterriza en la lista
+    - **prevencion:** Redirect en src/app/(privado)/ordenes/page.tsx antes de borrar ordenInicialId; prueba que cubra los 5 orígenes de enlace sin editarlos.
+  -
+    - **escenario:** Se amplía la lectura del snapshot_json para que operadores vean ruta, archivos, material y espesor, y se filtran precio_unitario, totales o moneda al cliente (por spread o por un select('*'))
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - R04
+      - R08
+      - R09
+      - R17
+      - R18
+    - **senalTemprana:** JSON.stringify de la ficha sin ver_finanzas contiene precio_unitario, subtotal, iva o total; falla ordenes-confidencialidad-c4-3 o c4-3-confidencialidad-ordenes
+    - **prevencion:** RED primero: prueba de serialización sin finanzas. Leer el snapshot siempre en variable local del servidor y proyectar por lista blanca (campo a campo, nunca spread). Mantener snapshot, totales y moneda condicionados a incluirFinanzas. La ficha usa service_role: la única barrera es el gate de página y la lista blanca.
+  -
+    - **escenario:** La ficha, cargando archivos y ruta para todos, rompe los tres consumidores del mismo bloque de ficha-orden-servicio.ts (R04, R08, R09, R17) porque cada tanda cambia el gating por su cuenta
+    - **probabilidad:** alta
+    - **impacto:** medio
+    - **requisitos:**
+      - R04
+      - R08
+      - R09
+      - R17
+    - **senalTemprana:** Dos PR tocan el mismo bloque 55-63 y 151-211 con conflictos o regresiones cruzadas
+    - **prevencion:** Resolver el gating una sola vez, en la tanda de ficha/origen, con una proyección segura única (origen, ruta, archivos, hoja de trabajo). Las demás tandas solo la consumen.
+  -
+    - **escenario:** Se endurece la regla de cierre o el saldo de entrega (R12) y los fixtures de órdenes 'completada' sin entregas rompen decenas de pruebas ajenas; además el callejón del scrap (producido < solicitado) impide cerrar
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - R12
+      - R13
+    - **senalTemprana:** Falla sii_b5_orden, tabla-ordenes-c4-3, ficha-orden-c4-2 y ordenes-estados-sii tras tocar la UI del cierre; el PO no ha respondido D3 (scrap)
+    - **prevencion:** No tocar la RPC (ya exige entregado >= solicitado). Solo función pura calcularSaldoEntrega y deshabilitar el botón en UI. Los fixtures que cierran órdenes crean su entrega o conservan el botón habilitado. Pedir la respuesta del PO sobre el scrap antes de tocar la regla. Cualquier endurecimiento se acota a lo creado por el flujo nuevo.
+  -
+    - **escenario:** Reactivar y Repetir se retiran en dos tandas distintas (Órdenes y luego Planeación) y chocan; o se borran RPC y migraciones ya aplicadas
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - R14
+      - R15
+    - **senalTemprana:** acciones-tarjeta-orden.tsx sigue importando la acción retirada; falla tsc o se rompen tests/integracion/reactivar-orden.test.ts y repetir-trabajo.test.ts
+    - **prevencion:** Retirar solo el acceso de UI y la Server Action en una misma tanda, con grep de imports en src/ (regla de renombrar exports). Dejar RPC y migraciones intactas. Registrar el reverso de A20 como refinamiento con fecha y autor PO.
+  -
+    - **escenario:** Se cambian etiquetas (Folio legacy, tipo de evento en español, 'Prep./Operación', Procesos resumidos) y rompen aserciones por texto en E2E y unitarias, incluida planeacion-desglose.test.ts, que fija el join de procesos
+    - **probabilidad:** alta
+    - **impacto:** medio
+    - **requisitos:**
+      - R05
+      - R07
+      - R08
+      - R10
+    - **senalTemprana:** ordenes-estados-sii.spec.ts:344 espera 'orden_creada' en ficha-panel-actividad; planeacion-desglose falla en 'Corte, Doblez' y TEXTO_POR_DEFINIR
+    - **prevencion:** Cambiar la etiqueta y la aserción en el mismo commit. Aplicar resumirProcesos solo en la ficha con separador configurable. Para eventos, localizar por data-testid o recurso_id, no por texto. Fallback legible para tipos de evento desconocidos.
+  -
+    - **escenario:** Se ocultan los IDs (R03) y las pruebas o E2E que leen UUID de la pantalla (recurso_id, rfq_id, archivoId) dejan de poder localizar filas
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - R03
+      - R04
+    - **senalTemprana:** Locators que usan el UUID como texto o enlaces ?rfq=<id>; strict mode por filas duplicadas del actor fijo
+    - **prevencion:** El UUID sigue disponible en data-* y en href, nunca en texto visible. Los E2E localizan por folio o por el identificador único de la corrida. Prueba RED de 'ningún patrón UUID en el texto visible'.
+  -
+    - **escenario:** Eventos nuevos (planificada, producción iniciada) añadidos con redefinición de derivar_orden_* desde la migración equivocada pierden SECURITY DEFINER y search_path vacío, o se duplican por trigger por fila; quedan 'permission denied for schema privado' solo en la app
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - R10
+    - **senalTemprana:** pgTAP como postgres pasa pero el registro de sesión de piso falla en E2E; hay más de un evento por transición
+    - **prevencion:** Mantener la Fase 2 fuera salvo orden del PO. Si entra, partir de la definición vigente (planificada y en_produccion en 20261007120002, completada en 20261007120005), conservar SECURITY DEFINER y search_path='', insertar solo con ROW_COUNT>0, y añadir pgTAP con SET LOCAL ROLE service_role. Marca de migración posterior a 20261014110000.
+  -
+    - **escenario:** Nuevas lecturas de la cola (entregado agregado, R13) usan .in(ids) con todas las órdenes y producen URI too long (414) con la base local cargada de residuales
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - R12
+      - R13
+    - **senalTemprana:** /ordenes no refresca; el log del servidor dice 'URI too long'; los E2E fallan solo con la base local cargada
+    - **prevencion:** Usar dividirEnLotes (src/modulos/ordenes/utilidades/lotes.ts) en lotes de 100 para toda lectura .in(ids); limpiar residuales E2E antes de una corrida completa.
+  -
+    - **escenario:** E2E con build hecho sin variables loopback, o lanzados sin typecheck previo, o con fechas fijas, PIN fijo o catálogo sembrado, fallan de forma 'indeterminada' y consumen ciclos de CI
+    - **probabilidad:** alta
+    - **impacto:** alto
+    - **requisitos:**
+      - R20
+    - **senalTemprana:** waitForURL agota el tiempo en el login; 'Failed to type check' sin detalle; fallo solo en CI con base fresca
+    - **prevencion:** pnpm typecheck antes de cualquier E2E; exportar NEXT_PUBLIC_SUPABASE_* locales antes de pnpm build; fechas relativas a Date.now(); PIN aleatorio por corrida; cada spec crea y desactiva su catálogo; aplicar el wrapper con ErrorActionPreference='Continue'.
+  -
+    - **escenario:** Se reporta 'CI verde' de otro commit, o los commits posteriores a un merge del PO quedan sin PR y sin CI
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - R20
+    - **senalTemprana:** gh run list --json headSha no coincide con HEAD; el PR figura como MERGED
+    - **prevencion:** Comprobar headSha antes de informar CI. Tras cada merge del PO, crear rama nueva desde origin/main y abrir PR nuevo. Nunca mergear.
+  -
+    - **escenario:** Se hacen cambios de SQL (permisos ver_finanzas para gerente/vendedor, filtro retirado_en en la RPC) que dependen de migraciones aún no aplicadas por el PO o aplicadas fuera de orden, y el código llama a RPC/columnas inexistentes en remoto
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - R10
+      - R16
+      - R09
+    - **senalTemprana:** Una RPC dice 'function ... not found' o una columna no existe en producción; migration list y huella de esquema no coinciden
+    - **prevencion:** Preferir tandas sin migración (todas las de UI). Si hay migración, marca posterior a 20261014110000 y con contenido, que el PO aplique en orden junto con el despliegue; validar por huella de esquema y migration repair solo tras verificar. Nombres reales de parámetros RPC verificados en una prueba. Regenerar tipos de Supabase en UTF-8.
+  -
+    - **escenario:** Conceder ver_finanzas a gerente/vendedor para que vean el documento amplía el acceso a cobranza, gastos, compras y tesorería
+    - **probabilidad:** baja
+    - **impacto:** alto
+    - **requisitos:**
+      - R16
+    - **senalTemprana:** Una migración de permisos_rol para gerente o vendedor sin decisión escrita del PO
+    - **prevencion:** No sembrar ver_finanzas sin decisión D5. Si el PO lo pide, evaluar un permiso nuevo y más fino (p. ej. orden_ver_totales) en vez de reutilizar el grueso.
+  -
+    - **escenario:** El avance de la cola sigue en verde al 100 % con producción 50/50 y entrega 30/50, de modo que 'Producción completada' se lee como terminado (R13)
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - R13
+    - **senalTemprana:** Revisión funcional del PO sobre la cola; D10 sin respuesta
+    - **prevencion:** Etiqueta de solo presentación etiquetaEntrega({estadoSii, solicitado, entregado}) alimentada por una consulta agregada con lotes de 100. No crear un estado SII nuevo (CHECK, RPC, KPIs, cobranza y pgTAP lo harían un rediseño).
+  -
+    - **escenario:** Tras recortar la cola quedan props sin uso (puedeCerrar, puedeCancelar, puedeVerFinanzas, usuarioActualId, puedeEliminarTodos, ordenInicialId) y el lint o tsc falla; configurar-procesos-dialog y editar-orden-dialog importan tipos de tabla-ordenes
+    - **probabilidad:** media
+    - **impacto:** bajo
+    - **senalTemprana:** Errores de tsc/eslint por imports o props sin uso; fallo de importación en los diálogos
+    - **prevencion:** Mantener los tipos exportados de tabla-ordenes.tsx sin cambios; hacer la limpieza de props en un commit aparte con pnpm typecheck desde cero (borrar .next).
+- **patronesDeBucle:**
+  -
+    - **patron:** Retirar acciones de la cola vs E2E y deep links que las pulsan
+    - **causa:** Los E2E (cancelacion-financiera, ordenes-estados-sii, ordenes-heredadas-reactivacion, comentarios-notificaciones) y los 5 enlaces /ordenes?ordenId= dependen de los botones y del diálogo de Comentarios de la cola.
+    - **ruptura:** Primero reubicar en la ficha (Comentarios, Adjuntos, testids ficha-cancelar/ficha-cerrar) y poner el redirect de ?ordenId. Después migrar los E2E y, al final, retirar de la cola. Correr un grep de los testids retirados en tests/ como compuerta.
+  -
+    - **patron:** Cambiar la regla de cierre o el saldo vs fixtures de órdenes 'completada' sin entregas
+    - **causa:** Los fixtures crean órdenes PRODUCCION_COMPLETADA sin entregas. Habilitar el cierre solo con 100 % entregado, o tocar la RPC, rompe pgTAP y E2E. Además existe el callejón del scrap, aún sin decisión del PO.
+    - **ruptura:** Dejar la RPC como autoridad (ya cumple). Hacer el cambio en UI con una función pura y con prueba RED. Los fixtures que cierran crean antes su entrega 50/50. Resolver la pregunta del scrap con el PO antes de cualquier cambio en SQL.
+  -
+    - **patron:** Ocultar IDs y folios vs pruebas que leen UUID o texto; el gating por ver_finanzas se corrige tres veces
+    - **causa:** Origen, Actividad y Archivos imprimen UUID. El snapshot solo se carga con finanzas, así que R04, R08, R09 y R17 chocan en el mismo bloque del servicio. Cada arreglo parcial rompe el siguiente.
+    - **ruptura:** Una sola proyección segura con lista blanca en ficha-orden-servicio.ts (origen con folios, ruta, archivos, hoja de trabajo), con la prueba de no-fuga escrita primero. Después la UI. El UUID queda solo en href y data-*.
+  -
+    - **patron:** Cambiar etiquetas y textos vs aserciones por texto
+    - **causa:** 'Folio legacy', 'orden_creada', los separadores de Procesos y 'setup/run' están fijados en E2E y unitarias (ordenes-estados-sii.spec.ts:344, planeacion-desglose.test.ts).
+    - **ruptura:** Cada cambio de texto lleva su aserción en el mismo commit. Los locators van por data-testid. Los resúmenes de procesos solo en la ficha (en Planeación se pasa el separador actual). Antes de empezar, grep del texto viejo en tests/.
+  -
+    - **patron:** Pasa en local, falla en CI o en la app (typecheck, fixtures, SECURITY DEFINER, residuales, nombres de parámetros RPC)
+    - **causa:** El build oculta errores de tipos. Hay fechas y PIN fijos, catálogos sembrados, residuales (.in sobre más de 200 órdenes → 414), mocks que no prueban la firma de la RPC, headSha equivocado y migraciones fuera de orden.
+    - **ruptura:** Orden de cada tanda: typecheck y lint, unitarias focales, pgTAP del bloque (con service_role), build con variables loopback, limpieza de residuales y solo entonces E2E. Después del push, comprobar el headSha del CI. Tras un merge, rama nueva desde origin/main. Las migraciones las aplica el PO en orden.
+- **reglasDuras:**
+  - Reubicar antes de retirar: ningún botón sale de la cola hasta que su destino en la ficha exista, tenga testid y su E2E esté migrado; el redirect de /ordenes?ordenId=X a /ordenes/X va primero.
+  - pnpm typecheck (desde cero si hay .next obsoleto) antes de cualquier E2E; el build oculta los errores de tipos.
+  - Exportar NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY loopback antes de pnpm build para E2E locales.
+  - Toda RPC llamada desde una Server Action lleva una prueba con los nombres reales de sus parámetros (p_actor_id, no p_actor); un mock no demuestra la firma.
+  - Trigger o función que llame a privado.* es SECURITY DEFINER con search_path=''; el pgTAP de mutaciones incluye SET LOCAL ROLE service_role.
+  - Si se redefine una función SQL, partir de la definición vigente (la migración más reciente que la redefine) y no de la original; crear_orden_desde_revision vigente en 20261012100000 (no tocarla salvo orden del PO).
+  - Fixtures y E2E sin fechas fijas (relativas a Date.now()), sin PIN fijo, sin catálogos sembrados: cada spec crea y desactiva el suyo.
+  - Toda lectura .in(ids) se divide en lotes de 100 con dividirEnLotes (src/modulos/ordenes/utilidades/lotes.ts).
+  - No endurecer invariantes sin migrar los fixtures en el mismo corte; acotar la regla al flujo nuevo y correr el pgTAP de los bloques consumidores.
+  - Antes de una corrida completa local de E2E, limpiar los residuales (órdenes y partidas E2E-*, PLA5-*, operadores con PIN duplicado); no depender del orden de listas con tope.
+  - Los E2E que localizan por identificador único de la corrida (folio o recurso_id), nunca por campos compartidos como el actor fijo.
+  - Cambio de etiqueta o texto = cambio de aserción en el mismo commit; grep del texto viejo en tests/ antes de editar.
+  - Prohibido spread o select('*') con datos económicos: lista blanca de campos, y prueba de JSON.stringify sin precio_unitario, subtotal, iva, total, costo ni margen para un usuario sin ver_finanzas. Cambiar el select('*') de partidas por columnas explícitas.
+  - Los UUID permanecen en BD y en href/data-*, nunca en texto visible; no mostrar archivoId, recurso_id ni claves rfq_id.
+  - Las acciones retiradas de la UI conservan su can() en servidor; no borrar RPC ni migraciones ya aplicadas (Reactivar, Repetir): solo acceso de UI y la Server Action, con grep de imports en src/.
+  - No agregar nada de la lista 'No agregar todavía' (retrabajo, repetición automática, reactivación genérica, cierre financiero, costos avanzados, inventario, planeación avanzada, capacidad, calidad).
+  - Migración nueva solo si es imprescindible: marca posterior a 20261014110000, con contenido, idempotente, aplicada por el PO en orden y junto con el despliegue; verificar por huella de esquema y migration repair solo después. Nunca db push sin reconciliar.
+  - Regenerar tipos de Supabase en UTF-8 (Out-File -Encoding utf8), nunca con '>' de PowerShell.
+  - Aplicar SQL en local con supabase migration up --local o psql -f, nunca por tubería de PowerShell.
+  - Antes de reportar CI, comprobar que el headSha de la corrida coincide con el commit; tras un merge del PO, crear rama nueva desde origin/main y abrir un PR nuevo. Nunca mergear.
+  - Ante un CI rojo, leer --log-failed y clasificar cada fallo (infraestructura, aislamiento de prueba o defecto) revisando todos los jobs antes de corregir; el rate limit de Docker Hub se resuelve con un rerun --failed.
+  - Commit del incremento verificado antes del 80 % de uso; al 90 %, checkpoint en HANDOFF.md.
+  - Por cambio, solo las pruebas de lo editado más typecheck; suite completa solo al cierre de la tanda grande.
+  - Convenciones de código: español 100 %, Zod en entradas (por ejemplo, cambiar el typeof de obtenerDocumentoOrdenAccion por un esquema uuid), can() antes de mutar, errores genéricos, hooks con alias en español.
+- **checklistPorTanda:**
+  -
+    - **tanda:** Tanda 1 - Ficha (reubicar): Comentarios, Adjuntos, Cancelar/Cerrar y redirect, folio, origen sin UUID y etiquetas (R02, R03, R04, R05, R10 Fase 1, R19)
+    - **antes:**
+      - Grep en tests/ de los textos y testids que se van a cambiar (Folio legacy, orden_creada, Comentarios, adjuntos-orden)
+      - Rama nueva desde origin/main (confirmar que el PR anterior no está ya MERGED)
+      - Escribir primero las pruebas RED: ficha sin UUID, Folio sin 'legacy', Comentarios montado, redirect
+    - **durante:**
+      - Primero agregar a la ficha Comentarios (HiloComentarios, entidadTipo 'orden') y Adjuntos (solo si idHistorico!==null)
+      - Redirect en ordenes/page.tsx para ?ordenId=X
+      - Origen por proyección en servidor con folios (sin UUID); enlaces solo si can() lo permite; 'Referencia migrada' solo con idHistorico
+      - Diccionario de eventos con fallback legible; nada de recurso_id visible
+      - No tocar la cola en esta tanda
+    - **antesDelPR:**
+      - pnpm typecheck y lint
+      - Unitarias focales (ficha-orden-c4-2, ordenes-confidencialidad-c4-3)
+      - Prueba de no-fuga sin ver_finanzas
+      - Build con variables loopback y E2E ordenes-estados-sii y comentarios-notificaciones
+      - Comprobar el headSha del CI
+  -
+    - **tanda:** Tanda 2 - Cola y acciones: recortar a Abrir + Liberar; retirar Repetir y Reactivar (R01, R02, R14, R15)
+    - **antes:**
+      - Confirmar que la Tanda 1 está mergeada por el PO; rama nueva desde origin/main
+      - Migrar a la ficha los E2E de cancelación, cierre y comentarios (cancelacion-financiera, ordenes-estados-sii, comentarios-notificaciones)
+      - Decisión del PO sobre Repetir/Reactivar y registro del reverso de A20 como refinamiento
+    - **durante:**
+      - En la cola dejar Abrir y Liberar (PLANIFICADA y puedeLiberar)
+      - Retirar de UI y de Server Action Reactivar y Repetir, incluida la tarjeta de Planeación en la misma tanda; RPC y migraciones intactas
+      - Limpiar props, estados y diálogos sin uso en un commit aparte; mantener los tipos exportados que usan configurar-procesos-dialog y editar-orden-dialog
+      - Retirar o reescribir ordenes-heredadas-reactivacion.spec y los tests de integración que dependan de las acciones retiradas
+    - **antesDelPR:**
+      - Grep de imports de lo retirado en src/ y de testids en tests/ (debe dar 0)
+      - pnpm typecheck desde cero (borrar .next)
+      - tabla-ordenes-c4-3 y tests focales
+      - E2E de órdenes y planeación con residuales limpios
+      - Verificar el headSha del CI
+  -
+    - **tanda:** Tanda 3 - Ítems, Ruta, Archivos y confidencialidad (R07, R08, R09, R16, R17, R18)
+    - **antes:**
+      - Rama nueva desde origin/main
+      - Escribir RED: JSON.stringify de la ficha sin ver_finanzas no contiene precio_unitario, subtotal, iva ni total
+      - Respuestas del PO: regla de Tipo, archivos retirados y descarga
+      - Confirmar que el cliente Supabase de page.tsx es service_role y que snapshot_json sigue revocado a authenticated
+    - **durante:**
+      - Una proyección única con lista blanca (nunca spread): ruta, archivos, hoja de trabajo
+      - Helper resumirProcesos aplicado solo en la ficha (Planeación conserva su separador)
+      - Tabla de Ruta con Estado 'Pendiente' fijo, 'Prep.' y 'Operación'
+      - Helper derivar-archivos-ficha.ts: Origen/Asociado a/Tipo, excluyendo retirado_en; las consultas .in en lotes de 100
+      - Partidas con columnas explícitas en lugar de select('*')
+      - Documento de operador solo con la lista blanca; ver_finanzas intacto salvo decisión D5
+    - **antesDelPR:**
+      - Prueba de no-fuga
+      - Pruebas de c4-3 (unitarias, integración, pgTAP) como regresión
+      - pnpm typecheck
+      - planeacion-desglose.test.ts en verde
+      - Revisar que ninguna migración sea necesaria; si la hay, marca > 20261014110000, SECURITY DEFINER y service_role en el pgTAP
+      - Verificar el headSha del CI
+  -
+    - **tanda:** Tanda 4 - Entregas y cierre (R11, R12, R13) y cierre de aceptación (R20)
+    - **antes:**
+      - Rama nueva desde origin/main tras el merge de la Tanda 3
+      - Respuesta del PO sobre scrap (D3), EN_PRODUCCION cerrable y etiqueta de entrega (D10)
+      - Revisar que los fixtures de órdenes 'completada' crean su entrega antes de intentar cerrar
+    - **durante:**
+      - Funciones puras calcularSaldoEntrega y etiquetaEntrega en utilidades
+      - En la ficha, deshabilitar ficha-cerrar con 'Faltan N piezas'; la RPC sigue siendo la autoridad
+      - En la cola, una sola consulta agregada de partidas_nota_entrega con lotes de 100
+      - No crear un estado SII ni tocar KPIs ni cobranza; la CxC sigue independiente
+      - Fase 2 de eventos (migración) solo si el PO la ordena, con SECURITY DEFINER y search_path='' y solo con ROW_COUNT>0
+    - **antesDelPR:**
+      - pgTAP sii_b5_orden y sii_b7_entregas
+      - Unitarias focales y typecheck
+      - Suite completa una sola vez (cierre del bloque): lint, unitarias, pgTAP, integración, concurrencia con --no-file-parallelism, build loopback, E2E
+      - Casillas de los 12 criterios de aceptación con evidencia
+      - Verificar el headSha, dejar el PR en verde y no mergear; el PO aplica las migraciones en orden

@@ -304,4 +304,41 @@ describe('Cola RFQ — indicación «Listo para validar» en la tabla', () => {
       '/rfq?rfq=a-1&continuar=1',
     );
   });
+
+  it('muestra la próxima acción, su fecha y su responsable en la fila del RFQ', async () => {
+    validarLoteMock.mockResolvedValue({ exito: true, datos: { 'a-1': CON_FALTANTES } });
+    render(
+      tabla(nuevoCliente(), [{
+        ...oportunidad('a-1', 'INCOMPLETE'),
+        proximaAccionCodigo: 'REQUEST_MISSING_INFO',
+        fechaProximaAccion: '2026-10-30',
+        responsableProximaAccionNombre: 'Vendedor Uno',
+      }]),
+    );
+
+    await waitFor(() => expect(validarLoteMock).toHaveBeenCalledTimes(1));
+    const fila = screen.getByText('RFQ-a-1').closest('tr');
+    expect(fila?.textContent).toContain('Solicitar información faltante');
+    expect(fila?.textContent).toContain('30 de octubre de 2026');
+    expect(fila?.textContent).toContain('Vendedor Uno');
+  });
+
+  it('muestra la acción aunque falte la fecha y conserva el detalle de «Otro»', async () => {
+    validarLoteMock.mockResolvedValue({ exito: true, datos: { 'a-1': CON_FALTANTES } });
+    render(
+      tabla(nuevoCliente(), [{
+        ...oportunidad('a-1', 'INCOMPLETE'),
+        proximaAccionCodigo: 'OTHER',
+        proximaAccionTexto: 'Visita a planta',
+        fechaProximaAccion: null,
+        responsableProximaAccionNombre: 'Vendedor Dos',
+      }]),
+    );
+
+    await waitFor(() => expect(validarLoteMock).toHaveBeenCalledTimes(1));
+    const fila = screen.getByText('RFQ-a-1').closest('tr');
+    expect(fila?.textContent).toContain('Otro: Visita a planta');
+    expect(fila?.textContent).toContain('Sin fecha');
+    expect(fila?.textContent).toContain('Vendedor Dos');
+  });
 });

@@ -105,9 +105,9 @@ export function ColaRfq({
           <DialogHeader>
             <DialogTitle>Nuevo RFQ</DialogTitle>
             <DialogDescription>
-              Captura cliente, solicitud, ítems y archivos en esta misma ventana. Al finalizar, el
-              RFQ queda como Incompleto en la cola y sigue editable: todavía no se crea ninguna
-              propuesta.
+              Captura cliente, solicitud, ítems y archivos en esta misma ventana. Al finalizar o
+              dejar la captura para después, el RFQ queda como Incompleto en la cola con su próxima
+              acción y sigue editable: todavía no se crea ninguna propuesta.
             </DialogDescription>
           </DialogHeader>
           <FormularioProspecto

@@ -1,0 +1,8 @@
+# Fichas de tanda — C10
+
+| Tanda | Nombre | Requisitos | Rama | Depende de | Migraciones | Esfuerzo | Ficha |
+|---|---|---|---|---|---|---|---|
+| C10.1 | Costo siempre sin IVA y Compras como fuente del costo (rubro, datos de material, textos) | F11, F09, F06, F07, F08 | `feat/finanzas-c10-1-costo-sin-iva-compras-fuente` | - | 20261015100000_f11_costo_gastos_sin_iva.sql; 20261015110000_f06_f08_compras_rubro_datos_minimos.sql | L | [C10.1-costo-siempre-sin-iva-y-compras-como-fuente-del-costo-rubro-.md](C10.1-costo-siempre-sin-iva-y-compras-como-fuente-del-costo-rubro-.md) |
+| C10.2 | Conciliación por Orden: Estimado / Comprometido / Real, Material independiente, Fuente y márgenes | F01, F02, F03, F04, F05 | `feat/finanzas-c10-2-conciliacion-costos-orden` | C10.1 | 20261015120000_f03_conciliacion_costos_orden.sql | L | [C10.2-conciliacion-por-orden-estimado-comprometido-real-material-i.md](C10.2-conciliacion-por-orden-estimado-comprometido-real-material-i.md) |
+| C10.3 | Facturación y Cobranza se conservan, saldos de Tesorería correctos y guardarraíles de costo | F12, F13, F14, F15, F16 | `feat/finanzas-c10-3-cobranza-facturacion-saldos` | C10.2 | ninguna | M | [C10.3-facturacion-y-cobranza-se-conservan-saldos-de-tesoreria-corr.md](C10.3-facturacion-y-cobranza-se-conservan-saldos-de-tesoreria-corr.md) |
+| C10.4 | Aceptación de punta a punta, fuentes con trazabilidad, coherencia con Órdenes/Planeación y registro documental | F10, F17, F18, F19, F20 | `feat/finanzas-c10-4-aceptacion-contratos-registro` | C10.2, C10.3 | ninguna | S | [C10.4-aceptacion-de-punta-a-punta-fuentes-con-trazabilidad-coheren.md](C10.4-aceptacion-de-punta-a-punta-fuentes-con-trazabilidad-coheren.md) |

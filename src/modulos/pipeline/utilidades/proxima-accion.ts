@@ -6,6 +6,11 @@ const ETIQUETAS_PROXIMA_ACCION: Record<string, string> = {
   REQUEST_APPROVAL_PO: 'Solicitar aprobación de OC',
   RESOLVE_CUSTOMER_QUESTIONS: 'Resolver dudas del cliente',
   PREPARE_NEW_REVISION: 'Preparar nueva revisión',
+  // Obs. cliente 2026-10-23: acciones para dejar un RFQ incompleto y retomarlo.
+  REQUEST_MISSING_INFO: 'Solicitar información faltante',
+  WAIT_CUSTOMER_FILE: 'Esperar archivo del cliente',
+  CONFIRM_SPECIFICATION: 'Confirmar especificación',
+  COMPLETE_RFQ: 'Completar RFQ',
   OTHER: 'Otro',
 };
 

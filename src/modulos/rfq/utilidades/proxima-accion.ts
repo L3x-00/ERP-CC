@@ -1,4 +1,5 @@
-import type { Rfq } from '@/modulos/rfq/tipos/indice';
+import type { Rfq, ValidacionRfqListo } from '@/modulos/rfq/tipos/indice';
+import { SECCIONES_VALIDACION_RFQ } from '@/modulos/rfq/tipos/indice';
 
 /** Próxima acción capturada en un cambio de estado no terminal (C2.2/DC-06). */
 export type ProximaAccionCaptura = {
@@ -158,4 +159,25 @@ export function faltantesProximaAccion(
   else if (valor.fecha < hoy) faltantes.push('una fecha que no esté en el pasado');
   if (!valor.responsableId) faltantes.push('responsable de la próxima acción');
   return faltantes;
+}
+
+/**
+ * ¿Se puede confirmar «Marcar listo»? La validación del servidor se hizo antes
+ * de capturar la próxima acción en el modal. Si fuera de seguimiento no falta
+ * nada y el formulario ya la completó, la transición la guarda y revalida en
+ * la misma operación. Si el servidor reportó faltantes de seguimiento y el
+ * modal conserva la acción vigente (`mantener`), no hay nada que los corrija:
+ * solo al sustituirla por una nueva (`cerrar`).
+ */
+export function puedeConfirmarMarcarListo(
+  validacion: ValidacionRfqListo | null,
+  seguimiento: Pick<SeguimientoTransicion, 'modo'>,
+  seguimientoCompleto: boolean,
+): boolean {
+  if (!validacion || !seguimientoCompleto) return false;
+  const faltanOtrasSecciones = SECCIONES_VALIDACION_RFQ.some(
+    (seccion) => seccion !== 'seguimiento' && validacion.secciones[seccion].length > 0,
+  );
+  if (faltanOtrasSecciones) return false;
+  return validacion.secciones.seguimiento.length === 0 || seguimiento.modo === 'cerrar';
 }

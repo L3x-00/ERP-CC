@@ -166,4 +166,64 @@ describe('seguimiento al cambiar de estado (panel de acciones del RFQ)', () => {
     expect(screen.getByTestId('campos-proxima-accion')).toBeDefined();
     expect(screen.queryByTestId('resultado-seguimiento')).toBeNull();
   });
+
+  it('permite marcar listo capturando el seguimiento en el mismo modal de validación', async () => {
+    validarListoMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        listo: false,
+        secciones: {
+          cliente: [],
+          general: [],
+          items: [],
+          archivos: [],
+          seguimiento: [
+            'próxima acción',
+            'fecha de próxima acción',
+            'responsable de próxima acción',
+          ],
+        },
+      },
+    });
+    cambiarEstadoMock.mockResolvedValue({
+      exito: true,
+      datos: { estadoRfq: 'READY_FOR_PROPOSAL' },
+    });
+    renderizarPanel(rfqCon({}));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar listo' }));
+    const dialogo = await screen.findByTestId('validacion-listo');
+    // Antes de capturar el seguimiento, el checklist del servidor explica qué falta.
+    expect(dialogo.textContent).toContain('Seguimiento: próxima acción');
+
+    const confirmar = screen.getByRole('button', { name: 'Confirmar y marcar listo' });
+    expect(confirmar).toHaveProperty('disabled', true);
+
+    fireEvent.change(screen.getByLabelText('Acción a seguir'), {
+      target: { value: 'FOLLOW_UP' },
+    });
+    fireEvent.change(screen.getByLabelText('Fecha de la acción'), { target: { value: enDias(7) } });
+    fireEvent.change(screen.getByLabelText('Responsable de la acción a seguir'), {
+      target: { value: USUARIO_ID },
+    });
+
+    // Al completar el seguimiento local, el checklist deja de mostrarlo como
+    // pendiente, el botón se habilita y la transición guarda la acción.
+    expect(dialogo.textContent).not.toContain('Seguimiento: próxima acción');
+    expect(screen.getByText('El RFQ cumple todos los requisitos.')).toBeDefined();
+    expect(confirmar).toHaveProperty('disabled', false);
+
+    fireEvent.click(confirmar);
+    await waitFor(() => expect(cambiarEstadoMock).toHaveBeenCalledTimes(1));
+    const entrada = cambiarEstadoMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(entrada).toMatchObject({
+      accion: 'marcar_listo',
+      proximaAccion: {
+        codigo: 'FOLLOW_UP',
+        fecha: enDias(7),
+        responsableId: USUARIO_ID,
+      },
+    });
+    expect(entrada).not.toHaveProperty('mantenerProximaAccion');
+  });
 });

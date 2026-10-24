@@ -1,3 +1,15 @@
+## Corte 2026-10-23 — RFQ: próxima acción al finalizar/validar y limpieza de Propuestas · PR #108
+
+Rama `feat/rfq-proxima-accion-validar` (sobre `main` con #106 y #107 fusionados).
+
+- [x] **«Finalizar más tarde» captura la próxima acción:** desde Ítems o Archivos abre el modal existente; fecha y responsable se autocompletan con quien registra el RFQ y quedan guardados en la misma fila.
+- [x] **Cola RFQ:** muestra acción, fecha y responsable (incluido el detalle de «Otro»); el catálogo incorpora las opciones de captura incompleta.
+- [x] **«Marcar listo»:** si el único pendiente es el seguimiento, el mismo modal lo captura, habilita «Confirmar y marcar listo» y la transición lo guarda y revalida LISTO sin exigir pasar por el Resumen.
+- [x] **Propuestas:** se elimina el componente huérfano de utilidad/precio mínimo; se conservan cálculos, totales e históricos para estimado vs real.
+- Migración `20261023100000_rfq_proximas_acciones_captura.sql`: aplicada en remoto por el PO.
+
+**Pruebas:** tsc, ESLint focal, `pnpm build` y suite completa 2301/2301 en verde. E2E focal, pgTAP y migración local no corridos: Docker/Supabase local no disponible. CI pendiente de la corrida del head final.
+
 ## Corte 2026-10-22 — Plazo comercial en el PDF de la propuesta · PR #106
 
 Rama `feat/propuesta-pdf-plazo-comercial` (sobre `main` con #104 y #105 fusionados).
@@ -448,6 +460,39 @@ aceptación del cliente siguen fuera de este cierre local.
 - Evidencia: unitarias focales del diálogo/panel/página, E2E de Propuestas completo y E2E de
   Materiales y costos (con material y kardex legados insertados que no deben aparecer) y capturas
   320/768/1024/1440 claro/oscuro.
+
+## Cierre local Finanzas C10.1–C10.4 (2026-10-19)
+
+Estado: C10.1, C10.2, C10.2b y C10.3 fusionadas (PR #78–#81) y migraciones aplicadas en remoto por
+el PO. C10.4 es aceptación y registro, sin migración ni cambio funcional.
+
+- [x] **F10 matriz de fuentes:** `f03_conciliacion_costos` 58/58 cubre material (consumo), fabricación
+  (sesiones), gasto directo, subcontratación y compra; la columna Fuente se prueba en el render y en
+  el E2E de aceptación.
+- [x] **F10 columna Fuente:** `Compra · Consumo` y `Gasto` visibles en la tabla de conciliación.
+- [ ] **F10 ajuste manual:** diferido por decisión del PO; F10 se registra como **parcial**. La tabla
+  muestra «Ajuste manual: no disponible en este corte»; no se relajan CHECK ni permisos.
+- [x] **F17 transferencias:** `tesoreria-saldos.test.ts` prueba que el par SALIDA/ENTRADA mueve saldos
+  por cuenta pero no suma al total; `sii_b8_tesoreria` conserva la prueba de neutralidad.
+- [x] **F18 pagos/movimientos:** `f15_guardarrailes_costos` prueba que un gasto indirecto grande no se
+  reparte y que pagos de compra, movimientos y transferencias no alteran conciliación ni rentabilidad.
+- [x] **F19 confidencialidad/contratos:** `ordenes-confidencialidad-c4-3` y `ficha-orden-c4-2` verdes;
+  la ficha sin `ver_finanzas` no recibe costos. Horas reales = sesiones pausadas/finalizadas (pgTAP T2);
+  la casilla de coherencia con C9.3 queda **pendiente de C9.3**.
+- [x] **F20 aceptación E2E:** `finanzas-conciliacion-orden.spec.ts` siembra Orden + Propuesta + compra
+  recibida + consumo + gasto directo y lee por UI: estimado `$7,800.00`, comprometido `$4,000.00`,
+  real `$5,650.00`, margen estimado `61.0 %` y real `71.8 %`, con fuentes visibles. 1/1 en loopback.
+- [x] **Registro documental:** `DECISIONES-ACEPTADAS.md` (4 refinamientos), `CLI-15` y Corte 10 en
+  `tasks/plan.md`, marcas/reservas en `COLA-DE-TRABAJO.md` y `CONTINUIDAD.md`, hallazgos en
+  `REPORTE-HALLAZGOS-Y-CORRECCIONES.md`.
+- [ ] **C9.3 horas reales:** la prueba de coherencia dedicada queda pendiente de C9.3; no se marca.
+
+**Pruebas de cierre C10.4:** Vitest focal 19/19 (`tesoreria-saldos`, `gastos-conciliacion`,
+`ordenes-confidencialidad-c4-3`, `ficha-orden-c4-2`); pgTAP focal 99/99 (`f15`, `sii_b8_tesoreria`,
+`f03`); typecheck y ESLint focales; E2E `finanzas-conciliacion-orden` 1/1 + `tesoreria-flujo` 1/1.
+**Cierre:** PR #82 fusionado (merge `77339e6`); CI verde run `39199986179` sobre `9cefb14`.
+**Límites:** una factura por entrega; flujo por cuenta informativo (no saldo conciliado); no se borra
+historial financiero; F10 parcial. Sin migración en C10.4.
 
 ## Protocolo de continuidad
 

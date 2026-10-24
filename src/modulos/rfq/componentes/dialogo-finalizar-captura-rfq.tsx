@@ -29,11 +29,13 @@ import { CamposProximaAccion } from './campos-proxima-accion';
  *
  * El guardado reutiliza la acción con CAS y permiso `rfq_editar`, que revalida
  * canal vigente, contacto del cliente y responsables activos; el RFQ conserva
- * su estado (Incompleto) y sigue reanudable desde su ficha.
+ * su estado (Incompleto) y sigue reanudable desde su ficha. El mismo diálogo se
+ * abre al pulsar «Finalizar más tarde» desde Ítems con `motivo="mas_tarde"`.
  */
 export function DialogoFinalizarCapturaRfq({
   rfq,
   catalogos,
+  motivo = 'finalizar',
   onCerrar,
   onExito,
   onRefrescar,
@@ -41,19 +43,29 @@ export function DialogoFinalizarCapturaRfq({
 }: {
   rfq: Rfq;
   catalogos: CatalogosRfq | null;
+  /** `finalizar` cierra la captura completa; `mas_tarde` la deja pendiente con seguimiento. */
+  motivo?: 'finalizar' | 'mas_tarde';
   onCerrar: () => void;
   onExito: () => void;
   onRefrescar?: () => void;
   onCambioEnvio?: (enviando: boolean) => void;
 }) {
+  const esMasTarde = motivo === 'mas_tarde';
   const hoy = fechaHoyLocal();
+  const responsableId = rfq.responsableId ?? rfq.vendedorId;
+  const responsableNombre =
+    rfq.responsableNombre
+    ?? catalogos?.usuarios.find((usuario) => usuario.id === responsableId)?.nombre
+    ?? null;
   const [proxima, setProxima] = useState<ProximaAccionCaptura>(() => {
     const fecha = rfq.fechaProximaAccion?.slice(0, 10) ?? '';
     return {
       codigo: rfq.proximaAccionCodigo ?? '',
       texto: rfq.proximaAccionTexto ?? '',
-      fecha: fecha && fecha >= hoy ? fecha : '',
-      responsableId: rfq.responsableId ?? rfq.vendedorId,
+      // La fecha y el responsable del seguimiento se autocompletan con quien
+      // registra el RFQ; la fecha puede ajustarse antes de guardar.
+      fecha: fecha && fecha >= hoy ? fecha : hoy,
+      responsableId,
     };
   });
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -83,11 +95,11 @@ export function DialogoFinalizarCapturaRfq({
         // La acción reescribe la fila completa: se conserva el contacto ligado
         // durante el alta para no borrarlo al guardar este seguimiento.
         contactoId: rfq.contactoId ?? null,
-        responsableId: rfq.responsableId ?? rfq.vendedorId,
+        responsableId,
         proximaAccionCodigo: proxima.codigo,
         proximaAccionTexto: proxima.texto.trim() || null,
         fechaProximaAccion: proxima.fecha,
-        responsableProximaAccionId: rfq.responsableId ?? rfq.vendedorId,
+        responsableProximaAccionId: responsableId,
       });
       if (!respuesta.exito) {
         setMensaje(respuesta.error);
@@ -113,12 +125,15 @@ export function DialogoFinalizarCapturaRfq({
     >
       <DialogContent
         data-testid="dialogo-finalizar-captura"
-        aria-label="Finalizar captura del RFQ"
+        data-motivo={motivo}
+        aria-label={esMasTarde ? 'Próxima acción del RFQ' : 'Finalizar captura del RFQ'}
       >
         <DialogHeader>
-          <DialogTitle>Finalizar captura</DialogTitle>
+          <DialogTitle>{esMasTarde ? 'Próxima acción' : 'Finalizar captura'}</DialogTitle>
           <DialogDescription>
-            Confirma la acción y la fecha de seguimiento. Los datos generales ya quedaron registrados.
+            {esMasTarde
+              ? 'Indica qué sigue con este RFQ. La fecha y el responsable se completan con los datos de quien lo registra, y el RFQ queda Incompleto para retomarlo después.'
+              : 'Confirma la acción y la fecha de seguimiento. Los datos generales ya quedaron registrados.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -134,7 +149,7 @@ export function DialogoFinalizarCapturaRfq({
                 <div><dt className="text-texto-secundario">Cliente</dt><dd>{rfq.clienteNombre ?? rfq.empresa}</dd></div>
                 <div><dt className="text-texto-secundario">Canal</dt><dd>{rfq.canal ?? 'Sin canal'}</dd></div>
                 <div><dt className="text-texto-secundario">Fecha de registro</dt><dd>{rfq.fechaSolicitud ?? 'Sin fecha'}</dd></div>
-                <div><dt className="text-texto-secundario">Responsable</dt><dd>{rfq.responsableNombre ?? 'Usuario que registró el RFQ'}</dd></div>
+                <div><dt className="text-texto-secundario">Responsable</dt><dd>{responsableNombre ?? 'Usuario que registró el RFQ'}</dd></div>
                 <div className="sm:col-span-2"><dt className="text-texto-secundario">Descripción</dt><dd>{rfq.descripcionGeneral ?? 'Sin descripción'}</dd></div>
               </dl>
             </section>
@@ -146,6 +161,7 @@ export function DialogoFinalizarCapturaRfq({
               catalogos={catalogos}
               hoy={hoy}
               sinResponsable
+              responsableFijoNombre={responsableNombre}
             />
 
             {faltantes.length > 0 && (
@@ -167,7 +183,11 @@ export function DialogoFinalizarCapturaRfq({
             Cancelar
           </Button>
           <Button onClick={() => void enviar()} disabled={!formularioCompleto || guardando}>
-            {guardando ? 'Guardando…' : 'Guardar y finalizar'}
+            {guardando
+              ? 'Guardando…'
+              : esMasTarde
+                ? 'Guardar y finalizar más tarde'
+                : 'Guardar y finalizar'}
           </Button>
         </DialogFooter>
       </DialogContent>

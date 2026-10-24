@@ -13,7 +13,9 @@ import type { CatalogosRfq } from '../acciones/obtener-catalogos';
  *
  * `sinResponsable` permite reutilizarlo cuando el responsable ya se elige en
  * otro campo (modal de «Finalizar captura» del alta: un único responsable para
- * el RFQ y la próxima acción); ese valor viaja igual en `valor.responsableId`.
+ * el RFQ y la próxima acción); ese valor viaja igual en `valor.responsableId`
+ * y se muestra de solo lectura con `responsableFijoNombre` para que quien
+ * captura vea a quién quedó asignado sin poder alterarlo.
  */
 export function CamposProximaAccion({
   idBase,
@@ -22,6 +24,7 @@ export function CamposProximaAccion({
   catalogos,
   hoy,
   sinResponsable = false,
+  responsableFijoNombre,
 }: {
   idBase: string;
   valor: ProximaAccionCaptura;
@@ -29,6 +32,8 @@ export function CamposProximaAccion({
   catalogos: Pick<CatalogosRfq, 'proximasAcciones' | 'usuarios'>;
   hoy: string;
   sinResponsable?: boolean;
+  /** Nombre visible del responsable fijo (solo con `sinResponsable`). */
+  responsableFijoNombre?: string | null;
 }) {
   const accion = catalogos.proximasAcciones.find((opcion) => opcion.codigo === valor.codigo);
 
@@ -86,6 +91,21 @@ export function CamposProximaAccion({
               </option>
             ))}
           </Select>
+        </div>
+      )}
+      {sinResponsable && (
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor={`${idBase}-responsable`}>Responsable de la acción a seguir</Label>
+          <Input
+            id={`${idBase}-responsable`}
+            data-testid="responsable-proxima-accion-fijo"
+            value={responsableFijoNombre ?? 'Usuario que registró el RFQ'}
+            disabled
+            readOnly
+          />
+          <span className="text-xs text-texto-secundario">
+            Se asigna automáticamente a quien registra el RFQ.
+          </span>
         </div>
       )}
     </fieldset>

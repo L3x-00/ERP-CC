@@ -1,0 +1,1628 @@
+# Plan, crítica y análisis transversales (generado sin modelo desde el journal)
+Fuente: `wf_0fa78410-b68/journal.jsonl` · 2026-10-14T22:12:13.933Z · plan: plan:final
+
+## Plan
+**Resumen ejecutivo:** PLAN FINAL de Planeación (Corte 9): 4 tandas de 5 requisitos (C9.1 P01-P05, C9.2 P06/P07/P09/P10/P12, C9.3 P08/P11/P13/P14/P15, C9.4 P16-P20), misma estructura, SIN migraciones. Tres correcciones de la crítica se re-verificaron en el repo esta pasada: (1) en `programacion_inicial` el id va ANIDADO en `detalle->'nuevo'->>'programacion_id'` (supabase/migrations/20261009193327_c4_2_orden_comercial_operativa.sql:397-409) y en `reprogramacion_operativa` en la raíz; el historial usa un OR de dos rutas JSON y se elimina el fallback por partida/recurso/secuencia. (2) La función de Producción es `public.iniciar_sesion_trabajo_operador(p_orden_id, p_partida_id, p_programacion_id, p_operador_id, p_verificacion jsonb DEFAULT NULL, p_corrida_id uuid DEFAULT NULL)`, vigente en 20261007130002_sii_b6_produccion_acciones.sql:530-537 (firma de 6 args, signature uuid,uuid,uuid,uuid,jsonb,uuid); `iniciar_sesion_trabajo` no existe. (3) El directorio scripts/ no existe (Glob scripts/* sin resultados): se retiran `scripts/e2e-focal.ps1` y `-Visual`; el gate real es `pnpm exec playwright test tests/e2e/<spec>.spec.ts` (skill orca-e2e) y las capturas 320/768/1024/1440 se hacen con las skills orca-ui-review/browser-testing.
+
+Ajustes aplicados de la crítica: P01 muestra 'Cargando capacidad…' mientras la consulta de rango/filtro no trae datos (operacion-planeacion.tsx:107-111 usa cargas: [] transitorio) y construye las columnas desde las fechas reales del rango (<= 7 días, etiquetadas con día de semana; null si el rango > 7 días o es Mes); P10 añade como segunda fuente de grupo el recurso cuyo código = desglose.maquinaAsignada (misma lógica que Producción, sii_b6_produccion_acciones.sql:255-265); P09 reutiliza consultarCalendario con clave propia, enabled solo si la fecha cae fuera de rangoEfectivo, staleTime corto y 'Verificando capacidad…' solo durante isFetching; C9.3 marca P15 y su caso pgTAP como OPCIONALES, limita el pgTAP de P14 a dos aserciones y fija la regla de fixtures de sesiones (UPDATE de estado documentado, tope de 2 intentos); el criterio 7 se registra en versión acotada y NO se marca sin aceptación expresa del PO; el trabajo de specs por el details de Área/Turnos y el retiro de 'Avance' se reduce a verificar que accion-* y ordenId= (únicos acoples reales, de C8.1) siguen verdes tras el rebase; el pgTAP del candado se declara cobertura NUEVA (0 coincidencias de recurso_ocupado/programacion_no_preparada en supabase/tests), no regresión; DP reducidas de 13 a 3 reales (DP-01, DP-07, DP-09); el resto son defaults asentados en Refinamientos; P08 'Operación / proceso' se documenta como interpretación (arreglo de procesos de la partida).
+
+Rechazos parciales: (a) No se parte C9.3 en dos tandas (la instrucción exige exactamente 4); se reduce su peso marcando P15 opcional. (b) P06 NO adopta la alternativa 'conservar la consulta actual': el tope de las últimas 100 partidas (page.tsx:58-62) es la causa real de que los pendientes queden ocultos; se mantiene el cambio, recortado a una utilidad pura y un tope constante de 300 con aviso. (c) DP-05 no se pregunta: default sin prop nueva; el paso 0 de C9.1 verifica por grep de seeds si algún rol con ver/gestionar_planeacion carece de orden_vista (seed: admin y gerente; gerente tiene orden_vista, sii_b1_permisos_catalogo.sql:164,183); solo si aparece uno se añade la prop opcional puedeVerOrden para degradar el enlace a texto plano. (d) El aviso de exceso/compatibilidad en el diálogo de reprogramación por arrastre queda fuera de alcance explícito (el diálogo ya expone capacidad-reprogramacion y la RPC es la autoridad).
+
+Orden global: C8.1 -> C9.1 (solo exige C8.1); C8.2 -> C9.3 (exige C8.2 + C9.2); C8.3 -> C9.4; C9.2 exige C9.1 (comparten operacion-planeacion.tsx); C9.4 se rebasa sobre el cierre C8.4. C9.1 puede correr en paralelo con C8.2/C8.3 (sin archivos en común). Sin pre-reservar marcas de migración (colisión 20261014120000 con Órdenes Fase 2).
+
+**Orden general:** Dependencias duras, no serialización total: C9.1 requiere C8.1 en origin/main (cadena puedeAdministrar de 6 archivos + migración de planeacion-bolsa-acciones.spec.ts:195-207). C9.2 requiere C9.1 (operacion-planeacion.tsx, InsigniaSaturacion) y C8.1 (page.tsx podada); no requiere C8.3. C9.3 requiere C9.2 (operacion-planeacion.tsx, tipos/planeacion.ts) y C8.2 (etiquetas-evento.ts); acuerdo a dejar en COLA-DE-TRABAJO.md: C8.2 incluye programacion_inicial, reprogramacion_operativa y ajuste_operativo; si no, C9.3 añade esas 3 entradas (edita un archivo de Órdenes, declarado en el PR). C9.4 requiere C9.3, C8.3 (resumirProcesos) y se rebasa sobre el PR de cierre de C8.4 (CLI-15; Planeación toma CLI-16). Orden sugerido: C8.1 -> (C8.2 en paralelo con C9.1) -> C8.3 -> C9.2 -> C8.4 -> C9.3 -> C9.4. Cada tanda: rama nueva desde origin/main DESPUÉS de verificar con `gh pr view <N> --json state` y ver el commit en origin/main; el PO fusiona. Un solo dueño por archivo: operacion-planeacion.tsx lo tocan C9.1, C9.2 y C9.3 en ese orden. Migraciones: ninguna; si el PO aprueba DP-07-B o DP-09-B se asigna marca con Glob al crear el archivo (hoy última local 20261014110000), nunca 20261014120000 pre-reservada.
+
+### Tanda 1 — C9.1 · Capacidad como dato central: carga semanal, semáforo accesible y bloque con contexto · esfuerzo M
+**Objetivo:** Responder primero '¿cuántas horas tiene ocupadas cada equipo y cuánto queda esta semana?': matriz Equipo x días con ocupadas/capacidad y capacidad libre encima del calendario, Semana primero con Área/Turnos plegados, semáforo de 3 niveles con texto y horas, y bloques con Orden, Ítem, Proceso y horas con clic a la ficha. Sin migración, sin tocar RPC ni acciones de la tarjeta.
+**Requisitos:** P01, P02, P03, P04, P05
+- **cambios:**
+  -
+    - **requisito:** P01
+    - **estadoActual:** Ausente. page.tsx:121-129 monta OperacionPlaneacion y luego PanelCapacidadInstalada (configuración); la carga solo se ve como 'x/y h' en tarjeta-programacion-planeacion.tsx:140-144. datos.cargas ya llega por recurso x fecha x turno (planeacion-servicio.ts:203-215, RPC solo con fechas). Durante una consulta de rango/filtro no inicial la UI usa cargas: [] (operacion-planeacion.tsx:107-111).
+    - **cambio:** Función pura construirMatrizCargaSemanal(cargas, recursos, rango, filtroRecursoId): suma turnos por recurso y fecha real del rango (columnas = fechas del rango, hasta 7 días, rotuladas con día de semana; sáb/dom solo si hay carga), usa horas_capacidad de la RPC sin recalcular, libre = suma por turno de max(0, capacidad - programadas), nivel de celda = peor turno; devuelve null si el rango supera 7 días (Mes). Recurso activo sin filas de carga = 'Sin turnos definidos' SOLO con datos cargados; mientras consulta.isFetching/sin datos el componente muestra 'Cargando capacidad…'. Componente ResumenCargaSemanal de solo lectura montado como primer hijo del grid (xl:col-span-2, operacion-planeacion.tsx:279). Respeta filtro de recurso del store; ignora Área/Turno.
+    - **archivos:**
+      - src/modulos/planeacion/utilidades/carga-semanal.ts (nuevo)
+      - src/modulos/planeacion/componentes/resumen-carga-semanal.tsx (nuevo)
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/indice.ts
+  -
+    - **requisito:** P02
+    - **estadoActual:** Parcial. Vista inicial 'semana' ya existe (calendario-planeacion.tsx:126); filtros en bloque único (248-334) con Área y Turnos al mismo nivel; botones de vista debajo (336-366); opción de recurso sin área (293-299); restablecerFiltros (206-210) no devuelve la vista a 'semana'.
+    - **cambio:** Solo JSX/estado local: botones de vista y navegación sobre los filtros; Área y Turnos en details 'Más filtros' abierto si hay área o turno activo; etiqueta de recurso 'CODIGO · nombre (Área)'; restablecerFiltros llama setVista('semana'). No se toca la tienda, la URL ni fechas-planeacion.ts (lo importan Producción y Propuestas). Si el archivo pasa de ~380 líneas se extrae FiltrosCalendarioPlaneacion.
+    - **archivos:**
+      - src/modulos/planeacion/componentes/calendario-planeacion.tsx
+  -
+    - **requisito:** P03
+    - **estadoActual:** Parcial. clasificarSaturacion (5 niveles, 70/90/100, capacidad-servicio.ts:19-35,144-170) sin consumidor en UI; la tarjeta solo pinta rojo 'x/y h' (140-144) y muestra 'Avance' (112-122), dato de Producción.
+    - **cambio:** Mapeo SOLO de presentación en utilidades/etiquetas.ts: libre/holgado = Disponible; ajustado/saturado = Cerca del límite; sobrecargado = Sobrecargado (100 % exacto = Cerca del límite). InsigniaSaturacion con icono + texto + 'x/y h' + aria-label, usada en celdas del resumen y en el pie de la tarjeta (reemplaza el span rojo). Retirar 'Avance' del desglose de la tarjeta (se conserva Tiempo estimado). No se tocan clasificarSaturacion, detectarCuellosBotella ni CLASIFICACIONES_SATURACION.
+    - **archivos:**
+      - src/modulos/planeacion/utilidades/etiquetas.ts
+      - src/modulos/planeacion/componentes/insignia-saturacion.tsx (nuevo)
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/resumen-carga-semanal.tsx
+  -
+    - **requisito:** P04
+    - **estadoActual:** Parcial. Folio y horas ya se muestran (tarjeta:62,132-138); Procesos solo en la no compacta (93-102); desglose-servicio.ts:20 selecciona codigo_item pero mapearPartida (74-105) no lo mapea; DesglosePartidaPlaneacion (tipos/planeacion.ts:84-103) sin campo.
+    - **cambio:** Añadir codigoItem: string | null al tipo y mapearlo; tarjeta muestra 'Ítem {codigoItem ?? Por definir}' y Proceso (etiquetaProcesos sin cambiar cuerpo ni separador) también en compacta, una línea truncada con title. Literales de DesglosePartidaPlaneacion en planeacion-componentes.test.ts y planeacion-desglose.test.ts se actualizan en el mismo commit (únicos dos archivos de test que los usan). Proceso sigue siendo por partida (interpretación registrada en Refinamientos), no por operación.
+    - **archivos:**
+      - src/modulos/planeacion/tipos/planeacion.ts
+      - src/modulos/planeacion/servicios/desglose-servicio.ts
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+      - tests/unitarias/planeacion-componentes.test.ts
+      - tests/unitarias/planeacion-desglose.test.ts
+  -
+    - **requisito:** P05
+    - **estadoActual:** Ausente. El article solo tiene draggable/onDragStart (tarjeta:71-75), sin onClick; Seleccionar (145-154); AccionesTarjetaOrden en 163-168. La ficha src/app/(privado)/ordenes/[id]/page.tsx:17 exige orden_vista (si no, notFound).
+    - **cambio:** Título (también en compacta) pasa a Link href={`/ordenes/${programacion.ordenId}`} con draggable={false}, data-testid enlace-orden-{programacion.id}, aria-label 'Abrir orden {folio}'; sin onClick en el contenedor. No se recortan acciones ni se toca acciones-tarjeta-orden.tsx (lo redefine C8.4). Se enlaza a /ordenes/{id}, no a ?ordenId=. Sin prop nueva por defecto: el paso 0 verifica por grep de seeds de permisos_rol que todo rol con ver/gestionar_planeacion tiene orden_vista; solo si no, se añade prop opcional puedeVerOrden (de can() en page.tsx) y el título degrada a texto plano.
+    - **archivos:**
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+- **pasosEnOrden:**
+  - 0. Preflight: C8.1 en origin/main (gh pr view + commit visible); si no, no empezar. Rama feat/planeacion-c9-1-carga-semanal-semaforo desde origin/main. Leer docs/CUELLOS-DE-BOTELLA.md y ACTIVE_TASKS.md. Precondición verificable: grep de tests/e2e/planeacion-bolsa-acciones.spec.ts confirma que ya no usa accion-reactivar ni asevera 'ordenId=' (migrado por C8.1). Grep de seeds de permisos_rol: roles con ver/gestionar_planeacion sin orden_vista (default: ninguno).
+  - 1. Caracterización verde: pnpm vitest run tests/unitarias/planeacion-capacidad.test.ts tests/unitarias/planeacion-componentes.test.ts tests/unitarias/planeacion-tienda.test.ts tests/unitarias/planeacion-desglose.test.ts.
+  - 2. RED unitaria tests/unitarias/planeacion-carga-semanal.test.ts: 8+8 cap con 6+4 prog = 10/16 y libre 6; sábado/domingo omitidos sin carga; día sobrecargado aporta 0 libre; recurso sin cargas = sinTurnos; nivel = peor turno; rango de 7 días no alineado a lunes produce columnas con las fechas reales; rango > 7 días = null; estado 'cargando' (datos ausentes) no produce 'sinTurnos'.
+  - 3. RED mapeo de semáforo en planeacion-capacidad.test.ts (5->3; 100 % exacto = Cerca del límite).
+  - 4. RED de componentes en planeacion-componentes.test.ts: ResumenCargaSemanal (fila por recurso, 'x/y h', columna Libre, 'Sin turnos definidos' con datos, 'Cargando capacidad…' sin datos); InsigniaSaturacion; tarjeta (Ítem/Por definir, compacta con proceso y horas, título Link sin disparar onSeleccionar, draggable false, sin 'Avance'); calendario (vistas antes de filtros, details cerrado por defecto y abierto con filtro activo, recurso con área, restablecer vuelve a Semana); mapeo codigoItem en planeacion-desglose.test.ts.
+  - 5. GREEN P01+P03: carga-semanal.ts, etiquetas.ts, insignia-saturacion.tsx, resumen-carga-semanal.tsx, montaje en operacion-planeacion.tsx (una inserción), export en indice.ts. Importar clasificarSaturacion directo de servicios/capacidad-servicio.
+  - 6. GREEN P04: tipo + mapearPartida + tarjeta + fixtures en el mismo commit; pnpm typecheck limpio.
+  - 7. GREEN P05 + retiro de 'Avance'.
+  - 8. GREEN P02: JSX de calendario-planeacion.tsx.
+  - 9. E2E en tests/e2e/planeacion-capacidad.spec.ts (recurso y capacidad propios, fechas relativas a Date.now()): tras programar 6 h el resumen muestra '6/8 h' (expect con auto-espera sobre el texto específico; NO asertar ausencia de 'Sin turnos definidos'); el resumen aparece antes de los filtros; sobrecarga muestra 'Sobrecargado' con horas. En planeacion-flujo-colaborativo.spec.ts: clic en el título abre /ordenes/{id} correcto. No se editan specs por el details ni por 'Avance' (grep: ningún spec planeacion* usa Área/Turnos/Avance); solo se verifica que accion-* y ordenId= siguen verdes.
+  - 10. Gates: pnpm typecheck; pnpm exec eslint "src/app/(privado)/planeacion" src/modulos/planeacion; vitest focal; pnpm exec playwright test tests/e2e/planeacion-capacidad.spec.ts, luego planeacion-flujo-colaborativo.spec.ts y planeacion-bolsa-acciones.spec.ts (regresión); capturas 320/768/1024/1440 con skill orca-ui-review.
+  - 11. Cierre con cerrar-tanda (commit con rutas propias, PR, CI del headSha); hallazgo restablecerFiltros en el commit docs(cierre).
+- **criteriosAceptacion:**
+  - Antes de los filtros aparece una tabla Equipo | días del rango | Capacidad libre con 'ocupadas/capacidad h'; tras programar 6 h a un recurso de 8 h el día muestra '6/8 h' y la capacidad libre baja 6 h.
+  - Cada celda y tarjeta muestra Disponible / Cerca del límite / Sobrecargado con horas e icono; el nivel se entiende sin color (aria-label).
+  - Un turno sobrecargado marca 'Sobrecargado' y aporta 0 h libres; un recurso sin turnos dice 'Sin turnos definidos' solo con datos cargados; durante la carga dice 'Cargando capacidad…'.
+  - Al abrir /planeacion la vista es Semana; vistas y navegación sobre los filtros; Área y Turnos en 'Más filtros' (abierto si hay filtro activo); el selector de recurso incluye el área; 'Limpiar filtros' vuelve a Semana.
+  - En vista Mes el resumen no se muestra y se indica cambiar a Semana (rango > 7 días).
+  - Cada tarjeta (también compacta) muestra folio, Ítem o 'Por definir', Proceso y horas; ya no muestra 'Avance'.
+  - Clic en el título abre /ordenes/{id}; arrastrar sigue reprogramando; Seleccionar y las acciones accion-* siguen igual.
+  - typecheck, eslint y pruebas focales en verde; sin cambios en migraciones, RPC ni tipos Supabase.
+- **ramaSugerida:** feat/planeacion-c9-1-carga-semanal-semaforo
+- **porQueEstaAgrupacion:** Es el cambio de enfoque de la nota (agenda a carga semanal). P01/P03 comparten celdas y mapeo; P02 es JSX del mismo contenedor; P04/P05 tocan la misma tarjeta que P03. Todo es lectura sobre datos.cargas, sin migración. Va tras C8.1 por la cadena puedeAdministrar/Reactivar; no necesita C8.2 ni C8.3.
+- **modulosAfectados:**
+  -
+    - **modulo:** Órdenes
+    - **que:** Destino del clic /ordenes/{id}; C9.1 no edita archivos de Órdenes.
+    - **riesgo:** Rol con planeación sin orden_vista vería 404.
+    - **proteccion:** Grep de seeds en paso 0; prop opcional puedeVerOrden solo si hay tal rol; E2E con gerente.
+  -
+    - **modulo:** Producción y Propuestas
+    - **que:** Importan tipos/COLUMNAS_RECURSO_PLANEACION_OPERATIVO y hoyIso/sumarDias.
+    - **riesgo:** Bajo: solo se añade un campo a DesglosePartidaPlaneacion y no se toca fechas-planeacion.ts.
+    - **proteccion:** pnpm typecheck completo; produccion-tienda.test.ts sin cambios.
+  -
+    - **modulo:** E2E Planeación
+    - **que:** Acoples reales: accion-* y ordenId= (planeacion-bolsa-acciones.spec.ts:187-207), testids de vistas/columnas.
+    - **riesgo:** Bajo tras C8.1.
+    - **proteccion:** Regresión de los tres specs; no se cambian testids existentes.
+- **riesgos:**
+  -
+    - **riesgo:** Colisión con C8.1 en tarjeta/calendario/vistas/operacion-planeacion
+    - **mitigacion:** No arrancar sin C8.1 en origin/main; un dueño por archivo.
+  -
+    - **riesgo:** Link dentro de article draggable secuestra el arrastre
+    - **mitigacion:** draggable={false} + prueba de componente + E2E de arrastre existente.
+  -
+    - **riesgo:** Resumen marca 'Sin turnos definidos' en transición (cargas: [])
+    - **mitigacion:** Estado 'Cargando capacidad…' y RED unitaria/E2E con auto-espera.
+  -
+    - **riesgo:** Semanas pasadas subestiman carga (Completada no cuenta, d02:168)
+    - **mitigacion:** Documentado; no se toca la RPC.
+  -
+    - **riesgo:** Campo obligatorio rompe tsc en fixtures
+    - **mitigacion:** Actualizar literales en el mismo commit; typecheck antes de E2E.
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/planeacion-carga-semanal.test.ts (nuevo)
+    - tests/unitarias/planeacion-capacidad.test.ts
+    - tests/unitarias/planeacion-componentes.test.ts
+    - tests/unitarias/planeacion-desglose.test.ts
+    - tests/unitarias/planeacion-tienda.test.ts (regresión)
+  - **e2e:**
+    - tests/e2e/planeacion-capacidad.spec.ts
+    - tests/e2e/planeacion-flujo-colaborativo.spec.ts
+    - tests/e2e/planeacion-bolsa-acciones.spec.ts (regresión, sin editar)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/planeacion-carga-semanal.test.ts tests/unitarias/planeacion-capacidad.test.ts tests/unitarias/planeacion-componentes.test.ts tests/unitarias/planeacion-desglose.test.ts tests/unitarias/planeacion-tienda.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint "src/app/(privado)/planeacion" src/modulos/planeacion
+    - pnpm exec playwright test tests/e2e/planeacion-capacidad.spec.ts
+    - pnpm exec playwright test tests/e2e/planeacion-flujo-colaborativo.spec.ts
+    - pnpm exec playwright test tests/e2e/planeacion-bolsa-acciones.spec.ts
+
+### Tanda 2 — C9.2 · Programar: pendientes visibles, recurso compatible, aviso de sobrecapacidad y bloqueos con prueba · esfuerzo M
+**Objetivo:** Programar es claro y seguro: el selector prioriza lo pendiente sin el tope de 100 ni exclusión errónea y sugiere la secuencia; el recurso se ofrece por grupo de equipo con advertencia; el aviso dice cuántas horas se exceden y no confunde con 'sin capacidad configurada'; el candado de recurso y la inmutabilidad de compromiso/ruteo quedan con pgTAP nuevo. Sin migración.
+**Requisitos:** P06, P07, P09, P10, P12
+- **cambios:**
+  -
+    - **requisito:** P06
+    - **estadoActual:** Parcial. page.tsx:58-62 toma las últimas 100 partidas y 93-97 filtra solo por ordenes_produccion.estado (sin estado_sii, sin marcar programadas). programacion_areas permite varias filas por partida (UNIQUE(partida_id,recurso_id) y UNIQUE(partida_id,secuencia), fase_6_planeacion_base.sql:97-98), por eso NO se excluyen las ya programadas.
+    - **cambio:** Mantener la bolsa intacta. Selector: órdenes con estado distinto de cancelada/completada -> partidas por lotes de 100 (dividirEnLotes) -> programaciones activas por partida; utilidad pura partidas-programables.ts: primero 'sin programar' (creado_en desc), luego las parcialmente programadas con '(N programada(s))', tope constante 300 con aviso 'mostrando N de M'; secuenciaSugerida = máxima activa + 1 (siguienteSecuencia, bolsa-planeacion-servicio.ts:46) precargada en el campo Secuencia (hoy '1' manual, panel:113). No se estrecha el criterio a estado_sii.
+    - **archivos:**
+      - src/app/(privado)/planeacion/page.tsx
+      - src/modulos/planeacion/utilidades/partidas-programables.ts (nuevo)
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx
+  -
+    - **requisito:** P07
+    - **estadoActual:** Parcial. Asignar funciona (acciones/programar-partida-recurso.ts:17-58); el select lista todos los recursos activos sin compatibilidad (panel:385-398); Procesos ya se muestran (panel:333).
+    - **cambio:** Misma unidad partida x recurso x secuencia y misma RPC. El select muestra 'CODIGO · nombre — Grupo' y ordena primero los compatibles (P10). Sin columna de proceso ni fila por operación.
+    - **archivos:**
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+  -
+    - **requisito:** P09
+    - **estadoActual:** Parcial. El panel ya avisa antes de guardar (panel:479-489) y Guardar solo se deshabilita por enviando||preparando (530); la RPC bloquea con capacidad_insuficiente. Si la fecha cae fuera del rango cargado, cargaDelSlot es undefined -> falso 'Sin capacidad configurada' (160-175, 480-481).
+    - **cambio:** Mantener bloqueo de la RPC y Guardar habilitado (la RPC es la autoridad). Aviso 'Excede la capacidad por X h (prog/cap h)' con InsigniaSaturacion. Fecha fuera de rangoEfectivo: useQuery en OperacionPlaneacion que REUTILIZA consultarCalendario (operacion-planeacion.tsx:78-92) con clave propia que incluye fechaProgramada, enabled solo fuera de rango, staleTime corto; el panel recibe esas cargas y muestra 'Verificando capacidad…' solo mientras isFetching.
+    - **archivos:**
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+  -
+    - **requisito:** P10
+    - **estadoActual:** Parcial. Conflicto simultáneo cubierto por idx_programacion_areas_candado_recurso_activo (fase_6_planeacion_base.sql:117) y recurso_ocupado al activar preparación; sin compatibilidad recurso-grupo. Producción empareja por lower(btrim(nombre|codigo)) contra partidas.procesos (sii_b6_produccion_acciones.sql:246-253) y usa partidas.maquina_asignada -> recursos_planeacion.codigo -> grupo_equipo_id como segunda fuente (255-265). RecursoPlaneacion y COLUMNAS_RECURSO_PLANEACION_OPERATIVO (importados por Producción) no tienen grupo.
+    - **cambio:** Compatibilidad ADVERTIDA en UI. Servicio nuevo compatibilidad-servicio.ts (columnas explícitas: catalogo_procesos codigo/nombre/grupo_equipo_id, recursos_planeacion id/codigo/grupo_equipo_id, grupos_equipo id/nombre; lotes de 100) -> gruposRequeridosPorPartida y grupoPorRecurso serializables. Utilidad pura evaluarCompatibilidadRecurso -> compatible | incompatible | sin_dato: fuente 1 = grupos de los procesos de la partida; fuente 2 (si ninguno resuelve) = grupo del recurso cuyo código = desglose.maquinaAsignada; sin_dato si falta cualquier lado; compatible si coincide cualquiera. Panel: compatibles primero, etiqueta 'otro grupo', aviso role=status sin bloquear. Tolerante: si la lectura falla (RLS o columna no aplicada) console.error y sin_dato. NO se tocan RecursoPlaneacion ni las columnas operativas. Paso 0 lee las políticas RLS de grupos_equipo/catalogo_procesos para decidir cliente (RLS de usuario si hay SELECT para authenticated; admin con columnas explícitas solo si no).
+    - **archivos:**
+      - src/modulos/planeacion/servicios/compatibilidad-servicio.ts (nuevo)
+      - src/modulos/planeacion/servicios/indice.ts
+      - src/modulos/planeacion/utilidades/compatibilidad.ts (nuevo)
+      - src/modulos/planeacion/tipos/planeacion.ts
+      - src/app/(privado)/planeacion/page.tsx
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx
+      - supabase/tests/planeacion_c9_2_candado_y_compromiso.test.sql (nuevo, cobertura NUEVA del candado)
+  -
+    - **requisito:** P12
+    - **estadoActual:** Cumple. Trigger privado.proteger_orden_comercial_c4_2 y alcance_comercial_inmutable (c4_2:131-140, 202-214); pgTAP existente solo cubre ajustar_orden_post_aceptacion (c4_2 test:137-140) y programar/reprogramar solo verifican evento anterior/nuevo (164-190). No existe pgTAP de que programar/reprogramar no altera compromiso/snapshot/ruteo.
+    - **cambio:** Sin cambio de código. pgTAP nuevo (SET LOCAL ROLE service_role, fixture C42-R1 capacidad 8 de c4_2 test:165-177): tras programar_partida_recurso_auditada y reprogramar_partida_recurso_auditada compara antes/después fecha_compromiso_comercial, fecha_operativa, snapshot_json, partidas.procesos y tiempo_estimado_minutos; afirma que la reprogramación SÍ cambia recurso/fecha/turno de programacion_areas y crea el evento. Es el único pgTAP de este invariante (Órdenes C8.2/R06 declara no crear uno).
+    - **archivos:**
+      - supabase/tests/planeacion_c9_2_candado_y_compromiso.test.sql (nuevo, mismo archivo que el candado)
+- **pasosEnOrden:**
+  - 0. Preflight: C8.1 y C9.1 en origin/main; rama feat/planeacion-c9-2-programar-compatibilidad. Leer RLS de grupos_equipo/catalogo_procesos (grep de migraciones) y confirmar con el PO que 20261012110000_b1_proceso_grupo_equipo.sql está aplicada (DP-07, verificación de datos: recursos y procesos con grupo cargado).
+  - 1. Caracterización verde: pnpm vitest run tests/unitarias/planeacion-bolsa.test.ts tests/unitarias/planeacion-componentes.test.ts tests/unitarias/planeacion-acciones.test.ts; pgTAP c4_2 y sii_b6 como línea base.
+  - 2. RED unitarias: planeacion-compatibilidad.test.ts (nombre o código sin mayúsculas/espacios; proceso no hallado = sin_dato; grupo nulo = sin_dato; varios procesos = compatible si coincide cualquiera; proceso sin match pero maquinaAsignada con grupo = compatible/incompatible según grupo; incompatible solo con ambos grupos conocidos y distintos) y planeacion-partidas-programables.test.ts (sin programar primero, '(N programada(s))', tope 300, secuenciaSugerida = máx+1, partida con una programación activa SIGUE en la lista).
+  - 3. RED de componente: opciones con grupo y compatibles primero; aviso 'otro grupo' sin deshabilitar Guardar; 'Excede la capacidad por X h'; fecha fuera de rango muestra 'Verificando capacidad…' y no 'Sin capacidad configurada'; Secuencia precargada; DENTRO del rango no se dispara la consulta extra.
+  - 4. pgTAP supabase/tests/planeacion_c9_2_candado_y_compromiso.test.sql (cobertura nueva, no regresión): (a) segunda activar_modo_preparacion en el mismo recurso falla con recurso_ocupado y el índice impide dos en_preparacion/en_proceso; (b) P12 como en la tabla. Verificar que detecta regresión alterando una aserción de valor.
+  - 5. GREEN servicio y utilidades de compatibilidad + export en servicios/indice.ts.
+  - 6. GREEN page.tsx (órdenes activas -> partidas por lotes -> programaciones activas -> compatibilidad); pasar compatibilidad y secuenciaSugerida hasta el panel.
+  - 7. GREEN panel + operacion-planeacion (select, aviso, exceso, query de fecha fuera de rango).
+  - 8. E2E en planeacion-capacidad.spec.ts: 'el aviso de sobrecapacidad muestra el exceso en horas antes de guardar' (recurso/capacidad propios; auto-espera sobre texto). Regresión de planeacion-flujo-colaborativo. Compatibilidad se cubre en componente + unitarias; con gerente se valida que la lectura de catálogos por RLS devuelve grupos (si no, aplicar fallback del paso 0).
+  - 9. Gates: typecheck; eslint; vitest focal; supabase test db del archivo nuevo + c4_2 y sii_b6; playwright de los specs; orca-ui-review. Cierre con cerrar-tanda; sin migraciones.
+- **criteriosAceptacion:**
+  - El selector de Partida muestra primero las sin programar y luego las parcialmente programadas con '(N programada(s))'; una partida con una programación activa sigue disponible y su siguiente secuencia aparece precargada.
+  - El selector de Recurso muestra el grupo y coloca primero los compatibles; elegir otro grupo muestra la advertencia sin impedir guardar; sin dato no se advierte.
+  - Con horas que exceden el turno el panel dice 'Excede la capacidad por X h' antes de guardar y ofrece 'Buscar hueco'; Guardar sigue habilitado y la RPC devuelve el error genérico si no cabe.
+  - Una fecha fuera del rango visible muestra la capacidad real o 'Verificando capacidad…', nunca 'Sin capacidad configurada' por falta de datos.
+  - pgTAP nuevo: dos operaciones no pueden estar en preparación/proceso en el mismo recurso; programar y reprogramar no cambian fecha_compromiso_comercial, fecha_operativa, snapshot_json, procesos ni tiempo_estimado_minutos; la reprogramación deja su evento.
+  - Sin migraciones; bolsa, Buscar hueco y RPC de programar/reprogramar sin cambios.
+- **ramaSugerida:** feat/planeacion-c9-2-programar-compatibilidad
+- **dependeDeTandas:**
+  - 1
+- **porQueEstaAgrupacion:** Todo ocurre en la misma acción (programar): selector de pendientes (page.tsx), selector de recurso y aviso (panel) y las pruebas que protegen las RPC que ese flujo invoca. Va tras C9.1 (operacion-planeacion.tsx) y C8.1 (page.tsx); no necesita C8.3.
+- **decisionesPOAntes:**
+  - DP-01 (advertir antes + bloqueo de la RPC): default A, se arranca con él.
+  - DP-07 (confirmación de DATOS: recursos y procesos con grupo cargado; default solo advertir).
+- **modulosAfectados:**
+  -
+    - **modulo:** Producción
+    - **que:** Depende de programacion_areas.id, errores programacion_* y COLUMNAS_RECURSO_PLANEACION_OPERATIVO.
+    - **riesgo:** Bajo: no se tocan RPC ni tipos compartidos.
+    - **proteccion:** sii_b6_produccion.test.sql y a20_prd09_avance_proceso.test.sql como regresión; typecheck.
+  -
+    - **modulo:** Catálogos
+    - **que:** Lectura de catalogo_procesos.grupo_equipo_id y grupos_equipo.
+    - **riesgo:** Medio: columna no aplicada o RLS niega.
+    - **proteccion:** Servicio tolerante a sin_dato; paso 0 lee RLS; E2E con gerente.
+  -
+    - **modulo:** Realtime
+    - **que:** Sincronizadores escuchan programacion_areas.
+    - **riesgo:** Bajo.
+    - **proteccion:** Misma clave CLAVE_CALENDARIO_PLANEACION; sin cambios de tabla.
+- **riesgos:**
+  -
+    - **riesgo:** Excluir programadas ocultaría la segunda secuencia
+    - **mitigacion:** No se excluyen; prueba unitaria.
+  -
+    - **riesgo:** Emparejamiento por nombre falla con datos sucios
+    - **mitigacion:** Misma regla que Producción + segunda fuente maquinaAsignada; sin_dato nunca advierte.
+  -
+    - **riesgo:** URI too long en .in(ids)
+    - **mitigacion:** dividirEnLotes de 100 en toda lectura nueva.
+  -
+    - **riesgo:** Doble fetch/parpadeo de la consulta de fecha fuera de rango
+    - **mitigacion:** Reutilizar consultarCalendario, enabled condicionado, staleTime corto, RED de no disparo dentro de rango.
+  -
+    - **riesgo:** pgTAP como postgres no detecta permission denied
+    - **mitigacion:** SET LOCAL ROLE service_role para las RPC _auditada.
+  -
+    - **riesgo:** Tope 300 oculta pendientes
+    - **mitigacion:** Pendientes primero y aviso 'mostrando N de M'; cola priorizada sería APS.
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/planeacion-compatibilidad.test.ts (nuevo)
+    - tests/unitarias/planeacion-partidas-programables.test.ts (nuevo)
+    - tests/unitarias/planeacion-componentes.test.ts
+    - tests/unitarias/planeacion-bolsa.test.ts y planeacion-acciones.test.ts (regresión)
+  - **pgtap:**
+    - supabase/tests/planeacion_c9_2_candado_y_compromiso.test.sql (nuevo)
+    - supabase/tests/c4_2_orden_comercial_operativa.test.sql y sii_b6_produccion.test.sql (regresión)
+  - **e2e:**
+    - tests/e2e/planeacion-capacidad.spec.ts: exceso en horas antes de guardar
+    - tests/e2e/planeacion-flujo-colaborativo.spec.ts (regresión)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/planeacion-compatibilidad.test.ts tests/unitarias/planeacion-partidas-programables.test.ts tests/unitarias/planeacion-componentes.test.ts tests/unitarias/planeacion-bolsa.test.ts tests/unitarias/planeacion-acciones.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint "src/app/(privado)/planeacion" src/modulos/planeacion
+    - supabase test db (archivo planeacion_c9_2_candado_y_compromiso.test.sql más c4_2 y sii_b6)
+    - pnpm exec playwright test tests/e2e/planeacion-capacidad.spec.ts
+    - pnpm exec playwright test tests/e2e/planeacion-flujo-colaborativo.spec.ts
+
+### Tanda 3 — C9.3 · Contexto de la programación: responsable, historial, estimado vs real y recurso liberado · esfuerzo M
+**Objetivo:** Al seleccionar un bloque, el planificador ve quién programó, el grupo, el historial de reprogramaciones (quién, cuándo, motivo, de/a), horas estimadas vs reales con exceso visible y, de forma opcional, si el recurso fue liberado por pausa. Solo lectura, sin migración, sin alterar lo estimado.
+**Requisitos:** P08, P11, P13, P14, P15
+- **cambios:**
+  -
+    - **requisito:** P08
+    - **estadoActual:** Parcial. programacion_areas no guarda responsable (fase_6_planeacion_base.sql:75-99); el actor vive en orden_eventos_cambio (sii_b5_orden_base.sql:125-138) como programacion_inicial (programacion_id ANIDADO en detalle->'nuevo', c4_2:397-409) y reprogramacion_operativa (programacion_id en la raíz, c4_2:465-468). Nada en src/modulos/planeacion lee esa tabla.
+    - **cambio:** Server Action obtenerDetalleProgramacionAccion(entrada: unknown) -> RespuestaAccion<DetalleProgramacion> (Zod: programacionId z.uuid(); permiso ver_planeacion o gestionar_planeacion como obtener-calendario-planeacion.ts; sin registrarLog por ser lectura; errores genéricos con console.error de la causa). Servicio detalle-programacion-servicio.ts, columnas explícitas: programacion_areas, eventos con .eq('orden_id') + .in('tipo',['programacion_inicial','reprogramacion_operativa']) + .or('detalle->>programacion_id.eq.{id},detalle->nuevo->>programacion_id.eq.{id}'), nombres con usuarios.nombre_completo (patrón ficha-orden-servicio.ts:133-138), códigos de recurso en lote. Responsable = actor del evento inicial ('—' si no hay evento; 'Sistema' si actor_id nulo). Nunca UUID ni detalle crudo; sin persistir programado_por.
+    - **archivos:**
+      - src/modulos/planeacion/validaciones/planeacion.ts
+      - src/modulos/planeacion/validaciones/indice.ts
+      - src/modulos/planeacion/tipos/planeacion.ts
+      - src/modulos/planeacion/servicios/detalle-programacion-servicio.ts (nuevo)
+      - src/modulos/planeacion/servicios/indice.ts
+      - src/modulos/planeacion/acciones/obtener-detalle-programacion.ts (nuevo)
+      - src/modulos/planeacion/acciones/indice.ts
+  -
+    - **requisito:** P11
+    - **estadoActual:** Parcial. Reprogramar con motivo ya funciona y deja evento (c4_2:440-445; Zod validaciones/planeacion.ts:64-68); la brecha es visibilidad.
+    - **cambio:** Componente DetalleProgramacionPlaneacion en el aside de OperacionPlaneacion, bajo el panel de asignación cuando hay programación seleccionada: lista de 10 últimos 'fecha · actor · motivo · de -> a' (etiquetaEvento de C8.2). useQuery con clave CLAVE_DETALLE_PROGRAMACION + programacionId + actualizadoEn y staleTime corto. No se toca la tarjeta ni el diálogo.
+    - **archivos:**
+      - src/modulos/planeacion/componentes/detalle-programacion-planeacion.tsx (nuevo)
+      - src/modulos/planeacion/componentes/claves-consulta.ts
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+      - src/modulos/ordenes/utilidades/etiquetas-evento.ts (solo si C8.2 no incluyó los 3 tipos de Planeación)
+  -
+    - **requisito:** P13
+    - **estadoActual:** Parcial. La carga usa solo horas_estimadas de programaciones no canceladas ni completadas (d02_capacidad_instalada.sql:160-170); lo real vive en sesiones_trabajo.horas_netas.
+    - **cambio:** En el detalle: 'Estimado (Planeación) X h' y 'Real registrado (Producción) Y h' separados (suma de horas_netas por programacion_id con coalesce, índice idx_sesiones_trabajo_programacion; lectura por UNA programación). pgTAP: cerrar una sesión no cambia programacion_areas.horas_estimadas.
+    - **archivos:**
+      - src/modulos/planeacion/servicios/detalle-programacion-servicio.ts
+      - src/modulos/planeacion/componentes/detalle-programacion-planeacion.tsx
+      - supabase/tests/planeacion_c9_3_capacidad_al_terminar.test.sql (nuevo)
+  -
+    - **requisito:** P14
+    - **estadoActual:** Parcial. Completada sale entera de la carga (d02:168); terminar tarde no se refleja en capacidad; los guardarraíles de programar/reprogramar suman por su cuenta (20260911000002:323,453).
+    - **cambio:** Sin SQL. El detalle muestra 'Excedió el estimado en +Z h' (real > estimado) y 'Terminó antes: liberó W h' (completada con real < estimado) sin alterar horas_estimadas. Criterio 7 en versión ACOTADA: libera al completar; el exceso se muestra pero no ocupa capacidad. pgTAP limitado a dos aserciones: cerrar sesión no cambia horas_estimadas; pasar la programación a completada baja horas_programadas en obtener_carga_capacidad_diaria (UPDATE de estado documentado como regla desde el inicio; tope de 2 intentos de reutilizar el armado de sesión de sii_b6_produccion.test.sql antes de caer al UPDATE).
+    - **archivos:**
+      - src/modulos/planeacion/servicios/detalle-programacion-servicio.ts
+      - src/modulos/planeacion/componentes/detalle-programacion-planeacion.tsx
+      - supabase/tests/planeacion_c9_3_capacidad_al_terminar.test.sql
+  -
+    - **requisito:** P15
+    - **estadoActual:** Parcial. Producción solo marca sesiones_trabajo.recurso_liberado (sii_b6_produccion_acciones.sql:1189-1209); una programación bloqueada sigue contando en la carga (d02:168).
+    - **cambio:** OPCIONAL (primero en soltarse si la tanda crece): si estado = bloqueada y alguna sesión tiene recurso_liberado = true, el detalle dice 'Recurso liberado por pausa prolongada (regla de Producción). La programación sigue contando X h hasta que se reprograme o se reanude.' Sin automatismos ni descuento de capacidad. El caso pgTAP 'bloqueada con recurso liberado sigue contando' (depende de reclamar_recurso_liberado) también es opcional.
+    - **archivos:**
+      - src/modulos/planeacion/servicios/detalle-programacion-servicio.ts
+      - src/modulos/planeacion/componentes/detalle-programacion-planeacion.tsx
+- **pasosEnOrden:**
+  - 0. Preflight: C8.2 y C9.2 en origin/main (C8.4 idealmente); rama feat/planeacion-c9-3-detalle-historial-real. Paso 0 cerrado con evidencia: programacion_inicial lleva el id en detalle->'nuevo' y reprogramacion_operativa en la raíz (por eso el OR de dos rutas). Confirmar si etiquetas-evento.ts de C8.2 ya incluye programacion_inicial, reprogramacion_operativa y ajuste_operativo.
+  - 1. Caracterización verde: planeacion-servicio, planeacion-acciones y planeacion-componentes; pgTAP c4_2, c4_3 y sii_b6 de línea base.
+  - 2. RED unitaria tests/unitarias/planeacion-detalle-programacion.test.ts (cliente simulado): el filtro incluye AMBAS rutas JSON y un evento inicial con id anidado y uno de reprogramación con id en raíz producen responsable y historial correctos; 'Sistema' si actor nulo; '—' sin evento; resultado sin recurso_id/UUID/detalle crudo (JSON.stringify); horas_netas con coalesce; exceso solo si real > estimado; liberado por pausa solo si bloqueada y recurso_liberado (opcional); lecturas .in en lotes.
+  - 3. RED de la acción (planeacion-acciones.test.ts): entrada inválida, sin sesión y sin permiso = error genérico; con permiso devuelve el detalle.
+  - 4. RED de componente: Responsable, Grupo, historial, 'Estimado' y 'Real' separados, '+Z h', sin UUID.
+  - 5. RED pgTAP planeacion_c9_3_capacidad_al_terminar.test.sql (SET LOCAL ROLE service_role): cerrar sesión no cambia horas_estimadas; completada baja horas_programadas. Caso de bloqueada/recurso liberado = opcional.
+  - 6. GREEN validaciones + tipos NUEVOS (no se tocan ProgramacionArea, filaAProgramacionArea ni COLUMNAS_RECURSO_PLANEACION_OPERATIVO) + servicio + acción + índices.
+  - 7. GREEN UI: componente, clave de consulta, useQuery y render en operacion-planeacion.tsx; etiquetaEvento de Órdenes (añadir los 3 tipos en el mismo PR solo si faltan).
+  - 8. E2E obligatorio en planeacion-flujo-colaborativo.spec.ts (rol gerente): programar por UI, seleccionar el bloque y verificar que Responsable muestra el nombre del actor (no '—'; demuestra el OR de PostgREST contra la base real y la lectura por RLS); luego reprogramar con motivo y verificar motivo y actor en el historial. Si la lectura por cliente RLS devuelve vacío, cliente admin SOLO en el servicio, tras can() y con proyección explícita.
+  - 9. Gates: typecheck; eslint src/modulos/planeacion src/modulos/ordenes/utilidades; vitest focal; supabase test db de los archivos nuevos + c4_2/c4_3/sii_b6; playwright del spec; orca-ui-review.
+  - 10. Cierre con cerrar-tanda. En el PR y en Refinamientos: criterio 7 cumplido en versión acotada, pendiente de aceptación expresa del PO; no marcar la casilla 7 del Corte 9 sin ella. P14-B y P15-B (descontar real/pausa) NO se hicieron.
+- **criteriosAceptacion:**
+  - Al seleccionar un bloque el detalle muestra Responsable (nombre del actor del evento inicial), Grupo e historial 'fecha · quién · motivo · de -> a'; tras reprogramar con motivo aparece sin recargar a mano.
+  - Una programación anterior a C4.2 muestra Responsable '—' sin error; ningún UUID ni recurso_id en el detalle.
+  - El detalle separa 'Estimado (Planeación)' de 'Real (Producción)', muestra '+Z h' si real > estimado y las horas estimadas no cambian por cerrar sesiones (pgTAP).
+  - Al completarse una operación la capacidad ocupada del día baja y la matriz semanal lo refleja (pgTAP); versión acotada del criterio 7 aceptada por escrito por el PO.
+  - (Opcional) Una bloqueada con recurso liberado lo dice y aclara que sigue contando horas.
+  - La acción exige ver_planeacion o gestionar_planeacion; sin ellos devuelve error genérico.
+  - Sin migraciones ni cambios a tipos compartidos con Producción; typecheck, eslint, vitest, pgTAP y E2E focales en verde.
+- **ramaSugerida:** feat/planeacion-c9-3-detalle-historial-real
+- **dependeDeTandas:**
+  - 2
+- **porQueEstaAgrupacion:** Una acción de lectura, un servicio y un componente de detalle resuelven P08/P11/P13/P14/P15 sin tocar tarjeta ni RPC; concentra la lectura de orden_eventos_cambio y sesiones_trabajo y la revisión de confidencialidad (proyección sin UUID). Va tras C8.2 (diccionario) y C9.2 (comparten operacion-planeacion.tsx y tipos).
+- **decisionesPOAntes:**
+  - DP-09 (criterio 7: libera al completar y el exceso solo se muestra; default A) con aceptación expresa del PO antes del cierre de esta tanda.
+- **modulosAfectados:**
+  -
+    - **modulo:** Órdenes
+    - **que:** Lectura de orden_eventos_cambio y etiquetaEvento (C8.2).
+    - **riesgo:** Medio: RLS SELECT USING (true) para authenticated (sii_b5_orden_base.sql:146-154); la confidencialidad depende de la proyección.
+    - **proteccion:** Columnas explícitas, mapeo recurso_id a código en servidor, prueba de no-fuga, can() antes de leer.
+  -
+    - **modulo:** Producción
+    - **que:** Lectura de sesiones_trabajo (horas_netas, recurso_liberado) por programacion_id.
+    - **riesgo:** Bajo: solo lectura; horas_netas nulas en sesiones activas.
+    - **proteccion:** coalesce, una programación por consulta, pgTAP sii_b6 de regresión.
+  -
+    - **modulo:** Capacidad/KPIs
+    - **que:** obtener_carga_capacidad_diaria y obtener_capacidad_efectiva_recurso_turno (finalizar_sesion la usa, sii_b6_produccion_acciones.sql:995-997).
+    - **riesgo:** Nulo: no se redefine ninguna función.
+    - **proteccion:** Sin migración; DP-09-B solo en encargo aparte.
+  -
+    - **modulo:** Realtime
+    - **que:** El detalle no se invalida por cierres de sesión.
+    - **riesgo:** Bajo.
+    - **proteccion:** staleTime corto y refetch al enfocar.
+- **riesgos:**
+  -
+    - **riesgo:** Filtro .or() de PostgREST sobre JSON devuelve vacío silenciosamente
+    - **mitigacion:** RED unitaria con ambos formatos y E2E gerente que exige Responsable no '—' del evento inicial.
+  -
+    - **riesgo:** RLS de orden_eventos_cambio impide la lectura al rol de Planeación
+    - **mitigacion:** E2E con gerente; fallback admin en servicio con can() y columnas explícitas.
+  -
+    - **riesgo:** Fuga de recurso_id/UUID por serializar detalle
+    - **mitigacion:** Objeto nuevo por lista blanca; prueba de no-fuga.
+  -
+    - **riesgo:** Iteración larga con fixtures pgTAP de sesiones (PIN/operadores)
+    - **mitigacion:** Regla desde el inicio: tope de 2 intentos y UPDATE de estado documentado.
+  -
+    - **riesgo:** Mensaje de pausa interpretado como capacidad ya liberada
+    - **mitigacion:** Texto 'sigue contando X h'; P15 opcional.
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/planeacion-detalle-programacion.test.ts (nuevo)
+    - tests/unitarias/planeacion-acciones.test.ts
+    - tests/unitarias/planeacion-componentes.test.ts
+    - tests/unitarias/planeacion-esquemas.test.ts
+  - **pgtap:**
+    - supabase/tests/planeacion_c9_3_capacidad_al_terminar.test.sql (nuevo)
+    - supabase/tests/c4_2_orden_comercial_operativa.test.sql, c4_3_confidencialidad_ordenes.test.sql y sii_b6_produccion.test.sql (regresión)
+  - **e2e:**
+    - tests/e2e/planeacion-flujo-colaborativo.spec.ts: Responsable del evento inicial y motivo/actor tras reprogramar (gerente)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/planeacion-detalle-programacion.test.ts tests/unitarias/planeacion-acciones.test.ts tests/unitarias/planeacion-componentes.test.ts tests/unitarias/planeacion-esquemas.test.ts tests/unitarias/planeacion-servicio.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/planeacion src/modulos/ordenes/utilidades
+    - supabase test db (planeacion_c9_3_capacidad_al_terminar.test.sql más c4_2, c4_3 y sii_b6)
+    - pnpm exec playwright test tests/e2e/planeacion-flujo-colaborativo.spec.ts
+
+### Tanda 4 — C9.4 · Estados simples, Producción consume sin recaptura, guardarraíl de alcance, contratos con Órdenes y aceptación · esfuerzo S
+**Objetivo:** Cerrar con evidencia: los 6 estados blindados con prueba, demostrado que Producción consume la programación sin recapturar, ayudas de primer hueco congeladas con prueba de solo lectura, Planeación adopta el resumen de procesos de Órdenes sin segundo helper y los 9 criterios mapeados a pruebas con el registro documental mínimo.
+**Requisitos:** P16, P17, P18, P19, P20
+- **cambios:**
+  -
+    - **requisito:** P16
+    - **estadoActual:** Cumple. CHECK de 6 estados en programacion_areas.estado_planeacion (fase_6_planeacion_base.sql:81-89); transiciones de cierre en sii_b6_jornada_horas_extra.sql:333-342.
+    - **cambio:** Sin cambio de enum ni de código. Prueba: ESTADOS_PLANEACION, ETIQUETA_ESTADO y VARIANTE_ESTADO tienen exactamente las mismas 6 claves.
+    - **archivos:**
+      - tests/unitarias/planeacion-esquemas.test.ts
+  -
+    - **requisito:** P17
+    - **estadoActual:** Cumple. Producción inicia sesión con public.iniciar_sesion_trabajo_operador(p_orden_id, p_partida_id, p_programacion_id, p_operador_id, p_verificacion jsonb DEFAULT NULL, p_corrida_id uuid DEFAULT NULL) (sii_b6_produccion_acciones.sql:530-537): recibe programación y operador, NO recurso/fecha/turno. El cuerpo (rango ~570-639) debe releerse antes de fijar aserciones.
+    - **cambio:** Sin cambio de código. pgTAP nuevo con el nombre y firma REALES: has_function('public','iniciar_sesion_trabajo_operador', ARRAY['uuid','uuid','uuid','uuid','jsonb','uuid']) y comprobación de que ningún parámetro se llama recurso/fecha/turno; programación distinta de en_preparacion falla con programacion_no_preparada; la sesión creada copia recurso_id de la programación. E2E de regresión produccion-piso y produccion-avance-procesos sin editar.
+    - **archivos:**
+      - supabase/tests/planeacion_c9_4_produccion_consume_programacion.test.sql (nuevo, cobertura NUEVA)
+  -
+    - **requisito:** P18
+    - **estadoActual:** Cumple. Sin secuenciación automática, optimización, dependencias multi-operación, simulación ni multi-planta. seleccionarPrimerHueco solo lo usa proponer-hueco-reprogramacion.ts; la bolsa tiene tope de 12; detectarCuellosBotella y CLASIFICACIONES_SATURACION solo se re-exportan.
+    - **cambio:** No retirar nada (PLA-05, OBS-19 aceptadas). Prueba guardarraíl de comportamiento ACOTADA a la bolsa y a proponerHuecoReprogramacion: cliente simulado que lanza en insert/update/upsert/delete y en cualquier rpc distinta de obtener_carga_capacidad_diaria; con 30 candidatas la bolsa devuelve como máximo 12 sugerencias. No se amplía a detectarCuellosBotella.
+    - **archivos:**
+      - tests/unitarias/planeacion-bolsa.test.ts
+  -
+    - **requisito:** P19
+    - **estadoActual:** Parcial. etiquetaProcesos (utilidades/desglose.ts:64-66) hace join(', ') y planeacion-desglose.test.ts:129 fija 'Corte, Doblez'; panel-bolsa-planeacion.tsx:26 tiene otro join propio; C8.3 crea resumirProcesos(procesos, separador=' · ') en ordenes/utilidades/procesos.ts.
+    - **cambio:** (a) Con C8.3 en main: etiquetaProcesos delega en resumirProcesos conservando 'Por definir' para vacío, y panel-bolsa-planeacion.tsx usa el mismo helper EN EL MISMO COMMIT (evita un tercer formato); planeacion-desglose.test.ts (115, 129) y demás pruebas que fijen el separador se actualizan en ese commit; sin segundo helper. Si C8.3 no está fusionada, este punto se difiere sin bloquear. (b) Prueba de comportamiento: AccionesTarjetaOrden renderizada no ofrece accion-reactivar-* (consecuencia de C8.1). (c) Contrato escrito: sección en tasks/plan.md (Corte 9) con las 8 superficies compartidas.
+    - **archivos:**
+      - src/modulos/planeacion/utilidades/desglose.ts
+      - src/modulos/planeacion/componentes/panel-bolsa-planeacion.tsx
+      - tests/unitarias/planeacion-desglose.test.ts
+      - tests/unitarias/planeacion-componentes.test.ts
+      - tasks/plan.md
+  -
+    - **requisito:** P20
+    - **estadoActual:** Parcial. Último CLI registrado: CLI-14; CLI-15 reservado por Órdenes.
+    - **cambio:** Registro documental mínimo SOLO en el PR de cierre, rebasado tras el cierre de C8.4: 4 filas en 'Refinamientos posteriores' de DECISIONES-ACEPTADAS.md (2026-10-14, Product Owner, sin DC nueva), CLI-16 en tasks/plan.md, Corte 9 con casillas y evidencia en tasks/todo.md (la casilla del criterio 7 queda sin marcar hasta aceptación expresa del PO), hallazgos incidentales en REPORTE-HALLAZGOS-Y-CORRECCIONES.md y matriz criterio -> tanda -> prueba en el PR.
+    - **archivos:**
+      - docs/observaciones-cliente-2026-10-07/DECISIONES-ACEPTADAS.md
+      - tasks/plan.md
+      - tasks/todo.md
+      - docs/observaciones-cliente-2026-10-07/REPORTE-HALLAZGOS-Y-CORRECCIONES.md
+- **pasosEnOrden:**
+  - 0. Preflight: C9.3, C8.3 y C8.4 fusionadas (gh pr view); rama feat/planeacion-c9-4-estados-contratos-aceptacion. Releer el cuerpo de iniciar_sesion_trabajo_operador (sii_b6_produccion_acciones.sql desde 530) y confirmar firma y errores; confirmar la firma real de resumirProcesos.
+  - 1. Caracterización verde: planeacion-esquemas, planeacion-bolsa, planeacion-desglose, planeacion-componentes y pgTAP sii_b6 de línea base.
+  - 2. RED unitarias: coherencia de 6 claves (esquemas); guardarraíl solo-lectura y tope 12 (bolsa); AccionesTarjetaOrden sin accion-reactivar (componentes); etiquetaProcesos con formato de resumirProcesos (desglose; debe fallar antes de delegar).
+  - 3. pgTAP planeacion_c9_4_produccion_consume_programacion.test.sql con fixtures de sii_b6_produccion.test.sql; es caracterización (verde desde el inicio): validar que detecta regresión alterando una aserción. Tope de 2 intentos de fixture; si no, aserciones por catálogo (has_function, parámetros) más UPDATE de estado documentado.
+  - 4. GREEN P19(a): delegar etiquetaProcesos y reemplazar el join de panel-bolsa en el mismo commit; grep previo de ', ' de procesos en pruebas de Planeación.
+  - 5. Documentación como commit final docs(cierre) tras abrir el PR: DECISIONES-ACEPTADAS.md (4 filas), tasks/plan.md (CLI-16 + Corte 9 + contrato), tasks/todo.md, REPORTE-HALLAZGOS. Rebasar sobre el PR de cierre de Órdenes.
+  - 6. Verificación de aceptación: correr las pruebas focales del mapa de criterios y pegar resultados reales; declarar nivel local; remoto, despliegue y aceptación del cliente pendientes del PO.
+  - 7. Gates: typecheck; eslint src/modulos/planeacion; vitest focal; supabase test db del archivo nuevo; playwright produccion-piso y produccion-avance-procesos sin editar. Cierre con cerrar-tanda.
+- **criteriosAceptacion:**
+  - La prueba confirma que ESTADOS_PLANEACION, ETIQUETA_ESTADO y VARIANTE_ESTADO tienen las mismas 6 claves.
+  - pgTAP: iniciar_sesion_trabajo_operador(uuid,uuid,uuid,uuid,jsonb,uuid) no pide recurso, fecha ni turno; falla con programacion_no_preparada fuera de en_preparacion; la sesión hereda el recurso de la programación.
+  - La bolsa y Buscar hueco solo leen y la bolsa nunca devuelve más de 12 sugerencias.
+  - Con C8.3 fusionada, tarjeta, panel de asignación y bolsa muestran procesos con el mismo formato que Órdenes sin segundo helper; AccionesTarjetaOrden no ofrece Reactivar.
+  - DECISIONES-ACEPTADAS.md tiene las 4 filas de Refinamientos (2026-10-14, Product Owner); tasks/plan.md tiene CLI-16 y Corte 9; tasks/todo.md tiene las casillas con evidencia y PR, con la del criterio 7 condicionada a la aceptación del PO.
+  - Cada uno de los 9 criterios tiene prueba nombrada ejecutada en verde y el PR declara lo no ejecutado y los pendientes remotos.
+- **ramaSugerida:** feat/planeacion-c9-4-estados-contratos-aceptacion
+- **dependeDeTandas:**
+  - 3
+- **porQueEstaAgrupacion:** P16, P17 y P18 son pruebas de bloqueo, no reimplementación; P19 es el único con código y exige C8.3; P20 comparte tablas documentales con el cierre de Órdenes (CLI-15) y por eso va al final y se rebasa.
+- **modulosAfectados:**
+  -
+    - **modulo:** Órdenes
+    - **que:** Consume resumirProcesos (C8.3); comparte DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md con el cierre de C8.4.
+    - **riesgo:** Conflictos documentales si los PR se escriben en paralelo.
+    - **proteccion:** Rebase tras el cierre de Órdenes; CLI-16 propio.
+  -
+    - **modulo:** Producción
+    - **que:** pgTAP de consumo de programación; sesiones-servicio.ts depende de EstadoPlaneacion.
+    - **riesgo:** Bajo: solo pruebas.
+    - **proteccion:** No se renombra estado, error ni columna.
+  -
+    - **modulo:** Planeación UI (procesos)
+    - **que:** etiquetaProcesos en tarjeta (101) y panel de asignación (24,333); join propio en panel-bolsa (26).
+    - **riesgo:** Medio: cambia el separador visible.
+    - **proteccion:** Código y pruebas en el mismo commit; bolsa incluida; diferir si C8.3 no está.
+- **riesgos:**
+  -
+    - **riesgo:** El PR de cierre asume PR fusionados que no lo están o el PO fusiona con CI en curso
+    - **mitigacion:** gh pr view y gh run list --json headSha contra el commit; no mergear.
+  -
+    - **riesgo:** pgTAP de P17 con nombre/firma errónea
+    - **mitigacion:** Usar iniciar_sesion_trabajo_operador con 6 args; releer el cuerpo en el paso 0.
+  -
+    - **riesgo:** Pruebas de código fuente frágiles
+    - **mitigacion:** Solo pruebas de comportamiento (render y cliente simulado).
+  -
+    - **riesgo:** Declarar cerrado sin aceptación del cliente ni del PO sobre el criterio 7
+    - **mitigacion:** El PR declara nivel local y casilla 7 condicionada.
+- **pruebas:**
+  - **unitarias:**
+    - tests/unitarias/planeacion-esquemas.test.ts
+    - tests/unitarias/planeacion-bolsa.test.ts
+    - tests/unitarias/planeacion-componentes.test.ts
+    - tests/unitarias/planeacion-desglose.test.ts
+  - **pgtap:**
+    - supabase/tests/planeacion_c9_4_produccion_consume_programacion.test.sql (nuevo)
+    - supabase/tests/sii_b6_produccion.test.sql y a20_prd09_avance_proceso.test.sql (regresión)
+  - **e2e:**
+    - tests/e2e/produccion-piso.spec.ts y tests/e2e/produccion-avance-procesos.spec.ts (regresión sin editar)
+    - tests/e2e/planeacion-bolsa-acciones.spec.ts (regresión tras C8.1)
+  - **comandosFocales:**
+    - pnpm vitest run tests/unitarias/planeacion-esquemas.test.ts tests/unitarias/planeacion-bolsa.test.ts tests/unitarias/planeacion-desglose.test.ts tests/unitarias/planeacion-componentes.test.ts
+    - pnpm typecheck
+    - pnpm exec eslint src/modulos/planeacion
+    - supabase test db (planeacion_c9_4_produccion_consume_programacion.test.sql)
+    - pnpm exec playwright test tests/e2e/produccion-piso.spec.ts
+
+### Decisiones del PO
+-
+  - **id:** DP-01
+  - **pregunta:** Sobrecapacidad: la nota dice 'advertir' pero la RPC bloquea (capacidad_insuficiente) y OBS-19 reemplazó la sobreasignación por bloqueo. ¿Qué pasa al exceder la capacidad del turno?
+  - **opciones:**
+    -
+      - **etiqueta:** A. Avisar antes de guardar con el exceso en horas y mantener el bloqueo de la RPC
+      - **pros:** Sin migración; coherente con OBS-19; la base es la autoridad.
+      - **contras:** No permite sobreasignar deliberadamente.
+    -
+      - **etiqueta:** B. Advertir y permitir con confirmación y motivo
+      - **pros:** Literal a la nota.
+      - **contras:** Migración en dos RPC y wrappers, GRANT por firma, toca Producción (finalizar_sesion), contradice OBS-19.
+  - **recomendacion:** A. Registrar la interpretación 'advertir antes, bloquear al guardar' como Refinamiento. Se arranca C9.2 con A sin esperar.
+  - **requisitos:**
+    - P09
+    - P20
+-
+  - **id:** DP-07
+  - **pregunta:** Compatibilidad recurso-proceso: ¿se confirma que recursos y procesos reales tienen grupo_equipo_id cargado y que basta advertir (sin bloqueo SQL)?
+  - **opciones:**
+    -
+      - **etiqueta:** A. Solo advertir en UI por grupo (con segunda fuente maquinaAsignada); sin dato no advierte
+      - **pros:** Sin migración; misma regla que Producción; no rompe fixtures.
+      - **contras:** No impide programar otro grupo; la advertencia depende de datos poblados.
+    -
+      - **etiqueta:** B. Bloqueo en RPC (recurso_incompatible) por migración
+      - **pros:** Garantía en base.
+      - **contras:** Copiar el cuerpo vigente de 20260911000002; riesgo en pgTAP de Producción; ignora cantidad_equipos > 1.
+  - **recomendacion:** A. Es una verificación de datos antes de C9.2; B solo como encargo aparte si aparecen asignaciones incorrectas.
+  - **requisitos:**
+    - P07
+    - P10
+-
+  - **id:** DP-09
+  - **pregunta:** Criterio 7 'capacidad se actualiza si termina antes o después': ¿se acepta la versión acotada (completada libera; el exceso real se muestra pero no ocupa capacidad)?
+  - **opciones:**
+    -
+      - **etiqueta:** A. Versión acotada, sin migración
+      - **pros:** Respeta 'no alterar retroactivamente el estimado'; evidenciada con pgTAP.
+      - **contras:** El exceso no consume capacidad; semanas pasadas subestiman la carga.
+    -
+      - **etiqueta:** B. Redefinir obtener_carga_capacidad_diaria para descontar real y devolver horas_exceso
+      - **pros:** Capacidad más fiel.
+      - **contras:** Solo cambia lo mostrado, no lo permitido (guardarraíles 20260911000002:323,453); DROP FUNCTION y tipos UTF-8; exige cálculo común.
+  - **recomendacion:** A, con aceptación expresa del PO ANTES de cerrar C9.3; la casilla 7 del Corte 9 no se marca sin ella. B solo en encargo aparte.
+  - **requisitos:**
+    - P13
+    - P14
+    - P20
+  - **requisitos_nota:** El resto de decisiones (suma de turnos, resumen oculto en Mes, umbrales 70/90, enlace a /ordenes/{id}, retirar 'Avance', responsable derivado del evento, pausa solo señalizada, adoptar resumirProcesos, orden global, congelar bolsa) se asientan como defaults en Refinamientos y se corrigen en el PR si el cliente objeta.
+
+### Registro sugerido de decisiones
+## Refinamientos posteriores (agregar a la tabla de DECISIONES-ACEPTADAS.md; sin DC nueva; fecha 2026-10-14, autor Product Owner)
+
+| Fecha | Autor | Requisito afectado | Ajuste |
+| --- | --- | --- | --- |
+| 2026-10-14 | Product Owner | DC-10 | Planeación pasa de agenda genérica a carga semanal y programación operativa por recurso: abre en Semana con una matriz Equipo x días del rango (horas ocupadas / capacidad y capacidad libre) encima del calendario; Área y Turnos se pliegan en «Más filtros»; semáforo accesible de tres niveles (Disponible, Cerca del límite, Sobrecargado; umbrales 70 % y 90 %; 100 % exacto = Cerca del límite) siempre con texto y horas; la suma de turnos por día es el criterio; el resumen no aplica a la vista Mes. El bloque muestra Orden, Ítem, Proceso (el arreglo de procesos de la partida, no una operación por fila) y horas estimadas; su título abre /ordenes/{id}; la tarjeta deja de mostrar el avance de Producción. |
+| 2026-10-14 | Product Owner | DC-10 | Programar: al exceder la capacidad del turno se avisa antes de guardar con el exceso en horas y la base mantiene el bloqueo (OBS-19); el conflicto de recurso se detecta al activar preparación (recurso_ocupado) y no con aviso previo en UI; la compatibilidad recurso-proceso se advierte por grupo de equipo sin bloquear; la bolsa (PLA-05) y «Buscar hueco» (OBS-19) se mantienen sin ampliarse. Una partida puede tener varias programaciones (una por secuencia). |
+| 2026-10-14 | Product Owner | DC-10 | Reprogramar y estimado vs real: historial (quién, cuándo, motivo, de/a) y responsable se leen de la bitácora de la Orden (orden_eventos_cambio) y se muestran en el detalle del bloque; la fecha operativa cambia con historial sin alterar compromiso comercial, snapshot ni ruteo (pgTAP). La capacidad se calcula con horas estimadas: al completarse se libera; el tiempo real y su exceso se muestran junto al estimado sin modificarlo y no ocupan capacidad (versión acotada del criterio 7, pendiente de aceptación expresa del PO); una pausa con recurso liberado solo se señaliza. |
+| 2026-10-14 | Product Owner | DC-10 | Producción consume la programación por su identificador (iniciar_sesion_trabajo_operador) sin recapturar recurso, fecha ni turno; los seis estados de programación se mantienen y son independientes del estado de la Orden. |
+
+## Solicitudes CLI (tasks/plan.md §3). CLI-15 reservado por Órdenes; Planeación toma CLI-16
+
+| ID | Solicitud | Estado actual | Cambio / Evidencia |
+| --- | --- | --- | --- |
+| CLI-16 | Planeación: carga semanal por equipo y programación operativa por recurso (revisión funcional del cliente 2026-10-14, criterios 1-9) | Parcial. Capacidad en PostgreSQL, programación, reprogramación con motivo/evento, candados y consumo desde Producción existen; faltan matriz semanal, jerarquía Semana/filtros, semáforo de tres niveles, Ítem en el bloque, compatibilidad por grupo, exceso en horas, historial visible y estimado vs real. | Corte 9 en cuatro tandas sin migración: C9.1 (P01-P05), C9.2 (P06,P07,P09,P10,P12), C9.3 (P08,P11,P13,P14,P15), C9.4 (P16-P20). Fuera de las tandas: bloqueo SQL por compatibilidad y descuento de horas reales o de pausa. Autoriza: refinamientos DC-10 del 2026-10-14 (Product Owner). |
+
+## Corte 9 (tasks/todo.md; sección propia, sin mezclar casillas de C4.2)
+
+- [ ] C9.1 Carga semanal, Semana primero, semáforo accesible, Ítem/Proceso y clic a la ficha (P01-P05) · PR #__ · prueba: planeacion-carga-semanal.test.ts + planeacion-capacidad.spec.ts
+- [ ] C9.2 Pendientes, recurso compatible, aviso con exceso, candado y compromiso/ruteo intactos (P06,P07,P09,P10,P12) · PR #__ · prueba: planeacion_c9_2_candado_y_compromiso.test.sql
+- [ ] C9.3 Responsable, historial, estimado vs real y capacidad al terminar (P08,P11,P13,P14,P15 opcional) · PR #__ · prueba: planeacion-detalle-programacion.test.ts + planeacion_c9_3_capacidad_al_terminar.test.sql + E2E gerente
+- [ ] C9.4 Estados, Producción consume, guardarraíl de alcance, contratos con Órdenes y aceptación (P16-P20) · PR #__ · prueba: planeacion_c9_4_produccion_consume_programacion.test.sql + planeacion-bolsa.test.ts
+- [ ] Criterios del cliente 1-9 con evidencia (mapa criterio -> tanda -> prueba en el PR de cierre). Criterio 7: versión acotada, SIN marcar hasta aceptación expresa del PO. Nivel alcanzado: local; remoto, despliegue y aceptación del cliente: pendientes del PO.
+
+### Mapa de criterios de aceptación
+-
+  - **criterio:** 1. La vista semanal muestra capacidad ocupada y disponible por recurso
+  - **requisitos:**
+    - P01
+    - P02
+    - P03
+  - **tanda:** 1
+  - **evidenciaDeCierre:** Unitaria planeacion-carga-semanal.test.ts; componente ResumenCargaSemanal; E2E planeacion-capacidad.spec.ts (6/8 h tras programar 6 h; resumen antes de los filtros); capturas con orca-ui-review.
+-
+  - **criterio:** 2. Se puede asignar una operación a recurso, fecha y turno
+  - **requisitos:**
+    - P06
+    - P07
+  - **tanda:** 2
+  - **evidenciaDeCierre:** Regresión E2E planeacion-flujo-colaborativo.spec.ts (programar) + unitarias planeacion-partidas-programables y planeacion-compatibilidad.
+-
+  - **criterio:** 3. Se detecta conflicto/sobrecapacidad antes de guardar
+  - **requisitos:**
+    - P09
+    - P10
+  - **tanda:** 2
+  - **evidenciaDeCierre:** E2E 'aviso de exceso en horas antes de guardar'; pgTAP planeacion_c9_2_candado_y_compromiso (recurso_ocupado / índice único, cobertura nueva); la RPC conserva capacidad_insuficiente. Interpretación: el conflicto de recurso se detecta al activar preparación (error recurso_ocupado), no con aviso previo en UI.
+-
+  - **criterio:** 4. Se puede reprogramar con historial
+  - **requisitos:**
+    - P11
+    - P08
+  - **tanda:** 3
+  - **evidenciaDeCierre:** Unitaria planeacion-detalle-programacion (ambos formatos de evento, sin UUID); E2E gerente: Responsable del evento inicial y motivo/actor tras reprogramar; pgTAP c4_2 (evento reprogramacion_operativa).
+-
+  - **criterio:** 5. La programación no cambia el compromiso comercial
+  - **requisitos:**
+    - P12
+  - **tanda:** 2
+  - **evidenciaDeCierre:** pgTAP planeacion_c9_2_candado_y_compromiso: fecha_compromiso_comercial y fecha_operativa intactas tras programar/reprogramar; apoyo en c4_2 test:95-111.
+-
+  - **criterio:** 6. No se modifica el ruteo estimado de Propuesta
+  - **requisitos:**
+    - P12
+  - **tanda:** 2
+  - **evidenciaDeCierre:** pgTAP mismo archivo: snapshot_json, partidas.procesos y tiempo_estimado_minutos intactos; la compatibilidad solo LEE catálogos.
+-
+  - **criterio:** 7. Capacidad se actualiza cuando la operación termina
+  - **requisitos:**
+    - P14
+    - P13
+    - P15
+  - **tanda:** 3
+  - **evidenciaDeCierre:** pgTAP planeacion_c9_3_capacidad_al_terminar (completada baja horas_programadas; horas_estimadas no cambia); detalle Estimado vs Real con exceso. Versión ACOTADA (libera al completar; el exceso se muestra, no ocupa capacidad): requiere aceptación expresa del PO; casilla no marcada sin ella.
+-
+  - **criterio:** 8. La pantalla no intenta resolver APS/MRP/optimización avanzada
+  - **requisitos:**
+    - P18
+  - **tanda:** 4
+  - **evidenciaDeCierre:** Unitaria planeacion-bolsa.test.ts (solo lectura, tope 12) acotada a bolsa y proponerHueco; fila de Refinamientos con el criterio.
+-
+  - **criterio:** 9. Producción puede consumir la programación sin duplicar captura
+  - **requisitos:**
+    - P17
+    - P16
+  - **tanda:** 4
+  - **evidenciaDeCierre:** pgTAP planeacion_c9_4_produccion_consume_programacion (firma real de iniciar_sesion_trabajo_operador sin recurso/fecha/turno, programacion_no_preparada, recurso heredado); E2E produccion-piso y produccion-avance-procesos sin editar; unitaria de 6 estados.
+
+### Fuera de alcance
+- Secuenciación automática, optimización, ruteo óptimo, dependencias multi-operación, simulación de capacidad, multi-planta y APS (sección 4 de la nota); la bolsa PLA-05 y Buscar hueco OBS-19 se mantienen congeladas.
+- MRP e inventario: ninguna tanda toca materiales ni kardex.
+- Cambiar la granularidad (una fila por operación del ruteo) o añadir columna de proceso en programacion_areas.
+- Tabla de historial paralela o persistir programado_por: se usa orden_eventos_cambio.
+- Bloqueo SQL de compatibilidad recurso-grupo (DP-07-B) y redefinir obtener_carga_capacidad_diaria para descontar real o pausa (DP-09-B/P15-B): solo con aprobación expresa, encargo aparte, marca asignada con Glob al crearla.
+- 'Advertir y permitir' sobrecapacidad con confirmación y motivo (DP-01-B).
+- Aviso de exceso en horas y de compatibilidad en el diálogo de reprogramación por arrastre (dialogo-reprogramacion-planeacion.tsx): ya expone capacidad-reprogramacion y la RPC es la autoridad; no está en ninguna tanda.
+- Aviso previo en UI del conflicto de recurso (la detección es recurso_ocupado al activar preparación, cubierta por pgTAP).
+- Panel o modal propio de contexto de orden; recortar acciones de la tarjeta (lo redefine C8.4).
+- Cambiar estado de la orden, compromiso, snapshot o ruteo desde Planeación; unificar estados de programación con estado_sii.
+- Resumen de carga en Mes, exportaciones, métricas de Producción/Finanzas, capacidad con cantidad_equipos > 1.
+- Retirar bolsa, proponer-hueco o detectarCuellosBotella.
+- Acciones remotas: aplicar migraciones, db push/repair, merge, despliegue y aceptación del cliente.
+
+### Hallazgos que NO se tocarán sin aprobación
+- UNIQUE(partida_id, recurso_id) no es parcial (fase_6_planeacion_base.sql:97): una fila cancelada/completada impide reprogramar esa partida a ese recurso.
+- El candado de recurso (idx_programacion_areas_candado_recurso_activo, :117) ignora cantidad_equipos > 1.
+- Los guardarraíles de programar/reprogramar suman horas_estimadas por su cuenta (20260911000002:323,453) y no usan obtener_carga_capacidad_diaria; cualquier cambio futuro de la carga mostrada exige extraer antes un cálculo común.
+- Una programación bloqueada con recurso liberado sigue contando como carga (d02:168); C9.3 solo la señaliza (opcional).
+- Cierre parcial de la última secuencia sin pausa regresa a programada con la estimación completa (sii_b6_jornada_horas_extra.sql:335-339).
+- Recursos sin capacidades_recurso_turno no aparecen en la RPC de carga (JOIN d02:151-152); semanas pasadas subestiman la carga.
+- obtener_capacidad_efectiva_recurso_turno la consume finalizar_sesion (sii_b6_produccion_acciones.sql:995-997): no redefinir sin pgTAP de Producción.
+- bolsa-planeacion-servicio.ts usa .in('orden_id', ...) sin lotes (114 y 117): riesgo URI too long; no se toca.
+- El criterio de órdenes del selector (ordenes_produccion.estado) difiere del de la bolsa (estado_sii): no se alinea sin evidencia de órdenes heredadas.
+- ficha-orden-servicio.ts lee orden_eventos_cambio con select('*') y RLS USING (true): la confidencialidad depende de la proyección (lo corrige Órdenes C8.2).
+- Estado remoto de 20261012110000_b1_proceso_grupo_equipo.sql no verificable desde el repo; el servicio de compatibilidad degrada a sin_dato.
+- Rol con planeación sin orden_vista vería 404 en el título-enlace: default sin prop; se verifica en el paso 0 de C9.1 y solo entonces se añade puedeVerOrden.
+- El motivo del Responsable '—' para programaciones anteriores a C4.2 es esperado, no es defecto.
+- Datos E2E residuales afectan listas con tope (12, 100/300): los specs nuevos usan datos propios.
+- scripts/e2e-focal.ps1 y -Visual solo existen en el plan de Órdenes, no en el repo; si se quiere un script focal es entregable aparte.
+
+## Crítica del plan
+- **veredicto:** aprobable_con_ajustes
+- **afirmacionesContrastadas:**
+  -
+    - **afirmacion:** page.tsx monta OperacionPlaneacion y luego PanelCapacidadInstalada (121-129); el selector toma las últimas 100 partidas y filtra solo por ordenes_produccion.estado (58-62, 93-97)
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\src\app\(privado)\planeacion\page.tsx:58-62, 93-97, 121-129. No hay exclusión por programación ni uso de estado_sii.
+  -
+    - **afirmacion:** La tarjeta no tiene onClick (solo draggable/onDragStart); 'Avance' está en 112-122 del desglose y 'x/y h' se pinta solo en rojo en 140-144; el título es folio · codigoPieza sin Ítem
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\src\modulos\planeacion\componentes\tarjeta-programacion-planeacion.tsx:62, 71-75, 119-122, 140-144, 145-154. Hay ordenFolio/ordenId en programacion; puedeAdministrar baja a AccionesTarjetaOrden en 163-168.
+  -
+    - **afirmacion:** programacion_areas permite varias filas por partida: UNIQUE(partida_id, recurso_id) y UNIQUE(partida_id, secuencia); por eso no se deben excluir las partidas ya programadas
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\supabase\migrations\20260813201729_fase_6_planeacion_base.sql:97-98 (restricciones) y 117 (índice de candado por recurso activo). Hallazgo de que no es parcial: confirmado, las dos son UNIQUE totales.
+  -
+    - **afirmacion:** desglose-servicio selecciona codigo_item pero mapearPartida no lo mapea
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\src\modulos\planeacion\servicios\desglose-servicio.ts:20 (select con codigo_item) y 74-105 (mapearPartida sin campo de ítem). Los literales de DesglosePartidaPlaneacion en tests están solo en planeacion-componentes.test.ts y planeacion-desglose.test.ts (grep de 12 archivos, 2 de tests).
+  -
+    - **afirmacion:** El panel ya avisa sobrecapacidad antes de guardar y puede mostrar un falso 'Sin capacidad configurada' si la fecha cae fuera del rango cargado; Guardar no se deshabilita por !cabe
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\src\modulos\planeacion\componentes\panel-asignacion-planeacion.tsx:160-175 (cargaDelSlot undefined -> evaluarAsignacionTurno), 479-489 (mensaje y aviso), 530 (disabled solo enviando||preparando). capacidad-servicio.ts:288 sinCapacidad = horasCapacidad === 0. La secuencia inicia en '1' manual (línea 113).
+  -
+    - **afirmacion:** La ruta /ordenes/{id} existe y exige orden_vista; admin y gerente tienen ver/gestionar_planeacion
+    - **resultado:** imprecisa
+    - **evidencia:** D:\ERP-CC\src\app\(privado)\ordenes\[id]\page.tsx:17 (can orden_vista, si no notFound). Seed de planeación: solo admin y gerente (fase_6_planeacion_base.sql:34-37); orden_vista asignada a gerente y contador (sii_b1_permisos_catalogo.sql:164,183). Correcto para gerente; admin no se verificó en esa lista (probable comodín). Riesgo 404 para roles con planeación sin orden_vista: real y bien señalado.
+  -
+    - **afirmacion:** C9.3: el historial se obtiene filtrando orden_eventos_cambio por detalle->>'programacion_id' (paso 0 sugiere que programacion_inicial podría no traerlo)
+    - **resultado:** incorrecta
+    - **evidencia:** D:\ERP-CC\supabase\migrations\20261009193327_c4_2_orden_comercial_operativa.sql:397-409: en programacion_inicial el programacion_id está ANIDADO en detalle->'nuevo'->>'programacion_id'; en reprogramacion_operativa (465-468) sí está en la raíz detalle->>'programacion_id'. Un único filtro por la raíz perdería el evento inicial y el Responsable saldría siempre '—'. El plan prevé el fallback equivocado (filtrar por partida/recurso/secuencia en TS) cuando basta un OR de dos rutas JSON.
+  -
+    - **afirmacion:** P12: no existe pgTAP de que programar/reprogramar no altera compromiso/snapshot/ruteo; el de c4_2 solo cubre ajustar_orden_post_aceptacion
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\supabase\tests\c4_2_orden_comercial_operativa.test.sql:137-140 (compromiso tras ajustar_orden_post_aceptacion) y 164-190 (programar/reprogramar solo verifican evento anterior/nuevo). El fixture reutilizable (recurso C42-R1, capacidad 8) está en 165-177.
+  -
+    - **afirmacion:** El candado de recurso tiene pgTAP hoy / recurso_ocupado
+    - **resultado:** imprecisa
+    - **evidencia:** Grep de recurso_ocupado y programacion_no_preparada en D:\ERP-CC\supabase\tests: 0 coincidencias. El plan acierta en crear la caracterización, pero conviene declararla explícitamente como cobertura nueva y no 'regresión'.
+  -
+    - **afirmacion:** P17: Producción llama a iniciar_sesion_trabajo y su firma no recibe recurso/fecha/turno (citado 570-639)
+    - **resultado:** incorrecta
+    - **evidencia:** El nombre real es public.iniciar_sesion_trabajo_operador(p_orden_id, p_partida_id, p_programacion_id, p_operador_id, p_verificacion jsonb DEFAULT NULL, p_corrida_id uuid DEFAULT NULL), D:\ERP-CC\supabase\migrations\20261007130002_sii_b6_produccion_acciones.sql:530-537 (grep de 'iniciar_sesion_trabajo' no devuelve otra función). El plan y los lectores citan un nombre inexistente; el pgTAP 'firma sin recurso/fecha/turno' escrito con ese nombre fallaría con 'function does not exist'. El rango 570-639 es el cuerpo de la función operador, no verificado aquí.
+  -
+    - **afirmacion:** La regla de emparejamiento proceso-nombre de Producción es lower(btrim(nombre|codigo)) contra partidas.procesos
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\supabase\migrations\20261007130002_sii_b6_produccion_acciones.sql:246-253. Además, 255-265 usa partidas.maquina_asignada -> recursos_planeacion.codigo -> grupo_equipo_id como segunda fuente de grupo, que el plan de P10 omite.
+  -
+    - **afirmacion:** restablecerFiltros no devuelve la vista a 'semana'; la vista inicial es 'semana' en useState local
+    - **resultado:** correcta
+    - **evidencia:** D:\ERP-CC\src\modulos\planeacion\componentes\calendario-planeacion.tsx:126 (useState 'semana'), 206-210 (restablecerFiltros reinicia fechas y tienda, no setVista).
+  -
+    - **afirmacion:** Gates y comandos focales: powershell -File scripts/e2e-focal.ps1 -Specs ... y -Visual
+    - **resultado:** incorrecta
+    - **evidencia:** El directorio D:\ERP-CC\scripts no existe (ls y Glob scripts/** sin resultados). 'e2e-focal' y '-Visual' solo aparecen en docs\observaciones-cliente-2026-10-07\ordenes-revision-funcional\PLAN-ORDENES-wf_302166f5-203.md, no en package.json ni en el skill orca-e2e (que documenta 'pnpm exec playwright test tests/e2e/<spec>.spec.ts', SKILL.md:33). Los gates de C9.1-C9.4 no son ejecutables tal cual.
+  -
+    - **afirmacion:** Las pruebas E2E de Planeación pueden romperse por ocultar Área/Turnos en <details> y por retirar 'Avance'
+    - **resultado:** imprecisa
+    - **evidencia:** Grep en tests\e2e\planeacion*.ts de Área|Turnos|Avance|filtro-area|filtro-turno: solo hay accion-* y ordenId= (planeacion-bolsa-acciones.spec.ts:187-207). Tampoco planeacion-componentes.test.ts afirma 'Avance'. El riesgo es menor de lo declarado; el único acople real es accion-reactivar (195-196) y ordenId= (207), de C8.1.
+  -
+    - **afirmacion:** La carga ya llega por recurso x fecha x turno y es independiente de los filtros de recurso/estado, por lo que la matriz puede agregarse en cliente
+    - **resultado:** imprecisa
+    - **evidencia:** planeacion-servicio.ts:203-215 (RPC solo con fechas, sin filtro de recurso). Pero operacion-planeacion.tsx:107-111 usa cargas: [] mientras carga una consulta no inicial (cambio de rango/filtros); el resumen mostraría 'Sin turnos definidos' en todos los equipos durante la transición. El plan no lo contempla.
+- **ajustes:**
+  -
+    - **donde:** C9.3 · cambios P08/P11 y paso 0 (servicio detalle-programacion-servicio.ts)
+    - **problema:** El filtro detalle->>'programacion_id' no encuentra programacion_inicial, cuyo id está en detalle->'nuevo'->>'programacion_id' (c4_2:397-409). El fallback propuesto (partida+recurso+secuencia en TS) es innecesario y frágil.
+    - **ajuste:** Especificar la consulta: tipo IN (programacion_inicial, reprogramacion_operativa) y .or('detalle->>programacion_id.eq.{id},detalle->nuevo->>programacion_id.eq.{id}'), con RED unitaria que incluya ambos formatos de evento y un pgTAP/fixture donde el responsable salga del evento inicial. Cerrar el paso 0 con esta evidencia en vez de dejarlo como duda.
+  -
+    - **donde:** C9.4 · P17 y su pgTAP (planeacion_c9_4_produccion_consume_programacion.test.sql)
+    - **problema:** La función se llama iniciar_sesion_trabajo_operador (6 parámetros, 20261007130002:530-537); el plan escribe iniciar_sesion_trabajo. Aseverar 'la firma no recibe recurso/fecha/turno' sin leer la firma real es especulación.
+    - **ajuste:** Corregir el nombre y la firma en el plan, en el paso 0 y en la tabla de criterios; basar el pgTAP en has_function con los argumentos reales (uuid,uuid,uuid,uuid,jsonb,uuid) y en la fila creada que copia recurso_id; releer el cuerpo antes de fijar aserciones (el rango 570-639 no está confirmado).
+  -
+    - **donde:** Todas las tandas · comandosFocales y pasos de gates
+    - **problema:** scripts/e2e-focal.ps1 y -Visual no existen en el repo; el comando fallaría y bloquearía el gate.
+    - **ajuste:** Sustituir por 'pnpm exec playwright test tests/e2e/planeacion-capacidad.spec.ts' (y los demás specs), tal como indica .agents/skills/orca-e2e/SKILL.md; las capturas 320/768/1024/1440 deben hacerse con la skill orca-ui-review/browser-testing, no con un flag inexistente. Si se quiere un script focal, es un entregable aparte, no un supuesto.
+  -
+    - **donde:** C9.1 · P01 construirMatrizCargaSemanal / ResumenCargaSemanal
+    - **problema:** (a) Durante una consulta de rango/filtro no inicial la UI usa cargas: [] (operacion-planeacion.tsx:107-111) y el resumen marcaría todos los equipos como 'Sin turnos definidos'. (b) 'Lun-Vie' fijo + 'null si el rango supera 7 días' no define qué pasa con un rango de 7 días no alineado a lunes (el usuario puede editar fechas).
+    - **ajuste:** Mostrar estado 'Cargando capacidad…' cuando consulta.isFetching/sin datos y reservar 'Sin turnos definidos' solo para datos cargados; construir las columnas a partir de las fechas reales del rango (hasta 7 días, etiquetadas con el día de la semana) o devolver null si el rango no es lunes-domingo de una semana. Añadir ambos casos a las RED unitarias.
+  -
+    - **donde:** C9.2 · P10 compatibilidad por grupo
+    - **problema:** El plan solo usa catalogo_procesos.grupo_equipo_id vs recurso; Producción también toma el grupo de partidas.maquina_asignada -> recursos_planeacion.codigo (sii_b6_produccion_acciones:255-265) y el desglose ya trae maquinaAsignada. Las partidas sin proceso emparejable quedarían 'sin_dato' aunque tengan máquina asignada.
+    - **ajuste:** Añadir como segunda fuente (tras procesos) el grupo del recurso cuyo código = desglose.maquinaAsignada; solo requiere grupoPorRecurso, que el servicio ya lee. Cambio de ~5 líneas en evaluarCompatibilidadRecurso y una caso unitario; evita una advertencia muda en datos heredados.
+  -
+    - **donde:** C9.3 · tamaño y alcance de P13/P14/P15
+    - **problema:** Acción Server Action nueva + servicio con 3 lecturas (eventos, usuarios, sesiones) + componente + pgTAP con fixtures de sesiones (sii_b6 usa 24 referencias a sesiones_trabajo) es la tanda más pesada; P15 (aviso de pausa) aporta poco y el pgTAP 'bloqueada con recurso liberado sigue contando' depende de reclamar_recurso_liberado.
+    - **ajuste:** Dividir en C9.3a (P08+P11: responsable e historial) y C9.3b (P13/P14/P15 solo lectura) o, si se mantiene una tanda, declarar P15 y el caso pgTAP de pausa como opcionales y limitar el pgTAP de P14 a 'cerrar sesión no cambia horas_estimadas; completada baja la carga' con UPDATE de estado como paso documentado (ya admitido por el plan).
+  -
+    - **donde:** Criterio 7 (P14) · mapaCriteriosAceptacion y registroDecisiones
+    - **problema:** La nota pide que la capacidad se actualice si la operación termina 'antes o después'. El plan solo libera al completar y muestra el exceso sin afectar capacidad (DP-09-A), pero el mapa lo marca como evidenciado.
+    - **ajuste:** Registrar en la fila de Refinamientos y en el PR que el criterio 7 se cumple en versión acotada (libera al completar; el exceso se muestra, no ocupa capacidad) y obtener aceptación expresa del PO antes del cierre de C9.3; no marcar la casilla 7 de Corte 9 sin esa confirmación.
+  -
+    - **donde:** Decisiones del PO (13 preguntas) y orden global
+    - **problema:** Casi todas tienen default seguro y el plan ya arranca con él; formularlas todas como bloqueo carga al PO y retrasa. El orden global exige 8 PRs estrictamente seriales aunque C9.1 solo depende de C8.1.
+    - **ajuste:** Dejar como preguntas reales únicamente DP-01 (advertir vs bloquear), DP-07 (confirmar que recursos y procesos tienen grupo cargado; es verificación de datos) y DP-09 (alcance del criterio 7). El resto (DP-02, 03, 04, 06, 08, 10, 11, 12, 13) se asienta como defaults en la fila de Refinamientos y se corrige en el PR si el cliente objeta. DP-05 se resuelve con una consulta de datos (¿roles con planeación sin orden_vista?) o con degradación: ocultar el enlace si el usuario no tiene orden_vista.
+  -
+    - **donde:** C9.1 · pasos 1 y 9 (riesgo de specs con Área/Turnos y 'Avance')
+    - **problema:** El grep ya evidencia que ningún spec de planeacion* usa filtros de Área/Turno ni 'Avance'; el plan los trata como riesgo medio.
+    - **ajuste:** Reducir el trabajo: sustituir el paso de actualizar specs por una verificación de que accion-* y ordenId= (únicos acoples reales, de C8.1) siguen verdes tras rebase; no añadir cambios a specs por el <details>.
+  -
+    - **donde:** C9.2 · P05/P09 componente en OperacionPlaneacion (useQuery para fecha fuera de rango)
+    - **problema:** Se introduce una segunda consulta de calendario con su clave de caché dentro de OperacionPlaneacion (ya con consulta principal y claves por filtros), lo que puede producir doble fetch y parpadeo en el aviso.
+    - **ajuste:** Reutilizar consultarCalendario (operacion-planeacion.tsx:78-92) con una clave propia que incluya fechaProgramada, enabled solo si la fecha está fuera de rangoEfectivo y staleTime corto; mostrar 'Verificando capacidad…' únicamente mientras isFetching. Añadir una RED que verifique que dentro del rango no se dispara la consulta extra.
+- **coberturaFaltante:**
+  - Criterio 7 'termina antes o después': la capacidad solo se libera al completar; el exceso real no ocupa capacidad. Cubierto solo en versión acotada y sin aceptación explícita del PO (ver ajuste).
+  - P08 'Operación / proceso' como dato mínimo de la programación: el plan lo resuelve con el arreglo de procesos de la partida, no por operación. Es coherente con el alcance, pero debe quedar escrito como interpretación en los Refinamientos para que no se reclame después.
+  - Rol sin orden_vista que ve el título-enlace: el plan solo lo anota como riesgo; no tiene prueba ni degradación (enlace oculto/deshabilitado) ni pregunta resuelta con datos.
+  - P09/P10 en el flujo de reprogramación por arrastre (diálogo-reprogramacion-planeacion.tsx): el aviso de exceso en horas y la advertencia de compatibilidad solo se plantean en el panel de asignación; el diálogo de arrastre no está en ninguna tanda.
+  - Criterio 3 'conflicto antes de guardar': el conflicto de recurso (dos operaciones simultáneas) solo se evidencia con pgTAP del índice único; no hay aviso en UI previo al guardado cuando el recurso ya está en preparación/proceso.
+- **preguntasInnecesarias:**
+  - DP-02 (suma de turnos Lun-Vie): el default es el único coherente con el formato de la nota; no requiere respuesta.
+  - DP-03 (resumen oculto en Mes) y DP-04 (umbrales 70/90, 100 % = cerca del límite): son constantes cambiables sin migración; asentar como default.
+  - DP-06 (retirar 'Avance'): la nota pide explícitamente no llenar la pantalla con métricas de Producción; no es pregunta.
+  - DP-08 (responsable derivado del evento) y DP-11 (adoptar resumirProcesos): decisiones de ingeniería ya con recomendación firme.
+  - DP-12 y DP-13 son confirmaciones de proceso/congelamiento ya aceptadas en decisiones previas (PLA-05/OBS-19); no necesitan nueva pregunta.
+  - DP-05: la duda de roles sin orden_vista se resuelve con una consulta de datos o degradando el enlace, no preguntando.
+- **problemasDeOrdenOColision:**
+  - C9.1 y C9.2 editan operacion-planeacion.tsx (montaje del resumen y luego props del panel/useQuery) y C9.3 también: se serializan correctamente en el plan; solo mantener 'un solo dueño por archivo' al rebasar. Sin ordenar, el montaje del resumen (xl:col-span-2 dentro del grid de operacion-planeacion.tsx:279) y el aside del detalle de C9.3 pueden pisarse.
+  - C9.1 depende de C8.1 por la cadena puedeAdministrar (page.tsx:34,127; tarjeta:39,58,166), acción de Órdenes, y comparte spec planeacion-bolsa-acciones.spec.ts:195-207 (accion-reactivar y ordenId=) que C8.1 debe migrar: el plan lo declara, pero conviene fijarlo como precondición verificable (grep del spec ya podado) antes de abrir C9.1.
+  - C9.4 P19 delega etiquetaProcesos en resumirProcesos de C8.3 y cambia el separador ', ' -> ' · ' (planeacion-desglose.test.ts:129 fija 'Corte, Doblez'); correcto dejarlo al final y 'reubicar antes de retirar', pero el panel-bolsa (join propio, línea 26) debe incluirse en el mismo commit o quedará un tercer formato.
+  - C9.3 depende de etiquetas-evento.ts de C8.2 (archivo aún inexistente en el árbol actual: no hay utilidades de eventos en src/modulos/ordenes/utilidades). Si C8.2 no incluye los 3 tipos de Planeación, C9.3 edita un archivo de Órdenes; declarar ese acuerdo en la cola para no reabrir C8.2.
+  - Marca de migración: el plan evita reservar 20261014120000; las migraciones opcionales quedan fuera. Sin colisión mientras no se escriban.
+  - Cierre documental (DECISIONES-ACEPTADAS.md, tasks/plan.md, tasks/todo.md) compartido con C8.4: el plan ya impone rebase tras el PR de cierre de Órdenes; correcto.
+- **riesgosDeBucleNoCubiertos:**
+  - Gates con comandos inexistentes (scripts/e2e-focal.ps1, -Visual): el agente se detendría o inventaría el script en cada tanda. Fijar el comando real antes de arrancar.
+  - pgTAP P17 con nombre de función erróneo: RED -> 'function iniciar_sesion_trabajo(...) does not exist'; el plan los marca 'verde desde el inicio', así que el fallo aparecería tarde y se confundiría con falla de fixture.
+  - Fixtures pgTAP de sesiones (C9.3/C9.4): el plan los copia de sii_b6_produccion.test.sql, que tiene alta dependencia de datos y roles (operadores, PIN). Sin criterio de salida claro hay riesgo de iteración larga; ya se admite UPDATE de estado como alternativa, convertirlo en regla desde el inicio con tope de intentos.
+  - Filtro JSON de orden_eventos_cambio con .or() de PostgREST: sin prueba contra la base real puede devolver vacío silenciosamente; exigir en C9.3 un E2E (gerente) o pgTAP que muestre el responsable del evento inicial.
+  - Estado transitorio del resumen con cargas: [] (operacion-planeacion.tsx:107-111) puede provocar E2E inestables que aserten antes de que llegue la carga; usar expect con auto-espera sobre texto específico y no sobre ausencia de 'Sin turnos definidos'.
+  - Lectura RLS de catálogos (grupos_equipo, catalogo_procesos) con cliente de usuario: el plan degrada a sin_dato, pero si el rol gerente no puede leer, la advertencia nunca aparecerá y ningún test lo detecta salvo el E2E con grupos; añadir un caso con datos reales de grupo o fijar un fallback con cliente admin y columnas explícitas desde el diseño.
+- **sobrealcance:**
+  - No se coló APS/MRP: la bolsa y Buscar hueco se congelan, se descarta bloqueo SQL y descuento de capacidad, y el semáforo es solo presentación. Correcto.
+  - Leve exceso en C9.3: P15 (aviso 'recurso liberado por pausa') y su pgTAP, y la acción+servicio+componente de detalle con tres lecturas, superan lo que la nota exige para el MVP; separar o marcar opcional (ver ajuste).
+  - Leve exceso en C9.2 P06: reestructurar page.tsx a cuatro consultas por lotes, utilidad partidas-programables.ts, tope 300 con aviso y etiqueta '(N programadas)' es más que 'ver pendientes por programar'. Cambio mínimo alternativo: conservar la consulta actual, ordenar con las ya programadas al final marcándolas y precargar secuencia; aceptable mantener el plan si el volumen real lo justifica.
+  - C9.4 P18 'prueba guardarraíl con cliente simulado que lanza en insert/update/rpc': útil pero es un test sobre código congelado; mantener acotado a la bolsa y proponerHueco, sin ampliar a detectarCuellosBotella.
+
+## Transversal: impacto
+- **modulos:**
+  -
+    - **modulo:** Planeación UI: resumen semanal + semáforo (P01, P02, P03)
+    - **requisitos:**
+      - P01
+      - P02
+      - P03
+    - **tipoRiesgo:** Colisión de archivos internos y de pruebas, no de otros módulos. Todo es aditivo y de solo lectura sobre datos.cargas. operacion-planeacion.tsx, calendario-planeacion.tsx y tarjeta-programacion-planeacion.tsx los tocan varios requisitos.
+    - **mitigacion:** Crear utilidades/carga-semanal.ts y componentes/resumen-carga-semanal.tsx como archivos nuevos y montar el resumen en operacion-planeacion.tsx con una sola línea. Reusar clasificarSaturacion sin cambiarla y mapear a 3 niveles solo en etiquetas.ts. Hacer P02 solo con JSX en calendario-planeacion.tsx. Dejar Área tal cual si se duda. No tocar la RPC.
+    - **riesgo:** bajo
+    - **archivosTocados:**
+      - src/modulos/planeacion/utilidades/carga-semanal.ts (nuevo)
+      - src/modulos/planeacion/componentes/resumen-carga-semanal.tsx (nuevo)
+      - src/modulos/planeacion/componentes/insignia-saturacion.tsx (nuevo)
+      - src/modulos/planeacion/utilidades/etiquetas.ts
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/calendario-planeacion.tsx
+      - src/modulos/planeacion/componentes/indice.ts
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/planeacion/servicios/capacidad-servicio.ts (clasificarSaturacion, umbrales 70/90/100)
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts (fuente única de la RPC de carga, L208 según el hallazgo)
+      - src/estado/uso-tienda-planeacion.ts (importa tipos de planeación; no cambia)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/planeacion-capacidad.test.ts
+      - tests/unitarias/planeacion-componentes.test.ts
+      - tests/unitarias/planeacion-tienda.test.ts
+      - tests/e2e/planeacion-capacidad.spec.ts
+      - tests/e2e/planeacion-flujo-colaborativo.spec.ts (usa vista-planeacion-*, capacidad-reprogramacion y columna-*; 20 coincidencias)
+    - **pruebasFaltantes:**
+      - Unitaria de la agregación: suma de turnos, solo Lun-Vie, libre sin negativos, recurso sin turnos.
+      - Componente ResumenCargaSemanal e InsigniaSaturacion con texto, horas y aria-label.
+      - E2E: el resumen aparece antes de los filtros y muestra 6/8 h tras programar 6 h.
+      - Si Área pasa a un <details>, actualizar los E2E que usen el filtro de Área o de Turnos.
+  -
+    - **modulo:** Tarjeta de programación, ítem y clic al contexto (P04, P05)
+    - **requisitos:**
+      - P04
+      - P05
+    - **tipoRiesgo:** Alto en conflicto de archivos con Órdenes, no con el código de otros módulos. tarjeta-programacion-planeacion.tsx y acciones-tarjeta-orden.tsx son del frente Órdenes T1. Hay riesgo de duplicar el helper de procesos (resumirProcesos de T3) y de que se rompan los testids accion-*.
+    - **mitigacion:** Hacer P04 y P05 solo después de que Órdenes T1 esté fusionado, o limitarse a lo aditivo: campo opcional codigoItem en el tipo (no rompe los fixtures de tsc), un <Link> en el título a /ordenes?ordenId= y no tocar acciones-tarjeta-orden.tsx. No crear un helper de procesos nuevo ni cambiar etiquetaProcesos hasta T3 (su prueba fija ', ' en planeacion-desglose.test.ts:129). Para pasar luego a /ordenes/{id}, actualizar la Bandeja y los E2E en el mismo PR de T1.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - src/modulos/planeacion/tipos/planeacion.ts
+      - src/modulos/planeacion/servicios/desglose-servicio.ts
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx (importa liberarOrdenAccion y ReactivarOrdenDialog de Órdenes; T1 retira Reactivar)
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx (etiquetaProcesos, L24 y L333)
+      - src/modulos/planeacion/utilidades/desglose.ts (etiquetaProcesos, L64)
+      - src/app/(privado)/ordenes/page.tsx (deep link ?ordenId=)
+      - src/modulos/ordenes/utilidades/procesos.ts (helper de T3; Planeación lo consumirá después)
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/planeacion-desglose.test.ts
+      - tests/unitarias/planeacion-componentes.test.ts (5 usos de testids)
+      - tests/unitarias/planeacion-servicio.test.ts
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts (único spec con accion-*: bandeja, liberar, sesión, entregar, imprimir, reactivar)
+    - **pruebasFaltantes:**
+      - Unitaria: la tarjeta muestra codigoItem o 'Por definir'.
+      - Unitaria: el título es un enlace que no dispara onSeleccionar.
+      - Unitaria: mapearPartida devuelve codigoItem.
+      - E2E: clic en el bloque abre la orden correcta.
+  -
+    - **modulo:** Programar y asignar: pendientes, compatibilidad y aviso de sobrecapacidad (P06, P07, P08, P09, P10)
+    - **requisitos:**
+      - P06
+      - P07
+      - P08
+      - P09
+      - P10
+    - **tipoRiesgo:** Bajo con el cambio mínimo de UI. Medio-alto si el PO exige compatibilidad por RPC: redefinir programar y reprogramar (cuerpo vigente en 20260911000002; ver 20261009193327 para las versiones auditadas) afecta a Producción y a los pgTAP. Sigue abierta la decisión del PO entre advertir y bloquear.
+    - **mitigacion:** Fase 1 sin migración: page.tsx excluye las partidas ya programadas y alinea el criterio de estado con la bolsa; el panel filtra o marca recursos por grupo y muestra el exceso en horas. Fase 2 solo si el PO lo pide: migración 20261014120000_planeacion_compatibilidad_recurso_grupo.sql con CREATE OR REPLACE de la misma firma, permisiva si falta el grupo. No añadir columna de proceso ni una fila por operación. No cambiar el RETURNS TABLE de la RPC de carga.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - src/app/(privado)/planeacion/page.tsx
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts
+      - supabase/migrations/20261014120000_planeacion_compatibilidad_recurso_grupo.sql (solo fase 2, opcional)
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/produccion/servicios/sesiones-servicio.ts (depende de programacion_id y de errores programacion_*)
+      - src/modulos/planeacion/servicios/bolsa-planeacion-servicio.ts
+      - supabase/tests/sii_b6_produccion.test.sql
+      - supabase/tests/c4_2_orden_comercial_operativa.test.sql
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/planeacion-bolsa.test.ts
+      - tests/unitarias/planeacion-componentes.test.ts
+      - tests/e2e/planeacion-flujo-colaborativo.spec.ts
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts
+      - supabase/tests/c4_2_orden_comercial_operativa.test.sql
+      - supabase/tests/sii_b6_produccion.test.sql (fixtures con recursos arbitrarios)
+    - **pruebasFaltantes:**
+      - Unitaria: el selector excluye partidas con programación activa.
+      - Componente: el aviso muestra el exceso en horas.
+      - pgTAP (fase 2): recurso_incompatible, y programar con grupo ausente sigue permitido.
+      - Decidir si Guardar se deshabilita con !evaluacion.cabe, hoy no (panel L530).
+  -
+    - **modulo:** Historial y reprogramación (P08 parte historial, P11, P12)
+    - **requisitos:**
+      - P08
+      - P11
+      - P12
+    - **tipoRiesgo:** Medio. La lectura de orden_eventos_cambio desde Planeación puede toparse con su RLS y con la confidencialidad c4_3. Hoy el único lector en src/ es la ficha de Órdenes. Esa ficha usa select('*') y mostraría crudos los tipos de evento de Planeación.
+    - **mitigacion:** Solo lectura con proyección de columnas explícitas (sin recurso_id ni UUID), filtrada por detalle->>'programacion_id', mediante una acción nueva con can(). Validar la RLS con el rol de Planeación antes de implementar. Si la RLS lo impide, exponerlo por una función SQL security definer con permiso en una migración mínima. Coordinar con Órdenes T2 para etiquetar programacion_inicial, reprogramacion_operativa y ajuste_operativo. P12 no requiere cambios; dejar como mucho una aserción pgTAP.
+    - **riesgo:** medio
+    - **archivosTocados:**
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts
+      - src/modulos/planeacion/acciones/obtener-historial-programacion.ts (nuevo)
+      - src/modulos/planeacion/acciones/indice.ts
+      - src/modulos/planeacion/componentes/dialogo-reprogramacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+      - src/modulos/planeacion/tipos/planeacion.ts
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts (L85-90, lee los mismos eventos; lo toca solo T2 de Órdenes)
+      - supabase/migrations/20261009193327_c4_2_orden_comercial_operativa.sql (RPC auditadas y trigger de inmutabilidad; no se redefinen)
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/c4_2_orden_comercial_operativa.test.sql (inmutabilidad, L95-111)
+      - supabase/tests/c4_3_confidencialidad_ordenes.test.sql
+      - tests/integracion/c4-3-confidencialidad-ordenes.test.ts
+      - tests/unitarias/planeacion-servicio.test.ts
+      - tests/e2e/planeacion-flujo-colaborativo.spec.ts
+    - **pruebasFaltantes:**
+      - Unitaria: el servicio de historial devuelve fecha, actor, motivo y de/a.
+      - Integración o pgTAP: el rol de Planeación lee solo los eventos que debe y sin UUID.
+      - pgTAP: reprogramar no cambia fecha_compromiso_comercial, fecha_operativa, snapshot_json ni tiempo_estimado_minutos.
+  -
+    - **modulo:** Capacidad real, pausas y Producción (P13, P14, P15, P16, P17)
+    - **requisitos:**
+      - P13
+      - P14
+      - P15
+      - P16
+      - P17
+    - **tipoRiesgo:** Alto si se toca SQL de capacidad, bajo si solo se señaliza. obtener_capacidad_efectiva_recurso_turno la consume finalizar_sesion de Producción para calcular las horas extra (sii_b6_produccion_acciones.sql:995-996), y los guardarraíles de programar y reprogramar tienen su propio cálculo duplicado. Cambiar solo obtener_carga_capacidad_diaria diverge entre lo mostrado y lo permitido. Cambiar su RETURNS TABLE exige DROP FUNCTION y regenerar supabase.ts en UTF-8.
+    - **mitigacion:** Para el MVP: no tocar SQL. P16 y P17 quedan en cumple sin cambios. P13 y P15 se hacen en solo lectura: mostrar horas_netas por programacion_id y una etiqueta 'recurso liberado por pausa' leyendo sesiones_trabajo.recurso_liberado, con una consulta separada en planeacion-servicio.ts. Solo si el PO decide que la capacidad se descuente (P14), hacer una migración aparte que redefina obtener_carga_capacidad_diaria con columnas nuevas al final. No modificar obtener_capacidad_efectiva_recurso_turno. No hacer la opción B (función común) sin acordarlo.
+    - **riesgo:** alto
+    - **archivosTocados:**
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts
+      - src/modulos/planeacion/tipos/planeacion.ts
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+      - supabase/migrations/<AAAAMMDDNNNNNN>_planeacion_capacidad_real_al_cerrar.sql (solo si el PO elige A)
+      - src/compartido/tipos/supabase.ts (solo con esa migración)
+      - src/modulos/planeacion/componentes/panel-capacidad-instalada.tsx (solo con esa migración)
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/produccion/servicios/consultas-b6-servicio.ts (L205-243: lee recursos de sesiones pausadas con libera_maquina vía programacion_areas)
+      - src/modulos/produccion/servicios/tablero-produccion-servicio.ts (importa filaAProgramacionArea y COLUMNAS_RECURSO_PLANEACION_OPERATIVO de planeacion/tipos/indice)
+      - src/modulos/produccion/servicios/sesiones-servicio.ts (importa EstadoPlaneacion)
+      - src/modulos/produccion/componentes/sincronizador-produccion-realtime.tsx (suscripción a programacion_areas)
+      - supabase/migrations/20261007230003_sii_b6_jornada_horas_extra.sql (finalizar_sesion fija el estado de la programación)
+      - supabase/migrations/20261007130002_sii_b6_produccion_acciones.sql
+    - **pruebasQueLoProtegen:**
+      - supabase/tests/sii_b6_produccion.test.sql
+      - supabase/tests/a20_prd09_avance_proceso.test.sql
+      - supabase/tests/a20_reanudar_sesion_contextual.test.sql
+      - tests/e2e/produccion-piso.spec.ts
+      - tests/e2e/produccion-avance-procesos.spec.ts
+      - tests/integracion/avance-proceso-concurrencia.test.ts
+      - tests/unitarias/planeacion-capacidad.test.ts
+    - **pruebasFaltantes:**
+      - pgTAP: cerrar sesión no cambia programacion_areas.horas_estimadas.
+      - pgTAP (solo si hay migración): completada en 10 h con 8 estimadas da horas_exceso = 2.
+      - Unitaria: ESTADOS_PLANEACION, ETIQUETA_ESTADO y VARIANTE_ESTADO tienen las mismas 6 claves.
+      - pgTAP: iniciar_sesion_trabajo con programación distinta de en_preparacion falla con programacion_no_preparada.
+  -
+    - **modulo:** Guardarraíl APS, coherencia con Órdenes y cierre documental (P18, P19, P20)
+    - **requisitos:**
+      - P18
+      - P19
+      - P20
+    - **tipoRiesgo:** Coordinación, no código. Los archivos documentales y de tarjeta se comparten con el plan de Órdenes. Hay tablas de Refinamientos y CLI-15 reservados por Órdenes. Retirar la bolsa o detectarCuellosBotella contradice decisiones ya aceptadas (PLA-05, OBS-19).
+    - **mitigacion:** No retirar bolsa-planeacion-servicio.ts, proponer-hueco-reprogramacion.ts ni detectarCuellosBotella. Documentar el criterio en un PR de cierre aparte (Refinamientos, CLI-16, Corte 9). Pruebas de guardarraíl: las ayudas solo hacen select. El PR de cierre se rebasa después del de Órdenes porque ambos editan DECISIONES-ACEPTADAS.md, tasks/plan.md y tasks/todo.md.
+    - **riesgo:** bajo
+    - **archivosTocados:**
+      - docs/observaciones-cliente-2026-10-07/DECISIONES-ACEPTADAS.md
+      - tasks/plan.md
+      - tasks/todo.md
+      - tests/unitarias/planeacion-bolsa.test.ts (guardarraíl opcional)
+    - **archivosAfectadosSinTocar:**
+      - src/modulos/planeacion/servicios/indice.ts (re-exporta detectarCuellosBotella y CLASIFICACIONES_SATURACION sin consumidor de UI)
+      - src/modulos/planeacion/acciones/proponer-hueco-reprogramacion.ts
+    - **pruebasQueLoProtegen:**
+      - tests/unitarias/planeacion-bolsa.test.ts
+      - tests/unitarias/planeacion-capacidad.test.ts
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts
+    - **pruebasFaltantes:**
+      - Una prueba nombrada por cada uno de los 9 criterios (matriz criterio-tanda-prueba).
+      - Guardarraíl: tras T1 de Órdenes, acciones-tarjeta-orden.tsx no importa ReactivarOrdenDialog.
+- **acoplamientosOcultos:**
+  -
+    - **descripcion:** Producción importa tipos y mapeadores de planeación por el índice de tipos. Agregar campos a ProgramacionArea o a filaAProgramacionArea, o cambiar COLUMNAS_RECURSO_PLANEACION_OPERATIVO, rompe el tablero de Producción. EstadoPlaneacion lo usa sesiones-servicio.ts.
+    - **evidencia:** src/modulos/produccion/servicios/tablero-produccion-servicio.ts:10-16 importa COLUMNAS_RECURSO_PLANEACION_OPERATIVO, filaAProgramacionArea, filaARecursoPlaneacion, ProgramacionArea y RecursoPlaneacion de '@/modulos/planeacion/tipos/indice'. src/modulos/produccion/servicios/sesiones-servicio.ts:3 importa EstadoPlaneacion.
+    - **requisitos:**
+      - P04
+      - P08
+      - P13
+      - P16
+  -
+    - **descripcion:** La función de capacidad efectiva la comparte Producción: finalizar_sesion la usa para decidir horas extra. Cualquier redefinición de obtener_capacidad_efectiva_recurso_turno o de la jornada del turno cambia el cierre de sesiones, no solo el calendario.
+    - **evidencia:** supabase/migrations/20261007130002_sii_b6_produccion_acciones.sql:995-996 llama a privado.obtener_capacidad_efectiva_recurso_turno(recurso_id, fecha_programada, turno) y compara con v_horas_netas (L997).
+    - **requisitos:**
+      - P14
+      - P15
+  -
+    - **descripcion:** La Producción lee las pausas con libera_maquina a través de programacion_areas y recursos_planeacion. Si Planeación pasara a descontar capacidad por pausa, hay que revalidar la capacidad al reanudar, lo cual no está verificado. Renombrar columnas rompe ese select embebido.
+    - **evidencia:** src/modulos/produccion/servicios/consultas-b6-servicio.ts:205 select con programacion_areas!sesiones_trabajo_programacion_id_fkey (recurso_id, recursos_planeacion!programacion_areas_recurso_id_fkey (codigo, nombre)).
+    - **requisitos:**
+      - P15
+      - P10
+  -
+    - **descripcion:** Realtime: el sincronizador de Planeación y el de Producción se suscriben a la tabla programacion_areas con evento '*'. Cualquier cambio de nombre de tabla o de granularidad (una fila por operación) dispara refrescos en ambos.
+    - **evidencia:** src/modulos/planeacion/componentes/sincronizador-planeacion-realtime.tsx:14,85,92 y src/modulos/produccion/componentes/sincronizador-produccion-realtime.tsx (aparece en el grep de programacion_areas).
+    - **requisitos:**
+      - P07
+      - P08
+      - P14
+  -
+    - **descripcion:** Los testids de la tarjeta, las acciones y las vistas se usan en E2E de varias áreas. Quitar acciones de la tarjeta o cambiar vista-planeacion-*, columna-*, capacidad-reprogramacion o programacion-<id> rompe specs de Planeación y Órdenes.
+    - **evidencia:** tests/e2e/planeacion-flujo-colaborativo.spec.ts (20 coincidencias de testids de vista, columna, programacion y capacidad-reprogramacion); tests/e2e/planeacion-bolsa-acciones.spec.ts (accion-*, único spec con ese prefijo según el grep); tests/unitarias/planeacion-componentes.test.ts (5); tests/unitarias/produccion-tienda.test.ts (2) y tests/unitarias/rfq-cola-lista.test.ts (1) también coinciden con el patrón.
+    - **requisitos:**
+      - P02
+      - P04
+      - P05
+      - P19
+  -
+    - **descripcion:** Acoplamiento con Órdenes en tres puntos: (1) acciones-tarjeta-orden.tsx importa liberarOrdenAccion y ReactivarOrdenDialog y navega a /ordenes?ordenId=; Órdenes T1 retira Reactivar y quiere cambiar el deep link. (2) El resumen de procesos de Planeación (etiquetaProcesos, separador ', ' fijado por prueba) puede divergir de resumirProcesos de Órdenes T3. (3) La Actividad de la ficha de Órdenes muestra eventos de Planeación sin etiquetas.
+    - **evidencia:** src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx:5-6,66,111,125 (según el hallazgo de alcance-coherencia); etiquetaProcesos en src/modulos/planeacion/utilidades/desglose.ts:64, usada en tarjeta L101 y panel L333, con tests/unitarias/planeacion-desglose.test.ts:129 esperando 'Corte, Doblez'; src/modulos/ordenes/servicios/ficha-orden-servicio.ts:85-90 (select('*'), limit 50). Un grep en src/ y tests/ de etiquetaProcesos confirma que solo Planeación y esa prueba la usan.
+    - **requisitos:**
+      - P04
+      - P05
+      - P11
+      - P19
+  -
+    - **descripcion:** hoyIso y sumarDias de fechas-planeacion.ts están importados por Producción y Propuestas, que no son de Planeación. Es un acoplamiento oculto de utilidades: si P02 reordena o cambia fechas-planeacion.ts, afecta a Propuestas (seguimiento, PDF de revisión, listado) y a /produccion.
+    - **evidencia:** src/app/(privado)/produccion/page.tsx:8; src/modulos/propuestas/acciones/obtener-propuestas.ts:6; src/modulos/propuestas/acciones/generar-pdf-revision.ts:15; src/modulos/propuestas/componentes/dialogo-seguimiento-propuesta.tsx:15.
+    - **requisitos:**
+      - P02
+      - P01
+  -
+    - **descripcion:** Dependencia de la RPC de carga solo desde Planeación (un solo consumidor TS). El grep de obtener_carga_capacidad_diaria en src/, tests/ y supabase/ no encontró uso en KPIs ni Dashboard; los archivos con coincidencias son planeación-servicio.ts, tipos de Planeación, supabase.ts y migraciones. Con esa evidencia, el riesgo de KPIs señalado antes queda sin sustento por ahora. No se leyó el cuerpo de sii_b9_kpis.sql para ver si recalcula utilización por su cuenta.
+    - **evidencia:** Grep en D:\ERP-CC (src, tests, supabase): obtener_carga_capacidad_diaria|obtener_capacidad_efectiva_recurso_turno -> 8 archivos, ninguno de KPIs. Grep de ambos nombres en migraciones *kpis*/*dashboard*/*b9*/*das*: sin coincidencias.
+    - **requisitos:**
+      - P14
+      - P15
+  -
+    - **descripcion:** Divergencia interna de capacidad: la validación al guardar usa sumas propias en las RPC de programar y reprogramar, distintas de la RPC de carga. Cambiar solo lo mostrado crea huecos que el guardarraíl rechaza (y al revés).
+    - **evidencia:** supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:323 y 453 (según el hallazgo de estados-produccion); RPC de carga en 20260919000007_d02_capacidad_instalada.sql:160-170.
+    - **requisitos:**
+      - P09
+      - P14
+- **ordenSeguro:** Orden recomendado, de menor a mayor radio de explosión, sin migración hasta que el PO decida.
+
+1. P01 + P03 (resumen semanal y semáforo de 3 niveles). Solo archivos nuevos y una línea de montaje. Es lo que pide el cliente, no depende de Órdenes y no cambia datos.
+2. P02 (jerarquía de filtros). Solo JSX de calendario-planeacion.tsx. Puede ir tras el paso 1 o en paralelo si se acuerda quién edita operacion-planeacion.tsx.
+3. P06, P07, P09 y la fase 1 de P10 (UI, sin migración). Tocan page.tsx y panel-asignacion-planeacion.tsx. Decisión previa del PO: advertir o bloquear.
+4. P11 y P08 (historial en solo lectura). Antes, validar la RLS de orden_eventos_cambio y alinearse con Órdenes T2, para que la Actividad de la ficha etiquete los eventos de Planeación.
+5. P04 y P05 (ítem en la tarjeta y clic al contexto). Esperar a que Órdenes T1 esté fusionado, porque la tarjeta y acciones-tarjeta-orden.tsx son su zona. P04 puede adelantarse si solo agrega un campo opcional. Adoptar resumirProcesos solo tras T3.
+6. P13 y P15 en solo lectura (horas reales y etiqueta de recurso liberado). Después del paso 4, porque comparten planeacion-servicio.ts y la tarjeta.
+7. Cambios de SQL (P10 fase 2, P14 opción A) solo si el PO los pide. Serán migraciones separadas, aplicadas por el PO, con REVOKE/GRANT repetidos y supabase.ts regenerado en UTF-8. P14 va antes que P10 fase 2 por el RETURNS TABLE y el DROP FUNCTION.
+8. P12, P16, P17 y P18 no requieren código. Solo pruebas de guardarraíl opcionales y documentación.
+9. P19 y P20 al final, en el PR de cierre, rebasado después del de Órdenes.
+
+Por qué este orden: lo que se muestra va antes que lo que cambia el comportamiento. La tarjeta, las acciones y la documentación se comparten con Órdenes. Los cambios de SQL tocan a Producción, que consume la función de capacidad efectiva en el cierre de sesión.
+- **paralelizables:**
+  - P01+P03 (archivos nuevos: carga-semanal.ts, resumen-carga-semanal.tsx, insignia-saturacion.tsx, etiquetas.ts) en paralelo con P06/P07/P09 (page.tsx y panel-asignacion-planeacion.tsx). Solo comparten la montura en operacion-planeacion.tsx, que cada uno toca en líneas distintas; mejor que lo edite una sola persona.
+  - P02 (calendario-planeacion.tsx) en paralelo con P06/P07/P09, sin archivos en común.
+  - P11/P08 (acción nueva de historial, servicio y diálogo de reprogramación) en paralelo con P01/P02/P03, siempre que la tarjeta no se toque en la misma tanda.
+  - P20 (documentación: DECISIONES-ACEPTADAS.md, tasks/plan.md, tasks/todo.md) en paralelo con cualquier tanda de código, pero con rebase tras el PR de Órdenes que edita los mismos archivos.
+  - Dentro de la tarjeta (P03 insignia, P04, P05, P11, P13, P15) no hay paralelo: todos tocan tarjeta-programacion-planeacion.tsx, así que van en una sola tanda secuencial.
+  - No paralelizar: cualquier tanda de SQL (P10 fase 2, P14, P15 descuento) con otra que toque programar/reprogramar o la RPC de carga.
+
+## Transversal: bd
+- **porRequisito:**
+  -
+    - **id:** P01
+    - **requiereMigracion:** false
+    - **motivo:** La RPC obtener_carga_capacidad_diaria ya devuelve recurso x fecha x turno con horas_capacidad y horas_programadas (d02:105-190). La agregación Lun-Vie y la capacidad libre se hacen en una función pura de cliente. Se descarta un RPC o vista nueva porque duplicaría la fórmula de capacidad, que vive solo en SQL.
+    - **objetos:**
+      - RPC public.obtener_carga_capacidad_diaria(date,date) (solo lectura, sin cambio)
+    - **dependeDe:** Nada.
+    - **riesgo:** Bajo. Un recurso sin filas en capacidades_recurso_turno no aparece (JOIN de d02:151-152): mostrarlo como 'sin turnos definidos'.
+  -
+    - **id:** P02
+    - **requiereMigracion:** false
+    - **motivo:** Es solo reordenación de JSX en calendario-planeacion.tsx. La vista inicial ya es semana.
+    - **riesgo:** Ninguno en BD.
+  -
+    - **id:** P03
+    - **requiereMigracion:** false
+    - **motivo:** Mapeo de 5 a 3 niveles solo en presentación sobre clasificarSaturacion.
+    - **riesgo:** Ninguno en BD.
+  -
+    - **id:** P04
+    - **requiereMigracion:** false
+    - **motivo:** codigo_item ya se consulta en desglose-servicio.ts; solo falta mapearlo al tipo y mostrarlo. Esta pasada no abrió esa columna en SQL: se toma de los hallazgos previos.
+    - **riesgo:** Si el campo nuevo del tipo es obligatorio, los fixtures de pruebas rompen tsc.
+  -
+    - **id:** P05
+    - **requiereMigracion:** false
+    - **motivo:** Solo un enlace en el título de la tarjeta.
+    - **riesgo:** Ninguno en BD.
+  -
+    - **id:** P06
+    - **requiereMigracion:** false
+    - **motivo:** Se filtra en page.tsx con consulta existente sobre programacion_areas. No hace falta tabla ni vista.
+    - **riesgo:** Ninguno en BD.
+  -
+    - **id:** P07
+    - **requiereMigracion:** false
+    - **motivo:** La RPC programar_partida_recurso_auditada ya cumple. Los parámetros reales que envía el TS son p_orden_id, p_partida_id, p_recurso_id, p_secuencia, p_fecha_programada, p_turno, p_horas_estimadas, p_orden_prioridad, p_actor_id y p_correlation_id (planeacion-servicio.ts:147-156). Las mejoras de selector son de UI.
+    - **objetos:**
+      - public.programar_partida_recurso_auditada (c4_2:363)
+    - **riesgo:** Bajo.
+  -
+    - **id:** P08
+    - **requiereMigracion:** false
+    - **motivo:** Todos los datos mínimos salvo el responsable ya existen: el grupo sale del join recurso -> grupo_equipo (recursos_planeacion.grupo_equipo_id, sii_b1:164-170) y el responsable queda como actor_id en orden_eventos_cambio. Basta leerlo. Si el PO exigiera persistir responsable en la fila se necesitaría programacion_areas.programado_por, pero se descarta por MVP.
+    - **objetos:**
+      - tabla orden_eventos_cambio (lectura)
+    - **riesgo:** orden_eventos_cambio tiene RLS SELECT USING(true) para authenticated (sii_b5:146-154). La migración c4_3_confidencialidad_ordenes (20261010010303) no se leyó y pudo restringirla: antes de leer desde el cliente conviene leerla con el cliente admin del servidor y proyectar columnas, sin recurso_id ni detalle completo.
+  -
+    - **id:** P09
+    - **requiereMigracion:** false
+    - **motivo:** El bloqueo duro de capacidad_insuficiente ya existe en la RPC (20260911000002:308-327). Mostrar el exceso en horas es de UI. Si el PO decide 'advertir y permitir con confirmación', sí haría falta migrar: un parámetro p_permitir_sobrecarga en ambas RPC más permiso y motivo. Esa variante no se recomienda para el MVP.
+    - **objetos:**
+      - public.programar_partida_recurso (20260911000002:232)
+      - public.reprogramar_partida_recurso (20260911000002:364)
+    - **dependeDe:** Decisión del PO: bloquear o permitir con confirmación.
+    - **riesgo:** Cambiar la firma exige actualizar los GRANT/REVOKE por firma exacta y el wrapper _auditada.
+  -
+    - **id:** P10
+    - **requiereMigracion:** true
+    - **motivo:** Opcional y diferible. El conflicto simultáneo ya lo cubre el índice único parcial por recurso (fase_6_planeacion_base:117 idx_programacion_areas_candado_recurso_activo). La compatibilidad recurso-grupo no existe en las RPC. Primero se resuelve en UI filtrando recursos por grupo. Si el PO pide bloqueo duro, se redefinen ambas RPC con recurso_incompatible, permisiva si falta el grupo.
+    - **nombreSugerido:** 20261014120000_planeacion_compatibilidad_recurso_grupo.sql (usar un timestamp posterior al de la última migración local en el momento de crearla)
+    - **objetos:**
+      - public.programar_partida_recurso(uuid,uuid,uuid,smallint,date,text,numeric,integer)
+      - public.reprogramar_partida_recurso(uuid,uuid,date,text,numeric,integer,timestamptz)
+    - **dependeDe:** catalogo_procesos.grupo_equipo_id (20261012110000_b1_proceso_grupo_equipo.sql:12-13), que es una columna nullable. Si esa migración no está en remoto, la nueva falla. Hay que confirmar con el PO de dónde sale el grupo requerido de la partida (snapshot de ruteo o catalogo_procesos); esta pasada no lo verificó.
+    - **compatibilidadHistorica:** Con grupo nulo en el proceso o en el recurso, la validación se salta. Los datos existentes no cambian.
+    - **pgTAP:** Se romperían c4_2_orden_comercial_operativa.test.sql (5 llamadas a las RPC) si sus fixtures usan recursos sin grupo: no, porque la regla es permisiva. Hay que añadir casos nuevos con SET LOCAL ROLE service_role para recurso_incompatible.
+    - **riesgo:** CREATE OR REPLACE debe copiar el cuerpo completo de 20260911000002 sin perder los candados, el orden de locks ni el guardarraíl de capacidad. Una copia con deriva sería un riesgo medio. El candado ignora cantidad_equipos > 1.
+  -
+    - **id:** P11
+    - **requiereMigracion:** false
+    - **motivo:** La RPC reprogramar_partida_recurso_auditada (c4_2:418-489) ya exige motivo y escribe el evento reprogramacion_operativa. Parámetros reales: p_programacion_id, p_recurso_id, p_fecha_programada, p_turno, p_horas_estimadas, p_orden_prioridad, p_actualizado_en_esperado, p_motivo, p_actor_id y p_correlation_id (planeacion-servicio.ts:169-178). Solo falta leer el historial.
+    - **objetos:**
+      - public.reprogramar_partida_recurso_auditada(uuid,uuid,date,text,numeric,integer,timestamptz,text,uuid,uuid)
+    - **riesgo:** Las programaciones anteriores a C4.2 no tienen evento inicial.
+  -
+    - **id:** P12
+    - **requiereMigracion:** false
+    - **motivo:** Ya cumple. Los hallazgos de la oleada 1 citan el trigger privado.proteger_orden_comercial_c4_2 y alcance_comercial_inmutable (c4_2:131-140, 202-214); aquí no se releyeron. Solo se recomienda un caso pgTAP nuevo, sin migración.
+    - **pgTAP:** Caso nuevo en supabase/tests/c4_2_orden_comercial_operativa.test.sql: tras reprogramar no cambian fecha_compromiso_comercial ni snapshot_json.
+    - **riesgo:** Ninguno.
+  -
+    - **id:** P13
+    - **requiereMigracion:** false
+    - **motivo:** La carga usa solo horas_estimadas (d02:165), así que lo real no altera lo estimado. Mostrar horas_netas por programacion_id junto al estimado es una lectura sobre sesiones_trabajo, que ya tiene índice por programacion_id.
+    - **riesgo:** Sumar sesiones por programación puede ser costoso en la vista de mes.
+  -
+    - **id:** P14
+    - **requiereMigracion:** true
+    - **motivo:** Opcional y diferible. Hoy una programación completada sale entera de la carga (d02:168), así que terminar antes libera todo el bloque. El exceso de tiempo real no se refleja. Hacer que las abiertas cuenten max(estimado - real cerrado, 0) exige redefinir obtener_carga_capacidad_diaria. Eso solo cambia lo mostrado: los guardarraíles de programar/reprogramar suman horas_estimadas por su cuenta (20260911000002:323 y 453) y no usan esa RPC. Recomendación MVP: no migrar y dejar el criterio 7 cubierto con 'completada libera la capacidad'; el PO decide.
+    - **nombreSugerido:** 20261014130000_planeacion_capacidad_real_al_cerrar.sql (timestamp posterior al último local al crearla)
+    - **objetos:**
+      - public.obtener_carga_capacidad_diaria(date,date) (última definición: 20260919000007_d02_capacidad_instalada.sql:105-200)
+    - **dependeDe:** Decisión del PO sobre pausa, exceso y si los guardarraíles deben usar la misma regla.
+    - **compatibilidadHistorica:** Si se añaden columnas al final de RETURNS TABLE, hay que hacer DROP FUNCTION previo. Con la firma nueva el mapeo filaACargaCapacidadDiaria y CargaCapacidadDiaria deben aceptar los campos nuevos. Se añade el cuerpo con SECURITY DEFINER, SET search_path = '' y REVOKE/GRANT por firma exacta solo a service_role.
+    - **pgTAP:** Se rompen o deben revisarse supabase/tests/sii_b6_produccion.test.sql y supabase/tests/a20_prd09_avance_proceso.test.sql solo si aserciones leen horas_programadas de esa RPC. Un grep de tests/ por obtener_carga_capacidad_diaria dio 0 coincidencias en supabase/tests, así que el riesgo es bajo. Casos nuevos con SET LOCAL ROLE service_role.
+    - **riesgo:** Divergencia entre lo que muestra el panel y lo que el guardarraíl acepta. src/compartido/tipos/supabase.ts:5463 tendría que regenerarse en UTF-8 con Out-File -Encoding utf8, nunca con >. Hay que revisar la dependencia de los KPIs (sii_b9_kpis) con una lectura de la RPC.
+  -
+    - **id:** P15
+    - **requiereMigracion:** false
+    - **motivo:** Recomendado: solo señalizar en Planeación 'recurso liberado por pausa' leyendo sesiones_trabajo.recurso_liberado (sii_b6_produccion_base:127; la fija reclamar_recurso_liberado en sii_b6_produccion_acciones:1208). Descontar capacidad exigiría la misma redefinición de obtener_carga_capacidad_diaria que P14 y, al reanudar, revalidar capacidad. Por eso el descuento se agrupa en la migración opcional de P14 o se descarta.
+    - **objetos:**
+      - sesiones_trabajo.recurso_liberado (lectura)
+    - **dependeDe:** Decisión del PO: solo avisar o también descontar horas.
+    - **riesgo:** Una programación bloqueada sigue sumando horas aunque el recurso esté liberado.
+  -
+    - **id:** P16
+    - **requiereMigracion:** false
+    - **motivo:** Los seis estados ya existen. Una prueba unitaria de coherencia de claves basta.
+    - **riesgo:** Un renombre rompería sesiones-servicio.ts de Producción.
+  -
+    - **id:** P17
+    - **requiereMigracion:** false
+    - **motivo:** Producción ya consume la programación por programacion_id sin recaptura. Esta pasada no releyó iniciar_sesion_trabajo; se apoya en los hallazgos de la oleada 1.
+    - **riesgo:** Cambiar la granularidad de la unidad programada (partida x recurso) rompe sesiones_trabajo.programacion_id.
+  -
+    - **id:** P18
+    - **requiereMigracion:** false
+    - **motivo:** Es un guardarraíl de alcance y documentación, sin cambio de BD.
+    - **riesgo:** Ninguno.
+  -
+    - **id:** P19
+    - **requiereMigracion:** false
+    - **motivo:** Los contratos con Órdenes (etiquetas de eventos, resumen de procesos, acciones de tarjeta) son de código y documentación. Ninguna migración de Planeación toca los objetos que Órdenes C8.1-C8.4 modifica.
+    - **riesgo:** Si Órdenes tiene su propia migración sobre orden_eventos_cambio (por ejemplo, un CHECK de tipo de evento), podría chocar con los tipos programacion_inicial, reprogramacion_operativa y ajuste_operativo. Hay que coordinarlo cuando Codex fije el plan de Órdenes.
+  -
+    - **id:** P20
+    - **requiereMigracion:** false
+    - **motivo:** Es evidencia documental y de pruebas. Los casos pgTAP nuevos van en archivos nuevos de supabase/tests, sin migración.
+    - **riesgo:** Ninguno.
+- **estrategiaMigraciones:** Recomendación: CERO migraciones obligatorias para el MVP. Los criterios 1 a 6, 8 y 9 se cubren con código y presentación. El criterio 7 se cubre con la regla actual: completada o cancelada libera la capacidad entera de la programación (d02:168). No hay trabajo manual nuevo para el PO. Hasta dos migraciones, ambas opcionales, cada una detrás de una decisión explícita del PO. 1) 20261014120000_planeacion_compatibilidad_recurso_grupo.sql (P10): redefine programar_partida_recurso y reprogramar_partida_recurso (CREATE OR REPLACE con la misma firma, copiando el cuerpo vigente de 20260911000002:232 y :364) con recurso_incompatible, permisiva si falta el grupo. Se hace solo si el PO pide bloqueo duro. Depende de 20261012110000_b1_proceso_grupo_equipo.sql. 2) 20261014130000_planeacion_capacidad_real_al_cerrar.sql (P14/P15): redefine obtener_carga_capacidad_diaria con DROP FUNCTION previo, columnas nuevas al final, SECURITY DEFINER con search_path vacío y REVOKE/GRANT por firma exacta solo a service_role. Se hace solo si el PO decide que la capacidad refleje lo real. Orden: si se piden ambas, la 1 va antes que la 2 y cada una va en su tanda, porque los guardarraíles y la lectura no deben cambiar juntos. Los timestamps de ejemplo son posteriores a la última migración local (20261014110000_tarifario_unico_estacion_grupo.sql); hay que volver a listar supabase/migrations al crearlas y usar uno mayor. Dependencias con migraciones locales aún no aplicadas: las dos pendientes de Propuesta (20261014100000_propuesta_item_en_revision_a.sql y 20261014110000_tarifario_unico_estacion_grupo.sql) no tocan programacion_areas, recursos_planeacion ni las RPC de Planeación (grep de programacion_areas en 2026101*.sql: sin coincidencias), así que una migración de Planeación no las necesita y aplicarla sin ellas es seguro. El PO indicó que ya aplicó la pendiente de Propuesta; yo no tengo forma de verificar el estado remoto. La única dependencia real es la del punto 1 con 20261012110000_b1_proceso_grupo_equipo.sql. Si el PO aplica la migración 1 sin ella, falla porque falta la columna catalogo_procesos.grupo_equipo_id. Proponer que la migración use to_regclass/information_schema para tolerarlo, o que el PO confirme antes. Idempotencia: usar CREATE OR REPLACE, DROP FUNCTION IF EXISTS con firma exacta y REVOKE/GRANT protegidos con to_regprocedure. pgTAP: archivos nuevos en supabase/tests con SET LOCAL ROLE service_role y has_function_privilege que comprueben que anon y authenticated no ejecutan. Después de cualquier migración que cambie RETURNS TABLE hay que regenerar src/compartido/tipos/supabase.ts en UTF-8 (Out-File -Encoding utf8).
+- **rpcsAfectadas:**
+  -
+    - **nombre:** obtener_carga_capacidad_diaria
+    - **ultimaDefinicion:** supabase/migrations/20260919000007_d02_capacidad_instalada.sql:105-200
+    - **cambio:** Solo si el PO decide P14/P15: DROP y CREATE con columnas nuevas al final (horas_exceso, horas_reales) y descontar el real cerrado de las abiertas. Sin cambio en el MVP. Firma vigente: (p_fecha_inicio date, p_fecha_fin date) RETURNS TABLE(recurso_id uuid, area text, fecha_programada date, turno text, horas_capacidad numeric, horas_programadas numeric, horas_disponibles numeric, porcentaje_ocupacion numeric, sobrecargado boolean).
+    - **llamadores:**
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts:208 (parámetros p_fecha_inicio y p_fecha_fin)
+      - src/modulos/planeacion/tipos/planeacion.ts:130 (tipo derivado de Database)
+      - src/compartido/tipos/supabase.ts:5463
+    - **pgTAPQueSeRompe:**
+      - Ninguno directo: grep de la RPC en supabase/tests dio 0 coincidencias. Revisar sii_b6_produccion.test.sql y a20_prd09_avance_proceso.test.sql solo si se cambia la semántica de horas_programadas.
+  -
+    - **nombre:** programar_partida_recurso y programar_partida_recurso_auditada
+    - **ultimaDefinicion:** Base: supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:232 (firma uuid, uuid, uuid, smallint, date, text, numeric, integer). Wrapper: supabase/migrations/20261009193327_c4_2_orden_comercial_operativa.sql:363, con firma ampliada con uuid, uuid.
+    - **cambio:** Solo P10 (opcional): validar compatibilidad recurso-grupo con recurso_incompatible. Sin cambio de firma. El guardarraíl de capacidad llama a privado.obtener_capacidad_efectiva_recurso_turno (20260919000007:56).
+    - **llamadores:**
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts:147-156 mediante la acción src/modulos/planeacion/acciones/programar-partida-recurso.ts
+    - **pgTAPQueSeRompe:**
+      - supabase/tests/c4_2_orden_comercial_operativa.test.sql (5 ocurrencias de programar y reprogramar). Con la regla permisiva no se rompe; añadir casos nuevos.
+  -
+    - **nombre:** reprogramar_partida_recurso y reprogramar_partida_recurso_auditada
+    - **ultimaDefinicion:** Base: supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql:364 (firma uuid, uuid, date, text, numeric, integer, timestamptz; solo programada o bloqueada, línea 415). Wrapper: supabase/migrations/20261009193327_c4_2_orden_comercial_operativa.sql:418-489 con motivo, actor y correlation.
+    - **cambio:** Solo P10 (opcional): misma validación. Sin cambio de firma. Nota: UNIQUE(partida_id, recurso_id) no parcial (fase_6_planeacion_base:97) puede impedir reprogramar la misma partida a un recurso donde ya hubo una fila cancelada o completada. No se corrige en este corte.
+    - **llamadores:**
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts:169-178 mediante src/modulos/planeacion/acciones/reprogramar-partida-recurso.ts
+    - **pgTAPQueSeRompe:**
+      - supabase/tests/c4_2_orden_comercial_operativa.test.sql
+- **hallazgos:**
+  - Los guardarraíles de programar y reprogramar suman horas_estimadas por su cuenta (20260911000002:323 y 453) y la capacidad efectiva viene de privado.obtener_capacidad_efectiva_recurso_turno (d02:56-97, STABLE, search_path vacío, REVOKE a todos los roles). La RPC de carga repite la fórmula inline (d02:142-149). Cambiar solo la RPC cambia lo que se muestra, no lo que se permite.
+  - La migración d02 (20260919000007) no redefine programar ni reprogramar. El comentario del encabezado (líneas 20-22) induce a error: dice que el helper lo usan esas RPC, y es cierto porque ya lo llamaban desde 20260911000002.
+  - Las dos migraciones locales pendientes (20261014100000 y 20261014110000) son de Propuesta y no tienen relación con Planeación. Una migración de Planeación no necesita esperarlas.
+  - 20261012110000_b1_proceso_grupo_equipo.sql añade catalogo_procesos.grupo_equipo_id nullable. Es el único prerrequisito de P10 y todavía no está verificado si el PO la aplicó en remoto.
+  - orden_eventos_cambio tiene RLS con SELECT USING(true) para authenticated (sii_b5_orden_base:146-154), pero c4_3_confidencialidad_ordenes (20261010010303) puede haberla cambiado y no se leyó. La lectura del historial debe hacerse en servidor y proyectando columnas.
+  - Ninguno de los 20 requisitos necesita una migración para el MVP. Solo P10 (bloqueo de compatibilidad) y P14/P15 (capacidad real) la tendrían, y ambos son decisiones del PO.
+  - Límites de esta pasada: no se releyeron c4_2 ni c4_3 completos, el cuerpo de las RPC base ni los CHECK de estados; esas afirmaciones vienen de los hallazgos previos. No se miró el estado remoto.
+- **permisosRlsPrivilegios:**
+  - Cualquier RPC nueva o redefinida debe llevar SECURITY DEFINER, SET search_path = '' y REVOKE ALL de PUBLIC, anon y authenticated, con GRANT EXECUTE solo a service_role y por firma exacta, como obtener_carga_capacidad_diaria (d02:197-200). Ese REVOKE/GRANT se pierde si se hace DROP, así que hay que repetirlo.
+  - No hay tabla nueva, así que no hay RLS nueva. Si el PO exige persistir el responsable, se añadiría programacion_areas.programado_por: columna aditiva sin política nueva, pero eso se descarta en el MVP.
+  - Permiso de Planeación: gestionar_planeacion ya se verifica en las Server Actions (can antes de mutar). La lectura del historial puede usar el mismo permiso de lectura de planeación; no hace falta un permiso nuevo en PERMISOS.
+  - No hay triggers nuevos que llamen a privado.*. Si P10 se implementa con un trigger en vez de dentro de las RPC, debe ser SECURITY DEFINER con search_path vacío (regla del skill), pero se recomienda dentro de las RPC para no añadir un trigger.
+- **migracionesPendientesRemoto:** Las pendientes locales conocidas son 20261014100000_propuesta_item_en_revision_a.sql y 20261014110000_tarifario_unico_estacion_grupo.sql; el PO dice que ya aplicó la pendiente. Ninguna toca objetos de Planeación, así que no bloquean nada. El árbol de trabajo tiene además modificado el archivo 20261014110000. Se asume que el historial remoto sigue desalineado y que el PO aplica a mano. No se verificó el estado remoto, por regla de la investigación.
+
+## Transversal: premortem
+- **riesgos:**
+  -
+    - **escenario:** E2E de Planeación fallan solo en corrida completa local por residuales (bolsa corta a 12 sugerencias; partidas E2E-*/PLA5-* sin planear llenan la lista). Aplica a P01/P06/P20: un resumen semanal o selector nuevo que dependa de listas con tope (100 partidas, 12 sugerencias) mostrará datos de otros specs.
+    - **probabilidad:** alta
+    - **impacto:** medio
+    - **requisitos:**
+      - P01
+      - P06
+      - P20
+    - **prevencion:** Fixtures con recurso/fecha propios de cada spec y fechas relativas a Date.now(); localizar por identificador único de corrida, no por texto compartido; limpiar residuales (órdenes CANCELADA) antes de corrida completa; no asertar sobre listas con tope.
+    - **senalTemprana:** Spec pasa aislado y falla en la corrida completa, o 'Caben en capacidad libre (N)' sin la partida del spec.
+  -
+    - **escenario:** Un E2E lanzado sin typecheck previo aborta con 'Failed to type check' sin detalle. Riesgo concreto: añadir codigoItem (P04) al tipo DesglosePartidaPlaneacion rompe los literales de fixtures en tests/unitarias/planeacion-componentes.test.ts.
+    - **probabilidad:** alta
+    - **impacto:** medio
+    - **requisitos:**
+      - P04
+      - P01
+      - P03
+    - **prevencion:** Campo nuevo opcional (codigoItem?: string | null) o actualizar fixtures en el mismo commit; pnpm typecheck antes de cada E2E; build con NEXT_PUBLIC_SUPABASE_URL/ANON_KEY loopback exportadas antes de pnpm build.
+    - **senalTemprana:** Build del E2E falla sin mensaje de tipos; login no redirige (bundle con claves de producción).
+  -
+    - **escenario:** Choque con Órdenes: tocar acciones-tarjeta-orden.tsx o tarjeta-programacion-planeacion.tsx (P04, P05, P03, P15) antes de que Órdenes T1 retire ReactivarOrdenDialog y pode puedeAdministrar. Dos ramas editan los mismos archivos y se rompen E2E accion-* (planeacion-bolsa-acciones, ordenes-estados-sii, entregas-flujo). También etiquetaProcesos vs resumirProcesos (separador distinto, test que fija ', ').
+    - **probabilidad:** alta
+    - **impacto:** alto
+    - **requisitos:**
+      - P05
+      - P04
+      - P19
+    - **prevencion:** Orden: primero lo que no toca la tarjeta (resumen semanal, filtros, panel); después tarjeta solo si T1 de Órdenes está fusionado en main; rama nueva desde origin/main tras cada merge del PO; no crear helper de procesos propio; P05 solo como Link en el título, sin recortar acciones.
+    - **senalTemprana:** Conflicto de merge en tarjeta/acciones-tarjeta-orden; git diff origin/main muestra cambios ajenos.
+  -
+    - **escenario:** Migración nueva sobre obtener_carga_capacidad_diaria (P14/P15) o RPC de programar/reprogramar (P10): CREATE OR REPLACE falla porque cambiar RETURNS TABLE exige DROP FUNCTION; se pierde REVOKE/GRANT solo a service_role; RPC nueva sin SECURITY DEFINER/search_path vacío da 'permission denied for schema privado' que pgTAP (como postgres) no detecta; la app llama con parámetros distintos (p_actor vs p_actor_id).
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - P14
+      - P15
+      - P10
+      - P09
+    - **prevencion:** Partir de la definición vigente (20260919000007 para carga; 20260911000002 para programar/reprogramar); DROP+CREATE con REVOKE/GRANT; SECURITY DEFINER con search_path=''; pgTAP con SET LOCAL ROLE service_role; prueba que verifique los nombres reales de parámetros de la RPC o E2E que ejecute la acción; marca de tiempo posterior a la última migración; tipos Supabase regenerados en UTF-8 (Out-File -Encoding utf8).
+    - **senalTemprana:** 'No se pudo completar la acción' con console.error 'function ... not found'; ESLint 'File appears to be binary' en supabase.ts.
+  -
+    - **escenario:** Divergencia visual vs guardarraíl: se cambia la carga mostrada (horas reales/remanente, liberar por pausa) pero los guardarraíles de programar/reprogramar (20260911000002 líneas 323 y 453) tienen suma propia; el panel muestra hueco y la RPC lo rechaza con capacidad_insuficiente. Además endurecer invariantes (compatibilidad recurso-grupo, bloquear en vez de advertir) rompe fixtures con recursos arbitrarios (sii_b6_produccion.test.sql).
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - P09
+      - P10
+      - P14
+      - P15
+    - **prevencion:** Diferir P14/P15/P10 hasta decisión del PO; si se hacen, extraer cálculo común y migrar fixtures en el mismo corte, permisiva si falta grupo; correr antes pgTAP de bloques consumidores (producción, KPIs).
+    - **senalTemprana:** Decenas de pruebas ajenas fallan tras una migración de Planeación; panel y aviso discrepan con el error de la RPC.
+  -
+    - **escenario:** Lecturas de historial/horas reales (P08/P11/P13) con .in(ids) grande o sumas por sesión en vista de mes: URI too long (414) con base local cargada; lectura de orden_eventos_cambio con select('*') filtra recurso_id/detalle y puede chocar con la RLS de confidencialidad (c4_3) para quien tiene gestionar_planeacion sin ver la Orden.
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - P08
+      - P11
+      - P13
+    - **prevencion:** dividirEnLotes de 100 para todo .in(ids); proyectar columnas explícitas; mostrar historial solo por contexto de bloque (una programación) y validar RLS con pgTAP bajo el rol real.
+    - **senalTemprana:** Log del servidor 'URI too long' o historial vacío para el rol de Planeación.
+  -
+    - **escenario:** Sobreingeniería hacia APS: ampliar bolsa/Buscar hueco, cuellos de botella o semáforo con alertas; retirar detectarCuellosBotella sin grep rompe planeacion-capacidad.test.ts; reescribir clasificarSaturacion a 3 niveles rompe pruebas.
+    - **probabilidad:** media
+    - **impacto:** medio
+    - **requisitos:**
+      - P18
+      - P03
+    - **prevencion:** Mapear 5 a 3 niveles solo en presentación; no retirar nada sin grep de imports y reubicar antes de retirar; congelar topes de bolsa.
+    - **senalTemprana:** Aparecen funciones nuevas de priorización o RPC de escritura invocadas desde sugerencias.
+  -
+    - **escenario:** CI/proceso: reportar verde de un headSha equivocado, PR ya fusionado por el PO sin PR nuevo, migraciones aplicadas fuera de orden o no aplicadas cuando el código ya las usa, y agente que agota ventana sin checkpoint.
+    - **probabilidad:** media
+    - **impacto:** alto
+    - **requisitos:**
+      - P20
+    - **prevencion:** Comprobar gh run list --json headSha contra el commit; abrir PR nuevo tras merge; no mergear; entregar migraciones numeradas con orden de aplicación al PO y código tolerante si aún no están; commit verificado antes del 80 % de uso.
+    - **senalTemprana:** Corrida de CI con headSha distinto; PR sin checks; error de columna/función inexistente en remoto.
+- **patronesDeBucle:**
+  -
+    - **patron:** 1. Cambiar tarjeta/acciones de Planeación en paralelo con Órdenes T1-T3 (conflictos, E2E accion-* rotos, separador de procesos).
+    - **causa:** puedeAdministrar, ReactivarOrdenDialog y etiquetaProcesos son superficies compartidas.
+    - **ruptura:** Secuenciar: (a) resumen semanal + filtros + panel (sin tocar tarjeta); (b) tarjeta solo tras T1 en main; rama nueva desde origin/main; un solo dueño por archivo.
+  -
+    - **patron:** 2. Fixtures y datos residuales compartidos: pasa aislado, falla en corrida completa (bolsa de 12, tope de 100, strict mode).
+    - **causa:** Planeación comparte datos E2E y varias listas tienen tope.
+    - **ruptura:** Cada spec crea y limpia su recurso/partida con fechas relativas y PIN/identificadores aleatorios; asertar por id único; limpieza de residuales antes de corrida completa.
+  -
+    - **patron:** 3. Tipos que rompen en cascada: campo nuevo en tipo, tipos Supabase regenerados en UTF-16, E2E sin typecheck.
+    - **causa:** El build oculta el error de tipos; PowerShell > escribe UTF-16.
+    - **ruptura:** Campos opcionales o fixtures en el mismo commit; pnpm typecheck y lint focal antes de E2E; regenerar con Out-File -Encoding utf8; build con variables loopback.
+  -
+    - **patron:** 4. Migración de capacidad que cambia lo mostrado pero no lo permitido (o endurece invariantes), con RPC mal firmada o sin SECURITY DEFINER.
+    - **causa:** Dos cálculos de carga independientes (RPC d02 y guardarraíles de programar/reprogramar) y mocks que no prueban la firma.
+    - **ruptura:** Hacer primero todo lo sin migración (P01-P05, P06, P08/P11 en lectura); decidir con el PO P09/P10/P14/P15 antes de escribir SQL; si hay migración, una sola, mínima, con pgTAP de rol service_role y prueba de nombres de parámetros; el PO la aplica en orden.
+  -
+    - **patron:** 5. Corregir un fallo de CI, esperar y descubrir el siguiente; o verde del commit equivocado; o decisiones del PO (bloquear vs advertir, suma de turnos, umbrales 70/90) tomadas a medias en código.
+    - **causa:** No clasificar todos los jobs fallidos y preguntas abiertas sin respuesta.
+    - **ruptura:** Leer gh run view --log-failed de todos los jobs y clasificar (infra/aislamiento/defecto) antes de tocar; validar headSha; llevar las preguntas al PO al inicio y adoptar el default conservador (suma de turnos Lun-Vie, 3 niveles solo en presentación, mantener bloqueo de la RPC) hasta que responda.
+- **reglasDuras:**
+  - Orden de trabajo recomendado: T1 solo lectura/UI sin migración (P01 resumen semanal + P03 insignia + P02 filtros); T2 contexto del bloque (P04 ítem, P05 enlace en el título, P08/P11 historial en lectura) solo si Órdenes T1 está en main; T3 decisiones del PO y, solo si se aprueban, una migración (P09/P10/P14/P15); T4 cierre documental y evidencia de los 9 criterios (P20).
+  - pnpm typecheck antes de cualquier E2E; el build oculta errores de tipos.
+  - Toda RPC llamada desde una Server Action lleva prueba con los nombres reales de sus parámetros (p_actor_id, no p_actor); un mock no demuestra la firma.
+  - Funciones/triggers nuevos: SECURITY DEFINER con search_path = '', REVOKE/GRANT solo a service_role; pgTAP con SET LOCAL ROLE service_role.
+  - Cambiar RETURNS TABLE exige DROP FUNCTION previo; partir siempre de la definición vigente (20260919000007 carga; 20260911000002 programar/reprogramar).
+  - Fixtures sin fechas fijas (relativas a Date.now()) ni dependencia de residuales ni de catálogos sembrados; planeacion-bolsa-acciones falla con residuales: limpiar antes de corrida completa.
+  - Toda consulta .in(ids) de lectura va en lotes de 100 (dividirEnLotes).
+  - Reubicar antes de retirar: grep de todos los imports antes de quitar o renombrar (detectarCuellosBotella, etiquetaProcesos, acciones de tarjeta).
+  - No endurecer invariantes sin migrar fixtures en el mismo corte; correr antes pgTAP de producción y KPIs.
+  - Build local del E2E con NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY loopback exportadas antes de pnpm build.
+  - Tipos Supabase regenerados en UTF-8 (Out-File -Encoding utf8), nunca con > de PowerShell.
+  - CI: comprobar que la corrida corresponde al headSha del commit; clasificar todos los jobs fallidos antes de corregir; tras merge del PO, rama nueva desde origin/main y PR nuevo.
+  - Migraciones: marca posterior a la última aplicada y con contenido; las aplica el PO en orden; no db push sin reconciliar; el código debe tolerar que aún no estén aplicadas.
+  - Pruebas focales por cambio; suite completa solo al cierre. Commit verificado antes del 80 % de uso y checkpoint en HANDOFF al 90 %.
+  - Alcance AJUSTAR: no APS/MRP, no tabla de historial paralela (usar orden_eventos_cambio), no cambiar la granularidad partida x recurso ni los 6 estados, no tocar compromiso comercial ni ruteo.
+  - Checklist por tanda. T1 antes: rama desde origin/main; fixtures sin residuales; decidir suma de turnos y Lun-Vie. T1 durante: función pura en utilidades/carga-semanal.ts y componente de solo lectura, usar horas_capacidad del RPC sin recalcular, tests RED primero, typecheck y luego E2E. T1 antes del PR: CI del headSha, ningún cambio en tarjeta. T2 antes: confirmar Órdenes T1 fusionado; codigoItem opcional. T2 durante: Link sin onClick en el contenedor (conserva el arrastre); lecturas de eventos con proyección explícita y en lotes. T2 antes del PR: E2E accion-* verdes. T3 antes: respuestas del PO por escrito. T3 durante: una sola migración mínima con pgTAP de service_role. T3 antes del PR: tipos UTF-8 y migración entregada al PO en orden. T4 antes: matriz criterio-tanda-prueba. T4 durante: filas de Refinamientos, CLI-16 y Corte 9, sin DC nueva. T4 antes del PR: evidencia ejecutable de los 9 criterios.
+
+## Transversal: coherencia
+- **conflictos:**
+  -
+    - **superficie:** acciones-tarjeta-orden.tsx y la cadena de la prop puedeAdministrar (Reactivar, Liberar, Bandeja, Imprimir, Entregar, Sesión)
+    - **riesgo:** alto
+    - **archivos:**
+      - src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+      - src/modulos/planeacion/componentes/vistas-calendario-planeacion.tsx
+      - src/modulos/planeacion/componentes/calendario-planeacion.tsx
+      - src/modulos/planeacion/componentes/operacion-planeacion.tsx
+      - src/app/(privado)/planeacion/page.tsx
+    - **tandasEsteModulo:**
+      - C9.1 (P02 toca calendario; P03/P04/P05 tocan tarjeta; P01 toca operacion-planeacion)
+      - C9.2 (P06 toca page.tsx)
+    - **tandasOtroModulo:**
+      - C8.1 = Órdenes T1 (R14 retira Reactivar y poda puedeAdministrar en page.tsx:34,127, operacion-planeacion:41,61,291, calendario:61,103,229, vistas:33,89, tarjeta:39,58,166, acciones-tarjeta-orden:13,28,111)
+    - **quienPrimero:** Órdenes T1 (C8.1) primero. C9.1 debe rebasarse sobre T1 fusionada. Es la misma cadena de 6 archivos; evidencia: acciones-tarjeta-orden.tsx tiene accion-reactivar en la línea 115 y los testids accion-bandeja/liberar/sesion/entregar/imprimir en 65-105; PLAN-ORDENES-RESUMEN.md:9 y 74 ordena podar la prop en el mismo PR.
+    - **regla:** Reactivar y puedeAdministrar se retiran UNA sola vez, en C8.1. Ninguna tanda C9 edita acciones-tarjeta-orden.tsx. El resto de acciones (Bandeja, Liberar, Sesión, Entregar, Imprimir) permanece tal cual en C9: P05 se cumple con un enlace en el título de la tarjeta, no recortando acciones. Si C9.1 arrancara antes, hay que escribir sus cambios sin tocar las firmas de props que T1 poda.
+  -
+    - **superficie:** Deep link /ordenes?ordenId= (destino del clic P05, del botón Bandeja y de 5 enlaces externos)
+    - **riesgo:** alto
+    - **archivos:**
+      - src/app/(privado)/ordenes/page.tsx
+      - src/modulos/planeacion/componentes/acciones-tarjeta-orden.tsx
+      - src/modulos/planeacion/componentes/tarjeta-programacion-planeacion.tsx
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts
+      - tests/e2e/clientes-historial.spec.ts
+      - tests/e2e/comentarios-notificaciones.spec.ts
+      - tests/e2e/actividad.spec.ts
+    - **tandasEsteModulo:**
+      - C9.1 (P05 enlace en el título de la tarjeta)
+    - **tandasOtroModulo:**
+      - C8.1 (T1: ?ordenId= redirige a /ordenes/{id} tras notFound(); la ficha pasa a ser el destino)
+    - **quienPrimero:** Órdenes T1. Grep de tests/e2e: planeacion-bolsa-acciones.spec.ts:207 hace toContain('ordenId='), clientes-historial.spec.ts:261/270 y comentarios-notificaciones.spec.ts:123 fijan href/URL con ?ordenId=, actividad.spec.ts:123 fija el href. Tras el redirect, la URL final de la bandeja deja de contener ordenId=.
+    - **regla:** El enlace de P05 se escribe contra la ruta final /ordenes/{ordenId} (no contra ?ordenId=) y solo después de T1. La aserción de planeacion-bolsa-acciones.spec.ts:207 la migra T1 en su mismo PR (es de Órdenes por ser consecuencia del redirect, aunque el archivo sea de Planeación). C9 no vuelve a tocar ese spec para esa línea.
+  -
+    - **superficie:** Resumen de procesos por bloque (etiquetaProcesos vs resumirProcesos)
+    - **riesgo:** medio
+    - **archivos:**
+      - src/modulos/planeacion/utilidades/desglose.ts
+      - src/modulos/ordenes/utilidades/procesos.ts
+      - tests/unitarias/planeacion-desglose.test.ts
+      - src/modulos/planeacion/componentes/panel-bolsa-planeacion.tsx
+      - src/modulos/planeacion/componentes/panel-asignacion-planeacion.tsx
+    - **tandasEsteModulo:**
+      - C9.1 (P04 Proceso también en tarjeta compacta)
+      - C9.2 (P07 procesos en el panel de asignación)
+    - **tandasOtroModulo:**
+      - C8.3 = Órdenes T3 (R07 crea resumirProcesos(procesos, separador=' · ') y unifica el join de 4 sitios)
+    - **quienPrimero:** Órdenes T3 crea el helper; Planeación lo adopta después. Verificado: desglose.ts:66 hace procesos.join(', '); planeacion-desglose.test.ts:129 fija 'Corte, Doblez'; panel-bolsa-planeacion.tsx:26 usa otro join(', ') propio; etiquetaProcesos se usa en tarjeta:101 y panel-asignacion:333.
+    - **regla:** Un solo helper (el de Órdenes). C9.1/C9.2 usan etiquetaProcesos SIN cambiar su cuerpo ni su separador (solo reubican dónde se muestra). Cuando exista resumirProcesos, el cuerpo de etiquetaProcesos pasa a delegar en él y planeacion-desglose.test.ts:129 se actualiza en el MISMO commit (decisión: en el último PR de C9, C9.4, o como seguimiento tras T3). No se crea un segundo helper en Planeación. Los 4 joins (incluido panel-bolsa) se unifican en un solo cambio.
+  -
+    - **superficie:** Diccionario de etiquetas de eventos de Actividad y lectura de orden_eventos_cambio
+    - **riesgo:** medio
+    - **archivos:**
+      - src/modulos/ordenes/utilidades/etiquetas-evento.ts (nuevo en T2)
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts
+      - src/modulos/planeacion/componentes/dialogo-reprogramacion-planeacion.tsx
+      - supabase/migrations/20261007120001_sii_b5_orden_base.sql
+    - **tandasEsteModulo:**
+      - C9.3 (P11/P08: leer historial reprogramacion_operativa y mostrarlo en el contexto del bloque)
+    - **tandasOtroModulo:**
+      - C8.2 = Órdenes T2 (R10 Fase 1: etiquetaEvento; select('*') limit 50 pasa a columnas explícitas sin recurso_id/UUID)
+    - **quienPrimero:** Órdenes T2 define el diccionario e incluye programacion_inicial, reprogramacion_operativa y ajuste_operativo. Planeación C9.3 solo lo consume. Verificado: grep de etiquetaEvento/ETIQUETA_EVENTO en src no da resultados hoy (el diccionario no existe aún); la política RLS orden_eventos_cambio_seleccionar es USING (true) para authenticated (base.sql:149-151), así que la protección de confidencialidad NO está en RLS sino en la proyección del servicio.
+    - **regla:** Una sola fuente de etiquetas y una sola proyección de columnas. La lectura de C9.3 proyecta fecha, actor (nombre), motivo, y de/a (fecha y turno), sin recurso_id ni detalle crudo. Pedir a T2 que añada los 3 tipos de evento de Planeación y que exporte una función de lectura reutilizable; C9.3 no escribe otro diccionario ni otra tabla historial.
+  -
+    - **superficie:** Migraciones: colisión de marca 20261014120000 y funciones redefinidas
+    - **riesgo:** alto
+    - **archivos:**
+      - supabase/migrations/20261014120000_eventos_negocio_orden.sql (Órdenes R10 Fase 2, opcional)
+      - supabase/migrations/20261014120000_planeacion_compatibilidad_recurso_grupo.sql (Planeación P10, opcional)
+      - supabase/migrations/20260919000007_d02_capacidad_instalada.sql
+      - supabase/migrations/20260911000002_auditoria_ordenes_planeacion_produccion.sql
+      - supabase/migrations/20261007120002_sii_b5_orden_estados.sql
+    - **tandasEsteModulo:**
+      - C9.2 (P10 redefine programar_partida_recurso y reprogramar_partida_recurso, opcional)
+      - C9.3 (P14 opción A y P15 redefinen obtener_carga_capacidad_diaria con DROP FUNCTION previo, opcionales)
+    - **tandasOtroModulo:**
+      - C8.2/C8.4 (Fase 2 de R10 redefine privado.derivar_orden_planificada/en_produccion/completada)
+    - **quienPrimero:** Quien se implemente primero reserva la marca; el otro toma la siguiente. Evidencia: ambos planes escriben literalmente 20261014120000 (grep en docs: PLAN-ORDENES-RESUMEN.md y HALLAZGOS de Planeación). Además trigger_programacion_derivar_orden_planificada (orden_estados.sql:454-455) dispara AFTER INSERT OR UPDATE OF estado_planeacion sobre programacion_areas, o sea que cualquier RPC de Planeación que cambie estado_planeacion activa la función que Órdenes redefine.
+    - **regla:** Las marcas de migración se asignan al crear cada archivo con Glob del directorio (no se pre-reservan en el plan). Orden recomendado: Órdenes Fase 2 (si el PO la aprueba) antes de cualquier migración de Planeación; las migraciones de Planeación no tocan los derivar_* ni cambian los valores permitidos de estado_planeacion. Cada migración parte del cuerpo vigente (la más reciente que redefine la función), con la misma firma, y el PO las aplica en remoto antes de la siguiente tanda que dependa de ellas. Lo condicionado al PO (P10 bloqueo, P14, P15) no se escribe hasta que responda.
+  -
+    - **superficie:** Confidencialidad: payloads de Planeación con horas, nunca importes; proyección por lista blanca
+    - **riesgo:** medio
+    - **archivos:**
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts
+      - src/modulos/planeacion/servicios/desglose-servicio.ts
+      - src/modulos/ordenes/servicios/ficha-orden-servicio.ts
+      - src/modulos/ordenes/servicios/proyectar-snapshot-ficha.ts (nuevo en T3)
+    - **tandasEsteModulo:**
+      - C9.1 (P04 añade codigoItem al desglose)
+      - C9.3 (P13 horas_netas por programación; P11 historial)
+    - **tandasOtroModulo:**
+      - C8.2 (R04 origen)
+      - C8.3 (R08/R17/R18 proyecciones de ruta y hoja de trabajo)
+    - **quienPrimero:** Sin orden obligatorio, pero ambos siguen la misma regla. Planeación no lee snapshot_json: usa columnas de partidas (tiempo_estimado_minutos, procesos, codigo_item) y programacion_areas.
+    - **regla:** Planeación no consume snapshot_json ni proyecciones de Órdenes; su fuente de Ítem/Proceso/horas son columnas explícitas de partidas y programacion_areas. Los campos nuevos (codigoItem, horasReales) son horas/códigos, nunca precio/tarifa/costo. La RLS USING (true) de orden_eventos_cambio y de partidas se mantiene; la prueba de no-fuga de T2/T3 se replica en C9.3 para el historial (sin recurso_id en lo mostrado).
+  -
+    - **superficie:** Fecha operativa vs compromiso comercial y estados (programación vs estado_sii)
+    - **riesgo:** bajo
+    - **archivos:**
+      - supabase/migrations/20261009193327_c4_2_orden_comercial_operativa.sql
+      - supabase/tests/c4_2_orden_comercial_operativa.test.sql
+      - src/modulos/ordenes/servicios/obtener-entregas.ts
+    - **tandasEsteModulo:**
+      - C9.3 (P12 prueba pgTAP opcional)
+      - C9.4 (P16 sin cambios)
+    - **tandasOtroModulo:**
+      - C8.2 (R06 caracterización, sin pgTAP nuevo)
+      - C8.4 (R13 etiqueta derivada de entrega)
+    - **quienPrimero:** Sin dependencia de orden; ambos son de caracterización.
+    - **regla:** Los 6 estados de programación quedan intactos y no se mezclan con estado_sii ni con la etiqueta de entrega de Órdenes (T4). Solo se escribe UNA aserción pgTAP de «reprogramar no altera fecha_compromiso_comercial/fecha_operativa/snapshot» y la agrega Planeación (C9.3), ya que Órdenes T2 R06 declara explícitamente no crear pgTAP nuevo. Nota: Órdenes lista que obtener-entregas ordena por fecha_compromiso espejo de la operativa; Planeación no debe cambiar ese espejo al reprogramar.
+  -
+    - **superficie:** Pruebas e2e y unitarias compartidas por texto o testid
+    - **riesgo:** alto
+    - **archivos:**
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+      - tests/integracion/reactivar-orden.test.ts
+      - tests/unitarias/planeacion-componentes.test.ts
+      - tests/unitarias/planeacion-desglose.test.ts
+      - tests/e2e/planeacion-flujo-colaborativo.spec.ts
+    - **tandasEsteModulo:**
+      - C9.1
+      - C9.2
+      - C9.3
+    - **tandasOtroModulo:**
+      - C8.1
+      - C8.3
+    - **quienPrimero:** Órdenes T1 y T3 primero (retiran Reactivar y unifican join).
+    - **regla:** Ver pruebasConjuntas. Cada cambio de texto/testid lleva su aserción en el mismo commit; las pruebas que cambian por una tanda de Órdenes las migra esa tanda y C9 parte de la base ya verde.
+  -
+    - **superficie:** Capacidad / obtener_carga_capacidad_diaria (consumo compartido con KPIs y Finanzas)
+    - **riesgo:** medio
+    - **archivos:**
+      - supabase/migrations/20260919000007_d02_capacidad_instalada.sql
+      - src/modulos/planeacion/servicios/planeacion-servicio.ts
+      - src/compartido/tipos/supabase.ts
+      - supabase/migrations/20261007210001_sii_b9_kpis.sql
+    - **tandasEsteModulo:**
+      - C9.1 (solo lee, sin cambio)
+      - C9.3 (P14/P15 opcionales)
+    - **tandasOtroModulo:**
+      - Ninguna tanda de Órdenes; sí Finanzas C10.x (F10 horas reales) y Dashboard/KPIs
+    - **quienPrimero:** Planeación es dueña de la función. Verificado en src: único consumidor TS es planeacion-servicio.ts:208 (y el tipo en tipos/planeacion.ts:130).
+    - **regla:** Planeación (C9.1) no cambia la firma de la RPC: el resumen semanal agrega en cliente. Si C9.3 la cambia, solo agrega columnas AL FINAL con DROP + CREATE y regenera supabase.ts en UTF-8; Finanzas y KPIs usan las mismas horas netas de sesiones_trabajo y no duplican el cálculo.
+- **contratosCompartidos:**
+  -
+    - **nombre:** Ruta final de la ficha de Orden (destino de clic)
+    - **definicion:** /ordenes/{ordenId} es el destino canónico para abrir el contexto de una Orden desde cualquier módulo. /ordenes?ordenId= solo existe como redirect de compatibilidad (valida z.uuid(), después del notFound() de orden_vista). Se enlaza con <Link>, no con onClick en el contenedor que se arrastra.
+    - **dueno:** Órdenes (T1 / C8.1)
+    - **consumidores:**
+      - Planeación C9.1 (P05 título de tarjeta; botón Bandeja)
+      - Comentarios y notificaciones (correo de menciones)
+      - Clientes historial
+      - Bitácora/actividad
+  -
+    - **nombre:** Acciones de tarjeta de Orden y puedeAdministrar
+    - **definicion:** Tras T1 la tarjeta conserva Liberar, Bandeja, Sesión, Entregar, Imprimir; Reactivar y la prop puedeAdministrar desaparecen de toda la cadena (page, operacion, calendario, vistas, tarjeta). Los testids accion-*-{ordenId} restantes no cambian.
+    - **dueno:** Órdenes (T1 / C8.1)
+    - **consumidores:**
+      - Planeación C9.1
+      - tests/e2e/planeacion-bolsa-acciones.spec.ts
+      - tests/e2e/ordenes-heredadas-reactivacion.spec.ts
+  -
+    - **nombre:** resumirProcesos / etiquetaProcesos
+    - **definicion:** Helper puro único resumirProcesos(procesos, separador=' · ') en src/modulos/ordenes/utilidades/procesos.ts; agrupa por clave canónica y muestra '(N operaciones)'. etiquetaProcesos de Planeación delega en él (conservando 'Por definir' para vacío) tras T3. El separador visible en Planeación se decide una sola vez.
+    - **dueno:** Órdenes (T3 / C8.3)
+    - **consumidores:**
+      - Planeación tarjeta, panel de asignación, panel de bolsa
+      - Historial de cliente
+      - Documento de orden
+  -
+    - **nombre:** Diccionario de etiquetas de evento y proyección de orden_eventos_cambio
+    - **definicion:** etiquetaEvento(tipo) → texto en español; cubre los tipos de Órdenes y de Planeación (programacion_inicial, reprogramacion_operativa, ajuste_operativo) y, a futuro, los financieros (Finanzas F07). Proyección de columnas explícita: fecha, actor, tipo, motivo, de/a; nunca recurso_id ni UUID. Si actor es NULL, 'Sistema'.
+    - **dueno:** Órdenes (T2 / C8.2)
+    - **consumidores:**
+      - Ficha de Orden (Actividad)
+      - Planeación C9.3 (historial de reprogramación)
+      - Finanzas C10.x
+  -
+    - **nombre:** Reprogramación operativa (RPC reprogramar_partida_recurso_auditada)
+    - **definicion:** Única vía para mover una programación: exige permiso gestionar_planeacion, motivo 3-500 caracteres, escribe evento reprogramacion_operativa y NO toca fecha_compromiso_comercial, snapshot ni ruteo. La fecha operativa solo cambia por ajustar_orden_post_aceptacion.
+    - **dueno:** Planeación (existente; C9.3 solo agrega visibilidad y una prueba)
+    - **consumidores:**
+      - Órdenes (R06 caracterización)
+      - Producción (reprogramar solo admite programada/bloqueada)
+      - Ficha de Orden (Actividad)
+  -
+    - **nombre:** Estados de programación vs estado_sii
+    - **definicion:** programacion_areas.estado_planeacion tiene exactamente 6 valores (programada, en_preparacion, en_proceso, bloqueada, completada, cancelada) y es independiente de ordenes_produccion.estado_sii. Los triggers derivar_orden_* leen estado_planeacion y no deben romperse; la etiqueta 'Pendiente de entrega' de Órdenes (R13) es solo presentación de la Orden.
+    - **dueno:** Planeación para estados de programación; Órdenes para estado_sii y etiqueta de entrega
+    - **consumidores:**
+      - Producción (sesiones-servicio.ts)
+      - Órdenes (triggers derivar_orden_*)
+      - KPIs
+  -
+    - **nombre:** Capacidad (obtener_carga_capacidad_diaria) y semáforo
+    - **definicion:** La capacidad vive en SQL (una fila por recurso × fecha × turno, horas_capacidad y horas_programadas, excluye cancelada y completada). El semáforo de presentación tiene 3 niveles (disponible = libre/holgado, cerca del límite = ajustado/saturado, sobrecargado) derivado de clasificarSaturacion sin cambiar sus umbrales 70/90/100. Los payloads llevan horas, nunca importes.
+    - **dueno:** Planeación (C9.1/C9.3)
+    - **consumidores:**
+      - Dashboard/KPIs
+      - Finanzas C10 (horas reales)
+      - Producción (tablero)
+  -
+    - **nombre:** Horas reales de Producción (sesiones_trabajo.horas_netas)
+    - **definicion:** Fuente única de horas reales por programacion_id; la estimación (horas_estimadas, tiempo_estimado_minutos del snapshot) nunca se sobrescribe. Planeación solo lee para mostrar real vs estimado; Finanzas lee las mismas horas para costo real.
+    - **dueno:** Producción
+    - **consumidores:**
+      - Planeación C9.3 (P13/P14)
+      - Finanzas F10
+      - Órdenes (partidas.tiempo_real_minutos)
+  -
+    - **nombre:** Marcas de migración
+    - **definicion:** Cada archivo nuevo toma la siguiente marca libre verificada con Glob en el momento de crearlo; las marcas escritas en los planes son tentativas. Hoy la última local es 20261014110000 y dos planes proponen 20261014120000.
+    - **dueno:** Quien implemente primero (Codex asigna)
+    - **consumidores:**
+      - Órdenes R10 Fase 2
+      - Planeación P10/P14/P15
+      - Finanzas C10
+- **ordenGlobal:** Orden recomendado de las ocho tandas: C8.1 (Órdenes T1) -> C8.2 (T2) -> C9.1 -> C8.3 (T3) -> C9.2 -> C8.4 (T4) -> C9.3 -> C9.4.
+
+Razones:
+1) C8.1 va primero porque retira Reactivar, poda puedeAdministrar en 6 archivos que C9.1 también editará (calendario, tarjeta, operación, vistas, page) y crea el redirect que cambia la URL final de la bandeja. C9.1 detrás de T1 se evita rebasar sobre la cadena podada y tener e2e rotos.
+2) C8.2 (T2) antes de C9.1 es opcional para C9.1, pero conviene porque define el diccionario de eventos que C9.3 consumirá, y ficha-orden-servicio.ts es de Órdenes. No bloquea C9.1.
+3) C9.1 puede correr después de T1 (y en paralelo a T2/T3 si el PO fusiona antes de empezar, porque no comparte archivos con ellas: solo planeacion/componentes, utilidades y tipos). No toca acciones-tarjeta-orden.tsx. Ítem en tarjeta usa codigoItem desde columnas de partidas, sin snapshot.
+4) C8.3 (T3) antes de C9.2: aporta resumirProcesos. C9.2 (P07 procesos en el panel de asignación, P06 en page.tsx) usa etiquetaProcesos sin cambiar su cuerpo; la delegación y la actualización de planeacion-desglose.test.ts:129 se hacen una sola vez, en C9.4 o como seguimiento tras T3. Alternativa si T3 se retrasa: C9.2 sigue sin depender.
+5) C8.4 (T4) es independiente de Planeación en archivos; su orden respecto a C9.2 es libre. Se coloca antes de C9.3 para que las migraciones/tipos de Órdenes (si hay Fase 2 de R10) queden asignadas antes que las de Planeación y no choquen en la marca 20261014120000.
+6) C9.3 (reprogramación, estimado vs real, pausa) va penúltima porque es la que más probablemente requiere migración (P14 opción A, P15, P10) y lee el historial con el diccionario de T2; depende de decisiones del PO. C9.4 es la última porque es sobre todo registro y aceptación (P16/P17 ya cumplen; P18/P20 documentales) y consolida la delegación de etiquetaProcesos. Los PR de cierre de ambos cortes editan las mismas tablas (DECISIONES-ACEPTADAS, tasks/plan.md, tasks/todo.md): CLI-15 es de Órdenes, CLI-16 de Planeación; deben ir secuenciales, no en paralelo.
+Regla de cierre: una tanda no arranca hasta que el PO fusione la anterior que comparte archivos; no se asume fusionado sin verificar.
+- **contradiccionesConElOtroPlan:**
+  - Numeración desfasada: el REQUERIMIENTO de Planeación (sección 4) dice que Reactivar se retira en C8.3 y que Planeación consume resumirProcesos después de C8.2. El PLAN-ORDENES-RESUMEN final reordenó las tandas: Reactivar y puedeAdministrar salen en T1 (C8.1), el diccionario de eventos en T2 (C8.2) y resumirProcesos en T3 (C8.3). SINTESIS-PROVISIONAL.md todavía usa el orden anterior (C8.1 ficha segura, C8.3 cola). Los planes de C9 deben citar el orden final, no el provisional.
+  - Marca de migración duplicada: Órdenes (PLAN-ORDENES-RESUMEN.md:88) propone supabase/migrations/20261014120000_eventos_negocio_orden.sql y Planeación (P10) propone 20261014120000_planeacion_compatibilidad_recurso_grupo.sql.
+  - Planeación asume que el diccionario de eventos de Órdenes incluirá los eventos de Planeación, pero el plan de Órdenes T2 no los lista explícitamente (solo orden_creada, orden_interna_creada, orden_liberada, cierre_administrativo...). Hay que añadirlos a T2 o C9.3 los mostrará crudos.
+  - Órdenes T2 R06 dice no crear pgTAP nuevo para reprogramación (pertenece a Planeación/C9), y Planeación P12 lo marca como prueba opcional: nadie lo asume. Decisión: lo escribe C9.3.
+  - Órdenes T1 lista las 5 URL con ?ordenId= como dependencia y migra los e2e de Órdenes, pero planeacion-bolsa-acciones.spec.ts:207 (toContain 'ordenId=') pertenece a Planeación; hay que declararlo explícitamente en T1 para que no quede roto.
+  - Órdenes mantiene Liberar como única acción contextual en la cola, pero Planeación conserva Liberar, Imprimir, Entregar, Sesión y Bandeja en la tarjeta; el requisito de Planeación P05 sugiere opcionalmente recortarlas. Si el PO lo pide, hay que coordinarlo con Órdenes T4 (que redefine el destino de entrega) y no hacerlo en C9.1.
+  - Terminología de P15: Planeación propone mostrar 'recurso liberado' (señalización) sin descontar capacidad, mientras Finanzas F10 y Producción tratan la liberación solo como marca; no choca con Órdenes pero requiere una sola regla del PO.
+  - Cobertura de roles: Órdenes T3 (hoja de trabajo) y Planeación C9.3 leen orden_eventos_cambio con RLS USING (true) para cualquier usuario autenticado, así que la regla 'el operador no ve economía' depende de la proyección, no de RLS.
+- **pruebasConjuntas:**
+  - tests/e2e/planeacion-bolsa-acciones.spec.ts línea 207 (expect(page.url()).toContain('ordenId=')) y los testids accion-reactivar/accion-bandeja: los actualiza Órdenes T1 en el mismo PR que el redirect y la poda; C9.1 parte del spec verde.
+  - tests/e2e/ordenes-heredadas-reactivacion.spec.ts y tests/integracion/reactivar-orden.test.ts: los retira/migra T1 junto con Reactivar de la tarjeta de Planeación; C9 no los toca.
+  - tests/e2e/clientes-historial.spec.ts:261,270, tests/e2e/comentarios-notificaciones.spec.ts:123 y tests/e2e/actividad.spec.ts:123: aserciones sobre /ordenes?ordenId=; las migra T1; C9.1 no las toca pero debe ejecutar las de Planeación después de T1 para detectar interferencias.
+  - tests/unitarias/planeacion-desglose.test.ts:129 fija 'Corte, Doblez' (join ', ') y :115 fija 'Por definir': se actualizan en el mismo commit que haga delegar a etiquetaProcesos en resumirProcesos. Hasta entonces C9 no cambia el separador.
+  - tests/unitarias/planeacion-componentes.test.ts: fixtures de DesglosePartidaPlaneacion deben incluir codigoItem (usar campo opcional o actualizar fixtures) y la aserción de testids de la tarjeta; lo toca C9.1 y se cruza con la poda de puedeAdministrar de T1 (props de TarjetaProgramacionPlaneacion).
+  - tests/unitarias/tabla-ordenes-c4-3.test.ts (única mención de 'reactivar' en tests unitarios de Órdenes) y tests/unitarias/ficha-orden-c4-2.test.ts: de Órdenes; verificar que no fijen diccionario ni etiqueta de eventos antes del diccionario de T2.
+  - Aserción de ficha de Órdenes que fija el texto crudo 'orden_creada' en Actividad (acoplamiento listado en PLAN-ORDENES-RESUMEN.md:84): se actualiza en T2; C9.3 añade su prueba del historial con los nuevos nombres en español.
+  - supabase/tests/c4_2_orden_comercial_operativa.test.sql: pgTAP único de «compromiso intacto» y eventos de reprogramación; C9.3 agrega la aserción tras reprogramar_partida_recurso_auditada (no cambia fecha_compromiso_comercial, fecha_operativa, snapshot_json, tiempo_estimado_minutos); T2 no debe duplicarla.
+  - supabase/tests/sii_b6_produccion.test.sql y a20_prd09_avance_proceso.test.sql: se afectan si P10 (compatibilidad) o P14 (carga real) migran; deben correr tras la migración de Órdenes Fase 2 si la hay, porque ambas redefinen funciones sobre programacion_areas.
+  - tests/unitarias/planeacion-capacidad.test.ts y tests/e2e/planeacion-capacidad.spec.ts: solo Planeación (resumen semanal, semáforo de 3 niveles); no deben fijar el texto 'Sobrecargado' en la tarjeta hasta que se confirme la decisión de umbrales con el PO.
+- **preguntasPO:**
+  - ¿Se confirma el orden C8.1 -> C8.2 -> C9.1 -> C8.3 -> C9.2 -> C8.4 -> C9.3 -> C9.4, con C9.1 solo tras fusionar Órdenes T1?
+  - ¿Se añaden a Órdenes T2 las etiquetas de programacion_inicial, reprogramacion_operativa y ajuste_operativo para que Planeación C9.3 las consuma, en lugar de que Planeación cree las suyas?
+  - ¿Quién migra planeacion-bolsa-acciones.spec.ts:207 tras el redirect: Órdenes T1 (recomendado) o Planeación?
+  - ¿Se aprueba la regla de asignar marcas de migración en el momento de crear cada archivo (Glob) y no reservar 20261014120000 en los planes?
+  - ¿Se aprueba que las migraciones opcionales (P10 bloqueo por grupo, P14, P15) no se escriban hasta tener respuesta del PO sobre bloquear/advertir, descontar horas en pausa y suma de turnos?
+  - ¿Se mantiene Liberar, Imprimir, Entregar, Sesión y Bandeja en la tarjeta de Planeación hasta que Órdenes T4 redefina su destino?

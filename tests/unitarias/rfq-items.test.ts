@@ -189,6 +189,10 @@ describe('esquemas Zod de RFQ', () => {
 
   it('etiqueta la próxima acción del catálogo y humaniza códigos nuevos', () => {
     expect(etiquetaProximaAccion('FOLLOW_UP')).toBe('Seguimiento');
+    expect(etiquetaProximaAccion('REQUEST_MISSING_INFO')).toBe('Solicitar información faltante');
+    expect(etiquetaProximaAccion('WAIT_CUSTOMER_FILE')).toBe('Esperar archivo del cliente');
+    expect(etiquetaProximaAccion('CONFIRM_SPECIFICATION')).toBe('Confirmar especificación');
+    expect(etiquetaProximaAccion('COMPLETE_RFQ')).toBe('Completar RFQ');
     expect(etiquetaProximaAccion('OTHER')).toBe('Otro');
     expect(etiquetaProximaAccion('ACCION_NUEVA')).toBe('ACCION NUEVA');
     expect(etiquetaProximaAccion(null)).toBe('Sin próxima acción');

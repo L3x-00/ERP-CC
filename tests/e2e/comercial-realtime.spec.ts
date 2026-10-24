@@ -121,6 +121,16 @@ test('dos identidades comparten cambios comerciales y recuperan eventos perdidos
     await a.getByRole('button', { name: 'Continuar con ítems' }).click();
     await expect(a.getByTestId('alta-rfq-items')).toBeVisible();
     await a.getByRole('button', { name: 'Finalizar más tarde' }).click();
+    // Obs. cliente 2026-10-23: «Finalizar más tarde» pide la próxima acción
+    // antes de cerrar; la fecha y el responsable ya vienen autocompletados.
+    const dialogoSeguimiento = a.getByTestId('dialogo-finalizar-captura');
+    await expect(dialogoSeguimiento).toBeVisible();
+    await expect(dialogoSeguimiento.getByLabel('Fecha de la acción')).not.toHaveValue('');
+    await expect(
+      dialogoSeguimiento.getByLabel('Responsable de la acción a seguir'),
+    ).not.toHaveValue('');
+    await dialogoSeguimiento.getByLabel('Acción a seguir', { exact: true }).selectOption({ index: 1 });
+    await dialogoSeguimiento.getByRole('button', { name: 'Guardar y finalizar más tarde' }).click();
     await expect(a.getByTestId('alta-rfq-items')).toBeHidden();
     const oportunidad = await admin.from('pipeline').select('id').eq('empresa', marca).single();
     if (oportunidad.error || !oportunidad.data) throw new Error(oportunidad.error?.message ?? 'Oportunidad no persistida');
