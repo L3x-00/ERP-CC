@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { TIMEOUT_SESION_OPERADOR_MINUTOS } from '@/nucleo/autenticacion/constantes';
 import { obtenerContextoSesionOperadorActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
@@ -16,6 +15,9 @@ const TABLAS_PISO = [
   'registros_consumo_material',
   'registros_avance_partida',
   'materiales',
+  'reclamos_proceso_operador',
+  'programacion_areas',
+  'sesiones_trabajo',
 ] as const;
 
 const MS_KEEP_ALIVE = 20_000;
@@ -44,11 +46,11 @@ export async function GET(request: Request): Promise<Response> {
   const administradorDirectoId = usuarioDirecto?.id ?? null;
 
   const codificador = new TextEncoder();
+  // C10: la terminal PIN no expira por tiempo; solo la vista delegada conserva
+  // su vencimiento fijo. La cuenta y la rotacion del PIN se siguen validando.
   const expiraEn = sesion && sesionOperadorEsDelegada(sesion)
     ? new Date(sesion.expiraEn ?? '').getTime()
-    : operador
-      ? Date.now() + TIMEOUT_SESION_OPERADOR_MINUTOS * 60 * 1000
-      : Number.POSITIVE_INFINITY;
+    : Number.POSITIVE_INFINITY;
   let canal: RealtimeChannel | null = null;
   let intervaloKeepAlive: ReturnType<typeof setInterval> | null = null;
   let intervaloSesion: ReturnType<typeof setInterval> | null = null;

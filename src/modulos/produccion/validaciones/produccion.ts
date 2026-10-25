@@ -3,6 +3,7 @@ import {
   PIN_LONGITUD_MAXIMA,
   PIN_LONGITUD_MINIMA,
 } from '@/nucleo/autenticacion/constantes';
+import { TURNOS_PLANEACION } from '@/modulos/planeacion/tipos/indice';
 import {
   ESTADOS_KANBAN_PRODUCCION,
   MOTIVOS_PAUSA_CATALOGO,
@@ -80,9 +81,41 @@ export const esquemaConsultarTableroProduccion = z.object({
   estados: z.array(z.enum(ESTADOS_KANBAN_PRODUCCION)).max(5).optional(),
 }).strict();
 
+/**
+ * C10: el operador reserva una operación (partida × proceso) para un día de su
+ * jornada. La base vuelve a validar capacidad, área y propiedad de la partida.
+ */
+export const esquemaReclamarProceso = z.object({
+  ordenId: z.uuid('ID de orden inválido'),
+  partidaId: z.uuid('ID de partida inválido'),
+  metaProcesoId: z.uuid('ID de proceso inválido').nullable(),
+  fecha: z.iso.date('Fecha inválida'),
+  turno: z.enum(TURNOS_PLANEACION).default('matutino'),
+}).strict();
+
+export const esquemaMoverReclamo = z.object({
+  reclamoId: z.uuid('ID de reclamo inválido'),
+  fecha: z.iso.date('Fecha inválida'),
+  turno: z.enum(TURNOS_PLANEACION).default('matutino'),
+}).strict();
+
+export const esquemaLiberarReclamo = z.object({
+  reclamoId: z.uuid('ID de reclamo inválido'),
+}).strict();
+
+export const esquemaIniciarProcesoReclamado = z.object({
+  reclamoId: z.uuid('ID de reclamo inválido'),
+  verificacion: esquemaVerificacionInicio.optional(),
+  corridaId: z.uuid('ID de corrida inválido').nullish(),
+}).strict();
+
 export type IniciarSesionInput = z.infer<typeof esquemaIniciarSesion>;
 export type ReanudarSesionInput = z.infer<typeof esquemaReanudarSesion>;
 export type CerrarSesionInput = z.infer<typeof esquemaCerrarSesion>;
 export type PartidaNotaEntregaInput = z.infer<typeof esquemaPartidaNotaEntrega>;
 export type CrearNotaEntregaInput = z.infer<typeof esquemaCrearNotaEntrega>;
 export type ConsultarTableroProduccionInput = z.infer<typeof esquemaConsultarTableroProduccion>;
+export type ReclamarProcesoInput = z.infer<typeof esquemaReclamarProceso>;
+export type MoverReclamoInput = z.infer<typeof esquemaMoverReclamo>;
+export type LiberarReclamoInput = z.infer<typeof esquemaLiberarReclamo>;
+export type IniciarProcesoReclamadoInput = z.infer<typeof esquemaIniciarProcesoReclamado>;

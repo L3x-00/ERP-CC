@@ -77,6 +77,24 @@ export type CodigoErrorProduccion =
   | 'corrida_no_corresponde'
   | 'orden_no_creable_corrida'
   | 'motivo_requerido'
+  | 'reclamo_invalido'
+  | 'reclamo_no_activo'
+  | 'reclamo_otro_operador'
+  | 'reclamo_ya_preparado'
+  | 'proceso_excede_jornada'
+  | 'capacidad_diaria_insuficiente'
+  | 'proceso_ya_reclamado'
+  | 'partida_asignada_otro_operador'
+  | 'orden_no_reclamable'
+  | 'orden_pendiente_liberacion'
+  | 'proceso_completado'
+  | 'proceso_pausado_reanudar'
+  | 'proceso_pausado_no_liberable'
+  | 'proceso_en_proceso_no_liberable'
+  | 'programacion_ya_en_proceso'
+  | 'sin_recurso_disponible'
+  | 'operador_area_no_asignada'
+  | 'corrida_ambigua'
   | 'desconocido';
 
 export class ErrorProduccion extends Error {
@@ -169,6 +187,24 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'corrida_no_corresponde',
   'orden_no_creable_corrida',
   'motivo_requerido',
+  'reclamo_invalido',
+  'reclamo_no_activo',
+  'reclamo_otro_operador',
+  'reclamo_ya_preparado',
+  'proceso_excede_jornada',
+  'capacidad_diaria_insuficiente',
+  'proceso_ya_reclamado',
+  'partida_asignada_otro_operador',
+  'orden_no_reclamable',
+  'orden_pendiente_liberacion',
+  'proceso_completado',
+  'proceso_pausado_reanudar',
+  'proceso_pausado_no_liberable',
+  'proceso_en_proceso_no_liberable',
+  'programacion_ya_en_proceso',
+  'sin_recurso_disponible',
+  'operador_area_no_asignada',
+  'corrida_ambigua',
 ];
 
 /** Traduce el mensaje de una RPC a un error tipado de producción. */
@@ -198,7 +234,9 @@ type SesionIniciada = Pick<SesionTrabajo,
   'id' | 'ordenId' | 'partidaId' | 'programacionId' | 'operadorId' |
   'fechaInicio' | 'estadoSesion' | 'creadoEn' | 'actualizadoEn'>;
 
-function sesionIniciadaDesdeRpc(fila: {
+export type { SesionIniciada };
+
+export function sesionIniciadaDesdeRpc(fila: {
   id: string; orden_id: string; partida_id: string; programacion_id: string;
   operador_id: string; fecha_inicio: string; estado_sesion: string;
   creado_en: string; actualizado_en: string;
@@ -323,6 +361,44 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La partida no tiene cantidad pendiente para una corrida';
     case 'motivo_requerido':
       return 'El motivo es obligatorio (mínimo 3 caracteres)';
+    case 'reclamo_invalido':
+      return 'Los datos del reclamo no son válidos';
+    case 'reclamo_no_activo':
+      return 'El reclamo ya no está activo; actualiza el tablero';
+    case 'reclamo_otro_operador':
+      return 'Ese proceso lo tiene otro operador';
+    case 'reclamo_ya_preparado':
+      return 'El proceso ya está preparado: solo puedes continuar la sesión';
+    case 'proceso_excede_jornada':
+      return 'El proceso requiere más de 8 h y no cabe en una jornada';
+    case 'capacidad_diaria_insuficiente':
+      return 'Ese día ya no tiene horas libres suficientes (máximo 8 h)';
+    case 'proceso_ya_reclamado':
+      return 'Otro operador acaba de tomar este proceso';
+    case 'partida_asignada_otro_operador':
+      return 'La partida ya está asignada a otro operador';
+    case 'orden_no_reclamable':
+      return 'La orden ya no está activa para producción';
+    case 'orden_pendiente_liberacion':
+      return 'La orden aún no se libera a Bandeja; espera la liberación';
+    case 'proceso_completado':
+      return 'El proceso ya está completado';
+    case 'proceso_pausado_reanudar':
+      return 'El proceso está pausado: usa «Continuar sesión»';
+    case 'proceso_pausado_no_liberable':
+      return 'No puedes liberar un proceso pausado; reanúdalo o finalízalo';
+    case 'proceso_en_proceso_no_liberable':
+      return 'No puedes liberar un proceso que ya está en marcha';
+    case 'programacion_ya_en_proceso':
+      return 'Ese proceso ya tiene una sesión en marcha';
+    case 'sin_recurso_disponible':
+      return 'No hay recurso libre del área para esa fecha y turno';
+    case 'operador_area_no_asignada':
+      return 'Tu operador no está habilitado en el área de esta partida';
+    case 'operador_no_activo':
+      return 'El operador no está activo';
+    case 'corrida_ambigua':
+      return 'El operador tiene más de una corrida abierta; elige una en el panel';
     default:
       return 'No se pudo registrar la sesión de producción';
   }

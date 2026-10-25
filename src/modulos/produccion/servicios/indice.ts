@@ -18,6 +18,7 @@ export {
 export type {
   CodigoErrorProduccion,
   CierreSesionRegistrado,
+  SesionIniciada,
 } from '@/modulos/produccion/servicios/sesiones-servicio';
 
 export {
@@ -66,6 +67,22 @@ export {
   obtenerEstadoKanbanProduccion,
   partidaProduccionCompleta,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';
+
+export {
+  obtenerEspacioOperadorServicio,
+  estimarHorasProceso,
+  etiquetaUrgencia,
+  diasParaCompromiso,
+} from '@/modulos/produccion/servicios/espacio-operador-servicio';
+
+export type { DatosEspacioOperador } from '@/modulos/produccion/servicios/espacio-operador-servicio';
+
+export {
+  iniciarProcesoReclamadoServicio,
+  liberarReclamoOperadorServicio,
+  moverReclamoOperadorServicio,
+  reclamarProcesoOperadorServicio,
+} from '@/modulos/produccion/servicios/reclamos-operador-servicio';
 
 export type {
   AreaCatalogoProduccion,
