@@ -293,6 +293,18 @@ describe('operación de Planeación en cliente', () => {
     expect(detalle.textContent).toContain('Bruno Planeación');
   });
 
+  it('el clic en el bloque abre el panel con el contexto de la operación (P05)', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    expect(screen.queryByTestId('detalle-programacion-planeacion')).toBeNull();
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
+
+    const detalle = await screen.findByTestId('detalle-programacion-planeacion');
+    await waitFor(() => expect(detalle.textContent).toContain('Ana Planeación'));
+    expect(screen.getByTestId('panel-asignacion-planeacion')).toBeTruthy();
+  });
+
   it('ofrece reintentar cuando el detalle falla', async () => {
     obtenerDetalleMock
       .mockResolvedValueOnce({ exito: false, error: 'Fallo temporal' })
@@ -554,6 +566,24 @@ describe('operación de Planeación en cliente', () => {
     expect(within(tarjeta).getByText('Ítem ITM-000001')).toBeTruthy();
     expect(within(tarjeta).getByText('Procesos: Por definir')).toBeTruthy();
     expect(tarjeta.textContent).toContain('4 h');
+  });
+
+  it('la tarjeta compacta muestra la operación programada del ruteo (P04)', () => {
+    render(
+      createElement(TarjetaProgramacionPlaneacion, {
+        programacion: {
+          ...DATOS.programaciones[0],
+          secuencia: 2,
+          operacionNombre: 'Corte',
+        },
+        desglose: DESGLOSE,
+        seleccionada: false,
+        compacta: true,
+      }),
+    );
+
+    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    expect(within(tarjeta).getByText('Operación 2 · Corte')).toBeTruthy();
   });
 
   it('la tarjeta declara Ítem «Por definir», procesos capturados y ya no muestra Avance (C9.1)', () => {
