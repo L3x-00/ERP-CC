@@ -289,6 +289,9 @@ describe('operación de Planeación en cliente', () => {
     expect(detalle.textContent).toContain('CNC · Centros de maquinado');
     expect(detalle.textContent).toContain('5 h');
     expect(detalle.textContent).toContain('1 h');
+    expect(detalle.textContent).toContain('Horas estimadas (Planeación)');
+    expect(detalle.textContent).toContain('Horas reales (Producción)');
+    expect(detalle.textContent).toContain('Historial de cambios');
     expect(detalle.textContent).toContain('Ajuste de turno');
     expect(detalle.textContent).toContain('Bruno Planeación');
   });
@@ -330,7 +333,7 @@ describe('operación de Planeación en cliente', () => {
     expect(alerta.textContent).toContain('No se pudo cargar el detalle');
     fireEvent.click(within(alerta).getByRole('button', { name: 'Reintentar' }));
 
-    expect(await screen.findByText('Sin reprogramaciones registradas.')).toBeTruthy();
+    expect(await screen.findByText('Sin cambios registrados.')).toBeTruthy();
     expect(obtenerDetalleMock).toHaveBeenCalledTimes(2);
   });
 

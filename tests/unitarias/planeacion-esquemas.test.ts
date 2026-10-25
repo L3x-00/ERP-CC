@@ -406,6 +406,10 @@ describe('mappers de Planeación', () => {
     expect(Object.keys(VARIANTE_ESTADO)).toEqual([...ESTADOS_PLANEACION]);
   });
 
+  it('cada estado tiene una variante visual distinta (P16)', () => {
+    expect(new Set(Object.values(VARIANTE_ESTADO)).size).toBe(ESTADOS_PLANEACION.length);
+  });
+
   it('rechaza un área corrupta en el recurso', () => {
     expect(() => filaARecursoPlaneacion({ ...filaRecurso, area: 'pintura' })).toThrow(
       /área de recurso: pintura/,

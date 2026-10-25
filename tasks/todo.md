@@ -6,10 +6,12 @@ Rama `feat/planeacion-ui-una-pantalla` (sobre `main` con #113 fusionado).
 - [x] **Panel flotante:** «Programar operación» o abrir un bloque muestran el formulario en un panel fijo a la derecha sin reacomodar la rejilla; dos columnas y prioridad en «Opciones avanzadas».
 - [x] **Tarjetas compactas:** folio completo, estado, ítem, procesos, recurso/horas y acción de seleccionar sin truncar.
 - [x] **Contexto del bloque:** el clic en la tarjeta abre el panel; la vista semanal muestra «Operación N · nombre» cuando hay ruteo y «Procesos» en partidas heredadas.
+- [x] **Estados distinguibles:** seis variantes de color con texto (programada, en preparación, en proceso, bloqueada, completada, cancelada) y contraste AA en claro/oscuro.
+- [x] **Estimado vs real:** el detalle rotula «Horas estimadas (Planeación)», «Horas reales (Producción)», «Exceso real (Producción)», «Recurso asignado» y «Responsable de la programación»; el historial se llama «Historial de cambios».
 - [x] **Alcance intacto:** sin APS/MRP/optimización; «Buscar hueco» y sugerencias de la bolsa se conservan plegadas.
 - Sin migración.
 
-**Pruebas:** typecheck y eslint 0; 14 archivos / 164 unitarias de Planeación; suite completa 2341/2342 (el fallo de `rfq-archivos-historial` pasa 12/12 aislado); E2E loopback de capacidad, bolsa y flujo colaborativo 6/6; capturas 320/768/1024/1440 en claro y oscuro. CI pendiente del head final.
+**Pruebas:** typecheck, eslint y build 0; 14 archivos / 165 unitarias de Planeación; suite completa 2341/2342 (el fallo de `rfq-archivos-historial` pasa 12/12 aislado); E2E loopback de capacidad, bolsa y flujo colaborativo 6/6; capturas 320/768/1024/1440 en claro y oscuro. CI pendiente del head final.
 
 ## Corte 2026-10-24 — Interfaz sin divisorias y cola RFQ renovada · PR #110
 

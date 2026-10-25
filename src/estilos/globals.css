@@ -50,6 +50,10 @@
   --color-info: var(--info);
   --color-info-suave: var(--info-suave);
   --color-info-texto: var(--info-texto);
+  --color-preparacion-suave: var(--preparacion-suave);
+  --color-preparacion-texto: var(--preparacion-texto);
+  --color-proceso-suave: var(--proceso-suave);
+  --color-proceso-texto: var(--proceso-texto);
 
   /* Tiers de cliente */
   --color-tier-bronce: var(--tier-bronce);
