@@ -397,9 +397,9 @@ test.describe.serial('Planeación colaborativa completa', () => {
     const detalle = page.getByTestId('detalle-programacion-planeacion');
     await expect(detalle).toBeVisible();
     await expect(detalle).toContainText('Planeador E2E');
-    await expect(detalle).toContainText('Estimadas');
-    await expect(detalle).toContainText('Reales');
-    await expect(detalle).toContainText('Exceso');
+    await expect(detalle).toContainText('Horas estimadas (Planeación)');
+    await expect(detalle).toContainText('Horas reales (Producción)');
+    await expect(detalle).toContainText('Exceso real (Producción)');
     await expect(detalle).toContainText('Validación colaborativa E2E');
     if (process.env.E2E_CAPTURAR_VISUAL === '1') {
       const tamanoOriginal = page.viewportSize() ?? { width: 1280, height: 720 };
