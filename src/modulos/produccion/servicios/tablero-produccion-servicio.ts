@@ -226,15 +226,19 @@ export async function obtenerDatosTableroProduccionServicio(
         .filter((valor): valor is string => valor !== null),
     ),
   ];
+  // Nombre de cliente y material son etiquetas de apoyo: la RLS de catálogo no
+  // siempre se expone al piso, así que se resuelven con el cliente admin cuando
+  // está disponible (mismo criterio que áreas y nombres de responsables).
+  const clienteEtiquetas = admin ?? cliente;
   const [respuestasClientes, respuestasMateriales] = await Promise.all([
     Promise.all(
       dividirEnLotes(clienteIds).map((lote) =>
-        cliente.from('clientes').select('id, razon_social, nombre_comercial').in('id', lote),
+        clienteEtiquetas.from('clientes').select('id, razon_social, nombre_comercial').in('id', lote),
       ),
     ),
     Promise.all(
       dividirEnLotes(materialIds).map((lote) =>
-        cliente
+        clienteEtiquetas
           .from('catalogo_materiales')
           .select('id, codigo, nombre, unidad_base, ancho_mm, largo_mm')
           .in('id', lote),
