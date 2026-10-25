@@ -66,29 +66,24 @@ export function PanelCapacidadInstalada() {
   return (
     <SeccionDesplegable
       titulo="Capacidad instalada"
-      descripcion="Equipos × jornada; la jornada estándar es de 8 h y puede sobrescribirse"
+      descripcion="Equipos y jornada de cada recurso; por defecto, 8 h"
       dataTestId="panel-capacidad-instalada"
       dataTestIdBoton="toggle-capacidad-instalada"
       claseContenido="pt-0"
     >
-      <p className="text-sm text-texto-secundario">
-        Capacidad por jornada = equipos × jornada. La jornada estándar es de 8 h y puede
-        sobrescribirse por recurso (por ejemplo, un turno de 6 h).
-      </p>
-
-      {consulta.isLoading && <p className="mt-4 text-sm text-texto-secundario">Cargando recursos…</p>}
+      {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando recursos…</p>}
       {consulta.isError && (
-        <p role="alert" className="mt-4 text-sm text-peligro-texto">
+        <p role="alert" className="mt-3 text-sm text-peligro-texto">
           No se pudo cargar la capacidad de los recursos.
         </p>
       )}
 
       {consulta.data && consulta.data.length === 0 && (
-        <p className="mt-4 text-sm text-texto-secundario">No hay recursos activos.</p>
+        <p className="mt-3 text-sm text-texto-secundario">No hay recursos activos.</p>
       )}
 
       {consulta.data && consulta.data.length > 0 && (
-        <ul className="mt-4 flex flex-col gap-3">
+        <ul className="mt-3 flex flex-col gap-3">
           {consulta.data.map((recurso) => (
             <FilaCapacidad key={recurso.id} recurso={recurso} />
           ))}
@@ -152,18 +147,18 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
 
   return (
     <li
-      className="grid gap-2 rounded-lg border border-borde px-3 py-3 lg:grid-cols-[1fr_auto]"
+      className="grid gap-2 rounded-lg border border-borde px-3 py-3"
       data-testid={`capacidad-recurso-${recurso.codigo}`}
     >
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate font-medium text-texto-primario">
+          {recurso.codigo} · {recurso.nombre}
+        </span>
+        <span className="text-xs text-texto-secundario">
+          {recurso.area} · Turnos: {recurso.horasTurno.map((horas) => `${horas} h`).join(' / ') || 'sin turnos'}
+        </span>
+      </div>
       <form className="grid items-end gap-3 sm:grid-cols-3" onSubmit={guardar}>
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate font-medium text-texto-primario">
-            {recurso.codigo} · {recurso.nombre}
-          </span>
-          <span className="text-xs text-texto-secundario">
-            {recurso.area} · Turnos: {recurso.horasTurno.map((horas) => `${horas} h`).join(' / ') || 'sin turnos'}
-          </span>
-        </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor={`equipos-${recurso.id}`} obligatorio>
             Equipos ({recurso.codigo})
@@ -181,24 +176,22 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor={`jornada-${recurso.id}`}>Jornada por equipo (h, opcional)</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id={`jornada-${recurso.id}`}
-              type="number"
-              min="0.5"
-              max="24"
-              step="0.5"
-              placeholder={`${jornadaBaseHoras(recurso.horasTurno, null)}`}
-              value={override}
-              onChange={(evento) => setOverride(evento.target.value)}
-            />
-            <Button type="submit" variante="contorno" tamano="sm" disabled={guardando}>
-              {guardando ? 'Guardando…' : 'Guardar'}
-            </Button>
-          </div>
+          <Input
+            id={`jornada-${recurso.id}`}
+            type="number"
+            min="0.5"
+            max="24"
+            step="0.5"
+            placeholder={`${jornadaBaseHoras(recurso.horasTurno, null)}`}
+            value={override}
+            onChange={(evento) => setOverride(evento.target.value)}
+          />
         </div>
+        <Button type="submit" variante="contorno" tamano="sm" disabled={guardando}>
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </Button>
       </form>
-      <div className="flex flex-col items-start justify-center gap-1 text-sm lg:items-end">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="font-medium text-texto-primario" data-testid={`capacidad-total-${recurso.codigo}`}>
           Equipos × jornada = {capacidad} h por jornada
         </span>

@@ -91,8 +91,8 @@ export function TarjetaProgramacionPlaneacion({
       onDragStart={arrastrable ? iniciarArrastre : undefined}
       className={
         seleccionada
-          ? `flex min-w-0 flex-col ${compacta ? 'gap-1.5 p-2.5' : 'gap-2 p-3'} rounded-base border border-acento bg-superficie-2 text-xs`
-          : `flex min-w-0 flex-col ${compacta ? 'gap-1.5 p-2.5' : 'gap-2 p-3'} rounded-base border border-borde bg-superficie text-xs`
+          ? `flex min-w-0 flex-col ${compacta ? 'gap-1 p-2' : 'gap-2 p-3'} rounded-base border border-acento bg-superficie-2 text-xs`
+          : `flex min-w-0 flex-col ${compacta ? 'gap-1 p-2' : 'gap-2 p-3'} rounded-base border border-borde bg-superficie text-xs`
       }
     >
       <header className="flex items-start gap-1.5">
@@ -108,21 +108,22 @@ export function TarjetaProgramacionPlaneacion({
             ⠿
           </span>
         ) : null}
-        <div className={`flex min-w-0 flex-1 flex-col ${compacta ? 'gap-1' : 'gap-2'}`}>
+        <div className={`flex min-w-0 flex-1 flex-col ${compacta ? 'gap-0.5' : 'gap-2'}`}>
           <button
             type="button"
             draggable={false}
             data-testid={`resumen-orden-${programacion.id}`}
             aria-label={`Ver resumen de la orden ${titulo}`}
+            title={titulo}
             onClick={() => setResumenAbierto(true)}
-            className={`${compacta ? 'w-full' : 'min-w-0'} truncate rounded-sm text-left font-mono text-[11px] font-medium underline decoration-dotted underline-offset-2 hover:text-acento focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:outline-none`}
+            className={`${compacta ? 'min-w-0 flex-1' : 'min-w-0'} truncate rounded-sm text-left font-mono text-[11px] font-medium underline decoration-dotted underline-offset-2 hover:text-acento focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:outline-none`}
           >
-            {titulo}
+            {compacta && desglose ? desglose.folio : titulo}
           </button>
           <span className="self-start">
             <Badge
               variante={VARIANTE_ESTADO[programacion.estadoPlaneacion]}
-              className={compacta ? 'px-2 py-0 text-[10px]' : undefined}
+              className={compacta ? 'px-1.5 py-0 text-[9px] leading-4' : undefined}
             >
               {ETIQUETA_ESTADO[programacion.estadoPlaneacion]}
             </Badge>
@@ -136,10 +137,10 @@ export function TarjetaProgramacionPlaneacion({
 
       {compacta ? (
         <>
-          <p className="truncate text-[11px] text-texto-secundario" title={`Ítem ${itemTexto}`}>
+          <p className="truncate text-[10px] leading-4 text-texto-secundario" title={`Ítem ${itemTexto}`}>
             Ítem {itemTexto}
           </p>
-          <p className="truncate text-[11px] text-texto-secundario" title={procesosTexto}>
+          <p className="truncate text-[10px] leading-4 text-texto-secundario" title={procesosTexto}>
             Procesos: {procesosTexto}
           </p>
         </>
@@ -191,15 +192,16 @@ export function TarjetaProgramacionPlaneacion({
       ) : null}
 
       <footer
-        className={`flex flex-wrap items-center justify-between border-t border-borde ${
-          compacta ? 'gap-1.5 pt-1.5' : 'gap-2 pt-2'
+        className={`flex items-center border-t border-borde ${
+          compacta ? 'gap-1 pt-1' : 'flex-wrap justify-between gap-2 pt-2'
         }`}
       >
-        <span className={`text-texto-secundario ${compacta ? 'min-w-0 flex-1 truncate' : ''}`}>
+        <span
+          className={`text-texto-secundario ${compacta ? 'min-w-0 flex-1 truncate text-[10px]' : ''}`}
+          title={compacta ? `${recurso?.codigo ?? 'Recurso'} · ${programacion.horasEstimadas} h` : undefined}
+        >
           {compacta
-            ? `${programacion.operacionNombre ? `${programacion.operacionNombre} · ` : ''}${
-                recurso?.codigo ?? 'Recurso'
-              } · ${programacion.horasEstimadas} h`
+            ? `${recurso?.codigo ?? 'Recurso'} · ${programacion.horasEstimadas} h`
             : `${recurso ? `${recurso.codigo} · ${recurso.nombre}` : 'Recurso'} · ${
                 ETIQUETA_TURNO[programacion.turno]
               } · ${programacion.horasEstimadas} h · prioridad ${programacion.ordenPrioridad}`}
@@ -217,7 +219,7 @@ export function TarjetaProgramacionPlaneacion({
             variante="contorno"
             tamano="sm"
             onClick={() => onSeleccionar(programacion)}
-            className="shrink-0"
+            className={compacta ? 'shrink-0 px-2 text-[10px]' : 'shrink-0'}
           >
             Seleccionar
           </Button>

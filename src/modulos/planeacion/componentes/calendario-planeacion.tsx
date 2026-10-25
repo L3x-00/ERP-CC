@@ -58,6 +58,10 @@ export interface PropsCalendarioPlaneacion {
   onSeleccionarProgramacion?: (programacion: ProgramacionArea | null) => void;
   /** Solicita confirmar una reprogramación por arrastre; nunca muta por sí sola. */
   onSolicitarReprogramacion?: (programacion: ProgramacionArea, fechaDestino: string) => void;
+  /** Abre el panel contextual de programación; el calendario no se reacomoda. */
+  onProgramar?: () => void;
+  /** Estado del panel contextual, para anunciarlo en el botón. */
+  programando?: boolean;
   onRefrescarOperacion?: () => void;
 }
 
@@ -100,6 +104,8 @@ export function CalendarioPlaneacion({
   onSeleccionarProgramacion,
   onSolicitarReprogramacion,
   onRefrescarOperacion,
+  onProgramar,
+  programando = false,
 }: PropsCalendarioPlaneacion) {
   const rango = usarTiendaPlaneacion((estado) => estado.rango);
   const area = usarTiendaPlaneacion((estado) => estado.area);
@@ -135,7 +141,7 @@ export function CalendarioPlaneacion({
     (recursoId !== null ? 1 : 0) + (area !== null ? 1 : 0) + turnos.length + estados.length;
   const descripcionFiltros = filtrosActivos > 0
     ? `${filtrosActivos} filtro${filtrosActivos === 1 ? '' : 's'} activo${filtrosActivos === 1 ? '' : 's'}`
-    : 'Rango, recurso, área, turnos y estados';
+    : 'Rango, área, turnos y estados';
 
   const recursosPorId = useMemo(
     () => new Map(datos.recursos.map((recurso) => [recurso.id, recurso])),
@@ -244,49 +250,83 @@ export function CalendarioPlaneacion({
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="titulo-calendario-planeacion">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="titulo-calendario-planeacion" className="text-sm font-medium">
-          Calendario de Planeación
-        </h2>
-        <p className="text-xs text-texto-secundario" aria-live="polite">
-          {errorActualizacion
-            ? 'No se pudo actualizar el calendario'
-            : actualizando
-              ? 'Actualizando…'
-              : `${visibles.length} programaciones · ${rangoEfectivo.fechaInicio} a ${rangoEfectivo.fechaFin}`}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 id="titulo-calendario-planeacion" className="text-sm font-medium">
+            Calendario de Planeación
+          </h2>
+          <p className="text-xs text-texto-secundario" aria-live="polite">
+            {errorActualizacion
+              ? 'No se pudo actualizar el calendario'
+              : actualizando
+                ? 'Actualizando…'
+                : `${visibles.length} programaciones · ${rangoEfectivo.fechaInicio} a ${rangoEfectivo.fechaFin}`}
+          </p>
+        </div>
+        {onProgramar ? (
+          <Button
+            type="button"
+            tamano="sm"
+            variante={programando ? 'contorno' : 'secundario'}
+            aria-expanded={programando}
+            aria-controls="panel-programar-partida"
+            onClick={onProgramar}
+            data-testid="toggle-programar-partida"
+          >
+            {programando ? 'Cerrar panel' : 'Programar operación'}
+          </Button>
+        ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Navegación del calendario">
-        <div className="flex gap-1" role="group" aria-label="Vista del calendario">
-          {VISTAS_PLANEACION.map((valor) => (
-            <Button
-              key={valor}
-              type="button"
-              tamano="sm"
-              variante={vista === valor ? 'secundario' : 'contorno'}
-              aria-pressed={vista === valor}
-              onClick={() => cambiarVista(valor)}
-              data-testid={`vista-planeacion-${valor}`}
-            >
-              {ETIQUETA_VISTA[valor]}
-            </Button>
-          ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Navegación del calendario">
+          <div className="flex gap-1" role="group" aria-label="Vista del calendario">
+            {VISTAS_PLANEACION.map((valor) => (
+              <Button
+                key={valor}
+                type="button"
+                tamano="sm"
+                variante={vista === valor ? 'secundario' : 'contorno'}
+                aria-pressed={vista === valor}
+                onClick={() => cambiarVista(valor)}
+                data-testid={`vista-planeacion-${valor}`}
+              >
+                {ETIQUETA_VISTA[valor]}
+              </Button>
+            ))}
+          </div>
+          <Button type="button" tamano="sm" variante="contorno" onClick={() => navegar(-1)}>
+            Anterior
+          </Button>
+          <Button type="button" tamano="sm" variante="contorno" onClick={irHoy}>
+            Hoy
+          </Button>
+          <Button type="button" tamano="sm" variante="contorno" onClick={() => navegar(1)}>
+            Siguiente
+          </Button>
+          <span className="text-xs text-texto-secundario">
+            {vista === 'mes'
+              ? etiquetaMes(rangoEfectivo.fechaInicio)
+              : etiquetaRango(rangoEfectivo)}
+          </span>
         </div>
-        <Button type="button" tamano="sm" variante="contorno" onClick={() => navegar(-1)}>
-          Anterior
-        </Button>
-        <Button type="button" tamano="sm" variante="contorno" onClick={irHoy}>
-          Hoy
-        </Button>
-        <Button type="button" tamano="sm" variante="contorno" onClick={() => navegar(1)}>
-          Siguiente
-        </Button>
-        <span className="text-xs text-texto-secundario">
-          {vista === 'mes'
-            ? etiquetaMes(rangoEfectivo.fechaInicio)
-            : etiquetaRango(rangoEfectivo)}
-        </span>
+        <label className="flex items-center gap-2 text-xs">
+          <span className="text-texto-secundario">Recurso</span>
+          <Select
+            className="h-9 w-full min-w-40 py-1 sm:w-auto sm:min-w-52"
+            value={recursoId ?? ''}
+            onChange={(evento) => establecerRecurso(evento.target.value || null)}
+          >
+            <option value="">Todos los recursos</option>
+            {datos.recursos
+              .filter((recurso) => area === null || recurso.area === area)
+              .map((recurso) => (
+                <option key={recurso.id} value={recurso.id}>
+                  {recurso.codigo} · {recurso.nombre} ({ETIQUETA_AREA[recurso.area]})
+                </option>
+              ))}
+          </Select>
+        </label>
       </div>
 
       <SeccionDesplegable
@@ -324,22 +364,6 @@ export function CalendarioPlaneacion({
           </Button>
         </div>
 
-        <label className="flex flex-col gap-1 text-xs">
-          Recurso
-          <Select
-            value={recursoId ?? ''}
-            onChange={(evento) => establecerRecurso(evento.target.value || null)}
-          >
-            <option value="">Todos los recursos</option>
-            {datos.recursos
-              .filter((recurso) => area === null || recurso.area === area)
-              .map((recurso) => (
-                <option key={recurso.id} value={recurso.id}>
-                  {recurso.codigo} · {recurso.nombre} ({ETIQUETA_AREA[recurso.area]})
-                </option>
-              ))}
-          </Select>
-        </label>
         <details
           open={masFiltrosAbierto}
           onToggle={(evento) => setPliegueAbiertoManualmente(evento.currentTarget.open)}

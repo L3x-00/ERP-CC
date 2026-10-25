@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-planeacion';
-import { PanelCapacidadInstalada } from '@/modulos/planeacion/componentes/panel-capacidad-instalada';
 import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
@@ -231,13 +230,12 @@ export default async function PaginaPlaneacion() {
   });
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-planeacion">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Planeación y capacidad</h1>
+    <div className="mx-auto flex max-w-7xl flex-col gap-4" data-testid="pagina-planeacion">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold">Planeación</h1>
         <p className="text-sm text-texto-secundario">
-          Cada operación del ruteo se programa en su recurso, fecha, turno y horas. La capacidad y
-          los candados se validan en PostgreSQL; el calendario se actualiza al cambiar cualquier
-          usuario.
+          Acomoda cada operación en recurso, fecha, turno y horas. La capacidad y los bloqueos se
+          validan en PostgreSQL; el calendario se actualiza al cambiar cualquier usuario.
         </p>
       </header>
       <OperacionPlaneacion
@@ -249,7 +247,6 @@ export default async function PaginaPlaneacion() {
         bolsa={bolsa}
         compatibilidad={compatibilidad}
       />
-      <PanelCapacidadInstalada />
     </div>
   );
 }
