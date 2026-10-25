@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { DragEvent } from 'react';
+import type { DragEvent, MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -83,16 +83,27 @@ export function TarjetaProgramacionPlaneacion({
     evento.dataTransfer.effectAllowed = 'move';
   }
 
+  // P05: el bloque completo abre su contexto; los controles internos (título,
+  // acciones, arrastre) conservan su propio comportamiento y no lo duplican.
+  function abrirContexto(evento: MouseEvent<HTMLElement>): void {
+    if (!onSeleccionar) return;
+    if ((evento.target as HTMLElement).closest('button, a, input, textarea, select, [role="button"]')) {
+      return;
+    }
+    onSeleccionar(programacion);
+  }
+
   return (
     <article
       data-testid={`programacion-${programacion.id}`}
       data-seleccionada={seleccionada ? 'si' : 'no'}
       draggable={arrastrable}
       onDragStart={arrastrable ? iniciarArrastre : undefined}
+      onClick={onSeleccionar ? abrirContexto : undefined}
       className={
         seleccionada
-          ? `flex min-w-0 flex-col ${compacta ? 'gap-1 p-2' : 'gap-2 p-3'} rounded-base border border-acento bg-superficie-2 text-xs`
-          : `flex min-w-0 flex-col ${compacta ? 'gap-1 p-2' : 'gap-2 p-3'} rounded-base border border-borde bg-superficie text-xs`
+          ? `flex min-w-0 flex-col ${compacta ? 'gap-1 p-2' : 'gap-2 p-3'} rounded-base border border-acento bg-superficie-2 text-xs ${onSeleccionar ? 'cursor-pointer' : ''}`
+          : `flex min-w-0 flex-col ${compacta ? 'gap-1 p-2' : 'gap-2 p-3'} rounded-base border border-borde bg-superficie text-xs ${onSeleccionar ? 'cursor-pointer' : ''}`
       }
     >
       <header className="flex items-start gap-1.5">
@@ -140,9 +151,18 @@ export function TarjetaProgramacionPlaneacion({
           <p className="truncate text-[10px] leading-4 text-texto-secundario" title={`Ítem ${itemTexto}`}>
             Ítem {itemTexto}
           </p>
-          <p className="truncate text-[10px] leading-4 text-texto-secundario" title={procesosTexto}>
-            Procesos: {procesosTexto}
-          </p>
+          {programacion.operacionNombre ? (
+            <p
+              className="truncate text-[10px] leading-4 text-texto-secundario"
+              title={`Operación ${programacion.secuencia} · ${programacion.operacionNombre}`}
+            >
+              Operación {programacion.secuencia} · {programacion.operacionNombre}
+            </p>
+          ) : (
+            <p className="truncate text-[10px] leading-4 text-texto-secundario" title={procesosTexto}>
+              Procesos: {procesosTexto}
+            </p>
+          )}
         </>
       ) : null}
 
