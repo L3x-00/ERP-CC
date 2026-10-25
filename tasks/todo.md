@@ -1,3 +1,15 @@
+## Corte 2026-10-25 — Planeación: una sola pantalla y panel lateral de programación · PR #114
+
+Rama `feat/planeacion-ui-una-pantalla` (sobre `main` con #113 fusionado).
+
+- [x] **Una sola pantalla:** carga semanal, capacidad instalada y trabajo por liberar arriba, plegados los dos últimos; calendario a todo el ancho.
+- [x] **Panel flotante:** «Programar operación» o abrir un bloque muestran el formulario en un panel fijo a la derecha sin reacomodar la rejilla; dos columnas y prioridad en «Opciones avanzadas».
+- [x] **Tarjetas compactas:** folio completo, estado, ítem, procesos, recurso/horas y acción de seleccionar sin truncar.
+- [x] **Alcance intacto:** sin APS/MRP/optimización; «Buscar hueco» y sugerencias de la bolsa se conservan plegadas.
+- Sin migración.
+
+**Pruebas:** typecheck y eslint 0; 14 archivos / 162 unitarias de Planeación; suite completa 2341/2342 (el fallo de `rfq-archivos-historial` pasa 12/12 aislado); E2E loopback de capacidad, bolsa y flujo colaborativo 6/6; capturas 320/768/1024/1440 en claro y oscuro. CI pendiente del head final.
+
 ## Corte 2026-10-24 — Interfaz sin divisorias y cola RFQ renovada · PR #110
 
 Rama `feat/rfq-ui-sin-divisorias` (sobre `main` con #109 fusionado).

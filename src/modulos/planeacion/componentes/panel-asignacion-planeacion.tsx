@@ -208,11 +208,6 @@ export function PanelAsignacionPlaneacion({
     : partidaId
       ? desglosePorId.get(partidaId)
       : undefined;
-  const etiquetaPartida = programacion
-    ? desgloseSeleccionado
-      ? `${desgloseSeleccionado.folio} · ${desgloseSeleccionado.codigoPieza}`
-      : 'Partida seleccionada'
-    : partidasProgramables.find((partida) => partida.partidaId === partidaId)?.etiqueta;
 
   // C9.0: con ruteo se programa por operación; sin ruteo se conserva la
   // secuencia manual de las partidas heredadas.
@@ -501,98 +496,105 @@ export function PanelAsignacionPlaneacion({
         </>
       ) : null}
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="planeacion-recurso">Recurso</Label>
-        <Select
-          id="planeacion-recurso"
-          value={recursoId}
-          onChange={(evento) => setRecursoId(evento.target.value)}
-        >
-          <option value="">Selecciona un recurso</option>
-          {recursosPorCompatibilidad.map(({ recurso, grupo, estado }) => (
-            <option key={recurso.id} value={recurso.id}>
-              {recurso.codigo} · {recurso.nombre} — {grupo?.nombre ?? 'sin grupo'}
-              {estado === 'incompatible' ? ' (otro grupo)' : ''}
-            </option>
-          ))}
-        </Select>
-        {estadoCompatibilidadSeleccionada === 'incompatible' ? (
-          <p
-            role="status"
-            className="text-xs text-peligro-texto"
-            data-testid="aviso-compatibilidad-planeacion"
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 flex flex-col gap-1">
+          <Label htmlFor="planeacion-recurso">Recurso</Label>
+          <Select
+            id="planeacion-recurso"
+            value={recursoId}
+            onChange={(evento) => setRecursoId(evento.target.value)}
           >
-            El recurso es de otro grupo de equipo del que pide el ruteo de la partida. Elige un
-            equipo compatible para guardar.
-          </p>
-        ) : null}
-      </div>
+            <option value="">Selecciona un recurso</option>
+            {recursosPorCompatibilidad.map(({ recurso, grupo, estado }) => (
+              <option key={recurso.id} value={recurso.id}>
+                {recurso.codigo} · {recurso.nombre} — {grupo?.nombre ?? 'sin grupo'}
+                {estado === 'incompatible' ? ' (otro grupo)' : ''}
+              </option>
+            ))}
+          </Select>
+          {estadoCompatibilidadSeleccionada === 'incompatible' ? (
+            <p
+              role="status"
+              className="text-xs text-peligro-texto"
+              data-testid="aviso-compatibilidad-planeacion"
+            >
+              El recurso es de otro grupo de equipo del que pide el ruteo de la partida. Elige un
+              equipo compatible para guardar.
+            </p>
+          ) : null}
+        </div>
 
-      {programacion ? (
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="planeacion-motivo">Motivo de la reprogramación</Label>
-          <Textarea
-            id="planeacion-motivo"
-            value={motivo}
-            maxLength={500}
-            rows={3}
-            onChange={(evento) => setMotivo(evento.target.value)}
-            placeholder="Ej. Ajuste por disponibilidad de máquina"
+        {programacion ? (
+          <div className="col-span-2 flex flex-col gap-1">
+            <Label htmlFor="planeacion-motivo">Motivo de la reprogramación</Label>
+            <Textarea
+              id="planeacion-motivo"
+              value={motivo}
+              maxLength={500}
+              rows={2}
+              onChange={(evento) => setMotivo(evento.target.value)}
+              placeholder="Ej. Ajuste por disponibilidad de máquina"
+            />
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="planeacion-fecha">Fecha programada</Label>
+          <Input
+            id="planeacion-fecha"
+            type="date"
+            value={fechaProgramada}
+            onChange={(evento) => {
+              setFechaProgramada(evento.target.value);
+              onCambiarFecha?.(evento.target.value);
+            }}
           />
         </div>
-      ) : null}
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="planeacion-fecha">Fecha programada</Label>
-        <Input
-          id="planeacion-fecha"
-          type="date"
-          value={fechaProgramada}
-          onChange={(evento) => {
-            setFechaProgramada(evento.target.value);
-            onCambiarFecha?.(evento.target.value);
-          }}
-        />
-      </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="planeacion-turno">Turno</Label>
+          <Select
+            id="planeacion-turno"
+            value={turno}
+            onChange={(evento) => setTurno(evento.target.value as TurnoPlaneacion)}
+          >
+            {TURNOS_PLANEACION.map((valor) => (
+              <option key={valor} value={valor}>{ETIQUETA_TURNO[valor]}</option>
+            ))}
+          </Select>
+        </div>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="planeacion-turno">Turno</Label>
-        <Select
-          id="planeacion-turno"
-          value={turno}
-          onChange={(evento) => setTurno(evento.target.value as TurnoPlaneacion)}
-        >
-          {TURNOS_PLANEACION.map((valor) => (
-            <option key={valor} value={valor}>{ETIQUETA_TURNO[valor]}</option>
-          ))}
-        </Select>
-      </div>
+        <div className="flex min-w-0 flex-col gap-1">
+          <Label htmlFor="planeacion-horas">Horas estimadas</Label>
+          <Input
+            id="planeacion-horas"
+            type="number"
+            min="0.25"
+            max="24"
+            step="0.25"
+            inputMode="decimal"
+            value={horasEstimadas}
+            onChange={(evento) => setHorasEstimadas(evento.target.value)}
+          />
+        </div>
 
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="planeacion-horas">Horas estimadas</Label>
-        <Input
-          id="planeacion-horas"
-          type="number"
-          min="0.25"
-          max="24"
-          step="0.25"
-          inputMode="decimal"
-          value={horasEstimadas}
-          onChange={(evento) => setHorasEstimadas(evento.target.value)}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="planeacion-prioridad">Prioridad</Label>
-        <Input
-          id="planeacion-prioridad"
-          type="number"
-          min="1"
-          step="1"
-          inputMode="numeric"
-          value={ordenPrioridad}
-          onChange={(evento) => setOrdenPrioridad(evento.target.value)}
-        />
+        <details className="col-span-2">
+          <summary className="cursor-pointer text-xs font-medium text-texto-secundario">
+            Opciones avanzadas (prioridad)
+          </summary>
+          <div className="mt-2 flex flex-col gap-1">
+            <Label htmlFor="planeacion-prioridad">Prioridad</Label>
+            <Input
+              id="planeacion-prioridad"
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              value={ordenPrioridad}
+              onChange={(evento) => setOrdenPrioridad(evento.target.value)}
+            />
+          </div>
+        </details>
       </div>
 
       {puedePrevisualizar ? (
@@ -601,8 +603,7 @@ export function PanelAsignacionPlaneacion({
           aria-label="Resumen antes de guardar"
           data-testid="resumen-programacion-planeacion"
         >
-          <p className="font-medium">Resumen antes de guardar</p>
-          {etiquetaPartida ? <p>Partida: {etiquetaPartida}</p> : null}
+          <p className="font-medium">Capacidad del turno</p>
           {!programacion && operacionElegida ? (
             <p>Operación: {operacionElegida.secuencia} · {operacionElegida.nombre}</p>
           ) : null}

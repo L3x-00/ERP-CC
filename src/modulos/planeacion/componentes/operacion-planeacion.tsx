@@ -12,7 +12,7 @@ import {
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
 import { CalendarioPlaneacion } from '@/modulos/planeacion/componentes/calendario-planeacion';
-import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
+import { Button } from '@/compartido/componentes/ui/button';
 import {
   CLAVE_CALENDARIO_PLANEACION,
   CLAVE_DETALLE_PROGRAMACION,
@@ -20,6 +20,7 @@ import {
 import { DetalleProgramacionPlaneacion } from '@/modulos/planeacion/componentes/detalle-programacion-planeacion';
 import { DialogoReprogramacionPlaneacion } from '@/modulos/planeacion/componentes/dialogo-reprogramacion-planeacion';
 import { PanelBolsaPlaneacion } from '@/modulos/planeacion/componentes/panel-bolsa-planeacion';
+import { PanelCapacidadInstalada } from '@/modulos/planeacion/componentes/panel-capacidad-instalada';
 import {
   PanelAsignacionPlaneacion,
   type DatosAsignacionPlaneacion,
@@ -318,47 +319,71 @@ export function OperacionPlaneacion({
     : undefined;
 
   return (
-    <div
-      className={`grid gap-6 transition-[grid-template-columns] duration-200 motion-reduce:transition-none ${
-        panelAbierto ? 'xl:grid-cols-[minmax(0,1fr)_22rem]' : 'xl:grid-cols-1'
-      }`}
-    >
-      <div className={panelAbierto ? 'xl:col-span-2' : 'xl:col-span-full'}>
-        <ResumenCargaSemanal
-          cargas={datosCalendario.cargas}
-          recursos={datosCalendario.recursos}
-          rango={rangoEfectivo}
-          filtroRecursoId={recursoId}
-          cargando={consulta.isFetching}
-        />
-      </div>
+    <div className="flex flex-col gap-4">
+      <ResumenCargaSemanal
+        cargas={datosCalendario.cargas}
+        recursos={datosCalendario.recursos}
+        rango={rangoEfectivo}
+        filtroRecursoId={recursoId}
+        cargando={consulta.isFetching}
+      />
+      <PanelCapacidadInstalada />
+      <PanelBolsaPlaneacion
+        bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}
+        procesando={bolsaProcesando}
+        mensaje={bolsaMensaje}
+        error={bolsaError}
+        onAsignar={asignarSugerencia}
+      />
       <SincronizadorPlaneacionRealtime
         alCambiarEstructuraOperacion={refrescarEstructuraOperacion}
       />
+      {/* El calendario conserva todo el ancho: el panel de programación flota a
+          la derecha y no reacomoda la rejilla al abrirse o cerrarse. */}
       <CalendarioPlaneacion
         datos={datosCalendario}
         rangoInicial={rangoInicial}
         actualizando={consulta.isFetching}
         errorActualizacion={consulta.isError}
         desglosePartidas={desglosePartidas}
+        programando={panelAbierto}
+        onProgramar={() => setPanelAbierto((abierto) => !abierto)}
         onSeleccionarProgramacion={alSeleccionar}
         onSolicitarReprogramacion={solicitarReprogramacion}
         onRefrescarOperacion={refrescarEstructuraOperacion}
       />
-      <aside className="min-w-0 xl:self-start" aria-label="Asignación de recurso">
-        <SeccionDesplegable
-          titulo={programacionSeleccionada ? 'Reprogramar partida' : 'Programar partida'}
-          descripcion={
-            programacionSeleccionada
-              ? 'Ajusta recurso, fecha, turno u horas de la programación seleccionada'
-              : 'Partida, recurso, fecha, turno y horas'
-          }
-          abierto={panelAbierto}
-          onAbiertoChange={setPanelAbierto}
-          dataTestId="panel-programar-partida"
-          dataTestIdBoton="toggle-programar-partida"
-          claseContenido="pt-0"
-        >
+
+      <aside
+        id="panel-programar-partida"
+        data-testid="panel-programar-partida"
+        aria-label="Panel de programación"
+        inert={!panelAbierto ? true : undefined}
+        className={`fixed inset-y-0 right-0 z-40 w-full max-w-md flex-col border-l border-borde bg-superficie shadow-elevada ${
+          panelAbierto ? 'flex' : 'hidden'
+        }`}
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-borde px-4 py-3">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h2 className="text-sm font-semibold text-texto-primario">
+              {programacionSeleccionada ? 'Reprogramar operación' : 'Programar operación'}
+            </h2>
+            <p className="text-xs text-texto-secundario">
+              {programacionSeleccionada
+                ? 'Ajusta recurso, fecha, turno u horas'
+                : 'Operación, recurso, fecha, turno y horas'}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variante="fantasma"
+            tamano="sm"
+            aria-label="Cerrar panel de programación"
+            onClick={() => setPanelAbierto(false)}
+          >
+            ×
+          </Button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-sutil px-4 py-4">
           <PanelAsignacionPlaneacion
             recursos={datosCalendario.recursos}
             partidasProgramables={partidasProgramables}
@@ -377,15 +402,6 @@ export function OperacionPlaneacion({
           {programacionSeleccionada ? (
             <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
           ) : null}
-        </SeccionDesplegable>
-        <div className="mt-4">
-          <PanelBolsaPlaneacion
-            bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}
-            procesando={bolsaProcesando}
-            mensaje={bolsaMensaje}
-            error={bolsaError}
-            onAsignar={asignarSugerencia}
-          />
         </div>
       </aside>
 
