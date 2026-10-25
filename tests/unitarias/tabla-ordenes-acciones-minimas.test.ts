@@ -83,12 +83,17 @@ function montar(ordenes: OrdenTabla[], extra: Record<string, unknown> = {}) {
   }));
 }
 
-/** Nombres accesibles de todos los controles interactivos de la fila. */
+/** Nombres accesibles de los controles de negocio de la fila.
+ *
+ * C10.5: el folio abre el resumen de la orden; es una ayuda de navegación, no
+ * una acción de negocio, y no cuenta en esta caracterización de C8.1.
+ */
 function controlesDeLaFila(folio: string): string[] {
   const fila = screen.getByTestId(`fila-orden-O-${folio}`);
   return within(fila)
     .queryAllByRole('button')
     .concat(within(fila).queryAllByRole('link'))
+    .filter((control) => !control.getAttribute('data-testid')?.startsWith('abrir-resumen-'))
     .map((control) => control.textContent?.trim() ?? '')
     .sort();
 }

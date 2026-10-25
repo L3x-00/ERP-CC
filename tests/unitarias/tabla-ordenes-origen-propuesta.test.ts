@@ -140,7 +140,10 @@ describe('cola de Órdenes · propuesta de origen bajo el folio', () => {
     expect(within(fila).getByTestId('origen-propuesta-O-0108').textContent).toContain('CNC-1026_07');
     expect(within(fila).getAllByRole('link').map((enlace) => enlace.textContent?.trim()).sort())
       .toEqual(['Abrir', 'CNC-1026_07']);
-    expect(within(fila).queryAllByRole('button')).toHaveLength(0);
+    // C10.5: el único botón de la fila es abrir el resumen; no vuelven las
+    // acciones de negocio retiradas (Editar, Procesos, Seleccionar, Cancelar).
+    expect(within(fila).queryAllByRole('button').map((boton) => boton.getAttribute('data-testid')))
+      .toEqual(['abrir-resumen-O-0108']);
   });
 
   it('cada fila lleva su propia propuesta (dos órdenes, dos enlaces distintos)', () => {
