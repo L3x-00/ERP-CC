@@ -153,7 +153,8 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
             Órdenes registradas
           </h2>
           <p className="text-sm text-texto-secundario">
-            Consulta el detalle, los comentarios y el seguimiento operativo de cada orden.
+            Haz clic en una orden para ver el resumen completo sin salir de esta pantalla. Consulta
+            también la ficha, los comentarios y el seguimiento operativo.
           </p>
         </div>
         <TablaOrdenes

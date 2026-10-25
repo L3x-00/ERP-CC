@@ -24,6 +24,7 @@ import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-v
 import { Button } from '@/compartido/componentes/ui/button';
 import { usarTiendaOrdenes } from '@/estado/uso-tienda-ordenes';
 import { liberarOrdenAccion } from '@/modulos/ordenes/acciones/liberar-orden';
+import { ModalResumenOrden } from '@/modulos/ordenes/componentes/modal-resumen-orden';
 import { enlacePropuestaOrigen } from '@/modulos/ordenes/utilidades/enlaces-origen';
 import {
   ESTADOS_SII_ORDEN,
@@ -252,6 +253,7 @@ export function TablaOrdenes({
   const [mensajeAccion, setMensajeAccion] = useState<string | null>(null);
   const [bandeja, setBandeja] = useState<'activas' | 'archivo'>('activas');
   const [hidratado, setHidratado] = useState(false);
+  const [resumenOrden, setResumenOrden] = useState<{ id: string; folio: string } | null>(null);
 
   useEffect(() => {
     const marco = requestAnimationFrame(() => setHidratado(true));
@@ -460,6 +462,8 @@ export function TablaOrdenes({
                 return (
                   <TablaFila
                     key={orden.id}
+                    clickable
+                    onClick={() => setResumenOrden({ id: orden.id, folio: folioVisible })}
                     data-testid={`fila-orden-${folioVisible}`}
                   >
                     <th
@@ -467,7 +471,16 @@ export function TablaOrdenes({
                       className="whitespace-nowrap px-4 py-3 text-left align-middle font-mono text-xs font-medium tabular-nums"
                     >
                       <span className="flex flex-col gap-0.5">
-                        <span className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(evento) => {
+                            evento.stopPropagation();
+                            setResumenOrden({ id: orden.id, folio: folioVisible });
+                          }}
+                          data-testid={`abrir-resumen-${folioVisible}`}
+                          aria-label={`Abrir resumen de la orden ${folioVisible}`}
+                          className="flex items-center gap-1.5 rounded-sm text-left font-mono font-medium transition-colors hover:text-acento focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+                        >
                           {folioVisible}
                           {orden.esInterna && (
                             <span
@@ -477,7 +490,7 @@ export function TablaOrdenes({
                               TI
                             </span>
                           )}
-                        </span>
+                        </button>
                         {orden.folioCotizacionCnc && (
                           <span
                             className="font-sans text-[10px] font-normal text-texto-tenue"
@@ -548,7 +561,10 @@ export function TablaOrdenes({
                         </span>
                       </div>
                     </TablaCelda>
-                    <TablaCelda className="text-right">
+                    <TablaCelda
+                      className="text-right"
+                      onClick={(evento) => evento.stopPropagation()}
+                    >
                       <div className="flex flex-wrap justify-end gap-2">
                         <Link
                           href={`/ordenes/${orden.id}`}
@@ -593,6 +609,13 @@ export function TablaOrdenes({
       <p aria-live="polite" className="text-sm text-texto-secundario">
         {ordenesVisibles.length} de {ordenes.length} orden(es)
       </p>
+
+      <ModalResumenOrden
+        abierto={resumenOrden !== null}
+        ordenId={resumenOrden?.id ?? ''}
+        folio={resumenOrden?.folio ?? ''}
+        onCerrar={() => setResumenOrden(null)}
+      />
     </div>
   );
 }

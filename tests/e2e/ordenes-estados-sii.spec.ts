@@ -242,6 +242,21 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await page.goBack();
       await expect(fila).toBeVisible();
       await expect(page.getByTestId(`estado-orden-${folio}`)).toContainText('Confirmada');
+
+      // C10.5: la fila abre el resumen con origen, PDF y accesos sin salir de la cola.
+      await page.getByTestId(`abrir-resumen-${folio}`).click();
+      const resumen = page.getByTestId('modal-resumen-orden');
+      await expect(resumen).toBeVisible();
+      await expect(resumen.getByTestId('resumen-origen')).toContainText('Propuesta');
+      await expect(resumen.getByTestId('resumen-origen')).toContainText(propuestaOrigen!.folio_cnc);
+      await expect(resumen.getByTestId('resumen-archivos')).toContainText('propuesta-e2e.pdf');
+      await expect(resumen.getByTestId('resumen-orden-servicio')).toHaveAttribute(
+        'href',
+        `/ordenes/${contexto.ordenId}?pestana=documento`,
+      );
+      await resumen.getByTestId('cerrar-resumen-orden').click();
+      await expect(resumen).toHaveCount(0);
+
       await expect(fila.getByRole('button', { name: 'Iniciar', exact: true })).toHaveCount(0);
       await expect(fila.getByRole('button', { name: 'Editar', exact: true })).toHaveCount(0);
       await expect(fila.getByRole('button', { name: 'Procesos', exact: true })).toHaveCount(0);
