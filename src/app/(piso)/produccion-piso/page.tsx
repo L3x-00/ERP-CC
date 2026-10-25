@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { IndicadorSesion } from '@/modulos/autenticacion/componentes/indicador-sesion';
 import { BannerVistaOperador } from '@/modulos/autenticacion/componentes/banner-vista-operador';
+import { BotonVolverAdmin } from '@/modulos/autenticacion/componentes/botones-vista-produccion';
 import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
 import { obtenerOrdenesConPartidasDePisoServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
@@ -96,13 +97,16 @@ export default async function PaginaProduccionPiso() {
         <div
           role="status"
           data-testid="banner-vista-admin"
-          className="rounded-lg border border-acento/40 bg-acento-suave px-4 py-3"
+          className="flex flex-col gap-3 rounded-lg border border-acento/40 bg-acento-suave px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
         >
-          <p className="text-sm font-semibold text-acento">Vista de administrador — solo lectura</p>
-          <p className="text-xs text-texto-secundario">
-            Ves el piso completo sin PIN. Los registros de producción siguen siendo de los
-            operadores.
-          </p>
+          <div>
+            <p className="text-sm font-semibold text-acento">Vista de administrador — solo lectura</p>
+            <p className="text-xs text-texto-secundario">
+              Ves el piso completo sin PIN. Los registros de producción siguen siendo de los
+              operadores.
+            </p>
+          </div>
+          <BotonVolverAdmin />
         </div>
       ) : esDelegada && administrador ? (
         <BannerVistaOperador

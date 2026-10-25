@@ -8,7 +8,7 @@ import { cerrarJornadaServicio, obtenerDatosTableroProduccionServicio } from '@/
 import { hoyIso, sumarDias } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
-import { SelectorVistaOperador } from '@/modulos/autenticacion/componentes/selector-vista-operador';
+import { BotonVistaProduccion } from '@/modulos/autenticacion/componentes/botones-vista-produccion';
 
 /** Entrada RSC al piso: los datos llegan con RLS y las mutaciones siguen en Server Actions. */
 type ParametrosPaginaProduccion = {
@@ -42,27 +42,18 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
     {},
     admin,
   );
-  const operadores = usuario.rol === 'admin'
-    ? ((await admin
-        .from('usuarios')
-        .select('id, nombre_completo')
-        .eq('rol', 'operador')
-        .eq('activo', true)
-        .order('nombre_completo')).data ?? []).map((entrada) => ({
-        id: entrada.id,
-        nombre: entrada.nombre_completo,
-      }))
-    : [];
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-produccion">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold text-texto-primario">Producción y entregas</h1>
-        <p className="text-sm text-texto-secundario">
-          Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la página.
-        </p>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold text-texto-primario">Producción y entregas</h1>
+          <p className="text-sm text-texto-secundario">
+            Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la página.
+          </p>
+        </div>
+        {usuario.rol === 'admin' ? <BotonVistaProduccion /> : null}
       </header>
-      {usuario.rol === 'admin' ? <SelectorVistaOperador operadores={operadores} /> : null}
       <OperacionProduccion
         datosIniciales={datosIniciales}
         operadorId={operador?.id ?? null}

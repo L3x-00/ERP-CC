@@ -378,48 +378,31 @@ test.describe.serial('piso de Producción y entregas', () => {
     }
   });
 
-  test('C5 permite al admin ver como operador sin PIN y bloquea la operacion', async ({ page }) => {
+  test('el admin entra directo a la vista de producción y vuelve a administración', async ({ page }) => {
     const caso = await prepararContexto();
     try {
       const { error: errorEstado } = await caso.admin.from('ordenes_produccion')
         .update({ estado: 'en_proceso' }).eq('id', caso.ordenId);
-      if (errorEstado) throw new Error(`No se pudo abrir el trabajo C5: ${errorEstado.message}`);
+      if (errorEstado) throw new Error(`No se pudo abrir el trabajo admin: ${errorEstado.message}`);
       await page.setViewportSize({ width: 768, height: 1024 });
       await iniciarSesionAdministrador(page, caso);
       await page.goto('/produccion');
 
-      const selector = page.getByTestId('selector-vista-operador');
-      await selector.getByLabel('Operador').selectOption(caso.operadorId);
-      await selector.getByLabel('Motivo').fill('Revisar instrucciones del trabajo E2E');
-      await selector.getByRole('button', { name: 'Abrir vista' }).click();
+      // El formulario de operador/motivo ya no existe: un solo botón.
+      await expect(page.getByTestId('selector-vista-operador')).toHaveCount(0);
+      await page.getByTestId('abrir-vista-produccion').click();
       await page.waitForURL('**/produccion-piso');
 
-      await expect(page.getByTestId('banner-vista-operador')).toContainText('Vista de solo lectura');
-      await expect(page.getByTestId('banner-vista-operador')).toContainText('Administrador');
-      await expect(page.getByTestId('vista-operador-solo-lectura')).toBeVisible();
-      await expect(page.getByTestId('selector-orden-piso')).toHaveValue(caso.ordenId);
+      await expect(page.getByTestId('banner-vista-admin')).toContainText('Vista de administrador');
+      await expect(page.getByTestId('espacio-operador')).toBeVisible();
       await expect(page.getByTestId('iniciar-tiempo')).toHaveCount(0);
       await expect(page.getByTestId('registrar-avance')).toHaveCount(0);
       await expect(page.getByTestId('registrar-consumo')).toHaveCount(0);
 
-      await page.goto('/produccion');
-      await page.waitForURL('**/produccion-piso');
-      await expect(page.getByTestId('banner-vista-operador')).toContainText('Vista de solo lectura');
-
-      await expect.poll(async () => {
-        const { data } = await caso.admin
-          .from('logs')
-          .select('accion, detalles')
-          .eq('usuario_id', caso.administradorId)
-          .eq('accion', 'iniciar_vista_operador')
-          .eq('recurso_id', caso.operadorId)
-          .limit(1);
-        return data?.[0]?.accion ?? null;
-      }).toBe('iniciar_vista_operador');
-
-      await page.getByRole('button', { name: 'Salir de vista operador' }).click();
+      // El botón de regreso está en el mismo lugar y devuelve a Producción.
+      await page.getByTestId('volver-a-admin').click();
       await page.waitForURL('**/produccion');
-      await expect(page.getByTestId('selector-vista-operador')).toBeVisible();
+      await expect(page.getByTestId('abrir-vista-produccion')).toBeVisible();
     } finally {
       await limpiarContexto(caso);
     }
@@ -439,6 +422,7 @@ test.describe.serial('piso de Producción y entregas', () => {
       // Sin sesión de operador ni delegación: el admin entra directo al piso.
       await page.goto('/produccion-piso');
       await expect(page.getByTestId('banner-vista-admin')).toContainText('Vista de administrador');
+      await expect(page.getByTestId('volver-a-admin')).toBeVisible();
       await expect(page.getByTestId('control-piso')).toBeVisible();
       await expect(page.getByTestId('selector-orden-piso')).toHaveValue(caso.ordenId);
       await expect(page.getByTestId('iniciar-tiempo')).toHaveCount(0);
