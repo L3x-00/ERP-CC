@@ -48,6 +48,10 @@ export function DetalleProgramacionPlaneacion({
       <h2 id="titulo-detalle-programacion" className="text-sm font-semibold text-texto-primario">
         Detalle de programación
       </h2>
+      <p className="mt-1 text-xs text-texto-secundario">
+        Planeación fija el estimado y el recurso asignado; Producción registra las horas reales.
+        El estimado original no se altera.
+      </p>
 
       {consulta.isPending ? (
         <div className="mt-3 space-y-3" role="status" aria-label="Cargando detalle de programación">
@@ -74,11 +78,11 @@ export function DetalleProgramacionPlaneacion({
         <div className="mt-3 space-y-4 text-sm">
           <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
             <div className="col-span-2">
-              <dt className="text-xs text-texto-secundario">Responsable inicial</dt>
+              <dt className="text-xs text-texto-secundario">Responsable de la programación</dt>
               <dd className="font-medium text-texto-primario">{consulta.data.responsableNombre}</dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-xs text-texto-secundario">Recurso</dt>
+              <dt className="text-xs text-texto-secundario">Recurso asignado</dt>
               <dd className="font-medium text-texto-primario">{consulta.data.recursoNombre}</dd>
             </div>
             <div className="col-span-2">
@@ -88,15 +92,15 @@ export function DetalleProgramacionPlaneacion({
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-texto-secundario">Estimadas</dt>
+              <dt className="text-xs text-texto-secundario">Horas estimadas (Planeación)</dt>
               <dd className="font-mono text-texto-primario">{horas(consulta.data.horasEstimadas)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-texto-secundario">Reales</dt>
+              <dt className="text-xs text-texto-secundario">Horas reales (Producción)</dt>
               <dd className="font-mono text-texto-primario">{horas(consulta.data.horasReales)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-texto-secundario">Exceso</dt>
+              <dt className="text-xs text-texto-secundario">Exceso real (Producción)</dt>
               <dd className={consulta.data.horasExceso > 0 ? 'font-mono text-advertencia-texto' : 'font-mono text-texto-primario'}>
                 {horas(consulta.data.horasExceso)}
               </dd>
@@ -110,9 +114,9 @@ export function DetalleProgramacionPlaneacion({
           </dl>
 
           <div>
-            <h3 className="font-medium text-texto-primario">Últimas reprogramaciones</h3>
+            <h3 className="font-medium text-texto-primario">Historial de cambios</h3>
             {consulta.data.historial.length === 0 ? (
-              <p className="mt-1 text-texto-secundario">Sin reprogramaciones registradas.</p>
+              <p className="mt-1 text-texto-secundario">Sin cambios registrados.</p>
             ) : (
               <ol className="mt-2 space-y-3">
                 {consulta.data.historial.map((cambio, indice) => (

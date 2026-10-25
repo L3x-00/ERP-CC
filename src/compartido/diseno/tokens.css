@@ -54,6 +54,12 @@
   --info: #6366f1;
   --info-suave: #eef2ff;
   --info-texto: #3730a3;
+  /* Estado «En preparación»: violeta distinguible de info/acento. */
+  --preparacion-suave: #f5f3ff;
+  --preparacion-texto: #5b21b6;
+  /* Estado «En proceso»: cian operativo, distinto de ámbar (bloqueo). */
+  --proceso-suave: #ecfeff;
+  --proceso-texto: #155e75;
 
   /* Tiers de cliente */
   --tier-bronce: #a97142;
@@ -161,6 +167,10 @@
   --info: #818cf8;
   --info-suave: #312e81;
   --info-texto: #c7d2fe;
+  --preparacion-suave: #2e1065;
+  --preparacion-texto: #ddd6fe;
+  --proceso-suave: #164e63;
+  --proceso-texto: #a5f3fc;
 
   --sombra-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);

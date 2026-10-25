@@ -3,7 +3,14 @@
 import type { ComponentProps } from 'react';
 import { cn } from '@/compartido/utilidades/cn';
 
-type VarianteBadge = 'neutro' | 'alerta' | 'exito' | 'info' | 'peligro';
+type VarianteBadge =
+  | 'neutro'
+  | 'alerta'
+  | 'exito'
+  | 'info'
+  | 'peligro'
+  | 'preparacion'
+  | 'proceso';
 
 const VARIANTES: Record<VarianteBadge, string> = {
   neutro: 'bg-superficie-2 text-texto-secundario',
@@ -11,6 +18,8 @@ const VARIANTES: Record<VarianteBadge, string> = {
   exito: 'bg-exito-suave text-exito-texto',
   info: 'bg-info-suave text-info-texto',
   peligro: 'bg-peligro-suave text-peligro-texto',
+  preparacion: 'bg-preparacion-suave text-preparacion-texto',
+  proceso: 'bg-proceso-suave text-proceso-texto',
 };
 
 type Props = ComponentProps<'span'> & { variante?: VarianteBadge };

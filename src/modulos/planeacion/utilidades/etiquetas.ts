@@ -31,11 +31,11 @@ export const ETIQUETA_ESTADO: Record<EstadoPlaneacion, string> = {
 
 export const VARIANTE_ESTADO: Record<
   EstadoPlaneacion,
-  'neutro' | 'alerta' | 'exito' | 'info'
+  'neutro' | 'alerta' | 'exito' | 'info' | 'peligro' | 'preparacion' | 'proceso'
 > = {
-  programada: 'neutro',
-  en_preparacion: 'info',
-  en_proceso: 'info',
+  programada: 'info',
+  en_preparacion: 'preparacion',
+  en_proceso: 'proceso',
   bloqueada: 'alerta',
   completada: 'exito',
   cancelada: 'neutro',
