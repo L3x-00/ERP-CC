@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
-import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
 
@@ -61,10 +60,9 @@ export function PanelRecursosLiberados() {
       )}
       {mensaje !== null && <p role="status" className="mt-2 text-sm text-texto-primario">{mensaje}</p>}
       {!consulta.isLoading && !consulta.isError && liberables.length === 0 && (
-        <EstadoVacio
-          titulo="Sin recursos liberables"
-          descripcion="Cuando una máquina lleve más de una hora pausada por duda o material, aparecerá aquí."
-        />
+        <p className="mt-2 text-xs text-texto-tenue" data-testid="sin-recursos-liberables">
+          Sin máquinas liberables por ahora.
+        </p>
       )}
       {liberables.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">

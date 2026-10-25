@@ -27,6 +27,7 @@ import {
 } from '@/modulos/produccion/tipos/indice';
 import { codigosFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { ConsultarTableroProduccionInput } from '@/modulos/produccion/validaciones/indice';
+import { dividirEnLotes } from '@/modulos/ordenes/utilidades/lotes';
 
 /** PRD-09: hecho/meta/pendiente/porcentaje de una pareja partida×proceso. */
 export interface MetaProcesoAvance extends MetaProcesoPartida {
@@ -41,6 +42,12 @@ export interface PartidaTableroProduccion extends Partida {
   programaciones: ProgramacionArea[];
   /** Vacío en trabajos históricos sin desglose de procesos. */
   metasProceso: MetaProcesoAvance[];
+  /** Ficha de la orden: material y medidas vigentes del catálogo (solo lectura). */
+  materialCodigo?: string | null;
+  materialNombre?: string | null;
+  materialUnidad?: string | null;
+  materialAnchoMm?: number | null;
+  materialLargoMm?: number | null;
 }
 
 export interface OrdenTableroProduccion extends OrdenOperativa {
@@ -48,6 +55,8 @@ export interface OrdenTableroProduccion extends OrdenOperativa {
   partidas: PartidaTableroProduccion[];
   sesiones: SesionTrabajo[];
   notasEntrega: NotaEntrega[];
+  /** Nombre comercial resuelto; el UUID nunca se muestra en la interfaz. */
+  clienteNombre?: string;
 }
 
 /** OBS-14: entrada mínima del catálogo de taller para etiquetas y filtro. */
@@ -205,6 +214,48 @@ export async function obtenerDatosTableroProduccionServicio(
   ].find((actual) => actual !== null);
   if (error) throw new Error(`No se pudo cargar el tablero de Producción: ${error.message}`);
 
+  // Ficha de la orden: nombre del cliente y material/medidas del catálogo. Son
+  // lecturas de apoyo (sin cambios de esquema) para no mostrar UUID ni obligar
+  // al supervisor a abrir Órdenes o Materiales para entender la pieza.
+  const partidasFilas = (resultadoPartidas.data ?? []).map(filaAPartida);
+  const clienteIds = [...new Set((resultadoOrdenes.data ?? []).map((orden) => orden.cliente_id))];
+  const materialIds = [
+    ...new Set(
+      partidasFilas
+        .map((partida) => partida.materialId)
+        .filter((valor): valor is string => valor !== null),
+    ),
+  ];
+  const [respuestasClientes, respuestasMateriales] = await Promise.all([
+    Promise.all(
+      dividirEnLotes(clienteIds).map((lote) =>
+        cliente.from('clientes').select('id, razon_social, nombre_comercial').in('id', lote),
+      ),
+    ),
+    Promise.all(
+      dividirEnLotes(materialIds).map((lote) =>
+        cliente
+          .from('catalogo_materiales')
+          .select('id, codigo, nombre, unidad_base, ancho_mm, largo_mm')
+          .in('id', lote),
+      ),
+    ),
+  ]);
+  const errorClientes = respuestasClientes.find((respuesta) => respuesta.error)?.error;
+  if (errorClientes) {
+    throw new Error(`No se pudo cargar el tablero de Producción: ${errorClientes.message}`);
+  }
+  const errorMateriales = respuestasMateriales.find((respuesta) => respuesta.error)?.error;
+  if (errorMateriales) {
+    throw new Error(`No se pudo cargar el tablero de Producción: ${errorMateriales.message}`);
+  }
+  const clientesPorId = new Map(
+    respuestasClientes.flatMap((respuesta) => respuesta.data ?? []).map((registro) => [registro.id, registro]),
+  );
+  const materialesPorId = new Map(
+    respuestasMateriales.flatMap((respuesta) => respuesta.data ?? []).map((registro) => [registro.id, registro]),
+  );
+
   const areas: AreaCatalogoProduccion[] = (resultadoCatalogo.data ?? []).map((fila) => ({
     codigo: fila.codigo,
     nombre: fila.nombre,
@@ -248,17 +299,26 @@ export async function obtenerDatosTableroProduccionServicio(
   }
 
   const partidasPorOrden = new Map<string, PartidaTableroProduccion[]>();
-  const partidasFilas = (resultadoPartidas.data ?? []).map(filaAPartida);
   for (const partida of partidasFilas) {
     // OBS-09: la cola por área solo considera la familia del área elegida.
     if (codigosAceptados && !codigosAceptados.has(partida.areaTrabajoCodigo ?? '')) continue;
     const actuales = partidasPorOrden.get(partida.ordenId) ?? [];
     const metas = metasPorPartida.get(partida.id) ?? [];
+    const material = partida.materialId ? materialesPorId.get(partida.materialId) : undefined;
     const ultimaSecuencia = metas.reduce((maxima, meta) => Math.max(maxima, meta.secuencia), 0);
     actuales.push({
       ...partida,
       cantidadEntregada: cantidadEntregadaPorPartida.get(partida.id) ?? 0,
       programaciones: programacionesPorPartida.get(partida.id) ?? [],
+      materialCodigo: material?.codigo ?? null,
+      materialNombre: material?.nombre ?? null,
+      materialUnidad: material?.unidad_base ?? null,
+      materialAnchoMm: material?.ancho_mm === null || material?.ancho_mm === undefined
+        ? null
+        : Number(material.ancho_mm),
+      materialLargoMm: material?.largo_mm === null || material?.largo_mm === undefined
+        ? null
+        : Number(material.largo_mm),
       metasProceso: metas.map((meta) => {
         const hechoPiezas = hechoPorMeta.get(meta.id) ?? 0;
         return {
@@ -315,6 +375,10 @@ export async function obtenerDatosTableroProduccionServicio(
     const sesiones = sesionesPorOrden.get(orden.id) ?? [];
     return {
       ...orden,
+      clienteNombre:
+        clientesPorId.get(orden.clienteId)?.nombre_comercial
+        || clientesPorId.get(orden.clienteId)?.razon_social
+        || 'Cliente',
       partidas,
       sesiones,
       notasEntrega: notasPorOrden.get(orden.id) ?? [],
