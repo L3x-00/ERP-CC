@@ -3526,6 +3526,87 @@ export type Database = {
         }
         Relationships: []
       }
+      reclamos_proceso_operador: {
+        Row: {
+          actualizado_en: string
+          creado_en: string
+          estado: string
+          fecha: string
+          horas_estimadas: number
+          id: string
+          meta_proceso_id: string | null
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          programacion_id: string | null
+          turno: string
+        }
+        Insert: {
+          actualizado_en?: string
+          creado_en?: string
+          estado?: string
+          fecha: string
+          horas_estimadas: number
+          id?: string
+          meta_proceso_id?: string | null
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          programacion_id?: string | null
+          turno?: string
+        }
+        Update: {
+          actualizado_en?: string
+          creado_en?: string
+          estado?: string
+          fecha?: string
+          horas_estimadas?: number
+          id?: string
+          meta_proceso_id?: string | null
+          operador_id?: string
+          orden_id?: string
+          partida_id?: string
+          programacion_id?: string | null
+          turno?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reclamos_proceso_operador_meta_proceso_id_fkey"
+            columns: ["meta_proceso_id"]
+            isOneToOne: false
+            referencedRelation: "metas_proceso_partida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reclamos_proceso_operador_operador_id_fkey"
+            columns: ["operador_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reclamos_proceso_operador_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reclamos_proceso_operador_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reclamos_proceso_operador_programacion_id_fkey"
+            columns: ["programacion_id"]
+            isOneToOne: false
+            referencedRelation: "programacion_areas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recursos_planeacion: {
         Row: {
           tarifa_override_activa: boolean
@@ -5485,6 +5566,25 @@ export type Database = {
           pipeline_id: string
         }[]
       }
+      iniciar_proceso_reclamado_operador: {
+        Args: {
+          p_corrida_id?: string | null
+          p_operador_id: string
+          p_reclamo_id: string
+          p_verificacion?: Json | null
+        }
+        Returns: {
+          actualizado_en: string
+          creado_en: string
+          estado_sesion: string
+          fecha_inicio: string
+          id: string
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          programacion_id: string
+        }[]
+      }
       iniciar_sesion_trabajo_operador: {
         Args: {
           p_corrida_id?: string | null
@@ -5601,6 +5701,60 @@ export type Database = {
           sesiones_sin_tarifa: number
           utilidad_bruta_mxn: number | null
           venta_desglose_conocido: boolean
+        }[]
+      }
+      liberar_reclamo_operador: {
+        Args: { p_operador_id: string; p_reclamo_id: string }
+        Returns: boolean
+      }
+      mover_reclamo_operador: {
+        Args: {
+          p_fecha: string
+          p_operador_id: string
+          p_reclamo_id: string
+          p_turno?: string
+        }
+        Returns: {
+          actualizado_en: string
+          creado_en: string
+          estado: string
+          fecha: string
+          horas_estimadas: number
+          id: string
+          meta_proceso_id: string | null
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          programacion_id: string | null
+          turno: string
+        }[]
+      }
+      preparar_reclamo_operador: {
+        Args: { p_operador_id: string; p_reclamo_id: string }
+        Returns: string
+      }
+      reclamar_proceso_operador: {
+        Args: {
+          p_fecha: string
+          p_meta_proceso_id: string | null
+          p_operador_id: string
+          p_orden_id: string
+          p_partida_id: string
+          p_turno?: string
+        }
+        Returns: {
+          actualizado_en: string
+          creado_en: string
+          estado: string
+          fecha: string
+          horas_estimadas: number
+          id: string
+          meta_proceso_id: string | null
+          operador_id: string
+          orden_id: string
+          partida_id: string
+          programacion_id: string | null
+          turno: string
         }[]
       }
       programar_partida_recurso: {

@@ -31,6 +31,48 @@ export type {
 } from '@/modulos/produccion/tipos/produccion';
 
 export {
+  VISTAS_ESPACIO_OPERADOR,
+  COLUMNAS_ESPACIO_OPERADOR,
+  URGENCIAS_PROCESO,
+  HORAS_JORNADA_OPERADOR,
+  ETIQUETAS_COLUMNA,
+  ETIQUETAS_URGENCIA,
+  accionPrincipal,
+  filaAReclamoProceso,
+  derivarColumnaProceso,
+  derivarUrgenciaProceso,
+  diasEntreFechas,
+  sumarDias,
+  inicioSemana,
+  capacidadRestanteDia,
+  etiquetasProceso,
+  agruparProcesosPorArea,
+  resolverAreaRaiz,
+  construirDiasCalendario,
+  resumirEspacioOperador,
+} from '@/modulos/produccion/tipos/espacio-operador';
+
+export type {
+  VistaEspacioOperador,
+  ColumnaEspacioOperador,
+  UrgenciaProceso,
+  TipoAccionTarjeta,
+  AccionTarjeta,
+  FilaReclamoProcesoOperador,
+  ReclamoProcesoOperador,
+  MaterialProceso,
+  ArchivoProceso,
+  SesionProceso,
+  ProcesoRuteoResumen,
+  ProgramacionProceso,
+  ProcesoEspacioOperador,
+  AreaEspacioOperador,
+  GrupoAreaEspacioOperador,
+  DiaCalendarioOperador,
+  ResumenEspacioOperador,
+} from '@/modulos/produccion/tipos/espacio-operador';
+
+export {
   ESTADOS_CORRIDA,
   TIPOS_INSPECCION,
   RESULTADOS_INSPECCION,

@@ -5,6 +5,10 @@ export {
   esquemaPartidaNotaEntrega,
   esquemaCrearNotaEntrega,
   esquemaConsultarTableroProduccion,
+  esquemaReclamarProceso,
+  esquemaMoverReclamo,
+  esquemaLiberarReclamo,
+  esquemaIniciarProcesoReclamado,
 } from '@/modulos/produccion/validaciones/produccion';
 
 export type {
@@ -14,6 +18,10 @@ export type {
   PartidaNotaEntregaInput,
   CrearNotaEntregaInput,
   ConsultarTableroProduccionInput,
+  ReclamarProcesoInput,
+  MoverReclamoInput,
+  LiberarReclamoInput,
+  IniciarProcesoReclamadoInput,
 } from '@/modulos/produccion/validaciones/produccion';
 
 export {

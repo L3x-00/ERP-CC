@@ -19,6 +19,12 @@ export {
   cancelarCorridaAccion,
 } from '@/modulos/produccion/acciones/estado-corrida';
 export { reclamarRecursoAccion } from '@/modulos/produccion/acciones/reclamar-recurso';
+export {
+  iniciarProcesoReclamadoAccion,
+  liberarReclamoAccion,
+  moverReclamoAccion,
+  reclamarProcesoAccion,
+} from '@/modulos/produccion/acciones/espacio-operador';
 export { cerrarJornadaAccion } from '@/modulos/produccion/acciones/cerrar-jornada';
 export { autorizarHorasExtraAccion } from '@/modulos/produccion/acciones/autorizar-horas-extra';
 export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';

@@ -28,9 +28,12 @@ const MENSAJE_BLOQUEADO = 'Demasiados intentos. Intenta de nuevo más tarde.';
  * Server Action de acceso de operador de piso mediante PIN.
  *
  * Valida el formato del PIN con Zod, busca al operador comparando el hash
- * bcrypt, crea la sesión corta de operador (cookie httpOnly firmada con
- * HMAC) y registra el evento en auditoría. Mensajes de error genéricos:
- * nunca revela si el PIN existe.
+ * bcrypt, crea la sesión de operador (cookie httpOnly firmada con HMAC) y
+ * registra el evento en auditoría. Mensajes de error genéricos: nunca revela
+ * si el PIN existe.
+ *
+ * C10: la cookie es de sesión (sin `maxAge`), así que sobrevive mientras la
+ * ventana siga abierta y desaparece al cerrarla; la sesión no vence por tiempo.
  *
  * @param entrada Datos sin validar ({ pin }).
  * @returns `{ exito: true, datos: { nombreUsuario } }` si el PIN es válido
@@ -84,7 +87,6 @@ export async function validarPinAccion(
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: TIMEOUT_SESION_OPERADOR_MINUTOS * 60,
     });
 
     const operadorAutenticado: UsuarioAutenticado = { ...operador, permisos: [] };

@@ -319,6 +319,65 @@ test.describe.serial('piso de Producción y entregas', () => {
     }
   });
 
+  test('C10 muestra el espacio de operador con Kanban, calendario y areas, y permite reclamar', async ({ page }) => {
+    const caso = await prepararContexto();
+    try {
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      await page.goto('/operador');
+      for (const digito of caso.pinOperador) {
+        await page.getByRole('button', { name: digito, exact: true }).click();
+      }
+      await page.getByRole('button', { name: 'Confirmar PIN' }).click();
+      await page.waitForURL('**/produccion-piso');
+
+      const espacio = page.getByTestId('espacio-operador');
+      await expect(espacio).toBeVisible();
+      await expect(page.getByTestId('resumen-espacio')).toBeVisible();
+      for (const columna of ['aprobada', 'bandeja', 'en_proceso', 'pausada', 'lista']) {
+        await expect(page.getByTestId(`columna-${columna}`)).toBeVisible();
+      }
+
+      // La tarjeta de la partida trae cliente, pieza, cantidad y horas.
+      const tarjeta = page.locator(`[data-testid^="proceso-${caso.partidaId}:"]`).first();
+      await expect(tarjeta).toBeVisible();
+      await expect(tarjeta).toContainText('Cliente Producción');
+      await expect(tarjeta).toContainText('0/5');
+      await expect(tarjeta).toContainText('2 h');
+
+      // Las tres vistas del espacio existen y comparten los mismos datos.
+      await page.getByTestId('vista-calendario').click();
+      await expect(page.getByTestId('vista-calendario-operador')).toBeVisible();
+      await expect(page.locator('[data-testid^="dia-"]')).toHaveCount(7);
+      await page.getByTestId('vista-areas').click();
+      await expect(page.getByTestId('vista-areas-operador')).toBeVisible();
+      await expect(page.getByTestId('area-sin-area')).toBeVisible();
+      await page.getByTestId('vista-kanban').click();
+
+      // Reclamar reserva la operacion para hoy; el servidor revalida capacidad.
+      await tarjeta.getByRole('button', { name: 'Reclamar', exact: true }).click();
+      await expect(page.getByTestId('aviso-espacio')).toContainText('reservado', { ignoreCase: true });
+      const tarjetaReservada = page.locator(`[data-testid^="proceso-${caso.partidaId}:"]`).first();
+      await expect(tarjetaReservada).toContainText('Reservado por ti');
+
+      // La ficha muestra la ruta, el material y los archivos de la orden.
+      await tarjetaReservada.getByTestId(/^abrir-detalle-/u).click();
+      const detalle = page.getByTestId('detalle-proceso');
+      await expect(detalle).toBeVisible();
+      await expect(detalle).toContainText('Ruta de fabricación');
+      await expect(detalle).toContainText('Fabricación');
+      await expect(detalle).toContainText('Planos y archivos');
+      await expect(detalle).toContainText('Reserva: tuya');
+
+      // Iniciar desde el espacio reserva el recurso y abre la sesión real.
+      await detalle.getByTestId('iniciar-detalle').click();
+      await confirmarChecklistInicio(page);
+      await expect(page.getByTestId('aviso-espacio')).toContainText('Sesión iniciada');
+      await expect(page.getByTestId('columna-en_proceso')).toContainText('Fabricación');
+    } finally {
+      await limpiarContexto(caso);
+    }
+  });
+
   test('C5 permite al admin ver como operador sin PIN y bloquea la operacion', async ({ page }) => {
     const caso = await prepararContexto();
     try {

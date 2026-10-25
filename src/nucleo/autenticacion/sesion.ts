@@ -106,16 +106,19 @@ export async function deserializarSesionOperador(
 }
 
 /**
- * Verifica si la sesión de operador expiró por inactividad.
+ * Verifica si la sesión de operador expiró.
+ *
+ * C10: la terminal de piso no caduca por tiempo. El operador conserva su sesión
+ * hasta que pulsa «Salir» o cierra la ventana (la cookie es de sesión del
+ * navegador); la revocación sigue vigente al rotar el PIN o desactivar la
+ * cuenta. La vista delegada de un administrador mantiene su vencimiento fijo.
  */
 export function sesionOperadorExpirada(sesion: SesionOperador, ahora: Date = new Date()): boolean {
-  if (sesionOperadorEsDelegada(sesion)) {
-    const expiraEn = new Date(sesion.expiraEn ?? '').getTime();
-    return !Number.isFinite(expiraEn) || ahora.getTime() > expiraEn;
+  if (!sesionOperadorEsDelegada(sesion)) {
+    return false;
   }
-  const ultimaActividad = new Date(sesion.ultimaActividadEn).getTime();
-  const limite = ultimaActividad + sesion.timeoutMinutos * 60 * 1000;
-  return ahora.getTime() > limite;
+  const expiraEn = new Date(sesion.expiraEn ?? '').getTime();
+  return !Number.isFinite(expiraEn) || ahora.getTime() > expiraEn;
 }
 
 /** Las cookies previas a C5 no traen modo y conservan semantica de PIN. */
@@ -127,11 +130,16 @@ export function sesionOperadorEsDelegada(sesion: SesionOperador): boolean {
  * Verifica la vigencia absoluta de la sesión desde `iniciadaEn`, sin importar
  * cuántas veces se haya renovado por actividad. Evita heredar la sesión de piso
  * entre turnos.
+ *
+ * C10: solo aplica a la vista delegada; la terminal PIN no vence por tiempo.
  */
 export function sesionOperadorVencidaAbsoluta(
   sesion: SesionOperador,
   ahora: Date = new Date(),
 ): boolean {
+  if (!sesionOperadorEsDelegada(sesion)) {
+    return false;
+  }
   const inicio = new Date(sesion.iniciadaEn).getTime();
   if (!Number.isFinite(inicio)) {
     return true;

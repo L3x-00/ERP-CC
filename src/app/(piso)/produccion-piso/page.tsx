@@ -4,6 +4,8 @@ import { BannerVistaOperador } from '@/modulos/autenticacion/componentes/banner-
 import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
 import { obtenerOrdenesConPartidasDePisoServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import { EspacioOperador } from '@/modulos/produccion/componentes/espacio-operador';
+import { obtenerEspacioOperadorServicio } from '@/modulos/produccion/servicios/espacio-operador-servicio';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   obtenerContextoSesionOperadorActiva,
@@ -37,7 +39,11 @@ export default async function PaginaProduccionPiso() {
   const soloLectura = esVistaAdmin || esDelegada;
 
   const admin = crearClienteSupabaseAdmin();
-  const ordenes = await obtenerOrdenesConPartidasDePisoServicio(admin, contexto?.operador.id ?? null);
+  const operadorId = contexto?.operador.id ?? null;
+  const [ordenes, espacio] = await Promise.all([
+    obtenerOrdenesConPartidasDePisoServicio(admin, operadorId),
+    obtenerEspacioOperadorServicio(admin, operadorId),
+  ]);
   const idsMateriales = [
     ...new Set(
       ordenes.flatMap(({ partidas }) =>
@@ -107,6 +113,17 @@ export default async function PaginaProduccionPiso() {
       ) : (
         <IndicadorSesion nombreUsuario={operador.nombreCompleto} esOperador />
       )}
+      <EspacioOperador
+        procesos={espacio.procesos}
+        areas={espacio.areas}
+        resumen={espacio.resumen}
+        motivosPausa={espacio.motivosPausa}
+        hoy={espacio.hoy}
+        dias={espacio.dias}
+        operadorId={operadorId}
+        soloLectura={soloLectura}
+        nombreOperador={operador.nombreCompleto}
+      />
       <ControlPisoPanel
         operadorId={operador.id}
         nombreOperador={operador.nombreCompleto}
