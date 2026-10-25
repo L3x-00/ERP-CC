@@ -49,7 +49,8 @@ export default async function PaginaProduccion({ searchParams }: ParametrosPagin
         <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-bold text-texto-primario">Producción y entregas</h1>
           <p className="text-sm text-texto-secundario">
-            Control transaccional de piso. Los cambios de cualquier usuario se reflejan sin recargar la página.
+            Sigue el avance de cada orden y abre su ficha para operar, registrar calidad, entregar
+            y revisar documentos en un solo lugar.
           </p>
         </div>
         {usuario.rol === 'admin' ? <BotonVistaProduccion /> : null}

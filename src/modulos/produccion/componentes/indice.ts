@@ -3,6 +3,8 @@ export { FormularioNotaEntrega } from './formulario-nota-entrega';
 export type { PropsFormularioNotaEntrega } from './formulario-nota-entrega';
 export { KanbanProduccion } from './kanban-produccion';
 export type { PropsKanbanProduccion } from './kanban-produccion';
+export { FichaOrdenProduccion } from './ficha-orden-produccion';
+export type { PropsFichaOrdenProduccion } from './ficha-orden-produccion';
 export { OperacionProduccion } from './operacion-produccion';
 export type { PropsOperacionProduccion } from './operacion-produccion';
 export { PanelOperadorProduccion } from './panel-operador-produccion';

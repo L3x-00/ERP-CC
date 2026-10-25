@@ -15,7 +15,7 @@ import {
   type EstadoKanbanProduccion,
 } from '@/modulos/produccion/tipos/indice';
 
-const ETIQUETAS_ESTADO: Record<EstadoKanbanProduccion, string> = {
+export const ETIQUETAS_ESTADO: Record<EstadoKanbanProduccion, string> = {
   bandeja: 'Bandeja',
   en_proceso: 'En proceso',
   pausada: 'Pausada',
@@ -188,6 +188,14 @@ export function KanbanProduccion({
                       />
                     </div>
                     <p className="text-sm font-medium text-texto-secundario">{avanceOrden(orden)}</p>
+                    {orden.clienteNombre ? (
+                      <p
+                        className="truncate text-xs text-texto-secundario"
+                        data-testid={`cliente-produccion-${orden.id}`}
+                      >
+                        {orden.clienteNombre}
+                      </p>
+                    ) : null}
                     {resumenTallerOrden(orden, areas, responsables) ? (
                       <p
                         className="text-xs text-texto-secundario"

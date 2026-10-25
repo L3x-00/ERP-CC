@@ -1,3 +1,15 @@
+## Corte 2026-10-25 — Producción: mesa de control con ficha lateral · PR #117
+
+Rama `feat/produccion-mesa-control` (sobre `main` con #116 fusionado).
+
+- [x] **Kanban como tablero:** la orden elegida abre una ficha lateral con cliente, pieza, material/medidas, ruta, programación, responsable, compromiso, avance y estado, sin UUID.
+- [x] **Acciones centralizadas:** Operación (corridas y sesión), Calidad, Entrega, Horas extra, Historial, Documentos y Comentarios dentro del mismo panel; el operador queda como sección secundaria.
+- [x] **Sin paneles vacíos:** un solo estado bajo el Kanban; «Máquinas liberadas» queda como supervisión global compacta.
+- [x] **Datos sincronizados:** el tablero resuelve cliente y material/medidas del catálogo en la lectura (sin esquema); la tarjeta muestra el cliente.
+- Sin migración.
+
+**Pruebas:** typecheck, eslint y build 0; 13 archivos / 77 unitarias e integración de Producción; ficha nueva probada sin UUID y con datos faltantes. E2E local no corrido (Docker detenido); CI pendiente del head final.
+
 ## Corte 2026-10-25 — Planeación: una sola pantalla y panel lateral de programación · PR #114
 
 Rama `feat/planeacion-ui-una-pantalla` (sobre `main` con #113 fusionado).
