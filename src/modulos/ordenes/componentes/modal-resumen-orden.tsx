@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -72,21 +71,38 @@ export function ModalResumenOrden({
 }) {
   const [abriendoArchivo, setAbriendoArchivo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
+  const [resumen, setResumen] = useState<ResumenOrden | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [errorResumen, setErrorResumen] = useState<string | null>(null);
+  const [recarga, setRecarga] = useState(0);
 
-  const consulta = useQuery({
-    queryKey: ['ordenes', 'resumen', ordenId],
-    queryFn: async (): Promise<ResumenOrden> => {
-      const respuesta = await obtenerResumenOrdenAccion({ ordenId });
-      if (!respuesta.exito || !respuesta.datos) {
-        throw new Error(respuesta.exito ? 'El resumen no devolvió datos' : respuesta.error);
+  // Carga bajo demanda: la tabla se renderiza en pruebas sin proveedores de datos.
+  useEffect(() => {
+    if (!abierto || ordenId === '') return;
+    let cancelado = false;
+    void (async () => {
+      setCargando(true);
+      setErrorResumen(null);
+      setResumen(null);
+      try {
+        const respuesta = await obtenerResumenOrdenAccion({ ordenId });
+        if (cancelado) return;
+        if (!respuesta.exito || !respuesta.datos) {
+          setErrorResumen(respuesta.exito ? 'El resumen no devolvió datos' : respuesta.error);
+          return;
+        }
+        setResumen(respuesta.datos);
+      } catch {
+        if (!cancelado) setErrorResumen('No se pudo cargar el resumen de la orden');
+      } finally {
+        if (!cancelado) setCargando(false);
       }
-      return respuesta.datos;
-    },
-    enabled: abierto && ordenId !== '',
-    staleTime: 30_000,
-  });
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [abierto, ordenId, recarga]);
 
-  const resumen = consulta.data;
   const origen = resumen?.origen ?? null;
   const enlaceRfq = origen && resumen?.permisos.verRfq ? enlaceRfqOrigen(origen.rfqId) : null;
   const enlacePropuesta = origen && resumen?.permisos.verPropuesta
@@ -136,18 +152,16 @@ export function ModalResumenOrden({
           </DialogDescription>
         </DialogHeader>
 
-        {consulta.isLoading ? (
+        {cargando ? (
           <p className="py-8 text-center text-sm text-texto-secundario" role="status">
             Cargando el resumen de {folio}…
           </p>
         ) : null}
 
-        {consulta.isError ? (
+        {errorResumen ? (
           <div className="flex flex-col items-start gap-2 rounded-md bg-peligro-suave p-3 text-sm text-peligro-texto">
-            <p role="alert">
-              {consulta.error instanceof Error ? consulta.error.message : 'No se pudo cargar el resumen.'}
-            </p>
-            <Button variante="contorno" tamano="sm" onClick={() => void consulta.refetch()}>
+            <p role="alert">{errorResumen}</p>
+            <Button variante="contorno" tamano="sm" onClick={() => setRecarga((valor) => valor + 1)}>
               Reintentar
             </Button>
           </div>
