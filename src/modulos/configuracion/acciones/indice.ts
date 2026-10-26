@@ -11,5 +11,6 @@ export { guardarTarifasCotizadorAccion } from './guardar-tarifas-cotizador';
 export { obtenerCatalogosComercialesAccion } from './obtener-catalogos-comerciales';
 export type { CatalogosComerciales } from './obtener-catalogos-comerciales';
 export { obtenerConfiguracionAccion } from './obtener-configuracion';
+export { obtenerTipoCambioVigenteAccion } from './obtener-tipo-cambio-vigente';
 export type { DatosConfiguracion } from './obtener-configuracion';
 export { obtenerOperadoresAreasAccion } from './obtener-operadores-areas';

@@ -20,6 +20,7 @@ import {
 } from '@/modulos/gastos/tipos/indice';
 import type { RegistrarGastoInput } from '@/modulos/gastos/validaciones/indice';
 import { usarCatalogosComerciales } from '@/modulos/configuracion/hooks/usar-catalogos-comerciales';
+import { usarTipoCambioVigente } from '@/modulos/configuracion/hooks/usar-tipo-cambio-vigente';
 
 export interface ModalRegistrarGastoProps {
   abierto: boolean;
@@ -86,6 +87,8 @@ export function ModalRegistrarGasto({
     enabled: abierto,
     staleTime: 5 * 60 * 1000,
   });
+  // ACC-06: el TC del día prellena la captura en USD; el usuario puede corregirlo.
+  const tipoCambioVigente = usarTipoCambioVigente(abierto);
   const [notas, setNotas] = useState(gastoEditar?.notas ?? '');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [arrastrandoArchivo, setArrastrandoArchivo] = useState(false);
@@ -96,6 +99,18 @@ export function ModalRegistrarGasto({
   const [datosOcr, setDatosOcr] = useState<DatosComprobanteOCR | null>(null);
   const [vistaPrevia, setVistaPrevia] = useState<string | null>(null);
   useEffect(() => () => { if (vistaPrevia) URL.revokeObjectURL(vistaPrevia); }, [vistaPrevia]);
+
+  /** Al elegir USD, propone el TC vigente del sistema; en MXN el TC es 1. */
+  function aplicarMoneda(valor: MonedaGasto): void {
+    setMoneda(valor);
+    setTipoCambio(
+      valor === 'MXN'
+        ? '1'
+        : tipoCambioVigente !== null
+          ? String(tipoCambioVigente)
+          : '',
+    );
+  }
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -151,6 +166,9 @@ export function ModalRegistrarGasto({
     if (datos.moneda) {
       setMoneda(datos.moneda);
       if (datos.moneda === 'MXN') setTipoCambio('1');
+      if (datos.moneda === 'USD' && !gastoEditar && tipoCambioVigente !== null) {
+        setTipoCambio(String(tipoCambioVigente));
+      }
     }
     if (datos.fechaEmision) setFechaGasto(datos.fechaEmision);
     setDatosOcr(datos);
@@ -303,7 +321,7 @@ export function ModalRegistrarGasto({
             <div className="grid gap-1"><Label htmlFor="gasto-total" obligatorio>Total</Label><Input id="gasto-total" type="number" min="0" step="0.0001" value={total} onChange={(evento) => setTotal(evento.target.value)} required /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1"><Label htmlFor="gasto-moneda">Moneda</Label><Select id="gasto-moneda" value={moneda} onChange={(evento) => { const valor = evento.target.value as MonedaGasto; setMoneda(valor); if (valor === 'MXN') setTipoCambio('1'); }}><option value="MXN">MXN</option><option value="USD">USD</option></Select></div>
+            <div className="grid gap-1"><Label htmlFor="gasto-moneda">Moneda</Label><Select id="gasto-moneda" value={moneda} onChange={(evento) => aplicarMoneda(evento.target.value as MonedaGasto)}><option value="MXN">MXN</option><option value="USD">USD</option></Select></div>
             <div className="grid gap-1"><Label htmlFor="gasto-tipo-cambio" obligatorio>Tipo de cambio (MXN)</Label><Input id="gasto-tipo-cambio" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(evento) => setTipoCambio(evento.target.value)} required /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

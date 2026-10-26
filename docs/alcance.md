@@ -36,6 +36,7 @@
 | 10.4 | Ruta `/dashboard`, widgets funcionales por rol, redirección de compatibilidad `/tablero` y E2E opt-in. |
 | 11.1 | Singleton de configuración, cuentas bancarias, áreas de trabajo, RLS, privilegios mínimos, Realtime y tipos/mappers estrictos. Pendiente de aplicar al remoto. |
 | 11.2 | Servicio central con actualización atómica por sección, tipo de cambio vigente y fallbacks para JSONB incompleto. |
+| 11.5 | Tipo de cambio diario: fecha y actor dedicados en el singleton, recordatorio posponible solo para admin en `/dashboard` (Tijuana, 24 h) y prellenado del TC en gastos, compras, cobranza y saldo inicial en USD. |
 | 11.3 | Server Actions administrativas con Zod, `can('configuracion')`, auditoría saneada y Zustand v5 efímero. |
 | 11.4 | Ruta `/configuracion` por pestañas, edición de empresa/tarifas/áreas/cuentas/plantillas, Realtime y E2E opt-in. |
 | 12.1 | Esquema de comentarios y notificaciones, menciones transaccionales, RLS, restricciones de texto y tipos estrictos. Pendiente de aplicar al remoto. |

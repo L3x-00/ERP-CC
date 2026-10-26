@@ -105,9 +105,10 @@ ejerció** (subcapacidad pendiente). Criterio: ACC-01/02/03/04/07. Estado: **eje
 ### E2E-02 · Tipo de cambio del día — [B]
 Actor: admin · Entorno: local. Pasos→esperado: entrar al panel; actualizar TC a 17.50; abrir
 Configuración; guardar; reentrar. Observado/Evidencia: `configuracion-flujo.spec.ts` guarda TC y
-lo recupera tras recarga; la confirmación de guardado se corrigió (hallazgo E2E). El recordatorio
-proactivo por fecha en el panel no existe (ACC-06 parcial) y el IVA global no tiene UI (CFG-02
-parcial). Criterio: ACC-06, CFG-02. Estado: **ejecutado conforme (parcial)**.
+lo recupera tras recarga; `tipo-cambio-diario.spec.ts` cubre el recordatorio proactivo (modal
+posponible con aviso, reaparición al reingresar, guardado con fecha/actor y ausencia para no admin).
+El IVA global todavía no tiene UI (CFG-02 parcial). Criterio: ACC-06, CFG-02. Estado: **ejecutado
+conforme** para ACC-06; CFG-02 **parcial**.
 
 ### E2E-03 · Crear y editar cliente — [B]
 Actor: admin · Entorno: local. Datos: QA-FUNC Alfa. Pasos→esperado: alta con validación; búsqueda;

@@ -16,6 +16,7 @@ import {
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { usarTipoCambioVigente } from '@/modulos/configuracion/hooks/usar-tipo-cambio-vigente';
 import type { CuentaCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
 
 export interface DatosPagoFormulario {
@@ -80,8 +81,23 @@ export function ModalRegistrarPago({
     if (!resultado.exito || !resultado.datos) throw new Error('Cuentas no disponibles');
     return resultado.datos;
   } });
+  // ACC-06: al cobrar en USD se propone el TC vigente; el usuario puede corregirlo.
+  const tipoCambioVigente = usarTipoCambioVigente(abierto);
 
   if (!cuenta) return null;
+
+  /** MXN siempre vale 1; USD arranca con el TC del día cuando ya se cargó. */
+  function aplicarMoneda(valor: 'USD' | 'MXN'): void {
+    setMoneda(valor);
+    setBancoId('');
+    setTipoCambio(
+      valor === 'MXN'
+        ? '1'
+        : tipoCambioVigente !== null
+          ? String(tipoCambioVigente)
+          : '',
+    );
+  }
 
   function cerrar(forzado = false): void {
     if (!forzado && (enviando.current || intento)) return;
@@ -168,7 +184,7 @@ export function ModalRegistrarPago({
             </div>
             <div className="grid gap-1">
               <Label htmlFor="moneda-pago">Moneda de pago</Label>
-              <Select id="moneda-pago" value={moneda} onChange={(evento) => { setMoneda(evento.target.value as 'USD' | 'MXN'); setBancoId(''); setTipoCambio(evento.target.value === 'MXN' ? '1' : ''); }}>
+              <Select id="moneda-pago" value={moneda} onChange={(evento) => aplicarMoneda(evento.target.value as 'USD' | 'MXN')}>
                 <option value="MXN">MXN</option>
                 <option value="USD">USD</option>
               </Select>

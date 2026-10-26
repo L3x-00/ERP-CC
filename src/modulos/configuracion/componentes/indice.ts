@@ -1,4 +1,5 @@
 export { OperacionConfiguracion } from './operacion-configuracion';
+export { AvisoTipoCambioDiario } from './aviso-tipo-cambio-diario';
 export { PestanaAreasTrabajo } from './pestana-areas-trabajo';
 export { PestanaCuentasBancarias } from './pestana-cuentas-bancarias';
 export { PestanaEmpresa } from './pestana-empresa';

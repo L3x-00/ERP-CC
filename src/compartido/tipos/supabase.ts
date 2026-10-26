@@ -517,6 +517,8 @@ export type Database = {
           plantillas_doc_json: Json
           tarifas_json: Json
           tiers_json: Json
+          tipo_cambio_actualizado_en: string | null
+          tipo_cambio_actualizado_por: string | null
           tipo_cambio_usd: number
         }
         Insert: {
@@ -529,6 +531,8 @@ export type Database = {
           plantillas_doc_json?: Json
           tarifas_json?: Json
           tiers_json?: Json
+          tipo_cambio_actualizado_en?: string | null
+          tipo_cambio_actualizado_por?: string | null
           tipo_cambio_usd?: number
         }
         Update: {
@@ -541,12 +545,21 @@ export type Database = {
           plantillas_doc_json?: Json
           tarifas_json?: Json
           tiers_json?: Json
+          tipo_cambio_actualizado_en?: string | null
+          tipo_cambio_actualizado_por?: string | null
           tipo_cambio_usd?: number
         }
         Relationships: [
           {
             foreignKeyName: "configuracion_sistema_actualizado_por_fkey"
             columns: ["actualizado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configuracion_sistema_tipo_cambio_actualizado_por_fkey"
+            columns: ["tipo_cambio_actualizado_por"]
             isOneToOne: false
             referencedRelation: "usuarios"
             referencedColumns: ["id"]

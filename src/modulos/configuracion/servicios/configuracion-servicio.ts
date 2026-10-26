@@ -25,6 +25,10 @@ import {
   TIPO_CAMBIO_USD_DEFECTO,
 } from '@/modulos/configuracion/tipos/indice';
 import { CATALOGO_TIERS_DEFECTO } from '@/modulos/clientes/tipos/indice';
+import {
+  evaluarTipoCambioDiario,
+  type EstadoTipoCambioDiario,
+} from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 
 export type ClienteConfiguracion = SupabaseClient<Database>;
 export type SeccionConfiguracion = 'empresa' | 'tarifas' | 'plantillas' | 'tiers' | 'categorias' | 'tipo_cambio' | 'iva';
@@ -51,6 +55,8 @@ export function combinarConfiguracion(
       tiers: CATALOGO_TIERS_DEFECTO,
       categoriasGasto: CATALOGO_CATEGORIAS_GASTO_DEFECTO,
       tipoCambioUsd: TIPO_CAMBIO_USD_DEFECTO,
+      tipoCambioActualizadoEn: null,
+      tipoCambioActualizadoPor: null,
       ivaPorcentajeDefault: IVA_PORCENTAJE_DEFECTO,
       actualizadoPor: null,
       actualizadoEn: FECHA_EPOCA,
@@ -90,6 +96,12 @@ function filaDesdeRpc(valor: Json): FilaConfiguracionSistema {
     tiers_json: esJson(valor.tiers_json) ? valor.tiers_json : {},
     categorias_gasto_json: esJson(valor.categorias_gasto_json) ? valor.categorias_gasto_json : {},
     tipo_cambio_usd: valor.tipo_cambio_usd,
+    tipo_cambio_actualizado_en: typeof valor.tipo_cambio_actualizado_en === 'string'
+      ? valor.tipo_cambio_actualizado_en
+      : null,
+    tipo_cambio_actualizado_por: typeof valor.tipo_cambio_actualizado_por === 'string'
+      ? valor.tipo_cambio_actualizado_por
+      : null,
     iva_porcentaje_default: valor.iva_porcentaje_default,
     actualizado_por: valor.actualizado_por,
     actualizado_en: valor.actualizado_en,
@@ -143,6 +155,22 @@ export async function obtenerTipoCambioVigente(
 ): Promise<number> {
   const configuracion = await obtenerConfiguracionGeneral(cliente);
   return configuracion.tipoCambioUsd;
+}
+
+/**
+ * Estado del TC diario (ACC-06): usa la fecha dedicada de captura, no
+ * `actualizado_en`, que cambia con cualquier sección de configuración.
+ */
+export async function obtenerEstadoTipoCambioDiario(
+  cliente: ClienteConfiguracion = crearClienteSupabaseAdmin(),
+  ahora: Date = new Date(),
+): Promise<EstadoTipoCambioDiario> {
+  const configuracion = await obtenerConfiguracionGeneral(cliente);
+  return evaluarTipoCambioDiario({
+    tipoCambioActualizadoEn: configuracion.tipoCambioActualizadoEn,
+    tipoCambioUsd: configuracion.tipoCambioUsd,
+    ahora,
+  });
 }
 
 /** Lista cuentas ordenadas sin permitir que el cliente elija columnas sensibles. */

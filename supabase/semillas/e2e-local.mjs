@@ -113,8 +113,15 @@ await crearUsuario('e2e-config-admin@orca.local', 'Admin Config E2E', 'admin');
 await crearUsuario('e2e-config-vendedor@orca.local', 'Vendedor Config E2E', 'vendedor');
 await crearUsuario('e2e-dashboard-vendedor@orca.local', 'Vendedor Dashboard E2E', 'vendedor');
 await crearUsuario('e2e-dashboard-contador@orca.local', 'Contador Dashboard E2E', 'contador');
-await crearUsuario('e2e-dashboard-admin@orca.local', 'Admin Dashboard E2E', 'admin');
+const adminDashboard = await crearUsuario('e2e-dashboard-admin@orca.local', 'Admin Dashboard E2E', 'admin');
 await crearUsuario('e2e-dashboard-operador@orca.local', 'Operador Dashboard E2E', 'operador');
+
+// ACC-06: el fixture deja el TC del día vigente para que el modal del dashboard
+// no interfiera con los E2E existentes. El spec dedicado lo vence y lo restaura.
+await peticion('/rest/v1/configuracion_sistema?id=eq.main', 'PATCH', {
+  tipo_cambio_actualizado_en: new Date().toISOString(),
+  tipo_cambio_actualizado_por: adminDashboard.id,
+});
 
 const variables = {
   E2E_CONFIGURACION_ADMIN_EMAIL: 'e2e-config-admin@orca.local',

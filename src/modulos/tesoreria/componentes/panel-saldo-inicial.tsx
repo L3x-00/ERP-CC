@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Input } from '@/compartido/componentes/ui/input';
+import { usarTipoCambioVigente } from '@/modulos/configuracion/hooks/usar-tipo-cambio-vigente';
 import { registrarSaldoInicialAccion } from '@/modulos/tesoreria/acciones/registrar-saldo-inicial';
 
 /** SII-B8 F5: captura del saldo inicial de una cuenta. */
@@ -33,11 +34,16 @@ export function PanelSaldoInicial({
   onGuardado: () => Promise<void> | void;
 }) {
   const [monto, setMonto] = useState(saldoActual === null ? '' : String(saldoActual));
-  const [tipoCambio, setTipoCambio] = useState('1');
+  const [tipoCambioManual, setTipoCambioManual] = useState<string | null>(null);
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // ACC-06: en cuentas USD el saldo inicial arranca con el TC vigente del sistema.
+  const tipoCambioVigente = usarTipoCambioVigente(abierto && moneda === 'USD');
+  // Derivado, no efecto: la captura manual siempre gana y no hay cascada de renders.
+  const tipoCambio = tipoCambioManual
+    ?? (moneda === 'USD' && tipoCambioVigente !== null ? String(tipoCambioVigente) : '1');
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -86,7 +92,7 @@ export function PanelSaldoInicial({
                 Tipo de cambio (a MXN)
                 <Input type="number" min="0" step="0.0001" className="min-h-11" disabled={moneda === 'MXN'}
                   data-testid="saldo-tipo-cambio" value={tipoCambio}
-                  onChange={(evento) => setTipoCambio(evento.target.value)} />
+                  onChange={(evento) => setTipoCambioManual(evento.target.value)} />
               </label>
               <label className="grid gap-1 text-sm font-medium">
                 Fecha
