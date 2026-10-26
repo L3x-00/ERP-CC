@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ORCA MFG ERP - CC Manufacturing Group',
+  title: 'CC Manufacturing Group',
   description: 'Sistema de gestión empresarial para manufactura CNC',
 };
 

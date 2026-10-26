@@ -10,7 +10,7 @@ export default function PaginaIniciarSesion() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-fondo p-6">
       <div className="flex flex-col items-center gap-1 text-center">
-        <h1 className="text-2xl font-bold text-texto-primario">ORCA MFG ERP</h1>
+        <h1 className="text-2xl font-bold text-texto-primario">CC Manufacturing Group</h1>
         <p className="text-sm text-texto-secundario">Inicia sesión para continuar</p>
       </div>
       <FormularioIniciarSesion />

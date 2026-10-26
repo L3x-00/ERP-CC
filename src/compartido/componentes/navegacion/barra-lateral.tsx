@@ -110,7 +110,7 @@ export function BarraLateral({ modulos, abiertoMovil, onCerrarMovil }: PropsBarr
           </span>
           {!contraida ? (
             <span className="truncate text-sm font-bold tracking-tight text-texto-primario">
-              ORCA MFG ERP
+              CC Manufacturing Group
             </span>
           ) : null}
         </div>
@@ -146,7 +146,7 @@ export function BarraLateral({ modulos, abiertoMovil, onCerrarMovil }: PropsBarr
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-acento text-sm font-black text-white shadow-sm">
                   O
                 </span>
-                <span className="text-sm font-bold text-texto-primario">ORCA MFG ERP</span>
+                <span className="text-sm font-bold text-texto-primario">CC Manufacturing Group</span>
               </span>
               <button
                 type="button"
