@@ -142,7 +142,9 @@ export function EncabezadoApp({
       <div className="ml-auto flex items-center gap-1.5 md:gap-2">
         <div className="hidden items-center gap-2 md:flex">
           <EstadoTipoCambioEncabezado estado={estadoTipoCambio ?? null} puedeActualizar={puedeActualizarTipoCambio ?? false} />
-          <span data-testid="estado-conexion" role="status">
+          {/* Estado persistente, no una notificación: sin role="status" para no
+              competir con los mensajes de operación que se anuncian al usuario. */}
+          <span data-testid="estado-conexion">
             <BadgeEstado estado="activo" etiqueta="En línea" />
           </span>
         </div>

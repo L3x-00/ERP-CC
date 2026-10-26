@@ -35,5 +35,8 @@ describe('estado global del encabezado', () => {
 
     expect(screen.getByTestId('tipo-cambio-encabezado').textContent).toBe('T.C. $18.42 MXN/USD');
     expect(within(screen.getByTestId('estado-conexion')).getByText('En línea')).toBeTruthy();
+    // El indicador es persistente: no debe ocupar el rol de las notificaciones
+    // de operación, que los E2E seleccionan con getByRole('status').
+    expect(screen.getByTestId('estado-conexion').getAttribute('role')).toBeNull();
   });
 });
