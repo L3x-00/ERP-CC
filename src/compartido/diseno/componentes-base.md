@@ -146,7 +146,13 @@ Tiers: `bg-tier-bronce-suave text-tier-bronce` (y `plata`, `oro`, `platino`).
 
 ## Modo oscuro
 
-El piso fuerza `.dark` en `(piso)/layout.tsx`. Los mismos tokens cambian de valor:
+El tema es global y se alterna desde el menú del usuario (`OpcionTemaMenu`):
+la luna pasa a oscuro y el sol vuelve a claro. `next-themes` aplica la clase
+`light`/`dark` al `<html>`, persiste la elección en `localStorage` y
+`color-scheme` acompaña a los controles nativos (fechas, selects, scrollbars).
+El piso de taller fuerza `.dark` en `(piso)/layout.tsx` y no muestra el control.
+
+Los mismos tokens cambian de valor:
 no escribir paletas zinc/slate/cyan/emerald hardcodeadas. Los componentes deben
 verse correctos en ambos temas sin clases `dark:` adicionales salvo excepciones
 de contraste (p. ej. el botón `primario`, que en oscuro usa texto `text-fondo`
