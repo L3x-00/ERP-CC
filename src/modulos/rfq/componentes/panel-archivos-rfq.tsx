@@ -218,10 +218,12 @@ export function PanelArchivosRfq({
           </Select>
         </label>
         <label
-          className={`grid gap-1 text-sm font-medium ${marcarFaltante ? CLASE_OBLIGATORIO : ''}`}
+          className="grid gap-1 text-sm font-medium"
           htmlFor="archivo-input"
         >
-          Archivo
+          <span className={marcarFaltante ? CLASE_OBLIGATORIO : ''}>
+            Archivo
+          </span>
           <Input
             key={versionSelector}
             id="archivo-input"

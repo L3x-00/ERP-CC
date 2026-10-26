@@ -353,10 +353,10 @@ export function TablaItemsRfq({
           {borrador && (
             <form onSubmit={guardarItem} className="flex flex-col gap-3" noValidate>
               <label
-                className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                className="grid gap-1 text-sm font-medium"
                 htmlFor="item-descripcion"
               >
-                Descripción
+                <span className={CLASE_OBLIGATORIO}>Descripción</span>
                 <Input
                   id="item-descripcion"
                   value={borrador.descripcion}
@@ -367,10 +367,10 @@ export function TablaItemsRfq({
                 />
               </label>
               <label
-                className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                className="grid gap-1 text-sm font-medium"
                 htmlFor="item-cantidad"
               >
-                Cantidad
+                <span className={CLASE_OBLIGATORIO}>Cantidad</span>
                 <Input
                   id="item-cantidad"
                   type="number"
@@ -381,10 +381,10 @@ export function TablaItemsRfq({
                 />
               </label>
               <label
-                className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                className="grid gap-1 text-sm font-medium"
                 htmlFor="item-material"
               >
-                Material
+                <span className={CLASE_OBLIGATORIO}>Material</span>
                 <Select
                   id="item-material"
                   value={borrador.materialId}
@@ -405,10 +405,12 @@ export function TablaItemsRfq({
               </label>
               <div className="grid gap-1 text-sm">
                 <label
-                  className={`font-medium ${espesorObligatorio ? CLASE_OBLIGATORIO : ''}`}
+                  className="font-medium"
                   htmlFor="item-espesor"
                 >
-                  Espesor
+                  <span className={espesorObligatorio ? CLASE_OBLIGATORIO : ''}>
+                    Espesor
+                  </span>
                 </label>
                 <Select
                   id="item-espesor"
@@ -483,10 +485,10 @@ export function TablaItemsRfq({
               </fieldset>
               {requiereDetalleAcabado && (
                 <label
-                  className={`grid gap-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}
+                  className="grid gap-1 text-sm font-medium"
                   htmlFor="item-acabado"
                 >
-                  Detalles del acabado
+                  <span className={CLASE_OBLIGATORIO}>Detalles del acabado</span>
                   <Input
                     id="item-acabado"
                     value={borrador.acabado}

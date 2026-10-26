@@ -15,7 +15,8 @@ export const CLASE_MENSAJE_FALTANTE = 'text-xs font-medium text-peligro-texto';
  * Asterisco de campo obligatorio como pseudo-elemento: no altera el texto del
  * label, así las consultas por etiqueta (accesibles, pruebas y E2E) no cambian.
  */
-export const CLASE_OBLIGATORIO = "after:content-['*'] after:ml-0.5 after:text-peligro-texto";
+export const CLASE_OBLIGATORIO = "after:content-['*'] after:ml-0.5 after:text-peligro-texto after:inline";
+
 
 export type FaltantesCliente = { cliente: boolean; contacto: boolean };
 
