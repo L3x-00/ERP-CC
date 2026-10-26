@@ -2,6 +2,33 @@
 
 Estas semillas están pensadas para el stack local (`127.0.0.1:54321`). El modo remoto está apagado por defecto y solo se habilita con una confirmación explícita del PO (`DEMO_DESTINO=remoto` + `CONFIRMAR_DEMO_REMOTO=<ref>`); sin esas variables, `guardia-supabase-local.mjs` aborta si la URL no es loopback.
 
+## Limpieza operativa + operación de hoy y mañana
+
+Conserva el maestro (clientes, materiales, precios, dimensiones, catálogos,
+proveedores, usuarios, máquinas, tarifas y tesorería base) y reemplaza solo la
+operación: RFQ, propuestas, órdenes, planeación, producción, inventario en
+movimiento, compras, gastos, facturación, cobranza y entregas.
+
+```powershell
+# 1. Vaciar la operación (transaccional y verificada; el maestro queda intacto)
+supabase db query --local --file supabase/semillas/limpieza-operativa.sql
+
+# 2. Sembrar RFQ, propuestas, órdenes, planeación de hoy/mañana y producción
+$env:NEXT_PUBLIC_SUPABASE_URL = (supabase status -o env | Select-String '^API_URL=').ToString().Split('=',2)[1]
+$env:SUPABASE_SERVICE_ROLE_KEY = (supabase status -o env | Select-String '^SERVICE_ROLE_KEY=').ToString().Split('=',2)[1]
+$env:CONFIRMAR_SEMILLA = 'si'
+node supabase/semillas/operacion-hoy-manana.mjs
+```
+
+La semilla referencia los clientes, materiales y máquinas existentes: **no crea
+maestros nuevos**. Genera 9 RFQ, 5 propuestas (DRAFT/SENT/SALE_CONFIRMED), 9
+órdenes (borrador, programada hoy/mañana, preparación, en proceso, pausada,
+completada hoy/ayer y cancelada), 10 programaciones, 4 sesiones de piso, 2
+compras, 3 gastos, 2 CxC, un pago y una promesa.
+
+En remoto exige `DEMO_DESTINO=remoto`, `CONFIRMAR_DEMO_REMOTO=<ref>` y
+`CONFIRMAR_SEMILLA=si`, además del respaldo previo con `supabase db dump`.
+
 ## Reinicio limpio + datos de presentación
 
 ```powershell
