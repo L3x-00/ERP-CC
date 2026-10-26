@@ -3,20 +3,14 @@
 import { useState } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
-import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { actualizarTipoCambioAccion, guardarTarifasCotizadorAccion } from '@/modulos/configuracion/acciones/indice';
 import type { ConfiguracionSistema, TarifasCotizadorConfig } from '@/modulos/configuracion/tipos/indice';
 import { EditorTarifasEstaciones } from '@/modulos/configuracion/componentes/editor-tarifas-estaciones';
 import { SeccionTarifarioRuteo } from '@/modulos/configuracion/componentes/seccion-tarifario-ruteo';
-
-const HORAS_VIGENCIA_TIPO_CAMBIO = 24;
-
-/** Horas transcurridas desde una fecha ISO; `null` si la fecha es inválida. */
-function horasTranscurridas(desde: string, ahora: number): number | null {
-  const fecha = new Date(desde).getTime();
-  if (!Number.isFinite(fecha)) return null;
-  return (ahora - fecha) / (60 * 60 * 1000);
-}
+import {
+  evaluarTipoCambioDiario,
+  formatearFechaHoraNegocio,
+} from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 
 export interface PestanaTarifasProps {
   configuracion: ConfiguracionSistema;
@@ -30,9 +24,12 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
   const [tipoCambio, setTipoCambio] = useState(String(configuracion.tipoCambioUsd));
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
-  const [ahora] = useState(() => Date.now());
-  const antiguedadHoras = horasTranscurridas(configuracion.actualizadoEn, ahora);
-  const tipoCambioObsoleto = antiguedadHoras !== null && antiguedadHoras > HORAS_VIGENCIA_TIPO_CAMBIO;
+  const [ahora] = useState(() => new Date());
+  const estadoTipoCambio = evaluarTipoCambioDiario({
+    tipoCambioActualizadoEn: configuracion.tipoCambioActualizadoEn,
+    tipoCambioUsd: configuracion.tipoCambioUsd,
+    ahora,
+  });
 
   const cambiarTarifa = (campo: keyof TarifasCotizadorConfig, valor: string): void => {
     const numero = Number(valor);
@@ -76,11 +73,15 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
               <span className="ml-1 text-sm font-medium text-texto-secundario">MXN/USD</span>
             </p>
           </div>
-          <p className="text-xs text-texto-secundario">Actualizado el {formatearFecha(configuracion.actualizadoEn)}</p>
+          <p className="text-xs text-texto-secundario">
+            {configuracion.tipoCambioActualizadoEn
+              ? `Actualizado el ${formatearFechaHoraNegocio(configuracion.tipoCambioActualizadoEn)}`
+              : 'Sin registro de actualización'}
+          </p>
         </div>
-        {tipoCambioObsoleto ? (
+        {estadoTipoCambio.requiereActualizacion ? (
           <p role="alert" className="mt-3 rounded-md bg-advertencia-suave px-3 py-2 text-sm font-medium text-advertencia-texto">
-            El tipo de cambio lleva más de 24 horas sin actualizarse; revisa el valor antes de cotizar.
+            El tipo de cambio no está registrado para hoy o lleva más de 24 horas sin actualizarse; revisa el valor antes de cotizar.
           </p>
         ) : null}
       </div>

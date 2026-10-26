@@ -13,6 +13,7 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { usarTipoCambioVigente } from '@/modulos/configuracion/hooks/usar-tipo-cambio-vigente';
 import { actualizarCompraAccion } from '@/modulos/compras/acciones/actualizar-compra';
 import { cambiarEstadoCompraAccion } from '@/modulos/compras/acciones/cambiar-estado-compra';
 import { crearCompraAccion } from '@/modulos/compras/acciones/crear-compra';
@@ -153,6 +154,8 @@ function FormularioCompra({
   const [iva, setIva] = useState(compra ? String(compra.montoIva) : '0');
   const [moneda, setMoneda] = useState<'MXN' | 'USD'>(compra?.moneda === 'USD' ? 'USD' : 'MXN');
   const [tipoCambio, setTipoCambio] = useState(compra ? String(compra.tipoCambio) : '1');
+  // ACC-06: al capturar en USD se propone el TC vigente; el usuario puede corregirlo.
+  const tipoCambioVigente = usarTipoCambioVigente();
   const [vencimiento, setVencimiento] = useState(compra?.fechaVencimiento?.slice(0, 10) ?? '');
   const [notas, setNotas] = useState(compra?.notas ?? '');
   const [costo, setCosto] = useState<ValoresCostoCompra>({
@@ -178,6 +181,17 @@ function FormularioCompra({
         setSubtotal(String(Math.round(cantidad * costoUnitario * 10_000) / 10_000));
       }
     }
+  }
+
+  function aplicarMoneda(valor: 'MXN' | 'USD'): void {
+    setMoneda(valor);
+    setTipoCambio(
+      valor === 'MXN'
+        ? '1'
+        : tipoCambioVigente !== null
+          ? String(tipoCambioVigente)
+          : '',
+    );
   }
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
@@ -259,11 +273,7 @@ function FormularioCompra({
         <label className="grid gap-1 text-sm font-medium">
           Moneda
           <Select className="min-h-11" data-testid="compra-moneda"
-            value={moneda} onChange={(evento) => {
-              const valor = evento.target.value as 'MXN' | 'USD';
-              setMoneda(valor);
-              if (valor === 'MXN') setTipoCambio('1');
-            }}>
+            value={moneda} onChange={(evento) => aplicarMoneda(evento.target.value as 'MXN' | 'USD')}>
             <option value="MXN">MXN</option>
             <option value="USD">USD</option>
           </Select>

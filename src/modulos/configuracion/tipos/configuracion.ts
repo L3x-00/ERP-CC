@@ -105,6 +105,9 @@ export interface ConfiguracionSistema {
   tiers: CatalogoTiers;
   categoriasGasto: readonly string[];
   tipoCambioUsd: number;
+  /** Última captura explícita del TC; `null` = sin registro (ACC-06). */
+  tipoCambioActualizadoEn: string | null;
+  tipoCambioActualizadoPor: string | null;
   ivaPorcentajeDefault: number;
   actualizadoPor: string | null;
   actualizadoEn: string;
@@ -119,6 +122,9 @@ export interface FilaConfiguracionSistema {
   tiers_json: Json;
   categorias_gasto_json: Json;
   tipo_cambio_usd: number | string;
+  /** Presente desde la migración de TC diario; puede faltar en filas antiguas. */
+  tipo_cambio_actualizado_en?: string | null;
+  tipo_cambio_actualizado_por?: string | null;
   iva_porcentaje_default: number | string;
   actualizado_por: string | null;
   actualizado_en: string;
@@ -199,6 +205,11 @@ function textoSeguro(valor: unknown, respaldo: string): string {
 
 function textoOpcional(valor: unknown): string | null {
   return typeof valor === 'string' && valor.trim() !== '' ? valor.trim() : null;
+}
+
+/** Fecha ISO opcional; tolera columnas ausentes en instalaciones sin migrar. */
+function fechaOpcional(valor: unknown): string | null {
+  return typeof valor === 'string' && valor.trim() !== '' ? valor : null;
 }
 
 function numeroSeguro(valor: unknown, respaldo: number, minimo = 0): number {
@@ -315,6 +326,8 @@ export function filaAConfiguracionSistema(fila: FilaConfiguracionSistema): Confi
     tiers: catalogoTiersDesde(fila.tiers_json),
     categoriasGasto: categoriasGastoDesde(fila.categorias_gasto_json),
     tipoCambioUsd: numeroSeguro(fila.tipo_cambio_usd, TIPO_CAMBIO_USD_DEFECTO, 0.0001),
+    tipoCambioActualizadoEn: fechaOpcional(fila.tipo_cambio_actualizado_en),
+    tipoCambioActualizadoPor: textoOpcional(fila.tipo_cambio_actualizado_por),
     ivaPorcentajeDefault: numeroSeguro(fila.iva_porcentaje_default, IVA_PORCENTAJE_DEFECTO),
     actualizadoPor: fila.actualizado_por,
     actualizadoEn: fila.actualizado_en,

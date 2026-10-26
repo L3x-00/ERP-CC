@@ -14,6 +14,8 @@ function fila(parcial: Partial<FilaConfiguracionSistema> = {}): FilaConfiguracio
     tiers_json: {},
     categorias_gasto_json: {},
     tipo_cambio_usd: 19.5,
+    tipo_cambio_actualizado_en: null,
+    tipo_cambio_actualizado_por: null,
     iva_porcentaje_default: 16,
     actualizado_por: null,
     actualizado_en: '2026-09-09T00:00:00.000Z',
@@ -29,6 +31,21 @@ describe('servicio central de configuración', () => {
     expect(resultado.tarifas.segundosPorPierce).toBeGreaterThan(0);
     expect(resultado.plantillasDoc.T1.colorAcento).toMatch(/^#/);
     expect(resultado.tipoCambioUsd).toBe(20);
+    expect(resultado.tipoCambioActualizadoEn).toBeNull();
+    expect(resultado.tipoCambioActualizadoPor).toBeNull();
+  });
+
+  it('conserva la fecha y el actor de la última captura del tipo de cambio', () => {
+    const resultado = combinarConfiguracion(fila({
+      tipo_cambio_usd: 18.75,
+      tipo_cambio_actualizado_en: '2026-10-25T15:30:00.000Z',
+      tipo_cambio_actualizado_por: '00000000-0000-4000-8000-000000000001',
+    }));
+    expect(resultado.tipoCambioUsd).toBe(18.75);
+    expect(resultado.tipoCambioActualizadoEn).toBe('2026-10-25T15:30:00.000Z');
+    expect(resultado.tipoCambioActualizadoPor).toBe('00000000-0000-4000-8000-000000000001');
+    // La fecha de vigencia del TC es independiente de la última edición general.
+    expect(resultado.actualizadoEn).toBe('2026-09-09T00:00:00.000Z');
   });
 
   it('fusiona bloques parciales sin perder los valores faltantes', () => {
