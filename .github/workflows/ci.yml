@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -6,49 +7,110 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Gates rápidos: tipos, lint y unitarias.
+  # Detectar cambios visuales conocidos.
+  cambios:
+    runs-on: ubuntu-latest
+    outputs:
+      solo_ui: ${{ steps.clasificar.outputs.solo_ui }}
+    steps:
+      - name: Obtener archivos modificados
+        if: github.event_name == 'pull_request'
+        id: archivos
+        uses: dorny/paths-filter@v3
+        with:
+          list-files: json
+          filters: |
+            todos:
+              - '**'
+
+      - name: Clasificar cambios
+        id: clasificar
+        env:
+          ARCHIVOS: ${{ steps.archivos.outputs.todos_files }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const archivos = JSON.parse(process.env.ARCHIVOS || '[]');
+
+          const permitidos = new Set([
+            'src/modulos/rfq/componentes/panel-archivos-rfq.tsx',
+            'src/modulos/rfq/componentes/tabla-items-rfq.tsx',
+            'src/modulos/rfq/componentes/panel-revision-rfq.tsx',
+            'src/modulos/rfq/utilidades/faltantes.ts',
+            'tests/unitarias/rfq-campos-faltantes.test.ts',
+            'tests/unitarias/rfq-panel-revision-responsive.test.ts',
+          ]);
+
+          const soloUi = archivos.length > 0 &&
+            archivos.every(archivo => permitidos.has(archivo));
+
+          console.log(`solo_ui=${soloUi}`);
+          NODE
+
+  # Siempre: tipos, lint y pruebas unitarias.
   verificacion:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
 
-  # E2E real contra Supabase local (Docker) + concurrencia estricta.
+  # E2E completo para cambios no clasificados como UI,
+  # push a main y ejecuciones manuales.
   e2e-local:
     runs-on: ubuntu-latest
-    needs: verificacion
+    needs: [cambios, verificacion]
+    if: >-
+      ${{
+        needs.verificacion.result == 'success' &&
+        (github.event_name != 'pull_request' ||
+        needs.cambios.outputs.solo_ui != 'true')
+      }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
+
       - run: pnpm install --frozen-lockfile
+
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.0
+
       - name: Levantar Supabase local (aplica migraciones)
         run: supabase start
+
       - name: Verificar permisos SQL tras todas las migraciones
         run: supabase test db
+
       - name: Exportar entorno del stack local
         run: |
           source <(supabase status -o env)
@@ -64,21 +126,28 @@ jobs:
           echo "SECRETO_SESION_OPERADOR=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
           echo "NEXT_PUBLIC_SITIO_URL=http://127.0.0.1:3100" >> "$GITHUB_ENV"
           echo "E2E_HABILITAR_PRUEBAS_REMOTAS=si" >> "$GITHUB_ENV"
+
       - name: Provisionar fixture E2E
         run: |
           node supabase/semillas/e2e-local.mjs /tmp/e2e-fixture.json --exports > /tmp/e2e-exports.txt
           cat /tmp/e2e-exports.txt >> "$GITHUB_ENV"
+
       - name: Integración completa contra Supabase local
         run: pnpm test:integracion
+
       - name: Instalar Chromium de Playwright
         run: pnpm exec playwright install --with-deps chromium
+
       - name: E2E de navegador (incluye OCR con stub local)
         run: pnpm test:e2e
+
       - name: Concurrencia estricta (dos conexiones)
         run: pnpm test:concurrencia
+
       - name: Registrar logs de Supabase si algo falla
         if: failure()
         run: docker ps --format '{{.Names}}' && supabase status
+
       - name: Subir artefactos de Playwright si algo falla
         if: failure()
         uses: actions/upload-artifact@v4
