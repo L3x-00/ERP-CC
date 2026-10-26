@@ -896,8 +896,6 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       // La consulta reutiliza la capacidad real del grupo y no crea ni reserva nada.
       await prepararDisponibilidad(contexto);
       const recursoId = contexto.disponibilidad!.recursoId!;
-      const fechaCompromiso = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
-      await page.getByLabel('Fecha compromiso comercial').fill(fechaCompromiso);
       const antes = await admin.from('programacion_areas').select('id, horas_estimadas', { count: 'exact' })
         .eq('recurso_id', recursoId);
       expect(antes.error).toBeNull();
@@ -909,7 +907,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(consulta).toContainText(/104(?:[.,]00)?\s*h/);
       await expect(consulta).toContainText(/100(?:[.,]00)?\s*h/);
       await expect(consulta).toContainText('equipos activos sin turnos configurados');
-      await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
+      await expect(consulta.getByLabel('Fechas disponibles')).toHaveCount(0);
 
       const despues = await admin.from('programacion_areas').select('id, horas_estimadas', { count: 'exact' })
         .eq('recurso_id', recursoId);
@@ -932,6 +930,29 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       expect(propuestaSinAceptar.data?.accepted_revision_id).toBeNull();
       expect(revisionSinAceptar.error).toBeNull();
       expect(revisionSinAceptar.data).toMatchObject({ estado: 'SENT', fecha_compromiso_comercial: null });
+
+      // Al completar la configuración, Comercial puede elegir una fecha que
+      // alcance la carga del ruteo. Elegirla aún no crea ni reserva nada.
+      const recursoSinTurnoEliminado = await admin.from('recursos_planeacion')
+        .delete()
+        .eq('id', contexto.disponibilidad!.recursoSinTurnoId!);
+      expect(recursoSinTurnoEliminado.error).toBeNull();
+      contexto.disponibilidad!.recursoSinTurnoId = undefined;
+      await page.getByRole('button', { name: 'Volver a consultar' }).click();
+      const fechasDisponibles = consulta.locator('[data-testid^="fecha-disponible-"]');
+      await expect(fechasDisponibles.first()).toBeVisible();
+      const fechaCompromiso = (await fechasDisponibles.first().getAttribute('data-testid'))!
+        .replace('fecha-disponible-', '');
+      await fechasDisponibles.first().click();
+      await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
+      await expect(page.getByTestId(`fecha-disponible-${fechaCompromiso}`)).toHaveAttribute('aria-pressed', 'true');
+
+      const solicitudesTrasElegir = await admin.from('solicitudes_orden').select('id', { count: 'exact', head: true })
+        .eq('revision_id', revisionA.data.id);
+      const ordenesTrasElegir = await admin.from('ordenes_produccion').select('id', { count: 'exact', head: true })
+        .eq('propuesta_revision_id', revisionA.data.id);
+      expect(solicitudesTrasElegir.count).toBe(0);
+      expect(ordenesTrasElegir.count).toBe(0);
 
       // Una sesión real de gerencia comercial debe poder consultar la misma
       // revisión y obtener el mismo resumen bajo sus propios permisos/RLS.

@@ -221,6 +221,54 @@ describe('agregarDisponibilidad — grupo del renglón', () => {
 });
 
 describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
+  it('propone desde el primer día en que la holgura acumulada de todos los grupos cubre el ruteo', () => {
+    const resumen = agregarDisponibilidad(entrada({
+      recursos: [
+        { id: 'rec-router', grupoEquipoId: 'g-router' },
+        { id: 'rec-laser', grupoEquipoId: 'g-laser' },
+      ],
+      cargas: [
+        carga({ recursoId: 'rec-router', fechaProgramada: '2026-10-21', horasDisponibles: 5 }),
+        carga({ recursoId: 'rec-router', fechaProgramada: '2026-10-22', horasDisponibles: 4 }),
+        carga({ recursoId: 'rec-laser', fechaProgramada: '2026-10-21', horasDisponibles: 1 }),
+        carga({ recursoId: 'rec-laser', fechaProgramada: '2026-10-22', horasDisponibles: 0.5 }),
+      ],
+    }));
+
+    // Router requiere 9 h y Láser 1.5 h: ambos llegan a su carga el 22, no antes.
+    expect(resumen.fechasDisponibles).toEqual([
+      '2026-10-22',
+      '2026-10-23',
+      '2026-10-24',
+      '2026-10-25',
+      '2026-10-26',
+      '2026-10-27',
+      '2026-10-28',
+      '2026-10-29',
+      '2026-10-30',
+      '2026-10-31',
+      '2026-11-01',
+      '2026-11-02',
+      '2026-11-03',
+    ]);
+  });
+
+  it('no propone fechas cuando un equipo requerido no tiene turnos configurados', () => {
+    const resumen = agregarDisponibilidad(entrada({
+      recursos: [
+        { id: 'rec-router-con-turno', grupoEquipoId: 'g-router' },
+        { id: 'rec-router-sin-turno', grupoEquipoId: 'g-router' },
+        { id: 'rec-laser', grupoEquipoId: 'g-laser' },
+      ],
+      cargas: [
+        carga({ recursoId: 'rec-router-con-turno', horasDisponibles: 12 }),
+        carga({ recursoId: 'rec-laser', horasDisponibles: 4 }),
+      ],
+    }));
+
+    expect(resumen.fechasDisponibles).toEqual([]);
+  });
+
   it('suma capacidad y carga del grupo y la disponibilidad no negativa por turno', () => {
     const resumen = agregarDisponibilidad(entrada({
       recursos: [

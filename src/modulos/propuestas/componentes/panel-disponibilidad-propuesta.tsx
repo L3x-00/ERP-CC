@@ -31,9 +31,13 @@ function horas(valor: number): string {
 export function PanelDisponibilidadPropuesta({
   propuestaId,
   revisionId,
+  fechaSeleccionada,
+  onSeleccionarFecha,
 }: {
   propuestaId: string;
   revisionId: string;
+  fechaSeleccionada?: string;
+  onSeleccionarFecha?: (fecha: string) => void;
 }) {
   const [consulta, setConsulta] = useState<Consulta>(INICIAL);
   const [revisionMostrada, setRevisionMostrada] = useState(revisionId);
@@ -123,15 +127,30 @@ export function PanelDisponibilidadPropuesta({
             </div>
           )}
 
-          {vigente.estado === 'listo' && <ResumenDisponibilidad resumen={vigente.resumen} />}
+          {vigente.estado === 'listo' && (
+            <ResumenDisponibilidad
+              resumen={vigente.resumen}
+              fechaSeleccionada={fechaSeleccionada}
+              onSeleccionarFecha={onSeleccionarFecha}
+            />
+          )}
         </section>
       )}
     </div>
   );
 }
 
-function ResumenDisponibilidad({ resumen }: { resumen: ResumenDisponibilidadPropuesta }) {
+function ResumenDisponibilidad({
+  resumen,
+  fechaSeleccionada,
+  onSeleccionarFecha,
+}: {
+  resumen: ResumenDisponibilidadPropuesta;
+  fechaSeleccionada?: string;
+  onSeleccionarFecha?: (fecha: string) => void;
+}) {
   const incompleto = resumen.procesosSinGrupo.length > 0 || resumen.itemsSinRuteo.length > 0;
+  const puedeProponer = !resumen.sinItemsActivos && !incompleto;
 
   return (
     <>
@@ -171,11 +190,46 @@ function ResumenDisponibilidad({ resumen }: { resumen: ResumenDisponibilidadProp
         </ul>
       )}
 
+      {resumen.fechasDisponibles.length > 0 ? (
+        <section aria-label="Fechas disponibles" className="flex flex-col gap-2 rounded-md bg-superficie-2 p-2">
+          <p className="text-sm font-medium text-texto-primario">
+            Fechas de compromiso que la capacidad acumulada alcanza
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {resumen.fechasDisponibles.map((fecha) => {
+              const elegida = fecha === fechaSeleccionada;
+              const etiqueta = formatearFechaCalendario(fecha);
+              return (
+                <Button
+                  key={fecha}
+                  tamano="sm"
+                  variante={elegida ? 'primario' : 'contorno'}
+                  aria-pressed={elegida}
+                  aria-label={`${elegida ? 'Fecha elegida' : 'Elegir'} ${etiqueta} como fecha de compromiso`}
+                  data-testid={`fecha-disponible-${fecha}`}
+                  onClick={() => onSeleccionarFecha?.(fecha)}
+                  disabled={!onSeleccionarFecha}
+                >
+                  {elegida ? `Fecha elegida: ${etiqueta}` : `Elegir ${etiqueta}`}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-texto-secundario">
+            Puedes elegir una y ajustarla antes de aceptar la revisión. Al aceptar, se enviará a
+            Orden y Planeación como compromiso comercial.
+          </p>
+        </section>
+      ) : puedeProponer ? (
+        <p className="text-advertencia-texto">
+          No hay una fecha alcanzable en este horizonte con la carga programada actual.
+        </p>
+      ) : null}
+
       <p className="text-xs text-texto-secundario">
         Solo informativo: no reserva capacidad ni confirma ninguna fecha. Se calcula con los turnos y
         excepciones configurados y con la carga ya programada; no incluye trabajo sin programar ni
         descuenta las horas ya transcurridas de los turnos de hoy. No garantiza equipos libres.
-        La fecha compromiso la decides tú.
       </p>
     </>
   );

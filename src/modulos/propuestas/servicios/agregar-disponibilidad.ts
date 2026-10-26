@@ -222,6 +222,59 @@ function capacidadDelGrupo(
   };
 }
 
+type GrupoConCapacidad = { id: string; disponibilidad: DisponibilidadGrupo };
+
+/**
+ * Fechas en las que la holgura acumulada de cada grupo cubre el ruteo de la
+ * revisión. No asigna recursos ni turnos: solo permite elegir un compromiso.
+ */
+function fechasDisponibles(
+  entrada: EntradaAgregacionDisponibilidad,
+  grupos: readonly GrupoConCapacidad[],
+  informacionIncompleta: boolean,
+): string[] {
+  if (informacionIncompleta || grupos.length === 0 || grupos.some(({ disponibilidad }) => (
+    disponibilidad.estado !== 'con_capacidad' || disponibilidad.recursosSinTurno > 0
+  ))) return [];
+
+  const disponibilidadPorGrupo = new Map<string, Map<string, number>>();
+  for (const { id: grupoId } of grupos) {
+    const recursos = new Set(
+      entrada.recursos
+        .filter((recurso) => recurso.grupoEquipoId === grupoId)
+        .map((recurso) => recurso.id),
+    );
+    const turnos = new Map<string, CargaCapacidadDiaria>();
+    for (const fila of entrada.cargas) {
+      if (!recursos.has(fila.recursoId)) continue;
+      if (fila.fechaProgramada < entrada.horizonte.fechaInicio || fila.fechaProgramada > entrada.horizonte.fechaFin) continue;
+      const clave = `${fila.recursoId}|${fila.fechaProgramada}|${fila.turno}`;
+      if (!turnos.has(clave)) turnos.set(clave, fila);
+    }
+    const porFecha = new Map<string, number>();
+    for (const fila of turnos.values()) {
+      porFecha.set(
+        fila.fechaProgramada,
+        (porFecha.get(fila.fechaProgramada) ?? 0) + horasSeguras(fila.horasDisponibles),
+      );
+    }
+    disponibilidadPorGrupo.set(grupoId, porFecha);
+  }
+
+  const acumulada = new Map(grupos.map(({ id }) => [id, 0]));
+  const fechas: string[] = [];
+  for (let dia = 0; dia < entrada.horizonte.dias; dia += 1) {
+    const fecha = sumarDias(entrada.horizonte.fechaInicio, dia);
+    for (const { id } of grupos) {
+      acumulada.set(id, (acumulada.get(id) ?? 0) + (disponibilidadPorGrupo.get(id)?.get(fecha) ?? 0));
+    }
+    if (grupos.every(({ id, disponibilidad }) => (
+      (acumulada.get(id) ?? 0) >= disponibilidad.horasRequeridas
+    ))) fechas.push(fecha);
+  }
+  return fechas;
+}
+
 /**
  * Resumen informativo por grupo de equipo. Solo cuenta ítems activos no
  * descuento de la revisión; un ítem sin ruteo es información incompleta.
@@ -248,28 +301,41 @@ export function agregarDisponibilidad(
     });
   }
 
-  const grupos: DisponibilidadGrupo[] = [...horasPorGrupo.entries()]
+  const gruposConCapacidad: GrupoConCapacidad[] = [...horasPorGrupo.entries()]
     .flatMap(([grupoId, horas]) => {
       const grupo = grupoPorId.get(grupoId);
       if (!grupo) return [];
       return {
-        codigo: grupo.codigo,
-        nombre: grupo.nombre,
-        horasRequeridas: redondear(horas),
-        ...capacidadDelGrupo(grupoId, entrada),
+        id: grupoId,
+        disponibilidad: {
+          codigo: grupo.codigo,
+          nombre: grupo.nombre,
+          horasRequeridas: redondear(horas),
+          ...capacidadDelGrupo(grupoId, entrada),
+        },
       };
-    })
+    });
+  const grupos = gruposConCapacidad
+    .map(({ disponibilidad }) => disponibilidad)
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const procesosSinGrupo = [...sinGrupo.values()].map((proceso) => ({
+    ...proceso,
+    horasRequeridas: redondear(proceso.horasRequeridas),
+  }));
+  const itemsSinRuteo = items.filter((item) => !conRuteo.has(item.id)).map((item) => item.codigo);
+  const sinItemsActivos = items.length === 0;
 
   return {
     revisionId: entrada.revisionId,
     ...entrada.horizonte,
     grupos,
-    procesosSinGrupo: [...sinGrupo.values()].map((proceso) => ({
-      ...proceso,
-      horasRequeridas: redondear(proceso.horasRequeridas),
-    })),
-    itemsSinRuteo: items.filter((item) => !conRuteo.has(item.id)).map((item) => item.codigo),
-    sinItemsActivos: items.length === 0,
+    procesosSinGrupo,
+    itemsSinRuteo,
+    sinItemsActivos,
+    fechasDisponibles: fechasDisponibles(
+      entrada,
+      gruposConCapacidad,
+      sinItemsActivos || procesosSinGrupo.length > 0 || itemsSinRuteo.length > 0,
+    ),
   };
 }

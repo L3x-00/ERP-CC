@@ -286,6 +286,7 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
       procesosSinGrupo: [],
       itemsSinRuteo: [],
       sinItemsActivos: false,
+      fechasDisponibles: [],
     });
     // Nada de recursos ni IDs de terceros en la respuesta.
     expect(JSON.stringify(respuesta.datos)).not.toMatch(/rec-1|rec-ajeno|g-router/);

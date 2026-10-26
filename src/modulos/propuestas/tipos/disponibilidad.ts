@@ -34,4 +34,6 @@ export type ResumenDisponibilidadPropuesta = {
   /** Códigos de ítems activos (no descuento) de la revisión que no tienen ruteo. */
   itemsSinRuteo: string[];
   sinItemsActivos: boolean;
+  /** Fechas alcanzables por la holgura acumulada de cada grupo requerido. */
+  fechasDisponibles: string[];
 };

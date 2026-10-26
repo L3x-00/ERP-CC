@@ -122,6 +122,7 @@ function resumen(parcial: Partial<ResumenDisponibilidadPropuesta> = {}): Resumen
     procesosSinGrupo: [{ nombre: 'Soldadura', horasRequeridas: 3 }],
     itemsSinRuteo: ['P-03'],
     sinItemsActivos: false,
+    fechasDisponibles: [],
     ...parcial,
   };
 }
@@ -234,6 +235,40 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
 
     expect(campoFecha().value).toBe('');
     expect((screen.getByRole('button', { name: 'Aceptar revisión' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('permite elegir una fecha propuesta sin aceptar hasta que se pulse la acción comercial', async () => {
+    consultarMock.mockResolvedValue({
+      exito: true,
+      datos: resumen({
+        grupos: [{
+          codigo: 'ROUTER',
+          nombre: 'CNC Router',
+          horasRequeridas: 9,
+          estado: 'con_capacidad',
+          horasCapacidad: 20,
+          horasCarga: 11,
+          horasDisponibles: 9,
+          turnosSobrecargados: 0,
+          recursosSinTurno: 0,
+        }],
+        procesosSinGrupo: [],
+        itemsSinRuteo: [],
+        fechasDisponibles: ['2026-10-22', '2026-10-23'],
+      }),
+    });
+    montarPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar disponibilidad' }));
+    const elegir = await screen.findByRole('button', {
+      name: 'Elegir 22 de octubre de 2026 como fecha de compromiso',
+    });
+    expect(elegir.getAttribute('data-testid')).toBe('fecha-disponible-2026-10-22');
+    fireEvent.click(elegir);
+
+    expect(campoFecha().value).toBe('2026-10-22');
+    expect(elegir.getAttribute('aria-pressed')).toBe('true');
+    expect(aceptarMock).not.toHaveBeenCalled();
   });
 
   it('mientras consulta muestra la carga y no bloquea la aceptación', async () => {
