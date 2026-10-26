@@ -5,11 +5,14 @@ import { usePathname } from 'next/navigation';
 import { BarraLateral, type UsuarioChasis } from './barra-lateral';
 import { EncabezadoApp } from './encabezado-app';
 import { MODULOS_NAVEGACION, type ModuloNavegacion } from './modulos-navegacion';
+import type { EstadoTipoCambioDiario } from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 
 type PropsChasis = {
   usuario: UsuarioChasis & { id: string };
   /** Módulos ya filtrados por permisos en el servidor. */
   modulos?: readonly ModuloNavegacion[];
+  estadoTipoCambio: EstadoTipoCambioDiario | null;
+  puedeActualizarTipoCambio: boolean;
   children: ReactNode;
 };
 
@@ -17,7 +20,13 @@ type PropsChasis = {
  * Chasis compartido del panel: sidebar + encabezado + contenido. Unifica los
  * layouts `(panel)` y `(privado)` y da navegación real entre módulos.
  */
-export function ChasisApp({ usuario, modulos = MODULOS_NAVEGACION, children }: PropsChasis) {
+export function ChasisApp({
+  usuario,
+  modulos = MODULOS_NAVEGACION,
+  estadoTipoCambio,
+  puedeActualizarTipoCambio,
+  children,
+}: PropsChasis) {
   const pathname = usePathname();
   const [abiertoMovil, setAbiertoMovil] = useState(false);
 
@@ -34,11 +43,13 @@ export function ChasisApp({ usuario, modulos = MODULOS_NAVEGACION, children }: P
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <EncabezadoApp
-          titulo={moduloActivo?.etiqueta ?? 'ORCA MFG ERP'}
+          titulo={moduloActivo?.etiqueta ?? 'CC Manufacturing Group'}
           grupo={moduloActivo?.grupo}
           usuarioId={usuario.id}
           nombreUsuario={usuario.nombreCompleto}
           rolUsuario={usuario.rol}
+          estadoTipoCambio={estadoTipoCambio}
+          puedeActualizarTipoCambio={puedeActualizarTipoCambio}
           onAbrirMenu={() => setAbiertoMovil(true)}
         />
         <main className="flex-1 p-4 md:p-6">{children}</main>

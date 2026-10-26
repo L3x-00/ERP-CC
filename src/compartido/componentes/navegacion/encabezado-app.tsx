@@ -3,8 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/compartido/utilidades/cn';
 import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
+import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { CentroNotificacionesHeader } from '@/modulos/comentarios/componentes/indice';
 import { cerrarSesionAccion } from '@/modulos/autenticacion/acciones/cerrar-sesion';
+import { EstadoTipoCambioEncabezado } from '@/modulos/configuracion/componentes/estado-tipo-cambio-encabezado';
+import type { EstadoTipoCambioDiario } from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 import { Icono } from './iconos';
 import { OpcionTemaMenu } from './opcion-tema-menu';
 
@@ -22,6 +25,8 @@ type PropsEncabezado = {
   usuarioId: string;
   nombreUsuario: string;
   rolUsuario: string;
+  estadoTipoCambio?: EstadoTipoCambioDiario | null;
+  puedeActualizarTipoCambio?: boolean;
   onAbrirMenu: () => void;
 };
 
@@ -109,6 +114,8 @@ export function EncabezadoApp({
   usuarioId,
   nombreUsuario,
   rolUsuario,
+  estadoTipoCambio,
+  puedeActualizarTipoCambio,
   onAbrirMenu,
 }: PropsEncabezado) {
   return (
@@ -133,6 +140,14 @@ export function EncabezadoApp({
       </div>
 
       <div className="ml-auto flex items-center gap-1.5 md:gap-2">
+        <div className="hidden items-center gap-2 md:flex">
+          <EstadoTipoCambioEncabezado estado={estadoTipoCambio ?? null} puedeActualizar={puedeActualizarTipoCambio ?? false} />
+          {/* Estado persistente, no una notificación: sin role="status" para no
+              competir con los mensajes de operación que se anuncian al usuario. */}
+          <span data-testid="estado-conexion">
+            <BadgeEstado estado="activo" etiqueta="En línea" />
+          </span>
+        </div>
         <CentroNotificacionesHeader usuarioId={usuarioId} />
         <MenuUsuario nombre={nombreUsuario} rol={rolUsuario} />
       </div>

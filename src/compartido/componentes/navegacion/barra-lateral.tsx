@@ -106,11 +106,11 @@ export function BarraLateral({ modulos, abiertoMovil, onCerrarMovil }: PropsBarr
       >
         <div className={cn('flex h-16 items-center gap-2.5 px-4', contraida && 'justify-center px-0')}>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-acento text-sm font-black text-white shadow-sm">
-            O
+            CC
           </span>
           {!contraida ? (
-            <span className="truncate text-sm font-bold tracking-tight text-texto-primario">
-              ORCA MFG ERP
+            <span className="min-w-0 truncate text-sm font-bold tracking-tight text-texto-primario">
+              CC Manufacturing Group
             </span>
           ) : null}
         </div>
@@ -142,11 +142,11 @@ export function BarraLateral({ modulos, abiertoMovil, onCerrarMovil }: PropsBarr
           />
           <div className="deslizar-izquierda relative flex h-full w-64 flex-col bg-superficie shadow-elevada">
             <div className="flex h-16 items-center justify-between px-4">
-              <span className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-acento text-sm font-black text-white shadow-sm">
-                  O
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-acento text-sm font-black text-white shadow-sm">
+                  CC
                 </span>
-                <span className="text-sm font-bold text-texto-primario">ORCA MFG ERP</span>
+                <span className="truncate text-sm font-bold text-texto-primario">CC Manufacturing Group</span>
               </span>
               <button
                 type="button"

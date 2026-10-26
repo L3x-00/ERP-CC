@@ -1,4 +1,5 @@
 export { FiltroPeriodoGlobal } from './filtro-periodo-global';
+export { FechaHoraDashboard } from './fecha-hora-dashboard';
 export { OperacionDashboard } from './operacion-dashboard';
 export { SeccionFinanciera } from './seccion-financiera';
 export { SeccionGastoCategoria } from './seccion-gasto-categoria';

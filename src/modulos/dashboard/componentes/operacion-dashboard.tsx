@@ -12,6 +12,7 @@ import { SeccionProduccionAlertas } from '@/modulos/dashboard/componentes/seccio
 import { SeccionVentasPipeline } from '@/modulos/dashboard/componentes/seccion-ventas-pipeline';
 import { SincronizadorDashboardRealtime } from '@/modulos/dashboard/componentes/sincronizador-dashboard-realtime';
 import { WidgetMetricaKPI } from '@/modulos/dashboard/componentes/widget-metrica-kpi';
+import { FechaHoraDashboard } from '@/modulos/dashboard/componentes/fecha-hora-dashboard';
 import { Button } from '@/compartido/componentes/ui/button';
 import type { DashboardConsolidado, FiltroPeriodoDashboard } from '@/modulos/dashboard/tipos/indice';
 
@@ -113,7 +114,13 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-dashboard">
       <SincronizadorDashboardRealtime />
-      <header><h1 className="text-2xl font-bold">Dashboard operativo</h1><p className="text-sm text-texto-secundario">Indicadores visibles según tu rol y permisos vigentes.</p></header>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard operativo</h1>
+          <p className="text-sm text-texto-secundario">Indicadores visibles según tu rol y permisos vigentes.</p>
+        </div>
+        <FechaHoraDashboard />
+      </header>
       <FiltroPeriodoGlobal filtro={filtro} onChange={cambiarFiltro} disabled={consulta.isFetching} />
       {consulta.isError ? (
         <div
