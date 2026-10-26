@@ -17,6 +17,8 @@
    1. VALORES CRUDOS — modo claro (oficina)
    ----------------------------------------------------------------------------- */
 :root {
+  /* Controles nativos (fechas, selects, scrollbars) acompañan el tema. */
+  color-scheme: light;
   /* Superficies */
   --fondo: #f8f9fa; /* lienzo: nunca blanco puro */
   --superficie: #ffffff; /* tarjetas, modales, tablas */
@@ -137,6 +139,8 @@
    2. VALORES CRUDOS — modo oscuro (piso de taller: alto contraste, luz fuerte)
    ----------------------------------------------------------------------------- */
 .dark {
+  /* Controles nativos (fechas, selects, scrollbars) acompañan el tema. */
+  color-scheme: dark;
   --fondo: #0f172a;
   --superficie: #1e293b;
   --superficie-2: #334155;

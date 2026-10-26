@@ -6,6 +6,7 @@ import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
 import { CentroNotificacionesHeader } from '@/modulos/comentarios/componentes/indice';
 import { cerrarSesionAccion } from '@/modulos/autenticacion/acciones/cerrar-sesion';
 import { Icono } from './iconos';
+import { OpcionTemaMenu } from './opcion-tema-menu';
 
 const ETIQUETA_ROL: Record<string, string> = {
   admin: 'Administrador',
@@ -26,7 +27,8 @@ type PropsEncabezado = {
 
 /**
  * Usuario de la sesión junto a la campana: botón desplegable con las opciones
- * de cuenta (cerrar sesión). En pantallas pequeñas se muestra solo el avatar.
+ * de cuenta (tema global y cerrar sesión). En pantallas pequeñas se muestra
+ * solo el avatar.
  */
 function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
   const [abierto, setAbierto] = useState(false);
@@ -78,6 +80,10 @@ function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
             <p className="truncate text-sm font-semibold text-texto-primario">{nombre}</p>
             <p className="truncate text-xs text-texto-secundario">{ETIQUETA_ROL[rol] ?? rol}</p>
           </div>
+          <div className="mt-1">
+            <OpcionTemaMenu onSeleccionar={() => setAbierto(false)} />
+          </div>
+          <div role="separator" className="my-1 border-t border-borde/60" />
           <button
             type="button"
             role="menuitem"
@@ -85,7 +91,7 @@ function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
               setAbierto(false);
               void cerrarSesionAccion();
             }}
-            className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-peligro-suave hover:text-peligro-texto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+            className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-peligro-suave hover:text-peligro-texto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
           >
             <Icono nombre="cerrar" className="h-4 w-4" />
             Cerrar sesión

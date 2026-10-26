@@ -4,6 +4,7 @@
 
 - Next.js 16 con App Router, React 19 y TypeScript estricto.
 - Tailwind CSS v4 y componentes UI reutilizables.
+- `next-themes` para el tema global claro/oscuro: la elección se persiste en `localStorage`, se aplica como clase `light`/`dark` en `<html>` y se controla desde el menú del usuario. El piso de taller conserva `.dark` forzado.
 - TanStack Query v5 para datos de servidor y Zustand v5 para estado de interfaz.
 - Zod v4 y React Hook Form para validación y formularios.
 - Supabase: Postgres, Auth, Storage y RLS mediante `@supabase/ssr`.
