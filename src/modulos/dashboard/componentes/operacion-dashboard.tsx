@@ -49,9 +49,12 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
 
   if (datos.redireccion) return <p>Redirigiendo a Producción…</p>;
 
-  // Rejilla 2x2 en escritorio: agrupa finanzas, antigüedad de cartera, pipeline
-  // del equipo y alertas de producción para reducir el scroll vertical.
+  // En escritorio los riesgos de Producción aparecen primero y el resto se
+  // agrupa en pares. Las consultas y permisos ya vienen resueltos del servidor.
   const secciones: ReactNode[] = [];
+  if (datos.produccion) {
+    secciones.push(<SeccionProduccionAlertas key="produccion" ordenes={datos.produccion} />);
+  }
   if (datos.ejecutivas) {
     secciones.push(
       <SeccionFinanciera key="finanzas" finanzas={datos.ejecutivas.actual.finanzas} />,
@@ -94,6 +97,7 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
         pipeline={datos.vendedor.actual.pipelinePorEtapa}
         cotizacionesSinSeguimiento={datos.vendedor.actual.cotizacionesSinSeguimiento}
         titulo="Mi pipeline"
+        identificador="mi-pipeline"
       />,
     );
   }
@@ -104,15 +108,13 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
         pipeline={datos.equipo.actual.pipelinePorEtapa}
         cotizacionesSinSeguimiento={datos.equipo.actual.cotizacionesSinSeguimiento}
         titulo="Pipeline del equipo"
+        identificador="pipeline-equipo"
       />,
     );
   }
-  if (datos.produccion) {
-    secciones.push(<SeccionProduccionAlertas key="produccion" ordenes={datos.produccion} />);
-  }
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6" data-testid="pagina-dashboard">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5" data-testid="pagina-dashboard">
       <SincronizadorDashboardRealtime />
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -122,6 +124,7 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
         <FechaHoraDashboard />
       </header>
       <FiltroPeriodoGlobal filtro={filtro} onChange={cambiarFiltro} disabled={consulta.isFetching} />
+      {consulta.isFetching ? <p role="status" className="text-xs text-texto-secundario">Actualizando indicadores…</p> : null}
       {consulta.isError ? (
         <div
           role="alert"
@@ -137,7 +140,7 @@ export function OperacionDashboard({ datosIniciales }: { datosIniciales: Dashboa
       {secciones.length > 0 ? (
         <div
           data-testid="rejilla-secciones-dashboard"
-          className={secciones.length === 1 ? 'grid gap-4' : 'grid gap-4 lg:grid-cols-2'}
+          className={secciones.length === 1 ? 'grid gap-5' : 'grid gap-5 lg:grid-cols-2'}
         >
           {secciones}
         </div>

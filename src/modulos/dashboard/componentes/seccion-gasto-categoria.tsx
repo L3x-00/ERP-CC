@@ -1,22 +1,23 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import { MarcadorCargaGrafica } from '@/modulos/dashboard/componentes/marcador-carga-grafica';
+import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
 import type { GastoPorCategoriaDashboard } from '@/modulos/dashboard/tipos/indice';
+import {
+  crearSerieGastoDashboard,
+  ETIQUETAS_GASTO,
+} from '@/modulos/dashboard/utilidades/graficas-dashboard';
+
+const GraficaDonaDashboard = dynamic(
+  () => import('@/modulos/dashboard/componentes/grafica-dona-dashboard').then((modulo) => modulo.GraficaDonaDashboard),
+  { ssr: false, loading: MarcadorCargaGrafica },
+);
 
 function moneda(valor: number): string {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(valor);
 }
-
-/** Etiquetas legibles de las categorías del CHECK de `gastos.categoria`. */
-const ETIQUETA_CATEGORIA: Record<string, string> = {
-  materia_prima: 'Materia prima',
-  consumibles: 'Consumibles',
-  herramentental: 'Herramental',
-  maquila_externa: 'Maquila externa',
-  logistica: 'Logística',
-  servicios_generales: 'Servicios generales',
-  nomina: 'Nómina',
-  mantenimiento: 'Mantenimiento',
-  otros: 'Otros',
-};
 
 export interface SeccionGastoCategoriaProps {
   distribucion: readonly GastoPorCategoriaDashboard[];
@@ -31,21 +32,43 @@ export function SeccionGastoCategoria({
   identificador = 'dashboard',
 }: SeccionGastoCategoriaProps) {
   if (distribucion.length === 0) return null;
-  const total = distribucion.reduce((suma, fila) => suma + fila.montoMxn, 0);
+  const serie = crearSerieGastoDashboard(distribucion);
+  const total = serie.reduce((suma, fila) => suma + fila.valor, 0);
+
   return (
     <section aria-labelledby={`titulo-gasto-categoria-${identificador}`} className="grid gap-3">
-      <h2 id={`titulo-gasto-categoria-${identificador}`} className="text-xl font-semibold">{titulo}</h2>
-      <Tarjeta>
-        <ul className="flex flex-col gap-0.5 p-2" aria-label="Distribución de gasto por categoría">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 id={`titulo-gasto-categoria-${identificador}`} className="text-xl font-semibold">{titulo}</h2>
+          <p className="text-sm text-texto-secundario">Distribución real de los gastos del período seleccionado.</p>
+        </div>
+        <span className="rounded-full bg-acento-suave px-3 py-1 text-xs font-semibold text-acento-texto">
+          Total: {moneda(total)}
+        </span>
+      </div>
+      <Tarjeta className="p-3 sm:p-4">
+        <GraficaDonaDashboard
+          datos={serie}
+          formatearValor={moneda}
+          descripcion="Distribución del gasto por categoría en MXN."
+        />
+      </Tarjeta>
+      <PanelDesplegable
+        titulo="Ver desglose de gasto"
+        descripcion="Importe y proporción de cada categoría, sin ocultar información del período."
+        resumen={`${serie.length} categorías`}
+        nivelTitulo="h3"
+      >
+        <ul className="grid gap-1" aria-label="Distribución de gasto por categoría">
           {distribucion.map((fila) => {
             const porcentaje = total > 0 ? (fila.montoMxn / total) * 100 : 0;
             return (
               <li
                 key={fila.categoria}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-2.5 transition-colors duration-150 hover:bg-superficie-2/60"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-2 py-2 transition-colors duration-150 hover:bg-superficie-2/60"
               >
                 <span className="text-sm text-texto-secundario">
-                  {ETIQUETA_CATEGORIA[fila.categoria] ?? fila.categoria}
+                  {ETIQUETAS_GASTO[fila.categoria] ?? fila.categoria}
                 </span>
                 <span className="flex items-center gap-3">
                   <span className="text-xs tabular-nums text-texto-secundario">{porcentaje.toFixed(1)}%</span>
@@ -55,7 +78,7 @@ export function SeccionGastoCategoria({
             );
           })}
         </ul>
-      </Tarjeta>
+      </PanelDesplegable>
     </section>
   );
 }

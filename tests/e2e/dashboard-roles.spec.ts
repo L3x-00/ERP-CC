@@ -1,3 +1,4 @@
+import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 type CredencialesDashboard = {
@@ -19,6 +20,33 @@ async function iniciarSesion(page: Page, acceso: CredencialesDashboard): Promise
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/produccion');
 }
 
+async function verificarVistaResponsiveDashboard(page: Page): Promise<void> {
+  const vistas = [
+    { nombre: 'movil', width: 320, height: 720 },
+    { nombre: 'tableta', width: 768, height: 1024 },
+    { nombre: 'escritorio', width: 1440, height: 900 },
+  ];
+  const capturar = process.env.E2E_CAPTURAR_VISUAL === '1';
+  if (capturar) mkdirSync('.ai-shared/qa/dashboard/visual', { recursive: true });
+
+  for (const vista of vistas) {
+    await page.setViewportSize({ width: vista.width, height: vista.height });
+    for (const oscuro of [false, true]) {
+      await page.locator('html').evaluate((elemento, activar) => elemento.classList.toggle('dark', activar), oscuro);
+      await expect(page.getByTestId('pagina-dashboard')).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      if (capturar) {
+        await page.screenshot({
+          path: `.ai-shared/qa/dashboard/visual/dashboard-${vista.nombre}-${oscuro ? 'oscuro' : 'claro'}.png`,
+          fullPage: true,
+          animations: 'disabled',
+        });
+      }
+    }
+  }
+  await page.locator('html').evaluate((elemento) => elemento.classList.remove('dark'));
+}
+
 test.describe('Dashboard segmentado por rol', () => {
   test.beforeEach(() => {
     test.skip(
@@ -33,7 +61,11 @@ test.describe('Dashboard segmentado por rol', () => {
     if (!acceso) return;
     await iniciarSesion(page, acceso);
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByRole('heading', { name: 'Mi pipeline' })).toBeVisible();
+    const pipeline = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Mi pipeline' }) });
+    await expect(pipeline.getByRole('heading', { name: 'Mi pipeline' })).toBeVisible();
+    await expect(pipeline.getByRole('img', { name: /Mi pipeline: oportunidades por etapa/i })).toBeVisible();
+    await pipeline.getByRole('button', { name: 'Ver desglose del pipeline' }).click();
+    await expect(pipeline.getByRole('list', { name: 'Desglose de Mi pipeline' }).getByText('Prospecto', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Finanzas' })).toHaveCount(0);
     await expect(page.locator('#dashboard-utilidad')).toHaveCount(0);
   });
@@ -57,7 +89,12 @@ test.describe('Dashboard segmentado por rol', () => {
     await iniciarSesion(page, acceso);
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByRole('heading', { name: 'Finanzas' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Alertas de producción' })).toBeVisible();
+    const produccion = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Alertas de producción' }) });
+    await expect(produccion.getByRole('heading', { name: 'Alertas de producción' })).toBeVisible();
+    await expect(produccion.getByRole('img', { name: /Producción: conteo por estado/i })).toBeVisible();
+    await produccion.getByRole('button', { name: 'Ver desglose de producción' }).click();
+    await expect(produccion.getByRole('list', { name: 'Desglose de producción' }).getByText('Completadas', { exact: true })).toBeVisible();
+    await verificarVistaResponsiveDashboard(page);
   });
 
   test('operador es enviado directamente a producción', async ({ page }) => {
