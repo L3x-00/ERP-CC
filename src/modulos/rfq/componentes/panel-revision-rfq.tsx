@@ -139,7 +139,10 @@ export function PanelRevisionRfq({
         )}
 
         {mostrarChecklist && (
-          <ul data-testid="revision-checklist" className="flex flex-col gap-2">
+          <ul
+            data-testid="revision-checklist"
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5"
+          >
             {SECCIONES_VALIDACION_RFQ.map((seccion) => {
               const faltantes = validacion.secciones[seccion];
               const conFaltantes = faltantes.length > 0;
@@ -150,7 +153,7 @@ export function PanelRevisionRfq({
                   data-testid={`revision-seccion-${seccion}`}
                   data-faltantes={conFaltantes ? 'si' : 'no'}
                   className={[
-                    'flex flex-col gap-1 rounded-md border px-3 py-2',
+                    'flex min-w-0 flex-col gap-1 rounded-md border px-3 py-2',
                     conFaltantes
                       ? 'border-peligro/40 bg-peligro-suave'
                       : 'border-borde bg-superficie-2',
