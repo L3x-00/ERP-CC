@@ -25,8 +25,8 @@ type PropsEncabezado = {
   usuarioId: string;
   nombreUsuario: string;
   rolUsuario: string;
-  estadoTipoCambio: EstadoTipoCambioDiario | null;
-  puedeActualizarTipoCambio: boolean;
+  estadoTipoCambio?: EstadoTipoCambioDiario | null;
+  puedeActualizarTipoCambio?: boolean;
   onAbrirMenu: () => void;
 };
 
@@ -141,7 +141,7 @@ export function EncabezadoApp({
 
       <div className="ml-auto flex items-center gap-1.5 md:gap-2">
         <div className="hidden items-center gap-2 md:flex">
-          <EstadoTipoCambioEncabezado estado={estadoTipoCambio} puedeActualizar={puedeActualizarTipoCambio} />
+          <EstadoTipoCambioEncabezado estado={estadoTipoCambio ?? null} puedeActualizar={puedeActualizarTipoCambio ?? false} />
           <span data-testid="estado-conexion" role="status">
             <BadgeEstado estado="activo" etiqueta="En línea" />
           </span>
