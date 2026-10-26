@@ -245,7 +245,9 @@ describe('TablaItemsRfq — campos faltantes del ítem', () => {
     expect(material.getAttribute('aria-invalid')).toBe('true');
     expect(material.getAttribute('aria-required')).toBe('true');
     expect(material.className).toContain('border-peligro/50');
-    expect(material.closest('label')?.className).toContain("after:content-['*']");
+    expect(
+      material.closest('label')?.querySelector('span')?.className
+    ).toContain("after:content-['*']");
 
     const operaciones = screen.getByRole('group', { name: 'Operaciones solicitadas' });
     expect(operaciones.getAttribute('data-faltante')).toBe('si');
@@ -268,7 +270,9 @@ describe('PanelArchivosRfq — archivo técnico faltante', () => {
     const entrada = screen.getByLabelText('Archivo');
     expect(entrada.getAttribute('aria-invalid')).toBe('true');
     expect(entrada.className).toContain('border-peligro/50');
-    expect(entrada.closest('label')?.className).toContain("after:content-['*']");
+    expect(
+      entrada.closest('label')?.querySelector('span')?.className
+    ).toContain("after:content-['*']");
   });
 });
 
