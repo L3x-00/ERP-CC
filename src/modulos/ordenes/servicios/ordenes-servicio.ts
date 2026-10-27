@@ -607,10 +607,25 @@ export async function obtenerConsumosPartidaServicio(
   cliente: SupabaseClient<Database>,
   partidaId: string,
 ): Promise<RegistroConsumoMaterial[]> {
+  return obtenerConsumosPartidasServicio(cliente, [partidaId]);
+}
+
+/**
+ * Lista el historial de consumo de varias partidas visibles en una sola consulta.
+ * Evita una consulta por ficha al mostrar el detalle de piso o el panel personal.
+ */
+export async function obtenerConsumosPartidasServicio(
+  cliente: SupabaseClient<Database>,
+  partidaIds: readonly string[],
+): Promise<RegistroConsumoMaterial[]> {
+  const idsUnicos = [...new Set(partidaIds.filter((id) => id.trim().length > 0))];
+  if (idsUnicos.length === 0) return [];
+
   const { data, error } = await cliente
     .from('registros_consumo_material')
     .select('*')
-    .eq('partida_id', partidaId)
+    .in('partida_id', idsUnicos)
+    .order('partida_id', { ascending: true })
     .order('creado_en', { ascending: true });
 
   if (error) {

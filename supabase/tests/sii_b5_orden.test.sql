@@ -587,11 +587,11 @@ LIMIT 1;
 
 SELECT is(
   (SELECT estado_sii FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
-  'EN_PRODUCCION', 'La primera sesiÃ³n pone la orden EN_PRODUCCION sin acciÃ³n manual'
+  'EN_PRODUCCION', 'La primera sesión pone la orden EN_PRODUCCION sin acción manual'
 );
 SELECT is(
   (SELECT estado FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
-  'en_proceso', 'El puente acompaÃ±a la sesiÃ³n en el estado legacy'
+  'en_proceso', 'El puente acompaña la sesión en el estado legacy'
 );
 
 INSERT INTO public.registros_avance_partida (

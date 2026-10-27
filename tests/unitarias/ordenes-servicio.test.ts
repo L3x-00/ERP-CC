@@ -7,6 +7,7 @@ import {
   cambiarEstadoOrdenServicio,
   crearOrdenBasadaEnAnteriorServicio,
   crearOrdenManualServicio,
+  obtenerConsumosPartidasServicio,
   obtenerOrdenesConPartidasServicio,
   registrarConsumoMaterialServicio,
   registrarConsumoMaterialOperadorServicio,
@@ -337,5 +338,61 @@ describe('obtenerOrdenesConPartidasServicio (RFQ-10)', () => {
     const ordenes = await obtenerOrdenesConPartidasServicio(cliente);
 
     expect(ordenes[0].orden.folioCotizacionCnc).toBeNull();
+  });
+});
+
+describe('obtenerConsumosPartidasServicio', () => {
+  it('consulta todas las partidas visibles en un solo lote', async () => {
+    const cadena: Record<string, ReturnType<typeof vi.fn>> = {
+      select: vi.fn(),
+      in: vi.fn(),
+      order: vi.fn(),
+    };
+    cadena.select.mockReturnValue(cadena);
+    cadena.in.mockReturnValue(cadena);
+    cadena.order
+      .mockReturnValueOnce(cadena)
+      .mockResolvedValueOnce({
+        data: [{
+          id: '44444444-4444-4444-8444-444444444444',
+          partida_id: '22222222-2222-4222-8222-222222222222',
+          catalogo_material_id: '33333333-3333-4333-8333-333333333333',
+          material_id: null,
+          cantidad_usada: 2,
+          cantidad_scrap: 0.25,
+          costo_unitario_momento: 10,
+          creado_en: '2026-10-27T12:00:00.000Z',
+        }],
+        error: null,
+      });
+    const from = vi.fn(() => cadena);
+    const cliente = { from } as unknown as SupabaseClient<Database>;
+
+    const resultado = await obtenerConsumosPartidasServicio(cliente, [
+      '22222222-2222-4222-8222-222222222222',
+      '22222222-2222-4222-8222-222222222222',
+      '55555555-5555-4555-8555-555555555555',
+    ]);
+
+    expect(from).toHaveBeenCalledOnce();
+    expect(cadena.in).toHaveBeenCalledWith('partida_id', [
+      '22222222-2222-4222-8222-222222222222',
+      '55555555-5555-4555-8555-555555555555',
+    ]);
+    expect(resultado).toMatchObject([{
+      partidaId: '22222222-2222-4222-8222-222222222222',
+      materialId: '33333333-3333-4333-8333-333333333333',
+      cantidadUsada: 2,
+      cantidadScrap: 0.25,
+    }]);
+  });
+
+  it('no consulta cuando no hay partidas visibles', async () => {
+    const from = vi.fn();
+    const cliente = { from } as unknown as SupabaseClient<Database>;
+
+    await expect(obtenerConsumosPartidasServicio(cliente, [])).resolves.toEqual([]);
+
+    expect(from).not.toHaveBeenCalled();
   });
 });

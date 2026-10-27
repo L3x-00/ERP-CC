@@ -9,12 +9,15 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
+  DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { cn } from '@/compartido/utilidades/cn';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
+import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/indice';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
@@ -25,8 +28,23 @@ import {
   textoCompromiso,
   turnoLegible,
 } from '@/modulos/produccion/utilidades/formato-operador';
+import {
+  resumirConsumosMateriales,
+  type ConsumoMaterialVisible,
+} from '@/modulos/produccion/utilidades/consumo-material-operador';
+import type { MaterialPiso } from '@/modulos/ordenes/componentes/control-piso-panel';
 
-export type ResultadoOperacion = { exito: true } | { exito: false; error: string };
+export type ResultadoOperacion =
+  | { exito: true; datos?: CierreSesionRegistrado }
+  | { exito: false; error: string };
+
+interface ResumenCierreSesion {
+  material: MaterialPiso;
+  cantidadUsada: number;
+  cantidadMerma: number;
+  notas: string | null;
+  resultado: CierreSesionRegistrado;
+}
 
 export interface AccionesDetalleProceso {
   reclamar: (proceso: ProcesoEspacioOperador, fecha: string, turno: string) => Promise<ResultadoOperacion>;
@@ -41,6 +59,11 @@ export interface AccionesDetalleProceso {
     motivoPausa?: string;
     notas?: string;
     pinConfirmacion: string;
+    consumo?: {
+      materialId: string;
+      cantidadUsada: number;
+      cantidadScrap: number;
+    };
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -51,6 +74,8 @@ export interface PropsDetalleProceso {
   procesando: boolean;
   motivosPausa: MotivoPausaCatalogo[];
   acciones: AccionesDetalleProceso;
+  materiales: MaterialPiso[];
+  consumos: ConsumoMaterialVisible[];
   onCerrar: () => void;
 
   presentacion?: 'dialogo' | 'integrado';
@@ -76,21 +101,31 @@ export function DetalleProcesoOperador({
   procesando,
   motivosPausa,
   acciones,
+  materiales,
+  consumos,
   onCerrar,
   presentacion = 'dialogo',
 }: PropsDetalleProceso) {
   const [fecha, setFecha] = useState(proceso?.reclamo?.fecha ?? hoy);
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
   const [piezas, setPiezas] = useState('0');
+  const [materialId, setMaterialId] = useState('');
+  const [cantidadUsada, setCantidadUsada] = useState('0');
+  const [cantidadMerma, setCantidadMerma] = useState('0');
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
   const [pin, setPin] = useState('');
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
+  const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
 
   if (!proceso) return null;
+
+  const consumosDePartida = resumirConsumosMateriales(consumos).filter(
+    (consumo) => consumo.partidaId === proceso.partidaId,
+  );
 
   const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
     ?? motivosPausa[0]
@@ -134,18 +169,57 @@ export function DetalleProcesoOperador({
       setMensaje({ exito: false, error: 'El PIN debe tener entre 4 y 6 dígitos' });
       return;
     }
+    const usada = Number(cantidadUsada);
+    const merma = Number(cantidadMerma);
+    const materialSeleccionado = materiales.find((material) => material.id === materialId) ?? null;
+
+    if (
+      estadoDestino === 'finalizada' &&
+      (
+        !materialSeleccionado ||
+        !Number.isFinite(usada) ||
+        !Number.isFinite(merma) ||
+        usada < 0 ||
+        merma < 0 ||
+        usada + merma <= 0
+      )
+    ) {
+      setMensaje({
+        exito: false,
+        error: 'Selecciona un material e indica consumo o merma mayor a cero.',
+      });
+      return;
+    }
     const resultado = await acciones.cerrar(proceso, {
       sesionId: proceso.sesionActiva.id,
       piezasProducidas: Number(piezas),
       estadoDestino,
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
+      ...(estadoDestino === 'finalizada'
+      ? {
+          consumo: {
+            materialId,
+            cantidadUsada: usada,
+            cantidadScrap: merma,
+          },
+        }
+      : {}),
       pinConfirmacion: pin,
     });
     setMensaje(resultado);
     if (resultado.exito) {
       setPin('');
       setNotas('');
+      if (estadoDestino === 'finalizada' && materialSeleccionado && resultado.datos) {
+        setResumenCierre({
+          material: materialSeleccionado,
+          cantidadUsada: usada,
+          cantidadMerma: merma,
+          notas: notas.trim() || null,
+          resultado: resultado.datos,
+        });
+      }
     }
   }
 
@@ -331,36 +405,82 @@ export function DetalleProcesoOperador({
         </div>
 
         <section aria-label="Historial de sesiones" className="rounded-lg border border-borde p-3">
-          <h3 className="mb-2 text-sm font-semibold text-texto-primario">
-            Sesiones registradas ({proceso.sesiones.length})
-          </h3>
-          {proceso.sesiones.length === 0 ? (
-            <p className="text-sm text-texto-secundario">Aún no hay sesiones para este proceso.</p>
-          ) : (
-            <ul className="grid max-h-44 gap-2 overflow-y-auto pr-1 text-sm">
-              {proceso.sesiones.map((sesion) => (
-                <li key={sesion.id} className="rounded-md bg-superficie-2/60 p-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium">{sesion.operadorNombre}</span>
-                    <Badge variante={sesion.estadoSesion === 'activa' ? 'exito' : sesion.estadoSesion === 'pausada' ? 'alerta' : 'neutro'}>
-                      {sesion.estadoSesion}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-texto-secundario">
-                    {etiquetaFechaHora(sesion.fechaInicio)} → {etiquetaFechaHora(sesion.fechaFin)}
-                    {' . '}{formatearNumero(sesion.piezasProducidas, 0)} piezas
-                    {' . '}{horasLegibles(sesion.horasNetas)} netas
-                  </p>
-                  {sesion.motivoPausa ? (
-                    <p className="text-xs text-advertencia-texto">Motivo: {sesion.motivoPausa}</p>
-                  ) : null}
-                  {sesion.notas ? (
-                    <p className="whitespace-pre-wrap text-xs text-texto-secundario">{sesion.notas}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
+          <details>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md text-sm font-semibold text-texto-primario marker:content-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40">
+              <span>Sesiones registradas ({proceso.sesiones.length})</span>
+              {proceso.sesionActiva ? <Badge variante="exito">sesión activa</Badge> : null}
+            </summary>
+            <div className="mt-3">
+              {proceso.sesiones.length === 0 ? (
+                <p className="text-sm text-texto-secundario">Aún no hay sesiones para este proceso.</p>
+              ) : (
+                <ul className="grid max-h-44 gap-2 overflow-y-auto pr-1 text-sm">
+                  {proceso.sesiones.map((sesion) => (
+                    <li key={sesion.id} className="rounded-md bg-superficie-2/60 p-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">{sesion.operadorNombre}</span>
+                        <Badge variante={sesion.estadoSesion === 'activa' ? 'exito' : sesion.estadoSesion === 'pausada' ? 'alerta' : 'neutro'}>
+                          {sesion.estadoSesion}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-texto-secundario">
+                        {etiquetaFechaHora(sesion.fechaInicio)} → {etiquetaFechaHora(sesion.fechaFin)}
+                        {' . '}{formatearNumero(sesion.piezasProducidas, 0)} piezas
+                        {' . '}{horasLegibles(sesion.horasNetas)} netas
+                      </p>
+                      {sesion.motivoPausa ? (
+                        <p className="text-xs text-advertencia-texto">Motivo: {sesion.motivoPausa}</p>
+                      ) : null}
+                      {sesion.notas ? (
+                        <p className="whitespace-pre-wrap text-xs text-texto-secundario">{sesion.notas}</p>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </details>
+        </section>
+
+        <section aria-label="Consumo acumulado de materiales de la partida" className="rounded-lg border border-borde p-3">
+          <details>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-md text-sm font-semibold text-texto-primario marker:content-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40">
+              <span>Consumo acumulado de materiales ({consumosDePartida.length})</span>
+            </summary>
+            <div className="mt-3">
+              <p className="text-xs text-texto-secundario">
+                Cantidades registradas para toda la partida, no exclusivamente para este proceso.
+              </p>
+              {consumosDePartida.length === 0 ? (
+                <p className="mt-2 text-sm text-texto-secundario">
+                  Todavía no se registraron consumos para esta partida.
+                </p>
+              ) : (
+                <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {consumosDePartida.map((consumo) => {
+                    const material = materiales.find((item) => item.id === consumo.materialId);
+                    const unidad = material?.unidadBase ?? '';
+                    return (
+                      <div
+                        key={`${consumo.partidaId}-${consumo.materialId}`}
+                        className="rounded-md bg-superficie-2/60 p-2"
+                      >
+                        <dt className="text-xs text-texto-secundario">
+                          {material
+                            ? `${material.codigo} · ${material.nombre}`
+                            : `Material ${consumo.materialId}`}
+                        </dt>
+                        <dd className="mt-1 text-sm tabular-nums text-texto-primario">
+                          Usado: {formatearNumero(consumo.cantidadUsada, 3)} {unidad}
+                          {' · '}Merma: {formatearNumero(consumo.cantidadScrap, 3)} {unidad}
+                        </dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+              )}
+            </div>
+          </details>
         </section>
 
         {soloLectura ? (
@@ -423,6 +543,54 @@ export function DetalleProcesoOperador({
                       </Select>
                     </label>
                   ) : null}
+                  {estadoDestino === 'finalizada' && (
+                    <div className="col-span-full grid gap-3 rounded-lg border border-borde p-3">
+                      <p className="text-sm font-semibold">Consumo de material</p>
+
+                      <label className={CLASE_ETIQUETA}>
+                        Material
+                        <Select
+                          value={materialId}
+                          onChange={(evento) => setMaterialId(evento.target.value)}
+                          required
+                        >
+                          <option value="">Selecciona un material</option>
+                          {materiales.map((material) => (
+                            <option key={material.id} value={material.id}>
+                              {material.codigo} — {material.nombre} ({material.unidadBase})
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className={CLASE_ETIQUETA}>
+                          Usado
+                          <Input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={cantidadUsada}
+                            onChange={(evento) => setCantidadUsada(evento.target.value)}
+                            required
+                          />
+                        </label>
+
+                        <label className={CLASE_ETIQUETA}>
+                          Merma
+                          <Input
+                            type="number"
+                            min="0"
+                            step="any"
+                            value={cantidadMerma}
+                            onChange={(evento) => setCantidadMerma(evento.target.value)}
+                            required
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
                   <label className={CLASE_ETIQUETA}>
                     PIN de confirmación
                     <Input
@@ -435,22 +603,33 @@ export function DetalleProcesoOperador({
                       required
                     />
                   </label>
-                </div>
-                <label className={CLASE_ETIQUETA}>
-                  Notas{estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota ? ' (obligatorias)' : ' (opcional)'}
-                  <Textarea
-                    maxLength={1000}
-                    value={notas}
-                    onChange={(evento) => setNotas(evento.target.value)}
-                    required={estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota === true}
-                  />
-                </label>
-                <Button type="submit" tamano="lg" disabled={procesando} data-testid="cerrar-sesion-detalle">
-                  {estadoDestino === 'pausada'
-                    ? 'Pausar sesión de trabajo'
-                    : 'Finalizar sesión de trabajo'}
-                </Button>
-              </form>
+
+                  <label className={CLASE_ETIQUETA}>
+                    Notas{estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota
+                      ? ' (obligatorias)'
+                      : ' (opcional)'}
+                    <Textarea
+                      maxLength={1000}
+                      value={notas}
+                      onChange={(evento) => setNotas(evento.target.value)}
+                      required={
+                        estadoDestino === 'pausada' &&
+                        motivoSeleccionado?.requiereNota === true
+                      }
+                    />
+                  </label>
+
+                  <Button
+                    type="submit"
+                    tamano="lg"
+                    disabled={procesando}
+                    data-testid="cerrar-sesion-detalle"
+                  >
+                    {estadoDestino === 'pausada'
+                      ? 'Pausar sesión de trabajo'
+                      : 'Finalizar sesión de trabajo'}
+                  </Button>
+                  </form>
             ) : null}
 
             {proceso.columna !== 'lista' && !proceso.sesionActiva ? (
@@ -515,6 +694,64 @@ export function DetalleProcesoOperador({
     </div>
   );
 
+  const anuncioResumenCierre = resumenCierre ? (
+    <p className="sr-only" role="status" data-testid="resumen-cierre-registrado">
+      Sesión finalizada: {formatearNumero(resumenCierre.resultado.piezasProducidas, 3)} {proceso.unidadMedida},
+      {' '}{horasLegibles(resumenCierre.resultado.horasNetas)} netas y material registrado.
+    </p>
+  ) : null;
+
+  const dialogoResumenCierre = resumenCierre ? (
+    <Dialog
+      open
+      onOpenChange={(abierto) => {
+        if (!abierto) setResumenCierre(null);
+      }}
+    >
+      <DialogContent
+        className="max-w-md"
+        data-testid="resumen-cierre-sesion"
+        aria-label="Resumen de sesión finalizada"
+      >
+        <DialogHeader>
+          <DialogTitle>Sesión finalizada</DialogTitle>
+          <DialogDescription>
+            {proceso.folioOrden} · {proceso.codigoPieza} · {proceso.procesoNombre}
+          </DialogDescription>
+        </DialogHeader>
+
+        <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2 p-3">
+          <Dato
+            etiqueta="Piezas producidas"
+            valor={`${formatearNumero(resumenCierre.resultado.piezasProducidas, 3)} ${proceso.unidadMedida}`}
+          />
+          <Dato
+            etiqueta="Tiempo neto"
+            valor={horasLegibles(resumenCierre.resultado.horasNetas)}
+          />
+          <Dato etiqueta="Resultado" valor="Sesión finalizada" />
+          <Dato etiqueta="Estado de orden" valor={resumenCierre.resultado.estadoOrden} />
+          <Dato etiqueta="Planeación" valor={resumenCierre.resultado.estadoPlaneacion} />
+          <Dato
+            etiqueta="Material usado"
+            valor={`${resumenCierre.material.codigo} · ${formatearNumero(resumenCierre.cantidadUsada, 3)} ${resumenCierre.material.unidadBase}`}
+          />
+          <Dato
+            etiqueta="Merma"
+            valor={`${formatearNumero(resumenCierre.cantidadMerma, 3)} ${resumenCierre.material.unidadBase}`}
+          />
+          {resumenCierre.notas ? <Dato etiqueta="Notas" valor={resumenCierre.notas} /> : null}
+        </dl>
+
+        <DialogFooter>
+          <Button type="button" onClick={() => setResumenCierre(null)}>
+            Entendido
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ) : null;
+
   if (presentacion === 'integrado') {
     return (
       <section
@@ -523,20 +760,26 @@ export function DetalleProcesoOperador({
         className="rounded-xl border border-borde bg-superficie p-4"
       >
         {contenido}
+        {anuncioResumenCierre}
+        {dialogoResumenCierre}
       </section>
     );
   }
 
   return (
-    <Dialog open onOpenChange={(abierto) => { if (!abierto) onCerrar(); }}>
-      <DialogContent
-        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[880px] flex-col gap-4 overflow-y-auto"
-        data-testid="detalle-proceso"
-        aria-label={`Detalle de ${proceso.folioOrden} ${proceso.codigoPieza}`}
-      >
-        {contenido}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open onOpenChange={(abierto) => { if (!abierto) onCerrar(); }}>
+        <DialogContent
+          className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[880px] flex-col gap-4 overflow-y-auto"
+          data-testid="detalle-proceso"
+          aria-label={`Detalle de ${proceso.folioOrden} ${proceso.codigoPieza}`}
+        >
+          {contenido}
+        </DialogContent>
+      </Dialog>
+      {anuncioResumenCierre}
+      {dialogoResumenCierre}
+    </>
   );
 }
 

@@ -18,6 +18,7 @@ const uuidPartida = '22222222-2222-4222-8222-222222222222';
 const uuidProgramacion = '33333333-3333-4333-8333-333333333333';
 const uuidSesion = '44444444-4444-4444-8444-444444444444';
 const uuidOperador = '55555555-5555-4555-8555-555555555555';
+const uuidMaterial = '77777777-7777-4777-8777-777777777777';
 const uuidNota = '66666666-6666-4666-8666-666666666666';
 
 describe('esquemas de Producción', () => {
@@ -43,16 +44,67 @@ describe('esquemas de Producción', () => {
     }).success).toBe(false);
   });
 
-  it('acepta un cierre final con PIN de confirmación válido', () => {
+  it('acepta un cierre final con consumo y PIN de confirmación válidos', () => {
     const resultado = esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
       piezasProducidas: 2.5,
       estadoDestino: 'finalizada',
       notas: 'Piezas inspeccionadas',
       pinConfirmacion: '4826',
+      consumo: {
+        materialId: uuidMaterial,
+        cantidadUsada: 2,
+        cantidadScrap: 0.5,
+      },
     });
 
     expect(resultado.success).toBe(true);
+  });
+
+  it('exige consumo al finalizar, pero no al pausar', () => {
+    expect(esquemaCerrarSesion.safeParse({
+      sesionId: uuidSesion,
+      piezasProducidas: 0,
+      estadoDestino: 'finalizada',
+      pinConfirmacion: '4826',
+    }).success).toBe(false);
+
+    expect(esquemaCerrarSesion.safeParse({
+      sesionId: uuidSesion,
+      piezasProducidas: 0,
+      estadoDestino: 'pausada',
+      motivoPausa: 'MATERIAL',
+      pinConfirmacion: '4826',
+    }).success).toBe(true);
+  });
+
+  it('rechaza un consumo vacío o un consumo enviado al pausar', () => {
+    const consumoVacio = {
+      materialId: uuidMaterial,
+      cantidadUsada: 0,
+      cantidadScrap: 0,
+    };
+
+    expect(esquemaCerrarSesion.safeParse({
+      sesionId: uuidSesion,
+      piezasProducidas: 0,
+      estadoDestino: 'finalizada',
+      pinConfirmacion: '4826',
+      consumo: consumoVacio,
+    }).success).toBe(false);
+
+    expect(esquemaCerrarSesion.safeParse({
+      sesionId: uuidSesion,
+      piezasProducidas: 0,
+      estadoDestino: 'pausada',
+      motivoPausa: 'MATERIAL',
+      pinConfirmacion: '4826',
+      consumo: {
+        materialId: uuidMaterial,
+        cantidadUsada: 1,
+        cantidadScrap: 0,
+      },
+    }).success).toBe(false);
   });
 
   it.each(['482', '4826789', '48a6'])('rechaza PIN de confirmación inválido: %s', (pin) => {

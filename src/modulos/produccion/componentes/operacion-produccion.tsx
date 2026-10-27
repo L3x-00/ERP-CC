@@ -35,6 +35,7 @@ import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/hi
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
 import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { DatosTableroProduccion } from '@/modulos/produccion/servicios/indice';
+import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { CatalogosPiso } from '@/modulos/produccion/acciones/consultas-b6';
 import type { VerificacionInicio } from '@/modulos/produccion/tipos/indice';
 import {
@@ -224,7 +225,12 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     motivoPausa?: string;
     notas?: string;
     pinConfirmacion: string;
-  }): Promise<{ exito: true } | { exito: false; error: string }> => {
+    consumo?: {
+      materialId: string;
+      cantidadUsada: number;
+      cantidadScrap: number;
+    };
+  }): Promise<{ exito: true; datos: CierreSesionRegistrado } | { exito: false; error: string }> => {
     setProcesando(true);
     try {
       const resultado = await cerrarSesionOperadorAccion(datosCierre);
@@ -232,7 +238,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       if (!resultado.datos) return { exito: false, error: 'El cierre no devolvió una confirmación' };
       establecerSesionActiva(null);
       await refrescar();
-      return { exito: true };
+      return { exito: true, datos: resultado.datos };
     } finally {
       setProcesando(false);
     }
@@ -366,6 +372,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                 procesando={procesando}
                 corridaId={corridaSeleccionadaId}
                 motivosPausa={catalogosPiso?.motivos ?? []}
+                materiales={catalogosPiso?.materiales ?? []}
                 onIniciar={iniciar}
                 onReanudar={reanudar}
                 onCerrar={cerrar}

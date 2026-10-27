@@ -555,7 +555,7 @@ export async function obtenerEspacioOperadorServicio(
       else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
         motivoNoInicia = 'La orden aÃºn no se libera a Bandeja';
       } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no estÃ¡ activa';
-      else if (sesionActiva) motivoNoInicia = 'Ya hay una sesiÃ³n activa en este proceso';
+      else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
       else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesiÃ³n';
 
       const puedeReanudar = operadorId !== null
@@ -586,7 +586,7 @@ export async function obtenerEspacioOperadorServicio(
         proveedorExterno: filaPartida.proveedor_externo,
         material: partida.materialId ? materialesPorId.get(partida.materialId) ?? null : null,
         areaCodigo,
-        areaNombre: area?.nombre ?? (areaCodigo ?? 'Sin Ã¡rea'),
+        areaNombre: area?.nombre ?? (areaCodigo ?? 'Sin Área'),
         areaMacro: areaRaiz?.codigo ?? null,
         areaColor: area?.colorHex ?? null,
         metaProcesoId,
