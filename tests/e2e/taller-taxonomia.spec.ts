@@ -461,18 +461,17 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     });
     expect(asignacionCnc.error).toBeNull();
 
-    // Piso: cada operador ve su cola con área y responsable legibles.
+    // Piso: la cola muestra el área legible y permite acotarla por familia.
     await iniciarPisoConPin(page, datos.pinA);
-    await expect(page.getByTestId('detalle-partida-piso')).toContainText('Corte láser');
-    await expect(page.getByTestId('selector-area-piso')).toBeVisible();
-    // A06: el filtro de piso ofrece la familia (área raíz), no cada proceso.
-    await page.getByTestId('selector-area-piso').selectOption('METAL_MECANICA');
-    await expect(page.getByTestId('control-piso')).toContainText('E2E-TAX-');
-    await expect(page.getByTestId('control-piso')).not.toContainText('CNC');
+    const espacioA = page.getByTestId('espacio-operador');
+    await expect(espacioA).toContainText('Corte láser');
+    await page.getByLabel('Filtrar por área').selectOption('METAL_MECANICA');
+    await expect(espacioA).toContainText('E2E-TAX-');
+    await expect(espacioA).not.toContainText('CNC');
 
     const pisoB = await browser.newPage();
     await iniciarPisoConPin(pisoB, datos.pinB);
-    await expect(pisoB.getByTestId('detalle-partida-piso')).toContainText('CNC Router');
+    await expect(pisoB.getByTestId('espacio-operador')).toContainText('CNC Router');
 
     // Tablero: el filtro por área macro acota la cola visible.
     const tablero = await browser.newPage();
