@@ -28,6 +28,7 @@ type ContextoE2E = {
   administradorId: string;
   operadorId: string;
   clienteId: string;
+  recursoIds: string[];
   materialLegacyId: string;
   materialId: string;
   ordenId: string | null;
@@ -113,6 +114,35 @@ async function prepararContexto(): Promise<ContextoE2E> {
     throw new Error(`No se pudo configurar el PIN E2E: ${errorPin.message}`);
   }
 
+  // El arranque de una operación reclamada asigna un recurso compatible. La
+  // prueba no debe depender de la capacidad que otros specs ya reservaron en
+  // las estaciones compartidas del entorno E2E.
+  const areasRecurso = ['sheet_metal', 'taller', 'acabados', 'ext'] as const;
+  const { data: recursos, error: errorRecursos } = await admin
+    .from('recursos_planeacion')
+    .insert(areasRecurso.map((area) => ({
+      codigo: `E2E-ORD-${sufijo.toUpperCase()}-${area.toUpperCase()}`,
+      nombre: `Recurso órdenes E2E ${area} ${sufijo}`,
+      area,
+      activo: true,
+    })))
+    .select('id');
+  if (errorRecursos || !recursos || recursos.length !== areasRecurso.length) {
+    throw new Error(`No se pudieron crear recursos E2E: ${errorRecursos?.message ?? 'respuesta incompleta'}`);
+  }
+  const recursoIds = recursos.map((recurso) => recurso.id);
+
+  const { error: errorCapacidades } = await admin
+    .from('capacidades_recurso_turno')
+    .insert(recursoIds.flatMap((recursoId) => [
+      { recurso_id: recursoId, turno: 'matutino', horas_capacidad: 8 },
+      { recurso_id: recursoId, turno: 'vespertino', horas_capacidad: 8 },
+      { recurso_id: recursoId, turno: 'nocturno', horas_capacidad: 8 },
+    ]));
+  if (errorCapacidades) {
+    throw new Error(`No se pudieron crear capacidades E2E: ${errorCapacidades.message}`);
+  }
+
   const { data: cliente, error: errorCliente } = await admin
     .from('clientes')
     .insert({
@@ -180,6 +210,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     administradorId,
     operadorId,
     clienteId: cliente.id,
+    recursoIds,
     materialLegacyId: materialLegacy.id,
     materialId: material.id,
     ordenId: null,
@@ -206,11 +237,22 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
       .from('registros_tiempo_operador')
       .delete()
       .eq('partida_id', contexto.partidaId);
+    await contexto.admin
+      .from('sesiones_trabajo')
+      .delete()
+      .eq('partida_id', contexto.partidaId);
+    await contexto.admin
+      .from('reclamos_proceso_operador')
+      .delete()
+      .eq('partida_id', contexto.partidaId);
   }
   if (contexto.ordenId) {
     await contexto.admin.from('movimientos_inventario').delete().eq('orden_id', contexto.ordenId);
+    await contexto.admin.from('programacion_areas').delete().eq('orden_id', contexto.ordenId);
     await contexto.admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   }
+  await contexto.admin.from('capacidades_recurso_turno').delete().in('recurso_id', contexto.recursoIds);
+  await contexto.admin.from('recursos_planeacion').delete().in('id', contexto.recursoIds);
   await contexto.admin.from('catalogo_materiales').update({ activo: false }).eq('id', contexto.materialId);
   await contexto.admin.from('clientes').delete().eq('id', contexto.clienteId);
   if (recursos.length > 0) {
