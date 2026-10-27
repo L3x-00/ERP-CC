@@ -285,7 +285,9 @@ test.describe.serial('piso de Producción y entregas', () => {
 
       await expect(page.getByTestId('control-piso')).toBeVisible();
       await expect(page.getByTestId('selector-orden-piso')).toHaveValue(caso.ordenId);
-      await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
+      await expect(
+        page.getByRole('button', { name: /^Opciones de / })
+      ).toBeVisible();
 
       // C8.3c (O-05 C): el operador con PIN abre la hoja de trabajo sin precios y sus archivos.
       await page.getByTestId('abrir-hoja-trabajo').click();
@@ -311,8 +313,26 @@ test.describe.serial('piso de Producción y entregas', () => {
       await page.goto('/produccion-piso');
       await expect(page.getByTestId('control-piso')).toBeVisible();
 
-      await page.getByRole('button', { name: 'Salir', exact: true }).click();
-      await page.waitForURL('**/operador');
+      // Abrir el menú de cuenta del operador.
+        await page.getByRole('button', { name: /^Opciones de / }).click();
+
+        // Comprobar que aparece la opción de cierre de sesión.
+        const menuOperador = page.getByRole('menu', {
+          name: 'Menú del operador',
+        });
+
+        await expect(menuOperador).toBeVisible();
+
+        const opcionSalir = menuOperador.getByRole('menuitem', {
+          name: 'Salir',
+          exact: true,
+        });
+
+        await expect(opcionSalir).toBeVisible();
+
+        // Cerrar sesión y regresar al acceso PIN.
+        await opcionSalir.click();
+        await page.waitForURL('**/operador');
       await expect(page.getByTestId('teclado-pin')).toBeVisible();
     } finally {
       await limpiarContexto(caso);

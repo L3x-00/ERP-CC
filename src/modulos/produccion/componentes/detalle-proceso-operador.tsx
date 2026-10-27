@@ -9,8 +9,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
@@ -18,6 +16,7 @@ import { cn } from '@/compartido/utilidades/cn';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/indice';
+import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
   etiquetaDiaLargo,
   etiquetaFechaHora,
@@ -53,6 +52,8 @@ export interface PropsDetalleProceso {
   motivosPausa: MotivoPausaCatalogo[];
   acciones: AccionesDetalleProceso;
   onCerrar: () => void;
+
+  presentacion?: 'dialogo' | 'integrado';
 }
 
 const TURNOS = ['matutino', 'vespertino', 'nocturno'] as const;
@@ -76,6 +77,7 @@ export function DetalleProcesoOperador({
   motivosPausa,
   acciones,
   onCerrar,
+  presentacion = 'dialogo',
 }: PropsDetalleProceso) {
   const [fecha, setFecha] = useState(proceso?.reclamo?.fecha ?? hoy);
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
@@ -85,6 +87,8 @@ export function DetalleProcesoOperador({
   const [notas, setNotas] = useState('');
   const [pin, setPin] = useState('');
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
+  const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
+  const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
 
   if (!proceso) return null;
 
@@ -145,28 +149,74 @@ export function DetalleProcesoOperador({
     }
   }
 
-  return (
-    <Dialog open onOpenChange={(abierto) => (abierto ? undefined : onCerrar())}>
-      <DialogContent
-        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[880px] flex-col gap-4 overflow-y-auto"
-        data-testid="detalle-proceso"
-        aria-label={`Detalle de ${proceso.folioOrden} ${proceso.codigoPieza}`}
-      >
-        <DialogHeader>
-          <DialogTitle className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-sm text-texto-secundario">{proceso.folioOrden}</span>
-            <span>{proceso.codigoPieza}</span>
-            <Badge variante={proceso.urgencia === 'vencida' || proceso.urgencia === 'urgente' ? 'peligro' : proceso.urgencia === 'proxima' ? 'alerta' : 'neutro'}>
-              {textoCompromiso(proceso.fechaCompromiso, hoy)}
-            </Badge>
-            {proceso.prioridad !== 'normal' ? (
-              <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
-            ) : null}
-          </DialogTitle>
-          <DialogDescription>
-            {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
-          </DialogDescription>
-        </DialogHeader>
+  async function abrirArchivo(archivoId: string): Promise<void> {
+    if (!proceso || archivoAbriendo !== null) return;
+    setArchivoAbriendo(archivoId);
+    setErrorArchivo(null);
+    try {
+      const respuesta = await obtenerUrlArchivoPisoAccion({
+        ordenId: proceso.ordenId,
+        archivoId,
+      });
+      if (!respuesta.exito) {
+        setErrorArchivo(respuesta.error);
+        return;
+      }
+      // La URL firmada dura cinco minutos y no se conserva en el estado.
+      // Se abre en la pestaña actual para evitar el bloqueo de ventanas emergentes.
+      if (!respuesta.datos?.url) {
+        setMensaje({
+          exito: false,
+          error: 'No se pudo obtener el enlace de descarga del archivo.',
+        });
+        return;
+      }
+
+      window.location.assign(respuesta.datos.url);
+    } catch {
+      setErrorArchivo('No se pudo abrir el archivo. Intenta de nuevo.');
+    } finally {
+      setArchivoAbriendo(null);
+    }
+  }
+
+  const contenido = (
+    <div className="flex flex-col gap-4">
+        <header className="space-y-1">
+          {presentacion === 'dialogo' ? (
+            <>
+              <DialogTitle className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-sm text-texto-secundario">{proceso.folioOrden}</span>
+                <span>{proceso.codigoPieza}</span>
+                <Badge variante={proceso.urgencia === 'vencida' || proceso.urgencia === 'urgente' ? 'peligro' : proceso.urgencia === 'proxima' ? 'alerta' : 'neutro'}>
+                  {textoCompromiso(proceso.fechaCompromiso, hoy)}
+                </Badge>
+                {proceso.prioridad !== 'normal' ? (
+                  <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
+                ) : null}
+              </DialogTitle>
+              <DialogDescription>
+                {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
+              </DialogDescription>
+            </>
+          ) : (
+            <>
+              <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-texto-primario">
+                <span className="font-mono text-sm text-texto-secundario">{proceso.folioOrden}</span>
+                <span>{proceso.codigoPieza}</span>
+                <Badge variante={proceso.urgencia === 'vencida' || proceso.urgencia === 'urgente' ? 'peligro' : proceso.urgencia === 'proxima' ? 'alerta' : 'neutro'}>
+                  {textoCompromiso(proceso.fechaCompromiso, hoy)}
+                </Badge>
+                {proceso.prioridad !== 'normal' ? (
+                  <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
+                ) : null}
+              </h2>
+              <p className="text-sm text-texto-secundario">
+                {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
+              </p>
+            </>
+          )}
+        </header>
 
         {proceso.notas ? (
           <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
@@ -178,13 +228,15 @@ export function DetalleProcesoOperador({
         <section aria-label="Datos de la orden y la partida" className="grid gap-3 sm:grid-cols-2">
           <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3">
             <Dato etiqueta="Cliente" valor={proceso.clienteNombre} />
-            <Dato etiqueta="Compromiso" valor={`${etiquetaDiaLargo(proceso.fechaCompromiso)} · ${textoCompromiso(proceso.fechaCompromiso, hoy)}`} />
+            <Dato etiqueta="Compromiso" valor={`${etiquetaDiaLargo(proceso.fechaCompromiso)} . ${textoCompromiso(proceso.fechaCompromiso, hoy)}`} />
             <Dato etiqueta="Estado orden" valor={`${proceso.estadoOrden} / ${proceso.estadoSii}`} />
             <Dato etiqueta="Fecha operativa" valor={etiquetaDiaLargo(proceso.fechaOperativa)} />
             <Dato etiqueta="Pieza" valor={proceso.codigoPieza} />
             <Dato etiqueta="Unidad" valor={proceso.unidadMedida} />
             <Dato etiqueta="Solicitada" valor={formatearNumero(proceso.cantidadSolicitada, 0)} />
-            <Dato etiqueta="Producida" valor={formatearNumero(proceso.cantidadProducida, 0)} />
+            <Dato etiqueta="Material" valor={proceso.material
+              ? `${proceso.material.codigo} . ${proceso.material.nombre}`
+              : 'Sin material registrado'} />
             {proceso.esExterno ? <Dato etiqueta="Externo" valor={proceso.proveedorExterno ?? 'Sí'} /> : null}
             {proceso.folioSii ? <Dato etiqueta="Folio SII" valor={proceso.folioSii} /> : null}
           </dl>
@@ -195,14 +247,12 @@ export function DetalleProcesoOperador({
             <Dato etiqueta="Meta del proceso" valor={`${formatearNumero(proceso.hechoPiezas, 0)}/${formatearNumero(proceso.metaPiezas, 0)}`} />
             <Dato etiqueta="Pendiente" valor={formatearNumero(proceso.pendientePiezas, 0)} />
             <Dato etiqueta="Horas estimadas" valor={horasLegibles(proceso.horasEstimadas)} />
-            <Dato etiqueta="Material" valor={proceso.material
-              ? `${proceso.material.codigo} · ${proceso.material.nombre}`
-              : 'Sin material registrado'} />
+            <Dato etiqueta="Producida" valor={formatearNumero(proceso.cantidadProducida, 0)} />
             {proceso.material?.anchoMm && proceso.material.largoMm ? (
               <Dato etiqueta="Dimensiones" valor={`${formatearNumero(proceso.material.anchoMm, 0)} × ${formatearNumero(proceso.material.largoMm, 0)} mm`} />
             ) : null}
             <Dato etiqueta="Programación" valor={proceso.programacion
-              ? `${etiquetaDiaLargo(proceso.programacion.fecha)} · ${turnoLegible(proceso.programacion.turno)} · ${proceso.programacion.recursoNombre ?? 'recurso'}`
+              ? `${etiquetaDiaLargo(proceso.programacion.fecha)} . ${turnoLegible(proceso.programacion.turno)} . ${proceso.programacion.recursoNombre ?? 'recurso'}`
               : 'Sin programar'} />
           </dl>
         </section>
@@ -228,7 +278,7 @@ export function DetalleProcesoOperador({
                     )}
                   >
                     <span className="truncate">
-                      {paso.completado ? '✓ ' : `${paso.secuencia}. `}
+                      {paso.completado ? '✓' : `${paso.secuencia}. `}
                       {paso.nombre}
                     </span>
                     <span className="shrink-0 tabular-nums">
@@ -249,13 +299,25 @@ export function DetalleProcesoOperador({
             ) : (
               <ul className="grid max-h-40 gap-1 overflow-y-auto pr-1 text-sm">
                 {proceso.archivos.map((archivo) => (
-                  <li key={archivo.id} className="flex items-center justify-between gap-2 truncate">
-                    <span className="truncate">{archivo.nombre}</span>
+                  <li key={archivo.id} className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate" title={archivo.nombre}>{archivo.nombre}</span>
                     <span className="shrink-0 text-xs text-texto-tenue">{tamanoLegible(archivo.tamanoBytes)}</span>
+                    <button
+                      type="button"
+                      onClick={() => void abrirArchivo(archivo.id)}
+                      disabled={archivoAbriendo !== null}
+                      className="shrink-0 text-xs font-semibold text-acento-texto underline-offset-2 hover:underline disabled:opacity-50"
+                      aria-label={`Abrir o descargar ${archivo.nombre}`}
+                    >
+                      {archivoAbriendo === archivo.id ? 'Abriendo…' : 'Ver / Descargar'}
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
+            {errorArchivo ? (
+              <p role="alert" className="mt-2 text-xs text-peligro-texto">{errorArchivo}</p>
+            ) : null}
             {abrirHoja ? (
               <Link
                 href={`/produccion-piso/hoja/${proceso.ordenId}`}
@@ -286,8 +348,8 @@ export function DetalleProcesoOperador({
                   </div>
                   <p className="text-xs text-texto-secundario">
                     {etiquetaFechaHora(sesion.fechaInicio)} → {etiquetaFechaHora(sesion.fechaFin)}
-                    {' · '}{formatearNumero(sesion.piezasProducidas, 0)} piezas
-                    {' · '}{horasLegibles(sesion.horasNetas)} netas
+                    {' . '}{formatearNumero(sesion.piezasProducidas, 0)} piezas
+                    {' . '}{horasLegibles(sesion.horasNetas)} netas
                   </p>
                   {sesion.motivoPausa ? (
                     <p className="text-xs text-advertencia-texto">Motivo: {sesion.motivoPausa}</p>
@@ -320,8 +382,8 @@ export function DetalleProcesoOperador({
           <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
             <span className="font-semibold text-texto-primario">Reserva: </span>
             {proceso.reclamadoPorMi ? 'tuya' : `de ${proceso.nombreReclamante ?? 'otro operador'}`}
-            {' · '}{etiquetaDiaLargo(proceso.reclamo.fecha)} · {turnoLegible(proceso.reclamo.turno)}
-            {' · '}{horasLegibles(proceso.reclamo.horasEstimadas)}
+            {' . '}{etiquetaDiaLargo(proceso.reclamo.fecha)} . {turnoLegible(proceso.reclamo.turno)}
+            {' . '}{horasLegibles(proceso.reclamo.horasEstimadas)}
           </p>
         ) : null}
 
@@ -345,8 +407,8 @@ export function DetalleProcesoOperador({
                   <label className={CLASE_ETIQUETA}>
                     Resultado
                     <Select value={estadoDestino} onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}>
-                      <option value="finalizada">Finalizar proceso</option>
-                      <option value="pausada">Pausar proceso</option>
+                      <option value="finalizada">Finalizar sesión de trabajo</option>
+                      <option value="pausada">Pausar sesión de trabajo</option>
                     </Select>
                   </label>
                   {estadoDestino === 'pausada' ? (
@@ -384,7 +446,9 @@ export function DetalleProcesoOperador({
                   />
                 </label>
                 <Button type="submit" tamano="lg" disabled={procesando} data-testid="cerrar-sesion-detalle">
-                  {estadoDestino === 'pausada' ? 'Pausar proceso' : 'Finalizar proceso'}
+                  {estadoDestino === 'pausada'
+                    ? 'Pausar sesión de trabajo'
+                    : 'Finalizar sesión de trabajo'}
                 </Button>
               </form>
             ) : null}
@@ -445,10 +509,34 @@ export function DetalleProcesoOperador({
           </section>
         ) : null}
 
-        <DialogFooter className="static">
+        <div className="flex justify-end">
           <Button type="button" variante="contorno" onClick={onCerrar}>Cerrar ficha</Button>
-        </DialogFooter>
+        </div>
+    </div>
+  );
+
+  if (presentacion === 'integrado') {
+    return (
+      <section
+        data-testid="detalle-proceso-integrado"
+        aria-label={`Detalle de ${proceso.folioOrden} ${proceso.codigoPieza}`}
+        className="rounded-xl border border-borde bg-superficie p-4"
+      >
+        {contenido}
+      </section>
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={(abierto) => { if (!abierto) onCerrar(); }}>
+      <DialogContent
+        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-[880px] flex-col gap-4 overflow-y-auto"
+        data-testid="detalle-proceso"
+        aria-label={`Detalle de ${proceso.folioOrden} ${proceso.codigoPieza}`}
+      >
+        {contenido}
       </DialogContent>
     </Dialog>
   );
 }
+

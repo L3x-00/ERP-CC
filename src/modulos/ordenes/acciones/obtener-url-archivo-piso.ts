@@ -13,11 +13,19 @@ const esquema = z
   .object({ ordenId: z.uuid(), archivoId: z.uuid() })
   .strict();
 
+// Únicamente adjuntos técnicos aportados al RFQ o a la propuesta.
+// Un PDF de cotización generado (clase "pdf") no se firma para el operador.
+const CLASES_ADJUNTOS_OPERATIVOS = new Set([
+  'CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS', 'TECNICO', 'TÉCNICO',
+]);
+const ENTIDADES_ADJUNTOS_OPERATIVOS = new Set([
+  'rfq', 'rfq_item', 'propuesta', 'propuesta_revision', 'propuesta_item',
+]);
+
 /**
- * URL firmada de corta vida para abrir un archivo desde la hoja de trabajo del piso (O-05 C). El
- * operador entra con PIN y no tiene sesión del sistema, así que no aplica `can()`: la barrera es la
- * sesión de piso vigente, que la orden esté en SU piso (en proceso y con partidas asignadas a él) y
- * que el archivo figure en la lista congelada de esa orden. La firma usa service_role.
+ * URL firmada de corta vida para abrir adjuntos aprobados desde el piso.
+ * Verifica sesión PIN, orden asignada, pertenencia al snapshot congelado,
+ * procedencia original y clase técnica antes de firmar con service_role.
  */
 export async function obtenerUrlArchivoPisoAccion(
   entrada: unknown,
@@ -37,6 +45,23 @@ export async function obtenerUrlArchivoPisoAccion(
     if ((await archivoPerteneceAOrden(admin, ordenId, archivoId)) !== true) {
       return { exito: false, error: 'El archivo no pertenece a esta orden' };
     }
+
+    // Segunda barrera en servidor: la pertenencia al snapshot por sí sola
+    // también podría aceptar documentos comerciales generados.
+    const { data: archivo, error: errorArchivo } = await admin
+      .from('archivos')
+      .select('entidad, clase')
+      .eq('id', archivoId)
+      .maybeSingle();
+    if (errorArchivo) throw errorArchivo;
+    if (
+      !archivo ||
+      !ENTIDADES_ADJUNTOS_OPERATIVOS.has(archivo.entidad) ||
+      !CLASES_ADJUNTOS_OPERATIVOS.has((archivo.clase ?? '').trim().toUpperCase())
+    ) {
+      return { exito: false, error: 'Este documento no está habilitado para el operador' };
+    }
+
     const url = await firmarLecturaArchivo(admin, archivoId, 300);
     return { exito: true, datos: { url } };
   } catch (error) {

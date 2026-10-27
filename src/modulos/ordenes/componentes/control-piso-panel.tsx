@@ -40,6 +40,8 @@ type PropsControlPisoPanel = {
   /** OBS-09: catálogo de taller para etiquetas y filtro por familia de área. */
   areas?: readonly AreaPiso[];
   soloLectura?: boolean;
+
+  modo?: 'completo' | 'proceso';
 };
 
 type OperacionPiso = 'tiempo' | 'avance' | 'consumo' | null;
@@ -62,6 +64,7 @@ export function ControlPisoPanel({
   materiales,
   areas = [],
   soloLectura = false,
+  modo = 'completo',
 }: PropsControlPisoPanel) {
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
@@ -425,7 +428,14 @@ export function ControlPisoPanel({
           Vista de solo lectura. No puedes registrar tiempos, avances ni consumos.
         </div>
       ) : (
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div
+        className={
+          modo === 'proceso'
+            ? 'grid gap-4'
+            : 'grid gap-4 lg:grid-cols-3'
+        }
+      >
+      {modo === 'completo' ? (
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
           <h2 className="text-lg font-semibold text-texto-primario">Tiempo de operación</h2>
           <div className="grid grid-cols-3 gap-2">
@@ -461,7 +471,8 @@ export function ControlPisoPanel({
             </Button>
           </div>
         </section>
-
+      ) : null}
+      {modo === 'completo' ? (
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
           <h2 className="text-lg font-semibold text-texto-primario">Piezas y scrap</h2>
           <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="cantidad-producida">
@@ -501,7 +512,8 @@ export function ControlPisoPanel({
             Registrar avance
           </Button>
         </section>
-
+      ) : null}
+      {modo === 'completo' ? (
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
           <h2 className="text-lg font-semibold text-texto-primario">Consumo de material</h2>
           <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="material-consumo">
@@ -559,6 +571,7 @@ export function ControlPisoPanel({
             Registrar consumo
           </Button>
         </section>
+      ) : null}
       </div>
       )}
 

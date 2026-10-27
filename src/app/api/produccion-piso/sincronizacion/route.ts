@@ -8,6 +8,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+
 const TABLAS_PISO = [
   'ordenes_produccion',
   'partidas_orden_produccion',
@@ -18,7 +19,12 @@ const TABLAS_PISO = [
   'reclamos_proceso_operador',
   'programacion_areas',
   'sesiones_trabajo',
+
+  // Cambios de metas y corridas que afectan Producción.
+  'metas_proceso_partida',
+  'corridas',
 ] as const;
+
 
 const MS_KEEP_ALIVE = 20_000;
 const MS_REVALIDACION_SESION = 30_000;

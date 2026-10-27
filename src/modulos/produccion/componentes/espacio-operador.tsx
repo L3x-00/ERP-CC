@@ -38,6 +38,7 @@ import {
 import { VistaAreasOperador } from './vista-areas-operador';
 import { VistaCalendarioOperador } from './vista-calendario-operador';
 import { VistaKanbanOperador } from './vista-kanban-operador';
+import { MiPanelOperador } from './mi-panel-operador';
 
 const ETIQUETAS_VISTA: Record<VistaEspacioOperador, string> = {
   kanban: 'Kanban',
@@ -56,6 +57,8 @@ export interface PropsEspacioOperador {
   operadorId: string | null;
   soloLectura: boolean;
   nombreOperador: string;
+    /** Cierre de acceso al terminal, proporcionado por su contenedor. */
+  onSalir?: () => void;
 }
 
 type Aviso = { tipo: 'ok' | 'error'; texto: string };
@@ -84,9 +87,11 @@ export function EspacioOperador({
   operadorId,
   soloLectura,
   nombreOperador,
+  
 }: PropsEspacioOperador) {
   const enrutador = useRouter();
   const [vista, setVista] = useState<VistaEspacioOperador>('kanban');
+  const [miPanelAbierto, setMiPanelAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const [soloUrgentes, setSoloUrgentes] = useState(false);
   const [areaFiltro, setAreaFiltro] = useState('');
@@ -299,22 +304,15 @@ export function EspacioOperador({
     <section className="flex flex-col gap-4" aria-label="Espacio de operador" data-testid="espacio-operador">
       <header className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-bold text-texto-primario">Espacio de operador</h2>
-            <p className="text-sm text-texto-secundario">
-              Hola, {nombreOperador}. Aquí están las órdenes aprobadas y liberadas con todo lo
-              capturado en Propuestas y Planeación.
-            </p>
-          </div>
           <div className="flex flex-wrap items-center gap-2">
-            {operativo ? (
-              <Badge variante="exito">Turno activo</Badge>
-            ) : (
-              <Badge variante="alerta">Solo lectura</Badge>
-            )}
-            <Badge variante="info">Hoy {horasLegibles(resumen.horasReclamadasHoy)} / {HORAS_JORNADA_OPERADOR} h</Badge>
+            <Badge variante="info">
+              Hoy {horasLegibles(resumen.horasReclamadasHoy)} / {HORAS_JORNADA_OPERADOR} h
+            </Badge>
+
             {resumen.urgentes > 0 ? (
-              <Badge variante="peligro">{resumen.urgentes} urgente{resumen.urgentes === 1 ? '' : 's'}</Badge>
+              <Badge variante="peligro">
+                {resumen.urgentes} urgente{resumen.urgentes === 1 ? '' : 's'}
+              </Badge>
             ) : null}
           </div>
         </div>
@@ -482,6 +480,17 @@ export function EspacioOperador({
         }}
         onConfirmar={confirmarInicio}
       />
+            {operadorId !== null ? (
+        <MiPanelOperador
+          abierto={miPanelAbierto}
+          onCerrar={() => setMiPanelAbierto(false)}
+          nombreOperador={nombreOperador}
+          operadorId={operadorId}
+          procesos={procesos}
+          hoy={hoy}
+          onAbrirProceso={setDetalle}
+        />
+      ) : null}
     </section>
   );
 }

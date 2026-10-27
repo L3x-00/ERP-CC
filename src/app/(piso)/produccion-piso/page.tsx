@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { IndicadorSesion } from '@/modulos/autenticacion/componentes/indicador-sesion';
 import { BannerVistaOperador } from '@/modulos/autenticacion/componentes/banner-vista-operador';
 import { BotonVolverAdmin } from '@/modulos/autenticacion/componentes/botones-vista-produccion';
 import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
@@ -14,7 +13,7 @@ import {
 } from '@/nucleo/autenticacion/obtener-operador-sesion';
 import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-
+import { EncabezadoTerminalOperador } from '@/modulos/produccion/componentes/encabezado-terminal-operador';
 /**
  * Página de producción en piso. Revalida la cookie HMAC y la cuenta de operador
  * antes de cargar solo OP en proceso mediante un cliente privado de servidor.
@@ -115,7 +114,10 @@ export default async function PaginaProduccionPiso() {
           expiraEn={sesion!.expiraEn ?? sesion!.iniciadaEn}
         />
       ) : (
-        <IndicadorSesion nombreUsuario={operador.nombreCompleto} esOperador />
+        <EncabezadoTerminalOperador
+          nombreOperador={operador.nombreCompleto}
+          operativo={!soloLectura}
+        />
       )}
       <EspacioOperador
         procesos={espacio.procesos}

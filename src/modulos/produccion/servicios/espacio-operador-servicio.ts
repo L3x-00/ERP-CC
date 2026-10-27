@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '@/compartido/tipos/supabase';
+import { listarArchivosFichaOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
+import { esSnapshotOrdenSii } from '@/modulos/ordenes/tipos/orden-sii';
 import { COLUMNAS_ORDEN_OPERATIVA, filaAOrdenOperativa, filaAPartida } from '@/modulos/ordenes/tipos/ordenes';
 import {
   COLUMNAS_SESION_TRABAJO_OPERATIVA,
@@ -38,10 +40,6 @@ import { obtenerMotivosPausaServicio, type MotivoPausaCatalogo } from '@/modulos
 type Admin = SupabaseClient<Database>;
 type FilaPartida = Tables<'partidas_orden_produccion'>;
 type FilaMeta = Tables<'metas_proceso_partida'>;
-type FilaArchivoResumen = Pick<
-  Tables<'archivos'>,
-  'id' | 'entidad_id' | 'nombre_original' | 'nombre_erp' | 'mime' | 'tamano_bytes' | 'clase' | 'creado_en'
->;
 type FilaRecursoResumen = { id: string; codigo: string; nombre: string };
 
 export interface DatosEspacioOperador {
@@ -51,7 +49,7 @@ export interface DatosEspacioOperador {
   responsables: Record<string, string>;
   resumen: ResumenEspacioOperador;
   hoy: string;
-  /** Días de la semana visible (lunes a domingo) con la carga reclamada. */
+  /** DÃ­as de la semana visible (lunes a domingo) con la carga reclamada. */
   dias: DiaCalendarioOperador[];
   gruposArea: ReturnType<typeof agruparProcesosPorArea>;
 }
@@ -65,7 +63,7 @@ function fechaIsoLocal(ahora: Date = new Date()): string {
   return `${anio}-${mes}-${dia}`;
 }
 
-/** Horas de una operación: programación vigente o reparto del tiempo estimado. */
+/** Horas de una operaciÃ³n: programaciÃ³n vigente o reparto del tiempo estimado. */
 export function estimarHorasProceso(
   partida: Pick<FilaPartida, 'tiempo_estimado_minutos'>,
   programacion: Pick<ProgramacionArea, 'horasEstimadas'> | null,
@@ -151,6 +149,12 @@ async function obtenerAvancesDeMetas(
   return hechoPorMeta;
 }
 
+// Únicamente adjuntos originales del RFQ o de la propuesta aceptada.
+// Los PDF y documentos generados no tienen una clase técnica permitida.
+const CLASES_ADJUNTOS_OPERATIVOS = new Set([
+  'CAD', 'DIBUJO', 'IMAGEN', 'ESPECIFICACIONES', 'OTROS', 'TECNICO', 'TÉCNICO',
+]);
+
 async function obtenerArchivosDeOrdenes(
   cliente: Admin,
   ordenIds: readonly string[],
@@ -158,29 +162,76 @@ async function obtenerArchivosDeOrdenes(
   const porOrden = new Map<string, ArchivoProceso[]>();
   if (ordenIds.length === 0) return porOrden;
 
-  const filas = await obtenerFilasEnLotes<FilaArchivoResumen>(ordenIds, async (lote) => {
+  // La lista de documentos autorizados proviene de la revisión congelada,
+  // no de una carpeta RFQ o propuesta que pudo cambiar después de aprobarse.
+  const ordenes = await obtenerFilasEnLotes<
+    Pick<Tables<'ordenes_produccion'>, 'id' | 'snapshot_json' | 'propuesta_revision_id'>
+  >(ordenIds, async (lote) => {
     const { data, error } = await cliente
-      .from('archivos')
-      .select('id, entidad_id, nombre_original, nombre_erp, mime, tamano_bytes, clase, creado_en')
-      .eq('entidad', 'orden')
-      .eq('vigente', true)
-      .is('retirado_en', null)
-      .in('entidad_id', lote)
-      .order('creado_en', { ascending: false });
+      .from('ordenes_produccion')
+      .select('id, snapshot_json, propuesta_revision_id')
+      .in('id', lote);
     return { data, error };
   });
 
-  for (const fila of filas) {
-    const actuales = porOrden.get(fila.entidad_id) ?? [];
-    actuales.push({
-      id: fila.id,
-      nombre: fila.nombre_erp ?? fila.nombre_original,
-      mime: fila.mime,
-      tamanoBytes: Number(fila.tamano_bytes),
-      clase: fila.clase,
-      creadoEn: fila.creado_en,
-    });
-    porOrden.set(fila.entidad_id, actuales);
+  const archivosAprobados = await Promise.all(
+    ordenes.map(async (orden) => {
+      const snapshot = esSnapshotOrdenSii(orden.snapshot_json)
+        ? orden.snapshot_json
+        : null;
+      const archivos = await listarArchivosFichaOrden(cliente, {
+        snapshot,
+        propuestaRevisionId: orden.propuesta_revision_id,
+      });
+      return {
+        ordenId: orden.id,
+        archivos: archivos.filter((archivo) =>
+          archivo.disponible &&
+          (archivo.origen === 'RFQ' || archivo.origen.startsWith('Propuesta')) &&
+          archivo.tipo !== '-',
+        ),
+      };
+    }),
+  );
+
+  const ids = [...new Set(
+    archivosAprobados.flatMap(({ archivos }) => archivos.map((archivo) => archivo.archivoId)),
+  )];
+  if (ids.length === 0) return porOrden;
+
+  // Consulta en lista blanca: no se transmiten rutas de Storage ni buckets.
+  const filas = await obtenerFilasEnLotes<
+    Pick<Tables<'archivos'>,
+      'id' | 'nombre_original' | 'mime' | 'tamano_bytes' | 'clase' | 'creado_en'
+    >
+  >(ids, async (lote) => {
+    const { data, error } = await cliente
+      .from('archivos')
+      .select('id, nombre_original, mime, tamano_bytes, clase, creado_en')
+      .in('id', lote)
+      .eq('vigente', true)
+      .is('retirado_en', null);
+    return { data, error };
+  });
+  const porId = new Map(filas.map((fila) => [fila.id, fila] as const));
+
+  for (const { ordenId, archivos } of archivosAprobados) {
+    const resultado: ArchivoProceso[] = [];
+    for (const archivo of archivos) {
+      const fila = porId.get(archivo.archivoId);
+      if (!fila || !CLASES_ADJUNTOS_OPERATIVOS.has((fila.clase ?? '').trim().toUpperCase())) {
+        continue;
+      }
+      resultado.push({
+        id: fila.id,
+        nombre: archivo.nombreOriginal ?? fila.nombre_original ?? 'Archivo adjunto',
+        mime: fila.mime,
+        tamanoBytes: Number(fila.tamano_bytes),
+        clase: fila.clase,
+        creadoEn: fila.creado_en,
+      });
+    }
+    porOrden.set(ordenId, resultado);
   }
   return porOrden;
 }
@@ -207,7 +258,7 @@ function sesionResumen(
 
 /**
  * Carga y deriva el espacio de operador completo sin N+1. El servidor es la
- * única fuente de verdad: la UI no inventa columnas ni capacidades.
+ * Ãºnica fuente de verdad: la UI no inventa columnas ni capacidades.
  */
 export async function obtenerEspacioOperadorServicio(
   cliente: Admin,
@@ -253,8 +304,8 @@ export async function obtenerEspacioOperadorServicio(
   const ordenes = (resultadoOrdenes.data ?? []).map(filaAOrdenOperativa);
   const ordenIds = ordenes.map((orden) => orden.id);
 
-  // Solo se cargan partidas, metas y programaciones de las órdenes vigentes:
-  // las tablas históricas crecen con cada ciclo y no deben entrar al tablero.
+  // Solo se cargan partidas, metas y programaciones de las Ã³rdenes vigentes:
+  // las tablas histÃ³ricas crecen con cada ciclo y no deben entrar al tablero.
   const filasPartidas = await obtenerFilasEnLotes<FilaPartida>(ordenIds, async (lote) => {
     const { data, error: errorLote } = await cliente
       .from('partidas_orden_produccion')
@@ -450,8 +501,8 @@ export async function obtenerEspacioOperadorServicio(
       const programacionOperacion = metaProcesoId
         ? programaciones.find((actual) => actual.metaProcesoId === metaProcesoId) ?? null
         : null;
-      // C9.0: la fila heredada (sin operación) sigue siendo válida mientras la
-      // partida tenga una sola operación; el reclamo la adopta al preparar.
+      // C9.0: la fila heredada (sin operaciÃ³n) sigue siendo vÃ¡lida mientras la
+      // partida tenga una sola operaciÃ³n; el reclamo la adopta al preparar.
       const programacion = programacionOperacion
         ?? (metaProcesoId === null || metas.length === 1 ? programacionHeredada : null);
       const sesionesOperacion = programacion
@@ -502,10 +553,10 @@ export async function obtenerEspacioOperadorServicio(
       else if (!reclamo) motivoNoInicia = 'Reclama el proceso para iniciar';
       else if (!reclamadoPorMi) motivoNoInicia = 'Otro operador tiene el proceso';
       else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
-        motivoNoInicia = 'La orden aún no se libera a Bandeja';
-      } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no está activa';
-      else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
-      else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
+        motivoNoInicia = 'La orden aÃºn no se libera a Bandeja';
+      } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no estÃ¡ activa';
+      else if (sesionActiva) motivoNoInicia = 'Ya hay una sesiÃ³n activa en este proceso';
+      else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesiÃ³n';
 
       const puedeReanudar = operadorId !== null
         && reclamadoPorMi
@@ -535,7 +586,7 @@ export async function obtenerEspacioOperadorServicio(
         proveedorExterno: filaPartida.proveedor_externo,
         material: partida.materialId ? materialesPorId.get(partida.materialId) ?? null : null,
         areaCodigo,
-        areaNombre: area?.nombre ?? (areaCodigo ?? 'Sin área'),
+        areaNombre: area?.nombre ?? (areaCodigo ?? 'Sin Ã¡rea'),
         areaMacro: areaRaiz?.codigo ?? null,
         areaColor: area?.colorHex ?? null,
         metaProcesoId,
@@ -590,7 +641,7 @@ export async function obtenerEspacioOperadorServicio(
   ));
 
   const fechasSemana = Array.from({ length: 7 }, (_, indice) => sumarDias(inicioSemana(hoy), indice));
-  // La jornada de 8 h es por operador: las reservas de otros no consumen su día.
+  // La jornada de 8 h es por operador: las reservas de otros no consumen su dÃ­a.
   // En la vista de administrador (operadorId null) se muestra la carga completa.
   const procesosParaJornada = operadorId === null
     ? procesos
@@ -624,7 +675,8 @@ export function etiquetaUrgencia(urgencia: keyof typeof ETIQUETAS_URGENCIA): str
   return ETIQUETAS_URGENCIA[urgencia];
 }
 
-/** Días restantes para la fecha compromiso (negativo = vencida). */
+/** DÃ­as restantes para la fecha compromiso (negativo = vencida). */
 export function diasParaCompromiso(fechaCompromiso: string, hoy: string): number {
   return diasEntreFechas(hoy, fechaCompromiso);
 }
+
