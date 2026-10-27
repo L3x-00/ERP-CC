@@ -12,6 +12,8 @@ type ContextoE2E = {
   administradorId: string;
   operadorId: string;
   clienteId: string;
+  materialId: string;
+  materialLegacyId: string;
   ordenId: string;
   partidaId: string;
   metaCorteId: string;
@@ -75,6 +77,45 @@ async function prepararContexto(): Promise<ContextoE2E> {
     .eq('id', operadorId);
   if (errorPin) throw new Error(`No se pudo configurar PIN E2E: ${errorPin.message}`);
 
+  // Cada spec provee el material que consume al finalizar, sin depender de
+  // catálogos sembrados ni de residuos de otra corrida E2E.
+  const { data: materialLegacy, error: errorMaterialLegacy } = await admin.from('materiales').insert({
+    codigo: `E2E-PRD09-${sufijo.toUpperCase()}`,
+    nombre: `Material E2E PRD09 ${sufijo}`,
+    categoria: 'materia_prima',
+    unidad_compra: 'pieza',
+    unidad_control: 'pieza',
+    factor_conversion: 1,
+    costo_unitario_compra: 50,
+    costo_unitario_control: 50,
+    stock_actual_control: 20,
+    stock_minimo_control: 0,
+    stock_reservado_control: 0,
+  }).select('id').single();
+  if (errorMaterialLegacy || !materialLegacy) {
+    throw new Error(`No se pudo crear material E2E: ${errorMaterialLegacy?.message ?? 'sin material'}`);
+  }
+  const { data: material, error: errorMaterial } = await admin.from('catalogo_materiales').insert({
+    codigo: `E2EC-PRD09-${sufijo.toUpperCase()}`,
+    nombre: `Material canónico E2E PRD09 ${sufijo}`,
+    unidad_base: 'pieza',
+    material_legacy_id: materialLegacy.id,
+  }).select('id, actualizado_en').single();
+  if (errorMaterial || !material) {
+    throw new Error(`No se pudo crear material canónico E2E: ${errorMaterial?.message ?? 'sin material'}`);
+  }
+  const { error: errorCosto } = await admin.rpc('confirmar_costo_material', {
+    p_material_id: material.id,
+    p_costo: 50,
+    p_moneda: 'MXN',
+    p_fecha_efectiva: '2099-01-01',
+    p_fuente: 'MANUAL',
+    p_referencia: '',
+    p_actor_id: administradorId,
+    p_actualizado_en: material.actualizado_en,
+  });
+  if (errorCosto) throw new Error(`No se confirmó costo de material E2E: ${errorCosto.message}`);
+
   const { data: cliente, error: errorCliente } = await admin.from('clientes').insert({
     nombre_comercial: `Cliente PRD09 ${sufijo}`,
     razon_social: `Cliente E2E PRD09 ${sufijo} SA de CV`,
@@ -117,6 +158,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     cantidad_producida: 0,
     cantidad_scrap: 0,
     unidad_medida: 'pieza',
+    catalogo_material_id: material.id,
     procesos: ['Corte', 'Doblado'],
     operador_asignado_id: operadorId,
   }).select('id').single();
@@ -159,6 +201,8 @@ async function prepararContexto(): Promise<ContextoE2E> {
     administradorId,
     operadorId,
     clienteId: cliente.id,
+    materialId: material.id,
+    materialLegacyId: materialLegacy.id,
     ordenId: orden.id,
     partidaId: partida.id,
     metaCorteId: metas[0]!.id,
@@ -170,6 +214,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
 async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
   const { admin } = contexto;
   await admin.from('registros_avance_partida').delete().eq('partida_id', contexto.partidaId);
+  await admin.from('registros_consumo_material').delete().eq('partida_id', contexto.partidaId);
   await admin.from('registros_tiempo_operador').delete().eq('partida_id', contexto.partidaId);
   await admin.from('sesiones_trabajo').delete().eq('partida_id', contexto.partidaId);
   await admin.from('programacion_areas').delete().eq('partida_id', contexto.partidaId);
@@ -177,6 +222,8 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
   await admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   await admin.from('capacidades_recurso_turno').delete().in('recurso_id', contexto.recursoIds);
   await admin.from('recursos_planeacion').delete().in('id', contexto.recursoIds);
+  await admin.from('catalogo_materiales').update({ activo: false }).eq('id', contexto.materialId);
+  await admin.from('materiales').delete().eq('id', contexto.materialLegacyId);
   await admin.from('clientes').delete().eq('id', contexto.clienteId);
   await admin.from('logs').delete().in('usuario_id', [contexto.administradorId, contexto.operadorId]);
   await admin.from('usuarios').delete().in('id', [contexto.administradorId, contexto.operadorId]);
@@ -260,9 +307,12 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await page.getByLabel('Piezas producidas ahora').fill('4');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
+    await page.getByLabel('Material').selectOption(caso.materialId);
+    await page.getByLabel('Usado').fill('1');
     await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
-    await expect(page.getByRole('status')).toContainText('Sesión registrada');
+    await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
+    await page.getByRole('button', { name: 'Entendido' }).click();
 
     await expect(bloqueProcesos).toContainText('Corte: 4.00/10.00 · 6.00 pend · 40%');
     await expect(tarjeta).toContainText('0/10 piezas');
@@ -278,9 +328,12 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await page.getByLabel('Piezas producidas ahora').fill('6');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
+    await page.getByLabel('Material').selectOption(caso.materialId);
+    await page.getByLabel('Usado').fill('1');
     await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
-    await expect(page.getByRole('status')).toContainText('Sesión registrada');
+    await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
+    await page.getByRole('button', { name: 'Entendido' }).click();
 
     await expect(bloqueProcesos).toContainText('Corte: 10.00/10.00 · 0.00 pend · 100%');
     await expect(bloqueProcesos).toContainText('Doblado: 0.00/10.00 · 10.00 pend · 0%');
@@ -293,9 +346,12 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await page.getByLabel('Piezas producidas ahora').fill('10');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaDobladoId);
+    await page.getByLabel('Material').selectOption(caso.materialId);
+    await page.getByLabel('Usado').fill('1');
     await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
-    await expect(page.getByRole('status')).toContainText('Sesión registrada');
+    await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
+    await page.getByRole('button', { name: 'Entendido' }).click();
 
     await expect(bloqueProcesos).toContainText('Doblado: 10.00/10.00 · 0.00 pend · 100%');
     await expect(tarjeta).toContainText('10/10 piezas');

@@ -8,12 +8,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
+import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
+import type { MaterialPisoCatalogo } from '@/modulos/produccion/acciones/consultas-b6';
 import type { SesionActivaProduccion } from '@/estado/uso-tienda-produccion';
 import { type MotivoPausaSesion, type VerificacionInicio } from '@/modulos/produccion/tipos/indice';
 
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 
-type ResultadoOperacion = { exito: true } | { exito: false; error: string };
+type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string };
+
+type ResumenCierreSesion = {
+  material: MaterialPisoCatalogo;
+  cantidadUsada: number;
+  cantidadMerma: number;
+  notas: string | null;
+  resultado: CierreSesionRegistrado;
+};
 
 export interface PropsPanelOperadorProduccion {
   orden: OrdenTableroProduccion | null;
@@ -25,6 +35,7 @@ export interface PropsPanelOperadorProduccion {
   /** SII-B6: corrida elegida en el panel de corridas (opcional). */
   corridaId?: string | null;
   motivosPausa: MotivoPausaCatalogo[];
+  materiales?: readonly MaterialPisoCatalogo[];
   onIniciar: (datos: {
     ordenId: string;
     partidaId: string;
@@ -42,6 +53,11 @@ export interface PropsPanelOperadorProduccion {
     motivoPausa?: string;
     notas?: string;
     pinConfirmacion: string;
+    consumo?: {
+      materialId: string;
+      cantidadUsada: number;
+      cantidadScrap: number;
+    };
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -65,6 +81,7 @@ export function PanelOperadorProduccion({
   procesando,
   corridaId = null,
   motivosPausa,
+  materiales = [],
   onIniciar,
   onReanudar,
   responsables,
@@ -87,7 +104,11 @@ export function PanelOperadorProduccion({
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
   const [pinConfirmacion, setPinConfirmacion] = useState('');
+  const [materialId, setMaterialId] = useState('');
+  const [cantidadUsada, setCantidadUsada] = useState('0');
+  const [cantidadMerma, setCantidadMerma] = useState('0');
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
   const [errorReanudacion, setErrorReanudacion] = useState<string | null>(null);
   const [confirmarChecklist, setConfirmarChecklist] = useState(false);
@@ -114,6 +135,7 @@ export function PanelOperadorProduccion({
   const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
     ?? motivosPausa[0]
     ?? null;
+  const materialSeleccionado = materiales.find((material) => material.id === materialId) ?? null;
   const ultimaPausa = (() => {
     if (!orden || orden.estadoKanban !== 'pausada') return null;
     const sesiones = [...orden.sesiones]
@@ -162,6 +184,16 @@ export function PanelOperadorProduccion({
   async function cerrar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (!sesionActiva) return;
+    const usada = Number(cantidadUsada);
+    const merma = Number(cantidadMerma);
+    if (
+      estadoDestino === 'finalizada'
+      && (!materialSeleccionado || !Number.isFinite(usada) || !Number.isFinite(merma)
+        || usada < 0 || merma < 0 || usada + merma <= 0)
+    ) {
+      setMensaje('Selecciona un material e indica consumo o merma mayor a cero.');
+      return;
+    }
     const resultado = await onCerrar({
       sesionId: sesionActiva.id,
       piezasProducidas: Number(piezasProducidas),
@@ -169,12 +201,31 @@ export function PanelOperadorProduccion({
       ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
+      ...(estadoDestino === 'finalizada' ? {
+        consumo: {
+          materialId,
+          cantidadUsada: usada,
+          cantidadScrap: merma,
+        },
+      } : {}),
       pinConfirmacion,
     });
     setMensaje(resultado.exito ? 'Sesión registrada y recurso liberado' : resultado.error);
     if (resultado.exito) {
       setPinConfirmacion('');
       setNotas('');
+      setMaterialId('');
+      setCantidadUsada('0');
+      setCantidadMerma('0');
+      if (estadoDestino === 'finalizada' && materialSeleccionado && resultado.datos) {
+        setResumenCierre({
+          material: materialSeleccionado,
+          cantidadUsada: usada,
+          cantidadMerma: merma,
+          notas: notas.trim() || null,
+          resultado: resultado.datos,
+        });
+      }
     }
   }
 
@@ -292,6 +343,59 @@ export function PanelOperadorProduccion({
               </Select>
             </label>
           ) : null}
+          {estadoDestino === 'finalizada' ? (
+            <fieldset className="grid gap-3 rounded-lg border border-borde p-3">
+              <legend className="px-1 text-sm font-semibold text-texto-primario">Consumo de material</legend>
+              {materiales.length === 0 ? (
+                <p role="alert" className="text-sm text-advertencia-texto">
+                  No hay materiales activos para registrar el cierre.
+                </p>
+              ) : (
+                <label className={CLASE_ETIQUETA}>
+                  Material
+                  <Select
+                    className="min-h-11"
+                    value={materialId}
+                    onChange={(evento) => setMaterialId(evento.target.value)}
+                    required
+                  >
+                    <option value="">Selecciona un material</option>
+                    {materiales.map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.codigo} — {material.nombre} ({material.unidadBase})
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className={CLASE_ETIQUETA}>
+                  Usado
+                  <Input
+                    className="min-h-11"
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cantidadUsada}
+                    onChange={(evento) => setCantidadUsada(evento.target.value)}
+                    required
+                  />
+                </label>
+                <label className={CLASE_ETIQUETA}>
+                  Merma
+                  <Input
+                    className="min-h-11"
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cantidadMerma}
+                    onChange={(evento) => setCantidadMerma(evento.target.value)}
+                    required
+                  />
+                </label>
+              </div>
+            </fieldset>
+          ) : null}
           <label className={CLASE_ETIQUETA}>
             Notas operativas{estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota ? ' (obligatorias)' : ''}
             <Textarea
@@ -405,6 +509,31 @@ export function PanelOperadorProduccion({
           <DialogFooter className="static mt-2 shrink-0">
             <Button type="button" variante="contorno" disabled={procesando} onClick={() => setConfirmarReanudacion(false)}>Cancelar</Button>
             <Button type="button" disabled={procesando || !ultimaPausa} onClick={() => void reanudar()}>{procesando ? 'Reanudando…' : 'Continuar'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={resumenCierre !== null} onOpenChange={(abierto) => {
+        if (!abierto) setResumenCierre(null);
+      }}>
+        <DialogContent className="max-w-md" data-testid="resumen-cierre-sesion" aria-label="Resumen de sesión finalizada">
+          <DialogHeader>
+            <DialogTitle>Sesión finalizada</DialogTitle>
+            <DialogDescription>{orden?.folio ?? 'Orden'} · resumen registrado</DialogDescription>
+          </DialogHeader>
+          {resumenCierre ? (
+            <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2 p-3 text-sm">
+              <div><dt className="text-texto-secundario">Piezas producidas</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.piezasProducidas, 3)}</dd></div>
+              <div><dt className="text-texto-secundario">Tiempo neto</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.horasNetas, 2)} h</dd></div>
+              <div><dt className="text-texto-secundario">Resultado</dt><dd className="font-medium">Sesión finalizada</dd></div>
+              <div><dt className="text-texto-secundario">Estado de orden</dt><dd className="font-medium">{resumenCierre.resultado.estadoOrden}</dd></div>
+              <div><dt className="text-texto-secundario">Planeación</dt><dd className="font-medium">{resumenCierre.resultado.estadoPlaneacion}</dd></div>
+              <div><dt className="text-texto-secundario">Material usado</dt><dd className="font-medium">{resumenCierre.material.codigo} · {formatearNumero(resumenCierre.cantidadUsada, 3)} {resumenCierre.material.unidadBase}</dd></div>
+              <div><dt className="text-texto-secundario">Merma</dt><dd className="font-medium">{formatearNumero(resumenCierre.cantidadMerma, 3)} {resumenCierre.material.unidadBase}</dd></div>
+              {resumenCierre.notas ? <div className="col-span-full"><dt className="text-texto-secundario">Notas</dt><dd className="whitespace-pre-wrap font-medium">{resumenCierre.notas}</dd></div> : null}
+            </dl>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" onClick={() => setResumenCierre(null)}>Entendido</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

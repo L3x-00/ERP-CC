@@ -41,10 +41,19 @@ async function tienePermisoPiso(actor: UsuarioAutenticado): Promise<boolean> {
   return false;
 }
 
-/** Catálogos de piso (motivos de pausa + procesos) para la UI de corridas. */
+/** Material activo que puede registrarse al cerrar una sesión de piso. */
+export type MaterialPisoCatalogo = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  unidadBase: string;
+};
+
+/** Catálogos de piso compartidos por las corridas y el cierre de sesión. */
 export type CatalogosPiso = {
   motivos: MotivoPausaCatalogo[];
   procesos: ProcesoPiso[];
+  materiales: MaterialPisoCatalogo[];
 };
 
 export async function obtenerCatalogosPisoAccion(): Promise<RespuestaAccion<CatalogosPiso>> {
@@ -56,11 +65,29 @@ export async function obtenerCatalogosPisoAccion(): Promise<RespuestaAccion<Cata
 
   try {
     const admin = crearClienteSupabaseAdmin();
-    const [motivos, procesos] = await Promise.all([
+    const [motivos, procesos, respuestaMateriales] = await Promise.all([
       obtenerMotivosPausaServicio(admin),
       obtenerProcesosPisoServicio(admin),
+      admin
+        .from('catalogo_materiales')
+        .select('id, codigo, nombre, unidad_base')
+        .eq('activo', true)
+        .order('codigo'),
     ]);
-    return { exito: true, datos: { motivos, procesos } };
+    if (respuestaMateriales.error) throw respuestaMateriales.error;
+    return {
+      exito: true,
+      datos: {
+        motivos,
+        procesos,
+        materiales: (respuestaMateriales.data ?? []).map((material) => ({
+          id: material.id,
+          codigo: material.codigo,
+          nombre: material.nombre,
+          unidadBase: material.unidad_base,
+        })),
+      },
+    };
   } catch (error) {
     console.error('[PRODUCCION] Error al cargar catálogos de piso:', error);
     return { exito: false, error: 'No se pudieron cargar los catálogos de piso' };
