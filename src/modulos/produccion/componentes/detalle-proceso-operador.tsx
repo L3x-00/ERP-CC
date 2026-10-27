@@ -68,7 +68,7 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   );
 }
 
-/** C10: ficha completa de la operaciÃ³n con las acciones que permite su estado. */
+/** C10: ficha completa de la operación con las acciones que permite su estado. */
 export function DetalleProcesoOperador({
   proceso,
   hoy,
@@ -131,7 +131,7 @@ export function DetalleProcesoOperador({
     evento.preventDefault();
     if (!proceso?.sesionActiva) return;
     if (!/^\d{4,6}$/.test(pin)) {
-      setMensaje({ exito: false, error: 'El PIN debe tener entre 4 y 6 dÃ­gitos' });
+      setMensaje({ exito: false, error: 'El PIN debe tener entre 4 y 6 dígitos' });
       return;
     }
     const resultado = await acciones.cerrar(proceso, {
@@ -196,7 +196,7 @@ export function DetalleProcesoOperador({
                 ) : null}
               </DialogTitle>
               <DialogDescription>
-                {proceso.clienteNombre} Â· {proceso.descripcion ?? 'Sin descripciÃ³n de pieza'}
+                {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
               </DialogDescription>
             </>
           ) : (
@@ -212,7 +212,7 @@ export function DetalleProcesoOperador({
                 ) : null}
               </h2>
               <p className="text-sm text-texto-secundario">
-                {proceso.clienteNombre} Â· {proceso.descripcion ?? 'Sin descripciÃ³n de pieza'}
+                {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
               </p>
             </>
           )}
@@ -228,31 +228,31 @@ export function DetalleProcesoOperador({
         <section aria-label="Datos de la orden y la partida" className="grid gap-3 sm:grid-cols-2">
           <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3">
             <Dato etiqueta="Cliente" valor={proceso.clienteNombre} />
-            <Dato etiqueta="Compromiso" valor={`${etiquetaDiaLargo(proceso.fechaCompromiso)} Â· ${textoCompromiso(proceso.fechaCompromiso, hoy)}`} />
+            <Dato etiqueta="Compromiso" valor={`${etiquetaDiaLargo(proceso.fechaCompromiso)} . ${textoCompromiso(proceso.fechaCompromiso, hoy)}`} />
             <Dato etiqueta="Estado orden" valor={`${proceso.estadoOrden} / ${proceso.estadoSii}`} />
             <Dato etiqueta="Fecha operativa" valor={etiquetaDiaLargo(proceso.fechaOperativa)} />
             <Dato etiqueta="Pieza" valor={proceso.codigoPieza} />
             <Dato etiqueta="Unidad" valor={proceso.unidadMedida} />
             <Dato etiqueta="Solicitada" valor={formatearNumero(proceso.cantidadSolicitada, 0)} />
             <Dato etiqueta="Material" valor={proceso.material
-              ? `${proceso.material.codigo} · ${proceso.material.nombre}`
+              ? `${proceso.material.codigo} . ${proceso.material.nombre}`
               : 'Sin material registrado'} />
-            {proceso.esExterno ? <Dato etiqueta="Externo" valor={proceso.proveedorExterno ?? 'SÃ­'} /> : null}
+            {proceso.esExterno ? <Dato etiqueta="Externo" valor={proceso.proveedorExterno ?? 'Sí'} /> : null}
             {proceso.folioSii ? <Dato etiqueta="Folio SII" valor={proceso.folioSii} /> : null}
           </dl>
 
           <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3">
             <Dato etiqueta="Proceso" valor={`${proceso.secuencia}. ${proceso.procesoNombre}`} />
-            <Dato etiqueta="Ãrea" valor={proceso.areaNombre} />
+            <Dato etiqueta="Área" valor={proceso.areaNombre} />
             <Dato etiqueta="Meta del proceso" valor={`${formatearNumero(proceso.hechoPiezas, 0)}/${formatearNumero(proceso.metaPiezas, 0)}`} />
             <Dato etiqueta="Pendiente" valor={formatearNumero(proceso.pendientePiezas, 0)} />
             <Dato etiqueta="Horas estimadas" valor={horasLegibles(proceso.horasEstimadas)} />
             <Dato etiqueta="Producida" valor={formatearNumero(proceso.cantidadProducida, 0)} />
             {proceso.material?.anchoMm && proceso.material.largoMm ? (
-              <Dato etiqueta="Dimensiones" valor={`${formatearNumero(proceso.material.anchoMm, 0)} Ã— ${formatearNumero(proceso.material.largoMm, 0)} mm`} />
+              <Dato etiqueta="Dimensiones" valor={`${formatearNumero(proceso.material.anchoMm, 0)} × ${formatearNumero(proceso.material.largoMm, 0)} mm`} />
             ) : null}
-            <Dato etiqueta="ProgramaciÃ³n" valor={proceso.programacion
-              ? `${etiquetaDiaLargo(proceso.programacion.fecha)} Â· ${turnoLegible(proceso.programacion.turno)} Â· ${proceso.programacion.recursoNombre ?? 'recurso'}`
+            <Dato etiqueta="Programación" valor={proceso.programacion
+              ? `${etiquetaDiaLargo(proceso.programacion.fecha)} . ${turnoLegible(proceso.programacion.turno)} . ${proceso.programacion.recursoNombre ?? 'recurso'}`
               : 'Sin programar'} />
           </dl>
         </section>
@@ -264,7 +264,7 @@ export function DetalleProcesoOperador({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <section aria-label="Ruta de procesos" className="rounded-lg border border-borde p-3">
-            <h3 className="mb-2 text-sm font-semibold text-texto-primario">Ruta de fabricaciÃ³n</h3>
+            <h3 className="mb-2 text-sm font-semibold text-texto-primario">Ruta de fabricación</h3>
             <ol className="grid gap-1.5">
               {proceso.procesosRuteo.map((paso) => {
                 const actual = paso.id === proceso.metaProcesoId
@@ -278,7 +278,7 @@ export function DetalleProcesoOperador({
                     )}
                   >
                     <span className="truncate">
-                      {paso.completado ? 'âœ“ ' : `${paso.secuencia}. `}
+                      {paso.completado ? '✓' : `${paso.secuencia}. `}
                       {paso.nombre}
                     </span>
                     <span className="shrink-0 tabular-nums">
@@ -335,7 +335,7 @@ export function DetalleProcesoOperador({
             Sesiones registradas ({proceso.sesiones.length})
           </h3>
           {proceso.sesiones.length === 0 ? (
-            <p className="text-sm text-texto-secundario">AÃºn no hay sesiones para este proceso.</p>
+            <p className="text-sm text-texto-secundario">Aún no hay sesiones para este proceso.</p>
           ) : (
             <ul className="grid max-h-44 gap-2 overflow-y-auto pr-1 text-sm">
               {proceso.sesiones.map((sesion) => (
@@ -347,9 +347,9 @@ export function DetalleProcesoOperador({
                     </Badge>
                   </div>
                   <p className="text-xs text-texto-secundario">
-                    {etiquetaFechaHora(sesion.fechaInicio)} â†’ {etiquetaFechaHora(sesion.fechaFin)}
-                    {' Â· '}{formatearNumero(sesion.piezasProducidas, 0)} piezas
-                    {' Â· '}{horasLegibles(sesion.horasNetas)} netas
+                    {etiquetaFechaHora(sesion.fechaInicio)} → {etiquetaFechaHora(sesion.fechaFin)}
+                    {' . '}{formatearNumero(sesion.piezasProducidas, 0)} piezas
+                    {' . '}{horasLegibles(sesion.horasNetas)} netas
                   </p>
                   {sesion.motivoPausa ? (
                     <p className="text-xs text-advertencia-texto">Motivo: {sesion.motivoPausa}</p>
@@ -374,7 +374,7 @@ export function DetalleProcesoOperador({
             role="alert"
             className={cn('text-sm', mensaje.exito ? 'text-exito-texto' : 'text-peligro-texto')}
           >
-            {mensaje.exito ? 'AcciÃ³n registrada. Actualizando el tableroâ€¦' : mensaje.error}
+            {mensaje.exito ? 'Acción registrada. Actualizando el tablero…' : mensaje.error}
           </p>
         ) : null}
 
@@ -382,8 +382,8 @@ export function DetalleProcesoOperador({
           <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
             <span className="font-semibold text-texto-primario">Reserva: </span>
             {proceso.reclamadoPorMi ? 'tuya' : `de ${proceso.nombreReclamante ?? 'otro operador'}`}
-            {' Â· '}{etiquetaDiaLargo(proceso.reclamo.fecha)} Â· {turnoLegible(proceso.reclamo.turno)}
-            {' Â· '}{horasLegibles(proceso.reclamo.horasEstimadas)}
+            {' . '}{etiquetaDiaLargo(proceso.reclamo.fecha)} . {turnoLegible(proceso.reclamo.turno)}
+            {' . '}{horasLegibles(proceso.reclamo.horasEstimadas)}
           </p>
         ) : null}
 
@@ -391,7 +391,7 @@ export function DetalleProcesoOperador({
           <section aria-label="Acciones del proceso" className="grid gap-3 rounded-lg border border-borde-fuerte p-3">
             {proceso.sesionActiva ? (
               <form className="grid gap-3" onSubmit={cerrar}>
-                <p className="text-sm font-semibold text-texto-primario">Cerrar la sesiÃ³n en marcha</p>
+                <p className="text-sm font-semibold text-texto-primario">Cerrar la sesión en marcha</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className={CLASE_ETIQUETA}>
                     Piezas producidas
@@ -407,8 +407,8 @@ export function DetalleProcesoOperador({
                   <label className={CLASE_ETIQUETA}>
                     Resultado
                     <Select value={estadoDestino} onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}>
-                      <option value="finalizada">Finalizar sesiÃ³n de trabajo</option>
-                      <option value="pausada">Pausar sesiÃ³n de trabajo</option>
+                      <option value="finalizada">Finalizar sesión de trabajo</option>
+                      <option value="pausada">Pausar sesión de trabajo</option>
                     </Select>
                   </label>
                   {estadoDestino === 'pausada' ? (
@@ -424,7 +424,7 @@ export function DetalleProcesoOperador({
                     </label>
                   ) : null}
                   <label className={CLASE_ETIQUETA}>
-                    PIN de confirmaciÃ³n
+                    PIN de confirmación
                     <Input
                       inputMode="numeric"
                       maxLength={6}
@@ -447,8 +447,8 @@ export function DetalleProcesoOperador({
                 </label>
                 <Button type="submit" tamano="lg" disabled={procesando} data-testid="cerrar-sesion-detalle">
                   {estadoDestino === 'pausada'
-                    ? 'Pausar sesiÃ³n de trabajo'
-                    : 'Finalizar sesiÃ³n de trabajo'}
+                    ? 'Pausar sesión de trabajo'
+                    : 'Finalizar sesión de trabajo'}
                 </Button>
               </form>
             ) : null}
@@ -456,7 +456,7 @@ export function DetalleProcesoOperador({
             {proceso.columna !== 'lista' && !proceso.sesionActiva ? (
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                 <label className={CLASE_ETIQUETA}>
-                  DÃ­a de la jornada
+                  Día de la jornada
                   <Input
                     type="date"
                     min={hoy}
@@ -493,7 +493,7 @@ export function DetalleProcesoOperador({
               ) : null}
               {proceso.puedeReanudar ? (
                 <Button type="button" tamano="lg" variante="secundario" disabled={procesando} onClick={() => void reanudar()} data-testid="reanudar-detalle">
-                  Continuar sesiÃ³n pausada
+                  Continuar sesión pausada
                 </Button>
               ) : null}
               {puedeLiberar ? (
