@@ -234,7 +234,9 @@ export function DetalleProcesoOperador({
             <Dato etiqueta="Pieza" valor={proceso.codigoPieza} />
             <Dato etiqueta="Unidad" valor={proceso.unidadMedida} />
             <Dato etiqueta="Solicitada" valor={formatearNumero(proceso.cantidadSolicitada, 0)} />
-            <Dato etiqueta="Producida" valor={formatearNumero(proceso.cantidadProducida, 0)} />
+            <Dato etiqueta="Material" valor={proceso.material
+              ? `${proceso.material.codigo} · ${proceso.material.nombre}`
+              : 'Sin material registrado'} />
             {proceso.esExterno ? <Dato etiqueta="Externo" valor={proceso.proveedorExterno ?? 'SÃ­'} /> : null}
             {proceso.folioSii ? <Dato etiqueta="Folio SII" valor={proceso.folioSii} /> : null}
           </dl>
@@ -245,9 +247,7 @@ export function DetalleProcesoOperador({
             <Dato etiqueta="Meta del proceso" valor={`${formatearNumero(proceso.hechoPiezas, 0)}/${formatearNumero(proceso.metaPiezas, 0)}`} />
             <Dato etiqueta="Pendiente" valor={formatearNumero(proceso.pendientePiezas, 0)} />
             <Dato etiqueta="Horas estimadas" valor={horasLegibles(proceso.horasEstimadas)} />
-            <Dato etiqueta="Material" valor={proceso.material
-              ? `${proceso.material.codigo} Â· ${proceso.material.nombre}`
-              : 'Sin material registrado'} />
+            <Dato etiqueta="Producida" valor={formatearNumero(proceso.cantidadProducida, 0)} />
             {proceso.material?.anchoMm && proceso.material.largoMm ? (
               <Dato etiqueta="Dimensiones" valor={`${formatearNumero(proceso.material.anchoMm, 0)} Ã— ${formatearNumero(proceso.material.largoMm, 0)} mm`} />
             ) : null}
