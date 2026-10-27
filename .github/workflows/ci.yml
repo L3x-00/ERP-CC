@@ -115,6 +115,36 @@ jobs:
           GHCR_TOKEN: ${{ github.token }}
         run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
+      # El CLI intenta todos los servicios en paralelo. En los runners
+      # compartidos eso puede agotar el límite de ECR/GHCR antes de que el
+      # fallback termine. Precargamos las versiones fijadas por el CLI de una
+      # en una y las etiquetamos con el primer registro que este consulta.
+      - name: Precargar imágenes de Supabase secuencialmente
+        shell: bash
+        run: |
+          imagenes=(
+            "edge-runtime:v1.74.2"
+            "gotrue:v2.192.0"
+            "imgproxy:v3.8.0"
+            "kong:2.8.1"
+            "logflare:1.45.6"
+            "mailpit:v1.30.2"
+            "postgres:17.6.1.140"
+            "postgres-meta:v0.96.6"
+            "postgrest:v14.14"
+            "realtime:v2.112.1"
+            "storage-api:v1.61.7"
+            "studio:2026.06.29-sha-20290c7"
+            "vector:0.53.0-alpine"
+          )
+
+          for imagen in "${imagenes[@]}"; do
+            origen="ghcr.io/supabase/$imagen"
+            destino="public.ecr.aws/supabase/$imagen"
+            docker pull "$origen"
+            docker tag "$origen" "$destino"
+          done
+
       - name: Levantar Supabase local (aplica migraciones)
         run: supabase start
 
