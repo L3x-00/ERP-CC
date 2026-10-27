@@ -1,0 +1,214 @@
+
+import { redirect } from 'next/navigation';
+
+import { obtenerContextoSesionOperadorActiva } from '@/nucleo/autenticacion/obtener-operador-sesion';
+import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
+import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+
+import { obtenerEspacioOperadorServicio } from '@/modulos/produccion/servicios/espacio-operador-servicio';
+
+import {
+  obtenerOrdenesConPartidasDePisoServicio,
+  obtenerConsumosPartidaServicio,
+} from '@/modulos/ordenes/servicios/ordenes-servicio';
+
+import type { ComentarioRegistro } from '@/modulos/comentarios/tipos/comentarios';
+
+import { PaginaMiPanelOperador } from '@/modulos/produccion/componentes/pagina-mi-panel-operador';
+import { EncabezadoTerminalOperador } from '@/modulos/produccion/componentes/encabezado-terminal-operador';
+import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
+import { obtenerComentariosPorEntidad } from '@/modulos/comentarios/servicios/comentarios-servicio';
+/**
+ * Panel personal del operador.
+ *
+ * Autenticación HMAC mediante PIN.
+ * Bloquea sesiones delegadas.
+ * Reutiliza los servicios existentes de producción.
+ *
+ * Las consultas privadas se ejecutan únicamente en servidor.
+ */
+export default async function PaginaMiPanel() {
+  // 1. Validar sesión del operador.
+  const contexto = await obtenerContextoSesionOperadorActiva();
+
+  if (!contexto) {
+    redirect('/operador');
+  }
+
+  if (sesionOperadorEsDelegada(contexto.sesion)) {
+    redirect('/produccion-piso');
+  }
+
+  const operadorId = contexto.operador.id;
+  const nombreOperador = contexto.operador.nombreCompleto;
+
+  // 2. Cliente privado: nunca se envía al navegador.
+  const cliente = crearClienteSupabaseAdmin();
+
+  // 3. Datos autorizados por los servicios del piso.
+  const [espacio, ordenes, resultadoAreas] = await Promise.all([
+    obtenerEspacioOperadorServicio(cliente, operadorId),
+
+    obtenerOrdenesConPartidasDePisoServicio(
+      cliente,
+      operadorId,
+    ),
+
+    cliente
+      .from('areas_trabajo_config')
+      .select('codigo, nombre, padre_codigo, area_planeacion')
+      .order('orden')
+      .order('nombre'),
+  ]);
+
+  if (resultadoAreas.error) {
+    throw new Error(
+      'No se pudieron cargar las áreas de taller para el panel del operador',
+    );
+  }
+
+  // 4. Identificar órdenes y partidas visibles.
+  const idsOrdenesVisibles = new Set(
+    ordenes.map(({ orden }) => orden.id),
+  );
+
+  const idsPartidasVisibles = [
+    ...new Set(
+      ordenes.flatMap(({ partidas }) =>
+        partidas.map((partida) => partida.id),
+      ),
+    ),
+  ];
+
+  // 5. Materiales vinculados a las partidas visibles.
+  const idsMateriales = [
+    ...new Set(
+      ordenes.flatMap(({ partidas }) =>
+        partidas.flatMap((partida) =>
+          partida.materialId ? [partida.materialId] : [],
+        ),
+      ),
+    ),
+  ];
+
+  const resultadoMateriales = idsMateriales.length > 0
+    ? await cliente
+        .from('catalogo_materiales')
+        .select('id, codigo, nombre, unidad_base')
+        .in('id', idsMateriales)
+        .eq('activo', true)
+        .order('nombre', { ascending: true })
+    : { data: [], error: null };
+
+  if (resultadoMateriales.error) {
+    throw new Error(
+      'No se pudieron cargar los materiales para el panel del operador',
+    );
+  }
+
+  const materiales = (resultadoMateriales.data ?? []).map(
+    (material) => ({
+      id: material.id,
+      codigo: material.codigo,
+      nombre: material.nombre,
+      unidadBase: material.unidad_base,
+    }),
+  );
+
+  const areas = (resultadoAreas.data ?? []).map((area) => ({
+    codigo: area.codigo,
+    nombre: area.nombre,
+    padreCodigo: area.padre_codigo,
+    areaPlaneacion: area.area_planeacion,
+  }));
+
+  // 6. ConsumOS reales de las partidas visibles.
+  // Se mantiene el servicio existente.
+  const consumosPorPartida = await Promise.all(
+    idsPartidasVisibles.map((partidaId) =>
+      obtenerConsumosPartidaServicio(cliente, partidaId),
+    ),
+  );
+
+  const consumos = consumosPorPartida.flat();
+
+  // 7. Delimitar las órdenes relacionadas con la
+  // actividad personal del operador.
+  //
+  // Se cruza la actividad con las órdenes visibles,
+  // evitando confiar en un identificador del navegador.
+  const idsOrdenesOperador = [
+    ...new Set(
+      espacio.procesos
+        .filter((proceso) => {
+          const tieneReserva =
+            proceso.reclamo?.operadorId === operadorId &&
+            proceso.reclamo.estado === 'activo';
+
+          const tieneSesiones = proceso.sesiones.some(
+            (sesion) => sesion.operadorId === operadorId,
+          );
+
+          return (
+            (tieneReserva || tieneSesiones) &&
+            idsOrdenesVisibles.has(proceso.ordenId)
+          );
+        })
+        .map((proceso) => proceso.ordenId),
+    ),
+  ];
+
+  // 8. Observaciones administrativas.
+  //
+  // La tabla comentarios_registro no distingue
+  // comentarios operativos de comentarios confidenciales.
+  //
+  // Por seguridad, no se entregan comentarios generales
+  // a sesiones PIN hasta establecer esa distinción.
+  //
+  // Conservamos el contrato del componente para
+  // habilitar posteriormente la lectura autorizada.
+  const comentariosPorOrden: Record<string, ComentarioRegistro[]> =
+  Object.fromEntries(
+    await Promise.all(
+      idsOrdenesOperador.map(async (ordenId) => [
+        ordenId,
+        await obtenerComentariosPorEntidad(
+          cliente,
+          'orden',
+          ordenId,
+        ),
+      ] as const),
+    ),
+  );
+
+  // 9. Renderizar panel personal.
+  return (
+    <main className="min-h-screen space-y-6 p-4 sm:p-6">
+      <SincronizadorPisoRealtime
+        rutaAlExpirar="/operador"
+      />
+
+      <EncabezadoTerminalOperador
+        nombreOperador={nombreOperador}
+        operativo
+      />
+
+      <PaginaMiPanelOperador
+        nombreOperador={nombreOperador}
+        operadorId={operadorId}
+        procesos={espacio.procesos}
+        ordenes={ordenes}
+        materiales={materiales}
+        areas={areas}
+        hoy={espacio.hoy}
+        motivosPausa={espacio.motivosPausa}
+        horasReclamadasHoy={
+          espacio.resumen.horasReclamadasHoy
+        }
+        consumos={consumos}
+        comentariosPorOrden={comentariosPorOrden}
+      />
+    </main>
+  );
+}
