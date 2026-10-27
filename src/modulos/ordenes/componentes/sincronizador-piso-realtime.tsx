@@ -42,7 +42,12 @@ export function SincronizadorPisoRealtime({
     }
 
     eventos.addEventListener('cambio', programarRefresco);
-    eventos.addEventListener('sesion_expirada', () => router.replace(rutaAlExpirar));
+
+    eventos.addEventListener('open', programarRefresco);
+
+    eventos.addEventListener('sesion_expirada', () => {
+      router.replace(rutaAlExpirar);
+    });
     window.addEventListener(EVENTO_OPERACION_LOCAL, bloquearRefrescoPorOperacionLocal);
 
     return () => {
