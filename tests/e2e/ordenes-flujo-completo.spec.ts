@@ -28,6 +28,7 @@ type ContextoE2E = {
   administradorId: string;
   operadorId: string;
   clienteId: string;
+  recursoIds: string[];
   materialLegacyId: string;
   materialId: string;
   ordenId: string | null;
@@ -113,6 +114,35 @@ async function prepararContexto(): Promise<ContextoE2E> {
     throw new Error(`No se pudo configurar el PIN E2E: ${errorPin.message}`);
   }
 
+  // El arranque de una operación reclamada asigna un recurso compatible. La
+  // prueba no debe depender de la capacidad que otros specs ya reservaron en
+  // las estaciones compartidas del entorno E2E.
+  const areasRecurso = ['sheet_metal', 'taller', 'acabados', 'ext'] as const;
+  const { data: recursos, error: errorRecursos } = await admin
+    .from('recursos_planeacion')
+    .insert(areasRecurso.map((area) => ({
+      codigo: `E2E-ORD-${sufijo.toUpperCase()}-${area.toUpperCase()}`,
+      nombre: `Recurso órdenes E2E ${area} ${sufijo}`,
+      area,
+      activo: true,
+    })))
+    .select('id');
+  if (errorRecursos || !recursos || recursos.length !== areasRecurso.length) {
+    throw new Error(`No se pudieron crear recursos E2E: ${errorRecursos?.message ?? 'respuesta incompleta'}`);
+  }
+  const recursoIds = recursos.map((recurso) => recurso.id);
+
+  const { error: errorCapacidades } = await admin
+    .from('capacidades_recurso_turno')
+    .insert(recursoIds.flatMap((recursoId) => [
+      { recurso_id: recursoId, turno: 'matutino', horas_capacidad: 8 },
+      { recurso_id: recursoId, turno: 'vespertino', horas_capacidad: 8 },
+      { recurso_id: recursoId, turno: 'nocturno', horas_capacidad: 8 },
+    ]));
+  if (errorCapacidades) {
+    throw new Error(`No se pudieron crear capacidades E2E: ${errorCapacidades.message}`);
+  }
+
   const { data: cliente, error: errorCliente } = await admin
     .from('clientes')
     .insert({
@@ -180,6 +210,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
     administradorId,
     operadorId,
     clienteId: cliente.id,
+    recursoIds,
     materialLegacyId: materialLegacy.id,
     materialId: material.id,
     ordenId: null,
@@ -206,11 +237,22 @@ async function limpiarContexto(contexto: ContextoE2E): Promise<void> {
       .from('registros_tiempo_operador')
       .delete()
       .eq('partida_id', contexto.partidaId);
+    await contexto.admin
+      .from('sesiones_trabajo')
+      .delete()
+      .eq('partida_id', contexto.partidaId);
+    await contexto.admin
+      .from('reclamos_proceso_operador')
+      .delete()
+      .eq('partida_id', contexto.partidaId);
   }
   if (contexto.ordenId) {
     await contexto.admin.from('movimientos_inventario').delete().eq('orden_id', contexto.ordenId);
+    await contexto.admin.from('programacion_areas').delete().eq('orden_id', contexto.ordenId);
     await contexto.admin.from('ordenes_produccion').delete().eq('id', contexto.ordenId);
   }
+  await contexto.admin.from('capacidades_recurso_turno').delete().in('recurso_id', contexto.recursoIds);
+  await contexto.admin.from('recursos_planeacion').delete().in('id', contexto.recursoIds);
   await contexto.admin.from('catalogo_materiales').update({ activo: false }).eq('id', contexto.materialId);
   await contexto.admin.from('clientes').delete().eq('id', contexto.clienteId);
   if (recursos.length > 0) {
@@ -242,7 +284,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await limpiarContexto(contexto);
   });
 
-  test('crea, inicia y opera una OP con tiempo, avance, consumo y auditoría', async ({ page }) => {
+  test('crea, reserva e inicia una OP y registra consumo desde el panel del operador', async ({ page }) => {
     await page.goto('/iniciar-sesion');
     await expect(page.getByTestId('formulario-iniciar-sesion')).toHaveAttribute(
       'data-hidratado',
@@ -336,24 +378,30 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     for (const digito of contexto.pinOperador) {
       await page.getByRole('button', { name: digito, exact: true }).click();
     }
-    const respuestaSincronizacion = page.waitForResponse(
-      (respuesta) =>
-        respuesta.url().includes('/api/produccion-piso/sincronizacion')
-        && respuesta.status() === 200,
-    );
     await page.getByRole('button', { name: 'Confirmar PIN' }).click();
     await page.waitForURL('**/produccion-piso');
+    const espacioOperador = page.getByTestId('espacio-operador');
+    await expect(espacioOperador).toBeVisible();
+    const tarjetaProceso = page.locator('[data-testid^="proceso-"]', { hasText: folio });
+    await expect(tarjetaProceso).toHaveCount(1);
+    await tarjetaProceso.getByRole('button', { name: 'Reclamar' }).click();
+    await expect(page.getByTestId('aviso-espacio')).toContainText('Proceso reservado en tu jornada');
+
+    await tarjetaProceso.getByRole('button', { name: 'Iniciar' }).click();
+    const checklist = page.getByTestId('checklist-inicio');
+    await expect(checklist).toBeVisible();
+    for (const casilla of await checklist.getByRole('checkbox').all()) {
+      await casilla.check();
+    }
+    await checklist.getByTestId('confirmar-checklist-inicio').click();
+    await expect(page.getByTestId('aviso-espacio')).toContainText('Sesión iniciada');
+
+    // El control de consumo no duplica la vista principal del piso: se abre
+    // desde el detalle personal del proceso reservado e iniciado.
+    await page.goto('/operador/mi-panel');
+    await expect(page.getByRole('button', { name: 'Gestionar proceso' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Gestionar proceso' }).click();
     await expect(page.getByTestId('control-piso')).toHaveAttribute('data-hidratado', 'true');
-    await respuestaSincronizacion;
-
-    await page.getByTestId('selector-orden-piso').selectOption(contexto.ordenId!);
-    await page.getByTestId('iniciar-tiempo').click();
-    await expect(page.getByRole('status')).toContainText('Tiempo de inicio registrado');
-
-    await page.getByTestId('cantidad-producida').fill('2');
-    await page.getByTestId('cantidad-scrap-fabricacion').fill('1');
-    await page.getByTestId('registrar-avance').click();
-    await expect(page.getByRole('status')).toContainText('Avance de partida registrado');
 
     await page.getByTestId('material-consumo').selectOption(contexto.materialId);
     await page.getByTestId('cantidad-consumo').fill('3');
@@ -362,26 +410,26 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
 
     const { data: partida, error: errorPartida } = await contexto.admin
       .from('partidas_orden_produccion')
-      .select('id, cantidad_producida, cantidad_scrap, operador_asignado_id')
+      .select('id, operador_asignado_id')
       .eq('orden_id', contexto.ordenId!)
       .single();
     expect(errorPartida).toBeNull();
     expect(partida).not.toBeNull();
     contexto.partidaId = partida!.id;
-    expect(Number(partida!.cantidad_producida)).toBe(2);
-    expect(Number(partida!.cantidad_scrap)).toBe(1);
     expect(partida!.operador_asignado_id).toBe(contexto.operadorId);
 
-    const { data: avances, error: errorAvances } = await contexto.admin
-      .from('registros_avance_partida')
-      .select('cantidad_producida, cantidad_scrap, operador_id')
-      .eq('partida_id', contexto.partidaId);
-    expect(errorAvances).toBeNull();
-    expect(avances).toContainEqual({
-      cantidad_producida: 2,
-      cantidad_scrap: 1,
+    const { data: sesiones, error: errorSesiones } = await contexto.admin
+      .from('sesiones_trabajo')
+      .select('id, operador_id, estado_sesion')
+      .eq('partida_id', contexto.partidaId)
+      .eq('operador_id', contexto.operadorId);
+    expect(errorSesiones).toBeNull();
+    expect(sesiones).toContainEqual(expect.objectContaining({
       operador_id: contexto.operadorId,
-    });
+      estado_sesion: 'activa',
+    }));
+    const sesionActiva = sesiones?.find((sesion) => sesion.estado_sesion === 'activa');
+    expect(sesionActiva).toBeDefined();
 
     const { data: consumo, error: errorConsumo } = await contexto.admin
       .from('registros_consumo_material')
@@ -402,14 +450,6 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
       origen: 'NUEVO',
     });
 
-    const { data: tiempo } = await contexto.admin
-      .from('registros_tiempo_operador')
-      .select('id, accion')
-      .eq('partida_id', contexto.partidaId);
-    expect(tiempo?.some((registro) => registro.accion === 'inicio')).toBe(true);
-    const registroInicio = tiempo?.find((registro) => registro.accion === 'inicio');
-    expect(registroInicio).toBeDefined();
-
     const { data: material } = await contexto.admin
       .from('materiales')
       .select('stock_actual_control')
@@ -420,21 +460,18 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     const { data: logs } = await contexto.admin
       .from('logs')
       .select('accion')
-      .eq('modulo', 'ordenes')
       .in('recurso_id', [
         contexto.ordenId!,
         contexto.partidaId,
         contexto.consumoId,
-        registroInicio!.id,
+        sesionActiva!.id,
       ]);
     const acciones = new Set((logs ?? []).map((log) => log.accion));
-    // SII-B5: la cola ya no expone Iniciar/Completar; la prueba avanza el estado
-    // con updates administrativos, así que `cambiar_estado_orden` ya no se registra.
-    // La creación salió de la UI, así que tampoco se emite `crear_orden_manual`.
+    // La cola ya no expone el formulario operativo global: la reserva y el
+    // arranque auditados se hacen desde el proceso, y el consumo desde su panel.
     const accionesEsperadas = [
-      'registrar_tiempo_operador',
-      'registrar_avance_partida',
       'registrar_consumo_material',
+      'iniciar_proceso_reclamado',
     ];
     for (const accion of accionesEsperadas) {
       expect(acciones.has(accion)).toBe(true);

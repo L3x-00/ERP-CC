@@ -30,7 +30,7 @@ export function EncabezadoTerminalOperador({
       <MenuCuentaOperador
         nombreOperador={nombreOperador}
         operativo={operativo}
-        onVerMiPanel={() => router.push('/operador/mi-panel')}
+        onVerMiPanel={operativo ? () => router.push('/operador/mi-panel') : undefined}
         onSalir={
           operativo
             ? () => void cerrarVistaOperadorAccion()

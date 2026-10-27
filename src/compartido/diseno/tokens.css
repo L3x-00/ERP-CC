@@ -10,7 +10,8 @@
    alias históricos (`--background`, `--foreground`, `--primario`, `--secundario`,
    `--radius`) re-mapeados al nuevo lenguaje para no romper componentes previos.
 
-   Modo oscuro: next-themes `attribute="class"`. El piso de taller fuerza `.dark`.
+   Modo oscuro: next-themes `attribute="class"`. El piso de taller hereda la
+   preferencia global del usuario.
    ============================================================================= */
 
 /* -----------------------------------------------------------------------------

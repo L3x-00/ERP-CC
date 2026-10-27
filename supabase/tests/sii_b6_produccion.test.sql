@@ -5,7 +5,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(75);
+SELECT plan(79);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: actores, cliente, recursos, orden/partidas y programaciones
@@ -188,13 +188,21 @@ $$, 'Checklist completo inicia la corrida');
 SELECT is((SELECT estado FROM public.corridas
   WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'corrida1')), 'EN_PROCESO',
   'La corrida queda EN_PROCESO');
+SELECT is((SELECT estado FROM public.ordenes_produccion
+  WHERE id = '00000000-0000-4000-8000-00000000b607'), 'en_proceso',
+  'Iniciar una corrida actualiza la orden legacy a en_proceso sin esperar una sesión');
 
--- Hook B5: la primera sesión de trabajo deriva la orden a EN_PRODUCCION.
+-- La corrida iniciada ya deriva la orden para que Órdenes, Planeación y Producción
+-- compartan el mismo hecho persistido antes de abrir una sesión de operador.
 SELECT has_trigger('public', 'sesiones_trabajo', 'trigger_sesiones_derivar_orden_en_produccion',
   'El hook B5 de derivación a EN_PRODUCCION existe');
 SELECT is((SELECT estado_sii FROM public.ordenes_produccion
-  WHERE id = '00000000-0000-4000-8000-00000000b607'), 'PLANIFICADA',
-  'Antes de la primera sesión la orden sigue PLANIFICADA');
+  WHERE id = '00000000-0000-4000-8000-00000000b607'), 'EN_PRODUCCION',
+  'Iniciar la corrida deriva la orden a EN_PRODUCCION antes de la primera sesión');
+SELECT is((SELECT count(*) FROM public.orden_eventos_cambio
+  WHERE orden_id = '00000000-0000-4000-8000-00000000b607'
+    AND tipo = 'produccion_iniciada'), 1::bigint,
+  'Iniciar la corrida deja trazabilidad para seguimiento administrativo');
 
 SELECT throws_ok($$
   SELECT * FROM public.iniciar_sesion_trabajo_operador(
@@ -500,6 +508,12 @@ SELECT ok(NOT has_function_privilege('authenticated',
 SELECT ok(has_function_privilege('service_role',
   'public.crear_corrida(uuid,uuid,jsonb,uuid,uuid)', 'EXECUTE'),
   'service_role ejecuta crear_corrida');
+SELECT ok(NOT has_function_privilege('authenticated',
+  'public.iniciar_corrida(uuid,jsonb,uuid,uuid)', 'EXECUTE'),
+  'authenticated no ejecuta iniciar_corrida');
+SELECT ok(has_function_privilege('service_role',
+  'public.iniciar_corrida(uuid,jsonb,uuid,uuid)', 'EXECUTE'),
+  'service_role ejecuta iniciar_corrida');
 SELECT ok(NOT has_function_privilege('authenticated',
   'public.registrar_inspeccion(uuid,uuid,uuid,text,text,integer,text,jsonb,numeric,numeric,numeric,numeric,jsonb,text,uuid,uuid)',
   'EXECUTE'), 'authenticated no ejecuta registrar_inspeccion');

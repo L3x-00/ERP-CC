@@ -150,7 +150,8 @@ El tema es global y se alterna desde el menú del usuario (`OpcionTemaMenu`):
 la luna pasa a oscuro y el sol vuelve a claro. `next-themes` aplica la clase
 `light`/`dark` al `<html>`, persiste la elección en `localStorage` y
 `color-scheme` acompaña a los controles nativos (fechas, selects, scrollbars).
-El piso de taller fuerza `.dark` en `(piso)/layout.tsx` y no muestra el control.
+El piso de taller hereda el tema global. El menú de cuenta del operador permite
+alternarlo y conserva la elección entre rutas y recargas.
 
 Los mismos tokens cambian de valor:
 no escribir paletas zinc/slate/cyan/emerald hardcodeadas. Los componentes deben

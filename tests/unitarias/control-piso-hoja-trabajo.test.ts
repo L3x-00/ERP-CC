@@ -12,6 +12,7 @@ vi.mock('@/modulos/ordenes/acciones/registrar-tiempo-operador', () => ({ registr
 
 import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
 import type { OrdenConPartidas } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import type { MaterialPiso } from '@/modulos/ordenes/componentes/control-piso-panel';
 
 const ORDEN_ID = '00000000-0000-4000-8000-0000000c8391';
 const OPERADOR_ID = '00000000-0000-4000-8000-0000000c8392';
@@ -30,6 +31,13 @@ const ORDENES: OrdenConPartidas[] = [{
     tiempoRealMinutos: 0, maquinaAsignada: null, operadorAsignadoId: OPERADOR_ID,
     creadoEn: '2026-10-09T12:00:00.000Z', actualizadoEn: '2026-10-09T12:00:00.000Z',
   }],
+}];
+
+const MATERIALES: MaterialPiso[] = [{
+  id: '00000000-0000-4000-8000-0000000c8393',
+  codigo: 'LAM-01',
+  nombre: 'Lámina de prueba',
+  unidadBase: 'pza',
 }];
 
 afterEach(() => cleanup());
@@ -51,5 +59,20 @@ describe('Control de piso · acceso a la hoja de trabajo (C8.3c)', () => {
     }));
 
     expect(screen.getByTestId('abrir-hoja-trabajo')).toBeTruthy();
+  });
+
+  it('mantiene el registro de material dentro del detalle de un proceso sin duplicar tiempo ni avance', () => {
+    render(createElement(ControlPisoPanel, {
+      operadorId: OPERADOR_ID,
+      nombreOperador: 'Operador Uno',
+      ordenes: ORDENES,
+      materiales: MATERIALES,
+      modo: 'proceso',
+    }));
+
+    expect(screen.getByRole('heading', { name: 'Consumo de material' })).toBeTruthy();
+    expect(screen.getByTestId('registrar-consumo')).toBeTruthy();
+    expect(screen.queryByTestId('iniciar-tiempo')).toBeNull();
+    expect(screen.queryByTestId('registrar-avance')).toBeNull();
   });
 });

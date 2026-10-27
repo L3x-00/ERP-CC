@@ -240,6 +240,15 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     await page.goto(`/produccion?ordenId=${caso.ordenId}`);
     const panelCorridas = page.getByTestId('panel-corridas');
     await expect(panelCorridas).toBeVisible();
+    // La segunda vista debe recibir la transición por Realtime: no se recarga
+    // ni se navega después de iniciar la corrida en la primera.
+    const observador = await browser.newPage();
+    await iniciarSesionAdministrador(observador, caso);
+    await observador.goto('/produccion');
+    await expect(observador.getByTestId('sincronizador-produccion'))
+      .toHaveAttribute('data-conectado', 'true');
+    const tarjetaObservada = observador.getByTestId(`tarjeta-produccion-${caso.ordenId}`);
+    await expect(tarjetaObservada).toContainText('Bandeja');
     const { data: procesoLaser } = await caso.admin.from('catalogo_procesos')
       .select('id').eq('codigo', 'LASER_FIBRA').single();
     if (!procesoLaser) throw new Error('Falta el proceso LASER_FIBRA sembrado en el catálogo');
@@ -274,6 +283,13 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
       const { data } = await caso.admin.from('corridas').select('estado').eq('id', corrida?.id ?? '').single();
       return data?.estado;
     }).toBe('EN_PROCESO');
+    await expect.poll(async () => {
+      const { data } = await caso.admin.from('ordenes_produccion')
+        .select('estado, estado_sii').eq('id', caso.ordenId).single();
+      return `${data?.estado}/${data?.estado_sii}`;
+    }).toBe('en_proceso/EN_PRODUCCION');
+    await expect(tarjetaObservada).toContainText('En proceso');
+    await observador.close();
 
     // Calidad: primera pieza aprobada con foto de evidencia.
     const panelCalidad = page.getByTestId('panel-calidad');
