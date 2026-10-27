@@ -1,9 +1,7 @@
 import { redirect } from 'next/navigation';
 import { BannerVistaOperador } from '@/modulos/autenticacion/componentes/banner-vista-operador';
 import { BotonVolverAdmin } from '@/modulos/autenticacion/componentes/botones-vista-produccion';
-import { ControlPisoPanel } from '@/modulos/ordenes/componentes/control-piso-panel';
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
-import { obtenerOrdenesConPartidasDePisoServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { EspacioOperador } from '@/modulos/produccion/componentes/espacio-operador';
 import { obtenerEspacioOperadorServicio } from '@/modulos/produccion/servicios/espacio-operador-servicio';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
@@ -40,54 +38,7 @@ export default async function PaginaProduccionPiso() {
 
   const admin = crearClienteSupabaseAdmin();
   const operadorId = contexto?.operador.id ?? null;
-  const [ordenes, espacio] = await Promise.all([
-    obtenerOrdenesConPartidasDePisoServicio(admin, operadorId),
-    obtenerEspacioOperadorServicio(admin, operadorId),
-  ]);
-  const idsMateriales = [
-    ...new Set(
-      ordenes.flatMap(({ partidas }) =>
-        partidas.flatMap((partida) => (partida.materialId ? [partida.materialId] : [])),
-      ),
-    ),
-  ];
-  const resultadoMateriales = idsMateriales.length
-    ? await admin
-        .from('catalogo_materiales')
-        .select('id, codigo, nombre, unidad_base')
-        .in('id', idsMateriales)
-        .eq('activo', true)
-        .order('nombre', { ascending: true })
-    : { data: [], error: null };
-
-  if (resultadoMateriales.error) {
-    throw new Error('No se pudieron cargar los materiales para el control de piso');
-  }
-
-  // OBS-09/PRD-11 y A06: catálogo mínimo de taller (nombre para las etiquetas;
-  // padre y área macro para filtrar por familia, no por código exacto).
-  const resultadoAreas = await admin
-    .from('areas_trabajo_config')
-    .select('codigo, nombre, padre_codigo, area_planeacion')
-    .order('orden')
-    .order('nombre');
-  if (resultadoAreas.error) {
-    throw new Error('No se pudieron cargar las áreas de taller para el control de piso');
-  }
-
-  const materiales = (resultadoMateriales.data ?? []).map((material) => ({
-    id: material.id,
-    codigo: material.codigo,
-    nombre: material.nombre,
-    unidadBase: material.unidad_base,
-  }));
-
-  const areas = (resultadoAreas.data ?? []).map((area) => ({
-    codigo: area.codigo,
-    nombre: area.nombre,
-    padreCodigo: area.padre_codigo,
-    areaPlaneacion: area.area_planeacion,
-  }));
+  const espacio = await obtenerEspacioOperadorServicio(admin, operadorId);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -129,14 +80,6 @@ export default async function PaginaProduccionPiso() {
         operadorId={operadorId}
         soloLectura={soloLectura}
         nombreOperador={operador.nombreCompleto}
-      />
-      <ControlPisoPanel
-        operadorId={operador.id}
-        nombreOperador={operador.nombreCompleto}
-        ordenes={ordenes}
-        materiales={materiales}
-        areas={areas}
-        soloLectura={soloLectura}
       />
     </div>
   );

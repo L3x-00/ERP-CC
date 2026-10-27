@@ -15,7 +15,7 @@ import {
 interface PropsMenuCuentaOperador {
   nombreOperador: string;
   operativo: boolean;
-  onVerMiPanel: () => void;
+  onVerMiPanel?: () => void;
   onSalir?: () => void;
 }
 
@@ -96,18 +96,20 @@ export function MenuCuentaOperador({
               </p>
             </div>
 
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setAbierto(false);
-                onVerMiPanel();
-              }}
-              className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm text-texto-primario transition-colors hover:bg-superficie-2 focus-visible:outline-2 focus-visible:outline-acento"
-            >
-              <LayoutDashboard size={17} aria-hidden="true" />
-              <span className="flex-1">Ver mi panel</span>
-            </button>
+            {onVerMiPanel ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setAbierto(false);
+                  onVerMiPanel();
+                }}
+                className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm text-texto-primario transition-colors hover:bg-superficie-2 focus-visible:outline-2 focus-visible:outline-acento"
+              >
+                <LayoutDashboard size={17} aria-hidden="true" />
+                <span className="flex-1">Ver mi panel</span>
+              </button>
+            ) : null}
 
             <button
               type="button"

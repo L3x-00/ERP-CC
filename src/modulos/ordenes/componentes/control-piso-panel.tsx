@@ -286,19 +286,23 @@ export function ControlPisoPanel({
     <section
       data-testid="control-piso"
       data-hidratado={hidratado ? 'true' : 'false'}
-      className="flex max-w-5xl flex-col gap-5"
+      className={modo === 'proceso'
+        ? 'flex flex-col gap-4'
+        : 'flex max-w-5xl flex-col gap-5'}
       aria-label="Control de piso de producción"
     >
-      <header className="flex flex-col gap-1 border-b border-borde pb-4">
-        <h1 className="text-2xl font-bold text-texto-primario">Control de piso</h1>
-        <p className="text-sm text-texto-secundario">
-          {soloLectura
-            ? 'Consulta el trabajo asignado sin modificar la producción.'
-            : 'Registra tiempo, piezas y material. Las operaciones se validan en el servidor.'}
-        </p>
-      </header>
+      {modo === 'completo' ? (
+        <header className="flex flex-col gap-1 border-b border-borde pb-4">
+          <h1 className="text-2xl font-bold text-texto-primario">Control de piso</h1>
+          <p className="text-sm text-texto-secundario">
+            {soloLectura
+              ? 'Consulta el trabajo asignado sin modificar la producción.'
+              : 'Registra tiempo, piezas y material. Las operaciones se validan en el servidor.'}
+          </p>
+        </header>
+      ) : null}
 
-      {ordenActiva ? (
+      {modo === 'completo' && ordenActiva ? (
         <section
           className="flex flex-col gap-2 rounded-lg border border-borde border-l-4 border-l-acento bg-acento-suave p-4"
           aria-label="Mi OP activa"
@@ -353,70 +357,72 @@ export function ControlPisoPanel({
         </section>
       ) : null}
 
-      {ordenesVisibles.length === 0 ? (
-        <p className="rounded-lg border border-borde bg-superficie p-4 text-sm text-texto-secundario">
-          No tienes partidas en esta área.
-        </p>
-      ) : (
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="selector-orden-piso" className="text-sm font-medium text-texto-secundario">
-            Orden en proceso
-          </label>
-          <Select
-            id="selector-orden-piso"
-            data-testid="selector-orden-piso"
-            value={ordenActiva?.orden.id ?? ''}
-            onChange={(evento) => seleccionarOrdenPiso(evento.target.value)}
-          >
-            {ordenesVisibles.map(({ orden }) => (
-              <option key={orden.id} value={orden.id}>
-                {orden.folio}
-                {orden.esInterna ? ' · TI' : ''}
-              </option>
-            ))}
-          </Select>
-        </div>
+      {modo === 'completo' && (
+        ordenesVisibles.length === 0 ? (
+          <p className="rounded-lg border border-borde bg-superficie p-4 text-sm text-texto-secundario">
+            No tienes partidas en esta área.
+          </p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="selector-orden-piso" className="text-sm font-medium text-texto-secundario">
+                Orden en proceso
+              </label>
+              <Select
+                id="selector-orden-piso"
+                data-testid="selector-orden-piso"
+                value={ordenActiva?.orden.id ?? ''}
+                onChange={(evento) => seleccionarOrdenPiso(evento.target.value)}
+              >
+                {ordenesVisibles.map(({ orden }) => (
+                  <option key={orden.id} value={orden.id}>
+                    {orden.folio}
+                    {orden.esInterna ? ' · TI' : ''}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="selector-partida-piso" className="text-sm font-medium text-texto-secundario">
-            Partida
-          </label>
-          <Select
-            id="selector-partida-piso"
-            data-testid="selector-partida-piso"
-            value={partidaActiva?.id ?? ''}
-            onChange={(evento) => seleccionarPartidaPiso(evento.target.value)}
-          >
-            {(ordenActiva?.partidas ?? []).map((partida) => (
-              <option key={partida.id} value={partida.id}>
-                {partida.codigoPieza} — {partida.cantidadProducida}/{partida.cantidadSolicitada}{' '}
-                {partida.unidadMedida}
-              </option>
-            ))}
-          </Select>
-        </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="selector-partida-piso" className="text-sm font-medium text-texto-secundario">
+                Partida
+              </label>
+              <Select
+                id="selector-partida-piso"
+                data-testid="selector-partida-piso"
+                value={partidaActiva?.id ?? ''}
+                onChange={(evento) => seleccionarPartidaPiso(evento.target.value)}
+              >
+                {(ordenActiva?.partidas ?? []).map((partida) => (
+                  <option key={partida.id} value={partida.id}>
+                    {partida.codigoPieza} — {partida.cantidadProducida}/{partida.cantidadSolicitada}{' '}
+                    {partida.unidadMedida}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
-        {/* OBS-09: filtro por área sobre las partidas asignadas al operador. */}
-        <div className="flex flex-col gap-1">
-          <label htmlFor="selector-area-piso" className="text-sm font-medium text-texto-secundario">
-            Área de taller
-          </label>
-          <Select
-            id="selector-area-piso"
-            data-testid="selector-area-piso"
-            value={areaFiltro}
-            onChange={(evento) => setAreaFiltro(evento.target.value)}
-          >
-            <option value="">Todas mis áreas</option>
-            {opcionesArea.map((opcion) => (
-              <option key={opcion.codigo} value={opcion.codigo}>
-                {opcion.nombre}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </div>
+            {/* OBS-09: filtro por área sobre las partidas asignadas al operador. */}
+            <div className="flex flex-col gap-1">
+              <label htmlFor="selector-area-piso" className="text-sm font-medium text-texto-secundario">
+                Área de taller
+              </label>
+              <Select
+                id="selector-area-piso"
+                data-testid="selector-area-piso"
+                value={areaFiltro}
+                onChange={(evento) => setAreaFiltro(evento.target.value)}
+              >
+                <option value="">Todas mis áreas</option>
+                {opcionesArea.map((opcion) => (
+                  <option key={opcion.codigo} value={opcion.codigo}>
+                    {opcion.nombre}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+        )
       )}
 
       {soloLectura ? (
@@ -513,7 +519,7 @@ export function ControlPisoPanel({
           </Button>
         </section>
       ) : null}
-      {modo === 'completo' ? (
+      {partidaActiva ? (
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
           <h2 className="text-lg font-semibold text-texto-primario">Consumo de material</h2>
           <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="material-consumo">

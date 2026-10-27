@@ -41,7 +41,6 @@ import {
   type ResultadoOperacion,
 } from './detalle-proceso-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
-import type { ComentarioRegistro } from '@/modulos/comentarios/tipos/comentarios';
 interface PropsPaginaMiPanelOperador {
   nombreOperador: string;
   operadorId: string;
@@ -53,7 +52,6 @@ interface PropsPaginaMiPanelOperador {
   hoy: string;
   horasReclamadasHoy: number;
   consumos: RegistroConsumoMaterial[];
-  comentariosPorOrden: Record<string, ComentarioRegistro[]>;
 }
 
 type FiltroEstado = 'todos' | EstadoMiProceso;
@@ -89,7 +87,6 @@ export function PaginaMiPanelOperador({
   hoy,
   horasReclamadasHoy,
   consumos,
-  comentariosPorOrden,
 }: PropsPaginaMiPanelOperador) {
   const enrutador = useRouter();
   const [filtro, setFiltro] = useState<FiltroEstado>('todos');
@@ -471,48 +468,6 @@ export function PaginaMiPanelOperador({
             onCerrar={() => setProcesoSeleccionadoId(null)}
             presentacion="integrado"
           />
-          <section
-            aria-label="Observaciones de la orden"
-            className="rounded-xl border border-borde bg-superficie p-5"
-          >
-            <h3 className="text-lg font-semibold text-texto-primario">
-              Observaciones de la orden
-            </h3>
-
-            <p className="mt-1 text-xs text-texto-secundario">
-              Comentarios registrados en la ficha administrativa.
-              Vista de solo lectura.
-            </p>
-
-            {(comentariosPorOrden[procesoSeleccionado.ordenId] ?? []).length === 0 ? (
-              <p className="mt-4 text-sm text-texto-secundario">
-                No hay observaciones registradas para esta orden.
-              </p>
-            ) : (
-              <ul className="mt-4 divide-y divide-borde">
-                {(comentariosPorOrden[procesoSeleccionado.ordenId] ?? []).map(
-                  (comentario) => (
-                    <li key={comentario.id} className="space-y-2 py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-semibold text-texto-primario">
-                          {comentario.autorNombre}
-                        </span>
-                        <time
-                          dateTime={comentario.creadoEn}
-                          className="text-xs text-texto-secundario"
-                        >
-                          {new Date(comentario.creadoEn).toLocaleString('es-PE')}
-                        </time>
-                      </div>
-                      <p className="whitespace-pre-wrap break-words text-sm text-texto-secundario">
-                        {comentario.contenido}
-                      </p>
-                    </li>
-                  ),
-                )}
-              </ul>
-            )}
-          </section>
           <section
             aria-label="Consumo acumulado de materiales de la partida"
             className="rounded-xl border border-borde bg-superficie p-5"

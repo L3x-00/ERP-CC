@@ -283,14 +283,16 @@ test.describe.serial('piso de Producción y entregas', () => {
       await page.getByRole('button', { name: 'Confirmar PIN' }).click();
       await page.waitForURL('**/produccion-piso');
 
-      await expect(page.getByTestId('control-piso')).toBeVisible();
-      await expect(page.getByTestId('selector-orden-piso')).toHaveValue(caso.ordenId);
+      // El piso concentra la cola y el detalle de procesos. El registro operativo
+      // vive en el detalle/panel personal para no duplicar una tabla extensa al final.
+      await expect(page.getByTestId('espacio-operador')).toBeVisible();
+      await expect(page.getByTestId('control-piso')).toHaveCount(0);
       await expect(
         page.getByRole('button', { name: /^Opciones de / })
       ).toBeVisible();
 
       // C8.3c (O-05 C): el operador con PIN abre la hoja de trabajo sin precios y sus archivos.
-      await page.getByTestId('abrir-hoja-trabajo').click();
+      await page.goto(`/produccion-piso/hoja/${caso.ordenId}`);
       await page.waitForURL(`**/produccion-piso/hoja/${caso.ordenId}`);
       const hoja = page.getByTestId('hoja-trabajo-piso');
       await expect(hoja).toContainText('Orden de servicio');
@@ -311,28 +313,44 @@ test.describe.serial('piso de Producción y entregas', () => {
       const ajena = await page.goto(`/produccion-piso/hoja/${randomUUID()}`);
       expect(ajena?.status()).toBe(404);
       await page.goto('/produccion-piso');
-      await expect(page.getByTestId('control-piso')).toBeVisible();
+      await expect(page.getByTestId('espacio-operador')).toBeVisible();
 
       // Abrir el menú de cuenta del operador.
-        await page.getByRole('button', { name: /^Opciones de / }).click();
+      await page.getByRole('button', { name: /^Opciones de / }).click();
 
-        // Comprobar que aparece la opción de cierre de sesión.
-        const menuOperador = page.getByRole('menu', {
-          name: 'Menú del operador',
-        });
+      // Comprobar que aparecen el panel personal, tema y cierre de sesión.
+      const menuOperador = page.getByRole('menu', {
+        name: 'Menú del operador',
+      });
 
-        await expect(menuOperador).toBeVisible();
+      await expect(menuOperador).toBeVisible();
+      await expect(menuOperador.getByRole('menuitem', { name: 'Ver mi panel' })).toBeVisible();
 
-        const opcionSalir = menuOperador.getByRole('menuitem', {
-          name: 'Salir',
-          exact: true,
-        });
+      const temaInicial = (await page.locator('html').getAttribute('class'))?.includes('dark')
+        ? 'dark'
+        : 'light';
+      const temaDestino = temaInicial === 'dark' ? 'light' : 'dark';
+      await menuOperador.getByRole('menuitem', {
+        name: `Cambiar a tema ${temaDestino === 'dark' ? 'oscuro' : 'claro'}`,
+      }).click();
+      await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${temaDestino}\\b`));
 
-        await expect(opcionSalir).toBeVisible();
+      await page.getByRole('button', { name: /^Opciones de / }).click();
+      await page.getByRole('menuitem', { name: 'Ver mi panel' }).click();
+      await page.waitForURL('**/operador/mi-panel');
+      await expect(page.getByTestId('jornada-diaria-operador')).toBeVisible();
+      await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${temaDestino}\\b`));
 
-        // Cerrar sesión y regresar al acceso PIN.
-        await opcionSalir.click();
-        await page.waitForURL('**/operador');
+      await page.getByRole('button', { name: /^Opciones de / }).click();
+      const opcionSalir = page.getByRole('menu', { name: 'Menú del operador' }).getByRole('menuitem', {
+        name: 'Salir',
+        exact: true,
+      });
+      await expect(opcionSalir).toBeVisible();
+
+      // Cerrar sesión y regresar al acceso PIN.
+      await opcionSalir.click();
+      await page.waitForURL('**/operador');
       await expect(page.getByTestId('teclado-pin')).toBeVisible();
     } finally {
       await limpiarContexto(caso);
@@ -443,8 +461,8 @@ test.describe.serial('piso de Producción y entregas', () => {
       await page.goto('/produccion-piso');
       await expect(page.getByTestId('banner-vista-admin')).toContainText('Vista de administrador');
       await expect(page.getByTestId('volver-a-admin')).toBeVisible();
-      await expect(page.getByTestId('control-piso')).toBeVisible();
-      await expect(page.getByTestId('selector-orden-piso')).toHaveValue(caso.ordenId);
+      await expect(page.getByTestId('espacio-operador')).toBeVisible();
+      await expect(page.getByTestId('control-piso')).toHaveCount(0);
       await expect(page.getByTestId('iniciar-tiempo')).toHaveCount(0);
       await expect(page.getByTestId('registrar-avance')).toHaveCount(0);
       await expect(page.getByTestId('registrar-consumo')).toHaveCount(0);

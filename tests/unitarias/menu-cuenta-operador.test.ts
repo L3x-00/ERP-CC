@@ -116,6 +116,17 @@ describe('MenuCuentaOperador', () => {
     expect(screen.getByText('Solo lectura')).toBeTruthy();
   });
 
+  it('no enlaza a un panel PIN cuando la vista es administrativa de solo lectura', () => {
+    render(createElement(MenuCuentaOperador, {
+      nombreOperador: 'Administrador',
+      operativo: false,
+    }));
+
+    abrirMenu('Administrador');
+
+    expect(screen.queryByRole('menuitem', { name: 'Ver mi panel' })).toBeNull();
+  });
+
   it('permite cerrar el menú al pulsar nuevamente la identidad', () => {
     render(createElement(MenuCuentaOperador, {
       nombreOperador: 'Operador de prueba',

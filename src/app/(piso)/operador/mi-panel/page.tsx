@@ -12,12 +12,9 @@ import {
   obtenerConsumosPartidaServicio,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 
-import type { ComentarioRegistro } from '@/modulos/comentarios/tipos/comentarios';
-
 import { PaginaMiPanelOperador } from '@/modulos/produccion/componentes/pagina-mi-panel-operador';
 import { EncabezadoTerminalOperador } from '@/modulos/produccion/componentes/encabezado-terminal-operador';
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
-import { obtenerComentariosPorEntidad } from '@/modulos/comentarios/servicios/comentarios-servicio';
 /**
  * Panel personal del operador.
  *
@@ -67,11 +64,7 @@ export default async function PaginaMiPanel() {
     );
   }
 
-  // 4. Identificar órdenes y partidas visibles.
-  const idsOrdenesVisibles = new Set(
-    ordenes.map(({ orden }) => orden.id),
-  );
-
+  // 4. Identificar partidas visibles.
   const idsPartidasVisibles = [
     ...new Set(
       ordenes.flatMap(({ partidas }) =>
@@ -132,57 +125,7 @@ export default async function PaginaMiPanel() {
 
   const consumos = consumosPorPartida.flat();
 
-  // 7. Delimitar las órdenes relacionadas con la
-  // actividad personal del operador.
-  //
-  // Se cruza la actividad con las órdenes visibles,
-  // evitando confiar en un identificador del navegador.
-  const idsOrdenesOperador = [
-    ...new Set(
-      espacio.procesos
-        .filter((proceso) => {
-          const tieneReserva =
-            proceso.reclamo?.operadorId === operadorId &&
-            proceso.reclamo.estado === 'activo';
-
-          const tieneSesiones = proceso.sesiones.some(
-            (sesion) => sesion.operadorId === operadorId,
-          );
-
-          return (
-            (tieneReserva || tieneSesiones) &&
-            idsOrdenesVisibles.has(proceso.ordenId)
-          );
-        })
-        .map((proceso) => proceso.ordenId),
-    ),
-  ];
-
-  // 8. Observaciones administrativas.
-  //
-  // La tabla comentarios_registro no distingue
-  // comentarios operativos de comentarios confidenciales.
-  //
-  // Por seguridad, no se entregan comentarios generales
-  // a sesiones PIN hasta establecer esa distinción.
-  //
-  // Conservamos el contrato del componente para
-  // habilitar posteriormente la lectura autorizada.
-  const comentariosPorOrden: Record<string, ComentarioRegistro[]> =
-  Object.fromEntries(
-    await Promise.all(
-      idsOrdenesOperador.map(async (ordenId) => [
-        ordenId,
-        await obtenerComentariosPorEntidad(
-          cliente,
-          'orden',
-          ordenId,
-        ),
-      ] as const),
-    ),
-  );
-
-  // 9. Renderizar panel personal.
+  // 7. Renderizar panel personal.
   return (
     <main className="min-h-screen space-y-6 p-4 sm:p-6">
       <SincronizadorPisoRealtime
@@ -207,7 +150,6 @@ export default async function PaginaMiPanel() {
           espacio.resumen.horasReclamadasHoy
         }
         consumos={consumos}
-        comentariosPorOrden={comentariosPorOrden}
       />
     </main>
   );
