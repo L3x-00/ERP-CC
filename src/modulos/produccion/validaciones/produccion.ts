@@ -44,7 +44,18 @@ export const esquemaCerrarSesion = z
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
     pinConfirmacion: z
       .string()
-      .regex(PATRON_PIN_OPERADOR, `El PIN debe tener entre ${PIN_LONGITUD_MINIMA} y ${PIN_LONGITUD_MAXIMA} dígitos`),
+      .regex(
+        PATRON_PIN_OPERADOR,
+        `El PIN debe tener entre ${PIN_LONGITUD_MINIMA} y ${PIN_LONGITUD_MAXIMA} dígitos`,
+      ),
+    consumo: z.object({
+      materialId: z.uuid('ID de material inválido'),
+      cantidadUsada: z.number().finite().min(0),
+      cantidadScrap: z.number().finite().min(0),
+    }).strict().refine(
+      (valor) => valor.cantidadUsada + valor.cantidadScrap > 0,
+      { message: 'Registra consumo o merma mayor a cero' },
+    ).optional(),
   })
   .strict()
   .superRefine((valor, contexto) => {
@@ -53,6 +64,21 @@ export const esquemaCerrarSesion = z
         code: 'custom',
         path: ['motivoPausa'],
         message: 'El motivo de pausa es requerido',
+      });
+    }
+    if (valor.estadoDestino === 'finalizada' && !valor.consumo) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['consumo'],
+        message: 'El consumo de material es obligatorio al finalizar',
+      });
+    }
+
+    if (valor.estadoDestino === 'pausada' && valor.consumo) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['consumo'],
+        message: 'No se debe registrar consumo final al pausar',
       });
     }
   });

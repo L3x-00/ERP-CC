@@ -4,6 +4,7 @@ import { BotonVolverAdmin } from '@/modulos/autenticacion/componentes/botones-vi
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
 import { EspacioOperador } from '@/modulos/produccion/componentes/espacio-operador';
 import { obtenerEspacioOperadorServicio } from '@/modulos/produccion/servicios/espacio-operador-servicio';
+import { obtenerConsumosPartidasServicio } from '@/modulos/ordenes/servicios/ordenes-servicio';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   obtenerContextoSesionOperadorActiva,
@@ -12,6 +13,7 @@ import {
 import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { EncabezadoTerminalOperador } from '@/modulos/produccion/componentes/encabezado-terminal-operador';
+import { consumoMaterialVisibleDesdeRegistro } from '@/modulos/produccion/utilidades/consumo-material-operador';
 /**
  * Página de producción en piso. Revalida la cookie HMAC y la cuenta de operador
  * antes de cargar solo OP en proceso mediante un cliente privado de servidor.
@@ -39,7 +41,28 @@ export default async function PaginaProduccionPiso() {
   const admin = crearClienteSupabaseAdmin();
   const operadorId = contexto?.operador.id ?? null;
   const espacio = await obtenerEspacioOperadorServicio(admin, operadorId);
+  const [resultadoMateriales, consumos] = await Promise.all([
+    admin
+      .from('catalogo_materiales')
+      .select('id, codigo, nombre, unidad_base')
+      .eq('activo', true)
+      .order('codigo'),
+    obtenerConsumosPartidasServicio(
+      admin,
+      espacio.procesos.map((proceso) => proceso.partidaId),
+    ),
+  ]);
 
+  if (resultadoMateriales.error) {
+    throw new Error(`No se pudo cargar el catálogo de materiales: ${resultadoMateriales.error.message}`);
+  }
+
+  const materiales = (resultadoMateriales.data ?? []).map((material) => ({
+    id: material.id,
+    codigo: material.codigo,
+    nombre: material.nombre,
+    unidadBase: material.unidad_base,
+  }));
   return (
     <div className="flex flex-col gap-6 p-6">
       <SincronizadorPisoRealtime rutaAlExpirar={esVistaAdmin ? '/produccion' : '/operador'} />
@@ -80,6 +103,8 @@ export default async function PaginaProduccionPiso() {
         operadorId={operadorId}
         soloLectura={soloLectura}
         nombreOperador={operador.nombreCompleto}
+        materiales={materiales}
+        consumos={consumos.map(consumoMaterialVisibleDesdeRegistro)}
       />
     </div>
   );

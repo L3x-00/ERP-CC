@@ -61,6 +61,13 @@ export async function cerrarSesionOperadorAccion(
       piezasProducidas: analisis.data.piezasProducidas,
       horasNetas: sesion.horasNetas,
       estadoPlaneacion: sesion.estadoPlaneacion,
+      ...(analisis.data.consumo
+        ? {
+          materialId: analisis.data.consumo.materialId,
+          cantidadUsada: analisis.data.consumo.cantidadUsada,
+          cantidadScrap: analisis.data.consumo.cantidadScrap,
+        }
+        : {}),
     }, correlationId);
     return { exito: true, datos: sesion };
   } catch (error) {

@@ -84,7 +84,8 @@ export function PanelCorridasProduccion({
   }
 
   async function crearCorrida(): Promise<void> {
-    if (!orden || !procesoSeleccionado) return;
+
+    if (procesando || !orden || !procesoSeleccionado) return;
     const items = partidasCompatibles
       .filter(({ partida, compatible, pendiente }) =>
         compatible && pendiente > 0 && partidasMarcadas[partida.id] === true)
@@ -94,20 +95,31 @@ export function PanelCorridasProduccion({
       return;
     }
     setProcesando(true);
-    const resultado = await crearCorridaAccion({
-      ordenId: orden.id,
-      procesoId: procesoSeleccionado.id,
-      items,
-    });
-    setProcesando(false);
-    if (!resultado.exito) {
-      setMensaje(resultado.error);
-      return;
-    }
-    setMensaje(null);
     setDialogoCrear(false);
-    setPartidasMarcadas({});
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CORRIDAS_ORDEN });
+
+    try {
+      const resultado = await crearCorridaAccion({
+        ordenId: orden.id,
+        procesoId: procesoSeleccionado.id,
+        items,
+      });
+
+      if (!resultado.exito) {
+        setMensaje(resultado.error);
+        return;
+      }
+
+      setMensaje('Corrida creada correctamente');
+      setPartidasMarcadas({});
+
+      await clienteConsultas.invalidateQueries({
+        queryKey: CLAVE_CORRIDAS_ORDEN,
+      });
+    } catch {
+      setMensaje('No se pudo crear la corrida. Comprueba el resultado antes de volver a intentarlo.');
+    } finally {
+      setProcesando(false);
+    }
   }
 
   async function confirmarInicioCorrida(verificacion: VerificacionInicio): Promise<{ exito: true } | { exito: false; error: string }> {
@@ -150,7 +162,7 @@ export function PanelCorridasProduccion({
         <Button
           type="button"
           tamano="sm"
-          disabled={!orden || !catalogos || catalogos.procesos.length === 0}
+          disabled={procesando || !orden || !catalogos || catalogos.procesos.length === 0}
           onClick={() => { setMensaje(null); setDialogoCrear(true); }}
           data-testid="crear-corrida"
         >

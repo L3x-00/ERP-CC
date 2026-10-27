@@ -100,6 +100,13 @@ const IDS = {
   programacionId: '55555555-5555-4555-8555-555555555555',
   sesionId: '66666666-6666-4666-8666-666666666666',
   notaId: '77777777-7777-4777-8777-777777777777',
+  materialId: '88888888-8888-4888-8888-888888888888',
+};
+
+const consumoCierre = {
+  materialId: IDS.materialId,
+  cantidadUsada: 2,
+  cantidadScrap: 0,
 };
 
 beforeEach(() => {
@@ -213,6 +220,7 @@ describe('acciones seguras de sesiones de Producción', () => {
       piezasProducidas: 5,
       estadoDestino: 'finalizada',
       pinConfirmacion: '4826',
+      consumo: consumoCierre,
     });
 
     expect(respuesta).toEqual({ exito: false, error: 'Confirmación de operador no válida' });
@@ -227,6 +235,7 @@ describe('acciones seguras de sesiones de Producción', () => {
       piezasProducidas: 5,
       estadoDestino: 'finalizada',
       pinConfirmacion: '4826',
+      consumo: consumoCierre,
     });
 
     expect(respuesta.exito).toBe(true);
@@ -235,6 +244,7 @@ describe('acciones seguras de sesiones de Producción', () => {
       sesionId: IDS.sesionId,
       operadorId: OPERADOR.id,
       pinConfirmacion: '4826',
+      consumo: consumoCierre,
     }));
     expect(registrarLogMock).toHaveBeenCalledWith(
       OPERADOR,

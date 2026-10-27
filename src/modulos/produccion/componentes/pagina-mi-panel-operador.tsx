@@ -26,13 +26,12 @@ import type {
   ProcesoEspacioOperador,
   VerificacionInicio,
 } from '@/modulos/produccion/tipos/indice';
-import type { RegistroConsumoMaterial } from '@/modulos/ordenes/tipos/ordenes';
+import type { ConsumoMaterialVisible } from '@/modulos/produccion/utilidades/consumo-material-operador';
 
 import {
   obtenerMisProcesos,
   resumirMiPanel,
   resumirJornadaDiaria,
-  resumirConsumosMateriales,
   type EstadoMiProceso,
 } from '@/modulos/produccion/utilidades/mi-panel-operador';
 import {
@@ -51,7 +50,7 @@ interface PropsPaginaMiPanelOperador {
   motivosPausa: MotivoPausaCatalogo[];
   hoy: string;
   horasReclamadasHoy: number;
-  consumos: RegistroConsumoMaterial[];
+  consumos: ConsumoMaterialVisible[];
 }
 
 type FiltroEstado = 'todos' | EstadoMiProceso;
@@ -103,11 +102,6 @@ export function PaginaMiPanelOperador({
     () => resumirMiPanel(misProcesos, operadorId),
     [misProcesos, operadorId],
   );
-  const resumenConsumos = useMemo(
-    () => resumirConsumosMateriales(consumos),
-    [consumos],
-  );
-
   const jornada = useMemo(
     () => resumirJornadaDiaria(procesos, operadorId, hoy),
     [procesos, operadorId, hoy],
@@ -126,15 +120,6 @@ export function PaginaMiPanelOperador({
   const procesoSeleccionado = misProcesos.find(
     ({ proceso }) => proceso.id === procesoSeleccionadoId,
   )?.proceso ?? null;
-  const consumosDelProceso = useMemo(
-    () => procesoSeleccionado
-      ? resumenConsumos.filter(
-          (consumo) => consumo.partidaId === procesoSeleccionado.partidaId,
-        )
-      : [],
-    [resumenConsumos, procesoSeleccionado],
-  );
-
   const inicioPendiente = misProcesos.find(
     ({ proceso }) => proceso.id === inicioPendienteId,
   )?.proceso ?? null;
@@ -251,9 +236,11 @@ export function PaginaMiPanelOperador({
         ...datos,
         ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
       });
-      return resultado.exito
-        ? { exito: true }
-        : { exito: false, error: resultado.error };
+      if (!resultado.exito) return { exito: false, error: resultado.error };
+      if (!resultado.datos) {
+        return { exito: false, error: 'El cierre no devolvió una confirmación' };
+      }
+      return { exito: true, datos: resultado.datos };
     }, 'Sesión registrada y recurso liberado'),
   };
 
@@ -467,74 +454,9 @@ export function PaginaMiPanelOperador({
             acciones={accionesDetalle}
             onCerrar={() => setProcesoSeleccionadoId(null)}
             presentacion="integrado"
+            materiales={materiales}
+            consumos={consumos}
           />
-          <section
-            aria-label="Consumo acumulado de materiales de la partida"
-            className="rounded-xl border border-borde bg-superficie p-5"
-          >
-            <h3 className="text-lg font-semibold text-texto-primario">
-              Consumo acumulado de materiales
-            </h3>
-
-            <p className="mt-1 text-xs text-texto-secundario">
-              Cantidades registradas para toda la partida, no exclusivamente
-              para este proceso.
-            </p>
-
-            {consumosDelProceso.length === 0 ? (
-              <p className="mt-4 text-sm text-texto-secundario">
-                Todavía no se registraron consumos para esta partida.
-              </p>
-            ) : (
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-borde text-texto-secundario">
-                      <th className="p-2">Material</th>
-                      <th className="p-2 text-right">Utilizado</th>
-                      <th className="p-2 text-right">Merma</th>
-                      <th className="p-2 text-right">Total</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {consumosDelProceso.map((consumo) => {
-                      const material = materiales.find(
-                        (item) => item.id === consumo.materialId,
-                      );
-
-                      const unidad = material?.unidadBase ?? '';
-
-                      return (
-                        <tr
-                          key={`${consumo.partidaId}-${consumo.materialId}`}
-                          className="border-b border-borde"
-                        >
-                          <td className="p-2">
-                            {material
-                              ? `${material.codigo} · ${material.nombre}`
-                              : `Material ${consumo.materialId}`}
-                          </td>
-
-                          <td className="p-2 text-right tabular-nums">
-                            {consumo.cantidadUsada} {unidad}
-                          </td>
-
-                          <td className="p-2 text-right tabular-nums">
-                            {consumo.cantidadScrap} {unidad}
-                          </td>
-
-                          <td className="p-2 text-right font-semibold tabular-nums">
-                            {consumo.cantidadTotal} {unidad}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
           {ordenesDelProceso.length > 0 ? (
             <ControlPisoPanel
               key={`materiales-${procesoSeleccionado.id}`}

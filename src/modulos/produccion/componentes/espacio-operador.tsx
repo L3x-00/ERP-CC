@@ -39,7 +39,8 @@ import { VistaAreasOperador } from './vista-areas-operador';
 import { VistaCalendarioOperador } from './vista-calendario-operador';
 import { VistaKanbanOperador } from './vista-kanban-operador';
 import { MiPanelOperador } from './mi-panel-operador';
-
+import type { MaterialPiso } from '@/modulos/ordenes/componentes/control-piso-panel';
+import type { ConsumoMaterialVisible } from '@/modulos/produccion/utilidades/consumo-material-operador';
 const ETIQUETAS_VISTA: Record<VistaEspacioOperador, string> = {
   kanban: 'Kanban',
   calendario: 'Calendario',
@@ -57,7 +58,9 @@ export interface PropsEspacioOperador {
   operadorId: string | null;
   soloLectura: boolean;
   nombreOperador: string;
-    /** Cierre de acceso al terminal, proporcionado por su contenedor. */
+  materiales: MaterialPiso[];
+  consumos: ConsumoMaterialVisible[];
+  /** Cierre de acceso al terminal, proporcionado por su contenedor. */
   onSalir?: () => void;
 }
 
@@ -87,7 +90,8 @@ export function EspacioOperador({
   operadorId,
   soloLectura,
   nombreOperador,
-  
+  materiales,
+  consumos,
 }: PropsEspacioOperador) {
   const enrutador = useRouter();
   const [vista, setVista] = useState<VistaEspacioOperador>('kanban');
@@ -232,14 +236,33 @@ export function EspacioOperador({
       motivoPausa?: string;
       notas?: string;
       pinConfirmacion: string;
+      consumo?: {
+        materialId: string;
+        cantidadUsada: number;
+        cantidadScrap: number;
+      };
     },
   ): Promise<ResultadoOperacion> {
     return ejecutar(proceso, async () => {
+      const datosCierre = {
+        sesionId: datos.sesionId,
+        piezasProducidas: datos.piezasProducidas,
+        estadoDestino: datos.estadoDestino,
+        ...(datos.motivoPausa ? { motivoPausa: datos.motivoPausa } : {}),
+        ...(datos.notas ? { notas: datos.notas } : {}),
+        ...(datos.consumo ? { consumo: datos.consumo } : {}),
+        pinConfirmacion: datos.pinConfirmacion,
+      };
+
       const respuesta = await cerrarSesionOperadorAccion({
-        ...datos,
+        ...datosCierre,
         ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
       });
-      return respuesta.exito ? { exito: true } : { exito: false, error: respuesta.error };
+      if (!respuesta.exito) return { exito: false, error: respuesta.error };
+      if (!respuesta.datos) {
+        return { exito: false, error: 'El cierre no devolvió una confirmación' };
+      }
+      return { exito: true, datos: respuesta.datos };
     }, 'Sesión registrada y recurso liberado');
   }
 
@@ -466,6 +489,8 @@ export function EspacioOperador({
         procesando={procesando !== null}
         motivosPausa={motivosPausa}
         acciones={accionesDetalle}
+        materiales={materiales}
+        consumos={consumos}
         onCerrar={() => setDetalle(null)}
       />
 

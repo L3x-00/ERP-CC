@@ -95,8 +95,12 @@ export type CodigoErrorProduccion =
   | 'sin_recurso_disponible'
   | 'operador_area_no_asignada'
   | 'corrida_ambigua'
+  | 'cantidad_consumo_invalida'
+  | 'material_no_corresponde_partida'
+  | 'material_inexistente_o_inactivo'
+  | 'costo_material_no_configurado'
+  | 'tipo_cambio_no_configurado'
   | 'desconocido';
-
 export class ErrorProduccion extends Error {
   constructor(
     public readonly codigo: CodigoErrorProduccion,
@@ -205,6 +209,11 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'sin_recurso_disponible',
   'operador_area_no_asignada',
   'corrida_ambigua',
+  'cantidad_consumo_invalida',
+  'material_no_corresponde_partida',
+  'material_inexistente_o_inactivo',
+  'costo_material_no_configurado',
+  'tipo_cambio_no_configurado',
 ];
 
 /** Traduce el mensaje de una RPC a un error tipado de producción. */
@@ -292,15 +301,39 @@ export async function cerrarSesionTrabajoServicio(
   admin: SupabaseClient<Database>,
   entrada: CerrarSesionInput & { operadorId: string },
 ): Promise<CierreSesionRegistrado> {
-  const { data, error } = await admin.rpc('cerrar_sesion_trabajo_operador', {
-    p_sesion_id: entrada.sesionId,
-    p_operador_id: entrada.operadorId,
-    p_piezas_producidas: entrada.piezasProducidas,
-    p_estado_destino: entrada.estadoDestino,
-    ...(entrada.metaProcesoId ? { p_meta_proceso_id: entrada.metaProcesoId } : {}),
-    ...(entrada.motivoPausa ? { p_motivo_pausa: entrada.motivoPausa } : {}),
-    ...(entrada.notas ? { p_notas: entrada.notas } : {}),
-  });
+  if (entrada.estadoDestino === 'finalizada' && !entrada.consumo) {
+    throw new ErrorProduccion(
+      'cierre_sesion_invalido',
+      'El consumo de material es obligatorio para finalizar la sesión',
+    );
+  }
+
+  const { data, error } =
+    entrada.estadoDestino === 'finalizada' && entrada.consumo
+      ? await admin.rpc('cerrar_sesion_con_consumo_operador', {
+          p_sesion_id: entrada.sesionId,
+          p_operador_id: entrada.operadorId,
+          p_piezas_producidas: entrada.piezasProducidas,
+          p_material_id: entrada.consumo.materialId,
+          p_cantidad_usada: entrada.consumo.cantidadUsada,
+          p_cantidad_scrap: entrada.consumo.cantidadScrap,
+          p_meta_proceso_id: entrada.metaProcesoId ?? null,
+          p_notas: entrada.notas ?? null,
+        })
+      : await admin.rpc('cerrar_sesion_trabajo_operador', {
+          p_sesion_id: entrada.sesionId,
+          p_operador_id: entrada.operadorId,
+          p_piezas_producidas: entrada.piezasProducidas,
+          p_estado_destino: entrada.estadoDestino,
+          ...(entrada.metaProcesoId
+            ? { p_meta_proceso_id: entrada.metaProcesoId }
+            : {}),
+          ...(entrada.motivoPausa
+            ? { p_motivo_pausa: entrada.motivoPausa }
+            : {}),
+          ...(entrada.notas ? { p_notas: entrada.notas } : {}),
+        });
+
   if (error) lanzarErrorProduccion(error.message);
   const fila = data?.[0];
   if (!fila?.id || !fila.actualizado_en) throw new ErrorProduccion('desconocido');
@@ -322,6 +355,8 @@ export function mensajeErrorSesion(error: unknown): string {
   if (!(error instanceof ErrorProduccion)) return 'No se pudo registrar la sesión de producción';
 
   switch (error.codigo) {
+    case 'cierre_sesion_invalido':
+      return 'El cierre requiere datos válidos y consumo de material al finalizar';
     case 'operador_o_programacion_con_sesion_activa':
       return 'El operador o el recurso ya tienen una sesión activa';
     case 'programacion_no_preparada':
@@ -399,6 +434,16 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'El operador no está activo';
     case 'corrida_ambigua':
       return 'El operador tiene más de una corrida abierta; elige una en el panel';
+    case 'cantidad_consumo_invalida':
+      return 'La cantidad utilizada o la merma no son válidas';
+    case 'material_no_corresponde_partida':
+      return 'El material seleccionado no corresponde a la partida';
+    case 'material_inexistente_o_inactivo':
+      return 'El material seleccionado no está disponible';
+    case 'costo_material_no_configurado':
+      return 'El material no tiene costo confirmado';
+    case 'tipo_cambio_no_configurado':
+      return 'Configura el tipo de cambio USD antes de registrar el consumo';
     default:
       return 'No se pudo registrar la sesión de producción';
   }

@@ -9,12 +9,13 @@ import { obtenerEspacioOperadorServicio } from '@/modulos/produccion/servicios/e
 
 import {
   obtenerOrdenesConPartidasDePisoServicio,
-  obtenerConsumosPartidaServicio,
+  obtenerConsumosPartidasServicio,
 } from '@/modulos/ordenes/servicios/ordenes-servicio';
 
 import { PaginaMiPanelOperador } from '@/modulos/produccion/componentes/pagina-mi-panel-operador';
 import { EncabezadoTerminalOperador } from '@/modulos/produccion/componentes/encabezado-terminal-operador';
 import { SincronizadorPisoRealtime } from '@/modulos/ordenes/componentes/sincronizador-piso-realtime';
+import { consumoMaterialVisibleDesdeRegistro } from '@/modulos/produccion/utilidades/consumo-material-operador';
 /**
  * Panel personal del operador.
  *
@@ -73,14 +74,23 @@ export default async function PaginaMiPanel() {
     ),
   ];
 
-  // 5. Materiales vinculados a las partidas visibles.
+  // 5. Consumos reales de las partidas visibles en una sola consulta.
+  const consumos = await obtenerConsumosPartidasServicio(
+    cliente,
+    idsPartidasVisibles,
+  );
+
+  // 6. Materiales vinculados a las partidas visibles o a sus consumos.
   const idsMateriales = [
     ...new Set(
-      ordenes.flatMap(({ partidas }) =>
-        partidas.flatMap((partida) =>
-          partida.materialId ? [partida.materialId] : [],
+      [
+        ...ordenes.flatMap(({ partidas }) =>
+          partidas.flatMap((partida) =>
+            partida.materialId ? [partida.materialId] : [],
+          ),
         ),
-      ),
+        ...consumos.map((consumo) => consumo.materialId),
+      ],
     ),
   ];
 
@@ -115,16 +125,6 @@ export default async function PaginaMiPanel() {
     areaPlaneacion: area.area_planeacion,
   }));
 
-  // 6. ConsumOS reales de las partidas visibles.
-  // Se mantiene el servicio existente.
-  const consumosPorPartida = await Promise.all(
-    idsPartidasVisibles.map((partidaId) =>
-      obtenerConsumosPartidaServicio(cliente, partidaId),
-    ),
-  );
-
-  const consumos = consumosPorPartida.flat();
-
   // 7. Renderizar panel personal.
   return (
     <main className="min-h-screen space-y-6 p-4 sm:p-6">
@@ -149,7 +149,7 @@ export default async function PaginaMiPanel() {
         horasReclamadasHoy={
           espacio.resumen.horasReclamadasHoy
         }
-        consumos={consumos}
+        consumos={consumos.map(consumoMaterialVisibleDesdeRegistro)}
       />
     </main>
   );

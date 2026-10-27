@@ -5371,6 +5371,29 @@ export type Database = {
           piezas_producidas: number
         }[]
       }
+      cerrar_sesion_con_consumo_operador: {
+        Args: {
+          p_cantidad_scrap: number
+          p_cantidad_usada: number
+          p_material_id: string
+          p_meta_proceso_id?: string | null
+          p_notas?: string | null
+          p_operador_id: string
+          p_piezas_producidas: number
+          p_sesion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          cantidad_producida_partida: number
+          estado_orden: string
+          estado_planeacion: string
+          estado_sesion: string
+          horas_brutas: number
+          horas_netas: number
+          id: string
+          piezas_producidas: number
+        }[]
+      }
       consultar_bancos_cobranza: {
         Args: { p_cuenta_id?: string; p_desde?: number; p_moneda?: string }
         Returns: {
