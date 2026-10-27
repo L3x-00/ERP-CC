@@ -79,6 +79,9 @@ jobs:
   # push a main y ejecuciones manuales.
   e2e-local:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     needs: [cambios, verificacion]
     if: >-
       ${{
@@ -104,6 +107,13 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.0
+
+      # Evita que Supabase CLI descargue imágenes públicas de GHCR de forma
+      # anónima y alcance su límite compartido de peticiones.
+      - name: Autenticar descargas públicas de Supabase
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
       - name: Levantar Supabase local (aplica migraciones)
         run: supabase start
