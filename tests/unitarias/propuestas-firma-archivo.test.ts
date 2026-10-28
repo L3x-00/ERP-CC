@@ -156,6 +156,24 @@ describe('firmarArchivoPropuestaAccion — archivos del árbol de la propuesta',
     expect(respuesta.exito).toBe(true);
   });
 
+  it('conserva los archivos históricos si la RLS de archivos no devuelve la metadata', async () => {
+    const archivo = archivoDe('propuesta_revision', REVISION_ID);
+    const tablasServidor = tablasBase(archivo);
+    tablasServidor.archivos = [];
+    const { cliente } = clienteFalso(tablasServidor);
+    const { cliente: admin } = clienteFalso(tablasBase(archivo));
+    clienteMock.mockResolvedValue(cliente);
+    adminMock.mockReturnValue(admin);
+
+    const respuesta = await firmarArchivoPropuestaAccion({
+      propuestaId: PROPUESTA_ID,
+      archivoId: ARCHIVO_ID,
+    });
+
+    expect(respuesta).toEqual({ exito: true, datos: { url: 'https://firmada/propuesta' } });
+    expect(firmarLecturaMock).toHaveBeenCalledWith(admin, ARCHIVO_ID, 300);
+  });
+
   it('firma una versión histórica (no vigente) de la revisión', async () => {
     const { cliente } = clienteFalso(
       tablasBase(archivoDe('propuesta_revision', REVISION_ID, { vigente: false, version: 1 })),

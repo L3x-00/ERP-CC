@@ -27,7 +27,7 @@ import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion, ETIQUETAS_ESTADO } from '@/modulos/produccion/componentes/kanban-produccion';
 import {
   ordenConcluida,
-  trabajoEnPisoConcluido,
+  ordenSoloConsultaEnProduccion,
 } from '@/modulos/ordenes/utilidades/conclusion-orden';
 import { PanelCalidadProduccion } from '@/modulos/produccion/componentes/panel-calidad-produccion';
 import { PanelCorridasProduccion } from '@/modulos/produccion/componentes/panel-corridas-produccion';
@@ -75,7 +75,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   const [modoPanel, setModoPanel] = useState<'operar' | 'detalle' | null>(() => {
     if (!ordenInicialId) return null;
     const orden = datosIniciales.ordenes.find((actual) => actual.id === ordenInicialId);
-    return orden && trabajoEnPisoConcluido(orden.estadoKanban) ? 'detalle' : 'operar';
+    return orden && ordenSoloConsultaEnProduccion(orden) ? 'detalle' : 'operar';
   });
   const ordenInicialAplicada = useRef<string | null>(null);
 
@@ -168,7 +168,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   // Si el trabajo de piso ya terminó, solo se consulta la ficha concluida.
   const seleccionarYOperar = useCallback((ordenId: string): void => {
     const orden = datos.ordenes.find((actual) => actual.id === ordenId);
-    const concluida = orden ? trabajoEnPisoConcluido(orden.estadoKanban) : false;
+    const concluida = orden ? ordenSoloConsultaEnProduccion(orden) : false;
     seleccionarOrden(ordenId);
     setModoPanel(concluida ? 'detalle' : 'operar');
     if (concluida) return;

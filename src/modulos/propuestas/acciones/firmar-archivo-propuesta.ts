@@ -108,12 +108,30 @@ export async function firmarArchivoPropuestaAccion(
       rfqId: filaPropuesta.rfq_id,
     };
 
-    const { data: archivo, error: errorArchivo } = await servidor
+    const { data: archivoVisible, error: errorArchivoVisible } = await servidor
       .from('archivos')
       .select('id, entidad, entidad_id')
       .eq('id', archivoId)
       .maybeSingle();
-    if (errorArchivo || !archivo) {
+    // La propuesta ya quedó autorizada mediante RLS. Si el vínculo histórico
+    // de `archivos` deja de ser visible por una política más estricta, se lee
+    // su metadata con el admin y aún se exige que pertenezca exactamente al
+    // árbol de la propuesta visible. Así una venta confirmada no pierde sus
+    // PDF/planos por una diferencia de RLS entre la ficha y esta acción.
+    const admin = crearClienteSupabaseAdmin();
+    let archivo = archivoVisible;
+    if (errorArchivoVisible || !archivo) {
+      const { data: archivoHistorico, error: errorArchivoHistorico } = await admin
+        .from('archivos')
+        .select('id, entidad, entidad_id')
+        .eq('id', archivoId)
+        .maybeSingle();
+      if (errorArchivoHistorico || !archivoHistorico) {
+        return { exito: false, error: 'Archivo no encontrado' };
+      }
+      archivo = archivoHistorico;
+    }
+    if (!archivo) {
       return { exito: false, error: 'Archivo no encontrado' };
     }
 
@@ -125,9 +143,13 @@ export async function firmarArchivoPropuestaAccion(
       return { exito: false, error: 'El archivo no pertenece a esta propuesta' };
     }
 
-    const url = await firmarLecturaArchivo(crearClienteSupabaseAdmin(), archivoId, 300);
+    const url = await firmarLecturaArchivo(admin, archivoId, 300);
     return { exito: true, datos: { url } };
-  } catch {
-    return { exito: false, error: 'No se pudo firmar el archivo' };
+  } catch (error) {
+    console.error('[PROPUESTAS] No se pudo firmar el archivo autorizado:', error);
+    return {
+      exito: false,
+      error: 'El archivo está registrado, pero no se pudo abrir desde el almacenamiento.',
+    };
   }
 }
