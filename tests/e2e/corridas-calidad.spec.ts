@@ -400,9 +400,12 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
       .select('cantidad_producida').eq('id', caso.partidaId).single();
     expect(Number(partida?.cantidad_producida)).toBe(2);
 
-    // Al completar sus ítems, el cierre de sesión deja la corrida COMPLETADA.
+    // Al completar sus ítems, el cierre de sesión deja la corrida COMPLETADA y
+    // la orden concluida. Recargar abre la ficha de resultados, no la operación.
     await page.reload();
-    await expect(page.getByTestId(`corrida-${corrida?.codigo}`)).toContainText('Completada');
+    const detalleConcluido = page.getByTestId('detalle-orden-concluida');
+    await expect(detalleConcluido).toBeVisible();
+    await expect(detalleConcluido).toContainText('Historial de sesiones');
     await expect.poll(async () => {
       const { data } = await caso.admin.from('corridas').select('estado').eq('id', corrida?.id ?? '').single();
       return data?.estado;

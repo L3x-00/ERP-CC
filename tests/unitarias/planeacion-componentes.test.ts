@@ -34,6 +34,11 @@ const { empujarRutaMock, refrescarRutaMock } = vi.hoisted(() => ({
   refrescarRutaMock: vi.fn(),
 }));
 
+const { obtenerDetalleConcluidaMock, generarNotaEntregaMock } = vi.hoisted(() => ({
+  obtenerDetalleConcluidaMock: vi.fn(),
+  generarNotaEntregaMock: vi.fn(),
+}));
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: empujarRutaMock, refresh: refrescarRutaMock }),
 }));
@@ -48,6 +53,13 @@ vi.mock('@/modulos/planeacion/acciones/indice', () => ({
 }));
 vi.mock('@/modulos/planeacion/componentes/sincronizador-planeacion-realtime', () => ({
   SincronizadorPlaneacionRealtime: () => null,
+}));
+vi.mock('@/modulos/produccion/acciones/indice', () => ({
+  obtenerDetalleOrdenConcluidaAccion: (...args: unknown[]) => obtenerDetalleConcluidaMock(...args),
+  generarNotaEntregaAccion: (...args: unknown[]) => generarNotaEntregaMock(...args),
+}));
+vi.mock('@/modulos/produccion/componentes/detalle-orden-concluida', () => ({
+  DetalleOrdenConcluida: () => null,
 }));
 
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
@@ -159,6 +171,7 @@ const PARTIDAS_POR_DEFECTO: PartidaProgramablePlaneacion[] = [
 interface ExtrasRenderizadoOperacion {
   partidasTotal?: number;
   compatibilidad?: CompatibilidadRecursosPlaneacion;
+  datosIniciales?: DatosCalendarioPlaneacion;
 }
 
 function renderizarOperacion(
@@ -166,13 +179,14 @@ function renderizarOperacion(
   partidas: PartidaProgramablePlaneacion[] = PARTIDAS_POR_DEFECTO,
   extras: ExtrasRenderizadoOperacion = {},
 ): void {
+  const { datosIniciales, ...restoExtras } = extras;
   render(
     createElement(OperacionPlaneacion, {
-      datosIniciales: DATOS,
+      datosIniciales: datosIniciales ?? DATOS,
       rangoInicial: { fechaInicio: '2026-09-15', fechaFin: '2026-09-21' },
       partidasProgramables: partidas,
       desglosePartidas: [DESGLOSE],
-      ...extras,
+      ...restoExtras,
     }),
     { wrapper: crearWrapper(cliente) },
   );
@@ -422,6 +436,47 @@ describe('operación de Planeación en cliente', () => {
         }),
       ),
     );
+  });
+
+  it('abre el detalle de una orden concluida en lugar de reprogramar y bloquea el arrastre', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const programacionConcluida = {
+      ...DATOS.programaciones[0],
+      estadoPlaneacion: 'completada' as const,
+      ordenEstado: 'completada' as const,
+      ordenEstadoSii: 'PRODUCCION_COMPLETADA' as const,
+    };
+    obtenerDetalleConcluidaMock.mockResolvedValue({
+      exito: true,
+      datos: {
+        orden: { folio: 'OP-000001' },
+        areas: [],
+        responsables: {},
+        recursos: [],
+        puedeEntregar: true,
+      },
+    });
+    renderizarOperacion(cliente, PARTIDAS_POR_DEFECTO, {
+      datosIniciales: { ...DATOS, programaciones: [programacionConcluida] },
+    });
+
+    const tarjeta = screen.getByTestId(`programacion-${programacionConcluida.id}`);
+    expect(tarjeta.getAttribute('draggable')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Seleccionar' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }));
+
+    expect(await screen.findByTestId('panel-detalle-orden-concluida')).toBeTruthy();
+    await waitFor(() => expect(obtenerDetalleConcluidaMock).toHaveBeenCalledWith({
+      ordenId: programacionConcluida.ordenId,
+    }));
+    expect(screen.getByTestId('panel-programar-partida').className).toContain('hidden');
+    expect(screen.queryByTestId('detalle-programacion-planeacion')).toBeNull();
+
+    fireEvent.drop(screen.getByTestId('columna-2026-09-16'), {
+      dataTransfer: { getData: () => programacionConcluida.id },
+    });
+    expect(screen.queryByTestId('dialogo-reprogramacion-planeacion')).toBeNull();
   });
 
   it('programa por operación del ruteo preseleccionando la pendiente (C9.0)', async () => {

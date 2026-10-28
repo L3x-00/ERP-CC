@@ -6,6 +6,7 @@ import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { cn } from '@/compartido/utilidades/cn';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
+import { trabajoEnPisoConcluido } from '@/modulos/ordenes/utilidades/conclusion-orden';
 import type {
   AreaCatalogoProduccion,
   OrdenTableroProduccion,
@@ -241,7 +242,7 @@ export function KanbanProduccion({
                       className="mt-auto w-full"
                       onClick={() => onSeleccionarOrden(orden.id)}
                     >
-                      Operar orden
+                      {trabajoEnPisoConcluido(orden.estadoKanban) ? 'Ver detalle' : 'Operar orden'}
                     </Button>
                   </article>
                 ))}

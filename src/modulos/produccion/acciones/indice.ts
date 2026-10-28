@@ -12,6 +12,11 @@ export {
   prepararDocumentoOrdenAccion,
 } from '@/modulos/produccion/acciones/subir-documento-orden';
 export { obtenerDocumentoNotaEntregaAccion } from '@/modulos/produccion/acciones/obtener-documento-nota-entrega';
+export {
+  obtenerConsumosMaterialOrdenAccion,
+  obtenerDetalleOrdenConcluidaAccion,
+} from '@/modulos/produccion/acciones/obtener-detalle-orden-concluida';
+export type { DetalleOrdenConcluida } from '@/modulos/produccion/acciones/obtener-detalle-orden-concluida';
 export { crearCorridaAccion } from '@/modulos/produccion/acciones/crear-corrida';
 export {
   iniciarCorridaAccion,

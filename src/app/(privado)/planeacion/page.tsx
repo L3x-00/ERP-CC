@@ -246,6 +246,8 @@ export default async function PaginaPlaneacion() {
         desglosePartidas={desglosePartidas}
         bolsa={bolsa}
         compatibilidad={compatibilidad}
+        usuarioActualId={usuario.id}
+        esAdmin={usuario.rol === 'admin'}
       />
     </div>
   );

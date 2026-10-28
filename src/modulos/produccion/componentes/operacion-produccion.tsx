@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -13,19 +13,22 @@ import {
   reanudarSesionOperadorAccion,
   obtenerTableroProduccionAccion,
 } from '@/modulos/produccion/acciones/indice';
-import { CLAVE_TABLERO_PRODUCCION } from '@/modulos/produccion/componentes/claves-consulta';
 import {
   CLAVE_CATALOGOS_PISO,
   CLAVE_CORRIDAS_ORDEN,
-} from '@/modulos/produccion/componentes/claves-consulta';
-import {
   CLAVE_ENTREGABLES_ORDEN,
-  DocumentosOrdenPanel,
-} from '@/modulos/produccion/componentes/documentos-orden-panel';
+  CLAVE_TABLERO_PRODUCCION,
+} from '@/modulos/produccion/componentes/claves-consulta';
+import { DocumentosOrdenPanel } from '@/modulos/produccion/componentes/documentos-orden-panel';
+import { DetalleOrdenConcluida } from '@/modulos/produccion/componentes/detalle-orden-concluida';
 import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formulario-nota-entrega';
 import { FichaOrdenProduccion } from '@/modulos/produccion/componentes/ficha-orden-produccion';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { KanbanProduccion, ETIQUETAS_ESTADO } from '@/modulos/produccion/componentes/kanban-produccion';
+import {
+  ordenConcluida,
+  trabajoEnPisoConcluido,
+} from '@/modulos/ordenes/utilidades/conclusion-orden';
 import { PanelCalidadProduccion } from '@/modulos/produccion/componentes/panel-calidad-produccion';
 import { PanelCorridasProduccion } from '@/modulos/produccion/componentes/panel-corridas-produccion';
 import { PanelHorasExtraProduccion } from '@/modulos/produccion/componentes/panel-horas-extra-produccion';
@@ -67,6 +70,14 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   const establecerSesionActiva = usarTiendaProduccion((estado) => estado.establecerSesionActiva);
   const [procesando, setProcesando] = useState(false);
   const [corridaSeleccionadaCruda, setCorridaSeleccionadaId] = useState<string | null>(null);
+  // El modo se fija al abrir: una orden que termina mientras el panel está
+  // abierto conserva el flujo de operación (entrega parcial/total de los E2E).
+  const [modoPanel, setModoPanel] = useState<'operar' | 'detalle' | null>(() => {
+    if (!ordenInicialId) return null;
+    const orden = datosIniciales.ordenes.find((actual) => actual.id === ordenInicialId);
+    return orden && trabajoEnPisoConcluido(orden.estadoKanban) ? 'detalle' : 'operar';
+  });
+  const ordenInicialAplicada = useRef<string | null>(null);
 
   const filtros = useMemo(() => ({
     ...(recursoId ? { recursoId } : {}),
@@ -88,10 +99,13 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   const datos = consulta.data ?? datosIniciales;
 
   // PLA-06: llegada desde una tarjeta de Planeación; selecciona la orden pedida.
+  // El modo inicial ya se fijó con los datos del servidor: si la orden estaba
+  // concluida, la ficha de resultados se abre sin pasar por operación.
   useEffect(() => {
-    if (ordenInicialId && datos.ordenes.some((orden) => orden.id === ordenInicialId)) {
-      seleccionarOrden(ordenInicialId);
-    }
+    if (!ordenInicialId || ordenInicialAplicada.current === ordenInicialId) return;
+    if (!datos.ordenes.some((orden) => orden.id === ordenInicialId)) return;
+    ordenInicialAplicada.current = ordenInicialId;
+    seleccionarOrden(ordenInicialId);
   }, [ordenInicialId, datos.ordenes, seleccionarOrden]);
 
   const codigosAreaConTrabajo = [...new Set(
@@ -151,17 +165,23 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
   // "Operar orden" debe dar retroalimentación inmediata: selecciona, abre la
   // ficha lateral y lleva el scroll al panel de operador de esa orden. El doble
   // RAF espera a que el panel fijo ya esté montado y sea el contenedor del scroll.
+  // Si el trabajo de piso ya terminó, solo se consulta la ficha concluida.
   const seleccionarYOperar = useCallback((ordenId: string): void => {
+    const orden = datos.ordenes.find((actual) => actual.id === ordenId);
+    const concluida = orden ? trabajoEnPisoConcluido(orden.estadoKanban) : false;
     seleccionarOrden(ordenId);
+    setModoPanel(concluida ? 'detalle' : 'operar');
+    if (concluida) return;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         document.getElementById('panel-operador-produccion')
           ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     });
-  }, [seleccionarOrden]);
+  }, [datos.ordenes, seleccionarOrden]);
 
   const cerrarPanelOrden = useCallback((): void => {
+    setModoPanel(null);
     seleccionarOrden(null);
   }, [seleccionarOrden]);
 
@@ -190,6 +210,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
         partidaId: resultado.datos.partidaId,
         programacionId: resultado.datos.programacionId,
       });
+      setModoPanel('operar');
       seleccionarOrden(resultado.datos.ordenId);
       await refrescar();
       return { exito: true };
@@ -312,7 +333,9 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
         >
           <header className="flex shrink-0 items-start justify-between gap-3 border-b border-borde px-4 py-3">
             <div className="flex min-w-0 flex-col gap-1">
-              <p className="text-[11px] uppercase tracking-wide text-texto-tenue">Orden en piso</p>
+              <p className="text-[11px] uppercase tracking-wide text-texto-tenue">
+                {modoPanel === 'detalle' ? 'Orden concluida' : 'Orden en piso'}
+              </p>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-mono text-lg font-bold text-texto-primario">
                   {ordenSeleccionada.folio}
@@ -341,70 +364,88 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
           </header>
 
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto scroll-sutil px-4 py-4">
-            <FichaOrdenProduccion
-              orden={ordenSeleccionada}
-              areas={datos.areas ?? []}
-              responsables={datos.responsables ?? {}}
-              recursos={datos.recursos}
-            />
-
-            <section aria-labelledby="titulo-operacion-piso" className="flex flex-col gap-3">
-              <div>
-                <h3 id="titulo-operacion-piso" className="text-sm font-semibold text-texto-primario">
-                  Operación en piso
-                </h3>
-                <p className="text-xs text-texto-secundario">
-                  Corridas y sesión del operador de esta orden.
-                </p>
-              </div>
-              <PanelCorridasProduccion
+            {modoPanel === 'detalle' ? (
+              <DetalleOrdenConcluida
                 orden={ordenSeleccionada}
-                catalogos={catalogosPiso}
-                corridaSeleccionadaId={corridaSeleccionadaId}
-                onSeleccionarCorrida={setCorridaSeleccionadaId}
-                onOperarCorrida={desplazarAPanelOperador}
-              />
-              <PanelOperadorProduccion
-                orden={ordenSeleccionada}
-                sesionActiva={sesionActiva}
-                operadorDisponible={operadorId !== null}
-                esAdmin={esAdmin}
-                procesando={procesando}
-                corridaId={corridaSeleccionadaId}
-                motivosPausa={catalogosPiso?.motivos ?? []}
-                materiales={catalogosPiso?.materiales ?? []}
-                onIniciar={iniciar}
-                onReanudar={reanudar}
-                onCerrar={cerrar}
+                areas={datos.areas ?? []}
                 responsables={datos.responsables ?? {}}
+                recursos={datos.recursos}
+                esOrdenConcluida={ordenConcluida(ordenSeleccionada)}
+                // La página de Producción exige `gestionar_produccion` para entrar.
+                puedeEntregar
+                procesando={procesando}
+                usuarioActualId={usuarioActualId}
+                esAdmin={esAdmin}
+                onEntregar={generarNota}
               />
-            </section>
+            ) : (
+              <>
+                <FichaOrdenProduccion
+                  orden={ordenSeleccionada}
+                  areas={datos.areas ?? []}
+                  responsables={datos.responsables ?? {}}
+                  recursos={datos.recursos}
+                />
 
-            <PanelCalidadProduccion orden={ordenSeleccionada} corridas={corridasOrden} />
-            <FormularioNotaEntrega
-              key={ordenSeleccionada.id}
-              orden={ordenSeleccionada}
-              procesando={procesando}
-              onEnviar={generarNota}
-            />
-            <PanelHorasExtraProduccion orden={ordenSeleccionada} sesionIdActivo={sesionActiva?.id ?? null} />
-            <HistorialSesionesProduccion orden={ordenSeleccionada} responsables={datos.responsables ?? {}} />
-            <DocumentosOrdenPanel
-              ordenId={ordenSeleccionada.id}
-              ordenFolio={ordenSeleccionada.folio}
-              sesionFinalId={ordenSeleccionada.estado === 'completada'
-                ? [...ordenSeleccionada.sesiones]
-                  .filter((sesion) => sesion.estadoSesion === 'finalizada')
-                  .sort((primera, segunda) => segunda.creadoEn.localeCompare(primera.creadoEn))[0]?.id ?? null
-                : null}
-            />
-            <HiloComentarios
-              entidadTipo="orden"
-              entidadId={ordenSeleccionada.id}
-              usuarioActualId={usuarioActualId}
-              puedeEliminarTodos={esAdmin}
-              titulo={`Comentarios de ${ordenSeleccionada.folio}`}
-            />
+                <section aria-labelledby="titulo-operacion-piso" className="flex flex-col gap-3">
+                  <div>
+                    <h3 id="titulo-operacion-piso" className="text-sm font-semibold text-texto-primario">
+                      Operación en piso
+                    </h3>
+                    <p className="text-xs text-texto-secundario">
+                      Corridas y sesión del operador de esta orden.
+                    </p>
+                  </div>
+                  <PanelCorridasProduccion
+                    orden={ordenSeleccionada}
+                    catalogos={catalogosPiso}
+                    corridaSeleccionadaId={corridaSeleccionadaId}
+                    onSeleccionarCorrida={setCorridaSeleccionadaId}
+                    onOperarCorrida={desplazarAPanelOperador}
+                  />
+                  <PanelOperadorProduccion
+                    orden={ordenSeleccionada}
+                    sesionActiva={sesionActiva}
+                    operadorDisponible={operadorId !== null}
+                    esAdmin={esAdmin}
+                    procesando={procesando}
+                    corridaId={corridaSeleccionadaId}
+                    motivosPausa={catalogosPiso?.motivos ?? []}
+                    materiales={catalogosPiso?.materiales ?? []}
+                    onIniciar={iniciar}
+                    onReanudar={reanudar}
+                    onCerrar={cerrar}
+                    responsables={datos.responsables ?? {}}
+                  />
+                </section>
+
+                <PanelCalidadProduccion orden={ordenSeleccionada} corridas={corridasOrden} />
+                <FormularioNotaEntrega
+                  key={ordenSeleccionada.id}
+                  orden={ordenSeleccionada}
+                  procesando={procesando}
+                  onEnviar={generarNota}
+                />
+                <PanelHorasExtraProduccion orden={ordenSeleccionada} sesionIdActivo={sesionActiva?.id ?? null} />
+                <HistorialSesionesProduccion orden={ordenSeleccionada} responsables={datos.responsables ?? {}} />
+                <DocumentosOrdenPanel
+                  ordenId={ordenSeleccionada.id}
+                  ordenFolio={ordenSeleccionada.folio}
+                  sesionFinalId={ordenConcluida(ordenSeleccionada)
+                    ? [...ordenSeleccionada.sesiones]
+                      .filter((sesion) => sesion.estadoSesion === 'finalizada')
+                      .sort((primera, segunda) => segunda.creadoEn.localeCompare(primera.creadoEn))[0]?.id ?? null
+                    : null}
+                />
+                <HiloComentarios
+                  entidadTipo="orden"
+                  entidadId={ordenSeleccionada.id}
+                  usuarioActualId={usuarioActualId}
+                  puedeEliminarTodos={esAdmin}
+                  titulo={`Comentarios de ${ordenSeleccionada.folio}`}
+                />
+              </>
+            )}
           </div>
         </aside>
       ) : (

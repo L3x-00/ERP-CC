@@ -105,6 +105,13 @@ export const esquemaConsultarTableroProduccion = z.object({
     .regex(/^[A-Z0-9][A-Z0-9_-]{1,48}$/, 'Código de área inválido')
     .optional(),
   estados: z.array(z.enum(ESTADOS_KANBAN_PRODUCCION)).max(5).optional(),
+  /** Lectura puntual de una orden concluida (ficha de solo lectura). */
+  ordenId: z.uuid('ID de orden inválido').optional(),
+}).strict();
+
+/** Entrada compartida por la ficha concluida y su material utilizado. */
+export const esquemaConsultarOrdenConcluida = z.object({
+  ordenId: z.uuid('ID de orden inválido'),
 }).strict();
 
 /**
@@ -141,6 +148,7 @@ export type CerrarSesionInput = z.infer<typeof esquemaCerrarSesion>;
 export type PartidaNotaEntregaInput = z.infer<typeof esquemaPartidaNotaEntrega>;
 export type CrearNotaEntregaInput = z.infer<typeof esquemaCrearNotaEntrega>;
 export type ConsultarTableroProduccionInput = z.infer<typeof esquemaConsultarTableroProduccion>;
+export type ConsultarOrdenConcluidaInput = z.infer<typeof esquemaConsultarOrdenConcluida>;
 export type ReclamarProcesoInput = z.infer<typeof esquemaReclamarProceso>;
 export type MoverReclamoInput = z.infer<typeof esquemaMoverReclamo>;
 export type LiberarReclamoInput = z.infer<typeof esquemaLiberarReclamo>;

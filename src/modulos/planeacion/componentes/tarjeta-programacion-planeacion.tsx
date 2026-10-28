@@ -35,6 +35,7 @@ import {
   VARIANTE_ESTADO,
   nivelSemaforo,
 } from '@/modulos/planeacion/utilidades/etiquetas';
+import { operacionConcluida } from '@/modulos/ordenes/utilidades/conclusion-orden';
 
 /** Tipo de dato del arrastre de programaciones entre días del calendario. */
 export const TIPO_ARRASTRE_PROGRAMACION = 'application/x-orca-programacion';
@@ -70,6 +71,8 @@ export function TarjetaProgramacionPlaneacion({
 }: PropsTarjetaProgramacionPlaneacion) {
   const enrutador = useRouter();
   const [resumenAbierto, setResumenAbierto] = useState(false);
+  const concluida = operacionConcluida(programacion);
+  const puedeArrastrar = arrastrable && !concluida;
   const titulo = desglose ? `${desglose.folio} · ${desglose.codigoPieza}` : 'Partida';
   const itemTexto = desglose ? textoODefecto(desglose.codigoItem) : textoODefecto(null);
   const procesosTexto = desglose ? etiquetaProcesos(desglose) : textoODefecto(null);
@@ -78,6 +81,7 @@ export function TarjetaProgramacionPlaneacion({
     : null;
 
   function iniciarArrastre(evento: DragEvent<HTMLElement>): void {
+    if (!puedeArrastrar) return;
     evento.dataTransfer.setData(TIPO_ARRASTRE_PROGRAMACION, programacion.id);
     evento.dataTransfer.setData('text/plain', programacion.id);
     evento.dataTransfer.effectAllowed = 'move';
@@ -97,8 +101,8 @@ export function TarjetaProgramacionPlaneacion({
     <article
       data-testid={`programacion-${programacion.id}`}
       data-seleccionada={seleccionada ? 'si' : 'no'}
-      draggable={arrastrable}
-      onDragStart={arrastrable ? iniciarArrastre : undefined}
+      draggable={puedeArrastrar}
+      onDragStart={puedeArrastrar ? iniciarArrastre : undefined}
       onClick={onSeleccionar ? abrirContexto : undefined}
       className={
         seleccionada
@@ -107,7 +111,7 @@ export function TarjetaProgramacionPlaneacion({
       }
     >
       <header className="flex items-start gap-1.5">
-        {arrastrable ? (
+        {puedeArrastrar ? (
           <span
             data-testid={`asa-arrastre-${programacion.id}`}
             draggable
@@ -241,12 +245,12 @@ export function TarjetaProgramacionPlaneacion({
             onClick={() => onSeleccionar(programacion)}
             className={compacta ? 'shrink-0 px-2 text-[10px]' : 'shrink-0'}
           >
-            Seleccionar
+            {concluida ? 'Ver detalle' : 'Seleccionar'}
           </Button>
         ) : null}
       </footer>
 
-      {arrastrable && !compacta ? (
+      {puedeArrastrar && !compacta ? (
         <p className="text-[11px] text-texto-secundario">
           Arrastra la tarjeta a otro día para reprogramar con confirmación.
         </p>

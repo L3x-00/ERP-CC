@@ -1,10 +1,12 @@
-export { CLAVE_TABLERO_PRODUCCION } from './claves-consulta';
+export { CLAVE_TABLERO_PRODUCCION, CLAVE_ENTREGABLES_ORDEN } from './claves-consulta';
 export { FormularioNotaEntrega } from './formulario-nota-entrega';
 export type { PropsFormularioNotaEntrega } from './formulario-nota-entrega';
 export { KanbanProduccion } from './kanban-produccion';
 export type { PropsKanbanProduccion } from './kanban-produccion';
 export { FichaOrdenProduccion } from './ficha-orden-produccion';
 export type { PropsFichaOrdenProduccion } from './ficha-orden-produccion';
+export { DetalleOrdenConcluida } from './detalle-orden-concluida';
+export type { PropsDetalleOrdenConcluida } from './detalle-orden-concluida';
 export { OperacionProduccion } from './operacion-produccion';
 export type { PropsOperacionProduccion } from './operacion-produccion';
 export { PanelOperadorProduccion } from './panel-operador-produccion';
@@ -19,6 +21,5 @@ export { VistaAreasOperador } from './vista-areas-operador';
 export { SincronizadorProduccionRealtime } from './sincronizador-produccion-realtime';
 export {
   DocumentosOrdenPanel,
-  CLAVE_ENTREGABLES_ORDEN,
 } from './documentos-orden-panel';
 export { NotaEntregaDocumentoBoton } from './nota-entrega-documento-boton';
