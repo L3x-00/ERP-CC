@@ -21,9 +21,11 @@ const MOTIVOS: Record<string, string> = {
 };
 
 /** Historial inmutable de intervalos de trabajo; nunca mezcla piezas con operaciones únicas. */
-export function HistorialSesionesProduccion({ orden, responsables }: {
+export function HistorialSesionesProduccion({ orden, responsables, soloLectura = false }: {
   orden: OrdenTableroProduccion | null;
   responsables: Readonly<Record<string, string>>;
+  /** Orden concluida: consulta los archivos de cada sesión, pero no adjunta nuevos. */
+  soloLectura?: boolean;
 }) {
   const clienteConsultas = useQueryClient();
   const [subiendoSesionId, setSubiendoSesionId] = useState<string | null>(null);
@@ -116,15 +118,21 @@ export function HistorialSesionesProduccion({ orden, responsables }: {
                       </li>
                     ))}
                   </ul>}
-                <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(evento) => void subir(evento, sesion.id)}>
-                  <label className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
-                    Adjuntar a esta sesión (hasta 20 MiB)
-                    <Input name="archivo" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai" aria-label={`Archivo para sesión ${formatearFecha(sesion.fechaInicio)}`} />
-                  </label>
-                  <Button type="submit" tamano="sm" disabled={subiendoSesionId !== null}>
-                    {subiendoSesionId === sesion.id ? 'Subiendo…' : 'Subir archivo'}
-                  </Button>
-                </form>
+                {soloLectura ? (
+                  <p className="mt-2 text-xs text-texto-secundario" data-testid="sesion-solo-lectura">
+                    Vista de consulta: los archivos de la sesión quedan en solo lectura.
+                  </p>
+                ) : (
+                  <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(evento) => void subir(evento, sesion.id)}>
+                    <label className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
+                      Adjuntar a esta sesión (hasta 20 MiB)
+                      <Input name="archivo" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai" aria-label={`Archivo para sesión ${formatearFecha(sesion.fechaInicio)}`} />
+                    </label>
+                    <Button type="submit" tamano="sm" disabled={subiendoSesionId !== null}>
+                      {subiendoSesionId === sesion.id ? 'Subiendo…' : 'Subir archivo'}
+                    </Button>
+                  </form>
+                )}
                 {mensaje?.sesionId === sesion.id ? <p role="status" className="mt-1 text-texto-secundario">{mensaje.texto}</p> : null}
               </div>
             </li>

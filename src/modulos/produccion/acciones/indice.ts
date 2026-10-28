@@ -5,6 +5,8 @@ export { generarNotaEntregaAccion } from '@/modulos/produccion/acciones/generar-
 export { obtenerTableroProduccionAccion } from '@/modulos/produccion/acciones/obtener-tablero-produccion';
 export { obtenerDocumentosOrdenAccion } from '@/modulos/produccion/acciones/obtener-documentos-orden';
 export type { EntregablesOrden } from '@/modulos/produccion/acciones/obtener-documentos-orden';
+export { obtenerAccesosOrdenAccion } from '@/modulos/produccion/acciones/obtener-accesos-orden';
+export type { AccesosOrden, FacturaAccesoOrden } from '@/modulos/produccion/acciones/obtener-accesos-orden';
 export { obtenerUrlDocumentoOrdenAccion } from '@/modulos/produccion/acciones/obtener-url-documento-orden';
 export {
   confirmarDocumentoOrdenAccion,

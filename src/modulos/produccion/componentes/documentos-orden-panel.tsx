@@ -128,10 +128,13 @@ export function DocumentosOrdenPanel({
   ordenId,
   ordenFolio,
   sesionFinalId,
+  soloLectura = false,
 }: {
   ordenId: string | null;
   ordenFolio: string | null;
   sesionFinalId: string | null;
+  /** Orden concluida: se consultan los archivos, pero no se suben nuevos. */
+  soloLectura?: boolean;
 }) {
   const clienteConsultas = useQueryClient();
   const entradaArchivo = useRef<HTMLInputElement>(null);
@@ -339,20 +342,26 @@ export function DocumentosOrdenPanel({
               </ul>
             )}
 
-            <form className="flex flex-wrap items-end gap-2" onSubmit={subir} data-testid="subir-documento-orden">
-              <label className="grid flex-1 gap-1 text-sm font-medium text-texto-secundario">
-                Nuevo documento (PDF, DXF, DWG, plano o imagen, hasta 20 MiB)
-                <Input
-                  ref={entradaArchivo}
-                  type="file"
-                  accept=".pdf,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai,.png,.jpg,.jpeg,.webp"
-                  aria-label="Archivo de la orden"
-                />
-              </label>
-              <Button type="submit" tamano="sm" disabled={subiendo}>
-                {subiendo ? 'Subiendo…' : 'Subir'}
-              </Button>
-            </form>
+            {soloLectura ? (
+              <p className="text-sm text-texto-secundario" data-testid="documentos-solo-lectura">
+                Vista de consulta: los documentos quedan en solo lectura.
+              </p>
+            ) : (
+              <form className="flex flex-wrap items-end gap-2" onSubmit={subir} data-testid="subir-documento-orden">
+                <label className="grid flex-1 gap-1 text-sm font-medium text-texto-secundario">
+                  Nuevo documento (PDF, DXF, DWG, plano o imagen, hasta 20 MiB)
+                  <Input
+                    ref={entradaArchivo}
+                    type="file"
+                    accept=".pdf,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai,.png,.jpg,.jpeg,.webp"
+                    aria-label="Archivo de la orden"
+                  />
+                </label>
+                <Button type="submit" tamano="sm" disabled={subiendo}>
+                  {subiendo ? 'Subiendo…' : 'Subir'}
+                </Button>
+              </form>
+            )}
             {mensaje && (
               <p
                 role={mensaje.tipo === 'error' ? 'alert' : 'status'}
@@ -401,7 +410,7 @@ export function DocumentosOrdenPanel({
                   </li>
                 ))}
               </ul> : null}
-              {sesionFinalId ? <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={subirSalida}>
+              {sesionFinalId && !soloLectura ? <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={subirSalida}>
                 <label className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
                   Adjuntar salida final (hasta 20 MiB)
                   <Input name="archivoSalida" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai" aria-label="Archivo de salida final" />
@@ -409,7 +418,13 @@ export function DocumentosOrdenPanel({
                 <Button type="submit" tamano="sm" disabled={subiendoSalida}>
                   {subiendoSalida ? 'Subiendo…' : 'Subir salida'}
                 </Button>
-              </form> : <p className="mt-2 text-xs text-texto-secundario">Disponible cuando la orden tenga una sesión finalizada.</p>}
+              </form> : soloLectura ? (
+                <p className="mt-2 text-xs text-texto-secundario" data-testid="salida-final-solo-lectura">
+                  Vista de consulta: los archivos de salida final quedan en solo lectura.
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-texto-secundario">Disponible cuando la orden tenga una sesión finalizada.</p>
+              )}
               {mensajeSalida ? (
                 <p
                   role={mensajeSalida.tipo === 'error' ? 'alert' : 'status'}
