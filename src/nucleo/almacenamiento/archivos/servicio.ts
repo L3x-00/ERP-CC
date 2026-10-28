@@ -72,6 +72,8 @@ export async function firmarLecturaArchivo(
   admin: ClienteAdmin,
   archivoId: string,
   segundos = 300,
+  /** Nombre con el que Storage servirá el archivo como descarga (`Content-Disposition`). */
+  descarga?: string,
 ): Promise<string> {
   const { data, error } = await admin
     .from('archivos')
@@ -83,7 +85,7 @@ export async function firmarLecturaArchivo(
   }
   const { data: firma, error: errorFirma } = await admin.storage
     .from(data.bucket)
-    .createSignedUrl(data.ruta_storage, segundos);
+    .createSignedUrl(data.ruta_storage, segundos, descarga ? { download: descarga } : undefined);
   if (errorFirma || !firma?.signedUrl) {
     throw new Error('no_se_pudo_firmar_archivo');
   }

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
+import { descargarUrlFirmada } from '@/compartido/utilidades/descargar-archivo';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { obtenerArchivosSesionOrdenAccion, obtenerUrlArchivoSesionAccion } from '@/modulos/produccion/acciones/archivos-sesion';
 import type { ArchivoSesionResumen } from '@/modulos/produccion/archivos-sesion-config';
@@ -80,9 +81,11 @@ function agruparDocumentosOrden(
 function FilaDocumentoOrden({
   documento,
   onAbrir,
+  onDescargar,
 }: {
   documento: EntregablesOrden['documentos'][number];
   onAbrir: (archivoId: string) => Promise<void>;
+  onDescargar: (archivoId: string) => Promise<void>;
 }) {
   const origen = etiquetaOrigenDocumento(documento.origen, documento.itemCodigo);
   const vinculo = etiquetaVinculoDocumento(documento);
@@ -105,15 +108,26 @@ function FilaDocumentoOrden({
         )}
       </span>
       {documento.disponible && (
-        <Button
-          type="button"
-          variante="contorno"
-          tamano="sm"
-          aria-label={`Abrir ${documento.nombre}, ${origen}${documento.version !== null ? `, versión ${documento.version}` : ''}`}
-          onClick={() => void onAbrir(documento.id)}
-        >
-          Abrir
-        </Button>
+        <span className="flex shrink-0 gap-1">
+          <Button
+            type="button"
+            variante="contorno"
+            tamano="sm"
+            aria-label={`Abrir ${documento.nombre}, ${origen}${documento.version !== null ? `, versión ${documento.version}` : ''}`}
+            onClick={() => void onAbrir(documento.id)}
+          >
+            Abrir
+          </Button>
+          <Button
+            type="button"
+            variante="fantasma"
+            tamano="sm"
+            aria-label={`Descargar ${documento.nombre}`}
+            onClick={() => void onDescargar(documento.id)}
+          >
+            Descargar
+          </Button>
+        </span>
       )}
     </div>
   );
@@ -206,9 +220,11 @@ export function DocumentosOrdenPanel({
     }
   }, [ordenId, refrescar]);
 
-  const abrirDocumento = useCallback(async (archivoId: string) => {
+  const abrirDocumento = useCallback(async (archivoId: string, descargar = false) => {
     if (!ordenId) return;
-    const resultado = await obtenerUrlDocumentoOrdenAccion({ ordenId, archivoId });
+    const resultado = await obtenerUrlDocumentoOrdenAccion(
+      descargar ? { ordenId, archivoId, descargar: true } : { ordenId, archivoId },
+    );
     if (!resultado.exito || !resultado.datos) {
       setMensaje({
         texto: !resultado.exito ? resultado.error : 'No se pudo abrir el documento',
@@ -216,8 +232,17 @@ export function DocumentosOrdenPanel({
       });
       return;
     }
+    if (descargar) {
+      descargarUrlFirmada(resultado.datos.url);
+      return;
+    }
     window.open(resultado.datos.url, '_blank', 'noopener,noreferrer');
   }, [ordenId]);
+
+  const descargarDocumento = useCallback(
+    (archivoId: string) => abrirDocumento(archivoId, true),
+    [abrirDocumento],
+  );
 
   async function subirSalida(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -247,14 +272,20 @@ export function DocumentosOrdenPanel({
     }
   }
 
-  async function abrirSalida(id: string): Promise<void> {
+  async function abrirSalida(id: string, descargar = false): Promise<void> {
     if (!ordenId) return;
-    const resultado = await obtenerUrlArchivoSesionAccion({ ordenId, archivoId: id });
+    const resultado = await obtenerUrlArchivoSesionAccion(
+      descargar ? { ordenId, archivoId: id, descargar: true } : { ordenId, archivoId: id },
+    );
     if (!resultado.exito || !resultado.datos) {
       setMensajeSalida({
         texto: resultado.exito ? 'No se pudo abrir el archivo' : resultado.error,
         tipo: 'error',
       });
+      return;
+    }
+    if (descargar) {
+      descargarUrlFirmada(resultado.datos.url);
       return;
     }
     window.open(resultado.datos.url, '_blank', 'noopener,noreferrer');
@@ -307,7 +338,11 @@ export function DocumentosOrdenPanel({
                     key={representante.id}
                     className="flex flex-col gap-1.5 border-b border-borde/60 pb-1.5"
                   >
-                    <FilaDocumentoOrden documento={representante} onAbrir={abrirDocumento} />
+                    <FilaDocumentoOrden
+                      documento={representante}
+                      onAbrir={abrirDocumento}
+                      onDescargar={descargarDocumento}
+                    />
                     {historicas.length > 0 && (
                       <div className="flex flex-col gap-1.5">
                         <Button
@@ -330,7 +365,11 @@ export function DocumentosOrdenPanel({
                           <ul id={`versiones-orden-${representante.id}`} className="flex flex-col gap-1.5 border-l border-borde pl-3">
                             {historicas.map((historica) => (
                               <li key={historica.id}>
-                                <FilaDocumentoOrden documento={historica} onAbrir={abrirDocumento} />
+                                <FilaDocumentoOrden
+                                  documento={historica}
+                                  onAbrir={abrirDocumento}
+                                  onDescargar={descargarDocumento}
+                                />
                               </li>
                             ))}
                           </ul>
@@ -406,7 +445,20 @@ export function DocumentosOrdenPanel({
                 {archivosSalida.map((archivo) => (
                   <li key={archivo.id} className="flex min-w-0 items-center justify-between gap-2 text-sm">
                     <span className="min-w-0 truncate" title={archivo.nombre}>{archivo.nombre}</span>
-                    <Button type="button" variante="contorno" tamano="sm" onClick={() => void abrirSalida(archivo.id)}>Abrir en lectura</Button>
+                    <span className="flex shrink-0 gap-1">
+                      <Button type="button" variante="contorno" tamano="sm" onClick={() => void abrirSalida(archivo.id)}>
+                        Abrir en lectura
+                      </Button>
+                      <Button
+                        type="button"
+                        variante="fantasma"
+                        tamano="sm"
+                        aria-label={`Descargar ${archivo.nombre}`}
+                        onClick={() => void abrirSalida(archivo.id, true)}
+                      >
+                        Descargar
+                      </Button>
+                    </span>
                   </li>
                 ))}
               </ul> : null}

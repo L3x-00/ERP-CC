@@ -96,6 +96,16 @@ describe('historial de sesiones de una orden concluida', () => {
         'noopener,noreferrer',
       );
     });
+
+    const clickDescarga = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar evidencia.jpg' }));
+    await waitFor(() => expect(urlMock).toHaveBeenCalledWith({
+      ordenId: ORDEN_ID,
+      archivoId: ARCHIVO_ID,
+      descargar: true,
+    }));
+    expect(clickDescarga).toHaveBeenCalled();
+    clickDescarga.mockRestore();
   });
 
   it('en operación conserva el formulario para adjuntar a la sesión', async () => {

@@ -144,5 +144,15 @@ describe('historial de documentos propios de la Orden', () => {
     expect(screen.queryByTestId('subir-documento-orden')).toBeNull();
     expect(screen.queryByLabelText('Archivo de la orden')).toBeNull();
     expect(screen.queryByLabelText('Archivo de salida final')).toBeNull();
+
+    const clickDescarga = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar ajuste.dwg' }));
+    await waitFor(() => expect(firmarMock).toHaveBeenCalledWith({
+      ordenId: ORDEN_ID,
+      archivoId: V2,
+      descargar: true,
+    }));
+    expect(clickDescarga).toHaveBeenCalled();
+    clickDescarga.mockRestore();
   });
 });

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
+import { descargarUrlFirmada } from '@/compartido/utilidades/descargar-archivo';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { ArchivoSesionResumen } from '@/modulos/produccion/archivos-sesion-config';
 import {
@@ -71,11 +72,17 @@ export function HistorialSesionesProduccion({ orden, responsables, soloLectura =
     }
   }
 
-  async function abrir(archivoId: string): Promise<void> {
+  async function abrir(archivoId: string, descargar = false): Promise<void> {
     if (!orden) return;
-    const resultado = await obtenerUrlArchivoSesionAccion({ ordenId: orden.id, archivoId });
+    const resultado = await obtenerUrlArchivoSesionAccion(
+      descargar ? { ordenId: orden.id, archivoId, descargar: true } : { ordenId: orden.id, archivoId },
+    );
     if (!resultado.exito || !resultado.datos) {
       setMensaje({ sesionId: '', texto: resultado.exito ? 'No se pudo abrir el archivo' : resultado.error });
+      return;
+    }
+    if (descargar) {
+      descargarUrlFirmada(resultado.datos.url);
       return;
     }
     window.open(resultado.datos.url, '_blank', 'noopener,noreferrer');
@@ -112,9 +119,20 @@ export function HistorialSesionesProduccion({ orden, responsables, soloLectura =
                     {(archivosPorSesion.get(sesion.id) ?? []).map((archivo) => (
                       <li key={archivo.id} className="flex min-w-0 items-center justify-between gap-2">
                         <span className="min-w-0 truncate" title={archivo.nombre}>{archivo.nombre}</span>
-                        <Button type="button" variante="contorno" tamano="sm" onClick={() => void abrir(archivo.id)}>
-                          Abrir en lectura
-                        </Button>
+                        <span className="flex shrink-0 gap-1">
+                          <Button type="button" variante="contorno" tamano="sm" onClick={() => void abrir(archivo.id)}>
+                            Abrir en lectura
+                          </Button>
+                          <Button
+                            type="button"
+                            variante="fantasma"
+                            tamano="sm"
+                            aria-label={`Descargar ${archivo.nombre}`}
+                            onClick={() => void abrir(archivo.id, true)}
+                          >
+                            Descargar
+                          </Button>
+                        </span>
                       </li>
                     ))}
                   </ul>}

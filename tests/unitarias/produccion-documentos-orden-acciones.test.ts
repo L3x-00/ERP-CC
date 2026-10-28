@@ -115,6 +115,17 @@ describe('firma de documentos de Orden', () => {
     expect(firmarMock).toHaveBeenCalledWith(admin, ARCHIVO_ID, 300);
   });
 
+  it('firma con el nombre original cuando se pide descargar el documento', async () => {
+    const resultado = await obtenerUrlDocumentoOrdenAccion({
+      ordenId: ORDEN_ID,
+      archivoId: ARCHIVO_ID,
+      descargar: true,
+    });
+
+    expect(resultado).toMatchObject({ exito: true, datos: { url: 'https://firmada/documento' } });
+    expect(firmarMock).toHaveBeenCalledWith(admin, ARCHIVO_ID, 300, 'plano.dxf');
+  });
+
   it('rechaza un archivo arbitrario de otra Orden', async () => {
     const resultado = await obtenerUrlDocumentoOrdenAccion({
       ordenId: ORDEN_ID,
