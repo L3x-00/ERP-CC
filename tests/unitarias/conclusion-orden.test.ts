@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   operacionConcluida,
   ordenConcluida,
+  ordenSoloConsultaEnProduccion,
   trabajoEnPisoConcluido,
 } from '@/modulos/ordenes/utilidades/conclusion-orden';
 
@@ -37,5 +38,14 @@ describe('estado de conclusión de una orden', () => {
     expect(trabajoEnPisoConcluido('bandeja')).toBe(false);
     expect(trabajoEnPisoConcluido('en_proceso')).toBe(false);
     expect(trabajoEnPisoConcluido('pausada')).toBe(false);
+  });
+
+  it('manda a consulta una orden concluida aunque el tablero aún traiga un estado activo', () => {
+    expect(ordenSoloConsultaEnProduccion({
+      estado: 'en_proceso', estadoSii: 'PRODUCCION_COMPLETADA', estadoKanban: 'en_proceso',
+    })).toBe(true);
+    expect(ordenSoloConsultaEnProduccion({
+      estado: 'en_proceso', estadoSii: 'EN_PRODUCCION', estadoKanban: 'en_proceso',
+    })).toBe(false);
   });
 });

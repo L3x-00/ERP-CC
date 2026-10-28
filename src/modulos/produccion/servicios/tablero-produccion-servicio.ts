@@ -28,6 +28,7 @@ import {
 import { codigosFamiliaArea } from '@/modulos/produccion/utilidades/indice';
 import type { ConsultarTableroProduccionInput } from '@/modulos/produccion/validaciones/indice';
 import { dividirEnLotes } from '@/modulos/ordenes/utilidades/lotes';
+import { ordenConcluida } from '@/modulos/ordenes/utilidades/conclusion-orden';
 
 /** PRD-09: hecho/meta/pendiente/porcentaje de una pareja partida×proceso. */
 export interface MetaProcesoAvance extends MetaProcesoPartida {
@@ -112,7 +113,7 @@ export function obtenerEstadoKanbanProduccion(
   if (todasEntregadas) return 'entregada';
 
   const todasCompletadas = partidas.length > 0 && partidas.every(partidaProduccionCompleta);
-  if (todasCompletadas || orden.estado === 'completada') return 'lista';
+  if (todasCompletadas || ordenConcluida(orden)) return 'lista';
 
   if (sesiones.some((sesion) => sesion.estadoSesion === 'activa')) return 'en_proceso';
   const sesionMasReciente = [...sesiones].sort((primera, segunda) => (

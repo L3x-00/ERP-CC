@@ -69,6 +69,11 @@ describe('proyección Kanban de Producción', () => {
     expect(obtenerEstadoKanbanProduccion(orden, [crearPartida(1, 0)], [crearSesion('pausada')])).toBe('pausada');
   });
 
+  it('prioriza el estado SII terminal sobre una sesión histórica activa', () => {
+    const concluida = { ...orden, estado: 'en_proceso' as const, estadoSii: 'PRODUCCION_COMPLETADA' as const };
+    expect(obtenerEstadoKanbanProduccion(concluida, [crearPartida(1, 0)], [crearSesion('activa')])).toBe('lista');
+  });
+
   it('no declara lista la partida con una meta intermedia pendiente', () => {
     const partida = crearPartida(5, 0, [crearMeta(1, 3, 5), crearMeta(2, 5, 5)]);
     expect(partidaProduccionCompleta(partida)).toBe(false);

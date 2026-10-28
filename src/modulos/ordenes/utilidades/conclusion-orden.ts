@@ -50,3 +50,14 @@ export function operacionConcluida(programacion: {
 export function trabajoEnPisoConcluido(estado: EstadoKanbanProduccion): boolean {
   return estado === 'lista' || estado === 'entregada';
 }
+
+/**
+ * Una orden terminada no puede abrir controles de sesión. Además de los
+ * estados terminales del negocio, el tablero puede indicar que todo el trabajo
+ * de piso ya concluyó aunque la entrega siga pendiente.
+ */
+export function ordenSoloConsultaEnProduccion(
+  orden: EstadoOrdenConcluible & { estadoKanban: EstadoKanbanProduccion },
+): boolean {
+  return ordenConcluida(orden) || trabajoEnPisoConcluido(orden.estadoKanban);
+}
