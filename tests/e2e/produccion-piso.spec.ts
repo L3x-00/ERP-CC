@@ -646,12 +646,14 @@ await expect(
       .single();
     expect(programacion?.estado_planeacion).toBe('completada');
 
+    await page.getByTestId('abrir-nota-entrega').click();
     await page.getByLabel('Recibido por').fill('Almacén E2E');
     await page.getByLabel(/Cantidad entregada E2E-PRD-/).fill('2');
     await page.getByTestId('generar-nota-entrega').click();
     await expect(page.getByTestId('panel-nota-entrega').getByRole('status')).toContainText(/^Nota NE-\d{6} generada$/);
     await expect(observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)).toContainText('Lista');
 
+    await page.getByTestId('abrir-nota-entrega').click();
     await page.getByLabel('Recibido por').fill('Almacén E2E');
     await page.getByLabel(/Cantidad entregada E2E-PRD-/).fill('3');
     await page.getByTestId('generar-nota-entrega').click();
@@ -664,6 +666,7 @@ await expect(
     expect(folioNota).not.toBe('');
     const panelEntregables = page.getByTestId('panel-documentos-orden');
     await expect(panelEntregables).toBeVisible();
+    await panelEntregables.getByTestId('alternar-entregables-orden').click();
     const listaNotas = panelEntregables.getByTestId('lista-notas-entrega');
     await expect(listaNotas).toContainText(folioNota);
     await expect(listaNotas).toContainText('Almacén E2E');
@@ -747,6 +750,7 @@ await expect(
     // OBS-17: hilo de comentarios del trabajo dentro del piso.
     const hilo = page.getByTestId('hilo-comentarios');
     await expect(hilo).toBeVisible();
+    await hilo.getByRole('button', { name: 'Nuevo comentario' }).click();
     await hilo.getByLabel('Nuevo comentario').fill('Entrega revisada en piso');
     await hilo.getByRole('button', { name: 'Comentar' }).click();
     await expect(hilo).toContainText('Entrega revisada en piso');

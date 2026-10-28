@@ -16,6 +16,7 @@ import { type MotivoPausaSesion, type VerificacionInicio } from '@/modulos/produ
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 
 type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string };
+type MensajePanelOperador = { texto: string; tipo: 'error' | 'estado' };
 
 type ResumenCierreSesion = {
   material: MaterialPisoCatalogo;
@@ -107,7 +108,7 @@ export function PanelOperadorProduccion({
   const [materialId, setMaterialId] = useState('');
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
-  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<MensajePanelOperador | null>(null);
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
   const [errorReanudacion, setErrorReanudacion] = useState<string | null>(null);
@@ -164,7 +165,7 @@ export function PanelOperadorProduccion({
     });
     if (resultado.exito) {
       setConfirmarReanudacion(false);
-      setMensaje('Sesión reanudada y recurso reservado');
+      setMensaje({ texto: 'Sesión reanudada y recurso reservado', tipo: 'estado' });
     } else setErrorReanudacion(resultado.error);
   }
 
@@ -177,7 +178,9 @@ export function PanelOperadorProduccion({
       verificacion,
       ...(corridaId ? { corridaId } : {}),
     });
-    setMensaje(resultado.exito ? 'Sesión iniciada' : resultado.error);
+    setMensaje(resultado.exito
+      ? { texto: 'Sesión iniciada', tipo: 'estado' }
+      : { texto: resultado.error, tipo: 'error' });
     return resultado;
   }
 
@@ -191,7 +194,7 @@ export function PanelOperadorProduccion({
       && (!materialSeleccionado || !Number.isFinite(usada) || !Number.isFinite(merma)
         || usada < 0 || merma < 0 || usada + merma <= 0)
     ) {
-      setMensaje('Selecciona un material e indica consumo o merma mayor a cero.');
+      setMensaje({ texto: 'Selecciona un material e indica consumo o merma mayor a cero.', tipo: 'error' });
       return;
     }
     const resultado = await onCerrar({
@@ -210,7 +213,9 @@ export function PanelOperadorProduccion({
       } : {}),
       pinConfirmacion,
     });
-    setMensaje(resultado.exito ? 'Sesión registrada y recurso liberado' : resultado.error);
+    setMensaje(resultado.exito
+      ? { texto: 'Sesión registrada y recurso liberado', tipo: 'estado' }
+      : { texto: resultado.error, tipo: 'error' });
     if (resultado.exito) {
       setPinConfirmacion('');
       setNotas('');
@@ -281,7 +286,14 @@ export function PanelOperadorProduccion({
           </Button>
         )
       ) : null}
-      {mensaje ? <p className="mt-3 text-sm text-texto-primario" role="status">{mensaje}</p> : null}
+      {mensaje ? (
+        <p
+          className={mensaje.tipo === 'error' ? 'mt-3 text-sm text-peligro-texto' : 'mt-3 text-sm text-exito-texto'}
+          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+        >
+          {mensaje.texto}
+        </p>
+      ) : null}
 
       {sesionActiva ? (
         <form className="mt-4 flex flex-col gap-3" onSubmit={cerrar}>

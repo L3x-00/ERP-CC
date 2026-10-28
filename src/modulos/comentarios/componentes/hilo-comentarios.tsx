@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AvatarIniciales } from '@/compartido/componentes/diseno/avatar';
+import { Button } from '@/compartido/componentes/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import {
   agregarComentarioAccion,
   eliminarComentarioAccion,
@@ -18,7 +20,6 @@ import type {
 } from '@/modulos/comentarios/tipos/indice';
 
 const CLASE_BOTON = 'rounded-base border border-borde-fuerte px-3 py-1.5 text-sm font-medium transition-colors hover:bg-superficie-2 disabled:cursor-not-allowed disabled:opacity-50';
-const CLASE_PRIMARIO = 'rounded-base bg-primario px-3 py-1.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';
 
 const PATRON_MENCION = /@([\p{L}\p{N}._-]+)/u;
 
@@ -28,6 +29,8 @@ interface PropsHiloComentarios {
   usuarioActualId?: string;
   puedeEliminarTodos?: boolean;
   titulo?: string;
+  /** En paneles densos, mueve solo el compositor a un diálogo accesible. */
+  compositorModal?: boolean;
 }
 
 function fechaComentario(valor: string): string {
@@ -57,11 +60,13 @@ export function HiloComentarios({
   usuarioActualId,
   puedeEliminarTodos = false,
   titulo = 'Comentarios',
+  compositorModal = false,
 }: PropsHiloComentarios) {
   const clienteQuery = useQueryClient();
   const [contenido, setContenido] = useState('');
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const [usuarios, setUsuarios] = useState<MencionUsuario[]>([]);
   const consulta = useQuery({
     queryKey: [...CLAVE_COMENTARIOS, entidadTipo, entidadId],
@@ -112,9 +117,10 @@ export function HiloComentarios({
         return;
       }
       setContenido('');
+      setDialogoAbierto(false);
       await clienteQuery.invalidateQueries({ queryKey: [...CLAVE_COMENTARIOS, entidadTipo, entidadId] });
     } catch {
-      setMensaje('No se pudo guardar el comentario');
+      setMensaje('No se pudo guardar el comentario. Comprueba tu conexión y vuelve a intentarlo.');
     } finally {
       setEnviando(false);
     }
@@ -131,43 +137,68 @@ export function HiloComentarios({
   }
 
   const comentarios = consulta.data ?? [];
+  const formulario = (
+    <form onSubmit={enviar} className="relative flex flex-col gap-2">
+      <label htmlFor={`comentario-${entidadId}`} className="sr-only">Nuevo comentario</label>
+      <textarea
+        id={`comentario-${entidadId}`}
+        value={contenido}
+        maxLength={2000}
+        onChange={(evento) => setContenido(evento.target.value)}
+        placeholder="Escribe una actualización y menciona a @alguien…"
+        rows={3}
+        className="w-full rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm outline-none focus:border-primario focus:ring-2 focus:ring-primario/30"
+      />
+      {sugerencias.length > 0 && (
+        <ul role="listbox" aria-label="Usuarios para mencionar" className="absolute left-0 top-full z-10 mt-1 w-full max-w-sm rounded-base border border-borde bg-superficie p-1 shadow-lg">
+          {sugerencias.map((usuario) => (
+            <li key={usuario.id}>
+              <button type="button" role="option" aria-selected="false" onClick={() => seleccionarMencion(usuario)} className="w-full rounded px-2 py-1 text-left text-sm hover:bg-superficie-2">
+                @{usuario.nombre}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-texto-secundario">{contenido.length}/2000</span>
+        <Button type="submit" tamano="sm" disabled={enviando || contenido.trim().length === 0}>
+          {enviando ? 'Guardando…' : 'Comentar'}
+        </Button>
+      </div>
+      {compositorModal && mensaje ? <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p> : null}
+    </form>
+  );
+
   return (
     <section className="flex flex-col gap-3" aria-labelledby={`titulo-comentarios-${entidadId}`} data-testid="hilo-comentarios">
       <SincronizadorComentariosRealtime entidadTipo={entidadTipo} entidadId={entidadId} />
       <header className="flex items-center justify-between gap-2">
         <h3 id={`titulo-comentarios-${entidadId}`} className="text-base font-semibold">{titulo}</h3>
-        <span className="text-xs text-texto-secundario">{comentarios.length} mensaje(s)</span>
-      </header>
-      <form onSubmit={enviar} className="relative flex flex-col gap-2">
-        <label htmlFor={`comentario-${entidadId}`} className="sr-only">Nuevo comentario</label>
-        <textarea
-          id={`comentario-${entidadId}`}
-          value={contenido}
-          maxLength={2000}
-          onChange={(evento) => setContenido(evento.target.value)}
-          placeholder="Escribe una actualización y menciona a @alguien…"
-          rows={3}
-          className="w-full rounded-base border border-borde-fuerte bg-superficie px-3 py-2 text-sm outline-none focus:border-primario focus:ring-2 focus:ring-primario/30"
-        />
-        {sugerencias.length > 0 && (
-          <ul role="listbox" aria-label="Usuarios para mencionar" className="absolute left-0 top-full z-10 mt-1 w-full max-w-sm rounded-base border border-borde bg-superficie p-1 shadow-lg">
-            {sugerencias.map((usuario) => (
-              <li key={usuario.id}>
-                <button type="button" role="option" aria-selected="false" onClick={() => seleccionarMencion(usuario)} className="w-full rounded px-2 py-1 text-left text-sm hover:bg-superficie-2">
-                  @{usuario.nombre}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-texto-secundario">{contenido.length}/2000</span>
-          <button type="submit" disabled={enviando || contenido.trim().length === 0} className={CLASE_PRIMARIO}>
-            {enviando ? 'Guardando…' : 'Comentar'}
-          </button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-texto-secundario">{comentarios.length} mensaje(s)</span>
+          {compositorModal ? (
+            <Button type="button" tamano="sm" onClick={() => { setMensaje(null); setDialogoAbierto(true); }}>
+              Nuevo comentario
+            </Button>
+          ) : null}
         </div>
-      </form>
-      {mensaje && <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p>}
+      </header>
+      {compositorModal ? (
+        <Dialog open={dialogoAbierto} onOpenChange={setDialogoAbierto}>
+          <DialogContent aria-label="Nuevo comentario">
+            <DialogHeader>
+              <DialogTitle>Nuevo comentario</DialogTitle>
+              <DialogDescription>Agrega una actualización y menciona a quien deba revisarla.</DialogDescription>
+            </DialogHeader>
+            {formulario}
+            <DialogFooter>
+              <Button type="button" variante="contorno" disabled={enviando} onClick={() => setDialogoAbierto(false)}>Cancelar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : formulario}
+      {!compositorModal && mensaje ? <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p> : null}
       {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando comentarios…</p>}
       {consulta.isError && <p role="alert" className="text-sm text-peligro-texto">No se pudo cargar el hilo.</p>}
       <ol className="divide-y divide-borde overflow-hidden rounded-lg border border-borde bg-superficie" aria-live="polite">

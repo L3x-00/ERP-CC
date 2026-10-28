@@ -443,6 +443,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                   usuarioActualId={usuarioActualId}
                   puedeEliminarTodos={esAdmin}
                   titulo={`Comentarios de ${ordenSeleccionada.folio}`}
+                  compositorModal
                 />
               </>
             )}

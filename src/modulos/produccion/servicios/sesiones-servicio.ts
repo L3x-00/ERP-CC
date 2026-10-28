@@ -394,6 +394,22 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La corrida no corresponde a esta partida';
     case 'corrida_sin_pendiente':
       return 'La partida no tiene cantidad pendiente para una corrida';
+    case 'corrida_no_iniciable':
+      return 'La corrida no puede iniciarse desde su estado actual';
+    case 'corrida_no_completable':
+      return 'La corrida debe estar en proceso o pausada antes de completarla';
+    case 'corrida_no_cancelable':
+      return 'La corrida ya no puede cancelarse desde su estado actual';
+    case 'corrida_con_sesiones_abiertas':
+      return 'Cierra o pausa las sesiones activas antes de completar la corrida';
+    case 'corrida_items_incompletos':
+      return 'Aún hay piezas pendientes en la corrida; registra su avance antes de completarla';
+    case 'corrida_con_avance':
+      return 'La corrida ya tiene avance registrado y no puede cancelarse';
+    case 'corrida_inexistente':
+      return 'La corrida ya no existe o no está disponible';
+    case 'sin_permiso_corrida':
+      return 'No tienes permiso para administrar esta corrida';
     case 'motivo_requerido':
       return 'El motivo es obligatorio (mínimo 3 caracteres)';
     case 'reclamo_invalido':

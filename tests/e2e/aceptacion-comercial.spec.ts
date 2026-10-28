@@ -386,6 +386,7 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
       .click();
     const panelEntregables = page.getByTestId('panel-documentos-orden');
     await expect(panelEntregables).toBeVisible();
+    await panelEntregables.getByTestId('alternar-entregables-orden').click();
     await expect(panelEntregables).toContainText('Sin documentos en la carpeta de la orden.');
     await panelEntregables.getByLabel('Archivo de la orden').setInputFiles({
       name: 'E2E-PLANO.pdf',

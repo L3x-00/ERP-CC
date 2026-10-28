@@ -349,6 +349,7 @@ export function DetalleOrdenConcluida({
         usuarioActualId={usuarioActualId}
         puedeEliminarTodos={esAdmin}
         titulo={`Comentarios de ${orden.folio}`}
+        compositorModal
       />
     </div>
   );

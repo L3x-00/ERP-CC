@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { Input, Textarea } from '@/compartido/componentes/ui/input';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
@@ -14,6 +15,7 @@ import { autorizarHorasExtraAccion } from '../acciones/indice';
 import { obtenerAutorizacionesHoraExtraAccion } from '../acciones/consultas-b6';
 import { CLAVE_HORAS_EXTRA_ORDEN } from './claves-consulta';
 
+type MensajeHorasExtra = { texto: string; tipo: 'error' | 'estado' };
 
 /**
  * SII-B6.2: autorizaciones de horas extra por orden (Management/Admin). El
@@ -30,7 +32,8 @@ export function PanelHorasExtraProduccion({
   const [horas, setHoras] = useState('2');
   const [motivo, setMotivo] = useState('');
   const [aplicaSesion, setAplicaSesion] = useState(false);
-  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(false);
+  const [mensaje, setMensaje] = useState<MensajeHorasExtra | null>(null);
   const [procesando, setProcesando] = useState(false);
 
   const consulta = useQuery({
@@ -52,80 +55,118 @@ export function PanelHorasExtraProduccion({
     if (!orden) return;
     setMensaje(null);
     setProcesando(true);
-    const resultado = await autorizarHorasExtraAccion({
-      ordenId: orden.id,
-      ...(aplicaSesion && sesionIdActivo ? { sesionId: sesionIdActivo } : {}),
-      horas: Number(horas),
-      motivo: motivo.trim(),
-    });
-    setProcesando(false);
-    if (!resultado.exito) {
-      setMensaje(resultado.error);
-      return;
+    try {
+      const resultado = await autorizarHorasExtraAccion({
+        ordenId: orden.id,
+        ...(aplicaSesion && sesionIdActivo ? { sesionId: sesionIdActivo } : {}),
+        horas: Number(horas),
+        motivo: motivo.trim(),
+      });
+      if (!resultado.exito) {
+        setMensaje({ texto: resultado.error, tipo: 'error' });
+        return;
+      }
+      setMensaje({ texto: `Autorizadas ${resultado.datos?.horasAutorizadas ?? horas} h extra`, tipo: 'estado' });
+      setMotivo('');
+      setAbierto(false);
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_HORAS_EXTRA_ORDEN });
+    } catch {
+      setMensaje({ texto: 'No se pudieron autorizar las horas extra. Comprueba el motivo y vuelve a intentarlo.', tipo: 'error' });
+    } finally {
+      setProcesando(false);
     }
-    setMensaje(`Autorizadas ${resultado.datos?.horasAutorizadas ?? horas} h extra`);
-    setMotivo('');
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_HORAS_EXTRA_ORDEN });
   }
 
   return (
     <section className="rounded-lg border border-borde bg-superficie p-4" data-testid="panel-horas-extra">
-      <h2 className="text-base font-semibold text-texto-primario">Horas extra</h2>
-      <p className="mt-1 text-xs text-texto-secundario">
-        Solo Management/Admin. Se consumen al cerrar una sesión que exceda la jornada del turno.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-texto-primario">Horas extra</h2>
+          <p className="mt-1 text-xs text-texto-secundario">
+            Solo Management/Admin. Se consumen al cerrar una sesión que exceda la jornada del turno.
+          </p>
+        </div>
+        <Button
+          type="button"
+          tamano="sm"
+          disabled={!orden || procesando}
+          onClick={() => { setMensaje(null); setAbierto(true); }}
+          data-testid="abrir-horas-extra"
+        >
+          Autorizar horas extra
+        </Button>
+      </div>
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}
-      {mensaje !== null && <p role="status" className="mt-2 text-sm text-texto-primario">{mensaje}</p>}
+      {mensaje !== null && (
+        <p
+          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+          className={mensaje.tipo === 'error' ? 'mt-2 text-sm text-peligro-texto' : 'mt-2 text-sm text-exito-texto'}
+        >
+          {mensaje.texto}
+        </p>
+      )}
 
       {orden && (
-        <form className="mt-3 flex flex-col gap-3" onSubmit={autorizar}>
-          <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario" htmlFor="horas-extra-horas">
-            Horas (máx. 24)
-            <Input
-              id="horas-extra-horas"
-              data-testid="horas-extra-horas"
-              type="number"
-              min="0.25"
-              max="24"
-              step="0.25"
-              value={horas}
-              onChange={(evento) => setHoras(evento.target.value)}
-              required
-            />
-          </label>
-          {sesionIdActivo ? (
-            <label className="flex items-center gap-2 text-sm text-texto-secundario">
-              <input
-                type="checkbox"
-                checked={aplicaSesion}
-                onChange={(evento) => setAplicaSesion(evento.target.checked)}
-              />
-              Vincular a mi sesión activa
-            </label>
-          ) : null}
-          <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario" htmlFor="horas-extra-motivo">
-            Motivo
-            <Textarea
-              id="horas-extra-motivo"
-              data-testid="horas-extra-motivo"
-              className="min-h-11"
-              maxLength={300}
-              value={motivo}
-              onChange={(evento) => setMotivo(evento.target.value)}
-              required
-            />
-          </label>
-          <Button
-            type="submit"
-            tamano="sm"
-            className="self-start"
-            disabled={procesando || motivo.trim().length < 3}
-            data-testid="autorizar-horas-extra"
-          >
-            {procesando ? 'Autorizando…' : 'Autorizar horas extra'}
-          </Button>
-        </form>
+        <Dialog open={abierto} onOpenChange={setAbierto}>
+          <DialogContent aria-label="Autorizar horas extra">
+            <DialogHeader>
+              <DialogTitle>Autorizar horas extra</DialogTitle>
+              <DialogDescription>{orden.folio} · se utilizarán solo si el cierre excede la jornada.</DialogDescription>
+            </DialogHeader>
+            <form className="flex flex-col gap-3" onSubmit={autorizar}>
+              <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario" htmlFor="horas-extra-horas">
+                Horas (máx. 24)
+                <Input
+                  id="horas-extra-horas"
+                  data-testid="horas-extra-horas"
+                  type="number"
+                  min="0.25"
+                  max="24"
+                  step="0.25"
+                  value={horas}
+                  onChange={(evento) => setHoras(evento.target.value)}
+                  required
+                />
+              </label>
+              {sesionIdActivo ? (
+                <label className="flex items-center gap-2 text-sm text-texto-secundario">
+                  <input
+                    type="checkbox"
+                    checked={aplicaSesion}
+                    onChange={(evento) => setAplicaSesion(evento.target.checked)}
+                  />
+                  Vincular a mi sesión activa
+                </label>
+              ) : null}
+              <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario" htmlFor="horas-extra-motivo">
+                Motivo
+                <Textarea
+                  id="horas-extra-motivo"
+                  data-testid="horas-extra-motivo"
+                  className="min-h-11"
+                  maxLength={300}
+                  value={motivo}
+                  onChange={(evento) => setMotivo(evento.target.value)}
+                  required
+                />
+              </label>
+              {mensaje?.tipo === 'error' ? <p role="alert" className="text-sm text-peligro-texto">{mensaje.texto}</p> : null}
+              <DialogFooter>
+                <Button type="button" variante="contorno" disabled={procesando} onClick={() => setAbierto(false)}>Cancelar</Button>
+                <Button
+                  type="submit"
+                  disabled={procesando || motivo.trim().length < 3}
+                  data-testid="autorizar-horas-extra"
+                >
+                  {procesando ? 'Autorizando…' : 'Autorizar horas extra'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       )}
+
+      {orden && consulta.isError ? <p role="alert" className="mt-3 text-sm text-peligro-texto">No se pudieron cargar las autorizaciones de horas extra.</p> : null}
 
       {orden && !consulta.isLoading && autorizaciones.length === 0 && (
         <EstadoVacio titulo="Sin autorizaciones" descripcion="Esta orden no tiene horas extra registradas." />
