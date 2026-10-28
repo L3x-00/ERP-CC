@@ -717,7 +717,7 @@ await expect(
     await expect.poll(async () => (await page.request.get(dwgHistorico.url())).status()).toBe(200);
     await dwgHistorico.close();
     await observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)
-      .getByRole('button', { name: 'Ver detalle' }).click();
+      .getByRole('button', { name: 'Ver en producción' }).click();
     const detalleConcluido = observador.getByTestId('detalle-orden-concluida');
     await expect(detalleConcluido).toBeVisible();
     await expect(detalleConcluido).toContainText('Material utilizado');
