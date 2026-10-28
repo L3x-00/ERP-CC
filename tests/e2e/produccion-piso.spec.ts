@@ -508,11 +508,14 @@ await tarjetaPersonal
   .getByRole('button', { name: 'Gestionar proceso' })
   .click();
 
-const modalGestion = page.getByRole('dialog', {
-  name: /Gestión del proceso/,
+const modalGestion = page.getByRole('dialog').filter({
+  has: page.getByTestId('detalle-proceso-integrado'),
 });
 
 await expect(modalGestion).toBeVisible();
+await expect(
+  modalGestion.getByRole('heading', { name: /Gestionar proceso/ }),
+).toBeVisible();
 
 await expect(
   modalGestion.getByTestId('detalle-proceso-integrado'),
