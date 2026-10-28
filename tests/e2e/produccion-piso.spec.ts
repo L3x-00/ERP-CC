@@ -568,12 +568,14 @@ test.describe.serial('piso de Producción y entregas', () => {
       .single();
     expect(programacion?.estado_planeacion).toBe('completada');
 
+    await page.getByTestId('abrir-nota-entrega').click();
     await page.getByLabel('Recibido por').fill('Almacén E2E');
     await page.getByLabel(/Cantidad entregada E2E-PRD-/).fill('2');
     await page.getByTestId('generar-nota-entrega').click();
     await expect(page.getByTestId('panel-nota-entrega').getByRole('status')).toContainText(/^Nota NE-\d{6} generada$/);
     await expect(observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)).toContainText('Lista');
 
+    await page.getByTestId('abrir-nota-entrega').click();
     await page.getByLabel('Recibido por').fill('Almacén E2E');
     await page.getByLabel(/Cantidad entregada E2E-PRD-/).fill('3');
     await page.getByTestId('generar-nota-entrega').click();
@@ -586,6 +588,7 @@ test.describe.serial('piso de Producción y entregas', () => {
     expect(folioNota).not.toBe('');
     const panelEntregables = page.getByTestId('panel-documentos-orden');
     await expect(panelEntregables).toBeVisible();
+    await panelEntregables.getByTestId('alternar-entregables-orden').click();
     const listaNotas = panelEntregables.getByTestId('lista-notas-entrega');
     await expect(listaNotas).toContainText(folioNota);
     await expect(listaNotas).toContainText('Almacén E2E');

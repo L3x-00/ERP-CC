@@ -114,6 +114,10 @@ describe('historial de documentos propios de la Orden', () => {
   it('muestra la vigente, conserva la histórica y avisa si falta una referencia congelada', async () => {
     renderizar();
 
+    const alternar = screen.getByTestId('alternar-entregables-orden');
+    expect(alternar.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(alternar);
+    expect(alternar.getAttribute('aria-expanded')).toBe('true');
     await waitFor(() => expect(screen.getByTestId(`documento-orden-${V2}`)).toBeDefined());
     expect(screen.queryByTestId(`documento-orden-${V1}`)).toBeNull();
     expect(screen.getByRole('alert').textContent).toContain('Documento congelado no disponible');

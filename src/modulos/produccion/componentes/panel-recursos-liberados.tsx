@@ -11,6 +11,7 @@ import { reclamarRecursoAccion } from '../acciones/indice';
 import { obtenerRecursosLiberablesAccion } from '../acciones/consultas-b6';
 import { CLAVE_RECURSOS_LIBERABLES } from './claves-consulta';
 
+type MensajeRecursos = { texto: string; tipo: 'error' | 'estado' };
 
 /**
  * SII-B6.2: máquinas liberadas ≥60 min por pausa DUDA/MATERIAL. El supervisor
@@ -18,7 +19,7 @@ import { CLAVE_RECURSOS_LIBERABLES } from './claves-consulta';
  */
 export function PanelRecursosLiberados() {
   const clienteConsultas = useQueryClient();
-  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<MensajeRecursos | null>(null);
   const [reclamando, setReclamando] = useState<string | null>(null);
 
   const consulta = useQuery({
@@ -36,12 +37,17 @@ export function PanelRecursosLiberados() {
   async function reclamar(recursoId: string): Promise<void> {
     setMensaje(null);
     setReclamando(recursoId);
-    const resultado = await reclamarRecursoAccion({ recursoId });
-    setReclamando(null);
-    setMensaje(resultado.exito
-      ? 'Recurso reclamado: la sesión pausada quedó liberada para otra orden'
-      : resultado.error);
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_RECURSOS_LIBERABLES });
+    try {
+      const resultado = await reclamarRecursoAccion({ recursoId });
+      setMensaje(resultado.exito
+        ? { texto: 'Recurso reclamado: la sesión pausada quedó liberada para otra orden.', tipo: 'estado' }
+        : { texto: resultado.error, tipo: 'error' });
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_RECURSOS_LIBERABLES });
+    } catch {
+      setMensaje({ texto: 'No se pudo reclamar el recurso. Comprueba que siga disponible y vuelve a intentarlo.', tipo: 'error' });
+    } finally {
+      setReclamando(null);
+    }
   }
 
   const liberables = consulta.data ?? [];
@@ -58,7 +64,14 @@ export function PanelRecursosLiberados() {
           {consulta.error instanceof Error ? consulta.error.message : 'No se pudieron cargar los recursos'}
         </p>
       )}
-      {mensaje !== null && <p role="status" className="mt-2 text-sm text-texto-primario">{mensaje}</p>}
+      {mensaje !== null && (
+        <p
+          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+          className={mensaje.tipo === 'error' ? 'mt-2 text-sm text-peligro-texto' : 'mt-2 text-sm text-exito-texto'}
+        >
+          {mensaje.texto}
+        </p>
+      )}
       {!consulta.isLoading && !consulta.isError && liberables.length === 0 && (
         <p className="mt-2 text-xs text-texto-tenue" data-testid="sin-recursos-liberables">
           Sin máquinas liberables por ahora.

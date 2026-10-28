@@ -20,6 +20,7 @@ import { obtenerCorridasOrdenAccion } from '../acciones/consultas-b6';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { CLAVE_CORRIDAS_ORDEN } from './claves-consulta';
 
+type MensajeCorrida = { texto: string; tipo: 'error' | 'estado' };
 
 /**
  * SII-B6.1: corridas de la orden seleccionada. Alta con ítems compatibles,
@@ -45,7 +46,7 @@ export function PanelCorridasProduccion({
   const [checklistCorrida, setChecklistCorrida] = useState<string | null>(null);
   const [cancelar, setCancelar] = useState<string | null>(null);
   const [motivoCancelar, setMotivoCancelar] = useState('');
-  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<MensajeCorrida | null>(null);
   const [procesando, setProcesando] = useState(false);
 
   const consulta = useQuery({
@@ -91,7 +92,7 @@ export function PanelCorridasProduccion({
         compatible && pendiente > 0 && partidasMarcadas[partida.id] === true)
       .map(({ partida, pendiente }) => ({ partidaId: partida.id, cantidad: pendiente }));
     if (items.length === 0) {
-      setMensaje('Selecciona al menos una partida compatible con pendiente');
+      setMensaje({ texto: 'Selecciona al menos una partida compatible con pendiente', tipo: 'error' });
       return;
     }
     setProcesando(true);
@@ -105,18 +106,18 @@ export function PanelCorridasProduccion({
       });
 
       if (!resultado.exito) {
-        setMensaje(resultado.error);
+        setMensaje({ texto: resultado.error, tipo: 'error' });
         return;
       }
 
-      setMensaje('Corrida creada correctamente');
+      setMensaje({ texto: 'Corrida creada correctamente', tipo: 'estado' });
       setPartidasMarcadas({});
 
       await clienteConsultas.invalidateQueries({
         queryKey: CLAVE_CORRIDAS_ORDEN,
       });
     } catch {
-      setMensaje('No se pudo crear la corrida. Comprueba el resultado antes de volver a intentarlo.');
+      setMensaje({ texto: 'No se pudo crear la corrida. Comprueba el resultado antes de volver a intentarlo.', tipo: 'error' });
     } finally {
       setProcesando(false);
     }
@@ -124,35 +125,51 @@ export function PanelCorridasProduccion({
 
   async function confirmarInicioCorrida(verificacion: VerificacionInicio): Promise<{ exito: true } | { exito: false; error: string }> {
     if (!checklistCorrida) return { exito: false, error: 'Corrida inválida' };
-    const resultado = await iniciarCorridaAccion({ corridaId: checklistCorrida, verificacion });
-    if (!resultado.exito) return { exito: false, error: resultado.error };
-    setMensaje('Corrida iniciada');
-    setChecklistCorrida(null);
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CORRIDAS_ORDEN });
-    return { exito: true };
+    try {
+      const resultado = await iniciarCorridaAccion({ corridaId: checklistCorrida, verificacion });
+      if (!resultado.exito) return { exito: false, error: resultado.error };
+      setMensaje({ texto: 'Corrida iniciada', tipo: 'estado' });
+      setChecklistCorrida(null);
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CORRIDAS_ORDEN });
+      return { exito: true };
+    } catch {
+      return { exito: false, error: 'No se pudo iniciar la corrida. Comprueba su estado antes de volver a intentarlo.' };
+    }
   }
 
   async function completar(corridaId: string): Promise<void> {
     setProcesando(true);
-    const resultado = await completarCorridaAccion({ corridaId });
-    setProcesando(false);
-    setMensaje(resultado.exito ? 'Corrida completada' : resultado.error);
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CORRIDAS_ORDEN });
+    try {
+      const resultado = await completarCorridaAccion({ corridaId });
+      setMensaje(resultado.exito
+        ? { texto: 'Corrida completada', tipo: 'estado' }
+        : { texto: resultado.error, tipo: 'error' });
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CORRIDAS_ORDEN });
+    } catch {
+      setMensaje({ texto: 'No se pudo completar la corrida. Comprueba sesiones abiertas y piezas pendientes.', tipo: 'error' });
+    } finally {
+      setProcesando(false);
+    }
   }
 
   async function confirmarCancelacion(): Promise<void> {
     if (!cancelar || motivoCancelar.trim().length < 3) return;
     setProcesando(true);
-    const resultado = await cancelarCorridaAccion({ corridaId: cancelar, motivo: motivoCancelar.trim() });
-    setProcesando(false);
-    if (!resultado.exito) {
-      setMensaje(resultado.error);
-      return;
+    try {
+      const resultado = await cancelarCorridaAccion({ corridaId: cancelar, motivo: motivoCancelar.trim() });
+      if (!resultado.exito) {
+        setMensaje({ texto: resultado.error, tipo: 'error' });
+        return;
+      }
+      setMensaje({ texto: 'Corrida cancelada', tipo: 'estado' });
+      setCancelar(null);
+      setMotivoCancelar('');
+      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CORRIDAS_ORDEN });
+    } catch {
+      setMensaje({ texto: 'No se pudo cancelar la corrida. Comprueba su estado y vuelve a intentarlo.', tipo: 'error' });
+    } finally {
+      setProcesando(false);
     }
-    setMensaje('Corrida cancelada');
-    setCancelar(null);
-    setMotivoCancelar('');
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CORRIDAS_ORDEN });
   }
 
   return (
@@ -172,7 +189,14 @@ export function PanelCorridasProduccion({
 
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}
       {orden && consulta.isLoading && <Skeleton className="mt-3 h-20" />}
-      {mensaje !== null && <p role="status" className="mt-2 text-sm text-texto-primario">{mensaje}</p>}
+      {mensaje !== null && (
+        <p
+          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+          className={mensaje.tipo === 'error' ? 'mt-2 text-sm text-peligro-texto' : 'mt-2 text-sm text-exito-texto'}
+        >
+          {mensaje.texto}
+        </p>
+      )}
       {orden && !consulta.isLoading && corridas.length === 0 && (
         <EstadoVacio
           titulo="Sin corridas"

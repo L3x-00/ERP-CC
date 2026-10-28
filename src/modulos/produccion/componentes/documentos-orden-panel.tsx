@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { descargarUrlFirmada } from '@/compartido/utilidades/descargar-archivo';
+import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { obtenerArchivosSesionOrdenAccion, obtenerUrlArchivoSesionAccion } from '@/modulos/produccion/acciones/archivos-sesion';
 import type { ArchivoSesionResumen } from '@/modulos/produccion/archivos-sesion-config';
@@ -292,33 +293,28 @@ export function DocumentosOrdenPanel({
   }
 
   return (
-    <section
-      className="rounded-lg border border-borde bg-superficie p-4"
-      aria-labelledby="titulo-entregables"
+    <SeccionDesplegable
+      titulo="Entregables de producción"
+      descripcion="Planos, documentos, notas de entrega y salida final."
+      abiertoInicial={false}
       data-testid="panel-documentos-orden"
+      dataTestIdBoton="alternar-entregables-orden"
     >
-      <h2 id="titulo-entregables" className="text-base font-semibold text-texto-primario">
-        Entregables de producción
-      </h2>
-      <p className="mt-1 text-sm text-texto-secundario">
-        Planos y documentos de origen/orden, archivos de cada sesión y salida final se muestran por separado.
-      </p>
-
       {!ordenId && (
-        <p className="mt-4 text-sm text-texto-secundario">Selecciona una orden para ver sus entregables.</p>
+        <p className="pt-1 text-sm text-texto-secundario">Selecciona una orden para ver sus entregables.</p>
       )}
 
       {ordenId && consulta.isLoading && (
-        <p className="mt-4 text-sm text-texto-secundario">Cargando entregables…</p>
+        <p className="pt-1 text-sm text-texto-secundario">Cargando entregables…</p>
       )}
       {ordenId && consulta.isError && (
-        <p role="alert" className="mt-4 text-sm text-peligro-texto">
+        <p role="alert" className="pt-1 text-sm text-peligro-texto">
           No se pudieron cargar los entregables de la orden.
         </p>
       )}
 
       {ordenId && datos && (
-        <div className="mt-4 grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 pt-1 lg:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="text-sm font-semibold text-texto-primario">Planos y documentos del cliente/orden</h3>
@@ -491,6 +487,6 @@ export function DocumentosOrdenPanel({
           </div>
         </div>
       )}
-    </section>
+    </SeccionDesplegable>
   );
 }

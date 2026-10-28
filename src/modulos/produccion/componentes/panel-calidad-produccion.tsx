@@ -26,6 +26,7 @@ import type { CorridaDetalle } from '../servicios/consultas-b6-servicio';
 import { CLAVE_INSPECCIONES_ORDEN } from './claves-consulta';
 
 const CLASE_ETIQUETA = 'flex flex-col gap-1 text-sm font-medium text-texto-secundario';
+type MensajeCalidad = { texto: string; tipo: 'error' | 'estado' };
 
 /**
  * SII-B6.3: calidad básica por orden — primera pieza, referencias de lote
@@ -52,7 +53,7 @@ export function PanelCalidadProduccion({
   const [tolerancias, setTolerancias] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [fotos, setFotos] = useState<FileList | null>(null);
-  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [mensaje, setMensaje] = useState<MensajeCalidad | null>(null);
   const [procesando, setProcesando] = useState(false);
 
   const consulta = useQuery({
@@ -107,11 +108,11 @@ export function PanelCalidadProduccion({
         if (parseado && typeof parseado === 'object' && !Array.isArray(parseado)) {
           toleranciasJson = parseado as Record<string, unknown>;
         } else {
-          setMensaje('Las tolerancias deben ser un objeto JSON');
+          setMensaje({ texto: 'Las tolerancias deben ser un objeto JSON.', tipo: 'error' });
           return;
         }
       } catch {
-        setMensaje('Las tolerancias no son JSON válido');
+        setMensaje({ texto: 'Las tolerancias no son JSON válido.', tipo: 'error' });
         return;
       }
     }
@@ -120,32 +121,42 @@ export function PanelCalidadProduccion({
     for (const foto of subidas) {
       const validacion = validarSubidaArchivo('inspeccion_calidad', { nombre: foto.name, tamano: foto.size });
       if (!validacion.ok) {
-        setMensaje(`La foto ${foto.name} no es válida: ${validacion.error}`);
+        setMensaje({ texto: `La foto ${foto.name} no es válida: ${validacion.error}`, tipo: 'error' });
         return;
       }
     }
 
     setProcesando(true);
-    const respuesta = await registrarInspeccionAccion({
-      ordenId: orden.id,
-      corridaId: corridaId || null,
-      partidaId: corridaSeleccionada?.items[0]?.partidaId ?? null,
-      codigoItem: codigoItem.trim(),
-      tipo,
-      referencia: referencia.trim() ? Number(referencia) : null,
-      resultado,
-      ...(toleranciasJson ? { tolerancias: toleranciasJson } : {}),
-      cantidadInspeccionada: Number(cantidadOk) + Number(cantidadNok),
-      cantidadOk: Number(cantidadOk),
-      cantidadNok: Number(cantidadNok),
-      cantidadRetrabajo: Number(cantidadRetrabajo),
-      ...(materialUsado.trim() ? { materialUsado: { descripcion: materialUsado.trim() } } : {}),
-      ...(observaciones.trim() ? { observaciones: observaciones.trim() } : {}),
-    });
+    let respuesta: Awaited<ReturnType<typeof registrarInspeccionAccion>>;
+    try {
+      respuesta = await registrarInspeccionAccion({
+        ordenId: orden.id,
+        corridaId: corridaId || null,
+        partidaId: corridaSeleccionada?.items[0]?.partidaId ?? null,
+        codigoItem: codigoItem.trim(),
+        tipo,
+        referencia: referencia.trim() ? Number(referencia) : null,
+        resultado,
+        ...(toleranciasJson ? { tolerancias: toleranciasJson } : {}),
+        cantidadInspeccionada: Number(cantidadOk) + Number(cantidadNok),
+        cantidadOk: Number(cantidadOk),
+        cantidadNok: Number(cantidadNok),
+        cantidadRetrabajo: Number(cantidadRetrabajo),
+        ...(materialUsado.trim() ? { materialUsado: { descripcion: materialUsado.trim() } } : {}),
+        ...(observaciones.trim() ? { observaciones: observaciones.trim() } : {}),
+      });
+    } catch {
+      setProcesando(false);
+      setMensaje({ texto: 'No se pudo registrar la inspección. Comprueba sus datos y vuelve a intentarlo.', tipo: 'error' });
+      return;
+    }
 
     if (!respuesta.exito || !respuesta.datos) {
       setProcesando(false);
-      setMensaje(respuesta.exito ? 'La inspección no devolvió confirmación' : respuesta.error);
+      setMensaje({
+        texto: respuesta.exito ? 'La inspección no devolvió confirmación.' : respuesta.error,
+        tipo: 'error',
+      });
       return;
     }
 
@@ -171,7 +182,7 @@ export function PanelCalidadProduccion({
     let resumen = `Inspección ${ETIQUETAS_TIPO_INSPECCION[tipo].toLowerCase()} registrada`;
     if (falloFoto) resumen = `Inspección registrada, pero una foto falló: ${falloFoto}`;
     else if (subidas.length > 0) resumen += ` con ${subidas.length} foto(s)`;
-    setMensaje(resumen);
+    setMensaje({ texto: resumen, tipo: falloFoto ? 'error' : 'estado' });
     setDialogo(false);
     await clienteConsultas.invalidateQueries({ queryKey: CLAVE_INSPECCIONES_ORDEN });
   }
@@ -179,7 +190,7 @@ export function PanelCalidadProduccion({
   async function abrirFoto(archivoId: string): Promise<void> {
     const respuesta = await firmarFotoInspeccionAccion(archivoId);
     if (!respuesta.exito) {
-      setMensaje(respuesta.error);
+      setMensaje({ texto: respuesta.error, tipo: 'error' });
       return;
     }
     window.open(respuesta.datos?.url, '_blank', 'noopener,noreferrer');
@@ -205,7 +216,14 @@ export function PanelCalidadProduccion({
           Crea o inicia una corrida para registrar inspecciones de la orden {orden.folio}.
         </p>
       )}
-      {mensaje !== null && <p role="status" className="mt-2 text-sm text-texto-primario">{mensaje}</p>}
+      {mensaje !== null && (
+        <p
+          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+          className={mensaje.tipo === 'error' ? 'mt-2 text-sm text-peligro-texto' : 'mt-2 text-sm text-exito-texto'}
+        >
+          {mensaje.texto}
+        </p>
+      )}
 
       {orden && inspecciones.length === 0 && corridas.length > 0 && (
         <EstadoVacio titulo="Sin inspecciones" descripcion="Registra primera pieza, referencias de lote o el cierre." />
@@ -380,7 +398,7 @@ export function PanelCalidadProduccion({
                 onChange={(evento) => setFotos(evento.target.files)}
               />
             </label>
-            {mensaje !== null && <p role="alert" className="text-sm text-peligro-texto">{mensaje}</p>}
+            {mensaje?.tipo === 'error' && <p role="alert" className="text-sm text-peligro-texto">{mensaje.texto}</p>}
             <div className="flex justify-end gap-2">
               <Button type="button" variante="contorno" disabled={procesando} onClick={() => setDialogo(false)}>
                 Cerrar

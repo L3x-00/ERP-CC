@@ -21,6 +21,7 @@ import {
   esquemaVerificacionInicio,
 } from '@/modulos/produccion/validaciones/corridas';
 import { filaASesionTrabajo } from '@/modulos/produccion/tipos/produccion';
+import { ErrorProduccion, mensajeErrorSesion } from '@/modulos/produccion/servicios/sesiones-servicio';
 
 const UUID = '10000000-0000-4000-8000-000000000001';
 const UUID2 = '10000000-0000-4000-8000-000000000002';
@@ -63,6 +64,17 @@ describe('códigos de corrida', () => {
       USADA: 'Usada',
       REVOCADA: 'Revocada',
     });
+  });
+});
+
+describe('mensajes operativos de corrida', () => {
+  it('explica por qué no se puede completar sin exponer un error genérico', () => {
+    expect(mensajeErrorSesion(new ErrorProduccion('corrida_con_sesiones_abiertas')))
+      .toContain('Cierra o pausa las sesiones activas');
+    expect(mensajeErrorSesion(new ErrorProduccion('corrida_items_incompletos')))
+      .toContain('piezas pendientes');
+    expect(mensajeErrorSesion(new ErrorProduccion('corrida_no_completable')))
+      .toContain('proceso o pausada');
   });
 });
 
