@@ -458,6 +458,81 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(page.getByTestId('aviso-espacio')).toContainText('Sesión iniciada');
       await expect(page.getByTestId('columna-en_proceso')).toContainText('Fabricación');
     } finally {
+      // Mi panel: mostrar los procesos mediante tarjetas.
+await page.goto('/operador/mi-panel');
+
+await expect(
+  page.getByRole('heading', { name: 'Mis procesos' }),
+).toBeVisible();
+
+const tarjetaPersonal = page
+  .locator('article')
+  .filter({ hasText: 'E2E-PRD-' })
+  .first();
+
+await expect(tarjetaPersonal).toBeVisible();
+await expect(tarjetaPersonal).toContainText('Fabricación');
+await expect(tarjetaPersonal).toContainText('Área');
+await expect(tarjetaPersonal).toContainText('Tiempo trabajado');
+await expect(tarjetaPersonal).toContainText('Producidas');
+await expect(tarjetaPersonal).toContainText('Pendientes');
+await expect(tarjetaPersonal).toContainText('Avance del proceso');
+
+await expect(
+  tarjetaPersonal.getByRole('progressbar'),
+).toBeVisible();
+
+// Los filtros deben conservar el proceso correspondiente.
+await page
+  .getByLabel('Filtrar mis procesos por estado')
+  .selectOption('en_proceso');
+
+await expect(tarjetaPersonal).toBeVisible();
+
+await page
+  .getByLabel('Filtrar mis procesos por estado')
+  .selectOption('todos');
+
+// Una sesión activa no permite liberar la reserva.
+await expect(
+  tarjetaPersonal.getByRole('button', { name: 'Liberar reserva' }),
+).toHaveCount(0);
+
+// El detalle no debe aparecer debajo de las tarjetas.
+await expect(
+  page.getByTestId('detalle-proceso-integrado'),
+).toHaveCount(0);
+
+// Gestionar proceso debe abrir un modal.
+await tarjetaPersonal
+  .getByRole('button', { name: 'Gestionar proceso' })
+  .click();
+
+const modalGestion = page.getByRole('dialog', {
+  name: /Gestión del proceso/,
+});
+
+await expect(modalGestion).toBeVisible();
+
+await expect(
+  modalGestion.getByTestId('detalle-proceso-integrado'),
+).toBeVisible();
+
+await expect(modalGestion).toContainText('Ruta de fabricación');
+await expect(modalGestion).toContainText('Cerrar la sesión en marcha');
+await expect(modalGestion).toContainText('Consumo de material');
+
+// Cerrar el modal debe regresar a las tarjetas.
+await modalGestion
+  .getByRole('button', { name: 'Cerrar ficha' })
+  .click();
+
+await expect(modalGestion).toBeHidden();
+await expect(tarjetaPersonal).toBeVisible();
+
+await expect(
+  page.getByTestId('detalle-proceso-integrado'),
+).toHaveCount(0);
       await limpiarContexto(caso);
     }
   });
