@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/compartido/componentes/ui/dialog';
+import {
   Activity, ArrowLeft, CheckCircle2, ClipboardList, Clock3, PauseCircle,
 } from 'lucide-react';
 import {
@@ -405,75 +412,216 @@ export function PaginaMiPanelOperador({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-borde">
-            {visibles.map(({ proceso, estado, horasTrabajadas }) => (
-              <div
-                key={proceso.id}
-                className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5"
-              >
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="font-semibold text-texto-primario">{proceso.folioOrden}</p>
-                  <p className="text-sm text-texto-secundario">
-                    {proceso.procesoNombre} · {proceso.areaNombre}
-                  </p>
-                  <p className="text-xs text-texto-secundario">Pieza: {proceso.codigoPieza}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm tabular-nums text-texto-secundario">
-                    {formatearHoras(horasTrabajadas)}
-                  </span>
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${estilosEstado[estado]}`}>
-                    {etiquetas[estado]}
-                  </span>
-                </div>
+          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 sm:p-5">
+  {visibles.map(({ proceso, estado, horasTrabajadas }) => {
+    const puedeGestionar = proceso.reclamadoPorMi;
+    const puedeIniciar = puedeGestionar && proceso.puedeIniciar;
+    const puedeReanudar = puedeGestionar && proceso.puedeReanudar;
+
+    const puedeLiberar =
+      puedeGestionar &&
+      proceso.reclamo !== null &&
+      proceso.sesionActiva === null &&
+      proceso.programacion?.estadoPlaneacion !== 'en_proceso' &&
+      proceso.programacion?.estadoPlaneacion !== 'bloqueada';
+
+    return (
+      <article
+        key={proceso.id}
+        className="flex min-w-0 flex-col gap-4 rounded-xl border border-borde bg-superficie p-4 shadow-sm transition-shadow hover:shadow-md"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate font-mono text-sm font-semibold text-texto-primario">
+              {proceso.folioOrden}
+            </p>
+
+            <h4 className="mt-1 text-base font-semibold text-texto-primario">
+              {proceso.procesoNombre}
+            </h4>
+
+            <p className="mt-1 text-xs text-texto-secundario">
+              Pieza: {proceso.codigoPieza}
+            </p>
+          </div>
+
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${estilosEstado[estado]}`}
+          >
+            {etiquetas[estado]}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3 text-sm">
+          <div className="min-w-0">
+            <p className="text-xs text-texto-secundario">Área</p>
+            <p className="truncate font-medium text-texto-primario">
+              {proceso.areaNombre}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-texto-secundario">Tiempo trabajado</p>
+            <p className="font-semibold tabular-nums text-texto-primario">
+              {formatearHoras(horasTrabajadas)}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-texto-secundario">Producidas</p>
+            <p className="font-semibold tabular-nums text-texto-primario">
+              {proceso.hechoPiezas} / {proceso.metaPiezas}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-texto-secundario">Pendientes</p>
+            <p className="font-semibold tabular-nums text-texto-primario">
+              {proceso.pendientePiezas}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-texto-secundario">
+            <span>Avance del proceso</span>
+            <span className="font-semibold tabular-nums">
+              {proceso.porcentaje}%
+            </span>
+          </div>
+
+          <div
+            className="h-2 overflow-hidden rounded-full bg-superficie-2"
+            role="progressbar"
+            aria-label={`Avance de ${proceso.procesoNombre}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, Math.max(0, proceso.porcentaje))}
+          >
+            <div
+              className="h-full rounded-full bg-acento"
+              style={{
+                width: `${Math.min(100, Math.max(0, proceso.porcentaje))}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="mt-auto flex flex-col gap-2 border-t border-borde pt-3">
+          {(puedeIniciar || puedeReanudar || puedeLiberar) && (
+            <div className="flex flex-wrap gap-2">
+              {puedeIniciar && (
                 <button
                   type="button"
-                  disabled={!proceso.reclamadoPorMi || procesando !== null}
-                  onClick={() => setProcesoSeleccionadoId(proceso.id)}
-                  className={proceso.reclamadoPorMi
-                    ? 'rounded-lg bg-acento px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60'
-                    : 'cursor-not-allowed rounded-lg bg-superficie-2 px-4 py-2 text-sm font-semibold text-texto-secundario opacity-60'}
+                  disabled={procesando !== null}
+                  onClick={() => accionesDetalle.iniciar(proceso)}
+                  className="flex-1 rounded-lg bg-acento px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
                 >
-                  {proceso.reclamadoPorMi ? 'Gestionar proceso' : 'Sin reserva activa'}
+                  Iniciar proceso
                 </button>
-              </div>
-            ))}
-          </div>
+              )}
+
+              {puedeReanudar && (
+                <button
+                  type="button"
+                  disabled={procesando !== null}
+                  onClick={() => void accionesDetalle.reanudar(proceso)}
+                  className="flex-1 rounded-lg bg-acento px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  Continuar sesión
+                </button>
+              )}
+
+              {puedeLiberar && (
+                <button
+                  type="button"
+                  disabled={procesando !== null}
+                  onClick={() => void accionesDetalle.liberar(proceso)}
+                  className="flex-1 rounded-lg border border-borde px-3 py-2 text-sm font-medium text-texto-primario hover:bg-superficie-2 disabled:opacity-50"
+                >
+                  Liberar reserva
+                </button>
+              )}
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={!puedeGestionar || procesando !== null}
+            onClick={() => setProcesoSeleccionadoId(proceso.id)}
+            className={
+              puedeGestionar
+                ? 'w-full rounded-lg border border-acento px-3 py-2 text-sm font-semibold text-acento-texto transition-colors hover:bg-acento-suave disabled:opacity-50'
+                : 'w-full cursor-not-allowed rounded-lg bg-superficie-2 px-3 py-2 text-sm text-texto-secundario'
+            }
+          >
+            {puedeGestionar ? 'Gestionar proceso' : 'Sin reserva activa'}
+          </button>
+        </div>
+      </article>
+    );
+  })}
+</div>
         )}
       </section>
 
-      {procesoSeleccionado ? (
-        <section className="space-y-4" aria-label="Trabajo del proceso seleccionado">
-          <DetalleProcesoOperador
-            key={procesoSeleccionado.id}
-            proceso={procesoSeleccionado}
-            hoy={hoy}
-            soloLectura={!procesoSeleccionado.reclamadoPorMi}
-            procesando={procesando !== null}
-            motivosPausa={motivosPausa}
-            acciones={accionesDetalle}
-            onCerrar={() => setProcesoSeleccionadoId(null)}
-            presentacion="integrado"
+      <Dialog
+  open={procesoSeleccionado !== null}
+  onOpenChange={(abierto) => {
+    if (!abierto && procesando === null) {
+      setProcesoSeleccionadoId(null);
+    }
+  }}
+>
+    {procesoSeleccionado ? (
+      <DialogContent
+        className="flex max-h-[92vh] w-[calc(100vw-1rem)] max-w-5xl flex-col gap-4 overflow-y-auto"
+        aria-label={`Gestión del proceso ${procesoSeleccionado.folioOrden}`}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            Gestionar proceso — {procesoSeleccionado.folioOrden}
+          </DialogTitle>
+          <DialogDescription>
+            {procesoSeleccionado.procesoNombre} · Pieza{' '}
+            {procesoSeleccionado.codigoPieza}
+          </DialogDescription>
+        </DialogHeader>
+
+        <DetalleProcesoOperador
+          key={procesoSeleccionado.id}
+          proceso={procesoSeleccionado}
+          hoy={hoy}
+          soloLectura={!procesoSeleccionado.reclamadoPorMi}
+          procesando={procesando !== null}
+          motivosPausa={motivosPausa}
+          acciones={accionesDetalle}
+          onCerrar={() => {
+            if (procesando === null) setProcesoSeleccionadoId(null);
+          }}
+          presentacion="integrado"
+          materiales={materiales}
+          consumos={consumos}
+        />
+
+        {ordenesDelProceso.length > 0 ? (
+          <ControlPisoPanel
+            key={`materiales-${procesoSeleccionado.id}`}
+            operadorId={operadorId}
+            nombreOperador={nombreOperador}
+            ordenes={ordenesDelProceso}
             materiales={materiales}
-            consumos={consumos}
+            areas={areas}
+            modo="proceso"
           />
-          {ordenesDelProceso.length > 0 ? (
-            <ControlPisoPanel
-              key={`materiales-${procesoSeleccionado.id}`}
-              operadorId={operadorId}
-              nombreOperador={nombreOperador}
-              ordenes={ordenesDelProceso}
-              materiales={materiales}
-              areas={areas}
-              modo="proceso"
-            />
-          ) : (
-            <p className="rounded-lg border border-borde bg-superficie p-4 text-sm text-texto-secundario">
-              Este proceso no tiene una partida operativa disponible para registrar materiales.
-            </p>
-          )}
-        </section>
-      ) : null}
+        ) : (
+          <p className="rounded-lg border border-borde bg-superficie p-4 text-sm text-texto-secundario">
+            Este proceso no tiene una partida operativa disponible para registrar materiales.
+          </p>
+        )}
+      </DialogContent>
+    ) : null}
+  </Dialog>
 
       <DialogoChecklistInicio
         abierto={inicioPendiente !== null}
