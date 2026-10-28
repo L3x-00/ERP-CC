@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Obs. cliente 2026-10-21: el PDF de la propuesta imprime el plazo comercial del
 // RFQ de origen. Se corta en la subida a Storage para inspeccionar los bytes.
-const { obtenerUsuarioMock, canMock, filasMock, subirMock } = vi.hoisted(() => ({
+const { obtenerUsuarioMock, canMock, filasMock, subirMock, generarPdfMock } = vi.hoisted(() => ({
   obtenerUsuarioMock: vi.fn(),
   canMock: vi.fn(),
   filasMock: vi.fn(),
   subirMock: vi.fn(),
+  generarPdfMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
@@ -38,6 +39,9 @@ vi.mock('@/nucleo/supabase/admin', () => ({
     storage: { from: () => ({ upload: (...args: unknown[]) => subirMock(...args) }) },
   }),
 }));
+vi.mock('@/modulos/propuestas/servicios/pdf/propuesta-pdf-profesional', () => ({
+  generarPdfPropuestaProfesional: (...args: unknown[]) => generarPdfMock(...args),
+}));
 
 import { generarPdfRevisionAccion } from '@/modulos/propuestas/acciones/generar-pdf-revision';
 
@@ -67,6 +71,8 @@ function prepararFilas(plazoComercial: string | null): void {
         return { data: { fecha_requerida: null, plazo_comercial: plazoComercial }, error: null };
       case 'propuesta_pdfs':
         return { data: null, error: null };
+      case 'configuracion_sistema':
+        return { data: null, error: null };
       default:
         throw new Error(`Tabla no esperada en la prueba: ${tabla}`);
     }
@@ -78,6 +84,7 @@ describe('generarPdfRevisionAccion — plazo comercial del RFQ', () => {
     vi.clearAllMocks();
     obtenerUsuarioMock.mockResolvedValue({ id: 'usuario-1', rol: 'vendedor', activo: true });
     canMock.mockResolvedValue(true);
+    generarPdfMock.mockResolvedValue(Buffer.from('%PDF-1.3 prueba'));
     subirMock.mockResolvedValue({ error: { message: 'corte de la prueba' } });
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -88,8 +95,9 @@ describe('generarPdfRevisionAccion — plazo comercial del RFQ', () => {
     const respuesta = await generarPdfRevisionAccion({ revisionId: REVISION_ID });
 
     expect(respuesta).toEqual({ exito: false, error: 'No se pudo subir el PDF de la propuesta' });
-    const bytes = subirMock.mock.calls[0]?.[1] as Buffer;
-    expect(bytes.toString('latin1')).toContain('Plazo comercial: Fabricaci');
+    expect(generarPdfMock).toHaveBeenCalledWith(expect.objectContaining({
+      plazoComercial: 'Fabricación 5-7 días',
+    }));
   });
 
   it('sin plazo en el RFQ el PDF no incluye la línea', async () => {
@@ -97,7 +105,6 @@ describe('generarPdfRevisionAccion — plazo comercial del RFQ', () => {
 
     await generarPdfRevisionAccion({ revisionId: REVISION_ID });
 
-    const bytes = subirMock.mock.calls[0]?.[1] as Buffer;
-    expect(bytes.toString('latin1')).not.toContain('Plazo comercial');
+    expect(generarPdfMock).toHaveBeenCalledWith(expect.objectContaining({ plazoComercial: null }));
   });
 });

@@ -63,6 +63,7 @@ describe('documento público del PDF (SII-B4.7)', () => {
         'cliente',
         'condicionesPago',
         'contacto',
+        'empresa',
         'fecha',
         'folioRevision',
         'items',

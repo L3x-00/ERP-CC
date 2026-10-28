@@ -4,11 +4,10 @@ import type { DocumentoPropuesta } from './documento-propuesta';
 /**
  * Escritor PDF 1.4 interno mínimo (spike ADR-SII-04).
  *
- * Decisión: sin dependencias (ni `@react-pdf/renderer` ni Chromium headless).
- * Criterios del spike: sin red en runtime, determinista (mismos datos ⇒ mismos
- * bytes, por eso no embebe fecha de creación), peso de build nulo y plantilla
- * reutilizable. Si el cliente exige maquetación rica, el renderer puede
- * sustituirse detrás de `generarPdfBorrador` sin tocar datos ni flujo.
+ * Se conserva como referencia determinista del spike ADR-SII-04 y para probar
+ * la composición paginada. La generación productiva usa la plantilla
+ * profesional con `@react-pdf/renderer`; ambas reciben el mismo documento
+ * público y no exponen costo, margen, horas ni ruteo.
  */
 
 type LineaPdf = {

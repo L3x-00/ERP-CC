@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 
 import { obtenerDocumentoNotaEntregaAccion } from '@/modulos/produccion/acciones/obtener-documento-nota-entrega';
 import { formatearFecha, formatearNumero } from '@/compartido/utilidades/formatear';
@@ -13,12 +14,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
+import { NotaEntregaPdfProfesional } from '@/modulos/produccion/componentes/nota-entrega-pdf-profesional';
 
 /**
  * Nota de entrega imprimible (OBS-13): conforma el registro persistido con la
- * confirmación de quién recibió. “Reimprimir” es volver a abrir este documento;
- * el navegador imprime o guarda como PDF, sin archivo intermedio. No contiene
- * precios, igual que la nota registrada.
+ * confirmación de quién recibió. Permite descargar un PDF de presentación o
+ * imprimir la vista; no contiene precios, igual que la nota registrada.
  */
 export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; folio: string }) {
   const [abierto, setAbierto] = useState(false);
@@ -186,6 +187,13 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
                 <Button type="button" variante="contorno" onClick={() => setAbierto(false)}>
                   Cerrar
                 </Button>
+                <PDFDownloadLink
+                  document={<NotaEntregaPdfProfesional documento={documento} />}
+                  fileName={`Nota de entrega ${documento.nota.folio}.pdf`}
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-borde-fuerte bg-superficie px-3 text-sm font-semibold text-texto-primario transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+                >
+                  {({ loading, error }) => (error ? 'No se pudo preparar el PDF' : loading ? 'Preparando PDF…' : 'Descargar PDF')}
+                </PDFDownloadLink>
                 <Button type="button" onClick={() => window.print()}>
                   Imprimir
                 </Button>

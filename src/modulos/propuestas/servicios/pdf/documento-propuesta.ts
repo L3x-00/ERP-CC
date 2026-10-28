@@ -22,6 +22,14 @@ export type DocumentoPropuesta = {
   /** Fecha del documento en ISO `YYYY-MM-DD` (determinista por revisión). */
   fecha: string;
   moneda: MonedaPropuesta;
+  empresa: {
+    nombre: string;
+    razonSocial: string;
+    rfc: string;
+    direccion: string;
+    telefono: string;
+    email: string;
+  };
   cliente: {
     razonSocial: string | null;
     nombreComercial: string | null;
@@ -57,6 +65,14 @@ export function construirDocumentoPropuesta(entrada: {
   folioRevision: string;
   fecha: string;
   moneda: MonedaPropuesta;
+  empresa?: {
+    nombre: string;
+    razonSocial: string;
+    rfc: string;
+    direccion: string;
+    telefono: string;
+    email: string;
+  };
   cliente: {
     razonSocial: string | null;
     nombreComercial: string | null;
@@ -106,6 +122,14 @@ export function construirDocumentoPropuesta(entrada: {
     folioRevision: entrada.folioRevision,
     fecha: entrada.fecha,
     moneda: entrada.moneda,
+    empresa: entrada.empresa ?? {
+      nombre: 'CC Manufacturing Group',
+      razonSocial: '',
+      rfc: '',
+      direccion: '',
+      telefono: '',
+      email: '',
+    },
     cliente: {
       razonSocial: entrada.cliente.razonSocial,
       nombreComercial: entrada.cliente.nombreComercial,
