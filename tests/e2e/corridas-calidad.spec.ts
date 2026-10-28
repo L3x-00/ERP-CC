@@ -408,6 +408,7 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     await expect(detalleConcluido).toContainText('Historial de sesiones');
     // Detalle concluido en solo lectura: archivos visibles, sin formularios de carga.
     const panelDocumentos = detalleConcluido.getByTestId('panel-documentos-orden');
+    await panelDocumentos.getByTestId('alternar-entregables-orden').click();
     await expect(panelDocumentos.getByTestId('documentos-solo-lectura')).toBeVisible();
     await expect(detalleConcluido.getByTestId('sesion-solo-lectura').first()).toBeVisible();
     await expect(panelDocumentos.locator('input[type="file"]')).toHaveCount(0);

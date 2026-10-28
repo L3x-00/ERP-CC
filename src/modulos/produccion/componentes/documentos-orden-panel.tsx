@@ -297,7 +297,7 @@ export function DocumentosOrdenPanel({
       titulo="Entregables de producción"
       descripcion="Planos, documentos, notas de entrega y salida final."
       abiertoInicial={false}
-      data-testid="panel-documentos-orden"
+      dataTestId="panel-documentos-orden"
       dataTestIdBoton="alternar-entregables-orden"
     >
       {!ordenId && (
