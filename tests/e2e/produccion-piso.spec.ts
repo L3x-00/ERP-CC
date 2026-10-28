@@ -672,6 +672,7 @@ test.describe.serial('piso de Producción y entregas', () => {
     // OBS-17: hilo de comentarios del trabajo dentro del piso.
     const hilo = page.getByTestId('hilo-comentarios');
     await expect(hilo).toBeVisible();
+    await hilo.getByRole('button', { name: 'Nuevo comentario' }).click();
     await hilo.getByLabel('Nuevo comentario').fill('Entrega revisada en piso');
     await hilo.getByRole('button', { name: 'Comentar' }).click();
     await expect(hilo).toContainText('Entrega revisada en piso');
