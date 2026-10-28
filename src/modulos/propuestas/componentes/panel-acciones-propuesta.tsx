@@ -79,6 +79,12 @@ export function PanelAccionesPropuesta({
   const pdfVigente = revision.pdfs.find((pdf) => pdf.vigente) ?? null;
   const tieneAccion = detalle.acciones.some((accion) => accion.revisionId === revision.id);
   const esAceptada = detalle.propuesta.acceptedRevisionId === revision.id;
+  // Validar reutiliza la acción vigente de esta misma revisión. El servidor la
+  // reconoce como idéntica y no vuelve a insertarla; la persona puede cambiarla
+  // si el siguiente paso comercial realmente cambió.
+  const seguimientoVigente = [...detalle.acciones]
+    .filter((accion) => accion.revisionId === revision.id)
+    .sort((primera, segunda) => segunda.creadoEn.localeCompare(primera.creadoEn))[0] ?? null;
   const referenciaFechasRfq = textoReferenciaFechasRfq(detalle.fechasRfq);
   const mensajesFaltantes = esBorrador ? (faltantes?.mensajes ?? []) : [];
   const incompleta = mensajesFaltantes.length > 0;
@@ -558,6 +564,7 @@ export function PanelAccionesPropuesta({
           catalogos={catalogos}
           puedeRegistrar={permisos.seguimiento}
           canalRfq={detalle.canalRfq}
+          seguimientoInicial={seguimientoVigente}
           onCerrar={() => setValidarAbierto(false)}
           onExito={({ seguimientoRegistrado }) => {
             setValidando(true);

@@ -90,6 +90,12 @@ export interface OperacionProgramablePartida {
   nombre: string;
   /** Ya existe una fila de programación vigente (no cancelada) para la operación. */
   programada: boolean;
+  /** Recurso elegido explícitamente en el ruteo de la propuesta, si existe. */
+  recursoIdSugerido?: string | null;
+  /** Compromiso comercial de la orden; orienta, no reserva capacidad. */
+  fechaProgramadaSugerida?: string | null;
+  /** Duración total del ruteo de esta operación, si es programable en un turno. */
+  horasEstimadasSugeridas?: number | null;
 }
 
 /**

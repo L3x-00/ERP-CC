@@ -68,7 +68,7 @@ export default async function PaginaPlaneacion() {
   // 100 para no rebasar la URL. La bolsa y el rango del calendario no cambian.
   const { data: ordenesVigentes, error: errorOrdenesVigentes } = await cliente
     .from('ordenes_produccion')
-    .select('id')
+    .select('id, fecha_compromiso_comercial')
     .neq('estado', 'cancelada')
     .neq('estado', 'completada');
   if (errorOrdenesVigentes) {
@@ -80,7 +80,7 @@ export default async function PaginaPlaneacion() {
       dividirEnLotes((ordenesVigentes ?? []).map((orden) => orden.id)).map((lote) =>
         cliente
           .from('partidas_orden_produccion')
-          .select('id, orden_id, creado_en')
+          .select('id, orden_id, propuesta_item_id, creado_en')
           .in('orden_id', lote)
           .order('creado_en', { ascending: false }),
       ),
@@ -188,6 +188,45 @@ export default async function PaginaPlaneacion() {
     return respuesta.data ?? [];
   });
 
+  // El ruteo confirmado conserva la duración por operación y, solo cuando se
+  // eligió explícitamente, el recurso. La fecha comercial es una sugerencia de
+  // planeación: la RPC de programación sigue validando turno y capacidad.
+  const idsItemsPropuesta = [
+    ...new Set(
+      partidasVigentes
+        .map((partida) => partida.propuesta_item_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const ruteosPropuesta = (
+    await Promise.all(
+      dividirEnLotes(idsItemsPropuesta).map((lote) =>
+        cliente
+          .from('propuesta_item_ruteo')
+          .select('item_id, secuencia, recurso_id, total_horas')
+          .in('item_id', lote)
+          .order('secuencia', { ascending: true }),
+      ),
+    )
+  ).flatMap((respuesta) => {
+    if (respuesta.error) {
+      throw new Error('No se pudo cargar el ruteo de las partidas para Planeación');
+    }
+    return respuesta.data ?? [];
+  });
+  const ruteoPorItemYSecuencia = new Map(
+    ruteosPropuesta.map((ruteo) => [`${ruteo.item_id}:${ruteo.secuencia}`, ruteo]),
+  );
+  const partidaVigentePorId = new Map(partidasVigentes.map((partida) => [partida.id, partida]));
+  const fechaCompromisoPorOrden = new Map(
+    (ordenesVigentes ?? []).map((orden) => [
+      orden.id,
+      orden.fecha_compromiso_comercial && orden.fecha_compromiso_comercial >= hoy
+        ? orden.fecha_compromiso_comercial
+        : null,
+    ]),
+  );
+
   const metasPorPartida = new Map<string, { id: string; secuencia: number; nombre: string }[]>();
   for (const meta of metasPartidas) {
     const lista = metasPorPartida.get(meta.partida_id) ?? [];
@@ -206,12 +245,23 @@ export default async function PaginaPlaneacion() {
       etiqueta: partida.etiqueta,
       secuenciaSugerida: partida.secuenciaSugerida,
       operaciones: (metasPorPartida.get(partida.partidaId) ?? []).map(
-        (meta): OperacionProgramablePartida => ({
-          metaProcesoId: meta.id,
-          secuencia: meta.secuencia,
-          nombre: meta.nombre,
-          programada: idsMetasCubiertas.has(meta.id),
-        }),
+        (meta): OperacionProgramablePartida => {
+          const partidaOrigen = partidaVigentePorId.get(partida.partidaId);
+          const ruteo = partidaOrigen?.propuesta_item_id
+            ? ruteoPorItemYSecuencia.get(`${partidaOrigen.propuesta_item_id}:${meta.secuencia}`)
+            : undefined;
+          const horas = ruteo?.total_horas ?? null;
+          return {
+            metaProcesoId: meta.id,
+            secuencia: meta.secuencia,
+            nombre: meta.nombre,
+            programada: idsMetasCubiertas.has(meta.id),
+            recursoIdSugerido: ruteo?.recurso_id ?? null,
+            fechaProgramadaSugerida: fechaCompromisoPorOrden.get(partida.ordenId) ?? null,
+            horasEstimadasSugeridas:
+              horas !== null && Number.isFinite(horas) && horas > 0 && horas <= 24 ? horas : null,
+          };
+        },
       ),
     }),
   );
