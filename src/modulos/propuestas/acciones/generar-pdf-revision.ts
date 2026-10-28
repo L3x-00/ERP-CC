@@ -12,15 +12,25 @@ import {
 } from '@/nucleo/almacenamiento/archivos/servicio';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
+import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/configuracion-servicio';
 import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import { traducirErrorPropuesta } from '@/modulos/propuestas/servicios/errores-propuesta';
 import { obtenerFechasRfq } from '@/modulos/propuestas/servicios/obtener-propuesta';
 import { construirDocumentoPropuesta } from '@/modulos/propuestas/servicios/pdf/documento-propuesta';
-import { generarPdfBorrador } from '@/modulos/propuestas/servicios/pdf/escritor-pdf';
+import { generarPdfPropuestaProfesional } from '@/modulos/propuestas/servicios/pdf/propuesta-pdf-profesional';
 import { jsonASnapshotCabecera } from '@/modulos/propuestas/tipos/indice';
 import { esquemaGenerarPdfRevision } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 
 const BUCKET = 'propuestas-pdf';
+
+/**
+ * La representación visual puede incluir metadatos internos del renderer que
+ * cambian entre ejecuciones. La idempotencia se basa en el contenido comercial
+ * que el cliente ve, no en esos bytes variables del contenedor PDF.
+ */
+function hashContenidoDocumento(documento: ReturnType<typeof construirDocumentoPropuesta>): string {
+  return createHash('sha256').update(JSON.stringify(documento)).digest('hex');
+}
 
 export type ResultadoGenerarPdf = {
   pdfId: string;
@@ -79,10 +89,19 @@ export async function generarPdfRevisionAccion(
   const fechasRfq = propuesta ? await obtenerFechasRfq(admin, propuesta.rfq_id) : null;
 
   const snapshot = jsonASnapshotCabecera(revision.snapshot_cabecera);
+  const configuracion = await obtenerConfiguracionGeneral(admin);
   const documento = construirDocumentoPropuesta({
     folioRevision: revision.folio_revision,
     fecha: hoyIso(new Date(revision.validada_en ?? revision.actualizado_en)),
     moneda: snapshot.moneda,
+    empresa: {
+      nombre: configuracion.empresa.nombre,
+      razonSocial: configuracion.empresa.razonSocial,
+      rfc: configuracion.empresa.rfc,
+      direccion: configuracion.empresa.direccion,
+      telefono: configuracion.empresa.telefono,
+      email: configuracion.empresa.email,
+    },
     cliente: snapshot.cliente ?? {
       razonSocial: null,
       nombreComercial: null,
@@ -103,8 +122,14 @@ export async function generarPdfRevisionAccion(
     })),
   });
 
-  const bytes = generarPdfBorrador(documento);
-  const hash = createHash('sha256').update(bytes).digest('hex');
+  let bytes: Buffer;
+  try {
+    bytes = await generarPdfPropuestaProfesional(documento);
+  } catch (error) {
+    console.error('[PROPUESTAS] No se pudo componer el PDF:', error);
+    return { exito: false, error: 'No se pudo generar el PDF de la propuesta' };
+  }
+  const hash = hashContenidoDocumento(documento);
 
   // Idempotencia por contenido: si ya existe el mismo PDF, no se regenera.
   const { data: existente } = await admin
