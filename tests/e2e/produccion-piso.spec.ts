@@ -751,8 +751,10 @@ await expect(
     const hilo = page.getByTestId('hilo-comentarios');
     await expect(hilo).toBeVisible();
     await hilo.getByRole('button', { name: 'Nuevo comentario' }).click();
-    await hilo.getByLabel('Nuevo comentario').fill('Entrega revisada en piso');
-    await hilo.getByRole('button', { name: 'Comentar' }).click();
+    const dialogoComentario = page.getByRole('dialog', { name: 'Nuevo comentario' });
+    await expect(dialogoComentario).toBeVisible();
+    await dialogoComentario.getByLabel('Nuevo comentario').fill('Entrega revisada en piso');
+    await dialogoComentario.getByRole('button', { name: 'Comentar' }).click();
     await expect(hilo).toContainText('Entrega revisada en piso');
 
     const { data: notas, error: errorNotas } = await contextoPrueba.admin
