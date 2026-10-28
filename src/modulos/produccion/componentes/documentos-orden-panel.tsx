@@ -8,7 +8,7 @@ import { Input } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { obtenerArchivosSesionOrdenAccion, obtenerUrlArchivoSesionAccion } from '@/modulos/produccion/acciones/archivos-sesion';
 import type { ArchivoSesionResumen } from '@/modulos/produccion/archivos-sesion-config';
-import { CLAVE_ARCHIVOS_SESION } from '@/modulos/produccion/componentes/claves-consulta';
+import { CLAVE_ARCHIVOS_SESION, CLAVE_ENTREGABLES_ORDEN } from '@/modulos/produccion/componentes/claves-consulta';
 import { subirArchivoSesionDesdeNavegador } from '@/modulos/produccion/subir-archivo-sesion-cliente';
 import { NotaEntregaDocumentoBoton } from '@/modulos/produccion/componentes/nota-entrega-documento-boton';
 import {
@@ -24,7 +24,7 @@ import {
 import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
 
 /** Clave de consulta de entregables; se invalida al subir o generar una nota. */
-export const CLAVE_ENTREGABLES_ORDEN = ['produccion', 'entregables-orden'] as const;
+export { CLAVE_ENTREGABLES_ORDEN } from '@/modulos/produccion/componentes/claves-consulta';
 
 function formatearTamano(bytes: number | null): string {
   if (bytes === null) return '—';

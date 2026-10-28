@@ -92,6 +92,9 @@ export type {
   PartidaTableroProduccion,
 } from '@/modulos/produccion/servicios/tablero-produccion-servicio';
 
+export { obtenerConsumosMaterialOrdenServicio } from '@/modulos/produccion/servicios/consumos-orden-servicio';
+export type { ConsumoMaterialOrden } from '@/modulos/produccion/servicios/consumos-orden-servicio';
+
 export {
   EXTENSIONES_DOCUMENTO_ORDEN,
   TAMANO_MAXIMO_DOCUMENTO_ORDEN,

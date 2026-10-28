@@ -11,3 +11,9 @@ export const CLAVE_INSPECCIONES_ORDEN = ['produccion', 'inspecciones'] as const;
 export const CLAVE_HORAS_EXTRA_ORDEN = ['produccion', 'horas-extra'] as const;
 /** SII-B6 ola 2: máquinas liberadas ≥60 min por motivo liberable. */
 export const CLAVE_RECURSOS_LIBERABLES = ['produccion', 'recursos-liberables'] as const;
+/** Ficha de una orden concluida: material consumido por sus partidas. */
+export const CLAVE_CONSUMOS_ORDEN = ['produccion', 'consumos-orden'] as const;
+/** Ficha de solo lectura de una orden concluida (se anexa el ordenId). */
+export const CLAVE_DETALLE_ORDEN_CONCLUIDA = ['produccion', 'detalle-orden-concluida'] as const;
+/** Entregables de la orden: documentos, versiones y notas de entrega. */
+export const CLAVE_ENTREGABLES_ORDEN = ['produccion', 'entregables-orden'] as const;

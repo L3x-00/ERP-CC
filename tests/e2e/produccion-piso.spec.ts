@@ -636,7 +636,12 @@ test.describe.serial('piso de Producción y entregas', () => {
     await expect.poll(async () => (await page.request.get(dwgHistorico.url())).status()).toBe(200);
     await dwgHistorico.close();
     await observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)
-      .getByRole('button', { name: 'Operar orden' }).click();
+      .getByRole('button', { name: 'Ver detalle' }).click();
+    const detalleConcluido = observador.getByTestId('detalle-orden-concluida');
+    await expect(detalleConcluido).toBeVisible();
+    await expect(detalleConcluido).toContainText('Material utilizado');
+    await expect(detalleConcluido).toContainText('Historial de sesiones');
+    await expect(detalleConcluido).toContainText('La orden está entregada por completo.');
     await expect(observador.getByTestId('panel-documentos-orden')).toContainText('Sin archivos de salida final');
     await panelEntregables.getByLabel('Archivo de salida final').setInputFiles({
       name: 'archivo-no-permitido.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('E2E'),

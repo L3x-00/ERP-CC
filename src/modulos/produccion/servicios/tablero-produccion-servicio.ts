@@ -124,13 +124,18 @@ export function obtenerEstadoKanbanProduccion(
 }
 
 /** PostgREST limita cada respuesta; paginar evita recortar el historial de producción. */
-async function obtenerTodasLasSesiones(cliente: SupabaseClient<Database>) {
+async function obtenerTodasLasSesiones(
+  cliente: SupabaseClient<Database>,
+  ordenId?: string,
+) {
   const sesiones: FilaSesionTrabajoOperativa[] = [];
   const TAMANO_PAGINA = 500;
   for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
-    const { data, error } = await cliente.from('sesiones_trabajo')
+    let consulta = cliente.from('sesiones_trabajo')
       .select(COLUMNAS_SESION_TRABAJO_OPERATIVA)
-      .order('creado_en').order('id').range(inicio, inicio + TAMANO_PAGINA - 1);
+      .order('creado_en').order('id');
+    if (ordenId) consulta = consulta.eq('orden_id', ordenId);
+    const { data, error } = await consulta.range(inicio, inicio + TAMANO_PAGINA - 1);
     if (error) throw new Error(`No se pudo cargar el historial de Producción: ${error.message}`);
     sesiones.push(...(data ?? []));
     if (!data || data.length < TAMANO_PAGINA) break;
@@ -182,16 +187,42 @@ export async function obtenerDatosTableroProduccionServicio(
         .order('nombre')
     : { data: [], error: null };
 
-  const [resultadoOrdenes, resultadoPartidas, resultadoProgramaciones, sesiones, resultadoNotas, resultadoRenglones, resultadoRecursos, resultadoMetas, avancesProceso] = await Promise.all([
-    cliente
+  const consultaOrdenes = (() => {
+    let consulta = cliente
       .from('ordenes_produccion')
       .select(COLUMNAS_ORDEN_OPERATIVA)
-      .neq('estado', 'cancelada')
-      .order('fecha_compromiso'),
-    cliente.from('partidas_orden_produccion').select('*').order('creado_en'),
-    cliente.from('programacion_areas').select('*').neq('estado_planeacion', 'cancelada').order('secuencia'),
-    obtenerTodasLasSesiones(cliente),
-    cliente.from('notas_entrega').select('*').order('creado_en', { ascending: false }),
+      .neq('estado', 'cancelada');
+    if (filtros.ordenId) consulta = consulta.eq('id', filtros.ordenId);
+    return consulta.order('fecha_compromiso');
+  })();
+  const consultaPartidas = (() => {
+    let consulta = cliente.from('partidas_orden_produccion').select('*');
+    if (filtros.ordenId) consulta = consulta.eq('orden_id', filtros.ordenId);
+    return consulta.order('creado_en');
+  })();
+  const consultaProgramaciones = (() => {
+    let consulta = cliente
+      .from('programacion_areas')
+      .select('*')
+      .neq('estado_planeacion', 'cancelada');
+    if (filtros.ordenId) consulta = consulta.eq('orden_id', filtros.ordenId);
+    return consulta.order('secuencia');
+  })();
+  const consultaNotas = (() => {
+    let consulta = cliente
+      .from('notas_entrega')
+      .select('*')
+      .order('creado_en', { ascending: false });
+    if (filtros.ordenId) consulta = consulta.eq('orden_id', filtros.ordenId);
+    return consulta;
+  })();
+
+  const [resultadoOrdenes, resultadoPartidas, resultadoProgramaciones, sesiones, resultadoNotas, resultadoRenglones, resultadoRecursos, resultadoMetas, avancesProceso] = await Promise.all([
+    consultaOrdenes,
+    consultaPartidas,
+    consultaProgramaciones,
+    obtenerTodasLasSesiones(cliente, filtros.ordenId),
+    consultaNotas,
     cliente.from('partidas_nota_entrega').select('*'),
     cliente
       .from('recursos_planeacion')
