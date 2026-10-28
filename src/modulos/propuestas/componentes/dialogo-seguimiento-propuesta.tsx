@@ -75,7 +75,11 @@ export function DialogoSeguimientoPropuesta({
   onCerrar: () => void;
   onExito?: (resultado: ResultadoSeguimientoPropuestaUi) => void;
 }) {
-  const [codigo, setCodigo] = useState('FOLLOW_UP');
+  // Al validar, la propuesta queda lista para enviar y la acción comercial
+  // natural es esperar la respuesta del cliente. Aún puede cambiarse.
+  const [codigo, setCodigo] = useState(
+    modo === 'validar' ? 'WAIT_CUSTOMER_RESPONSE' : 'FOLLOW_UP',
+  );
   const [textoOtro, setTextoOtro] = useState('');
   const [fecha, setFecha] = useState(hoyIso());
   // `null` = la persona aún no tocó el campo: rige el canal del RFQ. Derivarlo
@@ -105,11 +109,14 @@ export function DialogoSeguimientoPropuesta({
   );
   const canalEsOtro = canalSeleccionado?.esOtro ?? false;
   const detalleCanalValido = !canalEsOtro || canalDetalle.trim().length >= 3;
+  const fechaMinima = hoyIso();
+  const fechaValida = fecha >= fechaMinima;
   const formularioValido =
     puedeRegistrar &&
     catalogoListo &&
     codigo !== '' &&
     fecha !== '' &&
+    fechaValida &&
     detalleValido &&
     detalleCanalValido;
 
@@ -201,8 +208,16 @@ export function DialogoSeguimientoPropuesta({
                 type="date"
                 value={fecha}
                 onChange={(evento) => setFecha(evento.target.value)}
+                min={fechaMinima}
                 aria-label="Fecha de la próxima acción"
+                aria-invalid={fecha !== '' && !fechaValida}
+                aria-describedby={!fechaValida ? 'fecha-proxima-accion-error' : undefined}
               />
+              {!fechaValida && (
+                <span id="fecha-proxima-accion-error" className="text-xs text-peligro-texto">
+                  La fecha no puede ser anterior a hoy.
+                </span>
+              )}
             </label>
             {esOtro && (
               <label className="flex flex-col gap-1 text-sm sm:col-span-2">

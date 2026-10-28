@@ -1,6 +1,7 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
+import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import type { EstadoPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { esquemaRegistrarSeguimientoPropuesta } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 import {
@@ -27,6 +28,9 @@ export async function registrarSeguimientoPropuestaAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
   const datos = analisis.data;
+  if (datos.fecha < hoyIso()) {
+    return { exito: false, error: 'La fecha de la próxima acción no puede ser anterior a hoy' };
+  }
 
   const respuesta = await ejecutarRpcPropuesta(
     {

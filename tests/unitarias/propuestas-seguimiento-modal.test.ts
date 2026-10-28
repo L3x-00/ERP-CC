@@ -41,6 +41,7 @@ const CATALOGOS = {
   recursos: [],
   proximasAcciones: [
     { codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false },
+    { codigo: 'WAIT_CUSTOMER_RESPONSE', nombre: 'Esperar respuesta del cliente', esOtro: false },
     { codigo: 'OTRO', nombre: 'Otro', esOtro: true },
   ],
   canales: [
@@ -105,7 +106,7 @@ describe('DialogoSeguimientoPropuesta (obs. cliente)', () => {
         expect.objectContaining({
           revisionId: REV_ID,
           actualizadoEn: TOKEN,
-          codigo: 'FOLLOW_UP',
+          codigo: 'WAIT_CUSTOMER_RESPONSE',
           fecha: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         }),
       ),
@@ -148,6 +149,18 @@ describe('DialogoSeguimientoPropuesta (obs. cliente)', () => {
       target: { value: 'Feria industrial' },
     });
     expect(confirmar.disabled).toBe(false);
+  });
+
+  it('al validar preselecciona «Esperar respuesta del cliente» y no admite una fecha pasada', () => {
+    montar({ modo: 'validar' });
+
+    expect((screen.getByLabelText('Acción de seguimiento') as HTMLSelectElement).value).toBe(
+      'WAIT_CUSTOMER_RESPONSE',
+    );
+    const fecha = screen.getByLabelText('Fecha de la próxima acción') as HTMLInputElement;
+    fireEvent.change(fecha, { target: { value: '2000-01-01' } });
+    expect(screen.getByText('La fecha no puede ser anterior a hoy.')).toBeDefined();
+    expect((screen.getByRole('button', { name: 'Registrar y validar' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('el canal es un desplegable del catálogo y envía el código configurado', async () => {

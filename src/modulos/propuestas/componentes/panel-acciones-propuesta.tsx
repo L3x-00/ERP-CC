@@ -61,6 +61,7 @@ export function PanelAccionesPropuesta({
   const [exito, setExito] = useState<string | null>(null);
   const [exitoValidacion, setExitoValidacion] = useState<string | null>(null);
   const [validarAbierto, setValidarAbierto] = useState(false);
+  const [validando, setValidando] = useState(false);
   const [pdfGenerado, setPdfGenerado] = useState<{ archivoId: string; version: number } | null>(
     null,
   );
@@ -232,7 +233,7 @@ export function PanelAccionesPropuesta({
               setExitoValidacion(null);
               setValidarAbierto(true);
             }}
-            disabled={procesando || requiereRevision || incompleta}
+            disabled={procesando || validando || requiereRevision || incompleta}
             title={
               incompleta
                 ? 'Completa lo marcado en rojo antes de validar'
@@ -241,7 +242,7 @@ export function PanelAccionesPropuesta({
                   : undefined
             }
           >
-            Validar
+            {validando ? 'Validando…' : 'Validar'}
           </Button>
         )}
 
@@ -559,12 +560,13 @@ export function PanelAccionesPropuesta({
           canalRfq={detalle.canalRfq}
           onCerrar={() => setValidarAbierto(false)}
           onExito={({ seguimientoRegistrado }) => {
+            setValidando(true);
             setExitoValidacion(
               seguimientoRegistrado
                 ? 'Propuesta validada y seguimiento registrado.'
                 : 'Propuesta validada (el seguimiento ya estaba registrado).',
             );
-            void refrescar();
+            void refrescar().finally(() => setValidando(false));
           }}
         />
       )}
