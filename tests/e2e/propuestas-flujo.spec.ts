@@ -576,13 +576,20 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(faltantes).toContainText('al menos un archivo');
       await expect(faltantes).toContainText('ítem IT01: costear el ruteo');
 
-      // Las filas sugeridas avisan que falta guardarlas; «Costear ruteo» las guarda
-      // (de todos los ítems, encadenando el token) y costea en un solo paso.
+      // Cada ruteo se confirma por ítem antes de habilitar el costeo: así queda
+      // claro qué se guardó y no se mezclan dos operaciones persistentes.
       await expect(page.getByTestId('ruteo-sin-guardar-IT01')).toBeVisible();
       await expect(page.getByTestId('ruteo-sin-guardar-IT02')).toBeVisible();
-      await page.getByRole('button', { name: 'Costear ruteo' }).click();
-      await expect(page.getByRole('status')).toContainText('Ruteo guardado y costeado: 2 renglón(es).');
+      await expect(page.getByRole('button', { name: 'Costear ruteo' })).toBeDisabled();
+      await page.getByRole('button', { name: 'Guardar ruteo' }).nth(0).click();
+      await expect(page.getByRole('status')).toContainText('Ruteo de IT01 guardado correctamente.');
       await expect(page.getByTestId('ruteo-sin-guardar-IT01')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Guardar ruteo' }).nth(1).click();
+      await expect(page.getByRole('status')).toContainText('Ruteo de IT02 guardado correctamente.');
+      await expect(page.getByTestId('ruteo-sin-guardar-IT02')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Costear ruteo' })).toBeEnabled();
+      await page.getByRole('button', { name: 'Costear ruteo' }).click();
+      await expect(page.getByRole('status')).toContainText('Ruteo costeado correctamente: 2 renglón(es).');
       await expect(faltantes).not.toContainText('costear el ruteo');
       const ruteoCosteado = await admin
         .from('propuesta_item_ruteo')
@@ -610,7 +617,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByLabel('Costo Otros').fill('1,00');
       await page.getByLabel('Detalle de Otros').fill('Embalaje');
       await page.getByRole('button', { name: 'Guardar costos' }).click();
-      await expect(page.getByRole('status')).toContainText('Costos guardados.');
+      await expect(page.getByRole('status')).toContainText('Costos guardados correctamente.');
       const costosGuardados = await admin
         .from('propuesta_revision_costos')
         .select('categoria, monto, nota')

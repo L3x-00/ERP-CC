@@ -34,7 +34,6 @@ import type {
 
 const REVISION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ITEM_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const ITEM_2_ID = 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2';
 const PROCESO_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const PROCESO_SECUNDARIO_ID = '99999999-9999-4999-8999-999999999999';
 const GRUPO_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
@@ -469,78 +468,14 @@ describe('ruteo: el grupo de equipo se rellena con el mismo nombre del proceso (
     expect(screen.getByTestId('ruteo-sin-guardar-IT01').textContent).toMatch(/Guardar ruteo/);
   });
 
-  it('«Costear ruteo» guarda primero lo pendiente y luego costea, en un solo paso', async () => {
-    vi.mocked(editarRuteoItemAccion).mockResolvedValue({
-      exito: true,
-      datos: { itemId: ITEM_ID, filas: 1, requiereRevisionRuteo: false, actualizadoEn: 'T1' },
-    });
-    vi.mocked(costearRuteoRevisionAccion).mockResolvedValue({
-      exito: true,
-      datos: { renglones: 1, costoRuteo: 0 },
-    });
+  it('bloquea «Costear ruteo» hasta que se guarde cada ruteo pendiente', () => {
     const filaDelRfq = filaRuteo({ id: 'rfq-1', procesoId: PROCESO_ROUTER_ID, grupoEquipoId: null });
     montar({ catalogos: catalogoRouter, ruteo: [filaDelRfq] });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Costear ruteo' }));
-
-    expect(await screen.findByText('Ruteo guardado y costeado: 1 renglón(es).')).toBeDefined();
-    expect(editarRuteoItemAccion).toHaveBeenCalledWith({
-      itemId: ITEM_ID,
-      actualizadoEn: REVISION.actualizadoEn,
-      filas: [
-        expect.objectContaining({ procesoId: PROCESO_ROUTER_ID, grupoEquipoId: GRUPO_ROUTER_ID }),
-      ],
-    });
-    // Costea después de guardar, no antes.
-    const ordenGuardar = vi.mocked(editarRuteoItemAccion).mock.invocationCallOrder[0] ?? 0;
-    const ordenCostear = vi.mocked(costearRuteoRevisionAccion).mock.invocationCallOrder[0] ?? 0;
-    expect(ordenGuardar).toBeLessThan(ordenCostear);
-  });
-
-  it('con varios ítems pendientes encadena el token fresco de cada guardado', async () => {
-    vi.mocked(editarRuteoItemAccion)
-      .mockResolvedValueOnce({
-        exito: true,
-        datos: { itemId: ITEM_ID, filas: 1, requiereRevisionRuteo: false, actualizadoEn: 'T1' },
-      })
-      .mockResolvedValueOnce({
-        exito: true,
-        datos: { itemId: ITEM_2_ID, filas: 1, requiereRevisionRuteo: false, actualizadoEn: 'T2' },
-      });
-    vi.mocked(costearRuteoRevisionAccion).mockResolvedValue({
-      exito: true,
-      datos: { renglones: 2, costoRuteo: 0 },
-    });
-    const item2 = { ...ITEM, id: ITEM_2_ID, codigo: 'IT02' } as PropuestaItem;
-    montar({
-      catalogos: catalogoRouter,
-      items: [ITEM, item2],
-      ruteo: [
-        filaRuteo({ id: 'a', procesoId: PROCESO_ROUTER_ID, grupoEquipoId: null }),
-        filaRuteo({ id: 'b', itemId: ITEM_2_ID, procesoId: PROCESO_ROUTER_ID, grupoEquipoId: null }),
-      ],
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Costear ruteo' }));
-
-    expect(await screen.findByText('Ruteo guardado y costeado: 2 renglón(es).')).toBeDefined();
-    const tokens = vi.mocked(editarRuteoItemAccion).mock.calls.map(
-      ([entrada]) => (entrada as { actualizadoEn: string }).actualizadoEn,
-    );
-    expect(tokens).toEqual([REVISION.actualizadoEn, 'T1']);
-  });
-
-  it('si un guardado falla no costea y muestra el motivo', async () => {
-    vi.mocked(editarRuteoItemAccion).mockResolvedValue({
-      exito: false,
-      error: 'La revisión cambió; recarga antes de reintentar',
-    });
-    const filaDelRfq = filaRuteo({ id: 'rfq-1', procesoId: PROCESO_ROUTER_ID, grupoEquipoId: null });
-    montar({ catalogos: catalogoRouter, ruteo: [filaDelRfq] });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Costear ruteo' }));
-
-    expect(await screen.findByText('La revisión cambió; recarga antes de reintentar')).toBeDefined();
+    const boton = screen.getByRole('button', { name: 'Costear ruteo' }) as HTMLButtonElement;
+    expect(boton.disabled).toBe(true);
+    expect(screen.getByTestId('aviso-ruteos-por-guardar').textContent).toContain('IT01');
+    fireEvent.click(boton);
     expect(costearRuteoRevisionAccion).not.toHaveBeenCalled();
   });
 
@@ -553,7 +488,7 @@ describe('ruteo: el grupo de equipo se rellena con el mismo nombre del proceso (
 
     fireEvent.click(screen.getByRole('button', { name: 'Costear ruteo' }));
 
-    expect(await screen.findByText('Ruteo costeado: 2 renglón(es).')).toBeDefined();
+    expect(await screen.findByText('Ruteo costeado correctamente: 2 renglón(es).')).toBeDefined();
     expect(editarRuteoItemAccion).not.toHaveBeenCalled();
   });
 

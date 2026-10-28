@@ -19,7 +19,7 @@ import {
   type ResultadoValidarConSeguimiento,
 } from '@/modulos/propuestas/acciones/validar-revision-con-seguimiento';
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
-import type { RevisionPropuesta } from '@/modulos/propuestas/tipos/indice';
+import type { AccionRevisionPropuesta, RevisionPropuesta } from '@/modulos/propuestas/tipos/indice';
 
 export type ResultadoSeguimientoPropuestaUi = {
   seguimientoRegistrado: boolean;
@@ -64,6 +64,7 @@ export function DialogoSeguimientoPropuesta({
   catalogos,
   puedeRegistrar,
   canalRfq,
+  seguimientoInicial,
   onCerrar,
   onExito,
 }: {
@@ -72,17 +73,26 @@ export function DialogoSeguimientoPropuesta({
   catalogos: CatalogosPropuesta | null;
   puedeRegistrar: boolean;
   canalRfq?: CanalRfqOrigen | null;
+  /** Última acción vigente: validar la reutiliza, sin crear un duplicado. */
+  seguimientoInicial?: AccionRevisionPropuesta | null;
   onCerrar: () => void;
   onExito?: (resultado: ResultadoSeguimientoPropuestaUi) => void;
 }) {
-  const [codigo, setCodigo] = useState('FOLLOW_UP');
-  const [textoOtro, setTextoOtro] = useState('');
-  const [fecha, setFecha] = useState(hoyIso());
+  // Al validar, la propuesta queda lista para enviar y la acción comercial
+  // natural es esperar la respuesta del cliente. Aún puede cambiarse.
+  const hoy = hoyIso();
+  const [codigo, setCodigo] = useState(
+    seguimientoInicial?.codigo ?? (modo === 'validar' ? 'WAIT_CUSTOMER_RESPONSE' : 'FOLLOW_UP'),
+  );
+  const [textoOtro, setTextoOtro] = useState(seguimientoInicial?.textoOtro ?? '');
+  const [fecha, setFecha] = useState(
+    seguimientoInicial?.fecha && seguimientoInicial.fecha >= hoy ? seguimientoInicial.fecha : hoy,
+  );
   // `null` = la persona aún no tocó el campo: rige el canal del RFQ. Derivarlo
   // así (y no copiarlo a un estado inicial) cubre el catálogo que llega tarde.
   const [canalElegido, setCanalElegido] = useState<string | null>(null);
   const [canalDetalleElegido, setCanalDetalleElegido] = useState<string | null>(null);
-  const [nota, setNota] = useState('');
+  const [nota, setNota] = useState(seguimientoInicial?.nota ?? '');
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
 
@@ -94,7 +104,15 @@ export function DialogoSeguimientoPropuesta({
   const detalleValido = !esOtro || textoOtro.trim().length >= 3;
   // Obs. cliente 2026-10-12: el canal sale del catálogo configurado (DC-02); el
   // canal «Otro» exige detalle, que se guarda como texto del seguimiento.
-  const canalPrellenado = resolverCanalRfq(catalogos?.canales ?? [], canalRfq);
+  const canalDeSeguimiento = seguimientoInicial?.canal
+    ? resolverCanalRfq(catalogos?.canales ?? [], {
+        canal: seguimientoInicial.canal,
+        canalDetalle: null,
+      })
+    : { codigo: '', detalle: '' };
+  const canalPrellenado = canalDeSeguimiento.codigo
+    ? canalDeSeguimiento
+    : resolverCanalRfq(catalogos?.canales ?? [], canalRfq);
   const canal = canalElegido ?? canalPrellenado.codigo;
   const canalDetalle = canalDetalleElegido ?? canalPrellenado.detalle;
   const canalSeleccionado = (catalogos?.canales ?? []).find(
@@ -105,11 +123,14 @@ export function DialogoSeguimientoPropuesta({
   );
   const canalEsOtro = canalSeleccionado?.esOtro ?? false;
   const detalleCanalValido = !canalEsOtro || canalDetalle.trim().length >= 3;
+  const fechaMinima = hoy;
+  const fechaValida = fecha >= fechaMinima;
   const formularioValido =
     puedeRegistrar &&
     catalogoListo &&
     codigo !== '' &&
     fecha !== '' &&
+    fechaValida &&
     detalleValido &&
     detalleCanalValido;
 
@@ -201,8 +222,16 @@ export function DialogoSeguimientoPropuesta({
                 type="date"
                 value={fecha}
                 onChange={(evento) => setFecha(evento.target.value)}
+                min={fechaMinima}
                 aria-label="Fecha de la próxima acción"
+                aria-invalid={fecha !== '' && !fechaValida}
+                aria-describedby={!fechaValida ? 'fecha-proxima-accion-error' : undefined}
               />
+              {!fechaValida && (
+                <span id="fecha-proxima-accion-error" className="text-xs text-peligro-texto">
+                  La fecha no puede ser anterior a hoy.
+                </span>
+              )}
             </label>
             {esOtro && (
               <label className="flex flex-col gap-1 text-sm sm:col-span-2">

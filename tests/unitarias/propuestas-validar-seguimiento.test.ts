@@ -96,6 +96,18 @@ describe('esquema validar con seguimiento', () => {
     expect(codigoCorto.exito).toBe(false);
     expect(rpcMock).not.toHaveBeenCalled();
   });
+
+  it('rechaza una próxima acción con fecha anterior a hoy', async () => {
+    const respuesta = await validarRevisionConSeguimientoAccion(
+      entradaValida({ fecha: '2000-01-01' }),
+    );
+
+    expect(respuesta).toEqual({
+      exito: false,
+      error: expect.stringContaining('no puede ser anterior'),
+    });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('validarRevisionConSeguimientoAccion', () => {

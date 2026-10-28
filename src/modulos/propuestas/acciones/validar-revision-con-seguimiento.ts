@@ -2,6 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import { mensajeBloqueoValidacion } from '@/modulos/propuestas/servicios/faltantes-validacion';
 import type { EstadoPropuesta } from '@/modulos/propuestas/tipos/indice';
 import { esquemaValidarConSeguimiento } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
@@ -39,6 +40,9 @@ export async function validarRevisionConSeguimientoAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
   const datos = analisis.data;
+  if (datos.fecha < hoyIso()) {
+    return { exito: false, error: 'La fecha de la próxima acción no puede ser anterior a hoy' };
+  }
 
   const admin = crearClienteSupabaseAdmin();
   const { data: revision, error: errorRevision } = await admin

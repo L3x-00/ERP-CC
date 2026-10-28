@@ -219,6 +219,34 @@ export function PanelAsignacionPlaneacion({
     (operacion) => operacion.metaProcesoId === operacionId,
   );
 
+  function aplicarSugerenciasOperacion(operacion?: OperacionProgramablePartida): void {
+    const recursoSugerido = operacion?.recursoIdSugerido ?? null;
+    setRecursoId(
+      recursoSugerido && recursosActivos.some((recurso) => recurso.id === recursoSugerido)
+        ? recursoSugerido
+        : '',
+    );
+
+    const fechaSugerida = operacion?.fechaProgramadaSugerida ?? '';
+    setFechaProgramada(fechaSugerida);
+    if (fechaSugerida) onCambiarFecha?.(fechaSugerida);
+
+    const horasSugeridas = operacion?.horasEstimadasSugeridas ?? null;
+    setHorasEstimadas(
+      horasSugeridas !== null && Number.isFinite(horasSugeridas) && horasSugeridas > 0 && horasSugeridas <= 24
+        ? String(horasSugeridas)
+        : '',
+    );
+    limpiarEstadoBuscador();
+  }
+
+  const tieneSugerenciaRuteo = Boolean(
+    operacionElegida
+    && (operacionElegida.recursoIdSugerido
+      || operacionElegida.fechaProgramadaSugerida
+      || operacionElegida.horasEstimadasSugeridas),
+  );
+
   const horasNumero = Number(horasEstimadas);
   const horasValidas = Number.isFinite(horasNumero) && horasNumero > 0;
   const cargaDelSlot = cargas.find(
@@ -443,8 +471,14 @@ export function PanelAsignacionPlaneacion({
                 const partidaElegida = partidasProgramables.find(
                   (partida) => partida.partidaId === nuevaPartidaId,
                 );
-                setOperacionId(operacionInicial(partidaElegida));
+                const operacionInicialId = operacionInicial(partidaElegida);
+                setOperacionId(operacionInicialId);
                 setSecuencia(String(partidaElegida?.secuenciaSugerida ?? 1));
+                aplicarSugerenciasOperacion(
+                  partidaElegida?.operaciones.find(
+                    (operacion) => operacion.metaProcesoId === operacionInicialId,
+                  ),
+                );
               }}
             >
               <option value="">Selecciona una partida</option>
@@ -468,7 +502,15 @@ export function PanelAsignacionPlaneacion({
               <Select
                 id="planeacion-operacion"
                 value={operacionId}
-                onChange={(evento) => setOperacionId(evento.target.value)}
+                onChange={(evento) => {
+                  const nuevaOperacionId = evento.target.value;
+                  setOperacionId(nuevaOperacionId);
+                  aplicarSugerenciasOperacion(
+                    operacionesDePartida.find(
+                      (operacion) => operacion.metaProcesoId === nuevaOperacionId,
+                    ),
+                  );
+                }}
               >
                 <option value="">Selecciona una operación</option>
                 {operacionesDePartida.map((operacion) => (
@@ -497,6 +539,16 @@ export function PanelAsignacionPlaneacion({
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
+        {!programacion && tieneSugerenciaRuteo ? (
+          <p
+            className="col-span-2 text-xs text-texto-secundario"
+            role="status"
+            data-testid="sugerencias-ruteo-planeacion"
+          >
+            Se completaron los datos disponibles del ruteo y el compromiso comercial. Verifica la
+            capacidad antes de guardar; esta sugerencia no reserva el recurso.
+          </p>
+        ) : null}
         <div className="col-span-2 flex flex-col gap-1">
           <Label htmlFor="planeacion-recurso">Recurso</Label>
           <Select

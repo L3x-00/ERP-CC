@@ -530,6 +530,52 @@ describe('operación de Planeación en cliente', () => {
     );
   });
 
+  it('al elegir una operación completa los datos confirmados del ruteo y el compromiso comercial', () => {
+    const avisoFecha = vi.fn();
+    const partida = {
+      ordenId: '33333333-3333-4333-8333-333333333333',
+      partidaId: '55555555-5555-4555-8555-555555555555',
+      etiqueta: 'OP-000001 · PIEZA-E2E',
+      secuenciaSugerida: 1,
+      operaciones: [
+        {
+          metaProcesoId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          secuencia: 1,
+          nombre: 'Corte',
+          programada: false,
+          recursoIdSugerido: DATOS.recursos[0].id,
+          fechaProgramadaSugerida: '2026-10-29',
+          horasEstimadasSugeridas: 2.5,
+        },
+      ],
+    } satisfies PartidaProgramablePlaneacion;
+
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: DATOS.recursos,
+        partidasProgramables: [partida],
+        onCambiarFecha: avisoFecha,
+        onEnviar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: partida.partidaId },
+    });
+
+    expect((screen.getByLabelText('Recurso') as HTMLSelectElement).value).toBe(
+      DATOS.recursos[0].id,
+    );
+    expect((screen.getByLabelText('Fecha programada') as HTMLInputElement).value).toBe(
+      '2026-10-29',
+    );
+    expect((screen.getByLabelText('Horas estimadas') as HTMLInputElement).value).toBe('2.5');
+    expect(screen.getByTestId('sugerencias-ruteo-planeacion').textContent).toContain(
+      'no reserva el recurso',
+    );
+    expect(avisoFecha).toHaveBeenCalledWith('2026-10-29');
+  });
+
   it('pinta el resumen de carga semanal antes de los filtros, con ocupadas/capacidad y libre (C9.1)', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);

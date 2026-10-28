@@ -61,6 +61,7 @@ export function PanelAccionesPropuesta({
   const [exito, setExito] = useState<string | null>(null);
   const [exitoValidacion, setExitoValidacion] = useState<string | null>(null);
   const [validarAbierto, setValidarAbierto] = useState(false);
+  const [validando, setValidando] = useState(false);
   const [pdfGenerado, setPdfGenerado] = useState<{ archivoId: string; version: number } | null>(
     null,
   );
@@ -78,6 +79,12 @@ export function PanelAccionesPropuesta({
   const pdfVigente = revision.pdfs.find((pdf) => pdf.vigente) ?? null;
   const tieneAccion = detalle.acciones.some((accion) => accion.revisionId === revision.id);
   const esAceptada = detalle.propuesta.acceptedRevisionId === revision.id;
+  // Validar reutiliza la acción vigente de esta misma revisión. El servidor la
+  // reconoce como idéntica y no vuelve a insertarla; la persona puede cambiarla
+  // si el siguiente paso comercial realmente cambió.
+  const seguimientoVigente = [...detalle.acciones]
+    .filter((accion) => accion.revisionId === revision.id)
+    .sort((primera, segunda) => segunda.creadoEn.localeCompare(primera.creadoEn))[0] ?? null;
   const referenciaFechasRfq = textoReferenciaFechasRfq(detalle.fechasRfq);
   const mensajesFaltantes = esBorrador ? (faltantes?.mensajes ?? []) : [];
   const incompleta = mensajesFaltantes.length > 0;
@@ -232,7 +239,7 @@ export function PanelAccionesPropuesta({
               setExitoValidacion(null);
               setValidarAbierto(true);
             }}
-            disabled={procesando || requiereRevision || incompleta}
+            disabled={procesando || validando || requiereRevision || incompleta}
             title={
               incompleta
                 ? 'Completa lo marcado en rojo antes de validar'
@@ -241,7 +248,7 @@ export function PanelAccionesPropuesta({
                   : undefined
             }
           >
-            Validar
+            {validando ? 'Validando…' : 'Validar'}
           </Button>
         )}
 
@@ -557,14 +564,16 @@ export function PanelAccionesPropuesta({
           catalogos={catalogos}
           puedeRegistrar={permisos.seguimiento}
           canalRfq={detalle.canalRfq}
+          seguimientoInicial={seguimientoVigente}
           onCerrar={() => setValidarAbierto(false)}
           onExito={({ seguimientoRegistrado }) => {
+            setValidando(true);
             setExitoValidacion(
               seguimientoRegistrado
                 ? 'Propuesta validada y seguimiento registrado.'
                 : 'Propuesta validada (el seguimiento ya estaba registrado).',
             );
-            void refrescar();
+            void refrescar().finally(() => setValidando(false));
           }}
         />
       )}

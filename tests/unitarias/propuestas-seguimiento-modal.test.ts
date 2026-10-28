@@ -20,7 +20,7 @@ vi.mock('@/modulos/propuestas/acciones/registrar-seguimiento-propuesta', () => (
 
 import { DialogoSeguimientoPropuesta } from '@/modulos/propuestas/componentes/dialogo-seguimiento-propuesta';
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
-import type { RevisionPropuesta } from '@/modulos/propuestas/tipos/indice';
+import type { AccionRevisionPropuesta, RevisionPropuesta } from '@/modulos/propuestas/tipos/indice';
 
 const REV_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const TOKEN = '2026-10-11T00:00:00+00:00';
@@ -41,6 +41,7 @@ const CATALOGOS = {
   recursos: [],
   proximasAcciones: [
     { codigo: 'FOLLOW_UP', nombre: 'Seguimiento', esOtro: false },
+    { codigo: 'WAIT_CUSTOMER_RESPONSE', nombre: 'Esperar respuesta del cliente', esOtro: false },
     { codigo: 'OTRO', nombre: 'Otro', esOtro: true },
   ],
   canales: [
@@ -59,6 +60,7 @@ function montar(parcial: {
   puedeRegistrar?: boolean;
   catalogos?: CatalogosPropuesta | null;
   canalRfq?: { canal: string; canalDetalle: string | null } | null;
+  seguimientoInicial?: AccionRevisionPropuesta | null;
   onExito?: (resultado: { seguimientoRegistrado: boolean }) => void;
   onCerrar?: () => void;
 }) {
@@ -69,6 +71,7 @@ function montar(parcial: {
       catalogos: parcial.catalogos === undefined ? CATALOGOS : parcial.catalogos,
       puedeRegistrar: parcial.puedeRegistrar ?? true,
       canalRfq: parcial.canalRfq,
+      seguimientoInicial: parcial.seguimientoInicial,
       onCerrar: parcial.onCerrar ?? (() => {}),
       onExito: parcial.onExito,
     }),
@@ -105,7 +108,7 @@ describe('DialogoSeguimientoPropuesta (obs. cliente)', () => {
         expect.objectContaining({
           revisionId: REV_ID,
           actualizadoEn: TOKEN,
-          codigo: 'FOLLOW_UP',
+          codigo: 'WAIT_CUSTOMER_RESPONSE',
           fecha: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         }),
       ),
@@ -148,6 +151,70 @@ describe('DialogoSeguimientoPropuesta (obs. cliente)', () => {
       target: { value: 'Feria industrial' },
     });
     expect(confirmar.disabled).toBe(false);
+  });
+
+  it('al validar preselecciona «Esperar respuesta del cliente» y no admite una fecha pasada', () => {
+    montar({ modo: 'validar' });
+
+    expect((screen.getByLabelText('Acción de seguimiento') as HTMLSelectElement).value).toBe(
+      'WAIT_CUSTOMER_RESPONSE',
+    );
+    const fecha = screen.getByLabelText('Fecha de la próxima acción') as HTMLInputElement;
+    fireEvent.change(fecha, { target: { value: '2000-01-01' } });
+    expect(screen.getByText('La fecha no puede ser anterior a hoy.')).toBeDefined();
+    expect((screen.getByRole('button', { name: 'Registrar y validar' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('al validar reutiliza el seguimiento vigente de la revisión', async () => {
+    const onExito = vi.fn();
+    validarMock.mockResolvedValue({
+      exito: true,
+      datos: { revisionId: REV_ID, estado: 'READY_TO_SEND', seguimientoRegistrado: false },
+    });
+    montar({
+      modo: 'validar',
+      onExito,
+      seguimientoInicial: {
+        id: 'accion-existente',
+        revisionId: REV_ID,
+        codigo: 'FOLLOW_UP',
+        textoOtro: null,
+        fecha: '2099-10-31',
+        responsableId: null,
+        canal: 'WHATSAPP',
+        nota: 'Llamar para confirmar recepción',
+        creadoPor: 'usuario-1',
+        creadoEn: '2026-10-28T12:00:00.000Z',
+      },
+    });
+
+    expect((screen.getByLabelText('Acción de seguimiento') as HTMLSelectElement).value).toBe(
+      'FOLLOW_UP',
+    );
+    expect((screen.getByLabelText('Fecha de la próxima acción') as HTMLInputElement).value).toBe(
+      '2099-10-31',
+    );
+    expect((screen.getByLabelText('Canal del seguimiento') as HTMLSelectElement).value).toBe(
+      'WHATSAPP',
+    );
+    expect((screen.getByLabelText('Nota del seguimiento') as HTMLInputElement).value).toBe(
+      'Llamar para confirmar recepción',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar y validar' }));
+    await waitFor(() =>
+      expect(validarMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          codigo: 'FOLLOW_UP',
+          fecha: '2099-10-31',
+          canal: 'WHATSAPP',
+          nota: 'Llamar para confirmar recepción',
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(onExito).toHaveBeenCalledWith({ seguimientoRegistrado: false }),
+    );
   });
 
   it('el canal es un desplegable del catálogo y envía el código configurado', async () => {
