@@ -12,7 +12,7 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 const esquema = z
-  .object({ ordenId: z.uuid(), archivoId: z.uuid() })
+  .object({ ordenId: z.uuid(), archivoId: z.uuid(), descargar: z.boolean().optional() })
   .strict();
 
 /**
@@ -38,13 +38,16 @@ export async function obtenerUrlDocumentoOrdenAccion(
     const orden = await obtenerOrdenDocumental(admin, analisis.data.ordenId);
     if (!orden) return { exito: false, error: 'La orden no existe' };
     const documentos = await listarDocumentosOrden(admin, orden);
-    if (!documentos.some(
-      (documento) => documento.id === analisis.data.archivoId && documento.disponible,
-    )) {
+    const documento = documentos.find(
+      (actual) => actual.id === analisis.data.archivoId && actual.disponible,
+    );
+    if (!documento) {
       return { exito: false, error: 'El documento no pertenece a esta orden' };
     }
 
-    const url = await firmarLecturaArchivo(admin, analisis.data.archivoId, 300);
+    const url = analisis.data.descargar
+      ? await firmarLecturaArchivo(admin, analisis.data.archivoId, 300, documento.nombre)
+      : await firmarLecturaArchivo(admin, analisis.data.archivoId, 300);
     return { exito: true, datos: { url } };
   } catch (error) {
     console.error('[PRODUCCION] Error al firmar documento de la orden:', error);

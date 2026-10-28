@@ -406,6 +406,12 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     const detalleConcluido = page.getByTestId('detalle-orden-concluida');
     await expect(detalleConcluido).toBeVisible();
     await expect(detalleConcluido).toContainText('Historial de sesiones');
+    // Detalle concluido en solo lectura: archivos visibles, sin formularios de carga.
+    const panelDocumentos = detalleConcluido.getByTestId('panel-documentos-orden');
+    await expect(panelDocumentos.getByTestId('documentos-solo-lectura')).toBeVisible();
+    await expect(detalleConcluido.getByTestId('sesion-solo-lectura').first()).toBeVisible();
+    await expect(panelDocumentos.locator('input[type="file"]')).toHaveCount(0);
+    await expect(detalleConcluido.getByTestId('accesos-rapidos-orden')).toBeVisible();
     await expect.poll(async () => {
       const { data } = await caso.admin.from('corridas').select('estado').eq('id', corrida?.id ?? '').single();
       return data?.estado;

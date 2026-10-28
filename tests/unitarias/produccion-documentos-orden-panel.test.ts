@@ -61,7 +61,7 @@ function documento(id: string, version: number, vigente: boolean) {
   };
 }
 
-function renderizar() {
+function renderizar(opciones: { soloLectura?: boolean; sesionFinalId?: string | null } = {}) {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     createElement(
@@ -70,7 +70,8 @@ function renderizar() {
       createElement(DocumentosOrdenPanel, {
         ordenId: ORDEN_ID,
         ordenFolio: 'O-1026_01',
-        sesionFinalId: null,
+        sesionFinalId: opciones.sesionFinalId ?? null,
+        soloLectura: opciones.soloLectura ?? false,
       }),
     ),
   );
@@ -131,5 +132,27 @@ describe('historial de documentos propios de la Orden', () => {
         'noopener,noreferrer',
       );
     });
+  });
+
+  it('en solo lectura conserva los archivos y no ofrece subir documentos ni salida final', async () => {
+    renderizar({ soloLectura: true, sesionFinalId: V1 });
+
+    await waitFor(() => expect(screen.getByTestId(`documento-orden-${V2}`)).toBeDefined());
+    expect(screen.getByRole('button', { name: /Abrir ajuste\.dwg/ })).toBeTruthy();
+    expect(screen.getByTestId('documentos-solo-lectura')).toBeTruthy();
+    expect(screen.getByTestId('salida-final-solo-lectura')).toBeTruthy();
+    expect(screen.queryByTestId('subir-documento-orden')).toBeNull();
+    expect(screen.queryByLabelText('Archivo de la orden')).toBeNull();
+    expect(screen.queryByLabelText('Archivo de salida final')).toBeNull();
+
+    const clickDescarga = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar ajuste.dwg' }));
+    await waitFor(() => expect(firmarMock).toHaveBeenCalledWith({
+      ordenId: ORDEN_ID,
+      archivoId: V2,
+      descargar: true,
+    }));
+    expect(clickDescarga).toHaveBeenCalled();
+    clickDescarga.mockRestore();
   });
 });

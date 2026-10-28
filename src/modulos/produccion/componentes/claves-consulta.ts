@@ -17,3 +17,5 @@ export const CLAVE_CONSUMOS_ORDEN = ['produccion', 'consumos-orden'] as const;
 export const CLAVE_DETALLE_ORDEN_CONCLUIDA = ['produccion', 'detalle-orden-concluida'] as const;
 /** Entregables de la orden: documentos, versiones y notas de entrega. */
 export const CLAVE_ENTREGABLES_ORDEN = ['produccion', 'entregables-orden'] as const;
+/** Accesos rápidos de la ficha concluida: RFQ, propuesta, entregas y facturas. */
+export const CLAVE_ACCESOS_ORDEN = ['produccion', 'accesos-orden'] as const;

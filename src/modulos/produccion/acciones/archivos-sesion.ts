@@ -22,7 +22,11 @@ const esquemaPreparar = z.object({
 }).strict();
 const esquemaConfirmar = z.object({ sesionId, clase, ruta: z.string().min(1).max(250), nombre: nombreArchivo }).strict();
 const esquemaOrden = z.object({ ordenId: z.uuid() }).strict();
-const esquemaAbrir = z.object({ ordenId: z.uuid(), archivoId: z.uuid() }).strict();
+const esquemaAbrir = z.object({
+  ordenId: z.uuid(),
+  archivoId: z.uuid(),
+  descargar: z.boolean().optional(),
+}).strict();
 const esquemaDescartar = z.object({ ruta: z.string().min(1).max(250) }).strict();
 
 function extension(nombre: string): string {
@@ -167,11 +171,15 @@ export async function obtenerUrlArchivoSesionAccion(entrada: unknown): Promise<R
   if (!usuario) return { exito: false, error: 'Sin permiso de Producción' };
   const admin = crearClienteSupabaseAdmin();
   const { data: archivo, error } = await admin.from('archivos_sesion_produccion')
-    .select('ruta, sesiones_trabajo!inner(orden_id)').eq('id', validado.data.archivoId)
+    .select('ruta, nombre, sesiones_trabajo!inner(orden_id)').eq('id', validado.data.archivoId)
     .eq('sesiones_trabajo.orden_id', validado.data.ordenId).maybeSingle();
   if (error || !archivo) return { exito: false, error: 'Archivo no disponible en esta orden' };
   const { data, error: errorFirma } = await admin.storage.from(BUCKET_ARCHIVOS_SESION)
-    .createSignedUrl(archivo.ruta, 60);
+    .createSignedUrl(
+      archivo.ruta,
+      60,
+      validado.data.descargar ? { download: archivo.nombre } : undefined,
+    );
   if (errorFirma || !data?.signedUrl) return { exito: false, error: 'No se pudo abrir el archivo' };
   return { exito: true, datos: { url: data.signedUrl } };
 }

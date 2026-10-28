@@ -8,6 +8,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { formatearFecha, formatearNumero } from '@/compartido/utilidades/formatear';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { obtenerConsumosMaterialOrdenAccion } from '@/modulos/produccion/acciones/indice';
+import { AccesosRapidosOrden } from '@/modulos/produccion/componentes/accesos-rapidos-orden';
 import { CLAVE_CONSUMOS_ORDEN } from '@/modulos/produccion/componentes/claves-consulta';
 import { DocumentosOrdenPanel } from '@/modulos/produccion/componentes/documentos-orden-panel';
 import { FichaOrdenProduccion } from '@/modulos/produccion/componentes/ficha-orden-produccion';
@@ -204,6 +205,8 @@ export function DetalleOrdenConcluida({
         </dl>
       </section>
 
+      <AccesosRapidosOrden ordenId={orden.id} />
+
       <FichaOrdenProduccion
         orden={orden}
         areas={areas}
@@ -333,11 +336,12 @@ export function DetalleOrdenConcluida({
         </section>
       ) : null}
 
-      <HistorialSesionesProduccion orden={orden} responsables={responsables} />
+      <HistorialSesionesProduccion orden={orden} responsables={responsables} soloLectura />
       <DocumentosOrdenPanel
         ordenId={orden.id}
         ordenFolio={orden.folio}
         sesionFinalId={esOrdenConcluida ? sesionFinalId : null}
+        soloLectura
       />
       <HiloComentarios
         entidadTipo="orden"
