@@ -306,7 +306,7 @@ export async function obtenerDatosTableroProduccionServicio(
     ? codigosAreaFiltrada(areas, filtros.areaCodigo)
     : null;
 
-  const recursos = (resultadoRecursos.data ?? []).map(filaARecursoPlaneacion);
+  const recursos = (resultadoRecursos.data ?? []).map((recurso) => filaARecursoPlaneacion(recurso));
   const programacionesPorPartida = new Map<string, ProgramacionArea[]>();
   for (const programacion of (resultadoProgramaciones.data ?? []).map(filaAProgramacionArea)) {
     if (filtros.recursoId && programacion.recursoId !== filtros.recursoId) continue;

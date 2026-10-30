@@ -28,6 +28,9 @@ export interface RecursoPlaneacion {
   nombre: string;
   area: AreaPlaneacion;
   activo: boolean;
+  /** Grupo de equipo al que pertenece el recurso (C11: etiqueta de equipo). */
+  grupoEquipoId?: string | null;
+  grupoEquipoNombre?: string | null;
   creadoEn: string;
   actualizadoEn: string;
 }
@@ -92,6 +95,10 @@ export interface OperacionProgramablePartida {
   programada: boolean;
   /** Recurso elegido explícitamente en el ruteo de la propuesta, si existe. */
   recursoIdSugerido?: string | null;
+  /** Grupo de equipo capturado en el ruteo de la propuesta para esta operación. */
+  grupoEquipoId?: string | null;
+  /** Nombre legible del grupo, resuelto por el servidor cuando está disponible. */
+  grupoEquipoNombre?: string | null;
   /** Compromiso comercial de la orden; orienta, no reserva capacidad. */
   fechaProgramadaSugerida?: string | null;
   /** Duración total del ruteo de esta operación, si es programable en un turno. */
@@ -174,10 +181,10 @@ export interface DetalleProgramacion {
 export type FilaRecursoPlaneacion = Tables<'recursos_planeacion'>;
 export type FilaRecursoPlaneacionOperativo = Pick<
   FilaRecursoPlaneacion,
-  'id' | 'codigo' | 'nombre' | 'area' | 'activo' | 'creado_en' | 'actualizado_en'
+  'id' | 'codigo' | 'nombre' | 'area' | 'activo' | 'grupo_equipo_id' | 'creado_en' | 'actualizado_en'
 >;
 export const COLUMNAS_RECURSO_PLANEACION_OPERATIVO =
-  'id, codigo, nombre, area, activo, creado_en, actualizado_en';
+  'id, codigo, nombre, area, activo, grupo_equipo_id, creado_en, actualizado_en';
 export type FilaCapacidadRecursoTurno = Tables<'capacidades_recurso_turno'>;
 export type FilaExcepcionCapacidadRecurso = Tables<'excepciones_capacidad_recurso'>;
 export type FilaProgramacionArea = Tables<'programacion_areas'>;
@@ -202,6 +209,7 @@ function validarValorEnumerado<T extends string>(
 
 export function filaARecursoPlaneacion(
   fila: FilaRecursoPlaneacionOperativo,
+  nombrePorGrupo: ReadonlyMap<string, string> = new Map(),
 ): RecursoPlaneacion {
   return {
     id: fila.id,
@@ -209,6 +217,10 @@ export function filaARecursoPlaneacion(
     nombre: fila.nombre,
     area: validarValorEnumerado(fila.area, AREAS_PLANEACION, 'área de recurso'),
     activo: fila.activo,
+    grupoEquipoId: fila.grupo_equipo_id,
+    grupoEquipoNombre: fila.grupo_equipo_id
+      ? (nombrePorGrupo.get(fila.grupo_equipo_id) ?? null)
+      : null,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
   };

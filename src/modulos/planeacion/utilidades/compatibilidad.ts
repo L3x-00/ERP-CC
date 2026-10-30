@@ -8,6 +8,15 @@
 
 export type CompatibilidadRecurso = 'compatible' | 'incompatible' | 'sin_dato';
 
+/** Operación del ruteo usada para resolver su grupo de equipo. */
+export interface OperacionCompatibilidadPlaneacion {
+  metaProcesoId: string;
+  nombre: string;
+  secuencia: number;
+  /** Grupo capturado explícitamente en el ruteo de la propuesta, si existe. */
+  grupoEquipoId: string | null;
+}
+
 /** Grupo de equipo resuelto (id + nombre) para un recurso. */
 export interface GrupoEquipoPlaneacion {
   id: string;
@@ -20,6 +29,10 @@ export interface CompatibilidadRecursosPlaneacion {
   grupoPorRecurso: Record<string, GrupoEquipoPlaneacion | null>;
   /** Grupos exigidos por el ruteo por partida; null cuando no se pudo resolver. */
   gruposRequeridosPorPartida: Record<string, string[] | null>;
+  /** Grupos exigidos por operación del ruteo, por `metaProcesoId`. */
+  gruposRequeridosPorOperacion: Record<string, string[] | null>;
+  /** Nombre legible del grupo de equipo por id. */
+  nombrePorGrupo: Record<string, string>;
 }
 
 /** Normaliza texto de catálogos: minúsculas, sin espacios de sobra ni bordes. */
@@ -72,4 +85,18 @@ export function evaluarCompatibilidadRecurso(
   if (!grupoDelRecurso) return 'sin_dato';
   if (!gruposRequeridos || gruposRequeridos.length === 0) return 'sin_dato';
   return gruposRequeridos.includes(grupoDelRecurso) ? 'compatible' : 'incompatible';
+}
+
+/**
+ * Grupo de equipo que exige una operación concreta. Prioriza el grupo guardado
+ * en el ruteo de la propuesta; si falta, usa el configurado en el catálogo del
+ * proceso. `null` significa «sin dato» y no bloquea.
+ */
+export function resolverGrupoRequeridoOperacion(
+  operacion: Pick<OperacionCompatibilidadPlaneacion, 'nombre' | 'grupoEquipoId'>,
+  grupoPorProceso: ReadonlyMap<string, string | null>,
+): string[] | null {
+  if (operacion.grupoEquipoId) return [operacion.grupoEquipoId];
+  const grupo = grupoPorProceso.get(normalizarTextoCatalogo(operacion.nombre));
+  return grupo ? [grupo] : null;
 }

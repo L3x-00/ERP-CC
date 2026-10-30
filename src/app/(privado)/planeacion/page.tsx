@@ -156,7 +156,7 @@ export default async function PaginaPlaneacion() {
   const idsPartidasProgramables = partidasPreparadas.map((partida) => partida.partidaId);
   const metasPartidas = (
     await Promise.all(
-      dividirEnLotes(idsPartidasProgramables).map((lote) =>
+      dividirEnLotes(idsDesglose).map((lote) =>
         cliente
           .from('metas_proceso_partida')
           .select('id, partida_id, secuencia, nombre')
@@ -203,7 +203,7 @@ export default async function PaginaPlaneacion() {
       dividirEnLotes(idsItemsPropuesta).map((lote) =>
         cliente
           .from('propuesta_item_ruteo')
-          .select('item_id, secuencia, recurso_id, total_horas')
+          .select('item_id, secuencia, recurso_id, grupo_equipo_id, total_horas')
           .in('item_id', lote)
           .order('secuencia', { ascending: true }),
       ),
@@ -257,6 +257,7 @@ export default async function PaginaPlaneacion() {
             nombre: meta.nombre,
             programada: idsMetasCubiertas.has(meta.id),
             recursoIdSugerido: ruteo?.recurso_id ?? null,
+            grupoEquipoId: ruteo?.grupo_equipo_id ?? null,
             fechaProgramadaSugerida: fechaCompromisoPorOrden.get(partida.ordenId) ?? null,
             horasEstimadasSugeridas:
               horas !== null && Number.isFinite(horas) && horas > 0 && horas <= 24 ? horas : null,
@@ -269,12 +270,24 @@ export default async function PaginaPlaneacion() {
   // C9.2/P10: grupos de equipo para la advertencia de compatibilidad del panel.
   // La lectura es tolerante: sin catálogos o sin permiso, el panel no advierte.
   const compatibilidad = await obtenerCompatibilidadRecursosServicio(cliente, {
-    partidas: partidasPreparadas.map((partida) => {
-      const desglose = desglosePorId.get(partida.partidaId);
+    partidas: idsDesglose.map((partidaId) => {
+      const desglose = desglosePorId.get(partidaId);
+      const partidaOrigen = partidaVigentePorId.get(partidaId);
       return {
-        partidaId: partida.partidaId,
+        partidaId,
         procesos: desglose?.procesos ?? [],
         maquinaAsignada: desglose?.maquinaAsignada ?? null,
+        operaciones: (metasPorPartida.get(partidaId) ?? []).map((meta) => {
+          const ruteo = partidaOrigen?.propuesta_item_id
+            ? ruteoPorItemYSecuencia.get(`${partidaOrigen.propuesta_item_id}:${meta.secuencia}`)
+            : undefined;
+          return {
+            metaProcesoId: meta.id,
+            nombre: meta.nombre,
+            secuencia: meta.secuencia,
+            grupoEquipoId: ruteo?.grupo_equipo_id ?? null,
+          };
+        }),
       };
     }),
   });
