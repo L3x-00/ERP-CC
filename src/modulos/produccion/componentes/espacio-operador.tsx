@@ -258,7 +258,13 @@ export function EspacioOperador({
         ...datosCierre,
         ...(proceso.metaProcesoId ? { metaProcesoId: proceso.metaProcesoId } : {}),
       });
-      if (!respuesta.exito) return { exito: false, error: respuesta.error };
+      if (!respuesta.exito) {
+        return {
+          exito: false,
+          error: respuesta.error,
+          ...(respuesta.codigo ? { codigo: respuesta.codigo } : {}),
+        };
+      }
       if (!respuesta.datos) {
         return { exito: false, error: 'El cierre no devolvió una confirmación' };
       }

@@ -66,7 +66,10 @@ function ProcesoOrdenFila({
 
   return (
     <li
-      className="flex min-w-0 flex-col gap-1.5 rounded-md border border-borde bg-superficie-2/30 p-2"
+      className={cn(
+        'group relative flex min-w-0 flex-col gap-1.5 rounded-md border border-borde bg-superficie-2/30 p-2 transition-colors hover:border-acento/50 hover:bg-superficie-2/60',
+        arrastrable && 'cursor-grab active:cursor-grabbing',
+      )}
       data-testid={`proceso-${proceso.id}`}
       aria-label={`${proceso.folioOrden} · ${proceso.codigoPieza} · ${proceso.procesoNombre}`}
       draggable={arrastrable}
@@ -79,87 +82,91 @@ function ProcesoOrdenFila({
         evento.dataTransfer.effectAllowed = 'move';
       }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 truncate text-xs font-semibold text-texto-primario">
-          {proceso.secuencia}. {proceso.procesoNombre}
-          <span className="font-normal text-texto-secundario"> · {proceso.areaNombre}</span>
-        </p>
-        <div className="flex shrink-0 flex-wrap justify-end gap-1">
-          {proceso.etiquetas
-            .filter((etiqueta) => etiqueta === 'Externo' || etiqueta === 'Sin piezas previas')
-            .map((etiqueta) => (
-              <Badge key={etiqueta} variante={etiqueta === 'Externo' ? 'info' : 'alerta'}>
-                {etiqueta}
-              </Badge>
-            ))}
-          <Badge variante={VARIANTE_COLUMNA[proceso.columna]}>
-            {ETIQUETAS_COLUMNA[proceso.columna]}
-          </Badge>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-texto-secundario">
-        <span>
-          Cantidad:{' '}
-          <span className="font-medium tabular-nums text-texto-primario">
-            {formatearNumero(proceso.hechoPiezas, 0)}/{formatearNumero(proceso.metaPiezas, 0)}{' '}
-            {proceso.unidadMedida}
-          </span>
-        </span>
-        <span className="tabular-nums">{horasLegibles(proceso.horasEstimadas)}</span>
-        {proceso.piezasDisponibles !== null ? (
-          <span className={cn(
-            'tabular-nums',
-            proceso.piezasDisponibles === 0 ? 'text-advertencia-texto' : null,
-          )}>
-            {formatearNumero(proceso.piezasDisponibles, 0)} disp.
-            {proceso.procesoPrevioNombre ? ` de ${proceso.procesoPrevioNombre}` : ''}
-          </span>
-        ) : null}
-      </div>
-
-      <BarraProgreso
-        valor={proceso.porcentaje}
-        tono={proceso.columna === 'lista' ? 'exito' : 'acento'}
-        etiqueta={`Avance de ${proceso.codigoPieza} ${proceso.procesoNombre}`}
-        mostrarPorcentaje
+      {/* La fila completa abre el detalle; el botón de acción queda por encima. */}
+      <button
+        type="button"
+        draggable={false}
+        onClick={() => onAbrir(proceso)}
+        className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        aria-label={`Abrir detalle de ${proceso.procesoNombre} de ${proceso.codigoPieza}`}
+        data-testid={`abrir-detalle-${proceso.id}`}
       />
 
-      <div className="mt-auto flex flex-wrap items-center gap-1.5">
-        <Button
-          variante="contorno"
-          tamano="sm"
-          className="flex-1"
-          onClick={() => onAbrir(proceso)}
-          data-testid={`abrir-detalle-${proceso.id}`}
-        >
-          Detalle
-        </Button>
-        <Button
-          tamano="sm"
-          className="flex-1"
-          disabled={accion.deshabilitada}
-          title={proceso.motivoNoInicia ?? undefined}
-          onClick={() => onAccion(proceso, accion.tipo)}
-          data-testid={`accion-${accion.tipo}-${proceso.id}`}
-        >
-          {accion.etiqueta}
-        </Button>
-      </div>
+      <div className="pointer-events-none relative z-10 flex flex-col gap-1.5">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 truncate text-xs font-semibold text-texto-primario">
+            {proceso.secuencia}. {proceso.procesoNombre}
+            <span className="font-normal text-texto-secundario"> · {proceso.areaNombre}</span>
+          </p>
+          <div className="flex shrink-0 flex-wrap justify-end gap-1">
+            {proceso.etiquetas
+              .filter((etiqueta) => etiqueta === 'Externo' || etiqueta === 'Sin piezas previas')
+              .map((etiqueta) => (
+                <Badge key={etiqueta} variante={etiqueta === 'Externo' ? 'info' : 'alerta'}>
+                  {etiqueta}
+                </Badge>
+              ))}
+            <Badge variante={VARIANTE_COLUMNA[proceso.columna]}>
+              {ETIQUETAS_COLUMNA[proceso.columna]}
+            </Badge>
+          </div>
+        </div>
 
-      {proceso.reclamo ? (
-        <p className={cn(
-          'truncate text-[11px]',
-          proceso.reclamadoPorMi ? 'text-exito-texto' : 'text-advertencia-texto',
-        )}>
-          {proceso.reclamadoPorMi
-            ? `Reservado por ti · ${etiquetaDiaCorto(proceso.reclamo.fecha)}`
-            : `Tomado por ${proceso.nombreReclamante ?? 'otro operador'} · ${etiquetaDiaCorto(proceso.reclamo.fecha)}`}
-        </p>
-      ) : null}
-      {proceso.sesionActiva ? (
-        <p className="truncate text-[11px] text-exito-texto">Sesión activa en este proceso</p>
-      ) : null}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-texto-secundario">
+          <span>
+            <span className="font-semibold tabular-nums text-texto-primario">
+              {formatearNumero(proceso.hechoPiezas, 0)}/{formatearNumero(proceso.metaPiezas, 0)}
+            </span>{' '}
+            {proceso.unidadMedida}
+          </span>
+          <span className="tabular-nums text-texto-tenue">· {horasLegibles(proceso.horasEstimadas)}</span>
+          {proceso.piezasDisponibles !== null ? (
+            <span className={cn(
+              'tabular-nums',
+              proceso.piezasDisponibles === 0 ? 'text-advertencia-texto' : 'text-texto-tenue',
+            )}>
+              · {formatearNumero(proceso.piezasDisponibles, 0)} disp.
+            </span>
+          ) : null}
+        </div>
+
+        <BarraProgreso
+          valor={proceso.porcentaje}
+          tono={proceso.columna === 'lista' ? 'exito' : 'acento'}
+          etiqueta={`Avance de ${proceso.codigoPieza} ${proceso.procesoNombre}`}
+          mostrarPorcentaje
+        />
+
+        <div className="pointer-events-auto mt-auto">
+          <Button
+            tamano="sm"
+            className="w-full"
+            disabled={accion.deshabilitada}
+            title={proceso.motivoNoInicia ?? undefined}
+            onClick={(evento) => {
+              evento.stopPropagation();
+              onAccion(proceso, accion.tipo);
+            }}
+            data-testid={`accion-${accion.tipo}-${proceso.id}`}
+          >
+            {accion.etiqueta}
+          </Button>
+        </div>
+
+        {proceso.reclamo ? (
+          <p className={cn(
+            'truncate text-[11px]',
+            proceso.reclamadoPorMi ? 'text-exito-texto' : 'text-advertencia-texto',
+          )}>
+            {proceso.reclamadoPorMi
+              ? `Reservado por ti · ${etiquetaDiaCorto(proceso.reclamo.fecha)}`
+              : `Tomado por ${proceso.nombreReclamante ?? 'otro operador'} · ${etiquetaDiaCorto(proceso.reclamo.fecha)}`}
+          </p>
+        ) : null}
+        {proceso.sesionActiva ? (
+          <p className="truncate text-[11px] text-exito-texto">Sesión activa en este proceso</p>
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -235,6 +242,16 @@ export function TarjetaOrdenOperador({
                     {item.material.codigo} · {item.material.nombre}
                   </p>
                 ) : null}
+                {(() => {
+                  const ruta = item.procesos[0]?.procesosRuteo.length
+                    ? item.procesos[0].procesosRuteo.map((paso, indice) => `${indice + 1}. ${paso.nombre}`).join(' → ')
+                    : item.procesos.map((paso, indice) => `${indice + 1}. ${paso.procesoNombre}`).join(' → ');
+                  return ruta ? (
+                    <p className="truncate text-[10px] text-texto-tenue" title={ruta}>
+                      {ruta}
+                    </p>
+                  ) : null;
+                })()}
               </div>
               <p className="shrink-0 text-right text-[11px] tabular-nums text-texto-secundario">
                 {formatearNumero(item.cantidadProducida, 0)}/{formatearNumero(item.cantidadSolicitada, 0)}{' '}

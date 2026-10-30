@@ -77,6 +77,6 @@ export async function cerrarSesionOperadorAccion(
       codigo,
       estadoDestino: analisis.data.estadoDestino,
     }, correlationId);
-    return { exito: false, error: mensajeErrorSesion(error) };
+    return { exito: false, error: mensajeErrorSesion(error), codigo };
   }
 }

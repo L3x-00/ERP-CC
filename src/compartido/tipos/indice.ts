@@ -15,7 +15,7 @@ export type Rol = (typeof ROLES)[number];
  */
 export type RespuestaAccion<T = undefined> =
   | { exito: true; datos?: T }
-  | { exito: false; error: string };
+  | { exito: false; error: string; codigo?: string };
 
 /** Parámetros de paginación. */
 export type Paginacion = {
