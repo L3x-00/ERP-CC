@@ -197,53 +197,59 @@ export function KanbanProduccion({
                         {orden.clienteNombre}
                       </p>
                     ) : null}
-                    {resumenTallerOrden(orden, areas, responsables) ? (
-                      <p
-                        className="text-xs text-texto-secundario"
-                        data-testid={`detalle-taller-${orden.id}`}
-                      >
-                        {resumenTallerOrden(orden, areas, responsables)}
-                      </p>
-                    ) : null}
                     <BarraProgreso
                       valor={porcentajeOrden(orden)}
                       mostrarPorcentaje
                       etiqueta={`Avance de ${orden.folio}`}
                     />
-                    {/* PRD-09: la orden agrupa sus ítems y el avance de cada proceso. */}
-                    {orden.partidas.map((partida) => (
-                      <div
-                        key={partida.id}
-                        className="flex flex-col gap-1 rounded-md border border-borde bg-superficie-2/40 p-2"
-                        data-testid={`avance-procesos-${partida.id}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wide text-texto-tenue">
-                            {partida.codigoPieza}
-                            {partida.descripcion ? (
-                              <span className="font-normal normal-case tracking-normal"> · {partida.descripcion}</span>
-                            ) : null}
-                          </p>
-                          <p className="shrink-0 text-[10px] tabular-nums text-texto-secundario">
-                            {formatearNumero(partida.cantidadProducida, 0)}/{formatearNumero(partida.cantidadSolicitada, 0)}{' '}
-                            {partida.unidadMedida}
-                          </p>
-                        </div>
-                        {partida.metasProceso.map((meta) => (
+                    <details className="rounded-md border border-borde bg-superficie-2/30 px-2 py-1">
+                      <summary className="cursor-pointer text-xs text-texto-secundario marker:content-none">
+                        Ver avance por proceso ({orden.partidas.reduce((total, partida) => total + partida.metasProceso.length, 0)})
+                      </summary>
+                      <div className="mt-2 flex flex-col gap-1">
+                        {resumenTallerOrden(orden, areas, responsables) ? (
                           <p
-                            key={meta.id}
                             className="text-xs text-texto-secundario"
-                            data-testid={`avance-proceso-${partida.id}-${meta.secuencia}`}
+                            data-testid={`detalle-taller-${orden.id}`}
                           >
-                            {meta.secuencia}. {meta.nombre}: {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
-                            {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
-                            {meta.disponiblePiezas !== null
-                              ? ` · ${formatearNumero(meta.disponiblePiezas)} disp.`
-                              : ''}
+                            {resumenTallerOrden(orden, areas, responsables)}
                           </p>
+                        ) : null}
+                        {orden.partidas.map((partida) => (
+                          <div
+                            key={partida.id}
+                            className="flex flex-col gap-1 rounded-md border border-borde bg-superficie p-2"
+                            data-testid={`avance-procesos-${partida.id}`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wide text-texto-tenue">
+                                {partida.codigoPieza}
+                                {partida.descripcion ? (
+                                  <span className="font-normal normal-case tracking-normal"> · {partida.descripcion}</span>
+                                ) : null}
+                              </p>
+                              <p className="shrink-0 text-[10px] tabular-nums text-texto-secundario">
+                                {formatearNumero(partida.cantidadProducida, 0)}/{formatearNumero(partida.cantidadSolicitada, 0)}{' '}
+                                {partida.unidadMedida}
+                              </p>
+                            </div>
+                            {partida.metasProceso.map((meta) => (
+                              <p
+                                key={meta.id}
+                                className="text-xs text-texto-secundario"
+                                data-testid={`avance-proceso-${partida.id}-${meta.secuencia}`}
+                              >
+                                {meta.secuencia}. {meta.nombre}: {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
+                                {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
+                                {meta.disponiblePiezas !== null
+                                  ? ` · ${formatearNumero(meta.disponiblePiezas)} disp.`
+                                  : ''}
+                              </p>
+                            ))}
+                          </div>
                         ))}
                       </div>
-                    ))}
+                    </details>
                     <p className="text-sm text-texto-secundario">
                       Compromiso: <span className="whitespace-nowrap">{new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}</span>
                     </p>

@@ -6,10 +6,8 @@ import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import { cn } from '@/compartido/utilidades/cn';
 import {
-  ETIQUETAS_COLUMNA,
   ETIQUETAS_URGENCIA,
   accionPrincipal,
-  type ColumnaEspacioOperador,
   type GrupoOrdenEspacioOperador,
   type ProcesoEspacioOperador,
   type TipoAccionTarjeta,
@@ -34,14 +32,6 @@ const VARIANTE_URGENCIA = {
   proxima: 'alerta',
   normal: 'neutro',
 } as const;
-
-const VARIANTE_COLUMNA: Record<ColumnaEspacioOperador, 'neutro' | 'info' | 'exito' | 'alerta'> = {
-  aprobada: 'info',
-  bandeja: 'neutro',
-  en_proceso: 'exito',
-  pausada: 'alerta',
-  lista: 'exito',
-};
 
 export interface PropsTarjetaOrdenOperador {
   grupo: GrupoOrdenEspacioOperador;
@@ -96,7 +86,6 @@ function ProcesoOrdenFila({
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 truncate text-xs font-semibold text-texto-primario">
             {proceso.secuencia}. {proceso.procesoNombre}
-            <span className="font-normal text-texto-secundario"> · {proceso.areaNombre}</span>
           </p>
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
             {proceso.etiquetas
@@ -106,36 +95,19 @@ function ProcesoOrdenFila({
                   {etiqueta}
                 </Badge>
               ))}
-            <Badge variante={VARIANTE_COLUMNA[proceso.columna]}>
-              {ETIQUETAS_COLUMNA[proceso.columna]}
-            </Badge>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-texto-secundario">
+        <div className="flex flex-wrap items-center gap-x-2 text-xs text-texto-secundario">
           <span>
             <span className="font-semibold tabular-nums text-texto-primario">
               {formatearNumero(proceso.hechoPiezas, 0)}/{formatearNumero(proceso.metaPiezas, 0)}
             </span>{' '}
             {proceso.unidadMedida}
           </span>
+          <span className="tabular-nums text-texto-tenue">· {Math.round(proceso.porcentaje)}%</span>
           <span className="tabular-nums text-texto-tenue">· {horasLegibles(proceso.horasEstimadas)}</span>
-          {proceso.piezasDisponibles !== null ? (
-            <span className={cn(
-              'tabular-nums',
-              proceso.piezasDisponibles === 0 ? 'text-advertencia-texto' : 'text-texto-tenue',
-            )}>
-              · {formatearNumero(proceso.piezasDisponibles, 0)} disp.
-            </span>
-          ) : null}
         </div>
-
-        <BarraProgreso
-          valor={proceso.porcentaje}
-          tono={proceso.columna === 'lista' ? 'exito' : 'acento'}
-          etiqueta={`Avance de ${proceso.codigoPieza} ${proceso.procesoNombre}`}
-          mostrarPorcentaje
-        />
 
         <div className="pointer-events-auto mt-auto">
           <Button
@@ -153,18 +125,10 @@ function ProcesoOrdenFila({
           </Button>
         </div>
 
-        {proceso.reclamo ? (
-          <p className={cn(
-            'truncate text-[11px]',
-            proceso.reclamadoPorMi ? 'text-exito-texto' : 'text-advertencia-texto',
-          )}>
-            {proceso.reclamadoPorMi
-              ? `Reservado por ti · ${etiquetaDiaCorto(proceso.reclamo.fecha)}`
-              : `Tomado por ${proceso.nombreReclamante ?? 'otro operador'} · ${etiquetaDiaCorto(proceso.reclamo.fecha)}`}
+        {proceso.reclamo && !proceso.reclamadoPorMi ? (
+          <p className="truncate text-[11px] text-advertencia-texto">
+            Tomado por {proceso.nombreReclamante ?? 'otro operador'} · {etiquetaDiaCorto(proceso.reclamo.fecha)}
           </p>
-        ) : null}
-        {proceso.sesionActiva ? (
-          <p className="truncate text-[11px] text-exito-texto">Sesión activa en este proceso</p>
         ) : null}
       </div>
     </li>
@@ -209,17 +173,17 @@ export function TarjetaOrdenOperador({
             {ETIQUETAS_URGENCIA[grupo.urgencia]}
           </Badge>
         </div>
-        <p className="text-[11px] text-texto-tenue">
-          {grupo.items.length} ítem{grupo.items.length === 1 ? '' : 's'} ·{' '}
-          {grupo.procesos.length} proceso{grupo.procesos.length === 1 ? '' : 's'} ·{' '}
-          {horasLegibles(grupo.horas)}
-        </p>
         <p className="text-[11px] text-texto-secundario">
           Compromiso:{' '}
           <span className="whitespace-nowrap">
             {etiquetaDiaCorto(grupo.fechaCompromiso)} · {textoCompromiso(grupo.fechaCompromiso, hoy)}
           </span>
         </p>
+        <BarraProgreso
+          valor={grupo.porcentaje}
+          etiqueta={`Avance de ${grupo.folioOrden}`}
+          mostrarPorcentaje
+        />
       </header>
 
       <ul className="flex flex-col gap-2">
@@ -237,11 +201,6 @@ export function TarjetaOrdenOperador({
                     <span className="font-normal text-texto-secundario"> · {item.descripcion}</span>
                   ) : null}
                 </p>
-                {item.material ? (
-                  <p className="truncate text-[11px] text-texto-tenue">
-                    {item.material.codigo} · {item.material.nombre}
-                  </p>
-                ) : null}
                 {(() => {
                   const ruta = item.procesos[0]?.procesosRuteo.length
                     ? item.procesos[0].procesosRuteo.map((paso, indice) => `${indice + 1}. ${paso.nombre}`).join(' → ')
