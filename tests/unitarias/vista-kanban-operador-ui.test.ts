@@ -96,8 +96,8 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(screen.getAllByTestId(/^orden-operador-/u)).toHaveLength(2);
     const tarjetaOrden = screen.getByTestId('orden-operador-orden-1');
     expect(tarjetaOrden.textContent).toContain('OF-001171');
-    expect(tarjetaOrden.textContent).toContain('2 ítems · 3 procesos');
     expect(tarjetaOrden.textContent).toContain('Aceros y Estructuras Tijuana');
+    expect(tarjetaOrden.textContent).toContain('1. Corte → 2. Doblez');
 
     expect(tarjetaOrden.querySelectorAll('[data-testid^="item-orden-"]')).toHaveLength(2);
     expect(tarjetaOrden.querySelectorAll('[data-testid^="proceso-"]')).toHaveLength(3);
