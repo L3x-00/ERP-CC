@@ -16,6 +16,7 @@ export interface PropsVistaKanbanOperador {
   hoy: string;
   soloLectura: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
+  onAbrirOrden: (ordenId: string) => void;
 }
 
 const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
@@ -32,6 +33,7 @@ export function VistaKanbanOperador({
   hoy,
   soloLectura,
   onAbrir,
+  onAbrirOrden,
 }: PropsVistaKanbanOperador) {
   const ordenes = agruparProcesosPorOrden(procesos);
   return (
@@ -81,6 +83,7 @@ export function VistaKanbanOperador({
                       hoy={hoy}
                       arrastrable={!soloLectura && columna !== 'lista'}
                       onAbrir={onAbrir}
+                      onAbrirOrden={onAbrirOrden}
                     />
                   </li>
                 ))}

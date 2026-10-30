@@ -90,6 +90,7 @@ describe('VistaKanbanOperador agrupada por orden', () => {
       hoy: '2026-10-26',
       soloLectura: false,
       onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
     }));
 
     expect(screen.getAllByTestId(/^orden-operador-/u)).toHaveLength(2);
@@ -99,6 +100,7 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(tarjetaOrden.textContent).toContain('1. Corte → 2. Doblez');
 
     expect(tarjetaOrden.querySelectorAll('[data-testid^="proceso-"]')).toHaveLength(2);
+    expect(tarjetaOrden.querySelector('[data-testid^="abrir-orden-operador-"]')).toBeTruthy();
     expect(tarjetaOrden.querySelector('[data-testid^="abrir-detalle-"]')).toBeTruthy();
     expect(tarjetaOrden.querySelector('[data-testid^="accion-"]')).toBeNull();
   });

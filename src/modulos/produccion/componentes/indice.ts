@@ -16,6 +16,7 @@ export type { PropsEspacioOperador } from './espacio-operador';
 export { DetalleProcesoOperador } from './detalle-proceso-operador';
 export { TarjetaProceso } from './tarjeta-proceso';
 export { TarjetaOrdenOperador } from './tarjeta-orden-operador';
+export { DetalleOrdenOperador } from './detalle-orden-operador';
 export { VistaKanbanOperador } from './vista-kanban-operador';
 export { VistaCalendarioOperador } from './vista-calendario-operador';
 export { VistaAreasOperador } from './vista-areas-operador';

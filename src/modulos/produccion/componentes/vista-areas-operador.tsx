@@ -13,6 +13,7 @@ export interface PropsVistaAreasOperador {
   hoy: string;
   soloLectura: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
+  onAbrirOrden: (ordenId: string) => void;
 }
 
 /**
@@ -24,6 +25,7 @@ export function VistaAreasOperador({
   hoy,
   soloLectura,
   onAbrir,
+  onAbrirOrden,
 }: PropsVistaAreasOperador) {
   if (grupos.length === 0) {
     return (
@@ -73,6 +75,7 @@ export function VistaAreasOperador({
                     hoy={hoy}
                     arrastrable={!soloLectura}
                     onAbrir={onAbrir}
+                    onAbrirOrden={onAbrirOrden}
                   />
                 </li>
               ))}

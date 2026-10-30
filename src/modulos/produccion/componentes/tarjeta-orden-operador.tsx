@@ -37,6 +37,7 @@ export interface PropsTarjetaOrdenOperador {
   hoy: string;
   arrastrable?: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
+  onAbrirOrden: (ordenId: string) => void;
 }
 
 function rutaDeItem(grupo: GrupoOrdenEspacioOperador, indice: number): string {
@@ -62,17 +63,25 @@ export function TarjetaOrdenOperador({
   hoy,
   arrastrable = false,
   onAbrir,
+  onAbrirOrden,
 }: PropsTarjetaOrdenOperador) {
   return (
     <article
       className={cn(
-        'flex min-w-0 flex-col gap-2 rounded-lg border border-l-4 border-borde bg-superficie p-3 text-left shadow-sm',
+        'relative flex min-w-0 flex-col gap-2 rounded-lg border border-l-4 border-borde bg-superficie p-3 text-left shadow-sm',
         BORDE_URGENCIA[grupo.urgencia],
       )}
       data-testid={`orden-operador-${grupo.ordenId}`}
       aria-label={`${grupo.folioOrden} · ${grupo.clienteNombre} · ${grupo.items.length} ítems`}
     >
-      <header className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={() => onAbrirOrden(grupo.ordenId)}
+        className="absolute inset-0 z-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+        aria-label={`Abrir detalle general de la orden ${grupo.folioOrden}`}
+        data-testid={`abrir-orden-operador-${grupo.ordenId}`}
+      />
+      <header className="pointer-events-none relative z-10 flex flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate font-mono text-sm font-semibold text-texto-primario">
@@ -102,7 +111,7 @@ export function TarjetaOrdenOperador({
         />
       </header>
 
-      <ul className="flex flex-col gap-1.5">
+      <ul className="pointer-events-none relative z-10 flex flex-col gap-1.5">
         {grupo.items.map((item, indice) => {
           const representante = procesoRepresentativoItem(item);
           const ruta = rutaDeItem(grupo, indice);
@@ -111,7 +120,7 @@ export function TarjetaOrdenOperador({
           return (
             <li
               key={item.partidaId}
-              className="relative rounded-md border border-borde bg-superficie-2/30 p-2 transition-colors hover:border-acento/50 hover:bg-superficie-2/60"
+              className="pointer-events-auto relative rounded-md border border-borde bg-superficie-2/30 p-2 transition-colors hover:border-acento/50 hover:bg-superficie-2/60"
               data-testid={`proceso-${representante.id}`}
               aria-label={`Abrir ${item.codigoPieza} de ${grupo.folioOrden}`}
               draggable={arrastrable}

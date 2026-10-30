@@ -427,6 +427,14 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(tarjetaOrden).toBeVisible();
       await expect(tarjetaOrden).toContainText('Cliente Producción');
 
+      // La tarjeta completa abre el resumen de la orden con todos sus ítems.
+      await tarjetaOrden.getByTestId(`abrir-orden-operador-${caso.ordenId}`).click();
+      const detalleOrden = page.getByTestId('detalle-orden-operador');
+      await expect(detalleOrden).toBeVisible();
+      await expect(detalleOrden).toContainText('Qué fabricar');
+      await expect(detalleOrden).toContainText('E2E-PRD-');
+      await page.getByRole('button', { name: 'Cerrar orden' }).click();
+
       // La fila del proceso conserva cantidad, horas y acciones.
       const tarjeta = page.locator(`[data-testid^="proceso-${caso.partidaId}:"]`).first();
       await expect(tarjeta).toBeVisible();
