@@ -15,6 +15,7 @@ import {
 import {
   ETIQUETAS_URGENCIA,
   agruparProcesosPorArea,
+  calcularDisponibilidadProcesos,
   construirDiasCalendario,
   derivarColumnaProceso,
   derivarUrgenciaProceso,
@@ -494,6 +495,9 @@ export async function obtenerEspacioOperadorServicio(
         completado: hecho >= operacion.metaPiezas,
       };
     });
+    // C11: la disponibilidad se deriva del hecho real del proceso anterior, no
+    // del estado de planeación; así el operador puede avanzar por lotes.
+    const disponibilidadPorProceso = calcularDisponibilidadProcesos(procesosRuteo);
 
     for (const operacion of operaciones) {
       const metaProcesoId = operacion.meta?.id ?? null;
@@ -521,6 +525,9 @@ export async function obtenerEspacioOperadorServicio(
         ? (hechoPorMeta.get(operacion.meta.id) ?? 0)
         : partida.cantidadProducida;
       const pendientePiezas = Math.max(operacion.metaPiezas - hechoPiezas, 0);
+      const disponibilidad = disponibilidadPorProceso.get(
+        operacion.meta?.id ?? `${partida.id}:sin-proceso`,
+      ) ?? { disponiblePiezas: null, procesoPrevioNombre: null };
       const procesoCompleto = operacion.meta
         ? hechoPiezas >= operacion.metaPiezas
         : partida.cantidadProducida >= partida.cantidadSolicitada;
@@ -552,7 +559,11 @@ export async function obtenerEspacioOperadorServicio(
       else if (operadorId === null) motivoNoInicia = 'Vista de solo lectura';
       else if (!reclamo) motivoNoInicia = 'Reclama el proceso para iniciar';
       else if (!reclamadoPorMi) motivoNoInicia = 'Otro operador tiene el proceso';
-      else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
+      else if (!sesionPausada && disponibilidad.disponiblePiezas === 0) {
+        motivoNoInicia = disponibilidad.procesoPrevioNombre
+          ? `Sin piezas de ${disponibilidad.procesoPrevioNombre}: el proceso anterior aún no termina`
+          : 'Sin piezas del proceso anterior';
+      } else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
         motivoNoInicia = 'La orden aÃºn no se libera a Bandeja';
       } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no estÃ¡ activa';
       else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
@@ -597,6 +608,8 @@ export async function obtenerEspacioOperadorServicio(
         pendientePiezas,
         porcentaje,
         esFinal: operacion.secuencia === ultimaSecuencia,
+        piezasDisponibles: disponibilidad.disponiblePiezas,
+        procesoPrevioNombre: disponibilidad.procesoPrevioNombre,
         horasEstimadas,
         programacion: programacion
           ? {

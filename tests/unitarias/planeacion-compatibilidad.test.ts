@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluarCompatibilidadRecurso,
   normalizarTextoCatalogo,
+  resolverGrupoRequeridoOperacion,
   resolverGruposRequeridos,
   type EntradaResolverGruposRequeridos,
 } from '@/modulos/planeacion/utilidades/compatibilidad';
@@ -69,8 +70,36 @@ describe('resolverGruposRequeridos (C9.2/P10)', () => {
   });
 });
 
-describe('evaluarCompatibilidadRecurso (C9.2/P10)', () => {
-  it('es compatible cuando coincide cualquiera de los grupos requeridos', () => {
+describe('resolverGrupoRequeridoOperacion (C11)', () => {
+  it('prioriza el grupo guardado en el ruteo de la propuesta', () => {
+    expect(
+      resolverGrupoRequeridoOperacion(
+        { nombre: 'Láser fibra', grupoEquipoId: GRUPO_LASER },
+        new Map([['láser fibra', GRUPO_DOBLEZ]]),
+      ),
+    ).toEqual([GRUPO_LASER]);
+  });
+
+  it('si el ruteo no lo guardó, usa el grupo del catálogo del proceso', () => {
+    expect(
+      resolverGrupoRequeridoOperacion(
+        { nombre: '  Láser   Fibra ', grupoEquipoId: null },
+        new Map([['láser fibra', GRUPO_LASER]]),
+      ),
+    ).toEqual([GRUPO_LASER]);
+  });
+
+  it('devuelve null cuando la operación no tiene grupo conocido', () => {
+    expect(
+      resolverGrupoRequeridoOperacion(
+        { nombre: 'Proceso sin catálogo', grupoEquipoId: null },
+        new Map(),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('evaluarCompatibilidadRecurso (C9.2/P10)', () => {  it('es compatible cuando coincide cualquiera de los grupos requeridos', () => {
     expect(evaluarCompatibilidadRecurso([GRUPO_LASER, GRUPO_DOBLEZ], GRUPO_DOBLEZ)).toBe(
       'compatible',
     );

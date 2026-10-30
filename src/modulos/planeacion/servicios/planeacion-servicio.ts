@@ -283,18 +283,27 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
   admin: SupabaseClient<Database>,
   filtros: FiltrosCalendarioPlaneacion,
 ): Promise<DatosCalendarioPlaneacion> {
-  const [programaciones, respuestaRecursos] = await Promise.all([
+  const [programaciones, respuestaRecursos, respuestaGrupos] = await Promise.all([
     obtenerProgramacionesCalendarioServicio(cliente, filtros),
     cliente
       .from('recursos_planeacion')
-      .select('id, codigo, nombre, area, activo, creado_en, actualizado_en')
+      .select('id, codigo, nombre, area, activo, grupo_equipo_id, creado_en, actualizado_en')
       .eq('activo', true)
       .order('codigo'),
+    cliente.from('grupos_equipo').select('id, nombre'),
   ]);
 
   if (respuestaRecursos.error) lanzarErrorPlaneacion(respuestaRecursos.error.message);
+  if (respuestaGrupos.error) {
+    console.error('Planeación: no se pudieron leer los grupos de equipo', respuestaGrupos.error.message);
+  }
 
-  const recursos = (respuestaRecursos.data ?? []).map(filaARecursoPlaneacion);
+  const nombrePorGrupo = new Map(
+    (respuestaGrupos.data ?? []).map((grupo) => [grupo.id, grupo.nombre]),
+  );
+  const recursos = (respuestaRecursos.data ?? []).map(
+    (recurso) => filaARecursoPlaneacion(recurso, nombrePorGrupo),
+  );
   const recursosAutorizados = new Set(recursos.map((recurso) => recurso.id));
   const cargas = await obtenerCargaCapacidadDiariaServicio(
     admin,
@@ -326,7 +335,7 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
     case 'recurso_ocupado':
       return 'El recurso ya está ocupado en preparación o producción';
     case 'recurso_incompatible':
-      return 'El recurso es de otro grupo de equipo del que pide el ruteo de la partida';
+      return 'La máquina no pertenece al grupo de equipo de esta operación. Elige una máquina del grupo indicado en el ruteo o corrige el grupo del proceso en la propuesta';
     case 'programacion_conflicto':
       return 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo';
     case 'programacion_inexistente':

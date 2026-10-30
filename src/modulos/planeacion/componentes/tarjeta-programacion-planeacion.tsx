@@ -191,8 +191,8 @@ export function TarjetaProgramacionPlaneacion({
             <dd>{desglose ? etiquetaProcesos(desglose) : textoODefecto(null)}</dd>
           </div>
           <div>
-            <dt className="text-texto-secundario">Equipo / estación</dt>
-            <dd>{desglose ? textoODefecto(desglose.maquinaAsignada) : textoODefecto(null)}</dd>
+            <dt className="text-texto-secundario">Equipo del ruteo</dt>
+            <dd>{recurso?.grupoEquipoNombre ?? (desglose ? textoODefecto(desglose.maquinaAsignada) : textoODefecto(null))}</dd>
           </div>
           <div>
             <dt className="text-texto-secundario">Material</dt>
@@ -222,11 +222,15 @@ export function TarjetaProgramacionPlaneacion({
       >
         <span
           className={`text-texto-secundario ${compacta ? 'min-w-0 flex-1 truncate text-[10px]' : ''}`}
-          title={compacta ? `${recurso?.codigo ?? 'Recurso'} · ${programacion.horasEstimadas} h` : undefined}
+          title={compacta
+            ? `${recurso?.codigo ?? 'Recurso'}${recurso?.grupoEquipoNombre ? ` · ${recurso.grupoEquipoNombre}` : ''} · ${programacion.horasEstimadas} h`
+            : undefined}
         >
           {compacta
-            ? `${recurso?.codigo ?? 'Recurso'} · ${programacion.horasEstimadas} h`
-            : `${recurso ? `${recurso.codigo} · ${recurso.nombre}` : 'Recurso'} · ${
+            ? `${recurso?.codigo ?? 'Recurso'}${recurso?.grupoEquipoNombre ? ` · ${recurso.grupoEquipoNombre}` : ''} · ${programacion.horasEstimadas} h`
+            : `${recurso
+                ? `${recurso.codigo} · ${recurso.nombre}${recurso.grupoEquipoNombre ? ` (${recurso.grupoEquipoNombre})` : ''}`
+                : 'Recurso'} · ${
                 ETIQUETA_TURNO[programacion.turno]
               } · ${programacion.horasEstimadas} h · prioridad ${programacion.ordenPrioridad}`}
         </span>
@@ -314,7 +318,11 @@ export function TarjetaProgramacionPlaneacion({
             ) : null}
             <div>
               <dt className="text-texto-secundario">Recurso</dt>
-              <dd>{recurso ? `${recurso.codigo} · ${recurso.nombre}` : 'Recurso'}</dd>
+              <dd>
+                {recurso
+                  ? `${recurso.codigo} · ${recurso.nombre}${recurso.grupoEquipoNombre ? ` (${recurso.grupoEquipoNombre})` : ''}`
+                  : 'Recurso'}
+              </dd>
             </div>
             <div>
               <dt className="text-texto-secundario">Fecha</dt>

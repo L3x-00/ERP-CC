@@ -382,8 +382,9 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await page.waitForURL('**/produccion-piso');
     const espacioOperador = page.getByTestId('espacio-operador');
     await expect(espacioOperador).toBeVisible();
-    const tarjetaProceso = page.locator('[data-testid^="proceso-"]', { hasText: folio });
-    await expect(tarjetaProceso).toHaveCount(1);
+    const tarjetaOrden = page.locator('[data-testid^="orden-operador-"]', { hasText: folio });
+    await expect(tarjetaOrden).toHaveCount(1);
+    const tarjetaProceso = tarjetaOrden.locator('[data-testid^="proceso-"]').first();
     await tarjetaProceso.getByRole('button', { name: 'Reclamar' }).click();
     await expect(page.getByTestId('aviso-espacio')).toContainText('Proceso reservado en tu jornada');
 

@@ -803,6 +803,8 @@ describe('operación de Planeación en cliente', () => {
         [recursoOtroGrupo.id]: { id: 'grupo-doblez', nombre: 'Doblez' },
       },
       gruposRequeridosPorPartida: { [partida.partidaId]: ['grupo-laser'] },
+      gruposRequeridosPorOperacion: {},
+      nombrePorGrupo: { 'grupo-laser': 'Láser', 'grupo-doblez': 'Doblez' },
     };
 
     render(
@@ -831,7 +833,10 @@ describe('operación de Planeación en cliente', () => {
     // P-04 (respuesta del cliente): elegir otro grupo impide guardar además del
     // candado `recurso_incompatible` de la RPC.
     expect(screen.getByTestId('aviso-compatibilidad-planeacion').textContent).toContain(
-      'otro grupo',
+      'Doblez',
+    );
+    expect(screen.getByTestId('aviso-compatibilidad-planeacion').textContent).toContain(
+      'Láser',
     );
     expect(
       (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
@@ -843,6 +848,69 @@ describe('operación de Planeación en cliente', () => {
     expect(
       (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
     ).toBe(false);
+  });
+
+  it('evalúa el grupo contra la operación elegida, no contra toda la partida (C11)', () => {
+    const recursoLaser = { ...DATOS.recursos[0] };
+    const recursoDoblez = {
+      ...DATOS.recursos[0],
+      id: '99999999-9999-4999-8999-999999999998',
+      codigo: 'DBL-02',
+      nombre: 'Dobladora',
+    };
+    const partida: PartidaProgramablePlaneacion = {
+      ...PARTIDAS_POR_DEFECTO[0],
+      operaciones: [
+        {
+          metaProcesoId: 'meta-laser', secuencia: 1, nombre: 'Láser fibra',
+          programada: false, grupoEquipoId: 'grupo-laser',
+        },
+        {
+          metaProcesoId: 'meta-doblez', secuencia: 2, nombre: 'Doblez',
+          programada: false, grupoEquipoId: 'grupo-doblez',
+        },
+      ],
+    };
+    const compatibilidad: CompatibilidadRecursosPlaneacion = {
+      grupoPorRecurso: {
+        [recursoLaser.id]: { id: 'grupo-laser', nombre: 'Láser' },
+        [recursoDoblez.id]: { id: 'grupo-doblez', nombre: 'Doblez' },
+      },
+      gruposRequeridosPorPartida: { [partida.partidaId]: ['grupo-laser', 'grupo-doblez'] },
+      gruposRequeridosPorOperacion: {
+        'meta-laser': ['grupo-laser'],
+        'meta-doblez': ['grupo-doblez'],
+      },
+      nombrePorGrupo: { 'grupo-laser': 'Láser', 'grupo-doblez': 'Doblez' },
+    };
+
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: [recursoDoblez, recursoLaser],
+        partidasProgramables: [partida],
+        compatibilidad,
+        onEnviar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: partida.partidaId },
+    });
+
+    const selector = screen.getByLabelText('Recurso') as HTMLSelectElement;
+    const opcion = (codigo: string) => within(selector).getAllByRole('option')
+      .find((option) => option.textContent?.includes(codigo));
+    expect(opcion('CNC-01')?.textContent).not.toContain('(otro grupo)');
+    expect(opcion('DBL-02')?.textContent).toContain('(otro grupo)');
+    expect(screen.getByTestId('ruteo-equipo-operacion-planeacion').textContent).toContain('Láser');
+
+    fireEvent.change(screen.getByLabelText('Operación'), {
+      target: { value: 'meta-doblez' },
+    });
+
+    expect(opcion('DBL-02')?.textContent).not.toContain('(otro grupo)');
+    expect(opcion('CNC-01')?.textContent).toContain('(otro grupo)');
+    expect(screen.getByTestId('ruteo-equipo-operacion-planeacion').textContent).toContain('Doblez');
   });
 
   it('el aviso de sobrecapacidad muestra el exceso en horas antes de guardar (C9.2/P09)', () => {

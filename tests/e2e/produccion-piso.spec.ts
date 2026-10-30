@@ -421,10 +421,14 @@ test.describe.serial('piso de Producción y entregas', () => {
         await expect(page.getByTestId(`columna-${columna}`)).toBeVisible();
       }
 
-      // La tarjeta de la partida trae cliente, pieza, cantidad y horas.
+      // La orden agrupa sus ítems y procesos; la tarjeta de orden trae cliente.
+      const tarjetaOrden = page.locator('[data-testid^="orden-operador-"]').first();
+      await expect(tarjetaOrden).toBeVisible();
+      await expect(tarjetaOrden).toContainText('Cliente Producción');
+
+      // La fila del proceso conserva cantidad, horas y acciones.
       const tarjeta = page.locator(`[data-testid^="proceso-${caso.partidaId}:"]`).first();
       await expect(tarjeta).toBeVisible();
-      await expect(tarjeta).toContainText('Cliente Producción');
       await expect(tarjeta).toContainText('0/5');
       await expect(tarjeta).toContainText('2 h');
 

@@ -2,8 +2,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
   normalizarTextoCatalogo,
+  resolverGrupoRequeridoOperacion,
   resolverGruposRequeridos,
   type CompatibilidadRecursosPlaneacion,
+  type OperacionCompatibilidadPlaneacion,
 } from '@/modulos/planeacion/utilidades/compatibilidad';
 
 /**
@@ -18,6 +20,8 @@ export interface PartidaCompatibilidadPlaneacion {
   partidaId: string;
   procesos: readonly string[];
   maquinaAsignada: string | null;
+  /** Operaciones del ruteo con su grupo capturado en la propuesta. */
+  operaciones?: readonly OperacionCompatibilidadPlaneacion[];
 }
 
 export interface EntradaCompatibilidadPlaneacion {
@@ -27,6 +31,8 @@ export interface EntradaCompatibilidadPlaneacion {
 const SIN_COMPATIBILIDAD: CompatibilidadRecursosPlaneacion = {
   grupoPorRecurso: {},
   gruposRequeridosPorPartida: {},
+  gruposRequeridosPorOperacion: {},
+  nombrePorGrupo: {},
 };
 
 export async function obtenerCompatibilidadRecursosServicio(
@@ -68,6 +74,7 @@ export async function obtenerCompatibilidadRecursosServicio(
     }
 
     const gruposRequeridosPorPartida: CompatibilidadRecursosPlaneacion['gruposRequeridosPorPartida'] = {};
+    const gruposRequeridosPorOperacion: CompatibilidadRecursosPlaneacion['gruposRequeridosPorOperacion'] = {};
     for (const partida of entrada.partidas) {
       gruposRequeridosPorPartida[partida.partidaId] = resolverGruposRequeridos({
         procesos: partida.procesos,
@@ -75,9 +82,20 @@ export async function obtenerCompatibilidadRecursosServicio(
         grupoPorProceso,
         grupoPorCodigoRecurso,
       });
+      for (const operacion of partida.operaciones ?? []) {
+        gruposRequeridosPorOperacion[operacion.metaProcesoId] = resolverGrupoRequeridoOperacion(
+          operacion,
+          grupoPorProceso,
+        );
+      }
     }
 
-    return { grupoPorRecurso, gruposRequeridosPorPartida };
+    return {
+      grupoPorRecurso,
+      gruposRequeridosPorPartida,
+      gruposRequeridosPorOperacion,
+      nombrePorGrupo: Object.fromEntries(nombrePorGrupo),
+    };
   } catch (error) {
     console.error('Planeación: compatibilidad de recursos no disponible', error);
     return SIN_COMPATIBILIDAD;

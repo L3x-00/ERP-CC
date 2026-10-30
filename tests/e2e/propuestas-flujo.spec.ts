@@ -610,6 +610,9 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       }
       await capturar(page, 'propuesta-ruteo-costeado');
 
+      // El costeo interno está plegado por defecto: se abre antes de capturar.
+      await page.getByRole('button', { name: 'Mostrar Costeo interno' }).click();
+
       // Los montos son texto libre (símbolo, miles) y llevan detalle opcional.
       await expect(page.getByLabel('Costo Material')).toHaveAttribute('type', 'text');
       await page.getByLabel('Costo Material').fill('$400.00');

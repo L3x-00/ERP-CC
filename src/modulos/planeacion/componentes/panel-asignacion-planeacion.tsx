@@ -161,11 +161,34 @@ export function PanelAsignacionPlaneacion({
   // compatibles se ofrecen primero y elegir otro grupo impide guardar (la RPC
   // `recurso_incompatible` conserva la última palabra).
   const partidaEfectivaId = programacion?.partidaId ?? partidaId;
-  const gruposRequeridos = compatibilidad?.gruposRequeridosPorPartida[partidaEfectivaId] ?? null;
+  const gruposRequeridosPartida = compatibilidad?.gruposRequeridosPorPartida[partidaEfectivaId] ?? null;
+  // C11: la compatibilidad se evalúa contra la operación elegida, no contra todos
+  // los grupos del ruteo de la partida. Así una operación de láser no acepta una
+  // máquina de CNC solo porque la misma partida también tenga doblez.
+  const metaOperacionId = programacion?.metaProcesoId ?? (operacionId || null);
+  const tieneGrupoPropioOperacion = Boolean(
+    metaOperacionId
+    && compatibilidad
+    && Object.prototype.hasOwnProperty.call(
+      compatibilidad.gruposRequeridosPorOperacion,
+      metaOperacionId,
+    ),
+  );
+  const gruposRequeridos = tieneGrupoPropioOperacion
+    ? compatibilidad?.gruposRequeridosPorOperacion[metaOperacionId!] ?? null
+    : gruposRequeridosPartida;
+  const nombresGruposRequeridos = (gruposRequeridos ?? [])
+    .map((id) => compatibilidad?.nombrePorGrupo[id])
+    .filter((nombre): nombre is string => Boolean(nombre));
+  const textoGrupoRequerido = nombresGruposRequeridos.length > 0
+    ? nombresGruposRequeridos.join(', ')
+    : null;
   const estadoCompatibilidadSeleccionada = evaluarCompatibilidadRecurso(
     gruposRequeridos,
     compatibilidad?.grupoPorRecurso[recursoId]?.id ?? null,
   );
+  const grupoDelRecursoSeleccionado = compatibilidad?.grupoPorRecurso[recursoId] ?? null;
+  const nombreOperacionActiva = programacion?.operacionNombre ?? null;
   const recursosPorCompatibilidad = recursosActivos
     .map((recurso) => {
       const grupo = compatibilidad?.grupoPorRecurso[recurso.id] ?? null;
@@ -176,6 +199,9 @@ export function PanelAsignacionPlaneacion({
       };
     })
     .sort((a, b) => (a.estado === 'compatible' ? 0 : 1) - (b.estado === 'compatible' ? 0 : 1));
+  const hayRecursoCompatible = recursosPorCompatibilidad.some(
+    ({ estado }) => estado === 'compatible',
+  );
 
   const desglosePorId = useMemo(
     () => new Map(desglosePartidas.map((desglose) => [desglose.partidaId, desglose])),
@@ -219,13 +245,26 @@ export function PanelAsignacionPlaneacion({
     (operacion) => operacion.metaProcesoId === operacionId,
   );
 
+  function recursoSugeridoParaOperacion(operacion?: OperacionProgramablePartida): string {
+    if (!operacion) return '';
+    if (
+      operacion.recursoIdSugerido
+      && recursosActivos.some((recurso) => recurso.id === operacion.recursoIdSugerido)
+    ) {
+      return operacion.recursoIdSugerido;
+    }
+    const gruposOperacion = operacion.metaProcesoId
+      ? compatibilidad?.gruposRequeridosPorOperacion[operacion.metaProcesoId] ?? null
+      : null;
+    if (!gruposOperacion || gruposOperacion.length === 0) return '';
+    return recursosActivos.find((recurso) => {
+      const grupo = compatibilidad?.grupoPorRecurso[recurso.id]?.id;
+      return grupo ? gruposOperacion.includes(grupo) : false;
+    })?.id ?? '';
+  }
+
   function aplicarSugerenciasOperacion(operacion?: OperacionProgramablePartida): void {
-    const recursoSugerido = operacion?.recursoIdSugerido ?? null;
-    setRecursoId(
-      recursoSugerido && recursosActivos.some((recurso) => recurso.id === recursoSugerido)
-        ? recursoSugerido
-        : '',
-    );
+    setRecursoId(recursoSugeridoParaOperacion(operacion));
 
     const fechaSugerida = operacion?.fechaProgramadaSugerida ?? '';
     setFechaProgramada(fechaSugerida);
@@ -240,9 +279,24 @@ export function PanelAsignacionPlaneacion({
     limpiarEstadoBuscador();
   }
 
+  const recursoSugeridoActual = recursoSugeridoParaOperacion(operacionElegida);
+  const recursoSeleccionado = recursosActivos.find((recurso) => recurso.id === recursoId) ?? null;
+  const nombreOperacionVisible = nombreOperacionActiva ?? operacionElegida?.nombre ?? null;
+  const mensajeRecursoIncompatible = (() => {
+    if (estadoCompatibilidadSeleccionada !== 'incompatible') return null;
+    const operacion = nombreOperacionVisible ? `la operación ${nombreOperacionVisible}` : 'esta operación';
+    const grupoRecurso = grupoDelRecursoSeleccionado?.nombre
+      ? `es del grupo ${grupoDelRecursoSeleccionado.nombre}`
+      : 'no tiene un grupo de equipo configurado';
+    const requerido = textoGrupoRequerido
+      ? `requiere ${textoGrupoRequerido}`
+      : 'requiere otro grupo de equipo';
+    return `La máquina ${recursoSeleccionado?.codigo ?? 'seleccionada'} ${grupoRecurso}, pero ${operacion} ${requerido}. Elige una máquina del grupo correcto o corrige el grupo del proceso en la propuesta.`;
+  })();
   const tieneSugerenciaRuteo = Boolean(
     operacionElegida
     && (operacionElegida.recursoIdSugerido
+      || operacionElegida.grupoEquipoId
       || operacionElegida.fechaProgramadaSugerida
       || operacionElegida.horasEstimadasSugeridas),
   );
@@ -321,6 +375,13 @@ export function PanelAsignacionPlaneacion({
 
     if (recursoId === '' || fechaProgramada === '') {
       setErrorFormulario('Selecciona un recurso y una fecha');
+      return;
+    }
+    if (estadoCompatibilidadSeleccionada === 'incompatible') {
+      setErrorFormulario(
+        mensajeRecursoIncompatible
+          ?? 'La máquina no pertenece al grupo de equipo que pide esta operación. Elige otra máquina o corrige el ruteo.',
+      );
       return;
     }
     if (!Number.isFinite(horas) || horas <= 0 || horas > 24) {
@@ -545,8 +606,9 @@ export function PanelAsignacionPlaneacion({
             role="status"
             data-testid="sugerencias-ruteo-planeacion"
           >
-            Se completaron los datos disponibles del ruteo y el compromiso comercial. Verifica la
-            capacidad antes de guardar; esta sugerencia no reserva el recurso.
+            Se completaron la fecha de compromiso, las horas y, si el ruteo lo define, una máquina
+            del grupo de equipo de esta operación. Verifica la capacidad antes de guardar; la
+            sugerencia no reserva el recurso.
           </p>
         ) : null}
         <div className="col-span-2 flex flex-col gap-1">
@@ -564,14 +626,40 @@ export function PanelAsignacionPlaneacion({
               </option>
             ))}
           </Select>
-          {estadoCompatibilidadSeleccionada === 'incompatible' ? (
+          {textoGrupoRequerido ? (
+            <p
+              role="status"
+              className="text-xs text-texto-secundario"
+              data-testid="ruteo-equipo-operacion-planeacion"
+            >
+              Equipo que pide el ruteo: <strong>{textoGrupoRequerido}</strong>
+              {recursoSugeridoActual
+                ? ` · máquina sugerida: ${recursosActivos.find((recurso) => recurso.id === recursoSugeridoActual)?.codigo ?? 'disponible'}.`
+                : ' · elige una máquina de este grupo.'}
+            </p>
+          ) : metaOperacionId ? (
+            <p
+              role="status"
+              className="text-xs text-advertencia-texto"
+              data-testid="ruteo-equipo-operacion-planeacion"
+            >
+              La operación no tiene grupo de equipo en el ruteo. Planeación no puede validar la
+              máquina; configura el grupo del proceso en la propuesta o en Catálogos → Procesos.
+            </p>
+          ) : null}
+          {nombresGruposRequeridos.length > 0 && !hayRecursoCompatible ? (
+            <p role="alert" className="text-xs text-advertencia-texto">
+              No hay máquinas activas asignadas a {textoGrupoRequerido}. Configura una en ese grupo
+              desde Catálogos → Recursos o corrige el grupo del proceso en la propuesta.
+            </p>
+          ) : null}
+          {mensajeRecursoIncompatible ? (
             <p
               role="status"
               className="text-xs text-peligro-texto"
               data-testid="aviso-compatibilidad-planeacion"
             >
-              El recurso es de otro grupo de equipo del que pide el ruteo de la partida. Elige un
-              equipo compatible para guardar.
+              {mensajeRecursoIncompatible}
             </p>
           ) : null}
         </div>

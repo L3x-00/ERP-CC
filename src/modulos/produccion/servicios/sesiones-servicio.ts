@@ -25,6 +25,8 @@ export type CodigoErrorProduccion =
   | 'recurso_no_disponible'
   | 'recurso_inexistente'
   | 'secuencia_previa_pendiente'
+  | 'proceso_previo_sin_piezas'
+  | 'cantidad_excede_disponible_proceso'
   | 'produccion_solo_ultima_secuencia'
   | 'cantidad_producida_excede_solicitada'
   | 'meta_proceso_no_corresponde'
@@ -139,6 +141,8 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'recurso_no_disponible',
   'recurso_inexistente',
   'secuencia_previa_pendiente',
+  'proceso_previo_sin_piezas',
+  'cantidad_excede_disponible_proceso',
   'produccion_solo_ultima_secuencia',
   'cantidad_producida_excede_solicitada',
   'meta_proceso_no_corresponde',
@@ -363,6 +367,10 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La programación debe estar en preparación antes de iniciar';
     case 'secuencia_previa_pendiente':
       return 'Existe una operación previa pendiente para esta partida';
+    case 'proceso_previo_sin_piezas':
+      return 'El proceso anterior aún no tiene piezas terminadas para trabajar';
+    case 'cantidad_excede_disponible_proceso':
+      return 'La cantidad supera las piezas terminadas y disponibles del proceso anterior';
     case 'cantidad_producida_excede_solicitada':
       return 'La producción no puede superar la cantidad solicitada';
     case 'meta_proceso_no_corresponde':

@@ -115,6 +115,41 @@ export interface ProcesoRuteoResumen {
   completado: boolean;
 }
 
+/** Piezas del proceso previo que la operación todavía puede trabajar. */
+export interface DisponibilidadProcesoRuteo {
+  /** null cuando no hay restricción: primera operación del ruteo o sin metas. */
+  disponiblePiezas: number | null;
+  procesoPrevioNombre: string | null;
+}
+
+/**
+ * Calcula la disponibilidad parcial de cada operación del ruteo: las piezas
+ * terminadas por el proceso inmediato anterior menos las ya consumidas por la
+ * propia operación. Permite avanzar sin esperar el lote completo, pero bloquea
+ * el arranque mientras el proceso previo no haya terminado ninguna pieza.
+ */
+export function calcularDisponibilidadProcesos(
+  procesos: readonly Pick<ProcesoRuteoResumen, 'id' | 'secuencia' | 'nombre' | 'hechoPiezas'>[],
+): Map<string, DisponibilidadProcesoRuteo> {
+  const ordenados = [...procesos].sort((primero, segundo) => primero.secuencia - segundo.secuencia);
+  const resultado = new Map<string, DisponibilidadProcesoRuteo>();
+
+  ordenados.forEach((proceso, indice) => {
+    const previo = indice > 0 ? ordenados[indice - 1] : null;
+    resultado.set(
+      proceso.id,
+      previo
+        ? {
+          disponiblePiezas: Math.max(previo.hechoPiezas - proceso.hechoPiezas, 0),
+          procesoPrevioNombre: previo.nombre,
+        }
+        : { disponiblePiezas: null, procesoPrevioNombre: null },
+    );
+  });
+
+  return resultado;
+}
+
 export interface ProgramacionProceso {
   id: string;
   fecha: string;
@@ -164,6 +199,9 @@ export interface ProcesoEspacioOperador {
   pendientePiezas: number;
   porcentaje: number;
   esFinal: boolean;
+  /** Piezas del proceso previo aún disponibles; null si es la primera operación. */
+  piezasDisponibles: number | null;
+  procesoPrevioNombre: string | null;
 
   horasEstimadas: number;
   programacion: ProgramacionProceso | null;
@@ -182,6 +220,131 @@ export interface ProcesoEspacioOperador {
   puedeIniciar: boolean;
   puedeReanudar: boolean;
   motivoNoInicia: string | null;
+}
+
+/** Ítem de la orden con las operaciones visibles de ese ítem. */
+export interface ItemOrdenEspacioOperador {
+  partidaId: string;
+  codigoPieza: string;
+  descripcion: string | null;
+  unidadMedida: string;
+  cantidadProducida: number;
+  cantidadSolicitada: number;
+  porcentaje: number;
+  material: MaterialProceso | null;
+  procesos: ProcesoEspacioOperador[];
+}
+
+/** Orden agrupada: evita una tarjeta por operación en el tablero de piso. */
+export interface GrupoOrdenEspacioOperador {
+  ordenId: string;
+  folioOrden: string;
+  folioSii: string | null;
+  clienteNombre: string;
+  fechaCompromiso: string;
+  urgencia: UrgenciaProceso;
+  prioridad: PrioridadOrden;
+  notas: string | null;
+  /** Solo los ítems que tienen al menos una operación en el conjunto recibido. */
+  items: ItemOrdenEspacioOperador[];
+  procesos: ProcesoEspacioOperador[];
+  horas: number;
+  cantidadProducida: number;
+  cantidadSolicitada: number;
+  porcentaje: number;
+}
+
+const RANGO_URGENCIA = new Map<UrgenciaProceso, number>(
+  URGENCIAS_PROCESO.map((urgencia, indice) => [urgencia, indice]),
+);
+
+/**
+ * Agrupa operaciones por orden y, dentro de ella, por ítem. Mantiene cada
+ * operación con sus acciones para no perder el flujo de piso, pero evita que
+ * una orden con varios ítems/procesos se pinte como tarjetas independientes.
+ */
+export function agruparProcesosPorOrden(
+  procesos: readonly ProcesoEspacioOperador[],
+): GrupoOrdenEspacioOperador[] {
+  const porOrden = new Map<string, ProcesoEspacioOperador[]>();
+  for (const proceso of procesos) {
+    const actuales = porOrden.get(proceso.ordenId);
+    if (actuales) actuales.push(proceso);
+    else porOrden.set(proceso.ordenId, [proceso]);
+  }
+
+  const grupos = [...porOrden.values()].map((delOrden) => {
+    const primero = delOrden[0];
+    const porPartida = new Map<string, ProcesoEspacioOperador[]>();
+    for (const proceso of delOrden) {
+      const delItem = porPartida.get(proceso.partidaId);
+      if (delItem) delItem.push(proceso);
+      else porPartida.set(proceso.partidaId, [proceso]);
+    }
+
+    const items: ItemOrdenEspacioOperador[] = [...porPartida.values()]
+      .map((delItem) => {
+        const referencia = delItem[0];
+        const porcentaje = referencia.cantidadSolicitada > 0
+          ? Math.min((referencia.cantidadProducida / referencia.cantidadSolicitada) * 100, 100)
+          : 0;
+        return {
+          partidaId: referencia.partidaId,
+          codigoPieza: referencia.codigoPieza,
+          descripcion: referencia.descripcion,
+          unidadMedida: referencia.unidadMedida,
+          cantidadProducida: referencia.cantidadProducida,
+          cantidadSolicitada: referencia.cantidadSolicitada,
+          porcentaje,
+          material: referencia.material,
+          procesos: [...delItem].sort((a, b) => a.secuencia - b.secuencia),
+        };
+      })
+      .sort((a, b) => a.codigoPieza.localeCompare(b.codigoPieza, 'es'));
+
+    const cantidadProducida = items.reduce((total, item) => total + item.cantidadProducida, 0);
+    const cantidadSolicitada = items.reduce((total, item) => total + item.cantidadSolicitada, 0);
+    const urgencia = delOrden.reduce<UrgenciaProceso>(
+      (peor, proceso) => (
+        (RANGO_URGENCIA.get(proceso.urgencia) ?? 99) < (RANGO_URGENCIA.get(peor) ?? 99)
+          ? proceso.urgencia
+          : peor
+      ),
+      primero.urgencia,
+    );
+    const fechaCompromiso = delOrden.reduce(
+      (fecha, proceso) => (proceso.fechaCompromiso < fecha ? proceso.fechaCompromiso : fecha),
+      primero.fechaCompromiso,
+    );
+    const horas = delOrden.reduce((total, proceso) => total + proceso.horasEstimadas, 0);
+
+    return {
+      ordenId: primero.ordenId,
+      folioOrden: primero.folioOrden,
+      folioSii: primero.folioSii,
+      clienteNombre: primero.clienteNombre,
+      fechaCompromiso,
+      urgencia,
+      prioridad: primero.prioridad,
+      notas: primero.notas,
+      items,
+      procesos: [...delOrden].sort((a, b) => (
+        a.codigoPieza.localeCompare(b.codigoPieza, 'es') || a.secuencia - b.secuencia
+      )),
+      horas,
+      cantidadProducida,
+      cantidadSolicitada,
+      porcentaje: cantidadSolicitada > 0
+        ? Math.min((cantidadProducida / cantidadSolicitada) * 100, 100)
+        : 0,
+    };
+  });
+
+  return grupos.sort((a, b) => (
+    (RANGO_URGENCIA.get(a.urgencia) ?? 99) - (RANGO_URGENCIA.get(b.urgencia) ?? 99)
+    || a.fechaCompromiso.localeCompare(b.fechaCompromiso)
+    || a.folioOrden.localeCompare(b.folioOrden, 'es')
+  ));
 }
 
 export interface AreaEspacioOperador {
@@ -349,6 +512,9 @@ export function etiquetasProceso(proceso: ProcesoEspacioOperador): string[] {
   else if (proceso.urgencia === 'proxima') etiquetas.push('Próxima');
   if (proceso.prioridad === 'alta' && proceso.urgencia !== 'urgente') etiquetas.push('Alta');
   if (proceso.esExterno) etiquetas.push('Externo');
+  if (proceso.piezasDisponibles === 0 && proceso.hechoPiezas < proceso.metaPiezas) {
+    etiquetas.push('Sin piezas previas');
+  }
   if (proceso.reclamo && !proceso.reclamadoPorMi) etiquetas.push('Tomado');
   return etiquetas;
 }

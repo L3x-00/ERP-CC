@@ -81,6 +81,8 @@ const PARTIDA: PartidaTableroProduccion = {
       pendientePiezas: 60,
       porcentaje: 40,
       esFinal: false,
+      disponiblePiezas: null,
+      procesoPrevioNombre: null,
     },
     {
       id: META_DOBLEZ,
@@ -92,6 +94,8 @@ const PARTIDA: PartidaTableroProduccion = {
       pendientePiezas: 100,
       porcentaje: 0,
       esFinal: true,
+      disponiblePiezas: 40,
+      procesoPrevioNombre: 'Corte',
     },
   ],
   creadoEn: '2026-10-01T00:00:00.000Z',

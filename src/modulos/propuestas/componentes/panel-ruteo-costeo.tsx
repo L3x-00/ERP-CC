@@ -432,6 +432,11 @@ export function PanelRuteoCosteo({
               {filas.map((fila, indice) => {
                 const tarifa = permisos.editarCosto ? tarifaDeFila(fila) : null;
                 const horasFila = (Number(fila.setupHoras) || 0) + (Number(fila.runHoras) || 0);
+                const procesoFila = catalogoProcesos.find((proceso) => proceso.id === fila.procesoId);
+                const areaFila = procesoFila ? nombreArea(procesoFila.areaTrabajoCodigo) : null;
+                const grupoFila = fila.grupoEquipoId
+                  ? (catalogos?.gruposEquipo ?? []).find((grupo) => grupo.id === fila.grupoEquipoId)
+                  : null;
                 return (
                 <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
                   <label className="flex flex-col gap-1">
@@ -489,6 +494,16 @@ export function PanelRuteoCosteo({
                         </option>
                       ))}
                     </Select>
+                    <span
+                      className="text-[10px] leading-tight text-texto-tenue"
+                      data-testid={`ayuda-equipo-ruteo-${item.codigo}-${indice + 1}`}
+                    >
+                      {grupoFila
+                        ? `Planeación usará ${grupoFila.nombre}${areaFila ? ` (área ${areaFila})` : ''} para elegir la máquina.`
+                        : procesoFila
+                          ? 'Este proceso no tiene grupo de equipo. Configúralo en Catálogos → Procesos para que Planeación filtre la máquina.'
+                          : 'Elige un proceso para heredar su grupo de equipo.'}
+                    </span>
                   </label>
                   <label className="flex flex-col gap-1">
                     <span className="text-xs text-texto-secundario">Preparación (h)</span>

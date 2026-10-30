@@ -327,6 +327,8 @@ describe('mappers de Planeación', () => {
       nombre: 'Láser fibra 3kW',
       area: 'sheet_metal',
       activo: true,
+      grupoEquipoId: null,
+      grupoEquipoNombre: null,
       creadoEn: '2026-08-01T12:00:00.000Z',
       actualizadoEn: '2026-08-10T12:00:00.000Z',
     });
