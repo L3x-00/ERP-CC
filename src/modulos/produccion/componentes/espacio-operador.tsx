@@ -444,7 +444,6 @@ export function EspacioOperador({
           hoy={hoy}
           soloLectura={soloLectura}
           onAbrir={setDetalle}
-          onAccion={accionRapida}
         />
       ) : vista === 'calendario' ? (
         <VistaCalendarioOperador
@@ -465,7 +464,6 @@ export function EspacioOperador({
           hoy={hoy}
           soloLectura={soloLectura}
           onAbrir={setDetalle}
-          onAccion={accionRapida}
         />
       )}
 

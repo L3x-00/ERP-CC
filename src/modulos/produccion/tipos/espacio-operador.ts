@@ -247,6 +247,8 @@ export interface GrupoOrdenEspacioOperador {
   urgencia: UrgenciaProceso;
   prioridad: PrioridadOrden;
   notas: string | null;
+  /** Columna única de la orden según el estado de sus procesos. */
+  columna: ColumnaEspacioOperador;
   /** Solo los ítems que tienen al menos una operación en el conjunto recibido. */
   items: ItemOrdenEspacioOperador[];
   procesos: ProcesoEspacioOperador[];
@@ -259,6 +261,32 @@ export interface GrupoOrdenEspacioOperador {
 const RANGO_URGENCIA = new Map<UrgenciaProceso, number>(
   URGENCIAS_PROCESO.map((urgencia, indice) => [urgencia, indice]),
 );
+
+/**
+ * Columna única para una orden con procesos en distintos estados. Así la orden
+ * viaja completa y no se duplica en varias columnas por tener ítems en etapas
+ * distintas.
+ */
+export function derivarColumnaOrden(
+  procesos: readonly Pick<ProcesoEspacioOperador, 'columna'>[],
+): ColumnaEspacioOperador {
+  if (procesos.length === 0) return 'bandeja';
+  if (procesos.every((proceso) => proceso.columna === 'lista')) return 'lista';
+  if (procesos.some((proceso) => proceso.columna === 'en_proceso')) return 'en_proceso';
+  if (procesos.some((proceso) => proceso.columna === 'pausada')) return 'pausada';
+  if (procesos.some((proceso) => proceso.columna === 'aprobada')) return 'aprobada';
+  return 'bandeja';
+}
+
+/** Proceso del ítem que conviene abrir: sesión activa, pausa o siguiente pendiente. */
+export function procesoRepresentativoItem(
+  item: ItemOrdenEspacioOperador,
+): ProcesoEspacioOperador {
+  return item.procesos.find((proceso) => proceso.sesionActiva !== null)
+    ?? item.procesos.find((proceso) => proceso.columna === 'pausada')
+    ?? item.procesos.find((proceso) => proceso.columna !== 'lista')
+    ?? item.procesos[0];
+}
 
 /**
  * Agrupa operaciones por orden y, dentro de ella, por ítem. Mantiene cada
@@ -329,6 +357,7 @@ export function agruparProcesosPorOrden(
       urgencia,
       prioridad: primero.prioridad,
       notas: primero.notas,
+      columna: derivarColumnaOrden(delOrden),
       items,
       procesos: [...delOrden].sort((a, b) => (
         a.codigoPieza.localeCompare(b.codigoPieza, 'es') || a.secuencia - b.secuencia
