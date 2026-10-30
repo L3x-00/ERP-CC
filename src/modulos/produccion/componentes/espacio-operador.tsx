@@ -19,9 +19,11 @@ import {
   HORAS_JORNADA_OPERADOR,
   VISTAS_ESPACIO_OPERADOR,
   agruparProcesosPorArea,
+  agruparProcesosPorOrden,
   capacidadRestanteDia,
   type AreaEspacioOperador,
   type DiaCalendarioOperador,
+  type GrupoOrdenEspacioOperador,
   type ProcesoEspacioOperador,
   type ResumenEspacioOperador,
   type TipoAccionTarjeta,
@@ -30,6 +32,7 @@ import {
 } from '@/modulos/produccion/tipos/indice';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DetalleOrdenOperador } from './detalle-orden-operador';
 import {
   DetalleProcesoOperador,
   type AccionesDetalleProceso,
@@ -101,6 +104,7 @@ export function EspacioOperador({
   const [areaFiltro, setAreaFiltro] = useState('');
   const [offsetSemana, setOffsetSemana] = useState(0);
   const [detalle, setDetalle] = useState<ProcesoEspacioOperador | null>(null);
+  const [ordenAbiertaId, setOrdenAbiertaId] = useState<string | null>(null);
   const [inicioPendiente, setInicioPendiente] = useState<ProcesoEspacioOperador | null>(null);
   const [procesando, setProcesando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
@@ -109,6 +113,10 @@ export function EspacioOperador({
   // renderiza con el estado real sin guardar una copia obsoleta.
   const detalleActual = detalle
     ? procesos.find((proceso) => proceso.id === detalle.id) ?? detalle
+    : null;
+  const gruposOrden = useMemo(() => agruparProcesosPorOrden(procesos), [procesos]);
+  const ordenAbierta: GrupoOrdenEspacioOperador | null = ordenAbiertaId
+    ? gruposOrden.find((grupo) => grupo.ordenId === ordenAbiertaId) ?? null
     : null;
 
   const operativo = !soloLectura && operadorId !== null;
@@ -450,6 +458,7 @@ export function EspacioOperador({
           hoy={hoy}
           soloLectura={soloLectura}
           onAbrir={setDetalle}
+          onAbrirOrden={setOrdenAbiertaId}
         />
       ) : vista === 'calendario' ? (
         <VistaCalendarioOperador
@@ -470,6 +479,7 @@ export function EspacioOperador({
           hoy={hoy}
           soloLectura={soloLectura}
           onAbrir={setDetalle}
+          onAbrirOrden={setOrdenAbiertaId}
         />
       )}
 
@@ -502,6 +512,16 @@ export function EspacioOperador({
         materiales={materiales}
         consumos={consumos}
         onCerrar={() => setDetalle(null)}
+      />
+
+      <DetalleOrdenOperador
+        orden={ordenAbierta}
+        hoy={hoy}
+        onCerrar={() => setOrdenAbiertaId(null)}
+        onAbrirProceso={(proceso) => {
+          setOrdenAbiertaId(null);
+          setDetalle(proceso);
+        }}
       />
 
       <DialogoChecklistInicio
