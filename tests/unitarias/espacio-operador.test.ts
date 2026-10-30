@@ -4,6 +4,7 @@ import {
   HORAS_JORNADA_OPERADOR,
   accionPrincipal,
   agruparProcesosPorArea,
+  agruparProcesosPorOrden,
   calcularDisponibilidadProcesos,
   construirDiasCalendario,
   derivarColumnaProceso,
@@ -180,6 +181,68 @@ describe('calcularDisponibilidadProcesos', () => {
     ]);
 
     expect(disponible.get('doblado')?.disponiblePiezas).toBe(0);
+  });
+});
+
+describe('agruparProcesosPorOrden', () => {
+  it('junta los ítems y procesos de una misma orden en un solo grupo', () => {
+    const grupos = agruparProcesosPorOrden([
+      crearProceso({
+        id: 'partida-1:meta-1', partidaId: 'partida-1', codigoPieza: 'IT01',
+        secuencia: 1, procesoNombre: 'Corte',
+      }),
+      crearProceso({
+        id: 'partida-1:meta-2', partidaId: 'partida-1', codigoPieza: 'IT01',
+        secuencia: 2, procesoNombre: 'Doblado',
+      }),
+      crearProceso({
+        id: 'partida-2:meta-1', partidaId: 'partida-2', codigoPieza: 'IT02',
+        secuencia: 1, procesoNombre: 'Láser',
+      }),
+    ]);
+
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0]?.items.map((item) => item.codigoPieza)).toEqual(['IT01', 'IT02']);
+    expect(grupos[0]?.procesos).toHaveLength(3);
+    expect(grupos[0]?.items[0]?.procesos.map((proceso) => proceso.procesoNombre))
+      .toEqual(['Corte', 'Doblado']);
+  });
+
+  it('separa órdenes distintas y ordena primero la más urgente', () => {
+    const grupos = agruparProcesosPorOrden([
+      crearProceso({
+        ordenId: 'orden-2', folioOrden: 'OP-0002', partidaId: 'partida-3',
+        urgencia: 'normal', fechaCompromiso: '2026-11-30',
+      }),
+      crearProceso({
+        ordenId: 'orden-1', folioOrden: 'OP-0001', partidaId: 'partida-1',
+        urgencia: 'urgente', fechaCompromiso: '2026-10-26',
+      }),
+    ]);
+
+    expect(grupos.map((grupo) => grupo.folioOrden)).toEqual(['OP-0001', 'OP-0002']);
+  });
+
+  it('usa el avance acumulado de la partida, no el de la operación visible', () => {
+    const grupos = agruparProcesosPorOrden([
+      crearProceso({
+        partidaId: 'partida-1', cantidadProducida: 4, cantidadSolicitada: 10,
+        hechoPiezas: 0, metaPiezas: 10,
+      }),
+    ]);
+
+    expect(grupos[0]?.items[0]?.cantidadProducida).toBe(4);
+    expect(grupos[0]?.items[0]?.porcentaje).toBe(40);
+    expect(grupos[0]?.porcentaje).toBe(40);
+  });
+
+  it('no inventa ítems sin procesos en el conjunto recibido', () => {
+    const grupos = agruparProcesosPorOrden([
+      crearProceso({ id: 'a', partidaId: 'partida-1', codigoPieza: 'IT01' }),
+    ]);
+
+    expect(grupos[0]?.items).toHaveLength(1);
+    expect(grupos[0]?.items[0]?.procesos).toHaveLength(1);
   });
 });
 

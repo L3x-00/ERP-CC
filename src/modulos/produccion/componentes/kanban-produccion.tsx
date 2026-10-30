@@ -210,23 +210,32 @@ export function KanbanProduccion({
                       mostrarPorcentaje
                       etiqueta={`Avance de ${orden.folio}`}
                     />
-                    {/* PRD-09: hecho/meta/pendiente/porcentaje por pareja partida×proceso. */}
-                    {orden.partidas.map((partida) => partida.metasProceso.length > 1 ? (
+                    {/* PRD-09: la orden agrupa sus ítems y el avance de cada proceso. */}
+                    {orden.partidas.map((partida) => (
                       <div
                         key={partida.id}
-                        className="flex flex-col gap-0.5 rounded-md border border-borde bg-superficie-2/40 p-2"
+                        className="flex flex-col gap-1 rounded-md border border-borde bg-superficie-2/40 p-2"
                         data-testid={`avance-procesos-${partida.id}`}
                       >
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-texto-tenue">
-                          {partida.codigoPieza}
-                        </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-wide text-texto-tenue">
+                            {partida.codigoPieza}
+                            {partida.descripcion ? (
+                              <span className="font-normal normal-case tracking-normal"> · {partida.descripcion}</span>
+                            ) : null}
+                          </p>
+                          <p className="shrink-0 text-[10px] tabular-nums text-texto-secundario">
+                            {formatearNumero(partida.cantidadProducida, 0)}/{formatearNumero(partida.cantidadSolicitada, 0)}{' '}
+                            {partida.unidadMedida}
+                          </p>
+                        </div>
                         {partida.metasProceso.map((meta) => (
                           <p
                             key={meta.id}
                             className="text-xs text-texto-secundario"
                             data-testid={`avance-proceso-${partida.id}-${meta.secuencia}`}
                           >
-                            {meta.nombre}: {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
+                            {meta.secuencia}. {meta.nombre}: {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
                             {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
                             {meta.disponiblePiezas !== null
                               ? ` · ${formatearNumero(meta.disponiblePiezas)} disp.`
@@ -234,7 +243,7 @@ export function KanbanProduccion({
                           </p>
                         ))}
                       </div>
-                    ) : null)}
+                    ))}
                     <p className="text-sm text-texto-secundario">
                       Compromiso: <span className="whitespace-nowrap">{new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}</span>
                     </p>
