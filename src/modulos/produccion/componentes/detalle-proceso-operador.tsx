@@ -19,6 +19,8 @@ import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/indice';
+import { ETIQUETAS_COLUMNA } from '@/modulos/produccion/tipos/indice';
+import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
   etiquetaDiaLargo,
@@ -36,7 +38,7 @@ import type { MaterialPiso } from '@/modulos/ordenes/componentes/control-piso-pa
 
 export type ResultadoOperacion =
   | { exito: true; datos?: CierreSesionRegistrado }
-  | { exito: false; error: string };
+  | { exito: false; error: string; codigo?: string };
 
 interface ResumenCierreSesion {
   material: MaterialPiso;
@@ -120,6 +122,13 @@ export function DetalleProcesoOperador({
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
+  const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);
+  const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
+  const [observacionesPrimeraPieza, setObservacionesPrimeraPieza] = useState('');
+  const [procesandoPrimeraPieza, setProcesandoPrimeraPieza] = useState(false);
+  const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
 
   if (!proceso) return null;
 
@@ -162,8 +171,7 @@ export function DetalleProcesoOperador({
     setMensaje(resultado);
   }
 
-  async function cerrar(evento: FormEvent<HTMLFormElement>): Promise<void> {
-    evento.preventDefault();
+  async function ejecutarCierre(): Promise<void> {
     if (!proceso?.sesionActiva) return;
     if (!/^\d{4,6}$/.test(pin)) {
       setMensaje({ exito: false, error: 'El PIN debe tener entre 4 y 6 dígitos' });
@@ -223,6 +231,54 @@ export function DetalleProcesoOperador({
     }
   }
 
+  function cerrar(evento: FormEvent<HTMLFormElement>): void {
+    evento.preventDefault();
+    void ejecutarCierre();
+  }
+
+  async function liberarPrimeraPieza(evento: FormEvent<HTMLFormElement>): Promise<void> {
+    evento.preventDefault();
+    if (!proceso || procesandoPrimeraPieza) return;
+    setProcesandoPrimeraPieza(true);
+    setMensajePrimeraPieza(null);
+    try {
+      const aprobada = resultadoPrimeraPieza === 'APROBADA';
+      const respuesta = await registrarInspeccionAccion({
+        ordenId: proceso.ordenId,
+        corridaId: proceso.sesionActiva?.corridaId ?? null,
+        partidaId: proceso.partidaId,
+        codigoItem: proceso.codigoPieza,
+        tipo: 'PRIMERA_PIEZA',
+        resultado: resultadoPrimeraPieza,
+        cantidadInspeccionada: 1,
+        cantidadOk: aprobada ? 1 : 0,
+        cantidadNok: aprobada ? 0 : 1,
+        cantidadRetrabajo: 0,
+        ...(observacionesPrimeraPieza.trim()
+          ? { observaciones: observacionesPrimeraPieza.trim() }
+          : {}),
+      });
+      if (!respuesta.exito) {
+        setMensajePrimeraPieza({ tipo: 'error', texto: respuesta.error });
+        return;
+      }
+      setMensajePrimeraPieza({
+        tipo: 'ok',
+        texto: aprobada
+          ? 'Primera pieza liberada. Ya puedes finalizar la sesión sin salir de este proceso.'
+          : 'Primera pieza rechazada. Corrige la pieza y vuelve a liberarla antes de declarar producción.',
+      });
+      setPrimeraPiezaAbierta(false);
+    } catch {
+      setMensajePrimeraPieza({
+        tipo: 'error',
+        texto: 'No se pudo registrar la primera pieza. Revisa la corrida y vuelve a intentarlo.',
+      });
+    } finally {
+      setProcesandoPrimeraPieza(false);
+    }
+  }
+
   async function abrirArchivo(archivoId: string): Promise<void> {
     if (!proceso || archivoAbriendo !== null) return;
     setArchivoAbriendo(archivoId);
@@ -256,159 +312,206 @@ export function DetalleProcesoOperador({
 
   const contenido = (
     <div className="flex flex-col gap-4">
-        <header className="space-y-1">
-          {presentacion === 'dialogo' ? (
-            <>
-              <DialogTitle className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-sm text-texto-secundario">{proceso.folioOrden}</span>
-                <span>{proceso.codigoPieza}</span>
-                <Badge variante={proceso.urgencia === 'vencida' || proceso.urgencia === 'urgente' ? 'peligro' : proceso.urgencia === 'proxima' ? 'alerta' : 'neutro'}>
-                  {textoCompromiso(proceso.fechaCompromiso, hoy)}
-                </Badge>
-                {proceso.prioridad !== 'normal' ? (
-                  <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
-                ) : null}
-              </DialogTitle>
-              <DialogDescription>
-                {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
-              </DialogDescription>
-            </>
-          ) : (
-            <>
-              <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-texto-primario">
-                <span className="font-mono text-sm text-texto-secundario">{proceso.folioOrden}</span>
-                <span>{proceso.codigoPieza}</span>
-                <Badge variante={proceso.urgencia === 'vencida' || proceso.urgencia === 'urgente' ? 'peligro' : proceso.urgencia === 'proxima' ? 'alerta' : 'neutro'}>
-                  {textoCompromiso(proceso.fechaCompromiso, hoy)}
-                </Badge>
-                {proceso.prioridad !== 'normal' ? (
-                  <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
-                ) : null}
-              </h2>
-              <p className="text-sm text-texto-secundario">
-                {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
-              </p>
-            </>
-          )}
-        </header>
+      <header className="space-y-1">
+        {presentacion === 'dialogo' ? (
+          <>
+            <DialogTitle className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-sm text-texto-secundario">{proceso.folioOrden}</span>
+              <span>{proceso.codigoPieza}</span>
+              <Badge variante={proceso.urgencia === 'vencida' || proceso.urgencia === 'urgente' ? 'peligro' : proceso.urgencia === 'proxima' ? 'alerta' : 'neutro'}>
+                {textoCompromiso(proceso.fechaCompromiso, hoy)}
+              </Badge>
+              {proceso.prioridad !== 'normal' ? (
+                <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
+              ) : null}
+            </DialogTitle>
+            <DialogDescription>
+              {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
+            </DialogDescription>
+          </>
+        ) : (
+          <>
+            <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-texto-primario">
+              <span className="font-mono text-sm text-texto-secundario">{proceso.folioOrden}</span>
+              <span>{proceso.codigoPieza}</span>
+              <Badge variante={proceso.urgencia === 'vencida' || proceso.urgencia === 'urgente' ? 'peligro' : proceso.urgencia === 'proxima' ? 'alerta' : 'neutro'}>
+                {textoCompromiso(proceso.fechaCompromiso, hoy)}
+              </Badge>
+              {proceso.prioridad !== 'normal' ? (
+                <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
+              ) : null}
+            </h2>
+            <p className="text-sm text-texto-secundario">
+              {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
+            </p>
+          </>
+        )}
+      </header>
 
-        {proceso.notas ? (
-          <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
-            <span className="font-semibold text-texto-primario">Notas de la orden: </span>
-            {proceso.notas}
-          </p>
-        ) : null}
+      {proceso.notas ? (
+        <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
+          <span className="font-semibold text-texto-primario">Notas de la orden: </span>
+          {proceso.notas}
+        </p>
+      ) : null}
 
-        <section aria-label="Datos de la orden y la partida" className="grid gap-3 sm:grid-cols-2">
-          <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3">
-            <Dato etiqueta="Cliente" valor={proceso.clienteNombre} />
-            <Dato etiqueta="Compromiso" valor={`${etiquetaDiaLargo(proceso.fechaCompromiso)} . ${textoCompromiso(proceso.fechaCompromiso, hoy)}`} />
-            <Dato etiqueta="Estado orden" valor={`${proceso.estadoOrden} / ${proceso.estadoSii}`} />
-            <Dato etiqueta="Fecha operativa" valor={etiquetaDiaLargo(proceso.fechaOperativa)} />
-            <Dato etiqueta="Pieza" valor={proceso.codigoPieza} />
-            <Dato etiqueta="Unidad" valor={proceso.unidadMedida} />
-            <Dato etiqueta="Solicitada" valor={formatearNumero(proceso.cantidadSolicitada, 0)} />
-            <Dato etiqueta="Material" valor={proceso.material
-              ? `${proceso.material.codigo} . ${proceso.material.nombre}`
-              : 'Sin material registrado'} />
-            {proceso.esExterno ? <Dato etiqueta="Externo" valor={proceso.proveedorExterno ?? 'Sí'} /> : null}
-            {proceso.folioSii ? <Dato etiqueta="Folio SII" valor={proceso.folioSii} /> : null}
-          </dl>
-
-          <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3">
-            <Dato etiqueta="Proceso" valor={`${proceso.secuencia}. ${proceso.procesoNombre}`} />
-            <Dato etiqueta="Área" valor={proceso.areaNombre} />
-            <Dato etiqueta="Meta del proceso" valor={`${formatearNumero(proceso.hechoPiezas, 0)}/${formatearNumero(proceso.metaPiezas, 0)}`} />
-            <Dato etiqueta="Pendiente" valor={formatearNumero(proceso.pendientePiezas, 0)} />
-            {proceso.piezasDisponibles !== null ? (
-              <Dato
-                etiqueta="Piezas disponibles"
-                valor={`${formatearNumero(proceso.piezasDisponibles, 0)} ${proceso.unidadMedida}${proceso.procesoPrevioNombre ? ` · de ${proceso.procesoPrevioNombre}` : ''}`}
-              />
-            ) : null}
-            <Dato etiqueta="Horas estimadas" valor={horasLegibles(proceso.horasEstimadas)} />
-            <Dato etiqueta="Producida" valor={formatearNumero(proceso.cantidadProducida, 0)} />
-            {proceso.material?.anchoMm && proceso.material.largoMm ? (
-              <Dato etiqueta="Dimensiones" valor={`${formatearNumero(proceso.material.anchoMm, 0)} × ${formatearNumero(proceso.material.largoMm, 0)} mm`} />
-            ) : null}
-            <Dato etiqueta="Programación" valor={proceso.programacion
-              ? `${etiquetaDiaLargo(proceso.programacion.fecha)} . ${turnoLegible(proceso.programacion.turno)} . ${proceso.programacion.recursoNombre ?? 'recurso'}`
-              : 'Sin programar'} />
-          </dl>
-        </section>
-
-        <div className="grid gap-1">
-          <p className="text-xs uppercase tracking-wide text-texto-tenue">Avance del proceso</p>
-          <BarraProgreso valor={proceso.porcentaje} tono={proceso.columna === 'lista' ? 'exito' : 'acento'} mostrarPorcentaje etiqueta="Avance del proceso" />
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <section aria-label="Ruta de procesos" className="rounded-lg border border-borde p-3">
-            <h3 className="mb-2 text-sm font-semibold text-texto-primario">Ruta de fabricación</h3>
-            <ol className="grid gap-1.5">
-              {proceso.procesosRuteo.map((paso) => {
+      <section
+        aria-label="Resumen de la orden"
+        className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie-2/60 p-3"
+        data-testid="resumen-orden-operador"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-wide text-texto-tenue">Ruta de fabricación</p>
+            <p className="mt-1 flex flex-wrap items-center gap-1 text-sm font-medium text-texto-primario">
+              {(proceso.procesosRuteo.length > 0
+                ? proceso.procesosRuteo
+                : [{
+                  id: proceso.metaProcesoId ?? `${proceso.partidaId}:sin-proceso`,
+                  secuencia: proceso.secuencia,
+                  nombre: proceso.procesoNombre,
+                  hechoPiezas: proceso.hechoPiezas,
+                  metaPiezas: proceso.metaPiezas,
+                }]
+              ).map((paso, indice) => {
                 const actual = paso.id === proceso.metaProcesoId
                   || (proceso.metaProcesoId === null && paso.id === `${proceso.partidaId}:sin-proceso`);
                 return (
-                  <li
-                    key={paso.id}
-                    className={cn(
-                      'flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm',
-                      actual ? 'bg-acento-suave font-semibold text-acento-texto' : 'text-texto-secundario',
-                    )}
-                  >
-                    <span className="truncate">
-                      {paso.completado ? '✓' : `${paso.secuencia}. `}
-                      {paso.nombre}
+                  <span key={paso.id}>
+                    {indice > 0 ? <span className="mx-1 text-texto-tenue">→</span> : null}
+                    <span className={actual ? 'font-semibold text-acento-texto' : undefined}>
+                      {indice + 1}. {paso.nombre}
                     </span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatearNumero(paso.hechoPiezas, 0)}/{formatearNumero(paso.metaPiezas, 0)}
-                    </span>
-                  </li>
+                  </span>
                 );
               })}
-            </ol>
-          </section>
-
-          <section aria-label="Archivos de la orden" className="rounded-lg border border-borde p-3">
-            <h3 className="mb-2 text-sm font-semibold text-texto-primario">
-              Planos y archivos ({proceso.archivos.length})
-            </h3>
-            {proceso.archivos.length === 0 ? (
-              <p className="text-sm text-texto-secundario">Sin archivos vigentes en la orden.</p>
-            ) : (
-              <ul className="grid max-h-40 gap-1 overflow-y-auto pr-1 text-sm">
-                {proceso.archivos.map((archivo) => (
-                  <li key={archivo.id} className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 flex-1 truncate" title={archivo.nombre}>{archivo.nombre}</span>
-                    <span className="shrink-0 text-xs text-texto-tenue">{tamanoLegible(archivo.tamanoBytes)}</span>
-                    <button
-                      type="button"
-                      onClick={() => void abrirArchivo(archivo.id)}
-                      disabled={archivoAbriendo !== null}
-                      className="shrink-0 text-xs font-semibold text-acento-texto underline-offset-2 hover:underline disabled:opacity-50"
-                      aria-label={`Abrir o descargar ${archivo.nombre}`}
-                    >
-                      {archivoAbriendo === archivo.id ? 'Abriendo…' : 'Ver / Descargar'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {errorArchivo ? (
-              <p role="alert" className="mt-2 text-xs text-peligro-texto">{errorArchivo}</p>
-            ) : null}
-            {abrirHoja ? (
-              <Link
-                href={`/produccion-piso/hoja/${proceso.ordenId}`}
-                className="mt-2 inline-flex text-sm font-semibold text-acento-texto underline-offset-2 hover:underline"
-                data-testid="abrir-hoja-detalle"
-              >
-                Abrir hoja de trabajo
-              </Link>
-            ) : null}
-          </section>
+            </p>
+          </div>
+          <Badge variante={proceso.columna === 'lista' ? 'exito' : proceso.columna === 'pausada' ? 'alerta' : 'info'}>
+            {ETIQUETAS_COLUMNA[proceso.columna]}
+          </Badge>
         </div>
+        <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <Dato etiqueta="Estado" valor={proceso.estadoOrden} />
+          <Dato etiqueta="Fecha entrega" valor={etiquetaDiaLargo(proceso.fechaCompromiso)} />
+          <Dato etiqueta="Planeado" valor={proceso.programacion ? etiquetaDiaLargo(proceso.programacion.fecha) : 'Sin programar'} />
+          <Dato
+            etiqueta="Sesiones"
+            valor={`${proceso.sesiones.length} registrada${proceso.sesiones.length === 1 ? '' : 's'}`}
+          />
+        </dl>
+      </section>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <section aria-label="Qué fabricar" className="rounded-lg border border-borde p-3">
+          <h3 className="mb-2 text-sm font-semibold text-texto-primario">Qué fabricar</h3>
+          <dl className="grid gap-2 text-sm">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-texto-tenue">Descripción</dt>
+              <dd className="break-words font-medium text-texto-primario">
+                {proceso.descripcion ?? 'Sin descripción de pieza'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-texto-tenue">Material</dt>
+              <dd className="break-words">
+                {proceso.material
+                  ? `${proceso.material.codigo} · ${proceso.material.nombre}`
+                  : 'Sin material registrado'}
+              </dd>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-texto-tenue">Medidas</dt>
+                <dd>
+                  {proceso.material?.anchoMm && proceso.material.largoMm
+                    ? `${formatearNumero(proceso.material.anchoMm, 0)} × ${formatearNumero(proceso.material.largoMm, 0)} mm`
+                    : '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-texto-tenue">Cantidad</dt>
+                <dd className="tabular-nums">
+                  {formatearNumero(proceso.cantidadSolicitada, 0)} {proceso.unidadMedida}
+                </dd>
+              </div>
+            </div>
+          </dl>
+        </section>
+
+        <section aria-label="Archivos de la orden" className="rounded-lg border border-borde p-3">
+          <h3 className="mb-2 text-sm font-semibold text-texto-primario">
+            Planos y archivos ({proceso.archivos.length})
+          </h3>
+          {proceso.archivos.length === 0 ? (
+            <p className="text-sm text-texto-secundario">Sin archivos vigentes en la orden.</p>
+          ) : (
+            <ul className="grid max-h-40 gap-1 overflow-y-auto pr-1 text-sm">
+              {proceso.archivos.map((archivo) => (
+                <li key={archivo.id} className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate" title={archivo.nombre}>{archivo.nombre}</span>
+                  <span className="shrink-0 text-xs text-texto-tenue">{tamanoLegible(archivo.tamanoBytes)}</span>
+                  <button
+                    type="button"
+                    onClick={() => void abrirArchivo(archivo.id)}
+                    disabled={archivoAbriendo !== null}
+                    className="shrink-0 text-xs font-semibold text-acento-texto underline-offset-2 hover:underline disabled:opacity-50"
+                    aria-label={`Abrir o descargar ${archivo.nombre}`}
+                  >
+                    {archivoAbriendo === archivo.id ? 'Abriendo…' : 'Ver / Descargar'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {errorArchivo ? (
+            <p role="alert" className="mt-2 text-xs text-peligro-texto">{errorArchivo}</p>
+          ) : null}
+          {abrirHoja ? (
+            <Link
+              href={`/produccion-piso/hoja/${proceso.ordenId}`}
+              className="mt-2 inline-flex text-sm font-semibold text-acento-texto underline-offset-2 hover:underline"
+              data-testid="abrir-hoja-detalle"
+            >
+              Abrir hoja de trabajo
+            </Link>
+          ) : null}
+        </section>
+      </div>
+
+      <section aria-label="Datos de la operación" className="rounded-lg border border-borde p-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-texto-primario">
+            Esta operación: {proceso.secuencia}. {proceso.procesoNombre}
+          </h3>
+          <span className="text-xs text-texto-secundario">{proceso.areaNombre}</span>
+        </div>
+        <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <Dato
+            etiqueta="Meta"
+            valor={`${formatearNumero(proceso.hechoPiezas, 0)}/${formatearNumero(proceso.metaPiezas, 0)} ${proceso.unidadMedida}`}
+          />
+          <Dato etiqueta="Pendiente" valor={`${formatearNumero(proceso.pendientePiezas, 0)} ${proceso.unidadMedida}`} />
+          <Dato etiqueta="Horas estimadas" valor={horasLegibles(proceso.horasEstimadas)} />
+          <Dato
+            etiqueta="Programación"
+            valor={proceso.programacion
+              ? `${turnoLegible(proceso.programacion.turno)} · ${proceso.programacion.recursoNombre ?? 'recurso'}`
+              : 'Sin programar'}
+          />
+          {proceso.piezasDisponibles !== null ? (
+            <Dato
+              etiqueta="Piezas disponibles"
+              valor={`${formatearNumero(proceso.piezasDisponibles, 0)} ${proceso.unidadMedida}${proceso.procesoPrevioNombre ? ` · de ${proceso.procesoPrevioNombre}` : ''}`}
+            />
+          ) : null}
+          {proceso.esExterno ? <Dato etiqueta="Externo" valor={proceso.proveedorExterno ?? 'Sí'} /> : null}
+        </dl>
+        <div className="mt-3 grid gap-1">
+          <p className="text-xs uppercase tracking-wide text-texto-tenue">Avance del proceso</p>
+          <BarraProgreso valor={proceso.porcentaje} tono={proceso.columna === 'lista' ? 'exito' : 'acento'} mostrarPorcentaje etiqueta="Avance del proceso" />
+        </div>
+      </section>
 
         <section aria-label="Historial de sesiones" className="rounded-lg border border-borde p-3">
           <details>
@@ -495,12 +598,15 @@ export function DetalleProcesoOperador({
           </p>
         ) : null}
 
-        {mensaje ? (
-          <p
-            role="alert"
-            className={cn('text-sm', mensaje.exito ? 'text-exito-texto' : 'text-peligro-texto')}
-          >
-            {mensaje.exito ? 'Acción registrada. Actualizando el tablero…' : mensaje.error}
+        {mensaje && mensaje.exito ? (
+          <p role="status" className="text-sm text-exito-texto">
+            Acción registrada. Actualizando el tablero…
+          </p>
+        ) : null}
+
+        {mensaje && !mensaje.exito && mensaje.codigo !== 'primera_pieza_pendiente' ? (
+          <p role="alert" className="text-sm text-peligro-texto">
+            {mensaje.error}
           </p>
         ) : null}
 
@@ -624,6 +730,56 @@ export function DetalleProcesoOperador({
                       }
                     />
                   </label>
+
+                  {mensaje && !mensaje.exito && mensaje.codigo === 'primera_pieza_pendiente' ? (
+                    <section
+                      role="alert"
+                      className="flex flex-col gap-2 rounded-lg border border-advertencia/60 bg-advertencia-suave p-3"
+                      data-testid="aviso-primera-pieza"
+                    >
+                      <p className="text-sm font-semibold text-advertencia-texto">
+                        Falta liberar la primera pieza antes de declarar producción
+                      </p>
+                      <p className="text-xs text-texto-secundario">
+                        Puedes registrarla aquí mismo. No necesitas cerrar la sesión ni abrir otro proceso.
+                      </p>
+                      {mensajePrimeraPieza ? (
+                        <p
+                          role={mensajePrimeraPieza.tipo === 'error' ? 'alert' : 'status'}
+                          className={cn(
+                            'text-xs',
+                            mensajePrimeraPieza.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto',
+                          )}
+                        >
+                          {mensajePrimeraPieza.texto}
+                        </p>
+                      ) : null}
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          tamano="sm"
+                          onClick={() => {
+                            setMensajePrimeraPieza(null);
+                            setPrimeraPiezaAbierta(true);
+                          }}
+                          data-testid="abrir-liberar-primera-pieza"
+                        >
+                          Liberar primera pieza
+                        </Button>
+                        {mensajePrimeraPieza?.tipo === 'ok' ? (
+                          <Button
+                            type="button"
+                            tamano="sm"
+                            variante="contorno"
+                            disabled={procesando}
+                            onClick={() => void ejecutarCierre()}
+                          >
+                            Continuar con el cierre
+                          </Button>
+                        ) : null}
+                      </div>
+                    </section>
+                  ) : null}
 
                   <Button
                     type="submit"
@@ -758,6 +914,63 @@ export function DetalleProcesoOperador({
     </Dialog>
   ) : null;
 
+  const dialogoPrimeraPieza = (
+    <Dialog
+      open={primeraPiezaAbierta}
+      onOpenChange={(abierto) => {
+        if (!procesandoPrimeraPieza) setPrimeraPiezaAbierta(abierto);
+      }}
+    >
+      <DialogContent data-testid="dialogo-primera-pieza" aria-label="Liberar primera pieza">
+        <DialogHeader>
+          <DialogTitle>Liberar primera pieza</DialogTitle>
+          <DialogDescription>
+            {proceso.folioOrden} · {proceso.codigoPieza}. La inspección se registra en la corrida
+            de esta sesión, sin salir del proceso.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="grid gap-3" onSubmit={(evento) => void liberarPrimeraPieza(evento)}>
+          <label className={CLASE_ETIQUETA}>
+            Resultado de la inspección
+            <Select
+              value={resultadoPrimeraPieza}
+              onChange={(evento) => setResultadoPrimeraPieza(evento.target.value as 'APROBADA' | 'RECHAZADA')}
+              data-testid="resultado-primera-pieza"
+            >
+              <option value="APROBADA">Aprobada: la pieza cumple</option>
+              <option value="RECHAZADA">Rechazada: requiere corrección</option>
+            </Select>
+          </label>
+          <label className={CLASE_ETIQUETA}>
+            Observaciones (opcional)
+            <Textarea
+              maxLength={1000}
+              value={observacionesPrimeraPieza}
+              onChange={(evento) => setObservacionesPrimeraPieza(evento.target.value)}
+              placeholder="Ej. Medidas y acabado conforme al plano."
+            />
+          </label>
+          {mensajePrimeraPieza?.tipo === 'error' ? (
+            <p role="alert" className="text-sm text-peligro-texto">{mensajePrimeraPieza.texto}</p>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variante="contorno"
+              disabled={procesandoPrimeraPieza}
+              onClick={() => setPrimeraPiezaAbierta(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={procesandoPrimeraPieza}>
+              {procesandoPrimeraPieza ? 'Registrando…' : 'Registrar y liberar'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (presentacion === 'integrado') {
     return (
       <section
@@ -768,6 +981,7 @@ export function DetalleProcesoOperador({
         {contenido}
         {anuncioResumenCierre}
         {dialogoResumenCierre}
+        {dialogoPrimeraPieza}
       </section>
     );
   }
@@ -785,6 +999,7 @@ export function DetalleProcesoOperador({
       </Dialog>
       {anuncioResumenCierre}
       {dialogoResumenCierre}
+      {dialogoPrimeraPieza}
     </>
   );
 }

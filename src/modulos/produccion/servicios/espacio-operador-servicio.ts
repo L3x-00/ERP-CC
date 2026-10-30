@@ -243,6 +243,7 @@ function sesionResumen(
 ): SesionProceso {
   return {
     id: sesion.id,
+    corridaId: sesion.corridaId,
     operadorId: sesion.operadorId,
     operadorNombre: responsables[sesion.operadorId] ?? 'Operador',
     estadoSesion: sesion.estadoSesion,

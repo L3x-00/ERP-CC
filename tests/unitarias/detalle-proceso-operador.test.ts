@@ -185,4 +185,46 @@ describe('DetalleProcesoOperador', () => {
       'Sesión finalizada: 3.000 piezas, 1 h netas y material registrado.',
     );
   });
+
+  it('ofrece liberar la primera pieza desde el cierre cuando el proceso la exige', async () => {
+    const cerrar = vi.fn().mockResolvedValue({
+      exito: false,
+      error: 'Falta liberar la primera pieza antes de declarar producción',
+      codigo: 'primera_pieza_pendiente',
+    } satisfies ResultadoOperacion);
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByLabelText('Piezas producidas'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
+    fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Merma'), { target: { value: '0' } });
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
+    const aviso = await screen.findByTestId('aviso-primera-pieza');
+    expect(aviso.textContent).toContain('Falta liberar la primera pieza');
+    fireEvent.click(screen.getByTestId('abrir-liberar-primera-pieza'));
+    expect(screen.getByText('Resultado de la inspección')).toBeTruthy();
+    expect(screen.getByTestId('resultado-primera-pieza')).toBeTruthy();
+  });
 });

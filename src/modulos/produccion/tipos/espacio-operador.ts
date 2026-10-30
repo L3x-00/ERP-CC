@@ -93,6 +93,8 @@ export interface ArchivoProceso {
 
 export interface SesionProceso {
   id: string;
+  /** Corrida de producción asociada; permite liberar la primera pieza desde el cierre. */
+  corridaId?: string | null;
   operadorId: string;
   operadorNombre: string;
   estadoSesion: 'activa' | 'pausada' | 'finalizada';
