@@ -40,6 +40,8 @@ export {
   accionPrincipal,
   filaAReclamoProceso,
   calcularDisponibilidadProcesos,
+  derivarColumnaOrden,
+  procesoRepresentativoItem,
   derivarColumnaProceso,
   derivarUrgenciaProceso,
   diasEntreFechas,

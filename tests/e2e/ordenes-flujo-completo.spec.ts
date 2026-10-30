@@ -385,10 +385,12 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     const tarjetaOrden = page.locator('[data-testid^="orden-operador-"]', { hasText: folio });
     await expect(tarjetaOrden).toHaveCount(1);
     const tarjetaProceso = tarjetaOrden.locator('[data-testid^="proceso-"]').first();
-    await tarjetaProceso.getByRole('button', { name: 'Reclamar' }).click();
+    await tarjetaProceso.getByTestId(/^abrir-detalle-/u).click();
+    const detalle = page.getByTestId('detalle-proceso');
+    await detalle.getByTestId('reclamar-detalle').click();
     await expect(page.getByTestId('aviso-espacio')).toContainText('Proceso reservado en tu jornada');
 
-    await tarjetaProceso.getByRole('button', { name: 'Iniciar' }).click();
+    await detalle.getByTestId('iniciar-detalle').click();
     const checklist = page.getByTestId('checklist-inicio');
     await expect(checklist).toBeVisible();
     for (const casilla of await checklist.getByRole('checkbox').all()) {

@@ -6,7 +6,6 @@ import {
   agruparProcesosPorOrden,
   type ColumnaEspacioOperador,
   type ProcesoEspacioOperador,
-  type TipoAccionTarjeta,
 } from '@/modulos/produccion/tipos/indice';
 import { cn } from '@/compartido/utilidades/cn';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
@@ -17,7 +16,6 @@ export interface PropsVistaKanbanOperador {
   hoy: string;
   soloLectura: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
-  onAccion: (proceso: ProcesoEspacioOperador, accion: TipoAccionTarjeta) => void;
 }
 
 const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
@@ -34,14 +32,17 @@ export function VistaKanbanOperador({
   hoy,
   soloLectura,
   onAbrir,
-  onAccion,
 }: PropsVistaKanbanOperador) {
+  const ordenes = agruparProcesosPorOrden(procesos);
   return (
     <div className="flex gap-3 overflow-x-auto pb-2" data-testid="vista-kanban-operador">
       {COLUMNAS_ESPACIO_OPERADOR.map((columna) => {
-        const delEstado = procesos.filter((proceso) => proceso.columna === columna);
-        const ordenesDelEstado = agruparProcesosPorOrden(delEstado);
-        const horas = delEstado.reduce((total, proceso) => total + proceso.horasEstimadas, 0);
+        const ordenesDelEstado = ordenes.filter((grupo) => grupo.columna === columna);
+        const procesosDelEstado = ordenesDelEstado.reduce(
+          (total, grupo) => total + grupo.procesos.length,
+          0,
+        );
+        const horas = ordenesDelEstado.reduce((total, grupo) => total + grupo.horas, 0);
         return (
           <section
             key={columna}
@@ -49,7 +50,7 @@ export function VistaKanbanOperador({
               'flex w-[292px] shrink-0 flex-col gap-2 rounded-lg border border-t-4 border-borde p-2',
               ESTILO_COLUMNA[columna],
             )}
-            aria-label={`${ETIQUETAS_COLUMNA[columna]}: ${ordenesDelEstado.length} órdenes, ${delEstado.length} procesos`}
+            aria-label={`${ETIQUETAS_COLUMNA[columna]}: ${ordenesDelEstado.length} órdenes, ${procesosDelEstado} procesos`}
             data-testid={`columna-${columna}`}
           >
             <header className="flex items-baseline justify-between gap-2 px-1">
@@ -62,14 +63,14 @@ export function VistaKanbanOperador({
                 </h3>
                 <p className="text-[11px] text-texto-tenue">
                   {ordenesDelEstado.length} orden{ordenesDelEstado.length === 1 ? '' : 'es'} ·{' '}
-                  {delEstado.length} proceso{delEstado.length === 1 ? '' : 's'}
+                  {procesosDelEstado} proceso{procesosDelEstado === 1 ? '' : 's'}
                 </p>
               </div>
               <span className="text-xs tabular-nums text-texto-tenue">{horasLegibles(horas)}</span>
             </header>
             {ordenesDelEstado.length === 0 ? (
               <p className="rounded-md border border-dashed border-borde-fuerte/60 p-3 text-center text-xs text-texto-tenue">
-                Sin procesos
+                Sin órdenes
               </p>
             ) : (
               <ul className="grid min-w-0 gap-2">
@@ -80,7 +81,6 @@ export function VistaKanbanOperador({
                       hoy={hoy}
                       arrastrable={!soloLectura && columna !== 'lista'}
                       onAbrir={onAbrir}
-                      onAccion={onAccion}
                     />
                   </li>
                 ))}

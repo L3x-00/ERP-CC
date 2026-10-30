@@ -1,16 +1,15 @@
 'use client';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
-import { Button } from '@/compartido/componentes/ui/button';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import { cn } from '@/compartido/utilidades/cn';
 import {
+  ETIQUETAS_COLUMNA,
   ETIQUETAS_URGENCIA,
-  accionPrincipal,
+  procesoRepresentativoItem,
   type GrupoOrdenEspacioOperador,
   type ProcesoEspacioOperador,
-  type TipoAccionTarjeta,
   type UrgenciaProceso,
 } from '@/modulos/produccion/tipos/indice';
 import {
@@ -38,114 +37,31 @@ export interface PropsTarjetaOrdenOperador {
   hoy: string;
   arrastrable?: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
-  onAccion: (proceso: ProcesoEspacioOperador, accion: TipoAccionTarjeta) => void;
 }
 
-function ProcesoOrdenFila({
-  proceso,
-  arrastrable = false,
-  onAbrir,
-  onAccion,
-}: {
-  proceso: ProcesoEspacioOperador;
-  arrastrable?: boolean;
-  onAbrir: (proceso: ProcesoEspacioOperador) => void;
-  onAccion: (proceso: ProcesoEspacioOperador, accion: TipoAccionTarjeta) => void;
-}) {
-  const accion = accionPrincipal(proceso);
-
-  return (
-    <li
-      className={cn(
-        'group relative flex min-w-0 flex-col gap-1.5 rounded-md border border-borde bg-superficie-2/30 p-2 transition-colors hover:border-acento/50 hover:bg-superficie-2/60',
-        arrastrable && 'cursor-grab active:cursor-grabbing',
-      )}
-      data-testid={`proceso-${proceso.id}`}
-      aria-label={`${proceso.folioOrden} · ${proceso.codigoPieza} · ${proceso.procesoNombre}`}
-      draggable={arrastrable}
-      onDragStart={(evento) => {
-        if (!arrastrable) {
-          evento.preventDefault();
-          return;
-        }
-        evento.dataTransfer.setData('text/plain', proceso.id);
-        evento.dataTransfer.effectAllowed = 'move';
-      }}
-    >
-      {/* La fila completa abre el detalle; el botón de acción queda por encima. */}
-      <button
-        type="button"
-        draggable={false}
-        onClick={() => onAbrir(proceso)}
-        className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
-        aria-label={`Abrir detalle de ${proceso.procesoNombre} de ${proceso.codigoPieza}`}
-        data-testid={`abrir-detalle-${proceso.id}`}
-      />
-
-      <div className="pointer-events-none relative z-10 flex flex-col gap-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <p className="min-w-0 truncate text-xs font-semibold text-texto-primario">
-            {proceso.secuencia}. {proceso.procesoNombre}
-          </p>
-          <div className="flex shrink-0 flex-wrap justify-end gap-1">
-            {proceso.etiquetas
-              .filter((etiqueta) => etiqueta === 'Externo' || etiqueta === 'Sin piezas previas')
-              .map((etiqueta) => (
-                <Badge key={etiqueta} variante={etiqueta === 'Externo' ? 'info' : 'alerta'}>
-                  {etiqueta}
-                </Badge>
-              ))}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-2 text-xs text-texto-secundario">
-          <span>
-            <span className="font-semibold tabular-nums text-texto-primario">
-              {formatearNumero(proceso.hechoPiezas, 0)}/{formatearNumero(proceso.metaPiezas, 0)}
-            </span>{' '}
-            {proceso.unidadMedida}
-          </span>
-          <span className="tabular-nums text-texto-tenue">· {Math.round(proceso.porcentaje)}%</span>
-          <span className="tabular-nums text-texto-tenue">· {horasLegibles(proceso.horasEstimadas)}</span>
-        </div>
-
-        <div className="pointer-events-auto mt-auto">
-          <Button
-            tamano="sm"
-            className="w-full"
-            disabled={accion.deshabilitada}
-            title={proceso.motivoNoInicia ?? undefined}
-            onClick={(evento) => {
-              evento.stopPropagation();
-              onAccion(proceso, accion.tipo);
-            }}
-            data-testid={`accion-${accion.tipo}-${proceso.id}`}
-          >
-            {accion.etiqueta}
-          </Button>
-        </div>
-
-        {proceso.reclamo && !proceso.reclamadoPorMi ? (
-          <p className="truncate text-[11px] text-advertencia-texto">
-            Tomado por {proceso.nombreReclamante ?? 'otro operador'} · {etiquetaDiaCorto(proceso.reclamo.fecha)}
-          </p>
-        ) : null}
-      </div>
-    </li>
-  );
+function rutaDeItem(grupo: GrupoOrdenEspacioOperador, indice: number): string {
+  const item = grupo.items[indice];
+  const representante = item ? procesoRepresentativoItem(item) : null;
+  if (representante?.procesosRuteo.length) {
+    return representante.procesosRuteo
+      .map((paso, posicion) => `${posicion + 1}. ${paso.nombre}`)
+      .join(' → ');
+  }
+  return (item?.procesos ?? [])
+    .map((paso, posicion) => `${posicion + 1}. ${paso.procesoNombre}`)
+    .join(' → ');
 }
 
 /**
- * Tarjeta de orden para el piso: una sola tarjeta por orden y columna, con sus
- * ítems y las operaciones de cada ítem. Cada operación conserva su avance y sus
- * acciones para no alterar el flujo de reclamar, iniciar, pausar o cerrar.
+ * Tarjeta de orden para el piso: la orden viaja completa y cada ítem es
+ * clickeable. El detalle de procesos y las acciones viven en el modal, no en
+ * la tarjeta. Así una orden con muchos ítems no se convierte en muchas tarjetas.
  */
 export function TarjetaOrdenOperador({
   grupo,
   hoy,
   arrastrable = false,
   onAbrir,
-  onAccion,
 }: PropsTarjetaOrdenOperador) {
   return (
     <article
@@ -186,50 +102,72 @@ export function TarjetaOrdenOperador({
         />
       </header>
 
-      <ul className="flex flex-col gap-2">
-        {grupo.items.map((item) => (
-          <li
-            key={item.partidaId}
-            className="flex min-w-0 flex-col gap-1.5"
-            data-testid={`item-orden-${item.partidaId}`}
-          >
-            <div className="flex items-start justify-between gap-2 border-t border-borde pt-2">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-texto-primario" title={item.descripcion ?? item.codigoPieza}>
-                  {item.codigoPieza}
-                  {item.descripcion ? (
-                    <span className="font-normal text-texto-secundario"> · {item.descripcion}</span>
-                  ) : null}
+      <ul className="flex flex-col gap-1.5">
+        {grupo.items.map((item, indice) => {
+          const representante = procesoRepresentativoItem(item);
+          const ruta = rutaDeItem(grupo, indice);
+          const estadoDistinto = representante.columna !== grupo.columna;
+          const tieneAviso = representante.etiquetas.includes('Sin piezas previas');
+          return (
+            <li
+              key={item.partidaId}
+              className="relative rounded-md border border-borde bg-superficie-2/30 p-2 transition-colors hover:border-acento/50 hover:bg-superficie-2/60"
+              data-testid={`proceso-${representante.id}`}
+              aria-label={`Abrir ${item.codigoPieza} de ${grupo.folioOrden}`}
+              draggable={arrastrable}
+              onDragStart={(evento) => {
+                if (!arrastrable) {
+                  evento.preventDefault();
+                  return;
+                }
+                evento.dataTransfer.setData('text/plain', representante.id);
+                evento.dataTransfer.effectAllowed = 'move';
+              }}
+            >
+              <button
+                type="button"
+                draggable={false}
+                onClick={() => onAbrir(representante)}
+                className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+                aria-label={`Abrir detalle de ${item.codigoPieza} de ${grupo.folioOrden}`}
+                data-testid={`abrir-detalle-${representante.id}`}
+              />
+              <div className="pointer-events-none relative z-10 flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate text-xs font-semibold text-texto-primario" title={item.descripcion ?? item.codigoPieza}>
+                    {item.codigoPieza}
+                    {item.descripcion ? (
+                      <span className="font-normal text-texto-secundario"> · {item.descripcion}</span>
+                    ) : null}
+                  </p>
+                  <p className="shrink-0 text-right text-[11px] tabular-nums text-texto-secundario">
+                    {formatearNumero(item.cantidadProducida, 0)}/{formatearNumero(item.cantidadSolicitada, 0)}{' '}
+                    {item.unidadMedida} · {Math.round(item.porcentaje)}%
+                  </p>
+                </div>
+                <p className="truncate text-[10px] text-texto-tenue" title={ruta}>
+                  {ruta}
                 </p>
-                {(() => {
-                  const ruta = item.procesos[0]?.procesosRuteo.length
-                    ? item.procesos[0].procesosRuteo.map((paso, indice) => `${indice + 1}. ${paso.nombre}`).join(' → ')
-                    : item.procesos.map((paso, indice) => `${indice + 1}. ${paso.procesoNombre}`).join(' → ');
-                  return ruta ? (
-                    <p className="truncate text-[10px] text-texto-tenue" title={ruta}>
-                      {ruta}
-                    </p>
-                  ) : null;
-                })()}
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-texto-tenue">
+                  <span>{horasLegibles(representante.horasEstimadas)}</span>
+                  <span>· {representante.areaNombre}</span>
+                  {estadoDistinto ? (
+                    <Badge variante="info">{ETIQUETAS_COLUMNA[representante.columna]}</Badge>
+                  ) : null}
+                  {tieneAviso ? <Badge variante="alerta">Sin piezas previas</Badge> : null}
+                  {representante.reclamo ? (
+                    <span className={representante.reclamadoPorMi ? 'text-exito-texto' : 'text-advertencia-texto'}>
+                      {representante.reclamadoPorMi
+                        ? 'Reservado por ti'
+                        : `Tomado por ${representante.nombreReclamante ?? 'otro operador'}`}
+                    </span>
+                  ) : null}
+                  <span className="ml-auto font-medium text-acento-texto">Ver detalle ›</span>
+                </div>
               </div>
-              <p className="shrink-0 text-right text-[11px] tabular-nums text-texto-secundario">
-                {formatearNumero(item.cantidadProducida, 0)}/{formatearNumero(item.cantidadSolicitada, 0)}{' '}
-                {item.unidadMedida} · {Math.round(item.porcentaje)}%
-              </p>
-            </div>
-            <ul className="flex flex-col gap-1.5">
-              {item.procesos.map((proceso) => (
-                <ProcesoOrdenFila
-                  key={proceso.id}
-                  proceso={proceso}
-                  arrastrable={arrastrable}
-                  onAbrir={onAbrir}
-                  onAccion={onAccion}
-                />
-              ))}
-            </ul>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </article>
   );

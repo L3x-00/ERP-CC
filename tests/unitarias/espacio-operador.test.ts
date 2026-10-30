@@ -6,6 +6,7 @@ import {
   agruparProcesosPorArea,
   agruparProcesosPorOrden,
   calcularDisponibilidadProcesos,
+  derivarColumnaOrden,
   construirDiasCalendario,
   derivarColumnaProceso,
   derivarUrgenciaProceso,
@@ -243,6 +244,33 @@ describe('agruparProcesosPorOrden', () => {
 
     expect(grupos[0]?.items).toHaveLength(1);
     expect(grupos[0]?.items[0]?.procesos).toHaveLength(1);
+  });
+});
+
+describe('derivarColumnaOrden', () => {
+  it('manda la orden completa a En proceso si algún ítem ya inició', () => {
+    expect(derivarColumnaOrden([
+      { columna: 'bandeja' },
+      { columna: 'en_proceso' },
+    ])).toBe('en_proceso');
+  });
+
+  it('la manda a Pausada si no hay trabajo activo pero sí una pausa', () => {
+    expect(derivarColumnaOrden([
+      { columna: 'bandeja' },
+      { columna: 'pausada' },
+    ])).toBe('pausada');
+  });
+
+  it('solo la manda a Lista cuando todos los procesos terminaron', () => {
+    expect(derivarColumnaOrden([
+      { columna: 'lista' },
+      { columna: 'lista' },
+    ])).toBe('lista');
+    expect(derivarColumnaOrden([
+      { columna: 'lista' },
+      { columna: 'bandeja' },
+    ])).toBe('bandeja');
   });
 });
 

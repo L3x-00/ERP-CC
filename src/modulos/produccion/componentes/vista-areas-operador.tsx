@@ -3,7 +3,6 @@
 import type {
   GrupoAreaEspacioOperador,
   ProcesoEspacioOperador,
-  TipoAccionTarjeta,
 } from '@/modulos/produccion/tipos/indice';
 import { agruparProcesosPorOrden } from '@/modulos/produccion/tipos/indice';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
@@ -14,7 +13,6 @@ export interface PropsVistaAreasOperador {
   hoy: string;
   soloLectura: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
-  onAccion: (proceso: ProcesoEspacioOperador, accion: TipoAccionTarjeta) => void;
 }
 
 /**
@@ -26,7 +24,6 @@ export function VistaAreasOperador({
   hoy,
   soloLectura,
   onAbrir,
-  onAccion,
 }: PropsVistaAreasOperador) {
   if (grupos.length === 0) {
     return (
@@ -76,7 +73,6 @@ export function VistaAreasOperador({
                     hoy={hoy}
                     arrastrable={!soloLectura}
                     onAbrir={onAbrir}
-                    onAccion={onAccion}
                   />
                 </li>
               ))}

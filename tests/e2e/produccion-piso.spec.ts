@@ -421,8 +421,9 @@ test.describe.serial('piso de Producción y entregas', () => {
         await expect(page.getByTestId(`columna-${columna}`)).toBeVisible();
       }
 
-      // La orden agrupa sus ítems y procesos; la tarjeta de orden trae cliente.
-      const tarjetaOrden = page.locator('[data-testid^="orden-operador-"]').first();
+      // La orden agrupa sus ítems y procesos; la tarjeta correcta se localiza
+      // por su id, no por posición, para no depender del orden de las columnas.
+      const tarjetaOrden = page.getByTestId(`orden-operador-${caso.ordenId}`);
       await expect(tarjetaOrden).toBeVisible();
       await expect(tarjetaOrden).toContainText('Cliente Producción');
 
@@ -441,16 +442,16 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(page.getByTestId('area-sin-area')).toBeVisible();
       await page.getByTestId('vista-kanban').click();
 
-      // Reclamar reserva la operacion para hoy; el servidor revalida capacidad.
-      await tarjeta.getByRole('button', { name: 'Reclamar', exact: true }).click();
+      // La tarjeta abre el detalle; desde ahí se reclama y se inicia.
+      await tarjeta.getByTestId(/^abrir-detalle-/u).click();
+      const detalle = page.getByTestId('detalle-proceso');
+      await expect(detalle).toBeVisible();
+      await detalle.getByTestId('reclamar-detalle').click();
       await expect(page.getByTestId('aviso-espacio')).toContainText('reservado', { ignoreCase: true });
       const tarjetaReservada = page.locator(`[data-testid^="proceso-${caso.partidaId}:"]`).first();
       await expect(tarjetaReservada).toContainText('Reservado por ti');
 
       // La ficha muestra la ruta, el material y los archivos de la orden.
-      await tarjetaReservada.getByTestId(/^abrir-detalle-/u).click();
-      const detalle = page.getByTestId('detalle-proceso');
-      await expect(detalle).toBeVisible();
       await expect(detalle).toContainText('Ruta de fabricación');
       await expect(detalle).toContainText('Fabricación');
       await expect(detalle).toContainText('Planos y archivos');
