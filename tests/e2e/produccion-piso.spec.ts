@@ -421,8 +421,9 @@ test.describe.serial('piso de Producción y entregas', () => {
         await expect(page.getByTestId(`columna-${columna}`)).toBeVisible();
       }
 
-      // La orden agrupa sus ítems y procesos; la tarjeta de orden trae cliente.
-      const tarjetaOrden = page.locator('[data-testid^="orden-operador-"]').first();
+      // La orden agrupa sus ítems y procesos; la tarjeta correcta se localiza
+      // por su id, no por posición, para no depender del orden de las columnas.
+      const tarjetaOrden = page.getByTestId(`orden-operador-${caso.ordenId}`);
       await expect(tarjetaOrden).toBeVisible();
       await expect(tarjetaOrden).toContainText('Cliente Producción');
 

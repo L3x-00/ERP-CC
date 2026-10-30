@@ -105,6 +105,12 @@ export function EspacioOperador({
   const [procesando, setProcesando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<Aviso | null>(null);
 
+  // Tras reclamar o mover, el servidor refresca los procesos y el detalle se
+  // renderiza con el estado real sin guardar una copia obsoleta.
+  const detalleActual = detalle
+    ? procesos.find((proceso) => proceso.id === detalle.id) ?? detalle
+    : null;
+
   const operativo = !soloLectura && operadorId !== null;
 
   const filtrados = useMemo(() => {
@@ -486,8 +492,8 @@ export function EspacioOperador({
       ) : null}
 
       <DetalleProcesoOperador
-        key={detalle?.id ?? 'sin-detalle'}
-        proceso={detalle}
+        key={detalleActual?.id ?? 'sin-detalle'}
+        proceso={detalleActual}
         hoy={hoy}
         soloLectura={soloLectura}
         procesando={procesando !== null}
