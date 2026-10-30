@@ -228,6 +228,9 @@ export function KanbanProduccion({
                           >
                             {meta.nombre}: {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
                             {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
+                            {meta.disponiblePiezas !== null
+                              ? ` · ${formatearNumero(meta.disponiblePiezas)} disp.`
+                              : ''}
                           </p>
                         ))}
                       </div>

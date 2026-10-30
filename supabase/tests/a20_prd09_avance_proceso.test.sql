@@ -1,7 +1,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(32);
+SELECT plan(33);
 
 INSERT INTO auth.users (id, email, raw_user_meta_data)
 VALUES ('00000000-0000-4000-8000-0000000b0001', 'prd09-operador@prueba.local', '{}'::jsonb);
@@ -128,6 +128,12 @@ SELECT is((SELECT cantidad_producida FROM public.partidas_orden_produccion
 SELECT is((SELECT estado FROM public.ordenes_produccion
   WHERE id = '00000000-0000-4000-8000-0000000b0020'), 'en_proceso',
   'La orden sigue en proceso con metas pendientes');
+
+-- C11: un cierre con avance parcial no marca completada la operación; así el
+-- mismo proceso puede retomarse aunque la meta aún no se alcance.
+SELECT is((SELECT estado_planeacion FROM public.programacion_areas
+  WHERE id = '00000000-0000-4000-8000-0000000b0051'), 'programada',
+  'El avance parcial deja la operación programada, no completada');
 
 INSERT INTO public.sesiones_trabajo (
   id, orden_id, partida_id, programacion_id, operador_id, estado_sesion, fecha_inicio

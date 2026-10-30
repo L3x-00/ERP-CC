@@ -320,6 +320,12 @@ export function DetalleProcesoOperador({
             <Dato etiqueta="Área" valor={proceso.areaNombre} />
             <Dato etiqueta="Meta del proceso" valor={`${formatearNumero(proceso.hechoPiezas, 0)}/${formatearNumero(proceso.metaPiezas, 0)}`} />
             <Dato etiqueta="Pendiente" valor={formatearNumero(proceso.pendientePiezas, 0)} />
+            {proceso.piezasDisponibles !== null ? (
+              <Dato
+                etiqueta="Piezas disponibles"
+                valor={`${formatearNumero(proceso.piezasDisponibles, 0)} ${proceso.unidadMedida}${proceso.procesoPrevioNombre ? ` · de ${proceso.procesoPrevioNombre}` : ''}`}
+              />
+            ) : null}
             <Dato etiqueta="Horas estimadas" valor={horasLegibles(proceso.horasEstimadas)} />
             <Dato etiqueta="Producida" valor={formatearNumero(proceso.cantidadProducida, 0)} />
             {proceso.material?.anchoMm && proceso.material.largoMm ? (

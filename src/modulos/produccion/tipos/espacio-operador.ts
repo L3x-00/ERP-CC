@@ -115,6 +115,41 @@ export interface ProcesoRuteoResumen {
   completado: boolean;
 }
 
+/** Piezas del proceso previo que la operación todavía puede trabajar. */
+export interface DisponibilidadProcesoRuteo {
+  /** null cuando no hay restricción: primera operación del ruteo o sin metas. */
+  disponiblePiezas: number | null;
+  procesoPrevioNombre: string | null;
+}
+
+/**
+ * Calcula la disponibilidad parcial de cada operación del ruteo: las piezas
+ * terminadas por el proceso inmediato anterior menos las ya consumidas por la
+ * propia operación. Permite avanzar sin esperar el lote completo, pero bloquea
+ * el arranque mientras el proceso previo no haya terminado ninguna pieza.
+ */
+export function calcularDisponibilidadProcesos(
+  procesos: readonly Pick<ProcesoRuteoResumen, 'id' | 'secuencia' | 'nombre' | 'hechoPiezas'>[],
+): Map<string, DisponibilidadProcesoRuteo> {
+  const ordenados = [...procesos].sort((primero, segundo) => primero.secuencia - segundo.secuencia);
+  const resultado = new Map<string, DisponibilidadProcesoRuteo>();
+
+  ordenados.forEach((proceso, indice) => {
+    const previo = indice > 0 ? ordenados[indice - 1] : null;
+    resultado.set(
+      proceso.id,
+      previo
+        ? {
+          disponiblePiezas: Math.max(previo.hechoPiezas - proceso.hechoPiezas, 0),
+          procesoPrevioNombre: previo.nombre,
+        }
+        : { disponiblePiezas: null, procesoPrevioNombre: null },
+    );
+  });
+
+  return resultado;
+}
+
 export interface ProgramacionProceso {
   id: string;
   fecha: string;
@@ -164,6 +199,9 @@ export interface ProcesoEspacioOperador {
   pendientePiezas: number;
   porcentaje: number;
   esFinal: boolean;
+  /** Piezas del proceso previo aún disponibles; null si es la primera operación. */
+  piezasDisponibles: number | null;
+  procesoPrevioNombre: string | null;
 
   horasEstimadas: number;
   programacion: ProgramacionProceso | null;
@@ -349,6 +387,9 @@ export function etiquetasProceso(proceso: ProcesoEspacioOperador): string[] {
   else if (proceso.urgencia === 'proxima') etiquetas.push('Próxima');
   if (proceso.prioridad === 'alta' && proceso.urgencia !== 'urgente') etiquetas.push('Alta');
   if (proceso.esExterno) etiquetas.push('Externo');
+  if (proceso.piezasDisponibles === 0 && proceso.hechoPiezas < proceso.metaPiezas) {
+    etiquetas.push('Sin piezas previas');
+  }
   if (proceso.reclamo && !proceso.reclamadoPorMi) etiquetas.push('Tomado');
   return etiquetas;
 }

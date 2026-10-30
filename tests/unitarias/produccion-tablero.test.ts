@@ -26,6 +26,8 @@ function crearMeta(secuencia: number, hechoPiezas: number, metaPiezas: number): 
     pendientePiezas: Math.max(metaPiezas - hechoPiezas, 0),
     porcentaje: metaPiezas > 0 ? Math.min((hechoPiezas / metaPiezas) * 100, 100) : 0,
     esFinal: secuencia === 2,
+    disponiblePiezas: null,
+    procesoPrevioNombre: null,
   };
 }
 

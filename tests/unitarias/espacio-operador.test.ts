@@ -4,6 +4,7 @@ import {
   HORAS_JORNADA_OPERADOR,
   accionPrincipal,
   agruparProcesosPorArea,
+  calcularDisponibilidadProcesos,
   construirDiasCalendario,
   derivarColumnaProceso,
   derivarUrgenciaProceso,
@@ -74,6 +75,8 @@ function crearProceso(
     pendientePiezas: 10,
     porcentaje: 0,
     esFinal: false,
+    piezasDisponibles: null,
+    procesoPrevioNombre: null,
     horasEstimadas: 2,
     programacion: null,
     reclamo: null,
@@ -127,6 +130,56 @@ describe('derivarColumnaProceso', () => {
 
   it('deja en Bandeja el resto, sin inventar columnas', () => {
     expect(derivarColumnaProceso(base)).toBe('bandeja');
+  });
+});
+
+describe('calcularDisponibilidadProcesos', () => {
+  it('no restringe la primera operación del ruteo', () => {
+    const disponible = calcularDisponibilidadProcesos([
+      { id: 'corte', secuencia: 1, nombre: 'Corte', hechoPiezas: 100 },
+      { id: 'doblado', secuencia: 2, nombre: 'Doblado', hechoPiezas: 0 },
+    ]);
+
+    expect(disponible.get('corte')).toEqual({ disponiblePiezas: null, procesoPrevioNombre: null });
+  });
+
+  it('deja avanzar por lotes aunque el proceso anterior siga en curso', () => {
+    const disponible = calcularDisponibilidadProcesos([
+      { id: 'corte', secuencia: 1, nombre: 'Corte', hechoPiezas: 100 },
+      { id: 'doblado', secuencia: 2, nombre: 'Doblado', hechoPiezas: 0 },
+    ]);
+
+    expect(disponible.get('doblado')).toEqual({
+      disponiblePiezas: 100,
+      procesoPrevioNombre: 'Corte',
+    });
+  });
+
+  it('descuenta las piezas que el proceso actual ya consumió del previo', () => {
+    const disponible = calcularDisponibilidadProcesos([
+      { id: 'corte', secuencia: 1, nombre: 'Corte', hechoPiezas: 100 },
+      { id: 'doblado', secuencia: 2, nombre: 'Doblado', hechoPiezas: 40 },
+    ]);
+
+    expect(disponible.get('doblado')?.disponiblePiezas).toBe(60);
+  });
+
+  it('bloquea con cero cuando el proceso previo no ha terminado piezas', () => {
+    const disponible = calcularDisponibilidadProcesos([
+      { id: 'corte', secuencia: 1, nombre: 'Corte', hechoPiezas: 0 },
+      { id: 'doblado', secuencia: 2, nombre: 'Doblado', hechoPiezas: 0 },
+    ]);
+
+    expect(disponible.get('doblado')?.disponiblePiezas).toBe(0);
+  });
+
+  it('no devuelve disponibilidad negativa si el actual ya consumió el lote', () => {
+    const disponible = calcularDisponibilidadProcesos([
+      { id: 'corte', secuencia: 1, nombre: 'Corte', hechoPiezas: 100 },
+      { id: 'doblado', secuencia: 2, nombre: 'Doblado', hechoPiezas: 100 },
+    ]);
+
+    expect(disponible.get('doblado')?.disponiblePiezas).toBe(0);
   });
 });
 

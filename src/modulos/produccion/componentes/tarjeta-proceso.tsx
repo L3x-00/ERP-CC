@@ -142,6 +142,18 @@ export function TarjetaProceso({
             </dd>
           </div>
         ) : null}
+        {proceso.piezasDisponibles !== null ? (
+          <div className="col-span-2 min-w-0">
+            <dt className="text-texto-tenue">Piezas disponibles</dt>
+            <dd className={cn(
+              'truncate font-medium tabular-nums',
+              proceso.piezasDisponibles === 0 ? 'text-advertencia-texto' : '',
+            )}>
+              {formatearNumero(proceso.piezasDisponibles, 0)} {proceso.unidadMedida}
+              {proceso.procesoPrevioNombre ? ` · de ${proceso.procesoPrevioNombre}` : ''}
+            </dd>
+          </div>
+        ) : null}
         <div className="col-span-2 min-w-0">
           <dt className="text-texto-tenue">Horas estimadas</dt>
           <dd className="font-medium tabular-nums">{horasLegibles(proceso.horasEstimadas)}</dd>

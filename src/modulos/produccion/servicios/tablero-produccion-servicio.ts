@@ -16,6 +16,7 @@ import {
 } from '@/modulos/planeacion/tipos/indice';
 import {
   COLUMNAS_SESION_TRABAJO_OPERATIVA,
+  calcularDisponibilidadProcesos,
   filaAMetaProcesoPartida,
   filaANotaEntrega,
   filaASesionTrabajo,
@@ -36,6 +37,9 @@ export interface MetaProcesoAvance extends MetaProcesoPartida {
   pendientePiezas: number;
   porcentaje: number;
   esFinal: boolean;
+  /** Piezas terminadas por el proceso anterior disponibles para esta etapa. */
+  disponiblePiezas: number | null;
+  procesoPrevioNombre: string | null;
 }
 
 export interface PartidaTableroProduccion extends Partida {
@@ -342,6 +346,14 @@ export async function obtenerDatosTableroProduccionServicio(
     const metas = metasPorPartida.get(partida.id) ?? [];
     const material = partida.materialId ? materialesPorId.get(partida.materialId) : undefined;
     const ultimaSecuencia = metas.reduce((maxima, meta) => Math.max(maxima, meta.secuencia), 0);
+    const disponibilidad = calcularDisponibilidadProcesos(
+      metas.map((meta) => ({
+        id: meta.id,
+        secuencia: meta.secuencia,
+        nombre: meta.nombre,
+        hechoPiezas: hechoPorMeta.get(meta.id) ?? 0,
+      })),
+    );
     actuales.push({
       ...partida,
       cantidadEntregada: cantidadEntregadaPorPartida.get(partida.id) ?? 0,
@@ -357,6 +369,7 @@ export async function obtenerDatosTableroProduccionServicio(
         : Number(material.largo_mm),
       metasProceso: metas.map((meta) => {
         const hechoPiezas = hechoPorMeta.get(meta.id) ?? 0;
+        const disponible = disponibilidad.get(meta.id);
         return {
           ...meta,
           hechoPiezas,
@@ -365,6 +378,8 @@ export async function obtenerDatosTableroProduccionServicio(
             ? Math.min((hechoPiezas / meta.metaPiezas) * 100, 100)
             : 0,
           esFinal: meta.secuencia === ultimaSecuencia,
+          disponiblePiezas: disponible?.disponiblePiezas ?? null,
+          procesoPrevioNombre: disponible?.procesoPrevioNombre ?? null,
         };
       }),
     });
