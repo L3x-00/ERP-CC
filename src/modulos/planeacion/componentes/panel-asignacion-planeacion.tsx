@@ -527,11 +527,11 @@ export function PanelAsignacionPlaneacion({
       const resultado = await onEnviar(datos);
       if (!resultado.exito) {
         const mensaje = resultado.error || MENSAJE_ERROR_GENERICO;
-        setErrorFormulario(mensaje);
+        setErrorFormulario(null);
         setErrorModal({ mensaje, codigo: resultado.codigo ?? null });
       } else setHueco(null);
     } catch {
-      setErrorFormulario(MENSAJE_ERROR_GENERICO);
+      setErrorFormulario(null);
       setErrorModal({ mensaje: MENSAJE_ERROR_GENERICO, codigo: null });
     } finally {
       setEnviando(false);
@@ -546,11 +546,11 @@ export function PanelAsignacionPlaneacion({
       const resultado = await onActivarPreparacion();
       if (!resultado.exito) {
         const mensaje = resultado.error || MENSAJE_ERROR_GENERICO;
-        setErrorFormulario(mensaje);
+        setErrorFormulario(null);
         setErrorModal({ mensaje, codigo: resultado.codigo ?? null });
       }
     } catch {
-      setErrorFormulario('No se pudo activar la preparación');
+      setErrorFormulario(null);
       setErrorModal({ mensaje: 'No se pudo activar la preparación', codigo: null });
     } finally {
       setPreparando(false);

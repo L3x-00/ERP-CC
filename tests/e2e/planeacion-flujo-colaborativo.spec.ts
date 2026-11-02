@@ -501,10 +501,10 @@ test.describe.serial('Planeación colaborativa completa', () => {
     await page.getByLabel('Horas estimadas').fill('1');
     await expect(page.getByTestId('aviso-capacidad-insuficiente')).toBeVisible();
     await page.getByTestId('guardar-asignacion-planeacion').click();
-    await expect(
-      page.getByText('El recurso no tiene capacidad disponible en el turno seleccionado'),
-    ).toBeVisible();
-    await page.getByTestId('buscar-hueco-planeacion').click();
+    await expect(page.getByTestId('dialogo-error-planeacion')).toContainText(
+      'No hay capacidad en ese turno',
+    );
+    await page.getByTestId('error-buscar-hueco').click();
     await expect(page.getByTestId('hueco-sugerido-planeacion')).toContainText('2099-12-29');
     await page.getByTestId('usar-hueco-sugerido-planeacion').click();
     await expect(page.getByLabel('Fecha programada')).toHaveValue('2099-12-29');
