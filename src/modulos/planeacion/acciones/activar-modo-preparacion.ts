@@ -5,6 +5,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import {
   activarModoPreparacionServicio,
   ErrorPlaneacion,
+  codigoErrorPlaneacion,
   mensajeErrorPlaneacion,
   type ProgramacionActualizada,
 } from '@/modulos/planeacion/servicios/indice';
@@ -44,6 +45,10 @@ export async function activarModoPreparacionAccion(
     await registrarLog(usuario, 'preparacion_rechazada', 'planeacion', analisis.data.programacionId, {
       codigo,
     }, correlationId);
-    return { exito: false, error: mensajeErrorPlaneacion(error, 'preparar') };
+    return {
+      exito: false,
+      error: mensajeErrorPlaneacion(error, 'preparar'),
+      codigo: codigoErrorPlaneacion(error),
+    };
   }
 }

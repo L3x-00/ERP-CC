@@ -31,10 +31,13 @@ function horas(valor: number): string {
 export function PanelDisponibilidadPropuesta({
   propuestaId,
   revisionId,
+  fechaSeleccionada,
   onUsarFecha,
 }: {
   propuestaId: string;
   revisionId: string;
+  /** Fecha compromiso actual, para marcar en verde el día elegido. */
+  fechaSeleccionada?: string;
   /** Fija la fecha compromiso con el día elegido en el desglose diario. */
   onUsarFecha?: (fecha: string) => void;
 }) {
@@ -127,7 +130,11 @@ export function PanelDisponibilidadPropuesta({
           )}
 
           {vigente.estado === 'listo' && (
-            <ResumenDisponibilidad resumen={vigente.resumen} onUsarFecha={onUsarFecha} />
+            <ResumenDisponibilidad
+              resumen={vigente.resumen}
+              fechaSeleccionada={fechaSeleccionada}
+              onUsarFecha={onUsarFecha}
+            />
           )}
         </section>
       )}
@@ -137,9 +144,11 @@ export function PanelDisponibilidadPropuesta({
 
 function ResumenDisponibilidad({
   resumen,
+  fechaSeleccionada,
   onUsarFecha,
 }: {
   resumen: ResumenDisponibilidadPropuesta;
+  fechaSeleccionada?: string;
   onUsarFecha?: (fecha: string) => void;
 }) {
   const incompleto = resumen.procesosSinGrupo.length > 0 || resumen.itemsSinRuteo.length > 0;
@@ -160,7 +169,12 @@ function ResumenDisponibilidad({
       ) : (
         <ul aria-label="Capacidad por grupo de equipo" className="flex flex-col">
           {resumen.grupos.map((grupo) => (
-            <FilaGrupo key={grupo.codigo} grupo={grupo} onUsarFecha={onUsarFecha} />
+            <FilaGrupo
+              key={grupo.codigo}
+              grupo={grupo}
+              fechaSeleccionada={fechaSeleccionada}
+              onUsarFecha={onUsarFecha}
+            />
           ))}
         </ul>
       )}
@@ -195,9 +209,11 @@ function ResumenDisponibilidad({
 
 function FilaGrupo({
   grupo,
+  fechaSeleccionada,
   onUsarFecha,
 }: {
   grupo: DisponibilidadGrupo;
+  fechaSeleccionada?: string;
   onUsarFecha?: (fecha: string) => void;
 }) {
   const avisos: string[] = [];
@@ -261,29 +277,42 @@ function FilaGrupo({
           <ul className="mt-2 grid gap-1" aria-label={`Disponibilidad diaria de ${grupo.nombre}`}>
             {(grupo.dias ?? []).map((dia) => {
               const cabe = dia.horasDisponibles >= grupo.horasRequeridas;
+              const elegido = fechaSeleccionada === dia.fecha;
               return (
                 <li
                   key={dia.fecha}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-superficie-2 px-2 py-1 text-xs"
+                  data-testid={`dia-disponibilidad-${grupo.codigo}-${dia.fecha}`}
+                  data-estado={elegido ? 'elegido' : cabe ? 'disponible' : 'parcial'}
+                  className={
+                    elegido
+                      ? 'flex flex-wrap items-center justify-between gap-2 rounded-md border border-exito/40 bg-exito-suave px-2 py-1 text-xs text-exito-texto ring-1 ring-exito/30'
+                      : 'flex flex-wrap items-center justify-between gap-2 rounded-md bg-superficie-2 px-2 py-1 text-xs'
+                  }
                 >
                   <span className="min-w-0">
-                    <span className="font-medium text-texto-primario">
+                    <span className={
+                      elegido
+                        ? 'font-semibold text-exito-texto'
+                        : 'font-medium text-texto-primario'
+                    }>
                       {formatearFechaCalendario(dia.fecha)}
                     </span>{' '}
                     · {horas(dia.horasDisponibles)} libres
                     {dia.turnosSobrecargados > 0 ? ' · turno saturado' : ''}
                     {!cabe ? ' · no cubre todo el ruteo' : ''}
+                    {elegido ? ' · día elegido' : ''}
                   </span>
                   {onUsarFecha && (
                     <Button
                       type="button"
                       tamano="sm"
-                      variante={cabe ? 'contorno' : 'fantasma'}
+                      variante={elegido ? 'secundario' : cabe ? 'contorno' : 'fantasma'}
+                      aria-pressed={elegido}
                       disabled={dia.horasDisponibles <= 0}
                       onClick={() => onUsarFecha(dia.fecha)}
                       data-testid={`usar-dia-${grupo.codigo}-${dia.fecha}`}
                     >
-                      Usar este día
+                      {elegido ? 'Día elegido' : 'Usar este día'}
                     </Button>
                   )}
                 </li>

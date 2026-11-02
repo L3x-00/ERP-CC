@@ -12,6 +12,10 @@ import {
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
 import { CalendarioPlaneacion } from '@/modulos/planeacion/componentes/calendario-planeacion';
+import {
+  DialogoErrorPlaneacion,
+  type ErrorProgramacion,
+} from '@/modulos/planeacion/componentes/dialogo-error-planeacion';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
   CLAVE_CALENDARIO_PLANEACION,
@@ -40,6 +44,7 @@ import {
   type DatosAsignacionPlaneacion,
   type EntradaProponerHueco,
   type PartidaProgramablePlaneacion,
+  type PreseleccionProgramacion,
   type ResultadoAsignacionPlaneacion,
   type ResultadoProponerHueco,
 } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
@@ -47,6 +52,7 @@ import { SincronizadorPlaneacionRealtime } from '@/modulos/planeacion/componente
 import { ResumenCargaSemanal } from '@/modulos/planeacion/componentes/resumen-carga-semanal';
 import type { BolsaPlaneacion, DatosCalendarioPlaneacion, SugerenciaBolsa } from '@/modulos/planeacion/servicios/indice';
 import type {
+  CompromisoPlaneacion,
   DesglosePartidaPlaneacion,
   ProgramacionArea,
 } from '@/modulos/planeacion/tipos/indice';
@@ -104,6 +110,9 @@ export function OperacionPlaneacion({
   const [bolsaProcesando, setBolsaProcesando] = useState(false);
   const [bolsaMensaje, setBolsaMensaje] = useState<string | null>(null);
   const [bolsaError, setBolsaError] = useState<string | null>(null);
+  const [errorBolsaModal, setErrorBolsaModal] = useState<ErrorProgramacion | null>(null);
+  const [sugerenciaFallida, setSugerenciaFallida] = useState<SugerenciaBolsa | null>(null);
+  const [preseleccion, setPreseleccion] = useState<PreseleccionProgramacion | null>(null);
   const [fechaSolicitada, setFechaSolicitada] = useState('');
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [detalleConcluido, setDetalleConcluido] = useState<{
@@ -144,7 +153,7 @@ export function OperacionPlaneacion({
   const datosCalendario = consulta.data ?? (
     esConsultaInicial
       ? datosIniciales
-      : { recursos: datosIniciales.recursos, cargas: [], programaciones: [] }
+      : { recursos: datosIniciales.recursos, cargas: [], programaciones: [], compromisos: [] }
   );
 
   // Una orden concluida se consulta con la misma proyección del tablero de
@@ -218,6 +227,11 @@ export function OperacionPlaneacion({
       clienteConsultas.invalidateQueries({ queryKey: CLAVE_DETALLE_PROGRAMACION }),
     ]);
   }, [clienteConsultas]);
+
+  const actualizarDatosPlaneacion = useCallback((): void => {
+    void actualizarCalendario();
+    enrutador.refresh();
+  }, [actualizarCalendario, enrutador]);
 
   const enviarAsignacion = useCallback(
     async (datos: DatosAsignacionPlaneacion): Promise<ResultadoAsignacionPlaneacion> => {
@@ -313,6 +327,19 @@ export function OperacionPlaneacion({
     });
   }, []);
 
+  const programarCompromiso = useCallback((compromiso: CompromisoPlaneacion): void => {
+    seleccionarProgramacion(null);
+    setProgramacionSeleccionada(null);
+    setDetalleConcluido(null);
+    setFechaSolicitada(compromiso.fechaCompromiso);
+    setPreseleccion({
+      partidaId: compromiso.partidaId,
+      fecha: compromiso.fechaCompromiso,
+      horas: compromiso.horas,
+    });
+    setPanelAbierto(true);
+  }, [seleccionarProgramacion]);
+
   const solicitarReprogramacion = useCallback(
     (programacion: ProgramacionArea, fechaDestino: string): void => {
       if (operacionConcluida(programacion)) return;
@@ -386,8 +413,11 @@ export function OperacionPlaneacion({
       });
       if (!resultado.exito) {
         setBolsaError(resultado.error);
+        setSugerenciaFallida(sugerencia);
+        setErrorBolsaModal({ mensaje: resultado.error, codigo: resultado.codigo ?? null });
       } else {
         setBolsaMensaje(`${sugerencia.codigoPieza} programada el ${sugerencia.fecha}.`);
+        setSugerenciaFallida(null);
         await actualizarCalendario();
         enrutador.refresh();
       }
@@ -396,6 +426,11 @@ export function OperacionPlaneacion({
         : { exito: false as const, error: resultado.error };
     } catch {
       setBolsaError('No se pudo programar la sugerencia. Intenta de nuevo.');
+      setSugerenciaFallida(sugerencia);
+      setErrorBolsaModal({
+        mensaje: 'No se pudo programar la sugerencia. Intenta de nuevo.',
+        codigo: null,
+      });
       return { exito: false as const, error: 'No se pudo programar la sugerencia' };
     } finally {
       setBolsaProcesando(false);
@@ -445,8 +480,12 @@ export function OperacionPlaneacion({
         errorActualizacion={consulta.isError}
         desglosePartidas={desglosePartidas}
         programando={panelAbierto}
-        onProgramar={() => setPanelAbierto((abierto) => !abierto)}
+        onProgramar={() => {
+          setPreseleccion(null);
+          setPanelAbierto((abierto) => !abierto);
+        }}
         onSeleccionarProgramacion={alSeleccionar}
+        onProgramarCompromiso={programarCompromiso}
         onSolicitarReprogramacion={solicitarReprogramacion}
         onRefrescarOperacion={refrescarEstructuraOperacion}
       />
@@ -496,6 +535,8 @@ export function OperacionPlaneacion({
             onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
             onProponerHueco={proponerHuecoPanel}
             onCambiarFecha={setFechaSolicitada}
+            onActualizarDatos={actualizarDatosPlaneacion}
+            preseleccion={preseleccion}
           />
           {programacionSeleccionada ? (
             <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
@@ -578,6 +619,28 @@ export function OperacionPlaneacion({
           onBuscarHueco={buscarHuecoArrastre}
         />
       ) : null}
+
+      <DialogoErrorPlaneacion
+        error={errorBolsaModal}
+        onCerrar={() => setErrorBolsaModal(null)}
+        onActualizarDatos={() => {
+          actualizarDatosPlaneacion();
+          setErrorBolsaModal(null);
+        }}
+        onAbrirProgramacion={sugerenciaFallida
+          ? () => {
+              const sugerencia = sugerenciaFallida;
+              setErrorBolsaModal(null);
+              setPreseleccion({
+                partidaId: sugerencia.partidaId,
+                fecha: sugerencia.fecha,
+                horas: sugerencia.horas,
+              });
+              setFechaSolicitada(sugerencia.fecha);
+              setPanelAbierto(true);
+            }
+          : undefined}
+      />
     </div>
   );
 }

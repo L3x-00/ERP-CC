@@ -19,6 +19,7 @@ export type {
   CapacidadRecursoTurno,
   ExcepcionCapacidadRecurso,
   ProgramacionArea,
+  CompromisoPlaneacion,
   OperacionProgramablePartida,
   CargaCapacidadDiaria,
   DetalleProgramacion,

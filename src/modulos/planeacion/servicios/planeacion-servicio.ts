@@ -6,6 +6,7 @@ import {
   filaAProgramacionAreaConOperacion,
   filaARecursoPlaneacion,
   type CargaCapacidadDiaria,
+  type CompromisoPlaneacion,
   type EstadoPlaneacion,
   type FilaProgramacionAreaConOperacion,
   type ProgramacionArea,
@@ -86,6 +87,8 @@ export type DatosCalendarioPlaneacion = {
   recursos: RecursoPlaneacion[];
   cargas: CargaCapacidadDiaria[];
   programaciones: ProgramacionArea[];
+  /** Propuestas aceptadas (CONFIRMADA) aún sin programación, por fecha prometida. */
+  compromisos: CompromisoPlaneacion[];
 };
 
 function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
@@ -274,6 +277,67 @@ export async function obtenerProgramacionesCalendarioServicio(
 }
 
 /**
+ * Compromisos comerciales aceptados (CONFIRMADA) que todavía no tienen
+ * programación. Se consultan con RLS y solo viajan datos de calendario: folio,
+ * pieza, área, procesos, horas y la fecha prometida.
+ */
+export async function obtenerCompromisosCalendarioServicio(
+  cliente: SupabaseClient<Database>,
+  filtros: FiltrosCalendarioPlaneacion,
+): Promise<CompromisoPlaneacion[]> {
+  const { data: ordenes, error } = await cliente
+    .from('ordenes_produccion')
+    .select('id, folio, fecha_compromiso_comercial')
+    .eq('estado_sii', 'CONFIRMADA')
+    .gte('fecha_compromiso_comercial', filtros.fechaInicio)
+    .lte('fecha_compromiso_comercial', filtros.fechaFin);
+  if (error) lanzarErrorPlaneacion(error.message);
+
+  const ordenesConfirmadas = ordenes ?? [];
+  if (ordenesConfirmadas.length === 0) return [];
+  const folioPorOrden = new Map(ordenesConfirmadas.map((orden) => [orden.id, orden.folio]));
+  const fechaPorOrden = new Map(
+    ordenesConfirmadas.map((orden) => [orden.id, orden.fecha_compromiso_comercial ?? '']),
+  );
+
+  const { data: partidas, error: errorPartidas } = await cliente
+    .from('partidas_orden_produccion')
+    .select('id, orden_id, codigo_pieza, area_trabajo_codigo, procesos, tiempo_estimado_minutos')
+    .in('orden_id', ordenesConfirmadas.map((orden) => orden.id));
+  if (errorPartidas) lanzarErrorPlaneacion(errorPartidas.message);
+
+  const partidasConfirmadas = partidas ?? [];
+  if (partidasConfirmadas.length === 0) return [];
+
+  const { data: programaciones, error: errorProgramaciones } = await cliente
+    .from('programacion_areas')
+    .select('partida_id, estado_planeacion')
+    .in('partida_id', partidasConfirmadas.map((partida) => partida.id))
+    .neq('estado_planeacion', 'cancelada');
+  if (errorProgramaciones) lanzarErrorPlaneacion(errorProgramaciones.message);
+  const partidasConPlan = new Set((programaciones ?? []).map((fila) => fila.partida_id));
+
+  return partidasConfirmadas
+    .filter((partida) => !partidasConPlan.has(partida.id))
+    .map((partida) => {
+      const minutos = Number(partida.tiempo_estimado_minutos);
+      return {
+        partidaId: partida.id,
+        ordenId: partida.orden_id,
+        folio: folioPorOrden.get(partida.orden_id) ?? 'OP',
+        codigoPieza: partida.codigo_pieza,
+        fechaCompromiso: fechaPorOrden.get(partida.orden_id) ?? '',
+        areaCodigo: partida.area_trabajo_codigo,
+        procesos: partida.procesos ?? [],
+        horas: Math.max(0.25, Math.round((minutos > 0 ? minutos / 60 : 0.25) * 100) / 100),
+        estimadoMinutos: minutos,
+      };
+    })
+    .filter((compromiso) => compromiso.fechaCompromiso !== '')
+    .sort((primera, segunda) => primera.fechaCompromiso.localeCompare(segunda.fechaCompromiso));
+}
+
+/**
  * Compone el calendario dentro del servidor. El cliente RLS gobierna recursos y
  * programaciones; la carga calculada usa la RPC privilegiada solo después de la
  * autorización de la Server Action llamadora.
@@ -283,7 +347,7 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
   admin: SupabaseClient<Database>,
   filtros: FiltrosCalendarioPlaneacion,
 ): Promise<DatosCalendarioPlaneacion> {
-  const [programaciones, respuestaRecursos, respuestaGrupos] = await Promise.all([
+  const [programaciones, respuestaRecursos, respuestaGrupos, compromisos] = await Promise.all([
     obtenerProgramacionesCalendarioServicio(cliente, filtros),
     cliente
       .from('recursos_planeacion')
@@ -291,6 +355,7 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
       .eq('activo', true)
       .order('codigo'),
     cliente.from('grupos_equipo').select('id, nombre'),
+    obtenerCompromisosCalendarioServicio(cliente, filtros),
   ]);
 
   if (respuestaRecursos.error) lanzarErrorPlaneacion(respuestaRecursos.error.message);
@@ -319,7 +384,13 @@ export async function obtenerDatosCalendarioPlaneacionServicio(
     // pero dejaría metadatos de capacidad de otros recursos en la respuesta.
     cargas: cargas.filter((carga) => recursosAutorizados.has(carga.recursoId)),
     programaciones,
+    compromisos,
   };
+}
+
+/** Código estable del error de Planeación; `desconocido` si no es de dominio. */
+export function codigoErrorPlaneacion(error: unknown): CodigoErrorPlaneacion {
+  return error instanceof ErrorPlaneacion ? error.codigo : 'desconocido';
 }
 
 /** Mensajes estables para Server Actions; el detalle PostgreSQL queda en el log interno. */

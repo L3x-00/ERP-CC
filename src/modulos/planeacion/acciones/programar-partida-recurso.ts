@@ -4,6 +4,7 @@ import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   ErrorPlaneacion,
+  codigoErrorPlaneacion,
   mensajeErrorPlaneacion,
   programarPartidaRecursoServicio,
   type ProgramacionActualizada,
@@ -54,6 +55,10 @@ export async function programarPartidaRecursoAccion(
       codigo,
       recursoId: analisis.data.recursoId,
     }, correlationId);
-    return { exito: false, error: mensajeErrorPlaneacion(error, 'programar') };
+    return {
+      exito: false,
+      error: mensajeErrorPlaneacion(error, 'programar'),
+      codigo: codigoErrorPlaneacion(error),
+    };
   }
 }
