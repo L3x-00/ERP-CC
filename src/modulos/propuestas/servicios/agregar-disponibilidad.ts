@@ -175,7 +175,7 @@ export function idsGruposRequeridos(datos: DatosRuteo): string[] {
 function capacidadDelGrupo(
   grupoId: string,
   entrada: EntradaAgregacionDisponibilidad,
-): Pick<DisponibilidadGrupo, 'estado' | 'horasCapacidad' | 'horasCarga' | 'horasDisponibles' | 'turnosSobrecargados' | 'recursosSinTurno'> {
+): Pick<DisponibilidadGrupo, 'estado' | 'horasCapacidad' | 'horasCarga' | 'horasDisponibles' | 'turnosSobrecargados' | 'recursosSinTurno' | 'dias'> {
   const recursos = new Set(
     entrada.recursos.filter((recurso) => recurso.grupoEquipoId === grupoId).map((recurso) => recurso.id),
   );
@@ -198,6 +198,7 @@ function capacidadDelGrupo(
       horasDisponibles: null,
       turnosSobrecargados: 0,
       recursosSinTurno,
+      dias: [],
     };
   }
 
@@ -205,12 +206,25 @@ function capacidadDelGrupo(
   let carga = 0;
   let disponible = 0;
   let sobrecargados = 0;
+  const porFecha = new Map<string, { capacidad: number; carga: number; disponible: number; sobrecargados: number }>();
   for (const fila of turnos.values()) {
     capacidad += horasSeguras(fila.horasCapacidad);
     carga += horasSeguras(fila.horasProgramadas);
     // Un turno saturado no compensa lo libre de otro turno.
     disponible += horasSeguras(fila.horasDisponibles);
     if (fila.sobrecargado) sobrecargados += 1;
+
+    const dia = porFecha.get(fila.fechaProgramada) ?? {
+      capacidad: 0,
+      carga: 0,
+      disponible: 0,
+      sobrecargados: 0,
+    };
+    dia.capacidad += horasSeguras(fila.horasCapacidad);
+    dia.carga += horasSeguras(fila.horasProgramadas);
+    dia.disponible += horasSeguras(fila.horasDisponibles);
+    if (fila.sobrecargado) dia.sobrecargados += 1;
+    porFecha.set(fila.fechaProgramada, dia);
   }
   return {
     estado: 'con_capacidad',
@@ -219,6 +233,15 @@ function capacidadDelGrupo(
     horasDisponibles: redondear(disponible),
     turnosSobrecargados: sobrecargados,
     recursosSinTurno,
+    dias: [...porFecha.entries()]
+      .sort(([primera], [segunda]) => primera.localeCompare(segunda))
+      .map(([fecha, dia]) => ({
+        fecha,
+        horasCapacidad: redondear(dia.capacidad),
+        horasCarga: redondear(dia.carga),
+        horasDisponibles: redondear(dia.disponible),
+        turnosSobrecargados: dia.sobrecargados,
+      })),
   };
 }
 

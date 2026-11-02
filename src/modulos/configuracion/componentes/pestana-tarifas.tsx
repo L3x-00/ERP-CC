@@ -85,9 +85,20 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
           </p>
         ) : null}
       </div>
+      <div className="rounded-lg border border-borde bg-superficie-2 p-3 text-sm text-texto-secundario">
+        <p className="font-semibold text-texto-primario">Un solo tarifario por hora</p>
+        <p className="mt-1">
+          El costo del ruteo se resuelve en cascada: <span className="font-medium text-texto-primario">tarifa propia de la máquina → tarifa del grupo de equipo → tarifa de la estación</span>.
+          Las estaciones de abajo son la base compartida; el «Tarifario del ruteo» solo vincula cada grupo o máquina a una de ellas.
+          Las áreas de trabajo ya no guardan precios.
+        </p>
+      </div>
       <div className="grid items-start gap-4 sm:grid-cols-2">
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora predeterminado (MXN)
+        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora de respaldo (MXN)
           <Input id="configuracion-costo-hora" type="number" min="0" step="0.01" value={tarifas.costoHoraDefault} onChange={(e) => cambiarTarifa('costoHoraDefault', e.target.value)} required />
+          <span className="text-xs font-normal text-texto-secundario">
+            Solo se usa cuando la estación no tiene tarifa propia; el ruteo nunca lo toma si existe una tarifa de estación, grupo o máquina.
+          </span>
         </label>
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-segundos-pierce">Segundos por pierce
           <Input id="configuracion-segundos-pierce" type="number" min="0.01" step="0.01" value={tarifas.segundosPorPierce} onChange={(e) => cambiarTarifa('segundosPorPierce', e.target.value)} required />
@@ -110,7 +121,7 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
         </label>
       </div>
       <fieldset className="grid gap-3">
-        <legend className="text-sm font-semibold text-texto-primario">Tarifas por estación del cotizador</legend>
+        <legend className="text-sm font-semibold text-texto-primario">Tarifas por estación (base del cotizador y del ruteo)</legend>
         <EditorTarifasEstaciones
           valor={tarifas.estaciones}
           onCambio={(estaciones) => setTarifas((actual) => ({ ...actual, estaciones }))}

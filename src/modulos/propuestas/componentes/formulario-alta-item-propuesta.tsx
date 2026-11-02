@@ -218,7 +218,7 @@ export function FormularioAltaItemPropuesta({
             }
           >
             <option value="">Sin material</option>
-            {(catalogos?.materiales ?? []).map((material) => (
+            {(catalogos?.materialesVendibles ?? catalogos?.materiales ?? []).map((material) => (
               <option key={material.id} value={material.id}>
                 {material.nombre}
               </option>

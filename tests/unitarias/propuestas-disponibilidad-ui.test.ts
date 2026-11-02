@@ -106,6 +106,22 @@ function resumen(parcial: Partial<ResumenDisponibilidadPropuesta> = {}): Resumen
         horasDisponibles: 5,
         turnosSobrecargados: 1,
         recursosSinTurno: 1,
+        dias: [
+          {
+            fecha: '2026-11-28',
+            horasCapacidad: 8,
+            horasCarga: 3,
+            horasDisponibles: 5,
+            turnosSobrecargados: 0,
+          },
+          {
+            fecha: '2026-11-29',
+            horasCapacidad: 8,
+            horasCarga: 8,
+            horasDisponibles: 0,
+            turnosSobrecargados: 1,
+          },
+        ],
       },
       {
         codigo: 'PINT',
@@ -223,6 +239,23 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     expect(campoFecha().value).toBe('2026-11-10');
     expect(aceptarMock).not.toHaveBeenCalled();
     expect((screen.getByRole('button', { name: 'Aceptar revisión' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('«Usar este día» fija la fecha compromiso sin aceptar la revisión', async () => {
+    consultarMock.mockResolvedValue({ exito: true, datos: resumen() });
+    montarPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar disponibilidad' }));
+    const region = await screen.findByRole('region', { name: 'Disponibilidad informativa' });
+    fireEvent.click(within(region).getByText(/Ver disponibilidad por día/));
+    const boton = await within(region).findByTestId('usar-dia-ROUTER-2026-11-28');
+    fireEvent.click(boton);
+
+    expect(campoFecha().value).toBe('2026-11-28');
+    expect(aceptarMock).not.toHaveBeenCalled();
+    expect(
+      (within(region).getByTestId('usar-dia-ROUTER-2026-11-29') as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('no prellena la fecha compromiso cuando estaba vacía', async () => {

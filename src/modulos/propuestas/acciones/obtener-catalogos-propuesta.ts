@@ -2,6 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
+import { esMaterialVendible } from '@/modulos/catalogos/utilidades/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
   ETIQUETA_ESTACION_TARIFA,
@@ -58,6 +59,11 @@ export type CatalogosPropuesta = {
   areasTrabajo: { codigo: string; nombre: string }[];
   /** C3.1: materiales activos para el alta de un ítem propio de la revisión. */
   materiales: { id: string; codigo: string; nombre: string }[];
+  /**
+   * Materiales seleccionables en un ítem vendible: sin consumibles
+   * (`metadata.categoria = 'insumo'`). `materiales` conserva todos los nombres.
+   */
+  materialesVendibles?: { id: string; codigo: string; nombre: string }[];
   /** C3.1: espesores activos; `materialId` permite filtrarlos en el formulario. */
   espesores: { id: string; materialId: string; etiqueta: string; espesorMm: number }[];
   /** Error acotado al alta de ítems; no inutiliza ruteo/seguimiento existentes. */
@@ -129,7 +135,7 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         .order('orden', { ascending: true }),
       servidor
         .from('catalogo_materiales')
-        .select('id, codigo, nombre')
+        .select('id, codigo, nombre, metadata')
         .eq('activo', true)
         .order('orden', { ascending: true }),
       servidor
@@ -220,6 +226,13 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         codigo: fila.codigo,
         nombre: fila.nombre,
       })),
+      materialesVendibles: (materiales.data ?? [])
+        .filter((fila) => esMaterialVendible(fila.metadata))
+        .map((fila) => ({
+          id: fila.id,
+          codigo: fila.codigo,
+          nombre: fila.nombre,
+        })),
       espesores: (espesores.data ?? []).map((fila) => ({
         id: fila.id,
         materialId: fila.material_id,

@@ -19,6 +19,8 @@ export interface PartidaBolsa {
   procesos: string[];
   horas: number;
   estimadoMinutos: number;
+  /** Fecha prometida al cliente; Planeación la usa como fecha preferida. */
+  fechaCompromiso?: string | null;
 }
 
 export interface SugerenciaBolsa extends PartidaBolsa {
@@ -58,11 +60,18 @@ export function elegirHueco(
   horas: number,
   cargas: readonly CargaCapacidadDiaria[],
   codigoPorRecurso: ReadonlyMap<string, string>,
+  fechaPreferida?: string | null,
 ): { carga: CargaCapacidadDiaria; horasDisponibles: number } | null {
   const candidatas = cargas
     .filter((carga) => !carga.sobrecargado && carga.horasDisponibles >= horas)
     .sort((primera, segunda) => (
-      primera.fechaProgramada.localeCompare(segunda.fechaProgramada)
+      // La fecha compromiso comercial manda: si ese día tiene hueco, se sugiere
+      // primero para no prometer al cliente una fecha que Planeación ignora.
+      (fechaPreferida
+        ? Number(segunda.fechaProgramada === fechaPreferida)
+          - Number(primera.fechaProgramada === fechaPreferida)
+        : 0)
+      || primera.fechaProgramada.localeCompare(segunda.fechaProgramada)
       || ORDEN_TURNOS.indexOf(primera.turno) - ORDEN_TURNOS.indexOf(segunda.turno)
       || (codigoPorRecurso.get(primera.recursoId) ?? '').localeCompare(
         codigoPorRecurso.get(segunda.recursoId) ?? '',
@@ -74,7 +83,7 @@ export function elegirHueco(
 
 type FilaOrden = Pick<
   Database['public']['Tables']['ordenes_produccion']['Row'],
-  'id' | 'folio' | 'estado' | 'estado_sii'
+  'id' | 'folio' | 'estado' | 'estado_sii' | 'fecha_compromiso_comercial'
 >;
 type FilaPartida = Pick<
   Database['public']['Tables']['partidas_orden_produccion']['Row'],
@@ -111,14 +120,20 @@ export async function obtenerBolsaPlaneacionServicio(
   const vacia: BolsaPlaneacion = { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] };
   const { data: ordenes, error: errorOrdenes } = await cliente
     .from('ordenes_produccion')
-    .select('id, folio, estado, estado_sii')
-    .in('estado_sii', ['PLANIFICADA', 'LISTA', 'EN_PRODUCCION']);
+    .select('id, folio, estado, estado_sii, fecha_compromiso_comercial')
+    // CONFIRMADA: la aceptación comercial crea la orden, pero Planeación todavía
+    // no tiene filas en programacion_areas. Sin este estado la propuesta aceptada
+    // no aparecía en ninguna parte; ahora entra a la bolsa como trabajo por planear.
+    .in('estado_sii', ['CONFIRMADA', 'PLANIFICADA', 'LISTA', 'EN_PRODUCCION']);
   if (errorOrdenes) throw new Error('No se pudo calcular la bolsa de Planeación');
 
   const ordenesActivas = (ordenes ?? []) as FilaOrden[];
   if (ordenesActivas.length === 0) return vacia;
   const folioPorOrden = new Map(ordenesActivas.map((orden) => [orden.id, orden.folio]));
   const estadoPorOrden = new Map(ordenesActivas.map((orden) => [orden.id, orden.estado]));
+  const compromisoPorOrden = new Map(
+    ordenesActivas.map((orden) => [orden.id, orden.fecha_compromiso_comercial?.slice(0, 10) ?? null]),
+  );
 
   const [{ data: partidas, error: errorPartidas }, { data: programaciones, error: errorProgramaciones }, recursosRespuesta] = await Promise.all([
     cliente.from('partidas_orden_produccion')
@@ -196,6 +211,7 @@ export async function obtenerBolsaPlaneacionServicio(
       procesos: partida.procesos ?? [],
       horas: horasSugeridas(minutos),
       estimadoMinutos: minutos,
+      fechaCompromiso: compromisoPorOrden.get(partida.orden_id) ?? null,
     };
   }
 
@@ -229,9 +245,17 @@ export async function obtenerBolsaPlaneacionServicio(
 
   const sugerencias: SugerenciaBolsa[] = [];
   const cargasRestantes = [...cargas];
-  for (const partida of sinPlan) {
+  const sinPlanOrdenado = [...sinPlan].sort((primera, segunda) => {
+    const compromisoPrimera = compromisoPorOrden.get(primera.orden_id);
+    const compromisoSegunda = compromisoPorOrden.get(segunda.orden_id);
+    if (compromisoPrimera && compromisoSegunda) return compromisoPrimera.localeCompare(compromisoSegunda);
+    if (compromisoPrimera) return -1;
+    if (compromisoSegunda) return 1;
+    return 0;
+  });
+  for (const partida of sinPlanOrdenado) {
     const item = aBolsa(partida);
-    const hueco = elegirHueco(item.horas, cargasRestantes, codigoPorRecurso);
+    const hueco = elegirHueco(item.horas, cargasRestantes, codigoPorRecurso, item.fechaCompromiso);
     if (!hueco) continue;
     const pendiente = operacionPendiente(partida.id);
     sugerencias.push({

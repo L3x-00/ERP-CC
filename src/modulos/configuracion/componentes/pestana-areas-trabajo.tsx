@@ -79,11 +79,14 @@ export function PestanaAreasTrabajo({
   operadores,
   onGuardado,
   onOperadoresGuardados,
+  onIrATarifas,
 }: {
   datos: readonly AreaTrabajoConfig[];
   operadores: readonly OperadorAreaConfig[];
   onGuardado: (area: AreaTrabajoConfig) => void;
   onOperadoresGuardados: (operadores: OperadorAreaConfig[]) => void;
+  /** Atajo a «Tarifas / TC», único lugar donde se captura el costo por hora. */
+  onIrATarifas?: () => void;
 }) {
   const [seleccionada, setSeleccionada] = useState<AreaTrabajoConfig | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -226,25 +229,38 @@ export function PestanaAreasTrabajo({
 
   return (
     <div className="flex flex-col gap-6" data-testid="configuracion-areas">
+      {/* Obs. cliente 2026-11: el costo por hora no se captura aquí. Mantener una
+          sola fuente (Tarifas / TC) evita listas de precios contradictorias. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-acento/30 bg-acento-suave p-3 text-sm">
+        <p className="max-w-2xl text-texto-secundario">
+          <span className="font-semibold text-texto-primario">Aquí solo se organizan las áreas.</span>{' '}
+          El costo por hora se configura una sola vez en <span className="font-medium">Tarifas / TC</span>,
+          por estación, grupo de equipo o máquina. Los importes que había en esta tabla eran de
+          consulta y no alimentaban el costeo.
+        </p>
+        {onIrATarifas ? (
+          <Button type="button" variante="contorno" tamano="sm" onClick={onIrATarifas}>
+            Ir a Tarifas / TC
+          </Button>
+        ) : null}
+      </div>
       <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
         <section aria-labelledby="titulo-areas-config" className="grid gap-3">
           <div className="flex items-center justify-between gap-2"><h2 id="titulo-areas-config" className="text-lg font-semibold text-texto-primario">Áreas configuradas</h2><Button tamano="sm" variante="contorno" onClick={nuevo}>Nueva área</Button></div>
           {datos.length === 0 ? (
             <EstadoVacio
               titulo="Sin áreas configuradas"
-              descripcion="Crea la primera área de trabajo para definir tarifas internas y de venta."
+              descripcion="Crea la primera área de trabajo para organizar subáreas y procesos."
             />
           ) : (
             <TablaContenedor>
-              <Tabla className="min-w-[720px]">
+              <Tabla className="min-w-[560px]">
                 <caption className="sr-only">Catálogo de áreas, subáreas y procesos</caption>
                 <TablaEncabezado>
                   <tr>
                     <TablaEncabezadoCelda>Código</TablaEncabezadoCelda>
                     <TablaEncabezadoCelda>Área / subárea / proceso</TablaEncabezadoCelda>
                     <TablaEncabezadoCelda>Planeación</TablaEncabezadoCelda>
-                    <TablaEncabezadoCelda>Interno/h</TablaEncabezadoCelda>
-                    <TablaEncabezadoCelda>Venta/h</TablaEncabezadoCelda>
                     <TablaEncabezadoCelda>Estado</TablaEncabezadoCelda>
                     <TablaEncabezadoCelda><span className="sr-only">Acción</span></TablaEncabezadoCelda>
                   </tr>
@@ -272,8 +288,6 @@ export function PestanaAreasTrabajo({
                         <TablaCelda className="text-xs text-texto-secundario">
                           {area.areaPlaneacion ? ETIQUETA_AREA_PLANEACION[area.areaPlaneacion] : 'Hereda'}
                         </TablaCelda>
-                        <TablaCelda className="tabular-nums">{area.costoHoraInterno.toFixed(2)}</TablaCelda>
-                        <TablaCelda className="tabular-nums">{area.tarifaHoraVenta.toFixed(2)}</TablaCelda>
                         <TablaCelda><BadgeEstado estado={area.activo ? 'activo' : 'inactivo'} /></TablaCelda>
                         <TablaCelda>
                           <Button tamano="sm" variante="fantasma" onClick={() => { setSeleccionada(area); cargarFormulario(area); }}>Editar</Button>
@@ -316,7 +330,11 @@ export function PestanaAreasTrabajo({
             </Select>
           </label>
           <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-area-color">Color hexadecimal<Input id="configuracion-area-color" type="color" value={formulario.colorHex} onChange={(e) => setFormulario((v) => ({ ...v, colorHex: e.target.value }))} /></label>
-          <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-area-costo">Costo interno/h<Input id="configuracion-area-costo" type="number" min="0" step="0.01" value={formulario.costoHoraInterno} onChange={(e) => setFormulario((v) => ({ ...v, costoHoraInterno: e.target.value }))} required /></label><label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-area-venta">Tarifa venta/h<Input id="configuracion-area-venta" type="number" min="0" step="0.01" value={formulario.tarifaHoraVenta} onChange={(e) => setFormulario((v) => ({ ...v, tarifaHoraVenta: e.target.value }))} required /></label></div>
+          <p className="rounded-md bg-superficie-2 px-3 py-2 text-xs text-texto-secundario">
+            El costo por hora no se captura aquí: se administra en{' '}
+            <span className="font-medium text-texto-primario">Tarifas / TC</span> para no duplicar
+            listas de precios. Esta área conserva únicamente su organización y su estado.
+          </p>
           <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-area-orden">Orden<Input id="configuracion-area-orden" type="number" min="0" step="1" value={formulario.orden} onChange={(e) => setFormulario((v) => ({ ...v, orden: e.target.value }))} required /></label>
           <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={formulario.esExterno} onChange={(e) => setFormulario((v) => ({ ...v, esExterno: e.target.checked }))} /> Capacidad externa</label>
           <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={formulario.activo} onChange={(e) => setFormulario((v) => ({ ...v, activo: e.target.checked }))} /> Área activa</label>

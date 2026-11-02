@@ -248,6 +248,22 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
       horasDisponibles: 9,
       turnosSobrecargados: 1,
       recursosSinTurno: 0,
+      dias: [
+        {
+          fecha: '2026-10-21',
+          horasCapacidad: 16,
+          horasCarga: 13,
+          horasDisponibles: 5,
+          turnosSobrecargados: 1,
+        },
+        {
+          fecha: '2026-10-22',
+          horasCapacidad: 4,
+          horasCarga: 0,
+          horasDisponibles: 4,
+          turnosSobrecargados: 0,
+        },
+      ],
     });
     expect(resumen.grupos.find((grupo) => grupo.codigo === 'LASER')).toMatchObject({
       horasCapacidad: 6,

@@ -169,6 +169,46 @@ describe('PLA-05: bolsa de trabajo y huecos', () => {
     expect(hueco?.carga.fechaProgramada).toBe('2026-10-01');
   });
 
+  it('prefiere la fecha compromiso si ese día tiene hueco', () => {
+    const codigos = new Map([['r1', 'A'], ['r2', 'B']]);
+    const hueco = elegirHueco(2, [
+      carga({ recursoId: 'r1', fechaProgramada: '2026-10-21', turno: 'matutino', horasDisponibles: 5 }),
+      carga({ recursoId: 'r2', fechaProgramada: '2026-11-28', turno: 'matutino', horasDisponibles: 5 }),
+    ], codigos, '2026-11-28');
+    expect(hueco?.carga.fechaProgramada).toBe('2026-11-28');
+  });
+
+  it('incluye órdenes CONFIRMADA (propuesta aceptada) con su fecha compromiso', async () => {
+    const { cliente } = crearClienteDeSoloLectura({
+      ordenes_produccion: [{
+        id: 'orden-confirmada',
+        folio: 'OP-000042',
+        estado: 'borrador',
+        estado_sii: 'CONFIRMADA',
+        fecha_compromiso_comercial: '2026-11-28T08:00:00Z',
+      }],
+      partidas_orden_produccion: [{
+        id: 'partida-1',
+        orden_id: 'orden-confirmada',
+        codigo_pieza: 'PZA-1',
+        area_trabajo_codigo: 'taller',
+        procesos: ['Corte'],
+        tiempo_estimado_minutos: 120,
+      }],
+      programacion_areas: [],
+      recursos_planeacion: [{ id: 'recurso-1', codigo: 'R-01' }],
+      metas_proceso_partida: [],
+    });
+
+    const bolsa = await obtenerBolsaPlaneacionServicio(cliente, cliente, '2026-10-18');
+
+    expect(bolsa.sugerencias).toHaveLength(1);
+    expect(bolsa.sugerencias[0]).toMatchObject({
+      folio: 'OP-000042',
+      fechaCompromiso: '2026-11-28',
+    });
+  });
+
   it('solo lee y usa la RPC de capacidad; limita la bolsa a 12 sugerencias (C9.4/P-18)', async () => {
     const partidas = Array.from({ length: 30 }, (_, indice) => ({
       id: `partida-${indice + 1}`,

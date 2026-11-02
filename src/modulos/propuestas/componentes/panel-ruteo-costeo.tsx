@@ -573,8 +573,8 @@ export function PanelRuteoCosteo({
                           <span>Sin tarifa configurada</span>
                           <span className="text-texto-secundario">
                             {fila.grupoEquipoId
-                              ? 'Vincula el grupo a una estación en Configuración → Tarifas / TC.'
-                              : 'Elige el grupo de equipo.'}
+                              ? `El grupo${grupoFila ? ` «${grupoFila.nombre}»` : ''} no tiene tarifa propia ni estación vinculada. Configúrala en Configuración → Tarifas / TC → Tarifario del ruteo.`
+                              : 'Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas / TC.'}
                           </span>
                         </span>
                       ) : (
@@ -805,6 +805,11 @@ function DesgloseFabricacion({
       <p className="text-xs text-texto-secundario">
         Este desglose muestra los procesos de cada partida; no agrega ítems comerciales. El PDF
         de la propuesta solo incluye las partidas activas, una vez cada una.
+      </p>
+      <p className="text-xs text-texto-secundario">
+        Tarifa por hora en cascada: máquina → grupo de equipo → estación. Las tres se administran
+        en el mismo lugar, Configuración → Tarifas / TC; un proceso sin tarifa indica que su grupo
+        todavía no está vinculado a una estación.
       </p>
       {filas.length === 0 && (
         <p className="text-xs text-texto-secundario">

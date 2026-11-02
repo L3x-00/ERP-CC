@@ -5,6 +5,19 @@
  */
 export type EstadoCapacidadGrupo = 'con_capacidad' | 'sin_capacidad_configurada';
 
+/**
+ * Capacidad agregada de un día concreto para un grupo: suma de turnos y
+ * recursos. Permite ofrecer «Usar este día» al confirmar la fecha compromiso.
+ */
+export type DisponibilidadDia = {
+  fecha: string;
+  horasCapacidad: number;
+  horasCarga: number;
+  /** Disponibilidad no negativa sumada; un turno saturado no se compensa. */
+  horasDisponibles: number;
+  turnosSobrecargados: number;
+};
+
 export type DisponibilidadGrupo = {
   codigo: string;
   nombre: string;
@@ -19,6 +32,8 @@ export type DisponibilidadGrupo = {
   turnosSobrecargados: number;
   /** Recursos activos del grupo sin ningún turno configurado. */
   recursosSinTurno: number;
+  /** Desglose por fecha del horizonte; vacío si no hay capacidad configurada. */
+  dias?: DisponibilidadDia[];
 };
 
 export type ProcesoSinGrupo = { nombre: string; horasRequeridas: number };

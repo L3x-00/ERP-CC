@@ -31,9 +31,12 @@ function horas(valor: number): string {
 export function PanelDisponibilidadPropuesta({
   propuestaId,
   revisionId,
+  onUsarFecha,
 }: {
   propuestaId: string;
   revisionId: string;
+  /** Fija la fecha compromiso con el día elegido en el desglose diario. */
+  onUsarFecha?: (fecha: string) => void;
 }) {
   const [consulta, setConsulta] = useState<Consulta>(INICIAL);
   const [revisionMostrada, setRevisionMostrada] = useState(revisionId);
@@ -123,14 +126,22 @@ export function PanelDisponibilidadPropuesta({
             </div>
           )}
 
-          {vigente.estado === 'listo' && <ResumenDisponibilidad resumen={vigente.resumen} />}
+          {vigente.estado === 'listo' && (
+            <ResumenDisponibilidad resumen={vigente.resumen} onUsarFecha={onUsarFecha} />
+          )}
         </section>
       )}
     </div>
   );
 }
 
-function ResumenDisponibilidad({ resumen }: { resumen: ResumenDisponibilidadPropuesta }) {
+function ResumenDisponibilidad({
+  resumen,
+  onUsarFecha,
+}: {
+  resumen: ResumenDisponibilidadPropuesta;
+  onUsarFecha?: (fecha: string) => void;
+}) {
   const incompleto = resumen.procesosSinGrupo.length > 0 || resumen.itemsSinRuteo.length > 0;
 
   return (
@@ -149,7 +160,7 @@ function ResumenDisponibilidad({ resumen }: { resumen: ResumenDisponibilidadProp
       ) : (
         <ul aria-label="Capacidad por grupo de equipo" className="flex flex-col">
           {resumen.grupos.map((grupo) => (
-            <FilaGrupo key={grupo.codigo} grupo={grupo} />
+            <FilaGrupo key={grupo.codigo} grupo={grupo} onUsarFecha={onUsarFecha} />
           ))}
         </ul>
       )}
@@ -175,13 +186,20 @@ function ResumenDisponibilidad({ resumen }: { resumen: ResumenDisponibilidadProp
         Solo informativo: no reserva capacidad ni confirma ninguna fecha. Se calcula con los turnos y
         excepciones configurados y con la carga ya programada; no incluye trabajo sin programar ni
         descuenta las horas ya transcurridas de los turnos de hoy. No garantiza equipos libres.
-        La fecha compromiso la decides tú.
+        Elige un día con capacidad y pulsa «Usar este día» para fijar la fecha compromiso; al
+        aceptar la revisión, Planeación recibe la orden con esa fecha.
       </p>
     </>
   );
 }
 
-function FilaGrupo({ grupo }: { grupo: DisponibilidadGrupo }) {
+function FilaGrupo({
+  grupo,
+  onUsarFecha,
+}: {
+  grupo: DisponibilidadGrupo;
+  onUsarFecha?: (fecha: string) => void;
+}) {
   const avisos: string[] = [];
   if (grupo.turnosSobrecargados > 0) {
     avisos.push(
@@ -235,6 +253,45 @@ function FilaGrupo({ grupo }: { grupo: DisponibilidadGrupo }) {
           </>
         )}
       </dl>
+      {(grupo.dias?.length ?? 0) > 0 && (
+        <details className="mt-2 lg:col-span-5">
+          <summary className="cursor-pointer text-xs font-medium text-acento">
+            Ver disponibilidad por día ({grupo.dias?.length ?? 0} días)
+          </summary>
+          <ul className="mt-2 grid gap-1" aria-label={`Disponibilidad diaria de ${grupo.nombre}`}>
+            {(grupo.dias ?? []).map((dia) => {
+              const cabe = dia.horasDisponibles >= grupo.horasRequeridas;
+              return (
+                <li
+                  key={dia.fecha}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-superficie-2 px-2 py-1 text-xs"
+                >
+                  <span className="min-w-0">
+                    <span className="font-medium text-texto-primario">
+                      {formatearFechaCalendario(dia.fecha)}
+                    </span>{' '}
+                    · {horas(dia.horasDisponibles)} libres
+                    {dia.turnosSobrecargados > 0 ? ' · turno saturado' : ''}
+                    {!cabe ? ' · no cubre todo el ruteo' : ''}
+                  </span>
+                  {onUsarFecha && (
+                    <Button
+                      type="button"
+                      tamano="sm"
+                      variante={cabe ? 'contorno' : 'fantasma'}
+                      disabled={dia.horasDisponibles <= 0}
+                      onClick={() => onUsarFecha(dia.fecha)}
+                      data-testid={`usar-dia-${grupo.codigo}-${dia.fecha}`}
+                    >
+                      Usar este día
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
     </li>
   );
 }

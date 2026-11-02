@@ -20,6 +20,12 @@ import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consult
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/indice';
 import { ETIQUETAS_COLUMNA } from '@/modulos/produccion/tipos/indice';
+import {
+  AYUDA_HORAS_EXTRA,
+  HORAS_JORNADA_PREDETERMINADA,
+  horasTranscurridasSesion,
+  sesionCercaDeJornada,
+} from '@/modulos/produccion/utilidades/indice';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
@@ -122,10 +128,10 @@ export function DetalleProcesoOperador({
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
-  const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);
-  const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
+  const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);  const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
   const [observacionesPrimeraPieza, setObservacionesPrimeraPieza] = useState('');
   const [procesandoPrimeraPieza, setProcesandoPrimeraPieza] = useState(false);
+  const [ahoraAviso] = useState(() => new Date());
   const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
@@ -150,6 +156,12 @@ export function DetalleProcesoOperador({
     && proceso.programacion?.estadoPlaneacion !== 'bloqueada';
   const abrirHoja = proceso.estadoOrden === 'en_proceso'
     && (proceso.reclamadoPorMi || proceso.sesionActiva !== null);
+  const horasSesion = proceso.sesionActiva
+    ? horasTranscurridasSesion(proceso.sesionActiva.fechaInicio, ahoraAviso)
+    : 0;
+  const avisoJornada = proceso.sesionActiva
+    ? sesionCercaDeJornada(proceso.sesionActiva.fechaInicio, ahoraAviso)
+    : false;
 
   async function reclamar(): Promise<void> {
     const resultado = await acciones.reclamar(proceso!, fecha, turno);
@@ -624,6 +636,20 @@ export function DetalleProcesoOperador({
             {proceso.sesionActiva ? (
               <form className="grid gap-3" onSubmit={cerrar}>
                 <p className="text-sm font-semibold text-texto-primario">Cerrar la sesión en marcha</p>
+                <p className="text-xs text-texto-secundario">
+                  La jornada del turno es de {HORAS_JORNADA_PREDETERMINADA} h. {AYUDA_HORAS_EXTRA}
+                </p>
+                {avisoJornada ? (
+                  <p
+                    role="status"
+                    data-testid="aviso-horas-extra"
+                    className="rounded-md bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto"
+                  >
+                    Llevas {horasSesion.toFixed(1)} h en esta sesión. Si el tiempo neto supera la
+                    jornada, el cierre pedirá autorización de horas extra; solicítala a un
+                    responsable antes de continuar.
+                  </p>
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className={CLASE_ETIQUETA}>
                     Piezas producidas

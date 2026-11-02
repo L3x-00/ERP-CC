@@ -200,6 +200,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
             operadores={vigente.operadoresAreas}
             onGuardado={actualizarArea}
             onOperadoresGuardados={actualizarOperadoresAreas}
+            onIrATarifas={() => cambiarPestana('tarifas')}
           />
         ) : null}
         {pestana === 'cuentas' ? (

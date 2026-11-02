@@ -732,6 +732,6 @@ describe('ruteo: la tarifa dice de dónde sale (tarifario único)', () => {
 
     const aviso = screen.getByTestId('costo-estimado-IT01-2').textContent ?? '';
     expect(aviso).toContain('Sin tarifa configurada');
-    expect(aviso).toContain('Elige el grupo de equipo.');
+    expect(aviso).toContain('Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas / TC.');
   });
 });
