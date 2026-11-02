@@ -21,3 +21,10 @@ export {
   siguienteConsecutivoCorrida,
   verificacionInicioCompleta,
 } from '@/modulos/produccion/utilidades/corridas';
+
+export {
+  AYUDA_HORAS_EXTRA,
+  HORAS_JORNADA_PREDETERMINADA,
+  horasTranscurridasSesion,
+  sesionCercaDeJornada,
+} from '@/modulos/produccion/utilidades/horas-extra';

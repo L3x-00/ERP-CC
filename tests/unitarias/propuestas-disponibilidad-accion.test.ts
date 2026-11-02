@@ -281,6 +281,15 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
           horasDisponibles: 5,
           turnosSobrecargados: 0,
           recursosSinTurno: 0,
+          dias: [
+            {
+              fecha: '2026-10-21',
+              horasCapacidad: 8,
+              horasCarga: 3,
+              horasDisponibles: 5,
+              turnosSobrecargados: 0,
+            },
+          ],
         },
       ],
       procesosSinGrupo: [],

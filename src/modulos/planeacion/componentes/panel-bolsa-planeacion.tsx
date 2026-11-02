@@ -3,6 +3,7 @@
 import { Button } from '@/compartido/componentes/ui/button';
 import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import { resumirProcesos } from '@/modulos/ordenes/utilidades/procesos';
+import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import type {
   BolsaPlaneacion,
   PartidaBolsa,
@@ -31,6 +32,11 @@ function ItemBolsa({ partida }: { partida: PartidaBolsa }) {
         {partida.horas} h · {partida.areaCodigo ?? 'área por definir'}
         {resumenProcesos}
       </span>
+      {partida.fechaCompromiso ? (
+        <span className="text-texto-secundario">
+          Compromiso con el cliente: {formatearFechaCalendario(partida.fechaCompromiso)}
+        </span>
+      ) : null}
     </li>
   );
 }
@@ -119,6 +125,14 @@ export function PanelBolsaPlaneacion({
                   {sugerencia.recursoCodigo} · {sugerencia.fecha} / {sugerencia.turno} ·{' '}
                   {sugerencia.horas} h (quedan {sugerencia.horasDisponibles.toFixed(2)} h)
                 </span>
+                {sugerencia.fechaCompromiso ? (
+                  <span className="text-texto-secundario">
+                    Fecha compromiso: {formatearFechaCalendario(sugerencia.fechaCompromiso)}
+                    {sugerencia.fechaCompromiso === sugerencia.fecha
+                      ? ' · el hueco sugerido respeta esa fecha'
+                      : ' · sin hueco suficiente ese día'}
+                  </span>
+                ) : null}
                 <Button
                   type="button"
                   variante="contorno"

@@ -104,6 +104,15 @@ export function TablaItemsRfq({
     () => new Map((catalogos?.materiales ?? []).map((m) => [m.id, m.nombre])),
     [catalogos],
   );
+  // Un ítem existente puede apuntar a un consumible capturado antes del filtro:
+  // se conserva como opción para no borrar su material al editarlo.
+  const materialesSeleccionables = useMemo(() => {
+    const vendibles = catalogos?.materialesVendibles ?? catalogos?.materiales ?? [];
+    const actual = catalogos?.materiales.find((material) => material.id === borrador?.materialId);
+    return actual && !vendibles.some((material) => material.id === actual.id)
+      ? [...vendibles, actual]
+      : vendibles;
+  }, [catalogos, borrador?.materialId]);
   const nombreEspesor = useMemo(
     () => new Map((catalogos?.espesores ?? []).map((e) => [e.id, e.etiqueta])),
     [catalogos],
@@ -396,7 +405,7 @@ export function TablaItemsRfq({
                   className={faltantesEditando.material ? CLASE_CAMPO_FALTANTE : undefined}
                 >
                   <option value="">Sin material</option>
-                  {(catalogos?.materiales ?? []).map((material) => (
+                  {materialesSeleccionables.map((material) => (
                     <option key={material.id} value={material.id}>
                       {material.nombre}
                     </option>

@@ -100,6 +100,20 @@ describe('Formulario de ítem RFQ — relación Material/Espesor (C1.3)', () => 
     expect(screen.getByRole('option', { name: '3 mm' })).toBeDefined();
   });
 
+  it('solo ofrece materiales vendibles: oculta consumibles aunque sigan en el catálogo', () => {
+    const catalogos: CatalogosRfq = {
+      ...CATALOGOS,
+      materialesVendibles: [{ id: MATERIAL_CON_ESPESOR, codigo: 'ACERO', nombre: 'Acero' }],
+    };
+    render(createElement(TablaItemsRfq, { rfq: RFQ, catalogos, onCambio: vi.fn() }));
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ítem' }));
+
+    const selector = screen.getByRole('combobox', { name: 'Material' });
+    const opciones = Array.from(selector.querySelectorAll('option')).map((opcion) => opcion.textContent);
+    expect(opciones).toContain('Acero');
+    expect(opciones).not.toContain('Servicio sin espesor');
+  });
+
   it('exige detalles solo cuando se selecciona la operación Acabado', () => {
     render(createElement(TablaItemsRfq, { rfq: RFQ, catalogos: CATALOGOS, onCambio: vi.fn() }));
     fireEvent.click(screen.getByRole('button', { name: 'Agregar ítem' }));

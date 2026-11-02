@@ -3,6 +3,7 @@
 import { z } from 'zod';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
+import { esMaterialVendible } from '@/modulos/catalogos/utilidades/indice';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
@@ -10,6 +11,12 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 /** Catálogos y actores que consume la ficha RFQ (ítems y seguimiento). */
 export type CatalogosRfq = {
   materiales: { id: string; codigo: string; nombre: string }[];
+  /**
+   * Materiales seleccionables en un ítem vendible: excluye consumibles
+   * (`metadata.categoria = 'insumo'`, p. ej. discos de corte o alambre).
+   * `materiales` se mantiene completo para resolver nombres históricos.
+   */
+  materialesVendibles?: { id: string; codigo: string; nombre: string }[];
   espesores: { id: string; materialId: string; etiqueta: string; espesorMm: number }[];
   procesos: {
     id: string;
@@ -41,7 +48,7 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
   const [materiales, espesores, procesos, canales, proximasAcciones, usuarios] = await Promise.all([
     admin
       .from('catalogo_materiales')
-      .select('id, codigo, nombre')
+      .select('id, codigo, nombre, metadata')
       .eq('activo', true)
       .order('orden'),
     admin
@@ -90,6 +97,13 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
         codigo: fila.codigo,
         nombre: fila.nombre,
       })),
+      materialesVendibles: (materiales.data ?? [])
+        .filter((fila) => esMaterialVendible(fila.metadata))
+        .map((fila) => ({
+          id: fila.id,
+          codigo: fila.codigo,
+          nombre: fila.nombre,
+        })),
       espesores: (espesores.data ?? []).map((fila) => ({
         id: fila.id,
         materialId: fila.material_id,
