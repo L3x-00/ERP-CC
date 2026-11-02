@@ -11,6 +11,10 @@ import {
 } from '@/modulos/planeacion/servicios/indice';
 import { InsigniaSaturacion } from '@/modulos/planeacion/componentes/insignia-saturacion';
 import {
+  DialogoErrorPlaneacion,
+  type ErrorProgramacion,
+} from '@/modulos/planeacion/componentes/dialogo-error-planeacion';
+import {
   TURNOS_PLANEACION,
   type CargaCapacidadDiaria,
   type DesglosePartidaPlaneacion,
@@ -76,6 +80,13 @@ export type ResultadoAsignacionPlaneacion = RespuestaAccion<unknown>;
 /** Resultado de la búsqueda del primer día hábil con hueco (OBS-19). */
 export type ResultadoProponerHueco = RespuestaAccion<HuecoDisponible | null>;
 
+/** Compromiso comercial que abre el panel ya apuntando a su partida y fecha. */
+export type PreseleccionProgramacion = {
+  partidaId: string;
+  fecha: string;
+  horas: number;
+};
+
 export interface EntradaProponerHueco {
   recursoId: string;
   turno: TurnoPlaneacion;
@@ -105,6 +116,10 @@ export interface PropsPanelAsignacionPlaneacion {
   onProponerHueco?: (entrada: EntradaProponerHueco) => Promise<ResultadoProponerHueco>;
   /** C9.2/P09: notifica la fecha capturada para consultar capacidad fuera del rango. */
   onCambiarFecha?: (fecha: string) => void;
+  /** Recarga calendario, partidas y capacidad después de un conflicto o duplicado. */
+  onActualizarDatos?: () => void;
+  /** Compromiso del calendario: preselecciona partida, fecha y horas. */
+  preseleccion?: PreseleccionProgramacion | null;
 }
 
 const MENSAJE_ERROR_GENERICO = 'No se pudo guardar la programación';
@@ -135,6 +150,8 @@ export function PanelAsignacionPlaneacion({
   onCancelar,
   onProponerHueco,
   onCambiarFecha,
+  onActualizarDatos,
+  preseleccion,
 }: PropsPanelAsignacionPlaneacion) {
   const recursosActivos = recursos.filter((recurso) => recurso.activo);
   const [partidaId, setPartidaId] = useState('');
@@ -151,6 +168,7 @@ export function PanelAsignacionPlaneacion({
   const [operacionId, setOperacionId] = useState('');
   const [motivo, setMotivo] = useState('');
   const [errorFormulario, setErrorFormulario] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<ErrorProgramacion | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [preparando, setPreparando] = useState(false);
   const [hueco, setHueco] = useState<{ clave: string; datos: HuecoDisponible } | null>(null);
@@ -222,6 +240,38 @@ export function PanelAsignacionPlaneacion({
     setMotivo('');
     setErrorFormulario(null);
     setHueco(null);
+  }
+
+  // La propuesta aceptada preselecciona la partida y su fecha compromiso sin
+  // reservar capacidad: solo llena el formulario para que Planeación confirme.
+  const clavePreseleccion = preseleccion
+    ? `${preseleccion.partidaId}|${preseleccion.fecha}|${preseleccion.horas}`
+    : '';
+  const [clavePreseleccionAplicada, setClavePreseleccionAplicada] = useState(clavePreseleccion);
+  if (clavePreseleccion !== clavePreseleccionAplicada) {
+    setClavePreseleccionAplicada(clavePreseleccion);
+    if (preseleccion) {
+      const partidaElegida = partidasProgramables.find(
+        (partida) => partida.partidaId === preseleccion.partidaId,
+      );
+      if (partidaElegida) {
+        const operacionInicialId = operacionInicial(partidaElegida);
+        const operacion = partidaElegida.operaciones.find(
+          (actual) => actual.metaProcesoId === operacionInicialId,
+        );
+        setPartidaId(partidaElegida.partidaId);
+        setOperacionId(operacionInicialId);
+        setSecuencia(String(partidaElegida.secuenciaSugerida));
+        setRecursoId(recursoSugeridoParaOperacion(operacion));
+        setFechaProgramada(preseleccion.fecha);
+        setHorasEstimadas(
+          preseleccion.horas > 0 && preseleccion.horas <= 24 ? String(preseleccion.horas) : '',
+        );
+        onCambiarFecha?.(preseleccion.fecha);
+        setErrorFormulario(null);
+        setErrorModal(null);
+      }
+    }
   }
 
   // La propuesta solo es válida para los insumos con los que se calculó: si el
@@ -365,6 +415,32 @@ export function PanelAsignacionPlaneacion({
     setErrorFormulario(null);
   }
 
+  function elegirRecursoDesdeError(recursoIdElegido: string): void {
+    setRecursoId(recursoIdElegido);
+    setErrorFormulario(null);
+    setErrorModal(null);
+  }
+
+  function elegirOtraOperacion(): void {
+    const pendiente = operacionesDePartida.find(
+      (operacion) => !operacion.programada && operacion.metaProcesoId !== operacionId,
+    ) ?? operacionesDePartida.find((operacion) => !operacion.programada);
+    if (!pendiente) {
+      setErrorModal(null);
+      setErrorFormulario('Esta partida no tiene otra operación pendiente por programar.');
+      return;
+    }
+    setOperacionId(pendiente.metaProcesoId);
+    aplicarSugerenciasOperacion(pendiente);
+    setErrorModal(null);
+    setErrorFormulario(null);
+  }
+
+  async function buscarHuecoDesdeError(): Promise<void> {
+    await buscarHueco();
+    setErrorModal(null);
+  }
+
   async function alEnviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (enviando || preparando) return;
@@ -378,10 +454,10 @@ export function PanelAsignacionPlaneacion({
       return;
     }
     if (estadoCompatibilidadSeleccionada === 'incompatible') {
-      setErrorFormulario(
-        mensajeRecursoIncompatible
-          ?? 'La máquina no pertenece al grupo de equipo que pide esta operación. Elige otra máquina o corrige el ruteo.',
-      );
+      const mensaje = mensajeRecursoIncompatible
+        ?? 'La máquina no pertenece al grupo de equipo que pide esta operación. Elige otra máquina o corrige el ruteo.';
+      setErrorFormulario(mensaje);
+      setErrorModal({ mensaje, codigo: 'recurso_incompatible' });
       return;
     }
     if (!Number.isFinite(horas) || horas <= 0 || horas > 24) {
@@ -449,10 +525,14 @@ export function PanelAsignacionPlaneacion({
       }
 
       const resultado = await onEnviar(datos);
-      if (!resultado.exito) setErrorFormulario(resultado.error || MENSAJE_ERROR_GENERICO);
-      else setHueco(null);
+      if (!resultado.exito) {
+        const mensaje = resultado.error || MENSAJE_ERROR_GENERICO;
+        setErrorFormulario(mensaje);
+        setErrorModal({ mensaje, codigo: resultado.codigo ?? null });
+      } else setHueco(null);
     } catch {
       setErrorFormulario(MENSAJE_ERROR_GENERICO);
+      setErrorModal({ mensaje: MENSAJE_ERROR_GENERICO, codigo: null });
     } finally {
       setEnviando(false);
     }
@@ -464,9 +544,14 @@ export function PanelAsignacionPlaneacion({
     setPreparando(true);
     try {
       const resultado = await onActivarPreparacion();
-      if (!resultado.exito) setErrorFormulario(resultado.error || MENSAJE_ERROR_GENERICO);
+      if (!resultado.exito) {
+        const mensaje = resultado.error || MENSAJE_ERROR_GENERICO;
+        setErrorFormulario(mensaje);
+        setErrorModal({ mensaje, codigo: resultado.codigo ?? null });
+      }
     } catch {
       setErrorFormulario('No se pudo activar la preparación');
+      setErrorModal({ mensaje: 'No se pudo activar la preparación', codigo: null });
     } finally {
       setPreparando(false);
     }
@@ -654,13 +739,27 @@ export function PanelAsignacionPlaneacion({
             </p>
           ) : null}
           {mensajeRecursoIncompatible ? (
-            <p
-              role="status"
-              className="text-xs text-peligro-texto"
-              data-testid="aviso-compatibilidad-planeacion"
-            >
-              {mensajeRecursoIncompatible}
-            </p>
+            <div className="flex flex-col items-start gap-1">
+              <p
+                role="status"
+                className="text-xs text-peligro-texto"
+                data-testid="aviso-compatibilidad-planeacion"
+              >
+                {mensajeRecursoIncompatible}
+              </p>
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                onClick={() => setErrorModal({
+                  mensaje: mensajeRecursoIncompatible,
+                  codigo: 'recurso_incompatible',
+                })}
+                data-testid="ver-solucion-compatibilidad"
+              >
+                Ver cómo resolverlo
+              </Button>
+            </div>
           ) : null}
         </div>
 
@@ -855,6 +954,28 @@ export function PanelAsignacionPlaneacion({
           </Button>
         ) : null}
       </div>
+
+      <DialogoErrorPlaneacion
+        error={errorModal}
+        onCerrar={() => setErrorModal(null)}
+        onActualizarDatos={onActualizarDatos
+          ? () => {
+              onActualizarDatos();
+              setErrorModal(null);
+            }
+          : undefined}
+        onBuscarHueco={onProponerHueco ? () => void buscarHuecoDesdeError() : undefined}
+        buscandoHueco={buscandoHueco}
+        recursosCompatibles={recursosPorCompatibilidad
+          .filter(({ estado }) => estado === 'compatible')
+          .map(({ recurso }) => ({
+            id: recurso.id,
+            codigo: recurso.codigo,
+            nombre: recurso.nombre,
+          }))}
+        onElegirRecurso={elegirRecursoDesdeError}
+        {...(usaOperaciones ? { onElegirOtraOperacion: elegirOtraOperacion } : {})}
+      />
     </form>
   );
 }

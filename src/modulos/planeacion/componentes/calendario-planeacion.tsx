@@ -11,6 +11,7 @@ import {
   ESTADOS_PLANEACION,
   TURNOS_PLANEACION,
   type AreaPlaneacion,
+  type CompromisoPlaneacion,
   type DesglosePartidaPlaneacion,
   type EstadoPlaneacion,
   type ProgramacionArea,
@@ -56,6 +57,8 @@ export interface PropsCalendarioPlaneacion {
   /** Desglose de las partidas visibles (OBS-08); si falta, se declara "Por definir". */
   desglosePartidas?: readonly DesglosePartidaPlaneacion[];
   onSeleccionarProgramacion?: (programacion: ProgramacionArea | null) => void;
+  /** Abre el panel de programación con la propuesta aceptada preseleccionada. */
+  onProgramarCompromiso?: (compromiso: CompromisoPlaneacion) => void;
   /** Solicita confirmar una reprogramación por arrastre; nunca muta por sí sola. */
   onSolicitarReprogramacion?: (programacion: ProgramacionArea, fechaDestino: string) => void;
   /** Abre el panel contextual de programación; el calendario no se reacomoda. */
@@ -102,6 +105,7 @@ export function CalendarioPlaneacion({
   errorActualizacion,
   desglosePartidas = [],
   onSeleccionarProgramacion,
+  onProgramarCompromiso,
   onSolicitarReprogramacion,
   onRefrescarOperacion,
   onProgramar,
@@ -172,6 +176,29 @@ export function CalendarioPlaneacion({
       ),
     [area, datos.programaciones, recursoId, recursosPorId, turnos],
   );
+  // Un compromiso no tiene recurso, turno ni estado de programación: se oculta
+  // cuando el usuario aplica filtros que no puede cumplir, para no confundirlo
+  // con una programación real.
+  const compromisosVisibles = useMemo(
+    () => (
+      recursoId !== null || area !== null || turnos.length > 0 || estados.length > 0
+        ? []
+        : (datos.compromisos ?? []).filter(
+            (compromiso) =>
+              compromiso.fechaCompromiso >= rangoEfectivo.fechaInicio
+              && compromiso.fechaCompromiso <= rangoEfectivo.fechaFin,
+          )
+    ),
+    [
+      area,
+      datos.compromisos,
+      estados.length,
+      rangoEfectivo.fechaFin,
+      rangoEfectivo.fechaInicio,
+      recursoId,
+      turnos.length,
+    ],
+  );
 
   useEffect(() => {
     if (programacionSeleccionadaId === null) return;
@@ -238,11 +265,13 @@ export function CalendarioPlaneacion({
     fechaInicio: rangoEfectivo.fechaInicio,
     fechaFin: rangoEfectivo.fechaFin,
     programaciones: visibles,
+    compromisos: compromisosVisibles,
     recursosPorId,
     desglosePorPartidaId,
     cargasPorClave,
     programacionSeleccionadaId,
     onSeleccionarProgramacion: alSeleccionar,
+    onProgramarCompromiso,
     onSolicitarReprogramacion,
     onAbrirDia: abrirDia,
     onRefrescarOperacion,
@@ -260,7 +289,7 @@ export function CalendarioPlaneacion({
               ? 'No se pudo actualizar el calendario'
               : actualizando
                 ? 'Actualizando…'
-                : `${visibles.length} programaciones · ${rangoEfectivo.fechaInicio} a ${rangoEfectivo.fechaFin}`}
+                : `${visibles.length} programaciones${compromisosVisibles.length > 0 ? ` · ${compromisosVisibles.length} por programar` : ''} · ${rangoEfectivo.fechaInicio} a ${rangoEfectivo.fechaFin}`}
           </p>
         </div>
         {onProgramar ? (

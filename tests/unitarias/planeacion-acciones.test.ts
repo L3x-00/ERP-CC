@@ -57,6 +57,7 @@ vi.mock('@/modulos/planeacion/servicios/indice', async (importarOriginal) => {
   return {
     ...original,
     ErrorPlaneacion: ErrorPlaneacionMock,
+    codigoErrorPlaneacion: (error: Error & { codigo?: string }) => error.codigo ?? 'desconocido',
     mensajeErrorPlaneacion: (error: Error) => (
       error.message === 'programacion_conflicto'
         ? 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo'
@@ -201,7 +202,7 @@ beforeEach(() => {
   programarMock.mockResolvedValue(PROGRAMACION);
   reprogramarMock.mockResolvedValue(PROGRAMACION);
   activarPreparacionMock.mockResolvedValue({ ...PROGRAMACION, estadoPlaneacion: 'en_preparacion' });
-  obtenerCalendarioMock.mockResolvedValue({ recursos: [], cargas: [], programaciones: [] });
+  obtenerCalendarioMock.mockResolvedValue({ recursos: [], cargas: [], programaciones: [], compromisos: [] });
   obtenerDetalleMock.mockResolvedValue({
     responsableNombre: 'Planeador ORCA',
     recursoNombre: 'LAS-01 · Láser',
@@ -276,6 +277,7 @@ describe('acciones seguras de Planeación', () => {
     expect(respuesta).toEqual({
       exito: false,
       error: 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo',
+      codigo: 'programacion_conflicto',
     });
     expect(reprogramarMock).toHaveBeenCalledWith(
       expect.anything(),
@@ -312,7 +314,7 @@ describe('acciones seguras de Planeación', () => {
       fechaFin: '2026-09-21',
     });
 
-    expect(respuesta).toEqual({ exito: true, datos: { recursos: [], cargas: [], programaciones: [] } });
+    expect(respuesta).toEqual({ exito: true, datos: { recursos: [], cargas: [], programaciones: [], compromisos: [] } });
     expect(obtenerCalendarioMock).toHaveBeenCalledTimes(1);
     expect(registrarLogMock).not.toHaveBeenCalled();
   });

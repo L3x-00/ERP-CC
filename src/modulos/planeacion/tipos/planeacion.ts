@@ -84,6 +84,23 @@ export interface ProgramacionArea {
 }
 
 /**
+ * Compromiso comercial ya aceptado que todavía no tiene filas de programación.
+ * Se pinta en el calendario sobre la fecha prometida para que Planeación lo vea
+ * sin fingir una reserva de capacidad (no tiene recurso ni turno).
+ */
+export interface CompromisoPlaneacion {
+  partidaId: string;
+  ordenId: string;
+  folio: string;
+  codigoPieza: string;
+  fechaCompromiso: string;
+  areaCodigo: string | null;
+  procesos: string[];
+  horas: number;
+  estimadoMinutos: number;
+}
+
+/**
  * C9.0/P-01 B: operación del ruteo de una partida con su estado de programación.
  * La UI la usa para elegir «Secuencia · Operación» en lugar de teclear un número.
  */

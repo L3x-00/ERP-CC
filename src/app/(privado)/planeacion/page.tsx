@@ -52,7 +52,26 @@ export default async function PaginaPlaneacion() {
     throw new Error('No se pudo determinar el rango inicial de Planeación');
   }
 
-  const fechaReferencia = proximaProgramacion?.fecha_programada ?? hoy;
+  // Una propuesta aceptada todavía no tiene programación: si su fecha compromiso
+  // es anterior a la próxima programación, el calendario abre en esa semana para
+  // que el compromiso sea visible sin navegar a ciegas.
+  const { data: proximoCompromiso, error: errorProximoCompromiso } = await cliente
+    .from('ordenes_produccion')
+    .select('fecha_compromiso_comercial')
+    .eq('estado_sii', 'CONFIRMADA')
+    .gte('fecha_compromiso_comercial', hoy)
+    .order('fecha_compromiso_comercial', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (errorProximoCompromiso) {
+    throw new Error('No se pudo determinar el rango inicial de Planeación');
+  }
+
+  const fechasReferencia = [
+    proximaProgramacion?.fecha_programada,
+    proximoCompromiso?.fecha_compromiso_comercial,
+  ].filter((fecha): fecha is string => Boolean(fecha));
+  const fechaReferencia = fechasReferencia.sort()[0] ?? hoy;
   const fechaInicio = inicioSemana(fechaReferencia);
   const fechaFin = sumarDias(fechaInicio, 6);
   const [datosIniciales, bolsa] = await Promise.all([

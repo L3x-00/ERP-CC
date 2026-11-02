@@ -1,8 +1,10 @@
 export {
   ErrorPlaneacion,
   activarModoPreparacionServicio,
+  codigoErrorPlaneacion,
   mensajeErrorPlaneacion,
   obtenerDatosCalendarioPlaneacionServicio,
+  obtenerCompromisosCalendarioServicio,
   obtenerCargaCapacidadDiariaServicio,
   obtenerProgramacionesCalendarioServicio,
   programarPartidaRecursoServicio,

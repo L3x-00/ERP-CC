@@ -3,6 +3,7 @@
 import type { DragEvent } from 'react';
 import type {
   CargaCapacidadDiaria,
+  CompromisoPlaneacion,
   DesglosePartidaPlaneacion,
   ProgramacionArea,
   RecursoPlaneacion,
@@ -15,6 +16,7 @@ import {
   TarjetaProgramacionPlaneacion,
   TIPO_ARRASTRE_PROGRAMACION,
 } from '@/modulos/planeacion/componentes/tarjeta-programacion-planeacion';
+import { TarjetaCompromisoPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-compromiso-planeacion';
 
 /** Contrato común de las tres vistas del calendario de Planeación. */
 export interface PropsVistaCalendario {
@@ -22,11 +24,14 @@ export interface PropsVistaCalendario {
   fechaInicio: string;
   fechaFin: string;
   programaciones: readonly ProgramacionArea[];
+  /** Propuestas aceptadas sin programación, ubicadas en su fecha compromiso. */
+  compromisos?: readonly CompromisoPlaneacion[];
   recursosPorId: ReadonlyMap<string, RecursoPlaneacion>;
   desglosePorPartidaId: ReadonlyMap<string, DesglosePartidaPlaneacion>;
   cargasPorClave: ReadonlyMap<string, CargaCapacidadDiaria>;
   programacionSeleccionadaId: string | null;
   onSeleccionarProgramacion: (programacion: ProgramacionArea) => void;
+  onProgramarCompromiso?: (compromiso: CompromisoPlaneacion) => void;
   onSolicitarReprogramacion?: (programacion: ProgramacionArea, fechaDestino: string) => void;
   onAbrirDia?: (fecha: string) => void;
   onRefrescarOperacion?: () => void;
@@ -60,6 +65,18 @@ function agruparPorFecha(
     const lista = porFecha.get(programacion.fechaProgramada) ?? [];
     lista.push(programacion);
     porFecha.set(programacion.fechaProgramada, lista);
+  }
+  return porFecha;
+}
+
+function agruparCompromisosPorFecha(
+  compromisos: readonly CompromisoPlaneacion[],
+): Map<string, CompromisoPlaneacion[]> {
+  const porFecha = new Map<string, CompromisoPlaneacion[]>();
+  for (const compromiso of compromisos) {
+    const lista = porFecha.get(compromiso.fechaCompromiso) ?? [];
+    lista.push(compromiso);
+    porFecha.set(compromiso.fechaCompromiso, lista);
   }
   return porFecha;
 }
@@ -108,6 +125,9 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
   const programaciones = props.programaciones.filter(
     (programacion) => programacion.fechaProgramada === fecha,
   );
+  const compromisos = (props.compromisos ?? []).filter(
+    (compromiso) => compromiso.fechaCompromiso === fecha,
+  );
   // Sin otro día visible no hay destino de soltado: el arrastre se desactiva y
   // la reprogramación se hace desde el panel de asignación.
   const propsDia: PropsVistaCalendario = { ...props, onSolicitarReprogramacion: undefined };
@@ -122,12 +142,20 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
         <h3 className="text-sm font-medium">{etiquetaDia(fecha)}</h3>
         <span className="text-xs text-texto-secundario">
           {programaciones.length} programaciones
+          {compromisos.length > 0 ? ` · ${compromisos.length} por programar` : ''}
         </span>
       </header>
-      {programaciones.length === 0 ? (
+      {programaciones.length === 0 && compromisos.length === 0 ? (
         <p className="text-sm text-texto-secundario">Sin programaciones para este día.</p>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
+          {compromisos.map((compromiso) => (
+            <TarjetaCompromisoPlaneacion
+              key={compromiso.partidaId}
+              compromiso={compromiso}
+              onProgramar={props.onProgramarCompromiso}
+            />
+          ))}
           {programaciones.map((programacion) => (
             <TarjetaConContexto
               key={programacion.id}
@@ -145,12 +173,14 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
 /** Vista semanal: una columna por día, con zona de soltado para arrastrar. */
 export function VistaSemana(props: PropsVistaCalendario) {
   const porFecha = agruparPorFecha(props.programaciones);
+  const compromisosPorFecha = agruparCompromisosPorFecha(props.compromisos ?? []);
 
   return (
     <div className="overflow-x-auto pb-1 xl:overflow-visible">
       <div data-testid="vista-semana" className="grid min-w-[60rem] grid-cols-7 gap-2">
       {props.fechas.map((fecha) => {
         const programaciones = porFecha.get(fecha) ?? [];
+        const compromisos = compromisosPorFecha.get(fecha) ?? [];
         return (
           <section
             key={fecha}
@@ -169,7 +199,15 @@ export function VistaSemana(props: PropsVistaCalendario) {
               <span className="text-xs font-medium">{etiquetaDia(fecha)}</span>
               <span className="font-mono text-[11px] text-texto-secundario">{fecha}</span>
             </header>
-            {programaciones.length === 0 ? (
+            {compromisos.map((compromiso) => (
+              <TarjetaCompromisoPlaneacion
+                key={compromiso.partidaId}
+                compromiso={compromiso}
+                compacta
+                onProgramar={props.onProgramarCompromiso}
+              />
+            ))}
+            {programaciones.length === 0 && compromisos.length === 0 ? (
               <p className="text-[11px] text-texto-secundario">Sin programaciones</p>
             ) : (
               programaciones.map((programacion) => (
@@ -192,6 +230,7 @@ export function VistaSemana(props: PropsVistaCalendario) {
 /** Vista mensual: rejilla de semanas con las programaciones del rango. */
 export function VistaMes(props: PropsVistaCalendario) {
   const porFecha = agruparPorFecha(props.programaciones);
+  const compromisosPorFecha = agruparCompromisosPorFecha(props.compromisos ?? []);
   const celdas = construirCeldasMes(props.fechaInicio, props.fechaFin);
 
   return (
@@ -201,6 +240,7 @@ export function VistaMes(props: PropsVistaCalendario) {
     >
       {celdas.map(({ fecha, enRango }) => {
         const programaciones = enRango ? (porFecha.get(fecha) ?? []) : [];
+        const compromisos = enRango ? (compromisosPorFecha.get(fecha) ?? []) : [];
         return (
           <section
             key={fecha}
@@ -243,6 +283,21 @@ export function VistaMes(props: PropsVistaCalendario) {
                     programacion={programacion}
                     props={props}
                     compacta
+                  />
+                ))}
+              </>
+            ) : null}
+            {compromisos.length > 0 ? (
+              <>
+                <span className="text-[11px] font-medium text-acento">
+                  {compromisos.length} por programar
+                </span>
+                {compromisos.map((compromiso) => (
+                  <TarjetaCompromisoPlaneacion
+                    key={compromiso.partidaId}
+                    compromiso={compromiso}
+                    compacta
+                    onProgramar={props.onProgramarCompromiso}
                   />
                 ))}
               </>

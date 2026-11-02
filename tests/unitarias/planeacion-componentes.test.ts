@@ -128,6 +128,7 @@ const DATOS: DatosCalendarioPlaneacion = {
       metaProcesoId: null,
     },
   ],
+  compromisos: [],
 };
 
 const DESGLOSE: DesglosePartidaPlaneacion = {
@@ -1033,6 +1034,109 @@ describe('operación de Planeación en cliente', () => {
     expect(screen.getByTestId('bolsa-pausadas').textContent).toContain(
       'Corte (2 operaciones) · Doblez',
     );
+  });
+
+  it('pinta la propuesta aceptada en el calendario y abre el panel preseleccionado', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const partida = PARTIDAS_POR_DEFECTO[0];
+    renderizarOperacion(cliente, undefined, {
+      datosIniciales: {
+        ...DATOS,
+        compromisos: [{
+          partidaId: partida.partidaId,
+          ordenId: partida.ordenId,
+          folio: 'OP-000001',
+          codigoPieza: 'PIEZA-E2E',
+          fechaCompromiso: '2026-09-18',
+          areaCodigo: 'taller',
+          procesos: ['Corte'],
+          horas: 2,
+          estimadoMinutos: 120,
+        }],
+      },
+    });
+
+    expect(screen.getByText('Propuesta aceptada · por programar')).toBeTruthy();
+    fireEvent.click(screen.getByTestId(`programar-compromiso-${partida.partidaId}`));
+
+    expect((screen.getByLabelText('Partida') as HTMLSelectElement).value).toBe(partida.partidaId);
+    expect((screen.getByLabelText('Fecha programada') as HTMLInputElement).value).toBe('2026-09-18');
+    expect((screen.getByLabelText('Horas estimadas') as HTMLInputElement).value).toBe('2');
+  });
+
+  it('un rechazo del servidor abre un modal con pasos de solución', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+    programarMock.mockResolvedValue({
+      exito: false,
+      error: 'La partida ya tiene una programación equivalente',
+      codigo: 'programacion_duplicada',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Programar operación' }));
+    const panel = screen.getByTestId('panel-programar-partida');
+    fireEvent.change(within(panel).getByLabelText('Partida'), {
+      target: { value: PARTIDAS_POR_DEFECTO[0].partidaId },
+    });
+    fireEvent.change(within(panel).getByLabelText('Recurso'), {
+      target: { value: DATOS.recursos[0].id },
+    });
+    fireEvent.change(within(panel).getByLabelText('Fecha programada'), {
+      target: { value: '2026-09-16' },
+    });
+    fireEvent.change(within(panel).getByLabelText('Horas estimadas'), { target: { value: '2' } });
+    fireEvent.click(screen.getByTestId('guardar-asignacion-planeacion'));
+
+    const modal = await screen.findByTestId('dialogo-error-planeacion');
+    expect(modal.textContent).toContain('Esta operación ya está programada');
+    expect(modal.textContent).toContain('Elige otra operación pendiente');
+    expect(screen.getByTestId('error-actualizar-datos')).toBeTruthy();
+  });
+
+  it('el aviso de máquina incompatible ofrece el flujo para elegir una correcta', () => {
+    const recursoCompatible = { ...DATOS.recursos[0] };
+    const recursoOtroGrupo = {
+      ...DATOS.recursos[0],
+      id: '99999999-9999-4999-8999-999999999999',
+      codigo: 'DBL-01',
+      nombre: 'Dobladora',
+    };
+    const partida = PARTIDAS_POR_DEFECTO[0];
+    const compatibilidad: CompatibilidadRecursosPlaneacion = {
+      grupoPorRecurso: {
+        [recursoCompatible.id]: { id: 'grupo-laser', nombre: 'Láser' },
+        [recursoOtroGrupo.id]: { id: 'grupo-doblez', nombre: 'Doblez' },
+      },
+      gruposRequeridosPorPartida: { [partida.partidaId]: ['grupo-laser'] },
+      gruposRequeridosPorOperacion: {},
+      nombrePorGrupo: { 'grupo-laser': 'Láser', 'grupo-doblez': 'Doblez' },
+    };
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: [recursoOtroGrupo, recursoCompatible],
+        partidasProgramables: [partida],
+        compatibilidad,
+        onEnviar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: partida.partidaId },
+    });
+    fireEvent.change(screen.getByLabelText('Recurso'), {
+      target: { value: recursoOtroGrupo.id },
+    });
+    fireEvent.click(screen.getByTestId('ver-solucion-compatibilidad'));
+
+    const modal = screen.getByTestId('dialogo-error-planeacion');
+    expect(modal.textContent).toContain('Esa máquina no puede hacer esta operación');
+    const usar = screen.getByTestId(`error-usar-recurso-${recursoCompatible.id}`);
+    fireEvent.click(usar);
+
+    expect((screen.getByLabelText('Recurso') as HTMLSelectElement).value).toBe(
+      recursoCompatible.id,
+    );
+    expect(screen.queryByTestId('dialogo-error-planeacion')).toBeNull();
   });
 
   it('no vuelve a ofrecer reactivación desde la tarjeta de Planeación (C9.4/P-19)', () => {

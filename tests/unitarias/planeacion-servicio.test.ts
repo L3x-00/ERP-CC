@@ -4,10 +4,44 @@ import type { Database } from '@/compartido/tipos/supabase';
 import {
   ErrorPlaneacion,
   activarModoPreparacionServicio,
+  codigoErrorPlaneacion,
   mensajeErrorPlaneacion,
+  obtenerCompromisosCalendarioServicio,
   programarPartidaRecursoServicio,
   reprogramarPartidaRecursoServicio,
 } from '@/modulos/planeacion/servicios/planeacion-servicio';
+
+type ConsultaFalsa = PromiseLike<{ data: unknown[]; error: null }> & {
+  select: (...args: unknown[]) => ConsultaFalsa;
+  eq: (...args: unknown[]) => ConsultaFalsa;
+  neq: (...args: unknown[]) => ConsultaFalsa;
+  gte: (...args: unknown[]) => ConsultaFalsa;
+  lte: (...args: unknown[]) => ConsultaFalsa;
+  in: (...args: unknown[]) => ConsultaFalsa;
+  order: (...args: unknown[]) => ConsultaFalsa;
+  limit: (...args: unknown[]) => ConsultaFalsa;
+  maybeSingle: () => ConsultaFalsa;
+};
+
+function clienteConTablas(tablas: Readonly<Record<string, unknown[]>>): SupabaseClient<Database> {
+  function consulta(tabla: string): ConsultaFalsa {
+    const respuesta = Promise.resolve({ data: tablas[tabla] ?? [], error: null as null });
+    const encadenable: ConsultaFalsa = {
+      select: () => encadenable,
+      eq: () => encadenable,
+      neq: () => encadenable,
+      gte: () => encadenable,
+      lte: () => encadenable,
+      in: () => encadenable,
+      order: () => encadenable,
+      limit: () => encadenable,
+      maybeSingle: () => encadenable,
+      then: respuesta.then.bind(respuesta),
+    };
+    return encadenable;
+  }
+  return { from: (tabla: string) => consulta(tabla) } as unknown as SupabaseClient<Database>;
+}
 
 const clienteConRpc = (rpc: ReturnType<typeof vi.fn>): SupabaseClient<Database> =>
   ({ rpc } as unknown as SupabaseClient<Database>);
@@ -201,5 +235,77 @@ describe('servicios transaccionales de Planeación', () => {
     expect(mensajeErrorPlaneacion(new Error('detalle interno'), 'preparar')).toBe(
       'No se pudo actualizar la programación',
     );
+  });
+
+  it('conserva el código estable para que la UI ofrezca el flujo de solución', () => {
+    expect(codigoErrorPlaneacion(new ErrorPlaneacion('recurso_incompatible'))).toBe(
+      'recurso_incompatible',
+    );
+    expect(codigoErrorPlaneacion(new ErrorPlaneacion('programacion_duplicada'))).toBe(
+      'programacion_duplicada',
+    );
+    expect(codigoErrorPlaneacion(new Error('detalle interno'))).toBe('desconocido');
+  });
+
+  it('proyecta las propuestas aceptadas sin programación en su fecha compromiso', async () => {
+    const cliente = clienteConTablas({
+      ordenes_produccion: [{
+        id: ORDEN_ID,
+        folio: 'OP-000042',
+        fecha_compromiso_comercial: '2026-11-28',
+      }],
+      partidas_orden_produccion: [{
+        id: PARTIDA_ID,
+        orden_id: ORDEN_ID,
+        codigo_pieza: 'PZA-1',
+        area_trabajo_codigo: 'LASER_01',
+        procesos: ['Corte láser'],
+        tiempo_estimado_minutos: 90,
+      }],
+      programacion_areas: [],
+    });
+
+    const compromisos = await obtenerCompromisosCalendarioServicio(cliente, {
+      fechaInicio: '2026-11-23',
+      fechaFin: '2026-11-29',
+    });
+
+    expect(compromisos).toEqual([{
+      partidaId: PARTIDA_ID,
+      ordenId: ORDEN_ID,
+      folio: 'OP-000042',
+      codigoPieza: 'PZA-1',
+      fechaCompromiso: '2026-11-28',
+      areaCodigo: 'LASER_01',
+      procesos: ['Corte láser'],
+      horas: 1.5,
+      estimadoMinutos: 90,
+    }]);
+  });
+
+  it('no duplica en el calendario una propuesta que ya tiene programación', async () => {
+    const cliente = clienteConTablas({
+      ordenes_produccion: [{
+        id: ORDEN_ID,
+        folio: 'OP-000042',
+        fecha_compromiso_comercial: '2026-11-28',
+      }],
+      partidas_orden_produccion: [{
+        id: PARTIDA_ID,
+        orden_id: ORDEN_ID,
+        codigo_pieza: 'PZA-1',
+        area_trabajo_codigo: 'LASER_01',
+        procesos: ['Corte láser'],
+        tiempo_estimado_minutos: 90,
+      }],
+      programacion_areas: [{ partida_id: PARTIDA_ID, estado_planeacion: 'programada' }],
+    });
+
+    const compromisos = await obtenerCompromisosCalendarioServicio(cliente, {
+      fechaInicio: '2026-11-23',
+      fechaFin: '2026-11-29',
+    });
+
+    expect(compromisos).toEqual([]);
   });
 });

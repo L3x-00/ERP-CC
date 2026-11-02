@@ -253,6 +253,9 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
 
     expect(campoFecha().value).toBe('2026-11-28');
     expect(aceptarMock).not.toHaveBeenCalled();
+    const diaElegido = within(region).getByTestId('dia-disponibilidad-ROUTER-2026-11-28');
+    expect(diaElegido.getAttribute('data-estado')).toBe('elegido');
+    expect(diaElegido.className).toContain('bg-exito-suave');
     expect(
       (within(region).getByTestId('usar-dia-ROUTER-2026-11-29') as HTMLButtonElement).disabled,
     ).toBe(true);

@@ -298,6 +298,7 @@ export function PanelAccionesPropuesta({
                 key={revision.id}
                 propuestaId={detalle.propuesta.id}
                 revisionId={revision.id}
+                fechaSeleccionada={fechaCompromiso}
                 onUsarFecha={setFechaCompromiso}
               />
             )}
