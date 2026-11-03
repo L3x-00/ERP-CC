@@ -310,7 +310,7 @@ test.describe.serial('Planeación colaborativa completa', () => {
       .getByLabel('Partida', { exact: true }).selectOption(contextoPrueba.partidaId);
     // C9.0/P-01 B: con ruteo el panel programa por operación y preselecciona la
     // primera pendiente; sin ruteo conservaría la captura manual de secuencia.
-    const selectorOperacion = page.getByLabel('Operación');
+    const selectorOperacion = page.getByTestId('panel-asignacion-planeacion').getByLabel('Operación');
     await expect(selectorOperacion).toBeVisible();
     await expect(selectorOperacion.locator('option:checked')).toContainText('Corte');
     await page.getByTestId('panel-asignacion-planeacion')
