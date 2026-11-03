@@ -36,7 +36,7 @@ VALUES
 CREATE TEMP TABLE f3 (clave text PRIMARY KEY, valor jsonb);
 CREATE TEMP TABLE f3_ids AS SELECT gen_random_uuid() AS sol_a, gen_random_uuid() AS sol_b, gen_random_uuid() AS sol_legacy;
 
-SELECT plan(28);
+SELECT plan(29);
 
 -- 1-5. Cobro repartido A: 120 pagados = 60+40 aplicados + 20 al monedero.
 INSERT INTO f3 (clave, valor)
@@ -185,13 +185,17 @@ SELECT * FROM public.procesar_recordatorios_promesas('00000000-0000-4000-8000-00
 SELECT is((SELECT count(*) FROM public.notificaciones_usuario
   WHERE usuario_id = '00000000-0000-4000-8000-00000000b811'
     AND tipo = 'alerta_sistema'
-    AND mensaje LIKE '%00000000-0000-4000-8000-00000000b831%'), 1::bigint,
-  'Se genera un recordatorio interno 2 días antes');
+    AND mensaje LIKE '%' || (SELECT referencia_interna FROM public.cuentas_por_cobrar
+      WHERE id = '00000000-0000-4000-8000-00000000b831') || '%'
+    AND mensaje LIKE '%Cliente F3%'
+    AND mensaje NOT LIKE '%00000000-0000-4000-8000-00000000b831%'), 1::bigint,
+  'Se genera un recordatorio interno 2 días antes con cuenta legible, sin UUID');
 SELECT * FROM public.procesar_recordatorios_promesas('00000000-0000-4000-8000-00000000b811');
 SELECT is((SELECT count(*) FROM public.notificaciones_usuario
   WHERE usuario_id = '00000000-0000-4000-8000-00000000b811'
     AND tipo = 'alerta_sistema'
-    AND mensaje LIKE '%00000000-0000-4000-8000-00000000b831%'), 1::bigint,
+    AND mensaje LIKE '%' || (SELECT referencia_interna FROM public.cuentas_por_cobrar
+      WHERE id = '00000000-0000-4000-8000-00000000b831') || '%'), 1::bigint,
   'Reprocesar no duplica el recordatorio');
 
 -- 26. Promesa vencida notificada una sola vez.
@@ -203,6 +207,16 @@ SELECT is(
    WHERE cuenta_id = '00000000-0000-4000-8000-00000000b832'
      AND estado = 'VENCIDA' AND recordatorio_vencida_en IS NOT NULL),
   1::bigint, 'La promesa vencida se marca y notifica una sola vez');
+SELECT ok(EXISTS (
+  SELECT 1
+  FROM public.notificaciones_usuario AS aviso
+  WHERE aviso.usuario_id = '00000000-0000-4000-8000-00000000b811'
+    AND aviso.tipo = 'alerta_sistema'
+    AND aviso.titulo = 'Promesa de pago vencida'
+    AND aviso.mensaje LIKE '%' || (SELECT referencia_interna FROM public.cuentas_por_cobrar
+      WHERE id = '00000000-0000-4000-8000-00000000b832') || '%'
+    AND aviso.mensaje NOT LIKE '%00000000-0000-4000-8000-00000000b832%'
+), 'El aviso de promesa vencida usa la cuenta legible, no su UUID');
 
 -- 27. Privilegios: authenticated no ejecuta los motores nuevos.
 SELECT ok(NOT has_function_privilege('authenticated',

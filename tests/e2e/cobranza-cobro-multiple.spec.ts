@@ -155,11 +155,16 @@ test.describe('Cobranza SII-B8 F3: cobro repartido y promesas con recordatorios'
       await page.goto('/cobranza');
       await expect.poll(async () => {
         const { data } = await admin.from('notificaciones_usuario')
-          .select('id').eq('usuario_id', contexto.usuarioId)
+          .select('id, mensaje').eq('usuario_id', contexto.usuarioId)
           .eq('tipo', 'alerta_sistema')
-          .like('mensaje', `%${contexto.arIds[0]}%`);
+          .like('mensaje', `%${contexto.referencias[0]}%`);
         return data?.length ?? 0;
       }).toBe(1);
+      const { data: avisosPromesa } = await admin.from('notificaciones_usuario')
+        .select('mensaje').eq('usuario_id', contexto.usuarioId)
+        .eq('tipo', 'alerta_sistema')
+        .like('mensaje', `%${contexto.referencias[0]}%`);
+      expect(avisosPromesa?.some((aviso) => aviso.mensaje.includes(contexto.arIds[0]))).toBe(false);
 
       // 3. Cancelación de la promesa con motivo.
       await page.getByPlaceholder('Cliente, OP, INVCNC o factura').fill(contexto.referencias[0]);
