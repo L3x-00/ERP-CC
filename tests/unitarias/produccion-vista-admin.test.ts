@@ -34,6 +34,7 @@ afterEach(cleanup);
 describe('PanelOperadorProduccion — vista de administrador (sin PIN)', () => {
   it('ofrece el piso en solo lectura y no manda al PIN', () => {
     render(createElement(PanelOperadorProduccion, { ...BASE, esAdmin: true }));
+    fireEvent.click(screen.getByTestId('alternar-panel-operador'));
 
     const boton = screen.getByRole('button', { name: 'Ver piso (solo lectura)' });
     expect(boton).toBeDefined();

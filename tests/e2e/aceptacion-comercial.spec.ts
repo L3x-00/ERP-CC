@@ -382,7 +382,6 @@ test.describe.serial('aceptación funcional comercial (E2E-05/07/09, RFQ-02/03/0
     await page.goto('/produccion');
     await page
       .getByTestId(`tarjeta-produccion-${ordenId}`)
-      .getByRole('button', { name: 'Operar orden' })
       .click();
     const panelEntregables = page.getByTestId('panel-documentos-orden');
     await expect(panelEntregables).toBeVisible();

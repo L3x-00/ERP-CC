@@ -120,6 +120,10 @@ export interface PropsPanelAsignacionPlaneacion {
   onActualizarDatos?: () => void;
   /** Compromiso del calendario: preselecciona partida, fecha y horas. */
   preseleccion?: PreseleccionProgramacion | null;
+  /** Lleva a Producción para pausar/finalizar la sesión que bloquea la operación. */
+  onAbrirProduccion?: () => void;
+  /** Libera una preparación atrasada que nunca inició sesión. */
+  onLiberarPreparacion?: () => Promise<ResultadoAsignacionPlaneacion>;
 }
 
 const MENSAJE_ERROR_GENERICO = 'No se pudo guardar la programación';
@@ -152,6 +156,8 @@ export function PanelAsignacionPlaneacion({
   onCambiarFecha,
   onActualizarDatos,
   preseleccion,
+  onAbrirProduccion,
+  onLiberarPreparacion,
 }: PropsPanelAsignacionPlaneacion) {
   const recursosActivos = recursos.filter((recurso) => recurso.activo);
   const [partidaId, setPartidaId] = useState('');
@@ -171,6 +177,9 @@ export function PanelAsignacionPlaneacion({
   const [errorModal, setErrorModal] = useState<ErrorProgramacion | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [preparando, setPreparando] = useState(false);
+  const [reprogramandoRecurso, setReprogramandoRecurso] = useState(false);
+  const [liberandoPreparacion, setLiberandoPreparacion] = useState(false);
+  const [mensajeEstado, setMensajeEstado] = useState<string | null>(null);
   const [hueco, setHueco] = useState<{ clave: string; datos: HuecoDisponible } | null>(null);
   const [buscandoHueco, setBuscandoHueco] = useState(false);
 
@@ -247,7 +256,7 @@ export function PanelAsignacionPlaneacion({
   const clavePreseleccion = preseleccion
     ? `${preseleccion.partidaId}|${preseleccion.fecha}|${preseleccion.horas}`
     : '';
-  const [clavePreseleccionAplicada, setClavePreseleccionAplicada] = useState(clavePreseleccion);
+  const [clavePreseleccionAplicada, setClavePreseleccionAplicada] = useState('');
   if (clavePreseleccion !== clavePreseleccionAplicada) {
     setClavePreseleccionAplicada(clavePreseleccion);
     if (preseleccion) {
@@ -415,10 +424,92 @@ export function PanelAsignacionPlaneacion({
     setErrorFormulario(null);
   }
 
-  function elegirRecursoDesdeError(recursoIdElegido: string): void {
+  async function elegirRecursoDesdeError(recursoIdElegido: string): Promise<void> {
+    const recurso = recursosActivos.find((actual) => actual.id === recursoIdElegido);
     setRecursoId(recursoIdElegido);
     setErrorFormulario(null);
     setErrorModal(null);
+    setMensajeEstado(null);
+
+    if (!programacion) {
+      setMensajeEstado(
+        `Máquina ${recurso?.codigo ?? ''} seleccionada. Verifica la fecha y guarda la programación.`,
+      );
+      return;
+    }
+
+    const horas = Number(horasEstimadas);
+    const prioridad = Number(ordenPrioridad);
+    if (
+      fechaProgramada === ''
+      || !Number.isFinite(horas)
+      || horas <= 0
+      || horas > 24
+      || !Number.isInteger(prioridad)
+      || prioridad <= 0
+    ) {
+      setMensajeEstado(
+        `Máquina ${recurso?.codigo ?? ''} seleccionada. Revisa la fecha, las horas y la prioridad, y guarda el cambio.`,
+      );
+      return;
+    }
+
+    // Elegir una máquina desde el error es la acción de solución: se guarda en
+    // el acto con un motivo explícito para que el usuario no quede con un
+    // cambio silencioso que parezca no haber funcionado.
+    const motivoResolucion = motivo.trim()
+      || 'Cambio de máquina para resolver el conflicto de programación';
+    setReprogramandoRecurso(true);
+    try {
+      const resultado = await onEnviar({
+        tipo: 'reprogramar',
+        recursoId: recursoIdElegido,
+        fechaProgramada,
+        turno,
+        horasEstimadas: horas,
+        ordenPrioridad: prioridad,
+        motivo: motivoResolucion,
+      });
+      if (!resultado.exito) {
+        setErrorModal({
+          mensaje: resultado.error || MENSAJE_ERROR_GENERICO,
+          codigo: resultado.codigo ?? null,
+        });
+        return;
+      }
+      if (motivo.trim().length === 0) setMotivo(motivoResolucion);
+      setMensajeEstado(
+        `Operación reprogramada a ${recurso?.codigo ?? 'la máquina elegida'}. Ya puedes iniciar la preparación.`,
+      );
+    } catch {
+      setErrorModal({ mensaje: MENSAJE_ERROR_GENERICO, codigo: null });
+    } finally {
+      setReprogramandoRecurso(false);
+    }
+  }
+
+  async function liberarPreparacion(): Promise<void> {
+    if (!onLiberarPreparacion || liberandoPreparacion) return;
+    setErrorModal(null);
+    setMensajeEstado(null);
+    setLiberandoPreparacion(true);
+    try {
+      const resultado = await onLiberarPreparacion();
+      if (!resultado.exito) {
+        setErrorModal({
+          mensaje: resultado.error || MENSAJE_ERROR_GENERICO,
+          codigo: resultado.codigo ?? null,
+        });
+        return;
+      }
+      setMensajeEstado(
+        'Preparación liberada. La operación volvió a "programada"; ya puedes reprogramarla o iniciar la preparación de nuevo.',
+      );
+    } catch {
+      setErrorModal({ mensaje: 'No se pudo liberar la preparación', codigo: null });
+    } finally {
+      setLiberandoPreparacion(false);
+    }
   }
 
   function elegirOtraOperacion(): void {
@@ -444,6 +535,7 @@ export function PanelAsignacionPlaneacion({
   async function alEnviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (enviando || preparando) return;
+    setMensajeEstado(null);
 
     const horas = Number(horasEstimadas);
     const prioridad = Number(ordenPrioridad);
@@ -541,6 +633,7 @@ export function PanelAsignacionPlaneacion({
   async function activarPreparacion(): Promise<void> {
     if (!onActivarPreparacion || preparando || enviando) return;
     setErrorFormulario(null);
+    setMensajeEstado(null);
     setPreparando(true);
     try {
       const resultado = await onActivarPreparacion();
@@ -925,11 +1018,25 @@ export function PanelAsignacionPlaneacion({
       <p role="alert" aria-live="assertive" className="min-h-4 text-xs text-peligro-texto">
         {errorFormulario ?? ''}
       </p>
+      {reprogramandoRecurso ? (
+        <p role="status" className="text-xs text-texto-secundario" data-testid="reprogramando-recurso">
+          Guardando el cambio de máquina…
+        </p>
+      ) : null}
+      {mensajeEstado ? (
+        <p
+          role="status"
+          className="rounded-base border border-exito/30 bg-exito-suave px-3 py-2 text-xs text-exito-texto"
+          data-testid="mensaje-exito-planeacion"
+        >
+          {mensajeEstado}
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
-          disabled={enviando || preparando || estadoCompatibilidadSeleccionada === 'incompatible'}
+          disabled={enviando || preparando || reprogramandoRecurso || estadoCompatibilidadSeleccionada === 'incompatible'}
           data-testid="guardar-asignacion-planeacion"
         >
           {enviando ? 'Guardando…' : programacion ? 'Reprogramar' : 'Programar'}
@@ -941,7 +1048,7 @@ export function PanelAsignacionPlaneacion({
           <Button
             type="button"
             variante="secundario"
-            disabled={enviando || preparando}
+            disabled={enviando || preparando || reprogramandoRecurso}
             onClick={() => void activarPreparacion()}
             data-testid="activar-preparacion-planeacion"
           >
@@ -973,8 +1080,13 @@ export function PanelAsignacionPlaneacion({
             codigo: recurso.codigo,
             nombre: recurso.nombre,
           }))}
-        onElegirRecurso={elegirRecursoDesdeError}
+        onElegirRecurso={(recursoIdElegido) => void elegirRecursoDesdeError(recursoIdElegido)}
         {...(usaOperaciones ? { onElegirOtraOperacion: elegirOtraOperacion } : {})}
+        {...(onAbrirProduccion ? { onAbrirProduccion } : {})}
+        {...(onLiberarPreparacion
+          ? { onLiberarPreparacion: () => void liberarPreparacion() }
+          : {})}
+        liberandoPreparacion={liberandoPreparacion}
       />
     </form>
   );

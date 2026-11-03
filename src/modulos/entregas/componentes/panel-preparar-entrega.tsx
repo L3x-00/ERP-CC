@@ -147,14 +147,27 @@ export function PanelPrepararEntrega({
   }
 
   const folioOrden = datos?.orden.folioSii ?? datos?.orden.folio ?? '';
+  const hayPiezasProducidas = datos?.partidas.some((partida) => partida.cantidadProducida > 0) ?? false;
+  const sinPendientes = datos !== null && !preparacion.isPending && partidasDisponibles.length === 0;
+  const ordenEntregadaPorCompleto = sinPendientes && hayPiezasProducidas;
+  const ordenSinProduccion = sinPendientes && !hayPiezasProducidas;
+  const sinNadaPorEntregar = ordenEntregadaPorCompleto || ordenSinProduccion;
 
   return (
     <Dialog open={abierto} onOpenChange={(siguiente) => (!siguiente ? onCerrar() : undefined)}>
       <DialogContent data-testid="panel-preparar-entrega">
         <DialogHeader>
-          <DialogTitle>Preparar entrega {folioOrden}</DialogTitle>
+          <DialogTitle>
+            {ordenEntregadaPorCompleto
+              ? `Entrega completa ${folioOrden}`
+              : `Preparar entrega ${folioOrden}`}
+          </DialogTitle>
           <DialogDescription>
-            Captura cantidades por ítem (ITxx). No se entrega más de lo producido ni de lo pendiente.
+            {ordenEntregadaPorCompleto
+              ? 'Esta orden ya no tiene piezas producidas pendientes de entregar.'
+              : ordenSinProduccion
+                ? 'Todavía no hay piezas producidas para entregar.'
+                : 'Captura cantidades por ítem (ITxx). No se entrega más de lo producido ni de lo pendiente.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -176,7 +189,38 @@ export function PanelPrepararEntrega({
           </div>
         ) : null}
 
-        {datos && !resultado ? (
+        {datos && !resultado && ordenEntregadaPorCompleto ? (
+          <div
+            className="rounded-md border border-exito/30 bg-exito-suave p-4 text-sm text-exito-texto"
+            data-testid="entrega-completa"
+          >
+            <p className="font-semibold">No hay nada pendiente por entregar</p>
+            <p className="mt-1">
+              Las piezas producidas de esta orden ya fueron entregadas.
+              {datos.entregas.length > 0
+                ? ` Hay ${datos.entregas.length} nota(s) de entrega registradas.`
+                : ''}
+            </p>
+            <p className="mt-2 text-xs">
+              Puedes consultar las notas en la pestaña «Notas registradas» o en el detalle de la orden.
+            </p>
+          </div>
+        ) : null}
+
+        {datos && !resultado && ordenSinProduccion ? (
+          <div
+            className="rounded-md border border-advertencia/30 bg-advertencia-suave p-4 text-sm text-advertencia-texto"
+            data-testid="entrega-sin-produccion"
+          >
+            <p className="font-semibold">Aún no hay piezas producidas</p>
+            <p className="mt-1">
+              La orden sigue en producción. Cuando existan piezas terminadas podrás preparar su
+              entrega sin capturar cantidades que todavía no existen.
+            </p>
+          </div>
+        ) : null}
+
+        {datos && !resultado && !sinNadaPorEntregar ? (
           <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
             <p className="text-sm text-texto-secundario">
               {datos.orden.clienteRazonSocial ?? 'Cliente sin nombre'} · {datos.orden.estadoSii}
@@ -266,9 +310,9 @@ export function PanelPrepararEntrega({
 
         <DialogFooter>
           <Button type="button" variante="contorno" onClick={onCerrar} data-testid="cerrar-panel-preparar">
-            {resultado ? 'Cerrar' : 'Cancelar'}
+            {resultado || sinNadaPorEntregar ? 'Cerrar' : 'Cancelar'}
           </Button>
-          {datos && !resultado ? (
+          {datos && !resultado && !sinNadaPorEntregar ? (
             <Button
               type="button"
               data-testid="confirmar-registrar-entrega"

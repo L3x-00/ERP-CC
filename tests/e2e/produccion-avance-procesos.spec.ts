@@ -301,7 +301,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(bloqueProcesos).toContainText('Doblado: 0.00/10.00 · 10.00 pend · 0%');
 
     // Sesión 1: Corte 4.
-    await tarjeta.getByRole('button', { name: 'Operar orden' }).click();
+    await tarjeta.click();
     await page.getByTestId('iniciar-sesion-produccion').click();
     await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');

@@ -82,6 +82,7 @@ describe('historial de sesiones de una orden concluida', () => {
   it('en solo lectura muestra los archivos y oculta el formulario de carga', async () => {
     renderizar(true);
 
+    fireEvent.click(screen.getByTestId(`sesion-resumen-${SESION_ID}`));
     await waitFor(() => expect(screen.getByText('evidencia.jpg')).toBeTruthy());
     expect(screen.getByTestId('sesion-solo-lectura')).toBeTruthy();
     expect(screen.queryByLabelText(/Archivo para sesión/)).toBeNull();
@@ -111,6 +112,7 @@ describe('historial de sesiones de una orden concluida', () => {
   it('en operación conserva el formulario para adjuntar a la sesión', async () => {
     renderizar(false);
 
+    fireEvent.click(screen.getByTestId(`sesion-resumen-${SESION_ID}`));
     await waitFor(() => expect(screen.getByText('evidencia.jpg')).toBeTruthy());
     expect(screen.getByLabelText(/Archivo para sesión/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Subir archivo' })).toBeTruthy();

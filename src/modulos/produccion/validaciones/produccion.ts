@@ -83,6 +83,52 @@ export const esquemaCerrarSesion = z
     }
   });
 
+/**
+ * Cierre excepcional por administrador. El servidor resuelve el operador dueño
+ * de la sesión; el navegador nunca lo elige y no se pide PIN ajeno.
+ */
+export const esquemaCerrarSesionSupervisor = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+    piezasProducidas: z.number().min(0, 'Las piezas producidas no pueden ser negativas'),
+    estadoDestino: z.enum(ESTADOS_DESTINO_SESION),
+    metaProcesoId: z.uuid('ID de proceso inválido').optional(),
+    motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
+    notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
+    consumo: z.object({
+      materialId: z.uuid('ID de material inválido'),
+      cantidadUsada: z.number().finite().min(0),
+      cantidadScrap: z.number().finite().min(0),
+    }).strict().refine(
+      (valor) => valor.cantidadUsada + valor.cantidadScrap > 0,
+      { message: 'Registra consumo o merma mayor a cero' },
+    ).optional(),
+  })
+  .strict()
+  .superRefine((valor, contexto) => {
+    if (valor.estadoDestino === 'pausada' && !valor.motivoPausa) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['motivoPausa'],
+        message: 'El motivo de pausa es requerido',
+      });
+    }
+    if (valor.estadoDestino === 'finalizada' && !valor.consumo) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['consumo'],
+        message: 'El consumo de material es obligatorio al finalizar',
+      });
+    }
+    if (valor.estadoDestino === 'pausada' && valor.consumo) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['consumo'],
+        message: 'No se debe registrar consumo final al pausar',
+      });
+    }
+  });
+
 export const esquemaPartidaNotaEntrega = z.object({
   partidaId: z.uuid('ID de partida inválido'),
   cantidadEntregada: z.number().positive('La cantidad entregada debe ser mayor a 0'),
@@ -145,6 +191,7 @@ export const esquemaIniciarProcesoReclamado = z.object({
 export type IniciarSesionInput = z.infer<typeof esquemaIniciarSesion>;
 export type ReanudarSesionInput = z.infer<typeof esquemaReanudarSesion>;
 export type CerrarSesionInput = z.infer<typeof esquemaCerrarSesion>;
+export type CerrarSesionSupervisorInput = z.infer<typeof esquemaCerrarSesionSupervisor>;
 export type PartidaNotaEntregaInput = z.infer<typeof esquemaPartidaNotaEntrega>;
 export type CrearNotaEntregaInput = z.infer<typeof esquemaCrearNotaEntrega>;
 export type ConsultarTableroProduccionInput = z.infer<typeof esquemaConsultarTableroProduccion>;

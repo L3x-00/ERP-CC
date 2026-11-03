@@ -471,7 +471,7 @@ describe('operación de Planeación en cliente', () => {
     await waitFor(() => expect(obtenerDetalleConcluidaMock).toHaveBeenCalledWith({
       ordenId: programacionConcluida.ordenId,
     }));
-    expect(screen.getByTestId('panel-programar-partida').className).toContain('hidden');
+    expect(screen.queryByTestId('panel-programar-partida')).toBeNull();
     expect(screen.queryByTestId('detalle-programacion-planeacion')).toBeNull();
 
     fireEvent.drop(screen.getByTestId('columna-2026-09-16'), {
@@ -505,6 +505,7 @@ describe('operación de Planeación en cliente', () => {
       },
     ]);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Programar operación' }));
     fireEvent.change(screen.getByLabelText('Partida'), {
       target: { value: '55555555-5555-4555-8555-555555555555' },
     });
@@ -783,6 +784,7 @@ describe('operación de Planeación en cliente', () => {
   it('avisa cuántas partidas quedaron fuera del tope del selector (C9.2/P06)', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente, undefined, { partidasTotal: 305 });
+    fireEvent.click(screen.getByRole('button', { name: 'Programar operación' }));
 
     expect(screen.getByTestId('aviso-partidas-truncadas-planeacion').textContent).toContain(
       'Mostrando 1 de 305 partidas',
@@ -1036,7 +1038,7 @@ describe('operación de Planeación en cliente', () => {
     );
   });
 
-  it('pinta la propuesta aceptada en el calendario y abre el panel preseleccionado', () => {
+  it('pinta la propuesta aceptada en el calendario y abre el panel preseleccionado', async () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     const partida = PARTIDAS_POR_DEFECTO[0];
     renderizarOperacion(cliente, undefined, {
@@ -1059,7 +1061,9 @@ describe('operación de Planeación en cliente', () => {
     expect(screen.getByText('Propuesta aceptada · por programar')).toBeTruthy();
     fireEvent.click(screen.getByTestId(`programar-compromiso-${partida.partidaId}`));
 
-    expect((screen.getByLabelText('Partida') as HTMLSelectElement).value).toBe(partida.partidaId);
+    await waitFor(() => expect(
+      (screen.getByLabelText('Partida') as HTMLSelectElement).value,
+    ).toBe(partida.partidaId));
     expect((screen.getByLabelText('Fecha programada') as HTMLInputElement).value).toBe('2026-09-18');
     expect((screen.getByLabelText('Horas estimadas') as HTMLInputElement).value).toBe('2');
   });
@@ -1137,6 +1141,92 @@ describe('operación de Planeación en cliente', () => {
       recursoCompatible.id,
     );
     expect(screen.queryByTestId('dialogo-error-planeacion')).toBeNull();
+  });
+
+  it('reprograma a la máquina elegida desde el error sin dejar el botón sin efecto', async () => {
+    const compatible = { ...DATOS.recursos[0] };
+    const otroGrupo = {
+      ...DATOS.recursos[0],
+      id: '99999999-9999-4999-8999-999999999999',
+      codigo: 'DBL-01',
+      nombre: 'Dobladora',
+    };
+    const partida = PARTIDAS_POR_DEFECTO[0];
+    const compatibilidad: CompatibilidadRecursosPlaneacion = {
+      grupoPorRecurso: {
+        [compatible.id]: { id: 'grupo-laser', nombre: 'Láser' },
+        [otroGrupo.id]: { id: 'grupo-doblez', nombre: 'Doblez' },
+      },
+      gruposRequeridosPorPartida: { [partida.partidaId]: ['grupo-laser'] },
+      gruposRequeridosPorOperacion: {},
+      nombrePorGrupo: { 'grupo-laser': 'Láser', 'grupo-doblez': 'Doblez' },
+    };
+    const onEnviar = vi.fn()
+      .mockResolvedValueOnce({
+        exito: false as const,
+        error: 'La máquina no pertenece al grupo de equipo de esta operación',
+        codigo: 'recurso_incompatible',
+      })
+      .mockResolvedValue({ exito: true as const });
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: [compatible, otroGrupo],
+        partidasProgramables: [partida],
+        programacion: { ...DATOS.programaciones[0], partidaId: partida.partidaId },
+        compatibilidad,
+        onEnviar,
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Motivo de la reprogramación'), {
+      target: { value: 'Mover a otra máquina' },
+    });
+    fireEvent.click(screen.getByTestId('guardar-asignacion-planeacion'));
+
+    fireEvent.click(await screen.findByTestId(`error-usar-recurso-${compatible.id}`));
+    await waitFor(() => expect(onEnviar).toHaveBeenCalledTimes(2));
+    expect(onEnviar).toHaveBeenLastCalledWith(expect.objectContaining({
+      tipo: 'reprogramar',
+      recursoId: compatible.id,
+    }));
+    expect((await screen.findByTestId('mensaje-exito-planeacion')).textContent).toContain(
+      'Operación reprogramada',
+    );
+  });
+
+  it('explica por qué una operación en piso no se reprograma y ofrece liberar preparación', async () => {
+    const onEnviar = vi.fn().mockResolvedValue({
+      exito: false as const,
+      error: 'La operación ya está en preparación o en proceso',
+      codigo: 'programacion_no_reprogramable',
+    });
+    const onLiberarPreparacion = vi.fn().mockResolvedValue({ exito: true as const });
+    const onAbrirProduccion = vi.fn();
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: DATOS.recursos,
+        partidasProgramables: [PARTIDAS_POR_DEFECTO[0]],
+        programacion: {
+          ...DATOS.programaciones[0],
+          partidaId: PARTIDAS_POR_DEFECTO[0].partidaId,
+          estadoPlaneacion: 'en_preparacion',
+        },
+        onEnviar,
+        onLiberarPreparacion,
+        onAbrirProduccion,
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Motivo de la reprogramación'), {
+      target: { value: 'Mover operación atrasada' },
+    });
+    fireEvent.click(screen.getByTestId('guardar-asignacion-planeacion'));
+
+    const modal = await screen.findByTestId('dialogo-error-planeacion');
+    expect(modal.textContent).toContain('La operación ya está en piso');
+    expect(screen.getByTestId('error-abrir-produccion')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('error-liberar-preparacion'));
+    await waitFor(() => expect(onLiberarPreparacion).toHaveBeenCalledTimes(1));
   });
 
   it('no vuelve a ofrecer reactivación desde la tarjeta de Planeación (C9.4/P-19)', () => {

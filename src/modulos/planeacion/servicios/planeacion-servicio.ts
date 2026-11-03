@@ -25,6 +25,7 @@ export type CodigoErrorPlaneacion =
   | 'programacion_inexistente'
   | 'programacion_conflicto'
   | 'programacion_no_reprogramable'
+  | 'sesion_activa_en_programacion'
   | 'programacion_duplicada'
   | 'orden_partida_inconsistente'
   | 'partida_inexistente'
@@ -75,6 +76,13 @@ export type ProgramarPartidaRecursoEntrada = ProgramarOrdenInput & {
   correlationId: string;
 };
 
+export type LiberarPreparacionEntrada = {
+  programacionId: string;
+  actualizadoEnEsperado: string;
+  actorId: string;
+  correlationId: string;
+};
+
 export type FiltrosCalendarioPlaneacion = {
   fechaInicio: string;
   fechaFin: string;
@@ -99,6 +107,7 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
     'programacion_inexistente',
     'programacion_conflicto',
     'programacion_no_reprogramable',
+    'sesion_activa_en_programacion',
     'programacion_duplicada',
     'orden_partida_inconsistente',
     'partida_inexistente',
@@ -199,6 +208,22 @@ export async function activarModoPreparacionServicio(
   const { data, error } = await admin.rpc('activar_modo_preparacion', {
     p_programacion_id: entrada.programacionId,
     p_actualizado_en_esperado: entrada.actualizadoEnEsperado,
+  });
+
+  if (error) lanzarErrorPlaneacion(error.message);
+  return programacionActualizadaDesdeRpc(data?.[0] ?? null);
+}
+
+/** Libera una preparación atrasada que nunca inició sesión, con CAS y auditoría. */
+export async function liberarPreparacionPlaneacionServicio(
+  admin: SupabaseClient<Database>,
+  entrada: LiberarPreparacionEntrada,
+): Promise<ProgramacionActualizada> {
+  const { data, error } = await admin.rpc('liberar_preparacion_planeacion_auditada', {
+    p_programacion_id: entrada.programacionId,
+    p_actualizado_en_esperado: entrada.actualizadoEnEsperado,
+    p_actor_id: entrada.actorId,
+    p_correlation_id: entrada.correlationId,
   });
 
   if (error) lanzarErrorPlaneacion(error.message);
@@ -409,6 +434,17 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
       return 'La máquina no pertenece al grupo de equipo de esta operación. Elige una máquina del grupo indicado en el ruteo o corrige el grupo del proceso en la propuesta';
     case 'programacion_conflicto':
       return 'La programación fue modificada por otro usuario. Recarga e inténtalo de nuevo';
+    case 'programacion_no_reprogramable':
+      return 'La operación ya está en preparación o en proceso. Pausa o finaliza su sesión en Producción para poder moverla';
+    case 'transicion_preparacion_no_permitida':
+      return 'La operación ya no se puede preparar. Actualiza los datos para ver su estado vigente';
+    case 'sesion_activa_en_programacion':
+      return 'La operación tiene una sesión activa o pausada. Pausa o finaliza la sesión en Producción antes de liberar la preparación';
+    case 'recurso_inactivo':
+      return 'La máquina seleccionada está inactiva. Elige otra máquina del grupo de la operación';
+    case 'reprogramacion_invalida':
+    case 'programacion_invalida':
+      return 'Revisa la fecha, el turno, las horas y la prioridad de la programación';
     case 'programacion_inexistente':
     case 'partida_inexistente':
     case 'recurso_inexistente':

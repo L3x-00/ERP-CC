@@ -39,4 +39,26 @@ describe('FormularioNotaEntrega', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Generar nota de entrega' })).toBeNull());
     expect(screen.getByRole('status').textContent).toContain('Nota NE-0001 generada');
   });
+
+  it('no ofrece una nueva nota cuando la orden ya está entregada por completo', () => {
+    const onEnviar = vi.fn();
+    render(createElement(FormularioNotaEntrega, {
+      orden: {
+        id: '11111111-1111-4111-8111-111111111111',
+        folio: 'OP-001171',
+        partidas: [{
+          id: '22222222-2222-4222-8222-222222222222',
+          codigoPieza: 'ECM-BOR-201',
+          cantidadProducida: 10,
+          cantidadEntregada: 10,
+        }],
+      } as never,
+      procesando: false,
+      onEnviar,
+    }));
+
+    expect((screen.getByTestId('abrir-nota-entrega') as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/ya está entregada por completo/i)).toBeTruthy();
+    expect(screen.queryByTestId('formulario-nota-entrega')).toBeNull();
+  });
 });

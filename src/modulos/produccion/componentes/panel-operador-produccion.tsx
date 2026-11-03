@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
+import { cn } from '@/compartido/utilidades/cn';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
@@ -17,6 +18,20 @@ import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 
 type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string };
 type MensajePanelOperador = { texto: string; tipo: 'error' | 'estado' };
+type SesionOrden = OrdenTableroProduccion['sesiones'][number];
+export type CierreSupervisor = {
+  sesionId: string;
+  piezasProducidas: number;
+  estadoDestino: 'pausada' | 'finalizada';
+  metaProcesoId?: string;
+  motivoPausa?: string;
+  notas?: string;
+  consumo?: {
+    materialId: string;
+    cantidadUsada: number;
+    cantidadScrap: number;
+  };
+};
 
 type ResumenCierreSesion = {
   material: MaterialPisoCatalogo;
@@ -46,6 +61,8 @@ export interface PropsPanelOperadorProduccion {
   }) => Promise<ResultadoOperacion>;
   onReanudar: (datos: { ordenId: string; partidaId: string; programacionId: string; actualizadoEnEsperado: string }) => Promise<ResultadoOperacion>;
   responsables: Readonly<Record<string, string>>;
+  /** Administrador: pausa o finaliza una sesión ajena sin pedir su PIN. */
+  onCerrarComoSupervisor?: (datos: CierreSupervisor) => Promise<ResultadoOperacion>;
   onCerrar: (datos: {
     sesionId: string;
     piezasProducidas: number;
@@ -86,6 +103,7 @@ export function PanelOperadorProduccion({
   onIniciar,
   onReanudar,
   responsables,
+  onCerrarComoSupervisor,
   onCerrar,
 }: PropsPanelOperadorProduccion) {
   const enrutador = useRouter();
@@ -113,6 +131,25 @@ export function PanelOperadorProduccion({
   const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
   const [errorReanudacion, setErrorReanudacion] = useState<string | null>(null);
   const [confirmarChecklist, setConfirmarChecklist] = useState(false);
+  const [expandido, setExpandido] = useState(sesionActiva !== null || operadorDisponible);
+  const [sesionSupervisor, setSesionSupervisor] = useState<SesionOrden | null>(null);
+
+  const sesionesEnPiso = useMemo(
+    () => [...(orden?.sesiones ?? [])]
+      .filter((sesion) => sesion.estadoSesion === 'activa' || sesion.estadoSesion === 'pausada')
+      .sort((primera, segunda) => segunda.fechaInicio.localeCompare(primera.fechaInicio)),
+    [orden?.sesiones],
+  );
+  function contextoDeSesion(sesion: SesionOrden): string {
+    const partida = orden?.partidas.find((actual) => actual.id === sesion.partidaId);
+    const programacion = partida?.programaciones.find(
+      (actual) => actual.id === sesion.programacionId,
+    );
+    return [
+      partida?.codigoPieza ?? 'Partida',
+      programacion?.operacionNombre ?? null,
+    ].filter((parte): parte is string => Boolean(parte)).join(' · ');
+  }
 
   const seleccion = preparaciones.find((item) => item.programacionId === programacionId)
     ?? preparaciones[0]
@@ -241,19 +278,39 @@ export function PanelOperadorProduccion({
       aria-labelledby="titulo-panel-operador"
       data-testid="panel-operador-produccion"
     >
-      <h2 id="titulo-panel-operador" className="text-base font-semibold text-texto-primario">
-        Panel de operador
-      </h2>
-      {orden ? (
-        <p className="mt-1 text-sm text-texto-secundario" data-testid="orden-seleccionada-panel">
-          Orden seleccionada: <span className="font-mono font-medium text-texto-primario">{orden.folio}</span>
-        </p>
-      ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 id="titulo-panel-operador" className="text-base font-semibold text-texto-primario">
+            Panel de operador
+          </h2>
+          {orden ? (
+            <p className="mt-1 text-sm text-texto-secundario" data-testid="orden-seleccionada-panel">
+              Orden seleccionada: <span className="font-mono font-medium text-texto-primario">{orden.folio}</span>
+            </p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className="inline-flex min-h-9 items-center gap-1 rounded-md border border-borde px-3 text-xs font-medium text-texto-secundario transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+          aria-expanded={expandido}
+          aria-controls="contenido-panel-operador"
+          onClick={() => setExpandido((valor) => !valor)}
+          data-testid="alternar-panel-operador"
+        >
+          {expandido ? 'Ocultar' : 'Abrir'}
+          <span
+            aria-hidden
+            className={cn('transition-transform duration-300', expandido ? 'rotate-180' : 'rotate-0')}
+          >
+            ▾
+          </span>
+        </button>
+      </div>
       <p className="mt-1 text-sm text-texto-secundario">
         {operadorDisponible
           ? 'La identidad de piso está confirmada por sesión HMAC.'
           : esAdmin
-            ? 'Vista de administrador: puedes ver el piso completo en solo lectura, sin PIN.'
+            ? 'Vista de administrador (sin PIN): consulta quién trabaja y finaliza su sesión sólo si es necesario.'
             : 'Ingresa por /operador con tu PIN antes de iniciar o cerrar una sesión.'}
       </p>
       {corridaId ? (
@@ -261,41 +318,124 @@ export function PanelOperadorProduccion({
           Corrida seleccionada: <span className="font-mono">{corridaId.slice(0, 8)}</span>
         </p>
       ) : null}
-      {!operadorDisponible ? (
-        esAdmin ? (
-          <Button
-            type="button"
-            variante="contorno"
-            tamano="sm"
-            className="mt-2 self-start"
-            data-testid="abrir-vista-piso-admin"
-            onClick={() => enrutador.push('/produccion-piso')}
-          >
-            Ver piso (solo lectura)
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variante="contorno"
-            tamano="sm"
-            className="mt-2 self-start"
-            data-testid="abrir-terminal-operador"
-            onClick={() => enrutador.push('/operador')}
-          >
-            Abrir terminal de operador (/operador)
-          </Button>
-        )
-      ) : null}
-      {mensaje ? (
-        <p
-          className={mensaje.tipo === 'error' ? 'mt-3 text-sm text-peligro-texto' : 'mt-3 text-sm text-exito-texto'}
-          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
-        >
-          {mensaje.texto}
-        </p>
-      ) : null}
 
-      {sesionActiva ? (
+      {sesionesEnPiso.length > 0 ? (
+        <div
+          className="mt-3 rounded-md border border-borde bg-superficie-2/50 p-3"
+          data-testid="operadores-en-piso"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-texto-secundario">
+            En piso ahora
+          </p>
+          <ul className="mt-1 grid gap-1 text-sm">
+            {sesionesEnPiso.map((sesion) => (
+              <li key={sesion.id} className="flex flex-wrap items-baseline justify-between gap-2">
+                <span>
+                  <strong className="text-texto-primario">
+                    {responsables[sesion.operadorId] ?? 'Operador histórico'}
+                  </strong>
+                  <span className="text-texto-secundario"> · {contextoDeSesion(sesion)}</span>
+                </span>
+                <span className="text-xs text-texto-secundario">
+                  {sesion.estadoSesion === 'activa' ? 'Trabajando' : 'En pausa'} ·{' '}
+                  {formatearHora(sesion.fechaInicio)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-texto-tenue" data-testid="sin-operador-en-piso">
+          Ningún operador tiene una sesión activa en esta orden.
+        </p>
+      )}
+
+      <div
+        id="contenido-panel-operador"
+        className={cn(
+          'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+          expandido ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+        )}
+      >
+        <div className="overflow-hidden" inert={!expandido ? true : undefined}>
+          {!operadorDisponible ? (
+            esAdmin ? (
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                className="mt-3 self-start"
+                data-testid="abrir-vista-piso-admin"
+                onClick={() => enrutador.push('/produccion-piso')}
+              >
+                Ver piso (solo lectura)
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variante="contorno"
+                tamano="sm"
+                className="mt-3 self-start"
+                data-testid="abrir-terminal-operador"
+                onClick={() => enrutador.push('/operador')}
+              >
+                Abrir terminal de operador (/operador)
+              </Button>
+            )
+          ) : null}
+          {mensaje ? (
+            <p
+              className={mensaje.tipo === 'error' ? 'mt-3 text-sm text-peligro-texto' : 'mt-3 text-sm text-exito-texto'}
+              role={mensaje.tipo === 'error' ? 'alert' : 'status'}
+            >
+              {mensaje.texto}
+            </p>
+          ) : null}
+
+      {esAdmin && !operadorDisponible ? (
+        <div className="mt-4 flex flex-col gap-3" data-testid="admin-panel-operador">
+          <p className="text-sm text-texto-secundario">
+            Como administrador no capturas producción aquí: el operador inicia y cierra su sesión.
+            Si una sesión quedó abierta, puedes pausarla o finalizarla para liberar la orden.
+          </p>
+          {sesionesEnPiso.length === 0 ? (
+            <p className="text-sm text-texto-tenue">
+              No hay una sesión de operador que finalizar en esta orden.
+            </p>
+          ) : (
+            <ul className="grid gap-2">
+              {sesionesEnPiso.map((sesion) => (
+                <li
+                  key={sesion.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde p-3"
+                  data-testid={`sesion-supervisor-${sesion.id}`}
+                >
+                  <span className="text-sm">
+                    <strong>{responsables[sesion.operadorId] ?? 'Operador histórico'}</strong>
+                    <span className="text-texto-secundario"> · {contextoDeSesion(sesion)}</span>
+                    <span className="block text-xs text-texto-secundario">
+                      {sesion.estadoSesion === 'activa' ? 'Trabajando' : 'En pausa'} desde{' '}
+                      {formatearFecha(sesion.fechaInicio)} {formatearHora(sesion.fechaInicio)}
+                    </span>
+                  </span>
+                  {onCerrarComoSupervisor ? (
+                    <Button
+                      type="button"
+                      variante="contorno"
+                      tamano="sm"
+                      disabled={procesando}
+                      onClick={() => { setMensaje(null); setSesionSupervisor(sesion); }}
+                      data-testid={`finalizar-sesion-supervisor-${sesion.id}`}
+                    >
+                      Finalizar sesión
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : sesionActiva ? (
         <form className="mt-4 flex flex-col gap-3" onSubmit={cerrar}>
           <p className="text-sm text-texto-secundario">Sesión activa en la orden seleccionada.</p>
           <label className={CLASE_ETIQUETA}>
@@ -488,6 +628,8 @@ export function PanelOperadorProduccion({
           ) : null}
         </div>
       )}
+        </div>
+      </div>
       <DialogoChecklistInicio
         abierto={confirmarChecklist}
         procesando={procesando}
@@ -549,6 +691,232 @@ export function PanelOperadorProduccion({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {sesionSupervisor && onCerrarComoSupervisor ? (
+        <DialogoFinalizarSesionSupervisor
+          sesion={sesionSupervisor}
+          orden={orden}
+          responsables={responsables}
+          motivosPausa={motivosPausa}
+          materiales={materiales}
+          procesando={procesando}
+          onCerrar={() => setSesionSupervisor(null)}
+          onConfirmar={async (datos) => {
+            const resultado = await onCerrarComoSupervisor(datos);
+            if (resultado.exito) {
+              setSesionSupervisor(null);
+              setMensaje({ texto: 'Sesión del operador cerrada y recurso liberado', tipo: 'estado' });
+            }
+            return resultado;
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * Cierre excepcional por administrador. No pide PIN del operador: la Server
+ * Action valida el permiso y PostgreSQL conserva las reglas de cierre. La opción
+ * segura por defecto es pausar; finalizar exige consumo de material.
+ */
+function DialogoFinalizarSesionSupervisor({
+  sesion,
+  orden,
+  responsables,
+  motivosPausa,
+  materiales,
+  procesando,
+  onCerrar,
+  onConfirmar,
+}: {
+  sesion: SesionOrden;
+  orden: OrdenTableroProduccion | null;
+  responsables: Readonly<Record<string, string>>;
+  motivosPausa: MotivoPausaCatalogo[];
+  materiales: readonly MaterialPisoCatalogo[];
+  procesando: boolean;
+  onCerrar: () => void;
+  onConfirmar: (datos: CierreSupervisor) => Promise<ResultadoOperacion>;
+}) {
+  const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>(
+    sesion.estadoSesion === 'pausada' ? 'finalizada' : 'pausada',
+  );
+  const [piezasProducidas, setPiezasProducidas] = useState('0');
+  const [motivoPausa, setMotivoPausa] = useState(motivosPausa[0]?.codigo ?? '');
+  const [materialId, setMaterialId] = useState('');
+  const [cantidadUsada, setCantidadUsada] = useState('0');
+  const [cantidadMerma, setCantidadMerma] = useState('0');
+  const [notas, setNotas] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
+    ?? motivosPausa[0]
+    ?? null;
+  const partida = orden?.partidas.find((actual) => actual.id === sesion.partidaId) ?? null;
+  const meta = partida?.metasProceso.find(
+    (actual) => actual.id === partida.programaciones.find(
+      (programacion) => programacion.id === sesion.programacionId,
+    )?.metaProcesoId,
+  ) ?? partida?.metasProceso[0] ?? null;
+
+  async function confirmar(evento: FormEvent<HTMLFormElement>): Promise<void> {
+    evento.preventDefault();
+    if (enviando) return;
+    const piezas = Number(piezasProducidas);
+    const usada = Number(cantidadUsada);
+    const merma = Number(cantidadMerma);
+    if (!Number.isFinite(piezas) || piezas < 0) {
+      setError('Indica una cantidad de piezas válida');
+      return;
+    }
+    if (estadoDestino === 'pausada' && !motivoSeleccionado) {
+      setError('Selecciona el motivo de la pausa');
+      return;
+    }
+    if (estadoDestino === 'finalizada' && (!materialId || usada + merma <= 0)) {
+      setError('Para finalizar, registra el material usado o la merma');
+      return;
+    }
+    if (estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota && notas.trim().length === 0) {
+      setError('Este motivo exige una nota');
+      return;
+    }
+    setError(null);
+    setEnviando(true);
+    const resultado = await onConfirmar({
+      sesionId: sesion.id,
+      piezasProducidas: piezas,
+      estadoDestino,
+      ...(meta ? { metaProcesoId: meta.id } : {}),
+      ...(estadoDestino === 'pausada' && motivoSeleccionado
+        ? { motivoPausa: motivoSeleccionado.codigo }
+        : {}),
+      ...(notas.trim() ? { notas: notas.trim() } : {}),
+      ...(estadoDestino === 'finalizada'
+        ? {
+            consumo: {
+              materialId,
+              cantidadUsada: usada,
+              cantidadScrap: merma,
+            },
+          }
+        : {}),
+    });
+    setEnviando(false);
+    if (!resultado.exito) setError(resultado.error);
+  }
+
+  return (
+    <Dialog open onOpenChange={(abierto) => { if (!abierto && !enviando) onCerrar(); }}>
+      <DialogContent className="max-w-lg" data-testid="dialogo-supervisor-sesion">
+        <DialogHeader>
+          <DialogTitle>Finalizar sesión de {responsables[sesion.operadorId] ?? 'operador'}</DialogTitle>
+          <DialogDescription>
+            {partida?.codigoPieza ?? 'Partida'}
+            {meta ? ` · ${meta.nombre}` : ''} · {formatearFecha(sesion.fechaInicio)}{' '}
+            {formatearHora(sesion.fechaInicio)}
+          </DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-3" onSubmit={(evento) => void confirmar(evento)}>
+          <label className={CLASE_ETIQUETA}>
+            ¿Qué debe pasar con la sesión?
+            <Select
+              value={estadoDestino}
+              onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}
+              data-testid="supervisor-estado-sesion"
+            >
+              <option value="pausada">Pausar y liberar la máquina</option>
+              <option value="finalizada">Finalizar la sesión</option>
+            </Select>
+          </label>
+          <label className={CLASE_ETIQUETA}>
+            Piezas producidas en este turno
+            <Input
+              type="number"
+              min="0"
+              step="0.001"
+              value={piezasProducidas}
+              onChange={(evento) => setPiezasProducidas(evento.target.value)}
+            />
+          </label>
+          {estadoDestino === 'pausada' ? (
+            <label className={CLASE_ETIQUETA}>
+              Motivo de pausa
+              <Select
+                value={motivoSeleccionado?.codigo ?? ''}
+                onChange={(evento) => setMotivoPausa(evento.target.value)}
+                data-testid="supervisor-motivo-pausa"
+              >
+                {motivosPausa.map((motivo) => (
+                  <option key={motivo.codigo} value={motivo.codigo}>
+                    {motivo.nombre}{motivo.requiereNota ? ' (nota obligatoria)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          ) : (
+            <fieldset className="grid gap-3 rounded-lg border border-borde p-3">
+              <legend className="px-1 text-sm font-semibold text-texto-primario">Consumo de material</legend>
+              <label className={CLASE_ETIQUETA}>
+                Material
+                <Select
+                  value={materialId}
+                  onChange={(evento) => setMaterialId(evento.target.value)}
+                  data-testid="supervisor-material"
+                >
+                  <option value="">Selecciona un material</option>
+                  {materiales.map((material) => (
+                    <option key={material.id} value={material.id}>
+                      {material.codigo} — {material.nombre} ({material.unidadBase})
+                    </option>
+                  ))}
+                </Select>
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className={CLASE_ETIQUETA}>
+                  Usado
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cantidadUsada}
+                    onChange={(evento) => setCantidadUsada(evento.target.value)}
+                  />
+                </label>
+                <label className={CLASE_ETIQUETA}>
+                  Merma
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cantidadMerma}
+                    onChange={(evento) => setCantidadMerma(evento.target.value)}
+                  />
+                </label>
+              </div>
+            </fieldset>
+          )}
+          <label className={CLASE_ETIQUETA}>
+            Notas
+            <Textarea
+              maxLength={1000}
+              value={notas}
+              onChange={(evento) => setNotas(evento.target.value)}
+              required={estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota === true}
+            />
+          </label>
+          {error ? <p role="alert" className="text-sm text-peligro-texto">{error}</p> : null}
+          <DialogFooter>
+            <Button type="button" variante="contorno" disabled={enviando} onClick={onCerrar}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={enviando || procesando} data-testid="confirmar-supervisor-sesion">
+              {enviando || procesando ? 'Guardando…' : 'Cerrar sesión'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

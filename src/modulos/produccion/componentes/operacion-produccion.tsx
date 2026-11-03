@@ -8,6 +8,7 @@ import { Select } from '@/compartido/componentes/ui/input';
 import { usarTiendaProduccion } from '@/estado/uso-tienda-produccion';
 import {
   cerrarSesionOperadorAccion,
+  cerrarSesionSupervisorAccion,
   generarNotaEntregaAccion,
   iniciarSesionOperadorAccion,
   reanudarSesionOperadorAccion,
@@ -32,7 +33,7 @@ import {
 import { PanelCalidadProduccion } from '@/modulos/produccion/componentes/panel-calidad-produccion';
 import { PanelCorridasProduccion } from '@/modulos/produccion/componentes/panel-corridas-produccion';
 import { PanelHorasExtraProduccion } from '@/modulos/produccion/componentes/panel-horas-extra-produccion';
-import { PanelOperadorProduccion } from '@/modulos/produccion/componentes/panel-operador-produccion';
+import { PanelOperadorProduccion, type CierreSupervisor } from '@/modulos/produccion/componentes/panel-operador-produccion';
 import { PanelRecursosLiberados } from '@/modulos/produccion/componentes/panel-recursos-liberados';
 import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
@@ -265,6 +266,21 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     }
   }, [establecerSesionActiva, refrescar]);
 
+  const cerrarComoSupervisor = useCallback(async (
+    datosCierre: CierreSupervisor,
+  ): Promise<{ exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string }> => {
+    setProcesando(true);
+    try {
+      const resultado = await cerrarSesionSupervisorAccion(datosCierre);
+      if (!resultado.exito) return { exito: false, error: resultado.error };
+      if (!resultado.datos) return { exito: false, error: 'El cierre no devolvió una confirmación' };
+      await refrescar();
+      return { exito: true, datos: resultado.datos };
+    } finally {
+      setProcesando(false);
+    }
+  }, [refrescar]);
+
   const generarNota = useCallback(async (datosNota: {
     ordenId: string;
     recibidoPor: string;
@@ -415,6 +431,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                     onIniciar={iniciar}
                     onReanudar={reanudar}
                     onCerrar={cerrar}
+                    onCerrarComoSupervisor={cerrarComoSupervisor}
                     responsables={datos.responsables ?? {}}
                   />
                 </section>

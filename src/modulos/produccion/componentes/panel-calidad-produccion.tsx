@@ -50,7 +50,6 @@ export function PanelCalidadProduccion({
   const [cantidadNok, setCantidadNok] = useState('0');
   const [cantidadRetrabajo, setCantidadRetrabajo] = useState('0');
   const [materialUsado, setMaterialUsado] = useState('');
-  const [tolerancias, setTolerancias] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [fotos, setFotos] = useState<FileList | null>(null);
   const [mensaje, setMensaje] = useState<MensajeCalidad | null>(null);
@@ -92,7 +91,6 @@ export function PanelCalidadProduccion({
     setCantidadNok('0');
     setCantidadRetrabajo('0');
     setMaterialUsado('');
-    setTolerancias('');
     setObservaciones('');
     setFotos(null);
     setDialogo(true);
@@ -101,21 +99,6 @@ export function PanelCalidadProduccion({
   async function registrar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (!orden) return;
-    let toleranciasJson: Record<string, unknown> | undefined;
-    if (tolerancias.trim()) {
-      try {
-        const parseado = JSON.parse(tolerancias) as unknown;
-        if (parseado && typeof parseado === 'object' && !Array.isArray(parseado)) {
-          toleranciasJson = parseado as Record<string, unknown>;
-        } else {
-          setMensaje({ texto: 'Las tolerancias deben ser un objeto JSON.', tipo: 'error' });
-          return;
-        }
-      } catch {
-        setMensaje({ texto: 'Las tolerancias no son JSON válido.', tipo: 'error' });
-        return;
-      }
-    }
 
     const subidas = fotos ? Array.from(fotos) : [];
     for (const foto of subidas) {
@@ -137,7 +120,6 @@ export function PanelCalidadProduccion({
         tipo,
         referencia: referencia.trim() ? Number(referencia) : null,
         resultado,
-        ...(toleranciasJson ? { tolerancias: toleranciasJson } : {}),
         cantidadInspeccionada: Number(cantidadOk) + Number(cantidadNok),
         cantidadOk: Number(cantidadOk),
         cantidadNok: Number(cantidadNok),
@@ -275,25 +257,25 @@ export function PanelCalidadProduccion({
             <DialogTitle>Registrar inspección</DialogTitle>
             <DialogDescription>
               {procesoCorrida?.requierePrimeraPieza
-                ? 'El proceso exige primera pieza aprobada antes de declarar producción.'
-                : 'Las referencias se registran sin bloquear la producción (control estadístico).'}
+                ? 'El proceso pide aprobar la primera pieza antes de declarar producción.'
+                : 'Estas revisiones dejan registro sin detener la producción.'}
             </DialogDescription>
           </DialogHeader>
           <form className="flex flex-col gap-3" onSubmit={registrar}>
             <label className={CLASE_ETIQUETA}>
-              Tipo
+              Momento de la revisión
               <Select
                 data-testid="tipo-inspeccion"
                 value={tipo}
                 onChange={(evento) => setTipo(evento.target.value as TipoInspeccion)}
               >
                 <option value="PRIMERA_PIEZA">Primera pieza</option>
-                <option value="REFERENCIA_LOTE">Referencia de lote</option>
-                <option value="CIERRE">Cierre</option>
+                <option value="REFERENCIA_LOTE">Durante el lote</option>
+                <option value="CIERRE">Al cerrar el lote</option>
               </Select>
             </label>
             <label className={CLASE_ETIQUETA}>
-              Corrida
+              Lote de producción
               <Select
                 data-testid="corrida-inspeccion"
                 value={corridaId}
@@ -303,6 +285,7 @@ export function PanelCalidadProduccion({
                   setCodigoItem(corrida?.items[0]?.codigoItem ?? '');
                 }}
               >
+                <option value="">Sin lote específico</option>
                 {corridas.map((corrida) => (
                   <option key={corrida.id} value={corrida.id}>
                     {corrida.codigo} · {corrida.procesoNombre}
@@ -310,18 +293,36 @@ export function PanelCalidadProduccion({
                 ))}
               </Select>
             </label>
-            <label className={CLASE_ETIQUETA}>
-              Código de ítem
-              <Input
-                value={codigoItem}
-                maxLength={40}
-                onChange={(evento) => setCodigoItem(evento.target.value)}
-                required
-              />
-            </label>
+            {corridaSeleccionada && corridaSeleccionada.items.length > 0 ? (
+              <label className={CLASE_ETIQUETA}>
+                Pieza revisada
+                <Select
+                  value={codigoItem}
+                  onChange={(evento) => setCodigoItem(evento.target.value)}
+                  data-testid="item-inspeccion"
+                >
+                  {corridaSeleccionada.items.map((item) => (
+                    <option key={item.codigoItem} value={item.codigoItem}>
+                      {item.codigoItem}
+                    </option>
+                  ))}
+                </Select>
+              </label>
+            ) : (
+              <label className={CLASE_ETIQUETA}>
+                Pieza revisada
+                <Input
+                  value={codigoItem}
+                  maxLength={40}
+                  onChange={(evento) => setCodigoItem(evento.target.value)}
+                  placeholder="Código de la pieza"
+                  required
+                />
+              </label>
+            )}
             {tipo === 'REFERENCIA_LOTE' ? (
               <label className={CLASE_ETIQUETA}>
-                Referencia{tipo === 'REFERENCIA_LOTE' && referencias.length > 0 ? ` (sugeridas: ${referencias.join(', ')})` : ''}
+                Número de pieza revisada
                 <Input
                   data-testid="referencia-inspeccion"
                   type="number"
@@ -330,10 +331,15 @@ export function PanelCalidadProduccion({
                   onChange={(evento) => setReferencia(evento.target.value)}
                   required
                 />
+                {referencias.length > 0 ? (
+                  <span className="text-xs font-normal text-texto-tenue">
+                    Sugeridas: {referencias.join(', ')}
+                  </span>
+                ) : null}
               </label>
             ) : null}
             <label className={CLASE_ETIQUETA}>
-              Resultado
+              Resultado de la revisión
               <Select
                 data-testid="resultado-inspeccion"
                 value={resultado}
@@ -345,9 +351,9 @@ export function PanelCalidadProduccion({
             </label>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                { etiqueta: 'Cantidad OK', valor: cantidadOk, set: setCantidadOk },
-                { etiqueta: 'Cantidad NOK', valor: cantidadNok, set: setCantidadNok },
-                { etiqueta: 'Retrabajo', valor: cantidadRetrabajo, set: setCantidadRetrabajo },
+                { etiqueta: 'Piezas buenas', valor: cantidadOk, set: setCantidadOk },
+                { etiqueta: 'Piezas con defecto', valor: cantidadNok, set: setCantidadNok },
+                { etiqueta: 'Piezas a retrabajo', valor: cantidadRetrabajo, set: setCantidadRetrabajo },
               ].map((campo) => (
                 <label key={campo.etiqueta} className={CLASE_ETIQUETA}>
                   {campo.etiqueta}
@@ -362,34 +368,26 @@ export function PanelCalidadProduccion({
               ))}
             </div>
             <label className={CLASE_ETIQUETA}>
-              Material usado (opcional)
+              Material utilizado (opcional)
               <Input
                 value={materialUsado}
                 maxLength={300}
                 onChange={(evento) => setMaterialUsado(evento.target.value)}
+                placeholder="Solo si la revisión consumió material"
               />
             </label>
             <label className={CLASE_ETIQUETA}>
-              Tolerancias (JSON opcional)
-              <Textarea
-                className="min-h-11"
-                value={tolerancias}
-                maxLength={2000}
-                placeholder='{"largo":0.5,"angulo":1}'
-                onChange={(evento) => setTolerancias(evento.target.value)}
-              />
-            </label>
-            <label className={CLASE_ETIQUETA}>
-              Observaciones (opcional)
+              Notas de la revisión (opcional)
               <Textarea
                 className="min-h-11"
                 value={observaciones}
                 maxLength={1000}
                 onChange={(evento) => setObservaciones(evento.target.value)}
+                placeholder="Describe cualquier detalle útil para el equipo"
               />
             </label>
             <label className={CLASE_ETIQUETA}>
-              Fotos de evidencia (opcional)
+              Fotos o documentos (opcional)
               <Input
                 data-testid="fotos-inspeccion"
                 type="file"
@@ -397,6 +395,9 @@ export function PanelCalidadProduccion({
                 multiple
                 onChange={(evento) => setFotos(evento.target.files)}
               />
+              <span className="text-xs font-normal text-texto-tenue">
+                Adjunta imágenes o PDF como evidencia de la revisión.
+              </span>
             </label>
             {mensaje?.tipo === 'error' && <p role="alert" className="text-sm text-peligro-texto">{mensaje.texto}</p>}
             <div className="flex justify-end gap-2">

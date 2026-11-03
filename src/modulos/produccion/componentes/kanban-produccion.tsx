@@ -3,10 +3,8 @@
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { Badge } from '@/compartido/componentes/ui/badge';
-import { Button } from '@/compartido/componentes/ui/button';
 import { cn } from '@/compartido/utilidades/cn';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
-import { ordenSoloConsultaEnProduccion } from '@/modulos/ordenes/utilidades/conclusion-orden';
 import type {
   AreaCatalogoProduccion,
   OrdenTableroProduccion,
@@ -162,8 +160,20 @@ export function KanbanProduccion({
                   <article
                     key={orden.id}
                     data-testid={`tarjeta-produccion-${orden.id}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Abrir orden ${orden.folio}`}
+                    onClick={() => onSeleccionarOrden(orden.id)}
+                    onKeyDown={(evento) => {
+                      if (evento.key === 'Enter' || evento.key === ' ') {
+                        evento.preventDefault();
+                        onSeleccionarOrden(orden.id);
+                      }
+                    }}
                     className={cn(
-                      'flex min-h-[200px] flex-col gap-2 rounded-lg border p-4',
+                      'flex min-h-[200px] cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition-colors',
+                      'hover:border-acento/50 hover:bg-acento-suave/20',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/50',
                       orden.id === ordenSeleccionadaId
                         ? 'border-acento/60 bg-acento-suave'
                         : 'border-borde bg-superficie',
@@ -202,7 +212,11 @@ export function KanbanProduccion({
                       mostrarPorcentaje
                       etiqueta={`Avance de ${orden.folio}`}
                     />
-                    <details className="rounded-md border border-borde bg-superficie-2/30 px-2 py-1">
+                    <details
+                      className="rounded-md border border-borde bg-superficie-2/30 px-2 py-1"
+                      onClick={(evento) => evento.stopPropagation()}
+                      onKeyDown={(evento) => evento.stopPropagation()}
+                    >
                       <summary className="cursor-pointer text-xs text-texto-secundario marker:content-none">
                         Ver avance por proceso ({orden.partidas.reduce((total, partida) => total + partida.metasProceso.length, 0)})
                       </summary>
@@ -253,15 +267,9 @@ export function KanbanProduccion({
                     <p className="text-sm text-texto-secundario">
                       Compromiso: <span className="whitespace-nowrap">{new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}</span>
                     </p>
-                    <Button
-                      type="button"
-                      variante="contorno"
-                      tamano="lg"
-                      className="mt-auto w-full"
-                      onClick={() => onSeleccionarOrden(orden.id)}
-                    >
-                      {ordenSoloConsultaEnProduccion(orden) ? 'Ver en producción' : 'Operar orden'}
-                    </Button>
+                    <span className="mt-auto text-xs font-medium text-acento">
+                      Abrir ficha →
+                    </span>
                   </article>
                 ))}
                 {ordenesColumna.length === 0 ? (

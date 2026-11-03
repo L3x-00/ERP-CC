@@ -303,7 +303,11 @@ export async function reanudarSesionTrabajoServicio(
 /** Cierra o pausa en PostgreSQL; el reloj, producción y recurso no vienen del cliente. */
 export async function cerrarSesionTrabajoServicio(
   admin: SupabaseClient<Database>,
-  entrada: CerrarSesionInput & { operadorId: string },
+  entrada: Omit<CerrarSesionInput, 'pinConfirmacion'> & {
+    operadorId: string;
+    /** El PIN lo valida la Server Action del operador; el servicio no lo usa. */
+    pinConfirmacion?: string;
+  },
 ): Promise<CierreSesionRegistrado> {
   if (entrada.estadoDestino === 'finalizada' && !entrada.consumo) {
     throw new ErrorProduccion(
