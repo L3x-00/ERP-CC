@@ -296,6 +296,7 @@ async function obtenerComentariosDeOrdenes(
 function sesionResumen(
   sesion: SesionTrabajo,
   responsables: Readonly<Record<string, string>>,
+  corridasConPrimeraPiezaPendiente: ReadonlySet<string>,
 ): SesionProceso {
   return {
     id: sesion.id,
@@ -307,11 +308,80 @@ function sesionResumen(
     fechaFin: sesion.fechaFin,
     piezasProducidas: sesion.piezasProducidas,
     horasNetas: sesion.horasNetas,
+    primeraPiezaPendiente: sesion.corridaId !== null
+      && corridasConPrimeraPiezaPendiente.has(sesion.corridaId),
     motivoPausa: sesion.motivoPausaCodigo ?? sesion.motivoPausa,
     motivoPausaNota: sesion.motivoPausaNota,
     notas: sesion.notas,
     verificacionCompleta: sesion.verificacionInicio !== null,
   };
+}
+
+/**
+ * Corridas cuyo proceso exige primera pieza y todavía no tienen una inspección
+ * aprobada. Permite avisar al operador antes de que llene el cierre.
+ */
+async function obtenerCorridasConPrimeraPiezaPendiente(
+  cliente: Admin,
+  sesiones: readonly SesionTrabajo[],
+): Promise<Set<string>> {
+  const pendientes = new Set<string>();
+  const corridaIds = [...new Set(
+    sesiones
+      .map((sesion) => sesion.corridaId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0),
+  )];
+  if (corridaIds.length === 0) return pendientes;
+
+  const corridas = await obtenerFilasEnLotes<{ id: string; proceso_id: string }>(
+    corridaIds,
+    async (lote) => {
+      const { data, error } = await cliente
+        .from('corridas')
+        .select('id, proceso_id')
+        .in('id', lote);
+      return { data, error };
+    },
+  );
+  if (corridas.length === 0) return pendientes;
+
+  const procesos = await obtenerFilasEnLotes<{ id: string; requiere_primera_pieza: boolean }>(
+    [...new Set(corridas.map((corrida) => corrida.proceso_id))],
+    async (lote) => {
+      const { data, error } = await cliente
+        .from('catalogo_procesos')
+        .select('id, requiere_primera_pieza')
+        .in('id', lote);
+      return { data, error };
+    },
+  );
+  const exigen = new Set(
+    procesos.filter((proceso) => proceso.requiere_primera_pieza).map((proceso) => proceso.id),
+  );
+  const candidatas = corridas.filter((corrida) => exigen.has(corrida.proceso_id));
+  if (candidatas.length === 0) return pendientes;
+
+  const aprobadas = await obtenerFilasEnLotes<{ corrida_id: string | null }>(
+    candidatas.map((corrida) => corrida.id),
+    async (lote) => {
+      const { data, error } = await cliente
+        .from('inspecciones_calidad')
+        .select('corrida_id')
+        .eq('tipo', 'PRIMERA_PIEZA')
+        .eq('resultado', 'APROBADA')
+        .in('corrida_id', lote);
+      return { data, error };
+    },
+  );
+  const conAprobada = new Set(
+    aprobadas
+      .map((fila) => fila.corrida_id)
+      .filter((id): id is string => typeof id === 'string'),
+  );
+  for (const corrida of candidatas) {
+    if (!conAprobada.has(corrida.id)) pendientes.add(corrida.id);
+  }
+  return pendientes;
 }
 
 /**
@@ -443,6 +513,10 @@ export async function obtenerEspacioOperadorServicio(
     obtenerArchivosDeOrdenes(cliente, ordenIds),
     obtenerComentariosDeOrdenes(cliente, ordenIds),
   ]);
+  const corridasConPrimeraPiezaPendiente = await obtenerCorridasConPrimeraPiezaPendiente(
+    cliente,
+    sesiones,
+  );
 
   const sesionesPorProgramacion = new Map<string, SesionTrabajo[]>();
   const sesionesPorPartida = new Map<string, SesionTrabajo[]>();
@@ -686,9 +760,14 @@ export async function obtenerEspacioOperadorServicio(
         reclamo,
         reclamadoPorMi,
         nombreReclamante: reclamo ? responsables[reclamo.operadorId] ?? 'Operador' : null,
-        sesionActiva: sesionActiva ? sesionResumen(sesionActiva, responsables) : null,
-        ultimaSesion: ultimaSesion ? sesionResumen(ultimaSesion, responsables) : null,
-        sesiones: sesionesOrdenadas.map((sesion) => sesionResumen(sesion, responsables)),
+        sesionActiva: sesionActiva
+          ? sesionResumen(sesionActiva, responsables, corridasConPrimeraPiezaPendiente)
+          : null,
+        ultimaSesion: ultimaSesion
+          ? sesionResumen(ultimaSesion, responsables, corridasConPrimeraPiezaPendiente)
+          : null,
+        sesiones: sesionesOrdenadas.map((sesion) =>
+          sesionResumen(sesion, responsables, corridasConPrimeraPiezaPendiente)),
         procesosRuteo,
         archivos,
         comentariosOrden,

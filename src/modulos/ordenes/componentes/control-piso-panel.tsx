@@ -42,6 +42,11 @@ type PropsControlPisoPanel = {
   soloLectura?: boolean;
 
   modo?: 'completo' | 'proceso';
+  /**
+   * C13.1: el cierre de sesión ya captura el consumo. Dentro de “Gestionar
+   * proceso” no se repite el formulario para no duplicar la captura.
+   */
+  mostrarConsumoMaterial?: boolean;
 };
 
 type OperacionPiso = 'tiempo' | 'avance' | 'consumo' | null;
@@ -65,6 +70,7 @@ export function ControlPisoPanel({
   areas = [],
   soloLectura = false,
   modo = 'completo',
+  mostrarConsumoMaterial = true,
 }: PropsControlPisoPanel) {
   const router = useRouter();
   const ordenActivaId = usarTiendaOrdenes((estado) => estado.ordenActivaId);
@@ -519,7 +525,7 @@ export function ControlPisoPanel({
           </Button>
         </section>
       ) : null}
-      {partidaActiva ? (
+      {partidaActiva && mostrarConsumoMaterial ? (
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
           <h2 className="text-lg font-semibold text-texto-primario">Consumo de material</h2>
           <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="material-consumo">

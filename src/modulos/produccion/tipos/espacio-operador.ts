@@ -110,6 +110,8 @@ export interface SesionProceso {
   fechaFin: string | null;
   piezasProducidas: number;
   horasNetas: number;
+  /** true si la corrida exige primera pieza y aún no hay una aprobada. */
+  primeraPiezaPendiente?: boolean;
   motivoPausa: string | null;
   motivoPausaNota: string | null;
   notas: string | null;

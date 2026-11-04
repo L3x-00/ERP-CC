@@ -613,6 +613,7 @@ export function PaginaMiPanelOperador({
             materiales={materiales}
             areas={areas}
             modo="proceso"
+            mostrarConsumoMaterial={false}
           />
         ) : (
           <p className="rounded-lg border border-borde bg-superficie p-4 text-sm text-texto-secundario">

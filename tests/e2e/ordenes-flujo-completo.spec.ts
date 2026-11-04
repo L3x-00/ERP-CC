@@ -399,17 +399,25 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await checklist.getByTestId('confirmar-checklist-inicio').click();
     await expect(page.getByTestId('aviso-espacio')).toContainText('Sesión iniciada');
 
-    // El control de consumo no duplica la vista principal del piso: se abre
-    // desde el detalle personal del proceso reservado e iniciado.
+    // C13.1: el consumo se captura en el cierre de sesión; el modal de gestión
+    // ya no duplica el formulario de consumo.
     await page.goto('/operador/mi-panel');
     await expect(page.getByRole('button', { name: 'Gestionar proceso' })).toBeEnabled();
     await page.getByRole('button', { name: 'Gestionar proceso' }).click();
     await expect(page.getByTestId('control-piso')).toHaveAttribute('data-hidratado', 'true');
+    await expect(page.getByTestId('material-consumo')).toHaveCount(0);
+    await expect(page.getByTestId('registrar-consumo')).toHaveCount(0);
 
-    await page.getByTestId('material-consumo').selectOption(contexto.materialId);
-    await page.getByTestId('cantidad-consumo').fill('3');
-    await page.getByTestId('registrar-consumo').click();
-    await expect(page.getByRole('status')).toContainText('Consumo de material registrado');
+    await page.getByTestId('alternar-cierre-sesion').click();
+    await page.getByTestId('piezas-cierre').fill('1');
+    await page.getByTestId('material-cierre').selectOption(contexto.materialId);
+    await page.getByTestId('usado-cierre').fill('3');
+    await page.getByTestId('pin-cierre').fill(contexto.pinOperador);
+    await page.getByTestId('cerrar-sesion-detalle').click();
+    const resumenCierreOperador = page.getByTestId('resumen-cierre-sesion');
+    await expect(resumenCierreOperador).toBeVisible();
+    await expect(resumenCierreOperador).toContainText('Material usado');
+    await page.getByRole('button', { name: 'Entendido' }).click();
 
     const { data: partida, error: errorPartida } = await contexto.admin
       .from('partidas_orden_produccion')
@@ -429,10 +437,10 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     expect(errorSesiones).toBeNull();
     expect(sesiones).toContainEqual(expect.objectContaining({
       operador_id: contexto.operadorId,
-      estado_sesion: 'activa',
+      estado_sesion: 'finalizada',
     }));
-    const sesionActiva = sesiones?.find((sesion) => sesion.estado_sesion === 'activa');
-    expect(sesionActiva).toBeDefined();
+    const sesionCerrada = sesiones?.find((sesion) => sesion.estado_sesion === 'finalizada');
+    expect(sesionCerrada).toBeDefined();
 
     const { data: consumo, error: errorConsumo } = await contexto.admin
       .from('registros_consumo_material')
@@ -467,13 +475,13 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
         contexto.ordenId!,
         contexto.partidaId,
         contexto.consumoId,
-        sesionActiva!.id,
+        sesionCerrada!.id,
       ]);
     const acciones = new Set((logs ?? []).map((log) => log.accion));
     // La cola ya no expone el formulario operativo global: la reserva y el
-    // arranque auditados se hacen desde el proceso, y el consumo desde su panel.
+    // arranque auditados se hacen desde el proceso, y el consumo en su cierre.
     const accionesEsperadas = [
-      'registrar_consumo_material',
+      'cerrar_sesion_trabajo',
       'iniciar_proceso_reclamado',
     ];
     for (const accion of accionesEsperadas) {
