@@ -222,9 +222,8 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
-    const aviso = await screen.findByTestId('aviso-primera-pieza');
-    expect(aviso.textContent).toContain('Falta liberar la primera pieza');
-    fireEvent.click(screen.getByTestId('abrir-liberar-primera-pieza'));
+    await waitFor(() => expect(screen.getByText('Falta liberar la primera pieza')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('modal-liberar-primera-pieza'));
     expect(screen.getByText('Resultado de la inspección')).toBeTruthy();
     expect(screen.getByTestId('resultado-primera-pieza')).toBeTruthy();
   });

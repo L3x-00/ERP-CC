@@ -536,7 +536,12 @@ await expect(
 
 await expect(modalGestion).toContainText('Ruta de fabricación');
 await expect(modalGestion).toContainText('Cerrar la sesión en marcha');
-await expect(modalGestion).toContainText('Consumo de material');
+// C13.1: el cierre inicia colapsado y el consumo no se duplica con el panel de piso.
+await expect(modalGestion.getByTestId('alternar-cierre-sesion')).toHaveAttribute('aria-expanded', 'false');
+await expect(modalGestion.getByTestId('material-consumo')).toHaveCount(0);
+await modalGestion.getByTestId('alternar-cierre-sesion').click();
+await expect(modalGestion.getByTestId('alternar-cierre-sesion')).toHaveAttribute('aria-expanded', 'true');
+await expect(modalGestion.getByText('Consumo de material', { exact: true })).toBeVisible();
 
 // Cerrar el modal debe regresar a las tarjetas.
 await modalGestion
