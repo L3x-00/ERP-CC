@@ -6973,6 +6973,61 @@ export type Database = {
           unidad_control: string
         }[]
       }
+      reemplazar_material_cliente_item: {
+        Args: {
+          p_actor_id: string
+          p_codigo_item: string
+          p_materiales: Json
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      obtener_material_cliente_revision: {
+        Args: { p_actor_id: string; p_revision_id: string }
+        Returns: {
+          cantidad: number
+          codigo_item: string
+          id: string
+          material_codigo: string
+          material_id: string
+          material_nombre: string
+          unidad_base: string
+        }[]
+      }
+      registrar_consumo_material_cliente: {
+        Args: {
+          p_actor_id: string
+          p_cantidad_scrap: number
+          p_cantidad_usada: number
+          p_material_id: string
+          p_sesion_id: string
+        }
+        Returns: {
+          cantidad_scrap: number
+          cantidad_usada: number
+          consumido: number
+          declarado: number
+          id: string
+          material_id: string
+          orden_id: string
+          partida_id: string
+          saldo: number
+        }[]
+      }
+      obtener_material_cliente_orden: {
+        Args: { p_actor_id: string; p_orden_id: string }
+        Returns: {
+          codigo_pieza: string
+          consumido: number
+          declarado: number
+          material_codigo: string
+          material_id: string
+          material_nombre: string
+          partida_id: string
+          saldo: number
+          unidad_base: string
+        }[]
+      }
       resolver_solicitud_horas_extra: {
         Args: { p_aprobar: boolean; p_autorizador_id: string; p_id: string }
         Returns: {

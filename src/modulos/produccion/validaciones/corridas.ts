@@ -159,6 +159,40 @@ export const esquemaRegistrarRetrabajo = z
 
 export type RegistrarRetrabajoInput = z.infer<typeof esquemaRegistrarRetrabajo>;
 
+/** C13.3: declaración de material del cliente por ítem en una revisión DRAFT. */
+export const esquemaMaterialClienteItem = z
+  .object({
+    revisionId: z.uuid('ID de revisión inválido'),
+    codigoItem: z.string().trim().min(1).max(50),
+    materiales: z
+      .array(
+        z.object({
+          materialId: z.uuid('ID de material inválido'),
+          cantidad: z.number().finite().positive('La cantidad debe ser mayor a cero'),
+        }).strict(),
+      )
+      .max(20),
+  })
+  .strict();
+
+export type MaterialClienteItemInput = z.infer<typeof esquemaMaterialClienteItem>;
+
+/** C13.3: consumo real del material del cliente al cerrar la sesión. */
+export const esquemaConsumoMaterialCliente = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+    materialId: z.uuid('ID de material inválido'),
+    cantidadUsada: z.number().finite().min(0),
+    cantidadScrap: z.number().finite().min(0),
+  })
+  .strict()
+  .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {
+    message: 'Registra material usado o merma mayor a cero',
+    path: ['cantidadUsada'],
+  });
+
+export type ConsumoMaterialClienteInput = z.infer<typeof esquemaConsumoMaterialCliente>;
+
 const destinoFotoInspeccion = {
   inspeccionId: z.uuid('ID de inspección inválido'),
   nombre: z.string().trim().min(1).max(250),

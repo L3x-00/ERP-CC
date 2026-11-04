@@ -46,6 +46,13 @@ export {
 } from '@/modulos/produccion/servicios/retrabajos-servicio';
 
 export {
+  obtenerMaterialClienteOrdenServicio,
+  obtenerMaterialClienteRevisionServicio,
+  registrarConsumoMaterialClienteServicio,
+  reemplazarMaterialClienteItemServicio,
+} from '@/modulos/produccion/servicios/material-cliente-servicio';
+
+export {
   obtenerAutorizacionesHoraExtraServicio,
   obtenerCorridasOrdenServicio,
   obtenerInspeccionesOrdenServicio,
