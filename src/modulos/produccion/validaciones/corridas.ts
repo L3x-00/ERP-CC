@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { campoRutaSubida, camposPrepararSubida } from '@/nucleo/almacenamiento/archivos/esquemas-subida';
+import { CAUSAS_RETRABAJO } from '@/modulos/produccion/tipos/retrabajos';
 
 /**
  * Validaciones del borde de las acciones B6 (corridas, pausas, jornada, horas
@@ -137,6 +138,26 @@ export type AutorizarHorasExtraInput = z.infer<typeof esquemaAutorizarHorasExtra
 export type SolicitarHorasExtraInput = z.infer<typeof esquemaSolicitarHorasExtra>;
 export type ResolverHorasExtraInput = z.infer<typeof esquemaResolverHorasExtra>;
 export type RegistrarInspeccionInput = z.infer<typeof esquemaRegistrarInspeccion>;
+
+/** C13.2: retrabajo declarado al cerrar la sesión (material, tiempo y causa). */
+export const esquemaRegistrarRetrabajo = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+    materialId: z.uuid('ID de material inválido'),
+    cantidadUsada: z.number().finite().min(0),
+    cantidadScrap: z.number().finite().min(0),
+    minutos: z.number().finite().positive('Indica el tiempo del retrabajo').max(1440),
+    causa: z.enum(CAUSAS_RETRABAJO),
+    motivo: z.string().trim().min(3, 'Describe el motivo del retrabajo').max(300),
+    notas: z.string().trim().max(1000).optional(),
+  })
+  .strict()
+  .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {
+    message: 'Registra material usado o merma mayor a cero',
+    path: ['cantidadUsada'],
+  });
+
+export type RegistrarRetrabajoInput = z.infer<typeof esquemaRegistrarRetrabajo>;
 
 const destinoFotoInspeccion = {
   inspeccionId: z.uuid('ID de inspección inválido'),

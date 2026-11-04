@@ -35,6 +35,7 @@ import { PanelCorridasProduccion } from '@/modulos/produccion/componentes/panel-
 import { PanelHorasExtraProduccion } from '@/modulos/produccion/componentes/panel-horas-extra-produccion';
 import { PanelOperadorProduccion, type CierreSupervisor } from '@/modulos/produccion/componentes/panel-operador-produccion';
 import { PanelRecursosLiberados } from '@/modulos/produccion/componentes/panel-recursos-liberados';
+import { PanelRetrabajosProduccion } from '@/modulos/produccion/componentes/panel-retrabajos-produccion';
 import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
 import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
@@ -437,6 +438,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                 </section>
 
                 <PanelCalidadProduccion orden={ordenSeleccionada} corridas={corridasOrden} />
+                <PanelRetrabajosProduccion orden={ordenSeleccionada} />
                 <FormularioNotaEntrega
                   key={ordenSeleccionada.id}
                   orden={ordenSeleccionada}

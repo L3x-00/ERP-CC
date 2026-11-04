@@ -267,9 +267,6 @@ export function KanbanProduccion({
                     <p className="text-sm text-texto-secundario">
                       Compromiso: <span className="whitespace-nowrap">{new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}</span>
                     </p>
-                    <span className="mt-auto text-xs font-medium text-acento">
-                      Abrir ficha →
-                    </span>
                   </article>
                 ))}
                 {ordenesColumna.length === 0 ? (

@@ -27,6 +27,8 @@ import {
   sesionCercaDeJornada,
 } from '@/modulos/produccion/utilidades/indice';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
+import { registrarRetrabajoAccion } from '@/modulos/produccion/acciones/registrar-retrabajo';
+import type { CausaRetrabajo } from '@/modulos/produccion/tipos/indice';
 import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
@@ -149,6 +151,18 @@ export function DetalleProcesoOperador({
   const [mensajeInspeccionCierre, setMensajeInspeccionCierre] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
+  const [registrarRetrabajo, setRegistrarRetrabajo] = useState(false);
+  const [retrabajoMaterialId, setRetrabajoMaterialId] = useState('');
+  const [retrabajoUsado, setRetrabajoUsado] = useState('0');
+  const [retrabajoMerma, setRetrabajoMerma] = useState('0');
+  const [retrabajoMinutos, setRetrabajoMinutos] = useState('');
+  const [retrabajoCausa, setRetrabajoCausa] = useState<CausaRetrabajo>('operador');
+  const [retrabajoMotivo, setRetrabajoMotivo] = useState('');
+  const [retrabajoNotas, setRetrabajoNotas] = useState('');
+  const [retrabajoRegistrado, setRetrabajoRegistrado] = useState(false);
+  const [mensajeRetrabajo, setMensajeRetrabajo] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
   const [ahoraAviso] = useState(() => new Date());
   const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
@@ -232,6 +246,21 @@ export function DetalleProcesoOperador({
       });
       return;
     }
+
+    if (estadoDestino === 'finalizada' && registrarRetrabajo && !retrabajoRegistrado) {
+      const rUsado = Number(retrabajoUsado);
+      const rMerma = Number(retrabajoMerma);
+      const rMinutos = Number(retrabajoMinutos);
+      if (!Number.isFinite(rUsado) || !Number.isFinite(rMerma) || rUsado < 0 || rMerma < 0
+        || rUsado + rMerma <= 0 || !Number.isFinite(rMinutos) || rMinutos <= 0
+        || retrabajoMotivo.trim().length < 3) {
+        setMensaje({
+          exito: false,
+          error: 'Completa el retrabajo: material usado o merma, tiempo y motivo.',
+        });
+        return;
+      }
+    }
     const resultado = await acciones.cerrar(proceso, {
       sesionId: proceso.sesionActiva.id,
       piezasProducidas: Number(piezas),
@@ -299,6 +328,27 @@ export function DetalleProcesoOperador({
             ? { tipo: 'ok', texto: 'Inspección de cierre registrada.' }
             : { tipo: 'error', texto: `La sesión cerró, pero la inspección falló: ${inspeccion.error}` },
         );
+      }
+
+      // C13.2: el retrabajo se registra al cerrar. Si falla, la sesión ya cerró
+      // y el mensaje lo indica; no se repite si el formulario se reenvía.
+      if (registrarRetrabajo && !retrabajoRegistrado) {
+        const retrabajo = await registrarRetrabajoAccion({
+          sesionId: proceso.sesionActiva.id,
+          materialId: retrabajoMaterialId || materialId,
+          cantidadUsada: Number(retrabajoUsado),
+          cantidadScrap: Number(retrabajoMerma),
+          minutos: Number(retrabajoMinutos),
+          causa: retrabajoCausa,
+          motivo: retrabajoMotivo.trim(),
+          ...(retrabajoNotas.trim() ? { notas: retrabajoNotas.trim() } : {}),
+        });
+        setMensajeRetrabajo(
+          retrabajo.exito
+            ? { tipo: 'ok', texto: 'Retrabajo registrado con su material y tiempo.' }
+            : { tipo: 'error', texto: `La sesión cerró, pero el retrabajo falló: ${retrabajo.error}` },
+        );
+        if (retrabajo.exito) setRetrabajoRegistrado(true);
       }
     }
   }
@@ -926,6 +976,109 @@ export function DetalleProcesoOperador({
                           </>
                         ) : null}
                       </div>
+
+                      <div className="grid gap-3 rounded-lg border border-borde p-3">
+                        <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4"
+                            checked={registrarRetrabajo}
+                            onChange={(evento) => setRegistrarRetrabajo(evento.target.checked)}
+                            data-testid="registrar-retrabajo"
+                          />
+                          <span>
+                            Registrar retrabajo
+                            <span className="block text-xs font-normal text-texto-secundario">
+                              Trabajo extra con material propio, tiempo y causa. No cambia el avance.
+                            </span>
+                          </span>
+                        </label>
+                        {registrarRetrabajo ? (
+                          <>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <label className={CLASE_ETIQUETA}>
+                                Material del retrabajo
+                                <Select
+                                  value={retrabajoMaterialId || materialId}
+                                  onChange={(evento) => setRetrabajoMaterialId(evento.target.value)}
+                                  data-testid="retrabajo-material"
+                                >
+                                  <option value="">Selecciona un material</option>
+                                  {materiales.map((material) => (
+                                    <option key={material.id} value={material.id}>
+                                      {material.codigo} — {material.nombre} ({material.unidadBase})
+                                    </option>
+                                  ))}
+                                </Select>
+                              </label>
+                              <label className={CLASE_ETIQUETA}>
+                                Tiempo del retrabajo (min)
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={retrabajoMinutos}
+                                  onChange={(evento) => setRetrabajoMinutos(evento.target.value)}
+                                  data-testid="retrabajo-minutos"
+                                />
+                              </label>
+                              <label className={CLASE_ETIQUETA}>
+                                Usado
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  value={retrabajoUsado}
+                                  onChange={(evento) => setRetrabajoUsado(evento.target.value)}
+                                  data-testid="retrabajo-usado"
+                                />
+                              </label>
+                              <label className={CLASE_ETIQUETA}>
+                                Merma
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="any"
+                                  value={retrabajoMerma}
+                                  onChange={(evento) => setRetrabajoMerma(evento.target.value)}
+                                  data-testid="retrabajo-merma"
+                                />
+                              </label>
+                            </div>
+                            <label className={CLASE_ETIQUETA}>
+                              Causa
+                              <Select
+                                value={retrabajoCausa}
+                                onChange={(evento) => setRetrabajoCausa(evento.target.value as CausaRetrabajo)}
+                                data-testid="retrabajo-causa"
+                              >
+                                <option value="operador">Error del operador</option>
+                                <option value="cliente">Cambio o error del cliente</option>
+                                <option value="material">Defecto del material</option>
+                                <option value="otro">Otro</option>
+                              </Select>
+                            </label>
+                            <label className={CLASE_ETIQUETA}>
+                              Motivo
+                              <Input
+                                maxLength={300}
+                                value={retrabajoMotivo}
+                                onChange={(evento) => setRetrabajoMotivo(evento.target.value)}
+                                placeholder="Qué se corrigió y por qué"
+                                data-testid="retrabajo-motivo"
+                              />
+                            </label>
+                            <label className={CLASE_ETIQUETA}>
+                              Notas (opcional)
+                              <Textarea
+                                maxLength={1000}
+                                value={retrabajoNotas}
+                                onChange={(evento) => setRetrabajoNotas(evento.target.value)}
+                              />
+                            </label>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1091,6 +1244,18 @@ export function DetalleProcesoOperador({
               data-testid="mensaje-inspeccion-cierre"
             >
               {mensajeInspeccionCierre.texto}
+            </p>
+          ) : null}
+          {mensajeRetrabajo ? (
+            <p
+              role={mensajeRetrabajo.tipo === 'error' ? 'alert' : 'status'}
+              className={cn(
+                'col-span-full text-sm',
+                mensajeRetrabajo.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto',
+              )}
+              data-testid="mensaje-retrabajo"
+            >
+              {mensajeRetrabajo.texto}
             </p>
           ) : null}
         </dl>

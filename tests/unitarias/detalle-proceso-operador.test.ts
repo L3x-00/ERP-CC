@@ -227,4 +227,31 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.getByText('Resultado de la inspección')).toBeTruthy();
     expect(screen.getByTestId('resultado-primera-pieza')).toBeTruthy();
   });
+
+  it('permite declarar retrabajo al cerrar sin alterar el avance', async () => {
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.click(screen.getByTestId('registrar-retrabajo'));
+    expect(screen.getByTestId('retrabajo-minutos')).toBeTruthy();
+    expect(screen.getByTestId('retrabajo-motivo')).toBeTruthy();
+    expect(screen.getByTestId('retrabajo-causa')).toBeTruthy();
+  });
 });

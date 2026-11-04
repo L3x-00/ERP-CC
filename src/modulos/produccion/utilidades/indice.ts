@@ -28,3 +28,5 @@ export {
   horasTranscurridasSesion,
   sesionCercaDeJornada,
 } from '@/modulos/produccion/utilidades/horas-extra';
+
+export { ETIQUETAS_CAUSA_RETRABAJO } from '@/modulos/produccion/tipos/retrabajos';

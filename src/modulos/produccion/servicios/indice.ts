@@ -41,6 +41,11 @@ export type {
 export { registrarInspeccionServicio } from '@/modulos/produccion/servicios/calidad-servicio';
 
 export {
+  obtenerRetrabajosOrdenServicio,
+  registrarRetrabajoServicio,
+} from '@/modulos/produccion/servicios/retrabajos-servicio';
+
+export {
   obtenerAutorizacionesHoraExtraServicio,
   obtenerCorridasOrdenServicio,
   obtenerInspeccionesOrdenServicio,

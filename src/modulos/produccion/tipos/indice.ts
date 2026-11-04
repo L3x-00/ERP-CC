@@ -98,3 +98,14 @@ export type {
   InspeccionCalidad,
   AutorizacionHoraExtra,
 } from '@/modulos/produccion/tipos/corridas';
+
+export {
+  CAUSAS_RETRABAJO,
+  ETIQUETAS_CAUSA_RETRABAJO,
+} from '@/modulos/produccion/tipos/retrabajos';
+
+export type {
+  CausaRetrabajo,
+  RetrabajoRegistrado,
+  RetrabajoDetalle,
+} from '@/modulos/produccion/tipos/retrabajos';
