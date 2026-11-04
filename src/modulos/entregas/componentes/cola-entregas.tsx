@@ -129,11 +129,21 @@ export function ColaEntregas({
                       <td className="px-4 py-3 tabular-nums text-texto-secundario">{orden.totalDisponible}</td>
                       <td className="px-4 py-3 text-right">
                         {puedeGenerar ? (
-                          <Button type="button" tamano="sm"
-                            data-testid={`preparar-entrega-${folioVisible}`}
-                            onClick={() => { setAviso(null); setSesionPanel((actual) => actual + 1); setPreparandoOrdenId(orden.ordenId); }}>
-                            Preparar entrega
-                          </Button>
+                          orden.totalDisponible > 0 ? (
+                            <Button type="button" tamano="sm"
+                              data-testid={`preparar-entrega-${folioVisible}`}
+                              onClick={() => { setAviso(null); setSesionPanel((actual) => actual + 1); setPreparandoOrdenId(orden.ordenId); }}>
+                              Preparar entrega
+                            </Button>
+                          ) : (
+                            <span
+                              className="inline-flex items-center rounded-md border border-borde px-3 py-1.5 text-xs text-texto-tenue"
+                              title="Aún no hay piezas producidas para entregar"
+                              data-testid={`preparar-entrega-bloqueada-${folioVisible}`}
+                            >
+                              Sin piezas producidas
+                            </span>
+                          )
                         ) : (
                           <span className="text-xs text-texto-tenue">Sin permiso para generar</span>
                         )}

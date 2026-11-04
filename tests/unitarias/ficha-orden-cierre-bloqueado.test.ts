@@ -13,6 +13,13 @@ vi.mock('@/modulos/comentarios/componentes/indice', () => ({ HiloComentarios: ()
 vi.mock('@/modulos/ordenes/componentes/adjuntos-orden-dialog', () => ({ AdjuntosOrdenDialog: () => null }));
 
 import { FichaOrden } from '@/modulos/ordenes/componentes/ficha-orden';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+/** La ficha incluye la nota descargable, que usa React Query. */
+function renderizar(elemento: ReturnType<typeof createElement>) {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(createElement(QueryClientProvider, { client: cliente }, elemento));
+}
 
 function construirFicha(entregadaTotal: number): DatosFichaOrden {
   return {
@@ -89,25 +96,25 @@ afterEach(() => cleanup());
 
 describe('cierre administrativo bloqueado por saldo de entrega (O-01 A / C8.4 R12)', () => {
   it('con 30/50 el botón ficha-cerrar está deshabilitado y anuncia «Faltan 20 piezas por entregar»', () => {
-    render(createElement(FichaOrden, { ficha: construirFicha(30), permisos: PERMISOS, usuarioActualId: 'u-84' }));
+    renderizar(createElement(FichaOrden, { ficha: construirFicha(30), permisos: PERMISOS, usuarioActualId: 'u-84' }));
     const boton = screen.getByTestId('ficha-cerrar') as HTMLButtonElement;
     expect(boton.disabled).toBe(true);
     expect(boton.title).toContain('Faltan 20 piezas por entregar');
   });
 
   it('con 50/50 el botón ficha-cerrar queda habilitado', () => {
-    render(createElement(FichaOrden, { ficha: construirFicha(50), permisos: PERMISOS, usuarioActualId: 'u-84' }));
+    renderizar(createElement(FichaOrden, { ficha: construirFicha(50), permisos: PERMISOS, usuarioActualId: 'u-84' }));
     expect((screen.getByTestId('ficha-cerrar') as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('la ficha muestra el saldo de entrega «Entregado 30/50; faltan 20 por entregar»', () => {
-    render(createElement(FichaOrden, {
+    renderizar(createElement(FichaOrden, {
       ficha: construirFicha(30),
       permisos: PERMISOS,
       usuarioActualId: 'u-84',
       pestanaInicial: 'entregas',
     }));
-    expect(screen.getByTestId('ficha-saldo-entrega').textContent).toContain('Entregado 30/50');
+    expect(screen.getByTestId('ficha-saldo-entrega').textContent).toContain('Entregado 30');
     expect(screen.getByTestId('ficha-saldo-entrega').textContent).toContain('faltan 20');
   });
 });

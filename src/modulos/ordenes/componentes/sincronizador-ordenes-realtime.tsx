@@ -12,6 +12,8 @@ const TABLAS_ORDENES = [
   'registros_tiempo_operador',
   'registros_consumo_material',
   'registros_avance_partida',
+  'notas_entrega',
+  'partidas_nota_entrega',
 ] as const;
 
 const NOMBRE_CANAL = 'sincronizacion-ordenes';

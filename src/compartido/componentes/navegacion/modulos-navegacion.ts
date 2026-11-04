@@ -79,6 +79,13 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['registrar_pagos', 'aplicar_saldos', 'ver_finanzas'],
   },
   {
+    href: '/cierre-administrativo',
+    etiqueta: 'Cierre administrativo',
+    grupo: 'Finanzas',
+    icono: 'moneda',
+    permisos: ['ver_finanzas', 'gestionar_produccion'],
+  },
+  {
     href: '/gastos',
     etiqueta: 'Gastos',
     grupo: 'Finanzas',

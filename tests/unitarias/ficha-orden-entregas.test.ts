@@ -108,6 +108,6 @@ describe('panel Entregas de la ficha (R11 caracterización + O-08 «No»)', () =
       usuarioActualId: 'u-84',
       pestanaInicial: 'entregas',
     }));
-    expect(screen.getByText('Sin notas de entrega registradas.')).toBeTruthy();
+    expect(screen.getByText('Todavía no hay notas de entrega para esta orden.')).toBeTruthy();
   });
 });

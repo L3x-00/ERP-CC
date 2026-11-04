@@ -1,6 +1,6 @@
 # Manual de pruebas y resumen para el cliente — 2026-11-04
 
-Cubre las cinco entregas de esta ronda:
+Cubre las seis entregas de esta ronda:
 
 | PR | Alcance | Estado |
 | --- | --- | --- |
@@ -9,6 +9,7 @@ Cubre las cinco entregas de esta ronda:
 | #146 | C13.2 Retrabajo con material, tiempo y causa | Listo para fusionar |
 | #147 | C13.3 Material del cliente con saldo y bloqueo | Listo para fusionar |
 | #149 | C13.4 Corrida integrada con avance y tiempos por ítem | Listo para fusionar |
+| #150 | C14 Cierre administrativo + historial de entregas | Listo para fusionar |
 
 ## 1. Antes de probar
 
@@ -96,6 +97,15 @@ Cubre las cinco entregas de esta ronda:
 - Admin: Producción → «Corridas integradas» muestra la sesión, el operador y el avance/tiempo por ítem.
 - Validaciones: ítem ajeno a la corrida, ítem principal ausente y minutos excedidos se rechazan.
 
+### #150 — C14 Cierre administrativo y entregas
+
+- Entrar como administrador → «Cierre administrativo» en Finanzas.
+- Dashboard: desviación media de costo/tiempo, margen, órdenes con sobrecosto, tendencia de las últimas 20 y dispersión estimado vs real.
+- Tabla: ordenar por costo/desviación/margen, buscar por folio o cliente, filtrar por semáforo; clic en una fila abre el cierre comparativo por ítem, proceso, material y puntos críticos.
+- Entregas: en la ficha de la orden, pestaña «Entregas», se ve el pendiente por ítem, el historial de notas y la descarga de cada nota.
+- En Entregas, si una orden no tiene piezas producidas, «Preparar entrega» se muestra bloqueado con el motivo en lugar de abrir un modal vacío.
+- El pendiente se actualiza en tiempo real al registrar una entrega.
+
 ## 3. Resumen para enviar al cliente
 
 > Hola. Ya están implementadas y disponibles para revisión las mejoras de esta ronda:
@@ -111,8 +121,9 @@ Cubre las cinco entregas de esta ronda:
 > 9. El operador puede declarar **retrabajos** con material, tiempo y causa; administración los ve en Producción y el avance del ítem no se altera.
 > 10. Si el **material lo pone el cliente**, se declara por ítem en la propuesta; Producción descuenta el saldo real, avisa cuando no alcanza y permite pausar por falta de material sin afectar inventario ni costo propio.
 > 11. Si varios ítems comparten material y proceso, el operador puede marcarlos como **corrida integrada**, declarar piezas y minutos de cada uno y administración ve el avance individual.
+> 12. El **cierre administrativo** compara lo cotizado contra lo real (costo, horas, material y entregas), con dashboard, tendencias de las últimas 20 órdenes, semáforos y detalle por orden; Entregas muestra el historial, el pendiente por ítem en tiempo real y permite descargar cada nota.
 >
-> **Cómo probarlo:** entrar como administrador para propuesta, calidad, horas extra, retrabajos, material del cliente y corridas integradas; entrar como operador con su PIN para reclamo, archivos, comentarios, cierre, retrabajo, consumo del cliente y corrida integrada. Cada punto de la lista se prueba en la pantalla indicada y debe mostrar el resultado descrito.
+> **Cómo probarlo:** entrar como administrador para propuesta, calidad, horas extra, retrabajos, material del cliente, corridas integradas, cierre administrativo y entregas; entrar como operador con su PIN para reclamo, archivos, comentarios, cierre, retrabajo, consumo del cliente y corrida integrada. Cada punto de la lista se prueba en la pantalla indicada y debe mostrar el resultado descrito.
 
 ## 4. Pendiente informado
 
