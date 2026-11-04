@@ -346,6 +346,7 @@ export function FichaOrden({
           entregas={ficha.entregas}
           puedeEntregar={estado === 'PRODUCCION_COMPLETADA'}
           saldo={saldoEntrega}
+          partidas={ficha.partidas}
         />
       ) : null}
 

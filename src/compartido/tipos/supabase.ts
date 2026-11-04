@@ -4236,6 +4236,87 @@ export type Database = {
           },
         ]
       }
+      retrabajos_produccion: {
+        Row: {
+          cantidad_scrap: number
+          cantidad_usada: number
+          causa: string
+          costo_unitario_momento: number
+          creado_en: string
+          id: string
+          material_id: string
+          minutos: number
+          motivo: string
+          movimiento_inventario_id: string | null
+          notas: string | null
+          orden_id: string
+          partida_id: string
+          registrado_por: string
+          sesion_id: string | null
+        }
+        Insert: {
+          cantidad_scrap?: number
+          cantidad_usada?: number
+          causa: string
+          costo_unitario_momento: number
+          creado_en?: string
+          id?: string
+          material_id: string
+          minutos: number
+          motivo: string
+          movimiento_inventario_id?: string | null
+          notas?: string | null
+          orden_id: string
+          partida_id: string
+          registrado_por: string
+          sesion_id?: string | null
+        }
+        Update: {
+          cantidad_scrap?: number
+          cantidad_usada?: number
+          causa?: string
+          costo_unitario_momento?: number
+          creado_en?: string
+          id?: string
+          material_id?: string
+          minutos?: number
+          motivo?: string
+          movimiento_inventario_id?: string | null
+          notas?: string | null
+          orden_id?: string
+          partida_id?: string
+          registrado_por?: string
+          sesion_id?: string | null
+        }
+        Relationships: []
+      }
+      sesion_item_tiempos: {
+        Row: {
+          creado_en: string
+          id: string
+          minutos: number
+          partida_id: string
+          piezas: number
+          sesion_id: string
+        }
+        Insert: {
+          creado_en?: string
+          id?: string
+          minutos: number
+          partida_id: string
+          piezas?: number
+          sesion_id: string
+        }
+        Update: {
+          creado_en?: string
+          id?: string
+          minutos?: number
+          partida_id?: string
+          piezas?: number
+          sesion_id?: string
+        }
+        Relationships: []
+      }
       sesiones_trabajo: {
         Row: {
           actualizado_en: string
