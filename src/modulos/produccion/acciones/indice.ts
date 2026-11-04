@@ -37,6 +37,12 @@ export { cerrarJornadaAccion } from '@/modulos/produccion/acciones/cerrar-jornad
 export { autorizarHorasExtraAccion } from '@/modulos/produccion/acciones/autorizar-horas-extra';
 export { registrarRetrabajoAccion } from '@/modulos/produccion/acciones/registrar-retrabajo';
 export { obtenerRetrabajosOrdenAccion } from '@/modulos/produccion/acciones/obtener-retrabajos-orden';
+export {
+  obtenerMaterialClienteOrdenAccion,
+  obtenerMaterialClienteRevisionAccion,
+  registrarConsumoMaterialClienteAccion,
+  reemplazarMaterialClienteAccion,
+} from '@/modulos/produccion/acciones/material-cliente';
 export { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 export { resolverSolicitudHorasExtraAccion } from '@/modulos/produccion/acciones/resolver-horas-extra';
 export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';

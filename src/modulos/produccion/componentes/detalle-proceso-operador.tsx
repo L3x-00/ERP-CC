@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -28,7 +28,11 @@ import {
 } from '@/modulos/produccion/utilidades/indice';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 import { registrarRetrabajoAccion } from '@/modulos/produccion/acciones/registrar-retrabajo';
-import type { CausaRetrabajo } from '@/modulos/produccion/tipos/indice';
+import {
+  obtenerMaterialClienteOrdenAccion,
+  registrarConsumoMaterialClienteAccion,
+} from '@/modulos/produccion/acciones/material-cliente';
+import type { CausaRetrabajo, MaterialClientePartida } from '@/modulos/produccion/tipos/indice';
 import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
@@ -163,10 +167,35 @@ export function DetalleProcesoOperador({
   const [mensajeRetrabajo, setMensajeRetrabajo] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
+  const [materialCliente, setMaterialCliente] = useState<MaterialClientePartida[]>([]);
+  const [consumoCliente, setConsumoCliente] = useState(false);
+  const [consumoClienteMaterialId, setConsumoClienteMaterialId] = useState('');
+  const [consumoClienteUsado, setConsumoClienteUsado] = useState('0');
+  const [consumoClienteMerma, setConsumoClienteMerma] = useState('0');
+  const [consumoClienteRegistrado, setConsumoClienteRegistrado] = useState(false);
+  const [mensajeConsumoCliente, setMensajeConsumoCliente] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
   const [ahoraAviso] = useState(() => new Date());
   const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
+
+  useEffect(() => {
+    const ordenId = proceso?.ordenId;
+    if (!ordenId) return;
+    let vigente = true;
+    void obtenerMaterialClienteOrdenAccion({ ordenId }).then((respuesta) => {
+      if (!vigente || !respuesta.exito) return;
+      const datos = respuesta.datos ?? [];
+      setMaterialCliente(datos);
+      const primero = datos.find((material) => material.partidaId === proceso?.partidaId);
+      if (primero) setConsumoClienteMaterialId(primero.materialId);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [proceso?.ordenId, proceso?.partidaId]);
 
   if (!proceso) return null;
 
@@ -195,6 +224,9 @@ export function DetalleProcesoOperador({
     ? sesionCercaDeJornada(proceso.sesionActiva.fechaInicio, ahoraAviso)
     : false;
   const primeraPiezaPendiente = proceso.sesionActiva?.primeraPiezaPendiente === true;
+  const materialClientePartida = materialCliente.filter(
+    (material) => material.partidaId === proceso.partidaId,
+  );
   const errorPrimeraPieza = mensaje !== null
     && !mensaje.exito
     && mensaje.codigo === 'primera_pieza_pendiente';
@@ -257,6 +289,26 @@ export function DetalleProcesoOperador({
         setMensaje({
           exito: false,
           error: 'Completa el retrabajo: material usado o merma, tiempo y motivo.',
+        });
+        return;
+      }
+    }
+
+    if (estadoDestino === 'finalizada' && consumoCliente && !consumoClienteRegistrado) {
+      const material = materialClientePartida.find(
+        (actual) => actual.materialId === consumoClienteMaterialId,
+      );
+      const usado = Number(consumoClienteUsado);
+      const merma = Number(consumoClienteMerma);
+      if (!material || !Number.isFinite(usado) || !Number.isFinite(merma)
+        || usado < 0 || merma < 0 || usado + merma <= 0) {
+        setMensaje({ exito: false, error: 'Indica el consumo del material del cliente.' });
+        return;
+      }
+      if (usado + merma > material.saldo) {
+        setMensaje({
+          exito: false,
+          error: `El material del cliente no alcanza: saldo ${material.saldo} ${material.unidadBase}. Pausa por falta de material o corrige la cantidad.`,
         });
         return;
       }
@@ -349,6 +401,28 @@ export function DetalleProcesoOperador({
             : { tipo: 'error', texto: `La sesión cerró, pero el retrabajo falló: ${retrabajo.error}` },
         );
         if (retrabajo.exito) setRetrabajoRegistrado(true);
+      }
+
+      // C13.3: descuenta el material del cliente (sin inventario ni costo).
+      if (consumoCliente && !consumoClienteRegistrado) {
+        const consumo = await registrarConsumoMaterialClienteAccion({
+          sesionId: proceso.sesionActiva.id,
+          materialId: consumoClienteMaterialId,
+          cantidadUsada: Number(consumoClienteUsado),
+          cantidadScrap: Number(consumoClienteMerma),
+        });
+        setMensajeConsumoCliente(
+          consumo.exito
+            ? {
+                tipo: 'ok',
+                texto: `Material del cliente registrado. Saldo: ${formatearNumero(consumo.datos?.saldo ?? 0, 3)}.`,
+              }
+            : {
+                tipo: 'error',
+                texto: `La sesión cerró, pero el consumo del cliente falló: ${consumo.error}`,
+              },
+        );
+        if (consumo.exito) setConsumoClienteRegistrado(true);
       }
     }
   }
@@ -977,6 +1051,94 @@ export function DetalleProcesoOperador({
                         ) : null}
                       </div>
 
+                      {materialClientePartida.length > 0 ? (
+                        <div className="grid gap-3 rounded-lg border border-borde p-3">
+                          <p className="text-sm font-semibold text-texto-primario">Material del cliente</p>
+                          <ul className="flex flex-col gap-1 text-xs text-texto-secundario">
+                            {materialClientePartida.map((material) => (
+                              <li key={material.materialId}>
+                                {material.materialCodigo} · {material.materialNombre}: declarado{' '}
+                                {formatearNumero(material.declarado, 3)}, usado{' '}
+                                {formatearNumero(material.consumido, 3)}, saldo{' '}
+                                <strong>{formatearNumero(material.saldo, 3)}</strong> {material.unidadBase}
+                              </li>
+                            ))}
+                          </ul>
+                          <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4"
+                              checked={consumoCliente}
+                              onChange={(evento) => setConsumoCliente(evento.target.checked)}
+                              data-testid="registrar-consumo-cliente"
+                            />
+                            <span>
+                              Registrar consumo de material del cliente
+                              <span className="block text-xs font-normal text-texto-secundario">
+                                Se descuenta del saldo del cliente; no toca inventario propio.
+                              </span>
+                            </span>
+                          </label>
+                          {consumoCliente ? (
+                            <>
+                              <label className={CLASE_ETIQUETA}>
+                                Material
+                                <Select
+                                  value={consumoClienteMaterialId}
+                                  onChange={(evento) => setConsumoClienteMaterialId(evento.target.value)}
+                                  data-testid="consumo-cliente-material"
+                                >
+                                  {materialClientePartida.map((material) => (
+                                    <option key={material.materialId} value={material.materialId}>
+                                      {material.materialCodigo} — {material.materialNombre} ({material.unidadBase})
+                                    </option>
+                                  ))}
+                                </Select>
+                              </label>
+                              <div className="grid grid-cols-2 gap-3">
+                                <label className={CLASE_ETIQUETA}>
+                                  Usado
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    value={consumoClienteUsado}
+                                    onChange={(evento) => setConsumoClienteUsado(evento.target.value)}
+                                    data-testid="consumo-cliente-usado"
+                                  />
+                                </label>
+                                <label className={CLASE_ETIQUETA}>
+                                  Merma
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    value={consumoClienteMerma}
+                                    onChange={(evento) => setConsumoClienteMerma(evento.target.value)}
+                                    data-testid="consumo-cliente-merma"
+                                  />
+                                </label>
+                              </div>
+                            </>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variante="contorno"
+                            tamano="sm"
+                            className="self-start"
+                            onClick={() => {
+                              setEstadoDestino('pausada');
+                              setMotivoPausa('material_pendiente');
+                              setNotas((actual) => actual || 'Falta de material del cliente: ');
+                              setCierreAbierto(true);
+                            }}
+                            data-testid="pausar-falta-material-cliente"
+                          >
+                            Pausar por falta de material del cliente
+                          </Button>
+                        </div>
+                      ) : null}
+
                       <div className="grid gap-3 rounded-lg border border-borde p-3">
                         <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
                           <input
@@ -1256,6 +1418,18 @@ export function DetalleProcesoOperador({
               data-testid="mensaje-retrabajo"
             >
               {mensajeRetrabajo.texto}
+            </p>
+          ) : null}
+          {mensajeConsumoCliente ? (
+            <p
+              role={mensajeConsumoCliente.tipo === 'error' ? 'alert' : 'status'}
+              className={cn(
+                'col-span-full text-sm',
+                mensajeConsumoCliente.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto',
+              )}
+              data-testid="mensaje-consumo-cliente"
+            >
+              {mensajeConsumoCliente.texto}
             </p>
           ) : null}
         </dl>

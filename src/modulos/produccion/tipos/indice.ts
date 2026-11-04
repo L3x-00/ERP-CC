@@ -109,3 +109,9 @@ export type {
   RetrabajoRegistrado,
   RetrabajoDetalle,
 } from '@/modulos/produccion/tipos/retrabajos';
+
+export type {
+  MaterialClienteItem,
+  MaterialClientePartida,
+  ConsumoMaterialClienteRegistrado,
+} from '@/modulos/produccion/tipos/material-cliente';

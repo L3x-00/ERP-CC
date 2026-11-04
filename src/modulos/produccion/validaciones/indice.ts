@@ -39,6 +39,8 @@ export {
   esquemaResolverHorasExtra,
   esquemaRegistrarInspeccion,
   esquemaRegistrarRetrabajo,
+  esquemaMaterialClienteItem,
+  esquemaConsumoMaterialCliente,
 } from '@/modulos/produccion/validaciones/corridas';
 
 export type {
@@ -49,4 +51,6 @@ export type {
   ResolverHorasExtraInput,
   RegistrarInspeccionInput,
   RegistrarRetrabajoInput,
+  MaterialClienteItemInput,
+  ConsumoMaterialClienteInput,
 } from '@/modulos/produccion/validaciones/corridas';

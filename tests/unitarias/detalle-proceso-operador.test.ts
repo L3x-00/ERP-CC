@@ -10,6 +10,11 @@ declare global {
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+vi.mock('@/modulos/produccion/acciones/material-cliente', () => ({
+  obtenerMaterialClienteOrdenAccion: vi.fn().mockResolvedValue({ exito: true, datos: [] }),
+  registrarConsumoMaterialClienteAccion: vi.fn().mockResolvedValue({ exito: true, datos: {} }),
+}));
+
 vi.mock('@/compartido/componentes/ui/dialog', () => ({
   Dialog: ({ open, children }: { open?: boolean; children: React.ReactNode }) => (
     open === false ? null : createElement('div', {}, children)

@@ -29,6 +29,7 @@ import { resolverGrupoEquipoDelProceso } from '@/modulos/propuestas/utilidades/r
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
+import { PanelMaterialClientePropuesta } from './panel-material-cliente-propuesta';
 
 /** Monto escrito en un campo de costo: 0 si está vacío, null si no es un monto válido. */
 function montoDeTexto(texto: string): number | null {
@@ -745,6 +746,13 @@ export function PanelRuteoCosteo({
         items={itemsRevision}
         catalogos={catalogos}
         totales={totales}
+      />
+
+      <PanelMaterialClientePropuesta
+        revision={revision}
+        items={itemsActivos}
+        materiales={catalogos?.materiales ?? []}
+        puedeEditar={esBorrador && permisos.editarRuteo}
       />
 
       {mensaje && (
