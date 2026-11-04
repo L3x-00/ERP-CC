@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 
 import { obtenerDocumentoNotaEntregaAccion } from '@/modulos/produccion/acciones/obtener-documento-nota-entrega';
+import type { DocumentoNotaEntrega } from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';
 import { formatearFecha, formatearNumero } from '@/compartido/utilidades/formatear';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
@@ -23,19 +23,23 @@ import { NotaEntregaPdfProfesional } from '@/modulos/produccion/componentes/nota
  */
 export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; folio: string }) {
   const [abierto, setAbierto] = useState(false);
-  const consulta = useQuery({
-    queryKey: ['produccion', 'nota-entrega-documento', notaId],
-    queryFn: async () => {
-      const respuesta = await obtenerDocumentoNotaEntregaAccion({ notaId });
-      if (!respuesta.exito || !respuesta.datos) {
-        throw new Error(respuesta.exito ? 'La nota no devolvió datos' : respuesta.error);
-      }
-      return respuesta.datos;
-    },
-    enabled: abierto,
-    staleTime: 60_000,
-  });
-  const documento = consulta.data;
+  const [documento, setDocumento] = useState<DocumentoNotaEntrega | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function abrir(): Promise<void> {
+    setAbierto(true);
+    if (documento) return;
+    setCargando(true);
+    setError(null);
+    const respuesta = await obtenerDocumentoNotaEntregaAccion({ notaId });
+    setCargando(false);
+    if (!respuesta.exito || !respuesta.datos) {
+      setError(respuesta.exito ? 'La nota no devolvió datos' : respuesta.error);
+      return;
+    }
+    setDocumento(respuesta.datos);
+  }
 
   return (
     <>
@@ -44,7 +48,7 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
         variante="contorno"
         tamano="sm"
         data-testid={`imprimir-nota-${folio}`}
-        onClick={() => setAbierto(true)}
+        onClick={() => void abrir()}
       >
         Imprimir
       </Button>
@@ -61,10 +65,10 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
             </DialogDescription>
           </DialogHeader>
 
-          {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando nota…</p>}
-          {consulta.isError && (
+          {cargando && <p className="text-sm text-texto-secundario">Cargando nota…</p>}
+          {error && (
             <p role="alert" className="text-sm text-peligro-texto">
-              No se pudo cargar la nota de entrega.
+              {error}
             </p>
           )}
 
