@@ -32,7 +32,15 @@ import {
   obtenerMaterialClienteOrdenAccion,
   registrarConsumoMaterialClienteAccion,
 } from '@/modulos/produccion/acciones/material-cliente';
-import type { CausaRetrabajo, MaterialClientePartida } from '@/modulos/produccion/tipos/indice';
+import {
+  obtenerItemsCorridaAccion,
+} from '@/modulos/produccion/acciones/corrida-integrada';
+import type {
+  CausaRetrabajo,
+  ItemCorrida,
+  ItemIntegrado,
+  MaterialClientePartida,
+} from '@/modulos/produccion/tipos/indice';
 import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
@@ -79,6 +87,7 @@ export interface AccionesDetalleProceso {
       cantidadUsada: number;
       cantidadScrap: number;
     };
+    itemsIntegrados?: ItemIntegrado[];
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -176,6 +185,10 @@ export function DetalleProcesoOperador({
   const [mensajeConsumoCliente, setMensajeConsumoCliente] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
+  const [itemsCorrida, setItemsCorrida] = useState<ItemCorrida[]>([]);
+  const [integrada, setIntegrada] = useState(false);
+  const [piezasPorItem, setPiezasPorItem] = useState<Record<string, string>>({});
+  const [minutosPorItem, setMinutosPorItem] = useState<Record<string, string>>({});
   const [ahoraAviso] = useState(() => new Date());
   const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
@@ -196,6 +209,27 @@ export function DetalleProcesoOperador({
       vigente = false;
     };
   }, [proceso?.ordenId, proceso?.partidaId]);
+
+  useEffect(() => {
+    const corridaId = proceso?.sesionActiva?.corridaId;
+    if (!corridaId) return;
+    let vigente = true;
+    void obtenerItemsCorridaAccion({ corridaId }).then((respuesta) => {
+      if (!vigente || !respuesta.exito) return;
+      const items = respuesta.datos ?? [];
+      setItemsCorrida(items);
+      setPiezasPorItem((actual) => {
+        const siguiente = { ...actual };
+        for (const item of items) {
+          if (siguiente[item.partidaId] === undefined) siguiente[item.partidaId] = '0';
+        }
+        return siguiente;
+      });
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [proceso?.sesionActiva?.corridaId]);
 
   if (!proceso) return null;
 
@@ -313,9 +347,46 @@ export function DetalleProcesoOperador({
         return;
       }
     }
+    const integradaActiva = estadoDestino === 'finalizada' && integrada && itemsCorrida.length > 1;
+    let itemsIntegrados: ItemIntegrado[] | undefined;
+    let piezasPrincipal = Number(piezas);
+    if (integradaActiva) {
+      const minutosTotales = itemsCorrida.reduce(
+        (total, item) => total + (Number(minutosPorItem[item.partidaId] ?? '0') || 0),
+        0,
+      );
+      const piezasTotales = itemsCorrida.reduce(
+        (total, item) => total + (Number(piezasPorItem[item.partidaId] ?? '0') || 0),
+        0,
+      );
+      const minutosValidos = itemsCorrida.every(
+        (item) => Number(minutosPorItem[item.partidaId] ?? '0') > 0,
+      );
+      if (!minutosValidos || piezasTotales <= 0) {
+        setMensaje({
+          exito: false,
+          error: 'Completa piezas y minutos de cada ítem de la corrida integrada.',
+        });
+        return;
+      }
+      if (minutosTotales > Math.max(horasSesion * 60, 1)) {
+        setMensaje({
+          exito: false,
+          error: `Los minutos por ítem (${minutosTotales}) superan el tiempo de la sesión (${(horasSesion * 60).toFixed(0)} min).`,
+        });
+        return;
+      }
+      itemsIntegrados = itemsCorrida.map((item) => ({
+        partidaId: item.partidaId,
+        piezas: Number(piezasPorItem[item.partidaId] ?? '0') || 0,
+        minutos: Number(minutosPorItem[item.partidaId] ?? '0') || 0,
+      }));
+      piezasPrincipal = Number(piezasPorItem[proceso.partidaId] ?? '0') || 0;
+    }
+
     const resultado = await acciones.cerrar(proceso, {
       sesionId: proceso.sesionActiva.id,
-      piezasProducidas: Number(piezas),
+      piezasProducidas: piezasPrincipal,
       estadoDestino,
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
@@ -328,6 +399,7 @@ export function DetalleProcesoOperador({
           },
         }
       : {}),
+      ...(itemsIntegrados ? { itemsIntegrados } : {}),
       pinConfirmacion: pin,
     });
     setMensaje(resultado);
@@ -1050,6 +1122,77 @@ export function DetalleProcesoOperador({
                           </>
                         ) : null}
                       </div>
+
+                      {estadoDestino === 'finalizada' && itemsCorrida.length > 1 ? (
+                        <div className="grid gap-3 rounded-lg border border-acento/40 bg-acento/5 p-3">
+                          <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-4 w-4"
+                              checked={integrada}
+                              onChange={(evento) => setIntegrada(evento.target.checked)}
+                              data-testid="corrida-integrada"
+                            />
+                            <span>
+                              Los ítems se trabajaron juntos ({itemsCorrida.length})
+                              <span className="block text-xs font-normal text-texto-secundario">
+                                Declara piezas y minutos por ítem; el avance de cada uno queda separado.
+                              </span>
+                            </span>
+                          </label>
+                          {integrada ? (
+                            <div className="grid gap-2">
+                              <p className="text-xs text-texto-secundario">
+                                La suma de minutos no debe exceder el tiempo de la sesión
+                                ({Math.max(horasSesion * 60, 1).toFixed(0)} min).
+                              </p>
+                              {itemsCorrida.map((item) => (
+                                <div
+                                  key={item.partidaId}
+                                  className="grid grid-cols-[1fr_6rem_6rem] items-end gap-2"
+                                >
+                                  <span className="text-sm font-medium text-texto-primario">
+                                    {item.codigoPieza}
+                                    {item.disponible !== null ? (
+                                      <span className="block text-xs font-normal text-texto-tenue">
+                                        disponible {formatearNumero(item.disponible, 3)}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  <label className="flex flex-col gap-1 text-xs text-texto-secundario">
+                                    Piezas
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.001"
+                                      value={piezasPorItem[item.partidaId] ?? '0'}
+                                      onChange={(evento) => setPiezasPorItem((actual) => ({
+                                        ...actual,
+                                        [item.partidaId]: evento.target.value,
+                                      }))}
+                                      data-testid={`integrada-piezas-${item.codigoPieza}`}
+                                    />
+                                  </label>
+                                  <label className="flex flex-col gap-1 text-xs text-texto-secundario">
+                                    Minutos
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      step="1"
+                                      value={minutosPorItem[item.partidaId] ?? ''}
+                                      onChange={(evento) => setMinutosPorItem((actual) => ({
+                                        ...actual,
+                                        [item.partidaId]: evento.target.value,
+                                      }))}
+                                      data-testid={`integrada-minutos-${item.codigoPieza}`}
+                                    />
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       {materialClientePartida.length > 0 ? (
                         <div className="grid gap-3 rounded-lg border border-borde p-3">

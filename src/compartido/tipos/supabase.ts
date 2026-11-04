@@ -7028,6 +7028,41 @@ export type Database = {
           unidad_base: string
         }[]
       }
+      obtener_items_corrida: {
+        Args: { p_actor_id: string; p_corrida_id: string }
+        Returns: {
+          cantidad_producida: number
+          cantidad_solicitada: number
+          codigo_pieza: string
+          disponible: number
+          meta_proceso_id: string
+          partida_id: string
+        }[]
+      }
+      cerrar_sesion_integrada: {
+        Args: {
+          p_actor_id: string
+          p_cantidad_scrap: number
+          p_cantidad_usada: number
+          p_items: Json
+          p_material_id: string
+          p_notas: string
+          p_sesion_id: string
+        }
+        Returns: Json
+      }
+      obtener_tiempos_integrados_orden: {
+        Args: { p_actor_id: string; p_orden_id: string }
+        Returns: {
+          codigo_pieza: string
+          fecha_inicio: string
+          minutos: number
+          operador_nombre: string
+          partida_id: string
+          piezas: number
+          sesion_id: string
+        }[]
+      }
       resolver_solicitud_horas_extra: {
         Args: { p_aprobar: boolean; p_autorizador_id: string; p_id: string }
         Returns: {

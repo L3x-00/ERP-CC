@@ -104,6 +104,11 @@ export type CodigoErrorProduccion =
   | 'material_inexistente_o_inactivo'
   | 'costo_material_no_configurado'
   | 'tipo_cambio_no_configurado'
+  | 'cierre_integrado_invalido'
+  | 'item_fuera_de_corrida'
+  | 'item_principal_requerido'
+  | 'minutos_exceden_sesion'
+  | 'sin_permiso_cierre_integrado'
   | 'desconocido';
 export class ErrorProduccion extends Error {
   constructor(
@@ -222,6 +227,11 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'material_inexistente_o_inactivo',
   'costo_material_no_configurado',
   'tipo_cambio_no_configurado',
+  'cierre_integrado_invalido',
+  'item_fuera_de_corrida',
+  'item_principal_requerido',
+  'minutos_exceden_sesion',
+  'sin_permiso_cierre_integrado',
 ];
 
 /** Traduce el mensaje de una RPC a un error tipado de producción. */
@@ -320,6 +330,39 @@ export async function cerrarSesionTrabajoServicio(
     );
   }
 
+  if (entrada.estadoDestino === 'finalizada' && entrada.itemsIntegrados
+      && entrada.itemsIntegrados.length > 0) {
+    const { data, error } = await admin.rpc('cerrar_sesion_integrada', {
+      p_sesion_id: entrada.sesionId,
+      p_items: entrada.itemsIntegrados.map((item) => ({
+        partida_id: item.partidaId,
+        piezas: item.piezas,
+        minutos: item.minutos,
+      })),
+      p_material_id: entrada.consumo!.materialId,
+      p_cantidad_usada: entrada.consumo!.cantidadUsada,
+      p_cantidad_scrap: entrada.consumo!.cantidadScrap,
+      p_notas: entrada.notas ?? '',
+      p_actor_id: entrada.operadorId,
+    });
+    if (error) lanzarErrorProduccion(error.message);
+
+    const payload = (data ?? {}) as Record<string, unknown>;
+    const cierre = (payload.cierre ?? {}) as Record<string, unknown>;
+    if (!cierre.id || !cierre.actualizado_en) throw new ErrorProduccion('desconocido');
+    return {
+      id: String(cierre.id),
+      estadoSesion: estadoSesionDesdeBase(String(cierre.estado_sesion)),
+      horasBrutas: Number(cierre.horas_brutas),
+      horasNetas: Number(cierre.horas_netas),
+      piezasProducidas: Number(cierre.piezas_producidas),
+      cantidadProducidaPartida: Number(cierre.cantidad_producida_partida),
+      estadoOrden: String(cierre.estado_orden),
+      estadoPlaneacion: estadoPlaneacionDesdeBase(String(cierre.estado_planeacion)),
+      actualizadoEn: String(cierre.actualizado_en),
+    };
+  }
+
   const { data, error } =
     entrada.estadoDestino === 'finalizada' && entrada.consumo
       ? await admin.rpc('cerrar_sesion_con_consumo_operador', {
@@ -409,6 +452,16 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La sesión no excede la jornada del turno, así que no requiere horas extra.';
     case 'solicitud_no_pendiente':
       return 'La solicitud de horas extra ya fue resuelta o no existe; actualiza la lista.';
+    case 'cierre_integrado_invalido':
+      return 'La corrida integrada requiere ítems con piezas y minutos válidos';
+    case 'item_fuera_de_corrida':
+      return 'Uno de los ítems no pertenece a esta corrida; actualiza la lista';
+    case 'item_principal_requerido':
+      return 'El cierre integrado debe incluir el ítem de la sesión';
+    case 'minutos_exceden_sesion':
+      return 'Los minutos por ítem superan el tiempo transcurrido de la sesión';
+    case 'sin_permiso_cierre_integrado':
+      return 'No tienes permiso para cerrar esta corrida integrada';
     case 'corrida_invalida':
     case 'corrida_item_no_incluye_partida':
       return 'La corrida no corresponde a esta partida';

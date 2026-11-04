@@ -15,6 +15,31 @@ vi.mock('@/modulos/produccion/acciones/material-cliente', () => ({
   registrarConsumoMaterialClienteAccion: vi.fn().mockResolvedValue({ exito: true, datos: {} }),
 }));
 
+vi.mock('@/modulos/produccion/acciones/corrida-integrada', () => ({
+  obtenerItemsCorridaAccion: vi.fn().mockResolvedValue({
+    exito: true,
+    datos: [
+      {
+        partidaId: 'partida-1',
+        codigoPieza: 'IT01',
+        metaProcesoId: null,
+        cantidadSolicitada: 10,
+        cantidadProducida: 0,
+        disponible: null,
+      },
+      {
+        partidaId: 'partida-2',
+        codigoPieza: 'IT02',
+        metaProcesoId: null,
+        cantidadSolicitada: 10,
+        cantidadProducida: 0,
+        disponible: null,
+      },
+    ],
+  }),
+  obtenerTiemposIntegradosAccion: vi.fn(),
+}));
+
 vi.mock('@/compartido/componentes/ui/dialog', () => ({
   Dialog: ({ open, children }: { open?: boolean; children: React.ReactNode }) => (
     open === false ? null : createElement('div', {}, children)
@@ -88,6 +113,7 @@ const proceso = {
   nombreReclamante: null,
   sesionActiva: {
     id: 'sesion-1',
+    corridaId: 'corrida-1',
     operadorId: 'operador-1',
     operadorNombre: 'Operador de prueba',
     estadoSesion: 'activa',
@@ -258,5 +284,32 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.getByTestId('retrabajo-minutos')).toBeTruthy();
     expect(screen.getByTestId('retrabajo-motivo')).toBeTruthy();
     expect(screen.getByTestId('retrabajo-causa')).toBeTruthy();
+  });
+
+  it('permite declarar una corrida integrada con piezas y minutos por ítem', async () => {
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    const casilla = await screen.findByTestId('corrida-integrada');
+    fireEvent.click(casilla);
+    expect(screen.getByTestId('integrada-piezas-IT01')).toBeTruthy();
+    expect(screen.getByTestId('integrada-minutos-IT02')).toBeTruthy();
   });
 });

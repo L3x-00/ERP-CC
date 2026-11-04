@@ -115,3 +115,9 @@ export type {
   MaterialClientePartida,
   ConsumoMaterialClienteRegistrado,
 } from '@/modulos/produccion/tipos/material-cliente';
+
+export type {
+  ItemCorrida,
+  ItemIntegrado,
+  TiempoItemIntegrado,
+} from '@/modulos/produccion/tipos/corrida-integrada';
