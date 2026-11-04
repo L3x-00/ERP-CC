@@ -119,3 +119,17 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | El diff de un archivo se dispara a cientos de líneas y aparecen secuencias doblemente codificadas o un BOM al inicio | `Get-Content`/`Set-Content` de PowerShell 5 decodifica como ANSI y vuelve a escribir: el archivo entero queda doblemente codificado y cambia de fin de línea | Editar texto con acentos solo con las herramientas de edición del agente, que respetan UTF-8 y el fin de línea. Si hace falta un script, usar Node con `readFileSync(..., 'utf8')` y `writeFileSync(..., 'utf8')`, y verificar que no aparezcan caracteres de reemplazo ni secuencias `Ã`/`Â` |
 | Una migración SQL generada por script muestra textos raros | El cuerpo se copió de otro archivo con `Get-Content` | Antes de aplicarla, decodificar el archivo como UTF-8 y buscar secuencias `Ã`/`Â`: delatan doble codificación. Reparar releyendo el origen como UTF-8 |
+
+## 7. Git: PR fusionado o apilado mientras se sigue trabajando
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El push fue exitoso pero el PR sigue mostrando el commit anterior y no aparece como pendiente | El PR ya estaba fusionado cuando se empujó el commit nuevo; la rama avanzó fuera de `main` | Antes de empujar más trabajo, comprobar `gh pr view <N> --json state`. Si está `MERGED`, crear rama desde `origin/main`, `git cherry-pick <sha>` y abrir un PR nuevo; no seguir empujando a la rama fusionada |
+| Un PR depende de otro que aún no se fusionó | Se creó desde `main` en vez de desde la rama pendiente | Crear la rama desde la tanda anterior y abrir el PR con `--base main`, anotando el orden de merge; GitHub recalcula el diff al actualizarse la base |
+
+## 8. Alcance: cuándo detenerse antes de cerrar
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| La tanda exige que una sesión cierre varias partidas, o cambia el modelo de inventario/costeo | El flujo actual está concentrado en una RPC de una sola partida | No improvisar dentro del cierre: dejar una ficha con RPC, validaciones, UI y criterios de aceptación, y pedir autorización. Mejor un PR parcial delimitado que un flujo de inventario a medias |
+| Un e2e usaba el formulario que la nueva UI retira | El test cubría el camino viejo, no la regla | Mover el e2e al flujo nuevo y verificar que el formulario retirado ya no existe; no borrar la cobertura |
