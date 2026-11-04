@@ -279,7 +279,7 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     if (contexto) await limpiarContexto(contexto);
   });
 
-  test('crea corrida, libera primera pieza con foto, produce y completa', async ({ page, browser }) => {
+  test('crea corrida, libera la primera pieza, produce y completa', async ({ page, browser }) => {
     test.setTimeout(300_000);
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const caso = contexto;
@@ -370,18 +370,33 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     await paginaOperador.getByTestId('registrar-inspeccion-cierre').check();
     await paginaOperador.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await paginaOperador.getByTestId('cerrar-sesion-produccion').click();
+
+    // El cierre exige liberar la primera pieza; el operador la registra en el
+    // mismo panel y continúa sin cambiar de pantalla.
+    const avisoPrimeraPieza = paginaOperador.getByTestId('aviso-primera-pieza');
+    await expect(avisoPrimeraPieza).toBeVisible();
+    await avisoPrimeraPieza.getByTestId('abrir-liberar-primera-pieza').click();
+    const dialogoPrimeraPieza = paginaOperador.getByTestId('dialogo-primera-pieza');
+    await expect(dialogoPrimeraPieza).toBeVisible();
+    await dialogoPrimeraPieza.getByRole('button', { name: 'Registrar y liberar' }).click();
+    await expect(avisoPrimeraPieza).toContainText('liberada');
+    await paginaOperador.getByTestId('continuar-cierre-primera-pieza').click();
+
     const resumenOperador = paginaOperador.getByTestId('resumen-cierre-sesion');
     await expect(resumenOperador).toContainText('Material usado');
     await expect(resumenOperador.getByTestId('mensaje-inspeccion-cierre')).toContainText('registrada');
     await paginaOperador.close();
 
-    // La inspección de cierre quedó registrada por el operador, no por admin.
+    // Las inspecciones las registró el operador (primera pieza y cierre), no admin.
     const { data: inspecciones } = await caso.admin.from('inspecciones_calidad')
-      .select('tipo, resultado, partida_id').eq('orden_id', caso.ordenId);
-    expect(inspecciones ?? []).toHaveLength(1);
-    expect(inspecciones?.[0]?.tipo).toBe('CIERRE');
+      .select('tipo, resultado, partida_id').eq('orden_id', caso.ordenId)
+      .order('creado_en', { ascending: true });
+    expect(inspecciones ?? []).toHaveLength(2);
+    expect(inspecciones?.[0]?.tipo).toBe('PRIMERA_PIEZA');
     expect(inspecciones?.[0]?.resultado).toBe('APROBADA');
-    expect(inspecciones?.[0]?.partida_id).toBe(caso.partidaId);
+    expect(inspecciones?.[1]?.tipo).toBe('CIERRE');
+    expect(inspecciones?.[1]?.resultado).toBe('APROBADA');
+    expect(inspecciones?.[1]?.partida_id).toBe(caso.partidaId);
 
     await expect.poll(async () => {
       const { data } = await caso.admin.from('sesiones_trabajo')

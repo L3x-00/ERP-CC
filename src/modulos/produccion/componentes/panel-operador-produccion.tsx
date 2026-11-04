@@ -19,7 +19,7 @@ import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
 import { registrarInspeccionAccion } from '../acciones/registrar-inspeccion';
 
 type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string; codigo?: string };
-type MensajePanelOperador = { texto: string; tipo: 'error' | 'estado' };
+type MensajePanelOperador = { texto: string; tipo: 'error' | 'estado'; codigo?: string };
 type SesionOrden = OrdenTableroProduccion['sesiones'][number];
 export type CierreSupervisor = {
   sesionId: string;
@@ -134,6 +134,13 @@ export function PanelOperadorProduccion({
   const [resultadoInspeccionCierre, setResultadoInspeccionCierre] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
   const [observacionesCierre, setObservacionesCierre] = useState('');
   const [mensajeInspeccionCierre, setMensajeInspeccionCierre] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
+  const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);
+  const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
+  const [observacionesPrimeraPieza, setObservacionesPrimeraPieza] = useState('');
+  const [procesandoPrimeraPieza, setProcesandoPrimeraPieza] = useState(false);
+  const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
   const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
@@ -261,7 +268,11 @@ export function PanelOperadorProduccion({
     if (resultado.exito) {
       setMensaje({ texto: 'Sesión registrada y recurso liberado', tipo: 'estado' });
     } else {
-      setMensaje({ texto: resultado.error, tipo: 'error' });
+      setMensaje({
+        texto: resultado.error,
+        tipo: 'error',
+        ...(resultado.codigo ? { codigo: resultado.codigo } : {}),
+      });
       if (resultado.codigo === 'horas_extra_sin_autorizacion') {
         // C12: el operador no llena solicitudes; el sistema la deja pendiente
         // para que Admin/Management solo la apruebe o la rechace.
@@ -314,6 +325,53 @@ export function PanelOperadorProduccion({
       );
       setRegistrarInspeccionCierre(false);
       setObservacionesCierre('');
+    }
+  }
+
+  /**
+   * Cierre bloqueado por primera pieza: el operador la libera aquí mismo, sin
+   * cambiar de pantalla, y luego reintenta el cierre.
+   */
+  async function liberarPrimeraPieza(evento: FormEvent<HTMLFormElement>): Promise<void> {
+    evento.preventDefault();
+    if (!sesionActiva || !orden || procesandoPrimeraPieza) return;
+    setProcesandoPrimeraPieza(true);
+    setMensajePrimeraPieza(null);
+    try {
+      const aprobada = resultadoPrimeraPieza === 'APROBADA';
+      const respuesta = await registrarInspeccionAccion({
+        ordenId: orden.id,
+        corridaId: corridaId ?? null,
+        partidaId: sesionActiva.partidaId,
+        codigoItem: partidaSesionActiva?.codigoPieza ?? '',
+        tipo: 'PRIMERA_PIEZA',
+        resultado: resultadoPrimeraPieza,
+        cantidadInspeccionada: 1,
+        cantidadOk: aprobada ? 1 : 0,
+        cantidadNok: aprobada ? 0 : 1,
+        cantidadRetrabajo: 0,
+        ...(observacionesPrimeraPieza.trim()
+          ? { observaciones: observacionesPrimeraPieza.trim() }
+          : {}),
+      });
+      if (!respuesta.exito) {
+        setMensajePrimeraPieza({ tipo: 'error', texto: respuesta.error });
+        return;
+      }
+      setMensajePrimeraPieza({
+        tipo: 'ok',
+        texto: aprobada
+          ? 'Primera pieza liberada. Ya puedes cerrar la sesión.'
+          : 'Primera pieza rechazada: corrige la pieza y vuelve a liberarla.',
+      });
+      setPrimeraPiezaAbierta(false);
+    } catch {
+      setMensajePrimeraPieza({
+        tipo: 'error',
+        texto: 'No se pudo registrar la primera pieza. Revisa la corrida y vuelve a intentarlo.',
+      });
+    } finally {
+      setProcesandoPrimeraPieza(false);
     }
   }
 
@@ -664,6 +722,55 @@ export function PanelOperadorProduccion({
               required
             />
           </label>
+          {mensaje?.tipo === 'error' && mensaje.codigo === 'primera_pieza_pendiente' ? (
+            <section
+              role="alert"
+              className="flex flex-col gap-2 rounded-lg border border-advertencia/60 bg-advertencia-suave p-3"
+              data-testid="aviso-primera-pieza"
+            >
+              <p className="text-sm font-semibold text-advertencia-texto">
+                Falta liberar la primera pieza antes de declarar producción
+              </p>
+              <p className="text-xs text-texto-secundario">
+                Regístrala aquí mismo; no necesitas cambiar de pantalla.
+              </p>
+              {mensajePrimeraPieza ? (
+                <p
+                  role={mensajePrimeraPieza.tipo === 'error' ? 'alert' : 'status'}
+                  className={cn(
+                    'text-xs',
+                    mensajePrimeraPieza.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto',
+                  )}
+                >
+                  {mensajePrimeraPieza.texto}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  tamano="sm"
+                  onClick={() => {
+                    setMensajePrimeraPieza(null);
+                    setPrimeraPiezaAbierta(true);
+                  }}
+                  data-testid="abrir-liberar-primera-pieza"
+                >
+                  Liberar primera pieza
+                </Button>
+                {mensajePrimeraPieza?.tipo === 'ok' ? (
+                  <Button
+                    type="submit"
+                    tamano="sm"
+                    variante="contorno"
+                    disabled={procesando}
+                    data-testid="continuar-cierre-primera-pieza"
+                  >
+                    Continuar con el cierre
+                  </Button>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
           <Button type="submit" tamano="lg" disabled={procesando || !operadorDisponible} data-testid="cerrar-sesion-produccion">
             {estadoDestino === 'pausada' ? 'Pausar sesión' : 'Finalizar sesión'}
           </Button>
@@ -723,6 +830,55 @@ export function PanelOperadorProduccion({
       )}
         </div>
       </div>
+      <Dialog open={primeraPiezaAbierta} onOpenChange={(abierto) => {
+        if (!procesandoPrimeraPieza) setPrimeraPiezaAbierta(abierto);
+      }}>
+        <DialogContent className="max-w-md" data-testid="dialogo-primera-pieza" aria-label="Liberar primera pieza">
+          <DialogHeader>
+            <DialogTitle>Liberar primera pieza</DialogTitle>
+            <DialogDescription>
+              {orden?.folio ?? 'Orden'} · {partidaSesionActiva?.codigoPieza ?? 'Partida'}
+            </DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-3" onSubmit={(evento) => void liberarPrimeraPieza(evento)}>
+            <label className={CLASE_ETIQUETA}>
+              Resultado de la revisión
+              <Select
+                value={resultadoPrimeraPieza}
+                onChange={(evento) => setResultadoPrimeraPieza(evento.target.value as 'APROBADA' | 'RECHAZADA')}
+              >
+                <option value="APROBADA">Aprobada</option>
+                <option value="RECHAZADA">Rechazada</option>
+              </Select>
+            </label>
+            <label className={CLASE_ETIQUETA}>
+              Observaciones (opcional)
+              <Textarea
+                maxLength={1000}
+                value={observacionesPrimeraPieza}
+                onChange={(evento) => setObservacionesPrimeraPieza(evento.target.value)}
+                placeholder="Detalles de la primera pieza"
+              />
+            </label>
+            {mensajePrimeraPieza?.tipo === 'error' ? (
+              <p role="alert" className="text-sm text-peligro-texto">{mensajePrimeraPieza.texto}</p>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                variante="contorno"
+                disabled={procesandoPrimeraPieza}
+                onClick={() => setPrimeraPiezaAbierta(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={procesandoPrimeraPieza}>
+                {procesandoPrimeraPieza ? 'Registrando…' : 'Registrar y liberar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <DialogoChecklistInicio
         abierto={confirmarChecklist}
         procesando={procesando}
