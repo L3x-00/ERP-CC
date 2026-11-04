@@ -101,7 +101,7 @@ test.describe.serial('OCR de comprobantes con proveedor controlado (GAS-08)', ()
     await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 
     await page.goto('/gastos');
-    await expect(page.getByTestId('pagina-gastos')).toBeVisible();
+    await expect(page.getByTestId('pagina-egresos')).toBeVisible();
     await page.getByRole('button', { name: 'Registrar gasto' }).click();
     await page.getByLabel('Comprobante (opcional)').setInputFiles({
       name: 'ticket-e2e.png',

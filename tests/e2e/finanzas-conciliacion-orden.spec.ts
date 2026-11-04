@@ -324,7 +324,7 @@ test.describe.serial('Aceptación C10.4 — conciliación de costos por Orden', 
 
     await iniciarSesion(page, contexto);
     await page.goto('/gastos');
-    await expect(page.getByTestId('pagina-gastos')).toBeVisible();
+    await expect(page.getByTestId('pagina-egresos')).toBeVisible();
 
     // La UI solo se usa para seleccionar la Orden desde el gasto directo.
     await page.getByLabel('Buscar').fill(contexto.folioGasto);

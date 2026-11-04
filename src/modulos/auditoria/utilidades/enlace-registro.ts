@@ -33,6 +33,6 @@ export function enlaceRegistroActividad(
   // destino de ficha inequívoco, se enlaza a la pantalla del módulo.
   if (registro.entidad === 'propuesta') return '/propuestas';
   if (registro.entidad === 'produccion') return '/produccion';
-  if (registro.entidad === 'tesoreria') return '/tesoreria';
+  if (registro.entidad === 'tesoreria') return '/cobros?seccion=tesoreria';
   return null;
 }

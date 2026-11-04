@@ -98,7 +98,7 @@ export function AccionesTarjetaOrden({
           type="button"
           className={CLASE_ACCION}
           data-testid={`accion-imprimir-${programacion.ordenId}`}
-          onClick={() => enrutador.push(`/ordenes/${programacion.ordenId}`)}
+          onClick={() => enrutador.push(`/ordenes/${programacion.ordenId}?pestana=documento`)}
         >
           Imprimir
         </button>

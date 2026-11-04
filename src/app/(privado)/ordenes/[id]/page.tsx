@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { FichaOrden } from '@/modulos/ordenes/componentes/ficha-orden';
 import { obtenerFichaOrdenServicio } from '@/modulos/ordenes/servicios/ficha-orden-servicio';
+import { obtenerMarcaDocumentoServicio } from '@/modulos/ordenes/servicios/marca-documento-servicio';
 import { esquemaPestanaFicha } from '@/modulos/ordenes/validaciones/ficha-orden';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
@@ -37,6 +38,7 @@ export default async function PaginaOrden({ params, searchParams }: ParametrosPa
     incluirTotales: puedeVerTotales,
   });
   if (!ficha) notFound();
+  const marcaDocumento = await obtenerMarcaDocumentoServicio(crearClienteSupabaseAdmin());
 
   const permisos = {
     puedeLiberar,
@@ -57,6 +59,7 @@ export default async function PaginaOrden({ params, searchParams }: ParametrosPa
       permisos={permisos}
       usuarioActualId={usuario.id}
       pestanaInicial={pestana.success ? pestana.data : undefined}
+      marcaDocumento={marcaDocumento}
     />
   );
 }

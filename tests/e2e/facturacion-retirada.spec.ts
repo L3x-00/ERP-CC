@@ -57,15 +57,17 @@ test.describe('Facturación retirada: sin navegación y con redirección a Cobra
     'Requiere E2E_HABILITAR_PRUEBAS_REMOTAS=si y credenciales del stack local.',
   );
 
-  test('la ruta histórica /facturacion redirige a /cobranza y el módulo no aparece en la navegación', async ({ page }) => {
+  test('la ruta histórica /facturacion redirige a Cobros y el módulo no aparece en la navegación', async ({ page }) => {
     const contexto = await prepararContexto();
     try {
       await iniciarSesion(page, contexto);
       await expect(page.getByRole('link', { name: /^Facturación$/i })).toHaveCount(0);
 
       await page.goto('/facturacion');
-      await page.waitForURL('**/cobranza');
-      await expect(page.getByTestId('pagina-cobranza')).toBeVisible();
+      await page.waitForURL((url) => (
+        url.pathname === '/cobros' && url.searchParams.get('seccion') === 'cobranza'
+      ));
+      await expect(page.getByTestId('operacion-cobranza')).toBeVisible();
     } finally {
       await limpiarContexto(contexto);
     }

@@ -16,6 +16,7 @@ import {
 import { Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import type { MarcaDocumento } from '@/compartido/utilidades/impresion-documento';
 import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { SeccionConciliacionOrden } from '@/modulos/gastos/componentes/seccion-conciliacion-orden';
 import { AdjuntosOrdenDialog } from '@/modulos/ordenes/componentes/adjuntos-orden-dialog';
@@ -75,11 +76,13 @@ export function FichaOrden({
   permisos,
   usuarioActualId,
   pestanaInicial,
+  marcaDocumento,
 }: {
   ficha: DatosFicha;
   permisos: PermisosFichaOrden;
   usuarioActualId: string;
   pestanaInicial?: PestanaFicha;
+  marcaDocumento?: MarcaDocumento | null;
 }) {
   const router = useRouter();
   // Documento es visible siempre (R17): sin orden_ver_totales es la hoja de trabajo, sin Totales.
@@ -353,7 +356,12 @@ export function FichaOrden({
       {pestana === 'actividad' ? <PanelActividadFicha eventos={ficha.eventos} /> : null}
 
       {pestana === 'documento' ? (
-        <PanelDocumentoFicha ficha={ficha} folio={folio} puedeVerTotales={permisos.puedeVerTotales} />
+        <PanelDocumentoFicha
+          ficha={ficha}
+          folio={folio}
+          puedeVerTotales={permisos.puedeVerTotales}
+          marca={marcaDocumento ?? null}
+        />
       ) : null}
 
       {pestana === 'costos' && permisos.puedeVerCostos === true ? (
