@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
@@ -33,11 +33,14 @@ export function PanelMaterialClientePropuesta({
   const [codigoItem, setCodigoItem] = useState(items[0]?.codigo ?? '');
   const [materialId, setMaterialId] = useState('');
   const [cantidad, setCantidad] = useState('');
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando] = useState(false);
+  const [cargado, setCargado] = useState(false);
+  const [abierto, setAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
   const cargar = useCallback(async () => {
+    setCargando(true);
     const respuesta = await obtenerMaterialClienteRevisionAccion({ revisionId: revision.id });
     setCargando(false);
     if (!respuesta.exito) {
@@ -47,21 +50,17 @@ export function PanelMaterialClientePropuesta({
     setDeclaraciones(respuesta.datos ?? []);
   }, [revision.id]);
 
-  useEffect(() => {
-    let vigente = true;
-    void obtenerMaterialClienteRevisionAccion({ revisionId: revision.id }).then((respuesta) => {
-      if (!vigente) return;
-      setCargando(false);
-      if (!respuesta.exito) {
-        setMensaje({ tipo: 'error', texto: respuesta.error });
-        return;
-      }
-      setDeclaraciones(respuesta.datos ?? []);
-    });
-    return () => {
-      vigente = false;
-    };
-  }, [revision.id]);
+  /**
+   * La sección arranca cerrada y carga al abrirse: así la propuesta no dispara
+   * una consulta por cada render y las pruebas de UI no dependen de sesión.
+   */
+  function alternar(valor: boolean): void {
+    setAbierto(valor);
+    if (valor && !cargado) {
+      setCargado(true);
+      void cargar();
+    }
+  }
 
   async function guardar(siguientes: { materialId: string; cantidad: number }[]): Promise<void> {
     setGuardando(true);
@@ -113,7 +112,8 @@ export function PanelMaterialClientePropuesta({
     <SeccionDesplegable
       titulo="Material del cliente"
       descripcion="Material que aporta el cliente para este ítem. No se costea ni descuenta inventario propio."
-      abiertoInicial={false}
+      abierto={abierto}
+      onAbiertoChange={alternar}
       dataTestId="panel-material-cliente-propuesta"
     >
       {items.length === 0 ? (
