@@ -400,7 +400,7 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'primera_pieza_pendiente':
       return 'Falta liberar la primera pieza antes de declarar producción';
     case 'horas_extra_sin_autorizacion':
-      return 'El tiempo neto de la sesión supera la jornada del turno. Pide a un responsable (permiso aprobar_ordenes) que registre la autorización en Producción → Horas extra y vuelve a cerrar.';
+      return 'El tiempo neto de la sesión supera la jornada del turno. Enviamos la solicitud a un responsable; espera a que la apruebe y vuelve a cerrar.';
     case 'corrida_invalida':
     case 'corrida_item_no_incluye_partida':
       return 'La corrida no corresponde a esta partida';

@@ -1,36 +1,23 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
-import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
-import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
-import { ETIQUETAS_TIPO_INSPECCION, referenciasLotePermitidas } from '@/modulos/produccion/utilidades/indice';
-import type { TipoInspeccion } from '@/modulos/produccion/tipos/corridas';
+import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
+import { ETIQUETAS_TIPO_INSPECCION } from '@/modulos/produccion/utilidades/indice';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 
-import { subirArchivoDirecto } from '@/nucleo/almacenamiento/archivos/subida-navegador';
-import { validarSubidaArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
-
-import { registrarInspeccionAccion } from '../acciones/indice';
 import { firmarFotoInspeccionAccion, obtenerInspeccionesOrdenAccion } from '../acciones/consultas-b6';
-import {
-  confirmarFotoInspeccionAccion,
-  descartarFotoInspeccionAccion,
-  prepararFotoInspeccionAccion,
-} from '../acciones/subir-foto-inspeccion';
 import type { CorridaDetalle } from '../servicios/consultas-b6-servicio';
 import { CLAVE_INSPECCIONES_ORDEN } from './claves-consulta';
 
-const CLASE_ETIQUETA = 'flex flex-col gap-1 text-sm font-medium text-texto-secundario';
-type MensajeCalidad = { texto: string; tipo: 'error' | 'estado' };
-
 /**
- * SII-B6.3: calidad básica por orden — primera pieza, referencias de lote
- * (1/3/5 e intervalos 10/20), cierre con cantidades/material y fotos.
+ * SII-B6.3: calidad por orden en solo lectura. Las inspecciones las registra el
+ * operador desde su flujo de trabajo; aquí administración consulta el resumen y
+ * las evidencias, sin formularios de captura paralelos.
  */
 export function PanelCalidadProduccion({
   orden,
@@ -39,21 +26,8 @@ export function PanelCalidadProduccion({
   orden: OrdenTableroProduccion | null;
   corridas: CorridaDetalle[];
 }) {
-  const clienteConsultas = useQueryClient();
-  const [dialogo, setDialogo] = useState(false);
-  const [tipo, setTipo] = useState<TipoInspeccion>('PRIMERA_PIEZA');
-  const [corridaId, setCorridaId] = useState('');
-  const [codigoItem, setCodigoItem] = useState('');
-  const [referencia, setReferencia] = useState('');
-  const [resultado, setResultado] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
-  const [cantidadOk, setCantidadOk] = useState('1');
-  const [cantidadNok, setCantidadNok] = useState('0');
-  const [cantidadRetrabajo, setCantidadRetrabajo] = useState('0');
-  const [materialUsado, setMaterialUsado] = useState('');
-  const [observaciones, setObservaciones] = useState('');
-  const [fotos, setFotos] = useState<FileList | null>(null);
-  const [mensaje, setMensaje] = useState<MensajeCalidad | null>(null);
-  const [procesando, setProcesando] = useState(false);
+  const [resumenId, setResumenId] = useState<string | null>(null);
+  const [errorFoto, setErrorFoto] = useState<string | null>(null);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_INSPECCIONES_ORDEN, orden?.id ?? 'sin-orden'],
@@ -68,111 +42,13 @@ export function PanelCalidadProduccion({
     enabled: orden !== null,
   });
   const inspecciones = consulta.data ?? [];
-
-  const corridaSeleccionada = corridas.find((corrida) => corrida.id === corridaId) ?? null;
-  const procesoCorrida = corridaSeleccionada;
-  const referencias = useMemo(
-    () => referenciasLotePermitidas(
-      corridaSeleccionada?.cantidadPlanificada ?? 0,
-      corridaSeleccionada?.intervaloInspeccionLote ?? null,
-    ),
-    [corridaSeleccionada],
-  );
-
-  function abrir(): void {
-    setMensaje(null);
-    const primeraCorrida = corridas.find((corrida) => corrida.estado !== 'CANCELADA') ?? null;
-    setTipo(primeraCorrida?.requierePrimeraPieza ? 'PRIMERA_PIEZA' : 'CIERRE');
-    setCorridaId(primeraCorrida?.id ?? '');
-    setCodigoItem(primeraCorrida?.items[0]?.codigoItem ?? '');
-    setReferencia('');
-    setResultado('APROBADA');
-    setCantidadOk('1');
-    setCantidadNok('0');
-    setCantidadRetrabajo('0');
-    setMaterialUsado('');
-    setObservaciones('');
-    setFotos(null);
-    setDialogo(true);
-  }
-
-  async function registrar(evento: FormEvent<HTMLFormElement>): Promise<void> {
-    evento.preventDefault();
-    if (!orden) return;
-
-    const subidas = fotos ? Array.from(fotos) : [];
-    for (const foto of subidas) {
-      const validacion = validarSubidaArchivo('inspeccion_calidad', { nombre: foto.name, tamano: foto.size });
-      if (!validacion.ok) {
-        setMensaje({ texto: `La foto ${foto.name} no es válida: ${validacion.error}`, tipo: 'error' });
-        return;
-      }
-    }
-
-    setProcesando(true);
-    let respuesta: Awaited<ReturnType<typeof registrarInspeccionAccion>>;
-    try {
-      respuesta = await registrarInspeccionAccion({
-        ordenId: orden.id,
-        corridaId: corridaId || null,
-        partidaId: corridaSeleccionada?.items[0]?.partidaId ?? null,
-        codigoItem: codigoItem.trim(),
-        tipo,
-        referencia: referencia.trim() ? Number(referencia) : null,
-        resultado,
-        cantidadInspeccionada: Number(cantidadOk) + Number(cantidadNok),
-        cantidadOk: Number(cantidadOk),
-        cantidadNok: Number(cantidadNok),
-        cantidadRetrabajo: Number(cantidadRetrabajo),
-        ...(materialUsado.trim() ? { materialUsado: { descripcion: materialUsado.trim() } } : {}),
-        ...(observaciones.trim() ? { observaciones: observaciones.trim() } : {}),
-      });
-    } catch {
-      setProcesando(false);
-      setMensaje({ texto: 'No se pudo registrar la inspección. Comprueba sus datos y vuelve a intentarlo.', tipo: 'error' });
-      return;
-    }
-
-    if (!respuesta.exito || !respuesta.datos) {
-      setProcesando(false);
-      setMensaje({
-        texto: respuesta.exito ? 'La inspección no devolvió confirmación.' : respuesta.error,
-        tipo: 'error',
-      });
-      return;
-    }
-
-    // Cada foto sube directo a Storage (H-B1-29); al primer fallo se informa sin
-    // ocultarlo tras el mensaje de éxito.
-    const inspeccionId = respuesta.datos.id;
-    let falloFoto: string | null = null;
-    for (const foto of subidas) {
-      const destino = { inspeccionId, nombre: foto.name };
-      try {
-        await subirArchivoDirecto(foto, {
-          preparar: () => prepararFotoInspeccionAccion({ ...destino, tamano: foto.size, mime: foto.type }),
-          confirmar: (ruta) => confirmarFotoInspeccionAccion({ ...destino, ruta }),
-          descartar: (ruta) => descartarFotoInspeccionAccion({ ruta }),
-        });
-      } catch (error) {
-        falloFoto = error instanceof Error ? error.message : 'No se pudo subir la foto';
-        break;
-      }
-    }
-
-    setProcesando(false);
-    let resumen = `Inspección ${ETIQUETAS_TIPO_INSPECCION[tipo].toLowerCase()} registrada`;
-    if (falloFoto) resumen = `Inspección registrada, pero una foto falló: ${falloFoto}`;
-    else if (subidas.length > 0) resumen += ` con ${subidas.length} foto(s)`;
-    setMensaje({ texto: resumen, tipo: falloFoto ? 'error' : 'estado' });
-    setDialogo(false);
-    await clienteConsultas.invalidateQueries({ queryKey: CLAVE_INSPECCIONES_ORDEN });
-  }
+  const seleccionada = inspecciones.find((inspeccion) => inspeccion.id === resumenId) ?? null;
 
   async function abrirFoto(archivoId: string): Promise<void> {
+    setErrorFoto(null);
     const respuesta = await firmarFotoInspeccionAccion(archivoId);
     if (!respuesta.exito) {
-      setMensaje({ texto: respuesta.error, tipo: 'error' });
+      setErrorFoto(respuesta.error);
       return;
     }
     window.open(respuesta.datos?.url, '_blank', 'noopener,noreferrer');
@@ -181,34 +57,33 @@ export function PanelCalidadProduccion({
   return (
     <section className="rounded-lg border border-borde bg-superficie p-4" data-testid="panel-calidad">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold text-texto-primario">Calidad</h2>
-        <Button
-          type="button"
-          tamano="sm"
-          disabled={!orden || corridas.length === 0}
-          data-testid="registrar-inspeccion"
-          onClick={abrir}
-        >
-          Registrar inspección
-        </Button>
+        <div>
+          <h2 className="text-base font-semibold text-texto-primario">Calidad</h2>
+          <p className="text-xs text-texto-secundario">
+            Inspecciones registradas por el operador al liberar la primera pieza y al cerrar el proceso.
+          </p>
+        </div>
       </div>
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}
       {orden && corridas.length === 0 && (
         <p className="mt-2 text-sm text-texto-secundario">
-          Crea o inicia una corrida para registrar inspecciones de la orden {orden.folio}.
+          Crea o inicia una corrida para que el operador registre inspecciones de la orden {orden.folio}.
         </p>
       )}
-      {mensaje !== null && (
-        <p
-          role={mensaje.tipo === 'error' ? 'alert' : 'status'}
-          className={mensaje.tipo === 'error' ? 'mt-2 text-sm text-peligro-texto' : 'mt-2 text-sm text-exito-texto'}
-        >
-          {mensaje.texto}
+      {consulta.isError && (
+        <p role="alert" className="mt-2 text-sm text-peligro-texto">
+          No se pudieron cargar las inspecciones. Vuelve a intentarlo.
         </p>
       )}
+      {errorFoto ? (
+        <p role="alert" className="mt-2 text-sm text-peligro-texto">{errorFoto}</p>
+      ) : null}
 
       {orden && inspecciones.length === 0 && corridas.length > 0 && (
-        <EstadoVacio titulo="Sin inspecciones" descripcion="Registra primera pieza, referencias de lote o el cierre." />
+        <EstadoVacio
+          titulo="Sin inspecciones"
+          descripcion="El operador registrará la primera pieza y el cierre desde su sesión de trabajo."
+        />
       )}
 
       {inspecciones.length > 0 && (
@@ -221,194 +96,93 @@ export function PanelCalidadProduccion({
                   {' · '}{inspeccion.resultado === 'APROBADA' ? 'Aprobada' : 'Rechazada'}
                   {inspeccion.referencia !== null ? ` · ref ${inspeccion.referencia}` : ''}
                   {inspeccion.corridaCodigo ? ` · ${inspeccion.corridaCodigo}` : ''}
-                  {inspeccion.partidaCodigo ? ` · ${inspeccion.partidaCodigo}` : ''}
                 </span>
-                <span className="text-xs text-texto-secundario">
+                <span className="flex items-center gap-2 text-xs text-texto-secundario">
                   {formatearFecha(inspeccion.creadoEn)} {formatearHora(inspeccion.creadoEn)}
+                  <Button
+                    type="button"
+                    tamano="sm"
+                    variante="contorno"
+                    onClick={() => setResumenId(inspeccion.id)}
+                    data-testid={`ver-resumen-inspeccion-${inspeccion.id}`}
+                  >
+                    Ver resumen
+                  </Button>
                 </span>
               </div>
-              <p className="mt-1 text-xs text-texto-secundario">
-                {inspeccion.codigoItem} · OK {inspeccion.cantidadOk} · NOK {inspeccion.cantidadNok}
-                {' · '}retrabajo {inspeccion.cantidadRetrabajo}
-              </p>
-              {inspeccion.observaciones ? <p className="mt-1 text-xs text-texto-secundario">{inspeccion.observaciones}</p> : null}
-              {inspeccion.fotos.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {inspeccion.fotos.map((foto) => (
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Dialog open={seleccionada !== null} onOpenChange={(abierto) => !abierto && setResumenId(null)}>
+        <DialogContent data-testid="resumen-inspeccion" aria-label="Resumen de la inspección">
+          <DialogHeader>
+            <DialogTitle>Resumen de la inspección</DialogTitle>
+            <DialogDescription>
+              {seleccionada
+                ? `${ETIQUETAS_TIPO_INSPECCION[seleccionada.tipo]} · ${formatearFecha(seleccionada.creadoEn)} ${formatearHora(seleccionada.creadoEn)}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {seleccionada ? (
+            <div className="flex flex-col gap-3 text-sm">
+              <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2 p-3">
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-texto-tenue">Resultado</dt>
+                  <dd className="font-semibold text-texto-primario">
+                    {seleccionada.resultado === 'APROBADA' ? 'Aprobada' : 'Rechazada'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-texto-tenue">Pieza</dt>
+                  <dd className="text-texto-primario">{seleccionada.codigoItem || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-texto-tenue">Buenas</dt>
+                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadOk, 3)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-texto-tenue">Con defecto</dt>
+                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadNok, 3)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-texto-tenue">Retrabajo</dt>
+                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadRetrabajo, 3)}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-texto-tenue">Lote / partida</dt>
+                  <dd className="text-texto-primario">
+                    {[seleccionada.corridaCodigo, seleccionada.partidaCodigo].filter(Boolean).join(' · ') || '—'}
+                  </dd>
+                </div>
+              </dl>
+              {seleccionada.observaciones ? (
+                <p className="whitespace-pre-line text-texto-secundario">{seleccionada.observaciones}</p>
+              ) : null}
+              {seleccionada.fotos.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {seleccionada.fotos.map((foto) => (
                     <button
                       key={foto.id}
                       type="button"
-                      className="text-xs font-semibold text-acento hover:underline"
+                      className="text-xs font-semibold text-acento-texto hover:underline"
                       onClick={() => void abrirFoto(foto.id)}
                     >
                       {foto.nombreOriginal}
                     </button>
                   ))}
                 </div>
+              ) : (
+                <p className="text-xs text-texto-tenue">Sin evidencia fotográfica.</p>
               )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <Dialog open={dialogo} onOpenChange={(valor) => !procesando && setDialogo(valor)}>
-        <DialogContent data-testid="dialogo-inspeccion" aria-label="Registrar inspección de calidad">
-          <DialogHeader>
-            <DialogTitle>Registrar inspección</DialogTitle>
-            <DialogDescription>
-              {procesoCorrida?.requierePrimeraPieza
-                ? 'El proceso pide aprobar la primera pieza antes de declarar producción.'
-                : 'Estas revisiones dejan registro sin detener la producción.'}
-            </DialogDescription>
-          </DialogHeader>
-          <form className="flex flex-col gap-3" onSubmit={registrar}>
-            <label className={CLASE_ETIQUETA}>
-              Momento de la revisión
-              <Select
-                data-testid="tipo-inspeccion"
-                value={tipo}
-                onChange={(evento) => setTipo(evento.target.value as TipoInspeccion)}
-              >
-                <option value="PRIMERA_PIEZA">Primera pieza</option>
-                <option value="REFERENCIA_LOTE">Durante el lote</option>
-                <option value="CIERRE">Al cerrar el lote</option>
-              </Select>
-            </label>
-            <label className={CLASE_ETIQUETA}>
-              Lote de producción
-              <Select
-                data-testid="corrida-inspeccion"
-                value={corridaId}
-                onChange={(evento) => {
-                  setCorridaId(evento.target.value);
-                  const corrida = corridas.find((item) => item.id === evento.target.value);
-                  setCodigoItem(corrida?.items[0]?.codigoItem ?? '');
-                }}
-              >
-                <option value="">Sin lote específico</option>
-                {corridas.map((corrida) => (
-                  <option key={corrida.id} value={corrida.id}>
-                    {corrida.codigo} · {corrida.procesoNombre}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            {corridaSeleccionada && corridaSeleccionada.items.length > 0 ? (
-              <label className={CLASE_ETIQUETA}>
-                Pieza revisada
-                <Select
-                  value={codigoItem}
-                  onChange={(evento) => setCodigoItem(evento.target.value)}
-                  data-testid="item-inspeccion"
-                >
-                  {corridaSeleccionada.items.map((item) => (
-                    <option key={item.codigoItem} value={item.codigoItem}>
-                      {item.codigoItem}
-                    </option>
-                  ))}
-                </Select>
-              </label>
-            ) : (
-              <label className={CLASE_ETIQUETA}>
-                Pieza revisada
-                <Input
-                  value={codigoItem}
-                  maxLength={40}
-                  onChange={(evento) => setCodigoItem(evento.target.value)}
-                  placeholder="Código de la pieza"
-                  required
-                />
-              </label>
-            )}
-            {tipo === 'REFERENCIA_LOTE' ? (
-              <label className={CLASE_ETIQUETA}>
-                Número de pieza revisada
-                <Input
-                  data-testid="referencia-inspeccion"
-                  type="number"
-                  min="1"
-                  value={referencia}
-                  onChange={(evento) => setReferencia(evento.target.value)}
-                  required
-                />
-                {referencias.length > 0 ? (
-                  <span className="text-xs font-normal text-texto-tenue">
-                    Sugeridas: {referencias.join(', ')}
-                  </span>
-                ) : null}
-              </label>
-            ) : null}
-            <label className={CLASE_ETIQUETA}>
-              Resultado de la revisión
-              <Select
-                data-testid="resultado-inspeccion"
-                value={resultado}
-                onChange={(evento) => setResultado(evento.target.value as 'APROBADA' | 'RECHAZADA')}
-              >
-                <option value="APROBADA">Aprobada</option>
-                <option value="RECHAZADA">Rechazada</option>
-              </Select>
-            </label>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { etiqueta: 'Piezas buenas', valor: cantidadOk, set: setCantidadOk },
-                { etiqueta: 'Piezas con defecto', valor: cantidadNok, set: setCantidadNok },
-                { etiqueta: 'Piezas a retrabajo', valor: cantidadRetrabajo, set: setCantidadRetrabajo },
-              ].map((campo) => (
-                <label key={campo.etiqueta} className={CLASE_ETIQUETA}>
-                  {campo.etiqueta}
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={campo.valor}
-                    onChange={(evento) => campo.set(evento.target.value)}
-                  />
-                </label>
-              ))}
             </div>
-            <label className={CLASE_ETIQUETA}>
-              Material utilizado (opcional)
-              <Input
-                value={materialUsado}
-                maxLength={300}
-                onChange={(evento) => setMaterialUsado(evento.target.value)}
-                placeholder="Solo si la revisión consumió material"
-              />
-            </label>
-            <label className={CLASE_ETIQUETA}>
-              Notas de la revisión (opcional)
-              <Textarea
-                className="min-h-11"
-                value={observaciones}
-                maxLength={1000}
-                onChange={(evento) => setObservaciones(evento.target.value)}
-                placeholder="Describe cualquier detalle útil para el equipo"
-              />
-            </label>
-            <label className={CLASE_ETIQUETA}>
-              Fotos o documentos (opcional)
-              <Input
-                data-testid="fotos-inspeccion"
-                type="file"
-                accept="image/*,.pdf"
-                multiple
-                onChange={(evento) => setFotos(evento.target.files)}
-              />
-              <span className="text-xs font-normal text-texto-tenue">
-                Adjunta imágenes o PDF como evidencia de la revisión.
-              </span>
-            </label>
-            {mensaje?.tipo === 'error' && <p role="alert" className="text-sm text-peligro-texto">{mensaje.texto}</p>}
-            <div className="flex justify-end gap-2">
-              <Button type="button" variante="contorno" disabled={procesando} onClick={() => setDialogo(false)}>
-                Cerrar
-              </Button>
-              <Button type="submit" disabled={procesando} data-testid="confirmar-inspeccion">
-                {procesando ? 'Guardando…' : 'Registrar'}
-              </Button>
-            </div>
-          </form>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" onClick={() => setResumenId(null)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </section>

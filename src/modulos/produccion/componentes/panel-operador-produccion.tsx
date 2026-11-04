@@ -15,8 +15,10 @@ import type { SesionActivaProduccion } from '@/estado/uso-tienda-produccion';
 import { type MotivoPausaSesion, type VerificacionInicio } from '@/modulos/produccion/tipos/indice';
 
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
+import { registrarInspeccionAccion } from '../acciones/registrar-inspeccion';
 
-type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string };
+type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string; codigo?: string };
 type MensajePanelOperador = { texto: string; tipo: 'error' | 'estado' };
 type SesionOrden = OrdenTableroProduccion['sesiones'][number];
 export type CierreSupervisor = {
@@ -128,6 +130,12 @@ export function PanelOperadorProduccion({
   const [cantidadMerma, setCantidadMerma] = useState('0');
   const [mensaje, setMensaje] = useState<MensajePanelOperador | null>(null);
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
+  const [registrarInspeccionCierre, setRegistrarInspeccionCierre] = useState(false);
+  const [resultadoInspeccionCierre, setResultadoInspeccionCierre] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
+  const [observacionesCierre, setObservacionesCierre] = useState('');
+  const [mensajeInspeccionCierre, setMensajeInspeccionCierre] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
   const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
   const [errorReanudacion, setErrorReanudacion] = useState<string | null>(null);
   const [confirmarChecklist, setConfirmarChecklist] = useState(false);
@@ -250,24 +258,62 @@ export function PanelOperadorProduccion({
       } : {}),
       pinConfirmacion,
     });
-    setMensaje(resultado.exito
-      ? { texto: 'Sesión registrada y recurso liberado', tipo: 'estado' }
-      : { texto: resultado.error, tipo: 'error' });
     if (resultado.exito) {
-      setPinConfirmacion('');
-      setNotas('');
-      setMaterialId('');
-      setCantidadUsada('0');
-      setCantidadMerma('0');
-      if (estadoDestino === 'finalizada' && materialSeleccionado && resultado.datos) {
-        setResumenCierre({
-          material: materialSeleccionado,
-          cantidadUsada: usada,
-          cantidadMerma: merma,
-          notas: notas.trim() || null,
-          resultado: resultado.datos,
-        });
+      setMensaje({ texto: 'Sesión registrada y recurso liberado', tipo: 'estado' });
+    } else {
+      setMensaje({ texto: resultado.error, tipo: 'error' });
+      if (resultado.codigo === 'horas_extra_sin_autorizacion') {
+        // C12: el operador no llena solicitudes; el sistema la deja pendiente
+        // para que Admin/Management solo la apruebe o la rechace.
+        const solicitud = await solicitarHorasExtraAccion({ sesionId: sesionActiva.id });
+        if (solicitud.exito) {
+          setMensaje({
+            texto: `Solicitud de horas extra enviada (${formatearNumero(solicitud.datos?.horasAutorizadas ?? 0, 2)} h). Un responsable debe aprobarla antes de cerrar.`,
+            tipo: 'estado',
+          });
+        }
       }
+      return;
+    }
+    setPinConfirmacion('');
+    setNotas('');
+    setMaterialId('');
+    setCantidadUsada('0');
+    setCantidadMerma('0');
+    if (estadoDestino === 'finalizada' && materialSeleccionado && resultado.datos) {
+      setResumenCierre({
+        material: materialSeleccionado,
+        cantidadUsada: usada,
+        cantidadMerma: merma,
+        notas: notas.trim() || null,
+        resultado: resultado.datos,
+      });
+    }
+    // C12: el operador registra la inspección de calidad del cierre; el panel
+    // de administración solo consulta el resumen.
+    if (estadoDestino === 'finalizada' && registrarInspeccionCierre && orden) {
+      const aprobada = resultadoInspeccionCierre === 'APROBADA';
+      const cantidad = Number(piezasProducidas);
+      const inspeccion = await registrarInspeccionAccion({
+        ordenId: orden.id,
+        corridaId: corridaId ?? null,
+        partidaId: sesionActiva.partidaId,
+        codigoItem: partidaSesionActiva?.codigoPieza ?? '',
+        tipo: 'CIERRE',
+        resultado: resultadoInspeccionCierre,
+        cantidadInspeccionada: cantidad,
+        cantidadOk: aprobada ? cantidad : 0,
+        cantidadNok: aprobada ? 0 : cantidad,
+        cantidadRetrabajo: 0,
+        ...(observacionesCierre.trim() ? { observaciones: observacionesCierre.trim() } : {}),
+      });
+      setMensajeInspeccionCierre(
+        inspeccion.exito
+          ? { tipo: 'ok', texto: 'Inspección de cierre registrada.' }
+          : { tipo: 'error', texto: `La sesión cerró, pero la inspección falló: ${inspeccion.error}` },
+      );
+      setRegistrarInspeccionCierre(false);
+      setObservacionesCierre('');
     }
   }
 
@@ -548,6 +594,53 @@ export function PanelOperadorProduccion({
               </div>
             </fieldset>
           ) : null}
+          {estadoDestino === 'finalizada' ? (
+            <div className="grid gap-3 rounded-lg border border-borde p-3">
+              <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4"
+                  checked={registrarInspeccionCierre}
+                  onChange={(evento) => setRegistrarInspeccionCierre(evento.target.checked)}
+                  data-testid="registrar-inspeccion-cierre"
+                />
+                <span>
+                  Registrar inspección de cierre
+                  <span className="block text-xs font-normal text-texto-secundario">
+                    Queda como evidencia de calidad del lote terminado.
+                  </span>
+                </span>
+              </label>
+              {registrarInspeccionCierre ? (
+                <>
+                  <label className={CLASE_ETIQUETA}>
+                    Resultado de la revisión
+                    <Select
+                      className="min-h-11"
+                      data-testid="resultado-inspeccion-cierre"
+                      value={resultadoInspeccionCierre}
+                      onChange={(evento) =>
+                        setResultadoInspeccionCierre(evento.target.value as 'APROBADA' | 'RECHAZADA')
+                      }
+                    >
+                      <option value="APROBADA">Aprobada</option>
+                      <option value="RECHAZADA">Rechazada</option>
+                    </Select>
+                  </label>
+                  <label className={CLASE_ETIQUETA}>
+                    Observaciones (opcional)
+                    <Textarea
+                      className="min-h-11"
+                      maxLength={1000}
+                      value={observacionesCierre}
+                      onChange={(evento) => setObservacionesCierre(evento.target.value)}
+                      placeholder="Detalles de la revisión final"
+                    />
+                  </label>
+                </>
+              ) : null}
+            </div>
+          ) : null}
           <label className={CLASE_ETIQUETA}>
             Notas operativas{estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota ? ' (obligatorias)' : ''}
             <Textarea
@@ -684,6 +777,20 @@ export function PanelOperadorProduccion({
               <div><dt className="text-texto-secundario">Material usado</dt><dd className="font-medium">{resumenCierre.material.codigo} · {formatearNumero(resumenCierre.cantidadUsada, 3)} {resumenCierre.material.unidadBase}</dd></div>
               <div><dt className="text-texto-secundario">Merma</dt><dd className="font-medium">{formatearNumero(resumenCierre.cantidadMerma, 3)} {resumenCierre.material.unidadBase}</dd></div>
               {resumenCierre.notas ? <div className="col-span-full"><dt className="text-texto-secundario">Notas</dt><dd className="whitespace-pre-wrap font-medium">{resumenCierre.notas}</dd></div> : null}
+              {mensajeInspeccionCierre ? (
+                <div className="col-span-full">
+                  <p
+                    role={mensajeInspeccionCierre.tipo === 'error' ? 'alert' : 'status'}
+                    className={cn(
+                      'text-sm',
+                      mensajeInspeccionCierre.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto',
+                    )}
+                    data-testid="mensaje-inspeccion-cierre"
+                  >
+                    {mensajeInspeccionCierre.texto}
+                  </p>
+                </div>
+              ) : null}
             </dl>
           ) : null}
           <DialogFooter>
@@ -697,7 +804,6 @@ export function PanelOperadorProduccion({
           orden={orden}
           responsables={responsables}
           motivosPausa={motivosPausa}
-          materiales={materiales}
           procesando={procesando}
           onCerrar={() => setSesionSupervisor(null)}
           onConfirmar={async (datos) => {
@@ -715,16 +821,15 @@ export function PanelOperadorProduccion({
 }
 
 /**
- * Cierre excepcional por administrador. No pide PIN del operador: la Server
- * Action valida el permiso y PostgreSQL conserva las reglas de cierre. La opción
- * segura por defecto es pausar; finalizar exige consumo de material.
+ * Cierre excepcional por administrador. Administración solo pausa y libera la
+ * máquina: las piezas, el consumo de material y la merma los declara el operador
+ * desde su propia sesión, así que aquí no se capturan.
  */
 function DialogoFinalizarSesionSupervisor({
   sesion,
   orden,
   responsables,
   motivosPausa,
-  materiales,
   procesando,
   onCerrar,
   onConfirmar,
@@ -733,19 +838,11 @@ function DialogoFinalizarSesionSupervisor({
   orden: OrdenTableroProduccion | null;
   responsables: Readonly<Record<string, string>>;
   motivosPausa: MotivoPausaCatalogo[];
-  materiales: readonly MaterialPisoCatalogo[];
   procesando: boolean;
   onCerrar: () => void;
   onConfirmar: (datos: CierreSupervisor) => Promise<ResultadoOperacion>;
 }) {
-  const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>(
-    sesion.estadoSesion === 'pausada' ? 'finalizada' : 'pausada',
-  );
-  const [piezasProducidas, setPiezasProducidas] = useState('0');
   const [motivoPausa, setMotivoPausa] = useState(motivosPausa[0]?.codigo ?? '');
-  const [materialId, setMaterialId] = useState('');
-  const [cantidadUsada, setCantidadUsada] = useState('0');
-  const [cantidadMerma, setCantidadMerma] = useState('0');
   const [notas, setNotas] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -763,22 +860,11 @@ function DialogoFinalizarSesionSupervisor({
   async function confirmar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (enviando) return;
-    const piezas = Number(piezasProducidas);
-    const usada = Number(cantidadUsada);
-    const merma = Number(cantidadMerma);
-    if (!Number.isFinite(piezas) || piezas < 0) {
-      setError('Indica una cantidad de piezas válida');
-      return;
-    }
-    if (estadoDestino === 'pausada' && !motivoSeleccionado) {
+    if (!motivoSeleccionado) {
       setError('Selecciona el motivo de la pausa');
       return;
     }
-    if (estadoDestino === 'finalizada' && (!materialId || usada + merma <= 0)) {
-      setError('Para finalizar, registra el material usado o la merma');
-      return;
-    }
-    if (estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota && notas.trim().length === 0) {
+    if (motivoSeleccionado.requiereNota && notas.trim().length === 0) {
       setError('Este motivo exige una nota');
       return;
     }
@@ -786,22 +872,11 @@ function DialogoFinalizarSesionSupervisor({
     setEnviando(true);
     const resultado = await onConfirmar({
       sesionId: sesion.id,
-      piezasProducidas: piezas,
-      estadoDestino,
+      piezasProducidas: 0,
+      estadoDestino: 'pausada',
       ...(meta ? { metaProcesoId: meta.id } : {}),
-      ...(estadoDestino === 'pausada' && motivoSeleccionado
-        ? { motivoPausa: motivoSeleccionado.codigo }
-        : {}),
+      motivoPausa: motivoSeleccionado.codigo,
       ...(notas.trim() ? { notas: notas.trim() } : {}),
-      ...(estadoDestino === 'finalizada'
-        ? {
-            consumo: {
-              materialId,
-              cantidadUsada: usada,
-              cantidadScrap: merma,
-            },
-          }
-        : {}),
     });
     setEnviando(false);
     if (!resultado.exito) setError(resultado.error);
@@ -811,7 +886,7 @@ function DialogoFinalizarSesionSupervisor({
     <Dialog open onOpenChange={(abierto) => { if (!abierto && !enviando) onCerrar(); }}>
       <DialogContent className="max-w-lg" data-testid="dialogo-supervisor-sesion">
         <DialogHeader>
-          <DialogTitle>Finalizar sesión de {responsables[sesion.operadorId] ?? 'operador'}</DialogTitle>
+          <DialogTitle>Pausar sesión de {responsables[sesion.operadorId] ?? 'operador'}</DialogTitle>
           <DialogDescription>
             {partida?.codigoPieza ?? 'Partida'}
             {meta ? ` · ${meta.nombre}` : ''} · {formatearFecha(sesion.fechaInicio)}{' '}
@@ -819,91 +894,31 @@ function DialogoFinalizarSesionSupervisor({
           </DialogDescription>
         </DialogHeader>
         <form className="flex flex-col gap-3" onSubmit={(evento) => void confirmar(evento)}>
+          <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
+            La captura de piezas, material y merma corresponde al operador. Si su sesión quedó
+            abierta, esta pausa libera la máquina sin declarar producción.
+          </p>
           <label className={CLASE_ETIQUETA}>
-            ¿Qué debe pasar con la sesión?
+            Motivo de pausa
             <Select
-              value={estadoDestino}
-              onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}
-              data-testid="supervisor-estado-sesion"
+              value={motivoSeleccionado?.codigo ?? ''}
+              onChange={(evento) => setMotivoPausa(evento.target.value)}
+              data-testid="supervisor-motivo-pausa"
             >
-              <option value="pausada">Pausar y liberar la máquina</option>
-              <option value="finalizada">Finalizar la sesión</option>
+              {motivosPausa.map((motivo) => (
+                <option key={motivo.codigo} value={motivo.codigo}>
+                  {motivo.nombre}{motivo.requiereNota ? ' (nota obligatoria)' : ''}
+                </option>
+              ))}
             </Select>
           </label>
           <label className={CLASE_ETIQUETA}>
-            Piezas producidas en este turno
-            <Input
-              type="number"
-              min="0"
-              step="0.001"
-              value={piezasProducidas}
-              onChange={(evento) => setPiezasProducidas(evento.target.value)}
-            />
-          </label>
-          {estadoDestino === 'pausada' ? (
-            <label className={CLASE_ETIQUETA}>
-              Motivo de pausa
-              <Select
-                value={motivoSeleccionado?.codigo ?? ''}
-                onChange={(evento) => setMotivoPausa(evento.target.value)}
-                data-testid="supervisor-motivo-pausa"
-              >
-                {motivosPausa.map((motivo) => (
-                  <option key={motivo.codigo} value={motivo.codigo}>
-                    {motivo.nombre}{motivo.requiereNota ? ' (nota obligatoria)' : ''}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          ) : (
-            <fieldset className="grid gap-3 rounded-lg border border-borde p-3">
-              <legend className="px-1 text-sm font-semibold text-texto-primario">Consumo de material</legend>
-              <label className={CLASE_ETIQUETA}>
-                Material
-                <Select
-                  value={materialId}
-                  onChange={(evento) => setMaterialId(evento.target.value)}
-                  data-testid="supervisor-material"
-                >
-                  <option value="">Selecciona un material</option>
-                  {materiales.map((material) => (
-                    <option key={material.id} value={material.id}>
-                      {material.codigo} — {material.nombre} ({material.unidadBase})
-                    </option>
-                  ))}
-                </Select>
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className={CLASE_ETIQUETA}>
-                  Usado
-                  <Input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={cantidadUsada}
-                    onChange={(evento) => setCantidadUsada(evento.target.value)}
-                  />
-                </label>
-                <label className={CLASE_ETIQUETA}>
-                  Merma
-                  <Input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={cantidadMerma}
-                    onChange={(evento) => setCantidadMerma(evento.target.value)}
-                  />
-                </label>
-              </div>
-            </fieldset>
-          )}
-          <label className={CLASE_ETIQUETA}>
-            Notas
+            Notas{motivoSeleccionado?.requiereNota ? ' (obligatorias)' : ' (opcional)'}
             <Textarea
               maxLength={1000}
               value={notas}
               onChange={(evento) => setNotas(evento.target.value)}
-              required={estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota === true}
+              required={motivoSeleccionado?.requiereNota === true}
             />
           </label>
           {error ? <p role="alert" className="text-sm text-peligro-texto">{error}</p> : null}
@@ -912,7 +927,7 @@ function DialogoFinalizarSesionSupervisor({
               Cancelar
             </Button>
             <Button type="submit" disabled={enviando || procesando} data-testid="confirmar-supervisor-sesion">
-              {enviando || procesando ? 'Guardando…' : 'Cerrar sesión'}
+              {enviando || procesando ? 'Guardando…' : 'Pausar sesión'}
             </Button>
           </DialogFooter>
         </form>

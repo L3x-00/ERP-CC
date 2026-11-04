@@ -29,8 +29,10 @@ export const ETIQUETAS_RESULTADO_INSPECCION: Record<ResultadoInspeccion, string>
 
 /** Etiqueta legible por estado de autorización de horas extra. */
 export const ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA: Record<EstadoAutorizacionHoraExtra, string> = {
+  SOLICITADA: 'Pendiente de aprobación',
   VIGENTE: 'Vigente',
   USADA: 'Usada',
+  RECHAZADA: 'Rechazada',
   REVOCADA: 'Revocada',
 };
 

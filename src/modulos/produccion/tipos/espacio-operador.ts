@@ -91,6 +91,14 @@ export interface ArchivoProceso {
   creadoEn: string;
 }
 
+/** Comentario del registro general de la orden que el operador debe conocer. */
+export interface ComentarioOrdenVisible {
+  id: string;
+  contenido: string;
+  autorNombre: string;
+  creadoEn: string;
+}
+
 export interface SesionProceso {
   id: string;
   /** Corrida de producción asociada; permite liberar la primera pieza desde el cierre. */
@@ -215,6 +223,8 @@ export interface ProcesoEspacioOperador {
   sesiones: SesionProceso[];
   procesosRuteo: ProcesoRuteoResumen[];
   archivos: ArchivoProceso[];
+  /** Comentarios generales de la orden visibles para el operador. */
+  comentariosOrden: ComentarioOrdenVisible[];
 
   columna: ColumnaEspacioOperador;
   urgencia: UrgenciaProceso;

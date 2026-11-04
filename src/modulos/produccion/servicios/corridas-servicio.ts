@@ -167,3 +167,48 @@ export async function autorizarHorasExtraServicio(
     estado: texto(fila.estado) || 'VIGENTE',
   };
 }
+
+/** C12: deja pendiente la solicitud de horas extra de una sesión que ya excedió la jornada. */
+export async function solicitarHorasExtraOperadorServicio(
+  admin: Admin,
+  entrada: { sesionId: string; operadorId: string },
+): Promise<AutorizacionHorasExtraRegistrada> {
+  const { data, error } = await admin.rpc('solicitar_horas_extra_operador', {
+    p_sesion_id: entrada.sesionId,
+    p_operador_id: entrada.operadorId,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+
+  const fila = ((data ?? []) as Record<string, unknown>[])[0] ?? {};
+  if (!texto(fila.id)) throw new Error('Respuesta inválida al solicitar horas extra');
+  return {
+    id: texto(fila.id),
+    ordenId: texto(fila.orden_id),
+    sesionId: typeof fila.sesion_id === 'string' ? fila.sesion_id : null,
+    horasAutorizadas: numero(fila.horas_autorizadas),
+    estado: texto(fila.estado) || 'SOLICITADA',
+  };
+}
+
+/** C12: Admin/Management aprueba (VIGENTE) o rechaza (RECHAZADA) una solicitud pendiente. */
+export async function resolverSolicitudHorasExtraServicio(
+  admin: Admin,
+  entrada: { id: string; aprobar: boolean; autorizadorId: string },
+): Promise<AutorizacionHorasExtraRegistrada> {
+  const { data, error } = await admin.rpc('resolver_solicitud_horas_extra', {
+    p_id: entrada.id,
+    p_aprobar: entrada.aprobar,
+    p_autorizador_id: entrada.autorizadorId,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+
+  const fila = ((data ?? []) as Record<string, unknown>[])[0] ?? {};
+  if (!texto(fila.id)) throw new Error('Respuesta inválida al resolver horas extra');
+  return {
+    id: texto(fila.id),
+    ordenId: '',
+    sesionId: null,
+    horasAutorizadas: numero(fila.horas_autorizadas),
+    estado: texto(fila.estado),
+  };
+}

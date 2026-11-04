@@ -34,12 +34,10 @@ export function DetalleEntrega({
   inicial,
   puedeEvidencia,
   puedeEditar = false,
-  puedeFacturar = false,
 }: {
   inicial: DetalleEntregaCompleto;
   puedeEvidencia: boolean;
   puedeEditar?: boolean;
-  puedeFacturar?: boolean;
 }) {
   const [datos, setDatos] = useState<DetalleEntregaCompleto>(inicial);
   const [claseArchivo, setClaseArchivo] = useState<'evidencia' | 'firma_escaneada'>('evidencia');
@@ -165,15 +163,6 @@ export function DetalleEntrega({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {puedeFacturar ? (
-            <Link
-              href={`/facturacion?entrega=${entrega.id}`}
-              className="inline-flex min-h-11 items-center rounded-md border border-borde px-3 text-sm font-semibold text-acento hover:bg-superficie-2"
-              data-testid="facturar-entrega"
-            >
-              Facturar entrega
-            </Link>
-          ) : null}
           <Button variante="contorno" tamano="sm" onClick={() => router.push('/entregas')}>
             Volver a la cola
           </Button>

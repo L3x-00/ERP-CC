@@ -89,6 +89,7 @@ function crearProceso(
     sesiones: [],
     procesosRuteo: [],
     archivos: [],
+    comentariosOrden: [],
     columna: 'bandeja',
     urgencia: 'normal',
     etiquetas: [],

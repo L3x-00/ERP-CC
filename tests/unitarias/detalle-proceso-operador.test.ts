@@ -99,6 +99,7 @@ const proceso = {
   sesiones: [],
   procesosRuteo: [],
   archivos: [],
+  comentariosOrden: [],
   columna: 'en_proceso',
   urgencia: 'normal',
   etiquetas: [],

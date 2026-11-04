@@ -6927,6 +6927,26 @@ export type Database = {
         }
         Returns: Json
       }
+      resolver_solicitud_horas_extra: {
+        Args: { p_aprobar: boolean; p_autorizador_id: string; p_id: string }
+        Returns: {
+          estado: string
+          horas_autorizadas: number
+          id: string
+        }[]
+      }
+      solicitar_horas_extra_operador: {
+        Args: { p_operador_id: string; p_sesion_id: string }
+        Returns: {
+          creado_en: string
+          estado: string
+          horas_autorizadas: number
+          id: string
+          motivo: string
+          orden_id: string
+          sesion_id: string
+        }[]
+      }
     }
     Enums: {
       tipo_entidad_comentario: "orden" | "cotizacion" | "cliente"

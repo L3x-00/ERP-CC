@@ -256,7 +256,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     setProcesando(true);
     try {
       const resultado = await cerrarSesionOperadorAccion(datosCierre);
-      if (!resultado.exito) return { exito: false, error: resultado.error };
+      if (!resultado.exito) return { exito: false, error: resultado.error, ...(resultado.codigo ? { codigo: resultado.codigo } : {}) };
       if (!resultado.datos) return { exito: false, error: 'El cierre no devolvió una confirmación' };
       establecerSesionActiva(null);
       await refrescar();
