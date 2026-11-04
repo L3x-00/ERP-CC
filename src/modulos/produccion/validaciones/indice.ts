@@ -35,6 +35,8 @@ export {
   esquemaReclamarRecurso,
   esquemaCerrarJornada,
   esquemaAutorizarHorasExtra,
+  esquemaSolicitarHorasExtra,
+  esquemaResolverHorasExtra,
   esquemaRegistrarInspeccion,
 } from '@/modulos/produccion/validaciones/corridas';
 
@@ -42,5 +44,7 @@ export type {
   CrearCorridaInput,
   EstadoCorridaInput,
   AutorizarHorasExtraInput,
+  SolicitarHorasExtraInput,
+  ResolverHorasExtraInput,
   RegistrarInspeccionInput,
 } from '@/modulos/produccion/validaciones/corridas';

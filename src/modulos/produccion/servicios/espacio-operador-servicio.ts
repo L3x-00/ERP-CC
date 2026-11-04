@@ -28,6 +28,7 @@ import {
   sumarDias,
   type AreaEspacioOperador,
   type ArchivoProceso,
+  type ComentarioOrdenVisible,
   type DiaCalendarioOperador,
   type MaterialProceso,
   type ProcesoEspacioOperador,
@@ -237,6 +238,61 @@ async function obtenerArchivosDeOrdenes(
   return porOrden;
 }
 
+/** Comentarios generales de la orden que el operador puede leer. */
+async function obtenerComentariosDeOrdenes(
+  cliente: Admin,
+  ordenIds: readonly string[],
+): Promise<Map<string, ComentarioOrdenVisible[]>> {
+  const porOrden = new Map<string, ComentarioOrdenVisible[]>();
+  if (ordenIds.length === 0) return porOrden;
+
+  const filas = await obtenerFilasEnLotes<{
+    id: string;
+    entidad_id: string;
+    contenido: string;
+    creado_en: string;
+    autor_id: string;
+  }>(ordenIds, async (lote) => {
+    const { data, error } = await cliente
+      .from('comentarios_registro')
+      .select('id, entidad_id, contenido, creado_en, autor_id')
+      .eq('entidad_tipo', 'orden')
+      .eq('eliminado', false)
+      .in('entidad_id', lote)
+      .order('creado_en', { ascending: false });
+    return { data, error };
+  });
+  if (filas.length === 0) return porOrden;
+
+  const autores = [...new Set(filas.map((fila) => fila.autor_id))];
+  const nombres = new Map<string, string>();
+  const usuarios = await obtenerFilasEnLotes<Pick<Tables<'usuarios'>, 'id' | 'nombre_completo'>>(
+    autores,
+    async (lote) => {
+      const { data, error } = await cliente
+        .from('usuarios')
+        .select('id, nombre_completo')
+        .in('id', lote);
+      return { data, error };
+    },
+  );
+  for (const usuario of usuarios) nombres.set(usuario.id, usuario.nombre_completo);
+
+  for (const fila of filas) {
+    const lista = porOrden.get(fila.entidad_id) ?? [];
+    // Solo el hilo general: el operador necesita el contexto, no 200 entradas.
+    if (lista.length >= 20) continue;
+    lista.push({
+      id: fila.id,
+      contenido: fila.contenido,
+      autorNombre: nombres.get(fila.autor_id) ?? 'Administración',
+      creadoEn: fila.creado_en,
+    });
+    porOrden.set(fila.entidad_id, lista);
+  }
+  return porOrden;
+}
+
 function sesionResumen(
   sesion: SesionTrabajo,
   responsables: Readonly<Record<string, string>>,
@@ -381,10 +437,11 @@ export async function obtenerEspacioOperadorServicio(
   }));
   const areasPorCodigo = new Map(areas.map((area) => [area.codigo, area]));
 
-  const [sesiones, hechoPorMeta, archivosPorOrden] = await Promise.all([
+  const [sesiones, hechoPorMeta, archivosPorOrden, comentariosPorOrden] = await Promise.all([
     obtenerSesionesDeOrdenes(cliente, ordenIds),
     obtenerAvancesDeMetas(cliente, filasMetas.map((meta) => meta.id)),
     obtenerArchivosDeOrdenes(cliente, ordenIds),
+    obtenerComentariosDeOrdenes(cliente, ordenIds),
   ]);
 
   const sesionesPorProgramacion = new Map<string, SesionTrabajo[]>();
@@ -469,6 +526,7 @@ export async function obtenerEspacioOperadorServicio(
     const areaRaiz = resolverAreaRaiz(areas, areaCodigo);
     const cliente = clientesPorId.get(orden.clienteId);
     const archivos = archivosPorOrden.get(orden.id) ?? [];
+    const comentariosOrden = comentariosPorOrden.get(orden.id) ?? [];
     const sesionesPartida = sesionesPorPartida.get(partida.id) ?? [];
 
     const operaciones = metas.length > 0
@@ -633,6 +691,7 @@ export async function obtenerEspacioOperadorServicio(
         sesiones: sesionesOrdenadas.map((sesion) => sesionResumen(sesion, responsables)),
         procesosRuteo,
         archivos,
+        comentariosOrden,
         columna,
         urgencia,
         etiquetas: [],

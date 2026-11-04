@@ -13,6 +13,10 @@ export type DocumentoOrden = {
     direccion: string;
     telefono: string;
     email: string;
+    /** Color de acento de la plantilla documental de la empresa. */
+    colorAcento: string;
+    logoUrl: string | null;
+    textoPiePagina: string;
   };
   orden: {
     folio: string;
@@ -253,6 +257,9 @@ export async function obtenerDocumentoOrdenServicio(
       direccion: empresa.empresa.direccion,
       telefono: empresa.empresa.telefono,
       email: empresa.empresa.email,
+      colorAcento: empresa.plantillasDoc.T1?.colorAcento ?? '#1D4ED8',
+      logoUrl: empresa.empresa.logoUrl,
+      textoPiePagina: empresa.plantillasDoc.T1?.textoPiePagina ?? '',
     },
     orden: {
       folio: orden.folio,

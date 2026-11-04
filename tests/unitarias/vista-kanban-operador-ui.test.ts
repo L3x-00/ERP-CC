@@ -56,6 +56,7 @@ function proceso(
     sesiones: [],
     procesosRuteo: [],
     archivos: [],
+    comentariosOrden: [],
     columna: 'bandeja',
     urgencia: 'normal',
     etiquetas: [],

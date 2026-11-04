@@ -1,40 +1,34 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
-import { Input, Textarea } from '@/compartido/componentes/ui/input';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
-import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
+import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import { ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA } from '@/modulos/produccion/utilidades/indice';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 
-import { autorizarHorasExtraAccion } from '../acciones/indice';
+import { resolverSolicitudHorasExtraAccion } from '../acciones/indice';
 import { obtenerAutorizacionesHoraExtraAccion } from '../acciones/consultas-b6';
 import { CLAVE_HORAS_EXTRA_ORDEN } from './claves-consulta';
 
 type MensajeHorasExtra = { texto: string; tipo: 'error' | 'estado' };
 
 /**
- * SII-B6.2: autorizaciones de horas extra por orden (Management/Admin). El
- * cierre de sesión consume una autorización VIGENTE de la sesión u orden.
+ * C12: solicitudes de horas extra. El sistema las genera cuando el cierre del
+ * operador excede la jornada; Admin/Management solo aprueba o desaprueba y ve
+ * el resumen, sin capturar horas ni motivo.
  */
 export function PanelHorasExtraProduccion({
   orden,
-  sesionIdActivo,
 }: {
   orden: OrdenTableroProduccion | null;
-  sesionIdActivo: string | null;
+  sesionIdActivo?: string | null;
 }) {
   const clienteConsultas = useQueryClient();
-  const [horas, setHoras] = useState('2');
-  const [motivo, setMotivo] = useState('');
-  const [aplicaSesion, setAplicaSesion] = useState(false);
-  const [abierto, setAbierto] = useState(false);
   const [mensaje, setMensaje] = useState<MensajeHorasExtra | null>(null);
-  const [procesando, setProcesando] = useState(false);
+  const [resolviendo, setResolviendo] = useState<string | null>(null);
 
   const consulta = useQuery({
     queryKey: [...CLAVE_HORAS_EXTRA_ORDEN, orden?.id ?? 'sin-orden'],
@@ -47,54 +41,41 @@ export function PanelHorasExtraProduccion({
       return resultado.datos;
     },
     enabled: orden !== null,
+    refetchInterval: 15_000,
   });
   const autorizaciones = consulta.data ?? [];
+  const pendientes = autorizaciones.filter((autorizacion) => autorizacion.estado === 'SOLICITADA');
+  const historial = autorizaciones.filter((autorizacion) => autorizacion.estado !== 'SOLICITADA');
 
-  async function autorizar(evento: FormEvent<HTMLFormElement>): Promise<void> {
-    evento.preventDefault();
-    if (!orden) return;
+  async function resolver(id: string, aprobar: boolean): Promise<void> {
     setMensaje(null);
-    setProcesando(true);
+    setResolviendo(id);
     try {
-      const resultado = await autorizarHorasExtraAccion({
-        ordenId: orden.id,
-        ...(aplicaSesion && sesionIdActivo ? { sesionId: sesionIdActivo } : {}),
-        horas: Number(horas),
-        motivo: motivo.trim(),
-      });
+      const resultado = await resolverSolicitudHorasExtraAccion({ id, aprobar });
       if (!resultado.exito) {
         setMensaje({ texto: resultado.error, tipo: 'error' });
         return;
       }
-      setMensaje({ texto: `Autorizadas ${resultado.datos?.horasAutorizadas ?? horas} h extra`, tipo: 'estado' });
-      setMotivo('');
-      setAbierto(false);
+      setMensaje({
+        texto: aprobar ? 'Solicitud aprobada: el operador ya puede cerrar su sesión.' : 'Solicitud rechazada.',
+        tipo: 'estado',
+      });
       await clienteConsultas.invalidateQueries({ queryKey: CLAVE_HORAS_EXTRA_ORDEN });
     } catch {
-      setMensaje({ texto: 'No se pudieron autorizar las horas extra. Comprueba el motivo y vuelve a intentarlo.', tipo: 'error' });
+      setMensaje({ texto: 'No se pudo resolver la solicitud. Vuelve a intentarlo.', tipo: 'error' });
     } finally {
-      setProcesando(false);
+      setResolviendo(null);
     }
   }
 
   return (
     <section className="rounded-lg border border-borde bg-superficie p-4" data-testid="panel-horas-extra">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-texto-primario">Horas extra</h2>
-          <p className="mt-1 text-xs text-texto-secundario">
-            Solo Management/Admin. Se consumen al cerrar una sesión que exceda la jornada del turno.
-          </p>
-        </div>
-        <Button
-          type="button"
-          tamano="sm"
-          disabled={!orden || procesando}
-          onClick={() => { setMensaje(null); setAbierto(true); }}
-          data-testid="abrir-horas-extra"
-        >
-          Autorizar horas extra
-        </Button>
+      <div>
+        <h2 className="text-base font-semibold text-texto-primario">Horas extra</h2>
+        <p className="mt-1 text-xs text-texto-secundario">
+          Las solicitudes se generan solas cuando el cierre del operador supera la jornada del turno.
+          Solo Management/Admin las aprueba o rechaza.
+        </p>
       </div>
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}
       {mensaje !== null && (
@@ -106,78 +87,71 @@ export function PanelHorasExtraProduccion({
         </p>
       )}
 
-      {orden && (
-        <Dialog open={abierto} onOpenChange={setAbierto}>
-          <DialogContent aria-label="Autorizar horas extra">
-            <DialogHeader>
-              <DialogTitle>Autorizar horas extra</DialogTitle>
-              <DialogDescription>{orden.folio} · se utilizarán solo si el cierre excede la jornada.</DialogDescription>
-            </DialogHeader>
-            <form className="flex flex-col gap-3" onSubmit={autorizar}>
-              <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario" htmlFor="horas-extra-horas">
-                Horas (máx. 24)
-                <Input
-                  id="horas-extra-horas"
-                  data-testid="horas-extra-horas"
-                  type="number"
-                  min="0.25"
-                  max="24"
-                  step="0.25"
-                  value={horas}
-                  onChange={(evento) => setHoras(evento.target.value)}
-                  required
-                />
-              </label>
-              {sesionIdActivo ? (
-                <label className="flex items-center gap-2 text-sm text-texto-secundario">
-                  <input
-                    type="checkbox"
-                    checked={aplicaSesion}
-                    onChange={(evento) => setAplicaSesion(evento.target.checked)}
-                  />
-                  Vincular a mi sesión activa
-                </label>
-              ) : null}
-              <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario" htmlFor="horas-extra-motivo">
-                Motivo
-                <Textarea
-                  id="horas-extra-motivo"
-                  data-testid="horas-extra-motivo"
-                  className="min-h-11"
-                  maxLength={300}
-                  value={motivo}
-                  onChange={(evento) => setMotivo(evento.target.value)}
-                  required
-                />
-              </label>
-              {mensaje?.tipo === 'error' ? <p role="alert" className="text-sm text-peligro-texto">{mensaje.texto}</p> : null}
-              <DialogFooter>
-                <Button type="button" variante="contorno" disabled={procesando} onClick={() => setAbierto(false)}>Cancelar</Button>
-                <Button
-                  type="submit"
-                  disabled={procesando || motivo.trim().length < 3}
-                  data-testid="autorizar-horas-extra"
-                >
-                  {procesando ? 'Autorizando…' : 'Autorizar horas extra'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {orden && consulta.isError ? <p role="alert" className="mt-3 text-sm text-peligro-texto">No se pudieron cargar las autorizaciones de horas extra.</p> : null}
+      {orden && consulta.isError ? (
+        <p role="alert" className="mt-3 text-sm text-peligro-texto">
+          No se pudieron cargar las solicitudes de horas extra.
+        </p>
+      ) : null}
 
       {orden && !consulta.isLoading && autorizaciones.length === 0 && (
-        <EstadoVacio titulo="Sin autorizaciones" descripcion="Esta orden no tiene horas extra registradas." />
+        <EstadoVacio
+          titulo="Sin solicitudes"
+          descripcion="Esta orden no tiene horas extra solicitadas ni autorizadas."
+        />
       )}
-      {autorizaciones.length > 0 && (
+
+      {pendientes.length > 0 ? (
+        <ul className="mt-3 flex flex-col gap-2" data-testid="solicitudes-horas-extra-pendientes">
+          {pendientes.map((solicitud) => (
+            <li key={solicitud.id} className="rounded-md border border-advertencia/50 bg-advertencia-suave p-3 text-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-texto-primario">
+                    {formatearNumero(solicitud.horasAutorizadas, 2)} h extra
+                    {solicitud.sesionId ? ' · sesión en curso' : ''}
+                  </p>
+                  <p className="text-xs text-texto-secundario">
+                    {solicitud.motivo}
+                  </p>
+                  <p className="mt-1 text-xs text-texto-tenue">
+                    Solicitada {formatearFecha(solicitud.creadoEn)} {formatearHora(solicitud.creadoEn)}
+                    {solicitud.autorizadoPorNombre ? ` · ${solicitud.autorizadoPorNombre}` : ''}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button
+                    type="button"
+                    tamano="sm"
+                    disabled={resolviendo === solicitud.id}
+                    onClick={() => void resolver(solicitud.id, true)}
+                    data-testid={`aprobar-horas-extra-${solicitud.id}`}
+                  >
+                    Aprobar
+                  </Button>
+                  <Button
+                    type="button"
+                    tamano="sm"
+                    variante="contorno"
+                    disabled={resolviendo === solicitud.id}
+                    onClick={() => void resolver(solicitud.id, false)}
+                    data-testid={`rechazar-horas-extra-${solicitud.id}`}
+                  >
+                    Desaprobar
+                  </Button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {historial.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2" data-testid="lista-horas-extra">
-          {autorizaciones.map((autorizacion) => (
+          {historial.map((autorizacion) => (
             <li key={autorizacion.id} className="rounded-md border border-borde p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  <strong>{autorizacion.horasAutorizadas} h</strong>
+                  <strong>{formatearNumero(autorizacion.horasAutorizadas, 2)} h</strong>
                   {' · '}{ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA[autorizacion.estado]}
                   {autorizacion.sesionId ? ' · vinculada a sesión' : ' · de la orden'}
                 </span>

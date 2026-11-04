@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { obtenerDocumentoOrdenAccion } from '@/modulos/ordenes/acciones/obtener-documento-orden';
+import { imprimirDocumentoOrden } from '@/modulos/ordenes/utilidades/imprimir-documento-orden';
 import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
@@ -32,6 +33,7 @@ const ETIQUETA_ESTADO: Record<string, string> = {
  */
 export function DocumentoOrdenBoton({ ordenId, folio }: { ordenId: string; folio: string }) {
   const [abierto, setAbierto] = useState(false);
+  const [errorImpresion, setErrorImpresion] = useState<string | null>(null);
   const consulta = useQuery({
     queryKey: ['ordenes', 'documento', ordenId],
     queryFn: async () => {
@@ -234,19 +236,25 @@ export function DocumentoOrdenBoton({ ordenId, folio }: { ordenId: string; folio
                 )}
               </div>
 
-              <div className="flex justify-end gap-2 print:hidden">
+              <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
+                {errorImpresion ? (
+                  <p role="alert" className="mr-auto text-sm text-peligro-texto">{errorImpresion}</p>
+                ) : null}
                 <Button type="button" variante="contorno" onClick={() => setAbierto(false)}>
                   Cerrar
                 </Button>
-                <Button type="button" onClick={() => window.print()}>
-                  Imprimir
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setErrorImpresion(null);
+                    void imprimirDocumentoOrden(documento).catch(() => {
+                      setErrorImpresion('No se pudo abrir la impresión. Revisa el bloqueo de ventanas del navegador.');
+                    });
+                  }}
+                >
+                  Imprimir orden
                 </Button>
               </div>
-              <style>{`@media print {
-                body * { visibility: hidden; }
-                #documento-orden-print, #documento-orden-print * { visibility: visible; }
-                #documento-orden-print { position: absolute; left: 0; top: 0; width: 100%; }
-              }`}</style>
             </>
           )}
         </DialogContent>

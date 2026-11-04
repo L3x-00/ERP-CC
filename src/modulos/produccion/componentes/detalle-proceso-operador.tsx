@@ -15,7 +15,7 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { cn } from '@/compartido/utilidades/cn';
-import { formatearNumero } from '@/compartido/utilidades/formatear';
+import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/indice';
@@ -27,6 +27,7 @@ import {
   sesionCercaDeJornada,
 } from '@/modulos/produccion/utilidades/indice';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
+import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
   etiquetaDiaLargo,
@@ -128,9 +129,16 @@ export function DetalleProcesoOperador({
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
-  const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);  const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
+  const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);
+  const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
   const [observacionesPrimeraPieza, setObservacionesPrimeraPieza] = useState('');
   const [procesandoPrimeraPieza, setProcesandoPrimeraPieza] = useState(false);
+  const [registrarInspeccionCierre, setRegistrarInspeccionCierre] = useState(false);
+  const [resultadoInspeccionCierre, setResultadoInspeccionCierre] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
+  const [observacionesCierre, setObservacionesCierre] = useState('');
+  const [mensajeInspeccionCierre, setMensajeInspeccionCierre] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
   const [ahoraAviso] = useState(() => new Date());
   const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
@@ -228,6 +236,21 @@ export function DetalleProcesoOperador({
       pinConfirmacion: pin,
     });
     setMensaje(resultado);
+    if (!resultado.exito) {
+      const codigo = (resultado as { codigo?: string }).codigo;
+      if (codigo === 'horas_extra_sin_autorizacion') {
+        // La solicitud se crea automáticamente; el operador no captura nada.
+        const solicitud = await solicitarHorasExtraAccion({ sesionId: proceso.sesionActiva.id });
+        if (solicitud.exito) {
+          setMensaje({
+            exito: false,
+            codigo: 'horas_extra_solicitud_pendiente',
+            error: `Solicitud de horas extra enviada (${formatearNumero(solicitud.datos?.horasAutorizadas ?? 0, 2)} h). Un responsable debe aprobarla antes de cerrar.`,
+          });
+        }
+      }
+      return;
+    }
     if (resultado.exito) {
       setPin('');
       setNotas('');
@@ -239,6 +262,29 @@ export function DetalleProcesoOperador({
           notas: notas.trim() || null,
           resultado: resultado.datos,
         });
+      }
+      // El operador cierra el proceso y, si lo decide, deja la inspección de
+      // cierre en el mismo paso; el panel de administración solo la consulta.
+      if (estadoDestino === 'finalizada' && registrarInspeccionCierre) {
+        const aprobada = resultadoInspeccionCierre === 'APROBADA';
+        const inspeccion = await registrarInspeccionAccion({
+          ordenId: proceso.ordenId,
+          corridaId: proceso.sesionActiva?.corridaId ?? null,
+          partidaId: proceso.partidaId,
+          codigoItem: proceso.codigoPieza,
+          tipo: 'CIERRE',
+          resultado: resultadoInspeccionCierre,
+          cantidadInspeccionada: Number(piezas),
+          cantidadOk: aprobada ? Number(piezas) : 0,
+          cantidadNok: aprobada ? 0 : Number(piezas),
+          cantidadRetrabajo: 0,
+          ...(observacionesCierre.trim() ? { observaciones: observacionesCierre.trim() } : {}),
+        });
+        setMensajeInspeccionCierre(
+          inspeccion.exito
+            ? { tipo: 'ok', texto: 'Inspección de cierre registrada.' }
+            : { tipo: 'error', texto: `La sesión cerró, pero la inspección falló: ${inspeccion.error}` },
+        );
       }
     }
   }
@@ -489,6 +535,24 @@ export function DetalleProcesoOperador({
             </Link>
           ) : null}
         </section>
+
+        {proceso.comentariosOrden.length > 0 ? (
+          <section aria-label="Comentarios de la orden" className="rounded-lg border border-borde p-3" data-testid="comentarios-orden-operador">
+            <h3 className="mb-2 text-sm font-semibold text-texto-primario">
+              Comentarios de la orden ({proceso.comentariosOrden.length})
+            </h3>
+            <ul className="grid max-h-48 gap-2 overflow-y-auto pr-1">
+              {proceso.comentariosOrden.map((comentario) => (
+                <li key={comentario.id} className="rounded-md bg-superficie-2 p-2 text-sm">
+                  <p className="whitespace-pre-line break-words text-texto-primario">{comentario.contenido}</p>
+                  <p className="mt-1 text-xs text-texto-tenue">
+                    {comentario.autorNombre} · {formatearFecha(comentario.creadoEn)} {formatearHora(comentario.creadoEn)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
 
       <section aria-label="Datos de la operación" className="rounded-lg border border-borde p-3">
@@ -726,6 +790,50 @@ export function DetalleProcesoOperador({
                           />
                         </label>
                       </div>
+
+                      <div className="grid gap-3 rounded-lg bg-superficie-2 p-3">
+                        <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4"
+                            checked={registrarInspeccionCierre}
+                            onChange={(evento) => setRegistrarInspeccionCierre(evento.target.checked)}
+                            data-testid="registrar-inspeccion-cierre"
+                          />
+                          <span>
+                            Registrar inspección de cierre
+                            <span className="block text-xs font-normal text-texto-secundario">
+                              Queda como evidencia de calidad del lote terminado.
+                            </span>
+                          </span>
+                        </label>
+                        {registrarInspeccionCierre ? (
+                          <>
+                            <label className={CLASE_ETIQUETA}>
+                              Resultado de la revisión
+                              <Select
+                                data-testid="resultado-inspeccion-cierre"
+                                value={resultadoInspeccionCierre}
+                                onChange={(evento) =>
+                                  setResultadoInspeccionCierre(evento.target.value as 'APROBADA' | 'RECHAZADA')
+                                }
+                              >
+                                <option value="APROBADA">Aprobada</option>
+                                <option value="RECHAZADA">Rechazada</option>
+                              </Select>
+                            </label>
+                            <label className={CLASE_ETIQUETA}>
+                              Observaciones (opcional)
+                              <Textarea
+                                maxLength={1000}
+                                value={observacionesCierre}
+                                onChange={(evento) => setObservacionesCierre(evento.target.value)}
+                                placeholder="Detalles de la revisión final"
+                              />
+                            </label>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -826,7 +934,6 @@ export function DetalleProcesoOperador({
                   Día de la jornada
                   <Input
                     type="date"
-                    min={hoy}
                     value={fecha}
                     onChange={(evento) => setFecha(evento.target.value)}
                   />
@@ -929,6 +1036,18 @@ export function DetalleProcesoOperador({
             valor={`${formatearNumero(resumenCierre.cantidadMerma, 3)} ${resumenCierre.material.unidadBase}`}
           />
           {resumenCierre.notas ? <Dato etiqueta="Notas" valor={resumenCierre.notas} /> : null}
+          {mensajeInspeccionCierre ? (
+            <p
+              role={mensajeInspeccionCierre.tipo === 'error' ? 'alert' : 'status'}
+              className={cn(
+                'col-span-full text-sm',
+                mensajeInspeccionCierre.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto',
+              )}
+              data-testid="mensaje-inspeccion-cierre"
+            >
+              {mensajeInspeccionCierre.texto}
+            </p>
+          ) : null}
         </dl>
 
         <DialogFooter>

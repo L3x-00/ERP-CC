@@ -15,7 +15,6 @@ import { AccesosRapidosOrden } from '@/modulos/produccion/componentes/accesos-ra
 const ORDEN_ID = '11111111-1111-4111-8111-111111111111';
 const RFQ_ID = '22222222-2222-4222-8222-222222222222';
 const PROPUESTA_ID = '33333333-3333-4333-8333-333333333333';
-const ENTREGA_ID = '44444444-4444-4444-8444-444444444444';
 
 function renderizar() {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -36,16 +35,8 @@ beforeEach(() => {
       ordenFolio: 'OP-001178',
       rfq: { id: RFQ_ID, folio: 'CNC-1026_01' },
       propuesta: { id: PROPUESTA_ID, folio: 'PRO-1026_01' },
-      facturas: [{
-        id: '55555555-5555-4555-8555-555555555555',
-        folioFiscal: 'F-001028',
-        estado: 'EMITIDA',
-        total: 25000,
-        entregaId: ENTREGA_ID,
-        entregaFolio: 'NE-001028',
-        creadoEn: '2026-10-25T10:00:00.000Z',
-      }],
-      permisos: { rfq: true, propuesta: true, entregas: true, facturas: true, ficha: true },
+      facturas: [],
+      permisos: { rfq: true, propuesta: true, entregas: true, facturas: false, ficha: true },
     },
   });
 });
@@ -53,7 +44,7 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe('accesos rápidos de la orden concluida', () => {
-  it('enlaza RFQ, propuesta, entregas, facturación y ficha completa', async () => {
+  it('enlaza RFQ, propuesta, entregas y ficha completa', async () => {
     renderizar();
 
     await waitFor(() => expect(screen.getByTestId('acceso-rapido-rfq')).toBeTruthy());
@@ -63,17 +54,13 @@ describe('accesos rápidos de la orden concluida', () => {
       .toBe(`/propuestas?propuesta=${PROPUESTA_ID}`);
     expect(screen.getByTestId('acceso-rapido-entregas').getAttribute('href'))
       .toBe(`/entregas?orden=${ORDEN_ID}`);
-    expect(screen.getByTestId('acceso-rapido-facturas').getAttribute('href')).toBe('/facturacion');
+    // Facturación está retirada: la empresa no emite facturas fiscales.
+    expect(screen.queryByTestId('acceso-rapido-facturas')).toBeNull();
     expect(screen.getByTestId('acceso-rapido-ficha').getAttribute('href'))
       .toBe(`/ordenes/${ORDEN_ID}`);
-
-    const facturas = screen.getByTestId('facturas-orden');
-    expect(facturas.textContent).toContain('F-001028');
-    expect(facturas.textContent).toContain('Emitida');
-    expect(facturas.textContent).toContain('NE-001028');
   });
 
-  it('oculta los accesos sin permiso y avisa cuando no hay facturas', async () => {
+  it('oculta los accesos sin permiso', async () => {
     accesosMock.mockResolvedValue({
       exito: true,
       datos: {
@@ -93,6 +80,5 @@ describe('accesos rápidos de la orden concluida', () => {
     expect(screen.queryByTestId('acceso-rapido-facturas')).toBeNull();
     expect(screen.queryByTestId('acceso-rapido-ficha')).toBeNull();
     expect(screen.queryByTestId('facturas-orden')).toBeNull();
-    expect(screen.queryByText('La orden aún no tiene facturas registradas.')).toBeNull();
   });
 });

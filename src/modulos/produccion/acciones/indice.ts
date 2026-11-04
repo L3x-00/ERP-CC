@@ -35,6 +35,8 @@ export {
 } from '@/modulos/produccion/acciones/espacio-operador';
 export { cerrarJornadaAccion } from '@/modulos/produccion/acciones/cerrar-jornada';
 export { autorizarHorasExtraAccion } from '@/modulos/produccion/acciones/autorizar-horas-extra';
+export { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
+export { resolverSolicitudHorasExtraAccion } from '@/modulos/produccion/acciones/resolver-horas-extra';
 export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 export {
   firmarFotoInspeccionAccion,

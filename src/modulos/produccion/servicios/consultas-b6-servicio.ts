@@ -286,7 +286,7 @@ export async function obtenerAutorizacionesHoraExtraServicio(
     sesionId: fila.sesion_id,
     horasAutorizadas: numero(fila.horas_autorizadas),
     motivo: fila.motivo,
-    estado: (['VIGENTE', 'USADA', 'REVOCADA'] as const).includes(
+    estado: (['SOLICITADA', 'VIGENTE', 'USADA', 'RECHAZADA', 'REVOCADA'] as const).includes(
       fila.estado as EstadoAutorizacionHoraExtra,
     )
       ? (fila.estado as EstadoAutorizacionHoraExtra)

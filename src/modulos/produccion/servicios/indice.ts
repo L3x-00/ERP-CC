@@ -27,6 +27,8 @@ export {
   cerrarJornadaServicio,
   crearCorridaServicio,
   reclamarRecursoLiberadoServicio,
+  resolverSolicitudHorasExtraServicio,
+  solicitarHorasExtraOperadorServicio,
 } from '@/modulos/produccion/servicios/corridas-servicio';
 
 export type {

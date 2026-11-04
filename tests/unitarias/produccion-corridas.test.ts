@@ -60,8 +60,10 @@ describe('códigos de corrida', () => {
 
   it('etiqueta los estados de autorización de horas extra', () => {
     expect(ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA).toEqual({
+      SOLICITADA: 'Pendiente de aprobación',
       VIGENTE: 'Vigente',
       USADA: 'Usada',
+      RECHAZADA: 'Rechazada',
       REVOCADA: 'Revocada',
     });
   });

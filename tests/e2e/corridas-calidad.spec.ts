@@ -279,7 +279,7 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     if (contexto) await limpiarContexto(contexto);
   });
 
-  test('crea corrida, libera primera pieza con foto, produce y completa', async ({ page, browser }) => {
+  test('crea corrida, libera la primera pieza, produce y completa', async ({ page, browser }) => {
     test.setTimeout(300_000);
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const caso = contexto;
@@ -338,29 +338,11 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     await expect(tarjetaObservada).toContainText('En proceso');
     await observador.close();
 
-    // Calidad: primera pieza aprobada con foto de evidencia.
+    // Calidad: el panel de administración es solo lectura. La inspección la
+    // registra el operador desde su propio cierre de sesión.
     const panelCalidad = page.getByTestId('panel-calidad');
-    await panelCalidad.getByTestId('registrar-inspeccion').click();
-    const dialogoInspeccion = page.getByTestId('dialogo-inspeccion');
-    await expect(dialogoInspeccion).toBeVisible();
-    await expect(dialogoInspeccion.getByTestId('tipo-inspeccion')).toHaveValue('PRIMERA_PIEZA');
-    await dialogoInspeccion.getByTestId('fotos-inspeccion').setInputFiles({
-      name: 'primera-pieza.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
-    });
-    await dialogoInspeccion.getByTestId('confirmar-inspeccion').click();
-    await expect(panelCalidad.getByRole('status')).toContainText('primera pieza');
-    const { data: inspecciones } = await caso.admin.from('inspecciones_calidad')
-      .select('id, tipo, resultado').eq('orden_id', caso.ordenId);
-    expect(inspecciones ?? []).toHaveLength(1);
-    expect(inspecciones?.[0]?.tipo).toBe('PRIMERA_PIEZA');
-    expect(inspecciones?.[0]?.resultado).toBe('APROBADA');
-    const { data: fotos } = await caso.admin.from('archivos')
-      .select('id, nombre_original').eq('entidad', 'inspeccion_calidad').eq('entidad_id', inspecciones?.[0]?.id ?? '');
-    expect(fotos ?? []).toHaveLength(1);
-    expect(fotos?.[0]?.nombre_original).toBe('primera-pieza.png');
-    await expect(panelCalidad.getByTestId('lista-inspecciones')).toContainText('Primera pieza');
+    await expect(panelCalidad.getByTestId('registrar-inspeccion')).toHaveCount(0);
+    await expect(panelCalidad).toContainText('Sin inspecciones');
 
     if (process.env.E2E_CAPTURAR_VISUAL === 'si') {
       await page.screenshot({ path: '.ai-shared/qa/sii-b6-ola2/visual/corridas-calidad-escritorio.png', fullPage: true });
@@ -385,10 +367,36 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     await paginaOperador.getByLabel('Piezas producidas ahora').fill('2');
     await paginaOperador.getByLabel('Material').selectOption(caso.materialId);
     await paginaOperador.getByLabel('Usado').fill('2');
+    await paginaOperador.getByTestId('registrar-inspeccion-cierre').check();
     await paginaOperador.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await paginaOperador.getByTestId('cerrar-sesion-produccion').click();
-    await expect(paginaOperador.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
+
+    // El cierre exige liberar la primera pieza; el operador la registra en el
+    // mismo panel y continúa sin cambiar de pantalla.
+    const avisoPrimeraPieza = paginaOperador.getByTestId('aviso-primera-pieza');
+    await expect(avisoPrimeraPieza).toBeVisible();
+    await avisoPrimeraPieza.getByTestId('abrir-liberar-primera-pieza').click();
+    const dialogoPrimeraPieza = paginaOperador.getByTestId('dialogo-primera-pieza');
+    await expect(dialogoPrimeraPieza).toBeVisible();
+    await dialogoPrimeraPieza.getByRole('button', { name: 'Registrar y liberar' }).click();
+    await expect(avisoPrimeraPieza).toContainText('liberada');
+    await paginaOperador.getByTestId('continuar-cierre-primera-pieza').click();
+
+    const resumenOperador = paginaOperador.getByTestId('resumen-cierre-sesion');
+    await expect(resumenOperador).toContainText('Material usado');
+    await expect(resumenOperador.getByTestId('mensaje-inspeccion-cierre')).toContainText('registrada');
     await paginaOperador.close();
+
+    // Las inspecciones las registró el operador (primera pieza y cierre), no admin.
+    const { data: inspecciones } = await caso.admin.from('inspecciones_calidad')
+      .select('tipo, resultado, partida_id').eq('orden_id', caso.ordenId)
+      .order('creado_en', { ascending: true });
+    expect(inspecciones ?? []).toHaveLength(2);
+    expect(inspecciones?.[0]?.tipo).toBe('PRIMERA_PIEZA');
+    expect(inspecciones?.[0]?.resultado).toBe('APROBADA');
+    expect(inspecciones?.[1]?.tipo).toBe('CIERRE');
+    expect(inspecciones?.[1]?.resultado).toBe('APROBADA');
+    expect(inspecciones?.[1]?.partida_id).toBe(caso.partidaId);
 
     await expect.poll(async () => {
       const { data } = await caso.admin.from('sesiones_trabajo')

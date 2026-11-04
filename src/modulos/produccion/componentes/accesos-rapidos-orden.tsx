@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 
-import { formatearNumero } from '@/compartido/utilidades/formatear';
 import {
   obtenerAccesosOrdenAccion,
   type AccesosOrden,
@@ -13,20 +12,11 @@ import { CLAVE_ACCESOS_ORDEN } from '@/modulos/produccion/componentes/claves-con
 const CLASE_ENLACE =
   'inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-borde-fuerte bg-superficie px-3 text-sm font-semibold text-texto-primario transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:ring-offset-2 focus-visible:ring-offset-superficie';
 
-const ETIQUETAS_ESTADO_FACTURA: Record<string, string> = {
-  BORRADOR: 'Borrador',
-  EMITIDA: 'Emitida',
-  CANCELADA: 'Cancelada',
-};
-
-function etiquetaEstadoFactura(estado: string): string {
-  return ETIQUETAS_ESTADO_FACTURA[estado] ?? estado;
-}
-
 /**
  * Accesos rápidos de una orden concluida: origen comercial (RFQ y propuesta),
- * notas de entrega, ficha completa y facturación. Los enlaces los decide el
- * servidor según los permisos reales del usuario; aquí solo se pintan.
+ * notas de entrega y ficha completa. Los enlaces los decide el servidor según
+ * los permisos reales del usuario; aquí solo se pintan. Facturación quedó
+ * retirada del producto.
  */
 export function AccesosRapidosOrden({ ordenId }: { ordenId: string }) {
   const consulta = useQuery({
@@ -52,7 +42,7 @@ export function AccesosRapidosOrden({ ordenId }: { ordenId: string }) {
         Accesos rápidos
       </h2>
       <p className="mt-1 text-sm text-texto-secundario">
-        Consulta el origen comercial, las entregas y la facturación de la orden sin salir del detalle.
+        Consulta el origen comercial y las entregas de la orden sin salir del detalle.
       </p>
 
       {consulta.isPending ? (
@@ -96,16 +86,6 @@ export function AccesosRapidosOrden({ ordenId }: { ordenId: string }) {
               Ver notas de entrega
             </Link>
           ) : null}
-          {datos.permisos.facturas ? (
-            <Link
-              href="/facturacion"
-              className={CLASE_ENLACE}
-              data-testid="acceso-rapido-facturas"
-              prefetch={false}
-            >
-              Ver facturación
-            </Link>
-          ) : null}
           {datos.permisos.ficha ? (
             <Link
               href={`/ordenes/${ordenId}`}
@@ -117,32 +97,6 @@ export function AccesosRapidosOrden({ ordenId }: { ordenId: string }) {
             </Link>
           ) : null}
         </div>
-      ) : null}
-
-      {datos && datos.permisos.facturas && datos.facturas.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-1.5 border-t border-borde pt-3 text-sm" data-testid="facturas-orden">
-          {datos.facturas.map((factura) => (
-            <li key={factura.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <Link
-                href={`/entregas/${factura.entregaId}`}
-                className="font-mono text-xs font-semibold text-acento underline"
-                prefetch={false}
-              >
-                {factura.folioFiscal ?? factura.entregaFolio ?? 'Factura'}
-              </Link>
-              <span className="text-xs text-texto-secundario">
-                {etiquetaEstadoFactura(factura.estado)}
-                {factura.entregaFolio ? ` · entrega ${factura.entregaFolio}` : ''}
-                {factura.total !== null ? ` · $${formatearNumero(factura.total)}` : ''}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {datos && datos.permisos.facturas && datos.facturas.length === 0 ? (
-        <p className="mt-3 text-sm text-texto-secundario">
-          La orden aún no tiene facturas registradas.
-        </p>
       ) : null}
     </section>
   );

@@ -112,3 +112,10 @@ Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de 
 ## 5. Integración a producción
 
 El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes trabajan en la rama, suben commits y dejan el PR con CI en verde; no mergean a `main`. Las migraciones las aplica el PO en remoto, junto con el despliegue del código que las usa.
+
+## 6. Codificación al editar archivos con acentos
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El diff de un archivo se dispara a cientos de líneas y aparecen secuencias doblemente codificadas o un BOM al inicio | `Get-Content`/`Set-Content` de PowerShell 5 decodifica como ANSI y vuelve a escribir: el archivo entero queda doblemente codificado y cambia de fin de línea | Editar texto con acentos solo con las herramientas de edición del agente, que respetan UTF-8 y el fin de línea. Si hace falta un script, usar Node con `readFileSync(..., 'utf8')` y `writeFileSync(..., 'utf8')`, y verificar que no aparezcan caracteres de reemplazo ni secuencias `Ã`/`Â` |
+| Una migración SQL generada por script muestra textos raros | El cuerpo se copió de otro archivo con `Get-Content` | Antes de aplicarla, decodificar el archivo como UTF-8 y buscar secuencias `Ã`/`Â`: delatan doble codificación. Reparar releyendo el origen como UTF-8 |

@@ -21,12 +21,11 @@ export default async function PaginaDetalleEntrega({
   if (!UUID.test(id)) notFound();
 
   const usuario = await obtenerUsuarioServidor();
-  const [puedeGenerar, puedeEvidencia, puedeVerOrden, puedeVerFinanzas, puedeFacturar] = await Promise.all([
+  const [puedeGenerar, puedeEvidencia, puedeVerOrden, puedeVerFinanzas] = await Promise.all([
     usuario ? can(usuario, 'entrega_generar') : Promise.resolve(false),
     usuario ? can(usuario, 'entrega_evidencia') : Promise.resolve(false),
     usuario ? can(usuario, 'orden_vista') : Promise.resolve(false),
     usuario ? can(usuario, 'ver_finanzas') : Promise.resolve(false),
-    usuario ? can(usuario, 'registrar_pagos') : Promise.resolve(false),
   ]);
   if (!puedeGenerar && !puedeEvidencia && !puedeVerOrden && !puedeVerFinanzas) {
     return (
@@ -47,7 +46,6 @@ export default async function PaginaDetalleEntrega({
       inicial={{ detalle, evidencias }}
       puedeEvidencia={puedeEvidencia}
       puedeEditar={puedeGenerar}
-      puedeFacturar={puedeFacturar}
     />
   );
 }

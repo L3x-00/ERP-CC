@@ -90,6 +90,19 @@ export const esquemaAutorizarHorasExtra = z
   })
   .strict();
 
+export const esquemaSolicitarHorasExtra = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+  })
+  .strict();
+
+export const esquemaResolverHorasExtra = z
+  .object({
+    id: z.uuid('ID de solicitud inválido'),
+    aprobar: z.boolean(),
+  })
+  .strict();
+
 export const esquemaRegistrarInspeccion = z
   .object({
     ordenId: z.uuid('ID de orden inválido'),
@@ -121,6 +134,8 @@ export const esquemaRegistrarInspeccion = z
 export type CrearCorridaInput = z.infer<typeof esquemaCrearCorrida>;
 export type EstadoCorridaInput = z.infer<typeof esquemaEstadoCorrida>;
 export type AutorizarHorasExtraInput = z.infer<typeof esquemaAutorizarHorasExtra>;
+export type SolicitarHorasExtraInput = z.infer<typeof esquemaSolicitarHorasExtra>;
+export type ResolverHorasExtraInput = z.infer<typeof esquemaResolverHorasExtra>;
 export type RegistrarInspeccionInput = z.infer<typeof esquemaRegistrarInspeccion>;
 
 const destinoFotoInspeccion = {

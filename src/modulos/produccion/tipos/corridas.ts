@@ -16,7 +16,13 @@ export type TipoInspeccion = (typeof TIPOS_INSPECCION)[number];
 export const RESULTADOS_INSPECCION = ['APROBADA', 'RECHAZADA'] as const;
 export type ResultadoInspeccion = (typeof RESULTADOS_INSPECCION)[number];
 
-export const ESTADOS_AUTORIZACION_HORA_EXTRA = ['VIGENTE', 'USADA', 'REVOCADA'] as const;
+export const ESTADOS_AUTORIZACION_HORA_EXTRA = [
+  'SOLICITADA',
+  'VIGENTE',
+  'USADA',
+  'RECHAZADA',
+  'REVOCADA',
+] as const;
 export type EstadoAutorizacionHoraExtra = (typeof ESTADOS_AUTORIZACION_HORA_EXTRA)[number];
 
 /** Ítem agrupado en una corrida (código ITxx o pieza legacy). */
