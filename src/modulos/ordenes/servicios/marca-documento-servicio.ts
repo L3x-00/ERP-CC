@@ -4,7 +4,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 import {
   MARCA_DOCUMENTO_NEUTRA,
   type MarcaDocumento,
-} from '@/compartido/utilidades/impresion-documento';
+} from '@/compartido/tipos/impresion';
 import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/configuracion-servicio';
 
 /**

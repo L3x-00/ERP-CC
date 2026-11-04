@@ -1,5 +1,10 @@
 'use client';
 
+import {
+  MARCA_DOCUMENTO_NEUTRA,
+  type MarcaDocumento,
+} from '@/compartido/tipos/impresion';
+
 /**
  * Impresión de documentos de negocio (orden de servicio, notas, recibos).
  *
@@ -8,32 +13,8 @@
  * empresa— y nunca la barra lateral, el encabezado ni los modales del ERP.
  */
 
-/** Datos de marca que acompañan a cualquier documento impreso. */
-export interface MarcaDocumento {
-  nombre: string;
-  razonSocial: string;
-  rfc: string;
-  direccion: string;
-  telefono: string;
-  email: string;
-  logoUrl: string | null;
-  /** Color de acento de la plantilla documental. */
-  colorAcento: string;
-  textoPiePagina: string;
-}
-
-/** Marca neutra cuando la configuración no está disponible. */
-export const MARCA_DOCUMENTO_NEUTRA: MarcaDocumento = {
-  nombre: 'Orden de servicio',
-  razonSocial: '',
-  rfc: '',
-  direccion: '',
-  telefono: '',
-  email: '',
-  logoUrl: null,
-  colorAcento: '#1D4ED8',
-  textoPiePagina: '',
-};
+export type { MarcaDocumento };
+export { MARCA_DOCUMENTO_NEUTRA };
 
 const ACENTO_POR_DEFECTO = '#1D4ED8';
 const COLOR_VALIDO = /^#[0-9a-f]{3,8}$/i;
