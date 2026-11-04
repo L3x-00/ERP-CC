@@ -37,6 +37,7 @@ import { PanelOperadorProduccion, type CierreSupervisor } from '@/modulos/produc
 import { PanelRecursosLiberados } from '@/modulos/produccion/componentes/panel-recursos-liberados';
 import { PanelRetrabajosProduccion } from '@/modulos/produccion/componentes/panel-retrabajos-produccion';
 import { PanelMaterialClienteProduccion } from '@/modulos/produccion/componentes/panel-material-cliente-produccion';
+import { PanelTiemposIntegrados } from '@/modulos/produccion/componentes/panel-tiempos-integrados';
 import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
 import { SincronizadorProduccionRealtime } from '@/modulos/produccion/componentes/sincronizador-produccion-realtime';
 import { opcionesFamiliaArea } from '@/modulos/produccion/utilidades/indice';
@@ -254,6 +255,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       cantidadUsada: number;
       cantidadScrap: number;
     };
+    itemsIntegrados?: { partidaId: string; piezas: number; minutos: number }[];
   }): Promise<{ exito: true; datos: CierreSesionRegistrado } | { exito: false; error: string }> => {
     setProcesando(true);
     try {
@@ -441,6 +443,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
                 <PanelCalidadProduccion orden={ordenSeleccionada} corridas={corridasOrden} />
                 <PanelRetrabajosProduccion orden={ordenSeleccionada} />
                 <PanelMaterialClienteProduccion orden={ordenSeleccionada} />
+                <PanelTiemposIntegrados orden={ordenSeleccionada} />
                 <FormularioNotaEntrega
                   key={ordenSeleccionada.id}
                   orden={ordenSeleccionada}

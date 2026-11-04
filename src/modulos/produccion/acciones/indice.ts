@@ -43,6 +43,10 @@ export {
   registrarConsumoMaterialClienteAccion,
   reemplazarMaterialClienteAccion,
 } from '@/modulos/produccion/acciones/material-cliente';
+export {
+  obtenerItemsCorridaAccion,
+  obtenerTiemposIntegradosAccion,
+} from '@/modulos/produccion/acciones/corrida-integrada';
 export { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 export { resolverSolicitudHorasExtraAccion } from '@/modulos/produccion/acciones/resolver-horas-extra';
 export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';

@@ -56,6 +56,12 @@ export const esquemaCerrarSesion = z
       (valor) => valor.cantidadUsada + valor.cantidadScrap > 0,
       { message: 'Registra consumo o merma mayor a cero' },
     ).optional(),
+    /** C13.4: ítems de la corrida integrada con piezas y minutos propios. */
+    itemsIntegrados: z.array(z.object({
+      partidaId: z.uuid('ID de partida inválido'),
+      piezas: z.number().finite().min(0),
+      minutos: z.number().finite().positive('Indica los minutos por ítem').max(1440),
+    }).strict()).min(2, 'La corrida integrada requiere al menos dos ítems').max(10).optional(),
   })
   .strict()
   .superRefine((valor, contexto) => {

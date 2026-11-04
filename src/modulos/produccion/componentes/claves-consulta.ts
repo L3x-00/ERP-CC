@@ -13,6 +13,8 @@ export const CLAVE_HORAS_EXTRA_ORDEN = ['produccion', 'horas-extra'] as const;
 export const CLAVE_RETRABAJOS_ORDEN = ['produccion', 'retrabajos'] as const;
 /** C13.3: material del cliente con saldo por orden (se anexa el ordenId). */
 export const CLAVE_MATERIAL_CLIENTE_ORDEN = ['produccion', 'material-cliente'] as const;
+/** C13.4: tiempos por ítem de sesiones integradas (se anexa el ordenId). */
+export const CLAVE_TIEMPOS_INTEGRADOS_ORDEN = ['produccion', 'tiempos-integrados'] as const;
 /** SII-B6 ola 2: máquinas liberadas ≥60 min por motivo liberable. */
 export const CLAVE_RECURSOS_LIBERABLES = ['produccion', 'recursos-liberables'] as const;
 /** Ficha de una orden concluida: material consumido por sus partidas. */

@@ -53,6 +53,11 @@ export {
 } from '@/modulos/produccion/servicios/material-cliente-servicio';
 
 export {
+  obtenerItemsCorridaServicio,
+  obtenerTiemposIntegradosOrdenServicio,
+} from '@/modulos/produccion/servicios/corrida-integrada-servicio';
+
+export {
   obtenerAutorizacionesHoraExtraServicio,
   obtenerCorridasOrdenServicio,
   obtenerInspeccionesOrdenServicio,
