@@ -85,9 +85,9 @@ describe('pestaña Documento · hoja de trabajo sin precios (R17)', () => {
     expect(documento.textContent).not.toMatch(/legacy|legad|snapshot/iu);
   });
 
-  it('el botón Imprimir está disponible para quien ve la hoja', () => {
+  it('el botón «Imprimir orden» está disponible para quien ve la hoja', () => {
     abrirDocumento(fichaCompleta(), false);
 
-    expect(screen.getByRole('button', { name: 'Imprimir' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Imprimir orden' })).toBeTruthy();
   });
 });

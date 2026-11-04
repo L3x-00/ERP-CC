@@ -133,3 +133,10 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | La tanda exige que una sesión cierre varias partidas, o cambia el modelo de inventario/costeo | El flujo actual está concentrado en una RPC de una sola partida | No improvisar dentro del cierre: dejar una ficha con RPC, validaciones, UI y criterios de aceptación, y pedir autorización. Mejor un PR parcial delimitado que un flujo de inventario a medias |
 | Un e2e usaba el formulario que la nueva UI retira | El test cubría el camino viejo, no la regla | Mover el e2e al flujo nuevo y verificar que el formulario retirado ya no existe; no borrar la cobertura |
+
+## 9. Impresión de documentos
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| «Imprimir orden» imprime la pantalla completa: barra lateral, encabezado y modales | El botón llamaba `window.print()` desde la página del ERP; el navegador imprime el documento visible, no un documento de negocio | Imprimir siempre un HTML propio en un iframe aislado (`@/compartido/utilidades/impresion-documento`). Probar que `window.print` de la pantalla **no** se llama y que el iframe contiene solo el documento |
+| El botón de un documento existía pero nadie lo usaba | El componente con impresión aislada se escribió y nunca se conectó a la ficha; la pestaña seguía usando `window.print()` | Antes de cerrar una corrección de impresión, buscar `window.print()` en `src` y confirmar que ninguna pantalla con barra lateral lo conserva |

@@ -1,6 +1,6 @@
 # Manual de pruebas y resumen para el cliente — 2026-11-04
 
-Cubre las seis entregas de esta ronda:
+Cubre las siete entregas de esta ronda:
 
 | PR | Alcance | Estado |
 | --- | --- | --- |
@@ -10,6 +10,7 @@ Cubre las seis entregas de esta ronda:
 | #147 | C13.3 Material del cliente con saldo y bloqueo | Listo para fusionar |
 | #149 | C13.4 Corrida integrada con avance y tiempos por ítem | Listo para fusionar |
 | #150 | C14 Cierre administrativo + historial de entregas | Listo para fusionar |
+| #151 | Impresión aislada de la orden + Egresos y Cobros unificados | Listo para revisar |
 
 ## 1. Antes de probar
 
@@ -31,13 +32,14 @@ Cubre las seis entregas de esta ronda:
 
 **Facturación retirada**
 - La barra lateral no muestra «Facturación».
-- Abrir `/facturacion` redirige a `/cobranza`.
+- Abrir `/facturacion` redirige a Cobros → pestaña «Cuentas por cobrar».
 - Una entrega ya no muestra «Facturar entrega».
-- Cobranza, CxC y pagos siguen funcionando.
+- Cobros, CxC y pagos siguen funcionando.
 
 **Impresión de la orden**
-- Órdenes → abrir una orden → «Imprimir orden».
-- La vista previa muestra solo la orden, con logo, color de acento y pie de la empresa.
+- Órdenes → abrir una orden → pestaña «Documento» → «Imprimir orden».
+- La impresión muestra **solo el documento**: logo, color de acento y pie de la empresa; no aparece la barra lateral, el encabezado ni el modal.
+- Si la orden no tiene propuesta/origen, se imprimen sus partidas con la misma marca.
 
 **Reclamo de fechas**
 - Operador → `/produccion-piso` → detalle del proceso → «Día de la jornada» con una fecha anterior al compromiso → «Reclamar».
@@ -106,11 +108,30 @@ Cubre las seis entregas de esta ronda:
 - En Entregas, si una orden no tiene piezas producidas, «Preparar entrega» se muestra bloqueado con el motivo en lugar de abrir un modal vacío.
 - El pendiente se actualiza en tiempo real al registrar una entrega.
 
+### #151 — Impresión aislada y módulos financieros unificados
+
+**Impresión de la orden**
+- Órdenes → abrir una orden → «Documento» → «Imprimir orden».
+- El navegador abre el diálogo de impresión con **una hoja limpia**: solo el documento, con logo, color y pie de la empresa. No salen menú, barra lateral ni botones.
+- Desde Planeación, el botón «Imprimir» de una orden terminada abre directo esa pestaña.
+
+**Egresos (Gastos + Compras)**
+- Menú Finanzas → «Egresos»: arriba, cuánto se debe (compras con saldo + gastos pendientes), compras y gastos registrados.
+- Pestaña «Gastos»: la pantalla de siempre (comprobantes, OCR, rentabilidad por orden, conciliación).
+- Pestaña «Compras y CxP»: compras a proveedores, pagos parciales y clasificación por rubro.
+- `/gastos` y `/compras` siguen funcionando: redirigen a su pestaña.
+
+**Cobros y tesorería (Cobranza + Tesorería)**
+- Menú Finanzas → «Cobros y tesorería»: arriba, cartera pendiente, saldo en cuentas MXN, clientes con aging y movimientos vivos.
+- Pestaña «Cuentas por cobrar»: cartera, cobros, promesas, recibos y cobro múltiple.
+- Pestaña «Tesorería»: saldos por cuenta, transferencias, conciliación y flujo informativo por cuenta.
+- `/cobranza` y `/tesoreria` siguen funcionando: redirigen a su pestaña.
+
 ## 3. Resumen para enviar al cliente
 
 > Hola. Ya están implementadas y disponibles para revisión las mejoras de esta ronda:
 >
-> 1. **Facturación** quedó retirada del menú; los enlaces antiguos llevan a Cobranza, que conserva cuentas por cobrar y pagos.
+> 1. **Facturación** quedó retirada del menú; los enlaces antiguos llevan a Cobros, que conserva cuentas por cobrar y pagos.
 > 2. La **orden se imprime** como documento formal, con el logo, color y pie de página de la empresa, no como captura de pantalla.
 > 3. El operador puede **reclamar una fecha anterior** al compromiso sin duplicar registros.
 > 4. El operador ve y **descarga los archivos de la propuesta** y los **comentarios** que administración deja en la orden.
@@ -122,6 +143,7 @@ Cubre las seis entregas de esta ronda:
 > 10. Si el **material lo pone el cliente**, se declara por ítem en la propuesta; Producción descuenta el saldo real, avisa cuando no alcanza y permite pausar por falta de material sin afectar inventario ni costo propio.
 > 11. Si varios ítems comparten material y proceso, el operador puede marcarlos como **corrida integrada**, declarar piezas y minutos de cada uno y administración ve el avance individual.
 > 12. El **cierre administrativo** compara lo cotizado contra lo real (costo, horas, material y entregas), con dashboard, tendencias de las últimas 20 órdenes, semáforos y detalle por orden; Entregas muestra el historial, el pendiente por ítem en tiempo real y permite descargar cada nota.
+> 13. **Gastos y compras** ahora son un solo módulo **Egresos**, y **cobranza y tesorería** un solo módulo **Cobros y tesorería**: cada uno abre con un resumen de lo que debes o te deben y conserva todas las funciones anteriores en pestañas. Los enlaces viejos siguen funcionando.
 >
 > **Cómo probarlo:** entrar como administrador para propuesta, calidad, horas extra, retrabajos, material del cliente, corridas integradas, cierre administrativo y entregas; entrar como operador con su PIN para reclamo, archivos, comentarios, cierre, retrabajo, consumo del cliente y corrida integrada. Cada punto de la lista se prueba en la pantalla indicada y debe mostrar el resultado descrito.
 

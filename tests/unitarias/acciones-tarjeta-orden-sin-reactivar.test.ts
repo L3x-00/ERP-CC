@@ -76,7 +76,7 @@ describe('tarjeta de Planeación C8.1 · sin Reactivar', () => {
     expect(screen.getByTestId(`accion-bandeja-${ID_ORDEN}`)).toBeTruthy();
     expect(screen.getByTestId(`accion-entregar-${ID_ORDEN}`)).toBeTruthy();
     fireEvent.click(screen.getByTestId(`accion-imprimir-${ID_ORDEN}`));
-    expect(empujarMock).toHaveBeenCalledWith(`/ordenes/${ID_ORDEN}`);
+    expect(empujarMock).toHaveBeenCalledWith(`/ordenes/${ID_ORDEN}?pestana=documento`);
   });
 
   it('Bandeja conserva el enlace /ordenes?ordenId= (la página lo redirige a la ficha)', () => {

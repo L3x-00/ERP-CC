@@ -311,11 +311,11 @@ test.describe.serial('Gastos, CxP y rentabilidad por orden', () => {
     const observador = await browser.newPage();
     await iniciarSesion(observador, datos);
     await observador.goto('/gastos');
-    await expect(observador.getByTestId('pagina-gastos')).toBeVisible();
+    await expect(observador.getByTestId('pagina-egresos')).toBeVisible();
     await expect(observador.getByTestId('sincronizador-gastos')).toHaveAttribute('data-conectado', 'true');
 
     await page.goto('/gastos');
-    await expect(page.getByTestId('pagina-gastos')).toBeVisible();
+    await expect(page.getByTestId('pagina-egresos')).toBeVisible();
     await page.getByRole('button', { name: 'Registrar gasto' }).click();
     await page.getByTestId('gasto-orden-busqueda').fill(datos.folioOrden);
     await page.getByTestId('gasto-orden').selectOption(datos.ordenId);

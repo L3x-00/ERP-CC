@@ -72,11 +72,18 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['entrega_generar', 'entrega_evidencia', 'orden_vista', 'ver_finanzas'],
   },
   {
-    href: '/cobranza',
-    etiqueta: 'Cobranza',
+    href: '/cobros',
+    etiqueta: 'Cobros y tesorería',
     grupo: 'Finanzas',
     icono: 'moneda',
     permisos: ['registrar_pagos', 'aplicar_saldos', 'ver_finanzas'],
+  },
+  {
+    href: '/egresos',
+    etiqueta: 'Egresos',
+    grupo: 'Finanzas',
+    icono: 'recibo',
+    permisos: ['registrar_gastos', 'ver_finanzas'],
   },
   {
     href: '/cierre-administrativo',
@@ -84,27 +91,6 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     grupo: 'Finanzas',
     icono: 'moneda',
     permisos: ['ver_finanzas', 'gestionar_produccion'],
-  },
-  {
-    href: '/gastos',
-    etiqueta: 'Gastos',
-    grupo: 'Finanzas',
-    icono: 'recibo',
-    permisos: ['registrar_gastos', 'ver_finanzas'],
-  },
-  {
-    href: '/compras',
-    etiqueta: 'Compras',
-    grupo: 'Finanzas',
-    icono: 'carrito',
-    permisos: ['registrar_gastos', 'ver_finanzas'],
-  },
-  {
-    href: '/tesoreria',
-    etiqueta: 'Tesorería',
-    grupo: 'Finanzas',
-    icono: 'boveda',
-    permisos: ['registrar_pagos', 'ver_finanzas'],
   },
   {
     href: '/actividad',

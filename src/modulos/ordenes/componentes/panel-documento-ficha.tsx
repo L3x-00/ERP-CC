@@ -1,24 +1,34 @@
+'use client';
+
+import { useState } from 'react';
+
 import { Button } from '@/compartido/componentes/ui/button';
+import type { MarcaDocumento } from '@/compartido/utilidades/impresion-documento';
 import { HojaTrabajoDocumento } from '@/modulos/ordenes/componentes/hoja-trabajo-documento';
 import { Totales } from '@/modulos/ordenes/componentes/tarjeta-ficha';
 import type { FichaOrden } from '@/modulos/ordenes/tipos/ficha-orden';
 import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
+import { imprimirHojaTrabajo } from '@/modulos/ordenes/utilidades/imprimir-hoja-trabajo';
 
 /**
  * Documento de la orden. Todo rol con orden_vista ve la hoja de trabajo (ITxx, cantidad, material,
  * espesor, procesos, observaciones y archivos); el bloque Totales se añade solo con orden_ver_totales.
- * El marcado es el mismo: la hoja nunca contiene precios, así que no hay nada que ocultar al imprimir.
+ * «Imprimir orden» compone un documento aislado con la marca de la empresa: nunca imprime la
+ * barra lateral ni el resto de la pantalla.
  */
 export function PanelDocumentoFicha({
   ficha,
   folio,
   puedeVerTotales,
+  marca,
 }: {
   ficha: FichaOrden;
   folio: string;
   puedeVerTotales: boolean;
+  marca?: MarcaDocumento | null;
 }) {
   const hoja = ficha.hojaTrabajo;
+  const [errorImpresion, setErrorImpresion] = useState<string | null>(null);
   const compromiso = `Compromiso comercial ${
     ficha.orden.fechaCompromisoComercial
       ? formatearFechaCalendario(ficha.orden.fechaCompromisoComercial)
@@ -30,11 +40,40 @@ export function PanelDocumentoFicha({
     </div>
   ) : null;
 
+  function imprimir(): void {
+    setErrorImpresion(null);
+    void imprimirHojaTrabajo({
+      hoja: hoja ?? {
+        folio,
+        clienteNombre: ficha.orden.clienteNombre,
+        observacionesOrden: ficha.orden.notas,
+        items: ficha.partidas.map((partida) => ({
+          codigoItem: partida.codigoItem ?? partida.codigoPieza,
+          descripcion: partida.descripcion,
+          cantidad: partida.cantidadSolicitada,
+          material: null,
+          espesor: null,
+          procesos: partida.procesos,
+          observaciones: null,
+        })),
+        archivos: ficha.archivos,
+      },
+      marca: marca ?? null,
+      totales: puedeVerTotales ? ficha.totales : null,
+      compromiso,
+    }).catch(() => {
+      setErrorImpresion('No se pudo abrir la impresión. Revisa el bloqueo de ventanas del navegador.');
+    });
+  }
+
   return (
     <section className="grid gap-4" data-testid="ficha-panel-documento">
-      <div className="flex justify-end print:hidden">
-        <Button variante="contorno" tamano="sm" onClick={() => window.print()}>
-          Imprimir
+      <div className="flex flex-wrap items-center justify-end gap-2 print:hidden">
+        {errorImpresion ? (
+          <p role="alert" className="mr-auto text-sm text-peligro-texto">{errorImpresion}</p>
+        ) : null}
+        <Button variante="contorno" tamano="sm" onClick={imprimir} data-testid="imprimir-orden">
+          Imprimir orden
         </Button>
       </div>
       {hoja ? (
