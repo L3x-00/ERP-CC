@@ -118,7 +118,16 @@ export function DetalleProcesoOperador({
   const [fecha, setFecha] = useState(proceso?.reclamo?.fecha ?? hoy);
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
   const [piezas, setPiezas] = useState('0');
-  const [materialId, setMaterialId] = useState('');
+  // El material de la orden viene preseleccionado: el operador no debe elegirlo
+  // entre todo el catálogo. Solo cambia si la partida no declara material.
+  const [materialId, setMaterialId] = useState(() => {
+    const delProceso = proceso?.material;
+    if (delProceso && materiales.some((material) => material.id === delProceso.id)) {
+      return delProceso.id;
+    }
+    return materiales.length === 1 ? materiales[0].id : '';
+  });
+  const [cierreAbierto, setCierreAbierto] = useState(false);
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
@@ -130,6 +139,7 @@ export function DetalleProcesoOperador({
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
   const [primeraPiezaAbierta, setPrimeraPiezaAbierta] = useState(false);
+  const [reintentarCierreTrasPrimeraPieza, setReintentarCierreTrasPrimeraPieza] = useState(false);
   const [resultadoPrimeraPieza, setResultadoPrimeraPieza] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
   const [observacionesPrimeraPieza, setObservacionesPrimeraPieza] = useState('');
   const [procesandoPrimeraPieza, setProcesandoPrimeraPieza] = useState(false);
@@ -170,6 +180,10 @@ export function DetalleProcesoOperador({
   const avisoJornada = proceso.sesionActiva
     ? sesionCercaDeJornada(proceso.sesionActiva.fechaInicio, ahoraAviso)
     : false;
+  const primeraPiezaPendiente = proceso.sesionActiva?.primeraPiezaPendiente === true;
+  const errorPrimeraPieza = mensaje !== null
+    && !mensaje.exito
+    && mensaje.codigo === 'primera_pieza_pendiente';
 
   async function reclamar(): Promise<void> {
     const resultado = await acciones.reclamar(proceso!, fecha, turno);
@@ -327,6 +341,12 @@ export function DetalleProcesoOperador({
           : 'Primera pieza rechazada. Corrige la pieza y vuelve a liberarla antes de declarar producción.',
       });
       setPrimeraPiezaAbierta(false);
+      // Si veníamos del error de cierre, reintenta solo para no obligar al
+      // operador a repetir el formulario que ya llenó.
+      if (aprobada && reintentarCierreTrasPrimeraPieza) {
+        setReintentarCierreTrasPrimeraPieza(false);
+        await ejecutarCierre();
+      }
     } catch {
       setMensajePrimeraPieza({
         tipo: 'error',
@@ -695,11 +715,75 @@ export function DetalleProcesoOperador({
           </p>
         ) : null}
 
+        {!soloLectura && primeraPiezaPendiente ? (
+          <section
+            aria-label="Primera pieza pendiente"
+            data-testid="alerta-primera-pieza"
+            className="flex flex-col gap-2 rounded-lg border border-advertencia/50 bg-advertencia-suave p-3"
+          >
+            <p className="text-sm font-semibold text-advertencia-texto">
+              Antes de cerrar: libera la primera pieza
+            </p>
+            <p className="text-xs text-texto-secundario">
+              Sin la revisión de la primera pieza el cierre se bloquea. Puedes hacerlo ahora, sin
+              capturar el formulario de cierre.
+            </p>
+            <Button
+              type="button"
+              tamano="sm"
+              className="self-start"
+              onClick={() => {
+                setMensajePrimeraPieza(null);
+                setReintentarCierreTrasPrimeraPieza(false);
+                setPrimeraPiezaAbierta(true);
+              }}
+              data-testid="alerta-liberar-primera-pieza"
+            >
+              Liberar primera pieza
+            </Button>
+          </section>
+        ) : null}
+
         {!soloLectura ? (
           <section aria-label="Acciones del proceso" className="grid gap-3 rounded-lg border border-borde-fuerte p-3">
             {proceso.sesionActiva ? (
               <form className="grid gap-3" onSubmit={cerrar}>
-                <p className="text-sm font-semibold text-texto-primario">Cerrar la sesión en marcha</p>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+                  aria-expanded={cierreAbierto}
+                  aria-controls="cierre-sesion-campos"
+                  onClick={() => setCierreAbierto((valor) => !valor)}
+                  data-testid="alternar-cierre-sesion"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-texto-primario">
+                      Cerrar la sesión en marcha
+                    </span>
+                    <span className="block text-xs text-texto-secundario">
+                      {cierreAbierto ? 'Oculta el formulario de cierre' : 'Toca para registrar el cierre'}
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'text-texto-secundario transition-transform duration-300',
+                      cierreAbierto && 'rotate-180',
+                    )}
+                  >
+                    ▾
+                  </span>
+                </button>
+                <div
+                  id="cierre-sesion-campos"
+                  aria-hidden={!cierreAbierto}
+                  inert={!cierreAbierto}
+                  className={cn(
+                    'grid transition-all duration-300 ease-out',
+                    cierreAbierto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+                  )}
+                >
+                  <div className="grid gap-3 overflow-hidden">
                 <p className="text-xs text-texto-secundario">
                   La jornada del turno es de {HORAS_JORNADA_PREDETERMINADA} h. {AYUDA_HORAS_EXTRA}
                 </p>
@@ -724,6 +808,7 @@ export function DetalleProcesoOperador({
                       value={piezas}
                       onChange={(evento) => setPiezas(evento.target.value)}
                       required
+                      data-testid="piezas-cierre"
                     />
                   </label>
                   <label className={CLASE_ETIQUETA}>
@@ -755,6 +840,7 @@ export function DetalleProcesoOperador({
                           value={materialId}
                           onChange={(evento) => setMaterialId(evento.target.value)}
                           required
+                          data-testid="material-cierre"
                         >
                           <option value="">Selecciona un material</option>
                           {materiales.map((material) => (
@@ -764,6 +850,11 @@ export function DetalleProcesoOperador({
                           ))}
                         </Select>
                       </label>
+                      {proceso.material && materialId === proceso.material.id ? (
+                        <span className="text-xs font-normal text-texto-tenue">
+                          Preseleccionado desde el material del ítem.
+                        </span>
+                      ) : null}
 
                       <div className="grid grid-cols-2 gap-3">
                         <label className={CLASE_ETIQUETA}>
@@ -775,6 +866,7 @@ export function DetalleProcesoOperador({
                             value={cantidadUsada}
                             onChange={(evento) => setCantidadUsada(evento.target.value)}
                             required
+                            data-testid="usado-cierre"
                           />
                         </label>
 
@@ -847,6 +939,7 @@ export function DetalleProcesoOperador({
                       value={pin}
                       onChange={(evento) => setPin(evento.target.value)}
                       required
+                      data-testid="pin-cierre"
                     />
                   </label>
 
@@ -865,56 +958,6 @@ export function DetalleProcesoOperador({
                     />
                   </label>
 
-                  {mensaje && !mensaje.exito && mensaje.codigo === 'primera_pieza_pendiente' ? (
-                    <section
-                      role="alert"
-                      className="flex flex-col gap-2 rounded-lg border border-advertencia/60 bg-advertencia-suave p-3"
-                      data-testid="aviso-primera-pieza"
-                    >
-                      <p className="text-sm font-semibold text-advertencia-texto">
-                        Falta liberar la primera pieza antes de declarar producción
-                      </p>
-                      <p className="text-xs text-texto-secundario">
-                        Puedes registrarla aquí mismo. No necesitas cerrar la sesión ni abrir otro proceso.
-                      </p>
-                      {mensajePrimeraPieza ? (
-                        <p
-                          role={mensajePrimeraPieza.tipo === 'error' ? 'alert' : 'status'}
-                          className={cn(
-                            'text-xs',
-                            mensajePrimeraPieza.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto',
-                          )}
-                        >
-                          {mensajePrimeraPieza.texto}
-                        </p>
-                      ) : null}
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          tamano="sm"
-                          onClick={() => {
-                            setMensajePrimeraPieza(null);
-                            setPrimeraPiezaAbierta(true);
-                          }}
-                          data-testid="abrir-liberar-primera-pieza"
-                        >
-                          Liberar primera pieza
-                        </Button>
-                        {mensajePrimeraPieza?.tipo === 'ok' ? (
-                          <Button
-                            type="button"
-                            tamano="sm"
-                            variante="contorno"
-                            disabled={procesando}
-                            onClick={() => void ejecutarCierre()}
-                          >
-                            Continuar con el cierre
-                          </Button>
-                        ) : null}
-                      </div>
-                    </section>
-                  ) : null}
-
                   <Button
                     type="submit"
                     tamano="lg"
@@ -925,6 +968,8 @@ export function DetalleProcesoOperador({
                       ? 'Pausar sesión de trabajo'
                       : 'Finalizar sesión de trabajo'}
                   </Button>
+                  </div>
+                </div>
                   </form>
             ) : null}
 
@@ -1116,6 +1161,48 @@ export function DetalleProcesoOperador({
     </Dialog>
   );
 
+  const dialogoErrorPrimeraPieza = (
+    <Dialog open={errorPrimeraPieza} onOpenChange={(abierto) => { if (!abierto) setMensaje(null); }}>
+      <DialogContent
+        className="max-w-md"
+        data-testid="modal-primera-pieza-pendiente"
+        aria-label="Falta liberar la primera pieza"
+      >
+        <DialogHeader>
+          <DialogTitle>Falta liberar la primera pieza</DialogTitle>
+          <DialogDescription>
+            El cierre se bloqueó para no declarar producción sin la revisión de la primera pieza.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2 text-sm text-texto-secundario">
+          <p>Puedes resolverlo aquí mismo:</p>
+          <ol className="list-decimal pl-5">
+            <li>Libera la primera pieza con el resultado de la revisión.</li>
+            <li>El cierre se reintenta solo con los datos que ya capturaste.</li>
+          </ol>
+        </div>
+        <DialogFooter>
+          <Button type="button" variante="contorno" onClick={() => setMensaje(null)}>
+            Seguir editando
+          </Button>
+          <Button
+            type="button"
+            disabled={procesandoPrimeraPieza}
+            onClick={() => {
+              setMensaje(null);
+              setMensajePrimeraPieza(null);
+              setReintentarCierreTrasPrimeraPieza(true);
+              setPrimeraPiezaAbierta(true);
+            }}
+            data-testid="modal-liberar-primera-pieza"
+          >
+            Liberar primera pieza
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (presentacion === 'integrado') {
     return (
       <section
@@ -1127,6 +1214,7 @@ export function DetalleProcesoOperador({
         {anuncioResumenCierre}
         {dialogoResumenCierre}
         {dialogoPrimeraPieza}
+        {dialogoErrorPrimeraPieza}
       </section>
     );
   }
@@ -1145,6 +1233,7 @@ export function DetalleProcesoOperador({
       {anuncioResumenCierre}
       {dialogoResumenCierre}
       {dialogoPrimeraPieza}
+      {dialogoErrorPrimeraPieza}
     </>
   );
 }
