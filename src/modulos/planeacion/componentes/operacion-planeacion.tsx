@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import {
   activarModoPreparacionAccion,
+  liberarPreparacionPlaneacionAccion,
   obtenerCalendarioPlaneacionAccion,
   programarPartidaRecursoAccion,
   proponerHuecoReprogramacionAccion,
@@ -17,6 +18,13 @@ import {
   type ErrorProgramacion,
 } from '@/modulos/planeacion/componentes/dialogo-error-planeacion';
 import { Button } from '@/compartido/componentes/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/compartido/componentes/ui/dialog';
 import {
   CLAVE_CALENDARIO_PLANEACION,
   CLAVE_DETALLE_PROGRAMACION,
@@ -262,8 +270,28 @@ export function OperacionPlaneacion({
             : { exito: false as const, error: 'Selecciona una programación para reprogramarla' };
 
       if (resultado.exito) {
+        // La reprogramación devuelve el nuevo `actualizado_en`: se aplica de
+        // inmediato al panel para que «Iniciar preparación» use el CAS vigente
+        // y no falle por un token obsoleto mientras el calendario se refresca.
+        if (datos.tipo === 'reprogramar' && programacionSeleccionada && resultado.datos) {
+          setProgramacionSeleccionada((anterior) => (anterior
+            ? {
+                ...anterior,
+                recursoId: datos.recursoId,
+                fechaProgramada: datos.fechaProgramada,
+                turno: datos.turno,
+                horasEstimadas: datos.horasEstimadas,
+                ordenPrioridad: datos.ordenPrioridad,
+                actualizadoEn: resultado.datos!.actualizadoEn,
+                estadoPlaneacion: resultado.datos!.estadoPlaneacion,
+              }
+            : anterior));
+        }
         await actualizarCalendario();
-        setPanelAbierto(false);
+        // Al reprogramar se conserva el panel abierto: así el usuario ve el
+        // cambio aplicado y puede continuar con «Iniciar preparación» sin
+        // volver a buscar la operación en el calendario.
+        if (datos.tipo === 'crear') setPanelAbierto(false);
       }
       return resultado;
     },
@@ -287,6 +315,23 @@ export function OperacionPlaneacion({
     if (resultado.exito) await actualizarCalendario();
     return resultado;
   }, [actualizarCalendario, programacionSeleccionada]);
+
+  const liberarPreparacion = useCallback(async (): Promise<ResultadoAsignacionPlaneacion> => {
+    if (!programacionSeleccionada) {
+      return { exito: false, error: 'Selecciona una programación para liberar la preparación' };
+    }
+    const resultado = await liberarPreparacionPlaneacionAccion({
+      programacionId: programacionSeleccionada.id,
+      actualizadoEnEsperado: programacionSeleccionada.actualizadoEn,
+    });
+    if (resultado.exito) await actualizarCalendario();
+    return resultado;
+  }, [actualizarCalendario, programacionSeleccionada]);
+
+  const abrirProduccion = useCallback((): void => {
+    const ordenId = programacionSeleccionada?.ordenId ?? detalleConcluido?.id ?? null;
+    enrutador.push(ordenId ? `/produccion?ordenId=${ordenId}` : '/produccion');
+  }, [detalleConcluido, enrutador, programacionSeleccionada]);
 
   const alSeleccionar = useCallback((programacion: ProgramacionArea | null): void => {
     if (!programacion) {
@@ -482,7 +527,13 @@ export function OperacionPlaneacion({
         programando={panelAbierto}
         onProgramar={() => {
           setPreseleccion(null);
-          setPanelAbierto((abierto) => !abierto);
+          if (panelAbierto) {
+            setPanelAbierto(false);
+            if (programacionSeleccionada) cancelarSeleccion();
+            return;
+          }
+          setProgramacionSeleccionada(null);
+          setPanelAbierto(true);
         }}
         onSeleccionarProgramacion={alSeleccionar}
         onProgramarCompromiso={programarCompromiso}
@@ -490,59 +541,59 @@ export function OperacionPlaneacion({
         onRefrescarOperacion={refrescarEstructuraOperacion}
       />
 
-      <aside
-        id="panel-programar-partida"
-        data-testid="panel-programar-partida"
-        aria-label="Panel de programación"
-        inert={!panelAbierto ? true : undefined}
-        className={`fixed inset-y-0 right-0 z-40 w-full max-w-md flex-col border-l border-borde bg-superficie shadow-elevada ${
-          panelAbierto ? 'flex' : 'hidden'
-        }`}
+      <Dialog
+        open={panelAbierto}
+        onOpenChange={(abierto) => {
+          if (abierto) return;
+          setPanelAbierto(false);
+          if (programacionSeleccionada) cancelarSeleccion();
+        }}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-borde px-4 py-3">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 className="text-sm font-semibold text-texto-primario">
+        <DialogContent
+          data-testid="panel-programar-partida"
+          aria-label="Panel de programación"
+          className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
+        >
+          <DialogHeader className="shrink-0 gap-0.5 border-b border-borde px-4 py-3">
+            <DialogTitle className="text-sm font-semibold">
               {programacionSeleccionada ? 'Reprogramar operación' : 'Programar operación'}
-            </h2>
-            <p className="text-xs text-texto-secundario">
+            </DialogTitle>
+            <DialogDescription className="text-xs">
               {programacionSeleccionada
-                ? 'Ajusta recurso, fecha, turno u horas'
-                : 'Operación, recurso, fecha, turno y horas'}
-            </p>
+                ? 'Ajusta recurso, fecha, turno u horas en una sola ventana.'
+                : 'Operación, recurso, fecha, turno y horas.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto scroll-sutil px-4 py-4">
+            <PanelAsignacionPlaneacion
+              recursos={datosCalendario.recursos}
+              partidasProgramables={partidasProgramables}
+              programacion={programacionSeleccionada}
+              desglosePartidas={desglosePartidas}
+              cargas={cargasPanel}
+              partidasTotal={partidasTotal}
+              compatibilidad={compatibilidad}
+              verificandoCapacidad={verificandoCapacidad}
+              onEnviar={enviarAsignacion}
+              onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
+              onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
+              onProponerHueco={proponerHuecoPanel}
+              onCambiarFecha={setFechaSolicitada}
+              onActualizarDatos={actualizarDatosPlaneacion}
+              onAbrirProduccion={abrirProduccion}
+              onLiberarPreparacion={
+                programacionSeleccionada?.estadoPlaneacion === 'en_preparacion'
+                  ? liberarPreparacion
+                  : undefined
+              }
+              preseleccion={preseleccion}
+            />
+            {programacionSeleccionada ? (
+              <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
+            ) : null}
           </div>
-          <Button
-            type="button"
-            variante="fantasma"
-            tamano="sm"
-            aria-label="Cerrar panel de programación"
-            onClick={() => setPanelAbierto(false)}
-          >
-            ×
-          </Button>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto scroll-sutil px-4 py-4">
-          <PanelAsignacionPlaneacion
-            recursos={datosCalendario.recursos}
-            partidasProgramables={partidasProgramables}
-            programacion={programacionSeleccionada}
-            desglosePartidas={desglosePartidas}
-            cargas={cargasPanel}
-            partidasTotal={partidasTotal}
-            compatibilidad={compatibilidad}
-            verificandoCapacidad={verificandoCapacidad}
-            onEnviar={enviarAsignacion}
-            onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
-            onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
-            onProponerHueco={proponerHuecoPanel}
-            onCambiarFecha={setFechaSolicitada}
-            onActualizarDatos={actualizarDatosPlaneacion}
-            preseleccion={preseleccion}
-          />
-          {programacionSeleccionada ? (
-            <DetalleProgramacionPlaneacion programacion={programacionSeleccionada} />
-          ) : null}
-        </div>
-      </aside>
+        </DialogContent>
+      </Dialog>
 
       {detalleConcluido ? (
         <aside
@@ -627,6 +678,12 @@ export function OperacionPlaneacion({
           actualizarDatosPlaneacion();
           setErrorBolsaModal(null);
         }}
+        onAbrirProduccion={sugerenciaFallida
+          ? () => {
+              setErrorBolsaModal(null);
+              enrutador.push(`/produccion?ordenId=${sugerenciaFallida.ordenId}`);
+            }
+          : undefined}
         onAbrirProgramacion={sugerenciaFallida
           ? () => {
               const sugerencia = sugerenciaFallida;

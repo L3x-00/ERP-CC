@@ -5739,6 +5739,19 @@ export type Database = {
           venta_desglose_conocido: boolean
         }[]
       }
+      liberar_preparacion_planeacion_auditada: {
+        Args: {
+          p_actualizado_en_esperado: string
+          p_actor_id: string
+          p_correlation_id?: string
+          p_programacion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          id: string
+        }[]
+      }
       liberar_reclamo_operador: {
         Args: { p_operador_id: string; p_reclamo_id: string }
         Returns: boolean

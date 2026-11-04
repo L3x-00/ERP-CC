@@ -41,6 +41,11 @@ export interface PropsDialogoErrorPlaneacion {
   onElegirOtraOperacion?: () => void;
   /** Abre el panel de programación para revisar partida, fecha o turno. */
   onAbrirProgramacion?: () => void;
+  /** Lleva a Producción para cerrar la sesión que impide mover la operación. */
+  onAbrirProduccion?: () => void;
+  /** Devuelve a "programada" una preparación atrasada que nunca inició sesión. */
+  onLiberarPreparacion?: () => void;
+  liberandoPreparacion?: boolean;
 }
 
 function tituloDe(codigo: string | null | undefined): string {
@@ -56,10 +61,23 @@ function tituloDe(codigo: string | null | undefined): string {
       return 'La máquina está ocupada';
     case 'programacion_conflicto':
       return 'Los datos cambiaron mientras programabas';
+    case 'programacion_no_reprogramable':
+      return 'La operación ya está en piso';
+    case 'sesion_activa_en_programacion':
+      return 'La operación tiene una sesión abierta';
+    case 'transicion_preparacion_no_permitida':
+      return 'La operación ya no se puede preparar';
     case 'programacion_inexistente':
     case 'partida_inexistente':
     case 'recurso_inexistente':
       return 'La programación o el recurso ya no están disponibles';
+    case 'recurso_inactivo':
+      return 'La máquina está inactiva';
+    case 'reprogramacion_invalida':
+    case 'programacion_invalida':
+      return 'Revisa los datos de la programación';
+    case 'motivo_reprogramacion_requerido':
+      return 'Falta el motivo de la reprogramación';
     case 'sin_permiso_planeacion':
       return 'Ya no tienes permiso para modificar Planeación';
     default:
@@ -87,14 +105,45 @@ function pasosDe(codigo: string | null | undefined): string[] {
       ];
     case 'recurso_ocupado':
       return [
-        'Elige otra máquina del mismo grupo o programa en otro turno.',
+        'La máquina tiene una preparación o sesión activa, a veces de un día anterior.',
+        'Puedes mover la operación a otra máquina del mismo grupo o cerrar la sesión en Producción.',
         'Si la máquina debería estar libre, actualiza los datos.',
+      ];
+    case 'programacion_no_reprogramable':
+      return [
+        'La operación ya está en preparación o en proceso, o la orden ya terminó.',
+        'Pausa o finaliza su sesión en Producción para poder moverla.',
+        'Si quedó en preparación sin que nadie iniciara sesión, libera la preparación.',
+      ];
+    case 'sesion_activa_en_programacion':
+      return [
+        'Un operador tiene una sesión activa o pausada en esta operación.',
+        'Pausa o finaliza esa sesión en Producción para liberar la preparación.',
+        'Como administrador puedes cerrarla desde la ficha de la orden.',
+      ];
+    case 'transicion_preparacion_no_permitida':
+      return [
+        'La operación ya se completó o se canceló y no admite preparación.',
+        'Actualiza los datos para ver su estado vigente.',
       ];
     case 'programacion_conflicto':
       return [
         'Otra persona modificó esta programación.',
         'Actualiza los datos y vuelve a intentarlo con la información vigente.',
       ];
+    case 'recurso_inactivo':
+      return [
+        'La máquina seleccionada está fuera de servicio.',
+        'Elige otra máquina activa del grupo que pide la operación.',
+      ];
+    case 'reprogramacion_invalida':
+    case 'programacion_invalida':
+      return [
+        'Revisa la fecha, el turno, las horas y la prioridad.',
+        'Si el problema continúa, actualiza los datos y vuelve a intentarlo.',
+      ];
+    case 'motivo_reprogramacion_requerido':
+      return ['Escribe el motivo de la reprogramación (mínimo 3 caracteres).'];
     case 'sin_permiso_planeacion':
       return ['Solicita el permiso de Planeación a un administrador.'];
     default:
@@ -115,13 +164,18 @@ export function DialogoErrorPlaneacion({
   onElegirRecurso,
   onElegirOtraOperacion,
   onAbrirProgramacion,
+  onAbrirProduccion,
+  onLiberarPreparacion,
+  liberandoPreparacion = false,
 }: PropsDialogoErrorPlaneacion) {
   const abierto = error !== null;
   const codigo = error?.codigo ?? null;
   const muestraRecursos =
     onElegirRecurso !== undefined
     && recursosCompatibles.length > 0
-    && (codigo === 'recurso_incompatible' || codigo === 'recurso_ocupado');
+    && (codigo === 'recurso_incompatible'
+      || codigo === 'recurso_ocupado'
+      || codigo === 'recurso_inactivo');
 
   return (
     <Dialog open={abierto} onOpenChange={(siguiente) => { if (!siguiente) onCerrar(); }}>
@@ -158,11 +212,14 @@ export function DialogoErrorPlaneacion({
                     onClick={() => onElegirRecurso?.(recurso.id)}
                     data-testid={`error-usar-recurso-${recurso.id}`}
                   >
-                    Usar {recurso.codigo}
+                    Reprogramar a {recurso.codigo}
                   </Button>
                 ))}
               </div>
-              <p className="text-[11px] text-texto-tenue">{recursosCompatibles[0]?.nombre}</p>
+              <p className="text-[11px] text-texto-tenue">
+                Al elegir una máquina se actualiza la operación. Si estás reprogramando, el cambio
+                se guarda en ese momento; después podrás iniciar la preparación con el equipo nuevo.
+              </p>
             </div>
           ) : null}
         </div>
@@ -190,6 +247,33 @@ export function DialogoErrorPlaneacion({
               data-testid="error-elegir-otra-operacion"
             >
               Elegir otra operación
+            </Button>
+          ) : null}
+          {codigo === 'programacion_no_reprogramable' && onLiberarPreparacion ? (
+            <Button
+              type="button"
+              variante="secundario"
+              tamano="sm"
+              disabled={liberandoPreparacion}
+              onClick={onLiberarPreparacion}
+              data-testid="error-liberar-preparacion"
+            >
+              {liberandoPreparacion ? 'Liberando…' : 'Liberar preparación'}
+            </Button>
+          ) : null}
+          {(codigo === 'programacion_no_reprogramable'
+            || codigo === 'transicion_preparacion_no_permitida'
+            || codigo === 'sesion_activa_en_programacion'
+            || codigo === 'recurso_ocupado')
+            && onAbrirProduccion ? (
+            <Button
+              type="button"
+              variante="secundario"
+              tamano="sm"
+              onClick={onAbrirProduccion}
+              data-testid="error-abrir-produccion"
+            >
+              Ir a Producción
             </Button>
           ) : null}
           {onAbrirProgramacion ? (

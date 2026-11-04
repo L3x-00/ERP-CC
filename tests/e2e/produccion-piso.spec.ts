@@ -628,7 +628,7 @@ await expect(
     await expect(page.getByTestId('operacion-produccion')).toBeVisible();
 
     const tarjeta = page.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`);
-    await tarjeta.getByRole('button', { name: 'Operar orden' }).click();
+    await tarjeta.click();
     await expect(page.getByTestId('orden-seleccionada-panel')).toContainText('Orden seleccionada:');
     await expect(page.getByTestId('panel-operador-produccion')).toBeInViewport();
     await page.getByTestId('iniciar-sesion-produccion').click();
@@ -729,8 +729,7 @@ await expect(
     ]);
     await expect.poll(async () => (await page.request.get(dwgHistorico.url())).status()).toBe(200);
     await dwgHistorico.close();
-    await observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)
-      .getByRole('button', { name: 'Ver en producción' }).click();
+    await observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`).click();
     const detalleConcluido = observador.getByTestId('detalle-orden-concluida');
     await expect(detalleConcluido).toBeVisible();
     await expect(detalleConcluido).toContainText('Material utilizado');
@@ -801,7 +800,7 @@ await expect(
       await page.getByRole('button', { name: 'Confirmar PIN' }).click();
       await page.waitForURL('**/produccion-piso');
       await page.goto('/produccion');
-      await page.getByTestId(`tarjeta-produccion-${caso.ordenId}`).getByRole('button', { name: 'Operar orden' }).click();
+      await page.getByTestId(`tarjeta-produccion-${caso.ordenId}`).click();
       await page.getByTestId('iniciar-sesion-produccion').click();
       await confirmarChecklistInicio(page);
       await expect(page.getByRole('status')).toContainText('Sesión iniciada');
@@ -816,14 +815,18 @@ await expect(
       await expect(page.getByRole('region', { name: 'Historial de sesiones' })).toContainText('Esperando insumo para continuar');
 
       const historial = page.getByRole('region', { name: 'Historial de sesiones' });
+      const filasSesion = historial.locator('[data-testid^="sesion-resumen-"]');
+      await filasSesion.first().click();
+      const detalleSesion = page.getByTestId('detalle-sesion-trabajo');
+      await expect(detalleSesion).toBeVisible();
       const binario = Buffer.alloc(2 * 1024 * 1024 + 128, 0x20);
       binario.write('%PDF-1.4\n');
-      await historial.locator('input[type="file"]').first().setInputFiles({
+      await detalleSesion.locator('input[type="file"]').first().setInputFiles({
         name: 'registro-turno.pdf', mimeType: 'application/pdf', buffer: binario,
       });
-      await historial.getByRole('button', { name: 'Subir archivo' }).first().click();
-      await expect(historial).toContainText('Archivo asociado a la sesión');
-      await expect(historial).toContainText('registro-turno.pdf');
+      await detalleSesion.getByRole('button', { name: 'Subir archivo' }).first().click();
+      await expect(detalleSesion).toContainText('Archivo asociado a la sesión');
+      await expect(detalleSesion).toContainText('registro-turno.pdf');
       await expect(page.getByTestId('panel-documentos-orden')).toContainText('Planos y documentos del cliente/orden');
       await expect(page.getByTestId('panel-documentos-orden')).toContainText('Salida y notas de entrega');
       await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd17-escritorio-claro.png', fullPage: true });
@@ -834,10 +837,11 @@ await expect(
       await page.emulateMedia({ colorScheme: 'light' });
       const [lectura] = await Promise.all([
         page.waitForEvent('popup'),
-        historial.getByRole('button', { name: 'Abrir en lectura' }).first().click(),
+        detalleSesion.getByRole('button', { name: 'Abrir en lectura' }).first().click(),
       ]);
       await expect.poll(async () => (await page.request.get(lectura.url())).status()).toBe(200);
       await lectura.close();
+      await page.keyboard.press('Escape');
 
       await page.getByRole('button', { name: 'Continuar sesión pausada' }).click();
       const dialogo = page.getByRole('dialog', { name: /Reanudar OP-/ });
@@ -859,8 +863,12 @@ await expect(
         return data?.length;
       }).toBe(2);
       await expect(page.getByRole('region', { name: 'Historial de sesiones' })).toContainText('Esperando insumo para continuar');
-      await expect(historial.getByText('registro-turno.pdf')).toHaveCount(1);
-      await expect(historial.getByText('Sin archivos asociados.')).toHaveCount(1);
+      await historial.locator('[data-testid^="sesion-resumen-"]').first().click();
+      await expect(page.getByTestId('detalle-sesion-trabajo')).toContainText('Sin archivos asociados.');
+      await page.keyboard.press('Escape');
+      await historial.locator('[data-testid^="sesion-resumen-"]').last().click();
+      await expect(page.getByTestId('detalle-sesion-trabajo')).toContainText('registro-turno.pdf');
+      await page.keyboard.press('Escape');
       const { data: programacion } = await caso.admin.from('programacion_areas')
         .select('estado_planeacion').eq('id', caso.programacionId).single();
       expect(programacion?.estado_planeacion).toBe('en_proceso');

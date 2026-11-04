@@ -2,6 +2,7 @@ export {
   ErrorPlaneacion,
   activarModoPreparacionServicio,
   codigoErrorPlaneacion,
+  liberarPreparacionPlaneacionServicio,
   mensajeErrorPlaneacion,
   obtenerDatosCalendarioPlaneacionServicio,
   obtenerCompromisosCalendarioServicio,

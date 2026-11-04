@@ -19,6 +19,7 @@ export function PanelEntregasFicha({
   const saldoTexto = saldo
     ? `Entregado ${saldo.entregado}/${saldo.solicitado}; faltan ${saldo.faltan} por entregar`
     : null;
+  const entregadaPorCompleto = saldo !== undefined && saldo.faltan <= 0;
   return (
     <section className="grid gap-3" data-testid="ficha-panel-entregas">
       {saldoTexto ? (
@@ -28,7 +29,11 @@ export function PanelEntregasFicha({
         <p className="text-sm text-texto-secundario">
           Entregas parciales o totales con folio NE; evidencia y firma se capturan en el detalle.
         </p>
-        {puedeEntregar ? (
+        {entregadaPorCompleto ? (
+          <p className="text-sm font-medium text-exito-texto" data-testid="ficha-entrega-completa">
+            La orden está entregada por completo; no hay piezas pendientes.
+          </p>
+        ) : puedeEntregar ? (
           <Link
             href={`/entregas?orden=${ordenId}`}
             className="rounded-md border border-borde px-3 py-1.5 text-sm font-semibold text-acento hover:bg-superficie-2"

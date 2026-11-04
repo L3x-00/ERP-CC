@@ -29,11 +29,15 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
   const [firmaClienteUrl, setFirmaClienteUrl] = useState('');
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [mensaje, setMensaje] = useState<MensajeFormulario | null>(null);
+  const partidasDisponibles = (orden?.partidas ?? []).filter(
+    (partida) => Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0) > 0,
+  );
+  const ordenEntregadaPorCompleto = orden !== null && partidasDisponibles.length === 0;
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (!orden) return;
-    const partidas = orden.partidas.flatMap((partida) => {
+    const partidas = partidasDisponibles.flatMap((partida) => {
       const cantidad = Number(cantidades[partida.id] ?? 0);
       return cantidad > 0 ? [{ partidaId: partida.id, cantidadEntregada: cantidad }] : [];
     });
@@ -78,13 +82,18 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
         <Button
           type="button"
           tamano="sm"
-          disabled={!orden || procesando}
+          disabled={!orden || procesando || ordenEntregadaPorCompleto}
           onClick={() => { setMensaje(null); setAbierto(true); }}
           data-testid="abrir-nota-entrega"
         >
           Generar nota de entrega
         </Button>
       </div>
+      {ordenEntregadaPorCompleto ? (
+        <p className="mt-3 rounded-md border border-exito/30 bg-exito-suave px-3 py-2 text-sm text-exito-texto">
+          La orden ya está entregada por completo; no hay piezas pendientes para una nueva nota.
+        </p>
+      ) : null}
       {mensaje ? (
         <p
           className={mensaje.tipo === 'error' ? 'mt-3 text-sm text-peligro-texto' : 'mt-3 text-sm text-exito-texto'}
@@ -125,7 +134,7 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
               </label>
               <fieldset className="flex flex-col gap-2">
                 <legend className="text-sm font-medium text-texto-secundario">Cantidades a entregar</legend>
-                {orden.partidas.map((partida) => {
+                {partidasDisponibles.map((partida) => {
                   const disponible = Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0);
                   return (
                     <label key={partida.id} className="grid grid-cols-[1fr_7rem] items-center gap-2 text-sm">
