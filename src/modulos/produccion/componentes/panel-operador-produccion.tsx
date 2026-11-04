@@ -531,7 +531,7 @@ export function PanelOperadorProduccion({
                       onClick={() => { setMensaje(null); setSesionSupervisor(sesion); }}
                       data-testid={`finalizar-sesion-supervisor-${sesion.id}`}
                     >
-                      Finalizar sesión
+                      Pausar sesión
                     </Button>
                   ) : null}
                 </li>
