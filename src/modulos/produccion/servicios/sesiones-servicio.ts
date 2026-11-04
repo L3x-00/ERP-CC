@@ -46,6 +46,8 @@ export type CodigoErrorProduccion =
   | 'nota_pausa_requerida'
   | 'primera_pieza_pendiente'
   | 'horas_extra_sin_autorizacion'
+  | 'horas_extra_no_requeridas'
+  | 'solicitud_no_pendiente'
   | 'corrida_invalida'
   | 'corrida_item_no_incluye_partida'
   | 'corrida_sin_pendiente'
@@ -162,6 +164,8 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'nota_pausa_requerida',
   'primera_pieza_pendiente',
   'horas_extra_sin_autorizacion',
+  'horas_extra_no_requeridas',
+  'solicitud_no_pendiente',
   'corrida_invalida',
   'corrida_item_no_incluye_partida',
   'corrida_sin_pendiente',
@@ -366,7 +370,7 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'cierre_sesion_invalido':
       return 'El cierre requiere datos válidos y consumo de material al finalizar';
     case 'operador_o_programacion_con_sesion_activa':
-      return 'El operador o el recurso ya tienen una sesión activa';
+      return 'Esa operación ya tiene una sesión activa en el recurso; espera a que se cierre o elige otra.';
     case 'programacion_no_preparada':
       return 'La programación debe estar en preparación antes de iniciar';
     case 'secuencia_previa_pendiente':
@@ -401,6 +405,10 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'Falta liberar la primera pieza antes de declarar producción';
     case 'horas_extra_sin_autorizacion':
       return 'El tiempo neto de la sesión supera la jornada del turno. Enviamos la solicitud a un responsable; espera a que la apruebe y vuelve a cerrar.';
+    case 'horas_extra_no_requeridas':
+      return 'La sesión no excede la jornada del turno, así que no requiere horas extra.';
+    case 'solicitud_no_pendiente':
+      return 'La solicitud de horas extra ya fue resuelta o no existe; actualiza la lista.';
     case 'corrida_invalida':
     case 'corrida_item_no_incluye_partida':
       return 'La corrida no corresponde a esta partida';
