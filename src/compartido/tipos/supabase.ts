@@ -6927,6 +6927,52 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_retrabajo_sesion: {
+        Args: {
+          p_actor_id: string
+          p_cantidad_scrap: number
+          p_cantidad_usada: number
+          p_causa: string
+          p_material_id: string
+          p_minutos: number
+          p_motivo: string
+          p_notas: string
+          p_sesion_id: string
+        }
+        Returns: {
+          cantidad_scrap: number
+          cantidad_usada: number
+          causa: string
+          creado_en: string
+          id: string
+          material_id: string
+          minutos: number
+          motivo: string
+          orden_id: string
+          partida_id: string
+        }[]
+      }
+      obtener_retrabajos_orden: {
+        Args: { p_actor_id: string; p_orden_id: string }
+        Returns: {
+          cantidad_scrap: number
+          cantidad_usada: number
+          causa: string
+          codigo_pieza: string
+          creado_en: string
+          id: string
+          material_codigo: string
+          material_id: string
+          material_nombre: string
+          minutos: number
+          motivo: string
+          notas: string
+          orden_id: string
+          partida_id: string
+          registrado_por_nombre: string
+          unidad_control: string
+        }[]
+      }
       resolver_solicitud_horas_extra: {
         Args: { p_aprobar: boolean; p_autorizador_id: string; p_id: string }
         Returns: {
