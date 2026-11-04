@@ -91,6 +91,10 @@ export function OperacionEgresos({
         </div>
       ) : (
         <div role="tabpanel" aria-label="Compras y cuentas por pagar">
+          <p className="mb-4 text-sm text-texto-secundario">
+            Registra compras a proveedores y su cuenta por pagar. Con Orden, la compra se clasifica
+            por rubro de costo; sin Orden es gasto indirecto.
+          </p>
           <ColaCompras inicial={comprasIniciales} puedeGestionar={puedeGestionarCompras} />
         </div>
       )}
