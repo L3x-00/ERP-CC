@@ -576,7 +576,6 @@ export function OperacionPlaneacion({
               verificandoCapacidad={verificandoCapacidad}
               onEnviar={enviarAsignacion}
               onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
-              onCancelar={programacionSeleccionada ? cancelarSeleccion : undefined}
               onProponerHueco={proponerHuecoPanel}
               onCambiarFecha={setFechaSolicitada}
               onActualizarDatos={actualizarDatosPlaneacion}

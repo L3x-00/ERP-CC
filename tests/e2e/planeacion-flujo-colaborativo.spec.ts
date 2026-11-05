@@ -19,7 +19,7 @@ async function aplicarRangoCalendario(pagina: Page): Promise<void> {
   const aviso = pagina.locator(
     'section[aria-labelledby="titulo-calendario-planeacion"] p[aria-live="polite"]',
   );
-  await expect(aviso).toContainText(/programaciones ·/);
+  await expect(aviso).toContainText(/ítems ·/);
   let aplicado = false;
   for (let intento = 0; intento < 3 && !aplicado; intento += 1) {
     await pagina.getByLabel('Fecha inicial').fill('2099-12-28');
@@ -392,7 +392,6 @@ test.describe.serial('Planeación colaborativa completa', () => {
 
     await page
       .getByTestId(`programacion-${contextoPrueba.programacionId}`)
-      .getByRole('button', { name: 'Seleccionar' })
       .click();
     const detalle = page.getByTestId('detalle-programacion-planeacion');
     await expect(detalle).toBeVisible();
@@ -552,11 +551,14 @@ test.describe.serial('Planeación colaborativa completa', () => {
 
     // C9.1/P-08: el título abre un resumen rápido dentro de Planeación; el botón
     // «Abrir orden» lleva a la ficha correcta de la orden.
-    await page.getByTestId(`resumen-orden-${primera!.id}`).click();
+    await page
+      .getByTestId('columna-2099-12-30')
+      .getByTestId(`resumen-orden-${contextoPrueba.ordenId}`)
+      .click();
     const resumenOrden = page.getByTestId('resumen-orden-planeacion');
     await expect(resumenOrden).toBeVisible();
     await expect(resumenOrden).toContainText('Abrir orden');
-    await page.getByTestId(`abrir-orden-${primera!.id}`).click();
+    await page.getByTestId(`abrir-orden-${contextoPrueba.ordenId}`).click();
     await page.waitForURL((url) => url.pathname === `/ordenes/${contextoPrueba.ordenId}`);
     expect(page.url()).toContain('pestana=comentarios');
   });
