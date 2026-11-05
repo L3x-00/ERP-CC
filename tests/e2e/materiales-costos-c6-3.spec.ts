@@ -136,20 +136,18 @@ test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', (
       await expect(modal).toBeVisible();
       await modal.getByLabel('Código').fill(codigoMaterial);
       await modal.getByLabel('Nombre').fill(`Acero 1018 ${sufijo}`);
+      await modal.getByLabel('Espesor', { exact: true }).fill('5 mm');
+      await modal.getByLabel('Espesor en mm').fill('5');
       await modal.getByLabel('Unidad base').fill('kg');
       await modal.getByLabel('Grupo (opcional)').selectOption({ label: `Acero al carbón ${sufijo}` });
       await modal.getByLabel('Ancho (mm)').fill('1219.2');
       await modal.getByLabel('Largo (mm)').fill('2438.4');
-      await modal.getByRole('button', { name: 'Agregar espesor' }).click();
-      await modal.getByLabel('Etiqueta').fill('5 mm');
-      await modal.getByLabel('mm', { exact: true }).fill('5');
-      await modal.getByLabel('Costo').fill('12.5');
       await modal.getByRole('button', { name: 'Crear material' }).click();
       await expect(modal).toBeHidden();
 
       const creado = await admin
         .from('catalogo_materiales')
-        .select('id, padre_id, unidad_base, ancho_mm, largo_mm, costo_vigente, costo_confirmado_por')
+        .select('id, padre_id, unidad_base, ancho_mm, largo_mm, costo_vigente')
         .eq('codigo', codigoMaterial)
         .single();
       expect(creado.error).toBeNull();
@@ -158,12 +156,26 @@ test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', (
         unidad_base: 'kg',
         ancho_mm: 1219.2,
         largo_mm: 2438.4,
-        costo_vigente: 12.5,
+        costo_vigente: null,
       });
-      expect(creado.data?.costo_confirmado_por).toBeTruthy();
       materialId = creado.data!.id;
 
+      // El alta ya no captura costo: cada espesor es un material y su precio
+      // se confirma desde la fila con «Costo manual».
       const filaMaterial = page.getByTestId(`fila-material-${codigoMaterial}`);
+      await filaMaterial.getByRole('button', { name: 'Costo manual' }).click();
+      await page.locator('#costo-manual').fill('12.5');
+      await page.getByRole('button', { name: 'Confirmar costo' }).click();
+      await expect(page.locator('#costo-manual')).toHaveCount(0);
+      const conCosto = await admin
+        .from('catalogo_materiales')
+        .select('costo_vigente, costo_confirmado_por')
+        .eq('id', materialId)
+        .single();
+      expect(conCosto.error).toBeNull();
+      expect(conCosto.data).toMatchObject({ costo_vigente: 12.5 });
+      expect(conCosto.data?.costo_confirmado_por).toBeTruthy();
+
       await expect(filaMaterial).toContainText('1,219.2 × 2,438.4 mm');
       await filaMaterial.getByRole('button', { name: `Editar Acero 1018 ${sufijo}` }).click();
       await expect(modal.getByLabel('Ancho (mm)')).toHaveValue('1219.2');
