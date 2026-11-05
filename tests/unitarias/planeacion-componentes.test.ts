@@ -66,7 +66,7 @@ import { usarTiendaPlaneacion } from '@/estado/uso-tienda-planeacion';
 import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-planeacion';
 import { AccionesTarjetaOrden } from '@/modulos/planeacion/componentes/acciones-tarjeta-orden';
 import { PanelBolsaPlaneacion } from '@/modulos/planeacion/componentes/panel-bolsa-planeacion';
-import { TarjetaProgramacionPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-programacion-planeacion';
+import { TarjetaOrdenPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-orden-planeacion';
 import type { CompatibilidadRecursosPlaneacion } from '@/modulos/planeacion/utilidades/compatibilidad';
 
 afterEach(() => cleanup());
@@ -256,7 +256,7 @@ describe('operación de Planeación en cliente', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
     fireEvent.change(screen.getByLabelText('Prioridad'), { target: { value: '0' } });
     fireEvent.click(screen.getByTestId('guardar-asignacion-planeacion'));
 
@@ -269,7 +269,7 @@ describe('operación de Planeación en cliente', () => {
     const invalidarSpy = vi.spyOn(cliente, 'invalidateQueries');
     renderizarOperacion(cliente);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
     fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
     fireEvent.change(screen.getByLabelText('Motivo de la reprogramación'), {
       target: { value: 'Cambio de capacidad' },
@@ -294,7 +294,7 @@ describe('operación de Planeación en cliente', () => {
     renderizarOperacion(cliente);
 
     expect(screen.queryByTestId('detalle-programacion-planeacion')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
 
     const detalle = await screen.findByTestId('detalle-programacion-planeacion');
     await waitFor(() => expect(obtenerDetalleMock).toHaveBeenCalledWith({
@@ -342,7 +342,7 @@ describe('operación de Planeación en cliente', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     renderizarOperacion(cliente);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
     const contenedor = await screen.findByTestId('detalle-programacion-planeacion');
     const alerta = await within(contenedor).findByRole('alert');
     expect(alerta.textContent).toContain('No se pudo cargar el detalle');
@@ -357,7 +357,7 @@ describe('operación de Planeación en cliente', () => {
     renderizarOperacion(cliente);
 
     expect(screen.queryByTestId('activar-preparacion-planeacion')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
     fireEvent.click(await screen.findByTestId('activar-preparacion-planeacion'));
 
     await waitFor(() => expect(activarPreparacionMock).toHaveBeenCalledTimes(1));
@@ -371,7 +371,7 @@ describe('operación de Planeación en cliente', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
 
     const desglose = await screen.findByTestId('desglose-partida-planeacion');
     expect(desglose.textContent).toContain('OP-000001 · PIEZA-E2E');
@@ -388,7 +388,7 @@ describe('operación de Planeación en cliente', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
     fireEvent.change(screen.getByLabelText('Fecha programada'), { target: { value: '2026-09-16' } });
 
     expect(await screen.findByTestId('aviso-capacidad-insuficiente')).toBeTruthy();
@@ -465,7 +465,7 @@ describe('operación de Planeación en cliente', () => {
     expect(tarjeta.getAttribute('draggable')).toBe('false');
     expect(screen.queryByRole('button', { name: 'Seleccionar' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }));
+    fireEvent.click(tarjeta);
 
     expect(await screen.findByTestId('panel-detalle-orden-concluida')).toBeTruthy();
     await waitFor(() => expect(obtenerDetalleConcluidaMock).toHaveBeenCalledWith({
@@ -658,58 +658,103 @@ describe('operación de Planeación en cliente', () => {
     expect(screen.getByTestId('vista-semana')).toBeTruthy();
   });
 
-  it('la tarjeta compacta muestra Ítem, procesos y horas (C9.1/P-04)', () => {
+  it('el calendario agrupa en una tarjeta los ítems de la misma orden', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const segunda = {
+      ...DATOS.programaciones[0],
+      id: '88888888-8888-4888-8888-888888888888',
+      partidaId: '99999999-9999-4999-8999-999999999999',
+      secuencia: 2,
+      operacionNombre: 'Corte',
+    };
+    renderizarOperacion(cliente, PARTIDAS_POR_DEFECTO, {
+      datosIniciales: { ...DATOS, programaciones: [DATOS.programaciones[0], segunda] },
+    });
+
+    const tarjeta = screen.getByTestId(`orden-planeacion-${DATOS.programaciones[0].ordenId}`);
+    expect(within(tarjeta).getAllByTestId(/^programacion-/u)).toHaveLength(2);
+    expect(within(tarjeta).getByText('2 ítems')).toBeTruthy();
+  });
+
+  it('agrupa los ítems de una misma orden en una sola tarjeta', () => {    const segunda = {
+      ...DATOS.programaciones[0],
+      id: '66666666-6666-4666-8666-666666666666',
+      partidaId: '77777777-7777-4777-8777-777777777777',
+      secuencia: 2,
+      operacionNombre: 'Corte',
+      horasEstimadas: 2,
+    };
     render(
-      createElement(TarjetaProgramacionPlaneacion, {
-        programacion: DATOS.programaciones[0],
-        desglose: DESGLOSE,
-        seleccionada: false,
+      createElement(TarjetaOrdenPlaneacion, {
+        items: [
+          { programacion: DATOS.programaciones[0], desglose: DESGLOSE },
+          { programacion: segunda, desglose: { ...DESGLOSE, codigoItem: 'ITM-000002' } },
+        ],
+        programacionSeleccionadaId: null,
         compacta: true,
       }),
     );
 
-    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    const tarjeta = screen.getByTestId(`orden-planeacion-${DATOS.programaciones[0].ordenId}`);
+    expect(within(tarjeta).getAllByTestId(/^programacion-/u)).toHaveLength(2);
+    expect(within(tarjeta).getByText('2 ítems')).toBeTruthy();
+    expect(within(tarjeta).getByText('OP-000001')).toBeTruthy();
+  });
+
+  it('la tarjeta de orden muestra Ítem, procesos y horas por ítem (C9.1/P-04)', () => {
+    render(
+      createElement(TarjetaOrdenPlaneacion, {
+        items: [{ programacion: DATOS.programaciones[0], desglose: DESGLOSE }],
+        programacionSeleccionadaId: null,
+        compacta: true,
+      }),
+    );
+
+    const tarjeta = screen.getByTestId(`orden-planeacion-${DATOS.programaciones[0].ordenId}`);
     expect(within(tarjeta).getByText('Ítem ITM-000001')).toBeTruthy();
-    expect(within(tarjeta).getByText('Procesos: Por definir')).toBeTruthy();
+    expect(within(tarjeta).getByText(/Procesos: Por definir/u)).toBeTruthy();
     expect(tarjeta.textContent).toContain('4 h');
   });
 
-  it('la tarjeta compacta muestra la operación programada del ruteo (P04)', () => {
+  it('la tarjeta de orden muestra la operación programada del ruteo (P04)', () => {
     render(
-      createElement(TarjetaProgramacionPlaneacion, {
-        programacion: {
-          ...DATOS.programaciones[0],
-          secuencia: 2,
-          operacionNombre: 'Corte',
-        },
-        desglose: DESGLOSE,
-        seleccionada: false,
+      createElement(TarjetaOrdenPlaneacion, {
+        items: [{
+          programacion: {
+            ...DATOS.programaciones[0],
+            secuencia: 2,
+            operacionNombre: 'Corte',
+          },
+          desglose: DESGLOSE,
+        }],
+        programacionSeleccionadaId: null,
         compacta: true,
       }),
     );
 
-    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
-    expect(within(tarjeta).getByText('Operación 2 · Corte')).toBeTruthy();
+    const tarjeta = screen.getByTestId(`orden-planeacion-${DATOS.programaciones[0].ordenId}`);
+    expect(within(tarjeta).getByText('2. Corte')).toBeTruthy();
+    expect(tarjeta.textContent).toContain('Ítem ITM-000001');
   });
 
   it('la tarjeta declara Ítem «Por definir», procesos capturados y ya no muestra Avance (C9.1)', () => {
     render(
-      createElement(TarjetaProgramacionPlaneacion, {
-        programacion: DATOS.programaciones[0],
-        desglose: { ...DESGLOSE, codigoItem: null, procesos: ['Corte', 'Doblez'] },
-        seleccionada: false,
+      createElement(TarjetaOrdenPlaneacion, {
+        items: [{
+          programacion: DATOS.programaciones[0],
+          desglose: { ...DESGLOSE, codigoItem: null, procesos: ['Corte', 'Doblez'] },
+        }],
+        programacionSeleccionadaId: null,
       }),
     );
 
-    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
-    const bloqueItem = within(tarjeta).getByText('Ítem').closest('div');
-    expect(bloqueItem?.textContent).toContain('Por definir');
+    const tarjeta = screen.getByTestId(`orden-planeacion-${DATOS.programaciones[0].ordenId}`);
+    expect(tarjeta.textContent).toContain('Ítem Por definir');
     expect(tarjeta.textContent).toContain('Corte · Doblez');
-    expect(tarjeta.textContent).toContain('Tiempo estimado');
     expect(tarjeta.textContent).not.toContain('Avance');
   });
 
-  it('la tarjeta sobrecargada muestra el semáforo «Sobrecargado» con horas (C9.1/P-03)', () => {
+  it('la tarjeta de orden sobrecargada muestra el semáforo «Sobrecargado» con horas (C9.1/P-03)', () => {
     const cargaSobrecargada: CargaCapacidadDiaria = {
       recursoId: '11111111-1111-4111-8111-111111111111',
       area: 'taller',
@@ -725,43 +770,43 @@ describe('operación de Planeación en cliente', () => {
     };
 
     render(
-      createElement(TarjetaProgramacionPlaneacion, {
-        programacion: DATOS.programaciones[0],
-        desglose: DESGLOSE,
-        carga: cargaSobrecargada,
-        recurso: DATOS.recursos[0],
-        seleccionada: false,
+      createElement(TarjetaOrdenPlaneacion, {
+        items: [{
+          programacion: DATOS.programaciones[0],
+          desglose: DESGLOSE,
+          carga: cargaSobrecargada,
+          recurso: DATOS.recursos[0],
+        }],
+        programacionSeleccionadaId: null,
       }),
     );
 
-    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    const tarjeta = screen.getByTestId(`orden-planeacion-${DATOS.programaciones[0].ordenId}`);
     const insignia = within(tarjeta).getByTestId('insignia-saturacion-sobrecargado');
     expect(insignia.textContent).toContain('Sobrecargado');
     expect(insignia.textContent).toContain('9/8 h');
     expect(insignia.getAttribute('aria-label')).toBe('Sobrecargado: 9/8 h');
   });
 
-  it('el título abre el resumen rápido sin seleccionar y «Abrir orden» navega a la ficha (C9.1/P-08)', async () => {
+  it('el título de la orden abre el resumen rápido sin seleccionar y «Abrir orden» navega a la ficha (C9.1/P-08)', async () => {
     const seleccionarMock = vi.fn();
     const programacion = DATOS.programaciones[0];
     render(
-      createElement(TarjetaProgramacionPlaneacion, {
-        programacion,
-        desglose: DESGLOSE,
-        seleccionada: false,
+      createElement(TarjetaOrdenPlaneacion, {
+        items: [{ programacion, desglose: DESGLOSE }],
+        programacionSeleccionadaId: null,
         onSeleccionar: seleccionarMock,
       }),
     );
 
-    const titulo = screen.getByTestId(`resumen-orden-${programacion.id}`);
-    expect(titulo.getAttribute('draggable')).toBe('false');
+    const titulo = screen.getByTestId(`resumen-orden-${programacion.ordenId}`);
     fireEvent.click(titulo);
 
     expect(seleccionarMock).not.toHaveBeenCalled();
     const dialogo = await screen.findByTestId('resumen-orden-planeacion');
     expect(dialogo.textContent).toContain('OP-000001');
 
-    fireEvent.click(screen.getByTestId(`abrir-orden-${programacion.id}`));
+    fireEvent.click(screen.getByTestId(`abrir-orden-${programacion.ordenId}`));
     expect(empujarRutaMock).toHaveBeenCalledWith(`/ordenes?ordenId=${programacion.ordenId}`);
   });
 
@@ -975,7 +1020,7 @@ describe('operación de Planeación en cliente', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
     fireEvent.change(screen.getByLabelText('Fecha programada'), {
       target: { value: '2026-10-05' },
     });
@@ -1000,7 +1045,7 @@ describe('operación de Planeación en cliente', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seleccionar' }));
+    fireEvent.click(screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`));
     fireEvent.change(screen.getByLabelText('Fecha programada'), {
       target: { value: '2026-09-16' },
     });

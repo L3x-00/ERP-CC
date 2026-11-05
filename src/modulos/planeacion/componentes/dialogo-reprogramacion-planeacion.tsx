@@ -210,9 +210,6 @@ export function DialogoReprogramacionPlaneacion({
               {buscando ? 'Buscando…' : 'Buscar hueco'}
             </Button>
           ) : null}
-          <Button type="button" variante="fantasma" onClick={onCerrar} disabled={enviando}>
-            Cancelar
-          </Button>
           <Button
             type="button"
             disabled={enviando || esMismoDia || motivo.trim().length < 3}

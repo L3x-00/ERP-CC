@@ -13,9 +13,10 @@ import {
   etiquetaDia,
 } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import {
-  TarjetaProgramacionPlaneacion,
+  TarjetaOrdenPlaneacion,
   TIPO_ARRASTRE_PROGRAMACION,
-} from '@/modulos/planeacion/componentes/tarjeta-programacion-planeacion';
+  type ItemOrdenPlaneacion,
+} from '@/modulos/planeacion/componentes/tarjeta-orden-planeacion';
 import { TarjetaCompromisoPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-compromiso-planeacion';
 
 /** Contrato común de las tres vistas del calendario de Planeación. */
@@ -81,24 +82,60 @@ function agruparCompromisosPorFecha(
   return porFecha;
 }
 
-function TarjetaConContexto({
-  programacion,
+/**
+ * Agrupa los ítems de una misma orden para pintar una sola tarjeta. Cada orden
+ * puede tener decenas de operaciones el mismo día; mostrarlas por separado
+ * satura el calendario y hace creer que son órdenes distintas.
+ */
+function agruparPorOrden(
+  programaciones: readonly ProgramacionArea[],
+): ProgramacionArea[][] {
+  const porOrden = new Map<string, ProgramacionArea[]>();
+  for (const programacion of programaciones) {
+    const lista = porOrden.get(programacion.ordenId) ?? [];
+    lista.push(programacion);
+    porOrden.set(programacion.ordenId, lista);
+  }
+  return [...porOrden.values()].map((items) => ordenarItemsDeOrden(items));
+}
+
+/** Dentro de la orden manda la secuencia del ruteo; luego turno y recurso. */
+function ordenarItemsDeOrden(items: ProgramacionArea[]): ProgramacionArea[] {
+  return [...items].sort((a, b) => {
+    if (a.secuencia !== b.secuencia) return a.secuencia - b.secuencia;
+    const turno = ORDEN_TURNOS.indexOf(a.turno) - ORDEN_TURNOS.indexOf(b.turno);
+    if (turno !== 0) return turno;
+    return a.recursoId < b.recursoId ? -1 : a.recursoId > b.recursoId ? 1 : 0;
+  });
+}
+
+function construirItemsOrden(
+  programaciones: readonly ProgramacionArea[],
+  props: PropsVistaCalendario,
+): ItemOrdenPlaneacion[] {
+  return programaciones.map((programacion) => ({
+    programacion,
+    recurso: props.recursosPorId.get(programacion.recursoId),
+    desglose: props.desglosePorPartidaId.get(programacion.partidaId),
+    carga: props.cargasPorClave.get(
+      `${programacion.recursoId}:${programacion.fechaProgramada}:${programacion.turno}`,
+    ),
+  }));
+}
+
+function TarjetaOrdenConContexto({
+  programaciones,
   props,
   compacta,
 }: {
-  programacion: ProgramacionArea;
+  programaciones: readonly ProgramacionArea[];
   props: PropsVistaCalendario;
   compacta: boolean;
 }) {
   return (
-    <TarjetaProgramacionPlaneacion
-      programacion={programacion}
-      recurso={props.recursosPorId.get(programacion.recursoId)}
-      desglose={props.desglosePorPartidaId.get(programacion.partidaId)}
-      carga={props.cargasPorClave.get(
-        `${programacion.recursoId}:${programacion.fechaProgramada}:${programacion.turno}`,
-      )}
-      seleccionada={programacion.id === props.programacionSeleccionadaId}
+    <TarjetaOrdenPlaneacion
+      items={construirItemsOrden(programaciones, props)}
+      programacionSeleccionadaId={props.programacionSeleccionadaId}
       compacta={compacta}
       arrastrable={props.onSolicitarReprogramacion !== undefined}
       onRefrescarOperacion={props.onRefrescarOperacion}
@@ -125,6 +162,7 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
   const programaciones = props.programaciones.filter(
     (programacion) => programacion.fechaProgramada === fecha,
   );
+  const grupos = agruparPorOrden(programaciones);
   const compromisos = (props.compromisos ?? []).filter(
     (compromiso) => compromiso.fechaCompromiso === fecha,
   );
@@ -141,7 +179,8 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium">{etiquetaDia(fecha)}</h3>
         <span className="text-xs text-texto-secundario">
-          {programaciones.length} programaciones
+          {grupos.length} {grupos.length === 1 ? 'orden' : 'órdenes'} · {programaciones.length}{' '}
+          {programaciones.length === 1 ? 'ítem' : 'ítems'}
           {compromisos.length > 0 ? ` · ${compromisos.length} por programar` : ''}
         </span>
       </header>
@@ -156,10 +195,10 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
               onProgramar={props.onProgramarCompromiso}
             />
           ))}
-          {programaciones.map((programacion) => (
-            <TarjetaConContexto
-              key={programacion.id}
-              programacion={programacion}
+          {grupos.map((items) => (
+            <TarjetaOrdenConContexto
+              key={items[0].ordenId}
+              programaciones={items}
               props={propsDia}
               compacta={false}
             />
@@ -180,6 +219,7 @@ export function VistaSemana(props: PropsVistaCalendario) {
       <div data-testid="vista-semana" className="grid min-w-[60rem] grid-cols-7 gap-2">
       {props.fechas.map((fecha) => {
         const programaciones = porFecha.get(fecha) ?? [];
+        const grupos = agruparPorOrden(programaciones);
         const compromisos = compromisosPorFecha.get(fecha) ?? [];
         return (
           <section
@@ -210,10 +250,10 @@ export function VistaSemana(props: PropsVistaCalendario) {
             {programaciones.length === 0 && compromisos.length === 0 ? (
               <p className="text-[11px] text-texto-secundario">Sin programaciones</p>
             ) : (
-              programaciones.map((programacion) => (
-                <TarjetaConContexto
-                  key={programacion.id}
-                  programacion={programacion}
+              grupos.map((items) => (
+                <TarjetaOrdenConContexto
+                  key={items[0].ordenId}
+                  programaciones={items}
                   props={props}
                   compacta
                 />
@@ -240,6 +280,7 @@ export function VistaMes(props: PropsVistaCalendario) {
     >
       {celdas.map(({ fecha, enRango }) => {
         const programaciones = enRango ? (porFecha.get(fecha) ?? []) : [];
+        const grupos = agruparPorOrden(programaciones);
         const compromisos = enRango ? (compromisosPorFecha.get(fecha) ?? []) : [];
         return (
           <section
@@ -275,12 +316,13 @@ export function VistaMes(props: PropsVistaCalendario) {
             {programaciones.length > 0 ? (
               <>
                 <span className="text-[11px] text-texto-secundario">
-                  {programaciones.length} prog.
+                  {grupos.length} {grupos.length === 1 ? 'orden' : 'órdenes'} ·{' '}
+                  {programaciones.length} ítems
                 </span>
-                {programaciones.map((programacion) => (
-                  <TarjetaConContexto
-                    key={programacion.id}
-                    programacion={programacion}
+                {grupos.map((items) => (
+                  <TarjetaOrdenConContexto
+                    key={items[0].ordenId}
+                    programaciones={items}
                     props={props}
                     compacta
                   />

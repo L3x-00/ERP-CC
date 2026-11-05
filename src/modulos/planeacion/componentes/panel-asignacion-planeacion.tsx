@@ -111,7 +111,6 @@ export interface PropsPanelAsignacionPlaneacion {
   verificandoCapacidad?: boolean;
   onEnviar: (datos: DatosAsignacionPlaneacion) => Promise<ResultadoAsignacionPlaneacion>;
   onActivarPreparacion?: () => Promise<ResultadoAsignacionPlaneacion>;
-  onCancelar?: () => void;
   /** Busca el siguiente día hábil con capacidad comprobada (OBS-19). */
   onProponerHueco?: (entrada: EntradaProponerHueco) => Promise<ResultadoProponerHueco>;
   /** C9.2/P09: notifica la fecha capturada para consultar capacidad fuera del rango. */
@@ -151,7 +150,6 @@ export function PanelAsignacionPlaneacion({
   verificandoCapacidad = false,
   onEnviar,
   onActivarPreparacion,
-  onCancelar,
   onProponerHueco,
   onCambiarFecha,
   onActualizarDatos,
@@ -1053,11 +1051,6 @@ export function PanelAsignacionPlaneacion({
             data-testid="activar-preparacion-planeacion"
           >
             {preparando ? 'Activando…' : 'Iniciar preparación'}
-          </Button>
-        ) : null}
-        {onCancelar ? (
-          <Button type="button" variante="contorno" onClick={onCancelar} disabled={enviando || preparando}>
-            Cancelar
           </Button>
         ) : null}
       </div>

@@ -289,7 +289,7 @@ export function CalendarioPlaneacion({
               ? 'No se pudo actualizar el calendario'
               : actualizando
                 ? 'Actualizando…'
-                : `${visibles.length} programaciones${compromisosVisibles.length > 0 ? ` · ${compromisosVisibles.length} por programar` : ''} · ${rangoEfectivo.fechaInicio} a ${rangoEfectivo.fechaFin}`}
+                : `${visibles.length} ítems${compromisosVisibles.length > 0 ? ` · ${compromisosVisibles.length} por programar` : ''} · ${rangoEfectivo.fechaInicio} a ${rangoEfectivo.fechaFin}`}
           </p>
         </div>
         {onProgramar ? (
