@@ -505,6 +505,11 @@ function SeccionProcesos(props: PropsSeccion) {
           <p className="text-sm font-semibold text-texto-primario sm:col-span-3">
             {editando.id ? 'Editar proceso' : 'Nuevo proceso'}
           </p>
+          <p className="text-xs text-texto-secundario sm:col-span-3">
+            Un proceso es una operación del taller (corte, doblado, soldadura…). Llena los campos
+            obligatorios: código, nombre y prefijo de corrida. Los demás son opcionales y solo
+            ayudan a ordenar la planeación y el trabajo en piso.
+          </p>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
             Código
             <Input
@@ -517,6 +522,9 @@ function SeccionProcesos(props: PropsSeccion) {
               required
               data-testid="catalogo-proceso-codigo"
             />
+            <span className="text-xs font-normal">
+              Clave única del proceso. Ejemplo: CORTE_LASER.
+            </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
             Nombre
@@ -530,6 +538,9 @@ function SeccionProcesos(props: PropsSeccion) {
               required
               data-testid="catalogo-proceso-nombre"
             />
+            <span className="text-xs font-normal">
+              Nombre que verá el equipo en planeación y en piso. Ejemplo: Corte láser.
+            </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
             Prefijo de corrida
@@ -546,6 +557,9 @@ function SeccionProcesos(props: PropsSeccion) {
               required
               data-testid="catalogo-proceso-prefijo"
             />
+            <span className="text-xs font-normal">
+              De 2 a 4 letras que identifican las corridas de este proceso. Ejemplo: LAS.
+            </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
             Grupo planeado
@@ -564,6 +578,9 @@ function SeccionProcesos(props: PropsSeccion) {
                 </option>
               ))}
             </Select>
+            <span className="text-xs font-normal">
+              Etapa macro donde se agrupa el proceso al planear. Opcional.
+            </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
             Grupo de equipo
@@ -582,6 +599,9 @@ function SeccionProcesos(props: PropsSeccion) {
                 </option>
               ))}
             </Select>
+            <span className="text-xs font-normal">
+              Familia de máquinas o recursos que ejecutan el proceso. Opcional.
+            </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
             Área de trabajo
@@ -600,6 +620,9 @@ function SeccionProcesos(props: PropsSeccion) {
                 </option>
               ))}
             </Select>
+            <span className="text-xs font-normal">
+              Área física del taller donde ocurre el proceso. Opcional.
+            </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
             Inspección de lote
@@ -617,37 +640,50 @@ function SeccionProcesos(props: PropsSeccion) {
               <option value="20">Cada 20 piezas</option>
               <option value="">No configurada</option>
             </Select>
+            <span className="text-xs font-normal">
+              Cada cuántas piezas se revisa la calidad durante el lote. Opcional.
+            </span>
           </label>
-          <label className="flex items-center gap-2 text-xs font-medium text-texto-secundario">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-acento"
-              checked={editando.requiereArchivoTecnico}
-              onChange={(evento) =>
-                setEditando((actual) =>
-                  actual ? { ...actual, requiereArchivoTecnico: evento.target.checked } : actual,
-                )
-              }
-              disabled={!puedeEditar}
-              data-testid="catalogo-proceso-archivo-tecnico"
-            />
-            Exige archivo técnico (LISTO)
-          </label>
-          <label className="flex items-center gap-2 text-xs font-medium text-texto-secundario">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-acento"
-              checked={editando.requierePrimeraPieza}
-              onChange={(evento) =>
-                setEditando((actual) =>
-                  actual ? { ...actual, requierePrimeraPieza: evento.target.checked } : actual,
-                )
-              }
-              disabled={!puedeEditar}
-              data-testid="catalogo-proceso-primera-pieza"
-            />
-            Exige primera pieza
-          </label>
+          <div className="grid gap-1">
+            <label className="flex items-center gap-2 text-xs font-medium text-texto-secundario">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-acento"
+                checked={editando.requiereArchivoTecnico}
+                onChange={(evento) =>
+                  setEditando((actual) =>
+                    actual ? { ...actual, requiereArchivoTecnico: evento.target.checked } : actual,
+                  )
+                }
+                disabled={!puedeEditar}
+                data-testid="catalogo-proceso-archivo-tecnico"
+              />
+              Exige archivo técnico (LISTO)
+            </label>
+            <p className="text-xs text-texto-secundario">
+              Si lo marcas, el operador no podrá iniciar hasta que el plano esté marcado como LISTO.
+            </p>
+          </div>
+          <div className="grid gap-1">
+            <label className="flex items-center gap-2 text-xs font-medium text-texto-secundario">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-acento"
+                checked={editando.requierePrimeraPieza}
+                onChange={(evento) =>
+                  setEditando((actual) =>
+                    actual ? { ...actual, requierePrimeraPieza: evento.target.checked } : actual,
+                  )
+                }
+                disabled={!puedeEditar}
+                data-testid="catalogo-proceso-primera-pieza"
+              />
+              Exige primera pieza
+            </label>
+            <p className="text-xs text-texto-secundario">
+              Si lo marcas, se libera la primera pieza antes de producir el resto del lote.
+            </p>
+          </div>
           <label className="flex items-center gap-2 text-xs font-medium text-texto-secundario">
             <input
               type="checkbox"

@@ -470,14 +470,14 @@ export function PaginaMiPanelOperador({
           <div>
             <p className="text-xs text-texto-secundario">Producidas</p>
             <p className="font-semibold tabular-nums text-texto-primario">
-              {proceso.hechoPiezas} / {proceso.metaPiezas}
+              {Math.round(proceso.hechoPiezas)} / {Math.round(proceso.metaPiezas)}
             </p>
           </div>
 
           <div>
             <p className="text-xs text-texto-secundario">Pendientes</p>
             <p className="font-semibold tabular-nums text-texto-primario">
-              {proceso.pendientePiezas}
+              {Math.round(proceso.pendientePiezas)}
             </p>
           </div>
         </div>
@@ -486,7 +486,7 @@ export function PaginaMiPanelOperador({
           <div className="flex items-center justify-between text-xs text-texto-secundario">
             <span>Avance del proceso</span>
             <span className="font-semibold tabular-nums">
-              {proceso.porcentaje}%
+              {Math.round(proceso.porcentaje)}%
             </span>
           </div>
 

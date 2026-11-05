@@ -140,15 +140,15 @@ export function PanelCalidadProduccion({
                 </div>
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-texto-tenue">Buenas</dt>
-                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadOk, 3)}</dd>
+                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadOk, 0)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-texto-tenue">Con defecto</dt>
-                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadNok, 3)}</dd>
+                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadNok, 0)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-texto-tenue">Retrabajo</dt>
-                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadRetrabajo, 3)}</dd>
+                  <dd className="text-texto-primario">{formatearNumero(seleccionada.cantidadRetrabajo, 0)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-texto-tenue">Lote / partida</dt>

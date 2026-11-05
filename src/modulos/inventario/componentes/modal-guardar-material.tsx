@@ -16,48 +16,21 @@ import { Label } from '@/compartido/componentes/ui/label';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 
 import { usarMutacionesCostosMateriales } from '../hooks/usar-mutaciones-costos-materiales';
-import type { MaterialCosto, MonedaCosto } from '../tipos/materiales-costos';
+import type { MaterialCosto } from '../tipos/materiales-costos';
 import { interpretarDimensionMm } from '../utilidades/materiales-costos';
-
-/** Fila editable de espesor dentro del modal (mm como texto para el input). */
-type FilaEspesor = {
-  clave: string;
-  id?: string;
-  etiqueta: string;
-  espesorMm: string;
-  activo: boolean;
-  orden: string;
-};
-
-function nuevaClave(): string {
-  return Math.random().toString(36).slice(2);
-}
-
-function hoy(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /** Texto del input de una dimensión opcional: vacío si el material no la tiene. */
 function textoDimension(valor: number | null | undefined): string {
   return typeof valor === 'number' ? String(valor) : '';
 }
 
-function filaDesdeMaterial(material: MaterialCosto, indice: number): FilaEspesor {
-  return {
-    clave: nuevaClave(),
-    id: material.espesores[indice]?.id,
-    etiqueta: material.espesores[indice]?.etiqueta ?? '',
-    espesorMm: String(material.espesores[indice]?.espesorMm ?? ''),
-    activo: material.espesores[indice]?.activo ?? true,
-    orden: String(material.espesores[indice]?.orden ?? 0),
-  };
-}
-
 /**
- * Obs. cliente 2026-10-13 (8): «Nuevo material» / «Editar» en Materiales y
- * costos —código, nombre, grupo, unidad, espesores y (solo alta) costo inicial
- * vía confirmación—. Mismas tablas y versionado del catálogo; los espesores
- * existentes se desactivan, nunca se borran.
+ * Alta/edición de material en «Materiales y costos».
+ *
+ * Un material representa UNA medida del catálogo: código, nombre, espesor,
+ * grupo, unidad y dimensiones. El costo no se captura aquí porque cada
+ * espesor es un material independiente y su precio se confirma con «Costo
+ * manual» en la tabla (así no se comparten precios entre espesores).
  */
 export function ModalGuardarMaterial({
   material,
@@ -68,7 +41,8 @@ export function ModalGuardarMaterial({
   materiales: readonly MaterialCosto[];
   onCerrar: () => void;
 }) {
-  const { guardarMaterial, confirmarCosto } = usarMutacionesCostosMateriales();
+  const { guardarMaterial } = usarMutacionesCostosMateriales();
+  const primerEspesor = material?.espesores[0];
   const [codigo, setCodigo] = useState(material?.codigo ?? '');
   const [nombre, setNombre] = useState(material?.nombre ?? '');
   const [unidadBase, setUnidadBase] = useState(material?.unidadBase ?? '');
@@ -77,31 +51,20 @@ export function ModalGuardarMaterial({
   const [padreId, setPadreId] = useState(material?.padreId ?? '');
   const [activo, setActivo] = useState(material?.activo ?? true);
   const [orden, setOrden] = useState(String(material?.orden ?? 0));
-  const [espesores, setEspesores] = useState<FilaEspesor[]>(
-    material ? material.espesores.map((_, indice) => filaDesdeMaterial(material, indice)) : [],
+  const [espesorEtiqueta, setEspesorEtiqueta] = useState(primerEspesor?.etiqueta ?? '');
+  const [espesorMm, setEspesorMm] = useState(
+    typeof primerEspesor?.espesorMm === 'number' ? String(primerEspesor.espesorMm) : '',
   );
-  const [costoInicial, setCostoInicial] = useState('');
-  const [moneda, setMoneda] = useState<MonedaCosto>(material?.monedaCosto ?? 'MXN');
-  const [fechaEfectiva, setFechaEfectiva] = useState(hoy());
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
-  // Alta parcial: si el material quedó guardado y el costo no se confirmó, el
-  // reintento actualiza ese mismo material en vez de crear otro.
-  const [guardado, setGuardado] = useState<{ id: string; actualizadoEn: string } | null>(null);
 
-  const materialId = material?.id ?? guardado?.id ?? null;
+  const materialId = material?.id ?? null;
   const tieneHijos = material
     ? materiales.some((candidato) => candidato.padreId === material.id)
     : false;
   const opcionesGrupo = materiales.filter(
     (candidato) => candidato.padreId === null && candidato.id !== materialId,
   );
-
-  function actualizarFila(clave: string, parcial: Partial<FilaEspesor>): void {
-    setEspesores((filas) =>
-      filas.map((fila) => (fila.clave === clave ? { ...fila, ...parcial } : fila)),
-    );
-  }
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -129,14 +92,18 @@ export function ModalGuardarMaterial({
       setMensaje(largo.error);
       return;
     }
-    if (espesores.some((fila) => !fila.etiqueta.trim() || !(Number(fila.espesorMm) > 0))) {
-      setMensaje('Revisa la etiqueta y los mm de cada espesor');
+    const etiqueta = espesorEtiqueta.trim();
+    const mm = Number(espesorMm);
+    if (etiqueta === '' && espesorMm.trim() === '') {
+      // Sin espesor: válido para materiales que no se miden por calibre.
+    } else if (etiqueta === '' || !(mm > 0)) {
+      setMensaje('Completa la etiqueta y los mm del espesor, o deja ambos vacíos');
       return;
     }
 
     setGuardando(true);
     try {
-      const resultado = await guardarMaterial.mutateAsync({
+      await guardarMaterial.mutateAsync({
         ...(materialId ? { id: materialId } : {}),
         codigo: codigo.trim().toUpperCase(),
         nombre: nombre.trim(),
@@ -147,50 +114,19 @@ export function ModalGuardarMaterial({
         padreId: padreId || null,
         activo,
         orden: Number(orden) || 0,
-        espesores: espesores.map((fila) => ({
-          ...(fila.id ? { id: fila.id } : {}),
-          etiqueta: fila.etiqueta.trim(),
-          espesorMm: Number(fila.espesorMm),
-          activo: fila.activo,
-          orden: Number(fila.orden) || 0,
-        })),
+        espesores:
+          etiqueta === ''
+            ? []
+            : [
+                {
+                  ...(primerEspesor?.id ? { id: primerEspesor.id } : {}),
+                  etiqueta,
+                  espesorMm: mm,
+                  activo,
+                  orden: 0,
+                },
+              ],
       });
-      if (!resultado) {
-        setMensaje('No se pudo guardar el material');
-        return;
-      }
-      setGuardado(resultado);
-
-      // El costo inicial (solo alta) se confirma con la acción de costos (DC-13)
-      // usando el token CAS recién devuelto; un fallo no pierde el material.
-      if (!material && costoInicial.trim() !== '') {
-        const costoNumero = Number(costoInicial);
-        if (!Number.isFinite(costoNumero) || costoNumero < 0) {
-          setMensaje(
-            'Material guardado; el costo inicial no es válido. Confírmalo desde «Costo manual».',
-          );
-          return;
-        }
-        try {
-          await confirmarCosto.mutateAsync({
-            materialId: resultado.id,
-            costo: costoNumero,
-            moneda,
-            fechaEfectiva,
-            fuente: 'MANUAL',
-            referencia: null,
-            propuestaId: null,
-            actualizadoEn: resultado.actualizadoEn,
-          });
-        } catch (error) {
-          setMensaje(
-            `Material guardado, pero no se confirmó el costo: ${
-              error instanceof Error ? error.message : 'error'
-            }. Guarda de nuevo para reintentar.`,
-          );
-          return;
-        }
-      }
       onCerrar();
     } catch (error) {
       setMensaje(error instanceof Error ? error.message : 'No se pudo guardar el material');
@@ -209,8 +145,9 @@ export function ModalGuardarMaterial({
         <DialogHeader>
           <DialogTitle>{material ? `Editar material ${material.codigo}` : 'Nuevo material'}</DialogTitle>
           <DialogDescription>
-            Código, nombre, grupo y unidad forman el catálogo que consumen RFQ, propuesta y orden.
-            Los espesores existentes se desactivan, nunca se eliminan.
+            Cada material es una sola medida del catálogo: código, nombre, espesor, grupo, unidad y
+            dimensiones. Para láminas del mismo tipo con distinto calibre, crea un material por
+            espesor (por ejemplo, CRS-18 y CRS-16): así cada uno conserva su propio precio.
           </DialogDescription>
         </DialogHeader>
 
@@ -222,8 +159,12 @@ export function ModalGuardarMaterial({
               value={codigo}
               onChange={(evento) => setCodigo(evento.target.value.toUpperCase())}
               maxLength={49}
+              placeholder="CRS-18"
               required
             />
+            <span className="text-xs text-texto-secundario">
+              Identificador único. Si cambia el espesor, usa otro código.
+            </span>
           </div>
           <div className="flex flex-col gap-1">
             <Label htmlFor="material-catalogo-nombre">Nombre</Label>
@@ -232,9 +173,44 @@ export function ModalGuardarMaterial({
               value={nombre}
               onChange={(evento) => setNombre(evento.target.value)}
               maxLength={120}
+              placeholder="Acero al carbón cal 18"
               required
             />
+            <span className="text-xs text-texto-secundario">
+              Descripción legible que verá el operador y el cliente.
+            </span>
           </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="material-catalogo-espesor-etiqueta">Espesor</Label>
+            <Input
+              id="material-catalogo-espesor-etiqueta"
+              value={espesorEtiqueta}
+              onChange={(evento) => setEspesorEtiqueta(evento.target.value)}
+              maxLength={40}
+              placeholder='p. ej. cal 18, 2 mm, 1/8"'
+            />
+            <span className="text-xs text-texto-secundario">
+              Opcional. Etiqueta con la que se reconoce el calibre.
+            </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="material-catalogo-espesor-mm">Espesor en mm</Label>
+            <Input
+              id="material-catalogo-espesor-mm"
+              type="number"
+              inputMode="decimal"
+              min={0.001}
+              step={0.001}
+              value={espesorMm}
+              onChange={(evento) => setEspesorMm(evento.target.value)}
+              placeholder="2"
+            />
+            <span className="text-xs text-texto-secundario">
+              Opcional. Medida real del espesor en milímetros.
+            </span>
+          </div>
+
           <div className="flex flex-col gap-1">
             <Label htmlFor="material-catalogo-grupo">Grupo (opcional)</Label>
             <Select
@@ -253,7 +229,7 @@ export function ModalGuardarMaterial({
             <span className="text-xs text-texto-secundario">
               {tieneHijos
                 ? 'Este material tiene subítems: no puede agruparse en otro.'
-                : 'Solo dos niveles: un grupo con subítems no se agrupa.'}
+                : 'Sirve para agrupar variantes del mismo material. Solo dos niveles.'}
             </span>
           </div>
           <div className="flex flex-col gap-1">
@@ -276,7 +252,11 @@ export function ModalGuardarMaterial({
               <option value="barra" />
               <option value="rollo" />
             </datalist>
+            <span className="text-xs text-texto-secundario">
+              Unidad en la que se compra y consume el material.
+            </span>
           </div>
+
           <div className="flex flex-col gap-1">
             <Label htmlFor="material-catalogo-ancho">Ancho (mm)</Label>
             <Input
@@ -288,7 +268,7 @@ export function ModalGuardarMaterial({
               step={0.001}
               value={anchoMm}
               onChange={(evento) => setAnchoMm(evento.target.value)}
-              placeholder="Sin ancho"
+              placeholder="1220"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -302,12 +282,14 @@ export function ModalGuardarMaterial({
               step={0.001}
               value={largoMm}
               onChange={(evento) => setLargoMm(evento.target.value)}
-              placeholder="Sin largo"
+              placeholder="2440"
             />
           </div>
           <p className="text-xs text-texto-secundario sm:col-span-2">
-            Dimensiones opcionales del material (hasta 3 decimales). Déjalas vacías si no aplican.
+            Ancho y largo son opcionales (hasta 3 decimales). Déjalos vacíos si el material no se
+            vende por medida.
           </p>
+
           <div className="flex items-end gap-4">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -332,133 +314,10 @@ export function ModalGuardarMaterial({
             </div>
           </div>
 
-          <fieldset className="flex flex-col gap-2 rounded-lg border border-borde p-3 sm:col-span-2">
-            <legend className="px-1 text-sm font-semibold">Espesores</legend>
-            {espesores.length === 0 && (
-              <p className="text-xs text-texto-secundario">
-                Sin espesores. Agrega los que apliquen a este material.
-              </p>
-            )}
-            {espesores.map((fila, indice) => (
-              <div
-                key={fila.clave}
-                className="grid items-end gap-2 sm:grid-cols-[1fr_140px_auto_auto]"
-              >
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`espesor-etiqueta-${fila.clave}`}>
-                    {indice === 0 ? 'Etiqueta' : '\u00A0'}
-                  </Label>
-                  <Input
-                    id={`espesor-etiqueta-${fila.clave}`}
-                    value={fila.etiqueta}
-                    onChange={(evento) =>
-                      actualizarFila(fila.clave, { etiqueta: evento.target.value })
-                    }
-                    maxLength={40}
-                    placeholder='p. ej. 3 mm o 1/8"'
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor={`espesor-mm-${fila.clave}`}>mm</Label>
-                  <Input
-                    id={`espesor-mm-${fila.clave}`}
-                    type="number"
-                    min={0.001}
-                    step={0.001}
-                    value={fila.espesorMm}
-                    onChange={(evento) =>
-                      actualizarFila(fila.clave, { espesorMm: evento.target.value })
-                    }
-                  />
-                </div>
-                <label className="flex items-center gap-2 pb-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-acento"
-                    checked={fila.activo}
-                    onChange={(evento) =>
-                      actualizarFila(fila.clave, { activo: evento.target.checked })
-                    }
-                  />
-                  Activo
-                </label>
-                {!fila.id && (
-                  <Button
-                    type="button"
-                    variante="fantasma"
-                    tamano="sm"
-                    className="mb-1"
-                    onClick={() =>
-                      setEspesores((filas) => filas.filter((otra) => otra.clave !== fila.clave))
-                    }
-                  >
-                    Quitar
-                  </Button>
-                )}
-              </div>
-            ))}
-            <Button
-              type="button"
-              variante="contorno"
-              tamano="sm"
-              className="self-start"
-              onClick={() =>
-                setEspesores((filas) => [
-                  ...filas,
-                  { clave: nuevaClave(), etiqueta: '', espesorMm: '', activo: true, orden: '0' },
-                ])
-              }
-            >
-              Agregar espesor
-            </Button>
-          </fieldset>
-
-          {!material && (
-            <fieldset className="grid gap-3 rounded-lg border border-borde p-3 sm:col-span-2 sm:grid-cols-3">
-              <legend className="px-1 text-sm font-semibold">Costo inicial (opcional)</legend>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="material-catalogo-costo">Costo</Label>
-                <Input
-                  id="material-catalogo-costo"
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={costoInicial}
-                  onChange={(evento) => setCostoInicial(evento.target.value)}
-                  placeholder="Sin costo"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="material-catalogo-moneda">Moneda</Label>
-                <Select
-                  id="material-catalogo-moneda"
-                  value={moneda}
-                  onChange={(evento) => setMoneda(evento.target.value as MonedaCosto)}
-                >
-                  <option value="MXN">MXN</option>
-                  <option value="USD">USD</option>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="material-catalogo-fecha">Vigente desde</Label>
-                <Input
-                  id="material-catalogo-fecha"
-                  type="date"
-                  value={fechaEfectiva}
-                  onChange={(evento) => setFechaEfectiva(evento.target.value)}
-                />
-              </div>
-              <p className="text-xs text-texto-secundario sm:col-span-3">
-                El costo se confirma con la acción autorizada de costos (DC-13) al guardar; luego
-                puedes proponer compras/gastos o fijarlo manualmente.
-              </p>
-            </fieldset>
-          )}
-
           {material && material.costoVigente !== null && (
             <p className="text-xs text-texto-secundario sm:col-span-2">
-              Costo vigente actual: {formatearMoneda(material.costoVigente, material.monedaCosto, 4)}.
-              Para cambiarlo usa «Costo manual» o «Proponer».
+              Costo vigente de este material: {formatearMoneda(material.costoVigente, material.monedaCosto, 4)}.
+              Para cambiarlo usa «Costo manual» o «Proponer» en la tabla.
             </p>
           )}
 

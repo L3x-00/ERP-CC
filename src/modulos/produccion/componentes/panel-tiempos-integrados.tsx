@@ -71,7 +71,7 @@ export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccio
                 {items.map((item) => (
                   <li key={item.partidaId}>
                     {item.codigoPieza}:{' '}
-                    <strong>{formatearNumero(item.piezas, 3)}</strong> piezas ·{' '}
+                    <strong>{formatearNumero(item.piezas, 0)}</strong> piezas ·{' '}
                     {formatearNumero(item.minutos, 0)} min
                   </li>
                 ))}

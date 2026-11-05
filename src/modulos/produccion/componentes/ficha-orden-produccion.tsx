@@ -29,7 +29,7 @@ function fecha(valor: string | null | undefined): string {
 }
 
 function numero(valor: number): string {
-  return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(valor);
+  return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }).format(valor);
 }
 
 function materialTexto(partida: PartidaTableroProduccion): string {

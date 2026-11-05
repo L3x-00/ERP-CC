@@ -47,7 +47,7 @@ describe('esquemas de Producción', () => {
   it('acepta un cierre final con consumo y PIN de confirmación válidos', () => {
     const resultado = esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
-      piezasProducidas: 2.5,
+      piezasProducidas: 2,
       estadoDestino: 'finalizada',
       notas: 'Piezas inspeccionadas',
       pinConfirmacion: '4826',
@@ -59,6 +59,22 @@ describe('esquemas de Producción', () => {
     });
 
     expect(resultado.success).toBe(true);
+  });
+
+  it('rechaza piezas fraccionarias: la producción se cuenta en piezas enteras', () => {
+    const resultado = esquemaCerrarSesion.safeParse({
+      sesionId: uuidSesion,
+      piezasProducidas: 2.5,
+      estadoDestino: 'finalizada',
+      pinConfirmacion: '4826',
+      consumo: {
+        materialId: uuidMaterial,
+        cantidadUsada: 2,
+        cantidadScrap: 0.5,
+      },
+    });
+
+    expect(resultado.success).toBe(false);
   });
 
   it('exige consumo al finalizar, pero no al pausar', () => {

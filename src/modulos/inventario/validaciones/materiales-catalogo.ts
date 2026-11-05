@@ -10,10 +10,11 @@ const escalaCuatroDecimales = (valor: number): boolean =>
 const ordenCatalogo = z.number().int().min(0).max(99_999);
 
 /**
- * Obs. cliente 2026-10-13 (8): alta/edición de material desde «Materiales y
- * costos» —código, nombre, grupo (padre), unidad base y espesores—. El costo
- * inicial no viaja aquí: se confirma con la RPC de costos (DC-13) después de
- * guardar, con el token CAS que devuelve esta acción.
+ * Alta/edición de material desde «Materiales y costos» —código, nombre,
+ * espesor, grupo (padre), unidad base y dimensiones—. Un material representa
+ * una sola medida, por lo que se admite como máximo un espesor: así cada
+ * calibre tiene su propio costo. El costo no viaja aquí; se confirma con la
+ * RPC de costos (DC-13) desde «Costo manual».
  */
 export const esquemaGuardarMaterialInventario = z
   .object({
@@ -47,7 +48,7 @@ export const esquemaGuardarMaterialInventario = z
           })
           .strict(),
       )
-      .max(50, 'Máximo 50 espesores por material')
+      .max(1, 'Cada material admite un solo espesor')
       .default([]),
   })
   .strict();

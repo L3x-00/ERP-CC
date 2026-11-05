@@ -194,7 +194,7 @@ export function HistorialSesionesProduccion({ orden, responsables, soloLectura =
                       {formatearNumero(sesion.horasNetas)} h
                     </td>
                     <td className="whitespace-nowrap py-2 pr-3 text-right tabular-nums">
-                      {formatearNumero(sesion.piezasProducidas)}
+                      {formatearNumero(sesion.piezasProducidas, 0)}
                     </td>
                     <td className="whitespace-nowrap py-2 pr-3 text-xs">
                       <span className={sesion.estadoSesion === 'activa'
@@ -257,7 +257,7 @@ export function HistorialSesionesProduccion({ orden, responsables, soloLectura =
                 </div>
                 <div>
                   <dt className="text-xs text-texto-secundario">Piezas</dt>
-                  <dd className="font-medium tabular-nums">{formatearNumero(sesionAbierta.piezasProducidas)}</dd>
+                  <dd className="font-medium tabular-nums">{formatearNumero(sesionAbierta.piezasProducidas, 0)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-texto-secundario">Archivos</dt>

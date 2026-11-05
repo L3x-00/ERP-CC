@@ -291,6 +291,11 @@ export function DetalleProcesoOperador({
       setMensaje({ exito: false, error: 'El PIN debe tener entre 4 y 6 dígitos' });
       return;
     }
+    const piezasCapturadas = Number(piezas);
+    if (!Number.isInteger(piezasCapturadas) || piezasCapturadas < 0) {
+      setMensaje({ exito: false, error: 'Las piezas producidas deben ser un número entero' });
+      return;
+    }
     const usada = Number(cantidadUsada);
     const merma = Number(cantidadMerma);
     const materialSeleccionado = materiales.find((material) => material.id === materialId) ?? null;
@@ -362,6 +367,17 @@ export function DetalleProcesoOperador({
       const minutosValidos = itemsCorrida.every(
         (item) => Number(minutosPorItem[item.partidaId] ?? '0') > 0,
       );
+      const piezasValidas = itemsCorrida.every((item) => {
+        const cantidad = Number(piezasPorItem[item.partidaId] ?? '0');
+        return Number.isInteger(cantidad) && cantidad >= 0;
+      });
+      if (!piezasValidas) {
+        setMensaje({
+          exito: false,
+          error: 'Las piezas de cada ítem deben ser un número entero',
+        });
+        return;
+      }
       if (!minutosValidos || piezasTotales <= 0) {
         setMensaje({
           exito: false,
@@ -999,7 +1015,8 @@ export function DetalleProcesoOperador({
                     Piezas producidas
                     <Input
                       min="0"
-                      step="0.001"
+                      step="1"
+                      inputMode="numeric"
                       type="number"
                       value={piezas}
                       onChange={(evento) => setPiezas(evento.target.value)}
@@ -1155,7 +1172,7 @@ export function DetalleProcesoOperador({
                                     {item.codigoPieza}
                                     {item.disponible !== null ? (
                                       <span className="block text-xs font-normal text-texto-tenue">
-                                        disponible {formatearNumero(item.disponible, 3)}
+                                        disponible {formatearNumero(item.disponible, 0)}
                                       </span>
                                     ) : null}
                                   </span>
@@ -1164,7 +1181,8 @@ export function DetalleProcesoOperador({
                                     <Input
                                       type="number"
                                       min="0"
-                                      step="0.001"
+                                      step="1"
+                                      inputMode="numeric"
                                       value={piezasPorItem[item.partidaId] ?? '0'}
                                       onChange={(evento) => setPiezasPorItem((actual) => ({
                                         ...actual,
@@ -1494,7 +1512,7 @@ export function DetalleProcesoOperador({
 
   const anuncioResumenCierre = resumenCierre ? (
     <p className="sr-only" role="status" data-testid="resumen-cierre-registrado">
-      Sesión finalizada: {formatearNumero(resumenCierre.resultado.piezasProducidas, 3)} {proceso.unidadMedida},
+      Sesión finalizada: {formatearNumero(resumenCierre.resultado.piezasProducidas, 0)} piezas,
       {' '}{horasLegibles(resumenCierre.resultado.horasNetas)} netas y material registrado.
     </p>
   ) : null;
@@ -1521,7 +1539,7 @@ export function DetalleProcesoOperador({
         <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2 p-3">
           <Dato
             etiqueta="Piezas producidas"
-            valor={`${formatearNumero(resumenCierre.resultado.piezasProducidas, 3)} ${proceso.unidadMedida}`}
+            valor={`${formatearNumero(resumenCierre.resultado.piezasProducidas, 0)} piezas`}
           />
           <Dato
             etiqueta="Tiempo neto"
