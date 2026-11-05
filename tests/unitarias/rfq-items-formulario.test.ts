@@ -9,6 +9,10 @@ import type { Rfq } from '@/modulos/rfq/tipos/indice';
 
 const { guardarItemMock } = vi.hoisted(() => ({ guardarItemMock: vi.fn() }));
 
+vi.mock('next/link', () => ({
+  default: ({ href, children, ...resto }: { href: string; children: React.ReactNode }) =>
+    createElement('a', { href, ...resto }, children),
+}));
 vi.mock('@/modulos/rfq/acciones/guardar-item-rfq', () => ({
   guardarItemRfqAccion: (...args: unknown[]) => guardarItemMock(...args),
 }));
@@ -89,6 +93,7 @@ describe('Formulario de ítem RFQ — relación Material/Espesor (C1.3)', () => 
     const espesor = screen.getByRole('combobox', { name: 'Espesor' }) as HTMLSelectElement;
     expect(espesor.disabled).toBe(true);
     expect(screen.getByText('Selecciona un material para ver sus espesores.')).toBeDefined();
+    expect(screen.queryByTestId('aviso-sin-procesos')).toBeNull();
 
     fireEvent.change(material, { target: { value: MATERIAL_SIN_ESPESOR } });
     expect((screen.getByRole('combobox', { name: 'Espesor' }) as HTMLSelectElement).disabled).toBe(true);
@@ -131,5 +136,57 @@ describe('Formulario de ítem RFQ — relación Material/Espesor (C1.3)', () => 
 
     fireEvent.click(screen.getByLabelText('Acabado'));
     expect(screen.queryByLabelText('Detalles del acabado')).toBeNull();
+  });
+});
+
+describe('Formulario de ítem RFQ — catálogo de procesos vacío', () => {
+  const SIN_PROCESOS: CatalogosRfq = { ...CATALOGOS, procesos: [] };
+
+  it('explica que las operaciones se configuran en Catálogos base y enlaza si tiene acceso', () => {
+    render(
+      createElement(TablaItemsRfq, {
+        rfq: RFQ,
+        catalogos: { ...SIN_PROCESOS, puedeConfigurarProcesos: true, puedeEditarProcesos: true },
+        onCambio: vi.fn(),
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ítem' }));
+
+    const aviso = screen.getByTestId('aviso-sin-procesos');
+    expect(aviso.textContent).toContain('Aún no hay procesos activos en el catálogo');
+    expect(aviso.textContent).toContain('Configuración → Catálogos base → Procesos');
+    expect(screen.getByRole('link', { name: 'Abrir Configuración' }).getAttribute('href'))
+      .toBe('/configuracion?pestana=catalogos-base');
+    expect(screen.queryByText('Falta al menos una operación solicitada.')).toBeNull();
+  });
+
+  it('un vendedor sin acceso a Configuración solo ve la instrucción de pedir apoyo', () => {
+    render(
+      createElement(TablaItemsRfq, {
+        rfq: RFQ,
+        catalogos: { ...SIN_PROCESOS, puedeConfigurarProcesos: false },
+        onCambio: vi.fn(),
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ítem' }));
+
+    const aviso = screen.getByTestId('aviso-sin-procesos');
+    expect(aviso.textContent).toContain('Solicita a un administrador');
+    expect(screen.queryByRole('link', { name: 'Abrir Configuración' })).toBeNull();
+  });
+
+  it('con acceso de solo consulta indica que un administrador debe editar el catálogo', () => {
+    render(
+      createElement(TablaItemsRfq, {
+        rfq: RFQ,
+        catalogos: { ...SIN_PROCESOS, puedeConfigurarProcesos: true, puedeEditarProcesos: false },
+        onCambio: vi.fn(),
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar ítem' }));
+
+    const aviso = screen.getByTestId('aviso-sin-procesos');
+    expect(aviso.textContent).toContain('acceso de consulta');
+    expect(screen.getByRole('link', { name: 'Abrir Configuración' })).toBeDefined();
   });
 });
