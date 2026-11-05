@@ -214,7 +214,7 @@ describe('DetalleProcesoOperador', () => {
     });
 
     expect((await screen.findByTestId('resumen-cierre-registrado')).textContent).toContain(
-      'Sesión finalizada: 3.000 piezas, 1 h netas y material registrado.',
+      'Sesión finalizada: 3 piezas, 1 h netas y material registrado.',
     );
   });
 

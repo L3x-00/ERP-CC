@@ -64,7 +64,7 @@ export function TablaMaterialesCostos({
             <TablaEncabezadoCelda>Nombre</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Unidad</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Ancho × largo</TablaEncabezadoCelda>
-            <TablaEncabezadoCelda>Espesores</TablaEncabezadoCelda>
+            <TablaEncabezadoCelda>Espesor</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Costo vigente</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Vigente desde</TablaEncabezadoCelda>
             <TablaEncabezadoCelda>Confirmó</TablaEncabezadoCelda>
@@ -108,7 +108,12 @@ export function TablaMaterialesCostos({
                 {material.espesores.length === 0
                   ? '—'
                   : material.espesores
-                      .map((espesor) => espesor.etiqueta + (espesor.activo ? '' : ' (inactivo)'))
+                      .map(
+                        (espesor) =>
+                          `${espesor.etiqueta} · ${espesor.espesorMm} mm${
+                            espesor.activo ? '' : ' (inactivo)'
+                          }`,
+                      )
                       .join(', ')}
               </TablaCelda>
               <TablaCelda className="tabular-nums">

@@ -304,7 +304,7 @@ describe('Obs. 8 — ModalGuardarMaterial', () => {
     mutacionesMock.confirmarCosto.mutateAsync.mockResolvedValue({});
   });
 
-  it('en alta envía el material con espesores y confirma el costo inicial', async () => {
+  it('en alta envía una sola medida y no captura costo', async () => {
     const onCerrar = vi.fn();
     render(
       envolver(
@@ -318,11 +318,11 @@ describe('Obs. 8 — ModalGuardarMaterial', () => {
 
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'aceroc_1018' } });
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Acero 1018' } });
+    fireEvent.change(screen.getByLabelText('Espesor'), { target: { value: '5 mm' } });
+    fireEvent.change(screen.getByLabelText('Espesor en mm'), { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText('Unidad base'), { target: { value: 'kg' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar espesor' }));
-    fireEvent.change(screen.getByLabelText('Etiqueta'), { target: { value: '5 mm' } });
-    fireEvent.change(screen.getByLabelText('mm'), { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText('Costo'), { target: { value: '12.5' } });
+    fireEvent.change(screen.getByLabelText('Ancho (mm)'), { target: { value: '1220' } });
+    fireEvent.change(screen.getByLabelText('Largo (mm)'), { target: { value: '2440' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear material' }));
 
     await waitFor(() => {
@@ -332,22 +332,19 @@ describe('Obs. 8 — ModalGuardarMaterial', () => {
           nombre: 'Acero 1018',
           unidadBase: 'kg',
           padreId: null,
+          anchoMm: 1220,
+          largoMm: 2440,
           espesores: [expect.objectContaining({ etiqueta: '5 mm', espesorMm: 5 })],
         }),
       );
     });
-    expect(mutacionesMock.confirmarCosto.mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        materialId: MATERIAL_ID,
-        costo: 12.5,
-        fuente: 'MANUAL',
-        actualizadoEn: '2026-10-13T10:00:00+00:00',
-      }),
-    );
+    // Cada espesor es un material con su propio precio: el alta no confirma costo.
+    expect(screen.queryByLabelText('Costo')).toBeNull();
+    expect(mutacionesMock.confirmarCosto.mutateAsync).not.toHaveBeenCalled();
     await waitFor(() => expect(onCerrar).toHaveBeenCalled());
   });
 
-  it('en edición no ofrece costo inicial y conserva los espesores con su estado', async () => {
+  it('en edición muestra el espesor existente sin costo ni lista de espesores', async () => {
     const editado = material({
       id: MATERIAL_ID,
       padreId: null,
@@ -366,9 +363,10 @@ describe('Obs. 8 — ModalGuardarMaterial', () => {
 
     expect(screen.getByLabelText('Código')).toHaveProperty('value', 'ACERO');
     expect(screen.queryByLabelText('Costo')).toBeNull();
-    // Un espesor persistido no se quita de la lista (se desactiva).
+    expect(screen.queryByRole('button', { name: 'Agregar espesor' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Quitar' })).toBeNull();
-    expect(screen.getByLabelText('Etiqueta')).toHaveProperty('value', '6 mm');
+    expect(screen.getByLabelText('Espesor')).toHaveProperty('value', '6 mm');
+    expect(screen.getByLabelText('Espesor en mm')).toHaveProperty('value', '6');
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
     await waitFor(() => {

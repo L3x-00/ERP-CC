@@ -239,6 +239,11 @@ export function PanelOperadorProduccion({
   async function cerrar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (!sesionActiva) return;
+    const piezas = Number(piezasProducidas);
+    if (!Number.isInteger(piezas) || piezas < 0) {
+      setMensaje({ texto: 'Las piezas producidas deben ser un número entero.', tipo: 'error' });
+      return;
+    }
     const usada = Number(cantidadUsada);
     const merma = Number(cantidadMerma);
     if (
@@ -547,7 +552,8 @@ export function PanelOperadorProduccion({
             <Input
               className="min-h-11"
               min="0"
-              step="0.001"
+              step="1"
+              inputMode="numeric"
               type="number"
               value={piezasProducidas}
               onChange={(evento) => setPiezasProducidas(evento.target.value)}
@@ -565,8 +571,8 @@ export function PanelOperadorProduccion({
               >
                 {metasSesion.map((meta) => (
                   <option key={meta.id} value={meta.id}>
-                    {meta.nombre} · {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
-                    {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
+                    {meta.nombre} · {formatearNumero(meta.hechoPiezas, 0)}/{formatearNumero(meta.metaPiezas, 0)}
+                    {' · '}{formatearNumero(meta.pendientePiezas, 0)} pend · {Math.round(meta.porcentaje)}%
                   </option>
                 ))}
               </Select>
@@ -897,7 +903,7 @@ export function PanelOperadorProduccion({
           {ultimaPausa ? <div className="grid max-h-[45vh] min-h-0 shrink gap-1 overflow-y-auto pr-1 text-sm">
             <p>Operador: {responsables[ultimaPausa.sesion.operadorId] ?? 'Operador histórico'}</p>
             <p>Horario: {formatearFecha(ultimaPausa.sesion.fechaInicio)} · {formatearHora(ultimaPausa.sesion.fechaInicio)}–{ultimaPausa.sesion.fechaFin ? formatearHora(ultimaPausa.sesion.fechaFin) : 'sin cierre'}</p>
-            <p>Partida: {ultimaPausa.partida.codigoPieza} · {formatearNumero(ultimaPausa.sesion.piezasProducidas)} piezas · {formatearNumero(ultimaPausa.sesion.horasNetas)} h netas</p>
+            <p>Partida: {ultimaPausa.partida.codigoPieza} · {formatearNumero(ultimaPausa.sesion.piezasProducidas, 0)} piezas · {formatearNumero(ultimaPausa.sesion.horasNetas)} h netas</p>
             {ultimaPausa.sesion.motivoPausaCodigo
               ? <p>Motivo: {motivosPausa.find((motivo) => motivo.codigo === ultimaPausa.sesion.motivoPausaCodigo)?.nombre
                 ?? ultimaPausa.sesion.motivoPausaCodigo}</p>
@@ -925,7 +931,7 @@ export function PanelOperadorProduccion({
           </DialogHeader>
           {resumenCierre ? (
             <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2 p-3 text-sm">
-              <div><dt className="text-texto-secundario">Piezas producidas</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.piezasProducidas, 3)}</dd></div>
+              <div><dt className="text-texto-secundario">Piezas producidas</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.piezasProducidas, 0)}</dd></div>
               <div><dt className="text-texto-secundario">Tiempo neto</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.horasNetas, 2)} h</dd></div>
               <div><dt className="text-texto-secundario">Resultado</dt><dd className="font-medium">Sesión finalizada</dd></div>
               <div><dt className="text-texto-secundario">Estado de orden</dt><dd className="font-medium">{resumenCierre.resultado.estadoOrden}</dd></div>

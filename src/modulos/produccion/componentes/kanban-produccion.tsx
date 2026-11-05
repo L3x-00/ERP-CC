@@ -253,10 +253,10 @@ export function KanbanProduccion({
                                 className="text-xs text-texto-secundario"
                                 data-testid={`avance-proceso-${partida.id}-${meta.secuencia}`}
                               >
-                                {meta.secuencia}. {meta.nombre}: {formatearNumero(meta.hechoPiezas)}/{formatearNumero(meta.metaPiezas)}
-                                {' · '}{formatearNumero(meta.pendientePiezas)} pend · {Math.round(meta.porcentaje)}%
+                                {meta.secuencia}. {meta.nombre}: {formatearNumero(meta.hechoPiezas, 0)}/{formatearNumero(meta.metaPiezas, 0)}
+                                {' · '}{formatearNumero(meta.pendientePiezas, 0)} pend · {Math.round(meta.porcentaje)}%
                                 {meta.disponiblePiezas !== null
-                                  ? ` · ${formatearNumero(meta.disponiblePiezas)} disp.`
+                                  ? ` · ${formatearNumero(meta.disponiblePiezas, 0)} disp.`
                                   : ''}
                               </p>
                             ))}

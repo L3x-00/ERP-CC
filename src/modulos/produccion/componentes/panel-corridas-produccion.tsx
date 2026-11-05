@@ -279,7 +279,7 @@ export function PanelCorridasProduccion({
                     <span className="font-mono">{item.codigoItem}</span>
                     {' · '}{item.partidaCodigo}
                     {' · '}{formatearNumero(item.cantidad)} en corrida
-                    {' · '}producidas {formatearNumero(item.cantidadProducida)}/{formatearNumero(item.cantidadSolicitada)}
+                    {' · '}producidas {formatearNumero(item.cantidadProducida, 0)}/{formatearNumero(item.cantidadSolicitada, 0)}
                   </li>
                 ))}
               </ul>
@@ -332,7 +332,7 @@ export function PanelCorridasProduccion({
                   {partida.codigoPieza}
                 </span>
                 <span className="text-xs text-texto-secundario">
-                  {pendiente > 0 ? `${formatearNumero(pendiente)} pend` : 'sin pendiente'}
+                  {pendiente > 0 ? `${formatearNumero(pendiente, 0)} pend` : 'sin pendiente'}
                   {!compatible ? ' · incompatible con el proceso' : ''}
                 </span>
               </label>

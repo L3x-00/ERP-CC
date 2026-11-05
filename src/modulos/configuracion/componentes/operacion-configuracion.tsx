@@ -15,7 +15,6 @@ import { PestanaEmpresa } from './pestana-empresa';
 import { PestanaFolios } from './pestana-folios';
 import { PestanaPlantillasDoc } from './pestana-plantillas-doc';
 import { PestanaOperadores } from './pestana-operadores';
-import { TablaLogs } from '@/modulos/auditoria/componentes/tabla-logs';
 import { PestanaTarifas } from './pestana-tarifas';
 import { SincronizadorConfiguracionRealtime } from './sincronizador-configuracion-realtime';
 import { PestanaPermisos } from '@/modulos/permisos/componentes/pestana-permisos';
@@ -38,12 +37,11 @@ const PESTANAS = [
   ['usuarios', 'Usuarios'],
   ['permisos', 'Permisos'],
   ['operadores', 'Operadores'],
-  ['bitacora', 'Bitácora'],
 ] as const;
 type Pestana = (typeof PESTANAS)[number][0];
 
 /** Pestañas visibles solo para administradores activos. */
-const PESTANAS_SOLO_ADMIN: readonly Pestana[] = ['usuarios', 'permisos', 'operadores', 'bitacora'];
+const PESTANAS_SOLO_ADMIN: readonly Pestana[] = ['usuarios', 'permisos', 'operadores'];
 
 const CLAVE_PERMISOS_CATALOGOS = ['catalogos-base', 'permisos-pestana'] as const;
 
@@ -228,7 +226,6 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         ) : null}
         {pestana === 'usuarios' && vigente.esAdmin ? <PestanaUsuarios /> : null}
         {pestana === 'permisos' && vigente.esAdmin ? <PestanaPermisos /> : null}
-        {pestana === 'bitacora' && vigente.esAdmin ? <TablaLogs /> : null}
       </section>
       {confirmacion ? (
         <p role="status" data-testid="configuracion-confirmacion" className="text-sm text-exito-texto">

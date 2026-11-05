@@ -93,13 +93,6 @@ export const MODULOS_NAVEGACION: readonly ModuloNavegacion[] = [
     permisos: ['ver_finanzas', 'gestionar_produccion'],
   },
   {
-    href: '/actividad',
-    etiqueta: 'Actividad',
-    grupo: 'Sistema',
-    icono: 'documento',
-    permisos: ['actividad_vista'],
-  },
-  {
     href: '/configuracion',
     etiqueta: 'Configuración',
     grupo: 'Sistema',

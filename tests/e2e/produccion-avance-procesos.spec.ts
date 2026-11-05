@@ -297,8 +297,8 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     const tarjeta = page.getByTestId(`tarjeta-produccion-${caso.ordenId}`);
     await expect(tarjeta).toContainText('Bandeja');
     const bloqueProcesos = page.getByTestId(`avance-procesos-${caso.partidaId}`);
-    await expect(bloqueProcesos).toContainText('Corte: 0.00/10.00 · 10.00 pend · 0%');
-    await expect(bloqueProcesos).toContainText('Doblado: 0.00/10.00 · 10.00 pend · 0%');
+    await expect(bloqueProcesos).toContainText('Corte: 0/10 · 10 pend · 0%');
+    await expect(bloqueProcesos).toContainText('Doblado: 0/10 · 10 pend · 0%');
 
     // Sesión 1: Corte 4.
     await tarjeta.click();
@@ -314,7 +314,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
     await page.getByRole('button', { name: 'Entendido' }).click();
 
-    await expect(bloqueProcesos).toContainText('Corte: 4.00/10.00 · 6.00 pend · 40%');
+    await expect(bloqueProcesos).toContainText('Corte: 4/10 · 6 pend · 40%');
     await expect(tarjeta).toContainText('0/10 piezas');
     await expect(tarjeta).not.toContainText('Lista');
     await expect(tarjeta).toContainText('En proceso');
@@ -335,8 +335,8 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
     await page.getByRole('button', { name: 'Entendido' }).click();
 
-    await expect(bloqueProcesos).toContainText('Corte: 10.00/10.00 · 0.00 pend · 100%');
-    await expect(bloqueProcesos).toContainText('Doblado: 0.00/10.00 · 10.00 pend · 0%');
+    await expect(bloqueProcesos).toContainText('Corte: 10/10 · 0 pend · 100%');
+    await expect(bloqueProcesos).toContainText('Doblado: 0/10 · 10 pend · 0%');
     await expect(tarjeta).toContainText('0/10 piezas');
     await expect(tarjeta).not.toContainText('Lista');
 
@@ -353,7 +353,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
     await page.getByRole('button', { name: 'Entendido' }).click();
 
-    await expect(bloqueProcesos).toContainText('Doblado: 10.00/10.00 · 0.00 pend · 100%');
+    await expect(bloqueProcesos).toContainText('Doblado: 10/10 · 0 pend · 100%');
     await expect(tarjeta).toContainText('10/10 piezas');
     await expect(tarjeta).toContainText('Lista');
     if (process.env.E2E_CAPTURAR_VISUAL === 'si') {

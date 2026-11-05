@@ -152,13 +152,13 @@ export function DetalleOrdenConcluida({
           <div>
             <dt className="text-xs text-texto-secundario">Piezas producidas</dt>
             <dd className="font-mono text-lg font-semibold tabular-nums text-texto-primario">
-              {formatearNumero(totales.producidas)}/{formatearNumero(totales.solicitadas)}
+              {formatearNumero(totales.producidas, 0)}/{formatearNumero(totales.solicitadas, 0)}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-texto-secundario">Entregadas</dt>
             <dd className="font-mono text-lg font-semibold tabular-nums text-texto-primario">
-              {formatearNumero(totales.entregadas)}/{formatearNumero(totales.solicitadas)}
+              {formatearNumero(totales.entregadas, 0)}/{formatearNumero(totales.solicitadas, 0)}
             </dd>
           </div>
           <div>
@@ -288,7 +288,7 @@ export function DetalleOrdenConcluida({
               </h2>
               <p className="mt-1 text-sm text-texto-secundario">
                 {totales.pendientes > 0
-                  ? `Pendiente por entregar: ${formatearNumero(totales.pendientes)} piezas.`
+                  ? `Pendiente por entregar: ${formatearNumero(totales.pendientes, 0)} piezas.`
                   : 'La orden está entregada por completo.'}
               </p>
             </div>

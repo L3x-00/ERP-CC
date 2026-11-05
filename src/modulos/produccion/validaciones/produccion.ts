@@ -37,7 +37,10 @@ export const esquemaReanudarSesion = z.object({
 export const esquemaCerrarSesion = z
   .object({
     sesionId: z.uuid('ID de sesión inválido'),
-    piezasProducidas: z.number().min(0, 'Las piezas producidas no pueden ser negativas'),
+    piezasProducidas: z
+      .number()
+      .int('Las piezas producidas deben ser un número entero')
+      .min(0, 'Las piezas producidas no pueden ser negativas'),
     estadoDestino: z.enum(ESTADOS_DESTINO_SESION),
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
@@ -59,7 +62,10 @@ export const esquemaCerrarSesion = z
     /** C13.4: ítems de la corrida integrada con piezas y minutos propios. */
     itemsIntegrados: z.array(z.object({
       partidaId: z.uuid('ID de partida inválido'),
-      piezas: z.number().finite().min(0),
+      piezas: z
+        .number()
+        .int('Las piezas deben ser un número entero')
+        .min(0),
       minutos: z.number().finite().positive('Indica los minutos por ítem').max(1440),
     }).strict()).min(2, 'La corrida integrada requiere al menos dos ítems').max(10).optional(),
   })
@@ -96,7 +102,10 @@ export const esquemaCerrarSesion = z
 export const esquemaCerrarSesionSupervisor = z
   .object({
     sesionId: z.uuid('ID de sesión inválido'),
-    piezasProducidas: z.number().min(0, 'Las piezas producidas no pueden ser negativas'),
+    piezasProducidas: z
+      .number()
+      .int('Las piezas producidas deben ser un número entero')
+      .min(0, 'Las piezas producidas no pueden ser negativas'),
     estadoDestino: z.enum(ESTADOS_DESTINO_SESION),
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
