@@ -190,7 +190,7 @@ async function aplicarRangoRelativo(pagina: Page, rango: RangoSemanalRelativo): 
   const aviso = pagina.locator(
     'section[aria-labelledby="titulo-calendario-planeacion"] p[aria-live="polite"]',
   );
-  await expect(aviso).toContainText(/programaciones ·/);
+  await expect(aviso).toContainText(/ítems ·/);
   let aplicado = false;
   for (let intento = 0; intento < 3 && !aplicado; intento += 1) {
     await pagina.getByLabel('Fecha inicial').fill(rango.inicio);
