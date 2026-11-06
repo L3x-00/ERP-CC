@@ -21,33 +21,28 @@ import { PestanaPermisos } from '@/modulos/permisos/componentes/pestana-permisos
 import { PestanaUsuarios } from '@/modulos/permisos/componentes/pestana-usuarios';
 import { PestanaCatalogosBase } from './pestana-catalogos-base';
 import {
+  PESTANAS_CONFIGURACION,
+  type PestanaConfiguracion,
+} from './pestanas-configuracion';
+import {
   obtenerPermisosCatalogosAccion,
   type PermisosCatalogos,
 } from '@/modulos/catalogos/acciones/obtener-permisos-catalogos';
 
-const PESTANAS = [
-  ['empresa', 'Empresa'],
-  ['folios', 'Folios'],
-  ['tarifas', 'Tarifas / TC'],
-  ['catalogos', 'Catálogos'],
-  ['catalogos-base', 'Catálogos base'],
-  ['areas', 'Áreas de trabajo'],
-  ['cuentas', 'Cuentas bancarias'],
-  ['plantillas', 'Plantillas T1'],
-  ['usuarios', 'Usuarios'],
-  ['permisos', 'Permisos'],
-  ['operadores', 'Operadores'],
-] as const;
-type Pestana = (typeof PESTANAS)[number][0];
-
 /** Pestañas visibles solo para administradores activos. */
-const PESTANAS_SOLO_ADMIN: readonly Pestana[] = ['usuarios', 'permisos', 'operadores'];
+const PESTANAS_SOLO_ADMIN: readonly PestanaConfiguracion[] = ['usuarios', 'permisos', 'operadores'];
 
 const CLAVE_PERMISOS_CATALOGOS = ['catalogos-base', 'permisos-pestana'] as const;
 
-export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: DatosConfiguracion }) {
+export function OperacionConfiguracion({
+  datosIniciales,
+  pestanaInicial = 'empresa',
+}: {
+  datosIniciales: DatosConfiguracion;
+  pestanaInicial?: PestanaConfiguracion;
+}) {
   const clienteQuery = useQueryClient();
-  const [pestana, setPestana] = useState<Pestana>('empresa');
+  const [pestana, setPestana] = useState<PestanaConfiguracion>(pestanaInicial);
   // Confirmación a nivel de página: las pestañas se remontan (key por
   // `actualizadoEn`) cuando su sección cambia, así que un mensaje local se
   // perdería justo al guardar. Aquí sobrevive al remontaje y es el feedback
@@ -123,7 +118,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
     setConfirmacion('Áreas del operador guardadas');
   };
 
-  function cambiarPestana(id: Pestana): void {
+  function cambiarPestana(id: PestanaConfiguracion): void {
     setPestana(id);
     setConfirmacion(null);
   }
@@ -138,7 +133,7 @@ export function OperacionConfiguracion({ datosIniciales }: { datosIniciales: Dat
         </p>
       </header>
       <div role="tablist" aria-label="Secciones de configuración" className="flex flex-wrap gap-1 border-b border-borde">
-        {PESTANAS.filter(
+        {PESTANAS_CONFIGURACION.filter(
           ([id]) =>
             (!PESTANAS_SOLO_ADMIN.includes(id) || vigente.esAdmin)
             && (id !== 'catalogos-base' || puedeVerCatalogosBase),

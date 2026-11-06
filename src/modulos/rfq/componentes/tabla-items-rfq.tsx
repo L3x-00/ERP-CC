@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, type FormEvent } from 'react';
+import Link from 'next/link';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
@@ -126,6 +127,7 @@ export function TablaItemsRfq({
     (espesor) => espesor.materialId === (borrador?.materialId ?? ''),
   );
   const espesorObligatorio = espesoresDelMaterial.length > 0 || faltantesEditando.espesor;
+  const sinProcesosConfigurados = (catalogos?.procesos ?? []).length === 0;
   const requiereDetalleAcabado = Boolean(
     borrador &&
       catalogos?.procesos.some(
@@ -459,9 +461,11 @@ export function TablaItemsRfq({
                 )}
               </div>
               <fieldset
-                data-faltante={faltantesEditando.operaciones ? 'si' : 'no'}
+                data-faltante={
+                  !sinProcesosConfigurados && faltantesEditando.operaciones ? 'si' : 'no'
+                }
                 className={
-                  faltantesEditando.operaciones
+                  !sinProcesosConfigurados && faltantesEditando.operaciones
                     ? 'grid gap-1 rounded-md border border-peligro/40 bg-peligro-suave p-2'
                     : 'grid gap-1 rounded-md border border-borde p-2'
                 }
@@ -469,27 +473,61 @@ export function TablaItemsRfq({
                 <legend className={`px-1 text-sm font-medium ${CLASE_OBLIGATORIO}`}>
                   Operaciones solicitadas
                 </legend>
-                <div className="flex flex-wrap gap-2">
-                  {(catalogos?.procesos ?? []).map((proceso) => (
-                    <label
-                      key={proceso.id}
-                      className="flex items-center gap-1.5 text-sm"
-                      htmlFor={`item-proceso-${proceso.codigo}`}
-                    >
-                      <input
-                        id={`item-proceso-${proceso.codigo}`}
-                        type="checkbox"
-                        checked={borrador.procesoIds.includes(proceso.id)}
-                        onChange={() => alternarProceso(proceso.id)}
-                      />
-                      {proceso.nombre}
-                    </label>
-                  ))}
-                </div>
-                {faltantesEditando.operaciones && (
-                  <p className="text-xs font-medium text-peligro-texto">
-                    Falta al menos una operación solicitada.
-                  </p>
+                {sinProcesosConfigurados ? (
+                  <div
+                    role="status"
+                    data-testid="aviso-sin-procesos"
+                    className="grid gap-1 rounded-md bg-info-suave px-3 py-2 text-xs text-info-texto"
+                  >
+                    <p className="font-medium">Aún no hay procesos activos en el catálogo.</p>
+                    <p>
+                      Las operaciones que se pueden solicitar se crean en Configuración →
+                      Catálogos base → Procesos.
+                    </p>
+                    {catalogos?.puedeConfigurarProcesos ? (
+                      <p>
+                        {catalogos.puedeEditarProcesos === false
+                          ? 'Tienes acceso de consulta: pide a un administrador que cree o active el proceso. '
+                          : 'Abre Configuración y crea al menos un proceso activo. '}
+                        <Link
+                          href="/configuracion?pestana=catalogos-base"
+                          className="font-medium underline"
+                        >
+                          Abrir Configuración
+                        </Link>
+                      </p>
+                    ) : (
+                      <p>
+                        Solicita a un administrador que cree los procesos y, si vas a administrarlos,
+                        que te dé acceso a Configuración.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      {(catalogos?.procesos ?? []).map((proceso) => (
+                        <label
+                          key={proceso.id}
+                          className="flex items-center gap-1.5 text-sm"
+                          htmlFor={`item-proceso-${proceso.codigo}`}
+                        >
+                          <input
+                            id={`item-proceso-${proceso.codigo}`}
+                            type="checkbox"
+                            checked={borrador.procesoIds.includes(proceso.id)}
+                            onChange={() => alternarProceso(proceso.id)}
+                          />
+                          {proceso.nombre}
+                        </label>
+                      ))}
+                    </div>
+                    {faltantesEditando.operaciones && (
+                      <p className="text-xs font-medium text-peligro-texto">
+                        Falta al menos una operación solicitada.
+                      </p>
+                    )}
+                  </>
                 )}
               </fieldset>
               {requiereDetalleAcabado && (

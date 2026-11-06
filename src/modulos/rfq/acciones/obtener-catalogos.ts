@@ -29,6 +29,14 @@ export type CatalogosRfq = {
   canales: { codigo: string; nombre: string; esOtro: boolean; activo: boolean }[];
   proximasAcciones: { codigo: string; nombre: string; esOtro: boolean }[];
   usuarios: { id: string; nombre: string; rol: string }[];
+  /**
+   * El aviso de «sin procesos» puede enlazar a Configuración solo si el actor
+   * tiene acceso al módulo. Un vendedor sin `configuracion` ve una instrucción
+   * para pedir apoyo al administrador.
+   */
+  puedeConfigurarProcesos?: boolean;
+  /** Distingue acceso de solo lectura de edición de catálogos. */
+  puedeEditarProcesos?: boolean;
 };
 
 /**
@@ -45,6 +53,12 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
   }
 
   const admin = crearClienteSupabaseAdmin();
+  const [tieneAccesoConfiguracion, puedeVerProcesos, puedeEditarProcesos] = await Promise.all([
+    can(usuario, 'configuracion'),
+    can(usuario, 'catalogo_ver'),
+    can(usuario, 'catalogo_editar'),
+  ]);
+  const puedeConfigurarProcesos = tieneAccesoConfiguracion && (puedeVerProcesos || puedeEditarProcesos);
   const [materiales, espesores, procesos, canales, proximasAcciones, usuarios] = await Promise.all([
     admin
       .from('catalogo_materiales')
@@ -133,6 +147,8 @@ export async function obtenerCatalogosRfqAccion(): Promise<RespuestaAccion<Catal
         nombre: fila.nombre_completo,
         rol: fila.rol,
       })),
+      puedeConfigurarProcesos,
+      puedeEditarProcesos,
     },
   };
 }
