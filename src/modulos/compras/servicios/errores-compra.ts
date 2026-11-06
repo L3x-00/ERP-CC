@@ -24,5 +24,6 @@ export function traducirErrorCompra(mensaje: string, detalle?: string): string {
   if (codigo.includes('monto_excede_saldo')) return 'El pago excede el saldo pendiente';
   if (codigo.includes('cuenta_bancaria_no_disponible')) return 'La cuenta bancaria no está disponible para esa moneda';
   if (codigo.includes('datos_pago_compra_invalidos')) return 'Revisa los datos del pago';
+  if (codigo.includes('solicitud_pago_conflicto')) return 'Ese intento de pago ya se usó con otros datos; recarga e inténtalo de nuevo';
   return 'No se pudo completar la operación de compras';
 }

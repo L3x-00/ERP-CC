@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import {
@@ -399,25 +399,32 @@ function FormularioPago({ compra, onExito }: { compra: CompraCola; onExito: (tex
   const [resultado, setResultado] = useState<ResultadoPagarCompra | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // AUD-15: la misma clave sobrevive a un reintento del mismo intento de pago.
+  const solicitudId = useRef<string | null>(null);
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setOcupado(true);
     setError(null);
+    if (!solicitudId.current) solicitudId.current = crypto.randomUUID();
     const respuesta = await pagarCompraAccion({
       compraId: compra.id,
       monto: Number(monto),
       metodoPago: metodo,
       referencia: referencia.trim() === '' ? null : referencia.trim(),
+      solicitudId: solicitudId.current,
     });
     setOcupado(false);
     if (!respuesta.exito) {
       setError(respuesta.error);
       return;
     }
+    solicitudId.current = null;
     setResultado(respuesta.datos ?? null);
     onExito(
-      `Pago registrado; saldo ${formatearMoneda(respuesta.datos?.saldoPendiente ?? 0, compra.moneda as 'MXN' | 'USD')}${respuesta.datos?.estado === 'PAGADA' ? ' · compra PAGADA' : ''}.`,
+      respuesta.datos?.idempotente
+        ? `Ese pago ya estaba registrado; saldo ${formatearMoneda(respuesta.datos.saldoPendiente, compra.moneda as 'MXN' | 'USD')}.`
+        : `Pago registrado; saldo ${formatearMoneda(respuesta.datos?.saldoPendiente ?? 0, compra.moneda as 'MXN' | 'USD')}${respuesta.datos?.estado === 'PAGADA' ? ' · compra PAGADA' : ''}.`,
     );
   }
 
