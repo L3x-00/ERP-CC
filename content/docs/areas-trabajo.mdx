@@ -1,0 +1,86 @@
+---
+title: Áreas de trabajo
+description: Organiza las áreas, subáreas y procesos del taller, y asigna operadores.
+---
+
+
+## Para qué sirve
+
+Las **áreas de trabajo** representan los espacios físicos del taller y su organización interna. Sirven para:
+
+- Saber dónde ocurre cada proceso.
+- Agrupar subáreas dentro de un área principal.
+- Delimitar a qué áreas puede entrar cada operador.
+
+Ejemplos típicos: **Corte láser**, **Maquinado CNC**, **Doblez y formado**, **Soldadura**, **Acabado y pintura** y **Procesos externos**.
+
+> **Importante:** aquí no se capturan costos. El costo por hora se configura una sola vez en [Tarifas / TC](/es/docs/tarifas-tc). Esta pestaña solo organiza el taller.
+
+## Antes de empezar
+
+Haz una lista de los espacios reales de tu taller. Si un área tiene divisiones claras, créalas como subáreas. Ejemplo:
+
+- Área **Acabado y pintura**
+  - Subárea **Pintura electrostática**
+  - Subárea **Acabados especiales**
+
+## Paso a paso para crear un área
+
+1. Entra a **Configuración**.
+2. Abre la pestaña **Áreas de trabajo**.
+3. Haz clic en **Nueva área**.
+4. Completa el formulario de la derecha:
+
+   | Campo | Qué capturar | Ejemplo |
+   | --- | --- | --- |
+   | **Código** | Clave corta, en mayúsculas y sin espacios. | `ACAB` |
+   | **Nombre** | Nombre visible del área o subárea. | `Acabados especiales` |
+   | **Clasificación** | Elige **Área**, **Subárea** o **Proceso**. | `Subárea` |
+   | **Dentro de (opcional)** | Área que la contiene. Usa **Sin padre (raíz)** si es un área principal. | `Acabado y pintura` |
+   | **Área de Planeación (opcional)** | Cómo se agrupa en planeación. Puedes dejar **Heredar del padre**. | `Acabados` |
+   | **Color hexadecimal** | Color para identificarla visualmente. Es opcional. | `#22C55E` |
+   | **Orden** | Número para ordenar la lista. | `7` |
+   | **Capacidad externa** | Márcalo si el trabajo se hace con un proveedor externo. | Sin marcar |
+   | **Área activa** | Marcado para poder usarla. | Marcado |
+
+5. Haz clic en **Guardar área**.
+
+La pantalla con la lista y el formulario se ve así:
+
+![Pestaña Áreas de trabajo con la lista de áreas y el formulario Nueva área a la derecha](/manual/capturas/areas-trabajo.png)
+
+Este es el formulario con datos de ejemplo:
+
+![Formulario de área con código ACAB, nombre Acabados especiales, clasificación Subárea y padre Acabado y pintura](/manual/capturas/areas-formulario.png)
+
+## Asignar operadores a las áreas
+
+En la parte inferior de la pestaña está la sección **Operadores por área**.
+
+1. Localiza a cada operador.
+2. Marca las áreas, subáreas o procesos que puede atender.
+3. Haz clic en **Guardar áreas** en la tarjeta de ese operador.
+
+Reglas importantes:
+
+- Si un operador **no tiene ninguna marca**, no queda restringido: puede tomar trabajo de cualquier área.
+- Si tiene marcas, solo puede tomar trabajo de las áreas marcadas.
+- Los cambios se guardan por operador, no todos a la vez.
+
+## Cómo corregir un área
+
+- Haz clic en **Editar** en la fila del área.
+- Cambia los datos y vuelve a presionar **Guardar área**.
+- Para retirarla, desmarca **Área activa** y guarda. El historial se conserva.
+
+## Comprueba que quedó bien
+
+- [ ] El área aparece en la lista con la etiqueta **Activo**.
+- [ ] La clasificación corresponde: **Área** para el espacio principal, **Subárea** cuando está dentro de otra.
+- [ ] El área ya aparece en el selector **Área de trabajo** al crear un proceso.
+- [ ] Los operadores tienen marcadas exactamente las áreas que pueden atender.
+- [ ] Si marcaste **Capacidad externa**, el área representa trabajo de proveedor y no una máquina interna.
+
+## Qué sigue
+
+Con grupos y áreas listos, crea las operaciones en [Procesos](/es/docs/procesos).

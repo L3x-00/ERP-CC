@@ -1,0 +1,96 @@
+---
+title: Catálogos
+description: Configura los tiers de clientes y las categorías de gasto.
+---
+
+
+## Para qué sirve
+
+La pestaña **Catálogos** contiene dos listas comerciales:
+
+1. **Tiers comerciales:** niveles de cliente según su consumo, con un descuento informativo.
+2. **Categorías de gasto:** clasificaciones para registrar y filtrar los gastos de la empresa.
+
+Ambas listas se usan en otras partes del sistema, así que conviene dejarlas completas antes de operar.
+
+---
+
+## Tiers comerciales
+
+### Para qué sirve
+
+Un **tier** es un nivel de cliente. Se calcula con el consumo de los **últimos 3 meses** y sirve como referencia comercial. Los niveles son:
+
+- **Bronce**
+- **Plata**
+- **Oro**
+- **Platino**
+
+Cada nivel tiene dos datos:
+
+- **Umbral MXN:** cuánto debe consumir el cliente para alcanzar ese nivel.
+- **Descuento %:** descuento informativo asociado al nivel.
+
+> **Importante:** el descuento es informativo. No se aplica automáticamente a las cotizaciones; es una referencia para el equipo comercial.
+
+### Paso a paso
+
+1. Entra a **Configuración → Catálogos**.
+2. En **Tiers comerciales**, captura la **Vigencia del tier manual (días)**. Es el tiempo que dura un tier asignado a mano antes de volver a calcularse.
+3. Captura el **Umbral MXN** y el **Descuento %** de cada nivel.
+4. Haz clic en **Guardar tiers**.
+
+Ejemplo práctico con estos valores:
+
+| Nivel | Umbral MXN | Descuento % |
+| --- | --- | --- |
+| Bronce | 0 | 0 |
+| Plata | 50,000 | 3 |
+| Oro | 150,000 | 5 |
+| Platino | 300,000 | 8 |
+
+Un cliente que consumió **160,000 MXN** en los últimos 3 meses queda en **Oro**, porque superó el umbral de 150,000 pero no llegó a 300,000.
+
+### Comprueba los tiers
+
+- [ ] Los umbrales van de menor a mayor: Bronce, Plata, Oro, Platino.
+- [ ] Ningún descuento es mayor a 100%.
+- [ ] La vigencia del tier manual está en días y es mayor que cero.
+- [ ] Al recargar la página, los valores siguen guardados.
+
+---
+
+## Categorías de gasto
+
+### Para qué sirve
+
+Las categorías clasifican los gastos para poder registrarlos y filtrarlos. Ejemplos: materia prima, consumibles, herramienta, maquila externa, logística, nómina y mantenimiento.
+
+Los gastos históricos conservan su categoría aunque después la retires del catálogo.
+
+### Paso a paso
+
+1. En **Categorías de gasto**, revisa las categorías existentes.
+2. Para agregar una, escribe el nombre en **Nueva categoría** (por ejemplo, `acero_inoxidable`).
+3. Haz clic en **Agregar**. La categoría aparece como una etiqueta en la lista.
+4. Repite para las categorías que necesites.
+5. Haz clic en **Guardar categorías** para confirmar los cambios.
+
+Para quitar una categoría, haz clic en la **×** de su etiqueta y después en **Guardar categorías**.
+
+> **Cuidado:** **Agregar** solo la coloca en la lista de la pantalla. Si no presionas **Guardar categorías**, el cambio se pierde al salir.
+
+La pantalla completa se ve así:
+
+![Pestaña Catálogos con los tiers comerciales a la izquierda y las categorías de gasto a la derecha](/manual/capturas/catalogos.png)
+
+### Comprueba las categorías
+
+- [ ] Las categorías están escritas con el mismo estilo (minúsculas y guion bajo, por ejemplo).
+- [ ] No hay categorías duplicadas.
+- [ ] Después de **Guardar categorías**, recarga la página y confirma que siguen ahí.
+- [ ] Las categorías ya aparecen al registrar un gasto.
+
+## Qué sigue
+
+Define los costos y el tipo de cambio en [Tarifas / TC](/es/docs/tarifas-tc).

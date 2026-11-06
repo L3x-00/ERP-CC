@@ -1,0 +1,60 @@
+---
+title: Grupos planeados
+description: Crea las etapas generales que se usan para organizar la planeación.
+---
+
+
+## Para qué sirve
+
+Un **grupo planeado** es una etapa general del trabajo. Sirve para ordenar la planeación por grandes bloques, por ejemplo:
+
+- Corte
+- Formado
+- Soldadura
+- Acabado
+
+Los grupos planeados no son máquinas ni áreas físicas. Son la forma en que el sistema agrupa el trabajo cuando planeas la producción.
+
+## Antes de empezar
+
+Define las etapas que realmente usa tu taller. No crees etapas de más: si dos nombres significan lo mismo, usa uno solo.
+
+Ejemplo práctico: si tu taller corta la lámina, la dobla, la suelda y la pinta, los cuatro grupos del ejemplo son suficientes.
+
+## Paso a paso
+
+1. Entra a **Configuración**.
+2. Abre la pestaña **Catálogos base**.
+3. Busca la sección **Grupos planeados** y haz clic en su encabezado si está contraída.
+4. Haz clic en **Nuevo (grupos planeados)**.
+5. Completa el formulario:
+
+   | Campo | Qué capturar | Ejemplo |
+   | --- | --- | --- |
+   | **Código** | Una clave corta, en mayúsculas y sin espacios. | `CORTE` |
+   | **Nombre** | El nombre que verá el equipo. | `Corte` |
+   | **Orden** | Un número para ordenar la lista. | `1` |
+   | **Activo** | Déjalo marcado para que se pueda usar. | Marcado |
+
+6. Haz clic en **Crear**.
+
+La sección queda así:
+
+![Lista de grupos planeados con Corte, Formado, Soldadura y Acabado activos](/manual/capturas/grupos-planeados.png)
+
+## Cómo corregir o retirar un grupo
+
+- Los grupos planeados se pueden **desactivar** con el botón **Desactivar**.
+- Un grupo desactivado deja de ofrecerse en registros nuevos, pero permanece visible en el historial y en los registros que ya lo usaban.
+- Si un código quedó mal escrito, desactívalo y crea el correcto. No reutilices el código equivocado.
+
+## Comprueba que quedó bien
+
+- [ ] El grupo aparece en la lista con la etiqueta **Activo**.
+- [ ] El código está en mayúsculas y sin espacios.
+- [ ] El orden de la lista coincide con el orden real del proceso.
+- [ ] El grupo ya aparece en el selector **Grupo planeado** al crear un proceso.
+
+## Qué sigue
+
+Cuando tengas tus etapas, crea las familias de máquinas en [Grupos de equipo](/es/docs/grupos-equipo).

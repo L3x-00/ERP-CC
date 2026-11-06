@@ -1,0 +1,99 @@
+---
+title: Verificación final
+description: Confirma que toda la configuración quedó lista antes de operar.
+---
+
+
+## Para qué sirve
+
+Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, cada fila indica dónde corregirlo.
+
+## Lista de comprobación
+
+### Catálogos base
+
+- [ ] Hay al menos un **grupo planeado** activo por cada etapa del taller.
+- [ ] Hay al menos un **grupo de equipo** activo por cada familia de máquinas.
+- [ ] Cada **proceso** tiene código, nombre y prefijo de corrida.
+- [ ] Cada proceso tiene asignados su grupo planeado, su grupo de equipo y su área de trabajo.
+- [ ] Los controles de calidad (archivo técnico, primera pieza e inspección de lote) corresponden a la operación.
+- [ ] Hay **próximas acciones** suficientes para el seguimiento comercial.
+- [ ] Solo una próxima acción tiene habilitado el texto libre.
+- [ ] Hay **canales RFQ** para todos los medios de contacto reales.
+- [ ] Solo un canal exige detalle libre.
+- [ ] Los catálogos que ya no se usan están **desactivados**, no borrados.
+
+### Áreas de trabajo
+
+- [ ] Las áreas principales y sus subáreas están organizadas correctamente.
+- [ ] Cada área tiene un código único y un nombre claro.
+- [ ] Los operadores tienen marcadas las áreas que pueden atender.
+- [ ] Las áreas con trabajo de proveedor tienen marcada **Capacidad externa**.
+
+### Catálogos comerciales
+
+- [ ] Los umbrales de los tiers van de menor a mayor.
+- [ ] Los descuentos son porcentajes válidos.
+- [ ] La vigencia del tier manual está definida.
+- [ ] Las categorías de gasto no están duplicadas y se guardaron.
+
+### Tarifas / TC
+
+- [ ] El **Tipo de cambio vigente** está actualizado.
+- [ ] Cada estación tiene tarifa de máquina y de preparación.
+- [ ] Las tarifas de los grupos de equipo son las correctas.
+- [ ] Las máquinas con costo distinto tienen tarifa propia.
+- [ ] Los parámetros (eficiencia, merma, margen y utilidad objetivo) son los de tu operación.
+
+### Folios
+
+- [ ] El siguiente identificador CNC coincide con la secuencia esperada.
+- [ ] El siguiente folio por periodo coincide con el último documento emitido.
+- [ ] No se redujo ningún número ya reservado o emitido.
+
+### Plantillas T1
+
+- [ ] Los términos y condiciones están completos.
+- [ ] El encabezado y el pie tienen el texto correcto.
+- [ ] El color de acento corresponde a la marca.
+- [ ] Una propuesta de prueba se ve bien.
+
+## Problemas frecuentes
+
+| Síntoma | Causa probable | Dónde corregir |
+| --- | --- | --- |
+| Los campos están grises y no puedo guardar. | Tu usuario no tiene permiso de escritura. | Pide apoyo a la persona administradora. |
+| El selector **Grupo de equipo** está vacío. | No hay grupos de equipo activos. | [Grupos de equipo](/es/docs/grupos-equipo). |
+| El selector **Área de trabajo** está vacío o incompleto. | Faltan áreas o están inactivas. | [Áreas de trabajo](/es/docs/areas-trabajo). |
+| Una propuesta no toma la tarifa esperada. | El grupo o la estación no tienen tarifa, o la máquina tiene otra. | [Tarifas / TC](/es/docs/tarifas-tc). |
+| El sistema avisa que el tipo de cambio está desactualizado. | No se registró hoy o tiene más de 24 horas. | [Tarifas / TC](/es/docs/tarifas-tc). |
+| El siguiente folio no es el que esperaba. | La continuidad quedó en otro número. | [Folios](/es/docs/folios). |
+| La propuesta no muestra el color o los términos. | La plantilla no se guardó. | [Plantillas T1](/es/docs/plantillas-t1). |
+| Un proceso no aparece al registrar un RFQ. | Está inactivo. | [Procesos](/es/docs/procesos). |
+
+## Última comprobación
+
+Haz una prueba controlada:
+
+1. Abre el registro de un RFQ nuevo.
+2. Confirma que aparecen los **canales**, los **procesos** y las **próximas acciones** que configuraste.
+3. No guardes el RFQ si solo estás probando; cancela y sal.
+4. Abre **Tarifas / TC** y confirma que el tipo de cambio del encabezado coincide con el vigente.
+5. Abre **Folios** y confirma que el siguiente identificador es el esperado.
+
+Si todo coincide, la configuración está lista para operar.
+
+## Resumen del orden
+
+1. [Grupos planeados](/es/docs/grupos-planeados)
+2. [Grupos de equipo](/es/docs/grupos-equipo)
+3. [Áreas de trabajo](/es/docs/areas-trabajo)
+4. [Procesos](/es/docs/procesos)
+5. [Próximas acciones](/es/docs/proximas-acciones)
+6. [Canales RFQ](/es/docs/canales-rfq)
+7. [Catálogos](/es/docs/catalogos)
+8. [Tarifas / TC](/es/docs/tarifas-tc)
+9. [Folios](/es/docs/folios)
+10. [Plantillas T1](/es/docs/plantillas-t1)
+
+Ya puedes comenzar a operar con ORCA MFG ERP.

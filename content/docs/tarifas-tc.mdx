@@ -1,0 +1,149 @@
+---
+title: Tarifas / TC
+description: Define costos por hora, parámetros de costeo, tipo de cambio y tarifas del ruteo.
+---
+
+
+## Para qué sirve
+
+La pestaña **Tarifas / TC** concentra el dinero con el que el sistema calcula los costos:
+
+- El **tipo de cambio** entre dólares y pesos.
+- Los **parámetros generales** del cotizador.
+- Las **tarifas por estación** (corte láser, router, dobladora y fabricación).
+- Las **tarifas por grupo de equipo** y, si hace falta, por máquina.
+
+Es un solo tarifario. Las áreas de trabajo ya no guardan precios: todo el costo se define aquí.
+
+> **Importante:** si cambias una tarifa, las cotizaciones nuevas usan el nuevo valor. Las cotizaciones ya calculadas conservan las tarifas con las que se guardaron.
+
+## Antes de empezar
+
+Ten a la mano:
+
+- El tipo de cambio del día.
+- El costo por hora de cada estación.
+- Los tiempos y consumos que usa tu taller.
+
+Ya deben existir los [grupos de equipo](/es/docs/grupos-equipo); de lo contrario, el tarifario del ruteo aparecerá incompleto.
+
+## 1. Tipo de cambio y parámetros generales
+
+Al abrir la pestaña verás el **Tipo de cambio vigente** y la fecha de su última actualización. Si el sistema avisa que el tipo de cambio no está registrado para hoy o tiene más de 24 horas, revisa el valor antes de cotizar.
+
+Completa los campos:
+
+| Campo | Para qué sirve | Ejemplo |
+| --- | --- | --- |
+| **Costo por hora de respaldo (MXN)** | Solo se usa cuando una estación no tiene tarifa propia. | `680` |
+| **Segundos por pierce** | Tiempo inicial de perforación del láser. | `7` |
+| **Eficiencia láser (0–1)** | Qué proporción del tiempo teórico se aprovecha. | `0.82` |
+| **Factor de merma (0–1)** | Porcentaje de material que se pierde. | `0.06` |
+| **Margen predeterminado (%)** | Margen inicial que se propone al cotizar. | `35` |
+| **Utilidad objetivo de propuestas (% sobre costo)** | Si la propuesta queda por debajo, el sistema muestra una alerta y el precio mínimo recomendado, pero no la bloquea. | `30` |
+| **Tipo de cambio USD/MXN** | Valor con el que se convierten los costos en dólares. | `18.75` |
+
+Ejemplo práctico: con un tipo de cambio de **18.75 MXN/USD**, un costo de **100 USD** equivale a **1,875 MXN**.
+
+La parte superior de la pestaña se ve así:
+
+![Pestaña Tarifas / TC con el tipo de cambio vigente, los parámetros generales y las estaciones](/manual/capturas/tarifas-tc.png)
+
+## 2. Tarifas por estación
+
+Las estaciones son la base compartida del cotizador y del ruteo. Despliega cada una para capturar sus valores.
+
+### Corte láser
+
+| Campo | Qué capturar |
+| --- | --- |
+| **Tarifa máquina por hora** | Costo de la máquina encendida. |
+| **Tarifa de preparación por hora** | Costo del tiempo de preparación. |
+| **Consumo de gas por hora** | Gas que consume la máquina. |
+| **Costo unitario de O₂** | Costo del oxígeno. |
+| **Costo unitario de N₂** | Costo del nitrógeno. |
+| **Costo unitario de aire** | Costo del aire comprimido. |
+
+También se capturan los **segundos por perforación** según el material y el espesor: acero al carbono, acero inoxidable, aluminio y otro, con cortes en **≤ 3 mm**, **≤ 6 mm** y **> 6 mm**.
+
+### Router CNC
+
+| Campo | Qué capturar |
+| --- | --- |
+| **Tarifa máquina por hora** | Costo de la máquina. |
+| **Tarifa de preparación por hora** | Costo de preparar el trabajo. |
+| **Costo End-mill (por fresa)** | Costo de la fresa de corte recto. |
+| **Costo Ball-nose (por fresa)** | Costo de la fresa de punta esférica. |
+
+### Dobladora
+
+| Campo | Qué capturar |
+| --- | --- |
+| **Tarifa máquina por hora** | Costo de la dobladora. |
+| **Tarifa de preparación por hora** | Costo de ajustar la máquina. |
+| **Tarifa segundo operario por hora** | Costo cuando se necesita una segunda persona. |
+| **Longitud de referencia del equipo (mm)** | Longitud base para calcular productividad. |
+| **Reducción de productividad a longitud máxima (0–1)** | Cuánto baja el rendimiento en piezas largas. |
+| **Piezas/hora, complejidad simple** | Rendimiento en trabajos sencillos. |
+| **Piezas/hora, complejidad media** | Rendimiento en trabajos normales. |
+| **Piezas/hora, complejidad compleja** | Rendimiento en trabajos difíciles. |
+
+### Fabricación
+
+| Campo | Qué capturar |
+| --- | --- |
+| **Tarifa mano de obra por hora** | Costo de la mano de obra general. |
+| **Tarifa soldadura por hora** | Costo del soldador. |
+| **Consumibles de soldadura por hora** | Costo de alambre, gas y consumibles. |
+| **Tarifa acabado por hora** | Costo de pintura y acabados. |
+
+Al desplegar una estación, el formulario se ve así:
+
+![Estación Corte láser desplegada con tarifa máquina, preparación, consumos y segundos por perforación](/manual/capturas/tarifas-estaciones.png)
+
+Cuando termines, haz clic en **Guardar tarifas y TC**. La barra inferior muestra el tipo de cambio vigente para que lo confirmes antes de guardar.
+
+## 3. Tarifario del ruteo
+
+Más abajo está el **Tarifario del ruteo**. Aquí se asigna una tarifa a cada grupo de equipo y, opcionalmente, a cada máquina.
+
+La regla es una cascada:
+
+1. **Tarifa propia de la máquina**, si existe.
+2. **Tarifa del grupo de equipo**, si la máquina no tiene una propia.
+3. **Tarifa de la estación**, como base compartida.
+
+Las áreas de trabajo no participan en esta cascada.
+
+### Tarifas por grupo de equipo
+
+Cada grupo muestra su tarifa actual y de dónde sale:
+
+- **Tarifa propia del grupo:** se capturó directamente para ese grupo.
+- **Tarifas / TC · Acabado:** toma la tarifa de la estación de acabado.
+
+Para cambiarla, haz clic en **Editar tarifa**, captura el valor por hora y guarda.
+
+### Tarifas por máquina
+
+Solo se usan cuando una máquina cuesta distinto que su grupo. Si no tiene tarifa propia, toma la del grupo. Para asignarla, haz clic en **Editar tarifa** en la máquina correspondiente.
+
+El tarifario se ve así:
+
+![Tarifario del ruteo con tarifas por grupo de equipo y tarifas por máquina](/manual/capturas/tarifario-ruteo.png)
+
+> **Consejo:** no captures una tarifa por máquina si es igual a la del grupo. Así evitas duplicar valores y mantener dos listas de precios.
+
+## Comprueba que quedó bien
+
+- [ ] El **Tipo de cambio vigente** coincide con el valor que capturaste.
+- [ ] No aparece el aviso de tipo de cambio desactualizado.
+- [ ] Cada estación tiene tarifa de máquina y de preparación.
+- [ ] Las tarifas de cada grupo de equipo son las correctas.
+- [ ] Las máquinas que cuestan distinto tienen tarifa propia; las demás usan la del grupo.
+- [ ] Al guardar aparece el mensaje de confirmación.
+- [ ] Una cotización nueva toma los valores actualizados.
+
+## Qué sigue
+
+Ajusta la numeración de documentos en [Folios](/es/docs/folios).
