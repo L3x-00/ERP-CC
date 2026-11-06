@@ -7,6 +7,7 @@ export interface PartidaFicha {
   descripcion: string | null;
   cantidadSolicitada: number;
   cantidadProducida: number;
+  cantidadConforme?: number;
   cantidadScrap: number;
   unidadMedida: string;
   procesos: string[];

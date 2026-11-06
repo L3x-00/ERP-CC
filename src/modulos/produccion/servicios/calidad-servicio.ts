@@ -12,7 +12,7 @@ export async function registrarInspeccionServicio(
   admin: Admin,
   entrada: RegistrarInspeccionInput & { actorId: string; correlationId?: string },
 ): Promise<InspeccionCalidad> {
-  const { data, error } = await admin.rpc('registrar_inspeccion', {
+  const { data, error } = await admin.rpc('registrar_inspeccion_b2', {
     p_orden_id: entrada.ordenId,
     p_corrida_id: entrada.corridaId ?? null,
     p_partida_id: entrada.partidaId ?? null,
@@ -25,9 +25,11 @@ export async function registrarInspeccionServicio(
     p_cantidad_ok: entrada.cantidadOk,
     p_cantidad_nok: entrada.cantidadNok,
     p_cantidad_retrabajo: entrada.cantidadRetrabajo,
+    p_cantidad_scrap: entrada.cantidadScrap,
     p_material_usado: (entrada.materialUsado ?? {}) as Json,
     p_observaciones: entrada.observaciones ?? null,
     p_actor_id: entrada.actorId,
+    p_sesion_id: entrada.sesionId ?? null,
     ...(entrada.correlationId ? { p_correlation_id: entrada.correlationId } : {}),
   });
   if (error) lanzarErrorProduccion(error.message);

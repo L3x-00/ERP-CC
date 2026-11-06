@@ -78,14 +78,6 @@ export const esquemaCerrarSesion = z
         message: 'El motivo de pausa es requerido',
       });
     }
-    if (valor.estadoDestino === 'finalizada' && !valor.consumo) {
-      contexto.addIssue({
-        code: 'custom',
-        path: ['consumo'],
-        message: 'El consumo de material es obligatorio al finalizar',
-      });
-    }
-
     if (valor.estadoDestino === 'pausada' && valor.consumo) {
       contexto.addIssue({
         code: 'custom',
