@@ -1,0 +1,93 @@
+---
+title: Procesos
+description: Crea las operaciones del taller, su ruteo, su prefijo y sus controles de calidad.
+---
+
+
+## Para qué sirve
+
+Un **proceso** es una operación concreta del taller. Por ejemplo:
+
+- Corte láser
+- Maquinado CNC
+- Doblado
+- Soldadura MIG
+- Pintura electrostática
+
+Cada proceso define:
+
+- El **grupo planeado** al que pertenece.
+- El **grupo de equipo** que lo ejecuta.
+- El **área de trabajo** donde ocurre.
+- El **prefijo de corrida** con el que se identifican sus lotes.
+- Los **controles de calidad** que debe cumplir el operador.
+
+Los procesos son la base del ruteo de las propuestas y de las instrucciones de producción.
+
+## Antes de empezar
+
+Ya debes tener creados:
+
+- Los [grupos planeados](/es/docs/grupos-planeados).
+- Los [grupos de equipo](/es/docs/grupos-equipo).
+- Las [áreas de trabajo](/es/docs/areas-trabajo).
+
+Si falta alguno, el selector correspondiente aparecerá vacío o incompleto.
+
+## Paso a paso
+
+1. Entra a **Configuración → Catálogos base**.
+2. Abre la sección **Procesos**.
+3. Haz clic en **Nuevo proceso**.
+4. Completa el formulario:
+
+   | Campo | Qué capturar | Ejemplo |
+   | --- | --- | --- |
+   | **Código** | Clave única del proceso, en mayúsculas y sin espacios. | `CORTE_LASER` |
+   | **Nombre** | Nombre visible en planeación y piso. | `Corte láser` |
+   | **Prefijo de corrida** | De 2 a 4 letras para identificar las corridas. | `LAS` |
+   | **Grupo planeado** | Etapa general donde se agrupa. | `Corte` |
+   | **Grupo de equipo** | Familia de equipos que lo ejecuta. | `Láser fibra` |
+   | **Área de trabajo** | Espacio físico donde ocurre. | `Corte láser` |
+   | **Inspección de lote** | Cada cuántas piezas se revisa la calidad. | `Cada 10 piezas` |
+   | **Exige archivo técnico (LISTO)** | Bloquea el inicio hasta que el plano esté listo. | Marcado |
+   | **Exige primera pieza** | Libera la primera pieza antes del resto del lote. | Sin marcar |
+   | **Activo** | Permite usar el proceso en registros nuevos. | Marcado |
+   | **Orden** | Número para ordenar la lista. | `1` |
+
+5. Haz clic en **Crear**.
+
+Así se ve la lista de procesos ya configurados:
+
+![Lista de procesos con código, prefijo de corrida, grupo planeado, grupo de equipo y controles de calidad](/manual/capturas/procesos-lista.png)
+
+Y así se ve el formulario con datos de ejemplo:
+
+![Formulario Nuevo proceso con código CORTE_PLASMA, prefijo PLS, grupo Corte, equipo Láser fibra y área Corte láser](/manual/capturas/procesos-formulario.png)
+
+## Qué significa cada control de calidad
+
+- **Exige archivo técnico (LISTO):** el operador no puede iniciar el proceso hasta que el archivo técnico esté marcado como **LISTO**. Úsalo cuando el plano o programa sea indispensable para arrancar.
+- **Exige primera pieza:** antes de producir todo el lote, se libera una primera pieza. Úsalo en procesos donde un error de ajuste arruinaría muchas piezas.
+- **Inspección de lote:** indica cada cuántas piezas se revisa la calidad durante la producción. Si no aplica, elige **No configurada**.
+
+Ejemplo práctico: en **Doblado**, suele convenir **Exige primera pieza** y una inspección **Cada 20 piezas**, porque un ajuste incorrecto de la dobladora afecta toda la corrida.
+
+## Editar, desactivar o consultar
+
+- **Editar:** cambia los datos del proceso y guarda de nuevo.
+- **Desactivar:** el proceso deja de ofrecerse en registros nuevos, pero se conserva en lo ya registrado.
+- **Historial:** muestra los cambios realizados sobre ese proceso.
+
+## Comprueba que quedó bien
+
+- [ ] El proceso aparece como **Activo**.
+- [ ] El **Grupo planeado**, el **Grupo de equipo** y el **Área de trabajo** son los correctos.
+- [ ] El **Prefijo de corrida** tiene entre 2 y 4 letras y no se repite con otro proceso.
+- [ ] Los controles de calidad corresponden a la operación real.
+- [ ] El proceso ya aparece en el selector de procesos al registrar un RFQ.
+- [ ] Si editaste un proceso, el cambio se refleja al volver a abrir la lista.
+
+## Qué sigue
+
+Configura las opciones de seguimiento comercial en [Próximas acciones](/es/docs/proximas-acciones).

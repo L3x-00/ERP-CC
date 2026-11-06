@@ -1,0 +1,67 @@
+---
+title: Grupos de equipo
+description: Agrupa familias de máquinas o recursos para la planeación y el costeo.
+---
+
+
+## Para qué sirve
+
+Un **grupo de equipo** es una familia de máquinas o recursos que hacen un trabajo parecido. Por ejemplo:
+
+- Láser fibra
+- Maquinado CNC
+- Prensa dobladora
+- Soldadura
+- Pintura
+
+Los grupos de equipo se usan en dos lugares:
+
+- En los **procesos**, para saber qué familia de equipos ejecuta la operación.
+- En **Tarifas / TC**, para asignar un costo por hora al ruteo de las propuestas.
+
+> **Importante:** la tarifa por hora no se captura aquí. Este catálogo solo agrupa equipos; el costo se define más adelante en [Tarifas / TC](/es/docs/tarifas-tc).
+
+## Antes de empezar
+
+Piensa en familias, no en máquinas individuales. Por ejemplo, si tienes dos centros de maquinado parecidos, ambos pueden pertenecer al grupo **Maquinado CNC**. La máquina concreta se administra por separado.
+
+## Paso a paso
+
+1. Entra a **Configuración → Catálogos base**.
+2. Abre la sección **Grupos de equipo**.
+3. Haz clic en **Nuevo (grupos de equipo)**.
+4. Completa:
+
+   | Campo | Qué capturar | Ejemplo |
+   | --- | --- | --- |
+   | **Código** | Clave corta, en mayúsculas y sin espacios. | `LASER_FIBRA` |
+   | **Nombre** | Nombre visible para el equipo. | `Láser fibra` |
+   | **Orden** | Número para ordenar la lista. | `1` |
+   | **Activo** | Marcado para poder usarlo. | Marcado |
+
+5. Haz clic en **Crear**.
+
+Así se ve la sección con varios grupos activos:
+
+![Lista de grupos de equipo con Láser fibra, Maquinado CNC, Prensa dobladora, Soldadura y Pintura](/manual/capturas/grupos-equipo.png)
+
+El formulario de alta es muy parecido al de los grupos planeados:
+
+![Formulario para crear un grupo de equipo con código, nombre, orden y casilla Activo](/manual/capturas/grupos-equipo-formulario.png)
+
+## Cómo corregir o retirar un grupo
+
+- Usa **Desactivar** para retirar un grupo sin borrar su historial.
+- Un grupo inactivo no se ofrece en procesos nuevos ni en tarifas nuevas, pero se conserva en lo ya registrado.
+- Si el código quedó mal, desactívalo y crea uno nuevo con el código correcto.
+
+## Comprueba que quedó bien
+
+- [ ] El grupo aparece como **Activo** en la lista.
+- [ ] El nombre es claro para todo el equipo.
+- [ ] El grupo ya aparece en el selector **Grupo de equipo** del formulario de procesos.
+- [ ] El grupo ya aparece en **Tarifas / TC → Tarifario del ruteo** para asignarle tarifa.
+
+## Qué sigue
+
+Ahora organiza los espacios físicos en [Áreas de trabajo](/es/docs/areas-trabajo).

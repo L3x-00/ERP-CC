@@ -1,9 +1,7 @@
 allowBuilds:
+  esbuild: true
   sharp: true
   unrs-resolver: true
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
 overrides:
   brace-expansion@1.1.15: 1.1.18
   js-yaml@4.3.0: 4.3.2

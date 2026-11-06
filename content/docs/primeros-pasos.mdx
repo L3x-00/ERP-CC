@@ -1,0 +1,80 @@
+---
+title: Primeros pasos
+description: Entra a Configuración, reconoce las pestañas y entiende el orden de trabajo.
+---
+
+
+Antes de capturar datos, dedica unos minutos a reconocer la pantalla de Configuración. Así sabrás dónde está cada cosa y en qué orden trabajar.
+
+## Antes de empezar
+
+Necesitas:
+
+- Un usuario con permiso para modificar la configuración. Si los campos aparecen deshabilitados o no ves el botón para guardar, tu usuario es de solo consulta: pide apoyo a la persona administradora.
+- Los nombres y códigos que usa tu taller: etapas de planeación, familias de máquinas, áreas físicas y procesos.
+- Los costos por hora y el tipo de cambio vigente, si vas a configurar tarifas.
+- El último folio utilizado, si vienes de otro sistema y necesitas continuar la numeración.
+
+## Entrar a Configuración
+
+1. Inicia sesión en ORCA MFG ERP.
+2. En el menú lateral, baja hasta el grupo **Sistema**.
+3. Haz clic en **Configuración**.
+4. Aparecerá la pantalla **Configuración del sistema** con una fila de pestañas en la parte superior.
+
+La pantalla se ve así:
+
+![Pantalla de Configuración con la pestaña Catálogos base activa y la lista de pestañas visibles](/manual/capturas/configuracion-general.png)
+
+Las pestañas que verás son:
+
+- **Empresa**
+- **Folios**
+- **Tarifas / TC**
+- **Catálogos**
+- **Catálogos base**
+- **Áreas de trabajo**
+- **Cuentas bancarias**
+- **Plantillas T1**
+- **Usuarios**
+- **Permisos**
+- **Operadores**
+
+Este manual trabaja con **Folios**, **Tarifas / TC**, **Catálogos**, **Catálogos base**, **Áreas de trabajo** y **Plantillas T1**.
+
+## Conceptos que se repiten
+
+Estos cuatro conceptos suelen confundirse. Tenerlos claros te ahorrará errores:
+
+| Concepto | Qué es | Ejemplo |
+| --- | --- | --- |
+| **Grupo planeado** | La etapa general del trabajo. Sirve para agrupar la planeación. | Corte, Formado, Soldadura, Acabado. |
+| **Grupo de equipo** | La familia de máquinas o recursos que ejecuta el trabajo. | Láser fibra, Maquinado CNC, Prensa dobladora. |
+| **Área de trabajo** | El espacio físico del taller donde ocurre el trabajo. | Corte láser, Doblez y formado, Acabado y pintura. |
+| **Proceso** | La operación concreta que se cobra y se ejecuta. | Corte láser, Doblado, Soldadura MIG. |
+
+Un proceso une los tres anteriores. Por eso conviene crear primero los grupos y las áreas, y dejar los procesos para el final.
+
+## Orden de configuración
+
+Trabaja en este orden:
+
+1. **Catálogos base → Grupos planeados.** Son la base de la planeación.
+2. **Catálogos base → Grupos de equipo.** Se usan en procesos y en tarifas.
+3. **Áreas de trabajo.** Organizan el taller y se asignan a los procesos.
+4. **Catálogos base → Procesos.** Toman los grupos y las áreas que ya creaste.
+5. **Catálogos base → Próximas acciones.** Opciones de seguimiento comercial.
+6. **Catálogos base → Canales RFQ.** Origen de las solicitudes.
+7. **Catálogos.** Tiers de clientes y categorías de gasto.
+8. **Tarifas / TC.** Costos por hora, parámetros y tipo de cambio.
+9. **Folios.** Numeración de documentos.
+10. **Plantillas T1.** Apariencia de las propuestas.
+
+## Comprueba que puedes empezar
+
+- [ ] Ves la pantalla **Configuración del sistema**.
+- [ ] Puedes abrir las pestañas **Catálogos base**, **Áreas de trabajo**, **Catálogos**, **Tarifas / TC**, **Folios** y **Plantillas T1**.
+- [ ] Los campos se pueden editar. Si están grises, tu usuario no tiene permiso de escritura.
+- [ ] Ya tienes una lista de etapas, familias de máquinas y áreas del taller para capturar.
+
+Continúa con [Grupos planeados](/es/docs/grupos-planeados).

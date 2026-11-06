@@ -1,0 +1,83 @@
+---
+title: Folios
+description: Ajusta la numeración de documentos para continuar la secuencia anterior.
+---
+
+
+## Para qué sirve
+
+La pestaña **Folios** sirve para continuar la numeración cuando empiezas a usar ORCA MFG ERP y ya tenías documentos en otro sistema, o cuando necesitas adelantar el último número reservado.
+
+Hay dos bloques:
+
+1. **Continuidad de folios CNC:** controla el consecutivo de las oportunidades CNC.
+2. **Folios por periodo:** controla los folios de RFQ, órdenes, notas de entrega, recibos y compras.
+
+> **Importante:** ajustar un folio no crea documentos ni consume números. Solo establece desde dónde continuará la numeración.
+
+## Antes de empezar
+
+Localiza el último número que usaste en tu sistema anterior para cada tipo de documento. Si no vas a migrar documentos, normalmente no necesitas cambiar nada.
+
+## 1. Continuidad de folios CNC
+
+En el bloque superior:
+
+1. Elige el **Mes de folio** con el selector de fecha.
+2. Revisa los tres datos que muestra el sistema:
+   - **Último reservado o ajustado**
+   - **Último emitido en oportunidades**
+   - **Siguiente identificador**
+3. Si necesitas continuar una secuencia anterior, escribe el último número usado en **Establecer último número reservado**.
+4. Haz clic en **Guardar continuidad**.
+
+El mes define el periodo que aparece en el identificador. Por ejemplo, con **noviembre de 2026**, el siguiente identificador se muestra como **CNC-1126-0001**: `1126` significa mes 11 del año 26.
+
+Reglas del bloque:
+
+- Solo se permite un valor **igual o mayor a 0**.
+- El ajuste **nunca reduce** un número ya reservado o emitido.
+- Ajustar no crea una oportunidad ni consume un folio.
+
+## 2. Folios por periodo
+
+En el bloque inferior:
+
+1. Elige el **Tipo de folio**:
+
+   | Opción | Documento |
+   | --- | --- |
+   | **RFQ · solicitud de cotización** | Solicitudes de cotización. |
+   | **O · orden de trabajo** | Órdenes de trabajo. |
+   | **OI · orden interna** | Órdenes internas. |
+   | **NE · nota de entrega** | Notas de entrega. |
+   | **RP · recibo de pago** | Recibos de pago. |
+   | **CG · compra / gasto** | Compras y gastos. |
+
+2. Revisa el **Periodo vigente**, el **Último reservado o ajustado**, el **Último emitido real** y el **Siguiente identificador**.
+3. Si vienes de otro sistema, escribe el último número usado en **Establecer último número reservado del periodo**.
+4. Haz clic en **Guardar continuidad**.
+
+Reglas del bloque:
+
+- Solo se permite un valor **igual o mayor** al último reservado o emitido.
+- El tope del periodo es **999**.
+- Cuando el tipo ya emitió documentos, el ajuste nunca reduce el número.
+
+Ejemplo práctico: si tu último RFQ fue el **10**, el siguiente identificador es **RFQ-1126_11**. Si en tu sistema anterior el último fue el **250**, escribe `250` y el siguiente será `251`.
+
+La pantalla completa se ve así:
+
+![Pestaña Folios con continuidad de folios CNC y folios por periodo](/manual/capturas/folios.png)
+
+## Comprueba que quedó bien
+
+- [ ] El **Mes de folio** corresponde al periodo que estás trabajando.
+- [ ] El **Siguiente identificador** coincide con el último número usado más uno.
+- [ ] El número capturado es igual o mayor al último reservado o emitido.
+- [ ] Después de **Guardar continuidad**, el identificador mostrado cambia al valor esperado.
+- [ ] No se creó ningún documento ni oportunidad por el solo hecho de ajustar.
+
+## Qué sigue
+
+Personaliza la apariencia de las propuestas en [Plantillas T1](/es/docs/plantillas-t1).

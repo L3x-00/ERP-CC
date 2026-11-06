@@ -8,8 +8,9 @@ import {
   sesionOperadorVencidaAbsoluta,
 } from '@/nucleo/autenticacion/sesion';
 
-/** Rutas públicas: sin autenticación requerida. */
-const RUTAS_PUBLICAS = ['/iniciar-sesion', '/operador'];
+/** Rutas públicas: sin autenticación requerida. El manual de usuario es
+ * documentación abierta; no expone datos del ERP. */
+const RUTAS_PUBLICAS = ['/iniciar-sesion', '/operador', '/es/docs', '/docs'];
 
 /**
  * Middleware de autenticación:

@@ -1,0 +1,71 @@
+---
+title: Canales RFQ
+description: Registra el origen de las solicitudes de cotización.
+---
+
+
+## Para qué sirve
+
+Los **canales RFQ** indican de dónde llegó una solicitud de cotización (RFQ). Sirven para:
+
+- Saber qué medio genera más solicitudes.
+- Filtrar y analizar la captación comercial.
+- Pedir detalle adicional cuando el origen es **Otro**.
+
+Ejemplos: WhatsApp, Correo, Teléfono, Visita, Referido, Feria industrial.
+
+## Antes de empezar
+
+Decide qué canales usa realmente tu empresa para recibir solicitudes. Si un canal no se usa, no lo crees.
+
+## Paso a paso
+
+1. Entra a **Configuración → Catálogos base**.
+2. Abre la sección **Canales RFQ**.
+3. Haz clic en **Nuevo canal**.
+4. Completa:
+
+   | Campo | Qué capturar | Ejemplo |
+   | --- | --- | --- |
+   | **Código** | Clave corta, en mayúsculas y sin espacios. | `FERIA` |
+   | **Nombre** | Nombre visible al capturar un RFQ. | `Feria industrial` |
+   | **Exige detalle libre ("Otro")** | Solo para el canal que necesita explicar el origen. | Sin marcar |
+   | **Activo** | Permite elegirlo en registros nuevos. | Marcado |
+   | **Orden** | Número para ordenar la lista. | `70` |
+
+5. Haz clic en **Crear**.
+
+La sección queda así:
+
+![Lista de canales RFQ con WhatsApp, Correo, Teléfono, Visita, Referido, Otro y Feria industrial](/manual/capturas/canales-rfq.png)
+
+Y el formulario de alta:
+
+![Formulario Nuevo canal con código FERIA, nombre Feria industrial y orden 70](/manual/capturas/canales-rfq-formulario.png)
+
+## El canal "Otro"
+
+Solo **un** canal puede tener marcado **Exige detalle libre ("Otro")**. Ese canal pide al usuario que escriba el origen cuando no está en la lista.
+
+- Debe haber un solo canal con esta opción.
+- Los canales retirados se **desactivan**; no se borran y siguen visibles en el historial.
+- Si un canal ya no se usa, desactívalo en lugar de eliminarlo.
+
+## Cómo corregir o retirar un canal
+
+- **Editar:** cambia el nombre, el orden o el detalle libre.
+- **Desactivar:** deja de ofrecerse en RFQ nuevos.
+- **Activar:** vuelve a habilitarlo si lo necesitas de nuevo.
+- **Historial:** muestra los cambios del canal.
+
+## Comprueba que quedó bien
+
+- [ ] El canal aparece como **Activo**.
+- [ ] El orden de la lista coincide con la frecuencia de uso.
+- [ ] Solo un canal exige detalle libre.
+- [ ] El canal ya aparece en el selector **Canal** al registrar un RFQ.
+- [ ] Los canales que ya no se usan están desactivados, no borrados.
+
+## Qué sigue
+
+Configura los catálogos comerciales en [Catálogos](/es/docs/catalogos).

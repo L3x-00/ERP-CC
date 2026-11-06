@@ -149,3 +149,5 @@
     color: #1e293b;
   }
 }
+@import 'fumadocs-ui/css/shadcn.css';
+@import 'fumadocs-ui/css/preset.css';
