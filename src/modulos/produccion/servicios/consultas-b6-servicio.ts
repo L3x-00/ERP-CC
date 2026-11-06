@@ -304,7 +304,7 @@ export async function obtenerInspeccionesOrdenServicio(
   const { data, error } = await admin
     .from('inspecciones_calidad')
     .select(
-      'id, orden_id, corrida_id, partida_id, codigo_item, tipo, referencia, resultado, cantidad_inspeccionada, cantidad_ok, cantidad_nok, cantidad_retrabajo, observaciones, creado_en, corridas!inspecciones_calidad_corrida_id_fkey (codigo), partidas_orden_produccion!inspecciones_calidad_partida_id_fkey (codigo_pieza)',
+      'id, orden_id, corrida_id, partida_id, codigo_item, tipo, referencia, resultado, cantidad_inspeccionada, cantidad_ok, cantidad_nok, cantidad_retrabajo, cantidad_scrap, sesion_id, observaciones, creado_en, corridas!inspecciones_calidad_corrida_id_fkey (codigo), partidas_orden_produccion!inspecciones_calidad_partida_id_fkey (codigo_pieza)',
     )
     .eq('orden_id', ordenId)
     .order('creado_en', { ascending: false });
@@ -345,6 +345,8 @@ export async function obtenerInspeccionesOrdenServicio(
     cantidad_ok: number;
     cantidad_nok: number;
     cantidad_retrabajo: number;
+    cantidad_scrap: number;
+    sesion_id: string | null;
     observaciones: string | null;
     creado_en: string;
     corridas: { codigo: string } | null;
@@ -355,7 +357,7 @@ export async function obtenerInspeccionesOrdenServicio(
     corridaId: fila.corrida_id,
     partidaId: fila.partida_id,
     codigoItem: fila.codigo_item,
-    tipo: (['PRIMERA_PIEZA', 'REFERENCIA_LOTE', 'CIERRE'] as const).includes(
+    tipo: (['PRIMERA_PIEZA', 'REFERENCIA_LOTE', 'CIERRE', 'REVALIDACION'] as const).includes(
       fila.tipo as 'PRIMERA_PIEZA',
     )
       ? (fila.tipo as InspeccionCalidad['tipo'])
@@ -366,10 +368,41 @@ export async function obtenerInspeccionesOrdenServicio(
     cantidadOk: numero(fila.cantidad_ok),
     cantidadNok: numero(fila.cantidad_nok),
     cantidadRetrabajo: numero(fila.cantidad_retrabajo),
+    cantidadScrap: numero(fila.cantidad_scrap),
+    sesionId: fila.sesion_id,
     observaciones: fila.observaciones,
     creadoEn: fila.creado_en,
     partidaCodigo: fila.partidas_orden_produccion?.codigo_pieza ?? null,
     corridaCodigo: fila.corridas?.codigo ?? null,
     fotos: fotosPorInspeccion.get(fila.id) ?? [],
+  }));
+}
+
+/** AUD-04: partidas con piezas NOK recuperables pendientes de revalidación. */
+export type PendienteCalidad = {
+  partidaId: string;
+  codigoItem: string;
+  codigoPieza: string;
+  cantidadConforme: number;
+  cantidadNokPendiente: number;
+};
+
+export async function obtenerPendientesCalidadServicio(
+  admin: Admin,
+  ordenId: string,
+): Promise<PendienteCalidad[]> {
+  const { data, error } = await admin
+    .from('partidas_orden_produccion')
+    .select('id, codigo_item, codigo_pieza, cantidad_conforme, cantidad_nok_pendiente')
+    .eq('orden_id', ordenId)
+    .gt('cantidad_nok_pendiente', 0)
+    .order('codigo_pieza', { ascending: true });
+  if (error || !data) throw new Error('No se pudieron cargar los pendientes de calidad');
+  return data.map((fila) => ({
+    partidaId: fila.id,
+    codigoItem: fila.codigo_item ?? fila.codigo_pieza,
+    codigoPieza: fila.codigo_pieza,
+    cantidadConforme: numero(fila.cantidad_conforme),
+    cantidadNokPendiente: numero(fila.cantidad_nok_pendiente),
   }));
 }

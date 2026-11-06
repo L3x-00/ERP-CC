@@ -44,6 +44,7 @@ export async function registrarRetrabajoAccion(
       cantidadScrap: retrabajo.cantidadScrap,
       minutos: retrabajo.minutos,
       causa: retrabajo.causa,
+      resultado: retrabajo.resultado,
     }, correlationId);
     return { exito: true, datos: retrabajo };
   } catch (error) {

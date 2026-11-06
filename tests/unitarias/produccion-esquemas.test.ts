@@ -77,13 +77,13 @@ describe('esquemas de Producción', () => {
     expect(resultado.success).toBe(false);
   });
 
-  it('exige consumo al finalizar, pero no al pausar', () => {
+  it('permite finalizar sin consumo propio y sigue rechazando consumo al pausar', () => {
     expect(esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
       piezasProducidas: 0,
       estadoDestino: 'finalizada',
       pinConfirmacion: '4826',
-    }).success).toBe(false);
+    }).success).toBe(true);
 
     expect(esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
