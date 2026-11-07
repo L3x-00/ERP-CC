@@ -39,7 +39,7 @@ export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccio
       <div>
         <h2 className="text-base font-semibold text-texto-primario">Corridas integradas</h2>
         <p className="mt-1 text-xs text-texto-secundario">
-          Sesiones donde se trabajaron varios ítems juntos, con su avance y minutos por ítem.
+          Sesiones donde se trabajaron varios ítems juntos, con su avance y minutos por ítem cuando fueron identificables.
         </p>
       </div>
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}
@@ -72,7 +72,9 @@ export function PanelTiemposIntegrados({ orden }: { orden: OrdenTableroProduccio
                   <li key={item.partidaId}>
                     {item.codigoPieza}:{' '}
                     <strong>{formatearNumero(item.piezas, 0)}</strong> piezas ·{' '}
-                    {formatearNumero(item.minutos, 0)} min
+                    {item.minutos === null
+                      ? 'tiempo a nivel de corrida'
+                      : `${formatearNumero(item.minutos, 0)} min`}
                   </li>
                 ))}
               </ul>
