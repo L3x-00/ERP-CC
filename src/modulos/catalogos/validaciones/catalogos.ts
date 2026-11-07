@@ -105,6 +105,42 @@ export const tarifaHoraCatalogo = z
 
 export const monedaTarifaCatalogo = z.enum(['MXN', 'USD']);
 
+/** Áreas del recurso físico que exige `recursos_planeacion.area`. */
+export const AREAS_EQUIPO = ['sheet_metal', 'taller', 'acabados', 'ext'] as const;
+export type AreaEquipo = (typeof AREAS_EQUIPO)[number];
+
+/**
+ * Aclaración cliente 2026-11-06: alta guiada de un equipo. El grupo es
+ * obligatorio (de él hereda la tarifa estándar); la tarifa propia solo existe
+ * si se activa la excepción.
+ */
+export const esquemaCrearEquipo = z
+  .discriminatedUnion('tarifaPropiaActiva', [
+    z
+      .object({
+        codigo: codigoCatalogo,
+        nombre: nombreCatalogo,
+        grupoEquipoId: z.uuid('Elige un grupo de equipo'),
+        area: z.enum(AREAS_EQUIPO),
+        activo: z.boolean().default(true),
+        tarifaPropiaActiva: z.literal(false),
+      })
+      .strict(),
+    z
+      .object({
+        codigo: codigoCatalogo,
+        nombre: nombreCatalogo,
+        grupoEquipoId: z.uuid('Elige un grupo de equipo'),
+        area: z.enum(AREAS_EQUIPO),
+        activo: z.boolean().default(true),
+        tarifaPropiaActiva: z.literal(true),
+        tarifaHora: tarifaHoraCatalogo,
+        tarifaMoneda: monedaTarifaCatalogo,
+      })
+      .strict(),
+  ])
+  .describe('Equipo con grupo y tarifa propia opcional');
+
 /** Grupo planeado (B1.6). */
 export const esquemaGuardarGrupoPlaneado = z
   .object({
@@ -177,6 +213,7 @@ export type GuardarMaterialInput = z.infer<typeof esquemaGuardarMaterial>;
 export type GuardarEspesorInput = z.infer<typeof esquemaGuardarEspesor>;
 export type GuardarProcesoInput = z.infer<typeof esquemaGuardarProceso>;
 export type GuardarGrupoEquipoInput = z.infer<typeof esquemaGuardarGrupoEquipo>;
+export type CrearEquipoInput = z.infer<typeof esquemaCrearEquipo>;
 export type GuardarGrupoPlaneadoInput = z.infer<typeof esquemaGuardarGrupoPlaneado>;
 export type GuardarProximaAccionInput = z.infer<typeof esquemaGuardarProximaAccion>;
 export type GuardarCanalInput = z.infer<typeof esquemaGuardarCanal>;

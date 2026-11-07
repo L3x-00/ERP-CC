@@ -9,5 +9,10 @@ export { guardarProximaAccionAccion } from './guardar-proxima-accion';
 export { listarVersionesAccion } from './listar-versiones';
 export { obtenerCatalogosBaseAccion } from './obtener-catalogos-base';
 export { obtenerPermisosCatalogosAccion } from './obtener-permisos-catalogos';
-export { guardarTarifaRecursoAccion, listarTarifasRecursosAccion } from './tarifas-recursos';
-export type { TarifaRecurso } from './tarifas-recursos';
+export {
+  alternarEquipoActivoAccion,
+  crearEquipoAccion,
+  guardarTarifaRecursoAccion,
+  listarTarifasRecursosAccion,
+} from './tarifas-recursos';
+export type { EquipoCreado, TarifaRecurso } from './tarifas-recursos';

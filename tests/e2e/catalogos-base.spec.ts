@@ -342,4 +342,71 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await admin.from('grupos_equipo').update({ activo: false }).eq('id', grupo.data.id);
     }
   });
+
+  test('alta guiada de un equipo: grupo, tarifa heredada y excepción en un solo flujo', async ({ page }) => {
+    const acceso = credenciales('ADMIN');
+    test.skip(!acceso, 'Faltan E2E_CONFIGURACION_ADMIN_EMAIL/PASSWORD.');
+    if (!acceso) return;
+    const admin = clienteAdmin();
+    test.skip(!admin, 'Faltan NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY.');
+    if (!admin) return;
+
+    const sufijo = randomUUID().slice(0, 6).toUpperCase();
+    const grupo = await admin
+      .from('grupos_equipo')
+      .insert({
+        codigo: `E2E_EQ_${sufijo}`,
+        nombre: `Grupo equipo E2E ${sufijo}`,
+        orden: 99,
+        estacion_tarifa: 'laser',
+      })
+      .select('id, codigo, nombre')
+      .single();
+    if (grupo.error) throw grupo.error;
+    const codigoEquipo = `E2E-MAQ-${sufijo}`;
+
+    try {
+      await iniciarSesion(page, acceso);
+      await page.goto('/configuracion');
+      await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
+      await page
+        .getByTestId('tarifario-ruteo')
+        .getByRole('button', { name: /^Tarifario del ruteo/ })
+        .click();
+
+      await page.getByTestId('alta-guiada-equipo-nuevo').click();
+      await page.getByTestId('alta-guiada-equipo-codigo').fill(codigoEquipo);
+      await page.getByTestId('alta-guiada-equipo-nombre').fill(`Máquina guiada ${sufijo}`);
+      await page.getByTestId('alta-guiada-equipo-grupo').selectOption(grupo.data.id);
+      await expect(page.getByTestId('alta-guiada-equipo-heredada')).toContainText(
+        'Tarifa heredada:',
+      );
+      await expect(page.getByTestId('alta-guiada-equipo-heredada')).toContainText(
+        'Tarifas / TC · Corte láser',
+      );
+      await expect(page.getByTestId('alta-guiada-equipo-tarifa')).toHaveCount(0);
+      await page.getByTestId('alta-guiada-equipo-guardar').click();
+
+      await expect(page.getByTestId('tarifario-confirmacion')).toContainText(
+        'creado y listo para usar',
+      );
+      const fila = page.getByTestId(`tarifa-recurso-${codigoEquipo}`);
+      await expect(fila).toBeVisible();
+      await expect(fila).toContainText(`Usa la tarifa de ${grupo.data.nombre}`);
+
+      const creado = await admin
+        .from('recursos_planeacion')
+        .select('grupo_equipo_id, tarifa_override_activa, activo')
+        .eq('codigo', codigoEquipo)
+        .single();
+      expect(creado.data).toEqual({
+        grupo_equipo_id: grupo.data.id,
+        tarifa_override_activa: false,
+        activo: true,
+      });
+    } finally {
+      await admin.from('recursos_planeacion').delete().eq('codigo', codigoEquipo);
+      await admin.from('grupos_equipo').update({ activo: false }).eq('id', grupo.data.id);
+    }
+  });
 });

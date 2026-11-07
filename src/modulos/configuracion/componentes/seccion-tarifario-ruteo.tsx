@@ -275,6 +275,7 @@ export function SeccionTarifarioRuteo({
           <SeccionTarifasRecursos
             grupos={datos.gruposEquipo}
             tarifasEstacion={datos.tarifasEstacion}
+            tarifaRespaldo={datos.tarifaRespaldo}
             puedeEditar={datos.puedeEditar}
             onMensaje={(texto) => {
               setMensaje(texto);

@@ -3,7 +3,7 @@
 // plegados por defecto (cambio visual: la funcionalidad no se altera).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@/modulos/configuracion/componentes/consulta-catalogos-base', () => ({
@@ -11,12 +11,18 @@ vi.mock('@/modulos/configuracion/componentes/consulta-catalogos-base', () => ({
   consultarCatalogosBase: vi.fn(),
 }));
 vi.mock('@/modulos/catalogos/acciones/indice', () => ({
+  alternarEquipoActivoAccion: vi.fn(async () => ({ exito: true, datos: null })),
+  crearEquipoAccion: vi.fn(async () => ({
+    exito: true,
+    datos: { id: 'equipo-1', codigo: 'LASER-01', nombre: 'Láser Fibra 01' },
+  })),
   guardarGrupoEquipoAccion: vi.fn(),
   guardarTarifaRecursoAccion: vi.fn(),
   listarTarifasRecursosAccion: vi.fn(async () => ({ exito: true, datos: [] })),
 }));
 
 import { consultarCatalogosBase } from '@/modulos/configuracion/componentes/consulta-catalogos-base';
+import { crearEquipoAccion } from '@/modulos/catalogos/acciones/indice';
 import { EditorTarifasEstaciones } from '@/modulos/configuracion/componentes/editor-tarifas-estaciones';
 import { SeccionTarifarioRuteo } from '@/modulos/configuracion/componentes/seccion-tarifario-ruteo';
 import { CATALOGO_TARIFAS_DEFECTO } from '@/modulos/cotizador/servicios/catalogo-tarifas';
@@ -49,6 +55,7 @@ beforeEach(() => {
     puedeEditar: true,
     gruposEquipo: [GRUPO, GRUPO_SIN_TARIFA],
     tarifasEstacion: { laser: 950, router: 550, doblado: 700, fabricacion: 400 },
+    tarifaRespaldo: 680,
   } as unknown as Awaited<ReturnType<typeof consultarCatalogosBase>>);
 });
 
@@ -129,5 +136,76 @@ describe('SeccionTarifarioRuteo — plegado por defecto', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Tarifario del ruteo/ }));
     await screen.findByTestId('tarifa-grupo-LASER_FIBRA');
     expect(screen.queryByRole('button', { name: 'Ir a Catálogos base' })).toBeNull();
+  });
+});
+
+describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
+  async function abrirFormulario() {
+    montarTarifario();
+    fireEvent.click(await screen.findByRole('button', { name: /^Tarifario del ruteo/ }));
+    fireEvent.click(await screen.findByTestId('alta-guiada-equipo-nuevo'));
+    return screen.getByTestId('alta-guiada-equipo');
+  }
+
+  it('muestra la tarifa heredada del grupo antes de guardar', async () => {
+    await abrirFormulario();
+
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-grupo'), {
+      target: { value: 'g1' },
+    });
+
+    expect(screen.getByTestId('alta-guiada-equipo-heredada').textContent).toContain(
+      'Tarifa heredada: 950.00 MXN/h',
+    );
+  });
+
+  it('avisa cuando el grupo elegido solo tiene tarifa de respaldo', async () => {
+    await abrirFormulario();
+
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-grupo'), {
+      target: { value: 'g2' },
+    });
+
+    const heredada = screen.getByTestId('alta-guiada-equipo-heredada').textContent ?? '';
+    expect(heredada).toContain('tarifa de respaldo');
+    expect(heredada).toContain('680.00');
+  });
+
+  it('solo pide la tarifa propia cuando se activa la excepción', async () => {
+    await abrirFormulario();
+
+    expect(screen.queryByTestId('alta-guiada-equipo-tarifa')).toBeNull();
+    fireEvent.click(screen.getByTestId('alta-guiada-equipo-propia'));
+    expect(screen.getByTestId('alta-guiada-equipo-tarifa')).toBeDefined();
+  });
+
+  it('crea el equipo con grupo y sin tarifa propia por defecto', async () => {
+    await abrirFormulario();
+
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-codigo'), {
+      target: { value: 'LASER-01' },
+    });
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-nombre'), {
+      target: { value: 'Láser Fibra 01' },
+    });
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-grupo'), {
+      target: { value: 'g1' },
+    });
+    fireEvent.click(screen.getByTestId('alta-guiada-equipo-guardar'));
+
+    await waitFor(() =>
+      expect(crearEquipoAccion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          codigo: 'LASER-01',
+          nombre: 'Láser Fibra 01',
+          grupoEquipoId: 'g1',
+          activo: true,
+          tarifaPropiaActiva: false,
+        }),
+      ),
+    );
+    expect(crearEquipoAccion).toHaveBeenCalledWith(
+      expect.not.objectContaining({ tarifaHora: expect.anything() }),
+    );
   });
 });

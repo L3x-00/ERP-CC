@@ -144,7 +144,7 @@ export function PestanaCatalogosBase() {
       >
         La tarifa por hora de cada grupo de equipo y de cada máquina se configura en la pestaña{' '}
         <span className="font-medium text-texto-primario">Tarifas / TC</span>, junto con las tarifas por
-        estación: es un solo tarifario.
+        estación: es un solo tarifario. Los equipos se dan de alta ahí mismo, con su grupo y su tarifa.
       </p>
       <SeccionCatalogoDesplegable id="grupos-planeados" titulo="Grupos planeados" descripcion={descripcionSeccion('gruposPlaneados')}>
         <SeccionGruposPlaneados {...propsBase} cabeceraCompacta />
