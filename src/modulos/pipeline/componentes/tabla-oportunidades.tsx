@@ -25,6 +25,7 @@ import { DialogoHistorialRfq } from '@/modulos/rfq/componentes/dialogo-historial
 import { IndicadorEstadoRfq } from '@/modulos/rfq/componentes/indicador-estado-rfq';
 import { usarValidacionColaRfq } from '@/modulos/rfq/hooks/usar-validacion-cola-rfq';
 import { validacionConfirmadaDeFila } from '@/modulos/rfq/utilidades/validacion-cola';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 /**
  * Texto de la próxima acción de la fila: nombre del catálogo y, para «Otro»,
@@ -49,7 +50,7 @@ export function TablaOportunidades({
 }: {
   oportunidades: readonly Oportunidad[];
 }) {
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaLocalNegocio();
   const [historialId, setHistorialId] = useState<string | null>(null);
   // Misma validación de la ficha, en una sola consulta acotada para toda la tabla.
   const validaciones = usarValidacionColaRfq(oportunidades);

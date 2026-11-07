@@ -11,6 +11,7 @@ import { normalizarEstadoRfq, type EstadoRfq } from '../tipos/indice';
 import { permisoDeAccionRfq } from '../utilidades/estados';
 import { esAccionTerminalRfq, esquemaCambiarEstadoRfq } from '../validaciones/esquemas-rfq';
 import { mensajeErrorRfq } from './utilidades-acciones';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 /**
  * Server Action: único camino de cambio de estado del RFQ. Valida sesión,
@@ -87,7 +88,7 @@ export async function cambiarEstadoRfqAccion(
       if (!vigente || !fechaVigente || !fila.responsable_proxima_accion_id) {
         return { exito: false, error: 'No hay una acción de seguimiento pendiente; indica la próxima acción' };
       }
-      if (fechaVigente < new Date().toISOString().slice(0, 10)) {
+      if (fechaVigente < fechaLocalNegocio()) {
         return {
           exito: false,
           error: 'La acción de seguimiento ya venció; indica cómo terminó y define la siguiente',

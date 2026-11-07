@@ -37,31 +37,31 @@ import type { RegistrarGastoInput } from '@/modulos/gastos/validaciones/indice';
 import type { DatosComprobanteOCR } from '@/modulos/gastos/tipos/indice';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
+import {
+  fechaLocalNegocio,
+  inicioSemanaFecha,
+  sumarDiasFecha,
+} from '@/compartido/utilidades/fecha-negocio';
 
 function coincidePeriodo(fecha: string, periodo: string, rango: { inicio: string; fin: string } | null): boolean {
   const fechaDia = fecha.slice(0, 10);
   if (periodo === 'personalizado') return !rango || (fechaDia >= rango.inicio && fechaDia <= rango.fin);
-  const hoy = new Date();
-  const fechaHoy = hoy.toISOString().slice(0, 10);
+  const fechaHoy = fechaLocalNegocio();
   if (periodo === 'hoy') return fechaDia === fechaHoy;
   if (periodo === 'este_mes') return fechaDia.slice(0, 7) === fechaHoy.slice(0, 7);
   if (periodo === 'mes_pasado') {
-    const mesPasado = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-    return fechaDia.slice(0, 7) === mesPasado.toISOString().slice(0, 7);
+    const finMesPasado = sumarDiasFecha(`${fechaHoy.slice(0, 7)}-01`, -1);
+    return fechaDia.slice(0, 7) === finMesPasado.slice(0, 7);
   }
   if (periodo === 'este_anio') return fechaDia.slice(0, 4) === fechaHoy.slice(0, 4);
   if (periodo === 'esta_semana' || periodo === 'semana_pasada') {
-    const inicio = new Date(hoy);
-    inicio.setDate(hoy.getDate() - ((hoy.getDay() + 6) % 7));
+    const inicio = inicioSemanaFecha(fechaHoy);
     if (periodo === 'semana_pasada') {
-      const finAnterior = new Date(inicio);
-      finAnterior.setDate(inicio.getDate() - 1);
-      const inicioAnterior = new Date(inicio);
-      inicioAnterior.setDate(inicio.getDate() - 7);
-      return fechaDia >= inicioAnterior.toISOString().slice(0, 10)
-        && fechaDia <= finAnterior.toISOString().slice(0, 10);
+      const inicioAnterior = sumarDiasFecha(inicio, -7);
+      const finAnterior = sumarDiasFecha(inicio, -1);
+      return fechaDia >= inicioAnterior && fechaDia <= finAnterior;
     }
-    return fechaDia >= inicio.toISOString().slice(0, 10) && fechaDia <= fechaHoy;
+    return fechaDia >= inicio && fechaDia <= fechaHoy;
   }
   return true;
 }

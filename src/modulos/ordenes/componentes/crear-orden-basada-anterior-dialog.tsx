@@ -14,12 +14,13 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Input } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { crearOrdenBasadaEnAnteriorAccion } from '@/modulos/ordenes/acciones/crear-orden-basada-anterior';
 
 function fechaCompromisoInicial(): string {
   const fecha = new Date();
   fecha.setDate(fecha.getDate() + 30);
-  return fecha.toISOString().slice(0, 10);
+  return fechaLocalNegocio(fecha);
 }
 
 /** C8.6/O-03 B: confirma una nueva OP técnica sin copiar importes ni CxC. */

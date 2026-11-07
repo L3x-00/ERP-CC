@@ -3,6 +3,7 @@ import type {
   Oportunidad,
   PrioridadPipeline,
 } from '@/modulos/pipeline/tipos/indice';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 /**
  * Filtros de tablero para el pipeline (RFQ-13, ola 2). Se aplican en el cliente
@@ -99,7 +100,7 @@ export function proximaAccionVencida(oportunidad: Oportunidad, hoy: string): boo
 export function filtrarOportunidades(
   oportunidades: readonly Oportunidad[],
   filtros: FiltrosTablero,
-  hoy: string = new Date().toISOString().slice(0, 10),
+  hoy: string = fechaLocalNegocio(),
 ): Oportunidad[] {
   return oportunidades.filter((oportunidad) => {
     if (!coincideTexto(oportunidad, filtros.texto)) return false;
