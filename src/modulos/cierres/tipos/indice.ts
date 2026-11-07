@@ -50,6 +50,8 @@ export interface ProcesoComparativo {
 }
 
 export interface MaterialComparativo {
+  /** Clave estable del material (catálogo, legado o sin catálogo). */
+  clave: string;
   nombre: string;
   unidad: string;
   cantidadReal: number;

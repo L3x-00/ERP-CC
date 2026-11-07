@@ -38,6 +38,8 @@ const base: DatosOrden = {
     {
       partida_id: 'partida-1',
       material_id: 'material-1',
+      catalogo_material_id: null,
+      unidad_base: 'm2',
       cantidad_usada: 4,
       cantidad_scrap: 1,
       costo_unitario_momento: 20,
@@ -47,6 +49,8 @@ const base: DatosOrden = {
     {
       orden_id: 'orden-1',
       partida_id: 'partida-1',
+      sesion_id: 'sesion-1',
+      material_id: 'material-1',
       cantidad_usada: 1,
       cantidad_scrap: 0,
       costo_unitario_momento: 20,
@@ -83,6 +87,7 @@ const base: DatosOrden = {
   procesoPorCorrida: new Map([['corrida-1', 'proceso-1']]),
   nombreProceso: new Map([['proceso-1', 'Láser fibra']]),
   nombreMaterial: new Map([['material-1', 'LAM · Lámina']]),
+  unidadMaterial: new Map([['material-1', 'm2']]),
 };
 
 describe('calcularCierreOrden', () => {
@@ -92,18 +97,27 @@ describe('calcularCierreOrden', () => {
     // Estimado: ruteo 800 + material 100 + otros 50 = 950. Venta 10 × 200 = 2000.
     expect(cierre.costoEstimado).toBe(950);
     expect(cierre.venta).toBe(2000);
-    // Real: mano de obra 5 h × 100 = 500; material (5 × 20) + retrabajo (1 × 20) = 120.
-    expect(cierre.costoManoObraReal).toBe(500);
+    // Real: mano de obra 5 h × 100 = 500 + retrabajo 0.5 h × 100 = 50.
+    // Material (5 × 20) + retrabajo (1 × 20) = 120.
+    expect(cierre.costoManoObraReal).toBe(550);
     expect(cierre.costoMaterialReal).toBe(120);
-    expect(cierre.costoReal).toBe(620);
+    expect(cierre.costoReal).toBe(670);
     expect(cierre.horasReales).toBe(5.5);
-    expect(cierre.desviacionCosto).toBe(-34.7);
+    expect(cierre.desviacionCosto).toBe(-29.5);
     expect(cierre.desviacionTiempo).toBe(-31.2);
-    expect(cierre.margen).toBe(69);
+    expect(cierre.margen).toBe(66.5);
     expect(cierre.cumplimientoEntrega).toBe(60);
     expect(cierre.nivel).toBe('ahorro');
     expect(cierre.horasRetrabajo).toBe(0.5);
-    expect(cierre.costoRetrabajo).toBe(20);
+    expect(cierre.costoRetrabajo).toBe(70);
+    expect(cierre.materiales).toHaveLength(1);
+    expect(cierre.materiales[0]).toMatchObject({
+      clave: 'material-1',
+      nombre: 'LAM · Lámina',
+      unidad: 'm2',
+      cantidadReal: 6,
+      costoReal: 120,
+    });
     expect(cierre.puntosCriticos.length).toBeGreaterThan(0);
   });
 

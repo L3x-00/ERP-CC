@@ -588,10 +588,11 @@ function DetalleCierreDialog({
                 ) : (
                   <ul className="mt-2 flex flex-col gap-1 text-sm">
                     {detalle.materiales.map((material) => (
-                      <li key={material.nombre} className="flex items-center justify-between gap-2">
+                      <li key={material.clave} className="flex items-center justify-between gap-2">
                         <span className="truncate text-texto-secundario" title={material.nombre}>{material.nombre}</span>
                         <span className="shrink-0 tabular-nums text-texto-primario">
-                          {formatearNumero(material.cantidadReal, 3)} · {moneda(material.costoReal)}
+                          {formatearNumero(material.cantidadReal, 3)}
+                          {material.unidad ? ` ${material.unidad}` : ''} · {moneda(material.costoReal)}
                         </span>
                       </li>
                     ))}

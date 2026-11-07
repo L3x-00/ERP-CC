@@ -40,6 +40,7 @@ export type CodigoErrorOrden =
   | 'transicion_no_permitida'
   | 'motivo_cancelacion_requerido'
   | 'orden_con_cobranza_registrada'
+  | 'orden_con_trabajo_en_proceso'
   | 'orden_con_partidas_pendientes'
   | 'stock_insuficiente'
   | 'partida_inexistente'
@@ -181,6 +182,10 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorOrden {
   // A02: cancelar una orden cancela su AR; con cobranza registrada se rechaza.
   if (mensaje.includes('orden_con_cobranza_registrada')) {
     return 'orden_con_cobranza_registrada';
+  }
+  // AUD-06: con trabajo en ejecución la cancelación se bloquea y se explica.
+  if (mensaje.includes('orden_con_trabajo_en_proceso')) {
+    return 'orden_con_trabajo_en_proceso';
   }
   if (mensaje.includes('orden_con_partidas_pendientes')) {
     return 'orden_con_partidas_pendientes';

@@ -29,6 +29,7 @@ export function PanelEntregasFicha({
 }) {
   const entregadoPorPartida = new Map<string, number>();
   for (const entrega of entregas) {
+    if (entrega.estado === 'ANULADA') continue;
     for (const renglon of entrega.partidas) {
       entregadoPorPartida.set(
         renglon.partidaId,
@@ -109,7 +110,7 @@ export function PanelEntregasFicha({
           </Link>
         ) : (
           <p className="text-xs italic text-texto-secundario" data-testid="ficha-entrega-bloqueada">
-            Se habilita al completar la producción (se entrega solo después de producir).
+            Se habilita cuando la orden entra a producción; solo se entregan piezas conformes.
           </p>
         )}
       </div>

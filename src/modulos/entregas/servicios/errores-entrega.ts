@@ -51,6 +51,25 @@ export function traducirErrorEntrega(mensaje: string, detalle?: string): string 
   if (mensaje.includes('datos_fecha_entrega_invalidos')) {
     return 'La fecha de entrega no es válida';
   }
+  if (mensaje.includes('sin_permiso_anulacion')) {
+    return 'Solo un administrador puede anular una nota de entrega';
+  }
+  if (mensaje.includes('motivo_anulacion_requerido')) {
+    return 'Indica el motivo de la anulación (entre 3 y 500 caracteres)';
+  }
+  if (mensaje.includes('nota_inexistente')) {
+    return 'La nota de entrega no existe';
+  }
+  if (mensaje.includes('nota_con_cuenta_por_cobrar')) {
+    return 'La nota tiene movimientos de cobranza asociados. '
+      + 'No se puede anular sin revertir o reasignar esos movimientos con Finanzas.';
+  }
+  if (mensaje.includes('nota_sustituta_invalida')) {
+    return 'La nota sustituta debe pertenecer a la misma orden y ser distinta';
+  }
+  if (mensaje.includes('solicitud_anulacion_conflicto')) {
+    return 'La solicitud de anulación ya se usó para otra nota';
+  }
   console.error('[ENTREGAS] Error no traducido:', mensaje);
   return 'No se pudo completar la operación de entrega';
 }

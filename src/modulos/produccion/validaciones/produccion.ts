@@ -144,6 +144,8 @@ export const esquemaCrearNotaEntrega = z.object({
   recibidoPor: z.string().trim().min(3, 'El nombre de quien recibe debe tener al menos 3 caracteres'),
   firmaClienteUrl: z.url('La URL de firma no es válida').max(2048).optional(),
   partidas: z.array(esquemaPartidaNotaEntrega).min(1, 'La nota requiere al menos una partida'),
+  /** AUD-05: clave de idempotencia del intento de nota. */
+  solicitudId: z.uuid('ID de solicitud inválido').optional(),
 }).strict();
 
 export const esquemaConsultarTableroProduccion = z.object({

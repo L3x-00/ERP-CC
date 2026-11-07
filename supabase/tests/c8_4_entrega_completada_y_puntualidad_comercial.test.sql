@@ -5,7 +5,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(10);
+SELECT plan(11);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actor con permiso de entrega
@@ -91,14 +91,19 @@ INSERT INTO public.pipeline (
 -- -----------------------------------------------------------------------------
 -- 2. registrar_entrega: O-08 «No»
 -- -----------------------------------------------------------------------------
--- 1) La orden B en EN_PRODUCCION se rechaza.
-SELECT throws_ok(
+-- 1) AUD-05: la orden B en EN_PRODUCCION sí entrega piezas conformes parciales.
+SELECT lives_ok(
   format('SELECT public.registrar_entrega(%L, %L, %L, NULL, NULL, NULL, %L)',
     (SELECT id::text FROM public.ordenes_produccion WHERE folio = 'O-1026_81'),
     format('[{"partida_id":"%s","cantidad_entregada":1}]',
       (SELECT id::text FROM public.partidas_orden_produccion WHERE codigo_pieza = 'P-81-1')),
     'Quien recibe', '00000000-0000-4000-8000-0000000c84a1'),
-  '23514', 'orden_no_entregable', 'O-08 «No»: NO se entrega con la orden en producción'
+  'AUD-05: se entrega una pieza conforme sin esperar el cierre de producción'
+);
+SELECT is(
+  (SELECT es_parcial FROM public.notas_entrega
+   WHERE orden_id = (SELECT id FROM public.ordenes_produccion WHERE folio = 'O-1026_81')),
+  false, 'La entrega 1/1 se registra como total del ítem'
 );
 
 -- 2) La orden A en PRODUCCION_COMPLETADA sí registra la parcial.

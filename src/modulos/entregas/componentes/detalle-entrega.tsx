@@ -5,8 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
-import { Select } from '@/compartido/componentes/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/compartido/componentes/ui/dialog';
+import { Select, Textarea } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { anularNotaEntregaAccion } from '@/modulos/entregas/acciones/anular-nota-entrega';
 import {
   firmarEvidenciaEntregaAccion,
 } from '@/modulos/entregas/acciones/firmar-evidencia-entrega';
@@ -34,10 +43,12 @@ export function DetalleEntrega({
   inicial,
   puedeEvidencia,
   puedeEditar = false,
+  puedeAnular = false,
 }: {
   inicial: DetalleEntregaCompleto;
   puedeEvidencia: boolean;
   puedeEditar?: boolean;
+  puedeAnular?: boolean;
 }) {
   const [datos, setDatos] = useState<DetalleEntregaCompleto>(inicial);
   const [claseArchivo, setClaseArchivo] = useState<'evidencia' | 'firma_escaneada'>('evidencia');
@@ -46,12 +57,17 @@ export function DetalleEntrega({
   const [ocupado, setOcupado] = useState(false);
   const [fechaEntrega, setFechaEntrega] = useState(inicial.detalle.entrega.fechaEntrega.slice(0, 10));
   const [guardandoFecha, setGuardandoFecha] = useState(false);
+  const [dialogoAnulacion, setDialogoAnulacion] = useState(false);
+  const [motivoAnulacion, setMotivoAnulacion] = useState('');
+  const [anulando, setAnulando] = useState(false);
+  const solicitudAnulacion = useRef<string | null>(null);
   const entradaArchivo = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   const { detalle, evidencias } = datos;
   const { entrega, orden } = detalle;
   const folioVisible = entrega.folioSii ?? entrega.folio;
+  const estaAnulada = entrega.estado === 'ANULADA';
 
   async function actualizar(): Promise<void> {
     const respuesta = await obtenerEntregaDetalleAccion({ entregaId: entrega.id });
@@ -139,6 +155,42 @@ export function DetalleEntrega({
     }
   }
 
+  async function anularNota(): Promise<void> {
+    setMensaje(null);
+    setError(null);
+    if (motivoAnulacion.trim().length < 3) {
+      setError('Indica el motivo de la anulación (al menos 3 caracteres)');
+      return;
+    }
+    setAnulando(true);
+    try {
+      if (!solicitudAnulacion.current) solicitudAnulacion.current = crypto.randomUUID();
+      const respuesta = await anularNotaEntregaAccion({
+        entregaId: entrega.id,
+        motivo: motivoAnulacion,
+        solicitudId: solicitudAnulacion.current,
+      });
+      if (!respuesta.exito || !respuesta.datos) {
+        setError(respuesta.exito ? 'No se recibió la confirmación' : respuesta.error);
+        return;
+      }
+      solicitudAnulacion.current = null;
+      setDialogoAnulacion(false);
+      setMotivoAnulacion('');
+      setMensaje(
+        respuesta.datos.yaAnulada
+          ? 'La nota ya estaba anulada'
+          : 'Nota anulada. El documento se conserva con su historial.',
+      );
+      await actualizar();
+      router.refresh();
+    } catch {
+      setError('No se pudo anular la nota. Intenta de nuevo.');
+    } finally {
+      setAnulando(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5" data-testid="detalle-entrega">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -150,7 +202,21 @@ export function DetalleEntrega({
             <span className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs font-medium text-texto-secundario">
               {entrega.esParcial ? 'Parcial' : 'Total'}
             </span>
+            {estaAnulada ? (
+              <span
+                className="rounded-full bg-peligro-suave px-2.5 py-0.5 text-xs font-semibold text-peligro-texto"
+                data-testid="detalle-estado-anulada"
+              >
+                ANULADA
+              </span>
+            ) : null}
           </div>
+          {estaAnulada ? (
+            <p className="text-xs text-peligro-texto" data-testid="detalle-motivo-anulacion">
+              Anulada el {formatearFecha(entrega.anuladaEn ?? entrega.actualizadoEn)}
+              {entrega.motivoAnulacion ? `: ${entrega.motivoAnulacion}` : ''}
+            </p>
+          ) : null}
           <p className="text-sm text-texto-secundario">
             Orden{' '}
             <Link href={`/ordenes/${orden.id}`} className="text-acento underline" data-testid="detalle-orden">
@@ -163,6 +229,20 @@ export function DetalleEntrega({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {puedeAnular && !estaAnulada ? (
+            <Button
+              variante="contorno"
+              tamano="sm"
+              data-testid="abrir-anulacion-nota"
+              onClick={() => {
+                setMensaje(null);
+                setError(null);
+                setDialogoAnulacion(true);
+              }}
+            >
+              Anular nota
+            </Button>
+          ) : null}
           <Button variante="contorno" tamano="sm" onClick={() => router.push('/entregas')}>
             Volver a la cola
           </Button>
@@ -172,7 +252,7 @@ export function DetalleEntrega({
       {error ? <p role="alert" className="text-sm text-peligro-texto" data-testid="detalle-error">{error}</p> : null}
       {mensaje ? <p role="status" className="text-sm text-exito-texto" data-testid="detalle-mensaje">{mensaje}</p> : null}
 
-      {puedeEditar ? (
+      {puedeEditar && !estaAnulada ? (
         <section
           className="flex flex-wrap items-end gap-3 rounded-lg border border-borde p-4"
           aria-labelledby="titulo-fecha-entrega"
@@ -315,6 +395,43 @@ export function DetalleEntrega({
           <p className="text-xs text-texto-tenue">No tienes permiso para adjuntar evidencia a la entrega.</p>
         )}
       </section>
+      <Dialog open={dialogoAnulacion} onOpenChange={setDialogoAnulacion}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Anular nota {folioVisible}</DialogTitle>
+            <DialogDescription>
+              La nota no se elimina: queda marcada como ANULADA con responsable y fecha. Sus
+              cantidades dejan de contar como entregadas y la orden podrá recibir una nota sustituta.
+              Si la nota tiene cobranza asociada, la anulación se bloquea.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="grid gap-1 text-sm font-medium text-texto-secundario">
+            Motivo de la anulación
+            <Textarea
+              data-testid="motivo-anulacion-nota"
+              className="min-h-24"
+              maxLength={500}
+              value={motivoAnulacion}
+              onChange={(evento) => setMotivoAnulacion(evento.target.value)}
+              placeholder="Explica por qué se anula la nota"
+            />
+          </label>
+          <DialogFooter>
+            <Button variante="contorno" type="button" onClick={() => setDialogoAnulacion(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variante="destructivo"
+              type="button"
+              disabled={anulando}
+              data-testid="confirmar-anulacion-nota"
+              onClick={() => void anularNota()}
+            >
+              {anulando ? 'Anulando…' : 'Anular nota'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

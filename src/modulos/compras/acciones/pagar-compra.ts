@@ -1,5 +1,7 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
+
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { nuevoCorrelationId, registrarLog } from '@/nucleo/auditoria/registrar-log';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
@@ -13,6 +15,8 @@ export type ResultadoPagarCompra = {
   estado: string;
   saldoPendiente: number;
   actualizadoEn: string;
+  /** AUD-15: true cuando el pago ya existía para la misma solicitud. */
+  idempotente: boolean;
 };
 
 /** SII-B8 F4: registra un pago (parcial/total) de la compra. */
@@ -32,6 +36,7 @@ export async function pagarCompraAccion(
   }
 
   const correlationId = nuevoCorrelationId();
+  const solicitudId = datos.solicitudId ?? randomUUID();
   const admin = crearClienteSupabaseAdmin();
   const { data, error } = await admin.rpc('pagar_compra', {
     p_compra_id: datos.compraId,
@@ -42,6 +47,7 @@ export async function pagarCompraAccion(
     p_notas: datos.notas ?? null,
     p_actor_id: usuario.id,
     p_correlation_id: correlationId,
+    p_solicitud_id: solicitudId,
   });
 
   const fila = Array.isArray(data) ? data[0] : null;
@@ -59,10 +65,10 @@ export async function pagarCompraAccion(
 
   await registrarLog(
     usuario,
-    'pagar_compra',
+    fila.idempotente ? 'pagar_compra_reintento' : 'pagar_compra',
     'compras',
     datos.compraId,
-    { pagoId: fila.pago_id, monto: datos.monto, estado: fila.estado },
+    { pagoId: fila.pago_id, monto: datos.monto, estado: fila.estado, solicitudId },
     correlationId,
   );
 
@@ -73,6 +79,7 @@ export async function pagarCompraAccion(
       estado: fila.estado,
       saldoPendiente: Number(fila.saldo_pendiente),
       actualizadoEn: fila.actualizado_en,
+      idempotente: Boolean(fila.idempotente),
     },
   };
 }

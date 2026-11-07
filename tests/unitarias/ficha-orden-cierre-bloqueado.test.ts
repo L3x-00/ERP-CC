@@ -72,6 +72,8 @@ function construirFicha(entregadaTotal: number): DatosFichaOrden {
         esParcial: entregadaTotal < 50,
         recibidoPor: 'Almacén',
         creadoEn: '2026-10-09T15:00:00.000Z',
+        estado: 'VIGENTE',
+        motivoAnulacion: null,
         partidas: [{ partidaId: '00000000-0000-4000-8000-0000000c84p1', cantidadEntregada: entregadaTotal }],
       },
     ],
