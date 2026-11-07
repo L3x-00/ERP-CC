@@ -46,6 +46,7 @@ export async function registrarConsumoAccion(
       materialId: analisis.data.materialId,
       cantidadUsada: analisis.data.cantidadUsada,
       cantidadScrap: analisis.data.cantidadScrap,
+      motivo: analisis.data.motivo,
       movimientoInventarioId: consumo.movimientoInventarioId,
     }, correlationId);
     return { exito: true, datos: consumo };

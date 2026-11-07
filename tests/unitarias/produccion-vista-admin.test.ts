@@ -92,6 +92,9 @@ describe('PanelOperadorProduccion — vista de administrador (sin PIN)', () => {
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
     fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Merma'), { target: { value: '0.25' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), {
+      target: { value: 'Consumo de producción' },
+    });
     fireEvent.change(screen.getByLabelText('Confirmar PIN'), { target: { value: '4826' } });
     fireEvent.submit(screen.getByTestId('cerrar-sesion-produccion').closest('form')!);
 
@@ -99,7 +102,12 @@ describe('PanelOperadorProduccion — vista de administrador (sin PIN)', () => {
     expect(cerrarSesion).toHaveBeenCalledWith(expect.objectContaining({
       sesionId: 'sesion-1',
       piezasProducidas: 3,
-      consumo: { materialId: 'material-1', cantidadUsada: 2, cantidadScrap: 0.25 },
+      consumo: {
+        materialId: 'material-1',
+        cantidadUsada: 2,
+        cantidadScrap: 0.25,
+        motivo: 'Consumo de producción',
+      },
     }));
     expect(screen.getByTestId('resumen-cierre-sesion').textContent).toContain('Material usado');
     expect(screen.getByTestId('resumen-cierre-sesion').textContent).toContain('MAT-01');

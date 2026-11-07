@@ -30,7 +30,7 @@ async function iniciarSesion(page: Page, acceso: Credenciales): Promise<void> {
   await page.waitForURL((url) => url.pathname === '/dashboard');
 }
 
-test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', () => {
+test.describe('Materiales y costos — grupos y costos (obs. 8)', () => {
   test.beforeEach(() => {
     test.skip(
       process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
@@ -101,11 +101,11 @@ test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', (
         page.getByRole('main').getByRole('heading', { name: 'Materiales y costos' }),
       ).toBeVisible();
 
-      // Obs. 8: el módulo administra materiales y existencias manuales; la
-      // historia legada sigue sin exponerse.
+      // Aclaraciones 06/11/2026, sección 7: el módulo administra materiales y
+      // costos, pero no existencias, kardex ni saldos físicos.
       await expect(page.getByTestId('panel-costos-materiales')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Materiales', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Existencias', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Existencias', exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Historial de costos' })).toBeVisible();
       await expect(page.getByRole('button', { name: /kardex/i })).toHaveCount(0);
       await expect(
@@ -210,49 +210,6 @@ test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', (
         'Grupo:',
       );
 
-      // --- Existencias: saldo manual con historial ---
-      await page.getByRole('button', { name: 'Existencias', exact: true }).click();
-      await expect(page.getByTestId('panel-existencias')).toBeVisible();
-      await page.getByRole('button', { name: 'Ajustar existencia' }).click();
-      const modalSaldo = page.getByTestId('modal-ajustar-saldo');
-      await expect(modalSaldo).toBeVisible();
-      await modalSaldo
-        .locator('#ajuste-material')
-        .selectOption({ label: `${codigoMaterial} · Acero 1018 ${sufijo}` });
-      await modalSaldo.locator('#ajuste-espesor').selectOption({ label: '5 mm' });
-      await modalSaldo.locator('#ajuste-saldo').fill('120.5');
-      await modalSaldo.locator('#ajuste-motivo').fill('Conteo físico inicial');
-      await modalSaldo.getByRole('button', { name: 'Ajustar saldo' }).click();
-      await expect(modalSaldo).toBeHidden();
-
-      const saldo = await admin
-        .from('saldos_material')
-        .select('id, saldo, espesor_id')
-        .eq('material_id', materialId)
-        .single();
-      expect(saldo.error).toBeNull();
-      expect(saldo.data?.saldo).toBe(120.5);
-      expect(saldo.data?.espesor_id).toBeTruthy();
-      const ajuste = await admin
-        .from('movimientos_saldo_material')
-        .select('saldo_anterior, saldo_nuevo, motivo')
-        .eq('material_id', materialId)
-        .single();
-      expect(ajuste.error).toBeNull();
-      expect(ajuste.data).toMatchObject({
-        saldo_anterior: 0,
-        saldo_nuevo: 120.5,
-        motivo: 'Conteo físico inicial',
-      });
-      const logAjuste = await admin
-        .from('logs')
-        .select('accion')
-        .eq('accion', 'ajustar_saldo_material')
-        .eq('recurso_id', materialId)
-        .maybeSingle();
-      expect(logAjuste.data?.accion).toBe('ajustar_saldo_material');
-      await expect(page.getByTestId('panel-existencias')).toContainText('Conteo físico inicial');
-
       // --- Capturas 1440/768 × claro/oscuro ---
       mkdirSync('.ai-shared/qa/c6-3/visual', { recursive: true });
       for (const [nombre, ancho, alto] of [
@@ -268,7 +225,7 @@ test.describe('Materiales y costos — grupos, existencias y costos (obs. 8)', (
             .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
           expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho);
           await page.screenshot({
-            path: `.ai-shared/qa/c6-3/visual/materiales-existencias-${nombre}-${tema}.png`,
+            path: `.ai-shared/qa/c6-3/visual/materiales-costos-${nombre}-${tema}.png`,
             fullPage: true,
             animations: 'disabled',
           });

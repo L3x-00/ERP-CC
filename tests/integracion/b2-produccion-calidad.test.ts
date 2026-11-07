@@ -186,6 +186,7 @@ suite('B2: producción, retrabajo y calidad', () => {
       p_material_id: materialId,
       p_cantidad_usada: 2,
       p_cantidad_scrap: 0,
+      p_motivo_consumo: 'Consumo de producción',
     });
     expect(conConsumo.error).toBeNull();
 

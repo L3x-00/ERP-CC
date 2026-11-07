@@ -208,6 +208,7 @@ suite('B4: corridas integradas y material del cliente', () => {
       p_material_id: materialId,
       p_cantidad_usada: 1,
       p_cantidad_scrap: 0,
+      p_motivo_consumo: 'Consumo de producción',
       p_notas: 'Corte compartido B4',
       p_actor_id: operadorA,
     });
@@ -235,6 +236,7 @@ suite('B4: corridas integradas y material del cliente', () => {
       p_material_id: materialId,
       p_cantidad_usada: 1,
       p_cantidad_scrap: 0,
+      p_motivo_consumo: 'Consumo de producción',
       p_notas: '',
       p_actor_id: operadorA,
     });

@@ -3689,6 +3689,129 @@ export type Database = {
           },
         ]
       }
+      recosteo_consumos_material: {
+        Row: {
+          actor_id: string
+          consumos_actualizados: number
+          costo_nuevo_mxn: number
+          costo_origen_nuevo: number
+          creado_en: string
+          id: string
+          importe_anterior_total: number
+          importe_nuevo_total: number
+          material_id: string
+          moneda_costo: string
+          motivo: string
+          retrabajos_actualizados: number
+          solicitud_id: string
+          tipo_cambio: number
+        }
+        Insert: {
+          actor_id: string
+          consumos_actualizados?: number
+          costo_nuevo_mxn: number
+          costo_origen_nuevo: number
+          creado_en?: string
+          id?: string
+          importe_anterior_total?: number
+          importe_nuevo_total?: number
+          material_id: string
+          moneda_costo: string
+          motivo: string
+          retrabajos_actualizados?: number
+          solicitud_id: string
+          tipo_cambio: number
+        }
+        Update: {
+          actor_id?: string
+          consumos_actualizados?: number
+          costo_nuevo_mxn?: number
+          costo_origen_nuevo?: number
+          creado_en?: string
+          id?: string
+          importe_anterior_total?: number
+          importe_nuevo_total?: number
+          material_id?: string
+          moneda_costo?: string
+          motivo?: string
+          retrabajos_actualizados?: number
+          solicitud_id?: string
+          tipo_cambio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recosteo_consumos_material_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recosteo_consumos_material_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "catalogo_materiales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recosteo_consumos_material_detalle: {
+        Row: {
+          cantidad: number
+          costo_anterior_mxn: number
+          costo_nuevo_mxn: number
+          creado_en: string
+          id: string
+          importe_anterior: number
+          importe_nuevo: number
+          origen: string
+          partida_id: string
+          recosteo_id: string
+          registro_id: string
+        }
+        Insert: {
+          cantidad: number
+          costo_anterior_mxn: number
+          costo_nuevo_mxn: number
+          creado_en?: string
+          id?: string
+          importe_anterior: number
+          importe_nuevo: number
+          origen: string
+          partida_id: string
+          recosteo_id: string
+          registro_id: string
+        }
+        Update: {
+          cantidad?: number
+          costo_anterior_mxn?: number
+          costo_nuevo_mxn?: number
+          creado_en?: string
+          id?: string
+          importe_anterior?: number
+          importe_nuevo?: number
+          origen?: string
+          partida_id?: string
+          recosteo_id?: string
+          registro_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recosteo_consumos_material_detalle_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recosteo_consumos_material_detalle_recosteo_id_fkey"
+            columns: ["recosteo_id"]
+            isOneToOne: false
+            referencedRelation: "recosteo_consumos_material"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recursos_planeacion: {
         Row: {
           tarifa_override_activa: boolean
@@ -3823,8 +3946,10 @@ export type Database = {
           id: string
           material_id: string | null
           moneda_costo: string | null
+          motivo: string
           origen: string
           partida_id: string
+          sesion_id: string | null
           tipo_cambio: number | null
           unidad_base: string | null
         }
@@ -3840,8 +3965,10 @@ export type Database = {
           id?: string
           material_id?: string | null
           moneda_costo?: string | null
+          motivo?: string
           origen?: string
           partida_id: string
+          sesion_id?: string | null
           tipo_cambio?: number | null
           unidad_base?: string | null
         }
@@ -3857,8 +3984,10 @@ export type Database = {
           id?: string
           material_id?: string | null
           moneda_costo?: string | null
+          motivo?: string
           origen?: string
           partida_id?: string
+          sesion_id?: string | null
           tipo_cambio?: number | null
           unidad_base?: string | null
         }
@@ -3889,6 +4018,13 @@ export type Database = {
             columns: ["partida_id"]
             isOneToOne: false
             referencedRelation: "partidas_orden_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_consumo_material_sesion_id_fkey"
+            columns: ["sesion_id"]
+            isOneToOne: false
+            referencedRelation: "sesiones_trabajo"
             referencedColumns: ["id"]
           },
         ]
@@ -4410,6 +4546,7 @@ export type Database = {
           horas_brutas: number
           horas_netas: number
           id: string
+          minutos_setup: number | null
           motivo_pausa: string | null
           motivo_pausa_codigo: string | null
           motivo_pausa_nota: string | null
@@ -4433,6 +4570,7 @@ export type Database = {
           horas_brutas?: number
           horas_netas?: number
           id?: string
+          minutos_setup?: number | null
           motivo_pausa?: string | null
           motivo_pausa_codigo?: string | null
           motivo_pausa_nota?: string | null
@@ -4456,6 +4594,7 @@ export type Database = {
           horas_brutas?: number
           horas_netas?: number
           id?: string
+          minutos_setup?: number | null
           motivo_pausa?: string | null
           motivo_pausa_codigo?: string | null
           motivo_pausa_nota?: string | null
@@ -5545,6 +5684,7 @@ export type Database = {
           p_cantidad_usada: number
           p_material_id: string
           p_meta_proceso_id?: string | null
+          p_motivo_consumo: string
           p_notas?: string | null
           p_operador_id: string
           p_piezas_producidas: number
@@ -6068,6 +6208,7 @@ export type Database = {
           p_cantidad_scrap: number
           p_cantidad_usada: number
           p_material_id: string
+          p_motivo: string
           p_partida_id: string
         }
         Returns: {
@@ -6082,6 +6223,7 @@ export type Database = {
           p_cantidad_scrap: number
           p_cantidad_usada: number
           p_material_id: string
+          p_motivo: string
           p_operador_id: string
           p_partida_id: string
         }
@@ -6090,6 +6232,18 @@ export type Database = {
           costo_unitario_momento: number
           id: string
           movimiento_inventario_id: string | null
+        }[]
+      }
+      registrar_setup_sesion_operador: {
+        Args: {
+          p_minutos_setup: number
+          p_operador_id: string
+          p_sesion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          minutos_setup: number
+          sesion_id: string
         }[]
       }
       editar_gasto_a19: {
@@ -7266,6 +7420,7 @@ export type Database = {
           p_cantidad_usada: number
           p_items: Json
           p_material_id: string | null
+          p_motivo_consumo: string
           p_notas: string
           p_sesion_id: string
         }
@@ -7289,6 +7444,25 @@ export type Database = {
           estado: string
           horas_autorizadas: number
           id: string
+        }[]
+      }
+      revaluar_costo_material_consumido: {
+        Args: {
+          p_actor_id: string
+          p_costo: number
+          p_material_id: string
+          p_moneda: string
+          p_motivo: string
+          p_solicitud_id: string
+        }
+        Returns: {
+          auditoria_id: string
+          consumos_actualizados: number
+          costo_nuevo_mxn: number
+          importe_anterior_total: number
+          importe_nuevo_total: number
+          material_id: string
+          retrabajos_actualizados: number
         }[]
       }
       solicitar_horas_extra_operador: {

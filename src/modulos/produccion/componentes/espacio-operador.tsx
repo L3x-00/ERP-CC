@@ -254,7 +254,9 @@ export function EspacioOperador({
         materialId: string;
         cantidadUsada: number;
         cantidadScrap: number;
+        motivo: string;
       };
+      minutosSetup?: number;
     },
   ): Promise<ResultadoOperacion> {
     return ejecutar(proceso, async () => {
@@ -265,6 +267,7 @@ export function EspacioOperador({
         ...(datos.motivoPausa ? { motivoPausa: datos.motivoPausa } : {}),
         ...(datos.notas ? { notas: datos.notas } : {}),
         ...(datos.consumo ? { consumo: datos.consumo } : {}),
+        ...(datos.minutosSetup !== undefined ? { minutosSetup: datos.minutosSetup } : {}),
         pinConfirmacion: datos.pinConfirmacion,
       };
 

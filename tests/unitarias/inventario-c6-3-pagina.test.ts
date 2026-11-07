@@ -40,7 +40,7 @@ describe('página Materiales y costos — lógica ligera', () => {
     render(await PaginaInventario());
 
     expect(screen.getByRole('heading', { name: 'Materiales y costos' })).toBeTruthy();
-    expect(screen.getByText(/existencias como saldo manual con historial/i)).toBeTruthy();
+    expect(screen.getByText(/no se administran existencias ni kardex/i)).toBeTruthy();
     expect(screen.getByTestId('panel')).toBeTruthy();
   });
 

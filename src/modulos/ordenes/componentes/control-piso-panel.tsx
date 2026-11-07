@@ -133,6 +133,7 @@ export function ControlPisoPanel({
   const [cantidadScrapFabricacion, setCantidadScrapFabricacion] = useState('0');
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadScrapMaterial, setCantidadScrapMaterial] = useState('0');
+  const [motivoConsumo, setMotivoConsumo] = useState('');
   const [operacion, setOperacion] = useState<OperacionPiso>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -253,6 +254,10 @@ export function ControlPisoPanel({
       setError('Indica consumo o scrap de material mayor a cero.');
       return;
     }
+    if (motivoConsumo.trim().length < 3) {
+      setError('Indica el motivo del consumo de material (mínimo 3 caracteres).');
+      return;
+    }
 
     limpiarResultado();
     notificarOperacionLocal();
@@ -263,6 +268,7 @@ export function ControlPisoPanel({
         materialId: materialSeleccionadoId,
         cantidadUsada: usada,
         cantidadScrap: scrap,
+        motivo: motivoConsumo.trim(),
       });
       confirmarOperacion(
         respuesta.exito,
@@ -272,6 +278,7 @@ export function ControlPisoPanel({
       if (respuesta.exito) {
         setCantidadUsada('0');
         setCantidadScrapMaterial('0');
+        setMotivoConsumo('');
       }
     } catch {
       setError('No se pudo registrar el consumo. Intenta de nuevo.');
@@ -572,6 +579,17 @@ export function ControlPisoPanel({
               />
             </label>
           </div>
+          <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="motivo-consumo">
+            Motivo del consumo
+            <Input
+              id="motivo-consumo"
+              data-testid="motivo-consumo"
+              maxLength={200}
+              value={motivoConsumo}
+              onChange={(evento) => setMotivoConsumo(evento.target.value)}
+              placeholder="Para qué se usó el material"
+            />
+          </label>
           <Button
             type="button"
             tamano="piso"

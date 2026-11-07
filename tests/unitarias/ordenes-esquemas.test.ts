@@ -242,6 +242,7 @@ describe('esquemaRegistrarConsumoMaterial', () => {
     materialId: uuidMaterial,
     cantidadUsada: 12.5,
     cantidadScrap: 0.5,
+    motivo: 'Consumo de producción',
   };
 
   it('acepta consumo y scrap no negativos con total positivo', () => {
@@ -254,6 +255,9 @@ describe('esquemaRegistrarConsumoMaterial', () => {
   it('rechaza UUIDs, cantidades negativas y un consumo total en cero', () => {
     expect(
       esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, partidaId: 'partida-1' }).success,
+    ).toBe(false);
+    expect(
+      esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, motivo: '  ' }).success,
     ).toBe(false);
     expect(
       esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, cantidadScrap: -0.1 }).success,
@@ -370,6 +374,8 @@ describe('mappers de órdenes', () => {
         costo_unitario_origen: null,
         moneda_costo: null,
         origen: 'LEGADO',
+        motivo: 'Consumo histórico',
+        sesion_id: null,
         tipo_cambio: null,
         unidad_base: null,
         creado_en: '2026-08-12T14:30:00+00:00',

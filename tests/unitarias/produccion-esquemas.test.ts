@@ -55,6 +55,7 @@ describe('esquemas de Producción', () => {
         materialId: uuidMaterial,
         cantidadUsada: 2,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
     });
 
@@ -71,6 +72,7 @@ describe('esquemas de Producción', () => {
         materialId: uuidMaterial,
         cantidadUsada: 2,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
     });
 
@@ -99,6 +101,7 @@ describe('esquemas de Producción', () => {
       materialId: uuidMaterial,
       cantidadUsada: 0,
       cantidadScrap: 0,
+      motivo: 'Consumo de producción',
     };
 
     expect(esquemaCerrarSesion.safeParse({
@@ -119,6 +122,7 @@ describe('esquemas de Producción', () => {
         materialId: uuidMaterial,
         cantidadUsada: 1,
         cantidadScrap: 0,
+        motivo: 'Consumo de producción',
       },
     }).success).toBe(false);
   });
@@ -191,6 +195,7 @@ describe('mappers de Producción', () => {
     costo_hora_interno: 0,
     horas_brutas: 7,
     horas_netas: 6,
+    minutos_setup: null,
     piezas_producidas: 4,
     motivo_pausa: 'mantenimiento',
     motivo_pausa_codigo: 'FALLA',

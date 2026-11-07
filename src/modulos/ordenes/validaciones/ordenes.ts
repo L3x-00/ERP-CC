@@ -136,6 +136,7 @@ export const esquemaRegistrarConsumoMaterial = z
     materialId: z.uuid('ID de material inválido'),
     cantidadUsada: z.number().min(0, 'La cantidad usada no puede ser negativa'),
     cantidadScrap: z.number().min(0, 'La cantidad de scrap no puede ser negativa'),
+    motivo: z.string().trim().min(3, 'Indica el motivo del consumo').max(200),
   }).strict()
   .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {
     message: 'Debe registrar una cantidad usada o scrap mayor a 0',

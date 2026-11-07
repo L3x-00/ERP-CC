@@ -181,6 +181,9 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
     fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Merma'), { target: { value: '0.5' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), {
+      target: { value: 'Consumo de producción' },
+    });
     fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
@@ -192,6 +195,7 @@ describe('DetalleProcesoOperador', () => {
         materialId: 'material-1',
         cantidadUsada: 2,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
     }));
 
@@ -249,6 +253,9 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
     fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Merma'), { target: { value: '0' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), {
+      target: { value: 'Consumo de producción' },
+    });
     fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 

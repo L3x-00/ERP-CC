@@ -62,3 +62,25 @@ export const esquemaConfirmarCostoMaterial = z
 
 export type ProponerCostoMaterialInput = z.infer<typeof esquemaProponerCostoMaterial>;
 export type ConfirmarCostoMaterialInput = z.infer<typeof esquemaConfirmarCostoMaterial>;
+
+/**
+ * B7: sustituye el costo provisional de los consumos ya registrados por el
+ * comprobado. No crea consumos nuevos; exige motivo y una clave idempotente.
+ */
+export const esquemaRevaluarCostoMaterialConsumido = z
+  .object({
+    materialId: z.uuid(),
+    costo: costoValido,
+    moneda,
+    motivo: z
+      .string()
+      .trim()
+      .min(3, 'Indica el motivo del recosteo')
+      .max(500, 'El motivo no puede exceder 500 caracteres'),
+    solicitudId: z.uuid(),
+  })
+  .strict();
+
+export type RevaluarCostoMaterialConsumidoInput = z.infer<
+  typeof esquemaRevaluarCostoMaterialConsumido
+>;

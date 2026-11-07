@@ -116,7 +116,7 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-00000000b312',
   '[{"partida_id":"00000000-0000-4000-8000-00000000b30b","piezas":1},
     {"partida_id":"00000000-0000-4000-8000-00000000b30b","piezas":1}]'::jsonb,
-  '00000000-0000-4000-8000-00000000b304', 1, 0, NULL,
+  '00000000-0000-4000-8000-00000000b304', 1, 0, 'Consumo de producción', NULL,
   '00000000-0000-4000-8000-00000000b302')$$,
   '23514', 'item_duplicado',
   'Un ítem no puede declararse dos veces en el cierre');
@@ -126,7 +126,7 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-00000000b312',
   '[{"partida_id":"00000000-0000-4000-8000-00000000b30b","piezas":1},
     {"partida_id":"00000000-0000-4000-8000-00000000b30e","piezas":1}]'::jsonb,
-  '00000000-0000-4000-8000-00000000b304', 1, 0, NULL,
+  '00000000-0000-4000-8000-00000000b304', 1, 0, 'Consumo de producción', NULL,
   '00000000-0000-4000-8000-00000000b302')$$,
   '23514', 'meta_proceso_no_corresponde',
   'Un ítem sin la operación de la corrida no se avanza a ciegas');
@@ -136,7 +136,7 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-00000000b312',
   '[{"partida_id":"00000000-0000-4000-8000-00000000b30b","piezas":1},
     {"partida_id":"00000000-0000-4000-8000-00000000b30c","piezas":1}]'::jsonb,
-  '00000000-0000-4000-8000-00000000b305', 1, 0, NULL,
+  '00000000-0000-4000-8000-00000000b305', 1, 0, 'Consumo de producción', NULL,
   '00000000-0000-4000-8000-00000000b302')$$,
   '23514', 'material_no_corresponde_corrida',
   'El consumo compartido debe ser un material de algún ítem de la corrida');
@@ -147,7 +147,7 @@ SELECT lives_ok($$SELECT public.cerrar_sesion_integrada(
   '[{"partida_id":"00000000-0000-4000-8000-00000000b30b","piezas":3},
     {"partida_id":"00000000-0000-4000-8000-00000000b30c","piezas":2},
     {"partida_id":"00000000-0000-4000-8000-00000000b30d","piezas":1}]'::jsonb,
-  '00000000-0000-4000-8000-00000000b304', 1, 0, 'Corte compartido',
+  '00000000-0000-4000-8000-00000000b304', 1, 0, 'Consumo de producción', 'Corte compartido',
   '00000000-0000-4000-8000-00000000b302')$$,
   'La corrida compartida cierra sin repartir minutos');
 
@@ -219,14 +219,14 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-00000000b312',
   '[{"partida_id":"00000000-0000-4000-8000-00000000b30b","piezas":3},
     {"partida_id":"00000000-0000-4000-8000-00000000b30c","piezas":2}]'::jsonb,
-  '00000000-0000-4000-8000-00000000b304', 1, 0, NULL,
+  '00000000-0000-4000-8000-00000000b304', 1, 0, 'Consumo de producción', NULL,
   '00000000-0000-4000-8000-00000000b302')$$,
   '23514', 'sesion_no_activa',
   'El reintento de cierre no duplica avances, tiempos ni consumo');
 
 -- 19. Permisos.
 SELECT is(has_function_privilege('anon',
-  'public.cerrar_sesion_integrada(uuid, jsonb, uuid, numeric, numeric, text, uuid)',
+  'public.cerrar_sesion_integrada(uuid, jsonb, uuid, numeric, numeric, text, text, uuid)',
   'execute'), false, 'anon no cierra corridas integradas');
 
 SELECT * FROM finish();

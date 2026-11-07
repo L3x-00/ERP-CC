@@ -82,7 +82,7 @@ SELECT throws_ok($$SELECT * FROM public.cerrar_sesion_trabajo_operador(
 SELECT lives_ok($$SELECT * FROM public.cerrar_sesion_con_consumo_operador(
   '00000000-0000-4000-8000-00000000b214',
   '00000000-0000-4000-8000-00000000b202', 3,
-  '00000000-0000-4000-8000-00000000b210', 2, 0)$$,
+  '00000000-0000-4000-8000-00000000b210', 2, 0, 'Consumo de producción')$$,
   'El proceso con material cierra registrando su consumo');
 
 SELECT is((SELECT cantidad_producida FROM public.partidas_orden_produccion

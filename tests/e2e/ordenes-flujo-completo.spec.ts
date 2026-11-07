@@ -412,6 +412,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
     await page.getByTestId('piezas-cierre').fill('1');
     await page.getByTestId('material-cierre').selectOption(contexto.materialId);
     await page.getByTestId('usado-cierre').fill('3');
+    await page.getByTestId('motivo-consumo').fill('Consumo E2E');
     await page.getByTestId('pin-cierre').fill(contexto.pinOperador);
     await page.getByTestId('cerrar-sesion-detalle').click();
     const resumenCierreOperador = page.getByTestId('resumen-cierre-sesion');
@@ -501,6 +502,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
         p_material_id: contexto.materialId,
         p_cantidad_usada: 1,
         p_cantidad_scrap: 0,
+        p_motivo: 'Consumo de producción',
         p_operador_id: contexto.operadorId,
       },
     );

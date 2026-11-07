@@ -653,6 +653,7 @@ export async function registrarConsumoMaterialServicio(
     p_material_id: entrada.materialId,
     p_cantidad_usada: entrada.cantidadUsada,
     p_cantidad_scrap: entrada.cantidadScrap,
+    p_motivo: entrada.motivo,
     p_actor_id: actorId,
   });
 
@@ -683,6 +684,7 @@ export async function registrarConsumoMaterialOperadorServicio(
     p_material_id: entrada.materialId,
     p_cantidad_usada: entrada.cantidadUsada,
     p_cantidad_scrap: entrada.cantidadScrap,
+    p_motivo: entrada.motivo,
     p_operador_id: entrada.operadorId,
   });
 

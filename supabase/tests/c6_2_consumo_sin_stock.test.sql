@@ -57,7 +57,7 @@ UPDATE c62 SET (consumo_id, movimiento_id) = (
   SELECT id, movimiento_inventario_id
   FROM public.registrar_consumo_material_op(
     '00000000-0000-4000-8000-0000000c6222', '00000000-0000-4000-8000-0000000c6211',
-    2, 0.5, '00000000-0000-4000-8000-0000000c6201'
+    2, 0.5, 'Consumo de producción', '00000000-0000-4000-8000-0000000c6201'
   )
 );
 
@@ -102,15 +102,15 @@ SELECT is((SELECT r.costo_materiales_mxn FROM public.obtener_rentabilidad_orden(
   round(2.5 * 12.5 * (SELECT tc FROM c62), 4), 'rentabilidad suma el consumo nuevo exactamente una vez');
 SELECT throws_ok($$SELECT public.registrar_consumo_material_op(
   '00000000-0000-4000-8000-0000000c6222', '00000000-0000-4000-8000-0000000c6211',
-  1, 0, '00000000-0000-4000-8000-0000000c6203')$$,
+  1, 0, 'Consumo de producción', '00000000-0000-4000-8000-0000000c6203')$$,
   '42501', 'sin_permiso_materiales', 'un actor sin permiso no registra consumo administrativo');
 SELECT throws_ok($$SELECT public.registrar_consumo_material_op(
   '00000000-0000-4000-8000-0000000c6222', '00000000-0000-4000-8000-0000000c6211',
-  0, 0, '00000000-0000-4000-8000-0000000c6201')$$,
+  0, 0, 'Consumo de producción', '00000000-0000-4000-8000-0000000c6201')$$,
   '23514', 'cantidad_consumo_invalida', 'el consumo total debe ser positivo');
 SELECT lives_ok($$SELECT public.registrar_consumo_material_operador_op(
   '00000000-0000-4000-8000-0000000c6222', '00000000-0000-4000-8000-0000000c6211',
-  1, 0, '00000000-0000-4000-8000-0000000c6202')$$,
+  1, 0, 'Consumo de producción', '00000000-0000-4000-8000-0000000c6202')$$,
   'el operador asignado registra sin tocar stock');
 SELECT is((SELECT count(*) FROM public.movimientos_inventario WHERE material_id = '00000000-0000-4000-8000-0000000c6210'),
   (SELECT movimientos_antes FROM c62), 'el consumo de piso tampoco crea kardex');
@@ -123,7 +123,7 @@ SELECT ok(NOT EXISTS (
     AND pg_get_function_identity_arguments(p.oid) = 'uuid, uuid, numeric, numeric'
 ), 'se retira la firma antigua sin actor');
 SELECT ok(NOT has_function_privilege('authenticated',
-  'public.registrar_consumo_material_op(uuid,uuid,numeric,numeric,uuid)', 'EXECUTE'),
+  'public.registrar_consumo_material_op(uuid,uuid,numeric,numeric,text,uuid)', 'EXECUTE'),
   'authenticated no ejecuta la mutación privilegiada');
 SELECT ok(NOT has_column_privilege('authenticated', 'public.registros_consumo_material',
   'costo_unitario_momento', 'SELECT'), 'el costo congelado no se filtra a operación');
