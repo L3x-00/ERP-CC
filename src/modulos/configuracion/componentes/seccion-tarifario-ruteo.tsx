@@ -8,7 +8,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { parsearMonto } from '@/compartido/utilidades/monto';
-import { guardarGrupoEquipoAccion } from '@/modulos/catalogos/acciones/indice';
+import { asignarProcesosAGrupoAccion, guardarGrupoEquipoAccion } from '@/modulos/catalogos/acciones/indice';
 import type { MonedaTarifa } from '@/modulos/catalogos/tipos/indice';
 import {
   ESTACIONES_TARIFA,
@@ -45,6 +45,7 @@ export function SeccionTarifarioRuteo({
     estacion: string;
     tarifa: string;
     moneda: MonedaTarifa;
+    procesos: string[];
   } | null>(null);
   const [guardando, setGuardando] = useState(false);
   const consulta = useQuery({
@@ -68,13 +69,16 @@ export function SeccionTarifarioRuteo({
   async function crearGrupo(): Promise<void> {
     if (!nuevo) return;
     const texto = nuevo.tarifa.trim();
-    const tarifa = texto === '' ? null : parsearMonto(texto);
+    let tarifa = texto === '' ? null : parsearMonto(texto);
     if (texto !== '' && tarifa === null) {
-      setError('La tarifa propia debe ser un monto válido (por ejemplo 850.50) o quedar vacía.');
+      setError('La tarifa estándar debe ser un monto válido (por ejemplo 850.50).');
       return;
     }
-    if (tarifa === null && !esEstacionTarifa(nuevo.estacion)) {
-      setError('Elige la estación de Tarifas / TC que define la tarifa estándar del grupo o escribe una tarifa propia.');
+    if (tarifa === null && esEstacionTarifa(nuevo.estacion)) {
+      tarifa = datos?.tarifasEstacion[nuevo.estacion] ?? null;
+    }
+    if (tarifa === null) {
+      setError('Escribe la tarifa estándar por hora o elige una estación de Tarifas / TC para copiarla.');
       return;
     }
     setGuardando(true);
@@ -84,7 +88,8 @@ export function SeccionTarifarioRuteo({
       nombre: nuevo.nombre,
       activo: true,
       orden: 0,
-      ...(tarifa !== null ? { tarifaHora: tarifa, tarifaMoneda: nuevo.moneda } : {}),
+      tarifaHora: tarifa,
+      tarifaMoneda: nuevo.moneda,
       estacionTarifa: esEstacionTarifa(nuevo.estacion) ? nuevo.estacion : null,
     });
     setGuardando(false);
@@ -92,15 +97,35 @@ export function SeccionTarifarioRuteo({
       setError(respuesta.error ?? 'No se pudo crear el grupo de equipo');
       return;
     }
+    let procesosVinculados = 0;
+    if (nuevo.procesos.length > 0) {
+      const asignacion = await asignarProcesosAGrupoAccion({
+        grupoId: respuesta.datos?.id ?? '',
+        procesoIds: nuevo.procesos,
+      });
+      if (!asignacion.exito) {
+        setNuevo(null);
+        await refrescar(`Grupo ${respuesta.datos?.nombre ?? nuevo.nombre} creado con su tarifa estándar.`);
+        setError(`El grupo se creó, pero no se pudieron vincular los procesos: ${asignacion.error}`);
+        return;
+      }
+      procesosVinculados = asignacion.datos?.procesos ?? 0;
+    }
     setNuevo(null);
-    await refrescar(`Grupo ${respuesta.datos?.nombre ?? nuevo.nombre} creado con su tarifa estándar.`);
+    await refrescar(
+      `Grupo ${respuesta.datos?.nombre ?? nuevo.nombre} creado con su tarifa estándar${
+        procesosVinculados > 0
+          ? ` y ${procesosVinculados} proceso(s) vinculado(s)`
+          : ''
+      }.`,
+    );
   }
 
   let resumen: ReactNode;
   if (datos) {
     const activos = datos.gruposEquipo.filter((grupo) => grupo.activo);
     const sinTarifa = activos.filter(
-      (grupo) => resumenTarifaGrupo(grupo, datos.tarifasEstacion) === null,
+      (grupo) => resumenTarifaGrupo(grupo) === null,
     ).length;
     resumen = (
       <>
@@ -170,7 +195,14 @@ export function SeccionTarifarioRuteo({
                     setNuevo(
                       nuevo
                         ? null
-                        : { codigo: '', nombre: '', estacion: '', tarifa: '', moneda: 'MXN' },
+                        : {
+                            codigo: '',
+                            nombre: '',
+                            estacion: '',
+                            tarifa: '',
+                            moneda: 'MXN',
+                            procesos: [],
+                          },
                     )
                   }
                   data-testid="alta-guiada-grupo-nuevo"
@@ -210,13 +242,40 @@ export function SeccionTarifarioRuteo({
                     />
                   </label>
                   <label className="grid gap-1 text-xs font-medium text-texto-secundario">
-                    Estación de Tarifas / TC
+                    Tarifa estándar por hora
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="850.50"
+                      value={nuevo.tarifa}
+                      onChange={(evento) => setNuevo({ ...nuevo, tarifa: evento.target.value })}
+                      required
+                      data-testid="alta-guiada-grupo-tarifa"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+                    Copiar de una estación (opcional)
                     <Select
                       value={nuevo.estacion}
-                      onChange={(evento) => setNuevo({ ...nuevo, estacion: evento.target.value })}
+                      onChange={(evento) => {
+                        const estacion = evento.target.value;
+                        setNuevo({
+                          ...nuevo,
+                          estacion,
+                          ...(esEstacionTarifa(estacion)
+                            ? {
+                                tarifa: datos
+                                  ? String(datos.tarifasEstacion[estacion])
+                                  : nuevo.tarifa,
+                                moneda: 'MXN',
+                              }
+                            : {}),
+                        });
+                      }}
                       data-testid="alta-guiada-grupo-estacion"
                     >
-                      <option value="">Tarifa propia</option>
+                      <option value="">Sin referencia</option>
                       {ESTACIONES_TARIFA.map((estacion) => (
                         <option key={estacion} value={estacion}>
                           {ETIQUETA_ESTACION_TARIFA[estacion]} ·{' '}
@@ -224,18 +283,6 @@ export function SeccionTarifarioRuteo({
                         </option>
                       ))}
                     </Select>
-                  </label>
-                  <label className="grid gap-1 text-xs font-medium text-texto-secundario">
-                    Tarifa propia (opcional)
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      placeholder="Vacía = usa la estación"
-                      value={nuevo.tarifa}
-                      onChange={(evento) => setNuevo({ ...nuevo, tarifa: evento.target.value })}
-                      data-testid="alta-guiada-grupo-tarifa"
-                    />
                   </label>
                   <label className="grid gap-1 text-xs font-medium text-texto-secundario">
                     Moneda
@@ -252,6 +299,43 @@ export function SeccionTarifarioRuteo({
                       <option value="USD">USD</option>
                     </Select>
                   </label>
+                  <div className="sm:col-span-2 lg:col-span-5">
+                    <p className="text-xs font-medium text-texto-secundario">
+                      Procesos que usarán este grupo (opcional)
+                    </p>
+                    <p className="mb-1 text-[11px] text-texto-terciario">
+                      Así el ruteo hereda el grupo sin depender de «Grupo planeado».
+                    </p>
+                    <div className="max-h-36 overflow-y-auto rounded-md border border-borde bg-superficie p-2">
+                      {datos.procesos.filter((proceso) => proceso.activo).length === 0 ? (
+                        <p className="text-xs text-texto-secundario">No hay procesos activos.</p>
+                      ) : (
+                        datos.procesos
+                          .filter((proceso) => proceso.activo)
+                          .map((proceso) => (
+                            <label
+                              key={proceso.id}
+                              className="flex items-center gap-2 py-0.5 text-xs text-texto-primario"
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-acento"
+                                checked={nuevo.procesos.includes(proceso.id)}
+                                onChange={(evento) =>
+                                  setNuevo({
+                                    ...nuevo,
+                                    procesos: evento.target.checked
+                                      ? [...nuevo.procesos, proceso.id]
+                                      : nuevo.procesos.filter((id) => id !== proceso.id),
+                                  })
+                                }
+                              />
+                              {proceso.nombre}
+                            </label>
+                          ))
+                      )}
+                    </div>
+                  </div>
                   <div className="sm:col-span-2 lg:col-span-5">
                     <Button type="submit" tamano="sm" disabled={guardando}>
                       {guardando ? 'Creando…' : 'Crear grupo con tarifa'}
@@ -274,7 +358,6 @@ export function SeccionTarifarioRuteo({
           />
           <SeccionTarifasRecursos
             grupos={datos.gruposEquipo}
-            tarifasEstacion={datos.tarifasEstacion}
             tarifaRespaldo={datos.tarifaRespaldo}
             puedeEditar={datos.puedeEditar}
             onMensaje={(texto) => {

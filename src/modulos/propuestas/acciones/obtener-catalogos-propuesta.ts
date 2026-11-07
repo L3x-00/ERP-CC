@@ -94,11 +94,11 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
   // depende de permisos de planeación/configuración del usuario.
   const { crearClienteSupabaseAdmin } = await import('@/nucleo/supabase/admin');
   const admin = crearClienteSupabaseAdmin();
-  // Tarifas / TC: si no se puede leer, las estaciones usan los valores por defecto.
+  // Tarifas / TC: la fuente maestra del ruteo es la tarifa del grupo. Aquí solo
+  // se lee el respaldo (excepción V1).
   const tarifasConfig = await obtenerConfiguracionGeneral(admin)
     .then((configuracion) => configuracion.tarifas)
     .catch(() => undefined);
-  const estaciones = tarifasConfig?.estaciones;
   const respaldo =
     typeof tarifasConfig?.costoHoraDefault === 'number' ? tarifasConfig.costoHoraDefault : null;
   const [recursos, areasTrabajo] = await Promise.all([
@@ -173,8 +173,8 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         };
         // Sin respaldo: distingue un grupo realmente configurado del que solo
         // puede costearse con la tarifa de respaldo.
-        const propia = tarifaEfectivaDeGrupo(grupo, estaciones);
-        const efectiva = propia ?? tarifaEfectivaDeGrupo(grupo, estaciones, respaldo);
+        const propia = tarifaEfectivaDeGrupo(grupo);
+        const efectiva = propia ?? tarifaEfectivaDeGrupo(grupo, respaldo);
         return {
           id: fila.id,
           codigo: fila.codigo,
@@ -183,7 +183,12 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
           advertenciaTarifa: efectiva?.advertencia === true,
           tarifaHora: puedeVerCosto && efectiva !== null ? efectiva.tarifa : null,
           tarifaMoneda: puedeVerCosto && efectiva !== null ? efectiva.moneda : null,
-          origenTarifa: efectiva === null ? null : efectiva.origen,
+          origenTarifa:
+            efectiva === null
+              ? null
+              : efectiva.fuente === 'RESPALDO'
+                ? `Tarifa de respaldo · ${fila.nombre} no tiene tarifa estándar`
+                : efectiva.origen,
         };
       }),
       gruposPlaneados: (gruposPlaneados.data ?? []).map((fila) => ({

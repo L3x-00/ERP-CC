@@ -89,7 +89,7 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
         <p className="font-semibold text-texto-primario">Un solo tarifario por hora</p>
         <p className="mt-1">
           El costo del ruteo se resuelve en este orden: <span className="font-medium text-texto-primario">tarifa propia de la máquina → tarifa estándar del grupo de equipo → tarifa de respaldo</span>.
-          La tarifa estándar del grupo es la propia o, si no tiene, la de la estación de Tarifas / TC vinculada.
+          La tarifa del grupo es la <span className="font-medium text-texto-primario">fuente maestra</span>; la estación de Tarifas / TC solo sirve para copiar su valor.
           El respaldo nunca se usa en silencio: el ruteo muestra una advertencia y el origen de la tarifa.
         </p>
       </div>
@@ -97,7 +97,7 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora de respaldo (MXN)
           <Input id="configuracion-costo-hora" type="number" min="0" step="0.01" value={tarifas.costoHoraDefault} onChange={(e) => cambiarTarifa('costoHoraDefault', e.target.value)} required />
           <span className="text-xs font-normal text-texto-secundario">
-            Último recurso: solo se usa si el grupo no tiene tarifa estándar (ni propia ni de estación). El ruteo lo marca con advertencia visible.
+            Excepción temporal de V1: solo se usa si el grupo no tiene tarifa estándar. El ruteo lo marca con advertencia visible. Candidato a revisión/eliminación en V2.
           </span>
         </label>
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-segundos-pierce">Segundos por pierce

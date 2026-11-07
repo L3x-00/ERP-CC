@@ -70,10 +70,11 @@ export type TarifaEfectivaGrupo = {
   tarifa: number;
   moneda: 'MXN' | 'USD';
   /**
-   * `GRUPO` = tarifa propia del grupo; `ESTACION` = la de Tarifas / TC
-   * vinculada; `RESPALDO` = último recurso, siempre con advertencia.
+   * `GRUPO` = tarifa estándar del grupo (fuente maestra); `RESPALDO` = último
+   * recurso, siempre con advertencia.
    */
-  fuente: 'GRUPO' | 'ESTACION' | 'RESPALDO';
+  fuente: 'GRUPO' | 'RESPALDO';
+  /** Estación de referencia de Tarifas / TC; no participa en el cálculo. */
   estacion: EstacionTarifa | null;
   /** Origen legible para el ruteo (mismo texto que devuelve el resolvedor SQL). */
   origen: string;
@@ -89,15 +90,16 @@ export function tarifaRespaldoValida(respaldo: number | null | undefined): numbe
 }
 
 /**
- * Tarifa que usará el costeo del ruteo para un Grupo de Equipo: la propia si la
- * tiene; si no, la de la estación vinculada en Tarifas / TC (siempre MXN); y
- * solo si no existe ninguna de las dos, la de respaldo, marcada como
+ * Tarifa que usará el costeo del ruteo para un Grupo de Equipo.
+ *
+ * T2 2026-11-06: la fuente maestra es `grupos_equipo.tarifa_hora`. La estación
+ * de Tarifas / TC es solo una referencia para copiar su valor; no compite en el
+ * cálculo. Solo si el grupo no tiene tarifa estándar se usa el respaldo, con
  * advertencia. Espejo TS de `public.resolver_tarifa_hora` (sin el override por
  * máquina).
  */
 export function tarifaEfectivaDeGrupo(
   grupo: GrupoConTarifa,
-  catalogo: CatalogoTarifasCotizador = CATALOGO_TARIFAS_DEFECTO,
   respaldo: number | null = null,
 ): TarifaEfectivaGrupo | null {
   if (grupo.tarifaHora !== null) {
@@ -107,16 +109,6 @@ export function tarifaEfectivaDeGrupo(
       fuente: 'GRUPO',
       estacion: grupo.estacionTarifa,
       origen: 'Tarifa del grupo',
-      advertencia: false,
-    };
-  }
-  if (grupo.estacionTarifa !== null) {
-    return {
-      tarifa: tarifaHoraDeEstacion(grupo.estacionTarifa, catalogo),
-      moneda: 'MXN',
-      fuente: 'ESTACION',
-      estacion: grupo.estacionTarifa,
-      origen: `Tarifas / TC · ${ETIQUETA_ESTACION_TARIFA[grupo.estacionTarifa]}`,
       advertencia: false,
     };
   }

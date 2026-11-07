@@ -6637,6 +6637,10 @@ export type Database = {
         Args: { p_grupo_equipo_id: string; p_recurso_id?: string }
         Returns: Json
       }
+      asignar_procesos_a_grupo_equipo: {
+        Args: { p_actor_id: string; p_grupo_id: string; p_proceso_ids: string[] }
+        Returns: number
+      }
       tarifa_estacion_hora: {
         Args: { p_estacion: string }
         Returns: number

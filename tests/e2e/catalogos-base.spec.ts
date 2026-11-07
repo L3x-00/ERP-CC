@@ -284,10 +284,17 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
         .select('tarifa_hora, estacion_tarifa')
         .eq('id', grupo.data.id)
         .single();
-      expect(vinculado.data).toEqual({ tarifa_hora: null, estacion_tarifa: 'router' });
+      expect(vinculado.data).toEqual({
+        tarifa_hora: Number(tarifaRouter.data),
+        estacion_tarifa: 'router',
+      });
       const resuelta = await admin.rpc('resolver_tarifa_hora', { p_grupo_equipo_id: grupo.data.id });
       expect(resuelta.error).toBeNull();
-      expect(resuelta.data).toMatchObject({ fuente: 'ESTACION', moneda: 'MXN', estacion: 'router' });
+      expect(resuelta.data).toMatchObject({
+        fuente: 'GRUPO',
+        moneda: 'MXN',
+        tarifa: Number(tarifaRouter.data),
+      });
 
       // Una tarifa propia (texto libre) sustituye a la de la estación.
       await filaGrupo.getByRole('button', { name: 'Editar tarifa' }).click();
@@ -295,7 +302,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await filaGrupo.getByLabel(`Moneda de la tarifa de ${grupo.data.nombre}`).selectOption('USD');
       await filaGrupo.getByRole('button', { name: 'Guardar' }).click();
       await expect(filaGrupo).toContainText('USD/h');
-      await expect(filaGrupo).toContainText('Tarifa propia del grupo');
+      await expect(filaGrupo).toContainText('Tarifa del grupo');
 
       const grupoGuardado = await admin
         .from('grupos_equipo')
@@ -359,6 +366,8 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
         nombre: `Grupo equipo E2E ${sufijo}`,
         orden: 99,
         estacion_tarifa: 'laser',
+        tarifa_hora: 777.25,
+        tarifa_moneda: 'MXN',
       })
       .select('id, codigo, nombre')
       .single();
@@ -382,7 +391,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
         'Tarifa heredada:',
       );
       await expect(page.getByTestId('alta-guiada-equipo-heredada')).toContainText(
-        'Tarifas / TC · Corte láser',
+        'Tarifa del grupo',
       );
       await expect(page.getByTestId('alta-guiada-equipo-tarifa')).toHaveCount(0);
       await page.getByTestId('alta-guiada-equipo-guardar').click();

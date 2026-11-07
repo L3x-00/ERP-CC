@@ -16,6 +16,8 @@ export type EntradaFaltantesValidacion = {
     costeadoEn: string | null;
     /** T1 2026-11-06: origen congelado; RESPALDO exige advertencia visible. */
     tarifaFuente?: RuteoItemPropuesta['tarifaFuente'];
+    /** T2 2026-11-06: origen legible para identificar el grupo sin tarifa. */
+    tarifaOrigen?: string | null;
   }[];
   /** Propios, heredados del RFQ y por ítem, ya sin los retirados. */
   archivos: readonly ArchivoParaConteo[];
@@ -92,12 +94,17 @@ export function calcularFaltantesValidacion(
   const itemsSinRuteo: string[] = [];
   const itemsSinCostear: string[] = [];
   const operacionesConTarifaRespaldo: string[] = [];
+  const detalleRespaldo: string[] = [];
   for (const item of itemsActivos) {
     const filas = entrada.ruteo.filter((fila) => fila.itemId === item.id);
     if (filas.length === 0) itemsSinRuteo.push(item.codigo);
     else if (filas.some((fila) => fila.costeadoEn === null)) itemsSinCostear.push(item.codigo);
-    if (filas.some((fila) => fila.costeadoEn !== null && fila.tarifaFuente === 'RESPALDO')) {
+    const respaldo = filas.find(
+      (fila) => fila.costeadoEn !== null && fila.tarifaFuente === 'RESPALDO',
+    );
+    if (respaldo) {
       operacionesConTarifaRespaldo.push(item.codigo);
+      detalleRespaldo.push(respaldo.tarifaOrigen ?? '');
     }
   }
 
@@ -115,7 +122,10 @@ export function calcularFaltantesValidacion(
   if (entrada.revision.requiereRevisionCosteo) confirmaciones.push('guardar los costos para confirmarlos');
 
   const advertencias: string[] = operacionesConTarifaRespaldo.map(
-    (codigo) => `ítem ${codigo}: operación costeada con tarifa de respaldo; configura la tarifa de su grupo en Tarifas / TC`,
+    (codigo, indice) =>
+      `ítem ${codigo}: operación costeada con tarifa de respaldo${
+        detalleRespaldo[indice] ? ` (${detalleRespaldo[indice]})` : ''
+      }; configura la tarifa de su grupo en Tarifas / TC`,
   );
 
   return {

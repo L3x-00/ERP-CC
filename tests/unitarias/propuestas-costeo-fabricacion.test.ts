@@ -712,23 +712,21 @@ describe('costeo interno: campos de texto libre con detalle (obs. cliente 2026-1
 });
 
 describe('ruteo: la tarifa dice de dónde sale (tarifario único)', () => {
-  it('rotula la tarifa de la estación de Tarifas / TC', () => {
+  it('muestra la tarifa del grupo y su origen', () => {
     const catalogos: CatalogosPropuesta = {
       ...CATALOGOS,
       gruposEquipo: [
         {
           ...CATALOGOS.gruposEquipo[0]!,
           tarifaHora: 650,
-          origenTarifa: 'Tarifas / TC · Corte láser',
+          origenTarifa: 'Tarifa del grupo',
         },
       ],
     };
     montar({ catalogos });
 
     expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$650.00/h');
-    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain(
-      'Tarifas / TC · Corte láser',
-    );
+    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain('Tarifa del grupo');
   });
 
   it('marca la tarifa de respaldo con advertencia visible', () => {

@@ -562,7 +562,7 @@ function SeccionProcesos(props: PropsSeccion) {
             </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
-            Grupo planeado
+            Grupo planeado (opcional)
             <Select
               value={editando.grupoPlaneadoId}
               onChange={(evento) =>
@@ -579,7 +579,7 @@ function SeccionProcesos(props: PropsSeccion) {
               ))}
             </Select>
             <span className="text-xs font-normal">
-              Etapa macro donde se agrupa el proceso al planear. Opcional.
+              Solo organiza la planeación. No define la tarifa ni es obligatorio para costear.
             </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
@@ -600,7 +600,7 @@ function SeccionProcesos(props: PropsSeccion) {
               ))}
             </Select>
             <span className="text-xs font-normal">
-              Grupo que define la tarifa estándar del proceso. El ruteo lo sugiere y exige un grupo al guardar.
+              Fuente de la tarifa estándar del ruteo. No requiere grupo planeado.
             </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">

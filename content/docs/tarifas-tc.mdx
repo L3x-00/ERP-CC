@@ -51,7 +51,7 @@ La parte superior de la pestaña se ve así:
 
 ## 2. Tarifas por estación
 
-Las estaciones son la base compartida del cotizador y del ruteo. Despliega cada una para capturar sus valores.
+Las estaciones son la base compartida del cotizador y una referencia para copiar la tarifa del ruteo. Despliega cada una para capturar sus valores.
 
 ### Corte láser
 
@@ -110,21 +110,21 @@ Más abajo está el **Tarifario del ruteo**. Aquí se asigna una tarifa a cada g
 La regla es simple y auditable:
 
 1. **Tarifa propia de la máquina**, solo si está activa de forma explícita.
-2. **Tarifa estándar del grupo de equipo**: la propia del grupo o, si no tiene, la de la estación de Tarifas / TC vinculada.
-3. **Tarifa de respaldo**, únicamente si el grupo no tiene ninguna de las dos. El ruteo la muestra con una **advertencia visible** y conserva su origen.
+2. **Tarifa estándar del grupo de equipo**: es la **fuente maestra** del costeo. La estación de Tarifas / TC solo sirve para copiar su valor; no compite con la tarifa del grupo.
+3. **Tarifa de respaldo**, únicamente si el grupo no tiene tarifa estándar. El ruteo la muestra con una **advertencia visible**, su valor y el grupo que no está configurado.
 
-En el ruteo, cada operación muestra el origen de la tarifa que realmente usó: tarifa propia de la máquina, tarifa del grupo, Tarifas / TC o tarifa de respaldo. Las áreas de trabajo no participan.
+En el ruteo, cada operación muestra el origen de la tarifa que realmente usó: tarifa propia de la máquina, tarifa del grupo o tarifa de respaldo. Las áreas de trabajo no participan.
 
-También puedes crear un **grupo de equipo con su tarifa estándar en un solo paso** desde el Tarifario del ruteo, sin salir a otro catálogo.
+También puedes crear un **grupo de equipo con su tarifa estándar y sus procesos compatibles en un solo paso** desde el Tarifario del ruteo, sin salir a otro catálogo.
 
 ### Tarifas por grupo de equipo
 
-Cada grupo muestra su tarifa actual y de dónde sale:
+Cada grupo muestra su **tarifa estándar** (la fuente maestra del ruteo) y, si tiene una, la estación de referencia:
 
-- **Tarifa propia del grupo:** se capturó directamente para ese grupo.
-- **Tarifas / TC · Acabado:** toma la tarifa de la estación de acabado.
+- **650.00 MXN/h · Tarifa del grupo:** es el valor que usa el costeo.
+- **Referencia: Tarifas / TC · Acabado:** la estación solo sirve para copiar su valor.
 
-Para cambiarla, haz clic en **Editar tarifa**, captura el valor por hora y guarda.
+Para cambiarla, haz clic en **Editar tarifa**: puedes escribir el valor o elegir una estación para copiarlo. La estación no recalcula la tarifa del grupo automáticamente.
 
 ### Tarifas por máquina
 

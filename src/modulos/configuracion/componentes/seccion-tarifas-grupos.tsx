@@ -24,29 +24,24 @@ export function textoTarifa(grupo: Pick<GrupoEquipoCatalogo, 'tarifaHora' | 'tar
   return `${formatoMonto.format(grupo.tarifaHora)} ${grupo.tarifaMoneda}/h`;
 }
 
-/** Tarifa vigente del grupo y de dónde sale (propia o estación de Tarifas / TC). */
+/**
+ * Tarifa estándar del grupo (fuente maestra del ruteo) y su origen.
+ * T2 2026-11-06: la estación de Tarifas / TC es solo una referencia para
+ * copiar el valor; no se usa como tarifa efectiva.
+ */
 export function resumenTarifaGrupo(
-  grupo: Pick<GrupoEquipoCatalogo, 'tarifaHora' | 'tarifaMoneda' | 'estacionTarifa'>,
-  tarifasEstacion: Record<EstacionTarifa, number>,
+  grupo: Pick<GrupoEquipoCatalogo, 'tarifaHora' | 'tarifaMoneda'>,
 ): { texto: string; origen: string } | null {
-  if (grupo.tarifaHora !== null) {
-    return { texto: textoTarifa(grupo), origen: 'Tarifa propia del grupo' };
-  }
-  if (grupo.estacionTarifa !== null) {
-    return {
-      texto: `${formatoMonto.format(tarifasEstacion[grupo.estacionTarifa])} MXN/h`,
-      origen: `Tarifas / TC · ${ETIQUETA_ESTACION_TARIFA[grupo.estacionTarifa]}`,
-    };
-  }
-  return null;
+  if (grupo.tarifaHora === null) return null;
+  return { texto: textoTarifa(grupo), origen: 'Tarifa del grupo' };
 }
 
 /**
- * Tarifario único del ruteo (obs. cliente 2026-10-13, DC-07): cada Grupo de
- * Equipo toma su tarifa por hora de una estación de Tarifas / TC y, si hace
- * falta, puede tener una tarifa propia que la sustituye. Sin ninguna de las dos
- * el costeo de ese grupo se bloquea; cada cambio queda en el historial
- * versionado del grupo.
+ * Tarifario único del ruteo (obs. cliente 2026-10-13, T2 2026-11-06): la
+ * tarifa estándar del Grupo de Equipo es la fuente maestra del costeo. La
+ * estación de Tarifas / TC es solo una referencia para copiar su valor; no
+ * compite en el cálculo. Sin tarifa estándar el costeo usa el respaldo
+ * (excepción V1) o se bloquea.
  */
 export function SeccionTarifasGrupos({
   grupos,
@@ -66,14 +61,14 @@ export function SeccionTarifasGrupos({
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [guardando, setGuardando] = useState(false);
   const sinTarifa = grupos.filter(
-    (grupo) => grupo.activo && resumenTarifaGrupo(grupo, tarifasEstacion) === null,
+    (grupo) => grupo.activo && resumenTarifaGrupo(grupo) === null,
   ).length;
 
   async function guardar(grupo: GrupoEquipoCatalogo, valor: Borrador): Promise<void> {
     const texto = valor.tarifa.trim();
     const tarifa = texto === '' ? null : parsearMonto(texto);
     if (texto !== '' && tarifa === null) {
-      onError('La tarifa propia debe ser un monto válido (por ejemplo 850.50) o quedar vacía');
+      onError('La tarifa estándar debe ser un monto válido (por ejemplo 850.50) o quedar vacía');
       return;
     }
     setGuardando(true);
@@ -101,9 +96,9 @@ export function SeccionTarifasGrupos({
       <div>
         <h3 className="text-base font-semibold text-texto-primario">Tarifas por grupo de equipo</h3>
         <p className="text-sm text-texto-secundario">
-          Es la tarifa que usa el costeo del ruteo de las propuestas (preparación y operación). Cada grupo toma
-          la tarifa por hora de su estación de Tarifas / TC; si le pones una tarifa propia, esa la sustituye. Una
-          máquina puede tener su propia tarifa en «Tarifas por máquina».
+          Es la tarifa que usa el costeo del ruteo de las propuestas (preparación y operación). Es la
+          fuente maestra: la estación de Tarifas / TC solo sirve para copiar su valor. Una máquina puede
+          sustituirla con una tarifa propia en «Equipos y sus tarifas».
         </p>
         {sinTarifa > 0 ? (
           <p className="mt-1 text-sm text-advertencia-texto" data-testid="grupos-sin-tarifa">
@@ -118,7 +113,7 @@ export function SeccionTarifasGrupos({
       <ul className="grid gap-2">
         {grupos.map((grupo) => {
           const editando = borrador?.id === grupo.id ? borrador : null;
-          const resumen = resumenTarifaGrupo(grupo, tarifasEstacion);
+          const resumen = resumenTarifaGrupo(grupo);
           return (
             <li
               key={grupo.id}
@@ -136,36 +131,50 @@ export function SeccionTarifasGrupos({
                     <span className="text-xs text-texto-secundario">{resumen.origen}</span>
                   </>
                 )}
+                {grupo.estacionTarifa !== null ? (
+                  <span className="text-xs text-texto-terciario">
+                    Referencia: Tarifas / TC · {ETIQUETA_ESTACION_TARIFA[grupo.estacionTarifa]}
+                  </span>
+                ) : null}
               </span>
               {editando ? (
                 <span className="flex min-w-0 flex-wrap items-end gap-2">
                   <label className="grid gap-1 text-xs text-texto-secundario">
-                    Estación de Tarifas / TC
+                    Tarifa estándar por hora
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="850.50"
+                      value={editando.tarifa}
+                      onChange={(evento) => setBorrador({ ...editando, tarifa: evento.target.value })}
+                      aria-label={`Tarifa por hora de ${grupo.nombre}`}
+                      className="w-44"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-texto-secundario">
+                    Copiar de una estación (opcional)
                     <Select
                       value={editando.estacion}
-                      onChange={(evento) => setBorrador({ ...editando, estacion: evento.target.value })}
+                      onChange={(evento) => {
+                        const estacion = evento.target.value;
+                        setBorrador({
+                          ...editando,
+                          estacion,
+                          ...(esEstacionTarifa(estacion)
+                            ? { tarifa: textoMonto(tarifasEstacion[estacion]), moneda: 'MXN' }
+                            : {}),
+                        });
+                      }}
                       aria-label={`Estación de Tarifas / TC de ${grupo.nombre}`}
                     >
-                      <option value="">Sin vínculo</option>
+                      <option value="">Sin referencia</option>
                       {ESTACIONES_TARIFA.map((estacion) => (
                         <option key={estacion} value={estacion}>
                           {ETIQUETA_ESTACION_TARIFA[estacion]} · {formatoMonto.format(tarifasEstacion[estacion])} MXN/h
                         </option>
                       ))}
                     </Select>
-                  </label>
-                  <label className="grid gap-1 text-xs text-texto-secundario">
-                    Tarifa propia por hora (opcional)
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      autoComplete="off"
-                      placeholder="Vacía = usa la estación"
-                      value={editando.tarifa}
-                      onChange={(evento) => setBorrador({ ...editando, tarifa: evento.target.value })}
-                      aria-label={`Tarifa por hora de ${grupo.nombre}`}
-                      className="w-44"
-                    />
                   </label>
                   <label className="grid gap-1 text-xs text-texto-secundario">
                     Moneda

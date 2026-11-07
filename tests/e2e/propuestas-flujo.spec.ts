@@ -142,9 +142,8 @@ async function prepararContexto(): Promise<Contexto> {
     .single();
   if (espesor.error || !espesor.data) throw new Error(espesor.error?.message ?? 'Sin espesor');
 
-  // Obs. cliente 2026-10-13: validar exige ruteo costeado por proceso. El grupo
-  // no lleva tarifa propia: la toma de Tarifas / TC por su estación vinculada
-  // (un solo tarifario) y se sugiere solo al abrir el ruteo.
+  // Obs. cliente 2026-10-13 + T2 2026-11-06: el grupo tiene su tarifa estándar
+  // como fuente maestra; la estación es solo una referencia.
   const grupo = await admin
     .from('grupos_equipo')
     .insert({
@@ -152,6 +151,8 @@ async function prepararContexto(): Promise<Contexto> {
       nombre: `Grupo E2E P ${sufijo}`,
       orden: 99,
       estacion_tarifa: 'laser',
+      tarifa_hora: 650,
+      tarifa_moneda: 'MXN',
     })
     .select('id')
     .single();
@@ -566,9 +567,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByLabel('Grupo de equipo IT01 fila 1')).toHaveValue(contexto.grupoId);
       await expect(page.getByLabel('Grupo de equipo IT02 fila 1')).toHaveValue(contexto.grupoId);
       await expect(page.getByTestId('costo-estimado-IT01-1')).toContainText('/h');
-      await expect(page.getByTestId('origen-tarifa-IT01-1')).toContainText(
-        'Tarifas / TC · Corte láser',
-      );
+      await expect(page.getByTestId('origen-tarifa-IT01-1')).toContainText('Tarifa del grupo');
       await expect(page.getByLabel('Costo Máquina')).toHaveCount(0);
       await expect(page.getByLabel('Costo Mano de obra')).toHaveCount(0);
 

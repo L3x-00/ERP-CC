@@ -16,7 +16,6 @@ import {
 import type { AreaEquipo } from '@/modulos/catalogos/validaciones/indice';
 import type { GrupoEquipoCatalogo, MonedaTarifa } from '@/modulos/catalogos/tipos/indice';
 
-import type { EstacionTarifa } from '@/modulos/catalogos/utilidades/tarifa-estacion';
 import { parsearMonto, textoMonto } from '@/compartido/utilidades/monto';
 
 import { resumenTarifaGrupo, textoTarifa } from './seccion-tarifas-grupos';
@@ -60,14 +59,12 @@ const EQUIPO_VACIO: BorradorEquipo = {
  */
 export function SeccionTarifasRecursos({
   grupos,
-  tarifasEstacion,
   tarifaRespaldo,
   puedeEditar,
   onMensaje,
   onError,
 }: {
   grupos: GrupoEquipoCatalogo[];
-  tarifasEstacion: Record<EstacionTarifa, number>;
   /** T1 2026-11-06: respaldo vigente para explicar qué heredará un grupo sin tarifa. */
   tarifaRespaldo: number | null;
   puedeEditar: boolean;
@@ -94,7 +91,7 @@ export function SeccionTarifasRecursos({
     }
     const grupo = recurso.grupoEquipoId ? grupoPorId.get(recurso.grupoEquipoId) : undefined;
     if (!grupo) return 'Sin grupo de equipo ni tarifa propia: su costeo quedará bloqueado';
-    const resumen = resumenTarifaGrupo(grupo, tarifasEstacion);
+    const resumen = resumenTarifaGrupo(grupo);
     if (resumen === null) {
       return respaldoValido !== null
         ? `Usa la tarifa de ${grupo.nombre}: sin tarifa estándar, usará el respaldo de $${respaldoValido.toFixed(2)}/h`
@@ -180,7 +177,7 @@ export function SeccionTarifasRecursos({
   }
 
   const grupoNuevo = nuevo ? grupos.find((grupo) => grupo.id === nuevo.grupoEquipoId) : undefined;
-  const resumenGrupoNuevo = grupoNuevo ? resumenTarifaGrupo(grupoNuevo, tarifasEstacion) : null;
+  const resumenGrupoNuevo = grupoNuevo ? resumenTarifaGrupo(grupoNuevo) : null;
   const respaldoValido =
     typeof tarifaRespaldo === 'number' && Number.isFinite(tarifaRespaldo) && tarifaRespaldo >= 0
       ? tarifaRespaldo

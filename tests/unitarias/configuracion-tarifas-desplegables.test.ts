@@ -12,17 +12,25 @@ vi.mock('@/modulos/configuracion/componentes/consulta-catalogos-base', () => ({
 }));
 vi.mock('@/modulos/catalogos/acciones/indice', () => ({
   alternarEquipoActivoAccion: vi.fn(async () => ({ exito: true, datos: null })),
+  asignarProcesosAGrupoAccion: vi.fn(async () => ({ exito: true, datos: { procesos: 1 } })),
   crearEquipoAccion: vi.fn(async () => ({
     exito: true,
     datos: { id: 'equipo-1', codigo: 'LASER-01', nombre: 'Láser Fibra 01' },
   })),
-  guardarGrupoEquipoAccion: vi.fn(),
+  guardarGrupoEquipoAccion: vi.fn(async () => ({
+    exito: true,
+    datos: { id: 'g-new', codigo: 'GRUPO', nombre: 'Grupo nuevo' },
+  })),
   guardarTarifaRecursoAccion: vi.fn(),
   listarTarifasRecursosAccion: vi.fn(async () => ({ exito: true, datos: [] })),
 }));
 
 import { consultarCatalogosBase } from '@/modulos/configuracion/componentes/consulta-catalogos-base';
-import { crearEquipoAccion } from '@/modulos/catalogos/acciones/indice';
+import {
+  asignarProcesosAGrupoAccion,
+  crearEquipoAccion,
+  guardarGrupoEquipoAccion,
+} from '@/modulos/catalogos/acciones/indice';
 import { EditorTarifasEstaciones } from '@/modulos/configuracion/componentes/editor-tarifas-estaciones';
 import { SeccionTarifarioRuteo } from '@/modulos/configuracion/componentes/seccion-tarifario-ruteo';
 import { CATALOGO_TARIFAS_DEFECTO } from '@/modulos/cotizador/servicios/catalogo-tarifas';
@@ -33,11 +41,18 @@ const GRUPO = {
   nombre: 'Láser Fibra',
   activo: true,
   orden: 1,
-  tarifaHora: null,
+  tarifaHora: 950,
   tarifaMoneda: 'MXN',
   estacionTarifa: 'laser',
 };
-const GRUPO_SIN_TARIFA = { ...GRUPO, id: 'g2', codigo: 'EXTRA', nombre: 'Extra', estacionTarifa: null };
+const GRUPO_SIN_TARIFA = {
+  ...GRUPO,
+  id: 'g2',
+  codigo: 'EXTRA',
+  nombre: 'Extra',
+  tarifaHora: null,
+  estacionTarifa: null,
+};
 
 function montarTarifario(onIrACatalogosBase?: () => void) {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -54,7 +69,26 @@ beforeEach(() => {
   vi.mocked(consultarCatalogosBase).mockResolvedValue({
     puedeEditar: true,
     gruposEquipo: [GRUPO, GRUPO_SIN_TARIFA],
-    tarifasEstacion: { laser: 950, router: 550, doblado: 700, fabricacion: 400 },
+    procesos: [
+      {
+        id: 'p1',
+        codigo: 'CORTE_LASER',
+        nombre: 'Corte láser',
+        prefijoCorrida: 'LAS',
+        grupoEquipoId: null,
+        grupoPlaneadoId: null,
+        areaTrabajoCodigo: null,
+        activo: true,
+      },
+    ],
+    tarifasEstacion: {
+      laser: 950,
+      router: 550,
+      doblado: 700,
+      soldadura: 450,
+      mano_obra: 350,
+      acabado: 300,
+    },
     tarifaRespaldo: 680,
   } as unknown as Awaited<ReturnType<typeof consultarCatalogosBase>>);
 });
@@ -206,6 +240,44 @@ describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
     );
     expect(crearEquipoAccion).toHaveBeenCalledWith(
       expect.not.objectContaining({ tarifaHora: expect.anything() }),
+    );
+  });
+});
+
+describe('SeccionTarifarioRuteo — alta guiada de un grupo con procesos', () => {
+  it('guarda la tarifa estándar y vincula los procesos compatibles en el mismo flujo', async () => {
+    montarTarifario();
+    fireEvent.click(await screen.findByRole('button', { name: /^Tarifario del ruteo/ }));
+    fireEvent.click(await screen.findByTestId('alta-guiada-grupo-nuevo'));
+
+    fireEvent.change(screen.getByTestId('alta-guiada-grupo-codigo'), {
+      target: { value: 'GRUPO_NUEVO' },
+    });
+    fireEvent.change(screen.getByTestId('alta-guiada-grupo-nombre'), {
+      target: { value: 'Grupo nuevo' },
+    });
+    fireEvent.change(screen.getByTestId('alta-guiada-grupo-tarifa'), {
+      target: { value: '800' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Corte láser' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear grupo con tarifa' }));
+
+    await waitFor(() =>
+      expect(guardarGrupoEquipoAccion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          codigo: 'GRUPO_NUEVO',
+          nombre: 'Grupo nuevo',
+          tarifaHora: 800,
+          tarifaMoneda: 'MXN',
+          estacionTarifa: null,
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(asignarProcesosAGrupoAccion).toHaveBeenCalledWith({
+        grupoId: 'g-new',
+        procesoIds: ['p1'],
+      }),
     );
   });
 });

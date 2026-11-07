@@ -14,6 +14,8 @@
 - Agrega `public.etiqueta_estacion_tarifa(text)` y `public.tarifa_respaldo_hora()`.
 - Reemplaza `public.resolver_tarifa_hora(uuid, uuid)` con la prioridad V1:
   máquina → tarifa estándar del grupo → respaldo con advertencia.
+- **T2 reemplaza esta prioridad:** la estación deja de competir y la tarifa del
+  grupo es la fuente maestra. Ver `MIGRACIONES-T2.md`.
 - Reemplaza `public.costear_ruteo_revision(uuid, uuid, uuid)` para congelar
   `tarifa_origen`.
 

@@ -1,4 +1,5 @@
 export { alternarActivoAccion } from './alternar-activo';
+export { asignarProcesosAGrupoAccion } from './asignar-procesos-grupo';
 export { guardarCanalAccion } from './guardar-canal';
 export { guardarEspesorAccion } from './guardar-espesor';
 export { guardarGrupoEquipoAccion } from './guardar-grupo-equipo';

@@ -92,7 +92,7 @@ WHERE id = 'main';
 SELECT is(
   public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000c3202'),
   jsonb_build_object('tarifa', 680, 'moneda', 'MXN', 'fuente', 'RESPALDO',
-    'advertencia', true, 'origen', 'Tarifa de respaldo (el grupo no tiene tarifa estándar)',
+    'advertencia', true, 'origen', 'Tarifa de respaldo · Doblez C32 no tiene tarifa estándar',
     'grupo_equipo_id', '00000000-0000-4000-8000-0000000c3202'::uuid,
     'grupo', 'Doblez C32', 'recurso_id', NULL),
   'sin tarifa estándar usa el respaldo con advertencia visible');
