@@ -111,6 +111,18 @@ export type CodigoErrorProduccion =
   | 'item_principal_requerido'
   | 'minutos_exceden_sesion'
   | 'sin_permiso_cierre_integrado'
+  | 'consumo_material_requerido'
+  | 'inspeccion_cierre_duplicada'
+  | 'disposicion_calidad_incompleta'
+  | 'disposicion_excede_conforme'
+  | 'revalidacion_excede_pendiente'
+  | 'revalidacion_no_aprobada'
+  | 'revalidacion_sin_cantidad'
+  | 'partida_requerida'
+  | 'material_retrabajo_inexistente'
+  | 'costo_retrabajo_no_configurado'
+  | 'resultado_retrabajo_invalido'
+  | 'solicitud_retrabajo_conflicto'
   | 'desconocido';
 export class ErrorProduccion extends Error {
   constructor(
@@ -234,6 +246,18 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'item_principal_requerido',
   'minutos_exceden_sesion',
   'sin_permiso_cierre_integrado',
+  'consumo_material_requerido',
+  'inspeccion_cierre_duplicada',
+  'disposicion_calidad_incompleta',
+  'disposicion_excede_conforme',
+  'revalidacion_excede_pendiente',
+  'revalidacion_no_aprobada',
+  'revalidacion_sin_cantidad',
+  'partida_requerida',
+  'material_retrabajo_inexistente',
+  'costo_retrabajo_no_configurado',
+  'resultado_retrabajo_invalido',
+  'solicitud_retrabajo_conflicto',
 ];
 
 /** Traduce el mensaje de una RPC a un error tipado de producción. */
@@ -325,25 +349,24 @@ export async function cerrarSesionTrabajoServicio(
     pinConfirmacion?: string;
   },
 ): Promise<CierreSesionRegistrado> {
-  if (entrada.estadoDestino === 'finalizada' && !entrada.consumo) {
-    throw new ErrorProduccion(
-      'cierre_sesion_invalido',
-      'El consumo de material es obligatorio para finalizar la sesión',
-    );
-  }
-
   if (entrada.estadoDestino === 'finalizada' && entrada.itemsIntegrados
       && entrada.itemsIntegrados.length > 0) {
+    if (!entrada.consumo) {
+      throw new ErrorProduccion(
+        'cierre_integrado_invalido',
+        'La corrida integrada (B4) requiere material compartido',
+      );
+    }
     const { data, error } = await admin.rpc('cerrar_sesion_integrada', {
       p_sesion_id: entrada.sesionId,
       p_items: entrada.itemsIntegrados.map((item) => ({
         partida_id: item.partidaId,
         piezas: item.piezas,
-        minutos: item.minutos,
+        minutos: item.minutos ?? null,
       })),
-      p_material_id: entrada.consumo!.materialId,
-      p_cantidad_usada: entrada.consumo!.cantidadUsada,
-      p_cantidad_scrap: entrada.consumo!.cantidadScrap,
+      p_material_id: entrada.consumo?.materialId ?? null,
+      p_cantidad_usada: entrada.consumo?.cantidadUsada ?? 0,
+      p_cantidad_scrap: entrada.consumo?.cantidadScrap ?? 0,
       p_notas: entrada.notas ?? '',
       p_actor_id: entrada.operadorId,
     });
@@ -464,6 +487,30 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'Los minutos por ítem superan el tiempo transcurrido de la sesión';
     case 'sin_permiso_cierre_integrado':
       return 'No tienes permiso para cerrar esta corrida integrada';
+    case 'consumo_material_requerido':
+      return 'Este proceso requiere registrar el consumo de material propio antes de finalizar.';
+    case 'inspeccion_cierre_duplicada':
+      return 'Este lote ya tiene una inspección de cierre registrada; usa la revalidación para corregir.';
+    case 'disposicion_calidad_incompleta':
+      return 'La disposición debe cuadrar con las piezas producidas: conformes + recuperables + scrap.';
+    case 'disposicion_excede_conforme':
+      return 'No hay piezas conformes suficientes para separar las recuperables o el scrap indicados.';
+    case 'revalidacion_excede_pendiente':
+      return 'La revalidación supera las piezas pendientes de recuperar.';
+    case 'revalidacion_no_aprobada':
+      return 'Solo una revalidación aprobada puede liberar piezas conformes.';
+    case 'revalidacion_sin_cantidad':
+      return 'Indica las piezas recuperadas o el scrap de la revalidación.';
+    case 'partida_requerida':
+      return 'Selecciona el ítem que se va a revalidar.';
+    case 'material_retrabajo_inexistente':
+      return 'El material del retrabajo no existe en el catálogo.';
+    case 'costo_retrabajo_no_configurado':
+      return 'El material del retrabajo no tiene costo confirmado.';
+    case 'resultado_retrabajo_invalido':
+      return 'El resultado del retrabajo debe ser pendiente, recuperado o scrap.';
+    case 'solicitud_retrabajo_conflicto':
+      return 'Ese intento de retrabajo ya se usó con otros datos; actualiza e inténtalo de nuevo.';
     case 'corrida_invalida':
     case 'corrida_item_no_incluye_partida':
       return 'La corrida no corresponde a esta partida';

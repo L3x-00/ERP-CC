@@ -31,6 +31,14 @@ export interface AvisoConciliacion {
   importe: number;
 }
 
+/** AUD-08: costo de retrabajo ya incluido en material y fabricación. */
+export interface RetrabajoConciliacion {
+  material: number;
+  manoObra: number;
+  /** Retrabajos sin sesión histórica: no se pudo valuar su mano de obra. */
+  sinSesion: number;
+}
+
 export interface TotalesConciliacion {
   estimado: number | null;
   comprometido: number;
@@ -60,6 +68,7 @@ export interface ConciliacionCostosOrden {
     comprasSinRubro: AvisoConciliacion;
     comprasPagadasSinRecepcion: AvisoConciliacion;
     gastosIncluidosEnRubros: AvisoConciliacion;
+    retrabajos: RetrabajoConciliacion;
   };
 }
 

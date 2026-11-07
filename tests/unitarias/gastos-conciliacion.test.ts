@@ -74,6 +74,7 @@ function conciliacion(extra: Partial<ConciliacionCostosOrden> = {}): Conciliacio
       comprasSinRubro: { n: 1, importe: 200 },
       comprasPagadasSinRecepcion: { n: 0, importe: 0 },
       gastosIncluidosEnRubros: { n: 1, importe: 1000 },
+      retrabajos: { material: 0, manoObra: 0, sinSesion: 0 },
     },
     ...extra,
   };

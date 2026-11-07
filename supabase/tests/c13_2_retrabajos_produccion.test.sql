@@ -1,8 +1,8 @@
--- C13.2 - Retrabajo con consumo de inventario y avance intacto.
+-- C13.2 + AUD-01 - Retrabajo con catálogo actual, sin inventario legado.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(13);
+SELECT plan(18);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-00000000d101', 'c132-operador@prueba.local'),
@@ -15,12 +15,12 @@ WHERE id = '00000000-0000-4000-8000-00000000d102';
 UPDATE public.usuarios SET rol = 'admin', activo = true, nombre_completo = 'Admin C132'
 WHERE id = '00000000-0000-4000-8000-00000000d103';
 
-INSERT INTO public.materiales (
-  id, codigo, nombre, categoria, unidad_compra, unidad_control, factor_conversion,
-  costo_unitario_compra, costo_unitario_control, stock_actual_control, stock_minimo_control
+INSERT INTO public.catalogo_materiales (
+  id, codigo, nombre, unidad_base, moneda_costo, costo_vigente, fecha_vigencia_costo,
+  costo_confirmado_en, costo_confirmado_por
 ) VALUES (
-  '00000000-0000-4000-8000-00000000d104', 'C132MAT', 'Material C132',
-  'materia_prima', 'pieza', 'pieza', 1, 10, 10, 10, 1
+  '00000000-0000-4000-8000-00000000d104', 'C132CAT', 'Material catálogo C132',
+  'kg', 'MXN', 10, current_date, now(), '00000000-0000-4000-8000-00000000d103'
 );
 
 INSERT INTO public.clientes (id, razon_social, nombre_comercial, estado)
@@ -52,7 +52,7 @@ INSERT INTO public.sesiones_trabajo (
   '00000000-0000-4000-8000-00000000d101', now()
 );
 
--- 1-2. El operador registra el retrabajo de su sesión activa.
+-- 1-2. El operador registra el retrabajo de su sesión con material del catálogo.
 SELECT lives_ok($$SELECT * FROM public.registrar_retrabajo_sesion(
   '00000000-0000-4000-8000-00000000d110', '00000000-0000-4000-8000-00000000d104',
   2, 1, 45, 'operador', 'Pieza fuera de tolerancia', 'Se corrigió el doblez',
@@ -64,22 +64,28 @@ SELECT is((
   WHERE sesion_id = '00000000-0000-4000-8000-00000000d110'
 ), 1, 'El retrabajo queda registrado una sola vez');
 
--- 3-5. Inventario, costo y kardex.
+-- 3-5. Material del catálogo, sin inventario legado.
 SELECT is((
-  SELECT stock_actual_control FROM public.materiales
-  WHERE id = '00000000-0000-4000-8000-00000000d104'
-), 7::numeric, 'El retrabajo descuenta inventario propio (2 usadas + 1 merma)');
+  SELECT catalogo_material_id FROM public.retrabajos_produccion
+  WHERE sesion_id = '00000000-0000-4000-8000-00000000d110'
+), '00000000-0000-4000-8000-00000000d104'::uuid,
+  'El retrabajo referencia el catálogo actual');
 
 SELECT is((
   SELECT costo_unitario_momento FROM public.retrabajos_produccion
   WHERE sesion_id = '00000000-0000-4000-8000-00000000d110'
-), 10::numeric, 'Conserva el costo CPP del momento');
+), 10::numeric, 'Congela el costo vigente del catálogo');
 
 SELECT is((
   SELECT count(*)::integer FROM public.movimientos_inventario
   WHERE referencia_externa = 'RETRABAJO-OP'
     AND orden_id = '00000000-0000-4000-8000-00000000d106'
-), 1, 'El kardex registra la salida del retrabajo');
+), 0, 'El retrabajo no toca inventario ni kardex');
+
+SELECT is((
+  SELECT resultado FROM public.retrabajos_produccion
+  WHERE sesion_id = '00000000-0000-4000-8000-00000000d110'
+), 'PENDIENTE', 'El resultado por defecto es pendiente de validación');
 
 -- 6. No altera el avance declarado.
 SELECT is((
@@ -110,7 +116,7 @@ SELECT throws_ok($$SELECT * FROM public.registrar_retrabajo_sesion(
   '42501', 'sin_permiso_retrabajo',
   'Solo el operador de la sesión o producción puede registrar el retrabajo');
 
--- 10. Las RPC quedan reservadas al service_role.
+-- 10-11. Las RPC quedan reservadas al service_role.
 SELECT is(has_function_privilege('anon',
   'public.registrar_retrabajo_sesion(uuid, uuid, numeric, numeric, numeric, text, text, text, uuid)',
   'execute'), false, 'anon no puede registrar retrabajos');
@@ -118,7 +124,7 @@ SELECT is(has_function_privilege('service_role',
   'public.registrar_retrabajo_sesion(uuid, uuid, numeric, numeric, numeric, text, text, text, uuid)',
   'execute'), true, 'service_role registra retrabajos');
 
--- 11-12. Se admite la sesión recién finalizada al cerrar.
+-- 12-13. Se admite la sesión recién finalizada al cerrar.
 UPDATE public.sesiones_trabajo
 SET estado_sesion = 'finalizada', fecha_fin = now()
 WHERE id = '00000000-0000-4000-8000-00000000d110';
@@ -133,6 +139,31 @@ SELECT is((
   SELECT count(*)::integer FROM public.retrabajos_produccion
   WHERE sesion_id = '00000000-0000-4000-8000-00000000d110'
 ), 2, 'El retrabajo de cierre se suma al historial');
+
+-- 14-16. Idempotencia y resultado explícito con la firma extendida.
+SELECT lives_ok($$SELECT * FROM public.registrar_retrabajo_sesion(
+  '00000000-0000-4000-8000-00000000d110', '00000000-0000-4000-8000-00000000d104',
+  1, 0, 20, 'material', 'Reintento de retrabajo', NULL,
+  '00000000-0000-4000-8000-00000000d101',
+  '00000000-0000-4000-8000-00000000d1a1', 'RECUPERADO')$$,
+  'El contrato idempotente registra el retrabajo');
+
+SELECT lives_ok($$SELECT * FROM public.registrar_retrabajo_sesion(
+  '00000000-0000-4000-8000-00000000d110', '00000000-0000-4000-8000-00000000d104',
+  1, 0, 20, 'material', 'Reintento de retrabajo', NULL,
+  '00000000-0000-4000-8000-00000000d101',
+  '00000000-0000-4000-8000-00000000d1a1', 'RECUPERADO')$$,
+  'El reintento con la misma solicitud es idempotente');
+
+SELECT is((
+  SELECT count(*)::integer FROM public.retrabajos_produccion
+  WHERE solicitud_id = '00000000-0000-4000-8000-00000000d1a1'
+), 1, 'El reintento no duplica el retrabajo');
+
+SELECT is((
+  SELECT resultado FROM public.retrabajos_produccion
+  WHERE solicitud_id = '00000000-0000-4000-8000-00000000d1a1'
+), 'RECUPERADO', 'El resultado declarado se conserva');
 
 SELECT * FROM finish();
 ROLLBACK;

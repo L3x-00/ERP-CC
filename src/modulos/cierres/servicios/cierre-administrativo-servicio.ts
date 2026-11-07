@@ -81,6 +81,8 @@ type FilaSesion = {
 type FilaConsumo = {
   partida_id: string;
   material_id: string | null;
+  catalogo_material_id: string | null;
+  unidad_base: string | null;
   cantidad_usada: number;
   cantidad_scrap: number;
   costo_unitario_momento: number;
@@ -89,6 +91,8 @@ type FilaConsumo = {
 type FilaRetrabajo = {
   orden_id: string;
   partida_id: string;
+  sesion_id: string | null;
+  material_id: string;
   cantidad_usada: number;
   cantidad_scrap: number;
   costo_unitario_momento: number;
@@ -138,7 +142,7 @@ type FilaTiempoItem = {
   sesion_id: string;
   partida_id: string;
   piezas: number;
-  minutos: number;
+  minutos: number | null;
 };
 
 /** Datos crudos de una orden, ya agrupados, para calcular su cierre. */
@@ -157,6 +161,7 @@ export interface DatosOrden {
   procesoPorCorrida: Map<string, string>;
   nombreProceso: Map<string, string>;
   nombreMaterial: Map<string, string>;
+  unidadMaterial: Map<string, string>;
 }
 
 function etiquetaProceso(nombre: string | undefined): string {
@@ -200,8 +205,10 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
     2,
   );
 
-  // Horas y costo real por sesión. Si la sesión declara tiempos por ítem
-  // (corrida integrada), se reparten por ítem y se usa la tarifa de su ruteo.
+  // Horas y costo real por sesión. El tiempo total de una corrida compartida
+  // se costea una sola vez con la tarifa del proceso; los minutos por ítem son
+  // opcionales y solo distribuyen ese total cuando fueron declarados. Si no se
+  // declararon, el costo se atribuye al ítem principal de la sesión.
   const horasPorPartida = new Map<string, number>();
   const costoManoObraPorPartida = new Map<string, number>();
   const horasPorProceso = new Map<string, number>();
@@ -212,67 +219,92 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
       ? datos.procesoPorCorrida.get(sesion.corrida_id) ?? null
       : null;
     const tiempos = datos.tiemposPorSesion.get(sesion.id) ?? [];
+    const horasSesion = numero(sesion.horas_netas);
     if (tiempos.length > 0) {
-      let minutosSesion = 0;
-      for (const tiempo of tiempos) {
-        const horas = numero(tiempo.minutos) / 60;
-        minutosSesion += numero(tiempo.minutos);
-        const partida = partidas.find((fila) => fila.id === tiempo.partida_id);
-        const item = partida
-          ? items.find((fila) => fila.codigo === partida.codigo_pieza)
-          : undefined;
-        const filasItem = item ? ruteoPorItem.get(item.id) ?? [] : [];
-        const tarifa = filasItem.length > 0
-          ? numero(filasItem[0]?.tarifa_hora)
-          : tarifaDeProceso(ruteo, procesoId);
-        horasPorPartida.set(tiempo.partida_id, (horasPorPartida.get(tiempo.partida_id) ?? 0) + horas);
-        costoManoObraPorPartida.set(
-          tiempo.partida_id,
-          (costoManoObraPorPartida.get(tiempo.partida_id) ?? 0) + horas * tarifa,
-        );
-        costoManoObraReal += horas * tarifa;
-      }
+      const tarifa = tarifaDeProceso(ruteo, procesoId);
+      const costoManoObraSesion = horasSesion * tarifa;
+      costoManoObraReal += costoManoObraSesion;
       if (procesoId) {
         horasPorProceso.set(
           procesoId,
-          (horasPorProceso.get(procesoId) ?? 0) + minutosSesion / 60,
+          (horasPorProceso.get(procesoId) ?? 0) + horasSesion,
+        );
+      }
+
+      const minutosDeclarados = tiempos.reduce(
+        (total, tiempo) => total + numero(tiempo.minutos),
+        0,
+      );
+      if (minutosDeclarados > 0) {
+        for (const tiempo of tiempos) {
+          const proporcion = numero(tiempo.minutos) / minutosDeclarados;
+          const horas = horasSesion * proporcion;
+          horasPorPartida.set(
+            tiempo.partida_id,
+            (horasPorPartida.get(tiempo.partida_id) ?? 0) + horas,
+          );
+          costoManoObraPorPartida.set(
+            tiempo.partida_id,
+            (costoManoObraPorPartida.get(tiempo.partida_id) ?? 0) + horas * tarifa,
+          );
+        }
+      } else {
+        horasPorPartida.set(
+          sesion.partida_id,
+          (horasPorPartida.get(sesion.partida_id) ?? 0) + horasSesion,
+        );
+        costoManoObraPorPartida.set(
+          sesion.partida_id,
+          (costoManoObraPorPartida.get(sesion.partida_id) ?? 0) + costoManoObraSesion,
         );
       }
     } else {
-      const horas = numero(sesion.horas_netas);
       const tarifa = tarifaDeProceso(ruteo, procesoId);
-      horasPorPartida.set(sesion.partida_id, (horasPorPartida.get(sesion.partida_id) ?? 0) + horas);
+      horasPorPartida.set(sesion.partida_id, (horasPorPartida.get(sesion.partida_id) ?? 0) + horasSesion);
       costoManoObraPorPartida.set(
         sesion.partida_id,
-        (costoManoObraPorPartida.get(sesion.partida_id) ?? 0) + horas * tarifa,
+        (costoManoObraPorPartida.get(sesion.partida_id) ?? 0) + horasSesion * tarifa,
       );
-      costoManoObraReal += horas * tarifa;
+      costoManoObraReal += horasSesion * tarifa;
       if (procesoId) {
         horasPorProceso.set(
           procesoId,
-          (horasPorProceso.get(procesoId) ?? 0) + horas,
+          (horasPorProceso.get(procesoId) ?? 0) + horasSesion,
         );
       }
     }
   }
 
   // Material real por partida (costo congelado) y por material.
+  // AUD-07: se agrupa por id resuelto (catálogo nuevo o legado), nunca por
+  // nombre; así dos materiales distintos no comparten una etiqueta genérica.
   const materiales = new Map<string, MaterialComparativo>();
   const costoMaterialPorPartida = new Map<string, number>();
   let costoMaterialReal = 0;
-  for (const consumo of consumos) {
-    const cantidad = numero(consumo.cantidad_usada) + numero(consumo.cantidad_scrap);
-    const costo = cantidad * numero(consumo.costo_unitario_momento);
-    const nombre = datos.nombreMaterial.get(consumo.material_id ?? '') ?? 'Material';
-    const actual = materiales.get(nombre) ?? {
-      nombre,
-      unidad: '',
+
+  function acumularMaterial(
+    clave: string,
+    cantidad: number,
+    costo: number,
+    unidad: string | undefined,
+  ): void {
+    const actual = materiales.get(clave) ?? {
+      clave,
+      nombre: datos.nombreMaterial.get(clave) ?? 'Material sin catálogo',
+      unidad: datos.unidadMaterial.get(clave) ?? unidad ?? '',
       cantidadReal: 0,
       costoReal: 0,
     };
     actual.cantidadReal += cantidad;
     actual.costoReal += costo;
-    materiales.set(nombre, actual);
+    materiales.set(clave, actual);
+  }
+
+  for (const consumo of consumos) {
+    const cantidad = numero(consumo.cantidad_usada) + numero(consumo.cantidad_scrap);
+    const costo = cantidad * numero(consumo.costo_unitario_momento);
+    const clave = consumo.catalogo_material_id ?? consumo.material_id ?? 'sin-material';
+    acumularMaterial(clave, cantidad, costo, consumo.unidad_base ?? undefined);
     costoMaterialPorPartida.set(
       consumo.partida_id,
       (costoMaterialPorPartida.get(consumo.partida_id) ?? 0) + costo,
@@ -285,16 +317,48 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
     2,
   );
   let costoRetrabajo = 0;
-  const costoRetrabajoPorPartida = new Map<string, number>();
+
+  // AUD-08: el retrabajo suma material (costo congelado) y mano de obra a la
+  // tarifa histórica que ya usa C14 para la partida. Se contabiliza una sola vez.
   for (const retrabajo of retrabajos) {
-    const costo = (numero(retrabajo.cantidad_usada) + numero(retrabajo.cantidad_scrap))
-      * numero(retrabajo.costo_unitario_momento);
-    costoRetrabajo += costo;
-    costoMaterialReal += costo;
-    costoRetrabajoPorPartida.set(
+    const cantidad = numero(retrabajo.cantidad_usada) + numero(retrabajo.cantidad_scrap);
+    const costoMaterial = cantidad * numero(retrabajo.costo_unitario_momento);
+    acumularMaterial(retrabajo.material_id, cantidad, costoMaterial, undefined);
+    costoMaterialPorPartida.set(
       retrabajo.partida_id,
-      (costoRetrabajoPorPartida.get(retrabajo.partida_id) ?? 0) + costo,
+      (costoMaterialPorPartida.get(retrabajo.partida_id) ?? 0) + costoMaterial,
     );
+    costoMaterialReal += costoMaterial;
+
+    const horas = numero(retrabajo.minutos) / 60;
+    const partida = partidas.find((fila) => fila.id === retrabajo.partida_id);
+    const item = partida ? items.find((fila) => fila.codigo === partida.codigo_pieza) : undefined;
+    const filasItem = item ? ruteoPorItem.get(item.id) ?? [] : [];
+    const sesion = retrabajo.sesion_id
+      ? sesiones.find((fila) => fila.id === retrabajo.sesion_id)
+      : undefined;
+    const procesoId = sesion?.corrida_id
+      ? datos.procesoPorCorrida.get(sesion.corrida_id) ?? null
+      : null;
+    const tarifa = filasItem.length > 0
+      ? numero(filasItem[0]?.tarifa_hora)
+      : tarifaDeProceso(ruteo, procesoId);
+    const costoManoObra = horas * tarifa;
+
+    costoManoObraReal += costoManoObra;
+    horasPorPartida.set(
+      retrabajo.partida_id,
+      (horasPorPartida.get(retrabajo.partida_id) ?? 0) + horas,
+    );
+    costoManoObraPorPartida.set(
+      retrabajo.partida_id,
+      (costoManoObraPorPartida.get(retrabajo.partida_id) ?? 0) + costoManoObra,
+    );
+    if (procesoId) {
+      horasPorProceso.set(procesoId, (horasPorProceso.get(procesoId) ?? 0) + horas);
+    }
+
+    costoRetrabajo += costoMaterial + costoManoObra;
   }
 
   const horasReales = redondear(
@@ -319,7 +383,6 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
     const costoRealItem = partida
       ? (costoManoObraPorPartida.get(partida.id) ?? 0)
         + (costoMaterialPorPartida.get(partida.id) ?? 0)
-        + (costoRetrabajoPorPartida.get(partida.id) ?? 0)
       : 0;
     return {
       codigo: item.codigo,
@@ -506,7 +569,7 @@ async function cargarCierres(
     consultarEnLotes<FilaRetrabajo>(ordenIds, async (lote) => {
       const { data, error } = await admin
         .from('retrabajos_produccion')
-        .select('orden_id, partida_id, cantidad_usada, cantidad_scrap, costo_unitario_momento, minutos')
+        .select('orden_id, partida_id, sesion_id, material_id, cantidad_usada, cantidad_scrap, costo_unitario_momento, minutos')
         .in('orden_id', lote);
       return { data: data as FilaRetrabajo[] | null, error };
     }),
@@ -545,7 +608,7 @@ async function cargarCierres(
     consultarEnLotes<FilaConsumo>(partidaIds, async (lote) => {
       const { data, error } = await admin
         .from('registros_consumo_material')
-        .select('partida_id, material_id, cantidad_usada, cantidad_scrap, costo_unitario_momento')
+        .select('partida_id, material_id, catalogo_material_id, unidad_base, cantidad_usada, cantidad_scrap, costo_unitario_momento')
         .in('partida_id', lote);
       return { data: data as FilaConsumo[] | null, error };
     }),
@@ -616,12 +679,43 @@ async function cargarCierres(
   });
   const nombreProceso = new Map(procesosCatalogo.map((proceso) => [proceso.id, proceso.nombre]));
 
-  const materialIds = [...new Set(consumosReales.map((consumo) => consumo.material_id).filter((id): id is string => Boolean(id)))];
-  const materiales = await consultarEnLotes<{ id: string; nombre: string; codigo: string }>(materialIds, async (lote) => {
-    const { data, error } = await admin.from('materiales').select('id, nombre, codigo').in('id', lote);
-    return { data, error };
-  });
-  const nombreMaterial = new Map(materiales.map((material) => [material.id, `${material.codigo} · ${material.nombre}`]));
+  // AUD-07: resolver el material por su id real. Los consumos nuevos apuntan a
+  // catalogo_materiales; los legados y los retrabajos, a materiales. Se
+  // consultan ambos catálogos para no depender del origen de la fila.
+  const materialIds = [...new Set(
+    [
+      ...consumosReales.flatMap((consumo) => [consumo.catalogo_material_id, consumo.material_id]),
+      ...retrabajos.map((retrabajo) => retrabajo.material_id),
+    ].filter((id): id is string => Boolean(id)),
+  )];
+  const [catalogoMateriales, materialesLegado] = await Promise.all([
+    consultarEnLotes<{ id: string; nombre: string; codigo: string; unidad_base: string }>(materialIds, async (lote) => {
+      const { data, error } = await admin
+        .from('catalogo_materiales')
+        .select('id, nombre, codigo, unidad_base')
+        .in('id', lote);
+      return { data, error };
+    }),
+    consultarEnLotes<{ id: string; nombre: string; codigo: string; unidad_control: string }>(materialIds, async (lote) => {
+      const { data, error } = await admin
+        .from('materiales')
+        .select('id, nombre, codigo, unidad_control')
+        .in('id', lote);
+      return { data, error };
+    }),
+  ]);
+
+  const nombreMaterial = new Map<string, string>();
+  const unidadMaterial = new Map<string, string>();
+  for (const material of catalogoMateriales) {
+    nombreMaterial.set(material.id, `${material.codigo} · ${material.nombre}`);
+    unidadMaterial.set(material.id, material.unidad_base);
+  }
+  for (const material of materialesLegado) {
+    if (nombreMaterial.has(material.id)) continue;
+    nombreMaterial.set(material.id, `${material.codigo} · ${material.nombre}`);
+    unidadMaterial.set(material.id, material.unidad_control);
+  }
   const clientePorId = new Map(clientes.map((cliente) => [cliente.id, cliente.nombre_comercial]));
 
   const detalles: CierreOrdenDetalle[] = ordenes.map((orden) => {
@@ -643,6 +737,7 @@ async function cargarCierres(
       procesoPorCorrida,
       nombreProceso,
       nombreMaterial,
+      unidadMaterial,
     });
   });
 

@@ -8,6 +8,9 @@ import type {
  * suma lo entregado histórico y calcula pendiente (solicitada − entregada) y
  * disponible (conforme − entregada), ambos ≥ 0.
  *
+ * AUD-04: el tope de entrega es la cantidad conforme; las piezas NOK
+ * pendientes y el scrap definitivo no son entregables.
+ *
  * Los renglones históricos sin `codigo_item` se agrupan por `codigo_pieza`, de
  * modo que las órdenes legacy también muestran sus pendientes.
  */
@@ -25,8 +28,9 @@ export function agruparPendientesPorItem(
     const cantidadProducida = Number.isFinite(partida.cantidadProducida)
       ? partida.cantidadProducida
       : 0;
-    const cantidadConforme = Number.isFinite(partida.cantidadConforme)
-      ? Number(partida.cantidadConforme)
+    const cantidadConforme = typeof partida.cantidadConforme === 'number'
+      && Number.isFinite(partida.cantidadConforme)
+      ? partida.cantidadConforme
       : cantidadProducida;
     const cantidadEntregada = Number.isFinite(partida.cantidadEntregada)
       ? partida.cantidadEntregada
@@ -36,7 +40,7 @@ export function agruparPendientesPorItem(
       existente.partidaIds.push(partida.id);
       existente.cantidadSolicitada += cantidadSolicitada;
       existente.cantidadProducida += cantidadProducida;
-      existente.cantidadConforme = (existente.cantidadConforme ?? 0) + cantidadConforme;
+      existente.cantidadConforme += cantidadConforme;
       existente.cantidadEntregada += cantidadEntregada;
       continue;
     }
@@ -58,7 +62,7 @@ export function agruparPendientesPorItem(
     .map((grupo) => ({
       ...grupo,
       pendiente: Math.max(grupo.cantidadSolicitada - grupo.cantidadEntregada, 0),
-      disponible: Math.max((grupo.cantidadConforme ?? grupo.cantidadProducida) - grupo.cantidadEntregada, 0),
+      disponible: Math.max(grupo.cantidadConforme - grupo.cantidadEntregada, 0),
     }))
     .sort((a, b) => a.codigoItem.localeCompare(b.codigoItem));
 }

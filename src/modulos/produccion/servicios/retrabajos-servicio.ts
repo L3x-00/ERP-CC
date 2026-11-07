@@ -4,6 +4,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 import { lanzarErrorProduccion } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type {
   CausaRetrabajo,
+  ResultadoRetrabajo,
   RetrabajoDetalle,
   RetrabajoRegistrado,
 } from '@/modulos/produccion/tipos/retrabajos';
@@ -25,7 +26,11 @@ function causa(valor: unknown): CausaRetrabajo {
     : 'otro';
 }
 
-/** C13.2: registra el retrabajo de una sesión (descuenta inventario propio). */
+function resultado(valor: unknown): ResultadoRetrabajo {
+  return valor === 'RECUPERADO' || valor === 'SCRAP' ? valor : 'PENDIENTE';
+}
+
+/** C13.2 + AUD-01: registra el retrabajo con material del catálogo actual. */
 export async function registrarRetrabajoServicio(
   admin: Admin,
   entrada: {
@@ -37,6 +42,8 @@ export async function registrarRetrabajoServicio(
     causa: CausaRetrabajo;
     motivo: string;
     notas?: string;
+    resultado?: ResultadoRetrabajo;
+    solicitudId?: string;
     actorId: string;
   },
 ): Promise<RetrabajoRegistrado> {
@@ -50,6 +57,8 @@ export async function registrarRetrabajoServicio(
     p_motivo: entrada.motivo,
     p_notas: entrada.notas ?? '',
     p_actor_id: entrada.actorId,
+    p_resultado: entrada.resultado ?? 'PENDIENTE',
+    ...(entrada.solicitudId ? { p_solicitud_id: entrada.solicitudId } : {}),
   });
   if (error) lanzarErrorProduccion(error.message);
 
@@ -60,16 +69,18 @@ export async function registrarRetrabajoServicio(
     ordenId: texto(fila.orden_id),
     partidaId: texto(fila.partida_id),
     materialId: texto(fila.material_id),
+    catalogoMaterialId: typeof fila.catalogo_material_id === 'string' ? fila.catalogo_material_id : null,
     cantidadUsada: numero(fila.cantidad_usada),
     cantidadScrap: numero(fila.cantidad_scrap),
     minutos: numero(fila.minutos),
     causa: causa(fila.causa),
     motivo: texto(fila.motivo),
+    resultado: resultado(fila.resultado),
     creadoEn: texto(fila.creado_en),
   };
 }
 
-/** C13.2: retrabajos visibles para administración, recientes primero. */
+/** C13.2 + AUD-01: retrabajos visibles para administración, recientes primero. */
 export async function obtenerRetrabajosOrdenServicio(
   admin: Admin,
   entrada: { ordenId: string; actorId: string },
@@ -85,6 +96,7 @@ export async function obtenerRetrabajosOrdenServicio(
     ordenId: texto(fila.orden_id),
     partidaId: texto(fila.partida_id),
     materialId: texto(fila.material_id),
+    catalogoMaterialId: typeof fila.catalogo_material_id === 'string' ? fila.catalogo_material_id : null,
     materialCodigo: texto(fila.material_codigo),
     materialNombre: texto(fila.material_nombre),
     unidadBase: texto(fila.unidad_control),
@@ -94,6 +106,7 @@ export async function obtenerRetrabajosOrdenServicio(
     minutos: numero(fila.minutos),
     causa: causa(fila.causa),
     motivo: texto(fila.motivo),
+    resultado: resultado(fila.resultado),
     notas: typeof fila.notas === 'string' ? fila.notas : null,
     registradoPorNombre: texto(fila.registrado_por_nombre) || 'Administración',
     creadoEn: texto(fila.creado_en),

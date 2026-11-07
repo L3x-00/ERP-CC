@@ -50,12 +50,12 @@ export type PendienteEntregaItem = {
   partidaIds: string[];
   cantidadSolicitada: number;
   cantidadProducida: number;
-  /** AUD-05: piezas conformes; tope de la entrega. */
-  cantidadConforme?: number;
+  /** AUD-04/AUD-05: piezas conformes y entregables; tope de la entrega. */
+  cantidadConforme: number;
   cantidadEntregada: number;
   /** Solicitada − entregada (≥ 0). */
   pendiente: number;
-  /** Producida − entregada (≥ 0): tope real de la siguiente entrega. */
+  /** Conforme − entregada (≥ 0): tope real de la siguiente entrega. */
   disponible: number;
 };
 
@@ -67,7 +67,7 @@ export type PartidaPendiente = {
   descripcion: string | null;
   cantidadSolicitada: number;
   cantidadProducida: number;
-  /** AUD-05: piezas conformes; es el tope de entrega. */
+  /** AUD-04/AUD-05: piezas conformes; es el tope de entrega. */
   cantidadConforme?: number;
   /** Suma de lo ya entregado en renglones vigentes. */
   cantidadEntregada: number;

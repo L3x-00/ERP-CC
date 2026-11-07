@@ -25,6 +25,14 @@ const aviso = z
   })
   .strict();
 
+const retrabajo = z
+  .object({
+    material: z.number(),
+    manoObra: z.number(),
+    sinSesion: z.number().int().nonnegative(),
+  })
+  .strict();
+
 /**
  * Contrato de salida de `obtener_conciliacion_costos_orden`. Se valida en el
  * servidor antes de entregar el payload a la UI: una migración ausente o un
@@ -56,6 +64,7 @@ export const esquemaConciliacionCostosOrden: z.ZodType<ConciliacionCostosOrden> 
         comprasSinRubro: aviso,
         comprasPagadasSinRecepcion: aviso,
         gastosIncluidosEnRubros: aviso,
+        retrabajos: retrabajo,
       })
       .strict(),
   })

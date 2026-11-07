@@ -446,7 +446,8 @@ SELECT ok((SELECT recibida_en IS NOT NULL FROM public.compras
 UPDATE f03 SET valor = valor || to_jsonb(pago.*)
 FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f03 WHERE clave = 'recibida'),
-  58, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-0000000f0301') AS pago
+  58, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-0000000f0301', NULL,
+  '00000000-0000-4000-8000-00000000f0a1') AS pago
 WHERE f03.clave = 'recibida';
 SELECT ok((SELECT estado = 'PAGADA' AND recibida_en IS NOT NULL FROM public.compras
   WHERE id = (SELECT (valor ->> 'id')::uuid FROM f03 WHERE clave = 'recibida')),
@@ -472,7 +473,8 @@ WHERE f03.clave = 'directa';
 UPDATE f03 SET valor = valor || to_jsonb(pago.*)
 FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f03 WHERE clave = 'directa'),
-  58, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-0000000f0301') AS pago
+  58, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-0000000f0301', NULL,
+  '00000000-0000-4000-8000-00000000f0a2') AS pago
 WHERE f03.clave = 'directa';
 SELECT ok((SELECT estado = 'PAGADA' AND recibida_en IS NULL FROM public.compras
   WHERE id = (SELECT (valor ->> 'id')::uuid FROM f03 WHERE clave = 'directa')),

@@ -86,7 +86,8 @@ UPDATE f4 SET valor = valor || to_jsonb(pago.*)
 FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra1'),
   100, 'transferencia', 'PAGO-F4-1', NULL, NULL,
-  '00000000-0000-4000-8000-00000000c101') AS pago
+  '00000000-0000-4000-8000-00000000c101', NULL,
+  '00000000-0000-4000-8000-00000000c1a1') AS pago
 WHERE f4.clave = 'compra1';
 SELECT is((SELECT (valor ->> 'saldo_pendiente')::numeric FROM f4 WHERE clave = 'compra1'), 116::numeric,
   'El pago parcial reduce el saldo');
@@ -96,7 +97,8 @@ UPDATE f4 SET valor = valor || to_jsonb(pago.*)
 FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra1'),
   116, 'efectivo', NULL, NULL, NULL,
-  '00000000-0000-4000-8000-00000000c101') AS pago
+  '00000000-0000-4000-8000-00000000c101', NULL,
+  '00000000-0000-4000-8000-00000000c1a2') AS pago
 WHERE f4.clave = 'compra1';
 SELECT is((SELECT valor ->> 'estado' FROM f4 WHERE clave = 'compra1'), 'PAGADA',
   'Al saldar, la compra queda PAGADA');
@@ -119,7 +121,8 @@ SELECT 'compra2', to_jsonb(compra.*) FROM public.crear_compra(
   '00000000-0000-4000-8000-00000000c101') AS compra;
 SELECT throws_ok($$SELECT * FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra2'),
-  10, 'transferencia', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101')$$,
+  10, 'transferencia', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101', NULL,
+  '00000000-0000-4000-8000-00000000c1a3')$$,
   '23514', 'compra_no_pagable', 'Un borrador no admite pagos');
 SELECT throws_ok($$SELECT * FROM public.crear_compra(
   '00000000-0000-4000-8000-00000000c999', NULL, 10, 0, 'MXN', 1, NULL, NULL,
@@ -152,7 +155,8 @@ WHERE f4.clave = 'compra3';
 UPDATE f4 SET valor = valor || to_jsonb(pago.*)
 FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra3'),
-  10, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101') AS pago
+  10, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101', NULL,
+  '00000000-0000-4000-8000-00000000c1a4') AS pago
 WHERE f4.clave = 'compra3';
 SELECT throws_ok($$SELECT * FROM public.cambiar_estado_compra(
   (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra3'),
@@ -182,13 +186,15 @@ SELECT throws_ok($$SELECT * FROM public.crear_compra(
 UPDATE f4 SET valor = valor || to_jsonb(pago.*)
 FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra3'),
-  20, 'transferencia', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101') AS pago
+  20, 'transferencia', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101', NULL,
+  '00000000-0000-4000-8000-00000000c1a5') AS pago
 WHERE f4.clave = 'compra3';
 SELECT is((SELECT valor ->> 'estado' FROM f4 WHERE clave = 'compra3'), 'PAGADA',
   'El segundo pago salda la compra');
 SELECT throws_ok($$SELECT * FROM public.pagar_compra(
   (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra3'),
-  1, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101')$$,
+  1, 'efectivo', NULL, NULL, NULL, '00000000-0000-4000-8000-00000000c101', NULL,
+  '00000000-0000-4000-8000-00000000c1a6')$$,
   '23514', 'compra_no_pagable', 'Una compra pagada no recibe más pagos');
 SELECT is((SELECT (valor ->> 'saldo_pendiente')::numeric FROM f4 WHERE clave = 'compra3'), 0::numeric,
   'El saldo final es cero');
@@ -206,7 +212,7 @@ SELECT is((SELECT count(*)::integer FROM pg_proc AS p
   WHERE n.nspname = 'public' AND p.proname = 'crear_compra'), 1,
   'crear_compra conserva un solo overload');
 SELECT ok(NOT has_function_privilege('authenticated',
-  'public.pagar_compra(uuid,numeric,text,text,uuid,text,uuid,uuid)', 'EXECUTE'),
+  'public.pagar_compra(uuid,numeric,text,text,uuid,text,uuid,uuid,uuid)', 'EXECUTE'),
   'authenticated no ejecuta pagar_compra');
 
 -- 23-24. Cancelación sin motivo y con pagos ya cubierta arriba; cierre de folios.
