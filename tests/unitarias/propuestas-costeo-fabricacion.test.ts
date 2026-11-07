@@ -365,7 +365,7 @@ describe('ruteo 4b: grupo por proceso y costo en vivo (obs. cliente)', () => {
 
     // 3 h × $100/h y 1 h × $100/h antes de costear.
     expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$300.00');
-    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$100.00/h');
+    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain('$100.00/h');
     expect(screen.getByTestId('costo-estimado-IT01-2').textContent).toContain('$100.00');
   });
 
@@ -404,8 +404,8 @@ describe('ruteo 4b: grupo por proceso y costo en vivo (obs. cliente)', () => {
     };
     montar({ catalogos: catalogosUsd });
 
-    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain(
-      'otra moneda que la propuesta',
+    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain(
+      'otra moneda',
     );
   });
 
@@ -725,7 +725,7 @@ describe('ruteo: la tarifa dice de dónde sale (tarifario único)', () => {
     };
     montar({ catalogos });
 
-    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$650.00/h');
+    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain('$650.00/h');
     expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain('Tarifa del grupo');
   });
 
