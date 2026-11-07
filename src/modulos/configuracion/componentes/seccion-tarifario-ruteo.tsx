@@ -20,6 +20,8 @@ import { CLAVE_CATALOGOS_BASE, consultarCatalogosBase } from './consulta-catalog
 import { SeccionTarifasGrupos, resumenTarifaGrupo } from './seccion-tarifas-grupos';
 import { SeccionTarifasRecursos } from './seccion-tarifas-recursos';
 
+const CODIGO_GRUPO = /^[A-Z0-9][A-Z0-9_-]{1,48}$/;
+
 /**
  * Parte de «Tarifas / TC» que relaciona el tarifario con el ruteo (obs. cliente
  * 2026-10-13): cada Grupo de Equipo toma su tarifa por hora de una estación de
@@ -48,6 +50,9 @@ export function SeccionTarifarioRuteo({
     procesos: string[];
   } | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [erroresGrupo, setErroresGrupo] = useState<
+    Partial<Record<'codigo' | 'nombre' | 'tarifa', string>>
+  >({});
   const consulta = useQuery({
     queryKey: CLAVE_CATALOGOS_BASE,
     queryFn: consultarCatalogosBase,
@@ -62,30 +67,48 @@ export function SeccionTarifarioRuteo({
   };
 
   /**
-   * Aclaración cliente 2026-11-06: alta guiada. Crear el grupo y su tarifa
-   * estándar en un solo formulario evita saltar entre Catálogos base y esta
-   * pestaña. La tarifa propia es opcional; si se omite, se usa la estación.
+   * Aclaración cliente 2026-11-06: alta guiada. Crear el grupo, su tarifa
+   * estándar y sus procesos compatibles en un solo formulario evita saltar
+   * entre catálogos. La estación solo copia su valor como referencia.
    */
   async function crearGrupo(): Promise<void> {
     if (!nuevo) return;
+    const errores: typeof erroresGrupo = {};
+    const codigo = nuevo.codigo.trim().toUpperCase();
+    if (!CODIGO_GRUPO.test(codigo)) {
+      errores.codigo = 'Usa mayúsculas, números, guion o guion bajo (mínimo 2 caracteres).';
+    }
+    if (nuevo.nombre.trim().length < 2) {
+      errores.nombre = 'Escribe un nombre de al menos 2 caracteres.';
+    }
     const texto = nuevo.tarifa.trim();
     let tarifa = texto === '' ? null : parsearMonto(texto);
     if (texto !== '' && tarifa === null) {
-      setError('La tarifa estándar debe ser un monto válido (por ejemplo 850.50).');
-      return;
+      errores.tarifa = 'Escribe un monto válido, por ejemplo 850.50.';
+    } else if (tarifa !== null && tarifa < 0) {
+      errores.tarifa = 'La tarifa no puede ser negativa.';
+    } else if (
+      tarifa !== null
+      && Math.abs(tarifa * 10_000 - Math.round(tarifa * 10_000)) > 1e-6
+    ) {
+      errores.tarifa = 'Usa como máximo 4 decimales.';
     }
     if (tarifa === null && esEstacionTarifa(nuevo.estacion)) {
       tarifa = datos?.tarifasEstacion[nuevo.estacion] ?? null;
     }
-    if (tarifa === null) {
-      setError('Escribe la tarifa estándar por hora o elige una estación de Tarifas / TC para copiarla.');
+    if (tarifa === null && !errores.tarifa) {
+      errores.tarifa = 'Escribe la tarifa estándar por hora o elige una estación para copiarla.';
+    }
+    if (Object.keys(errores).length > 0) {
+      setErroresGrupo(errores);
       return;
     }
+    setErroresGrupo({});
     setGuardando(true);
     setError(null);
     const respuesta = await guardarGrupoEquipoAccion({
-      codigo: nuevo.codigo,
-      nombre: nuevo.nombre,
+      codigo,
+      nombre: nuevo.nombre.trim(),
       activo: true,
       orden: 0,
       tarifaHora: tarifa,
@@ -191,7 +214,7 @@ export function SeccionTarifarioRuteo({
                   type="button"
                   variante="contorno"
                   tamano="sm"
-                  onClick={() =>
+                  onClick={() => {
                     setNuevo(
                       nuevo
                         ? null
@@ -203,8 +226,9 @@ export function SeccionTarifarioRuteo({
                             moneda: 'MXN',
                             procesos: [],
                           },
-                    )
-                  }
+                    );
+                    setErroresGrupo({});
+                  }}
                   data-testid="alta-guiada-grupo-nuevo"
                 >
                   {nuevo ? 'Cancelar' : 'Nuevo grupo de equipo'}
@@ -223,23 +247,43 @@ export function SeccionTarifarioRuteo({
                     Código
                     <Input
                       value={nuevo.codigo}
-                      onChange={(evento) =>
-                        setNuevo({ ...nuevo, codigo: evento.target.value.toUpperCase() })
-                      }
+                      onChange={(evento) => {
+                        setNuevo({ ...nuevo, codigo: evento.target.value.toUpperCase() });
+                        setErroresGrupo((actual) => ({ ...actual, codigo: undefined }));
+                      }}
                       maxLength={49}
                       required
+                      aria-invalid={Boolean(erroresGrupo.codigo)}
+                      aria-describedby={erroresGrupo.codigo ? 'grupo-codigo-error' : undefined}
+                      className={erroresGrupo.codigo ? 'border-peligro' : undefined}
                       data-testid="alta-guiada-grupo-codigo"
                     />
+                    {erroresGrupo.codigo ? (
+                      <span id="grupo-codigo-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                        {erroresGrupo.codigo}
+                      </span>
+                    ) : null}
                   </label>
                   <label className="grid gap-1 text-xs font-medium text-texto-secundario">
                     Nombre
                     <Input
                       value={nuevo.nombre}
-                      onChange={(evento) => setNuevo({ ...nuevo, nombre: evento.target.value })}
+                      onChange={(evento) => {
+                        setNuevo({ ...nuevo, nombre: evento.target.value });
+                        setErroresGrupo((actual) => ({ ...actual, nombre: undefined }));
+                      }}
                       maxLength={120}
                       required
+                      aria-invalid={Boolean(erroresGrupo.nombre)}
+                      aria-describedby={erroresGrupo.nombre ? 'grupo-nombre-error' : undefined}
+                      className={erroresGrupo.nombre ? 'border-peligro' : undefined}
                       data-testid="alta-guiada-grupo-nombre"
                     />
+                    {erroresGrupo.nombre ? (
+                      <span id="grupo-nombre-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                        {erroresGrupo.nombre}
+                      </span>
+                    ) : null}
                   </label>
                   <label className="grid gap-1 text-xs font-medium text-texto-secundario">
                     Tarifa estándar por hora
@@ -249,10 +293,21 @@ export function SeccionTarifarioRuteo({
                       autoComplete="off"
                       placeholder="850.50"
                       value={nuevo.tarifa}
-                      onChange={(evento) => setNuevo({ ...nuevo, tarifa: evento.target.value })}
+                      onChange={(evento) => {
+                        setNuevo({ ...nuevo, tarifa: evento.target.value });
+                        setErroresGrupo((actual) => ({ ...actual, tarifa: undefined }));
+                      }}
                       required
+                      aria-invalid={Boolean(erroresGrupo.tarifa)}
+                      aria-describedby={erroresGrupo.tarifa ? 'grupo-tarifa-error' : undefined}
+                      className={erroresGrupo.tarifa ? 'border-peligro' : undefined}
                       data-testid="alta-guiada-grupo-tarifa"
                     />
+                    {erroresGrupo.tarifa ? (
+                      <span id="grupo-tarifa-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                        {erroresGrupo.tarifa}
+                      </span>
+                    ) : null}
                   </label>
                   <label className="grid gap-1 text-xs font-medium text-texto-secundario">
                     Copiar de una estación (opcional)
@@ -272,6 +327,7 @@ export function SeccionTarifarioRuteo({
                               }
                             : {}),
                         });
+                        setErroresGrupo((actual) => ({ ...actual, tarifa: undefined }));
                       }}
                       data-testid="alta-guiada-grupo-estacion"
                     >

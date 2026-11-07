@@ -117,8 +117,11 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('proceso_invalido') || mensaje.includes('ruteo_proceso_requerido')) {
     return 'El ruteo requiere un proceso válido y activo';
   }
+  if (mensaje.includes('ruteo_grupo_requerido')) {
+    return 'Cada fila de ruteo requiere un grupo de equipo; es el que define la tarifa estándar';
+  }
   if (mensaje.includes('grupo_equipo_invalido') || mensaje.includes('grupo_planeado_invalido')) {
-    return 'El grupo de equipo o planeado seleccionado no existe';
+    return 'El grupo de equipo seleccionado no existe o no está activo';
   }
   if (mensaje.includes('ruteo_horas_invalidas')) {
     return 'Las horas de setup/run no son válidas';

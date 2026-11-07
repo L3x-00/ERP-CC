@@ -596,19 +596,31 @@ export function PanelRuteoCosteo({
                       className="flex flex-col gap-1"
                       data-testid={`origen-tarifa-${item.codigo}-${indice + 1}`}
                     >
-                      <span className="text-xs text-texto-secundario">Origen de la tarifa</span>
+                      <span className="text-xs text-texto-secundario">Tarifa / Origen</span>
                       {tarifa === null ? (
                         <span className="flex min-h-9 items-center text-xs text-texto-secundario">
                           Sin tarifa
                         </span>
-                      ) : tarifa.advertencia ? (
-                        <span className="flex min-h-9 flex-col justify-center gap-1 leading-tight">
-                          <Badge variante="alerta">Advertencia</Badge>
-                          <span className="text-xs text-advertencia-texto">Tarifa de respaldo</span>
-                        </span>
                       ) : (
-                        <span className="flex min-h-9 items-center text-xs leading-tight text-texto-secundario">
-                          {tarifa.origen}
+                        <span className="flex min-h-9 flex-col justify-center gap-0.5 leading-tight">
+                          <span className="text-sm tabular-nums">
+                            {formatearMoneda(tarifa.tarifa, tarifa.moneda)}/h
+                            {tarifa.moneda !== revision.snapshotCabecera.moneda
+                              ? ' · otra moneda'
+                              : ''}
+                          </span>
+                          {tarifa.advertencia ? (
+                            <Badge variante="alerta">Advertencia: tarifa de respaldo</Badge>
+                          ) : null}
+                          <span
+                            className={
+                              tarifa.advertencia
+                                ? 'text-[11px] text-advertencia-texto'
+                                : 'text-[11px] text-texto-secundario'
+                            }
+                          >
+                            {tarifa.origen}
+                          </span>
                         </span>
                       )}
                     </div>
@@ -631,16 +643,8 @@ export function PanelRuteoCosteo({
                           </span>
                         </span>
                       ) : (
-                        <span className="flex h-9 flex-col justify-center text-sm leading-tight">
-                          <span className="tabular-nums">
-                            {formatearMoneda(horasFila * tarifa.tarifa, tarifa.moneda)}
-                          </span>
-                          <span className="text-xs text-texto-secundario">
-                            {formatearMoneda(tarifa.tarifa, tarifa.moneda)}/h
-                            {tarifa.moneda !== revision.snapshotCabecera.moneda
-                              ? ' · otra moneda que la propuesta'
-                              : ''}
-                          </span>
+                        <span className="flex h-9 items-center text-sm tabular-nums">
+                          {formatearMoneda(horasFila * tarifa.tarifa, tarifa.moneda)}
                         </span>
                       )}
                     </div>

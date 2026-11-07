@@ -213,6 +213,16 @@ describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
     expect(screen.getByTestId('alta-guiada-equipo-tarifa')).toBeDefined();
   });
 
+  it('no envía el equipo si faltan datos y marca los campos en rojo', async () => {
+    await abrirFormulario();
+
+    fireEvent.submit(screen.getByTestId('alta-guiada-equipo-form'));
+
+    expect(crearEquipoAccion).not.toHaveBeenCalled();
+    expect(screen.getByText(/mínimo 2 caracteres/i)).toBeDefined();
+    expect(screen.getByText('Elige el grupo de equipo.')).toBeDefined();
+  });
+
   it('crea el equipo con grupo y sin tarifa propia por defecto', async () => {
     await abrirFormulario();
 
