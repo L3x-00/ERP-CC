@@ -218,6 +218,13 @@ describe('mappers de Producción', () => {
     recibido_por_id: null,
     solicitud_id: null,
     actualizado_en: '2026-08-14T22:00:00.000Z',
+    // B3/AUD-14: anulación administrativa.
+    estado: 'VIGENTE',
+    motivo_anulacion: null,
+    anulada_en: null,
+    anulada_por: null,
+    anulacion_solicitud_id: null,
+    nota_sustituta_id: null,
     fecha_entrega: '2026-08-14T22:00:00.000Z',
   };
   const filaPartidaNota: FilaPartidaNotaEntrega = {

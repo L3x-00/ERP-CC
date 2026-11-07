@@ -111,6 +111,8 @@ export function fichaCompleta(cambios: Partial<FichaOrden['orden']> = {}): Ficha
       esParcial: true,
       recibidoPor: 'Recepción',
       creadoEn: '2026-10-12T12:00:00.000Z',
+      estado: 'VIGENTE',
+      motivoAnulacion: null,
       partidas: [{ partidaId: ID_PARTIDA, cantidadEntregada: 1 }],
     }],
     eventos: [
