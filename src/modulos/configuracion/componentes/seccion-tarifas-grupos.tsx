@@ -51,12 +51,14 @@ export function resumenTarifaGrupo(
 export function SeccionTarifasGrupos({
   grupos,
   tarifasEstacion,
+  tarifaRespaldo,
   puedeEditar,
   onGuardado,
   onError,
 }: {
   grupos: GrupoEquipoCatalogo[];
   tarifasEstacion: Record<EstacionTarifa, number>;
+  tarifaRespaldo: number | null;
   puedeEditar: boolean;
   onGuardado: (mensaje: string) => Promise<void>;
   onError: (mensaje: string) => void;
@@ -105,8 +107,11 @@ export function SeccionTarifasGrupos({
         </p>
         {sinTarifa > 0 ? (
           <p className="mt-1 text-sm text-advertencia-texto" data-testid="grupos-sin-tarifa">
-            {sinTarifa === 1 ? '1 grupo activo no tiene' : `${sinTarifa} grupos activos no tienen`} tarifa ni
-            estación vinculada: su costeo quedará bloqueado hasta configurarla.
+            {sinTarifa === 1 ? '1 grupo activo no tiene' : `${sinTarifa} grupos activos no tienen`} tarifa
+            estándar.{' '}
+            {tarifaRespaldo !== null
+              ? 'Su costeo usará la tarifa de respaldo y quedará marcado con advertencia.'
+              : 'Su costeo quedará bloqueado hasta configurarla.'}
           </p>
         ) : null}
       </div>

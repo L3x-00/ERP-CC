@@ -88,16 +88,16 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
       <div className="rounded-lg border border-borde bg-superficie-2 p-3 text-sm text-texto-secundario">
         <p className="font-semibold text-texto-primario">Un solo tarifario por hora</p>
         <p className="mt-1">
-          El costo del ruteo se resuelve en cascada: <span className="font-medium text-texto-primario">tarifa propia de la máquina → tarifa del grupo de equipo → tarifa de la estación</span>.
-          Las estaciones de abajo son la base compartida; el «Tarifario del ruteo» solo vincula cada grupo o máquina a una de ellas.
-          Las áreas de trabajo ya no guardan precios.
+          El costo del ruteo se resuelve en este orden: <span className="font-medium text-texto-primario">tarifa propia de la máquina → tarifa estándar del grupo de equipo → tarifa de respaldo</span>.
+          La tarifa estándar del grupo es la propia o, si no tiene, la de la estación de Tarifas / TC vinculada.
+          El respaldo nunca se usa en silencio: el ruteo muestra una advertencia y el origen de la tarifa.
         </p>
       </div>
       <div className="grid items-start gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora de respaldo (MXN)
           <Input id="configuracion-costo-hora" type="number" min="0" step="0.01" value={tarifas.costoHoraDefault} onChange={(e) => cambiarTarifa('costoHoraDefault', e.target.value)} required />
           <span className="text-xs font-normal text-texto-secundario">
-            Solo se usa cuando la estación no tiene tarifa propia; el ruteo nunca lo toma si existe una tarifa de estación, grupo o máquina.
+            Último recurso: solo se usa si el grupo no tiene tarifa estándar (ni propia ni de estación). El ruteo lo marca con advertencia visible.
           </span>
         </label>
         <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-segundos-pierce">Segundos por pierce

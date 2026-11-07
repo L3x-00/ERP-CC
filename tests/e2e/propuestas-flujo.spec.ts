@@ -565,7 +565,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByLabel(/^Máquina IT01/)).toHaveCount(0);
       await expect(page.getByLabel('Grupo de equipo IT01 fila 1')).toHaveValue(contexto.grupoId);
       await expect(page.getByLabel('Grupo de equipo IT02 fila 1')).toHaveValue(contexto.grupoId);
-      await expect(page.getByTestId('costo-estimado-IT01-1')).toContainText('Tarifas / TC · Corte láser');
+      await expect(page.getByTestId('costo-estimado-IT01-1')).toContainText('/h');
+      await expect(page.getByTestId('origen-tarifa-IT01-1')).toContainText(
+        'Tarifas / TC · Corte láser',
+      );
       await expect(page.getByLabel('Costo Máquina')).toHaveCount(0);
       await expect(page.getByLabel('Costo Mano de obra')).toHaveCount(0);
 

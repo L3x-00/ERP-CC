@@ -138,7 +138,9 @@ export type RuteoItemPropuesta = {
   recursoId: string | null;
   tarifaHora: number | null;
   tarifaMoneda: MonedaPropuesta | null;
-  tarifaFuente: 'GRUPO' | 'RECURSO' | null;
+  tarifaFuente: 'GRUPO' | 'RECURSO' | 'ESTACION' | 'RESPALDO' | null;
+  /** Origen legible congelado al costear (máquina, grupo, Tarifas / TC o respaldo). */
+  tarifaOrigen: string | null;
   costoSetup: number | null;
   costoRun: number | null;
   costoTotal: number | null;
@@ -457,7 +459,17 @@ export function filaARuteoPropuesta(fila: FilaRuteoPropuesta): RuteoItemPropuest
     recursoId: fila.recurso_id,
     tarifaHora: fila.tarifa_hora === null ? null : Number(fila.tarifa_hora),
     tarifaMoneda: fila.tarifa_moneda === 'USD' ? 'USD' : fila.tarifa_moneda === 'MXN' ? 'MXN' : null,
-    tarifaFuente: fila.tarifa_fuente === 'RECURSO' ? 'RECURSO' : fila.tarifa_fuente === 'GRUPO' ? 'GRUPO' : null,
+    tarifaFuente:
+      fila.tarifa_fuente === 'RECURSO'
+        ? 'RECURSO'
+        : fila.tarifa_fuente === 'GRUPO'
+          ? 'GRUPO'
+          : fila.tarifa_fuente === 'ESTACION'
+            ? 'ESTACION'
+            : fila.tarifa_fuente === 'RESPALDO'
+              ? 'RESPALDO'
+              : null,
+    tarifaOrigen: fila.tarifa_origen ?? null,
     costoSetup: fila.costo_setup === null ? null : Number(fila.costo_setup),
     costoRun: fila.costo_run === null ? null : Number(fila.costo_run),
     costoTotal: fila.costo_total === null ? null : Number(fila.costo_total),

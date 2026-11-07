@@ -130,6 +130,7 @@ function datosBase(): CatalogosBase {
     ],
     areasTrabajo: [],
     tarifasEstacion: { laser: 650, router: 550, doblado: 600, soldadura: 450, mano_obra: 350, acabado: 300 },
+    tarifaRespaldo: 680,
     puedeEditar: true,
   };
 }

@@ -2995,6 +2995,7 @@ export type Database = {
           tarifa_fuente: string | null
           tarifa_hora: number | null
           tarifa_moneda: string | null
+          tarifa_origen: string | null
           grupo_equipo_id: string | null
           grupo_planeado_id: string | null
           id: string
@@ -3015,6 +3016,7 @@ export type Database = {
           tarifa_fuente?: string | null
           tarifa_hora?: number | null
           tarifa_moneda?: string | null
+          tarifa_origen?: string | null
           grupo_equipo_id?: string | null
           grupo_planeado_id?: string | null
           id?: string
@@ -3035,6 +3037,7 @@ export type Database = {
           tarifa_fuente?: string | null
           tarifa_hora?: number | null
           tarifa_moneda?: string | null
+          tarifa_origen?: string | null
           grupo_equipo_id?: string | null
           grupo_planeado_id?: string | null
           id?: string

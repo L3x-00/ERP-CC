@@ -7,7 +7,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(21);
+SELECT plan(25);
 
 INSERT INTO public.grupos_equipo (id, codigo, nombre, estacion_tarifa) VALUES
   ('00000000-0000-4000-8000-0000000e0001', 'TU_LASER', 'Láser TU', 'laser'),
@@ -23,6 +23,11 @@ $$, '23514', NULL, 'solo se aceptan las estaciones conocidas');
 SELECT matches(
   (SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'propuesta_item_ruteo_snapshot_costeo'),
   'ESTACION', 'El snapshot del ruteo acepta la fuente ESTACION');
+SELECT matches(
+  (SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'propuesta_item_ruteo_snapshot_costeo'),
+  'RESPALDO', 'El snapshot del ruteo acepta la fuente RESPALDO');
+SELECT has_column('public', 'propuesta_item_ruteo', 'tarifa_origen',
+  'El snapshot congela el origen legible de la tarifa');
 
 -- 4-9. tarifa_estacion_hora: valores por defecto cuando el JSON no trae estaciones
 UPDATE public.configuracion_sistema SET tarifas_json = '{}'::jsonb WHERE id = 'main';
@@ -52,8 +57,10 @@ SELECT throws_ok($$ SELECT public.tarifa_estacion_hora('plasma') $$, '22023', 'e
 -- 14-15. Resolución: sin tarifa propia usa la estación vinculada
 SELECT is(
   public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000e0001'),
-  jsonb_build_object('tarifa', 777.25, 'moneda', 'MXN', 'fuente', 'ESTACION', 'estacion', 'laser',
-    'grupo_equipo_id', '00000000-0000-4000-8000-0000000e0001'::uuid, 'recurso_id', NULL),
+  jsonb_build_object('tarifa', 777.25, 'moneda', 'MXN', 'fuente', 'ESTACION',
+    'advertencia', false, 'origen', 'Tarifas / TC · Corte láser', 'estacion', 'laser',
+    'grupo_equipo_id', '00000000-0000-4000-8000-0000000e0001'::uuid,
+    'grupo', 'Láser TU', 'recurso_id', NULL),
   'sin tarifa propia el grupo toma la de su estación vinculada');
 SELECT is(
   public.resolver_tarifa_hora(NULL, '00000000-0000-4000-8000-0000000e0011')->>'fuente',
@@ -77,6 +84,21 @@ SELECT is(
 SELECT throws_ok($$
   SELECT public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000e0002')
 $$, '23514', 'tarifa_no_configurada', 'sin tarifa ni estación el costeo se bloquea');
+
+-- 19-20. T1: el respaldo es el último recurso y nunca desplaza una tarifa válida
+UPDATE public.configuracion_sistema
+SET tarifas_json = jsonb_set(COALESCE(tarifas_json, '{}'::jsonb), '{costoHoraDefault}', '680'::jsonb)
+WHERE id = 'main';
+SELECT is(
+  public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000e0002'),
+  jsonb_build_object('tarifa', 680, 'moneda', 'MXN', 'fuente', 'RESPALDO',
+    'advertencia', true, 'origen', 'Tarifa de respaldo (el grupo no tiene tarifa estándar)',
+    'grupo_equipo_id', '00000000-0000-4000-8000-0000000e0002'::uuid,
+    'grupo', 'Sin vínculo TU', 'recurso_id', NULL),
+  'sin tarifa estándar el respaldo se usa y se marca con advertencia');
+SELECT isnt(
+  public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000e0001')->>'fuente',
+  'RESPALDO', 'el respaldo no desplaza una tarifa válida del grupo o su estación');
 
 -- 19-21. Privilegios
 SELECT ok(has_function_privilege('service_role', 'public.tarifa_estacion_hora(text)', 'EXECUTE'),

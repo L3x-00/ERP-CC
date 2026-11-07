@@ -121,7 +121,8 @@ export function FichaPropuesta({
   // Obs. cliente 2026-10-13: validar exige ítem, ruteo costeado y archivo; la
   // ficha lo marca en rojo y bloquea «Validar» (el servidor lo revalida).
   const faltantesValidacion =
-    revisionActiva !== null && revisionActiva.estado === 'DRAFT' && !esHistorial
+    revisionActiva !== null && !esHistorial
+      && (revisionActiva.estado === 'DRAFT' || revisionActiva.estado === 'READY_TO_SEND')
       ? calcularFaltantesValidacion({
           revision: revisionActiva,
           revisiones,

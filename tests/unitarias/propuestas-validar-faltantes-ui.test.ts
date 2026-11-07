@@ -93,9 +93,11 @@ function faltantes(parcial: Partial<FaltantesValidacionPropuesta>): FaltantesVal
     sinItemsActivos: false,
     itemsSinRuteo: [],
     itemsSinCostear: [],
+    operacionesConTarifaRespaldo: [],
     sinArchivos: false,
     confirmaciones: [],
     contenido: [],
+    advertencias: [],
     mensajes: [],
     ...parcial,
   };

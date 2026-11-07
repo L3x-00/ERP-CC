@@ -134,6 +134,8 @@ export interface CatalogosBase {
   areasTrabajo: AreaTrabajoOpcion[];
   /** Tarifa por hora (MXN) vigente de cada estación de Configuración → Tarifas / TC. */
   tarifasEstacion: Record<EstacionTarifa, number>;
+  /** T1 2026-11-06: costo de respaldo vigente (MXN) o null si no está configurado. */
+  tarifaRespaldo: number | null;
   /** El usuario puede mutar (permiso `catalogo_editar` o admin). */
   puedeEditar: boolean;
 }

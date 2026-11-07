@@ -78,6 +78,7 @@ function datos(puedeEditar = true): CatalogosBase {
       mano_obra: 350,
       acabado: 300,
     },
+    tarifaRespaldo: 680,
     puedeEditar,
   };
 }

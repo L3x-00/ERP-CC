@@ -58,13 +58,54 @@ describe('tarifaEfectivaDeGrupo (espejo de resolver_tarifa_hora)', () => {
   it('la tarifa propia del grupo gana a la estación', () => {
     expect(
       tarifaEfectivaDeGrupo({ tarifaHora: 900, tarifaMoneda: 'USD', estacionTarifa: 'router' }, catalogo),
-    ).toEqual({ tarifa: 900, moneda: 'USD', fuente: 'GRUPO', estacion: 'router' });
+    ).toEqual({
+      tarifa: 900,
+      moneda: 'USD',
+      fuente: 'GRUPO',
+      estacion: 'router',
+      origen: 'Tarifa del grupo',
+      advertencia: false,
+    });
   });
 
   it('sin tarifa propia usa la estación vinculada, siempre en MXN', () => {
     expect(
       tarifaEfectivaDeGrupo({ tarifaHora: null, tarifaMoneda: 'USD', estacionTarifa: 'router' }, catalogo),
-    ).toEqual({ tarifa: 580, moneda: 'MXN', fuente: 'ESTACION', estacion: 'router' });
+    ).toEqual({
+      tarifa: 580,
+      moneda: 'MXN',
+      fuente: 'ESTACION',
+      estacion: 'router',
+      origen: 'Tarifas / TC · Router CNC',
+      advertencia: false,
+    });
+  });
+
+  it('sin tarifa estándar usa el respaldo y lo marca como advertencia', () => {
+    expect(
+      tarifaEfectivaDeGrupo(
+        { tarifaHora: null, tarifaMoneda: 'MXN', estacionTarifa: null },
+        catalogo,
+        680,
+      ),
+    ).toEqual({
+      tarifa: 680,
+      moneda: 'MXN',
+      fuente: 'RESPALDO',
+      estacion: null,
+      origen: 'Tarifa de respaldo (el grupo no tiene tarifa estándar)',
+      advertencia: true,
+    });
+  });
+
+  it('un respaldo inválido no se usa: el costeo queda bloqueado', () => {
+    expect(
+      tarifaEfectivaDeGrupo(
+        { tarifaHora: null, tarifaMoneda: 'MXN', estacionTarifa: null },
+        catalogo,
+        -1,
+      ),
+    ).toBeNull();
   });
 
   it('una tarifa propia en cero es explícita y no cae a la estación', () => {

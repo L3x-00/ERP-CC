@@ -45,6 +45,7 @@ function montar(parcial: { puedeEditar?: boolean; grupos?: GrupoEquipoCatalogo[]
     createElement(SeccionTarifasGrupos, {
       grupos: parcial.grupos ?? GRUPOS,
       tarifasEstacion: TARIFAS,
+      tarifaRespaldo: 680,
       puedeEditar: parcial.puedeEditar ?? true,
       onGuardado,
       onError,

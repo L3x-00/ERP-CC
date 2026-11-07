@@ -95,6 +95,7 @@ function filaRuteo(parcial: Partial<RuteoItemPropuesta> & { id: string }): Ruteo
     tarifaHora: null,
     tarifaMoneda: null,
     tarifaFuente: null,
+    tarifaOrigen: null,
     costoSetup: null,
     costoRun: null,
     costoTotal: null,
@@ -159,6 +160,7 @@ const CATALOGOS: CatalogosPropuesta = {
       codigo: 'GLAS',
       nombre: 'Grupo Láser',
       sinTarifa: false,
+      advertenciaTarifa: false,
       tarifaHora: 100,
       tarifaMoneda: 'MXN',
       origenTarifa: 'Tarifa del grupo',
@@ -437,6 +439,7 @@ describe('ruteo: el grupo de equipo se rellena con el mismo nombre del proceso (
         codigo: 'CNC_ROUTER',
         nombre: 'CNC ROUTER',
         sinTarifa: true,
+        advertenciaTarifa: false,
         tarifaHora: null,
         tarifaMoneda: null,
         origenTarifa: null,
@@ -501,9 +504,11 @@ describe('ruteo: el grupo de equipo se rellena con el mismo nombre del proceso (
         sinItemsActivos: false,
         itemsSinRuteo: [],
         itemsSinCostear: ['IT01'],
+        operacionesConTarifaRespaldo: [],
         sinArchivos: false,
         confirmaciones: [],
         contenido: ['ítem IT01: costear el ruteo'],
+        advertencias: [],
         mensajes: ['ítem IT01: costear el ruteo'],
       },
     });
@@ -590,9 +595,11 @@ describe('validar: ruteo y costeo por proceso en rojo suave (obs. cliente 2026-1
     sinItemsActivos: false,
     itemsSinRuteo: [],
     itemsSinCostear: [],
+    operacionesConTarifaRespaldo: [],
     sinArchivos: false,
     confirmaciones: [],
     contenido: [],
+    advertencias: [],
     mensajes: [],
     ...parcial,
   });
@@ -718,9 +725,29 @@ describe('ruteo: la tarifa dice de dónde sale (tarifario único)', () => {
     };
     montar({ catalogos });
 
-    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain(
-      '$650.00/h · Tarifas / TC · Corte láser',
+    expect(screen.getByTestId('costo-estimado-IT01-1').textContent).toContain('$650.00/h');
+    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain(
+      'Tarifas / TC · Corte láser',
     );
+  });
+
+  it('marca la tarifa de respaldo con advertencia visible', () => {
+    const catalogos: CatalogosPropuesta = {
+      ...CATALOGOS,
+      gruposEquipo: [
+        {
+          ...CATALOGOS.gruposEquipo[0]!,
+          sinTarifa: true,
+          advertenciaTarifa: true,
+          tarifaHora: 680,
+          origenTarifa: 'Tarifa de respaldo (el grupo no tiene tarifa estándar)',
+        },
+      ],
+    };
+    montar({ catalogos });
+
+    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain('Advertencia');
+    expect(screen.getByTestId('origen-tarifa-IT01-1').textContent).toContain('Tarifa de respaldo');
   });
 
   it('sin tarifa explica dónde configurarla', () => {

@@ -73,11 +73,12 @@ SELECT is(
   jsonb_build_object('renglones', 1, 'costoRuteo', 350.0000, 'moneda', 'MXN'),
   'costea preparación + operación con la misma tarifa');
 SELECT results_eq(
-  format($$SELECT tarifa_hora, tarifa_moneda, tarifa_fuente, costo_setup, costo_run, costo_total
+  format($$SELECT tarifa_hora, tarifa_moneda, tarifa_fuente, tarifa_origen, costo_setup, costo_run, costo_total
            FROM public.propuesta_item_ruteo AS rt JOIN public.propuesta_items AS i ON i.id = rt.item_id
            WHERE i.revision_id = %L$$, (SELECT revision_id FROM c33)),
-  $$VALUES (100.0000::numeric, 'MXN'::text, 'GRUPO'::text, 150.0000::numeric, 200.0000::numeric, 350.0000::numeric)$$,
-  'el renglón congela tarifa, moneda, fuente y costos');
+  $$VALUES (100.0000::numeric, 'MXN'::text, 'GRUPO'::text, 'Tarifa del grupo'::text,
+            150.0000::numeric, 200.0000::numeric, 350.0000::numeric)$$,
+  'el renglón congela tarifa, moneda, fuente, origen y costos');
 UPDATE public.grupos_equipo SET tarifa_hora = 999 WHERE id = '00000000-0000-4000-8000-0000000c3310';
 SELECT is(
   (SELECT rt.tarifa_hora FROM public.propuesta_item_ruteo AS rt

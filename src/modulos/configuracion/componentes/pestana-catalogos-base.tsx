@@ -600,7 +600,7 @@ function SeccionProcesos(props: PropsSeccion) {
               ))}
             </Select>
             <span className="text-xs font-normal">
-              Familia de máquinas o recursos que ejecutan el proceso. Opcional.
+              Grupo que define la tarifa estándar del proceso. El ruteo lo sugiere y exige un grupo al guardar.
             </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">

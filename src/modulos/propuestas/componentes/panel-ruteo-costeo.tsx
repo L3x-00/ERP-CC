@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import { Badge } from '@/compartido/componentes/ui/badge';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import { formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
@@ -169,16 +170,22 @@ export function PanelRuteoCosteo({
 
   /**
    * Tarifa vigente de un renglón para el costo estimado en vivo: el override de
-   * la máquina si está configurado; si no, la tarifa del grupo de equipo. Solo
-   * llega con permiso de costo (los montos vienen en null para el resto).
+   * la máquina si está configurado; si no, la tarifa estándar del grupo (propia
+   * o de Tarifas / TC) y, solo si no existe, la de respaldo con advertencia.
+   * Solo llega con permiso de costo (los montos vienen en null para el resto).
    */
   function tarifaDeFila(
     fila: FilaRuteoBorrador,
-  ): { tarifa: number; moneda: 'MXN' | 'USD'; origen: string } | null {
+  ): { tarifa: number; moneda: 'MXN' | 'USD'; origen: string; advertencia: boolean } | null {
     if (fila.recursoId) {
       const recurso = (catalogos?.recursos ?? []).find((item) => item.id === fila.recursoId);
       if (recurso?.tarifaHora != null && recurso.tarifaMoneda) {
-        return { tarifa: recurso.tarifaHora, moneda: recurso.tarifaMoneda, origen: 'Tarifa de la máquina' };
+        return {
+          tarifa: recurso.tarifaHora,
+          moneda: recurso.tarifaMoneda,
+          origen: 'Tarifa propia de la máquina',
+          advertencia: false,
+        };
       }
     }
     const grupo = (catalogos?.gruposEquipo ?? []).find((item) => item.id === fila.grupoEquipoId);
@@ -187,6 +194,7 @@ export function PanelRuteoCosteo({
         tarifa: grupo.tarifaHora,
         moneda: grupo.tarifaMoneda,
         origen: grupo.origenTarifa ?? 'Tarifa del grupo',
+        advertencia: grupo.advertenciaTarifa === true,
       };
     }
     return null;
@@ -230,6 +238,12 @@ export function PanelRuteoCosteo({
     );
   }, [itemsRevision, ruteo]);
 
+  /** Operaciones ya costeadas con tarifa de respaldo (advertencia visible). */
+  const operacionesConRespaldo = useMemo(
+    () => ruteoActivoCosteado.filter((fila) => fila.tarifaFuente === 'RESPALDO'),
+    [ruteoActivoCosteado],
+  );
+
   const totales = useMemo(
     () =>
       calcularTotalesPropuesta({
@@ -269,6 +283,14 @@ export function PanelRuteoCosteo({
       setMensaje({ texto: 'Cada fila de ruteo requiere un proceso.', tono: 'error' });
       return;
     }
+    if (filas.some((fila) => fila.grupoEquipoId === '')) {
+      setMensaje({
+        texto:
+          'Cada fila de ruteo requiere un grupo de equipo: es el que define la tarifa estándar del proceso.',
+        tono: 'error',
+      });
+      return;
+    }
     setGuardando(`ruteo-${item.id}`);
     setMensaje(null);
     const respuesta = await editarRuteoItemAccion({
@@ -276,7 +298,7 @@ export function PanelRuteoCosteo({
       actualizadoEn: revision.actualizadoEn,
       filas: filas.map((fila) => ({
         procesoId: fila.procesoId,
-        grupoEquipoId: fila.grupoEquipoId || null,
+        grupoEquipoId: fila.grupoEquipoId,
         grupoPlaneadoId: fila.grupoPlaneadoId || null,
         recursoId: fila.recursoId || null,
         setupHoras: Number(fila.setupHoras) || 0,
@@ -439,7 +461,7 @@ export function PanelRuteoCosteo({
                   ? (catalogos?.gruposEquipo ?? []).find((grupo) => grupo.id === fila.grupoEquipoId)
                   : null;
                 return (
-                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                <div key={indice} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                   <label className="flex flex-col gap-1">
                     <span className="text-xs text-texto-secundario">Proceso</span>
                     <Select
@@ -491,7 +513,11 @@ export function PanelRuteoCosteo({
                       <option value="">Equipo…</option>
                       {(catalogos?.gruposEquipo ?? []).map((grupo) => (
                         <option key={grupo.id} value={grupo.id}>
-                          {grupo.sinTarifa ? `${grupo.nombre} (sin tarifa)` : grupo.nombre}
+                          {grupo.advertenciaTarifa
+                            ? `${grupo.nombre} (usará respaldo)`
+                            : grupo.sinTarifa
+                              ? `${grupo.nombre} (sin tarifa)`
+                              : grupo.nombre}
                         </option>
                       ))}
                     </Select>
@@ -500,9 +526,11 @@ export function PanelRuteoCosteo({
                       data-testid={`ayuda-equipo-ruteo-${item.codigo}-${indice + 1}`}
                     >
                       {grupoFila
-                        ? `Planeación usará ${grupoFila.nombre}${areaFila ? ` (área ${areaFila})` : ''} para elegir la máquina.`
+                        ? grupoFila.advertenciaTarifa
+                          ? `Sin tarifa estándar: el costeo usará la tarifa de respaldo y quedará marcado con advertencia.`
+                          : `Planeación usará ${grupoFila.nombre}${areaFila ? ` (área ${areaFila})` : ''} para elegir la máquina.`
                         : procesoFila
-                          ? 'Este proceso no tiene grupo de equipo. Configúralo en Catálogos → Procesos para que Planeación filtre la máquina.'
+                          ? 'Este proceso no tiene grupo de equipo. Configúralo en Catálogos → Procesos o elígelo aquí.'
                           : 'Elige un proceso para heredar su grupo de equipo.'}
                     </span>
                   </label>
@@ -562,6 +590,30 @@ export function PanelRuteoCosteo({
                     </div>
                   </div>
                   {permisos.editarCosto && (
+                    // Aclaración cliente 2026-11-06: el origen de la tarifa debe
+                    // ser visible por operación, con advertencia si es respaldo.
+                    <div
+                      className="flex flex-col gap-1"
+                      data-testid={`origen-tarifa-${item.codigo}-${indice + 1}`}
+                    >
+                      <span className="text-xs text-texto-secundario">Origen de la tarifa</span>
+                      {tarifa === null ? (
+                        <span className="flex min-h-9 items-center text-xs text-texto-secundario">
+                          Sin tarifa
+                        </span>
+                      ) : tarifa.advertencia ? (
+                        <span className="flex min-h-9 flex-col justify-center gap-1 leading-tight">
+                          <Badge variante="alerta">Advertencia</Badge>
+                          <span className="text-xs text-advertencia-texto">Tarifa de respaldo</span>
+                        </span>
+                      ) : (
+                        <span className="flex min-h-9 items-center text-xs leading-tight text-texto-secundario">
+                          {tarifa.origen}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {permisos.editarCosto && (
                     // Obs. cliente 2026-10-12 (4b): costo estimado en vivo al
                     // capturar horas, con la tarifa del grupo o de la máquina.
                     <div
@@ -584,7 +636,7 @@ export function PanelRuteoCosteo({
                             {formatearMoneda(horasFila * tarifa.tarifa, tarifa.moneda)}
                           </span>
                           <span className="text-xs text-texto-secundario">
-                            {formatearMoneda(tarifa.tarifa, tarifa.moneda)}/h · {tarifa.origen}
+                            {formatearMoneda(tarifa.tarifa, tarifa.moneda)}/h
                             {tarifa.moneda !== revision.snapshotCabecera.moneda
                               ? ' · otra moneda que la propuesta'
                               : ''}
@@ -660,6 +712,19 @@ export function PanelRuteoCosteo({
           <p className="text-xs text-advertencia-texto" data-testid="aviso-ruteos-por-guardar">
             Guarda el ruteo de {itemsPendientesDeGuardar.map((item) => item.codigo).join(', ')} para
             habilitar el costeo.
+          </p>
+        )}
+        {operacionesConRespaldo.length > 0 && (
+          <p
+            role="alert"
+            className="rounded-md border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-xs font-medium text-advertencia-texto"
+            data-testid="aviso-tarifa-respaldo"
+          >
+            Advertencia: {operacionesConRespaldo.length === 1
+              ? 'hay 1 operación costeada'
+              : `hay ${operacionesConRespaldo.length} operaciones costeadas`}{' '}
+            con tarifa de respaldo porque su grupo de equipo no tiene tarifa estándar. Revisa
+            Configuración → Tarifas / TC antes de enviar la propuesta.
           </p>
         )}
         <SeccionDesplegable
@@ -815,9 +880,9 @@ function DesgloseFabricacion({
         de la propuesta solo incluye las partidas activas, una vez cada una.
       </p>
       <p className="text-xs text-texto-secundario">
-        Tarifa por hora en cascada: máquina → grupo de equipo → estación. Las tres se administran
-        en el mismo lugar, Configuración → Tarifas / TC; un proceso sin tarifa indica que su grupo
-        todavía no está vinculado a una estación.
+        Regla V1: tarifa propia de la máquina → tarifa estándar del grupo de equipo
+        (definida en Tarifas / TC) → tarifa de respaldo, siempre señalada. Cada operación
+        muestra el origen de la tarifa que realmente usó.
       </p>
       {filas.length === 0 && (
         <p className="text-xs text-texto-secundario">
@@ -832,6 +897,7 @@ function DesgloseFabricacion({
               <th scope="col" className="px-3 py-2 font-medium">Ítem</th>
               <th scope="col" className="px-3 py-2 font-medium">Proceso</th>
               <th scope="col" className="px-3 py-2 font-medium">Máquina / grupo</th>
+              <th scope="col" className="px-3 py-2 font-medium">Origen de la tarifa</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">Preparación (h)</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">Operación (h)</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">Total (h)</th>
@@ -842,7 +908,7 @@ function DesgloseFabricacion({
           <tbody>
             {filas.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-3 text-xs text-texto-secundario">
+                <td colSpan={9} className="px-3 py-3 text-xs text-texto-secundario">
                   El desglose se llena al costear el ruteo.
                 </td>
               </tr>
@@ -866,10 +932,19 @@ function DesgloseFabricacion({
                         </th>
                       )}
                       <td className="px-3 py-2">{nombreProceso(fila.procesoId)}</td>
-                      <td className="px-3 py-2">
-                        {maquina ?? '—'}
-                        {fila.tarifaFuente === 'RECURSO' && (
-                          <span className="ml-1 text-xs text-texto-secundario">(tarifa propia)</span>
+                      <td className="px-3 py-2">{maquina ?? '—'}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {fila.tarifaFuente === 'RESPALDO' ? (
+                          <span className="rounded-full bg-advertencia-suave px-2 py-0.5 font-medium text-advertencia-texto">
+                            Advertencia: tarifa de respaldo
+                          </span>
+                        ) : (
+                          (fila.tarifaOrigen ??
+                            (fila.tarifaFuente === 'RECURSO'
+                              ? 'Tarifa propia de la máquina'
+                              : fila.tarifaFuente === 'ESTACION'
+                                ? 'Tarifas / TC'
+                                : 'Tarifa del grupo'))
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
@@ -897,7 +972,7 @@ function DesgloseFabricacion({
           </tbody>
           <tfoot className="border-t border-borde bg-superficie-2">
             <tr>
-              <td colSpan={7} className="px-3 py-2 text-right font-medium">
+              <td colSpan={8} className="px-3 py-2 text-right font-medium">
                 Costo de ruteo (tiempo por uso)
               </td>
               <td className="px-3 py-2 text-right font-medium tabular-nums">
@@ -905,7 +980,7 @@ function DesgloseFabricacion({
               </td>
             </tr>
             <tr>
-              <td colSpan={7} className="px-3 py-2 text-right text-texto-secundario">
+              <td colSpan={8} className="px-3 py-2 text-right text-texto-secundario">
                 Otros costos manuales
               </td>
               <td className="px-3 py-2 text-right tabular-nums text-texto-secundario">
@@ -913,7 +988,7 @@ function DesgloseFabricacion({
               </td>
             </tr>
             <tr>
-              <td colSpan={7} className="px-3 py-2 text-right font-semibold">
+              <td colSpan={8} className="px-3 py-2 text-right font-semibold">
                 Total estimado de fabricación
               </td>
               <td className="px-3 py-2 text-right font-semibold tabular-nums">

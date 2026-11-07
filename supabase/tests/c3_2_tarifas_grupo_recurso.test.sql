@@ -5,7 +5,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(16);
+SELECT plan(17);
 
 INSERT INTO public.grupos_equipo (id, codigo, nombre) VALUES
   ('00000000-0000-4000-8000-0000000c3201', 'C32LASER', 'Láser C32'),
@@ -31,6 +31,10 @@ SELECT throws_ok($$
 $$, '23514', NULL, 'sin indicador activo no se guarda un valor de override');
 
 -- 5-6. Sin tarifa: bloqueo con código estable y detalle accionable
+-- (T1: el respaldo solo aplica si está configurado; aquí se retira a propósito)
+UPDATE public.configuracion_sistema
+SET tarifas_json = COALESCE(tarifas_json, '{}'::jsonb) - 'costoHoraDefault'
+WHERE id = 'main';
 SELECT throws_ok($$
   SELECT public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000c3201')
 $$, '23514', 'tarifa_no_configurada', 'un grupo sin tarifa bloquea el costeo');
@@ -43,7 +47,9 @@ UPDATE public.grupos_equipo SET tarifa_hora = 850.5, tarifa_moneda = 'MXN' WHERE
 SELECT is(
   public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000c3201'),
   jsonb_build_object('tarifa', 850.5, 'moneda', 'MXN', 'fuente', 'GRUPO',
-    'grupo_equipo_id', '00000000-0000-4000-8000-0000000c3201'::uuid, 'recurso_id', NULL),
+    'advertencia', false, 'origen', 'Tarifa del grupo',
+    'grupo_equipo_id', '00000000-0000-4000-8000-0000000c3201'::uuid,
+    'grupo', 'Láser C32', 'recurso_id', NULL),
   'resuelve la tarifa estándar del grupo');
 SELECT is(
   public.resolver_tarifa_hora(NULL, '00000000-0000-4000-8000-0000000c3212')->>'fuente',
@@ -56,8 +62,10 @@ WHERE codigo = 'C32-L1';
 SELECT is(
   public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000c3201', '00000000-0000-4000-8000-0000000c3211'),
   jsonb_build_object('tarifa', 0, 'moneda', 'USD', 'fuente', 'RECURSO',
+    'advertencia', false, 'origen', 'Tarifa propia de la máquina',
     'grupo_equipo_id', '00000000-0000-4000-8000-0000000c3201'::uuid,
-    'recurso_id', '00000000-0000-4000-8000-0000000c3211'::uuid),
+    'recurso_id', '00000000-0000-4000-8000-0000000c3211'::uuid,
+    'recurso', 'Láser 1 C32'),
   'un override activo en cero es un override válido, no "sin tarifa"');
 UPDATE public.recursos_planeacion
 SET tarifa_override_activa = true, tarifa_override_hora = 120, tarifa_override_moneda = 'MXN'
@@ -76,6 +84,18 @@ SELECT is(
 SELECT throws_ok($$
   SELECT public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000c3202')
 $$, '23514', 'tarifa_no_configurada', 'cada grupo exige su propia tarifa');
+
+-- 12b. T1: sin tarifa estándar, el respaldo es el último recurso y se marca.
+UPDATE public.configuracion_sistema
+SET tarifas_json = jsonb_set(COALESCE(tarifas_json, '{}'::jsonb), '{costoHoraDefault}', '680'::jsonb)
+WHERE id = 'main';
+SELECT is(
+  public.resolver_tarifa_hora('00000000-0000-4000-8000-0000000c3202'),
+  jsonb_build_object('tarifa', 680, 'moneda', 'MXN', 'fuente', 'RESPALDO',
+    'advertencia', true, 'origen', 'Tarifa de respaldo (el grupo no tiene tarifa estándar)',
+    'grupo_equipo_id', '00000000-0000-4000-8000-0000000c3202'::uuid,
+    'grupo', 'Doblez C32', 'recurso_id', NULL),
+  'sin tarifa estándar usa el respaldo con advertencia visible');
 
 -- 13-14. Versionado del grupo con la tarifa
 SELECT ok(
