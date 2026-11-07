@@ -69,19 +69,38 @@ type GrupoConTarifa = {
 export type TarifaEfectivaGrupo = {
   tarifa: number;
   moneda: 'MXN' | 'USD';
-  /** `GRUPO` = tarifa propia del grupo; `ESTACION` = la de Tarifas / TC vinculada. */
-  fuente: 'GRUPO' | 'ESTACION';
+  /**
+   * `GRUPO` = tarifa estándar del grupo (fuente maestra); `RESPALDO` = último
+   * recurso, siempre con advertencia.
+   */
+  fuente: 'GRUPO' | 'RESPALDO';
+  /** Estación de referencia de Tarifas / TC; no participa en el cálculo. */
   estacion: EstacionTarifa | null;
+  /** Origen legible para el ruteo (mismo texto que devuelve el resolvedor SQL). */
+  origen: string;
+  /** true solo cuando se usa la tarifa de respaldo. */
+  advertencia: boolean;
 };
 
+/** Tarifa de respaldo válida (monto finito no negativo), o null. */
+export function tarifaRespaldoValida(respaldo: number | null | undefined): number | null {
+  return typeof respaldo === 'number' && Number.isFinite(respaldo) && respaldo >= 0
+    ? respaldo
+    : null;
+}
+
 /**
- * Tarifa que usará el costeo del ruteo para un Grupo de Equipo: la propia si la
- * tiene y, si no, la de la estación vinculada en Tarifas / TC (siempre MXN).
- * Espejo TS de `public.resolver_tarifa_hora` (sin el override por máquina).
+ * Tarifa que usará el costeo del ruteo para un Grupo de Equipo.
+ *
+ * T2 2026-11-06: la fuente maestra es `grupos_equipo.tarifa_hora`. La estación
+ * de Tarifas / TC es solo una referencia para copiar su valor; no compite en el
+ * cálculo. Solo si el grupo no tiene tarifa estándar se usa el respaldo, con
+ * advertencia. Espejo TS de `public.resolver_tarifa_hora` (sin el override por
+ * máquina).
  */
 export function tarifaEfectivaDeGrupo(
   grupo: GrupoConTarifa,
-  catalogo: CatalogoTarifasCotizador = CATALOGO_TARIFAS_DEFECTO,
+  respaldo: number | null = null,
 ): TarifaEfectivaGrupo | null {
   if (grupo.tarifaHora !== null) {
     return {
@@ -89,14 +108,19 @@ export function tarifaEfectivaDeGrupo(
       moneda: grupo.tarifaMoneda,
       fuente: 'GRUPO',
       estacion: grupo.estacionTarifa,
+      origen: 'Tarifa del grupo',
+      advertencia: false,
     };
   }
-  if (grupo.estacionTarifa !== null) {
+  const montoRespaldo = tarifaRespaldoValida(respaldo);
+  if (montoRespaldo !== null) {
     return {
-      tarifa: tarifaHoraDeEstacion(grupo.estacionTarifa, catalogo),
+      tarifa: montoRespaldo,
       moneda: 'MXN',
-      fuente: 'ESTACION',
-      estacion: grupo.estacionTarifa,
+      fuente: 'RESPALDO',
+      estacion: null,
+      origen: 'Tarifa de respaldo (el grupo no tiene tarifa estándar)',
+      advertencia: true,
     };
   }
   return null;

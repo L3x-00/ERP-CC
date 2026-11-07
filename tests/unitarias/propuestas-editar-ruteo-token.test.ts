@@ -33,7 +33,7 @@ const PROCESO_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const ENTRADA = {
   itemId: ITEM_ID,
   actualizadoEn: '2026-10-13T00:00:00+00:00',
-  filas: [{ procesoId: PROCESO_ID, grupoEquipoId: null, setupHoras: 0, runHoras: 1 }],
+  filas: [{ procesoId: PROCESO_ID, grupoEquipoId: PROCESO_ID, setupHoras: 0, runHoras: 1 }],
 };
 
 beforeEach(() => {

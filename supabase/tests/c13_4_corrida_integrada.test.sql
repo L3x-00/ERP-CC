@@ -110,8 +110,11 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   'La suma de minutos no puede exceder la sesión');
 
 -- 4-9. Cierre correcto con avance y tiempos por ítem.
+-- Se usa una ventana de 2 horas (no 30 minutos) para que el descuento de comida
+-- de las 12:00–13:00 de Tijuana no deje horas netas en cero si la prueba corre
+-- dentro de esa hora. Los minutos declarados (10) siguen cabiendo en la sesión.
 UPDATE public.sesiones_trabajo
-SET fecha_inicio = now() - interval '30 minutes'
+SET fecha_inicio = now() - interval '2 hours'
 WHERE id = '00000000-0000-4000-8000-0000000f0114';
 
 SELECT lives_ok($$SELECT public.cerrar_sesion_integrada(

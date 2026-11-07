@@ -11,7 +11,14 @@ export type EntradaFaltantesValidacion = {
   revisiones: readonly Pick<RevisionPropuesta, 'id' | 'letra'>[];
   /** Ítems de TODAS las revisiones de la propuesta (el linaje se resuelve por código). */
   items: readonly Pick<PropuestaItem, 'id' | 'revisionId' | 'codigo' | 'activo'>[];
-  ruteo: readonly Pick<RuteoItemPropuesta, 'itemId' | 'costeadoEn'>[];
+  ruteo: readonly {
+    itemId: string;
+    costeadoEn: string | null;
+    /** T1 2026-11-06: origen congelado; RESPALDO exige advertencia visible. */
+    tarifaFuente?: RuteoItemPropuesta['tarifaFuente'];
+    /** T2 2026-11-06: origen legible para identificar el grupo sin tarifa. */
+    tarifaOrigen?: string | null;
+  }[];
   /** Propios, heredados del RFQ y por ítem, ya sin los retirados. */
   archivos: readonly ArchivoParaConteo[];
 };
@@ -22,11 +29,15 @@ export type FaltantesValidacionPropuesta = {
   itemsSinRuteo: string[];
   /** Códigos ITxx activos con ruteo que aún no se costea (tarifa congelada). */
   itemsSinCostear: string[];
+  /** Códigos ITxx con alguna operación costeada con tarifa de respaldo. */
+  operacionesConTarifaRespaldo: string[];
   sinArchivos: boolean;
   /** Confirmaciones pendientes («Requiere revisión» de ruteo / costeo). */
   confirmaciones: string[];
   /** Mensajes legibles de contenido (ítems, ruteo, costeo, archivos). */
   contenido: string[];
+  /** Avisos que no bloquean la validación pero deben verse antes de enviar. */
+  advertencias: string[];
   /** Todo lo que falta, contenido primero y confirmaciones después. */
   mensajes: string[];
 };
@@ -82,10 +93,19 @@ export function calcularFaltantesValidacion(
 
   const itemsSinRuteo: string[] = [];
   const itemsSinCostear: string[] = [];
+  const operacionesConTarifaRespaldo: string[] = [];
+  const detalleRespaldo: string[] = [];
   for (const item of itemsActivos) {
     const filas = entrada.ruteo.filter((fila) => fila.itemId === item.id);
     if (filas.length === 0) itemsSinRuteo.push(item.codigo);
     else if (filas.some((fila) => fila.costeadoEn === null)) itemsSinCostear.push(item.codigo);
+    const respaldo = filas.find(
+      (fila) => fila.costeadoEn !== null && fila.tarifaFuente === 'RESPALDO',
+    );
+    if (respaldo) {
+      operacionesConTarifaRespaldo.push(item.codigo);
+      detalleRespaldo.push(respaldo.tarifaOrigen ?? '');
+    }
   }
 
   const sinItemsActivos = itemsActivos.length === 0;
@@ -101,13 +121,22 @@ export function calcularFaltantesValidacion(
   if (entrada.revision.requiereRevisionRuteo) confirmaciones.push('guardar el ruteo para confirmarlo');
   if (entrada.revision.requiereRevisionCosteo) confirmaciones.push('guardar los costos para confirmarlos');
 
+  const advertencias: string[] = operacionesConTarifaRespaldo.map(
+    (codigo, indice) =>
+      `ítem ${codigo}: operación costeada con tarifa de respaldo${
+        detalleRespaldo[indice] ? ` (${detalleRespaldo[indice]})` : ''
+      }; configura la tarifa de su grupo en Tarifas / TC`,
+  );
+
   return {
     sinItemsActivos,
     itemsSinRuteo,
     itemsSinCostear,
+    operacionesConTarifaRespaldo,
     sinArchivos,
     confirmaciones,
     contenido,
+    advertencias,
     mensajes: [...contenido, ...confirmaciones],
   };
 }

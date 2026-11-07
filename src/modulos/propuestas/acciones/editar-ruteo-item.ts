@@ -58,7 +58,7 @@ export async function editarRuteoItemAccion(
 
   const filas = datos.filas.map((fila) => ({
     proceso_id: fila.procesoId,
-    grupo_equipo_id: fila.grupoEquipoId ?? null,
+    grupo_equipo_id: fila.grupoEquipoId,
     grupo_planeado_id: fila.grupoPlaneadoId ?? null,
     recurso_id: fila.recursoId ?? null,
     setup_horas: fila.setupHoras,

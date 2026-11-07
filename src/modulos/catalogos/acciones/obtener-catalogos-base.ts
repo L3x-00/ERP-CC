@@ -40,6 +40,7 @@ export async function obtenerCatalogosBaseAccion(
       datos: {
         ...datos,
         tarifasEstacion: tarifasPorEstacion(configuracion.tarifas.estaciones),
+        tarifaRespaldo: configuracion.tarifas.costoHoraDefault,
         puedeEditar,
       },
     };

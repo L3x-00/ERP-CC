@@ -81,16 +81,24 @@ describe('validaciones Zod de propuestas (B4)', () => {
       esquemaEditarRuteoItem.safeParse({
         itemId: ID,
         actualizadoEn: VERSION,
-        filas: [{ procesoId: OTRO_ID, setupHoras: -1 }],
+        filas: [{ procesoId: OTRO_ID, grupoEquipoId: OTRO_ID, setupHoras: -1 }],
       }).success,
     ).toBe(false);
     expect(
       esquemaEditarRuteoItem.safeParse({
         itemId: ID,
         actualizadoEn: VERSION,
-        filas: [{ procesoId: OTRO_ID, runHoras: 2.5 }],
+        filas: [{ procesoId: OTRO_ID, grupoEquipoId: OTRO_ID, runHoras: 2.5 }],
       }).success,
     ).toBe(true);
+    // Aclaración cliente 2026-11-06: cada operación exige su grupo de equipo.
+    expect(
+      esquemaEditarRuteoItem.safeParse({
+        itemId: ID,
+        actualizadoEn: VERSION,
+        filas: [{ procesoId: OTRO_ID, runHoras: 2.5 }],
+      }).success,
+    ).toBe(false);
   });
 
   it('los costos validan categoría, monto y no repiten categoría', () => {

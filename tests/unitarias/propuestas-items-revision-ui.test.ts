@@ -604,9 +604,11 @@ describe('EditorItemsPropuesta — ítem obligatorio para validar (obs. cliente 
     sinItemsActivos: true,
     itemsSinRuteo: [],
     itemsSinCostear: [],
+    operacionesConTarifaRespaldo: [],
     sinArchivos: false,
     confirmaciones: [],
     contenido: ['al menos un ítem activo'],
+    advertencias: [],
     mensajes: ['al menos un ítem activo'],
   } satisfies FaltantesValidacionPropuesta;
 

@@ -5,7 +5,6 @@ import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { esMaterialVendible } from '@/modulos/catalogos/utilidades/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import {
-  ETIQUETA_ESTACION_TARIFA,
   esEstacionTarifa,
   tarifaEfectivaDeGrupo,
 } from '@/modulos/catalogos/utilidades/tarifa-estacion';
@@ -32,7 +31,10 @@ export type CatalogosPropuesta = {
     id: string;
     codigo: string;
     nombre: string;
+    /** true si el grupo no tiene tarifa propia ni estación vinculada. */
     sinTarifa: boolean;
+    /** true si el costeo de este grupo caería en la tarifa de respaldo. */
+    advertenciaTarifa: boolean;
     tarifaHora: number | null;
     tarifaMoneda: 'MXN' | 'USD' | null;
     origenTarifa: string | null;
@@ -92,10 +94,13 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
   // depende de permisos de planeación/configuración del usuario.
   const { crearClienteSupabaseAdmin } = await import('@/nucleo/supabase/admin');
   const admin = crearClienteSupabaseAdmin();
-  // Tarifas / TC: si no se puede leer, las estaciones usan los valores por defecto.
-  const estaciones = await obtenerConfiguracionGeneral(admin)
-    .then((configuracion) => configuracion.tarifas.estaciones)
+  // Tarifas / TC: la fuente maestra del ruteo es la tarifa del grupo. Aquí solo
+  // se lee el respaldo (excepción V1).
+  const tarifasConfig = await obtenerConfiguracionGeneral(admin)
+    .then((configuracion) => configuracion.tarifas)
     .catch(() => undefined);
+  const respaldo =
+    typeof tarifasConfig?.costoHoraDefault === 'number' ? tarifasConfig.costoHoraDefault : null;
   const [recursos, areasTrabajo] = await Promise.all([
     admin
       .from('recursos_planeacion')
@@ -161,27 +166,29 @@ export async function obtenerCatalogosPropuestaAccion(): Promise<
         areaTrabajoCodigo: fila.area_trabajo_codigo,
       })),
       gruposEquipo: (gruposEquipo.data ?? []).map((fila) => {
-        const efectiva = tarifaEfectivaDeGrupo(
-          {
-            tarifaHora: fila.tarifa_hora === null ? null : Number(fila.tarifa_hora),
-            tarifaMoneda: fila.tarifa_moneda === 'USD' ? 'USD' : 'MXN',
-            estacionTarifa: esEstacionTarifa(fila.estacion_tarifa) ? fila.estacion_tarifa : null,
-          },
-          estaciones,
-        );
+        const grupo = {
+          tarifaHora: fila.tarifa_hora === null ? null : Number(fila.tarifa_hora),
+          tarifaMoneda: (fila.tarifa_moneda === 'USD' ? 'USD' : 'MXN') as 'MXN' | 'USD',
+          estacionTarifa: esEstacionTarifa(fila.estacion_tarifa) ? fila.estacion_tarifa : null,
+        };
+        // Sin respaldo: distingue un grupo realmente configurado del que solo
+        // puede costearse con la tarifa de respaldo.
+        const propia = tarifaEfectivaDeGrupo(grupo);
+        const efectiva = propia ?? tarifaEfectivaDeGrupo(grupo, respaldo);
         return {
           id: fila.id,
           codigo: fila.codigo,
           nombre: fila.nombre,
-          sinTarifa: efectiva === null,
+          sinTarifa: propia === null,
+          advertenciaTarifa: efectiva?.advertencia === true,
           tarifaHora: puedeVerCosto && efectiva !== null ? efectiva.tarifa : null,
           tarifaMoneda: puedeVerCosto && efectiva !== null ? efectiva.moneda : null,
           origenTarifa:
             efectiva === null
               ? null
-              : efectiva.fuente === 'ESTACION' && efectiva.estacion !== null
-                ? `Tarifas / TC · ${ETIQUETA_ESTACION_TARIFA[efectiva.estacion]}`
-                : 'Tarifa del grupo',
+              : efectiva.fuente === 'RESPALDO'
+                ? `Tarifa de respaldo · ${fila.nombre} no tiene tarifa estándar`
+                : efectiva.origen,
         };
       }),
       gruposPlaneados: (gruposPlaneados.data ?? []).map((fila) => ({

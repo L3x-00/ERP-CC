@@ -141,3 +141,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | «Imprimir orden» imprime la pantalla completa: barra lateral, encabezado y modales | El botón llamaba `window.print()` desde la página del ERP; el navegador imprime el documento visible, no un documento de negocio | Imprimir siempre un HTML propio en un iframe aislado (`@/compartido/utilidades/impresion-documento`). Probar que `window.print` de la pantalla **no** se llama y que el iframe contiene solo el documento |
 | El botón de un documento existía pero nadie lo usaba | El componente con impresión aislada se escribió y nunca se conectó a la ficha; la pestaña seguía usando `window.print()` | Antes de cerrar una corrección de impresión, buscar `window.print()` en `src` y confirmar que ninguna pantalla con barra lateral lo conserva |
+
+## 3. Pruebas dependientes del reloj
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| `c13_4_corrida_integrada`: `minutos_exceden_sesion` solo en ciertas horas del día | La prueba simulaba una sesión de 30 minutos con `now() - interval '30 minutes'`; si esa ventana cae dentro del descuento de comida (12:00–13:00 de Tijuana) `horas_netas` queda en 0 y el mínimo de la RPC (1 minuto) rechaza los 10 minutos declarados | Usar una ventana amplia (2 horas) que garantice horas netas suficientes aunque cruce la comida; no usar ventanas cortas con `now()` en pruebas que dependen de horas netas |

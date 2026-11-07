@@ -88,6 +88,7 @@ export function PanelAccionesPropuesta({
   const referenciaFechasRfq = textoReferenciaFechasRfq(detalle.fechasRfq);
   const mensajesFaltantes = esBorrador ? (faltantes?.mensajes ?? []) : [];
   const incompleta = mensajesFaltantes.length > 0;
+  const advertenciasTarifa = faltantes?.advertencias ?? [];
 
   // Obs. cliente 2026-10-12: el canal de envío sale del catálogo configurado
   // (DC-02). Si el catálogo no cargó, se conservan las opciones históricas.
@@ -398,6 +399,21 @@ export function PanelAccionesPropuesta({
         <p className="text-xs text-advertencia-texto">
           Registra la próxima acción en Seguimiento antes de enviar (lo exige el servidor).
         </p>
+      )}
+
+      {advertenciasTarifa.length > 0 && (
+        <div
+          role="alert"
+          data-testid="advertencias-tarifa-respaldo"
+          className="rounded-md border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto"
+        >
+          <p className="font-medium">Tarifa de respaldo en el ruteo</p>
+          <ul className="list-disc pl-5">
+            {advertenciasTarifa.map((advertencia) => (
+              <li key={advertencia}>{advertencia}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {formulario === 'enviar' && (

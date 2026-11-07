@@ -6,7 +6,11 @@ import type { Database } from '@/compartido/tipos/supabase';
 export type TarifaResuelta = {
   tarifa: number;
   moneda: 'MXN' | 'USD';
-  fuente: 'GRUPO' | 'RECURSO' | 'ESTACION';
+  fuente: 'GRUPO' | 'RECURSO' | 'ESTACION' | 'RESPALDO';
+  /** Origen legible de la tarifa (mismo texto que se congela en el ruteo). */
+  origen: string;
+  /** true solo cuando se usó la tarifa de respaldo. */
+  advertencia: boolean;
   grupoEquipoId: string | null;
   recursoId: string | null;
 };
@@ -60,7 +64,16 @@ export async function resolverTarifaHora(
     datos: {
       tarifa: Number(fila.tarifa),
       moneda: fila.moneda === 'USD' ? 'USD' : 'MXN',
-      fuente: fila.fuente === 'RECURSO' ? 'RECURSO' : fila.fuente === 'ESTACION' ? 'ESTACION' : 'GRUPO',
+      fuente:
+        fila.fuente === 'RECURSO'
+          ? 'RECURSO'
+          : fila.fuente === 'ESTACION'
+            ? 'ESTACION'
+            : fila.fuente === 'RESPALDO'
+              ? 'RESPALDO'
+              : 'GRUPO',
+      origen: typeof fila.origen === 'string' ? fila.origen : 'Tarifa del grupo',
+      advertencia: fila.advertencia === true,
       grupoEquipoId: typeof fila.grupo_equipo_id === 'string' ? fila.grupo_equipo_id : null,
       recursoId: typeof fila.recurso_id === 'string' ? fila.recurso_id : null,
     },

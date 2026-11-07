@@ -106,7 +106,11 @@ export const esquemaEditarItemPropuesta = z
 const filaRuteo = z
   .object({
     procesoId: uuid,
-    grupoEquipoId: uuid.nullable().optional(),
+    /**
+     * Aclaración cliente 2026-11-06: cada operación se costea con un Grupo de
+     * Equipo; es el que define su tarifa estándar. Obligatorio en captura.
+     */
+    grupoEquipoId: uuid,
     grupoPlaneadoId: uuid.nullable().optional(),
     /** C3.3: máquina opcional del mismo grupo (usa su tarifa propia si la tiene). */
     recursoId: uuid.nullable().optional(),

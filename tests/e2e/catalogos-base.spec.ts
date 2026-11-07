@@ -284,10 +284,17 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
         .select('tarifa_hora, estacion_tarifa')
         .eq('id', grupo.data.id)
         .single();
-      expect(vinculado.data).toEqual({ tarifa_hora: null, estacion_tarifa: 'router' });
+      expect(vinculado.data).toEqual({
+        tarifa_hora: Number(tarifaRouter.data),
+        estacion_tarifa: 'router',
+      });
       const resuelta = await admin.rpc('resolver_tarifa_hora', { p_grupo_equipo_id: grupo.data.id });
       expect(resuelta.error).toBeNull();
-      expect(resuelta.data).toMatchObject({ fuente: 'ESTACION', moneda: 'MXN', estacion: 'router' });
+      expect(resuelta.data).toMatchObject({
+        fuente: 'GRUPO',
+        moneda: 'MXN',
+        tarifa: Number(tarifaRouter.data),
+      });
 
       // Una tarifa propia (texto libre) sustituye a la de la estación.
       await filaGrupo.getByRole('button', { name: 'Editar tarifa' }).click();
@@ -295,7 +302,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await filaGrupo.getByLabel(`Moneda de la tarifa de ${grupo.data.nombre}`).selectOption('USD');
       await filaGrupo.getByRole('button', { name: 'Guardar' }).click();
       await expect(filaGrupo).toContainText('USD/h');
-      await expect(filaGrupo).toContainText('Tarifa propia del grupo');
+      await expect(filaGrupo).toContainText('Tarifa del grupo');
 
       const grupoGuardado = await admin
         .from('grupos_equipo')
@@ -339,6 +346,75 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
     } finally {
       await admin.from('recursos_planeacion').delete().eq('id', recurso.data.id);
       await admin.from('versiones_catalogo').delete().eq('entidad', 'grupos_equipo').eq('entidad_id', grupo.data.id);
+      await admin.from('grupos_equipo').update({ activo: false }).eq('id', grupo.data.id);
+    }
+  });
+
+  test('alta guiada de un equipo: grupo, tarifa heredada y excepción en un solo flujo', async ({ page }) => {
+    const acceso = credenciales('ADMIN');
+    test.skip(!acceso, 'Faltan E2E_CONFIGURACION_ADMIN_EMAIL/PASSWORD.');
+    if (!acceso) return;
+    const admin = clienteAdmin();
+    test.skip(!admin, 'Faltan NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY.');
+    if (!admin) return;
+
+    const sufijo = randomUUID().slice(0, 6).toUpperCase();
+    const grupo = await admin
+      .from('grupos_equipo')
+      .insert({
+        codigo: `E2E_EQ_${sufijo}`,
+        nombre: `Grupo equipo E2E ${sufijo}`,
+        orden: 99,
+        estacion_tarifa: 'laser',
+        tarifa_hora: 777.25,
+        tarifa_moneda: 'MXN',
+      })
+      .select('id, codigo, nombre')
+      .single();
+    if (grupo.error) throw grupo.error;
+    const codigoEquipo = `E2E-MAQ-${sufijo}`;
+
+    try {
+      await iniciarSesion(page, acceso);
+      await page.goto('/configuracion');
+      await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
+      await page
+        .getByTestId('tarifario-ruteo')
+        .getByRole('button', { name: /^Tarifario del ruteo/ })
+        .click();
+
+      await page.getByTestId('alta-guiada-equipo-nuevo').click();
+      await page.getByTestId('alta-guiada-equipo-codigo').fill(codigoEquipo);
+      await page.getByTestId('alta-guiada-equipo-nombre').fill(`Máquina guiada ${sufijo}`);
+      await page.getByTestId('alta-guiada-equipo-grupo').selectOption(grupo.data.id);
+      await expect(page.getByTestId('alta-guiada-equipo-heredada')).toContainText(
+        'Tarifa heredada:',
+      );
+      await expect(page.getByTestId('alta-guiada-equipo-heredada')).toContainText(
+        'Tarifa del grupo',
+      );
+      await expect(page.getByTestId('alta-guiada-equipo-tarifa')).toHaveCount(0);
+      await page.getByTestId('alta-guiada-equipo-guardar').click();
+
+      await expect(page.getByTestId('tarifario-confirmacion')).toContainText(
+        'creado y listo para usar',
+      );
+      const fila = page.getByTestId(`tarifa-recurso-${codigoEquipo}`);
+      await expect(fila).toBeVisible();
+      await expect(fila).toContainText(`Usa la tarifa de ${grupo.data.nombre}`);
+
+      const creado = await admin
+        .from('recursos_planeacion')
+        .select('grupo_equipo_id, tarifa_override_activa, activo')
+        .eq('codigo', codigoEquipo)
+        .single();
+      expect(creado.data).toEqual({
+        grupo_equipo_id: grupo.data.id,
+        tarifa_override_activa: false,
+        activo: true,
+      });
+    } finally {
+      await admin.from('recursos_planeacion').delete().eq('codigo', codigoEquipo);
       await admin.from('grupos_equipo').update({ activo: false }).eq('id', grupo.data.id);
     }
   });

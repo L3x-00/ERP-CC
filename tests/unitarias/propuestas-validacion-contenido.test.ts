@@ -31,6 +31,19 @@ describe('calcularFaltantesValidacion', () => {
     expect(faltantes.sinArchivos).toBe(false);
   });
 
+  it('una operación costeada con respaldo solo genera advertencia, no bloquea', () => {
+    const faltantes = calcularFaltantesValidacion(
+      entrada({
+        ruteo: [{ itemId: 'i1', costeadoEn: '2026-11-07T10:00:00Z', tarifaFuente: 'RESPALDO' }],
+      }),
+    );
+
+    expect(faltantes.mensajes).toEqual([]);
+    expect(faltantes.operacionesConTarifaRespaldo).toEqual(['IT01']);
+    expect(faltantes.advertencias).toHaveLength(1);
+    expect(faltantes.advertencias[0]).toContain('tarifa de respaldo');
+  });
+
   it('sin ítems activos lo marca (un ítem inactivo no cuenta)', () => {
     const faltantes = calcularFaltantesValidacion(
       entrada({ items: [{ id: 'i1', revisionId: 'rev-a', codigo: 'IT01', activo: false }] }),

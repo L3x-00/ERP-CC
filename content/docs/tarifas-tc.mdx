@@ -35,7 +35,7 @@ Completa los campos:
 
 | Campo | Para qué sirve | Ejemplo |
 | --- | --- | --- |
-| **Costo por hora de respaldo (MXN)** | Solo se usa cuando una estación no tiene tarifa propia. | `680` |
+| **Costo por hora de respaldo (MXN)** | Último recurso: solo se usa si el grupo de equipo no tiene tarifa estándar. El ruteo lo marca con advertencia visible. | `680` |
 | **Segundos por pierce** | Tiempo inicial de perforación del láser. | `7` |
 | **Eficiencia láser (0–1)** | Qué proporción del tiempo teórico se aprovecha. | `0.82` |
 | **Factor de merma (0–1)** | Porcentaje de material que se pierde. | `0.06` |
@@ -51,7 +51,7 @@ La parte superior de la pestaña se ve así:
 
 ## 2. Tarifas por estación
 
-Las estaciones son la base compartida del cotizador y del ruteo. Despliega cada una para capturar sus valores.
+Las estaciones son la base compartida del cotizador y una referencia para copiar la tarifa del ruteo. Despliega cada una para capturar sus valores.
 
 ### Corte láser
 
@@ -107,26 +107,44 @@ Cuando termines, haz clic en **Guardar tarifas y TC**. La barra inferior muestra
 
 Más abajo está el **Tarifario del ruteo**. Aquí se asigna una tarifa a cada grupo de equipo y, opcionalmente, a cada máquina.
 
-La regla es una cascada:
+La regla es simple y auditable:
 
-1. **Tarifa propia de la máquina**, si existe.
-2. **Tarifa del grupo de equipo**, si la máquina no tiene una propia.
-3. **Tarifa de la estación**, como base compartida.
+1. **Tarifa propia de la máquina**, solo si está activa de forma explícita.
+2. **Tarifa estándar del grupo de equipo**: es la **fuente maestra** del costeo. La estación de Tarifas / TC solo sirve para copiar su valor; no compite con la tarifa del grupo.
+3. **Tarifa de respaldo**, únicamente si el grupo no tiene tarifa estándar. El ruteo la muestra con una **advertencia visible**, su valor y el grupo que no está configurado.
 
-Las áreas de trabajo no participan en esta cascada.
+En el ruteo, cada operación muestra el origen de la tarifa que realmente usó: tarifa propia de la máquina, tarifa del grupo o tarifa de respaldo. Las áreas de trabajo no participan.
+
+También puedes crear un **grupo de equipo con su tarifa estándar y sus procesos compatibles en un solo paso** desde el Tarifario del ruteo, sin salir a otro catálogo.
 
 ### Tarifas por grupo de equipo
 
-Cada grupo muestra su tarifa actual y de dónde sale:
+Cada grupo muestra su **tarifa estándar** (la fuente maestra del ruteo) y, si tiene una, la estación de referencia:
 
-- **Tarifa propia del grupo:** se capturó directamente para ese grupo.
-- **Tarifas / TC · Acabado:** toma la tarifa de la estación de acabado.
+- **650.00 MXN/h · Tarifa del grupo:** es el valor que usa el costeo.
+- **Referencia: Tarifas / TC · Acabado:** la estación solo sirve para copiar su valor.
 
-Para cambiarla, haz clic en **Editar tarifa**, captura el valor por hora y guarda.
+Para cambiarla, haz clic en **Editar tarifa**: puedes escribir el valor o elegir una estación para copiarlo. La estación no recalcula la tarifa del grupo automáticamente.
 
 ### Tarifas por máquina
 
 Solo se usan cuando una máquina cuesta distinto que su grupo. Si no tiene tarifa propia, toma la del grupo. Para asignarla, haz clic en **Editar tarifa** en la máquina correspondiente.
+
+### Alta guiada de un equipo
+
+En la misma sección, pulsa **Nuevo equipo** y completa un solo formulario:
+
+1. **Código del equipo** y **nombre**.
+2. **Grupo de equipo**: obligatorio. Es el que define la tarifa estándar.
+3. El sistema muestra la **tarifa heredada** del grupo.
+4. Responde **¿Esta máquina tiene un costo distinto al grupo?**
+   - **No**: el equipo usa la tarifa del grupo.
+   - **Sí**: se habilita la **tarifa propia por hora** y la moneda; esa tarifa sustituye a la del grupo solo para esta máquina.
+5. Elige el **área de trabajo** y guarda.
+
+El equipo queda disponible de inmediato en Planeación, con su grupo y su tarifa correctos. No hace falta visitar otra pantalla.
+
+Si un equipo deja de usarse, pulsa **Desactivar**: conserva su historial y deja de ofrecerse en registros nuevos. Puedes reactivarlo después.
 
 El tarifario se ve así:
 
@@ -141,6 +159,7 @@ El tarifario se ve así:
 - [ ] Cada estación tiene tarifa de máquina y de preparación.
 - [ ] Las tarifas de cada grupo de equipo son las correctas.
 - [ ] Las máquinas que cuestan distinto tienen tarifa propia; las demás usan la del grupo.
+- [ ] Ninguna operación de una propuesta queda costeada con tarifa de respaldo sin que lo hayas decidido.
 - [ ] Al guardar aparece el mensaje de confirmación.
 - [ ] Una cotización nueva toma los valores actualizados.
 

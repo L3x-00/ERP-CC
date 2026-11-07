@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { esquemaGuardarGrupoEquipo, esquemaGuardarGrupoPlaneado } from '@/modulos/catalogos/validaciones/indice';
+import {
+  esquemaCrearEquipo,
+  esquemaGuardarGrupoEquipo,
+  esquemaGuardarGrupoPlaneado,
+} from '@/modulos/catalogos/validaciones/indice';
 import { mensajeTarifaFaltante } from '@/modulos/propuestas/servicios/resolver-tarifa';
 import { textoTarifa } from '@/modulos/configuracion/componentes/seccion-tarifas-grupos';
 
@@ -32,5 +36,32 @@ describe('tarifas por grupo de equipo y máquina (C3.2)', () => {
   it('muestra "Sin tarifa" en vez de cero cuando no está configurada', () => {
     expect(textoTarifa({ tarifaHora: null, tarifaMoneda: 'MXN' })).toBe('Sin tarifa');
     expect(textoTarifa({ tarifaHora: 0, tarifaMoneda: 'USD' })).toBe('0.00 USD/h');
+  });
+
+  it('el alta guiada de un equipo exige grupo y solo pide tarifa propia al activar la excepción', () => {
+    const base = {
+      codigo: 'LASER-01',
+      nombre: 'Láser Fibra 01',
+      grupoEquipoId: '00000000-0000-4000-8000-0000000c3201',
+      area: 'sheet_metal',
+      activo: true,
+    };
+    expect(esquemaCrearEquipo.safeParse({ ...base, tarifaPropiaActiva: false }).success).toBe(true);
+    expect(
+      esquemaCrearEquipo.safeParse({
+        ...base,
+        tarifaPropiaActiva: true,
+        tarifaHora: 650,
+        tarifaMoneda: 'MXN',
+      }).success,
+    ).toBe(true);
+    expect(esquemaCrearEquipo.safeParse({ ...base, tarifaPropiaActiva: true }).success).toBe(false);
+    expect(
+      esquemaCrearEquipo.safeParse({
+        ...base,
+        grupoEquipoId: undefined,
+        tarifaPropiaActiva: false,
+      }).success,
+    ).toBe(false);
   });
 });

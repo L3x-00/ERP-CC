@@ -49,34 +49,61 @@ describe('tarifaHoraDeEstacion', () => {
   });
 });
 
-describe('tarifaEfectivaDeGrupo (espejo de resolver_tarifa_hora)', () => {
-  const catalogo = {
-    ...CATALOGO_TARIFAS_DEFECTO,
-    router: { ...CATALOGO_TARIFAS_DEFECTO.router, maquinaHora: 580 },
-  };
-
-  it('la tarifa propia del grupo gana a la estación', () => {
+describe('tarifaEfectivaDeGrupo (espejo de resolver_tarifa_hora, T2)', () => {
+  it('la tarifa del grupo es la fuente maestra y conserva la estación como referencia', () => {
     expect(
-      tarifaEfectivaDeGrupo({ tarifaHora: 900, tarifaMoneda: 'USD', estacionTarifa: 'router' }, catalogo),
-    ).toEqual({ tarifa: 900, moneda: 'USD', fuente: 'GRUPO', estacion: 'router' });
+      tarifaEfectivaDeGrupo({ tarifaHora: 900, tarifaMoneda: 'USD', estacionTarifa: 'router' }),
+    ).toEqual({
+      tarifa: 900,
+      moneda: 'USD',
+      fuente: 'GRUPO',
+      estacion: 'router',
+      origen: 'Tarifa del grupo',
+      advertencia: false,
+    });
   });
 
-  it('sin tarifa propia usa la estación vinculada, siempre en MXN', () => {
+  it('la estación no compite: sin tarifa del grupo no hay tarifa efectiva', () => {
     expect(
-      tarifaEfectivaDeGrupo({ tarifaHora: null, tarifaMoneda: 'USD', estacionTarifa: 'router' }, catalogo),
-    ).toEqual({ tarifa: 580, moneda: 'MXN', fuente: 'ESTACION', estacion: 'router' });
+      tarifaEfectivaDeGrupo({ tarifaHora: null, tarifaMoneda: 'MXN', estacionTarifa: 'router' }),
+    ).toBeNull();
   });
 
-  it('una tarifa propia en cero es explícita y no cae a la estación', () => {
+  it('sin tarifa estándar usa el respaldo y lo marca como advertencia', () => {
     expect(
-      tarifaEfectivaDeGrupo({ tarifaHora: 0, tarifaMoneda: 'MXN', estacionTarifa: 'router' }, catalogo)
+      tarifaEfectivaDeGrupo(
+        { tarifaHora: null, tarifaMoneda: 'MXN', estacionTarifa: null },
+        680,
+      ),
+    ).toEqual({
+      tarifa: 680,
+      moneda: 'MXN',
+      fuente: 'RESPALDO',
+      estacion: null,
+      origen: 'Tarifa de respaldo (el grupo no tiene tarifa estándar)',
+      advertencia: true,
+    });
+  });
+
+  it('un respaldo inválido no se usa: el costeo queda bloqueado', () => {
+    expect(
+      tarifaEfectivaDeGrupo(
+        { tarifaHora: null, tarifaMoneda: 'MXN', estacionTarifa: null },
+        -1,
+      ),
+    ).toBeNull();
+  });
+
+  it('una tarifa propia en cero es explícita y nunca cae a la estación', () => {
+    expect(
+      tarifaEfectivaDeGrupo({ tarifaHora: 0, tarifaMoneda: 'MXN', estacionTarifa: 'router' })
         ?.fuente,
     ).toBe('GRUPO');
   });
 
-  it('sin tarifa ni estación no hay tarifa (el costeo se bloquea)', () => {
+  it('sin tarifa ni respaldo no hay tarifa (el costeo se bloquea)', () => {
     expect(
-      tarifaEfectivaDeGrupo({ tarifaHora: null, tarifaMoneda: 'MXN', estacionTarifa: null }, catalogo),
+      tarifaEfectivaDeGrupo({ tarifaHora: null, tarifaMoneda: 'MXN', estacionTarifa: null }),
     ).toBeNull();
   });
 });
