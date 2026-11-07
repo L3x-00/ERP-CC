@@ -605,7 +605,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       for (const fila of ruteoCosteado.data ?? []) {
         expect(fila).toMatchObject({
           grupo_equipo_id: contexto.grupoId,
-          tarifa_fuente: 'ESTACION',
+          tarifa_fuente: 'GRUPO',
           tarifa_moneda: 'MXN',
         });
         expect(fila.costeado_en).toBeTruthy();
