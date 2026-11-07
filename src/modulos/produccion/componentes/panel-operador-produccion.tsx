@@ -320,7 +320,9 @@ export function PanelOperadorProduccion({
         cantidadInspeccionada: cantidad,
         cantidadOk: aprobada ? cantidad : 0,
         cantidadNok: aprobada ? 0 : cantidad,
-        cantidadRetrabajo: 0,
+        cantidadRetrabajo: aprobada ? 0 : cantidad,
+        cantidadScrap: 0,
+        sesionId: sesionActiva.id,
         ...(observacionesCierre.trim() ? { observaciones: observacionesCierre.trim() } : {}),
       });
       setMensajeInspeccionCierre(

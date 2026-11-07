@@ -42,7 +42,7 @@ export function PanelEntregasFicha({
     return {
       ...partida,
       entregada,
-      porEntregar: Math.max(partida.cantidadProducida - entregada, 0),
+      porEntregar: Math.max((partida.cantidadConforme ?? partida.cantidadProducida) - entregada, 0),
       pendienteTotal: Math.max(partida.cantidadSolicitada - entregada, 0),
     };
   });

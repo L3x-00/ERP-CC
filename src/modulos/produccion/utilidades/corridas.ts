@@ -19,6 +19,7 @@ export const ETIQUETAS_TIPO_INSPECCION: Record<TipoInspeccion, string> = {
   PRIMERA_PIEZA: 'Primera pieza',
   REFERENCIA_LOTE: 'Referencia de lote',
   CIERRE: 'Cierre',
+  REVALIDACION: 'Revalidación',
 };
 
 /** Etiqueta legible por resultado de inspección. */

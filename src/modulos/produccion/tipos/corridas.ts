@@ -10,7 +10,12 @@ export const ESTADOS_CORRIDA = [
 
 export type EstadoCorrida = (typeof ESTADOS_CORRIDA)[number];
 
-export const TIPOS_INSPECCION = ['PRIMERA_PIEZA', 'REFERENCIA_LOTE', 'CIERRE'] as const;
+export const TIPOS_INSPECCION = [
+  'PRIMERA_PIEZA',
+  'REFERENCIA_LOTE',
+  'CIERRE',
+  'REVALIDACION',
+] as const;
 export type TipoInspeccion = (typeof TIPOS_INSPECCION)[number];
 
 export const RESULTADOS_INSPECCION = ['APROBADA', 'RECHAZADA'] as const;
@@ -59,6 +64,10 @@ export type InspeccionCalidad = {
   cantidadOk: number;
   cantidadNok: number;
   cantidadRetrabajo: number;
+  /** AUD-04: piezas descartadas definitivamente. */
+  cantidadScrap: number;
+  /** AUD-04: sesión cuyo lote se dispuso (CIERRE). */
+  sesionId: string | null;
   observaciones: string | null;
   creadoEn: string;
 };
@@ -137,6 +146,8 @@ export function inspeccionDesdeJson(valor: unknown): InspeccionCalidad | null {
     cantidadOk: numero(fila.cantidad_ok),
     cantidadNok: numero(fila.cantidad_nok),
     cantidadRetrabajo: numero(fila.cantidad_retrabajo),
+    cantidadScrap: numero(fila.cantidad_scrap),
+    sesionId: typeof fila.sesion_id === 'string' ? fila.sesion_id : null,
     observaciones: typeof fila.observaciones === 'string' ? fila.observaciones : null,
     creadoEn: typeof fila.creado_en === 'string' ? fila.creado_en : '',
   };
