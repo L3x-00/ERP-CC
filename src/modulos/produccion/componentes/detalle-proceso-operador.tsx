@@ -86,8 +86,10 @@ export interface AccionesDetalleProceso {
       materialId: string;
       cantidadUsada: number;
       cantidadScrap: number;
+      motivo: string;
     };
     itemsIntegrados?: ItemIntegrado[];
+    minutosSetup?: number;
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -145,6 +147,9 @@ export function DetalleProcesoOperador({
   const [cierreAbierto, setCierreAbierto] = useState(false);
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
+  // B7: el consumo real exige motivo y el setup se identifica sin duplicar costo.
+  const [motivoConsumo, setMotivoConsumo] = useState('');
+  const [minutosSetup, setMinutosSetup] = useState('');
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
@@ -266,11 +271,6 @@ export function DetalleProcesoOperador({
   const materialClientePartida = materialCliente.filter(
     (material) => material.partidaId === proceso.partidaId,
   );
-  // AUD-02: el consumo propio solo es obligatorio si la partida declara material
-  // propio, el cliente no lo aporta y todavía no se registró para esta partida.
-  const requiereConsumoPropio = Boolean(proceso.material)
-    && materialClientePartida.length === 0
-    && consumosDePartida.length === 0;
   const errorPrimeraPieza = mensaje !== null
     && !mensaje.exito
     && mensaje.codigo === 'primera_pieza_pendiente';
@@ -316,14 +316,27 @@ export function DetalleProcesoOperador({
       && merma >= 0
       && usada + merma > 0;
 
-    if (estadoDestino === 'finalizada' && requiereConsumoPropio && !consumoValido) {
+    // B7: el servidor decide si la ruta exige consumo (AUD-02). Si se captura
+    // consumo, el motivo es obligatorio; sin consumo no se exige material.
+    const incluirConsumo = estadoDestino === 'finalizada' && consumoValido;
+    if (incluirConsumo && motivoConsumo.trim().length < 3) {
       setMensaje({
         exito: false,
-        error: 'Selecciona un material e indica consumo o merma mayor a cero.',
+        error: 'Indica el motivo del consumo de material (mínimo 3 caracteres).',
       });
       return;
     }
-    const incluirConsumo = estadoDestino === 'finalizada' && consumoValido;
+    const minutosSetupNumero = minutosSetup.trim() === '' ? undefined : Number(minutosSetup);
+    if (
+      minutosSetupNumero !== undefined
+      && (!Number.isFinite(minutosSetupNumero) || minutosSetupNumero < 0 || minutosSetupNumero > 1440)
+    ) {
+      setMensaje({
+        exito: false,
+        error: 'Los minutos de setup deben ser un número entre 0 y 1440.',
+      });
+      return;
+    }
 
     if (estadoDestino === 'finalizada' && registrarRetrabajo && !retrabajoRegistrado) {
       const rUsado = Number(retrabajoUsado);
@@ -449,10 +462,12 @@ export function DetalleProcesoOperador({
               materialId,
               cantidadUsada: usada,
               cantidadScrap: merma,
+              motivo: motivoConsumo.trim(),
             },
           }
         : {}),
       ...(itemsIntegrados ? { itemsIntegrados } : {}),
+      ...(minutosSetupNumero !== undefined ? { minutosSetup: minutosSetupNumero } : {}),
       pinConfirmacion: pin,
     });
     setMensaje(resultado);
@@ -474,7 +489,9 @@ export function DetalleProcesoOperador({
     if (resultado.exito) {
       setPin('');
       setNotas('');
-      if (estadoDestino === 'finalizada' && materialSeleccionado && resultado.datos) {
+      setMotivoConsumo('');
+      setMinutosSetup('');
+      if (incluirConsumo && materialSeleccionado && resultado.datos) {
         setResumenCierre({
           material: materialSeleccionado,
           cantidadUsada: usada,
@@ -1083,6 +1100,23 @@ export function DetalleProcesoOperador({
                       <option value="pausada">Pausar sesión de trabajo</option>
                     </Select>
                   </label>
+                  {estadoDestino === 'finalizada' ? (
+                    <label className={CLASE_ETIQUETA}>
+                      Minutos de setup (opcional)
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={minutosSetup}
+                        onChange={(evento) => setMinutosSetup(evento.target.value)}
+                        placeholder="0"
+                        data-testid="minutos-setup"
+                      />
+                      <span className="text-xs font-normal text-texto-tenue">
+                        Identifica el setup dentro del tiempo real; no se cobra dos veces.
+                      </span>
+                    </label>
+                  ) : null}
                   {estadoDestino === 'pausada' ? (
                     <label className={CLASE_ETIQUETA}>
                       Motivo de pausa
@@ -1104,7 +1138,6 @@ export function DetalleProcesoOperador({
                         <Select
                           value={materialId}
                           onChange={(evento) => setMaterialId(evento.target.value)}
-                          required
                           data-testid="material-cierre"
                         >
                           <option value="">Selecciona un material</option>
@@ -1130,7 +1163,6 @@ export function DetalleProcesoOperador({
                             step="any"
                             value={cantidadUsada}
                             onChange={(evento) => setCantidadUsada(evento.target.value)}
-                            required
                             data-testid="usado-cierre"
                           />
                         </label>
@@ -1143,10 +1175,23 @@ export function DetalleProcesoOperador({
                             step="any"
                             value={cantidadMerma}
                             onChange={(evento) => setCantidadMerma(evento.target.value)}
-                            required
                           />
                         </label>
                       </div>
+
+                      <label className={CLASE_ETIQUETA}>
+                        Motivo del consumo
+                        <Input
+                          maxLength={200}
+                          value={motivoConsumo}
+                          onChange={(evento) => setMotivoConsumo(evento.target.value)}
+                          placeholder="Para qué se usó el material"
+                          data-testid="motivo-consumo"
+                        />
+                        <span className="text-xs font-normal text-texto-tenue">
+                          Obligatorio cuando registras consumo o merma.
+                        </span>
+                      </label>
 
                       <div className="grid gap-3 rounded-lg bg-superficie-2 p-3">
                         <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">

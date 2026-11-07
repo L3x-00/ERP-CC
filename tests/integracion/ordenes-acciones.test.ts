@@ -178,6 +178,7 @@ describe('seguridad de acciones de órdenes', () => {
       materialId: '88888888-8888-4888-8888-888888888888',
       cantidadUsada: 3,
       cantidadScrap: 0,
+      motivo: 'Consumo de producción',
     });
 
     expect(respuesta).toEqual({
@@ -195,6 +196,7 @@ describe('seguridad de acciones de órdenes', () => {
       materialId: '88888888-8888-4888-8888-888888888888',
       cantidadUsada: 3,
       cantidadScrap: 0,
+      motivo: 'Consumo de producción',
     };
     const respuesta = await registrarConsumoAccion(entrada);
 
@@ -219,6 +221,7 @@ describe('seguridad de acciones de órdenes', () => {
       materialId: '88888888-8888-4888-8888-888888888888',
       cantidadUsada: 3,
       cantidadScrap: 0,
+      motivo: 'Consumo de producción',
     });
 
     expect(respuesta).toEqual({

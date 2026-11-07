@@ -115,7 +115,7 @@ export interface PartidaNotaEntrega {
 export type FilaSesionTrabajo = Tables<'sesiones_trabajo'>;
 export type FilaSesionTrabajoOperativa = Omit<FilaSesionTrabajo, 'costo_hora_interno'>;
 export const COLUMNAS_SESION_TRABAJO_OPERATIVA =
-  'id, orden_id, partida_id, programacion_id, operador_id, corrida_id, fecha_inicio, fecha_fin, horas_brutas, horas_netas, piezas_producidas, motivo_pausa, motivo_pausa_codigo, motivo_pausa_nota, recurso_liberado, verificacion_inicio, notas, estado_sesion, creado_en, actualizado_en';
+  'id, orden_id, partida_id, programacion_id, operador_id, corrida_id, fecha_inicio, fecha_fin, horas_brutas, horas_netas, minutos_setup, piezas_producidas, motivo_pausa, motivo_pausa_codigo, motivo_pausa_nota, recurso_liberado, verificacion_inicio, notas, estado_sesion, creado_en, actualizado_en';
 export type FilaNotaEntrega = Tables<'notas_entrega'>;
 export type FilaPartidaNotaEntrega = Tables<'partidas_nota_entrega'>;
 export type FilaMetaProcesoPartida = Tables<'metas_proceso_partida'>;

@@ -39,6 +39,7 @@ describe('cerrarSesionTrabajoServicio', () => {
         materialId: IDS.material,
         cantidadUsada: 2,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
     });
 
@@ -49,6 +50,7 @@ describe('cerrarSesionTrabajoServicio', () => {
       p_material_id: IDS.material,
       p_cantidad_usada: 2,
       p_cantidad_scrap: 0.5,
+      p_motivo_consumo: 'Consumo de producción',
       p_meta_proceso_id: null,
       p_notas: 'Cierre de prueba',
     });

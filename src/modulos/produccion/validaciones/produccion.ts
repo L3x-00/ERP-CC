@@ -45,6 +45,8 @@ export const esquemaCerrarSesion = z
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
+    /** B7: identificación del setup dentro del tiempo real de la sesión. */
+    minutosSetup: z.number().finite().min(0).max(1440).optional(),
     pinConfirmacion: z
       .string()
       .regex(
@@ -55,6 +57,7 @@ export const esquemaCerrarSesion = z
       materialId: z.uuid('ID de material inválido'),
       cantidadUsada: z.number().finite().min(0),
       cantidadScrap: z.number().finite().min(0),
+      motivo: z.string().trim().min(3, 'Indica el motivo del consumo').max(200),
     }).strict().refine(
       (valor) => valor.cantidadUsada + valor.cantidadScrap > 0,
       { message: 'Registra consumo o merma mayor a cero' },
@@ -102,10 +105,12 @@ export const esquemaCerrarSesionSupervisor = z
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
+    minutosSetup: z.number().finite().min(0).max(1440).optional(),
     consumo: z.object({
       materialId: z.uuid('ID de material inválido'),
       cantidadUsada: z.number().finite().min(0),
       cantidadScrap: z.number().finite().min(0),
+      motivo: z.string().trim().min(3, 'Indica el motivo del consumo').max(200),
     }).strict().refine(
       (valor) => valor.cantidadUsada + valor.cantidadScrap > 0,
       { message: 'Registra consumo o merma mayor a cero' },

@@ -14,12 +14,11 @@ import type { MaterialCosto, PropuestaCostoMaterial } from '../tipos/materiales-
 import { ModalConfirmarCosto } from './modal-confirmar-costo';
 import { ModalGuardarMaterial } from './modal-guardar-material';
 import { ModalProponerCosto } from './modal-proponer-costo';
-import { PanelExistencias } from './panel-existencias';
 import { TablaHistorialCostos } from './tabla-historial-costos';
 import { TablaMaterialesCostos } from './tabla-materiales-costos';
 import { TablaPropuestasCosto } from './tabla-propuestas-costo';
 
-type SubPestana = 'materiales' | 'existencias' | 'propuestas' | 'historial';
+type SubPestana = 'materiales' | 'propuestas' | 'historial';
 
 type ModalAbierto =
   | { tipo: 'proponer'; material: MaterialCosto }
@@ -28,10 +27,10 @@ type ModalAbierto =
   | null;
 
 /**
- * C6.1 + obs. 8: maestro e historial de costos de materiales, alta/edición de
- * materiales con grupos y espesores, y existencias como saldo manual con
- * historial. La lectura exige `gestionar_inventario` o `ver_finanzas`; el
- * ajuste de saldo y la edición del catálogo exigen `gestionar_inventario`.
+ * C6.1: maestro e historial de costos de materiales, alta/edición con grupos,
+ * espesores y propuestas de compra/gasto. El consumo real se registra en las
+ * órdenes. No se administran existencias, kardex ni saldos físicos
+ * (aclaraciones 06/11/2026, sección 7).
  */
 export function PanelCostosMateriales() {
   const [pestana, setPestana] = useState<SubPestana>('materiales');
@@ -104,12 +103,6 @@ export function PanelCostosMateriales() {
           Materiales
         </BotonSubPestana>
         <BotonSubPestana
-          activa={pestana === 'existencias'}
-          onClick={() => setPestana('existencias')}
-        >
-          Existencias
-        </BotonSubPestana>
-        <BotonSubPestana
           activa={pestana === 'propuestas'}
           onClick={() => setPestana('propuestas')}
         >
@@ -144,10 +137,6 @@ export function PanelCostosMateriales() {
             setPestana('historial');
           }}
         />
-      )}
-
-      {vista !== undefined && pestana === 'existencias' && (
-        <PanelExistencias materiales={vista.materiales} puedeGestionar={vista.puedeGestionar} />
       )}
 
       {vista !== undefined && pestana === 'propuestas' && (

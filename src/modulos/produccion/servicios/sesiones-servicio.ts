@@ -121,6 +121,10 @@ export type CodigoErrorProduccion =
   | 'costo_retrabajo_no_configurado'
   | 'resultado_retrabajo_invalido'
   | 'solicitud_retrabajo_conflicto'
+  | 'motivo_consumo_requerido'
+  | 'setup_invalido'
+  | 'minutos_setup_exceden_sesion'
+  | 'sin_permiso_setup'
   | 'desconocido';
 export class ErrorProduccion extends Error {
   constructor(
@@ -347,14 +351,17 @@ export async function cerrarSesionTrabajoServicio(
     pinConfirmacion?: string;
   },
 ): Promise<CierreSesionRegistrado> {
+  if (entrada.minutosSetup !== undefined && entrada.minutosSetup > 0) {
+    const { error: errorSetup } = await admin.rpc('registrar_setup_sesion_operador', {
+      p_sesion_id: entrada.sesionId,
+      p_operador_id: entrada.operadorId,
+      p_minutos_setup: entrada.minutosSetup,
+    });
+    if (errorSetup) lanzarErrorProduccion(errorSetup.message);
+  }
+
   if (entrada.estadoDestino === 'finalizada' && entrada.itemsIntegrados
       && entrada.itemsIntegrados.length > 0) {
-    if (!entrada.consumo) {
-      throw new ErrorProduccion(
-        'cierre_integrado_invalido',
-        'La corrida integrada (B4) requiere material compartido',
-      );
-    }
     const { data, error } = await admin.rpc('cerrar_sesion_integrada', {
       p_sesion_id: entrada.sesionId,
       p_items: entrada.itemsIntegrados.map((item) => ({
@@ -365,6 +372,7 @@ export async function cerrarSesionTrabajoServicio(
       p_material_id: entrada.consumo?.materialId ?? null,
       p_cantidad_usada: entrada.consumo?.cantidadUsada ?? 0,
       p_cantidad_scrap: entrada.consumo?.cantidadScrap ?? 0,
+      p_motivo_consumo: entrada.consumo?.motivo ?? '',
       p_notas: entrada.notas ?? '',
       p_actor_id: entrada.operadorId,
     });
@@ -395,6 +403,7 @@ export async function cerrarSesionTrabajoServicio(
           p_material_id: entrada.consumo.materialId,
           p_cantidad_usada: entrada.consumo.cantidadUsada,
           p_cantidad_scrap: entrada.consumo.cantidadScrap,
+          p_motivo_consumo: entrada.consumo.motivo,
           p_meta_proceso_id: entrada.metaProcesoId ?? null,
           p_notas: entrada.notas ?? null,
         })
@@ -434,7 +443,7 @@ export function mensajeErrorSesion(error: unknown): string {
 
   switch (error.codigo) {
     case 'cierre_sesion_invalido':
-      return 'El cierre requiere datos válidos y consumo de material al finalizar';
+      return 'El cierre requiere datos válidos; el consumo de material solo es obligatorio cuando la ruta lo exige';
     case 'operador_o_programacion_con_sesion_activa':
       return 'Esa operación ya tiene una sesión activa en el recurso; espera a que se cierre o elige otra.';
     case 'programacion_no_preparada':
@@ -487,6 +496,14 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'No tienes permiso para cerrar esta corrida integrada';
     case 'consumo_material_requerido':
       return 'Este proceso requiere registrar el consumo de material propio antes de finalizar.';
+    case 'motivo_consumo_requerido':
+      return 'Indica el motivo del consumo de material.';
+    case 'setup_invalido':
+      return 'Los minutos de setup deben ser un número válido.';
+    case 'minutos_setup_exceden_sesion':
+      return 'Los minutos de setup no pueden superar el tiempo transcurrido de la sesión.';
+    case 'sin_permiso_setup':
+      return 'Solo el operador de la sesión puede identificar su setup.';
     case 'inspeccion_cierre_duplicada':
       return 'Este lote ya tiene una inspección de cierre registrada; usa la revalidación para corregir.';
     case 'disposicion_calidad_incompleta':

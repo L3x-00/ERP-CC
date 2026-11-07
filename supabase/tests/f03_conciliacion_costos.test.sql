@@ -120,10 +120,10 @@ VALUES ('00000000-0000-4000-8000-0000000f0313', 'F03ACERO', 'Acero F03',
   'materia_prima', 'pieza', 'kg', 1, 50, 50, 1000, 10);
 
 INSERT INTO public.registros_consumo_material (id, partida_id, material_id,
-  cantidad_usada, cantidad_scrap, costo_unitario_momento, creado_en)
+  cantidad_usada, cantidad_scrap, costo_unitario_momento, motivo, creado_en)
 VALUES ('00000000-0000-4000-8000-0000000f0314',
   '00000000-0000-4000-8000-0000000f0312', '00000000-0000-4000-8000-0000000f0313',
-  109, 0, 50, now() - interval '5 days');
+  109, 0, 50, 'Consumo histórico', now() - interval '5 days');
 
 INSERT INTO public.recursos_planeacion (id, codigo, nombre, area, activo)
 VALUES ('00000000-0000-4000-8000-0000000f0315', 'F03-REC', 'Estación F03', 'taller', true);

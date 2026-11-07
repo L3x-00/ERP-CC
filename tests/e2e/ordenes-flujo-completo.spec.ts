@@ -501,6 +501,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
         p_material_id: contexto.materialId,
         p_cantidad_usada: 1,
         p_cantidad_scrap: 0,
+        p_motivo: 'Consumo de producción',
         p_operador_id: contexto.operadorId,
       },
     );

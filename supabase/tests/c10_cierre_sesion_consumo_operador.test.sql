@@ -70,18 +70,18 @@ INSERT INTO public.sesiones_trabajo (
 SELECT has_function(
   'public',
   'cerrar_sesion_con_consumo_operador',
-  ARRAY['uuid', 'uuid', 'numeric', 'uuid', 'numeric', 'numeric', 'uuid', 'text'],
+  ARRAY['uuid', 'uuid', 'numeric', 'uuid', 'numeric', 'numeric', 'text', 'uuid', 'text'],
   'Existe la RPC transaccional de cierre con consumo'
 );
 SELECT ok(
   NOT has_function_privilege(
     'authenticated',
-    'public.cerrar_sesion_con_consumo_operador(uuid,uuid,numeric,uuid,numeric,numeric,uuid,text)',
+    'public.cerrar_sesion_con_consumo_operador(uuid,uuid,numeric,uuid,numeric,numeric,text,uuid,text)',
     'EXECUTE'
   )
   AND has_function_privilege(
     'service_role',
-    'public.cerrar_sesion_con_consumo_operador(uuid,uuid,numeric,uuid,numeric,numeric,uuid,text)',
+    'public.cerrar_sesion_con_consumo_operador(uuid,uuid,numeric,uuid,numeric,numeric,text,uuid,text)',
     'EXECUTE'
   ),
   'La RPC de cierre con consumo solo la ejecuta el servidor'
@@ -94,6 +94,7 @@ SELECT throws_ok(
        '00000000-0000-4000-8000-00000000c704',
        0,
        0,
+       'Consumo de producción',
        NULL,
        NULL
      ) $$,
@@ -121,6 +122,7 @@ SELECT lives_ok(
        '00000000-0000-4000-8000-00000000c704',
        2,
        0.5,
+       'Consumo de producción',
        NULL,
        'Cierre con consumo C70'
      ) $$,

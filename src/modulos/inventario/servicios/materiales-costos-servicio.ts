@@ -13,6 +13,7 @@ import type {
 import type {
   ConfirmarCostoMaterialInput,
   ProponerCostoMaterialInput,
+  RevaluarCostoMaterialConsumidoInput,
 } from '../validaciones/materiales-costos';
 
 export type CodigoErrorCostoMaterial =
@@ -26,6 +27,9 @@ export type CodigoErrorCostoMaterial =
   | 'material_inexistente'
   | 'material_desactualizado'
   | 'historial_costos_append_only'
+  | 'recosteo_invalido'
+  | 'motivo_recosteo_requerido'
+  | 'solicitud_recosteo_conflicto'
   | 'desconocido';
 
 /** Error de dominio de materiales y costos con código estable (C6.1). */
@@ -48,6 +52,10 @@ const MENSAJES_ERROR: Record<CodigoErrorCostoMaterial, string> = {
   material_inexistente: 'El material no existe',
   material_desactualizado: 'El material cambió desde que se abrió; recarga e intenta de nuevo',
   historial_costos_append_only: 'El historial de costos es de solo lectura',
+  recosteo_invalido: 'El recosteo no es válido: revisa costo, moneda y datos',
+  motivo_recosteo_requerido: 'Indica el motivo del recosteo',
+  solicitud_recosteo_conflicto:
+    'La solicitud de recosteo ya se usó con otros datos; genera una nueva',
   desconocido: 'No se pudo completar la operación de costo',
 };
 
@@ -358,5 +366,48 @@ export async function confirmarCostoMaterialServicio(
     costoVigente: Number(fila.costo_vigente),
     monedaCosto: monedaDe(fila.moneda_costo),
     actualizadoEn: fila.actualizado_en,
+  };
+}
+
+export type ResultadoRecosteoMaterial = {
+  auditoriaId: string;
+  materialId: string;
+  costoNuevoMxn: number;
+  consumosActualizados: number;
+  retrabajosActualizados: number;
+  importeAnteriorTotal: number;
+  importeNuevoTotal: number;
+};
+
+/**
+ * B7: revalúa el costo de los consumos y retrabajos ya registrados de un
+ * material. No crea consumos nuevos ni duplica importes; cada ejecución queda
+ * en la auditoría append-only. La clave `solicitudId` hace idempotente el
+ * reintento.
+ */
+export async function revaluarCostoMaterialConsumidoServicio(
+  cliente: SupabaseClient<Database>,
+  entrada: RevaluarCostoMaterialConsumidoInput,
+  actorId: string,
+): Promise<ResultadoRecosteoMaterial> {
+  const { data, error } = await cliente.rpc('revaluar_costo_material_consumido', {
+    p_material_id: entrada.materialId,
+    p_costo: entrada.costo,
+    p_moneda: entrada.moneda,
+    p_motivo: entrada.motivo,
+    p_solicitud_id: entrada.solicitudId,
+    p_actor_id: actorId,
+  });
+  if (error) throw new ErrorCostoMaterial(mapearCodigo(error.message));
+  const fila = data?.[0];
+  if (!fila) throw new ErrorCostoMaterial('desconocido');
+  return {
+    auditoriaId: fila.auditoria_id,
+    materialId: fila.material_id,
+    costoNuevoMxn: Number(fila.costo_nuevo_mxn),
+    consumosActualizados: fila.consumos_actualizados,
+    retrabajosActualizados: fila.retrabajos_actualizados,
+    importeAnteriorTotal: Number(fila.importe_anterior_total),
+    importeNuevoTotal: Number(fila.importe_nuevo_total),
   };
 }

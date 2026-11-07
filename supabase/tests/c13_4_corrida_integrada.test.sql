@@ -87,7 +87,7 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-0000000f0114',
   '[{"partida_id":"00000000-0000-4000-8000-0000000f0108","piezas":1,"minutos":10},
     {"partida_id":"00000000-0000-4000-8000-0000000f0110","piezas":1,"minutos":10}]'::jsonb,
-  '00000000-0000-4000-8000-0000000f0104', 1, 0, NULL,
+  '00000000-0000-4000-8000-0000000f0104', 1, 0, 'Consumo de producción', NULL,
   '00000000-0000-4000-8000-0000000f0101')$$,
   '23514', 'item_fuera_de_corrida',
   'No se puede cerrar con un ítem ajeno a la corrida');
@@ -95,7 +95,7 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
 SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-0000000f0114',
   '[{"partida_id":"00000000-0000-4000-8000-0000000f0109","piezas":1,"minutos":10}]'::jsonb,
-  '00000000-0000-4000-8000-0000000f0104', 1, 0, NULL,
+  '00000000-0000-4000-8000-0000000f0104', 1, 0, 'Consumo de producción', NULL,
   '00000000-0000-4000-8000-0000000f0101')$$,
   '23514', 'item_principal_requerido',
   'El cierre integrado exige la partida de la sesión');
@@ -104,7 +104,7 @@ SELECT throws_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-0000000f0114',
   '[{"partida_id":"00000000-0000-4000-8000-0000000f0108","piezas":1,"minutos":10},
     {"partida_id":"00000000-0000-4000-8000-0000000f0109","piezas":1,"minutos":50}]'::jsonb,
-  '00000000-0000-4000-8000-0000000f0104', 1, 0, NULL,
+  '00000000-0000-4000-8000-0000000f0104', 1, 0, 'Consumo de producción', NULL,
   '00000000-0000-4000-8000-0000000f0101')$$,
   '23514', 'minutos_exceden_sesion',
   'La suma de minutos no puede exceder la sesión');
@@ -118,7 +118,7 @@ SELECT lives_ok($$SELECT public.cerrar_sesion_integrada(
   '00000000-0000-4000-8000-0000000f0114',
   '[{"partida_id":"00000000-0000-4000-8000-0000000f0108","piezas":3,"minutos":5},
     {"partida_id":"00000000-0000-4000-8000-0000000f0109","piezas":2,"minutos":5}]'::jsonb,
-  '00000000-0000-4000-8000-0000000f0104', 1, 0, 'Cierre integrado',
+  '00000000-0000-4000-8000-0000000f0104', 1, 0, 'Consumo de producción', 'Cierre integrado',
   '00000000-0000-4000-8000-0000000f0101')$$,
   'El cierre de la corrida integrada procede');
 
@@ -149,10 +149,10 @@ SELECT is((
 
 -- 10-11. Permisos.
 SELECT is(has_function_privilege('anon',
-  'public.cerrar_sesion_integrada(uuid, jsonb, uuid, numeric, numeric, text, uuid)',
+  'public.cerrar_sesion_integrada(uuid, jsonb, uuid, numeric, numeric, text, text, uuid)',
   'execute'), false, 'anon no cierra corridas integradas');
 SELECT is(has_function_privilege('service_role',
-  'public.cerrar_sesion_integrada(uuid, jsonb, uuid, numeric, numeric, text, uuid)',
+  'public.cerrar_sesion_integrada(uuid, jsonb, uuid, numeric, numeric, text, text, uuid)',
   'execute'), true, 'service_role cierra corridas integradas');
 
 SELECT * FROM finish();
