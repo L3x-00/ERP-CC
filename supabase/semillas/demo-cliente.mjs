@@ -990,6 +990,7 @@ async function sembrarOrdenes(ids) {
         cantidad_usada: cantidadConsumo,
         cantidad_scrap: 0,
         costo_unitario_momento: Number((material.costoCompra / material.factor).toFixed(4)),
+        motivo: 'Consumo de producción',
       }]);
     }
 

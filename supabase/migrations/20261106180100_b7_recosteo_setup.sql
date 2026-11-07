@@ -40,6 +40,9 @@ $b7_setup_check$;
 COMMENT ON COLUMN public.sesiones_trabajo.minutos_setup IS
   'B7: minutos de setup identificados dentro del tiempo real de la sesión. No se suman otra vez al costo.';
 
+-- El dato operativo viaja al cliente con la misma lectura acotada de la sesión.
+GRANT SELECT (minutos_setup) ON public.sesiones_trabajo TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.registrar_setup_sesion_operador(
   p_sesion_id uuid,
   p_operador_id uuid,

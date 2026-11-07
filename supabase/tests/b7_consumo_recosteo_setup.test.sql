@@ -3,7 +3,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(25);
+SELECT plan(26);
 
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-00000000b701', 'b7-admin@prueba.local'),
@@ -76,6 +76,9 @@ SELECT has_column('public', 'registros_consumo_material', 'motivo',
   'el consumo exige un motivo (sección 2)');
 SELECT has_column('public', 'registros_consumo_material', 'sesion_id',
   'el consumo queda ligado a la operación individual');
+SELECT ok(has_column_privilege('authenticated', 'public.sesiones_trabajo',
+  'minutos_setup', 'SELECT'),
+  'authenticated puede leer el setup de la sesión que ya consulta');
 
 -- 3. El motivo no puede quedar vacío.
 SELECT throws_ok($$SELECT public.registrar_consumo_material_op(
