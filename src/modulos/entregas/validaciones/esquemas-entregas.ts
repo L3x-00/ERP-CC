@@ -77,6 +77,20 @@ export const esquemaOrdenEntrega = z.object({ ordenId: uuid }).strict();
 /** Identificador de una nota de entrega concreta. */
 export const esquemaEntregaPorId = z.object({ entregaId: uuid }).strict();
 
+/** AUD-14: anulación administrativa de una nota, con motivo obligatorio. */
+export const esquemaAnularNotaEntrega = z
+  .object({
+    entregaId: uuid,
+    motivo: z
+      .string()
+      .trim()
+      .min(3, 'Indica el motivo de la anulación')
+      .max(500, 'El motivo no puede exceder 500 caracteres'),
+    solicitudId: uuid.optional(),
+    notaSustitutaId: uuid.nullable().optional(),
+  })
+  .strict();
+
 export type RenglonEntregaInput = z.infer<typeof esquemaRenglonEntrega>;
 export type RegistrarEntregaInput = z.infer<typeof esquemaRegistrarEntrega>;
 export type PrepararEvidenciaEntregaInput = z.infer<typeof esquemaPrepararEvidenciaEntrega>;
@@ -85,3 +99,4 @@ export type FirmarEvidenciaEntregaInput = z.infer<typeof esquemaFirmarEvidenciaE
 export type ActualizarFechaEntregaInput = z.infer<typeof esquemaActualizarFechaEntrega>;
 export type OrdenEntregaInput = z.infer<typeof esquemaOrdenEntrega>;
 export type EntregaPorIdInput = z.infer<typeof esquemaEntregaPorId>;
+export type AnularNotaEntregaInput = z.infer<typeof esquemaAnularNotaEntrega>;

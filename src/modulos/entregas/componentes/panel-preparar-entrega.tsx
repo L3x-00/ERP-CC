@@ -68,7 +68,7 @@ export function PanelPrepararEntrega({
   const partidasDisponibles = useMemo(
     () =>
       (datos?.partidas ?? []).filter(
-        (partida) => Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0) > 0,
+        (partida) => Math.max((partida.cantidadConforme ?? partida.cantidadProducida) - partida.cantidadEntregada, 0) > 0,
       ),
     [datos],
   );
@@ -103,7 +103,7 @@ export function PanelPrepararEntrega({
   function entregarTodo(): void {
     const siguiente: Record<string, string> = {};
     for (const partida of partidasDisponibles) {
-      siguiente[partida.id] = String(Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0));
+      siguiente[partida.id] = String(Math.max((partida.cantidadConforme ?? partida.cantidadProducida) - partida.cantidadEntregada, 0));
     }
     setCantidades(siguiente);
   }
@@ -147,7 +147,7 @@ export function PanelPrepararEntrega({
   }
 
   const folioOrden = datos?.orden.folioSii ?? datos?.orden.folio ?? '';
-  const hayPiezasProducidas = datos?.partidas.some((partida) => partida.cantidadProducida > 0) ?? false;
+  const hayPiezasProducidas = datos?.partidas.some((partida) => (partida.cantidadConforme ?? partida.cantidadProducida) > 0) ?? false;
   const sinPendientes = datos !== null && !preparacion.isPending && partidasDisponibles.length === 0;
   const ordenEntregadaPorCompleto = sinPendientes && hayPiezasProducidas;
   const ordenSinProduccion = sinPendientes && !hayPiezasProducidas;
@@ -244,7 +244,7 @@ export function PanelPrepararEntrega({
                     ) : null}
                     <div className="grid gap-2">
                       {grupo.partidas.map((partida, indice) => {
-                        const disponible = Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0);
+                        const disponible = Math.max((partida.cantidadConforme ?? partida.cantidadProducida) - partida.cantidadEntregada, 0);
                         return (
                           <label key={partida.id} className="grid grid-cols-[1fr_7rem] items-center gap-2 text-sm">
                             <span>

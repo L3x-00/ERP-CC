@@ -82,6 +82,8 @@ export interface Partida {
   descripcion: string | null;
   cantidadSolicitada: number;
   cantidadProducida: number;
+  /** AUD-05: piezas conformes y entregables. */
+  cantidadConforme?: number;
   cantidadScrap: number;
   unidadMedida: string;
   materialId: string | null;
@@ -266,6 +268,7 @@ export function filaAPartida(fila: FilaPartida): Partida {
     descripcion: fila.descripcion,
     cantidadSolicitada: Number(fila.cantidad_solicitada),
     cantidadProducida: Number(fila.cantidad_producida),
+    cantidadConforme: Number(fila.cantidad_conforme ?? fila.cantidad_producida),
     cantidadScrap: Number(fila.cantidad_scrap),
     unidadMedida: fila.unidad_medida,
     materialId: fila.catalogo_material_id ?? fila.material_id,
