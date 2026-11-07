@@ -17,6 +17,12 @@ const TABLAS_TABLERO_PRODUCCION = [
   'registros_avance_partida',
   'archivos_sesion_produccion',
   'corridas',
+  // AUD-13: calidad, retrabajo, material del cliente y tiempos integrados se
+  // muestran en este tablero y ya están publicados por B6.
+  'retrabajos_produccion',
+  'inspecciones_calidad',
+  'consumos_material_cliente',
+  'sesion_item_tiempos',
 
   // Actividad compartida con la terminal y Mi panel.
   'reclamos_proceso_operador',

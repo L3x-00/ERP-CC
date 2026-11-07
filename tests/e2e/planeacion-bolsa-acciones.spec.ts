@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { expect, test } from '@playwright/test';
+import {
+  fechaLocalNegocio,
+  sumarDiasFecha,
+} from '@/compartido/utilidades/fecha-negocio';
 import type { Database } from '@/compartido/tipos/supabase';
 
 type Contexto = {
@@ -30,13 +34,8 @@ function crearAdmin(): SupabaseClient<Database> {
 }
 
 function fecha(dias: number): string {
-  // Misma convención que el servidor de Planeación (`hoyIso` = fecha local del operador).
-  const instante = new Date();
-  instante.setDate(instante.getDate() + dias);
-  const anio = instante.getFullYear();
-  const mes = String(instante.getMonth() + 1).padStart(2, '0');
-  const dia = String(instante.getDate()).padStart(2, '0');
-  return `${anio}-${mes}-${dia}`;
+  // Misma convención que el servidor de Planeación (`hoyIso` = fecha de negocio).
+  return sumarDiasFecha(fechaLocalNegocio(), dias);
 }
 
 test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)', () => {

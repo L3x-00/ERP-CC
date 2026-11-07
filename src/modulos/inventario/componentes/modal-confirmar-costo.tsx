@@ -20,10 +20,11 @@ import type {
   MonedaCosto,
   PropuestaCostoMaterial,
 } from '../tipos/materiales-costos';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { formatearFechaDia } from '../utilidades/materiales-costos';
 
 function hoy(): string {
-  return new Date().toISOString().slice(0, 10);
+  return fechaLocalNegocio();
 }
 
 type Props =

@@ -14,6 +14,7 @@ import {
   retirarContactoRecienCreado,
 } from '@/modulos/rfq/servicios/contacto-vigente-cliente';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
+import { fechaLocalNegocio, sumarDiasFecha } from '@/compartido/utilidades/fecha-negocio';
 
 /**
  * Inicia un RFQ recuperable en estado INCOMPLETE.
@@ -109,7 +110,7 @@ export async function crearProspectoAccion(
       return { exito: false, error: 'Describe la acción "Otro" de la próxima acción' };
     }
     // Se tolera "ayer" en UTC para no rechazar el "hoy" local del usuario.
-    const pisoFecha = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const pisoFecha = sumarDiasFecha(fechaLocalNegocio(), -1);
     if (fechaProximaAccion < pisoFecha) {
       return { exito: false, error: 'La fecha de la próxima acción no puede estar en el pasado' };
     }
@@ -124,7 +125,7 @@ export async function crearProspectoAccion(
   }
 
   const correlationId = nuevoCorrelationId();
-  const fechaRegistro = new Date().toISOString().slice(0, 10);
+  const fechaRegistro = fechaLocalNegocio();
 
   let folioOp: string;
   try {

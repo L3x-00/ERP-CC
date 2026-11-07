@@ -6,6 +6,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { useQuery } from '@tanstack/react-query';
 import { obtenerCuentasGastoAccion } from '@/modulos/gastos/acciones/obtener-cuentas-gasto';
 import { obtenerOrdenesGastoAccion } from '@/modulos/gastos/acciones/obtener-ordenes-gasto';
@@ -72,7 +73,7 @@ export function ModalRegistrarGasto({
   const [total, setTotal] = useState(gastoEditar ? String(gastoEditar.montoTotal) : '');
   const [moneda, setMoneda] = useState<MonedaGasto>(gastoEditar?.moneda ?? 'MXN');
   const [tipoCambio, setTipoCambio] = useState(gastoEditar ? String(gastoEditar.tipoCambio) : '1');
-  const [fechaGasto, setFechaGasto] = useState(() => gastoEditar?.fechaGasto.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
+  const [fechaGasto, setFechaGasto] = useState(() => gastoEditar?.fechaGasto.slice(0, 10) ?? fechaLocalNegocio());
   const [fechaVencimiento, setFechaVencimiento] = useState(gastoEditar?.fechaVencimiento?.slice(0, 10) ?? '');
   const [folioComprobante, setFolioComprobante] = useState(gastoEditar?.folioComprobante ?? '');
   const [metodoPago, setMetodoPago] = useState<(typeof METODOS_PAGO_GASTO)[number] | ''>(gastoEditar ? gastoEditar.metodoPago ?? '' : 'transferencia');

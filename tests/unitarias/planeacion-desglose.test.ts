@@ -102,7 +102,7 @@ describe('fechas y vistas de Planeación', () => {
     expect(esFinDeSemana('2026-09-21')).toBe(false);
     expect(etiquetaDia('2026-09-21')).toBe('lun 21 sep');
     expect(etiquetaMes('2026-09-21')).toBe('septiembre 2026');
-    expect(hoyIso(new Date(2026, 8, 21))).toBe('2026-09-21');
+    expect(hoyIso(new Date('2026-09-21T18:00:00.000Z'))).toBe('2026-09-21');
     expect(sumarDias('2026-12-31', 1)).toBe('2027-01-01');
   });
 });

@@ -1,5 +1,6 @@
 import type { Rfq, ValidacionRfqListo } from '@/modulos/rfq/tipos/indice';
 import { SECCIONES_VALIDACION_RFQ } from '@/modulos/rfq/tipos/indice';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 /** Próxima acción capturada en un cambio de estado no terminal (C2.2/DC-06). */
 export type ProximaAccionCaptura = {
@@ -11,11 +12,9 @@ export type ProximaAccionCaptura = {
 
 type AccionCatalogo = { codigo: string; esOtro: boolean };
 
-/** Fecha local `YYYY-MM-DD` de hoy (la UI no ofrece fechas pasadas). */
+/** Fecha de hoy en la zona de negocio (Tijuana), `YYYY-MM-DD`. */
 export function fechaHoyLocal(ahora: Date = new Date()): string {
-  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-  const dia = String(ahora.getDate()).padStart(2, '0');
-  return `${ahora.getFullYear()}-${mes}-${dia}`;
+  return fechaLocalNegocio(ahora);
 }
 
 /**

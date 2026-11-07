@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Input } from '@/compartido/componentes/ui/input';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { usarTipoCambioVigente } from '@/modulos/configuracion/hooks/usar-tipo-cambio-vigente';
 import { registrarSaldoInicialAccion } from '@/modulos/tesoreria/acciones/registrar-saldo-inicial';
 
@@ -35,7 +36,7 @@ export function PanelSaldoInicial({
 }) {
   const [monto, setMonto] = useState(saldoActual === null ? '' : String(saldoActual));
   const [tipoCambioManual, setTipoCambioManual] = useState<string | null>(null);
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fecha, setFecha] = useState(() => fechaLocalNegocio());
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);

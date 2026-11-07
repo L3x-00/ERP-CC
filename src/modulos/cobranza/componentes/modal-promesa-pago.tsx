@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Input } from '@/compartido/componentes/ui/input';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { cancelarPromesaPagoAccion } from '@/modulos/cobranza/acciones/cancelar-promesa';
 import { crearPromesaPagoAccion } from '@/modulos/cobranza/acciones/crear-promesa';
@@ -21,7 +22,7 @@ import { obtenerPromesaCuentaAccion } from '@/modulos/cobranza/acciones/obtener-
 function fechaSugerida(): string {
   const fecha = new Date();
   fecha.setDate(fecha.getDate() + 7);
-  return fecha.toISOString().slice(0, 10);
+  return fechaLocalNegocio(fecha);
 }
 
 /** SII-B8 F3: alta/cancelación de la promesa de pago de una cuenta. */
