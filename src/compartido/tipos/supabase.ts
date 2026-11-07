@@ -864,6 +864,7 @@ export type Database = {
           monto: number
           notas: string | null
           referencia: string | null
+          solicitud_id: string | null
         }
         Insert: {
           compra_id: string
@@ -876,6 +877,7 @@ export type Database = {
           monto: number
           notas?: string | null
           referencia?: string | null
+          solicitud_id?: string | null
         }
         Update: {
           compra_id?: string
@@ -888,6 +890,7 @@ export type Database = {
           monto?: number
           notas?: string | null
           referencia?: string | null
+          solicitud_id?: string | null
         }
         Relationships: [
           {
@@ -6329,11 +6332,13 @@ export type Database = {
           p_monto: number
           p_notas: string | null
           p_referencia: string | null
+          p_solicitud_id?: string
         }
         Returns: {
           actualizado_en: string
           compra_id: string
           estado: string
+          idempotente: boolean
           pago_id: string
           saldo_pendiente: number
         }[]
