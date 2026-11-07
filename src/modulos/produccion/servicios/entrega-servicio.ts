@@ -19,12 +19,16 @@ function aJsonPartidas(partidas: CrearNotaEntregaInput['partidas']): Json {
 
 const CODIGOS_ENTREGA: readonly CodigoErrorProduccionEntrega[] = [
   'cantidad_entrega_excede_producida',
+  'cantidad_entrega_excede_pendiente',
+  'partidas_entrega_invalidas',
   'orden_no_entregable',
   'partida_no_corresponde_orden',
 ];
 
 type CodigoErrorProduccionEntrega =
   | 'cantidad_entrega_excede_producida'
+  | 'cantidad_entrega_excede_pendiente'
+  | 'partidas_entrega_invalidas'
   | 'orden_no_entregable'
   | 'partida_no_corresponde_orden';
 
@@ -44,6 +48,7 @@ export async function generarNotaEntregaServicio(
     p_firma_cliente_url: entrada.firmaClienteUrl ?? '',
     p_creado_por: entrada.creadoPor,
     p_partidas: aJsonPartidas(entrada.partidas),
+    ...(entrada.solicitudId ? { p_solicitud_id: entrada.solicitudId } : {}),
   });
   if (error) lanzarErrorEntrega(error.message);
   const fila = data?.[0];
@@ -60,7 +65,13 @@ export async function generarNotaEntregaServicio(
 export function mensajeErrorEntrega(error: unknown): string {
   if (error instanceof ErrorProduccion) {
     if (error.codigo === 'cantidad_entrega_excede_producida') {
-      return 'La entrega no puede superar las piezas producidas pendientes';
+      return 'La entrega no puede superar las piezas conformes pendientes';
+    }
+    if (error.codigo === 'cantidad_entrega_excede_pendiente') {
+      return 'La entrega no puede superar la cantidad pendiente del ítem';
+    }
+    if (error.codigo === 'partidas_entrega_invalidas') {
+      return 'Las cantidades de la entrega no son válidas';
     }
     if (error.codigo === 'orden_no_entregable') {
       return 'La orden no está lista para entregarse';

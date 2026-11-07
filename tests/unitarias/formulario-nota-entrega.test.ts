@@ -35,6 +35,7 @@ describe('FormularioNotaEntrega', () => {
       ordenId: '11111111-1111-4111-8111-111111111111',
       recibidoPor: 'Almacén cliente',
       partidas: [{ partidaId: '22222222-2222-4222-8222-222222222222', cantidadEntregada: 3 }],
+      solicitudId: expect.any(String),
     }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Generar nota de entrega' })).toBeNull());
     expect(screen.getByRole('status').textContent).toContain('Nota NE-0001 generada');

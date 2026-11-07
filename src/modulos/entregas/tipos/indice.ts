@@ -24,6 +24,12 @@ export type Entrega = {
   creadoEn: string;
   /** Token CAS para ediciones (fecha de entrega). */
   actualizadoEn: string;
+  /** AUD-14: VIGENTE o ANULADA. */
+  estado: 'VIGENTE' | 'ANULADA';
+  motivoAnulacion: string | null;
+  anuladaEn: string | null;
+  anuladaPor: string | null;
+  notaSustitutaId: string | null;
 };
 
 /** Renglón de entrega (inmutable) con su ITxx. */
@@ -44,6 +50,8 @@ export type PendienteEntregaItem = {
   partidaIds: string[];
   cantidadSolicitada: number;
   cantidadProducida: number;
+  /** AUD-05: piezas conformes; tope de la entrega. */
+  cantidadConforme?: number;
   cantidadEntregada: number;
   /** Solicitada − entregada (≥ 0). */
   pendiente: number;
@@ -59,7 +67,9 @@ export type PartidaPendiente = {
   descripcion: string | null;
   cantidadSolicitada: number;
   cantidadProducida: number;
-  /** Suma de lo ya entregado en renglones (histórico). */
+  /** AUD-05: piezas conformes; es el tope de entrega. */
+  cantidadConforme?: number;
+  /** Suma de lo ya entregado en renglones vigentes. */
   cantidadEntregada: number;
 };
 
@@ -84,6 +94,11 @@ export function filaAEntrega(fila: FilaNotaEntrega): Entrega {
     creadoPor: fila.creado_por,
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
+    estado: fila.estado === 'ANULADA' ? 'ANULADA' : 'VIGENTE',
+    motivoAnulacion: fila.motivo_anulacion ?? null,
+    anuladaEn: fila.anulada_en ?? null,
+    anuladaPor: fila.anulada_por ?? null,
+    notaSustitutaId: fila.nota_sustituta_id ?? null,
   };
 }
 

@@ -19,7 +19,7 @@ import { proyectarRutaFicha } from '@/modulos/ordenes/servicios/proyectar-snapsh
 import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
 
 const COLUMNAS_PARTIDA_FICHA =
-  'id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
+  'id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_conforme, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
 
 export type ClienteFichaOrden = SupabaseClient<Database>;
 
@@ -117,7 +117,7 @@ export async function obtenerFichaOrdenServicio(
       : Promise.resolve({ data: null, error: null }),
     cliente
       .from('notas_entrega')
-      .select('id, folio, folio_sii, es_parcial, recibido_por, creado_en')
+      .select('id, folio, folio_sii, es_parcial, recibido_por, creado_en, estado, motivo_anulacion')
       .eq('orden_id', ordenId)
       .order('creado_en', { ascending: false }),
     cliente
@@ -156,6 +156,7 @@ export async function obtenerFichaOrdenServicio(
     descripcion: partida.descripcion,
     cantidadSolicitada: aNumero(partida.cantidad_solicitada),
     cantidadProducida: aNumero(partida.cantidad_producida),
+    cantidadConforme: aNumero(partida.cantidad_conforme ?? partida.cantidad_producida),
     cantidadScrap: aNumero(partida.cantidad_scrap),
     unidadMedida: partida.unidad_medida,
     procesos: partida.procesos ?? [],
@@ -240,6 +241,8 @@ export async function obtenerFichaOrdenServicio(
       esParcial: nota.es_parcial,
       recibidoPor: nota.recibido_por,
       creadoEn: nota.creado_en,
+      estado: nota.estado === 'ANULADA' ? 'ANULADA' : 'VIGENTE',
+      motivoAnulacion: nota.motivo_anulacion ?? null,
       partidas: renglonesPorNota.get(nota.id) ?? [],
     })),
     eventos,

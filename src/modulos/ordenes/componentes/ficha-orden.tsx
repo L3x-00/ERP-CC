@@ -113,6 +113,7 @@ export function FichaOrden({
   const entregadaPorPartida = useMemo(() => {
     const mapa = new Map<string, number>();
     for (const entrega of ficha.entregas) {
+      if (entrega.estado === 'ANULADA') continue;
       for (const renglon of entrega.partidas) {
         mapa.set(renglon.partidaId, (mapa.get(renglon.partidaId) ?? 0) + renglon.cantidadEntregada);
       }
@@ -347,7 +348,7 @@ export function FichaOrden({
         <PanelEntregasFicha
           ordenId={ficha.orden.id}
           entregas={ficha.entregas}
-          puedeEntregar={estado === 'PRODUCCION_COMPLETADA'}
+          puedeEntregar={estado === 'PRODUCCION_COMPLETADA' || estado === 'EN_PRODUCCION'}
           saldo={saldoEntrega}
           partidas={ficha.partidas}
         />

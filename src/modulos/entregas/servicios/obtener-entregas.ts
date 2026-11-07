@@ -66,7 +66,7 @@ export async function obtenerPartidasPendientesDeOrden(
 ): Promise<PartidaPendiente[]> {
   const { data: partidas, error } = await cliente
     .from('partidas_orden_produccion')
-    .select('id, codigo_item, codigo_pieza, descripcion, cantidad_solicitada, cantidad_producida')
+    .select('id, codigo_item, codigo_pieza, descripcion, cantidad_solicitada, cantidad_producida, cantidad_conforme')
     .eq('orden_id', ordenId)
     .order('codigo_pieza', { ascending: true });
   if (error) {
@@ -76,7 +76,8 @@ export async function obtenerPartidasPendientesDeOrden(
   const { data: notas } = await cliente
     .from('notas_entrega')
     .select('id')
-    .eq('orden_id', ordenId);
+    .eq('orden_id', ordenId)
+    .eq('estado', 'VIGENTE');
   const notaIds = (notas ?? []).map((nota) => nota.id);
 
   const entregadoPorPartida = new Map<string, number>();
@@ -100,6 +101,7 @@ export async function obtenerPartidasPendientesDeOrden(
     descripcion: partida.descripcion ?? null,
     cantidadSolicitada: Number(partida.cantidad_solicitada),
     cantidadProducida: Number(partida.cantidad_producida),
+    cantidadConforme: Number(partida.cantidad_conforme ?? partida.cantidad_producida),
     cantidadEntregada: entregadoPorPartida.get(partida.id) ?? 0,
   }));
 }
@@ -258,12 +260,13 @@ export async function obtenerOrdenesConPendientes(
   const ordenIds = lista.map((orden) => orden.id);
   const { data: partidas } = await cliente
     .from('partidas_orden_produccion')
-    .select('id, orden_id, codigo_item, codigo_pieza, descripcion, cantidad_solicitada, cantidad_producida')
+    .select('id, orden_id, codigo_item, codigo_pieza, descripcion, cantidad_solicitada, cantidad_producida, cantidad_conforme')
     .in('orden_id', ordenIds);
   const { data: notas } = await cliente
     .from('notas_entrega')
     .select('id, orden_id')
-    .in('orden_id', ordenIds);
+    .in('orden_id', ordenIds)
+    .eq('estado', 'VIGENTE');
   const notaIds = (notas ?? []).map((nota) => nota.id);
 
   const entregadoPorPartida = new Map<string, number>();
@@ -290,6 +293,7 @@ export async function obtenerOrdenesConPendientes(
       descripcion: partida.descripcion ?? null,
       cantidadSolicitada: Number(partida.cantidad_solicitada),
       cantidadProducida: Number(partida.cantidad_producida),
+      cantidadConforme: Number(partida.cantidad_conforme ?? partida.cantidad_producida),
       cantidadEntregada: entregadoPorPartida.get(partida.id) ?? 0,
     });
     partidasPorOrden.set(partida.orden_id, listaPartidas);

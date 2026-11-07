@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -1974,15 +1974,21 @@ export type Database = {
       notas_entrega: {
         Row: {
           actualizado_en: string
+          anulacion_solicitud_id: string | null
+          anulada_en: string | null
+          anulada_por: string | null
           creado_en: string
           creado_por: string
           entregado_por_id: string | null
           es_parcial: boolean
+          estado: string
           fecha_entrega: string
           firma_cliente_url: string | null
           folio: string
           folio_sii: string | null
           id: string
+          motivo_anulacion: string | null
+          nota_sustituta_id: string | null
           orden_id: string
           recibido_por: string
           recibido_por_id: string | null
@@ -1990,15 +1996,21 @@ export type Database = {
         }
         Insert: {
           actualizado_en?: string
+          anulacion_solicitud_id?: string | null
+          anulada_en?: string | null
+          anulada_por?: string | null
           creado_en?: string
           creado_por: string
           entregado_por_id?: string | null
           es_parcial?: boolean
+          estado?: string
           fecha_entrega?: string
           firma_cliente_url?: string | null
           folio: string
           folio_sii?: string | null
           id?: string
+          motivo_anulacion?: string | null
+          nota_sustituta_id?: string | null
           orden_id: string
           recibido_por: string
           recibido_por_id?: string | null
@@ -2006,15 +2018,21 @@ export type Database = {
         }
         Update: {
           actualizado_en?: string
+          anulacion_solicitud_id?: string | null
+          anulada_en?: string | null
+          anulada_por?: string | null
           creado_en?: string
           creado_por?: string
           entregado_por_id?: string | null
           es_parcial?: boolean
+          estado?: string
           fecha_entrega?: string
           firma_cliente_url?: string | null
           folio?: string
           folio_sii?: string | null
           id?: string
+          motivo_anulacion?: string | null
+          nota_sustituta_id?: string | null
           orden_id?: string
           recibido_por?: string
           recibido_por_id?: string | null
@@ -2474,6 +2492,7 @@ export type Database = {
           actualizado_en: string
           area_trabajo_codigo: string | null
           catalogo_material_id: string | null
+          cantidad_conforme: number
           cantidad_producida: number
           cantidad_scrap: number
           cantidad_solicitada: number
@@ -2498,6 +2517,7 @@ export type Database = {
           actualizado_en?: string
           area_trabajo_codigo?: string | null
           catalogo_material_id?: string | null
+          cantidad_conforme?: number
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada: number
@@ -2522,6 +2542,7 @@ export type Database = {
           actualizado_en?: string
           area_trabajo_codigo?: string | null
           catalogo_material_id?: string | null
+          cantidad_conforme?: number
           cantidad_producida?: number
           cantidad_scrap?: number
           cantidad_solicitada?: number
@@ -5663,12 +5684,28 @@ export type Database = {
           p_orden_id: string
           p_partidas: Json
           p_recibido_por: string
+          p_solicitud_id?: string
         }
         Returns: {
           creado_en: string
           es_parcial: boolean
           folio: string
           id: string
+        }[]
+      }
+      anular_nota_entrega: {
+        Args: {
+          p_actor_id: string
+          p_motivo: string
+          p_nota_id: string
+          p_nota_sustituta_id?: string | null
+          p_solicitud_id?: string | null
+        }
+        Returns: {
+          anulada_en: string
+          estado: string
+          id: string
+          ya_anulada: boolean
         }[]
       }
       guardar_cotizacion_atomica: {

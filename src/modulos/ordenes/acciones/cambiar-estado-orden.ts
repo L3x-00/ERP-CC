@@ -74,6 +74,15 @@ export async function cambiarEstadoOrdenAccion(
           + 'No se puede cancelar hasta resolver esos movimientos con la persona responsable de cobranza.',
       };
     }
+    // AUD-06: nunca se cierran sesiones ni se descarta trabajo en automático.
+    if (codigo === 'orden_con_trabajo_en_proceso') {
+      return {
+        exito: false,
+        error:
+          'La orden tiene trabajo en ejecución (sesiones activas o pausadas, o programaciones en proceso). '
+          + 'Cierra o pausa las sesiones y libera la programación antes de cancelar.',
+      };
+    }
     return { exito: false, error: 'No se pudo actualizar la orden' };
   }
 }

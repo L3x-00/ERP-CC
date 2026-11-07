@@ -46,6 +46,7 @@ export default async function PaginaDetalleEntrega({
       inicial={{ detalle, evidencias }}
       puedeEvidencia={puedeEvidencia}
       puedeEditar={puedeGenerar}
+      puedeAnular={puedeGenerar && usuario?.rol === 'admin'}
     />
   );
 }

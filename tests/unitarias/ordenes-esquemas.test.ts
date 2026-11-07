@@ -318,6 +318,7 @@ describe('mappers de órdenes', () => {
         descripcion: null,
         cantidad_solicitada: 25,
         cantidad_producida: 10,
+        cantidad_conforme: 10,
         cantidad_scrap: 1,
         unidad_medida: 'pieza',
         catalogo_material_id: null,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { Input } from '@/compartido/componentes/ui/input';
@@ -17,6 +17,7 @@ export interface PropsFormularioNotaEntrega {
     recibidoPor: string;
     firmaClienteUrl?: string;
     partidas: { partidaId: string; cantidadEntregada: number }[];
+    solicitudId?: string;
   }) => Promise<ResultadoEntrega>;
 }
 
@@ -29,8 +30,9 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
   const [firmaClienteUrl, setFirmaClienteUrl] = useState('');
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [mensaje, setMensaje] = useState<MensajeFormulario | null>(null);
+  const solicitudEntrega = useRef<string | null>(null);
   const partidasDisponibles = (orden?.partidas ?? []).filter(
-    (partida) => Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0) > 0,
+    (partida) => Math.max((partida.cantidadConforme ?? partida.cantidadProducida) - partida.cantidadEntregada, 0) > 0,
   );
   const ordenEntregadaPorCompleto = orden !== null && partidasDisponibles.length === 0;
 
@@ -46,16 +48,19 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
       return;
     }
     try {
+      if (!solicitudEntrega.current) solicitudEntrega.current = crypto.randomUUID();
       const resultado = await onEnviar({
         ordenId: orden.id,
         recibidoPor,
         ...(firmaClienteUrl.trim() ? { firmaClienteUrl: firmaClienteUrl.trim() } : {}),
         partidas,
+        solicitudId: solicitudEntrega.current,
       });
       setMensaje(resultado.exito
         ? { texto: `Nota ${resultado.folio} generada`, tipo: 'estado' }
         : { texto: resultado.error, tipo: 'error' });
       if (resultado.exito) {
+        solicitudEntrega.current = null;
         setRecibidoPor('');
         setFirmaClienteUrl('');
         setCantidades({});
@@ -77,7 +82,7 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
           <h2 id="titulo-nota-entrega" className="text-base font-semibold text-texto-primario">
             Nota de entrega
           </h2>
-          <p className="mt-1 text-sm text-texto-secundario">Solo piezas producidas y pendientes de entrega. No contiene precios.</p>
+          <p className="mt-1 text-sm text-texto-secundario">Solo piezas conformes y pendientes de entrega. No contiene precios.</p>
         </div>
         <Button
           type="button"
@@ -109,7 +114,7 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
             <DialogHeader>
               <DialogTitle>Generar nota de entrega</DialogTitle>
               <DialogDescription>
-                {orden.folio} · registra únicamente piezas producidas y pendientes de entrega.
+                {orden.folio} · registra únicamente piezas conformes y pendientes de entrega.
               </DialogDescription>
             </DialogHeader>
             <form className="flex flex-col gap-3" onSubmit={enviar} data-testid="formulario-nota-entrega">
@@ -135,7 +140,7 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
               <fieldset className="flex flex-col gap-2">
                 <legend className="text-sm font-medium text-texto-secundario">Cantidades a entregar</legend>
                 {partidasDisponibles.map((partida) => {
-                  const disponible = Math.max(partida.cantidadProducida - partida.cantidadEntregada, 0);
+                  const disponible = Math.max((partida.cantidadConforme ?? partida.cantidadProducida) - partida.cantidadEntregada, 0);
                   return (
                     <label key={partida.id} className="grid grid-cols-[1fr_7rem] items-center gap-2 text-sm">
                       <span>{partida.codigoPieza} <span className="text-texto-secundario">({disponible} disponibles)</span></span>
