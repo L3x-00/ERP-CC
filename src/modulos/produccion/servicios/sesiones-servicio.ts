@@ -33,6 +33,8 @@ export type CodigoErrorProduccion =
   | 'cantidad_excede_meta_proceso'
   | 'motivo_pausa_invalido'
   | 'cantidad_entrega_excede_producida'
+  | 'cantidad_entrega_excede_pendiente'
+  | 'partidas_entrega_invalidas'
   | 'orden_no_entregable'
   | 'partida_no_corresponde_orden'
   | 'reanudacion_invalida'

@@ -7,6 +7,7 @@ export interface PartidaFicha {
   descripcion: string | null;
   cantidadSolicitada: number;
   cantidadProducida: number;
+  /** AUD-05: piezas conformes y entregables. */
   cantidadConforme?: number;
   cantidadScrap: number;
   unidadMedida: string;
@@ -24,6 +25,9 @@ export interface EntregaFicha {
   esParcial: boolean;
   recibidoPor: string;
   creadoEn: string;
+  /** AUD-14: VIGENTE o ANULADA. */
+  estado: 'VIGENTE' | 'ANULADA';
+  motivoAnulacion?: string | null;
   partidas: { partidaId: string; cantidadEntregada: number }[];
 }
 

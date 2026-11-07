@@ -76,7 +76,7 @@ const PERMISOS = {
 
 afterEach(() => cleanup());
 
-describe('panel Entregas de la ficha (R11 caracterización + O-08 «No»)', () => {
+describe('panel Entregas de la ficha (R11 caracterización + AUD-05)', () => {
   it('con producción completada muestra el enlace «Preparar entrega» a /entregas?orden=query', () => {
     render(createElement(FichaOrden, {
       ficha: construirOrden('PRODUCCION_COMPLETADA'),
@@ -89,16 +89,16 @@ describe('panel Entregas de la ficha (R11 caracterización + O-08 «No»)', () =
     expect(screen.queryByTestId('ficha-entrega-bloqueada')).toBeNull();
   });
 
-  it('con la orden EN_PRODUCCION el enlace está oculto y se explica el bloqueo (O-08)', () => {
+  it('con la orden EN_PRODUCCION también permite preparar la entrega (AUD-05)', () => {
     render(createElement(FichaOrden, {
       ficha: construirOrden('EN_PRODUCCION'),
       permisos: PERMISOS,
       usuarioActualId: 'u-84',
       pestanaInicial: 'entregas',
     }));
-    expect(screen.queryByTestId('ficha-preparar-entrega')).toBeNull();
-    expect(screen.getByTestId('ficha-entrega-bloqueada').textContent)
-      .toContain('Se habilita al completar la producción');
+    const enlace = screen.getByTestId('ficha-preparar-entrega') as HTMLAnchorElement;
+    expect(enlace.getAttribute('href')).toBe('/entregas?orden=00000000-0000-4000-8000-0000000c8402');
+    expect(screen.queryByTestId('ficha-entrega-bloqueada')).toBeNull();
   });
 
   it('sin entregas la nota parcial/totales del folio NE se marca como esperada (folio SII visible)', () => {

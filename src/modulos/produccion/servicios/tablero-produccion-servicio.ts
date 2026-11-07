@@ -316,7 +316,14 @@ export async function obtenerDatosTableroProduccionServicio(
   }
 
   const cantidadEntregadaPorPartida = new Map<string, number>();
+  // AUD-14: las notas ANULADAS no cuentan como entregadas.
+  const notasVigentes = new Set(
+    (resultadoNotas.data ?? [])
+      .filter((nota) => nota.estado !== 'ANULADA')
+      .map((nota) => nota.id),
+  );
   for (const renglon of resultadoRenglones.data ?? []) {
+    if (!notasVigentes.has(renglon.nota_entrega_id)) continue;
     cantidadEntregadaPorPartida.set(
       renglon.partida_id,
       (cantidadEntregadaPorPartida.get(renglon.partida_id) ?? 0) + Number(renglon.cantidad_entregada),
