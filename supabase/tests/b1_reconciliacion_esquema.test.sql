@@ -119,15 +119,15 @@ SELECT ok(NOT has_function_privilege('anon',
   'privado.recurso_compatible_con_partida(uuid, uuid)', 'EXECUTE'),
   'anon no puede ejecutar el helper de compatibilidad');
 SELECT ok(has_function_privilege('service_role',
-  'public.cerrar_sesion_con_consumo_operador(uuid, uuid, numeric, uuid, numeric, numeric, uuid, text)', 'EXECUTE'),
+  'public.cerrar_sesion_con_consumo_operador(uuid, uuid, numeric, uuid, numeric, numeric, text, uuid, text)', 'EXECUTE'),
   'service_role puede ejecutar el cierre con consumo');
 SELECT ok(NOT has_function_privilege('authenticated',
-  'public.cerrar_sesion_con_consumo_operador(uuid, uuid, numeric, uuid, numeric, numeric, uuid, text)', 'EXECUTE'),
+  'public.cerrar_sesion_con_consumo_operador(uuid, uuid, numeric, uuid, numeric, numeric, text, uuid, text)', 'EXECUTE'),
   'authenticated no puede ejecutar el cierre con consumo');
 
 -- 31. C10 usa el codigo de error que espera el servicio TypeScript.
 SELECT throws_ok(
-  $$SELECT * FROM public.cerrar_sesion_con_consumo_operador(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)$$,
+  $$SELECT * FROM public.cerrar_sesion_con_consumo_operador(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)$$,
   '23514', 'cierre_sesion_invalido',
   'El cierre con consumo devuelve cierre_sesion_invalido');
 

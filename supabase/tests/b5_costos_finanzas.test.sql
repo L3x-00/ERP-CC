@@ -91,19 +91,20 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Consumo legado: 3 x 10 = 30.
 INSERT INTO public.registros_consumo_material (id, partida_id, material_id,
-  cantidad_usada, cantidad_scrap, costo_unitario_momento, origen)
+  cantidad_usada, cantidad_scrap, costo_unitario_momento, origen, motivo)
 VALUES ('00000000-0000-4000-8000-00000000b519',
   '00000000-0000-4000-8000-00000000b511', '00000000-0000-4000-8000-00000000b516',
-  3, 0, 10, 'LEGADO')
+  3, 0, 10, 'LEGADO', 'Consumo histórico')
 ON CONFLICT (id) DO NOTHING;
 
 -- Consumo nuevo: 2 x 20 = 40, unidad kg.
 INSERT INTO public.registros_consumo_material (id, partida_id, catalogo_material_id,
   unidad_base, cantidad_usada, cantidad_scrap, costo_unitario_momento,
-  costo_unitario_origen, moneda_costo, tipo_cambio, actor_id, origen)
+  costo_unitario_origen, moneda_costo, tipo_cambio, actor_id, origen, motivo)
 VALUES ('00000000-0000-4000-8000-00000000b51a',
   '00000000-0000-4000-8000-00000000b511', '00000000-0000-4000-8000-00000000b518',
-  'kg', 2, 0, 20, 20, 'MXN', 1, '00000000-0000-4000-8000-00000000b501', 'NUEVO')
+  'kg', 2, 0, 20, 20, 'MXN', 1, '00000000-0000-4000-8000-00000000b501', 'NUEVO',
+  'Consumo de producción')
 ON CONFLICT (id) DO NOTHING;
 
 -- Retrabajo: material 1 x 5 = 5; 30 min a 50/h = 25.
