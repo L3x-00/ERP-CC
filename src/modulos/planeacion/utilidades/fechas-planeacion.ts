@@ -45,6 +45,8 @@ const MESES_LARGOS = [
   'diciembre',
 ] as const;
 
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
+
 function fechaDesdeIso(fechaIso: string): Date {
   return new Date(`${fechaIso}T00:00:00.000Z`);
 }
@@ -53,12 +55,9 @@ function isoDesdeFecha(fecha: Date): string {
   return fecha.toISOString().slice(0, 10);
 }
 
-/** Fecha local de hoy en ISO, para el botón "Hoy" sin corrimiento por zona. */
+/** Fecha de negocio de hoy (Tijuana) en ISO, para el botón "Hoy". */
 export function hoyIso(fecha: Date = new Date()): string {
-  const anio = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dia = String(fecha.getDate()).padStart(2, '0');
-  return `${anio}-${mes}-${dia}`;
+  return fechaLocalNegocio(fecha);
 }
 
 export function sumarDias(fechaIso: string, dias: number): string {

@@ -7,6 +7,7 @@ import { sumarDiasHabiles } from '@/modulos/pipeline/utilidades/indice';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 type DatosSolicitud = {
   poCliente: string | null;
@@ -32,7 +33,7 @@ function aFechaInput(valor: string | null | undefined): string {
 
 /** Fecha de hoy (UTC) usada como base de las propuestas de días hábiles. */
 function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return fechaLocalNegocio();
 }
 
 /**

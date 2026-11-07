@@ -9,6 +9,7 @@ import { proximaAccionVencida } from '@/modulos/pipeline/servicios/filtrar-oport
 import type { Oportunidad, PrioridadPipeline } from '@/modulos/pipeline/tipos/indice';
 import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 import { etiquetaProximaAccion } from '@/modulos/pipeline/utilidades/proxima-accion';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 
 type PropsTarjetaOportunidad = {
   oportunidad: Oportunidad;
@@ -64,7 +65,7 @@ export const ESTILO_PRIORIDAD: Record<PrioridadPipeline, { texto: string; clase:
 export function TarjetaOportunidad({ oportunidad, alertas }: PropsTarjetaOportunidad) {
   const folio = oportunidad.folioRfq ?? oportunidad.folioCnc ?? oportunidad.folioOp;
   const prioridad = ESTILO_PRIORIDAD[oportunidad.prioridad];
-  const vencida = proximaAccionVencida(oportunidad, new Date().toISOString().slice(0, 10));
+  const vencida = proximaAccionVencida(oportunidad, fechaLocalNegocio());
 
   return (
     <article

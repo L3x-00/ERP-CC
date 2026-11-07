@@ -11,7 +11,13 @@
  * servidor, así que se prueban con fechas fijas.
  */
 
-export const ZONA_HORARIA_NEGOCIO = 'America/Tijuana';
+import {
+  ZONA_HORARIA_NEGOCIO,
+  fechaLocalNegocio,
+} from '@/compartido/utilidades/fecha-negocio';
+
+export { ZONA_HORARIA_NEGOCIO, fechaLocalNegocio };
+
 export const HORAS_VIGENCIA_TIPO_CAMBIO = 24;
 
 export type MotivoTipoCambioDesactualizado = 'sin_registro' | 'nuevo_dia' | 'mas_de_24_horas';
@@ -33,22 +39,6 @@ export interface EntradaEvaluacionTipoCambio {
   tipoCambioUsd?: number;
   ahora?: Date;
   zonaHoraria?: string;
-}
-
-/** Fecha `YYYY-MM-DD` en la zona indicada, sin depender del locale del runtime. */
-export function fechaLocalNegocio(
-  fecha: Date,
-  zonaHoraria: string = ZONA_HORARIA_NEGOCIO,
-): string {
-  const partes = new Intl.DateTimeFormat('en-US', {
-    timeZone: zonaHoraria,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(fecha);
-  const valor = (tipo: 'year' | 'month' | 'day'): string =>
-    partes.find((parte) => parte.type === tipo)?.value ?? '';
-  return `${valor('year')}-${valor('month')}-${valor('day')}`;
 }
 
 /** Fecha y hora legibles en la zona del taller (Tijuana). */
