@@ -69,7 +69,7 @@ export async function obtenerMaterialClienteRevisionServicio(
   }));
 }
 
-/** C13.3: el operador declara el consumo real del material del cliente. */
+/** C13.3 + AUD-11: el operador declara el consumo real del material del cliente. */
 export async function registrarConsumoMaterialClienteServicio(
   admin: Admin,
   entrada: {
@@ -77,6 +77,7 @@ export async function registrarConsumoMaterialClienteServicio(
     materialId: string;
     cantidadUsada: number;
     cantidadScrap: number;
+    solicitudId?: string;
     actorId: string;
   },
 ): Promise<ConsumoMaterialClienteRegistrado> {
@@ -86,6 +87,7 @@ export async function registrarConsumoMaterialClienteServicio(
     p_cantidad_usada: entrada.cantidadUsada,
     p_cantidad_scrap: entrada.cantidadScrap,
     p_actor_id: entrada.actorId,
+    ...(entrada.solicitudId ? { p_solicitud_id: entrada.solicitudId } : {}),
   });
   if (error) lanzarErrorProduccion(error.message);
 

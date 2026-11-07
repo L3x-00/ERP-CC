@@ -255,7 +255,7 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
       cantidadUsada: number;
       cantidadScrap: number;
     };
-    itemsIntegrados?: { partidaId: string; piezas: number; minutos: number }[];
+    itemsIntegrados?: { partidaId: string; piezas: number; minutos: number | null }[];
   }): Promise<{ exito: true; datos: CierreSesionRegistrado } | { exito: false; error: string }> => {
     setProcesando(true);
     try {
