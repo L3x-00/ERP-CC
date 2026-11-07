@@ -55,6 +55,7 @@ describe('esquemas de Producción', () => {
         materialId: uuidMaterial,
         cantidadUsada: 2,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
     });
 
@@ -71,19 +72,20 @@ describe('esquemas de Producción', () => {
         materialId: uuidMaterial,
         cantidadUsada: 2,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
     });
 
     expect(resultado.success).toBe(false);
   });
 
-  it('exige consumo al finalizar, pero no al pausar', () => {
+  it('permite finalizar sin consumo propio y sigue rechazando consumo al pausar', () => {
     expect(esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
       piezasProducidas: 0,
       estadoDestino: 'finalizada',
       pinConfirmacion: '4826',
-    }).success).toBe(false);
+    }).success).toBe(true);
 
     expect(esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
@@ -99,6 +101,7 @@ describe('esquemas de Producción', () => {
       materialId: uuidMaterial,
       cantidadUsada: 0,
       cantidadScrap: 0,
+      motivo: 'Consumo de producción',
     };
 
     expect(esquemaCerrarSesion.safeParse({
@@ -119,6 +122,7 @@ describe('esquemas de Producción', () => {
         materialId: uuidMaterial,
         cantidadUsada: 1,
         cantidadScrap: 0,
+        motivo: 'Consumo de producción',
       },
     }).success).toBe(false);
   });
@@ -191,6 +195,7 @@ describe('mappers de Producción', () => {
     costo_hora_interno: 0,
     horas_brutas: 7,
     horas_netas: 6,
+    minutos_setup: null,
     piezas_producidas: 4,
     motivo_pausa: 'mantenimiento',
     motivo_pausa_codigo: 'FALLA',

@@ -216,6 +216,7 @@ describe('mappers B6', () => {
       fecha_fin: null,
       horas_brutas: 0,
       horas_netas: 0,
+      minutos_setup: null,
       piezas_producidas: 0,
       motivo_pausa: 'material_pendiente',
       motivo_pausa_codigo: 'MATERIAL',

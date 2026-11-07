@@ -242,6 +242,7 @@ describe('esquemaRegistrarConsumoMaterial', () => {
     materialId: uuidMaterial,
     cantidadUsada: 12.5,
     cantidadScrap: 0.5,
+    motivo: 'Consumo de producción',
   };
 
   it('acepta consumo y scrap no negativos con total positivo', () => {
@@ -254,6 +255,9 @@ describe('esquemaRegistrarConsumoMaterial', () => {
   it('rechaza UUIDs, cantidades negativas y un consumo total en cero', () => {
     expect(
       esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, partidaId: 'partida-1' }).success,
+    ).toBe(false);
+    expect(
+      esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, motivo: '  ' }).success,
     ).toBe(false);
     expect(
       esquemaRegistrarConsumoMaterial.safeParse({ ...consumoValido, cantidadScrap: -0.1 }).success,
@@ -317,8 +321,11 @@ describe('mappers de órdenes', () => {
         propuesta_item_id: null,
         descripcion: null,
         cantidad_solicitada: 25,
+        cantidad_conforme: 10,
+        cantidad_nok_pendiente: 0,
         cantidad_producida: 10,
         cantidad_scrap: 1,
+        cantidad_scrap_definitivo: 0,
         unidad_medida: 'pieza',
         catalogo_material_id: null,
         material_id: uuidMaterial,
@@ -359,6 +366,7 @@ describe('mappers de órdenes', () => {
         partida_id: uuidPartida,
         actor_id: null,
         catalogo_material_id: null,
+        corrida_id: null,
         material_id: uuidMaterial,
         cantidad_usada: 12.5,
         cantidad_scrap: 0.5,
@@ -366,6 +374,8 @@ describe('mappers de órdenes', () => {
         costo_unitario_origen: null,
         moneda_costo: null,
         origen: 'LEGADO',
+        motivo: 'Consumo histórico',
+        sesion_id: null,
         tipo_cambio: null,
         unidad_base: null,
         creado_en: '2026-08-12T14:30:00+00:00',

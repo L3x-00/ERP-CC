@@ -39,6 +39,7 @@ describe('cerrarSesionTrabajoServicio', () => {
         materialId: IDS.material,
         cantidadUsada: 2,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
     });
 
@@ -49,6 +50,7 @@ describe('cerrarSesionTrabajoServicio', () => {
       p_material_id: IDS.material,
       p_cantidad_usada: 2,
       p_cantidad_scrap: 0.5,
+      p_motivo_consumo: 'Consumo de producción',
       p_meta_proceso_id: null,
       p_notas: 'Cierre de prueba',
     });
@@ -84,18 +86,23 @@ describe('cerrarSesionTrabajoServicio', () => {
     });
   });
 
-  it('no permite terminar sin consumo antes de invocar PostgreSQL', async () => {
-    const rpc = vi.fn();
+  it('permite terminar sin consumo propio cuando la ruta no lo exige', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [filaCierre], error: null });
 
-    await expect(cerrarSesionTrabajoServicio(clienteConRpc(rpc), {
+    const resultado = await cerrarSesionTrabajoServicio(clienteConRpc(rpc), {
       sesionId: IDS.sesion,
       operadorId: IDS.operador,
-      piezasProducidas: 0,
+      piezasProducidas: 3,
       estadoDestino: 'finalizada',
       pinConfirmacion: '4826',
-    })).rejects.toMatchObject({
-      codigo: 'cierre_sesion_invalido',
     });
-    expect(rpc).not.toHaveBeenCalled();
+
+    expect(rpc).toHaveBeenCalledWith('cerrar_sesion_trabajo_operador', {
+      p_sesion_id: IDS.sesion,
+      p_operador_id: IDS.operador,
+      p_piezas_producidas: 3,
+      p_estado_destino: 'finalizada',
+    });
+    expect(resultado.id).toBe(IDS.sesion);
   });
 });

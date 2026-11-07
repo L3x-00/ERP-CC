@@ -11,16 +11,30 @@ export const ETIQUETAS_CAUSA_RETRABAJO: Record<CausaRetrabajo, string> = {
   otro: 'Otro',
 };
 
+/** AUD-01/AUD-04: resultado declarado del retrabajo. */
+export const RESULTADOS_RETRABAJO = ['PENDIENTE', 'RECUPERADO', 'SCRAP'] as const;
+
+export type ResultadoRetrabajo = (typeof RESULTADOS_RETRABAJO)[number];
+
+export const ETIQUETAS_RESULTADO_RETRABAJO: Record<ResultadoRetrabajo, string> = {
+  PENDIENTE: 'Pendiente de validación',
+  RECUPERADO: 'Recuperado',
+  SCRAP: 'Scrap definitivo',
+};
+
 export interface RetrabajoRegistrado {
   id: string;
   ordenId: string;
   partidaId: string;
+  /** Id canónico: catálogo actual o, en filas históricas, material legado. */
   materialId: string;
+  catalogoMaterialId: string | null;
   cantidadUsada: number;
   cantidadScrap: number;
   minutos: number;
   causa: CausaRetrabajo;
   motivo: string;
+  resultado: ResultadoRetrabajo;
   creadoEn: string;
 }
 

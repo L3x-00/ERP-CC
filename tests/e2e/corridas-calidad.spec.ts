@@ -367,6 +367,7 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     await paginaOperador.getByLabel('Piezas producidas ahora').fill('2');
     await paginaOperador.getByLabel('Material').selectOption(caso.materialId);
     await paginaOperador.getByLabel('Usado').fill('2');
+    await paginaOperador.getByTestId('motivo-consumo').fill('Consumo E2E');
     await paginaOperador.getByTestId('registrar-inspeccion-cierre').check();
     await paginaOperador.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await paginaOperador.getByTestId('cerrar-sesion-produccion').click();

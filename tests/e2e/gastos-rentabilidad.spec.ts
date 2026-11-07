@@ -232,6 +232,7 @@ async function prepararContexto(): Promise<ContextoE2E> {
 
     const { error: errorConsumo } = await admin.rpc('registrar_consumo_material_op', {
       p_partida_id: partida.id, p_material_id: material.id, p_cantidad_usada: 3, p_cantidad_scrap: 0.5,
+      p_motivo: 'Consumo de producción',
       p_actor_id: usuarioId,
     });
     if (errorConsumo) throw new Error(`No se creó consumo E2E: ${errorConsumo.message}`);

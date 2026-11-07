@@ -139,6 +139,7 @@ describe('servicios transaccionales de órdenes', () => {
         materialId: '33333333-3333-4333-8333-333333333333',
         cantidadUsada: 3,
         cantidadScrap: 0.5,
+        motivo: 'Consumo de producción',
       },
       '66666666-6666-4666-8666-666666666666',
     );
@@ -154,6 +155,7 @@ describe('servicios transaccionales de órdenes', () => {
       p_material_id: '33333333-3333-4333-8333-333333333333',
       p_cantidad_usada: 3,
       p_cantidad_scrap: 0.5,
+      p_motivo: 'Consumo de producción',
       p_actor_id: '66666666-6666-4666-8666-666666666666',
     });
   });
@@ -212,6 +214,7 @@ describe('servicios transaccionales de órdenes', () => {
       operadorId: '66666666-6666-4666-8666-666666666666',
       cantidadUsada: 3,
       cantidadScrap: 0,
+      motivo: 'Consumo de producción',
     });
 
     expect(resultado.movimientoInventarioId).toBeNull();
@@ -222,6 +225,7 @@ describe('servicios transaccionales de órdenes', () => {
       p_operador_id: '66666666-6666-4666-8666-666666666666',
       p_cantidad_usada: 3,
       p_cantidad_scrap: 0,
+      p_motivo: 'Consumo de producción',
     });
   });
 

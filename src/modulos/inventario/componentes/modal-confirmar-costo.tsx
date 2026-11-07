@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import {
@@ -44,7 +44,7 @@ type Props =
 export function ModalConfirmarCosto(props: Props) {
   const { material, onCerrar } = props;
   const propuesta = props.modo === 'propuesta' ? props.propuesta : null;
-  const { confirmarCosto } = usarMutacionesCostosMateriales();
+  const { confirmarCosto, revaluarCostoConsumido } = usarMutacionesCostosMateriales();
   const [costo, setCosto] = useState(
     propuesta ? String(propuesta.costoPropuesto) : material.costoVigente === null ? '' : String(material.costoVigente),
   );
@@ -55,12 +55,56 @@ export function ModalConfirmarCosto(props: Props) {
     propuesta ? propuesta.fechaEfectiva : hoy(),
   );
   const [referencia, setReferencia] = useState('');
+  const [recostear, setRecostear] = useState(false);
+  const [motivoRecosteo, setMotivoRecosteo] = useState('');
+  const [costoConfirmado, setCostoConfirmado] = useState<{ costo: number; moneda: MonedaCosto } | null>(null);
+  const solicitudRecosteo = useRef<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  async function aplicarRecosteo(costoNumero: number, monedaValor: MonedaCosto): Promise<boolean> {
+    if (!solicitudRecosteo.current) solicitudRecosteo.current = crypto.randomUUID();
+    try {
+      await revaluarCostoConsumido.mutateAsync({
+        materialId: material.id,
+        costo: costoNumero,
+        moneda: monedaValor,
+        motivo: motivoRecosteo.trim(),
+        solicitudId: solicitudRecosteo.current,
+      });
+      return true;
+    } catch (error) {
+      setCostoConfirmado({ costo: costoNumero, moneda: monedaValor });
+      setMensaje(
+        `El costo quedó confirmado, pero el recosteo falló: ${
+          error instanceof Error ? error.message : 'error desconocido'
+        }. Reintenta el recosteo.`,
+      );
+      return false;
+    }
+  }
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setMensaje(null);
+
+    const motivoLimpio = motivoRecosteo.trim();
+    if (recostear && motivoLimpio.length < 3) {
+      setMensaje('Indica el motivo del recosteo (mínimo 3 caracteres)');
+      return;
+    }
+
+    // Reintento del recosteo tras una confirmación ya aplicada.
+    if (costoConfirmado) {
+      setEnviando(true);
+      try {
+        const ok = await aplicarRecosteo(costoConfirmado.costo, costoConfirmado.moneda);
+        if (ok) onCerrar();
+      } finally {
+        setEnviando(false);
+      }
+      return;
+    }
 
     if (propuesta) {
       setEnviando(true);
@@ -75,7 +119,12 @@ export function ModalConfirmarCosto(props: Props) {
           propuestaId: propuesta.id,
           actualizadoEn: material.actualizadoEn,
         });
-        onCerrar();
+        if (!recostear) {
+          onCerrar();
+          return;
+        }
+        const ok = await aplicarRecosteo(propuesta.costoPropuesto, propuesta.moneda);
+        if (ok) onCerrar();
       } catch (error) {
         setMensaje(error instanceof Error ? error.message : 'No se pudo confirmar el costo');
       } finally {
@@ -107,7 +156,12 @@ export function ModalConfirmarCosto(props: Props) {
         propuestaId: null,
         actualizadoEn: material.actualizadoEn,
       });
-      onCerrar();
+      if (!recostear) {
+        onCerrar();
+        return;
+      }
+      const ok = await aplicarRecosteo(costoNumero, moneda);
+      if (ok) onCerrar();
     } catch (error) {
       setMensaje(error instanceof Error ? error.message : 'No se pudo confirmar el costo');
     } finally {
@@ -209,6 +263,45 @@ export function ModalConfirmarCosto(props: Props) {
             </div>
           )}
 
+          {costoConfirmado ? (
+            <p role="status" className="rounded-md bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto">
+              El costo del catálogo ya quedó confirmado. Reintenta el recosteo para sustituir el
+              costo provisional de los consumos ya registrados.
+            </p>
+          ) : (
+            <div className="grid gap-3 rounded-lg border border-borde p-3">
+              <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4"
+                  checked={recostear}
+                  onChange={(evento) => setRecostear(evento.target.checked)}
+                  data-testid="recostear-consumos"
+                />
+                <span>
+                  Sustituir el costo de los consumos ya registrados
+                  <span className="block text-xs font-normal text-texto-secundario">
+                    Actualiza el costo congelado de los consumos y retrabajos de este material
+                    sin duplicarlos. Deja auditoría del cambio.
+                  </span>
+                </span>
+              </label>
+              {recostear ? (
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="motivo-recosteo">Motivo del recosteo</Label>
+                  <Input
+                    id="motivo-recosteo"
+                    maxLength={500}
+                    value={motivoRecosteo}
+                    onChange={(evento) => setMotivoRecosteo(evento.target.value)}
+                    placeholder="Costo comprobado por factura o proveedor"
+                    data-testid="motivo-recosteo"
+                  />
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {mensaje !== null && (
             <p role="alert" className="text-sm text-peligro-texto">
               {mensaje}
@@ -221,10 +314,12 @@ export function ModalConfirmarCosto(props: Props) {
             </Button>
             <Button type="submit" tamano="sm" disabled={enviando}>
               {enviando
-                ? 'Confirmando…'
-                : propuesta
-                  ? 'Confirmar propuesta'
-                  : 'Confirmar costo'}
+                ? 'Procesando…'
+                : costoConfirmado
+                  ? 'Reintentar recosteo'
+                  : propuesta
+                    ? 'Confirmar propuesta'
+                    : 'Confirmar costo'}
             </Button>
           </div>
         </form>

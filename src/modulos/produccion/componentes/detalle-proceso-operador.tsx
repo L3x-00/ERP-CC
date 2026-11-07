@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -86,8 +86,10 @@ export interface AccionesDetalleProceso {
       materialId: string;
       cantidadUsada: number;
       cantidadScrap: number;
+      motivo: string;
     };
     itemsIntegrados?: ItemIntegrado[];
+    minutosSetup?: number;
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -145,6 +147,9 @@ export function DetalleProcesoOperador({
   const [cierreAbierto, setCierreAbierto] = useState(false);
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
+  // B7: el consumo real exige motivo y el setup se identifica sin duplicar costo.
+  const [motivoConsumo, setMotivoConsumo] = useState('');
+  const [minutosSetup, setMinutosSetup] = useState('');
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
@@ -160,6 +165,8 @@ export function DetalleProcesoOperador({
   const [procesandoPrimeraPieza, setProcesandoPrimeraPieza] = useState(false);
   const [registrarInspeccionCierre, setRegistrarInspeccionCierre] = useState(false);
   const [resultadoInspeccionCierre, setResultadoInspeccionCierre] = useState<'APROBADA' | 'RECHAZADA'>('APROBADA');
+  const [recuperablesCierre, setRecuperablesCierre] = useState('0');
+  const [scrapCierre, setScrapCierre] = useState('0');
   const [observacionesCierre, setObservacionesCierre] = useState('');
   const [mensajeInspeccionCierre, setMensajeInspeccionCierre] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
@@ -172,7 +179,9 @@ export function DetalleProcesoOperador({
   const [retrabajoCausa, setRetrabajoCausa] = useState<CausaRetrabajo>('operador');
   const [retrabajoMotivo, setRetrabajoMotivo] = useState('');
   const [retrabajoNotas, setRetrabajoNotas] = useState('');
+  const [retrabajoResultado, setRetrabajoResultado] = useState<'PENDIENTE' | 'RECUPERADO' | 'SCRAP'>('PENDIENTE');
   const [retrabajoRegistrado, setRetrabajoRegistrado] = useState(false);
+  const solicitudRetrabajo = useRef<string | null>(null);
   const [mensajeRetrabajo, setMensajeRetrabajo] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
@@ -182,6 +191,7 @@ export function DetalleProcesoOperador({
   const [consumoClienteUsado, setConsumoClienteUsado] = useState('0');
   const [consumoClienteMerma, setConsumoClienteMerma] = useState('0');
   const [consumoClienteRegistrado, setConsumoClienteRegistrado] = useState(false);
+  const solicitudConsumoCliente = useRef<string | null>(null);
   const [mensajeConsumoCliente, setMensajeConsumoCliente] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
@@ -299,21 +309,31 @@ export function DetalleProcesoOperador({
     const usada = Number(cantidadUsada);
     const merma = Number(cantidadMerma);
     const materialSeleccionado = materiales.find((material) => material.id === materialId) ?? null;
+    const consumoValido = Boolean(materialSeleccionado)
+      && Number.isFinite(usada)
+      && Number.isFinite(merma)
+      && usada >= 0
+      && merma >= 0
+      && usada + merma > 0;
 
+    // B7: el servidor decide si la ruta exige consumo (AUD-02). Si se captura
+    // consumo, el motivo es obligatorio; sin consumo no se exige material.
+    const incluirConsumo = estadoDestino === 'finalizada' && consumoValido;
+    if (incluirConsumo && motivoConsumo.trim().length < 3) {
+      setMensaje({
+        exito: false,
+        error: 'Indica el motivo del consumo de material (mínimo 3 caracteres).',
+      });
+      return;
+    }
+    const minutosSetupNumero = minutosSetup.trim() === '' ? undefined : Number(minutosSetup);
     if (
-      estadoDestino === 'finalizada' &&
-      (
-        !materialSeleccionado ||
-        !Number.isFinite(usada) ||
-        !Number.isFinite(merma) ||
-        usada < 0 ||
-        merma < 0 ||
-        usada + merma <= 0
-      )
+      minutosSetupNumero !== undefined
+      && (!Number.isFinite(minutosSetupNumero) || minutosSetupNumero < 0 || minutosSetupNumero > 1440)
     ) {
       setMensaje({
         exito: false,
-        error: 'Selecciona un material e indica consumo o merma mayor a cero.',
+        error: 'Los minutos de setup deben ser un número entre 0 y 1440.',
       });
       return;
     }
@@ -324,6 +344,7 @@ export function DetalleProcesoOperador({
       const rMinutos = Number(retrabajoMinutos);
       if (!Number.isFinite(rUsado) || !Number.isFinite(rMerma) || rUsado < 0 || rMerma < 0
         || rUsado + rMerma <= 0 || !Number.isFinite(rMinutos) || rMinutos <= 0
+        || (!retrabajoMaterialId && !materialId)
         || retrabajoMotivo.trim().length < 3) {
         setMensaje({
           exito: false,
@@ -352,20 +373,49 @@ export function DetalleProcesoOperador({
         return;
       }
     }
+    if (estadoDestino === 'finalizada' && registrarInspeccionCierre) {
+      const recuperables = Number(recuperablesCierre);
+      const scrap = Number(scrapCierre);
+      if (!Number.isFinite(recuperables) || !Number.isFinite(scrap)
+        || recuperables < 0 || scrap < 0) {
+        setMensaje({ exito: false, error: 'Las piezas recuperables y el scrap deben ser cantidades válidas.' });
+        return;
+      }
+      if (resultadoInspeccionCierre === 'APROBADA' && recuperables + scrap > 0) {
+        setMensaje({
+          exito: false,
+          error: 'Si la inspección es aprobada, no puedes marcar piezas recuperables ni scrap.',
+        });
+        return;
+      }
+      if (resultadoInspeccionCierre === 'RECHAZADA'
+        && (recuperables + scrap <= 0 || recuperables + scrap > piezasCapturadas)) {
+        setMensaje({
+          exito: false,
+          error: 'Indica cuántas piezas son recuperables o scrap (sin superar las producidas).',
+        });
+        return;
+      }
+    }
     const integradaActiva = estadoDestino === 'finalizada' && integrada && itemsCorrida.length > 1;
     let itemsIntegrados: ItemIntegrado[] | undefined;
     let piezasPrincipal = Number(piezas);
     if (integradaActiva) {
-      const minutosTotales = itemsCorrida.reduce(
-        (total, item) => total + (Number(minutosPorItem[item.partidaId] ?? '0') || 0),
+      const minutosDeclarados = itemsCorrida.map((item) => {
+        const valor = minutosPorItem[item.partidaId];
+        if (valor === undefined || valor.trim() === '') return null;
+        return Number(valor);
+      });
+      const minutosTotales = minutosDeclarados.reduce<number>(
+        (total, valor) => total + (valor ?? 0),
         0,
       );
       const piezasTotales = itemsCorrida.reduce(
         (total, item) => total + (Number(piezasPorItem[item.partidaId] ?? '0') || 0),
         0,
       );
-      const minutosValidos = itemsCorrida.every(
-        (item) => Number(minutosPorItem[item.partidaId] ?? '0') > 0,
+      const minutosValidos = minutosDeclarados.every(
+        (valor) => valor === null || (Number.isFinite(valor) && valor > 0),
       );
       const piezasValidas = itemsCorrida.every((item) => {
         const cantidad = Number(piezasPorItem[item.partidaId] ?? '0');
@@ -381,7 +431,7 @@ export function DetalleProcesoOperador({
       if (!minutosValidos || piezasTotales <= 0) {
         setMensaje({
           exito: false,
-          error: 'Completa piezas y minutos de cada ítem de la corrida integrada.',
+          error: 'Completa las piezas de cada ítem; los minutos por ítem son opcionales.',
         });
         return;
       }
@@ -392,10 +442,10 @@ export function DetalleProcesoOperador({
         });
         return;
       }
-      itemsIntegrados = itemsCorrida.map((item) => ({
+      itemsIntegrados = itemsCorrida.map((item, indice) => ({
         partidaId: item.partidaId,
         piezas: Number(piezasPorItem[item.partidaId] ?? '0') || 0,
-        minutos: Number(minutosPorItem[item.partidaId] ?? '0') || 0,
+        minutos: minutosDeclarados[indice] ?? null,
       }));
       piezasPrincipal = Number(piezasPorItem[proceso.partidaId] ?? '0') || 0;
     }
@@ -406,16 +456,18 @@ export function DetalleProcesoOperador({
       estadoDestino,
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
-      ...(estadoDestino === 'finalizada'
-      ? {
-          consumo: {
-            materialId,
-            cantidadUsada: usada,
-            cantidadScrap: merma,
-          },
-        }
-      : {}),
+      ...(incluirConsumo
+        ? {
+            consumo: {
+              materialId,
+              cantidadUsada: usada,
+              cantidadScrap: merma,
+              motivo: motivoConsumo.trim(),
+            },
+          }
+        : {}),
       ...(itemsIntegrados ? { itemsIntegrados } : {}),
+      ...(minutosSetupNumero !== undefined ? { minutosSetup: minutosSetupNumero } : {}),
       pinConfirmacion: pin,
     });
     setMensaje(resultado);
@@ -437,7 +489,9 @@ export function DetalleProcesoOperador({
     if (resultado.exito) {
       setPin('');
       setNotas('');
-      if (estadoDestino === 'finalizada' && materialSeleccionado && resultado.datos) {
+      setMotivoConsumo('');
+      setMinutosSetup('');
+      if (incluirConsumo && materialSeleccionado && resultado.datos) {
         setResumenCierre({
           material: materialSeleccionado,
           cantidadUsada: usada,
@@ -449,7 +503,9 @@ export function DetalleProcesoOperador({
       // El operador cierra el proceso y, si lo decide, deja la inspección de
       // cierre en el mismo paso; el panel de administración solo la consulta.
       if (estadoDestino === 'finalizada' && registrarInspeccionCierre) {
-        const aprobada = resultadoInspeccionCierre === 'APROBADA';
+        const recuperables = Number(recuperablesCierre) || 0;
+        const scrap = Number(scrapCierre) || 0;
+        const piezasInspeccion = piezasPrincipal;
         const inspeccion = await registrarInspeccionAccion({
           ordenId: proceso.ordenId,
           corridaId: proceso.sesionActiva?.corridaId ?? null,
@@ -457,10 +513,12 @@ export function DetalleProcesoOperador({
           codigoItem: proceso.codigoPieza,
           tipo: 'CIERRE',
           resultado: resultadoInspeccionCierre,
-          cantidadInspeccionada: Number(piezas),
-          cantidadOk: aprobada ? Number(piezas) : 0,
-          cantidadNok: aprobada ? 0 : Number(piezas),
-          cantidadRetrabajo: 0,
+          cantidadInspeccionada: piezasInspeccion,
+          cantidadOk: Math.max(piezasInspeccion - recuperables - scrap, 0),
+          cantidadNok: recuperables + scrap,
+          cantidadRetrabajo: recuperables,
+          cantidadScrap: scrap,
+          sesionId: proceso.sesionActiva.id,
           ...(observacionesCierre.trim() ? { observaciones: observacionesCierre.trim() } : {}),
         });
         setMensajeInspeccionCierre(
@@ -473,6 +531,7 @@ export function DetalleProcesoOperador({
       // C13.2: el retrabajo se registra al cerrar. Si falla, la sesión ya cerró
       // y el mensaje lo indica; no se repite si el formulario se reenvía.
       if (registrarRetrabajo && !retrabajoRegistrado) {
+        if (!solicitudRetrabajo.current) solicitudRetrabajo.current = crypto.randomUUID();
         const retrabajo = await registrarRetrabajoAccion({
           sesionId: proceso.sesionActiva.id,
           materialId: retrabajoMaterialId || materialId,
@@ -481,6 +540,8 @@ export function DetalleProcesoOperador({
           minutos: Number(retrabajoMinutos),
           causa: retrabajoCausa,
           motivo: retrabajoMotivo.trim(),
+          resultado: retrabajoResultado,
+          solicitudId: solicitudRetrabajo.current,
           ...(retrabajoNotas.trim() ? { notas: retrabajoNotas.trim() } : {}),
         });
         setMensajeRetrabajo(
@@ -488,16 +549,21 @@ export function DetalleProcesoOperador({
             ? { tipo: 'ok', texto: 'Retrabajo registrado con su material y tiempo.' }
             : { tipo: 'error', texto: `La sesión cerró, pero el retrabajo falló: ${retrabajo.error}` },
         );
-        if (retrabajo.exito) setRetrabajoRegistrado(true);
+        if (retrabajo.exito) {
+          setRetrabajoRegistrado(true);
+          solicitudRetrabajo.current = null;
+        }
       }
 
       // C13.3: descuenta el material del cliente (sin inventario ni costo).
       if (consumoCliente && !consumoClienteRegistrado) {
+        if (!solicitudConsumoCliente.current) solicitudConsumoCliente.current = crypto.randomUUID();
         const consumo = await registrarConsumoMaterialClienteAccion({
           sesionId: proceso.sesionActiva.id,
           materialId: consumoClienteMaterialId,
           cantidadUsada: Number(consumoClienteUsado),
           cantidadScrap: Number(consumoClienteMerma),
+          solicitudId: solicitudConsumoCliente.current,
         });
         setMensajeConsumoCliente(
           consumo.exito
@@ -510,7 +576,10 @@ export function DetalleProcesoOperador({
                 texto: `La sesión cerró, pero el consumo del cliente falló: ${consumo.error}`,
               },
         );
-        if (consumo.exito) setConsumoClienteRegistrado(true);
+        if (consumo.exito) {
+          setConsumoClienteRegistrado(true);
+          solicitudConsumoCliente.current = null;
+        }
       }
     }
   }
@@ -1031,6 +1100,23 @@ export function DetalleProcesoOperador({
                       <option value="pausada">Pausar sesión de trabajo</option>
                     </Select>
                   </label>
+                  {estadoDestino === 'finalizada' ? (
+                    <label className={CLASE_ETIQUETA}>
+                      Minutos de setup (opcional)
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={minutosSetup}
+                        onChange={(evento) => setMinutosSetup(evento.target.value)}
+                        placeholder="0"
+                        data-testid="minutos-setup"
+                      />
+                      <span className="text-xs font-normal text-texto-tenue">
+                        Identifica el setup dentro del tiempo real; no se cobra dos veces.
+                      </span>
+                    </label>
+                  ) : null}
                   {estadoDestino === 'pausada' ? (
                     <label className={CLASE_ETIQUETA}>
                       Motivo de pausa
@@ -1052,7 +1138,6 @@ export function DetalleProcesoOperador({
                         <Select
                           value={materialId}
                           onChange={(evento) => setMaterialId(evento.target.value)}
-                          required
                           data-testid="material-cierre"
                         >
                           <option value="">Selecciona un material</option>
@@ -1078,7 +1163,6 @@ export function DetalleProcesoOperador({
                             step="any"
                             value={cantidadUsada}
                             onChange={(evento) => setCantidadUsada(evento.target.value)}
-                            required
                             data-testid="usado-cierre"
                           />
                         </label>
@@ -1091,10 +1175,23 @@ export function DetalleProcesoOperador({
                             step="any"
                             value={cantidadMerma}
                             onChange={(evento) => setCantidadMerma(evento.target.value)}
-                            required
                           />
                         </label>
                       </div>
+
+                      <label className={CLASE_ETIQUETA}>
+                        Motivo del consumo
+                        <Input
+                          maxLength={200}
+                          value={motivoConsumo}
+                          onChange={(evento) => setMotivoConsumo(evento.target.value)}
+                          placeholder="Para qué se usó el material"
+                          data-testid="motivo-consumo"
+                        />
+                        <span className="text-xs font-normal text-texto-tenue">
+                          Obligatorio cuando registras consumo o merma.
+                        </span>
+                      </label>
 
                       <div className="grid gap-3 rounded-lg bg-superficie-2 p-3">
                         <label className="flex items-start gap-2 text-sm font-medium text-texto-primario">
@@ -1127,6 +1224,32 @@ export function DetalleProcesoOperador({
                                 <option value="RECHAZADA">Rechazada</option>
                               </Select>
                             </label>
+                            {resultadoInspeccionCierre === 'RECHAZADA' ? (
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <label className={CLASE_ETIQUETA}>
+                                  Recuperables (retrabajo)
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={recuperablesCierre}
+                                    onChange={(evento) => setRecuperablesCierre(evento.target.value)}
+                                    data-testid="recuperables-inspeccion-cierre"
+                                  />
+                                </label>
+                                <label className={CLASE_ETIQUETA}>
+                                  Scrap definitivo
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={scrapCierre}
+                                    onChange={(evento) => setScrapCierre(evento.target.value)}
+                                    data-testid="scrap-inspeccion-cierre"
+                                  />
+                                </label>
+                              </div>
+                            ) : null}
                             <label className={CLASE_ETIQUETA}>
                               Observaciones (opcional)
                               <Textarea
@@ -1153,15 +1276,18 @@ export function DetalleProcesoOperador({
                             <span>
                               Los ítems se trabajaron juntos ({itemsCorrida.length})
                               <span className="block text-xs font-normal text-texto-secundario">
-                                Declara piezas y minutos por ítem; el avance de cada uno queda separado.
+                                Declara las piezas por ítem; el avance de cada uno queda separado.
+                                Los minutos por ítem son opcionales: el tiempo real de la sesión
+                                se registra una sola vez.
                               </span>
                             </span>
                           </label>
                           {integrada ? (
                             <div className="grid gap-2">
                               <p className="text-xs text-texto-secundario">
-                                La suma de minutos no debe exceder el tiempo de la sesión
-                                ({Math.max(horasSesion * 60, 1).toFixed(0)} min).
+                                Si capturas minutos por ítem, su suma no debe exceder el tiempo de
+                                la sesión ({Math.max(horasSesion * 60, 1).toFixed(0)} min). Puedes
+                                dejarlos vacíos para costear solo el total de la corrida.
                               </p>
                               {itemsCorrida.map((item) => (
                                 <div
@@ -1192,10 +1318,10 @@ export function DetalleProcesoOperador({
                                     />
                                   </label>
                                   <label className="flex flex-col gap-1 text-xs text-texto-secundario">
-                                    Minutos
+                                    Minutos (opcional)
                                     <Input
                                       type="number"
-                                      min="1"
+                                      min="0"
                                       step="1"
                                       value={minutosPorItem[item.partidaId] ?? ''}
                                       onChange={(evento) => setMinutosPorItem((actual) => ({
@@ -1379,6 +1505,22 @@ export function DetalleProcesoOperador({
                                 <option value="cliente">Cambio o error del cliente</option>
                                 <option value="material">Defecto del material</option>
                                 <option value="otro">Otro</option>
+                              </Select>
+                            </label>
+                            <label className={CLASE_ETIQUETA}>
+                              Resultado del retrabajo
+                              <Select
+                                value={retrabajoResultado}
+                                onChange={(evento) =>
+                                  setRetrabajoResultado(
+                                    evento.target.value as 'PENDIENTE' | 'RECUPERADO' | 'SCRAP',
+                                  )
+                                }
+                                data-testid="retrabajo-resultado"
+                              >
+                                <option value="PENDIENTE">Pendiente de validación</option>
+                                <option value="RECUPERADO">Recuperado</option>
+                                <option value="SCRAP">Scrap definitivo</option>
                               </Select>
                             </label>
                             <label className={CLASE_ETIQUETA}>

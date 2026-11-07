@@ -206,6 +206,7 @@ async function prepararContexto(): Promise<ContextoAceptacion> {
     cantidad_usada: 100,
     cantidad_scrap: 0,
     costo_unitario_momento: 50,
+    motivo: 'Consumo E2E',
   });
   if (consumo.error) throw new Error(`No se registró el consumo E2E: ${consumo.error.message}`);
 

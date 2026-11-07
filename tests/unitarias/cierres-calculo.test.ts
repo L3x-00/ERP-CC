@@ -107,6 +107,102 @@ describe('calcularCierreOrden', () => {
     expect(cierre.puntosCriticos.length).toBeGreaterThan(0);
   });
 
+  it('costea una sola vez el tiempo total de una corrida compartida', () => {
+    const shared: DatosOrden = {
+      ...base,
+      partidas: [
+        base.partidas[0]!,
+        {
+          id: 'partida-2',
+          orden_id: 'orden-1',
+          codigo_pieza: 'IT02',
+          descripcion: 'Pieza B',
+          cantidad_solicitada: 20,
+          cantidad_producida: 20,
+        },
+      ],
+      sesiones: [{ ...base.sesiones[0]!, horas_netas: 1.5 }],
+      consumos: [],
+      retrabajos: [],
+      entregadoPorPartida: new Map(),
+      items: [
+        base.items[0]!,
+        {
+          id: 'item-2',
+          revision_id: 'rev-1',
+          codigo: 'IT02',
+          descripcion: 'Pieza B',
+          cantidad: 20,
+          precio_unitario: 100,
+          es_descuento: false,
+        },
+      ],
+      ruteo: [
+        { ...base.ruteo[0]!, total_horas: 1, costo_total: 100 },
+        { ...base.ruteo[0]!, item_id: 'item-2', total_horas: 1, costo_total: 100 },
+      ],
+      tiemposPorSesion: new Map([['sesion-1', [
+        { sesion_id: 'sesion-1', partida_id: 'partida-1', piezas: 40, minutos: 30 },
+        { sesion_id: 'sesion-1', partida_id: 'partida-2', piezas: 20, minutos: 30 },
+      ]]]),
+    };
+
+    const cierre = calcularCierreOrden(shared);
+
+    // 1.5 h de sesión × 100 = 150, una sola vez (no 1 h de minutos ni 2 h).
+    expect(cierre.costoManoObraReal).toBe(150);
+    expect(cierre.horasReales).toBe(1.5);
+    expect(cierre.procesos.find((proceso) => proceso.nombre === 'Láser fibra')?.horasReales).toBe(1.5);
+    expect(cierre.items[0]?.costoReal).toBe(75);
+    expect(cierre.items[1]?.costoReal).toBe(75);
+  });
+
+  it('sin minutos individuales atribuye el tiempo compartido al ítem principal', () => {
+    const cierre = calcularCierreOrden({
+      ...base,
+      partidas: [
+        base.partidas[0]!,
+        {
+          id: 'partida-2',
+          orden_id: 'orden-1',
+          codigo_pieza: 'IT02',
+          descripcion: 'Pieza B',
+          cantidad_solicitada: 20,
+          cantidad_producida: 20,
+        },
+      ],
+      sesiones: [{ ...base.sesiones[0]!, horas_netas: 1.5 }],
+      consumos: [],
+      retrabajos: [],
+      entregadoPorPartida: new Map(),
+      items: [
+        base.items[0]!,
+        {
+          id: 'item-2',
+          revision_id: 'rev-1',
+          codigo: 'IT02',
+          descripcion: 'Pieza B',
+          cantidad: 20,
+          precio_unitario: 100,
+          es_descuento: false,
+        },
+      ],
+      ruteo: [
+        { ...base.ruteo[0]!, total_horas: 1, costo_total: 100 },
+        { ...base.ruteo[0]!, item_id: 'item-2', total_horas: 1, costo_total: 100 },
+      ],
+      tiemposPorSesion: new Map([['sesion-1', [
+        { sesion_id: 'sesion-1', partida_id: 'partida-1', piezas: 40, minutos: null },
+        { sesion_id: 'sesion-1', partida_id: 'partida-2', piezas: 20, minutos: null },
+      ]]]),
+    });
+
+    expect(cierre.costoManoObraReal).toBe(150);
+    expect(cierre.horasReales).toBe(1.5);
+    expect(cierre.items[0]?.costoReal).toBe(150);
+    expect(cierre.items[1]?.costoReal).toBe(0);
+  });
+
   it('marca sobrecosto cuando el real supera el estimado en 10 % o más', () => {
     const cierre = calcularCierreOrden({
       ...base,

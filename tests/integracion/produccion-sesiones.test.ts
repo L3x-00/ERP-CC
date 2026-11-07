@@ -107,6 +107,7 @@ const consumoCierre = {
   materialId: IDS.materialId,
   cantidadUsada: 2,
   cantidadScrap: 0,
+  motivo: 'Consumo de producción',
 };
 
 beforeEach(() => {

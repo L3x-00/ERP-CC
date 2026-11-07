@@ -349,6 +349,7 @@ describir('concurrencia estricta sobre RPC críticas (integración local)', () =
       p_material_id: material.id,
       p_cantidad_usada: 7,
       p_cantidad_scrap: 0,
+      p_motivo: 'Consumo de producción',
       p_actor_id: contexto.usuarioId,
     };
 

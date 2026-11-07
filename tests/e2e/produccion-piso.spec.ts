@@ -644,6 +644,7 @@ await expect(
     await page.getByLabel('Piezas producidas ahora').fill('5');
     await page.getByLabel('Material').selectOption(contextoPrueba.materialId);
     await page.getByLabel('Usado').fill('5');
+    await page.getByTestId('motivo-consumo').fill('Consumo E2E');
     await page.getByLabel('Confirmar PIN').fill(contextoPrueba.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');

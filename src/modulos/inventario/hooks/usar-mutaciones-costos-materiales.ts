@@ -7,6 +7,7 @@ import { ajustarSaldoMaterialAccion } from '@/modulos/inventario/acciones/ajusta
 import { confirmarCostoMaterialAccion } from '@/modulos/inventario/acciones/confirmar-costo-material-accion';
 import { guardarMaterialCatalogoAccion } from '@/modulos/inventario/acciones/guardar-material-catalogo-accion';
 import { proponerCostoMaterialAccion } from '@/modulos/inventario/acciones/proponer-costo-material-accion';
+import { revaluarCostoMaterialConsumidoAccion } from '@/modulos/inventario/acciones/revaluar-costo-material-consumido-accion';
 import type {
   AjustarSaldoMaterialInput,
   GuardarMaterialInventarioInput,
@@ -14,6 +15,7 @@ import type {
 import type {
   ConfirmarCostoMaterialInput,
   ProponerCostoMaterialInput,
+  RevaluarCostoMaterialConsumidoInput,
 } from '@/modulos/inventario/validaciones/materiales-costos';
 
 /**
@@ -68,7 +70,13 @@ function useMutacionesCostosMateriales() {
     onSuccess: invalidarInventario,
   });
 
-  return { proponerCosto, confirmarCosto, guardarMaterial, ajustarSaldo };
+  const revaluarCostoConsumido = useMutation({
+    mutationFn: (datos: RevaluarCostoMaterialConsumidoInput) =>
+      ejecutar(revaluarCostoMaterialConsumidoAccion(datos), 'revaluar costo consumido'),
+    onSuccess: invalidarInventario,
+  });
+
+  return { proponerCosto, confirmarCosto, guardarMaterial, ajustarSaldo, revaluarCostoConsumido };
 }
 
 export { useMutacionesCostosMateriales as usarMutacionesCostosMateriales };

@@ -16,8 +16,8 @@ describe('PanelInventario — lógica ligera acordada con el cliente', () => {
     render(createElement(PanelInventario));
 
     expect(screen.getByText('Contenido de costos')).toBeTruthy();
-    // Obs. 8: las existencias son saldo manual dentro del módulo; nunca kardex
-    // ni operaciones de almacén legadas.
+    // Aclaraciones 06/11/2026, sección 7: no se administran existencias,
+    // kardex ni operaciones de almacén.
     expect(screen.queryByRole('button', { name: /kardex/i })).toBeNull();
     expect(
       screen.queryByRole('button', { name: /entrada|salida|reserva|reordenar/i }),

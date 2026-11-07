@@ -309,6 +309,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');
+    await page.getByTestId('motivo-consumo').fill('Consumo E2E');
     await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
@@ -330,6 +331,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');
+    await page.getByTestId('motivo-consumo').fill('Consumo E2E');
     await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
@@ -348,6 +350,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaDobladoId);
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');
+    await page.getByTestId('motivo-consumo').fill('Consumo E2E');
     await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');

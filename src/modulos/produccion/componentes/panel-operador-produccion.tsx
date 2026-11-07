@@ -32,7 +32,9 @@ export type CierreSupervisor = {
     materialId: string;
     cantidadUsada: number;
     cantidadScrap: number;
+    motivo: string;
   };
+  minutosSetup?: number;
 };
 
 type ResumenCierreSesion = {
@@ -77,7 +79,9 @@ export interface PropsPanelOperadorProduccion {
       materialId: string;
       cantidadUsada: number;
       cantidadScrap: number;
+      motivo: string;
     };
+    minutosSetup?: number;
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -128,6 +132,8 @@ export function PanelOperadorProduccion({
   const [materialId, setMaterialId] = useState('');
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
+  const [motivoConsumo, setMotivoConsumo] = useState('');
+  const [minutosSetup, setMinutosSetup] = useState('');
   const [mensaje, setMensaje] = useState<MensajePanelOperador | null>(null);
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [registrarInspeccionCierre, setRegistrarInspeccionCierre] = useState(false);
@@ -246,12 +252,25 @@ export function PanelOperadorProduccion({
     }
     const usada = Number(cantidadUsada);
     const merma = Number(cantidadMerma);
+    // B7: el servidor decide si la ruta exige consumo. Si se captura, el motivo
+    // es obligatorio; sin consumo no se exige material.
+    const incluirConsumo = estadoDestino === 'finalizada'
+      && Boolean(materialSeleccionado)
+      && Number.isFinite(usada)
+      && Number.isFinite(merma)
+      && usada >= 0
+      && merma >= 0
+      && usada + merma > 0;
+    if (incluirConsumo && motivoConsumo.trim().length < 3) {
+      setMensaje({ texto: 'Indica el motivo del consumo de material (mínimo 3 caracteres).', tipo: 'error' });
+      return;
+    }
+    const minutosSetupNumero = minutosSetup.trim() === '' ? undefined : Number(minutosSetup);
     if (
-      estadoDestino === 'finalizada'
-      && (!materialSeleccionado || !Number.isFinite(usada) || !Number.isFinite(merma)
-        || usada < 0 || merma < 0 || usada + merma <= 0)
+      minutosSetupNumero !== undefined
+      && (!Number.isFinite(minutosSetupNumero) || minutosSetupNumero < 0 || minutosSetupNumero > 1440)
     ) {
-      setMensaje({ texto: 'Selecciona un material e indica consumo o merma mayor a cero.', tipo: 'error' });
+      setMensaje({ texto: 'Los minutos de setup deben ser un número entre 0 y 1440.', tipo: 'error' });
       return;
     }
     const resultado = await onCerrar({
@@ -261,13 +280,15 @@ export function PanelOperadorProduccion({
       ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
-      ...(estadoDestino === 'finalizada' ? {
+      ...(incluirConsumo ? {
         consumo: {
           materialId,
           cantidadUsada: usada,
           cantidadScrap: merma,
+          motivo: motivoConsumo.trim(),
         },
       } : {}),
+      ...(minutosSetupNumero !== undefined ? { minutosSetup: minutosSetupNumero } : {}),
       pinConfirmacion,
     });
     if (resultado.exito) {
@@ -296,7 +317,9 @@ export function PanelOperadorProduccion({
     setMaterialId('');
     setCantidadUsada('0');
     setCantidadMerma('0');
-    if (estadoDestino === 'finalizada' && materialSeleccionado && resultado.datos) {
+    setMotivoConsumo('');
+    setMinutosSetup('');
+    if (incluirConsumo && materialSeleccionado && resultado.datos) {
       setResumenCierre({
         material: materialSeleccionado,
         cantidadUsada: usada,
@@ -320,7 +343,9 @@ export function PanelOperadorProduccion({
         cantidadInspeccionada: cantidad,
         cantidadOk: aprobada ? cantidad : 0,
         cantidadNok: aprobada ? 0 : cantidad,
-        cantidadRetrabajo: 0,
+        cantidadRetrabajo: aprobada ? 0 : cantidad,
+        cantidadScrap: 0,
+        sesionId: sesionActiva.id,
         ...(observacionesCierre.trim() ? { observaciones: observacionesCierre.trim() } : {}),
       });
       setMensajeInspeccionCierre(
@@ -589,6 +614,24 @@ export function PanelOperadorProduccion({
               <option value="pausada">Pausar sesión</option>
             </Select>
           </label>
+          {estadoDestino === 'finalizada' ? (
+            <label className={CLASE_ETIQUETA}>
+              Minutos de setup (opcional)
+              <Input
+                className="min-h-11"
+                type="number"
+                min="0"
+                step="1"
+                value={minutosSetup}
+                onChange={(evento) => setMinutosSetup(evento.target.value)}
+                placeholder="0"
+                data-testid="minutos-setup"
+              />
+              <span className="text-xs font-normal text-texto-tenue">
+                Identifica el setup dentro del tiempo real; no se cobra dos veces.
+              </span>
+            </label>
+          ) : null}
           {estadoDestino === 'pausada' ? (
             <label className={CLASE_ETIQUETA}>
               Motivo de pausa
@@ -619,7 +662,6 @@ export function PanelOperadorProduccion({
                     className="min-h-11"
                     value={materialId}
                     onChange={(evento) => setMaterialId(evento.target.value)}
-                    required
                   >
                     <option value="">Selecciona un material</option>
                     {materiales.map((material) => (
@@ -640,7 +682,6 @@ export function PanelOperadorProduccion({
                     step="any"
                     value={cantidadUsada}
                     onChange={(evento) => setCantidadUsada(evento.target.value)}
-                    required
                   />
                 </label>
                 <label className={CLASE_ETIQUETA}>
@@ -652,10 +693,23 @@ export function PanelOperadorProduccion({
                     step="any"
                     value={cantidadMerma}
                     onChange={(evento) => setCantidadMerma(evento.target.value)}
-                    required
                   />
                 </label>
               </div>
+              <label className={CLASE_ETIQUETA}>
+                Motivo del consumo
+                <Input
+                  className="min-h-11"
+                  maxLength={200}
+                  value={motivoConsumo}
+                  onChange={(evento) => setMotivoConsumo(evento.target.value)}
+                  placeholder="Para qué se usó el material"
+                  data-testid="motivo-consumo"
+                />
+                <span className="text-xs font-normal text-texto-tenue">
+                  Obligatorio cuando registras consumo o merma.
+                </span>
+              </label>
             </fieldset>
           ) : null}
           {estadoDestino === 'finalizada' ? (
