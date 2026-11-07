@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -864,6 +864,7 @@ export type Database = {
           monto: number
           notas: string | null
           referencia: string | null
+          solicitud_id: string | null
         }
         Insert: {
           compra_id: string
@@ -876,6 +877,7 @@ export type Database = {
           monto: number
           notas?: string | null
           referencia?: string | null
+          solicitud_id?: string | null
         }
         Update: {
           compra_id?: string
@@ -888,6 +890,7 @@ export type Database = {
           monto?: number
           notas?: string | null
           referencia?: string | null
+          solicitud_id?: string | null
         }
         Relationships: [
           {
@@ -1101,6 +1104,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      consumos_material_cliente: {
+        Row: {
+          cantidad_scrap: number
+          cantidad_usada: number
+          creado_en: string
+          id: string
+          material_id: string
+          orden_id: string
+          partida_id: string
+          registrado_por: string
+          sesion_id: string | null
+          solicitud_id: string | null
+        }
+        Insert: {
+          cantidad_scrap?: number
+          cantidad_usada?: number
+          creado_en?: string
+          id?: string
+          material_id: string
+          orden_id: string
+          partida_id: string
+          registrado_por: string
+          sesion_id?: string | null
+          solicitud_id?: string | null
+        }
+        Update: {
+          cantidad_scrap?: number
+          cantidad_usada?: number
+          creado_en?: string
+          id?: string
+          material_id?: string
+          orden_id?: string
+          partida_id?: string
+          registrado_por?: string
+          sesion_id?: string | null
+          solicitud_id?: string | null
+        }
+        Relationships: []
       }
       cuentas_bancarias: {
         Row: {
@@ -2474,8 +2516,11 @@ export type Database = {
           actualizado_en: string
           area_trabajo_codigo: string | null
           catalogo_material_id: string | null
+          cantidad_conforme: number
+          cantidad_nok_pendiente: number
           cantidad_producida: number
           cantidad_scrap: number
+          cantidad_scrap_definitivo: number
           cantidad_solicitada: number
           codigo_item: string | null
           codigo_pieza: string
@@ -2498,8 +2543,11 @@ export type Database = {
           actualizado_en?: string
           area_trabajo_codigo?: string | null
           catalogo_material_id?: string | null
+          cantidad_conforme?: number
+          cantidad_nok_pendiente?: number
           cantidad_producida?: number
           cantidad_scrap?: number
+          cantidad_scrap_definitivo?: number
           cantidad_solicitada: number
           codigo_item?: string | null
           codigo_pieza: string
@@ -2522,8 +2570,11 @@ export type Database = {
           actualizado_en?: string
           area_trabajo_codigo?: string | null
           catalogo_material_id?: string | null
+          cantidad_conforme?: number
+          cantidad_nok_pendiente?: number
           cantidad_producida?: number
           cantidad_scrap?: number
+          cantidad_scrap_definitivo?: number
           cantidad_solicitada?: number
           codigo_item?: string | null
           codigo_pieza?: string
@@ -3747,6 +3798,7 @@ export type Database = {
           cantidad_scrap: number
           cantidad_usada: number
           catalogo_material_id: string | null
+          corrida_id: string | null
           costo_unitario_origen: number | null
           costo_unitario_momento: number
           creado_en: string
@@ -3763,6 +3815,7 @@ export type Database = {
           cantidad_scrap?: number
           cantidad_usada?: number
           catalogo_material_id?: string | null
+          corrida_id?: string | null
           costo_unitario_origen?: number | null
           costo_unitario_momento: number
           creado_en?: string
@@ -3779,6 +3832,7 @@ export type Database = {
           cantidad_scrap?: number
           cantidad_usada?: number
           catalogo_material_id?: string | null
+          corrida_id?: string | null
           costo_unitario_origen?: number | null
           costo_unitario_momento?: number
           creado_en?: string
@@ -4240,11 +4294,12 @@ export type Database = {
         Row: {
           cantidad_scrap: number
           cantidad_usada: number
+          catalogo_material_id: string | null
           causa: string
           costo_unitario_momento: number
           creado_en: string
           id: string
-          material_id: string
+          material_id: string | null
           minutos: number
           motivo: string
           movimiento_inventario_id: string | null
@@ -4252,16 +4307,19 @@ export type Database = {
           orden_id: string
           partida_id: string
           registrado_por: string
+          resultado: string
           sesion_id: string | null
+          solicitud_id: string | null
         }
         Insert: {
           cantidad_scrap?: number
           cantidad_usada?: number
+          catalogo_material_id?: string | null
           causa: string
           costo_unitario_momento: number
           creado_en?: string
           id?: string
-          material_id: string
+          material_id?: string | null
           minutos: number
           motivo: string
           movimiento_inventario_id?: string | null
@@ -4269,16 +4327,19 @@ export type Database = {
           orden_id: string
           partida_id: string
           registrado_por: string
+          resultado?: string
           sesion_id?: string | null
+          solicitud_id?: string | null
         }
         Update: {
           cantidad_scrap?: number
           cantidad_usada?: number
+          catalogo_material_id?: string | null
           causa?: string
           costo_unitario_momento?: number
           creado_en?: string
           id?: string
-          material_id?: string
+          material_id?: string | null
           minutos?: number
           motivo?: string
           movimiento_inventario_id?: string | null
@@ -4286,7 +4347,9 @@ export type Database = {
           orden_id?: string
           partida_id?: string
           registrado_por?: string
+          resultado?: string
           sesion_id?: string | null
+          solicitud_id?: string | null
         }
         Relationships: []
       }
@@ -4294,7 +4357,7 @@ export type Database = {
         Row: {
           creado_en: string
           id: string
-          minutos: number
+          minutos: number | null
           partida_id: string
           piezas: number
           sesion_id: string
@@ -4302,7 +4365,7 @@ export type Database = {
         Insert: {
           creado_en?: string
           id?: string
-          minutos: number
+          minutos?: number | null
           partida_id: string
           piezas?: number
           sesion_id: string
@@ -4310,7 +4373,7 @@ export type Database = {
         Update: {
           creado_en?: string
           id?: string
-          minutos?: number
+          minutos?: number | null
           partida_id?: string
           piezas?: number
           sesion_id?: string
@@ -5147,6 +5210,7 @@ export type Database = {
           cantidad_nok: number
           cantidad_ok: number
           cantidad_retrabajo: number
+          cantidad_scrap: number
           codigo_item: string
           corrida_id: string | null
           creado_en: string
@@ -5158,6 +5222,7 @@ export type Database = {
           partida_id: string | null
           referencia: number | null
           resultado: string
+          sesion_id: string | null
           tipo: string
           tolerancias: Json
         }
@@ -5166,6 +5231,7 @@ export type Database = {
           cantidad_nok?: number
           cantidad_ok?: number
           cantidad_retrabajo?: number
+          cantidad_scrap?: number
           codigo_item: string
           corrida_id?: string | null
           creado_en?: string
@@ -5177,6 +5243,7 @@ export type Database = {
           partida_id?: string | null
           referencia?: number | null
           resultado: string
+          sesion_id?: string | null
           tipo: string
           tolerancias?: Json
         }
@@ -5185,6 +5252,7 @@ export type Database = {
           cantidad_nok?: number
           cantidad_ok?: number
           cantidad_retrabajo?: number
+          cantidad_scrap?: number
           codigo_item?: string
           corrida_id?: string | null
           creado_en?: string
@@ -5196,6 +5264,7 @@ export type Database = {
           partida_id?: string | null
           referencia?: number | null
           resultado?: string
+          sesion_id?: string | null
           tipo?: string
           tolerancias?: Json
         }
@@ -6329,11 +6398,13 @@ export type Database = {
           p_monto: number
           p_notas: string | null
           p_referencia: string | null
+          p_solicitud_id?: string
         }
         Returns: {
           actualizado_en: string
           compra_id: string
           estado: string
+          idempotente: boolean
           pago_id: string
           saldo_pendiente: number
         }[]
@@ -6994,6 +7065,7 @@ export type Database = {
           p_cantidad_nok: number
           p_cantidad_ok: number
           p_cantidad_retrabajo: number
+          p_cantidad_scrap?: number
           p_codigo_item: string
           p_correlation_id?: string
           p_corrida_id: string | null
@@ -7003,6 +7075,32 @@ export type Database = {
           p_partida_id: string | null
           p_referencia: number | null
           p_resultado: string
+          p_sesion_id?: string | null
+          p_solicitud_id?: string | null
+          p_tipo: string
+          p_tolerancias: Json
+        }
+        Returns: Json
+      }
+      registrar_inspeccion_b2: {
+        Args: {
+          p_actor_id: string
+          p_cantidad_inspeccionada: number
+          p_cantidad_nok: number
+          p_cantidad_ok: number
+          p_cantidad_retrabajo: number
+          p_cantidad_scrap?: number
+          p_codigo_item: string
+          p_correlation_id?: string
+          p_corrida_id: string | null
+          p_material_usado: Json
+          p_observaciones: string | null
+          p_orden_id: string
+          p_partida_id: string | null
+          p_referencia: number | null
+          p_resultado: string
+          p_sesion_id?: string | null
+          p_solicitud_id?: string | null
           p_tipo: string
           p_tolerancias: Json
         }
@@ -7018,11 +7116,14 @@ export type Database = {
           p_minutos: number
           p_motivo: string
           p_notas: string
+          p_resultado?: string
           p_sesion_id: string
+          p_solicitud_id?: string | null
         }
         Returns: {
           cantidad_scrap: number
           cantidad_usada: number
+          catalogo_material_id: string | null
           causa: string
           creado_en: string
           id: string
@@ -7031,6 +7132,7 @@ export type Database = {
           motivo: string
           orden_id: string
           partida_id: string
+          resultado: string
         }[]
       }
       obtener_retrabajos_orden: {
@@ -7038,6 +7140,7 @@ export type Database = {
         Returns: {
           cantidad_scrap: number
           cantidad_usada: number
+          catalogo_material_id: string | null
           causa: string
           codigo_pieza: string
           creado_en: string
@@ -7051,6 +7154,7 @@ export type Database = {
           orden_id: string
           partida_id: string
           registrado_por_nombre: string
+          resultado: string
           unidad_control: string
         }[]
       }
@@ -7082,6 +7186,7 @@ export type Database = {
           p_cantidad_usada: number
           p_material_id: string
           p_sesion_id: string
+          p_solicitud_id?: string
         }
         Returns: {
           cantidad_scrap: number
@@ -7126,7 +7231,7 @@ export type Database = {
           p_cantidad_scrap: number
           p_cantidad_usada: number
           p_items: Json
-          p_material_id: string
+          p_material_id: string | null
           p_notas: string
           p_sesion_id: string
         }
@@ -7137,7 +7242,7 @@ export type Database = {
         Returns: {
           codigo_pieza: string
           fecha_inicio: string
-          minutos: number
+          minutos: number | null
           operador_nombre: string
           partida_id: string
           piezas: number

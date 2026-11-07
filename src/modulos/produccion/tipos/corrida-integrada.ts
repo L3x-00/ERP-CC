@@ -12,7 +12,8 @@ export interface ItemCorrida {
 export interface ItemIntegrado {
   partidaId: string;
   piezas: number;
-  minutos: number;
+  /** AUD-10: minutos individuales opcionales; NULL = tiempo a nivel de sesión. */
+  minutos: number | null;
 }
 
 export interface TiempoItemIntegrado {
@@ -22,5 +23,5 @@ export interface TiempoItemIntegrado {
   partidaId: string;
   codigoPieza: string;
   piezas: number;
-  minutos: number;
+  minutos: number | null;
 }

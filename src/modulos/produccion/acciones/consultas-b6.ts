@@ -10,12 +10,14 @@ import {
   obtenerCorridasOrdenServicio,
   obtenerInspeccionesOrdenServicio,
   obtenerMotivosPausaServicio,
+  obtenerPendientesCalidadServicio,
   obtenerProcesosPisoServicio,
   obtenerRecursosLiberablesServicio,
   type AutorizacionHoraExtraDetalle,
   type CorridaDetalle,
   type InspeccionDetalle,
   type MotivoPausaCatalogo,
+  type PendienteCalidad,
   type ProcesoPiso,
   type RecursoLiberable,
 } from '@/modulos/produccion/servicios/consultas-b6-servicio';
@@ -216,5 +218,31 @@ export async function firmarFotoInspeccionAccion(
     return { exito: true, datos: { url } };
   } catch {
     return { exito: false, error: 'No se pudo abrir la foto' };
+  }
+}
+
+
+/** AUD-04: piezas NOK recuperables pendientes de revalidación por orden. */
+export async function obtenerPendientesCalidadAccion(
+  entrada: unknown,
+): Promise<RespuestaAccion<PendienteCalidad[]>> {
+  const resultado = esquemaConsultarInspecciones.safeParse(entrada);
+  if (!resultado.success) return { exito: false, error: 'Datos inválidos' };
+
+  const actor = await obtenerActorProduccion();
+  if (!actor) return { exito: false, error: 'No autorizado' };
+  if (!(await tienePermisoPiso(actor))) {
+    return { exito: false, error: 'Sin permiso para ver calidad' };
+  }
+
+  try {
+    const pendientes = await obtenerPendientesCalidadServicio(
+      crearClienteSupabaseAdmin(),
+      resultado.data.ordenId,
+    );
+    return { exito: true, datos: pendientes };
+  } catch (error) {
+    console.error('[PRODUCCION] Error al cargar pendientes de calidad:', error);
+    return { exito: false, error: 'No se pudieron cargar los pendientes de calidad' };
   }
 }

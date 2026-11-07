@@ -82,6 +82,8 @@ export const esquemaPagarCompra = z
     referencia: z.string().trim().max(120).nullable().optional(),
     cuentaBancariaId: uuid.nullable().optional(),
     notas: z.string().trim().max(500).nullable().optional(),
+    /** AUD-15: clave de idempotencia del intento de pago. */
+    solicitudId: uuid.optional(),
   })
   .strict();
 

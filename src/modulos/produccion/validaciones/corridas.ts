@@ -110,7 +110,7 @@ export const esquemaRegistrarInspeccion = z
     corridaId: z.uuid('ID de corrida inválido').nullish(),
     partidaId: z.uuid('ID de partida inválido').nullish(),
     codigoItem: z.string().trim().min(1, 'El código de ítem es obligatorio').max(40),
-    tipo: z.enum(['PRIMERA_PIEZA', 'REFERENCIA_LOTE', 'CIERRE']),
+    tipo: z.enum(['PRIMERA_PIEZA', 'REFERENCIA_LOTE', 'CIERRE', 'REVALIDACION']),
     referencia: z.number().int().positive().nullish(),
     resultado: z.enum(['APROBADA', 'RECHAZADA']),
     tolerancias: z.record(z.string(), z.unknown()).optional(),
@@ -118,6 +118,10 @@ export const esquemaRegistrarInspeccion = z
     cantidadOk: z.number().min(0).default(0),
     cantidadNok: z.number().min(0).default(0),
     cantidadRetrabajo: z.number().min(0).default(0),
+    /** AUD-04: piezas descartadas definitivamente en la disposición. */
+    cantidadScrap: z.number().min(0).default(0),
+    /** AUD-04: sesión cuyo lote se dispone (solo CIERRE). */
+    sesionId: z.uuid('ID de sesión inválido').nullish(),
     materialUsado: z.record(z.string(), z.unknown()).optional(),
     observaciones: z.string().trim().max(1000).nullish(),
   })
@@ -130,6 +134,13 @@ export const esquemaRegistrarInspeccion = z
         message: 'La referencia de lote es obligatoria',
       });
     }
+    if (valor.tipo === 'REVALIDACION' && valor.resultado !== 'APROBADA') {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['resultado'],
+        message: 'La revalidación que libera piezas debe ser aprobada',
+      });
+    }
   });
 
 export type CrearCorridaInput = z.infer<typeof esquemaCrearCorrida>;
@@ -139,7 +150,7 @@ export type SolicitarHorasExtraInput = z.infer<typeof esquemaSolicitarHorasExtra
 export type ResolverHorasExtraInput = z.infer<typeof esquemaResolverHorasExtra>;
 export type RegistrarInspeccionInput = z.infer<typeof esquemaRegistrarInspeccion>;
 
-/** C13.2: retrabajo declarado al cerrar la sesión (material, tiempo y causa). */
+/** C13.2 + AUD-01: retrabajo declarado al cerrar la sesión (material, tiempo y causa). */
 export const esquemaRegistrarRetrabajo = z
   .object({
     sesionId: z.uuid('ID de sesión inválido'),
@@ -150,6 +161,10 @@ export const esquemaRegistrarRetrabajo = z
     causa: z.enum(CAUSAS_RETRABAJO),
     motivo: z.string().trim().min(3, 'Describe el motivo del retrabajo').max(300),
     notas: z.string().trim().max(1000).optional(),
+    /** AUD-01/AUD-04: resultado declarado del retrabajo. */
+    resultado: z.enum(['PENDIENTE', 'RECUPERADO', 'SCRAP']).optional(),
+    /** AUD-01: clave de idempotencia del intento. */
+    solicitudId: z.uuid('ID de solicitud inválido').optional(),
   })
   .strict()
   .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {
@@ -177,13 +192,15 @@ export const esquemaMaterialClienteItem = z
 
 export type MaterialClienteItemInput = z.infer<typeof esquemaMaterialClienteItem>;
 
-/** C13.3: consumo real del material del cliente al cerrar la sesión. */
+/** C13.3 + AUD-11: consumo real del material del cliente al cerrar la sesión. */
 export const esquemaConsumoMaterialCliente = z
   .object({
     sesionId: z.uuid('ID de sesión inválido'),
     materialId: z.uuid('ID de material inválido'),
     cantidadUsada: z.number().finite().min(0),
     cantidadScrap: z.number().finite().min(0),
+    /** AUD-11: clave de idempotencia del intento. */
+    solicitudId: z.uuid('ID de solicitud inválido').optional(),
   })
   .strict()
   .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {
