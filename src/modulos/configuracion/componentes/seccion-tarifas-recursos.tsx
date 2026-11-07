@@ -53,6 +53,33 @@ const EQUIPO_VACIO: BorradorEquipo = {
   moneda: 'MXN',
 };
 
+type ErroresEquipo = Partial<
+  Record<'codigo' | 'nombre' | 'grupoEquipoId' | 'tarifa', string>
+>;
+
+const CODIGO_EQUIPO = /^[A-Z0-9][A-Z0-9_-]{1,48}$/;
+
+/** Validación previa del alta guiada: evita enviar datos que el servidor rechazará. */
+function validarBorradorEquipo(valor: BorradorEquipo): ErroresEquipo {
+  const errores: ErroresEquipo = {};
+  const codigo = valor.codigo.trim().toUpperCase();
+  if (!CODIGO_EQUIPO.test(codigo)) {
+    errores.codigo = 'Usa mayúsculas, números, guion o guion bajo (mínimo 2 caracteres).';
+  }
+  const nombre = valor.nombre.trim();
+  if (nombre.length < 2) errores.nombre = 'Escribe un nombre de al menos 2 caracteres.';
+  if (valor.grupoEquipoId === '') errores.grupoEquipoId = 'Elige el grupo de equipo.';
+  if (valor.propia) {
+    const tarifa = parsearMonto(valor.tarifa);
+    if (tarifa === null || tarifa < 0) {
+      errores.tarifa = 'Escribe un monto válido mayor o igual a 0.';
+    } else if (Math.abs(tarifa * 10_000 - Math.round(tarifa * 10_000)) > 1e-6) {
+      errores.tarifa = 'Usa como máximo 4 decimales.';
+    }
+  }
+  return errores;
+}
+
 /**
  * C3.2/DC-07: tarifa propia opcional por máquina. Sin tarifa propia la máquina
  * usa la de su Grupo de Equipo; una tarifa propia en cero es explícita y válida.
@@ -75,6 +102,7 @@ export function SeccionTarifasRecursos({
   const [borrador, setBorrador] = useState<Borrador | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [nuevo, setNuevo] = useState<BorradorEquipo | null>(null);
+  const [erroresEquipo, setErroresEquipo] = useState<ErroresEquipo>({});
   const consulta = useQuery({
     queryKey: CLAVE_TARIFAS_RECURSOS,
     queryFn: async () => {
@@ -122,26 +150,29 @@ export function SeccionTarifasRecursos({
     onMensaje('Tarifa de la máquina guardada');
   }
 
+  function limpiarError(campo: keyof ErroresEquipo): void {
+    setErroresEquipo((actual) => {
+      if (!actual[campo]) return actual;
+      const copia = { ...actual };
+      delete copia[campo];
+      return copia;
+    });
+  }
+
   /** Aclaración cliente 2026-11-06: alta guiada de un equipo en un solo flujo. */
   async function crearEquipo(): Promise<void> {
     if (!nuevo) return;
+    const errores = validarBorradorEquipo(nuevo);
+    if (Object.keys(errores).length > 0) {
+      setErroresEquipo(errores);
+      return;
+    }
+    setErroresEquipo({});
     const tarifa = nuevo.propia ? parsearMonto(nuevo.tarifa) : null;
-    if (nuevo.propia && (nuevo.tarifa.trim() === '' || tarifa === null || tarifa < 0)) {
-      onError('La tarifa propia debe ser un monto válido, por ejemplo 850.50.');
-      return;
-    }
-    if (nuevo.codigo.trim() === '' || nuevo.nombre.trim() === '') {
-      onError('Escribe el código y el nombre del equipo.');
-      return;
-    }
-    if (nuevo.grupoEquipoId === '') {
-      onError('Elige el grupo de equipo: de él hereda la tarifa estándar.');
-      return;
-    }
     setGuardando(true);
     const respuesta = await crearEquipoAccion({
-      codigo: nuevo.codigo,
-      nombre: nuevo.nombre,
+      codigo: nuevo.codigo.trim().toUpperCase(),
+      nombre: nuevo.nombre.trim(),
       grupoEquipoId: nuevo.grupoEquipoId,
       area: nuevo.area,
       activo: nuevo.activo,
@@ -206,7 +237,10 @@ export function SeccionTarifasRecursos({
               type="button"
               variante="contorno"
               tamano="sm"
-              onClick={() => setNuevo(nuevo ? null : { ...EQUIPO_VACIO })}
+              onClick={() => {
+                setNuevo(nuevo ? null : { ...EQUIPO_VACIO });
+                setErroresEquipo({});
+              }}
               data-testid="alta-guiada-equipo-nuevo"
             >
               {nuevo ? 'Cancelar' : 'Nuevo equipo'}
@@ -222,39 +256,66 @@ export function SeccionTarifasRecursos({
               void crearEquipo();
             }}
             aria-label="Nuevo equipo"
+            data-testid="alta-guiada-equipo-form"
           >
             <label className="grid gap-1 text-xs font-medium text-texto-secundario">
               Código del equipo
               <Input
                 value={nuevo.codigo}
-                onChange={(evento) =>
-                  setNuevo({ ...nuevo, codigo: evento.target.value.toUpperCase() })
-                }
+                onChange={(evento) => {
+                  setNuevo({ ...nuevo, codigo: evento.target.value.toUpperCase() });
+                  limpiarError('codigo');
+                }}
                 placeholder="LASER-01"
                 maxLength={49}
                 required
+                aria-invalid={Boolean(erroresEquipo.codigo)}
+                aria-describedby={erroresEquipo.codigo ? 'equipo-codigo-error' : undefined}
+                className={erroresEquipo.codigo ? 'border-peligro' : undefined}
                 data-testid="alta-guiada-equipo-codigo"
               />
               <span className="text-[11px] font-normal">Identifica la máquina. Ejemplo: LASER-01.</span>
+              {erroresEquipo.codigo ? (
+                <span id="equipo-codigo-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                  {erroresEquipo.codigo}
+                </span>
+              ) : null}
             </label>
             <label className="grid gap-1 text-xs font-medium text-texto-secundario">
               Nombre
               <Input
                 value={nuevo.nombre}
-                onChange={(evento) => setNuevo({ ...nuevo, nombre: evento.target.value })}
+                onChange={(evento) => {
+                  setNuevo({ ...nuevo, nombre: evento.target.value });
+                  limpiarError('nombre');
+                }}
                 placeholder="Láser Fibra 01"
                 maxLength={120}
                 required
+                aria-invalid={Boolean(erroresEquipo.nombre)}
+                aria-describedby={erroresEquipo.nombre ? 'equipo-nombre-error' : undefined}
+                className={erroresEquipo.nombre ? 'border-peligro' : undefined}
                 data-testid="alta-guiada-equipo-nombre"
               />
               <span className="text-[11px] font-normal">Cómo se verá en Planeación.</span>
+              {erroresEquipo.nombre ? (
+                <span id="equipo-nombre-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                  {erroresEquipo.nombre}
+                </span>
+              ) : null}
             </label>
             <label className="grid gap-1 text-xs font-medium text-texto-secundario">
               Grupo de equipo
               <Select
                 value={nuevo.grupoEquipoId}
-                onChange={(evento) => setNuevo({ ...nuevo, grupoEquipoId: evento.target.value })}
+                onChange={(evento) => {
+                  setNuevo({ ...nuevo, grupoEquipoId: evento.target.value });
+                  limpiarError('grupoEquipoId');
+                }}
                 required
+                aria-invalid={Boolean(erroresEquipo.grupoEquipoId)}
+                aria-describedby={erroresEquipo.grupoEquipoId ? 'equipo-grupo-error' : undefined}
+                className={erroresEquipo.grupoEquipoId ? 'border-peligro' : undefined}
                 data-testid="alta-guiada-equipo-grupo"
               >
                 <option value="">Elige el grupo…</option>
@@ -267,6 +328,11 @@ export function SeccionTarifasRecursos({
                   ))}
               </Select>
               <span className="text-[11px] font-normal">De aquí hereda la tarifa estándar.</span>
+              {erroresEquipo.grupoEquipoId ? (
+                <span id="equipo-grupo-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                  {erroresEquipo.grupoEquipoId}
+                </span>
+              ) : null}
             </label>
             <label className="grid gap-1 text-xs font-medium text-texto-secundario">
               Área de trabajo
@@ -315,7 +381,10 @@ export function SeccionTarifasRecursos({
                   type="checkbox"
                   className="h-4 w-4 accent-acento"
                   checked={nuevo.propia}
-                  onChange={(evento) => setNuevo({ ...nuevo, propia: evento.target.checked })}
+                  onChange={(evento) => {
+                    setNuevo({ ...nuevo, propia: evento.target.checked });
+                    limpiarError('tarifa');
+                  }}
                   data-testid="alta-guiada-equipo-propia"
                 />
                 ¿Esta máquina tiene un costo distinto al grupo?
@@ -336,10 +405,21 @@ export function SeccionTarifasRecursos({
                     autoComplete="off"
                     placeholder="650.00"
                     value={nuevo.tarifa}
-                    onChange={(evento) => setNuevo({ ...nuevo, tarifa: evento.target.value })}
+                    onChange={(evento) => {
+                      setNuevo({ ...nuevo, tarifa: evento.target.value });
+                      limpiarError('tarifa');
+                    }}
                     required
+                    aria-invalid={Boolean(erroresEquipo.tarifa)}
+                    aria-describedby={erroresEquipo.tarifa ? 'equipo-tarifa-error' : undefined}
+                    className={erroresEquipo.tarifa ? 'border-peligro' : undefined}
                     data-testid="alta-guiada-equipo-tarifa"
                   />
+                  {erroresEquipo.tarifa ? (
+                    <span id="equipo-tarifa-error" role="alert" className="text-[11px] font-normal text-peligro-texto">
+                      {erroresEquipo.tarifa}
+                    </span>
+                  ) : null}
                 </label>
                 <label className="grid gap-1 text-xs font-medium text-texto-secundario">
                   Moneda

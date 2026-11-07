@@ -21,9 +21,8 @@
 
 ## Estado
 
-- Aplicada y verificada en la base **local**.
-- **Pendiente de aplicar en remoto.** No se ejecutó `supabase db push` porque
-  requiere autorización explícita del Product Owner.
+- Aplicada y verificada en **local** y en **remoto**.
+- `supabase db push --linked --dry-run` responde que la base remota está al día.
 
 ## Verificación local
 

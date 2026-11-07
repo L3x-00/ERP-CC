@@ -8,7 +8,7 @@ SET LOCAL search_path = public, extensions;
 -- El arnés de pruebas escribe fixtures: se declara el rol de servicio para los
 -- triggers de protección de columnas de `pipeline` (mismo camino que la app).
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(88);
+SELECT plan(89);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores
@@ -89,6 +89,8 @@ SELECT 'espesor', e.id FROM public.catalogo_espesores AS e
 JOIN public.catalogo_materiales AS m ON m.id = e.material_id WHERE m.codigo = 'B4MAT';
 INSERT INTO b4_ids (nombre, valor)
 SELECT 'proceso', id FROM public.catalogo_procesos WHERE codigo = 'B4CORTE';
+INSERT INTO b4_ids (nombre, valor)
+SELECT 'grupo', id FROM public.grupos_equipo WHERE codigo = 'B4EQ';
 
 -- RFQ1 (flujo principal), RFQ2 (rechazo/cierre), RFQ3 (backfill), RFQ4 (no apto),
 -- RFQ5 (tope Z), RFQ6 (sin cliente).
@@ -527,10 +529,25 @@ SELECT is(
         WHERE id = (SELECT valor FROM b4_ids WHERE nombre = 'p1b')),
       'filas', jsonb_build_array(jsonb_build_object(
         'proceso_id', (SELECT valor FROM b4_ids WHERE nombre = 'proceso'),
+        'grupo_equipo_id', (SELECT valor FROM b4_ids WHERE nombre = 'grupo'),
         'setup_horas', 1, 'run_horas', 2
       ))),
     '00000000-0000-4000-8000-0000000b4a02', NULL) ->> 'requiereRevisionRuteo')::boolean,
   false, 'Confirmar el ruteo limpia el flag de ruteo'
+);
+SELECT throws_ok(
+  format($$SELECT public.editar_ruteo_item(%L, %L::jsonb, %L)$$,
+    (SELECT valor FROM b4_ids WHERE nombre = 'it_b1'),
+    jsonb_build_object(
+      'actualizado_en', (SELECT actualizado_en::text FROM public.propuesta_revisiones
+        WHERE id = (SELECT valor FROM b4_ids WHERE nombre = 'p1b')),
+      'filas', jsonb_build_array(jsonb_build_object(
+        'proceso_id', (SELECT valor FROM b4_ids WHERE nombre = 'proceso'),
+        'setup_horas', 1, 'run_horas', 2
+      ))),
+    '00000000-0000-4000-8000-0000000b4a02'),
+  '22023', 'ruteo_grupo_requerido',
+  'T3: el ruteo exige un grupo de equipo por operación'
 );
 SELECT throws_ok(
   format('SELECT public.validar_revision(%L, %L, %L)',

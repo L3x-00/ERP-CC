@@ -81,5 +81,5 @@ El origen queda congelado al costear: aunque después cambien los catálogos, la
 
 - Tipos, lint y build sin errores.
 - Pruebas unitarias: **296 archivos / 2,516 pruebas**, todas en verde.
-- Pruebas pgTAP de tarifario único, C3.2, C3.3 y corrida integrada en verde en la base local (26, 17, 16 y 11 aserciones).
-- Migraciones `20261107120000_t1_tarifas_ruteo_v1.sql` y `20261107130000_t2_tarifa_grupo_maestra.sql` aplicadas en local; **pendientes de aplicar en remoto** con autorización del Product Owner.
+- Pruebas pgTAP de tarifario único, C3.2, C3.3 y corrida integrada en verde (26, 17, 16 y 11 aserciones); `sii_b4_propuestas` 89/89.
+- Migraciones `20261107120000_t1_tarifas_ruteo_v1.sql`, `20261107130000_t2_tarifa_grupo_maestra.sql` y `20261107140000_t3_ruteo_grupo_obligatorio.sql` **aplicadas y verificadas en remoto**.
