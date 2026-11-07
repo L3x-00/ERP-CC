@@ -362,6 +362,7 @@ describe('mappers de órdenes', () => {
         partida_id: uuidPartida,
         actor_id: null,
         catalogo_material_id: null,
+        corrida_id: null,
         material_id: uuidMaterial,
         cantidad_usada: 12.5,
         cantidad_scrap: 0.5,

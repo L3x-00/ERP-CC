@@ -192,13 +192,15 @@ export const esquemaMaterialClienteItem = z
 
 export type MaterialClienteItemInput = z.infer<typeof esquemaMaterialClienteItem>;
 
-/** C13.3: consumo real del material del cliente al cerrar la sesión. */
+/** C13.3 + AUD-11: consumo real del material del cliente al cerrar la sesión. */
 export const esquemaConsumoMaterialCliente = z
   .object({
     sesionId: z.uuid('ID de sesión inválido'),
     materialId: z.uuid('ID de material inválido'),
     cantidadUsada: z.number().finite().min(0),
     cantidadScrap: z.number().finite().min(0),
+    /** AUD-11: clave de idempotencia del intento. */
+    solicitudId: z.uuid('ID de solicitud inválido').optional(),
   })
   .strict()
   .refine((valor) => valor.cantidadUsada + valor.cantidadScrap > 0, {

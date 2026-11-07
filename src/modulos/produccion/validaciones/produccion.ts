@@ -59,14 +59,14 @@ export const esquemaCerrarSesion = z
       (valor) => valor.cantidadUsada + valor.cantidadScrap > 0,
       { message: 'Registra consumo o merma mayor a cero' },
     ).optional(),
-    /** C13.4: ítems de la corrida integrada con piezas y minutos propios. */
+    /** C13.4 + AUD-10: ítems con piezas; minutos individuales opcionales. */
     itemsIntegrados: z.array(z.object({
       partidaId: z.uuid('ID de partida inválido'),
       piezas: z
         .number()
         .int('Las piezas deben ser un número entero')
         .min(0),
-      minutos: z.number().finite().positive('Indica los minutos por ítem').max(1440),
+      minutos: z.number().finite().positive('Indica los minutos por ítem').max(1440).nullish(),
     }).strict()).min(2, 'La corrida integrada requiere al menos dos ítems').max(10).optional(),
   })
   .strict()
@@ -118,13 +118,6 @@ export const esquemaCerrarSesionSupervisor = z
         code: 'custom',
         path: ['motivoPausa'],
         message: 'El motivo de pausa es requerido',
-      });
-    }
-    if (valor.estadoDestino === 'finalizada' && !valor.consumo) {
-      contexto.addIssue({
-        code: 'custom',
-        path: ['consumo'],
-        message: 'El consumo de material es obligatorio al finalizar',
       });
     }
     if (valor.estadoDestino === 'pausada' && valor.consumo) {

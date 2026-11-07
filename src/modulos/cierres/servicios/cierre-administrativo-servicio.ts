@@ -142,7 +142,7 @@ type FilaTiempoItem = {
   sesion_id: string;
   partida_id: string;
   piezas: number;
-  minutos: number;
+  minutos: number | null;
 };
 
 /** Datos crudos de una orden, ya agrupados, para calcular su cierre. */
@@ -205,8 +205,10 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
     2,
   );
 
-  // Horas y costo real por sesión. Si la sesión declara tiempos por ítem
-  // (corrida integrada), se reparten por ítem y se usa la tarifa de su ruteo.
+  // Horas y costo real por sesión. El tiempo total de una corrida compartida
+  // se costea una sola vez con la tarifa del proceso; los minutos por ítem son
+  // opcionales y solo distribuyen ese total cuando fueron declarados. Si no se
+  // declararon, el costo se atribuye al ítem principal de la sesión.
   const horasPorPartida = new Map<string, number>();
   const costoManoObraPorPartida = new Map<string, number>();
   const horasPorProceso = new Map<string, number>();
@@ -217,45 +219,57 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
       ? datos.procesoPorCorrida.get(sesion.corrida_id) ?? null
       : null;
     const tiempos = datos.tiemposPorSesion.get(sesion.id) ?? [];
+    const horasSesion = numero(sesion.horas_netas);
     if (tiempos.length > 0) {
-      let minutosSesion = 0;
-      for (const tiempo of tiempos) {
-        const horas = numero(tiempo.minutos) / 60;
-        minutosSesion += numero(tiempo.minutos);
-        const partida = partidas.find((fila) => fila.id === tiempo.partida_id);
-        const item = partida
-          ? items.find((fila) => fila.codigo === partida.codigo_pieza)
-          : undefined;
-        const filasItem = item ? ruteoPorItem.get(item.id) ?? [] : [];
-        const tarifa = filasItem.length > 0
-          ? numero(filasItem[0]?.tarifa_hora)
-          : tarifaDeProceso(ruteo, procesoId);
-        horasPorPartida.set(tiempo.partida_id, (horasPorPartida.get(tiempo.partida_id) ?? 0) + horas);
-        costoManoObraPorPartida.set(
-          tiempo.partida_id,
-          (costoManoObraPorPartida.get(tiempo.partida_id) ?? 0) + horas * tarifa,
-        );
-        costoManoObraReal += horas * tarifa;
-      }
+      const tarifa = tarifaDeProceso(ruteo, procesoId);
+      const costoManoObraSesion = horasSesion * tarifa;
+      costoManoObraReal += costoManoObraSesion;
       if (procesoId) {
         horasPorProceso.set(
           procesoId,
-          (horasPorProceso.get(procesoId) ?? 0) + minutosSesion / 60,
+          (horasPorProceso.get(procesoId) ?? 0) + horasSesion,
+        );
+      }
+
+      const minutosDeclarados = tiempos.reduce(
+        (total, tiempo) => total + numero(tiempo.minutos),
+        0,
+      );
+      if (minutosDeclarados > 0) {
+        for (const tiempo of tiempos) {
+          const proporcion = numero(tiempo.minutos) / minutosDeclarados;
+          const horas = horasSesion * proporcion;
+          horasPorPartida.set(
+            tiempo.partida_id,
+            (horasPorPartida.get(tiempo.partida_id) ?? 0) + horas,
+          );
+          costoManoObraPorPartida.set(
+            tiempo.partida_id,
+            (costoManoObraPorPartida.get(tiempo.partida_id) ?? 0) + horas * tarifa,
+          );
+        }
+      } else {
+        horasPorPartida.set(
+          sesion.partida_id,
+          (horasPorPartida.get(sesion.partida_id) ?? 0) + horasSesion,
+        );
+        costoManoObraPorPartida.set(
+          sesion.partida_id,
+          (costoManoObraPorPartida.get(sesion.partida_id) ?? 0) + costoManoObraSesion,
         );
       }
     } else {
-      const horas = numero(sesion.horas_netas);
       const tarifa = tarifaDeProceso(ruteo, procesoId);
-      horasPorPartida.set(sesion.partida_id, (horasPorPartida.get(sesion.partida_id) ?? 0) + horas);
+      horasPorPartida.set(sesion.partida_id, (horasPorPartida.get(sesion.partida_id) ?? 0) + horasSesion);
       costoManoObraPorPartida.set(
         sesion.partida_id,
-        (costoManoObraPorPartida.get(sesion.partida_id) ?? 0) + horas * tarifa,
+        (costoManoObraPorPartida.get(sesion.partida_id) ?? 0) + horasSesion * tarifa,
       );
-      costoManoObraReal += horas * tarifa;
+      costoManoObraReal += horasSesion * tarifa;
       if (procesoId) {
         horasPorProceso.set(
           procesoId,
-          (horasPorProceso.get(procesoId) ?? 0) + horas,
+          (horasPorProceso.get(procesoId) ?? 0) + horasSesion,
         );
       }
     }

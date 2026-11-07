@@ -186,6 +186,7 @@ export function DetalleProcesoOperador({
   const [consumoClienteUsado, setConsumoClienteUsado] = useState('0');
   const [consumoClienteMerma, setConsumoClienteMerma] = useState('0');
   const [consumoClienteRegistrado, setConsumoClienteRegistrado] = useState(false);
+  const solicitudConsumoCliente = useRef<string | null>(null);
   const [mensajeConsumoCliente, setMensajeConsumoCliente] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
@@ -387,16 +388,21 @@ export function DetalleProcesoOperador({
     let itemsIntegrados: ItemIntegrado[] | undefined;
     let piezasPrincipal = Number(piezas);
     if (integradaActiva) {
-      const minutosTotales = itemsCorrida.reduce(
-        (total, item) => total + (Number(minutosPorItem[item.partidaId] ?? '0') || 0),
+      const minutosDeclarados = itemsCorrida.map((item) => {
+        const valor = minutosPorItem[item.partidaId];
+        if (valor === undefined || valor.trim() === '') return null;
+        return Number(valor);
+      });
+      const minutosTotales = minutosDeclarados.reduce<number>(
+        (total, valor) => total + (valor ?? 0),
         0,
       );
       const piezasTotales = itemsCorrida.reduce(
         (total, item) => total + (Number(piezasPorItem[item.partidaId] ?? '0') || 0),
         0,
       );
-      const minutosValidos = itemsCorrida.every(
-        (item) => Number(minutosPorItem[item.partidaId] ?? '0') > 0,
+      const minutosValidos = minutosDeclarados.every(
+        (valor) => valor === null || (Number.isFinite(valor) && valor > 0),
       );
       const piezasValidas = itemsCorrida.every((item) => {
         const cantidad = Number(piezasPorItem[item.partidaId] ?? '0');
@@ -412,7 +418,7 @@ export function DetalleProcesoOperador({
       if (!minutosValidos || piezasTotales <= 0) {
         setMensaje({
           exito: false,
-          error: 'Completa piezas y minutos de cada ítem de la corrida integrada.',
+          error: 'Completa las piezas de cada ítem; los minutos por ítem son opcionales.',
         });
         return;
       }
@@ -423,10 +429,10 @@ export function DetalleProcesoOperador({
         });
         return;
       }
-      itemsIntegrados = itemsCorrida.map((item) => ({
+      itemsIntegrados = itemsCorrida.map((item, indice) => ({
         partidaId: item.partidaId,
         piezas: Number(piezasPorItem[item.partidaId] ?? '0') || 0,
-        minutos: Number(minutosPorItem[item.partidaId] ?? '0') || 0,
+        minutos: minutosDeclarados[indice] ?? null,
       }));
       piezasPrincipal = Number(piezasPorItem[proceso.partidaId] ?? '0') || 0;
     }
@@ -534,11 +540,13 @@ export function DetalleProcesoOperador({
 
       // C13.3: descuenta el material del cliente (sin inventario ni costo).
       if (consumoCliente && !consumoClienteRegistrado) {
+        if (!solicitudConsumoCliente.current) solicitudConsumoCliente.current = crypto.randomUUID();
         const consumo = await registrarConsumoMaterialClienteAccion({
           sesionId: proceso.sesionActiva.id,
           materialId: consumoClienteMaterialId,
           cantidadUsada: Number(consumoClienteUsado),
           cantidadScrap: Number(consumoClienteMerma),
+          solicitudId: solicitudConsumoCliente.current,
         });
         setMensajeConsumoCliente(
           consumo.exito
@@ -551,7 +559,10 @@ export function DetalleProcesoOperador({
                 texto: `La sesión cerró, pero el consumo del cliente falló: ${consumo.error}`,
               },
         );
-        if (consumo.exito) setConsumoClienteRegistrado(true);
+        if (consumo.exito) {
+          setConsumoClienteRegistrado(true);
+          solicitudConsumoCliente.current = null;
+        }
       }
     }
   }
@@ -1220,15 +1231,18 @@ export function DetalleProcesoOperador({
                             <span>
                               Los ítems se trabajaron juntos ({itemsCorrida.length})
                               <span className="block text-xs font-normal text-texto-secundario">
-                                Declara piezas y minutos por ítem; el avance de cada uno queda separado.
+                                Declara las piezas por ítem; el avance de cada uno queda separado.
+                                Los minutos por ítem son opcionales: el tiempo real de la sesión
+                                se registra una sola vez.
                               </span>
                             </span>
                           </label>
                           {integrada ? (
                             <div className="grid gap-2">
                               <p className="text-xs text-texto-secundario">
-                                La suma de minutos no debe exceder el tiempo de la sesión
-                                ({Math.max(horasSesion * 60, 1).toFixed(0)} min).
+                                Si capturas minutos por ítem, su suma no debe exceder el tiempo de
+                                la sesión ({Math.max(horasSesion * 60, 1).toFixed(0)} min). Puedes
+                                dejarlos vacíos para costear solo el total de la corrida.
                               </p>
                               {itemsCorrida.map((item) => (
                                 <div
@@ -1259,10 +1273,10 @@ export function DetalleProcesoOperador({
                                     />
                                   </label>
                                   <label className="flex flex-col gap-1 text-xs text-texto-secundario">
-                                    Minutos
+                                    Minutos (opcional)
                                     <Input
                                       type="number"
-                                      min="1"
+                                      min="0"
                                       step="1"
                                       value={minutosPorItem[item.partidaId] ?? ''}
                                       onChange={(evento) => setMinutosPorItem((actual) => ({

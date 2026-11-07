@@ -63,6 +63,6 @@ export async function obtenerTiemposIntegradosOrdenServicio(
     partidaId: texto(fila.partida_id),
     codigoPieza: texto(fila.codigo_pieza),
     piezas: numero(fila.piezas),
-    minutos: numero(fila.minutos),
+    minutos: numeroONull(fila.minutos),
   }));
 }

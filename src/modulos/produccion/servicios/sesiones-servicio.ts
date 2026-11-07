@@ -360,11 +360,11 @@ export async function cerrarSesionTrabajoServicio(
       p_items: entrada.itemsIntegrados.map((item) => ({
         partida_id: item.partidaId,
         piezas: item.piezas,
-        minutos: item.minutos,
+        minutos: item.minutos ?? null,
       })),
-      p_material_id: entrada.consumo!.materialId,
-      p_cantidad_usada: entrada.consumo!.cantidadUsada,
-      p_cantidad_scrap: entrada.consumo!.cantidadScrap,
+      p_material_id: entrada.consumo?.materialId ?? null,
+      p_cantidad_usada: entrada.consumo?.cantidadUsada ?? 0,
+      p_cantidad_scrap: entrada.consumo?.cantidadScrap ?? 0,
       p_notas: entrada.notas ?? '',
       p_actor_id: entrada.operadorId,
     });
