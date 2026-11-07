@@ -1,16 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
+import { Input, Select } from '@/compartido/componentes/ui/input';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
+import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 import { ETIQUETAS_TIPO_INSPECCION } from '@/modulos/produccion/utilidades/indice';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 
-import { firmarFotoInspeccionAccion, obtenerInspeccionesOrdenAccion } from '../acciones/consultas-b6';
+import {
+  firmarFotoInspeccionAccion,
+  obtenerInspeccionesOrdenAccion,
+  obtenerPendientesCalidadAccion,
+} from '../acciones/consultas-b6';
 import type { CorridaDetalle } from '../servicios/consultas-b6-servicio';
 import { CLAVE_INSPECCIONES_ORDEN } from './claves-consulta';
 
@@ -28,6 +34,14 @@ export function PanelCalidadProduccion({
 }) {
   const [resumenId, setResumenId] = useState<string | null>(null);
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
+  const [partidaRevalidar, setPartidaRevalidar] = useState('');
+  const [aprobadas, setAprobadas] = useState('0');
+  const [scrapRevalidar, setScrapRevalidar] = useState('0');
+  const [mensajeRevalidar, setMensajeRevalidar] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
+  const [revalidando, setRevalidando] = useState(false);
+  const queryClient = useQueryClient();
 
   const consulta = useQuery({
     queryKey: [...CLAVE_INSPECCIONES_ORDEN, orden?.id ?? 'sin-orden'],
@@ -43,6 +57,70 @@ export function PanelCalidadProduccion({
   });
   const inspecciones = consulta.data ?? [];
   const seleccionada = inspecciones.find((inspeccion) => inspeccion.id === resumenId) ?? null;
+
+  const pendientes = useQuery({
+    queryKey: [...CLAVE_INSPECCIONES_ORDEN, 'pendientes', orden?.id ?? 'sin-orden'],
+    queryFn: async () => {
+      if (!orden) return [];
+      const respuesta = await obtenerPendientesCalidadAccion({ ordenId: orden.id });
+      if (!respuesta.exito || !respuesta.datos) {
+        throw new Error(respuesta.exito ? 'La consulta no devolvió datos' : respuesta.error);
+      }
+      return respuesta.datos;
+    },
+    enabled: orden !== null,
+  });
+  const pendientesCalidad = pendientes.data ?? [];
+  const partidaSeleccionada = pendientesCalidad.find(
+    (partida) => partida.partidaId === partidaRevalidar,
+  ) ?? pendientesCalidad[0] ?? null;
+
+  async function revalidar(): Promise<void> {
+    if (!orden || !partidaSeleccionada || revalidando) return;
+    const recuperadas = Number(aprobadas);
+    const scrap = Number(scrapRevalidar);
+    if (!Number.isFinite(recuperadas) || !Number.isFinite(scrap)
+      || recuperadas < 0 || scrap < 0 || recuperadas + scrap <= 0) {
+      setMensajeRevalidar({ tipo: 'error', texto: 'Indica las piezas recuperadas o el scrap.' });
+      return;
+    }
+    if (recuperadas + scrap > partidaSeleccionada.cantidadNokPendiente) {
+      setMensajeRevalidar({
+        tipo: 'error',
+        texto: `Solo hay ${formatearNumero(partidaSeleccionada.cantidadNokPendiente, 0)} piezas pendientes.`,
+      });
+      return;
+    }
+    setRevalidando(true);
+    const respuesta = await registrarInspeccionAccion({
+      ordenId: orden.id,
+      partidaId: partidaSeleccionada.partidaId,
+      codigoItem: partidaSeleccionada.codigoItem,
+      tipo: 'REVALIDACION',
+      resultado: 'APROBADA',
+      cantidadInspeccionada: recuperadas + scrap,
+      cantidadOk: recuperadas,
+      cantidadNok: 0,
+      cantidadRetrabajo: 0,
+      cantidadScrap: scrap,
+      observaciones: 'Revalidación de piezas recuperables',
+    });
+    setRevalidando(false);
+    if (!respuesta.exito) {
+      setMensajeRevalidar({ tipo: 'error', texto: respuesta.error });
+      return;
+    }
+    setMensajeRevalidar({
+      tipo: 'ok',
+      texto: `${formatearNumero(recuperadas, 0)} piezas vuelven a ser conformes${scrap > 0 ? ` y ${formatearNumero(scrap, 0)} van a scrap` : ''}.`,
+    });
+    setAprobadas('0');
+    setScrapRevalidar('0');
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: CLAVE_INSPECCIONES_ORDEN }),
+      queryClient.invalidateQueries({ queryKey: [...CLAVE_INSPECCIONES_ORDEN, 'pendientes'] }),
+    ]);
+  }
 
   async function abrirFoto(archivoId: string): Promise<void> {
     setErrorFoto(null);
@@ -114,6 +192,70 @@ export function PanelCalidadProduccion({
           ))}
         </ul>
       )}
+
+      {orden && pendientesCalidad.length > 0 ? (
+        <div className="mt-4 rounded-lg border border-advertencia/40 bg-advertencia-suave p-3" data-testid="panel-revalidacion">
+          <h3 className="text-sm font-semibold text-advertencia-texto">Piezas recuperables pendientes</h3>
+          <p className="mt-1 text-xs text-texto-secundario">
+            Las piezas NOK no son conformes ni entregables. Al revalidarlas vuelven a contar como conformes.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-4">
+            <label className="text-xs font-medium text-texto-secundario">
+              Ítem
+              <Select
+                className="mt-1"
+                value={partidaSeleccionada?.partidaId ?? ''}
+                onChange={(evento) => setPartidaRevalidar(evento.target.value)}
+                data-testid="revalidar-partida"
+              >
+                {pendientesCalidad.map((partida) => (
+                  <option key={partida.partidaId} value={partida.partidaId}>
+                    {partida.codigoItem} · {formatearNumero(partida.cantidadNokPendiente, 0)} pendientes
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="text-xs font-medium text-texto-secundario">
+              Recuperadas OK
+              <Input
+                className="mt-1"
+                type="number"
+                min="0"
+                step="1"
+                value={aprobadas}
+                onChange={(evento) => setAprobadas(evento.target.value)}
+                data-testid="revalidar-aprobadas"
+              />
+            </label>
+            <label className="text-xs font-medium text-texto-secundario">
+              Scrap definitivo
+              <Input
+                className="mt-1"
+                type="number"
+                min="0"
+                step="1"
+                value={scrapRevalidar}
+                onChange={(evento) => setScrapRevalidar(evento.target.value)}
+                data-testid="revalidar-scrap"
+              />
+            </label>
+            <div className="flex items-end">
+              <Button type="button" onClick={() => void revalidar()} disabled={revalidando} data-testid="revalidar-calidad">
+                {revalidando ? 'Revalidando…' : 'Revalidar'}
+              </Button>
+            </div>
+          </div>
+          {mensajeRevalidar ? (
+            <p
+              role={mensajeRevalidar.tipo === 'error' ? 'alert' : 'status'}
+              className={`mt-2 text-xs ${mensajeRevalidar.tipo === 'error' ? 'text-peligro-texto' : 'text-exito-texto'}`}
+              data-testid="mensaje-revalidacion"
+            >
+              {mensajeRevalidar.texto}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <Dialog open={seleccionada !== null} onOpenChange={(abierto) => !abierto && setResumenId(null)}>
         <DialogContent data-testid="resumen-inspeccion" aria-label="Resumen de la inspección">

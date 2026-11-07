@@ -19,7 +19,7 @@ import { proyectarRutaFicha } from '@/modulos/ordenes/servicios/proyectar-snapsh
 import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
 
 const COLUMNAS_PARTIDA_FICHA =
-  'id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
+  'id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_conforme, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
 
 export type ClienteFichaOrden = SupabaseClient<Database>;
 
@@ -156,6 +156,7 @@ export async function obtenerFichaOrdenServicio(
     descripcion: partida.descripcion,
     cantidadSolicitada: aNumero(partida.cantidad_solicitada),
     cantidadProducida: aNumero(partida.cantidad_producida),
+    cantidadConforme: aNumero(partida.cantidad_conforme),
     cantidadScrap: aNumero(partida.cantidad_scrap),
     unidadMedida: partida.unidad_medida,
     procesos: partida.procesos ?? [],
