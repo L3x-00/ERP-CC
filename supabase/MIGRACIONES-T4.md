@@ -24,5 +24,6 @@
 - Aplicada y verificada en **local**.
 - Pruebas pgTAP: `sii_b4_propuestas.test.sql` (91 aserciones, incluye el caso de
   preparación en 0 válida y el rechazo de operación en 0).
-- Remoto: se aplica con `npx supabase db push --linked` después de revisar el
-  `--dry-run`.
+- Aplicada en **remoto** con `npx supabase db push --linked`; verificada con
+  `supabase db query --linked` (`editar_ruteo_item` contiene
+  `ruteo_horas_en_cero`) y registrada en `supabase migration list --linked`.
