@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
@@ -24,6 +25,8 @@ import type {
 import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
 import { textoReferenciaFechasRfq } from '@/modulos/propuestas/utilidades/referencia-fechas-rfq';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
+import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
+import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
 import { claveDetallePropuesta } from './claves-consulta';
 import type { DetallePropuestaFicha, RevisionConTotales } from '@/modulos/propuestas/acciones/obtener-propuesta';
 
@@ -89,6 +92,16 @@ export function PanelAccionesPropuesta({
   const mensajesFaltantes = esBorrador ? (faltantes?.mensajes ?? []) : [];
   const incompleta = mensajesFaltantes.length > 0;
   const advertenciasTarifa = faltantes?.advertencias ?? [];
+
+  // Aclaración cliente 2026-11-09: cada motivo de bloqueo dice dónde se
+  // resuelve. La fecha compromiso no puede ser anterior a hoy.
+  const hoy = fechaHoyLocal();
+  const fechaInvalida = fechaCompromiso !== '' && fechaCompromiso < hoy;
+  const textoFaltantes = mensajesFaltantes.join(' ').toLowerCase();
+  const sugiereMateriales = /material|espesor/.test(textoFaltantes);
+  const sugiereArea = /área|area/.test(textoFaltantes);
+  const sugiereTarifa =
+    advertenciasTarifa.length > 0 || /tarifa|costeo|costear/.test(textoFaltantes);
 
   // Obs. cliente 2026-10-12: el canal de envío sale del catálogo configurado
   // (DC-02). Si el catálogo no cargó, se conservan las opciones históricas.
@@ -290,9 +303,20 @@ export function PanelAccionesPropuesta({
               <Input
                 type="date"
                 value={fechaCompromiso}
+                min={hoy}
                 onChange={(evento) => setFechaCompromiso(evento.target.value)}
                 aria-label="Fecha compromiso comercial"
+                aria-invalid={fechaInvalida}
+                aria-describedby={
+                  fechaInvalida ? 'fecha-compromiso-error' : undefined
+                }
+                className={fechaInvalida ? CLASE_CAMPO_FALTANTE : undefined}
               />
+              {fechaInvalida && (
+                <span id="fecha-compromiso-error" className={CLASE_MENSAJE_FALTANTE}>
+                  La fecha no puede ser anterior a hoy ({hoy}). Elige una fecha de hoy en adelante.
+                </span>
+              )}
             </label>
             {detalle.propuesta.acceptedRevisionId === null && (
               <PanelDisponibilidadPropuesta
@@ -310,8 +334,14 @@ export function PanelAccionesPropuesta({
                 actualizadoEn: revision.actualizadoEn,
                 fechaCompromisoComercial: fechaCompromiso,
               }))}
-              disabled={procesando || !fechaCompromiso}
-              title={!fechaCompromiso ? 'Indica la fecha compromiso comercial' : undefined}
+              disabled={procesando || !fechaCompromiso || fechaInvalida}
+              title={
+                !fechaCompromiso
+                  ? 'Indica la fecha compromiso comercial'
+                  : fechaInvalida
+                    ? 'La fecha compromiso no puede ser anterior a hoy'
+                    : undefined
+              }
             >
               Aceptar revisión
             </Button>
@@ -363,35 +393,64 @@ export function PanelAccionesPropuesta({
           className="flex flex-col gap-2 rounded-md border border-peligro/40 bg-peligro-suave px-3 py-2"
         >
           <p className="text-sm font-medium text-peligro-texto">
-            Para validar la propuesta falta:
+            Todavía no puedes validar: falta lo siguiente
+          </p>
+          <p className="text-xs text-peligro-texto">
+            No se perdió nada de tu trabajo. Completa estos puntos y «Validar» se habilitará solo.
           </p>
           <ul className="list-disc pl-5 text-sm text-peligro-texto">
             {mensajesFaltantes.map((mensajeFaltante) => (
               <li key={mensajeFaltante}>{mensajeFaltante}</li>
             ))}
           </ul>
-          {onIrA && (
-            <div className="flex flex-wrap gap-2">
-              {faltantes?.sinItemsActivos && (
-                <Button variante="contorno" tamano="sm" onClick={() => onIrA('items')}>
-                  Ir a Ítems
-                </Button>
-              )}
-              {(faltantes?.itemsSinRuteo.length ?? 0) +
-                (faltantes?.itemsSinCostear.length ?? 0) +
-                (faltantes?.confirmaciones.length ?? 0) >
-                0 && (
-                <Button variante="contorno" tamano="sm" onClick={() => onIrA('ruteo')}>
-                  Ir a Ruteo/Costeo
-                </Button>
-              )}
-              {faltantes?.sinArchivos && (
-                <Button variante="contorno" tamano="sm" onClick={() => onIrA('archivos')}>
-                  Ir a Archivos
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {onIrA && (
+              <>
+                {faltantes?.sinItemsActivos && (
+                  <Button variante="contorno" tamano="sm" onClick={() => onIrA('items')}>
+                    Ir a Ítems
+                  </Button>
+                )}
+                {(faltantes?.itemsSinRuteo.length ?? 0) +
+                  (faltantes?.itemsSinCostear.length ?? 0) +
+                  (faltantes?.confirmaciones.length ?? 0) >
+                  0 && (
+                  <Button variante="contorno" tamano="sm" onClick={() => onIrA('ruteo')}>
+                    Ir a Ruteo/Costeo
+                  </Button>
+                )}
+                {faltantes?.sinArchivos && (
+                  <Button variante="contorno" tamano="sm" onClick={() => onIrA('archivos')}>
+                    Ir a Archivos
+                  </Button>
+                )}
+              </>
+            )}
+            {sugiereTarifa && (
+              <Link
+                href="/configuracion?pestana=tarifas"
+                className="inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold text-acento underline-offset-2 hover:underline"
+              >
+                Configurar tarifas
+              </Link>
+            )}
+            {sugiereMateriales && (
+              <Link
+                href="/configuracion?pestana=catalogos-base"
+                className="inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold text-acento underline-offset-2 hover:underline"
+              >
+                Configurar materiales
+              </Link>
+            )}
+            {sugiereArea && (
+              <Link
+                href="/configuracion?pestana=areas"
+                className="inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold text-acento underline-offset-2 hover:underline"
+              >
+                Configurar áreas de trabajo
+              </Link>
+            )}
+          </div>
         </div>
       )}
 

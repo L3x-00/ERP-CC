@@ -123,8 +123,8 @@ export function traducirErrorPropuesta(mensaje: string, detalle?: string): strin
   if (mensaje.includes('grupo_equipo_invalido') || mensaje.includes('grupo_planeado_invalido')) {
     return 'El grupo de equipo seleccionado no existe o no está activo';
   }
-  if (mensaje.includes('ruteo_horas_invalidas')) {
-    return 'Las horas de setup/run no son válidas';
+  if (mensaje.includes('ruteo_horas_invalidas') || mensaje.includes('ruteo_horas_en_cero')) {
+    return 'Revisa los tiempos: la operación de cada fila debe ser mayor que 0. Si es 0, el costo también sería 0. Corrige las horas y guarda otra vez.';
   }
   if (mensaje.includes('costo_categoria_invalida') || mensaje.includes('costo_monto_invalido')) {
     return 'El costo por categoría no es válido';

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
@@ -27,8 +28,15 @@ import {
 } from '@/modulos/propuestas/tipos/indice';
 import { ETIQUETA_CATEGORIA_COSTO } from '@/modulos/propuestas/utilidades/indice';
 import { resolverGrupoEquipoDelProceso } from '@/modulos/propuestas/utilidades/ruteo-proceso';
+import { diagnosticarConfiguracionRuteo } from '@/modulos/propuestas/utilidades/diagnostico-ruteo';
+import {
+  tieneErroresHoras,
+  validarHorasRuteo,
+  type ErroresHorasRuteo,
+} from '@/modulos/propuestas/utilidades/horas-ruteo';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
+import { AvisoConfiguracionRuteo } from './aviso-configuracion-ruteo';
 import { claveDetallePropuesta } from './claves-consulta';
 import { PanelMaterialClientePropuesta } from './panel-material-cliente-propuesta';
 
@@ -87,6 +95,8 @@ export function PanelRuteoCosteo({
   const [notasBorrador, setNotasBorrador] = useState<Record<CategoriaCosto, string> | null>(null);
   const [mensaje, setMensaje] = useState<{ texto: string; tono: 'error' | 'exito' } | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
+  // Aclaración cliente 2026-11-09: tiempos inválidos se marcan en rojo por campo.
+  const [erroresHoras, setErroresHoras] = useState<Record<string, ErroresHorasRuteo>>({});
   // El estado de React se actualiza de forma asíncrona. Esta referencia evita
   // que dos clics muy rápidos disparen dos costeos antes de que el botón se
   // pinte como bloqueado.
@@ -162,6 +172,45 @@ export function PanelRuteoCosteo({
     setRuteoBorrador((actual) => ({ ...actual, [itemId]: filas }));
   }
 
+  function claveHoras(itemId: string, indice: number): string {
+    return `${itemId}-${indice}`;
+  }
+
+  function erroresDeFila(itemId: string, indice: number): ErroresHorasRuteo {
+    return erroresHoras[claveHoras(itemId, indice)] ?? {};
+  }
+
+  function limpiarErrorHoras(
+    itemId: string,
+    indice: number,
+    campo: keyof ErroresHorasRuteo,
+  ): void {
+    const clave = claveHoras(itemId, indice);
+    setErroresHoras((actual) => {
+      if (!actual[clave]?.[campo]) return actual;
+      const copia = { ...actual[clave], [campo]: undefined };
+      return { ...actual, [clave]: copia };
+    });
+  }
+
+  function limpiarErroresItem(itemId: string): void {
+    setErroresHoras((actual) =>
+      Object.fromEntries(
+        Object.entries(actual).filter(([clave]) => !clave.startsWith(`${itemId}-`)),
+      ),
+    );
+  }
+
+  // Aclaración cliente 2026-11-09: explicar qué configuración falta y dónde se
+  // resuelve, antes de que el usuario intente costear y reciba un error.
+  const filasVisibles = itemsRevision.flatMap((item) => filasDe(item.id));
+  const pendientesConfiguracion = diagnosticarConfiguracionRuteo({
+    catalogos,
+    procesosUsados: [...new Set(filasVisibles.map((fila) => fila.procesoId))].filter(Boolean),
+    gruposUsados: [...new Set(filasVisibles.map((fila) => fila.grupoEquipoId))].filter(Boolean),
+    hayItemsActivos: itemsActivos.length > 0,
+  });
+
   /** Obs. cliente 2026-10-12 (4b): el área configurada rotula el proceso. */
   const nombreArea = (codigo: string | null): string | null =>
     codigo
@@ -183,7 +232,7 @@ export function PanelRuteoCosteo({
         return {
           tarifa: recurso.tarifaHora,
           moneda: recurso.tarifaMoneda,
-          origen: 'Tarifa propia de la máquina',
+          origen: `Tarifa propia de la máquina «${recurso.nombre}»`,
           advertencia: false,
         };
       }
@@ -193,7 +242,9 @@ export function PanelRuteoCosteo({
       return {
         tarifa: grupo.tarifaHora,
         moneda: grupo.tarifaMoneda,
-        origen: grupo.origenTarifa ?? 'Tarifa del grupo',
+        origen: grupo.advertenciaTarifa
+          ? (grupo.origenTarifa ?? 'Tarifa de respaldo: el grupo no tiene tarifa estándar')
+          : `Tarifa del grupo «${grupo.nombre}»`,
         advertencia: grupo.advertenciaTarifa === true,
       };
     }
@@ -291,6 +342,30 @@ export function PanelRuteoCosteo({
       });
       return;
     }
+
+    // Aclaración cliente 2026-11-09: una operación con 0 horas produce costo
+    // cero. Se marca el campo exacto antes de enviar nada al servidor.
+    const erroresFila: Record<string, ErroresHorasRuteo> = {};
+    filas.forEach((fila, indice) => {
+      const delFila = validarHorasRuteo(fila.setupHoras, fila.runHoras);
+      if (tieneErroresHoras(delFila)) {
+        erroresFila[claveHoras(item.id, indice)] = delFila;
+      }
+    });
+    if (Object.keys(erroresFila).length > 0) {
+      setErroresHoras((actual) => ({ ...actual, ...erroresFila }));
+      const numeroFila = filas.findIndex((_, indice) =>
+        Boolean(erroresFila[claveHoras(item.id, indice)]),
+      );
+      setMensaje({
+        texto: `Revisa los tiempos marcados en rojo de ${item.codigo}${
+          numeroFila >= 0 ? `, fila ${numeroFila + 1}` : ''
+        }: la operación debe sumar más de 0 horas.`,
+        tono: 'error',
+      });
+      return;
+    }
+
     setGuardando(`ruteo-${item.id}`);
     setMensaje(null);
     const respuesta = await editarRuteoItemAccion({
@@ -310,6 +385,7 @@ export function PanelRuteoCosteo({
       setMensaje({ texto: respuesta.error, tono: 'error' });
       return;
     }
+    limpiarErroresItem(item.id);
     setRuteoBorrador((actual) => ({ ...actual, [item.id]: undefined }));
     // Refresca el token CAS antes de confirmar: evita guardar con una versión obsoleta.
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
@@ -394,6 +470,18 @@ export function PanelRuteoCosteo({
         <Resumen etiqueta="Costo estimado total" valor={formatearMoneda(totales.costoTotal, totales.moneda)} />
       </div>
 
+      {catalogos === null && (
+        <p
+          role="status"
+          className="rounded-lg border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-xs text-advertencia-texto"
+        >
+          No se pudieron cargar los procesos, grupos y tarifas. Recarga la página; si el problema
+          continúa, pide a un administrador que revise tu acceso a Configuración.
+        </p>
+      )}
+
+      <AvisoConfiguracionRuteo pendientes={pendientesConfiguracion} />
+
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-texto-primario">Ruteo estimado</h3>
         {itemsRevision.map((item) => {
@@ -402,7 +490,16 @@ export function PanelRuteoCosteo({
             (fila) => fila.itemId === item.id && fila.requiereRevision,
           );
           const sinRuteoItem = faltantes?.itemsSinRuteo.includes(item.codigo) === true;
-          const sinCostearItem = faltantes?.itemsSinCostear.includes(item.codigo) === true;
+          const sinCostearItem =
+            filas.length > 0 &&
+            !ruteoSinGuardar(item.id) &&
+            faltantes?.itemsSinCostear.includes(item.codigo) === true;
+          const ruteoCompleto =
+            filas.length > 0 && !ruteoSinGuardar(item.id) && !sinCostearItem && !requiereRevisionItem;
+          const sinTarifaEnItem =
+            catalogos !== null &&
+            permisos.editarCosto &&
+            filas.some((fila) => fila.grupoEquipoId !== '' && tarifaDeFila(fila) === null);
           return (
             <div
               key={item.id}
@@ -419,14 +516,21 @@ export function PanelRuteoCosteo({
                     Requiere revisión
                   </span>
                 )}
-                {filas.length > 0 && !ruteoSinGuardar(item.id) && !requiereRevisionItem && (
+                {ruteoCompleto ? (
                   <span
                     className="rounded-full bg-exito-suave px-2 py-0.5 text-xs font-medium text-exito-texto"
                     data-testid={`ruteo-guardado-${item.codigo}`}
                   >
-                    Ruteo guardado
+                    {faltantes === null ? 'Ruteo guardado' : 'Ruteo guardado y costeado'}
                   </span>
-                )}
+                ) : filas.length > 0 && !ruteoSinGuardar(item.id) && !requiereRevisionItem ? (
+                  <span
+                    className="rounded-full bg-advertencia-suave px-2 py-0.5 text-xs font-medium text-advertencia-texto"
+                    data-testid={`ruteo-guardado-${item.codigo}`}
+                  >
+                    Ruteo guardado · falta costear
+                  </span>
+                ) : null}
               </div>
 
               {filas.length === 0 && (
@@ -446,10 +550,28 @@ export function PanelRuteoCosteo({
                   el costeo.
                 </p>
               )}
-              {sinCostearItem && !ruteoSinGuardar(item.id) && (
-                <p data-testid={`faltante-costeo-${item.codigo}`} className={CLASE_MENSAJE_FALTANTE}>
-                  Falta costear el ruteo de {item.codigo}: pulsa «Costear ruteo».
-                </p>
+              {sinCostearItem && (
+                <div
+                  data-testid={`faltante-costeo-${item.codigo}`}
+                  className="flex flex-col gap-1"
+                >
+                  <p className="text-xs font-medium text-peligro-texto">
+                    Falta costear el ruteo de {item.codigo}: pulsa «Costear ruteo» para calcular el
+                    costo con los tiempos y la tarifa capturados.
+                  </p>
+                  {sinTarifaEnItem && (
+                    <p className="text-xs text-texto-secundario">
+                      Si el botón no te deja continuar, revisa que la tarifa del grupo esté
+                      configurada:{' '}
+                      <Link
+                        href="/configuracion?pestana=tarifas"
+                        className="font-semibold text-acento underline-offset-2 hover:underline"
+                      >
+                        Abrir Tarifas / TC
+                      </Link>
+                    </p>
+                  )}
+                </div>
               )}
 
               {filas.map((fila, indice) => {
@@ -545,10 +667,30 @@ export function PanelRuteoCosteo({
                         const copia = [...filas];
                         copia[indice] = { ...fila, setupHoras: evento.target.value };
                         actualizarFilas(item.id, copia);
+                        limpiarErrorHoras(item.id, indice, 'preparacion');
                       }}
                       disabled={!esBorrador || !permisos.editarRuteo}
                       aria-label={`Setup horas ${item.codigo} fila ${indice + 1}`}
+                      aria-invalid={Boolean(erroresDeFila(item.id, indice).preparacion)}
+                      aria-describedby={
+                        erroresDeFila(item.id, indice).preparacion
+                          ? `setup-horas-error-${item.codigo}-${indice + 1}`
+                          : undefined
+                      }
+                      className={
+                        erroresDeFila(item.id, indice).preparacion
+                          ? CLASE_CAMPO_FALTANTE
+                          : undefined
+                      }
                     />
+                    {erroresDeFila(item.id, indice).preparacion && (
+                      <span
+                        id={`setup-horas-error-${item.codigo}-${indice + 1}`}
+                        className={CLASE_MENSAJE_FALTANTE}
+                      >
+                        {erroresDeFila(item.id, indice).preparacion}
+                      </span>
+                    )}
                   </label>
                   <label className="flex flex-col gap-1">
                     <span className="text-xs text-texto-secundario">Operación (h)</span>
@@ -561,10 +703,30 @@ export function PanelRuteoCosteo({
                         const copia = [...filas];
                         copia[indice] = { ...fila, runHoras: evento.target.value };
                         actualizarFilas(item.id, copia);
+                        limpiarErrorHoras(item.id, indice, 'operacion');
                       }}
                       disabled={!esBorrador || !permisos.editarRuteo}
                       aria-label={`Run horas ${item.codigo} fila ${indice + 1}`}
+                      aria-invalid={Boolean(erroresDeFila(item.id, indice).operacion)}
+                      aria-describedby={
+                        erroresDeFila(item.id, indice).operacion
+                          ? `run-horas-error-${item.codigo}-${indice + 1}`
+                          : undefined
+                      }
+                      className={
+                        erroresDeFila(item.id, indice).operacion
+                          ? CLASE_CAMPO_FALTANTE
+                          : undefined
+                      }
                     />
+                    {erroresDeFila(item.id, indice).operacion && (
+                      <span
+                        id={`run-horas-error-${item.codigo}-${indice + 1}`}
+                        className={CLASE_MENSAJE_FALTANTE}
+                      >
+                        {erroresDeFila(item.id, indice).operacion}
+                      </span>
+                    )}
                   </label>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs text-texto-secundario">Total (h)</span>
@@ -598,8 +760,14 @@ export function PanelRuteoCosteo({
                     >
                       <span className="text-xs text-texto-secundario">Tarifa / Origen</span>
                       {tarifa === null ? (
-                        <span className="flex min-h-9 items-center text-xs text-texto-secundario">
-                          Sin tarifa
+                        <span className="flex min-h-9 flex-col justify-center gap-0.5 text-xs text-texto-secundario">
+                          <span>Sin tarifa</span>
+                          <Link
+                            href="/configuracion?pestana=tarifas"
+                            className="w-fit font-semibold text-acento underline-offset-2 hover:underline"
+                          >
+                            Configurar tarifa
+                          </Link>
                         </span>
                       ) : (
                         <span className="flex min-h-9 flex-col justify-center gap-0.5 leading-tight">
@@ -634,13 +802,19 @@ export function PanelRuteoCosteo({
                     >
                       <span className="text-xs text-texto-secundario">Costo estimado</span>
                       {tarifa === null ? (
-                        <span className="flex min-h-9 flex-col justify-center text-xs leading-tight text-advertencia-texto">
+                        <span className="flex min-h-9 flex-col justify-center gap-0.5 text-xs leading-tight text-advertencia-texto">
                           <span>Sin tarifa configurada</span>
                           <span className="text-texto-secundario">
                             {fila.grupoEquipoId
-                              ? `El grupo${grupoFila ? ` «${grupoFila.nombre}»` : ''} no tiene tarifa propia ni estación vinculada. Configúrala en Configuración → Tarifas / TC → Tarifario del ruteo.`
+                              ? `El grupo${grupoFila ? ` «${grupoFila.nombre}»` : ''} no tiene tarifa propia ni estación vinculada. Configúrala en Tarifas / TC → Tarifario del ruteo.`
                               : 'Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas / TC.'}
                           </span>
+                          <Link
+                            href="/configuracion?pestana=tarifas"
+                            className="w-fit font-semibold text-acento underline-offset-2 hover:underline"
+                          >
+                            Abrir Tarifas / TC
+                          </Link>
                         </span>
                       ) : (
                         <span className="flex h-9 items-center text-sm tabular-nums">
@@ -718,6 +892,19 @@ export function PanelRuteoCosteo({
             habilitar el costeo.
           </p>
         )}
+        {esBorrador &&
+          permisos.editarCosto &&
+          !puedeCostearRuteo &&
+          itemsPendientesDeGuardar.length === 0 && (
+            <p
+              role="status"
+              className="text-xs text-texto-secundario"
+              data-testid="motivo-costeo-deshabilitado"
+            >
+              El ruteo ya está costeado. Si cambias horas o tarifa, guarda el ruteo otra vez para
+              volver a costearlo.
+            </p>
+          )}
         {operacionesConRespaldo.length > 0 && (
           <p
             role="alert"

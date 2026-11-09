@@ -760,3 +760,87 @@ describe('ruteo: la tarifa dice de dónde sale (tarifario único)', () => {
     expect(aviso).toContain('Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas / TC.');
   });
 });
+
+describe('ruteo: horas válidas y salidas claras (aclaración cliente 2026-11-09)', () => {
+  const faltantesRuteo = (
+    parcial: Partial<FaltantesValidacionPropuesta>,
+  ): FaltantesValidacionPropuesta => ({
+    sinItemsActivos: false,
+    itemsSinRuteo: [],
+    itemsSinCostear: [],
+    operacionesConTarifaRespaldo: [],
+    sinArchivos: false,
+    confirmaciones: [],
+    contenido: [],
+    advertencias: [],
+    mensajes: [],
+    ...parcial,
+  });
+
+  it('una operación con 0 horas se marca en rojo y no se envía', async () => {
+    montar();
+
+    fireEvent.change(screen.getByLabelText('Run horas IT01 fila 1'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ruteo' }));
+
+    expect(await screen.findByText(/Revisa los tiempos marcados en rojo/)).toBeDefined();
+    const campo = screen.getByLabelText('Run horas IT01 fila 1') as HTMLInputElement;
+    expect(campo.getAttribute('aria-invalid')).toBe('true');
+    expect(campo.className).toContain('border-peligro');
+    expect(
+      screen.getByText('Debe ser mayor que 0: es el tiempo que genera el costo.'),
+    ).toBeDefined();
+    expect(editarRuteoItemAccion).not.toHaveBeenCalled();
+  });
+
+  it('al corregir el tiempo el error rojo desaparece', async () => {
+    montar();
+
+    const campo = screen.getByLabelText('Run horas IT01 fila 1') as HTMLInputElement;
+    fireEvent.change(campo, { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ruteo' }));
+    await screen.findByText(/Revisa los tiempos marcados en rojo/);
+
+    fireEvent.change(campo, { target: { value: '2.5' } });
+    expect(campo.getAttribute('aria-invalid')).toBe('false');
+    expect(campo.className).not.toContain('border-peligro');
+  });
+
+  it('un ruteo guardado sin costear se muestra en ámbar, no en verde', () => {
+    montar({ faltantes: faltantesRuteo({ itemsSinCostear: ['IT01'] }) });
+
+    const insignia = screen.getByTestId('ruteo-guardado-IT01');
+    expect(insignia.textContent).toContain('falta costear');
+    expect(insignia.className).toContain('advertencia');
+  });
+
+  it('un ruteo guardado y costeado se muestra en verde', () => {
+    montar({ faltantes: faltantesRuteo({}) });
+
+    const insignia = screen.getByTestId('ruteo-guardado-IT01');
+    expect(insignia.textContent).toContain('guardado y costeado');
+    expect(insignia.className).toContain('exito');
+  });
+
+  it('sin materiales avisa y enlaza directo a Catálogos base', () => {
+    montar();
+
+    const aviso = screen.getByTestId('configuracion-pendiente-ruteo');
+    expect(aviso.textContent).toContain('No hay materiales activos');
+    expect(aviso.getAttribute('role')).toBe('status');
+    const enlace = within(aviso).getByRole('link', { name: /Catálogos base/ });
+    expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=catalogos-base');
+  });
+
+  it('sin tarifa enlaza directo a Tarifas / TC', () => {
+    montar();
+
+    fireEvent.change(screen.getByLabelText('Proceso IT01 fila 2'), {
+      target: { value: PROCESO_SECUNDARIO_ID },
+    });
+
+    const celda = screen.getByTestId('costo-estimado-IT01-2');
+    const enlace = within(celda).getByRole('link', { name: /Tarifas/ });
+    expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=tarifas');
+  });
+});

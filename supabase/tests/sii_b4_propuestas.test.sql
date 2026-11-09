@@ -8,7 +8,7 @@ SET LOCAL search_path = public, extensions;
 -- El arnés de pruebas escribe fixtures: se declara el rol de servicio para los
 -- triggers de protección de columnas de `pipeline` (mismo camino que la app).
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(89);
+SELECT plan(91);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores
@@ -548,6 +548,35 @@ SELECT throws_ok(
     '00000000-0000-4000-8000-0000000b4a02'),
   '22023', 'ruteo_grupo_requerido',
   'T3: el ruteo exige un grupo de equipo por operación'
+);
+SELECT is(
+  (SELECT public.editar_ruteo_item(
+    (SELECT valor FROM b4_ids WHERE nombre = 'it_b1'),
+    jsonb_build_object(
+      'actualizado_en', (SELECT actualizado_en::text FROM public.propuesta_revisiones
+        WHERE id = (SELECT valor FROM b4_ids WHERE nombre = 'p1b')),
+      'filas', jsonb_build_array(jsonb_build_object(
+        'proceso_id', (SELECT valor FROM b4_ids WHERE nombre = 'proceso'),
+        'grupo_equipo_id', (SELECT valor FROM b4_ids WHERE nombre = 'grupo'),
+        'setup_horas', 0, 'run_horas', 1
+      ))),
+    '00000000-0000-4000-8000-0000000b4a02', NULL) ->> 'filas')::integer,
+  1, 'T4: la preparación puede ser 0 si la operación aporta el tiempo'
+);
+SELECT throws_ok(
+  format($$SELECT public.editar_ruteo_item(%L, %L::jsonb, %L)$$,
+    (SELECT valor FROM b4_ids WHERE nombre = 'it_b1'),
+    jsonb_build_object(
+      'actualizado_en', (SELECT actualizado_en::text FROM public.propuesta_revisiones
+        WHERE id = (SELECT valor FROM b4_ids WHERE nombre = 'p1b')),
+      'filas', jsonb_build_array(jsonb_build_object(
+        'proceso_id', (SELECT valor FROM b4_ids WHERE nombre = 'proceso'),
+        'grupo_equipo_id', (SELECT valor FROM b4_ids WHERE nombre = 'grupo'),
+        'setup_horas', 1, 'run_horas', 0
+      ))),
+    '00000000-0000-4000-8000-0000000b4a02'),
+  '22023', 'ruteo_horas_en_cero',
+  'T4: una operación con 0 horas se rechaza porque el costo sería 0'
 );
 SELECT throws_ok(
   format('SELECT public.validar_revision(%L, %L, %L)',
