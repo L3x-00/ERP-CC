@@ -216,6 +216,65 @@ describe('PanelAccionesPropuesta — qué falta para validar (obs. cliente 2026-
   });
 });
 
+describe('PanelAccionesPropuesta — fechas y configuración (aclaración cliente 2026-11-09)', () => {
+  it('una fecha compromiso anterior a hoy se marca en rojo y bloquea aceptar', () => {
+    montarPanel({ revision: revision({ estado: 'SENT' }) });
+
+    const campo = screen.getByLabelText('Fecha compromiso comercial') as HTMLInputElement;
+    fireEvent.change(campo, { target: { value: '2000-01-01' } });
+
+    expect(campo.getAttribute('aria-invalid')).toBe('true');
+    expect(campo.className).toContain('border-peligro');
+    expect(screen.getByText(/no puede ser anterior a hoy/)).toBeDefined();
+    const aceptar = screen.getByRole('button', { name: 'Aceptar revisión' }) as HTMLButtonElement;
+    expect(aceptar.disabled).toBe(true);
+    expect(aceptar.getAttribute('title')).toBe(
+      'La fecha compromiso no puede ser anterior a hoy',
+    );
+  });
+
+  it('una fecha de hoy en adelante permite aceptar', () => {
+    montarPanel({ revision: revision({ estado: 'SENT' }) });
+
+    const campo = screen.getByLabelText('Fecha compromiso comercial') as HTMLInputElement;
+    fireEvent.change(campo, { target: { value: '2999-12-31' } });
+
+    expect(campo.getAttribute('aria-invalid')).toBe('false');
+    expect(screen.queryByText(/no puede ser anterior a hoy/)).toBeNull();
+    expect(
+      (screen.getByRole('button', { name: 'Aceptar revisión' }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it('cuando falta costear ofrece el enlace directo a Tarifas / TC', () => {
+    montarPanel({
+      onIrA: vi.fn(),
+      faltantes: faltantes({ contenido: ['ítem IT01: costear el ruteo'] }),
+    });
+
+    const enlace = screen.getByRole('link', { name: 'Configurar tarifas' });
+    expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=tarifas');
+  });
+
+  it('cuando faltan materiales ofrece el enlace directo a Materiales y costos', () => {
+    montarPanel({
+      faltantes: faltantes({ contenido: ['al menos un material activo'] }),
+    });
+
+    const enlace = screen.getByRole('link', { name: 'Configurar materiales' });
+    expect(enlace.getAttribute('href')).toBe('/inventario');
+  });
+
+  it('cuando falta un área de trabajo ofrece el enlace directo a Áreas', () => {
+    montarPanel({
+      faltantes: faltantes({ contenido: ['el proceso no tiene área de trabajo'] }),
+    });
+
+    const enlace = screen.getByRole('link', { name: 'Configurar áreas de trabajo' });
+    expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=areas');
+  });
+});
+
 describe('PanelArchivosPropuesta — archivo obligatorio para validar (obs. cliente 2026-10-13)', () => {
   function montarArchivos(faltaArchivo: boolean, puedeSubir = true) {
     const consultas = new QueryClient({ defaultOptions: { queries: { retry: false } } });

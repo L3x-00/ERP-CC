@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import Link from 'next/link';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
@@ -168,7 +169,26 @@ export function PanelMaterialClientePropuesta({
             </ul>
           )}
 
-          {puedeEditar ? (
+          {puedeEditar && materiales.length === 0 ? (
+            <div
+              data-testid="material-cliente-sin-catalogo"
+              className="flex flex-col gap-1 rounded-lg border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto"
+            >
+              <p className="font-medium">No hay materiales activos en el catálogo.</p>
+              <p className="text-xs">
+                Para declarar el material que aporta el cliente, primero crea o activa un material.
+                Después vuelve aquí y elígelo en la lista.
+              </p>
+              <Link
+                href="/inventario"
+                className="w-fit text-xs font-semibold text-acento underline-offset-2 hover:underline"
+              >
+                Abrir Materiales y costos →
+              </Link>
+            </div>
+          ) : null}
+
+          {puedeEditar && materiales.length > 0 ? (
             <div className="grid gap-2 rounded-lg border border-borde p-3 sm:grid-cols-[1fr_8rem_auto] sm:items-end">
               <label className="flex flex-col gap-1 text-sm text-texto-secundario">
                 Material
