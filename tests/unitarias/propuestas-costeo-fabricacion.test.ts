@@ -827,7 +827,7 @@ describe('ruteo: horas válidas y salidas claras (aclaración cliente 2026-11-09
 
     const aviso = screen.getByTestId('configuracion-pendiente-ruteo');
     expect(aviso.textContent).toContain('No hay materiales activos');
-    expect(aviso.getAttribute('role')).toBe('status');
+    expect(aviso.getAttribute('role')).toBeNull();
     const enlace = within(aviso).getByRole('link', { name: /Catálogos base/ });
     expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=catalogos-base');
   });

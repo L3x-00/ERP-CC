@@ -20,7 +20,6 @@ export function AvisoConfiguracionRuteo({
 
   return (
     <div
-      role="status"
       data-testid="configuracion-pendiente-ruteo"
       className="flex flex-col gap-2 rounded-lg border border-advertencia/40 bg-advertencia-suave px-3 py-3 text-sm"
     >

@@ -897,7 +897,6 @@ export function PanelRuteoCosteo({
           !puedeCostearRuteo &&
           itemsPendientesDeGuardar.length === 0 && (
             <p
-              role="status"
               className="text-xs text-texto-secundario"
               data-testid="motivo-costeo-deshabilitado"
             >
