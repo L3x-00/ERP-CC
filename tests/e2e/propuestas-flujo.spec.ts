@@ -583,6 +583,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByTestId('ruteo-sin-guardar-IT01')).toBeVisible();
       await expect(page.getByTestId('ruteo-sin-guardar-IT02')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Costear ruteo' })).toBeDisabled();
+      // Aclaración cliente 2026-11-09: la operación debe sumar más de 0 horas;
+      // el ruteo heredado del RFQ nace en 0 y la pantalla lo marca en rojo.
+      await page.getByLabel('Run horas IT01 fila 1').fill('2');
+      await page.getByLabel('Run horas IT02 fila 1').fill('1');
       await page.getByRole('button', { name: 'Guardar ruteo' }).nth(0).click();
       await expect(page.getByRole('status')).toContainText('Ruteo de IT01 guardado correctamente.');
       await expect(page.getByTestId('ruteo-sin-guardar-IT01')).toHaveCount(0);
