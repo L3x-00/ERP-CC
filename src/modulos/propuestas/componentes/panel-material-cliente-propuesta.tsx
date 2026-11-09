@@ -171,7 +171,6 @@ export function PanelMaterialClientePropuesta({
 
           {puedeEditar && materiales.length === 0 ? (
             <div
-              role="status"
               data-testid="material-cliente-sin-catalogo"
               className="flex flex-col gap-1 rounded-lg border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto"
             >
