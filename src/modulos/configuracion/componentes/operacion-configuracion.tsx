@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/compartido/utilidades/cn';
+import { PestanasModulo } from '@/compartido/componentes/ui/pestanas';
 import {
   obtenerConfiguracionAccion,
   type DatosConfiguracion,
@@ -21,28 +22,43 @@ import { PestanaPermisos } from '@/modulos/permisos/componentes/pestana-permisos
 import { PestanaUsuarios } from '@/modulos/permisos/componentes/pestana-usuarios';
 import { PestanaCatalogosBase } from './pestana-catalogos-base';
 import {
-  PESTANAS_CONFIGURACION,
-  type PestanaConfiguracion,
+  pestanaDesdeVista,
+  SECCIONES_CONFIGURACION,
+  SECCIONES_PROVISIONALES,
+  SUBSECCIONES_CATALOGOS,
+  SUBSECCIONES_PERSONAS,
+  subseccionInicial,
+  VISTA_CONFIGURACION_INICIAL,
+  type SeccionConfiguracion,
+  type SeccionProvisional,
+  type SubseccionCatalogos,
+  type SubseccionConfiguracion,
+  type SubseccionPersonas,
+  type VistaConfiguracion,
 } from './pestanas-configuracion';
 import {
   obtenerPermisosCatalogosAccion,
   type PermisosCatalogos,
 } from '@/modulos/catalogos/acciones/obtener-permisos-catalogos';
 
-/** Pestañas visibles solo para administradores activos. */
-const PESTANAS_SOLO_ADMIN: readonly PestanaConfiguracion[] = ['usuarios', 'permisos', 'operadores'];
-
 const CLAVE_PERMISOS_CATALOGOS = ['catalogos-base', 'permisos-pestana'] as const;
+
+function etiquetaSeccion(seccion: VistaConfiguracion['seccion']): string {
+  return (
+    [...SECCIONES_CONFIGURACION, ...SECCIONES_PROVISIONALES].find((item) => item.id === seccion)
+      ?.etiqueta ?? 'Configuración'
+  );
+}
 
 export function OperacionConfiguracion({
   datosIniciales,
-  pestanaInicial = 'empresa',
+  vistaInicial = VISTA_CONFIGURACION_INICIAL,
 }: {
   datosIniciales: DatosConfiguracion;
-  pestanaInicial?: PestanaConfiguracion;
+  vistaInicial?: VistaConfiguracion;
 }) {
   const clienteQuery = useQueryClient();
-  const [pestana, setPestana] = useState<PestanaConfiguracion>(pestanaInicial);
+  const [vista, setVista] = useState<VistaConfiguracion>(vistaInicial);
   // Confirmación a nivel de página: las pestañas se remontan (key por
   // `actualizadoEn`) cuando su sección cambia, así que un mensaje local se
   // perdería justo al guardar. Aquí sobrevive al remontaje y es el feedback
@@ -118,10 +134,53 @@ export function OperacionConfiguracion({
     setConfirmacion('Áreas del operador guardadas');
   };
 
-  function cambiarPestana(id: PestanaConfiguracion): void {
-    setPestana(id);
+  const seccion = vista.seccion;
+
+  function abrirSeccion(id: string): void {
+    const destino = id as SeccionConfiguracion;
+    const subseccion = subseccionInicial(destino);
+    setVista(subseccion ? { seccion: destino, subseccion } : { seccion: destino });
     setConfirmacion(null);
   }
+
+  function abrirSubseccion(id: string): void {
+    setVista((actual) => ({ ...actual, subseccion: id as SubseccionConfiguracion }));
+    setConfirmacion(null);
+  }
+
+  function abrirProvisional(id: SeccionProvisional): void {
+    setVista({ seccion: id });
+    setConfirmacion(null);
+  }
+
+  // Mantiene `?pestana=` sincronizado con la vista activa sin recargar. Usa los
+  // identificadores históricos para que recargar o compartir la URL abra
+  // exactamente la misma sección y subsección.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const valor = pestanaDesdeVista(vista);
+    if (url.searchParams.get('pestana') !== valor) {
+      url.searchParams.set('pestana', valor);
+      window.history.replaceState(null, '', url.toString());
+    }
+  }, [vista]);
+
+  const seccionesVisibles = SECCIONES_CONFIGURACION.filter(
+    (item) => item.id !== 'personas' || vigente.esAdmin,
+  );
+
+  const subseccionCatalogos: SubseccionCatalogos =
+    seccion === 'catalogos' && vista.subseccion === 'operativos' && puedeVerCatalogosBase
+      ? 'operativos'
+      : 'comerciales';
+  const subseccionPersonas: SubseccionPersonas =
+    seccion === 'personas' && (vista.subseccion === 'permisos' || vista.subseccion === 'operadores')
+      ? vista.subseccion
+      : 'usuarios';
+
+  const operativosSinPermiso =
+    seccion === 'catalogos' && vista.subseccion === 'operativos' && !puedeVerCatalogosBase;
+  const personasSinAcceso = seccion === 'personas' && !vigente.esAdmin;
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5" data-testid="pagina-configuracion">
@@ -132,96 +191,162 @@ export function OperacionConfiguracion({
           Variables maestras protegidas por permiso y sincronizadas en tiempo real.
         </p>
       </header>
-      <div role="tablist" aria-label="Secciones de configuración" className="flex flex-wrap gap-1 border-b border-borde">
-        {PESTANAS_CONFIGURACION.filter(
-          ([id]) =>
-            (!PESTANAS_SOLO_ADMIN.includes(id) || vigente.esAdmin)
-            && (id !== 'catalogos-base' || puedeVerCatalogosBase),
-        ).map(([id, etiqueta]) => (
+
+      <PestanasModulo
+        pestanas={seccionesVisibles}
+        activa={seccion}
+        onCambiar={abrirSeccion}
+        etiqueta="Secciones de configuración"
+      />
+
+      {/* UI-01: accesos provisionales. Empresa y Cuentas bancarias se reubican
+          en UI-02; hasta entonces deben seguir accesibles sin duplicar
+          componentes ni formularios. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-borde bg-superficie-2 px-3 py-2">
+        <span className="text-xs font-medium text-texto-secundario">
+          Accesos provisionales (se reubican en UI-02):
+        </span>
+        {SECCIONES_PROVISIONALES.map((item) => (
           <button
-            key={id}
-            id={`tab-configuracion-${id}`}
-            role="tab"
+            key={item.id}
             type="button"
-            aria-selected={pestana === id}
-            aria-controls={`panel-configuracion-${id}`}
+            aria-pressed={seccion === item.id}
+            onClick={() => abrirProvisional(item.id)}
             className={cn(
-              '-mb-px rounded-t-md border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40',
-              pestana === id
+              'rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40',
+              seccion === item.id
                 ? 'border-acento bg-acento-suave text-acento'
-                : 'border-transparent text-texto-secundario hover:bg-superficie-2 hover:text-texto-primario',
+                : 'border-borde bg-superficie text-texto-secundario hover:text-texto-primario',
             )}
-            onClick={() => cambiarPestana(id)}
           >
-            {etiqueta}
+            {item.etiqueta}
           </button>
         ))}
       </div>
+
       <section
-        id={`panel-configuracion-${pestana}`}
         role="tabpanel"
-        aria-labelledby={`tab-configuracion-${pestana}`}
+        aria-label={etiquetaSeccion(seccion)}
         className="min-w-0 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:p-6"
       >
-        {pestana === 'empresa' ? (
-          <PestanaEmpresa
-            key={`empresa-${vigente.configuracion.actualizadoEn}`}
-            datos={vigente.configuracion.empresa}
-            onGuardado={actualizarConfiguracion}
-          />
-        ) : null}
-        {pestana === 'tarifas' ? (
+        {seccion === 'folios' ? <PestanaFolios /> : null}
+
+        {seccion === 'tarifas' ? (
           <PestanaTarifas
             key={`tarifas-${vigente.configuracion.actualizadoEn}`}
             configuracion={vigente.configuracion}
             onGuardado={actualizarConfiguracion}
-            {...(puedeVerCatalogosBase ? { onIrACatalogosBase: () => cambiarPestana('catalogos-base') } : {})}
+            {...(puedeVerCatalogosBase
+              ? {
+                  onIrACatalogosBase: () => {
+                    setVista({ seccion: 'catalogos', subseccion: 'operativos' });
+                    setConfirmacion(null);
+                  },
+                }
+              : {})}
           />
         ) : null}
-        {pestana === 'catalogos' ? (
-          <PestanaCatalogos
-            key={`catalogos-${vigente.configuracion.actualizadoEn}`}
-            configuracion={vigente.configuracion}
-            onGuardado={actualizarConfiguracion}
-          />
+
+        {seccion === 'catalogos' ? (
+          <div className="grid gap-4">
+            {puedeVerCatalogosBase ? (
+              <PestanasModulo
+                pestanas={SUBSECCIONES_CATALOGOS}
+                activa={subseccionCatalogos}
+                onCambiar={abrirSubseccion}
+                etiqueta="Subsecciones de Catálogos"
+              />
+            ) : null}
+            {operativosSinPermiso ? (
+              <p role="alert" className="rounded-md bg-advertencia-suave px-3 py-2 text-sm font-medium text-advertencia-texto">
+                No tienes acceso a los catálogos operativos. Se muestran los catálogos comerciales.
+              </p>
+            ) : null}
+            {subseccionCatalogos === 'comerciales' ? (
+              <PestanaCatalogos
+                key={`catalogos-${vigente.configuracion.actualizadoEn}`}
+                configuracion={vigente.configuracion}
+                onGuardado={actualizarConfiguracion}
+              />
+            ) : null}
+            {subseccionCatalogos === 'operativos' && puedeVerCatalogosBase ? (
+              <PestanaCatalogosBase />
+            ) : null}
+          </div>
         ) : null}
-        {pestana === 'catalogos-base' && puedeVerCatalogosBase ? <PestanaCatalogosBase /> : null}
-        {pestana === 'areas' ? (
+
+        {seccion === 'areas' ? (
           <PestanaAreasTrabajo
             key={`areas-${vigente.areasTrabajo.map((area) => area.actualizadoEn).join('|')}`}
             datos={vigente.areasTrabajo}
             operadores={vigente.operadoresAreas}
             onGuardado={actualizarArea}
             onOperadoresGuardados={actualizarOperadoresAreas}
-            onIrATarifas={() => cambiarPestana('tarifas')}
+            onIrATarifas={() => abrirSeccion('tarifas')}
           />
         ) : null}
-        {pestana === 'cuentas' ? (
-          <PestanaCuentasBancarias
-            key={`cuentas-${vigente.cuentasBancarias.map((cuenta) => cuenta.actualizadoEn).join('|')}`}
-            datos={vigente.cuentasBancarias}
-            onGuardado={actualizarCuenta}
-          />
+
+        {seccion === 'personas' && vigente.esAdmin ? (
+          <div className="grid gap-4">
+            <PestanasModulo
+              pestanas={SUBSECCIONES_PERSONAS}
+              activa={subseccionPersonas}
+              onCambiar={abrirSubseccion}
+              etiqueta="Subsecciones de Personas y accesos"
+            />
+            {subseccionPersonas === 'usuarios' ? <PestanaUsuarios /> : null}
+            {subseccionPersonas === 'permisos' ? <PestanaPermisos /> : null}
+            {subseccionPersonas === 'operadores' ? (
+              <PestanaOperadores
+                operadores={vigente.operadoresGestion}
+                onCambio={async () => {
+                  await clienteQuery.invalidateQueries({ queryKey: CLAVE_CONFIGURACION });
+                }}
+              />
+            ) : null}
+          </div>
         ) : null}
-        {pestana === 'plantillas' ? (
+
+        {personasSinAcceso ? (
+          <div role="alert" className="grid gap-3 rounded-md border border-borde bg-superficie-2 p-4 text-sm text-texto-secundario">
+            <p className="font-medium text-texto-primario">
+              Personas y accesos está disponible solo para administradores activos.
+            </p>
+            <button
+              type="button"
+              onClick={() => abrirSeccion('folios')}
+              className="w-fit rounded-md border border-borde bg-superficie px-3 py-1.5 text-sm font-semibold text-texto-primario transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+            >
+              Ir a Folios
+            </button>
+          </div>
+        ) : null}
+
+        {seccion === 'documentos' ? (
           <PestanaPlantillasDoc
             key={`plantillas-${vigente.configuracion.actualizadoEn}`}
             configuracion={vigente.configuracion}
             onGuardado={actualizarConfiguracion}
           />
         ) : null}
-        {pestana === 'folios' ? <PestanaFolios /> : null}
-        {pestana === 'operadores' && vigente.esAdmin ? (
-          <PestanaOperadores
-            operadores={vigente.operadoresGestion}
-            onCambio={async () => {
-              await clienteQuery.invalidateQueries({ queryKey: CLAVE_CONFIGURACION });
-            }}
+
+        {/* Accesos provisionales de UI-01 (se eliminan al completar UI-02). */}
+        {seccion === 'empresa' ? (
+          <PestanaEmpresa
+            key={`empresa-${vigente.configuracion.actualizadoEn}`}
+            datos={vigente.configuracion.empresa}
+            onGuardado={actualizarConfiguracion}
           />
         ) : null}
-        {pestana === 'usuarios' && vigente.esAdmin ? <PestanaUsuarios /> : null}
-        {pestana === 'permisos' && vigente.esAdmin ? <PestanaPermisos /> : null}
+        {seccion === 'cuentas' ? (
+          <PestanaCuentasBancarias
+            key={`cuentas-${vigente.cuentasBancarias.map((cuenta) => cuenta.actualizadoEn).join('|')}`}
+            datos={vigente.cuentasBancarias}
+            onGuardado={actualizarCuenta}
+          />
+        ) : null}
       </section>
+
       {confirmacion ? (
         <p role="status" data-testid="configuracion-confirmacion" className="text-sm text-exito-texto">
           {confirmacion}

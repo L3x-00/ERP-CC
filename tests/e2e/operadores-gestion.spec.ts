@@ -38,7 +38,8 @@ test('CFG-05: alta, PIN único, rotación, retiro, reactivación e historia', as
   try {
     await entrarAdministrador(page);
     await page.goto('/configuracion');
-    await page.getByRole('tab', { name: 'Operadores' }).click();
+    await page.getByRole('tab', { name: 'Personas y accesos', exact: true }).click();
+    await page.getByRole('tab', { name: 'Operadores', exact: true }).click();
     if (process.env.A17_VISUAL_DIR) {
       for (const ancho of [1440, 768, 390]) {
         await page.setViewportSize({ width: ancho, height: 900 });

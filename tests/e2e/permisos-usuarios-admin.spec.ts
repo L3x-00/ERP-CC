@@ -53,8 +53,9 @@ test('SII-B1: roles de usuario y matriz de permisos con auditoría', async ({ pa
     await page.waitForURL((url) => ['/dashboard', '/tablero'].includes(url.pathname));
     await page.goto('/configuracion');
 
-    // --- Pestaña Usuarios: cambio de rol con motivo y protección de la fila propia ---
-    await page.getByRole('tab', { name: 'Usuarios' }).click();
+    // --- Personas y accesos → Usuarios: cambio de rol con motivo y protección de la fila propia ---
+    await page.getByRole('tab', { name: 'Personas y accesos', exact: true }).click();
+    await page.getByRole('tab', { name: 'Usuarios', exact: true }).click();
     const panelUsuarios = page.getByTestId('configuracion-usuarios');
     const filaObjetivo = panelUsuarios.getByTestId(`usuario-fila-${objetivoId}`);
     await expect(filaObjetivo).toContainText(`Objetivo B1 ${sufijo}`);
@@ -70,8 +71,8 @@ test('SII-B1: roles de usuario y matriz de permisos con auditoría', async ({ pa
       })
       .toBe('gerente');
 
-    // --- Pestaña Permisos: alta y baja de un permiso con guardado atómico ---
-    await page.getByRole('tab', { name: 'Permisos' }).click();
+    // --- Personas y accesos → Permisos: alta y baja de un permiso con guardado atómico ---
+    await page.getByRole('tab', { name: 'Permisos', exact: true }).click();
     const panelPermisos = page.getByTestId('matriz-permisos');
     await expect(panelPermisos).toBeVisible();
     await panelPermisos.getByTestId('check-vendedor-rfq_cerrar').check();
