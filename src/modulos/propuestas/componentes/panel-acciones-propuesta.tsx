@@ -436,7 +436,7 @@ export function PanelAccionesPropuesta({
             )}
             {sugiereMateriales && (
               <Link
-                href="/configuracion?pestana=catalogos-base"
+                href="/inventario"
                 className="inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold text-acento underline-offset-2 hover:underline"
               >
                 Configurar materiales

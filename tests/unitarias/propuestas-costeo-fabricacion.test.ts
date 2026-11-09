@@ -822,14 +822,14 @@ describe('ruteo: horas válidas y salidas claras (aclaración cliente 2026-11-09
     expect(insignia.className).toContain('exito');
   });
 
-  it('sin materiales avisa y enlaza directo a Catálogos base', () => {
+  it('sin materiales avisa y enlaza directo a Materiales y costos', () => {
     montar();
 
     const aviso = screen.getByTestId('configuracion-pendiente-ruteo');
     expect(aviso.textContent).toContain('No hay materiales activos');
     expect(aviso.getAttribute('role')).toBeNull();
-    const enlace = within(aviso).getByRole('link', { name: /Catálogos base/ });
-    expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=catalogos-base');
+    const enlace = within(aviso).getByRole('link', { name: /Materiales y costos/ });
+    expect(enlace.getAttribute('href')).toBe('/inventario');
   });
 
   it('sin tarifa enlaza directo a Tarifas / TC', () => {

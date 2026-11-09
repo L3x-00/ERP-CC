@@ -24,6 +24,12 @@ export const ENLACE_CATALOGOS_RUTEO: EnlaceConfiguracion = {
   etiqueta: 'Abrir Catálogos base',
 };
 
+/** El catálogo de materiales y espesores vive en el módulo Materiales y costos. */
+export const ENLACE_MATERIALES_RUTEO: EnlaceConfiguracion = {
+  href: '/inventario',
+  etiqueta: 'Abrir Materiales y costos',
+};
+
 export const ENLACE_AREAS_RUTEO: EnlaceConfiguracion = {
   href: '/configuracion?pestana=areas',
   etiqueta: 'Abrir Áreas de trabajo',
@@ -138,7 +144,7 @@ export function diagnosticarConfiguracionRuteo({
       titulo: 'No hay materiales activos',
       detalle:
         'Los ítems nuevos y sus espesores salen del catálogo de materiales. Crea o activa al menos un material para completar la configuración.',
-      enlace: ENLACE_CATALOGOS_RUTEO,
+      enlace: ENLACE_MATERIALES_RUTEO,
     });
   } else if (hayItemsActivos && catalogos.espesores.length === 0) {
     pendientes.push({
@@ -146,7 +152,7 @@ export function diagnosticarConfiguracionRuteo({
       titulo: 'Materiales sin espesores',
       detalle:
         'Los materiales activos no tienen espesores capturados. Agrega al menos un espesor por material para poder elegirlo en los ítems.',
-      enlace: ENLACE_CATALOGOS_RUTEO,
+      enlace: ENLACE_MATERIALES_RUTEO,
     });
   }
 

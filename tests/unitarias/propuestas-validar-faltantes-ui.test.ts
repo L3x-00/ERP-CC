@@ -256,13 +256,13 @@ describe('PanelAccionesPropuesta — fechas y configuración (aclaración client
     expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=tarifas');
   });
 
-  it('cuando faltan materiales ofrece el enlace directo a Catálogos base', () => {
+  it('cuando faltan materiales ofrece el enlace directo a Materiales y costos', () => {
     montarPanel({
       faltantes: faltantes({ contenido: ['al menos un material activo'] }),
     });
 
     const enlace = screen.getByRole('link', { name: 'Configurar materiales' });
-    expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=catalogos-base');
+    expect(enlace.getAttribute('href')).toBe('/inventario');
   });
 
   it('cuando falta un área de trabajo ofrece el enlace directo a Áreas', () => {

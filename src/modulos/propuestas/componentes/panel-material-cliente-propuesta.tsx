@@ -181,10 +181,10 @@ export function PanelMaterialClientePropuesta({
                 Después vuelve aquí y elígelo en la lista.
               </p>
               <Link
-                href="/configuracion?pestana=catalogos-base"
+                href="/inventario"
                 className="w-fit text-xs font-semibold text-acento underline-offset-2 hover:underline"
               >
-                Abrir Catálogos base →
+                Abrir Materiales y costos →
               </Link>
             </div>
           ) : null}

@@ -44,7 +44,7 @@ Antes de costear, la pantalla muestra un aviso con lo que falta y dónde se
 resuelve:
 
 - **Tarifas por hora** → Configuración → Tarifas / TC.
-- **Materiales o espesores** → Configuración → Catálogos base.
+- **Materiales o espesores** → Materiales y costos.
 - **Áreas de trabajo** → Configuración → Áreas de trabajo.
 - **Procesos sin grupo de equipo** → Configuración → Catálogos base.
 
@@ -54,7 +54,7 @@ esos puntos, el costo no será confiable.
 ### Material del cliente
 
 Si no hay materiales activos en el catálogo, la sección lo avisa y enlaza
-directo a **Catálogos base**, en lugar de mostrar una lista vacía sin
+directo a **Materiales y costos**, en lugar de mostrar una lista vacía sin
 explicación.
 
 ### Fecha compromiso al aceptar
