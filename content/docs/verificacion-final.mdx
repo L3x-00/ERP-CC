@@ -10,7 +10,7 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 
 ## Lista de comprobación
 
-### Catálogos base
+### Catálogos operativos
 
 - [ ] Hay al menos un **grupo planeado** activo por cada etapa del taller.
 - [ ] Hay al menos un **grupo de equipo** activo por cada familia de máquinas.
@@ -37,7 +37,7 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 - [ ] La vigencia del tier manual está definida.
 - [ ] Las categorías de gasto no están duplicadas y se guardaron.
 
-### Tarifas / TC
+### Tarifas y costos
 
 - [ ] El **Tipo de cambio vigente** está actualizado.
 - [ ] Cada estación tiene tarifa de máquina y de preparación.
@@ -45,13 +45,25 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 - [ ] Las máquinas con costo distinto tienen tarifa propia.
 - [ ] Los parámetros (eficiencia, merma, margen y utilidad objetivo) son los de tu operación.
 
+### Datos de empresa y cuentas bancarias
+
+- [ ] Los datos de empresa están actualizados desde el menú de usuario.
+- [ ] Las cuentas bancarias activas son las correctas en **Cobros y tesorería → Cuentas bancarias**.
+- [ ] Cada cuenta tiene banco, número, moneda y titular.
+
+### Personas y accesos
+
+- [ ] Los usuarios tienen el rol correcto.
+- [ ] La matriz de permisos conserva las asignaciones aprobadas.
+- [ ] Los operadores de piso tienen PIN y sus áreas autorizadas.
+
 ### Folios
 
 - [ ] El siguiente identificador CNC coincide con la secuencia esperada.
 - [ ] El siguiente folio por periodo coincide con el último documento emitido.
 - [ ] No se redujo ningún número ya reservado o emitido.
 
-### Plantillas T1
+### Documentos (Plantilla T1)
 
 - [ ] Los términos y condiciones están completos.
 - [ ] El encabezado y el pie tienen el texto correcto.
@@ -65,10 +77,10 @@ Antes de empezar a registrar trabajo real, recorre esta lista. Si algo falla, ca
 | Los campos están grises y no puedo guardar. | Tu usuario no tiene permiso de escritura. | Pide apoyo a la persona administradora. |
 | El selector **Grupo de equipo** está vacío. | No hay grupos de equipo activos. | [Grupos de equipo](/es/docs/grupos-equipo). |
 | El selector **Área de trabajo** está vacío o incompleto. | Faltan áreas o están inactivas. | [Áreas de trabajo](/es/docs/areas-trabajo). |
-| Una propuesta no toma la tarifa esperada. | El grupo o la estación no tienen tarifa, o la máquina tiene otra. | [Tarifas / TC](/es/docs/tarifas-tc). |
-| El sistema avisa que el tipo de cambio está desactualizado. | No se registró hoy o tiene más de 24 horas. | [Tarifas / TC](/es/docs/tarifas-tc). |
+| Una propuesta no toma la tarifa esperada. | El grupo o la estación no tienen tarifa, o la máquina tiene otra. | [Tarifas y costos](/es/docs/tarifas-tc). |
+| El sistema avisa que el tipo de cambio está desactualizado. | No se registró hoy o tiene más de 24 horas. | [Tarifas y costos](/es/docs/tarifas-tc). |
 | El siguiente folio no es el que esperaba. | La continuidad quedó en otro número. | [Folios](/es/docs/folios). |
-| La propuesta no muestra el color o los términos. | La plantilla no se guardó. | [Plantillas T1](/es/docs/plantillas-t1). |
+| La propuesta no muestra el color o los términos. | La plantilla no se guardó. | [Documentos](/es/docs/plantillas-t1). |
 | Un proceso no aparece al registrar un RFQ. | Está inactivo. | [Procesos](/es/docs/procesos). |
 
 ## Última comprobación
@@ -78,7 +90,7 @@ Haz una prueba controlada:
 1. Abre el registro de un RFQ nuevo.
 2. Confirma que aparecen los **canales**, los **procesos** y las **próximas acciones** que configuraste.
 3. No guardes el RFQ si solo estás probando; cancela y sal.
-4. Abre **Tarifas / TC** y confirma que el tipo de cambio del encabezado coincide con el vigente.
+4. Abre **Tarifas y costos** y confirma que el tipo de cambio del encabezado coincide con el vigente.
 5. Abre **Folios** y confirma que el siguiente identificador es el esperado.
 
 Si todo coincide, la configuración está lista para operar.
@@ -92,8 +104,8 @@ Si todo coincide, la configuración está lista para operar.
 5. [Próximas acciones](/es/docs/proximas-acciones)
 6. [Canales RFQ](/es/docs/canales-rfq)
 7. [Catálogos](/es/docs/catalogos)
-8. [Tarifas / TC](/es/docs/tarifas-tc)
+8. [Tarifas y costos](/es/docs/tarifas-tc)
 9. [Folios](/es/docs/folios)
-10. [Plantillas T1](/es/docs/plantillas-t1)
+10. [Documentos (Plantilla T1)](/es/docs/plantillas-t1)
 
 Ya puedes comenzar a operar con ORCA MFG ERP.

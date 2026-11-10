@@ -59,7 +59,6 @@ export function PestanaCatalogos({ configuracion, onGuardado }: PestanaCatalogos
       }
       setTiers(respuesta.datos.tiers);
       onGuardado(respuesta.datos);
-      setMensaje('Tiers guardados');
     } catch {
       setMensaje('No se pudieron guardar los tiers');
     } finally {
@@ -94,7 +93,6 @@ export function PestanaCatalogos({ configuracion, onGuardado }: PestanaCatalogos
       }
       setCategorias(respuesta.datos.categoriasGasto);
       onGuardado(respuesta.datos);
-      setMensaje('Categorías guardadas');
     } catch {
       setMensaje('No se pudieron guardar las categorías');
     } finally {
@@ -223,9 +221,9 @@ export function PestanaCatalogos({ configuracion, onGuardado }: PestanaCatalogos
       </form>
       {mensaje ? (
         <p
-          role="status"
+          role="alert"
           data-testid="catalogo-confirmacion"
-          className="text-sm text-texto-secundario xl:col-span-2"
+          className="text-sm text-peligro-texto xl:col-span-2"
         >
           {mensaje}
         </p>

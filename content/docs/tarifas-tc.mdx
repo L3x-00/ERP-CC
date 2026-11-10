@@ -1,12 +1,12 @@
 ---
-title: Tarifas / TC
+title: Tarifas y costos
 description: Define costos por hora, parámetros de costeo, tipo de cambio y tarifas del ruteo.
 ---
 
 
 ## Para qué sirve
 
-La pestaña **Tarifas / TC** concentra el dinero con el que el sistema calcula los costos:
+La sección **Tarifas y costos** concentra el dinero con el que el sistema calcula los costos:
 
 - El **tipo de cambio** entre dólares y pesos.
 - Los **parámetros generales** del cotizador.
@@ -14,6 +14,8 @@ La pestaña **Tarifas / TC** concentra el dinero con el que el sistema calcula l
 - Las **tarifas por grupo de equipo** y, si hace falta, por máquina.
 
 Es un solo tarifario. Las áreas de trabajo ya no guardan precios: todo el costo se define aquí.
+
+> **Orden en pantalla:** el **Tarifario del ruteo** aparece primero, porque es el punto principal para grupos y equipos. Debajo están el tipo de cambio, los parámetros generales y las tarifas por estación; cada bloque se despliega cuando lo necesitas.
 
 > **Importante:** si cambias una tarifa, las cotizaciones nuevas usan el nuevo valor. Las cotizaciones ya calculadas conservan las tarifas con las que se guardaron.
 
@@ -29,7 +31,7 @@ Ya deben existir los [grupos de equipo](/es/docs/grupos-equipo); de lo contrario
 
 ## 1. Tipo de cambio y parámetros generales
 
-Al abrir la pestaña verás el **Tipo de cambio vigente** y la fecha de su última actualización. Si el sistema avisa que el tipo de cambio no está registrado para hoy o tiene más de 24 horas, revisa el valor antes de cotizar.
+Al abrir la sección, el **Tarifario del ruteo** aparece primero. En el bloque **Tipo de cambio** verás el valor vigente y la fecha de su última actualización. Si el sistema avisa que el tipo de cambio no está registrado para hoy o tiene más de 24 horas, revisa el valor antes de cotizar.
 
 Completa los campos:
 
@@ -45,9 +47,9 @@ Completa los campos:
 
 Ejemplo práctico: con un tipo de cambio de **18.75 MXN/USD**, un costo de **100 USD** equivale a **1,875 MXN**.
 
-La parte superior de la pestaña se ve así:
+El bloque de tipo de cambio y parámetros se ve así:
 
-![Pestaña Tarifas / TC con el tipo de cambio vigente, los parámetros generales y las estaciones](/manual/capturas/tarifas-tc.png)
+![Pestaña Tarifas y costos con el tipo de cambio vigente, los parámetros generales y las estaciones](/manual/capturas/tarifas-tc.png)
 
 ## 2. Tarifas por estación
 
@@ -110,7 +112,7 @@ Más abajo está el **Tarifario del ruteo**. Aquí se asigna una tarifa a cada g
 La regla es simple y auditable:
 
 1. **Tarifa propia de la máquina**, solo si está activa de forma explícita.
-2. **Tarifa estándar del grupo de equipo**: es la **fuente maestra** del costeo. La estación de Tarifas / TC solo sirve para copiar su valor; no compite con la tarifa del grupo.
+2. **Tarifa estándar del grupo de equipo**: es la **fuente maestra** del costeo. La estación de Tarifas y costos solo sirve para copiar su valor; no compite con la tarifa del grupo.
 3. **Tarifa de respaldo**, únicamente si el grupo no tiene tarifa estándar. El ruteo la muestra con una **advertencia visible**, su valor y el grupo que no está configurado.
 
 En el ruteo, cada operación muestra el origen de la tarifa que realmente usó: tarifa propia de la máquina, tarifa del grupo o tarifa de respaldo. Las áreas de trabajo no participan.
@@ -122,7 +124,7 @@ También puedes crear un **grupo de equipo con su tarifa estándar y sus proceso
 Cada grupo muestra su **tarifa estándar** (la fuente maestra del ruteo) y, si tiene una, la estación de referencia:
 
 - **650.00 MXN/h · Tarifa del grupo:** es el valor que usa el costeo.
-- **Referencia: Tarifas / TC · Acabado:** la estación solo sirve para copiar su valor.
+- **Referencia: Tarifas y costos · Acabado:** la estación solo sirve para copiar su valor.
 
 Para cambiarla, haz clic en **Editar tarifa**: puedes escribir el valor o elegir una estación para copiarlo. La estación no recalcula la tarifa del grupo automáticamente.
 
@@ -137,6 +139,7 @@ En la misma sección, pulsa **Nuevo equipo** y completa un solo formulario:
 1. **Código del equipo** y **nombre**.
 2. **Grupo de equipo**: obligatorio. Es el que define la tarifa estándar.
 3. El sistema muestra la **tarifa heredada** del grupo.
+   - Si el grupo **no tiene tarifa estándar**, aparece un aviso con el botón **Configurar tarifa ahora**. Captura la tarifa en ese mismo formulario: se guarda en el grupo, la tarifa heredada se actualiza y no pierdes los datos del equipo.
 4. Responde **¿Esta máquina tiene un costo distinto al grupo?**
    - **No**: el equipo usa la tarifa del grupo.
    - **Sí**: se habilita la **tarifa propia por hora** y la moneda; esa tarifa sustituye a la del grupo solo para esta máquina.

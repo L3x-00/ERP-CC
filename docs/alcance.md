@@ -38,7 +38,7 @@
 | 11.2 | Servicio central con actualización atómica por sección, tipo de cambio vigente y fallbacks para JSONB incompleto. |
 | 11.5 | Tipo de cambio diario: fecha y actor dedicados en el singleton, recordatorio posponible solo para admin en `/dashboard` (Tijuana, 24 h) y prellenado del TC en gastos, compras, cobranza y saldo inicial en USD. |
 | 11.3 | Server Actions administrativas con Zod, `can('configuracion')`, auditoría saneada y Zustand v5 efímero. |
-| 11.4 | Ruta `/configuracion` por pestañas, edición de empresa/tarifas/áreas/cuentas/plantillas, Realtime y E2E opt-in. |
+| 11.4 | Ruta `/configuracion` con seis secciones (Folios, Tarifas y costos, Catálogos, Áreas, Personas y accesos, Documentos); Empresa en el menú de usuario y Cuentas bancarias en Cobros y tesorería; enlaces históricos, Realtime y E2E opt-in. |
 | 12.1 | Esquema de comentarios y notificaciones, menciones transaccionales, RLS, restricciones de texto y tipos estrictos. Pendiente de aplicar al remoto. |
 | 12.2 | Parser de menciones, sanitización XSS, mappers y servicios de hilos/notificaciones. |
 | 12.3 | Server Actions protegidas, auditoría, eliminación lógica, marca de lectura propia, Zustand y Realtime. |

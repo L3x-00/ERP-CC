@@ -25,7 +25,6 @@ export function PestanaPlantillasDoc({ configuracion, onGuardado }: { configurac
         return;
       }
       onGuardado(respuesta.datos);
-      setMensaje({ texto: 'Plantilla T1 guardada', tipo: 'exito' });
     } catch {
       setMensaje({ texto: 'No se pudo guardar la plantilla', tipo: 'error' });
     } finally {

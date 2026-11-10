@@ -482,7 +482,7 @@ function SeccionProcesos(props: PropsSeccion) {
   }
 
   return (
-    <section className="grid gap-3" aria-labelledby="catalogos-procesos">
+    <section className="grid gap-3" aria-label="Procesos">
       <CabeceraSeccion
         titulo="Procesos"
         descripcion={descripcionSeccion('procesos')}
@@ -1044,7 +1044,7 @@ function SeccionProximasAcciones(props: PropsSeccion) {
   return (
     <section
       className="grid gap-3"
-      aria-labelledby={props.cabeceraCompacta ? undefined : 'catalogos-proximas-acciones'}
+      aria-label="Próximas acciones"
     >
       <CabeceraSeccion
         titulo="Próximas acciones"

@@ -98,7 +98,6 @@ export function PestanaAreasTrabajo({
 }) {
   const [seleccionada, setSeleccionada] = useState<AreaTrabajoConfig | null>(null);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
-  const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
@@ -163,7 +162,6 @@ export function PestanaAreasTrabajo({
   function nueva(): void {
     setSeleccionada(null);
     setFormulario(FORMULARIO_VACIO);
-    setMensaje(null);
     setError(null);
     setDialogoAbierto(true);
   }
@@ -171,7 +169,6 @@ export function PestanaAreasTrabajo({
   function editar(area: AreaTrabajoConfig): void {
     setSeleccionada(area);
     cargarFormulario(area);
-    setMensaje(null);
     setError(null);
     setDialogoAbierto(true);
   }
@@ -189,7 +186,6 @@ export function PestanaAreasTrabajo({
   async function guardar(evento: React.FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setGuardando(true);
-    setMensaje(null);
     setError(null);
     try {
       const respuesta = await guardarAreaTrabajoAccion({
@@ -213,7 +209,6 @@ export function PestanaAreasTrabajo({
         return;
       }
       onGuardado(respuesta.datos);
-      setMensaje('Área guardada');
       setDialogoAbierto(false);
       setSeleccionada(null);
       setFormulario(FORMULARIO_VACIO);
@@ -344,11 +339,6 @@ export function PestanaAreasTrabajo({
             </Tabla>
           </TablaContenedor>
         )}
-        {mensaje ? (
-          <p role="status" data-testid="areas-mensaje" className="text-sm text-exito-texto">
-            {mensaje}
-          </p>
-        ) : null}
       </section>
 
       <Dialog open={dialogoAbierto} onOpenChange={cambiarDialogo}>
