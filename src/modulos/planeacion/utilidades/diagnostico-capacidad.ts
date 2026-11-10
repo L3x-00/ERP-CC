@@ -27,7 +27,7 @@ export const HREF_CAPACIDAD_INSTALADA = '/planeacion#capacidad-instalada';
 export const PASOS_GENERALES_CAPACIDAD: readonly PasoGuiaCapacidad[] = [
   {
     clave: 'grupo-del-proceso',
-    titulo: '1. Revisa el grupo del proceso',
+    titulo: 'Revisa el grupo del proceso',
     detalle:
       'En Configuración → Tarifas y costos, confirma que el proceso tenga asignado un grupo de equipo y que ese grupo tenga equipos activos.',
     href: '/configuracion?pestana=tarifas',
@@ -35,7 +35,7 @@ export const PASOS_GENERALES_CAPACIDAD: readonly PasoGuiaCapacidad[] = [
   },
   {
     clave: 'equipos-y-jornada',
-    titulo: '2. Revisa equipos y jornada',
+    titulo: 'Revisa equipos y jornada',
     detalle:
       'En Planeación → Capacidad instalada, confirma cuántos equipos tiene cada recurso y, si aplica, su jornada por equipo. Al guardar, si el equipo no tenía turnos se registra el turno matutino base de 8 h.',
     href: HREF_CAPACIDAD_INSTALADA,
@@ -43,7 +43,7 @@ export const PASOS_GENERALES_CAPACIDAD: readonly PasoGuiaCapacidad[] = [
   },
   {
     clave: 'turnos-del-equipo',
-    titulo: '3. Revisa los turnos del equipo',
+    titulo: 'Revisa los turnos del equipo',
     detalle:
       'Si el equipo trabaja más de un turno (matutino, vespertino o nocturno), pide a un administrador que registre los turnos adicionales con sus horas. Un turno sin registrar no aparece en el calendario.',
   },
