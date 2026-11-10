@@ -398,6 +398,7 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
       .toContain(`${datos.operadorAId}:METAL_MECANICA`);
 
     // OBS-14: una subárea creada desde la configuración queda disponible.
+    await page.getByTestId('nueva-area-trabajo').click();
     await page.getByLabel('Código').last().fill(`SUELDA_${randomUUID().slice(0, 4).toUpperCase()}`);
     await page.getByLabel('Nombre').last().fill('Soldadura E2E');
     await page.getByTestId('configuracion-area-tipo').selectOption('proceso');

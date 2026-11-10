@@ -52,9 +52,8 @@ describe('navegación de Configuración (UI-01)', () => {
     });
   });
 
-  it('conserva los accesos provisionales de Empresa y Cuentas', () => {
+  it('conserva el enlace heredado de Empresa hacia el modal del menú', () => {
     expect(leerVistaConfiguracion('empresa')).toEqual({ seccion: 'empresa' });
-    expect(leerVistaConfiguracion('cuentas')).toEqual({ seccion: 'cuentas' });
   });
 
   it('mapea Plantillas al apartado de Documentos', () => {

@@ -39,11 +39,9 @@ vi.mock('@/modulos/configuracion/componentes/pestana-catalogos-base', () => ({
 vi.mock('@/modulos/configuracion/componentes/pestana-areas-trabajo', () => ({
   PestanaAreasTrabajo: () => createElement('div', { 'data-testid': 'mock-areas' }, 'areas'),
 }));
-vi.mock('@/modulos/configuracion/componentes/pestana-cuentas-bancarias', () => ({
-  PestanaCuentasBancarias: () => createElement('div', { 'data-testid': 'mock-cuentas' }, 'cuentas'),
-}));
-vi.mock('@/modulos/configuracion/componentes/pestana-empresa', () => ({
-  PestanaEmpresa: () => createElement('div', { 'data-testid': 'mock-empresa' }, 'empresa'),
+vi.mock('@/modulos/configuracion/componentes/dialogo-datos-empresa', () => ({
+  DialogoDatosEmpresa: () =>
+    createElement('div', { 'data-testid': 'mock-empresa-dialog' }, 'empresa'),
 }));
 vi.mock('@/modulos/configuracion/componentes/pestana-plantillas-doc', () => ({
   PestanaPlantillasDoc: () =>
@@ -136,7 +134,7 @@ afterEach(() => {
 });
 
 describe('OperacionConfiguracion — UI-01', () => {
-  it('muestra las seis secciones principales y los accesos provisionales', async () => {
+  it('muestra las seis secciones principales', async () => {
     renderizar({ seccion: 'folios' });
 
     const pestanas = await screen.findAllByRole('tab');
@@ -148,8 +146,12 @@ describe('OperacionConfiguracion — UI-01', () => {
       'Personas y accesos',
       'Documentos',
     ]);
-    expect(screen.getByRole('button', { name: 'Empresa' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Cuentas bancarias' })).toBeTruthy();
+    expect(screen.getByTestId('mock-folios')).toBeTruthy();
+  });
+
+  it('abre el modal heredado de Empresa sin perder la navegación', async () => {
+    renderizar({ seccion: 'empresa' });
+    expect(await screen.findByTestId('mock-empresa-dialog')).toBeTruthy();
     expect(screen.getByTestId('mock-folios')).toBeTruthy();
   });
 

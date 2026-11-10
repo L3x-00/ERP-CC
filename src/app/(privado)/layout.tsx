@@ -27,6 +27,7 @@ export default async function LayoutPrivado({
       modulos={obtenerModulosPermitidos(usuario)}
       estadoTipoCambio={estadoTipoCambio}
       puedeActualizarTipoCambio={usuario.rol === 'admin'}
+      puedeAdministrarEmpresa={usuario.rol === 'admin' || usuario.permisos.includes('configuracion')}
     >
       {children}
     </ChasisApp>
