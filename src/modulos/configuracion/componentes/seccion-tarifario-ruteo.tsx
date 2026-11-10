@@ -30,8 +30,9 @@ const CODIGO_GRUPO = /^[A-Z0-9][A-Z0-9_-]{1,48}$/;
  * se conocían.
  *
  * Va plegada por defecto para que la pestaña no obligue a recorrer todo el
- * tarifario; el encabezado avisa cuántos grupos siguen sin tarifa. Un grupo o
- * una máquina NUEVOS se dan de alta en «Catálogos base» (`onIrACatalogosBase`).
+ * tarifario; el encabezado avisa cuántos grupos siguen sin tarifa. Los grupos y
+ * las máquinas se dan de alta en este mismo tarifario (UI-03); los procesos y
+ * canales viven en «Catálogos operativos».
  */
 export function SeccionTarifarioRuteo({
   onIrACatalogosBase,
@@ -191,10 +192,10 @@ export function SeccionTarifarioRuteo({
           {onIrACatalogosBase ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
               <span>
-                ¿Falta una máquina? Se crea en «Catálogos base»; su tarifa propia se asigna aquí.
+                ¿Necesitas administrar procesos, grupos planeados o canales? Están en «Catálogos operativos».
               </span>
               <Button type="button" variante="contorno" tamano="sm" onClick={onIrACatalogosBase}>
-                Ir a Catálogos base
+                Ir a Catálogos operativos
               </Button>
             </div>
           ) : null}
@@ -360,7 +361,8 @@ export function SeccionTarifarioRuteo({
                       Procesos que usarán este grupo (opcional)
                     </p>
                     <p className="mb-1 text-[11px] text-texto-terciario">
-                      Así el ruteo hereda el grupo sin depender de «Grupo planeado».
+                      Así el ruteo hereda el grupo sin depender de «Grupo planeado». Es la misma
+                      relación que ves en Catálogos operativos → Procesos; no hace falta repetirla.
                     </p>
                     <div className="max-h-36 overflow-y-auto rounded-md border border-borde bg-superficie p-2">
                       {datos.procesos.filter((proceso) => proceso.activo).length === 0 ? (

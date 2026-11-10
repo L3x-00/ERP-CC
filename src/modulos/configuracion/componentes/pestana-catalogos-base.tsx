@@ -12,7 +12,6 @@ import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplega
 import {
   alternarActivoAccion,
   guardarCanalAccion,
-  guardarGrupoEquipoAccion,
   guardarGrupoPlaneadoAccion,
   guardarProcesoAccion,
   guardarProximaAccionAccion,
@@ -67,7 +66,7 @@ function mensajeRespuesta(respuesta: { exito: boolean; error?: string }, ok: str
   return respuesta.exito ? { ok, error: '' } : { ok: '', error: respuesta.error ?? 'No se pudo guardar' };
 }
 
-export function PestanaCatalogosBase() {
+export function PestanaCatalogosBase({ onIrATarifas }: { onIrATarifas?: () => void } = {}) {
   const clienteQuery = useQueryClient();
   const consulta = useQuery({
     queryKey: CLAVE_CATALOGOS_BASE,
@@ -136,15 +135,15 @@ export function PestanaCatalogosBase() {
 
       <SeccionProcesos {...propsBase} />
       <SeccionCatalogoDesplegable id="grupos-equipo" titulo="Grupos de equipo" descripcion={descripcionSeccion('gruposEquipo')}>
-        <SeccionGruposEquipo {...propsBase} cabeceraCompacta />
+        <SeccionGruposEquipo {...propsBase} cabeceraCompacta onIrATarifas={onIrATarifas} />
       </SeccionCatalogoDesplegable>
       <p
         className="rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario"
         data-testid="catalogos-tarifas-en-tarifas-tc"
       >
-        La tarifa por hora de cada grupo de equipo y de cada máquina se configura en la pestaña{' '}
-        <span className="font-medium text-texto-primario">Tarifas / TC</span>, junto con las tarifas por
-        estación: es un solo tarifario. Los equipos se dan de alta ahí mismo, con su grupo y su tarifa.
+        La tarifa estándar, los procesos compatibles y el alta de cada grupo se administran en{' '}
+        <span className="font-medium text-texto-primario">Tarifas y costos → Tarifario del ruteo</span>.
+        Aquí solo se consultan y se activan o desactivan.
       </p>
       <SeccionCatalogoDesplegable id="grupos-planeados" titulo="Grupos planeados" descripcion={descripcionSeccion('gruposPlaneados')}>
         <SeccionGruposPlaneados {...propsBase} cabeceraCompacta />
@@ -600,7 +599,8 @@ function SeccionProcesos(props: PropsSeccion) {
               ))}
             </Select>
             <span className="text-xs font-normal">
-              Fuente de la tarifa estándar del ruteo. No requiere grupo planeado.
+              Fuente de la tarifa estándar del ruteo. No requiere grupo planeado. Esta misma
+              relación también se administra desde Tarifas y costos → Tarifario del ruteo.
             </span>
           </label>
           <label className="grid gap-1 text-xs font-medium text-texto-secundario">
@@ -722,6 +722,12 @@ function SeccionProcesos(props: PropsSeccion) {
         </form>
       ) : null}
 
+      {datos.procesos.length === 0 ? (
+        <EstadoVacio
+          titulo="Sin procesos"
+          descripcion="Crea el primer proceso del taller para usarlo en RFQ, ruteo y producción."
+        />
+      ) : (
       <div className="overflow-x-auto rounded-lg border border-borde">
         <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
@@ -814,6 +820,7 @@ function SeccionProcesos(props: PropsSeccion) {
           </tbody>
         </table>
       </div>
+      )}
     </section>
   );
 }
@@ -858,18 +865,47 @@ function ListaSimple({
   );
 }
 
-function SeccionGruposEquipo(props: PropsSeccion) {
+function SeccionGruposEquipo(props: PropsSeccion & { onIrATarifas?: () => void }) {
+  const { datos, puedeEditar, onIrATarifas } = props;
   return (
-    <SeccionGrupo
-      {...props}
-      titulo="Grupos de equipo"
-      descripcion={descripcionSeccion('gruposEquipo')}
-      entidad="grupos_equipo"
-      items={props.datos.gruposEquipo}
-      guardar={(borrador) => guardarGrupoEquipoAccion(borrador)}
-      testidPrefijo="catalogo-grupo-equipo"
-      testidFila="fila-grupo-equipo"
-    />
+    <section className="grid gap-3" data-testid="seccion-grupos-equipo">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
+        <span>
+          La tarifa estándar, los procesos compatibles y el alta se administran en{' '}
+          <span className="font-medium text-texto-primario">Tarifas y costos → Tarifario del ruteo</span>.
+        </span>
+        {onIrATarifas ? (
+          <Button
+            type="button"
+            variante="contorno"
+            tamano="sm"
+            onClick={onIrATarifas}
+            data-testid="ir-tarifario-desde-catalogos"
+          >
+            Administrar en Tarifas y costos
+          </Button>
+        ) : null}
+      </div>
+      {datos.gruposEquipo.length === 0 ? (
+        <EstadoVacio
+          titulo="Sin grupos de equipo"
+          descripcion="Crea el primer grupo desde Tarifas y costos para asignarle tarifa y procesos."
+        />
+      ) : (
+        <ul className="grid gap-2" data-testid="lista-fila-grupo-equipo">
+          {datos.gruposEquipo.map((item) => (
+            <ListaSimple
+              key={item.id}
+              item={item}
+              entidad="grupos_equipo"
+              puedeEditar={puedeEditar}
+              props={props}
+              testidFila="fila-grupo-equipo"
+            />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -949,18 +985,25 @@ function SeccionGrupo(
         onCancelar={() => setEditando(null)}
         testidPrefijo={testidPrefijo}
       />
-      <ul className="grid gap-2" data-testid={`lista-${testidFila}`}>
-        {items.map((item) => (
-          <ListaSimple
-            key={item.id}
-            item={item}
-            entidad={props.entidad}
-            puedeEditar={props.puedeEditar}
-            props={props}
-            testidFila={testidFila}
-          />
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <EstadoVacio
+          titulo={`Sin ${titulo.toLowerCase()}`}
+          descripcion="Crea el primer registro para usarlo en la operación."
+        />
+      ) : (
+        <ul className="grid gap-2" data-testid={`lista-${testidFila}`}>
+          {items.map((item) => (
+            <ListaSimple
+              key={item.id}
+              item={item}
+              entidad={props.entidad}
+              puedeEditar={props.puedeEditar}
+              props={props}
+              testidFila={testidFila}
+            />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -1103,6 +1146,12 @@ function SeccionProximasAcciones(props: PropsSeccion) {
           </div>
         </form>
       ) : null}
+      {datos.proximasAcciones.length === 0 ? (
+        <EstadoVacio
+          titulo="Sin próximas acciones"
+          descripcion="Crea la primera acción de seguimiento para usarla en RFQ y propuestas."
+        />
+      ) : (
       <ul className="grid gap-2" data-testid="lista-proximas-acciones">
         {datos.proximasAcciones.map((accion) => (
           <li
@@ -1164,6 +1213,7 @@ function SeccionProximasAcciones(props: PropsSeccion) {
           </li>
         ))}
       </ul>
+      )}
     </section>
   );
 }

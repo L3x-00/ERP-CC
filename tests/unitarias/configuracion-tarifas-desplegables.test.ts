@@ -162,14 +162,14 @@ describe('SeccionTarifarioRuteo — plegado por defecto', () => {
     const { unmount } = montarTarifario(ir);
     fireEvent.click(await screen.findByRole('button', { name: /^Tarifario del ruteo/ }));
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Ir a Catálogos base' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ir a Catálogos operativos' }));
     expect(ir).toHaveBeenCalledTimes(1);
     unmount();
 
     montarTarifario();
     fireEvent.click(await screen.findByRole('button', { name: /^Tarifario del ruteo/ }));
     await screen.findByTestId('tarifa-grupo-LASER_FIBRA');
-    expect(screen.queryByRole('button', { name: 'Ir a Catálogos base' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ir a Catálogos operativos' })).toBeNull();
   });
 });
 
@@ -211,6 +211,34 @@ describe('SeccionTarifasRecursos — alta guiada de un equipo', () => {
     expect(screen.queryByTestId('alta-guiada-equipo-tarifa')).toBeNull();
     fireEvent.click(screen.getByTestId('alta-guiada-equipo-propia'));
     expect(screen.getByTestId('alta-guiada-equipo-tarifa')).toBeDefined();
+  });
+
+  it('permite configurar la tarifa del grupo sin salir del alta ni perder el borrador', async () => {
+    await abrirFormulario();
+
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-codigo'), {
+      target: { value: 'EXTRA-01' },
+    });
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-grupo'), {
+      target: { value: 'g2' },
+    });
+    fireEvent.change(screen.getByTestId('alta-guiada-equipo-tarifa-grupo'), {
+      target: { value: '900' },
+    });
+    fireEvent.click(screen.getByTestId('alta-guiada-equipo-configurar-tarifa-grupo'));
+
+    await waitFor(() =>
+      expect(guardarGrupoEquipoAccion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'g2',
+          codigo: 'EXTRA',
+          tarifaHora: 900,
+          tarifaMoneda: 'MXN',
+        }),
+      ),
+    );
+    expect((screen.getByTestId('alta-guiada-equipo-codigo') as HTMLInputElement).value).toBe('EXTRA-01');
+    expect((screen.getByTestId('alta-guiada-equipo-grupo') as HTMLSelectElement).value).toBe('g2');
   });
 
   it('no envía el equipo si faltan datos y marca los campos en rojo', async () => {

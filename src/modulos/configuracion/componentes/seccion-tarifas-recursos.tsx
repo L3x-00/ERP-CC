@@ -9,6 +9,7 @@ import { Input, Select } from '@/compartido/componentes/ui/input';
 import {
   alternarEquipoActivoAccion,
   crearEquipoAccion,
+  guardarGrupoEquipoAccion,
   guardarTarifaRecursoAccion,
   listarTarifasRecursosAccion,
   type TarifaRecurso,
@@ -19,6 +20,7 @@ import type { GrupoEquipoCatalogo, MonedaTarifa } from '@/modulos/catalogos/tipo
 import { parsearMonto, textoMonto } from '@/compartido/utilidades/monto';
 
 import { resumenTarifaGrupo, textoTarifa } from './seccion-tarifas-grupos';
+import { CLAVE_CATALOGOS_BASE } from './consulta-catalogos-base';
 
 const CLAVE_TARIFAS_RECURSOS = ['configuracion', 'tarifas-recursos'] as const;
 
@@ -103,6 +105,9 @@ export function SeccionTarifasRecursos({
   const [guardando, setGuardando] = useState(false);
   const [nuevo, setNuevo] = useState<BorradorEquipo | null>(null);
   const [erroresEquipo, setErroresEquipo] = useState<ErroresEquipo>({});
+  const [tarifaGrupo, setTarifaGrupo] = useState('');
+  const [guardandoTarifaGrupo, setGuardandoTarifaGrupo] = useState(false);
+  const [errorTarifaGrupo, setErrorTarifaGrupo] = useState<string | null>(null);
   const consulta = useQuery({
     queryKey: CLAVE_TARIFAS_RECURSOS,
     queryFn: async () => {
@@ -205,6 +210,40 @@ export function SeccionTarifasRecursos({
     }
     await clienteQuery.invalidateQueries({ queryKey: CLAVE_TARIFAS_RECURSOS });
     onMensaje(`Equipo ${recurso.nombre} ${recurso.activo ? 'desactivado' : 'activado'}`);
+  }
+
+  /**
+   * UI-03: si el grupo elegido no tiene tarifa, se configura aquí mismo sin
+   * abandonar el alta del equipo ni perder el borrador. Reutiliza la acción y
+   * validaciones existentes del grupo.
+   */
+  async function guardarTarifaGrupo(): Promise<void> {
+    if (!grupoNuevo) return;
+    const monto = parsearMonto(tarifaGrupo);
+    if (monto === null || monto < 0) {
+      setErrorTarifaGrupo('Escribe un monto válido mayor o igual a 0.');
+      return;
+    }
+    setGuardandoTarifaGrupo(true);
+    setErrorTarifaGrupo(null);
+    const respuesta = await guardarGrupoEquipoAccion({
+      id: grupoNuevo.id,
+      codigo: grupoNuevo.codigo,
+      nombre: grupoNuevo.nombre,
+      activo: grupoNuevo.activo,
+      orden: grupoNuevo.orden,
+      tarifaHora: monto,
+      tarifaMoneda: 'MXN',
+    });
+    setGuardandoTarifaGrupo(false);
+    if (!respuesta.exito) {
+      setErrorTarifaGrupo(respuesta.error);
+      return;
+    }
+    setTarifaGrupo('');
+    await clienteQuery.invalidateQueries({ queryKey: CLAVE_CATALOGOS_BASE });
+    await clienteQuery.invalidateQueries({ queryKey: CLAVE_TARIFAS_RECURSOS });
+    onMensaje(`Tarifa del grupo ${grupoNuevo.nombre} actualizada; el equipo la heredará.`);
   }
 
   const grupoNuevo = nuevo ? grupos.find((grupo) => grupo.id === nuevo.grupoEquipoId) : undefined;
@@ -363,16 +402,59 @@ export function SeccionTarifasRecursos({
                 </p>
               ) : respaldoValido !== null ? (
                 <p className="rounded-md border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-xs text-advertencia-texto">
-                  Este grupo no tiene tarifa estándar. El equipo usará la tarifa de respaldo:{' '}
+                  Este grupo no tiene tarifa estándar. El equipo usaría la tarifa de respaldo:{' '}
                   <span className="font-medium">${respaldoValido.toFixed(2)}/h</span>. Configura la
-                  tarifa del grupo en la sección de arriba.
+                  tarifa del grupo aquí mismo antes de guardar.
                 </p>
               ) : (
                 <p className="rounded-md border border-peligro/40 bg-peligro-suave px-3 py-2 text-xs text-peligro-texto">
                   Este grupo no tiene tarifa estándar y no hay tarifa de respaldo: su costeo se
-                  bloqueará. Configura la tarifa del grupo antes de usarlo.
+                  bloquearía. Configura la tarifa del grupo aquí mismo antes de guardar.
                 </p>
               )}
+              {grupoNuevo && resumenGrupoNuevo === null ? (
+                <div className="mt-2 grid gap-2 rounded-md border border-borde bg-superficie px-3 py-2">
+                  <p className="text-xs font-medium text-texto-primario">
+                    Configurar la tarifa del grupo sin salir de este alta
+                  </p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="grid gap-1 text-xs font-medium text-texto-secundario">
+                      Tarifa estándar del grupo (MXN/h)
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        placeholder="850.50"
+                        value={tarifaGrupo}
+                        onChange={(evento) => {
+                          setTarifaGrupo(evento.target.value);
+                          setErrorTarifaGrupo(null);
+                        }}
+                        className="w-36"
+                        data-testid="alta-guiada-equipo-tarifa-grupo"
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      variante="contorno"
+                      tamano="sm"
+                      disabled={guardandoTarifaGrupo}
+                      onClick={() => void guardarTarifaGrupo()}
+                      data-testid="alta-guiada-equipo-configurar-tarifa-grupo"
+                    >
+                      {guardandoTarifaGrupo ? 'Guardando…' : 'Configurar tarifa ahora'}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-texto-secundario">
+                    Se guarda en el grupo y la tarifa heredada se actualiza sin perder los datos del equipo.
+                  </p>
+                  {errorTarifaGrupo ? (
+                    <p role="alert" className="text-xs text-peligro-texto" data-testid="alta-guiada-equipo-tarifa-grupo-error">
+                      {errorTarifaGrupo}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-2 sm:col-span-2 lg:col-span-4">
