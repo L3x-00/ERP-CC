@@ -227,7 +227,19 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     expect(within(region).getByText(/1 turno ya está sobrecargado/)).toBeTruthy();
     expect(within(region).getByText(/supera lo disponible/)).toBeTruthy();
     expect(within(region).getByText(/equipos activos sin turnos configurados/)).toBeTruthy();
-    expect(within(region).getByText('Sin capacidad configurada')).toBeTruthy();
+    expect(within(region).getByText('Falta configurar la capacidad')).toBeTruthy();
+    const guia = within(region).getByRole('button', { name: '¿Cómo lo configuro?' });
+    fireEvent.click(guia);
+    const dialogo = await screen.findByTestId('guia-capacidad');
+    expect(within(dialogo).getByText(/turnos registrados de cada equipo/)).toBeTruthy();
+    expect(
+      within(dialogo).getByRole('link', { name: /Abrir Tarifas y costos/ }).getAttribute('href'),
+    ).toBe('/configuracion?pestana=tarifas');
+    expect(
+      within(dialogo).getByRole('link', { name: /Abrir Capacidad instalada/ }).getAttribute('href'),
+    ).toBe('/planeacion#capacidad-instalada');
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Entendido' }));
+    await waitFor(() => expect(screen.queryByTestId('guia-capacidad')).toBeNull());
     expect(within(region).getByText(/«Soldadura» no tiene grupo de equipo/)).toBeTruthy();
     expect(within(region).getByText(/Sin ruteo .*P-03/)).toBeTruthy();
     expect(within(region).getByText(/no reserva capacidad ni confirma ninguna fecha/)).toBeTruthy();

@@ -17,6 +17,7 @@ import {
   evaluarAsignacionTurno,
   type HuecoDisponible,
 } from '@/modulos/planeacion/servicios/indice';
+import { BotonGuiaCapacidad } from '@/modulos/planeacion/componentes/dialogo-capacidad-sin-configurar';
 import type {
   CargaCapacidadDiaria,
   DesglosePartidaPlaneacion,
@@ -163,16 +164,19 @@ export function DialogoReprogramacionPlaneacion({
             {programacion.ordenPrioridad}
           </p>
 
-          <p
-            className={problemaCapacidad ? 'text-peligro-texto' : 'text-texto-secundario'}
-            data-testid="capacidad-reprogramacion"
-          >
-            {!carga
-              ? 'Sin capacidad configurada para ese recurso, fecha y turno'
-              : esMismoDia
-                ? 'El día no cambia: capacidad intacta'
-                : `Capacidad tras mover: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
-          </p>
+          <div className="flex flex-col items-start gap-1">
+            <p
+              className={problemaCapacidad ? 'text-peligro-texto' : 'text-texto-secundario'}
+              data-testid="capacidad-reprogramacion"
+            >
+              {!carga
+                ? 'Este equipo no tiene turnos configurados para ese día, así que todavía no se puede comparar la capacidad.'
+                : esMismoDia
+                  ? 'El día no cambia: capacidad intacta'
+                  : `Capacidad tras mover: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
+            </p>
+            {!carga ? <BotonGuiaCapacidad onNavegar={onCerrar} /> : null}
+          </div>
 
           {hueco ? (
             <p className="rounded-base border border-acento bg-superficie-2 p-2 text-xs">

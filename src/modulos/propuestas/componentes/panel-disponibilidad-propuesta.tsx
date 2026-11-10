@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
+import { BotonGuiaCapacidad } from '@/modulos/planeacion/componentes/dialogo-capacidad-sin-configurar';
 import { consultarDisponibilidadPropuestaAccion } from '@/modulos/propuestas/acciones/consultar-disponibilidad-propuesta';
 import type {
   DisponibilidadGrupo,
@@ -250,7 +251,10 @@ function FilaGrupo({
         grupo.horasDisponibles === null ? (
           <div className="self-center text-advertencia-texto">
             <dt className="sr-only">Capacidad</dt>
-            <dd>Sin capacidad configurada</dd>
+            <dd className="flex flex-col items-start gap-1">
+              <span>Falta configurar la capacidad</span>
+              <BotonGuiaCapacidad />
+            </dd>
           </div>
         ) : (
           <>
