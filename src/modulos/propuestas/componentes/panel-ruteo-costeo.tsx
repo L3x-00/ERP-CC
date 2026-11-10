@@ -567,7 +567,7 @@ export function PanelRuteoCosteo({
                         href="/configuracion?pestana=tarifas"
                         className="font-semibold text-acento underline-offset-2 hover:underline"
                       >
-                        Abrir Tarifas / TC
+                        Abrir Tarifas y costos
                       </Link>
                     </p>
                   )}
@@ -806,14 +806,14 @@ export function PanelRuteoCosteo({
                           <span>Sin tarifa configurada</span>
                           <span className="text-texto-secundario">
                             {fila.grupoEquipoId
-                              ? `El grupo${grupoFila ? ` «${grupoFila.nombre}»` : ''} no tiene tarifa propia ni estación vinculada. Configúrala en Tarifas / TC → Tarifario del ruteo.`
-                              : 'Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas / TC.'}
+                              ? `El grupo${grupoFila ? ` «${grupoFila.nombre}»` : ''} no tiene tarifa propia ni estación vinculada. Configúrala en Tarifas y costos → Tarifario del ruteo.`
+                              : 'Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas y costos.'}
                           </span>
                           <Link
                             href="/configuracion?pestana=tarifas"
                             className="w-fit font-semibold text-acento underline-offset-2 hover:underline"
                           >
-                            Abrir Tarifas / TC
+                            Abrir Tarifas y costos
                           </Link>
                         </span>
                       ) : (
@@ -914,7 +914,7 @@ export function PanelRuteoCosteo({
               ? 'hay 1 operación costeada'
               : `hay ${operacionesConRespaldo.length} operaciones costeadas`}{' '}
             con tarifa de respaldo porque su grupo de equipo no tiene tarifa estándar. Revisa
-            Configuración → Tarifas / TC antes de enviar la propuesta.
+            Configuración → Tarifas y costos antes de enviar la propuesta.
           </p>
         )}
         <SeccionDesplegable
@@ -1133,7 +1133,7 @@ function DesgloseFabricacion({
                             (fila.tarifaFuente === 'RECURSO'
                               ? 'Tarifa propia de la máquina'
                               : fila.tarifaFuente === 'ESTACION'
-                                ? 'Tarifas / TC'
+                                ? 'Tarifas y costos'
                                 : 'Tarifa del grupo'))
                         )}
                       </td>

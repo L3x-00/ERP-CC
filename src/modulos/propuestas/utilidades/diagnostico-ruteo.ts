@@ -16,12 +16,12 @@ export type EnlaceConfiguracion = {
 
 export const ENLACE_TARIFAS_RUTEO: EnlaceConfiguracion = {
   href: '/configuracion?pestana=tarifas',
-  etiqueta: 'Abrir Tarifas / TC',
+  etiqueta: 'Abrir Tarifas y costos',
 };
 
 export const ENLACE_CATALOGOS_RUTEO: EnlaceConfiguracion = {
   href: '/configuracion?pestana=catalogos-base',
-  etiqueta: 'Abrir Catálogos base',
+  etiqueta: 'Abrir Catálogos operativos',
 };
 
 /** El catálogo de materiales y espesores vive en el módulo Materiales y costos. */
@@ -74,7 +74,7 @@ export function diagnosticarConfiguracionRuteo({
       clave: 'sin-procesos',
       titulo: 'No hay procesos activos',
       detalle:
-        'El ruteo se arma con procesos. Crea o activa al menos uno en Configuración → Catálogos base → Procesos.',
+        'El ruteo se arma con procesos. Crea o activa al menos uno en Configuración → Catálogos → Operativos → Procesos.',
       enlace: ENLACE_CATALOGOS_RUTEO,
     });
   }

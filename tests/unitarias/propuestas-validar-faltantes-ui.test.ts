@@ -246,7 +246,7 @@ describe('PanelAccionesPropuesta — fechas y configuración (aclaración client
     ).toBe(false);
   });
 
-  it('cuando falta costear ofrece el enlace directo a Tarifas / TC', () => {
+  it('cuando falta costear ofrece el enlace directo a Tarifas y costos', () => {
     montarPanel({
       onIrA: vi.fn(),
       faltantes: faltantes({ contenido: ['ítem IT01: costear el ruteo'] }),

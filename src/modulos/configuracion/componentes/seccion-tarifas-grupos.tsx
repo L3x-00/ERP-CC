@@ -97,7 +97,7 @@ export function SeccionTarifasGrupos({
         <h3 className="text-base font-semibold text-texto-primario">Tarifas por grupo de equipo</h3>
         <p className="text-sm text-texto-secundario">
           Es la tarifa que usa el costeo del ruteo de las propuestas (preparación y operación). Es la
-          fuente maestra: la estación de Tarifas / TC solo sirve para copiar su valor. Una máquina puede
+          fuente maestra: la estación de Tarifas y costos solo sirve para copiar su valor. Una máquina puede
           sustituirla con una tarifa propia en «Equipos y sus tarifas».
         </p>
         {sinTarifa > 0 ? (
@@ -133,7 +133,7 @@ export function SeccionTarifasGrupos({
                 )}
                 {grupo.estacionTarifa !== null ? (
                   <span className="text-xs text-texto-terciario">
-                    Referencia: Tarifas / TC · {ETIQUETA_ESTACION_TARIFA[grupo.estacionTarifa]}
+                    Referencia: Tarifas y costos · {ETIQUETA_ESTACION_TARIFA[grupo.estacionTarifa]}
                   </span>
                 ) : null}
               </span>
@@ -166,7 +166,7 @@ export function SeccionTarifasGrupos({
                             : {}),
                         });
                       }}
-                      aria-label={`Estación de Tarifas / TC de ${grupo.nombre}`}
+                      aria-label={`Estación de Tarifas y costos de ${grupo.nombre}`}
                     >
                       <option value="">Sin referencia</option>
                       {ESTACIONES_TARIFA.map((estacion) => (

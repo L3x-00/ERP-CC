@@ -157,7 +157,7 @@ describe('SeccionTarifarioRuteo — plegado por defecto', () => {
     expect(screen.getByTestId('seccion-tarifas-recursos')).toBeDefined();
   });
 
-  it('ofrece el atajo a Catálogos base solo cuando se entrega la acción', async () => {
+  it('ofrece el atajo a Catálogos operativos solo cuando se entrega la acción', async () => {
     const ir = vi.fn();
     const { unmount } = montarTarifario(ir);
     fireEvent.click(await screen.findByRole('button', { name: /^Tarifario del ruteo/ }));

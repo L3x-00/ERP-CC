@@ -757,7 +757,7 @@ describe('ruteo: la tarifa dice de dónde sale (tarifario único)', () => {
 
     const aviso = screen.getByTestId('costo-estimado-IT01-2').textContent ?? '';
     expect(aviso).toContain('Sin tarifa configurada');
-    expect(aviso).toContain('Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas / TC.');
+    expect(aviso).toContain('Elige el grupo de equipo; su tarifa viene del tarifario de Tarifas y costos.');
   });
 });
 
@@ -832,7 +832,7 @@ describe('ruteo: horas válidas y salidas claras (aclaración cliente 2026-11-09
     expect(enlace.getAttribute('href')).toBe('/inventario');
   });
 
-  it('sin tarifa enlaza directo a Tarifas / TC', () => {
+  it('sin tarifa enlaza directo a Tarifas y costos', () => {
     montar();
 
     fireEvent.change(screen.getByLabelText('Proceso IT01 fila 2'), {
