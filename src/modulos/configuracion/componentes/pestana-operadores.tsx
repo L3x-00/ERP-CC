@@ -275,7 +275,7 @@ export function PestanaOperadores({
               ) : null}
 
               <DialogFooter>
-                <Button type="button" variante="contorno" onClick={cerrarDialogo} disabled={ocupado}>
+                <Button type="button" variante="contorno" onClick={cerrarDialogo} disabled={ocupado} data-testid="cancelar-operador-config">
                   Cancelar
                 </Button>
                 <Button type="submit" tamano="lg" disabled={ocupado} data-testid="guardar-operador-config">

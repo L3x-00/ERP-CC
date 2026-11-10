@@ -74,6 +74,7 @@ test('CFG-05: alta, PIN único, rotación, retiro, reactivación e historia', as
     await page.getByLabel('PIN nuevo', { exact: true }).fill(pinOriginal);
     await page.getByTestId('guardar-operador-config').click();
     await expect(page.getByTestId('operador-config-error')).toContainText('PIN ya pertenece');
+    await page.getByTestId('cancelar-operador-config').click();
     const { count: duplicados } = await admin.from('usuarios').select('*', { count: 'exact', head: true })
       .eq('nombre_completo', `Duplicado A17 ${sufijo}`);
     expect(duplicados).toBe(0);
