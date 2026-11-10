@@ -30,6 +30,7 @@ import {
   textoODefecto,
 } from '@/modulos/planeacion/utilidades/desglose';
 import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
+import { pasoCapacidadInstalada } from '@/modulos/planeacion/utilidades/diagnostico-capacidad';
 
 export interface PropsDialogoReprogramacionPlaneacion {
   programacion: ProgramacionArea;
@@ -67,6 +68,16 @@ export function DialogoReprogramacionPlaneacion({
     horasEnSlot: esMismoDia ? programacion.horasEstimadas : 0,
   });
   const problemaCapacidad = !esMismoDia && (!carga || !evaluacion.cabe);
+  // Cliente 2026-11-10: la guía dice qué equipo y turno no tienen capacidad.
+  const pasosCapacidad = !carga
+    ? [
+        pasoCapacidadInstalada(
+          'reprogramacion-sin-turno',
+          `El equipo ${desglose?.maquinaAsignada ?? 'seleccionado'} no tiene capacidad para el ${fechaPropuesta}`,
+          `No hay turno ${ETIQUETA_TURNO[programacion.turno]} con horas registradas. Abre Capacidad instalada y guarda equipos y jornada: se crea el turno matutino base de 8 h. Si el equipo trabaja en otro turno, un administrador debe registrarlo con sus horas.`,
+        ),
+      ]
+    : [];
 
   async function confirmar(): Promise<void> {
     if (enviando || esMismoDia) return;
@@ -175,7 +186,7 @@ export function DialogoReprogramacionPlaneacion({
                   ? 'El día no cambia: capacidad intacta'
                   : `Capacidad tras mover: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
             </p>
-            {!carga ? <BotonGuiaCapacidad onNavegar={onCerrar} /> : null}
+            {!carga ? <BotonGuiaCapacidad onNavegar={onCerrar} pasos={pasosCapacidad} /> : null}
           </div>
 
           {hueco ? (

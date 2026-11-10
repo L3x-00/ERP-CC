@@ -280,6 +280,7 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
           horasCarga: 3,
           horasDisponibles: 5,
           turnosSobrecargados: 0,
+          recursosActivos: 1,
           recursosSinTurno: 0,
           dias: [
             {

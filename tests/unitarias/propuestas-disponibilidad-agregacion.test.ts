@@ -247,6 +247,7 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
       horasCarga: 13,
       horasDisponibles: 9,
       turnosSobrecargados: 1,
+      recursosActivos: 2,
       recursosSinTurno: 0,
       dias: [
         {

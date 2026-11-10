@@ -175,7 +175,7 @@ export function idsGruposRequeridos(datos: DatosRuteo): string[] {
 function capacidadDelGrupo(
   grupoId: string,
   entrada: EntradaAgregacionDisponibilidad,
-): Pick<DisponibilidadGrupo, 'estado' | 'horasCapacidad' | 'horasCarga' | 'horasDisponibles' | 'turnosSobrecargados' | 'recursosSinTurno' | 'dias'> {
+): Pick<DisponibilidadGrupo, 'estado' | 'horasCapacidad' | 'horasCarga' | 'horasDisponibles' | 'turnosSobrecargados' | 'recursosActivos' | 'recursosSinTurno' | 'dias'> {
   const recursos = new Set(
     entrada.recursos.filter((recurso) => recurso.grupoEquipoId === grupoId).map((recurso) => recurso.id),
   );
@@ -197,6 +197,7 @@ function capacidadDelGrupo(
       horasCarga: null,
       horasDisponibles: null,
       turnosSobrecargados: 0,
+      recursosActivos: recursos.size,
       recursosSinTurno,
       dias: [],
     };
@@ -232,6 +233,7 @@ function capacidadDelGrupo(
     horasCarga: redondear(carga),
     horasDisponibles: redondear(disponible),
     turnosSobrecargados: sobrecargados,
+    recursosActivos: recursos.size,
     recursosSinTurno,
     dias: [...porFecha.entries()]
       .sort(([primera], [segunda]) => primera.localeCompare(segunda))

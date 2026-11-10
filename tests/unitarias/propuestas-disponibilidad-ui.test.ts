@@ -105,6 +105,7 @@ function resumen(parcial: Partial<ResumenDisponibilidadPropuesta> = {}): Resumen
         horasCarga: 13,
         horasDisponibles: 5,
         turnosSobrecargados: 1,
+        recursosActivos: 2,
         recursosSinTurno: 1,
         dias: [
           {
@@ -132,6 +133,7 @@ function resumen(parcial: Partial<ResumenDisponibilidadPropuesta> = {}): Resumen
         horasCarga: null,
         horasDisponibles: null,
         turnosSobrecargados: 0,
+        recursosActivos: 1,
         recursosSinTurno: 1,
       },
     ],
@@ -228,13 +230,21 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     expect(within(region).getByText(/supera lo disponible/)).toBeTruthy();
     expect(within(region).getByText(/equipos activos sin turnos configurados/)).toBeTruthy();
     expect(within(region).getByText('Falta configurar la capacidad')).toBeTruthy();
+    expect(within(region).getByTestId('motivo-capacidad-PINT').textContent).toContain(
+      'El equipo del grupo «Pintura» no tiene turnos',
+    );
     const guia = within(region).getByRole('button', { name: '¿Cómo lo configuro?' });
     fireEvent.click(guia);
     const dialogo = await screen.findByTestId('guia-capacidad');
-    // Cliente 2026-11-10: guardar capacidad ya registra el turno base; la guía
-    // sigue pidiendo al administrador los turnos adicionales.
-    expect(within(dialogo).getByText(/se registra el turno matutino base de 8 h/)).toBeTruthy();
-    expect(within(dialogo).getByText(/registre los turnos adicionales/)).toBeTruthy();
+    // Cliente 2026-11-10: la guía detecta lo que falta y no repite la
+    // configuración que ya está resuelta (tarifas, grupo del proceso, etc.).
+    expect(within(dialogo).getByText(/«Soldadura» no tiene grupo de equipo/)).toBeTruthy();
+    expect(within(dialogo).getByText(/El ítem P-03 no tiene ruteo/)).toBeTruthy();
+    expect(
+      within(dialogo).getByText(/El equipo del grupo «Pintura» no tiene turnos/),
+    ).toBeTruthy();
+    expect(within(dialogo).queryByText(/Revisa equipos y jornada/)).toBeNull();
+    expect(within(dialogo).queryByText(/Revisa el grupo del proceso/)).toBeNull();
     expect(
       within(dialogo).getByRole('link', { name: /Abrir Tarifas y costos/ }).getAttribute('href'),
     ).toBe('/configuracion?pestana=tarifas');

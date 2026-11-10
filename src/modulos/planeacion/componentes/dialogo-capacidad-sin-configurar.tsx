@@ -12,42 +12,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
-
-type PasoGuia = {
-  titulo: string;
-  detalle: string;
-  href?: string;
-  etiqueta?: string;
-};
+import {
+  PASOS_GENERALES_CAPACIDAD,
+  type PasoGuiaCapacidad,
+} from '@/modulos/planeacion/utilidades/diagnostico-capacidad';
 
 /**
  * Aclaración cliente 2026-11-10: cuando la consulta de capacidad responde
- * «sin capacidad configurada», el aviso no basta. La guía explica en lenguaje
- * sencillo qué falta y lleva a las secciones donde se revisa. Guardar equipos y
- * jornada en Planeación registra el turno base cuando el equipo no tiene turnos.
+ * «sin capacidad configurada», el aviso no basta. La guía muestra **solo los
+ * pendientes detectados** (proceso sin grupo, grupo sin equipos activos, equipos
+ * sin turnos, turno sin capacidad) con el nombre exacto; si la pantalla no puede
+ * determinar la causa, cae en los pasos generales.
  */
-const PASOS: readonly PasoGuia[] = [
-  {
-    titulo: '1. Revisa el grupo del proceso',
-    detalle:
-      'En Configuración → Tarifas y costos, confirma que el proceso tenga asignado un grupo de equipo y que sus equipos estén activos.',
-    href: '/configuracion?pestana=tarifas',
-    etiqueta: 'Abrir Tarifas y costos',
-  },
-  {
-    titulo: '2. Revisa equipos y jornada',
-    detalle:
-      'En Planeación → Capacidad instalada, confirma cuántos equipos tiene cada recurso y, si aplica, su jornada por equipo. Al guardar, si el equipo no tenía turnos se registra el turno matutino base de 8 h; por defecto se usan 8 h.',
-    href: '/planeacion#capacidad-instalada',
-    etiqueta: 'Abrir Capacidad instalada',
-  },
-  {
-    titulo: '3. Revisa los turnos del equipo',
-    detalle:
-      'Si el equipo trabaja más de un turno (matutino, vespertino o nocturno), pide a un administrador que registre los turnos adicionales con sus horas. Un turno sin registrar no aparece en el calendario.',
-  },
-];
-
 export interface PropsDialogoCapacidadSinConfigurar {
   abierto: boolean;
   onAbiertoChange: (abierto: boolean) => void;
@@ -56,13 +32,19 @@ export interface PropsDialogoCapacidadSinConfigurar {
    * reprogramación) al navegar a otra sección de la misma página.
    */
   onNavegar?: () => void;
+  /** Pendientes detectados por la pantalla; vacío u omitido usa la guía general. */
+  pasos?: readonly PasoGuiaCapacidad[];
 }
 
 export function DialogoCapacidadSinConfigurar({
   abierto,
   onAbiertoChange,
   onNavegar,
+  pasos,
 }: PropsDialogoCapacidadSinConfigurar) {
+  const detectados = pasos && pasos.length > 0 ? pasos : PASOS_GENERALES_CAPACIDAD;
+  const diagnostico = pasos !== undefined && pasos.length > 0;
+
   function navegar(): void {
     onAbiertoChange(false);
     onNavegar?.();
@@ -74,16 +56,20 @@ export function DialogoCapacidadSinConfigurar({
         <DialogHeader>
           <DialogTitle>Falta configurar la capacidad</DialogTitle>
           <DialogDescription>
-            Para comparar la carga con la capacidad, el sistema necesita saber cuántas horas puede
-            trabajar cada equipo en cada turno. Sin ese dato no puede calcular la disponibilidad y
-            muestra este aviso. No es un error de la propuesta ni de la fecha: es configuración
-            pendiente.
+            {diagnostico
+              ? 'Revisamos esta revisión y encontramos estos pendientes concretos. Lo que ya está configurado no aparece aquí; resuelve solo lo que se muestra.'
+              : 'Para comparar la carga con la capacidad, el sistema necesita saber cuántas horas puede trabajar cada equipo en cada turno. Sin ese dato no puede calcular la disponibilidad y muestra este aviso. No es un error de la propuesta ni de la fecha: es configuración pendiente.'}
           </DialogDescription>
         </DialogHeader>
 
         <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm">
-          {PASOS.map((paso) => (
-            <li key={paso.titulo} className="flex flex-col gap-1 pl-1">
+          {detectados.map((paso) => (
+            <li
+              key={paso.clave}
+              className="flex flex-col gap-1 pl-1"
+              data-testid="guia-capacidad-paso"
+              data-pendiente={paso.clave}
+            >
               <span className="font-medium text-texto-primario">{paso.titulo}</span>
               <span className="text-xs text-texto-secundario">{paso.detalle}</span>
               {paso.href && paso.etiqueta ? (
@@ -118,11 +104,13 @@ export function BotonGuiaCapacidad({
   variante = 'contorno',
   tamano = 'sm',
   onNavegar,
+  pasos,
 }: {
   etiqueta?: string;
   variante?: 'contorno' | 'secundario' | 'fantasma';
   tamano?: 'sm' | 'md' | 'lg' | 'piso';
   onNavegar?: () => void;
+  pasos?: readonly PasoGuiaCapacidad[];
 }) {
   const [abierto, setAbierto] = useState(false);
 
@@ -141,6 +129,7 @@ export function BotonGuiaCapacidad({
         abierto={abierto}
         onAbiertoChange={setAbierto}
         onNavegar={onNavegar}
+        pasos={pasos}
       />
     </>
   );

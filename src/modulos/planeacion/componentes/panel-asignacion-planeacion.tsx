@@ -38,6 +38,7 @@ import {
   type CompatibilidadRecursosPlaneacion,
 } from '@/modulos/planeacion/utilidades/compatibilidad';
 import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
+import { diagnosticarCapacidadTurno } from '@/modulos/planeacion/utilidades/diagnostico-capacidad';
 
 /** Partida que el usuario puede asignar sin revelar datos no autorizados. */
 export interface PartidaProgramablePlaneacion {
@@ -378,6 +379,15 @@ export function PanelAsignacionPlaneacion({
   });
   // C9.2/P09: el aviso dice cuántas horas se exceden, con las horas del turno.
   const excesoHoras = Math.max(0, evaluacion.horasProgramadas - evaluacion.horasCapacidad);
+  // Cliente 2026-11-10: la guía nombra el equipo y el turno que realmente falta.
+  const pasosCapacidad = evaluacion.sinCapacidad
+    ? diagnosticarCapacidadTurno({
+        recurso: recursoSeleccionado,
+        turno,
+        fecha: fechaProgramada,
+        cargas,
+      })
+    : [];
   const textoAvisoCapacidad = evaluacion.sinCapacidad
     ? 'Falta configurar la capacidad de este equipo. La guía explica qué revisar y dónde hacerlo.'
     : `Excede la capacidad por ${formatearHoras(excesoHoras)} h (${formatearHoras(evaluacion.horasProgramadas)}/${formatearHoras(evaluacion.horasCapacidad)} h). Puedes buscar el siguiente día hábil con hueco.`;
@@ -962,7 +972,7 @@ export function PanelAsignacionPlaneacion({
                   ? 'Este equipo no tiene turnos configurados para ese día, así que todavía no se puede comparar la carga.'
                   : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
               </p>
-              {evaluacion.sinCapacidad ? <BotonGuiaCapacidad /> : null}
+              {evaluacion.sinCapacidad ? <BotonGuiaCapacidad pasos={pasosCapacidad} /> : null}
             </div>
           )}
           {!verificandoCapacidad && !evaluacion.cabe ? (
