@@ -31,7 +31,8 @@ function requerirVariable(nombre: string): string {
   return valor;
 }
 
-async function prepararContexto(): Promise<ContextoE2E> {
+async function prepararContexto(opciones: { conTurno?: boolean } = {}): Promise<ContextoE2E> {
+  const conTurno = opciones.conTurno ?? true;
   const admin = createClient<Database>(
     requerirVariable('NEXT_PUBLIC_SUPABASE_URL'),
     requerirVariable('SUPABASE_SERVICE_ROLE_KEY'),
@@ -61,12 +62,14 @@ async function prepararContexto(): Promise<ContextoE2E> {
     activo: true,
   }).select('id').single();
   if (errorRecurso || !recurso) throw new Error(`No se creó recurso E2E: ${errorRecurso?.message ?? 'sin recurso'}`);
-  const { error: errorCapacidad } = await admin.from('capacidades_recurso_turno').insert({
-    recurso_id: recurso.id,
-    turno: 'matutino',
-    horas_capacidad: 8,
-  });
-  if (errorCapacidad) throw new Error(`No se creó capacidad E2E: ${errorCapacidad.message}`);
+  if (conTurno) {
+    const { error: errorCapacidad } = await admin.from('capacidades_recurso_turno').insert({
+      recurso_id: recurso.id,
+      turno: 'matutino',
+      horas_capacidad: 8,
+    });
+    if (errorCapacidad) throw new Error(`No se creó capacidad E2E: ${errorCapacidad.message}`);
+  }
 
   return { admin, correo, contrasena, administradorId, recursoId: recurso.id, codigo };
 }
@@ -113,6 +116,7 @@ test.describe.serial('capacidad instalada de Planeación (D-02)', () => {
     await fila.getByLabel(`Equipos (${datos.codigo})`).fill('3');
     await fila.getByRole('button', { name: 'Guardar' }).click();
     await expect(fila.getByRole('status')).toContainText('Capacidad guardada.');
+    await expect(fila.getByRole('button', { name: 'Guardado' })).toBeVisible();
     await expect(fila.getByTestId(`capacidad-total-${datos.codigo}`)).toContainText('= 24 h por jornada');
     await expect.poll(async () => {
       const { data } = await datos.admin
@@ -123,10 +127,13 @@ test.describe.serial('capacidad instalada de Planeación (D-02)', () => {
       return `${data?.cantidad_equipos}:${data?.capacidad_jornada_override_horas}`;
     }).toBe('3:null');
 
-    // Override de jornada: 3 equipos × 6 h = 18 h por jornada.
+    // Override de jornada: 3 equipos × 6 h = 18 h por jornada. Editar el campo
+    // devuelve el botón a «Guardar» antes de volver a guardar.
     await fila.getByLabel(`Jornada por equipo (h, opcional)`).fill('6');
+    await expect(fila.getByRole('button', { name: 'Guardar' })).toBeVisible();
     await fila.getByRole('button', { name: 'Guardar' }).click();
     await expect(fila.getByRole('status')).toContainText('Capacidad guardada.');
+    await expect(fila.getByRole('button', { name: 'Guardado' })).toBeVisible();
     await expect(fila.getByTestId(`capacidad-total-${datos.codigo}`)).toContainText('= 18 h por jornada');
     await expect.poll(async () => {
       const { data } = await datos.admin
@@ -143,6 +150,61 @@ test.describe.serial('capacidad instalada de Planeación (D-02)', () => {
       .eq('modulo', 'planeacion')
       .eq('usuario_id', datos.administradorId);
     expect((logs ?? []).some((log) => log.accion === 'actualizar_capacidad_recurso')).toBe(true);
+  });
+});
+
+test.describe.serial('capacidad instalada reflejada en el calendario (D-02)', () => {
+  test.skip(
+    process.env.E2E_HABILITAR_PRUEBAS_REMOTAS !== 'si',
+    'Requiere E2E_HABILITAR_PRUEBAS_REMOTAS=si para crear datos temporales en Supabase remoto.',
+  );
+
+  let contexto: ContextoE2E | null = null;
+
+  test.beforeAll(async () => { contexto = await prepararContexto({ conTurno: false }); });
+  test.afterAll(async () => { if (contexto) await limpiarContexto(contexto); });
+
+  test('guardar equipos y jornada de un recurso sin turnos ya muestra horas en el calendario', async ({
+    page,
+  }) => {
+    if (!contexto) throw new Error('No se preparó el contexto E2E');
+    const datos = contexto;
+
+    await page.goto('/iniciar-sesion');
+    await page.getByLabel('Correo electrónico').fill(datos.correo);
+    await page.getByRole('textbox', { name: 'Contraseña' }).fill(datos.contrasena);
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
+
+    await page.goto('/planeacion');
+    await page.getByTestId('toggle-capacidad-instalada').click();
+    const fila = page
+      .getByTestId('panel-capacidad-instalada')
+      .getByTestId(`capacidad-recurso-${datos.codigo}`);
+    await expect(fila).toContainText('Turnos: sin turnos');
+    await expect(fila).toContainText('Equipos × jornada = 8 h por jornada');
+
+    // Al guardar se registra el turno base; sin él la consulta diaria no
+    // enumeraba el recurso y el calendario quedaba «sin turnos».
+    await fila.getByRole('button', { name: 'Guardar' }).click();
+    await expect(fila.getByRole('status')).toContainText('Capacidad guardada.');
+    await expect(fila.getByRole('button', { name: 'Guardado' })).toBeVisible();
+
+    await expect.poll(async () => {
+      const { data } = await datos.admin
+        .from('capacidades_recurso_turno')
+        .select('turno, horas_capacidad')
+        .eq('recurso_id', datos.recursoId);
+      return (data ?? []).map((turno) => `${turno.turno}:${turno.horas_capacidad}`).join(',');
+    }).toBe('matutino:8');
+
+    await expect(fila).toContainText('Turnos: 8 h');
+
+    const resumen = page.getByTestId('resumen-carga-semanal');
+    const filaResumen = resumen.locator('tr', { hasText: datos.codigo });
+    await expect(filaResumen).toContainText('0/8 h');
+    await expect(filaResumen).not.toContainText('Sin turnos definidos');
+    await expect(page.getByTestId(`libre-${datos.codigo}`)).toContainText('40 h');
   });
 });
 

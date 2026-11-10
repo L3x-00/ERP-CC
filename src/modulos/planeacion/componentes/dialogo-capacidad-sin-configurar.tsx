@@ -23,9 +23,8 @@ type PasoGuia = {
 /**
  * Aclaración cliente 2026-11-10: cuando la consulta de capacidad responde
  * «sin capacidad configurada», el aviso no basta. La guía explica en lenguaje
- * sencillo qué falta y lleva a las secciones donde se revisa, sin prometer que
- * un solo paso resuelve todo: los turnos por equipo los registra un
- * administrador y todavía no tienen pantalla propia.
+ * sencillo qué falta y lleva a las secciones donde se revisa. Guardar equipos y
+ * jornada en Planeación registra el turno base cuando el equipo no tiene turnos.
  */
 const PASOS: readonly PasoGuia[] = [
   {
@@ -38,14 +37,14 @@ const PASOS: readonly PasoGuia[] = [
   {
     titulo: '2. Revisa equipos y jornada',
     detalle:
-      'En Planeación → Capacidad instalada, confirma cuántos equipos tiene cada recurso y, si aplica, su jornada por equipo.',
+      'En Planeación → Capacidad instalada, confirma cuántos equipos tiene cada recurso y, si aplica, su jornada por equipo. Al guardar, si el equipo no tenía turnos se registra el turno matutino base de 8 h; por defecto se usan 8 h.',
     href: '/planeacion#capacidad-instalada',
     etiqueta: 'Abrir Capacidad instalada',
   },
   {
-    titulo: '3. Pide que registren los turnos',
+    titulo: '3. Revisa los turnos del equipo',
     detalle:
-      'La capacidad se calcula con los turnos registrados de cada equipo (matutino, vespertino o nocturno) y sus horas. Si después de revisar lo anterior el aviso continúa, pide a un administrador que registre esos turnos.',
+      'Si el equipo trabaja más de un turno (matutino, vespertino o nocturno), pide a un administrador que registre los turnos adicionales con sus horas. Un turno sin registrar no aparece en el calendario.',
   },
 ];
 

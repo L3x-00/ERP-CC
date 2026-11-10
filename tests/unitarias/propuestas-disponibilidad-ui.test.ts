@@ -231,7 +231,10 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     const guia = within(region).getByRole('button', { name: '¿Cómo lo configuro?' });
     fireEvent.click(guia);
     const dialogo = await screen.findByTestId('guia-capacidad');
-    expect(within(dialogo).getByText(/turnos registrados de cada equipo/)).toBeTruthy();
+    // Cliente 2026-11-10: guardar capacidad ya registra el turno base; la guía
+    // sigue pidiendo al administrador los turnos adicionales.
+    expect(within(dialogo).getByText(/se registra el turno matutino base de 8 h/)).toBeTruthy();
+    expect(within(dialogo).getByText(/registre los turnos adicionales/)).toBeTruthy();
     expect(
       within(dialogo).getByRole('link', { name: /Abrir Tarifas y costos/ }).getAttribute('href'),
     ).toBe('/configuracion?pestana=tarifas');

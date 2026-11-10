@@ -5,7 +5,7 @@ description: Qué significa «falta configurar la capacidad» y cómo completar 
 
 ## Para qué sirve
 
-Propuestas puede consultar la capacidad de los próximos 14 días antes de aceptar una revisión, y Planeación valida la capacidad cada vez que programas una partida. Ambos cálculos usan la misma base: los **turnos registrados de cada equipo** y sus horas.
+Propuestas puede consultar la capacidad de los próximos 14 días antes de aceptar una revisión, y Planeación valida la capacidad cada vez que programas una partida. Ambos cálculos usan la misma base: los **equipos × jornada** de cada recurso y, cuando existen, los **turnos registrados** y sus horas.
 
 Cuando esa base está incompleta, la pantalla muestra **«Falta configurar la capacidad»** y un botón **¿Cómo lo configuro?** con esta guía.
 
@@ -26,18 +26,18 @@ Un proceso sin grupo no se compara con ninguna capacidad.
 
 En **Planeación → Capacidad instalada** confirma cuántos **equipos** tiene cada recurso y, si aplica, su **jornada por equipo**. Por defecto se usan 8 h.
 
-Este paso ajusta la capacidad instalada, pero no crea por sí solo los turnos: la consulta diaria necesita al menos un turno registrado por equipo.
+Al guardar, si el equipo todavía no tiene turnos registrados, el sistema crea el **turno matutino base de 8 h** para que la consulta diaria y el calendario ya muestren esas horas. La jornada que indiques se respeta por encima de ese turno.
 
-### 3. Pide que registren los turnos
+### 3. Revisa los turnos del equipo
 
-La capacidad se calcula con los turnos **matutino, vespertino o nocturno** de cada equipo y las horas de cada turno. Si después de revisar los pasos anteriores el aviso continúa, pide a un administrador que registre esos turnos.
+La capacidad diaria se calcula por turno con los turnos **matutino, vespertino o nocturno** registrados. Si el equipo trabaja más de un turno, pide a un administrador que registre los turnos adicionales con sus horas. Un turno sin registrar no aparece en el calendario.
 
 ## Comprueba que quedó bien
 
 - [ ] El proceso de la propuesta tiene grupo de equipo.
 - [ ] Los equipos del grupo están activos.
 - [ ] Cada equipo tiene su cantidad de equipos y jornada.
-- [ ] El equipo tiene al menos un turno registrado con sus horas.
+- [ ] El equipo tiene al menos un turno (el base se crea al guardar la capacidad).
 - [ ] Al volver a **Consultar disponibilidad** ya se ven horas de capacidad, carga y disponible.
 
 ## Qué sigue
