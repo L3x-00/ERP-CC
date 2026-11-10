@@ -125,7 +125,7 @@ export function calcularFaltantesValidacion(
     (codigo, indice) =>
       `ítem ${codigo}: operación costeada con tarifa de respaldo${
         detalleRespaldo[indice] ? ` (${detalleRespaldo[indice]})` : ''
-      }; configura la tarifa de su grupo en Tarifas / TC`,
+      }; configura la tarifa de su grupo en Tarifas y costos`,
   );
 
   return {

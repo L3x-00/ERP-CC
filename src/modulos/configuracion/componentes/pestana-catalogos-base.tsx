@@ -120,7 +120,7 @@ export function PestanaCatalogosBase({ onIrATarifas }: { onIrATarifas?: () => vo
       data-testid="pagina-catalogos-base"
     >
       <header>
-        <h2 className="text-lg font-semibold text-texto-primario">Catálogos base</h2>
+        <h2 className="text-lg font-semibold text-texto-primario">Catálogos operativos</h2>
         <p className="text-sm text-texto-secundario">
           Configurables, activos/inactivos y versionados. Los códigos inactivos no se ofrecen en
           registros nuevos, pero permanecen visibles en el historial. Nada se elimina.

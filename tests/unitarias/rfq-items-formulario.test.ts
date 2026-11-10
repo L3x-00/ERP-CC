@@ -154,7 +154,7 @@ describe('Formulario de ítem RFQ — catálogo de procesos vacío', () => {
 
     const aviso = screen.getByTestId('aviso-sin-procesos');
     expect(aviso.textContent).toContain('Aún no hay procesos activos en el catálogo');
-    expect(aviso.textContent).toContain('Configuración → Catálogos base → Procesos');
+    expect(aviso.textContent).toContain('Configuración → Catálogos → Operativos → Procesos');
     expect(screen.getByRole('link', { name: 'Abrir Configuración' }).getAttribute('href'))
       .toBe('/configuracion?pestana=catalogos-base');
     expect(screen.queryByText('Falta al menos una operación solicitada.')).toBeNull();

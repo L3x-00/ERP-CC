@@ -27,10 +27,10 @@ describe('tarifas por grupo de equipo y máquina (C3.2)', () => {
 
   it('el bloqueo de costeo dice qué configurar', () => {
     expect(mensajeTarifaFaltante('tarifa_no_configurada', JSON.stringify({ grupo: 'Láser C32' })))
-      .toContain('«Láser C32» no tiene tarifa por hora ni una estación de Tarifas / TC vinculada');
+      .toContain('«Láser C32» no tiene tarifa por hora ni una estación de Tarifas y costos vinculada');
     expect(mensajeTarifaFaltante('tarifa_sin_grupo', JSON.stringify({ recurso: 'Láser 2' })))
       .toContain('«Láser 2» no tiene grupo de equipo ni tarifa propia');
-    expect(mensajeTarifaFaltante('tarifa_no_configurada', 'no-json')).toContain('Tarifas por grupo de equipo');
+    expect(mensajeTarifaFaltante('tarifa_no_configurada', 'no-json')).toContain('Tarifario del ruteo');
   });
 
   it('muestra "Sin tarifa" en vez de cero cuando no está configurada', () => {

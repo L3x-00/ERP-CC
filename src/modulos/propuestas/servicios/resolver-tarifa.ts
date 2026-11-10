@@ -35,7 +35,7 @@ export function mensajeTarifaFaltante(codigo: string, detalle?: string | null): 
   const datos = leerDetalle(detalle);
   if (codigo.includes('tarifa_no_configurada')) {
     const grupo = typeof datos.grupo === 'string' ? `«${datos.grupo}»` : 'del equipo';
-    return `El grupo de equipo ${grupo} no tiene tarifa por hora ni una estación de Tarifas / TC vinculada. Configúrala en Configuración → Tarifas / TC → Tarifas por grupo de equipo.`;
+    return `El grupo de equipo ${grupo} no tiene tarifa por hora ni una estación de Tarifas y costos vinculada. Configúrala en Configuración → Tarifas y costos → Tarifario del ruteo.`;
   }
   if (codigo.includes('tarifa_sin_grupo')) {
     const recurso = typeof datos.recurso === 'string' ? `«${datos.recurso}»` : '';

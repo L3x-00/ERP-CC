@@ -205,7 +205,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
     }
   });
 
-  test('el tarifario es uno solo en Tarifas / TC: vínculo con una estación, tarifa propia y máquina (C3.2)', async ({ page }) => {
+  test('el tarifario es uno solo en Tarifas y costos: vínculo con una estación, tarifa propia y máquina (C3.2)', async ({ page }) => {
     const acceso = credenciales('ADMIN');
     test.skip(!acceso, 'Faltan E2E_CONFIGURACION_ADMIN_EMAIL/PASSWORD.');
     if (!acceso) return;
@@ -266,7 +266,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
         });
       }
 
-      // Se vincula a una estación de Tarifas / TC: ya no queda sin tarifa.
+      // Se vincula a una estación de Tarifas y costos: ya no queda sin tarifa.
       const tarifaRouter = await admin.rpc('tarifa_estacion_hora', { p_estacion: 'router' });
       expect(tarifaRouter.error).toBeNull();
       const textoRouter = new Intl.NumberFormat('es-MX', {
@@ -275,12 +275,12 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       }).format(Number(tarifaRouter.data));
       await filaGrupo.getByRole('button', { name: 'Editar tarifa' }).click();
       await filaGrupo
-        .getByLabel(`Estación de Tarifas / TC de ${grupo.data.nombre}`)
+        .getByLabel(`Estación de Tarifas y costos de ${grupo.data.nombre}`)
         .selectOption('router');
       await filaGrupo.getByRole('button', { name: 'Guardar' }).click();
       await expect(page.getByTestId('tarifario-confirmacion')).toContainText(`Tarifa de ${grupo.data.nombre} guardada`);
       await expect(filaGrupo).toContainText(`${textoRouter} MXN/h`);
-      await expect(filaGrupo).toContainText('Tarifas / TC · Router CNC');
+      await expect(filaGrupo).toContainText('Tarifas y costos · Router CNC');
       const vinculado = await admin
         .from('grupos_equipo')
         .select('tarifa_hora, estacion_tarifa')

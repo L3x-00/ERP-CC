@@ -482,7 +482,7 @@ export function TablaItemsRfq({
                     <p className="font-medium">Aún no hay procesos activos en el catálogo.</p>
                     <p>
                       Las operaciones que se pueden solicitar se crean en Configuración →
-                      Catálogos base → Procesos.
+                      Catálogos → Operativos → Procesos.
                     </p>
                     {catalogos?.puedeConfigurarProcesos ? (
                       <p>

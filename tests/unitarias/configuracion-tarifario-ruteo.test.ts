@@ -84,7 +84,7 @@ describe('SeccionTarifasGrupos — tarifario único', () => {
     const laser = within(screen.getByTestId('tarifa-grupo-LASER_FIBRA'));
     expect(laser.getByText('650.00 MXN/h')).toBeDefined();
     expect(laser.getByText('Tarifa del grupo')).toBeDefined();
-    expect(laser.getByText('Referencia: Tarifas / TC · Corte láser')).toBeDefined();
+    expect(laser.getByText('Referencia: Tarifas y costos · Corte láser')).toBeDefined();
 
     const press = within(screen.getByTestId('tarifa-grupo-PRESS_BRAKE'));
     expect(press.getByText('820.50 MXN/h')).toBeDefined();
@@ -118,7 +118,7 @@ describe('SeccionTarifasGrupos — tarifario único', () => {
     const { onGuardado } = montar();
 
     fireEvent.click(within(screen.getByTestId('tarifa-grupo-EXTRA')).getByRole('button', { name: 'Editar tarifa' }));
-    const estacion = screen.getByLabelText('Estación de Tarifas / TC de Grupo extra') as HTMLSelectElement;
+    const estacion = screen.getByLabelText('Estación de Tarifas y costos de Grupo extra') as HTMLSelectElement;
     expect(Array.from(estacion.options).map((opcion) => opcion.value)).toEqual([
       '',
       'laser',
