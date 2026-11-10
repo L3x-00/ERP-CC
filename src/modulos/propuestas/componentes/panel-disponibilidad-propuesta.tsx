@@ -11,6 +11,7 @@ import type {
   DisponibilidadGrupo,
   ResumenDisponibilidadPropuesta,
 } from '@/modulos/propuestas/tipos/disponibilidad';
+import { diagnosticarCapacidadDisponibilidad } from '@/modulos/propuestas/utilidades/diagnostico-capacidad';
 
 type Consulta =
   | { estado: 'inicial' }
@@ -173,6 +174,7 @@ function ResumenDisponibilidad({
             <FilaGrupo
               key={grupo.codigo}
               grupo={grupo}
+              resumen={resumen}
               fechaSeleccionada={fechaSeleccionada}
               onUsarFecha={onUsarFecha}
             />
@@ -210,13 +212,24 @@ function ResumenDisponibilidad({
 
 function FilaGrupo({
   grupo,
+  resumen,
   fechaSeleccionada,
   onUsarFecha,
 }: {
   grupo: DisponibilidadGrupo;
+  resumen: ResumenDisponibilidadPropuesta;
   fechaSeleccionada?: string;
   onUsarFecha?: (fecha: string) => void;
 }) {
+  // Cliente 2026-11-10: la guía solo lista lo que falta en este grupo, con los
+  // nombres reales de proceso/grupo. Si todo está configurado, cae en la general.
+  const pasosCapacidad =
+    grupo.estado === 'sin_capacidad_configurada'
+      ? diagnosticarCapacidadDisponibilidad(resumen, grupo.codigo)
+      : undefined;
+  // Motivo corto en la misma fila: el pendiente del grupo, no el global.
+  const motivoCapacidad =
+    pasosCapacidad?.find((paso) => paso.clave.startsWith('grupo-'))?.titulo ?? null;
   const avisos: string[] = [];
   if (grupo.turnosSobrecargados > 0) {
     avisos.push(
@@ -253,7 +266,15 @@ function FilaGrupo({
             <dt className="sr-only">Capacidad</dt>
             <dd className="flex flex-col items-start gap-1">
               <span>Falta configurar la capacidad</span>
-              <BotonGuiaCapacidad />
+              {motivoCapacidad ? (
+                <span
+                  className="text-xs text-texto-secundario"
+                  data-testid={`motivo-capacidad-${grupo.codigo}`}
+                >
+                  {motivoCapacidad}
+                </span>
+              ) : null}
+              <BotonGuiaCapacidad pasos={pasosCapacidad} />
             </dd>
           </div>
         ) : (

@@ -7,37 +7,36 @@ description: Qué significa «falta configurar la capacidad» y cómo completar 
 
 Propuestas puede consultar la capacidad de los próximos 14 días antes de aceptar una revisión, y Planeación valida la capacidad cada vez que programas una partida. Ambos cálculos usan la misma base: los **equipos × jornada** de cada recurso y, cuando existen, los **turnos registrados** y sus horas.
 
-Cuando esa base está incompleta, la pantalla muestra **«Falta configurar la capacidad»** y un botón **¿Cómo lo configuro?** con esta guía.
+Cuando esa base está incompleta, la pantalla muestra **«Falta configurar la capacidad»** y un botón **¿Cómo lo configuro?**. La guía **detecta qué falta exactamente** y muestra solo esos pendientes, con el nombre del proceso, del grupo o del equipo: si un proceso no tiene grupo, si el grupo no tiene equipos activos, si los equipos no tienen turnos o si falta un turno concreto. Lo que ya está configurado (por ejemplo, tarifas y precios) no se repite.
 
 > **No es un error de la propuesta ni de la fecha.** Es configuración pendiente del equipo. La consulta no reserva capacidad ni bloquea la aceptación: solo no puede comparar la carga con la capacidad.
 
 ## Cómo resolverlo
 
-### 1. Revisa el grupo del proceso
+Sigue solo los pasos que muestre la guía. Esta sección explica cada caso posible:
 
-Entra a [Configuración → Tarifas y costos](/es/docs/tarifas-tc) y confirma que:
+### 1. El proceso no tiene grupo de equipo
 
-- El proceso tenga asignado un **grupo de equipo**.
-- Los equipos del grupo estén **activos**.
+La guía nombra el proceso (por ejemplo, «Soldadura»). Entra a [Configuración → Tarifas y costos](/es/docs/tarifas-tc) y asígnale un **grupo de equipo**. Un proceso sin grupo no se compara con ninguna capacidad.
 
-Un proceso sin grupo no se compara con ninguna capacidad.
+### 2. El grupo no tiene equipos activos
 
-### 2. Revisa equipos y jornada
+La guía nombra el grupo. Revisa en Configuración qué **máquinas están activas** y a qué grupo pertenecen: sin equipos activos no hay capacidad que sumar.
 
-En **Planeación → Capacidad instalada** confirma cuántos **equipos** tiene cada recurso y, si aplica, su **jornada por equipo**. Por defecto se usan 8 h.
+### 3. Los equipos no tienen turnos
 
-Al guardar, si el equipo todavía no tiene turnos registrados, el sistema crea el **turno matutino base de 8 h** para que la consulta diaria y el calendario ya muestren esas horas. La jornada que indiques se respeta por encima de ese turno.
+En **Planeación → Capacidad instalada** confirma cuántos **equipos** tiene cada recurso y, si aplica, su **jornada por equipo**. Al guardar, si el equipo todavía no tiene turnos registrados, el sistema crea el **turno matutino base de 8 h** para que la consulta diaria y el calendario ya muestren esas horas. La jornada que indiques se respeta por encima de ese turno.
 
-### 3. Revisa los turnos del equipo
+### 4. Falta un turno concreto
 
-La capacidad diaria se calcula por turno con los turnos **matutino, vespertino o nocturno** registrados. Si el equipo trabaja más de un turno, pide a un administrador que registre los turnos adicionales con sus horas. Un turno sin registrar no aparece en el calendario.
+La capacidad diaria se calcula por turno con los turnos **matutino, vespertino o nocturno** registrados. Si el equipo trabaja en otro turno, pide a un administrador que registre ese turno con sus horas. Un turno sin registrar no aparece en el calendario y Planeación lo señala al programar («el equipo no tiene capacidad en el turno Vespertino»).
 
 ## Comprueba que quedó bien
 
 - [ ] El proceso de la propuesta tiene grupo de equipo.
 - [ ] Los equipos del grupo están activos.
 - [ ] Cada equipo tiene su cantidad de equipos y jornada.
-- [ ] El equipo tiene al menos un turno (el base se crea al guardar la capacidad).
+- [ ] El equipo tiene el turno que se va a usar (el base se crea al guardar la capacidad).
 - [ ] Al volver a **Consultar disponibilidad** ya se ven horas de capacidad, carga y disponible.
 
 ## Qué sigue

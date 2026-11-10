@@ -30,6 +30,8 @@ export type DisponibilidadGrupo = {
   /** Suma de la disponibilidad no negativa de cada turno del horizonte. */
   horasDisponibles: number | null;
   turnosSobrecargados: number;
+  /** Equipos activos del grupo; 0 explica «sin equipos», no «sin turnos». */
+  recursosActivos: number;
   /** Recursos activos del grupo sin ningún turno configurado. */
   recursosSinTurno: number;
   /** Desglose por fecha del horizonte; vacío si no hay capacidad configurada. */
