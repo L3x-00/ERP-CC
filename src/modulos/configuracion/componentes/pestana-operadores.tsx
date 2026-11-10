@@ -262,6 +262,7 @@ export function PestanaOperadores({
                   required={pinObligatorio}
                   value={pin}
                   onChange={(evento) => setPin(evento.target.value.replace(/\D/g, '').slice(0, 6))}
+                  aria-label={pinObligatorio ? 'PIN nuevo' : 'PIN nuevo (opcional)'}
                   data-testid="operador-config-pin"
                 />
                 <p className="text-xs text-texto-secundario">Usa de 4 a 6 dígitos.</p>
