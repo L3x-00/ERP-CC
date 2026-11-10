@@ -17,9 +17,9 @@ Un **grupo de equipo** es una familia de máquinas o recursos que hacen un traba
 Los grupos de equipo se usan en dos lugares:
 
 - En los **procesos**, para saber qué familia de equipos ejecuta la operación.
-- En **Tarifas / TC**, para asignar un costo por hora al ruteo de las propuestas.
+- En **Tarifas y costos**, para asignar un costo por hora al ruteo de las propuestas.
 
-> **Importante:** la tarifa por hora no se captura aquí. Este catálogo solo agrupa equipos; el costo se define más adelante en [Tarifas / TC](/es/docs/tarifas-tc).
+> **Importante:** el alta del grupo y su tarifa estándar se hacen en **Tarifas y costos → Tarifario del ruteo**. En **Catálogos → Operativos → Grupos de equipo** solo se consulta, se revisa su historial y se activa o desactiva.
 
 ## Antes de empezar
 
@@ -27,31 +27,31 @@ Piensa en familias, no en máquinas individuales. Por ejemplo, si tienes dos cen
 
 ## Paso a paso
 
-1. Entra a **Configuración → Catálogos base**.
-2. Abre la sección **Grupos de equipo**.
-3. Haz clic en **Nuevo (grupos de equipo)**.
-4. Completa:
+1. Entra a **Configuración → Tarifas y costos**.
+2. Abre **Tarifario del ruteo** y pulsa **Nuevo grupo de equipo**.
+3. Completa:
 
    | Campo | Qué capturar | Ejemplo |
    | --- | --- | --- |
    | **Código** | Clave corta, en mayúsculas y sin espacios. | `LASER_FIBRA` |
    | **Nombre** | Nombre visible para el equipo. | `Láser fibra` |
-   | **Orden** | Número para ordenar la lista. | `1` |
-   | **Activo** | Marcado para poder usarlo. | Marcado |
+   | **Tarifa estándar por hora** | Costo que heredarán las máquinas del grupo. | `850.50` |
+   | **Copiar de una estación (opcional)** | Copia el valor de una estación; no compite con la tarifa del grupo. | `Corte láser` |
+   | **Moneda** | Moneda de la tarifa. | `MXN` |
 
-5. Haz clic en **Crear**.
+4. Marca los **procesos compatibles** que usarán este grupo (opcional).
+5. Pulsa **Crear grupo con tarifa**.
+
+El grupo queda disponible en el tarifario y visible para consulta en **Catálogos → Operativos → Grupos de equipo**.
 
 Así se ve la sección con varios grupos activos:
 
 ![Lista de grupos de equipo con Láser fibra, Maquinado CNC, Prensa dobladora, Soldadura y Pintura](/manual/capturas/grupos-equipo.png)
 
-El formulario de alta es muy parecido al de los grupos planeados:
-
-![Formulario para crear un grupo de equipo con código, nombre, orden y casilla Activo](/manual/capturas/grupos-equipo-formulario.png)
-
 ## Cómo corregir o retirar un grupo
 
-- Usa **Desactivar** para retirar un grupo sin borrar su historial.
+- Para cambiar la tarifa, usa **Editar tarifa** en el **Tarifario del ruteo**.
+- Para desactivar, usa el botón **Activar/Desactivar** en **Catálogos → Operativos → Grupos de equipo**; el historial se conserva.
 - Un grupo inactivo no se ofrece en procesos nuevos ni en tarifas nuevas, pero se conserva en lo ya registrado.
 - Si el código quedó mal, desactívalo y crea uno nuevo con el código correcto.
 
@@ -60,7 +60,7 @@ El formulario de alta es muy parecido al de los grupos planeados:
 - [ ] El grupo aparece como **Activo** en la lista.
 - [ ] El nombre es claro para todo el equipo.
 - [ ] El grupo ya aparece en el selector **Grupo de equipo** del formulario de procesos.
-- [ ] El grupo ya aparece en **Tarifas / TC → Tarifario del ruteo** para asignarle tarifa.
+- [ ] El grupo ya aparece en **Tarifas y costos → Tarifario del ruteo** para asignarle tarifa.
 
 ## Qué sigue
 
