@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
 import { actualizarTipoCambioAccion, guardarTarifasCotizadorAccion } from '@/modulos/configuracion/acciones/indice';
@@ -15,7 +16,7 @@ import {
 export interface PestanaTarifasProps {
   configuracion: ConfiguracionSistema;
   onGuardado: (configuracion: ConfiguracionSistema) => void;
-  /** Atajo a «Catálogos base» (alta de grupos y máquinas); solo con permiso para verlo. */
+  /** Atajo a «Catálogos operativos»; solo con permiso para verlo. */
   onIrACatalogosBase?: () => void;
 }
 
@@ -62,82 +63,107 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
   }
 
   return (
-    <div className="grid gap-8">
-    <form className="grid gap-4" onSubmit={guardar} aria-label="Tarifas del cotizador">
-      <div className="rounded-lg border border-acento/30 bg-acento-suave p-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-acento">Tipo de cambio vigente</p>
-            <p className="text-2xl font-semibold tabular-nums text-texto-primario">
-              {configuracion.tipoCambioUsd.toFixed(4)}
-              <span className="ml-1 text-sm font-medium text-texto-secundario">MXN/USD</span>
-            </p>
+    <div className="grid gap-6">
+      {/* El tarifario del ruteo es el punto principal: agrupa grupos, máquinas,
+          herencia de tarifas y procesos compatibles. */}
+      <SeccionTarifarioRuteo
+        {...(onIrACatalogosBase ? { onIrACatalogosBase } : {})}
+      />
+
+      <form className="grid gap-4" onSubmit={guardar} aria-label="Tarifas del cotizador">
+        <section className="rounded-lg border border-acento/30 bg-acento-suave p-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-acento">Tipo de cambio vigente</p>
+              <p className="text-2xl font-semibold tabular-nums text-texto-primario">
+                {configuracion.tipoCambioUsd.toFixed(4)}
+                <span className="ml-1 text-sm font-medium text-texto-secundario">MXN/USD</span>
+              </p>
+              <p className="mt-1 text-xs text-texto-secundario">
+                {configuracion.tipoCambioActualizadoEn
+                  ? `Actualizado el ${formatearFechaHoraNegocio(configuracion.tipoCambioActualizadoEn)}`
+                  : 'Sin registro de actualización'}
+              </p>
+            </div>
+            <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-tipo-cambio">
+              Tipo de cambio USD/MXN
+              <Input
+                id="configuracion-tipo-cambio"
+                data-testid="configuracion-tipo-cambio"
+                type="number"
+                min="0.0001"
+                step="0.0001"
+                value={tipoCambio}
+                onChange={(e) => setTipoCambio(e.target.value)}
+                required
+              />
+            </label>
           </div>
-          <p className="text-xs text-texto-secundario">
-            {configuracion.tipoCambioActualizadoEn
-              ? `Actualizado el ${formatearFechaHoraNegocio(configuracion.tipoCambioActualizadoEn)}`
-              : 'Sin registro de actualización'}
+          {estadoTipoCambio.requiereActualizacion ? (
+            <p role="alert" className="mt-3 rounded-md bg-advertencia-suave px-3 py-2 text-sm font-medium text-advertencia-texto">
+              El tipo de cambio no está registrado para hoy o lleva más de 24 horas sin actualizarse; revisa el valor antes de cotizar.
+            </p>
+          ) : null}
+          <p className="mt-3 text-xs text-texto-secundario">
+            El ruteo resuelve la tarifa en este orden: máquina → grupo de equipo → respaldo (con advertencia visible).
+            La estación solo sirve para copiar su valor; no compite con la tarifa del grupo.
           </p>
+        </section>
+
+        <PanelDesplegable
+          titulo="Parámetros generales"
+          descripcion="Respaldo, eficiencia, merma y márgenes usados por el cotizador."
+          resumen={`Respaldo ${tarifas.costoHoraDefault.toFixed(2)} MXN/h · Merma ${(tarifas.factorMermaMaterial * 100).toFixed(0)} %`}
+          nivelTitulo="h2"
+          data-testid="parametros-generales"
+        >
+          <div className="grid items-start gap-4 sm:grid-cols-2">
+            <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora de respaldo (MXN)
+              <Input id="configuracion-costo-hora" type="number" min="0" step="0.01" value={tarifas.costoHoraDefault} onChange={(e) => cambiarTarifa('costoHoraDefault', e.target.value)} required />
+              <span className="text-xs font-normal text-texto-secundario">
+                Solo se usa si el grupo no tiene tarifa estándar; el ruteo lo marca con advertencia visible.
+              </span>
+            </label>
+            <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-segundos-pierce">Segundos por pierce
+              <Input id="configuracion-segundos-pierce" type="number" min="0.01" step="0.01" value={tarifas.segundosPorPierce} onChange={(e) => cambiarTarifa('segundosPorPierce', e.target.value)} required />
+            </label>
+            <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-eficiencia-laser">Eficiencia láser (0–1)
+              <Input id="configuracion-eficiencia-laser" type="number" min="0.01" max="1" step="0.01" value={tarifas.factorEficienciaLaser} onChange={(e) => cambiarTarifa('factorEficienciaLaser', e.target.value)} required />
+            </label>
+            <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-merma-material">Factor de merma (0–1)
+              <Input id="configuracion-merma-material" type="number" min="0" max="1" step="0.01" value={tarifas.factorMermaMaterial} onChange={(e) => cambiarTarifa('factorMermaMaterial', e.target.value)} required />
+            </label>
+            <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-margen-utilidad">Margen predeterminado (%)
+              <Input id="configuracion-margen-utilidad" type="number" min="0" max="100" step="0.01" value={tarifas.margenUtilidadDefault} onChange={(e) => cambiarTarifa('margenUtilidadDefault', e.target.value)} required />
+            </label>
+            <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-utilidad-objetivo-propuesta">Utilidad objetivo de propuestas (% sobre costo)
+              <Input id="configuracion-utilidad-objetivo-propuesta" type="number" min="0" max="1000" step="0.01" value={tarifas.utilidadObjetivoPropuestaPorcentaje} onChange={(e) => cambiarTarifa('utilidadObjetivoPropuestaPorcentaje', e.target.value)} required />
+              <span className="text-xs font-normal text-texto-secundario">Debajo de este porcentaje la propuesta muestra una alerta y el precio mínimo recomendado; no la bloquea.</span>
+            </label>
+          </div>
+        </PanelDesplegable>
+
+        <PanelDesplegable
+          titulo="Tarifas por estación"
+          descripcion="Parámetros de corte láser, router CNC, dobladora y fabricación."
+          resumen={`Láser ${tarifas.estaciones.laser.maquinaHora.toFixed(2)} MXN/h · Router ${tarifas.estaciones.router.maquinaHora.toFixed(2)} MXN/h`}
+          nivelTitulo="h2"
+          data-testid="tarifas-estacion-panel"
+        >
+          <EditorTarifasEstaciones
+            valor={tarifas.estaciones}
+            onCambio={(estaciones) => setTarifas((actual) => ({ ...actual, estaciones }))}
+            deshabilitado={guardando}
+          />
+        </PanelDesplegable>
+
+        {/* Barra pegada al borde inferior: el botón queda a mano sin recorrer el formulario. */}
+        <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-borde bg-superficie/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar tarifas y TC'}</Button>
+          <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-texto-secundario">Vigente: {configuracion.tipoCambioUsd.toFixed(4)} MXN/USD</output>
+          {mensaje ? <p role="status" className="text-sm text-texto-secundario">{mensaje}</p> : null}
         </div>
-        {estadoTipoCambio.requiereActualizacion ? (
-          <p role="alert" className="mt-3 rounded-md bg-advertencia-suave px-3 py-2 text-sm font-medium text-advertencia-texto">
-            El tipo de cambio no está registrado para hoy o lleva más de 24 horas sin actualizarse; revisa el valor antes de cotizar.
-          </p>
-        ) : null}
-      </div>
-      <div className="rounded-lg border border-borde bg-superficie-2 p-3 text-sm text-texto-secundario">
-        <p className="font-semibold text-texto-primario">Un solo tarifario por hora</p>
-        <p className="mt-1">
-          El costo del ruteo se resuelve en este orden: <span className="font-medium text-texto-primario">tarifa propia de la máquina → tarifa estándar del grupo de equipo → tarifa de respaldo</span>.
-          La tarifa del grupo es la <span className="font-medium text-texto-primario">fuente maestra</span>; la estación de Tarifas / TC solo sirve para copiar su valor.
-          El respaldo nunca se usa en silencio: el ruteo muestra una advertencia y el origen de la tarifa.
-        </p>
-      </div>
-      <div className="grid items-start gap-4 sm:grid-cols-2">
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-costo-hora">Costo por hora de respaldo (MXN)
-          <Input id="configuracion-costo-hora" type="number" min="0" step="0.01" value={tarifas.costoHoraDefault} onChange={(e) => cambiarTarifa('costoHoraDefault', e.target.value)} required />
-          <span className="text-xs font-normal text-texto-secundario">
-            Excepción temporal de V1: solo se usa si el grupo no tiene tarifa estándar. El ruteo lo marca con advertencia visible. Candidato a revisión/eliminación en V2.
-          </span>
-        </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-segundos-pierce">Segundos por pierce
-          <Input id="configuracion-segundos-pierce" type="number" min="0.01" step="0.01" value={tarifas.segundosPorPierce} onChange={(e) => cambiarTarifa('segundosPorPierce', e.target.value)} required />
-        </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-eficiencia-laser">Eficiencia láser (0–1)
-          <Input id="configuracion-eficiencia-laser" type="number" min="0.01" max="1" step="0.01" value={tarifas.factorEficienciaLaser} onChange={(e) => cambiarTarifa('factorEficienciaLaser', e.target.value)} required />
-        </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-merma-material">Factor de merma (0–1)
-          <Input id="configuracion-merma-material" type="number" min="0" max="1" step="0.01" value={tarifas.factorMermaMaterial} onChange={(e) => cambiarTarifa('factorMermaMaterial', e.target.value)} required />
-        </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-margen-utilidad">Margen predeterminado (%)
-          <Input id="configuracion-margen-utilidad" type="number" min="0" max="100" step="0.01" value={tarifas.margenUtilidadDefault} onChange={(e) => cambiarTarifa('margenUtilidadDefault', e.target.value)} required />
-        </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-utilidad-objetivo-propuesta">Utilidad objetivo de propuestas (% sobre costo)
-          <Input id="configuracion-utilidad-objetivo-propuesta" type="number" min="0" max="1000" step="0.01" value={tarifas.utilidadObjetivoPropuestaPorcentaje} onChange={(e) => cambiarTarifa('utilidadObjetivoPropuestaPorcentaje', e.target.value)} required />
-          <span className="text-xs font-normal text-texto-secundario">Debajo de este porcentaje la propuesta muestra una alerta y el precio mínimo recomendado; no la bloquea.</span>
-        </label>
-        <label className="grid gap-1 text-sm font-medium" htmlFor="configuracion-tipo-cambio">Tipo de cambio USD/MXN
-          <Input id="configuracion-tipo-cambio" data-testid="configuracion-tipo-cambio" type="number" min="0.0001" step="0.0001" value={tipoCambio} onChange={(e) => setTipoCambio(e.target.value)} required />
-        </label>
-      </div>
-      <fieldset className="grid gap-3">
-        <legend className="text-sm font-semibold text-texto-primario">Tarifas por estación (base del cotizador y del ruteo)</legend>
-        <EditorTarifasEstaciones
-          valor={tarifas.estaciones}
-          onCambio={(estaciones) => setTarifas((actual) => ({ ...actual, estaciones }))}
-          deshabilitado={guardando}
-        />
-      </fieldset>
-      {/* Barra pegada al borde inferior: con las estaciones desplegadas el botón queda a mano sin recorrer el formulario. */}
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-borde bg-superficie/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar tarifas y TC'}</Button>
-        <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-texto-secundario">Vigente: {configuracion.tipoCambioUsd.toFixed(4)} MXN/USD</output>
-        {mensaje ? <p role="status" className="text-sm text-texto-secundario">{mensaje}</p> : null}
-      </div>
-    </form>
-    <SeccionTarifarioRuteo
-      {...(onIrACatalogosBase ? { onIrACatalogosBase } : {})}
-    />
+      </form>
     </div>
   );
 }

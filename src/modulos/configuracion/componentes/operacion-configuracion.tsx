@@ -226,7 +226,7 @@ export function OperacionConfiguracion({
               />
             ) : null}
             {subseccionCatalogos === 'operativos' && puedeVerCatalogosBase ? (
-              <PestanaCatalogosBase />
+              <PestanaCatalogosBase onIrATarifas={() => abrirSeccion('tarifas')} />
             ) : null}
           </div>
         ) : null}
