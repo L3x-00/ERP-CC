@@ -70,7 +70,8 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await iniciarSesion(page, acceso);
       await page.goto('/configuracion');
       await expect(page.getByTestId('pagina-configuracion')).toBeVisible();
-      await page.getByRole('tab', { name: 'Catálogos base' }).click();
+      await page.getByRole('tab', { name: 'Catálogos', exact: true }).click();
+      await page.getByRole('tab', { name: 'Operativos', exact: true }).click();
       await expect(page.getByTestId('pagina-catalogos-base')).toBeVisible();
       await page.getByTestId('toggle-catalogo-canales-rfq').click();
       await expect(page.getByTestId('toggle-catalogo-canales-rfq')).toHaveAttribute('aria-expanded', 'true');
@@ -232,10 +233,11 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
 
       // Obs. cliente 2026-10-13: las tarifas por grupo y por máquina viven solo en
       // «Tarifas / TC»; «Catálogos base» ya no las duplica.
-      await page.getByRole('tab', { name: 'Catálogos base' }).click();
+      await page.getByRole('tab', { name: 'Catálogos', exact: true }).click();
+      await page.getByRole('tab', { name: 'Operativos', exact: true }).click();
       await expect(page.getByTestId('catalogos-tarifas-en-tarifas-tc')).toBeVisible();
       await expect(page.getByTestId('seccion-tarifas-grupos')).toHaveCount(0);
-      await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
+      await page.getByRole('tab', { name: 'Tarifas y costos' }).click();
       await expect(page.getByTestId('tarifario-ruteo')).toBeVisible();
       // El tarifario nace plegado: el encabezado ya avisa que hay grupos sin tarifa y se despliega para editar.
       const encabezadoTarifario = page
@@ -377,7 +379,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
     try {
       await iniciarSesion(page, acceso);
       await page.goto('/configuracion');
-      await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
+      await page.getByRole('tab', { name: 'Tarifas y costos' }).click();
       await page
         .getByTestId('tarifario-ruteo')
         .getByRole('button', { name: /^Tarifario del ruteo/ })

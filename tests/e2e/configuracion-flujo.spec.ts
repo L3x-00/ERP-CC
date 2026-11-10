@@ -39,7 +39,7 @@ test.describe('Configuración maestra', () => {
     await iniciarSesion(page, acceso);
     await page.goto('/configuracion');
     await expect(page.getByTestId('pagina-configuracion')).toBeVisible();
-    await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
+    await page.getByRole('tab', { name: 'Tarifas y costos' }).click();
     const admin = clienteAdmin();
     let valorOriginal: number | null = null;
     if (admin) {
@@ -52,7 +52,7 @@ test.describe('Configuración maestra', () => {
       await expect(page.getByTestId('configuracion-confirmacion')).toContainText('guardados');
       await expect(page.getByTestId('configuracion-tipo-cambio-vigente')).toContainText('19.7500');
       await page.reload();
-      await page.getByRole('tab', { name: 'Tarifas / TC' }).click();
+      await page.getByRole('tab', { name: 'Tarifas y costos' }).click();
       await expect(page.getByTestId('configuracion-tipo-cambio')).toHaveValue('19.75');
     } finally {
       if (admin && valorOriginal !== null) {

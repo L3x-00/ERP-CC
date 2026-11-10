@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { obtenerConfiguracionAccion } from '@/modulos/configuracion/acciones/indice';
 import { OperacionConfiguracion } from '@/modulos/configuracion/componentes/indice';
-import { leerPestanaConfiguracion } from '@/modulos/configuracion/componentes/pestanas-configuracion';
+import { leerVistaConfiguracion } from '@/modulos/configuracion/componentes/pestanas-configuracion';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export default async function PaginaConfiguracion({ searchParams }: ParametrosPa
   return (
     <OperacionConfiguracion
       datosIniciales={respuesta.datos}
-      pestanaInicial={leerPestanaConfiguracion(parametros.pestana)}
+      vistaInicial={leerVistaConfiguracion(parametros.pestana)}
     />
   );
 }
