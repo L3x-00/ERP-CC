@@ -7,6 +7,7 @@ import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { CentroNotificacionesHeader } from '@/modulos/comentarios/componentes/indice';
 import { cerrarSesionAccion } from '@/modulos/autenticacion/acciones/cerrar-sesion';
 import { EstadoTipoCambioEncabezado } from '@/modulos/configuracion/componentes/estado-tipo-cambio-encabezado';
+import { DialogoDatosEmpresa } from '@/modulos/configuracion/componentes/dialogo-datos-empresa';
 import type { EstadoTipoCambioDiario } from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 import { Icono } from './iconos';
 import { OpcionTemaMenu } from './opcion-tema-menu';
@@ -27,6 +28,7 @@ type PropsEncabezado = {
   rolUsuario: string;
   estadoTipoCambio?: EstadoTipoCambioDiario | null;
   puedeActualizarTipoCambio?: boolean;
+  puedeAdministrarEmpresa?: boolean;
   onAbrirMenu: () => void;
 };
 
@@ -35,8 +37,9 @@ type PropsEncabezado = {
  * de cuenta (tema global y cerrar sesión). En pantallas pequeñas se muestra
  * solo el avatar.
  */
-function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
+function MenuUsuario({ nombre, rol, puedeAdministrarEmpresa }: { nombre: string; rol: string; puedeAdministrarEmpresa: boolean }) {
   const [abierto, setAbierto] = useState(false);
+  const [datosEmpresaAbierto, setDatosEmpresaAbierto] = useState(false);
   const contenedorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,6 +89,21 @@ function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
             <p className="truncate text-xs text-texto-secundario">{ETIQUETA_ROL[rol] ?? rol}</p>
           </div>
           <div className="mt-1">
+            {puedeAdministrarEmpresa ? (
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="menu-datos-empresa"
+                onClick={() => {
+                  setAbierto(false);
+                  setDatosEmpresaAbierto(true);
+                }}
+                className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-sm font-medium text-texto-secundario transition-colors hover:bg-superficie-2 hover:text-texto-primario focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+              >
+                <Icono nombre="fabrica" className="h-4 w-4" />
+                Datos de empresa
+              </button>
+            ) : null}
             <OpcionTemaMenu onSeleccionar={() => setAbierto(false)} />
           </div>
           <div role="separator" className="my-1 border-t border-borde/60" />
@@ -103,6 +121,9 @@ function MenuUsuario({ nombre, rol }: { nombre: string; rol: string }) {
           </button>
         </div>
       ) : null}
+      {puedeAdministrarEmpresa ? (
+        <DialogoDatosEmpresa abierto={datosEmpresaAbierto} alCambiarAbierto={setDatosEmpresaAbierto} />
+      ) : null}
     </div>
   );
 }
@@ -116,6 +137,7 @@ export function EncabezadoApp({
   rolUsuario,
   estadoTipoCambio,
   puedeActualizarTipoCambio,
+  puedeAdministrarEmpresa = false,
   onAbrirMenu,
 }: PropsEncabezado) {
   return (
@@ -149,7 +171,7 @@ export function EncabezadoApp({
           </span>
         </div>
         <CentroNotificacionesHeader usuarioId={usuarioId} />
-        <MenuUsuario nombre={nombreUsuario} rol={rolUsuario} />
+        <MenuUsuario nombre={nombreUsuario} rol={rolUsuario} puedeAdministrarEmpresa={puedeAdministrarEmpresa} />
       </div>
     </header>
   );

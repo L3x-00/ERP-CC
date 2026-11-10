@@ -11,11 +11,13 @@ import {
   type ResumenCobros,
 } from '@/modulos/finanzas/utilidades/resumen-financiero';
 import { ColaTesoreria } from '@/modulos/tesoreria/componentes/cola-tesoreria';
+import { SeccionCuentasBancarias } from '@/modulos/tesoreria/componentes/seccion-cuentas-bancarias';
 import type { DatosTesoreria } from '@/modulos/tesoreria/tipos/indice';
 
 const PESTANAS = [
   { id: 'cobranza', etiqueta: 'Cuentas por cobrar', descripcion: 'Cartera, cobros, promesas y recibos' },
   { id: 'tesoreria', etiqueta: 'Tesorería', descripcion: 'Saldos por cuenta, transferencias y conciliación' },
+  { id: 'cuentas', etiqueta: 'Cuentas bancarias', descripcion: 'Altas, edición y estado de cuentas bancarias' },
 ] as const;
 
 export type SeccionCobros = (typeof PESTANAS)[number]['id'];
@@ -35,6 +37,7 @@ export function OperacionCobros({
   puedeOperarTesoreria,
   puedeVerTesoreria = true,
   puedeVerCobranza = true,
+  puedeAdministrarCuentas = false,
   seccionInicial = 'cobranza',
 }: {
   datosIniciales: ResumenCartera;
@@ -46,11 +49,13 @@ export function OperacionCobros({
   puedeOperarTesoreria: boolean;
   puedeVerTesoreria?: boolean;
   puedeVerCobranza?: boolean;
+  puedeAdministrarCuentas?: boolean;
   seccionInicial?: SeccionCobros;
 }) {
   const pestanas = PESTANAS.filter((pestana) => (
     (pestana.id !== 'tesoreria' || puedeVerTesoreria)
     && (pestana.id !== 'cobranza' || puedeVerCobranza)
+    && (pestana.id !== 'cuentas' || puedeAdministrarCuentas)
   ));
   const [seccion, setSeccion] = useState<SeccionCobros>(() =>
     (pestanas.some((pestana) => pestana.id === seccionInicial) ? seccionInicial : pestanas[0]?.id ?? 'cobranza') as SeccionCobros);
@@ -67,28 +72,30 @@ export function OperacionCobros({
 
   return (
     <section className="flex flex-col gap-6" data-testid="operacion-cobros">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <TarjetaResumen
-          etiqueta="Cartera pendiente"
-          valor={formatearMoneda(resumen.carteraMxn, 'MXN')}
-          ayuda={`${formatearNumero(resumen.cuentasAbiertas, 0)} cuentas abiertas`}
-        />
-        <TarjetaResumen
-          etiqueta="Saldo en cuentas MXN"
-          valor={formatearMoneda(resumen.saldoCuentasMxn, 'MXN')}
-          ayuda={`${formatearNumero(resumen.cuentasBancarias, 0)} cuentas registradas`}
-        />
-        <TarjetaResumen
-          etiqueta="Promesas de pago"
-          valor={formatearNumero(datosIniciales.agingPorCliente.length, 0)}
-          ayuda="Clientes con saldo en el aging"
-        />
-        <TarjetaResumen
-          etiqueta="Movimientos vivos"
-          valor={formatearNumero(tesoreriaInicial.movimientos.length, 0)}
-          ayuda="Cobros, pagos, gastos y transferencias"
-        />
-      </div>
+      {puedeVerCobranza || puedeVerTesoreria ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <TarjetaResumen
+            etiqueta="Cartera pendiente"
+            valor={formatearMoneda(resumen.carteraMxn, 'MXN')}
+            ayuda={`${formatearNumero(resumen.cuentasAbiertas, 0)} cuentas abiertas`}
+          />
+          <TarjetaResumen
+            etiqueta="Saldo en cuentas MXN"
+            valor={formatearMoneda(resumen.saldoCuentasMxn, 'MXN')}
+            ayuda={`${formatearNumero(resumen.cuentasBancarias, 0)} cuentas registradas`}
+          />
+          <TarjetaResumen
+            etiqueta="Promesas de pago"
+            valor={formatearNumero(datosIniciales.agingPorCliente.length, 0)}
+            ayuda="Clientes con saldo en el aging"
+          />
+          <TarjetaResumen
+            etiqueta="Movimientos vivos"
+            valor={formatearNumero(tesoreriaInicial.movimientos.length, 0)}
+            ayuda="Cobros, pagos, gastos y transferencias"
+          />
+        </div>
+      ) : null}
 
       <PestanasModulo
         pestanas={pestanas}
@@ -106,12 +113,18 @@ export function OperacionCobros({
             puedeAplicarSaldo={puedeAplicarSaldo}
           />
         </div>
-      ) : (
+      ) : null}
+      {seccion === 'tesoreria' && puedeVerTesoreria ? (
         <div role="tabpanel" aria-label="Tesorería" className="flex flex-col gap-6">
           <ColaTesoreria inicial={tesoreriaInicial} puedeOperar={puedeOperarTesoreria} />
           {flujoCuentas}
         </div>
-      )}
+      ) : null}
+      {seccion === 'cuentas' && puedeAdministrarCuentas ? (
+        <div role="tabpanel" aria-label="Cuentas bancarias">
+          <SeccionCuentasBancarias />
+        </div>
+      ) : null}
     </section>
   );
 }

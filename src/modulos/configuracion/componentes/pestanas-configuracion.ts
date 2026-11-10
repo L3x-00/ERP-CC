@@ -18,15 +18,10 @@ export const SECCIONES_CONFIGURACION = [
 export type SeccionConfiguracion = (typeof SECCIONES_CONFIGURACION)[number]['id'];
 
 /**
- * Accesos provisionales mientras UI-02 reubica Empresa (menú de usuario) y
- * Cuentas bancarias (Tesorería). No forman parte de las seis secciones.
+ * Acceso heredado: `?pestana=empresa` abre el modal de datos de empresa (ahora
+ * vive en el menú de usuario). No forma parte de las seis secciones.
  */
-export const SECCIONES_PROVISIONALES = [
-  { id: 'empresa', etiqueta: 'Empresa' },
-  { id: 'cuentas', etiqueta: 'Cuentas bancarias' },
-] as const;
-
-export type SeccionProvisional = (typeof SECCIONES_PROVISIONALES)[number]['id'];
+export type SeccionHeredada = 'empresa';
 
 export const SUBSECCIONES_CATALOGOS = [
   { id: 'comerciales', etiqueta: 'Comerciales', descripcion: 'Tiers y categorías de gasto' },
@@ -46,7 +41,7 @@ export type SubseccionPersonas = (typeof SUBSECCIONES_PERSONAS)[number]['id'];
 export type SubseccionConfiguracion = SubseccionCatalogos | SubseccionPersonas;
 
 export type VistaConfiguracion = {
-  seccion: SeccionConfiguracion | SeccionProvisional;
+  seccion: SeccionConfiguracion | SeccionHeredada;
   subseccion?: SubseccionConfiguracion;
 };
 
@@ -68,7 +63,6 @@ const MAPA_PESTANAS: Record<string, VistaConfiguracion> = {
   operadores: { seccion: 'personas', subseccion: 'operadores' },
   personas: { seccion: 'personas', subseccion: 'usuarios' },
   empresa: { seccion: 'empresa' },
-  cuentas: { seccion: 'cuentas' },
 };
 
 /** Vista inicial: la primera sección de la nueva arquitectura. */

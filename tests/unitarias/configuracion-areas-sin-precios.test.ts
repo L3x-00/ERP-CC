@@ -43,7 +43,7 @@ describe('PestanaAreasTrabajo — sin listas de precios duplicadas', () => {
     expect(screen.getByText(/El costo por hora se configura una sola vez/)).toBeTruthy();
   });
 
-  it('lleva a Tarifas / TC cuando se entrega el atajo', () => {
+  it('lleva a Tarifas y costos cuando se entrega el atajo', () => {
     const irATarifas = vi.fn();
     render(createElement(PestanaAreasTrabajo, {
       datos: [AREA],
@@ -53,7 +53,7 @@ describe('PestanaAreasTrabajo — sin listas de precios duplicadas', () => {
       onIrATarifas: irATarifas,
     }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ir a Tarifas / TC' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ir a Tarifas y costos' }));
     expect(irATarifas).toHaveBeenCalledTimes(1);
   });
 });

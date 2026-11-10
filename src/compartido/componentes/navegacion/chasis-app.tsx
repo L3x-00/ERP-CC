@@ -13,6 +13,7 @@ type PropsChasis = {
   modulos?: readonly ModuloNavegacion[];
   estadoTipoCambio: EstadoTipoCambioDiario | null;
   puedeActualizarTipoCambio: boolean;
+  puedeAdministrarEmpresa?: boolean;
   children: ReactNode;
 };
 
@@ -25,6 +26,7 @@ export function ChasisApp({
   modulos = MODULOS_NAVEGACION,
   estadoTipoCambio,
   puedeActualizarTipoCambio,
+  puedeAdministrarEmpresa = false,
   children,
 }: PropsChasis) {
   const pathname = usePathname();
@@ -50,6 +52,7 @@ export function ChasisApp({
           rolUsuario={usuario.rol}
           estadoTipoCambio={estadoTipoCambio}
           puedeActualizarTipoCambio={puedeActualizarTipoCambio}
+          puedeAdministrarEmpresa={puedeAdministrarEmpresa}
           onAbrirMenu={() => setAbiertoMovil(true)}
         />
         <main className="flex-1 p-4 md:p-6">{children}</main>

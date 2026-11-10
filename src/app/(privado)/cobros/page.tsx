@@ -5,7 +5,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { obtenerResumenCarteraServicio, type ResumenCartera } from '@/modulos/cobranza/servicios/cobranza-servicio';
-import { OperacionCobros } from '@/modulos/finanzas/componentes/operacion-cobros';
+import { OperacionCobros, type SeccionCobros } from '@/modulos/finanzas/componentes/operacion-cobros';
 import { TablaFlujoCuentas } from '@/modulos/tesoreria/componentes/tabla-flujo-cuentas';
 import { obtenerFlujoCuentasServicio } from '@/modulos/tesoreria/servicios/flujo-cuentas-servicio';
 import { obtenerTesoreria } from '@/modulos/tesoreria/servicios/obtener-tesoreria';
@@ -31,12 +31,13 @@ const TESORERIA_VACIA: DatosTesoreria = { cuentas: [], movimientos: [] };
 export default async function PaginaCobros({ searchParams }: ParametrosPaginaCobros) {
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) notFound();
-  const [puedeVerFinanzas, puedeRegistrarPago, puedeAplicarSaldo] = await Promise.all([
+  const [puedeVerFinanzas, puedeRegistrarPago, puedeAplicarSaldo, puedeAdministrarCuentas] = await Promise.all([
     can(usuario, 'ver_finanzas'),
     can(usuario, 'registrar_pagos'),
     can(usuario, 'aplicar_saldos'),
+    can(usuario, 'configuracion'),
   ]);
-  if (!puedeVerFinanzas && !puedeRegistrarPago) notFound();
+  if (!puedeVerFinanzas && !puedeRegistrarPago && !puedeAdministrarCuentas) notFound();
 
   // Materializa promesas vencidas/cumplidas y sus recordatorios (idempotente;
   // no bloquea la vista si falla).
@@ -48,7 +49,11 @@ export default async function PaginaCobros({ searchParams }: ParametrosPaginaCob
 
   const parametros = searchParams ? await searchParams : {};
   const agingInicial = typeof parametros.aging === 'string' ? parametros.aging : undefined;
-  const seccion = parametros.seccion === 'tesoreria' ? 'tesoreria' : 'cobranza';
+  const seccion: SeccionCobros = parametros.seccion === 'tesoreria'
+    ? 'tesoreria'
+    : parametros.seccion === 'cuentas'
+      ? 'cuentas'
+      : 'cobranza';
 
   const servidor = await crearClienteSupabaseServidor();
   const [datosIniciales, tesoreriaInicial, flujoCuentas] = await Promise.all([
@@ -76,7 +81,8 @@ export default async function PaginaCobros({ searchParams }: ParametrosPaginaCob
         puedeOperarTesoreria={puedeRegistrarPago}
         puedeVerTesoreria={puedeVerFinanzas || puedeRegistrarPago}
         puedeVerCobranza={puedeVerFinanzas}
-        seccionInicial={puedeVerFinanzas || seccion === 'tesoreria' ? seccion : 'cobranza'}
+        puedeAdministrarCuentas={puedeAdministrarCuentas}
+        seccionInicial={seccion}
       />
     </div>
   );

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/compartido/utilidades/cn';
 import { PestanasModulo } from '@/compartido/componentes/ui/pestanas';
 import {
   obtenerConfiguracionAccion,
@@ -11,8 +10,6 @@ import {
 import { CLAVE_CATALOGOS_COMERCIALES, CLAVE_CONFIGURACION } from './claves-consulta';
 import { PestanaAreasTrabajo } from './pestana-areas-trabajo';
 import { PestanaCatalogos } from './pestana-catalogos';
-import { PestanaCuentasBancarias } from './pestana-cuentas-bancarias';
-import { PestanaEmpresa } from './pestana-empresa';
 import { PestanaFolios } from './pestana-folios';
 import { PestanaPlantillasDoc } from './pestana-plantillas-doc';
 import { PestanaOperadores } from './pestana-operadores';
@@ -24,13 +21,11 @@ import { PestanaCatalogosBase } from './pestana-catalogos-base';
 import {
   pestanaDesdeVista,
   SECCIONES_CONFIGURACION,
-  SECCIONES_PROVISIONALES,
   SUBSECCIONES_CATALOGOS,
   SUBSECCIONES_PERSONAS,
   subseccionInicial,
   VISTA_CONFIGURACION_INICIAL,
   type SeccionConfiguracion,
-  type SeccionProvisional,
   type SubseccionCatalogos,
   type SubseccionConfiguracion,
   type SubseccionPersonas,
@@ -40,13 +35,14 @@ import {
   obtenerPermisosCatalogosAccion,
   type PermisosCatalogos,
 } from '@/modulos/catalogos/acciones/obtener-permisos-catalogos';
+import { DialogoDatosEmpresa } from './dialogo-datos-empresa';
 
 const CLAVE_PERMISOS_CATALOGOS = ['catalogos-base', 'permisos-pestana'] as const;
 
 function etiquetaSeccion(seccion: VistaConfiguracion['seccion']): string {
+  if (seccion === 'empresa') return 'Datos de empresa';
   return (
-    [...SECCIONES_CONFIGURACION, ...SECCIONES_PROVISIONALES].find((item) => item.id === seccion)
-      ?.etiqueta ?? 'Configuración'
+    SECCIONES_CONFIGURACION.find((item) => item.id === seccion)?.etiqueta ?? 'Configuración'
   );
 }
 
@@ -105,16 +101,6 @@ export function OperacionConfiguracion({
     });
     setConfirmacion('Cambios guardados');
   };
-  const actualizarCuenta = (cuenta: DatosConfiguracion['cuentasBancarias'][number]): void => {
-    clienteQuery.setQueryData<DatosConfiguracion>(CLAVE_CONFIGURACION, (actual) => {
-      if (!actual) return actual;
-      const cuentas = actual.cuentasBancarias.some((item) => item.id === cuenta.id)
-        ? actual.cuentasBancarias.map((item) => (item.id === cuenta.id ? cuenta : item))
-        : [...actual.cuentasBancarias, cuenta];
-      return { ...actual, cuentasBancarias: cuentas };
-    });
-    setConfirmacion('Cuenta guardada');
-  };
   const actualizarArea = (area: DatosConfiguracion['areasTrabajo'][number]): void => {
     clienteQuery.setQueryData<DatosConfiguracion>(CLAVE_CONFIGURACION, (actual) => {
       if (!actual) return actual;
@@ -145,11 +131,6 @@ export function OperacionConfiguracion({
 
   function abrirSubseccion(id: string): void {
     setVista((actual) => ({ ...actual, subseccion: id as SubseccionConfiguracion }));
-    setConfirmacion(null);
-  }
-
-  function abrirProvisional(id: SeccionProvisional): void {
-    setVista({ seccion: id });
     setConfirmacion(null);
   }
 
@@ -199,37 +180,12 @@ export function OperacionConfiguracion({
         etiqueta="Secciones de configuración"
       />
 
-      {/* UI-01: accesos provisionales. Empresa y Cuentas bancarias se reubican
-          en UI-02; hasta entonces deben seguir accesibles sin duplicar
-          componentes ni formularios. */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-borde bg-superficie-2 px-3 py-2">
-        <span className="text-xs font-medium text-texto-secundario">
-          Accesos provisionales (se reubican en UI-02):
-        </span>
-        {SECCIONES_PROVISIONALES.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={seccion === item.id}
-            onClick={() => abrirProvisional(item.id)}
-            className={cn(
-              'rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40',
-              seccion === item.id
-                ? 'border-acento bg-acento-suave text-acento'
-                : 'border-borde bg-superficie text-texto-secundario hover:text-texto-primario',
-            )}
-          >
-            {item.etiqueta}
-          </button>
-        ))}
-      </div>
-
       <section
         role="tabpanel"
         aria-label={etiquetaSeccion(seccion)}
         className="min-w-0 rounded-lg border border-borde bg-superficie p-4 shadow-sm sm:p-6"
       >
-        {seccion === 'folios' ? <PestanaFolios /> : null}
+        {seccion === 'folios' || seccion === 'empresa' ? <PestanaFolios /> : null}
 
         {seccion === 'tarifas' ? (
           <PestanaTarifas
@@ -329,23 +285,16 @@ export function OperacionConfiguracion({
             onGuardado={actualizarConfiguracion}
           />
         ) : null}
-
-        {/* Accesos provisionales de UI-01 (se eliminan al completar UI-02). */}
-        {seccion === 'empresa' ? (
-          <PestanaEmpresa
-            key={`empresa-${vigente.configuracion.actualizadoEn}`}
-            datos={vigente.configuracion.empresa}
-            onGuardado={actualizarConfiguracion}
-          />
-        ) : null}
-        {seccion === 'cuentas' ? (
-          <PestanaCuentasBancarias
-            key={`cuentas-${vigente.cuentasBancarias.map((cuenta) => cuenta.actualizadoEn).join('|')}`}
-            datos={vigente.cuentasBancarias}
-            onGuardado={actualizarCuenta}
-          />
-        ) : null}
       </section>
+
+      {seccion === 'empresa' ? (
+        <DialogoDatosEmpresa
+          abierto
+          alCambiarAbierto={(abierto) => {
+            if (!abierto) abrirSeccion('folios');
+          }}
+        />
+      ) : null}
 
       {confirmacion ? (
         <p role="status" data-testid="configuracion-confirmacion" className="text-sm text-exito-texto">

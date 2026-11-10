@@ -19,6 +19,8 @@ export default async function PaginaConfiguracion({ searchParams }: ParametrosPa
     return <p role="alert">No se pudo cargar la configuración. Vuelve a intentarlo.</p>;
   }
   if (!respuesta.datos) return <p role="alert">No se pudo cargar la configuración. Vuelve a intentarlo.</p>;
+  const pestana = Array.isArray(parametros.pestana) ? parametros.pestana[0] : parametros.pestana;
+  if (pestana === 'cuentas') redirect('/cobros?seccion=cuentas');
   return (
     <OperacionConfiguracion
       datosIniciales={respuesta.datos}
