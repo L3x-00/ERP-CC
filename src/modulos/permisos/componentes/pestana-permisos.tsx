@@ -3,6 +3,15 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
 import { Button } from '@/compartido/componentes/ui/button';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
 import { SkeletonTabla } from '@/compartido/componentes/retroalimentacion/skeleton';
@@ -170,40 +179,43 @@ export function PestanaPermisos() {
             precios.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variante="contorno"
-            tamano="lg"
-            disabled={ocupado || rolesConCambios.length === 0}
-            onClick={descartar}
-            data-testid="descartar-permisos"
-          >
-            Descartar
-          </Button>
-          <Button
-            tamano="lg"
-            disabled={ocupado || rolesConCambios.length === 0}
-            onClick={() => void guardar()}
-            data-testid="guardar-permisos"
-          >
-            {ocupado ? 'Guardando…' : `Guardar cambios${rolesConCambios.length ? ` (${rolesConCambios.length})` : ''}`}
-          </Button>
-        </div>
+        {rolesConCambios.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variante="contorno"
+              tamano="lg"
+              disabled={ocupado}
+              onClick={descartar}
+              data-testid="descartar-permisos"
+            >
+              Descartar
+            </Button>
+            <Button
+              tamano="lg"
+              disabled={ocupado}
+              onClick={() => void guardar()}
+              data-testid="guardar-permisos"
+            >
+              {ocupado ? 'Guardando…' : `Guardar cambios (${rolesConCambios.length})`}
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-borde">
-        <table className="w-full min-w-[720px] border-collapse text-sm">
-          <thead>
-            <tr className="bg-superficie-2 text-left text-texto-secundario">
-              <th scope="col" className="px-4 py-3 font-semibold">Permiso</th>
+      <TablaContenedor>
+        <Tabla className="min-w-[720px]">
+          <caption className="sr-only">Matriz de permisos por rol</caption>
+          <TablaEncabezado>
+            <tr>
+              <TablaEncabezadoCelda>Permiso</TablaEncabezadoCelda>
               {COLUMNAS.map((rol) => (
-                <th key={rol} scope="col" className="px-3 py-3 text-center font-semibold">
+                <TablaEncabezadoCelda key={rol} className="text-center">
                   {NOMBRE_ROL[rol]}
-                </th>
+                </TablaEncabezadoCelda>
               ))}
             </tr>
-          </thead>
-          <tbody>
+          </TablaEncabezado>
+          <TablaCuerpo>
             {grupos.map((grupo) => (
               <Fragment key={grupo.modulo}>
                 <tr className="bg-superficie-2/60">
@@ -216,16 +228,16 @@ export function PestanaPermisos() {
                   </th>
                 </tr>
                 {grupo.permisos.map((permiso) => (
-                  <tr key={permiso.codigo} className="border-t border-borde" data-testid={`fila-permiso-${permiso.codigo}`}>
-                    <td className="px-4 py-2">
+                  <TablaFila key={permiso.codigo} data-testid={`fila-permiso-${permiso.codigo}`}>
+                    <TablaCelda>
                       <span className="font-medium text-texto-primario">{permiso.descripcion}</span>
                       <span className="block text-xs text-texto-secundario">{permiso.codigo}</span>
-                    </td>
+                    </TablaCelda>
                     {COLUMNAS.map((rol) => {
                       const esAdmin = rol === 'admin';
                       const marcado = esAdmin ? true : seleccion[rol].includes(permiso.codigo);
                       return (
-                        <td key={rol} className="px-3 py-2 text-center">
+                        <TablaCelda key={rol} className="text-center">
                           <input
                             type="checkbox"
                             className="h-4 w-4 accent-acento"
@@ -235,16 +247,16 @@ export function PestanaPermisos() {
                             aria-label={`${NOMBRE_ROL[rol]}: ${permiso.descripcion}`}
                             data-testid={`check-${rol}-${permiso.codigo}`}
                           />
-                        </td>
+                        </TablaCelda>
                       );
                     })}
-                  </tr>
+                  </TablaFila>
                 ))}
               </Fragment>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TablaCuerpo>
+        </Tabla>
+      </TablaContenedor>
 
       {mensaje ? (
         <p role="status" className="text-sm text-exito-texto" data-testid="permisos-confirmacion">

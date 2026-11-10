@@ -250,7 +250,9 @@ export function OperacionConfiguracion({
               onCambiar={abrirSubseccion}
               etiqueta="Subsecciones de Personas y accesos"
             />
-            {subseccionPersonas === 'usuarios' ? <PestanaUsuarios /> : null}
+            {subseccionPersonas === 'usuarios' ? (
+              <PestanaUsuarios onIrAPermisos={() => abrirSubseccion('permisos')} />
+            ) : null}
             {subseccionPersonas === 'permisos' ? <PestanaPermisos /> : null}
             {subseccionPersonas === 'operadores' ? (
               <PestanaOperadores
@@ -258,6 +260,7 @@ export function OperacionConfiguracion({
                 onCambio={async () => {
                   await clienteQuery.invalidateQueries({ queryKey: CLAVE_CONFIGURACION });
                 }}
+                onIrAAreas={() => abrirSeccion('areas')}
               />
             ) : null}
           </div>
