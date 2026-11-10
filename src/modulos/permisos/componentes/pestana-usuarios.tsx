@@ -4,6 +4,15 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
+import {
+  Tabla,
+  TablaCelda,
+  TablaContenedor,
+  TablaCuerpo,
+  TablaEncabezado,
+  TablaEncabezadoCelda,
+  TablaFila,
+} from '@/compartido/componentes/diseno/tabla';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Select } from '@/compartido/componentes/ui/input';
 import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-vacio';
@@ -14,27 +23,26 @@ import {
   cambiarRolUsuarioAccion,
   obtenerUsuariosAccion,
 } from '@/modulos/permisos/acciones/indice';
-import type { DatosUsuariosAdmin, UsuarioAdmin } from '@/modulos/permisos/tipos/indice';
+import type { DatosUsuariosAdmin, RolUsuario, UsuarioAdmin } from '@/modulos/permisos/tipos/indice';
 import { NOMBRE_ROL } from '@/modulos/permisos/utilidades/matriz';
+import { DialogoEstadoUsuario } from './dialogo-estado-usuario';
+import { DialogoRolUsuario, type ModoDialogoRol } from './dialogo-rol-usuario';
 
 const CLAVE_USUARIOS_ADMIN = ['usuarios', 'admin'] as const;
 
-function pedirMotivo(accion: string): string | null {
-  const motivo = window.prompt(`Motivo para ${accion} (obligatorio, mín. 3 caracteres):`);
-  if (motivo === null) return null;
-  const limpio = motivo.trim();
-  if (limpio.length < 3) {
-    window.alert('El motivo es obligatorio (mínimo 3 caracteres).');
-    return null;
-  }
-  return limpio;
-}
+type DialogoRol = {
+  usuario: UsuarioAdmin;
+  rolDestino: RolUsuario;
+  modo: ModoDialogoRol;
+};
 
 /**
  * Administración de usuarios y roles (SII-B1.1, documento §5).
  * Protecciones: nadie se modifica a sí mismo ni se queda el sistema sin admin.
+ * UI-04: los cambios se confirman en diálogos del sistema y el rol muestra sus
+ * permisos vigentes sin modificar la matriz.
  */
-export function PestanaUsuarios() {
+export function PestanaUsuarios({ onIrAPermisos }: { onIrAPermisos?: () => void }) {
   const consulta = useQuery({
     queryKey: CLAVE_USUARIOS_ADMIN,
     queryFn: async (): Promise<DatosUsuariosAdmin> => {
@@ -50,17 +58,29 @@ export function PestanaUsuarios() {
   const [ocupadoId, setOcupadoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [dialogoRol, setDialogoRol] = useState<DialogoRol | null>(null);
+  const [dialogoEstado, setDialogoEstado] = useState<UsuarioAdmin | null>(null);
 
-  async function cambiarRol(usuario: UsuarioAdmin, nuevoRol: string): Promise<void> {
+  function abrirCambioRol(usuario: UsuarioAdmin, nuevoRol: string): void {
     if (nuevoRol === usuario.rol) return;
-    const motivo = pedirMotivo(`cambiar el rol de ${usuario.nombreCompleto}`);
-    if (!motivo) return;
-    setOcupadoId(usuario.id);
     setError(null);
     setMensaje(null);
+    setDialogoRol({ usuario, rolDestino: nuevoRol as RolUsuario, modo: 'cambio' });
+  }
+
+  function abrirConsultaRol(usuario: UsuarioAdmin): void {
+    setError(null);
+    setMensaje(null);
+    setDialogoRol({ usuario, rolDestino: usuario.rol, modo: 'consulta' });
+  }
+
+  async function confirmarRol(motivo: string): Promise<void> {
+    if (!dialogoRol) return;
+    setOcupadoId(dialogoRol.usuario.id);
+    setError(null);
     const respuesta = await cambiarRolUsuarioAccion({
-      usuarioId: usuario.id,
-      rol: nuevoRol,
+      usuarioId: dialogoRol.usuario.id,
+      rol: dialogoRol.rolDestino,
       motivo,
     });
     setOcupadoId(null);
@@ -68,23 +88,18 @@ export function PestanaUsuarios() {
       setError(respuesta.error);
       return;
     }
+    setDialogoRol(null);
     setMensaje('Rol actualizado');
     await consulta.refetch();
   }
 
-  async function alternarEstado(usuario: UsuarioAdmin): Promise<void> {
-    const accion = usuario.activo ? 'desactivar' : 'activar';
-    if (!window.confirm(`¿${accion[0].toUpperCase()}${accion.slice(1)} a ${usuario.nombreCompleto}?`)) {
-      return;
-    }
-    const motivo = pedirMotivo(`${accion} a ${usuario.nombreCompleto}`);
-    if (!motivo) return;
-    setOcupadoId(usuario.id);
+  async function confirmarEstado(motivo: string): Promise<void> {
+    if (!dialogoEstado) return;
+    setOcupadoId(dialogoEstado.id);
     setError(null);
-    setMensaje(null);
     const respuesta = await cambiarEstadoUsuarioAccion({
-      usuarioId: usuario.id,
-      activo: !usuario.activo,
+      usuarioId: dialogoEstado.id,
+      activo: !dialogoEstado.activo,
       motivo,
     });
     setOcupadoId(null);
@@ -92,12 +107,13 @@ export function PestanaUsuarios() {
       setError(respuesta.error);
       return;
     }
+    setDialogoEstado(null);
     setMensaje('Estado actualizado');
     await consulta.refetch();
   }
 
   if (consulta.isPending) {
-    return <SkeletonTabla filas={6} columnas={4} />;
+    return <SkeletonTabla filas={6} columnas={5} />;
   }
 
   if (consulta.isError || !consulta.data) {
@@ -115,43 +131,47 @@ export function PestanaUsuarios() {
     return <EstadoVacio titulo="Sin usuarios" descripcion="No hay usuarios registrados." />;
   }
 
+  const dialogoAbierto = dialogoRol !== null || dialogoEstado !== null;
+
   return (
     <div className="grid gap-4" data-testid="configuracion-usuarios">
       <div>
         <h2 className="text-lg font-semibold text-texto-primario">Usuarios y roles</h2>
         <p className="text-sm text-texto-secundario">
           Cada acción queda auditada con motivo. No puedes modificarte a ti mismo ni dejar el
-          sistema sin administrador activo.
+          sistema sin administrador activo. Los permisos se administran por rol en el apartado
+          Permisos.
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-borde">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr className="bg-superficie-2 text-left text-texto-secundario">
-              <th scope="col" className="px-4 py-3 font-semibold">Usuario</th>
-              <th scope="col" className="px-4 py-3 font-semibold">Rol</th>
-              <th scope="col" className="px-4 py-3 font-semibold">Estado</th>
-              <th scope="col" className="px-4 py-3 text-right font-semibold">Acciones</th>
+      <TablaContenedor>
+        <Tabla className="min-w-[720px]">
+          <caption className="sr-only">Usuarios del sistema, roles y estado</caption>
+          <TablaEncabezado>
+            <tr>
+              <TablaEncabezadoCelda>Usuario</TablaEncabezadoCelda>
+              <TablaEncabezadoCelda>Rol</TablaEncabezadoCelda>
+              <TablaEncabezadoCelda>Estado</TablaEncabezadoCelda>
+              <TablaEncabezadoCelda><span className="sr-only">Acciones</span></TablaEncabezadoCelda>
             </tr>
-          </thead>
-          <tbody>
+          </TablaEncabezado>
+          <TablaCuerpo>
             {consulta.data.usuarios.map((usuario) => {
               const esUnoMismo = usuario.id === consulta.data.usuarioActualId;
               const ocupado = ocupadoId === usuario.id;
               return (
-                <tr key={usuario.id} className="border-t border-borde" data-testid={`usuario-fila-${usuario.id}`}>
-                  <td className="px-4 py-3">
+                <TablaFila key={usuario.id} data-testid={`usuario-fila-${usuario.id}`}>
+                  <TablaCelda>
                     <span className="font-medium text-texto-primario">{usuario.nombreCompleto}</span>
                     <span className="block text-xs text-texto-secundario">{usuario.email}</span>
-                  </td>
-                  <td className="px-4 py-3">
+                  </TablaCelda>
+                  <TablaCelda>
                     <Select
                       value={usuario.rol}
                       disabled={esUnoMismo || ocupado}
                       aria-label={`Rol de ${usuario.nombreCompleto}`}
                       data-testid={`select-rol-${usuario.id}`}
-                      onChange={(evento) => void cambiarRol(usuario, evento.target.value)}
+                      onChange={(evento) => abrirCambioRol(usuario, evento.target.value)}
                     >
                       {ROLES.map((rol) => (
                         <option key={rol} value={rol}>
@@ -159,34 +179,84 @@ export function PestanaUsuarios() {
                         </option>
                       ))}
                     </Select>
-                  </td>
-                  <td className="px-4 py-3">
+                  </TablaCelda>
+                  <TablaCelda>
                     <BadgeEstado estado={usuario.activo ? 'activo' : 'inactivo'} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button
-                      variante={usuario.activo ? 'destructivo' : 'contorno'}
-                      tamano="sm"
-                      disabled={esUnoMismo || ocupado}
-                      onClick={() => void alternarEstado(usuario)}
-                      data-testid={`boton-estado-${usuario.id}`}
-                    >
-                      {usuario.activo ? 'Desactivar' : 'Activar'}
-                    </Button>
-                  </td>
-                </tr>
+                  </TablaCelda>
+                  <TablaCelda>
+                    <span className="flex flex-wrap justify-end gap-2">
+                      <Button
+                        variante="contorno"
+                        tamano="sm"
+                        onClick={() => abrirConsultaRol(usuario)}
+                        data-testid={`ver-permisos-${usuario.id}`}
+                      >
+                        Ver permisos
+                      </Button>
+                      <Button
+                        variante={usuario.activo ? 'destructivo' : 'contorno'}
+                        tamano="sm"
+                        disabled={esUnoMismo || ocupado}
+                        onClick={() => {
+                          setError(null);
+                          setMensaje(null);
+                          setDialogoEstado(usuario);
+                        }}
+                        data-testid={`boton-estado-${usuario.id}`}
+                      >
+                        {usuario.activo ? 'Desactivar' : 'Activar'}
+                      </Button>
+                    </span>
+                  </TablaCelda>
+                </TablaFila>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </TablaCuerpo>
+        </Tabla>
+      </TablaContenedor>
+
+      {dialogoRol ? (
+        <DialogoRolUsuario
+          usuario={dialogoRol.usuario}
+          rolDestino={dialogoRol.rolDestino}
+          modo={dialogoRol.modo}
+          onCerrar={() => {
+            setDialogoRol(null);
+            setError(null);
+          }}
+          {...(dialogoRol.modo === 'cambio' ? { onConfirmar: confirmarRol } : {})}
+          {...(onIrAPermisos
+            ? {
+                onIrAPermisos: () => {
+                  setDialogoRol(null);
+                  onIrAPermisos();
+                },
+              }
+            : {})}
+          ocupado={ocupadoId === dialogoRol.usuario.id}
+          error={error}
+        />
+      ) : null}
+
+      {dialogoEstado ? (
+        <DialogoEstadoUsuario
+          usuario={dialogoEstado}
+          onCerrar={() => {
+            setDialogoEstado(null);
+            setError(null);
+          }}
+          onConfirmar={confirmarEstado}
+          ocupado={ocupadoId === dialogoEstado.id}
+          error={error}
+        />
+      ) : null}
 
       {mensaje ? (
         <p role="status" className="text-sm text-exito-texto" data-testid="usuarios-confirmacion">
           {mensaje}
         </p>
       ) : null}
-      {error ? (
+      {error && !dialogoAbierto ? (
         <p role="alert" className="text-sm text-peligro-texto" data-testid="usuarios-error">
           {error}
         </p>

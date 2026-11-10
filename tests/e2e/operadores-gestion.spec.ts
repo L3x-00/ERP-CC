@@ -52,6 +52,7 @@ test('CFG-05: alta, PIN único, rotación, retiro, reactivación e historia', as
       await page.waitForTimeout(350);
       await page.setViewportSize({ width: 1280, height: 720 });
     }
+    await page.getByTestId('nuevo-operador-config').click();
     await page.getByLabel('Nombre completo').fill(nombre);
     await page.getByLabel('PIN nuevo', { exact: true }).fill(pinOriginal);
     await page.getByTestId('guardar-operador-config').click();
@@ -73,6 +74,7 @@ test('CFG-05: alta, PIN único, rotación, retiro, reactivación e historia', as
     await page.getByLabel('PIN nuevo', { exact: true }).fill(pinOriginal);
     await page.getByTestId('guardar-operador-config').click();
     await expect(page.getByTestId('operador-config-error')).toContainText('PIN ya pertenece');
+    await page.getByTestId('cancelar-operador-config').click();
     const { count: duplicados } = await admin.from('usuarios').select('*', { count: 'exact', head: true })
       .eq('nombre_completo', `Duplicado A17 ${sufijo}`);
     expect(duplicados).toBe(0);
@@ -88,8 +90,8 @@ test('CFG-05: alta, PIN único, rotación, retiro, reactivación e historia', as
       .eq('usuario_id', operadorId).eq('accion', 'iniciar_sesion_pin');
     expect(accesosTrasRotacion).toBeGreaterThan(accesosAntes ?? 0);
 
-    page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId(`operador-config-${operadorId}`).getByRole('button', { name: 'Retirar' }).click();
+    await page.getByTestId('confirmar-retiro-operador').click();
     await expect(page.getByTestId('operador-config-mensaje')).toContainText('Operador retirado');
     await expect(piso).toHaveURL(/\/operador(?:\/)?$/, { timeout: 45_000 });
     const { count: accesosDespues } = await admin.from('logs').select('*', { count: 'exact', head: true })

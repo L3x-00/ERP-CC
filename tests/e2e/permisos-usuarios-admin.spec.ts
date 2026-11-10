@@ -61,8 +61,9 @@ test('SII-B1: roles de usuario y matriz de permisos con auditoría', async ({ pa
     await expect(filaObjetivo).toContainText(`Objetivo B1 ${sufijo}`);
     await expect(panelUsuarios.getByTestId(`select-rol-${adminId}`)).toBeDisabled();
 
-    page.once('dialog', (dialog) => void dialog.accept('cambio de prueba E2E'));
     await panelUsuarios.getByTestId(`select-rol-${objetivoId}`).selectOption('gerente');
+    await page.getByTestId('motivo-cambio-rol').fill('cambio de prueba E2E');
+    await page.getByTestId('confirmar-cambio-rol').click();
     await expect(panelUsuarios.getByTestId('usuarios-confirmacion')).toContainText('Rol actualizado');
     await expect
       .poll(async () => {
