@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { crearClienteSupabase } from '@/nucleo/supabase/cliente';
 import { actualizarCapacidadRecursoAccion } from '@/modulos/planeacion/acciones/actualizar-capacidad-recurso';
+import { CLAVE_CALENDARIO_PLANEACION } from '@/modulos/planeacion/componentes/claves-consulta';
 import {
   capacidadInstaladaHoras,
   jornadaBaseHoras,
@@ -76,9 +77,10 @@ export function PanelCapacidadInstalada() {
           className="mt-3 rounded-base border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-xs text-advertencia-texto"
           data-testid="nota-turnos-capacidad"
         >
-          Aquí ajustas equipos y jornada. Si la consulta de disponibilidad todavía dice que falta
-          configurar la capacidad, el equipo aún no tiene turnos registrados (matutino, vespertino o
-          nocturno): pide a un administrador que registre esos turnos con sus horas.
+          La capacidad se calcula como equipos × jornada. Si el equipo todavía no tiene turnos, al
+          guardar se registra el turno matutino base de 8 h para que el calendario y la
+          disponibilidad muestren esas horas; la jornada que indiques se respeta por encima de ese
+          turno.
         </p>
         {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando recursos…</p>}
         {consulta.isError && (
@@ -110,6 +112,7 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
     recurso.overrideHoras === null ? '' : String(recurso.overrideHoras),
   );
   const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
   const jornada = jornadaBaseHoras(
@@ -121,6 +124,7 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
   async function guardar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     setMensaje(null);
+    setGuardado(false);
     const equiposNumero = Number(equipos);
     if (!Number.isInteger(equiposNumero) || equiposNumero < 1 || equiposNumero > 100) {
       setMensaje('Los equipos deben ser un entero entre 1 y 100');
@@ -147,7 +151,11 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
         return;
       }
       setMensaje('Capacidad guardada.');
-      await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CAPACIDAD });
+      setGuardado(true);
+      await Promise.all([
+        clienteConsultas.invalidateQueries({ queryKey: CLAVE_CAPACIDAD }),
+        clienteConsultas.invalidateQueries({ queryKey: CLAVE_CALENDARIO_PLANEACION }),
+      ]);
     } catch {
       setMensaje('No se pudo comunicar el cambio; vuelve a intentarlo');
     } finally {
@@ -180,7 +188,11 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
             max="100"
             step="1"
             value={equipos}
-            onChange={(evento) => setEquipos(evento.target.value)}
+            onChange={(evento) => {
+              setEquipos(evento.target.value);
+              setGuardado(false);
+              setMensaje(null);
+            }}
             required
           />
         </div>
@@ -194,11 +206,26 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
             step="0.5"
             placeholder={`${jornadaBaseHoras(recurso.horasTurno, null)}`}
             value={override}
-            onChange={(evento) => setOverride(evento.target.value)}
+            onChange={(evento) => {
+              setOverride(evento.target.value);
+              setGuardado(false);
+              setMensaje(null);
+            }}
           />
         </div>
-        <Button type="submit" variante="contorno" tamano="sm" disabled={guardando}>
-          {guardando ? 'Guardando…' : 'Guardar'}
+        <Button
+          type="submit"
+          variante="contorno"
+          tamano="sm"
+          disabled={guardando}
+          className={
+            guardado
+              ? 'border-exito/40 bg-exito-suave text-exito-texto hover:bg-exito-suave'
+              : undefined
+          }
+          data-testid={`guardar-capacidad-${recurso.codigo}`}
+        >
+          {guardando ? 'Guardando…' : guardado ? 'Guardado' : 'Guardar'}
         </Button>
       </form>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -206,7 +233,10 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
           Equipos × jornada = {capacidad} h por jornada
         </span>
         {mensaje !== null && (
-          <span role="status" className="text-xs text-texto-secundario">
+          <span
+            role="status"
+            className={`text-xs ${guardado ? 'text-exito-texto' : 'text-texto-secundario'}`}
+          >
             {mensaje}
           </span>
         )}
