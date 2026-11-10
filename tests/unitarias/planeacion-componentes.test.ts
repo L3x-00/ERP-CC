@@ -439,6 +439,28 @@ describe('operación de Planeación en cliente', () => {
     );
   });
 
+  it('al arrastrar a un día sin capacidad ofrece la guía y cierra el diálogo al navegar', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    renderizarOperacion(cliente);
+
+    const tarjeta = screen.getByTestId(`programacion-${DATOS.programaciones[0].id}`);
+    const columna = screen.getByTestId('columna-2026-09-17');
+    fireEvent.dragStart(tarjeta, { dataTransfer: { setData: vi.fn(), effectAllowed: '' } });
+    fireEvent.drop(columna, {
+      dataTransfer: { getData: () => DATOS.programaciones[0].id },
+    });
+
+    const dialogo = screen.getByTestId('dialogo-reprogramacion-planeacion');
+    expect(dialogo.textContent).toContain('no tiene turnos configurados');
+    fireEvent.click(within(dialogo).getByRole('button', { name: '¿Cómo lo configuro?' }));
+
+    const guia = screen.getByTestId('guia-capacidad');
+    fireEvent.click(within(guia).getByRole('link', { name: /Abrir Capacidad instalada/ }));
+
+    // Navegar a la misma página no debe dejar el diálogo de reprogramación encima.
+    expect(screen.queryByTestId('dialogo-reprogramacion-planeacion')).toBeNull();
+  });
+
   it('abre el detalle de una orden concluida en lugar de reprogramar y bloquea el arrastre', async () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     const programacionConcluida = {
@@ -1005,6 +1027,37 @@ describe('operación de Planeación en cliente', () => {
     ).toBe(false);
   });
 
+  it('cuando el equipo no tiene turnos configurados explica dónde configurarlo (guía visual)', () => {
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: DATOS.recursos,
+        partidasProgramables: PARTIDAS_POR_DEFECTO,
+        cargas: [],
+        onEnviar: async () => ({ exito: true as const }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: PARTIDAS_POR_DEFECTO[0].partidaId },
+    });
+    fireEvent.change(screen.getByLabelText('Recurso'), {
+      target: { value: '11111111-1111-4111-8111-111111111111' },
+    });
+    fireEvent.change(screen.getByLabelText('Fecha programada'), {
+      target: { value: '2026-09-16' },
+    });
+    fireEvent.change(screen.getByLabelText('Horas estimadas'), { target: { value: '4' } });
+
+    const resumen = screen.getByTestId('resumen-programacion-planeacion');
+    expect(resumen.textContent).toContain('no tiene turnos configurados');
+    fireEvent.click(within(resumen).getByRole('button', { name: '¿Cómo lo configuro?' }));
+
+    const dialogo = screen.getByTestId('guia-capacidad');
+    expect(
+      within(dialogo).getByRole('link', { name: /Abrir Capacidad instalada/ }).getAttribute('href'),
+    ).toBe('/planeacion#capacidad-instalada');
+  });
+
   it('una fecha fuera del rango consulta la capacidad real con «Verificando capacidad…» (C9.2/P09)', async () => {
     let resolverConsulta: (resultado: { exito: true; datos: typeof DATOS }) => void = () => {};
     obtenerCalendarioMock.mockImplementation(
@@ -1027,7 +1080,9 @@ describe('operación de Planeación en cliente', () => {
 
     expect(await screen.findByTestId('verificando-capacidad-planeacion')).toBeTruthy();
     expect(
-      screen.queryByText('Sin capacidad configurada para ese recurso, fecha y turno'),
+      screen.queryByText(
+        'Este equipo no tiene turnos configurados para ese día, así que todavía no se puede comparar la carga.',
+      ),
     ).toBeNull();
     expect(obtenerCalendarioMock).toHaveBeenCalledTimes(1);
     expect(obtenerCalendarioMock).toHaveBeenCalledWith({

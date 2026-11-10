@@ -10,6 +10,7 @@ import {
   type HuecoDisponible,
 } from '@/modulos/planeacion/servicios/indice';
 import { InsigniaSaturacion } from '@/modulos/planeacion/componentes/insignia-saturacion';
+import { BotonGuiaCapacidad } from '@/modulos/planeacion/componentes/dialogo-capacidad-sin-configurar';
 import {
   DialogoErrorPlaneacion,
   type ErrorProgramacion,
@@ -378,7 +379,7 @@ export function PanelAsignacionPlaneacion({
   // C9.2/P09: el aviso dice cuántas horas se exceden, con las horas del turno.
   const excesoHoras = Math.max(0, evaluacion.horasProgramadas - evaluacion.horasCapacidad);
   const textoAvisoCapacidad = evaluacion.sinCapacidad
-    ? 'El recurso no tiene capacidad disponible en el turno seleccionado. Puedes buscar el siguiente día hábil con hueco.'
+    ? 'Falta configurar la capacidad de este equipo. La guía explica qué revisar y dónde hacerlo.'
     : `Excede la capacidad por ${formatearHoras(excesoHoras)} h (${formatearHoras(evaluacion.horasProgramadas)}/${formatearHoras(evaluacion.horasCapacidad)} h). Puedes buscar el siguiente día hábil con hueco.`;
   const puedePrevisualizar = recursoId !== '' && fechaProgramada !== '' && horasValidas;
 
@@ -955,11 +956,14 @@ export function PanelAsignacionPlaneacion({
               Verificando capacidad…
             </p>
           ) : (
-            <p className={evaluacion.cabe ? 'text-texto-secundario' : 'text-peligro-texto'}>
-              {evaluacion.sinCapacidad
-                ? 'Sin capacidad configurada para ese recurso, fecha y turno'
-                : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
-            </p>
+            <div className="flex flex-col items-start gap-1">
+              <p className={evaluacion.cabe ? 'text-texto-secundario' : 'text-peligro-texto'}>
+                {evaluacion.sinCapacidad
+                  ? 'Este equipo no tiene turnos configurados para ese día, así que todavía no se puede comparar la carga.'
+                  : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
+              </p>
+              {evaluacion.sinCapacidad ? <BotonGuiaCapacidad /> : null}
+            </div>
           )}
           {!verificandoCapacidad && !evaluacion.cabe ? (
             <p

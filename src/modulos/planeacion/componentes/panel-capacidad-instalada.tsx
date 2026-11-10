@@ -64,32 +64,42 @@ export function PanelCapacidadInstalada() {
   });
 
   return (
-    <SeccionDesplegable
-      titulo="Capacidad instalada"
-      descripcion="Equipos y jornada de cada recurso; por defecto, 8 h"
-      dataTestId="panel-capacidad-instalada"
-      dataTestIdBoton="toggle-capacidad-instalada"
-      claseContenido="pt-0"
-    >
-      {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando recursos…</p>}
-      {consulta.isError && (
-        <p role="alert" className="mt-3 text-sm text-peligro-texto">
-          No se pudo cargar la capacidad de los recursos.
+    <div id="capacidad-instalada" className="scroll-mt-24">
+      <SeccionDesplegable
+        titulo="Capacidad instalada"
+        descripcion="Equipos y jornada de cada recurso; por defecto, 8 h"
+        dataTestId="panel-capacidad-instalada"
+        dataTestIdBoton="toggle-capacidad-instalada"
+        claseContenido="pt-0"
+      >
+        <p
+          className="mt-3 rounded-base border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-xs text-advertencia-texto"
+          data-testid="nota-turnos-capacidad"
+        >
+          Aquí ajustas equipos y jornada. Si la consulta de disponibilidad todavía dice que falta
+          configurar la capacidad, el equipo aún no tiene turnos registrados (matutino, vespertino o
+          nocturno): pide a un administrador que registre esos turnos con sus horas.
         </p>
-      )}
+        {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando recursos…</p>}
+        {consulta.isError && (
+          <p role="alert" className="mt-3 text-sm text-peligro-texto">
+            No se pudo cargar la capacidad de los recursos.
+          </p>
+        )}
 
-      {consulta.data && consulta.data.length === 0 && (
-        <p className="mt-3 text-sm text-texto-secundario">No hay recursos activos.</p>
-      )}
+        {consulta.data && consulta.data.length === 0 && (
+          <p className="mt-3 text-sm text-texto-secundario">No hay recursos activos.</p>
+        )}
 
-      {consulta.data && consulta.data.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-3">
-          {consulta.data.map((recurso) => (
-            <FilaCapacidad key={recurso.id} recurso={recurso} />
-          ))}
-        </ul>
-      )}
-    </SeccionDesplegable>
+        {consulta.data && consulta.data.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-3">
+            {consulta.data.map((recurso) => (
+              <FilaCapacidad key={recurso.id} recurso={recurso} />
+            ))}
+          </ul>
+        )}
+      </SeccionDesplegable>
+    </div>
   );
 }
 
