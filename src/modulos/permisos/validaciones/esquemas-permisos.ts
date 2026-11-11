@@ -28,6 +28,29 @@ export const esquemaActualizarPermisosRol = z.object({
   permisosEsperados: z.array(z.enum(PERMISOS)).max(PERMISOS.length),
 });
 
+/**
+ * Alta de un usuario desde Configuración → Personas y accesos → Usuarios.
+ * El rol se elige al crear y sus permisos son los de la matriz de ese rol.
+ */
+export const esquemaCrearUsuario = z.object({
+  nombreCompleto: z
+    .string()
+    .trim()
+    .min(3, 'El nombre es obligatorio (mínimo 3 caracteres)')
+    .max(120, 'El nombre no puede exceder 120 caracteres'),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('El correo no es válido')
+    .max(200),
+  password: z
+    .string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(72, 'La contraseña no puede exceder 72 caracteres'),
+  rol: z.enum(ROLES),
+});
+
 /** Cambio de rol de un usuario, con motivo obligatorio. */
 export const esquemaCambiarRolUsuario = z.object({
   usuarioId: z.string().uuid(),

@@ -57,6 +57,14 @@ export type EntradaActualizarPermisosRol = {
   permisos: Permiso[];
 };
 
+/** Entrada validada para dar de alta un usuario. */
+export type EntradaCrearUsuario = {
+  nombreCompleto: string;
+  email: string;
+  password: string;
+  rol: RolUsuario;
+};
+
 /** Entrada validada para cambiar el rol de un usuario. */
 export type EntradaCambiarRolUsuario = {
   usuarioId: string;

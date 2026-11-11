@@ -26,6 +26,7 @@ import {
 import type { DatosUsuariosAdmin, RolUsuario, UsuarioAdmin } from '@/modulos/permisos/tipos/indice';
 import { NOMBRE_ROL } from '@/modulos/permisos/utilidades/matriz';
 import { DialogoEstadoUsuario } from './dialogo-estado-usuario';
+import { DialogoNuevoUsuario } from './dialogo-nuevo-usuario';
 import { DialogoRolUsuario, type ModoDialogoRol } from './dialogo-rol-usuario';
 
 const CLAVE_USUARIOS_ADMIN = ['usuarios', 'admin'] as const;
@@ -60,6 +61,8 @@ export function PestanaUsuarios({ onIrAPermisos }: { onIrAPermisos?: () => void 
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [dialogoRol, setDialogoRol] = useState<DialogoRol | null>(null);
   const [dialogoEstado, setDialogoEstado] = useState<UsuarioAdmin | null>(null);
+  // Alta de usuario: botón → modal → rol y permisos → opción de ajustar la matriz.
+  const [dialogoNuevo, setDialogoNuevo] = useState(false);
 
   function abrirCambioRol(usuario: UsuarioAdmin, nuevoRol: string): void {
     if (nuevoRol === usuario.rol) return;
@@ -127,23 +130,41 @@ export function PestanaUsuarios({ onIrAPermisos }: { onIrAPermisos?: () => void 
     );
   }
 
-  if (consulta.data.usuarios.length === 0) {
-    return <EstadoVacio titulo="Sin usuarios" descripcion="No hay usuarios registrados." />;
-  }
-
-  const dialogoAbierto = dialogoRol !== null || dialogoEstado !== null;
+  const usuarios = consulta.data.usuarios;
+  const dialogoAbierto = dialogoRol !== null || dialogoEstado !== null || dialogoNuevo;
 
   return (
     <div className="grid gap-4" data-testid="configuracion-usuarios">
-      <div>
-        <h2 className="text-lg font-semibold text-texto-primario">Usuarios y roles</h2>
-        <p className="text-sm text-texto-secundario">
-          Cada acción queda auditada con motivo. No puedes modificarte a ti mismo ni dejar el
-          sistema sin administrador activo. Los permisos se administran por rol en el apartado
-          Permisos.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-texto-primario">Usuarios y roles</h2>
+          <p className="text-sm text-texto-secundario">
+            Cada acción queda auditada con motivo. No puedes modificarte a ti mismo ni dejar el
+            sistema sin administrador activo. Los permisos se administran por rol en el apartado
+            Permisos.
+          </p>
+        </div>
+        <Button
+          tamano="sm"
+          onClick={() => {
+            setError(null);
+            setMensaje(null);
+            setDialogoNuevo(true);
+          }}
+          data-testid="nuevo-usuario"
+        >
+          Nuevo usuario
+        </Button>
       </div>
 
+      {usuarios.length === 0 ? (
+        <div className="grid justify-items-start gap-3">
+          <EstadoVacio
+            titulo="Sin usuarios"
+            descripcion="Aún no hay usuarios registrados. Crea el primero y asígnale un rol."
+          />
+        </div>
+      ) : (
       <TablaContenedor>
         <Tabla className="min-w-[720px]">
           <caption className="sr-only">Usuarios del sistema, roles y estado</caption>
@@ -156,7 +177,7 @@ export function PestanaUsuarios({ onIrAPermisos }: { onIrAPermisos?: () => void 
             </tr>
           </TablaEncabezado>
           <TablaCuerpo>
-            {consulta.data.usuarios.map((usuario) => {
+            {usuarios.map((usuario) => {
               const esUnoMismo = usuario.id === consulta.data.usuarioActualId;
               const ocupado = ocupadoId === usuario.id;
               return (
@@ -214,6 +235,21 @@ export function PestanaUsuarios({ onIrAPermisos }: { onIrAPermisos?: () => void 
           </TablaCuerpo>
         </Tabla>
       </TablaContenedor>
+      )}
+
+      {dialogoNuevo ? (
+        <DialogoNuevoUsuario
+          onCerrar={() => {
+            setDialogoNuevo(false);
+            setError(null);
+          }}
+          onCreado={(usuario) => {
+            setMensaje(`Usuario ${usuario.email} creado con rol ${NOMBRE_ROL[usuario.rol]}.`);
+            void consulta.refetch();
+          }}
+          {...(onIrAPermisos ? { onIrAPermisos } : {})}
+        />
+      ) : null}
 
       {dialogoRol ? (
         <DialogoRolUsuario

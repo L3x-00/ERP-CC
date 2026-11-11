@@ -44,10 +44,19 @@ import type {
   DetallePropuestaFicha,
   RevisionConTotales,
 } from '@/modulos/propuestas/acciones/obtener-propuesta';
+import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
 import { PanelAccionesPropuesta } from '@/modulos/propuestas/componentes/panel-acciones-propuesta';
 import { PanelDisponibilidadPropuesta } from '@/modulos/propuestas/componentes/panel-disponibilidad-propuesta';
 import type { ResumenDisponibilidadPropuesta } from '@/modulos/propuestas/tipos/disponibilidad';
 import type { PermisosPropuesta } from '@/modulos/propuestas/tipos/indice';
+
+// La fecha compromiso no puede ser anterior a hoy: usar una fecha relativa evita
+// que la prueba caduque (misma regla que los fixtures de RFQ).
+const FECHA_FUTURA = (() => {
+  const base = new Date();
+  base.setDate(base.getDate() + 7);
+  return fechaHoyLocal(base);
+})();
 
 const PERMISOS = {
   editarArticulo: true,
@@ -214,7 +223,7 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
   it('muestra el resumen sin cambiar la fecha escrita, sin aceptar ni crear nada', async () => {
     consultarMock.mockResolvedValue({ exito: true, datos: resumen() });
     montarPanel();
-    fireEvent.change(campoFecha(), { target: { value: '2026-11-10' } });
+    fireEvent.change(campoFecha(), { target: { value: FECHA_FUTURA } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Consultar disponibilidad' }));
 
@@ -261,7 +270,7 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     expect(within(region).getByText(/3 de noviembre de 2026/)).toBeTruthy();
     expect(within(region).queryByText(/se puede cumplir|alcanza|suficiente/i)).toBeNull();
 
-    expect(campoFecha().value).toBe('2026-11-10');
+    expect(campoFecha().value).toBe(FECHA_FUTURA);
     expect(aceptarMock).not.toHaveBeenCalled();
     expect((screen.getByRole('button', { name: 'Aceptar revisión' }) as HTMLButtonElement).disabled).toBe(false);
   });
@@ -302,7 +311,7 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     consultarMock.mockReturnValue(pendiente.promesa);
     aceptarMock.mockResolvedValue({ exito: false, error: 'x' });
     montarPanel();
-    fireEvent.change(campoFecha(), { target: { value: '2026-11-10' } });
+    fireEvent.change(campoFecha(), { target: { value: FECHA_FUTURA } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Consultar disponibilidad' }));
 
@@ -322,7 +331,7 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
       .mockResolvedValueOnce({ exito: false, error: 'No se pudo consultar la disponibilidad. Inténtalo de nuevo.' })
       .mockResolvedValueOnce({ exito: true, datos: resumen() });
     montarPanel();
-    fireEvent.change(campoFecha(), { target: { value: '2026-11-10' } });
+    fireEvent.change(campoFecha(), { target: { value: FECHA_FUTURA } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Consultar disponibilidad' }));
     const alerta = await screen.findByRole('alert');
@@ -332,7 +341,7 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     await screen.findByText('CNC Router');
     expect(consultarMock).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(campoFecha().value).toBe('2026-11-10');
+    expect(campoFecha().value).toBe(FECHA_FUTURA);
   });
 
   it('un fallo de red muestra un error reintentable', async () => {
