@@ -3,7 +3,7 @@
 // del rol sin modificar la matriz ni conceder accesos.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const {
@@ -12,12 +12,14 @@ const {
   cambiarRolMock,
   cambiarEstadoMock,
   guardarOperadorMock,
+  crearUsuarioMock,
 } = vi.hoisted(() => ({
   obtenerUsuariosMock: vi.fn(),
   obtenerMatrizMock: vi.fn(),
   cambiarRolMock: vi.fn(),
   cambiarEstadoMock: vi.fn(),
   guardarOperadorMock: vi.fn(),
+  crearUsuarioMock: vi.fn(),
 }));
 
 vi.mock('@/modulos/permisos/acciones/indice', () => ({
@@ -25,6 +27,7 @@ vi.mock('@/modulos/permisos/acciones/indice', () => ({
   obtenerMatrizPermisosAccion: () => obtenerMatrizMock(),
   cambiarRolUsuarioAccion: (...args: unknown[]) => cambiarRolMock(...args),
   cambiarEstadoUsuarioAccion: (...args: unknown[]) => cambiarEstadoMock(...args),
+  crearUsuarioAccion: (...args: unknown[]) => crearUsuarioMock(...args),
 }));
 
 vi.mock('@/modulos/configuracion/acciones/indice', () => ({
@@ -85,6 +88,7 @@ beforeEach(() => {
   cambiarRolMock.mockResolvedValue({ exito: true, datos: null });
   cambiarEstadoMock.mockResolvedValue({ exito: true, datos: null });
   guardarOperadorMock.mockResolvedValue({ exito: true, datos: null });
+  crearUsuarioMock.mockResolvedValue({ exito: true, datos: { id: 'u-nuevo' } });
 });
 
 afterEach(cleanup);
@@ -143,6 +147,61 @@ describe('PestanaUsuarios — diálogos y vista previa de permisos (UI-04)', () 
         motivo: 'baja temporal',
       }),
     );
+  });
+});
+
+describe('PestanaUsuarios — alta de usuario en modal', () => {
+  it('el botón «Nuevo usuario» abre el modal, muestra los permisos del rol y crea la cuenta', async () => {
+    const irAPermisos = vi.fn();
+    envolver(createElement(PestanaUsuarios, { onIrAPermisos: irAPermisos }));
+    await screen.findByTestId('usuario-fila-u2');
+
+    fireEvent.click(screen.getByTestId('nuevo-usuario'));
+    const dialogo = await screen.findByTestId('dialogo-nuevo-usuario');
+    expect(within(dialogo).getByText('Permisos de Customer Service')).toBeTruthy();
+    await waitFor(() => expect(dialogo.textContent).toContain('Ver clientes'));
+
+    fireEvent.change(screen.getByTestId('nuevo-usuario-nombre'), {
+      target: { value: 'Nueva Persona' },
+    });
+    fireEvent.change(screen.getByTestId('nuevo-usuario-email'), {
+      target: { value: 'Nueva@Orca.local' },
+    });
+    fireEvent.change(screen.getByTestId('nuevo-usuario-password'), {
+      target: { value: 'ClaveSegura1' },
+    });
+    fireEvent.change(screen.getByTestId('nuevo-usuario-rol'), { target: { value: 'contador' } });
+    await waitFor(() => expect(dialogo.textContent).toContain('Permisos de Administrative'));
+
+    fireEvent.click(screen.getByTestId('confirmar-nuevo-usuario'));
+
+    await waitFor(() =>
+      expect(crearUsuarioMock).toHaveBeenCalledWith({
+        nombreCompleto: 'Nueva Persona',
+        email: 'Nueva@Orca.local',
+        password: 'ClaveSegura1',
+        rol: 'contador',
+      }),
+    );
+    expect(
+      await screen.findByText('Usuario nueva@orca.local creado con rol Administrative.'),
+    ).toBeTruthy();
+    expect(screen.getByTestId('dialogo-nuevo-usuario').textContent).toContain('Usuario creado');
+
+    fireEvent.click(screen.getByTestId('ir-a-permisos-desde-alta'));
+    expect(irAPermisos).toHaveBeenCalledTimes(1);
+  });
+
+  it('sin usuarios en la lista, el botón de alta sigue disponible', async () => {
+    obtenerUsuariosMock.mockResolvedValue({
+      exito: true,
+      datos: { usuarios: [], usuarioActualId: 'u1' },
+    });
+    envolver(createElement(PestanaUsuarios));
+
+    expect(await screen.findByTestId('nuevo-usuario')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('nuevo-usuario'));
+    expect(await screen.findByTestId('dialogo-nuevo-usuario')).toBeTruthy();
   });
 });
 

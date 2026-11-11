@@ -72,6 +72,36 @@ test('SII-B1: roles de usuario y matriz de permisos con auditoría', async ({ pa
       })
       .toBe('gerente');
 
+    // --- Personas y accesos → Usuarios: alta desde «Nuevo usuario» ---
+    const correoNuevo = `sii-b1-nuevo-${sufijo}@orca.local`;
+    await panelUsuarios.getByTestId('nuevo-usuario').click();
+    const dialogoAlta = page.getByTestId('dialogo-nuevo-usuario');
+    await expect(dialogoAlta).toBeVisible();
+    await expect(dialogoAlta.getByTestId('preview-permisos-rol')).toContainText('Customer Service');
+
+    await page.getByTestId('nuevo-usuario-nombre').fill(`Nueva Persona ${sufijo}`);
+    await page.getByTestId('nuevo-usuario-email').fill(correoNuevo);
+    await page.getByTestId('nuevo-usuario-password').fill(clave);
+    await page.getByTestId('nuevo-usuario-rol').selectOption('contador');
+    await expect(dialogoAlta).toContainText('Permisos de Administrative');
+    await page.getByTestId('confirmar-nuevo-usuario').click();
+
+    await expect(dialogoAlta).toContainText('Usuario creado');
+    await page.getByTestId('cerrar-nuevo-usuario').click();
+    await expect(panelUsuarios).toContainText(correoNuevo);
+
+    const { data: perfilNuevo, error: errorPerfilNuevo } = await admin
+      .from('usuarios')
+      .select('id, rol, nombre_completo')
+      .eq('email', correoNuevo)
+      .single();
+    if (errorPerfilNuevo || !perfilNuevo) throw errorPerfilNuevo ?? new Error('No se creó el usuario');
+    expect(perfilNuevo.rol).toBe('contador');
+    const nuevoId = perfilNuevo.id;
+    await admin.from('logs').delete().eq('recurso_id', nuevoId);
+    await admin.from('usuarios').delete().eq('id', nuevoId);
+    await admin.auth.admin.deleteUser(nuevoId);
+
     // --- Personas y accesos → Permisos: alta y baja de un permiso con guardado atómico ---
     await page.getByRole('tab', { name: 'Permisos', exact: true }).click();
     const panelPermisos = page.getByTestId('matriz-permisos');
