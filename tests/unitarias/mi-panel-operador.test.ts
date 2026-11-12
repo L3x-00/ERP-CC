@@ -14,6 +14,8 @@ function crearProceso(
   opciones: {
     reclamante?: string;
     columna?: ProcesoEspacioOperador['columna'];
+    partidaId?: string;
+    piezasDisponibles?: number | null;
     sesiones?: Array<{
       operadorId: string;
       estadoSesion: 'activa' | 'pausada' | 'finalizada';
@@ -32,7 +34,9 @@ function crearProceso(
 
   return {
     id,
+    partidaId: opciones.partidaId ?? id,
     columna: opciones.columna ?? 'bandeja',
+    piezasDisponibles: opciones.piezasDisponibles ?? null,
     reclamo: opciones.reclamante
       ? {
           id: `${id}-reclamo`,
@@ -57,6 +61,42 @@ describe('Mi panel de operador - cálculos', () => {
     const resultado = obtenerMisProcesos(procesos, OPERADOR);
 
     expect(resultado.map((item) => item.proceso.id)).toEqual(['propio']);
+  });
+
+  it('incluye el proceso siguiente con piezas disponibles de una partida ya trabajada', () => {
+    const procesos = [
+      crearProceso('corte', {
+        partidaId: 'partida-1',
+        columna: 'en_proceso',
+        sesiones: [{
+          operadorId: OPERADOR,
+          estadoSesion: 'finalizada',
+          horasNetas: 2,
+        }],
+      }),
+      crearProceso('doblado', { partidaId: 'partida-1', piezasDisponibles: 50 }),
+      crearProceso('otra-partida', { partidaId: 'partida-2', piezasDisponibles: 50 }),
+    ];
+
+    expect(obtenerMisProcesos(procesos, OPERADOR).map((item) => item.proceso.id))
+      .toEqual(['corte', 'doblado']);
+  });
+
+  it('no incluye el proceso siguiente cuando no hay piezas disponibles', () => {
+    const procesos = [
+      crearProceso('corte', {
+        partidaId: 'partida-1',
+        sesiones: [{
+          operadorId: OPERADOR,
+          estadoSesion: 'finalizada',
+          horasNetas: 2,
+        }],
+      }),
+      crearProceso('doblado', { partidaId: 'partida-1', piezasDisponibles: 0 }),
+    ];
+
+    expect(obtenerMisProcesos(procesos, OPERADOR).map((item) => item.proceso.id))
+      .toEqual(['corte']);
   });
 
   it('reconoce procesos personales en ejecución', () => {

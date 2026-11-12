@@ -718,10 +718,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       // 5. Generar PDF v1 y verlo en la pestaña PDFs.
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
-      await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
-      // Obs. PO: el resultado de «Generar PDF» debe ser visible y abrible.
-      await expect(ficha.getByTestId('pdf-resultado')).toContainText('PDF generado (v1).');
-      await expect(ficha.getByRole('button', { name: 'Ver PDF' })).toBeVisible();
+      // Obs. PO 2026-11-12: el botón pasa a «Ver PDF generado» y no deja texto extra.
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Ver PDF generado');
       await page.getByRole('tab', { name: 'PDFs' }).click();
       await expect(page.getByTestId('panel-pdfs-propuesta')).toContainText('vigente');
       await page.getByRole('tab', { name: 'Resumen' }).click();
@@ -747,7 +745,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         })
         .toBe('DRAFT');
       // El PDF vigente queda invalidado: hay que regenerarlo.
-      await expect(page.getByText(/PDF vigente v1/)).toHaveCount(0);
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Generar PDF');
       await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
       await expect(dialogoValidar).toBeVisible();
       await dialogoValidar.getByRole('button', { name: 'Registrar y validar' }).click();
@@ -763,8 +761,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         .toBe('READY_TO_SEND');
       // Sin cambios de contenido, regenerar reactiva el mismo PDF (v1).
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
-      await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
-      await expect(ficha.getByTestId('pdf-resultado')).toContainText('ya existía');
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Ver PDF generado');
 
       // 6. Seguimiento posterior en modal (obs. cliente: captura en modal).
       await page.getByRole('tab', { name: 'Seguimiento' }).click();

@@ -117,7 +117,7 @@ export function PanelDisponibilidadPropuesta({
           className="order-last flex w-full flex-col gap-2 rounded-base border border-borde bg-superficie p-3 text-sm"
         >
           {vigente.estado === 'cargando' && (
-            <p className="text-texto-secundario">Consultando la capacidad de los próximos 14 días…</p>
+            <p className="text-texto-secundario">Consultando la capacidad de los próximos 7 días…</p>
           )}
 
           {vigente.estado === 'error' && (

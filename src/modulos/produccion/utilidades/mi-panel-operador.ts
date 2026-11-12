@@ -27,57 +27,74 @@ export function obtenerMisProcesos(
   procesos: readonly ProcesoEspacioOperador[],
   operadorId: string,
 ): MiProceso[] {
-  return procesos.flatMap((proceso) => {
-    const sesiones = proceso.sesiones.filter(
-      (sesion) => sesion.operadorId === operadorId,
-    );
+  const sesionesDe = (proceso: ProcesoEspacioOperador) => proceso.sesiones.filter(
+    (sesion) => sesion.operadorId === operadorId,
+  );
+  const esReclamadoPorMi = (proceso: ProcesoEspacioOperador) =>
+    proceso.reclamo?.operadorId === operadorId && proceso.reclamo.estado === 'activo';
 
-    const reclamadoPorMi =
-      proceso.reclamo?.operadorId === operadorId &&
-      proceso.reclamo.estado === 'activo';
-
-    if (!reclamadoPorMi && sesiones.length === 0) {
-      return [];
+  const propias = new Set<string>();
+  const partidasPropias = new Set<string>();
+  for (const proceso of procesos) {
+    if (esReclamadoPorMi(proceso) || sesionesDe(proceso).length > 0) {
+      propias.add(proceso.id);
+      partidasPropias.add(proceso.partidaId);
     }
+  }
 
-    const sesionActiva = sesiones.some(
-      (sesion) => sesion.estadoSesion === 'activa',
-    );
+  // El proceso siguiente de una partida que ya trabajé aparece para reclamarlo
+  // en cuanto el proceso anterior libera piezas.
+  const disponibles = procesos.filter((proceso) => (
+    !propias.has(proceso.id)
+    && partidasPropias.has(proceso.partidaId)
+    && proceso.reclamo === null
+    && proceso.columna !== 'lista'
+    && sesionesDe(proceso).length === 0
+    && (proceso.piezasDisponibles === null || proceso.piezasDisponibles > 0)
+  ));
 
-    const ultimaSesion = [...sesiones].sort(
-      (a, b) => b.fechaInicio.localeCompare(a.fechaInicio),
-    )[0];
+  return [...procesos.filter((proceso) => propias.has(proceso.id)), ...disponibles]
+    .map((proceso): MiProceso => {
+      const sesiones = sesionesDe(proceso);
 
-    let estado: EstadoMiProceso;
+      const sesionActiva = sesiones.some(
+        (sesion) => sesion.estadoSesion === 'activa',
+      );
 
-    if (sesionActiva) {
-      estado = 'en_proceso';
-    } else if (ultimaSesion?.estadoSesion === 'pausada') {
-      estado = 'pausado';
-    } else if (
-      proceso.columna === 'lista' &&
-      sesiones.some((sesion) => sesion.estadoSesion === 'finalizada')
-    ) {
-      estado = 'terminado';
-    } else {
-      estado = 'pendiente';
-    }
+      const ultimaSesion = [...sesiones].sort(
+        (a, b) => b.fechaInicio.localeCompare(a.fechaInicio),
+      )[0];
 
-    return [{
-      proceso,
-      estado,
-      horasTrabajadas: Math.round(
-        sesiones.reduce(
-          (total, sesion) => total + sesion.horasNetas,
+      let estado: EstadoMiProceso;
+
+      if (sesionActiva) {
+        estado = 'en_proceso';
+      } else if (ultimaSesion?.estadoSesion === 'pausada') {
+        estado = 'pausado';
+      } else if (
+        proceso.columna === 'lista' &&
+        sesiones.some((sesion) => sesion.estadoSesion === 'finalizada')
+      ) {
+        estado = 'terminado';
+      } else {
+        estado = 'pendiente';
+      }
+
+      return {
+        proceso,
+        estado,
+        horasTrabajadas: Math.round(
+          sesiones.reduce(
+            (total, sesion) => total + sesion.horasNetas,
+            0,
+          ) * 100,
+        ) / 100,
+        piezasRegistradas: sesiones.reduce(
+          (total, sesion) => total + sesion.piezasProducidas,
           0,
-        ) * 100,
-      ) / 100,
-      piezasRegistradas: sesiones.reduce(
-        (total, sesion) => total + sesion.piezasProducidas,
-        0,
-      ),
-    }];
-  });
+        ),
+      };
+    });
 }
 
 export function resumirMiPanel(

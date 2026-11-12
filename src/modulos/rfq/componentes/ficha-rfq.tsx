@@ -135,6 +135,13 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
     setEditandoResumen(sugerido === 'solicitud');
   }, [continuar, validacionDatos]);
 
+  // Al validar, la captura deja de estar incompleta y la pestaña «Revisar»
+  // desaparece; sin este ajuste la ficha queda vacía hasta refrescar.
+  useEffect(() => {
+    if (capturaIncompleta || pestana !== 'revisar') return;
+    setPestana('resumen');
+  }, [capturaIncompleta, pestana]);
+
   function seleccionarPasoCaptura(paso: PasoCapturaRfq): void {
     // Navegar a mano cancela el salto de "Continuar captura" si la validación aún no llega.
     continuidadAplicada.current = true;

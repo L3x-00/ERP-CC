@@ -24,7 +24,10 @@ import {
   ESTADOS_PROPIESTA,
   type EstadoPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
-import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
+import {
+  ETIQUETA_ESTADO_PROPIESTA,
+  TONO_ESTADO_PROPIESTA,
+} from '@/modulos/propuestas/utilidades/indice';
 
 /**
  * SII-B4.11: cola de propuestas con filtros por estado, cliente, responsable y
@@ -173,6 +176,7 @@ export function ColaPropuestas() {
                     <BadgeEstado
                       estado={fila.estado}
                       etiqueta={ETIQUETA_ESTADO_PROPIESTA[fila.estado]}
+                      tono={TONO_ESTADO_PROPIESTA[fila.estado]}
                     />
                   </TablaCelda>
                   <TablaCelda>

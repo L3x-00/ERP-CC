@@ -55,6 +55,8 @@ export type DetallePropuestaFicha = {
   fechasRfq: { fechaRequerida: string | null; plazoComercial: string | null } | null;
   /** Utilidad objetivo vigente (% sobre costo) de Configuración, para la ficha. */
   utilidadObjetivoPorcentaje: number;
+  /** Estado actual del cliente: «Confirmar venta» solo procede si está activo. */
+  clienteEstado: string | null;
 };
 
 /**
@@ -98,6 +100,12 @@ export async function obtenerPropuestaAccion(
       rfqItemIds: [],
     }),
   ]);
+
+  const { data: cliente } = await servidor
+    .from('clientes')
+    .select('estado')
+    .eq('id', datos.propuesta.clienteId)
+    .maybeSingle();
 
   const archivosRfqItems = await obtenerArchivosDePropuesta(servidor, {
     revisionIds: [],
@@ -154,6 +162,7 @@ export async function obtenerPropuestaAccion(
       canalRfq,
       fechasRfq,
       utilidadObjetivoPorcentaje,
+      clienteEstado: cliente?.estado ?? null,
     },
   };
 }

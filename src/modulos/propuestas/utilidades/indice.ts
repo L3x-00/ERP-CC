@@ -1,4 +1,19 @@
+import type { TonoEstado } from '@/compartido/componentes/diseno/badge-estado';
 import type { CategoriaCosto, EstadoPropuesta } from '@/modulos/propuestas/tipos/indice';
+
+/** Tono del badge por estado de propuesta (verde venta, azul enviada, rojo cerrada, naranja borrador). */
+export const TONO_ESTADO_PROPIESTA: Record<EstadoPropuesta, TonoEstado> = {
+  DRAFT: 'advertencia',
+  PENDING_APPROVAL: 'info',
+  READY_TO_SEND: 'info',
+  SENT: 'info',
+  FOLLOW_UP: 'info',
+  ACCEPTED: 'exito',
+  PENDING_FINANCIAL: 'advertencia',
+  SALE_CONFIRMED: 'exito',
+  REJECTED: 'peligro',
+  CLOSED: 'peligro',
+};
 
 /** Etiqueta legible del estado de propuesta/revisión. */
 export const ETIQUETA_ESTADO_PROPIESTA: Record<EstadoPropuesta, string> = {

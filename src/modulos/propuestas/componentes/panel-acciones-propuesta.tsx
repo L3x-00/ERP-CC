@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
-import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { aceptarRevisionAccion } from '@/modulos/propuestas/acciones/aceptar-revision';
 import { PanelDisponibilidadPropuesta } from '@/modulos/propuestas/componentes/panel-disponibilidad-propuesta';
 import { PanelOrdenPendiente } from '@/modulos/propuestas/componentes/panel-orden-pendiente';
@@ -22,7 +22,10 @@ import { DialogoSeguimientoPropuesta } from './dialogo-seguimiento-propuesta';
 import type {
   PermisosPropuesta,
 } from '@/modulos/propuestas/tipos/indice';
-import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
+import {
+  ETIQUETA_ESTADO_PROPIESTA,
+  TONO_ESTADO_PROPIESTA,
+} from '@/modulos/propuestas/utilidades/indice';
 import { textoReferenciaFechasRfq } from '@/modulos/propuestas/utilidades/referencia-fechas-rfq';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
@@ -61,17 +64,14 @@ export function PanelAccionesPropuesta({
   const queryClient = useQueryClient();
   const [formulario, setFormulario] = useState<Formulario>('ninguno');
   const [mensaje, setMensaje] = useState<string | null>(null);
-  const [exito, setExito] = useState<string | null>(null);
   const [exitoValidacion, setExitoValidacion] = useState<string | null>(null);
   const [validarAbierto, setValidarAbierto] = useState(false);
   const [validando, setValidando] = useState(false);
-  const [pdfGenerado, setPdfGenerado] = useState<{ archivoId: string; version: number } | null>(
-    null,
-  );
   const [procesando, setProcesando] = useState(false);
   const [canal, setCanal] = useState('');
   const [canalDetalle, setCanalDetalle] = useState('');
   const [destino, setDestino] = useState('');
+  const [destinoManual, setDestinoManual] = useState(false);
   // C4.1/DC-09: la fecha compromiso comercial se confirma al aceptar.
   const [fechaCompromiso, setFechaCompromiso] = useState('');
   const [motivo, setMotivo] = useState('');
@@ -120,6 +120,35 @@ export function PanelAccionesPropuesta({
   const canalEsOtro = canalSeleccionado?.esOtro ?? false;
   const canalEnvio = canalEsOtro ? canalDetalle.trim() : canalEfectivo;
 
+  // Obs. cliente 2026-11-12: el destino se sugiere según el canal elegido.
+  function destinoSugerido(codigo: string): string {
+    const cabecera = revision.snapshotCabecera;
+    if (codigo === 'CORREO') {
+      return cabecera.contacto?.correo || cabecera.cliente?.correo || '';
+    }
+    if (codigo === 'WHATSAPP' || codigo === 'TELEFONO') {
+      return cabecera.contacto?.telefono || cabecera.cliente?.telefono || '';
+    }
+    return '';
+  }
+
+  const destinoLimpio = destino.trim();
+  const digitosDestino = destinoLimpio.replace(/\D/g, '').length;
+  const destinoValido =
+    canalEfectivo === 'CORREO'
+      ? destinoLimpio.includes('@')
+      : canalEfectivo === 'WHATSAPP' || canalEfectivo === 'TELEFONO'
+        ? digitosDestino >= 9
+        : destinoLimpio !== '';
+  const errorDestino =
+    destinoLimpio === ''
+      ? null
+      : canalEfectivo === 'CORREO'
+        ? 'El correo debe contener «@».'
+        : canalEfectivo === 'WHATSAPP' || canalEfectivo === 'TELEFONO'
+          ? 'El teléfono debe tener al menos 9 números.'
+          : null;
+
   // Obs. cliente 2026-10-12: tras la aceptación, las demás versiones quedan
   // inhabilitadas y solo se muestran para consulta del historial.
   if (soloLectura) {
@@ -132,7 +161,11 @@ export function PanelAccionesPropuesta({
           <span className="mr-1 text-xs font-semibold text-texto-secundario">
             Revisión {revision.letra}
           </span>
-          <BadgeEstado estado={estado} etiqueta={ETIQUETA_ESTADO_PROPIESTA[estado]} />
+          <BadgeEstado
+            estado={estado}
+            etiqueta={ETIQUETA_ESTADO_PROPIESTA[estado]}
+            tono={TONO_ESTADO_PROPIESTA[estado]}
+          />
         </div>
         <p className="text-xs text-texto-secundario">
           Versión histórica: la propuesta ya tiene una revisión aceptada; esta versión se conserva
@@ -156,7 +189,6 @@ export function PanelAccionesPropuesta({
   async function ejecutar(accion: () => Promise<{ exito: boolean; error?: string }>): Promise<void> {
     setProcesando(true);
     setMensaje(null);
-    setExito(null);
     try {
       const respuesta = await accion();
       if (!respuesta.exito) {
@@ -166,6 +198,7 @@ export function PanelAccionesPropuesta({
       setFormulario('ninguno');
       setMotivo('');
       setDestino('');
+      setDestinoManual(false);
       await refrescar();
     } catch {
       setMensaje('No se pudo completar la acción. Revisa la conexión e inténtalo de nuevo.');
@@ -174,30 +207,15 @@ export function PanelAccionesPropuesta({
     }
   }
 
-  /**
-   * Genera (o regenera) el PDF de la revisión y deja un resultado visible:
-   * antes, una regeneración idempotente no cambiaba nada en pantalla y parecía
-   * que el botón «no hacía nada» (obs. Product Owner 2026-10-11).
-   */
+  /** Genera el PDF vigente de la revisión y refresca la ficha. */
   async function generarPdf(): Promise<void> {
     setProcesando(true);
     setMensaje(null);
-    setExito(null);
-    setPdfGenerado(null);
     try {
       const respuesta = await generarPdfRevisionAccion({ revisionId: revision.id });
       if (!respuesta.exito) {
         setMensaje(respuesta.error);
         return;
-      }
-      const datos = respuesta.datos;
-      if (datos) {
-        setPdfGenerado({ archivoId: datos.archivoId, version: datos.version });
-        setExito(
-          datos.yaExistia
-            ? `El PDF de esta versión ya existía (v${datos.version}), sin cambios de contenido.`
-            : `PDF generado (v${datos.version}).`,
-        );
       }
       await refrescar();
     } catch {
@@ -207,7 +225,7 @@ export function PanelAccionesPropuesta({
     }
   }
 
-  /** Abre con URL firmada el PDF recién generado (buckets privados). */
+  /** Abre con URL firmada el PDF vigente (buckets privados). */
   async function verPdfGenerado(archivoId: string): Promise<void> {
     setMensaje(null);
     try {
@@ -233,7 +251,11 @@ export function PanelAccionesPropuesta({
     <section className="flex flex-col gap-2 rounded-lg border border-borde bg-superficie-2 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 text-xs font-semibold text-texto-secundario">Revisión {revision.letra}</span>
-        <BadgeEstado estado={estado} etiqueta={ETIQUETA_ESTADO_PROPIESTA[estado]} />
+        <BadgeEstado
+          estado={estado}
+          etiqueta={ETIQUETA_ESTADO_PROPIESTA[estado]}
+          tono={TONO_ESTADO_PROPIESTA[estado]}
+        />
         {requiereRevision && (
           <span className="rounded-full bg-advertencia-suave px-2 py-0.5 text-xs font-medium text-advertencia-texto">
             Requiere revisión
@@ -270,17 +292,28 @@ export function PanelAccionesPropuesta({
           <Button
             tamano="sm"
             variante="contorno"
-            onClick={() => void generarPdf()}
+            onClick={() => {
+              if (pdfVigente) return void verPdfGenerado(pdfVigente.archivoId);
+              return void generarPdf();
+            }}
             disabled={procesando}
+            data-testid="boton-pdf-propuesta"
           >
-            {pdfVigente ? 'Regenerar PDF' : 'Generar PDF'}
+            {pdfVigente ? 'Ver PDF generado' : 'Generar PDF'}
           </Button>
         )}
 
         {estado === 'READY_TO_SEND' && permisos.enviar && (
           <Button
             tamano="sm"
-            onClick={() => setFormulario(formulario === 'enviar' ? 'ninguno' : 'enviar')}
+            onClick={() => {
+              if (formulario === 'enviar') {
+                setFormulario('ninguno');
+                return;
+              }
+              if (!destinoManual) setDestino(destinoSugerido(canalEfectivo));
+              setFormulario('enviar');
+            }}
             disabled={procesando || !pdfVigente}
             title={!pdfVigente ? 'Genera el PDF antes de enviar' : undefined}
           >
@@ -345,6 +378,26 @@ export function PanelAccionesPropuesta({
             >
               Aceptar revisión
             </Button>
+            {permisos.cerrar && (
+              <>
+                <Button
+                  tamano="sm"
+                  variante="fantasma"
+                  onClick={() => setFormulario(formulario === 'rechazar' ? 'ninguno' : 'rechazar')}
+                  disabled={procesando}
+                >
+                  Rechazar
+                </Button>
+                <Button
+                  tamano="sm"
+                  variante="fantasma"
+                  onClick={() => setFormulario(formulario === 'cerrar' ? 'ninguno' : 'cerrar')}
+                  disabled={procesando}
+                >
+                  Cerrar
+                </Button>
+              </>
+            )}
           </div>
         )}
 
@@ -359,13 +412,20 @@ export function PanelAccionesPropuesta({
               revisionId: revision.id,
               actualizadoEn: revision.actualizadoEn,
             }))}
-            disabled={procesando}
+            disabled={procesando || detalle.clienteEstado !== 'activo'}
+            title={
+              detalle.clienteEstado !== 'activo'
+                ? 'Activa al cliente antes de confirmar la venta'
+                : undefined
+            }
           >
             Confirmar venta
           </Button>
         )}
 
-        {['DRAFT', 'READY_TO_SEND', 'SENT', 'FOLLOW_UP'].includes(estado) && permisos.cerrar && (
+        {permisos.cerrar &&
+          (['DRAFT', 'READY_TO_SEND'].includes(estado) ||
+            ((estado === 'SENT' || estado === 'FOLLOW_UP') && !permisos.aceptar)) && (
           <>
             <Button
               tamano="sm"
@@ -489,6 +549,8 @@ export function PanelAccionesPropuesta({
                     (opcion) => opcion.codigo === codigoCanal,
                   );
                   if (!siguiente?.esOtro) setCanalDetalle('');
+                  setDestinoManual(false);
+                  setDestino(destinoSugerido(codigoCanal));
                 }}
                 aria-label="Canal de envío"
               >
@@ -524,10 +586,17 @@ export function PanelAccionesPropuesta({
               <span className="font-medium">Destino</span>
               <Input
                 value={destino}
-                onChange={(evento) => setDestino(evento.target.value)}
+                onChange={(evento) => {
+                  setDestino(evento.target.value);
+                  setDestinoManual(true);
+                }}
                 aria-label="Destino de envío"
-                placeholder="correo@cliente.mx"
+                aria-invalid={!destinoValido && destinoLimpio !== ''}
+                placeholder={canalEfectivo === 'CORREO' ? 'correo@cliente.mx' : 'Teléfono o destino'}
               />
+              {errorDestino && (
+                <span className={CLASE_MENSAJE_FALTANTE}>{errorDestino}</span>
+              )}
             </label>
           </div>
           <div className="flex items-center gap-2">
@@ -536,11 +605,11 @@ export function PanelAccionesPropuesta({
               onClick={() => void ejecutar(() => enviarRevisionAccion({
                 revisionId: revision.id,
                 canal: canalEnvio,
-                destino,
+                destino: destinoLimpio,
               }))}
               disabled={
                 procesando ||
-                destino.trim() === '' ||
+                !destinoValido ||
                 (canalEsOtro && canalDetalle.trim().length < 3)
               }
             >
@@ -595,33 +664,6 @@ export function PanelAccionesPropuesta({
         </div>
       )}
 
-      {pdfVigente && (
-        <p className="text-xs text-texto-secundario">
-          PDF vigente v{pdfVigente.version} · {formatearFecha(pdfVigente.creadoEn)}
-        </p>
-      )}
-
-      {exito !== null && (
-        // aria-live sin role=status: el mensaje se anuncia sin colisionar con
-        // los status de otros paneles que las pruebas ya monitorean.
-        <p
-          data-testid="pdf-resultado"
-          aria-live="polite"
-          className="text-sm font-medium text-exito-texto"
-        >
-          {exito}{' '}
-          {pdfGenerado && (
-            <button
-              type="button"
-              onClick={() => void verPdfGenerado(pdfGenerado.archivoId)}
-              className="font-semibold text-acento underline-offset-2 hover:underline"
-            >
-              Ver PDF
-            </button>
-          )}
-        </p>
-      )}
-
       {exitoValidacion !== null && (
         <p className="text-sm font-medium text-exito-texto" data-testid="validacion-resultado">
           {exitoValidacion}
@@ -645,22 +687,14 @@ export function PanelAccionesPropuesta({
           onCerrar={() => setValidarAbierto(false)}
           onExito={({ seguimientoRegistrado }) => {
             setValidando(true);
-            setExitoValidacion(
-              seguimientoRegistrado
-                ? 'Propuesta validada y seguimiento registrado.'
-                : 'Propuesta validada (el seguimiento ya estaba registrado).',
-            );
+            if (seguimientoRegistrado) {
+              setExitoValidacion('Propuesta validada y seguimiento registrado.');
+            }
             void refrescar().finally(() => setValidando(false));
           }}
         />
       )}
 
-      <p className="text-xs text-texto-secundario">
-        Totales de la revisión: {formatearMoneda(revision.totales.subtotal, revision.totales.moneda)} + IVA ={' '}
-        <span className="font-medium text-texto-primario">
-          {formatearMoneda(revision.totales.total, revision.totales.moneda)}
-        </span>
-      </p>
     </section>
   );
 }

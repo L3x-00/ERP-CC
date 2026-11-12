@@ -2,7 +2,7 @@
 
 import { cn } from '@/compartido/utilidades/cn';
 
-type TonoEstado = 'neutro' | 'exito' | 'advertencia' | 'peligro' | 'info';
+export type TonoEstado = 'neutro' | 'exito' | 'advertencia' | 'peligro' | 'info';
 
 type DefinicionEstado = {
   tono: TonoEstado;
@@ -110,6 +110,8 @@ type PropsBadgeEstado = {
   estado: string;
   /** Sobrescribe la etiqueta derivada del mapa. */
   etiqueta?: string;
+  /** Sobrescribe el tono cuando el mismo estado significa algo distinto por módulo. */
+  tono?: TonoEstado;
   className?: string;
 };
 
@@ -117,9 +119,9 @@ type PropsBadgeEstado = {
  * Badge de estado único del ERP: fondo semántico suave, punto de color y
  * etiqueta legible. `en_proceso`/`en_uso`/`vencida` usan punto pulsante.
  */
-export function BadgeEstado({ estado, etiqueta, className }: PropsBadgeEstado) {
+export function BadgeEstado({ estado, etiqueta, tono: tonoForzado, className }: PropsBadgeEstado) {
   const definicion = ESTADOS[normalizar(estado)];
-  const tono: TonoEstado = definicion?.tono ?? 'neutro';
+  const tono: TonoEstado = tonoForzado ?? definicion?.tono ?? 'neutro';
   const texto = etiqueta ?? definicion?.etiqueta ?? estado;
 
   return (

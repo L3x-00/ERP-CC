@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
-import { etiquetaEstadoCliente, mensajeCausaOrden } from '@/modulos/ordenes/utilidades/mensajes-orden';
+import { mensajeCausaOrden } from '@/modulos/ordenes/utilidades/mensajes-orden';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
@@ -12,7 +12,10 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 export type SolicitudOrden = {
   estado: 'PENDING' | 'BLOCKED' | 'CREATED';
   causa: string | null;
-  intentos: number;
+  causaCodigo: string | null;
+  clienteId: string | null;
+  estadoCliente: string | null;
+  clienteActualizadoEn: string | null;
   ordenId: string | null;
   folio: string | null;
   fechaCompromisoComercial: string;
@@ -46,25 +49,25 @@ export async function obtenerSolicitudOrdenAccion(
   const estado = data.estado === 'CREATED' || data.estado === 'BLOCKED' ? data.estado : 'PENDING';
   const orden = data.ordenes_produccion as { folio: string } | null;
 
-  // Obs. cliente 2026-10-12: si el gate fue el cliente, el mensaje nombra al
-  // cliente y su estado para que la acción a tomar sea evidente.
-  let causa: string | null = estado === 'BLOCKED' ? mensajeCausaOrden(data.causa_codigo) : null;
-  if (estado === 'BLOCKED' && (data.causa_codigo ?? '').includes('cliente_no_activo')) {
-    const { data: propuesta } = await admin
-      .from('propuestas')
-      .select('cliente_id')
-      .eq('id', data.propuesta_id)
+  const causa: string | null = estado === 'BLOCKED' ? mensajeCausaOrden(data.causa_codigo) : null;
+
+  const { data: propuesta } = await admin
+    .from('propuestas')
+    .select('cliente_id')
+    .eq('id', data.propuesta_id)
+    .maybeSingle();
+  const clienteId = propuesta?.cliente_id ?? null;
+
+  let estadoCliente: string | null = null;
+  let clienteActualizadoEn: string | null = null;
+  if (clienteId) {
+    const { data: cliente } = await admin
+      .from('clientes')
+      .select('estado, actualizado_en')
+      .eq('id', clienteId)
       .maybeSingle();
-    if (propuesta?.cliente_id) {
-      const { data: cliente } = await admin
-        .from('clientes')
-        .select('razon_social, estado')
-        .eq('id', propuesta.cliente_id)
-        .maybeSingle();
-      if (cliente) {
-        causa = `El cliente «${cliente.razon_social}» está en estado «${etiquetaEstadoCliente(cliente.estado)}». Actívalo en Clientes y vuelve a intentar.`;
-      }
-    }
+    estadoCliente = cliente?.estado ?? null;
+    clienteActualizadoEn = cliente?.actualizado_en ?? null;
   }
 
   return {
@@ -72,7 +75,10 @@ export async function obtenerSolicitudOrdenAccion(
     datos: {
       estado,
       causa,
-      intentos: data.intentos,
+      causaCodigo: data.causa_codigo,
+      clienteId,
+      estadoCliente,
+      clienteActualizadoEn,
       ordenId: data.orden_id,
       folio: orden?.folio ?? null,
       fechaCompromisoComercial: data.fecha_compromiso_comercial,

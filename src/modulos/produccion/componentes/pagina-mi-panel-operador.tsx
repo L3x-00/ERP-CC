@@ -414,9 +414,18 @@ export function PaginaMiPanelOperador({
         ) : (
           <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 sm:p-5">
   {visibles.map(({ proceso, estado, horasTrabajadas }) => {
-    const puedeGestionar = proceso.reclamadoPorMi;
+    const puedeReclamar =
+      proceso.reclamo === null &&
+      proceso.columna !== 'lista' &&
+      (proceso.piezasDisponibles === null || proceso.piezasDisponibles > 0);
+    const puedeGestionar = proceso.reclamadoPorMi || puedeReclamar;
     const puedeIniciar = puedeGestionar && proceso.puedeIniciar;
     const puedeReanudar = puedeGestionar && proceso.puedeReanudar;
+    const etiquetaGestion = puedeGestionar
+      ? 'Gestionar proceso'
+      : proceso.piezasDisponibles === 0
+        ? `No hay piezas disponibles para ${proceso.procesoNombre.toLowerCase()}`
+        : proceso.motivoNoInicia ?? 'Proceso no disponible';
 
     const puedeLiberar =
       puedeGestionar &&
@@ -555,7 +564,7 @@ export function PaginaMiPanelOperador({
                 : 'w-full cursor-not-allowed rounded-lg bg-superficie-2 px-3 py-2 text-sm text-texto-secundario'
             }
           >
-            {puedeGestionar ? 'Gestionar proceso' : 'Sin reserva activa'}
+            {etiquetaGestion}
           </button>
         </div>
       </article>
@@ -592,7 +601,7 @@ export function PaginaMiPanelOperador({
           key={procesoSeleccionado.id}
           proceso={procesoSeleccionado}
           hoy={hoy}
-          soloLectura={!procesoSeleccionado.reclamadoPorMi}
+          soloLectura={false}
           procesando={procesando !== null}
           motivosPausa={motivosPausa}
           acciones={accionesDetalle}
