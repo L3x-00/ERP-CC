@@ -267,8 +267,8 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
     expect(respuesta.datos).toEqual({
       revisionId: REVISION_ID,
       fechaInicio: '2026-10-21',
-      fechaFin: '2026-11-03',
-      dias: 14,
+      fechaFin: '2026-10-27',
+      dias: 7,
       zonaHoraria: 'America/Tijuana',
       grupos: [
         {
@@ -301,7 +301,7 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
     expect(JSON.stringify(respuesta.datos)).not.toMatch(/rec-1|rec-ajeno|g-router/);
   });
 
-  it('llama la RPC C9.3 con sus parámetros reales y el horizonte de 14 días', async () => {
+  it('llama la RPC C9.3 con sus parámetros reales y el horizonte de 7 días', async () => {
     const servidor = clienteFalso(tablasComerciales());
     const admin = adminFalso();
     clienteMock.mockResolvedValue(servidor.cliente);
@@ -314,7 +314,7 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
       {
         tabla: 'rpc',
         metodo: 'obtener_carga_capacidad_diaria',
-        argumentos: [{ p_fecha_inicio: '2026-10-21', p_fecha_fin: '2026-11-03' }],
+        argumentos: [{ p_fecha_inicio: '2026-10-21', p_fecha_fin: '2026-10-27' }],
       },
     ]);
     // Recursos: solo columnas mínimas, activos y de los grupos requeridos.

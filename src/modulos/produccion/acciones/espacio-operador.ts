@@ -13,6 +13,7 @@ import {
   reclamarProcesoOperadorServicio,
   type SesionIniciada,
 } from '@/modulos/produccion/servicios/indice';
+import { notificarSolicitudProgramacionServicio } from '@/modulos/produccion/servicios/notificaciones-produccion-servicio';
 import type { ReclamoProcesoOperador } from '@/modulos/produccion/tipos/indice';
 import {
   esquemaIniciarProcesoReclamado,
@@ -42,8 +43,9 @@ export async function reclamarProcesoAccion(
   if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
 
   const correlationId = nuevoCorrelationId();
+  const admin = crearClienteSupabaseAdmin();
   try {
-    const reclamo = await reclamarProcesoOperadorServicio(crearClienteSupabaseAdmin(), {
+    const reclamo = await reclamarProcesoOperadorServicio(admin, {
       ...analisis.data,
       operadorId: operador.id,
     });
@@ -55,6 +57,12 @@ export async function reclamarProcesoAccion(
       turno: reclamo.turno,
       horasEstimadas: reclamo.horasEstimadas,
     }, correlationId);
+    await notificarSolicitudProgramacionServicio(admin, {
+      ordenId: reclamo.ordenId,
+      partidaId: reclamo.partidaId,
+      operadorId: operador.id,
+      operadorNombre: operador.nombreCompleto,
+    });
     return { exito: true, datos: reclamo };
   } catch (error) {
     const codigo = error instanceof ErrorProduccion ? error.codigo : 'desconocido';

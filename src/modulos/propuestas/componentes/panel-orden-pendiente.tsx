@@ -5,13 +5,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { cambiarEstadoClienteAccion } from '@/modulos/clientes/acciones/cambiar-estado-cliente';
 import { crearOrdenDesdeRevisionAccion } from '@/modulos/ordenes/acciones/crear-orden-desde-revision';
 import { obtenerSolicitudOrdenAccion } from '@/modulos/ordenes/acciones/solicitud-orden';
 
 /**
  * C4.1/DC-09: estado de la Orden de la revisión aceptada. Si un gate falló, la
- * aceptación sigue vigente y se muestra «Orden pendiente» con la causa y
- * Reintentar (con permiso de liberar órdenes); reintentar nunca duplica.
+ * aceptación sigue vigente y se muestra «Orden pendiente» con la causa. Si el
+ * cliente está en prospecto se activa directamente y se reintenta la creación.
  */
 export function PanelOrdenPendiente({ revisionId }: { revisionId: string }) {
   const queryClient = useQueryClient();
@@ -38,6 +39,26 @@ export function PanelOrdenPendiente({ revisionId }: { revisionId: string }) {
     await queryClient.invalidateQueries({ queryKey: clave });
   }
 
+  async function activarCliente(): Promise<void> {
+    if (!solicitud?.clienteId || !solicitud.clienteActualizadoEn) return;
+    setProcesando(true);
+    setMensaje(null);
+    const cambio = await cambiarEstadoClienteAccion({
+      clienteId: solicitud.clienteId,
+      nuevoEstado: 'activo',
+      actualizadoEn: solicitud.clienteActualizadoEn,
+    });
+    if (!cambio.exito) {
+      setProcesando(false);
+      setMensaje(cambio.error);
+      return;
+    }
+    const orden = await crearOrdenDesdeRevisionAccion({ revisionId });
+    setProcesando(false);
+    if (!orden.exito) setMensaje(orden.error);
+    await queryClient.invalidateQueries({ queryKey: clave });
+  }
+
   if (solicitud.estado === 'CREATED') {
     return (
       <p className="text-sm text-exito-texto" data-testid="propuesta-orden-creada">
@@ -45,6 +66,10 @@ export function PanelOrdenPendiente({ revisionId }: { revisionId: string }) {
       </p>
     );
   }
+
+  const clienteEnProspecto =
+    solicitud.causaCodigo?.includes('cliente_no_activo') === true &&
+    solicitud.estadoCliente === 'prospecto';
 
   return (
     <div
@@ -56,20 +81,28 @@ export function PanelOrdenPendiente({ revisionId }: { revisionId: string }) {
       </p>
       <p className="text-texto-primario">
         {solicitud.causa ?? 'La aceptación está registrada; la orden aún no se ha creado.'}
-        {solicitud.intentos > 0
-          ? ` · ${solicitud.intentos} ${solicitud.intentos === 1 ? 'intento fallido' : 'intentos fallidos'}`
-          : ''}
       </p>
       {solicitud.puedeReintentar ? (
         <div>
-          <Button
-            tamano="sm"
-            onClick={() => void reintentar()}
-            disabled={procesando}
-            data-testid="propuesta-reintentar-orden"
-          >
-            {procesando ? 'Creando orden…' : solicitud.estado === 'BLOCKED' ? 'Reintentar' : 'Crear orden'}
-          </Button>
+          {clienteEnProspecto ? (
+            <Button
+              tamano="sm"
+              onClick={() => void activarCliente()}
+              disabled={procesando}
+              data-testid="propuesta-activar-cliente"
+            >
+              {procesando ? 'Activando cliente…' : 'Activar cliente'}
+            </Button>
+          ) : (
+            <Button
+              tamano="sm"
+              onClick={() => void reintentar()}
+              disabled={procesando}
+              data-testid="propuesta-reintentar-orden"
+            >
+              {procesando ? 'Creando orden…' : solicitud.estado === 'BLOCKED' ? 'Reintentar' : 'Crear orden'}
+            </Button>
+          )}
         </div>
       ) : (
         <p className="text-xs text-texto-secundario">Producción/Administración crea la orden con permiso de liberar órdenes.</p>

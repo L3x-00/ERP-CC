@@ -7,7 +7,7 @@ import type {
 } from '@/modulos/propuestas/tipos/disponibilidad';
 import { resolverGrupoEquipoDelProceso } from '@/modulos/propuestas/utilidades/ruteo-proceso';
 
-export const DIAS_HORIZONTE_DISPONIBILIDAD = 14;
+export const DIAS_HORIZONTE_DISPONIBILIDAD = 7;
 
 export type HorizonteDisponibilidad = {
   fechaInicio: string;

@@ -696,7 +696,9 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(dialogoValidar).toBeVisible();
       await capturar(page, 'dialogo-validar-seguimiento');
       await dialogoValidar.getByRole('button', { name: 'Registrar y validar' }).click();
-      await expect(ficha.getByTestId('validacion-resultado')).toContainText('Propuesta validada');
+      // Obs. PO 2026-11-12: validar refresca la ficha sin mensajes redundantes;
+      // la evidencia visible es el paso a «Generar PDF».
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toBeVisible();
       await expect
         .poll(async () => {
           const { data } = await admin
@@ -718,10 +720,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       // 5. Generar PDF v1 y verlo en la pestaña PDFs.
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
-      await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
-      // Obs. PO: el resultado de «Generar PDF» debe ser visible y abrible.
-      await expect(ficha.getByTestId('pdf-resultado')).toContainText('PDF generado (v1).');
-      await expect(ficha.getByRole('button', { name: 'Ver PDF' })).toBeVisible();
+      // Obs. PO 2026-11-12: el botón pasa a «Ver PDF generado» y no deja texto extra.
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Ver PDF generado');
       await page.getByRole('tab', { name: 'PDFs' }).click();
       await expect(page.getByTestId('panel-pdfs-propuesta')).toContainText('vigente');
       await page.getByRole('tab', { name: 'Resumen' }).click();
@@ -746,8 +746,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
           return data?.estado;
         })
         .toBe('DRAFT');
-      // El PDF vigente queda invalidado: hay que regenerarlo.
-      await expect(page.getByText(/PDF vigente v1/)).toHaveCount(0);
+      // El PDF vigente queda invalidado: la revisión en borrador ya no ofrece PDF.
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveCount(0);
       await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
       await expect(dialogoValidar).toBeVisible();
       await dialogoValidar.getByRole('button', { name: 'Registrar y validar' }).click();
@@ -761,10 +761,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
           return data?.estado;
         })
         .toBe('READY_TO_SEND');
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Generar PDF');
       // Sin cambios de contenido, regenerar reactiva el mismo PDF (v1).
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
-      await expect(page.getByText(/PDF vigente v1/)).toBeVisible();
-      await expect(ficha.getByTestId('pdf-resultado')).toContainText('ya existía');
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Ver PDF generado');
 
       // 6. Seguimiento posterior en modal (obs. cliente: captura en modal).
       await page.getByRole('tab', { name: 'Seguimiento' }).click();
@@ -922,8 +922,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: 'Consultar disponibilidad' }).click();
       const consulta = page.getByTestId('disponibilidad-propuesta');
       await expect(consulta).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-      await expect(consulta).toContainText(/104(?:[.,]00)?\s*h/);
-      await expect(consulta).toContainText(/100(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText(/48(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText(/44(?:[.,]00)?\s*h/);
       await expect(consulta).toContainText('equipos activos sin turnos configurados');
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
@@ -964,8 +964,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         await paginaGerencia.getByRole('button', { name: 'Consultar disponibilidad' }).click();
         const consultaGerencia = paginaGerencia.getByTestId('disponibilidad-propuesta');
         await expect(consultaGerencia).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-        await expect(consultaGerencia).toContainText(/104(?:[.,]00)?\s*h/);
-        await expect(consultaGerencia).toContainText(/100(?:[.,]00)?\s*h/);
+        await expect(consultaGerencia).toContainText(/48(?:[.,]00)?\s*h/);
+        await expect(consultaGerencia).toContainText(/44(?:[.,]00)?\s*h/);
       } finally {
         await contextoGerencia.close();
       }
@@ -999,7 +999,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         .eq('partida_id', contexto.disponibilidad!.partidaId!);
       expect(cargaActualizada.error).toBeNull();
       await page.getByRole('button', { name: 'Volver a consultar' }).click();
-      await expect(consulta).toContainText(/98(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText(/42(?:[.,]00)?\s*h/);
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
       // C4.1: la fecha compromiso comercial es obligatoria al aceptar.

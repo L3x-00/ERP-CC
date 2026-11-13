@@ -357,11 +357,11 @@ describe('horizonte de la planta (America/Tijuana)', () => {
     expect(fechaLocalPlanta(new Date('2026-10-22T08:00:00Z'))).toBe('2026-10-22');
   });
 
-  it('abarca 14 días calendario explícitos, incluido el cambio de horario', () => {
+  it('abarca 7 días calendario explícitos, incluido el cambio de horario', () => {
     expect(horizonteDisponibilidad(new Date('2026-10-22T05:30:00Z'))).toEqual({
       fechaInicio: '2026-10-21',
-      fechaFin: '2026-11-03',
-      dias: 14,
+      fechaFin: '2026-10-27',
+      dias: 7,
       zonaHoraria: 'America/Tijuana',
     });
   });

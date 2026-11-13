@@ -11,7 +11,10 @@ import { EstadoVacio } from '@/compartido/componentes/retroalimentacion/estado-v
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { crearPropuestaAccion } from '@/modulos/propuestas/acciones/crear-propuesta';
 import { obtenerPropuestasAccion } from '@/modulos/propuestas/acciones/obtener-propuestas';
-import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
+import {
+  ETIQUETA_ESTADO_PROPIESTA,
+  TONO_ESTADO_PROPIESTA,
+} from '@/modulos/propuestas/utilidades/indice';
 import { claveRfqPropuestas } from './claves-consulta';
 
 /**
@@ -100,7 +103,11 @@ export function ListaPropuestasRfq({
                     : 'Sin revisiones'}
                 </span>
               </div>
-              <BadgeEstado estado={fila.estado} etiqueta={ETIQUETA_ESTADO_PROPIESTA[fila.estado]} />
+              <BadgeEstado
+                estado={fila.estado}
+                etiqueta={ETIQUETA_ESTADO_PROPIESTA[fila.estado]}
+                tono={TONO_ESTADO_PROPIESTA[fila.estado]}
+              />
             </li>
           ))}
         </ul>

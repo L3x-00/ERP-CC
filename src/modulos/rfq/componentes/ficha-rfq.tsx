@@ -70,6 +70,10 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
 
   const rfq: Rfq | undefined = consulta.data?.exito ? consulta.data.datos : undefined;
   const capturaIncompleta = rfq?.estadoRfq === 'INCOMPLETE';
+  // Al validar, la captura deja de estar incompleta y la pestaña «Revisar»
+  // desaparece: sin este ajuste la ficha queda vacía hasta refrescar.
+  const pestanaActiva: PestanaRfq =
+    pestana === 'revisar' && !capturaIncompleta ? 'resumen' : pestana;
   const validacion = useQuery({
     queryKey: ['rfq-validacion-listo', rfqId],
     queryFn: () => validarRfqListoAccion({ rfqId }),
@@ -219,7 +223,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
             key={opcion.clave}
             type="button"
             role="tab"
-            aria-selected={pestana === opcion.clave}
+            aria-selected={pestanaActiva === opcion.clave}
             onClick={() => {
               continuidadAplicada.current = true;
               setPestana(opcion.clave);
@@ -230,7 +234,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
               if (opcion.clave === 'revisar') void validacion.refetch();
             }}
             className={
-              pestana === opcion.clave
+              pestanaActiva === opcion.clave
                 ? 'rounded-lg bg-superficie px-3.5 py-2 text-sm font-semibold text-texto-primario shadow-xs transition-all duration-200 ease-suave'
                 : 'rounded-lg px-3.5 py-2 text-sm text-texto-secundario transition-all duration-200 ease-suave hover:bg-superficie/70 hover:text-texto-primario'
             }
@@ -240,7 +244,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
         ))}
       </div>
 
-      {pestana === 'resumen' && (
+      {pestanaActiva === 'resumen' && (
         <div className="flex flex-col gap-4">
           {capturaIncompleta && pasoCaptura === 'cliente' ? (
             <section className="grid gap-3 rounded-xl bg-superficie p-4 shadow-suave" aria-label="Cliente del RFQ">
@@ -335,7 +339,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
         />
       )}
 
-      {pestana === 'revisar' && capturaIncompleta && (
+      {pestanaActiva === 'revisar' && capturaIncompleta && (
         <PanelRevisionRfq
           rfq={rfq}
           catalogos={catalogosDatos}
@@ -353,11 +357,11 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
         />
       )}
 
-      {pestana === 'propuestas' && (
+      {pestanaActiva === 'propuestas' && (
         <ListaPropuestasRfq rfqId={rfq.id} estadoRfq={rfq.estadoRfq} />
       )}
 
-      {pestana === 'actividad' && <ActividadRfq rfqId={rfq.id} />}
+      {pestanaActiva === 'actividad' && <ActividadRfq rfqId={rfq.id} />}
 
       {historialAbierto && (
         <DialogoHistorialRfq rfqId={rfq.id} abierto onCambioApertura={setHistorialAbierto} />

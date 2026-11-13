@@ -8,7 +8,10 @@ import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formate
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
 import { usarCatalogosPropuesta, usarPropuesta } from '@/modulos/propuestas/hooks/usar-propuesta';
 import type { PermisosPropuesta } from '@/modulos/propuestas/tipos/indice';
-import { ETIQUETA_ESTADO_PROPIESTA } from '@/modulos/propuestas/utilidades/indice';
+import {
+  ETIQUETA_ESTADO_PROPIESTA,
+  TONO_ESTADO_PROPIESTA,
+} from '@/modulos/propuestas/utilidades/indice';
 import { calcularFaltantesValidacion } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { ActividadPropuesta } from './actividad-propuesta';
 import { BotonEditarRevision } from './dialogo-editar-revision';
@@ -145,7 +148,11 @@ export function FichaPropuesta({
           </Link>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-mono text-xl font-bold">{propuesta.folioCnc}</h1>
-            <BadgeEstado estado={propuesta.estado} etiqueta={ETIQUETA_ESTADO_PROPIESTA[propuesta.estado]} />
+            <BadgeEstado
+              estado={propuesta.estado}
+              etiqueta={ETIQUETA_ESTADO_PROPIESTA[propuesta.estado]}
+              tono={TONO_ESTADO_PROPIESTA[propuesta.estado]}
+            />
             {propuesta.acceptedRevisionId && (
               <span className="rounded-full bg-exito-suave px-2 py-0.5 text-xs font-medium text-exito-texto">
                 Revisión aceptada
