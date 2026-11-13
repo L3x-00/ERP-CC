@@ -6,7 +6,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(21);
+SELECT plan(29);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: vendedor, RFQ, catálogo de procesos y una propuesta con ruteo.
@@ -142,9 +142,10 @@ VALUES ('00000000-0000-4000-8000-00000000c150', '00000000-0000-4000-8000-0000000
   '00000000-0000-4000-8000-00000000c141', 'CNC-1126_05',
   '00000000-0000-4000-8000-00000000c140', '00000000-0000-4000-8000-00000000c140');
 
-INSERT INTO public.propuesta_revisiones (id, propuesta_id, letra, folio_revision, estado, creado_por)
+INSERT INTO public.propuesta_revisiones
+  (id, propuesta_id, letra, folio_revision, estado, fecha_compromiso_comercial, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000c151', '00000000-0000-4000-8000-00000000c150',
-  'A', 'CNC-1126_05-A', 'DRAFT', '00000000-0000-4000-8000-00000000c140');
+  'A', 'CNC-1126_05-A', 'DRAFT', current_date + 10, '00000000-0000-4000-8000-00000000c140');
 
 INSERT INTO public.propuesta_items (id, revision_id, codigo, descripcion, cantidad)
 VALUES ('00000000-0000-4000-8000-00000000c152', '00000000-0000-4000-8000-00000000c151',
@@ -223,7 +224,94 @@ SELECT is(
   'Las familias se ordenan y lo desconocido queda al final');
 
 -- -----------------------------------------------------------------------------
--- 20-21. Camino real del reporte: RFQ capturado al revés → propuesta → ruteo.
+-- 22-27. Reparación de partidas ya creadas con la secuencia invertida.
+-- -----------------------------------------------------------------------------
+-- Partida virgen con datos heredados invertidos (como quedó en producción).
+UPDATE public.metas_proceso_partida SET nombre = 'Doblado CNC'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c161' AND secuencia = 1;
+UPDATE public.metas_proceso_partida SET nombre = 'Corte láser'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c161' AND secuencia = 2;
+UPDATE public.partidas_orden_produccion
+SET procesos = ARRAY['Doblado CNC', 'Corte láser']
+WHERE id = '00000000-0000-4000-8000-00000000c161';
+
+SELECT is(privado.reparar_orden_invertida_partidas(), 1,
+  'La reparación renumera la partida invertida y virgen');
+
+SELECT is(
+  (SELECT array_agg(nombre ORDER BY secuencia) FROM public.metas_proceso_partida
+   WHERE partida_id = '00000000-0000-4000-8000-00000000c161'),
+  ARRAY['Corte láser', 'Doblado CNC']::text[],
+  'Las metas quedan Corte 1, Doblado 2');
+
+SELECT is(
+  (SELECT procesos FROM public.partidas_orden_produccion
+   WHERE id = '00000000-0000-4000-8000-00000000c161'),
+  ARRAY['Corte láser', 'Doblado CNC']::text[],
+  'La partida acompaña la secuencia reparada');
+
+SELECT is(privado.reparar_orden_invertida_partidas(), 0,
+  'Repetir la reparación no vuelve a tocar la partida');
+
+-- Partida con avance registrado: se deja intacta (no se inventa historial).
+INSERT INTO public.partidas_orden_produccion
+  (id, orden_id, codigo_pieza, cantidad_solicitada, unidad_medida, procesos)
+VALUES ('00000000-0000-4000-8000-00000000c163', '00000000-0000-4000-8000-00000000c160',
+  'PIEZA-C14-CON-AVANCE', 4, 'pza', ARRAY['Corte láser', 'Doblado CNC']);
+UPDATE public.metas_proceso_partida SET nombre = 'Doblado CNC'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c163' AND secuencia = 1;
+UPDATE public.metas_proceso_partida SET nombre = 'Corte láser'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c163' AND secuencia = 2;
+INSERT INTO public.registros_avance_partida (partida_id, operador_id, cantidad_producida)
+VALUES ('00000000-0000-4000-8000-00000000c163', '00000000-0000-4000-8000-00000000c140', 1);
+
+SELECT is(privado.reparar_orden_invertida_partidas(), 0,
+  'Una partida con avance no se renumera');
+
+SELECT is(
+  (SELECT array_agg(nombre ORDER BY secuencia) FROM public.metas_proceso_partida
+   WHERE partida_id = '00000000-0000-4000-8000-00000000c163'),
+  ARRAY['Doblado CNC', 'Corte láser']::text[],
+  'La partida con historial conserva su secuencia original');
+
+-- Orden comercial (nace de una revisión aceptada): la partida está protegida
+-- como alcance inmutable, pero la reparación solo reordena la misma lista.
+INSERT INTO public.ordenes_produccion
+  (id, folio, cliente_id, estado, fecha_compromiso, propuesta_revision_id)
+VALUES ('00000000-0000-4000-8000-00000000c164', 'O-9914_01',
+  '00000000-0000-4000-8000-00000000c141', 'borrador', now(),
+  '00000000-0000-4000-8000-00000000c151');
+
+INSERT INTO public.partidas_orden_produccion
+  (id, orden_id, codigo_pieza, cantidad_solicitada, unidad_medida, procesos)
+VALUES ('00000000-0000-4000-8000-00000000c165', '00000000-0000-4000-8000-00000000c164',
+  'PIEZA-C14-COMERCIAL', 2, 'pza', ARRAY['Doblado CNC', 'Corte láser']);
+
+-- El creador real completa el snapshot al final; eso activa el guardián C4.2.
+UPDATE public.partidas_orden_produccion
+SET procesos = ARRAY['Doblado CNC', 'Corte láser']
+WHERE id = '00000000-0000-4000-8000-00000000c165';
+
+UPDATE public.ordenes_produccion
+SET snapshot_json = jsonb_build_object('version', 1)
+WHERE id = '00000000-0000-4000-8000-00000000c164';
+
+UPDATE public.metas_proceso_partida SET nombre = 'Doblado CNC'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c165' AND secuencia = 1;
+UPDATE public.metas_proceso_partida SET nombre = 'Corte láser'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c165' AND secuencia = 2;
+
+SELECT is(privado.reparar_orden_invertida_partidas(), 1,
+  'La reparación también atiende una orden nacida de propuesta');
+
+SELECT is(
+  (SELECT procesos FROM public.partidas_orden_produccion
+   WHERE id = '00000000-0000-4000-8000-00000000c165'),
+  ARRAY['Corte láser', 'Doblado CNC']::text[],
+  'La partida comercial queda con la secuencia técnica sin cambiar su alcance');
+
+-- -----------------------------------------------------------------------------
+-- 26-27. Camino real del reporte: RFQ capturado al revés → propuesta → ruteo.
 -- -----------------------------------------------------------------------------
 INSERT INTO public.permisos (codigo, modulo, descripcion) VALUES
   ('propuesta_editar_articulo', 'propuestas', 'Editar artículos/cantidades')
