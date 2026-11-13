@@ -26,6 +26,7 @@ import {
   horasTranscurridasSesion,
   sesionCercaDeJornada,
 } from '@/modulos/produccion/utilidades/indice';
+import { etiquetaPiezasProceso, verboProceso } from '@/modulos/produccion/utilidades/procesos';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 import { registrarRetrabajoAccion } from '@/modulos/produccion/acciones/registrar-retrabajo';
 import {
@@ -863,6 +864,16 @@ export function DetalleProcesoOperador({
           </h3>
           <span className="text-xs text-texto-secundario">{proceso.areaNombre}</span>
         </div>
+        {proceso.piezasDisponibles !== null && proceso.piezasDisponibles > 0 ? (
+          <p
+            className="mb-3 rounded-md bg-acento-suave px-3 py-2 text-sm text-acento-texto"
+            data-testid="aviso-piezas-disponibles"
+          >
+            <strong className="tabular-nums">{formatearNumero(proceso.piezasDisponibles, 0)}</strong>
+            {' disponibles para '}{verboProceso(proceso.procesoNombre, proceso.areaMacro)}
+            {proceso.procesoPrevioNombre ? `, listas desde ${proceso.procesoPrevioNombre}` : ''}.
+          </p>
+        ) : null}
         <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
           <Dato
             etiqueta="Meta"
@@ -1081,7 +1092,7 @@ export function DetalleProcesoOperador({
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className={CLASE_ETIQUETA}>
-                    Piezas producidas
+                    {etiquetaPiezasProceso(proceso.procesoNombre, proceso.areaMacro)}
                     <Input
                       min="0"
                       step="1"
@@ -1680,7 +1691,7 @@ export function DetalleProcesoOperador({
 
         <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2 p-3">
           <Dato
-            etiqueta="Piezas producidas"
+            etiqueta={etiquetaPiezasProceso(proceso.procesoNombre, proceso.areaMacro)}
             valor={`${formatearNumero(resumenCierre.resultado.piezasProducidas, 0)} piezas`}
           />
           <Dato

@@ -283,18 +283,12 @@ async function iniciarSesionAdministrador(page: import('@playwright/test').Page,
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
-/** SII-B6 ola 2: el inicio exige el checklist de eventos críticos completo. */
+/** SII-B6 ola 2: el inicio exige todas las confirmaciones visibles del checklist. */
 async function confirmarChecklistInicio(page: import('@playwright/test').Page): Promise<void> {
   const dialogo = page.getByTestId('checklist-inicio');
   await expect(dialogo).toBeVisible();
-  for (const etiqueta of [
-    'Material verificado',
-    'Espesor verificado',
-    'Cantidad verificada',
-    'Revisión / archivo vigente',
-    'Proceso / equipo correcto',
-  ]) {
-    await dialogo.getByLabel(etiqueta, { exact: true }).check();
+  for (const casilla of await dialogo.getByRole('checkbox').all()) {
+    await casilla.check();
   }
   await dialogo.getByTestId('confirmar-checklist-inicio').click();
 }
@@ -641,7 +635,7 @@ await expect(
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await expect(observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)).toContainText('En proceso');
 
-    await page.getByLabel('Piezas producidas ahora').fill('5');
+    await page.getByLabel(/Piezas .* ahora/).fill('5');
     await page.getByLabel('Material').selectOption(contextoPrueba.materialId);
     await page.getByLabel('Usado').fill('5');
     await page.getByTestId('motivo-consumo').fill('Consumo E2E');
@@ -811,7 +805,7 @@ await expect(
       await confirmarChecklistInicio(page);
       await expect(page.getByRole('status')).toContainText('Sesión iniciada');
 
-      await page.getByLabel('Piezas producidas ahora').fill('2');
+      await page.getByLabel(/Piezas .* ahora/).fill('2');
       await page.getByLabel('Resultado').selectOption('pausada');
       await page.getByLabel('Motivo de pausa').selectOption('MATERIAL');
       await page.getByLabel('Notas operativas').fill('Esperando insumo para continuar');

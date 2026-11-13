@@ -19,6 +19,7 @@ import {
   horasLegibles,
   textoCompromiso,
 } from '@/modulos/produccion/utilidades/formato-operador';
+import { verboProceso } from '@/modulos/produccion/utilidades/procesos';
 
 /** C10: tarjeta de una operación con todo lo necesario para fabricarla. */
 
@@ -111,6 +112,16 @@ export function TarjetaProceso({
           {ETIQUETAS_COLUMNA[proceso.columna]}
         </Badge>
       </div>
+
+      {proceso.piezasDisponibles !== null && proceso.piezasDisponibles > 0 ? (
+        <p
+          className="rounded-md bg-acento-suave px-2 py-1 text-xs text-acento-texto"
+          data-testid={`disponibles-proceso-${proceso.id}`}
+        >
+          <strong className="tabular-nums">{formatearNumero(proceso.piezasDisponibles, 0)}</strong>
+          {' disponibles para '}{verboProceso(proceso.procesoNombre, proceso.areaMacro)}.
+        </p>
+      ) : null}
 
       <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
         <div className="min-w-0">

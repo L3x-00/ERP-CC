@@ -140,7 +140,7 @@ export function TablaCuentasPorCobrar({
                   <div className="flex flex-wrap justify-end gap-1">
                     {onVerHistorial && <Button tamano="sm" variante="contorno" onClick={() => onVerHistorial(cuenta)}>Historial</Button>}
                     {onRegistrarFactura && cuenta.estado !== 'cancelado' && <Button tamano="sm" variante="contorno" onClick={() => onRegistrarFactura(cuenta.id)}>Factura</Button>}
-                    {onPromesa && cuenta.estado !== 'cancelado' && (
+                    {onPromesa && cuentaVigente(cuenta) && (
                       <Button tamano="sm" variante="contorno" data-testid={`promesa-${cuenta.referenciaInterna}`}
                         onClick={() => onPromesa(cuenta)}>
                         Promesa

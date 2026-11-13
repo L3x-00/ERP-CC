@@ -24,6 +24,7 @@ import type {
   ConsultarHistorialCuentaInput,
   ConsultarReciboInput,
 } from '@/modulos/cobranza/validaciones/cobranza';
+import { obtenerMarcaDocumentoServicio } from '@/modulos/ordenes/servicios/marca-documento-servicio';
 
 /**
  * Lecturas navegables de Cobranza. Todas reciben el cliente Supabase de la
@@ -250,7 +251,7 @@ export async function obtenerReciboPagoServicio(
   if (errorCuenta) throw new ErrorCobranza('desconocido', errorCuenta.message);
   if (!filaCuenta) throw new ErrorCobranza('cuenta_no_disponible');
 
-  const [contexto, movimientos, cuentaBancaria] = await Promise.all([
+  const [contexto, movimientos, cuentaBancaria, marcaDocumento] = await Promise.all([
     cliente
       .from('clientes')
       .select('id, nombre_comercial, razon_social')
@@ -258,6 +259,7 @@ export async function obtenerReciboPagoServicio(
       .maybeSingle(),
     obtenerCreditoPago(cliente, pago.id),
     pago.cuentaBancariaId ? cuentaBancariaPorId(cliente, pago.cuentaBancariaId) : Promise.resolve(null),
+    obtenerMarcaDocumentoServicio(),
   ]);
   if (contexto.error) throw new ErrorCobranza('desconocido', contexto.error.message);
 
@@ -283,6 +285,7 @@ export async function obtenerReciboPagoServicio(
     saldoActualCuenta: Number(filaCuenta.saldo_pendiente),
     estadoActualCuenta: validarEstadoCuenta(filaCuenta.estado),
     creditoMonederoMxn: movimientos,
+    marcaDocumento,
   };
 }
 

@@ -353,6 +353,7 @@ export function PanelCorridasProduccion({
         abierto={checklistCorrida !== null}
         procesando={procesando}
         titulo="Inicio de corrida"
+        procesoNombre={corridas.find((corrida) => corrida.id === checklistCorrida)?.procesoNombre}
         onAbiertoCambiar={(abierto) => { if (!abierto) setChecklistCorrida(null); }}
         onConfirmar={confirmarInicioCorrida}
       />

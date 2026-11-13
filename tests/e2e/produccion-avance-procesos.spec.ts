@@ -260,14 +260,8 @@ async function entrarComoOperador(
 async function confirmarChecklistInicio(page: import('@playwright/test').Page): Promise<void> {
   const dialogo = page.getByTestId('checklist-inicio');
   await expect(dialogo).toBeVisible();
-  for (const etiqueta of [
-    'Material verificado',
-    'Espesor verificado',
-    'Cantidad verificada',
-    'Revisión / archivo vigente',
-    'Proceso / equipo correcto',
-  ]) {
-    await dialogo.getByLabel(etiqueta, { exact: true }).check();
+  for (const casilla of await dialogo.getByRole('checkbox').all()) {
+    await casilla.check();
   }
   await dialogo.getByTestId('confirmar-checklist-inicio').click();
 }
@@ -305,7 +299,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByTestId('iniciar-sesion-produccion').click();
     await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
-    await page.getByLabel('Piezas producidas ahora').fill('4');
+    await page.getByLabel(/Piezas .* ahora/).fill('4');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');
@@ -327,7 +321,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByTestId('iniciar-sesion-produccion').click();
     await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
-    await page.getByLabel('Piezas producidas ahora').fill('6');
+    await page.getByLabel(/Piezas .* ahora/).fill('6');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaCorteId);
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');
@@ -346,7 +340,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByTestId('iniciar-sesion-produccion').click();
     await confirmarChecklistInicio(page);
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
-    await page.getByLabel('Piezas producidas ahora').fill('10');
+    await page.getByLabel(/Piezas .* ahora/).fill('10');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaDobladoId);
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');

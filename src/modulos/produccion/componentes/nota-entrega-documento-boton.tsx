@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { NotaEntregaPdfProfesional } from '@/modulos/produccion/componentes/nota-entrega-pdf-profesional';
+import { imprimirNotaEntrega } from '@/modulos/produccion/utilidades/imprimir-nota-entrega';
 
 /**
  * Nota de entrega imprimible (OBS-13): conforma el registro persistido con la
@@ -198,15 +199,10 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
                 >
                   {({ loading, error }) => (error ? 'No se pudo preparar el PDF' : loading ? 'Preparando PDF…' : 'Descargar PDF')}
                 </PDFDownloadLink>
-                <Button type="button" onClick={() => window.print()}>
+                <Button type="button" onClick={() => void imprimirNotaEntrega(documento).catch(() => setError('No se pudo abrir la impresión. Vuelve a intentarlo.'))}>
                   Imprimir
                 </Button>
               </div>
-              <style>{`@media print {
-                body * { visibility: hidden; }
-                #nota-entrega-print, #nota-entrega-print * { visibility: visible; }
-                #nota-entrega-print { position: absolute; left: 0; top: 0; width: 100%; }
-              }`}</style>
             </>
           )}
         </DialogContent>
