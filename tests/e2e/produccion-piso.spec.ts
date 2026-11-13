@@ -635,7 +635,7 @@ await expect(
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await expect(observador.getByTestId(`tarjeta-produccion-${contextoPrueba.ordenId}`)).toContainText('En proceso');
 
-    await page.getByLabel('Piezas producidas ahora').fill('5');
+    await page.getByLabel(/Piezas .* ahora/).fill('5');
     await page.getByLabel('Material').selectOption(contextoPrueba.materialId);
     await page.getByLabel('Usado').fill('5');
     await page.getByTestId('motivo-consumo').fill('Consumo E2E');
@@ -805,7 +805,7 @@ await expect(
       await confirmarChecklistInicio(page);
       await expect(page.getByRole('status')).toContainText('Sesión iniciada');
 
-      await page.getByLabel('Piezas producidas ahora').fill('2');
+      await page.getByLabel(/Piezas .* ahora/).fill('2');
       await page.getByLabel('Resultado').selectOption('pausada');
       await page.getByLabel('Motivo de pausa').selectOption('MATERIAL');
       await page.getByLabel('Notas operativas').fill('Esperando insumo para continuar');
