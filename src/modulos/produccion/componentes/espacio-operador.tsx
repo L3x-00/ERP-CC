@@ -533,6 +533,8 @@ export function EspacioOperador({
         titulo={inicioPendiente
           ? `${inicioPendiente.folioOrden} · ${inicioPendiente.codigoPieza} · ${inicioPendiente.procesoNombre}`
           : 'Inicio de proceso'}
+        procesoNombre={inicioPendiente?.procesoNombre}
+        areaMacro={inicioPendiente?.areaMacro}
         onAbiertoCambiar={(abierto) => {
           if (!abierto) setInicioPendiente(null);
         }}

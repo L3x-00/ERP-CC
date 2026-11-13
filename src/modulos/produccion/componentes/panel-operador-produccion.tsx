@@ -13,6 +13,7 @@ import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesi
 import type { MaterialPisoCatalogo } from '@/modulos/produccion/acciones/consultas-b6';
 import type { SesionActivaProduccion } from '@/estado/uso-tienda-produccion';
 import { type MotivoPausaSesion, type VerificacionInicio } from '@/modulos/produccion/tipos/indice';
+import { etiquetaPiezasProceso } from '@/modulos/produccion/utilidades/procesos';
 
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
@@ -191,6 +192,7 @@ export function PanelOperadorProduccion({
     ?? metasSesion[metasSesion.length - 1]
     ?? null;
   const metaSeleccionada = metasSesion.find((meta) => meta.id === metaProcesoId) ?? metaPorDefecto;
+  const etiquetaPiezas = etiquetaPiezasProceso(metaSeleccionada?.nombre);
   const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
     ?? motivosPausa[0]
     ?? null;
@@ -573,7 +575,7 @@ export function PanelOperadorProduccion({
         <form className="mt-4 flex flex-col gap-3" onSubmit={cerrar}>
           <p className="text-sm text-texto-secundario">Sesión activa en la orden seleccionada.</p>
           <label className={CLASE_ETIQUETA}>
-            Piezas producidas ahora
+            {etiquetaPiezas} ahora
             <Input
               className="min-h-11"
               min="0"
@@ -985,7 +987,7 @@ export function PanelOperadorProduccion({
           </DialogHeader>
           {resumenCierre ? (
             <dl className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2 p-3 text-sm">
-              <div><dt className="text-texto-secundario">Piezas producidas</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.piezasProducidas, 0)}</dd></div>
+              <div><dt className="text-texto-secundario">{etiquetaPiezas}</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.piezasProducidas, 0)}</dd></div>
               <div><dt className="text-texto-secundario">Tiempo neto</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.horasNetas, 2)} h</dd></div>
               <div><dt className="text-texto-secundario">Resultado</dt><dd className="font-medium">Sesión finalizada</dd></div>
               <div><dt className="text-texto-secundario">Estado de orden</dt><dd className="font-medium">{resumenCierre.resultado.estadoOrden}</dd></div>

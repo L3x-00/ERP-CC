@@ -1,4 +1,5 @@
 import type { ResultadoPaginado } from '@/compartido/tipos/indice';
+import type { MarcaDocumento } from '@/compartido/tipos/impresion';
 import type { Tables } from '@/compartido/tipos/supabase';
 import {
   ESTADOS_CUENTA_POR_COBRAR,
@@ -112,6 +113,8 @@ export interface ReciboPagoPersistido {
   estadoActualCuenta: EstadoCuentaPorCobrar;
   /** Crédito real al monedero (MXN) persistido por este pago; null si no hubo. */
   creditoMonederoMxn: number | null;
+  /** Identidad de la empresa para la impresión del recibo. */
+  marcaDocumento: MarcaDocumento;
 }
 
 /** Cuenta bancaria activa; el número viaja enmascarado hacia el navegador. */

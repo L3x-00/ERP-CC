@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
+import {
+  MARCA_DOCUMENTO_NEUTRA,
+  type MarcaDocumento,
+} from '@/compartido/tipos/impresion';
 import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/configuracion-servicio';
 
 /**
@@ -44,6 +48,7 @@ export interface DocumentoNotaEntrega {
     creadoEn: string;
   };
   orden: { folio: string; clienteRazonSocial: string | null; clienteRfc: string | null };
+  marca: MarcaDocumento;
   lineas: LineaNotaEntrega[];
   totalNota: number;
   totalAcumulado: number;
@@ -166,6 +171,18 @@ export async function obtenerDocumentoNotaEntrega(
 
   const lineas = resumirLineasNota(renglones, acumulados);
   const configuracion = await obtenerConfiguracionGeneral();
+  const plantilla = configuracion.plantillasDoc.T1;
+  const marca: MarcaDocumento = {
+    nombre: configuracion.empresa.nombre || MARCA_DOCUMENTO_NEUTRA.nombre,
+    razonSocial: configuracion.empresa.razonSocial,
+    rfc: configuracion.empresa.rfc,
+    direccion: configuracion.empresa.direccion,
+    telefono: configuracion.empresa.telefono,
+    email: configuracion.empresa.email,
+    logoUrl: configuracion.empresa.logoUrl,
+    colorAcento: plantilla?.colorAcento ?? MARCA_DOCUMENTO_NEUTRA.colorAcento,
+    textoPiePagina: plantilla?.textoPiePagina ?? '',
+  };
 
   return {
     empresa: {
@@ -176,6 +193,7 @@ export async function obtenerDocumentoNotaEntrega(
       telefono: configuracion.empresa.telefono,
       email: configuracion.empresa.email,
     },
+    marca,
     nota: {
       folio: nota.folio,
       esParcial: nota.es_parcial,

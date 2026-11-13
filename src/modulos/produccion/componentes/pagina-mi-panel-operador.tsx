@@ -34,6 +34,7 @@ import type {
   VerificacionInicio,
 } from '@/modulos/produccion/tipos/indice';
 import type { ConsumoMaterialVisible } from '@/modulos/produccion/utilidades/consumo-material-operador';
+import { verboProceso } from '@/modulos/produccion/utilidades/procesos';
 
 import {
   obtenerMisProcesos,
@@ -424,7 +425,7 @@ export function PaginaMiPanelOperador({
     const etiquetaGestion = puedeGestionar
       ? 'Gestionar proceso'
       : proceso.piezasDisponibles === 0
-        ? `No hay piezas disponibles para ${proceso.procesoNombre.toLowerCase()}`
+        ? `No hay piezas disponibles para ${verboProceso(proceso.procesoNombre, proceso.areaMacro)}`
         : proceso.motivoNoInicia ?? 'Proceso no disponible';
 
     const puedeLiberar =
@@ -460,6 +461,17 @@ export function PaginaMiPanelOperador({
             {etiquetas[estado]}
           </span>
         </div>
+
+        {proceso.piezasDisponibles !== null && proceso.piezasDisponibles > 0 ? (
+          <p
+            className="rounded-lg bg-acento-suave px-3 py-2 text-sm text-acento-texto"
+            data-testid={`disponibles-${proceso.id}`}
+          >
+            <strong className="tabular-nums">{Math.round(proceso.piezasDisponibles)}</strong>
+            {' disponibles para '}{verboProceso(proceso.procesoNombre, proceso.areaMacro)}
+            {proceso.procesoPrevioNombre ? `, listas desde ${proceso.procesoPrevioNombre}` : ''}.
+          </p>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3 text-sm">
           <div className="min-w-0">
@@ -639,6 +651,8 @@ export function PaginaMiPanelOperador({
         titulo={inicioPendiente
           ? `${inicioPendiente.folioOrden} · ${inicioPendiente.codigoPieza} · ${inicioPendiente.procesoNombre}`
           : 'Inicio de proceso'}
+        procesoNombre={inicioPendiente?.procesoNombre}
+        areaMacro={inicioPendiente?.areaMacro}
         onAbiertoCambiar={(abierto) => {
           if (!abierto && procesando === null) setInicioPendienteId(null);
         }}

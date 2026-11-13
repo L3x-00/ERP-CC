@@ -247,18 +247,12 @@ async function iniciarSesionAdministrador(
   await page.waitForURL((url) => url.pathname === '/dashboard' || url.pathname === '/tablero');
 }
 
-/** SII-B6 ola 2: el inicio exige el checklist de eventos críticos completo. */
+/** SII-B6 ola 2: el inicio exige todas las confirmaciones visibles del checklist. */
 async function confirmarChecklistInicio(page: import('@playwright/test').Page): Promise<void> {
   const dialogo = page.getByTestId('checklist-inicio');
   await expect(dialogo).toBeVisible();
-  for (const etiqueta of [
-    'Material verificado',
-    'Espesor verificado',
-    'Cantidad verificada',
-    'Revisión / archivo vigente',
-    'Proceso / equipo correcto',
-  ]) {
-    await dialogo.getByLabel(etiqueta, { exact: true }).check();
+  for (const casilla of await dialogo.getByRole('checkbox').all()) {
+    await casilla.check();
   }
   await dialogo.getByTestId('confirmar-checklist-inicio').click();
 }

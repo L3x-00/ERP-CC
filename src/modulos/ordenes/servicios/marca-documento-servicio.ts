@@ -6,6 +6,7 @@ import {
   type MarcaDocumento,
 } from '@/compartido/tipos/impresion';
 import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/configuracion-servicio';
+import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 
 /**
  * Identidad de la empresa para documentos impresos (logo, color y pie).
@@ -13,10 +14,10 @@ import { obtenerConfiguracionGeneral } from '@/modulos/configuracion/servicios/c
  * marca neutra: imprimir nunca debe romperse por un dato de presentación.
  */
 export async function obtenerMarcaDocumentoServicio(
-  cliente: SupabaseClient<Database>,
+  cliente?: SupabaseClient<Database>,
 ): Promise<MarcaDocumento> {
   try {
-    const configuracion = await obtenerConfiguracionGeneral(cliente);
+    const configuracion = await obtenerConfiguracionGeneral(cliente ?? crearClienteSupabaseAdmin());
     const plantilla = configuracion.plantillasDoc.T1;
     return {
       nombre: configuracion.empresa.nombre || MARCA_DOCUMENTO_NEUTRA.nombre,

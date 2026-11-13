@@ -177,7 +177,7 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.getByText(/Usado: 1.000 kg/)).toBeTruthy();
     expect(screen.getByText(/Merma: 0.250 kg/)).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('Piezas producidas'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
     fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Merma'), { target: { value: '0.5' } });
@@ -249,7 +249,7 @@ describe('DetalleProcesoOperador', () => {
       presentacion: 'integrado',
     }));
 
-    fireEvent.change(screen.getByLabelText('Piezas producidas'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
     fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Merma'), { target: { value: '0' } });

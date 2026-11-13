@@ -6,14 +6,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { Textarea } from '@/compartido/componentes/ui/input';
 import type { VerificacionInicio } from '@/modulos/produccion/tipos/indice';
-
-const CAMPOS = [
-  { clave: 'material', etiqueta: 'Material verificado' },
-  { clave: 'espesor', etiqueta: 'Espesor verificado' },
-  { clave: 'cantidad', etiqueta: 'Cantidad verificada' },
-  { clave: 'archivo', etiqueta: 'Revisión / archivo vigente' },
-  { clave: 'proceso_equipo', etiqueta: 'Proceso / equipo correcto' },
-] as const;
+import { camposChecklistInicio } from '@/modulos/produccion/utilidades/procesos';
 
 /**
  * SII-B6.2: checklist obligatorio de eventos críticos antes de iniciar una
@@ -23,12 +16,16 @@ export function DialogoChecklistInicio({
   abierto,
   procesando,
   titulo,
+  procesoNombre,
+  areaMacro,
   onAbiertoCambiar,
   onConfirmar,
 }: {
   abierto: boolean;
   procesando: boolean;
   titulo: string;
+  procesoNombre?: string | null;
+  areaMacro?: string | null;
   onAbiertoCambiar: (abierto: boolean) => void;
   onConfirmar: (verificacion: VerificacionInicio) => Promise<{ exito: true } | { exito: false; error: string }>;
 }) {
@@ -36,7 +33,8 @@ export function DialogoChecklistInicio({
   const [observaciones, setObservaciones] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const completo = CAMPOS.every((campo) => marcados[campo.clave] === true);
+  const campos = camposChecklistInicio(procesoNombre, areaMacro);
+  const completo = campos.every((campo) => marcados[campo.clave] === true);
 
   function cerrar(): void {
     if (procesando) return;
@@ -74,7 +72,7 @@ export function DialogoChecklistInicio({
         </DialogHeader>
         <fieldset className="flex flex-col gap-2">
           <legend className="sr-only">Eventos críticos</legend>
-          {CAMPOS.map((campo) => (
+          {campos.map((campo) => (
             <label key={campo.clave} className="flex items-center gap-2 text-sm" htmlFor={`checklist-${campo.clave}`}>
               <input
                 id={`checklist-${campo.clave}`}
