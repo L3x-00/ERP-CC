@@ -696,7 +696,9 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(dialogoValidar).toBeVisible();
       await capturar(page, 'dialogo-validar-seguimiento');
       await dialogoValidar.getByRole('button', { name: 'Registrar y validar' }).click();
-      await expect(ficha.getByTestId('validacion-resultado')).toContainText('Propuesta validada');
+      // Obs. PO 2026-11-12: validar refresca la ficha sin mensajes redundantes;
+      // la evidencia visible es el paso a «Generar PDF».
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toBeVisible();
       await expect
         .poll(async () => {
           const { data } = await admin
