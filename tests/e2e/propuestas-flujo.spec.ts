@@ -922,8 +922,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: 'Consultar disponibilidad' }).click();
       const consulta = page.getByTestId('disponibilidad-propuesta');
       await expect(consulta).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-      await expect(consulta).toContainText(/104(?:[.,]00)?\s*h/);
-      await expect(consulta).toContainText(/100(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText(/48(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText(/44(?:[.,]00)?\s*h/);
       await expect(consulta).toContainText('equipos activos sin turnos configurados');
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
@@ -964,8 +964,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         await paginaGerencia.getByRole('button', { name: 'Consultar disponibilidad' }).click();
         const consultaGerencia = paginaGerencia.getByTestId('disponibilidad-propuesta');
         await expect(consultaGerencia).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-        await expect(consultaGerencia).toContainText(/104(?:[.,]00)?\s*h/);
-        await expect(consultaGerencia).toContainText(/100(?:[.,]00)?\s*h/);
+        await expect(consultaGerencia).toContainText(/48(?:[.,]00)?\s*h/);
+        await expect(consultaGerencia).toContainText(/44(?:[.,]00)?\s*h/);
       } finally {
         await contextoGerencia.close();
       }
@@ -999,7 +999,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         .eq('partida_id', contexto.disponibilidad!.partidaId!);
       expect(cargaActualizada.error).toBeNull();
       await page.getByRole('button', { name: 'Volver a consultar' }).click();
-      await expect(consulta).toContainText(/98(?:[.,]00)?\s*h/);
+      await expect(consulta).toContainText(/42(?:[.,]00)?\s*h/);
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
       // C4.1: la fecha compromiso comercial es obligatoria al aceptar.
