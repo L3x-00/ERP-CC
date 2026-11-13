@@ -746,8 +746,8 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
           return data?.estado;
         })
         .toBe('DRAFT');
-      // El PDF vigente queda invalidado: hay que regenerarlo.
-      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Generar PDF');
+      // El PDF vigente queda invalidado: la revisión en borrador ya no ofrece PDF.
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveCount(0);
       await ficha.getByRole('button', { name: 'Validar', exact: true }).first().click();
       await expect(dialogoValidar).toBeVisible();
       await dialogoValidar.getByRole('button', { name: 'Registrar y validar' }).click();
@@ -761,6 +761,7 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
           return data?.estado;
         })
         .toBe('READY_TO_SEND');
+      await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Generar PDF');
       // Sin cambios de contenido, regenerar reactiva el mismo PDF (v1).
       await ficha.getByRole('button', { name: 'Generar PDF', exact: true }).first().click();
       await expect(ficha.getByTestId('boton-pdf-propuesta')).toHaveText('Ver PDF generado');
