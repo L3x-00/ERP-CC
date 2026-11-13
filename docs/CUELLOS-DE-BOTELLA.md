@@ -154,3 +154,10 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | `c13_4_corrida_integrada`: `minutos_exceden_sesion` solo en ciertas horas del día | La prueba simulaba una sesión de 30 minutos con `now() - interval '30 minutes'`; si esa ventana cae dentro del descuento de comida (12:00–13:00 de Tijuana) `horas_netas` queda en 0 y el mínimo de la RPC (1 minuto) rechaza los 10 minutos declarados | Usar una ventana amplia (2 horas) que garantice horas netas suficientes aunque cruce la comida; no usar ventanas cortas con `now()` en pruebas que dependen de horas netas |
 | `propuestas-disponibilidad-ui` deja de ver habilitado «Aceptar revisión» al día siguiente de escribirse la prueba | El campo de fecha compromiso no admite fechas anteriores a hoy y el test fijaba `2026-11-10`; la prueba pasó el día que se escribió y caducó al siguiente | Las pruebas que ejercitan la validación de fecha usan una fecha relativa (`fechaHoyLocal` + días), nunca un literal que pronto queda en el pasado |
+
+## 10. Secuencia técnica de procesos
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Mi panel del operador muestra DOBLADO_CNC como secuencia 1 y deja Corte láser para después | `rfq_item_operaciones.orden` se llenaba con el orden de clic de la UI (`[...previo.procesoIds, procesoId]`); al crear la propuesta ese orden se copiaba a `propuesta_item_ruteo.secuencia` y de ahí al snapshot y a las metas | La secuencia de procesos es una regla de negocio, no un efecto de la captura: normalizarla en la base (`privado.rango_proceso_canonico` + trigger de `rfq_item_operaciones`) y probar con `crear_item_rfq` enviando los procesos al revés |
+| Un `LIKE '%laser%'` no clasifica «Corte láser» | El texto conserva el acento y `laser` no coincide con `láser` | Al clasificar por nombre/código en SQL, plegar acentos con `translate(lower(...), 'áàäâéèëêíìïîóòöôúùüûñç', 'aaaaeeeeiiiioooouuuunc')`; `unaccent` no está garantizado |
