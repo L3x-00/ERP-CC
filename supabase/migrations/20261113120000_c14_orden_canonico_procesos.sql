@@ -127,6 +127,9 @@ CREATE TRIGGER trigger_orden_canonico_operaciones_rfq
 
 -- -----------------------------------------------------------------------------
 -- 3. Saneamiento de RFQ ya capturados (el trigger cubre las escrituras nuevas).
+--    Un RFQ congelado (ya generó una revisión A) es historial inmutable: la base
+--    lo protege con `privado.rfq_congelado` y su orden ya no alimenta órdenes
+--    nuevas, así que se omite en lugar de romper la migración.
 -- -----------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -135,6 +138,8 @@ BEGIN
   FOR v_item_id IN
     SELECT DISTINCT operacion.rfq_item_id
     FROM public.rfq_item_operaciones AS operacion
+    JOIN public.rfq_items AS item ON item.id = operacion.rfq_item_id
+    WHERE NOT privado.rfq_congelado(item.rfq_id)
   LOOP
     PERFORM privado.normalizar_orden_operaciones_rfq(v_item_id);
   END LOOP;

@@ -6,7 +6,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(21);
+SELECT plan(27);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: vendedor, RFQ, catálogo de procesos y una propuesta con ruteo.
@@ -223,7 +223,58 @@ SELECT is(
   'Las familias se ordenan y lo desconocido queda al final');
 
 -- -----------------------------------------------------------------------------
--- 20-21. Camino real del reporte: RFQ capturado al revés → propuesta → ruteo.
+-- 22-27. Reparación de partidas ya creadas con la secuencia invertida.
+-- -----------------------------------------------------------------------------
+-- Partida virgen con datos heredados invertidos (como quedó en producción).
+UPDATE public.metas_proceso_partida SET nombre = 'Doblado CNC'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c161' AND secuencia = 1;
+UPDATE public.metas_proceso_partida SET nombre = 'Corte láser'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c161' AND secuencia = 2;
+UPDATE public.partidas_orden_produccion
+SET procesos = ARRAY['Doblado CNC', 'Corte láser']
+WHERE id = '00000000-0000-4000-8000-00000000c161';
+
+SELECT is(privado.reparar_orden_invertida_partidas(), 1,
+  'La reparación renumera la partida invertida y virgen');
+
+SELECT is(
+  (SELECT array_agg(nombre ORDER BY secuencia) FROM public.metas_proceso_partida
+   WHERE partida_id = '00000000-0000-4000-8000-00000000c161'),
+  ARRAY['Corte láser', 'Doblado CNC']::text[],
+  'Las metas quedan Corte 1, Doblado 2');
+
+SELECT is(
+  (SELECT procesos FROM public.partidas_orden_produccion
+   WHERE id = '00000000-0000-4000-8000-00000000c161'),
+  ARRAY['Corte láser', 'Doblado CNC']::text[],
+  'La partida acompaña la secuencia reparada');
+
+SELECT is(privado.reparar_orden_invertida_partidas(), 0,
+  'Repetir la reparación no vuelve a tocar la partida');
+
+-- Partida con avance registrado: se deja intacta (no se inventa historial).
+INSERT INTO public.partidas_orden_produccion
+  (id, orden_id, codigo_pieza, cantidad_solicitada, unidad_medida, procesos)
+VALUES ('00000000-0000-4000-8000-00000000c163', '00000000-0000-4000-8000-00000000c160',
+  'PIEZA-C14-CON-AVANCE', 4, 'pza', ARRAY['Corte láser', 'Doblado CNC']);
+UPDATE public.metas_proceso_partida SET nombre = 'Doblado CNC'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c163' AND secuencia = 1;
+UPDATE public.metas_proceso_partida SET nombre = 'Corte láser'
+WHERE partida_id = '00000000-0000-4000-8000-00000000c163' AND secuencia = 2;
+INSERT INTO public.registros_avance_partida (partida_id, operador_id, cantidad_producida)
+VALUES ('00000000-0000-4000-8000-00000000c163', '00000000-0000-4000-8000-00000000c140', 1);
+
+SELECT is(privado.reparar_orden_invertida_partidas(), 0,
+  'Una partida con avance no se renumera');
+
+SELECT is(
+  (SELECT array_agg(nombre ORDER BY secuencia) FROM public.metas_proceso_partida
+   WHERE partida_id = '00000000-0000-4000-8000-00000000c163'),
+  ARRAY['Doblado CNC', 'Corte láser']::text[],
+  'La partida con historial conserva su secuencia original');
+
+-- -----------------------------------------------------------------------------
+-- 26-27. Camino real del reporte: RFQ capturado al revés → propuesta → ruteo.
 -- -----------------------------------------------------------------------------
 INSERT INTO public.permisos (codigo, modulo, descripcion) VALUES
   ('propuesta_editar_articulo', 'propuestas', 'Editar artículos/cantidades')
