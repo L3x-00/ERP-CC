@@ -303,8 +303,10 @@ SELECT lives_ok($$
     '00000000-0000-4000-8000-0000000b7a01')
 $$, 'El admin con token vigente corrige la fecha');
 SELECT is(
-  (SELECT fecha_entrega::date FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
-  current_date, 'La fecha corregida queda persistida'
+  (SELECT (fecha_entrega AT TIME ZONE 'America/Tijuana')::date
+   FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+  (now() AT TIME ZONE 'America/Tijuana')::date,
+  'La fecha corregida queda persistida en el día del negocio (AUD-12)'
 );
 -- Con producida 8 y solicitada 10, pedir 9 excede lo producido pero no lo
 -- pendiente: el guard de producción es el que manda.

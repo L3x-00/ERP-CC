@@ -139,12 +139,12 @@ SELECT throws_ok($$SELECT * FROM public.reversar_pago_ar(
 -- 18-20. Pago 1-AR: folio espejo, aplicación y promesa previa.
 INSERT INTO f3 (clave, valor)
 SELECT 'prom_c', to_jsonb(promesa.*) FROM public.crear_promesa_pago(
-  '00000000-0000-4000-8000-00000000b834', current_date + 1, 100,
+  '00000000-0000-4000-8000-00000000b834', (now() AT TIME ZONE 'America/Tijuana')::date + 1, 100,
   '00000000-0000-4000-8000-00000000b811') AS promesa;
 SELECT is((SELECT valor ->> 'estado' FROM f3 WHERE clave = 'prom_c'), 'VIGENTE',
   'La promesa nace VIGENTE');
 SELECT throws_ok($$SELECT * FROM public.crear_promesa_pago(
-  '00000000-0000-4000-8000-00000000b834', current_date + 2, 100,
+  '00000000-0000-4000-8000-00000000b834', (now() AT TIME ZONE 'America/Tijuana')::date + 2, 100,
   '00000000-0000-4000-8000-00000000b811')$$,
   '23514', 'promesa_ya_existe', 'Una AR no tiene dos promesas activas');
 -- AUD-12: la promesa fechada "hoy" en el negocio se acepta aunque en UTC ya
@@ -189,7 +189,7 @@ SELECT is((SELECT estado FROM public.promesas_pago
 -- 23-25. Recordatorio previo idempotente (2 días antes) para la promesa de b831.
 INSERT INTO f3 (clave, valor)
 SELECT 'prom_e', to_jsonb(promesa.*) FROM public.crear_promesa_pago(
-  '00000000-0000-4000-8000-00000000b831', current_date + 1, 40,
+  '00000000-0000-4000-8000-00000000b831', (now() AT TIME ZONE 'America/Tijuana')::date + 1, 40,
   '00000000-0000-4000-8000-00000000b811') AS promesa;
 SELECT * FROM public.procesar_recordatorios_promesas('00000000-0000-4000-8000-00000000b811');
 SELECT is((SELECT count(*) FROM public.notificaciones_usuario
@@ -210,7 +210,7 @@ SELECT is((SELECT count(*) FROM public.notificaciones_usuario
 
 -- 26. Promesa vencida notificada una sola vez.
 INSERT INTO public.promesas_pago (cuenta_id, fecha_prometida, monto, estado, creado_por)
-VALUES ('00000000-0000-4000-8000-00000000b832', current_date - 1, 60, 'VIGENTE', '00000000-0000-4000-8000-00000000b811');
+VALUES ('00000000-0000-4000-8000-00000000b832', (now() AT TIME ZONE 'America/Tijuana')::date - 1, 60, 'VIGENTE', '00000000-0000-4000-8000-00000000b811');
 SELECT * FROM public.procesar_recordatorios_promesas('00000000-0000-4000-8000-00000000b811');
 SELECT is(
   (SELECT count(*) FROM public.promesas_pago
