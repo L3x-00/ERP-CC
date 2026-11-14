@@ -199,8 +199,8 @@ BEGIN
     RAISE EXCEPTION 'programacion_invalida' USING ERRCODE = 'check_violation';
   END IF;
 
-  -- C9.0: con operaciÃ³n la secuencia se deriva de la meta (el formulario la
-  -- deja de capturar); sin operaciÃ³n la secuencia manual sigue siendo obligatoria.
+  -- C9.0: con operación la secuencia se deriva de la meta (el formulario la
+  -- deja de capturar); sin operación la secuencia manual sigue siendo obligatoria.
   IF p_meta_proceso_id IS NULL THEN
     IF p_secuencia IS NULL OR p_secuencia <= 0 THEN
       RAISE EXCEPTION 'programacion_invalida' USING ERRCODE = 'check_violation';
@@ -223,7 +223,7 @@ BEGIN
     RAISE EXCEPTION 'orden_partida_inconsistente' USING ERRCODE = 'check_violation';
   END IF;
 
-  -- La operaciÃ³n debe pertenecer a la partida; bajo el lock de la partida.
+  -- La operación debe pertenecer a la partida; bajo el lock de la partida.
   IF p_meta_proceso_id IS NOT NULL THEN
     SELECT meta.secuencia
     INTO v_secuencia
@@ -373,8 +373,8 @@ BEGIN
   IF v_programacion.actualizado_en <> p_actualizado_en_esperado THEN
     RAISE EXCEPTION 'programacion_conflicto' USING ERRCODE = 'check_violation';
   END IF;
-  -- Una programaciÃ³n en preparaciÃ³n/ejecuciÃ³n ya tiene recurso y sesiÃ³n
-  -- comprometidos: moverla dejarÃ­a el histÃ³rico de capacidad inconsistente.
+  -- Una programación en preparación/ejecución ya tiene recurso y sesión
+  -- comprometidos: moverla dejaría el histórico de capacidad inconsistente.
   IF v_programacion.estado_planeacion NOT IN ('programada', 'bloqueada') THEN
     RAISE EXCEPTION 'programacion_no_reprogramable' USING ERRCODE = 'check_violation';
   END IF;

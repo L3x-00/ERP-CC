@@ -1,6 +1,6 @@
--- SII-B5 â€” Orden de trabajo: nacimiento desde revisiÃ³n aceptada, snapshot,
+-- SII-B5 — Orden de trabajo: nacimiento desde revisión aceptada, snapshot,
 -- folio O-/OI-, estados derivados, cierre administrativo y TI autorizada.
--- Verifica: idempotencia, rechazo de revisiÃ³n no aceptada, reconstrucciÃ³n del
+-- Verifica: idempotencia, rechazo de revisión no aceptada, reconstrucción del
 -- snapshot tras mutar el origen, backfill/puente, derivaciones y privilegios.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
@@ -23,7 +23,7 @@ UPDATE public.usuarios SET rol = 'operador', activo = true, nombre_completo = 'O
 WHERE id = '00000000-0000-4000-8000-0000000b5a04';
 
 INSERT INTO public.permisos (codigo, modulo, descripcion) VALUES
-  ('orden_vista', 'ordenes', 'Ver Ã³rdenes'),
+  ('orden_vista', 'ordenes', 'Ver órdenes'),
   ('orden_editar', 'ordenes', 'Editar orden'),
   ('orden_liberar', 'ordenes', 'Liberar orden'),
   ('orden_cerrar_admin', 'ordenes', 'Cierre administrativo'),
@@ -42,7 +42,7 @@ ON CONFLICT (rol, permiso) DO NOTHING;
 SELECT set_config('sii.b4_rpc', 'on', true);
 
 -- -----------------------------------------------------------------------------
--- 1. CatÃ¡logos, cliente, RFQ, propuesta aceptada y archivo vivo
+-- 1. Catálogos, cliente, RFQ, propuesta aceptada y archivo vivo
 -- -----------------------------------------------------------------------------
 INSERT INTO public.catalogo_materiales (codigo, nombre) VALUES ('B5MAT', 'Acero B5');
 INSERT INTO public.catalogo_espesores (material_id, etiqueta, espesor_mm)
@@ -86,7 +86,7 @@ SELECT 'rfq1', id FROM public.pipeline WHERE folio_op = 'OP-B5-0001';
 INSERT INTO b5_ids (nombre, valor)
 SELECT 'rfq2', id FROM public.pipeline WHERE folio_op = 'OP-B5-0002';
 
--- Propuesta P1 con revisiÃ³n A aceptada y revisiÃ³n B enviada (rechazo).
+-- Propuesta P1 con revisión A aceptada y revisión B enviada (rechazo).
 INSERT INTO public.propuestas (
   rfq_id, cliente_id, folio_cnc, estado, responsable_id, creado_por
 ) VALUES (
@@ -124,7 +124,7 @@ INSERT INTO public.propuesta_revisiones (
   propuesta_id, letra, folio_revision, estado, snapshot_cabecera, motivo_creacion, creado_por
 ) VALUES (
   (SELECT valor FROM b5_ids WHERE nombre = 'propuesta1'), 'B', 'CNC-9001_01-B',
-  'SENT', '{}'::jsonb, 'RevisiÃ³n de prueba B5', '00000000-0000-4000-8000-0000000b5a03'
+  'SENT', '{}'::jsonb, 'Revisión de prueba B5', '00000000-0000-4000-8000-0000000b5a03'
 );
 INSERT INTO b5_ids (nombre, valor)
 SELECT 'revision2', id FROM public.propuesta_revisiones WHERE folio_revision = 'CNC-9001_01-B';
@@ -138,7 +138,7 @@ INSERT INTO public.propuesta_revisiones (
 INSERT INTO b5_ids (nombre, valor)
 SELECT 'revision_draft', id FROM public.propuesta_revisiones WHERE folio_revision = 'CNC-9001_01-C';
 
--- Ãtems IT01 (2Ã—100), IT02 (1Ã—50) y descuento IT03 (1Ã—10, no fabricable).
+-- Ítems IT01 (2×100), IT02 (1×50) y descuento IT03 (1×10, no fabricable).
 INSERT INTO public.propuesta_items (
   revision_id, codigo, descripcion, cantidad, material_id, espesor_id, precio_unitario, es_descuento
 ) VALUES
@@ -179,7 +179,7 @@ INSERT INTO public.archivos (
   'b5/prueba/plano.dxf', 'application/dxf', 1024, '00000000-0000-4000-8000-0000000b5a03'
 );
 
--- Propuesta interna P2 con revisiÃ³n A aceptada.
+-- Propuesta interna P2 con revisión A aceptada.
 INSERT INTO public.propuestas (
   rfq_id, cliente_id, folio_cnc, estado, responsable_id, creado_por
 ) VALUES (
@@ -215,9 +215,9 @@ SELECT i.id, (SELECT valor FROM b5_ids WHERE nombre = 'proceso'), 0
 FROM public.propuesta_items AS i
 WHERE i.revision_id = (SELECT valor FROM b5_ids WHERE nombre = 'revision3');
 
--- Recursos de planeaciÃ³n para programar la orden comercial.
+-- Recursos de planeación para programar la orden comercial.
 INSERT INTO public.recursos_planeacion (codigo, area, nombre)
-VALUES ('B5-LASER', 'sheet_metal', 'LÃ¡ser B5');
+VALUES ('B5-LASER', 'sheet_metal', 'Láser B5');
 
 -- Orden temporal para probar el puente de estados.
 INSERT INTO public.ordenes_produccion (folio, cliente_id, estado, fecha_compromiso)
@@ -229,8 +229,8 @@ VALUES ('OP-999001', (SELECT valor FROM b5_ids WHERE nombre = 'cliente'), 'borra
 SELECT has_table('public', 'orden_eventos_cambio', 'Existe orden_eventos_cambio');
 SELECT has_column('public', 'ordenes_produccion', 'estado_sii', 'ordenes_produccion.estado_sii existe');
 SELECT has_column('public', 'partidas_orden_produccion', 'codigo_item', 'partidas.codigo_item existe');
-SELECT has_index('public', 'ordenes_produccion', 'ux_ordenes_folio_sii', 'Ãndice Ãºnico ux_ordenes_folio_sii');
-SELECT has_index('public', 'ordenes_produccion', 'ux_ordenes_revision_unica', 'Ãndice Ãºnico por revisiÃ³n');
+SELECT has_index('public', 'ordenes_produccion', 'ux_ordenes_folio_sii', 'índice único ux_ordenes_folio_sii');
+SELECT has_index('public', 'ordenes_produccion', 'ux_ordenes_revision_unica', 'Índice único por revisión');
 SELECT ok(has_function_privilege('service_role',
   'public.crear_orden_desde_revision(uuid,uuid,uuid)', 'EXECUTE'),
   'service_role ejecuta crear_orden_desde_revision');
@@ -250,7 +250,7 @@ SELECT ok(NOT has_function_privilege('authenticated',
 SELECT is(
   (SELECT count(*)::integer FROM public.ordenes_produccion WHERE estado_sii IS NULL),
   0,
-  'El backfill deja estado_sii en todas las Ã³rdenes'
+  'El backfill deja estado_sii en todas las órdenes'
 );
 SELECT ok(NOT EXISTS (
   SELECT 1 FROM public.ordenes_produccion AS orden
@@ -294,7 +294,7 @@ SELECT is(
 );
 
 -- -----------------------------------------------------------------------------
--- 4. Orden comercial desde la revisiÃ³n aceptada
+-- 4. Orden comercial desde la revisión aceptada
 -- -----------------------------------------------------------------------------
 SELECT throws_ok(
   format('SELECT public.crear_orden_desde_revision(%L, %L)',
@@ -327,7 +327,7 @@ SELECT matches(
 );
 SELECT is(
   (SELECT folio FROM b5_resultado), (SELECT folio_sii FROM b5_resultado),
-  'El folio legacy espeja al folio SII en Ã³rdenes nuevas'
+  'El folio legacy espeja al folio SII en órdenes nuevas'
 );
 SELECT is(
   (SELECT estado_sii FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
@@ -340,7 +340,7 @@ SELECT is(
 SELECT is(
   (SELECT propuesta_revision_id FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
   (SELECT valor FROM b5_ids WHERE nombre = 'revision1'),
-  'La orden queda ligada a la revisiÃ³n exacta'
+  'La orden queda ligada a la revisión exacta'
 );
 SELECT is(
   (SELECT fecha_compromiso_comercial FROM public.ordenes_produccion
@@ -357,7 +357,7 @@ SELECT ok((
 SELECT is(
   (SELECT count(*)::integer FROM public.partidas_orden_produccion
    WHERE orden_id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
-  2, 'Solo los Ã­tems fabricables se vuelven partidas (excluye descuento)'
+  2, 'Solo los ítems fabricables se vuelven partidas (excluye descuento)'
 );
 SELECT is(
   (SELECT string_agg(codigo_item, ',' ORDER BY codigo_item) FROM public.partidas_orden_produccion
@@ -367,22 +367,22 @@ SELECT is(
 SELECT is(
   (SELECT jsonb_array_length(snapshot_json -> 'items') FROM public.ordenes_produccion
    WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
-  3, 'El snapshot conserva tambiÃ©n el Ã­tem de descuento'
+  3, 'El snapshot conserva también el ítem de descuento'
 );
 SELECT is(
   (SELECT snapshot_json -> 'origen' ->> 'revision_id' FROM public.ordenes_produccion
    WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
   (SELECT valor::text FROM b5_ids WHERE nombre = 'revision1'),
-  'El snapshot registra la revisiÃ³n de origen'
+  'El snapshot registra la revisión de origen'
 );
 SELECT is(
   (SELECT jsonb_array_length(snapshot_json -> 'archivos') FROM public.ordenes_produccion
    WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
-  1, 'El snapshot congela el archivo vivo de la revisiÃ³n'
+  1, 'El snapshot congela el archivo vivo de la revisión'
 );
 SELECT is(
   (SELECT estado FROM public.propuesta_revisiones WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'revision1')),
-  'SALE_CONFIRMED', 'La orden confirma la venta de la revisiÃ³n'
+  'SALE_CONFIRMED', 'La orden confirma la venta de la revisión'
 );
 SELECT is(
   (SELECT count(*)::integer FROM public.cuentas_por_cobrar
@@ -397,12 +397,12 @@ SELECT ok((
 SELECT is(
   (SELECT monto_total FROM public.cuentas_por_cobrar
    WHERE orden_id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
-  278.4::numeric, 'La AR usa el total de la revisiÃ³n (240 + IVA)'
+  278.4::numeric, 'La AR usa el total de la revisión (240 + IVA)'
 );
 SELECT is(
   (SELECT count(*)::integer FROM public.orden_eventos_cambio
    WHERE orden_id = (SELECT valor FROM b5_ids WHERE nombre = 'orden') AND tipo = 'orden_creada'),
-  1, 'La creaciÃ³n deja su evento con correlationId'
+  1, 'La creación deja su evento con correlationId'
 );
 SELECT is(
   (SELECT ya_existia FROM public.crear_orden_desde_revision(
@@ -413,7 +413,7 @@ SELECT is(
 SELECT is(
   (SELECT count(*)::integer FROM public.ordenes_produccion
    WHERE propuesta_revision_id = (SELECT valor FROM b5_ids WHERE nombre = 'revision1')),
-  1, 'No se duplica la orden de la revisiÃ³n'
+  1, 'No se duplica la orden de la revisión'
 );
 
 -- Snapshot reconstruible: mutar el origen no cambia la orden.
@@ -421,7 +421,7 @@ CREATE TEMP TABLE b5_snapshot_antes AS
 SELECT snapshot_json FROM public.ordenes_produccion
 WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden');
 UPDATE public.propuesta_items
-SET descripcion = 'Pieza mutada despuÃ©s', precio_unitario = 999
+SET descripcion = 'Pieza mutada después', precio_unitario = 999
 WHERE revision_id = (SELECT valor FROM b5_ids WHERE nombre = 'revision1') AND codigo = 'IT01';
 SELECT is(
   (SELECT snapshot_json FROM public.ordenes_produccion
@@ -432,7 +432,7 @@ SELECT is(
 SELECT is(
   (SELECT snapshot_json #>> '{items,0,descripcion}' FROM public.ordenes_produccion
    WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
-  'Pieza B5 uno', 'El Ã­tem congelado conserva su descripciÃ³n original'
+  'Pieza B5 uno', 'El ítem congelado conserva su descripción original'
 );
 
 -- -----------------------------------------------------------------------------
@@ -507,7 +507,7 @@ SELECT throws_ok(format(
     'items', jsonb_build_array(jsonb_build_object('descripcion', 'X', 'cantidad', 1)))::text,
   jsonb_build_object('motivo', 'ok')::text,
   '00000000-0000-4000-8000-0000000b5a03'),
-  '22023', 'motivo_autorizacion_requerido', 'La TI exige motivo de autorizaciÃ³n');
+  '22023', 'motivo_autorizacion_requerido', 'La TI exige motivo de autorización');
 SELECT throws_ok(format(
   'SELECT public.crear_orden_interna(%L, %L, %L)',
   jsonb_build_object('cliente_id', (SELECT valor FROM b5_ids WHERE nombre = 'cliente'),
@@ -565,7 +565,7 @@ SELECT lives_ok(format(
   (SELECT valor::text FROM b5_ids WHERE nombre = 'orden'),
   (SELECT actualizado_en::text FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
   '00000000-0000-4000-8000-0000000b5a03'),
-  'Liberar una orden planificada con programaciÃ³n, ruteo y archivos vivos');
+  'Liberar una orden planificada con programación, ruteo y archivos vivos');
 SELECT is(
   (SELECT estado_sii FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
   'LISTA', 'La orden liberada queda LISTA'
@@ -616,7 +616,7 @@ SELECT throws_ok(format(
 
 INSERT INTO public.notas_entrega (folio, orden_id, recibido_por, creado_por)
 VALUES ('NE-000001', (SELECT valor FROM b5_ids WHERE nombre = 'orden'),
-  'RecepciÃ³n B5', '00000000-0000-4000-8000-0000000b5a03');
+  'Recepción B5', '00000000-0000-4000-8000-0000000b5a03');
 INSERT INTO public.partidas_nota_entrega (nota_entrega_id, partida_id, cantidad_solicitada, cantidad_entregada)
 SELECT nota.id, partida.id, partida.cantidad_solicitada, partida.cantidad_solicitada
 FROM public.notas_entrega AS nota
@@ -646,12 +646,12 @@ SELECT is(
 SELECT throws_ok(format(
   'SELECT public.ajustar_orden_post_aceptacion(%L, %L, %L, %L, %L)',
   (SELECT valor::text FROM b5_ids WHERE nombre = 'orden'),
-  jsonb_build_object('prioridad', 'alta')::text, 'Cambio tardÃ­o solicitado',
+  jsonb_build_object('prioridad', 'alta')::text, 'Cambio tardío solicitado',
   (SELECT actualizado_en::text FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden')),
   '00000000-0000-4000-8000-0000000b5a03'),
   '23514', 'orden_en_produccion', 'Una orden cerrada ya no admite ajustes');
 
--- Ajuste vÃ¡lido sobre la TI aÃºn CONFIRMADA.
+-- Ajuste válido sobre la TI aún CONFIRMADA.
 SELECT lives_ok(format(
   'SELECT public.ajustar_orden_post_aceptacion(%L, %L, %L, %L, %L)',
   (SELECT valor::text FROM b5_ids WHERE nombre = 'orden_ti'),
@@ -659,7 +659,7 @@ SELECT lives_ok(format(
   'Cambio solicitado por el cliente',
   (SELECT actualizado_en::text FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden_ti')),
   '00000000-0000-4000-8000-0000000b5a03'),
-  'La orden pre-producciÃ³n admite ajustes con motivo');
+  'La orden pre-producción admite ajustes con motivo');
 SELECT is(
   (SELECT prioridad FROM public.ordenes_produccion WHERE id = (SELECT valor FROM b5_ids WHERE nombre = 'orden_ti')),
   'alta', 'El ajuste aplica la prioridad'

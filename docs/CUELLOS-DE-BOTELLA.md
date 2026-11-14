@@ -2,6 +2,10 @@
 
 Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de implementar, depurar CI o aplicar migraciones. Cada entrada es un caso real que costó horas o ciclos de CI entre el 2026-10-06 y el 2026-10-09. Si aparece un caso nuevo, agregarlo aquí con síntoma, causa y regla.
 
+## 0. Regla de codificación de texto
+
+Todo archivo de texto del repositorio se guarda en **UTF-8 sin BOM**. Está prohibido dejar en código, pruebas, migraciones, documentación o mensajes de UI secuencias de mojibake como `Ãº`, `Ã©`, `Ã¡`, `Ã³`, `Ã­`, `Ã±`, `Â`, `â€”` o el carácter de reemplazo `�`: delatan que un UTF-8 se leyó como ANSI/Windows-1252 y llegan a la pantalla del cliente como «Ãº» en lugar de «ú». Editar con acentos solo con las herramientas del agente o con Node (`readFileSync(..., 'utf8')` / `writeFileSync(..., 'utf8')`); nunca con `Get-Content -Raw` + `Set-Content` de PowerShell 5.1. Antes de cerrar un corte, buscar esas secuencias en `git diff --name-only`.
+
 ## 1. CI que falla "de forma indeterminada"
 
 | Síntoma | Causa real | Regla |
@@ -66,6 +70,7 @@ Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de 
 | Tras borrar una ruta, `tsc --noEmit` falla con `Cannot find module '../../../src/app/(privado)/actividad/page.js'` aunque el código ya no la referencia | `.next/types/validator.ts` y `.next/dev/types/validator.ts` son artefactos generados por el dev server y conservan la ruta eliminada | Borrar `.next` (artefacto, no fuente) y volver a correr `tsc` o `next build`; no tocar el código para satisfacer tipos generados obsoletos |
 | Corregir con `setPestana` dentro de un `useEffect` que la ficha del RFQ quedara vacía tras validar hace que `pnpm lint` del CI falle con `react-hooks/set-state-in-effect`, aunque `tsc` y el lint de los archivos elegidos a mano pasaran | El estado derivable se sincronizaba con un efecto; el lint rechaza `setState` síncrono en el cuerpo de un efecto porque provoca renders en cascada | Derivar la vista en el render (`const pestanaActiva = pestana === 'revisar' && !capturaIncompleta ? 'resumen' : pestana`) y consumir esa variable. Al cerrar un corte, lintar todos los archivos de `git diff --name-only main`, no una lista manual |
 | `propuestas-flujo` en `e2e-local` falla en la consulta de disponibilidad: el spec esperaba `104 h` de capacidad y recibió `48 h` | El spec fijaba importes calculados con el horizonte de 14 días y el producto pasó a 7 días por observación del PO (junto con `100 h` → `44 h` y `98 h` → `42 h`) | Al cambiar el horizonte o cualquier base de cálculo, buscar en `tests/` los importes derivados y actualizarlos en el mismo commit, incluidos los de contextos de segundo usuario |
+| «La fecha de la próxima acción no puede estar en el pasado» con una acción fechada **hoy** (reportado 2026-11-13 por la tarde) | La RPC `cambiar_estado_rfq` comparaba contra `current_date`, que en Supabase es UTC; la UI calcula "hoy" en `America/Tijuana` (AUD-12). De 16:00/17:00 locales en adelante UTC ya es el día siguiente, así que el servidor rechazaba la fecha de hoy aunque el RFQ solo conservara su acción vigente | Toda validación de fechas de negocio en SQL usa `(now() AT TIME ZONE 'America/Tijuana')::date`, nunca `current_date`. En pgTAP, comparar contra el mismo "hoy" del negocio: una prueba con `current_date - 1` se vuelve flaky por la tarde. Corregido en `cambiar_estado_rfq`, `crear_promesa_pago`, `crear_compra` y el CHECK `compras_vencimiento_coherente` (migraciones `20261114100000`, `20261114102000` y `20261114103000`); el mismo patrón sigue en el CHECK de `notas_entrega` y en las ventanas de recordatorios de promesas |
 
 ## 3. Migraciones y base remota
 
