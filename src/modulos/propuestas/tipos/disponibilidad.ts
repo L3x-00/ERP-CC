@@ -18,12 +18,22 @@ export type DisponibilidadDia = {
   turnosSobrecargados: number;
 };
 
+export type OperacionMultidiaDisponibilidad = {
+  procesoNombre: string;
+  horasRequeridas: number;
+  /** Capacidad de un solo turno del grupo (una máquina no trabaja dos turnos a la vez). */
+  capacidadDia: number;
+  diasRecomendados: number;
+};
+
 export type DisponibilidadGrupo = {
   codigo: string;
   nombre: string;
   /** Suma de `total_horas` (setup + run) del ruteo de la revisión. */
   horasRequeridas: number;
   estado: EstadoCapacidadGrupo;
+  /** Operaciones que no caben en una jornada y conviene programar en varios días. */
+  operacionesMultidia?: OperacionMultidiaDisponibilidad[];
   /** null cuando no hay recurso activo o turno configurado en el grupo. */
   horasCapacidad: number | null;
   horasCarga: number | null;

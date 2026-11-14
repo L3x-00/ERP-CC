@@ -315,6 +315,7 @@ describe('mappers de Planeación', () => {
     horas_estimadas: 6.25,
     orden_prioridad: 3,
     estado_planeacion: 'en_preparacion',
+    es_continuacion: false,
     creado_en: '2026-08-01T12:00:00.000Z',
     actualizado_en: '2026-08-10T12:00:00.000Z',
     meta_proceso_id: null,
@@ -357,6 +358,7 @@ describe('mappers de Planeación', () => {
       creadoEn: '2026-08-01T12:00:00.000Z',
       actualizadoEn: '2026-08-10T12:00:00.000Z',
       metaProcesoId: null,
+      esContinuacion: false,
     });
   });
 

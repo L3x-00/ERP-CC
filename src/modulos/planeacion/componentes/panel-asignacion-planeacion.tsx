@@ -39,6 +39,7 @@ import {
 } from '@/modulos/planeacion/utilidades/compatibilidad';
 import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
 import { diagnosticarCapacidadTurno } from '@/modulos/planeacion/utilidades/diagnostico-capacidad';
+import { validarPlanMultidia } from '@/modulos/planeacion/utilidades/plan-multidia';
 
 /** Partida que el usuario puede asignar sin revelar datos no autorizados. */
 export interface PartidaProgramablePlaneacion {
@@ -82,6 +83,36 @@ export type ResultadoAsignacionPlaneacion = RespuestaAccion<unknown>;
 /** Resultado de la búsqueda del primer día hábil con hueco (OBS-19). */
 export type ResultadoProponerHueco = RespuestaAccion<HuecoDisponible | null>;
 
+/** C16: plan de varios días para una operación que no cabe en un turno. */
+export type DiaPlanAsignacion = { fecha: string; horas: number };
+
+export type PlanMultidiaAsignacion = {
+  desdeFecha: string;
+  dias: DiaPlanAsignacion[];
+  horasTotales: number;
+};
+
+export type ResultadoProponerPlanMultidia = RespuestaAccion<PlanMultidiaAsignacion | null>;
+
+export type DatosAsignacionMultidia = {
+  tipo: 'multidia';
+  ordenId: string;
+  partidaId: string;
+  metaProcesoId: string;
+  recursoId: string;
+  turno: TurnoPlaneacion;
+  ordenPrioridad: number;
+  horasTotales: number;
+  dias: DiaPlanAsignacion[];
+};
+
+export interface EntradaProponerPlanMultidia {
+  recursoId: string;
+  turno: TurnoPlaneacion;
+  horasEstimadas: number;
+  desdeFecha: string;
+}
+
 /** Compromiso comercial que abre el panel ya apuntando a su partida y fecha. */
 export type PreseleccionProgramacion = {
   partidaId: string;
@@ -115,6 +146,12 @@ export interface PropsPanelAsignacionPlaneacion {
   onActivarPreparacion?: () => Promise<ResultadoAsignacionPlaneacion>;
   /** Busca el siguiente día hábil con capacidad comprobada (OBS-19). */
   onProponerHueco?: (entrada: EntradaProponerHueco) => Promise<ResultadoProponerHueco>;
+  /** C16: recomienda repartir la operación en varios días. */
+  onProponerPlanMultidia?: (
+    entrada: EntradaProponerPlanMultidia,
+  ) => Promise<ResultadoProponerPlanMultidia>;
+  /** C16: guarda el reparto elegido por el usuario. */
+  onEnviarMultidia?: (datos: DatosAsignacionMultidia) => Promise<ResultadoAsignacionPlaneacion>;
   /** C9.2/P09: notifica la fecha capturada para consultar capacidad fuera del rango. */
   onCambiarFecha?: (fecha: string) => void;
   /** Recarga calendario, partidas y capacidad después de un conflicto o duplicado. */
@@ -153,6 +190,8 @@ export function PanelAsignacionPlaneacion({
   onEnviar,
   onActivarPreparacion,
   onProponerHueco,
+  onProponerPlanMultidia,
+  onEnviarMultidia,
   onCambiarFecha,
   onActualizarDatos,
   preseleccion,
@@ -182,6 +221,12 @@ export function PanelAsignacionPlaneacion({
   const [mensajeEstado, setMensajeEstado] = useState<string | null>(null);
   const [hueco, setHueco] = useState<{ clave: string; datos: HuecoDisponible } | null>(null);
   const [buscandoHueco, setBuscandoHueco] = useState(false);
+  const [planMultidia, setPlanMultidia] = useState<{
+    clave: string;
+    datos: PlanMultidiaAsignacion;
+  } | null>(null);
+  const [proponiendoPlan, setProponiendoPlan] = useState(false);
+  const [errorPlan, setErrorPlan] = useState<string | null>(null);
 
   // C9.2/P10+P-04: compatibilidad entre el ruteo de la partida elegida y el grupo
   // del recurso. Con «sin dato» de cualquier lado no se advierte ni bloquea; los
@@ -392,9 +437,22 @@ export function PanelAsignacionPlaneacion({
     ? 'Falta configurar la capacidad de este equipo. La guía explica qué revisar y dónde hacerlo.'
     : `Excede la capacidad por ${formatearHoras(excesoHoras)} h (${formatearHoras(evaluacion.horasProgramadas)}/${formatearHoras(evaluacion.horasCapacidad)} h). Puedes buscar el siguiente día hábil con hueco.`;
   const puedePrevisualizar = recursoId !== '' && fechaProgramada !== '' && horasValidas;
+  // C16: la operación completa no cabe en un turno, aunque el día esté vacío.
+  const excedeUnDia = puedePrevisualizar
+    && !evaluacion.sinCapacidad
+    && horasNumero > evaluacion.horasCapacidad;
+  const planVigente = planMultidia && planMultidia.clave === claveFormulario
+    ? planMultidia.datos
+    : null;
+  const puedePlanMultidia = !programacion
+    && excedeUnDia
+    && onProponerPlanMultidia !== undefined
+    && onEnviarMultidia !== undefined;
 
   function limpiarEstadoBuscador(): void {
     setHueco(null);
+    setPlanMultidia(null);
+    setErrorPlan(null);
     setErrorFormulario(null);
   }
 
@@ -431,6 +489,92 @@ export function PanelAsignacionPlaneacion({
     onCambiarFecha?.(huecoVigente.fecha);
     setHueco(null);
     setErrorFormulario(null);
+  }
+
+  async function proponerPlan(): Promise<void> {
+    if (!onProponerPlanMultidia || !puedePlanMultidia || proponiendoPlan) return;
+    setErrorPlan(null);
+    setPlanMultidia(null);
+    setProponiendoPlan(true);
+    try {
+      const resultado = await onProponerPlanMultidia({
+        recursoId,
+        turno,
+        horasEstimadas: horasNumero,
+        desdeFecha: fechaProgramada,
+      });
+      if (!resultado.exito) {
+        setErrorPlan(resultado.error);
+        return;
+      }
+      if (!resultado.datos) {
+        setErrorPlan('No se encontraron días con capacidad suficiente en los próximos 21 días.');
+        return;
+      }
+      setPlanMultidia({ clave: claveFormulario, datos: resultado.datos });
+    } catch {
+      setErrorPlan('No se pudo proponer el plan de varios días.');
+    } finally {
+      setProponiendoPlan(false);
+    }
+  }
+
+  function cambiarFechaPlan(indice: number, fecha: string): void {
+    setPlanMultidia((actual) => {
+      if (!actual) return actual;
+      return {
+        ...actual,
+        datos: {
+          ...actual.datos,
+          dias: actual.datos.dias.map((dia, posicion) => (
+            posicion === indice ? { ...dia, fecha } : dia
+          )),
+        },
+      };
+    });
+  }
+
+  async function enviarMultidia(): Promise<void> {
+    if (!planVigente || !onEnviarMultidia || enviando) return;
+    const errorPlanLocal = validarPlanMultidia(planVigente.dias, horasNumero);
+    if (errorPlanLocal) {
+      setErrorPlan(errorPlanLocal);
+      return;
+    }
+    const partida = partidasProgramables.find((actual) => actual.partidaId === partidaId);
+    const prioridad = Number(ordenPrioridad);
+    if (!partida || !operacionElegida || !Number.isInteger(prioridad) || prioridad <= 0) {
+      setErrorPlan('Revisa la operación y la prioridad antes de guardar.');
+      return;
+    }
+    setErrorPlan(null);
+    setMensajeEstado(null);
+    setEnviando(true);
+    try {
+      const resultado = await onEnviarMultidia({
+        tipo: 'multidia',
+        ordenId: partida.ordenId,
+        partidaId: partida.partidaId,
+        metaProcesoId: operacionElegida.metaProcesoId,
+        recursoId,
+        turno,
+        ordenPrioridad: prioridad,
+        horasTotales: horasNumero,
+        dias: planVigente.dias,
+      });
+      if (!resultado.exito) {
+        setErrorPlan(resultado.error || MENSAJE_ERROR_GENERICO);
+        return;
+      }
+      setMensajeEstado(
+        `Operación programada en ${planVigente.dias.length} días. Cada día reservó su capacidad.`,
+      );
+      setPlanMultidia(null);
+    } catch {
+      setErrorPlan('No se pudo guardar el plan de varios días.');
+    } finally {
+      setEnviando(false);
+    }
   }
 
   async function elegirRecursoDesdeError(recursoIdElegido: string): Promise<void> {
@@ -667,6 +811,15 @@ export function PanelAsignacionPlaneacion({
       aria-label={programacion ? 'Reprogramar partida' : 'Programar partida'}
       noValidate
     >
+      {programacion?.esContinuacion ? (
+        <p
+          className="rounded-base border border-acento/40 bg-acento/5 p-3 text-xs text-texto-secundario"
+          data-testid="aviso-continuacion-multidia"
+        >
+          Este bloque es un día adicional de la operación. Solo reserva capacidad: la sesión de
+          piso se inicia y se reanuda desde el primer día.
+        </p>
+      ) : null}
       {desgloseSeleccionado ? (
         <section
           className="flex flex-col gap-1 rounded-base border border-borde bg-superficie-2 p-3 text-xs"
@@ -1024,6 +1177,72 @@ export function PanelAsignacionPlaneacion({
               </Button>
             </div>
           ) : null}
+          {puedePlanMultidia ? (
+            <div
+              className="flex flex-col gap-2 rounded-base border border-acento/50 bg-acento/5 p-2"
+              data-testid="plan-multidia-planeacion"
+            >
+              <p className="font-medium text-texto-primario">
+                Esta operación no cabe en un turno
+              </p>
+              <p>
+                Requiere {formatearHoras(horasNumero)} h y el turno ofrece{' '}
+                {formatearHoras(evaluacion.horasCapacidad)} h. Se recomienda repartirla en{' '}
+                {Math.ceil(horasNumero / Math.max(evaluacion.horasCapacidad, 0.25))} días.
+              </p>
+              <Button
+                type="button"
+                variante="secundario"
+                tamano="sm"
+                disabled={proponiendoPlan || enviando}
+                onClick={() => void proponerPlan()}
+                data-testid="proponer-plan-multidia"
+              >
+                {proponiendoPlan ? 'Calculando días…' : 'Recomendar días'}
+              </Button>
+              {planVigente ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-texto-secundario">
+                    Puedes ajustar las fechas. Las horas de cada día ya están repartidas.
+                  </p>
+                  {planVigente.dias.map((dia, indice) => (
+                    <div
+                      key={`${indice}-${dia.fecha}`}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2"
+                    >
+                      <label className="flex flex-col gap-1 text-xs font-medium text-texto-secundario">
+                        Día {indice + 1}
+                        <Input
+                          type="date"
+                          value={dia.fecha}
+                          onChange={(evento) => cambiarFechaPlan(indice, evento.target.value)}
+                          data-testid={`plan-multidia-fecha-${indice + 1}`}
+                        />
+                      </label>
+                      <span className="pb-2 text-sm font-semibold tabular-nums text-texto-primario">
+                        {formatearHoras(dia.horas)} h
+                      </span>
+                    </div>
+                  ))}
+                  <p className="text-xs text-texto-secundario">
+                    Total: {formatearHoras(planVigente.dias.reduce((total, dia) => total + dia.horas, 0))} h
+                  </p>
+                  <Button
+                    type="button"
+                    tamano="sm"
+                    disabled={enviando}
+                    onClick={() => void enviarMultidia()}
+                    data-testid="guardar-plan-multidia"
+                  >
+                    {enviando ? 'Guardando…' : `Programar en ${planVigente.dias.length} días`}
+                  </Button>
+                </div>
+              ) : null}
+              {errorPlan ? (
+                <p role="alert" className="text-xs text-peligro-texto">{errorPlan}</p>
+              ) : null}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -1048,7 +1267,13 @@ export function PanelAsignacionPlaneacion({
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
-          disabled={enviando || preparando || reprogramandoRecurso || estadoCompatibilidadSeleccionada === 'incompatible'}
+          disabled={
+            enviando
+            || preparando
+            || reprogramandoRecurso
+            || estadoCompatibilidadSeleccionada === 'incompatible'
+            || (!programacion && excedeUnDia)
+          }
           data-testid="guardar-asignacion-planeacion"
         >
           {enviando ? 'Guardando…' : programacion ? 'Reprogramar' : 'Programar'}

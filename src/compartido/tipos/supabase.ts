@@ -2876,6 +2876,7 @@ export type Database = {
         Row: {
           actualizado_en: string
           creado_en: string
+          es_continuacion: boolean
           estado_planeacion: string
           fecha_programada: string
           horas_estimadas: number
@@ -2891,6 +2892,7 @@ export type Database = {
         Insert: {
           actualizado_en?: string
           creado_en?: string
+          es_continuacion?: boolean
           estado_planeacion?: string
           fecha_programada: string
           horas_estimadas: number
@@ -2906,6 +2908,7 @@ export type Database = {
         Update: {
           actualizado_en?: string
           creado_en?: string
+          es_continuacion?: boolean
           estado_planeacion?: string
           fecha_programada?: string
           horas_estimadas?: number
@@ -6163,6 +6166,24 @@ export type Database = {
           p_partida_id: string
           p_recurso_id: string
           p_secuencia: number | null
+          p_turno: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          id: string
+        }[]
+      }
+      programar_operacion_multidia_auditada: {
+        Args: {
+          p_actor_id: string
+          p_correlation_id?: string
+          p_dias: Json
+          p_meta_proceso_id?: string | null
+          p_orden_id: string
+          p_orden_prioridad: number
+          p_partida_id: string
+          p_recurso_id: string
           p_turno: string
         }
         Returns: {

@@ -244,6 +244,12 @@ function FilaGrupo({
   if (grupo.horasDisponibles !== null && grupo.horasRequeridas > grupo.horasDisponibles) {
     avisos.push('lo que pide el ruteo supera lo disponible en el periodo');
   }
+  for (const operacion of grupo.operacionesMultidia ?? []) {
+    avisos.push(
+      `${operacion.procesoNombre} requiere ${horas(operacion.horasRequeridas)} y un turno ofrece `
+      + `${horas(operacion.capacidadDia)}: se recomienda programarla en ${operacion.diasRecomendados} días`,
+    );
+  }
 
   return (
     <li className="border-t border-borde py-2 lg:grid lg:grid-cols-[minmax(12rem,2fr)_repeat(4,minmax(0,1fr))] lg:gap-x-3">

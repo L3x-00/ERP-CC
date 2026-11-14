@@ -498,6 +498,9 @@ export async function obtenerEspacioOperadorServicio(
   const programacionesPorPartida = new Map<string, ProgramacionArea[]>();
   for (const fila of filasProgramaciones) {
     const programacion = filaAProgramacionArea(fila);
+    // C16: los días adicionales solo reservan capacidad. La sesión de piso se
+    // abre desde la fila principal para no duplicar la operación en el tablero.
+    if (programacion.esContinuacion) continue;
     const actuales = programacionesPorPartida.get(programacion.partidaId) ?? [];
     actuales.push(programacion);
     programacionesPorPartida.set(programacion.partidaId, actuales);

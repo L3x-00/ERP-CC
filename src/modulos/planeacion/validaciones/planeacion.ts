@@ -55,6 +55,59 @@ export const esquemaProgramarOrden = z
   });
 
 /**
+ * C16: una operación que no cabe en una jornada se reparte en días. Cada día
+ * lleva su fecha y sus horas; la suma debe cuadrar con el total de la operación.
+ */
+export const esquemaProgramarMultidia = z
+  .object({
+    ordenId: z.uuid('ID de orden inválido'),
+    partidaId: z.uuid('ID de partida inválido'),
+    recursoId: z.uuid('ID de recurso inválido'),
+    metaProcesoId: z.uuid('ID de operación inválido'),
+    turno: z.enum(TURNOS_PLANEACION),
+    ordenPrioridad: z
+      .number()
+      .int('La prioridad debe ser un número entero')
+      .positive('La prioridad debe ser mayor a 0')
+      .max(9999, 'La prioridad no puede exceder 9999')
+      .default(1),
+    horasTotales: z
+      .number()
+      .positive('Las horas totales deben ser mayores a 0')
+      .max(360, 'Las horas totales no pueden exceder 360'),
+    dias: z
+      .array(z.object({
+        fecha: z.iso.date({ message: 'Fecha inválida' }),
+        horas: z.number().positive('Cada día debe tener horas').max(24, 'Un día no puede exceder 24 h'),
+      }).strict())
+      .min(2, 'El plan necesita al menos dos días')
+      .max(15, 'El plan no puede exceder 15 días'),
+  })
+  .strict()
+  .superRefine((datos, contexto) => {
+    const fechas = new Set<string>();
+    for (const dia of datos.dias) {
+      if (fechas.has(dia.fecha)) {
+        contexto.addIssue({
+          code: 'custom',
+          path: ['dias'],
+          message: 'No puedes repetir el mismo día en el plan',
+        });
+        return;
+      }
+      fechas.add(dia.fecha);
+    }
+    const suma = Math.round(datos.dias.reduce((total, dia) => total + dia.horas, 0) * 100) / 100;
+    if (Math.abs(suma - datos.horasTotales) > 0.01) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['dias'],
+        message: `El plan suma ${suma} h y la operación requiere ${datos.horasTotales} h`,
+      });
+    }
+  });
+
+/**
  * Alterna el modo preparación de una programación. `actualizadoEnEsperado` es el
  * compare-and-set: sin él, dos planeadores podrían pisarse la misma programación.
  */
@@ -123,6 +176,19 @@ export const esquemaProponerHuecoPlaneacion = z
   })
   .strict();
 
+/** C16: propuesta de reparto en días para una operación que no cabe en un turno. */
+export const esquemaProponerPlanMultidia = z
+  .object({
+    recursoId: z.uuid('ID de recurso inválido'),
+    turno: z.enum(TURNOS_PLANEACION),
+    horasEstimadas: z
+      .number()
+      .positive('Las horas estimadas deben ser mayores a 0')
+      .max(360, 'Las horas estimadas no pueden exceder 360'),
+    desdeFecha: z.iso.date({ message: 'Fecha inicial inválida' }),
+  })
+  .strict();
+
 /** Filtros de lectura acotados para no permitir consultas de calendario sin límite. */
 export const esquemaConsultarCalendarioPlaneacion = z
   .object({
@@ -158,9 +224,11 @@ export const esquemaObtenerDetalleProgramacion = z
   .strict();
 
 export type ProgramarOrdenInput = z.infer<typeof esquemaProgramarOrden>;
+export type ProgramarMultidiaInput = z.infer<typeof esquemaProgramarMultidia>;
 export type CambiarModoPreparacionInput = z.infer<typeof esquemaCambiarModoPreparacion>;
 export type ReprogramarPartidaRecursoInput = z.infer<typeof esquemaReprogramarPartidaRecurso>;
 export type ActivarModoPreparacionInput = z.infer<typeof esquemaActivarModoPreparacion>;
 export type ConsultarCalendarioPlaneacionInput = z.infer<typeof esquemaConsultarCalendarioPlaneacion>;
 export type ProponerHuecoPlaneacionInput = z.infer<typeof esquemaProponerHuecoPlaneacion>;
+export type ProponerPlanMultidiaInput = z.infer<typeof esquemaProponerPlanMultidia>;
 export type ObtenerDetalleProgramacionInput = z.infer<typeof esquemaObtenerDetalleProgramacion>;

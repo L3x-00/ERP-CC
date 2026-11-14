@@ -15,6 +15,7 @@ import {
 } from '@/modulos/planeacion/tipos/indice';
 import type {
   CambiarModoPreparacionInput,
+  ProgramarMultidiaInput,
   ProgramarOrdenInput,
 } from '@/modulos/planeacion/validaciones/planeacion';
 
@@ -39,6 +40,7 @@ export type CodigoErrorPlaneacion =
   | 'motivo_reprogramacion_requerido'
   | 'meta_proceso_no_corresponde'
   | 'transicion_preparacion_no_permitida'
+  | 'programacion_continuacion_no_operable'
   | 'rango_fechas_invalido'
   | 'desconocido';
 
@@ -72,6 +74,11 @@ export type ReprogramarPartidaRecursoEntrada = {
 };
 
 export type ProgramarPartidaRecursoEntrada = ProgramarOrdenInput & {
+  actorId: string;
+  correlationId: string;
+};
+
+export type ProgramarMultidiaEntrada = ProgramarMultidiaInput & {
   actorId: string;
   correlationId: string;
 };
@@ -121,6 +128,7 @@ function codigoDesdeMensaje(mensaje: string): CodigoErrorPlaneacion {
     'motivo_reprogramacion_requerido',
     'meta_proceso_no_corresponde',
     'transicion_preparacion_no_permitida',
+    'programacion_continuacion_no_operable',
     'rango_fechas_invalido',
   ];
 
@@ -172,6 +180,30 @@ export async function programarPartidaRecursoServicio(
     p_actor_id: entrada.actorId,
     p_correlation_id: entrada.correlationId,
     p_meta_proceso_id: entrada.metaProcesoId ?? null,
+  });
+
+  if (error) lanzarErrorPlaneacion(error.message);
+  return programacionActualizadaDesdeRpc(data?.[0] ?? null);
+}
+
+/**
+ * C16: programa una operación repartida en varios días. La RPC valida la
+ * capacidad de cada jornada y crea la fila principal más sus continuaciones.
+ */
+export async function programarOperacionMultidiaServicio(
+  admin: SupabaseClient<Database>,
+  entrada: ProgramarMultidiaEntrada,
+): Promise<ProgramacionActualizada> {
+  const { data, error } = await admin.rpc('programar_operacion_multidia_auditada', {
+    p_orden_id: entrada.ordenId,
+    p_partida_id: entrada.partidaId,
+    p_recurso_id: entrada.recursoId,
+    p_turno: entrada.turno,
+    p_dias: entrada.dias,
+    p_orden_prioridad: entrada.ordenPrioridad,
+    p_actor_id: entrada.actorId,
+    p_correlation_id: entrada.correlationId,
+    p_meta_proceso_id: entrada.metaProcesoId,
   });
 
   if (error) lanzarErrorPlaneacion(error.message);
@@ -459,6 +491,8 @@ export function mensajeErrorPlaneacion(error: unknown, accion: 'programar' | 're
       return 'La partida ya tiene una programación equivalente';
     case 'meta_proceso_no_corresponde':
       return 'La operación elegida no pertenece a la partida';
+    case 'programacion_continuacion_no_operable':
+      return 'Ese día es una continuación de la operación. Inicia la preparación desde su primer día';
     default:
       return accion === 'programar'
         ? 'No se pudo programar la partida'

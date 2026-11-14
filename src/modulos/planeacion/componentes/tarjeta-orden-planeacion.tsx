@@ -239,7 +239,7 @@ export function TarjetaOrdenPlaneacion({
                     const operacion = item.programacion.operacionNombre
                       ? `${item.programacion.secuencia}. ${item.programacion.operacionNombre}`
                       : `Ítem ${textoODefecto(item.desglose?.codigoItem)}`;
-                    return `${operacion} · ${item.programacion.fechaProgramada} · ${ETIQUETA_TURNO[item.programacion.turno]} · ${item.programacion.horasEstimadas} h`;
+                    return `${operacion} · ${item.programacion.fechaProgramada} · ${ETIQUETA_TURNO[item.programacion.turno]} · ${item.programacion.horasEstimadas} h${item.programacion.esContinuacion ? ' · día adicional' : ''}`;
                   })
                   .join(' | ')}
               </dd>
@@ -356,6 +356,7 @@ function FilaItemOrden({
               {programacion.operacionNombre && desglose ? ` · ${desglose.codigoPieza}` : ''}
               {' · '}{recursoTexto}{' · '}{ETIQUETA_TURNO[programacion.turno]}{' · '}
               {programacion.horasEstimadas} h
+              {programacion.esContinuacion ? ' · día adicional' : ''}
             </p>
             {!compacta && desglose?.descripcion ? (
               <p className="truncate text-[10px] text-texto-secundario">{desglose.descripcion}</p>
