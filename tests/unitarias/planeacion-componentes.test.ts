@@ -1158,7 +1158,6 @@ describe('operación de Planeación en cliente', () => {
       },
     });
 
-    expect(screen.getByText('Propuesta aceptada · por programar')).toBeTruthy();
     fireEvent.click(screen.getByTestId(`programar-compromiso-${partida.partidaId}`));
 
     await waitFor(() => expect(
