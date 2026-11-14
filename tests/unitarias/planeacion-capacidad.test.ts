@@ -61,7 +61,8 @@ describe('cálculos de disponibilidad de Planeación', () => {
 
   it('clasifica los límites de saturación sin que la UI autorice programación', () => {
     expect(clasificarSaturacion(8, 0)).toBe('libre');
-    expect(clasificarSaturacion(8, 5)).toBe('holgado');
+    expect(clasificarSaturacion(8, 3)).toBe('holgado');
+    expect(clasificarSaturacion(8, 5)).toBe('ajustado');
     expect(clasificarSaturacion(10, 7)).toBe('ajustado');
     expect(clasificarSaturacion(10, 9)).toBe('saturado');
     expect(clasificarSaturacion(8, 8.1)).toBe('sobrecargado');
@@ -234,21 +235,24 @@ describe('previsualización de asignación y primer hueco (OBS-18/OBS-19)', () =
 });
 
 describe('semáforo de presentación de carga (C9.1, P-06)', () => {
-  it('reduce las cinco clasificaciones a tres niveles de presentación', () => {
+  it('reduce las cinco clasificaciones a cuatro niveles de presentación', () => {
     expect(nivelSemaforo('libre')).toBe('disponible');
     expect(nivelSemaforo('holgado')).toBe('disponible');
     expect(nivelSemaforo('ajustado')).toBe('cerca-del-limite');
-    expect(nivelSemaforo('saturado')).toBe('cerca-del-limite');
+    expect(nivelSemaforo('saturado')).toBe('saturado');
     expect(nivelSemaforo('sobrecargado')).toBe('sobrecargado');
   });
 
-  it('usa los umbrales 70/100 del cliente: 70 % es «Cerca del límite» y el 100 % exacto también', () => {
-    expect(nivelSemaforo(clasificarSaturacion(10, 7))).toBe('cerca-del-limite');
-    expect(nivelSemaforo(clasificarSaturacion(8, 8))).toBe('cerca-del-limite');
+  it('usa los umbrales 50/90/100 del cliente: ámbar a la mitad y rojo desde el 90 %', () => {
+    expect(nivelSemaforo(clasificarSaturacion(8, 3))).toBe('disponible');
+    expect(nivelSemaforo(clasificarSaturacion(8, 4))).toBe('cerca-del-limite');
+    expect(nivelSemaforo(clasificarSaturacion(10, 9))).toBe('saturado');
+    expect(nivelSemaforo(clasificarSaturacion(8, 8))).toBe('saturado');
     expect(nivelSemaforo(clasificarSaturacion(8, 8.01))).toBe('sobrecargado');
     expect(ETIQUETA_SEMAFORO).toEqual({
       disponible: 'Disponible',
       'cerca-del-limite': 'Cerca del límite',
+      saturado: 'Saturado',
       sobrecargado: 'Sobrecargado',
     });
   });
