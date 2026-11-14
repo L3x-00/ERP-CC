@@ -441,9 +441,9 @@ BEGIN
     v_jornada := privado.obtener_jornada_recurso_turno(
       v_programacion.recurso_id, v_programacion.fecha_programada, v_programacion.turno);
     IF v_horas_netas > v_jornada THEN
-      -- C15: una justificaci?n del propio operador, atada a ESTA sesi?n, cubre
-      -- el exceso sin esperar aprobaci?n; queda registrada y auditada. La
-      -- autorizaci?n de un responsable sigue siendo v?lida y debe cubrir el
+      -- C15: una justificación del propio operador, atada a ESTA sesión, cubre
+      -- el exceso sin esperar aprobación; queda registrada y auditada. La
+      -- autorización de un responsable sigue siendo válida y debe cubrir el
       -- exceso calculado en este cierre.
       SELECT autorizacion.id INTO v_autorizacion_id
       FROM public.autorizaciones_hora_extra AS autorizacion
