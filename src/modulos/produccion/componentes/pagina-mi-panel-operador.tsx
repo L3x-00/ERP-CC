@@ -34,9 +34,9 @@ import type {
   VerificacionInicio,
 } from '@/modulos/produccion/tipos/indice';
 import type { ConsumoMaterialVisible } from '@/modulos/produccion/utilidades/consumo-material-operador';
-import { verboProceso } from '@/modulos/produccion/utilidades/procesos';
 
 import {
+  agruparMisProcesosPorOrden,
   obtenerMisProcesos,
   resumirMiPanel,
   resumirJornadaDiaria,
@@ -48,6 +48,7 @@ import {
   type ResultadoOperacion,
 } from './detalle-proceso-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { TarjetaOrdenMisProcesos } from './tarjeta-orden-mis-procesos';
 interface PropsPaginaMiPanelOperador {
   nombreOperador: string;
   operadorId: string;
@@ -63,20 +64,6 @@ interface PropsPaginaMiPanelOperador {
 
 type FiltroEstado = 'todos' | EstadoMiProceso;
 type Aviso = { tipo: 'ok' | 'error'; texto: string };
-
-const etiquetas: Record<EstadoMiProceso, string> = {
-  en_proceso: 'En proceso',
-  pausado: 'Pausado',
-  pendiente: 'Pendiente',
-  terminado: 'Terminado',
-};
-
-const estilosEstado: Record<EstadoMiProceso, string> = {
-  en_proceso: 'bg-acento-suave text-acento-texto',
-  pausado: 'bg-advertencia-suave text-advertencia-texto',
-  pendiente: 'bg-superficie-2 text-texto-secundario',
-  terminado: 'bg-exito-suave text-exito-texto',
-};
 
 function formatearHoras(horas: number): string {
   return `${horas.toLocaleString('es-PE', { maximumFractionDigits: 2 })} h`;
@@ -123,6 +110,13 @@ export function PaginaMiPanelOperador({
       ? misProcesos
       : misProcesos.filter((item) => item.estado === filtro),
     [misProcesos, filtro],
+  );
+
+  // Punto 10: una tarjeta por orden. El filtro se aplica antes de agrupar para
+  // que la tarjeta solo muestre los procesos que coinciden con el estado elegido.
+  const ordenesVisibles = useMemo(
+    () => agruparMisProcesosPorOrden(visibles),
+    [visibles],
   );
 
   const procesoSeleccionado = misProcesos.find(
@@ -413,176 +407,21 @@ export function PaginaMiPanelOperador({
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 sm:p-5">
-  {visibles.map(({ proceso, estado, horasTrabajadas }) => {
-    const puedeReclamar =
-      proceso.reclamo === null &&
-      proceso.columna !== 'lista' &&
-      (proceso.piezasDisponibles === null || proceso.piezasDisponibles > 0);
-    const puedeGestionar = proceso.reclamadoPorMi || puedeReclamar;
-    const puedeIniciar = puedeGestionar && proceso.puedeIniciar;
-    const puedeReanudar = puedeGestionar && proceso.puedeReanudar;
-    const etiquetaGestion = puedeGestionar
-      ? 'Gestionar proceso'
-      : proceso.piezasDisponibles === 0
-        ? `No hay piezas disponibles para ${verboProceso(proceso.procesoNombre, proceso.areaMacro)}`
-        : proceso.motivoNoInicia ?? 'Proceso no disponible';
-
-    const puedeLiberar =
-      puedeGestionar &&
-      proceso.reclamo !== null &&
-      proceso.sesionActiva === null &&
-      proceso.programacion?.estadoPlaneacion !== 'en_proceso' &&
-      proceso.programacion?.estadoPlaneacion !== 'bloqueada';
-
-    return (
-      <article
-        key={proceso.id}
-        className="flex min-w-0 flex-col gap-4 rounded-xl border border-borde bg-superficie p-4 shadow-sm transition-shadow hover:shadow-md"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate font-mono text-sm font-semibold text-texto-primario">
-              {proceso.folioOrden}
-            </p>
-
-            <h4 className="mt-1 text-base font-semibold text-texto-primario">
-              {proceso.procesoNombre}
-            </h4>
-
-            <p className="mt-1 text-xs text-texto-secundario">
-              Pieza: {proceso.codigoPieza}
-            </p>
+          <div className="grid gap-4 p-4 sm:p-5">
+            {ordenesVisibles.map(({ grupo, procesos }) => (
+              <TarjetaOrdenMisProcesos
+                key={grupo.ordenId}
+                grupo={grupo}
+                procesos={procesos}
+                hoy={hoy}
+                procesando={procesando}
+                onIniciar={(proceso) => accionesDetalle.iniciar(proceso)}
+                onReanudar={(proceso) => void accionesDetalle.reanudar(proceso)}
+                onLiberar={(proceso) => void accionesDetalle.liberar(proceso)}
+                onGestionar={(proceso) => setProcesoSeleccionadoId(proceso.id)}
+              />
+            ))}
           </div>
-
-          <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${estilosEstado[estado]}`}
-          >
-            {etiquetas[estado]}
-          </span>
-        </div>
-
-        {proceso.piezasDisponibles !== null && proceso.piezasDisponibles > 0 ? (
-          <p
-            className="rounded-lg bg-acento-suave px-3 py-2 text-sm text-acento-texto"
-            data-testid={`disponibles-${proceso.id}`}
-          >
-            <strong className="tabular-nums">{Math.round(proceso.piezasDisponibles)}</strong>
-            {' disponibles para '}{verboProceso(proceso.procesoNombre, proceso.areaMacro)}
-            {proceso.procesoPrevioNombre ? `, listas desde ${proceso.procesoPrevioNombre}` : ''}.
-          </p>
-        ) : null}
-
-        <div className="grid grid-cols-2 gap-3 rounded-lg bg-superficie-2/60 p-3 text-sm">
-          <div className="min-w-0">
-            <p className="text-xs text-texto-secundario">Área</p>
-            <p className="truncate font-medium text-texto-primario">
-              {proceso.areaNombre}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-texto-secundario">Tiempo trabajado</p>
-            <p className="font-semibold tabular-nums text-texto-primario">
-              {formatearHoras(horasTrabajadas)}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-texto-secundario">Producidas</p>
-            <p className="font-semibold tabular-nums text-texto-primario">
-              {Math.round(proceso.hechoPiezas)} / {Math.round(proceso.metaPiezas)}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-texto-secundario">Pendientes</p>
-            <p className="font-semibold tabular-nums text-texto-primario">
-              {Math.round(proceso.pendientePiezas)}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-texto-secundario">
-            <span>Avance del proceso</span>
-            <span className="font-semibold tabular-nums">
-              {Math.round(proceso.porcentaje)}%
-            </span>
-          </div>
-
-          <div
-            className="h-2 overflow-hidden rounded-full bg-superficie-2"
-            role="progressbar"
-            aria-label={`Avance de ${proceso.procesoNombre}`}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.min(100, Math.max(0, proceso.porcentaje))}
-          >
-            <div
-              className="h-full rounded-full bg-acento"
-              style={{
-                width: `${Math.min(100, Math.max(0, proceso.porcentaje))}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="mt-auto flex flex-col gap-2 border-t border-borde pt-3">
-          {(puedeIniciar || puedeReanudar || puedeLiberar) && (
-            <div className="flex flex-wrap gap-2">
-              {puedeIniciar && (
-                <button
-                  type="button"
-                  disabled={procesando !== null}
-                  onClick={() => accionesDetalle.iniciar(proceso)}
-                  className="flex-1 rounded-lg bg-acento px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                >
-                  Iniciar proceso
-                </button>
-              )}
-
-              {puedeReanudar && (
-                <button
-                  type="button"
-                  disabled={procesando !== null}
-                  onClick={() => void accionesDetalle.reanudar(proceso)}
-                  className="flex-1 rounded-lg bg-acento px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                >
-                  Continuar sesión
-                </button>
-              )}
-
-              {puedeLiberar && (
-                <button
-                  type="button"
-                  disabled={procesando !== null}
-                  onClick={() => void accionesDetalle.liberar(proceso)}
-                  className="flex-1 rounded-lg border border-borde px-3 py-2 text-sm font-medium text-texto-primario hover:bg-superficie-2 disabled:opacity-50"
-                >
-                  Liberar reserva
-                </button>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled={!puedeGestionar || procesando !== null}
-            onClick={() => setProcesoSeleccionadoId(proceso.id)}
-            className={
-              puedeGestionar
-                ? 'w-full rounded-lg border border-acento px-3 py-2 text-sm font-semibold text-acento-texto transition-colors hover:bg-acento-suave disabled:opacity-50'
-                : 'w-full cursor-not-allowed rounded-lg bg-superficie-2 px-3 py-2 text-sm text-texto-secundario'
-            }
-          >
-            {etiquetaGestion}
-          </button>
-        </div>
-      </article>
-    );
-  })}
-</div>
         )}
       </section>
 

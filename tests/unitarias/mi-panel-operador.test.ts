@@ -1,6 +1,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  agruparMisProcesosPorOrden,
   obtenerMisProcesos,
   resumirMiPanel,
 } from '@/modulos/produccion/utilidades/mi-panel-operador';
@@ -175,5 +176,47 @@ describe('Mi panel de operador - cálculos', () => {
 
     expect(resultado.pausados).toBe(1);
     expect(resultado.pendientes).toBe(1);
+  });
+
+  it('punto 10: agrupa los procesos personales en una sola orden', () => {
+    const conOrden = (
+      id: string,
+      ordenId: string,
+      partidaId: string,
+      codigoPieza: string,
+    ): ProcesoEspacioOperador => ({
+      ...crearProceso(id, { reclamante: OPERADOR, partidaId }),
+      ordenId,
+      folioOrden: ordenId === 'orden-1' ? 'OP-001' : 'OP-002',
+      folioSii: null,
+      clienteNombre: 'Cliente de prueba',
+      fechaCompromiso: '2026-10-26',
+      urgencia: 'normal',
+      prioridad: 'normal',
+      notas: null,
+      codigoPieza,
+      descripcion: null,
+      unidadMedida: 'pieza',
+      cantidadProducida: 0,
+      cantidadSolicitada: 5,
+      material: null,
+      secuencia: 1,
+      horasEstimadas: 1,
+    } as unknown as ProcesoEspacioOperador);
+
+    const misProcesos = obtenerMisProcesos([
+      conOrden('p1', 'orden-1', 'partida-1', 'IT01'),
+      conOrden('p2', 'orden-1', 'partida-2', 'IT02'),
+      conOrden('p3', 'orden-2', 'partida-3', 'IT03'),
+    ], OPERADOR);
+
+    const ordenes = agruparMisProcesosPorOrden(misProcesos);
+
+    expect(ordenes).toHaveLength(2);
+    const primera = ordenes.find(({ grupo }) => grupo.ordenId === 'orden-1');
+    expect(primera?.grupo.folioOrden).toBe('OP-001');
+    expect(primera?.procesos.map(({ proceso }) => proceso.id))
+      .toEqual(expect.arrayContaining(['p1', 'p2']));
+    expect(primera?.procesos).toHaveLength(2);
   });
 });
