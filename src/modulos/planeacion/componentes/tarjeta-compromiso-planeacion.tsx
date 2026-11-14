@@ -29,9 +29,6 @@ export function TarjetaCompromisoPlaneacion({
       aria-label={`Compromiso ${compromiso.folio} ${compromiso.codigoPieza} por programar`}
       className="flex flex-col gap-1 rounded-base border border-acento/40 bg-acento-suave p-2 text-xs text-texto-primario"
     >
-      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-superficie px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-acento">
-        Propuesta aceptada · por programar
-      </span>
       <span className="font-mono text-[11px] font-medium">
         {compromiso.folio} · {compromiso.codigoPieza}
       </span>

@@ -6,7 +6,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(60);
+SELECT plan(61);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores y permisos
@@ -251,6 +251,12 @@ SELECT isnt(
   NULL, 'La entrega registra fecha'
 );
 SELECT is(
+  (SELECT (fecha_entrega AT TIME ZONE 'America/Tijuana')::date
+   FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+  (now() AT TIME ZONE 'America/Tijuana')::date,
+  'La entrega nace con el día del negocio (AUD-12)'
+);
+SELECT is(
   (SELECT renglon.codigo_item FROM public.partidas_nota_entrega AS renglon
    JOIN public.notas_entrega AS nota ON nota.id = renglon.nota_entrega_id
    WHERE nota.solicitud_id = '11111111-1111-4111-8111-111111111111'),
@@ -303,8 +309,10 @@ SELECT lives_ok($$
     '00000000-0000-4000-8000-0000000b7a01')
 $$, 'El admin con token vigente corrige la fecha');
 SELECT is(
-  (SELECT fecha_entrega::date FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
-  current_date, 'La fecha corregida queda persistida'
+  (SELECT (fecha_entrega AT TIME ZONE 'America/Tijuana')::date
+   FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+  (now() AT TIME ZONE 'America/Tijuana')::date,
+  'La fecha corregida queda persistida en el día del negocio (AUD-12)'
 );
 -- Con producida 8 y solicitada 10, pedir 9 excede lo producido pero no lo
 -- pendiente: el guard de producción es el que manda.

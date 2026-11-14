@@ -18,9 +18,6 @@ export default async function PaginaOperador() {
       <div className="max-w-sm text-center">
         <p className="text-sm font-semibold text-acento">Paso 1 de 2</p>
         <h1 className="mt-1 text-2xl font-bold">Acceso de operador</h1>
-        <p className="mt-2 text-sm text-texto-secundario">
-          Ingresa tu PIN. Después podrás seleccionar el trabajo asignado.
-        </p>
       </div>
       {esAdmin ? (
         <div
