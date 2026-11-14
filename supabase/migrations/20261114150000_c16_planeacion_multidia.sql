@@ -705,6 +705,7 @@ BEGIN
     WHERE propia.id = v_sesion.programacion_id
       AND propia.estado_planeacion = 'en_proceso';
   ELSIF v_cantidad_metas > 0 AND v_meta.id IS NOT NULL
+        AND v_programacion.meta_proceso_id IS NOT NULL
         AND v_estado_programacion = 'completada' THEN
     -- C16: al completar la operación se completan también sus días adicionales;
     -- la producción siguió usando solo la fila principal.
