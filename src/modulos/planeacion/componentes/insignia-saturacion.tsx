@@ -61,7 +61,7 @@ function IconoNivel({ nivel }: { nivel: NivelSemaforo }) {
 }
 
 /**
- * C9.1/P-03: semáforo accesible de 3 niveles (Disponible / Cerca del límite /
+ * C9.1/P-03: semáforo accesible (Disponible / Cerca del límite / Saturado /
  * Sobrecargado). Nunca depende sólo del color: icono, texto y horas.
  */
 export function InsigniaSaturacion({

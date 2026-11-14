@@ -142,8 +142,8 @@ describe('ficha de Orden C8.2 · el servicio lee el snapshot sin filtrar finanza
       codigoItem: 'IT01',
       descripcion: null,
       pasos: [
-        { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.25, operacionHoras: 1 },
-        { secuencia: 2, proceso: 'Doblez', prepHoras: 0.5, operacionHoras: 1.5 },
+        { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.25, operacionHoras: 1, estado: 'sin_registro' },
+        { secuencia: 2, proceso: 'Doblez', prepHoras: 0.5, operacionHoras: 1.5, estado: 'sin_registro' },
       ],
     }]);
     for (const secreto of ['987.65', '1357.89', 'tarifa_hora', 'costo_total', 'total_horas', 'requiere_revision']) {

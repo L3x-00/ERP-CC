@@ -93,6 +93,6 @@ export function construirHtmlNotaEntrega(documento: DocumentoNotaEntrega): strin
 export function imprimirNotaEntrega(documento: DocumentoNotaEntrega): Promise<void> {
   return imprimirHtmlAislado(
     construirHtmlNotaEntrega(documento),
-    `Impresión de la nota ${documento.nota.folio}`,
+    `Nota de entrega ${documento.nota.folio}`,
   );
 }

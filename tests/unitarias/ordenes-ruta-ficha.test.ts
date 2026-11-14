@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { proyectarRutaFicha } from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
+import {
+  estadoPasoRuta,
+  proyectarRutaFicha,
+} from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
 import type { SnapshotOrdenSii } from '@/modulos/ordenes/tipos/orden-sii';
 
 function snapshot(items: SnapshotOrdenSii['items']): SnapshotOrdenSii {
@@ -32,7 +35,7 @@ describe('proyección de la ruta de la ficha (R08)', () => {
     expect(ruta).toEqual([{
       codigoItem: 'IT01',
       descripcion: 'Soporte',
-      pasos: [{ secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 2 }],
+      pasos: [{ secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 2, estado: 'sin_registro' }],
     }]);
     const serializado = JSON.stringify(ruta);
     for (const secreto of ['4321.99', '876.54', '2191.35', 'tarifa_hora', 'costo_total', 'precio_unitario']) {
@@ -71,7 +74,7 @@ describe('proyección de la ruta de la ficha (R08)', () => {
       ruteo: [{ secuencia: '1', proceso_nombre: 'Corte', setup_horas: '0.25', run_horas: 'abc' }],
     }]));
 
-    expect(item?.pasos[0]).toEqual({ secuencia: 1, proceso: 'Corte', prepHoras: 0.25, operacionHoras: null });
+    expect(item?.pasos[0]).toEqual({ secuencia: 1, proceso: 'Corte', prepHoras: 0.25, operacionHoras: null, estado: 'sin_registro' });
   });
 
   it('un snapshot antiguo sin ruteo cae a la lista de operaciones, sin horas', () => {
@@ -81,9 +84,9 @@ describe('proyección de la ruta de la ficha (R08)', () => {
     }]));
 
     expect(item?.pasos).toEqual([
-      { secuencia: 1, proceso: 'Corte', prepHoras: null, operacionHoras: null },
-      { secuencia: 2, proceso: 'DOB', prepHoras: null, operacionHoras: null },
-      { secuencia: 3, proceso: 'Operación', prepHoras: null, operacionHoras: null },
+      { secuencia: 1, proceso: 'Corte', prepHoras: null, operacionHoras: null, estado: 'sin_registro' },
+      { secuencia: 2, proceso: 'DOB', prepHoras: null, operacionHoras: null, estado: 'sin_registro' },
+      { secuencia: 3, proceso: 'Operación', prepHoras: null, operacionHoras: null, estado: 'sin_registro' },
     ]);
   });
 
@@ -91,5 +94,26 @@ describe('proyección de la ruta de la ficha (R08)', () => {
     expect(proyectarRutaFicha(snapshot([{ codigo: 'IT01' }]))).toEqual([
       { codigoItem: 'IT01', descripcion: null, pasos: [] },
     ]);
+  });
+});
+
+describe('estado real del paso de ruta (Obs. cliente 2026-11-14)', () => {
+  it('refleja la planeación vigente', () => {
+    expect(estadoPasoRuta('programada', { ordenConcluida: false, tieneAvance: false })).toBe('programada');
+    expect(estadoPasoRuta('en_preparacion', { ordenConcluida: false, tieneAvance: false })).toBe('en_preparacion');
+    expect(estadoPasoRuta('en_proceso', { ordenConcluida: false, tieneAvance: false })).toBe('en_proceso');
+    expect(estadoPasoRuta('bloqueada', { ordenConcluida: false, tieneAvance: false })).toBe('bloqueada');
+    expect(estadoPasoRuta('sin_estado', { ordenConcluida: false, tieneAvance: false })).toBe('sin_registro');
+  });
+
+  it('un avance sobre una operación programada la muestra en proceso', () => {
+    expect(estadoPasoRuta('programada', { ordenConcluida: false, tieneAvance: true })).toBe('en_proceso');
+  });
+
+  it('en una orden concluida todo paso no cancelado queda completado, aunque la planeación esté rezagada', () => {
+    for (const estado of ['programada', 'en_preparacion', 'en_proceso', 'bloqueada', 'sin_estado']) {
+      expect(estadoPasoRuta(estado, { ordenConcluida: true, tieneAvance: false })).toBe('completada');
+    }
+    expect(estadoPasoRuta('cancelada', { ordenConcluida: true, tieneAvance: false })).toBe('cancelada');
   });
 });

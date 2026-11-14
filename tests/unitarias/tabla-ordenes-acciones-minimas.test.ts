@@ -170,10 +170,8 @@ describe('cola de Órdenes C8.1 · una sola acción contextual', () => {
       orden('0204', 'PRODUCCION_COMPLETADA', { idHistorico: 'LEGACY-1' }),
       orden('0205', 'CERRADA', { esInterna: true, archivadaEn: '2026-10-10T03:00:00.000Z' }),
     ]);
-    fireEvent.click(screen.getByTestId('bandeja-activas'));
+    // Una sola tabla: activas y archivadas conviven sin cambiar de bandeja.
     expect(controlesDeLaFila('0204')).toEqual(['Abrir']);
-
-    fireEvent.click(screen.getByTestId('bandeja-archivo'));
     expect(controlesDeLaFila('0205')).toEqual(['Abrir']);
   });
 

@@ -17,7 +17,7 @@ import {
   TIPO_ARRASTRE_PROGRAMACION,
   type ItemOrdenPlaneacion,
 } from '@/modulos/planeacion/componentes/tarjeta-orden-planeacion';
-import { TarjetaCompromisoPlaneacion } from '@/modulos/planeacion/componentes/tarjeta-compromiso-planeacion';
+import { TarjetaCompromisosOrden } from '@/modulos/planeacion/componentes/tarjeta-compromiso-planeacion';
 
 /** Contrato común de las tres vistas del calendario de Planeación. */
 export interface PropsVistaCalendario {
@@ -80,6 +80,19 @@ function agruparCompromisosPorFecha(
     porFecha.set(compromiso.fechaCompromiso, lista);
   }
   return porFecha;
+}
+
+/** Agrupa las partidas por programar de una misma orden en una sola tarjeta. */
+function agruparCompromisosPorOrden(
+  compromisos: readonly CompromisoPlaneacion[],
+): CompromisoPlaneacion[][] {
+  const porOrden = new Map<string, CompromisoPlaneacion[]>();
+  for (const compromiso of compromisos) {
+    const lista = porOrden.get(compromiso.ordenId) ?? [];
+    lista.push(compromiso);
+    porOrden.set(compromiso.ordenId, lista);
+  }
+  return [...porOrden.values()];
 }
 
 /**
@@ -166,6 +179,7 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
   const compromisos = (props.compromisos ?? []).filter(
     (compromiso) => compromiso.fechaCompromiso === fecha,
   );
+  const gruposCompromiso = agruparCompromisosPorOrden(compromisos);
   // Sin otro día visible no hay destino de soltado: el arrastre se desactiva y
   // la reprogramación se hace desde el panel de asignación.
   const propsDia: PropsVistaCalendario = { ...props, onSolicitarReprogramacion: undefined };
@@ -188,10 +202,10 @@ export function VistaDia({ fecha, ...props }: PropsVistaCalendario & { fecha: st
         <p className="text-sm text-texto-secundario">Sin programaciones para este día.</p>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
-          {compromisos.map((compromiso) => (
-            <TarjetaCompromisoPlaneacion
-              key={compromiso.partidaId}
-              compromiso={compromiso}
+          {gruposCompromiso.map((items) => (
+            <TarjetaCompromisosOrden
+              key={items[0].ordenId}
+              compromisos={items}
               onProgramar={props.onProgramarCompromiso}
             />
           ))}
@@ -221,6 +235,7 @@ export function VistaSemana(props: PropsVistaCalendario) {
         const programaciones = porFecha.get(fecha) ?? [];
         const grupos = agruparPorOrden(programaciones);
         const compromisos = compromisosPorFecha.get(fecha) ?? [];
+        const gruposCompromiso = agruparCompromisosPorOrden(compromisos);
         return (
           <section
             key={fecha}
@@ -239,10 +254,10 @@ export function VistaSemana(props: PropsVistaCalendario) {
               <span className="text-xs font-medium">{etiquetaDia(fecha)}</span>
               <span className="font-mono text-[11px] text-texto-secundario">{fecha}</span>
             </header>
-            {compromisos.map((compromiso) => (
-              <TarjetaCompromisoPlaneacion
-                key={compromiso.partidaId}
-                compromiso={compromiso}
+            {gruposCompromiso.map((items) => (
+              <TarjetaCompromisosOrden
+                key={items[0].ordenId}
+                compromisos={items}
                 compacta
                 onProgramar={props.onProgramarCompromiso}
               />
@@ -282,6 +297,7 @@ export function VistaMes(props: PropsVistaCalendario) {
         const programaciones = enRango ? (porFecha.get(fecha) ?? []) : [];
         const grupos = agruparPorOrden(programaciones);
         const compromisos = enRango ? (compromisosPorFecha.get(fecha) ?? []) : [];
+        const gruposCompromiso = agruparCompromisosPorOrden(compromisos);
         return (
           <section
             key={fecha}
@@ -334,10 +350,10 @@ export function VistaMes(props: PropsVistaCalendario) {
                 <span className="text-[11px] font-medium text-acento">
                   {compromisos.length} por programar
                 </span>
-                {compromisos.map((compromiso) => (
-                  <TarjetaCompromisoPlaneacion
-                    key={compromiso.partidaId}
-                    compromiso={compromiso}
+                {gruposCompromiso.map((items) => (
+                  <TarjetaCompromisosOrden
+                    key={items[0].ordenId}
+                    compromisos={items}
                     compacta
                     onProgramar={props.onProgramarCompromiso}
                   />

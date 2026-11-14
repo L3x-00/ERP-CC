@@ -1,4 +1,8 @@
-import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
+import type {
+  GrupoOrdenEspacioOperador,
+  ProcesoEspacioOperador,
+} from '@/modulos/produccion/tipos/espacio-operador';
+import { agruparProcesosPorOrden } from '@/modulos/produccion/tipos/espacio-operador';
 
 export type EstadoMiProceso =
   | 'en_proceso'
@@ -95,6 +99,31 @@ export function obtenerMisProcesos(
         ),
       };
     });
+}
+
+/** Orden de «Mis procesos» con los procesos del operador que la componen. */
+export interface OrdenMisProcesos {
+  grupo: GrupoOrdenEspacioOperador;
+  procesos: MiProceso[];
+}
+
+/**
+ * Punto 10: agrupa los procesos personales por orden. La tarjeta deja de
+ * repetirse por operación: una orden con varias partidas o procesos conserva
+ * una sola identidad y muestra dentro sus procesos con su propio estado.
+ */
+export function agruparMisProcesosPorOrden(
+  misProcesos: readonly MiProceso[],
+): OrdenMisProcesos[] {
+  const porProcesoId = new Map(misProcesos.map((item) => [item.proceso.id, item]));
+  return agruparProcesosPorOrden(misProcesos.map((item) => item.proceso))
+    .map((grupo) => ({
+      grupo,
+      procesos: grupo.procesos
+        .map((proceso) => porProcesoId.get(proceso.id))
+        .filter((item): item is MiProceso => item !== undefined),
+    }))
+    .filter(({ procesos }) => procesos.length > 0);
 }
 
 export function resumirMiPanel(

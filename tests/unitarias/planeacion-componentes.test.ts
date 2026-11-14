@@ -610,8 +610,8 @@ describe('operación de Planeación en cliente', () => {
     expect(resumen.textContent).toContain('Libre');
     expect(screen.getByTestId('libre-CNC-01').textContent).toBe('4 h');
 
-    const insignia = within(resumen).getByTestId('insignia-saturacion-cerca-del-limite');
-    expect(insignia.getAttribute('aria-label')).toBe('Cerca del límite: 8/8 h');
+    const insignia = within(resumen).getByTestId('insignia-saturacion-saturado');
+    expect(insignia.getAttribute('aria-label')).toBe('Saturado: 8/8 h');
 
     const fechaInicial = screen.getByLabelText('Fecha inicial');
     expect(resumen.compareDocumentPosition(fechaInicial) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
@@ -1125,6 +1125,7 @@ describe('operación de Planeación en cliente', () => {
           }],
           activasSinFechaHoy: [],
           sugerencias: [],
+          bloqueadasPorEquipo: [],
         },
         procesando: false,
         mensaje: null,

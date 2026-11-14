@@ -92,6 +92,6 @@ export function imprimirReciboPago(
 ): Promise<void> {
   return imprimirHtmlAislado(
     construirHtmlReciboPago(recibo, marca),
-    `Impresión del recibo ${recibo.folioRecibo}`,
+    `Recibo de pago ${recibo.folioRecibo}`,
   );
 }

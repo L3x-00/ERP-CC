@@ -238,7 +238,7 @@ test.describe.serial('órdenes heredadas y cola sin Repetir/Reactivar (ORD-06 / 
     await expect(dialogoAdjuntos).toBeHidden();
   });
 
-  test('E2E-21: la cola ya no ofrece Reactivar ni Repetir, tampoco en la bandeja Archivo', async ({ page }) => {
+  test('E2E-21: la cola ya no ofrece Reactivar ni Repetir, tampoco en las órdenes archivadas', async ({ page }) => {
     if (!contexto) throw new Error('No se preparó el contexto E2E');
     const caso = contexto;
     const completada = await crearCompletada(caso);
@@ -263,7 +263,6 @@ test.describe.serial('órdenes heredadas y cola sin Repetir/Reactivar (ORD-06 / 
     await caso.admin.from('ordenes_produccion')
       .update({ archivada_en: new Date().toISOString() }).eq('id', entregada.ordenId);
     await page.reload();
-    await page.getByTestId('bandeja-archivo').click();
     const filaEntregada = page.getByRole('row', { name: new RegExp(entregada.folio) });
     await expect(filaEntregada).toBeVisible();
     await expect(page.getByTestId(`reactivar-orden-${entregada.folio}`)).toHaveCount(0);

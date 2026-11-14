@@ -220,6 +220,10 @@ describe('DetalleProcesoOperador', () => {
     expect((await screen.findByTestId('resumen-cierre-registrado')).textContent).toContain(
       'Sesión finalizada: 3 piezas, 1 h netas y material registrado.',
     );
+    // Punto 11: al registrar el cierre el formulario se repliega solo.
+    await waitFor(() => {
+      expect(document.getElementById('cierre-sesion-campos')?.getAttribute('aria-hidden')).toBe('true');
+    });
   });
 
   it('ofrece liberar la primera pieza desde el cierre cuando el proceso la exige', async () => {

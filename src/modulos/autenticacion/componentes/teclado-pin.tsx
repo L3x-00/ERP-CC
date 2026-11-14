@@ -68,18 +68,21 @@ export function TecladoPin() {
     setValidando(false);
   }
 
+  // Obs. cliente 2026-11-14: el teclado debe caber en la pantalla del operador
+  // sin desplazamiento, así que los botones y el PIN se compactan sin perder el
+  // tamaño táctil mínimo (44 px).
   const claseBotonDigito =
-    'h-20 rounded-xl bg-superficie-2 text-3xl font-semibold text-texto-primario transition-colors active:bg-borde disabled:opacity-40';
+    'h-14 rounded-xl bg-superficie-2 text-2xl font-semibold text-texto-primario transition-colors active:bg-borde disabled:opacity-40';
 
   return (
     <div
       data-testid="teclado-pin"
       data-hidratado={hidratado ? 'true' : 'false'}
-      className="flex w-full max-w-xs flex-col items-center gap-6"
+      className="flex w-full max-w-[17rem] flex-col items-center gap-3"
     >
       <div
         aria-label="PIN ingresado"
-        className="flex h-14 w-full items-center justify-center rounded-xl bg-superficie text-3xl tracking-[0.5em] text-texto-primario"
+        className="flex h-11 w-full items-center justify-center rounded-xl bg-superficie text-2xl tracking-[0.5em] text-texto-primario"
       >
         {pin.length > 0 ? '●'.repeat(pin.length) : (
           <span className="text-base tracking-normal text-texto-tenue">
@@ -94,7 +97,7 @@ export function TecladoPin() {
         </p>
       )}
 
-      <div className="grid w-full grid-cols-3 gap-3">
+      <div className="grid w-full grid-cols-3 gap-2">
         {DIGITOS.map((digito) => (
           <button
             key={digito}
@@ -111,7 +114,7 @@ export function TecladoPin() {
           type="button"
           disabled={validando || pin.length === 0}
           onClick={borrarDigito}
-          className="h-20 rounded-xl bg-superficie-2 text-xl font-semibold text-texto-secundario transition-colors active:bg-borde disabled:opacity-40"
+          className="h-14 rounded-xl bg-superficie-2 text-lg font-semibold text-texto-secundario transition-colors active:bg-borde disabled:opacity-40"
           aria-label="Borrar último dígito"
         >
           DEL
@@ -130,7 +133,7 @@ export function TecladoPin() {
           type="button"
           disabled={validando || pin.length < PIN_LONGITUD_MINIMA}
           onClick={confirmar}
-          className="h-20 rounded-xl bg-acento text-xl font-bold text-white transition-opacity active:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-14 rounded-xl bg-acento text-lg font-bold text-white transition-opacity active:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Confirmar PIN"
         >
           {validando ? '…' : 'OK'}

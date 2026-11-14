@@ -15,8 +15,11 @@ import { esFinDeSemana } from '@/modulos/planeacion/utilidades/fechas-planeacion
  * pudo cambiar.
  */
 
-/** Ocupación a partir de la cual el turno deja de considerarse holgado. */
-export const UMBRAL_OCUPACION_AJUSTADA = 70;
+/**
+ * Ocupación a partir de la cual el turno deja de considerarse holgado. El
+ * cliente pidió ámbar al llegar a la mitad de la jornada (4/8 h ⇒ 50 %).
+ */
+export const UMBRAL_OCUPACION_AJUSTADA = 50;
 
 /** Ocupación a partir de la cual el turno se considera saturado. */
 export const UMBRAL_OCUPACION_SATURADA = 90;

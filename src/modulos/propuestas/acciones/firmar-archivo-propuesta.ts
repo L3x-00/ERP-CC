@@ -6,6 +6,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { firmarLecturaArchivo } from '@/nucleo/almacenamiento/archivos/servicio';
+import { sanearNombreArchivo } from '@/nucleo/almacenamiento/archivos/validaciones';
 import { esquemaFirmarArchivoPropuesta } from '@/modulos/propuestas/validaciones/esquemas-propuestas';
 
 export type ResultadoFirmarArchivo = { url: string };
@@ -90,6 +91,11 @@ export async function firmarArchivoPropuestaAccion(
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
   const { propuestaId, archivoId } = analisis.data;
+  // El objeto en Storage lleva un UUID para no colisionar; el nombre de descarga
+  // que ve el cliente es el legible que pide el panel (Obs. cliente 2026-11-14).
+  const descarga = analisis.data.descarga
+    ? sanearNombreArchivo(analisis.data.descarga)
+    : undefined;
 
   try {
     const { crearClienteSupabaseServidor } = await import('@/nucleo/supabase/servidor');
@@ -143,7 +149,9 @@ export async function firmarArchivoPropuestaAccion(
       return { exito: false, error: 'El archivo no pertenece a esta propuesta' };
     }
 
-    const url = await firmarLecturaArchivo(admin, archivoId, 300);
+    const url = descarga
+      ? await firmarLecturaArchivo(admin, archivoId, 300, descarga)
+      : await firmarLecturaArchivo(admin, archivoId, 300);
     return { exito: true, datos: { url } };
   } catch (error) {
     console.error('[PROPUESTAS] No se pudo firmar el archivo autorizado:', error);

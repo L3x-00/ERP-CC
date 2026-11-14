@@ -78,7 +78,7 @@ export function VistaCalendarioOperador({
             Jornada de {HORAS_JORNADA_OPERADOR} h por día. Arrastra un proceso a un día con horas libres.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variante="contorno" tamano="sm" onClick={() => onCambiarSemana(offsetSemana - 1)}>
             Semana anterior
           </Button>
@@ -105,7 +105,7 @@ export function VistaCalendarioOperador({
             No hay procesos pendientes de agendar. Reclama desde el Kanban o la vista por área.
           </p>
         ) : (
-          <ul className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {porAsignar.map((proceso) => (
               <li key={proceso.id} className="min-w-0">
                 <TarjetaProceso

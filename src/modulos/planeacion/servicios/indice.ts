@@ -25,13 +25,16 @@ export type {
 
 export {
   elegirHueco,
+  esRecursoCompatibleBolsa,
   horasSugeridas,
   obtenerBolsaPlaneacionServicio,
+  resolverGrupoRequeridoBolsa,
   siguienteSecuencia,
 } from '@/modulos/planeacion/servicios/bolsa-planeacion-servicio';
 
 export type {
   BolsaPlaneacion,
+  PartidaBloqueadaBolsa,
   PartidaBolsa,
   SugerenciaBolsa,
 } from '@/modulos/planeacion/servicios/bolsa-planeacion-servicio';

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/compartido/tipos/supabase';
 import type {
+  EstadoPasoRutaFicha,
   EventoFicha,
   FichaOrden,
   OrigenComercialFicha,
@@ -15,11 +16,15 @@ import {
 } from '@/modulos/ordenes/tipos/orden-sii';
 import { listarArchivosFichaOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
 import { proyectarHojaTrabajo } from '@/modulos/ordenes/servicios/hoja-trabajo-orden-servicio';
-import { proyectarRutaFicha } from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
+import {
+  estadoPasoRuta,
+  proyectarRutaFicha,
+  type EstadosRutaFicha,
+} from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
 import { esEstadoSiiOrden } from '@/modulos/ordenes/validaciones/orden-sii';
 
 const COLUMNAS_PARTIDA_FICHA =
-  'id, codigo_pieza, codigo_item, descripcion, cantidad_solicitada, cantidad_producida, cantidad_conforme, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
+  'id, codigo_pieza, codigo_item, propuesta_item_id, descripcion, cantidad_solicitada, cantidad_producida, cantidad_conforme, cantidad_scrap, unidad_medida, procesos, tiempo_estimado_minutos, tiempo_real_minutos, area_trabajo_codigo';
 
 export type ClienteFichaOrden = SupabaseClient<Database>;
 
@@ -100,7 +105,7 @@ export async function obtenerFichaOrdenServicio(
   const snapshot = incluirTotales ? snapshotLeido : null;
   const totales = incluirTotales ? totalesDeSnapshot(snapshotJson) : null;
 
-  const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp, archivos, origenOrdenResp] = await Promise.all([
+  const [partidasResp, clienteResp, notasResp, eventosResp, cerradaPorResp, archivos, origenOrdenResp, programacionesResp] = await Promise.all([
     cliente
       .from('partidas_orden_produccion')
       .select(COLUMNAS_PARTIDA_FICHA)
@@ -141,6 +146,12 @@ export async function obtenerFichaOrdenServicio(
         .eq('id', orden.orden_origen_id)
         .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    // Obs. cliente 2026-11-14: la Ruta muestra el estado real de cada operación,
+    // no un «Pendiente» fijo; se lee la programación vigente de la orden.
+    cliente
+      .from('programacion_areas')
+      .select('partida_id, secuencia, estado_planeacion, meta_proceso_id')
+      .eq('orden_id', ordenId),
   ]);
 
   if (partidasResp.error) throw partidasResp.error;
@@ -148,6 +159,7 @@ export async function obtenerFichaOrdenServicio(
   if (notasResp.error) throw notasResp.error;
   if (eventosResp.error) throw eventosResp.error;
   if (origenOrdenResp.error) throw origenOrdenResp.error;
+  if (programacionesResp.error) throw programacionesResp.error;
 
   const partidas: PartidaFicha[] = (partidasResp.data ?? []).map((partida) => ({
     id: partida.id,
@@ -164,6 +176,69 @@ export async function obtenerFichaOrdenServicio(
     tiempoRealMinutos: aNumero(partida.tiempo_real_minutos),
     areaTrabajoCodigo: partida.area_trabajo_codigo,
   }));
+
+  const partidasFilas = partidasResp.data ?? [];
+  const partidaPorId = new Map(partidasFilas.map((partida) => [partida.id, partida]));
+  const partidasIds = partidasFilas.map((partida) => partida.id);
+  const [metasRutaResp, avancesResp] = partidasIds.length === 0
+    ? [{ data: [], error: null }, { data: [], error: null }]
+    : await Promise.all([
+      cliente
+        .from('metas_proceso_partida')
+        .select('id, partida_id, secuencia')
+        .in('partida_id', partidasIds),
+      cliente
+        .from('registros_avance_partida')
+        .select('partida_id, meta_proceso_id')
+        .in('partida_id', partidasIds),
+    ]);
+  if (metasRutaResp.error) throw metasRutaResp.error;
+  if (avancesResp.error) throw avancesResp.error;
+
+  const secuenciaPorMeta = new Map(
+    (metasRutaResp.data ?? []).map((meta) => [
+      meta.id,
+      { partidaId: meta.partida_id, secuencia: Number(meta.secuencia) },
+    ]),
+  );
+  const avancesPorSecuencia = new Set<string>();
+  for (const avance of avancesResp.data ?? []) {
+    if (!avance.meta_proceso_id) continue;
+    const meta = secuenciaPorMeta.get(avance.meta_proceso_id);
+    if (meta) avancesPorSecuencia.add(`${meta.partidaId}:${meta.secuencia}`);
+  }
+
+  const estadoSii = esEstadoSiiOrden(orden.estado_sii)
+    ? orden.estado_sii
+    : ESTADO_LEGACY_A_SII[orden.estado as keyof typeof ESTADO_LEGACY_A_SII] ?? 'CONFIRMADA';
+  const ordenCerrada =
+    estadoSii === 'PRODUCCION_COMPLETADA'
+    || estadoSii === 'CERRADA'
+    || orden.estado === 'completada';
+
+  const porCodigoItem = new Map<string, Map<number, EstadoPasoRutaFicha>>();
+  const porItemId = new Map<string, Map<number, EstadoPasoRutaFicha>>();
+  for (const programacion of programacionesResp.data ?? []) {
+    const partida = partidaPorId.get(programacion.partida_id);
+    if (!partida) continue;
+    const secuencia = Number(programacion.secuencia);
+    const estado = estadoPasoRuta(programacion.estado_planeacion, {
+      ordenConcluida: ordenCerrada,
+      tieneAvance: avancesPorSecuencia.has(`${programacion.partida_id}:${secuencia}`),
+    });
+    for (const clave of [partida.codigo_item, partida.propuesta_item_id]) {
+      if (!clave) continue;
+      const destino = clave === partida.codigo_item ? porCodigoItem : porItemId;
+      const mapa = destino.get(clave) ?? new Map<number, EstadoPasoRutaFicha>();
+      mapa.set(secuencia, estado);
+      destino.set(clave, mapa);
+    }
+  }
+  const estadosRuta: EstadosRutaFicha = {
+    porCodigoItem,
+    porItemId,
+    ordenConcluida: ordenCerrada,
+  };
 
   const notasIds = (notasResp.data ?? []).map((nota) => nota.id);
   const renglonesResp = notasIds.length > 0
@@ -200,10 +275,6 @@ export async function obtenerFichaOrdenServicio(
       : {},
   }));
 
-  const estadoSii = esEstadoSiiOrden(orden.estado_sii)
-    ? orden.estado_sii
-    : ESTADO_LEGACY_A_SII[orden.estado as keyof typeof ESTADO_LEGACY_A_SII] ?? 'CONFIRMADA';
-
   const clienteFila = clienteResp.data;
   const clienteNombre = clienteFila ? clienteFila.nombre_comercial || clienteFila.razon_social : null;
   return {
@@ -231,7 +302,7 @@ export async function obtenerFichaOrdenServicio(
     },
     origen,
     partidas,
-    ruta: proyectarRutaFicha(snapshotLeido),
+    ruta: proyectarRutaFicha(snapshotLeido, estadosRuta),
     snapshot,
     totales,
     entregas: (notasResp.data ?? []).map((nota) => ({

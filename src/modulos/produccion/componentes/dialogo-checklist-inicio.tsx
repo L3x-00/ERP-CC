@@ -36,11 +36,15 @@ export function DialogoChecklistInicio({
   const campos = camposChecklistInicio(procesoNombre, areaMacro);
   const completo = campos.every((campo) => marcados[campo.clave] === true);
 
-  function cerrar(): void {
-    if (procesando) return;
+  function limpiar(): void {
     setMarcados({});
     setObservaciones('');
     setError(null);
+  }
+
+  function cerrar(): void {
+    if (procesando) return;
+    limpiar();
     onAbiertoCambiar(false);
   }
 
@@ -55,10 +59,20 @@ export function DialogoChecklistInicio({
       observaciones: observaciones.trim(),
     });
     if (resultado.exito) {
-      cerrar();
+      // Punto 11: el inicio ya se registró, así que el checklist se cierra solo.
+      // No se usa `cerrar()` porque el padre puede seguir marcando `procesando`
+      // durante este render y el modal quedaría abierto tras un inicio exitoso.
+      limpiar();
+      onAbiertoCambiar(false);
       return;
     }
     setError(resultado.error);
+  }
+
+  function alternarTodos(marcar: boolean): void {
+    setMarcados(
+      Object.fromEntries(campos.map((campo) => [campo.clave, marcar])),
+    );
   }
 
   return (
@@ -72,6 +86,15 @@ export function DialogoChecklistInicio({
         </DialogHeader>
         <fieldset className="flex flex-col gap-2">
           <legend className="sr-only">Eventos críticos</legend>
+          <label className="mb-1 flex items-center justify-between gap-2 border-b border-borde pb-2 text-sm font-semibold">
+            <span>Marcar todos</span>
+            <input
+              type="checkbox"
+              checked={completo}
+              onChange={(evento) => alternarTodos(evento.target.checked)}
+              data-testid="marcar-todos-checklist"
+            />
+          </label>
           {campos.map((campo) => (
             <label key={campo.clave} className="flex items-center gap-2 text-sm" htmlFor={`checklist-${campo.clave}`}>
               <input

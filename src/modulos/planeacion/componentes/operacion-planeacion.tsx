@@ -58,12 +58,18 @@ import {
 } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { SincronizadorPlaneacionRealtime } from '@/modulos/planeacion/componentes/sincronizador-planeacion-realtime';
 import { ResumenCargaSemanal } from '@/modulos/planeacion/componentes/resumen-carga-semanal';
-import type { BolsaPlaneacion, DatosCalendarioPlaneacion, SugerenciaBolsa } from '@/modulos/planeacion/servicios/indice';
+import type {
+  BolsaPlaneacion,
+  DatosCalendarioPlaneacion,
+  PartidaBloqueadaBolsa,
+  SugerenciaBolsa,
+} from '@/modulos/planeacion/servicios/indice';
 import type {
   CompromisoPlaneacion,
   DesglosePartidaPlaneacion,
   ProgramacionArea,
 } from '@/modulos/planeacion/tipos/indice';
+import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 import type { CompatibilidadRecursosPlaneacion } from '@/modulos/planeacion/utilidades/compatibilidad';
 
 export interface PropsOperacionPlaneacion {
@@ -385,6 +391,22 @@ export function OperacionPlaneacion({
     setPanelAbierto(true);
   }, [seleccionarProgramacion]);
 
+  // Punto 5b: la partida bloqueada por grupo de equipo abre el panel con su fecha
+  // compromiso; el selector ya ordena las máquinas compatibles y bloquea guardar
+  // con una máquina de otro grupo.
+  const programarBloqueada = useCallback((partida: PartidaBloqueadaBolsa): void => {
+    seleccionarProgramacion(null);
+    setProgramacionSeleccionada(null);
+    setDetalleConcluido(null);
+    setFechaSolicitada(partida.fechaCompromiso ?? '');
+    setPreseleccion({
+      partidaId: partida.partidaId,
+      fecha: partida.fechaCompromiso ?? hoyIso(),
+      horas: partida.horas,
+    });
+    setPanelAbierto(true);
+  }, [seleccionarProgramacion]);
+
   const solicitarReprogramacion = useCallback(
     (programacion: ProgramacionArea, fechaDestino: string): void => {
       if (operacionConcluida(programacion)) return;
@@ -507,11 +529,17 @@ export function OperacionPlaneacion({
       />
       <PanelCapacidadInstalada />
       <PanelBolsaPlaneacion
-        bolsa={bolsa ?? { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] }}
+        bolsa={bolsa ?? {
+          pausadasSinPlan: [],
+          activasSinFechaHoy: [],
+          sugerencias: [],
+          bloqueadasPorEquipo: [],
+        }}
         procesando={bolsaProcesando}
         mensaje={bolsaMensaje}
         error={bolsaError}
         onAsignar={asignarSugerencia}
+        onProgramarBloqueada={programarBloqueada}
       />
       <SincronizadorPlaneacionRealtime
         alCambiarEstructuraOperacion={refrescarEstructuraOperacion}

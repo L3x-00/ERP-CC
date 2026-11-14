@@ -27,7 +27,11 @@ const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
   lista: 'border-t-exito bg-exito-suave/20',
 };
 
-/** C10: Kanban de 5 columnas del piso, agrupado por orden e ítem. */
+/**
+ * C10: Kanban de 5 columnas del piso, agrupado por orden e ítem. Se adapta al
+ * ancho disponible (1 columna en móvil, hasta 5 en escritorio) para que el
+ * operador no tenga que desplazarse horizontalmente.
+ */
 export function VistaKanbanOperador({
   procesos,
   hoy,
@@ -37,7 +41,10 @@ export function VistaKanbanOperador({
 }: PropsVistaKanbanOperador) {
   const ordenes = agruparProcesosPorOrden(procesos);
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2" data-testid="vista-kanban-operador">
+    <div
+      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+      data-testid="vista-kanban-operador"
+    >
       {COLUMNAS_ESPACIO_OPERADOR.map((columna) => {
         const ordenesDelEstado = ordenes.filter((grupo) => grupo.columna === columna);
         const procesosDelEstado = ordenesDelEstado.reduce(
@@ -49,7 +56,7 @@ export function VistaKanbanOperador({
           <section
             key={columna}
             className={cn(
-              'flex w-[292px] shrink-0 flex-col gap-2 rounded-lg border border-t-4 border-borde p-2',
+              'flex min-w-0 flex-col gap-2 rounded-lg border border-t-4 border-borde p-2',
               ESTILO_COLUMNA[columna],
             )}
             aria-label={`${ETIQUETAS_COLUMNA[columna]}: ${ordenesDelEstado.length} órdenes, ${procesosDelEstado} procesos`}

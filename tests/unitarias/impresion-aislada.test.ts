@@ -35,8 +35,10 @@ describe('impresión aislada', () => {
     // La pantalla tiene barra lateral: la impresión no debe capturarla.
     document.body.innerHTML = '<aside id="sidebar">Navegación</aside>';
 
-    await expect(imprimirHtmlAislado(html, 'Impresión de la orden O-1')).resolves.toBeUndefined();
+    await expect(imprimirHtmlAislado(html, 'Orden de servicio O-1')).resolves.toBeUndefined();
 
+    // El título del documento superior define el nombre del PDF guardado.
+    expect(document.title).toBe('Orden de servicio O-1');
     expect(imprimirMarco).toHaveBeenCalledOnce();
     expect(enfocarMarco).toHaveBeenCalledOnce();
     expect(imprimirPantalla).not.toHaveBeenCalled();

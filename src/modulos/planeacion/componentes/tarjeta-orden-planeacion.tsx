@@ -64,7 +64,8 @@ export interface PropsTarjetaOrdenPlaneacion {
 const GRAVEDAD_NIVEL: Record<NivelSemaforo, number> = {
   disponible: 0,
   'cerca-del-limite': 1,
-  sobrecargado: 2,
+  saturado: 2,
+  sobrecargado: 3,
 };
 
 /**

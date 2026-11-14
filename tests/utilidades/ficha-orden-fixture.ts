@@ -83,8 +83,8 @@ export function fichaCompleta(cambios: Partial<FichaOrden['orden']> = {}): Ficha
         codigoItem: 'IT01',
         descripcion: 'Soporte lateral',
         pasos: [
-          { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 1 },
-          { secuencia: 2, proceso: 'Doblez', prepHoras: null, operacionHoras: null },
+          { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 1, estado: 'sin_registro' },
+          { secuencia: 2, proceso: 'Doblez', prepHoras: null, operacionHoras: null, estado: 'sin_registro' },
         ],
       },
     ],

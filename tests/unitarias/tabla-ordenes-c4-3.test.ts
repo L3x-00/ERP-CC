@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 
 import type { OrdenTabla } from '@/modulos/ordenes/componentes/tabla-ordenes';
 
@@ -93,10 +93,11 @@ describe('TablaOrdenes C4.3', () => {
     expect(within(primera).getByTestId('abrir-ficha-O-1026_01')).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Archivo' }));
+    // Una sola tabla: la orden archivada también está visible sin cambiar de bandeja.
     const segunda = screen.getByTestId('fila-orden-O-1026_02');
     expect(within(segunda).queryByRole('button', { name: 'Comentarios' })).toBeNull();
     expect(within(segunda).getByTestId('abrir-ficha-O-1026_02')).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Archivo' })).toBeNull();
   });
 
   it('no ofrece el documento en la fila: se imprime desde la pestaña Documento de la ficha', () => {

@@ -284,10 +284,10 @@ export function DialogoErrorPlaneacion({
               onClick={onAbrirProgramacion}
               data-testid="error-abrir-programacion"
             >
-              Revisar programación
+              {codigo === 'recurso_incompatible' ? 'Elegir máquina del grupo' : 'Revisar programación'}
             </Button>
           ) : null}
-          {onActualizarDatos ? (
+          {onActualizarDatos && codigo !== 'recurso_incompatible' ? (
             <Button
               type="button"
               variante="contorno"

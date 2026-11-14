@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
+import { descargarUrlFirmada } from '@/compartido/utilidades/descargar-archivo';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { firmarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
 import type { PdfRevisionPropuesta, RevisionPropuesta } from '@/modulos/propuestas/tipos/indice';
@@ -21,17 +22,19 @@ export function PanelPdfsPropuesta({
 }) {
   const [mensaje, setMensaje] = useState<string | null>(null);
 
-  async function ver(archivoId: string): Promise<void> {
+  async function descargar(archivoId: string): Promise<void> {
     setMensaje(null);
     const respuesta = await firmarArchivoPropuestaAccion({
       propuestaId: revision.propuestaId,
       archivoId,
+      // Sin el UUID técnico: el cliente recibe «Propuesta CNC-1126_05-A.pdf».
+      descarga: `Propuesta ${revision.folioRevision}.pdf`,
     });
-    if (!respuesta.exito) {
-      setMensaje(respuesta.error);
+    if (!respuesta.exito || !respuesta.datos) {
+      setMensaje(respuesta.exito ? 'No se recibió el enlace del PDF' : respuesta.error);
       return;
     }
-    window.open(respuesta.datos?.url, '_blank', 'noopener,noreferrer');
+    descargarUrlFirmada(respuesta.datos.url);
   }
 
   const historial = [...pdfs].sort((a, b) => b.version - a.version);
@@ -67,12 +70,12 @@ export function PanelPdfsPropuesta({
               <Button
                 variante="fantasma"
                 tamano="sm"
-                aria-label={`Ver PDF de la revisión ${revision.letra}, versión ${pdf.version} (${
+                aria-label={`Descargar PDF de la revisión ${revision.letra}, versión ${pdf.version} (${
                   pdf.vigente ? 'vigente' : 'reemplazado'
                 })`}
-                onClick={() => void ver(pdf.archivoId)}
+                onClick={() => void descargar(pdf.archivoId)}
               >
-                Ver
+                Descargar
               </Button>
             </li>
           ))}

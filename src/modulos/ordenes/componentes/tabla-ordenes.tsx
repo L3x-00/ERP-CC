@@ -251,7 +251,6 @@ export function TablaOrdenes({
   const [ordenActualizandoId, setOrdenActualizandoId] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [mensajeAccion, setMensajeAccion] = useState<string | null>(null);
-  const [bandeja, setBandeja] = useState<'activas' | 'archivo'>('activas');
   const [hidratado, setHidratado] = useState(false);
   const [resumenOrden, setResumenOrden] = useState<{ id: string; folio: string } | null>(null);
 
@@ -272,19 +271,21 @@ export function TablaOrdenes({
     return [...encontradas].sort((a, b) => a.localeCompare(b, 'es'));
   }, [ordenes]);
 
+  // Obs. cliente 2026-11-14: una sola tabla con todas las órdenes. Las activas
+  // van primero y las archivadas al final, sin esconderlas tras otra pestaña.
   const ordenesVisibles = useMemo(
     () =>
-      ordenes.filter((orden) => {
-        const pasaBandeja =
-          bandeja === 'archivo' ? orden.archivadaEn !== null : orden.archivadaEn === null;
-        const pasaEstado =
-          filtrosEstado.length === 0 || filtrosEstado.includes(orden.estadoSii);
-        const pasaMaquina =
-          filtroMaquina === null ||
-          orden.partidas.some((partida) => partida.maquinaAsignada === filtroMaquina);
-        return pasaBandeja && pasaEstado && pasaMaquina;
-      }),
-    [ordenes, filtrosEstado, filtroMaquina, bandeja],
+      ordenes
+        .filter((orden) => {
+          const pasaEstado =
+            filtrosEstado.length === 0 || filtrosEstado.includes(orden.estadoSii);
+          const pasaMaquina =
+            filtroMaquina === null ||
+            orden.partidas.some((partida) => partida.maquinaAsignada === filtroMaquina);
+          return pasaEstado && pasaMaquina;
+        })
+        .sort((a, b) => Number(a.archivadaEn !== null) - Number(b.archivadaEn !== null)),
+    [ordenes, filtrosEstado, filtroMaquina],
   );
 
   function alRefrescar(): void {
@@ -375,27 +376,6 @@ export function TablaOrdenes({
         </div>
 
         <div className="flex items-center gap-2">
-          <div
-            role="tablist"
-            aria-label="Bandeja de órdenes"
-            className="flex overflow-hidden rounded-base border border-borde-fuerte"
-          >
-            {(['activas', 'archivo'] as const).map((valor) => (
-              <button
-                key={valor}
-                type="button"
-                role="tab"
-                aria-selected={bandeja === valor}
-                data-testid={`bandeja-${valor}`}
-                onClick={() => setBandeja(valor)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  bandeja === valor ? 'bg-primario text-white' : 'hover:bg-superficie-2'
-                }`}
-              >
-                {valor === 'activas' ? 'Activas' : 'Archivo'}
-              </button>
-            ))}
-          </div>
           <button
             type="button"
             onClick={limpiarFiltros}
@@ -412,12 +392,8 @@ export function TablaOrdenes({
 
       {ordenesVisibles.length === 0 ? (
         <EstadoVacio
-          titulo={bandeja === 'archivo' ? 'Archivo vacío' : 'Sin órdenes que coincidan'}
-          descripcion={
-            bandeja === 'archivo'
-              ? 'Las órdenes se archivan automáticamente al completar la entrega total.'
-              : 'Ninguna orden coincide con la máquina o los estados seleccionados.'
-          }
+          titulo="Sin órdenes que coincidan"
+          descripcion="Ninguna orden coincide con la máquina o los estados seleccionados."
           accion={
             filtroMaquina !== null || filtrosEstado.length > 0 ? (
               <Button variante="contorno" tamano="lg" onClick={limpiarFiltros}>
