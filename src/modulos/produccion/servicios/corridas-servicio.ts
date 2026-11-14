@@ -23,6 +23,13 @@ export type ReclamacionRecurso = {
 
 export type ResultadoCerrarJornada = { fecha: string; sesionesCerradas: number };
 
+export type SesionJornadaPausada = {
+  sesionId: string;
+  ordenId: string;
+  programacionId: string;
+  horasNetas: number;
+};
+
 export type AutorizacionHorasExtraRegistrada = {
   id: string;
   ordenId: string;
@@ -187,6 +194,53 @@ export async function solicitarHorasExtraOperadorServicio(
     sesionId: typeof fila.sesion_id === 'string' ? fila.sesion_id : null,
     horasAutorizadas: numero(fila.horas_autorizadas),
     estado: texto(fila.estado) || 'SOLICITADA',
+  };
+}
+
+/**
+ * C15: pausa automática de las sesiones del operador que ya alcanzaron la
+ * jornada del turno. Es idempotente: las sesiones ya pausadas no se tocan.
+ */
+export async function pausarSesionesJornadaExcedidaServicio(
+  admin: Admin,
+  entrada: { operadorId: string | null },
+): Promise<SesionJornadaPausada[]> {
+  const { data, error } = await admin.rpc('pausar_sesiones_jornada_excedida', {
+    p_operador_id: entrada.operadorId,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+
+  return ((data ?? []) as Record<string, unknown>[]).map((fila) => ({
+    sesionId: texto(fila.sesion_id),
+    ordenId: texto(fila.orden_id),
+    programacionId: texto(fila.programacion_id),
+    horasNetas: numero(fila.horas_netas),
+  }));
+}
+
+/**
+ * C15: el operador justifica el exceso de su propia sesión. La autorización
+ * queda atada a esa sesión y el cierre la consume en el siguiente intento.
+ */
+export async function justificarHorasExtraOperadorServicio(
+  admin: Admin,
+  entrada: { sesionId: string; operadorId: string; motivo: string },
+): Promise<AutorizacionHorasExtraRegistrada> {
+  const { data, error } = await admin.rpc('justificar_horas_extra_operador', {
+    p_sesion_id: entrada.sesionId,
+    p_operador_id: entrada.operadorId,
+    p_motivo: entrada.motivo,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+
+  const fila = ((data ?? []) as Record<string, unknown>[])[0] ?? {};
+  if (!texto(fila.id)) throw new Error('Respuesta inválida al justificar horas extra');
+  return {
+    id: texto(fila.id),
+    ordenId: texto(fila.orden_id),
+    sesionId: typeof fila.sesion_id === 'string' ? fila.sesion_id : null,
+    horasAutorizadas: numero(fila.horas_autorizadas),
+    estado: texto(fila.estado) || 'JUSTIFICADA',
   };
 }
 

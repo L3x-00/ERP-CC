@@ -55,11 +55,34 @@ vi.mock('@/modulos/ordenes/acciones/obtener-url-archivo-piso', () => ({
   obtenerUrlArchivoPisoAccion: vi.fn(),
 }));
 
+vi.mock('@/modulos/produccion/acciones/solicitar-horas-extra', () => ({
+  solicitarHorasExtraAccion: vi.fn().mockResolvedValue({
+    exito: true,
+    datos: { id: 'solicitud-1', horasAutorizadas: 5.14, estado: 'SOLICITADA' },
+  }),
+}));
+
+vi.mock('@/modulos/produccion/acciones/justificar-horas-extra', () => ({
+  justificarHorasExtraAccion: vi.fn().mockResolvedValue({
+    exito: true,
+    datos: { id: 'justificacion-1', horasAutorizadas: 5.14, estado: 'JUSTIFICADA' },
+  }),
+}));
+
+vi.mock('@/modulos/produccion/acciones/pausar-sesion-jornada', () => ({
+  pausarSesionJornadaAccion: vi.fn().mockResolvedValue({
+    exito: true,
+    datos: { sesionesPausadas: 0 },
+  }),
+}));
+
 import {
   DetalleProcesoOperador,
   type ResultadoOperacion,
 } from '@/modulos/produccion/componentes/detalle-proceso-operador';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
+import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
+import { justificarHorasExtraAccion } from '@/modulos/produccion/acciones/justificar-horas-extra';
 
 afterEach(cleanup);
 
@@ -322,5 +345,110 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.click(casilla);
     expect(screen.getByTestId('integrada-piezas-IT01')).toBeTruthy();
     expect(screen.getByTestId('integrada-minutos-IT02')).toBeTruthy();
+  });
+
+  it('no permite declarar más piezas de las que establece la orden y usa captura entera sin flechas', async () => {
+    const cerrar = vi.fn();
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    const campo = screen.getByTestId('piezas-cierre') as HTMLInputElement;
+    expect(campo.getAttribute('type')).toBe('text');
+    expect(campo.getAttribute('inputmode')).toBe('numeric');
+    expect(screen.getByText('Máximo 10 piezas para esta operación.')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '11' } });
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'No puedes declarar 11 piezas cortadas: el máximo permitido es 10.',
+    );
+    expect(cerrar).not.toHaveBeenCalled();
+  });
+
+  it('ante horas extra ofrece justificar o pedir aprobación, sin crear la solicitud a ciegas', async () => {
+    vi.mocked(solicitarHorasExtraAccion).mockClear();
+    vi.mocked(justificarHorasExtraAccion).mockClear();
+    const cerrar = vi.fn()
+      .mockResolvedValueOnce({
+        exito: false,
+        error: 'El tiempo neto de la sesión supera la jornada del turno.',
+        codigo: 'horas_extra_sin_autorizacion',
+      } satisfies ResultadoOperacion)
+      .mockResolvedValueOnce({
+        exito: true,
+        datos: {
+          id: 'sesion-1',
+          estadoSesion: 'finalizada',
+          horasBrutas: 9,
+          horasNetas: 8.5,
+          piezasProducidas: 2,
+          cantidadProducidaPartida: 2,
+          estadoOrden: 'en_proceso',
+          estadoPlaneacion: 'programada',
+          actualizadoEn: '2026-10-28T18:30:00.000Z',
+        },
+      } satisfies ResultadoOperacion);
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    const panel = await screen.findByTestId('horas-extra-cierre');
+    expect(panel.textContent).toContain('La sesión superó la jornada del turno');
+    expect(screen.getByTestId('justificar-horas-extra')).toBeTruthy();
+    expect(screen.getByTestId('solicitar-horas-extra')).toBeTruthy();
+    expect(solicitarHorasExtraAccion).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('justificar-horas-extra'));
+    fireEvent.change(screen.getByTestId('motivo-justificacion-horas-extra'), {
+      target: { value: 'Olvidé finalizar la sesión al terminar el turno' },
+    });
+    fireEvent.click(screen.getByTestId('confirmar-justificacion-horas-extra'));
+
+    await waitFor(() => expect(justificarHorasExtraAccion).toHaveBeenCalledOnce());
+    expect(justificarHorasExtraAccion).toHaveBeenCalledWith({
+      sesionId: 'sesion-1',
+      motivo: 'Olvidé finalizar la sesión al terminar el turno',
+    });
+    await waitFor(() => expect(cerrar).toHaveBeenCalledTimes(2));
   });
 });

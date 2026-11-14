@@ -97,6 +97,25 @@ export const esquemaSolicitarHorasExtra = z
   })
   .strict();
 
+/** C15: vigilante del panel que pausa la sesión al cumplir la jornada. */
+export const esquemaPausarSesionJornada = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+  })
+  .strict();
+
+/** C15: justificación del exceso de jornada por el propio operador. */
+export const esquemaJustificarHorasExtra = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+    motivo: z
+      .string()
+      .trim()
+      .min(10, 'Escribe una justificación de al menos 10 caracteres')
+      .max(270, 'La justificación no puede superar 270 caracteres'),
+  })
+  .strict();
+
 export const esquemaResolverHorasExtra = z
   .object({
     id: z.uuid('ID de solicitud inválido'),
@@ -148,6 +167,8 @@ export type EstadoCorridaInput = z.infer<typeof esquemaEstadoCorrida>;
 export type AutorizarHorasExtraInput = z.infer<typeof esquemaAutorizarHorasExtra>;
 export type SolicitarHorasExtraInput = z.infer<typeof esquemaSolicitarHorasExtra>;
 export type ResolverHorasExtraInput = z.infer<typeof esquemaResolverHorasExtra>;
+export type PausarSesionJornadaInput = z.infer<typeof esquemaPausarSesionJornada>;
+export type JustificarHorasExtraInput = z.infer<typeof esquemaJustificarHorasExtra>;
 export type RegistrarInspeccionInput = z.infer<typeof esquemaRegistrarInspeccion>;
 
 /** C13.2 + AUD-01: retrabajo declarado al cerrar la sesión (material, tiempo y causa). */

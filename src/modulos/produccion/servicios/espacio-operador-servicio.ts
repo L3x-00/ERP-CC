@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Tables } from '@/compartido/tipos/supabase';
 import { listarArchivosFichaOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
+import { pausarSesionesJornadaExcedidaServicio } from '@/modulos/produccion/servicios/corridas-servicio';
 import { esSnapshotOrdenSii } from '@/modulos/ordenes/tipos/orden-sii';
 import { COLUMNAS_ORDEN_OPERATIVA, filaAOrdenOperativa, filaAPartida } from '@/modulos/ordenes/tipos/ordenes';
 import {
@@ -393,6 +394,17 @@ export async function obtenerEspacioOperadorServicio(
   operadorId: string | null,
   hoy: string = fechaIsoLocal(),
 ): Promise<DatosEspacioOperador> {
+  // C15: antes de pintar el tablero, toda sesión que ya cumplió su jornada se
+  // pausa en el instante exacto del límite. Es idempotente y no bloquea la
+  // lectura si falla: el operador debe seguir viendo su piso.
+  if (operadorId !== null) {
+    try {
+      await pausarSesionesJornadaExcedidaServicio(cliente, { operadorId });
+    } catch (error) {
+      console.error('[PRODUCCION] No se pudieron pausar las sesiones vencidas:', error);
+    }
+  }
+
   const [
     resultadoOrdenes,
     resultadoReclamos,

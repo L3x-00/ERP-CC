@@ -49,6 +49,7 @@ export type CodigoErrorProduccion =
   | 'primera_pieza_pendiente'
   | 'horas_extra_sin_autorizacion'
   | 'horas_extra_no_requeridas'
+  | 'justificacion_horas_extra_invalida'
   | 'solicitud_no_pendiente'
   | 'corrida_invalida'
   | 'corrida_item_no_incluye_partida'
@@ -188,6 +189,7 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'primera_pieza_pendiente',
   'horas_extra_sin_autorizacion',
   'horas_extra_no_requeridas',
+  'justificacion_horas_extra_invalida',
   'solicitud_no_pendiente',
   'corrida_invalida',
   'corrida_item_no_incluye_partida',
@@ -481,9 +483,11 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'primera_pieza_pendiente':
       return 'Falta liberar la primera pieza antes de declarar producción';
     case 'horas_extra_sin_autorizacion':
-      return 'El tiempo neto de la sesión supera la jornada del turno. Enviamos la solicitud a un responsable; espera a que la apruebe y vuelve a cerrar.';
+      return 'El tiempo neto de la sesión supera la jornada del turno. Justifica el exceso o pide autorización a un responsable para cerrar.';
     case 'horas_extra_no_requeridas':
       return 'La sesión no excede la jornada del turno, así que no requiere horas extra.';
+    case 'justificacion_horas_extra_invalida':
+      return 'Escribe una justificación de al menos 10 caracteres para las horas extra.';
     case 'solicitud_no_pendiente':
       return 'La solicitud de horas extra ya fue resuelta o no existe; actualiza la lista.';
     case 'cierre_integrado_invalido':

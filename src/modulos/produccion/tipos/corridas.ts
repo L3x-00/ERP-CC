@@ -27,6 +27,7 @@ export const ESTADOS_AUTORIZACION_HORA_EXTRA = [
   'USADA',
   'RECHAZADA',
   'REVOCADA',
+  'JUSTIFICADA',
 ] as const;
 export type EstadoAutorizacionHoraExtra = (typeof ESTADOS_AUTORIZACION_HORA_EXTRA)[number];
 

@@ -14,7 +14,12 @@ import type { MaterialPisoCatalogo } from '@/modulos/produccion/acciones/consult
 import type { SesionActivaProduccion } from '@/estado/uso-tienda-produccion';
 import { type MotivoPausaSesion, type VerificacionInicio } from '@/modulos/produccion/tipos/indice';
 import { etiquetaPiezasProceso } from '@/modulos/produccion/utilidades/procesos';
+import {
+  ayudaLimitePiezas,
+  validarCantidadPiezas,
+} from '@/modulos/produccion/utilidades/limites-piezas';
 
+import { CampoEntero } from './campo-entero';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
 import { registrarInspeccionAccion } from '../acciones/registrar-inspeccion';
@@ -193,6 +198,15 @@ export function PanelOperadorProduccion({
     ?? null;
   const metaSeleccionada = metasSesion.find((meta) => meta.id === metaProcesoId) ?? metaPorDefecto;
   const etiquetaPiezas = etiquetaPiezasProceso(metaSeleccionada?.nombre);
+  // Obs. cliente 2026-11-14: el tope visible coincide con la validación del
+  // servidor (meta pendiente o piezas pendientes de la partida).
+  const maximoPiezasCierre = metaSeleccionada
+    ? Math.max(0, metaSeleccionada.pendientePiezas)
+    : partidaSesionActiva
+      && Number.isFinite(partidaSesionActiva.cantidadSolicitada)
+      && Number.isFinite(partidaSesionActiva.cantidadProducida)
+      ? Math.max(0, partidaSesionActiva.cantidadSolicitada - partidaSesionActiva.cantidadProducida)
+      : null;
   const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
     ?? motivosPausa[0]
     ?? null;
@@ -250,6 +264,15 @@ export function PanelOperadorProduccion({
     const piezas = Number(piezasProducidas);
     if (!Number.isInteger(piezas) || piezas < 0) {
       setMensaje({ texto: 'Las piezas producidas deben ser un número entero.', tipo: 'error' });
+      return;
+    }
+    const errorLimite = validarCantidadPiezas(
+      piezas,
+      maximoPiezasCierre,
+      etiquetaPiezas.toLowerCase(),
+    );
+    if (errorLimite) {
+      setMensaje({ texto: errorLimite, tipo: 'error' });
       return;
     }
     const usada = Number(cantidadUsada);
@@ -574,19 +597,22 @@ export function PanelOperadorProduccion({
       ) : sesionActiva ? (
         <form className="mt-4 flex flex-col gap-3" onSubmit={cerrar}>
           <p className="text-sm text-texto-secundario">Sesión activa en la orden seleccionada.</p>
-          <label className={CLASE_ETIQUETA}>
-            {etiquetaPiezas} ahora
-            <Input
-              className="min-h-11"
-              min="0"
-              step="1"
-              inputMode="numeric"
-              type="number"
-              value={piezasProducidas}
-              onChange={(evento) => setPiezasProducidas(evento.target.value)}
-              required
-            />
-          </label>
+          <div className="grid gap-1">
+            <label className={CLASE_ETIQUETA}>
+              {etiquetaPiezas} ahora
+              <CampoEntero
+                className="min-h-11"
+                valor={piezasProducidas}
+                onValorCambiar={setPiezasProducidas}
+                required
+              />
+            </label>
+            {maximoPiezasCierre !== null ? (
+              <span className="text-xs font-normal text-texto-tenue">
+                {ayudaLimitePiezas(maximoPiezasCierre)}
+              </span>
+            ) : null}
+          </div>
           {metasSesion.length > 1 ? (
             <label className={CLASE_ETIQUETA}>
               Proceso trabajado

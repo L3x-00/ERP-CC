@@ -49,6 +49,8 @@ export {
 } from '@/modulos/produccion/acciones/corrida-integrada';
 export { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 export { resolverSolicitudHorasExtraAccion } from '@/modulos/produccion/acciones/resolver-horas-extra';
+export { justificarHorasExtraAccion } from '@/modulos/produccion/acciones/justificar-horas-extra';
+export { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
 export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 export {
   firmarFotoInspeccionAccion,

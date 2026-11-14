@@ -459,6 +459,7 @@ export function PaginaMiPanelOperador({
           onCerrar={() => {
             if (procesando === null) setProcesoSeleccionadoId(null);
           }}
+          onPausaAutomatica={() => enrutador.refresh()}
           presentacion="integrado"
           materiales={materiales}
           consumos={consumos}
