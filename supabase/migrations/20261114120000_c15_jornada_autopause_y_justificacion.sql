@@ -269,7 +269,7 @@ REVOKE ALL ON FUNCTION public.justificar_horas_extra_operador(uuid, uuid, text)
 GRANT EXECUTE ON FUNCTION public.justificar_horas_extra_operador(uuid, uuid, text) TO service_role;
 
 -- -----------------------------------------------------------------------------
--- 4. Cierre de sesi?n: acepta autorizaciones aprobadas o justificadas.
+-- 4. Cierre de sesión: acepta autorizaciones aprobadas o justificadas.
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.cerrar_sesion_trabajo_operador(
   p_sesion_id uuid,
