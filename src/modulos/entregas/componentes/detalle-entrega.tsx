@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Select, Textarea } from '@/compartido/componentes/ui/input';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { anularNotaEntregaAccion } from '@/modulos/entregas/acciones/anular-nota-entrega';
 import {
@@ -55,7 +56,9 @@ export function DetalleEntrega({
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [fechaEntrega, setFechaEntrega] = useState(inicial.detalle.entrega.fechaEntrega.slice(0, 10));
+  const [fechaEntrega, setFechaEntrega] = useState(
+    fechaLocalNegocio(new Date(inicial.detalle.entrega.fechaEntrega)),
+  );
   const [guardandoFecha, setGuardandoFecha] = useState(false);
   const [dialogoAnulacion, setDialogoAnulacion] = useState(false);
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
@@ -146,7 +149,7 @@ export function DetalleEntrega({
           entrega: { ...previo.detalle.entrega, fechaEntrega: fechaGuardada, actualizadoEn },
         },
       }));
-      setFechaEntrega(fechaGuardada.slice(0, 10));
+      setFechaEntrega(fechaLocalNegocio(new Date(fechaGuardada)));
       setMensaje('Fecha de entrega actualizada');
     } catch {
       setError('No se pudo actualizar la fecha. Intenta de nuevo.');
@@ -272,7 +275,7 @@ export function DetalleEntrega({
               className="min-h-11 rounded-md border border-borde bg-superficie px-3 py-2 text-sm"
               data-testid="fecha-entrega-edicion"
               value={fechaEntrega}
-              min={entrega.creadoEn.slice(0, 10)}
+              min={fechaLocalNegocio(new Date(entrega.creadoEn))}
               onChange={(evento) => setFechaEntrega(evento.target.value)}
             />
           </label>

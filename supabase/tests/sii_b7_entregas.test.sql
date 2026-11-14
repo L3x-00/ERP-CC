@@ -6,7 +6,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
-SELECT plan(60);
+SELECT plan(61);
 
 -- -----------------------------------------------------------------------------
 -- 0. Actores y permisos
@@ -249,6 +249,12 @@ SELECT is(
 SELECT isnt(
   (SELECT fecha_entrega FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
   NULL, 'La entrega registra fecha'
+);
+SELECT is(
+  (SELECT (fecha_entrega AT TIME ZONE 'America/Tijuana')::date
+   FROM public.notas_entrega WHERE solicitud_id = '11111111-1111-4111-8111-111111111111'),
+  (now() AT TIME ZONE 'America/Tijuana')::date,
+  'La entrega nace con el día del negocio (AUD-12)'
 );
 SELECT is(
   (SELECT renglon.codigo_item FROM public.partidas_nota_entrega AS renglon
