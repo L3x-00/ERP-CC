@@ -348,9 +348,8 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       });
       if (errorEntrega) throw new Error(`Sin entrega: ${errorEntrega.message}`);
       await page.reload();
-      // La entrega total archiva la orden (OBS-21): se localiza en la bandeja Archivo
-      // y el cierre administrativo se ejecuta desde su ficha (C8.1).
-      await page.getByTestId('bandeja-archivo').click();
+      // La entrega total archiva la orden (OBS-21): sigue en la misma tabla, sin
+      // cambiar de bandeja, y el cierre administrativo se ejecuta desde su ficha (C8.1).
       await expect(page.getByTestId(`fila-orden-${folio}`)).toBeVisible();
       await page.getByTestId(`abrir-ficha-${folio}`).click();
       await page.waitForURL((url) => url.pathname === `/ordenes/${contexto.ordenId}`);
@@ -402,11 +401,9 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await hiloFicha.getByRole('button', { name: 'Comentar' }).click();
       await expect(hiloFicha).toContainText(comentarioFicha);
 
-      // La cola refleja el cierre en la bandeja Archivo.
+      // La cola única refleja el cierre sin cambiar de bandeja.
       await page.goto('/ordenes');
-      await page.getByTestId('bandeja-archivo').click();
       await expect(page.getByTestId(`estado-orden-${folio}`)).toContainText('Cerrada');
-      await page.getByTestId('bandeja-activas').click();
 
       // Orden interna (TI) sin cliente, con material/espesor/proceso del
       // catálogo del fixture, creada desde la UI y cancelada con motivo (obs. cliente 5).
