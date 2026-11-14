@@ -1125,6 +1125,7 @@ describe('operación de Planeación en cliente', () => {
           }],
           activasSinFechaHoy: [],
           sugerencias: [],
+          bloqueadasPorEquipo: [],
         },
         procesando: false,
         mensaje: null,

@@ -6,6 +6,7 @@ import { resumirProcesos } from '@/modulos/ordenes/utilidades/procesos';
 import { formatearFechaCalendario } from '@/modulos/ordenes/utilidades/formato-ficha';
 import type {
   BolsaPlaneacion,
+  PartidaBloqueadaBolsa,
   PartidaBolsa,
   SugerenciaBolsa,
 } from '@/modulos/planeacion/servicios/indice';
@@ -18,6 +19,8 @@ export interface PropsPanelBolsaPlaneacion {
   mensaje: string | null;
   error: string | null;
   onAsignar: (sugerencia: SugerenciaBolsa) => Promise<ResultadoAsignarSugerencia>;
+  /** Abre el panel de programación para elegir una máquina compatible. */
+  onProgramarBloqueada?: (partida: PartidaBloqueadaBolsa) => void;
 }
 
 function ItemBolsa({ partida }: { partida: PartidaBolsa }) {
@@ -52,9 +55,10 @@ export function PanelBolsaPlaneacion({
   mensaje,
   error,
   onAsignar,
+  onProgramarBloqueada,
 }: PropsPanelBolsaPlaneacion) {
   const total = bolsa.pausadasSinPlan.length + bolsa.activasSinFechaHoy.length
-    + bolsa.sugerencias.length;
+    + bolsa.sugerencias.length + bolsa.bloqueadasPorEquipo.length;
 
   return (
     <SeccionDesplegable
@@ -149,6 +153,46 @@ export function PanelBolsaPlaneacion({
           </ul>
         )}
       </section>
+
+      {bolsa.bloqueadasPorEquipo.length > 0 ? (
+        <section
+          className="mt-3"
+          aria-label="Trabajo bloqueado por grupo de equipo"
+          data-testid="bolsa-bloqueadas"
+        >
+          <h3 className="text-xs font-semibold text-texto-secundario">
+            Requiere máquina de otro grupo ({bolsa.bloqueadasPorEquipo.length})
+          </h3>
+          <ul className="mt-1 flex flex-col gap-2">
+            {bolsa.bloqueadasPorEquipo.map((partida) => (
+              <li
+                key={partida.partidaId}
+                data-testid={`bolsa-bloqueada-${partida.partidaId}`}
+                className="flex flex-col gap-1 rounded-base border border-borde p-2 text-xs"
+              >
+                <span className="font-mono text-[11px] font-medium">
+                  {partida.folio} · {partida.codigoPieza}
+                </span>
+                <span className="text-texto-secundario">
+                  {partida.motivo} Grupo requerido: {partida.grupoRequeridoNombre}.
+                </span>
+                {onProgramarBloqueada ? (
+                  <Button
+                    type="button"
+                    variante="contorno"
+                    tamano="sm"
+                    className="self-start"
+                    data-testid={`programar-bloqueada-${partida.partidaId}`}
+                    onClick={() => onProgramarBloqueada(partida)}
+                  >
+                    Elegir máquina del grupo
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </SeccionDesplegable>
   );
 }

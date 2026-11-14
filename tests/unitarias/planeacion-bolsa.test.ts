@@ -3,8 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
   elegirHueco,
+  esRecursoCompatibleBolsa,
   horasSugeridas,
   obtenerBolsaPlaneacionServicio,
+  resolverGrupoRequeridoBolsa,
   siguienteSecuencia,
 } from '@/modulos/planeacion/servicios/indice';
 import type { CargaCapacidadDiaria } from '@/modulos/planeacion/tipos/indice';
@@ -209,8 +211,7 @@ describe('PLA-05: bolsa de trabajo y huecos', () => {
     });
   });
 
-  it('solo lee y usa la RPC de capacidad; limita la bolsa a 12 sugerencias (C9.4/P-18)', async () => {
-    const partidas = Array.from({ length: 30 }, (_, indice) => ({
+  it('solo lee y usa la RPC de capacidad; limita la bolsa a 12 sugerencias (C9.4/P-18)', async () => {    const partidas = Array.from({ length: 30 }, (_, indice) => ({
       id: `partida-${indice + 1}`,
       orden_id: 'orden-1',
       codigo_pieza: `PZA-${indice + 1}`,
@@ -238,5 +239,137 @@ describe('PLA-05: bolsa de trabajo y huecos', () => {
       'rpc:obtener_carga_capacidad_diaria',
     ]);
     expect(operaciones.some((operacion) => /^(insert|update|upsert|delete):/.test(operacion))).toBe(false);
+  });
+
+  it('resuelve el grupo de la operación con el mismo orden que la RPC (ruteo → catálogo → estación)', () => {
+    const grupoPorProceso = new Map([['corte', 'grupo-proceso']]);
+    const grupoPorCodigoRecurso = new Map([['cnc-01', 'grupo-maquina']]);
+    const ruteoPorClave = new Map([['item-1:1', 'grupo-ruteo']]);
+    const partida = {
+      propuesta_item_id: 'item-1',
+      procesos: ['Corte'],
+      maquina_asignada: 'CNC-01',
+    };
+
+    expect(resolverGrupoRequeridoBolsa({
+      fila: { id: 'meta-1', partida_id: 'partida-1', secuencia: 1, nombre: 'Corte' },
+      partida,
+      ruteoPorClave,
+      grupoPorProceso,
+      grupoPorCodigoRecurso,
+    })).toBe('grupo-ruteo');
+
+    expect(resolverGrupoRequeridoBolsa({
+      fila: { id: 'meta-2', partida_id: 'partida-1', secuencia: 2, nombre: 'Corte' },
+      partida,
+      ruteoPorClave,
+      grupoPorProceso,
+      grupoPorCodigoRecurso,
+    })).toBe('grupo-proceso');
+
+    expect(resolverGrupoRequeridoBolsa({
+      fila: { id: 'meta-3', partida_id: 'partida-1', secuencia: 3, nombre: 'Doblez' },
+      partida,
+      ruteoPorClave,
+      grupoPorProceso,
+      grupoPorCodigoRecurso,
+    })).toBe('grupo-maquina');
+  });
+
+  it('considera compatible la máquina sin grupo y rechaza sólo una de otro grupo conocido', () => {
+    const grupoPorRecurso = new Map<string, string | null>([
+      ['sin-grupo', null],
+      ['del-grupo', 'grupo-A'],
+      ['otro', 'grupo-B'],
+    ]);
+
+    expect(esRecursoCompatibleBolsa('sin-grupo', 'grupo-A', grupoPorRecurso)).toBe(true);
+    expect(esRecursoCompatibleBolsa('del-grupo', 'grupo-A', grupoPorRecurso)).toBe(true);
+    expect(esRecursoCompatibleBolsa('otro', 'grupo-A', grupoPorRecurso)).toBe(false);
+    expect(esRecursoCompatibleBolsa('otro', null, grupoPorRecurso)).toBe(true);
+  });
+
+  it('punto 5b: no sugiere una máquina de otro grupo y explica el bloqueo con su grupo', async () => {
+    const { cliente } = crearClienteDeSoloLectura({
+      ordenes_produccion: [{
+        id: 'orden-1',
+        folio: 'OP-000001',
+        estado: 'programada',
+        estado_sii: 'PLANIFICADA',
+      }],
+      partidas_orden_produccion: [{
+        id: 'partida-1',
+        orden_id: 'orden-1',
+        codigo_pieza: 'PZA-1',
+        area_trabajo_codigo: 'taller',
+        procesos: ['Corte'],
+        tiempo_estimado_minutos: 60,
+        maquina_asignada: null,
+        propuesta_item_id: 'item-1',
+      }],
+      programacion_areas: [],
+      metas_proceso_partida: [{
+        id: 'meta-1',
+        partida_id: 'partida-1',
+        secuencia: 1,
+        nombre: 'Corte',
+      }],
+      propuesta_item_ruteo: [],
+      catalogo_procesos: [{ codigo: 'Corte', nombre: 'Corte', grupo_equipo_id: 'grupo-A' }],
+      grupos_equipo: [{ id: 'grupo-A', nombre: 'CNC' }],
+      recursos_planeacion: [{ id: 'recurso-1', codigo: 'R-01', grupo_equipo_id: 'grupo-B' }],
+    });
+
+    const bolsa = await obtenerBolsaPlaneacionServicio(cliente, cliente, '2026-10-18');
+
+    expect(bolsa.sugerencias).toHaveLength(0);
+    expect(bolsa.bloqueadasPorEquipo).toHaveLength(1);
+    expect(bolsa.bloqueadasPorEquipo[0]).toMatchObject({
+      partidaId: 'partida-1',
+      grupoRequeridoId: 'grupo-A',
+      grupoRequeridoNombre: 'CNC',
+    });
+    expect(bolsa.bloqueadasPorEquipo[0].motivo).toContain('otro grupo');
+  });
+
+  it('punto 5b: sugiere la máquina cuando pertenece al grupo de la operación', async () => {
+    const { cliente } = crearClienteDeSoloLectura({
+      ordenes_produccion: [{
+        id: 'orden-1',
+        folio: 'OP-000001',
+        estado: 'programada',
+        estado_sii: 'PLANIFICADA',
+      }],
+      partidas_orden_produccion: [{
+        id: 'partida-1',
+        orden_id: 'orden-1',
+        codigo_pieza: 'PZA-1',
+        area_trabajo_codigo: 'taller',
+        procesos: ['Corte'],
+        tiempo_estimado_minutos: 60,
+        maquina_asignada: null,
+        propuesta_item_id: 'item-1',
+      }],
+      programacion_areas: [],
+      metas_proceso_partida: [{
+        id: 'meta-1',
+        partida_id: 'partida-1',
+        secuencia: 1,
+        nombre: 'Corte',
+      }],
+      propuesta_item_ruteo: [],
+      catalogo_procesos: [{ codigo: 'Corte', nombre: 'Corte', grupo_equipo_id: 'grupo-A' }],
+      grupos_equipo: [{ id: 'grupo-A', nombre: 'CNC' }],
+      recursos_planeacion: [{ id: 'recurso-1', codigo: 'R-01', grupo_equipo_id: 'grupo-A' }],
+    });
+
+    const bolsa = await obtenerBolsaPlaneacionServicio(cliente, cliente, '2026-10-18');
+
+    expect(bolsa.bloqueadasPorEquipo).toHaveLength(0);
+    expect(bolsa.sugerencias).toHaveLength(1);
+    expect(bolsa.sugerencias[0]).toMatchObject({
+      recursoId: 'recurso-1',
+      metaProcesoId: 'meta-1',
+    });
   });
 });

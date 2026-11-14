@@ -39,6 +39,18 @@ export interface BolsaPlaneacion {
   pausadasSinPlan: PartidaBolsa[];
   activasSinFechaHoy: PartidaBolsa[];
   sugerencias: SugerenciaBolsa[];
+  /**
+   * Punto 5b: trabajo pendiente que no se sugiere porque el grupo de equipo que
+   * pide la operación no tiene hueco en el horizonte. Se muestra con el motivo y
+   * una sola acción para programarlo a mano con una máquina compatible.
+   */
+  bloqueadasPorEquipo: PartidaBloqueadaBolsa[];
+}
+
+export interface PartidaBloqueadaBolsa extends PartidaBolsa {
+  grupoRequeridoId: string;
+  grupoRequeridoNombre: string;
+  motivo: string;
 }
 
 /** Horas sugeridas para programar: al menos 0.25 h y redondeo a dos decimales. */
@@ -87,7 +99,14 @@ type FilaOrden = Pick<
 >;
 type FilaPartida = Pick<
   Database['public']['Tables']['partidas_orden_produccion']['Row'],
-  'id' | 'orden_id' | 'codigo_pieza' | 'area_trabajo_codigo' | 'procesos' | 'tiempo_estimado_minutos'
+  | 'id'
+  | 'orden_id'
+  | 'codigo_pieza'
+  | 'area_trabajo_codigo'
+  | 'procesos'
+  | 'tiempo_estimado_minutos'
+  | 'maquina_asignada'
+  | 'propuesta_item_id'
 >;
 type FilaProgramacion = Pick<
   Database['public']['Tables']['programacion_areas']['Row'],
@@ -97,6 +116,63 @@ type FilaMeta = Pick<
   Database['public']['Tables']['metas_proceso_partida']['Row'],
   'id' | 'partida_id' | 'secuencia' | 'nombre'
 >;
+type FilaRuteo = Pick<
+  Database['public']['Tables']['propuesta_item_ruteo']['Row'],
+  'item_id' | 'secuencia' | 'grupo_equipo_id'
+>;
+type FilaProceso = Pick<
+  Database['public']['Tables']['catalogo_procesos']['Row'],
+  'codigo' | 'nombre' | 'grupo_equipo_id'
+>;
+
+/** Normaliza nombres/códigos de catálogo igual que `privado.grupo_equipo_requerido_operacion`. */
+function normalizarCatalogo(texto: string): string {
+  return texto.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Elige el grupo de equipo que exige la operación pendiente con el mismo orden
+ * que aplica PostgreSQL: ruteo de la propuesta → catálogo del proceso →
+ * estación anotada en la partida. `null` = sin dato (no filtra).
+ */
+export function resolverGrupoRequeridoBolsa(entrada: {
+  fila: FilaMeta | null;
+  partida: Pick<FilaPartida, 'propuesta_item_id' | 'procesos' | 'maquina_asignada'>;
+  ruteoPorClave: ReadonlyMap<string, string | null>;
+  grupoPorProceso: ReadonlyMap<string, string | null>;
+  grupoPorCodigoRecurso: ReadonlyMap<string, string | null>;
+}): string | null {
+  if (entrada.fila) {
+    const claveRuteo = `${entrada.partida.propuesta_item_id ?? ''}:${entrada.fila.secuencia}`;
+    if (entrada.partida.propuesta_item_id) {
+      const grupoRuteo = entrada.ruteoPorClave.get(claveRuteo);
+      if (grupoRuteo) return grupoRuteo;
+    }
+    const grupoProceso = entrada.grupoPorProceso.get(normalizarCatalogo(entrada.fila.nombre));
+    if (grupoProceso) return grupoProceso;
+  }
+  const maquina = entrada.partida.maquina_asignada;
+  if (maquina) {
+    const grupoMaquina = entrada.grupoPorCodigoRecurso.get(normalizarCatalogo(maquina));
+    if (grupoMaquina) return grupoMaquina;
+  }
+  return null;
+}
+
+/**
+ * Un hueco es compatible cuando la máquina no tiene grupo (sin dato) o pertenece
+ * al grupo que pide la operación. Evita sugerir una asignación que la RPC
+ * rechazaría con `recurso_incompatible`.
+ */
+export function esRecursoCompatibleBolsa(
+  recursoId: string,
+  grupoRequerido: string | null,
+  grupoPorRecurso: ReadonlyMap<string, string | null>,
+): boolean {
+  if (!grupoRequerido) return true;
+  const grupoRecurso = grupoPorRecurso.get(recursoId) ?? null;
+  return grupoRecurso === null || grupoRecurso === grupoRequerido;
+}
 
 export const ESTADOS_ACTIVOS_PROGRAMACION = [
   'programada',
@@ -117,7 +193,12 @@ export async function obtenerBolsaPlaneacionServicio(
   hoy: string,
   horizonteDias = 14,
 ): Promise<BolsaPlaneacion> {
-  const vacia: BolsaPlaneacion = { pausadasSinPlan: [], activasSinFechaHoy: [], sugerencias: [] };
+  const vacia: BolsaPlaneacion = {
+    pausadasSinPlan: [],
+    activasSinFechaHoy: [],
+    sugerencias: [],
+    bloqueadasPorEquipo: [],
+  };
   const { data: ordenes, error: errorOrdenes } = await cliente
     .from('ordenes_produccion')
     .select('id, folio, estado, estado_sii, fecha_compromiso_comercial')
@@ -137,12 +218,12 @@ export async function obtenerBolsaPlaneacionServicio(
 
   const [{ data: partidas, error: errorPartidas }, { data: programaciones, error: errorProgramaciones }, recursosRespuesta] = await Promise.all([
     cliente.from('partidas_orden_produccion')
-      .select('id, orden_id, codigo_pieza, area_trabajo_codigo, procesos, tiempo_estimado_minutos')
+      .select('id, orden_id, codigo_pieza, area_trabajo_codigo, procesos, tiempo_estimado_minutos, maquina_asignada, propuesta_item_id')
       .in('orden_id', ordenesActivas.map((orden) => orden.id)),
     cliente.from('programacion_areas')
       .select('partida_id, secuencia, estado_planeacion, fecha_programada, meta_proceso_id')
       .in('orden_id', ordenesActivas.map((orden) => orden.id)),
-    cliente.from('recursos_planeacion').select('id, codigo').eq('activo', true),
+    cliente.from('recursos_planeacion').select('id, codigo, grupo_equipo_id').eq('activo', true),
   ]);
   if (errorPartidas || errorProgramaciones || recursosRespuesta.error) {
     throw new Error('No se pudo calcular la bolsa de Planeación');
@@ -160,9 +241,59 @@ export async function obtenerBolsaPlaneacionServicio(
     throw new Error('No se pudo calcular la bolsa de Planeación');
   }
   const metasFilas = (metas ?? []) as FilaMeta[];
-  const codigoPorRecurso = new Map(
-    (recursosRespuesta.data ?? []).map((recurso) => [recurso.id, recurso.codigo]),
+
+  // C9.2/P-04: los grupos de equipo se resuelven con las mismas fuentes que la
+  // RPC (ruteo de la propuesta y catálogo de procesos); si la lectura falla la
+  // bolsa sigue funcionando sin filtrar, igual que el panel de asignación.
+  const itemIds = [...new Set(
+    partidasFilas.map((partida) => partida.propuesta_item_id).filter((id): id is string => Boolean(id)),
+  )];
+  const [ruteoRespuesta, procesosRespuesta, gruposRespuesta] = await Promise.all([
+    itemIds.length === 0
+      ? Promise.resolve({ data: [] as FilaRuteo[], error: null })
+      : cliente.from('propuesta_item_ruteo')
+          .select('item_id, secuencia, grupo_equipo_id')
+          .in('item_id', itemIds),
+    cliente.from('catalogo_procesos').select('codigo, nombre, grupo_equipo_id'),
+    cliente.from('grupos_equipo').select('id, nombre'),
+  ]);
+  if (ruteoRespuesta.error || procesosRespuesta.error || gruposRespuesta.error) {
+    console.error('Planeación: grupos de equipo no disponibles para la bolsa');
+  }
+  const nombrePorGrupo = new Map(
+    ((gruposRespuesta.data ?? []) as Array<{ id: string; nombre: string }>)
+      .map((grupo) => [grupo.id, grupo.nombre]),
   );
+  const ruteoPorClave = new Map<string, string | null>(
+    ((ruteoRespuesta.data ?? []) as FilaRuteo[]).map((ruteo) => [
+      `${ruteo.item_id}:${ruteo.secuencia}`,
+      ruteo.grupo_equipo_id,
+    ]),
+  );
+  const grupoPorProceso = new Map<string, string | null>();
+  for (const proceso of (procesosRespuesta.data ?? []) as FilaProceso[]) {
+    for (const clave of [proceso.codigo, proceso.nombre]) {
+      if (clave) grupoPorProceso.set(normalizarCatalogo(clave), proceso.grupo_equipo_id);
+    }
+  }
+
+  const filasRecurso = (recursosRespuesta.data ?? []) as Array<{
+    id: string;
+    codigo: string | null;
+    grupo_equipo_id: string | null;
+  }>;
+  const codigoPorRecurso = new Map(
+    filasRecurso.map((recurso) => [recurso.id, recurso.codigo ?? 'Recurso']),
+  );
+  const grupoPorRecurso = new Map<string, string | null>(
+    filasRecurso.map((recurso) => [recurso.id, recurso.grupo_equipo_id]),
+  );
+  const grupoPorCodigoRecurso = new Map<string, string | null>();
+  for (const recurso of filasRecurso) {
+    if (recurso.codigo) {
+      grupoPorCodigoRecurso.set(normalizarCatalogo(recurso.codigo), recurso.grupo_equipo_id);
+    }
+  }
 
   const activasPorPartida = new Map<string, FilaProgramacion[]>();
   const secuenciasPorPartida = new Map<string, number[]>();
@@ -244,6 +375,7 @@ export async function obtenerBolsaPlaneacionServicio(
     : await obtenerCargaCapacidadDiariaServicio(admin, hoy, fechaMas(hoy, horizonteDias - 1));
 
   const sugerencias: SugerenciaBolsa[] = [];
+  const bloqueadasPorEquipo: PartidaBloqueadaBolsa[] = [];
   const cargasRestantes = [...cargas];
   const sinPlanOrdenado = [...sinPlan].sort((primera, segunda) => {
     const compromisoPrimera = compromisoPorOrden.get(primera.orden_id);
@@ -255,9 +387,36 @@ export async function obtenerBolsaPlaneacionServicio(
   });
   for (const partida of sinPlanOrdenado) {
     const item = aBolsa(partida);
-    const hueco = elegirHueco(item.horas, cargasRestantes, codigoPorRecurso, item.fechaCompromiso);
-    if (!hueco) continue;
     const pendiente = operacionPendiente(partida.id);
+    // Punto 5b: la sugerencia nunca ofrece una máquina fuera del grupo de la
+    // operación; el aviso del ruteo se evita antes de tocar la RPC.
+    const grupoRequerido = resolverGrupoRequeridoBolsa({
+      fila: pendiente,
+      partida,
+      ruteoPorClave,
+      grupoPorProceso,
+      grupoPorCodigoRecurso,
+    });
+    const cargasCompatibles = cargasRestantes.filter((carga) =>
+      esRecursoCompatibleBolsa(carga.recursoId, grupoRequerido, grupoPorRecurso));
+    const hueco = elegirHueco(item.horas, cargasCompatibles, codigoPorRecurso, item.fechaCompromiso);
+    if (!hueco) {
+      // Sólo se explica el bloqueo cuando la causa es el grupo de equipo; si el
+      // horizonte entero está lleno, la partida simplemente no se sugiere.
+      if (grupoRequerido) {
+        const hayHuecoEnOtroGrupo =
+          elegirHueco(item.horas, cargasRestantes, codigoPorRecurso, item.fechaCompromiso) !== null;
+        bloqueadasPorEquipo.push({
+          ...item,
+          grupoRequeridoId: grupoRequerido,
+          grupoRequeridoNombre: nombrePorGrupo.get(grupoRequerido) ?? 'el grupo del ruteo',
+          motivo: hayHuecoEnOtroGrupo
+            ? 'La capacidad libre del horizonte está en máquinas de otro grupo de equipo.'
+            : 'No hay capacidad libre en las máquinas de su grupo de equipo.',
+        });
+      }
+      continue;
+    }
     sugerencias.push({
       ...item,
       recursoId: hueco.carga.recursoId,
@@ -285,5 +444,5 @@ export async function obtenerBolsaPlaneacionServicio(
     if (sugerencias.length >= 12) break;
   }
 
-  return { pausadasSinPlan, activasSinFechaHoy, sugerencias };
+  return { pausadasSinPlan, activasSinFechaHoy, sugerencias, bloqueadasPorEquipo };
 }
