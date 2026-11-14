@@ -14,10 +14,10 @@ export default async function PaginaOperador() {
   const esAdmin = usuario?.rol === 'admin' && usuario.activo;
 
   return (
-    <main className="dark flex min-h-screen flex-col items-center justify-center gap-6 bg-fondo p-4 text-texto-primario sm:p-6">
+    <main className="dark flex min-h-[100svh] flex-col items-center justify-center gap-4 bg-fondo p-3 text-texto-primario sm:p-6">
       <div className="max-w-sm text-center">
-        <p className="text-sm font-semibold text-acento">Paso 1 de 2</p>
-        <h1 className="mt-1 text-2xl font-bold">Acceso de operador</h1>
+        <p className="text-xs font-semibold text-acento">Paso 1 de 2</p>
+        <h1 className="mt-1 text-xl font-bold">Acceso de operador</h1>
       </div>
       {esAdmin ? (
         <div
