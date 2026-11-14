@@ -74,6 +74,34 @@ export interface EstadosRutaFicha {
   ordenConcluida: boolean;
 }
 
+const ESTADO_POR_PLANEACION: Record<string, EstadoPasoRutaFicha> = {
+  programada: 'programada',
+  en_preparacion: 'en_preparacion',
+  en_proceso: 'en_proceso',
+  bloqueada: 'bloqueada',
+  completada: 'completada',
+  cancelada: 'cancelada',
+};
+
+/**
+ * Estado real de un paso a partir de la planeación y de los avances. Una orden
+ * concluida no conserva pasos «En proceso» por una planeación rezagada; la
+ * cancelación sí se mantiene porque es una decisión explícita del negocio.
+ */
+export function estadoPasoRuta(
+  estadoPlaneacion: string,
+  opciones: { ordenConcluida: boolean; tieneAvance: boolean },
+): EstadoPasoRutaFicha {
+  const estado = ESTADO_POR_PLANEACION[estadoPlaneacion] ?? 'sin_registro';
+  if (opciones.ordenConcluida && estado !== 'cancelada') {
+    return 'completada';
+  }
+  if (estado === 'programada' && opciones.tieneAvance) {
+    return 'en_proceso';
+  }
+  return estado;
+}
+
 /**
  * Ruta por ítem (ITxx) y paso: proceso, horas estimadas y estado real, sin
  * tarifa, costo ni precio. El estado sale de `programacion_areas` y los avances;

@@ -17,6 +17,7 @@ import {
 import { listarArchivosFichaOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
 import { proyectarHojaTrabajo } from '@/modulos/ordenes/servicios/hoja-trabajo-orden-servicio';
 import {
+  estadoPasoRuta,
   proyectarRutaFicha,
   type EstadosRutaFicha,
 } from '@/modulos/ordenes/servicios/proyectar-snapshot-ficha';
@@ -217,25 +218,14 @@ export async function obtenerFichaOrdenServicio(
 
   const porCodigoItem = new Map<string, Map<number, EstadoPasoRutaFicha>>();
   const porItemId = new Map<string, Map<number, EstadoPasoRutaFicha>>();
-  const estadoPorPlaneacion: Record<string, EstadoPasoRutaFicha> = {
-    programada: 'programada',
-    en_preparacion: 'en_preparacion',
-    en_proceso: 'en_proceso',
-    bloqueada: 'bloqueada',
-    completada: 'completada',
-    cancelada: 'cancelada',
-  };
   for (const programacion of programacionesResp.data ?? []) {
     const partida = partidaPorId.get(programacion.partida_id);
     if (!partida) continue;
     const secuencia = Number(programacion.secuencia);
-    let estado = estadoPorPlaneacion[programacion.estado_planeacion] ?? 'sin_registro';
-    // Un avance sobre una operación aún marcada como programada significa que el
-    // piso ya la empezó; el estado real no puede seguir diciendo «Programada».
-    if (estado === 'programada'
-      && avancesPorSecuencia.has(`${programacion.partida_id}:${secuencia}`)) {
-      estado = 'en_proceso';
-    }
+    const estado = estadoPasoRuta(programacion.estado_planeacion, {
+      ordenConcluida: ordenCerrada,
+      tieneAvance: avancesPorSecuencia.has(`${programacion.partida_id}:${secuencia}`),
+    });
     for (const clave of [partida.codigo_item, partida.propuesta_item_id]) {
       if (!clave) continue;
       const destino = clave === partida.codigo_item ? porCodigoItem : porItemId;
