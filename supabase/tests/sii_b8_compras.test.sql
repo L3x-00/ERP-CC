@@ -18,12 +18,13 @@ VALUES ('00000000-0000-4000-8000-00000000c103', 'Aceros F4', 'Aceros F4 SA de CV
   'Contacto F4', 'proveedor-f4@prueba.local', '5555555555');
 
 CREATE TEMP TABLE f4 (clave text PRIMARY KEY, valor jsonb);
-SELECT plan(31);
+SELECT plan(32);
 
 -- 1-2. Alta de compra: BORRADOR, folio CG y saldo total.
 INSERT INTO f4 (clave, valor)
 SELECT 'compra1', to_jsonb(compra.*) FROM public.crear_compra(
-  '00000000-0000-4000-8000-00000000c103', NULL, 100, 16, 'MXN', 1, NULL, 'Compra F4',
+  '00000000-0000-4000-8000-00000000c103', NULL, 100, 16, 'MXN', 1,
+  (now() AT TIME ZONE 'America/Tijuana')::date, 'Compra F4',
   '00000000-0000-4000-8000-00000000c101') AS compra;
 SELECT is((SELECT valor ->> 'estado' FROM f4 WHERE clave = 'compra1'), 'BORRADOR',
   'La compra nace BORRADOR');
@@ -31,6 +32,13 @@ SELECT ok((SELECT (valor ->> 'folio_sii') ~ '^CG-[0-9]{4}_[0-9]{4,}$' FROM f4 WH
   'La compra recibe folio CG-MMYY_####');
 SELECT is((SELECT (valor ->> 'saldo_pendiente')::numeric FROM f4 WHERE clave = 'compra1'), 116::numeric,
   'El saldo inicial es el total');
+-- AUD-12: el vencimiento fechado "hoy" en el negocio se acepta aunque en UTC
+-- ya sea el día siguiente (defecto real del piso con `current_date`).
+SELECT is(
+  (SELECT fecha_vencimiento FROM public.compras
+   WHERE id = (SELECT (valor ->> 'id')::uuid FROM f4 WHERE clave = 'compra1')),
+  (now() AT TIME ZONE 'America/Tijuana')::date,
+  'El vencimiento fechado hoy en el negocio se acepta');
 
 -- 3-4. Serie compartida: el gasto nuevo usa el siguiente CG de la serie.
 INSERT INTO f4 (clave, valor)

@@ -36,7 +36,7 @@ VALUES
 CREATE TEMP TABLE f3 (clave text PRIMARY KEY, valor jsonb);
 CREATE TEMP TABLE f3_ids AS SELECT gen_random_uuid() AS sol_a, gen_random_uuid() AS sol_b, gen_random_uuid() AS sol_legacy;
 
-SELECT plan(29);
+SELECT plan(30);
 
 -- 1-5. Cobro repartido A: 120 pagados = 60+40 aplicados + 20 al monedero.
 INSERT INTO f3 (clave, valor)
@@ -147,6 +147,16 @@ SELECT throws_ok($$SELECT * FROM public.crear_promesa_pago(
   '00000000-0000-4000-8000-00000000b834', current_date + 2, 100,
   '00000000-0000-4000-8000-00000000b811')$$,
   '23514', 'promesa_ya_existe', 'Una AR no tiene dos promesas activas');
+-- AUD-12: la promesa fechada "hoy" en el negocio se acepta aunque en UTC ya
+-- sea el día siguiente (defecto real del piso con `current_date`).
+INSERT INTO f3 (clave, valor)
+SELECT 'prom_hoy', to_jsonb(promesa.*) FROM public.crear_promesa_pago(
+  '00000000-0000-4000-8000-00000000b835', (now() AT TIME ZONE 'America/Tijuana')::date, 40,
+  '00000000-0000-4000-8000-00000000b811') AS promesa;
+SELECT is(
+  (SELECT (valor ->> 'fecha_prometida')::date FROM f3 WHERE clave = 'prom_hoy'),
+  (now() AT TIME ZONE 'America/Tijuana')::date,
+  'La promesa fechada hoy en el negocio se acepta');
 INSERT INTO f3 (clave, valor)
 SELECT 'pago_c', to_jsonb(pago.*) FROM public.registrar_pago_ar_atomico(
   '00000000-0000-4000-8000-00000000b833', 100, 'MXN', 1, 'efectivo', NULL,
