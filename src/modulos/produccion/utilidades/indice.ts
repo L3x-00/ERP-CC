@@ -29,4 +29,10 @@ export {
   sesionCercaDeJornada,
 } from '@/modulos/produccion/utilidades/horas-extra';
 
+export {
+  ayudaLimitePiezas,
+  maximoPiezasProceso,
+  validarCantidadPiezas,
+} from '@/modulos/produccion/utilidades/limites-piezas';
+
 export { ETIQUETAS_CAUSA_RETRABAJO } from '@/modulos/produccion/tipos/retrabajos';

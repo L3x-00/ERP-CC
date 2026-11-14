@@ -26,6 +26,8 @@ export {
   cambiarEstadoCorridaServicio,
   cerrarJornadaServicio,
   crearCorridaServicio,
+  justificarHorasExtraOperadorServicio,
+  pausarSesionesJornadaExcedidaServicio,
   reclamarRecursoLiberadoServicio,
   resolverSolicitudHorasExtraServicio,
   solicitarHorasExtraOperadorServicio,
@@ -36,6 +38,7 @@ export type {
   ReclamacionRecurso,
   ResultadoCerrarJornada,
   ResultadoEstadoCorrida,
+  SesionJornadaPausada,
 } from '@/modulos/produccion/servicios/corridas-servicio';
 
 export { registrarInspeccionServicio } from '@/modulos/produccion/servicios/calidad-servicio';

@@ -27,4 +27,4 @@ export function sesionCercaDeJornada(
 
 /** Texto accionable que explica qué hacer si el cierre pide horas extra. */
 export const AYUDA_HORAS_EXTRA =
-  'Si el tiempo neto de la sesión supera la jornada del turno, el cierre se bloquea hasta que un responsable registre la autorización en Producción → Horas extra (permiso aprobar_ordenes).';
+  'Si el tiempo neto de la sesión supera la jornada del turno, el cierre te pedirá justificar el exceso o solicitar la aprobación de un responsable en Producción → Horas extra (permiso aprobar_ordenes). La sesión también se pausa sola al cumplir la jornada.';

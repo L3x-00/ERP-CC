@@ -73,8 +73,8 @@ export function PanelHorasExtraProduccion({
       <div>
         <h2 className="text-base font-semibold text-texto-primario">Horas extra</h2>
         <p className="mt-1 text-xs text-texto-secundario">
-          Las solicitudes se generan solas cuando el cierre del operador supera la jornada del turno.
-          Solo Management/Admin las aprueba o rechaza.
+          El operador puede justificar el exceso de su sesión o solicitar aprobación. Management/Admin
+          aprueba o rechaza las solicitudes; las justificaciones quedan en el historial con su motivo.
         </p>
       </div>
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}

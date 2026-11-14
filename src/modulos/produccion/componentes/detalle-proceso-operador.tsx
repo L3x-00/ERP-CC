@@ -23,8 +23,11 @@ import { ETIQUETAS_COLUMNA } from '@/modulos/produccion/tipos/indice';
 import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
+  ayudaLimitePiezas,
   horasTranscurridasSesion,
+  maximoPiezasProceso,
   sesionCercaDeJornada,
+  validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/indice';
 import { etiquetaPiezasProceso, verboProceso } from '@/modulos/produccion/utilidades/procesos';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
@@ -43,6 +46,9 @@ import type {
   MaterialClientePartida,
 } from '@/modulos/produccion/tipos/indice';
 import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
+import { justificarHorasExtraAccion } from '@/modulos/produccion/acciones/justificar-horas-extra';
+import { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
+import { CampoEntero } from '@/modulos/produccion/componentes/campo-entero';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
 import {
   etiquetaDiaLargo,
@@ -104,6 +110,8 @@ export interface PropsDetalleProceso {
   materiales: MaterialPiso[];
   consumos: ConsumoMaterialVisible[];
   onCerrar: () => void;
+  /** C15: refresca el tablero cuando la pausa automática cierra la jornada. */
+  onPausaAutomatica?: () => void;
 
   presentacion?: 'dialogo' | 'integrado';
 }
@@ -131,6 +139,7 @@ export function DetalleProcesoOperador({
   materiales,
   consumos,
   onCerrar,
+  onPausaAutomatica,
   presentacion = 'dialogo',
 }: PropsDetalleProceso) {
   const [fecha, setFecha] = useState(proceso?.reclamo?.fecha ?? hoy);
@@ -204,6 +213,15 @@ export function DetalleProcesoOperador({
   const [mensajePrimeraPieza, setMensajePrimeraPieza] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
+  // C15: salida para el cierre bloqueado por horas extra.
+  const [justificacionAbierta, setJustificacionAbierta] = useState(false);
+  const [motivoJustificacion, setMotivoJustificacion] = useState('');
+  const [procesandoJustificacion, setProcesandoJustificacion] = useState(false);
+  const [mensajeJustificacion, setMensajeJustificacion] = useState<
+    { tipo: 'ok' | 'error'; texto: string } | null
+  >(null);
+  const pausaAutomaticaIntentada = useRef<string | null>(null);
+  const ultimaRevisionPausa = useRef(0);
 
   useEffect(() => {
     const ordenId = proceso?.ordenId;
@@ -255,6 +273,39 @@ export function DetalleProcesoOperador({
     return () => window.clearTimeout(temporizador);
   }, [resumenCierre, mensajeInspeccionCierre, mensajeRetrabajo, mensajeConsumoCliente]);
 
+  // C15: al cumplirse la jornada, el panel pausa la sesión por el operador.
+  // El servidor vuelve a verificar la jornada real del turno antes de pausar.
+  useEffect(() => {
+    const sesion = proceso?.sesionActiva;
+    if (!sesion || soloLectura) return;
+    const sesionId = sesion.id;
+    const revisar = () => {
+      if (cierreAbierto || pausaAutomaticaIntentada.current === sesionId) return;
+      const ahora = Date.now();
+      if (ahora - ultimaRevisionPausa.current < 30_000) return;
+      ultimaRevisionPausa.current = ahora;
+      const transcurridas = horasTranscurridasSesion(sesion.fechaInicio, new Date(ahora));
+      if (transcurridas < HORAS_JORNADA_PREDETERMINADA) return;
+      pausaAutomaticaIntentada.current = sesionId;
+      void pausarSesionJornadaAccion({ sesionId }).then((respuesta) => {
+        if (!respuesta.exito || (respuesta.datos?.sesionesPausadas ?? 0) === 0) {
+          pausaAutomaticaIntentada.current = null;
+          return;
+        }
+        setMensaje({
+          exito: false,
+          codigo: 'pausa_automatica_jornada',
+          error: 'Se cumplió la jornada del turno: la sesión se pausó automáticamente. '
+            + 'Retómala en el siguiente turno o justifica horas extra si debes terminarla hoy.',
+        });
+        onPausaAutomatica?.();
+      });
+    };
+    revisar();
+    const temporizador = window.setInterval(revisar, 60_000);
+    return () => window.clearInterval(temporizador);
+  }, [proceso?.sesionActiva, soloLectura, cierreAbierto, onPausaAutomatica]);
+
   if (!proceso) return null;
 
   const consumosDePartida = resumirConsumosMateriales(consumos).filter(
@@ -281,6 +332,17 @@ export function DetalleProcesoOperador({
   const avisoJornada = proceso.sesionActiva
     ? sesionCercaDeJornada(proceso.sesionActiva.fechaInicio, ahoraAviso)
     : false;
+  const etiquetaPiezas = etiquetaPiezasProceso(proceso.procesoNombre, proceso.areaMacro);
+  const maximoPiezas = maximoPiezasProceso({
+    metaProcesoId: proceso.metaProcesoId,
+    pendientePiezas: proceso.pendientePiezas,
+    piezasDisponibles: proceso.piezasDisponibles,
+    cantidadSolicitada: proceso.cantidadSolicitada,
+    cantidadProducida: proceso.cantidadProducida,
+  });
+  const errorHorasExtra = mensaje !== null
+    && !mensaje.exito
+    && mensaje.codigo === 'horas_extra_sin_autorizacion';
   const primeraPiezaPendiente = proceso.sesionActiva?.primeraPiezaPendiente === true;
   const materialClientePartida = materialCliente.filter(
     (material) => material.partidaId === proceso.partidaId,
@@ -318,6 +380,17 @@ export function DetalleProcesoOperador({
     const piezasCapturadas = Number(piezas);
     if (!Number.isInteger(piezasCapturadas) || piezasCapturadas < 0) {
       setMensaje({ exito: false, error: 'Las piezas producidas deben ser un número entero' });
+      return;
+    }
+    // Obs. cliente 2026-11-14: la orden no puede fabricar más de lo solicitado
+    // ni más de lo que el proceso anterior dejó disponible.
+    const errorLimitePiezas = validarCantidadPiezas(
+      piezasCapturadas,
+      maximoPiezas,
+      etiquetaPiezas.toLowerCase(),
+    );
+    if (errorLimitePiezas) {
+      setMensaje({ exito: false, error: errorLimitePiezas });
       return;
     }
     const usada = Number(cantidadUsada);
@@ -442,6 +515,28 @@ export function DetalleProcesoOperador({
         });
         return;
       }
+      const itemExcedido = itemsCorrida.find((item) => {
+        const cantidad = Number(piezasPorItem[item.partidaId] ?? '0');
+        return validarCantidadPiezas(cantidad, maximoPiezasProceso({
+          metaProcesoId: item.metaProcesoId,
+          piezasDisponibles: item.disponible,
+          cantidadSolicitada: item.cantidadSolicitada,
+          cantidadProducida: item.cantidadProducida,
+        }), `piezas de ${item.codigoPieza}`) !== null;
+      });
+      if (itemExcedido) {
+        const cantidad = Number(piezasPorItem[itemExcedido.partidaId] ?? '0');
+        setMensaje({
+          exito: false,
+          error: validarCantidadPiezas(cantidad, maximoPiezasProceso({
+            metaProcesoId: itemExcedido.metaProcesoId,
+            piezasDisponibles: itemExcedido.disponible,
+            cantidadSolicitada: itemExcedido.cantidadSolicitada,
+            cantidadProducida: itemExcedido.cantidadProducida,
+          }), `piezas de ${itemExcedido.codigoPieza}`) ?? '',
+        });
+        return;
+      }
       if (!minutosValidos || piezasTotales <= 0) {
         setMensaje({
           exito: false,
@@ -486,18 +581,9 @@ export function DetalleProcesoOperador({
     });
     setMensaje(resultado);
     if (!resultado.exito) {
-      const codigo = (resultado as { codigo?: string }).codigo;
-      if (codigo === 'horas_extra_sin_autorizacion') {
-        // La solicitud se crea automáticamente; el operador no captura nada.
-        const solicitud = await solicitarHorasExtraAccion({ sesionId: proceso.sesionActiva.id });
-        if (solicitud.exito) {
-          setMensaje({
-            exito: false,
-            codigo: 'horas_extra_solicitud_pendiente',
-            error: `Solicitud de horas extra enviada (${formatearNumero(solicitud.datos?.horasAutorizadas ?? 0, 2)} h). Un responsable debe aprobarla antes de cerrar.`,
-          });
-        }
-      }
+      // C15: el exceso de jornada ya no crea una solicitud a ciegas. El panel
+      // muestra dos salidas: justificar el exceso o pedir aprobación.
+      setMensajeJustificacion(null);
       return;
     }
     if (resultado.exito) {
@@ -598,6 +684,67 @@ export function DetalleProcesoOperador({
           solicitudConsumoCliente.current = null;
         }
       }
+    }
+  }
+
+  async function justificarHorasExtra(): Promise<void> {
+    if (!proceso?.sesionActiva || procesandoJustificacion) return;
+    if (motivoJustificacion.trim().length < 10) {
+      setMensajeJustificacion({
+        tipo: 'error',
+        texto: 'Escribe una justificación de al menos 10 caracteres.',
+      });
+      return;
+    }
+    setProcesandoJustificacion(true);
+    setMensajeJustificacion(null);
+    try {
+      const respuesta = await justificarHorasExtraAccion({
+        sesionId: proceso.sesionActiva.id,
+        motivo: motivoJustificacion.trim(),
+      });
+      if (!respuesta.exito) {
+        setMensajeJustificacion({ tipo: 'error', texto: respuesta.error });
+        return;
+      }
+      setMensajeJustificacion({
+        tipo: 'ok',
+        texto: 'Horas extra justificadas. Cerrando la sesión…',
+      });
+      setJustificacionAbierta(false);
+      await ejecutarCierre();
+    } catch {
+      setMensajeJustificacion({
+        tipo: 'error',
+        texto: 'No se pudo registrar la justificación. Vuelve a intentarlo.',
+      });
+    } finally {
+      setProcesandoJustificacion(false);
+    }
+  }
+
+  async function solicitarAprobacionHorasExtra(): Promise<void> {
+    if (!proceso?.sesionActiva || procesandoJustificacion) return;
+    setProcesandoJustificacion(true);
+    setMensajeJustificacion(null);
+    try {
+      const solicitud = await solicitarHorasExtraAccion({ sesionId: proceso.sesionActiva.id });
+      if (!solicitud.exito) {
+        setMensajeJustificacion({ tipo: 'error', texto: solicitud.error });
+        return;
+      }
+      setMensaje({
+        exito: false,
+        codigo: 'horas_extra_solicitud_pendiente',
+        error: `Solicitud de horas extra enviada (${formatearNumero(solicitud.datos?.horasAutorizadas ?? 0, 2)} h). Un responsable debe aprobarla antes de cerrar.`,
+      });
+    } catch {
+      setMensajeJustificacion({
+        tipo: 'error',
+        texto: 'No se pudo enviar la solicitud. Vuelve a intentarlo.',
+      });
+    } finally {
+      setProcesandoJustificacion(false);
     }
   }
 
@@ -1014,6 +1161,82 @@ export function DetalleProcesoOperador({
           </p>
         ) : null}
 
+        {errorHorasExtra ? (
+          <section
+            aria-label="Horas extra por justificar"
+            data-testid="horas-extra-cierre"
+            className="grid gap-3 rounded-lg border border-advertencia/60 bg-advertencia-suave p-3"
+          >
+            <div>
+              <p className="text-sm font-semibold text-advertencia-texto">
+                La sesión superó la jornada del turno
+              </p>
+              <p className="text-xs text-texto-secundario">
+                Puedes justificar el exceso con un motivo (queda registrado para revisión) o
+                pedir que un responsable lo apruebe antes de cerrar.
+              </p>
+            </div>
+            {mensajeJustificacion ? (
+              <p
+                role={mensajeJustificacion.tipo === 'error' ? 'alert' : 'status'}
+                className={mensajeJustificacion.tipo === 'error'
+                  ? 'text-sm text-peligro-texto'
+                  : 'text-sm text-exito-texto'}
+              >
+                {mensajeJustificacion.texto}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                tamano="sm"
+                variante="secundario"
+                disabled={procesandoJustificacion}
+                onClick={() => setJustificacionAbierta((valor) => !valor)}
+                data-testid="justificar-horas-extra"
+              >
+                Justificar horas extra
+              </Button>
+              <Button
+                type="button"
+                tamano="sm"
+                variante="contorno"
+                disabled={procesandoJustificacion}
+                onClick={() => void solicitarAprobacionHorasExtra()}
+                data-testid="solicitar-horas-extra"
+              >
+                Pedir aprobación
+              </Button>
+            </div>
+            {justificacionAbierta ? (
+              <div className="grid gap-2">
+                <label className={CLASE_ETIQUETA}>
+                  Motivo de las horas extra
+                  <Textarea
+                    maxLength={270}
+                    value={motivoJustificacion}
+                    onChange={(evento) => setMotivoJustificacion(evento.target.value)}
+                    placeholder="Explica por qué la sesión siguió abierta más allá de la jornada"
+                    data-testid="motivo-justificacion-horas-extra"
+                  />
+                  <span className="text-xs font-normal text-texto-tenue">
+                    Mínimo 10 caracteres. El motivo se guarda junto con las horas excedidas.
+                  </span>
+                </label>
+                <Button
+                  type="button"
+                  tamano="sm"
+                  disabled={procesandoJustificacion || motivoJustificacion.trim().length < 10}
+                  onClick={() => void justificarHorasExtra()}
+                  data-testid="confirmar-justificacion-horas-extra"
+                >
+                  {procesandoJustificacion ? 'Registrando…' : 'Justificar y finalizar'}
+                </Button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         {proceso.reclamo ? (
           <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
             <span className="font-semibold text-texto-primario">Reserva: </span>
@@ -1107,19 +1330,20 @@ export function DetalleProcesoOperador({
                   </p>
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className={CLASE_ETIQUETA}>
-                    {etiquetaPiezasProceso(proceso.procesoNombre, proceso.areaMacro)}
-                    <Input
-                      min="0"
-                      step="1"
-                      inputMode="numeric"
-                      type="number"
-                      value={piezas}
-                      onChange={(evento) => setPiezas(evento.target.value)}
-                      required
-                      data-testid="piezas-cierre"
-                    />
-                  </label>
+                  <div className="grid gap-1">
+                    <label className={CLASE_ETIQUETA}>
+                      {etiquetaPiezas}
+                      <CampoEntero
+                        valor={piezas}
+                        onValorCambiar={setPiezas}
+                        required
+                        data-testid="piezas-cierre"
+                      />
+                    </label>
+                    <span className="text-xs font-normal text-texto-tenue">
+                      {ayudaLimitePiezas(maximoPiezas)}
+                    </span>
+                  </div>
                   <label className={CLASE_ETIQUETA}>
                     Resultado
                     <Select value={estadoDestino} onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}>
@@ -1331,15 +1555,11 @@ export function DetalleProcesoOperador({
                                   </span>
                                   <label className="flex flex-col gap-1 text-xs text-texto-secundario">
                                     Piezas
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="1"
-                                      inputMode="numeric"
-                                      value={piezasPorItem[item.partidaId] ?? '0'}
-                                      onChange={(evento) => setPiezasPorItem((actual) => ({
+                                    <CampoEntero
+                                      valor={piezasPorItem[item.partidaId] ?? '0'}
+                                      onValorCambiar={(valor) => setPiezasPorItem((actual) => ({
                                         ...actual,
-                                        [item.partidaId]: evento.target.value,
+                                        [item.partidaId]: valor,
                                       }))}
                                       data-testid={`integrada-piezas-${item.codigoPieza}`}
                                     />

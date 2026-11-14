@@ -35,6 +35,7 @@ export const ETIQUETAS_ESTADO_AUTORIZACION_HORA_EXTRA: Record<EstadoAutorizacion
   USADA: 'Usada',
   RECHAZADA: 'Rechazada',
   REVOCADA: 'Revocada',
+  JUSTIFICADA: 'Justificada por el operador',
 };
 
 const ESTADOS_TERMINALES: readonly EstadoCorrida[] = ['COMPLETADA', 'CANCELADA'];

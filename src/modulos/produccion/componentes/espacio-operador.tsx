@@ -515,6 +515,7 @@ export function EspacioOperador({
         materiales={materiales}
         consumos={consumos}
         onCerrar={() => setDetalle(null)}
+        onPausaAutomatica={() => enrutador.refresh()}
       />
 
       <DetalleOrdenOperador

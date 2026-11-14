@@ -65,6 +65,7 @@ describe('códigos de corrida', () => {
       USADA: 'Usada',
       RECHAZADA: 'Rechazada',
       REVOCADA: 'Revocada',
+      JUSTIFICADA: 'Justificada por el operador',
     });
   });
 });

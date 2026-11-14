@@ -7253,6 +7253,31 @@ export type Database = {
         }
         Returns: Json
       }
+      pausar_sesiones_jornada_excedida: {
+        Args: { p_operador_id?: string | null }
+        Returns: {
+          horas_netas: number
+          orden_id: string
+          programacion_id: string
+          sesion_id: string
+        }[]
+      }
+      justificar_horas_extra_operador: {
+        Args: {
+          p_motivo: string
+          p_operador_id: string
+          p_sesion_id: string
+        }
+        Returns: {
+          creado_en: string
+          estado: string
+          horas_autorizadas: number
+          id: string
+          motivo: string
+          orden_id: string
+          sesion_id: string
+        }[]
+      }
       registrar_inspeccion: {
         Args: {
           p_actor_id: string
