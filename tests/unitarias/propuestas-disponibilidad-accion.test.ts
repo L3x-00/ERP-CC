@@ -276,6 +276,7 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
           nombre: 'CNC Router',
           horasRequeridas: 7,
           estado: 'con_capacidad',
+          operacionesMultidia: [],
           horasCapacidad: 8,
           horasCarga: 3,
           horasDisponibles: 5,

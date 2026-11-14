@@ -72,6 +72,8 @@ export interface ProgramacionArea {
   actualizadoEn: string;
   /** C9.0: operación del ruteo programada; `null` en las filas heredadas por área. */
   metaProcesoId: string | null;
+  /** C16: día adicional que solo reserva capacidad; la producción usa la fila principal. */
+  esContinuacion?: boolean;
   /** C9.0: nombre de la operación para rótulos; `null`/ausente en heredadas. */
   operacionNombre?: string | null;
   /** PLA-06: contexto de la orden para las acciones de la tarjeta (opcional). */
@@ -289,6 +291,7 @@ export function filaAProgramacionArea(fila: FilaProgramacionArea): ProgramacionA
     creadoEn: fila.creado_en,
     actualizadoEn: fila.actualizado_en,
     metaProcesoId: fila.meta_proceso_id,
+    esContinuacion: fila.es_continuacion,
   };
 }
 

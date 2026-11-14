@@ -243,6 +243,7 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
       nombre: 'CNC Router',
       horasRequeridas: 9,
       estado: 'con_capacidad',
+      operacionesMultidia: [],
       horasCapacidad: 20,
       horasCarga: 13,
       horasDisponibles: 9,
@@ -347,6 +348,40 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
       horasCarga: 2,
       horasDisponibles: 6,
     });
+  });
+});
+
+describe('agregarDisponibilidad — operaciones que no caben en un turno', () => {
+  it('recomienda varios días cuando una operación supera la capacidad de un turno', () => {
+    const resumen = agregarDisponibilidad(entrada({
+      recursos: [{ id: 'rec-1', grupoEquipoId: 'g-router' }],
+      cargas: [carga({ recursoId: 'rec-1', horasCapacidad: 8 })],
+      ruteo: [
+        { id: 'r1', itemId: 'item-a', procesoId: 'p-router', grupoEquipoId: 'g-router', setupHoras: 1, runHoras: 1, totalHoras: 2 },
+        { id: 'r2', itemId: 'item-b', procesoId: 'p-router', grupoEquipoId: 'g-router', setupHoras: 2, runHoras: 13.25, totalHoras: 15.25 },
+      ],
+    }));
+
+    expect(resumen.grupos.find((grupo) => grupo.codigo === 'ROUTER')?.operacionesMultidia).toEqual([
+      {
+        procesoNombre: 'CNC Router',
+        horasRequeridas: 15.25,
+        capacidadDia: 8,
+        diasRecomendados: 2,
+      },
+    ]);
+  });
+
+  it('no marca operaciones que sí caben en una jornada', () => {
+    const resumen = agregarDisponibilidad(entrada({
+      recursos: [{ id: 'rec-1', grupoEquipoId: 'g-router' }],
+      cargas: [carga({ recursoId: 'rec-1', horasCapacidad: 8 })],
+      ruteo: [
+        { id: 'r1', itemId: 'item-a', procesoId: 'p-router', grupoEquipoId: 'g-router', setupHoras: 1, runHoras: 1, totalHoras: 2 },
+      ],
+    }));
+
+    expect(resumen.grupos.find((grupo) => grupo.codigo === 'ROUTER')?.operacionesMultidia).toEqual([]);
   });
 });
 

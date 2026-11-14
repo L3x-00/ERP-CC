@@ -8,8 +8,10 @@ import {
   activarModoPreparacionAccion,
   liberarPreparacionPlaneacionAccion,
   obtenerCalendarioPlaneacionAccion,
+  programarOperacionMultidiaAccion,
   programarPartidaRecursoAccion,
   proponerHuecoReprogramacionAccion,
+  proponerPlanMultidiaAccion,
   reprogramarPartidaRecursoAccion,
 } from '@/modulos/planeacion/acciones/indice';
 import { CalendarioPlaneacion } from '@/modulos/planeacion/componentes/calendario-planeacion';
@@ -49,12 +51,15 @@ import { PanelBolsaPlaneacion } from '@/modulos/planeacion/componentes/panel-bol
 import { PanelCapacidadInstalada } from '@/modulos/planeacion/componentes/panel-capacidad-instalada';
 import {
   PanelAsignacionPlaneacion,
+  type DatosAsignacionMultidia,
   type DatosAsignacionPlaneacion,
   type EntradaProponerHueco,
+  type EntradaProponerPlanMultidia,
   type PartidaProgramablePlaneacion,
   type PreseleccionProgramacion,
   type ResultadoAsignacionPlaneacion,
   type ResultadoProponerHueco,
+  type ResultadoProponerPlanMultidia,
 } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { SincronizadorPlaneacionRealtime } from '@/modulos/planeacion/componentes/sincronizador-planeacion-realtime';
 import { ResumenCargaSemanal } from '@/modulos/planeacion/componentes/resumen-carga-semanal';
@@ -308,6 +313,33 @@ export function OperacionPlaneacion({
     async (entrada: EntradaProponerHueco): Promise<ResultadoProponerHueco> =>
       proponerHuecoReprogramacionAccion(entrada),
     [],
+  );
+
+  const proponerPlanPanel = useCallback(
+    async (entrada: EntradaProponerPlanMultidia): Promise<ResultadoProponerPlanMultidia> =>
+      proponerPlanMultidiaAccion(entrada),
+    [],
+  );
+
+  const enviarMultidia = useCallback(
+    async (datos: DatosAsignacionMultidia): Promise<ResultadoAsignacionPlaneacion> => {
+      const resultado = await programarOperacionMultidiaAccion({
+        ordenId: datos.ordenId,
+        partidaId: datos.partidaId,
+        recursoId: datos.recursoId,
+        metaProcesoId: datos.metaProcesoId,
+        turno: datos.turno,
+        horasTotales: datos.horasTotales,
+        ordenPrioridad: datos.ordenPrioridad,
+        dias: datos.dias,
+      });
+      if (resultado.exito) {
+        setPanelAbierto(false);
+        await actualizarCalendario();
+      }
+      return resultado;
+    },
+    [actualizarCalendario],
   );
 
   const activarPreparacion = useCallback(async (): Promise<ResultadoAsignacionPlaneacion> => {
@@ -603,13 +635,20 @@ export function OperacionPlaneacion({
               compatibilidad={compatibilidad}
               verificandoCapacidad={verificandoCapacidad}
               onEnviar={enviarAsignacion}
-              onActivarPreparacion={programacionSeleccionada ? activarPreparacion : undefined}
+              onActivarPreparacion={
+                programacionSeleccionada && !programacionSeleccionada.esContinuacion
+                  ? activarPreparacion
+                  : undefined
+              }
               onProponerHueco={proponerHuecoPanel}
+              onProponerPlanMultidia={proponerPlanPanel}
+              onEnviarMultidia={enviarMultidia}
               onCambiarFecha={setFechaSolicitada}
               onActualizarDatos={actualizarDatosPlaneacion}
               onAbrirProduccion={abrirProduccion}
               onLiberarPreparacion={
                 programacionSeleccionada?.estadoPlaneacion === 'en_preparacion'
+                  && !programacionSeleccionada.esContinuacion
                   ? liberarPreparacion
                   : undefined
               }

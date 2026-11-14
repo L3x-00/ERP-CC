@@ -8,6 +8,7 @@ export {
   obtenerCompromisosCalendarioServicio,
   obtenerCargaCapacidadDiariaServicio,
   obtenerProgramacionesCalendarioServicio,
+  programarOperacionMultidiaServicio,
   programarPartidaRecursoServicio,
   reprogramarPartidaRecursoServicio,
 } from '@/modulos/planeacion/servicios/planeacion-servicio';
@@ -44,6 +45,7 @@ export type {
   DatosCalendarioPlaneacion,
   FiltrosCalendarioPlaneacion,
   ProgramacionActualizada,
+  ProgramarMultidiaEntrada,
   ReprogramarPartidaRecursoEntrada,
 } from '@/modulos/planeacion/servicios/planeacion-servicio';
 

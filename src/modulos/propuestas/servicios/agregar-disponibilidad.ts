@@ -175,7 +175,7 @@ export function idsGruposRequeridos(datos: DatosRuteo): string[] {
 function capacidadDelGrupo(
   grupoId: string,
   entrada: EntradaAgregacionDisponibilidad,
-): Pick<DisponibilidadGrupo, 'estado' | 'horasCapacidad' | 'horasCarga' | 'horasDisponibles' | 'turnosSobrecargados' | 'recursosActivos' | 'recursosSinTurno' | 'dias'> {
+): Pick<DisponibilidadGrupo, 'estado' | 'horasCapacidad' | 'horasCarga' | 'horasDisponibles' | 'turnosSobrecargados' | 'recursosActivos' | 'recursosSinTurno' | 'dias'> & { capacidadTurnoMaxima: number } {
   const recursos = new Set(
     entrada.recursos.filter((recurso) => recurso.grupoEquipoId === grupoId).map((recurso) => recurso.id),
   );
@@ -200,6 +200,7 @@ function capacidadDelGrupo(
       recursosActivos: recursos.size,
       recursosSinTurno,
       dias: [],
+      capacidadTurnoMaxima: 0,
     };
   }
 
@@ -207,9 +208,11 @@ function capacidadDelGrupo(
   let carga = 0;
   let disponible = 0;
   let sobrecargados = 0;
+  let capacidadTurnoMaxima = 0;
   const porFecha = new Map<string, { capacidad: number; carga: number; disponible: number; sobrecargados: number }>();
   for (const fila of turnos.values()) {
     capacidad += horasSeguras(fila.horasCapacidad);
+    capacidadTurnoMaxima = Math.max(capacidadTurnoMaxima, horasSeguras(fila.horasCapacidad));
     carga += horasSeguras(fila.horasProgramadas);
     // Un turno saturado no compensa lo libre de otro turno.
     disponible += horasSeguras(fila.horasDisponibles);
@@ -235,6 +238,7 @@ function capacidadDelGrupo(
     turnosSobrecargados: sobrecargados,
     recursosActivos: recursos.size,
     recursosSinTurno,
+    capacidadTurnoMaxima: redondear(capacidadTurnoMaxima),
     dias: [...porFecha.entries()]
       .sort(([primera], [segunda]) => primera.localeCompare(segunda))
       .map(([fecha, dia]) => ({
@@ -259,10 +263,15 @@ export function agregarDisponibilidad(
   const grupoPorId = new Map(entrada.grupos.map((grupo) => [grupo.id, grupo]));
 
   const horasPorGrupo = new Map<string, number>();
+  const renglonesPorGrupo = new Map<string, RenglonResuelto[]>();
   const sinGrupo = new Map<string, ProcesoSinGrupo>();
-  for (const { horas, proceso, grupoId } of renglones) {
+  for (const resuelto of renglones) {
+    const { horas, proceso, grupoId } = resuelto;
     if (grupoId) {
       horasPorGrupo.set(grupoId, (horasPorGrupo.get(grupoId) ?? 0) + horas);
+      const lista = renglonesPorGrupo.get(grupoId) ?? [];
+      lista.push(resuelto);
+      renglonesPorGrupo.set(grupoId, lista);
       continue;
     }
     const clave = proceso ? proceso.id : PROCESO_SIN_CATALOGO;
@@ -277,11 +286,30 @@ export function agregarDisponibilidad(
     .flatMap(([grupoId, horas]) => {
       const grupo = grupoPorId.get(grupoId);
       if (!grupo) return [];
+      const { capacidadTurnoMaxima, ...capacidadVisible } = capacidadDelGrupo(grupoId, entrada);
+      // Una operación que dura más que un turno del grupo necesita varios días.
+      // El aviso es informativo: Planeación elige los días al programar.
+      const vistas = new Set<string>();
+      const operacionesMultidia = (renglonesPorGrupo.get(grupoId) ?? []).flatMap(({ horas: horasOperacion, proceso }) => {
+        if (capacidadTurnoMaxima <= 0) return [];
+        if (horasOperacion <= capacidadTurnoMaxima) return [];
+        const nombre = proceso?.nombre ?? PROCESO_SIN_CATALOGO;
+        const clave = `${nombre}|${redondear(horasOperacion)}`;
+        if (vistas.has(clave)) return [];
+        vistas.add(clave);
+        return [{
+          procesoNombre: nombre,
+          horasRequeridas: redondear(horasOperacion),
+          capacidadDia: capacidadTurnoMaxima,
+          diasRecomendados: Math.ceil(horasOperacion / capacidadTurnoMaxima),
+        }];
+      });
       return {
         codigo: grupo.codigo,
         nombre: grupo.nombre,
         horasRequeridas: redondear(horas),
-        ...capacidadDelGrupo(grupoId, entrada),
+        operacionesMultidia,
+        ...capacidadVisible,
       };
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));

@@ -18,14 +18,18 @@ const {
   obtenerCalendarioMock,
   obtenerDetalleMock,
   programarMock,
+  programarOperacionMultidiaMock,
   proponerHuecoMock,
+  proponerPlanMultidiaMock,
   reprogramarMock,
 } = vi.hoisted(() => ({
   activarPreparacionMock: vi.fn(),
   obtenerCalendarioMock: vi.fn(),
   obtenerDetalleMock: vi.fn(),
   programarMock: vi.fn(),
+  programarOperacionMultidiaMock: vi.fn(),
   proponerHuecoMock: vi.fn(),
+  proponerPlanMultidiaMock: vi.fn(),
   reprogramarMock: vi.fn(),
 }));
 
@@ -48,7 +52,9 @@ vi.mock('@/modulos/planeacion/acciones/indice', () => ({
   obtenerCalendarioPlaneacionAccion: (...args: unknown[]) => obtenerCalendarioMock(...args),
   obtenerDetalleProgramacionAccion: (...args: unknown[]) => obtenerDetalleMock(...args),
   programarPartidaRecursoAccion: (...args: unknown[]) => programarMock(...args),
+  programarOperacionMultidiaAccion: (...args: unknown[]) => programarOperacionMultidiaMock(...args),
   proponerHuecoReprogramacionAccion: (...args: unknown[]) => proponerHuecoMock(...args),
+  proponerPlanMultidiaAccion: (...args: unknown[]) => proponerPlanMultidiaMock(...args),
   reprogramarPartidaRecursoAccion: (...args: unknown[]) => reprogramarMock(...args),
 }));
 vi.mock('@/modulos/planeacion/componentes/sincronizador-planeacion-realtime', () => ({
@@ -1025,6 +1031,92 @@ describe('operación de Planeación en cliente', () => {
     expect(
       (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
     ).toBe(false);
+  });
+
+  it('reparte una operación de 15.25 h en dos días y guarda los días elegidos (C16)', async () => {
+    const carga: CargaCapacidadDiaria = {
+      recursoId: '11111111-1111-4111-8111-111111111111',
+      area: 'taller',
+      fechaProgramada: '2026-09-16',
+      turno: 'matutino',
+      horasCapacidad: 8,
+      horasProgramadas: 0,
+      horasReales: 0,
+      horasExceso: 0,
+      horasDisponibles: 8,
+      porcentajeOcupacion: 0,
+      sobrecargado: false,
+    };
+    const partidaLarga: PartidaProgramablePlaneacion = {
+      ordenId: '33333333-3333-4333-8333-333333333333',
+      partidaId: '55555555-5555-4555-8555-555555555555',
+      etiqueta: 'OP-000001 — PIEZA-LARGA',
+      secuenciaSugerida: 1,
+      operaciones: [{
+        metaProcesoId: 'meta-laser-largo',
+        secuencia: 1,
+        nombre: 'Láser fibra',
+        programada: false,
+        recursoIdSugerido: '11111111-1111-4111-8111-111111111111',
+        fechaProgramadaSugerida: '2026-09-16',
+        horasEstimadasSugeridas: 15.25,
+      }],
+    };
+    const proponerPlan = vi.fn().mockResolvedValue({
+      exito: true as const,
+      datos: {
+        desdeFecha: '2026-09-16',
+        horasTotales: 15.25,
+        dias: [
+          { fecha: '2026-09-16', horas: 8 },
+          { fecha: '2026-09-17', horas: 7.25 },
+        ],
+      },
+    });
+    const enviarMultidia = vi.fn().mockResolvedValue({ exito: true as const });
+
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: DATOS.recursos,
+        partidasProgramables: [partidaLarga],
+        cargas: [carga],
+        onEnviar: async () => ({ exito: true as const }),
+        onProponerPlanMultidia: proponerPlan,
+        onEnviarMultidia: enviarMultidia,
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: partidaLarga.partidaId },
+    });
+
+    expect(screen.getByTestId('plan-multidia-planeacion').textContent).toContain(
+      'Esta operación no cabe en un turno',
+    );
+    expect(
+      (screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    fireEvent.click(screen.getByTestId('proponer-plan-multidia'));
+    await waitFor(() => expect(screen.getByTestId('plan-multidia-fecha-2')).toBeTruthy());
+    expect((screen.getByTestId('plan-multidia-fecha-1') as HTMLInputElement).value).toBe('2026-09-16');
+    expect((screen.getByTestId('plan-multidia-fecha-2') as HTMLInputElement).value).toBe('2026-09-17');
+
+    fireEvent.change(screen.getByTestId('plan-multidia-fecha-2'), {
+      target: { value: '2026-09-18' },
+    });
+    fireEvent.click(screen.getByTestId('guardar-plan-multidia'));
+
+    await waitFor(() => expect(enviarMultidia).toHaveBeenCalledOnce());
+    expect(enviarMultidia).toHaveBeenCalledWith(expect.objectContaining({
+      tipo: 'multidia',
+      metaProcesoId: 'meta-laser-largo',
+      horasTotales: 15.25,
+      dias: [
+        { fecha: '2026-09-16', horas: 8 },
+        { fecha: '2026-09-18', horas: 7.25 },
+      ],
+    }));
   });
 
   it('cuando el equipo no tiene turnos configurados explica dónde configurarlo (guía visual)', () => {

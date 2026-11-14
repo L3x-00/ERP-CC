@@ -129,7 +129,12 @@ export default async function PaginaPlaneacion() {
   });
 
   const secuenciasPorPartida = new Map<string, number[]>();
+  // C16: una operación puede ocupar varios días; la secuencia se cuenta una vez.
+  const secuenciasVistas = new Set<string>();
   for (const programacion of programacionesVigentes) {
+    const clave = `${programacion.partida_id}:${programacion.secuencia}`;
+    if (secuenciasVistas.has(clave)) continue;
+    secuenciasVistas.add(clave);
     const secuencias = secuenciasPorPartida.get(programacion.partida_id) ?? [];
     secuencias.push(Number(programacion.secuencia));
     secuenciasPorPartida.set(programacion.partida_id, secuencias);

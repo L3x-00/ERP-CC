@@ -3,5 +3,7 @@ export { liberarPreparacionPlaneacionAccion } from '@/modulos/planeacion/accione
 export { obtenerCalendarioPlaneacionAccion } from '@/modulos/planeacion/acciones/obtener-calendario-planeacion';
 export { obtenerDetalleProgramacionAccion } from '@/modulos/planeacion/acciones/obtener-detalle-programacion';
 export { programarPartidaRecursoAccion } from '@/modulos/planeacion/acciones/programar-partida-recurso';
+export { programarOperacionMultidiaAccion } from '@/modulos/planeacion/acciones/programar-operacion-multidia';
 export { proponerHuecoReprogramacionAccion } from '@/modulos/planeacion/acciones/proponer-hueco-reprogramacion';
+export { proponerPlanMultidiaAccion } from '@/modulos/planeacion/acciones/proponer-plan-multidia';
 export { reprogramarPartidaRecursoAccion } from '@/modulos/planeacion/acciones/reprogramar-partida-recurso';
