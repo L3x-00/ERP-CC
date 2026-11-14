@@ -4,9 +4,9 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 
 import { prepararSuiteSupabaseLocal } from '../utilidades/entorno-supabase';
 
-// AUD-15: la idempotencia vive en Postgres, no en el botÃ³n de la interfaz.
+// AUD-15: la idempotencia vive en Postgres, no en el botón de la interfaz.
 // Se prueba el contrato real de la RPC: reintento y concurrencia con la misma
-// clave, y pagos parciales legÃ­timos con claves distintas.
+// clave, y pagos parciales legítimos con claves distintas.
 const { describir: suite, crearClienteServicio } = prepararSuiteSupabaseLocal(
   'B5 pagos a proveedor idempotentes',
 );
@@ -22,7 +22,7 @@ suite('B5: pagar_compra idempotente', () => {
     const correo = `b5-${randomUUID()}@orca.local`;
     const clave = `B5!${randomUUID()}Aa`;
     const alta = await admin.auth.admin.createUser({ email: correo, password: clave, email_confirm: true });
-    if (alta.error || !alta.data.user) throw alta.error ?? new Error('No se creÃ³ usuario');
+    if (alta.error || !alta.data.user) throw alta.error ?? new Error('No se creó usuario');
     usuarios.push(alta.data.user.id);
     const perfil = await admin.from('usuarios').update({ rol: 'admin', activo: true }).eq('id', alta.data.user.id);
     if (perfil.error) throw perfil.error;
@@ -41,7 +41,7 @@ suite('B5: pagar_compra idempotente', () => {
       saldo_pendiente: monto,
       creado_por: adminId,
     }).select('id').single();
-    if (error || !data) throw error ?? new Error('No se creÃ³ la compra');
+    if (error || !data) throw error ?? new Error('No se creó la compra');
     compras.push(data.id);
     return data.id;
   }
@@ -55,7 +55,7 @@ suite('B5: pagar_compra idempotente', () => {
       correo: 'b5@proveedor.local',
       telefono: '5550000000',
     }).select('id').single();
-    if (error || !proveedor) throw error ?? new Error('No se creÃ³ el proveedor');
+    if (error || !proveedor) throw error ?? new Error('No se creó el proveedor');
     proveedorId = proveedor.id;
   });
 
@@ -131,7 +131,7 @@ suite('B5: pagar_compra idempotente', () => {
     expect(Number(compra.data?.saldo_pendiente)).toBe(750);
   });
 
-  it('dos pagos parciales con claves distintas sÃ­ se registran', async () => {
+  it('dos pagos parciales con claves distintas sí se registran', async () => {
     const compraId = await crearCompra(500);
     const base = {
       p_compra_id: compraId,

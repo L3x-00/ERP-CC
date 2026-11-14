@@ -2,6 +2,10 @@
 
 Lectura obligatoria para todo agente de IA (Codex, Claude Code u otro) antes de implementar, depurar CI o aplicar migraciones. Cada entrada es un caso real que costó horas o ciclos de CI entre el 2026-10-06 y el 2026-10-09. Si aparece un caso nuevo, agregarlo aquí con síntoma, causa y regla.
 
+## 0. Regla de codificación de texto
+
+Todo archivo de texto del repositorio se guarda en **UTF-8 sin BOM**. Está prohibido dejar en código, pruebas, migraciones, documentación o mensajes de UI secuencias de mojibake como `Ãº`, `Ã©`, `Ã¡`, `Ã³`, `Ã­`, `Ã±`, `Â`, `â€”` o el carácter de reemplazo `�`: delatan que un UTF-8 se leyó como ANSI/Windows-1252 y llegan a la pantalla del cliente como «Ãº» en lugar de «ú». Editar con acentos solo con las herramientas del agente o con Node (`readFileSync(..., 'utf8')` / `writeFileSync(..., 'utf8')`); nunca con `Get-Content -Raw` + `Set-Content` de PowerShell 5.1. Antes de cerrar un corte, buscar esas secuencias en `git diff --name-only`.
+
 ## 1. CI que falla "de forma indeterminada"
 
 | Síntoma | Causa real | Regla |

@@ -51,7 +51,7 @@ export interface DatosEspacioOperador {
   responsables: Record<string, string>;
   resumen: ResumenEspacioOperador;
   hoy: string;
-  /** DÃ­as de la semana visible (lunes a domingo) con la carga reclamada. */
+  /** Días de la semana visible (lunes a domingo) con la carga reclamada. */
   dias: DiaCalendarioOperador[];
   gruposArea: ReturnType<typeof agruparProcesosPorArea>;
 }
@@ -65,7 +65,7 @@ function fechaIsoLocal(ahora: Date = new Date()): string {
   return `${anio}-${mes}-${dia}`;
 }
 
-/** Horas de una operaciÃ³n: programaciÃ³n vigente o reparto del tiempo estimado. */
+/** Horas de una operación: programación vigente o reparto del tiempo estimado. */
 export function estimarHorasProceso(
   partida: Pick<FilaPartida, 'tiempo_estimado_minutos'>,
   programacion: Pick<ProgramacionArea, 'horasEstimadas'> | null,
@@ -386,7 +386,7 @@ async function obtenerCorridasConPrimeraPiezaPendiente(
 
 /**
  * Carga y deriva el espacio de operador completo sin N+1. El servidor es la
- * Ãºnica fuente de verdad: la UI no inventa columnas ni capacidades.
+ * Única fuente de verdad: la UI no inventa columnas ni capacidades.
  */
 export async function obtenerEspacioOperadorServicio(
   cliente: Admin,
@@ -432,8 +432,8 @@ export async function obtenerEspacioOperadorServicio(
   const ordenes = (resultadoOrdenes.data ?? []).map(filaAOrdenOperativa);
   const ordenIds = ordenes.map((orden) => orden.id);
 
-  // Solo se cargan partidas, metas y programaciones de las Ã³rdenes vigentes:
-  // las tablas histÃ³ricas crecen con cada ciclo y no deben entrar al tablero.
+  // Solo se cargan partidas, metas y programaciones de las órdenes vigentes:
+  // las tablas históricas crecen con cada ciclo y no deben entrar al tablero.
   const filasPartidas = await obtenerFilasEnLotes<FilaPartida>(ordenIds, async (lote) => {
     const { data, error: errorLote } = await cliente
       .from('partidas_orden_produccion')
@@ -638,8 +638,8 @@ export async function obtenerEspacioOperadorServicio(
       const programacionOperacion = metaProcesoId
         ? programaciones.find((actual) => actual.metaProcesoId === metaProcesoId) ?? null
         : null;
-      // C9.0: la fila heredada (sin operaciÃ³n) sigue siendo vÃ¡lida mientras la
-      // partida tenga una sola operaciÃ³n; el reclamo la adopta al preparar.
+      // C9.0: la fila heredada (sin operación) sigue siendo válida mientras la
+      // partida tenga una sola operación; el reclamo la adopta al preparar.
       const programacion = programacionOperacion
         ?? (metaProcesoId === null || metas.length === 1 ? programacionHeredada : null);
       const sesionesOperacion = programacion
@@ -697,10 +697,10 @@ export async function obtenerEspacioOperadorServicio(
           ? `Sin piezas de ${disponibilidad.procesoPrevioNombre}: el proceso anterior aún no termina`
           : 'Sin piezas del proceso anterior';
       } else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
-        motivoNoInicia = 'La orden aÃºn no se libera a Bandeja';
-      } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no estÃ¡ activa';
+        motivoNoInicia = 'La orden aún no se libera a Bandeja';
+      } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no está activa';
       else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
-      else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesiÃ³n';
+      else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
 
       const puedeReanudar = operadorId !== null
         && reclamadoPorMi
@@ -793,7 +793,7 @@ export async function obtenerEspacioOperadorServicio(
   ));
 
   const fechasSemana = Array.from({ length: 7 }, (_, indice) => sumarDias(inicioSemana(hoy), indice));
-  // La jornada de 8 h es por operador: las reservas de otros no consumen su dÃ­a.
+  // La jornada de 8 h es por operador: las reservas de otros no consumen su día.
   // En la vista de administrador (operadorId null) se muestra la carga completa.
   const procesosParaJornada = operadorId === null
     ? procesos
@@ -827,7 +827,7 @@ export function etiquetaUrgencia(urgencia: keyof typeof ETIQUETAS_URGENCIA): str
   return ETIQUETAS_URGENCIA[urgencia];
 }
 
-/** DÃ­as restantes para la fecha compromiso (negativo = vencida). */
+/** Días restantes para la fecha compromiso (negativo = vencida). */
 export function diasParaCompromiso(fechaCompromiso: string, hoy: string): number {
   return diasEntreFechas(hoy, fechaCompromiso);
 }
