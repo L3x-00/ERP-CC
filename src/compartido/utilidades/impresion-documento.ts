@@ -146,6 +146,12 @@ export function construirHtmlImpresion(documento: DocumentoImpresion): string {
  */
 export function imprimirHtmlAislado(html: string, titulo: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    // Chrome toma el nombre del «Guardar como PDF» del título del documento
+    // superior, no del iframe. Sin esto el archivo salía como «CC Manufacturing
+    // Group» (Obs. cliente 2026-11-14). Se restaura al terminar.
+    const tituloOriginal = document.title;
+    document.title = titulo;
+
     const marco = document.createElement('iframe');
     marco.title = titulo;
     marco.setAttribute('aria-hidden', 'true');
@@ -157,6 +163,7 @@ export function imprimirHtmlAislado(html: string, titulo: string): Promise<void>
     const ventana = marco.contentWindow;
     const destino = marco.contentDocument;
     if (!ventana || !destino) {
+      document.title = tituloOriginal;
       marco.remove();
       reject(new Error('Impresión no disponible'));
       return;
@@ -165,6 +172,7 @@ export function imprimirHtmlAislado(html: string, titulo: string): Promise<void>
     let impreso = false;
     const limpiar = () => {
       window.clearTimeout(respaldo);
+      document.title = tituloOriginal;
       marco.remove();
     };
     const respaldo = window.setTimeout(limpiar, 120_000);

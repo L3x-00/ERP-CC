@@ -21,6 +21,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const {
   firmarMock,
   abrirVentanaMock,
+  descargarMock,
   prepararSubidaMock,
   confirmarSubidaMock,
   descartarSubidaMock,
@@ -29,11 +30,16 @@ const {
 } = vi.hoisted(() => ({
   firmarMock: vi.fn(),
   abrirVentanaMock: vi.fn(),
+  descargarMock: vi.fn(),
   prepararSubidaMock: vi.fn(),
   confirmarSubidaMock: vi.fn(),
   descartarSubidaMock: vi.fn(),
   subirDirectoMock: vi.fn(),
   retirarMock: vi.fn(),
+}));
+
+vi.mock('@/compartido/utilidades/descargar-archivo', () => ({
+  descargarUrlFirmada: (...argumentos: unknown[]) => descargarMock(...argumentos),
 }));
 
 vi.mock('@/modulos/propuestas/acciones/firmar-archivo-propuesta', () => ({
@@ -797,41 +803,43 @@ describe('PanelPdfsPropuesta — contexto de propuesta y nombre accesible', () =
     render(createElement(PanelPdfsPropuesta, { revision: REVISION, pdfs: PDFS }));
 
     expect(
-      screen.getByRole('button', { name: /PDF de la revisión A, versión 2 \(vigente\)/i }),
+      screen.getByRole('button', { name: /Descargar PDF de la revisión A, versión 2 \(vigente\)/i }),
     ).toBeDefined();
     expect(
-      screen.getByRole('button', { name: /PDF de la revisión A, versión 1 \(reemplazado\)/i }),
+      screen.getByRole('button', { name: /Descargar PDF de la revisión A, versión 1 \(reemplazado\)/i }),
     ).toBeDefined();
   });
 
-  it('firma el PDF con la propuesta abierta y abre con noopener,noreferrer', async () => {
+  it('firma el PDF con nombre de descarga legible y sin UUID técnico', async () => {
     render(createElement(PanelPdfsPropuesta, { revision: REVISION, pdfs: PDFS }));
 
     fireEvent.click(
-      screen.getByRole('button', { name: /PDF de la revisión A, versión 1 \(reemplazado\)/i }),
+      screen.getByRole('button', {
+        name: /Descargar PDF de la revisión A, versión 1 \(reemplazado\)/i,
+      }),
     );
 
     await waitFor(() => {
-      expect(firmarMock).toHaveBeenCalledWith({ propuestaId: PROPUESTA_ID, archivoId: PDF_V1 });
-      expect(abrirVentanaMock).toHaveBeenCalledWith(
-        'https://firmada/propuesta',
-        '_blank',
-        'noopener,noreferrer',
-      );
+      expect(firmarMock).toHaveBeenCalledWith({
+        propuestaId: PROPUESTA_ID,
+        archivoId: PDF_V1,
+        descarga: `Propuesta ${REVISION.folioRevision}.pdf`,
+      });
+      expect(descargarMock).toHaveBeenCalledWith('https://firmada/propuesta');
     });
   });
 
-  it('muestra el rechazo del servidor sin abrir ventana', async () => {
+  it('muestra el rechazo del servidor sin descargar', async () => {
     firmarMock.mockResolvedValue({ exito: false, error: 'El archivo no pertenece a esta propuesta' });
     render(createElement(PanelPdfsPropuesta, { revision: REVISION, pdfs: PDFS }));
 
     fireEvent.click(
-      screen.getByRole('button', { name: /PDF de la revisión A, versión 2 \(vigente\)/i }),
+      screen.getByRole('button', { name: /Descargar PDF de la revisión A, versión 2 \(vigente\)/i }),
     );
 
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('no pertenece');
     });
-    expect(abrirVentanaMock).not.toHaveBeenCalled();
+    expect(descargarMock).not.toHaveBeenCalled();
   });
 });

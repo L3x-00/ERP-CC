@@ -139,6 +139,6 @@ export function construirHtmlDocumentoOrden(documento: DocumentoOrden): string {
 export function imprimirDocumentoOrden(documento: DocumentoOrden): Promise<void> {
   return imprimirHtmlAislado(
     construirHtmlDocumentoOrden(documento),
-    `Impresión de la orden ${documento.orden.folio}`,
+    `Orden de servicio ${documento.orden.folio}`,
   );
 }

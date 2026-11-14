@@ -228,7 +228,12 @@ export const esquemaEnviarRevision = z
  * también se firmaría.
  */
 export const esquemaFirmarArchivoPropuesta = z
-  .object({ propuestaId: uuid, archivoId: uuid })
+  .object({
+    propuestaId: uuid,
+    archivoId: uuid,
+    /** Nombre legible con el que Storage sirve la descarga (sin UUID técnico). */
+    descarga: z.string().trim().min(1).max(200).optional(),
+  })
   .strict();
 
 /** Destino de un archivo propio de la revisión (el binario sube directo a Storage). */

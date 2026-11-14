@@ -99,6 +99,6 @@ export function construirHtmlHojaTrabajo(entrada: {
 export function imprimirHojaTrabajo(entrada: Parameters<typeof construirHtmlHojaTrabajo>[0]): Promise<void> {
   return imprimirHtmlAislado(
     construirHtmlHojaTrabajo(entrada),
-    `Impresión de la orden ${entrada.hoja.folio}`,
+    `Orden de servicio ${entrada.hoja.folio}`,
   );
 }
