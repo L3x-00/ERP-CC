@@ -242,6 +242,19 @@ export function DetalleProcesoOperador({
     };
   }, [proceso?.sesionActiva?.corridaId]);
 
+  // Punto 11: el resumen de cierre es informativo; se cierra solo para que el
+  // operador siga con el siguiente proceso. Si alguna operación posterior al
+  // cierre falló, el modal permanece abierto hasta que se lea el aviso.
+  useEffect(() => {
+    if (!resumenCierre) return;
+    const hayError = mensajeInspeccionCierre?.tipo === 'error'
+      || mensajeRetrabajo?.tipo === 'error'
+      || mensajeConsumoCliente?.tipo === 'error';
+    if (hayError) return;
+    const temporizador = window.setTimeout(() => setResumenCierre(null), 10000);
+    return () => window.clearTimeout(temporizador);
+  }, [resumenCierre, mensajeInspeccionCierre, mensajeRetrabajo, mensajeConsumoCliente]);
+
   if (!proceso) return null;
 
   const consumosDePartida = resumirConsumosMateriales(consumos).filter(
@@ -492,6 +505,9 @@ export function DetalleProcesoOperador({
       setNotas('');
       setMotivoConsumo('');
       setMinutosSetup('');
+      // Punto 11: el cierre ya se registró; el formulario se repliega solo para
+      // no dejar al operador con la captura abierta y el botón "Cerrar" a mano.
+      setCierreAbierto(false);
       if (incluirConsumo && materialSeleccionado && resultado.datos) {
         setResumenCierre({
           material: materialSeleccionado,
