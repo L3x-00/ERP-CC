@@ -10,8 +10,8 @@ const RUTA: RutaItemFicha[] = [{
   codigoItem: 'IT01',
   descripcion: 'Soporte lateral',
   pasos: [
-    { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.25, operacionHoras: 1.5 },
-    { secuencia: 2, proceso: 'Doblez', prepHoras: null, operacionHoras: null },
+    { secuencia: 1, proceso: 'Corte láser', prepHoras: 0.25, operacionHoras: 1.5, estado: 'completada' },
+    { secuencia: 2, proceso: 'Doblez', prepHoras: null, operacionHoras: null, estado: 'en_proceso' },
   ],
 }];
 
@@ -27,15 +27,15 @@ describe('pestaña Ruta de la ficha como tabla (R08)', () => {
     expect(encabezados).toEqual(['#', 'Proceso', 'Prep. estimada', 'Operación estimada', 'Estado']);
   });
 
-  it('cada paso trae su número, proceso, horas (o guion) y Estado «Pendiente»', () => {
+  it('cada paso trae su número, proceso, horas (o guion) y su estado real', () => {
     render(createElement(PanelRutaFicha, { ruta: RUTA }));
 
     const filas = within(screen.getByTestId('ficha-panel-ruta')).getAllByRole('row').slice(1);
     expect(filas).toHaveLength(2);
     const primera = within(filas[0] as HTMLElement).getAllByRole('cell').map((celda) => celda.textContent?.trim());
-    expect(primera).toEqual(['1', 'Corte láser', '0.25 h', '1.5 h', 'Pendiente']);
+    expect(primera).toEqual(['1', 'Corte láser', '0.25 h', '1.5 h', 'Completada']);
     const segunda = within(filas[1] as HTMLElement).getAllByRole('cell').map((celda) => celda.textContent?.trim());
-    expect(segunda).toEqual(['2', 'Doblez', '—', '—', 'Pendiente']);
+    expect(segunda).toEqual(['2', 'Doblez', '—', '—', 'En proceso']);
   });
 
   it('no usa los términos en inglés setup / run', () => {

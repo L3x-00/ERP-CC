@@ -1,10 +1,20 @@
-import type { RutaItemFicha } from '@/modulos/ordenes/tipos/ficha-orden';
+import type { EstadoPasoRutaFicha, RutaItemFicha } from '@/modulos/ordenes/tipos/ficha-orden';
 
 function horas(valor: number | null): string {
   return valor === null ? '—' : `${valor.toLocaleString('es-MX', { maximumFractionDigits: 2 })} h`;
 }
 
-/** Ruta heredada de la Propuesta, por ítem. El Estado se derivará de Producción más adelante: hoy es «Pendiente». */
+const ETIQUETA_ESTADO: Record<EstadoPasoRutaFicha, string> = {
+  programada: 'Programada',
+  en_preparacion: 'En preparación',
+  en_proceso: 'En proceso',
+  bloqueada: 'Bloqueada',
+  completada: 'Completada',
+  cancelada: 'Cancelada',
+  sin_registro: 'Sin registro',
+};
+
+/** Ruta heredada de la Propuesta, por ítem, con el estado real de cada operación. */
 export function PanelRutaFicha({ ruta }: { ruta: RutaItemFicha[] }) {
   return (
     <section className="grid gap-4" data-testid="ficha-panel-ruta">
@@ -37,7 +47,9 @@ export function PanelRutaFicha({ ruta }: { ruta: RutaItemFicha[] }) {
                       <td className="px-3 py-2">{paso.proceso}</td>
                       <td className="px-3 py-2 tabular-nums">{horas(paso.prepHoras)}</td>
                       <td className="px-3 py-2 tabular-nums">{horas(paso.operacionHoras)}</td>
-                      <td className="px-3 py-2 text-texto-secundario">Pendiente</td>
+                      <td className="px-3 py-2 text-texto-secundario">
+                        {ETIQUETA_ESTADO[paso.estado]}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

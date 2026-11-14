@@ -97,12 +97,23 @@ export interface OrigenComercialFicha {
   revisionLetra: string | null;
 }
 
-/** Paso de la ruta de un ítem: proceso y horas estimadas; nunca tarifa, costo ni precio. */
+/** Estado real de un paso de la ruta, derivado de programación y avance. */
+export type EstadoPasoRutaFicha =
+  | 'programada'
+  | 'en_preparacion'
+  | 'en_proceso'
+  | 'bloqueada'
+  | 'completada'
+  | 'cancelada'
+  | 'sin_registro';
+
+/** Paso de la ruta de un ítem: proceso, horas estimadas y estado real; nunca economía. */
 export interface PasoRutaFicha {
   secuencia: number;
   proceso: string;
   prepHoras: number | null;
   operacionHoras: number | null;
+  estado: EstadoPasoRutaFicha;
 }
 
 export interface RutaItemFicha {

@@ -371,12 +371,13 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
         .not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|legacy/iu);
       await page.getByTestId('ficha-pestana-partidas').click();
       await expect(page.getByTestId('ficha-panel-partidas')).toContainText('IT01');
-      // C8.3a (R08): la Ruta es una tabla por ítem con Estado «Pendiente» (sin tarifas ni costos).
+      // C8.3a (R08) + Obs. cliente 2026-11-14: la Ruta muestra el estado real de
+      // cada operación; con la orden producida y cerrada, el paso está Completada.
       await page.getByTestId('ficha-pestana-ruta').click();
       const panelRuta = page.getByTestId('ficha-panel-ruta');
       await expect(panelRuta).toContainText('IT01');
       await expect(panelRuta.getByRole('columnheader', { name: 'Operación estimada' })).toBeVisible();
-      await expect(panelRuta).toContainText('Pendiente');
+      await expect(panelRuta).toContainText('Completada');
       // C8.3b (R09): Archivos vivos es visible, sin identificadores internos ni la palabra «snapshot».
       await page.getByTestId('ficha-pestana-archivos').click();
       const panelArchivos = page.getByTestId('ficha-panel-archivos');

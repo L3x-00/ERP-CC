@@ -32,7 +32,7 @@ describe('proyección de la ruta de la ficha (R08)', () => {
     expect(ruta).toEqual([{
       codigoItem: 'IT01',
       descripcion: 'Soporte',
-      pasos: [{ secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 2 }],
+      pasos: [{ secuencia: 1, proceso: 'Corte láser', prepHoras: 0.5, operacionHoras: 2, estado: 'sin_registro' }],
     }]);
     const serializado = JSON.stringify(ruta);
     for (const secreto of ['4321.99', '876.54', '2191.35', 'tarifa_hora', 'costo_total', 'precio_unitario']) {
@@ -71,7 +71,7 @@ describe('proyección de la ruta de la ficha (R08)', () => {
       ruteo: [{ secuencia: '1', proceso_nombre: 'Corte', setup_horas: '0.25', run_horas: 'abc' }],
     }]));
 
-    expect(item?.pasos[0]).toEqual({ secuencia: 1, proceso: 'Corte', prepHoras: 0.25, operacionHoras: null });
+    expect(item?.pasos[0]).toEqual({ secuencia: 1, proceso: 'Corte', prepHoras: 0.25, operacionHoras: null, estado: 'sin_registro' });
   });
 
   it('un snapshot antiguo sin ruteo cae a la lista de operaciones, sin horas', () => {
@@ -81,9 +81,9 @@ describe('proyección de la ruta de la ficha (R08)', () => {
     }]));
 
     expect(item?.pasos).toEqual([
-      { secuencia: 1, proceso: 'Corte', prepHoras: null, operacionHoras: null },
-      { secuencia: 2, proceso: 'DOB', prepHoras: null, operacionHoras: null },
-      { secuencia: 3, proceso: 'Operación', prepHoras: null, operacionHoras: null },
+      { secuencia: 1, proceso: 'Corte', prepHoras: null, operacionHoras: null, estado: 'sin_registro' },
+      { secuencia: 2, proceso: 'DOB', prepHoras: null, operacionHoras: null, estado: 'sin_registro' },
+      { secuencia: 3, proceso: 'Operación', prepHoras: null, operacionHoras: null, estado: 'sin_registro' },
     ]);
   });
 
