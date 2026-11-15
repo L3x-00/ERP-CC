@@ -27,6 +27,7 @@ import {
   type SesionTrabajo,
 } from '@/modulos/produccion/tipos/indice';
 import { codigosFamiliaArea } from '@/modulos/produccion/utilidades/indice';
+import { pausarSesionesJornadaExcedidaServicio } from '@/modulos/produccion/servicios/corridas-servicio';
 import type { ConsultarTableroProduccionInput } from '@/modulos/produccion/validaciones/indice';
 import { dividirEnLotes } from '@/modulos/ordenes/utilidades/lotes';
 import { ordenConcluida } from '@/modulos/ordenes/utilidades/conclusion-orden';
@@ -192,6 +193,16 @@ export async function obtenerDatosTableroProduccionServicio(
   filtros: ConsultarTableroProduccionInput,
   admin?: SupabaseClient<Database>,
 ): Promise<DatosTableroProduccion> {
+  // C15: el tablero interno también refleja la pausa por jornada aunque nadie
+  // abra la ficha del operador. Es idempotente y un fallo no bloquea la lectura.
+  if (admin) {
+    try {
+      await pausarSesionesJornadaExcedidaServicio(admin, { operadorId: null });
+    } catch (error) {
+      console.error('[PRODUCCION] No se pudieron pausar las sesiones vencidas:', error);
+    }
+  }
+
   const resultadoCatalogo = admin
     ? await admin
         .from('areas_trabajo_config')

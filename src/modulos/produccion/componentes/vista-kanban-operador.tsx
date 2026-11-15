@@ -3,7 +3,7 @@
 import {
   COLUMNAS_ESPACIO_OPERADOR,
   ETIQUETAS_COLUMNA,
-  agruparProcesosPorOrden,
+  agruparProcesosPorOrdenYColumna,
   type ColumnaEspacioOperador,
   type ProcesoEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
@@ -17,6 +17,8 @@ export interface PropsVistaKanbanOperador {
   soloLectura: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
   onAbrirOrden: (ordenId: string) => void;
+  /** C15: continúa la sesión pausada sin abrir la ficha. */
+  onReanudar?: (proceso: ProcesoEspacioOperador) => void;
 }
 
 const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
@@ -38,8 +40,11 @@ export function VistaKanbanOperador({
   soloLectura,
   onAbrir,
   onAbrirOrden,
+  onReanudar,
 }: PropsVistaKanbanOperador) {
-  const ordenes = agruparProcesosPorOrden(procesos);
+  // C15: agrupar por orden y columna evita que una operación pausada quede
+  // oculta dentro de la tarjeta de la orden que sigue en proceso.
+  const ordenes = agruparProcesosPorOrdenYColumna(procesos);
   return (
     <div
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
@@ -84,13 +89,14 @@ export function VistaKanbanOperador({
             ) : (
               <ul className="grid min-w-0 gap-2">
                 {ordenesDelEstado.map((grupo) => (
-                  <li key={grupo.ordenId} className="min-w-0">
+                  <li key={`${grupo.ordenId}:${columna}`} className="min-w-0">
                     <TarjetaOrdenOperador
                       grupo={grupo}
                       hoy={hoy}
                       arrastrable={!soloLectura && columna !== 'lista'}
                       onAbrir={onAbrir}
                       onAbrirOrden={onAbrirOrden}
+                      onReanudar={onReanudar}
                     />
                   </li>
                 ))}

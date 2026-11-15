@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -14,6 +14,7 @@ import {
 } from '@/modulos/produccion/acciones/espacio-operador';
 import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/reanudar-sesion-operador';
 import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar-sesion-operador';
+import { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import {
   HORAS_JORNADA_OPERADOR,
@@ -30,6 +31,10 @@ import {
   type VerificacionInicio,
   type VistaEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
+import {
+  HORAS_JORNADA_PREDETERMINADA,
+  horasTranscurridasSesion,
+} from '@/modulos/produccion/utilidades/indice';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
@@ -120,6 +125,59 @@ export function EspacioOperador({
     : null;
 
   const operativo = !soloLectura && operadorId !== null;
+
+  // C15: vigilante del tablero. Aunque el operador no abra la ficha, al cumplir
+  // la jornada la sesión se pausa y el tablero se refresca para mostrarla en
+  // «Pausada» tanto al operador como al supervisor. El servidor revalida la
+  // jornada real del turno antes de escribir.
+  const pausasIntentadas = useRef<Set<string>>(new Set());
+  const ultimaRevisionJornada = useRef(0);
+
+  useEffect(() => {
+    if (!operativo) return;
+    const sesionesActivas = procesos
+      .map((proceso) => proceso.sesionActiva)
+      .filter((sesion): sesion is NonNullable<typeof sesion> => sesion !== null);
+    if (sesionesActivas.length === 0) return;
+    let cancelado = false;
+
+    const revisar = () => {
+      const ahora = Date.now();
+      if (ahora - ultimaRevisionJornada.current < 30_000) return;
+      ultimaRevisionJornada.current = ahora;
+      const vencida = sesionesActivas.find((sesion) => (
+        !pausasIntentadas.current.has(sesion.id)
+        && horasTranscurridasSesion(sesion.fechaInicio, new Date(ahora))
+          >= HORAS_JORNADA_PREDETERMINADA
+      ));
+      if (!vencida) return;
+      pausasIntentadas.current.add(vencida.id);
+      void pausarSesionJornadaAccion({ sesionId: vencida.id })
+        .then((respuesta) => {
+          if (cancelado) return;
+          if (!respuesta.exito || (respuesta.datos?.sesionesPausadas ?? 0) === 0) {
+            pausasIntentadas.current.delete(vencida.id);
+            return;
+          }
+          setAviso({
+            tipo: 'error',
+            texto: 'Se cumplió la jornada del turno: la sesión se pausó automáticamente. '
+              + 'Continúala en el siguiente turno o justifica horas extra si debes terminarla hoy.',
+          });
+          enrutador.refresh();
+        })
+        .catch(() => {
+          pausasIntentadas.current.delete(vencida.id);
+        });
+    };
+
+    revisar();
+    const temporizador = window.setInterval(revisar, 60_000);
+    return () => {
+      cancelado = true;
+      window.clearInterval(temporizador);
+    };
+  }, [procesos, operativo, enrutador]);
 
   const filtrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
@@ -462,6 +520,7 @@ export function EspacioOperador({
           soloLectura={soloLectura}
           onAbrir={setDetalle}
           onAbrirOrden={setOrdenAbiertaId}
+          onReanudar={(proceso) => void reanudar(proceso)}
         />
       ) : vista === 'calendario' ? (
         <VistaCalendarioOperador

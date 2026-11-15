@@ -1,12 +1,14 @@
 'use client';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
+import { Button } from '@/compartido/componentes/ui/button';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import { cn } from '@/compartido/utilidades/cn';
 import {
   ETIQUETAS_COLUMNA,
   ETIQUETAS_URGENCIA,
+  etiquetaMotivoPausa,
   procesoRepresentativoItem,
   type GrupoOrdenEspacioOperador,
   type ProcesoEspacioOperador,
@@ -14,6 +16,7 @@ import {
 } from '@/modulos/produccion/tipos/indice';
 import {
   etiquetaDiaCorto,
+  etiquetaFechaHora,
   horasLegibles,
   textoCompromiso,
 } from '@/modulos/produccion/utilidades/formato-operador';
@@ -38,6 +41,8 @@ export interface PropsTarjetaOrdenOperador {
   arrastrable?: boolean;
   onAbrir: (proceso: ProcesoEspacioOperador) => void;
   onAbrirOrden: (ordenId: string) => void;
+  /** C15: reanuda una sesión pausada directamente desde la tarjeta. */
+  onReanudar?: (proceso: ProcesoEspacioOperador) => void;
 }
 
 function rutaDeItem(grupo: GrupoOrdenEspacioOperador, indice: number): string {
@@ -64,6 +69,7 @@ export function TarjetaOrdenOperador({
   arrastrable = false,
   onAbrir,
   onAbrirOrden,
+  onReanudar,
 }: PropsTarjetaOrdenOperador) {
   return (
     <article
@@ -117,6 +123,10 @@ export function TarjetaOrdenOperador({
           const ruta = rutaDeItem(grupo, indice);
           const estadoDistinto = representante.columna !== grupo.columna;
           const tieneAviso = representante.etiquetas.includes('Sin piezas previas');
+          const sesionPausada = representante.columna === 'pausada'
+            && representante.ultimaSesion?.estadoSesion === 'pausada'
+            ? representante.ultimaSesion
+            : null;
           return (
             <li
               key={item.partidaId}
@@ -173,6 +183,41 @@ export function TarjetaOrdenOperador({
                   ) : null}
                   <span className="ml-auto font-medium text-acento-texto">Ver detalle ›</span>
                 </div>
+                {sesionPausada ? (
+                  <div
+                    className="pointer-events-auto mt-1 grid gap-1 rounded-md border border-advertencia/40 bg-advertencia-suave/70 p-2 text-[10px] text-advertencia-texto"
+                    data-testid={`pausa-proceso-${representante.id}`}
+                  >
+                    <p className="font-semibold">
+                      {etiquetaMotivoPausa(sesionPausada.motivoPausa) ?? 'Sesión pausada'}
+                    </p>
+                    <p>
+                      {sesionPausada.operadorNombre}
+                      {sesionPausada.fechaFin
+                        ? ` · ${etiquetaFechaHora(sesionPausada.fechaFin)}`
+                        : ''}
+                      {` · ${horasLegibles(sesionPausada.horasNetas)} netas`}
+                    </p>
+                    {sesionPausada.motivoPausaNota ? (
+                      <p className="line-clamp-2 text-texto-secundario">
+                        {sesionPausada.motivoPausaNota}
+                      </p>
+                    ) : null}
+                    {representante.puedeReanudar && onReanudar ? (
+                      <Button
+                        type="button"
+                        tamano="sm"
+                        variante="secundario"
+                        draggable={false}
+                        className="mt-1 justify-self-start"
+                        onClick={() => onReanudar(representante)}
+                        data-testid={`reanudar-proceso-${representante.id}`}
+                      >
+                        Continuar sesión
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </li>
           );
