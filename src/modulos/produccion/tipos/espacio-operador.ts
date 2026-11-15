@@ -309,6 +309,92 @@ export function procesoRepresentativoItem(
 }
 
 /**
+ * Construye el grupo visible de una orden a partir del subconjunto de procesos
+ * que comparten columna. Se reutiliza para el agrupado por orden completa y para
+ * el agrupado por orden × columna del Kanban.
+ */
+function construirGrupoOrden(
+  delOrden: readonly ProcesoEspacioOperador[],
+  columna: ColumnaEspacioOperador,
+): GrupoOrdenEspacioOperador {
+  const primero = delOrden[0];
+  const porPartida = new Map<string, ProcesoEspacioOperador[]>();
+  for (const proceso of delOrden) {
+    const delItem = porPartida.get(proceso.partidaId);
+    if (delItem) delItem.push(proceso);
+    else porPartida.set(proceso.partidaId, [proceso]);
+  }
+
+  const items: ItemOrdenEspacioOperador[] = [...porPartida.values()]
+    .map((delItem) => {
+      const referencia = delItem[0];
+      const porcentaje = referencia.cantidadSolicitada > 0
+        ? Math.min((referencia.cantidadProducida / referencia.cantidadSolicitada) * 100, 100)
+        : 0;
+      return {
+        partidaId: referencia.partidaId,
+        codigoPieza: referencia.codigoPieza,
+        descripcion: referencia.descripcion,
+        unidadMedida: referencia.unidadMedida,
+        cantidadProducida: referencia.cantidadProducida,
+        cantidadSolicitada: referencia.cantidadSolicitada,
+        porcentaje,
+        material: referencia.material,
+        procesos: [...delItem].sort((a, b) => a.secuencia - b.secuencia),
+      };
+    })
+    .sort((a, b) => a.codigoPieza.localeCompare(b.codigoPieza, 'es'));
+
+  const cantidadProducida = items.reduce((total, item) => total + item.cantidadProducida, 0);
+  const cantidadSolicitada = items.reduce((total, item) => total + item.cantidadSolicitada, 0);
+  const urgencia = delOrden.reduce<UrgenciaProceso>(
+    (peor, proceso) => (
+      (RANGO_URGENCIA.get(proceso.urgencia) ?? 99) < (RANGO_URGENCIA.get(peor) ?? 99)
+        ? proceso.urgencia
+        : peor
+    ),
+    primero.urgencia,
+  );
+  const fechaCompromiso = delOrden.reduce(
+    (fecha, proceso) => (proceso.fechaCompromiso < fecha ? proceso.fechaCompromiso : fecha),
+    primero.fechaCompromiso,
+  );
+  const horas = delOrden.reduce((total, proceso) => total + proceso.horasEstimadas, 0);
+
+  return {
+    ordenId: primero.ordenId,
+    folioOrden: primero.folioOrden,
+    folioSii: primero.folioSii,
+    clienteNombre: primero.clienteNombre,
+    fechaCompromiso,
+    urgencia,
+    prioridad: primero.prioridad,
+    notas: primero.notas,
+    columna,
+    items,
+    procesos: [...delOrden].sort((a, b) => (
+      a.codigoPieza.localeCompare(b.codigoPieza, 'es') || a.secuencia - b.secuencia
+    )),
+    horas,
+    cantidadProducida,
+    cantidadSolicitada,
+    porcentaje: cantidadSolicitada > 0
+      ? Math.min((cantidadProducida / cantidadSolicitada) * 100, 100)
+      : 0,
+  };
+}
+
+function ordenarGruposOrden(
+  grupos: GrupoOrdenEspacioOperador[],
+): GrupoOrdenEspacioOperador[] {
+  return grupos.sort((a, b) => (
+    (RANGO_URGENCIA.get(a.urgencia) ?? 99) - (RANGO_URGENCIA.get(b.urgencia) ?? 99)
+    || a.fechaCompromiso.localeCompare(b.fechaCompromiso)
+    || a.folioOrden.localeCompare(b.folioOrden, 'es')
+  ));
+}
+
+/**
  * Agrupa operaciones por orden y, dentro de ella, por ítem. Mantiene cada
  * operación con sus acciones para no perder el flujo de piso, pero evita que
  * una orden con varios ítems/procesos se pinte como tarjetas independientes.
@@ -323,79 +409,45 @@ export function agruparProcesosPorOrden(
     else porOrden.set(proceso.ordenId, [proceso]);
   }
 
-  const grupos = [...porOrden.values()].map((delOrden) => {
-    const primero = delOrden[0];
-    const porPartida = new Map<string, ProcesoEspacioOperador[]>();
-    for (const proceso of delOrden) {
-      const delItem = porPartida.get(proceso.partidaId);
-      if (delItem) delItem.push(proceso);
-      else porPartida.set(proceso.partidaId, [proceso]);
-    }
+  return ordenarGruposOrden(
+    [...porOrden.values()].map((delOrden) => (
+      construirGrupoOrden(delOrden, derivarColumnaOrden(delOrden))
+    )),
+  );
+}
 
-    const items: ItemOrdenEspacioOperador[] = [...porPartida.values()]
-      .map((delItem) => {
-        const referencia = delItem[0];
-        const porcentaje = referencia.cantidadSolicitada > 0
-          ? Math.min((referencia.cantidadProducida / referencia.cantidadSolicitada) * 100, 100)
-          : 0;
-        return {
-          partidaId: referencia.partidaId,
-          codigoPieza: referencia.codigoPieza,
-          descripcion: referencia.descripcion,
-          unidadMedida: referencia.unidadMedida,
-          cantidadProducida: referencia.cantidadProducida,
-          cantidadSolicitada: referencia.cantidadSolicitada,
-          porcentaje,
-          material: referencia.material,
-          procesos: [...delItem].sort((a, b) => a.secuencia - b.secuencia),
-        };
-      })
-      .sort((a, b) => a.codigoPieza.localeCompare(b.codigoPieza, 'es'));
+/**
+ * C15: agrupa por orden y columna para el Kanban. Una operación pausada no debe
+ * quedar oculta dentro de la tarjeta de una orden que aún tiene otra operación
+ * en marcha: cada columna recibe solo las operaciones que le corresponden y la
+ * orden puede aparecer en dos columnas si tiene trabajo simultáneo en ambas.
+ */
+export function agruparProcesosPorOrdenYColumna(
+  procesos: readonly ProcesoEspacioOperador[],
+): GrupoOrdenEspacioOperador[] {
+  const porOrdenYColumna = new Map<string, ProcesoEspacioOperador[]>();
+  for (const proceso of procesos) {
+    const clave = `${proceso.ordenId}\u0000${proceso.columna}`;
+    const actuales = porOrdenYColumna.get(clave);
+    if (actuales) actuales.push(proceso);
+    else porOrdenYColumna.set(clave, [proceso]);
+  }
 
-    const cantidadProducida = items.reduce((total, item) => total + item.cantidadProducida, 0);
-    const cantidadSolicitada = items.reduce((total, item) => total + item.cantidadSolicitada, 0);
-    const urgencia = delOrden.reduce<UrgenciaProceso>(
-      (peor, proceso) => (
-        (RANGO_URGENCIA.get(proceso.urgencia) ?? 99) < (RANGO_URGENCIA.get(peor) ?? 99)
-          ? proceso.urgencia
-          : peor
-      ),
-      primero.urgencia,
-    );
-    const fechaCompromiso = delOrden.reduce(
-      (fecha, proceso) => (proceso.fechaCompromiso < fecha ? proceso.fechaCompromiso : fecha),
-      primero.fechaCompromiso,
-    );
-    const horas = delOrden.reduce((total, proceso) => total + proceso.horasEstimadas, 0);
+  return ordenarGruposOrden(
+    [...porOrdenYColumna.values()].map((delGrupo) => (
+      construirGrupoOrden(delGrupo, delGrupo[0].columna)
+    )),
+  );
+}
 
-    return {
-      ordenId: primero.ordenId,
-      folioOrden: primero.folioOrden,
-      folioSii: primero.folioSii,
-      clienteNombre: primero.clienteNombre,
-      fechaCompromiso,
-      urgencia,
-      prioridad: primero.prioridad,
-      notas: primero.notas,
-      columna: derivarColumnaOrden(delOrden),
-      items,
-      procesos: [...delOrden].sort((a, b) => (
-        a.codigoPieza.localeCompare(b.codigoPieza, 'es') || a.secuencia - b.secuencia
-      )),
-      horas,
-      cantidadProducida,
-      cantidadSolicitada,
-      porcentaje: cantidadSolicitada > 0
-        ? Math.min((cantidadProducida / cantidadSolicitada) * 100, 100)
-        : 0,
-    };
-  });
-
-  return grupos.sort((a, b) => (
-    (RANGO_URGENCIA.get(a.urgencia) ?? 99) - (RANGO_URGENCIA.get(b.urgencia) ?? 99)
-    || a.fechaCompromiso.localeCompare(b.fechaCompromiso)
-    || a.folioOrden.localeCompare(b.folioOrden, 'es')
-  ));
+/**
+ * Etiqueta legible del motivo de pausa. `FIN_JORNADA` es un código de sistema
+ * que no vive en el catálogo, así que se resuelve explícitamente.
+ */
+export function etiquetaMotivoPausa(codigo: string | null): string | null {
+  if (!codigo) return null;
+  if (codigo.toUpperCase() === 'FIN_JORNADA') return 'Fin de jornada';
+  return codigo;
 }
 
 export interface AreaEspacioOperador {

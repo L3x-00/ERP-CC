@@ -404,14 +404,14 @@ export async function obtenerEspacioOperadorServicio(
   hoy: string = fechaIsoLocal(),
 ): Promise<DatosEspacioOperador> {
   // C15: antes de pintar el tablero, toda sesión que ya cumplió su jornada se
-  // pausa en el instante exacto del límite. Es idempotente y no bloquea la
+  // pausa en el instante exacto del límite. Con `operadorId` nulo (vista de
+  // supervisor) se revisan todos los operadores, para que una sesión olvidada
+  // no siga apareciendo «en proceso» en el piso. Es idempotente y no bloquea la
   // lectura si falla: el operador debe seguir viendo su piso.
-  if (operadorId !== null) {
-    try {
-      await pausarSesionesJornadaExcedidaServicio(cliente, { operadorId });
-    } catch (error) {
-      console.error('[PRODUCCION] No se pudieron pausar las sesiones vencidas:', error);
-    }
+  try {
+    await pausarSesionesJornadaExcedidaServicio(cliente, { operadorId });
+  } catch (error) {
+    console.error('[PRODUCCION] No se pudieron pausar las sesiones vencidas:', error);
   }
 
   const [

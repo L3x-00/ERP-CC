@@ -19,7 +19,7 @@ import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/uti
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/indice';
-import { ETIQUETAS_COLUMNA } from '@/modulos/produccion/tipos/indice';
+import { ETIQUETAS_COLUMNA, etiquetaMotivoPausa } from '@/modulos/produccion/tipos/indice';
 import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
@@ -354,6 +354,12 @@ export function DetalleProcesoOperador({
     ? proceso.piezasDisponibles
     : 0;
   const primeraPiezaPendiente = proceso.sesionActiva?.primeraPiezaPendiente === true;
+  // C15: la pausa (manual o automática) deja motivo, operador, corte y horas
+  // netas. Se muestran juntos para que el operador sepa qué retomar.
+  const sesionPausada = proceso.columna === 'pausada'
+    && proceso.ultimaSesion?.estadoSesion === 'pausada'
+    ? proceso.ultimaSesion
+    : null;
   const materialClientePartida = materialCliente.filter(
     (material) => material.partidaId === proceso.partidaId,
   );
@@ -1161,7 +1167,9 @@ export function DetalleProcesoOperador({
                         {' . '}{horasLegibles(sesion.horasNetas)} netas
                       </p>
                       {sesion.motivoPausa ? (
-                        <p className="text-xs text-advertencia-texto">Motivo: {sesion.motivoPausa}</p>
+                        <p className="text-xs text-advertencia-texto">
+                          Motivo: {etiquetaMotivoPausa(sesion.motivoPausa) ?? sesion.motivoPausa}
+                        </p>
                       ) : null}
                       {sesion.notas ? (
                         <p className="whitespace-pre-wrap text-xs text-texto-secundario">{sesion.notas}</p>
@@ -1327,6 +1335,33 @@ export function DetalleProcesoOperador({
             {' . '}{etiquetaDiaLargo(proceso.reclamo.fecha)} . {turnoLegible(proceso.reclamo.turno)}
             {' . '}{horasLegibles(proceso.reclamo.horasEstimadas)}
           </p>
+        ) : null}
+
+        {sesionPausada ? (
+          <section
+            aria-label="Sesión pausada"
+            data-testid="pausa-sesion-detalle"
+            className="grid gap-1 rounded-lg border border-advertencia/50 bg-advertencia-suave p-3 text-sm"
+          >
+            <p className="font-semibold text-advertencia-texto">
+              Sesión pausada:{' '}
+              {etiquetaMotivoPausa(sesionPausada.motivoPausa) ?? 'sin motivo registrado'}
+            </p>
+            <p className="text-xs text-texto-secundario">
+              {sesionPausada.operadorNombre}
+              {' · '}{etiquetaFechaHora(sesionPausada.fechaInicio)} → {etiquetaFechaHora(sesionPausada.fechaFin)}
+              {' · '}{horasLegibles(sesionPausada.horasNetas)} netas
+            </p>
+            {sesionPausada.motivoPausaNota ? (
+              <p className="text-xs text-texto-secundario">{sesionPausada.motivoPausaNota}</p>
+            ) : null}
+            {proceso.puedeReanudar ? (
+              <p className="text-xs text-advertencia-texto">
+                Puedes retomarla con «Continuar sesión pausada»; el avance y las horas
+                registradas se conservan.
+              </p>
+            ) : null}
+          </section>
         ) : null}
 
         {!soloLectura && primeraPiezaPendiente ? (

@@ -5,12 +5,14 @@ import {
   accionPrincipal,
   agruparProcesosPorArea,
   agruparProcesosPorOrden,
+  agruparProcesosPorOrdenYColumna,
   calcularDisponibilidadProcesos,
   derivarColumnaOrden,
   construirDiasCalendario,
   derivarColumnaProceso,
   derivarUrgenciaProceso,
   diasEntreFechas,
+  etiquetaMotivoPausa,
   etiquetasProceso,
   inicioSemana,
   resumirEspacioOperador,
@@ -264,6 +266,71 @@ describe('agruparProcesosPorOrden', () => {
 
     expect(grupos[0]?.items).toHaveLength(1);
     expect(grupos[0]?.items[0]?.procesos).toHaveLength(1);
+  });
+});
+
+describe('agruparProcesosPorOrdenYColumna', () => {
+  const sesionPausada = {
+    id: 'sesion-pausada',
+    operadorId: 'operador-1',
+    operadorNombre: 'Ana Operadora',
+    estadoSesion: 'pausada' as const,
+    fechaInicio: '2026-10-26T08:00:00.000Z',
+    fechaFin: '2026-10-26T16:00:00.000Z',
+    piezasProducidas: 0,
+    horasNetas: 8,
+    motivoPausa: 'FIN_JORNADA',
+    motivoPausaNota: 'Pausa automática al cumplir la jornada del turno.',
+    notas: null,
+    verificacionCompleta: true,
+  };
+
+  it('separa la operación pausada de la que sigue en proceso', () => {
+    const grupos = agruparProcesosPorOrdenYColumna([
+      crearProceso({
+        id: 'partida-1:meta-1',
+        partidaId: 'partida-1',
+        codigoPieza: 'IT01',
+        secuencia: 1,
+        procesoNombre: 'Corte',
+        columna: 'en_proceso',
+        sesionActiva: { ...sesionPausada, id: 'sesion-activa', estadoSesion: 'activa', fechaFin: null, motivoPausa: null },
+      }),
+      crearProceso({
+        id: 'partida-1:meta-2',
+        partidaId: 'partida-1',
+        codigoPieza: 'IT01',
+        secuencia: 2,
+        procesoNombre: 'Doblado',
+        columna: 'pausada',
+        ultimaSesion: sesionPausada,
+        puedeReanudar: true,
+      }),
+    ]);
+
+    expect(grupos).toHaveLength(2);
+    expect(grupos.map((grupo) => grupo.columna).sort()).toEqual(['en_proceso', 'pausada']);
+    const pausado = grupos.find((grupo) => grupo.columna === 'pausada');
+    expect(pausado?.procesos.map((proceso) => proceso.id)).toEqual(['partida-1:meta-2']);
+    expect(pausado?.items).toHaveLength(1);
+  });
+
+  it('mantiene un solo grupo cuando toda la orden comparte columna', () => {
+    const grupos = agruparProcesosPorOrdenYColumna([
+      crearProceso({ id: 'partida-1:meta-1', columna: 'bandeja' }),
+      crearProceso({ id: 'partida-1:meta-2', secuencia: 2, columna: 'bandeja' }),
+    ]);
+
+    expect(grupos).toHaveLength(1);
+    expect(grupos[0]?.procesos).toHaveLength(2);
+  });
+});
+
+describe('etiquetaMotivoPausa', () => {
+  it('traduce el código de sistema de la pausa automática', () => {
+    expect(etiquetaMotivoPausa('FIN_JORNADA')).toBe('Fin de jornada');
+    expect(etiquetaMotivoPausa('material_pendiente')).toBe('material_pendiente');
+    expect(etiquetaMotivoPausa(null)).toBeNull();
   });
 });
 

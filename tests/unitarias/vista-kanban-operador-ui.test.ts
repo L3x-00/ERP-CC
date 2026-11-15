@@ -105,4 +105,59 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     expect(tarjetaOrden.querySelector('[data-testid^="abrir-detalle-"]')).toBeTruthy();
     expect(tarjetaOrden.querySelector('[data-testid^="accion-"]')).toBeNull();
   });
+
+  it('muestra la operación pausada en su columna con motivo, operador y continuación', () => {
+    const sesionBase = {
+      operadorId: 'operador-1',
+      operadorNombre: 'Ana Operadora',
+      fechaInicio: '2026-10-26T08:00:00.000Z',
+      fechaFin: '2026-10-26T16:00:00.000Z',
+      piezasProducidas: 0,
+      horasNetas: 8,
+      motivoPausa: 'FIN_JORNADA',
+      motivoPausaNota: 'Pausa automática al cumplir la jornada del turno.',
+      notas: null,
+      verificacionCompleta: true,
+    };
+    render(createElement(VistaKanbanOperador, {
+      procesos: [
+        proceso({
+          id: 'partida-1:meta-1', partidaId: 'partida-1', codigoPieza: 'IT01',
+          secuencia: 1, procesoNombre: 'Corte', columna: 'en_proceso',
+          sesionActiva: {
+            ...sesionBase,
+            id: 'sesion-activa',
+            estadoSesion: 'activa',
+            fechaFin: null,
+            motivoPausa: null,
+            motivoPausaNota: null,
+          },
+        }),
+        proceso({
+          id: 'partida-1:meta-2', partidaId: 'partida-1', codigoPieza: 'IT01',
+          secuencia: 2, procesoNombre: 'Doblez', columna: 'pausada',
+          ultimaSesion: {
+            ...sesionBase,
+            id: 'sesion-pausada',
+            estadoSesion: 'pausada',
+          },
+          puedeReanudar: true,
+        }),
+      ],
+      hoy: '2026-10-26',
+      soloLectura: false,
+      onAbrir: vi.fn(),
+      onAbrirOrden: vi.fn(),
+      onReanudar: vi.fn(),
+    }));
+
+    const columnaPausada = screen.getByTestId('columna-pausada');
+    expect(columnaPausada.textContent).toContain('Fin de jornada');
+    expect(columnaPausada.textContent).toContain('Ana Operadora');
+    expect(columnaPausada.textContent).toContain('Continuar sesión');
+
+    const columnaEnProceso = screen.getByTestId('columna-en_proceso');
+    expect(columnaEnProceso.textContent).toContain('1. Corte');
+    expect(columnaEnProceso.textContent).not.toContain('Fin de jornada');
+  });
 });

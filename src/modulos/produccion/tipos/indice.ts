@@ -51,6 +51,8 @@ export {
   etiquetasProceso,
   agruparProcesosPorArea,
   agruparProcesosPorOrden,
+  agruparProcesosPorOrdenYColumna,
+  etiquetaMotivoPausa,
   resolverAreaRaiz,
   construirDiasCalendario,
   resumirEspacioOperador,
