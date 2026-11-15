@@ -5668,6 +5668,18 @@ export type Database = {
           id: string
         }[]
       }
+      cerrar_pausa_sin_producir: {
+        Args: {
+          p_operador_id: string
+          p_sesion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          estado_sesion: string
+          id: string
+        }[]
+      }
       cerrar_sesion_trabajo_operador: {
         Args: {
           p_estado_destino: string

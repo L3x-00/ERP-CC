@@ -83,6 +83,8 @@ export interface AccionesDetalleProceso {
   liberar: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
   iniciar: (proceso: ProcesoEspacioOperador) => void;
   reanudar: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
+  /** C15: cierra una pausa que no se retomará, sin producir piezas. */
+  cerrarPausa: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
   cerrar: (proceso: ProcesoEspacioOperador, datos: {
     sesionId: string;
     piezasProducidas: number;
@@ -384,6 +386,11 @@ export function DetalleProcesoOperador({
 
   async function reanudar(): Promise<void> {
     const resultado = await acciones.reanudar(proceso!);
+    setMensaje(resultado);
+  }
+
+  async function cerrarPausa(): Promise<void> {
+    const resultado = await acciones.cerrarPausa(proceso!);
     setMensaje(resultado);
   }
 
@@ -1174,6 +1181,13 @@ export function DetalleProcesoOperador({
                       {sesion.notas ? (
                         <p className="whitespace-pre-wrap text-xs text-texto-secundario">{sesion.notas}</p>
                       ) : null}
+                      {sesion.estadoSesion === 'pausada' ? (
+                        <p className="text-xs text-texto-secundario">
+                          {sesion.id === proceso.ultimaSesion?.id && proceso.puedeReanudar
+                            ? 'Pausa vigente: puedes continuarla o cerrarla sin producir.'
+                            : 'Periodo cerrado: conserva sus horas y no requiere cierre.'}
+                        </p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -1360,7 +1374,12 @@ export function DetalleProcesoOperador({
                 Puedes retomarla con «Continuar sesión pausada»; el avance y las horas
                 registradas se conservan.
               </p>
-            ) : null}
+            ) : (
+              <p className="text-xs text-texto-secundario">
+                Este periodo ya está cerrado en el tiempo: conserva sus horas y su motivo.
+                No requiere cierre y no se modifica al cerrar otra sesión.
+              </p>
+            )}
           </section>
         ) : null}
 
@@ -1433,6 +1452,16 @@ export function DetalleProcesoOperador({
                   )}
                 >
                   <div className="grid gap-3 overflow-hidden">
+                {proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada') ? (
+                  <p
+                    data-testid="nota-pausas-independientes"
+                    className="rounded-md bg-superficie-2 px-3 py-2 text-xs text-texto-secundario"
+                  >
+                    Este cierre solo afecta la sesión en marcha. Las sesiones pausadas conservan
+                    sus horas y su motivo como historial independiente: no se cierran ni se
+                    modifican desde aquí.
+                  </p>
+                ) : null}
                 <p className="text-xs text-texto-secundario">
                   La jornada del turno es de {HORAS_JORNADA_PREDETERMINADA} h. {AYUDA_HORAS_EXTRA}
                 </p>
@@ -2044,6 +2073,11 @@ export function DetalleProcesoOperador({
               {proceso.puedeReanudar ? (
                 <Button type="button" tamano="lg" variante="secundario" disabled={procesando} onClick={() => void reanudar()} data-testid="reanudar-detalle">
                   Continuar sesión pausada
+                </Button>
+              ) : null}
+              {proceso.puedeReanudar ? (
+                <Button type="button" variante="contorno" disabled={procesando} onClick={() => void cerrarPausa()} data-testid="cerrar-pausa-detalle">
+                  Cerrar pausa sin producir
                 </Button>
               ) : null}
               {puedeLiberar ? (

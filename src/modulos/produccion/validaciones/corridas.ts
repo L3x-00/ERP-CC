@@ -104,6 +104,16 @@ export const esquemaPausarSesionJornada = z
   })
   .strict();
 
+/**
+ * C15: cerrar una pausa que el operador no retomará. No declara producción y
+ * conserva horas, motivo y operador; solo libera la operación al pool.
+ */
+export const esquemaCerrarPausa = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+  })
+  .strict();
+
 /** C15: justificación del exceso de jornada por el propio operador. */
 export const esquemaJustificarHorasExtra = z
   .object({
@@ -168,6 +178,7 @@ export type AutorizarHorasExtraInput = z.infer<typeof esquemaAutorizarHorasExtra
 export type SolicitarHorasExtraInput = z.infer<typeof esquemaSolicitarHorasExtra>;
 export type ResolverHorasExtraInput = z.infer<typeof esquemaResolverHorasExtra>;
 export type PausarSesionJornadaInput = z.infer<typeof esquemaPausarSesionJornada>;
+export type CerrarPausaInput = z.infer<typeof esquemaCerrarPausa>;
 export type JustificarHorasExtraInput = z.infer<typeof esquemaJustificarHorasExtra>;
 export type RegistrarInspeccionInput = z.infer<typeof esquemaRegistrarInspeccion>;
 

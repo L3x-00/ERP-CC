@@ -43,6 +43,8 @@ export interface PropsTarjetaOrdenOperador {
   onAbrirOrden: (ordenId: string) => void;
   /** C15: reanuda una sesión pausada directamente desde la tarjeta. */
   onReanudar?: (proceso: ProcesoEspacioOperador) => void;
+  /** C15: cierra la pausa sin producir y libera la operación al pool. */
+  onCerrarPausa?: (proceso: ProcesoEspacioOperador) => void;
 }
 
 function rutaDeItem(grupo: GrupoOrdenEspacioOperador, indice: number): string {
@@ -70,6 +72,7 @@ export function TarjetaOrdenOperador({
   onAbrir,
   onAbrirOrden,
   onReanudar,
+  onCerrarPausa,
 }: PropsTarjetaOrdenOperador) {
   return (
     <article
@@ -203,18 +206,37 @@ export function TarjetaOrdenOperador({
                         {sesionPausada.motivoPausaNota}
                       </p>
                     ) : null}
-                    {representante.puedeReanudar && onReanudar ? (
-                      <Button
-                        type="button"
-                        tamano="sm"
-                        variante="secundario"
-                        draggable={false}
-                        className="mt-1 justify-self-start"
-                        onClick={() => onReanudar(representante)}
-                        data-testid={`reanudar-proceso-${representante.id}`}
-                      >
-                        Continuar sesión
-                      </Button>
+                    {representante.puedeReanudar && (onReanudar || onCerrarPausa) ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {onReanudar ? (
+                          <Button
+                            type="button"
+                            tamano="sm"
+                            variante="secundario"
+                            draggable={false}
+                            onClick={() => onReanudar(representante)}
+                            data-testid={`reanudar-proceso-${representante.id}`}
+                          >
+                            Continuar sesión
+                          </Button>
+                        ) : null}
+                        {onCerrarPausa ? (
+                          <Button
+                            type="button"
+                            tamano="sm"
+                            variante="contorno"
+                            draggable={false}
+                            onClick={() => onCerrarPausa(representante)}
+                            data-testid={`cerrar-pausa-proceso-${representante.id}`}
+                          >
+                            Cerrar pausa
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : !representante.puedeReanudar ? (
+                      <p className="text-[10px] text-texto-secundario">
+                        Periodo cerrado: conserva sus horas y no requiere cierre.
+                      </p>
                     ) : null}
                   </div>
                 ) : null}

@@ -45,6 +45,9 @@ export type CodigoErrorProduccion =
   | 'programacion_no_bloqueada'
   | 'programacion_conflicto'
   | 'sesion_pausada_inexistente'
+  | 'sesion_no_pausada'
+  | 'pausa_ya_superada'
+  | 'cierre_pausa_invalido'
   | 'recurso_ocupado'
   | 'capacidad_no_disponible'
   | 'verificacion_inicio_incompleta'
@@ -448,6 +451,39 @@ export async function cerrarSesionTrabajoServicio(
   };
 }
 
+export type PausaCerradaRegistrada = {
+  id: string;
+  estadoSesion: 'finalizada';
+  estadoPlaneacion: ReturnType<typeof estadoPlaneacionDesdeBase>;
+  actualizadoEn: string;
+};
+
+/**
+ * C15: una pausa que el operador no retomará se finaliza sin declarar piezas.
+ * Conserva el corte, las horas y el motivo ya registrados al pausar, y devuelve
+ * la operación al pool. No toca ninguna otra sesión de la orden.
+ */
+export async function cerrarPausaSinProducirServicio(
+  admin: SupabaseClient<Database>,
+  entrada: { sesionId: string; operadorId: string },
+): Promise<PausaCerradaRegistrada> {
+  const { data, error } = await admin.rpc('cerrar_pausa_sin_producir', {
+    p_sesion_id: entrada.sesionId,
+    p_operador_id: entrada.operadorId,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+
+  const fila = data?.[0];
+  if (!fila?.id || !fila.actualizado_en) throw new ErrorProduccion('desconocido');
+
+  return {
+    id: fila.id,
+    estadoSesion: 'finalizada',
+    estadoPlaneacion: estadoPlaneacionDesdeBase(fila.estado_planeacion),
+    actualizadoEn: fila.actualizado_en,
+  };
+}
+
 export type ConsumoPiezasRegistrado = {
   id: string;
   cantidadConsumida: number;
@@ -526,6 +562,12 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'sesion_pausada_inexistente':
     case 'orden_no_reanudable':
       return 'La orden ya no está pausada o no puede reanudarse';
+    case 'sesion_no_pausada':
+      return 'La sesión ya no está pausada; actualiza el tablero';
+    case 'pausa_ya_superada':
+      return 'Esa pausa ya fue retomada por una sesión posterior; actualiza el tablero';
+    case 'cierre_pausa_invalido':
+      return 'No se pudo cerrar la pausa; actualiza el tablero';
     case 'verificacion_inicio_incompleta':
       return 'Completa el checklist de eventos críticos para iniciar';
     case 'nota_pausa_requerida':

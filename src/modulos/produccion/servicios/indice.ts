@@ -11,6 +11,7 @@ export {
   iniciarSesionTrabajoServicio,
   reanudarSesionTrabajoServicio,
   cerrarSesionTrabajoServicio,
+  cerrarPausaSinProducirServicio,
   lanzarErrorProduccion,
   mensajeErrorSesion,
   registrarConsumoPiezasSesionServicio,
@@ -20,6 +21,7 @@ export type {
   CodigoErrorProduccion,
   CierreSesionRegistrado,
   ConsumoPiezasRegistrado,
+  PausaCerradaRegistrada,
   SesionIniciada,
 } from '@/modulos/produccion/servicios/sesiones-servicio';
 
