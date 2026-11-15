@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -122,6 +123,21 @@ export interface PropsDetalleProceso {
 const TURNOS = ['matutino', 'vespertino', 'nocturno'] as const;
 const CLASE_ETIQUETA = 'grid gap-1 text-sm font-medium text-texto-secundario';
 
+/**
+ * C17: en un proceso posterior (Doblado, etc.) producir piezas obliga a haber
+ * consumido al menos esas piezas del proceso anterior. Si el operador deja
+ * «Usado» en 0, se asume el consumo 1:1 con lo producido: es lo que ocurre en
+ * el piso y evita bloquear el cierre por un campo que nadie captura.
+ */
+export function piezasUsadasEfectivas(
+  usada: number,
+  producidas: number,
+  esProcesoPosterior: boolean,
+): number {
+  if (!esProcesoPosterior || usada > 0) return usada;
+  return Number.isFinite(producidas) && producidas > 0 ? producidas : usada;
+}
+
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div className="min-w-0">
@@ -168,6 +184,9 @@ export function DetalleProcesoOperador({
   const [notas, setNotas] = useState('');
   const [pin, setPin] = useState('');
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
+  // C17: el cierre fallido se muestra en un diálogo fijo para que el operador
+  // lo vea aunque el formulario esté muy abajo; guarda el motivo exacto.
+  const [errorCierre, setErrorCierre] = useState<{ titulo: string; mensaje: string } | null>(null);
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
@@ -355,6 +374,18 @@ export function DetalleProcesoOperador({
   const piezasDisponibles = typeof proceso.piezasDisponibles === 'number'
     ? proceso.piezasDisponibles
     : 0;
+  const nombreProcesoPrevio = proceso.procesoPrevioNombre ?? 'el proceso anterior';
+  const piezasCapturadasVista = Number(piezas);
+  const usadaVista = piezasUsadasEfectivas(
+    Number(cantidadUsada),
+    piezasCapturadasVista,
+    esProcesoPosterior,
+  );
+  const consumoAutomatico = esProcesoPosterior
+    && estadoDestino === 'finalizada'
+    && Number(cantidadUsada) === 0
+    && Number.isInteger(piezasCapturadasVista)
+    && piezasCapturadasVista > 0;
   const primeraPiezaPendiente = proceso.sesionActiva?.primeraPiezaPendiente === true;
   // C15: la pausa (manual o automática) deja motivo, operador, corte y horas
   // netas. Se muestran juntos para que el operador sepa qué retomar.
@@ -394,15 +425,26 @@ export function DetalleProcesoOperador({
     setMensaje(resultado);
   }
 
+  /** Muestra el fallo del cierre en el diálogo fijo y en el aviso inline. */
+  function fallarCierre(resultado: { exito?: boolean; error: string; codigo?: string }): void {
+    setMensaje({
+      exito: false,
+      error: resultado.error,
+      ...(resultado.codigo ? { codigo: resultado.codigo } : {}),
+    });
+    setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
+  }
+
   async function ejecutarCierre(): Promise<void> {
     if (!proceso?.sesionActiva) return;
+    setErrorCierre(null);
     if (!/^\d{4,6}$/.test(pin)) {
-      setMensaje({ exito: false, error: 'El PIN debe tener entre 4 y 6 dígitos' });
+      fallarCierre({ exito: false, error: 'El PIN debe tener entre 4 y 6 dígitos' });
       return;
     }
     const piezasCapturadas = Number(piezas);
     if (!Number.isInteger(piezasCapturadas) || piezasCapturadas < 0) {
-      setMensaje({ exito: false, error: 'Las piezas producidas deben ser un número entero' });
+      fallarCierre({ exito: false, error: 'Las piezas producidas deben ser un número entero' });
       return;
     }
     // Obs. cliente 2026-11-14: la orden no puede fabricar más de lo solicitado
@@ -413,7 +455,7 @@ export function DetalleProcesoOperador({
       etiquetaPiezas.toLowerCase(),
     );
     if (errorLimitePiezas) {
-      setMensaje({ exito: false, error: errorLimitePiezas });
+      fallarCierre({ exito: false, error: errorLimitePiezas });
       return;
     }
     const usada = Number(cantidadUsada);
@@ -432,47 +474,50 @@ export function DetalleProcesoOperador({
       && estadoDestino === 'finalizada'
       && consumoValido;
     const incluirConsumoPiezas = esProcesoPosterior && estadoDestino === 'finalizada';
+    // C17: si el operador no captura «Usado», se asume 1:1 con lo producido.
+    const usadaConsumoPiezas = piezasUsadasEfectivas(usada, piezasCapturadas, esProcesoPosterior);
     if (incluirConsumo && motivoConsumo.trim().length < 3) {
-      setMensaje({
+      fallarCierre({
         exito: false,
         error: 'Indica el motivo del consumo de material (mínimo 3 caracteres).',
       });
       return;
     }
     if (incluirConsumoPiezas) {
-      const totalPiezas = usada + merma;
-      if (!Number.isInteger(usada) || !Number.isInteger(merma) || usada < 0 || merma < 0) {
-        setMensaje({
+      const totalPiezas = usadaConsumoPiezas + merma;
+      if (!Number.isInteger(usadaConsumoPiezas) || !Number.isInteger(merma)
+        || usadaConsumoPiezas < 0 || merma < 0) {
+        fallarCierre({
           exito: false,
-          error: 'Las piezas usadas y la merma deben ser números enteros.',
+          error: `Las piezas usadas de ${nombreProcesoPrevio} y la merma deben ser números enteros.`,
         });
         return;
       }
       if (totalPiezas > piezasDisponibles) {
-        setMensaje({
+        fallarCierre({
           exito: false,
-          error: `Solo hay ${piezasDisponibles} piezas disponibles del proceso anterior.`,
+          error: `No puedes consumir ${formatearNumero(totalPiezas, 0)} piezas de ${nombreProcesoPrevio}: solo hay ${formatearNumero(piezasDisponibles, 0)} disponibles. Declaraste ${formatearNumero(piezasCapturadas, 0)} producidas y ${formatearNumero(merma, 0)} de merma; ajusta «Usado» o «Merma».`,
         });
         return;
       }
-      if (usada < piezasCapturadas) {
-        setMensaje({
+      if (usadaConsumoPiezas < piezasCapturadas) {
+        fallarCierre({
           exito: false,
-          error: 'No puedes producir más piezas de las que usaste del proceso anterior.',
+          error: `Declaraste ${formatearNumero(piezasCapturadas, 0)} piezas producidas en ${proceso.procesoNombre}, pero solo ${formatearNumero(usadaConsumoPiezas, 0)} usadas de ${nombreProcesoPrevio}. Las piezas usadas no pueden ser menores a las producidas.`,
         });
         return;
       }
       if (piezasCapturadas > 0 && totalPiezas === 0) {
-        setMensaje({
+        fallarCierre({
           exito: false,
-          error: 'Registra las piezas del proceso anterior que consumiste.',
+          error: `Registra cuántas piezas de ${nombreProcesoPrevio} consumiste (al menos ${formatearNumero(piezasCapturadas, 0)}).`,
         });
         return;
       }
       if (totalPiezas > 0 && motivoConsumo.trim().length < 3) {
-        setMensaje({
+        fallarCierre({
           exito: false,
-          error: 'Indica el motivo del consumo de piezas (mínimo 3 caracteres).',
+          error: `Indica el motivo del consumo de ${formatearNumero(totalPiezas, 0)} piezas de ${nombreProcesoPrevio} (mínimo 3 caracteres).`,
         });
         return;
       }
@@ -482,7 +527,7 @@ export function DetalleProcesoOperador({
       minutosSetupNumero !== undefined
       && (!Number.isFinite(minutosSetupNumero) || minutosSetupNumero < 0 || minutosSetupNumero > 1440)
     ) {
-      setMensaje({
+      fallarCierre({
         exito: false,
         error: 'Los minutos de setup deben ser un número entre 0 y 1440.',
       });
@@ -497,7 +542,7 @@ export function DetalleProcesoOperador({
         || rUsado + rMerma <= 0 || !Number.isFinite(rMinutos) || rMinutos <= 0
         || (!retrabajoMaterialId && !materialId)
         || retrabajoMotivo.trim().length < 3) {
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: 'Completa el retrabajo: material usado o merma, tiempo y motivo.',
         });
@@ -513,11 +558,11 @@ export function DetalleProcesoOperador({
       const merma = Number(consumoClienteMerma);
       if (!material || !Number.isFinite(usado) || !Number.isFinite(merma)
         || usado < 0 || merma < 0 || usado + merma <= 0) {
-        setMensaje({ exito: false, error: 'Indica el consumo del material del cliente.' });
+        fallarCierre({ exito: false, error: 'Indica el consumo del material del cliente.' });
         return;
       }
       if (usado + merma > material.saldo) {
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: `El material del cliente no alcanza: saldo ${material.saldo} ${material.unidadBase}. Pausa por falta de material o corrige la cantidad.`,
         });
@@ -529,11 +574,11 @@ export function DetalleProcesoOperador({
       const scrap = Number(scrapCierre);
       if (!Number.isFinite(recuperables) || !Number.isFinite(scrap)
         || recuperables < 0 || scrap < 0) {
-        setMensaje({ exito: false, error: 'Las piezas recuperables y el scrap deben ser cantidades válidas.' });
+        fallarCierre({ exito: false, error: 'Las piezas recuperables y el scrap deben ser cantidades válidas.' });
         return;
       }
       if (resultadoInspeccionCierre === 'APROBADA' && recuperables + scrap > 0) {
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: 'Si la inspección es aprobada, no puedes marcar piezas recuperables ni scrap.',
         });
@@ -541,7 +586,7 @@ export function DetalleProcesoOperador({
       }
       if (resultadoInspeccionCierre === 'RECHAZADA'
         && (recuperables + scrap <= 0 || recuperables + scrap > piezasCapturadas)) {
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: 'Indica cuántas piezas son recuperables o scrap (sin superar las producidas).',
         });
@@ -573,7 +618,7 @@ export function DetalleProcesoOperador({
         return Number.isInteger(cantidad) && cantidad >= 0;
       });
       if (!piezasValidas) {
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: 'Las piezas de cada ítem deben ser un número entero',
         });
@@ -590,7 +635,7 @@ export function DetalleProcesoOperador({
       });
       if (itemExcedido) {
         const cantidad = Number(piezasPorItem[itemExcedido.partidaId] ?? '0');
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: validarCantidadPiezas(cantidad, maximoPiezasProceso({
             metaProcesoId: itemExcedido.metaProcesoId,
@@ -602,14 +647,14 @@ export function DetalleProcesoOperador({
         return;
       }
       if (!minutosValidos || piezasTotales <= 0) {
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: 'Completa las piezas de cada ítem; los minutos por ítem son opcionales.',
         });
         return;
       }
       if (minutosTotales > Math.max(horasSesion * 60, 1)) {
-        setMensaje({
+        fallarCierre({
           exito: false,
           error: `Los minutos por ítem (${minutosTotales}) superan el tiempo de la sesión (${(horasSesion * 60).toFixed(0)} min).`,
         });
@@ -647,6 +692,11 @@ export function DetalleProcesoOperador({
     if (!resultado.exito) {
       // C15: el exceso de jornada ya no crea una solicitud a ciegas. El panel
       // muestra dos salidas: justificar el exceso o pedir aprobación.
+      // El fallo se muestra además en el diálogo fijo, salvo que tenga su
+      // propio diálogo de resolución (primera pieza).
+      if (resultado.codigo !== 'primera_pieza_pendiente') {
+        setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
+      }
       setMensajeJustificacion(null);
       return;
     }
@@ -659,11 +709,12 @@ export function DetalleProcesoOperador({
       // no dejar al operador con la captura abierta y el botón "Cerrar" a mano.
       setCierreAbierto(false);
       // C17: el consumo de piezas del proceso anterior se registra después del
-      // cierre para actualizar el inventario de piezas disponibles.
-      if (incluirConsumoPiezas) {
+      // cierre para actualizar el inventario de piezas disponibles. Sin piezas
+      // consumidas no hay nada que registrar (ni motivo que exigir).
+      if (incluirConsumoPiezas && usadaConsumoPiezas + merma > 0) {
         const consumoPiezas = await registrarConsumoPiezasAccion({
           sesionId: proceso.sesionActiva.id,
-          cantidadUsada: usada,
+          cantidadUsada: usadaConsumoPiezas,
           cantidadMerma: merma,
           motivo: motivoConsumo.trim(),
         });
@@ -671,13 +722,19 @@ export function DetalleProcesoOperador({
           consumoPiezas.exito
             ? {
                 tipo: 'ok',
-                texto: `Piezas consumidas: ${formatearNumero(usada, 0)} · merma: ${formatearNumero(merma, 0)}.`,
+                texto: `Piezas consumidas: ${formatearNumero(usadaConsumoPiezas, 0)} · merma: ${formatearNumero(merma, 0)}.`,
               }
             : {
                 tipo: 'error',
                 texto: `La sesión cerró, pero el consumo de piezas falló: ${consumoPiezas.error}`,
               },
         );
+        if (!consumoPiezas.exito) {
+          setErrorCierre({
+            titulo: 'La sesión cerró, pero faltó registrar el consumo de piezas',
+            mensaje: `${consumoPiezas.error} Corrige el consumo desde la ficha para no descontar de más del proceso anterior.`,
+          });
+        }
       }
       if (incluirConsumo && materialSeleccionado && resultado.datos) {
         setResumenCierre({
@@ -1570,7 +1627,16 @@ export function DetalleProcesoOperador({
                           </div>
                           <span className="text-xs font-normal text-texto-tenue">
                             Usado + merma descuenta del inventario de piezas. Disponibles: {formatearNumero(piezasDisponibles, 0)}.
+                            {consumoAutomatico ? ' Si dejas «Usado» en 0, se toma 1:1 con lo producido.' : ''}
                           </span>
+                          {consumoAutomatico ? (
+                            <span
+                              data-testid="aviso-consumo-automatico"
+                              className="text-xs font-normal text-acento-texto"
+                            >
+                              Se consumirán {formatearNumero(usadaVista, 0)} piezas de {nombreProcesoPrevio} (igual que las producidas) y {formatearNumero(Number(cantidadMerma) || 0, 0)} de merma.
+                            </span>
+                          ) : null}
                         </>
                       ) : (
                         <>
@@ -2292,6 +2358,52 @@ export function DetalleProcesoOperador({
     </Dialog>
   );
 
+  const dialogoCierreFallido = errorCierre && typeof document !== 'undefined'
+    ? createPortal(
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
+          onKeyDown={(evento) => {
+            if (evento.key === 'Escape') setErrorCierre(null);
+          }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="error-cierre-titulo"
+            aria-describedby="error-cierre-detalle"
+            data-testid="error-cierre-dialogo"
+            className="grid w-full max-w-md gap-4 rounded-2xl bg-superficie p-6 shadow-elevada ring-1 ring-borde/60"
+          >
+            <div className="flex flex-col gap-1">
+              <p id="error-cierre-titulo" className="text-lg font-bold text-texto-primario">
+                {errorCierre.titulo}
+              </p>
+              <p id="error-cierre-detalle" className="text-sm text-texto-secundario">
+                El cierre no se registró. Revisa el detalle y corrige lo que se indica.
+              </p>
+            </div>
+            <p
+              data-testid="error-cierre-mensaje"
+              className="rounded-md bg-peligro-suave px-3 py-2 text-sm text-peligro-texto"
+            >
+              {errorCierre.mensaje}
+            </p>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                autoFocus
+                onClick={() => setErrorCierre(null)}
+                data-testid="error-cierre-entendido"
+              >
+                Entendido
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
+
   if (presentacion === 'integrado') {
     return (
       <section
@@ -2304,6 +2416,7 @@ export function DetalleProcesoOperador({
         {dialogoResumenCierre}
         {dialogoPrimeraPieza}
         {dialogoErrorPrimeraPieza}
+        {dialogoCierreFallido}
       </section>
     );
   }
@@ -2323,6 +2436,7 @@ export function DetalleProcesoOperador({
       {dialogoResumenCierre}
       {dialogoPrimeraPieza}
       {dialogoErrorPrimeraPieza}
+      {dialogoCierreFallido}
     </>
   );
 }
