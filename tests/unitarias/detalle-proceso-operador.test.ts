@@ -639,4 +639,172 @@ describe('DetalleProcesoOperador', () => {
     expect(nota.textContent).toContain('solo afecta la sesión en marcha');
     expect(nota.textContent).toContain('historial independiente');
   });
+
+  it('en un proceso posterior asume consumo 1:1 cuando «Usado» queda en 0', async () => {
+    const cerrar = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
+    const doblado = {
+      ...proceso,
+      id: 'proceso-doblado',
+      metaProcesoId: 'meta-2',
+      procesoNombre: 'Doblado CNC',
+      areaCodigo: 'DOBLADO',
+      areaNombre: 'Doblado',
+      areaMacro: 'DOBLADO',
+      secuencia: 2,
+      cantidadSolicitada: 250,
+      pendientePiezas: 250,
+      piezasDisponibles: 250,
+      procesoPrevioNombre: 'Corte laser',
+      material: null,
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: doblado,
+      hoy: '2026-11-15',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    fireEvent.change(screen.getByLabelText('Piezas dobladas'), { target: { value: '250' } });
+    expect(screen.getByTestId('aviso-consumo-automatico').textContent).toContain(
+      'Se consumirán 250 piezas de Corte laser',
+    );
+    fireEvent.change(screen.getByTestId('motivo-consumo'), {
+      target: { value: 'Consumo de piezas cortadas' },
+    });
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    await waitFor(() => expect(cerrar).toHaveBeenCalledWith(doblado, expect.objectContaining({
+      piezasProducidas: 250,
+      estadoDestino: 'finalizada',
+    })));
+    await waitFor(() => expect(registrarConsumoPiezasAccion).toHaveBeenCalledWith({
+      sesionId: 'sesion-1',
+      cantidadUsada: 250,
+      cantidadMerma: 0,
+      motivo: 'Consumo de piezas cortadas',
+    }));
+    expect(screen.queryByTestId('error-cierre-dialogo')).toBeNull();
+  });
+
+  it('muestra el error del cierre en un diálogo específico y lo cierra', async () => {
+    const doblado = {
+      ...proceso,
+      id: 'proceso-doblado',
+      metaProcesoId: 'meta-2',
+      procesoNombre: 'Doblado CNC',
+      areaMacro: 'DOBLADO',
+      secuencia: 2,
+      cantidadSolicitada: 250,
+      pendientePiezas: 250,
+      piezasDisponibles: 250,
+      procesoPrevioNombre: 'Corte laser',
+      material: null,
+    } as unknown as ProcesoEspacioOperador;
+    const cerrar = vi.fn();
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: doblado,
+      hoy: '2026-11-15',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    fireEvent.change(screen.getByLabelText('Piezas dobladas'), { target: { value: '250' } });
+    fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '5' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), {
+      target: { value: 'Consumo de piezas cortadas' },
+    });
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    const dialogo = await screen.findByTestId('error-cierre-dialogo');
+    expect(dialogo.getAttribute('role')).toBe('alertdialog');
+    const mensaje = screen.getByTestId('error-cierre-mensaje');
+    expect(mensaje.textContent).toContain('Doblado CNC');
+    expect(mensaje.textContent).toContain('Corte laser');
+    expect(mensaje.textContent).toContain('no pueden ser menores a las producidas');
+    expect(cerrar).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId('error-cierre-entendido'));
+    await waitFor(() => expect(screen.queryByTestId('error-cierre-dialogo')).toBeNull());
+  });
+
+  it('no registra consumo de piezas cuando se cierra sin producir', async () => {
+    vi.mocked(registrarConsumoPiezasAccion).mockClear();
+    const cerrar = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
+    const doblado = {
+      ...proceso,
+      id: 'proceso-doblado',
+      metaProcesoId: 'meta-2',
+      procesoNombre: 'Doblado CNC',
+      areaMacro: 'DOBLADO',
+      secuencia: 2,
+      cantidadSolicitada: 250,
+      pendientePiezas: 250,
+      piezasDisponibles: 250,
+      procesoPrevioNombre: 'Corte laser',
+      material: null,
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: doblado,
+      hoy: '2026-11-15',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
+    expect(registrarConsumoPiezasAccion).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('error-cierre-dialogo')).toBeNull();
+  });
 });
