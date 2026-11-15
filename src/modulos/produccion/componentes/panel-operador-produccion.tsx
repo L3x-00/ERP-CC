@@ -23,6 +23,7 @@ import { CampoEntero } from './campo-entero';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
 import { registrarInspeccionAccion } from '../acciones/registrar-inspeccion';
+import { registrarConsumoPiezasAccion } from '../acciones/registrar-consumo-piezas';
 
 type ResultadoOperacion = { exito: true; datos?: CierreSesionRegistrado } | { exito: false; error: string; codigo?: string };
 type MensajePanelOperador = { texto: string; tipo: 'error' | 'estado'; codigo?: string };
@@ -198,6 +199,10 @@ export function PanelOperadorProduccion({
     ?? null;
   const metaSeleccionada = metasSesion.find((meta) => meta.id === metaProcesoId) ?? metaPorDefecto;
   const etiquetaPiezas = etiquetaPiezasProceso(metaSeleccionada?.nombre);
+  // C17: la primera operación consume materia prima; las posteriores consumen
+  // las piezas que liberó el proceso anterior.
+  const esProcesoPosterior = typeof metaSeleccionada?.disponiblePiezas === 'number';
+  const piezasDisponiblesPosterior = metaSeleccionada?.disponiblePiezas ?? 0;
   // Obs. cliente 2026-11-14: el tope visible coincide con la validación del
   // servidor (meta pendiente o piezas pendientes de la partida).
   const maximoPiezasCierre = metaSeleccionada
@@ -279,16 +284,50 @@ export function PanelOperadorProduccion({
     const merma = Number(cantidadMerma);
     // B7: el servidor decide si la ruta exige consumo. Si se captura, el motivo
     // es obligatorio; sin consumo no se exige material.
-    const incluirConsumo = estadoDestino === 'finalizada'
+    const incluirConsumo = !esProcesoPosterior
+      && estadoDestino === 'finalizada'
       && Boolean(materialSeleccionado)
       && Number.isFinite(usada)
       && Number.isFinite(merma)
       && usada >= 0
       && merma >= 0
       && usada + merma > 0;
+    const incluirConsumoPiezas = esProcesoPosterior && estadoDestino === 'finalizada';
     if (incluirConsumo && motivoConsumo.trim().length < 3) {
       setMensaje({ texto: 'Indica el motivo del consumo de material (mínimo 3 caracteres).', tipo: 'error' });
       return;
+    }
+    if (incluirConsumoPiezas) {
+      const totalPiezas = usada + merma;
+      if (!Number.isInteger(usada) || !Number.isInteger(merma) || usada < 0 || merma < 0) {
+        setMensaje({ texto: 'Las piezas usadas y la merma deben ser números enteros.', tipo: 'error' });
+        return;
+      }
+      if (totalPiezas > piezasDisponiblesPosterior) {
+        setMensaje({
+          texto: `Solo hay ${piezasDisponiblesPosterior} piezas disponibles del proceso anterior.`,
+          tipo: 'error',
+        });
+        return;
+      }
+      if (usada < piezas) {
+        setMensaje({
+          texto: 'No puedes producir más piezas de las que usaste del proceso anterior.',
+          tipo: 'error',
+        });
+        return;
+      }
+      if (piezas > 0 && totalPiezas === 0) {
+        setMensaje({
+          texto: 'Registra las piezas del proceso anterior que consumiste.',
+          tipo: 'error',
+        });
+        return;
+      }
+      if (totalPiezas > 0 && motivoConsumo.trim().length < 3) {
+        setMensaje({ texto: 'Indica el motivo del consumo de piezas (mínimo 3 caracteres).', tipo: 'error' });
+        return;
+      }
     }
     const minutosSetupNumero = minutosSetup.trim() === '' ? undefined : Number(minutosSetup);
     if (
@@ -318,6 +357,25 @@ export function PanelOperadorProduccion({
     });
     if (resultado.exito) {
       setMensaje({ texto: 'Sesión registrada y recurso liberado', tipo: 'estado' });
+      if (incluirConsumoPiezas) {
+        const consumoPiezas = await registrarConsumoPiezasAccion({
+          sesionId: sesionActiva.id,
+          cantidadUsada: usada,
+          cantidadMerma: merma,
+          motivo: motivoConsumo.trim(),
+        });
+        setMensaje(
+          consumoPiezas.exito
+            ? {
+                texto: `Piezas consumidas: ${usada} · merma: ${merma}.`,
+                tipo: 'estado',
+              }
+            : {
+                texto: `La sesión cerró, pero el consumo de piezas falló: ${consumoPiezas.error}`,
+                tipo: 'error',
+              },
+        );
+      }
     } else {
       setMensaje({
         texto: resultado.error,
@@ -679,51 +737,94 @@ export function PanelOperadorProduccion({
           {estadoDestino === 'finalizada' ? (
             <fieldset className="grid gap-3 rounded-lg border border-borde p-3">
               <legend className="px-1 text-sm font-semibold text-texto-primario">Consumo de material</legend>
-              {materiales.length === 0 ? (
-                <p role="alert" className="text-sm text-advertencia-texto">
-                  No hay materiales activos para registrar el cierre.
-                </p>
-              ) : (
-                <label className={CLASE_ETIQUETA}>
-                  Material
-                  <Select
-                    className="min-h-11"
-                    value={materialId}
-                    onChange={(evento) => setMaterialId(evento.target.value)}
-                  >
-                    <option value="">Selecciona un material</option>
-                    {materiales.map((material) => (
-                      <option key={material.id} value={material.id}>
-                        {material.codigo} — {material.nombre} ({material.unidadBase})
+              {esProcesoPosterior ? (
+                <>
+                  <label className={CLASE_ETIQUETA}>
+                    Material
+                    <Select
+                      className="min-h-11"
+                      value={sesionActiva.partidaId}
+                      disabled
+                    >
+                      <option value={sesionActiva.partidaId}>
+                        {partidaSesionActiva?.codigoPieza ?? 'Pieza'} — {metaSeleccionada?.procesoPrevioNombre ?? 'piezas del proceso anterior'} ({piezasDisponiblesPosterior} disponibles)
                       </option>
-                    ))}
-                  </Select>
-                </label>
+                    </Select>
+                    <span className="text-xs font-normal text-texto-tenue">
+                      Piezas liberadas por el proceso anterior. No se consume la lámina completa.
+                    </span>
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className={CLASE_ETIQUETA}>
+                      Usado
+                      <CampoEntero
+                        className="min-h-11"
+                        valor={cantidadUsada}
+                        onValorCambiar={setCantidadUsada}
+                      />
+                    </label>
+                    <label className={CLASE_ETIQUETA}>
+                      Merma
+                      <CampoEntero
+                        className="min-h-11"
+                        valor={cantidadMerma}
+                        onValorCambiar={setCantidadMerma}
+                      />
+                    </label>
+                  </div>
+                  <span className="text-xs font-normal text-texto-tenue">
+                    Usado + merma descuenta del inventario de piezas. Disponibles: {piezasDisponiblesPosterior}.
+                  </span>
+                </>
+              ) : (
+                <>
+                  {materiales.length === 0 ? (
+                    <p role="alert" className="text-sm text-advertencia-texto">
+                      No hay materiales activos para registrar el cierre.
+                    </p>
+                  ) : (
+                    <label className={CLASE_ETIQUETA}>
+                      Material
+                      <Select
+                        className="min-h-11"
+                        value={materialId}
+                        onChange={(evento) => setMaterialId(evento.target.value)}
+                      >
+                        <option value="">Selecciona un material</option>
+                        {materiales.map((material) => (
+                          <option key={material.id} value={material.id}>
+                            {material.codigo} — {material.nombre} ({material.unidadBase})
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  )}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className={CLASE_ETIQUETA}>
+                      Usado
+                      <Input
+                        className="min-h-11"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={cantidadUsada}
+                        onChange={(evento) => setCantidadUsada(evento.target.value)}
+                      />
+                    </label>
+                    <label className={CLASE_ETIQUETA}>
+                      Merma
+                      <Input
+                        className="min-h-11"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={cantidadMerma}
+                        onChange={(evento) => setCantidadMerma(evento.target.value)}
+                      />
+                    </label>
+                  </div>
+                </>
               )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className={CLASE_ETIQUETA}>
-                  Usado
-                  <Input
-                    className="min-h-11"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={cantidadUsada}
-                    onChange={(evento) => setCantidadUsada(evento.target.value)}
-                  />
-                </label>
-                <label className={CLASE_ETIQUETA}>
-                  Merma
-                  <Input
-                    className="min-h-11"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={cantidadMerma}
-                    onChange={(evento) => setCantidadMerma(evento.target.value)}
-                  />
-                </label>
-              </div>
               <label className={CLASE_ETIQUETA}>
                 Motivo del consumo
                 <Input
@@ -731,7 +832,9 @@ export function PanelOperadorProduccion({
                   maxLength={200}
                   value={motivoConsumo}
                   onChange={(evento) => setMotivoConsumo(evento.target.value)}
-                  placeholder="Para qué se usó el material"
+                  placeholder={esProcesoPosterior
+                    ? 'Para qué se usaron las piezas del proceso anterior'
+                    : 'Para qué se usó el material'}
                   data-testid="motivo-consumo"
                 />
                 <span className="text-xs font-normal text-texto-tenue">

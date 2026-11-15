@@ -52,6 +52,7 @@ export { resolverSolicitudHorasExtraAccion } from '@/modulos/produccion/acciones
 export { justificarHorasExtraAccion } from '@/modulos/produccion/acciones/justificar-horas-extra';
 export { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
 export { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
+export { registrarConsumoPiezasAccion } from '@/modulos/produccion/acciones/registrar-consumo-piezas';
 export {
   firmarFotoInspeccionAccion,
   obtenerAutorizacionesHoraExtraAccion,

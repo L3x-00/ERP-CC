@@ -167,6 +167,25 @@ describe('calcularDisponibilidadProcesos', () => {
     expect(disponible.get('doblado')?.disponiblePiezas).toBe(60);
   });
 
+  it('descuenta el consumo real y no solo las piezas producidas (C17)', () => {
+    const disponible = calcularDisponibilidadProcesos([
+      { id: 'corte', secuencia: 1, nombre: 'Corte', hechoPiezas: 100 },
+      {
+        id: 'doblado',
+        secuencia: 2,
+        nombre: 'Doblado',
+        hechoPiezas: 58,
+        consumidoPiezas: 60,
+      },
+      { id: 'punzonado', secuencia: 3, nombre: 'Punzonado', hechoPiezas: 0 },
+    ]);
+
+    // 100 cortadas - 60 tomadas por Doblado (58 buenas + 2 de merma).
+    expect(disponible.get('doblado')?.disponiblePiezas).toBe(40);
+    // Punzonado ve las 58 piezas buenas que produjo Doblado.
+    expect(disponible.get('punzonado')?.disponiblePiezas).toBe(58);
+  });
+
   it('bloquea con cero cuando el proceso previo no ha terminado piezas', () => {
     const disponible = calcularDisponibilidadProcesos([
       { id: 'corte', secuencia: 1, nombre: 'Corte', hechoPiezas: 0 },

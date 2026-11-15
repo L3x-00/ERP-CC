@@ -342,13 +342,12 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(page.getByRole('status')).toContainText('Sesión iniciada');
     await page.getByLabel(/Piezas .* ahora/).fill('10');
     await page.getByTestId('meta-proceso-cierre').selectOption(caso.metaDobladoId);
-    await page.getByLabel('Material').selectOption(caso.materialId);
-    await page.getByLabel('Usado').fill('1');
+    // C17: en Doblado se consumen las piezas cortadas, no la lámina.
+    await page.getByLabel('Usado').fill('10');
     await page.getByTestId('motivo-consumo').fill('Consumo E2E');
     await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
-    await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
-    await page.getByRole('button', { name: 'Entendido' }).click();
+    await expect(page.getByRole('status')).toContainText('Piezas consumidas: 10');
 
     await expect(bloqueProcesos).toContainText('Doblado: 10/10 · 0 pend · 100%');
     await expect(tarjeta).toContainText('10/10 piezas');

@@ -127,14 +127,15 @@ async function obtenerSesionesDeOrdenes(
 async function obtenerAvancesDeMetas(
   cliente: Admin,
   metaIds: readonly string[],
-): Promise<Map<string, number>> {
+): Promise<{ hechoPorMeta: Map<string, number>; consumidoPorMeta: Map<string, number> }> {
   const hechoPorMeta = new Map<string, number>();
+  const consumidoPorMeta = new Map<string, number>();
   for (let inicio = 0; inicio < metaIds.length; inicio += 150) {
     const lote = metaIds.slice(inicio, inicio + 150);
     for (let pagina = 0; ; pagina += 1000) {
       const { data, error } = await cliente
         .from('registros_avance_partida')
-        .select('meta_proceso_id, cantidad_producida')
+        .select('meta_proceso_id, cantidad_producida, cantidad_consumida')
         .in('meta_proceso_id', lote)
         .order('id')
         .range(pagina, pagina + 999);
@@ -145,11 +146,19 @@ async function obtenerAvancesDeMetas(
           avance.meta_proceso_id,
           (hechoPorMeta.get(avance.meta_proceso_id) ?? 0) + Number(avance.cantidad_producida),
         );
+        // C17: los registros históricos sin consumo descuentan lo producido.
+        const consumido = Number(avance.cantidad_consumida) > 0
+          ? Number(avance.cantidad_consumida)
+          : Number(avance.cantidad_producida);
+        consumidoPorMeta.set(
+          avance.meta_proceso_id,
+          (consumidoPorMeta.get(avance.meta_proceso_id) ?? 0) + consumido,
+        );
       }
       if (!data || data.length < 1000) break;
     }
   }
-  return hechoPorMeta;
+  return { hechoPorMeta, consumidoPorMeta };
 }
 
 // Únicamente adjuntos originales del RFQ o de la propuesta aceptada.
@@ -522,7 +531,12 @@ export async function obtenerEspacioOperadorServicio(
   }));
   const areasPorCodigo = new Map(areas.map((area) => [area.codigo, area]));
 
-  const [sesiones, hechoPorMeta, archivosPorOrden, comentariosPorOrden] = await Promise.all([
+  const [
+    sesiones,
+    { hechoPorMeta, consumidoPorMeta },
+    archivosPorOrden,
+    comentariosPorOrden,
+  ] = await Promise.all([
     obtenerSesionesDeOrdenes(cliente, ordenIds),
     obtenerAvancesDeMetas(cliente, filasMetas.map((meta) => meta.id)),
     obtenerArchivosDeOrdenes(cliente, ordenIds),
@@ -634,12 +648,16 @@ export async function obtenerEspacioOperadorServicio(
 
     const procesosRuteo: ProcesoRuteoResumen[] = operaciones.map((operacion) => {
       const hecho = operacion.meta ? (hechoPorMeta.get(operacion.meta.id) ?? 0) : partida.cantidadProducida;
+      const consumido = operacion.meta
+        ? (consumidoPorMeta.get(operacion.meta.id) ?? hecho)
+        : hecho;
       return {
         id: operacion.meta?.id ?? `${partida.id}:sin-proceso`,
         secuencia: operacion.secuencia,
         nombre: operacion.nombre,
         metaPiezas: operacion.metaPiezas,
         hechoPiezas: hecho,
+        consumidoPiezas: consumido,
         completado: hecho >= operacion.metaPiezas,
       };
     });

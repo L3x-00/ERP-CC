@@ -91,6 +91,31 @@ export const esquemaCerrarSesion = z
   });
 
 /**
+ * C17: consumo de piezas del proceso anterior al cerrar una operación posterior
+ * al corte. `cantidadUsada` son piezas buenas; `cantidadMerma` las dañadas.
+ */
+export const esquemaRegistrarConsumoPiezas = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+    cantidadUsada: z
+      .number()
+      .int('Las piezas usadas deben ser un número entero')
+      .min(0, 'Las piezas usadas no pueden ser negativas'),
+    cantidadMerma: z
+      .number()
+      .int('La merma debe ser un número entero')
+      .min(0, 'La merma no puede ser negativa'),
+    motivo: z.string().trim().min(3, 'Indica el motivo del consumo').max(200),
+  })
+  .strict()
+  .refine(
+    (valor) => valor.cantidadUsada + valor.cantidadMerma > 0,
+    { message: 'Registra piezas usadas o merma mayor a cero', path: ['cantidadUsada'] },
+  );
+
+export type RegistrarConsumoPiezasInput = z.infer<typeof esquemaRegistrarConsumoPiezas>;
+
+/**
  * Cierre excepcional por administrador. El servidor resuelve el operador dueño
  * de la sesión; el navegador nunca lo elige y no se pide PIN ajeno.
  */

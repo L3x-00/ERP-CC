@@ -76,6 +76,13 @@ vi.mock('@/modulos/produccion/acciones/pausar-sesion-jornada', () => ({
   }),
 }));
 
+vi.mock('@/modulos/produccion/acciones/registrar-consumo-piezas', () => ({
+  registrarConsumoPiezasAccion: vi.fn().mockResolvedValue({
+    exito: true,
+    datos: { id: 'consumo-piezas-1', cantidadConsumida: 40, cantidadScrap: 0 },
+  }),
+}));
+
 import {
   DetalleProcesoOperador,
   type ResultadoOperacion,
@@ -83,6 +90,7 @@ import {
 import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
 import { solicitarHorasExtraAccion } from '@/modulos/produccion/acciones/solicitar-horas-extra';
 import { justificarHorasExtraAccion } from '@/modulos/produccion/acciones/justificar-horas-extra';
+import { registrarConsumoPiezasAccion } from '@/modulos/produccion/acciones/registrar-consumo-piezas';
 
 afterEach(cleanup);
 
@@ -382,6 +390,77 @@ describe('DetalleProcesoOperador', () => {
       'No puedes declarar 11 piezas cortadas: el máximo permitido es 10.',
     );
     expect(cerrar).not.toHaveBeenCalled();
+  });
+
+  it('en un proceso posterior lista las piezas del corte y registra su consumo (C17)', async () => {
+    vi.mocked(registrarConsumoPiezasAccion).mockClear();
+    const procesoPosterior = {
+      ...proceso,
+      cantidadSolicitada: 100,
+      cantidadProducida: 0,
+      metaPiezas: 100,
+      hechoPiezas: 0,
+      pendientePiezas: 100,
+      piezasDisponibles: 60,
+      procesoPrevioNombre: 'Corte láser',
+    } as unknown as ProcesoEspacioOperador;
+    const cerrar = vi.fn().mockResolvedValue({
+      exito: true,
+      datos: {
+        id: 'sesion-1',
+        estadoSesion: 'finalizada',
+        horasBrutas: 2,
+        horasNetas: 2,
+        piezasProducidas: 40,
+        cantidadProducidaPartida: 40,
+        estadoOrden: 'en_proceso',
+        estadoPlaneacion: 'programada',
+        actualizadoEn: '2026-10-28T12:00:00.000Z',
+      },
+    } satisfies ResultadoOperacion);
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: procesoPosterior,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    const selector = screen.getByTestId('material-cierre') as HTMLSelectElement;
+    expect(selector.disabled).toBe(true);
+    expect(selector.textContent).toContain('Corte láser');
+    expect(selector.textContent).toContain('60 disponibles');
+    expect(selector.textContent).not.toContain('AC-01');
+
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '40' } });
+    fireEvent.change(screen.getByTestId('usado-cierre'), { target: { value: '40' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), {
+      target: { value: 'Consumo de piezas cortadas' },
+    });
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
+    expect(cerrar.mock.calls[0]?.[1]).not.toHaveProperty('consumo');
+    await waitFor(() => expect(registrarConsumoPiezasAccion).toHaveBeenCalledWith({
+      sesionId: 'sesion-1',
+      cantidadUsada: 40,
+      cantidadMerma: 0,
+      motivo: 'Consumo de piezas cortadas',
+    }));
   });
 
   it('ante horas extra ofrece justificar o pedir aprobación, sin crear la solicitud a ciegas', async () => {

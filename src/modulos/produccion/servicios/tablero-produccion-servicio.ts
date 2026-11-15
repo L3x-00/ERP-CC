@@ -153,20 +153,28 @@ async function obtenerTodasLasSesiones(
  * registros históricos sin meta se resumen en la cantidad física de la partida.
  */
 async function obtenerAvancesProceso(cliente: SupabaseClient<Database>) {
-  const avances: { meta_proceso_id: string; cantidad_producida: number }[] = [];
+  const avances: {
+    meta_proceso_id: string;
+    cantidad_producida: number;
+    cantidad_consumida: number;
+  }[] = [];
   const TAMANO_PAGINA = 1000;
   for (let inicio = 0; ; inicio += TAMANO_PAGINA) {
     const { data, error } = await cliente.from('registros_avance_partida')
-      .select('meta_proceso_id, cantidad_producida')
+      .select('meta_proceso_id, cantidad_producida, cantidad_consumida')
       .not('meta_proceso_id', 'is', null)
       .order('id')
       .range(inicio, inicio + TAMANO_PAGINA - 1);
     if (error) throw new Error(`No se pudo cargar el avance por proceso: ${error.message}`);
     for (const avance of data ?? []) {
       if (avance.meta_proceso_id) {
+        const producidas = Number(avance.cantidad_producida);
+        const consumidas = Number(avance.cantidad_consumida);
         avances.push({
           meta_proceso_id: avance.meta_proceso_id,
-          cantidad_producida: Number(avance.cantidad_producida),
+          cantidad_producida: producidas,
+          // C17: los históricos sin consumo descuentan lo producido.
+          cantidad_consumida: consumidas > 0 ? consumidas : producidas,
         });
       }
     }
@@ -338,10 +346,15 @@ export async function obtenerDatosTableroProduccionServicio(
     metasPorPartida.set(meta.partidaId, actuales);
   }
   const hechoPorMeta = new Map<string, number>();
+  const consumidoPorMeta = new Map<string, number>();
   for (const avance of avancesProceso) {
     hechoPorMeta.set(
       avance.meta_proceso_id,
       (hechoPorMeta.get(avance.meta_proceso_id) ?? 0) + avance.cantidad_producida,
+    );
+    consumidoPorMeta.set(
+      avance.meta_proceso_id,
+      (consumidoPorMeta.get(avance.meta_proceso_id) ?? 0) + avance.cantidad_consumida,
     );
   }
 
@@ -359,6 +372,7 @@ export async function obtenerDatosTableroProduccionServicio(
         secuencia: meta.secuencia,
         nombre: meta.nombre,
         hechoPiezas: hechoPorMeta.get(meta.id) ?? 0,
+        consumidoPiezas: consumidoPorMeta.get(meta.id) ?? (hechoPorMeta.get(meta.id) ?? 0),
       })),
     );
     actuales.push({

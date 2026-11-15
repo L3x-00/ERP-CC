@@ -124,6 +124,8 @@ export interface ProcesoRuteoResumen {
   nombre: string;
   metaPiezas: number;
   hechoPiezas: number;
+  /** C17: piezas del proceso previo que esta operación ya tomó. */
+  consumidoPiezas?: number;
   completado: boolean;
 }
 
@@ -141,18 +143,24 @@ export interface DisponibilidadProcesoRuteo {
  * el arranque mientras el proceso previo no haya terminado ninguna pieza.
  */
 export function calcularDisponibilidadProcesos(
-  procesos: readonly Pick<ProcesoRuteoResumen, 'id' | 'secuencia' | 'nombre' | 'hechoPiezas'>[],
+  procesos: readonly Pick<
+    ProcesoRuteoResumen,
+    'id' | 'secuencia' | 'nombre' | 'hechoPiezas' | 'consumidoPiezas'
+  >[],
 ): Map<string, DisponibilidadProcesoRuteo> {
   const ordenados = [...procesos].sort((primero, segundo) => primero.secuencia - segundo.secuencia);
   const resultado = new Map<string, DisponibilidadProcesoRuteo>();
 
   ordenados.forEach((proceso, indice) => {
     const previo = indice > 0 ? ordenados[indice - 1] : null;
+    // C17: la operación consume piezas del proceso previo; los registros
+    // históricos sin consumo siguen descontando lo producido.
+    const consumido = proceso.consumidoPiezas ?? proceso.hechoPiezas;
     resultado.set(
       proceso.id,
       previo
         ? {
-          disponiblePiezas: Math.max(previo.hechoPiezas - proceso.hechoPiezas, 0),
+          disponiblePiezas: Math.max(previo.hechoPiezas - consumido, 0),
           procesoPrevioNombre: previo.nombre,
         }
         : { disponiblePiezas: null, procesoPrevioNombre: null },

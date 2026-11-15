@@ -29,6 +29,9 @@ export type CodigoErrorProduccion =
   | 'cantidad_excede_disponible_proceso'
   | 'produccion_solo_ultima_secuencia'
   | 'cantidad_producida_excede_solicitada'
+  | 'consumo_piezas_invalido'
+  | 'proceso_sin_piezas_previas'
+  | 'consumo_piezas_menor_produccion'
   | 'meta_proceso_no_corresponde'
   | 'cantidad_excede_meta_proceso'
   | 'motivo_pausa_invalido'
@@ -171,6 +174,9 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'cantidad_excede_disponible_proceso',
   'produccion_solo_ultima_secuencia',
   'cantidad_producida_excede_solicitada',
+  'consumo_piezas_invalido',
+  'proceso_sin_piezas_previas',
+  'consumo_piezas_menor_produccion',
   'meta_proceso_no_corresponde',
   'cantidad_excede_meta_proceso',
   'motivo_pausa_invalido',
@@ -442,6 +448,44 @@ export async function cerrarSesionTrabajoServicio(
   };
 }
 
+export type ConsumoPiezasRegistrado = {
+  id: string;
+  cantidadConsumida: number;
+  cantidadScrap: number;
+};
+
+/**
+ * C17: registra las piezas del proceso anterior que consumió una sesión ya
+ * cerrada. Es idempotente y descuenta la merma del inventario de piezas.
+ */
+export async function registrarConsumoPiezasSesionServicio(
+  admin: SupabaseClient<Database>,
+  entrada: {
+    sesionId: string;
+    operadorId: string;
+    cantidadUsada: number;
+    cantidadMerma: number;
+    motivo: string;
+  },
+): Promise<ConsumoPiezasRegistrado> {
+  const { data, error } = await admin.rpc('registrar_consumo_piezas_operador', {
+    p_sesion_id: entrada.sesionId,
+    p_operador_id: entrada.operadorId,
+    p_cantidad_usada: entrada.cantidadUsada,
+    p_cantidad_merma: entrada.cantidadMerma,
+    p_motivo: entrada.motivo,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+
+  const fila = ((data ?? []) as Record<string, unknown>[])[0] ?? {};
+  if (!fila.id) throw new ErrorProduccion('desconocido');
+  return {
+    id: String(fila.id),
+    cantidadConsumida: Number(fila.cantidad_consumida),
+    cantidadScrap: Number(fila.cantidad_scrap),
+  };
+}
+
 export function mensajeErrorSesion(error: unknown): string {
   if (!(error instanceof ErrorProduccion)) return 'No se pudo registrar la sesión de producción';
 
@@ -460,6 +504,12 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La cantidad supera las piezas terminadas y disponibles del proceso anterior';
     case 'cantidad_producida_excede_solicitada':
       return 'La producción no puede superar la cantidad solicitada';
+    case 'consumo_piezas_invalido':
+      return 'Indica cuántas piezas usaste y cuántas tuvieron merma, con su motivo.';
+    case 'proceso_sin_piezas_previas':
+      return 'Este proceso no tiene un paso anterior del que consumir piezas.';
+    case 'consumo_piezas_menor_produccion':
+      return 'No puedes producir más piezas de las que usaste del proceso anterior.';
     case 'meta_proceso_no_corresponde':
       return 'El proceso elegido no pertenece a esta partida';
     case 'cantidad_excede_meta_proceso':

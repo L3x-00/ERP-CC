@@ -3879,31 +3879,37 @@ export type Database = {
       }
       registros_avance_partida: {
         Row: {
+          cantidad_consumida: number
           cantidad_producida: number
           cantidad_scrap: number
           creado_en: string
           id: string
           meta_proceso_id: string | null
+          motivo_consumo_piezas: string | null
           operador_id: string
           partida_id: string
           sesion_trabajo_id: string | null
         }
         Insert: {
+          cantidad_consumida?: number
           cantidad_producida?: number
           cantidad_scrap?: number
           creado_en?: string
           id?: string
           meta_proceso_id?: string | null
+          motivo_consumo_piezas?: string | null
           operador_id: string
           partida_id: string
           sesion_trabajo_id?: string | null
         }
         Update: {
+          cantidad_consumida?: number
           cantidad_producida?: number
           cantidad_scrap?: number
           creado_en?: string
           id?: string
           meta_proceso_id?: string | null
+          motivo_consumo_piezas?: string | null
           operador_id?: string
           partida_id?: string
           sesion_trabajo_id?: string | null
@@ -6256,6 +6262,20 @@ export type Database = {
           costo_unitario_momento: number
           id: string
           movimiento_inventario_id: string | null
+        }[]
+      }
+      registrar_consumo_piezas_operador: {
+        Args: {
+          p_cantidad_merma: number
+          p_cantidad_usada: number
+          p_motivo: string
+          p_operador_id: string
+          p_sesion_id: string
+        }
+        Returns: {
+          cantidad_consumida: number
+          cantidad_scrap: number
+          id: string
         }[]
       }
       registrar_setup_sesion_operador: {
