@@ -149,12 +149,15 @@ describe('VistaKanbanOperador agrupada por orden', () => {
       onAbrir: vi.fn(),
       onAbrirOrden: vi.fn(),
       onReanudar: vi.fn(),
+      onCerrarPausa: vi.fn(),
     }));
 
     const columnaPausada = screen.getByTestId('columna-pausada');
     expect(columnaPausada.textContent).toContain('Fin de jornada');
     expect(columnaPausada.textContent).toContain('Ana Operadora');
     expect(columnaPausada.textContent).toContain('Continuar sesión');
+    expect(columnaPausada.textContent).toContain('Cerrar pausa');
+    expect(columnaPausada.querySelector('[data-testid="cerrar-pausa-proceso-partida-1:meta-2"]')).toBeTruthy();
 
     const columnaEnProceso = screen.getByTestId('columna-en_proceso');
     expect(columnaEnProceso.textContent).toContain('1. Corte');

@@ -19,6 +19,8 @@ export interface PropsVistaKanbanOperador {
   onAbrirOrden: (ordenId: string) => void;
   /** C15: continúa la sesión pausada sin abrir la ficha. */
   onReanudar?: (proceso: ProcesoEspacioOperador) => void;
+  /** C15: cierra una pausa que el operador no retomará, sin producir. */
+  onCerrarPausa?: (proceso: ProcesoEspacioOperador) => void;
 }
 
 const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
@@ -41,6 +43,7 @@ export function VistaKanbanOperador({
   onAbrir,
   onAbrirOrden,
   onReanudar,
+  onCerrarPausa,
 }: PropsVistaKanbanOperador) {
   // C15: agrupar por orden y columna evita que una operación pausada quede
   // oculta dentro de la tarjeta de la orden que sigue en proceso.
@@ -97,6 +100,7 @@ export function VistaKanbanOperador({
                       onAbrir={onAbrir}
                       onAbrirOrden={onAbrirOrden}
                       onReanudar={onReanudar}
+                      onCerrarPausa={onCerrarPausa}
                     />
                   </li>
                 ))}

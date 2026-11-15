@@ -27,6 +27,7 @@ import {
 } from '@/modulos/produccion/acciones/espacio-operador';
 import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar-sesion-operador';
 import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/reanudar-sesion-operador';
+import { cerrarPausaOperadorAccion } from '@/modulos/produccion/acciones/cerrar-pausa-operador';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import { HORAS_JORNADA_OPERADOR } from '@/modulos/produccion/tipos/espacio-operador';
 import type {
@@ -231,6 +232,22 @@ export function PaginaMiPanelOperador({
           ? { exito: true }
           : { exito: false, error: resultado.error };
       }, 'Sesión reanudada y recurso reservado');
+    },
+
+    cerrarPausa: (proceso) => {
+      const sesion = proceso.ultimaSesion;
+      if (!sesion || sesion.estadoSesion !== 'pausada') {
+        return Promise.resolve<ResultadoOperacion>({
+          exito: false,
+          error: 'El proceso no tiene una pausa vigente',
+        });
+      }
+      return ejecutar(proceso, async () => {
+        const resultado = await cerrarPausaOperadorAccion({ sesionId: sesion.id });
+        return resultado.exito
+          ? { exito: true }
+          : { exito: false, error: resultado.error };
+      }, 'Pausa cerrada sin producir. Las horas quedan registradas y la operación vuelve a estar disponible.');
     },
 
     cerrar: (proceso, datos) => ejecutar(proceso, async () => {

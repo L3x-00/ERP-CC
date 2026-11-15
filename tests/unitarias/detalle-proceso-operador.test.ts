@@ -198,6 +198,7 @@ describe('DetalleProcesoOperador', () => {
         liberar: vi.fn(),
         iniciar: vi.fn(),
         reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
         cerrar,
       },
       onCerrar: vi.fn(),
@@ -278,6 +279,7 @@ describe('DetalleProcesoOperador', () => {
         liberar: vi.fn(),
         iniciar: vi.fn(),
         reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
         cerrar,
       },
       onCerrar: vi.fn(),
@@ -316,6 +318,7 @@ describe('DetalleProcesoOperador', () => {
         liberar: vi.fn(),
         iniciar: vi.fn(),
         reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
         cerrar: vi.fn(),
       },
       onCerrar: vi.fn(),
@@ -343,6 +346,7 @@ describe('DetalleProcesoOperador', () => {
         liberar: vi.fn(),
         iniciar: vi.fn(),
         reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
         cerrar: vi.fn(),
       },
       onCerrar: vi.fn(),
@@ -371,6 +375,7 @@ describe('DetalleProcesoOperador', () => {
         liberar: vi.fn(),
         iniciar: vi.fn(),
         reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
         cerrar,
       },
       onCerrar: vi.fn(),
@@ -433,6 +438,7 @@ describe('DetalleProcesoOperador', () => {
         liberar: vi.fn(),
         iniciar: vi.fn(),
         reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
         cerrar,
       },
       onCerrar: vi.fn(),
@@ -501,6 +507,7 @@ describe('DetalleProcesoOperador', () => {
         liberar: vi.fn(),
         iniciar: vi.fn(),
         reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
         cerrar,
       },
       onCerrar: vi.fn(),
@@ -529,5 +536,107 @@ describe('DetalleProcesoOperador', () => {
       motivo: 'Olvidé finalizar la sesión al terminar el turno',
     });
     await waitFor(() => expect(cerrar).toHaveBeenCalledTimes(2));
+  });
+
+  it('muestra la pausa vigente y permite cerrarla sin producir sin tocar otras sesiones', async () => {
+    const cerrarPausa = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
+    const sesionPausada = {
+      id: 'sesion-pausada',
+      corridaId: null,
+      operadorId: 'operador-1',
+      operadorNombre: 'Operador de prueba',
+      estadoSesion: 'pausada' as const,
+      fechaInicio: '2026-10-27T17:52:00.000Z',
+      fechaFin: '2026-10-28T01:52:00.000Z',
+      piezasProducidas: 0,
+      horasNetas: 8,
+      motivoPausa: 'FIN_JORNADA',
+      motivoPausaNota: 'Pausa automática al cumplir la jornada del turno.',
+      notas: null,
+      verificacionCompleta: true,
+    };
+    const pausado = {
+      ...proceso,
+      columna: 'pausada',
+      sesionActiva: null,
+      ultimaSesion: sesionPausada,
+      sesiones: [sesionPausada],
+      puedeReanudar: true,
+      puedeIniciar: false,
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: pausado,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa,
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.getByTestId('pausa-sesion-detalle').textContent).toContain('Fin de jornada');
+    expect(screen.getByTestId('pausa-sesion-detalle').textContent).toContain('8 h');
+    fireEvent.click(screen.getByTestId('cerrar-pausa-detalle'));
+    await waitFor(() => expect(cerrarPausa).toHaveBeenCalledWith(pausado));
+  });
+
+  it('aclara que cerrar la sesión en marcha no modifica las pausadas', async () => {
+    const sesionPausada = {
+      id: 'sesion-pausada',
+      corridaId: null,
+      operadorId: 'operador-1',
+      operadorNombre: 'Operador de prueba',
+      estadoSesion: 'pausada' as const,
+      fechaInicio: '2026-10-27T17:52:00.000Z',
+      fechaFin: '2026-10-28T01:52:00.000Z',
+      piezasProducidas: 0,
+      horasNetas: 8,
+      motivoPausa: 'FIN_JORNADA',
+      motivoPausaNota: null,
+      notas: null,
+      verificacionCompleta: true,
+    };
+    const conHistorial = {
+      ...proceso,
+      sesiones: [proceso.sesionActiva, sesionPausada].filter(Boolean),
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: conHistorial,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    const nota = await screen.findByTestId('nota-pausas-independientes');
+    expect(nota.textContent).toContain('solo afecta la sesión en marcha');
+    expect(nota.textContent).toContain('historial independiente');
   });
 });

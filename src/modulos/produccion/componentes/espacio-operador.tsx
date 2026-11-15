@@ -13,6 +13,7 @@ import {
   reclamarProcesoAccion,
 } from '@/modulos/produccion/acciones/espacio-operador';
 import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/reanudar-sesion-operador';
+import { cerrarPausaOperadorAccion } from '@/modulos/produccion/acciones/cerrar-pausa-operador';
 import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar-sesion-operador';
 import { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
@@ -299,6 +300,18 @@ export function EspacioOperador({
     }, 'Sesión reanudada y recurso reservado');
   }
 
+  async function cerrarPausa(proceso: ProcesoEspacioOperador): Promise<ResultadoOperacion> {
+    const sesion = proceso.ultimaSesion;
+    if (!sesion || sesion.estadoSesion !== 'pausada') {
+      return { exito: false, error: 'El proceso no tiene una pausa vigente' };
+    }
+    if (soloLectura) return { exito: false, error: 'Vista de solo lectura' };
+    return ejecutar(proceso, async () => {
+      const respuesta = await cerrarPausaOperadorAccion({ sesionId: sesion.id });
+      return respuesta.exito ? { exito: true } : { exito: false, error: respuesta.error };
+    }, 'Pausa cerrada sin producir. Las horas quedan registradas y la operación vuelve a estar disponible.');
+  }
+
   async function cerrar(
     proceso: ProcesoEspacioOperador,
     datos: {
@@ -401,6 +414,7 @@ export function EspacioOperador({
       setInicioPendiente(proceso);
     },
     reanudar,
+    cerrarPausa,
     cerrar,
   };
 
@@ -521,6 +535,7 @@ export function EspacioOperador({
           onAbrir={setDetalle}
           onAbrirOrden={setOrdenAbiertaId}
           onReanudar={(proceso) => void reanudar(proceso)}
+          onCerrarPausa={(proceso) => void cerrarPausa(proceso)}
         />
       ) : vista === 'calendario' ? (
         <VistaCalendarioOperador
