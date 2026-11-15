@@ -13,11 +13,13 @@ export {
   cerrarSesionTrabajoServicio,
   lanzarErrorProduccion,
   mensajeErrorSesion,
+  registrarConsumoPiezasSesionServicio,
 } from '@/modulos/produccion/servicios/sesiones-servicio';
 
 export type {
   CodigoErrorProduccion,
   CierreSesionRegistrado,
+  ConsumoPiezasRegistrado,
   SesionIniciada,
 } from '@/modulos/produccion/servicios/sesiones-servicio';
 
