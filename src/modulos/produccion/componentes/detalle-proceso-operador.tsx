@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -31,6 +30,12 @@ import {
   validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/indice';
 import { etiquetaPiezasProceso, verboProceso } from '@/modulos/produccion/utilidades/procesos';
+import {
+  mensajeMotivoConsumoPiezas,
+  piezasUsadasEfectivas,
+  validarConsumoPiezasCierre,
+} from '@/modulos/produccion/utilidades/consumo-piezas';
+import { DialogoErrorCierre, type DatosErrorCierre } from '@/modulos/produccion/componentes/dialogo-error-cierre';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 import { registrarRetrabajoAccion } from '@/modulos/produccion/acciones/registrar-retrabajo';
 import { registrarConsumoPiezasAccion } from '@/modulos/produccion/acciones/registrar-consumo-piezas';
@@ -123,21 +128,6 @@ export interface PropsDetalleProceso {
 const TURNOS = ['matutino', 'vespertino', 'nocturno'] as const;
 const CLASE_ETIQUETA = 'grid gap-1 text-sm font-medium text-texto-secundario';
 
-/**
- * C17: en un proceso posterior (Doblado, etc.) producir piezas obliga a haber
- * consumido al menos esas piezas del proceso anterior. Si el operador deja
- * «Usado» en 0, se asume el consumo 1:1 con lo producido: es lo que ocurre en
- * el piso y evita bloquear el cierre por un campo que nadie captura.
- */
-export function piezasUsadasEfectivas(
-  usada: number,
-  producidas: number,
-  esProcesoPosterior: boolean,
-): number {
-  if (!esProcesoPosterior || usada > 0) return usada;
-  return Number.isFinite(producidas) && producidas > 0 ? producidas : usada;
-}
-
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div className="min-w-0">
@@ -184,9 +174,9 @@ export function DetalleProcesoOperador({
   const [notas, setNotas] = useState('');
   const [pin, setPin] = useState('');
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
-  // C17: el cierre fallido se muestra en un diálogo fijo para que el operador
+  // C17: el cierre fallido se muestra en un diálogo modal para que el operador
   // lo vea aunque el formulario esté muy abajo; guarda el motivo exacto.
-  const [errorCierre, setErrorCierre] = useState<{ titulo: string; mensaje: string } | null>(null);
+  const [errorCierre, setErrorCierre] = useState<DatosErrorCierre | null>(null);
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [archivoAbriendo, setArchivoAbriendo] = useState<string | null>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
@@ -425,14 +415,23 @@ export function DetalleProcesoOperador({
     setMensaje(resultado);
   }
 
-  /** Muestra el fallo del cierre en el diálogo fijo y en el aviso inline. */
-  function fallarCierre(resultado: { exito?: boolean; error: string; codigo?: string }): void {
+  /** Muestra el fallo del cierre en el diálogo modal y en el aviso inline. */
+  function fallarCierre(resultado: {
+    exito?: boolean;
+    error: string;
+    codigo?: string;
+    accion?: DatosErrorCierre['accion'];
+  }): void {
     setMensaje({
       exito: false,
       error: resultado.error,
       ...(resultado.codigo ? { codigo: resultado.codigo } : {}),
     });
-    setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
+    setErrorCierre({
+      titulo: 'No se pudo cerrar la sesión',
+      mensaje: resultado.error,
+      ...(resultado.accion ? { accion: resultado.accion } : {}),
+    });
   }
 
   async function ejecutarCierre(): Promise<void> {
@@ -484,40 +483,37 @@ export function DetalleProcesoOperador({
       return;
     }
     if (incluirConsumoPiezas) {
+      const fallo = validarConsumoPiezasCierre({
+        usada: usadaConsumoPiezas,
+        merma,
+        producidas: piezasCapturadas,
+        disponibles: piezasDisponibles,
+        procesoPrevio: nombreProcesoPrevio,
+        procesoActual: proceso.procesoNombre,
+      });
+      if (fallo) {
+        fallarCierre({
+          exito: false,
+          error: fallo.mensaje,
+          ...(fallo.sugerirUnoAUno
+            ? {
+                accion: {
+                  etiqueta: `Usar ${formatearNumero(piezasCapturadas, 0)} piezas (1:1)`,
+                  alElegir: () => {
+                    setCantidadUsada(String(piezasCapturadas));
+                    setMensaje(null);
+                  },
+                },
+              }
+            : {}),
+        });
+        return;
+      }
       const totalPiezas = usadaConsumoPiezas + merma;
-      if (!Number.isInteger(usadaConsumoPiezas) || !Number.isInteger(merma)
-        || usadaConsumoPiezas < 0 || merma < 0) {
-        fallarCierre({
-          exito: false,
-          error: `Las piezas usadas de ${nombreProcesoPrevio} y la merma deben ser números enteros.`,
-        });
-        return;
-      }
-      if (totalPiezas > piezasDisponibles) {
-        fallarCierre({
-          exito: false,
-          error: `No puedes consumir ${formatearNumero(totalPiezas, 0)} piezas de ${nombreProcesoPrevio}: solo hay ${formatearNumero(piezasDisponibles, 0)} disponibles. Declaraste ${formatearNumero(piezasCapturadas, 0)} producidas y ${formatearNumero(merma, 0)} de merma; ajusta «Usado» o «Merma».`,
-        });
-        return;
-      }
-      if (usadaConsumoPiezas < piezasCapturadas) {
-        fallarCierre({
-          exito: false,
-          error: `Declaraste ${formatearNumero(piezasCapturadas, 0)} piezas producidas en ${proceso.procesoNombre}, pero solo ${formatearNumero(usadaConsumoPiezas, 0)} usadas de ${nombreProcesoPrevio}. Las piezas usadas no pueden ser menores a las producidas.`,
-        });
-        return;
-      }
-      if (piezasCapturadas > 0 && totalPiezas === 0) {
-        fallarCierre({
-          exito: false,
-          error: `Registra cuántas piezas de ${nombreProcesoPrevio} consumiste (al menos ${formatearNumero(piezasCapturadas, 0)}).`,
-        });
-        return;
-      }
       if (totalPiezas > 0 && motivoConsumo.trim().length < 3) {
         fallarCierre({
           exito: false,
-          error: `Indica el motivo del consumo de ${formatearNumero(totalPiezas, 0)} piezas de ${nombreProcesoPrevio} (mínimo 3 caracteres).`,
+          error: mensajeMotivoConsumoPiezas(nombreProcesoPrevio, totalPiezas),
         });
         return;
       }
@@ -1626,8 +1622,7 @@ export function DetalleProcesoOperador({
                             </label>
                           </div>
                           <span className="text-xs font-normal text-texto-tenue">
-                            Usado + merma descuenta del inventario de piezas. Disponibles: {formatearNumero(piezasDisponibles, 0)}.
-                            {consumoAutomatico ? ' Si dejas «Usado» en 0, se toma 1:1 con lo producido.' : ''}
+                            Piezas de {nombreProcesoPrevio} que consumiste. Usado + merma descuenta del inventario de piezas (disponibles: {formatearNumero(piezasDisponibles, 0)}). Debe ser al menos lo producido aquí; si dejas «Usado» en 0, se toma 1:1.
                           </span>
                           {consumoAutomatico ? (
                             <span
@@ -1637,6 +1632,16 @@ export function DetalleProcesoOperador({
                               Se consumirán {formatearNumero(usadaVista, 0)} piezas de {nombreProcesoPrevio} (igual que las producidas) y {formatearNumero(Number(cantidadMerma) || 0, 0)} de merma.
                             </span>
                           ) : null}
+                          {!consumoAutomatico
+                            && Number(cantidadUsada) > 0
+                            && usadaVista < piezasCapturadasVista ? (
+                              <span
+                                data-testid="aviso-consumo-insuficiente"
+                                className="text-xs font-normal text-advertencia-texto"
+                              >
+                                Capturaste {formatearNumero(usadaVista, 0)} en «Usado» y declaras {formatearNumero(piezasCapturadasVista, 0)} producidas: faltan {formatearNumero(piezasCapturadasVista - usadaVista, 0)}. Bórralo (0) para consumir 1:1 o captura al menos las producidas.
+                              </span>
+                            ) : null}
                         </>
                       ) : (
                         <>
@@ -2358,51 +2363,12 @@ export function DetalleProcesoOperador({
     </Dialog>
   );
 
-  const dialogoCierreFallido = errorCierre && typeof document !== 'undefined'
-    ? createPortal(
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]"
-          onKeyDown={(evento) => {
-            if (evento.key === 'Escape') setErrorCierre(null);
-          }}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="error-cierre-titulo"
-            aria-describedby="error-cierre-detalle"
-            data-testid="error-cierre-dialogo"
-            className="grid w-full max-w-md gap-4 rounded-2xl bg-superficie p-6 shadow-elevada ring-1 ring-borde/60"
-          >
-            <div className="flex flex-col gap-1">
-              <p id="error-cierre-titulo" className="text-lg font-bold text-texto-primario">
-                {errorCierre.titulo}
-              </p>
-              <p id="error-cierre-detalle" className="text-sm text-texto-secundario">
-                El cierre no se registró. Revisa el detalle y corrige lo que se indica.
-              </p>
-            </div>
-            <p
-              data-testid="error-cierre-mensaje"
-              className="rounded-md bg-peligro-suave px-3 py-2 text-sm text-peligro-texto"
-            >
-              {errorCierre.mensaje}
-            </p>
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                autoFocus
-                onClick={() => setErrorCierre(null)}
-                data-testid="error-cierre-entendido"
-              >
-                Entendido
-              </Button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )
-    : null;
+  const dialogoCierreFallido = (
+    <DialogoErrorCierre
+      error={errorCierre}
+      onCerrar={() => setErrorCierre(null)}
+    />
+  );
 
   if (presentacion === 'integrado') {
     return (

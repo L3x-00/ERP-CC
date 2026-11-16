@@ -15,12 +15,17 @@ import type { SesionActivaProduccion } from '@/estado/uso-tienda-produccion';
 import { type MotivoPausaSesion, type VerificacionInicio } from '@/modulos/produccion/tipos/indice';
 import { etiquetaPiezasProceso } from '@/modulos/produccion/utilidades/procesos';
 import {
+  piezasUsadasEfectivas,
+  validarConsumoPiezasCierre,
+} from '@/modulos/produccion/utilidades/consumo-piezas';
+import {
   ayudaLimitePiezas,
   validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/limites-piezas';
 
 import { CampoEntero } from './campo-entero';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
+import { DialogoErrorCierre, type DatosErrorCierre } from './dialogo-error-cierre';
 import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
 import { registrarInspeccionAccion } from '../acciones/registrar-inspeccion';
 import { registrarConsumoPiezasAccion } from '../acciones/registrar-consumo-piezas';
@@ -161,6 +166,7 @@ export function PanelOperadorProduccion({
   const [confirmarChecklist, setConfirmarChecklist] = useState(false);
   const [expandido, setExpandido] = useState(sesionActiva !== null || operadorDisponible);
   const [sesionSupervisor, setSesionSupervisor] = useState<SesionOrden | null>(null);
+  const [errorCierre, setErrorCierre] = useState<DatosErrorCierre | null>(null);
 
   const sesionesEnPiso = useMemo(
     () => [...(orden?.sesiones ?? [])]
@@ -216,6 +222,17 @@ export function PanelOperadorProduccion({
     ?? motivosPausa[0]
     ?? null;
   const materialSeleccionado = materiales.find((material) => material.id === materialId) ?? null;
+  // El consumo capturado pertenece al proceso elegido: al cambiar de proceso
+  // (Corte ↔ Doblado) no debe arrastrarse la captura del anterior. Se ajusta
+  // durante el render (patrón recomendado por React) en vez de en un efecto.
+  const [metaCapturada, setMetaCapturada] = useState(metaSeleccionada?.id ?? null);
+  if ((metaSeleccionada?.id ?? null) !== metaCapturada) {
+    setMetaCapturada(metaSeleccionada?.id ?? null);
+    setCantidadUsada('0');
+    setCantidadMerma('0');
+    setMotivoConsumo('');
+    setErrorCierre(null);
+  }
   const ultimaPausa = (() => {
     if (!orden || orden.estadoKanban !== 'pausada') return null;
     const sesiones = [...orden.sesiones]
@@ -263,12 +280,23 @@ export function PanelOperadorProduccion({
     return resultado;
   }
 
+  /** Muestra el fallo del cierre en el diálogo modal y en el aviso del panel. */
+  function fallarCierre(texto: string, accion?: DatosErrorCierre['accion']): void {
+    setMensaje({ texto, tipo: 'error' });
+    setErrorCierre({
+      titulo: 'No se pudo cerrar la sesión',
+      mensaje: texto,
+      ...(accion ? { accion } : {}),
+    });
+  }
+
   async function cerrar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (!sesionActiva) return;
+    setErrorCierre(null);
     const piezas = Number(piezasProducidas);
     if (!Number.isInteger(piezas) || piezas < 0) {
-      setMensaje({ texto: 'Las piezas producidas deben ser un número entero.', tipo: 'error' });
+      fallarCierre('Las piezas producidas deben ser un número entero.');
       return;
     }
     const errorLimite = validarCantidadPiezas(
@@ -277,7 +305,7 @@ export function PanelOperadorProduccion({
       etiquetaPiezas.toLowerCase(),
     );
     if (errorLimite) {
-      setMensaje({ texto: errorLimite, tipo: 'error' });
+      fallarCierre(errorLimite);
       return;
     }
     const usada = Number(cantidadUsada);
@@ -293,39 +321,42 @@ export function PanelOperadorProduccion({
       && merma >= 0
       && usada + merma > 0;
     const incluirConsumoPiezas = esProcesoPosterior && estadoDestino === 'finalizada';
+    // C17: si el operador no captura «Usado», se asume 1:1 con lo producido.
+    const usadaConsumoPiezas = piezasUsadasEfectivas(usada, piezas, esProcesoPosterior);
+    const nombreProcesoPrevio = metaSeleccionada?.procesoPrevioNombre ?? 'el proceso anterior';
     if (incluirConsumo && motivoConsumo.trim().length < 3) {
-      setMensaje({ texto: 'Indica el motivo del consumo de material (mínimo 3 caracteres).', tipo: 'error' });
+      fallarCierre('Indica el motivo del consumo de material (mínimo 3 caracteres).');
       return;
     }
     if (incluirConsumoPiezas) {
-      const totalPiezas = usada + merma;
-      if (!Number.isInteger(usada) || !Number.isInteger(merma) || usada < 0 || merma < 0) {
-        setMensaje({ texto: 'Las piezas usadas y la merma deben ser números enteros.', tipo: 'error' });
+      const fallo = validarConsumoPiezasCierre({
+        usada: usadaConsumoPiezas,
+        merma,
+        producidas: piezas,
+        disponibles: piezasDisponiblesPosterior,
+        procesoPrevio: nombreProcesoPrevio,
+        procesoActual: metaSeleccionada?.nombre ?? 'el proceso actual',
+      });
+      if (fallo) {
+        fallarCierre(
+          fallo.mensaje,
+          fallo.sugerirUnoAUno
+            ? {
+                etiqueta: `Usar ${formatearNumero(piezas, 0)} piezas (1:1)`,
+                alElegir: () => {
+                  setCantidadUsada(String(piezas));
+                  setMensaje(null);
+                },
+              }
+            : undefined,
+        );
         return;
       }
-      if (totalPiezas > piezasDisponiblesPosterior) {
-        setMensaje({
-          texto: `Solo hay ${piezasDisponiblesPosterior} piezas disponibles del proceso anterior.`,
-          tipo: 'error',
-        });
-        return;
-      }
-      if (usada < piezas) {
-        setMensaje({
-          texto: 'No puedes producir más piezas de las que usaste del proceso anterior.',
-          tipo: 'error',
-        });
-        return;
-      }
-      if (piezas > 0 && totalPiezas === 0) {
-        setMensaje({
-          texto: 'Registra las piezas del proceso anterior que consumiste.',
-          tipo: 'error',
-        });
-        return;
-      }
+      const totalPiezas = usadaConsumoPiezas + merma;
       if (totalPiezas > 0 && motivoConsumo.trim().length < 3) {
-        setMensaje({ texto: 'Indica el motivo del consumo de piezas (mínimo 3 caracteres).', tipo: 'error' });
+        fallarCierre(
+          `Indica el motivo del consumo de ${formatearNumero(totalPiezas, 0)} piezas de ${nombreProcesoPrevio} (mínimo 3 caracteres).`,
+        );
         return;
       }
     }
@@ -334,7 +365,7 @@ export function PanelOperadorProduccion({
       minutosSetupNumero !== undefined
       && (!Number.isFinite(minutosSetupNumero) || minutosSetupNumero < 0 || minutosSetupNumero > 1440)
     ) {
-      setMensaje({ texto: 'Los minutos de setup deben ser un número entre 0 y 1440.', tipo: 'error' });
+      fallarCierre('Los minutos de setup deben ser un número entre 0 y 1440.');
       return;
     }
     const resultado = await onCerrar({
@@ -357,17 +388,17 @@ export function PanelOperadorProduccion({
     });
     if (resultado.exito) {
       setMensaje({ texto: 'Sesión registrada y recurso liberado', tipo: 'estado' });
-      if (incluirConsumoPiezas) {
+      if (incluirConsumoPiezas && usadaConsumoPiezas + merma > 0) {
         const consumoPiezas = await registrarConsumoPiezasAccion({
           sesionId: sesionActiva.id,
-          cantidadUsada: usada,
+          cantidadUsada: usadaConsumoPiezas,
           cantidadMerma: merma,
           motivo: motivoConsumo.trim(),
         });
         setMensaje(
           consumoPiezas.exito
             ? {
-                texto: `Piezas consumidas: ${usada} · merma: ${merma}.`,
+                texto: `Piezas consumidas: ${usadaConsumoPiezas} · merma: ${merma}.`,
                 tipo: 'estado',
               }
             : {
@@ -375,6 +406,12 @@ export function PanelOperadorProduccion({
                 tipo: 'error',
               },
         );
+        if (!consumoPiezas.exito) {
+          setErrorCierre({
+            titulo: 'La sesión cerró, pero faltó registrar el consumo de piezas',
+            mensaje: `${consumoPiezas.error} Corrige el consumo desde la ficha para no descontar de más del proceso anterior.`,
+          });
+        }
       }
     } else {
       setMensaje({
@@ -382,6 +419,9 @@ export function PanelOperadorProduccion({
         tipo: 'error',
         ...(resultado.codigo ? { codigo: resultado.codigo } : {}),
       });
+      if (resultado.codigo !== 'primera_pieza_pendiente') {
+        setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
+      }
       if (resultado.codigo === 'horas_extra_sin_autorizacion') {
         // C12: el operador no llena solicitudes; el sistema la deja pendiente
         // para que Admin/Management solo la apruebe o la rechace.
@@ -773,7 +813,7 @@ export function PanelOperadorProduccion({
                     </label>
                   </div>
                   <span className="text-xs font-normal text-texto-tenue">
-                    Usado + merma descuenta del inventario de piezas. Disponibles: {piezasDisponiblesPosterior}.
+                    Piezas de {metaSeleccionada?.procesoPrevioNombre ?? 'el proceso anterior'} que consumiste. Usado + merma descuenta del inventario de piezas (disponibles: {piezasDisponiblesPosterior}). Debe ser al menos lo producido; si dejas «Usado» en 0, se toma 1:1.
                   </span>
                 </>
               ) : (
@@ -1163,6 +1203,11 @@ export function PanelOperadorProduccion({
           }}
         />
       ) : null}
+      <DialogoErrorCierre
+        error={errorCierre}
+        onCerrar={() => setErrorCierre(null)}
+        testId="error-cierre-panel"
+      />
     </section>
   );
 }

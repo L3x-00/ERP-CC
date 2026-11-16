@@ -545,7 +545,7 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'proceso_sin_piezas_previas':
       return 'Este proceso no tiene un paso anterior del que consumir piezas.';
     case 'consumo_piezas_menor_produccion':
-      return 'No puedes producir más piezas de las que usaste del proceso anterior.';
+      return 'Las piezas usadas del proceso anterior deben ser al menos las producidas en esta sesión. Revisa «Usado» o la merma y vuelve a cerrar.';
     case 'meta_proceso_no_corresponde':
       return 'El proceso elegido no pertenece a esta partida';
     case 'cantidad_excede_meta_proceso':
