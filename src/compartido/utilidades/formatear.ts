@@ -18,6 +18,40 @@ export function formatearMoneda(
   }).format(cantidad);
 }
 
+/**
+ * Monto con cortesía visual: siempre muestra centavos y solo conserva los
+ * decimales necesarios (`505` → `$505.00`, `19.4321` → `$19.4321`).
+ *
+ * Evita el ruido de `$505.0000` sin perder precisión cuando el costo o el
+ * tipo de cambio realmente usa cuatro decimales.
+ */
+export function formatearMontoFlexible(
+  cantidad: number,
+  moneda: 'MXN' | 'USD' = 'MXN',
+  decimalesMaximos = 4,
+): string {
+  if (!Number.isFinite(cantidad)) {
+    return '—';
+  }
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: moneda,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: Math.max(2, decimalesMaximos),
+  }).format(cantidad);
+}
+
+/** Número con mínimo de centavos y hasta cuatro decimales cuando hacen falta. */
+export function formatearNumeroFlexible(cantidad: number, decimalesMaximos = 4): string {
+  if (!Number.isFinite(cantidad)) {
+    return '—';
+  }
+  return new Intl.NumberFormat('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: Math.max(2, decimalesMaximos),
+  }).format(cantidad);
+}
+
 /** Formatea un número no monetario con decimales fijos (cantidades, horas). */
 export function formatearNumero(cantidad: number, decimales = 2): string {
   if (!Number.isFinite(cantidad)) {
