@@ -135,7 +135,7 @@ test.describe('Tesorería SII-B8 F5: saldos, transferencias internas y conciliac
       expect(totalTransferencias).toHaveLength(2);
 
       // Capturas del tablero.
-      mkdirSync('.ai-shared/qa/sii-b8-f5/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/tesoreria-flujo/visual', { recursive: true });
       for (const [ancho, alto] of [[1440, 900], [768, 1024]] as const) {
         await page.setViewportSize({ width: ancho, height: alto });
         for (const oscuro of [false, true]) {
@@ -143,7 +143,7 @@ test.describe('Tesorería SII-B8 F5: saldos, transferencias internas y conciliac
             (elemento, activar) => elemento.classList.toggle('dark', activar), oscuro,
           );
           await page.screenshot({
-            path: `.ai-shared/qa/sii-b8-f5/visual/tesoreria-${ancho}-${oscuro ? 'oscuro' : 'claro'}.png`,
+            path: `test-results/evidencia/tesoreria-flujo/visual/tesoreria-${ancho}-${oscuro ? 'oscuro' : 'claro'}.png`,
             fullPage: true, animations: 'disabled',
           });
         }

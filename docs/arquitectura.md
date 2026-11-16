@@ -2,69 +2,92 @@
 
 ## Stack
 
-- Next.js 16 con App Router, React 19 y TypeScript estricto.
-- Tailwind CSS v4 y componentes UI reutilizables.
-- `next-themes` para el tema global claro/oscuro: la elección se persiste en `localStorage`, se aplica como clase `light`/`dark` en `<html>` y se controla desde el menú del usuario. El piso de taller conserva `.dark` forzado.
-- TanStack Query v5 para datos de servidor y Zustand v5 para estado de interfaz.
-- Zod v4 y React Hook Form para validación y formularios.
-- Supabase: Postgres, Auth, Storage y RLS mediante `@supabase/ssr`.
-- Vitest para pruebas unitarias e integración; Playwright para E2E y pnpm como gestor de paquetes.
+Next.js 16 con App Router, React 19 y TypeScript estricto; Tailwind CSS v4 y componentes accesibles sobre Base UI/Radix. TanStack Query v5 para datos de servidor, Zustand v5 para estado efímero, Zod v4 y React Hook Form para validación. Supabase aporta Postgres, Auth, Storage, Realtime y RLS mediante `@supabase/ssr`. El detalle de versiones está en [Tecnologías](tecnologias.md).
 
 ## Capas
 
 ```text
-src/app/                         rutas y composición de pantallas
+src/app/                         rutas y composición de pantallas (RSC)
 src/modulos/<dominio>/           acciones, servicios, hooks, UI, tipos y validaciones
 src/compartido/                  tipos, utilidades y componentes reutilizables
-src/nucleo/                      Supabase, autenticación, permisos y auditoría
+src/nucleo/                      Supabase, autenticación, permisos, IA y correo
 src/estado/                      estado global de interfaz
-supabase/migrations/             esquema y funciones SQL versionadas
+content/docs/                    documentación dentro del producto
+supabase/migrations/             esquema, RPCs y políticas versionadas
+supabase/tests/                  pgTAP
 tests/unitarias|integracion/     evidencia automatizada
-tests/e2e/                       flujo de navegador con datos temporales aislados
+tests/e2e/                       flujos de navegador con datos aislados
 ```
 
-Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, comprueban permisos cuando corresponde, llaman al servicio y registran auditoría. Los componentes no acceden directamente a Supabase.
+Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, comprueban permisos, llaman al servicio o RPC y registran auditoría. Los componentes no acceden directamente a Supabase.
+
+## Dominios
+
+`autenticacion`, `permisos`, `auditoria`, `pipeline`, `rfq`, `propuestas`, `clientes`, `inventario`, `compras`, `ordenes`, `planeacion`, `produccion`, `entregas`, `cobranza`, `tesoreria`, `gastos`, `facturacion`, `dashboard`, `configuracion`, `comentarios`, `cierres`, `catalogos` y `cotizador`. Cada módulo expone acciones, servicios, tipos y UI; `portal-cliente` y `kpis` están preparados sin flujo de producción completo.
 
 ## Seguridad y concurrencia
 
-- RLS permanece activa en toda tabla de negocio. Las mutaciones críticas carecen de políticas PostgREST directas y pasan por acciones de servidor autorizadas.
-- El `service_role` se limita a operaciones que realmente requieren privilegio elevado.
-- Los folios OP, CNC e inventario se generan atómicamente en Postgres.
-- Las Órdenes de Producción usan una cabecera, partidas y eventos de tiempo de operador. Su serie `OP-NNNNNN` nace en una `SEQUENCE` de Postgres y solo `service_role` puede consumirla mediante función `SECURITY DEFINER` con ruta de búsqueda acotada.
-- Las nuevas tablas de órdenes separan los privilegios SQL de RLS: `authenticated` recibe exclusivamente `SELECT`; las mutaciones se realizan mediante Server Actions autorizadas y RPCs `SECURITY DEFINER` ejecutables solo por `service_role`.
-- Aprobar una oportunidad y crear su OP se ejecutan en una sola función SQL con bloqueo de fila e índice único de cotización. Los cambios de estado aplican compare-and-set para rechazar pantallas obsoletas.
-- `registrar_movimiento_inventario` bloquea la fila del material, rechaza stock negativo y recalcula el costo promedio ponderado dentro de la misma transacción.
-- `registrar_consumo_material_op` bloquea el material, valida la partida y el stock, crea la salida de kardex y persiste consumo/scrap con el CPP histórico en una única transacción. La RPC solo es ejecutable por `service_role`; el consumo no recalcula CPP porque una salida no cambia el costo promedio.
-- Las marcas de tiempo pasan por `registrar_tiempo_operador_op`: bloquea partida y OP, exige que esta siga `en_proceso`, verifica un operador activo y usa `now()` de PostgreSQL. La RPC solo es ejecutable por `service_role`; la acción contrasta además el operador con una cookie PIN HMAC vigente.
-- `registrar_avance_partida_op` acumula piezas buenas y scrap bajo locks de partida y OP. El consumo de material usa el mismo estado bloqueado `en_proceso`; con ello una cancelación, término o pausa concurrentes no se intercalan con un registro de piso.
-- La asignación `operador_asignado_id` se valida dentro de las RPC de tiempo, avance y consumo. El motor rechaza cualquier operación de piso fuera de su partida asignada.
-- Las funciones de apoyo a RLS viven en el esquema `privado`, fijan su ruta de búsqueda y no son invocables directamente por roles de navegador.
-- Los cambios de producción se publican por Supabase Realtime bajo RLS. Las terminales PIN reciben solamente una señal SSE desde el servidor, revalidan su sesión y vuelven a cargar datos ya filtrados por operador; no reciben filas, costos ni credenciales privilegiadas.
-- `usarTiendaOrdenes` concentra estado efímero de taller (orden activa y filtros de máquina/estado) sin persistirlo entre turnos.
-- Storage de adjuntos y documentos usa buckets privados y políticas acotadas al permiso correspondiente.
-- Planeación separa el recurso programable del texto histórico `maquina_asignada`: `recursos_planeacion` identifica la máquina, celda o recurso externo; `capacidades_recurso_turno` define horas normales por turno y `programacion_areas` asigna una partida a una fecha, turno y secuencia. Un trigger garantiza que la partida pertenezca a la OP, y un índice único parcial impide dos preparaciones o ejecuciones simultáneas sobre el mismo recurso. Las tres tablas solo permiten lectura autenticada con permiso de planeación, reservan escritura a `service_role`/RPC y se publican en Realtime bajo RLS.
-- El motor de capacidad de Planeación añade `excepciones_capacidad_recurso` y calcula la capacidad efectiva dentro de RPCs `SECURITY DEFINER` ejecutables solo por `service_role`. Programar, reprogramar y activar preparación bloquean los recursos con `FOR UPDATE`; las reprogramaciones bloquean varios recursos por UUID y usan `actualizado_en` como compare-and-set. La capa TypeScript puede anticipar holgura y cuellos de botella, pero PostgreSQL conserva la decisión final para que la capacidad no dependa de una pantalla obsoleta.
-- La proyección de calendario de Planeación se consulta mediante una Server Action acotada por rango y permiso. TanStack Query almacena recursos, carga y programaciones bajo `['planeacion', 'calendario']`; Realtime no consume payloads, solo invalida esa clave y relee por RLS. Cambios de OP o partidas disparan además un refresco RSC ligero para renovar las opciones de asignación, sin navegar ni recargar el navegador.
-- Producción enlaza `sesiones_trabajo` con la programación concreta que tomó el recurso. Los índices únicos parciales impiden dos sesiones activas del mismo operador o la misma programación. Las RPCs bloquean partida, OP, operador, programación y recurso en orden estable, registran avances inmutables y resuelven el ciclo del recurso dentro de la transacción.
-- Las notas de entrega y sus partidas no poseen columnas financieras. `generar_nota_entrega` bloquea OP y partidas por UUID ordenado, deriva `es_parcial` del historial y emite `NE-NNNNNN` desde una secuencia PostgreSQL exclusiva de `service_role`.
-- La proyección de Producción usa TanStack Query bajo `['produccion', 'tablero']`. `usarTiendaProduccion` solo guarda filtros, selección y una referencia de sesión; Realtime invalida y relee por RLS las tablas publicadas, sin usar sus payloads como fuente de datos.
-- Cobranza separa el importe comercial de Producción: `abrir_cuenta_por_cobrar` exige OP completada y partidas totalmente producidas, mientras que el monto y el tipo de cambio se capturan de forma explícita y auditada. `cuentas_por_cobrar` mantiene saldos en la moneda de la cuenta; `clientes.saldo_a_favor` y `movimientos_saldo_favor` forman un monedero estrictamente MXN con precisión `numeric(14,4)`.
-- `registrar_pago_ar_atomico` y `aplicar_saldo_favor_ar` bloquean cuenta AR, usuario y cliente en el mismo orden. La llave única `solicitud_id` y `ON CONFLICT` vuelven idempotentes los reintentos y dobles envíos. Los folios `REC-NNNNNN` salen de una secuencia PostgreSQL restringida a `service_role`.
-- La cartera usa TanStack Query bajo `['cobranza', 'cartera']`; `usarTiendaCobranza` solo conserva interacción local. Realtime escucha las tres tablas financieras publicadas, invalida la consulta y relee por RLS sin proyectar payloads de difusión en pantalla.
-- Fase 9 separa los costos administrativos de la venta. `gastos` relaciona de forma opcional una OP y un proveedor, conserva subtotal/IVA/total en la moneda capturada y usa `tipo_cambio` como MXN por unidad. La tabla tiene RLS de solo lectura financiera; las altas y transiciones viven en `registrar_gasto` y `cambiar_estado_gasto`, ambas `SECURITY DEFINER` con `search_path` vacío y ejecución exclusiva de `service_role`.
-- `obtener_rentabilidad_orden` agrega CxC no cancelada, consumos de material (usada + scrap), sesiones cerradas con la tarifa histórica y gastos no cancelados. Comprueba la existencia de la OP, redondea a cuatro decimales y deja el margen no calculable sin ingreso; no infiere precios desde cotizaciones o Producción.
-- `recursos_planeacion.costo_hora_interno` es la tarifa vigente. El trigger de `sesiones_trabajo` la copia en el alta para impedir que cambios posteriores de tarifa alteren la historia. Las sesiones antiguas sin tarifa se reportan como componente faltante, no se rellenan con una estimación.
-- `/gastos` carga datos iniciales desde RSC protegido por `ver_finanzas`; TanStack Query mantiene gastos/rentabilidad y `usarTiendaGastos` solo filtros, periodo y estado de OCR. Realtime escucha gastos, CxC, consumos y sesiones, agrupa ráfagas e invalida consultas para releer bajo RLS.
-- El OCR de comprobantes se ejecuta únicamente en Server Actions, valida MIME/tamaño, llama a Anthropic con la clave del entorno y valida el JSON devuelto con Zod v4. Los errores que cruzan al cliente son genéricos y no contienen respuestas del proveedor.
-- Fase 10 agrega RPCs de dashboard en PostgreSQL: ejecutivo, vendedor, equipo y contador. Cada RPC fija `search_path`, valida un máximo de 366 días, revoca ejecución pública y devuelve un JSON atómico con periodo actual/anterior. El RPC de equipo incluye alertas de OP y aprobaciones pendientes sin transportar finanzas; las finanzas no se entregan a vendedor o gerente.
-- `metas_vendedor` es una tabla de configuración auditable con RLS habilitada, lectura limitada al vendedor/equipo autorizado y escritura exclusiva de `service_role`; su Realtime solo señala invalidación. Las métricas de comisión se basan en CxC no cancelada vinculada a la oportunidad del vendedor.
-- No se usa vista materializada para el dashboard: introduce una ventana de datos obsoletos y una tarea de refresco que contradice la sincronización sin recarga. Las RPCs leen las tablas transaccionales indexadas en una sola instantánea y el cliente relee tras Realtime.
-- Fase 11 separa la configuración maestra de las transacciones diarias. `configuracion_sistema` es un singleton con `id = 'main'`; sus bloques JSONB se normalizan en mappers estrictos y los valores de TC/IVA permanecen en columnas numéricas. La RPC `actualizar_configuracion_seccion` valida actor admin/permisado, fija `search_path`, bloquea la fila con `FOR UPDATE` y combina plantillas por clave. El TC diario usa columnas dedicadas (`tipo_cambio_actualizado_en`/`_por`) que solo mueve la sección `tipo_cambio`, porque `actualizado_en` cambia con cualquier sección: `/dashboard` pide confirmarlo al administrador si no hay registro, cambió el día en Tijuana o pasaron 24 horas, y los formularios en USD lo prellenan. Cuentas bancarias y áreas tienen restricciones de formato, finitud numérica, índices y RLS de lectura para `configuracion`; las escrituras pasan por Server Actions y `service_role`.
-- Fase 12 agrega `comentarios_registro` y `notificaciones_usuario` con RLS por entidad/usuario, índices de lectura y un trigger `SECURITY DEFINER` que deriva notificaciones de menciones dentro de la misma transacción. `comentarios_proteger_columnas` bloquea cambios de identidad/contexto desde JWT. El parser escapa texto antes de persistir; las acciones vuelven a comprobar acceso antes de usar `service_role`. Hilos y centro de notificaciones usan TanStack Query, Zustand efímero e invalidación Realtime.
-- El servicio de Configuración aplica defaults cuando una instalación todavía no tiene todos los campos JSONB. `obtenerConfiguracionAccion` usa el cliente SSR y vuelve a comprobar `can('configuracion')`; las acciones de escritura usan cliente administrativo, Zod v4 y auditoría con datos sensibles minimizados. `usarTiendaConfiguracion` conserva únicamente un snapshot efímero y TanStack Query sigue siendo la fuente de datos.
-- `/configuracion` presenta seis secciones: Folios, Tarifas y costos, Catálogos (con apartados Comerciales y Operativos), Áreas de trabajo, Personas y accesos y Documentos. Empresa se edita desde el menú de usuario y Cuentas bancarias desde Cobros y tesorería; los enlaces históricos `?pestana=` se conservan y abren la sección o subsección correspondiente. Realtime escucha las tablas de configuración, invalida `['configuracion']` y relee bajo RLS, de modo que los cambios de otro usuario llegan sin refresh manual. La E2E es opt-in y restaura el tipo de cambio original cuando cuenta con una clave de servicio de pruebas.
-- El servicio `obtenerDashboardPorRol` crea tarjetas comparativas con una función pura de tendencia; las Server Actions vuelven a resolver sesión/permisos y registran auditoría. La ruta `/dashboard` es dinámica, y `/tablero` conserva compatibilidad mediante redirección.
+- RLS permanece activa en todas las tablas de negocio. Las mutaciones críticas no tienen políticas PostgREST directas: pasan por Server Actions autorizadas y RPCs `SECURITY DEFINER`.
+- El `service_role` se limita a operaciones que exigen privilegio elevado. Las funciones sensibles fijan `search_path = ''`, revocan ejecución pública y validan al actor.
+- Los helpers de RLS viven en el esquema `privado`; no son invocables desde el navegador.
+- Las marcas de tiempo usan `now()` de PostgreSQL. Las fechas de negocio se calculan en `America/Tijuana`, no con `current_date` UTC.
+- Los folios se emiten desde secuencias atómicas de Postgres; nunca contando filas ni desde el cliente.
+- Los cambios de estado usan compare-and-set sobre `actualizado_en` o el estado esperado para rechazar pantallas obsoletas.
+- Aprobar una oportunidad y crear su OP ocurren en una sola función SQL con bloqueo de fila e índice único de cotización.
+- `registrar_movimiento_inventario` bloquea el material, rechaza stock negativo y recalcula el costo promedio ponderado en la misma transacción.
+- `registrar_consumo_material_op` bloquea material y partida, valida stock, crea la salida de kardex y persiste consumo/scrap con el CPP histórico.
+- `registrar_avance_partida_op` acumula piezas buenas y scrap bajo locks de partida y OP. Una cancelación, término o pausa concurrente no se intercala con un registro de piso.
+- La asignación `operador_asignado_id` se valida dentro de las RPC de tiempo, avance y consumo; el motor rechaza operaciones fuera de la partida asignada.
+- El PIN de piso exige coincidencia unívoca con un operador activo; una coincidencia duplicada falla cerrada y se audita.
+- Los adjuntos usan buckets privados, URLs firmadas, validación MIME/tamaño y confirmación explícita.
+
+## Planeación y capacidad
+
+- `recursos_planeacion` identifica la máquina, celda o recurso externo; `capacidades_recurso_turno` define horas por turno y `programacion_areas` asigna partida, fecha, turno y secuencia.
+- Un trigger garantiza que la partida pertenezca a la OP; un índice único parcial impide dos preparaciones o ejecuciones simultáneas sobre el mismo recurso.
+- Programar, reprogramar y activar preparación bloquean los recursos con `FOR UPDATE` en orden estable.
+- El motor calcula la capacidad efectiva dentro de RPCs; TypeScript puede anticipar holgura y cuellos de botella, pero PostgreSQL conserva la decisión final.
+- **Horario laboral (C18):** lunes a viernes 9 h, sábado 4 h, domingo cerrado. El matutino toma 5 h y el vespertino 4 h de lunes a viernes; el sábado solo trabaja el matutino. `privado.jornada_laboral_dia(fecha)` es la fuente única para capacidad, planeación, producción y la jornada del operador.
+
+## Producción y entregas
+
+- `sesiones_trabajo` se enlaza con la programación concreta que tomó el recurso. Índices únicos parciales impiden dos sesiones activas del mismo operador o de la misma programación.
+- Las RPCs de piso bloquean partida, OP, operador, programación y recurso en orden estable, registran avances inmutables y resuelven el ciclo del recurso dentro de la transacción.
+- El reclamo de proceso usa `reclamos_proceso_operador` y valida la jornada del día en el servidor.
+- La pausa por material libera la máquina a los 60 minutos; el reclamo posterior vuelve a validar capacidad y permisos.
+- Las notas de entrega y sus partidas no tienen columnas financieras. `generar_nota_entrega` bloquea OP y partidas por UUID ordenado, deriva `es_parcial` del historial y emite `NE-NNNNNN` desde una secuencia exclusiva de `service_role`.
+- **Cierre por entrega (C19):** al entregar el 100 % la orden pasa a `CERRADA`; anular la nota la reabre. El cierre administrativo completa costo y margen.
+
+## Dinero y finanzas
+
+- Cobranza separa el importe comercial de Producción: `abrir_cuenta_por_cobrar` exige OP completada y partidas totalmente producidas; el monto y el tipo de cambio se capturan de forma explícita y auditada.
+- `cuentas_por_cobrar` mantiene saldos en la moneda de la cuenta. `clientes.saldo_a_favor` y `movimientos_saldo_favor` forman un monedero estrictamente MXN con precisión `numeric(14,4)`.
+- `registrar_pago_ar_atomico` y `aplicar_saldo_favor_ar` bloquean cuenta, usuario y cliente en el mismo orden. La llave única `solicitud_id` y `ON CONFLICT` vuelven idempotentes los reintentos.
+- Los folios `REC-NNNNNN`, `GTO-NNNNNN` y `NE-NNNNNN` salen de secuencias restringidas a `service_role`.
+- `obtener_rentabilidad_orden` agrega CxC no cancelada, consumos de material (usada + scrap), sesiones cerradas con la tarifa histórica y gastos no cancelados; el margen no calculable queda explícito.
+- `recursos_planeacion.costo_hora_interno` es la tarifa vigente. El trigger de `sesiones_trabajo` la copia al alta para que cambios posteriores no alteren la historia.
+- Facturación emite y cancela facturas internas; el ERP **no timbra CFDI** (fuera de alcance hasta definir PAC y reglas fiscales).
+
+## Dashboard, configuración y colaboración
+
+- Las RPCs de dashboard (ejecutivo, vendedor, equipo y contador) fijan `search_path`, limitan el rango a 366 días y devuelven un JSON atómico con periodo actual y anterior. `ver_finanzas` controla CxC/CxP/utilidad/margen; el vendedor solo recibe su pipeline y el operador es redirigido a Producción.
+- `configuracion_sistema` es un singleton `id = 'main'`; los bloques JSONB se normalizan con mappers estrictos y TC/IVA viven en columnas numéricas. `actualizar_configuracion_seccion` valida al actor, bloquea la fila con `FOR UPDATE` y actualiza solo la sección solicitada.
+- El tipo de cambio diario usa columnas dedicadas (`tipo_cambio_actualizado_en`/`_por`) y se confirma en `/dashboard` si cambió el día en Tijuana o pasaron 24 horas.
+- `comentarios_registro` y `notificaciones_usuario` tienen RLS por entidad/usuario; un trigger `SECURITY DEFINER` deriva notificaciones de menciones en la misma transacción. El parser escapa el texto antes de persistir.
+
+## Realtime y estado cliente
+
+- Las proyecciones usan TanStack Query como fuente de datos; Zustand solo conserva filtros, selección y estado efímero.
+- Supabase Realtime se usa como **invalidación**, nunca como payload de negocio: la pantalla relee bajo RLS.
+- Las terminales PIN reciben una señal SSE desde `/api/produccion-piso/sincronizacion`; revalidan sesión y recargan datos ya filtrados por operador.
+- Las ráfagas de eventos se agrupan para evitar refetch en cascada; cambios de OP o partidas pueden refrescar opciones RSC sin recargar la página.
+
+## Integraciones
+
+- **OpenRouter:** OCR de comprobantes solo en Server Actions, con límite de tamaño, MIME validado y respuesta Zod estricta. Los errores al cliente son genéricos.
+- **Brevo:** correo transaccional con remitente verificado y webhook de eventos con token en tiempo constante.
+- **PDF:** `@react-pdf/renderer` genera documentos en el servidor; no se envían plantillas ejecutables al navegador.
 
 ## Convenciones de código
 
-El código de negocio usa español: archivos kebab-case, funciones/variables camelCase y tipos PascalCase. No se usa `any`. Los hooks se implementan con nombre interno `use...` y se exportan como `usar...` para respetar las reglas de React Hooks.
+El código de negocio usa español: archivos kebab-case, funciones y variables camelCase, tipos PascalCase. No se usa `any`. Los hooks se implementan con nombre interno `use...` y se exportan como `usar...` para respetar las reglas de React Hooks. Las rutas y componentes no contienen reglas de negocio.

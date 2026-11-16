@@ -97,7 +97,7 @@ async function iniciarSesion(pagina: Page, contexto: ContextoE2E): Promise<void>
 /** Capturas de evidencia 1440/768 × claro/oscuro (SII-B2). */
 async function capturar(pagina: Page, nombre: string): Promise<void> {
   if (process.env.E2E_CAPTURAR_VISUAL !== 'si') return;
-  const directorio = `.ai-shared/qa/sii-b2/visual`;
+  const directorio = `test-results/evidencia/clientes-ficha/visual`;
   mkdirSync(directorio, { recursive: true });
   for (const [vista, ancho, alto] of [
     ['1440', 1440, 900],

@@ -145,7 +145,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await expect(page.getByTestId('catalogos-confirmacion')).toContainText('Canal guardado');
 
       // --- Capturas 1440/768 × claro/oscuro ---
-      mkdirSync('.ai-shared/qa/sii-b1-e2/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/catalogos-base/visual', { recursive: true });
       for (const [nombre, ancho, alto] of [
         ['escritorio', 1440, 900],
         ['tableta', 768, 1024],
@@ -156,7 +156,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
             .locator('html')
             .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
           await page.screenshot({
-            path: `.ai-shared/qa/sii-b1-e2/visual/catalogos-base-${nombre}-${tema}.png`,
+            path: `test-results/evidencia/catalogos-base/visual/catalogos-base-${nombre}-${tema}.png`,
             fullPage: true,
             animations: 'disabled',
           });
@@ -187,7 +187,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
             expect(anchoDocumento).toBeLessThanOrEqual(320);
           }
           await seccionCanales.screenshot({
-            path: `.ai-shared/qa/sii-b1-e2/visual/catalogos-canales-${nombre}-${tema}.png`,
+            path: `test-results/evidencia/catalogos-base/visual/catalogos-canales-${nombre}-${tema}.png`,
             animations: 'disabled',
           });
         }
@@ -247,7 +247,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await expect(page.getByTestId('tarifario-resumen-sin-tarifa')).toBeVisible();
       if (['1', 'si'].includes(process.env.E2E_CAPTURAR_VISUAL ?? '')) {
         await page.screenshot({
-          path: '.ai-shared/qa/sii-b4-ola2/visual/config-tarifas-tc-1440-colapsado.png',
+          path: 'test-results/evidencia/catalogos-base/visual/config-tarifas-tc-1440-colapsado.png',
           fullPage: true,
           animations: 'disabled',
         });
@@ -260,7 +260,7 @@ test.describe('Catálogos base configurables (SII-B1.3–B1.8)', () => {
       await expect(filaGrupo).toContainText('Sin tarifa');
       if (['1', 'si'].includes(process.env.E2E_CAPTURAR_VISUAL ?? '')) {
         await page.screenshot({
-          path: '.ai-shared/qa/sii-b4-ola2/visual/propuesta-config-tarifas-tc-1440-claro.png',
+          path: 'test-results/evidencia/catalogos-base/visual/propuesta-config-tarifas-tc-1440-claro.png',
           fullPage: true,
           animations: 'disabled',
         });

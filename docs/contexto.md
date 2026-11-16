@@ -4,39 +4,29 @@
 
 ORCA MFG ERP v2 es el sistema operativo y comercial de CC Manufacturing Group / Mi Robot Centro CNC, empresa de manufactura de precisión en Tijuana, Baja California. Atiende trabajos de corte láser, router CNC, dobladora, ensamble y fabricación; por su operación fronteriza debe soportar escenarios MXN/USD e IVA aplicable.
 
-El producto sustituye ERP-CC v1, un SPA monolítico con lógica sensible en el navegador. La versión actual prioriza trazabilidad, permisos, validaciones server-side y operaciones seguras bajo concurrencia.
+El producto sustituye ERP-CC v1, un SPA monolítico con lógica sensible en el navegador. La versión actual prioriza trazabilidad, permisos, validaciones server-side y operaciones seguras bajo concurrencia. Está en producción; el estado operativo vigente se mantiene en [Estado actual](estado-actual.md).
 
 ## Flujo de negocio principal
 
 ```text
-Prospecto → Cotización → Negociación → Ganada
-                                      ↓
-Cliente → Orden → Planeación → Producción → Entrega → Cobranza
+Prospecto → RFQ → Propuesta → Negociación → Ganada
+                                             ↓
+Cliente → Orden de producción → Planeación → Producción → Entrega → Cobranza → Tesorería
 ```
 
-El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inventario administra materiales, proveedores y el kardex. Órdenes, Planeación, Producción y Cobranza continuarán el flujo en fases posteriores.
+- **Comercial:** Pipeline asigna el folio comercial; al ganar se crea o vincula al cliente y puede originar una orden de producción. RFQ y Propuestas concentran el detalle técnico y el costeo.
+- **Operación:** Planeación asigna partidas a recursos y turnos; Producción ejecuta en piso con sesiones de operador, consumo de material y avance.
+- **Cierre:** Entregas emite notas sin precios; el cierre por entrega cierra la orden y el cierre administrativo completa costo y margen.
+- **Dinero:** Cobranza abre cuentas por cobrar desde órdenes terminadas; Tesorería, Compras y Gastos completan el flujo financiero. Inventario administra materiales, proveedores y kardex.
 
-## Estado a septiembre de 2026
+## Módulos
 
-- Fases 0, 1 y 2: confirmadas en el historial Git.
-- Fase 3: módulo de Clientes implementado, incluidas reglas de tiers, crédito, documentos y promoción desde Pipeline.
-- Fase 4: Inventario / Compras implementado, con catálogo, movimientos, CPP, bloqueo de stock negativo y UI operativa.
-- Fase 5.1: modelo de Órdenes de Producción con folios OP atómicos, RLS de lectura, contratos TypeScript y validaciones Zod v4.
-- Fase 5.2: consumo atómico de materiales por partida, salida de kardex, protección de stock, CPP histórico y cálculo de merma/desviación, aplicados y verificados en Supabase remoto.
-- Fase 5.3: acciones server-side para OP, consumo y tiempo; sesión PIN contrastada con un operador activo; marcas con hora de PostgreSQL y estado de OP bloqueado; y tienda Zustand v5 de taller. Aplicada y verificada en Supabase remoto.
-- Fase 5.4: control de piso funcional para tiempo, avance, scrap y consumo de material; interfaz privada de OP, RPC atómica de avance y E2E de navegador. Aplicada y verificada en Supabase remoto.
-- Endurecimiento transversal de Fase 5: escritura de inventario restringida, helpers RLS privados, permisos separados de inventario/producción, asignación obligatoria de operador y sincronización automática de OP y piso. Aplicado y verificado en Supabase remoto.
-- Fase 6.1: base de Planeación aplicada en Supabase remoto: recursos identificables, capacidad por turno, programación secuenciada, permisos específicos, RLS de mínimo privilegio, candado concurrente por recurso y publicación Realtime.
-- Fase 6.2: motor transaccional de capacidad aplicado en Supabase remoto: excepciones por fecha/turno, programación y reprogramación bajo lock, compare-and-set para cambios concurrentes, y toma de preparación protegida por el candado de recurso. Se conserva un conjunto idempotente de datos ficticios `SIM-PLN` para desarrollar y verificar sincronización, sin datos reales ni uso en producción.
-- Fase 6 cerrada: las sub-fases 6.3 y 6.4 conectan Planeación mediante Server Actions autorizadas, bitácora, calendario operativo y Realtime sin refresco manual. TanStack Query conserva datos de servidor; Zustand solo filtros/selección. La E2E remota validó programación, preparación, auditoría y sincronización entre dos vistas, con limpieza de datos E2E.
-- Fase 7 cerrada: Producción toma recursos preparados de Planeación mediante RPCs atómicas, registra sesiones y avances inmutables, calcula horas de taller en PostgreSQL y genera notas de entrega parciales o totales sin precios. El Kanban es una proyección derivada y se actualiza por Realtime sin refresco manual.
-- Se mantienen fixtures ficticias `SIM-PLN` y `SIM-PRD` para desarrollo: recurso preparado, entrega parcial y entrega total. No hay datos operativos reales en el entorno de desarrollo.
-- Fase 8 cerrada: Cobranza abre AR de manera explícita únicamente desde OP terminadas, registra pagos y saldo a favor dentro de RPCs atómicas, emite recibos `REC-NNNNNN` y mantiene la cartera sincronizada por Realtime sin usar payloads como fuente de datos. El monedero se expresa exclusivamente en MXN con cuatro decimales; se conserva la fixture ficticia idempotente `SIM-AR`.
-- Fase 9 en implementación local: Gastos/CxP, folios `GTO-NNNNNN`, rentabilidad por orden, tarifa histórica de sesiones, OCR server-side, acciones autorizadas, estado efímero, Realtime, ruta `/gastos`, fixture persistente `SIM-GTO` y pruebas unitarias/integración/E2E opt-in. Las migraciones aún no se han aplicado al remoto porque la cuenta CLI vinculada responde 403 por privilegios insuficientes.
-- Fase 10 implementada localmente: Dashboard por rol con RPCs de consolidación, metas y comisiones de vendedor, CxC/CxP/aging para Contabilidad, tendencias comparativas, Server Actions, Zustand, Realtime y ruta `/dashboard`. La migración `20260910001120_fase_10_dashboard_base.sql` aún no se aplica al remoto por el mismo bloqueo 403; no hay datos reales.
-- Fase 11 implementada localmente: singleton `configuracion_sistema`, cuentas bancarias, áreas de trabajo, actualización atómica de secciones, fallbacks de configuración, contratos Zod v4, Server Actions administrativas, Zustand, Realtime y E2E opt-in. La migración `20260910011548_fase_11_configuracion_base.sql` aún no se aplica ni se puede validar contra el remoto por el bloqueo 403; no se introducen datos reales.
-- Reestructuración UI 2026-11: `/configuracion` quedó en seis secciones (Folios, Tarifas y costos, Catálogos, Áreas de trabajo, Personas y accesos, Documentos). Datos de empresa se editan desde el menú de usuario; Cuentas bancarias desde Cobros y tesorería. Se conservan permisos, Server Actions, RPC, datos históricos y los enlaces `?pestana=` existentes.
-- Fase 12 implementada localmente: comentarios vinculados a órdenes, cotizaciones y clientes; menciones `@usuario` con sanitización de texto; trigger transaccional de notificaciones, RLS privada, Server Actions auditadas, Zustand, centro de notificaciones, Realtime por invalidación y gate E2E de dos sesiones. La migración `20260910023504_fase_12_comentarios_base.sql` aún no se aplica ni se puede validar contra el remoto por el bloqueo 403; no se introducen datos reales.
+Comercial y clientes: Pipeline, RFQ, Propuestas, Clientes.
+Operación: Inventario, Compras, Órdenes, Planeación, Producción y piso, Entregas.
+Finanzas: Cobranza, Tesorería, Gastos y egresos, Facturación.
+Soporte: Dashboard por rol, Configuración maestra, Comentarios y notificaciones, Auditoría, Cierre administrativo.
+
+Cada módulo expone Server Actions autorizadas, servicios, tipos, validaciones Zod y UI. `portal-cliente` y `kpis` están preparados en el dominio sin flujo de producción completo.
 
 ## Reglas funcionales que no se deben romper
 
@@ -44,11 +34,13 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - Folios, límites, stock y cálculos concurrentes se resuelven en Postgres, nunca contando filas ni desde el cliente.
 - La seguridad combina permisos server-side y RLS de Supabase.
 - Toda actualización relevante de producción se propaga automáticamente: Realtime para usuarios autenticados y un relay sin payload para sesiones PIN.
-- Los documentos de producción no muestran precios; las líneas comerciales y actividades internas son niveles distintos.
+- Los documentos de producción no muestran precios; las líneas comerciales y las actividades internas son niveles distintos.
 - El PIN de piso debe identificar de forma unívoca a un operador. Una coincidencia duplicada falla cerrada y se registra como acceso no válido.
 - Una cuenta por cobrar solo puede abrirse desde una OP completada con todas sus partidas producidas. Los importes comerciales se capturan explícitamente por Contabilidad; Producción no inventa precios.
 - Los cobros, sobrepagos y aplicaciones de saldo se resuelven atómicamente en PostgreSQL. La misma `solicitud_id` nunca puede crear dos recibos ni tocar saldos por segunda vez.
 - Los gastos guardan importes en su moneda original y tipo de cambio MXN por unidad; PostgreSQL exige subtotal + IVA = total y estados coherentes. La rentabilidad toma el ingreso únicamente de CxC explícita, valora materiales con usada + scrap al CPP histórico, usa la tarifa congelada de cada sesión y excluye gastos cancelados.
+- La jornada laboral (C18) se resuelve en Postgres con `privado.jornada_laboral_dia`: lunes a viernes 9 h, sábado 4 h y domingo cerrado. Capacidad, planeación, producción y la jornada del operador usan la misma fuente.
+- La orden pasa a `CERRADA` al entregar el 100 % y se reabre al anular la nota de entrega (C19). El cierre administrativo completa costo y margen.
 - El Dashboard toma métricas agregadas únicamente desde RPCs `SECURITY DEFINER` con rangos semiabiertos y periodo anterior de igual duración. `ver_finanzas` controla CxC/CxP/utilidad/margen; `ver_pipeline_equipo` controla el embudo de equipo; el vendedor solo recibe su propio pipeline y el operador es redirigido a Producción.
 - La Configuración maestra mantiene un singleton `main` con bloques JSONB normalizados y valores numéricos para TC/IVA. Una RPC con `FOR UPDATE` actualiza solo la sección solicitada y valida que el actor sea admin o tenga `configuracion`; cuentas bancarias y áreas no conceden escritura directa a `authenticated`.
 - Las metas y comisiones viven en `metas_vendedor` como configuración auditable, no como constantes del cliente. RLS limita su lectura al vendedor, equipo autorizado o administrador y `service_role` concentra las escrituras. Las respuestas JSON se mapean desde `unknown`, se descartan campos extra y los números no finitos se rechazan.
@@ -56,3 +48,7 @@ El Pipeline asigna el folio comercial; al ganar, crea o vincula al cliente. Inve
 - OCR solo recibe imágenes/PDF desde el servidor, con límite de 5 MiB, respuesta Zod estricta y sin persistir archivos ni secretos. La interfaz de Gastos actualiza sus consultas al recibir señales Realtime y nunca usa payloads como fuente contable.
 - Configuración usa TanStack Query como fuente de datos de pantalla y `usarTiendaConfiguracion` únicamente como snapshot efímero. Realtime invalida la proyección autorizada; los formularios registran auditoría sin escribir números de cuenta ni CLABE en los detalles del log.
 - Comentarios usan texto plano escapado, no HTML; `menciones_json` contiene únicamente UUIDs de usuarios activos y el trigger crea notificaciones en la misma transacción. Las lecturas vuelven a pasar por RLS y los enlaces del centro se validan contra rutas internas. `usarTiendaNotificaciones` solo mantiene estado efímero; Realtime invalida/refresca sin confiar en payloads.
+
+## Documentos relacionados
+
+- [Estado actual](estado-actual.md) · [Alcance](alcance.md) · [Arquitectura](arquitectura.md)

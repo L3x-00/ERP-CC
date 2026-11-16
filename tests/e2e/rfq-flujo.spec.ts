@@ -6,7 +6,7 @@ import type { Database } from '@/compartido/tipos/supabase';
 // playwright.config.ts exige URL de loopback antes de importar esta prueba.
 const correoAdmin = process.env.E2E_CONFIGURACION_ADMIN_EMAIL;
 const contrasenaAdmin = process.env.E2E_CONFIGURACION_ADMIN_PASSWORD;
-const carpetaVisual = '.ai-shared/qa/sii-b3-ola2/visual';
+const carpetaVisual = 'test-results/evidencia/rfq-flujo/visual';
 
 function clienteAdmin(): SupabaseClient<Database> {
   return createClient<Database>(

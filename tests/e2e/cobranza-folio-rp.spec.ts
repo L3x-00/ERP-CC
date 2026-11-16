@@ -108,13 +108,13 @@ test.describe('Cobranza SII-B8 F1: folio de recibo RP-O-MMYY_XX-YY', () => {
         .select('folio_recibo').eq('ar_id', contexto.arId).order('creado_en');
       expect(pagos?.map((pago) => pago.folio_recibo)).toEqual(['RP-O-9999_95-01', 'RP-O-9999_95-02']);
 
-      mkdirSync('.ai-shared/qa/sii-b8-f1/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/cobranza-folio-rp/visual', { recursive: true });
       for (const oscuro of [false, true]) {
         await page.locator('html').evaluate(
           (elemento, activar) => elemento.classList.toggle('dark', activar), oscuro,
         );
         await page.screenshot({
-          path: `.ai-shared/qa/sii-b8-f1/visual/recibo-rp-escritorio-${oscuro ? 'oscuro' : 'claro'}.png`,
+          path: `test-results/evidencia/cobranza-folio-rp/visual/recibo-rp-escritorio-${oscuro ? 'oscuro' : 'claro'}.png`,
           fullPage: true, animations: 'disabled',
         });
       }

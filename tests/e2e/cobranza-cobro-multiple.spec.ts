@@ -178,13 +178,13 @@ test.describe('Cobranza SII-B8 F3: cobro repartido y promesas con recordatorios'
       }).toBe('CANCELADA');
 
       // Capturas de los modales F3.
-      mkdirSync('.ai-shared/qa/sii-b8-f3/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/cobranza-cobro-multiple/visual', { recursive: true });
       for (const oscuro of [false, true]) {
         await page.locator('html').evaluate(
           (elemento, activar) => elemento.classList.toggle('dark', activar), oscuro,
         );
         await page.screenshot({
-          path: `.ai-shared/qa/sii-b8-f3/visual/promesa-escritorio-${oscuro ? 'oscuro' : 'claro'}.png`,
+          path: `test-results/evidencia/cobranza-cobro-multiple/visual/promesa-escritorio-${oscuro ? 'oscuro' : 'claro'}.png`,
           fullPage: true, animations: 'disabled',
         });
       }

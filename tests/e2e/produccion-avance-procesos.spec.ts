@@ -314,7 +314,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await expect(tarjeta).not.toContainText('Lista');
     await expect(tarjeta).toContainText('En proceso');
     if (process.env.E2E_CAPTURAR_VISUAL === 'si') {
-      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd09-parcial-escritorio.png', fullPage: true });
+      await page.screenshot({ path: 'test-results/evidencia/produccion-avance-procesos/a20-prd09-parcial-escritorio.png', fullPage: true });
     }
 
     // Sesión 2: Corte 6.
@@ -356,7 +356,7 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
       await page.setViewportSize({ width: 390, height: 844 });
       await page.locator('html').evaluate((nodo) => nodo.classList.add('dark'));
       await page.waitForTimeout(200);
-      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd09-final-movil-oscuro.png', fullPage: true });
+      await page.screenshot({ path: 'test-results/evidencia/produccion-avance-procesos/a20-prd09-final-movil-oscuro.png', fullPage: true });
       await page.setViewportSize({ width: 1280, height: 720 });
       await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
     }

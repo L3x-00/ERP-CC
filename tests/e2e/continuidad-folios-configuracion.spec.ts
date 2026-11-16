@@ -47,7 +47,7 @@ test('CFG-04: administrador conserva 47→48 sin retroceso y recarga la continui
       await page.setViewportSize({ width: ancho, height: alto });
       for (const tema of ['claro', 'oscuro'] as const) {
         await page.locator('html').evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
-        await page.screenshot({ path: `.ai-shared/qa/cierre-auditoria-2026-09-22/a20-cfg04-${nombre}-${tema}.png`, fullPage: true, animations: 'disabled' });
+        await page.screenshot({ path: `test-results/evidencia/continuidad-folios-configuracion/a20-cfg04-${nombre}-${tema}.png`, fullPage: true, animations: 'disabled' });
       }
     }
     await page.setViewportSize({ width: 1440, height: 900 });

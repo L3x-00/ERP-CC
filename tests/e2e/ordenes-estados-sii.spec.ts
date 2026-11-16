@@ -452,7 +452,7 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
       await expect(page.getByTestId(`estado-orden-${folioTi}`)).toContainText('Cancelada');
 
       // Capturas 1440/768 × claro/oscuro de la cola con ambos chips.
-      mkdirSync('.ai-shared/qa/sii-b5-orden/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/ordenes-estados-sii/visual', { recursive: true });
       for (const [nombre, ancho, alto] of [
         ['escritorio', 1440, 900],
         ['tableta', 768, 1024],
@@ -463,7 +463,7 @@ test.describe('Órdenes SII-B5 ola 2: estados derivados y acciones de negocio', 
             (elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro',
           );
           await page.screenshot({
-            path: `.ai-shared/qa/sii-b5-orden/visual/ordenes-estados-${nombre}-${tema}.png`,
+            path: `test-results/evidencia/ordenes-estados-sii/visual/ordenes-estados-${nombre}-${tema}.png`,
             fullPage: true, animations: 'disabled',
           });
         }

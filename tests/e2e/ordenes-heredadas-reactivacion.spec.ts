@@ -297,7 +297,7 @@ test.describe.serial('órdenes heredadas y cola sin Repetir/Reactivar (ORD-06 / 
     await expect(dialogo).toContainText('solo datos técnicos');
     await expect(dialogo).toContainText('No copia precios ni cuentas por cobrar');
     await expect(dialogo.getByLabel('Fecha de compromiso')).toBeFocused();
-    const directorioVisual = '.ai-shared/qa/c8-6/visual';
+    const directorioVisual = 'test-results/evidencia/ordenes-heredadas-reactivacion/visual';
     mkdirSync(directorioVisual, { recursive: true });
     await page.screenshot({ path: `${directorioVisual}/orden-basada-desktop-claro.png`, fullPage: true });
     await page.evaluate(() => document.documentElement.classList.add('dark'));

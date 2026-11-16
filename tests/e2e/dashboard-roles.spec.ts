@@ -27,7 +27,7 @@ async function verificarVistaResponsiveDashboard(page: Page): Promise<void> {
     { nombre: 'escritorio', width: 1440, height: 900 },
   ];
   const capturar = process.env.E2E_CAPTURAR_VISUAL === '1';
-  if (capturar) mkdirSync('.ai-shared/qa/dashboard/visual', { recursive: true });
+  if (capturar) mkdirSync('test-results/evidencia/dashboard-roles/visual', { recursive: true });
 
   for (const vista of vistas) {
     await page.setViewportSize({ width: vista.width, height: vista.height });
@@ -37,7 +37,7 @@ async function verificarVistaResponsiveDashboard(page: Page): Promise<void> {
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       if (capturar) {
         await page.screenshot({
-          path: `.ai-shared/qa/dashboard/visual/dashboard-${vista.nombre}-${oscuro ? 'oscuro' : 'claro'}.png`,
+          path: `test-results/evidencia/dashboard-roles/visual/dashboard-${vista.nombre}-${oscuro ? 'oscuro' : 'claro'}.png`,
           fullPage: true,
           animations: 'disabled',
         });

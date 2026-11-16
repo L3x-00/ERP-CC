@@ -106,7 +106,7 @@ test.describe.serial('A19 gastos y comprobantes privados', () => {
       for (const tema of ['claro', 'oscuro'] as const) {
         await page.locator('html').evaluate((nodo, oscuro) => nodo.classList.toggle('dark', oscuro), tema === 'oscuro');
         await page.screenshot({
-          path: `.ai-shared/qa/cierre-auditoria-2026-09-22/a19-${nombre}-${tema}.png`,
+          path: `test-results/evidencia/gastos-a19/a19-${nombre}-${tema}.png`,
           fullPage: true, animations: 'disabled',
         });
       }

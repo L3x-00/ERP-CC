@@ -751,7 +751,7 @@ await expect(
     await expect(panelEntregables).toContainText('Archivo de salida final asociado');
     await expect(panelEntregables).toContainText('salida-final.pdf');
     await expect(observador.getByTestId('panel-documentos-orden')).toContainText('salida-final.pdf');
-    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd17-salida-final.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/evidencia/produccion-piso/a20-prd17-salida-final.png', fullPage: true });
     const [salidaLectura] = await Promise.all([
       page.waitForEvent('popup'),
       panelEntregables.getByRole('button', { name: 'Abrir en lectura' }).click(),
@@ -829,10 +829,10 @@ await expect(
       await expect(detalleSesion).toContainText('registro-turno.pdf');
       await expect(page.getByTestId('panel-documentos-orden')).toContainText('Planos y documentos del cliente/orden');
       await expect(page.getByTestId('panel-documentos-orden')).toContainText('Salida y notas de entrega');
-      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd17-escritorio-claro.png', fullPage: true });
+      await page.screenshot({ path: 'test-results/evidencia/produccion-piso/a20-prd17-escritorio-claro.png', fullPage: true });
       await page.setViewportSize({ width: 390, height: 844 });
       await page.emulateMedia({ colorScheme: 'dark' });
-      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-prd17-movil-oscuro.png', fullPage: true });
+      await page.screenshot({ path: 'test-results/evidencia/produccion-piso/a20-prd17-movil-oscuro.png', fullPage: true });
       await page.setViewportSize({ width: 1280, height: 720 });
       await page.emulateMedia({ colorScheme: 'light' });
       const [lectura] = await Promise.all([
@@ -847,10 +847,10 @@ await expect(
       const dialogo = page.getByRole('dialog', { name: /Reanudar OP-/ });
       await expect(dialogo).toContainText('Falta de material');
       await expect(dialogo).toContainText(/2(?:\.00)? piezas/);
-      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-reanudacion-escritorio.png' });
+      await page.screenshot({ path: 'test-results/evidencia/produccion-piso/a20-reanudacion-escritorio.png' });
       await page.setViewportSize({ width: 390, height: 844 });
       await page.emulateMedia({ colorScheme: 'dark' });
-      await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-reanudacion-movil-oscuro.png' });
+      await page.screenshot({ path: 'test-results/evidencia/produccion-piso/a20-reanudacion-movil-oscuro.png' });
       await dialogo.getByRole('button', { name: 'Cancelar' }).click();
       const { data: antes } = await caso.admin.from('sesiones_trabajo').select('id').eq('orden_id', caso.ordenId);
       expect(antes).toHaveLength(1);

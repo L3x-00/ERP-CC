@@ -211,7 +211,7 @@ test.describe('Materiales y costos — grupos y costos (obs. 8)', () => {
       );
 
       // --- Capturas 1440/768 × claro/oscuro ---
-      mkdirSync('.ai-shared/qa/c6-3/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/materiales-costos-c6-3/visual', { recursive: true });
       for (const [nombre, ancho, alto] of [
         ['movil', 320, 1000],
         ['tableta', 768, 1024],
@@ -225,7 +225,7 @@ test.describe('Materiales y costos — grupos y costos (obs. 8)', () => {
             .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
           expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho);
           await page.screenshot({
-            path: `.ai-shared/qa/c6-3/visual/materiales-costos-${nombre}-${tema}.png`,
+            path: `test-results/evidencia/materiales-costos-c6-3/visual/materiales-costos-${nombre}-${tema}.png`,
             fullPage: true,
             animations: 'disabled',
           });
@@ -242,7 +242,7 @@ test.describe('Materiales y costos — grupos y costos (obs. 8)', () => {
             .locator('html')
             .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
           await page.screenshot({
-            path: `.ai-shared/qa/c6-3/visual/materiales-grupos-${nombre}-${tema}.png`,
+            path: `test-results/evidencia/materiales-costos-c6-3/visual/materiales-grupos-${nombre}-${tema}.png`,
             fullPage: true,
             animations: 'disabled',
           });
