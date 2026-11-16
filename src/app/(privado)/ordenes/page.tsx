@@ -125,7 +125,7 @@ export default async function PaginaOrdenes({ searchParams }: ParametrosPaginaOr
         {[
           ['Órdenes no canceladas', resumen.total],
           ['En proceso', resumen.enProceso],
-          ['Atrasadas sin entrega final', resumen.atrasadas],
+          ['Atrasadas', resumen.atrasadas],
           ['Entregadas', resumen.entregadas],
           ['TI creadas este mes', resumen.tiMes],
           ['TI en proceso', resumen.tiEnProceso],

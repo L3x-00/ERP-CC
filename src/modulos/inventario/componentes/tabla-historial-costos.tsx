@@ -10,7 +10,7 @@ import {
   TablaEncabezadoCelda,
   TablaFila,
 } from '@/compartido/componentes/diseno/tabla';
-import { formatearFecha, formatearHora, formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearFecha, formatearHora, formatearMontoFlexible } from '@/compartido/utilidades/formatear';
 
 import type { VersionCostoMaterial } from '../tipos/materiales-costos';
 import { etiquetaFuenteCosto, formatearFechaDia } from '../utilidades/materiales-costos';
@@ -74,16 +74,15 @@ export function TablaHistorialCostos({
                       <span className="text-texto-secundario">Sin costo anterior → </span>
                     ) : (
                       <span className="text-texto-secundario">
-                        {formatearMoneda(
+                        {formatearMontoFlexible(
                           version.costoAnterior,
                           version.monedaAnterior ?? 'MXN',
-                          4,
                         )}{' '}
                         →{' '}
                       </span>
                     )}
                     <span className="font-medium">
-                      {formatearMoneda(version.costoNuevo, version.monedaNueva, 4)}
+                      {formatearMontoFlexible(version.costoNuevo, version.monedaNueva)}
                     </span>
                   </TablaCelda>
                   <TablaCelda className="text-texto-secundario">

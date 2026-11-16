@@ -189,9 +189,9 @@ describe('ficha de contexto de Producción', () => {
     );
 
     const ficha = screen.getByTestId('ficha-orden-produccion');
-    expect(ficha.textContent).toContain('Por definir');
+    expect(ficha.textContent).toContain('Sin material');
     expect(ficha.textContent).toContain('Sin programar');
     expect(ficha.textContent).toContain('Sin asignar');
-    expect(ficha.textContent).toContain('Ruta por definir');
+    expect(ficha.textContent).toContain('Sin ruta capturada');
   });
 });

@@ -301,7 +301,7 @@ describe('PanelArchivosPropuesta — archivo obligatorio para validar (obs. clie
 
     const entrada = screen.getByLabelText('Archivo de la propuesta');
     expect(entrada.getAttribute('aria-invalid')).toBe('true');
-    expect(entrada.className).toContain('border-peligro');
+    expect(entrada.parentElement?.querySelector('label')?.className).toContain('border-peligro');
     expect(entrada.getAttribute('aria-describedby')).toContain('archivo-propuesta-requerido');
     expect(screen.getByTestId('archivo-propuesta-requerido').textContent).toMatch(
       /al menos un archivo/i,

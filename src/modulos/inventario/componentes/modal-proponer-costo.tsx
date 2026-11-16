@@ -13,7 +13,7 @@ import {
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearMontoFlexible } from '@/compartido/utilidades/formatear';
 
 import { usarMutacionesCostosMateriales } from '../hooks/usar-mutaciones-costos-materiales';
 import type {
@@ -80,7 +80,7 @@ export function ModalProponerCosto({
   const costoActual =
     material.costoVigente === null
       ? 'sin costo confirmado'
-      : `${formatearMoneda(material.costoVigente, material.monedaCosto, 4)} por ${material.unidadBase}`;
+      : `${formatearMontoFlexible(material.costoVigente, material.monedaCosto)} por ${material.unidadBase}`;
 
   return (
     <Dialog

@@ -14,7 +14,7 @@ import {
   TablaEncabezadoCelda,
   TablaFila,
 } from '@/compartido/componentes/diseno/tabla';
-import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
+import { formatearFecha, formatearMontoFlexible, formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 
 import {
   listarMovimientosSaldoMaterialAccion,
@@ -126,7 +126,7 @@ export function PanelExistencias({
                       {saldo.costoVigente === null ? (
                         <span className="text-texto-tenue">Sin costo</span>
                       ) : (
-                        formatearMoneda(saldo.costoVigente, saldo.monedaCosto, 4)
+                        formatearMontoFlexible(saldo.costoVigente, saldo.monedaCosto)
                       )}
                     </TablaCelda>
                     <TablaCelda className="tabular-nums">

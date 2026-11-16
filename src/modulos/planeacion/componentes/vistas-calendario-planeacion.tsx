@@ -229,7 +229,7 @@ export function VistaSemana(props: PropsVistaCalendario) {
   const compromisosPorFecha = agruparCompromisosPorFecha(props.compromisos ?? []);
 
   return (
-    <div className="overflow-x-auto pb-1 xl:overflow-visible">
+    <div className="overflow-x-auto pb-1">
       <div data-testid="vista-semana" className="grid min-w-[60rem] grid-cols-7 gap-2">
       {props.fechas.map((fecha) => {
         const programaciones = porFecha.get(fecha) ?? [];
@@ -289,10 +289,11 @@ export function VistaMes(props: PropsVistaCalendario) {
   const celdas = construirCeldasMes(props.fechaInicio, props.fechaFin);
 
   return (
-    <div
-      data-testid="vista-mes"
-      className="grid grid-cols-7 gap-1 rounded-base border border-borde p-2"
-    >
+    <div className="overflow-x-auto pb-1">
+      <div
+        data-testid="vista-mes"
+        className="grid min-w-[46rem] grid-cols-7 gap-1 rounded-base border border-borde p-2"
+      >
       {celdas.map(({ fecha, enRango }) => {
         const programaciones = enRango ? (porFecha.get(fecha) ?? []) : [];
         const grupos = agruparPorOrden(programaciones);
@@ -363,6 +364,7 @@ export function VistaMes(props: PropsVistaCalendario) {
           </section>
         );
       })}
+      </div>
     </div>
   );
 }

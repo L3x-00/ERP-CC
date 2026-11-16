@@ -186,7 +186,7 @@ describe('TablaHistorialCostos (C6.1)', () => {
     );
 
     expect(screen.getByText(/Sin costo anterior/)).toBeDefined();
-    expect(screen.getByText(/12\.5000/)).toBeDefined();
+    expect(screen.getByText(/12\.50/)).toBeDefined();
     expect(screen.getByText('Manual')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Ver todo el historial' }));
     expect(onQuitarFiltro).toHaveBeenCalledTimes(1);

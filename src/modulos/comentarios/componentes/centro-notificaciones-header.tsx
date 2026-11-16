@@ -6,6 +6,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/compartido/componentes/retroalimentacion/skeleton';
+import { ZONA_HORARIA_NEGOCIO } from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
 import {
   marcarNotificacionesLeidasAccion,
@@ -18,7 +19,11 @@ const CLAVE_NOTIFICACIONES = ['notificaciones'] as const;
 function fechaNotificacion(valor: string): string {
   const fecha = new Date(valor);
   return Number.isFinite(fecha.getTime())
-    ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(fecha)
+    ? new Intl.DateTimeFormat('es-MX', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+        timeZone: ZONA_HORARIA_NEGOCIO,
+      }).format(fecha)
     : 'Fecha no disponible';
 }
 

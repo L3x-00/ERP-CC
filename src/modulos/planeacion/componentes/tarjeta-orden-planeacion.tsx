@@ -119,15 +119,17 @@ export function TarjetaOrdenPlaneacion({
             title={`Ver resumen de la orden ${folio}`}
             onClick={abrirResumen}
             className={cn(
-              'min-w-0 truncate rounded-sm text-left font-mono font-semibold underline decoration-dotted underline-offset-2 hover:text-acento focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:outline-none',
+              'inline-flex min-h-6 min-w-0 items-center truncate rounded-sm text-left font-mono font-semibold underline decoration-dotted underline-offset-2 hover:text-acento focus-visible:ring-2 focus-visible:ring-acento/40 focus-visible:outline-none',
               compacta ? 'text-[11px]' : 'text-sm',
             )}
           >
             {folio}
           </button>
-          <Badge variante="neutro" className="shrink-0">
-            {items.length} {items.length === 1 ? 'ítem' : 'ítems'}
-          </Badge>
+          {!compacta || items.length > 1 ? (
+            <Badge variante="neutro" className="shrink-0">
+              {items.length} {items.length === 1 ? 'ítem' : 'ítems'}
+            </Badge>
+          ) : null}
         </div>
         <div className="flex min-w-0 items-center justify-between gap-2">
           <p
@@ -327,7 +329,12 @@ function FilaItemOrden({
           : null,
       )}
     >
-      <div className="flex min-w-0 items-start justify-between gap-2">
+      <div
+        className={cn(
+          'flex min-w-0 gap-2',
+          compacta ? 'flex-col' : 'items-start justify-between',
+        )}
+      >
         <div className="flex min-w-0 items-start gap-1.5">
           {puedeArrastrar ? (
             <span
@@ -343,13 +350,19 @@ function FilaItemOrden({
           ) : null}
           <div className="flex min-w-0 flex-col gap-0.5">
             <p
-              className="truncate text-[11px] font-medium text-texto-primario"
+              className={cn(
+                'text-[11px] font-medium text-texto-primario',
+                compacta ? 'line-clamp-2 break-words' : 'truncate',
+              )}
               title={`Operación ${programacion.secuencia}${programacion.operacionNombre ? ` · ${programacion.operacionNombre}` : ''}`}
             >
               {operacionTexto}
             </p>
             <p
-              className="truncate text-[10px] leading-4 text-texto-secundario"
+              className={cn(
+                'text-[10px] leading-4 text-texto-secundario',
+                compacta ? 'line-clamp-2 break-words' : 'truncate',
+              )}
               title={`Ítem ${itemTexto} · ${recursoTexto} · ${programacion.horasEstimadas} h`}
             >
               {programacion.operacionNombre ? `Ítem ${itemTexto}` : `Procesos: ${procesosTexto}`}
@@ -365,7 +378,10 @@ function FilaItemOrden({
         </div>
         <Badge
           variante={VARIANTE_ESTADO[programacion.estadoPlaneacion]}
-          className="shrink-0 px-1.5 py-0 text-[9px] leading-4"
+          className={cn(
+            'shrink-0 px-1.5 py-0 text-[9px] leading-4',
+            compacta ? 'self-start' : null,
+          )}
         >
           {ETIQUETA_ESTADO[programacion.estadoPlaneacion]}
         </Badge>

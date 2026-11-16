@@ -11,7 +11,7 @@ import {
   TablaEncabezadoCelda,
   TablaFila,
 } from '@/compartido/componentes/diseno/tabla';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearMontoFlexible } from '@/compartido/utilidades/formatear';
 
 import type { MaterialCosto } from '../tipos/materiales-costos';
 import { formatearDimensionesMm, formatearFechaDia } from '../utilidades/materiales-costos';
@@ -120,7 +120,7 @@ export function TablaMaterialesCostos({
                 {material.costoVigente === null ? (
                   <span className="text-texto-tenue">Sin costo</span>
                 ) : (
-                  formatearMoneda(material.costoVigente, material.monedaCosto, 4)
+                  formatearMontoFlexible(material.costoVigente, material.monedaCosto)
                 )}
               </TablaCelda>
               <TablaCelda className="text-texto-secundario">

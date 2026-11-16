@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
-import { Input } from '@/compartido/componentes/ui/input';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import {
   obtenerArchivosOrdenAccion,
@@ -109,10 +109,10 @@ export function AdjuntosOrdenDialog({ ordenId, folio, onCerrar }: Props) {
               </Button>
             </div>
           ))}
-          <label className="flex flex-col gap-1 text-sm font-medium text-texto-secundario">
+          <div className="flex flex-col gap-1 text-sm font-medium text-texto-secundario">
             Adjuntar archivo (máximo 20 MiB)
-            <Input
-              type="file"
+            <CampoArchivo
+              aria-label="Adjuntar archivo a la orden"
               data-testid="subir-archivo-orden"
               disabled={subiendo}
               onChange={(evento) => {
@@ -121,7 +121,7 @@ export function AdjuntosOrdenDialog({ ordenId, folio, onCerrar }: Props) {
                 void subir(archivo);
               }}
             />
-          </label>
+          </div>
           {cargando ? null : (
             <Button
               type="button"

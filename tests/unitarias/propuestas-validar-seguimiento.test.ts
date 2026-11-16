@@ -25,6 +25,14 @@ const REV_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const TOKEN_INICIAL = '2026-10-11T00:00:00+00:00';
 const TOKEN_TRAS_REGISTRO = '2026-10-11T00:01:00+00:00';
 
+// La próxima acción no puede ser anterior a hoy: una fecha relativa evita que
+// la prueba caduque con el paso de los días.
+const FECHA_PROXIMA_ACCION = (() => {
+  const base = new Date();
+  base.setDate(base.getDate() + 5);
+  return base.toISOString().slice(0, 10);
+})();
+
 type UltimaAccion = { codigo: string; texto_otro: string | null; fecha: string } | null;
 
 function adminFalso(config: { estado?: string; ultima?: UltimaAccion } = {}) {
@@ -62,7 +70,7 @@ function entradaValida(extra: Record<string, unknown> = {}) {
     revisionId: REV_ID,
     actualizadoEn: TOKEN_INICIAL,
     codigo: 'FOLLOW_UP',
-    fecha: '2026-11-15',
+    fecha: FECHA_PROXIMA_ACCION,
     ...extra,
   };
 }
@@ -139,7 +147,7 @@ describe('validarRevisionConSeguimientoAccion', () => {
   it('no duplica un seguimiento idéntico al último y solo valida', async () => {
     adminMock.mockReturnValue(
       adminFalso({
-        ultima: { codigo: 'FOLLOW_UP', texto_otro: null, fecha: '2026-11-15' },
+        ultima: { codigo: 'FOLLOW_UP', texto_otro: null, fecha: FECHA_PROXIMA_ACCION },
       }),
     );
 

@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Image from 'next/image';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
@@ -204,7 +205,7 @@ export function ModalRegistrarGasto({
               <Label htmlFor="gasto-comprobante">Comprobante (opcional)</Label>
               <p className="text-xs text-texto-secundario">Imagen o PDF hasta 10 MiB. El OCR admite imágenes hasta 5 MiB; guardar no requiere escanear.</p>
             </div>
-            <Input id="gasto-comprobante" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
+            <CampoArchivo id="gasto-comprobante" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" mostrarNombre={false} onChange={(evento) => seleccionarArchivo(evento.target.files?.[0])} />
             {archivo ? <p className="text-xs text-texto-secundario" aria-live="polite">Archivo seleccionado: <span className="font-medium text-texto-primario">{archivo.name}</span></p> : null}
             {vistaPrevia && archivo?.type.startsWith('image/') ? <Image src={vistaPrevia} alt="Vista previa del comprobante seleccionado" width={320} height={160} unoptimized className="max-h-40 max-w-full rounded-md object-contain" /> : null}
             {vistaPrevia && archivo?.type === 'application/pdf' ? <a href={vistaPrevia} target="_blank" rel="noopener noreferrer" className="text-sm text-acento underline">Previsualizar PDF seleccionado</a> : null}

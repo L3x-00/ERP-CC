@@ -50,7 +50,7 @@ describe('modal de tipo de cambio diario', () => {
     montar();
     expect(screen.getByTestId('modal-tipo-cambio-diario')).toBeTruthy();
     expect((screen.getByTestId('tipo-cambio-diario-input') as HTMLInputElement).value).toBe('18.7500');
-    expect(screen.getByTestId('aviso-tipo-cambio-diario').textContent).toContain('18.7500');
+    expect(screen.getByTestId('aviso-tipo-cambio-diario').textContent).toContain('18.75');
   });
 
   it('«Más tarde» cierra el modal y deja el aviso para reabrirlo', async () => {

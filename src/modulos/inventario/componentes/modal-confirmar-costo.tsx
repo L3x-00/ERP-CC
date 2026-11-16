@@ -12,7 +12,7 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearMontoFlexible } from '@/compartido/utilidades/formatear';
 
 import { usarMutacionesCostosMateriales } from '../hooks/usar-mutaciones-costos-materiales';
 import type {
@@ -194,7 +194,7 @@ export function ModalConfirmarCosto(props: Props) {
               <div className="flex flex-col gap-0.5">
                 <dt className="text-xs font-medium text-texto-secundario">Costo propuesto</dt>
                 <dd className="text-sm font-medium">
-                  {formatearMoneda(propuesta.costoPropuesto, propuesta.moneda, 4)} por{' '}
+                  {formatearMontoFlexible(propuesta.costoPropuesto, propuesta.moneda)} por{' '}
                   {material.unidadBase}
                 </dd>
               </div>

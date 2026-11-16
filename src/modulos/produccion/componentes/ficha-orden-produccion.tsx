@@ -7,7 +7,6 @@ import type {
 } from '@/modulos/produccion/servicios/indice';
 import type { RecursoPlaneacion } from '@/modulos/planeacion/tipos/indice';
 import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
-import { textoODefecto } from '@/modulos/planeacion/utilidades/desglose';
 
 export interface PropsFichaOrdenProduccion {
   orden: OrdenTableroProduccion;
@@ -17,7 +16,7 @@ export interface PropsFichaOrdenProduccion {
 }
 
 function fecha(valor: string | null | undefined): string {
-  if (!valor) return 'Por definir';
+  if (!valor) return 'Sin fecha';
   const soloFecha = /^\d{4}-\d{2}-\d{2}$/.test(valor);
   const fecha = new Date(soloFecha ? `${valor}T00:00:00.000Z` : valor);
   return fecha.toLocaleDateString('es-MX', {
@@ -33,7 +32,7 @@ function numero(valor: number): string {
 }
 
 function materialTexto(partida: PartidaTableroProduccion): string {
-  if (!partida.materialNombre && !partida.materialCodigo) return 'Por definir';
+  if (!partida.materialNombre && !partida.materialCodigo) return 'Sin material';
   const nombre = partida.materialNombre ?? partida.materialCodigo;
   const dimensiones =
     partida.materialAnchoMm !== null && partida.materialAnchoMm !== undefined
@@ -112,7 +111,7 @@ export function FichaOrdenProduccion({
         <div>
           <dt className="text-texto-secundario">Estación / área</dt>
           <dd className="font-medium text-texto-primario">
-            {estaciones.length > 0 ? estaciones.join(', ') : 'Por definir'}
+            {estaciones.length > 0 ? estaciones.join(', ') : 'Sin asignar'}
             {orden.partidas.some((partida) => partida.areaTrabajoCodigo) ? ' · ' : ''}
             {[
               ...new Set(
@@ -132,7 +131,9 @@ export function FichaOrdenProduccion({
         </div>
         <div>
           <dt className="text-texto-secundario">Notas de la orden</dt>
-          <dd className="text-texto-primario">{textoODefecto(orden.notas)}</dd>
+          <dd className="text-texto-primario">
+            {orden.notas?.trim() ? orden.notas : 'Sin notas registradas'}
+          </dd>
         </div>
       </dl>
 
@@ -190,7 +191,7 @@ export function FichaOrdenProduccion({
               ) : partida.procesos && partida.procesos.length > 0 ? (
                 <p className="mt-1 text-texto-secundario">{partida.procesos.join(' · ')}</p>
               ) : (
-                <p className="mt-1 text-texto-tenue">Ruta por definir en la orden.</p>
+                <p className="mt-1 text-texto-tenue">Sin ruta capturada en la orden.</p>
               )}
             </div>
           </article>

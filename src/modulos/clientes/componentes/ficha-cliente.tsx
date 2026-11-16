@@ -20,6 +20,7 @@ import { HiloComentarios } from '@/modulos/comentarios/componentes/indice';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Tarjeta } from '@/compartido/componentes/diseno/tarjeta';
 import { Button } from '@/compartido/componentes/ui/button';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import { Select } from '@/compartido/componentes/ui/input';
 import type {
   Cliente,
@@ -456,13 +457,13 @@ function FilaDocumento({
         <div className="flex shrink-0 items-center gap-1">
           <BotonVer ruta={documento.rutaStorage} />
           {reemplazando ? (
-            <input
-              type="file"
+            <CampoArchivo
               aria-label={`Archivo de reemplazo de ${documento.nombreArchivo}`}
               accept="application/pdf,image/jpeg,image/png"
               disabled={subiendo}
-              autoFocus
-              className="max-w-40 text-xs"
+              className="max-w-48"
+              textoBoton="Elegir"
+              textoVacio="Nuevo archivo"
               onChange={(evento) => {
                 const archivo = evento.target.files?.[0];
                 if (archivo) void reemplazar(archivo);
@@ -577,11 +578,10 @@ function FormularioDocumento({ clienteId }: { clienteId: string }) {
               ))}
             </Select>
           </label>
-          <input
-            type="file"
+          <CampoArchivo
             accept="application/pdf,image/jpeg,image/png"
+            aria-label="Archivo del documento del cliente"
             onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
-            className="text-sm"
           />
           <Button type="submit" tamano="sm" disabled={subiendo}>
             {subiendo ? 'Subiendo…' : 'Subir'}

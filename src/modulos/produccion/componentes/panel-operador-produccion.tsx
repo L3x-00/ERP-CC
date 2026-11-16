@@ -6,6 +6,8 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { cn } from '@/compartido/utilidades/cn';
+import { etiquetaEstado } from '@/compartido/utilidades/estados';
+import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/material-etiqueta';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { OrdenTableroProduccion } from '@/modulos/produccion/servicios/indice';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
@@ -840,21 +842,37 @@ export function PanelOperadorProduccion({
                       No hay materiales activos para registrar el cierre.
                     </p>
                   ) : (
-                    <label className={CLASE_ETIQUETA}>
-                      Material
+                    <div className={CLASE_ETIQUETA}>
+                      <label htmlFor="material-cierre-operador">Material</label>
                       <Select
                         className="min-h-11"
+                        id="material-cierre-operador"
+                        aria-describedby={
+                          materialSeleccionado ? 'material-cierre-unidad' : undefined
+                        }
                         value={materialId}
                         onChange={(evento) => setMaterialId(evento.target.value)}
                       >
                         <option value="">Selecciona un material</option>
                         {materiales.map((material) => (
-                          <option key={material.id} value={material.id}>
-                            {material.codigo} — {material.nombre} ({material.unidadBase})
+                          <option
+                            key={material.id}
+                            value={material.id}
+                            title={detalleMaterial(material.codigo, material.nombre, material.unidadBase)}
+                          >
+                            {etiquetaMaterial(material.codigo, material.nombre)}
                           </option>
                         ))}
                       </Select>
-                    </label>
+                      {materialSeleccionado ? (
+                        <span
+                          id="material-cierre-unidad"
+                          className="text-xs font-normal text-texto-tenue"
+                        >
+                          Unidad del material: {materialSeleccionado.unidadBase}. Usado y merma se capturan en esa unidad.
+                        </span>
+                      ) : null}
+                    </div>
                   )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className={CLASE_ETIQUETA}>
@@ -1176,8 +1194,8 @@ export function PanelOperadorProduccion({
               <div><dt className="text-texto-secundario">{etiquetaPiezas}</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.piezasProducidas, 0)}</dd></div>
               <div><dt className="text-texto-secundario">Tiempo neto</dt><dd className="font-medium">{formatearNumero(resumenCierre.resultado.horasNetas, 2)} h</dd></div>
               <div><dt className="text-texto-secundario">Resultado</dt><dd className="font-medium">Sesión finalizada</dd></div>
-              <div><dt className="text-texto-secundario">Estado de orden</dt><dd className="font-medium">{resumenCierre.resultado.estadoOrden}</dd></div>
-              <div><dt className="text-texto-secundario">Planeación</dt><dd className="font-medium">{resumenCierre.resultado.estadoPlaneacion}</dd></div>
+              <div><dt className="text-texto-secundario">Estado de orden</dt><dd className="font-medium">{etiquetaEstado(resumenCierre.resultado.estadoOrden)}</dd></div>
+              <div><dt className="text-texto-secundario">Planeación</dt><dd className="font-medium">{etiquetaEstado(resumenCierre.resultado.estadoPlaneacion)}</dd></div>
               <div><dt className="text-texto-secundario">Material usado</dt><dd className="font-medium">{resumenCierre.material.codigo} · {formatearNumero(resumenCierre.cantidadUsada, 3)} {resumenCierre.material.unidadBase}</dd></div>
               <div><dt className="text-texto-secundario">Merma</dt><dd className="font-medium">{formatearNumero(resumenCierre.cantidadMerma, 3)} {resumenCierre.material.unidadBase}</dd></div>
               {resumenCierre.notas ? <div className="col-span-full"><dt className="text-texto-secundario">Notas</dt><dd className="whitespace-pre-wrap font-medium">{resumenCierre.notas}</dd></div> : null}

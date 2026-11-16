@@ -1,7 +1,13 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
 import { Icono } from './iconos';
+
+/** `false` en el servidor, `true` tras hidratar: evita el desajuste de tema. */
+const suscribirSinCambios = (): (() => void) => () => {};
+const leerMontado = (): boolean => true;
+const leerMontadoServidor = (): boolean => false;
 
 /**
  * Opción del menú de usuario que alterna el tema global claro/oscuro.
@@ -11,11 +17,25 @@ import { Icono } from './iconos';
  * después de aplicar el cambio. next-themes persiste la elección en
  * `localStorage` y aplica la clase al `<html>`, por lo que el tema se conserva
  * entre rutas y recargas.
+ *
+ * `resolvedTheme` solo existe en el cliente: hasta montar, la etiqueta es
+ * neutral para que el HTML del servidor y el de la hidratación coincidan
+ * (React #418 en las páginas privadas, QA 2026-11-15).
  */
 export function OpcionTemaMenu({ onSeleccionar }: { onSeleccionar: () => void }) {
   const { resolvedTheme, setTheme } = useTheme();
-  const esOscuro = resolvedTheme === 'dark';
-  const etiqueta = esOscuro ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+  const montado = useSyncExternalStore(
+    suscribirSinCambios,
+    leerMontado,
+    leerMontadoServidor,
+  );
+
+  const esOscuro = montado && resolvedTheme === 'dark';
+  const etiqueta = !montado
+    ? 'Cambiar tema'
+    : esOscuro
+      ? 'Cambiar a tema claro'
+      : 'Cambiar a tema oscuro';
 
   return (
     <button

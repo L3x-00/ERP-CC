@@ -369,7 +369,7 @@ export function MiPanelOperador({
                     className="rounded-lg border border-borde bg-superficie-2 p-3 text-left transition-colors hover:border-acento focus-visible:outline-2 focus-visible:outline-acento"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-mono text-sm font-semibold">
+                      <span className="whitespace-nowrap font-mono text-sm font-semibold" title={proceso.folioOrden}>
                         {proceso.folioOrden}
                       </span>
                       <span className={cn(

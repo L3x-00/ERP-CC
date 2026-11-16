@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/compartido/componentes/ui/button';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
-import { Input } from '@/compartido/componentes/ui/input';
 import { descargarUrlFirmada } from '@/compartido/utilidades/descargar-archivo';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { ArchivoSesionResumen } from '@/modulos/produccion/archivos-sesion-config';
@@ -309,15 +309,14 @@ export function HistorialSesionesProduccion({ orden, responsables, soloLectura =
                   </p>
                 ) : (
                   <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(evento) => void subir(evento, sesionAbierta.id)}>
-                    <label className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
+                    <div className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
                       Adjuntar a esta sesión (hasta 20 MiB)
-                      <Input
+                      <CampoArchivo
                         name="archivo"
-                        type="file"
                         accept=".pdf,.jpg,.jpeg,.png,.webp,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai"
                         aria-label={`Archivo para sesión ${formatearFecha(sesionAbierta.fechaInicio)}`}
                       />
-                    </label>
+                    </div>
                     <Button type="submit" tamano="sm" disabled={subiendoSesionId !== null}>
                       {subiendoSesionId === sesionAbierta.id ? 'Subiendo…' : 'Subir archivo'}
                     </Button>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PanelDesplegable } from '@/compartido/componentes/diseno/panel-desplegable';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
+import { formatearNumeroFlexible } from '@/compartido/utilidades/formatear';
 import { actualizarTipoCambioAccion, guardarTarifasCotizadorAccion } from '@/modulos/configuracion/acciones/indice';
 import type { ConfiguracionSistema, TarifasCotizadorConfig } from '@/modulos/configuracion/tipos/indice';
 import { EditorTarifasEstaciones } from '@/modulos/configuracion/componentes/editor-tarifas-estaciones';
@@ -75,7 +76,7 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-acento">Tipo de cambio vigente</p>
               <p className="text-2xl font-semibold tabular-nums text-texto-primario">
-                {configuracion.tipoCambioUsd.toFixed(4)}
+                {formatearNumeroFlexible(configuracion.tipoCambioUsd)}
                 <span className="ml-1 text-sm font-medium text-texto-secundario">MXN/USD</span>
               </p>
               <p className="mt-1 text-xs text-texto-secundario">
@@ -159,7 +160,7 @@ export function PestanaTarifas({ configuracion, onGuardado, onIrACatalogosBase }
         {/* Barra pegada al borde inferior: el botón queda a mano sin recorrer el formulario. */}
         <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-3 border-t border-borde bg-superficie/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
           <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar tarifas y TC'}</Button>
-          <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-texto-secundario">Vigente: {configuracion.tipoCambioUsd.toFixed(4)} MXN/USD</output>
+          <output data-testid="configuracion-tipo-cambio-vigente" className="text-sm text-texto-secundario">Vigente: {formatearNumeroFlexible(configuracion.tipoCambioUsd)} MXN/USD</output>
           {mensaje ? <p role="alert" className="text-sm text-advertencia-texto">{mensaje}</p> : null}
         </div>
       </form>

@@ -11,7 +11,7 @@ import {
   TablaEncabezadoCelda,
   TablaFila,
 } from '@/compartido/componentes/diseno/tabla';
-import { formatearFecha, formatearHora, formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearFecha, formatearHora, formatearMontoFlexible } from '@/compartido/utilidades/formatear';
 
 import type { PropuestaCostoMaterial } from '../tipos/materiales-costos';
 import { formatearFechaDia } from '../utilidades/materiales-costos';
@@ -61,7 +61,7 @@ export function TablaPropuestasCosto({
                 <span className="block text-sm">{propuesta.materialNombre}</span>
               </TablaCelda>
               <TablaCelda className="tabular-nums">
-                {formatearMoneda(propuesta.costoPropuesto, propuesta.moneda, 4)}
+                {formatearMontoFlexible(propuesta.costoPropuesto, propuesta.moneda)}
               </TablaCelda>
               <TablaCelda className="text-texto-secundario">
                 {formatearFechaDia(propuesta.fechaEfectiva)}

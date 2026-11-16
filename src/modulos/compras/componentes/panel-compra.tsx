@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { etiquetaEstado } from '@/compartido/utilidades/estados';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
 import { usarTipoCambioVigente } from '@/modulos/configuracion/hooks/usar-tipo-cambio-vigente';
 import { actualizarCompraAccion } from '@/modulos/compras/acciones/actualizar-compra';
@@ -457,7 +458,7 @@ function FormularioPago({ compra, onExito }: { compra: CompraCola; onExito: (tex
       </div>
       {error ? <p role="alert" className="text-sm text-peligro-texto" data-testid="compra-error">{error}</p> : null}
       {resultado ? (
-        <p className="text-xs text-texto-secundario">Pago {resultado.pagoId.slice(0, 8)} · estado {resultado.estado}</p>
+        <p className="text-xs text-texto-secundario">Pago {resultado.pagoId.slice(0, 8)} · estado {etiquetaEstado(resultado.estado)}</p>
       ) : null}
       <DialogFooter>
         <Button type="submit" disabled={ocupado || !(Number(monto) > 0)} data-testid="confirmar-pago-compra">

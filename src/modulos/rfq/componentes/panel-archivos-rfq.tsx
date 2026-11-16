@@ -5,11 +5,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
-import { Input, Select } from '@/compartido/componentes/ui/input';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
+import { Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha, formatearHora } from '@/compartido/utilidades/formatear';
 import { ETIQUETAS_ESTADO_RFQ } from '@/modulos/rfq/utilidades/estados';
 import {
-  CLASE_CAMPO_FALTANTE,
   CLASE_MENSAJE_FALTANTE,
   CLASE_OBLIGATORIO,
   faltaArchivoTecnico,
@@ -217,26 +217,20 @@ export function PanelArchivosRfq({
             ))}
           </Select>
         </label>
-        <label
-          className="grid gap-1 text-sm font-medium"
-          htmlFor="archivo-input"
-        >
-          <span className={marcarFaltante ? CLASE_OBLIGATORIO : ''}>
-            Archivo
-          </span>
-          <Input
+        <div className="grid gap-1 text-sm font-medium">
+          <span className={marcarFaltante ? CLASE_OBLIGATORIO : ''}>Archivo</span>
+          <CampoArchivo
             key={versionSelector}
             id="archivo-input"
-            type="file"
             accept={EXTENSIONES_ACEPTADAS}
+            aria-label="Archivo"
             aria-describedby={
               archivoPendiente ? 'archivo-rfq-ayuda archivo-rfq-requerido' : 'archivo-rfq-ayuda'
             }
             aria-invalid={marcarFaltante}
-            className={marcarFaltante ? CLASE_CAMPO_FALTANTE : undefined}
             onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
           />
-        </label>
+        </div>
         <div className="flex items-end">
           <Button type="submit" tamano="lg" disabled={subida.isPending}>
             {subida.isPending ? 'Subiendo…' : 'Subir archivo'}
