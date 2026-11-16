@@ -40,16 +40,36 @@ vi.mock('@/modulos/produccion/acciones/corrida-integrada', () => ({
   obtenerTiemposIntegradosAccion: vi.fn(),
 }));
 
-vi.mock('@/compartido/componentes/ui/dialog', () => ({
-  Dialog: ({ open, children }: { open?: boolean; children: React.ReactNode }) => (
-    open === false ? null : createElement('div', {}, children)
-  ),
-  DialogContent: ({ children }: { children: React.ReactNode }) => createElement('div', {}, children),
-  DialogHeader: ({ children }: { children: React.ReactNode }) => createElement('div', {}, children),
-  DialogFooter: ({ children }: { children: React.ReactNode }) => createElement('div', {}, children),
-  DialogTitle: ({ children }: { children: React.ReactNode }) => createElement('h2', {}, children),
-  DialogDescription: ({ children }: { children: React.ReactNode }) => createElement('p', {}, children),
-}));
+// Stub del diálogo del sistema: Radix necesita un DOM real con portales, así
+// que la prueba sustituye la capa visual. El stub conserva las props que la
+// prueba necesita (testid, rol, etiqueta) para no ocultar regresiones.
+vi.mock('@/compartido/componentes/ui/dialog', () => {
+  type PropsStub = React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode };
+  const sinEstilo = ({ className: _className, ...resto }: PropsStub) => {
+    void _className;
+    return resto;
+  };
+  return {
+    Dialog: ({ open, children }: { open?: boolean; children: React.ReactNode }) => (
+      open === false ? null : createElement('div', {}, children)
+    ),
+    DialogContent: ({ children, ...props }: PropsStub) => (
+      createElement('div', sinEstilo(props), children)
+    ),
+    DialogHeader: ({ children, ...props }: PropsStub) => (
+      createElement('div', sinEstilo(props), children)
+    ),
+    DialogFooter: ({ children, ...props }: PropsStub) => (
+      createElement('div', sinEstilo(props), children)
+    ),
+    DialogTitle: ({ children, ...props }: PropsStub) => (
+      createElement('h2', sinEstilo(props), children)
+    ),
+    DialogDescription: ({ children, ...props }: PropsStub) => (
+      createElement('p', sinEstilo(props), children)
+    ),
+  };
+});
 
 vi.mock('@/modulos/ordenes/acciones/obtener-url-archivo-piso', () => ({
   obtenerUrlArchivoPisoAccion: vi.fn(),
@@ -752,13 +772,24 @@ describe('DetalleProcesoOperador', () => {
     const dialogo = await screen.findByTestId('error-cierre-dialogo');
     expect(dialogo.getAttribute('role')).toBe('alertdialog');
     const mensaje = screen.getByTestId('error-cierre-mensaje');
-    expect(mensaje.textContent).toContain('Doblado CNC');
-    expect(mensaje.textContent).toContain('Corte laser');
-    expect(mensaje.textContent).toContain('no pueden ser menores a las producidas');
+    expect(mensaje.textContent).toContain('Declaraste 250 piezas producidas en Doblado CNC');
+    expect(mensaje.textContent).toContain('«Usado» de Corte laser tiene 5');
+    expect(mensaje.textContent).toContain('Lo consumido no puede ser menor a lo producido');
     expect(cerrar).not.toHaveBeenCalled();
 
+    // «Entendido» solo cierra el aviso; el formulario sigue abierto y sin enviar.
     fireEvent.click(screen.getByTestId('error-cierre-entendido'));
     await waitFor(() => expect(screen.queryByTestId('error-cierre-dialogo')).toBeNull());
+    expect(cerrar).not.toHaveBeenCalled();
+    expect(screen.getByTestId('cerrar-sesion-detalle')).toBeTruthy();
+
+    // La acción sugerida rellena «Usado» con el consumo 1:1 y cierra el aviso.
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+    await screen.findByTestId('error-cierre-dialogo');
+    fireEvent.click(screen.getByTestId('error-cierre-accion'));
+    await waitFor(() => expect(screen.queryByTestId('error-cierre-dialogo')).toBeNull());
+    expect((screen.getByLabelText('Usado') as HTMLInputElement).value).toBe('250');
+    expect(cerrar).not.toHaveBeenCalled();
   });
 
   it('no registra consumo de piezas cuando se cierra sin producir', async () => {
