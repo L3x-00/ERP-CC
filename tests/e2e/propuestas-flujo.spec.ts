@@ -1012,11 +1012,21 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       // Al volver a consultar, una modificación externa de la carga se refleja
       // sin que Comercial tenga que volver a introducir la fecha elegida.
-      const cargaActualizada = await admin.from('programacion_areas').update({ horas_estimadas: 6 })
+      // M9: la ventana termina en la fecha compromiso, así que la carga de
+      // prueba se mueve a un día laborable dentro de esa ventana.
+      let fechaCarga = sumarDias(fechaCompromiso, -6);
+      while ([0, 6].includes(new Date(`${fechaCarga}T00:00:00.000Z`).getUTCDay())) {
+        fechaCarga = sumarDias(fechaCarga, 1);
+      }
+      const cargaActualizada = await admin.from('programacion_areas')
+        .update({ horas_estimadas: 6, fecha_programada: fechaCarga })
         .eq('partida_id', contexto.disponibilidad!.partidaId!);
       expect(cargaActualizada.error).toBeNull();
       await page.getByRole('button', { name: 'Volver a consultar' }).click();
-      await expect(consulta).toContainText(/42(?:[.,]00)?\s*h/);
+      await expect(capacidad).toContainText('44.00 h');
+      await expect(consulta.locator('dl > div').filter({ hasText: 'Carga programada' }))
+        .toContainText('6.00 h');
+      await expect(disponible).toContainText('38.00 h');
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
       // C4.1: la fecha compromiso comercial es obligatoria al aceptar.
