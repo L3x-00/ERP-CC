@@ -75,13 +75,13 @@ test.describe('KPIs SII-B9: sección del dashboard por permiso de área', () => 
       await expect(page.getByTestId('kpi-vendido')).toBeVisible();
       await expect(page.getByTestId('kpi-cobros')).toBeVisible();
 
-      mkdirSync('.ai-shared/qa/sii-b9/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/kpis-dashboard/visual', { recursive: true });
       for (const oscuro of [false, true]) {
         await page.locator('html').evaluate(
           (elemento, activar) => elemento.classList.toggle('dark', activar), oscuro,
         );
         await page.screenshot({
-          path: `.ai-shared/qa/sii-b9/visual/kpis-dashboard-escritorio-${oscuro ? 'oscuro' : 'claro'}.png`,
+          path: `test-results/evidencia/kpis-dashboard/visual/kpis-dashboard-escritorio-${oscuro ? 'oscuro' : 'claro'}.png`,
           fullPage: true, animations: 'disabled',
         });
       }

@@ -132,7 +132,7 @@ test('SII-B1: roles de usuario y matriz de permisos con auditoría', async ({ pa
           .locator('html')
           .evaluate((elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro');
         await page.screenshot({
-          path: `.ai-shared/qa/sii-b1-e1/visual/permisos-${nombre}-${tema}.png`,
+          path: `test-results/evidencia/permisos-usuarios-admin/visual/permisos-${nombre}-${tema}.png`,
           fullPage: true,
           animations: 'disabled',
         });

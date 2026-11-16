@@ -401,7 +401,7 @@ test.describe('Entregas SII-B7 ola 2: folio NE, parciales, evidencia y firma', (
       }
 
       // Capturas 1440/768 × claro/oscuro de la cola y del detalle.
-      mkdirSync('.ai-shared/qa/sii-b7-ola2/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/entregas-flujo/visual', { recursive: true });
       for (const [nombre, ancho, alto, ruta] of [
         ['cola-escritorio', 1440, 900, '/entregas'],
         ['cola-tableta', 768, 1024, '/entregas'],
@@ -418,7 +418,7 @@ test.describe('Entregas SII-B7 ola 2: folio NE, parciales, evidencia y firma', (
             (elemento, oscuro) => elemento.classList.toggle('dark', oscuro), tema === 'oscuro',
           );
           await page.screenshot({
-            path: `.ai-shared/qa/sii-b7-ola2/visual/entregas-${nombre}-${tema}.png`,
+            path: `test-results/evidencia/entregas-flujo/visual/entregas-${nombre}-${tema}.png`,
             fullPage: true, animations: 'disabled',
           });
         }

@@ -155,7 +155,7 @@ test.describe('Compras SII-B8 F4: folio CG, CxP y pagos a proveedores', () => {
       expect(pagos?.map((pago) => Number(pago.monto)).sort((a, b) => a - b)).toEqual([100, 132]);
 
       // Capturas de la cola con la compra pagada.
-      mkdirSync('.ai-shared/qa/sii-b8-f4/visual', { recursive: true });
+      mkdirSync('test-results/evidencia/compras-flujo/visual', { recursive: true });
       await page.getByTestId('cerrar-panel-compra').click();
       for (const [ancho, alto] of [[1440, 900], [768, 1024]] as const) {
         await page.setViewportSize({ width: ancho, height: alto });
@@ -164,7 +164,7 @@ test.describe('Compras SII-B8 F4: folio CG, CxP y pagos a proveedores', () => {
             (elemento, activar) => elemento.classList.toggle('dark', activar), oscuro,
           );
           await page.screenshot({
-            path: `.ai-shared/qa/sii-b8-f4/visual/compras-${ancho}-${oscuro ? 'oscuro' : 'claro'}.png`,
+            path: `test-results/evidencia/compras-flujo/visual/compras-${ancho}-${oscuro ? 'oscuro' : 'claro'}.png`,
             fullPage: true, animations: 'disabled',
           });
         }

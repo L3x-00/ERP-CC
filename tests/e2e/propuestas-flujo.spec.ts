@@ -7,7 +7,7 @@ import { hoyIso, sumarDias } from '@/modulos/planeacion/utilidades/fechas-planea
 // playwright.config.ts exige URL de loopback antes de importar esta prueba.
 const correoAdmin = process.env.E2E_CONFIGURACION_ADMIN_EMAIL;
 const contrasenaAdmin = process.env.E2E_CONFIGURACION_ADMIN_PASSWORD;
-const carpetaVisual = '.ai-shared/qa/sii-b4-ola2/visual';
+const carpetaVisual = 'test-results/evidencia/propuestas-flujo/visual';
 
 function clienteAdmin(): SupabaseClient<Database> {
   return createClient<Database>(

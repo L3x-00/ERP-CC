@@ -339,7 +339,7 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
     await expect(panelCalidad).toContainText('Sin inspecciones');
 
     if (process.env.E2E_CAPTURAR_VISUAL === 'si') {
-      await page.screenshot({ path: '.ai-shared/qa/sii-b6-ola2/visual/corridas-calidad-escritorio.png', fullPage: true });
+      await page.screenshot({ path: 'test-results/evidencia/corridas-calidad/visual/corridas-calidad-escritorio.png', fullPage: true });
     }
 
     // Sesión de operador vinculada a la corrida (contexto aparte con auth de
@@ -425,7 +425,7 @@ test.describe.serial('corridas y calidad de producción (SII-B6 ola 2)', () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.locator('html').evaluate((nodo) => nodo.classList.add('dark'));
       await page.waitForTimeout(200);
-      await page.screenshot({ path: '.ai-shared/qa/sii-b6-ola2/visual/corridas-calidad-movil-oscuro.png', fullPage: true });
+      await page.screenshot({ path: 'test-results/evidencia/corridas-calidad/visual/corridas-calidad-movil-oscuro.png', fullPage: true });
       await page.setViewportSize({ width: 1280, height: 720 });
       await page.locator('html').evaluate((nodo) => nodo.classList.remove('dark'));
     }

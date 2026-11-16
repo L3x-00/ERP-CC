@@ -356,7 +356,7 @@ test.describe.serial('flujo completo de órdenes de producción', () => {
       for (const tema of ['claro', 'oscuro'] as const) {
         await page.locator('html').evaluate((nodo, oscuro) => nodo.classList.toggle('dark', oscuro), tema === 'oscuro');
         await page.screenshot({
-          path: `.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ordenes-${formato}-${tema}.png`,
+          path: `test-results/evidencia/ordenes-flujo-completo/a20-ordenes-${formato}-${tema}.png`,
           fullPage: true, animations: 'disabled',
         });
       }

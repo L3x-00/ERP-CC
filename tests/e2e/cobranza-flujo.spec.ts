@@ -236,7 +236,7 @@ test.describe.serial('flujo de Cobranza AR', () => {
       for (const oscuro of [false, true]) {
         await page.evaluate((activar) => document.documentElement.classList.toggle('dark', activar), oscuro);
         await page.screenshot({
-          path: `.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar01-${nombre}-${oscuro ? 'oscuro' : 'claro'}.png`,
+          path: `test-results/evidencia/cobranza-flujo/a20-ar01-${nombre}-${oscuro ? 'oscuro' : 'claro'}.png`,
           fullPage: true,
         });
       }
@@ -248,12 +248,12 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await page.getByRole('textbox', { name: 'Número de factura o remisión' }).fill(`FAC-E2E-${datos.folioOrden}`);
     await page.getByLabel('Fecha de vencimiento').fill('2099-12-30');
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-factura-escritorio-claro.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/evidencia/cobranza-flujo/a20-ar02-factura-escritorio-claro.png', fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-factura-movil-oscuro.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/evidencia/cobranza-flujo/a20-ar02-factura-movil-oscuro.png', fullPage: true });
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.evaluate(() => document.documentElement.classList.remove('dark'));
     await page.getByRole('button', { name: 'Guardar factura' }).click();
@@ -358,15 +358,15 @@ test.describe.serial('flujo de Cobranza AR', () => {
     await expect(page.getByLabel('Fecha de vencimiento')).not.toHaveValue('');
     await page.getByLabel('Número de factura o remisión').fill(`FAC-HIST-${datos.excepcionFolioOrden}`);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-excepcion-escritorio-claro.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/evidencia/cobranza-flujo/a20-ar02-excepcion-escritorio-claro.png', fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-excepcion-movil-oscuro.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/evidencia/cobranza-flujo/a20-ar02-excepcion-movil-oscuro.png', fullPage: true });
     await page.getByLabel('Número de factura o remisión').scrollIntoViewIfNeeded();
     await expect(page.getByLabel('Número de factura o remisión')).toBeVisible();
-    await page.screenshot({ path: '.ai-shared/qa/cierre-auditoria-2026-09-22/a20-ar02-excepcion-movil-formulario.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/evidencia/cobranza-flujo/a20-ar02-excepcion-movil-formulario.png', fullPage: true });
     await page.getByRole('button', { name: 'Guardar y registrar abono' }).click();
     await expect(page.getByRole('dialog', { name: 'Nueva factura de orden entregada' })).toBeHidden();
     await expect(page.getByLabel('Monto')).toBeVisible();

@@ -95,7 +95,7 @@ test('B3.5: el admin ajusta el RFQ vigente, ve el siguiente y no puede retrocede
       .single();
     expect(sinCambio.data?.ultimo).toBe(objetivo);
 
-    mkdirSync('.ai-shared/qa/sii-b3-folios/visual', { recursive: true });
+    mkdirSync('test-results/evidencia/continuidad-folios-rfq/visual', { recursive: true });
     for (const [nombre, ancho, alto] of [
       ['escritorio', 1440, 900],
       ['tableta', 768, 1024],
@@ -107,7 +107,7 @@ test('B3.5: el admin ajusta el RFQ vigente, ve el siguiente y no puede retrocede
           tema === 'oscuro',
         );
         await page.screenshot({
-          path: `.ai-shared/qa/sii-b3-folios/visual/continuidad-folios-rfq-${nombre}-${tema}.png`,
+          path: `test-results/evidencia/continuidad-folios-rfq/visual/continuidad-folios-rfq-${nombre}-${tema}.png`,
           fullPage: true,
           animations: 'disabled',
         });
