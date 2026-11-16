@@ -30,14 +30,57 @@ export function formatearNumero(cantidad: number, decimales = 2): string {
 }
 
 /**
+ * Detecta valores que representan un día calendario y no un instante:
+ * `YYYY-MM-DD` o una medianoche UTC (`...T00:00:00+00:00`), que es como
+ * Postgres devuelve una columna `date` cuando se serializa con hora.
+ *
+ * Para estos valores se formatea en UTC: usar la zona local corre el día en
+ * zonas negativas (CDMX muestra el día anterior).
+ */
+function esDiaCalendario(valor: string): boolean {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) return true;
+  const fecha = new Date(valor);
+  return !Number.isNaN(fecha.getTime())
+    && fecha.getUTCHours() === 0
+    && fecha.getUTCMinutes() === 0
+    && fecha.getUTCSeconds() === 0
+    && fecha.getUTCMilliseconds() === 0;
+}
+
+function interpretarFecha(fecha: string | Date): Date | null {
+  const valor = fecha instanceof Date ? fecha : new Date(fecha);
+  return Number.isNaN(valor.getTime()) ? null : valor;
+}
+
+/**
  * Formatea fecha a formato legible (ej: "3 de julio de 2026").
+ *
+ * Acepta tanto instantes como días calendario; los días se formatean en UTC
+ * para no mostrar el día anterior en zonas horarias negativas.
  */
 export function formatearFecha(fecha: string | Date): string {
+  const valor = interpretarFecha(fecha);
+  if (!valor) return '—';
+  const diaCalendario = typeof fecha === 'string' && esDiaCalendario(fecha);
   return new Intl.DateTimeFormat('es-MX', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(fecha));
+    ...(diaCalendario ? { timeZone: 'UTC' as const } : {}),
+  }).format(valor);
+}
+
+/** Igual que `formatearFecha` pero en formato corto `dd/mm/aaaa`. */
+export function formatearFechaCorta(fecha: string | Date): string {
+  const valor = interpretarFecha(fecha);
+  if (!valor) return '—';
+  const diaCalendario = typeof fecha === 'string' && esDiaCalendario(fecha);
+  return new Intl.DateTimeFormat('es-MX', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    ...(diaCalendario ? { timeZone: 'UTC' as const } : {}),
+  }).format(valor);
 }
 
 /**

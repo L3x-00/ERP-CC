@@ -31,10 +31,14 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
   const [cantidades, setCantidades] = useState<Record<string, string>>({});
   const [mensaje, setMensaje] = useState<MensajeFormulario | null>(null);
   const solicitudEntrega = useRef<string | null>(null);
-  const partidasDisponibles = (orden?.partidas ?? []).filter(
+  const partidasConProduccion = (orden?.partidas ?? []).filter(
+    (partida) => Math.max(partida.cantidadConforme ?? partida.cantidadProducida, 0) > 0,
+  );
+  const partidasDisponibles = partidasConProduccion.filter(
     (partida) => Math.max((partida.cantidadConforme ?? partida.cantidadProducida) - partida.cantidadEntregada, 0) > 0,
   );
-  const ordenEntregadaPorCompleto = orden !== null && partidasDisponibles.length === 0;
+  const sinProduccion = orden !== null && partidasConProduccion.length === 0;
+  const ordenEntregadaPorCompleto = orden !== null && !sinProduccion && partidasDisponibles.length === 0;
 
   async function enviar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
@@ -87,13 +91,18 @@ export function FormularioNotaEntrega({ orden, procesando, onEnviar }: PropsForm
         <Button
           type="button"
           tamano="sm"
-          disabled={!orden || procesando || ordenEntregadaPorCompleto}
+          disabled={!orden || procesando || ordenEntregadaPorCompleto || sinProduccion}
           onClick={() => { setMensaje(null); setAbierto(true); }}
           data-testid="abrir-nota-entrega"
         >
           Generar nota de entrega
         </Button>
       </div>
+      {sinProduccion ? (
+        <p className="mt-3 rounded-md border border-borde bg-superficie-2 px-3 py-2 text-sm text-texto-secundario">
+          Aún no hay piezas conformes producidas; la nota se habilita cuando Producción cierre el lote.
+        </p>
+      ) : null}
       {ordenEntregadaPorCompleto ? (
         <p className="mt-3 rounded-md border border-exito/30 bg-exito-suave px-3 py-2 text-sm text-exito-texto">
           La orden ya está entregada por completo; no hay piezas pendientes para una nueva nota.

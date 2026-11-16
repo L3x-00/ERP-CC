@@ -92,7 +92,9 @@ type FilaRetrabajo = {
   orden_id: string;
   partida_id: string;
   sesion_id: string | null;
-  material_id: string;
+  material_id: string | null;
+  /** Material del catálogo nuevo; en retrabajos suele venir aquí y `material_id` es nulo. */
+  catalogo_material_id?: string | null;
   cantidad_usada: number;
   cantidad_scrap: number;
   costo_unitario_momento: number;
@@ -323,7 +325,9 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
   for (const retrabajo of retrabajos) {
     const cantidad = numero(retrabajo.cantidad_usada) + numero(retrabajo.cantidad_scrap);
     const costoMaterial = cantidad * numero(retrabajo.costo_unitario_momento);
-    acumularMaterial(retrabajo.material_id, cantidad, costoMaterial, undefined);
+    // El mismo criterio que los consumos: catálogo nuevo o material legado.
+    const claveMaterial = retrabajo.catalogo_material_id ?? retrabajo.material_id ?? 'sin-material';
+    acumularMaterial(claveMaterial, cantidad, costoMaterial, undefined);
     costoMaterialPorPartida.set(
       retrabajo.partida_id,
       (costoMaterialPorPartida.get(retrabajo.partida_id) ?? 0) + costoMaterial,
@@ -569,7 +573,7 @@ async function cargarCierres(
     consultarEnLotes<FilaRetrabajo>(ordenIds, async (lote) => {
       const { data, error } = await admin
         .from('retrabajos_produccion')
-        .select('orden_id, partida_id, sesion_id, material_id, cantidad_usada, cantidad_scrap, costo_unitario_momento, minutos')
+        .select('orden_id, partida_id, sesion_id, material_id, catalogo_material_id, cantidad_usada, cantidad_scrap, costo_unitario_momento, minutos')
         .in('orden_id', lote);
       return { data: data as FilaRetrabajo[] | null, error };
     }),
@@ -685,7 +689,7 @@ async function cargarCierres(
   const materialIds = [...new Set(
     [
       ...consumosReales.flatMap((consumo) => [consumo.catalogo_material_id, consumo.material_id]),
-      ...retrabajos.map((retrabajo) => retrabajo.material_id),
+      ...retrabajos.flatMap((retrabajo) => [retrabajo.catalogo_material_id, retrabajo.material_id]),
     ].filter((id): id is string => Boolean(id)),
   )];
   const [catalogoMateriales, materialesLegado] = await Promise.all([

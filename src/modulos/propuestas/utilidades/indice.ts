@@ -54,6 +54,8 @@ export function esEstadoTerminal(estado: EstadoPropuesta): boolean {
   return ESTADOS_TERMINALES.includes(estado);
 }
 
+export { evaluarDestinoEnvio, type ResultadoDestinoEnvio } from './destino-envio';
+
 /**
  * Letra siguiente de una revisión: A→B … Y→Z; `null` al tope Z (el SQL devuelve
  * `limite_revisiones_alcanzado`).

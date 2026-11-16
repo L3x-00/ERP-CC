@@ -25,6 +25,7 @@ import type {
 import {
   ETIQUETA_ESTADO_PROPIESTA,
   TONO_ESTADO_PROPIESTA,
+  evaluarDestinoEnvio,
 } from '@/modulos/propuestas/utilidades/indice';
 import { textoReferenciaFechasRfq } from '@/modulos/propuestas/utilidades/referencia-fechas-rfq';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
@@ -133,21 +134,9 @@ export function PanelAccionesPropuesta({
   }
 
   const destinoLimpio = destino.trim();
-  const digitosDestino = destinoLimpio.replace(/\D/g, '').length;
-  const destinoValido =
-    canalEfectivo === 'CORREO'
-      ? destinoLimpio.includes('@')
-      : canalEfectivo === 'WHATSAPP' || canalEfectivo === 'TELEFONO'
-        ? digitosDestino >= 9
-        : destinoLimpio !== '';
-  const errorDestino =
-    destinoLimpio === ''
-      ? null
-      : canalEfectivo === 'CORREO'
-        ? 'El correo debe contener «@».'
-        : canalEfectivo === 'WHATSAPP' || canalEfectivo === 'TELEFONO'
-          ? 'El teléfono debe tener al menos 9 números.'
-          : null;
+  const validacionDestino = evaluarDestinoEnvio(canalEfectivo, destinoLimpio);
+  const destinoValido = validacionDestino.valido;
+  const errorDestino = validacionDestino.error;
 
   // Obs. cliente 2026-10-12: tras la aceptación, las demás versiones quedan
   // inhabilitadas y solo se muestran para consulta del historial.

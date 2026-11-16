@@ -6,6 +6,7 @@ import {
   imprimirHtmlAislado,
   type MarcaDocumento,
 } from '@/compartido/utilidades/impresion-documento';
+import { formatearFechaCorta } from '@/compartido/utilidades/formatear';
 import type { DocumentoOrden } from '@/modulos/ordenes/servicios/documento-orden-servicio';
 
 const ETIQUETA_ESTADO: Record<string, string> = {
@@ -19,7 +20,7 @@ const ETIQUETA_ESTADO: Record<string, string> = {
 
 function fecha(valor: string): string {
   const convertida = new Date(valor);
-  return Number.isNaN(convertida.getTime()) ? valor : convertida.toLocaleDateString('es-MX');
+  return Number.isNaN(convertida.getTime()) ? valor : formatearFechaCorta(valor);
 }
 
 function dinero(valor: number, moneda: 'MXN' | 'USD'): string {

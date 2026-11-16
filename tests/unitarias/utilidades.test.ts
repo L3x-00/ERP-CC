@@ -1,9 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatearFecha,
+  formatearFechaCorta,
   formatearMoneda,
   obtenerAnidado,
   parsearJSON,
 } from '@/compartido/utilidades/indice';
+
+describe('formatearFecha', () => {
+  it('no corre el día en una fecha calendario (regresión QA: 2026-12-04)', () => {
+    expect(formatearFecha('2026-12-04')).toBe('4 de diciembre de 2026');
+  });
+
+  it('no corre el día cuando Postgres devuelve la fecha a medianoche UTC', () => {
+    expect(formatearFecha('2026-12-04T00:00:00+00:00')).toBe('4 de diciembre de 2026');
+  });
+
+  it('conserva la zona local para un instante con hora', () => {
+    expect(formatearFecha('2026-12-04T15:00:00Z')).toBe('4 de diciembre de 2026');
+  });
+
+  it('devuelve un guion para valores inválidos', () => {
+    expect(formatearFecha('no-es-fecha')).toBe('—');
+  });
+});
+
+describe('formatearFechaCorta', () => {
+  it('formatea una fecha calendario como dd/mm/aaaa sin correr el día', () => {
+    expect(formatearFechaCorta('2026-12-04')).toBe('04/12/2026');
+    expect(formatearFechaCorta('2026-12-04T00:00:00+00:00')).toBe('04/12/2026');
+  });
+});
 
 describe('formatearMoneda', () => {
   it('incluye el símbolo de pesos', () => {

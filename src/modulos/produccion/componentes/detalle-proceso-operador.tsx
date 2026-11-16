@@ -24,6 +24,8 @@ import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
   ayudaLimitePiezas,
+  etiquetaEstadoOrden,
+  etiquetaEstadoPlaneacion,
   horasTranscurridasSesion,
   maximoPiezasProceso,
   sesionCercaDeJornada,
@@ -526,6 +528,14 @@ export function DetalleProcesoOperador({
       fallarCierre({
         exito: false,
         error: 'Los minutos de setup deben ser un número entre 0 y 1440.',
+      });
+      return;
+    }
+    const minutosTranscurridos = horasSesion * 60;
+    if (minutosSetupNumero !== undefined && minutosSetupNumero > minutosTranscurridos + 1) {
+      fallarCierre({
+        exito: false,
+        error: `El setup (${minutosSetupNumero} min) no puede superar el tiempo transcurrido de la sesión (${Math.max(Math.floor(minutosTranscurridos), 0)} min).`,
       });
       return;
     }
@@ -1053,7 +1063,7 @@ export function DetalleProcesoOperador({
           </Badge>
         </div>
         <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          <Dato etiqueta="Estado" valor={proceso.estadoOrden} />
+          <Dato etiqueta="Estado" valor={etiquetaEstadoOrden(proceso.estadoOrden)} />
           <Dato etiqueta="Fecha entrega" valor={etiquetaDiaLargo(proceso.fechaCompromiso)} />
           <Dato etiqueta="Planeado" valor={proceso.programacion ? etiquetaDiaLargo(proceso.programacion.fecha) : 'Sin programar'} />
           <Dato
@@ -1504,7 +1514,7 @@ export function DetalleProcesoOperador({
                     cierreAbierto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                   )}
                 >
-                  <div className="grid gap-3 overflow-hidden">
+                  <div className="grid min-h-0 gap-3 overflow-clip">
                 {proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada') ? (
                   <p
                     data-testid="nota-pausas-independientes"
@@ -1557,6 +1567,7 @@ export function DetalleProcesoOperador({
                       <Input
                         type="number"
                         min="0"
+                        max={Math.max(Math.floor(horasSesion * 60), 0)}
                         step="1"
                         value={minutosSetup}
                         onChange={(evento) => setMinutosSetup(evento.target.value)}
@@ -1564,7 +1575,8 @@ export function DetalleProcesoOperador({
                         data-testid="minutos-setup"
                       />
                       <span className="text-xs font-normal text-texto-tenue">
-                        Identifica el setup dentro del tiempo real; no se cobra dos veces.
+                        Identifica el setup dentro del tiempo real; no se cobra dos veces. Máximo{' '}
+                        {Math.max(Math.floor(horasSesion * 60), 0)} min (tiempo transcurrido).
                       </span>
                     </label>
                   ) : null}
@@ -2206,8 +2218,8 @@ export function DetalleProcesoOperador({
             valor={horasLegibles(resumenCierre.resultado.horasNetas)}
           />
           <Dato etiqueta="Resultado" valor="Sesión finalizada" />
-          <Dato etiqueta="Estado de orden" valor={resumenCierre.resultado.estadoOrden} />
-          <Dato etiqueta="Planeación" valor={resumenCierre.resultado.estadoPlaneacion} />
+          <Dato etiqueta="Estado de orden" valor={etiquetaEstadoOrden(resumenCierre.resultado.estadoOrden)} />
+          <Dato etiqueta="Planeación" valor={etiquetaEstadoPlaneacion(resumenCierre.resultado.estadoPlaneacion)} />
           <Dato
             etiqueta="Material usado"
             valor={`${resumenCierre.material.codigo} · ${formatearNumero(resumenCierre.cantidadUsada, 3)} ${resumenCierre.material.unidadBase}`}

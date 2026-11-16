@@ -273,6 +273,9 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'costo_retrabajo_no_configurado',
   'resultado_retrabajo_invalido',
   'solicitud_retrabajo_conflicto',
+  'setup_invalido',
+  'minutos_setup_exceden_sesion',
+  'sin_permiso_setup',
 ];
 
 /** Traduce el mensaje de una RPC a un error tipado de producción. */
