@@ -967,9 +967,22 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         await paginaGerencia.getByRole('button', { name: 'Consultar disponibilidad' }).click();
         const consultaGerencia = paginaGerencia.getByTestId('disponibilidad-propuesta');
         await expect(consultaGerencia).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-        // Ventana por defecto de 7 días con jornada C18: 5×8 h + sábado 4 h.
-        const capacidadGerencia = consultaGerencia.locator('dl > div').filter({ hasText: 'Capacidad' });
-        await expect(capacidadGerencia).toContainText('44.00 h');
+        // Sin fecha compromiso, esta sesión consulta la ventana por defecto de 7
+        // días, así que el total depende del día de la semana en que corra la
+        // prueba. Se valida la coherencia del resumen en vez de un número fijo:
+        // la carga programada del fixture es 4 h y el disponible debe ser la
+        // capacidad menos esa carga.
+        const campoGerencia = (etiqueta: RegExp) =>
+          consultaGerencia.locator('dl > div').filter({ hasText: etiqueta });
+        const horasGerencia = async (etiqueta: RegExp) =>
+          Number((await campoGerencia(etiqueta).innerText()).replace(/[^\d.]/g, ''));
+        await expect(campoGerencia(/^Capacidad/)).toContainText(/\d+\.\d{2} h/);
+        await expect(campoGerencia(/^Carga programada/)).toContainText('4.00 h');
+        await expect(campoGerencia(/^Disponible/)).toContainText(/\d+\.\d{2} h/);
+        expect(await horasGerencia(/^Disponible/)).toBeCloseTo(
+          (await horasGerencia(/^Capacidad/)) - 4,
+          2,
+        );
       } finally {
         await contextoGerencia.close();
       }
