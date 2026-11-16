@@ -1,10 +1,10 @@
 /**
- * Regla D2-A: al cerrar una sesión, si las horas netas superan la jornada
- * configurada del turno (8 h cuando no hay otra), la RPC exige una autorización
+ * Regla D2-A/C18: al cerrar una sesión, si las horas netas superan la jornada
+ * del día (9 h de lunes a viernes, 4 h el sábado), la RPC exige una autorización
  * vigente de horas extra. El aviso es solo informativo: la base sigue siendo la
  * que decide y consume la autorización.
  */
-export const HORAS_JORNADA_PREDETERMINADA = 8;
+export const HORAS_JORNADA_PREDETERMINADA = 9;
 
 /** Horas transcurridas desde el inicio de la sesión, nunca negativas. */
 export function horasTranscurridasSesion(fechaInicio: string, ahora: Date): number {
@@ -27,4 +27,4 @@ export function sesionCercaDeJornada(
 
 /** Texto accionable que explica qué hacer si el cierre pide horas extra. */
 export const AYUDA_HORAS_EXTRA =
-  'Si el tiempo neto de la sesión supera la jornada del turno, el cierre te pedirá justificar el exceso o solicitar la aprobación de un responsable en Producción → Horas extra (permiso aprobar_ordenes). La sesión también se pausa sola al cumplir la jornada.';
+  'Si el tiempo neto de la sesión supera la jornada del día (9 h de lunes a viernes, 4 h el sábado), el cierre te pedirá justificar el exceso o solicitar la aprobación de un responsable en Producción → Horas extra (permiso aprobar_ordenes). La sesión también se pausa sola al cumplir la jornada.';

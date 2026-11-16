@@ -42,10 +42,10 @@ INSERT INTO public.programacion_areas (
 ) VALUES
   ('00000000-0000-4000-8000-0000000c1621', '00000000-0000-4000-8000-0000000c1603',
    '00000000-0000-4000-8000-0000000c1604', '00000000-0000-4000-8000-0000000c1611',
-   1, 'en_preparacion', current_date, 'matutino', 2),
+   1, 'en_preparacion', date_trunc('week', current_date)::date, 'matutino', 2),
   ('00000000-0000-4000-8000-0000000c1622', '00000000-0000-4000-8000-0000000c1603',
    '00000000-0000-4000-8000-0000000c1605', '00000000-0000-4000-8000-0000000c1612',
-   2, 'en_preparacion', current_date, 'matutino', 2);
+   2, 'en_preparacion', date_trunc('week', current_date)::date, 'matutino', 2);
 
 -- Proceso A: se pausa por jornada. Proceso B se inicia después, cuando el
 -- operador ya no tiene una sesión activa.
@@ -56,7 +56,7 @@ SELECT lives_ok($$SELECT * FROM public.iniciar_sesion_trabajo_operador(
     'archivo', true, 'proceso_equipo', true, 'observaciones', 'Listo'),
   NULL::uuid)$$, 'El operador inicia el proceso A');
 
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '10 hours'
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '12 hours'
 WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621';
 
 SELECT is((
@@ -79,7 +79,7 @@ SELECT is((
 SELECT is((
   SELECT horas_netas FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'
-), 8::numeric, 'La pausa conserva el corte exacto de 8 h');
+), 9::numeric, 'La pausa conserva el corte exacto de la jornada');
 SELECT is((
   SELECT motivo_pausa_codigo FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'
@@ -107,7 +107,7 @@ SELECT is((
 SELECT is((
   SELECT horas_netas FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'
-), 8::numeric, 'Las horas netas no se recalculan');
+), 9::numeric, 'Las horas netas no se recalculan');
 SELECT is((
   SELECT motivo_pausa_codigo FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'

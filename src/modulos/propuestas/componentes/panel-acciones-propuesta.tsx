@@ -28,6 +28,7 @@ import {
   evaluarDestinoEnvio,
 } from '@/modulos/propuestas/utilidades/indice';
 import { textoReferenciaFechasRfq } from '@/modulos/propuestas/utilidades/referencia-fechas-rfq';
+import { diaSemanaCalendario } from '@/modulos/planeacion/utilidades/horario-laboral';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
 import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
@@ -339,6 +340,13 @@ export function PanelAccionesPropuesta({
                   La fecha no puede ser anterior a hoy ({hoy}). Elige una fecha de hoy en adelante.
                 </span>
               )}
+              {!fechaInvalida && fechaCompromiso !== ''
+                && diaSemanaCalendario(fechaCompromiso) === 0 ? (
+                  <span className="text-xs text-advertencia-texto">
+                    El domingo no se produce. La fecha se registra tal cual y Planeación propondrá
+                    el lunes hábil más cercano con capacidad.
+                  </span>
+                ) : null}
             </label>
             {detalle.propuesta.acceptedRevisionId === null && (
               <PanelDisponibilidadPropuesta

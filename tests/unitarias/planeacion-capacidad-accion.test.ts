@@ -95,12 +95,15 @@ const ENTRADA = {
 };
 
 describe('actualizarCapacidadRecursoAccion (D-02)', () => {
-  it('registra el turno matutino base de 8 h cuando el recurso no tiene turnos', async () => {
+  it('registra los turnos base del horario cuando el recurso no tiene turnos', async () => {
     const respuesta = await actualizarCapacidadRecursoAccion(ENTRADA);
 
     expect(respuesta).toEqual({ exito: true });
     expect(admin.upserts).toEqual([
-      { recurso_id: RECURSO_ID, turno: 'matutino', horas_capacidad: 8 },
+      [
+        { recurso_id: RECURSO_ID, turno: 'matutino', horas_capacidad: 5 },
+        { recurso_id: RECURSO_ID, turno: 'vespertino', horas_capacidad: 4 },
+      ],
     ]);
     expect(logMock).toHaveBeenCalledWith(
       USUARIO,

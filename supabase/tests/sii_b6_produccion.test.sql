@@ -56,10 +56,10 @@ INSERT INTO public.programacion_areas (
 ) VALUES
   ('00000000-0000-4000-8000-00000000b60a', '00000000-0000-4000-8000-00000000b607',
    '00000000-0000-4000-8000-00000000b608', '00000000-0000-4000-8000-00000000b605',
-   1, 'en_preparacion', (now() AT TIME ZONE 'America/Tijuana')::date, 'matutino', 4),
+   1, 'en_preparacion', date_trunc('week', current_date)::date, 'matutino', 4),
   ('00000000-0000-4000-8000-00000000b60b', '00000000-0000-4000-8000-00000000b607',
    '00000000-0000-4000-8000-00000000b609', '00000000-0000-4000-8000-00000000b606',
-   1, 'en_preparacion', (now() AT TIME ZONE 'America/Tijuana')::date, 'matutino', 4);
+   1, 'en_preparacion', date_trunc('week', current_date)::date, 'matutino', 4);
 
 CREATE TEMP TABLE b6 (clave text PRIMARY KEY, valor jsonb);
 
@@ -369,14 +369,14 @@ $$, 'La referencia 10 (intervalo) es válida');
 -- -----------------------------------------------------------------------------
 -- 52-57. Horas extra y cierre de jornada
 -- -----------------------------------------------------------------------------
--- D2-A: el umbral es la jornada del turno, no la capacidad instalada
--- (equipos × jornada). Con 3 equipos y jornada de 4 h el umbral sigue en 4 h.
+-- D2-A: el umbral es la jornada del día, no la capacidad instalada
+-- (equipos × jornada). Con 3 equipos la jornada sigue en 9 h de lunes a viernes.
 UPDATE public.recursos_planeacion SET cantidad_equipos = 3
 WHERE id = '00000000-0000-4000-8000-00000000b605';
 SELECT is(privado.obtener_jornada_recurso_turno(
-  '00000000-0000-4000-8000-00000000b605', current_date, 'matutino'),
-  4::numeric,
-  'La jornada del turno no multiplica por la cantidad de equipos');
+  '00000000-0000-4000-8000-00000000b605', date_trunc('week', current_date)::date, 'matutino'),
+  9::numeric,
+  'La jornada del día no multiplica por la cantidad de equipos');
 
 UPDATE public.programacion_areas SET estado_planeacion = 'en_preparacion'
 WHERE id = '00000000-0000-4000-8000-00000000b60a';
@@ -385,9 +385,9 @@ SELECT 'sesion3', to_jsonb(sesion.*)
 FROM public.iniciar_sesion_trabajo_operador(
   '00000000-0000-4000-8000-00000000b607', '00000000-0000-4000-8000-00000000b608',
   '00000000-0000-4000-8000-00000000b60a', '00000000-0000-4000-8000-00000000b603') AS sesion;
--- 6 h garantiza superar la jornada de 4 h a cualquier hora local: el descuento
+-- 12 h garantiza superar la jornada de 9 h a cualquier hora local: el descuento
 -- de comida (12:00-13:00 Tijuana) resta como máximo 1 h.
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '6 hours'
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '12 hours'
 WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion3');
 
 SELECT throws_ok($$
@@ -398,7 +398,7 @@ $$, '23514', 'horas_extra_sin_autorizacion', 'Sin autorización no se cierra con
 
 SELECT lives_ok($$
   SELECT public.autorizar_horas_extra(
-    '00000000-0000-4000-8000-00000000b607', NULL, 2, 'Cierre de lote urgente',
+    '00000000-0000-4000-8000-00000000b607', NULL, 4, 'Cierre de lote urgente',
     '00000000-0000-4000-8000-00000000b602')
 $$, 'Management autoriza horas extra');
 
@@ -418,11 +418,12 @@ SELECT 'sesion4', to_jsonb(sesion.*)
 FROM public.iniciar_sesion_trabajo_operador(
   '00000000-0000-4000-8000-00000000b607', '00000000-0000-4000-8000-00000000b608',
   '00000000-0000-4000-8000-00000000b60a', '00000000-0000-4000-8000-00000000b603') AS sesion;
--- La base local puede tener sesiones activas de otras corridas: se finalizan
--- dentro de la transacción (la RPC de cierre validaría horas extra ajenas)
--- para que cerrar_jornada cierre solo la del fixture.
+-- La base local puede tener sesiones activas de otras corridas: se pausan
+-- dentro de la transacción para que cerrar_jornada cierre solo la del fixture.
+-- No se marcan finalizadas porque la validación de consumo B2 aplicaría a
+-- sesiones ajenas que no forman parte de esta prueba.
 UPDATE public.sesiones_trabajo
-SET estado_sesion = 'finalizada', fecha_fin = coalesce(fecha_fin, now())
+SET estado_sesion = 'pausada', fecha_fin = coalesce(fecha_fin, now())
 WHERE estado_sesion = 'activa'
   AND id <> (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion4');
 SELECT is(

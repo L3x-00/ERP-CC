@@ -16,7 +16,6 @@ import {
   type ErrorProgramacion,
 } from '@/modulos/planeacion/componentes/dialogo-error-planeacion';
 import {
-  TURNOS_PLANEACION,
   type CargaCapacidadDiaria,
   type DesglosePartidaPlaneacion,
   type OperacionProgramablePartida,
@@ -24,6 +23,11 @@ import {
   type RecursoPlaneacion,
   type TurnoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
+import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
+import {
+  errorFechaProgramacion,
+  turnosDelDia,
+} from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
   etiquetaArea,
   etiquetaAvancePartida,
@@ -198,6 +202,7 @@ export function PanelAsignacionPlaneacion({
   onAbrirProduccion,
   onLiberarPreparacion,
 }: PropsPanelAsignacionPlaneacion) {
+  const hoy = hoyIso();
   const recursosActivos = recursos.filter((recurso) => recurso.activo);
   const [partidaId, setPartidaId] = useState('');
   const [recursoId, setRecursoId] = useState(programacion?.recursoId ?? '');
@@ -424,6 +429,13 @@ export function PanelAsignacionPlaneacion({
   });
   // C9.2/P09: el aviso dice cuántas horas se exceden, con las horas del turno.
   const excesoHoras = Math.max(0, evaluacion.horasProgramadas - evaluacion.horasCapacidad);
+  // C18: el turno debe existir en el horario del día elegido (sábado solo
+  // matutino; domingo cerrado). La base vuelve a validar la capacidad.
+  const turnosDisponibles: TurnoPlaneacion[] = fechaProgramada === ''
+    ? ['matutino', 'vespertino']
+    : turnosDelDia(fechaProgramada);
+  const turnoCerrado = fechaProgramada !== '' && !turnosDisponibles.includes(turno);
+  const errorFecha = fechaProgramada === '' ? null : errorFechaProgramacion(fechaProgramada);
   // Cliente 2026-11-10: la guía nombra el equipo y el turno que realmente falta.
   const pasosCapacidad = evaluacion.sinCapacidad
     ? diagnosticarCapacidadTurno({
@@ -433,9 +445,11 @@ export function PanelAsignacionPlaneacion({
         cargas,
       })
     : [];
-  const textoAvisoCapacidad = evaluacion.sinCapacidad
-    ? 'Falta configurar la capacidad de este equipo. La guía explica qué revisar y dónde hacerlo.'
-    : `Excede la capacidad por ${formatearHoras(excesoHoras)} h (${formatearHoras(evaluacion.horasProgramadas)}/${formatearHoras(evaluacion.horasCapacidad)} h). Puedes buscar el siguiente día hábil con hueco.`;
+  const textoAvisoCapacidad = turnoCerrado
+    ? 'Ese día no se trabaja en el turno elegido: el sábado solo hay matutino y el domingo está cerrado.'
+    : evaluacion.sinCapacidad
+      ? 'Falta configurar la capacidad de este equipo. La guía explica qué revisar y dónde hacerlo.'
+      : `Excede la capacidad por ${formatearHoras(excesoHoras)} h (${formatearHoras(evaluacion.horasProgramadas)}/${formatearHoras(evaluacion.horasCapacidad)} h). Puedes buscar el siguiente día hábil con hueco.`;
   const puedePrevisualizar = recursoId !== '' && fechaProgramada !== '' && horasValidas;
   // C16: la operación completa no cabe en un turno, aunque el día esté vacío.
   const excedeUnDia = puedePrevisualizar
@@ -696,6 +710,17 @@ export function PanelAsignacionPlaneacion({
 
     if (recursoId === '' || fechaProgramada === '') {
       setErrorFormulario('Selecciona un recurso y una fecha');
+      return;
+    }
+    const errorFechaEnvio = errorFechaProgramacion(fechaProgramada);
+    if (errorFechaEnvio !== null) {
+      setErrorFormulario(errorFechaEnvio);
+      return;
+    }
+    if (!turnosDelDia(fechaProgramada).includes(turno)) {
+      setErrorFormulario(
+        `El turno ${ETIQUETA_TURNO[turno]} no se trabaja ese día. Elige ${turnosDelDia(fechaProgramada).map((valor) => ETIQUETA_TURNO[valor]).join(' o ')}.`,
+      );
       return;
     }
     if (estadoCompatibilidadSeleccionada === 'incompatible') {
@@ -1037,12 +1062,26 @@ export function PanelAsignacionPlaneacion({
           <Input
             id="planeacion-fecha"
             type="date"
+            min={hoy}
             value={fechaProgramada}
+            aria-invalid={errorFecha !== null}
+            aria-describedby={errorFecha !== null ? 'planeacion-fecha-ayuda' : undefined}
             onChange={(evento) => {
-              setFechaProgramada(evento.target.value);
-              onCambiarFecha?.(evento.target.value);
+              const nueva = evento.target.value;
+              setFechaProgramada(nueva);
+              // C18: si el turno ya no existe ese día, se pasa al primer turno
+              // válido para no dejar un formulario que la base rechazará.
+              const permitidos = nueva === '' ? [] : turnosDelDia(nueva);
+              if (permitidos.length > 0 && !permitidos.includes(turno)) {
+                setTurno(permitidos[0]!);
+              }
+              onCambiarFecha?.(nueva);
             }}
           />
+          <span id="planeacion-fecha-ayuda" className="text-[11px] text-texto-tenue">
+            {errorFecha
+              ?? 'Lunes a viernes 08:00–17:00 · sábado 08:00–12:00 · domingo cerrado.'}
+          </span>
         </div>
 
         <div className="flex min-w-0 flex-col gap-1">
@@ -1052,7 +1091,7 @@ export function PanelAsignacionPlaneacion({
             value={turno}
             onChange={(evento) => setTurno(evento.target.value as TurnoPlaneacion)}
           >
-            {TURNOS_PLANEACION.map((valor) => (
+            {(turnosDisponibles.length > 0 ? turnosDisponibles : [turno]).map((valor) => (
               <option key={valor} value={valor}>{ETIQUETA_TURNO[valor]}</option>
             ))}
           </Select>
@@ -1120,15 +1159,19 @@ export function PanelAsignacionPlaneacion({
             </p>
           ) : (
             <div className="flex flex-col items-start gap-1">
-              <p className={evaluacion.cabe ? 'text-texto-secundario' : 'text-peligro-texto'}>
-                {evaluacion.sinCapacidad
-                  ? 'Este equipo no tiene turnos configurados para ese día, así que todavía no se puede comparar la carga.'
-                  : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
+              <p className={evaluacion.cabe && !turnoCerrado ? 'text-texto-secundario' : 'text-peligro-texto'}>
+                {turnoCerrado
+                  ? 'El turno elegido no se trabaja ese día. Elige otro turno o fecha.'
+                  : evaluacion.sinCapacidad
+                    ? 'Este equipo no tiene turnos configurados para ese día, así que todavía no se puede comparar la carga.'
+                    : `Capacidad tras guardar: ${evaluacion.horasProgramadas}/${evaluacion.horasCapacidad} h · quedan ${evaluacion.holguraHoras} h`}
               </p>
-              {evaluacion.sinCapacidad ? <BotonGuiaCapacidad pasos={pasosCapacidad} /> : null}
+              {!turnoCerrado && evaluacion.sinCapacidad ? (
+                <BotonGuiaCapacidad pasos={pasosCapacidad} />
+              ) : null}
             </div>
           )}
-          {!verificandoCapacidad && !evaluacion.cabe ? (
+          {!verificandoCapacidad && (!evaluacion.cabe || turnoCerrado) ? (
             <p
               role="status"
               className="flex items-center gap-1.5 text-peligro-texto"
@@ -1214,6 +1257,7 @@ export function PanelAsignacionPlaneacion({
                         Día {indice + 1}
                         <Input
                           type="date"
+                          min={hoy}
                           value={dia.fecha}
                           onChange={(evento) => cambiarFechaPlan(indice, evento.target.value)}
                           data-testid={`plan-multidia-fecha-${indice + 1}`}
@@ -1272,6 +1316,8 @@ export function PanelAsignacionPlaneacion({
             || preparando
             || reprogramandoRecurso
             || estadoCompatibilidadSeleccionada === 'incompatible'
+            || turnoCerrado
+            || errorFecha !== null
             || (!programacion && excedeUnDia)
           }
           data-testid="guardar-asignacion-planeacion"

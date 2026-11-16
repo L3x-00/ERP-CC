@@ -18,8 +18,13 @@ import {
  * C9.1/P-01: matriz semanal Equipo × días para responder «¿cuántas horas tiene
  * ocupadas cada equipo y cuánto queda?». Se deriva de las cargas que PostgreSQL
  * calcula desde `capacidades_recurso_turno` (equipos × jornada), no de un
- * calendario laboral fijo: un sábado o domingo sólo aparece cuando tiene horas
- * programadas.
+ * calendario laboral fijo.
+ *
+ * C18: con el horario de la empresa el sábado es día laboral (4 h), así que su
+ * columna se muestra siempre que tenga capacidad; el domingo sigue cerrado y
+ * solo aparece si por excepción tiene trabajo programado. Ocultar el sábado
+ * hacía que «Libre» omitiera 4 h de capacidad real y variara según si otro
+ * equipo tenía carga ese día.
  */
 
 /** Horas legibles sin ceros decorativos: `16`, `7.5`, `2.75`. */
@@ -75,16 +80,17 @@ export function construirMatrizCargaSemanal(
   const cargasVisibles = cargas.filter(
     (carga) => filtroRecursoId === null || carga.recursoId === filtroRecursoId,
   );
-  const fechasConProgramacion = new Set(
+  const fechasConCapacidad = new Set(
     cargasVisibles
-      .filter((carga) => carga.horasProgramadas > 0)
+      .filter((carga) => carga.horasCapacidad > 0 || carga.horasProgramadas > 0)
       .map((carga) => carga.fechaProgramada),
   );
   // La RPC devuelve todos los días del rango, incluido fin de semana con
-  // capacidad configurada; una columna sáb/dom sólo se pinta si tiene carga.
+  // capacidad configurada; sábado se pinta si hay capacidad (día laboral) y
+  // domingo solo si tiene carga.
   const hayDiaHabil = dias.some((fecha) => !esFinDeSemana(fecha));
   const columnas = dias.filter(
-    (fecha) => !esFinDeSemana(fecha) || !hayDiaHabil || fechasConProgramacion.has(fecha),
+    (fecha) => !esFinDeSemana(fecha) || !hayDiaHabil || fechasConCapacidad.has(fecha),
   );
 
   const porRecurso = new Map<string, CargaCapacidadDiaria[]>();

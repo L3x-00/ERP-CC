@@ -40,7 +40,7 @@ INSERT INTO public.programacion_areas (
 ) VALUES
   ('00000000-0000-4000-8000-0000000c1511', '00000000-0000-4000-8000-0000000c1504',
    '00000000-0000-4000-8000-0000000c1505', '00000000-0000-4000-8000-0000000c1507',
-   1, 'en_preparacion', current_date, 'matutino', 2);
+   1, 'en_preparacion', date_trunc('week', current_date)::date, 'matutino', 2);
 
 SELECT lives_ok($$SELECT * FROM public.iniciar_sesion_trabajo_operador(
   '00000000-0000-4000-8000-0000000c1504'::uuid, '00000000-0000-4000-8000-0000000c1505'::uuid,
@@ -51,7 +51,7 @@ SELECT lives_ok($$SELECT * FROM public.iniciar_sesion_trabajo_operador(
   'El operador inicia la sesión');
 
 -- 1-5. La sesión vencida se pausa exactamente en la jornada.
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '10 hours'
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '12 hours'
 WHERE estado_sesion = 'activa'
   AND operador_id = '00000000-0000-4000-8000-0000000c1501';
 
@@ -69,7 +69,7 @@ SELECT is((
 SELECT is((
   SELECT horas_netas FROM public.sesiones_trabajo
   WHERE operador_id = '00000000-0000-4000-8000-0000000c1501'
-), 8::numeric, 'El corte se registra exactamente al cumplir las 8 h de jornada');
+), 9::numeric, 'El corte se registra exactamente al cumplir las 9 h de jornada');
 
 SELECT is((
   SELECT motivo_pausa_codigo FROM public.sesiones_trabajo
@@ -96,7 +96,7 @@ SELECT lives_ok($$SELECT * FROM public.reanudar_sesion_trabajo_a20(
   '00000000-0000-4000-8000-0000000c1501'::uuid)$$,
   'El operador retoma la sesión pausada');
 
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '10 hours'
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '12 hours'
 WHERE estado_sesion = 'activa'
   AND operador_id = '00000000-0000-4000-8000-0000000c1501';
 
