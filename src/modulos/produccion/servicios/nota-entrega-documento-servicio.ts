@@ -42,6 +42,8 @@ export interface DocumentoNotaEntrega {
   };
   nota: {
     folio: string;
+    /** M6: folio SII para distinguirlo del folio interno. */
+    folioSii: string | null;
     esParcial: boolean;
     recibidoPor: string;
     firmaClienteUrl: string | null;
@@ -73,10 +75,14 @@ export function resumirLineasNota(
 export interface NotaEntregaResumen {
   id: string;
   folio: string;
+  /** M6: folio SII para distinguirlo del folio interno. */
+  folioSii: string | null;
   esParcial: boolean;
   recibidoPor: string;
   creadoEn: string;
   piezas: number;
+  /** M6: total solicitado de la orden para «Final · 80 de 200». */
+  totalSolicitadoOrden: number;
 }
 
 export async function listarNotasEntregaOrden(
@@ -85,14 +91,26 @@ export async function listarNotasEntregaOrden(
 ): Promise<NotaEntregaResumen[]> {
   const { data, error } = await admin
     .from('notas_entrega')
-    .select('id, folio, es_parcial, recibido_por, creado_en, partidas_nota_entrega(cantidad_entregada)')
+    .select('id, folio, folio_sii, es_parcial, recibido_por, creado_en, partidas_nota_entrega(cantidad_entregada)')
     .eq('orden_id', ordenId)
     .order('creado_en', { ascending: false });
   if (error) throw error;
 
+  const { data: partidas, error: errorPartidas } = await admin
+    .from('partidas_orden_produccion')
+    .select('cantidad_solicitada')
+    .eq('orden_id', ordenId);
+  if (errorPartidas) throw errorPartidas;
+
+  const totalSolicitadoOrden = (partidas ?? []).reduce(
+    (suma, partida) => suma + Number(partida.cantidad_solicitada),
+    0,
+  );
+
   return (data ?? []).map((nota) => ({
     id: nota.id,
     folio: nota.folio,
+    folioSii: nota.folio_sii ?? null,
     esParcial: nota.es_parcial,
     recibidoPor: nota.recibido_por,
     creadoEn: nota.creado_en,
@@ -100,6 +118,7 @@ export async function listarNotasEntregaOrden(
       (suma, renglon) => suma + Number(renglon.cantidad_entregada),
       0,
     ),
+    totalSolicitadoOrden,
   }));
 }
 
@@ -118,7 +137,7 @@ export async function obtenerDocumentoNotaEntrega(
 ): Promise<DocumentoNotaEntrega | null> {
   const { data: nota, error: errorNota } = await admin
     .from('notas_entrega')
-    .select('id, folio, es_parcial, recibido_por, firma_cliente_url, creado_en, orden_id')
+    .select('id, folio, folio_sii, es_parcial, recibido_por, firma_cliente_url, creado_en, orden_id')
     .eq('id', notaId)
     .maybeSingle();
   if (errorNota) throw errorNota;
@@ -196,6 +215,7 @@ export async function obtenerDocumentoNotaEntrega(
     marca,
     nota: {
       folio: nota.folio,
+      folioSii: nota.folio_sii ?? null,
       esParcial: nota.es_parcial,
       recibidoPor: nota.recibido_por,
       firmaClienteUrl: nota.firma_cliente_url,

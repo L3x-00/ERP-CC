@@ -15,6 +15,7 @@ const documento: DocumentoNotaEntrega = {
   },
   nota: {
     folio: 'NE-000123',
+    folioSii: null,
     esParcial: true,
     recibidoPor: 'Almacén E2E',
     firmaClienteUrl: null,
@@ -56,7 +57,7 @@ describe('impresión de la nota de entrega', () => {
     expect(html).toContain('@page { size: A4; margin: 12mm; }');
     expect(html).toContain('NE-000123');
     expect(html).toContain('Almacén E2E');
-    expect(html).toContain('Entrega parcial');
+    expect(html).toContain('Parcial · 4 de 10');
   });
 
   it('escapa descripciones y muestra los totales de la nota', () => {

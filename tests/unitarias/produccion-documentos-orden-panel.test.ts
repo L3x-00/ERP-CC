@@ -82,7 +82,13 @@ beforeEach(() => {
   obtenerEntregablesMock.mockResolvedValue({
     exito: true,
     datos: {
-      orden: { id: ORDEN_ID, folio: 'O-1026_01', cotizacionId: null, cotizacionFolio: null },
+      orden: {
+        id: ORDEN_ID,
+        folio: 'O-1026_01',
+        cotizacionId: null,
+        cotizacionFolio: null,
+        propuestaFolio: null,
+      },
       documentos: [
         documento(V2, 2, true),
         documento(V1, 1, false),

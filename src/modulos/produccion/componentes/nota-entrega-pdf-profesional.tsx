@@ -7,6 +7,7 @@ import {
 } from '@react-pdf/renderer';
 
 import type { DocumentoNotaEntrega } from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';
+import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 
 const azul = '#16395f';
 const azulSuave = '#eaf2fb';
@@ -64,10 +65,16 @@ function numero(valor: number): string {
 export function NotaEntregaPdfProfesional({ documento }: { documento: DocumentoNotaEntrega }) {
   const empresa = documento.empresa;
   const nombreEmpresa = empresa.razonSocial || empresa.nombre;
+  const folioVisible = documento.nota.folioSii ?? documento.nota.folio;
+  const etiqueta = etiquetaNotaEntrega({
+    esParcial: documento.nota.esParcial,
+    piezas: documento.totalNota,
+    totalOrden: documento.totalSolicitado,
+  });
 
   return (
     <Document
-      title={`Nota de entrega ${documento.nota.folio}`}
+      title={`Nota de entrega ${folioVisible}`}
       author={nombreEmpresa}
       subject="Conformidad de entrega"
       creator="ORCA MFG ERP"
@@ -83,8 +90,11 @@ export function NotaEntregaPdfProfesional({ documento }: { documento: DocumentoN
           </View>
           <View>
             <Text style={estilos.titulo}>NOTA DE ENTREGA</Text>
-            <Text style={estilos.folio}>{documento.nota.folio}</Text>
-            <Text style={estilos.meta}>{documento.nota.esParcial ? 'Entrega parcial' : 'Entrega total'}</Text>
+            <Text style={estilos.folio}>{folioVisible}</Text>
+            {documento.nota.folioSii ? (
+              <Text style={estilos.meta}>Folio interno: {documento.nota.folio}</Text>
+            ) : null}
+            <Text style={estilos.meta}>{etiqueta.texto}</Text>
             <Text style={estilos.meta}>Fecha: {fechaDocumento(documento.nota.creadoEn)}</Text>
             <Text style={estilos.meta}>Orden: {documento.orden.folio}</Text>
           </View>

@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { etiquetaEstado } from '@/compartido/utilidades/estados';
 import {
   prepararEntregaAccion,
   type PreparacionEntrega,
@@ -223,7 +224,7 @@ export function PanelPrepararEntrega({
         {datos && !resultado && !sinNadaPorEntregar ? (
           <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto pr-1">
             <p className="text-sm text-texto-secundario">
-              {datos.orden.clienteRazonSocial ?? 'Cliente sin nombre'} · {datos.orden.estadoSii}
+              {datos.orden.clienteRazonSocial ?? 'Cliente sin nombre'} · {etiquetaEstado(datos.orden.estadoSii)}
             </p>
 
             {partidasDisponibles.length === 0 ? (

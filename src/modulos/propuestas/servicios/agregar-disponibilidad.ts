@@ -80,12 +80,25 @@ function sumarDias(fecha: string, dias: number): string {
   return instante.toISOString().slice(0, 10);
 }
 
-/** Horizonte fijo de días calendario (no hábiles) desde hoy en la planta. */
-export function horizonteDisponibilidad(ahora: Date): HorizonteDisponibilidad {
-  const fechaInicio = fechaLocalPlanta(ahora);
+/** Horizonte de días calendario (no hábiles) desde hoy en la planta. */
+export function horizonteDisponibilidad(
+  ahora: Date,
+  fechaObjetivo?: string | null,
+): HorizonteDisponibilidad {
+  const hoy = fechaLocalPlanta(ahora);
+  const finPorDefecto = sumarDias(hoy, DIAS_HORIZONTE_DISPONIBILIDAD - 1);
+  // M9: si la fecha compromiso cae más allá de la ventana, la ventana se
+  // desplaza para terminar en ese día (misma longitud) y el calendario puede
+  // capturarlo sin disparar consultas ilimitadas.
+  const objetivoValido =
+    typeof fechaObjetivo === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaObjetivo)
+      ? fechaObjetivo
+      : null;
+  const fechaFin =
+    objetivoValido && objetivoValido > finPorDefecto ? objetivoValido : finPorDefecto;
   return {
-    fechaInicio,
-    fechaFin: sumarDias(fechaInicio, DIAS_HORIZONTE_DISPONIBILIDAD - 1),
+    fechaInicio: sumarDias(fechaFin, -(DIAS_HORIZONTE_DISPONIBILIDAD - 1)),
+    fechaFin,
     dias: DIAS_HORIZONTE_DISPONIBILIDAD,
     zonaHoraria: ZONA_HORARIA_TALLER,
   };

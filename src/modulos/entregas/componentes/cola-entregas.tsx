@@ -7,12 +7,14 @@ import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 import {
   obtenerColaEntregasAccion,
   type ColaEntregas,
 } from '@/modulos/entregas/acciones/obtener-cola-entregas';
 import { PanelPrepararEntrega } from '@/modulos/entregas/componentes/panel-preparar-entrega';
-import { etiquetaEstadoEntrega, filtrarEntregasCola, type FiltroEstadoEntrega } from '@/modulos/entregas/utilidades/indice';
+import { SincronizadorEntregasRealtime } from '@/modulos/entregas/componentes/sincronizador-entregas-realtime';
+import { filtrarEntregasCola, type FiltroEstadoEntrega } from '@/modulos/entregas/utilidades/indice';
 import { cn } from '@/compartido/utilidades/cn';
 
 /**
@@ -48,6 +50,12 @@ export function ColaEntregas({
     setActualizando(false);
   }
 
+  /** Realtime: relee sin mostrar el estado «Actualizando» del botón. */
+  async function recargarEnSilencio(): Promise<void> {
+    const respuesta = await obtenerColaEntregasAccion();
+    if (respuesta.exito && respuesta.datos) setDatos(respuesta.datos);
+  }
+
   const entregasFiltradas = useMemo(
     () => filtrarEntregasCola(datos.entregas, { estado: filtroEstado, texto }),
     [datos.entregas, filtroEstado, texto],
@@ -61,6 +69,7 @@ export function ColaEntregas({
 
   return (
     <div className="flex flex-col gap-5" data-testid="cola-entregas">
+      <SincronizadorEntregasRealtime alCambiar={recargarEnSilencio} etiqueta="Entregas" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="tablist" aria-label="Vistas de entregas" className="flex gap-1">
           <button
@@ -168,7 +177,7 @@ export function ColaEntregas({
               >
                 <option value="todas">Todas</option>
                 <option value="parcial">Parciales</option>
-                <option value="completa">Completas</option>
+                <option value="completa">Finales</option>
               </Select>
             </label>
             <label className="grid flex-1 gap-1 text-xs font-medium text-texto-secundario">
@@ -204,15 +213,35 @@ export function ColaEntregas({
                 <tbody>
                   {entregasFiltradas.map((fila) => {
                     const folioVisible = fila.entrega.folioSii ?? fila.entrega.folio;
+                    const etiqueta = etiquetaNotaEntrega({
+                      esParcial: fila.entrega.esParcial,
+                      piezas: fila.totalPiezas,
+                      totalOrden: fila.totalSolicitadoOrden,
+                    });
                     return (
                       <tr key={fila.entrega.id} data-testid={`fila-entrega-${folioVisible}`}
                         className="border-t border-borde">
                         <th scope="row" className="whitespace-nowrap px-4 py-3 text-left font-mono text-xs">
-                          {folioVisible}
+                          <span>{folioVisible}</span>
+                          <span className="block text-[10px] font-normal uppercase tracking-wide text-texto-tenue">
+                            {fila.entrega.folioSii ? 'Folio SII' : 'Folio interno'}
+                          </span>
+                          {fila.entrega.folioSii ? (
+                            <span className="block text-[10px] font-normal text-texto-tenue" title="Folio interno">
+                              Interno {fila.entrega.folio}
+                            </span>
+                          ) : null}
                         </th>
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">{fila.ordenFolioSii ?? fila.ordenFolio}</td>
+                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs">
+                          {fila.ordenFolioSii ?? fila.ordenFolio}
+                          <span className="block text-[10px] uppercase tracking-wide text-texto-tenue">
+                            {fila.ordenFolioSii ? 'Folio SII' : 'Folio interno'}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">{fila.clienteNombre ?? '—'}</td>
-                        <td className="px-4 py-3">{etiquetaEstadoEntrega(fila.entrega.esParcial)}</td>
+                        <td className="px-4 py-3" data-testid={`estado-entrega-${folioVisible}`}>
+                          {etiqueta.texto}
+                        </td>
                         <td className="px-4 py-3 tabular-nums">{fila.totalPiezas}</td>
                         <td className="px-4 py-3">{fila.entrega.recibidoPor}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-texto-secundario">{formatearFecha(fila.entrega.creadoEn)}</td>

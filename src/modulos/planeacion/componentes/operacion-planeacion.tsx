@@ -549,6 +549,11 @@ export function OperacionPlaneacion({
   const esOrdenConcluidaDetalle = detalleConcluidoDatos
     ? ordenConcluida(detalleConcluidoDatos.orden)
     : detalleConcluido?.esOrdenConcluida ?? false;
+  const entregaCompletaDetalle = (() => {
+    const partidas = detalleConcluidoDatos?.orden.partidas ?? [];
+    return partidas.length > 0
+      && partidas.every((partida) => partida.cantidadEntregada >= partida.cantidadSolicitada);
+  })();
 
   return (
     <div className="flex flex-col gap-4">
@@ -675,7 +680,10 @@ export function OperacionPlaneacion({
                 {detalleConcluidoDatos?.orden.folio ?? 'Cargando orden…'}
               </h2>
               <p className="text-xs text-texto-secundario">
-                Avance, procesos, material y archivos. La entrega se registra aquí.
+                Avance, procesos, material y archivos.{' '}
+                {entregaCompletaDetalle
+                  ? 'La orden ya está entregada por completo.'
+                  : 'La entrega se registra aquí.'}
               </p>
             </div>
             <Button

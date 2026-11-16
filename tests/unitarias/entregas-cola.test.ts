@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 import type { EntregaCola } from '@/modulos/entregas/servicios/obtener-entregas';
 import {
-  etiquetaEstadoEntrega,
   filtrarEntregasCola,
 } from '@/modulos/entregas/utilidades/indice';
 
@@ -42,13 +42,19 @@ function fila(extra: {
     esInterna: false,
     clienteNombre: extra.clienteNombre ?? 'Cliente Uno',
     totalPiezas: 3,
+    totalSolicitadoOrden: 5,
   };
 }
 
 describe('cola de entregas (SII-B7.3)', () => {
-  it('etiqueta el estado parcial/total de la nota', () => {
-    expect(etiquetaEstadoEntrega(true)).toBe('Parcial');
-    expect(etiquetaEstadoEntrega(false)).toBe('Total');
+  it('etiqueta la nota como final/parcial con sus cantidades (M6)', () => {
+    expect(etiquetaNotaEntrega({ esParcial: true, piezas: 80, totalOrden: 200 }).texto).toBe(
+      'Parcial · 80 de 200',
+    );
+    expect(etiquetaNotaEntrega({ esParcial: false, piezas: 200, totalOrden: 200 }).texto).toBe(
+      'Final · 200 de 200',
+    );
+    expect(etiquetaNotaEntrega({ esParcial: false }).texto).toBe('Final');
   });
 
   it('filtra por estado parcial o completa', () => {

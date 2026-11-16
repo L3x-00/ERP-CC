@@ -400,4 +400,26 @@ describe('horizonte de la planta (America/Tijuana)', () => {
       zonaHoraria: 'America/Tijuana',
     });
   });
+
+  it('desplaza la ventana para incluir una fecha compromiso lejana (M9)', () => {
+    expect(
+      horizonteDisponibilidad(new Date('2026-10-22T05:30:00Z'), '2026-11-20'),
+    ).toEqual({
+      fechaInicio: '2026-11-14',
+      fechaFin: '2026-11-20',
+      dias: 7,
+      zonaHoraria: 'America/Tijuana',
+    });
+  });
+
+  it('conserva la ventana normal si la fecha compromiso ya está dentro', () => {
+    expect(
+      horizonteDisponibilidad(new Date('2026-10-22T05:30:00Z'), '2026-10-24'),
+    ).toEqual({
+      fechaInicio: '2026-10-21',
+      fechaFin: '2026-10-27',
+      dias: 7,
+      zonaHoraria: 'America/Tijuana',
+    });
+  });
 });

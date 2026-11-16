@@ -6,6 +6,7 @@ import {
   imprimirHtmlAislado,
 } from '@/compartido/utilidades/impresion-documento';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
+import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 import type { DocumentoNotaEntrega } from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';
 
 function fechaDocumento(valor: string): string {
@@ -20,6 +21,12 @@ function fechaDocumento(valor: string): string {
  * herede el modal con scroll que cortaba el formato.
  */
 export function construirHtmlNotaEntrega(documento: DocumentoNotaEntrega): string {
+  const folioVisible = documento.nota.folioSii ?? documento.nota.folio;
+  const etiqueta = etiquetaNotaEntrega({
+    esParcial: documento.nota.esParcial,
+    piezas: documento.totalNota,
+    totalOrden: documento.totalSolicitado,
+  });
   const filas = documento.lineas.map((linea) => `
     <tr>
       <td class="mono">${escaparHtml(linea.codigoPieza)}</td>
@@ -39,7 +46,8 @@ export function construirHtmlNotaEntrega(documento: DocumentoNotaEntrega): strin
       <div>
         <h2>Entrega</h2>
         <div class="dato">Orden: ${escaparHtml(documento.orden.folio)}</div>
-        <div class="dato">Tipo: ${documento.nota.esParcial ? 'Entrega parcial' : 'Entrega total'}</div>
+        <div class="dato">Tipo: ${escaparHtml(etiqueta.texto)}</div>
+        ${documento.nota.folioSii ? `<div class="dato">Folio interno: ${escaparHtml(documento.nota.folio)}</div>` : ''}
         <div class="dato">Fecha: ${escaparHtml(fechaDocumento(documento.nota.creadoEn))}</div>
       </div>
     </section>
@@ -80,11 +88,15 @@ export function construirHtmlNotaEntrega(documento: DocumentoNotaEntrega): strin
     ${documento.nota.firmaClienteUrl ? '<p class="tenue" style="margin-top:8px;">Firma de conformidad registrada electrónicamente.</p>' : ''}`;
 
   return construirHtmlImpresion({
-    titulo: `Nota de entrega ${documento.nota.folio}`,
-    folio: documento.nota.folio,
+    titulo: `Nota de entrega ${folioVisible}`,
+    folio: folioVisible,
     etiqueta: 'Nota de entrega',
-    estado: documento.nota.esParcial ? 'Entrega parcial' : 'Entrega total',
-    meta: [`Fecha: ${fechaDocumento(documento.nota.creadoEn)}`, `Orden: ${documento.orden.folio}`],
+    estado: etiqueta.texto,
+    meta: [
+      `Fecha: ${fechaDocumento(documento.nota.creadoEn)}`,
+      `Orden: ${documento.orden.folio}`,
+      ...(documento.nota.folioSii ? [`Folio interno: ${documento.nota.folio}`] : []),
+    ],
     marca: documento.marca,
     cuerpoHtml: cuerpo,
   });
@@ -93,6 +105,6 @@ export function construirHtmlNotaEntrega(documento: DocumentoNotaEntrega): strin
 export function imprimirNotaEntrega(documento: DocumentoNotaEntrega): Promise<void> {
   return imprimirHtmlAislado(
     construirHtmlNotaEntrega(documento),
-    `Nota de entrega ${documento.nota.folio}`,
+    `Nota de entrega ${documento.nota.folioSii ?? documento.nota.folio}`,
   );
 }

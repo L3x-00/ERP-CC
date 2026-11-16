@@ -43,11 +43,6 @@ export function construirFolioEntrega(
   return `NE-${base}-${formatearConsecutivoEntrega(consecutivo)}`;
 }
 
-/** Etiqueta de estado de una nota de entrega. */
-export function etiquetaEstadoEntrega(esParcial: boolean): 'Parcial' | 'Total' {
-  return esParcial ? 'Parcial' : 'Total';
-}
-
 export type FiltroEstadoEntrega = 'todas' | 'parcial' | 'completa';
 
 /** Filtra la cola de notas por estado (parcial/completa) y texto libre. */

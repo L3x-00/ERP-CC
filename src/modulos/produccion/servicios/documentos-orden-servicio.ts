@@ -32,6 +32,8 @@ export interface OrdenDocumental {
   /** Oportunidad de origen; solo se usa para compatibilidad con órdenes legadas. */
   cotizacionId: string | null;
   cotizacionFolio: string | null;
+  /** M6: folio de la propuesta comercial de la revisión aceptada (orden SII). */
+  propuestaFolio: string | null;
   propuestaRevisionId: string | null;
   snapshotJson: unknown;
 }
@@ -200,17 +202,22 @@ export async function obtenerOrdenDocumental(
 ): Promise<OrdenDocumental | null> {
   const { data, error } = await admin
     .from('ordenes_produccion')
-    .select('id, folio, cotizacion_id, propuesta_revision_id, snapshot_json, pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc)')
+    .select('id, folio, cotizacion_id, propuesta_revision_id, snapshot_json, pipeline!ordenes_produccion_cotizacion_id_fkey(folio_cnc), propuesta_revisiones!ordenes_produccion_propuesta_revision_id_fkey(propuestas!propuesta_revisiones_propuesta_id_fkey(folio_cnc))')
     .eq('id', ordenId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
+
+  const revision = data.propuesta_revisiones as
+    | { propuestas: { folio_cnc: string } | null }
+    | null;
 
   return {
     id: data.id,
     folio: data.folio,
     cotizacionId: data.cotizacion_id,
     cotizacionFolio: data.pipeline?.folio_cnc ?? null,
+    propuestaFolio: revision?.propuestas?.folio_cnc?.trim() || null,
     propuestaRevisionId: data.propuesta_revision_id,
     snapshotJson: data.snapshot_json,
   };

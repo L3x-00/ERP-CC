@@ -95,6 +95,8 @@ export interface NotaEntrega {
   id: string;
   ordenId: string;
   folio: string;
+  /** M6: folio SII NE-MMYY_XX-YY; nulo en históricos sin folio_sii de orden. */
+  folioSii: string | null;
   recibidoPor: string;
   firmaClienteUrl: string | null;
   esParcial: boolean;
@@ -207,6 +209,7 @@ export function filaANotaEntrega(fila: FilaNotaEntrega): NotaEntrega {
     id: fila.id,
     ordenId: fila.orden_id,
     folio: fila.folio,
+    folioSii: fila.folio_sii ?? null,
     recibidoPor: fila.recibido_por,
     firmaClienteUrl: fila.firma_cliente_url,
     esParcial: fila.es_parcial,

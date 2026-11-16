@@ -50,6 +50,7 @@ const ordenInterna = {
   folio: 'O-1026_01',
   cotizacionId: '44444444-4444-4444-8444-444444444444',
   cotizacionFolio: 'RFQ-1026_01',
+  propuestaFolio: 'CNC-1026_01',
   propuestaRevisionId: '55555555-5555-4555-8555-555555555555',
   snapshotJson: {
     version: 1,
@@ -98,6 +99,7 @@ describe('entregables de Producción', () => {
       folio: 'O-1026_01',
       cotizacionId: ordenInterna.cotizacionId,
       cotizacionFolio: 'RFQ-1026_01',
+      propuestaFolio: 'CNC-1026_01',
     });
     expect(ordenPublica).not.toHaveProperty('snapshotJson');
     expect(ordenPublica).not.toHaveProperty('propuestaRevisionId');
