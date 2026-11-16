@@ -79,6 +79,18 @@ describe('mensajes operativos de corrida', () => {
     expect(mensajeErrorSesion(new ErrorProduccion('corrida_no_completable')))
       .toContain('proceso o pausada');
   });
+
+  it('explica el rechazo del setup cuando supera el tiempo transcurrido', () => {
+    expect(mensajeErrorSesion(new ErrorProduccion('minutos_setup_exceden_sesion')))
+      .toBe('Los minutos de setup no pueden superar el tiempo transcurrido de la sesión.');
+    expect(mensajeErrorSesion(new ErrorProduccion('setup_invalido')))
+      .toBe('Los minutos de setup deben ser un número válido.');
+  });
+
+  it('explica que no hay recurso libre del grupo al reclamar (A3)', () => {
+    expect(mensajeErrorSesion(new ErrorProduccion('sin_recurso_disponible')))
+      .toBe('No hay recurso libre del área para esa fecha y turno');
+  });
 });
 
 describe('verificación inicial y referencias de lote', () => {

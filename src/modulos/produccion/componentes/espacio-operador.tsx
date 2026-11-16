@@ -6,6 +6,7 @@ import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { cn } from '@/compartido/utilidades/cn';
+import { horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
   iniciarProcesoReclamadoAccion,
   liberarReclamoAccion,
@@ -18,7 +19,6 @@ import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar
 import { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import {
-  HORAS_JORNADA_OPERADOR,
   VISTAS_ESPACIO_OPERADOR,
   agruparProcesosPorArea,
   agruparProcesosPorOrden,
@@ -394,7 +394,15 @@ export function EspacioOperador({
   }
 
   function soltarEnDia(proceso: ProcesoEspacioOperador, fecha: string): void {
-    const libre = capacidadRestanteDia(cargaDelDia(fecha, proceso));
+    const jornada = horasJornadaDia(fecha);
+    if (jornada === 0) {
+      setAviso({
+        tipo: 'error',
+        texto: 'La empresa no labora ese día. Elige de lunes a sábado.',
+      });
+      return;
+    }
+    const libre = capacidadRestanteDia(cargaDelDia(fecha, proceso), fecha);
     if (proceso.horasEstimadas > libre) {
       setAviso({
         tipo: 'error',
@@ -424,7 +432,7 @@ export function EspacioOperador({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variante="info">
-              Hoy {horasLegibles(resumen.horasReclamadasHoy)} / {HORAS_JORNADA_OPERADOR} h
+              Hoy {horasLegibles(resumen.horasReclamadasHoy)} / {horasJornadaDia(hoy)} h
             </Badge>
 
             {resumen.urgentes > 0 ? (
@@ -565,7 +573,7 @@ export function EspacioOperador({
         <ul>
           {dias.map((dia) => (
             <li key={dia.fecha}>
-              {dia.fecha}: {horasLegibles(dia.horasReclamadas)} de {HORAS_JORNADA_OPERADOR} h
+              {dia.fecha}: {horasLegibles(dia.horasReclamadas)} de {dia.horasJornada} h
             </li>
           ))}
         </ul>

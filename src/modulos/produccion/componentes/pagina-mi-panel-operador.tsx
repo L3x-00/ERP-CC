@@ -19,6 +19,7 @@ import {
   type MaterialPiso,
 } from '@/modulos/ordenes/componentes/control-piso-panel';
 import type { OrdenConPartidas } from '@/modulos/ordenes/servicios/ordenes-servicio';
+import { horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
   iniciarProcesoReclamadoAccion,
   liberarReclamoAccion,
@@ -29,7 +30,6 @@ import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar
 import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/reanudar-sesion-operador';
 import { cerrarPausaOperadorAccion } from '@/modulos/produccion/acciones/cerrar-pausa-operador';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
-import { HORAS_JORNADA_OPERADOR } from '@/modulos/produccion/tipos/espacio-operador';
 import type {
   ProcesoEspacioOperador,
   VerificacionInicio,
@@ -102,10 +102,11 @@ export function PaginaMiPanelOperador({
     () => resumirJornadaDiaria(procesos, operadorId, hoy),
     [procesos, operadorId, hoy],
   );
-  const horasLibresReserva = Math.max(0, HORAS_JORNADA_OPERADOR - horasReclamadasHoy);
-  const porcentajeJornada = Math.min(100, Math.max(0,
-    jornada.horasConsolidadas / HORAS_JORNADA_OPERADOR * 100,
-  ));
+  const horasJornadaHoy = horasJornadaDia(hoy);
+  const horasLibresReserva = Math.max(0, horasJornadaHoy - horasReclamadasHoy);
+  const porcentajeJornada = horasJornadaHoy > 0
+    ? Math.min(100, Math.max(0, jornada.horasConsolidadas / horasJornadaHoy * 100))
+    : 0;
   const visibles = useMemo(
     () => filtro === 'todos'
       ? misProcesos
@@ -330,16 +331,22 @@ export function PaginaMiPanelOperador({
             <p className="text-xs text-texto-secundario">{hoy} · Horas netas cerradas</p>
           </div>
           <p className="text-2xl font-bold tabular-nums text-texto-primario">
-            {formatearHoras(jornada.horasConsolidadas)} / {formatearHoras(HORAS_JORNADA_OPERADOR)}
+            {horasJornadaHoy > 0
+              ? `${formatearHoras(jornada.horasConsolidadas)} / ${formatearHoras(horasJornadaHoy)}`
+              : 'Cerrado'}
           </p>
         </div>
-        <div role="progressbar" aria-label="Horas registradas de la jornada"
-          aria-valuemin={0} aria-valuemax={HORAS_JORNADA_OPERADOR}
-          aria-valuenow={Math.min(jornada.horasConsolidadas, HORAS_JORNADA_OPERADOR)}
-          className="h-3 overflow-hidden rounded-full bg-superficie-2">
-          <div className="h-full rounded-full bg-acento transition-[width]"
-            style={{ width: `${porcentajeJornada}%` }} />
-        </div>
+        {horasJornadaHoy > 0 ? (
+          <div role="progressbar" aria-label="Horas registradas de la jornada"
+            aria-valuemin={0} aria-valuemax={horasJornadaHoy}
+            aria-valuenow={Math.min(jornada.horasConsolidadas, horasJornadaHoy)}
+            className="h-3 overflow-hidden rounded-full bg-superficie-2">
+            <div className="h-full rounded-full bg-acento transition-[width]"
+              style={{ width: `${porcentajeJornada}%` }} />
+          </div>
+        ) : (
+          <p className="text-sm text-texto-secundario">La empresa no labora hoy.</p>
+        )}
         <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
           <div><dt className="text-texto-secundario">Horas confirmadas</dt>
             <dd className="font-semibold tabular-nums text-texto-primario">{formatearHoras(jornada.horasConsolidadas)}</dd>

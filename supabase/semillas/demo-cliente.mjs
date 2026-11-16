@@ -341,14 +341,18 @@ async function sembrarConfiguracion(adminId) {
   paso('Empresa, tarifas y plantillas');
 
   await insertar('areas_trabajo_config', [
-    { id: ID.area(1), codigo: 'LASER', nombre: 'Corte láser', color_hex: '#3B82F6', costo_hora_interno: 980, tarifa_hora_venta: 1450, es_externo: false, orden: 1 },
-    { id: ID.area(2), codigo: 'CNC', nombre: 'Maquinado CNC', color_hex: '#8B5CF6', costo_hora_interno: 1180, tarifa_hora_venta: 1750, es_externo: false, orden: 2 },
-    { id: ID.area(3), codigo: 'DOB', nombre: 'Doblez y formado', color_hex: '#F59E0B', costo_hora_interno: 520, tarifa_hora_venta: 850, es_externo: false, orden: 3 },
-    { id: ID.area(4), codigo: 'SOLD', nombre: 'Soldadura', color_hex: '#EF4444', costo_hora_interno: 420, tarifa_hora_venta: 720, es_externo: false, orden: 4 },
-    { id: ID.area(5), codigo: 'PINT', nombre: 'Acabado y pintura', color_hex: '#10B981', costo_hora_interno: 380, tarifa_hora_venta: 640, es_externo: false, orden: 5 },
-    { id: ID.area(6), codigo: 'EXT', nombre: 'Procesos externos', color_hex: '#64748B', costo_hora_interno: 0, tarifa_hora_venta: 950, es_externo: true, orden: 6 },
+    { id: ID.area(7), codigo: 'METAL_MECANICA', nombre: 'Metal mecánica', tipo: 'area', area_planeacion: 'sheet_metal', es_externo: false, orden: 10 },
+    { id: ID.area(8), codigo: 'FABRICACION_DIGITAL', nombre: 'Fabricación digital', tipo: 'area', area_planeacion: 'taller', es_externo: false, orden: 20 },
+    { id: ID.area(9), codigo: 'ACABADOS', nombre: 'Acabados', tipo: 'area', area_planeacion: 'acabados', es_externo: false, orden: 30 },
+    { id: ID.area(10), codigo: 'EXTERNO', nombre: 'Externo', tipo: 'area', area_planeacion: 'ext', es_externo: true, orden: 40 },
+    { id: ID.area(1), codigo: 'LASER', nombre: 'Corte láser', color_hex: '#3B82F6', costo_hora_interno: 980, tarifa_hora_venta: 1450, es_externo: false, tipo: 'proceso', padre_codigo: 'METAL_MECANICA', area_planeacion: 'sheet_metal', orden: 1 },
+    { id: ID.area(2), codigo: 'CNC', nombre: 'Maquinado CNC', color_hex: '#8B5CF6', costo_hora_interno: 1180, tarifa_hora_venta: 1750, es_externo: false, tipo: 'proceso', padre_codigo: 'FABRICACION_DIGITAL', area_planeacion: 'taller', orden: 2 },
+    { id: ID.area(3), codigo: 'DOB', nombre: 'Doblez y formado', color_hex: '#F59E0B', costo_hora_interno: 520, tarifa_hora_venta: 850, es_externo: false, tipo: 'proceso', padre_codigo: 'METAL_MECANICA', area_planeacion: 'sheet_metal', orden: 3 },
+    { id: ID.area(4), codigo: 'SOLD', nombre: 'Soldadura', color_hex: '#EF4444', costo_hora_interno: 420, tarifa_hora_venta: 720, es_externo: false, tipo: 'proceso', padre_codigo: 'METAL_MECANICA', area_planeacion: 'sheet_metal', orden: 4 },
+    { id: ID.area(5), codigo: 'PINT', nombre: 'Acabado y pintura', color_hex: '#10B981', costo_hora_interno: 380, tarifa_hora_venta: 640, es_externo: false, tipo: 'proceso', padre_codigo: 'METAL_MECANICA', area_planeacion: 'sheet_metal', orden: 5 },
+    { id: ID.area(6), codigo: 'EXT', nombre: 'Procesos externos', color_hex: '#64748B', costo_hora_interno: 0, tarifa_hora_venta: 950, es_externo: true, tipo: 'proceso', padre_codigo: 'EXTERNO', area_planeacion: 'ext', orden: 6 },
   ]);
-  paso('6 áreas de trabajo');
+  paso('10 áreas de trabajo');
 
   await insertar('cuentas_bancarias', [
     { id: ID.banco(1), banco: 'BBVA México', numero_cuenta: '0118472390', clabe: '012180001184723907', moneda: 'MXN', titular: 'CC Manufacturing Group S. de R.L. de C.V.', activa: true },

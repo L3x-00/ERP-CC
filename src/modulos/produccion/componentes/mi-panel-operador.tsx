@@ -17,8 +17,8 @@ import {
   DialogTitle,
 } from '@/compartido/componentes/ui/dialog';
 import { cn } from '@/compartido/utilidades/cn';
+import { HORAS_JORNADA_SABADO, HORAS_JORNADA_SEMANA, horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
-  HORAS_JORNADA_OPERADOR,
   inicioSemana,
   sumarDias,
   type ProcesoEspacioOperador,
@@ -264,41 +264,47 @@ export function MiPanelOperador({
                 <div className="mt-4 grid max-h-60 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
                   {fechas.map((fecha) => {
                     const ocupadas = cargaPorFecha.get(fecha) ?? 0;
-                    const porcentaje = Math.min(
-                      (ocupadas / HORAS_JORNADA_OPERADOR) * 100,
-                      100,
-                    );
+                    const jornadaDia = horasJornadaDia(fecha);
+                    const porcentaje = jornadaDia > 0
+                      ? Math.min((ocupadas / jornadaDia) * 100, 100)
+                      : 0;
 
                     return (
                       <div key={fecha} className="rounded-lg bg-superficie-2 p-3">
                         <div className="flex justify-between gap-2 text-xs">
                           <time dateTime={fecha}>{fecha}</time>
                           <span className="tabular-nums">
-                            {horasLegibles(ocupadas)} / {HORAS_JORNADA_OPERADOR} h
+                            {jornadaDia > 0
+                              ? `${horasLegibles(ocupadas)} / ${jornadaDia} h`
+                              : 'Cerrado'}
                           </span>
                         </div>
 
-                        <div
-                          role="progressbar"
-                          aria-label={`Carga reservada para ${fecha}`}
-                          aria-valuemin={0}
-                          aria-valuemax={HORAS_JORNADA_OPERADOR}
-                          aria-valuenow={Math.min(ocupadas, HORAS_JORNADA_OPERADOR)}
-                          className="mt-2 h-2 overflow-hidden rounded-full bg-borde"
-                        >
+                        {jornadaDia > 0 ? (
                           <div
-                            className="h-full rounded-full bg-acento transition-[width] duration-300 motion-reduce:transition-none"
-                            style={{ width: `${porcentaje}%` }}
-                          />
-                        </div>
+                            role="progressbar"
+                            aria-label={`Carga reservada para ${fecha}`}
+                            aria-valuemin={0}
+                            aria-valuemax={jornadaDia}
+                            aria-valuenow={Math.min(ocupadas, jornadaDia)}
+                            className="mt-2 h-2 overflow-hidden rounded-full bg-borde"
+                          >
+                            <div
+                              className="h-full rounded-full bg-acento transition-[width] duration-300 motion-reduce:transition-none"
+                              style={{ width: `${porcentaje}%` }}
+                            />
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-xs text-texto-tenue">La empresa no labora</p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
                 <p className="mt-3 text-xs text-texto-tenue">
-                  Referencia: {HORAS_JORNADA_OPERADOR} h por día.
-                  La capacidad definitiva la valida el servidor.
+                  Referencia: {HORAS_JORNADA_SEMANA} h de lunes a viernes y {HORAS_JORNADA_SABADO} h el
+                  sábado (domingo cerrado). La capacidad definitiva la valida el servidor.
                 </p>
               </div>
             </section>

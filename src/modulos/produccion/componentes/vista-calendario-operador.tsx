@@ -3,8 +3,8 @@
 import { Button } from '@/compartido/componentes/ui/button';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { cn } from '@/compartido/utilidades/cn';
+import { HORAS_JORNADA_SABADO, HORAS_JORNADA_SEMANA } from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
-  HORAS_JORNADA_OPERADOR,
   construirDiasCalendario,
   inicioSemana,
   sumarDias,
@@ -75,7 +75,8 @@ export function VistaCalendarioOperador({
             {etiquetaDiaLargo(primerDia)} – {etiquetaDiaLargo(ultimoDia)}
           </p>
           <p className="text-xs text-texto-secundario">
-            Jornada de {HORAS_JORNADA_OPERADOR} h por día. Arrastra un proceso a un día con horas libres.
+            Jornada de {HORAS_JORNADA_SEMANA} h de lunes a viernes y {HORAS_JORNADA_SABADO} h el
+            sábado. Arrastra un proceso a un día con horas libres.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -124,7 +125,11 @@ export function VistaCalendarioOperador({
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {dias.map((dia) => {
-          const desbordado = dia.horasReclamadas > HORAS_JORNADA_OPERADOR;
+          const cerrado = dia.horasJornada === 0;
+          const desbordado = dia.horasReclamadas > dia.horasJornada;
+          const porcentajeDia = cerrado
+            ? 0
+            : (dia.horasReclamadas / dia.horasJornada) * 100;
           return (
             <section
               key={dia.fecha}
@@ -134,7 +139,9 @@ export function VistaCalendarioOperador({
                 desbordado ? 'border-peligro' : null,
               )}
               data-testid={`dia-${dia.fecha}`}
-              aria-label={`${etiquetaDiaLargo(dia.fecha)}: ${horasLegibles(dia.horasReclamadas)} de ${HORAS_JORNADA_OPERADOR} h`}
+              aria-label={cerrado
+                ? `${etiquetaDiaLargo(dia.fecha)}: la empresa no labora`
+                : `${etiquetaDiaLargo(dia.fecha)}: ${horasLegibles(dia.horasReclamadas)} de ${dia.horasJornada} h`}
               onDragOver={(evento) => {
                 if (soloLectura) return;
                 evento.preventDefault();
@@ -154,16 +161,18 @@ export function VistaCalendarioOperador({
                     {etiquetaDiaCorto(dia.fecha)}
                   </p>
                   <span className={cn('text-xs tabular-nums', desbordado ? 'font-semibold text-peligro-texto' : 'text-texto-secundario')}>
-                    {horasLegibles(dia.horasReclamadas)} / {HORAS_JORNADA_OPERADOR} h
+                    {cerrado
+                      ? 'Cerrado'
+                      : `${horasLegibles(dia.horasReclamadas)} / ${dia.horasJornada} h`}
                   </span>
                 </div>
                 <BarraProgreso
-                  valor={(dia.horasReclamadas / HORAS_JORNADA_OPERADOR) * 100}
-                  tono={desbordado ? 'peligro' : dia.horasReclamadas >= HORAS_JORNADA_OPERADOR ? 'advertencia' : 'exito'}
+                  valor={porcentajeDia}
+                  tono={desbordado ? 'peligro' : cerrado ? 'info' : dia.horasReclamadas >= dia.horasJornada ? 'advertencia' : 'exito'}
                   etiqueta={`Carga de ${etiquetaDiaLargo(dia.fecha)}`}
                 />
                 <p className="text-[11px] text-texto-tenue">
-                  {horasLegibles(dia.horasLibres)} libres
+                  {cerrado ? 'La empresa no labora' : `${horasLegibles(dia.horasLibres)} libres`}
                 </p>
               </header>
 

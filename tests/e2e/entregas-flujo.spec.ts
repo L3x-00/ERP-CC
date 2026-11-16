@@ -341,6 +341,31 @@ test.describe('Entregas SII-B7 ola 2: folio NE, parciales, evidencia y firma', (
         { version: 2, vigente: true },
       ]);
 
+      // La evidencia es real: el objeto vive en Storage con los bytes capturados.
+      const { data: escaneada } = await admin.from('archivos')
+        .select('bucket, ruta_storage, mime, tamano_bytes')
+        .eq('entidad', 'entrega').eq('entidad_id', notaParcial!.id)
+        .eq('clase', 'firma_escaneada').eq('version', 2).single();
+      expect(escaneada?.mime).toBe('image/png');
+      expect(Number(escaneada?.tamano_bytes)).toBe(PNG_EVIDENCIA.byteLength);
+      const descargaEscaneada = await admin.storage
+        .from(escaneada!.bucket).download(escaneada!.ruta_storage);
+      expect(descargaEscaneada.error).toBeNull();
+      const bytesEscaneada = Buffer.from(await descargaEscaneada.data!.arrayBuffer());
+      expect(bytesEscaneada.equals(PNG_EVIDENCIA)).toBe(true);
+
+      const { data: firmaCanvas } = await admin.from('archivos')
+        .select('bucket, ruta_storage, mime')
+        .eq('entidad', 'entrega').eq('entidad_id', notaParcial!.id)
+        .eq('clase', 'firma').eq('version', 1).single();
+      expect(firmaCanvas?.mime).toBe('image/png');
+      const descargaFirma = await admin.storage
+        .from(firmaCanvas!.bucket).download(firmaCanvas!.ruta_storage);
+      expect(descargaFirma.error).toBeNull();
+      const bytesFirma = Buffer.from(await descargaFirma.data!.arrayBuffer());
+      expect(bytesFirma.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+      expect(bytesFirma.byteLength).toBeGreaterThan(0);
+
       // Entrega total restante: segunda nota NE-...-02, completa.
       await page.goto('/entregas');
       await page.getByTestId(`fila-pendiente-${contexto.ordenFolioSii}`)
@@ -400,6 +425,153 @@ test.describe('Entregas SII-B7 ola 2: folio NE, parciales, evidencia y firma', (
       }
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.locator('html').evaluate((elemento) => elemento.classList.remove('dark'));
+    } finally {
+      await limpiarContexto(contexto);
+    }
+  });
+
+  test('anula una nota parcial con motivo y bloquea la anulación tras la cobranza', async ({ page }) => {
+    const contexto = await prepararContexto();
+    const { admin } = contexto;
+    try {
+      await iniciarSesion(page, contexto.correo, contexto.contrasena);
+      await page.goto('/entregas');
+      await expect(page.getByTestId('cola-entregas')).toBeVisible();
+
+      // Entrega parcial de 1 de 2 piezas.
+      const filaPendiente = page.getByTestId(`fila-pendiente-${contexto.ordenFolioSii}`);
+      await expect(filaPendiente).toBeVisible();
+      await filaPendiente.getByTestId(`preparar-entrega-${contexto.ordenFolioSii}`).click();
+      await expect(page.getByTestId('panel-preparar-entrega')).toBeVisible();
+      await page.getByTestId('entrega-cantidad-0').fill('1');
+      await page.getByTestId('recibido-por-entrega').fill('Recepción anulación E2E');
+      await page.getByTestId('confirmar-registrar-entrega').click();
+      await expect(page.getByTestId('entrega-mensaje')).toContainText('NE-');
+
+      const { data: notaParcial } = await admin.from('notas_entrega')
+        .select('id, folio_sii, estado, es_parcial').eq('orden_id', contexto.ordenId).single();
+      expect(notaParcial?.es_parcial).toBe(true);
+      expect(notaParcial?.estado).toBe('VIGENTE');
+      contexto.notaIds.push(notaParcial!.id);
+
+      // La anulación es lógica: el documento conserva sus renglones originales.
+      const { data: renglonesAntes } = await admin.from('partidas_nota_entrega')
+        .select('partida_id, cantidad_entregada').eq('nota_entrega_id', notaParcial!.id);
+      expect(renglonesAntes).toHaveLength(1);
+      expect(Number(renglonesAntes![0].cantidad_entregada)).toBe(1);
+
+      // El motivo es obligatorio: sin él la nota no cambia de estado.
+      await page.goto(`/entregas/${notaParcial!.id}`);
+      await expect(page.getByTestId('detalle-entrega')).toBeVisible();
+      await page.getByTestId('abrir-anulacion-nota').click();
+      await expect(page.getByRole('dialog', { name: /Anular nota/ })).toBeVisible();
+      await page.getByTestId('confirmar-anulacion-nota').click();
+      await expect(page.getByTestId('detalle-error')).toContainText('al menos 3 caracteres');
+      await expect.poll(async () => {
+        const { data } = await admin.from('notas_entrega').select('estado').eq('id', notaParcial!.id).single();
+        return data?.estado ?? null;
+      }).toBe('VIGENTE');
+
+      // Con motivo: la nota queda ANULADA, conserva folio y deja traza auditable.
+      const motivo = 'Nota emitida por duplicado; se corrige con una nueva entrega.';
+      await page.getByTestId('motivo-anulacion-nota').fill(motivo);
+      await page.getByTestId('confirmar-anulacion-nota').click();
+      await expect(page.getByTestId('detalle-mensaje')).toContainText('Nota anulada. El documento se conserva con su historial.');
+      await expect(page.getByTestId('detalle-estado-anulada')).toContainText('ANULADA');
+      await expect(page.getByTestId('detalle-motivo-anulacion')).toContainText('por duplicado');
+      await expect(page.getByTestId('detalle-folio')).toContainText(notaParcial!.folio_sii!);
+      await expect(page.getByTestId('abrir-anulacion-nota')).toHaveCount(0);
+
+      const { data: anulada } = await admin.from('notas_entrega')
+        .select('estado, motivo_anulacion, anulada_por, anulada_en, folio_sii')
+        .eq('id', notaParcial!.id).single();
+      expect(anulada).toMatchObject({
+        estado: 'ANULADA', motivo_anulacion: motivo, anulada_por: contexto.usuarioId,
+      });
+      expect(anulada?.anulada_en).not.toBeNull();
+      expect(anulada?.folio_sii).toBe(notaParcial?.folio_sii);
+
+      // Anular no borra renglones: el documento se conserva con su historial.
+      const { data: renglonesDespues } = await admin.from('partidas_nota_entrega')
+        .select('partida_id, cantidad_entregada').eq('nota_entrega_id', notaParcial!.id);
+      expect(renglonesDespues).toEqual(renglonesAntes);
+
+      const { data: evento } = await admin.from('orden_eventos_cambio')
+        .select('tipo, motivo, detalle')
+        .eq('orden_id', contexto.ordenId).eq('tipo', 'orden_nota_anulada').single();
+      expect(evento?.motivo).toBe(motivo);
+      expect((evento?.detalle as { folio_sii?: string } | null)?.folio_sii).toBe(notaParcial?.folio_sii);
+
+      // La anulación no toca producción ni la CxC: no hay cobranza activa.
+      const { data: ordenTrasAnular } = await admin.from('ordenes_produccion')
+        .select('estado_sii, archivada_en').eq('id', contexto.ordenId).single();
+      expect(ordenTrasAnular?.estado_sii).toBe('PRODUCCION_COMPLETADA');
+      expect(ordenTrasAnular?.archivada_en).toBeNull();
+      const { data: cuentaAntes } = await admin.from('cuentas_por_cobrar')
+        .select('cobrable_desde, saldo_pendiente, monto_total').eq('orden_id', contexto.ordenId).maybeSingle();
+      if (cuentaAntes) {
+        expect(cuentaAntes.cobrable_desde).toBeNull();
+        expect(Number(cuentaAntes.saldo_pendiente)).toBeCloseTo(Number(cuentaAntes.monto_total), 4);
+      }
+
+      // Las piezas vuelven a pendientes: entrega total restante de 2 piezas.
+      await page.goto('/entregas');
+      await page.getByTestId(`fila-pendiente-${contexto.ordenFolioSii}`)
+        .getByTestId(`preparar-entrega-${contexto.ordenFolioSii}`).click();
+      await expect(page.getByTestId('panel-preparar-entrega')).toBeVisible();
+      await page.getByTestId('entrega-cantidad-0').fill('2');
+      await page.getByTestId('recibido-por-entrega').fill('Recepción final E2E');
+      await page.getByTestId('confirmar-registrar-entrega').click();
+      await expect(page.getByTestId('entrega-mensaje')).toContainText('NE-');
+
+      const { data: notaTotal } = await admin.from('notas_entrega')
+        .select('id, folio_sii, es_parcial').eq('orden_id', contexto.ordenId)
+        .eq('estado', 'VIGENTE').single();
+      contexto.notaIds.push(notaTotal!.id);
+      expect(notaTotal?.es_parcial).toBe(false);
+
+      // Con la orden entregada, Finanzas activa la CxC (el fixture no crea la
+      // cuenta al aprobar). Desde ese momento la nota ya no se puede anular.
+      const { data: cuentaExistente } = await admin.from('cuentas_por_cobrar')
+        .select('id').eq('orden_id', contexto.ordenId).maybeSingle();
+      // El monto es ilustrativo: el RPC de anulación solo mira `cobrable_desde`
+      // y los movimientos de cobranza, no el importe de la cuenta.
+      const montoCxc = 1160;
+      const cobrable = {
+        cobrable_desde: new Date().toISOString(),
+        fecha_vencimiento: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+        monto_total: montoCxc,
+        saldo_pendiente: montoCxc,
+        estado: 'pendiente' as const,
+      };
+      if (cuentaExistente) {
+        const { error: errorCuenta } = await admin.from('cuentas_por_cobrar')
+          .update(cobrable).eq('id', cuentaExistente.id);
+        if (errorCuenta) throw new Error(`No se pudo activar la CxC E2E: ${errorCuenta.message}`);
+      } else {
+        const { error: errorCuenta } = await admin.from('cuentas_por_cobrar').insert({
+          orden_id: contexto.ordenId, cliente_id: contexto.clienteId,
+          moneda: 'MXN', tipo_cambio_origen: 1, ...cobrable,
+        });
+        if (errorCuenta) throw new Error(`No se pudo crear la CxC E2E: ${errorCuenta.message}`);
+      }
+      await expect.poll(async () => {
+        const { data } = await admin.from('cuentas_por_cobrar')
+          .select('cobrable_desde').eq('orden_id', contexto.ordenId).maybeSingle();
+        return data?.cobrable_desde ?? null;
+      }).not.toBeNull();
+
+      // Con la CxC activa la anulación se bloquea y la nota sigue VIGENTE.
+      await page.goto(`/entregas/${notaTotal!.id}`);
+      await page.getByTestId('abrir-anulacion-nota').click();
+      await page.getByTestId('motivo-anulacion-nota').fill('Intento de anulación con cobranza activa');
+      await page.getByTestId('confirmar-anulacion-nota').click();
+      await expect(page.getByTestId('detalle-error')).toContainText('movimientos de cobranza');
+      await expect(page.getByTestId('detalle-estado-anulada')).toHaveCount(0);
+      await expect.poll(async () => {
+        const { data } = await admin.from('notas_entrega').select('estado').eq('id', notaTotal!.id).single();
+        return data?.estado ?? null;
+      }).toBe('VIGENTE');
     } finally {
       await limpiarContexto(contexto);
     }

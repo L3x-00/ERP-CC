@@ -1,5 +1,6 @@
 import type { Tables } from '@/compartido/tipos/supabase';
 import type { EstadoPlaneacion } from '@/modulos/planeacion/tipos/indice';
+import { horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
 import type { EstadoOrden, PrioridadOrden } from '@/modulos/ordenes/tipos/ordenes';
 import type { EstadoSiiOrden } from '@/modulos/ordenes/tipos/orden-sii';
 
@@ -14,9 +15,6 @@ export const COLUMNAS_ESPACIO_OPERADOR = [
   'lista',
 ] as const;
 export const URGENCIAS_PROCESO = ['vencida', 'urgente', 'proxima', 'normal'] as const;
-
-/** Jornada diaria del operador; el calendario y el reclamo comparten el límite. */
-export const HORAS_JORNADA_OPERADOR = 8;
 
 export type VistaEspacioOperador = (typeof VISTAS_ESPACIO_OPERADOR)[number];
 export type ColumnaEspacioOperador = (typeof COLUMNAS_ESPACIO_OPERADOR)[number];
@@ -471,6 +469,7 @@ export interface DiaCalendarioOperador {
   fecha: string;
   esHoy: boolean;
   horasReclamadas: number;
+  horasJornada: number;
   horasLibres: number;
   procesos: ProcesoEspacioOperador[];
 }
@@ -586,9 +585,9 @@ export function inicioSemana(fecha: string): string {
   return sumarDias(fecha, desplazamiento);
 }
 
-/** Saldo de horas de un día respecto a la jornada de 8 h. */
-export function capacidadRestanteDia(horasReclamadas: number): number {
-  return Math.max(Math.round((HORAS_JORNADA_OPERADOR - horasReclamadas) * 100) / 100, 0);
+/** Saldo de horas de un día respecto a la jornada del horario laboral. */
+export function capacidadRestanteDia(horasReclamadas: number, fecha: string): number {
+  return Math.max(Math.round((horasJornadaDia(fecha) - horasReclamadas) * 100) / 100, 0);
 }
 
 /**
@@ -700,11 +699,13 @@ export function construirDiasCalendario(
       (total, proceso) => total + (proceso.reclamo?.horasEstimadas ?? 0),
       0,
     );
+    const horasJornada = horasJornadaDia(fecha);
     return {
       fecha,
       esHoy: fecha === hoy,
       horasReclamadas: Math.round(horasReclamadas * 100) / 100,
-      horasLibres: Math.max(Math.round((HORAS_JORNADA_OPERADOR - horasReclamadas) * 100) / 100, 0),
+      horasJornada,
+      horasLibres: Math.max(Math.round((horasJornada - horasReclamadas) * 100) / 100, 0),
       procesos: delDia,
     };
   });
