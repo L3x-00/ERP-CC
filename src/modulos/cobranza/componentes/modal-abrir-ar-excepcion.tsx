@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/compartido/componentes/ui/dialog';
 import { Input, Select } from '@/compartido/componentes/ui/input';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearFechaCorta, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { abrirCuentaPorCobrarAccion, obtenerOrdenesSinArAccion } from '@/modulos/cobranza/acciones/indice';
 import type { OrdenSinAr } from '@/modulos/cobranza/acciones/obtener-ordenes-sin-ar';
 
@@ -164,7 +164,7 @@ export function ModalAbrirArExcepcion({
               El cliente tiene la condición <strong>crédito</strong> sin días configurados. Captura los días en su ficha para sugerir el vencimiento y poder guardar.
             </p>}
             <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
-              Cliente: {orden.clienteNombre}. Entrega: {new Date(orden.fechaEntrega).toLocaleDateString('es-MX')}.
+              Cliente: {orden.clienteNombre}. Entrega: {formatearFechaCorta(orden.fechaEntrega)}.
               {orden.totalSugerido !== null
                 ? ` RFQ: descuento ${formatearMoneda(orden.descuentoSugerido ?? 0, orden.monedaSugerida)}, subtotal neto ${formatearMoneda(orden.subtotalSugerido ?? 0, orden.monedaSugerida)}, IVA ${formatearMoneda(orden.ivaSugerido ?? 0, orden.monedaSugerida)}, total sugerido ${formatearMoneda(orden.totalSugerido, orden.monedaSugerida)}.`
                 : ' Sin RFQ disponible; confirma el importe manualmente.'}

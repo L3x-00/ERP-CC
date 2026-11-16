@@ -121,6 +121,26 @@ describe('calcularCierreOrden', () => {
     expect(cierre.puntosCriticos.length).toBeGreaterThan(0);
   });
 
+  it('agrupa el material del retrabajo con su catálogo y no lo marca sin catálogo (regresión QA)', () => {
+    const conCatalogo: DatosOrden = {
+      ...base,
+      retrabajos: [{
+        ...base.retrabajos[0]!,
+        material_id: null,
+        catalogo_material_id: 'material-1',
+      }],
+    };
+
+    const cierre = calcularCierreOrden(conCatalogo);
+
+    expect(cierre.materiales).toHaveLength(1);
+    expect(cierre.materiales[0]).toMatchObject({
+      clave: 'material-1',
+      nombre: 'LAM · Lámina',
+      cantidadReal: 6,
+    });
+  });
+
   it('costea una sola vez el tiempo total de una corrida compartida', () => {
     const shared: DatosOrden = {
       ...base,

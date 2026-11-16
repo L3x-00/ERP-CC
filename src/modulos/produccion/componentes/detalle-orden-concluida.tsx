@@ -87,6 +87,8 @@ export function DetalleOrdenConcluida({
     };
   }, [orden.partidas, orden.sesiones]);
 
+  const entregaCompleta = totales.entregadas > 0 && totales.pendientes === 0;
+
   const sesionesFinalizadas = useMemo(
     () => [...orden.sesiones]
       .filter((sesion) => sesion.estadoSesion === 'finalizada')
@@ -138,7 +140,9 @@ export function DetalleOrdenConcluida({
             </h2>
             <p className="mt-1 text-sm text-texto-secundario">
               {esOrdenConcluida
-                ? 'El trabajo de piso terminó. Consulta el avance, los consumos y los archivos; la entrega se registra aquí.'
+                ? entregaCompleta
+                  ? 'El trabajo de piso terminó y la orden ya se entregó por completo. Consulta el avance, los consumos y los archivos.'
+                  : 'El trabajo de piso terminó. Consulta el avance, los consumos y los archivos; la entrega se registra aquí.'
                 : 'Esta operación ya terminó, pero la orden aún tiene trabajo pendiente en otras operaciones.'}
             </p>
           </div>
@@ -193,7 +197,7 @@ export function DetalleOrdenConcluida({
           <div>
             <dt className="text-xs text-texto-secundario">Fecha de conclusión</dt>
             <dd className="font-medium text-texto-primario">
-              {concluidaEn ? formatearFecha(concluidaEn) : 'Por definir'}
+              {concluidaEn ? formatearFecha(concluidaEn) : 'Sin registrar'}
             </dd>
           </div>
           <div>
@@ -309,9 +313,15 @@ export function DetalleOrdenConcluida({
               {notasEntrega.map((nota) => (
                 <li key={nota.id} className="rounded-md border border-borde bg-superficie-2/50 px-3 py-2">
                   <span className="font-mono text-xs font-semibold">{nota.folio}</span>
+                  <span className="ml-1 text-[10px] uppercase tracking-wide text-texto-tenue">Folio interno</span>
+                  {nota.folioSii ? (
+                    <span className="ml-2 font-mono text-xs text-texto-secundario" title="Folio SII">
+                      · SII {nota.folioSii}
+                    </span>
+                  ) : null}
                   {' · '}
                   <span className="text-texto-secundario">
-                    {formatearFecha(nota.creadoEn)} · {nota.recibidoPor}
+                    {nota.esParcial ? 'Parcial' : 'Final'} · {formatearFecha(nota.creadoEn)} · {nota.recibidoPor}
                   </span>
                 </li>
               ))}

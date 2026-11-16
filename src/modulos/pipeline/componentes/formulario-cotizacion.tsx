@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearMontoFlexible, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { actualizarCotizacionAccion } from '@/modulos/pipeline/acciones/actualizar-cotizacion';
 import { crearCotizacionAccion } from '@/modulos/pipeline/acciones/crear-cotizacion';
 import { obtenerAreasTrabajoAccion } from '@/modulos/pipeline/acciones/obtener-areas-trabajo';
@@ -847,7 +847,7 @@ function ResumenTotales({
       </div>
       {equivalenteMostrado !== null && (
         <div className="flex items-center justify-between text-xs text-texto-secundario">
-          <span>Equivalente MXN (TC {formatearMoneda(tipoCambioUsd ?? 0, 'MXN', 4)})</span>
+          <span>Equivalente MXN (TC {formatearMontoFlexible(tipoCambioUsd ?? 0)})</span>
           <span className="tabular-nums">{formatearMoneda(equivalenteMostrado, 'MXN')}</span>
         </div>
       )}

@@ -6,7 +6,6 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
-import { JORNADA_ESTANDAR_HORAS } from '@/modulos/planeacion/utilidades/capacidad';
 
 const esquema = z
   .object({
@@ -19,7 +18,7 @@ const esquema = z
     jornadaOverrideHoras: z
       .number()
       .min(0.5, 'La jornada mínima es 0.5 h')
-      .max(24, 'La jornada máxima es 24 h')
+      .max(9, 'La jornada máxima es de 9 h (lunes a viernes)')
       .nullable(),
   })
   .strict();
@@ -31,8 +30,8 @@ const esquema = z
  *
  * Cliente 2026-11-10: la consulta diaria enumera los turnos registrados, así que
  * un recurso sin turnos guardaba equipos/jornada pero el calendario seguía sin
- * horas. Al guardar su capacidad se registra el turno base (matutino, jornada
- * estándar de 8 h) cuando el recurso no tiene ninguno.
+ * horas. Al guardar su capacidad se registran los turnos base del horario
+ * (matutino 5 h y vespertino 4 h) cuando el recurso no tiene ninguno.
  */
 export async function actualizarCapacidadRecursoAccion(
   entrada: unknown,
@@ -81,9 +80,10 @@ export async function actualizarCapacidadRecursoAccion(
 type ClienteAdmin = ReturnType<typeof crearClienteSupabaseAdmin>;
 
 /**
- * Registra el turno base `matutino` (8 h estándar) solo cuando el recurso no
- * tiene ningún turno. `ignoreDuplicates` evita pisar una configuración creada
- * en paralelo y mantiene intactos los recursos que ya tienen turnos.
+ * Registra los turnos base del horario (matutino 08:00–13:00 y vespertino
+ * 13:00–17:00) solo cuando el recurso no tiene ninguno. `ignoreDuplicates` evita
+ * pisar una configuración creada en paralelo y mantiene intactos los recursos
+ * que ya tienen turnos.
  */
 async function asegurarTurnoBase(
   admin: ClienteAdmin,
@@ -104,11 +104,10 @@ async function asegurarTurnoBase(
   const { error: errorTurno } = await admin
     .from('capacidades_recurso_turno')
     .upsert(
-      {
-        recurso_id: recursoId,
-        turno: 'matutino',
-        horas_capacidad: JORNADA_ESTANDAR_HORAS,
-      },
+      [
+        { recurso_id: recursoId, turno: 'matutino', horas_capacidad: 5 },
+        { recurso_id: recursoId, turno: 'vespertino', horas_capacidad: 4 },
+      ],
       { onConflict: 'recurso_id,turno', ignoreDuplicates: true },
     );
 

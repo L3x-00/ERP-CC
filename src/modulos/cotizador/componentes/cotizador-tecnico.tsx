@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/compartido/componentes/ui/dialog';
 import { formatearMoneda } from '@/compartido/utilidades/formatear';
@@ -101,7 +102,7 @@ function FormularioTecnico({ moneda, cantidad, inicial, soloLectura, catalogo, o
         <label className="grid gap-1 text-sm">Material<Select value={leer('material')} onChange={e=>cambiarMaterial(e.target.value)}>{['Acero al carbono','Acero inoxidable','Aluminio','Otro'].map(m=><option key={m}>{m}</option>)}</Select></label>
         {(['espesorMm','cantidad','recargoPorcentaje','descuentoPorcentaje'] as const).map((clave,i)=><label key={clave} className="grid gap-1 text-sm">{['Espesor (mm)','Cantidad de piezas','Recargo sobre costo (%)','Descuento (%)'][i]}<Input type="number" required min={clave==='cantidad'?'0.01':i===0?'0.0001':'0'} step={clave==='cantidad'?'0.01':'any'} max={clave==='descuentoPorcentaje'?100:undefined} value={leer(clave,i>1?'0':'')} onChange={e=>cambiar(clave,e.target.value)} /></label>)}
       </div>
-      <section className="grid gap-3 rounded-lg border border-borde bg-superficie-2 p-3"><h3 className="font-semibold">Medidas del plano</h3><label className="grid gap-1 text-sm">Archivo para lectura local (máximo 5 MiB)<Input type="file" accept=".dxf,.eps,.ai" onChange={e=>{lectura.current++;setLeyendo(false);setGeometria(null);setAdjuntadoMsg(null);setArchivo(e.target.files?.[0]??null);}} /></label>
+      <section className="grid gap-3 rounded-lg border border-borde bg-superficie-2 p-3"><h3 className="font-semibold">Medidas del plano</h3><div className="grid gap-1 text-sm">Archivo para lectura local (máximo 5 MiB)<CampoArchivo accept=".dxf,.eps,.ai" aria-label="Archivo para lectura local" textoVacio="Ningún plano seleccionado" onChange={e=>{lectura.current++;setLeyendo(false);setGeometria(null);setAdjuntadoMsg(null);setArchivo(e.target.files?.[0]??null);}} /></div>
         <label className="grid gap-1 text-sm">Unidad cuando el DXF no la declara<Select value={unidad} onChange={e=>setUnidad(e.target.value as UnidadGeometria|'')}><option value="">Seleccionar</option>{(['mm','cm','m','in','ft'] as const).map(u=><option key={u}>{u}</option>)}</Select></label>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variante="contorno" disabled={!archivo||leyendo} onClick={()=>void procesarArchivo()}>{leyendo?'Leyendo…':'Leer medidas'}</Button>

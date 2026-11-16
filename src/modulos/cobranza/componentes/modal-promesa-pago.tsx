@@ -14,7 +14,8 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Input } from '@/compartido/componentes/ui/input';
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { etiquetaEstado } from '@/compartido/utilidades/estados';
+import { formatearFecha, formatearMoneda } from '@/compartido/utilidades/formatear';
 import { cancelarPromesaPagoAccion } from '@/modulos/cobranza/acciones/cancelar-promesa';
 import { crearPromesaPagoAccion } from '@/modulos/cobranza/acciones/crear-promesa';
 import { obtenerPromesaCuentaAccion } from '@/modulos/cobranza/acciones/obtener-promesa-cuenta';
@@ -135,8 +136,8 @@ export function ModalPromesaPago({
         {!consulta.isPending && promesa ? (
           <div className="grid gap-3">
             <p className="text-sm">
-              Estado actual: <strong>{promesa.estado}</strong> · {formatearMoneda(promesa.monto, 'MXN')} para el{' '}
-              {promesa.fechaPrometida}
+              Estado actual: <strong>{etiquetaEstado(promesa.estado)}</strong> · {formatearMoneda(promesa.monto, 'MXN')} para el{' '}
+              {formatearFecha(promesa.fechaPrometida)}
             </p>
             {!mensaje ? (
               <>

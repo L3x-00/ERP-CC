@@ -62,7 +62,21 @@ test('SII-B1.9: documento de cliente versionado en `archivos`', async ({ page })
 
     await entrada.setInputFiles({ name: 'csf-prueba.pdf', mimeType: 'application/pdf', buffer: contenido });
     await page.getByRole('button', { name: 'Subir' }).click();
-    await expect(page.getByText('csf-prueba.pdf')).toBeVisible();
+    // El selector muestra el nombre en cuanto se elige el archivo; eso no
+    // prueba que la subida haya terminado. Espera la fila persistida.
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from('archivos')
+          .select('version')
+          .eq('entidad', 'cliente')
+          .eq('entidad_id', cliente.id)
+          .eq('nombre_erp', 'csf-prueba.pdf')
+          .maybeSingle();
+        return data?.version ?? null;
+      })
+      .toBe(1);
+    await expect(page.getByText(/csf-prueba\.pdf · v1/)).toBeVisible();
 
     const { data: primera } = await admin
       .from('archivos')

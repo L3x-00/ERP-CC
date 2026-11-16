@@ -55,6 +55,11 @@ SELECT throws_ok(
   format($$SELECT public.costear_ruteo_revision(%L, %L)$$,
     (SELECT revision_id FROM c33), '00000000-0000-4000-8000-0000000c3302'),
   '42501', 'sin_permiso_propuesta', 'sin propuesta_editar_costo no se costea');
+-- La tarifa de respaldo es configuración global: la base local puede tenerla.
+-- Se limpia dentro de la transacción para probar el bloqueo real sin tarifa.
+UPDATE public.configuracion_sistema
+SET tarifas_json = tarifas_json - 'costoHoraDefault'
+WHERE id = 'main';
 SELECT throws_ok(
   format($$SELECT public.costear_ruteo_revision(%L, %L)$$,
     (SELECT revision_id FROM c33), '00000000-0000-4000-8000-0000000c3301'),

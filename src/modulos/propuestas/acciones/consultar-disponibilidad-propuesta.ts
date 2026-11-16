@@ -22,6 +22,14 @@ const esquema = z
   .object({
     propuestaId: z.uuid('Identificador inválido'),
     revisionId: z.uuid('Identificador inválido'),
+    /**
+     * M9: fecha compromiso elegida; extiende la ventana si supera 7 días.
+     * El campo puede llegar vacío desde el formulario: se trata como «sin fecha».
+     */
+    fechaObjetivo: z.preprocess(
+      (valor) => (typeof valor === 'string' && valor.trim() === '' ? null : valor),
+      z.iso.date({ message: 'Fecha inválida' }).nullish(),
+    ),
   })
   .strict();
 
@@ -42,7 +50,7 @@ export async function consultarDisponibilidadPropuestaAccion(
   if (!analisis.success) {
     return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
   }
-  const { propuestaId, revisionId } = analisis.data;
+  const { propuestaId, revisionId, fechaObjetivo } = analisis.data;
 
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) return { exito: false, error: 'No autorizado' };
@@ -65,7 +73,7 @@ export async function consultarDisponibilidadPropuestaAccion(
       };
     }
 
-    const horizonte = horizonteDisponibilidad(new Date());
+    const horizonte = horizonteDisponibilidad(new Date(), fechaObjetivo);
     const datosRuteo = await leerRuteoRevision(servidor, revisionId);
     const gruposIds = idsGruposRequeridos(datosRuteo);
 

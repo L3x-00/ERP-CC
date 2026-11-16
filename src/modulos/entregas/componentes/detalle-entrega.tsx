@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 
 import { Button } from '@/compartido/componentes/ui/button';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,7 @@ import {
 import { Select, Textarea } from '@/compartido/componentes/ui/input';
 import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 import { anularNotaEntregaAccion } from '@/modulos/entregas/acciones/anular-nota-entrega';
 import {
   firmarEvidenciaEntregaAccion,
@@ -25,6 +27,7 @@ import {
   obtenerEntregaDetalleAccion,
   type DetalleEntregaCompleto,
 } from '@/modulos/entregas/acciones/obtener-entrega-detalle';
+import { SincronizadorEntregasRealtime } from '@/modulos/entregas/componentes/sincronizador-entregas-realtime';
 import {
   confirmarEvidenciaEntregaAccion,
   descartarEvidenciaEntregaAccion,
@@ -71,6 +74,11 @@ export function DetalleEntrega({
   const { entrega, orden } = detalle;
   const folioVisible = entrega.folioSii ?? entrega.folio;
   const estaAnulada = entrega.estado === 'ANULADA';
+  const etiquetaEntrega = etiquetaNotaEntrega({
+    esParcial: entrega.esParcial,
+    piezas: entrega.renglones.reduce((suma, renglon) => suma + renglon.cantidadEntregada, 0),
+    totalOrden: detalle.totalSolicitadoOrden,
+  });
 
   async function actualizar(): Promise<void> {
     const respuesta = await obtenerEntregaDetalleAccion({ entregaId: entrega.id });
@@ -196,14 +204,21 @@ export function DetalleEntrega({
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5" data-testid="detalle-entrega">
+      <SincronizadorEntregasRealtime alCambiar={actualizar} etiqueta="esta nota de entrega" />
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-mono text-2xl font-bold text-texto-primario" data-testid="detalle-folio">
               {folioVisible}
             </h1>
-            <span className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs font-medium text-texto-secundario">
-              {entrega.esParcial ? 'Parcial' : 'Total'}
+            <span className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-texto-secundario">
+              {entrega.folioSii ? 'Folio SII' : 'Folio interno'}
+            </span>
+            <span
+              className="rounded-full bg-superficie-2 px-2.5 py-0.5 text-xs font-medium text-texto-secundario"
+              data-testid="detalle-tipo-entrega"
+            >
+              {etiquetaEntrega.texto}
             </span>
             {estaAnulada ? (
               <span
@@ -227,6 +242,11 @@ export function DetalleEntrega({
             </Link>
             {orden.clienteNombre ? ` · ${orden.clienteNombre}` : ''} · {formatearFecha(entrega.creadoEn)}
           </p>
+          {entrega.folioSii ? (
+            <p className="text-xs text-texto-tenue" data-testid="detalle-folio-interno">
+              Folio interno de la nota: <span className="font-mono">{entrega.folio}</span>
+            </p>
+          ) : null}
           <p className="text-sm text-texto-secundario" data-testid="detalle-partes">
             Entrega: {detalle.entregadoPorNombre ?? '—'} · Recibe: {entrega.recibidoPor}
           </p>
@@ -362,16 +382,15 @@ export function DetalleEntrega({
                   <option value="firma_escaneada">Firma escaneada (industrial)</option>
                 </Select>
               </label>
-              <label className="grid flex-1 gap-1 text-xs font-medium text-texto-secundario">
+              <div className="grid flex-1 gap-1 text-xs font-medium text-texto-secundario">
                 Archivo (imagen o PDF, máx. 10 MB)
-                <input
+                <CampoArchivo
                   ref={entradaArchivo}
-                  type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  aria-label="Archivo de la evidencia"
                   data-testid="archivo-evidencia"
-                  className="min-h-11 rounded-md border border-borde bg-superficie px-3 py-2 text-sm"
                 />
-              </label>
+              </div>
               <Button type="button" tamano="sm" disabled={ocupado}
                 data-testid="subir-evidencia-entrega"
                 onClick={() => void enviarSeleccion()}>

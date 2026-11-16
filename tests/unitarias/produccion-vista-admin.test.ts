@@ -112,4 +112,86 @@ describe('PanelOperadorProduccion — vista de administrador (sin PIN)', () => {
     expect(screen.getByTestId('resumen-cierre-sesion').textContent).toContain('Material usado');
     expect(screen.getByTestId('resumen-cierre-sesion').textContent).toContain('MAT-01');
   });
+
+  it('permite al administrador finalizar sin producir una sesión abandonada (regresión QA)', async () => {
+    const onCerrarComoSupervisor = vi.fn().mockResolvedValue({ exito: true });
+    const ordenConSesion = {
+      id: 'orden-1',
+      folio: 'OP-000001',
+      estadoKanban: 'en_proceso',
+      sesiones: [{
+        id: 'sesion-1',
+        partidaId: 'partida-1',
+        programacionId: 'programacion-1',
+        operadorId: 'operador-1',
+        fechaInicio: '2026-11-15T22:19:00.000Z',
+        estadoSesion: 'activa',
+      }],
+      partidas: [{
+        id: 'partida-1',
+        codigoPieza: 'IT01',
+        programaciones: [{ id: 'programacion-1', metaProcesoId: 'meta-1' }],
+        metasProceso: [{ id: 'meta-1', nombre: 'Corte laser' }],
+      }],
+    } as never;
+
+    render(createElement(PanelOperadorProduccion, {
+      ...BASE,
+      esAdmin: true,
+      orden: ordenConSesion,
+      onCerrarComoSupervisor,
+      responsables: { 'operador-1': 'Jorge Ramírez' },
+    }));
+
+    fireEvent.click(screen.getByTestId('finalizar-sesion-supervisor-sesion-1'));
+    expect(screen.getByText(/Finalizar sesión de/)).toBeDefined();
+
+    fireEvent.change(screen.getByLabelText(/^Notas/), {
+      target: { value: 'El operador olvidó cerrar al terminar el turno.' },
+    });
+    fireEvent.submit(screen.getByTestId('confirmar-supervisor-sesion').closest('form')!);
+
+    await waitFor(() => expect(onCerrarComoSupervisor).toHaveBeenCalledWith(expect.objectContaining({
+      sesionId: 'sesion-1',
+      piezasProducidas: 0,
+      estadoDestino: 'finalizada',
+      notas: 'El operador olvidó cerrar al terminar el turno.',
+    })));
+  });
+
+  it('mantiene la pausa con motivo desde el panel del administrador', async () => {
+    const onCerrarComoSupervisor = vi.fn().mockResolvedValue({ exito: true });
+    const ordenConSesion = {
+      id: 'orden-1',
+      folio: 'OP-000001',
+      estadoKanban: 'en_proceso',
+      sesiones: [{
+        id: 'sesion-2',
+        partidaId: 'partida-1',
+        programacionId: 'programacion-1',
+        operadorId: 'operador-1',
+        fechaInicio: '2026-11-15T22:19:00.000Z',
+        estadoSesion: 'activa',
+      }],
+      partidas: [{ id: 'partida-1', codigoPieza: 'IT01', programaciones: [], metasProceso: [] }],
+    } as never;
+
+    render(createElement(PanelOperadorProduccion, {
+      ...BASE,
+      esAdmin: true,
+      orden: ordenConSesion,
+      motivosPausa: [{ codigo: 'DUDA', nombre: 'Duda', requiereNota: false, liberaMaquina: false }],
+      onCerrarComoSupervisor,
+      responsables: {},
+    }));
+
+    fireEvent.click(screen.getByTestId('pausar-sesion-supervisor-sesion-2'));
+    fireEvent.submit(screen.getByTestId('confirmar-supervisor-sesion').closest('form')!);
+
+    await waitFor(() => expect(onCerrarComoSupervisor).toHaveBeenCalledWith(expect.objectContaining({
+      sesionId: 'sesion-2',
+      estadoDestino: 'pausada',
+      motivoPausa: 'DUDA',
+    })));
+  });
 });

@@ -67,6 +67,6 @@ describe('AR-01: ficha integral de la cuenta', () => {
   it('etiqueta condiciones conocidas y declara las no capturadas', () => {
     expect(etiquetaCondicionCuenta('15_dias')).toBe('15 días');
     expect(etiquetaCondicionCuenta('otra_cosa')).toBe('otra cosa');
-    expect(etiquetaCondicionCuenta(null)).toBe('Por definir');
+    expect(etiquetaCondicionCuenta(null)).toBe('Sin condición');
   });
 });

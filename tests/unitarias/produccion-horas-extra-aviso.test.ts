@@ -17,10 +17,10 @@ describe('aviso de horas extra', () => {
     expect(horasTranscurridasSesion('no-es-fecha', new Date())).toBe(0);
   });
 
-  it('avisa cuando la sesión alcanza la jornada', () => {
+  it('avisa cuando la sesión alcanza la jornada de 9 h', () => {
     const inicio = '2026-11-02T08:00:00.000Z';
-    expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T15:59:00.000Z'))).toBe(false);
-    expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T16:00:00.000Z'))).toBe(true);
+    expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T16:59:00.000Z'))).toBe(false);
+    expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T17:00:00.000Z'))).toBe(true);
     expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T17:00:00.000Z'), 10)).toBe(false);
   });
 });

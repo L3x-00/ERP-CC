@@ -7,6 +7,7 @@ import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
+import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/material-etiqueta';
 import { registrarAvancePartidaAccion } from '@/modulos/ordenes/acciones/registrar-avance-partida';
 import { registrarConsumoOperadorAccion } from '@/modulos/ordenes/acciones/registrar-consumo';
 import { registrarTiempoOperadorAccion } from '@/modulos/ordenes/acciones/registrar-tiempo-operador';
@@ -139,6 +140,8 @@ export function ControlPisoPanel({
   const [error, setError] = useState<string | null>(null);
   const [hidratado, setHidratado] = useState(false);
   const materialSeleccionadoId = materialId || partidaActiva?.materialId || '';
+  const materialConsumo =
+    materiales.find((material) => material.id === materialSeleccionadoId) ?? null;
   const porcentajePartidaActiva =
     partidaActiva && partidaActiva.cantidadSolicitada > 0
       ? (partidaActiva.cantidadProducida / partidaActiva.cantidadSolicitada) * 100
@@ -535,22 +538,32 @@ export function ControlPisoPanel({
       {partidaActiva && mostrarConsumoMaterial ? (
         <section className="flex flex-col gap-3 rounded-lg border border-borde bg-superficie p-4">
           <h2 className="text-lg font-semibold text-texto-primario">Consumo de material</h2>
-          <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="material-consumo">
-            Material
+          <div className="flex flex-col gap-1 text-sm text-texto-secundario">
+            <label htmlFor="material-consumo">Material</label>
             <Select
               id="material-consumo"
               data-testid="material-consumo"
+              aria-describedby={materialConsumo ? 'material-consumo-ayuda' : undefined}
               value={materialSeleccionadoId}
               onChange={(evento) => setMaterialId(evento.target.value)}
             >
               <option value="">Selecciona un material</option>
               {materiales.map((material) => (
-                <option key={material.id} value={material.id}>
-                  {material.codigo} — {material.nombre} ({material.unidadBase})
+                <option
+                  key={material.id}
+                  value={material.id}
+                  title={detalleMaterial(material.codigo, material.nombre, material.unidadBase)}
+                >
+                  {etiquetaMaterial(material.codigo, material.nombre)}
                 </option>
               ))}
             </Select>
-          </label>
+            {materialConsumo ? (
+              <span id="material-consumo-ayuda" className="text-xs font-normal text-texto-tenue">
+                Unidad del material: {materialConsumo.unidadBase}. Usado y merma se capturan en esa unidad.
+              </span>
+            ) : null}
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1 text-sm text-texto-secundario" htmlFor="cantidad-consumo">
               Usado

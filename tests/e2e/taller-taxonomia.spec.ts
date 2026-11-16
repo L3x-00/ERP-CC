@@ -465,14 +465,19 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
     // Piso: la cola muestra el área legible y permite acotarla por familia.
     await iniciarPisoConPin(page, datos.pinA);
     const espacioA = page.getByTestId('espacio-operador');
-    await expect(espacioA).toContainText('Corte láser');
+    // M7: la tarjeta de piso etiqueta la operación del proceso, no el área del
+    // recurso; el área sigue aplicándose al filtro de la cola.
+    await expect(espacioA).toContainText('· corte');
+    await expect(espacioA).not.toContainText('Corte láser');
     await page.getByLabel('Filtrar por área').selectOption('METAL_MECANICA');
     await expect(espacioA).toContainText('E2E-TAX-');
     await expect(espacioA).not.toContainText('CNC');
 
     const pisoB = await browser.newPage();
     await iniciarPisoConPin(pisoB, datos.pinB);
-    await expect(pisoB.getByTestId('espacio-operador')).toContainText('CNC Router');
+    // M7: la tarjeta muestra la operación, así que el operador B se distingue
+    // por la pieza de su proceso (CNC) y no por el nombre del área.
+    await expect(pisoB.getByTestId('espacio-operador')).toContainText(/E2E-TAX-[0-9a-f]{8}-CNC/);
 
     // Tablero: el filtro por área macro acota la cola visible.
     const tablero = await browser.newPage();

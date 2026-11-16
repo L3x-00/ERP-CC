@@ -1,5 +1,6 @@
 import type { CargaCapacidadDiaria } from '@/modulos/planeacion/tipos/indice';
 import { sumarDias } from '@/modulos/planeacion/utilidades/fechas-planeacion';
+import { esDiaLaboral } from '@/modulos/planeacion/utilidades/horario-laboral';
 
 /**
  * Cuando una operación dura más que la jornada de una máquina, no se puede
@@ -97,6 +98,7 @@ export function validarPlanMultidia(
   const fechas = new Set<string>();
   for (const dia of dias) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dia.fecha)) return 'Cada día necesita una fecha válida.';
+    if (!esDiaLaboral(dia.fecha)) return 'El domingo no se labora; elige de lunes a sábado.';
     if (fechas.has(dia.fecha)) return 'No puedes repetir el mismo día en el plan.';
     fechas.add(dia.fecha);
     if (!Number.isFinite(dia.horas) || dia.horas <= 0) {

@@ -1,4 +1,4 @@
--- C10 - Espacio de operador: reclamos de proceso, jornada de 8 h y puente a sesion.
+-- C10 - Espacio de operador: reclamos de proceso, jornada de 9 h y puente a sesion.
 -- Verifica modelo, RPCs, exclusividad, capacidad diaria, liberacion y preparacion
 -- del recurso, ademas de privilegios (solo service_role).
 BEGIN;
@@ -8,7 +8,7 @@ SELECT plan(28);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: dos operadores, un cliente, un recurso con capacidad y dos partidas
--- (5 h y 4 h) con una sola meta de proceso cada una.
+-- (5 h y 5 h) con una sola meta de proceso cada una. La jornada del día es 9 h.
 -- -----------------------------------------------------------------------------
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000c1001', 'c10-operador-1@prueba.local'),
@@ -28,7 +28,7 @@ INSERT INTO public.capacidades_recurso_turno (recurso_id, turno, horas_capacidad
 
 INSERT INTO public.ordenes_produccion (id, folio, cliente_id, estado, prioridad, fecha_compromiso) VALUES
   ('00000000-0000-4000-8000-0000000c1005', 'OP-991500',
-   '00000000-0000-4000-8000-0000000c1003', 'programada', 'normal', current_date + 30);
+   '00000000-0000-4000-8000-0000000c1003', 'programada', 'normal', date_trunc('week', current_date)::date + 30);
 
 INSERT INTO public.partidas_orden_produccion (
   id, orden_id, codigo_pieza, descripcion, cantidad_solicitada, unidad_medida,
@@ -37,7 +37,7 @@ INSERT INTO public.partidas_orden_produccion (
   ('00000000-0000-4000-8000-0000000c1006', '00000000-0000-4000-8000-0000000c1005',
    'C10-P1', 'Pieza C10 cinco horas', 10, 'pza', ARRAY['Corte'], 300),
   ('00000000-0000-4000-8000-0000000c1007', '00000000-0000-4000-8000-0000000c1005',
-   'C10-P2', 'Pieza C10 cuatro horas', 8, 'pza', ARRAY['Corte'], 240);
+   'C10-P2', 'Pieza C10 cinco horas', 8, 'pza', ARRAY['Corte'], 300);
 
 CREATE TEMP TABLE c10 (clave text PRIMARY KEY, valor text);
 INSERT INTO c10 (clave, valor)
@@ -73,7 +73,7 @@ FROM public.reclamar_proceso_operador(
   '00000000-0000-4000-8000-0000000c1006',
   (SELECT valor::uuid FROM c10 WHERE clave = 'meta_p1'),
   '00000000-0000-4000-8000-0000000c1001',
-  current_date + 1,
+  date_trunc('week', current_date)::date + 1,
   'matutino'
 );
 
@@ -97,7 +97,7 @@ SELECT throws_ok(
        '00000000-0000-4000-8000-0000000c1006',
        (SELECT valor::uuid FROM c10 WHERE clave = 'meta_p1'),
        '00000000-0000-4000-8000-0000000c1001',
-       current_date + 5, 'matutino') $$,
+       date_trunc('week', current_date)::date + 4, 'matutino') $$,
   '23505', 'proceso_ya_reclamado',
   'El mismo operador no puede reclamar dos veces la misma operacion');
 
@@ -107,12 +107,12 @@ SELECT throws_ok(
        '00000000-0000-4000-8000-0000000c1006',
        (SELECT valor::uuid FROM c10 WHERE clave = 'meta_p1'),
        '00000000-0000-4000-8000-0000000c1002',
-       current_date + 1, 'matutino') $$,
+       date_trunc('week', current_date)::date + 1, 'matutino') $$,
   '23514', 'partida_asignada_otro_operador',
   'Otro operador no puede tomar una partida ya asignada');
 
 -- -----------------------------------------------------------------------------
--- 15-18. Capacidad diaria de 8 h y movimiento entre dias
+-- 15-18. Capacidad diaria de 9 h y movimiento entre dias
 -- -----------------------------------------------------------------------------
 SELECT throws_ok(
   $$ SELECT public.reclamar_proceso_operador(
@@ -121,9 +121,9 @@ SELECT throws_ok(
        (SELECT id FROM public.metas_proceso_partida
          WHERE partida_id = '00000000-0000-4000-8000-0000000c1007'),
        '00000000-0000-4000-8000-0000000c1001',
-       current_date + 1, 'matutino') $$,
+       date_trunc('week', current_date)::date + 1, 'matutino') $$,
   '23514', 'capacidad_diaria_insuficiente',
-  'La jornada rechaza un proceso que rebasa las 8 h');
+  'La jornada rechaza un proceso que rebasa las 9 h');
 
 INSERT INTO c10 (clave, valor)
 SELECT 'reclamo_p2', id::text
@@ -133,7 +133,7 @@ FROM public.reclamar_proceso_operador(
   (SELECT id FROM public.metas_proceso_partida
     WHERE partida_id = '00000000-0000-4000-8000-0000000c1007'),
   '00000000-0000-4000-8000-0000000c1001',
-  current_date + 2,
+  date_trunc('week', current_date)::date + 2,
   'matutino'
 );
 SELECT is(
@@ -145,21 +145,21 @@ SELECT throws_ok(
   $$ SELECT public.mover_reclamo_operador(
        (SELECT valor::uuid FROM c10 WHERE clave = 'reclamo_p2'),
        '00000000-0000-4000-8000-0000000c1001',
-       current_date + 1, 'matutino') $$,
+       date_trunc('week', current_date)::date + 1, 'matutino') $$,
   '23514', 'capacidad_diaria_insuficiente',
-  'Mover una reserva tambien respeta las 8 h');
+  'Mover una reserva tambien respeta las 9 h');
 
 INSERT INTO c10 (clave, valor)
 SELECT 'fecha_p2', fecha::text
 FROM public.mover_reclamo_operador(
   (SELECT valor::uuid FROM c10 WHERE clave = 'reclamo_p2'),
   '00000000-0000-4000-8000-0000000c1001',
-  current_date + 3, 'matutino'
+  date_trunc('week', current_date)::date + 3, 'matutino'
 );
 SELECT is(
   (SELECT fecha FROM public.reclamos_proceso_operador
     WHERE id = (SELECT valor::uuid FROM c10 WHERE clave = 'reclamo_p2')),
-  current_date + 3, 'La reserva se mueve al dia con capacidad');
+  date_trunc('week', current_date)::date + 3, 'La reserva se mueve al dia con capacidad');
 
 -- -----------------------------------------------------------------------------
 -- 19-24. Liberar y preparar el recurso
@@ -219,7 +219,7 @@ INSERT INTO public.programacion_areas (
 ) VALUES (
   '00000000-0000-4000-8000-0000000c1009', '00000000-0000-4000-8000-0000000c1005',
   '00000000-0000-4000-8000-0000000c1008', '00000000-0000-4000-8000-0000000c1004',
-  1, 'en_preparacion', current_date + 4, 'matutino', 3
+  1, 'en_preparacion', date_trunc('week', current_date)::date + 4, 'matutino', 3
 );
 
 INSERT INTO c10 (clave, valor)
@@ -230,7 +230,7 @@ FROM public.reclamar_proceso_operador(
   (SELECT id FROM public.metas_proceso_partida
     WHERE partida_id = '00000000-0000-4000-8000-0000000c1008'),
   '00000000-0000-4000-8000-0000000c1001',
-  current_date + 4,
+  date_trunc('week', current_date)::date + 4,
   'matutino'
 );
 

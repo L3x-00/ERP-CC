@@ -28,7 +28,14 @@ export function GraficaDonaDashboard({
   descripcion,
   formatearValor,
 }: PropsGraficaDonaDashboard) {
-  if (datos.length === 0) return null;
+  const total = datos.reduce((suma, dato) => suma + (Number.isFinite(dato.valor) ? dato.valor : 0), 0);
+  if (datos.length === 0 || total === 0) {
+    return (
+      <p role="status" className="flex h-52 items-center justify-center rounded-lg bg-superficie-2 text-sm text-texto-secundario sm:h-56">
+        Sin datos para graficar en el periodo.
+      </p>
+    );
+  }
 
   return (
     <div className="grid gap-2">

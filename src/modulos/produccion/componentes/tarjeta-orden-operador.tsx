@@ -172,7 +172,8 @@ export function TarjetaOrdenOperador({
                 </p>
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-texto-tenue">
                   <span>{horasLegibles(representante.horasEstimadas)}</span>
-                  <span>· {representante.areaNombre}</span>
+                  {/* M7: la etiqueta nombra la operación, no el área del recurso. */}
+                  <span>· {representante.procesoNombre || representante.areaNombre}</span>
                   {estadoDistinto ? (
                     <Badge variante="info">{ETIQUETAS_COLUMNA[representante.columna]}</Badge>
                   ) : null}

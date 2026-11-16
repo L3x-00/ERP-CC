@@ -110,14 +110,14 @@ test.describe.serial('capacidad instalada de Planeación (D-02)', () => {
     await page.getByTestId('toggle-capacidad-instalada').click();
     await expect(page.getByTestId('toggle-capacidad-instalada')).toHaveAttribute('aria-expanded', 'true');
     const fila = panel.getByTestId(`capacidad-recurso-${datos.codigo}`);
-    await expect(fila).toContainText('Equipos × jornada = 8 h por jornada');
+    await expect(fila).toContainText('Equipos × jornada = 8 h de lunes a viernes');
 
-    // 1 equipo × 8 h → 3 equipos × 8 h = 24 h por jornada.
+    // 1 equipo × 8 h → 3 equipos × 8 h = 24 h de lunes a viernes.
     await fila.getByLabel(`Equipos (${datos.codigo})`).fill('3');
     await fila.getByRole('button', { name: 'Guardar' }).click();
     await expect(fila.getByRole('status')).toContainText('Capacidad guardada.');
     await expect(fila.getByRole('button', { name: 'Guardado' })).toBeVisible();
-    await expect(fila.getByTestId(`capacidad-total-${datos.codigo}`)).toContainText('= 24 h por jornada');
+    await expect(fila.getByTestId(`capacidad-total-${datos.codigo}`)).toContainText('= 24 h de lunes a viernes');
     await expect.poll(async () => {
       const { data } = await datos.admin
         .from('recursos_planeacion')
@@ -127,14 +127,14 @@ test.describe.serial('capacidad instalada de Planeación (D-02)', () => {
       return `${data?.cantidad_equipos}:${data?.capacidad_jornada_override_horas}`;
     }).toBe('3:null');
 
-    // Override de jornada: 3 equipos × 6 h = 18 h por jornada. Editar el campo
+    // Override de jornada: 3 equipos × 6 h = 18 h de lunes a viernes. Editar el campo
     // devuelve el botón a «Guardar» antes de volver a guardar.
     await fila.getByLabel(`Jornada por equipo (h, opcional)`).fill('6');
     await expect(fila.getByRole('button', { name: 'Guardar' })).toBeVisible();
     await fila.getByRole('button', { name: 'Guardar' }).click();
     await expect(fila.getByRole('status')).toContainText('Capacidad guardada.');
     await expect(fila.getByRole('button', { name: 'Guardado' })).toBeVisible();
-    await expect(fila.getByTestId(`capacidad-total-${datos.codigo}`)).toContainText('= 18 h por jornada');
+    await expect(fila.getByTestId(`capacidad-total-${datos.codigo}`)).toContainText('= 18 h de lunes a viernes');
     await expect.poll(async () => {
       const { data } = await datos.admin
         .from('recursos_planeacion')
@@ -182,9 +182,10 @@ test.describe.serial('capacidad instalada reflejada en el calendario (D-02)', ()
       .getByTestId('panel-capacidad-instalada')
       .getByTestId(`capacidad-recurso-${datos.codigo}`);
     await expect(fila).toContainText('Turnos: sin turnos');
-    await expect(fila).toContainText('Equipos × jornada = 8 h por jornada');
+    await expect(fila).toContainText('Equipos × jornada = 9 h de lunes a viernes');
 
-    // Al guardar se registra el turno base; sin él la consulta diaria no
+    // Al guardar se registran los turnos base del horario: matutino 5 h y
+    // vespertino 4 h (9 h de jornada); sin ellos la consulta diaria no
     // enumeraba el recurso y el calendario quedaba «sin turnos».
     await fila.getByRole('button', { name: 'Guardar' }).click();
     await expect(fila.getByRole('status')).toContainText('Capacidad guardada.');
@@ -194,17 +195,19 @@ test.describe.serial('capacidad instalada reflejada en el calendario (D-02)', ()
       const { data } = await datos.admin
         .from('capacidades_recurso_turno')
         .select('turno, horas_capacidad')
-        .eq('recurso_id', datos.recursoId);
+        .eq('recurso_id', datos.recursoId)
+        .order('turno');
       return (data ?? []).map((turno) => `${turno.turno}:${turno.horas_capacidad}`).join(',');
-    }).toBe('matutino:8');
+    }).toBe('matutino:5,vespertino:4');
 
-    await expect(fila).toContainText('Turnos: 8 h');
+    await expect(fila).toContainText('matutino 5 h');
+    await expect(fila).toContainText('vespertino 4 h');
 
     const resumen = page.getByTestId('resumen-carga-semanal');
     const filaResumen = resumen.locator('tr', { hasText: datos.codigo });
-    await expect(filaResumen).toContainText('0/8 h');
+    await expect(filaResumen).toContainText('0/9 h');
     await expect(filaResumen).not.toContainText('Sin turnos definidos');
-    await expect(page.getByTestId(`libre-${datos.codigo}`)).toContainText('40 h');
+    await expect(page.getByTestId(`libre-${datos.codigo}`)).toContainText('49 h');
   });
 });
 
@@ -467,8 +470,11 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
       .toBe(1);
 
     // '6/8 h' con auto-espera; no se asevera ausencia de 'Sin turnos definidos'.
-    await expect(resumen).toContainText('6/8 h');
-    await expect(resumen.locator('[aria-label="Cerca del límite: 6/8 h"]')).toBeVisible();
+    // El locator se acota a la fila del recurso E2E: la base local conserva
+    // equipos de otras corridas con la misma carga.
+    const filaSemana = resumen.locator('tr', { hasText: datos.codigo });
+    await expect(filaSemana).toContainText('6/8 h');
+    await expect(filaSemana.locator('[aria-label="Cerca del límite: 6/8 h"]')).toBeVisible();
 
     // Si la jornada baja a 4 h, el mismo día se declara Sobrecargado con horas.
     const { error: errorCapacidad } = await datos.admin
@@ -482,9 +488,10 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await expect(page.getByTestId('pagina-planeacion')).toBeVisible();
     await aplicarRangoRelativo(page, semana);
     const resumenTrasRecarga = page.getByTestId('resumen-carga-semanal');
-    await expect(resumenTrasRecarga).toContainText('6/4 h');
+    const filaTrasRecarga = resumenTrasRecarga.locator('tr', { hasText: datos.codigo });
+    await expect(filaTrasRecarga).toContainText('6/4 h');
     await expect(
-      resumenTrasRecarga.locator('[aria-label="Sobrecargado: 6/4 h"]'),
+      filaTrasRecarga.locator('[aria-label="Sobrecargado: 6/4 h"]'),
     ).toBeVisible();
   });
 

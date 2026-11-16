@@ -419,7 +419,7 @@ export function CalendarioPlaneacion({
             </label>
             <fieldset className="flex flex-wrap gap-2 text-xs">
               <legend className="mb-1">Turnos</legend>
-              {TURNOS_PLANEACION.map((valor) => (
+              {(['matutino', 'vespertino'] as const).map((valor) => (
                 <label key={valor} className="flex items-center gap-1">
                   <input
                     type="checkbox"
@@ -429,6 +429,10 @@ export function CalendarioPlaneacion({
                   {ETIQUETA_TURNO[valor]}
                 </label>
               ))}
+              <span className="w-full text-[11px] text-texto-tenue">
+                Matutino 08:00–13:00 · Vespertino 13:00–17:00 · sábado solo matutino 08:00–12:00
+                · domingo cerrado.
+              </span>
             </fieldset>
           </div>
         </details>

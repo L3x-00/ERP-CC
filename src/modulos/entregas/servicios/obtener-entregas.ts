@@ -150,6 +150,8 @@ export type EntregaCola = {
   esInterna: boolean;
   clienteNombre: string | null;
   totalPiezas: number;
+  /** M6: total solicitado de la orden para «Final · 80 de 200». */
+  totalSolicitadoOrden: number;
 };
 
 type OrdenEmbed = {
@@ -185,7 +187,7 @@ export async function obtenerColaEntregas(
   if (entregas.length === 0) return [];
 
   const ordenIds = [...new Set(entregas.map((entrega) => entrega.ordenId))];
-  const [{ data: ordenes }, { data: renglones }] = await Promise.all([
+  const [{ data: ordenes }, { data: renglones }, { data: partidasOrden }] = await Promise.all([
     cliente
       .from('ordenes_produccion')
       .select('id, folio, folio_sii, es_interna, clientes(razon_social, nombre_comercial)')
@@ -197,7 +199,19 @@ export async function obtenerColaEntregas(
         'nota_entrega_id',
         entregas.map((entrega) => entrega.id),
       ),
+    cliente
+      .from('partidas_orden_produccion')
+      .select('orden_id, cantidad_solicitada')
+      .in('orden_id', ordenIds),
   ]);
+
+  const solicitadoPorOrden = new Map<string, number>();
+  for (const partida of partidasOrden ?? []) {
+    solicitadoPorOrden.set(
+      partida.orden_id,
+      (solicitadoPorOrden.get(partida.orden_id) ?? 0) + Number(partida.cantidad_solicitada),
+    );
+  }
 
   const ordenPorId = new Map((ordenes ?? []).map((orden) => [orden.id, orden as unknown as OrdenEmbed]));
   const renglonesPorNota = new Map<string, RenglonEntrega[]>();
@@ -218,6 +232,7 @@ export async function obtenerColaEntregas(
       esInterna: orden?.es_interna ?? false,
       clienteNombre: nombreCliente(orden),
       totalPiezas: propios.reduce((suma, renglon) => suma + renglon.cantidadEntregada, 0),
+      totalSolicitadoOrden: solicitadoPorOrden.get(entrega.ordenId) ?? 0,
     };
   });
 }
@@ -329,6 +344,8 @@ export type DetalleEntrega = {
     clienteNombre: string | null;
   };
   entregadoPorNombre: string | null;
+  /** M6: total solicitado de la orden para «Final · 80 de 200». */
+  totalSolicitadoOrden: number;
 };
 
 /** SII-B7.3: detalle de una nota exacta (o `null` si no existe/visible). */
@@ -347,16 +364,26 @@ export async function obtenerDetalleEntrega(
   if (!nota) return null;
 
   const entrega = filaAEntrega(nota);
-  const { data: renglones } = await cliente
-    .from('partidas_nota_entrega')
-    .select('*')
-    .eq('nota_entrega_id', notaId);
-  const { data: orden } = await cliente
-    .from('ordenes_produccion')
-    .select('id, folio, folio_sii, es_interna, clientes(razon_social, nombre_comercial)')
-    .eq('id', entrega.ordenId)
-    .maybeSingle();
+  const [{ data: renglones }, { data: orden }, { data: partidasOrden }] = await Promise.all([
+    cliente
+      .from('partidas_nota_entrega')
+      .select('*')
+      .eq('nota_entrega_id', notaId),
+    cliente
+      .from('ordenes_produccion')
+      .select('id, folio, folio_sii, es_interna, clientes(razon_social, nombre_comercial)')
+      .eq('id', entrega.ordenId)
+      .maybeSingle(),
+    cliente
+      .from('partidas_orden_produccion')
+      .select('cantidad_solicitada')
+      .eq('orden_id', entrega.ordenId),
+  ]);
   const ordenEmbed = (orden as unknown as OrdenEmbed | null) ?? null;
+  const totalSolicitadoOrden = (partidasOrden ?? []).reduce(
+    (suma, partida) => suma + Number(partida.cantidad_solicitada),
+    0,
+  );
 
   let entregadoPorNombre: string | null = null;
   if (entrega.entregadoPorId) {
@@ -381,5 +408,6 @@ export async function obtenerDetalleEntrega(
       clienteNombre: nombreCliente(ordenEmbed),
     },
     entregadoPorNombre,
+    totalSolicitadoOrden,
   };
 }

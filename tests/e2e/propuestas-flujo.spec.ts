@@ -922,8 +922,11 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await page.getByRole('button', { name: 'Consultar disponibilidad' }).click();
       const consulta = page.getByTestId('disponibilidad-propuesta');
       await expect(consulta).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-      await expect(consulta).toContainText(/48(?:[.,]00)?\s*h/);
-      await expect(consulta).toContainText(/44(?:[.,]00)?\s*h/);
+      // Jornada C18: 5 días laborables de 8 h + sábado de 4 h, domingo cerrado.
+      const capacidad = consulta.locator('dl > div').filter({ hasText: 'Capacidad' });
+      await expect(capacidad).toContainText('44.00 h');
+      const disponible = consulta.locator('dl > div').filter({ hasText: 'Disponible' });
+      await expect(disponible).toContainText('44.00 h');
       await expect(consulta).toContainText('equipos activos sin turnos configurados');
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
@@ -964,8 +967,22 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         await paginaGerencia.getByRole('button', { name: 'Consultar disponibilidad' }).click();
         const consultaGerencia = paginaGerencia.getByTestId('disponibilidad-propuesta');
         await expect(consultaGerencia).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-        await expect(consultaGerencia).toContainText(/48(?:[.,]00)?\s*h/);
-        await expect(consultaGerencia).toContainText(/44(?:[.,]00)?\s*h/);
+        // Sin fecha compromiso, esta sesión consulta la ventana por defecto de 7
+        // días, así que el total depende del día de la semana en que corra la
+        // prueba. Se valida la coherencia del resumen en vez de un número fijo:
+        // la carga programada del fixture es 4 h y el disponible debe ser la
+        // capacidad menos esa carga.
+        const campoGerencia = (etiqueta: RegExp) =>
+          consultaGerencia.locator('dl > div').filter({ hasText: etiqueta });
+        const horasGerencia = async (etiqueta: RegExp) =>
+          Number((await campoGerencia(etiqueta).innerText()).replace(/[^\d.]/g, ''));
+        await expect(campoGerencia(/^Capacidad/)).toContainText(/\d+\.\d{2} h/);
+        await expect(campoGerencia(/^Carga programada/)).toContainText('4.00 h');
+        await expect(campoGerencia(/^Disponible/)).toContainText(/\d+\.\d{2} h/);
+        expect(await horasGerencia(/^Disponible/)).toBeCloseTo(
+          (await horasGerencia(/^Capacidad/)) - 4,
+          2,
+        );
       } finally {
         await contextoGerencia.close();
       }
@@ -995,11 +1012,21 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
 
       // Al volver a consultar, una modificación externa de la carga se refleja
       // sin que Comercial tenga que volver a introducir la fecha elegida.
-      const cargaActualizada = await admin.from('programacion_areas').update({ horas_estimadas: 6 })
+      // M9: la ventana termina en la fecha compromiso, así que la carga de
+      // prueba se mueve a un día laborable dentro de esa ventana.
+      let fechaCarga = sumarDias(fechaCompromiso, -6);
+      while ([0, 6].includes(new Date(`${fechaCarga}T00:00:00.000Z`).getUTCDay())) {
+        fechaCarga = sumarDias(fechaCarga, 1);
+      }
+      const cargaActualizada = await admin.from('programacion_areas')
+        .update({ horas_estimadas: 6, fecha_programada: fechaCarga })
         .eq('partida_id', contexto.disponibilidad!.partidaId!);
       expect(cargaActualizada.error).toBeNull();
       await page.getByRole('button', { name: 'Volver a consultar' }).click();
-      await expect(consulta).toContainText(/42(?:[.,]00)?\s*h/);
+      await expect(capacidad).toContainText('44.00 h');
+      await expect(consulta.locator('dl > div').filter({ hasText: 'Carga programada' }))
+        .toContainText('6.00 h');
+      await expect(disponible).toContainText('38.00 h');
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
       // C4.1: la fecha compromiso comercial es obligatoria al aceptar.

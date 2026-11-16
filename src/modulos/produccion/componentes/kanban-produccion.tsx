@@ -4,7 +4,7 @@ import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { cn } from '@/compartido/utilidades/cn';
-import { formatearNumero } from '@/compartido/utilidades/formatear';
+import { formatearFecha, formatearNumero } from '@/compartido/utilidades/formatear';
 import type {
   AreaCatalogoProduccion,
   OrdenTableroProduccion,
@@ -179,9 +179,12 @@ export function KanbanProduccion({
                         : 'border-borde bg-superficie',
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <strong className="font-mono text-base font-semibold text-texto-primario">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <strong
+                          className="min-w-0 truncate whitespace-nowrap font-mono text-base font-semibold text-texto-primario"
+                          title={orden.folio}
+                        >
                           {orden.folio}
                         </strong>
                         {orden.esInterna && (
@@ -265,7 +268,7 @@ export function KanbanProduccion({
                       </div>
                     </details>
                     <p className="text-sm text-texto-secundario">
-                      Compromiso: <span className="whitespace-nowrap">{new Date(orden.fechaCompromiso).toLocaleDateString('es-MX')}</span>
+                      Compromiso: <span className="whitespace-nowrap">{formatearFecha(orden.fechaCompromiso)}</span>
                     </p>
                   </article>
                 ))}

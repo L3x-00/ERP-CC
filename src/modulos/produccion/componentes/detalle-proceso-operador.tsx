@@ -15,6 +15,8 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { cn } from '@/compartido/utilidades/cn';
+import { etiquetaEstado } from '@/compartido/utilidades/estados';
+import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/material-etiqueta';
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
@@ -24,6 +26,8 @@ import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
   ayudaLimitePiezas,
+  etiquetaEstadoOrden,
+  etiquetaEstadoPlaneacion,
   horasTranscurridasSesion,
   maximoPiezasProceso,
   sesionCercaDeJornada,
@@ -57,6 +61,10 @@ import { justificarHorasExtraAccion } from '@/modulos/produccion/acciones/justif
 import { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
 import { CampoEntero } from '@/modulos/produccion/componentes/campo-entero';
 import { obtenerUrlArchivoPisoAccion } from '@/modulos/ordenes/acciones/obtener-url-archivo-piso';
+import {
+  turnosDelDia,
+  ventanaTurno,
+} from '@/modulos/planeacion/utilidades/horario-laboral';
 import {
   etiquetaDiaLargo,
   etiquetaFechaHora,
@@ -125,7 +133,6 @@ export interface PropsDetalleProceso {
   presentacion?: 'dialogo' | 'integrado';
 }
 
-const TURNOS = ['matutino', 'vespertino', 'nocturno'] as const;
 const CLASE_ETIQUETA = 'grid gap-1 text-sm font-medium text-texto-secundario';
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
@@ -164,6 +171,7 @@ export function DetalleProcesoOperador({
     return materiales.length === 1 ? materiales[0].id : '';
   });
   const [cierreAbierto, setCierreAbierto] = useState(false);
+  const materialElegido = materiales.find((material) => material.id === materialId) ?? null;
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
   // B7: el consumo real exige motivo y el setup se identifica sin duplicar costo.
@@ -529,6 +537,14 @@ export function DetalleProcesoOperador({
       });
       return;
     }
+    const minutosTranscurridos = horasSesion * 60;
+    if (minutosSetupNumero !== undefined && minutosSetupNumero > minutosTranscurridos + 1) {
+      fallarCierre({
+        exito: false,
+        error: `El setup (${minutosSetupNumero} min) no puede superar el tiempo transcurrido de la sesión (${Math.max(Math.floor(minutosTranscurridos), 0)} min).`,
+      });
+      return;
+    }
 
     if (estadoDestino === 'finalizada' && registrarRetrabajo && !retrabajoRegistrado) {
       const rUsado = Number(retrabajoUsado);
@@ -718,11 +734,14 @@ export function DetalleProcesoOperador({
           consumoPiezas.exito
             ? {
                 tipo: 'ok',
-                texto: `Piezas consumidas: ${formatearNumero(usadaConsumoPiezas, 0)} · merma: ${formatearNumero(merma, 0)}.`,
+                texto: [
+                  `Piezas consumidas: ${formatearNumero(usadaConsumoPiezas, 0)}`,
+                  ...(merma > 0 ? [`merma: ${formatearNumero(merma, 0)}`] : []),
+                ].join(' · ') + '.',
               }
             : {
-                tipo: 'error',
                 texto: `La sesión cerró, pero el consumo de piezas falló: ${consumoPiezas.error}`,
+                tipo: 'error',
               },
         );
         if (!consumoPiezas.exito) {
@@ -1053,7 +1072,7 @@ export function DetalleProcesoOperador({
           </Badge>
         </div>
         <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          <Dato etiqueta="Estado" valor={proceso.estadoOrden} />
+          <Dato etiqueta="Estado" valor={etiquetaEstadoOrden(proceso.estadoOrden)} />
           <Dato etiqueta="Fecha entrega" valor={etiquetaDiaLargo(proceso.fechaCompromiso)} />
           <Dato etiqueta="Planeado" valor={proceso.programacion ? etiquetaDiaLargo(proceso.programacion.fecha) : 'Sin programar'} />
           <Dato
@@ -1185,7 +1204,11 @@ export function DetalleProcesoOperador({
           <Dato
             etiqueta="Programación"
             valor={proceso.programacion
-              ? `${turnoLegible(proceso.programacion.turno)} · ${proceso.programacion.recursoNombre ?? 'recurso'}`
+              ? `${proceso.procesoNombre} · ${turnoLegible(proceso.programacion.turno)} · ${
+                [proceso.programacion.recursoCodigo, proceso.programacion.recursoNombre]
+                  .filter(Boolean)
+                  .join(' · ') || 'recurso'
+              }`
               : 'Sin programar'}
           />
           {proceso.piezasDisponibles !== null ? (
@@ -1218,7 +1241,7 @@ export function DetalleProcesoOperador({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-medium">{sesion.operadorNombre}</span>
                         <Badge variante={sesion.estadoSesion === 'activa' ? 'exito' : sesion.estadoSesion === 'pausada' ? 'alerta' : 'neutro'}>
-                          {sesion.estadoSesion}
+                          {etiquetaEstado(sesion.estadoSesion)}
                         </Badge>
                       </div>
                       <p className="text-xs text-texto-secundario">
@@ -1504,7 +1527,7 @@ export function DetalleProcesoOperador({
                     cierreAbierto ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                   )}
                 >
-                  <div className="grid gap-3 overflow-hidden">
+                  <div className="grid min-h-0 gap-3 overflow-clip">
                 {proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada') ? (
                   <p
                     data-testid="nota-pausas-independientes"
@@ -1557,6 +1580,7 @@ export function DetalleProcesoOperador({
                       <Input
                         type="number"
                         min="0"
+                        max={Math.max(Math.floor(horasSesion * 60), 0)}
                         step="1"
                         value={minutosSetup}
                         onChange={(evento) => setMinutosSetup(evento.target.value)}
@@ -1564,7 +1588,8 @@ export function DetalleProcesoOperador({
                         data-testid="minutos-setup"
                       />
                       <span className="text-xs font-normal text-texto-tenue">
-                        Identifica el setup dentro del tiempo real; no se cobra dos veces.
+                        Identifica el setup dentro del tiempo real; no se cobra dos veces. Máximo{' '}
+                        {Math.max(Math.floor(horasSesion * 60), 0)} min (tiempo transcurrido).
                       </span>
                     </label>
                   ) : null}
@@ -1654,8 +1679,12 @@ export function DetalleProcesoOperador({
                             >
                               <option value="">Selecciona un material</option>
                               {materiales.map((material) => (
-                                <option key={material.id} value={material.id}>
-                                  {material.codigo} — {material.nombre} ({material.unidadBase})
+                                <option
+                                  key={material.id}
+                                  value={material.id}
+                                  title={detalleMaterial(material.codigo, material.nombre, material.unidadBase)}
+                                >
+                                  {etiquetaMaterial(material.codigo, material.nombre)}
                                 </option>
                               ))}
                             </Select>
@@ -1663,6 +1692,11 @@ export function DetalleProcesoOperador({
                           {proceso.material && materialId === proceso.material.id ? (
                             <span className="text-xs font-normal text-texto-tenue">
                               Preseleccionado desde el material del ítem.
+                            </span>
+                          ) : null}
+                          {materialElegido ? (
+                            <span className="text-xs font-normal text-texto-tenue">
+                              Unidad del material: {materialElegido.unidadBase}.
                             </span>
                           ) : null}
 
@@ -1889,8 +1923,12 @@ export function DetalleProcesoOperador({
                                   data-testid="consumo-cliente-material"
                                 >
                                   {materialClientePartida.map((material) => (
-                                    <option key={material.materialId} value={material.materialId}>
-                                      {material.materialCodigo} — {material.materialNombre} ({material.unidadBase})
+                                    <option
+                                      key={material.materialId}
+                                      value={material.materialId}
+                                      title={detalleMaterial(material.materialCodigo, material.materialNombre, material.unidadBase)}
+                                    >
+                                      {etiquetaMaterial(material.materialCodigo, material.materialNombre)}
                                     </option>
                                   ))}
                                 </Select>
@@ -1967,8 +2005,12 @@ export function DetalleProcesoOperador({
                                 >
                                   <option value="">Selecciona un material</option>
                                   {materiales.map((material) => (
-                                    <option key={material.id} value={material.id}>
-                                      {material.codigo} — {material.nombre} ({material.unidadBase})
+                                    <option
+                                      key={material.id}
+                                      value={material.id}
+                                      title={detalleMaterial(material.codigo, material.nombre, material.unidadBase)}
+                                    >
+                                      {etiquetaMaterial(material.codigo, material.nombre)}
                                     </option>
                                   ))}
                                 </Select>
@@ -2110,15 +2152,29 @@ export function DetalleProcesoOperador({
                   Día de la jornada
                   <Input
                     type="date"
+                    min={hoy}
                     value={fecha}
-                    onChange={(evento) => setFecha(evento.target.value)}
+                    onChange={(evento) => {
+                      const nueva = evento.target.value;
+                      setFecha(nueva);
+                      const permitidos = nueva === '' ? [] : turnosDelDia(nueva);
+                      if (permitidos.length > 0 && !permitidos.includes(turno as never)) {
+                        setTurno(permitidos[0]!);
+                      }
+                    }}
                   />
                 </label>
                 <label className={CLASE_ETIQUETA}>
                   Turno
-                  <Select value={turno} onChange={(evento) => setTurno(evento.target.value)}>
-                    {TURNOS.map((valor) => (
-                      <option key={valor} value={valor}>{turnoLegible(valor)}</option>
+                  <Select
+                    value={turno}
+                    onChange={(evento) => setTurno(evento.target.value)}
+                  >
+                    {(turnosDelDia(fecha).length > 0 ? turnosDelDia(fecha) : (['matutino'] as const)).map((valor) => (
+                      <option key={valor} value={valor}>
+                        {turnoLegible(valor)}
+                        {ventanaTurno(fecha, valor) ? ` · ${ventanaTurno(fecha, valor)}` : ''}
+                      </option>
                     ))}
                   </Select>
                 </label>
@@ -2132,6 +2188,10 @@ export function DetalleProcesoOperador({
                     Mover reserva
                   </Button>
                 ) : null}
+                <p className="text-xs text-texto-tenue sm:col-span-3">
+                  Horario de la empresa: lunes a viernes 08:00–17:00 (matutino 08:00–13:00,
+                  vespertino 13:00–17:00) y sábado 08:00–12:00. El domingo no se labora.
+                </p>
               </div>
             ) : null}
 
@@ -2206,8 +2266,8 @@ export function DetalleProcesoOperador({
             valor={horasLegibles(resumenCierre.resultado.horasNetas)}
           />
           <Dato etiqueta="Resultado" valor="Sesión finalizada" />
-          <Dato etiqueta="Estado de orden" valor={resumenCierre.resultado.estadoOrden} />
-          <Dato etiqueta="Planeación" valor={resumenCierre.resultado.estadoPlaneacion} />
+          <Dato etiqueta="Estado de orden" valor={etiquetaEstadoOrden(resumenCierre.resultado.estadoOrden)} />
+          <Dato etiqueta="Planeación" valor={etiquetaEstadoPlaneacion(resumenCierre.resultado.estadoPlaneacion)} />
           <Dato
             etiqueta="Material usado"
             valor={`${resumenCierre.material.codigo} · ${formatearNumero(resumenCierre.cantidadUsada, 3)} ${resumenCierre.material.unidadBase}`}

@@ -230,8 +230,13 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     const region = await screen.findByRole('region', { name: 'Disponibilidad informativa' });
     await waitFor(() => expect(within(region).getByText('CNC Router')).toBeTruthy());
     expect(consultarMock).toHaveBeenCalledTimes(1);
-    // Solo identificadores: grupos, horas y capacidad los calcula el servidor.
-    expect(consultarMock).toHaveBeenCalledWith({ propuestaId: 'propuesta-1', revisionId: 'rev-a' });
+    // Solo identificadores y la fecha compromiso (M9): grupos, horas y
+    // capacidad los calcula el servidor.
+    expect(consultarMock).toHaveBeenCalledWith({
+      propuestaId: 'propuesta-1',
+      revisionId: 'rev-a',
+      fechaObjetivo: FECHA_FUTURA,
+    });
     expect(within(region).getByText('20.00 h')).toBeTruthy();
     expect(within(region).getByText('13.00 h')).toBeTruthy();
     expect(within(region).getByText('5.00 h')).toBeTruthy();

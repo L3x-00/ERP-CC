@@ -1,89 +1,9 @@
 'use client';
 
 import { cn } from '@/compartido/utilidades/cn';
+import { definicionEstado, type TonoEstado } from '@/compartido/utilidades/estados';
 
-export type TonoEstado = 'neutro' | 'exito' | 'advertencia' | 'peligro' | 'info';
-
-type DefinicionEstado = {
-  tono: TonoEstado;
-  etiqueta: string;
-  /** Punto pulsante para estados con actividad en tiempo real. */
-  ping?: boolean;
-};
-
-/**
- * Mapa único de estados del negocio → color semántico + etiqueta legible.
- * Centraliza la consistencia entre módulos (antes cada tabla pintaba a mano).
- */
-const ESTADOS: Record<string, DefinicionEstado> = {
-  // Órdenes de producción
-  borrador: { tono: 'neutro', etiqueta: 'Borrador' },
-  programada: { tono: 'info', etiqueta: 'Programada' },
-  en_proceso: { tono: 'info', etiqueta: 'En proceso', ping: true },
-  pausada: { tono: 'advertencia', etiqueta: 'Pausada' },
-  completada: { tono: 'exito', etiqueta: 'Completada' },
-  terminada: { tono: 'exito', etiqueta: 'Terminada' },
-  lista: { tono: 'exito', etiqueta: 'Lista' },
-  entregada: { tono: 'exito', etiqueta: 'Entregada' },
-  cancelada: { tono: 'neutro', etiqueta: 'Cancelada' },
-  cancelado: { tono: 'neutro', etiqueta: 'Cancelado' },
-
-  // Órdenes SII-B5 (estado derivado del avance)
-  confirmada: { tono: 'neutro', etiqueta: 'Confirmada' },
-  en_produccion: { tono: 'info', etiqueta: 'En producción', ping: true },
-  produccion_completada: { tono: 'exito', etiqueta: 'Producción completada' },
-  cerrada: { tono: 'exito', etiqueta: 'Cerrada' },
-
-  // Facturación/Compras/Tesorería (SII-B8)
-  emitida: { tono: 'exito', etiqueta: 'Emitida' },
-  recibida: { tono: 'info', etiqueta: 'Recibida' },
-  conciliado: { tono: 'exito', etiqueta: 'Conciliado' },
-
-  // Cobranza / Gastos
-  pendiente: { tono: 'advertencia', etiqueta: 'Pendiente' },
-  parcial: { tono: 'info', etiqueta: 'Parcial' },
-  parcialmente_pagada: { tono: 'info', etiqueta: 'Parcialmente pagada' },
-  pagado: { tono: 'exito', etiqueta: 'Pagado' },
-  pagada: { tono: 'exito', etiqueta: 'Pagada' },
-  aprobado: { tono: 'info', etiqueta: 'Aprobado' },
-  vencida: { tono: 'peligro', etiqueta: 'Vencida', ping: true },
-
-  // Planeación
-  en_preparacion: { tono: 'info', etiqueta: 'En preparación' },
-  en_uso: { tono: 'info', etiqueta: 'En uso', ping: true },
-  bloqueada: { tono: 'advertencia', etiqueta: 'Bloqueada' },
-
-  // Clientes / Pipeline
-  prospecto: { tono: 'neutro', etiqueta: 'Prospecto' },
-  activo: { tono: 'exito', etiqueta: 'Activo' },
-  inactivo: { tono: 'neutro', etiqueta: 'Inactivo' },
-  contactado: { tono: 'info', etiqueta: 'Contactado' },
-  cotizado: { tono: 'info', etiqueta: 'Cotizado' },
-  negociacion: { tono: 'advertencia', etiqueta: 'Negociación' },
-  ganada: { tono: 'exito', etiqueta: 'Ganada' },
-  perdida: { tono: 'peligro', etiqueta: 'Perdida' },
-
-  // RFQ (SII-B3): estados propios del ciclo de vida
-  new: { tono: 'neutro', etiqueta: 'Nuevo' },
-  incomplete: { tono: 'advertencia', etiqueta: 'Incompleto' },
-  waiting_customer: { tono: 'info', etiqueta: 'En espera del cliente' },
-  waiting_technical: { tono: 'info', etiqueta: 'En espera técnica' },
-  ready_for_proposal: { tono: 'exito', etiqueta: 'Listo para propuesta' },
-  converted: { tono: 'exito', etiqueta: 'Convertido' },
-  closed: { tono: 'neutro', etiqueta: 'Cerrado' },
-  cancelled: { tono: 'neutro', etiqueta: 'Cancelado' },
-  // Indicación de captura (no es un estado del ciclo de vida del RFQ).
-  captura_lista: { tono: 'exito', etiqueta: 'Listo para validar' },
-
-  // Corridas (SII-B6)
-  planificada: { tono: 'neutro', etiqueta: 'Planificada' },
-
-  // Inventario
-  ok: { tono: 'exito', etiqueta: 'Stock OK' },
-  reorden: { tono: 'advertencia', etiqueta: 'Punto de reorden' },
-  critico: { tono: 'peligro', etiqueta: 'Stock crítico' },
-  agotado: { tono: 'peligro', etiqueta: 'Agotado' },
-};
+export type { TonoEstado };
 
 const TONOS: Record<TonoEstado, string> = {
   neutro: 'bg-superficie-2 text-texto-secundario',
@@ -101,11 +21,6 @@ const PUNTOS: Record<TonoEstado, string> = {
   info: 'bg-info',
 };
 
-/** Normaliza el estado recibido (espacios/guiones/mayúsculas) a la clave del mapa. */
-function normalizar(estado: string): string {
-  return estado.trim().toLowerCase().replace(/[\s-]+/g, '_');
-}
-
 type PropsBadgeEstado = {
   estado: string;
   /** Sobrescribe la etiqueta derivada del mapa. */
@@ -120,7 +35,7 @@ type PropsBadgeEstado = {
  * etiqueta legible. `en_proceso`/`en_uso`/`vencida` usan punto pulsante.
  */
 export function BadgeEstado({ estado, etiqueta, tono: tonoForzado, className }: PropsBadgeEstado) {
-  const definicion = ESTADOS[normalizar(estado)];
+  const definicion = definicionEstado(estado);
   const tono: TonoEstado = tonoForzado ?? definicion?.tono ?? 'neutro';
   const texto = etiqueta ?? definicion?.etiqueta ?? estado;
 

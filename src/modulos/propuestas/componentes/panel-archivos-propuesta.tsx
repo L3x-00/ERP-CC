@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import { Select } from '@/compartido/componentes/ui/input';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { firmarArchivoPropuestaAccion } from '@/modulos/propuestas/acciones/firmar-archivo-propuesta';
@@ -330,11 +331,10 @@ export function PanelArchivosPropuesta({
                 <option value="tecnico">Técnico (CAD/planos)</option>
               </Select>
             </label>
-            <label className="flex flex-col gap-1 text-sm">
+            <div className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Archivo</span>
-              <input
+              <CampoArchivo
                 key={versionSelector}
-                type="file"
                 multiple
                 aria-label="Archivo de la propuesta"
                 accept={EXTENSIONES_ACEPTADAS}
@@ -348,13 +348,8 @@ export function PanelArchivosPropuesta({
                   setArchivosSeleccionados(Array.from(evento.target.files ?? []))
                 }
                 disabled={subiendo}
-                className={
-                  faltaArchivo
-                    ? 'rounded-md border border-peligro/50 px-2 py-1 text-sm'
-                    : 'text-sm'
-                }
               />
-            </label>
+            </div>
             <Button type="submit" tamano="sm" disabled={subiendo}>
               {subiendo ? 'Subiendo…' : 'Subir archivos'}
             </Button>

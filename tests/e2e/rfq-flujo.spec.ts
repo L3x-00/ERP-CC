@@ -483,6 +483,19 @@ test.describe.serial('SII-B3 ola 2 — flujo RFQ por UI', () => {
       });
       await page.getByRole('button', { name: 'Subir archivo' }).click();
       await expect(page.getByTestId('panel-archivos-rfq')).toContainText('plano-e2e.dxf');
+      // El nombre en el selector aparece al elegirlo, no al terminar la subida:
+      // espera la fila persistida antes de reemplazarlo con la segunda versión.
+      await expect
+        .poll(async () => {
+          const { count } = await admin
+            .from('archivos')
+            .select('id', { count: 'exact', head: true })
+            .eq('entidad', 'rfq')
+            .eq('entidad_id', rfqId)
+            .eq('nombre_original', 'plano-e2e.dxf');
+          return count ?? 0;
+        })
+        .toBe(1);
 
       // C2.3: repetir el mismo nombre crea otra versión sin borrar la anterior.
       await page.getByLabel('Archivo').setInputFiles({

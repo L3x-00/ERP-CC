@@ -13,7 +13,7 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
-import { formatearMoneda } from '@/compartido/utilidades/formatear';
+import { formatearMontoFlexible } from '@/compartido/utilidades/formatear';
 
 import { usarMutacionesCostosMateriales } from '../hooks/usar-mutaciones-costos-materiales';
 import type { MaterialCosto } from '../tipos/materiales-costos';
@@ -316,7 +316,7 @@ export function ModalGuardarMaterial({
 
           {material && material.costoVigente !== null && (
             <p className="text-xs text-texto-secundario sm:col-span-2">
-              Costo vigente de este material: {formatearMoneda(material.costoVigente, material.monedaCosto, 4)}.
+              Costo vigente de este material: {formatearMontoFlexible(material.costoVigente, material.monedaCosto)}.
               Para cambiarlo usa «Costo manual» o «Proponer» en la tabla.
             </p>
           )}

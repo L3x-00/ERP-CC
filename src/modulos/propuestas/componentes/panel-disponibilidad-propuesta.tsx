@@ -27,8 +27,10 @@ function horas(valor: number): string {
 
 /**
  * Consulta informativa de capacidad junto a la fecha compromiso comercial.
- * No recibe ni toca la fecha: Comercial la decide a mano. Cada clic vuelve a
- * consultar; un resultado tardío de otra petición o de otra revisión se descarta.
+ * No fija la fecha: Comercial la decide a mano. Cada clic vuelve a consultar.
+ * M9: si la fecha elegida supera la ventana de 7 días, la consulta la desplaza
+ * para que el calendario incluya ese día. Un resultado tardío de otra petición
+ * o de otra revisión se descarta.
  */
 export function PanelDisponibilidadPropuesta({
   propuestaId,
@@ -64,6 +66,7 @@ export function PanelDisponibilidadPropuesta({
       const respuesta = await consultarDisponibilidadPropuestaAccion({
         propuestaId,
         revisionId: solicitada,
+        fechaObjetivo: fechaSeleccionada?.trim() ? fechaSeleccionada : null,
       });
       if (!respuesta.exito) {
         siguiente = { estado: 'error', numero, revisionId: solicitada, mensaje: respuesta.error };
@@ -160,6 +163,11 @@ function ResumenDisponibilidad({
       <p className="font-medium text-texto-primario">
         Capacidad del {formatearFechaCalendario(resumen.fechaInicio)} al{' '}
         {formatearFechaCalendario(resumen.fechaFin)} ({resumen.dias} días calendario, hora de la planta)
+        {fechaSeleccionada &&
+        fechaSeleccionada >= resumen.fechaInicio &&
+        fechaSeleccionada <= resumen.fechaFin
+          ? ` · incluye la fecha compromiso (${formatearFechaCalendario(fechaSeleccionada)})`
+          : ''}
       </p>
 
       {resumen.sinItemsActivos ? (

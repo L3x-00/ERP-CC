@@ -42,8 +42,8 @@ export function reconciliarCuenta(cuenta: CuentaHistorial): ReconciliacionCuenta
   };
 }
 
-/** Condición legible para la ficha; `null` se declara "Por definir". */
+/** Condición legible para la ficha; una cuenta sin condición se declara "Sin condición". */
 export function etiquetaCondicionCuenta(condicion: string | null): string {
-  if (!condicion) return 'Por definir';
+  if (!condicion) return 'Sin condición';
   return ETIQUETA_CONDICION_CUENTA[condicion] ?? condicion.replaceAll('_', ' ');
 }

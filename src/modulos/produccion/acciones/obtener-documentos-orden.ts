@@ -19,7 +19,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 const esquema = z.object({ ordenId: z.uuid() }).strict();
 
 export interface EntregablesOrden {
-  orden: Pick<OrdenDocumental, 'id' | 'folio' | 'cotizacionId' | 'cotizacionFolio'>;
+  orden: Pick<OrdenDocumental, 'id' | 'folio' | 'cotizacionId' | 'cotizacionFolio' | 'propuestaFolio'>;
   documentos: DocumentoOrden[];
   notas: NotaEntregaResumen[];
 }
@@ -56,6 +56,7 @@ export async function obtenerDocumentosOrdenAccion(
       folio: orden.folio,
       cotizacionId: orden.cotizacionId,
       cotizacionFolio: orden.cotizacionFolio,
+      propuestaFolio: orden.propuestaFolio,
     };
     return { exito: true, datos: { orden: ordenPublica, documentos, notas } };
   } catch (error) {

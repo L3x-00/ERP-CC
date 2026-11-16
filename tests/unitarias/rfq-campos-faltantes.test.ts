@@ -269,10 +269,8 @@ describe('PanelArchivosRfq — archivo técnico faltante', () => {
     expect(await screen.findByText('Sin archivos cargados.')).toBeDefined();
     const entrada = screen.getByLabelText('Archivo');
     expect(entrada.getAttribute('aria-invalid')).toBe('true');
-    expect(entrada.className).toContain('border-peligro/50');
-    expect(
-      entrada.closest('label')?.querySelector('span')?.className
-    ).toContain("after:content-['*']");
+    expect(entrada.parentElement?.querySelector('label')?.className).toContain('border-peligro');
+    expect(screen.getByText('Archivo').className).toContain("after:content-['*']");
   });
 });
 

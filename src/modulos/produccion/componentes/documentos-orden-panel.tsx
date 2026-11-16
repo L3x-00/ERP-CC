@@ -4,10 +4,11 @@ import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/compartido/componentes/ui/button';
-import { Input } from '@/compartido/componentes/ui/input';
+import { CampoArchivo } from '@/compartido/componentes/ui/campo-archivo';
 import { descargarUrlFirmada } from '@/compartido/utilidades/descargar-archivo';
 import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplegable';
 import { formatearFecha } from '@/compartido/utilidades/formatear';
+import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 import { obtenerArchivosSesionOrdenAccion, obtenerUrlArchivoSesionAccion } from '@/modulos/produccion/acciones/archivos-sesion';
 import type { ArchivoSesionResumen } from '@/modulos/produccion/archivos-sesion-config';
 import { CLAVE_ARCHIVOS_SESION, CLAVE_ENTREGABLES_ORDEN } from '@/modulos/produccion/componentes/claves-consulta';
@@ -318,10 +319,15 @@ export function DocumentosOrdenPanel({
           <div className="flex min-w-0 flex-col gap-3">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="text-sm font-semibold text-texto-primario">Planos y documentos del cliente/orden</h3>
-              <span className="text-xs text-texto-secundario">
-                {datos.orden.cotizacionFolio
-                  ? `Origen ${datos.orden.cotizacionFolio}`
-                  : 'Sin cotización de origen'}
+              <span
+                className="text-xs text-texto-secundario"
+                title={datos.orden.cotizacionFolio ?? datos.orden.propuestaFolio
+                  ? undefined
+                  : 'Los documentos adjuntos se conservan aunque la orden no tenga un folio comercial registrado.'}
+              >
+                {datos.orden.cotizacionFolio ?? datos.orden.propuestaFolio
+                  ? `Origen ${datos.orden.cotizacionFolio ?? datos.orden.propuestaFolio}`
+                  : 'Origen no registrado'}
               </span>
             </div>
 
@@ -383,15 +389,14 @@ export function DocumentosOrdenPanel({
               </p>
             ) : (
               <form className="flex flex-wrap items-end gap-2" onSubmit={subir} data-testid="subir-documento-orden">
-                <label className="grid flex-1 gap-1 text-sm font-medium text-texto-secundario">
+                <div className="grid flex-1 gap-1 text-sm font-medium text-texto-secundario">
                   Nuevo documento (PDF, DXF, DWG, plano o imagen, hasta 20 MiB)
-                  <Input
+                  <CampoArchivo
                     ref={entradaArchivo}
-                    type="file"
                     accept=".pdf,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai,.png,.jpg,.jpeg,.webp"
                     aria-label="Archivo de la orden"
                   />
-                </label>
+                </div>
                 <Button type="submit" tamano="sm" disabled={subiendo}>
                   {subiendo ? 'Subiendo…' : 'Subir'}
                 </Button>
@@ -423,9 +428,19 @@ export function DocumentosOrdenPanel({
                   >
                     <span className="min-w-0 flex-1 truncate">
                       <span className="font-mono">{nota.folio}</span>
+                      <span className="ml-1 text-[10px] uppercase tracking-wide text-texto-tenue">Folio interno</span>
+                      {nota.folioSii ? (
+                        <span className="ml-2 font-mono text-xs text-texto-secundario" title="Folio SII">
+                          · SII {nota.folioSii}
+                        </span>
+                      ) : null}
                       <span className="ml-2 text-xs text-texto-secundario">
-                        {nota.esParcial ? 'Parcial' : 'Total'} · {formatearFecha(nota.creadoEn)} ·
-                        recibió {nota.recibidoPor}
+                        {etiquetaNotaEntrega({
+                          esParcial: nota.esParcial,
+                          piezas: nota.piezas,
+                          totalOrden: nota.totalSolicitadoOrden,
+                        }).texto}{' '}
+                        · {formatearFecha(nota.creadoEn)} · recibió {nota.recibidoPor}
                       </span>
                     </span>
                     <NotaEntregaDocumentoBoton notaId={nota.id} folio={nota.folio} />
@@ -459,10 +474,10 @@ export function DocumentosOrdenPanel({
                 ))}
               </ul> : null}
               {sesionFinalId && !soloLectura ? <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={subirSalida}>
-                <label className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
+                <div className="grid min-w-0 flex-1 gap-1 text-xs text-texto-secundario">
                   Adjuntar salida final (hasta 20 MiB)
-                  <Input name="archivoSalida" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai" aria-label="Archivo de salida final" />
-                </label>
+                  <CampoArchivo name="archivoSalida" accept=".pdf,.jpg,.jpeg,.png,.webp,.dxf,.dwg,.step,.stp,.igs,.iges,.eps,.ai" aria-label="Archivo de salida final" />
+                </div>
                 <Button type="submit" tamano="sm" disabled={subiendoSalida}>
                   {subiendoSalida ? 'Subiendo…' : 'Subir salida'}
                 </Button>

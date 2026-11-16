@@ -62,8 +62,8 @@ export async function proponerPlanMultidiaAccion(
       turno,
       horasTotales: horasEstimadas,
       desdeFecha,
-      // El planeador ya eligió una fecha concreta; se respeta y se continúa al
-      // día siguiente aunque sea fin de semana. La capacidad se valida igual.
+      // El plan incluye sábado porque la empresa labora; domingo y turnos
+      // cerrados no aparecen en las cargas. La capacidad se valida igual.
       incluirFinesDeSemana: true,
     });
     return {

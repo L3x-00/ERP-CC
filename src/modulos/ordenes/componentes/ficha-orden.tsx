@@ -105,6 +105,10 @@ export function FichaOrden({
   const folio = ficha.orden.folioSii ?? ficha.orden.folio;
   const estado = ficha.orden.estadoSii;
   const esTerminal = estado === 'CERRADA' || estado === 'CANCELADA';
+  // M5: la entrega total cierra la orden, pero el cierre administrativo (costo y
+  // margen) sigue siendo un paso aparte hasta que quede registrado.
+  const cierreAdminPendiente = estado === 'CERRADA' && ficha.orden.cerradaAdminEn === null;
+  const puedeCompletarCierre = estado === 'PRODUCCION_COMPLETADA' || cierreAdminPendiente;
   const puedeCrearBasadaEnAnterior = permisos.puedeCrearBasadaEnAnterior === true
     && ficha.orden.idHistorico === null
     && (estado === 'PRODUCCION_COMPLETADA' || estado === 'CERRADA');
@@ -208,6 +212,14 @@ export function FichaOrden({
                 {etiquetaEntregaTexto}
               </span>
             ) : null}
+            {cierreAdminPendiente ? (
+              <span
+                data-testid="ficha-cierre-admin-pendiente"
+                className="rounded-full bg-advertencia-suave px-2 py-0.5 text-xs font-semibold text-advertencia-texto"
+              >
+                Cierre administrativo pendiente
+              </span>
+            ) : null}
             {ficha.orden.esInterna && (
               <span className="rounded-full bg-superficie-2 px-2 py-0.5 text-[10px] font-semibold text-texto-secundario">
                 TI
@@ -246,12 +258,12 @@ export function FichaOrden({
               Cancelar
             </Button>
           )}
-          {permisos.puedeCerrar && estado === 'PRODUCCION_COMPLETADA' && (
+          {permisos.puedeCerrar && puedeCompletarCierre && (
             <Button tamano="sm" disabled={ocupado || !saldoEntrega.cierrePermitido}
               title={saldoEntrega.cierrePermitido ? undefined : motivoCierreBloqueado}
               onClick={() => { setError(null); setMensaje(null); setCerrando(true); }}
               data-testid="ficha-cerrar">
-              Cerrar administrativa
+              {cierreAdminPendiente ? 'Completar cierre administrativo' : 'Cerrar administrativa'}
             </Button>
           )}
           {ficha.orden.idHistorico !== null && permisos.puedeAdjuntar && (
@@ -432,8 +444,9 @@ export function FichaOrden({
           <DialogHeader>
             <DialogTitle>Cierre administrativo de {folio}</DialogTitle>
             <DialogDescription>
-              Requiere el 100 % de las cantidades entregadas. No cobra la cuenta por cobrar: el cierre
-              administrativo es independiente del cobro.
+              {cierreAdminPendiente
+                ? 'La entrega total ya cerró la orden. Este paso registra el costo y margen del cierre administrativo; no cobra la cuenta por cobrar.'
+                : 'Requiere el 100 % de las cantidades entregadas. No cobra la cuenta por cobrar: el cierre administrativo es independiente del cobro.'}
             </DialogDescription>
           </DialogHeader>
           {error ? <p role="alert" className="text-sm text-peligro-texto">{error}</p> : null}

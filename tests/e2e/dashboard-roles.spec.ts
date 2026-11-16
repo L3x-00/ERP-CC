@@ -63,7 +63,13 @@ test.describe('Dashboard segmentado por rol', () => {
     await expect(page).toHaveURL(/\/dashboard$/);
     const pipeline = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Mi pipeline' }) });
     await expect(pipeline.getByRole('heading', { name: 'Mi pipeline' })).toBeVisible();
-    await expect(pipeline.getByRole('img', { name: /Mi pipeline: oportunidades por etapa/i })).toBeVisible();
+    // La gráfica se sustituye por un aviso accesible cuando el periodo no tiene
+    // oportunidades: ambos estados son válidos según los datos reales del usuario.
+    await expect(
+      pipeline
+        .getByRole('img', { name: /Mi pipeline: oportunidades por etapa/i })
+        .or(pipeline.getByRole('status').filter({ hasText: 'Sin datos para graficar' })),
+    ).toBeVisible();
     await pipeline.getByRole('button', { name: 'Ver desglose del pipeline' }).click();
     await expect(pipeline.getByRole('list', { name: 'Desglose de Mi pipeline' }).getByText('Prospecto', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Finanzas' })).toHaveCount(0);

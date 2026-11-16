@@ -54,11 +54,11 @@ function carga(
 }
 
 describe('matriz de carga semanal (C9.1)', () => {
-  it('suma los turnos del día: 8+8 h de capacidad con 6+4 h programadas dan 10/16 y 6 h libres', () => {
+  it('suma los turnos del día: 5+4 h de capacidad con 3+2 h programadas dan 5/9 y 4 h libres', () => {
     const matriz = construirMatrizCargaSemanal(
       [
-        carga(RECURSO_A.id, '2026-09-21', 'matutino', 8, 6),
-        carga(RECURSO_A.id, '2026-09-21', 'vespertino', 8, 4),
+        carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 3),
+        carga(RECURSO_A.id, '2026-09-21', 'vespertino', 4, 2),
       ],
       [RECURSO_A],
       RANGO_SEMANA,
@@ -76,13 +76,13 @@ describe('matriz de carga semanal (C9.1)', () => {
     expect(matriz?.filas[0]).toMatchObject({
       recursoId: RECURSO_A.id,
       sinTurnos: false,
-      horasLibresTotales: 6,
+      horasLibresTotales: 4,
     });
     expect(matriz?.filas[0].celdas[0]).toMatchObject({
       fecha: '2026-09-21',
-      horasCapacidad: 16,
-      horasProgramadas: 10,
-      horasLibres: 6,
+      horasCapacidad: 9,
+      horasProgramadas: 5,
+      horasLibres: 4,
       nivel: 'cerca-del-limite',
     });
     expect(matriz?.filas[0].celdas[1]).toBeNull();
@@ -91,25 +91,25 @@ describe('matriz de carga semanal (C9.1)', () => {
   it('un turno sobrecargado aporta 0 h libres sin restar a los demás turnos del día', () => {
     const matriz = construirMatrizCargaSemanal(
       [
-        carga(RECURSO_A.id, '2026-09-21', 'matutino', 8, 10),
-        carga(RECURSO_A.id, '2026-09-21', 'vespertino', 8, 0),
+        carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 7),
+        carga(RECURSO_A.id, '2026-09-21', 'vespertino', 4, 0),
       ],
       [RECURSO_A],
       RANGO_SEMANA,
     );
 
     expect(matriz?.filas[0].celdas[0]).toMatchObject({
-      horasCapacidad: 16,
-      horasProgramadas: 10,
-      horasLibres: 8,
+      horasCapacidad: 9,
+      horasProgramadas: 7,
+      horasLibres: 4,
       nivel: 'sobrecargado',
     });
-    expect(matriz?.filas[0].horasLibresTotales).toBe(8);
+    expect(matriz?.filas[0].horasLibresTotales).toBe(4);
   });
 
-  it('omite sábado y domingo sin horas programadas aunque la capacidad exista', () => {
-    // La RPC devuelve todas las fechas del rango: el fin de semana llega con
-    // capacidad configurada y 0 h programadas, y no debe ocupar columna.
+  it('muestra el sábado como día laboral (4 h) y no inventa el domingo cerrado', () => {
+    // C18: la RPC entrega lunes a viernes 5+4 h y el sábado 4 h; el domingo no
+    // llega porque está cerrado. El sábado debe sumar a la capacidad libre.
     const cargas: CargaCapacidadDiaria[] = [];
     for (const fecha of [
       '2026-09-21',
@@ -117,11 +117,11 @@ describe('matriz de carga semanal (C9.1)', () => {
       '2026-09-23',
       '2026-09-24',
       '2026-09-25',
-      '2026-09-26',
-      '2026-09-27',
     ]) {
-      cargas.push(carga(RECURSO_A.id, fecha, 'matutino', 8, 0));
+      cargas.push(carga(RECURSO_A.id, fecha, 'matutino', 5, 0));
+      cargas.push(carga(RECURSO_A.id, fecha, 'vespertino', 4, 0));
     }
+    cargas.push(carga(RECURSO_A.id, '2026-09-26', 'matutino', 4, 0));
 
     const matriz = construirMatrizCargaSemanal(cargas, [RECURSO_A], RANGO_SEMANA);
 
@@ -131,18 +131,37 @@ describe('matriz de carga semanal (C9.1)', () => {
       '2026-09-23',
       '2026-09-24',
       '2026-09-25',
+      '2026-09-26',
     ]);
-    expect(matriz?.filas[0].horasLibresTotales).toBe(40);
+    expect(matriz?.filas[0].horasLibresTotales).toBe(49);
   });
 
-  it('muestra un sábado cuando tiene horas programadas: la carga manda, no un lunes-viernes fijo', () => {
+  it('solo pinta el domingo cuando por excepción tiene trabajo programado', () => {
+    const matriz = construirMatrizCargaSemanal(
+      [
+        carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 0),
+        carga(RECURSO_A.id, '2026-09-27', 'matutino', 0, 2),
+      ],
+      [RECURSO_A],
+      RANGO_SEMANA,
+    );
+
+    expect(matriz?.columnas).toContain('2026-09-27');
+    expect(matriz?.filas[0].celdas.at(-1)).toMatchObject({
+      fecha: '2026-09-27',
+      horasProgramadas: 2,
+      nivel: 'sobrecargado',
+    });
+  });
+
+  it('muestra la carga del sábado dentro de su jornada de 4 h', () => {
     const cargas = [
-      carga(RECURSO_A.id, '2026-09-21', 'matutino', 8, 0),
-      carga(RECURSO_A.id, '2026-09-22', 'matutino', 8, 0),
-      carga(RECURSO_A.id, '2026-09-23', 'matutino', 8, 0),
-      carga(RECURSO_A.id, '2026-09-24', 'matutino', 8, 0),
-      carga(RECURSO_A.id, '2026-09-25', 'matutino', 8, 0),
-      carga(RECURSO_A.id, '2026-09-26', 'matutino', 8, 2),
+      carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 0),
+      carga(RECURSO_A.id, '2026-09-22', 'matutino', 5, 0),
+      carga(RECURSO_A.id, '2026-09-23', 'matutino', 5, 0),
+      carga(RECURSO_A.id, '2026-09-24', 'matutino', 5, 0),
+      carga(RECURSO_A.id, '2026-09-25', 'matutino', 5, 0),
+      carga(RECURSO_A.id, '2026-09-26', 'matutino', 4, 2),
     ];
 
     const matriz = construirMatrizCargaSemanal(cargas, [RECURSO_A], RANGO_SEMANA);
@@ -157,11 +176,12 @@ describe('matriz de carga semanal (C9.1)', () => {
     ]);
     expect(matriz?.filas[0].celdas[5]).toMatchObject({
       fecha: '2026-09-26',
+      horasCapacidad: 4,
       horasProgramadas: 2,
-      horasLibres: 6,
-      nivel: 'disponible',
+      horasLibres: 2,
+      nivel: 'cerca-del-limite',
     });
-    expect(matriz?.filas[0].horasLibresTotales).toBe(46);
+    expect(matriz?.filas[0].horasLibresTotales).toBe(27);
   });
 
   it('un recurso sin turnos configurados se declara sinTurnos, con celdas alineadas', () => {
@@ -198,18 +218,13 @@ describe('matriz de carga semanal (C9.1)', () => {
   });
 
   it('un rango de 7 días no alineado a lunes conserva las fechas reales del rango', () => {
+    // Martes 15 a lunes 21: el sábado 19 es laboral (4 h) y el domingo 20 está
+    // cerrado, así que la RPC no devuelve fila para ese domingo.
     const cargas: CargaCapacidadDiaria[] = [];
-    for (const fecha of [
-      '2026-09-15',
-      '2026-09-16',
-      '2026-09-17',
-      '2026-09-18',
-      '2026-09-19',
-      '2026-09-20',
-      '2026-09-21',
-    ]) {
-      cargas.push(carga(RECURSO_A.id, fecha, 'matutino', 8, 0));
+    for (const fecha of ['2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21']) {
+      cargas.push(carga(RECURSO_A.id, fecha, 'matutino', 5, 0));
     }
+    cargas.push(carga(RECURSO_A.id, '2026-09-19', 'matutino', 4, 0));
 
     const matriz = construirMatrizCargaSemanal(cargas, [RECURSO_A], {
       fechaInicio: '2026-09-15',
@@ -221,6 +236,7 @@ describe('matriz de carga semanal (C9.1)', () => {
       '2026-09-16',
       '2026-09-17',
       '2026-09-18',
+      '2026-09-19',
       '2026-09-21',
     ]);
   });

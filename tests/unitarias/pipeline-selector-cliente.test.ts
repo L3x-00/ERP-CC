@@ -605,7 +605,7 @@ describe('FormularioProspecto — datos mínimos obligatorios del alta (obs. cli
     expect(botonBloqueado('Finalizar captura')).toBe(true);
     const entrada = screen.getByLabelText(/^Archivo/) as HTMLInputElement;
     expect(entrada.getAttribute('aria-invalid')).toBe('true');
-    expect(entrada.className).toContain('border-peligro');
+    expect(entrada.parentElement?.querySelector('label')?.className).toContain('border-peligro');
   });
 
   it('con un archivo subido se habilita “Finalizar captura” y desaparece el aviso', async () => {

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BadgeEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Select } from '@/compartido/componentes/ui/input';
+import { formatearFecha } from '@/compartido/utilidades/formatear';
 import { usarTiendaProduccion } from '@/estado/uso-tienda-produccion';
 import {
   cerrarSesionOperadorAccion,
@@ -369,9 +370,9 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
               </div>
               <p className="truncate text-xs text-texto-secundario">
                 {ordenSeleccionada.clienteNombre ?? 'Cliente'} · Compromiso{' '}
-                {new Date(
+                {formatearFecha(
                   ordenSeleccionada.fechaCompromisoComercial ?? ordenSeleccionada.fechaCompromiso,
-                ).toLocaleDateString('es-MX')}
+                )}
               </p>
             </div>
             <Button

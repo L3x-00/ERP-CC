@@ -25,8 +25,10 @@ import type {
 import {
   ETIQUETA_ESTADO_PROPIESTA,
   TONO_ESTADO_PROPIESTA,
+  evaluarDestinoEnvio,
 } from '@/modulos/propuestas/utilidades/indice';
 import { textoReferenciaFechasRfq } from '@/modulos/propuestas/utilidades/referencia-fechas-rfq';
+import { diaSemanaCalendario } from '@/modulos/planeacion/utilidades/horario-laboral';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
 import { fechaHoyLocal } from '@/modulos/rfq/utilidades/proxima-accion';
 import { CLASE_CAMPO_FALTANTE, CLASE_MENSAJE_FALTANTE } from '@/modulos/rfq/utilidades/faltantes';
@@ -133,21 +135,9 @@ export function PanelAccionesPropuesta({
   }
 
   const destinoLimpio = destino.trim();
-  const digitosDestino = destinoLimpio.replace(/\D/g, '').length;
-  const destinoValido =
-    canalEfectivo === 'CORREO'
-      ? destinoLimpio.includes('@')
-      : canalEfectivo === 'WHATSAPP' || canalEfectivo === 'TELEFONO'
-        ? digitosDestino >= 9
-        : destinoLimpio !== '';
-  const errorDestino =
-    destinoLimpio === ''
-      ? null
-      : canalEfectivo === 'CORREO'
-        ? 'El correo debe contener «@».'
-        : canalEfectivo === 'WHATSAPP' || canalEfectivo === 'TELEFONO'
-          ? 'El teléfono debe tener al menos 9 números.'
-          : null;
+  const validacionDestino = evaluarDestinoEnvio(canalEfectivo, destinoLimpio);
+  const destinoValido = validacionDestino.valido;
+  const errorDestino = validacionDestino.error;
 
   // Obs. cliente 2026-10-12: tras la aceptación, las demás versiones quedan
   // inhabilitadas y solo se muestran para consulta del historial.
@@ -350,6 +340,13 @@ export function PanelAccionesPropuesta({
                   La fecha no puede ser anterior a hoy ({hoy}). Elige una fecha de hoy en adelante.
                 </span>
               )}
+              {!fechaInvalida && fechaCompromiso !== ''
+                && diaSemanaCalendario(fechaCompromiso) === 0 ? (
+                  <span className="text-xs text-advertencia-texto">
+                    El domingo no se produce. La fecha se registra tal cual y Planeación propondrá
+                    el lunes hábil más cercano con capacidad.
+                  </span>
+                ) : null}
             </label>
             {detalle.propuesta.acceptedRevisionId === null && (
               <PanelDisponibilidadPropuesta

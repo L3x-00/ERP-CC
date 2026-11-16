@@ -6,6 +6,7 @@ import { PDFDownloadLink } from '@react-pdf/renderer';
 import { obtenerDocumentoNotaEntregaAccion } from '@/modulos/produccion/acciones/obtener-documento-nota-entrega';
 import type { DocumentoNotaEntrega } from '@/modulos/produccion/servicios/nota-entrega-documento-servicio';
 import { formatearFecha, formatearNumero } from '@/compartido/utilidades/formatear';
+import { etiquetaNotaEntrega } from '@/compartido/utilidades/nota-entrega';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
   Dialog,
@@ -96,9 +97,23 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
                     )}
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="font-mono text-sm font-semibold">{documento.nota.folio}</span>
+                    <span className="font-mono text-sm font-semibold">
+                      {documento.nota.folioSii ?? documento.nota.folio}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-texto-tenue">
+                      {documento.nota.folioSii ? 'Folio SII' : 'Folio interno'}
+                    </span>
+                    {documento.nota.folioSii ? (
+                      <span className="font-mono text-[10px] text-texto-tenue" title="Folio interno">
+                        Interno {documento.nota.folio}
+                      </span>
+                    ) : null}
                     <span className="text-xs text-texto-secundario">
-                      {documento.nota.esParcial ? 'Entrega parcial' : 'Entrega total'}
+                      {etiquetaNotaEntrega({
+                        esParcial: documento.nota.esParcial,
+                        piezas: documento.totalNota,
+                        totalOrden: documento.totalSolicitado,
+                      }).texto}
                     </span>
                     <span className="text-xs text-texto-secundario">
                       Fecha: {formatearFecha(documento.nota.creadoEn)}
@@ -194,7 +209,7 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
                 </Button>
                 <PDFDownloadLink
                   document={<NotaEntregaPdfProfesional documento={documento} />}
-                  fileName={`Nota de entrega ${documento.nota.folio}.pdf`}
+                  fileName={`Nota de entrega ${documento.nota.folioSii ?? documento.nota.folio}.pdf`}
                   className="inline-flex h-9 items-center justify-center rounded-lg border border-borde-fuerte bg-superficie px-3 text-sm font-semibold text-texto-primario transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
                 >
                   {({ loading, error }) => (error ? 'No se pudo preparar el PDF' : loading ? 'Preparando PDF…' : 'Descargar PDF')}

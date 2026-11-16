@@ -87,6 +87,10 @@ test.describe.serial('bolsa de planeación y acciones de tarjeta (PLA-05/PLA-06)
       const { data: orden, error: errorOrden } = await admin.from('ordenes_produccion').insert({
         folio, cliente_id: cliente!.id, estado,
         fecha_compromiso: '2099-12-31T18:00:00.000Z',
+        // La bolsa sugiere como máximo 12 partidas y prioriza la fecha
+        // compromiso comercial. La base local conserva datos de otras corridas:
+        // una fecha cercana mantiene estas partidas dentro de la ventana.
+        fecha_compromiso_comercial: fecha(5),
       }).select('id').single();
       if (errorOrden || !orden) throw new Error(`Sin orden (${codigo}): ${errorOrden?.message ?? 'vacía'}`);
       contexto.ordenes.push(orden.id);

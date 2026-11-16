@@ -46,12 +46,12 @@ INSERT INTO public.programacion_areas (
 ) VALUES
   ('00000000-0000-4000-8000-0000000c1211', '00000000-0000-4000-8000-0000000c1204',
    '00000000-0000-4000-8000-0000000c1205', '00000000-0000-4000-8000-0000000c1207',
-   1, 'en_preparacion', current_date, 'matutino', 2,
+   1, 'en_preparacion', date_trunc('week', current_date)::date, 'matutino', 2,
    (SELECT id FROM public.metas_proceso_partida
     WHERE partida_id = '00000000-0000-4000-8000-0000000c1205' AND secuencia = 1)),
   ('00000000-0000-4000-8000-0000000c1212', '00000000-0000-4000-8000-0000000c1204',
    '00000000-0000-4000-8000-0000000c1206', '00000000-0000-4000-8000-0000000c1208',
-   1, 'en_preparacion', current_date, 'matutino', 2,
+   1, 'en_preparacion', date_trunc('week', current_date)::date, 'matutino', 2,
    (SELECT id FROM public.metas_proceso_partida
     WHERE partida_id = '00000000-0000-4000-8000-0000000c1206' AND secuencia = 1));
 
@@ -94,7 +94,7 @@ SELECT throws_ok($$SELECT * FROM public.solicitar_horas_extra_operador(
   'Una sesión dentro de la jornada no genera solicitud');
 
 -- 6-8. Excedida la jornada, la solicitud nace pendiente y es idempotente.
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '10 hours'
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '12 hours'
 WHERE programacion_id = '00000000-0000-4000-8000-0000000c1211';
 
 SELECT is((
@@ -142,7 +142,7 @@ SELECT throws_ok($$SELECT * FROM public.resolver_solicitud_horas_extra(
   'Una solicitud ya resuelta no se vuelve a aprobar');
 
 -- 11. Desaprobar deja la solicitud rechazada.
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '10 hours'
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '12 hours'
 WHERE programacion_id = '00000000-0000-4000-8000-0000000c1212';
 SELECT * FROM public.solicitar_horas_extra_operador(
   (SELECT id FROM public.sesiones_trabajo
