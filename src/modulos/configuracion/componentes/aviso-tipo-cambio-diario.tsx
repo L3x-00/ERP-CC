@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/compartido/componentes/ui/button';
-import { formatearNumeroFlexible } from '@/compartido/utilidades/formatear';
 import type { EstadoTipoCambioDiario } from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 import { formatearFechaHoraNegocio } from '@/modulos/configuracion/utilidades/tipo-cambio-diario';
 import { DialogoTipoCambioDiario } from './dialogo-tipo-cambio-diario';
@@ -37,7 +36,7 @@ export function AvisoTipoCambioDiario({ estado }: { estado: EstadoTipoCambioDiar
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-advertencia-texto">Tipo de cambio del día pendiente</p>
           <p className="text-sm text-texto-secundario">
-            {estado.motivo ? TEXTO_MOTIVO[estado.motivo] : ''} Se usa {formatearNumeroFlexible(estado.tipoCambioUsd)} MXN/USD
+            {estado.motivo ? TEXTO_MOTIVO[estado.motivo] : ''} Se usa {estado.tipoCambioUsd.toFixed(4)} MXN/USD
             {estado.actualizadoEn ? ` desde ${formatearFechaHoraNegocio(estado.actualizadoEn)}` : ''}.
           </p>
         </div>
