@@ -876,4 +876,64 @@ await expect(
       await limpiarContexto(caso);
     }
   });
+
+  test('libera la máquina tras 60 min de pausa por material y permite reclamarla', async ({ page }) => {
+    const caso = await prepararContexto();
+    try {
+      await iniciarSesionAdministrador(page, caso);
+      await page.goto('/operador');
+      for (const digito of caso.pinOperador) await page.getByRole('button', { name: digito, exact: true }).click();
+      await page.getByRole('button', { name: 'Confirmar PIN' }).click();
+      await page.waitForURL('**/produccion-piso');
+      await page.goto('/produccion');
+      await page.getByTestId(`tarjeta-produccion-${caso.ordenId}`).click();
+      await page.getByTestId('iniciar-sesion-produccion').click();
+      await confirmarChecklistInicio(page);
+      await expect(page.getByRole('status')).toContainText('Sesión iniciada');
+
+      // Pausa por falta de material: es un motivo que libera la máquina.
+      await page.getByLabel(/Piezas .* ahora/).fill('1');
+      await page.getByLabel('Resultado').selectOption('pausada');
+      await page.getByLabel('Motivo de pausa').selectOption('MATERIAL');
+      await page.getByLabel('Notas operativas').fill('Sin lámina para continuar');
+      await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
+      await page.getByTestId('cerrar-sesion-produccion').click();
+      await expect(page.getByRole('status')).toContainText('Sesión registrada');
+
+      const { data: recurso } = await caso.admin.from('recursos_planeacion')
+        .select('codigo').eq('id', caso.recursoId).single();
+      const codigo = recurso!.codigo;
+
+      // Recién pausada la máquina todavía no es liberable.
+      await page.goto('/produccion');
+      await expect(page.getByTestId('panel-recursos-liberados')).toBeVisible();
+      await expect(page.getByTestId(`recurso-liberable-${codigo}`)).toHaveCount(0);
+
+      // Se simulan 61 minutos de espera sin tocar el reloj de la prueba.
+      const ahora = Date.now();
+      const { error: errorEspera } = await caso.admin.from('sesiones_trabajo').update({
+        fecha_inicio: new Date(ahora - 100 * 60_000).toISOString(),
+        fecha_fin: new Date(ahora - 61 * 60_000).toISOString(),
+      }).eq('orden_id', caso.ordenId).eq('estado_sesion', 'pausada');
+      if (errorEspera) throw new Error(`No se pudo simular la espera de la pausa: ${errorEspera.message}`);
+
+      await page.reload();
+      const liberable = page.getByTestId(`recurso-liberable-${codigo}`);
+      await expect(liberable).toBeVisible();
+      await expect(liberable).toContainText('Falta de material');
+      await expect(liberable).toContainText('pausada el');
+
+      await page.getByTestId(`reclamar-recurso-${codigo}`).click();
+      await expect(page.getByTestId('panel-recursos-liberados').getByRole('status'))
+        .toContainText('Recurso reclamado: la sesión pausada quedó liberada para otra orden.');
+      await expect(page.getByTestId(`recurso-liberable-${codigo}`)).toHaveCount(0);
+      await expect.poll(async () => {
+        const { data } = await caso.admin.from('sesiones_trabajo')
+          .select('recurso_liberado').eq('orden_id', caso.ordenId).eq('estado_sesion', 'pausada').single();
+        return data?.recurso_liberado ?? null;
+      }).toBe(true);
+    } finally {
+      await limpiarContexto(caso);
+    }
+  });
 });

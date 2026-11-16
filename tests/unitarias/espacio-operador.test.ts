@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { estimarHorasProceso } from '@/modulos/produccion/servicios/espacio-operador-servicio';
 import {
-  HORAS_JORNADA_OPERADOR,
+  HORAS_JORNADA_SABADO,
+  HORAS_JORNADA_SEMANA,
+} from '@/modulos/planeacion/utilidades/horario-laboral';
+import {
   accionPrincipal,
   agruparProcesosPorArea,
   agruparProcesosPorOrden,
@@ -403,7 +406,7 @@ describe('utilidades de fecha', () => {
 });
 
 describe('construirDiasCalendario', () => {
-  it('suma solo horas reclamadas, ordena y calcula el saldo de 8 h', () => {
+  it('suma solo horas reclamadas, ordena y calcula el saldo de la jornada laboral', () => {
     const procesos = [
       crearProceso({ id: 'a', reclamo: crearReclamo({ fecha: '2026-10-26', horasEstimadas: 3 }) }),
       crearProceso({ id: 'b', reclamo: crearReclamo({ id: 'reclamo-2', fecha: '2026-10-26', horasEstimadas: 2.5 }) }),
@@ -414,12 +417,27 @@ describe('construirDiasCalendario', () => {
     const dias = construirDiasCalendario(['2026-10-26', '2026-10-27'], procesos, '2026-10-27');
 
     expect(dias[0].horasReclamadas).toBe(5.5);
-    expect(dias[0].horasLibres).toBe(2.5);
+    expect(dias[0].horasJornada).toBe(HORAS_JORNADA_SEMANA);
+    expect(dias[0].horasLibres).toBe(3.5);
     expect(dias[0].esHoy).toBe(false);
     expect(dias[0].procesos.map((proceso) => proceso.id)).toEqual(['a', 'b']);
-    expect(dias[1].horasReclamadas).toBe(HORAS_JORNADA_OPERADOR);
-    expect(dias[1].horasLibres).toBe(0);
+    expect(dias[1].horasReclamadas).toBe(8);
+    expect(dias[1].horasJornada).toBe(HORAS_JORNADA_SEMANA);
+    expect(dias[1].horasLibres).toBe(1);
     expect(dias[1].esHoy).toBe(true);
+  });
+
+  it('aplica la jornada del sábado (4 h) y el domingo cerrado', () => {
+    const procesos = [
+      crearProceso({ id: 'a', reclamo: crearReclamo({ fecha: '2026-10-31', horasEstimadas: 1 }) }),
+    ];
+
+    const dias = construirDiasCalendario(['2026-10-31', '2026-11-01'], procesos, '2026-10-26');
+
+    expect(dias[0].horasJornada).toBe(HORAS_JORNADA_SABADO);
+    expect(dias[0].horasLibres).toBe(3);
+    expect(dias[1].horasJornada).toBe(0);
+    expect(dias[1].horasLibres).toBe(0);
   });
 
   it('nunca devuelve horas libres negativas', () => {
