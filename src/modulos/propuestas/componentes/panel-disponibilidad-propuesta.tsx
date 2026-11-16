@@ -66,7 +66,7 @@ export function PanelDisponibilidadPropuesta({
       const respuesta = await consultarDisponibilidadPropuestaAccion({
         propuestaId,
         revisionId: solicitada,
-        fechaObjetivo: fechaSeleccionada ?? null,
+        fechaObjetivo: fechaSeleccionada?.trim() ? fechaSeleccionada : null,
       });
       if (!respuesta.exito) {
         siguiente = { estado: 'error', numero, revisionId: solicitada, mensaje: respuesta.error };

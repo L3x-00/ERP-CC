@@ -373,6 +373,19 @@ describe('consultarDisponibilidadPropuestaAccion — resumen', () => {
     expect(respuesta.datos?.itemsSinRuteo).toEqual(['P-01', 'P-02']);
     expect(adminMock).not.toHaveBeenCalled();
   });
+
+  it('trata la fecha compromiso vacía como «sin fecha» en vez de rechazarla', async () => {
+    clienteMock.mockResolvedValue(clienteFalso(tablasComerciales()).cliente);
+    adminMock.mockReturnValue(adminFalso().cliente);
+
+    const respuesta = await consultarDisponibilidadPropuestaAccion({
+      propuestaId: PROPUESTA_ID,
+      revisionId: REVISION_ID,
+      fechaObjetivo: '',
+    });
+
+    expect(respuesta.exito).toBe(true);
+  });
 });
 
 describe('consultarDisponibilidadPropuestaAccion — autorización e IDOR', () => {

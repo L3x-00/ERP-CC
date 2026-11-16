@@ -475,7 +475,9 @@ test.describe.serial('taxonomía de taller y colas por área (OBS-14/OBS-09/PRD-
 
     const pisoB = await browser.newPage();
     await iniciarPisoConPin(pisoB, datos.pinB);
-    await expect(pisoB.getByTestId('espacio-operador')).toContainText('CNC Router');
+    // M7: la tarjeta muestra la operación, así que el operador B se distingue
+    // por la pieza de su proceso (CNC) y no por el nombre del área.
+    await expect(pisoB.getByTestId('espacio-operador')).toContainText(/E2E-TAX-[0-9a-f]{8}-CNC/);
 
     // Tablero: el filtro por área macro acota la cola visible.
     const tablero = await browser.newPage();

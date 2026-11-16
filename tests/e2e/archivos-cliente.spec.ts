@@ -76,7 +76,7 @@ test('SII-B1.9: documento de cliente versionado en `archivos`', async ({ page })
         return data?.version ?? null;
       })
       .toBe(1);
-    await expect(page.getByText('csf-prueba.pdf')).toBeVisible();
+    await expect(page.getByText(/csf-prueba\.pdf · v1/)).toBeVisible();
 
     const { data: primera } = await admin
       .from('archivos')

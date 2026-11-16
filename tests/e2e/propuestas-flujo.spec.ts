@@ -967,8 +967,9 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
         await paginaGerencia.getByRole('button', { name: 'Consultar disponibilidad' }).click();
         const consultaGerencia = paginaGerencia.getByTestId('disponibilidad-propuesta');
         await expect(consultaGerencia).toContainText(`Grupo E2E P ${contexto.sufijo}`);
-        await expect(consultaGerencia).toContainText(/48(?:[.,]00)?\s*h/);
-        await expect(consultaGerencia).toContainText(/44(?:[.,]00)?\s*h/);
+        // Ventana por defecto de 7 días con jornada C18: 5×8 h + sábado 4 h.
+        const capacidadGerencia = consultaGerencia.locator('dl > div').filter({ hasText: 'Capacidad' });
+        await expect(capacidadGerencia).toContainText('44.00 h');
       } finally {
         await contextoGerencia.close();
       }

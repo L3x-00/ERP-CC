@@ -22,8 +22,14 @@ const esquema = z
   .object({
     propuestaId: z.uuid('Identificador inválido'),
     revisionId: z.uuid('Identificador inválido'),
-    /** M9: fecha compromiso elegida; extiende la ventana si supera 7 días. */
-    fechaObjetivo: z.iso.date({ message: 'Fecha inválida' }).nullish(),
+    /**
+     * M9: fecha compromiso elegida; extiende la ventana si supera 7 días.
+     * El campo puede llegar vacío desde el formulario: se trata como «sin fecha».
+     */
+    fechaObjetivo: z.preprocess(
+      (valor) => (typeof valor === 'string' && valor.trim() === '' ? null : valor),
+      z.iso.date({ message: 'Fecha inválida' }).nullish(),
+    ),
   })
   .strict();
 
