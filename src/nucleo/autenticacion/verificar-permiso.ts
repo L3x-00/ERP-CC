@@ -7,9 +7,9 @@ import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
  * 1. Rol `admin` → siempre `true` (acceso total).
  * 2. Si el usuario ya trae permisos resueltos (`usuario.permisos` con
  *    elementos) → se responde en memoria sin tocar la base de datos.
- * 3. Fallback (lista de permisos vacía): consulta la tabla `permisos_rol`
- *    usando import dinámico del cliente servidor, para que las pruebas en
- *    Node no carguen `next/headers`. Ante cualquier error → `false`.
+ * 3. Fallback (lista de permisos vacía): consulta `permisos_rol` con el
+ *    cliente admin. El operador de piso no tiene sesión de Supabase y RLS
+ *    negaría la lectura con el cliente de cookies. Ante cualquier error → `false`.
  *
  * @param usuario Usuario autenticado (con permisos resueltos o no).
  * @param permiso Permiso a verificar (ej. 'ver_clientes').
@@ -32,8 +32,12 @@ export async function can(usuario: UsuarioAutenticado, permiso: string): Promise
   }
 
   try {
-    const { crearClienteSupabaseServidor } = await import('../supabase/servidor');
-    const cliente = await crearClienteSupabaseServidor();
+    // El actor de operador de piso se autentica con cookie HMAC y no tiene
+    // sesión de Supabase: con el cliente de cookies, RLS devuelve 0 filas y
+    // todo permiso se negaría. La consulta es de catálogo y va con service
+    // role; la autorización real sigue dependiendo del rol del actor.
+    const { crearClienteSupabaseAdmin } = await import('../supabase/admin');
+    const cliente = crearClienteSupabaseAdmin();
 
     // Un permiso desactivado en el catálogo no concede acceso aunque siga
     // asignado al rol (mismo criterio que los helpers SQL de RLS).

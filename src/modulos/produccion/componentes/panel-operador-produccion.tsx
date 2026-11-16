@@ -164,8 +164,11 @@ export function PanelOperadorProduccion({
   const [confirmarReanudacion, setConfirmarReanudacion] = useState(false);
   const [errorReanudacion, setErrorReanudacion] = useState<string | null>(null);
   const [confirmarChecklist, setConfirmarChecklist] = useState(false);
-  const [expandido, setExpandido] = useState(sesionActiva !== null || operadorDisponible);
-  const [sesionSupervisor, setSesionSupervisor] = useState<SesionOrden | null>(null);
+  const [expandido, setExpandido] = useState(sesionActiva !== null || operadorDisponible || (esAdmin && orden !== null));
+  const [sesionSupervisor, setSesionSupervisor] = useState<{
+    sesion: SesionOrden;
+    destino: 'pausada' | 'finalizada';
+  } | null>(null);
   const [errorCierre, setErrorCierre] = useState<DatosErrorCierre | null>(null);
 
   const sesionesEnPiso = useMemo(
@@ -174,6 +177,8 @@ export function PanelOperadorProduccion({
       .sort((primera, segunda) => segunda.fechaInicio.localeCompare(primera.fechaInicio)),
     [orden?.sesiones],
   );
+  // Realtime: la franja «En piso ahora» queda siempre visible; el panel de
+  // acciones se abre por defecto para el administrador cuando hay una orden.
   function contextoDeSesion(sesion: SesionOrden): string {
     const partida = orden?.partidas.find((actual) => actual.id === sesion.partidaId);
     const programacion = partida?.programaciones.find(
@@ -614,7 +619,7 @@ export function PanelOperadorProduccion({
           expandido ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
         )}
       >
-        <div className="overflow-hidden" inert={!expandido ? true : undefined}>
+        <div className="min-h-0 overflow-clip" inert={!expandido ? true : undefined}>
           {!operadorDisponible ? (
             esAdmin ? (
               <Button
@@ -676,16 +681,28 @@ export function PanelOperadorProduccion({
                     </span>
                   </span>
                   {onCerrarComoSupervisor ? (
-                    <Button
-                      type="button"
-                      variante="contorno"
-                      tamano="sm"
-                      disabled={procesando}
-                      onClick={() => { setMensaje(null); setSesionSupervisor(sesion); }}
-                      data-testid={`finalizar-sesion-supervisor-${sesion.id}`}
-                    >
-                      Pausar sesión
-                    </Button>
+                    <span className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variante="contorno"
+                        tamano="sm"
+                        disabled={procesando}
+                        onClick={() => { setMensaje(null); setSesionSupervisor({ sesion, destino: 'finalizada' }); }}
+                        data-testid={`finalizar-sesion-supervisor-${sesion.id}`}
+                      >
+                        Finalizar sin producir
+                      </Button>
+                      <Button
+                        type="button"
+                        variante="contorno"
+                        tamano="sm"
+                        disabled={procesando}
+                        onClick={() => { setMensaje(null); setSesionSupervisor({ sesion, destino: 'pausada' }); }}
+                        data-testid={`pausar-sesion-supervisor-${sesion.id}`}
+                      >
+                        Pausar sesión
+                      </Button>
+                    </span>
                   ) : null}
                 </li>
               ))}
@@ -1186,8 +1203,9 @@ export function PanelOperadorProduccion({
         </DialogContent>
       </Dialog>
       {sesionSupervisor && onCerrarComoSupervisor ? (
-        <DialogoFinalizarSesionSupervisor
-          sesion={sesionSupervisor}
+        <DialogoCerrarSesionSupervisor
+          sesion={sesionSupervisor.sesion}
+          destino={sesionSupervisor.destino}
           orden={orden}
           responsables={responsables}
           motivosPausa={motivosPausa}
@@ -1197,7 +1215,12 @@ export function PanelOperadorProduccion({
             const resultado = await onCerrarComoSupervisor(datos);
             if (resultado.exito) {
               setSesionSupervisor(null);
-              setMensaje({ texto: 'Sesión del operador cerrada y recurso liberado', tipo: 'estado' });
+              setMensaje({
+                texto: datos.estadoDestino === 'finalizada'
+                  ? 'Sesión del operador finalizada sin declarar producción'
+                  : 'Sesión del operador pausada y recurso liberado',
+                tipo: 'estado',
+              });
             }
             return resultado;
           }}
@@ -1213,12 +1236,13 @@ export function PanelOperadorProduccion({
 }
 
 /**
- * Cierre excepcional por administrador. Administración solo pausa y libera la
- * máquina: las piezas, el consumo de material y la merma los declara el operador
- * desde su propia sesión, así que aquí no se capturan.
+ * Cierre excepcional por administrador. Administración no captura piezas,
+ * consumo ni merma: puede pausar la sesión o finalizarla sin producción para
+ * liberar la máquina, dejando una nota obligatoria de por qué se cierra.
  */
-function DialogoFinalizarSesionSupervisor({
+function DialogoCerrarSesionSupervisor({
   sesion,
+  destino,
   orden,
   responsables,
   motivosPausa,
@@ -1227,6 +1251,7 @@ function DialogoFinalizarSesionSupervisor({
   onConfirmar,
 }: {
   sesion: SesionOrden;
+  destino: 'pausada' | 'finalizada';
   orden: OrdenTableroProduccion | null;
   responsables: Readonly<Record<string, string>>;
   motivosPausa: MotivoPausaCatalogo[];
@@ -1239,6 +1264,7 @@ function DialogoFinalizarSesionSupervisor({
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  const esPausa = destino === 'pausada';
   const motivoSeleccionado = motivosPausa.find((motivo) => motivo.codigo === motivoPausa)
     ?? motivosPausa[0]
     ?? null;
@@ -1252,12 +1278,16 @@ function DialogoFinalizarSesionSupervisor({
   async function confirmar(evento: FormEvent<HTMLFormElement>): Promise<void> {
     evento.preventDefault();
     if (enviando) return;
-    if (!motivoSeleccionado) {
+    if (esPausa && !motivoSeleccionado) {
       setError('Selecciona el motivo de la pausa');
       return;
     }
-    if (motivoSeleccionado.requiereNota && notas.trim().length === 0) {
+    if (esPausa && motivoSeleccionado?.requiereNota && notas.trim().length === 0) {
       setError('Este motivo exige una nota');
+      return;
+    }
+    if (!esPausa && notas.trim().length < 5) {
+      setError('Explica brevemente por qué se cierra la sesión sin producción');
       return;
     }
     setError(null);
@@ -1265,9 +1295,9 @@ function DialogoFinalizarSesionSupervisor({
     const resultado = await onConfirmar({
       sesionId: sesion.id,
       piezasProducidas: 0,
-      estadoDestino: 'pausada',
+      estadoDestino: destino,
       ...(meta ? { metaProcesoId: meta.id } : {}),
-      motivoPausa: motivoSeleccionado.codigo,
+      ...(esPausa && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
     });
     setEnviando(false);
@@ -1278,7 +1308,10 @@ function DialogoFinalizarSesionSupervisor({
     <Dialog open onOpenChange={(abierto) => { if (!abierto && !enviando) onCerrar(); }}>
       <DialogContent className="max-w-lg" data-testid="dialogo-supervisor-sesion">
         <DialogHeader>
-          <DialogTitle>Pausar sesión de {responsables[sesion.operadorId] ?? 'operador'}</DialogTitle>
+          <DialogTitle>
+            {esPausa ? 'Pausar sesión de ' : 'Finalizar sesión de '}
+            {responsables[sesion.operadorId] ?? 'operador'}
+          </DialogTitle>
           <DialogDescription>
             {partida?.codigoPieza ?? 'Partida'}
             {meta ? ` · ${meta.nombre}` : ''} · {formatearFecha(sesion.fechaInicio)}{' '}
@@ -1287,30 +1320,36 @@ function DialogoFinalizarSesionSupervisor({
         </DialogHeader>
         <form className="flex flex-col gap-3" onSubmit={(evento) => void confirmar(evento)}>
           <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
-            La captura de piezas, material y merma corresponde al operador. Si su sesión quedó
-            abierta, esta pausa libera la máquina sin declarar producción.
+            {esPausa
+              ? 'La captura de piezas, material y merma corresponde al operador. Si su sesión quedó abierta, esta pausa libera la máquina sin declarar producción.'
+              : 'La sesión se cerrará como finalizada con 0 piezas: no se declara producción ni consumo. Úsalo solo si el operador olvidó cerrar y no hay piezas que registrar.'}
           </p>
+          {esPausa ? (
+            <label className={CLASE_ETIQUETA}>
+              Motivo de pausa
+              <Select
+                value={motivoSeleccionado?.codigo ?? ''}
+                onChange={(evento) => setMotivoPausa(evento.target.value)}
+                data-testid="supervisor-motivo-pausa"
+              >
+                {motivosPausa.map((motivo) => (
+                  <option key={motivo.codigo} value={motivo.codigo}>
+                    {motivo.nombre}{motivo.requiereNota ? ' (nota obligatoria)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          ) : null}
           <label className={CLASE_ETIQUETA}>
-            Motivo de pausa
-            <Select
-              value={motivoSeleccionado?.codigo ?? ''}
-              onChange={(evento) => setMotivoPausa(evento.target.value)}
-              data-testid="supervisor-motivo-pausa"
-            >
-              {motivosPausa.map((motivo) => (
-                <option key={motivo.codigo} value={motivo.codigo}>
-                  {motivo.nombre}{motivo.requiereNota ? ' (nota obligatoria)' : ''}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label className={CLASE_ETIQUETA}>
-            Notas{motivoSeleccionado?.requiereNota ? ' (obligatorias)' : ' (opcional)'}
+            Notas
+            {esPausa
+              ? (motivoSeleccionado?.requiereNota ? ' (obligatorias)' : ' (opcional)')
+              : ' (obligatorias)'}
             <Textarea
               maxLength={1000}
               value={notas}
               onChange={(evento) => setNotas(evento.target.value)}
-              required={motivoSeleccionado?.requiereNota === true}
+              required={esPausa ? motivoSeleccionado?.requiereNota === true : true}
             />
           </label>
           {error ? <p role="alert" className="text-sm text-peligro-texto">{error}</p> : null}
@@ -1319,7 +1358,7 @@ function DialogoFinalizarSesionSupervisor({
               Cancelar
             </Button>
             <Button type="submit" disabled={enviando || procesando} data-testid="confirmar-supervisor-sesion">
-              {enviando || procesando ? 'Guardando…' : 'Pausar sesión'}
+              {enviando || procesando ? 'Guardando…' : (esPausa ? 'Pausar sesión' : 'Finalizar sin producir')}
             </Button>
           </DialogFooter>
         </form>
