@@ -309,13 +309,16 @@ describe('FichaRfq — estado de captura en el encabezado', () => {
     expect(within(indicador()).getByText('Incompleto')).toBeDefined();
   });
 
-  it('un RFQ listo para propuesta conserva su etiqueta y no consulta la validación', async () => {
+  it('un RFQ listo para propuesta conserva su etiqueta y puede revalidar sin mostrar «Listo para validar»', async () => {
     obtenerRfqMock.mockResolvedValue({ exito: true, datos: rfq('READY_FOR_PROPOSAL') });
     renderizarFicha();
 
     await screen.findByText('RFQ-1026_01');
     expect(within(indicador()).getByText('Listo para propuesta')).toBeDefined();
     expect(screen.queryByText('Listo para validar')).toBeNull();
-    expect(validarMock).not.toHaveBeenCalled();
+    // M-5: la re-validación es de solo lectura y está disponible en READY para
+    // verificar ediciones posteriores, pero no cambia el distintivo de captura.
+    await waitFor(() => expect(validarMock).toHaveBeenCalledWith({ rfqId: 'rfq-1' }));
+    expect(screen.getByRole('tab', { name: 'Revisar' })).toBeDefined();
   });
 });

@@ -123,10 +123,10 @@
 |---|---|---|---|---|
 | A-1 | **ALTA — corregida en código (pendiente de despliegue)** | Consumo de MDF-12 sin costo confirmado dejaba al operador sin salida | Cerrar IT02 con consumo → «El material no tiene costo confirmado»; sin consumo → «Este proceso requiere registrar el consumo…». El modal C21 no ofrecía salida. Se destrabó registrando costo manual $320 (cambio global documentado) y se corrigió la UI (sección 10). | `07_entrega_cobro/diagnostico-it02.md`, `it02-sin-consumo.md`, `10_validacion_tecnica/cambio-catalogo-mdf.md` |
 | M-1 | Media — **por diseño, aclarada en UI** | No existe pantalla de Pipeline ni avance de etapas | `GET /pipeline` redirige a `/rfq`: la oportunidad es el propio RFQ y las etapas son históricas (grandfathering), gobernadas por las acciones de estado. No se inventaron etapas ni botones; se añadió un aviso explicativo (sección 11). | `02_oportunidad/pipeline-redirige-a-rfq.png` |
-| M-2 | Media | Adjuntos de oportunidad inalcanzables | `PanelAdjuntos` solo se monta en `EditorCotizacion`, que no está enlazado desde ninguna ruta. | Análisis de código (subagente) + `00_sesion/dump-rutas.md` |
-| M-3 | Media | Activación de prospecto solo desde `/clientes` | La ficha RFQ no ofrece «Activar»; hay que salir al módulo Clientes. La relación se conserva correctamente. | `01_rfq/42-cliente-activado.png`, `51-relacion-final-conservada.png` |
-| M-4 | Media | Horas extra sin rechazo con nota ni re-solicitud | `resolver_solicitud_horas_extra` solo escribe `VIGENTE`/`RECHAZADA`; la UI «Desaprobar» no pide motivo; una solicitud rechazada no se reactiva. No se pudo provocar exceso de jornada en el caso. | Análisis de código + migración `20261103090000` |
-| M-5 | Media | Re-validación no expuesta tras `READY_FOR_PROPOSAL` | Editar el RFQ tras marcarlo listo genera versión `CABECERA`, pero «Marcar listo» desaparece; no hay botón de re-validación. | `01_rfq/resultado-etapa1e.md`, `1f.md` |
+| M-2 | Media — **corregida (sección 12)** | Adjuntos de oportunidad inalcanzables | `PanelAdjuntos` solo se monta en `EditorCotizacion`, que no está enlazado desde ninguna ruta. | Análisis de código (subagente) + `00_sesion/dump-rutas.md` |
+| M-3 | Media — **corregida (sección 12)** | Activación de prospecto solo desde `/clientes` | La ficha RFQ no ofrece «Activar»; hay que salir al módulo Clientes. La relación se conserva correctamente. | `01_rfq/42-cliente-activado.png`, `51-relacion-final-conservada.png` |
+| M-4 | Media — **corregida (sección 12)** | Horas extra sin rechazo con nota ni re-solicitud | `resolver_solicitud_horas_extra` solo escribe `VIGENTE`/`RECHAZADA`; la UI «Desaprobar» no pide motivo; una solicitud rechazada no se reactiva. No se pudo provocar exceso de jornada en el caso. | Análisis de código + migración `20261103090000` |
+| M-5 | Media — **corregida (sección 12)** | Re-validación no expuesta tras `READY_FOR_PROPOSAL` | Editar el RFQ tras marcarlo listo genera versión `CABECERA`, pero «Marcar listo» desaparece; no hay botón de re-validación. | `01_rfq/resultado-etapa1e.md`, `1f.md` |
 | B-1 | Baja | Horas reales = 0.0 h en cierre administrativo | Las sesiones duraron segundos y el cierre coincide con el inicio; el panel muestra «0.0 h reales contra 6.3 h cotizadas» y desviación -100 %. Podría requerir revisión del cálculo cuando `fecha_fin_declarada` no se declara. | `07_entrega_cobro/39-detalle-cierre-completo.png` |
 | B-2 | Baja | Descarga binaria de PDFs no capturada en headless | «Descargar» abrió URL firmada; `popup.pdf()` no produjo archivo. La generación y vigencia del PDF sí quedaron evidenciadas en pantalla. | `08_documentos/pdf-aprobado-B-panel.png` |
 | B-3 | Baja | Logout UI no confirmado por automatización | El menú mostró «Cerrar sesión» en el sondeo, pero el clic automatizado no lo encontró de forma estable; todos los contextos de navegador fueron destruidos al final (sin sesiones colgadas en el proceso). | `00_sesion/menu-admin-logout.png`, `logout-admin-final.png` |
@@ -136,9 +136,9 @@
 ## 8. Recomendaciones
 
 1. **Alta:** dar salida explícita en el modal de error de consumo cuando el material no tiene costo confirmado (ofrecer « configurar costo» o permitir dejarlo para cierre con aviso).
-2. Exponer en la UI el alta/activación de oportunidad y el avance de etapas, o documentar oficialmente que `/rfq` es la única pantalla de oportunidad.
-3. Habilitar re-validación tras editar un RFQ en `READY_FOR_PROPOSAL`.
-4. Permitir nota de rechazo y re-solicitud de horas extra, y considerar expiración/invalidación de la sesión PIN de piso.
+2. ~~Exponer en la UI el alta/activación de oportunidad y el avance de etapas, o documentar oficialmente que `/rfq` es la única pantalla de oportunidad.~~ Atendido: M-1 (aclaración en UI) y M-2 (adjuntos alcanzables), sección 12.
+3. ~~Habilitar re-validación tras editar un RFQ en `READY_FOR_PROPOSAL`.~~ Atendido: M-5, sección 12.
+4. ~~Permitir nota de rechazo y re-solicitud de horas extra~~ Atendido: M-4, sección 12. Queda como mejora opcional considerar expiración/invalidación de la sesión PIN de piso.
 5. Revisar el cálculo de horas reales del cierre administrativo cuando las sesiones son muy cortas.
 6. Publicar un botón de descarga directa (no popup) para el PDF de propuesta y el acta de entrega.
 
@@ -185,3 +185,39 @@
 | `tests/unitarias/pipeline-aviso-rfq.test.ts` | Test del contenido del aviso (RED → GREEN). |
 
 **Verificación:** `tsc --noEmit`, ESLint y suite unitaria completa en verde (incluye el test nuevo). La incidencia queda documentada como decisión de diseño, con la UX aclarada y sin automatizaciones inventadas.
+
+---
+
+## 12. Cierre de M-2, M-3, M-4 y M-5 (2026-11-17)
+
+Las cuatro incidencias medias restantes se corrigieron **sin alterar reglas de negocio**: no se agregaron estados, transiciones, permisos ni columnas. Se reutilizaron acciones, componentes y tablas ya existentes.
+
+### M-2 — Adjuntos de oportunidad alcanzables
+
+- **Diagnóstico:** `PanelAdjuntos` (vista histórica de los archivos de la oportunidad) solo se montaba en `EditorCotizacion`, sin enlace desde ninguna ruta. Los mismos archivos `rfq/<id>/…` ya se administraban en la pestaña Archivos del RFQ.
+- **Corrección:** nuevo `AdjuntosOportunidadRfq`, montado en la pestaña Archivos de la ficha RFQ, que reutiliza `PanelAdjuntos` en **solo lectura**. Sin ruta nueva, sin modelo nuevo y sin duplicar almacenamiento.
+- **Archivos:** `src/modulos/rfq/componentes/adjuntos-oportunidad-rfq.tsx`, `src/modulos/rfq/componentes/ficha-rfq.tsx`, `tests/unitarias/rfq-adjuntos-oportunidad.test.ts`.
+
+### M-3 — Activación de prospecto desde la ficha RFQ
+
+- **Diagnóstico:** la activación `prospecto → activo` solo estaba en el drawer de `/clientes`; la ficha RFQ no la ofrecía aunque el cliente ya venía en el payload.
+- **Corrección:** nuevo `ActivarClienteRfq`, visible solo si el usuario tiene `cliente_editar` y el cliente es prospecto. Reutiliza `cambiarEstadoClienteAccion` con el CAS de `clientes.actualizado_en` (**no** el de `pipeline`), sin motivo, con la misma RPC y los mismos permisos. La página `/rfq` calcula el gate de permiso en servidor.
+- **Archivos:** `src/modulos/rfq/componentes/activar-cliente-rfq.tsx`, `src/app/(panel)/rfq/page.tsx`, `src/modulos/rfq/componentes/ficha-rfq.tsx`, `tests/unitarias/rfq-activar-cliente.test.ts`.
+
+### M-4 — Rechazo con nota y re-solicitud de horas extra
+
+- **Diagnóstico:** `resolver_solicitud_horas_extra` no aceptaba nota y la UI «Desaprobar» no pedía motivo; el rechazo no quedaba documentado y la re-solicitud no se comunicaba al usuario.
+- **Corrección (cero migración):** el esquema Zod exige nota al rechazar (mínimo 3 caracteres); la nota se guarda en `logs.detalles` bajo la acción `rechazar_horas_extra` y se lee de vuelta para mostrarla en el historial. La re-solicitud ya funcionaba en base de datos (la RPC crea una fila nueva `SOLICITADA` sin reactivar la rechazada); el mensaje de UI indica ahora que el operador puede volver a pedir al intentar cerrar la sesión. No se tocó la RPC, los estados ni el esquema de la tabla.
+- **Archivos:** `src/modulos/produccion/validaciones/corridas.ts`, `src/modulos/produccion/acciones/resolver-horas-extra.ts`, `src/modulos/produccion/servicios/consultas-b6-servicio.ts`, `src/modulos/produccion/componentes/panel-horas-extra-produccion.tsx`, `tests/unitarias/produccion-horas-extra-rechazo.test.ts`.
+
+### M-5 — Re-validación visible en `READY_FOR_PROPOSAL`
+
+- **Diagnóstico:** editar un RFQ ya marcado listo genera versión `CABECERA`, pero la pestaña «Revisar» y la consulta `validar_rfq_listo` estaban restringidas a `INCOMPLETE`; la re-validación visible quedaba diferida a la creación de la Rev A.
+- **Corrección (Opción B, cero SQL):** se expone la revisión de **solo lectura** también en `READY_FOR_PROPOSAL` (`puedeValidar`), reutilizando `validarRfqListoAccion`. **No** se añadió `marcar_listo` al mapa de acciones de READY ni un evento READY→READY: `cambiar_estado_rfq` sigue rechazando esa transición y `capturaRfqListaParaValidar` sigue siendo exclusivo de `INCOMPLETE`. El texto del panel en READY ya no remite a «Marcar listo» y aclara que no hay cambios de estado pendientes.
+- **Archivos:** `src/modulos/rfq/componentes/ficha-rfq.tsx`, `src/modulos/rfq/componentes/panel-revision-rfq.tsx`, `tests/unitarias/rfq-revalidar-listo.test.ts`, `tests/unitarias/rfq-estado-captura.test.ts` (actualizado).
+
+### Verificación
+
+`tsc --noEmit` limpio · ESLint limpio en los 14 archivos tocados · suite unitaria completa **335 archivos / 2917 pruebas en verde** (30 archivos y 102 pruebas omitidos por diseño). Cada hallazgo tiene su test de reproducción (RED → GREEN).
+
+**Estado de integración:** con todas las verificaciones en verde y la autorización vigente para fusionar cuando la suite pasa, estos cambios quedan integrados en `main`. Pendiente únicamente la re-verificación en producción tras el despliegue: vista de adjuntos (M-2), botón de activación (M-3), nota de rechazo (M-4) y pestaña Revisar en READY (M-5).

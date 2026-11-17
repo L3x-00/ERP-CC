@@ -22,18 +22,23 @@ export default async function PaginaRfq({ searchParams }: ParametrosPaginaRfq) {
         : undefined;
   const continuar = parametros.continuar === '1';
   const desdePipeline = parametros.desde === 'pipeline' || typeof parametros.oportunidad === 'string';
+  const usuario = await obtenerUsuarioServidor();
+  const puedeEditarCliente =
+    usuario?.rol === 'admin' || (usuario?.permisos ?? []).includes('cliente_editar');
 
   if (rfqId) {
     return (
       <>
         {desdePipeline ? <AvisoPipelineRfq /> : null}
         <SincronizadorPipelineRealtime />
-        <FichaRfq rfqId={rfqId} continuar={continuar} />
+        <FichaRfq
+          rfqId={rfqId}
+          continuar={continuar}
+          puedeEditarCliente={puedeEditarCliente}
+        />
       </>
     );
   }
-
-  const usuario = await obtenerUsuarioServidor();
 
   return (
     <div className="flex flex-col gap-5">

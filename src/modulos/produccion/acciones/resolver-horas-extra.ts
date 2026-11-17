@@ -14,8 +14,9 @@ import { esquemaResolverHorasExtra } from '@/modulos/produccion/validaciones/ind
 import { obtenerActorProduccionParaMutacion } from './utilidades-acciones';
 
 /**
- * C12: Admin/Management resuelve una solicitud de horas extra pendiente con un
- * solo botón; no captura horas ni motivo porque la solicitud ya los resume.
+ * C12: Admin/Management resuelve una solicitud de horas extra pendiente. El
+ * rechazo exige nota; se guarda en la auditoría (logs.detalles) sin tocar el
+ * esquema de la solicitud ni el estado de negocio.
  */
 export async function resolverSolicitudHorasExtraAccion(
   entrada: unknown,
@@ -46,7 +47,11 @@ export async function resolverSolicitudHorasExtraAccion(
       resultado.data.aprobar ? 'aprobar_horas_extra' : 'rechazar_horas_extra',
       'produccion',
       solicitud.id,
-      { estado: solicitud.estado, horas: solicitud.horasAutorizadas },
+      {
+        estado: solicitud.estado,
+        horas: solicitud.horasAutorizadas,
+        ...(resultado.data.nota ? { nota: resultado.data.nota } : {}),
+      },
       correlationId,
     );
     return { exito: true, datos: solicitud };

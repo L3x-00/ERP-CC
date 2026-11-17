@@ -29,6 +29,8 @@ export function PanelHorasExtraProduccion({
   const clienteConsultas = useQueryClient();
   const [mensaje, setMensaje] = useState<MensajeHorasExtra | null>(null);
   const [resolviendo, setResolviendo] = useState<string | null>(null);
+  const [rechazando, setRechazando] = useState<string | null>(null);
+  const [notasRechazo, setNotasRechazo] = useState<Record<string, string>>({});
 
   const consulta = useQuery({
     queryKey: [...CLAVE_HORAS_EXTRA_ORDEN, orden?.id ?? 'sin-orden'],
@@ -47,19 +49,29 @@ export function PanelHorasExtraProduccion({
   const pendientes = autorizaciones.filter((autorizacion) => autorizacion.estado === 'SOLICITADA');
   const historial = autorizaciones.filter((autorizacion) => autorizacion.estado !== 'SOLICITADA');
 
-  async function resolver(id: string, aprobar: boolean): Promise<void> {
+  async function resolver(id: string, aprobar: boolean, nota?: string): Promise<void> {
     setMensaje(null);
     setResolviendo(id);
     try {
-      const resultado = await resolverSolicitudHorasExtraAccion({ id, aprobar });
+      const resultado = await resolverSolicitudHorasExtraAccion({
+        id,
+        aprobar,
+        ...(nota ? { nota } : {}),
+      });
       if (!resultado.exito) {
         setMensaje({ texto: resultado.error, tipo: 'error' });
         return;
       }
       setMensaje({
-        texto: aprobar ? 'Solicitud aprobada: el operador ya puede cerrar su sesión.' : 'Solicitud rechazada.',
+        texto: aprobar
+          ? 'Solicitud aprobada: el operador ya puede cerrar su sesión.'
+          : 'Solicitud rechazada con nota. El operador puede volver a solicitar al intentar cerrar la sesión.',
         tipo: 'estado',
       });
+      if (!aprobar) {
+        setRechazando(null);
+        setNotasRechazo((previo) => ({ ...previo, [id]: '' }));
+      }
       await clienteConsultas.invalidateQueries({ queryKey: CLAVE_HORAS_EXTRA_ORDEN });
     } catch {
       setMensaje({ texto: 'No se pudo resolver la solicitud. Vuelve a intentarlo.', tipo: 'error' });
@@ -74,7 +86,7 @@ export function PanelHorasExtraProduccion({
         <h2 className="text-base font-semibold text-texto-primario">Horas extra</h2>
         <p className="mt-1 text-xs text-texto-secundario">
           El operador puede justificar el exceso de su sesión o solicitar aprobación. Management/Admin
-          aprueba o rechaza las solicitudes; las justificaciones quedan en el historial con su motivo.
+          aprueba o rechaza; el rechazo exige nota, queda en la auditoría y se muestra en el historial.
         </p>
       </div>
       {!orden && <p className="mt-2 text-sm text-texto-secundario">Selecciona una orden del Kanban.</p>}
@@ -128,16 +140,59 @@ export function PanelHorasExtraProduccion({
                   >
                     Aprobar
                   </Button>
-                  <Button
-                    type="button"
-                    tamano="sm"
-                    variante="contorno"
-                    disabled={resolviendo === solicitud.id}
-                    onClick={() => void resolver(solicitud.id, false)}
-                    data-testid={`rechazar-horas-extra-${solicitud.id}`}
-                  >
-                    Desaprobar
-                  </Button>
+                  {rechazando === solicitud.id ? (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-texto-secundario">
+                        Motivo del rechazo
+                        <textarea
+                          rows={2}
+                          maxLength={300}
+                          value={notasRechazo[solicitud.id] ?? ''}
+                          onChange={(evento) =>
+                            setNotasRechazo((previo) => ({
+                              ...previo,
+                              [solicitud.id]: evento.target.value,
+                            }))
+                          }
+                          data-testid={`nota-rechazo-horas-extra-${solicitud.id}`}
+                          className="mt-1 w-full rounded-md border border-borde-fuerte bg-superficie-2 px-2 py-1 text-sm"
+                        />
+                      </label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          tamano="sm"
+                          variante="destructivo"
+                          disabled={resolviendo === solicitud.id}
+                          onClick={() =>
+                            void resolver(solicitud.id, false, notasRechazo[solicitud.id])
+                          }
+                          data-testid={`confirmar-rechazo-horas-extra-${solicitud.id}`}
+                        >
+                          Confirmar rechazo
+                        </Button>
+                        <Button
+                          type="button"
+                          tamano="sm"
+                          variante="contorno"
+                          onClick={() => setRechazando(null)}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      tamano="sm"
+                      variante="contorno"
+                      disabled={resolviendo === solicitud.id}
+                      onClick={() => setRechazando(solicitud.id)}
+                      data-testid={`rechazar-horas-extra-${solicitud.id}`}
+                    >
+                      Desaprobar
+                    </Button>
+                  )}
                 </div>
               </div>
             </li>
@@ -163,6 +218,14 @@ export function PanelHorasExtraProduccion({
                 {autorizacion.motivo}
                 {autorizacion.autorizadoPorNombre ? ` · ${autorizacion.autorizadoPorNombre}` : ''}
               </p>
+              {autorizacion.notaRechazo ? (
+                <p
+                  className="mt-1 text-xs text-peligro-texto"
+                  data-testid={`nota-rechazo-historial-${autorizacion.id}`}
+                >
+                  Motivo del rechazo: {autorizacion.notaRechazo}
+                </p>
+              ) : null}
             </li>
           ))}
         </ul>

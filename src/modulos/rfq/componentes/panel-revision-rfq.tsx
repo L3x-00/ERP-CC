@@ -49,7 +49,9 @@ type Props = {
  * checklist de `validar_rfq_listo` agrupado por sección. Es presentacional: no
  * llama Server Actions ni cambia el estado del RFQ — solo pide revalidar y
  * dirige a dónde se corrige cada faltante. Confirmar el cambio de estado sigue
- * siendo trabajo de la acción superior “Marcar listo para propuesta”.
+ * siendo trabajo de la acción superior “Marcar listo para propuesta” cuando el
+ * RFQ está incompleto; en READY_FOR_PROPOSAL la revisión solo verifica las
+ * ediciones posteriores (el servidor vuelve a validar al crear la Rev A).
  */
 export function PanelRevisionRfq({
   rfq,
@@ -92,10 +94,14 @@ export function PanelRevisionRfq({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-1">
             <h2 className="text-sm font-semibold text-texto-primario">
-              Revisar antes de marcar listo
+              {rfq.estadoRfq === 'READY_FOR_PROPOSAL'
+                ? 'Revisar el RFQ tras la edición'
+                : 'Revisar antes de marcar listo'}
             </h2>
             <p className="text-sm text-texto-secundario">
-              Esta revisión es informativa: el servidor vuelve a validar al confirmar la acción.
+              {rfq.estadoRfq === 'READY_FOR_PROPOSAL'
+                ? 'Esta revisión es informativa: comprueba el resultado de tus ediciones sin cambiar el estado.'
+                : 'Esta revisión es informativa: el servidor vuelve a validar al confirmar la acción.'}
             </p>
           </div>
           <Button
@@ -133,8 +139,9 @@ export function PanelRevisionRfq({
             aria-live="polite"
             className="rounded-md bg-exito-suave px-3 py-2 text-sm font-medium text-exito-texto"
           >
-            El RFQ está completo. Usa “Marcar listo para propuesta” en las acciones de arriba para
-            confirmarlo.
+            {rfq.estadoRfq === 'READY_FOR_PROPOSAL'
+              ? 'El RFQ sigue completo tras la última edición. No hay cambios de estado pendientes.'
+              : 'El RFQ está completo. Usa “Marcar listo para propuesta” en las acciones de arriba para confirmarlo.'}
           </p>
         )}
 

@@ -130,8 +130,18 @@ export const esquemaResolverHorasExtra = z
   .object({
     id: z.uuid('ID de solicitud inválido'),
     aprobar: z.boolean(),
+    nota: z.string().trim().min(3).max(300).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((valor, contexto) => {
+    if (!valor.aprobar && !valor.nota) {
+      contexto.addIssue({
+        code: 'custom',
+        path: ['nota'],
+        message: 'Indica el motivo del rechazo (mínimo 3 caracteres)',
+      });
+    }
+  });
 
 export const esquemaRegistrarInspeccion = z
   .object({

@@ -30,6 +30,8 @@ import {
   type PasoCapturaRfq,
 } from './navegacion-captura-rfq';
 import { PanelAccionesRfq } from './panel-acciones-rfq';
+import { ActivarClienteRfq } from './activar-cliente-rfq';
+import { AdjuntosOportunidadRfq } from './adjuntos-oportunidad-rfq';
 import { PanelArchivosRfq } from './panel-archivos-rfq';
 import { PanelRevisionRfq } from './panel-revision-rfq';
 import { ResumenRfq } from './resumen-rfq';
@@ -50,7 +52,15 @@ type PestanaRfq = (typeof PESTANAS)[number]['clave'];
  * Ficha RFQ (plan §3.8): encabezado folio + estado, acciones de negocio arriba
  * y pestañas Resumen, Ítems, Archivos, Propuestas (placeholder B4) y Actividad.
  */
-export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continuar?: boolean }) {
+export function FichaRfq({
+  rfqId,
+  continuar = false,
+  puedeEditarCliente = false,
+}: {
+  rfqId: string;
+  continuar?: boolean;
+  puedeEditarCliente?: boolean;
+}) {
   const [pestana, setPestana] = useState<PestanaRfq>('resumen');
   const [pasoCaptura, setPasoCaptura] = useState<PasoCapturaRfq>('solicitud');
   const [editandoResumen, setEditandoResumen] = useState(false);
@@ -70,14 +80,21 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
 
   const rfq: Rfq | undefined = consulta.data?.exito ? consulta.data.datos : undefined;
   const capturaIncompleta = rfq?.estadoRfq === 'INCOMPLETE';
+  // En READY_FOR_PROPOSAL el RFQ sigue siendo editable: editar el resumen crea
+  // una versión CABECERA. `validar_rfq_listo` es de solo lectura, así que se
+  // puede volver a consultar para verificar el efecto de esas ediciones sin
+  // inventar una transición READY→READY ni cambiar el estado. `capturaIncompleta`
+  // sigue rigiendo la navegación de captura y el distintivo «Listo para validar».
+  const puedeValidar =
+    rfq?.estadoRfq === 'INCOMPLETE' || rfq?.estadoRfq === 'READY_FOR_PROPOSAL';
   // Al validar, la captura deja de estar incompleta y la pestaña «Revisar»
   // desaparece: sin este ajuste la ficha queda vacía hasta refrescar.
   const pestanaActiva: PestanaRfq =
-    pestana === 'revisar' && !capturaIncompleta ? 'resumen' : pestana;
+    pestana === 'revisar' && !puedeValidar ? 'resumen' : pestana;
   const validacion = useQuery({
     queryKey: ['rfq-validacion-listo', rfqId],
     queryFn: () => validarRfqListoAccion({ rfqId }),
-    enabled: capturaIncompleta,
+    enabled: puedeValidar,
     // El verde de «Listo para validar» debe salir de una consulta reciente, no de
     // una validación en caché de una visita anterior.
     refetchOnMount: 'always',
@@ -151,7 +168,7 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
 
   function refrescarCaptura(): void {
     void consulta.refetch();
-    if (capturaIncompleta) void validacion.refetch();
+    if (puedeValidar) void validacion.refetch();
   }
 
   if (consulta.isLoading) {
@@ -215,10 +232,17 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
         />
       )}
 
+      {rfq.clienteId ? (
+        <ActivarClienteRfq
+          clienteId={rfq.clienteId}
+          puedeEditarCliente={puedeEditarCliente}
+        />
+      ) : null}
+
       <PanelAccionesRfq rfq={rfq} catalogos={catalogosDatos} onCambio={() => void consulta.refetch()} />
 
       <div role="tablist" aria-label="Secciones del RFQ" className="flex flex-wrap gap-1 rounded-xl bg-superficie-2/50 p-1">
-        {PESTANAS.filter((opcion) => opcion.clave !== 'revisar' || capturaIncompleta).map((opcion) => (
+        {PESTANAS.filter((opcion) => opcion.clave !== 'revisar' || puedeValidar).map((opcion) => (
           <button
             key={opcion.clave}
             type="button"
@@ -332,14 +356,17 @@ export function FichaRfq({ rfqId, continuar = false }: { rfqId: string; continua
       )}
 
       {pestana === 'archivos' && (
-        <PanelArchivosRfq
-          rfq={rfq}
-          faltantes={faltantes?.archivos}
-          onCambio={() => void validacion.refetch()}
-        />
+        <>
+          <PanelArchivosRfq
+            rfq={rfq}
+            faltantes={faltantes?.archivos}
+            onCambio={() => void validacion.refetch()}
+          />
+          <AdjuntosOportunidadRfq pipelineId={rfq.id} />
+        </>
       )}
 
-      {pestanaActiva === 'revisar' && capturaIncompleta && (
+      {pestanaActiva === 'revisar' && puedeValidar && (
         <PanelRevisionRfq
           rfq={rfq}
           catalogos={catalogosDatos}

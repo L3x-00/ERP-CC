@@ -75,6 +75,8 @@ export type AutorizacionHoraExtraDetalle = {
   estado: EstadoAutorizacionHoraExtra;
   autorizadoPorNombre: string | null;
   creadoEn: string;
+  /** Nota del rechazo, leída de la auditoría (logs.detalles). */
+  notaRechazo: string | null;
 };
 
 /** Inspección con contexto de partida/corrida y sus fotos del modelo `archivos`. */
@@ -269,6 +271,20 @@ export async function obtenerAutorizacionesHoraExtraServicio(
     throw new Error('No se pudieron cargar las autorizaciones de horas extra');
   }
 
+  const ids = (data as unknown as { id: string }[]).map((fila) => fila.id);
+  const { data: rechazos } = ids.length
+    ? await admin
+        .from('logs')
+        .select('recurso_id, detalles')
+        .eq('modulo', 'produccion')
+        .eq('accion', 'rechazar_horas_extra')
+        .in('recurso_id', ids)
+    : { data: [] };
+  const notasRechazo = new Map(
+    ((rechazos ?? []) as unknown as { recurso_id: string; detalles: { nota?: string } | null }[])
+      .map((registro) => [registro.recurso_id, registro.detalles?.nota ?? null]),
+  );
+
   return (data as unknown as {
     id: string;
     orden_id: string;
@@ -293,6 +309,7 @@ export async function obtenerAutorizacionesHoraExtraServicio(
       : 'VIGENTE',
     autorizadoPorNombre: fila.usuarios?.nombre_completo ?? null,
     creadoEn: fila.creado_en,
+    notaRechazo: notasRechazo.get(fila.id) ?? null,
   }));
 }
 
