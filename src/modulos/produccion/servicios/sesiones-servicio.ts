@@ -55,6 +55,9 @@ export type CodigoErrorProduccion =
   | 'actualizacion_avance_invalida'
   | 'sesion_no_pendiente_avance'
   | 'horas_a_restar_exceden_sesion'
+  | 'horas_reales_exceden_sesion'
+  | 'sesion_antigua_pendiente'
+  | 'sesiones_pausadas_excedidas'
   | 'sin_permiso_actualizar_avance'
   | 'recurso_ocupado'
   | 'capacidad_no_disponible'
@@ -290,6 +293,9 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'actualizacion_avance_invalida',
   'sesion_no_pendiente_avance',
   'horas_a_restar_exceden_sesion',
+  'horas_reales_exceden_sesion',
+  'sesion_antigua_pendiente',
+  'sesiones_pausadas_excedidas',
   'sin_permiso_actualizar_avance',
 ];
 
@@ -377,9 +383,13 @@ export interface ActualizarAvanceSesionInput {
   sesionId: string;
   actorId: string;
   piezasProducidas: number;
-  /** Horas que se restan de la fecha_fin capturada por la pausa automática. */
-  horasARestar: number;
+  /** C21: tiempo real que tardó el proceso en este bloque. */
+  horasReales: number;
   notas?: string;
+  materialId?: string | null;
+  cantidadUsada?: number;
+  cantidadScrap?: number;
+  motivoConsumo?: string | null;
 }
 
 /** C20: guarda la hora real de finalización antes de cerrar la sesión. */
@@ -425,8 +435,16 @@ export async function actualizarAvanceSesionServicio(
     p_sesion_id: entrada.sesionId,
     p_actor_id: entrada.actorId,
     p_piezas_producidas: entrada.piezasProducidas,
-    p_horas_a_restar: entrada.horasARestar,
+    p_horas_reales: entrada.horasReales,
     ...(entrada.notas ? { p_notas: entrada.notas } : {}),
+    ...(entrada.materialId
+      ? {
+          p_material_id: entrada.materialId,
+          p_cantidad_usada: entrada.cantidadUsada ?? 0,
+          p_cantidad_scrap: entrada.cantidadScrap ?? 0,
+          p_motivo_consumo: entrada.motivoConsumo ?? 'Consumo registrado al actualizar avance',
+        }
+      : {}),
   });
   if (error) lanzarErrorProduccion(error.message);
   const fila = data?.[0];
@@ -678,7 +696,12 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'sesion_no_pendiente_avance':
       return 'Esta pausa ya no está pendiente de actualizar avance; actualiza el tablero';
     case 'horas_a_restar_exceden_sesion':
-      return 'Las horas declaradas superan el tiempo de la sesión pausada';
+    case 'horas_reales_exceden_sesion':
+      return 'El tiempo real de proceso no puede ser mayor al tiempo de la sesión pausada';
+    case 'sesion_antigua_pendiente':
+      return 'Primero actualiza la sesión pausada más antigua';
+    case 'sesiones_pausadas_excedidas':
+      return 'Este proceso ya acumuló 3 pausas sin avance. Actualiza o marca como inválidas las sesiones anteriores antes de continuar';
     case 'sin_permiso_actualizar_avance':
       return 'No tienes permiso para actualizar el avance de esta sesión';
     case 'verificacion_inicio_incompleta':

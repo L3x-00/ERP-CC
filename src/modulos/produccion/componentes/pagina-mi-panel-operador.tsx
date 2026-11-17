@@ -256,7 +256,7 @@ export function PaginaMiPanelOperador({
       const resultado = await actualizarAvanceSesionAccion(datos);
       return resultado.exito
         ? { exito: true }
-        : { exito: false, error: resultado.error };
+        : { exito: false, error: resultado.error, ...(resultado.codigo ? { codigo: resultado.codigo } : {}) };
     }, 'Avance y hora real actualizados'),
 
     cerrar: (proceso, datos) => ejecutar(proceso, async () => {

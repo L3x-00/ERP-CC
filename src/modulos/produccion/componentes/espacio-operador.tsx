@@ -318,7 +318,11 @@ export function EspacioOperador({
     datos: {
       sesionId: string;
       piezasProducidas: number;
-      horasARestar: number;
+      horasReales: number;
+      materialId?: string | null;
+      cantidadUsada?: number;
+      cantidadScrap?: number;
+      motivoConsumo?: string | null;
       notas?: string;
       pinConfirmacion?: string;
     },
@@ -327,7 +331,7 @@ export function EspacioOperador({
       const respuesta = await actualizarAvanceSesionAccion(datos);
       return respuesta.exito
         ? { exito: true }
-        : { exito: false, error: respuesta.error };
+        : { exito: false, error: respuesta.error, ...(respuesta.codigo ? { codigo: respuesta.codigo } : {}) };
     }, 'Avance y hora real actualizados');
   }
 

@@ -4571,6 +4571,7 @@ export type Database = {
           piezas_producidas: number
           programacion_id: string
           recurso_liberado: boolean
+          sesion_invalida: boolean
           verificacion_inicio: Json | null
         }
         Insert: {
@@ -4597,6 +4598,7 @@ export type Database = {
           piezas_producidas?: number
           programacion_id: string
           recurso_liberado?: boolean
+          sesion_invalida?: boolean
           verificacion_inicio?: Json | null
         }
         Update: {
@@ -4622,6 +4624,7 @@ export type Database = {
           piezas_producidas?: number
           programacion_id?: string
           recurso_liberado?: boolean
+          sesion_invalida?: boolean
           verificacion_inicio?: Json | null
         }
         Relationships: [
@@ -5541,7 +5544,11 @@ export type Database = {
       actualizar_avance_sesion_pausada: {
         Args: {
           p_actor_id: string
-          p_horas_a_restar: number
+          p_cantidad_scrap?: number
+          p_cantidad_usada?: number
+          p_horas_reales: number
+          p_material_id?: string | null
+          p_motivo_consumo?: string | null
           p_notas?: string
           p_piezas_producidas: number
           p_sesion_id: string
