@@ -35,7 +35,7 @@ Ubicación: `src/modulos/<dominio>/acciones/*.ts`, exportadas desde el índice d
 | Compras | `crearCompraAccion`, `cambiarEstadoCompraAccion`, `pagarCompraAccion` |
 | Órdenes | `crearOrdenAccion`, `cambiarEstadoOrdenAccion`, `registrarAvancePartidaAccion`, `configurarMetasProcesoAccion`, `cerrarOrdenAdministrativaAccion` |
 | Planeación | `programarPartidaRecursoAccion`, `reprogramarPartidaRecursoAccion`, `obtenerCalendarioPlaneacionAccion`, `activarModoPreparacionAccion` |
-| Producción | `reclamarProcesoAccion`, `iniciarSesionOperadorAccion`, `cerrarSesionOperadorAccion`, `pausarSesionJornadaAccion`, `generarNotaEntregaAccion` |
+| Producción | `reclamarProcesoAccion`, `iniciarSesionOperadorAccion`, `cerrarSesionOperadorAccion`, `pausarSesionJornadaAccion`, `actualizarAvanceSesionAccion` (C20), `generarNotaEntregaAccion` |
 | Entregas | `prepararEntregaAccion`, `registrarEntregaAccion`, `anularNotaEntregaAccion`, `firmarEvidenciaEntregaAccion` |
 | Cobranza | `abrirCuentaPorCobrarAccion`, `registrarPagoAccion`, `aplicarSaldoFavorAccion`, `reversarPagoAccion` |
 | Tesorería | `obtenerTesoreriaAccion`, `registrarTransferenciaAccion`, `conciliarMovimientoAccion` |
@@ -56,6 +56,7 @@ Las migraciones (`supabase/migrations/`) contienen alrededor de 188 funciones `p
 | Planeación / capacidad | `programar_partida_recurso`, `reprogramar_partida_recurso`, `obtener_carga_capacidad_diaria`, `liberar_preparacion_planeacion_auditada` |
 | Horario laboral (C18) | `privado.jornada_laboral_dia`, `privado.horas_turno_horario_laboral`, `privado.obtener_jornada_recurso_turno` |
 | Piso y operador | `reclamar_proceso_operador`, `mover_reclamo_operador`, `iniciar_sesion_trabajo_operador`, `cerrar_sesion_integrada`, `registrar_avance_partida_op`, `registrar_consumo_material_operador_op` |
+| Cierre y avance (C20) | `registrar_hora_fin_sesion` (hora real opcional del cierre), `actualizar_avance_sesion_pausada` (corrige piezas y hora real de la pausa automática); `cerrar_sesion_trabajo_operador` usa `fecha_fin_declarada` si existe |
 | Entregas (C19) | `generar_nota_entrega`, `registrar_entrega`, `anular_nota_entrega`, `archivar_orden_al_entregar` |
 | Cobranza | `abrir_cuenta_por_cobrar`, `registrar_pago_ar_atomico`, `aplicar_saldo_favor_ar`, `registrar_cobro_multiple`, `anular_cuenta_por_cobrar` |
 | Compras y gastos | `crear_compra`, `pagar_compra`, `registrar_gasto_a19`, `cambiar_estado_gasto`, `obtener_rentabilidad_orden` |

@@ -21,6 +21,8 @@ export interface PropsVistaKanbanOperador {
   onReanudar?: (proceso: ProcesoEspacioOperador) => void;
   /** C15: cierra una pausa que el operador no retomará, sin producir. */
   onCerrarPausa?: (proceso: ProcesoEspacioOperador) => void;
+  /** C20: declara piezas y hora real de una pausa automática por jornada. */
+  onActualizarAvance?: (proceso: ProcesoEspacioOperador) => void;
 }
 
 const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
@@ -28,12 +30,13 @@ const ESTILO_COLUMNA: Record<ColumnaEspacioOperador, string> = {
   bandeja: 'border-t-borde-fuerte bg-superficie-2/40',
   en_proceso: 'border-t-exito bg-exito-suave/30',
   pausada: 'border-t-advertencia bg-advertencia-suave/30',
+  actualizar_avance: 'border-t-peligro bg-peligro-suave/30',
   lista: 'border-t-exito bg-exito-suave/20',
 };
 
 /**
- * C10: Kanban de 5 columnas del piso, agrupado por orden e ítem. Se adapta al
- * ancho disponible (1 columna en móvil, hasta 5 en escritorio) para que el
+ * C10/C20: Kanban de 6 columnas del piso, agrupado por orden e ítem. Se adapta al
+ * ancho disponible (1 columna en móvil, hasta 6 en escritorio) para que el
  * operador no tenga que desplazarse horizontalmente.
  */
 export function VistaKanbanOperador({
@@ -44,13 +47,14 @@ export function VistaKanbanOperador({
   onAbrirOrden,
   onReanudar,
   onCerrarPausa,
+  onActualizarAvance,
 }: PropsVistaKanbanOperador) {
   // C15: agrupar por orden y columna evita que una operación pausada quede
   // oculta dentro de la tarjeta de la orden que sigue en proceso.
   const ordenes = agruparProcesosPorOrdenYColumna(procesos);
   return (
     <div
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
       data-testid="vista-kanban-operador"
     >
       {COLUMNAS_ESPACIO_OPERADOR.map((columna) => {
@@ -96,11 +100,12 @@ export function VistaKanbanOperador({
                     <TarjetaOrdenOperador
                       grupo={grupo}
                       hoy={hoy}
-                      arrastrable={!soloLectura && columna !== 'lista'}
+                      arrastrable={!soloLectura && columna !== 'lista' && columna !== 'actualizar_avance'}
                       onAbrir={onAbrir}
                       onAbrirOrden={onAbrirOrden}
                       onReanudar={onReanudar}
                       onCerrarPausa={onCerrarPausa}
+                      onActualizarAvance={onActualizarAvance}
                     />
                   </li>
                 ))}

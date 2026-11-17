@@ -102,6 +102,29 @@ export function calcularHorasComida(inicio: Date, fin: Date): number {
   return redondearHoras(milisegundosComida / 3_600_000);
 }
 
+/**
+ * C20: convierte un `datetime-local` capturado en el reloj del taller a ISO.
+ * El navegador no adjunta zona horaria, así que el offset se resuelve contra
+ * America/Tijuana en la fecha indicada (respeta horario de verano).
+ */
+export function fechaHoraLocalTallerAIso(valor: string): string {
+  const coincidencia = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(valor);
+  if (!coincidencia) throw new Error('Indica la hora real de finalización');
+  const anio = Number(coincidencia[1]);
+  const mes = Number(coincidencia[2]);
+  const dia = Number(coincidencia[3]);
+  const hora = Number(coincidencia[4]);
+  const minuto = Number(coincidencia[5]);
+  const mural = Date.UTC(anio, mes - 1, dia, hora, minuto);
+  const aproximado = new Date(mural);
+  const partes = obtenerPartesFecha(aproximado);
+  const muralAproximado = Date.UTC(
+    partes.anio, partes.mes - 1, partes.dia, partes.hora, partes.minuto, partes.segundo,
+  );
+  const offset = muralAproximado - mural;
+  return new Date(mural - offset).toISOString();
+}
+
 /** Cálculo determinista para previsualización y pruebas; PostgreSQL lo recalcula al cerrar. */
 export function calcularHorasSesion(inicio: Date, fin: Date): CalculoHorasSesion {
   if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {

@@ -1,8 +1,8 @@
 /**
- * Regla D2-A/C18: al cerrar una sesión, si las horas netas superan la jornada
- * del día (9 h de lunes a viernes, 4 h el sábado), la RPC exige una autorización
- * vigente de horas extra. El aviso es solo informativo: la base sigue siendo la
- * que decide y consume la autorización.
+ * Regla D2-A/C18/C20: al cerrar, se suman las horas netas de TODAS las sesiones
+ * del operador en el día laboral de Tijuana (9 h L-V, 4 h sábado). Si el total
+ * supera la jornada, la RPC exige autorización. Reanudar el mismo día no reinicia
+ * el contador. El aviso es informativo: la base decide y consume la autorización.
  */
 export const HORAS_JORNADA_PREDETERMINADA = 9;
 
@@ -27,4 +27,4 @@ export function sesionCercaDeJornada(
 
 /** Texto accionable que explica qué hacer si el cierre pide horas extra. */
 export const AYUDA_HORAS_EXTRA =
-  'Si el tiempo neto de la sesión supera la jornada del día (9 h de lunes a viernes, 4 h el sábado), el cierre te pedirá justificar el exceso o solicitar la aprobación de un responsable en Producción → Horas extra (permiso aprobar_ordenes). La sesión también se pausa sola al cumplir la jornada.';
+  'Si el tiempo neto acumulado del día supera la jornada (9 h de lunes a viernes, 4 h el sábado), el cierre te pedirá justificar el exceso o solicitar la aprobación de un responsable en Producción → Horas extra (permiso aprobar_ordenes). Reanudar el mismo día no reinicia el contador; la sesión también se pausa sola al cumplir la jornada.';

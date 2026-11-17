@@ -54,6 +54,7 @@ function proceso(
     sesionActiva: null,
     ultimaSesion: null,
     sesiones: [],
+    pendienteActualizacionAvance: false,
     procesosRuteo: [],
     archivos: [],
     comentariosOrden: [],
@@ -112,6 +113,7 @@ describe('VistaKanbanOperador agrupada por orden', () => {
       operadorNombre: 'Ana Operadora',
       fechaInicio: '2026-10-26T08:00:00.000Z',
       fechaFin: '2026-10-26T16:00:00.000Z',
+      pendienteActualizacionAvance: false,
       piezasProducidas: 0,
       horasNetas: 8,
       motivoPausa: 'FIN_JORNADA',
@@ -162,5 +164,45 @@ describe('VistaKanbanOperador agrupada por orden', () => {
     const columnaEnProceso = screen.getByTestId('columna-en_proceso');
     expect(columnaEnProceso.textContent).toContain('1. Corte');
     expect(columnaEnProceso.textContent).not.toContain('Fin de jornada');
+  });
+
+  it('C20: pinta la columna Actualizar avance y no ofrece continuar la pausa', () => {
+    const abrir = vi.fn();
+    render(createElement(VistaKanbanOperador, {
+      procesos: [proceso({
+        id: 'partida-1:meta-1',
+        columna: 'actualizar_avance',
+        pendienteActualizacionAvance: true,
+        ultimaSesion: {
+          id: 'sesion-pausada',
+          operadorId: 'operador-1',
+          operadorNombre: 'Ana Operadora',
+          estadoSesion: 'pausada',
+          fechaInicio: '2026-10-26T08:00:00.000Z',
+          fechaFin: '2026-10-26T17:00:00.000Z',
+          pendienteActualizacionAvance: true,
+          piezasProducidas: 0,
+          horasNetas: 9,
+          motivoPausa: 'FIN_JORNADA',
+          motivoPausaNota: null,
+          notas: null,
+          verificacionCompleta: true,
+        },
+      })],
+      hoy: '2026-10-26',
+      soloLectura: false,
+      onAbrir: abrir,
+      onAbrirOrden: vi.fn(),
+      onReanudar: vi.fn(),
+      onCerrarPausa: vi.fn(),
+      onActualizarAvance: abrir,
+    }));
+
+    const columna = screen.getByTestId('columna-actualizar_avance');
+    expect(columna.textContent).toContain('Actualizar avance');
+    expect(columna.textContent).toContain('avance pendiente');
+    expect(columna.querySelector('[data-testid="actualizar-avance-proceso-partida-1:meta-1"]')).toBeTruthy();
+    expect(columna.querySelector('[data-testid="reanudar-proceso-partida-1:meta-1"]')).toBeNull();
+    expect(columna.textContent).not.toContain('Cerrar pausa');
   });
 });

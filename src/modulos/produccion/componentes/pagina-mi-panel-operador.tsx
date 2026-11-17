@@ -29,6 +29,7 @@ import {
 import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar-sesion-operador';
 import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/reanudar-sesion-operador';
 import { cerrarPausaOperadorAccion } from '@/modulos/produccion/acciones/cerrar-pausa-operador';
+import { actualizarAvanceSesionAccion } from '@/modulos/produccion/acciones/actualizar-avance-sesion';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type {
   ProcesoEspacioOperador,
@@ -250,6 +251,13 @@ export function PaginaMiPanelOperador({
           : { exito: false, error: resultado.error };
       }, 'Pausa cerrada sin producir. Las horas quedan registradas y la operación vuelve a estar disponible.');
     },
+
+    actualizarAvance: (proceso, datos) => ejecutar(proceso, async () => {
+      const resultado = await actualizarAvanceSesionAccion(datos);
+      return resultado.exito
+        ? { exito: true }
+        : { exito: false, error: resultado.error };
+    }, 'Avance y hora real actualizados'),
 
     cerrar: (proceso, datos) => ejecutar(proceso, async () => {
       const resultado = await cerrarSesionOperadorAccion({

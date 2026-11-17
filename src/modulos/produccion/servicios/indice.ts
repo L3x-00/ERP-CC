@@ -2,12 +2,16 @@ export {
   ZONA_HORARIA_TALLER,
   calcularHorasComida,
   calcularHorasSesion,
+  fechaHoraLocalTallerAIso,
 } from '@/modulos/produccion/servicios/calculo-tiempos-servicio';
 
 export type { CalculoHorasSesion } from '@/modulos/produccion/servicios/calculo-tiempos-servicio';
 
 export {
   ErrorProduccion,
+  actualizarAvanceSesionServicio,
+  registrarHoraFinSesionServicio,
+  limpiarHoraFinSesionServicio,
   iniciarSesionTrabajoServicio,
   reanudarSesionTrabajoServicio,
   cerrarSesionTrabajoServicio,
@@ -18,6 +22,7 @@ export {
 } from '@/modulos/produccion/servicios/sesiones-servicio';
 
 export type {
+  ActualizarAvanceSesionInput,
   CodigoErrorProduccion,
   CierreSesionRegistrado,
   ConsumoPiezasRegistrado,

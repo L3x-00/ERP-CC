@@ -73,6 +73,10 @@ export interface SesionTrabajo {
   corridaId: string | null;
   fechaInicio: string;
   fechaFin: string | null;
+  /** C20: hora real declarada al cerrar; el servidor la usa en lugar de now(). */
+  fechaFinDeclarada: string | null;
+  /** C20: la pausa automática dejó avance y hora real pendientes de declarar. */
+  pendienteActualizacionAvance: boolean;
   horasBrutas: number;
   horasNetas: number;
   piezasProducidas: number;
@@ -117,7 +121,7 @@ export interface PartidaNotaEntrega {
 export type FilaSesionTrabajo = Tables<'sesiones_trabajo'>;
 export type FilaSesionTrabajoOperativa = Omit<FilaSesionTrabajo, 'costo_hora_interno'>;
 export const COLUMNAS_SESION_TRABAJO_OPERATIVA =
-  'id, orden_id, partida_id, programacion_id, operador_id, corrida_id, fecha_inicio, fecha_fin, horas_brutas, horas_netas, minutos_setup, piezas_producidas, motivo_pausa, motivo_pausa_codigo, motivo_pausa_nota, recurso_liberado, verificacion_inicio, notas, estado_sesion, creado_en, actualizado_en';
+  'id, orden_id, partida_id, programacion_id, operador_id, corrida_id, fecha_inicio, fecha_fin, fecha_fin_declarada, horas_brutas, horas_netas, minutos_setup, piezas_producidas, motivo_pausa, motivo_pausa_codigo, motivo_pausa_nota, recurso_liberado, verificacion_inicio, notas, estado_sesion, pendiente_actualizacion_avance, creado_en, actualizado_en';
 export type FilaNotaEntrega = Tables<'notas_entrega'>;
 export type FilaPartidaNotaEntrega = Tables<'partidas_nota_entrega'>;
 export type FilaMetaProcesoPartida = Tables<'metas_proceso_partida'>;
@@ -182,6 +186,8 @@ export function filaASesionTrabajo(fila: FilaSesionTrabajoOperativa): SesionTrab
     corridaId: fila.corrida_id ?? null,
     fechaInicio: fila.fecha_inicio,
     fechaFin: fila.fecha_fin,
+    fechaFinDeclarada: fila.fecha_fin_declarada ?? null,
+    pendienteActualizacionAvance: fila.pendiente_actualizacion_avance === true,
     horasBrutas: Number(fila.horas_brutas),
     horasNetas: Number(fila.horas_netas),
     piezasProducidas: Number(fila.piezas_producidas),

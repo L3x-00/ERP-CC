@@ -316,6 +316,7 @@ function sesionResumen(
     estadoSesion: sesion.estadoSesion,
     fechaInicio: sesion.fechaInicio,
     fechaFin: sesion.fechaFin,
+    pendienteActualizacionAvance: sesion.pendienteActualizacionAvance,
     piezasProducidas: sesion.piezasProducidas,
     horasNetas: sesion.horasNetas,
     primeraPiezaPendiente: sesion.corridaId !== null
@@ -685,6 +686,10 @@ export async function obtenerEspacioOperadorServicio(
       const sesionActiva = sesionesOrdenadas.find((sesion) => sesion.estadoSesion === 'activa') ?? null;
       const ultimaSesion = sesionesOrdenadas[0] ?? null;
       const sesionPausada = ultimaSesion?.estadoSesion === 'pausada';
+      // C20: solo la última pausa puede estar pendiente; una pausa histórica ya
+      // fue superada por otra sesión y no se debe volver a corregir.
+      const pendienteActualizacionAvance = sesionPausada
+        && ultimaSesion!.pendienteActualizacionAvance === true;
       const reclamo = reclamoPorOperacion.get(claveOperacion) ?? null;
       const reclamadoPorMi = operadorId !== null && reclamo?.operadorId === operadorId;
       const hechoPiezas = operacion.meta
@@ -712,6 +717,7 @@ export async function obtenerEspacioOperadorServicio(
         procesoCompleto,
         sesionActiva: sesionActiva !== null,
         sesionPausada,
+        pendienteActualizacionAvance,
         programacionEstado: programacion?.estadoPlaneacion ?? null,
       });
       const urgencia = derivarUrgenciaProceso(orden.fechaCompromiso, orden.prioridad, hoy);
@@ -733,10 +739,13 @@ export async function obtenerEspacioOperadorServicio(
         motivoNoInicia = 'La orden aún no se libera a Bandeja';
       } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no está activa';
       else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
-      else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
+      else if (pendienteActualizacionAvance) {
+        motivoNoInicia = 'Actualiza el avance y la hora real antes de continuar';
+      } else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
 
       const puedeReanudar = operadorId !== null
         && reclamadoPorMi
+        && !pendienteActualizacionAvance
         && sesionPausada
         && programacion?.estadoPlaneacion === 'bloqueada'
         && (orden.estado === 'pausada' || orden.estado === 'en_proceso');
@@ -801,6 +810,7 @@ export async function obtenerEspacioOperadorServicio(
           : null,
         sesiones: sesionesOrdenadas.map((sesion) =>
           sesionResumen(sesion, responsables, corridasConPrimeraPiezaPendiente)),
+        pendienteActualizacionAvance,
         procesosRuteo,
         archivos,
         comentariosOrden,

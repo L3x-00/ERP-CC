@@ -92,6 +92,7 @@ function crearProceso(
     sesionActiva: null,
     ultimaSesion: null,
     sesiones: [],
+    pendienteActualizacionAvance: false,
     procesosRuteo: [],
     archivos: [],
     comentariosOrden: [],
@@ -112,6 +113,7 @@ describe('derivarColumnaProceso', () => {
     procesoCompleto: false,
     sesionActiva: false,
     sesionPausada: false,
+    pendienteActualizacionAvance: false,
     programacionEstado: null,
   };
 
@@ -129,6 +131,15 @@ describe('derivarColumnaProceso', () => {
     expect(derivarColumnaProceso({ ...base, sesionPausada: true })).toBe('pausada');
     expect(derivarColumnaProceso({ ...base, programacionEstado: 'bloqueada' })).toBe('pausada');
     expect(derivarColumnaProceso({ ...base, estadoOrden: 'pausada' })).toBe('pausada');
+  });
+
+  it('C20: manda a Actualizar avance la pausa automática pendiente', () => {
+    expect(derivarColumnaProceso({
+      ...base,
+      sesionPausada: true,
+      programacionEstado: 'bloqueada',
+      pendienteActualizacionAvance: true,
+    })).toBe('actualizar_avance');
   });
 
   it('manda a Aprobada la orden en borrador o confirmada por el SII', () => {
@@ -280,6 +291,7 @@ describe('agruparProcesosPorOrdenYColumna', () => {
     estadoSesion: 'pausada' as const,
     fechaInicio: '2026-10-26T08:00:00.000Z',
     fechaFin: '2026-10-26T16:00:00.000Z',
+    pendienteActualizacionAvance: false,
     piezasProducidas: 0,
     horasNetas: 8,
     motivoPausa: 'FIN_JORNADA',
@@ -524,10 +536,19 @@ describe('resumirEspacioOperador', () => {
       enBandeja: 1,
       enProceso: 1,
       pausadas: 1,
+      pendientesActualizacion: 0,
       listas: 1,
       urgentes: 2,
       horasReclamadasHoy: 1.25,
     });
+  });
+
+  it('C20: cuenta las pausas pendientes de actualizar avance', () => {
+    const procesos = [
+      crearProceso({ id: 'a', columna: 'actualizar_avance', pendienteActualizacionAvance: true }),
+      crearProceso({ id: 'b', columna: 'pausada' }),
+    ];
+    expect(resumirEspacioOperador(procesos, '2026-10-25').pendientesActualizacion).toBe(1);
   });
 });
 

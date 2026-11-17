@@ -4554,6 +4554,7 @@ export type Database = {
           creado_en: string
           estado_sesion: string
           fecha_fin: string | null
+          fecha_fin_declarada: string | null
           fecha_inicio: string
           horas_brutas: number
           horas_netas: number
@@ -4566,6 +4567,7 @@ export type Database = {
           operador_id: string
           orden_id: string
           partida_id: string
+          pendiente_actualizacion_avance: boolean
           piezas_producidas: number
           programacion_id: string
           recurso_liberado: boolean
@@ -4578,6 +4580,7 @@ export type Database = {
           creado_en?: string
           estado_sesion?: string
           fecha_fin?: string | null
+          fecha_fin_declarada?: string | null
           fecha_inicio?: string
           horas_brutas?: number
           horas_netas?: number
@@ -4590,6 +4593,7 @@ export type Database = {
           operador_id: string
           orden_id: string
           partida_id: string
+          pendiente_actualizacion_avance?: boolean
           piezas_producidas?: number
           programacion_id: string
           recurso_liberado?: boolean
@@ -4602,6 +4606,7 @@ export type Database = {
           creado_en?: string
           estado_sesion?: string
           fecha_fin?: string | null
+          fecha_fin_declarada?: string | null
           fecha_inicio?: string
           horas_brutas?: number
           horas_netas?: number
@@ -5532,6 +5537,32 @@ export type Database = {
           p_valor: number
         }
         Returns: Json
+      }
+      actualizar_avance_sesion_pausada: {
+        Args: {
+          p_actor_id: string
+          p_horas_a_restar: number
+          p_notas?: string
+          p_piezas_producidas: number
+          p_sesion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          estado_sesion: string
+          fecha_fin: string
+          horas_netas: number
+          id: string
+          piezas_producidas: number
+        }[]
+      }
+      registrar_hora_fin_sesion: {
+        Args: { p_fecha_fin: string; p_operador_id: string; p_sesion_id: string }
+        Returns: string
+      }
+      limpiar_hora_fin_sesion: {
+        Args: { p_operador_id: string; p_sesion_id: string }
+        Returns: null
       }
       aplicar_saldo_favor_ar: {
         Args: {

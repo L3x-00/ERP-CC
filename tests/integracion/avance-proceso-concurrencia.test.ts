@@ -114,6 +114,19 @@ suite('PRD-09: avance por partida×proceso bajo concurrencia y RLS real', () => 
       })
       .select('id').single();
     if (errorSesion || !sesion) throw errorSesion ?? new Error('Sin sesión');
+
+    // C20: la jornada se controla por día y estas sesiones de prueba comparten
+    // operador, así que cada cierre necesita su propia autorización vigente.
+    const { error: errorAutorizacion } = await servicio.from('autorizaciones_hora_extra').insert({
+      orden_id: caso.ordenId,
+      sesion_id: sesion.id,
+      horas_autorizadas: 1000,
+      motivo: 'PRD09 jornada acumulada de prueba',
+      autorizado_por: operadorId,
+      estado: 'VIGENTE',
+    });
+    if (errorAutorizacion) throw errorAutorizacion;
+
     return { sesionId: sesion.id, programacionId: programacion.id };
   }
 
@@ -143,6 +156,14 @@ suite('PRD-09: avance por partida×proceso bajo concurrencia y RLS real', () => 
 
   async function limpiarSesionesActivas(): Promise<void> {
     if (!servicio || !operadorId) return;
+    const { data: activas } = await servicio.from('sesiones_trabajo')
+      .select('id').eq('operador_id', operadorId).eq('estado_sesion', 'activa');
+    const ids = (activas ?? []).map((sesion) => sesion.id);
+    if (ids.length > 0) {
+      const { error: errorAutorizaciones } = await servicio.from('autorizaciones_hora_extra')
+        .delete().in('sesion_id', ids);
+      if (errorAutorizaciones) throw new Error(`No se pudieron limpiar autorizaciones: ${errorAutorizaciones.message}`);
+    }
     const { error } = await servicio.from('sesiones_trabajo').delete()
       .eq('operador_id', operadorId).eq('estado_sesion', 'activa');
     if (error) throw new Error(`No se pudieron limpiar las sesiones activas: ${error.message}`);
@@ -157,6 +178,7 @@ suite('PRD-09: avance por partida×proceso bajo concurrencia y RLS real', () => 
   afterAll(async () => {
     if (!servicio) return;
     for (const ordenId of ordenes) {
+      await servicio.from('autorizaciones_hora_extra').delete().eq('orden_id', ordenId);
       const { data: partidas } = await servicio.from('partidas_orden_produccion').select('id').eq('orden_id', ordenId);
       const partidaIds = (partidas ?? []).map((partida) => partida.id);
       if (partidaIds.length > 0) {

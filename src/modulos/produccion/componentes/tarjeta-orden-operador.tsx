@@ -45,6 +45,8 @@ export interface PropsTarjetaOrdenOperador {
   onReanudar?: (proceso: ProcesoEspacioOperador) => void;
   /** C15: cierra la pausa sin producir y libera la operación al pool. */
   onCerrarPausa?: (proceso: ProcesoEspacioOperador) => void;
+  /** C20: declara avance y hora real de una pausa automática por jornada. */
+  onActualizarAvance?: (proceso: ProcesoEspacioOperador) => void;
 }
 
 function rutaDeItem(grupo: GrupoOrdenEspacioOperador, indice: number): string {
@@ -73,6 +75,7 @@ export function TarjetaOrdenOperador({
   onAbrirOrden,
   onReanudar,
   onCerrarPausa,
+  onActualizarAvance,
 }: PropsTarjetaOrdenOperador) {
   return (
     <article
@@ -126,7 +129,8 @@ export function TarjetaOrdenOperador({
           const ruta = rutaDeItem(grupo, indice);
           const estadoDistinto = representante.columna !== grupo.columna;
           const tieneAviso = representante.etiquetas.includes('Sin piezas previas');
-          const sesionPausada = representante.columna === 'pausada'
+          const sesionPausada = (representante.columna === 'pausada'
+            || representante.columna === 'actualizar_avance')
             && representante.ultimaSesion?.estadoSesion === 'pausada'
             ? representante.ultimaSesion
             : null;
@@ -194,6 +198,7 @@ export function TarjetaOrdenOperador({
                   >
                     <p className="font-semibold">
                       {etiquetaMotivoPausa(sesionPausada.motivoPausa) ?? 'Sesión pausada'}
+                      {representante.pendienteActualizacionAvance ? ' · avance pendiente' : ''}
                     </p>
                     <p>
                       {sesionPausada.operadorNombre}
@@ -207,9 +212,22 @@ export function TarjetaOrdenOperador({
                         {sesionPausada.motivoPausaNota}
                       </p>
                     ) : null}
-                    {representante.puedeReanudar && (onReanudar || onCerrarPausa) ? (
+                    {(representante.puedeReanudar || representante.pendienteActualizacionAvance)
+                      && (onReanudar || onCerrarPausa || onActualizarAvance) ? (
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {onReanudar ? (
+                        {representante.pendienteActualizacionAvance && onActualizarAvance ? (
+                          <Button
+                            type="button"
+                            tamano="sm"
+                            variante="secundario"
+                            draggable={false}
+                            onClick={() => onActualizarAvance(representante)}
+                            data-testid={`actualizar-avance-proceso-${representante.id}`}
+                          >
+                            Actualizar avance
+                          </Button>
+                        ) : null}
+                        {!representante.pendienteActualizacionAvance && onReanudar ? (
                           <Button
                             type="button"
                             tamano="sm"
@@ -221,7 +239,7 @@ export function TarjetaOrdenOperador({
                             Continuar sesión
                           </Button>
                         ) : null}
-                        {onCerrarPausa ? (
+                        {!representante.pendienteActualizacionAvance && onCerrarPausa ? (
                           <Button
                             type="button"
                             tamano="sm"
@@ -234,7 +252,8 @@ export function TarjetaOrdenOperador({
                           </Button>
                         ) : null}
                       </div>
-                    ) : !representante.puedeReanudar ? (
+                    ) : !representante.puedeReanudar
+                      && !representante.pendienteActualizacionAvance ? (
                       <p className="text-[10px] text-texto-secundario">
                         Periodo cerrado: conserva sus horas y no requiere cierre.
                       </p>

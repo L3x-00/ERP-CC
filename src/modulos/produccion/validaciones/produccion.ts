@@ -45,6 +45,11 @@ export const esquemaCerrarSesion = z
     metaProcesoId: z.uuid('ID de proceso inválido').optional(),
     motivoPausa: z.enum(MOTIVOS_PAUSA_VALIDOS).optional(),
     notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
+    /** C20: hora real de finalización en formato `datetime-local` (AAAA-MM-DDTHH:mm). */
+    horaFin: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Indica la hora real de finalización')
+      .optional(),
     /** B7: identificación del setup dentro del tiempo real de la sesión. */
     minutosSetup: z.number().finite().min(0).max(1440).optional(),
     pinConfirmacion: z
@@ -222,7 +227,26 @@ export const esquemaIniciarProcesoReclamado = z.object({
 
 export type IniciarSesionInput = z.infer<typeof esquemaIniciarSesion>;
 export type ReanudarSesionInput = z.infer<typeof esquemaReanudarSesion>;
+/** C20: corrección de avance y hora real de una pausa automática por jornada. */
+export const esquemaActualizarAvanceSesion = z.object({
+  sesionId: z.uuid('ID de sesión inválido'),
+  piezasProducidas: z
+    .number()
+    .int('Las piezas deben ser un número entero')
+    .min(0, 'Las piezas no pueden ser negativas'),
+  /** Horas que se restan de la hora en que se capturó la pausa. */
+  horasARestar: z
+    .number()
+    .finite('Indica las horas reales del proceso')
+    .min(0, 'Las horas no pueden ser negativas')
+    .max(24, 'Las horas no pueden superar un día'),
+  notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
+  /** El operador la envía; el administrador no. La Server Action lo exige según el rol. */
+  pinConfirmacion: z.string().regex(PATRON_PIN_OPERADOR).optional(),
+}).strict();
+
 export type CerrarSesionInput = z.infer<typeof esquemaCerrarSesion>;
+export type ActualizarAvanceSesionInput = z.infer<typeof esquemaActualizarAvanceSesion>;
 export type CerrarSesionSupervisorInput = z.infer<typeof esquemaCerrarSesionSupervisor>;
 export type PartidaNotaEntregaInput = z.infer<typeof esquemaPartidaNotaEntrega>;
 export type CrearNotaEntregaInput = z.infer<typeof esquemaCrearNotaEntrega>;

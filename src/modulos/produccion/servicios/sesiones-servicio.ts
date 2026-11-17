@@ -8,6 +8,7 @@ import {
   type SesionTrabajo,
 } from '@/modulos/produccion/tipos/indice';
 import type { CerrarSesionInput, IniciarSesionInput, ReanudarSesionInput } from '@/modulos/produccion/validaciones/indice';
+import { fechaHoraLocalTallerAIso } from '@/modulos/produccion/servicios/calculo-tiempos-servicio';
 
 export type CodigoErrorProduccion =
   | 'inicio_sesion_invalido'
@@ -48,6 +49,13 @@ export type CodigoErrorProduccion =
   | 'sesion_no_pausada'
   | 'pausa_ya_superada'
   | 'cierre_pausa_invalido'
+  | 'hora_fin_invalida'
+  | 'fecha_fin_futura'
+  | 'fecha_fin_anterior_inicio'
+  | 'actualizacion_avance_invalida'
+  | 'sesion_no_pendiente_avance'
+  | 'horas_a_restar_exceden_sesion'
+  | 'sin_permiso_actualizar_avance'
   | 'recurso_ocupado'
   | 'capacidad_no_disponible'
   | 'verificacion_inicio_incompleta'
@@ -276,6 +284,13 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'setup_invalido',
   'minutos_setup_exceden_sesion',
   'sin_permiso_setup',
+  'hora_fin_invalida',
+  'fecha_fin_futura',
+  'fecha_fin_anterior_inicio',
+  'actualizacion_avance_invalida',
+  'sesion_no_pendiente_avance',
+  'horas_a_restar_exceden_sesion',
+  'sin_permiso_actualizar_avance',
 ];
 
 /** Traduce el mensaje de una RPC a un error tipado de producción. */
@@ -358,6 +373,77 @@ export async function reanudarSesionTrabajoServicio(
   return sesionIniciadaDesdeRpc(data?.[0] ?? null);
 }
 
+export interface ActualizarAvanceSesionInput {
+  sesionId: string;
+  actorId: string;
+  piezasProducidas: number;
+  /** Horas que se restan de la fecha_fin capturada por la pausa automática. */
+  horasARestar: number;
+  notas?: string;
+}
+
+/** C20: guarda la hora real de finalización antes de cerrar la sesión. */
+export async function registrarHoraFinSesionServicio(
+  admin: SupabaseClient<Database>,
+  entrada: { sesionId: string; operadorId: string; fechaFin: string },
+): Promise<string> {
+  const { data, error } = await admin.rpc('registrar_hora_fin_sesion', {
+    p_sesion_id: entrada.sesionId,
+    p_operador_id: entrada.operadorId,
+    p_fecha_fin: entrada.fechaFin,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+  return String(data ?? entrada.fechaFin);
+}
+
+/** C20: descarta la hora declarada si el cierre falló, para no heredarla. */
+export async function limpiarHoraFinSesionServicio(
+  admin: SupabaseClient<Database>,
+  entrada: { sesionId: string; operadorId: string },
+): Promise<void> {
+  const { error } = await admin.rpc('limpiar_hora_fin_sesion', {
+    p_sesion_id: entrada.sesionId,
+    p_operador_id: entrada.operadorId,
+  });
+  if (error) lanzarErrorProduccion(error.message);
+}
+
+/** C20: corrige piezas y hora real de una pausa automática por jornada. */
+export async function actualizarAvanceSesionServicio(
+  admin: SupabaseClient<Database>,
+  entrada: ActualizarAvanceSesionInput,
+): Promise<{
+  id: string;
+  estadoSesion: EstadoSesionTrabajo;
+  fechaFin: string;
+  horasNetas: number;
+  piezasProducidas: number;
+  estadoPlaneacion: EstadoPlaneacion;
+  actualizadoEn: string;
+}> {
+  const { data, error } = await admin.rpc('actualizar_avance_sesion_pausada', {
+    p_sesion_id: entrada.sesionId,
+    p_actor_id: entrada.actorId,
+    p_piezas_producidas: entrada.piezasProducidas,
+    p_horas_a_restar: entrada.horasARestar,
+    ...(entrada.notas ? { p_notas: entrada.notas } : {}),
+  });
+  if (error) lanzarErrorProduccion(error.message);
+  const fila = data?.[0];
+  if (!fila || !fila.id || !fila.actualizado_en) {
+    throw new ErrorProduccion('desconocido', 'No se pudo actualizar el avance de la sesión');
+  }
+  return {
+    id: String(fila.id),
+    estadoSesion: estadoSesionDesdeBase(String(fila.estado_sesion)),
+    fechaFin: String(fila.fecha_fin),
+    horasNetas: Number(fila.horas_netas),
+    piezasProducidas: Number(fila.piezas_producidas),
+    estadoPlaneacion: estadoPlaneacionDesdeBase(String(fila.estado_planeacion)),
+    actualizadoEn: String(fila.actualizado_en),
+  };
+}
+
 /** Cierra o pausa en PostgreSQL; el reloj, producción y recurso no vienen del cliente. */
 export async function cerrarSesionTrabajoServicio(
   admin: SupabaseClient<Database>,
@@ -367,6 +453,16 @@ export async function cerrarSesionTrabajoServicio(
     pinConfirmacion?: string;
   },
 ): Promise<CierreSesionRegistrado> {
+  // C20: si el operador declaró la hora real de fin, se guarda antes del cierre
+  // para que la RPC calcule horas hasta ese instante y no hasta now().
+  if (entrada.horaFin) {
+    await registrarHoraFinSesionServicio(admin, {
+      sesionId: entrada.sesionId,
+      operadorId: entrada.operadorId,
+      fechaFin: fechaHoraLocalTallerAIso(entrada.horaFin),
+    });
+  }
+
   if (entrada.minutosSetup !== undefined && entrada.minutosSetup > 0) {
     const { error: errorSetup } = await admin.rpc('registrar_setup_sesion_operador', {
       p_sesion_id: entrada.sesionId,
@@ -571,6 +667,20 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'Esa pausa ya fue retomada por una sesión posterior; actualiza el tablero';
     case 'cierre_pausa_invalido':
       return 'No se pudo cerrar la pausa; actualiza el tablero';
+    case 'hora_fin_invalida':
+      return 'Indica una hora de finalización válida';
+    case 'fecha_fin_futura':
+      return 'La hora de finalización no puede estar en el futuro';
+    case 'fecha_fin_anterior_inicio':
+      return 'La hora de finalización no puede ser anterior al inicio de la sesión';
+    case 'actualizacion_avance_invalida':
+      return 'Revisa las piezas y las horas declaradas para actualizar el avance';
+    case 'sesion_no_pendiente_avance':
+      return 'Esta pausa ya no está pendiente de actualizar avance; actualiza el tablero';
+    case 'horas_a_restar_exceden_sesion':
+      return 'Las horas declaradas superan el tiempo de la sesión pausada';
+    case 'sin_permiso_actualizar_avance':
+      return 'No tienes permiso para actualizar el avance de esta sesión';
     case 'verificacion_inicio_incompleta':
       return 'Completa el checklist de eventos críticos para iniciar';
     case 'nota_pausa_requerida':
@@ -578,7 +688,7 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'primera_pieza_pendiente':
       return 'Falta liberar la primera pieza antes de declarar producción';
     case 'horas_extra_sin_autorizacion':
-      return 'El tiempo neto de la sesión supera la jornada del turno. Justifica el exceso o pide autorización a un responsable para cerrar.';
+      return 'El tiempo neto acumulado del día supera la jornada del turno. Justifica el exceso o pide autorización a un responsable para cerrar.';
     case 'horas_extra_no_requeridas':
       return 'La sesión no excede la jornada del turno, así que no requiere horas extra.';
     case 'justificacion_horas_extra_invalida':
