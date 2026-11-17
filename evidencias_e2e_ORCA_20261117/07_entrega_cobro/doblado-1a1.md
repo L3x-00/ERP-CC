@@ -1,0 +1,4 @@
+# Doblado 1:1
+
+MODAL: sin modal
+DETALLE: O-1126_07 IT01 en 20 días Prioridad alta Proceso completado Taller QA QA1711 · Soporte metálico SM-2026-02 RUTA DE FABRICACIÓN 1. Corte laser →2. DOBLADO_CNC Lista ESTADO Completada FECHA ENTREGA lunes 7 de diciembre PLANEADO martes 17 de noviembre SESIONES 1 registrada Qué fabricar DESCRIPCIÓN Soporte metálico SM-2026-02 MATERIAL CRS-14 · Acero al carbón calibre 14 MEDIDAS 1,219 × 2,438 mm CANTIDAD 50 unidad Planos y archivos (2) SOPORTE-SM-2026-02.dxf 74 B Ver / Descargar SOPORTE-SM-2026-02.pdf 193 B Ver / Descargar Esta operación: 2. DOBLADO_CNC Corte laser META 50/50 unidad PENDIENTE 0 unidad HORAS ESTIMADAS 4.25 h PROGRAMACIÓN DOBLADO_CNC · Matutino · DOB-01 · Press brake-01 PIEZAS DISPONIBLES 0 unidad · de Corte laser AVANCE DEL PROCESO 100% Sesiones registradas (1) Consumo acumulado de materiales (1) Acción registrada. Actualizando el tablero… Piezas consumidas: 50. Reclama el proceso para iniciar Cerrar ficha ×

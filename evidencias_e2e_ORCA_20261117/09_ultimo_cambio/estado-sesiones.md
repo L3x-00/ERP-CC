@@ -1,0 +1,15 @@
+# Estado sesiones
+
+COLUMNAS:
+```json
+{
+  "columna-bandeja": "Bandeja2 2 ordenes · 2 procesos 12.25 h O-1126_05 Carso Vencida Compromiso: sáb 14 nov · vencida hace 3 días 0% IT01 · xt500 0/100 unidad · 0% 1. Corte laser 8 h · Corte laser Reservado por ti Ver detalle › O-1126_07 Taller QA QA1711 Próxima Compromiso: lun 7 dic · en 20 días 0% IT01 · Soporte metálico SM-2026-02 0/50 unidad · 0% 1. Corte laser → 2. DOBLADO_CNC 4.25 h · DOBLADO_CNC Ver detalle ›",
+  "columna-en_proceso": "En proceso1 1 orden · 1 proceso 2 h O-1126_07 Taller QA QA1711 Próxima Compromiso: lun 7 dic · en 20 días 0% IT02 · Panel decorativo MDF-12 0/25 unidad · 0% 1. CNC ROUTER 2 h · CNC ROUTER Reservado por ti Ver detalle ›",
+  "columna-pausada": "Pausada0 0 ordenes · 0 procesos 0 h Sin órdenes",
+  "columna-actualizar_avance": "Actualizar avance1 1 orden · 1 proceso 4 h O-1126_03 APN Manufacturing Vencida Compromiso: dom 15 nov · vencida hace 2 días 0% IT02 · Panel arquitectónico decorativo MDF-12 0/40 unidad · 0% 1. CNC ROUTER 4 h · CNC ROUTER Reservado por ti Ver detalle › Fin de jornada · avance pendiente Jorge Ramírez Ortega · 16 nov · 22:33 · 4 h netas Pausa automática al cumplir la jornada del turno. Actualizar avance",
+  "columna-lista": "Lista2 2 ordenes · 3 procesos 12.5 h O-1126_03 APN Manufacturing Vencida Compromiso: dom 15 nov · vencida hace 2 días 100% IT01 · Soporte metálico SM-2026-02 250/250 unidad · 100% 1. Corte laser → 2. DOBLADO_CNC 2.75 h · Corte laser Ver detalle › O-1126_07 Taller QA QA1711 Próxima Compromiso: lun 7 dic · en 20 días 0% IT01 · Soporte metálico SM-2026-02 0/50 unidad · 0% 1. Corte laser → 2. DOBLADO_CNC 4.25 h · Corte laser Ver detalle ›"
+}
+```
+
+DETALLE:
+O-1126_07 IT01 en 20 días Prioridad alta Proceso completado Taller QA QA1711 · Soporte metálico SM-2026-02 RUTA DE FABRICACIÓN 1. Corte laser →2. DOBLADO_CNC Lista ESTADO En proceso FECHA ENTREGA lunes 7 de diciembre PLANEADO martes 17 de noviembre SESIONES 3 registradas Qué fabricar DESCRIPCIÓN Soporte metálico SM-2026-02 MATERIAL CRS-14 · Acero al carbón calibre 14 MEDIDAS 1,219 × 2,438 mm CANTIDAD 50 unidad Planos y archivos (2) SOPORTE-SM-2026-02.dxf 74 B Ver / Descargar SOPORTE-SM-2026-02.pdf 193 B Ver / Descargar Esta operación: 1. Corte laser Corte laser META 50/50 unidad PENDIENTE 0 unidad HORAS ESTIMADAS 4.25 h PROGRAMACIÓN Corte laser · Matutino · LASER-01 · Láser fibra-01 AVANCE DEL PROCESO 100% Sesiones registradas (3) Consumo acumulado de materiales (1) Actualizar avance y hora real ver el proceso anterior Declara cuántas piezas produjiste y cuánto tardó realmente este bloque. Ese tiempo se suma al del resto de sesiones del proceso, aunque hayan sido en días distintos. Sesión a actualizar 17 nov · 12:13 · 0.01 h registradas 17 nov · 12:16 · 0 h registradas Piezas producidas en este periodo Tiempo real de proceso Notas (opcional) Consumo de material Dejar el consumo para el cierre Registrar el consumo aquí PIN de operador Actualizar avance Reclama el proceso para iniciar Cerrar ficha ×

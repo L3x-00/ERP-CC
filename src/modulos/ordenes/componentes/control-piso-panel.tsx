@@ -31,6 +31,12 @@ export type MaterialPiso = {
   codigo: string;
   nombre: string;
   unidadBase: string;
+  /**
+   * Costo vigente confirmado del catálogo. `null` significa que el material aún
+   * no tiene costo y, por tanto, no puede valorizarse un consumo en el cierre.
+   * Opcional porque otras vistas del piso no cargan este dato.
+   */
+  costoVigente?: number | null;
 };
 
 type PropsControlPisoPanel = {

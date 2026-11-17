@@ -429,7 +429,29 @@ export function PanelOperadorProduccion({
         tipo: 'error',
         ...(resultado.codigo ? { codigo: resultado.codigo } : {}),
       });
-      if (resultado.codigo !== 'primera_pieza_pendiente') {
+      if (resultado.codigo === 'costo_material_no_configurado') {
+        // Misma salida que en la ficha del proceso: el costo no se inventa, se
+        // pausa la sesión y se avisa para que administración lo configure.
+        const nombreMaterial = materialSeleccionado?.nombre ?? 'seleccionado';
+        setErrorCierre({
+          titulo: 'Falta el costo confirmado del material',
+          mensaje: `${resultado.error} (${nombreMaterial}). No se puede finalizar sin valorizar el consumo. Pide a administración que registre el costo en Materiales y costos o pausa la sesión mientras tanto.`,
+          acciones: [{
+            etiqueta: 'Pausar sesión y avisar',
+            alElegir: () => {
+              setEstadoDestino('pausada');
+              const motivoMaterial = motivosPausa.find((motivo) => motivo.codigo === 'MATERIAL');
+              if (motivoMaterial) setMotivoPausa(motivoMaterial.codigo);
+              const aviso = `Falta costo confirmado de ${nombreMaterial}`;
+              setNotas((previo) => (previo.trim() ? `${previo.trim()} · ${aviso}` : aviso));
+              setMensaje({
+                texto: `${aviso}. La sesión quedó lista para pausar; confirma con tu PIN.`,
+                tipo: 'error',
+              });
+            },
+          }],
+        });
+      } else if (resultado.codigo !== 'primera_pieza_pendiente') {
         setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
       }
       if (resultado.codigo === 'horas_extra_sin_autorizacion') {

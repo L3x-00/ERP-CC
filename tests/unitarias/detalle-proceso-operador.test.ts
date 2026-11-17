@@ -850,4 +850,99 @@ describe('DetalleProcesoOperador', () => {
     expect(registrarConsumoPiezasAccion).not.toHaveBeenCalled();
     expect(screen.queryByTestId('error-cierre-dialogo')).toBeNull();
   });
+
+  it('ante un material sin costo confirmado avisa antes de cerrar y ofrece pausar la sesión como salida', async () => {
+    const cerrar = vi.fn().mockResolvedValue({
+      exito: false,
+      error: 'El material no tiene costo confirmado',
+      codigo: 'costo_material_no_configurado',
+    } satisfies ResultadoOperacion);
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-11-17',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [
+        { codigo: 'MATERIAL', nombre: 'Falta de material', requiereNota: false, liberaMaquina: true },
+      ],
+      materiales: [
+        {
+          id: 'material-1',
+          codigo: 'MDF-12',
+          nombre: 'MDF 12 mm',
+          unidadBase: 'm2',
+          costoVigente: null,
+        },
+      ],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    // El aviso aparece antes de que el operador capture y envíe el cierre.
+    expect(screen.getByTestId('aviso-material-sin-costo').textContent).toContain('MDF 12 mm');
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '2' } });
+    fireEvent.change(screen.getByTestId('usado-cierre'), { target: { value: '1' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), { target: { value: 'Consumo MDF' } });
+    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    const modal = await screen.findByTestId('error-cierre-dialogo');
+    expect(modal.textContent).toContain('MDF 12 mm');
+    const salida = screen.getByTestId('error-cierre-accion');
+    expect(salida.textContent).toContain('Pausar sesión');
+    fireEvent.click(salida);
+
+    expect((screen.getByTestId('resultado-cierre') as HTMLSelectElement).value).toBe('pausada');
+    expect((screen.getByTestId('notas-cierre') as HTMLTextAreaElement).value).toContain('MDF 12 mm');
+    // No se reintenta el cierre con un material distinto ni se relaja la validación.
+    expect(cerrar).toHaveBeenCalledTimes(1);
+  });
+
+  it('no avisa falta de costo cuando el material sí tiene costo confirmado', () => {
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-11-17',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [
+        {
+          id: 'material-1',
+          codigo: 'CRS-14',
+          nombre: 'Acero al carbón calibre 14',
+          unidadBase: 'm2',
+          costoVigente: 615,
+        },
+      ],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByTestId('aviso-material-sin-costo')).toBeNull();
+  });
 });

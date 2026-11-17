@@ -44,7 +44,7 @@ export default async function PaginaProduccionPiso() {
   const [resultadoMateriales, consumos] = await Promise.all([
     admin
       .from('catalogo_materiales')
-      .select('id, codigo, nombre, unidad_base')
+      .select('id, codigo, nombre, unidad_base, costo_vigente')
       .eq('activo', true)
       .order('codigo'),
     obtenerConsumosPartidasServicio(
@@ -62,6 +62,7 @@ export default async function PaginaProduccionPiso() {
     codigo: material.codigo,
     nombre: material.nombre,
     unidadBase: material.unidad_base,
+    costoVigente: material.costo_vigente,
   }));
   return (
     <div className="flex flex-col gap-6 p-6">

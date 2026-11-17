@@ -1,0 +1,61 @@
+import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, iniciarSesionOperador, captura, registrar, escribirNota } from './driver.mjs';
+const IT02 = '7e4f4d78-f9d9-4e5d-b3cd-a93b3c357789:57f072fa-51f2-4e34-a6de-4551111604c1';
+const navegador = await abrirNavegador();
+const ctxAdmin = await nuevoContexto(navegador);
+const pagina = await ctxAdmin.newPage();
+pagina.setDefaultTimeout(12000);
+try {
+  await iniciarSesionAdmin(pagina, process.env.E2E_ADMIN_EMAIL ?? '', process.env.E2E_ADMIN_PASSWORD ?? '');
+  const MT = pagina.getByTestId('tipo-cambio-diario-mas-tarde');
+  if (await MT.count()) await MT.click();
+  await pagina.goto('/inventario', { waitUntil: 'networkidle' });
+  const botones = pagina.getByRole('button', { name: 'Costo manual' });
+  console.log('BOTONES COSTO MANUAL:', await botones.count());
+  await botones.nth(1).dispatchEvent('click');
+  await pagina.waitForTimeout(700);
+  const dlg = pagina.getByRole('dialog');
+  const campos = await dlg.locator('input,textarea,select').evaluateAll((ns) => ns.map((n) => ({ id: n.id, aria: n.getAttribute('aria-label'), type: n.type, val: n.value, ph: n.placeholder })));
+  const texto = (await dlg.innerText()).replace(/\s+/g, ' ').slice(0, 900);
+  console.log('MODAL COSTO:', texto, JSON.stringify(campos));
+  await captura(pagina, '10_validacion_tecnica', 'costo-manual-mdf-modal', { usuario: 'admin' });
+  const monto = dlg.locator('input[type="number"]').first();
+  await monto.fill('320');
+  const nota = dlg.locator('textarea').first();
+  if (await nota.count()) await nota.fill('Costo asignado durante E2E ORCA QA1711 (documentado)');
+  const confirmar = dlg.getByRole('button', { name: /Guardar|Confirmar|Registrar/ }).last();
+  await confirmar.dispatchEvent('click');
+  await pagina.waitForTimeout(1800);
+  await captura(pagina, '10_validacion_tecnica', 'costo-manual-mdf-guardado', { usuario: 'admin' });
+  registrar('admin', '10_validacion_tecnica', 'costo_mdf_registrado', 'ok', { monto: 320, nota: 'Cambio global documentado en reporte E2E' });
+  escribirNota('10_validacion_tecnica', 'cambio-catalogo-mdf', `# Cambio de catálogo durante E2E\n\nSe asignó costo manual de $320.00 MXN/m2 al material MDF-12 para destrabar el cierre de la partida IT02 de la orden O-1126_07 (el catálogo tenía «Sin costo»). Es un cambio global documentado.\n`);
+  await ctxAdmin.close();
+
+  const ctxOp = await nuevoContexto(navegador);
+  const p2 = await ctxOp.newPage();
+  await iniciarSesionOperador(p2, process.env.E2E_OPERADOR_PIN ?? '');
+  await p2.locator(`[data-testid="abrir-detalle-${IT02}"]`).first().dispatchEvent('click');
+  const d = p2.getByTestId('detalle-proceso');
+  await d.waitFor();
+  const alternar = d.getByTestId('alternar-cierre-sesion');
+  if (await alternar.count()) await alternar.dispatchEvent('click');
+  await p2.waitForTimeout(500);
+  await d.getByLabel('Resultado').selectOption('finalizada');
+  await d.getByTestId('piezas-cierre').fill('25');
+  await d.getByTestId('usado-cierre').fill('1');
+  await d.getByLabel('Motivo del consumo').fill('Consumo MDF-12 panel QA1711');
+  await d.getByTestId('pin-cierre').fill(process.env.E2E_OPERADOR_PIN ?? '');
+  await captura(p2, '07_entrega_cobro', '12-cierre-IT02-tras-costo', { usuario: 'operador' });
+  await d.getByTestId('cerrar-sesion-detalle').dispatchEvent('click');
+  await p2.waitForTimeout(2200);
+  const modal = await p2.locator('[role="alertdialog"]').innerText().catch(() => 'sin modal');
+  console.log('MODAL CIERRE IT02:', modal.replace(/\s+/g, ' '));
+  await captura(p2, '07_entrega_cobro', '13-resultado-IT02-tras-costo', { usuario: 'operador' });
+  registrar('operador', '07_entrega_cobro', 'cierre_IT02_tras_costo', modal === 'sin modal' ? 'ok' : 'error', { modal: modal.slice(0, 300) });
+  await ctxOp.close();
+} catch (e) {
+  registrar('admin', '10_validacion_tecnica', 'etapa5e_fatal', 'error', { mensaje: String(e && e.message || e) });
+  console.error(e);
+  process.exitCode = 1;
+} finally {
+  await navegador.close();
+}

@@ -400,6 +400,11 @@ export function DetalleProcesoOperador({
   // C17: la primera operación consume materia prima; las posteriores consumen
   // las piezas que liberó el proceso anterior.
   const esProcesoPosterior = typeof proceso.piezasDisponibles === 'number';
+  // El consumo de materia prima solo puede valorizarse con un costo confirmado.
+  // Avisar antes evita que el operador descubra el bloqueo al intentar cerrar.
+  const materialSinCosto = estadoDestino === 'finalizada'
+    && !esProcesoPosterior
+    && materialElegido?.costoVigente === null;
   const piezasDisponibles = typeof proceso.piezasDisponibles === 'number'
     ? proceso.piezasDisponibles
     : 0;
@@ -805,7 +810,42 @@ export function DetalleProcesoOperador({
       // muestra dos salidas: justificar el exceso o pedir aprobación.
       // El fallo se muestra además en el diálogo fijo, salvo que tenga su
       // propio diálogo de resolución (primera pieza).
-      if (resultado.codigo !== 'primera_pieza_pendiente') {
+      if (resultado.codigo === 'costo_material_no_configurado') {
+        // El costo es una regla de negocio del servidor: no se inventa ni se
+        // omite. La salida es pausar la sesión y avisar, sin perder la captura.
+        const nombreMaterial = materialSeleccionado?.nombre ?? 'seleccionado';
+        setErrorCierre({
+          titulo: 'Falta el costo confirmado del material',
+          mensaje: `${resultado.error} (${nombreMaterial}). No se puede finalizar sin valorizar el consumo. Pide a administración que registre el costo en Materiales y costos o pausa la sesión mientras tanto.`,
+          acciones: [{
+            etiqueta: 'Pausar sesión y avisar',
+            alElegir: () => {
+              setEstadoDestino('pausada');
+              const motivoMaterial = motivosPausa.find((motivo) => motivo.codigo === 'MATERIAL');
+              if (motivoMaterial) setMotivoPausa(motivoMaterial.codigo);
+              const aviso = `Falta costo confirmado de ${nombreMaterial}`;
+              setNotas((previo) => (previo.trim() ? `${previo.trim()} · ${aviso}` : aviso));
+              setMensaje({
+                exito: false,
+                error: `${aviso}. La sesión quedó lista para pausar: confirma con tu PIN.`,
+              });
+            },
+          }],
+        });
+      } else if (resultado.codigo === 'consumo_material_requerido') {
+        setErrorCierre({
+          titulo: 'Falta registrar el consumo',
+          mensaje: resultado.error,
+          acciones: [{
+            etiqueta: 'Registrar consumo aquí',
+            alElegir: () => {
+              if (!materialId && materiales[0]) setMaterialId(materiales[0].id);
+              setCantidadUsada(String(Math.max(Number(piezas) || 0, 1)));
+              setMensaje(null);
+            },
+          }],
+        });
+      } else if (resultado.codigo !== 'primera_pieza_pendiente') {
         setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
       }
       setMensajeJustificacion(null);
@@ -1692,7 +1732,11 @@ export function DetalleProcesoOperador({
                   </div>
                   <label className={CLASE_ETIQUETA}>
                     Resultado
-                    <Select value={estadoDestino} onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}>
+                    <Select
+                      value={estadoDestino}
+                      onChange={(evento) => setEstadoDestino(evento.target.value as 'pausada' | 'finalizada')}
+                      data-testid="resultado-cierre"
+                    >
                       <option value="finalizada">Finalizar sesión de trabajo</option>
                       <option value="pausada">Pausar sesión de trabajo</option>
                     </Select>
@@ -1815,6 +1859,16 @@ export function DetalleProcesoOperador({
                           {proceso.material && materialId === proceso.material.id ? (
                             <span className="text-xs font-normal text-texto-tenue">
                               Preseleccionado desde el material del ítem.
+                            </span>
+                          ) : null}
+                          {materialSinCosto && materialElegido ? (
+                            <span
+                              data-testid="aviso-material-sin-costo"
+                              className="text-xs font-normal text-advertencia-texto"
+                            >
+                              {materialElegido.nombre} no tiene costo confirmado. No puedes
+                              finalizar mientras falte; pide a administración que lo registre en
+                              Materiales y costos o pausa la sesión.
                             </span>
                           ) : null}
                           {materialElegido ? (
@@ -2260,6 +2314,7 @@ export function DetalleProcesoOperador({
                       maxLength={1000}
                       value={notas}
                       onChange={(evento) => setNotas(evento.target.value)}
+                      data-testid="notas-cierre"
                       required={
                         estadoDestino === 'pausada' &&
                         motivoSeleccionado?.requiereNota === true

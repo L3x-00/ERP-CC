@@ -14,6 +14,8 @@ export default async function PaginaPipeline({ searchParams }: ParametrosPaginaP
   for (const [clave, valor] of Object.entries(parametros)) {
     if (typeof valor === 'string') query.set(clave, valor);
   }
-  const cadena = query.toString();
-  redirect(cadena ? `/rfq?${cadena}` : '/rfq');
+  // Marca el origen para que `/rfq` pueda mostrar la aclaración del modelo
+  // (la oportunidad es el RFQ). Conserva los deep-links históricos.
+  query.set('desde', 'pipeline');
+  redirect(`/rfq?${query.toString()}`);
 }

@@ -1,0 +1,13 @@
+{
+  "sufijo": "QA1711",
+  "razon": "Manufactura Fronteriza QA1711 S.A. de C.V.",
+  "rfqId": "cc86f00f-fb5e-413c-a7f5-e8b788c86f7a",
+  "rfqFolio": "RFQ-1126_08",
+  "rfqUrl": "https://erp-cc-flame.vercel.app/rfq?rfq=cc86f00f-fb5e-413c-a7f5-e8b788c86f7a&continuar=1",
+  "rfqEstado": "READY_FOR_PROPOSAL",
+  "folioCnc": "Propuestas",
+  "propuestaUrl": "https://erp-cc-flame.vercel.app/propuestas?propuesta=2456f6e1-2298-4e16-b6d1-7a535d39532b",
+  "propuestaId": "2456f6e1-2298-4e16-b6d1-7a535d39532b",
+  "ordenUrl": "https://erp-cc-flame.vercel.app/ordenes/8813c90d-1a38-4e6d-9154-17af9bf56a41",
+  "ordenId": "8813c90d-1a38-4e6d-9154-17af9bf56a41"
+}

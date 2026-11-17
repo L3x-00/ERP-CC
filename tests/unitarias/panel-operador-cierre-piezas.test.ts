@@ -101,4 +101,54 @@ describe('PanelOperadorProduccion — cierre de un proceso posterior', () => {
     expect((screen.getByLabelText('Usado') as HTMLInputElement).value).toBe('250');
     expect(cerrar).not.toHaveBeenCalled();
   });
+
+  it('ofrece pausar cuando el material no tiene costo confirmado, sin reintentar el cierre', async () => {
+    const metaCorte = {
+      ...metaDoblado,
+      id: 'meta-1',
+      secuencia: 1,
+      nombre: 'CORTE_LASER',
+      disponiblePiezas: null,
+    };
+    const ordenBase = orden as unknown as {
+      partidas: Array<{ id: string; codigoPieza: string; programaciones: unknown[]; metasProceso: unknown[] }>;
+    };
+    const ordenCorte = {
+      ...ordenBase,
+      partidas: [{ ...ordenBase.partidas[0], metasProceso: [metaCorte] }],
+    } as never;
+    const cerrar = vi.fn().mockResolvedValue({
+      exito: false,
+      error: 'El material no tiene costo confirmado',
+      codigo: 'costo_material_no_configurado',
+    });
+
+    render(createElement(PanelOperadorProduccion, {
+      ...BASE,
+      orden: ordenCorte,
+      motivosPausa: [
+        { codigo: 'MATERIAL', nombre: 'Falta de material', requiereNota: false, liberaMaquina: true },
+      ],
+      materiales: [
+        { id: 'material-1', codigo: 'MDF-12', nombre: 'MDF 12 mm', unidadBase: 'm2' },
+      ],
+      onCerrar: cerrar,
+      onIniciar: vi.fn(),
+      onReanudar: vi.fn(),
+    }));
+
+    fireEvent.change(screen.getByLabelText('Piezas cortadas ahora'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
+    fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '1' } });
+    fireEvent.change(screen.getByTestId('motivo-consumo'), { target: { value: 'Consumo MDF' } });
+    fireEvent.change(screen.getByLabelText('Confirmar PIN'), { target: { value: '4826' } });
+    fireEvent.submit(screen.getByTestId('cerrar-sesion-produccion').closest('form')!);
+
+    const aviso = await screen.findByTestId('error-cierre-panel');
+    expect(aviso.textContent).toContain('MDF 12 mm');
+    fireEvent.click(screen.getByTestId('error-cierre-accion'));
+
+    expect((screen.getByLabelText('Resultado') as HTMLSelectElement).value).toBe('pausada');
+    expect(cerrar).toHaveBeenCalledTimes(1);
+  });
 });
