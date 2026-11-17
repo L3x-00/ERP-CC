@@ -99,12 +99,21 @@ export interface AccionesDetalleProceso {
   reanudar: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
   /** C15: cierra una pausa que no se retomará, sin producir piezas. */
   cerrarPausa: (proceso: ProcesoEspacioOperador) => Promise<ResultadoOperacion>;
+  /** C20: corrige piezas y hora real de una pausa automática por jornada. */
+  actualizarAvance: (proceso: ProcesoEspacioOperador, datos: {
+    sesionId: string;
+    piezasProducidas: number;
+    horasARestar: number;
+    notas?: string;
+    pinConfirmacion?: string;
+  }) => Promise<ResultadoOperacion>;
   cerrar: (proceso: ProcesoEspacioOperador, datos: {
     sesionId: string;
     piezasProducidas: number;
     estadoDestino: 'pausada' | 'finalizada';
     motivoPausa?: string;
     notas?: string;
+    horaFin?: string;
     pinConfirmacion: string;
     consumo?: {
       materialId: string;
@@ -181,6 +190,12 @@ export function DetalleProcesoOperador({
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
   const [pin, setPin] = useState('');
+  // C20: hora real declarada al cerrar y corrección de la pausa automática.
+  const [horaFin, setHoraFin] = useState('');
+  const [avancePiezas, setAvancePiezas] = useState('0');
+  const [avanceHoras, setAvanceHoras] = useState('0');
+  const [avanceNotas, setAvanceNotas] = useState('');
+  const [avancePin, setAvancePin] = useState('');
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
   // C17: el cierre fallido se muestra en un diálogo modal para que el operador
   // lo vea aunque el formulario esté muy abajo; guarda el motivo exacto.
@@ -420,6 +435,19 @@ export function DetalleProcesoOperador({
 
   async function cerrarPausa(): Promise<void> {
     const resultado = await acciones.cerrarPausa(proceso!);
+    setMensaje(resultado);
+  }
+
+  /** C20: declara piezas y horas reales de la pausa automática por jornada. */
+  async function actualizarAvance(): Promise<void> {
+    if (!proceso?.ultimaSesion) return;
+    const resultado = await acciones.actualizarAvance(proceso, {
+      sesionId: proceso.ultimaSesion.id,
+      piezasProducidas: Number(avancePiezas) || 0,
+      horasARestar: Number(avanceHoras) || 0,
+      ...(avanceNotas.trim() ? { notas: avanceNotas.trim() } : {}),
+      ...(avancePin ? { pinConfirmacion: avancePin } : {}),
+    });
     setMensaje(resultado);
   }
 
@@ -686,6 +714,7 @@ export function DetalleProcesoOperador({
       estadoDestino,
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
+      ...(horaFin ? { horaFin } : {}),
       ...(incluirConsumo
         ? {
             consumo: {
@@ -1445,7 +1474,13 @@ export function DetalleProcesoOperador({
             {sesionPausada.motivoPausaNota ? (
               <p className="text-xs text-texto-secundario">{sesionPausada.motivoPausaNota}</p>
             ) : null}
-            {proceso.puedeReanudar ? (
+            {proceso.pendienteActualizacionAvance ? (
+              <p className="text-xs text-peligro-texto" data-testid="aviso-avance-pendiente">
+                La jornada se cumplió antes de que declararas el avance. Declara las piezas
+                producidas y las horas que faltaron para la pausa: con eso se calcula la hora
+                real de término y se corrige el tiempo. No puedes continuar hasta hacerlo.
+              </p>
+            ) : proceso.puedeReanudar ? (
               <p className="text-xs text-advertencia-texto">
                 Puedes retomarla con «Continuar sesión pausada»; el avance y las horas
                 registradas se conservan.
@@ -1547,9 +1582,9 @@ export function DetalleProcesoOperador({
                     data-testid="aviso-horas-extra"
                     className="rounded-md bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto"
                   >
-                    Llevas {horasSesion.toFixed(1)} h en esta sesión. Si el tiempo neto supera la
-                    jornada, el cierre pedirá autorización de horas extra; solicítala a un
-                    responsable antes de continuar.
+                    Llevas {horasSesion.toFixed(1)} h en esta sesión. La jornada suma todas tus
+                    sesiones del día: si el total neto la supera, el cierre pedirá autorización
+                    de horas extra. Declara el avance antes de que se pause sola.
                   </p>
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -2103,6 +2138,19 @@ export function DetalleProcesoOperador({
                   )}
                 </div>
                   <label className={CLASE_ETIQUETA}>
+                    Hora real de finalización (opcional)
+                    <Input
+                      type="datetime-local"
+                      value={horaFin}
+                      onChange={(evento) => setHoraFin(evento.target.value)}
+                      data-testid="hora-fin-cierre"
+                    />
+                    <span className="text-xs text-texto-tenue">
+                      Si la dejas vacía se registra la hora actual del cierre.
+                    </span>
+                  </label>
+
+                  <label className={CLASE_ETIQUETA}>
                     PIN de confirmación
                     <Input
                       inputMode="numeric"
@@ -2195,18 +2243,87 @@ export function DetalleProcesoOperador({
               </div>
             ) : null}
 
+            {proceso.pendienteActualizacionAvance && !soloLectura ? (
+              <form
+                className="grid gap-3 rounded-lg border border-peligro/40 bg-peligro-suave/60 p-3"
+                aria-label="Actualizar avance de la pausa"
+                data-testid="formulario-actualizar-avance"
+                onSubmit={(evento) => {
+                  evento.preventDefault();
+                  void actualizarAvance();
+                }}
+              >
+                <p className="text-sm font-semibold text-peligro-texto">
+                  Actualizar avance y hora real
+                </p>
+                <p className="text-xs text-texto-secundario">
+                  Se restan las horas declaradas de la hora en que se capturó la pausa.
+                  Por ejemplo, si terminaste 4 horas antes, esas horas se descuentan del cierre
+                  automático de la jornada.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className={CLASE_ETIQUETA}>
+                    Piezas producidas en este periodo
+                    <CampoEntero
+                      valor={avancePiezas}
+                      onValorCambiar={setAvancePiezas}
+                      required
+                      data-testid="avance-piezas"
+                    />
+                  </label>
+                  <label className={CLASE_ETIQUETA}>
+                    Horas que faltaron para la pausa
+                    <input
+                      type="number"
+                      min="0"
+                      max="24"
+                      step="0.25"
+                      value={avanceHoras}
+                      onChange={(evento) => setAvanceHoras(evento.target.value)}
+                      className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
+                      data-testid="avance-horas"
+                    />
+                  </label>
+                </div>
+                <label className={CLASE_ETIQUETA}>
+                  Notas (opcional)
+                  <input
+                    value={avanceNotas}
+                    onChange={(evento) => setAvanceNotas(evento.target.value)}
+                    maxLength={1000}
+                    className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
+                    data-testid="avance-notas"
+                  />
+                </label>
+                <label className={CLASE_ETIQUETA}>
+                  PIN de operador
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    value={avancePin}
+                    onChange={(evento) => setAvancePin(evento.target.value)}
+                    className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
+                    data-testid="avance-pin"
+                  />
+                </label>
+                <Button type="submit" disabled={procesando} data-testid="actualizar-avance-detalle">
+                  {procesando ? 'Actualizando…' : 'Actualizar avance'}
+                </Button>
+              </form>
+            ) : null}
+
             <div className="flex flex-wrap gap-2">
               {proceso.puedeIniciar ? (
                 <Button type="button" tamano="lg" disabled={procesando} onClick={() => acciones.iniciar(proceso)} data-testid="iniciar-detalle">
                   Iniciar proceso
                 </Button>
               ) : null}
-              {proceso.puedeReanudar ? (
+              {proceso.puedeReanudar && !proceso.pendienteActualizacionAvance ? (
                 <Button type="button" tamano="lg" variante="secundario" disabled={procesando} onClick={() => void reanudar()} data-testid="reanudar-detalle">
                   Continuar sesión pausada
                 </Button>
               ) : null}
-              {proceso.puedeReanudar ? (
+              {proceso.puedeReanudar && !proceso.pendienteActualizacionAvance ? (
                 <Button type="button" variante="contorno" disabled={procesando} onClick={() => void cerrarPausa()} data-testid="cerrar-pausa-detalle">
                   Cerrar pausa sin producir
                 </Button>

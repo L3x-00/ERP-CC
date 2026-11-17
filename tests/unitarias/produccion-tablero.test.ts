@@ -53,6 +53,7 @@ function crearSesion(estadoSesion: SesionTrabajo['estadoSesion']): SesionTrabajo
     operadorId: '66666666-6666-4666-8666-666666666666',
     corridaId: null,
     fechaInicio: orden.creadoEn, fechaFin: estadoSesion === 'activa' ? null : orden.actualizadoEn,
+    fechaFinDeclarada: null, pendienteActualizacionAvance: false,
     horasBrutas: 0, horasNetas: 0, piezasProducidas: 0, motivoPausa: null, notas: null,
     motivoPausaCodigo: null, motivoPausaNota: null, recursoLiberado: false,
     verificacionInicio: null,

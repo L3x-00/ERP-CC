@@ -17,6 +17,7 @@ import { reanudarSesionOperadorAccion } from '@/modulos/produccion/acciones/rean
 import { cerrarPausaOperadorAccion } from '@/modulos/produccion/acciones/cerrar-pausa-operador';
 import { cerrarSesionOperadorAccion } from '@/modulos/produccion/acciones/cerrar-sesion-operador';
 import { pausarSesionJornadaAccion } from '@/modulos/produccion/acciones/pausar-sesion-jornada';
+import { actualizarAvanceSesionAccion } from '@/modulos/produccion/acciones/actualizar-avance-sesion';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import {
   VISTAS_ESPACIO_OPERADOR,
@@ -312,6 +313,24 @@ export function EspacioOperador({
     }, 'Pausa cerrada sin producir. Las horas quedan registradas y la operación vuelve a estar disponible.');
   }
 
+  async function actualizarAvance(
+    proceso: ProcesoEspacioOperador,
+    datos: {
+      sesionId: string;
+      piezasProducidas: number;
+      horasARestar: number;
+      notas?: string;
+      pinConfirmacion?: string;
+    },
+  ): Promise<ResultadoOperacion> {
+    return ejecutar(proceso, async () => {
+      const respuesta = await actualizarAvanceSesionAccion(datos);
+      return respuesta.exito
+        ? { exito: true }
+        : { exito: false, error: respuesta.error };
+    }, 'Avance y hora real actualizados');
+  }
+
   async function cerrar(
     proceso: ProcesoEspacioOperador,
     datos: {
@@ -320,6 +339,7 @@ export function EspacioOperador({
       estadoDestino: 'pausada' | 'finalizada';
       motivoPausa?: string;
       notas?: string;
+      horaFin?: string;
       pinConfirmacion: string;
       consumo?: {
         materialId: string;
@@ -337,6 +357,7 @@ export function EspacioOperador({
         estadoDestino: datos.estadoDestino,
         ...(datos.motivoPausa ? { motivoPausa: datos.motivoPausa } : {}),
         ...(datos.notas ? { notas: datos.notas } : {}),
+        ...(datos.horaFin ? { horaFin: datos.horaFin } : {}),
         ...(datos.consumo ? { consumo: datos.consumo } : {}),
         ...(datos.minutosSetup !== undefined ? { minutosSetup: datos.minutosSetup } : {}),
         pinConfirmacion: datos.pinConfirmacion,
@@ -423,6 +444,7 @@ export function EspacioOperador({
     },
     reanudar,
     cerrarPausa,
+    actualizarAvance,
     cerrar,
   };
 
@@ -544,6 +566,7 @@ export function EspacioOperador({
           onAbrirOrden={setOrdenAbiertaId}
           onReanudar={(proceso) => void reanudar(proceso)}
           onCerrarPausa={(proceso) => void cerrarPausa(proceso)}
+          onActualizarAvance={setDetalle}
         />
       ) : vista === 'calendario' ? (
         <VistaCalendarioOperador

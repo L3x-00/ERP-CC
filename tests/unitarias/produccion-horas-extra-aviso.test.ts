@@ -4,6 +4,7 @@ import {
   horasTranscurridasSesion,
   sesionCercaDeJornada,
 } from '@/modulos/produccion/utilidades/horas-extra';
+import { fechaHoraLocalTallerAIso } from '@/modulos/produccion/servicios/indice';
 
 describe('aviso de horas extra', () => {
   it('calcula las horas transcurridas desde el inicio de la sesión', () => {
@@ -22,5 +23,18 @@ describe('aviso de horas extra', () => {
     expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T16:59:00.000Z'))).toBe(false);
     expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T17:00:00.000Z'))).toBe(true);
     expect(sesionCercaDeJornada(inicio, new Date('2026-11-02T17:00:00.000Z'), 10)).toBe(false);
+  });
+});
+
+describe('C20: hora real de finalización', () => {
+  it('convierte la hora local del taller respetando el horario de verano', () => {
+    // Noviembre: Tijuana ya está en PST (UTC-8).
+    expect(fechaHoraLocalTallerAIso('2026-11-02T17:00')).toBe('2026-11-03T01:00:00.000Z');
+    // Junio: Tijuana está en PDT (UTC-7).
+    expect(fechaHoraLocalTallerAIso('2026-06-15T17:00')).toBe('2026-06-16T00:00:00.000Z');
+  });
+
+  it('rechaza un formato distinto de datetime-local', () => {
+    expect(() => fechaHoraLocalTallerAIso('17:00')).toThrow();
   });
 });

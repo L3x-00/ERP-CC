@@ -12,6 +12,7 @@ export const COLUMNAS_ESPACIO_OPERADOR = [
   'bandeja',
   'en_proceso',
   'pausada',
+  'actualizar_avance',
   'lista',
 ] as const;
 export const URGENCIAS_PROCESO = ['vencida', 'urgente', 'proxima', 'normal'] as const;
@@ -25,6 +26,7 @@ export const ETIQUETAS_COLUMNA: Record<ColumnaEspacioOperador, string> = {
   bandeja: 'Bandeja',
   en_proceso: 'En proceso',
   pausada: 'Pausada',
+  actualizar_avance: 'Actualizar avance',
   lista: 'Lista',
 };
 
@@ -106,6 +108,8 @@ export interface SesionProceso {
   estadoSesion: 'activa' | 'pausada' | 'finalizada';
   fechaInicio: string;
   fechaFin: string | null;
+  /** C20: la pausa automática dejó avance y hora real pendientes de declarar. */
+  pendienteActualizacionAvance: boolean;
   piezasProducidas: number;
   horasNetas: number;
   /** true si la corrida exige primera pieza y aún no hay una aprobada. */
@@ -229,6 +233,8 @@ export interface ProcesoEspacioOperador {
   sesionActiva: SesionProceso | null;
   ultimaSesion: SesionProceso | null;
   sesiones: SesionProceso[];
+  /** C20: la última sesión es una pausa automática pendiente de declarar. */
+  pendienteActualizacionAvance: boolean;
   procesosRuteo: ProcesoRuteoResumen[];
   archivos: ArchivoProceso[];
   /** Comentarios generales de la orden visibles para el operador. */
@@ -291,6 +297,7 @@ export function derivarColumnaOrden(
   if (procesos.length === 0) return 'bandeja';
   if (procesos.every((proceso) => proceso.columna === 'lista')) return 'lista';
   if (procesos.some((proceso) => proceso.columna === 'en_proceso')) return 'en_proceso';
+  if (procesos.some((proceso) => proceso.columna === 'actualizar_avance')) return 'actualizar_avance';
   if (procesos.some((proceso) => proceso.columna === 'pausada')) return 'pausada';
   if (procesos.some((proceso) => proceso.columna === 'aprobada')) return 'aprobada';
   return 'bandeja';
@@ -301,6 +308,7 @@ export function procesoRepresentativoItem(
   item: ItemOrdenEspacioOperador,
 ): ProcesoEspacioOperador {
   return item.procesos.find((proceso) => proceso.sesionActiva !== null)
+    ?? item.procesos.find((proceso) => proceso.columna === 'actualizar_avance')
     ?? item.procesos.find((proceso) => proceso.columna === 'pausada')
     ?? item.procesos.find((proceso) => proceso.columna !== 'lista')
     ?? item.procesos[0];
@@ -480,6 +488,8 @@ export interface ResumenEspacioOperador {
   enBandeja: number;
   enProceso: number;
   pausadas: number;
+  /** C20: pausas automáticas pendientes de declarar avance y hora real. */
+  pendientesActualizacion: number;
   listas: number;
   urgentes: number;
   horasReclamadasHoy: number;
@@ -531,6 +541,8 @@ type EntradaColumnaProceso = {
   procesoCompleto: boolean;
   sesionActiva: boolean;
   sesionPausada: boolean;
+  /** C20: pausa automática pendiente de declarar piezas y hora real. */
+  pendienteActualizacionAvance: boolean;
   programacionEstado: EstadoPlaneacion | null;
 };
 
@@ -543,6 +555,7 @@ export function derivarColumnaProceso(
   entrada: EntradaColumnaProceso,
 ): ColumnaEspacioOperador {
   if (entrada.procesoCompleto || entrada.estadoOrden === 'completada') return 'lista';
+  if (entrada.pendienteActualizacionAvance) return 'actualizar_avance';
   if (entrada.sesionActiva || entrada.programacionEstado === 'en_proceso') return 'en_proceso';
   if (
     entrada.sesionPausada
@@ -721,6 +734,7 @@ export function resumirEspacioOperador(
     enBandeja: 0,
     enProceso: 0,
     pausadas: 0,
+    pendientesActualizacion: 0,
     listas: 0,
     urgentes: 0,
     horasReclamadasHoy: 0,
@@ -731,6 +745,7 @@ export function resumirEspacioOperador(
     else if (proceso.columna === 'bandeja') resumen.enBandeja += 1;
     else if (proceso.columna === 'en_proceso') resumen.enProceso += 1;
     else if (proceso.columna === 'pausada') resumen.pausadas += 1;
+    else if (proceso.columna === 'actualizar_avance') resumen.pendientesActualizacion += 1;
     else resumen.listas += 1;
 
     if (proceso.urgencia === 'urgente' || proceso.urgencia === 'vencida') resumen.urgentes += 1;

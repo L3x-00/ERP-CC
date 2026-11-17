@@ -42,6 +42,7 @@ const VARIANTE_COLUMNA: Record<ColumnaEspacioOperador, 'neutro' | 'info' | 'exit
   bandeja: 'neutro',
   en_proceso: 'exito',
   pausada: 'alerta',
+  actualizar_avance: 'alerta',
   lista: 'exito',
 };
 

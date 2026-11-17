@@ -11,9 +11,9 @@ import {
 import { esquemaPausarSesionJornada } from '@/modulos/produccion/validaciones/indice';
 
 /**
- * C15: vigilante del panel del operador. Al cumplirse la jornada del turno la
- * sesión se pausa sin intervención; el operador no pierde el avance y el reloj
- * deja de acumular horas extra.
+ * C15/C20: vigilante del panel del operador. Al cumplirse la jornada del turno
+ * la sesión se pausa sin intervención; el reloj deja de acumular horas extra y
+ * la sesión queda pendiente de declarar avance y hora real (C20).
  */
 export async function pausarSesionJornadaAccion(
   entrada: unknown,

@@ -88,6 +88,7 @@ export interface PropsPanelOperadorProduccion {
     metaProcesoId?: string;
     motivoPausa?: string;
     notas?: string;
+    horaFin?: string;
     pinConfirmacion: string;
     consumo?: {
       materialId: string;
@@ -142,6 +143,7 @@ export function PanelOperadorProduccion({
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
+  const [horaFin, setHoraFin] = useState('');
   const [pinConfirmacion, setPinConfirmacion] = useState('');
   const [materialId, setMaterialId] = useState('');
   const [cantidadUsada, setCantidadUsada] = useState('0');
@@ -382,6 +384,7 @@ export function PanelOperadorProduccion({
       ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
+      ...(horaFin ? { horaFin } : {}),
       ...(incluirConsumo ? {
         consumo: {
           materialId,
@@ -973,6 +976,16 @@ export function PanelOperadorProduccion({
               value={notas}
               onChange={(evento) => setNotas(evento.target.value)}
               required={estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota === true}
+            />
+          </label>
+          <label className={CLASE_ETIQUETA}>
+            Hora real de finalización (opcional)
+            <Input
+              className="min-h-11"
+              type="datetime-local"
+              value={horaFin}
+              onChange={(evento) => setHoraFin(evento.target.value)}
+              data-testid="hora-fin-cierre-panel"
             />
           </label>
           <label className={CLASE_ETIQUETA}>

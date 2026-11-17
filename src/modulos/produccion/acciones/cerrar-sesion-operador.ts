@@ -14,6 +14,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import {
   ErrorProduccion,
   cerrarSesionTrabajoServicio,
+  limpiarHoraFinSesionServicio,
   mensajeErrorSesion,
   type CierreSesionRegistrado,
 } from '@/modulos/produccion/servicios/indice';
@@ -73,6 +74,17 @@ export async function cerrarSesionOperadorAccion(
   } catch (error) {
     const codigo = error instanceof ErrorProduccion ? error.codigo : 'desconocido';
     console.error('[PRODUCCION] Error al cerrar sesión:', error);
+    // C20: no dejar una hora declarada huérfana si el cierre no se completó.
+    if (analisis.data.horaFin) {
+      try {
+        await limpiarHoraFinSesionServicio(crearClienteSupabaseAdmin(), {
+          sesionId: analisis.data.sesionId,
+          operadorId: operador.id,
+        });
+      } catch (errorLimpieza) {
+        console.error('[PRODUCCION] No se pudo limpiar la hora declarada:', errorLimpieza);
+      }
+    }
     await registrarLog(operador, 'cierre_sesion_trabajo_rechazado', 'produccion', analisis.data.sesionId, {
       codigo,
       estadoDestino: analisis.data.estadoDestino,
