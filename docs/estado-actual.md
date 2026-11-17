@@ -1,6 +1,6 @@
 # Estado actual
 
-**Corte:** 2026-11-16 · `main` = `df65a47` (merge del PR #193).
+**Corte:** 2026-11-17 · `main` = `6285817` (merge del PR #196).
 
 ## Resumen
 
@@ -34,11 +34,14 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 - **C19 — Cierre por entrega (2026-11-16):** la orden pasa a `CERRADA` al entregar el 100 %, se reabre al anular la nota y el cierre administrativo completa costo y margen.
 - **PR #192 — Correcciones QA (2026-11-15):** fechas del negocio en Tijuana, permisos de calidad del operador, cierre excepcional del supervisor, adjuntos, estados, avisos de React y ajustes de accesibilidad.
 - **PR #193 — Cobertura y jornada (2026-11-16):** E2E de anulación de nota parcial y liberación de máquina tras pausa; unitarias de fechas sin hora y mensajes de corrida; jornada del operador derivada de `horasJornadaDia`.
+- **C20 (2026-11-17):** hora real de finalización en el cierre, pausa automática con bandera «Actualizar avance», corrección de piezas/hora real y control de jornada acumulada por día. PR #195.
+- **C21 (2026-11-17):** jornada corrida de 8 h con comida descontada; declaración del tiempo real de cada bloque pausado; corrección cronológica desde el historial; pausas sobrantes marcadas como inválidas; tope de 3 pausas sin avance; dos opciones para el consumo de material y errores en modal con salidas accionables. PR #196.
 
 ## Calidad
 
-- **Unitarias e integración:** Vitest. Último corte completo: 330 archivos y 2 898 pruebas en verde (102 skipped).
-- **E2E:** Playwright, 72 escenarios en verde con Supabase local. CI ejecuta `e2e-local` sobre un build de producción.
+- **Unitarias e integración:** Vitest. Último corte completo: 2903 pruebas unitarias y 307 de integración en verde.
+- **Base de datos:** 108 archivos pgTAP en verde sobre Supabase local.
+- **E2E:** Playwright, 73 escenarios en verde con Supabase local. CI ejecuta `e2e-local` sobre un build de producción.
 - **Base de datos:** pgTAP para RPCs, RLS, folios y máquinas de estado.
 - **Gates por cambio:** `tsc --noEmit`, ESLint, pruebas proporcionales y E2E de los flujos tocados.
 
@@ -53,7 +56,7 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 - **CFDI/PAC:** el ERP no timbra facturas; falta definir proveedor y alcance fiscal.
 - **Portal de cliente:** módulo preparado en el dominio, sin flujo de producción habilitado.
 - **Ajuste manual del costo real (F10):** parcial por decisión del PO.
-- **Migraciones recientes:** C18/C19 están en `main`; su aplicación en remoto la controla el PO.
+- **Migraciones recientes:** C18/C19/C20/C21 están en `main` y fueron aplicadas en remoto por el PO; no reaplicarlas ni usar `db push`.
 - **Análisis de UI:** `analisis-ui-configuracion.md` recoge observaciones del PO pendientes de priorizar.
 
 ## Documentos relacionados
