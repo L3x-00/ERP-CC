@@ -234,13 +234,17 @@ export const esquemaActualizarAvanceSesion = z.object({
     .number()
     .int('Las piezas deben ser un número entero')
     .min(0, 'Las piezas no pueden ser negativas'),
-  /** Horas que se restan de la hora en que se capturó la pausa. */
-  horasARestar: z
+  /** C21: tiempo real que tardó el proceso en este bloque. */
+  horasReales: z
     .number()
-    .finite('Indica las horas reales del proceso')
-    .min(0, 'Las horas no pueden ser negativas')
-    .max(24, 'Las horas no pueden superar un día'),
+    .finite('Indica el tiempo real de proceso')
+    .min(0, 'El tiempo real no puede ser negativo')
+    .max(24, 'El tiempo real no puede superar un día'),
   notas: z.string().trim().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional(),
+  materialId: z.uuid('ID de material inválido').nullish(),
+  cantidadUsada: z.number().finite().min(0).default(0),
+  cantidadScrap: z.number().finite().min(0).default(0),
+  motivoConsumo: z.string().trim().min(3, 'Indica el motivo del consumo').max(200).nullish(),
   /** El operador la envía; el administrador no. La Server Action lo exige según el rol. */
   pinConfirmacion: z.string().regex(PATRON_PIN_OPERADOR).optional(),
 }).strict();

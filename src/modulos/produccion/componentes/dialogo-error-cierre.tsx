@@ -13,6 +13,8 @@ export interface DatosErrorCierre {
   mensaje: string;
   /** Corrección sugerida (por ejemplo, consumir 1:1 lo producido). */
   accion?: AccionErrorCierre;
+  /** Varias salidas posibles (por ejemplo, registrar consumo o dejarlo para el cierre). */
+  acciones?: AccionErrorCierre[];
 }
 
 interface PropsDialogoErrorCierre {
@@ -41,6 +43,7 @@ export function DialogoErrorCierre({
   testId = 'error-cierre-dialogo',
 }: PropsDialogoErrorCierre) {
   const accion = error?.accion;
+  const acciones = error?.acciones ?? (accion ? [accion] : []);
   return (
     <Dialog open={error !== null} onOpenChange={(abierto) => { if (!abierto) onCerrar(); }}>
       <DialogContent
@@ -60,19 +63,20 @@ export function DialogoErrorCierre({
           {error?.mensaje}
         </p>
         <DialogFooter>
-          {accion ? (
+          {acciones.map((salida, indice) => (
             <Button
+              key={salida.etiqueta}
               type="button"
-              variante="contorno"
-              data-testid="error-cierre-accion"
+              variante={indice === 0 ? 'secundario' : 'contorno'}
+              data-testid={indice === 0 ? 'error-cierre-accion' : `error-cierre-accion-${indice}`}
               onClick={() => {
-                accion.alElegir();
+                salida.alElegir();
                 onCerrar();
               }}
             >
-              {accion.etiqueta}
+              {salida.etiqueta}
             </Button>
-          ) : null}
+          ))}
           <Button
             type="button"
             autoFocus

@@ -229,6 +229,7 @@ describe('mappers B6', () => {
       fecha_fin: null,
       fecha_fin_declarada: null,
       pendiente_actualizacion_avance: false,
+      sesion_invalida: false,
       horas_brutas: 0,
       horas_netas: 0,
       minutos_setup: null,

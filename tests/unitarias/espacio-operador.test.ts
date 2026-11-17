@@ -292,6 +292,7 @@ describe('agruparProcesosPorOrdenYColumna', () => {
     fechaInicio: '2026-10-26T08:00:00.000Z',
     fechaFin: '2026-10-26T16:00:00.000Z',
     pendienteActualizacionAvance: false,
+    sesionInvalida: false,
     piezasProducidas: 0,
     horasNetas: 8,
     motivoPausa: 'FIN_JORNADA',

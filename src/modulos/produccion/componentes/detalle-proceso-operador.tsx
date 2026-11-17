@@ -103,8 +103,12 @@ export interface AccionesDetalleProceso {
   actualizarAvance: (proceso: ProcesoEspacioOperador, datos: {
     sesionId: string;
     piezasProducidas: number;
-    horasARestar: number;
+    horasReales: number;
     notas?: string;
+    materialId?: string | null;
+    cantidadUsada?: number;
+    cantidadScrap?: number;
+    motivoConsumo?: string | null;
     pinConfirmacion?: string;
   }) => Promise<ResultadoOperacion>;
   cerrar: (proceso: ProcesoEspacioOperador, datos: {
@@ -167,7 +171,9 @@ export function DetalleProcesoOperador({
   onPausaAutomatica,
   presentacion = 'dialogo',
 }: PropsDetalleProceso) {
-  const [fecha, setFecha] = useState(proceso?.reclamo?.fecha ?? hoy);
+  // C21: el día de la jornada es siempre el día operativo actual, no el de la
+  // programación original con la que se reclamó el proceso.
+  const [fecha, setFecha] = useState(hoy);
   const [turno, setTurno] = useState<string>(proceso?.reclamo?.turno ?? 'matutino');
   const [piezas, setPiezas] = useState('0');
   // El material de la orden viene preseleccionado: el operador no debe elegirlo
@@ -196,6 +202,16 @@ export function DetalleProcesoOperador({
   const [avanceHoras, setAvanceHoras] = useState('0');
   const [avanceNotas, setAvanceNotas] = useState('');
   const [avancePin, setAvancePin] = useState('');
+  // C21: corrección de cualquier sesión pausada y consumo opcional.
+  const [sesionCorreccionId, setSesionCorreccionId] = useState<string | null>(
+    () => proceso?.ultimaSesion?.id ?? null,
+  );
+  const [avanceMaterialId, setAvanceMaterialId] = useState('');
+  const [avanceUsada, setAvanceUsada] = useState('0');
+  const [avanceScrap, setAvanceScrap] = useState('0');
+  const [avanceMotivoConsumo, setAvanceMotivoConsumo] = useState('');
+  const [errorAvance, setErrorAvance] = useState<DatosErrorCierre | null>(null);
+  const [sesionAnteriorAbierta, setSesionAnteriorAbierta] = useState(false);
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
   // C17: el cierre fallido se muestra en un diálogo modal para que el operador
   // lo vea aunque el formulario esté muy abajo; guarda el motivo exacto.
@@ -438,17 +454,71 @@ export function DetalleProcesoOperador({
     setMensaje(resultado);
   }
 
-  /** C20: declara piezas y horas reales de la pausa automática por jornada. */
+  /** C21: declara piezas y tiempo real de cualquier sesión pausada. */
   async function actualizarAvance(): Promise<void> {
-    if (!proceso?.ultimaSesion) return;
+    const sesionId = sesionCorreccionId ?? proceso?.ultimaSesion?.id;
+    if (!proceso || !sesionId) return;
+    const registrarConsumo = avanceMaterialId !== '';
     const resultado = await acciones.actualizarAvance(proceso, {
-      sesionId: proceso.ultimaSesion.id,
+      sesionId,
       piezasProducidas: Number(avancePiezas) || 0,
-      horasARestar: Number(avanceHoras) || 0,
+      horasReales: Number(avanceHoras) || 0,
       ...(avanceNotas.trim() ? { notas: avanceNotas.trim() } : {}),
+      ...(registrarConsumo
+        ? {
+            materialId: avanceMaterialId,
+            cantidadUsada: Number(avanceUsada) || 0,
+            cantidadScrap: Number(avanceScrap) || 0,
+            motivoConsumo: avanceMotivoConsumo.trim() || 'Consumo al actualizar avance',
+          }
+        : {}),
       ...(avancePin ? { pinConfirmacion: avancePin } : {}),
     });
     setMensaje(resultado);
+    if (!resultado.exito) mostrarErrorAvance(resultado);
+  }
+
+  /** Errores de avance con salidas accionables, no callejones sin salida. */
+  function mostrarErrorAvance(resultado: { error: string; codigo?: string }): void {
+    const sesion = proceso?.sesiones.find((item) => item.id === sesionCorreccionId);
+    const maximo = sesion?.fechaFin && sesion.fechaInicio
+      ? Math.max(0, Math.round(((new Date(sesion.fechaFin).getTime() - new Date(sesion.fechaInicio).getTime()) / 3_600_000) * 100) / 100)
+      : null;
+    const acciones: DatosErrorCierre['acciones'] = [];
+    if (resultado.codigo === 'horas_reales_exceden_sesion' || resultado.codigo === 'horas_a_restar_exceden_sesion') {
+      if (maximo !== null) {
+        acciones.push({
+          etiqueta: `Ajustar a ${maximo} h`,
+          alElegir: () => setAvanceHoras(String(maximo)),
+        });
+      }
+    }
+    if (resultado.codigo === 'sesion_antigua_pendiente') {
+      const antigua = [...(proceso?.sesiones ?? [])]
+        .filter((item) => item.estadoSesion === 'pausada' && item.pendienteActualizacionAvance && !item.sesionInvalida)
+        .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio))[0];
+      if (antigua) {
+        acciones.push({
+          etiqueta: 'Ir a la sesión más antigua',
+          alElegir: () => setSesionCorreccionId(antigua.id),
+        });
+      }
+    }
+    if (resultado.codigo === 'consumo_material_requerido') {
+      acciones.push({
+        etiqueta: 'Registrar consumo aquí',
+        alElegir: () => setAvanceMaterialId(materiales[0]?.id ?? ''),
+      });
+      acciones.push({
+        etiqueta: 'Dejarlo para el cierre',
+        alElegir: () => setAvanceMaterialId(''),
+      });
+    }
+    setErrorAvance({
+      titulo: 'No se pudo actualizar el avance',
+      mensaje: resultado.error,
+      acciones,
+    });
   }
 
   /** Muestra el fallo del cierre en el diálogo modal y en el aviso inline. */
@@ -1033,6 +1103,7 @@ export function DetalleProcesoOperador({
               {proceso.prioridad !== 'normal' ? (
                 <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
               ) : null}
+              {proceso.columna === 'lista' ? <Badge variante="exito">Proceso completado</Badge> : null}
             </DialogTitle>
             <DialogDescription>
               {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
@@ -1049,6 +1120,7 @@ export function DetalleProcesoOperador({
               {proceso.prioridad !== 'normal' ? (
                 <Badge variante="alerta">Prioridad {proceso.prioridad}</Badge>
               ) : null}
+              {proceso.columna === 'lista' ? <Badge variante="exito">Proceso completado</Badge> : null}
             </h2>
             <p className="text-sm text-texto-secundario">
               {proceso.clienteNombre} · {proceso.descripcion ?? 'Sin descripción de pieza'}
@@ -1287,11 +1359,27 @@ export function DetalleProcesoOperador({
                         <p className="whitespace-pre-wrap text-xs text-texto-secundario">{sesion.notas}</p>
                       ) : null}
                       {sesion.estadoSesion === 'pausada' ? (
-                        <p className="text-xs text-texto-secundario">
-                          {sesion.id === proceso.ultimaSesion?.id && proceso.puedeReanudar
-                            ? 'Pausa vigente: puedes continuarla o cerrarla sin producir.'
-                            : 'Periodo cerrado: conserva sus horas y no requiere cierre.'}
-                        </p>
+                        sesion.sesionInvalida ? (
+                          <Badge variante="neutro" data-testid={`sesion-invalida-${sesion.id}`}>No válida</Badge>
+                        ) : (
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-texto-secundario">
+                              {sesion.pendienteActualizacionAvance
+                                ? 'Pausa automática: declara piezas y tiempo real.'
+                                : 'Pausa registrada: puedes actualizar su estado.'}
+                            </span>
+                            {!soloLectura ? (
+                              <button
+                                type="button"
+                                className="text-xs text-acento-texto underline underline-offset-2"
+                                onClick={() => setSesionCorreccionId(sesion.id)}
+                                data-testid={`actualizar-estado-${sesion.id}`}
+                              >
+                                Actualizar estado
+                              </button>
+                            ) : null}
+                          </div>
+                        )
                       ) : null}
                     </li>
                   ))}
@@ -2237,13 +2325,14 @@ export function DetalleProcesoOperador({
                   </Button>
                 ) : null}
                 <p className="text-xs text-texto-tenue sm:col-span-3">
-                  Horario de la empresa: lunes a viernes 08:00–17:00 (matutino 08:00–13:00,
-                  vespertino 13:00–17:00) y sábado 08:00–12:00. El domingo no se labora.
+                  Jornada corrida de 8 horas. La comida de 12:00 a 13:00 no se cuenta.
+                  Matutino y vespertino son el mismo horario de producción. El domingo no se labora.
                 </p>
               </div>
             ) : null}
 
-            {proceso.pendienteActualizacionAvance && !soloLectura ? (
+            {proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
+              && !soloLectura ? (
               <form
                 className="grid gap-3 rounded-lg border border-peligro/40 bg-peligro-suave/60 p-3"
                 aria-label="Actualizar avance de la pausa"
@@ -2253,14 +2342,42 @@ export function DetalleProcesoOperador({
                   void actualizarAvance();
                 }}
               >
-                <p className="text-sm font-semibold text-peligro-texto">
-                  Actualizar avance y hora real
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-peligro-texto">
+                    Actualizar avance y hora real
+                  </p>
+                  {proceso.sesiones.filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida).length > 1 ? (
+                    <button
+                      type="button"
+                      className="text-xs text-acento-texto underline underline-offset-2"
+                      onClick={() => setSesionAnteriorAbierta(true)}
+                      data-testid="ver-proceso-anterior"
+                    >
+                      ver el proceso anterior
+                    </button>
+                  ) : null}
+                </div>
                 <p className="text-xs text-texto-secundario">
-                  Se restan las horas declaradas de la hora en que se capturó la pausa.
-                  Por ejemplo, si terminaste 4 horas antes, esas horas se descuentan del cierre
-                  automático de la jornada.
+                  Declara cuántas piezas produjiste y cuánto tardó realmente este bloque.
+                  Ese tiempo se suma al del resto de sesiones del proceso, aunque hayan sido en días distintos.
                 </p>
+                <label className={CLASE_ETIQUETA}>
+                  Sesión a actualizar
+                  <Select
+                    value={sesionCorreccionId ?? proceso.ultimaSesion?.id ?? ''}
+                    onChange={(evento) => setSesionCorreccionId(evento.target.value)}
+                    data-testid="avance-sesion"
+                  >
+                    {[...proceso.sesiones]
+                      .filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
+                      .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio))
+                      .map((sesion) => (
+                        <option key={sesion.id} value={sesion.id}>
+                          {etiquetaFechaHora(sesion.fechaInicio)} · {horasLegibles(sesion.horasNetas)} registradas
+                        </option>
+                      ))}
+                  </Select>
+                </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className={CLASE_ETIQUETA}>
                     Piezas producidas en este periodo
@@ -2272,12 +2389,12 @@ export function DetalleProcesoOperador({
                     />
                   </label>
                   <label className={CLASE_ETIQUETA}>
-                    Horas que faltaron para la pausa
+                    Tiempo real de proceso
                     <input
                       type="number"
                       min="0"
                       max="24"
-                      step="0.25"
+                      step="any"
                       value={avanceHoras}
                       onChange={(evento) => setAvanceHoras(evento.target.value)}
                       className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
@@ -2295,6 +2412,61 @@ export function DetalleProcesoOperador({
                     data-testid="avance-notas"
                   />
                 </label>
+                <label className={CLASE_ETIQUETA}>
+                  Consumo de material
+                  <Select
+                    value={avanceMaterialId === '' ? 'despues' : 'aquí'}
+                    onChange={(evento) => setAvanceMaterialId(evento.target.value === 'aquí' ? (materiales[0]?.id ?? '') : '')}
+                    data-testid="avance-opcion-consumo"
+                  >
+                    <option value="despues">Dejar el consumo para el cierre</option>
+                    <option value="aquí">Registrar el consumo aquí</option>
+                  </Select>
+                </label>
+                {avanceMaterialId !== '' ? (
+                  <div className="grid gap-3 rounded-md border border-borde p-2">
+                    <label className={CLASE_ETIQUETA}>
+                      Material
+                      <Select
+                        value={avanceMaterialId}
+                        onChange={(evento) => setAvanceMaterialId(evento.target.value)}
+                        data-testid="avance-material"
+                      >
+                        {materiales.map((material) => (
+                          <option key={material.id} value={material.id}>{material.nombre}</option>
+                        ))}
+                      </Select>
+                    </label>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className={CLASE_ETIQUETA}>
+                        Cantidad usada
+                        <Input
+                          value={avanceUsada}
+                          onChange={(evento) => setAvanceUsada(evento.target.value)}
+                          inputMode="decimal"
+                          data-testid="avance-material-usada"
+                        />
+                      </label>
+                      <label className={CLASE_ETIQUETA}>
+                        Merma
+                        <Input
+                          value={avanceScrap}
+                          onChange={(evento) => setAvanceScrap(evento.target.value)}
+                          inputMode="decimal"
+                          data-testid="avance-material-merma"
+                        />
+                      </label>
+                    </div>
+                    <label className={CLASE_ETIQUETA}>
+                      Motivo del consumo
+                      <Input
+                        value={avanceMotivoConsumo}
+                        onChange={(evento) => setAvanceMotivoConsumo(evento.target.value)}
+                        data-testid="avance-material-motivo"
+                      />
+                    </label>
+                  </div>
+                ) : null}
                 <label className={CLASE_ETIQUETA}>
                   PIN de operador
                   <input
@@ -2547,6 +2719,44 @@ export function DetalleProcesoOperador({
     />
   );
 
+  const dialogoAvanceFallido = (
+    <DialogoErrorCierre
+      error={errorAvance}
+      onCerrar={() => setErrorAvance(null)}
+      descripcion="No se guardó el avance. Elige una de las opciones para seguir con el flujo."
+      testId="error-avance-dialogo"
+    />
+  );
+
+  const pausadasOrdenadas = [...proceso.sesiones]
+    .filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
+    .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio));
+  const indiceSesion = pausadasOrdenadas.findIndex((sesion) => sesion.id === (sesionCorreccionId ?? proceso.ultimaSesion?.id));
+  const sesionAnterior = indiceSesion > 0 ? pausadasOrdenadas[indiceSesion - 1] : null;
+  const dialogoSesionAnterior = (
+    <Dialog open={sesionAnteriorAbierta} onOpenChange={setSesionAnteriorAbierta}>
+      <DialogContent className="max-w-md" data-testid="dialogo-sesion-anterior">
+        <DialogHeader>
+          <DialogTitle>Proceso anterior</DialogTitle>
+          <DialogDescription>Solo lectura · {proceso.folioOrden} · {proceso.codigoPieza}</DialogDescription>
+        </DialogHeader>
+        {sesionAnterior ? (
+          <div className="grid gap-2 text-sm">
+            <Dato etiqueta="Operador" valor={sesionAnterior.operadorNombre} />
+            <Dato etiqueta="Periodo" valor={`${etiquetaFechaHora(sesionAnterior.fechaInicio)} → ${etiquetaFechaHora(sesionAnterior.fechaFin)}`} />
+            <Dato etiqueta="Piezas" valor={formatearNumero(sesionAnterior.piezasProducidas, 0)} />
+            <Dato etiqueta="Tiempo registrado" valor={horasLegibles(sesionAnterior.horasNetas)} />
+          </div>
+        ) : (
+          <p className="text-sm text-texto-secundario">No hay una sesión anterior para mostrar.</p>
+        )}
+        <DialogFooter>
+          <Button type="button" onClick={() => setSesionAnteriorAbierta(false)}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (presentacion === 'integrado') {
     return (
       <section
@@ -2560,6 +2770,8 @@ export function DetalleProcesoOperador({
         {dialogoPrimeraPieza}
         {dialogoErrorPrimeraPieza}
         {dialogoCierreFallido}
+        {dialogoAvanceFallido}
+        {dialogoSesionAnterior}
       </section>
     );
   }
@@ -2580,6 +2792,8 @@ export function DetalleProcesoOperador({
       {dialogoPrimeraPieza}
       {dialogoErrorPrimeraPieza}
       {dialogoCierreFallido}
+      {dialogoAvanceFallido}
+      {dialogoSesionAnterior}
     </>
   );
 }

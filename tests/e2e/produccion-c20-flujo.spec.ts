@@ -330,24 +330,30 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
     await page.getByTestId('piezas-cierre').fill('2');
     // Un minuto por delante: el reloj de la sesión tiene segundos y el input
     // solo minutos; la RPC tolera hasta 2 min de margen hacia el futuro.
-    const horaConclusion = horaLocalTaller(new Date(Date.now() + 60_000));
+    const { data: sesionActiva } = await caso.admin.from('sesiones_trabajo')
+      .select('fecha_inicio').eq('partida_id', caso.partidaId).eq('estado_sesion', 'activa').single();
+    const horaConclusion = horaLocalTaller(new Date(new Date(sesionActiva!.fecha_inicio).getTime() + 60_000));
     await page.getByTestId('hora-fin-cierre').fill(horaConclusion);
     await page.getByTestId('pin-cierre').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-detalle').click();
-    // El cierre ya se registró: el refresh del tablero puede descartar el
-    // diálogo de resumen, así que se verifica el estado persistido y la ficha.
-    await expect(detalle).toContainText('Proceso completado');
-
-    const { data: sesionFinal } = await caso.admin.from('sesiones_trabajo')
+    // El refresh del tablero puede descartar el diálogo de resumen; se espera
+    // el estado persistido y luego se verifican los datos.
+    await expect.poll(async () => {
+      const { data } = await caso.admin.from('sesiones_trabajo')
+        .select('piezas_producidas')
+        .eq('partida_id', caso.partidaId)
+        .eq('estado_sesion', 'finalizada');
+      return (data ?? []).some((sesion) => Number(sesion.piezas_producidas) === 2);
+    }).toBe(true);
+    const { data: sesionesFinales } = await caso.admin.from('sesiones_trabajo')
       .select('estado_sesion, piezas_producidas, fecha_fin, fecha_fin_declarada')
       .eq('partida_id', caso.partidaId)
       .eq('estado_sesion', 'finalizada')
-      .order('fecha_inicio', { ascending: false })
-      .limit(1)
-      .single();
+      .order('fecha_inicio', { ascending: false });
+    const sesionFinal = (sesionesFinales ?? []).find((sesion) => Number(sesion.piezas_producidas) === 2);
+    expect(sesionFinal, 'Debe existir la sesión cerrada con 2 piezas').toBeTruthy();
     expect(sesionFinal?.fecha_fin_declarada).not.toBeNull();
     expect(sesionFinal?.fecha_fin).toBe(sesionFinal?.fecha_fin_declarada);
-    expect(Number(sesionFinal?.piezas_producidas)).toBe(2);
 
     const { data: partidaFinal } = await caso.admin.from('partidas_orden_produccion')
       .select('cantidad_producida')

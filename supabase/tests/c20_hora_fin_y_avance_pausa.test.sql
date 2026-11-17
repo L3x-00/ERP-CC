@@ -98,12 +98,11 @@ SELECT is((
   WHERE operador_id = '00000000-0000-4000-8000-0000000c2001'
 ), 'pausada', 'Si la meta no se completa, la sesión sigue pausada y reanudable');
 
-SELECT throws_ok($$SELECT * FROM public.actualizar_avance_sesion_pausada(
+SELECT lives_ok($$SELECT * FROM public.actualizar_avance_sesion_pausada(
   (SELECT id FROM public.sesiones_trabajo
     WHERE operador_id = '00000000-0000-4000-8000-0000000c2001' AND estado_sesion = 'pausada'),
   '00000000-0000-4000-8000-0000000c2001'::uuid, 5, 1)$$,
-  '23514', 'sesion_no_pendiente_avance',
-  'Una pausa ya corregida no se puede volver a corregir');
+  'Una pausa corregida se puede ajustar de nuevo sin duplicar el avance');
 
 SELECT throws_ok($$SELECT * FROM public.registrar_hora_fin_sesion(
   (SELECT id FROM public.sesiones_trabajo

@@ -194,6 +194,7 @@ describe('mappers de Producción', () => {
     fecha_fin: '2026-08-14T22:00:00.000Z',
     fecha_fin_declarada: null,
     pendiente_actualizacion_avance: false,
+    sesion_invalida: false,
     costo_hora_interno: 0,
     horas_brutas: 7,
     horas_netas: 6,

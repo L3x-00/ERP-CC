@@ -317,6 +317,7 @@ function sesionResumen(
     fechaInicio: sesion.fechaInicio,
     fechaFin: sesion.fechaFin,
     pendienteActualizacionAvance: sesion.pendienteActualizacionAvance,
+    sesionInvalida: sesion.sesionInvalida,
     piezasProducidas: sesion.piezasProducidas,
     horasNetas: sesion.horasNetas,
     primeraPiezaPendiente: sesion.corridaId !== null
@@ -727,8 +728,7 @@ export async function obtenerEspacioOperadorServicio(
       const pausado = sesionPausada || programacion?.estadoPlaneacion === 'bloqueada';
 
       let motivoNoInicia: string | null = null;
-      if (procesoCompleto) motivoNoInicia = 'Proceso completado';
-      else if (operadorId === null) motivoNoInicia = 'Vista de solo lectura';
+      if (operadorId === null) motivoNoInicia = 'Vista de solo lectura';
       else if (!reclamo) motivoNoInicia = 'Reclama el proceso para iniciar';
       else if (!reclamadoPorMi) motivoNoInicia = 'Otro operador tiene el proceso';
       else if (!sesionPausada && disponibilidad.disponiblePiezas === 0) {
