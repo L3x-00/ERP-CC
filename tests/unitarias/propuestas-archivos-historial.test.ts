@@ -799,6 +799,12 @@ const PDFS = [
 ] as unknown as PdfRevisionPropuesta[];
 
 describe('PanelPdfsPropuesta — contexto de propuesta y nombre accesible', () => {
+  it('expone un selector estable para la descarga directa (B-2)', () => {
+    render(createElement(PanelPdfsPropuesta, { revision: REVISION, pdfs: PDFS }));
+
+    expect(screen.getAllByTestId('descargar-pdf-propuesta')).toHaveLength(PDFS.length);
+  });
+
   it('nombra cada botón por versión y vigencia', () => {
     render(createElement(PanelPdfsPropuesta, { revision: REVISION, pdfs: PDFS }));
 

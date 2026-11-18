@@ -31,6 +31,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL,
+    acceptDownloads: true,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

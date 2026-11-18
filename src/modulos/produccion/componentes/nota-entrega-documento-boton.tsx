@@ -210,6 +210,7 @@ export function NotaEntregaDocumentoBoton({ notaId, folio }: { notaId: string; f
                 <PDFDownloadLink
                   document={<NotaEntregaPdfProfesional documento={documento} />}
                   fileName={`Nota de entrega ${documento.nota.folioSii ?? documento.nota.folio}.pdf`}
+                  data-testid={`descargar-acta-${documento.nota.folioSii ?? documento.nota.folio}`}
                   className="inline-flex h-9 items-center justify-center rounded-lg border border-borde-fuerte bg-superficie px-3 text-sm font-semibold text-texto-primario transition-colors hover:bg-superficie-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
                 >
                   {({ loading, error }) => (error ? 'No se pudo preparar el PDF' : loading ? 'Preparando PDF…' : 'Descargar PDF')}

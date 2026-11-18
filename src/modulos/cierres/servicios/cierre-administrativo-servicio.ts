@@ -11,6 +11,7 @@ import type {
   TendenciaCierre,
 } from '@/modulos/cierres/tipos/indice';
 import {
+  formatearHoras,
   nivelDesviacion,
   porcentajeDesviacion,
   porcentajeMargen,
@@ -453,8 +454,8 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
   if (desviacionTiempo !== null) {
     puntosCriticos.push(
       desviacionTiempo > 0
-        ? `Tiempo: ${horasReales.toFixed(1)} h reales contra ${horasEstimadas.toFixed(1)} h cotizadas (${desviacionTiempo.toFixed(0)} % más).`
-        : `Tiempo: ${horasReales.toFixed(1)} h reales contra ${horasEstimadas.toFixed(1)} h cotizadas (${Math.abs(desviacionTiempo).toFixed(0)} % menos; estás cotizando de más).`,
+        ? `Tiempo: ${formatearHoras(horasReales)} reales contra ${formatearHoras(horasEstimadas)} cotizadas (${desviacionTiempo.toFixed(0)} % más).`
+        : `Tiempo: ${formatearHoras(horasReales)} reales contra ${formatearHoras(horasEstimadas)} cotizadas (${Math.abs(desviacionTiempo).toFixed(0)} % menos; estás cotizando de más).`,
     );
   }
   if (costoMaterialEstimado > 0 || costoMaterialReal > 0) {

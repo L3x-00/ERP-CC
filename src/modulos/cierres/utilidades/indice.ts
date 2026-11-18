@@ -1,3 +1,4 @@
+import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { NivelDesviacion } from '@/modulos/cierres/tipos/indice';
 
 /** Umbral de los semáforos: ±10 % (decisión del PO). */
@@ -44,17 +45,29 @@ export function formatearPorcentaje(valor: number | null): string {
   return `${signo}${valor.toFixed(1).replace('.', ',')} %`;
 }
 
+/**
+ * Horas legibles: un valor pequeño pero no nulo (p. ej. 0.01 h = 36 s ya
+ * redondeados en base) no debe aplanarse a «0,0 h» y parecer que no se trabajó.
+ */
+export function formatearHoras(valor: number): string {
+  if (!Number.isFinite(valor)) return '—';
+  const decimales = valor !== 0 && Math.abs(valor) < 0.1 ? 2 : 1;
+  // `formatearNumero` depende de ICU: forzar la coma evita que un entorno con
+  // ICU reducido pinte «0.01 h» en una interfaz es-MX.
+  return `${formatearNumero(valor, decimales).replace('.', ',')} h`;
+}
+
 /** Frase de negocio para la desviación de tiempo. */
 export function fraseTiempo(horasEstimadas: number, horasReales: number): string {
   if (horasEstimadas <= 0) return 'Sin horas estimadas para comparar.';
   if (horasReales <= horasEstimadas) {
     const ahorro = porcentajeDesviacion(horasReales, horasEstimadas);
     const porcentaje = ahorro === null ? 0 : Math.abs(ahorro).toFixed(0);
-    return `Cotizaste ${horasEstimadas.toFixed(1)} h y usaste ${horasReales.toFixed(1)} h: estás cotizando ${porcentaje} % de más en tiempo.`;
+    return `Cotizaste ${formatearHoras(horasEstimadas)} y usaste ${formatearHoras(horasReales)}: estás cotizando ${porcentaje} % de más en tiempo.`;
   }
   const exceso = porcentajeDesviacion(horasReales, horasEstimadas);
   const porcentaje = exceso === null ? 0 : Math.abs(exceso).toFixed(0);
-  return `Cotizaste ${horasEstimadas.toFixed(1)} h y usaste ${horasReales.toFixed(1)} h: te pasaste ${porcentaje} % en tiempo.`;
+  return `Cotizaste ${formatearHoras(horasEstimadas)} y usaste ${formatearHoras(horasReales)}: te pasaste ${porcentaje} % en tiempo.`;
 }
 
 /** Media ignorando nulos. */

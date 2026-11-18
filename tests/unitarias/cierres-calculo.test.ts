@@ -121,6 +121,21 @@ describe('calcularCierreOrden', () => {
     expect(cierre.puntosCriticos.length).toBeGreaterThan(0);
   });
 
+  it('conserva una sesión de segundos (0,01 h) y no la describe como 0 h (B-1)', () => {
+    const cierre = calcularCierreOrden({
+      ...base,
+      sesiones: [{ ...base.sesiones[0]!, horas_netas: 0.01 }],
+      consumos: [],
+      retrabajos: [],
+    });
+
+    // 0.01 h son 36 segundos ya redondeados en base: el dato existe y debe
+    // reflejarse en la desviación y en el texto, no aplanarse a «0,0 h».
+    expect(cierre.horasReales).toBe(0.01);
+    expect(cierre.desviacionTiempo).toBe(-99.9);
+    expect(cierre.puntosCriticos.join(' ')).toContain('0,01 h reales');
+  });
+
   it('agrupa el material del retrabajo con su catálogo y no lo marca sin catálogo (regresión QA)', () => {
     const conCatalogo: DatosOrden = {
       ...base,

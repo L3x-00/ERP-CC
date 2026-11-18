@@ -127,9 +127,9 @@
 | M-3 | Media — **corregida (sección 12)** | Activación de prospecto solo desde `/clientes` | La ficha RFQ no ofrece «Activar»; hay que salir al módulo Clientes. La relación se conserva correctamente. | `01_rfq/42-cliente-activado.png`, `51-relacion-final-conservada.png` |
 | M-4 | Media — **corregida (sección 12)** | Horas extra sin rechazo con nota ni re-solicitud | `resolver_solicitud_horas_extra` solo escribe `VIGENTE`/`RECHAZADA`; la UI «Desaprobar» no pide motivo; una solicitud rechazada no se reactiva. No se pudo provocar exceso de jornada en el caso. | Análisis de código + migración `20261103090000` |
 | M-5 | Media — **corregida (sección 12)** | Re-validación no expuesta tras `READY_FOR_PROPOSAL` | Editar el RFQ tras marcarlo listo genera versión `CABECERA`, pero «Marcar listo» desaparece; no hay botón de re-validación. | `01_rfq/resultado-etapa1e.md`, `1f.md` |
-| B-1 | Baja | Horas reales = 0.0 h en cierre administrativo | Las sesiones duraron segundos y el cierre coincide con el inicio; el panel muestra «0.0 h reales contra 6.3 h cotizadas» y desviación -100 %. Podría requerir revisión del cálculo cuando `fecha_fin_declarada` no se declara. | `07_entrega_cobro/39-detalle-cierre-completo.png` |
-| B-2 | Baja | Descarga binaria de PDFs no capturada en headless | «Descargar» abrió URL firmada; `popup.pdf()` no produjo archivo. La generación y vigencia del PDF sí quedaron evidenciadas en pantalla. | `08_documentos/pdf-aprobado-B-panel.png` |
-| B-3 | Baja | Logout UI no confirmado por automatización | El menú mostró «Cerrar sesión» en el sondeo, pero el clic automatizado no lo encontró de forma estable; todos los contextos de navegador fueron destruidos al final (sin sesiones colgadas en el proceso). | `00_sesion/menu-admin-logout.png`, `logout-admin-final.png` |
+| B-1 | Baja — **corregida (sección 13)** | Horas reales = 0.0 h en cierre administrativo | Las sesiones duraron segundos y el cierre coincide con el inicio; el panel muestra «0.0 h reales contra 6.3 h cotizadas» y desviación -100 %. Podría requerir revisión del cálculo cuando `fecha_fin_declarada` no se declara. | `07_entrega_cobro/39-detalle-cierre-completo.png` |
+| B-2 | Baja — **corregida (sección 13)** | Descarga binaria de PDFs no capturada en headless | «Descargar» abrió URL firmada; `popup.pdf()` no produjo archivo. La generación y vigencia del PDF sí quedaron evidenciadas en pantalla. | `08_documentos/pdf-aprobado-B-panel.png` |
+| B-3 | Baja — **corregida (sección 13)** | Logout UI no confirmado por automatización | El menú mostró «Cerrar sesión» en el sondeo, pero el clic automatizado no lo encontró de forma estable; todos los contextos de navegador fueron destruidos al final (sin sesiones colgadas en el proceso). | `00_sesion/menu-admin-logout.png`, `logout-admin-final.png` |
 
 ---
 
@@ -221,3 +221,41 @@ Las cuatro incidencias medias restantes se corrigieron **sin alterar reglas de n
 `tsc --noEmit` limpio · ESLint limpio en los 14 archivos tocados · suite unitaria completa **335 archivos / 2917 pruebas en verde** (30 archivos y 102 pruebas omitidos por diseño). Cada hallazgo tiene su test de reproducción (RED → GREEN).
 
 **Estado de integración:** con todas las verificaciones en verde y la autorización vigente para fusionar cuando la suite pasa, estos cambios quedan integrados en `main`. Pendiente únicamente la re-verificación en producción tras el despliegue: vista de adjuntos (M-2), botón de activación (M-3), nota de rechazo (M-4) y pestaña Revisar en READY (M-5).
+
+---
+
+## 13. Cierre de B-1, B-2 y B-3 (2026-11-17)
+
+### B-1 — Horas reales pequeñas ya no se pintan como cero
+
+- **Diagnóstico:** no había fallback roto. `coalesce(fecha_fin_declarada, now())` y el guard de anterioridad son correctos. El dato se cuantiza dos veces: Postgres guarda `round(epoch/3600, 2)` (0,01 h = 36 s) y la UI lo volvía a formatear a un decimal, de modo que cualquier valor < 0,05 h salía como «0,0 h». La propia evidencia del cierre lo demostraba: «Corte laser 2,5 h / 0,0 h · −99,6 %» implica 0,01 h reales y «Mano de obra $3,878.13 → $5.13» implica tiempo costeado.
+- **Corrección (solo presentación):** nuevo `formatearHoras()` que usa dos decimales cuando el valor es distinto de cero y menor que 0,1 h. Se aplica en el panel de cierre, en la frase de negocio y en los puntos críticos del servicio. **No** se tocan `porcentajeDesviacion`, el redondeo de la RPC ni la regla de almacenamiento.
+- **Archivos:** `src/modulos/cierres/utilidades/indice.ts`, `src/modulos/cierres/componentes/panel-cierre-administrativo.tsx`, `src/modulos/cierres/servicios/cierre-administrativo-servicio.ts`, `tests/unitarias/cierres-administrativos.test.ts`, `tests/unitarias/cierres-calculo.test.ts`.
+
+### B-2 — Descarga directa de PDFs instrumentada correctamente
+
+- **Diagnóstico:** la descarga ya era directa. La propuesta firma la URL on-click y dispara un `<a download>` con `Content-Disposition: attachment`; el acta usa `PDFDownloadLink` (blob local). El script de evidencias esperó un `popup` antes del clic y registró el listener de `download` **después**, perdiéndolo; además pulsó «Imprimir» en lugar de «Descargar PDF».
+- **Corrección (sin tocar storage, RLS ni permisos):** testids estables `descargar-pdf-propuesta` y `descargar-acta-<folio>`, `waitForEvent('download')` registrado **antes** del clic en el script, `acceptDownloads: true` en la configuración de Playwright y test unitario del selector.
+- **Archivos:** `src/modulos/propuestas/componentes/panel-pdfs-propuesta.tsx`, `src/modulos/produccion/componentes/nota-entrega-documento-boton.tsx`, `playwright.config.ts`, `tests/unitarias/propuestas-archivos-historial.test.ts`, `evidencias_e2e_ORCA_20261117/_scripts/etapa8-descargas.mjs`.
+
+### B-3 — Logout alcanzable y verificado
+
+- **Diagnóstico:** «Cerrar sesión» declara `role="menuitem"`; los scripts lo buscaban con `getByRole('button', …)`, por lo que nunca podía coincidir. Además, el modal Radix de tipo de cambio marca el resto de la página como `aria-hidden` y con `pointer-events:none` hacía invisible el encabezado si no se descartaba primero. El sondeo del reporte usó un `evaluateAll` sobre el DOM y por eso sí vio el texto. La Server Action `cerrarSesionAccion` (signOut + cookie de operador + auditoría + redirect) nunca llegó a ejecutarse.
+- **Corrección:** testid estable `cerrar-sesion` (conservando `role="menuitem"`), testid `salir-operador` por simetría, test unitario que comprueba el rol y la llamada a la Server Action, y scripts de evidencia que descartan el modal, usan los testids y esperan la navegación a `/iniciar-sesion` / `/operador`.
+- **Archivos:** `src/compartido/componentes/navegacion/encabezado-app.tsx`, `src/modulos/produccion/componentes/menu-cuenta-operador.tsx`, `tests/unitarias/tema-menu.test.ts`, `evidencias_e2e_ORCA_20261117/_scripts/etapa9-cerrar-sesiones.mjs`, `evidencias_e2e_ORCA_20261117/_scripts/etapa9b-logout-final.mjs`.
+
+### Verificación
+
+`tsc --noEmit` limpio · ESLint limpio en los 16 archivos tocados · suite unitaria completa **335 archivos / 2921 pruebas en verde** (30 archivos y 102 pruebas omitidos por diseño). Los tres hallazgos tienen test de reproducción (RED → GREEN).
+
+### Re-verificación en producción
+
+Tras el despliegue del commit que cierra B-1/B-2/B-3 se ejecutan, contra `https://erp-cc-flame.vercel.app` y reutilizando el caso `RFQ-1126_08` / `O-1126_07`:
+
+| Script | Comprueba |
+|---|---|
+| `_scripts/reverificacion-produccion.mjs` | M-1 (aviso desde `/pipeline`), M-2 (adjuntos históricos), M-5 (pestaña Revisar en READY) y B-1 («0,01 h» en el cierre). |
+| `_scripts/etapa8-descargas.mjs` | B-2: binarios del PDF de la propuesta B y del acta de entrega guardados en `08_documentos/`. |
+| `_scripts/etapa9b-logout-final.mjs` | B-3: logout de admin y de operador con navegación confirmada. |
+
+A-1, M-3 y M-4 requieren generar escenarios nuevos en producción (material sin costo confirmado, cliente prospecto con RFQ y sesión que exceda la jornada); su corrección queda cubierta por los tests unitarios y por el código desplegado, y se documenta como pendiente de escenario en la re-verificación.

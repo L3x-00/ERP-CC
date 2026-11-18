@@ -18,6 +18,7 @@ import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/u
 import {
   claseDesviacion,
   fondoDesviacion,
+  formatearHoras,
   formatearPorcentaje,
   fraseTiempo,
   nivelDesviacion,
@@ -42,7 +43,7 @@ function moneda(valor: number): string {
 }
 
 function horas(valor: number): string {
-  return `${formatearNumero(valor, 1)} h`;
+  return formatearHoras(valor);
 }
 
 /** C14: panel de cierre administrativo con dashboard y tabla interactiva. */

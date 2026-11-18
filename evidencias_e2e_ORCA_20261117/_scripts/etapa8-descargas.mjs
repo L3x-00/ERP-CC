@@ -1,10 +1,11 @@
-import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, captura, registrar } from './driver.mjs';
+import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, captura, registrar, guardarDescarga } from './driver.mjs';
 import { readFileSync } from 'node:fs';
 const ESTADO = JSON.parse(readFileSync('evidencias_e2e_ORCA_20261117/_scripts/estado-caso.json', 'utf8'));
 const navegador = await abrirNavegador();
 const ctx = await nuevoContexto(navegador);
 const pagina = await ctx.newPage();
 pagina.setDefaultTimeout(12000);
+const resultados = [];
 try {
   await iniciarSesionAdmin(pagina, process.env.E2E_ADMIN_EMAIL ?? '', process.env.E2E_ADMIN_PASSWORD ?? '');
   const MT = pagina.getByTestId('tipo-cambio-diario-mas-tarde');
@@ -15,21 +16,17 @@ try {
   await ficha.locator('button[aria-pressed]').filter({ hasText: /^B/ }).first().dispatchEvent('click');
   await ficha.getByRole('tab', { name: 'PDFs' }).dispatchEvent('click');
   await pagina.waitForTimeout(1000);
-  const desc = pagina.getByRole('button', { name: /Descargar PDF/ }).first();
+  const desc = pagina.getByTestId('descargar-pdf-propuesta').first();
   console.log('BOTON DESCARGAR PDF:', await desc.count());
   if (await desc.count()) {
-    const [popup] = await Promise.all([pagina.waitForEvent('popup', { timeout: 8000 }).catch(() => null), desc.dispatchEvent('click')]);
-    await pagina.waitForTimeout(800);
-    if (popup) {
-      await popup.waitForLoadState('domcontentloaded').catch(() => {});
-      const url = popup.url();
-      console.log('URL PDF:', url.slice(0, 120));
-      await popup.pdf({ path: 'evidencias_e2e_ORCA_20261117/08_documentos/propuesta-CNC-1126_08-B.pdf', format: 'A4' }).catch((e) => console.log('pdf error', e.message));
-      await popup.close();
-    } else {
-      const descarga = await pagina.waitForEvent('download', { timeout: 5000 }).catch(() => null);
-      if (descarga) await descarga.saveAs('evidencias_e2e_ORCA_20261117/08_documentos/propuesta-CNC-1126_08-B.pdf');
-    }
+    // B-2: el botón dispara una descarga directa (Content-Disposition), no un
+    // popup. El listener se registra ANTES del clic para no perder el evento.
+    const [descarga] = await Promise.all([
+      pagina.waitForEvent('download', { timeout: 20000 }),
+      desc.click(),
+    ]);
+    const archivo = await guardarDescarga(descarga, '08_documentos', 'propuesta-CNC-1126_08-B');
+    resultados.push({ documento: 'propuesta', archivo, sugerido: descarga.suggestedFilename() });
   }
   await captura(pagina, '08_documentos', 'pdf-aprobado-B-panel', { usuario: 'admin' });
 
@@ -43,17 +40,20 @@ try {
     await abrir.dispatchEvent('click');
     await pagina.waitForTimeout(1000);
     await captura(pagina, '08_documentos', 'acta-entrega-detalle', { usuario: 'admin' });
-    const imprimir = pagina.getByRole('button', { name: /Imprimir|Descargar|Ver documento/ }).first();
-    if (await imprimir.count()) {
-      const [popup] = await Promise.all([pagina.waitForEvent('popup', { timeout: 8000 }).catch(() => null), imprimir.dispatchEvent('click')]);
-      if (popup) {
-        await popup.waitForLoadState('domcontentloaded').catch(() => {});
-        await popup.pdf({ path: 'evidencias_e2e_ORCA_20261117/08_documentos/acta-entrega-NE-O-1126_07-01.pdf', format: 'A4' }).catch(() => {});
-        await popup.close();
-      }
+    const enlace = pagina.getByTestId('descargar-acta-NE-O-1126_07-01');
+    console.log('ENLACE DESCARGA ACTA:', await enlace.count());
+    if (await enlace.count()) {
+      // El acta usa PDFDownloadLink (blob local + <a download>): también es descarga.
+      const [descarga] = await Promise.all([
+        pagina.waitForEvent('download', { timeout: 30000 }),
+        enlace.click(),
+      ]);
+      const archivo = await guardarDescarga(descarga, '08_documentos', 'acta-entrega-NE-O-1126_07-01');
+      resultados.push({ documento: 'acta', archivo, sugerido: descarga.suggestedFilename() });
     }
   }
-  registrar('admin', '08_documentos', 'descargas', 'ok', { nota: 'Se intentó PDF de propuesta B y acta de entrega' });
+  registrar('admin', '08_documentos', 'descargas', 'ok', { resultados });
+  console.log(JSON.stringify(resultados, null, 2));
 } catch (e) {
   registrar('admin', '08_documentos', 'descargas', 'error', { mensaje: String(e && e.message || e) });
   console.error(e);

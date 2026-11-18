@@ -70,6 +70,7 @@ export function PanelPdfsPropuesta({
               <Button
                 variante="fantasma"
                 tamano="sm"
+                data-testid="descargar-pdf-propuesta"
                 aria-label={`Descargar PDF de la revisión ${revision.letra}, versión ${pdf.version} (${
                   pdf.vigente ? 'vigente' : 'reemplazado'
                 })`}

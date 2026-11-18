@@ -84,4 +84,18 @@ describe('cambio de tema global desde el menú de usuario', () => {
     expect(setTheme).toHaveBeenCalledWith('dark');
     expect(screen.queryByRole('menu')).toBeNull();
   });
+
+  it('la opción Cerrar sesión tiene testid estable, conserva su rol y llama a la Server Action (B-3)', async () => {
+    const { cerrarSesionAccion } = await import('@/modulos/autenticacion/acciones/cerrar-sesion');
+    montarEncabezado();
+    fireEvent.click(screen.getByTestId('menu-usuario'));
+
+    const opcion = screen.getByTestId('cerrar-sesion');
+    expect(opcion.textContent).toContain('Cerrar sesión');
+    expect(opcion.getAttribute('role')).toBe('menuitem');
+    fireEvent.click(opcion);
+
+    expect(vi.mocked(cerrarSesionAccion)).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
 });

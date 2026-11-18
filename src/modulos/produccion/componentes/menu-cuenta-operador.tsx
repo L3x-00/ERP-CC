@@ -137,6 +137,7 @@ export function MenuCuentaOperador({
                 <button
                   type="button"
                   role="menuitem"
+                  data-testid="salir-operador"
                   onClick={() => {
                     setAbierto(false);
                     onSalir();

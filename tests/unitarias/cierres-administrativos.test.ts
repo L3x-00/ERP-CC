@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatearHoras,
   formatearPorcentaje,
   fraseTiempo,
   nivelDesviacion,
@@ -45,6 +46,13 @@ describe('cierre administrativo: cálculo de desviaciones', () => {
     expect(fraseTiempo(8, 5)).toContain('estás cotizando 38 % de más');
     expect(fraseTiempo(5, 8)).toContain('te pasaste 60 %');
     expect(fraseTiempo(0, 8)).toContain('Sin horas estimadas');
+  });
+
+  it('no aplana a «0,0 h» horas pequeñas pero no nulas (B-1)', () => {
+    expect(formatearHoras(0)).toBe('0,0 h');
+    expect(formatearHoras(0.01)).toBe('0,01 h');
+    expect(formatearHoras(6.3)).toBe('6,3 h');
+    expect(fraseTiempo(6.3, 0.01)).toContain('usaste 0,01 h');
   });
 
   it('promedia ignorando nulos', () => {

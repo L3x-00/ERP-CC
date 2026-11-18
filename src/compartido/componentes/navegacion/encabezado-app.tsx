@@ -110,6 +110,7 @@ function MenuUsuario({ nombre, rol, puedeAdministrarEmpresa }: { nombre: string;
           <button
             type="button"
             role="menuitem"
+            data-testid="cerrar-sesion"
             onClick={() => {
               setAbierto(false);
               void cerrarSesionAccion();
