@@ -38,7 +38,7 @@ type Contexto = {
   rfqItemIds: string[];
   propuestaId?: string;
   revisionIds: string[];
-  disponibilidad?: { recursoId?: string; recursoSinTurnoId?: string; ordenId?: string; partidaId?: string };
+  disponibilidad?: { recursoId?: string; ordenId?: string; partidaId?: string };
 };
 
 /** Capacidad y carga aisladas para comprobar la consulta sin depender de la demo. */
@@ -54,19 +54,8 @@ async function prepararDisponibilidad(contexto: Contexto): Promise<void> {
   if (recurso.error || !recurso.data) throw new Error(`Sin recurso: ${recurso.error?.message}`);
   creado.recursoId = recurso.data.id;
 
-  const recursoSinTurno = await admin.from('recursos_planeacion').insert({
-    codigo: `E2ESINTURNO-${sufijo}`, nombre: `Equipo sin turno ${sufijo}`,
-    area: 'sheet_metal', grupo_equipo_id: contexto.grupoId, activo: true,
-  }).select('id').single();
-  if (recursoSinTurno.error || !recursoSinTurno.data) {
-    throw new Error(`Sin recurso sin turno: ${recursoSinTurno.error?.message}`);
-  }
-  creado.recursoSinTurnoId = recursoSinTurno.data.id;
-
-  const capacidad = await admin.from('capacidades_recurso_turno').insert({
-    recurso_id: creado.recursoId, turno: 'matutino', horas_capacidad: 8,
-  });
-  if (capacidad.error) throw new Error(`Sin capacidad: ${capacidad.error.message}`);
+  // C24: la capacidad es equipos × jornada del día; un equipo activo siempre
+  // tiene capacidad y no se registran filas en `capacidades_recurso_turno`.
 
   const partes = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Tijuana', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -283,11 +272,7 @@ async function limpiarContexto(contexto: Contexto): Promise<void> {
   }
   if (contexto.disponibilidad?.recursoId) {
     await admin.from('excepciones_capacidad_recurso').delete().eq('recurso_id', contexto.disponibilidad.recursoId);
-    await admin.from('capacidades_recurso_turno').delete().eq('recurso_id', contexto.disponibilidad.recursoId);
     await admin.from('recursos_planeacion').delete().eq('id', contexto.disponibilidad.recursoId);
-  }
-  if (contexto.disponibilidad?.recursoSinTurnoId) {
-    await admin.from('recursos_planeacion').delete().eq('id', contexto.disponibilidad.recursoSinTurnoId);
   }
   if (contexto.propuestaId) {
     const { data: revisiones } = await admin
@@ -932,7 +917,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(capacidad).toContainText('44.00 h');
       const disponible = consulta.locator('dl > div').filter({ hasText: 'Disponible' });
       await expect(disponible).toContainText('44.00 h');
-      await expect(consulta).toContainText('equipos activos sin turnos configurados');
+      // C24: la capacidad es por día (jornada continua) y ya no se muestran avisos
+      // de turnos. El recurso del fixture queda con capacidad configurada, así
+      // que no aparece el aviso de «equipos sin capacidad».
+      await expect(consulta).not.toContainText('sin turnos configurados');
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
       const despues = await admin.from('programacion_areas').select('id, horas_estimadas', { count: 'exact' })

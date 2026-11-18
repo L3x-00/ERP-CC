@@ -1,6 +1,7 @@
 export {
   AREAS_PLANEACION,
   TURNOS_PLANEACION,
+  ETIQUETAS_CARGA_CAPACIDAD,
   ESTADOS_PLANEACION,
   COLUMNAS_RECURSO_PLANEACION_OPERATIVO,
   filaARecursoPlaneacion,
@@ -14,6 +15,7 @@ export {
 export type {
   AreaPlaneacion,
   TurnoPlaneacion,
+  EtiquetaCargaCapacidad,
   EstadoPlaneacion,
   RecursoPlaneacion,
   CapacidadRecursoTurno,

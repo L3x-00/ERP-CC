@@ -79,7 +79,7 @@ SELECT is((
 SELECT is((
   SELECT horas_netas FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'
-), 9::numeric, 'La pausa conserva el corte exacto de la jornada');
+), 8::numeric, 'La pausa conserva el corte exacto de la jornada');
 SELECT is((
   SELECT motivo_pausa_codigo FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'
@@ -107,7 +107,7 @@ SELECT is((
 SELECT is((
   SELECT horas_netas FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'
-), 9::numeric, 'Las horas netas no se recalculan');
+), 8::numeric, 'Las horas netas no se recalculan');
 SELECT is((
   SELECT motivo_pausa_codigo FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1621'

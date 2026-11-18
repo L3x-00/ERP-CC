@@ -5,7 +5,7 @@ import { esDiaLaboral } from '@/modulos/planeacion/utilidades/horario-laboral';
 /**
  * Cuando una operación dura más que la jornada de una máquina, no se puede
  * programar en un solo día. Esta utilidad reparte las horas entre días hábiles
- * consecutivos con capacidad comprobada para el mismo recurso y turno.
+ * consecutivos con capacidad comprobada para el mismo recurso y día.
  */
 export const MAX_DIAS_PLAN_MULTIDIA = 15;
 
@@ -50,7 +50,8 @@ export function recomendarPlanMultidia(
   const porFecha = new Map<string, CargaCapacidadDiaria>();
   for (const carga of cargas) {
     if (carga.recursoId !== criterios.recursoId) continue;
-    if (carga.turno !== criterios.turno) continue;
+    // C24: la capacidad es por equipo y día; `criterios.turno` es solo la
+    // etiqueta visual de la programación y no reparte la jornada.
     if (carga.fechaProgramada < criterios.desdeFecha) continue;
     if (criterios.incluirFinesDeSemana !== true && esFinDeSemana(carga.fechaProgramada)) {
       continue;

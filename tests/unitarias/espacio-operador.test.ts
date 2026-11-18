@@ -444,12 +444,12 @@ describe('construirDiasCalendario', () => {
 
     expect(dias[0].horasReclamadas).toBe(5.5);
     expect(dias[0].horasJornada).toBe(HORAS_JORNADA_SEMANA);
-    expect(dias[0].horasLibres).toBe(3.5);
+    expect(dias[0].horasLibres).toBe(2.5);
     expect(dias[0].esHoy).toBe(false);
     expect(dias[0].procesos.map((proceso) => proceso.id)).toEqual(['a', 'b']);
     expect(dias[1].horasReclamadas).toBe(8);
     expect(dias[1].horasJornada).toBe(HORAS_JORNADA_SEMANA);
-    expect(dias[1].horasLibres).toBe(1);
+    expect(dias[1].horasLibres).toBe(0);
     expect(dias[1].esHoy).toBe(true);
   });
 

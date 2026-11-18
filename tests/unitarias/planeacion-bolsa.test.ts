@@ -110,7 +110,7 @@ function crearClienteDeSoloLectura(
           recurso_id: 'recurso-1',
           area: 'taller',
           fecha_programada: '2026-10-18',
-          turno: 'matutino',
+          turno: 'jornada',
           horas_capacidad: 40,
           horas_programadas: 0,
           horas_reales: 0,
@@ -172,15 +172,15 @@ describe('PLA-05: bolsa de trabajo y huecos', () => {
     expect(siguienteSecuencia([1, 3, 2])).toBe(4);
   });
 
-  it('elige el primer hueco por fecha, turno y código de recurso', () => {
+  it('elige el primer hueco por fecha y código de recurso', () => {
     const codigos = new Map([['r2', 'B'], ['r1', 'A']]);
     const hueco = elegirHueco(2, [
-      carga({ recursoId: 'r2', fechaProgramada: '2026-10-02', turno: 'matutino', horasDisponibles: 3 }),
-      carga({ recursoId: 'r1', fechaProgramada: '2026-10-01', turno: 'nocturno', horasDisponibles: 4 }),
-      carga({ recursoId: 'r1', fechaProgramada: '2026-10-01', turno: 'matutino', horasDisponibles: 1.5 }),
+      carga({ recursoId: 'r2', fechaProgramada: '2026-10-02', turno: 'jornada', horasDisponibles: 3 }),
+      carga({ recursoId: 'r1', fechaProgramada: '2026-10-01', turno: 'jornada', horasDisponibles: 4 }),
+      carga({ recursoId: 'r1', fechaProgramada: '2026-10-01', turno: 'jornada', horasDisponibles: 1.5 }),
     ], codigos);
     expect(hueco?.carga.recursoId).toBe('r1');
-    expect(hueco?.carga.turno).toBe('nocturno');
+    expect(hueco?.carga.fechaProgramada).toBe('2026-10-01');
     expect(hueco?.horasDisponibles).toBe(4);
   });
 

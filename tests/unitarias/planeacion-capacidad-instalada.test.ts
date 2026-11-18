@@ -11,18 +11,18 @@ describe('jornadaBaseHoras (D-02 capacidad instalada)', () => {
     expect(jornadaBaseHoras([5, 4], 2.5)).toBe(2.5);
   });
 
-  it('acota el override a la jornada completa de 9 h', () => {
-    expect(jornadaBaseHoras([], 12.5)).toBe(9);
-    expect(jornadaBaseHoras([], 9)).toBe(9);
+  it('acota el override a la jornada completa de 8 h', () => {
+    expect(jornadaBaseHoras([], 12.5)).toBe(8);
+    expect(jornadaBaseHoras([], 9)).toBe(8);
   });
 
-  it('sin override suma los turnos del día con tope de 9 h', () => {
+  it('sin override suma los turnos del día con tope de 8 h', () => {
     expect(jornadaBaseHoras([2, 3], null)).toBe(5);
-    expect(jornadaBaseHoras([5, 4], null)).toBe(9);
-    expect(jornadaBaseHoras([6, 6], null)).toBe(9);
+    expect(jornadaBaseHoras([5, 4], null)).toBe(8);
+    expect(jornadaBaseHoras([6, 6], null)).toBe(8);
   });
 
-  it('cae a la jornada estándar de 9 h sin datos válidos', () => {
+  it('cae a la jornada estándar de 8 h sin datos válidos', () => {
     expect(jornadaBaseHoras([], null)).toBe(JORNADA_ESTANDAR_HORAS);
     expect(jornadaBaseHoras([0, Number.NaN], 0)).toBe(JORNADA_ESTANDAR_HORAS);
   });

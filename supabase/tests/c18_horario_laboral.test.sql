@@ -1,7 +1,7 @@
--- C18 - Horario laboral de la empresa.
--- Lunes a viernes 08:00-17:00 (9 h), sabado 08:00-12:00 (4 h), domingo cerrado.
--- Turnos acotados: matutino 5 h (4 h el sabado) y vespertino 4 h (cerrado el
--- sabado). La jornada de horas extra/auto-pausa es la del dia completo.
+-- C18/C24 - Horario laboral de la empresa.
+-- C24 (regla del PO 2026-11-18): la jornada es continua y de 8 h de lunes a
+-- viernes, 4 h el sabado y domingo cerrado. Matutino y vespertino son solo
+-- etiquetas visuales: no reparten la capacidad ni limitan las horas.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
@@ -35,8 +35,8 @@ INSERT INTO public.recursos_planeacion (
    '00000000-0000-4000-8000-0000000c1811'),
   ('00000000-0000-4000-8000-0000000c1822', 'C18R2', 'Recurso C18 dos', 'taller', true, 1,
    '00000000-0000-4000-8000-0000000c1812'),
-  -- Compatibilidad: un recurso histórico con 8 h de matutino conserva su
-  -- capacidad; la jornada del día (9 h) sigue siendo el tope.
+  -- Compatibilidad: un recurso historico con filas de 8 h conserva la jornada
+  -- del dia como tope; las filas de `capacidades_recurso_turno` ya no restan.
   ('00000000-0000-4000-8000-0000000c1823', 'C18R3', 'Recurso C18 tres', 'taller', true, 1,
    '00000000-0000-4000-8000-0000000c1813');
 
@@ -67,37 +67,41 @@ INSERT INTO public.partidas_orden_produccion (
    'C18-P5', 10, 'pza', ARRAY['Corte'], 300);
 
 -- -----------------------------------------------------------------------------
--- 1-8. Horario: jornada del dia y horas por turno.
+-- 1-8. Horario: jornada continua de 8 h y etiquetas de turno sin reparto.
 -- -----------------------------------------------------------------------------
 SELECT is(privado.jornada_laboral_dia((SELECT valor::date FROM c18 WHERE clave = 'lunes')),
-  9::numeric, 'La jornada de lunes a viernes es de 9 h');
+  8::numeric, 'La jornada de lunes a viernes es de 8 h');
 SELECT is(privado.jornada_laboral_dia((SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5),
   4::numeric, 'La jornada del sabado es de 4 h');
 SELECT is(privado.jornada_laboral_dia((SELECT valor::date FROM c18 WHERE clave = 'lunes') + 6),
   0::numeric, 'El domingo no tiene jornada');
 SELECT is(privado.horas_turno_horario_laboral(
   (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'matutino'),
-  5::numeric, 'El matutino cubre 5 h de lunes a viernes');
+  8::numeric, 'El matutino ve la jornada completa de lunes a viernes');
 SELECT is(privado.horas_turno_horario_laboral(
   (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'vespertino'),
-  4::numeric, 'El vespertino cubre 4 h de lunes a viernes');
+  8::numeric, 'El vespertino tambien ve la jornada completa');
 SELECT is(privado.horas_turno_horario_laboral(
   (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'nocturno'),
   0::numeric, 'El nocturno queda sin capacidad');
 SELECT is(privado.horas_turno_horario_laboral(
   (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5, 'matutino'),
-  4::numeric, 'El sabado solo trabaja el matutino, con 4 h');
+  4::numeric, 'El sabado tiene 4 h para la etiqueta matutino');
 SELECT is(privado.horas_turno_horario_laboral(
   (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5, 'vespertino'),
-  0::numeric, 'El sabado no tiene vespertino');
+  4::numeric, 'El sabado tambien tiene 4 h para la etiqueta vespertino');
 
 -- -----------------------------------------------------------------------------
--- 9-11. Capacidad efectiva = equipos x horas del turno, con tope del horario.
+-- 9-13. Capacidad efectiva = equipos x jornada del dia; el turno no interviene.
 -- -----------------------------------------------------------------------------
 SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
   '00000000-0000-4000-8000-0000000c1821',
   (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'matutino'),
-  10::numeric, 'Dos equipos en matutino suman 10 h de lunes a viernes');
+  16::numeric, 'Dos equipos suman 16 h de lunes a viernes');
+SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
+  '00000000-0000-4000-8000-0000000c1821',
+  (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'vespertino'),
+  16::numeric, 'La etiqueta vespertino ya no resta capacidad');
 SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
   '00000000-0000-4000-8000-0000000c1821',
   (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5, 'matutino'),
@@ -105,46 +109,39 @@ SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
 SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
   '00000000-0000-4000-8000-0000000c1821',
   (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5, 'vespertino'),
-  0::numeric, 'El sabado por la tarde no hay capacidad');
-
--- -----------------------------------------------------------------------------
--- 12-15. Compatibilidad: la capacidad histórica de 8 h se conserva y el
--- resto de la jornada queda para el vespertino.
--- -----------------------------------------------------------------------------
+  8::numeric, 'El sabado por la tarde la etiqueta ve las mismas 8 h');
 SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
   '00000000-0000-4000-8000-0000000c1823',
   (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'matutino'),
-  8::numeric, 'Un equipo con 8 h de matutino conserva su capacidad histórica');
-SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
-  '00000000-0000-4000-8000-0000000c1823',
-  (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'vespertino'),
-  1::numeric, 'El vespertino solo recibe la hora restante de la jornada');
-SELECT is(privado.obtener_capacidad_efectiva_recurso_turno(
-  '00000000-0000-4000-8000-0000000c1823',
-  (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5, 'matutino'),
-  4::numeric, 'El sabado la capacidad se acota a la jornada de 4 h');
-SELECT is((
-  SELECT sum(horas_capacidad)::numeric FROM public.obtener_carga_capacidad_diaria(
-    (SELECT valor::date FROM c18 WHERE clave = 'lunes'),
-    (SELECT valor::date FROM c18 WHERE clave = 'lunes'))
-  WHERE recurso_id = '00000000-0000-4000-8000-0000000c1823'
-), 9::numeric, 'La suma de los turnos nunca rebasa las 9 h de la jornada');
+  8::numeric, 'Un equipo con filas historicas de 8 h conserva 8 h de jornada');
 
 -- -----------------------------------------------------------------------------
--- 12-14. Carga diaria: turnos abiertos por dia, sin domingo.
+-- 14-18. Carga diaria: una sola fila por equipo y dia.
 -- -----------------------------------------------------------------------------
 SELECT is((
   SELECT count(*)::integer FROM public.obtener_carga_capacidad_diaria(
     (SELECT valor::date FROM c18 WHERE clave = 'lunes'),
     (SELECT valor::date FROM c18 WHERE clave = 'lunes'))
   WHERE recurso_id = '00000000-0000-4000-8000-0000000c1821'
-), 2, 'De lunes a viernes el calendario ofrece matutino y vespertino');
+), 1, 'La carga diaria devuelve una fila por equipo, no una por turno');
 SELECT is((
   SELECT turno FROM public.obtener_carga_capacidad_diaria(
+    (SELECT valor::date FROM c18 WHERE clave = 'lunes'),
+    (SELECT valor::date FROM c18 WHERE clave = 'lunes'))
+  WHERE recurso_id = '00000000-0000-4000-8000-0000000c1821'
+), 'jornada', 'La fila diaria se etiqueta como jornada completa');
+SELECT is((
+  SELECT horas_capacidad FROM public.obtener_carga_capacidad_diaria(
+    (SELECT valor::date FROM c18 WHERE clave = 'lunes'),
+    (SELECT valor::date FROM c18 WHERE clave = 'lunes'))
+  WHERE recurso_id = '00000000-0000-4000-8000-0000000c1821'
+), 16::numeric, 'La fila diaria trae la capacidad completa del equipo');
+SELECT is((
+  SELECT horas_capacidad FROM public.obtener_carga_capacidad_diaria(
     (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5,
     (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 5)
   WHERE recurso_id = '00000000-0000-4000-8000-0000000c1821'
-), 'matutino', 'El sabado solo aparece el matutino');
+), 8::numeric, 'El sabado aparece con la jornada de 4 h por equipo');
 SELECT is((
   SELECT count(*)::integer FROM public.obtener_carga_capacidad_diaria(
     (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 6,
@@ -153,7 +150,7 @@ SELECT is((
 ), 0, 'El domingo no aparece en la carga');
 
 -- -----------------------------------------------------------------------------
--- 15-19. El reclamo del operador respeta la jornada del dia.
+-- 19-25. El reclamo del operador respeta la jornada continua del dia.
 -- -----------------------------------------------------------------------------
 INSERT INTO c18 (clave, valor)
 SELECT 'reclamo_p1', id::text
@@ -179,7 +176,7 @@ SELECT throws_ok($$
     '00000000-0000-4000-8000-0000000c1801',
     (SELECT valor::date FROM c18 WHERE clave = 'lunes'), 'matutino')
 $$, '23514', 'capacidad_diaria_insuficiente',
-  'El operador no rebasa las 9 h del dia con dos reclamos de 5 h');
+  'El operador no rebasa las 8 h del dia con dos reclamos de 5 h');
 
 INSERT INTO c18 (clave, valor)
 SELECT 'reclamo_p2', id::text
@@ -235,7 +232,7 @@ $$,
   'Mover una reserva al sabado respeta las 4 h');
 
 -- -----------------------------------------------------------------------------
--- 20. El CHECK impide guardar reclamos mayores a la jornada completa.
+-- 26. El CHECK impide guardar reclamos mayores a la jornada completa.
 -- -----------------------------------------------------------------------------
 SELECT throws_ok($$
   INSERT INTO public.reclamos_proceso_operador (
@@ -248,7 +245,7 @@ SELECT throws_ok($$
 $$, '23514', NULL, 'Un reclamo de 10 h no se puede guardar');
 
 -- -----------------------------------------------------------------------------
--- 21-24. A3: el respaldo de recurso nunca sale del grupo del equipo.
+-- 27-29. A3: el respaldo de recurso nunca sale del grupo del equipo.
 -- -----------------------------------------------------------------------------
 INSERT INTO public.programacion_areas (
   id, orden_id, partida_id, recurso_id, secuencia, estado_planeacion,
@@ -282,11 +279,12 @@ FROM public.reclamar_proceso_operador(
   '00000000-0000-4000-8000-0000000c1801',
   (SELECT valor::date FROM c18 WHERE clave = 'lunes') + 2, 'matutino');
 
-SELECT throws_ok(format($$
+-- C24: el error dice exactamente por que no hay equipo, no un texto generico.
+SELECT throws_like(format($$
   SELECT public.preparar_reclamo_operador(%L::uuid, '00000000-0000-4000-8000-0000000c1801')
 $$, (SELECT valor FROM c18 WHERE clave = 'reclamo_p5')),
-  '23514', 'sin_recurso_disponible',
-  'Sin equipo libre del mismo grupo no se toma otra maquina');
+  'recurso_sin_capacidad%',
+  'Sin equipo con capacidad se explica la causa exacta');
 
 SELECT is((
   SELECT recurso_id FROM public.programacion_areas

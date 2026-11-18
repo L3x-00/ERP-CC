@@ -15,7 +15,6 @@ import {
   type DesglosePartidaPlaneacion,
   type EstadoPlaneacion,
   type ProgramacionArea,
-  type TurnoPlaneacion,
 } from '@/modulos/planeacion/tipos/indice';
 import {
   VistaDia,
@@ -88,8 +87,8 @@ function ordenarProgramaciones(
   });
 }
 
-function claveCarga(recursoId: string, fecha: string, turno: TurnoPlaneacion): string {
-  return `${recursoId}:${fecha}:${turno}`;
+function claveCarga(recursoId: string, fecha: string): string {
+  return `${recursoId}:${fecha}`;
 }
 
 /**
@@ -155,7 +154,7 @@ export function CalendarioPlaneacion({
     () =>
       new Map(
         datos.cargas.map((carga) => [
-          claveCarga(carga.recursoId, carga.fechaProgramada, carga.turno),
+          claveCarga(carga.recursoId, carga.fechaProgramada),
           carga,
         ]),
       ),

@@ -66,8 +66,8 @@ $$, '23514', 'operador_no_asignado_partida', 'Operador ajeno no puede reanudar')
 SELECT is((SELECT estado_planeacion FROM public.programacion_areas WHERE id = '00000000-0000-4000-8000-0000000a2050'), 'bloqueada', 'Fallo del segundo paso revierte la reserva del primero');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.reanudar_sesion_trabajo_a20(uuid,uuid,uuid,timestamptz,uuid)', 'EXECUTE'), 'El rol autenticado no invoca directamente la función privilegiada');
 SELECT ok(NOT has_function_privilege('anon', 'public.reanudar_sesion_trabajo_a20(uuid,uuid,uuid,timestamptz,uuid)', 'EXECUTE'), 'El rol anónimo tampoco la invoca');
-UPDATE public.capacidades_recurso_turno SET horas_capacidad = 1
-WHERE recurso_id = '00000000-0000-4000-8000-0000000a2040';
+UPDATE public.recursos_planeacion SET capacidad_jornada_override_horas = 1
+WHERE id = '00000000-0000-4000-8000-0000000a2040';
 SELECT throws_ok($$
   SELECT * FROM public.reanudar_sesion_trabajo_a20(
     '00000000-0000-4000-8000-0000000a2020', '00000000-0000-4000-8000-0000000a2030',
@@ -76,8 +76,8 @@ SELECT throws_ok($$
     '00000000-0000-4000-8000-0000000a2001')
 $$, '23514', 'capacidad_no_disponible', 'Capacidad insuficiente bloquea reanudación');
 SELECT is((SELECT estado_planeacion FROM public.programacion_areas WHERE id = '00000000-0000-4000-8000-0000000a2050'), 'bloqueada', 'El fallo de capacidad conserva la pausa');
-UPDATE public.capacidades_recurso_turno SET horas_capacidad = 8
-WHERE recurso_id = '00000000-0000-4000-8000-0000000a2040';
+UPDATE public.recursos_planeacion SET capacidad_jornada_override_horas = NULL
+WHERE id = '00000000-0000-4000-8000-0000000a2040';
 SELECT lives_ok($$
   SELECT * FROM public.reanudar_sesion_trabajo_a20(
     '00000000-0000-4000-8000-0000000a2020', '00000000-0000-4000-8000-0000000a2030',

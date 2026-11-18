@@ -131,7 +131,7 @@ function construirItemsOrden(
     recurso: props.recursosPorId.get(programacion.recursoId),
     desglose: props.desglosePorPartidaId.get(programacion.partidaId),
     carga: props.cargasPorClave.get(
-      `${programacion.recursoId}:${programacion.fechaProgramada}:${programacion.turno}`,
+      `${programacion.recursoId}:${programacion.fechaProgramada}`,
     ),
   }));
 }

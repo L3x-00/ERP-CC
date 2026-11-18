@@ -436,8 +436,7 @@ export function PanelAsignacionPlaneacion({
   const cargaDelSlot = cargas.find(
     (carga) =>
       carga.recursoId === recursoId
-      && carga.fechaProgramada === fechaProgramada
-      && carga.turno === turno,
+      && carga.fechaProgramada === fechaProgramada,
   );
   const mismoSlot =
     programacion !== undefined
@@ -461,15 +460,14 @@ export function PanelAsignacionPlaneacion({
   const pasosCapacidad = evaluacion.sinCapacidad
     ? diagnosticarCapacidadTurno({
         recurso: recursoSeleccionado,
-        turno,
         fecha: fechaProgramada,
         cargas,
       })
     : [];
   const textoAvisoCapacidad = turnoCerrado
-    ? 'Ese día no se trabaja en el turno elegido: el sábado solo hay matutino y el domingo está cerrado.'
+    ? 'Ese día no se trabaja: el domingo está cerrado. Elige un día de lunes a sábado.'
     : evaluacion.sinCapacidad
-      ? 'Falta configurar la capacidad de este equipo. La guía explica qué revisar y dónde hacerlo.'
+      ? 'Falta capacidad para ese día. La guía explica qué revisar y dónde hacerlo.'
       : `Excede la capacidad por ${formatearHoras(excesoHoras)} h (${formatearHoras(evaluacion.horasProgramadas)}/${formatearHoras(evaluacion.horasCapacidad)} h). Puedes buscar el siguiente día hábil con hueco.`;
   const puedePrevisualizar = recursoId !== '' && fechaProgramada !== '' && horasValidas;
   // C16: la operación completa no cabe en un turno, aunque el día esté vacío.

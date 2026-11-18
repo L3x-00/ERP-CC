@@ -5,8 +5,8 @@ import { HORAS_JORNADA_SEMANA } from '@/modulos/planeacion/utilidades/horario-la
  * cantidad de equipos: la capacidad por jornada es `equipos × jornada`, con un
  * override opcional de jornada por recurso. Funciones puras para pruebas.
  *
- * C18: la jornada de referencia es el día completo del horario (9 h de lunes a
- * viernes); los turnos son segmentos de esa jornada, no jornadas completas.
+ * C24: la jornada de referencia es el día completo (8 h de lunes a viernes,
+ * 4 h el sábado); el turno es solo una etiqueta visual y no reparte la jornada.
  */
 
 /** Jornada estándar de taller cuando el recurso no define turnos. */
@@ -17,9 +17,10 @@ function esHoraValida(valor: number): boolean {
 }
 
 /**
- * Jornada vigente por equipo: el override válido manda; si no, la suma de las
- * horas de turno configuradas (los turnos reparten el día); si no hay datos, la
- * jornada estándar. Nunca supera la jornada de un día completo.
+ * Jornada vigente por equipo: el override válido manda; si no hay override, la
+ * jornada estándar. C24: el turno es una etiqueta visual y no reparte el día;
+ * `horasPorTurno` se conserva solo por compatibilidad con configuraciones
+ * históricas y el panel de capacidad ya no lo alimenta.
  */
 export function jornadaBaseHoras(
   horasPorTurno: readonly number[],

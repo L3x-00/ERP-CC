@@ -240,12 +240,12 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     expect(within(region).getByText('20.00 h')).toBeTruthy();
     expect(within(region).getByText('13.00 h')).toBeTruthy();
     expect(within(region).getByText('5.00 h')).toBeTruthy();
-    expect(within(region).getByText(/1 turno ya está sobrecargado/)).toBeTruthy();
+    expect(within(region).getByText(/1 día ya está sobrecargado/)).toBeTruthy();
     expect(within(region).getByText(/supera lo disponible/)).toBeTruthy();
-    expect(within(region).getByText(/equipos activos sin turnos configurados/)).toBeTruthy();
+    expect(within(region).getByText(/equipos activos sin capacidad configurada/)).toBeTruthy();
     expect(within(region).getByText('Falta configurar la capacidad')).toBeTruthy();
     expect(within(region).getByTestId('motivo-capacidad-PINT').textContent).toContain(
-      'El equipo del grupo «Pintura» no tiene turnos',
+      'El equipo del grupo «Pintura» no tiene capacidad configurada',
     );
     const guia = within(region).getByRole('button', { name: '¿Cómo lo configuro?' });
     fireEvent.click(guia);
@@ -255,7 +255,7 @@ describe('PanelAccionesPropuesta — consulta informativa', () => {
     expect(within(dialogo).getByText(/«Soldadura» no tiene grupo de equipo/)).toBeTruthy();
     expect(within(dialogo).getByText(/El ítem P-03 no tiene ruteo/)).toBeTruthy();
     expect(
-      within(dialogo).getByText(/El equipo del grupo «Pintura» no tiene turnos/),
+      within(dialogo).getByText(/El equipo del grupo «Pintura» no tiene capacidad configurada/),
     ).toBeTruthy();
     expect(within(dialogo).queryByText(/Revisa equipos y jornada/)).toBeNull();
     expect(within(dialogo).queryByText(/Revisa el grupo del proceso/)).toBeNull();

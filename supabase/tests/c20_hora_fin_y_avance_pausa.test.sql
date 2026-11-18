@@ -61,7 +61,7 @@ SELECT ok((
 SELECT is((
   SELECT tiempo_real_minutos FROM public.partidas_orden_produccion
   WHERE id = '00000000-0000-4000-8000-0000000c2005'
-), 540::numeric, 'La pausa contabiliza el tiempo de la jornada en la partida');
+), 480::numeric, 'La pausa contabiliza el tiempo de la jornada en la partida');
 
 -- La corrección con 5 h declaradas adelanta 5 h la hora real de término.
 SELECT lives_ok($$SELECT * FROM public.actualizar_avance_sesion_pausada(

@@ -571,8 +571,7 @@ export function OperacionPlaneacion({
     ? datosCalendario.cargas.find(
         (carga) =>
           carga.recursoId === arrastre.programacion.recursoId
-          && carga.fechaProgramada === arrastre.fechaDestino
-          && carga.turno === arrastre.programacion.turno,
+          && carga.fechaProgramada === arrastre.fechaDestino,
       )
     : undefined;
 

@@ -127,7 +127,6 @@ SELECT is((
   SELECT carga.horas_programadas FROM public.obtener_carga_capacidad_diaria(current_date, current_date) AS carga
   WHERE carga.recurso_id = '00000000-0000-4000-8000-0000000c9a41'
     AND carga.fecha_programada = current_date
-    AND carga.turno = 'matutino'
 ), 6::numeric, 'La carga suma operaciones y heredadas sin cambiar la fórmula');
 
 -- 15-16. Cierre sin meta explícita: el avance es de la operación programada.

@@ -47,7 +47,7 @@ Las rutas no contienen reglas de negocio. Las Server Actions validan con Zod, co
 - Un trigger garantiza que la partida pertenezca a la OP; un índice único parcial impide dos preparaciones o ejecuciones simultáneas sobre el mismo recurso.
 - Programar, reprogramar y activar preparación bloquean los recursos con `FOR UPDATE` en orden estable.
 - El motor calcula la capacidad efectiva dentro de RPCs; TypeScript puede anticipar holgura y cuellos de botella, pero PostgreSQL conserva la decisión final.
-- **Horario laboral (C18):** lunes a viernes 9 h, sábado 4 h, domingo cerrado. El matutino toma 5 h y el vespertino 4 h de lunes a viernes; el sábado solo trabaja el matutino. `privado.jornada_laboral_dia(fecha)` es la fuente única para capacidad, planeación, producción y la jornada del operador.
+- **Horario laboral (C18/C24):** lunes a viernes 8 h, sábado 4 h, domingo cerrado. Matutino y vespertino son solo etiquetas visuales: ambos ven la jornada completa y no la reparten. `privado.jornada_laboral_dia(fecha)` es la fuente única para capacidad, planeación, producción y la jornada del operador.
 
 ## Producción y entregas
 

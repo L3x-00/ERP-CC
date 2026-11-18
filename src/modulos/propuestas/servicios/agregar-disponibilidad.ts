@@ -197,7 +197,7 @@ function capacidadDelGrupo(
   for (const fila of entrada.cargas) {
     if (!recursos.has(fila.recursoId)) continue;
     if (fila.fechaProgramada < fechaInicio || fila.fechaProgramada > fechaFin) continue;
-    const clave = `${fila.recursoId}|${fila.fechaProgramada}|${fila.turno}`;
+    const clave = `${fila.recursoId}|${fila.fechaProgramada}`;
     if (!turnos.has(clave)) turnos.set(clave, fila);
   }
   const recursosConTurno = new Set([...turnos.values()].map((fila) => fila.recursoId));

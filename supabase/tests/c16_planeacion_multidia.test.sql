@@ -100,7 +100,7 @@ SELECT throws_ok($$SELECT * FROM public.activar_modo_preparacion(
   'El día adicional no se puede preparar por separado');
 
 -- 7. La capacidad por día se respeta: el primer día ya tiene 8 h.
-SELECT throws_ok($$SELECT * FROM public.programar_operacion_multidia_auditada(
+SELECT throws_like($$SELECT * FROM public.programar_operacion_multidia_auditada(
   '00000000-0000-4000-8000-0000000c1605', '00000000-0000-4000-8000-0000000c1608',
   '00000000-0000-4000-8000-0000000c1607', 'matutino',
   jsonb_build_array(
@@ -109,8 +109,8 @@ SELECT throws_ok($$SELECT * FROM public.programar_operacion_multidia_auditada(
   ),
   1, '00000000-0000-4000-8000-0000000c1601', NULL::uuid,
   (SELECT valor FROM c16_plan WHERE clave = 'meta_2'))$$,
-  '23514', 'capacidad_insuficiente',
-  'No se rebasa la capacidad del primer día');
+  'capacidad_insuficiente%',
+  'No se rebasa la capacidad del primer día y el error dice cuánto falta');
 
 -- 8-9. La RPC queda reservada al service_role.
 RESET ROLE;
