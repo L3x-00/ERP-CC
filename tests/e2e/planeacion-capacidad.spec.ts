@@ -474,11 +474,12 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
     await expect(filaSemana.locator('[aria-label="Cerca del límite: 6/8 h"]')).toBeVisible();
 
     // Si la jornada baja a 4 h, el mismo día se declara Sobrecargado con horas.
+    // C24: la capacidad sale de equipos × jornada del recurso, no de
+    // `capacidades_recurso_turno`.
     const { error: errorCapacidad } = await datos.admin
-      .from('capacidades_recurso_turno')
-      .update({ horas_capacidad: 4 })
-      .eq('recurso_id', datos.recursoId)
-      .eq('turno', 'matutino');
+      .from('recursos_planeacion')
+      .update({ capacidad_jornada_override_horas: 4 })
+      .eq('id', datos.recursoId);
     expect(errorCapacidad).toBeNull();
 
     await page.reload();
@@ -509,10 +510,9 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
       .eq('recurso_id', datos.recursoId);
     expect(errorLimpieza).toBeNull();
     const { error: errorCapacidad } = await datos.admin
-      .from('capacidades_recurso_turno')
-      .update({ horas_capacidad: 8 })
-      .eq('recurso_id', datos.recursoId)
-      .eq('turno', 'matutino');
+      .from('recursos_planeacion')
+      .update({ capacidad_jornada_override_horas: null })
+      .eq('id', datos.recursoId);
     expect(errorCapacidad).toBeNull();
     const { error: errorBase } = await datos.admin.from('programacion_areas').insert({
       orden_id: datos.ordenId,
