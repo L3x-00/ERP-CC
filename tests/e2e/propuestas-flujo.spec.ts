@@ -629,14 +629,19 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(page.getByRole('status')).toContainText('Costos guardados correctamente.');
       const costosGuardados = await admin
         .from('propuesta_revision_costos')
-        .select('categoria, monto, nota')
+        .select('categoria, monto, nota, item_id')
         .eq('revision_id', revisionA.data.id)
         .order('categoria');
       expect(costosGuardados.error).toBeNull();
       expect(costosGuardados.data).toEqual([
-        { categoria: 'gastos_directos', monto: 1, nota: 'Embalaje' },
-        { categoria: 'material', monto: 400, nota: 'Lámina E2E 6 mm' },
+        { categoria: 'gastos_directos', monto: 1, nota: 'Embalaje', item_id: null },
+        { categoria: 'material', monto: 400, nota: 'Lámina E2E 6 mm', item_id: null },
       ]);
+      // El costeo guardado queda visible para editarlo o borrarlo, y los campos
+      // del formulario se limpian para capturar el costeo del siguiente ítem.
+      await expect(page.getByTestId('lista-costos-guardados')).toContainText('General (sin ítem)');
+      await expect(page.getByLabel('Costo Material')).toHaveValue('');
+      await expect(page.getByLabel('Costo Otros')).toHaveValue('');
 
       // 3b. Obs. cliente 2026-10-13 (6): multi-subida y «Quitar» con historial.
       await page.getByRole('tab', { name: 'Archivos' }).click();

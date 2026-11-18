@@ -307,3 +307,15 @@ Se rediseñó la presentación del módulo —pantalla inicial y cierre por orde
 - **Frases de negocio:** los puntos críticos y la frase de tiempo dejaron de usar porcentajes redondeados a entero con signo y ahora describen la comparación en lenguaje natural.
 
 **Verificación:** tests unitarios nuevos para la ayuda flotante y para el panel (19 pruebas enfocadas en verde), suite completa **337 archivos / 2926 pruebas en verde**, `tsc --noEmit` limpio, ESLint limpio y `next build` correcto. Revisión visual según `orca-ui-review`: solo tokens semánticos, estados con las clases del sistema y sin lógica de negocio en componentes visuales.
+
+---
+
+## 17. Costeo interno por ítem en propuestas (2026-11-18)
+
+El panel «Costeo interno» permitía un solo costeo por categoría. Ahora se captura **un costeo por ítem**: selector de ítem, campos Material y Otros, botón «Guardar costos» que limpia el borrador para capturar el siguiente y una lista «Costeos guardados» con **Editar** y **Eliminar**.
+
+- **Migración local:** `supabase/migrations/20261118120000_c_propuestas_costos_por_item.sql` añade `item_id` y `creado_en` a `propuesta_revision_costos`, cambia la unicidad a `(revision_id, item_id, categoria)`, ajusta el trigger de congelamiento y crea `guardar_costo_revision` / `eliminar_costo_revision`. La RPC antigua queda como ruta de compatibilidad y ya no borra las filas por ítem.
+- **Sin cambios en totales:** un costeo agrupa dos filas (Material y Otros) en una sola transacción con un solo CAS; los agregados del cierre administrativo siguen leyendo las mismas categorías.
+- **Cobertura:** nuevos tests de acciones y de UI (varios costeos, limpieza del formulario, edición y borrado), E2E de propuestas actualizado. Suite completa **338 archivos / 2932 pruebas en verde**, `tsc`, ESLint y `next build` correctos.
+
+**Orden de despliegue (bloqueante):** el PO debe aplicar la migración en remoto **antes** de desplegar este código. Si se despliega primero, las acciones fallarían con `function public.guardar_costo_revision(...) does not exist` (caso documentado en `docs/CUELLOS-DE-BOTELLA.md`). Por eso el commit queda preparado localmente y se empuja solo después de aplicar el SQL.

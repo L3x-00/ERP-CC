@@ -11,8 +11,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 vi.mock('@/modulos/propuestas/acciones/costear-ruteo-revision', () => ({
   costearRuteoRevisionAccion: vi.fn(),
 }));
-vi.mock('@/modulos/propuestas/acciones/editar-costos-revision', () => ({
-  editarCostosRevisionAccion: vi.fn(),
+vi.mock('@/modulos/propuestas/acciones/guardar-costo-revision', () => ({
+  guardarCostoRevisionAccion: vi.fn(),
+}));
+vi.mock('@/modulos/propuestas/acciones/eliminar-costo-revision', () => ({
+  eliminarCostoRevisionAccion: vi.fn(),
 }));
 vi.mock('@/modulos/propuestas/acciones/editar-ruteo-item', () => ({
   editarRuteoItemAccion: vi.fn(),
@@ -20,7 +23,8 @@ vi.mock('@/modulos/propuestas/acciones/editar-ruteo-item', () => ({
 
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
 import { costearRuteoRevisionAccion } from '@/modulos/propuestas/acciones/costear-ruteo-revision';
-import { editarCostosRevisionAccion } from '@/modulos/propuestas/acciones/editar-costos-revision';
+import { guardarCostoRevisionAccion } from '@/modulos/propuestas/acciones/guardar-costo-revision';
+import { eliminarCostoRevisionAccion } from '@/modulos/propuestas/acciones/eliminar-costo-revision';
 import { editarRuteoItemAccion } from '@/modulos/propuestas/acciones/editar-ruteo-item';
 import { PanelRuteoCosteo } from '@/modulos/propuestas/componentes/panel-ruteo-costeo';
 import type { FaltantesValidacionPropuesta } from '@/modulos/propuestas/utilidades/validacion-propuesta';
@@ -570,23 +574,28 @@ describe('costeo interno: solo Material y Otros (obs. cliente 2026-10-13)', () =
     expect(nota.textContent).toContain('$999.00');
   });
 
-  it('al guardar conserva las categorías retiradas y guarda Otros como gastos directos', async () => {
-    vi.mocked(editarCostosRevisionAccion).mockResolvedValue({ exito: true, datos: undefined });
+  it('al guardar envía solo Material y Otros; las categorías retiradas siguen sumando', async () => {
+    vi.mocked(guardarCostoRevisionAccion).mockResolvedValue({
+      exito: true,
+      datos: { revisionId: REVISION_ID, itemId: null, costoTotal: 1074 },
+    });
     montar();
 
     fireEvent.change(screen.getByLabelText('Costo Otros'), { target: { value: '25' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar costos' }));
 
-    await waitFor(() => expect(editarCostosRevisionAccion).toHaveBeenCalledTimes(1));
-    expect(editarCostosRevisionAccion).toHaveBeenCalledWith(
+    await waitFor(() => expect(guardarCostoRevisionAccion).toHaveBeenCalledTimes(1));
+    expect(guardarCostoRevisionAccion).toHaveBeenCalledWith(
       expect.objectContaining({
-        costos: expect.arrayContaining([
+        revisionId: REVISION_ID,
+        itemId: null,
+        costos: [
           { categoria: 'material', monto: 50 },
-          { categoria: 'maquina', monto: 999 },
           { categoria: 'gastos_directos', monto: 25 },
-        ]),
+        ],
       }),
     );
+    expect(screen.getByTestId('costos-categorias-retiradas').textContent).toContain('$999.00');
   });
 });
 
@@ -643,7 +652,10 @@ describe('costeo interno: campos de texto libre con detalle (obs. cliente 2026-1
   });
 
   it('interpreta «$1,250.50» como 1250.5 y guarda el detalle capturado', async () => {
-    vi.mocked(editarCostosRevisionAccion).mockResolvedValue({ exito: true, datos: undefined });
+    vi.mocked(guardarCostoRevisionAccion).mockResolvedValue({
+      exito: true,
+      datos: { revisionId: REVISION_ID, itemId: null, costoTotal: 1331 },
+    });
     montar({ costos: [] });
 
     fireEvent.change(screen.getByLabelText('Costo Material'), { target: { value: '$1,250.50' } });
@@ -654,9 +666,10 @@ describe('costeo interno: campos de texto libre con detalle (obs. cliente 2026-1
     fireEvent.change(screen.getByLabelText('Detalle de Otros'), { target: { value: 'Embalaje' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar costos' }));
 
-    await waitFor(() => expect(editarCostosRevisionAccion).toHaveBeenCalledTimes(1));
-    expect(editarCostosRevisionAccion).toHaveBeenCalledWith(
+    await waitFor(() => expect(guardarCostoRevisionAccion).toHaveBeenCalledTimes(1));
+    expect(guardarCostoRevisionAccion).toHaveBeenCalledWith(
       expect.objectContaining({
+        itemId: null,
         costos: [
           { categoria: 'material', monto: 1250.5, nota: 'Acero A36 calibre 11' },
           { categoria: 'gastos_directos', monto: 80.5, nota: 'Embalaje' },
@@ -665,8 +678,11 @@ describe('costeo interno: campos de texto libre con detalle (obs. cliente 2026-1
     );
   });
 
-  it('muestra el detalle ya guardado y lo conserva en las categorías retiradas', async () => {
-    vi.mocked(editarCostosRevisionAccion).mockResolvedValue({ exito: true, datos: undefined });
+  it('muestra el detalle ya guardado y no reenvía las categorías retiradas', async () => {
+    vi.mocked(guardarCostoRevisionAccion).mockResolvedValue({
+      exito: true,
+      datos: { revisionId: REVISION_ID, itemId: null, costoTotal: 1049 },
+    });
     montar({
       costos: [
         { id: 'c1', revisionId: REVISION_ID, categoria: 'material', monto: 50, nota: 'Lámina 3 mm' },
@@ -677,15 +693,14 @@ describe('costeo interno: campos de texto libre con detalle (obs. cliente 2026-1
     expect((screen.getByLabelText('Detalle de Material') as HTMLInputElement).value).toBe('Lámina 3 mm');
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar costos' }));
-    await waitFor(() => expect(editarCostosRevisionAccion).toHaveBeenCalledTimes(1));
-    expect(editarCostosRevisionAccion).toHaveBeenCalledWith(
+    await waitFor(() => expect(guardarCostoRevisionAccion).toHaveBeenCalledTimes(1));
+    expect(guardarCostoRevisionAccion).toHaveBeenCalledWith(
       expect.objectContaining({
-        costos: expect.arrayContaining([
-          { categoria: 'material', monto: 50, nota: 'Lámina 3 mm' },
-          { categoria: 'maquina', monto: 999, nota: 'Histórico' },
-        ]),
+        itemId: null,
+        costos: [{ categoria: 'material', monto: 50, nota: 'Lámina 3 mm' }],
       }),
     );
+    expect(screen.getByTestId('costos-categorias-retiradas').textContent).toContain('$999.00');
   });
 
   it('un monto que no es número se marca en rojo y no se envía', async () => {
@@ -700,7 +715,7 @@ describe('costeo interno: campos de texto libre con detalle (obs. cliente 2026-1
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar costos' }));
     expect(await screen.findByText(/Revisa el monto de Material/)).toBeDefined();
-    expect(editarCostosRevisionAccion).not.toHaveBeenCalled();
+    expect(guardarCostoRevisionAccion).not.toHaveBeenCalled();
   });
 
   it('un campo vacío no es un error (la categoría simplemente no se guarda)', () => {
@@ -842,5 +857,69 @@ describe('ruteo: horas válidas y salidas claras (aclaración cliente 2026-11-09
     const celda = screen.getByTestId('costo-estimado-IT01-2');
     const enlace = within(celda).getByRole('link', { name: /Tarifas/ });
     expect(enlace.getAttribute('href')).toBe('/configuracion?pestana=tarifas');
+  });
+});
+
+describe('costeo interno: varios costeos por ítem', () => {
+  const costeoItem = [
+    { id: 'c1', revisionId: REVISION_ID, itemId: ITEM_ID, categoria: 'material', monto: 40, nota: 'Acero', creadoEn: null },
+    { id: 'c2', revisionId: REVISION_ID, itemId: ITEM_ID, categoria: 'gastos_directos', monto: 20, nota: 'Gas', creadoEn: null },
+  ] as unknown as CostoRevisionPropuesta[];
+
+  it('guarda el costeo del ítem, limpia los campos y lo muestra en la lista', async () => {
+    vi.mocked(guardarCostoRevisionAccion).mockResolvedValue({
+      exito: true,
+      datos: { revisionId: REVISION_ID, itemId: ITEM_ID, costoTotal: 60 },
+    });
+    montar({ costos: [] });
+
+    fireEvent.change(screen.getByTestId('item-costo'), { target: { value: ITEM_ID } });
+    fireEvent.change(screen.getByLabelText('Costo Material'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Costo Otros'), { target: { value: '20' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar costos' }));
+
+    await waitFor(() =>
+      expect(guardarCostoRevisionAccion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          revisionId: REVISION_ID,
+          itemId: ITEM_ID,
+          costos: [
+            { categoria: 'material', monto: 40 },
+            { categoria: 'gastos_directos', monto: 20 },
+          ],
+        }),
+      ),
+    );
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Costo Otros') as HTMLInputElement).value).toBe('');
+  });
+
+  it('lista los costeos guardados y carga sus valores al editar', () => {
+    montar({ costos: costeoItem });
+
+    const lista = screen.getByTestId('lista-costos-guardados');
+    expect(within(lista).getByTestId(`costo-guardado-${ITEM_ID}`).textContent).toContain('IT01');
+
+    fireEvent.click(screen.getByTestId(`editar-costo-${ITEM_ID}`));
+    expect((screen.getByLabelText('Costo Material') as HTMLInputElement).value).toBe('40');
+    expect((screen.getByLabelText('Detalle de Material') as HTMLInputElement).value).toBe('Acero');
+    expect((screen.getByTestId('item-costo') as HTMLSelectElement).value).toBe(ITEM_ID);
+  });
+
+  it('elimina el costeo completo del ítem', async () => {
+    vi.mocked(eliminarCostoRevisionAccion).mockResolvedValue({
+      exito: true,
+      datos: { revisionId: REVISION_ID, itemId: ITEM_ID, costoTotal: 0 },
+    });
+    montar({ costos: costeoItem });
+
+    fireEvent.click(screen.getByTestId(`eliminar-costo-${ITEM_ID}`));
+
+    await waitFor(() =>
+      expect(eliminarCostoRevisionAccion).toHaveBeenCalledWith(
+        expect.objectContaining({ revisionId: REVISION_ID, itemId: ITEM_ID }),
+      ),
+    );
+    expect(await screen.findByText('Costeo eliminado.')).toBeDefined();
   });
 });

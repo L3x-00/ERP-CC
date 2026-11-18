@@ -147,13 +147,15 @@ export type RuteoItemPropuesta = {
   costeadoEn: string | null;
 };
 
-/** Fila del costeo interno por categoría. */
+/** Fila del costeo interno; `itemId` es null en las filas heredadas por categoría. */
 export type CostoRevisionPropuesta = {
   id: string;
   revisionId: string;
+  itemId: string | null;
   categoria: CategoriaCosto;
   monto: number;
   nota: string | null;
+  creadoEn: string | null;
 };
 
 /** Próxima acción registrada sobre una revisión. */
@@ -484,9 +486,11 @@ export function filaACostoRevisionPropuesta(
   return {
     id: fila.id,
     revisionId: fila.revision_id,
+    itemId: fila.item_id,
     categoria: fila.categoria as CategoriaCosto,
     monto: Number(fila.monto),
     nota: fila.nota,
+    creadoEn: fila.creado_en,
   };
 }
 
