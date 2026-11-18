@@ -1301,6 +1301,60 @@ describe('operación de Planeación en cliente', () => {
     expect((screen.getByLabelText('Horas estimadas') as HTMLInputElement).value).toBe('2');
   });
 
+  it('preselecciona las horas de la operación del ruteo, no el total de la partida (O-1126_09)', async () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const partida: PartidaProgramablePlaneacion = {
+      ordenId: '33333333-3333-4333-8333-333333333333',
+      partidaId: '55555555-5555-4555-8555-555555555555',
+      etiqueta: 'O-1126_09 · IT01',
+      secuenciaSugerida: 1,
+      operaciones: [
+        {
+          metaProcesoId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          secuencia: 1,
+          nombre: 'Corte laser',
+          programada: false,
+          horasEstimadasSugeridas: 4,
+        },
+        {
+          metaProcesoId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          secuencia: 2,
+          nombre: 'Doblado',
+          programada: false,
+          horasEstimadasSugeridas: 3,
+        },
+      ],
+    };
+    renderizarOperacion(cliente, [partida], {
+      datosIniciales: {
+        ...DATOS,
+        compromisos: [{
+          partidaId: partida.partidaId,
+          ordenId: partida.ordenId,
+          folio: 'O-1126_09',
+          codigoPieza: 'IT01',
+          fechaCompromiso: '2026-09-18',
+          areaCodigo: 'taller',
+          procesos: ['Corte laser', 'Doblado'],
+          horas: 7,
+          estimadoMinutos: 420,
+        }],
+      },
+    });
+
+    fireEvent.click(screen.getByTestId(`programar-compromiso-${partida.partidaId}`));
+
+    await waitFor(() => expect(
+      (screen.getByLabelText('Partida') as HTMLSelectElement).value,
+    ).toBe(partida.partidaId));
+    // La partida se comprometió por 7 h, pero la operación pendiente (corte) son 4 h:
+    // el doblado (3 h) se programa en su propia máquina después.
+    expect((screen.getByLabelText('Operación') as HTMLSelectElement).value).toBe(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    );
+    expect((screen.getByLabelText('Horas estimadas') as HTMLInputElement).value).toBe('4');
+  });
+
   it('un rechazo del servidor abre un modal con pasos de solución', async () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);

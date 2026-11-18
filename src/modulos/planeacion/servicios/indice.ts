@@ -27,6 +27,8 @@ export type {
 export {
   elegirHueco,
   esRecursoCompatibleBolsa,
+  horasOperacionSugeridas,
+  horasRuteoValidas,
   horasSugeridas,
   obtenerBolsaPlaneacionServicio,
   resolverGrupoRequeridoBolsa,

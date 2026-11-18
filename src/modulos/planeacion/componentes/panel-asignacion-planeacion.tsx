@@ -7,6 +7,7 @@ import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
 import { Label } from '@/compartido/componentes/ui/label';
 import {
   evaluarAsignacionTurno,
+  horasRuteoValidas,
   type HuecoDisponible,
 } from '@/modulos/planeacion/servicios/indice';
 import { InsigniaSaturacion } from '@/modulos/planeacion/componentes/insignia-saturacion';
@@ -332,8 +333,19 @@ export function PanelAsignacionPlaneacion({
         setSecuencia(String(partidaElegida.secuenciaSugerida));
         setRecursoId(recursoSugeridoParaOperacion(operacion));
         setFechaProgramada(preseleccion.fecha);
+        // El tiempo estimado de la partida es un total: si la operación tiene
+        // duración propia en el ruteo, esa manda. Con varias operaciones sin
+        // duración por operación no se reparte el total a ciegas sobre la
+        // primera máquina (defecto O-1126_09).
+        const horasOperacion = horasRuteoValidas(operacion?.horasEstimadasSugeridas);
         setHorasEstimadas(
-          preseleccion.horas > 0 && preseleccion.horas <= 24 ? String(preseleccion.horas) : '',
+          horasOperacion !== null
+            ? String(horasOperacion)
+            : partidaElegida.operaciones.length > 1
+              ? ''
+              : preseleccion.horas > 0 && preseleccion.horas <= 24
+                ? String(preseleccion.horas)
+                : '',
         );
         onCambiarFecha?.(preseleccion.fecha);
         setErrorFormulario(null);
@@ -392,12 +404,8 @@ export function PanelAsignacionPlaneacion({
     setFechaProgramada(fechaSugerida);
     if (fechaSugerida) onCambiarFecha?.(fechaSugerida);
 
-    const horasSugeridas = operacion?.horasEstimadasSugeridas ?? null;
-    setHorasEstimadas(
-      horasSugeridas !== null && Number.isFinite(horasSugeridas) && horasSugeridas > 0 && horasSugeridas <= 24
-        ? String(horasSugeridas)
-        : '',
-    );
+    const horasSugeridas = horasRuteoValidas(operacion?.horasEstimadasSugeridas);
+    setHorasEstimadas(horasSugeridas !== null ? String(horasSugeridas) : '');
     limpiarEstadoBuscador();
   }
 
