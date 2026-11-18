@@ -16,7 +16,7 @@ export function AyudaTooltip({
   className = '',
 }: {
   texto: string;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
 }) {
   const id = useId();
