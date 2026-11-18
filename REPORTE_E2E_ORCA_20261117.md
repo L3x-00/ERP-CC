@@ -4,7 +4,7 @@
 **Ambiente:** `https://erp-cc-flame.vercel.app` (PRODUCCIÓN) · Supabase `pwnecbcynnqnvfwmvrnn`
 **Alcance:** flujo completo RFQ → propuesta (A/B/C) → orden → planeación → producción → entrega → cobro → cierre, con foco en los cambios C20/C21 de los PR #195 y #196 (último RP fusionado a `main`, commit `495dccf`).
 **Ejecutor:** la IA que actuó como desarrolladora en esta sesión, con autorización para ejecutar, verificar y fusionar cuando todas las pruebas pasan. No se usaron credenciales distintas a las proporcionadas para login; el arnés Playwright se ejecutó localmente.
-**Evidencia:** carpeta `evidencias_e2e_ORCA_20261117/` (10 subcarpetas + `_scripts/` con los scripts, `traza.jsonl` con 200+ eventos timestamped, capturas y notas).
+**Evidencia:** retirada del repositorio a petición del PO. Este informe conserva resultados, textos literales de UI y verificaciones; las capturas y scripts de la prueba ya no forman parte del árbol.
 
 ---
 
@@ -95,14 +95,14 @@
 
 ## 5. Resultado de las 7 pruebas del último cambio (C21)
 
-| # | Prueba | Resultado | Evidencia |
+| # | Prueba | Resultado | Detalle |
 |---|---|---|---|
-| 1 | Jornada corrida 8 h, comida 12–13 no cuenta, matutino/vespertino mismo horario | **PASA** | Textos literales en el detalle: «Jornada corrida de 8 horas. La comida de 12:00 a 13:00 no se cuenta. Matutino y vespertino son el mismo horario de producción…». Captura `09_ultimo_cambio/01-detalle-jornada-y-textos.png`. |
-| 2 | Tiempo real 2 h + 4 h = 6 h entre días | **NO EJECUTABLE en producción** | La RPC rechaza `horas_reales` mayores al tiempo transcurrido de la sesión: modal «El tiempo real de proceso no puede ser mayor al tiempo de la sesión pausada» con botón «Ajustar a 0.02 h». Sin manipulación de reloj/DB no se pueden simular 2 h y 4 h. Evidencia `14-formulario…`, `17-modal-error…`. |
-| 3 | «Actualizar estado» cronológico, intentar la posterior primero | **PARCIAL** | Botones `actualizar-estado-*` y selector ordenado antiguo→nuevo presentes; con 2 sesiones se intentó la posterior y el sistema validó primero el límite de horas de esa sesión, por lo que no se aisló el error `sesion_antigua_pendiente`. Evidencia `22`, `23`, `24`, `25`. |
+| 1 | Jornada corrida 8 h, comida 12–13 no cuenta, matutino/vespertino mismo horario | **PASA** | Textos literales en el detalle: «Jornada corrida de 8 horas. La comida de 12:00 a 13:00 no se cuenta. Matutino y vespertino son el mismo horario de producción…». |
+| 2 | Tiempo real 2 h + 4 h = 6 h entre días | **NO EJECUTABLE en producción** | La RPC rechaza `horas_reales` mayores al tiempo transcurrido de la sesión: modal «El tiempo real de proceso no puede ser mayor al tiempo de la sesión pausada» con botón «Ajustar a 0.02 h». Sin manipulación de reloj/DB no se pueden simular 2 h y 4 h. |
+| 3 | «Actualizar estado» cronológico, intentar la posterior primero | **PARCIAL** | Botones `actualizar-estado-*` y selector ordenado antiguo→nuevo presentes; con 2 sesiones se intentó la posterior y el sistema validó primero el límite de horas de esa sesión, por lo que no se aisló el error `sesion_antigua_pendiente`. |
 | 4 | Pausas sobrantes marcadas inválidas y descuento; operador no puede borrar | **PARCIAL** | No hay botones «Eliminar/Borrar» en el historial (verificado = 0). Las pausas sobrantes requieren producción completada con sesiones posteriores; no se generaron. |
 | 5 | Tope de 3 pausas sin avance | **NO EJECUTABLE en el caso** | Solo se generaron 2 pausas sin avance; no se alcanzó el umbral ni se pudo provocar una tercera sin reanudar. Regla confirmada por código/migración C21. |
-| 6 | Consumo de material: dos opciones y fuerza del error sin salida | **PASA / HALLAZGO** | Ambas opciones están en el mismo formulario: «Dejar el consumo para el cierre» y «Registrar el consumo aquí» (captura `14`). El error de consumo **sí** ofrece salida (`Usar 50 piezas (1:1)`, captura `22`), pero el caso MDF-12 sin costo dejó al operador sin salida real: con consumo → «El material no tiene costo confirmado»; sin consumo → «Este proceso requiere registrar el consumo…» (A-1). |
+| 6 | Consumo de material: dos opciones y fuerza del error sin salida | **PASA / HALLAZGO** | Ambas opciones están en el mismo formulario: «Dejar el consumo para el cierre» y «Registrar el consumo aquí». El error de consumo **sí** ofrece salida (`Usar 50 piezas (1:1)`), pero el caso MDF-12 sin costo dejó al operador sin salida real: con consumo → «El material no tiene costo confirmado»; sin consumo → «Este proceso requiere registrar el consumo…» (A-1). |
 | 7 | Errores en modal con botones de solución, día actual, «Tiempo real de proceso», «ver el proceso anterior», badge «Proceso completado» | **PASA** | Modales con «Ajustar a 0.02 h» / «Entendido» / «Usar 50 piezas (1:1)»; día 17/11/2026; etiqueta «Tiempo real de proceso»; enlace `ver-proceso-anterior` con 2 sesiones; badge «Proceso completado» en las 3 operaciones. |
 
 ---
@@ -119,17 +119,17 @@
 
 ## 7. Incidencias
 
-| ID | Sev. | Hallazgo | Reproducción / impacto | Evidencia |
+| ID | Sev. | Hallazgo | Reproducción / impacto | Verificación |
 |---|---|---|---|---|
-| A-1 | **ALTA — corregida en código (pendiente de despliegue)** | Consumo de MDF-12 sin costo confirmado dejaba al operador sin salida | Cerrar IT02 con consumo → «El material no tiene costo confirmado»; sin consumo → «Este proceso requiere registrar el consumo…». El modal C21 no ofrecía salida. Se destrabó registrando costo manual $320 (cambio global documentado) y se corrigió la UI (sección 10). | `07_entrega_cobro/diagnostico-it02.md`, `it02-sin-consumo.md`, `10_validacion_tecnica/cambio-catalogo-mdf.md` |
-| M-1 | Media — **por diseño, aclarada en UI** | No existe pantalla de Pipeline ni avance de etapas | `GET /pipeline` redirige a `/rfq`: la oportunidad es el propio RFQ y las etapas son históricas (grandfathering), gobernadas por las acciones de estado. No se inventaron etapas ni botones; se añadió un aviso explicativo (sección 11). | `02_oportunidad/pipeline-redirige-a-rfq.png` |
-| M-2 | Media — **corregida (sección 12)** | Adjuntos de oportunidad inalcanzables | `PanelAdjuntos` solo se monta en `EditorCotizacion`, que no está enlazado desde ninguna ruta. | Análisis de código (subagente) + `00_sesion/dump-rutas.md` |
-| M-3 | Media — **corregida (sección 12)** | Activación de prospecto solo desde `/clientes` | La ficha RFQ no ofrece «Activar»; hay que salir al módulo Clientes. La relación se conserva correctamente. | `01_rfq/42-cliente-activado.png`, `51-relacion-final-conservada.png` |
-| M-4 | Media — **corregida (sección 12)** | Horas extra sin rechazo con nota ni re-solicitud | `resolver_solicitud_horas_extra` solo escribe `VIGENTE`/`RECHAZADA`; la UI «Desaprobar» no pide motivo; una solicitud rechazada no se reactiva. No se pudo provocar exceso de jornada en el caso. | Análisis de código + migración `20261103090000` |
-| M-5 | Media — **corregida (sección 12)** | Re-validación no expuesta tras `READY_FOR_PROPOSAL` | Editar el RFQ tras marcarlo listo genera versión `CABECERA`, pero «Marcar listo» desaparece; no hay botón de re-validación. | `01_rfq/resultado-etapa1e.md`, `1f.md` |
-| B-1 | Baja — **corregida (sección 13)** | Horas reales = 0.0 h en cierre administrativo | Las sesiones duraron segundos y el cierre coincide con el inicio; el panel muestra «0.0 h reales contra 6.3 h cotizadas» y desviación -100 %. Podría requerir revisión del cálculo cuando `fecha_fin_declarada` no se declara. | `07_entrega_cobro/39-detalle-cierre-completo.png` |
-| B-2 | Baja — **corregida (sección 13)** | Descarga binaria de PDFs no capturada en headless | «Descargar» abrió URL firmada; `popup.pdf()` no produjo archivo. La generación y vigencia del PDF sí quedaron evidenciadas en pantalla. | `08_documentos/pdf-aprobado-B-panel.png` |
-| B-3 | Baja — **corregida (sección 13)** | Logout UI no confirmado por automatización | El menú mostró «Cerrar sesión» en el sondeo, pero el clic automatizado no lo encontró de forma estable; todos los contextos de navegador fueron destruidos al final (sin sesiones colgadas en el proceso). | `00_sesion/menu-admin-logout.png`, `logout-admin-final.png` |
+| A-1 | **ALTA — corregida en código (pendiente de despliegue)** | Consumo de MDF-12 sin costo confirmado dejaba al operador sin salida | Cerrar IT02 con consumo → «El material no tiene costo confirmado»; sin consumo → «Este proceso requiere registrar el consumo…». El modal C21 no ofrecía salida. Se destrabó registrando costo manual $320 (cambio global documentado) y se corrigió la UI (sección 10). | Reproducido en la ejecución E2E; detalle en secciones 10 y 12. |
+| M-1 | Media — **por diseño, aclarada en UI** | No existe pantalla de Pipeline ni avance de etapas | `GET /pipeline` redirige a `/rfq`: la oportunidad es el propio RFQ y las etapas son históricas (grandfathering), gobernadas por las acciones de estado. No se inventaron etapas ni botones; se añadió un aviso explicativo (sección 11). | Redirect comprobado en producción; sección 11. |
+| M-2 | Media — **corregida (sección 12)** | Adjuntos de oportunidad inalcanzables | `PanelAdjuntos` solo se monta en `EditorCotizacion`, que no está enlazado desde ninguna ruta. | Análisis de código y volcado de rutas. |
+| M-3 | Media — **corregida (sección 12)** | Activación de prospecto solo desde `/clientes` | La ficha RFQ no ofrece «Activar»; hay que salir al módulo Clientes. La relación se conserva correctamente. | Verificado en la ejecución y en la re-verificación (sección 15). |
+| M-4 | Media — **corregida (sección 12)** | Horas extra sin rechazo con nota ni re-solicitud | `resolver_solicitud_horas_extra` solo escribe `VIGENTE`/`RECHAZADA`; la UI «Desaprobar» no pide motivo; una solicitud rechazada no se reactiva. No se pudo provocar exceso de jornada en el caso. | Análisis de código + migración `20261103090000`. |
+| M-5 | Media — **corregida (sección 12)** | Re-validación no expuesta tras `READY_FOR_PROPOSAL` | Editar el RFQ tras marcarlo listo genera versión `CABECERA`, pero «Marcar listo» desaparece; no hay botón de re-validación. | Verificado en la ejecución E2E. |
+| B-1 | Baja — **corregida (sección 13)** | Horas reales = 0.0 h en cierre administrativo | Las sesiones duraron segundos y el cierre coincide con el inicio; el panel muestra «0.0 h reales contra 6.3 h cotizadas» y desviación -100 %. Podría requerir revisión del cálculo cuando `fecha_fin_declarada` no se declara. | Verificado en la re-verificación (sección 14). |
+| B-2 | Baja — **corregida (sección 13)** | Descarga binaria de PDFs no capturada en headless | «Descargar» abrió URL firmada; `popup.pdf()` no produjo archivo. La generación y vigencia del PDF sí quedaron evidenciadas en pantalla. | Verificado en la re-verificación (sección 14). |
+| B-3 | Baja — **corregida (sección 13)** | Logout UI no confirmado por automatización | El menú mostró «Cerrar sesión» en el sondeo, pero el clic automatizado no lo encontró de forma estable; todos los contextos de navegador fueron destruidos al final (sin sesiones colgadas en el proceso). | Verificado en la re-verificación (sección 14). |
 
 ---
 
@@ -236,13 +236,13 @@ Las cuatro incidencias medias restantes se corrigieron **sin alterar reglas de n
 
 - **Diagnóstico:** la descarga ya era directa. La propuesta firma la URL on-click y dispara un `<a download>` con `Content-Disposition: attachment`; el acta usa `PDFDownloadLink` (blob local). El script de evidencias esperó un `popup` antes del clic y registró el listener de `download` **después**, perdiéndolo; además pulsó «Imprimir» en lugar de «Descargar PDF».
 - **Corrección (sin tocar storage, RLS ni permisos):** testids estables `descargar-pdf-propuesta` y `descargar-acta-<folio>`, `waitForEvent('download')` registrado **antes** del clic en el script, `acceptDownloads: true` en la configuración de Playwright y test unitario del selector.
-- **Archivos:** `src/modulos/propuestas/componentes/panel-pdfs-propuesta.tsx`, `src/modulos/produccion/componentes/nota-entrega-documento-boton.tsx`, `playwright.config.ts`, `tests/unitarias/propuestas-archivos-historial.test.ts`, `evidencias_e2e_ORCA_20261117/_scripts/etapa8-descargas.mjs`.
+- **Archivos:** `src/modulos/propuestas/componentes/panel-pdfs-propuesta.tsx`, `src/modulos/produccion/componentes/nota-entrega-documento-boton.tsx`, `playwright.config.ts`, `tests/unitarias/propuestas-archivos-historial.test.ts`.
 
 ### B-3 — Logout alcanzable y verificado
 
 - **Diagnóstico:** «Cerrar sesión» declara `role="menuitem"`; los scripts lo buscaban con `getByRole('button', …)`, por lo que nunca podía coincidir. Además, el modal Radix de tipo de cambio marca el resto de la página como `aria-hidden` y con `pointer-events:none` hacía invisible el encabezado si no se descartaba primero. El sondeo del reporte usó un `evaluateAll` sobre el DOM y por eso sí vio el texto. La Server Action `cerrarSesionAccion` (signOut + cookie de operador + auditoría + redirect) nunca llegó a ejecutarse.
 - **Corrección:** testid estable `cerrar-sesion` (conservando `role="menuitem"`), testid `salir-operador` por simetría, test unitario que comprueba el rol y la llamada a la Server Action, y scripts de evidencia que descartan el modal, usan los testids y esperan la navegación a `/iniciar-sesion` / `/operador`.
-- **Archivos:** `src/compartido/componentes/navegacion/encabezado-app.tsx`, `src/modulos/produccion/componentes/menu-cuenta-operador.tsx`, `tests/unitarias/tema-menu.test.ts`, `evidencias_e2e_ORCA_20261117/_scripts/etapa9-cerrar-sesiones.mjs`, `evidencias_e2e_ORCA_20261117/_scripts/etapa9b-logout-final.mjs`.
+- **Archivos:** `src/compartido/componentes/navegacion/encabezado-app.tsx`, `src/modulos/produccion/componentes/menu-cuenta-operador.tsx`, `tests/unitarias/tema-menu.test.ts`.
 
 ### Verificación
 
@@ -252,11 +252,7 @@ Las cuatro incidencias medias restantes se corrigieron **sin alterar reglas de n
 
 Tras el despliegue del commit que cierra B-1/B-2/B-3 se ejecutan, contra `https://erp-cc-flame.vercel.app` y reutilizando el caso `RFQ-1126_08` / `O-1126_07`:
 
-| Script | Comprueba |
-|---|---|
-| `_scripts/reverificacion-produccion.mjs` | M-1 (aviso desde `/pipeline`), M-2 (adjuntos históricos), M-5 (pestaña Revisar en READY) y B-1 («0,01 h» en el cierre). |
-| `_scripts/etapa8-descargas.mjs` | B-2: binarios del PDF de la propuesta B y del acta de entrega guardados en `08_documentos/`. |
-| `_scripts/etapa9b-logout-final.mjs` | B-3: logout de admin y de operador con navegación confirmada. |
+Se verificó M-1 (aviso desde `/pipeline`), M-2 (adjuntos históricos), M-5 (pestaña Revisar y bundle desplegado) y B-1 («0,01 h» en el cierre); B-2 confirmó la descarga directa de los dos PDF y B-3 el logout de admin y de operador con navegación confirmada. Los scripts y capturas de esa pasada fueron retirados del repositorio junto con el resto de la evidencia.
 
 A-1, M-3 y M-4 requieren generar escenarios nuevos en producción (material sin costo confirmado, cliente prospecto con RFQ y sesión que exceda la jornada); su corrección queda cubierta por los tests unitarios y por el código desplegado, y se documenta como pendiente de escenario en la re-verificación.
 
@@ -264,19 +260,19 @@ A-1, M-3 y M-4 requieren generar escenarios nuevos en producción (material sin 
 
 ## 14. Resultado de la re-verificación en producción (2026-11-17, tras el despliegue)
 
-Ejecutada contra `https://erp-cc-flame.vercel.app` reutilizando el caso `RFQ-1126_08` / `O-1126_07` / `CNC-1126_08`. Sin borrado ni modificación de datos de negocio. Evidencia nueva en `evidencias_e2e_ORCA_20261117/11_reverificacion/` y en `08_documentos/`.
+Ejecutada contra `https://erp-cc-flame.vercel.app` reutilizando el caso `RFQ-1126_08` / `O-1126_07` / `CNC-1126_08`. Sin borrado ni modificación de datos de negocio.
 
-| Comprobación | Resultado | Evidencia |
+| Comprobación | Resultado | Detalle |
 |---|---|---|
-| M-1 — aviso desde el enlace histórico `/pipeline?oportunidad=…` | **OK** — redirect a `/rfq` con el aviso «La oportunidad se gestiona en el RFQ». | `11_reverificacion/resultado.md` |
-| M-2 — vista histórica de adjuntos en la pestaña Archivos del RFQ | **OK** — `adjuntos-oportunidad-rfq` visible con el texto de solo consulta. | `11_reverificacion/rfq-m2-m5.png` |
-| M-5 — RFQ del caso en estado terminal | **OK** — la pestaña Revisar correctamente **no** aparece en `Convertido` (regla de negocio). | `11_reverificacion/resultado.md` |
-| M-5 — código de re-validación desplegado | **OK** — el bundle servido contiene «Revisar el RFQ tras la edición». La rama funcional READY queda cubierta por los 3 tests unitarios (no había RFQ en READY en producción: los 8 están convertidos). | `11_reverificacion/resultado.md` |
-| B-1 — horas reales pequeñas | **OK** — el cierre muestra «HORAS REALES 0,01 h», «Cotizaste 6,3 h y usaste 0,01 h» y «Corte laser 2,5 h / 0,01 h», frente al «0.0 h» original. | `11_reverificacion/cierre-administrativo-b1.png` |
-| B-2 — PDF de la propuesta B | **OK** — descarga directa capturada con `waitForEvent('download')`; archivo de 4,476 bytes. | `08_documentos/propuesta-CNC-1126_08-B-Propuesta_CNC-1126_08-B.pdf` |
-| B-2 — acta de entrega | **OK** — descarga directa desde la pestaña Entregas de la ficha de orden; archivo de 4,716 bytes. | `08_documentos/acta-entrega-NE-O-1126_07-01-Nota_de_entrega_NE-O-1126_07-01.pdf` |
-| B-3 — logout admin | **OK** — `menu-usuario` → `cerrar-sesion` → navegación a `/iniciar-sesion`. | `00_sesion/logout-admin-confirmado.png`, `00_sesion/logout-final.md` |
-| B-3 — logout operador | **OK** — menú de cuenta → `salir-operador` → `/operador` con teclado PIN visible. | `00_sesion/logout-operador-confirmado.png` |
+| M-1 — aviso desde el enlace histórico `/pipeline?oportunidad=…` | **OK** — redirect a `/rfq` con el aviso «La oportunidad se gestiona en el RFQ». | Comprobado en la sesión de verificación. |
+| M-2 — vista histórica de adjuntos en la pestaña Archivos del RFQ | **OK** — `adjuntos-oportunidad-rfq` visible con el texto de solo consulta. | Componente visible en la ficha. |
+| M-5 — RFQ del caso en estado terminal | **OK** — la pestaña Revisar correctamente **no** aparece en `Convertido` (regla de negocio). | Comprobado en la sesión de verificación. |
+| M-5 — código de re-validación desplegado | **OK** — el bundle servido contiene «Revisar el RFQ tras la edición». La rama funcional READY queda cubierta por los 3 tests unitarios (no había RFQ en READY en producción: los 8 están convertidos). | Comprobado en la sesión de verificación. |
+| B-1 — horas reales pequeñas | **OK** — el cierre muestra «HORAS REALES 0,01 h», «Cotizaste 6,3 h y usaste 0,01 h» y «Corte laser 2,5 h / 0,01 h», frente al «0.0 h» original. | Texto leído del modal. |
+| B-2 — PDF de la propuesta B | **OK** — descarga directa capturada con `waitForEvent('download')`; archivo de 4,476 bytes. | Binario descargado (4.476 bytes). |
+| B-2 — acta de entrega | **OK** — descarga directa desde la pestaña Entregas de la ficha de orden; archivo de 4,716 bytes. | Binario descargado (4.716 bytes). |
+| B-3 — logout admin | **OK** — `menu-usuario` → `cerrar-sesion` → navegación a `/iniciar-sesion`. | Navegación a `/iniciar-sesion` confirmada. |
+| B-3 — logout operador | **OK** — menú de cuenta → `salir-operador` → `/operador` con teclado PIN visible. | Navegación a `/operador` confirmada. |
 
 **Incidencias de la propia re-verificación (corregidas en el arnés, no en el producto):** carrera entre el login y el modal de tipo de cambio (resuelto con el helper `descartarModalTipoCambio`), lectura del comparativo antes de que cargara (espera explícita a «Horas reales») y búsqueda del acta en `/entregas` en lugar de la pestaña Entregas de la orden.
 
@@ -288,12 +284,12 @@ Ejecutada contra `https://erp-cc-flame.vercel.app` reutilizando el caso `RFQ-112
 
 Se generaron datos QA nuevos en producción sin borrar los del caso original: cliente `CLI-0039` (prospecto), RFQ `RFQ-1126_09` (`dd18497d-9d37-456a-92f7-1245bfe61b4d`), material de catálogo `QA-NC-1717` «Material QA sin costo» y una sesión de operador en `O-1126_05` / IT01 / Corte laser.
 
-| Escenario | Resultado | Evidencia y detalle |
+| Escenario | Resultado | Detalle |
 |---|---|---|
-| **M-3** — activar prospecto desde la ficha RFQ | **OK** | Con `CLI-0039` prospecto ligado a `RFQ-1126_09`, el botón `rfq-activar-cliente` aparece en la ficha; al pulsarlo desaparece, el cliente pasa a activo y el cambio persiste tras recargar. `11_reverificacion/m3-prospecto-en-rfq.png`, `m3-activo-persistido.png`, `resultado-m3-m5.md`. |
-| **M-5** — rama READY | **OK** | El mismo RFQ se llevó a `READY_FOR_PROPOSAL` (ítems, archivos CAD/DIBUJO y seguimiento). Aparece la pestaña Revisar con «Revisar el RFQ tras la edición», «No hay cambios de estado pendientes», checklist de 5 secciones sin faltantes y «Revalidar» sin cambiar el estado. `11_reverificacion/m5-revisar-en-ready.png`, `rv-listo-final.png`. |
-| **A-1** — aviso de material sin costo | **PARCIAL** | El material `QA-NC-1717` quedó «Sin costo» y el terminal del operador muestra `aviso-material-sin-costo` con el nombre del material y la salida «pausa la sesión». No se pudo llegar al modal `error-cierre-accion`: el servidor responde «El material seleccionado no corresponde a la partida» (regla de negocio: el material debe pertenecer a la partida). El modal y la salida «Pausar sesión y avisar» siguen cubiertos por `tests/unitarias/detalle-proceso-operador.test.ts`. `11_reverificacion/a1-material.md`, `a1-aviso-preventivo.png`. |
-| **M-4** — rechazo con nota y re-solicitud | **NO REPRODUCIBLE en producción** | No existía ninguna solicitud `SOLICITADA`. Con autorización expresa se bajó la jornada de `LASER-01` de 9 h a 0,5 h, se esperó a superarla y se **restauró a 9 h** al terminar. La sesión se auto-pausó al cumplir la jornada; el paso obligatorio «Actualizar avance» (C21) reduce las horas netas y anula el exceso, y al cerrar la pausa aparece primero `consumo_material_requerido`. No hay forma de alcanzar `horas_extra_sin_autorizacion` desde la UI sin sembrar datos por SQL. La corrección sigue cubierta por `tests/unitarias/produccion-horas-extra-rechazo.test.ts` y desplegada. `11_reverificacion/m4-jornada-original.md`, traza `11_reverificacion`. |
+| **M-3** — activar prospecto desde la ficha RFQ | **OK** | Con `CLI-0039` prospecto ligado a `RFQ-1126_09`, el botón `rfq-activar-cliente` aparece en la ficha; al pulsarlo desaparece, el cliente pasa a activo y el cambio persiste tras recargar. |
+| **M-5** — rama READY | **OK** | El mismo RFQ se llevó a `READY_FOR_PROPOSAL` (ítems, archivos CAD/DIBUJO y seguimiento). Aparece la pestaña Revisar con «Revisar el RFQ tras la edición», «No hay cambios de estado pendientes», checklist de 5 secciones sin faltantes y «Revalidar» sin cambiar el estado. |
+| **A-1** — aviso de material sin costo | **PARCIAL** | El material `QA-NC-1717` quedó «Sin costo» y el terminal del operador muestra `aviso-material-sin-costo` con el nombre del material y la salida «pausa la sesión». No se pudo llegar al modal `error-cierre-accion`: el servidor responde «El material seleccionado no corresponde a la partida» (regla de negocio: el material debe pertenecer a la partida). El modal y la salida «Pausar sesión y avisar» siguen cubiertos por `tests/unitarias/detalle-proceso-operador.test.ts`. |
+| **M-4** — rechazo con nota y re-solicitud | **NO REPRODUCIBLE en producción** | No existía ninguna solicitud `SOLICITADA`. Con autorización expresa se bajó la jornada de `LASER-01` de 9 h a 0,5 h, se esperó a superarla y se **restauró a 9 h** al terminar. La sesión se auto-pausó al cumplir la jornada; el paso obligatorio «Actualizar avance» (C21) reduce las horas netas y anula el exceso, y al cerrar la pausa aparece primero `consumo_material_requerido`. No hay forma de alcanzar `horas_extra_sin_autorizacion` desde la UI sin sembrar datos por SQL. La corrección sigue cubierta por `tests/unitarias/produccion-horas-extra-rechazo.test.ts` y desplegada. |
 
 **Estado de la configuración:** la jornada de `LASER-01` quedó restaurada a **9 h** (`m4-jornada-restaurada` en verde). Los datos QA creados quedan documentados como tales y no se borraron.
 
