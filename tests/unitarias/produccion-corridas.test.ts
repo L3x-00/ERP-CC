@@ -252,3 +252,16 @@ describe('mappers B6', () => {
     });
   });
 });
+
+describe('errores de avance de sesión con salida clara', () => {
+  it('explica la causa y qué hacer cuando la sesión no corresponde a la orden', () => {
+    const mensaje = mensajeErrorSesion(new ErrorProduccion('sesion_partida_inconsistente'));
+    expect(mensaje).toContain('no corresponde a una partida');
+    expect(mensaje).toContain('Actualiza el tablero');
+  });
+
+  it('no cae en el mensaje genérico para programación o recurso inexistentes', () => {
+    expect(mensajeErrorSesion(new ErrorProduccion('programacion_inexistente'))).toContain('vuelve a reclamar');
+    expect(mensajeErrorSesion(new ErrorProduccion('recurso_inexistente'))).toContain('administración');
+  });
+});

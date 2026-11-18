@@ -86,14 +86,22 @@ export function TarjetaOrdenMisProcesos({
             proceso.reclamo === null
             && proceso.columna !== 'lista'
             && (proceso.piezasDisponibles === null || proceso.piezasDisponibles > 0);
-          const puedeGestionar = proceso.reclamadoPorMi || puedeReclamar;
+          const completado = estado === 'terminado'
+            || proceso.columna === 'lista'
+            || (proceso.metaPiezas > 0 && proceso.hechoPiezas >= proceso.metaPiezas);
+          const pendienteAvance = proceso.pendienteActualizacionAvance;
+          const puedeGestionar = completado
+            ? pendienteAvance
+            : (proceso.reclamadoPorMi || puedeReclamar);
           const puedeIniciar = puedeGestionar && proceso.puedeIniciar;
           const puedeReanudar = puedeGestionar && proceso.puedeReanudar;
-          const etiquetaGestion = puedeGestionar
-            ? 'Gestionar proceso'
-            : proceso.piezasDisponibles === 0
-              ? `No hay piezas disponibles para ${verboProceso(proceso.procesoNombre, proceso.areaMacro)}`
-              : proceso.motivoNoInicia ?? 'Proceso no disponible';
+          const etiquetaGestion = completado
+            ? (pendienteAvance ? 'Revisar avance pendiente' : 'Proceso completado')
+            : puedeGestionar
+              ? 'Gestionar proceso'
+              : proceso.piezasDisponibles === 0
+                ? `No hay piezas disponibles para ${verboProceso(proceso.procesoNombre, proceso.areaMacro)}`
+                : proceso.motivoNoInicia ?? 'Proceso no disponible';
           const puedeLiberar =
             puedeGestionar
             && proceso.reclamo !== null
@@ -216,6 +224,7 @@ export function TarjetaOrdenMisProcesos({
 
                 <button
                   type="button"
+                  data-testid={`gestionar-proceso-${proceso.id}`}
                   disabled={!puedeGestionar || procesando !== null}
                   onClick={() => onGestionar(proceso)}
                   className={

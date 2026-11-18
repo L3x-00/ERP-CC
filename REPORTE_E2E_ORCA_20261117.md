@@ -319,3 +319,19 @@ El panel «Costeo interno» permitía un solo costeo por categoría. Ahora se ca
 - **Cobertura:** nuevos tests de acciones y de UI (varios costeos, limpieza del formulario, edición y borrado), E2E de propuestas actualizado. Suite completa **338 archivos / 2932 pruebas en verde**, `tsc`, ESLint y `next build` correctos.
 
 **Orden de despliegue (bloqueante):** el PO debe aplicar la migración en remoto **antes** de desplegar este código. Si se despliega primero, las acciones fallarían con `function public.guardar_costo_revision(...) does not exist` (caso documentado en `docs/CUELLOS-DE-BOTELLA.md`). Por eso el commit queda preparado localmente y se empuja solo después de aplicar el SQL.
+
+---
+
+## 18. Ajustes del panel de operador (2026-11-18)
+
+Correcciones de visualización y coherencia, sin cambiar reglas de negocio de meta, jornada ni capacidad.
+
+- **Cierre visual del avance:** al guardar «Actualizar avance y hora real», el formulario se cierra y deja una confirmación verde «Avance y hora real actualizados correctamente». Antes el formulario seguía abierto aunque el guardado ya se había aplicado.
+- **PIN obligatorio:** el campo «PIN de operador» del avance ahora está marcado como obligatorio y validado antes de enviar; si falta, el diálogo indica exactamente «Escribe tu PIN de 4 a 6 dígitos…». El formulario usa `noValidate` para mostrar el mensaje del ERP en lugar del aviso nativo del navegador.
+- **Errores accionables:** se tradujeron los códigos SQL que antes caían en «No se pudo registrar la sesión de producción» (`sesion_partida_inconsistente`, `programacion_inexistente`, `recurso_inexistente`) y se añadieron salidas concretas para exceso de piezas, montos inválidos y sesión/orden ya no editable. El diálogo ya no dice «elige una de las opciones» cuando no hay ninguna.
+- **Avance 100 % vs 90 %:** el porcentaje del kanban y de la tarjeta de orden ahora se calcula con la misma fuente que el detalle del proceso (`registros_avance_partida` de la meta final), en lugar del contador desnormalizado de la partida.
+- **«Gestionar proceso»:** se deshabilita cuando la producción ya se completó (o la columna es «Lista»), salvo que exista avance pendiente; en ese caso la etiqueta dice «Revisar avance pendiente». El estado «Terminado» se evalúa antes que «Pausado».
+- **Calendario:** un reclamo activo queda adjunto al proceso incluso si su clave de meta cambió (fallbacks en el join), y la sección «Por asignar» excluye todo proceso ya reclamado. Se añadió `data-testid="por-asignar"`.
+- **Orden vencida:** se confirmó que la fecha de compromiso solo afecta la urgencia visual; no interviene en estados, porcentajes ni botones.
+
+**Verificación:** tests nuevos de cierre visual/PIN, tarjeta completada, coherencia de porcentaje y traducción de errores; suite completa **338 archivos / 2938 pruebas en verde**, `tsc`, ESLint y `next build` correctos. Un timeout aislado en `rfq-alta-modal` durante la primera pasada se reprodució verde al repetir el archivo y la suite completa.

@@ -260,17 +260,29 @@ describe('agruparProcesosPorOrden', () => {
     expect(grupos.map((grupo) => grupo.folioOrden)).toEqual(['OP-0001', 'OP-0002']);
   });
 
-  it('usa el avance acumulado de la partida, no el de la operación visible', () => {
+  it('el porcentaje del kanban usa el mismo avance que el detalle del proceso', () => {
     const grupos = agruparProcesosPorOrden([
       crearProceso({
         partidaId: 'partida-1', cantidadProducida: 4, cantidadSolicitada: 10,
-        hechoPiezas: 0, metaPiezas: 10,
+        hechoPiezas: 4, metaPiezas: 10,
       }),
     ]);
 
     expect(grupos[0]?.items[0]?.cantidadProducida).toBe(4);
     expect(grupos[0]?.items[0]?.porcentaje).toBe(40);
     expect(grupos[0]?.porcentaje).toBe(40);
+  });
+
+  it('si el contador de la partida diverge, manda el avance real del proceso', () => {
+    const grupos = agruparProcesosPorOrden([
+      crearProceso({
+        partidaId: 'partida-1', cantidadProducida: 10, cantidadSolicitada: 10,
+        hechoPiezas: 9, metaPiezas: 10,
+      }),
+    ]);
+
+    expect(grupos[0]?.items[0]?.porcentaje).toBe(90);
+    expect(grupos[0]?.porcentaje).toBe(90);
   });
 
   it('no inventa ítems sin procesos en el conjunto recibido', () => {

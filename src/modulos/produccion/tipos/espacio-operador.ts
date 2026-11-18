@@ -321,6 +321,12 @@ export function procesoRepresentativoItem(
  * que comparten columna. Se reutiliza para el agrupado por orden completa y para
  * el agrupado por orden × columna del Kanban.
  */
+/** Único cálculo de avance para kanban y detalle: piezas hechas sobre meta, acotado a 0–100. */
+function porcentajeAvance(hecho: number, meta: number): number {
+  if (meta <= 0) return 0;
+  return Math.min(100, Math.max(0, (hecho / meta) * 100));
+}
+
 function construirGrupoOrden(
   delOrden: readonly ProcesoEspacioOperador[],
   columna: ColumnaEspacioOperador,
@@ -336,9 +342,11 @@ function construirGrupoOrden(
   const items: ItemOrdenEspacioOperador[] = [...porPartida.values()]
     .map((delItem) => {
       const referencia = delItem[0];
-      const porcentaje = referencia.cantidadSolicitada > 0
-        ? Math.min((referencia.cantidadProducida / referencia.cantidadSolicitada) * 100, 100)
-        : 0;
+      // La meta final es la que governa el avance del ítem (misma regla que la
+      // RPC de actualización). Así el porcentaje del kanban coincide con el del
+      // detalle del proceso, que lee registros_avance_partida.
+      const metaFinal = [...delItem].sort((a, b) => b.secuencia - a.secuencia)[0];
+      const porcentaje = porcentajeAvance(metaFinal?.hechoPiezas ?? 0, metaFinal?.metaPiezas ?? 0);
       return {
         partidaId: referencia.partidaId,
         codigoPieza: referencia.codigoPieza,
@@ -387,7 +395,10 @@ function construirGrupoOrden(
     cantidadProducida,
     cantidadSolicitada,
     porcentaje: cantidadSolicitada > 0
-      ? Math.min((cantidadProducida / cantidadSolicitada) * 100, 100)
+      ? Math.min(100, items.reduce(
+          (total, item) => total + item.porcentaje * item.cantidadSolicitada,
+          0,
+        ) / cantidadSolicitada)
       : 0,
   };
 }
