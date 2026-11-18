@@ -1,12 +1,11 @@
-import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, iniciarSesionOperador, captura, registrar, escribirNota } from './driver.mjs';
+import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, iniciarSesionOperador, descartarModalTipoCambio, captura, registrar, escribirNota } from './driver.mjs';
 const navegador = await abrirNavegador();
 const resultados = [];
 try {
   const c1 = await nuevoContexto(navegador);
   const p1 = await c1.newPage();
   await iniciarSesionAdmin(p1, process.env.E2E_ADMIN_EMAIL ?? '', process.env.E2E_ADMIN_PASSWORD ?? '');
-  const mt = p1.getByTestId('tipo-cambio-diario-mas-tarde');
-  if (await mt.count()) await mt.click();
+  await descartarModalTipoCambio(p1);
   await p1.getByTestId('menu-usuario').click();
   const items = await p1.getByRole('menuitem').evaluateAll((ns) => ns.map((n) => n.innerText.trim()).filter(Boolean));
   const cs = p1.getByTestId('cerrar-sesion');

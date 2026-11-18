@@ -259,3 +259,25 @@ Tras el despliegue del commit que cierra B-1/B-2/B-3 se ejecutan, contra `https:
 | `_scripts/etapa9b-logout-final.mjs` | B-3: logout de admin y de operador con navegación confirmada. |
 
 A-1, M-3 y M-4 requieren generar escenarios nuevos en producción (material sin costo confirmado, cliente prospecto con RFQ y sesión que exceda la jornada); su corrección queda cubierta por los tests unitarios y por el código desplegado, y se documenta como pendiente de escenario en la re-verificación.
+
+---
+
+## 14. Resultado de la re-verificación en producción (2026-11-17, tras el despliegue)
+
+Ejecutada contra `https://erp-cc-flame.vercel.app` reutilizando el caso `RFQ-1126_08` / `O-1126_07` / `CNC-1126_08`. Sin borrado ni modificación de datos de negocio. Evidencia nueva en `evidencias_e2e_ORCA_20261117/11_reverificacion/` y en `08_documentos/`.
+
+| Comprobación | Resultado | Evidencia |
+|---|---|---|
+| M-1 — aviso desde el enlace histórico `/pipeline?oportunidad=…` | **OK** — redirect a `/rfq` con el aviso «La oportunidad se gestiona en el RFQ». | `11_reverificacion/resultado.md` |
+| M-2 — vista histórica de adjuntos en la pestaña Archivos del RFQ | **OK** — `adjuntos-oportunidad-rfq` visible con el texto de solo consulta. | `11_reverificacion/rfq-m2-m5.png` |
+| M-5 — RFQ del caso en estado terminal | **OK** — la pestaña Revisar correctamente **no** aparece en `Convertido` (regla de negocio). | `11_reverificacion/resultado.md` |
+| M-5 — código de re-validación desplegado | **OK** — el bundle servido contiene «Revisar el RFQ tras la edición». La rama funcional READY queda cubierta por los 3 tests unitarios (no había RFQ en READY en producción: los 8 están convertidos). | `11_reverificacion/resultado.md` |
+| B-1 — horas reales pequeñas | **OK** — el cierre muestra «HORAS REALES 0,01 h», «Cotizaste 6,3 h y usaste 0,01 h» y «Corte laser 2,5 h / 0,01 h», frente al «0.0 h» original. | `11_reverificacion/cierre-administrativo-b1.png` |
+| B-2 — PDF de la propuesta B | **OK** — descarga directa capturada con `waitForEvent('download')`; archivo de 4,476 bytes. | `08_documentos/propuesta-CNC-1126_08-B-Propuesta_CNC-1126_08-B.pdf` |
+| B-2 — acta de entrega | **OK** — descarga directa desde la pestaña Entregas de la ficha de orden; archivo de 4,716 bytes. | `08_documentos/acta-entrega-NE-O-1126_07-01-Nota_de_entrega_NE-O-1126_07-01.pdf` |
+| B-3 — logout admin | **OK** — `menu-usuario` → `cerrar-sesion` → navegación a `/iniciar-sesion`. | `00_sesion/logout-admin-confirmado.png`, `00_sesion/logout-final.md` |
+| B-3 — logout operador | **OK** — menú de cuenta → `salir-operador` → `/operador` con teclado PIN visible. | `00_sesion/logout-operador-confirmado.png` |
+
+**Incidencias de la propia re-verificación (corregidas en el arnés, no en el producto):** carrera entre el login y el modal de tipo de cambio (resuelto con el helper `descartarModalTipoCambio`), lectura del comparativo antes de que cargara (espera explícita a «Horas reales») y búsqueda del acta en `/entregas` en lugar de la pestaña Entregas de la orden.
+
+**Pendiente de escenario** (no de código): verificación funcional en producción de A-1 (material sin costo confirmado), M-3 (cliente prospecto con RFQ) y M-4 (sesión con exceso de jornada). Requieren generar datos nuevos; sus correcciones están desplegadas y cubiertas por tests unitarios.

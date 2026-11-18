@@ -1,4 +1,4 @@
-import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, iniciarSesionOperador, captura, registrar, escribirNota } from './driver.mjs';
+import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, iniciarSesionOperador, descartarModalTipoCambio, captura, registrar, escribirNota } from './driver.mjs';
 const navegador = await abrirNavegador();
 const resultados = [];
 try {
@@ -6,8 +6,7 @@ try {
   const p1 = await c1.newPage();
   await iniciarSesionAdmin(p1, process.env.E2E_ADMIN_EMAIL ?? '', process.env.E2E_ADMIN_PASSWORD ?? '');
   // El modal Radix de tipo de cambio marca el resto de la página como aria-hidden.
-  const mt = p1.getByTestId('tipo-cambio-diario-mas-tarde');
-  if (await mt.count()) await mt.click();
+  await descartarModalTipoCambio(p1);
   await p1.getByTestId('menu-usuario').click();
   // B-3: «Cerrar sesión» es role=menuitem (no button) y tiene testid estable.
   const cs = p1.getByTestId('cerrar-sesion');

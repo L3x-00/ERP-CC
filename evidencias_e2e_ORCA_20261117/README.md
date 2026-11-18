@@ -15,9 +15,10 @@ Reporte único: `../REPORTE_E2E_ORCA_20261117.md`.
 | `05_produccion/` | Asignación en Planeación, liberación de `O-1126_07`, tablero del operador, detalle de proceso, pausas y sesiones. |
 | `06_horas_extra/` | Sin archivos: no se generó exceso de jornada en el caso; el flujo existe en código pero no se pudo provocar (ver incidencia M-4 del reporte). |
 | `07_entrega_cobro/` | Cierre de piezas, consumo y error de MDF-12, entrega `NE-O-1126_07-01`, cobro `INVCNC-0000033`, cierre administrativo. |
-| `08_documentos/` | Capturas del panel de PDF de la propuesta aprobada, ficha de orden y cierre. No se logró guardar el binario PDF en headless (B-2). |
+| `08_documentos/` | Capturas del panel de PDF de la propuesta aprobada, ficha de orden y cierre. Tras B-2 se guardan además los binarios `propuesta-CNC-1126_08-B-Propuesta_CNC-1126_08-B.pdf` y `acta-entrega-NE-O-1126_07-01-Nota_de_entrega_NE-O-1126_07-01.pdf` (descarga directa, sin popup). |
 | `09_ultimo_cambio/` | Pruebas C20/C21: textos de jornada, cierre en marcha ×2, formulario «Tiempo real de proceso», modal con soluciones, dos sesiones pausadas, enlace «ver el proceso anterior», sin borrado de sesiones, badge «Proceso completado». |
 | `10_validacion_tecnica/` | Verificación de catálogo/costos y registro del cambio global de catálogo (MDF-12 $320). |
+| `11_reverificacion/` | Re-verificación en producción tras el despliegue: aviso M-1, adjuntos M-2, estado terminal y bundle de M-5, y horas reales 0,01 h de B-1 (`resultado.md` + capturas). |
 | `_scripts/` | Scripts Playwright ejecutados, `estado-caso.json` y `traza.jsonl` (eventos con ISO + hora Tijuana, usuario, etapa, acción, resultado y detalle). |
 
 ## Convención de nombres

@@ -1,6 +1,6 @@
 // Re-verificación en producción tras el despliegue de A-1, M-1..M-5 y B-1..B-3.
 // Reutiliza el caso creado el 2026-11-17 (estado-caso.json) y no borra datos.
-import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, captura, registrar, escribirNota } from './driver.mjs';
+import { abrirNavegador, nuevoContexto, iniciarSesionAdmin, descartarModalTipoCambio, captura, registrar, escribirNota } from './driver.mjs';
 import { readFileSync } from 'node:fs';
 
 const ESTADO = JSON.parse(readFileSync('evidencias_e2e_ORCA_20261117/_scripts/estado-caso.json', 'utf8'));
@@ -19,8 +19,7 @@ function verificar(id, ok, detalle = {}) {
 
 try {
   await iniciarSesionAdmin(pagina, process.env.E2E_ADMIN_EMAIL ?? '', process.env.E2E_ADMIN_PASSWORD ?? '');
-  const masTarde = pagina.getByTestId('tipo-cambio-diario-mas-tarde');
-  if (await masTarde.count()) await masTarde.click();
+  await descartarModalTipoCambio(pagina);
 
   // M-1: el enlace histórico /pipeline sigue aclarando el modelo en /rfq.
   await pagina.goto(`/pipeline?oportunidad=${ESTADO.rfqId}`, { waitUntil: 'networkidle' });
@@ -39,21 +38,47 @@ try {
   verificar('M-2-adjuntos-historicos', (await adjuntos.innerText()).includes('Adjuntos de la oportunidad'));
 
   const pestanaRevisar = pagina.getByRole('tab', { name: 'Revisar' });
-  verificar('M-5-pestana-revisar-en-ready', (await pestanaRevisar.count()) > 0, {
-    estado: ESTADO.rfqEstado,
-  });
-  if (await pestanaRevisar.count()) {
-    await pestanaRevisar.click();
-    const panel = pagina.getByTestId('panel-revision-rfq');
-    await panel.waitFor({ state: 'visible' });
-    const texto = await panel.innerText();
-    verificar(
-      'M-5-texto-revalidacion',
-      texto.includes('Revisar el RFQ tras la edición') &&
-        texto.includes('No hay cambios de estado pendientes') &&
-        !texto.includes('Marcar listo para propuesta'),
-      { extracto: texto.slice(0, 220) },
-    );
+  const textoFicha = await pagina.getByTestId('ficha-rfq').innerText();
+  const esTerminal = textoFicha.includes('Convertido') || textoFicha.includes('estado terminal');
+  if (esTerminal) {
+    // El RFQ del caso ya se convirtió en propuesta/orden: la pestaña Revisar
+    // NO debe aparecer (regla de negocio). Se comprueba el bundle desplegado.
+    verificar('M-5-estado-terminal-sin-revisar', (await pestanaRevisar.count()) === 0, {
+      motivo: 'RFQ convertido; la re-validación solo aplica a INCOMPLETE/READY',
+    });
+    const recursos = await pagina
+      .locator('script[src]')
+      .evaluateAll((ns) => ns.map((n) => n.getAttribute('src')).filter(Boolean));
+    let codigoDesplegado = false;
+    for (const src of recursos) {
+      const url = new URL(src, pagina.url()).toString();
+      const respuesta = await pagina.request.get(url);
+      const cuerpo = await respuesta.text();
+      if (cuerpo.includes('Revisar el RFQ tras la edición')) {
+        codigoDesplegado = true;
+        break;
+      }
+    }
+    verificar('M-5-codigo-desplegado', codigoDesplegado, {
+      nota: 'El texto nuevo de re-validación está en el bundle servido en producción',
+    });
+  } else {
+    verificar('M-5-pestana-revisar-en-ready', (await pestanaRevisar.count()) > 0, {
+      estado: ESTADO.rfqEstado,
+    });
+    if (await pestanaRevisar.count()) {
+      await pestanaRevisar.click();
+      const panel = pagina.getByTestId('panel-revision-rfq');
+      await panel.waitFor({ state: 'visible' });
+      const texto = await panel.innerText();
+      verificar(
+        'M-5-texto-revalidacion',
+        texto.includes('Revisar el RFQ tras la edición') &&
+          texto.includes('No hay cambios de estado pendientes') &&
+          !texto.includes('Marcar listo para propuesta'),
+        { extracto: texto.slice(0, 220) },
+      );
+    }
   }
   await captura(pagina, '11_reverificacion', 'rfq-m2-m5', { usuario: 'admin' });
 
@@ -62,6 +87,8 @@ try {
   await pagina.getByTestId('cierre-fila-O-1126_07').click();
   const detalle = pagina.getByTestId('detalle-cierre-administrativo');
   await detalle.waitFor({ state: 'visible' });
+  // El comparativo llega por query: esperar a que reemplace a «Cargando…».
+  await detalle.getByText('Horas reales', { exact: true }).waitFor({ state: 'visible', timeout: 25000 });
   const textoDetalle = await detalle.innerText();
   verificar(
     'B-1-horas-pequenas-visibles',

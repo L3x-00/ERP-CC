@@ -96,6 +96,21 @@ export async function dumpPantalla(pagina) {
   return { titulo, url, h1, enlaces, botones, testids };
 }
 
+/**
+ * El recordatorio de tipo de cambio se abre justo después del login y su
+ * overlay (`pointer-events:none` en el resto de la página) bloquea clics
+ * posteriores. Esperarlo y descartarlo evita la carrera del sondeo inicial.
+ */
+export async function descartarModalTipoCambio(pagina) {
+  const dialogo = pagina.getByRole('dialog', { name: /Tipo de cambio/ });
+  await dialogo.waitFor({ state: 'visible', timeout: 6000 }).catch(() => undefined);
+  if (await dialogo.count()) {
+    const masTarde = dialogo.getByTestId('tipo-cambio-diario-mas-tarde');
+    if (await masTarde.count()) await masTarde.click();
+    await dialogo.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => undefined);
+  }
+}
+
 export function escribirNota(etapa, nombre, contenido) {
   const dir = path.join(EVID, etapa);
   mkdirSync(dir, { recursive: true });
