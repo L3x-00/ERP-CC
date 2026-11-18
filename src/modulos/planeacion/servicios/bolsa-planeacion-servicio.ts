@@ -59,6 +59,35 @@ export function horasSugeridas(estimadoMinutos: number): number {
   return Math.max(0.25, Math.round(horas * 100) / 100);
 }
 
+/** Horas válidas de una operación según el ruteo (0 < horas <= 24). */
+export function horasRuteoValidas(horas: number | null | undefined): number | null {
+  if (horas === null || horas === undefined) return null;
+  if (!Number.isFinite(horas) || horas <= 0 || horas > 24) return null;
+  return Math.round(horas * 100) / 100;
+}
+
+/**
+ * Horas con las que se sugiere programar la operación pendiente.
+ *
+ * El ruteo de la propuesta guarda `total_horas` por operación (p. ej. 4 h de
+ * corte y 3 h de doblado). Cuando esa duración falta, el estimado total de la
+ * partida solo es válido si la partida tiene una única operación: usarlo en una
+ * partida con varias sobrecarga la primera máquina con el total y satura su
+ * jornada (defecto reportado 2026-11-18, O-1126_09). Con varias operaciones sin
+ * duración por operación no se sugiere un hueco a ciegas: Planeación lo captura
+ * manualmente operación por operación.
+ */
+export function horasOperacionSugeridas(entrada: {
+  horasRuteo: number | null | undefined;
+  estimadoMinutos: number;
+  cantidadOperaciones: number;
+}): number | null {
+  const horasRuteo = horasRuteoValidas(entrada.horasRuteo);
+  if (horasRuteo !== null) return horasRuteo;
+  if (entrada.cantidadOperaciones <= 1) return horasSugeridas(entrada.estimadoMinutos);
+  return null;
+}
+
 /** Siguiente secuencia libre de una partida a partir de las existentes. */
 export function siguienteSecuencia(secuencias: readonly number[]): number {
   const maxima = secuencias.reduce((mayor, valor) => Math.max(mayor, valor), 0);
@@ -118,7 +147,7 @@ type FilaMeta = Pick<
 >;
 type FilaRuteo = Pick<
   Database['public']['Tables']['propuesta_item_ruteo']['Row'],
-  'item_id' | 'secuencia' | 'grupo_equipo_id'
+  'item_id' | 'secuencia' | 'grupo_equipo_id' | 'total_horas'
 >;
 type FilaProceso = Pick<
   Database['public']['Tables']['catalogo_procesos']['Row'],
@@ -252,7 +281,7 @@ export async function obtenerBolsaPlaneacionServicio(
     itemIds.length === 0
       ? Promise.resolve({ data: [] as FilaRuteo[], error: null })
       : cliente.from('propuesta_item_ruteo')
-          .select('item_id, secuencia, grupo_equipo_id')
+          .select('item_id, secuencia, grupo_equipo_id, total_horas')
           .in('item_id', itemIds),
     cliente.from('catalogo_procesos').select('codigo, nombre, grupo_equipo_id'),
     cliente.from('grupos_equipo').select('id, nombre'),
@@ -268,6 +297,14 @@ export async function obtenerBolsaPlaneacionServicio(
     ((ruteoRespuesta.data ?? []) as FilaRuteo[]).map((ruteo) => [
       `${ruteo.item_id}:${ruteo.secuencia}`,
       ruteo.grupo_equipo_id,
+    ]),
+  );
+  // Cada operación del ruteo trae su propia duración; el total de la partida no
+  // sirve para repartirla entre máquinas distintas.
+  const horasRuteoPorClave = new Map<string, number | null>(
+    ((ruteoRespuesta.data ?? []) as FilaRuteo[]).map((ruteo) => [
+      `${ruteo.item_id}:${ruteo.secuencia}`,
+      ruteo.total_horas,
     ]),
   );
   const grupoPorProceso = new Map<string, string | null>();
@@ -388,6 +425,17 @@ export async function obtenerBolsaPlaneacionServicio(
   for (const partida of sinPlanOrdenado) {
     const item = aBolsa(partida);
     const pendiente = operacionPendiente(partida.id);
+    const operacionesDePartida = metasPorPartida.get(partida.id) ?? [];
+    // El hueco se busca con las horas de ESA operación (ruteo), no con el total
+    // de la partida: 7 h de corte + doblado no caben ni corresponden a láser.
+    const horasOperacion = horasOperacionSugeridas({
+      horasRuteo: pendiente && partida.propuesta_item_id
+        ? horasRuteoPorClave.get(`${partida.propuesta_item_id}:${pendiente.secuencia}`)
+        : null,
+      estimadoMinutos: item.estimadoMinutos,
+      cantidadOperaciones: operacionesDePartida.length,
+    });
+    if (horasOperacion === null) continue;
     // Punto 5b: la sugerencia nunca ofrece una máquina fuera del grupo de la
     // operación; el aviso del ruteo se evita antes de tocar la RPC.
     const grupoRequerido = resolverGrupoRequeridoBolsa({
@@ -399,13 +447,13 @@ export async function obtenerBolsaPlaneacionServicio(
     });
     const cargasCompatibles = cargasRestantes.filter((carga) =>
       esRecursoCompatibleBolsa(carga.recursoId, grupoRequerido, grupoPorRecurso));
-    const hueco = elegirHueco(item.horas, cargasCompatibles, codigoPorRecurso, item.fechaCompromiso);
+    const hueco = elegirHueco(horasOperacion, cargasCompatibles, codigoPorRecurso, item.fechaCompromiso);
     if (!hueco) {
       // Sólo se explica el bloqueo cuando la causa es el grupo de equipo; si el
       // horizonte entero está lleno, la partida simplemente no se sugiere.
       if (grupoRequerido) {
         const hayHuecoEnOtroGrupo =
-          elegirHueco(item.horas, cargasRestantes, codigoPorRecurso, item.fechaCompromiso) !== null;
+          elegirHueco(horasOperacion, cargasRestantes, codigoPorRecurso, item.fechaCompromiso) !== null;
         bloqueadasPorEquipo.push({
           ...item,
           grupoRequeridoId: grupoRequerido,
@@ -419,6 +467,7 @@ export async function obtenerBolsaPlaneacionServicio(
     }
     sugerencias.push({
       ...item,
+      horas: horasOperacion,
       recursoId: hueco.carga.recursoId,
       recursoCodigo: codigoPorRecurso.get(hueco.carga.recursoId) ?? 'Recurso',
       fecha: hueco.carga.fechaProgramada,
@@ -436,9 +485,9 @@ export async function obtenerBolsaPlaneacionServicio(
     if (indice >= 0) {
       cargasRestantes[indice] = {
         ...hueco.carga,
-        horasDisponibles: hueco.carga.horasDisponibles - item.horas,
-        horasProgramadas: hueco.carga.horasProgramadas + item.horas,
-        sobrecargado: hueco.carga.horasDisponibles - item.horas < 0,
+        horasDisponibles: hueco.carga.horasDisponibles - horasOperacion,
+        horasProgramadas: hueco.carga.horasProgramadas + horasOperacion,
+        sobrecargado: hueco.carga.horasDisponibles - horasOperacion < 0,
       };
     }
     if (sugerencias.length >= 12) break;

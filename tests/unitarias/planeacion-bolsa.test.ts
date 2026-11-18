@@ -4,6 +4,8 @@ import type { Database } from '@/compartido/tipos/supabase';
 import {
   elegirHueco,
   esRecursoCompatibleBolsa,
+  horasOperacionSugeridas,
+  horasRuteoValidas,
   horasSugeridas,
   obtenerBolsaPlaneacionServicio,
   resolverGrupoRequeridoBolsa,
@@ -132,6 +134,37 @@ describe('PLA-05: bolsa de trabajo y huecos', () => {
     expect(horasSugeridas(60)).toBe(1);
     expect(horasSugeridas(90)).toBe(1.5);
     expect(horasSugeridas(95)).toBe(1.58);
+  });
+
+  it('usa la duración de la operación del ruteo, no el total de la partida (O-1126_09)', () => {
+    // Corte láser 4 h + doblado 3 h: el total de la partida son 7 h, pero cada
+    // máquina debe recibir solo su operación.
+    expect(horasOperacionSugeridas({
+      horasRuteo: 4,
+      estimadoMinutos: 420,
+      cantidadOperaciones: 2,
+    })).toBe(4);
+    expect(horasOperacionSugeridas({
+      horasRuteo: 3,
+      estimadoMinutos: 420,
+      cantidadOperaciones: 2,
+    })).toBe(3);
+    expect(horasRuteoValidas(0)).toBeNull();
+    expect(horasRuteoValidas(25)).toBeNull();
+    expect(horasRuteoValidas(null)).toBeNull();
+  });
+
+  it('solo cae al estimado total cuando la partida tiene una única operación', () => {
+    expect(horasOperacionSugeridas({
+      horasRuteo: null,
+      estimadoMinutos: 120,
+      cantidadOperaciones: 1,
+    })).toBe(2);
+    expect(horasOperacionSugeridas({
+      horasRuteo: null,
+      estimadoMinutos: 420,
+      cantidadOperaciones: 2,
+    })).toBeNull();
   });
 
   it('calcula la siguiente secuencia libre de la partida', () => {
@@ -371,5 +404,141 @@ describe('PLA-05: bolsa de trabajo y huecos', () => {
       recursoId: 'recurso-1',
       metaProcesoId: 'meta-1',
     });
+  });
+
+  it('sugiere el corte con sus 4 h y no las 7 h totales de la partida (O-1126_09)', async () => {
+    const { cliente } = crearClienteDeSoloLectura({
+      ordenes_produccion: [{
+        id: 'orden-1',
+        folio: 'O-1126_09',
+        estado: 'programada',
+        estado_sii: 'PLANIFICADA',
+      }],
+      partidas_orden_produccion: [{
+        id: 'partida-1',
+        orden_id: 'orden-1',
+        codigo_pieza: 'IT01',
+        area_trabajo_codigo: 'taller',
+        procesos: ['Corte laser', 'Doblado'],
+        tiempo_estimado_minutos: 420,
+        maquina_asignada: null,
+        propuesta_item_id: 'item-1',
+      }],
+      programacion_areas: [],
+      metas_proceso_partida: [
+        { id: 'meta-1', partida_id: 'partida-1', secuencia: 1, nombre: 'Corte laser' },
+        { id: 'meta-2', partida_id: 'partida-1', secuencia: 2, nombre: 'Doblado' },
+      ],
+      propuesta_item_ruteo: [
+        { item_id: 'item-1', secuencia: 1, grupo_equipo_id: 'grupo-laser', total_horas: 4 },
+        { item_id: 'item-1', secuencia: 2, grupo_equipo_id: 'grupo-doblez', total_horas: 3 },
+      ],
+      catalogo_procesos: [
+        { codigo: 'Corte laser', nombre: 'Corte laser', grupo_equipo_id: 'grupo-laser' },
+        { codigo: 'Doblado', nombre: 'Doblado', grupo_equipo_id: 'grupo-doblez' },
+      ],
+      grupos_equipo: [
+        { id: 'grupo-laser', nombre: 'Láser' },
+        { id: 'grupo-doblez', nombre: 'Doblez' },
+      ],
+      recursos_planeacion: [{ id: 'recurso-1', codigo: 'LASER-01', grupo_equipo_id: 'grupo-laser' }],
+    });
+
+    const bolsa = await obtenerBolsaPlaneacionServicio(cliente, cliente, '2026-10-18');
+
+    expect(bolsa.sugerencias).toHaveLength(1);
+    expect(bolsa.sugerencias[0]).toMatchObject({
+      folio: 'O-1126_09',
+      metaProcesoId: 'meta-1',
+      operacionNombre: 'Corte laser',
+      secuencia: 1,
+      horas: 4,
+    });
+  });
+
+  it('al cubrir el corte sugiere el doblado con sus propias horas', async () => {
+    const { cliente } = crearClienteDeSoloLectura({
+      ordenes_produccion: [{
+        id: 'orden-1',
+        folio: 'O-1126_09',
+        estado: 'programada',
+        estado_sii: 'PLANIFICADA',
+      }],
+      partidas_orden_produccion: [{
+        id: 'partida-1',
+        orden_id: 'orden-1',
+        codigo_pieza: 'IT01',
+        area_trabajo_codigo: 'taller',
+        procesos: ['Corte laser', 'Doblado'],
+        tiempo_estimado_minutos: 420,
+        maquina_asignada: null,
+        propuesta_item_id: 'item-1',
+      }],
+      programacion_areas: [{
+        id: 'programacion-1',
+        partida_id: 'partida-1',
+        secuencia: 1,
+        estado_planeacion: 'programada',
+        fecha_programada: '2026-10-19',
+        meta_proceso_id: 'meta-1',
+      }],
+      metas_proceso_partida: [
+        { id: 'meta-1', partida_id: 'partida-1', secuencia: 1, nombre: 'Corte laser' },
+        { id: 'meta-2', partida_id: 'partida-1', secuencia: 2, nombre: 'Doblado' },
+      ],
+      propuesta_item_ruteo: [
+        { item_id: 'item-1', secuencia: 1, grupo_equipo_id: 'grupo-laser', total_horas: 4 },
+        { item_id: 'item-1', secuencia: 2, grupo_equipo_id: 'grupo-doblez', total_horas: 3 },
+      ],
+      catalogo_procesos: [
+        { codigo: 'Corte laser', nombre: 'Corte laser', grupo_equipo_id: 'grupo-laser' },
+        { codigo: 'Doblado', nombre: 'Doblado', grupo_equipo_id: 'grupo-doblez' },
+      ],
+      grupos_equipo: [
+        { id: 'grupo-laser', nombre: 'Láser' },
+        { id: 'grupo-doblez', nombre: 'Doblez' },
+      ],
+      recursos_planeacion: [{ id: 'recurso-1', codigo: 'DOB-01', grupo_equipo_id: null }],
+    });
+
+    const bolsa = await obtenerBolsaPlaneacionServicio(cliente, cliente, '2026-10-18');
+
+    expect(bolsa.sugerencias).toHaveLength(1);
+    expect(bolsa.sugerencias[0]).toMatchObject({
+      metaProcesoId: 'meta-2',
+      operacionNombre: 'Doblado',
+      secuencia: 2,
+      horas: 3,
+    });
+  });
+
+  it('no reparte el total de la partida entre varias operaciones sin duración de ruteo', async () => {
+    const { cliente } = crearClienteDeSoloLectura({
+      ordenes_produccion: [{
+        id: 'orden-1',
+        folio: 'OP-000001',
+        estado: 'programada',
+        estado_sii: 'PLANIFICADA',
+      }],
+      partidas_orden_produccion: [{
+        id: 'partida-1',
+        orden_id: 'orden-1',
+        codigo_pieza: 'PZA-1',
+        area_trabajo_codigo: 'taller',
+        procesos: ['Corte', 'Doblado'],
+        tiempo_estimado_minutos: 420,
+        maquina_asignada: null,
+      }],
+      programacion_areas: [],
+      metas_proceso_partida: [
+        { id: 'meta-1', partida_id: 'partida-1', secuencia: 1, nombre: 'Corte' },
+        { id: 'meta-2', partida_id: 'partida-1', secuencia: 2, nombre: 'Doblado' },
+      ],
+      recursos_planeacion: [{ id: 'recurso-1', codigo: 'R-01', grupo_equipo_id: null }],
+    });
+
+    const bolsa = await obtenerBolsaPlaneacionServicio(cliente, cliente, '2026-10-18');
+
+    expect(bolsa.sugerencias).toHaveLength(0);
   });
 });
