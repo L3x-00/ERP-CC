@@ -21,6 +21,7 @@ function crearProceso(
       operadorId: string;
       estadoSesion: 'activa' | 'pausada' | 'finalizada';
       horasNetas: number;
+      recursoLiberado?: boolean;
     }>;
   } = {},
 ): ProcesoEspacioOperador {
@@ -30,6 +31,7 @@ function crearProceso(
     estadoSesion: sesion.estadoSesion,
     horasNetas: sesion.horasNetas,
     piezasProducidas: 3,
+    recursoLiberado: sesion.recursoLiberado ?? false,
     fechaInicio: `2026-10-${String(20 + indice).padStart(2, '0')}T08:00:00Z`,
   }));
 
@@ -176,6 +178,26 @@ describe('Mi panel de operador - cálculos', () => {
 
     expect(resultado.pausados).toBe(1);
     expect(resultado.pendientes).toBe(1);
+  });
+
+  it('C22: una pausa reclamada por supervisión no deja el proceso como pausado', () => {
+    const procesos = [
+      crearProceso('liberado', {
+        reclamante: OPERADOR,
+        sesiones: [{
+          operadorId: OPERADOR,
+          estadoSesion: 'pausada',
+          horasNetas: 1,
+          recursoLiberado: true,
+        }],
+      }),
+    ];
+
+    const resultado = obtenerMisProcesos(procesos, OPERADOR);
+    const resumen = resumirMiPanel(resultado, OPERADOR);
+
+    expect(resultado[0]?.estado).toBe('pendiente');
+    expect(resumen.pausados).toBe(0);
   });
 
   it('punto 10: agrupa los procesos personales en una sola orden', () => {

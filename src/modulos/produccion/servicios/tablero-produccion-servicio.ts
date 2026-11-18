@@ -124,7 +124,10 @@ export function obtenerEstadoKanbanProduccion(
   const sesionMasReciente = [...sesiones].sort((primera, segunda) => (
     segunda.actualizadoEn.localeCompare(primera.actualizadoEn)
   ))[0];
-  if (sesionMasReciente?.estadoSesion === 'pausada' || orden.estado === 'pausada') return 'pausada';
+  if (
+    (sesionMasReciente?.estadoSesion === 'pausada' && !sesionMasReciente.recursoLiberado)
+    || orden.estado === 'pausada'
+  ) return 'pausada';
   if (orden.estado === 'en_proceso') return 'en_proceso';
   return 'bandeja';
 }

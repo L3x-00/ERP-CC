@@ -14,6 +14,8 @@ export async function notificarSolicitudProgramacionServicio(
     partidaId: string;
     operadorId: string;
     operadorNombre: string;
+    /** C22: abre Planeación con la solicitud ya localizada en el calendario. */
+    reclamoId: string;
   },
 ): Promise<void> {
   try {
@@ -60,7 +62,7 @@ export async function notificarSolicitudProgramacionServicio(
         tipo: 'alerta_sistema',
         titulo: 'Solicitud de programación',
         mensaje,
-        enlace: '/planeacion',
+        enlace: `/planeacion?reclamoId=${encodeURIComponent(entrada.reclamoId)}`,
       })),
     );
 

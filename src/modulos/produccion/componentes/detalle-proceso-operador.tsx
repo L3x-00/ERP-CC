@@ -427,6 +427,7 @@ export function DetalleProcesoOperador({
   // netas. Se muestran juntos para que el operador sepa qué retomar.
   const sesionPausada = proceso.columna === 'pausada'
     && proceso.ultimaSesion?.estadoSesion === 'pausada'
+    && !proceso.ultimaSesion.recursoLiberado
     ? proceso.ultimaSesion
     : null;
   const materialClientePartida = materialCliente.filter(
@@ -2431,7 +2432,7 @@ export function DetalleProcesoOperador({
               </p>
             ) : null}
             {!avanceGuardado
-              && proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
+              && proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado)
               && !soloLectura ? (
               <form
                 noValidate
@@ -2447,7 +2448,7 @@ export function DetalleProcesoOperador({
                   <p className="text-sm font-semibold text-peligro-texto">
                     Actualizar avance y hora real
                   </p>
-                  {proceso.sesiones.filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida).length > 1 ? (
+                  {proceso.sesiones.filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado).length > 1 ? (
                     <button
                       type="button"
                       className="text-xs text-acento-texto underline underline-offset-2"
@@ -2473,7 +2474,7 @@ export function DetalleProcesoOperador({
                     data-testid="avance-sesion"
                   >
                     {[...proceso.sesiones]
-                      .filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
+                      .filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado)
                       .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio))
                       .map((sesion) => (
                         <option key={sesion.id} value={sesion.id}>
@@ -2843,7 +2844,7 @@ export function DetalleProcesoOperador({
   );
 
   const pausadasOrdenadas = [...proceso.sesiones]
-    .filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
+    .filter((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado)
     .sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio));
   const indiceSesion = pausadasOrdenadas.findIndex((sesion) => sesion.id === (sesionCorreccionId ?? proceso.ultimaSesion?.id));
   const sesionAnterior = indiceSesion > 0 ? pausadasOrdenadas[indiceSesion - 1] : null;

@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation';
-import { OperacionPlaneacion } from '@/modulos/planeacion/componentes/operacion-planeacion';
+import {
+  OperacionPlaneacion,
+  type SolicitudProgramacionOperador,
+} from '@/modulos/planeacion/componentes/operacion-planeacion';
 import type { PartidaProgramablePlaneacion } from '@/modulos/planeacion/componentes/panel-asignacion-planeacion';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { obtenerDesglosePartidasServicio } from '@/modulos/planeacion/servicios/desglose-servicio';
@@ -30,8 +33,80 @@ function inicioSemana(fechaIso: string): string {
   return sumarDias(fechaIso, -diferencia);
 }
 
+/**
+ * C22: la campana del operador llega con `reclamoId`; el resto de los datos se
+ * lee de la base para no confiar en la URL. Si la operación ya tiene una
+ * programación vigente se avisa en la UI en lugar de ofrecer duplicarla.
+ */
+async function cargarSolicitudProgramacion(
+  cliente: Awaited<ReturnType<typeof crearClienteSupabaseServidor>>,
+  reclamoId: string,
+): Promise<SolicitudProgramacionOperador | null> {
+  // La URL no es de confianza: un identificador con otro formato se ignora en
+  // lugar de provocar un error de PostgREST en la carga de la página.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(reclamoId)) {
+    return null;
+  }
+  const { data: reclamo, error } = await cliente
+    .from('reclamos_proceso_operador')
+    .select('id, partida_id, meta_proceso_id, operador_id, fecha, turno, horas_estimadas')
+    .eq('id', reclamoId)
+    .maybeSingle();
+  if (error) {
+    // Degradar sin bloquear Planeación: si la solicitud no se puede leer, el
+    // panel abre en su estado normal en lugar de romper la página completa.
+    console.error('[PLANEACION] No se pudo cargar la solicitud de programación:', error);
+    return null;
+  }
+  if (!reclamo) return null;
+
+  const { data: operador } = await cliente
+    .from('usuarios')
+    .select('nombre_completo')
+    .eq('id', reclamo.operador_id)
+    .maybeSingle();
+
+  let yaProgramada = false;
+  if (reclamo.meta_proceso_id) {
+    const { data } = await cliente
+      .from('programacion_areas')
+      .select('id')
+      .eq('partida_id', reclamo.partida_id)
+      .eq('meta_proceso_id', reclamo.meta_proceso_id)
+      .in('estado_planeacion', ESTADOS_ACTIVOS_PROGRAMACION)
+      .limit(1)
+      .maybeSingle();
+    yaProgramada = Boolean(data);
+  } else {
+    const { data } = await cliente
+      .from('programacion_areas')
+      .select('id')
+      .eq('partida_id', reclamo.partida_id)
+      .is('meta_proceso_id', null)
+      .in('estado_planeacion', ESTADOS_ACTIVOS_PROGRAMACION)
+      .limit(1)
+      .maybeSingle();
+    yaProgramada = Boolean(data);
+  }
+
+  return {
+    reclamoId: reclamo.id,
+    partidaId: reclamo.partida_id,
+    metaProcesoId: reclamo.meta_proceso_id,
+    operadorNombre: operador?.nombre_completo ?? 'Un operador',
+    fecha: reclamo.fecha,
+    turno: reclamo.turno,
+    horas: Number(reclamo.horas_estimadas),
+    yaProgramada,
+  };
+}
+
 /** Centro operativo de capacidad: lectura RSC y mutaciones solo mediante Server Actions. */
-export default async function PaginaPlaneacion() {
+export default async function PaginaPlaneacion({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const usuario = await obtenerUsuarioServidor();
   if (!usuario) notFound();
 
@@ -39,6 +114,11 @@ export default async function PaginaPlaneacion() {
   if (!puedeVer && !(await can(usuario, 'gestionar_planeacion'))) notFound();
 
   const cliente = await crearClienteSupabaseServidor();
+  const parametros = searchParams ? await searchParams : {};
+  const reclamoId = typeof parametros.reclamoId === 'string' ? parametros.reclamoId : null;
+  const solicitudProgramacion = reclamoId
+    ? await cargarSolicitudProgramacion(cliente, reclamoId)
+    : null;
   // Misma convención que el cliente (`hoyIso`): fecha local del operador, no UTC.
   const hoy = hoyIso();
   const { data: proximaProgramacion, error: errorProximaProgramacion } = await cliente
@@ -335,6 +415,7 @@ export default async function PaginaPlaneacion() {
         compatibilidad={compatibilidad}
         usuarioActualId={usuario.id}
         esAdmin={usuario.rol === 'admin'}
+        solicitudProgramacion={solicitudProgramacion}
       />
     </div>
   );

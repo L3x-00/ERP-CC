@@ -102,12 +102,13 @@ export async function cambiarEstadoCorridaServicio(
 /** Marca `recurso_liberado` en la sesión pausada ≥60 min con motivo liberable. */
 export async function reclamarRecursoLiberadoServicio(
   admin: Admin,
-  entrada: { recursoId: string; actorId: string; correlationId?: string },
+  entrada: { recursoId: string; sesionId?: string; actorId: string; correlationId?: string },
 ): Promise<ReclamacionRecurso> {
   const { data, error } = await admin.rpc('reclamar_recurso_liberado', {
     p_recurso_id: entrada.recursoId,
     p_actor_id: entrada.actorId,
     ...(entrada.correlationId ? { p_correlation_id: entrada.correlationId } : {}),
+    ...(entrada.sesionId ? { p_sesion_id: entrada.sesionId } : {}),
   });
   if (error) lanzarErrorProduccion(error.message);
 

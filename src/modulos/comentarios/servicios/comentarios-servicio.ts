@@ -237,6 +237,25 @@ export async function marcarNotificacionComoLeida(
   if (error || !data) lanzarErrorComentarios(error?.message ?? 'notificacion_no_disponible');
 }
 
+/**
+ * Marca como leídas todas las notificaciones pendientes del usuario. El filtro
+ * por `usuario_id` y `leida = false` conserva la frontera de propiedad: la acción
+ * nunca recibe identificadores desde el navegador.
+ */
+export async function marcarNotificacionesComoLeidas(
+  admin: ClienteComentarios,
+  usuarioId: string,
+): Promise<number> {
+  const { data, error } = await admin
+    .from('notificaciones_usuario')
+    .update({ leida: true })
+    .eq('usuario_id', usuarioId)
+    .eq('leida', false)
+    .select('id');
+  if (error) lanzarErrorComentarios(error.message);
+  return (data ?? []).length;
+}
+
 /** Lista nombres activos para el autocompletado de menciones. */
 export async function obtenerUsuariosMencionables(
   admin: ClienteComentarios,

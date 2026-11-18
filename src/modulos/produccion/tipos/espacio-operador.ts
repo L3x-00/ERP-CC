@@ -112,6 +112,8 @@ export interface SesionProceso {
   pendienteActualizacionAvance: boolean;
   /** C21: pausa marcada como no válida al completar la producción. */
   sesionInvalida: boolean;
+  /** C22: pausa reclamada por supervisión; ya no ocupa la máquina ni se reanuda. */
+  recursoLiberado: boolean;
   piezasProducidas: number;
   horasNetas: number;
   /** true si la corrida exige primera pieza y aún no hay una aprobada. */

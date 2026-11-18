@@ -7355,6 +7355,7 @@ export type Database = {
           p_actor_id: string
           p_correlation_id?: string
           p_recurso_id: string
+          p_sesion_id?: string
         }
         Returns: Json
       }
