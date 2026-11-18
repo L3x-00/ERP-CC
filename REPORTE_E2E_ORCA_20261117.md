@@ -281,3 +281,20 @@ Ejecutada contra `https://erp-cc-flame.vercel.app` reutilizando el caso `RFQ-112
 **Incidencias de la propia re-verificación (corregidas en el arnés, no en el producto):** carrera entre el login y el modal de tipo de cambio (resuelto con el helper `descartarModalTipoCambio`), lectura del comparativo antes de que cargara (espera explícita a «Horas reales») y búsqueda del acta en `/entregas` en lugar de la pestaña Entregas de la orden.
 
 **Pendiente de escenario** (no de código): verificación funcional en producción de A-1 (material sin costo confirmado), M-3 (cliente prospecto con RFQ) y M-4 (sesión con exceso de jornada). Requieren generar datos nuevos; sus correcciones están desplegadas y cubiertas por tests unitarios.
+
+---
+
+## 15. Re-verificación de los escenarios pendientes (2026-11-17, segunda pasada)
+
+Se generaron datos QA nuevos en producción sin borrar los del caso original: cliente `CLI-0039` (prospecto), RFQ `RFQ-1126_09` (`dd18497d-9d37-456a-92f7-1245bfe61b4d`), material de catálogo `QA-NC-1717` «Material QA sin costo» y una sesión de operador en `O-1126_05` / IT01 / Corte laser.
+
+| Escenario | Resultado | Evidencia y detalle |
+|---|---|---|
+| **M-3** — activar prospecto desde la ficha RFQ | **OK** | Con `CLI-0039` prospecto ligado a `RFQ-1126_09`, el botón `rfq-activar-cliente` aparece en la ficha; al pulsarlo desaparece, el cliente pasa a activo y el cambio persiste tras recargar. `11_reverificacion/m3-prospecto-en-rfq.png`, `m3-activo-persistido.png`, `resultado-m3-m5.md`. |
+| **M-5** — rama READY | **OK** | El mismo RFQ se llevó a `READY_FOR_PROPOSAL` (ítems, archivos CAD/DIBUJO y seguimiento). Aparece la pestaña Revisar con «Revisar el RFQ tras la edición», «No hay cambios de estado pendientes», checklist de 5 secciones sin faltantes y «Revalidar» sin cambiar el estado. `11_reverificacion/m5-revisar-en-ready.png`, `rv-listo-final.png`. |
+| **A-1** — aviso de material sin costo | **PARCIAL** | El material `QA-NC-1717` quedó «Sin costo» y el terminal del operador muestra `aviso-material-sin-costo` con el nombre del material y la salida «pausa la sesión». No se pudo llegar al modal `error-cierre-accion`: el servidor responde «El material seleccionado no corresponde a la partida» (regla de negocio: el material debe pertenecer a la partida). El modal y la salida «Pausar sesión y avisar» siguen cubiertos por `tests/unitarias/detalle-proceso-operador.test.ts`. `11_reverificacion/a1-material.md`, `a1-aviso-preventivo.png`. |
+| **M-4** — rechazo con nota y re-solicitud | **NO REPRODUCIBLE en producción** | No existía ninguna solicitud `SOLICITADA`. Con autorización expresa se bajó la jornada de `LASER-01` de 9 h a 0,5 h, se esperó a superarla y se **restauró a 9 h** al terminar. La sesión se auto-pausó al cumplir la jornada; el paso obligatorio «Actualizar avance» (C21) reduce las horas netas y anula el exceso, y al cerrar la pausa aparece primero `consumo_material_requerido`. No hay forma de alcanzar `horas_extra_sin_autorizacion` desde la UI sin sembrar datos por SQL. La corrección sigue cubierta por `tests/unitarias/produccion-horas-extra-rechazo.test.ts` y desplegada. `11_reverificacion/m4-jornada-original.md`, traza `11_reverificacion`. |
+
+**Estado de la configuración:** la jornada de `LASER-01` quedó restaurada a **9 h** (`m4-jornada-restaurada` en verde). Los datos QA creados quedan documentados como tales y no se borraron.
+
+**Conclusión de la segunda pasada:** de los cuatro escenarios pendientes, M-3 y M-5 quedaron verificados funcionalmente en producción; A-1 verificó la prevención en UI y M-4 quedó bloqueado por reglas de negocio del propio ERP, con cobertura unitaria y código desplegado.

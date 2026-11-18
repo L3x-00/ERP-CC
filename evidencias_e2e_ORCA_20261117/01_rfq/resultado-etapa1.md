@@ -21,8 +21,8 @@
       "paso": "alta-rapida-cliente",
       "resultado": "ok",
       "detalle": {
-        "razon": "Manufactura Fronteriza QA1711 S.A. de C.V.",
-        "rfc": "MFQA261117AB1",
+        "razon": "Reverificacion Fronteriza RV1717 S.A. de C.V.",
+        "rfc": "MFRV171117AB1",
         "estado": "prospecto"
       }
     },
@@ -80,7 +80,7 @@
             "deshabilitado": false
           }
         ],
-        "fechaRequerida": "2026-11-29"
+        "fechaRequerida": "2026-11-30"
       }
     },
     {
@@ -97,8 +97,8 @@
     }
   ],
   "ESTADO": {
-    "sufijo": "QA1711",
-    "razon": "Manufactura Fronteriza QA1711 S.A. de C.V."
+    "sufijo": "RV1717",
+    "razon": "Reverificacion Fronteriza RV1717 S.A. de C.V."
   }
 }
 ```
