@@ -79,6 +79,8 @@ type FilaSesion = {
   partida_id: string;
   corrida_id: string | null;
   horas_netas: number;
+  /** C23: una pausa descartada no suma horas ni costo. */
+  sesion_invalida: boolean;
 };
 
 type FilaConsumo = {
@@ -183,6 +185,9 @@ function tarifaDeProceso(ruteo: readonly FilaRuteo[], procesoId: string | null):
 /** Calcula el cierre comparativo de una orden con sus datos ya cargados. */
 export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
   const { orden, partidas, sesiones, consumos, retrabajos, items, ruteo, costos } = datos;
+  // C23: una pausa descartada (sesion_invalida) no representa tiempo real; si
+  // se contara, el costo y las horas del cierre quedarían inflados.
+  const sesionesValidas = sesiones.filter((sesion) => !sesion.sesion_invalida);
 
   const ruteoPorItem = new Map<string, FilaRuteo[]>();
   for (const fila of ruteo) {
@@ -219,7 +224,7 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
   const horasPorProceso = new Map<string, number>();
   let costoManoObraReal = 0;
 
-  for (const sesion of sesiones) {
+  for (const sesion of sesionesValidas) {
     const procesoId = sesion.corrida_id
       ? datos.procesoPorCorrida.get(sesion.corrida_id) ?? null
       : null;
@@ -369,7 +374,7 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
   }
 
   const horasReales = redondear(
-    sesiones.reduce((total, sesion) => total + numero(sesion.horas_netas), 0) + horasRetrabajo,
+    sesionesValidas.reduce((total, sesion) => total + numero(sesion.horas_netas), 0) + horasRetrabajo,
     2,
   );
   const costoReal = redondear(costoManoObraReal + costoMaterialReal, 2);
@@ -565,7 +570,7 @@ async function cargarCierres(
     consultarEnLotes<FilaSesion>(ordenIds, async (lote) => {
       const { data, error } = await admin
         .from('sesiones_trabajo')
-        .select('id, orden_id, partida_id, corrida_id, horas_netas')
+        .select('id, orden_id, partida_id, corrida_id, horas_netas, sesion_invalida')
         .in('orden_id', lote);
       return { data: data as FilaSesion[] | null, error };
     }),

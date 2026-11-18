@@ -58,6 +58,9 @@ SELECT ok((
   WHERE operador_id = '00000000-0000-4000-8000-0000000c2001'
 ), 'La pausa automática queda marcada como pendiente de actualizar avance');
 
+-- C23: el tiempo real de la partida se deriva de las sesiones, no se acumula
+-- a mano. La pausa automática se corta al cumplir la jornada corrida
+-- (8 h de lunes a viernes según C24), así que la partida refleja esos 480 min.
 SELECT is((
   SELECT tiempo_real_minutos FROM public.partidas_orden_produccion
   WHERE id = '00000000-0000-4000-8000-0000000c2005'

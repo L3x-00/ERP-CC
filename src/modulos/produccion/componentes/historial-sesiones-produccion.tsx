@@ -205,6 +205,9 @@ export function HistorialSesionesProduccion({ orden, responsables, soloLectura =
                       {incidencia ? (
                         <p className="mt-0.5 text-[11px] text-texto-secundario">{incidencia}</p>
                       ) : null}
+                      {sesion.sesionInvalida ? (
+                        <p className="mt-0.5 text-[11px] text-texto-tenue">Pausa descartada · no suma horas</p>
+                      ) : null}
                     </td>
                     <td className="whitespace-nowrap py-2 pr-3 text-xs text-texto-secundario">
                       {archivos.length} archivo{archivos.length === 1 ? '' : 's'}

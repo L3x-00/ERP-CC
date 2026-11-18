@@ -154,6 +154,12 @@ export type CodigoErrorProduccion =
   | 'setup_invalido'
   | 'minutos_setup_exceden_sesion'
   | 'sin_permiso_setup'
+  | 'sesion_orden_inconsistente'
+  | 'orden_no_terminada'
+  | 'pausa_sin_corte'
+  | 'pausa_huerfana_invalida'
+  | 'motivo_cierre_invalido'
+  | 'sin_permiso_cierre_pausa'
   | 'desconocido';
 export class ErrorProduccion extends Error {
   constructor(
@@ -315,6 +321,12 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'sesion_antigua_pendiente',
   'sesiones_pausadas_excedidas',
   'sin_permiso_actualizar_avance',
+  'sesion_orden_inconsistente',
+  'orden_no_terminada',
+  'pausa_sin_corte',
+  'pausa_huerfana_invalida',
+  'motivo_cierre_invalido',
+  'sin_permiso_cierre_pausa',
 ];
 
 /** Traduce el mensaje de una RPC a un error tipado de producción. */
@@ -728,6 +740,18 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'Faltan datos para reclamar el recurso; actualiza el panel.';
     case 'cierre_pausa_invalido':
       return 'No se pudo cerrar la pausa; actualiza el tablero';
+    case 'orden_no_terminada':
+      return 'Solo se puede cerrar una pausa huérfana cuando la orden ya terminó.';
+    case 'pausa_sin_corte':
+      return 'La pausa no tiene una hora de corte registrada; actualiza el tablero.';
+    case 'pausa_huerfana_invalida':
+      return 'Indica horas reales solo cuando decidas conservar el tiempo.';
+    case 'motivo_cierre_invalido':
+      return 'El motivo del cierre no puede superar 500 caracteres.';
+    case 'sin_permiso_cierre_pausa':
+      return 'No tienes permiso para cerrar pausas administrativas.';
+    case 'sesion_orden_inconsistente':
+      return 'La sesión no corresponde a una orden válida; actualiza el tablero.';
     case 'hora_fin_invalida':
       return 'Indica una hora de finalización válida';
     case 'fecha_fin_futura':

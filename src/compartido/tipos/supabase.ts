@@ -5731,6 +5731,24 @@ export type Database = {
           id: string
         }[]
       }
+      cerrar_pausa_huerfana_administrativa: {
+        Args: {
+          p_actor_id: string
+          p_conservar_tiempo?: boolean
+          p_correlation_id?: string
+          p_horas_reales?: number
+          p_motivo?: string
+          p_sesion_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          estado_planeacion: string
+          estado_sesion: string
+          horas_netas: number
+          id: string
+          tiempo_real_minutos: number
+        }[]
+      }
       cerrar_sesion_trabajo_operador: {
         Args: {
           p_estado_destino: string
@@ -7332,6 +7350,21 @@ export type Database = {
           p_verificacion: Json
         }
         Returns: Json
+      }
+      diagnostico_consistencia_orden: {
+        Args: {
+          p_orden_id: string
+        }
+        Returns: {
+          codigo: string
+          detalle: string
+          partida_id: string | null
+          programacion_id: string | null
+          sesion_id: string | null
+          severidad: string
+          valor_actual: number | null
+          valor_esperado: number | null
+        }[]
       }
       completar_corrida: {
         Args: {

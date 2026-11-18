@@ -21,6 +21,10 @@ export {
   obtenerDetalleOrdenConcluidaAccion,
 } from '@/modulos/produccion/acciones/obtener-detalle-orden-concluida';
 export type { DetalleOrdenConcluida } from '@/modulos/produccion/acciones/obtener-detalle-orden-concluida';
+export {
+  cerrarPausaHuerfanaAccion,
+  obtenerDiagnosticoOrdenAccion,
+} from '@/modulos/produccion/acciones/diagnostico-orden';
 export { crearCorridaAccion } from '@/modulos/produccion/acciones/crear-corrida';
 export {
   iniciarCorridaAccion,

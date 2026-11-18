@@ -32,6 +32,7 @@ const base: DatosOrden = {
       partida_id: 'partida-1',
       corrida_id: 'corrida-1',
       horas_netas: 5,
+      sesion_invalida: false,
     },
   ],
   consumos: [

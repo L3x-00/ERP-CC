@@ -9,6 +9,7 @@ export {
   esquemaCrearNotaEntrega,
   esquemaConsultarTableroProduccion,
   esquemaConsultarOrdenConcluida,
+  esquemaCerrarPausaHuerfana,
   esquemaReclamarProceso,
   esquemaMoverReclamo,
   esquemaLiberarReclamo,
