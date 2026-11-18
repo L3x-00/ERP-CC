@@ -294,3 +294,16 @@ Se generaron datos QA nuevos en producción sin borrar los del caso original: cl
 **Estado de la configuración:** la jornada de `LASER-01` quedó restaurada a **9 h** (`m4-jornada-restaurada` en verde). Los datos QA creados quedan documentados como tales y no se borraron.
 
 **Conclusión de la segunda pasada:** de los cuatro escenarios pendientes, M-3 y M-5 quedaron verificados funcionalmente en producción; A-1 verificó la prevención en UI y M-4 quedó bloqueado por reglas de negocio del propio ERP, con cobertura unitaria y código desplegado.
+
+---
+
+## 16. Mejora de legibilidad del cierre administrativo (2026-11-18)
+
+Se rediseñó la presentación del módulo —pantalla inicial y cierre por orden— para que un administrador sin formación técnica entienda cada cifra. **No se cambió ningún cálculo, regla de negocio ni `data-testid`.**
+
+- **Lenguaje claro:** se eliminaron `Δ`, `±`, flechas de ordenación y signos `+`/`-`. Ahora se dice «Cambio en costo», «Diferencia de costo», «12,5 % más», «8,0 % menos», «Sin cambio» o «Sin dato». «Margen» pasó a «Ganancia», «Horas cotizadas/reales» a «Horas planeadas/trabajadas» y «Estimado vs real» a «Lo cotizado contra lo gastado».
+- **Ayuda al pasar el puntero:** nuevo componente compartido `AyudaTooltip`, accesible con ratón y teclado (`aria-describedby`, `role="tooltip"`), rendereado en un portal para que no se recorte en tablas con scroll ni en el diálogo. Cada importe, diferencia, hora, entrega y línea de costo explica de dónde sale.
+- **Gráficas y tablas:** leyendas en texto («En la zona clara, el gasto salió como se planeó», «Sobre la línea, el gasto coincide con la cotización») y encabezados sin abreviaturas crípticas.
+- **Frases de negocio:** los puntos críticos y la frase de tiempo dejaron de usar porcentajes redondeados a entero con signo y ahora describen la comparación en lenguaje natural.
+
+**Verificación:** tests unitarios nuevos para la ayuda flotante y para el panel (19 pruebas enfocadas en verde), suite completa **337 archivos / 2926 pruebas en verde**, `tsc --noEmit` limpio, ESLint limpio y `next build` correcto. Revisión visual según `orca-ui-review`: solo tokens semánticos, estados con las clases del sistema y sin lógica de negocio en componentes visuales.

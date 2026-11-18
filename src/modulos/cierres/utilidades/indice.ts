@@ -57,17 +57,23 @@ export function formatearHoras(valor: number): string {
   return `${formatearNumero(valor, decimales).replace('.', ',')} h`;
 }
 
-/** Frase de negocio para la desviación de tiempo. */
+/**
+ * Diferencia escrita para quien no trabaja con fórmulas: nada de signos `+`/`-`
+ * ni símbolos `Δ`. La etiqueta del campo indica si habla de costo, tiempo o pago.
+ */
+export function formatearCambio(valor: number | null): string {
+  if (valor === null || !Number.isFinite(valor)) return 'Sin dato';
+  const cambio = redondear(valor, 1);
+  if (Math.abs(cambio) < 0.05) return 'Sin cambio';
+  const magnitud = formatearNumero(Math.abs(cambio), 1).replace('.', ',');
+  return cambio > 0 ? `${magnitud} % más` : `${magnitud} % menos`;
+}
+
+/** Frase de negocio para la diferencia de tiempo, en lenguaje sencillo. */
 export function fraseTiempo(horasEstimadas: number, horasReales: number): string {
-  if (horasEstimadas <= 0) return 'Sin horas estimadas para comparar.';
-  if (horasReales <= horasEstimadas) {
-    const ahorro = porcentajeDesviacion(horasReales, horasEstimadas);
-    const porcentaje = ahorro === null ? 0 : Math.abs(ahorro).toFixed(0);
-    return `Cotizaste ${formatearHoras(horasEstimadas)} y usaste ${formatearHoras(horasReales)}: estás cotizando ${porcentaje} % de más en tiempo.`;
-  }
-  const exceso = porcentajeDesviacion(horasReales, horasEstimadas);
-  const porcentaje = exceso === null ? 0 : Math.abs(exceso).toFixed(0);
-  return `Cotizaste ${formatearHoras(horasEstimadas)} y usaste ${formatearHoras(horasReales)}: te pasaste ${porcentaje} % en tiempo.`;
+  if (horasEstimadas <= 0) return 'No hay horas planeadas para comparar.';
+  const cambio = formatearCambio(porcentajeDesviacion(horasReales, horasEstimadas));
+  return `Planeaste ${formatearHoras(horasEstimadas)} y usaste ${formatearHoras(horasReales)}: ${cambio} en tiempo.`;
 }
 
 /** Media ignorando nulos. */

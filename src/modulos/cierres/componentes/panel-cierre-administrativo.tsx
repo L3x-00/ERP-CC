@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
+import { AyudaTooltip } from '@/compartido/componentes/ui/ayuda-tooltip';
 import { Button } from '@/compartido/componentes/ui/button';
 import {
   Dialog,
@@ -18,8 +19,8 @@ import { formatearFecha, formatearMoneda, formatearNumero } from '@/compartido/u
 import {
   claseDesviacion,
   fondoDesviacion,
+  formatearCambio,
   formatearHoras,
-  formatearPorcentaje,
   fraseTiempo,
   nivelDesviacion,
   porcentajeDesviacion,
@@ -38,12 +39,33 @@ const CLAVE_CIERRE_ORDEN = ['cierres', 'orden'] as const;
 
 type OrdenTabla = 'fecha' | 'desviacion' | 'costo' | 'margen';
 
+/** Explicaciones que aparecen al pasar el puntero por cada cifra. */
+const AYUDA = {
+  costoEstimado: 'Lo que se cotizó en la propuesta aprobada: material, mano de obra y otros cargos.',
+  costoReal: 'Lo que realmente se gastó: consumos registrados y tiempo trabajado en producción.',
+  cambioCosto: 'Compara el gasto real con el cotizado. "Más" quiere decir que se gastó más de lo previsto.',
+  ganancia: 'Parte de la venta que queda después de descontar el gasto real de la orden.',
+  horasPlaneadas: 'Horas por operación que se cotizaron en la propuesta aprobada.',
+  horasReales: 'Horas que el operador registró en las sesiones de producción.',
+  cambioTiempo: 'Compara las horas trabajadas con las horas planeadas.',
+  entregado: 'Piezas entregadas al cliente frente a las piezas que pidió.',
+  retrabajo: 'Tiempo y costo extra para corregir piezas que no salieron bien a la primera.',
+  manoObra: 'Horas trabajadas multiplicadas por la tarifa por hora de la propuesta.',
+  material: 'Consumos reales de material multiplicados por su costo vigente.',
+  otros: 'Cargos distintos a material y mano de obra que se incluyeron en la cotización.',
+} as const;
+
 function moneda(valor: number): string {
   return formatearMoneda(valor, 'MXN');
 }
 
 function horas(valor: number): string {
   return formatearHoras(valor);
+}
+
+function ganancia(valor: number | null): string {
+  if (valor === null || !Number.isFinite(valor)) return 'Sin dato';
+  return `${formatearNumero(Math.abs(valor), 1).replace('.', ',')} % ${valor >= 0 ? 'de ganancia' : 'de pérdida'}`;
 }
 
 /** C14: panel de cierre administrativo con dashboard y tabla interactiva. */
@@ -142,28 +164,28 @@ export function PanelCierreAdministrativo() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <TarjetaKpi
-          etiqueta="Desviación media de costo"
-          valor={formatearPorcentaje(panel.promedios.desviacionCosto)}
+          etiqueta="Costo: diferencia con lo previsto"
+          valor={formatearCambio(panel.promedios.desviacionCosto)}
           nivel={nivelDesviacion(panel.promedios.desviacionCosto)}
-          ayuda="Real vs estimado en las últimas 20 órdenes"
+          ayuda="Promedio de las últimas 20 órdenes: compara lo que se gastó con lo que se cotizó."
         />
         <TarjetaKpi
-          etiqueta="Desviación media de tiempo"
-          valor={formatearPorcentaje(panel.promedios.desviacionTiempo)}
+          etiqueta="Tiempo: diferencia con lo previsto"
+          valor={formatearCambio(panel.promedios.desviacionTiempo)}
           nivel={nivelDesviacion(panel.promedios.desviacionTiempo)}
-          ayuda="Horas reales vs horas cotizadas"
+          ayuda="Promedio de las últimas 20 órdenes: compara las horas trabajadas con las horas planeadas."
         />
         <TarjetaKpi
-          etiqueta="Margen medio"
-          valor={formatearPorcentaje(panel.promedios.margen)}
+          etiqueta="Ganancia sobre la venta"
+          valor={ganancia(panel.promedios.margen)}
           nivel={panel.promedios.margen !== null && panel.promedios.margen < 10 ? 'sobrecosto' : 'ahorro'}
-          ayuda="Venta menos costo real"
+          ayuda="Lo que queda de cada peso vendido después de pagar el costo real de la orden."
         />
         <TarjetaKpi
-          etiqueta="Órdenes con sobrecosto"
+          etiqueta="Órdenes que costaron más"
           valor={`${panel.promedios.ordenesConSobrecosto} de ${panel.promedios.totalOrdenes}`}
           nivel={panel.promedios.ordenesConSobrecosto > 0 ? 'neutro' : 'ahorro'}
-          ayuda="Con desviación de costo ≥ +10 %"
+          ayuda="Órdenes cuyo gasto superó la cotización en más del 10 por ciento."
         />
       </div>
 
@@ -210,12 +232,12 @@ export function PanelCierreAdministrativo() {
                 <BotonOrden etiqueta="Costo real" activo={ordenTabla === 'costo'} ascendente={ordenAscendente} onClick={() => alternarOrden('costo')} />
               </th>
               <th className="px-3 py-2 text-right font-medium">
-                <BotonOrden etiqueta="Δ costo" activo={ordenTabla === 'desviacion'} ascendente={ordenAscendente} onClick={() => alternarOrden('desviacion')} />
+                <BotonOrden etiqueta="Cambio en costo" activo={ordenTabla === 'desviacion'} ascendente={ordenAscendente} onClick={() => alternarOrden('desviacion')} />
               </th>
-              <th className="px-3 py-2 text-right font-medium">Horas est. / real</th>
-              <th className="px-3 py-2 text-right font-medium">Δ tiempo</th>
+              <th className="px-3 py-2 text-right font-medium">Horas planeadas y reales</th>
+              <th className="px-3 py-2 text-right font-medium">Cambio en tiempo</th>
               <th className="px-3 py-2 text-right font-medium">
-                <BotonOrden etiqueta="Margen" activo={ordenTabla === 'margen'} ascendente={ordenAscendente} onClick={() => alternarOrden('margen')} />
+                <BotonOrden etiqueta="Ganancia" activo={ordenTabla === 'margen'} ascendente={ordenAscendente} onClick={() => alternarOrden('margen')} />
               </th>
               <th className="px-3 py-2 text-right font-medium">Entrega</th>
             </tr>
@@ -261,7 +283,9 @@ function TarjetaKpi({
   return (
     <article className="rounded-lg border border-borde bg-superficie p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-texto-tenue">{etiqueta}</p>
-      <p className={`mt-2 text-2xl font-semibold tabular-nums ${claseDesviacion(nivel)}`}>{valor}</p>
+      <p className={`mt-2 text-2xl font-semibold tabular-nums ${claseDesviacion(nivel)}`}>
+        <AyudaTooltip texto={ayuda}>{valor}</AyudaTooltip>
+      </p>
       <p className="mt-1 text-xs text-texto-secundario">{ayuda}</p>
     </article>
   );
@@ -283,10 +307,14 @@ function BotonOrden({
       type="button"
       onClick={onClick}
       className="inline-flex items-center gap-1 font-medium hover:text-texto-primario focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
-      aria-label={`Ordenar por ${etiqueta}${activo ? (ascendente ? ', ascendente' : ', descendente') : ''}`}
+      aria-label={`Ordenar por ${etiqueta}${activo ? (ascendente ? ', de menor a mayor' : ', de mayor a menor') : ''}`}
     >
       {etiqueta}
-      <span aria-hidden="true">{activo ? (ascendente ? '↑' : '↓') : '↕'}</span>
+      {activo ? (
+        <span className="text-xs font-normal text-texto-secundario">
+          {ascendente ? 'de menor a mayor' : 'de mayor a menor'}
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -312,24 +340,36 @@ function FilaCierre({ resumen, onAbrir }: { resumen: CierreOrdenResumen; onAbrir
         </button>
         <span className="block text-xs text-texto-secundario">{resumen.cliente}</span>
       </td>
-      <td className="px-3 py-2 text-right tabular-nums">{moneda(resumen.costoEstimado)}</td>
-      <td className="px-3 py-2 text-right tabular-nums">{moneda(resumen.costoReal)}</td>
-      <td className="px-3 py-2 text-right">
-        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${fondoDesviacion(resumen.nivel)} ${claseDesviacion(resumen.nivel)}`}>
-          {formatearPorcentaje(resumen.desviacionCosto)}
-        </span>
+      <td className="px-3 py-2 text-right tabular-nums">
+        <AyudaTooltip texto={AYUDA.costoEstimado}>{moneda(resumen.costoEstimado)}</AyudaTooltip>
       </td>
       <td className="px-3 py-2 text-right tabular-nums">
-        {horas(resumen.horasEstimadas)} / {horas(resumen.horasReales)}
+        <AyudaTooltip texto={AYUDA.costoReal}>{moneda(resumen.costoReal)}</AyudaTooltip>
+      </td>
+      <td className="px-3 py-2 text-right">
+        <AyudaTooltip texto={AYUDA.cambioCosto}>
+          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${fondoDesviacion(resumen.nivel)} ${claseDesviacion(resumen.nivel)}`}>
+            {formatearCambio(resumen.desviacionCosto)}
+          </span>
+        </AyudaTooltip>
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        <AyudaTooltip texto={`${AYUDA.horasPlaneadas} ${AYUDA.horasReales}`}>
+          {horas(resumen.horasEstimadas)} y {horas(resumen.horasReales)}
+        </AyudaTooltip>
       </td>
       <td className={`px-3 py-2 text-right tabular-nums ${claseDesviacion(nivelDesviacion(resumen.desviacionTiempo))}`}>
-        {formatearPorcentaje(resumen.desviacionTiempo)}
+        <AyudaTooltip texto={AYUDA.cambioTiempo}>{formatearCambio(resumen.desviacionTiempo)}</AyudaTooltip>
       </td>
       <td className={`px-3 py-2 text-right tabular-nums ${resumen.margen !== null && resumen.margen < 0 ? 'text-peligro-texto' : 'text-texto-primario'}`}>
-        {formatearPorcentaje(resumen.margen)}
+        <AyudaTooltip texto={AYUDA.ganancia}>{ganancia(resumen.margen)}</AyudaTooltip>
       </td>
       <td className="px-3 py-2 text-right tabular-nums">
-        {resumen.cumplimientoEntrega === null ? '—' : `${formatearNumero(resumen.cumplimientoEntrega, 0)} %`}
+        <AyudaTooltip texto={AYUDA.entregado}>
+          {resumen.cumplimientoEntrega === null
+            ? 'Sin dato'
+            : `${formatearNumero(resumen.entregado, 0)} de ${formatearNumero(resumen.solicitado, 0)}`}
+        </AyudaTooltip>
       </td>
     </tr>
   );
@@ -340,7 +380,7 @@ function GraficoTendencia({ tendencia }: { tendencia: readonly TendenciaCierre[]
   if (valores.length < 2) {
     return (
       <article className="rounded-lg border border-borde bg-superficie p-4">
-        <h2 className="text-sm font-semibold text-texto-primario">Tendencia de costo (últimas 20)</h2>
+        <h2 className="text-sm font-semibold text-texto-primario">Cómo se comportó el costo</h2>
         <p className="mt-3 text-sm text-texto-secundario">
           Necesitas al menos dos órdenes cerradas con costo estimado para ver la tendencia.
         </p>
@@ -362,10 +402,10 @@ function GraficoTendencia({ tendencia }: { tendencia: readonly TendenciaCierre[]
   return (
     <article className="rounded-lg border border-borde bg-superficie p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-texto-primario">Tendencia de costo (últimas 20)</h2>
-        <span className="text-xs text-texto-secundario">±10 % es la zona sana</span>
+        <h2 className="text-sm font-semibold text-texto-primario">Cómo se comportó el costo</h2>
+        <span className="text-xs text-texto-secundario">En la zona clara, el gasto salió como se planeó</span>
       </div>
-      <svg viewBox={`0 0 ${ancho} ${alto}`} className="mt-3 h-auto w-full" role="img" aria-label="Tendencia de desviación de costo por orden">
+      <svg viewBox={`0 0 ${ancho} ${alto}`} className="mt-3 h-auto w-full" role="img" aria-label="Diferencia entre el gasto real y el cotizado en cada orden">
         <rect x={margen} y={bandaSuperior} width={ancho - margen * 2} height={Math.max(bandaInferior - bandaSuperior, 0)} fill="currentColor" className="text-advertencia-suave" />
         <line x1={margen} x2={ancho - margen} y1={lineaCero} y2={lineaCero} stroke="currentColor" strokeDasharray="4 4" className="text-borde-fuerte" />
         <polyline
@@ -388,7 +428,7 @@ function GraficoTendencia({ tendencia }: { tendencia: readonly TendenciaCierre[]
         ))}
       </svg>
       <p className="mt-1 text-xs text-texto-secundario">
-        Cada punto es una orden cerrada. Arriba de la banda: sobrecosto; abajo: ahorro.
+        Cada punto es una orden terminada. Por encima de la franja costó más de lo previsto; por debajo, costó menos.
       </p>
     </article>
   );
@@ -399,8 +439,8 @@ function GraficoDispersion({ resumenes }: { resumenes: readonly CierreOrdenResum
   if (puntos.length === 0) {
     return (
       <article className="rounded-lg border border-borde bg-superficie p-4">
-        <h2 className="text-sm font-semibold text-texto-primario">Estimado vs real</h2>
-        <p className="mt-3 text-sm text-texto-secundario">Sin costos para graficar todavía.</p>
+        <h2 className="text-sm font-semibold text-texto-primario">Lo cotizado contra lo gastado</h2>
+        <p className="mt-3 text-sm text-texto-secundario">Todavía no hay costos para mostrar.</p>
       </article>
     );
   }
@@ -413,8 +453,8 @@ function GraficoDispersion({ resumenes }: { resumenes: readonly CierreOrdenResum
   return (
     <article className="rounded-lg border border-borde bg-superficie p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-texto-primario">Estimado vs real</h2>
-        <span className="text-xs text-texto-secundario">Diagonal = sin desviación</span>
+        <h2 className="text-sm font-semibold text-texto-primario">Lo cotizado contra lo gastado</h2>
+        <span className="text-xs text-texto-secundario">Sobre la línea, el gasto coincide con la cotización</span>
       </div>
       <svg viewBox={`0 0 ${ancho} ${alto}`} className="mt-3 h-auto w-full" role="img" aria-label="Dispersión de costo estimado contra costo real">
         <line x1={escala(0)} y1={escalaY(0)} x2={escala(maximo)} y2={escalaY(maximo)} stroke="currentColor" strokeDasharray="4 4" className="text-borde-fuerte" />
@@ -431,7 +471,7 @@ function GraficoDispersion({ resumenes }: { resumenes: readonly CierreOrdenResum
         ))}
       </svg>
       <p className="mt-1 text-xs text-texto-secundario">
-        Puntos arriba de la diagonal: costó más de lo cotizado.
+        Cada punto es una orden. Si queda por encima de la línea, costó más de lo cotizado.
       </p>
     </article>
   );
@@ -485,18 +525,27 @@ function DetalleCierreDialog({
         {detalle ? (
           <>
             <div className={`grid gap-3 rounded-lg p-3 sm:grid-cols-4 ${fondoDesviacion(detalle.nivel)}`}>
-              <Dato etiqueta="Costo estimado" valor={moneda(detalle.costoEstimado)} />
-              <Dato etiqueta="Costo real" valor={moneda(detalle.costoReal)} />
+              <Dato etiqueta="Costo cotizado" valor={moneda(detalle.costoEstimado)} ayuda={AYUDA.costoEstimado} />
+              <Dato etiqueta="Costo gastado" valor={moneda(detalle.costoReal)} ayuda={AYUDA.costoReal} />
               <Dato
-                etiqueta="Desviación"
-                valor={formatearPorcentaje(detalle.desviacionCosto)}
+                etiqueta="Diferencia de costo"
+                valor={formatearCambio(detalle.desviacionCosto)}
                 clase={claseDesviacion(detalle.nivel)}
+                ayuda={AYUDA.cambioCosto}
               />
-              <Dato etiqueta="Margen" valor={formatearPorcentaje(detalle.margen)} />
-              <Dato etiqueta="Horas cotizadas" valor={horas(detalle.horasEstimadas)} />
-              <Dato etiqueta="Horas reales" valor={horas(detalle.horasReales)} />
-              <Dato etiqueta="Entregado" valor={`${formatearNumero(detalle.entregado, 2)} de ${formatearNumero(detalle.solicitado, 2)}`} />
-              <Dato etiqueta="Retrabajo" valor={`${horas(detalle.horasRetrabajo)} · ${moneda(detalle.costoRetrabajo)}`} />
+              <Dato etiqueta="Ganancia" valor={ganancia(detalle.margen)} ayuda={AYUDA.ganancia} />
+              <Dato etiqueta="Horas planeadas" valor={horas(detalle.horasEstimadas)} ayuda={AYUDA.horasPlaneadas} />
+              <Dato etiqueta="Horas trabajadas" valor={horas(detalle.horasReales)} ayuda={AYUDA.horasReales} />
+              <Dato
+                etiqueta="Piezas entregadas"
+                valor={`${formatearNumero(detalle.entregado, 0)} de ${formatearNumero(detalle.solicitado, 0)}`}
+                ayuda={AYUDA.entregado}
+              />
+              <Dato
+                etiqueta="Retrabajo"
+                valor={`${horas(detalle.horasRetrabajo)} y ${moneda(detalle.costoRetrabajo)}`}
+                ayuda={AYUDA.retrabajo}
+              />
             </div>
 
             <p className="rounded-md border border-borde bg-superficie-2 p-3 text-sm text-texto-primario">
@@ -510,12 +559,12 @@ function DetalleCierreDialog({
                   <thead>
                     <tr className="bg-superficie-2 text-left text-xs uppercase tracking-wide text-texto-tenue">
                       <th className="px-2 py-1.5 font-medium">Ítem</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Cant.</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Cantidad pedida</th>
                       <th className="px-2 py-1.5 text-right font-medium">Producido</th>
                       <th className="px-2 py-1.5 text-right font-medium">Entregado</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Horas est./real</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Costo est./real</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Δ</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Horas planeadas y reales</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Costo cotizado y gastado</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Diferencia</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -531,13 +580,19 @@ function DetalleCierreDialog({
                         <td className="px-2 py-1.5 text-right tabular-nums">{formatearNumero(item.producida, 2)}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{formatearNumero(item.entregada, 2)}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
-                          {horas(item.horasEstimadas)} / {horas(item.horasReales)}
+                          <AyudaTooltip texto={`${AYUDA.horasPlaneadas} ${AYUDA.horasReales}`}>
+                            {horas(item.horasEstimadas)} y {horas(item.horasReales)}
+                          </AyudaTooltip>
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
-                          {moneda(item.costoEstimado)} / {moneda(item.costoReal)}
+                          <AyudaTooltip texto={`${AYUDA.costoEstimado} ${AYUDA.costoReal}`}>
+                            {moneda(item.costoEstimado)} y {moneda(item.costoReal)}
+                          </AyudaTooltip>
                         </td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${claseDesviacion(nivelDesviacion(item.desviacionCosto))}`}>
-                          {formatearPorcentaje(item.desviacionCosto)}
+                          <AyudaTooltip texto={AYUDA.cambioCosto}>
+                            {formatearCambio(item.desviacionCosto)}
+                          </AyudaTooltip>
                         </td>
                       </tr>
                     ))}
@@ -560,13 +615,15 @@ function DetalleCierreDialog({
                   {detalle.procesos.map((proceso) => (
                     <li key={proceso.nombre} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-superficie-2 px-3 py-1.5">
                       <span className="text-texto-primario">{proceso.nombre}</span>
-                      <span className="tabular-nums text-texto-secundario">
-                        {horas(proceso.horasEstimadas)} / {horas(proceso.horasReales)}
-                        {' · '}
-                        <span className={claseDesviacion(nivelDesviacion(proceso.desviacionTiempo))}>
-                          {formatearPorcentaje(proceso.desviacionTiempo)}
+                      <AyudaTooltip texto={`${AYUDA.horasPlaneadas} ${AYUDA.horasReales}. El cambio compara ambas cifras.`}>
+                        <span className="tabular-nums text-texto-secundario">
+                          {horas(proceso.horasEstimadas)} planeadas y {horas(proceso.horasReales)} trabajadas
+                          {' · '}
+                          <span className={claseDesviacion(nivelDesviacion(proceso.desviacionTiempo))}>
+                            {formatearCambio(proceso.desviacionTiempo)}
+                          </span>
                         </span>
-                      </span>
+                      </AyudaTooltip>
                     </li>
                   ))}
                 </ul>
@@ -577,9 +634,9 @@ function DetalleCierreDialog({
               <div className="rounded-md border border-borde p-3">
                 <h3 className="text-sm font-semibold text-texto-primario">Costo</h3>
                 <dl className="mt-2 grid gap-1 text-sm">
-                  <Linea etiqueta="Mano de obra" estimado={detalle.costoManoObraEstimado} real={detalle.costoManoObraReal} />
-                  <Linea etiqueta="Material" estimado={detalle.costoMaterialEstimado} real={detalle.costoMaterialReal} />
-                  <Linea etiqueta="Otros" estimado={detalle.costoOtros} real={0} />
+                  <Linea etiqueta="Mano de obra" estimado={detalle.costoManoObraEstimado} real={detalle.costoManoObraReal} ayuda={AYUDA.manoObra} />
+                  <Linea etiqueta="Material" estimado={detalle.costoMaterialEstimado} real={detalle.costoMaterialReal} ayuda={AYUDA.material} />
+                  <Linea etiqueta="Otros" estimado={detalle.costoOtros} real={0} ayuda={AYUDA.otros} />
                 </dl>
               </div>
               <div className="rounded-md border border-borde p-3">
@@ -591,10 +648,12 @@ function DetalleCierreDialog({
                     {detalle.materiales.map((material) => (
                       <li key={material.clave} className="flex items-center justify-between gap-2">
                         <span className="truncate text-texto-secundario" title={material.nombre}>{material.nombre}</span>
-                        <span className="shrink-0 tabular-nums text-texto-primario">
-                          {formatearNumero(material.cantidadReal, 3)}
-                          {material.unidad ? ` ${material.unidad}` : ''} · {moneda(material.costoReal)}
-                        </span>
+                        <AyudaTooltip texto="Cantidad consumida en producción y su costo con el precio vigente al consumirlo.">
+                          <span className="shrink-0 tabular-nums text-texto-primario">
+                            {formatearNumero(material.cantidadReal, 3)}
+                            {material.unidad ? ` ${material.unidad}` : ''} y {moneda(material.costoReal)}
+                          </span>
+                        </AyudaTooltip>
                       </li>
                     ))}
                   </ul>
@@ -623,22 +682,47 @@ function DetalleCierreDialog({
   );
 }
 
-function Dato({ etiqueta, valor, clase }: { etiqueta: string; valor: string; clase?: string }) {
+function Dato({
+  etiqueta,
+  valor,
+  clase,
+  ayuda,
+}: {
+  etiqueta: string;
+  valor: string;
+  clase?: string;
+  ayuda: string;
+}) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-texto-tenue">{etiqueta}</dt>
-      <dd className={`mt-0.5 font-semibold tabular-nums ${clase ?? 'text-texto-primario'}`}>{valor}</dd>
+      <dd className={`mt-0.5 font-semibold tabular-nums ${clase ?? 'text-texto-primario'}`}>
+        <AyudaTooltip texto={ayuda}>{valor}</AyudaTooltip>
+      </dd>
     </div>
   );
 }
 
-function Linea({ etiqueta, estimado, real }: { etiqueta: string; estimado: number; real: number }) {
+function Linea({
+  etiqueta,
+  estimado,
+  real,
+  ayuda,
+}: {
+  etiqueta: string;
+  estimado: number;
+  real: number;
+  ayuda: string;
+}) {
   const desviacion = porcentajeDesviacion(real, estimado);
   return (
     <div className="flex items-center justify-between gap-2">
       <dt className="text-texto-secundario">{etiqueta}</dt>
       <dd className={`tabular-nums ${claseDesviacion(nivelDesviacion(desviacion))}`}>
-        {moneda(estimado)} → {moneda(real)} {desviacion === null ? '' : `(${formatearPorcentaje(desviacion)})`}
+        <AyudaTooltip texto={ayuda}>
+          {moneda(estimado)} cotizados y {moneda(real)} gastados
+          {desviacion === null ? '' : ` · ${formatearCambio(desviacion)}`}
+        </AyudaTooltip>
       </dd>
     </div>
   );

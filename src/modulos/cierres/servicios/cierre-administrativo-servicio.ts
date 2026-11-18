@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import { formatearNumero } from '@/compartido/utilidades/formatear';
 import type { Database } from '@/compartido/tipos/supabase';
 import type {
   CierreOrdenDetalle,
@@ -11,6 +12,7 @@ import type {
   TendenciaCierre,
 } from '@/modulos/cierres/tipos/indice';
 import {
+  formatearCambio,
   formatearHoras,
   nivelDesviacion,
   porcentajeDesviacion,
@@ -453,26 +455,22 @@ export function calcularCierreOrden(datos: DatosOrden): CierreOrdenDetalle {
   const puntosCriticos: string[] = [];
   if (desviacionTiempo !== null) {
     puntosCriticos.push(
-      desviacionTiempo > 0
-        ? `Tiempo: ${formatearHoras(horasReales)} reales contra ${formatearHoras(horasEstimadas)} cotizadas (${desviacionTiempo.toFixed(0)} % más).`
-        : `Tiempo: ${formatearHoras(horasReales)} reales contra ${formatearHoras(horasEstimadas)} cotizadas (${Math.abs(desviacionTiempo).toFixed(0)} % menos; estás cotizando de más).`,
+      `Tiempo: se usaron ${formatearHoras(horasReales)} frente a ${formatearHoras(horasEstimadas)} planeadas (${formatearCambio(desviacionTiempo)}).`,
     );
   }
   if (costoMaterialEstimado > 0 || costoMaterialReal > 0) {
     const desviacionMaterial = porcentajeDesviacion(costoMaterialReal, costoMaterialEstimado);
     if (desviacionMaterial !== null) {
       puntosCriticos.push(
-        desviacionMaterial > 0
-          ? `Material: gastaste ${costoMaterialReal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} contra ${costoMaterialEstimado.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} estimados (${desviacionMaterial.toFixed(0)} % más).`
-          : `Material: gastaste ${costoMaterialReal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} contra ${costoMaterialEstimado.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} estimados (${Math.abs(desviacionMaterial).toFixed(0)} % menos).`,
+        `Material: se gastó ${costoMaterialReal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} frente a ${costoMaterialEstimado.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })} planeados (${formatearCambio(desviacionMaterial)}).`,
       );
     }
   }
   if (margen !== null) {
     puntosCriticos.push(
       margen >= 0
-        ? `Margen real: ${margen.toFixed(1)} % sobre la venta.`
-        : `Margen real negativo: ${margen.toFixed(1)} %; la orden costó más de lo que se vendió.`,
+        ? `Ganancia real: ${formatearNumero(Math.abs(margen), 1).replace('.', ',')} % de la venta.`
+        : `La orden costó más de lo que se vendió: ${formatearNumero(Math.abs(margen), 1).replace('.', ',')} % por debajo de la venta.`,
     );
   }
 

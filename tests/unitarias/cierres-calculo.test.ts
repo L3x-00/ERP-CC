@@ -133,7 +133,7 @@ describe('calcularCierreOrden', () => {
     // reflejarse en la desviación y en el texto, no aplanarse a «0,0 h».
     expect(cierre.horasReales).toBe(0.01);
     expect(cierre.desviacionTiempo).toBe(-99.9);
-    expect(cierre.puntosCriticos.join(' ')).toContain('0,01 h reales');
+    expect(cierre.puntosCriticos.join(' ')).toContain('se usaron 0,01 h');
   });
 
   it('agrupa el material del retrabajo con su catálogo y no lo marca sin catálogo (regresión QA)', () => {
