@@ -25,7 +25,7 @@ function carga(parcial: Partial<CargaCapacidadDiaria> & Pick<CargaCapacidadDiari
   return {
     area: 'taller',
     fechaProgramada: '2026-10-21',
-    turno: 'matutino',
+    turno: 'jornada',
     horasCapacidad: 8,
     horasProgramadas: 0,
     horasReales: 0,
@@ -221,7 +221,7 @@ describe('agregarDisponibilidad — grupo del renglón', () => {
 });
 
 describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
-  it('suma capacidad y carga del grupo y la disponibilidad no negativa por turno', () => {
+  it('suma capacidad y carga del grupo y la disponibilidad no negativa por día', () => {
     const resumen = agregarDisponibilidad(entrada({
       recursos: [
         { id: 'rec-1', grupoEquipoId: 'g-router' },
@@ -230,8 +230,8 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
       ],
       cargas: [
         carga({ recursoId: 'rec-1', horasCapacidad: 8, horasProgramadas: 3, horasDisponibles: 5 }),
-        // Turno saturado: su déficit no resta lo libre de los otros turnos.
-        carga({ recursoId: 'rec-1', turno: 'vespertino', horasCapacidad: 8, horasProgramadas: 10, horasDisponibles: -2, sobrecargado: true }),
+        // Día saturado de otra máquina: su déficit no resta lo libre del resto.
+        carga({ recursoId: 'rec-2', horasCapacidad: 8, horasProgramadas: 10, horasDisponibles: -2, sobrecargado: true }),
         // Excepción de capacidad ya aplicada por la RPC.
         carga({ recursoId: 'rec-2', fechaProgramada: '2026-10-22', horasCapacidad: 4, horasProgramadas: 0, horasDisponibles: 4 }),
         carga({ recursoId: 'rec-3', horasCapacidad: 6, horasProgramadas: 6, horasDisponibles: 0 }),

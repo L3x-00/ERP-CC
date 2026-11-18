@@ -1,4 +1,4 @@
-import type { TurnoPlaneacion } from '@/modulos/planeacion/tipos/indice';
+import type { EtiquetaCargaCapacidad, TurnoPlaneacion } from '@/modulos/planeacion/tipos/indice';
 import { esFinDeSemana } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 
 /**
@@ -37,11 +37,11 @@ export const CLASIFICACIONES_SATURACION = [
 
 export type ClasificacionSaturacion = (typeof CLASIFICACIONES_SATURACION)[number];
 
-/** Carga de un recurso en una fecha y turno, tal como la resume PostgreSQL. */
+/** Carga de un recurso en una fecha, tal como la resume PostgreSQL (C24). */
 export interface CargaRecursoTurno {
   recursoId: string;
   fechaProgramada: string;
-  turno: TurnoPlaneacion;
+  turno: EtiquetaCargaCapacidad;
   horasCapacidad: number;
   horasProgramadas: number;
 }
@@ -338,7 +338,6 @@ export function seleccionarPrimerHueco(
 
   const candidatos = cargas
     .filter((carga) => carga.recursoId === criterios.recursoId)
-    .filter((carga) => carga.turno === criterios.turno)
     .filter((carga) => carga.fechaProgramada >= criterios.desdeFecha)
     .filter(
       (carga) =>
@@ -353,7 +352,9 @@ export function seleccionarPrimerHueco(
 
   return {
     fecha: primero.carga.fechaProgramada,
-    turno: primero.carga.turno,
+    // C24: la capacidad es por día; el turno se conserva solo como etiqueta
+    // visual de la programación que se propondrá.
+    turno: criterios.turno,
     horasCapacidad: primero.evaluacion.horasCapacidad,
     horasProgramadas: primero.evaluacion.horasProgramadas,
     horasDisponibles: primero.evaluacion.horasDisponibles,

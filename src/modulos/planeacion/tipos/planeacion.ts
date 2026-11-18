@@ -21,6 +21,14 @@ export type AreaPlaneacion = (typeof AREAS_PLANEACION)[number];
 export type TurnoPlaneacion = (typeof TURNOS_PLANEACION)[number];
 export type EstadoPlaneacion = (typeof ESTADOS_PLANEACION)[number];
 
+/**
+ * C24: la carga de capacidad se calcula por equipo y día. `jornada` es la
+ * etiqueta de esa fila diaria; los turnos siguen siendo válidos como etiqueta
+ * visual de una programación. Nunca se usa para repartir capacidad.
+ */
+export const ETIQUETAS_CARGA_CAPACIDAD = [...TURNOS_PLANEACION, 'jornada'] as const;
+export type EtiquetaCargaCapacidad = (typeof ETIQUETAS_CARGA_CAPACIDAD)[number];
+
 /** Recurso de capacidad finita (máquina, celda o proveedor externo) de un área. */
 export interface RecursoPlaneacion {
   id: string;
@@ -152,12 +160,12 @@ export interface DesglosePartidaPlaneacion {
   operadorAsignadoId: string | null;
 }
 
-/** Resumen de PostgreSQL para un recurso, fecha y turno; no autoriza mutaciones. */
+/** Resumen de PostgreSQL por equipo y día; el turno es solo una etiqueta. */
 export interface CargaCapacidadDiaria {
   recursoId: string;
   area: AreaPlaneacion;
   fechaProgramada: string;
-  turno: TurnoPlaneacion;
+  turno: EtiquetaCargaCapacidad;
   horasCapacidad: number;
   horasProgramadas: number;
   horasReales: number;
@@ -316,7 +324,7 @@ export function filaACargaCapacidadDiaria(
     recursoId: fila.recurso_id,
     area: validarValorEnumerado(fila.area, AREAS_PLANEACION, 'área de carga'),
     fechaProgramada: fila.fecha_programada,
-    turno: validarValorEnumerado(fila.turno, TURNOS_PLANEACION, 'turno de carga'),
+    turno: validarValorEnumerado(fila.turno, ETIQUETAS_CARGA_CAPACIDAD, 'turno de carga'),
     horasCapacidad: Number(fila.horas_capacidad),
     horasProgramadas: Number(fila.horas_programadas),
     horasReales: Number(fila.horas_reales),

@@ -436,8 +436,7 @@ export function PanelAsignacionPlaneacion({
   const cargaDelSlot = cargas.find(
     (carga) =>
       carga.recursoId === recursoId
-      && carga.fechaProgramada === fechaProgramada
-      && carga.turno === turno,
+      && carga.fechaProgramada === fechaProgramada,
   );
   const mismoSlot =
     programacion !== undefined

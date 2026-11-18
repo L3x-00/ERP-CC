@@ -94,9 +94,7 @@ export function siguienteSecuencia(secuencias: readonly number[]): number {
   return maxima + 1;
 }
 
-const ORDEN_TURNOS: readonly TurnoPlaneacion[] = ['matutino', 'vespertino', 'nocturno'];
-
-/** Primer hueco con capacidad para las horas pedidas, en orden fecha→turno→código. */
+/** Primer hueco con capacidad para las horas pedidas, en orden fecha→código. */
 export function elegirHueco(
   horas: number,
   cargas: readonly CargaCapacidadDiaria[],
@@ -113,7 +111,6 @@ export function elegirHueco(
           - Number(primera.fechaProgramada === fechaPreferida)
         : 0)
       || primera.fechaProgramada.localeCompare(segunda.fechaProgramada)
-      || ORDEN_TURNOS.indexOf(primera.turno) - ORDEN_TURNOS.indexOf(segunda.turno)
       || (codigoPorRecurso.get(primera.recursoId) ?? '').localeCompare(
         codigoPorRecurso.get(segunda.recursoId) ?? '',
       )
@@ -471,7 +468,9 @@ export async function obtenerBolsaPlaneacionServicio(
       recursoId: hueco.carga.recursoId,
       recursoCodigo: codigoPorRecurso.get(hueco.carga.recursoId) ?? 'Recurso',
       fecha: hueco.carga.fechaProgramada,
-      turno: hueco.carga.turno,
+      // C24: la capacidad ya no se reparte por turno; la sugerencia conserva
+      // `matutino` como etiqueta visual por defecto de la programación.
+      turno: 'matutino',
       secuencia: pendiente
         ? Number(pendiente.secuencia)
         : siguienteSecuencia(secuenciasPorPartida.get(partida.id) ?? []),
