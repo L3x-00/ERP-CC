@@ -318,6 +318,7 @@ function sesionResumen(
     fechaFin: sesion.fechaFin,
     pendienteActualizacionAvance: sesion.pendienteActualizacionAvance,
     sesionInvalida: sesion.sesionInvalida,
+    recursoLiberado: sesion.recursoLiberado,
     piezasProducidas: sesion.piezasProducidas,
     horasNetas: sesion.horasNetas,
     primeraPiezaPendiente: sesion.corridaId !== null
@@ -686,7 +687,9 @@ export async function obtenerEspacioOperadorServicio(
       ));
       const sesionActiva = sesionesOrdenadas.find((sesion) => sesion.estadoSesion === 'activa') ?? null;
       const ultimaSesion = sesionesOrdenadas[0] ?? null;
-      const sesionPausada = ultimaSesion?.estadoSesion === 'pausada';
+      // C22: una pausa reclamada por supervisión es historial; la operación ya
+      // volvió al pool y no debe seguir ofreciéndose como "reanudar".
+      const sesionPausada = ultimaSesion?.estadoSesion === 'pausada' && !ultimaSesion.recursoLiberado;
       // C20: solo la última pausa puede estar pendiente; una pausa histórica ya
       // fue superada por otra sesión y no se debe volver a corregir.
       const pendienteActualizacionAvance = sesionPausada

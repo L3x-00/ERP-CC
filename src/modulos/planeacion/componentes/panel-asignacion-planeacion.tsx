@@ -122,6 +122,8 @@ export type PreseleccionProgramacion = {
   partidaId: string;
   fecha: string;
   horas: number;
+  /** C22: operación concreta que pidió el operador; si falta se usa la siguiente pendiente. */
+  metaProcesoId?: string | null;
 };
 
 export interface EntradaProponerHueco {
@@ -304,7 +306,7 @@ export function PanelAsignacionPlaneacion({
   // La propuesta aceptada preselecciona la partida y su fecha compromiso sin
   // reservar capacidad: solo llena el formulario para que Planeación confirme.
   const clavePreseleccion = preseleccion
-    ? `${preseleccion.partidaId}|${preseleccion.fecha}|${preseleccion.horas}`
+    ? `${preseleccion.partidaId}|${preseleccion.fecha}|${preseleccion.horas}|${preseleccion.metaProcesoId ?? ''}`
     : '';
   const [clavePreseleccionAplicada, setClavePreseleccionAplicada] = useState('');
   if (clavePreseleccion !== clavePreseleccionAplicada) {
@@ -314,7 +316,14 @@ export function PanelAsignacionPlaneacion({
         (partida) => partida.partidaId === preseleccion.partidaId,
       );
       if (partidaElegida) {
-        const operacionInicialId = operacionInicial(partidaElegida);
+        // C22: si la solicitud del operador identifica la operación, se respeta
+        // esa operación aunque no sea la siguiente pendiente del ruteo.
+        const operacionPedida = preseleccion.metaProcesoId
+          ? partidaElegida.operaciones.find(
+              (actual) => actual.metaProcesoId === preseleccion.metaProcesoId,
+            )
+          : undefined;
+        const operacionInicialId = operacionPedida?.metaProcesoId ?? operacionInicial(partidaElegida);
         const operacion = partidaElegida.operaciones.find(
           (actual) => actual.metaProcesoId === operacionInicialId,
         );
@@ -353,6 +362,10 @@ export function PanelAsignacionPlaneacion({
   const operacionElegida = operacionesDePartida.find(
     (operacion) => operacion.metaProcesoId === operacionId,
   );
+  // C22: crear otra fila para una operación ya programada termina en
+  // `programacion_duplicada` (o en un duplicado visible si la fila vigente es
+  // una continuación). La UI lo impide antes de llamar a la RPC.
+  const operacionYaProgramada = !programacion && operacionElegida?.programada === true;
 
   function recursoSugeridoParaOperacion(operacion?: OperacionProgramablePartida): string {
     if (!operacion) return '';
@@ -750,6 +763,12 @@ export function PanelAsignacionPlaneacion({
       setErrorFormulario('Selecciona la operación del ruteo');
       return;
     }
+    if (operacionYaProgramada) {
+      setErrorFormulario(
+        'Esa operación ya está programada. Selecciónala en el calendario para reprogramarla.',
+      );
+      return;
+    }
     if (
       !programacion
       && !usaOperaciones
@@ -962,6 +981,17 @@ export function PanelAsignacionPlaneacion({
             </div>
           )}
         </>
+      ) : null}
+
+      {operacionYaProgramada ? (
+        <p
+          role="alert"
+          data-testid="operacion-ya-programada-planeacion"
+          className="rounded-base border border-alerta/40 bg-alerta-suave px-3 py-2 text-xs text-texto-primario"
+        >
+          Esta operación ya tiene una programación. Para moverla, ciérrala aquí, selecciónala en el
+          calendario y usa <strong>Reprogramar</strong>; así no se crea una segunda fecha.
+        </p>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
@@ -1274,7 +1304,7 @@ export function PanelAsignacionPlaneacion({
                   <Button
                     type="button"
                     tamano="sm"
-                    disabled={enviando}
+                    disabled={enviando || operacionYaProgramada}
                     onClick={() => void enviarMultidia()}
                     data-testid="guardar-plan-multidia"
                   >
@@ -1318,6 +1348,7 @@ export function PanelAsignacionPlaneacion({
             || estadoCompatibilidadSeleccionada === 'incompatible'
             || turnoCerrado
             || errorFecha !== null
+            || operacionYaProgramada
             || (!programacion && excedeUnDia)
           }
           data-testid="guardar-asignacion-planeacion"

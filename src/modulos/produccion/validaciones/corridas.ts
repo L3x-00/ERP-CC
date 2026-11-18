@@ -67,7 +67,12 @@ export const esquemaEstadoCorrida = z
     }
   });
 
-export const esquemaReclamarRecurso = z.object({ recursoId: z.uuid('ID de recurso inválido') }).strict();
+export const esquemaReclamarRecurso = z
+  .object({
+    recursoId: z.uuid('ID de recurso inválido'),
+    sesionId: z.uuid('ID de sesión inválido').optional(),
+  })
+  .strict();
 
 /** Consulta de corridas de una orden (UI de piso). */
 export const esquemaConsultarCorridas = z.object({ ordenId: z.uuid('ID de orden inválido') }).strict();

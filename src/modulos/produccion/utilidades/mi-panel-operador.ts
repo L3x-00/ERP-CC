@@ -78,7 +78,7 @@ export function obtenerMisProcesos(
         estado = 'terminado';
       } else if (sesionActiva) {
         estado = 'en_proceso';
-      } else if (ultimaSesion?.estadoSesion === 'pausada') {
+      } else if (ultimaSesion?.estadoSesion === 'pausada' && !ultimaSesion.recursoLiberado) {
         estado = 'pausado';
       } else {
         estado = 'pendiente';

@@ -91,6 +91,24 @@ export interface PropsOperacionPlaneacion {
   /** Ficha de una orden concluida: comentarios y permisos de entrega. */
   usuarioActualId?: string;
   esAdmin?: boolean;
+  /** C22: solicitud de programación abierta desde la campana del operador. */
+  solicitudProgramacion?: SolicitudProgramacionOperador | null;
+}
+
+/**
+ * C22: reclamo de un operador que llega por el enlace de la notificación.
+ * Los datos se leen de la base en el servidor; la URL solo transporta el id.
+ */
+export interface SolicitudProgramacionOperador {
+  reclamoId: string;
+  partidaId: string;
+  metaProcesoId: string | null;
+  operadorNombre: string;
+  fecha: string;
+  turno: string;
+  horas: number;
+  /** La misma operación ya tiene programación vigente: se avisa en vez de duplicar. */
+  yaProgramada: boolean;
 }
 
 interface SolicitudArrastre {
@@ -114,6 +132,7 @@ export function OperacionPlaneacion({
   compatibilidad,
   usuarioActualId,
   esAdmin = false,
+  solicitudProgramacion = null,
 }: PropsOperacionPlaneacion) {
   const clienteConsultas = useQueryClient();
   const enrutador = useRouter();
@@ -131,9 +150,21 @@ export function OperacionPlaneacion({
   const [bolsaError, setBolsaError] = useState<string | null>(null);
   const [errorBolsaModal, setErrorBolsaModal] = useState<ErrorProgramacion | null>(null);
   const [sugerenciaFallida, setSugerenciaFallida] = useState<SugerenciaBolsa | null>(null);
-  const [preseleccion, setPreseleccion] = useState<PreseleccionProgramacion | null>(null);
-  const [fechaSolicitada, setFechaSolicitada] = useState('');
-  const [panelAbierto, setPanelAbierto] = useState(false);
+  const [preseleccion, setPreseleccion] = useState<PreseleccionProgramacion | null>(() =>
+    solicitudProgramacion
+      ? {
+          partidaId: solicitudProgramacion.partidaId,
+          fecha: solicitudProgramacion.fecha,
+          horas: solicitudProgramacion.horas,
+          metaProcesoId: solicitudProgramacion.metaProcesoId,
+        }
+      : null,
+  );
+  const [fechaSolicitada, setFechaSolicitada] = useState(solicitudProgramacion?.fecha ?? '');
+  const [panelAbierto, setPanelAbierto] = useState(
+    Boolean(solicitudProgramacion && !solicitudProgramacion.yaProgramada),
+  );
+  const [solicitudVisible, setSolicitudVisible] = useState(Boolean(solicitudProgramacion));
   const [detalleConcluido, setDetalleConcluido] = useState<{
     id: string;
     esOrdenConcluida: boolean;
@@ -545,6 +576,18 @@ export function OperacionPlaneacion({
       )
     : undefined;
 
+  const partidaSolicitud = solicitudProgramacion
+    ? partidasProgramables.find(
+        (partida) => partida.partidaId === solicitudProgramacion.partidaId,
+      )
+    : undefined;
+  const operacionSolicitudId = solicitudProgramacion?.metaProcesoId;
+  const operacionSolicitud = operacionSolicitudId
+    ? partidaSolicitud?.operaciones.find(
+        (operacion) => operacion.metaProcesoId === operacionSolicitudId,
+      )
+    : undefined;
+
   const detalleConcluidoDatos = consultaDetalleConcluido.data ?? null;
   const esOrdenConcluidaDetalle = detalleConcluidoDatos
     ? ordenConcluida(detalleConcluidoDatos.orden)
@@ -557,6 +600,42 @@ export function OperacionPlaneacion({
 
   return (
     <div className="flex flex-col gap-4">
+      {solicitudProgramacion && solicitudVisible ? (
+        <section
+          data-testid="solicitud-programacion-operador"
+          aria-label="Solicitud de programación del operador"
+          className="flex flex-col gap-2 rounded-xl border border-acento/40 bg-acento-suave/40 px-4 py-3"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-texto-primario">
+                {solicitudProgramacion.operadorNombre} solicita programar esta operación
+              </p>
+              <p className="text-xs text-texto-secundario">
+                {partidaSolicitud?.etiqueta ?? 'Partida de la solicitud'}
+                {operacionSolicitud ? ` · ${operacionSolicitud.nombre}` : ''}
+                {' · '}Fecha pedida: {solicitudProgramacion.fecha}
+                {' · '}Turno {solicitudProgramacion.turno}
+                {' · '}{solicitudProgramacion.horas} h
+              </p>
+              <p className="text-xs text-texto-secundario">
+                {solicitudProgramacion.yaProgramada
+                  ? 'La operación ya tiene una programación vigente. Búscala en el calendario para reprogramarla en lugar de crear otra.'
+                  : 'El panel ya viene llenado con la solicitud del operador; confirma el recurso y guarda.'}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variante="fantasma"
+              tamano="sm"
+              aria-label="Ocultar solicitud de programación"
+              onClick={() => setSolicitudVisible(false)}
+            >
+              ×
+            </Button>
+          </div>
+        </section>
+      ) : null}
       <ResumenCargaSemanal
         cargas={datosCalendario.cargas}
         recursos={datosCalendario.recursos}

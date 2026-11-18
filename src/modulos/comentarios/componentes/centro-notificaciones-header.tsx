@@ -10,6 +10,7 @@ import { ZONA_HORARIA_NEGOCIO } from '@/modulos/configuracion/utilidades/tipo-ca
 import { obtenerClienteSupabaseNavegador } from '@/nucleo/supabase/cliente-navegador';
 import {
   marcarNotificacionesLeidasAccion,
+  marcarTodasNotificacionesLeidasAccion,
   obtenerNotificacionesAccion,
 } from '@/modulos/comentarios/acciones/indice';
 import type { NotificacionUsuario } from '@/modulos/comentarios/tipos/indice';
@@ -28,7 +29,9 @@ function fechaNotificacion(valor: string): string {
 }
 
 function enlaceInternoSeguro(enlace: string | null): string | null {
-  if (!enlace || !/^\/(ordenes|pipeline|clientes)(?:\?|$)/u.test(enlace)) return null;
+  // C22: la solicitud de programación del operador abre Planeación con la
+  // operación preseleccionada; las alertas existentes conservan sus rutas.
+  if (!enlace || !/^\/(ordenes|pipeline|clientes|planeacion)(?:\?|$)/u.test(enlace)) return null;
   return enlace;
 }
 
@@ -93,6 +96,8 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
   const router = useRouter();
   const clienteQuery = useQueryClient();
   const [abierto, setAbierto] = useState(false);
+  const [limpiando, setLimpiando] = useState(false);
+  const [errorLimpieza, setErrorLimpieza] = useState<string | null>(null);
   const consulta = useQuery({
     queryKey: [...CLAVE_NOTIFICACIONES, usuarioId],
     queryFn: async (): Promise<NotificacionUsuario[]> => {
@@ -128,6 +133,24 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
     const enlace = enlaceInternoSeguro(notificacion.enlace);
     setAbierto(false);
     if (enlace) router.push(enlace);
+  }
+
+  async function marcarTodas(): Promise<void> {
+    if (limpiando || noLeidas === 0) return;
+    setLimpiando(true);
+    setErrorLimpieza(null);
+    try {
+      const respuesta = await marcarTodasNotificacionesLeidasAccion();
+      if (!respuesta.exito) {
+        setErrorLimpieza(respuesta.error || 'No se pudieron marcar las notificaciones');
+        return;
+      }
+      await clienteQuery.invalidateQueries({ queryKey: CLAVE_NOTIFICACIONES });
+    } catch {
+      setErrorLimpieza('No se pudieron marcar las notificaciones');
+    } finally {
+      setLimpiando(false);
+    }
   }
 
   return (
@@ -177,6 +200,21 @@ export function CentroNotificacionesHeader({ usuarioId }: { usuarioId: string })
                 </svg>
               </button>
             </div>
+            {noLeidas > 0 && (
+              <div className="flex flex-col gap-1 border-b border-borde/40 px-4 py-2">
+                <button
+                  type="button"
+                  onClick={() => void marcarTodas()}
+                  disabled={limpiando}
+                  className="self-start rounded-md px-2 py-1 text-xs font-semibold text-acento transition-colors hover:bg-acento-suave disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40"
+                >
+                  {limpiando ? 'Marcando…' : `Marcar todas como leídas (${noLeidas})`}
+                </button>
+                {errorLimpieza && (
+                  <p role="alert" className="text-xs text-peligro-texto">{errorLimpieza}</p>
+                )}
+              </div>
+            )}
             <div className="scroll-sutil flex-1 overflow-y-auto p-2">
               {consulta.isLoading ? (
                 <div className="flex flex-col gap-2" role="status" aria-label="Cargando notificaciones">

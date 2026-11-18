@@ -925,13 +925,21 @@ await expect(
 
       await page.getByTestId(`reclamar-recurso-${codigo}`).click();
       await expect(page.getByTestId('panel-recursos-liberados').getByRole('status'))
-        .toContainText('Recurso reclamado: la sesión pausada quedó liberada para otra orden.');
+        .toContainText(`Máquina ${codigo} liberada`);
       await expect(page.getByTestId(`recurso-liberable-${codigo}`)).toHaveCount(0);
       await expect.poll(async () => {
         const { data } = await caso.admin.from('sesiones_trabajo')
           .select('recurso_liberado').eq('orden_id', caso.ordenId).eq('estado_sesion', 'pausada').single();
         return data?.recurso_liberado ?? null;
       }).toBe(true);
+
+      // C22: el operador vuelve a ver la orden reclamada en su espacio.
+      await page.goto('/operador');
+      for (const digito of caso.pinOperador) await page.getByRole('button', { name: digito, exact: true }).click();
+      await page.getByRole('button', { name: 'Confirmar PIN' }).click();
+      await page.waitForURL('**/produccion-piso');
+      await expect(page.getByTestId(`orden-operador-${caso.ordenId}`)).toBeVisible();
+      await expect(page.locator(`[data-testid^="proceso-${caso.partidaId}:"]`).first()).toBeVisible();
     } finally {
       await limpiarContexto(caso);
     }

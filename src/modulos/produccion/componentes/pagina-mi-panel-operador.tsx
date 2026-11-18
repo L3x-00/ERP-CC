@@ -238,7 +238,7 @@ export function PaginaMiPanelOperador({
 
     cerrarPausa: (proceso) => {
       const sesion = proceso.ultimaSesion;
-      if (!sesion || sesion.estadoSesion !== 'pausada') {
+      if (!sesion || sesion.estadoSesion !== 'pausada' || sesion.recursoLiberado) {
         return Promise.resolve<ResultadoOperacion>({
           exito: false,
           error: 'El proceso no tiene una pausa vigente',

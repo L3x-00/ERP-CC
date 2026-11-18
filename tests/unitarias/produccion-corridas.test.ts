@@ -91,6 +91,23 @@ describe('mensajes operativos de corrida', () => {
     expect(mensajeErrorSesion(new ErrorProduccion('sin_recurso_disponible')))
       .toBe('No hay recurso libre del área para esa fecha y turno');
   });
+
+  it('explica cada rechazo al reclamar una máquina liberada (C22)', () => {
+    expect(mensajeErrorSesion(new ErrorProduccion('sin_sesion_liberable')))
+      .toContain('motivo, 60 minutos o sesión vigente');
+    expect(mensajeErrorSesion(new ErrorProduccion('recurso_ya_reclamado')))
+      .toContain('Otra persona ya reclamó');
+    expect(mensajeErrorSesion(new ErrorProduccion('motivo_no_liberable')))
+      .toContain('no libera la máquina');
+    expect(mensajeErrorSesion(new ErrorProduccion('pausa_reciente')))
+      .toContain('60 minutos');
+    expect(mensajeErrorSesion(new ErrorProduccion('programacion_no_liberable')))
+      .toContain('ya está en producción o completada');
+    expect(mensajeErrorSesion(new ErrorProduccion('reclamacion_invalida')))
+      .toContain('Faltan datos');
+    expect(mensajeErrorSesion(new ErrorProduccion('sin_permiso_reclamar_recurso')))
+      .toContain('No tienes permiso');
+  });
 });
 
 describe('verificación inicial y referencias de lote', () => {
