@@ -128,7 +128,7 @@ SELECT is((
 SELECT lives_ok($$SELECT * FROM public.reprogramar_partida_recurso_auditada(
   (SELECT id FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9230'),
-  '00000000-0000-4000-8000-0000000c9242', current_date + 3, 'vespertino', 5, 2,
+  '00000000-0000-4000-8000-0000000c9242', (date_trunc('week', current_date)::date + 7), 'vespertino', 5, 2,
   (SELECT actualizado_en FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9230'),
   'Reajuste por capacidad', '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
@@ -139,7 +139,7 @@ SELECT is((
   SELECT (recurso_id, fecha_programada, turno)::text FROM public.programacion_areas
   WHERE partida_id = '00000000-0000-4000-8000-0000000c9230'
 ), (
-  '00000000-0000-4000-8000-0000000c9242', current_date + 3, 'vespertino'
+  '00000000-0000-4000-8000-0000000c9242', (date_trunc('week', current_date)::date + 7), 'vespertino'
 )::text, 'La fila conserva el nuevo recurso, fecha y turno');
 
 -- 9. La reprogramación deja evento de negocio en la orden.
@@ -175,7 +175,7 @@ SELECT is((
 -- 15. La segunda partida se programa en el mismo recurso y turno (8 h justas).
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9231',
-  '00000000-0000-4000-8000-0000000c9242', NULL::smallint, current_date + 3, 'vespertino', 3, 1,
+  '00000000-0000-4000-8000-0000000c9242', NULL::smallint, (date_trunc('week', current_date)::date + 7), 'vespertino', 3, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9231' AND secuencia = 1))$$,

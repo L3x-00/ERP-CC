@@ -285,11 +285,11 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
 
     // La jornada se cumplió sin que el operador cerrara: el barrido del servidor
     // pausa la sesión al recargar y el proceso cambia de columna.
-    const inicioDia = `${new Intl.DateTimeFormat('sv-SE', {
-      timeZone: 'America/Tijuana', year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(new Date()).replaceAll(' ', '-')}T00:01:00-08:00`;
+    // Diez horas de antigüedad garantizan el exceso de jornada sin depender de
+    // la hora local en que corra el CI (medianoche fallaba si era de madrugada).
+    const inicioSimulado = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
     const { error: errorFecha } = await caso.admin.from('sesiones_trabajo')
-      .update({ fecha_inicio: inicioDia })
+      .update({ fecha_inicio: inicioSimulado })
       .eq('partida_id', caso.partidaId)
       .eq('estado_sesion', 'activa');
     if (errorFecha) throw new Error(`No se pudo simular el fin de jornada: ${errorFecha.message}`);

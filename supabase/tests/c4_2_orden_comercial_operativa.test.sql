@@ -171,7 +171,7 @@ SELECT lives_ok(format(
   (SELECT orden_id FROM c42),
   (SELECT id FROM public.partidas_orden_produccion WHERE orden_id = (SELECT orden_id FROM c42) LIMIT 1),
   '00000000-0000-4000-8000-0000000c4240',
-  (current_date + 31)::text,
+  (date_trunc('week', current_date)::date + 28)::text,
   '00000000-0000-4000-8000-0000000c4201',
   '00000000-0000-4000-8000-0000000c42c1'),
   'la programación inicial registra actor y correlación');
@@ -180,7 +180,7 @@ SELECT lives_ok(format(
     'Cambio de fecha por capacidad', %L, %L)$$,
   (SELECT id FROM public.programacion_areas WHERE orden_id = (SELECT orden_id FROM c42) LIMIT 1),
   '00000000-0000-4000-8000-0000000c4240',
-  (current_date + 32)::text,
+  (date_trunc('week', current_date)::date + 29)::text,
   (SELECT actualizado_en FROM public.programacion_areas WHERE orden_id = (SELECT orden_id FROM c42) LIMIT 1),
   '00000000-0000-4000-8000-0000000c4201',
   '00000000-0000-4000-8000-0000000c42c2'),
@@ -189,7 +189,7 @@ SELECT is(
   (SELECT detalle#>>'{anterior,fecha_programada}' FROM public.orden_eventos_cambio
    WHERE orden_id = (SELECT orden_id FROM c42) AND tipo = 'reprogramacion_operativa'
    ORDER BY creado_en DESC LIMIT 1),
-  (current_date + 31)::text, 'el historial de Planeación conserva anterior/nuevo');
+  (date_trunc('week', current_date)::date + 28)::text, 'el historial de Planeación conserva anterior/nuevo');
 
 SELECT ok(
   NOT has_function_privilege('service_role',

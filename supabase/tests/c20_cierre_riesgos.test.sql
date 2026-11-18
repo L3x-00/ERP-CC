@@ -42,10 +42,12 @@ SELECT lives_ok($$SELECT * FROM public.iniciar_sesion_trabajo_operador(
     'archivo', true, 'proceso_equipo', true, 'observaciones', 'Listo'),
   NULL::uuid)$$, 'El operador inicia la sesión');
 
--- La primera sesión se abre al inicio del día laboral y se pausa al cumplir la jornada.
+-- La sesión se abre con más de una jornada de antigüedad. Se usa `now()` como
+-- ancla (no medianoche del día) para que la prueba funcione también cuando se
+-- ejecuta de madrugada. Si el ancla cae el día anterior, todas las sesiones y
+-- todas las comprobaciones comparten esa misma fecha.
 UPDATE public.sesiones_trabajo
-SET fecha_inicio = ((now() AT TIME ZONE 'America/Tijuana')::date)::timestamp
-  AT TIME ZONE 'America/Tijuana' + interval '1 minute'
+SET fecha_inicio = now() - interval '10 hours'
 WHERE estado_sesion = 'activa'
   AND operador_id = '00000000-0000-4000-8000-0000000c2021';
 
@@ -57,7 +59,10 @@ SELECT is((
 SELECT ok((
   SELECT privado.horas_netas_operador_dia(
     '00000000-0000-4000-8000-0000000c2021',
-    (now() AT TIME ZONE 'America/Tijuana')::date) >= 9
+    (SELECT (fecha_inicio AT TIME ZONE 'America/Tijuana')::date
+     FROM public.sesiones_trabajo
+     WHERE operador_id = '00000000-0000-4000-8000-0000000c2021'
+       AND estado_sesion = 'pausada' LIMIT 1)) >= 9
 ), 'La jornada del día ya acumula las horas de la sesión pausada');
 
 SELECT lives_ok($$SELECT * FROM public.reanudar_sesion_trabajo_a20(
@@ -68,7 +73,7 @@ SELECT lives_ok($$SELECT * FROM public.reanudar_sesion_trabajo_a20(
   '00000000-0000-4000-8000-0000000c2021'::uuid)$$,
   'El operador reanuda la operación el mismo día');
 
-UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '2 hours'
+UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '10 hours'
 WHERE estado_sesion = 'activa'
   AND operador_id = '00000000-0000-4000-8000-0000000c2021';
 
@@ -82,7 +87,7 @@ SELECT throws_ok($$SELECT * FROM public.cerrar_sesion_trabajo_operador(
 INSERT INTO public.autorizaciones_hora_extra (
   orden_id, horas_autorizadas, motivo, autorizado_por, estado
 ) VALUES (
-  '00000000-0000-4000-8000-0000000c2024', 3, 'Horas extra del turno',
+  '00000000-0000-4000-8000-0000000c2024', 12, 'Horas extra del turno',
   '00000000-0000-4000-8000-0000000c2021', 'VIGENTE'
 );
 
