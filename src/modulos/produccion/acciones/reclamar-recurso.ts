@@ -40,6 +40,7 @@ export async function reclamarRecursoAccion(
   try {
     const reclamacion = await reclamarRecursoLiberadoServicio(crearClienteSupabaseAdmin(), {
       recursoId: resultado.data.recursoId,
+      sesionId: resultado.data.sesionId,
       actorId: actor.id,
       correlationId,
     });

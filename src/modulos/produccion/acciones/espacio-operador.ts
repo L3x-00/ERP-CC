@@ -62,6 +62,7 @@ export async function reclamarProcesoAccion(
       partidaId: reclamo.partidaId,
       operadorId: operador.id,
       operadorNombre: operador.nombreCompleto,
+      reclamoId: reclamo.id,
     });
     return { exito: true, datos: reclamo };
   } catch (error) {

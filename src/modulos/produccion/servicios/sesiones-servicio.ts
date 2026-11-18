@@ -96,6 +96,11 @@ export type CodigoErrorProduccion =
   | 'sesion_no_corresponde'
   | 'fecha_jornada_invalida'
   | 'sin_sesion_liberable'
+  | 'recurso_ya_reclamado'
+  | 'motivo_no_liberable'
+  | 'pausa_reciente'
+  | 'programacion_no_liberable'
+  | 'reclamacion_invalida'
   | 'proceso_invalido'
   | 'orden_inexistente'
   | 'partida_no_corresponde'
@@ -240,6 +245,11 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'sesion_no_corresponde',
   'fecha_jornada_invalida',
   'sin_sesion_liberable',
+  'recurso_ya_reclamado',
+  'motivo_no_liberable',
+  'pausa_reciente',
+  'programacion_no_liberable',
+  'reclamacion_invalida',
   'proceso_invalido',
   'orden_inexistente',
   'partida_no_corresponde',
@@ -691,6 +701,20 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'El recurso de esta sesión ya no existe. Pide a administración que lo revise y actualiza el tablero.';
     case 'pausa_ya_superada':
       return 'Esa pausa ya fue retomada por una sesión posterior; actualiza el tablero';
+    case 'sin_sesion_liberable':
+      return 'La pausa ya no cumple las condiciones para liberar la máquina (motivo, 60 minutos o sesión vigente). Actualiza el panel.';
+    case 'recurso_ya_reclamado':
+      return 'Otra persona ya reclamó esta máquina; actualiza el panel.';
+    case 'motivo_no_liberable':
+      return 'El motivo de la pausa no libera la máquina; no se puede reclamar desde aquí.';
+    case 'pausa_reciente':
+      return 'La pausa todavía no cumple 60 minutos; podrás reclamarla más tarde.';
+    case 'programacion_no_liberable':
+      return 'La operación ya está en producción o completada; no se puede reclamar esta pausa.';
+    case 'sin_permiso_reclamar_recurso':
+      return 'No tienes permiso para reclamar recursos.';
+    case 'reclamacion_invalida':
+      return 'Faltan datos para reclamar el recurso; actualiza el panel.';
     case 'cierre_pausa_invalido':
       return 'No se pudo cerrar la pausa; actualiza el tablero';
     case 'hora_fin_invalida':

@@ -9,6 +9,7 @@ export {
   ErrorComentarios,
   insertarComentario,
   marcarNotificacionComoLeida,
+  marcarNotificacionesComoLeidas,
   mensajeErrorComentarios,
   obtenerComentarioPorId,
   obtenerComentariosPorEntidad,

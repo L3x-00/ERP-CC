@@ -5,7 +5,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(79);
+SELECT plan(81);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: actores, cliente, recursos, orden/partidas y programaciones
@@ -266,6 +266,12 @@ $$, 'Reclama el recurso con pausa liberable ≥60 min');
 SELECT is((SELECT recurso_liberado FROM public.sesiones_trabajo
   WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion1')), true,
   'La reclamación deja traza recurso_liberado');
+SELECT is((SELECT estado_sesion FROM public.sesiones_trabajo
+  WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion1')), 'finalizada',
+  'C22: reclamar finaliza la pausa');
+SELECT is((SELECT estado_planeacion FROM public.programacion_areas
+  WHERE id = '00000000-0000-4000-8000-00000000b60a'), 'programada',
+  'C22: reclamar devuelve la operación al pool');
 
 SELECT throws_ok($$
   SELECT public.reclamar_recurso_liberado(
@@ -287,6 +293,20 @@ SELECT throws_ok($$
   SELECT public.reclamar_recurso_liberado(
     '00000000-0000-4000-8000-00000000b606', '00000000-0000-4000-8000-00000000b602')
 $$, '23514', 'sin_sesion_liberable', 'COMIDA no libera máquina');
+
+-- C22: reclamar cerró la pausa anterior. Para probar la reanudación se registra
+-- una nueva pausa vigente de la misma operación.
+UPDATE public.programacion_areas SET estado_planeacion = 'bloqueada'
+WHERE id = '00000000-0000-4000-8000-00000000b60a';
+INSERT INTO public.sesiones_trabajo (
+  id, orden_id, partida_id, programacion_id, operador_id, fecha_inicio, fecha_fin,
+  estado_sesion, motivo_pausa, motivo_pausa_codigo, corrida_id, creado_en
+) VALUES (
+  '00000000-0000-4000-8000-00000000b622', '00000000-0000-4000-8000-00000000b607',
+  '00000000-0000-4000-8000-00000000b608', '00000000-0000-4000-8000-00000000b60a',
+  '00000000-0000-4000-8000-00000000b603', now() - interval '2 hours', now() - interval '61 minutes',
+  'pausada', 'falta_informacion', 'DUDA',
+  (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'corrida1'), now() + interval '1 second');
 
 -- -----------------------------------------------------------------------------
 -- 42-47. Reanudación con checklist heredado y pausas inválidas

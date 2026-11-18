@@ -59,6 +59,8 @@ export type RecursoLiberable = {
   recursoNombre: string;
   /** C9.0: operación del ruteo de la sesión pausada; nula en programaciones heredadas. */
   operacionNombre: string | null;
+  /** C22: operador que dejó la máquina pausada. */
+  operadorNombre: string;
   motivoCodigo: string;
   motivoNombre: string;
   pausadaDesde: string | null;
@@ -206,7 +208,7 @@ export async function obtenerRecursosLiberablesServicio(
   const { data, error } = await admin
     .from('sesiones_trabajo')
     .select(
-      'id, orden_id, partida_id, fecha_fin, motivo_pausa_codigo, catalogo_motivos_pausa!sesiones_trabajo_motivo_pausa_codigo_fkey (nombre, libera_maquina), ordenes_produccion!sesiones_trabajo_orden_id_fkey (folio), partidas_orden_produccion!sesiones_trabajo_partida_id_fkey (codigo_pieza), programacion_areas!sesiones_trabajo_programacion_id_fkey (recurso_id, meta_proceso_id, metas_proceso_partida!programacion_areas_meta_proceso_id_fkey (nombre), recursos_planeacion!programacion_areas_recurso_id_fkey (codigo, nombre))',
+      'id, orden_id, partida_id, programacion_id, operador_id, fecha_fin, motivo_pausa_codigo, catalogo_motivos_pausa!sesiones_trabajo_motivo_pausa_codigo_fkey (nombre, libera_maquina), ordenes_produccion!sesiones_trabajo_orden_id_fkey (folio), partidas_orden_produccion!sesiones_trabajo_partida_id_fkey (codigo_pieza), usuarios!sesiones_trabajo_operador_id_fkey (nombre_completo), programacion_areas!sesiones_trabajo_programacion_id_fkey (recurso_id, meta_proceso_id, metas_proceso_partida!programacion_areas_meta_proceso_id_fkey (nombre), recursos_planeacion!programacion_areas_recurso_id_fkey (codigo, nombre))',
     )
     .eq('estado_sesion', 'pausada')
     .eq('recurso_liberado', false)
@@ -217,15 +219,18 @@ export async function obtenerRecursosLiberablesServicio(
     throw new Error('No se pudieron cargar los recursos liberables');
   }
 
-  return (data as unknown as {
+  const filas = (data as unknown as {
     id: string;
     orden_id: string;
     partida_id: string;
+    programacion_id: string | null;
+    operador_id: string | null;
     fecha_fin: string | null;
     motivo_pausa_codigo: string | null;
     catalogo_motivos_pausa: { nombre: string; libera_maquina: boolean } | null;
     ordenes_produccion: { folio: string } | null;
     partidas_orden_produccion: { codigo_pieza: string } | null;
+    usuarios: { nombre_completo: string } | null;
     programacion_areas: {
       recurso_id: string;
       meta_proceso_id: string | null;
@@ -235,7 +240,39 @@ export async function obtenerRecursosLiberablesServicio(
   }[])
     .filter((fila) => fila.catalogo_motivos_pausa?.libera_maquina === true
       && fila.motivo_pausa_codigo !== null
-      && fila.programacion_areas !== null)
+      && fila.programacion_areas !== null);
+
+  // C22: reclamar una pausa histórica liberaría una máquina que hoy trabaja en
+  // una sesión posterior. Solo se ofrece la última sesión de cada programación.
+  const idsProgramacion = [
+    ...new Set(
+      filas
+        .map((fila) => fila.programacion_id)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const ultimaSesionPorProgramacion = new Map<string, string>();
+  if (idsProgramacion.length > 0) {
+    const { data: sesiones, error: errorSesiones } = await admin
+      .from('sesiones_trabajo')
+      .select('id, programacion_id, creado_en')
+      .in('programacion_id', idsProgramacion)
+      .order('creado_en', { ascending: false })
+      .order('id', { ascending: false });
+    if (errorSesiones) {
+      throw new Error('No se pudieron cargar los recursos liberables');
+    }
+    for (const sesion of sesiones ?? []) {
+      if (!sesion.programacion_id) continue;
+      if (!ultimaSesionPorProgramacion.has(sesion.programacion_id)) {
+        ultimaSesionPorProgramacion.set(sesion.programacion_id, sesion.id);
+      }
+    }
+  }
+
+  return filas
+    .filter((fila) => fila.programacion_id === null
+      || ultimaSesionPorProgramacion.get(fila.programacion_id) === fila.id)
     .map((fila) => ({
       sesionId: fila.id,
       ordenId: fila.orden_id,
@@ -246,6 +283,7 @@ export async function obtenerRecursosLiberablesServicio(
       recursoCodigo: fila.programacion_areas!.recursos_planeacion?.codigo ?? '—',
       recursoNombre: fila.programacion_areas!.recursos_planeacion?.nombre ?? '',
       operacionNombre: fila.programacion_areas!.metas_proceso_partida?.nombre ?? null,
+      operadorNombre: fila.usuarios?.nombre_completo ?? 'Operador no disponible',
       motivoCodigo: fila.motivo_pausa_codigo!,
       motivoNombre: fila.catalogo_motivos_pausa?.nombre ?? fila.motivo_pausa_codigo!,
       pausadaDesde: fila.fecha_fin,

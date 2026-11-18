@@ -606,6 +606,47 @@ describe('operación de Planeación en cliente', () => {
     expect(avisoFecha).toHaveBeenCalledWith('2026-10-29');
   });
 
+  it('impide crear una segunda programación de una operación ya programada (C22)', () => {
+    const partida = {
+      ordenId: '33333333-3333-4333-8333-333333333333',
+      partidaId: '66666666-6666-4666-8666-666666666666',
+      etiqueta: 'OP-000002 · PIEZA-C22',
+      secuenciaSugerida: 1,
+      operaciones: [
+        {
+          metaProcesoId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          secuencia: 1,
+          nombre: 'Corte',
+          programada: true,
+          recursoIdSugerido: DATOS.recursos[0].id,
+          fechaProgramadaSugerida: '2026-10-29',
+          horasEstimadasSugeridas: 2.5,
+        },
+      ],
+    } satisfies PartidaProgramablePlaneacion;
+    const enviar = vi.fn();
+
+    render(
+      createElement(PanelAsignacionPlaneacion, {
+        recursos: DATOS.recursos,
+        partidasProgramables: [partida],
+        onCambiarFecha: vi.fn(),
+        onEnviar: enviar,
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Partida'), {
+      target: { value: partida.partidaId },
+    });
+
+    expect(screen.getByTestId('operacion-ya-programada-planeacion').textContent)
+      .toContain('Reprogramar');
+    const guardar = screen.getByTestId('guardar-asignacion-planeacion') as HTMLButtonElement;
+    expect(guardar.disabled).toBe(true);
+    fireEvent.click(guardar);
+    expect(enviar).not.toHaveBeenCalled();
+  });
+
   it('pinta el resumen de carga semanal antes de los filtros, con ocupadas/capacidad y libre (C9.1)', () => {
     const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
     renderizarOperacion(cliente);
