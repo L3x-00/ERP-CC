@@ -61,7 +61,7 @@ export function VistaCalendarioOperador({
     : procesos.filter((proceso) => proceso.reclamadoPorMi);
   const dias = construirDiasCalendario(fechas, agenda, hoy);
   const porAsignar = disponibles.filter((proceso) => (
-    proceso.reclamo === null && proceso.columna !== 'lista'
+    proceso.reclamo === null && !proceso.reclamadoPorMi && proceso.columna !== 'lista'
   ));
   const porId = new Map(procesos.map((proceso) => [proceso.id, proceso]));
   const primerDia = fechas[0];
@@ -92,7 +92,7 @@ export function VistaCalendarioOperador({
         </div>
       </div>
 
-      <section aria-label="Procesos por asignar" className="rounded-lg border border-borde bg-superficie p-3">
+      <section aria-label="Procesos por asignar" data-testid="por-asignar" className="rounded-lg border border-borde bg-superficie p-3">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-texto-primario">
             Por asignar ({porAsignar.length})

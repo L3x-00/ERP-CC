@@ -3312,21 +3312,27 @@ export type Database = {
       propuesta_revision_costos: {
         Row: {
           categoria: string
+          creado_en: string
           id: string
+          item_id: string | null
           monto: number
           nota: string | null
           revision_id: string
         }
         Insert: {
           categoria: string
+          creado_en?: string
           id?: string
+          item_id?: string | null
           monto: number
           nota?: string | null
           revision_id: string
         }
         Update: {
           categoria?: string
+          creado_en?: string
           id?: string
+          item_id?: string | null
           monto?: number
           nota?: string | null
           revision_id?: string
@@ -3337,6 +3343,13 @@ export type Database = {
             columns: ["revision_id"]
             isOneToOne: false
             referencedRelation: "propuesta_revisiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propuesta_revision_costos_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "propuesta_items"
             referencedColumns: ["id"]
           },
         ]
@@ -7080,6 +7093,26 @@ export type Database = {
           p_actor: string
           p_correlation_id?: string
           p_datos: Json
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      eliminar_costo_revision: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_item_id: string
+          p_revision_id: string
+        }
+        Returns: Json
+      }
+      guardar_costo_revision: {
+        Args: {
+          p_actor: string
+          p_correlation_id?: string
+          p_datos: Json
+          p_item_id: string
           p_revision_id: string
         }
         Returns: Json

@@ -691,7 +691,14 @@ export async function obtenerEspacioOperadorServicio(
       // fue superada por otra sesión y no se debe volver a corregir.
       const pendienteActualizacionAvance = sesionPausada
         && ultimaSesion!.pendienteActualizacionAvance === true;
-      const reclamo = reclamoPorOperacion.get(claveOperacion) ?? null;
+      // Un reclamo activo debe quedar siempre adjunto aunque su meta cambió
+      // (reclamos antiguos sin meta_proceso_id). Se prueba la clave exacta y
+      // luego los fallbacks de partida para que el calendario no lo marque
+      // "Por asignar" cuando ya está reservado.
+      const reclamo = reclamoPorOperacion.get(claveOperacion)
+        ?? reclamoPorOperacion.get(`${partida.id}:${operacion.meta?.id ?? ''}`)
+        ?? reclamoPorOperacion.get(`${partida.id}:`)
+        ?? null;
       const reclamadoPorMi = operadorId !== null && reclamo?.operadorId === operadorId;
       const hechoPiezas = operacion.meta
         ? (hechoPorMeta.get(operacion.meta.id) ?? 0)

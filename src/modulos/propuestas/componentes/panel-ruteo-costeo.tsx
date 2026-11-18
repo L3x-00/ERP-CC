@@ -11,8 +11,9 @@ import { SeccionDesplegable } from '@/compartido/componentes/ui/seccion-desplega
 import { formatearMoneda, formatearNumero } from '@/compartido/utilidades/formatear';
 import { parsearMonto } from '@/compartido/utilidades/monto';
 import { costearRuteoRevisionAccion } from '@/modulos/propuestas/acciones/costear-ruteo-revision';
-import { editarCostosRevisionAccion } from '@/modulos/propuestas/acciones/editar-costos-revision';
 import { editarRuteoItemAccion } from '@/modulos/propuestas/acciones/editar-ruteo-item';
+import { guardarCostoRevisionAccion } from '@/modulos/propuestas/acciones/guardar-costo-revision';
+import { eliminarCostoRevisionAccion } from '@/modulos/propuestas/acciones/eliminar-costo-revision';
 import type { CatalogosPropuesta } from '@/modulos/propuestas/acciones/obtener-catalogos-propuesta';
 import { calcularTotalesPropuesta } from '@/modulos/propuestas/servicios/calcular-totales-propuesta';
 import {
@@ -44,6 +45,12 @@ import { PanelMaterialClientePropuesta } from './panel-material-cliente-propuest
 function montoDeTexto(texto: string): number | null {
   const limpio = texto.trim();
   return limpio === '' ? 0 : parsearMonto(limpio);
+}
+
+function camposVacios(): Record<CategoriaCosto, string> {
+  return Object.fromEntries(
+    CATEGORIAS_COSTO.map((categoria) => [categoria, '']),
+  ) as Record<CategoriaCosto, string>;
 }
 
 type FilaRuteoBorrador = {
@@ -93,6 +100,8 @@ export function PanelRuteoCosteo({
   const [ruteoBorrador, setRuteoBorrador] = useState<Record<string, FilaRuteoBorrador[] | undefined>>({});
   const [costosBorrador, setCostosBorrador] = useState<Record<CategoriaCosto, string> | null>(null);
   const [notasBorrador, setNotasBorrador] = useState<Record<CategoriaCosto, string> | null>(null);
+  // '' = costeo general (filas heredadas sin ítem); si no, id del ítem costeado.
+  const [itemCosto, setItemCosto] = useState('');
   const [mensaje, setMensaje] = useState<{ texto: string; tono: 'error' | 'exito' } | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
   // Aclaración cliente 2026-11-09: tiempos inválidos se marcan en rojo por campo.
@@ -251,28 +260,47 @@ export function PanelRuteoCosteo({
     return null;
   }
 
+  const costosGuardados = useMemo(
+    () => costos.filter((fila) => fila.revisionId === revision.id),
+    [costos, revision.id],
+  );
+  const filasDelCosteo = useMemo(
+    () => costosGuardados.filter((fila) => (fila.itemId ?? '') === itemCosto),
+    [costosGuardados, itemCosto],
+  );
+
+  /** Un costeo guardado agrupa las filas de Material y Otros de un mismo ítem. */
+  const costeosGuardados = useMemo(() => {
+    const grupos = new Map<string, { itemId: string; etiqueta: string; filas: CostoRevisionPropuesta[] }>();
+    for (const fila of costosGuardados) {
+      const clave = fila.itemId ?? '';
+      const item = itemsRevision.find((candidato) => candidato.id === fila.itemId);
+      if (!grupos.has(clave)) {
+        grupos.set(clave, {
+          itemId: clave,
+          etiqueta: item ? `${item.codigo} · ${item.descripcion}` : 'General (sin ítem)',
+          filas: [],
+        });
+      }
+      grupos.get(clave)!.filas.push(fila);
+    }
+    return [...grupos.values()];
+  }, [costosGuardados, itemsRevision]);
+
   const costosActuales = useMemo(() => {
     if (costosBorrador) return costosBorrador;
-    const base = Object.fromEntries(
-      CATEGORIAS_COSTO.map((categoria) => [categoria, '']),
-    ) as Record<CategoriaCosto, string>;
-    for (const costo of costos.filter((fila) => fila.revisionId === revision.id)) {
-      base[costo.categoria] = String(costo.monto);
-    }
+    const base = camposVacios();
+    for (const costo of filasDelCosteo) base[costo.categoria] = String(costo.monto);
     return base;
-  }, [costosBorrador, costos, revision.id]);
+  }, [costosBorrador, filasDelCosteo]);
 
   // Obs. cliente 2026-10-13: Material y Otros aceptan detalle libre además del monto.
   const notasActuales = useMemo(() => {
     if (notasBorrador) return notasBorrador;
-    const base = Object.fromEntries(
-      CATEGORIAS_COSTO.map((categoria) => [categoria, '']),
-    ) as Record<CategoriaCosto, string>;
-    for (const costo of costos.filter((fila) => fila.revisionId === revision.id)) {
-      base[costo.categoria] = costo.nota ?? '';
-    }
+    const base = camposVacios();
+    for (const costo of filasDelCosteo) base[costo.categoria] = costo.nota ?? '';
     return base;
-  }, [notasBorrador, costos, revision.id]);
+  }, [notasBorrador, filasDelCosteo]);
 
   function montoDe(categoria: CategoriaCosto): number | null {
     return montoDeTexto(costosActuales[categoria]);
@@ -295,6 +323,24 @@ export function PanelRuteoCosteo({
     [ruteoActivoCosteado],
   );
 
+  // Los totales siempre incluyen los costeos guardados. El costeo en edición se
+  // sustituye temporalmente por lo que el usuario está escribiendo.
+  const costosParaTotales = useMemo(() => {
+    const base = Object.fromEntries(
+      CATEGORIAS_COSTO.map((categoria) => [categoria, 0]),
+    ) as Record<CategoriaCosto, number>;
+    for (const fila of costosGuardados) base[fila.categoria] += fila.monto;
+    for (const categoria of CATEGORIAS_COSTO_EDITABLES) {
+      const texto = costosBorrador?.[categoria];
+      if (texto === undefined || texto.trim() === '') continue;
+      const guardadoDelItem = filasDelCosteo
+        .filter((fila) => fila.categoria === categoria)
+        .reduce((suma, fila) => suma + fila.monto, 0);
+      base[categoria] = base[categoria] - guardadoDelItem + (montoDeTexto(texto) ?? 0);
+    }
+    return base;
+  }, [costosGuardados, filasDelCosteo, costosBorrador]);
+
   const totales = useMemo(
     () =>
       calcularTotalesPropuesta({
@@ -305,10 +351,10 @@ export function PanelRuteoCosteo({
           activo: item.activo,
         })),
         costoTotal: CATEGORIAS_COSTO.reduce(
-          (suma, categoria) => suma + (montoDeTexto(costosActuales[categoria]) ?? 0),
+          (suma, categoria) => suma + costosParaTotales[categoria],
           0,
         ),
-        costoManualMaquina: montoDeTexto(costosActuales.maquina) ?? 0,
+        costoManualMaquina: costosParaTotales.maquina,
         costoRuteo: ruteoActivoCosteado.reduce(
           (suma, fila) => suma + (fila.costoTotal ?? 0),
           0,
@@ -318,14 +364,14 @@ export function PanelRuteoCosteo({
         utilidadObjetivoPorcentaje,
         moneda: revision.snapshotCabecera.moneda,
       }),
-    [itemsRevision, costosActuales, ruteoActivoCosteado, revision.snapshotCabecera, utilidadObjetivoPorcentaje],
+    [itemsRevision, costosParaTotales, ruteoActivoCosteado, revision.snapshotCabecera, utilidadObjetivoPorcentaje],
   );
 
   /** Categorías históricas ya sin captura que aún tienen monto: no se ocultan del total. */
   const categoriasRetiradasConMonto = CATEGORIAS_COSTO.filter(
     (categoria) =>
       !(CATEGORIAS_COSTO_EDITABLES as readonly CategoriaCosto[]).includes(categoria) &&
-      (montoDe(categoria) ?? 0) > 0,
+      costosParaTotales[categoria] > 0,
   );
 
   async function guardarRuteo(item: PropuestaItem): Promise<void> {
@@ -392,8 +438,14 @@ export function PanelRuteoCosteo({
     setMensaje({ texto: `Ruteo de ${item.codigo} guardado correctamente.`, tono: 'exito' });
   }
 
+  function limpiarBorradorCosto(): void {
+    setCostosBorrador(camposVacios());
+    setNotasBorrador(camposVacios());
+    setItemCosto('');
+  }
+
   async function guardarCostos(): Promise<void> {
-    const invalidas = CATEGORIAS_COSTO.filter((categoria) => montoDe(categoria) === null);
+    const invalidas = CATEGORIAS_COSTO_EDITABLES.filter((categoria) => montoDe(categoria) === null);
     if (invalidas.length > 0) {
       setMensaje({
         texto: `Revisa el monto de ${invalidas.map((categoria) => ETIQUETA_CATEGORIA_COSTO[categoria]).join(', ')}: escribe un número, por ejemplo 1250.50.`,
@@ -401,7 +453,7 @@ export function PanelRuteoCosteo({
       });
       return;
     }
-    const filas = CATEGORIAS_COSTO.filter(
+    const filas = CATEGORIAS_COSTO_EDITABLES.filter(
       (categoria) => costosActuales[categoria].trim() !== '',
     ).map((categoria) => {
       const nota = notasActuales[categoria].trim();
@@ -411,10 +463,15 @@ export function PanelRuteoCosteo({
         ...(nota !== '' ? { nota } : {}),
       };
     });
+    if (filas.length === 0) {
+      setMensaje({ texto: 'Captura al menos un monto para guardar el costeo.', tono: 'error' });
+      return;
+    }
     setGuardando('costos');
     setMensaje(null);
-    const respuesta = await editarCostosRevisionAccion({
+    const respuesta = await guardarCostoRevisionAccion({
       revisionId: revision.id,
+      itemId: itemCosto === '' ? null : itemCosto,
       actualizadoEn: revision.actualizadoEn,
       costos: filas,
     });
@@ -423,11 +480,42 @@ export function PanelRuteoCosteo({
       setMensaje({ texto: respuesta.error, tono: 'error' });
       return;
     }
-    setCostosBorrador(null);
-    setNotasBorrador(null);
-    // Refresca el token CAS antes de confirmar: evita guardar con una versión obsoleta.
+    // Los campos quedan listos para capturar el costeo del siguiente ítem.
+    limpiarBorradorCosto();
     await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
     setMensaje({ texto: 'Costos guardados correctamente.', tono: 'exito' });
+  }
+
+  function editarCostoGuardado(itemId: string): void {
+    const filas = costosGuardados.filter((fila) => (fila.itemId ?? '') === itemId);
+    const montos = camposVacios();
+    const notas = camposVacios();
+    for (const fila of filas) {
+      montos[fila.categoria] = String(fila.monto);
+      notas[fila.categoria] = fila.nota ?? '';
+    }
+    setCostosBorrador(montos);
+    setNotasBorrador(notas);
+    setItemCosto(itemId);
+    setMensaje({ texto: 'Costeo cargado para editar. Guárdalo para aplicar los cambios.', tono: 'exito' });
+  }
+
+  async function eliminarCostoGuardado(itemId: string): Promise<void> {
+    setGuardando(`eliminar-${itemId}`);
+    setMensaje(null);
+    const respuesta = await eliminarCostoRevisionAccion({
+      revisionId: revision.id,
+      itemId: itemId === '' ? null : itemId,
+      actualizadoEn: revision.actualizadoEn,
+    });
+    setGuardando(null);
+    if (!respuesta.exito) {
+      setMensaje({ texto: respuesta.error, tono: 'error' });
+      return;
+    }
+    if (itemCosto === itemId) limpiarBorradorCosto();
+    await queryClient.invalidateQueries({ queryKey: claveDetallePropuesta(revision.propuestaId) });
+    setMensaje({ texto: 'Costeo eliminado.', tono: 'exito' });
   }
 
   /** Costea solo ruteos ya confirmados, para que sea evidente qué se persiste. */
@@ -923,6 +1011,31 @@ export function PanelRuteoCosteo({
           dataTestId="seccion-costeo-interno"
           dataTestIdBoton="alternar-costeo-interno"
         >
+        <div className="flex flex-col gap-1 text-sm sm:max-w-md">
+          <label htmlFor="item-costo" className="font-medium">Ítem del costeo</label>
+          <Select
+            id="item-costo"
+            data-testid="item-costo"
+            aria-label="Ítem del costeo"
+            value={itemCosto}
+            onChange={(evento) => {
+              setItemCosto(evento.target.value);
+              setCostosBorrador(camposVacios());
+              setNotasBorrador(camposVacios());
+            }}
+            disabled={!esBorrador || !permisos.editarCosto}
+          >
+            <option value="">General (sin ítem)</option>
+            {itemsActivos.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.codigo} · {item.descripcion}
+              </option>
+            ))}
+          </Select>
+          <p className="text-xs text-texto-secundario">
+            Guarda un costeo por ítem. Los campos se limpian para capturar el siguiente.
+          </p>
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {CATEGORIAS_COSTO_EDITABLES.map((categoria) => {
             const etiqueta = ETIQUETA_CATEGORIA_COSTO[categoria];
@@ -975,7 +1088,7 @@ export function PanelRuteoCosteo({
             {categoriasRetiradasConMonto
               .map(
                 (categoria) =>
-                  `${ETIQUETA_CATEGORIA_COSTO[categoria]} ${formatearMoneda(montoDe(categoria) ?? 0, totales.moneda)}`,
+                  `${ETIQUETA_CATEGORIA_COSTO[categoria]} ${formatearMoneda(costosParaTotales[categoria], totales.moneda)}`,
               )
               .join(' · ')}
             .
@@ -984,9 +1097,60 @@ export function PanelRuteoCosteo({
         {esBorrador && permisos.editarCosto && (
           <div>
             <Button tamano="sm" onClick={() => void guardarCostos()} disabled={guardando === 'costos'}>
-              {guardando === 'costos' ? '…' : 'Guardar costos'}
+              {guardando === 'costos' ? 'Guardando…' : 'Guardar costos'}
             </Button>
           </div>
+        )}
+        {costeosGuardados.length > 0 && (
+          <section data-testid="lista-costos-guardados" className="rounded-lg border border-borde bg-superficie-2 p-3">
+            <h4 className="text-sm font-semibold text-texto-primario">Costeos guardados</h4>
+            <ul className="mt-2 flex flex-col gap-2">
+              {costeosGuardados.map((grupo) => {
+                const clave = grupo.itemId === '' ? 'general' : grupo.itemId;
+                const material = grupo.filas.find((fila) => fila.categoria === 'material');
+                const otros = grupo.filas.find((fila) => fila.categoria === 'gastos_directos');
+                return (
+                  <li
+                    key={clave}
+                    data-testid={`costo-guardado-${clave}`}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-borde bg-superficie px-3 py-2 text-sm"
+                  >
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium text-texto-primario">{grupo.etiqueta}</span>
+                      <span className="text-xs text-texto-secundario">
+                        Material {formatearMoneda(material?.monto ?? 0, totales.moneda)}
+                        {' · '}
+                        Otros {formatearMoneda(otros?.monto ?? 0, totales.moneda)}
+                      </span>
+                    </div>
+                    {esBorrador && permisos.editarCosto ? (
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          tamano="sm"
+                          variante="contorno"
+                          data-testid={`editar-costo-${clave}`}
+                          onClick={() => editarCostoGuardado(grupo.itemId)}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          tamano="sm"
+                          variante="destructivo"
+                          data-testid={`eliminar-costo-${clave}`}
+                          disabled={guardando === `eliminar-${clave}`}
+                          onClick={() => void eliminarCostoGuardado(grupo.itemId)}
+                        >
+                          {guardando === `eliminar-${clave}` ? 'Eliminando…' : 'Eliminar'}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         )}
         {!permisos.editarCosto && (
           <p className="text-xs text-texto-secundario">

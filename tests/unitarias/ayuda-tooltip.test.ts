@@ -11,8 +11,7 @@ afterEach(cleanup);
 function renderTooltip() {
   return render(createElement(AyudaTooltip, {
     texto: 'Viene de los consumos registrados',
-    children: '$320.00',
-  }));
+  }, '$320.00'));
 }
 
 describe('AyudaTooltip', () => {

@@ -312,6 +312,11 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
     await formulario.getByTestId('avance-pin').fill(caso.pinOperador);
     await formulario.getByTestId('actualizar-avance-detalle').click();
 
+    // El formulario se cierra al guardar y deja una confirmación verde visible.
+    await expect(formulario).toHaveCount(0);
+    await expect(page.getByTestId('avance-actualizado-confirmacion')).toContainText(
+      'actualizados correctamente',
+    );
     await expect(page.getByTestId('columna-pausada')).toContainText('C20-');
     const { data: pausa } = await caso.admin.from('sesiones_trabajo')
       .select('piezas_producidas, pendiente_actualizacion_avance, horas_netas')

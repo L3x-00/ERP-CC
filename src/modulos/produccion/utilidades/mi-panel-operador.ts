@@ -71,15 +71,15 @@ export function obtenerMisProcesos(
 
       let estado: EstadoMiProceso;
 
-      if (sesionActiva) {
+      const produccionCompleta = proceso.columna === 'lista'
+        || (proceso.metaPiezas > 0 && proceso.hechoPiezas >= proceso.metaPiezas);
+
+      if (produccionCompleta) {
+        estado = 'terminado';
+      } else if (sesionActiva) {
         estado = 'en_proceso';
       } else if (ultimaSesion?.estadoSesion === 'pausada') {
         estado = 'pausado';
-      } else if (
-        proceso.columna === 'lista' &&
-        sesiones.some((sesion) => sesion.estadoSesion === 'finalizada')
-      ) {
-        estado = 'terminado';
       } else {
         estado = 'pendiente';
       }

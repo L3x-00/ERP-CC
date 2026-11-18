@@ -210,6 +210,8 @@ export function DetalleProcesoOperador({
   const [avanceUsada, setAvanceUsada] = useState('0');
   const [avanceScrap, setAvanceScrap] = useState('0');
   const [avanceMotivoConsumo, setAvanceMotivoConsumo] = useState('');
+  // El formulario de avance se cierra en cuanto el servidor confirma el guardado.
+  const [avanceGuardado, setAvanceGuardado] = useState(false);
   const [errorAvance, setErrorAvance] = useState<DatosErrorCierre | null>(null);
   const [sesionAnteriorAbierta, setSesionAnteriorAbierta] = useState(false);
   const [mensaje, setMensaje] = useState<ResultadoOperacion | null>(null);
@@ -463,6 +465,14 @@ export function DetalleProcesoOperador({
   async function actualizarAvance(): Promise<void> {
     const sesionId = sesionCorreccionId ?? proceso?.ultimaSesion?.id;
     if (!proceso || !sesionId) return;
+    if (!/^\d{4,6}$/.test(avancePin)) {
+      setErrorAvance({
+        titulo: 'Falta el PIN de operador',
+        mensaje: 'Escribe tu PIN de 4 a 6 dígitos para confirmar la actualización del avance.',
+        acciones: [],
+      });
+      return;
+    }
     const registrarConsumo = avanceMaterialId !== '';
     const resultado = await acciones.actualizarAvance(proceso, {
       sesionId,
@@ -480,7 +490,14 @@ export function DetalleProcesoOperador({
       ...(avancePin ? { pinConfirmacion: avancePin } : {}),
     });
     setMensaje(resultado);
-    if (!resultado.exito) mostrarErrorAvance(resultado);
+    if (!resultado.exito) {
+      mostrarErrorAvance(resultado);
+      return;
+    }
+    setAvanceGuardado(true);
+    setAvancePin('');
+    setAvancePiezas('0');
+    setAvanceHoras('0');
   }
 
   /** Errores de avance con salidas accionables, no callejones sin salida. */
@@ -517,6 +534,24 @@ export function DetalleProcesoOperador({
       acciones.push({
         etiqueta: 'Dejarlo para el cierre',
         alElegir: () => setAvanceMaterialId(''),
+      });
+    }
+    if (resultado.codigo === 'cantidad_excede_meta_proceso' || resultado.codigo === 'cantidad_producida_excede_solicitada') {
+      acciones.push({
+        etiqueta: 'Ajustar piezas al máximo permitido',
+        alElegir: () => setAvancePiezas(String(maximoPiezas)),
+      });
+    }
+    if (resultado.codigo === 'actualizacion_avance_invalida') {
+      acciones.push({
+        etiqueta: 'Poner horas en cero',
+        alElegir: () => setAvanceHoras('0'),
+      });
+    }
+    if (resultado.codigo === 'sesion_no_pausada' || resultado.codigo === 'orden_no_reanudable') {
+      acciones.push({
+        etiqueta: 'Cerrar ficha y actualizar tablero',
+        alElegir: () => onCerrar(),
       });
     }
     setErrorAvance({
@@ -2386,9 +2421,20 @@ export function DetalleProcesoOperador({
               </div>
             ) : null}
 
-            {proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
+            {avanceGuardado ? (
+              <p
+                role="status"
+                data-testid="avance-actualizado-confirmacion"
+                className="rounded-lg border border-exito/40 bg-exito-suave p-3 text-sm font-medium text-exito-texto"
+              >
+                Avance y hora real actualizados correctamente.
+              </p>
+            ) : null}
+            {!avanceGuardado
+              && proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida)
               && !soloLectura ? (
               <form
+                noValidate
                 className="grid gap-3 rounded-lg border border-peligro/40 bg-peligro-suave/60 p-3"
                 aria-label="Actualizar avance de la pausa"
                 data-testid="formulario-actualizar-avance"
@@ -2420,7 +2466,10 @@ export function DetalleProcesoOperador({
                   Sesión a actualizar
                   <Select
                     value={sesionCorreccionId ?? proceso.ultimaSesion?.id ?? ''}
-                    onChange={(evento) => setSesionCorreccionId(evento.target.value)}
+                    onChange={(evento) => {
+                      setSesionCorreccionId(evento.target.value);
+                      setAvanceGuardado(false);
+                    }}
                     data-testid="avance-sesion"
                   >
                     {[...proceso.sesiones]
@@ -2523,15 +2572,23 @@ export function DetalleProcesoOperador({
                   </div>
                 ) : null}
                 <label className={CLASE_ETIQUETA}>
-                  PIN de operador
+                  PIN de operador <span className="text-peligro-texto" aria-hidden="true">*</span>
                   <input
                     type="password"
                     inputMode="numeric"
+                    required
+                    aria-required="true"
+                    maxLength={6}
+                    pattern="[0-9]{4,6}"
+                    aria-describedby="avance-pin-ayuda"
                     value={avancePin}
                     onChange={(evento) => setAvancePin(evento.target.value)}
                     className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
                     data-testid="avance-pin"
                   />
+                  <span id="avance-pin-ayuda" className="text-xs font-normal text-texto-tenue">
+                    Obligatorio: tu PIN de 4 a 6 dígitos.
+                  </span>
                 </label>
                 <Button type="submit" disabled={procesando} data-testid="actualizar-avance-detalle">
                   {procesando ? 'Actualizando…' : 'Actualizar avance'}
@@ -2778,7 +2835,9 @@ export function DetalleProcesoOperador({
     <DialogoErrorCierre
       error={errorAvance}
       onCerrar={() => setErrorAvance(null)}
-      descripcion="No se guardó el avance. Elige una de las opciones para seguir con el flujo."
+      descripcion={errorAvance?.acciones?.length
+        ? 'No se guardó el avance. Elige una de las opciones para seguir con el flujo.'
+        : 'No se guardó el avance. Revisa el detalle y corrige lo que se indica.'}
       testId="error-avance-dialogo"
     />
   );

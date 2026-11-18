@@ -149,6 +149,25 @@ export const esquemaEditarCostosRevision = z
     { message: 'No se puede repetir una categoría de costo' },
   );
 
+/** Alta o edición del costeo interno de un ítem (varias categorías a la vez). */
+export const esquemaGuardarCostoRevision = z
+  .object({
+    revisionId: uuid,
+    itemId: uuid.nullable(),
+    actualizadoEn,
+    costos: z.array(costoRevision).min(1, 'Captura al menos un costo').max(5),
+  })
+  .strict();
+
+/** Borrado del costeo de un ítem; lleva el CAS de la revisión padre. */
+export const esquemaEliminarCostoRevision = z
+  .object({
+    revisionId: uuid,
+    itemId: uuid.nullable(),
+    actualizadoEn,
+  })
+  .strict();
+
 /** Seguimiento: próxima acción del catálogo B1.7 (+ texto si es "Otro"). */
 export const esquemaRegistrarSeguimientoPropuesta = z
   .object({

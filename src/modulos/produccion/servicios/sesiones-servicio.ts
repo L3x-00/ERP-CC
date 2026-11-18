@@ -14,6 +14,7 @@ export type CodigoErrorProduccion =
   | 'inicio_sesion_invalido'
   | 'cierre_sesion_invalido'
   | 'sesion_no_activa'
+  | 'sesion_partida_inconsistente'
   | 'orden_partida_inconsistente'
   | 'orden_no_iniciable'
   | 'orden_no_en_proceso'
@@ -172,6 +173,7 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'inicio_sesion_invalido',
   'cierre_sesion_invalido',
   'sesion_no_activa',
+  'sesion_partida_inconsistente',
   'orden_partida_inconsistente',
   'orden_no_iniciable',
   'orden_no_en_proceso',
@@ -681,6 +683,12 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'La orden ya no está pausada o no puede reanudarse';
     case 'sesion_no_pausada':
       return 'La sesión ya no está pausada; actualiza el tablero';
+    case 'sesion_partida_inconsistente':
+      return 'La sesión no corresponde a una partida de esta orden. Actualiza el tablero y vuelve a abrir el proceso.';
+    case 'programacion_inexistente':
+      return 'La programación de esta pausa ya no existe; actualiza el tablero y vuelve a reclamar el proceso.';
+    case 'recurso_inexistente':
+      return 'El recurso de esta sesión ya no existe. Pide a administración que lo revise y actualiza el tablero.';
     case 'pausa_ya_superada':
       return 'Esa pausa ya fue retomada por una sesión posterior; actualiza el tablero';
     case 'cierre_pausa_invalido':

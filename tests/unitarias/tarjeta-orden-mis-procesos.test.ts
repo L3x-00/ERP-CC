@@ -109,4 +109,30 @@ describe('Mis procesos · una tarjeta por orden (punto 10)', () => {
     expect(onGestionar).toHaveBeenCalledOnce();
     expect(onGestionar.mock.calls[0]?.[0]).toMatchObject({ id: 'p1' });
   });
+
+  it('deshabilita Gestionar proceso cuando ya se completó la producción', () => {
+    const completo = {
+      ...proceso('p3', 'Router'),
+      columna: 'lista',
+      hechoPiezas: 40,
+      metaPiezas: 40,
+      reclamadoPorMi: true,
+      pendienteActualizacionAvance: false,
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(TarjetaOrdenMisProcesos, {
+      grupo: GRUPO,
+      procesos: [{ proceso: completo, estado: 'terminado', horasTrabajadas: 4, piezasRegistradas: 40 }],
+      hoy: '2026-11-18',
+      procesando: null,
+      onIniciar: vi.fn(),
+      onReanudar: vi.fn(),
+      onLiberar: vi.fn(),
+      onGestionar: vi.fn(),
+    }));
+
+    const boton = screen.getByTestId('gestionar-proceso-p3') as HTMLButtonElement;
+    expect(boton.disabled).toBe(true);
+    expect(boton.textContent).toContain('Proceso completado');
+  });
 });

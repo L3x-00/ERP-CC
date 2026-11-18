@@ -946,3 +946,97 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.queryByTestId('aviso-material-sin-costo')).toBeNull();
   });
 });
+
+describe('actualizar avance: cierre visual y PIN obligatorio', () => {
+  const sesionPausada = {
+    id: 'sesion-pausada',
+    corridaId: null,
+    operadorId: 'operador-1',
+    operadorNombre: 'Operador de prueba',
+    estadoSesion: 'pausada' as const,
+    fechaInicio: '2026-11-18T09:00:00.000Z',
+    fechaFin: '2026-11-18T11:00:00.000Z',
+    piezasProducidas: 36,
+    horasNetas: 2,
+    motivoPausa: 'FIN_JORNADA',
+    motivoPausaNota: null,
+    notas: null,
+    verificacionCompleta: true,
+    pendienteActualizacionAvance: true,
+  };
+  const pausado = {
+    ...proceso,
+    columna: 'pausada',
+    sesionActiva: null,
+    ultimaSesion: sesionPausada,
+    sesiones: [sesionPausada],
+    puedeReanudar: true,
+    puedeIniciar: false,
+  } as unknown as ProcesoEspacioOperador;
+
+  function montar(actualizarAvance: ReturnType<typeof vi.fn>) {
+    return render(createElement(DetalleProcesoOperador, {
+      proceso: pausado,
+      hoy: '2026-11-18',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: actualizarAvance as never,
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+  }
+
+  it('cierra el formulario y muestra confirmación verde al guardar el avance', async () => {
+    const actualizar = vi.fn().mockResolvedValue({
+      exito: true,
+      datos: {
+        id: sesionPausada.id,
+        estadoSesion: 'finalizada',
+        horasNetas: 2,
+        piezasProducidas: 40,
+        cantidadProducidaPartida: 40,
+        estadoOrden: 'en_proceso',
+        estadoPlaneacion: 'programada',
+        actualizadoEn: '2026-11-18T11:05:00.000Z',
+      },
+    });
+    montar(actualizar);
+
+    expect(screen.getByTestId('formulario-actualizar-avance')).toBeDefined();
+    fireEvent.change(screen.getByTestId('avance-piezas'), { target: { value: '40' } });
+    fireEvent.change(screen.getByTestId('avance-horas'), { target: { value: '2' } });
+    fireEvent.change(screen.getByTestId('avance-pin'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    await waitFor(() =>
+      expect(actualizar).toHaveBeenCalledWith(pausado, expect.objectContaining({ pinConfirmacion: '123456' })),
+    );
+    await waitFor(() => expect(screen.queryByTestId('formulario-actualizar-avance')).toBeNull());
+    expect(screen.getByTestId('avance-actualizado-confirmacion').textContent).toContain(
+      'actualizados correctamente',
+    );
+  });
+
+  it('no envía el avance sin PIN y explica cómo corregirlo', async () => {
+    const actualizar = vi.fn();
+    montar(actualizar);
+
+    fireEvent.change(screen.getByTestId('avance-pin'), { target: { value: '' } });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    expect(await screen.findByText(/Escribe tu PIN de 4 a 6 dígitos/)).toBeDefined();
+    expect(actualizar).not.toHaveBeenCalled();
+  });
+});
