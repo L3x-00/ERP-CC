@@ -390,12 +390,12 @@ $$, 'La referencia 10 (intervalo) es válida');
 -- 52-57. Horas extra y cierre de jornada
 -- -----------------------------------------------------------------------------
 -- D2-A: el umbral es la jornada del día, no la capacidad instalada
--- (equipos × jornada). Con 3 equipos la jornada sigue en 9 h de lunes a viernes.
+-- (equipos × jornada). Con 3 equipos la jornada sigue en 8 h de lunes a viernes.
 UPDATE public.recursos_planeacion SET cantidad_equipos = 3
 WHERE id = '00000000-0000-4000-8000-00000000b605';
 SELECT is(privado.obtener_jornada_recurso_turno(
   '00000000-0000-4000-8000-00000000b605', date_trunc('week', current_date)::date, 'matutino'),
-  9::numeric,
+  8::numeric,
   'La jornada del día no multiplica por la cantidad de equipos');
 
 UPDATE public.programacion_areas SET estado_planeacion = 'en_preparacion'
@@ -405,7 +405,7 @@ SELECT 'sesion3', to_jsonb(sesion.*)
 FROM public.iniciar_sesion_trabajo_operador(
   '00000000-0000-4000-8000-00000000b607', '00000000-0000-4000-8000-00000000b608',
   '00000000-0000-4000-8000-00000000b60a', '00000000-0000-4000-8000-00000000b603') AS sesion;
--- 12 h garantiza superar la jornada de 9 h a cualquier hora local: el descuento
+-- 12 h garantiza superar la jornada de 8 h a cualquier hora local: el descuento
 -- de comida (12:00-13:00 Tijuana) resta como máximo 1 h.
 UPDATE public.sesiones_trabajo SET fecha_inicio = now() - interval '12 hours'
 WHERE id = (SELECT (valor->>'id')::uuid FROM b6 WHERE clave = 'sesion3');

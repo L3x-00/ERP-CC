@@ -666,7 +666,7 @@ describe('operación de Planeación en cliente', () => {
     );
   });
 
-  it('mientras la capacidad carga no declara «Sin turnos definidos» (C9.1)', () => {
+  it('mientras la capacidad carga no declara «Sin capacidad configurada» (C9.1)', () => {
     obtenerCalendarioMock.mockImplementation(() => new Promise(() => {}));
     usarTiendaPlaneacion.setState({
       rango: { fechaInicio: '2026-09-15', fechaFin: '2026-09-21' },
@@ -675,7 +675,7 @@ describe('operación de Planeación en cliente', () => {
     renderizarOperacion(cliente);
 
     expect(screen.getByText('Cargando capacidad…')).toBeTruthy();
-    expect(screen.queryByText('Sin turnos definidos')).toBeNull();
+    expect(screen.queryByText('Sin capacidad configurada')).toBeNull();
   });
 
   it('las vistas y la navegación se pintan antes que los filtros del calendario (C9.1/P-02)', () => {

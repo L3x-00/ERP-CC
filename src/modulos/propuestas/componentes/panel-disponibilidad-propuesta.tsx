@@ -208,9 +208,9 @@ function ResumenDisponibilidad({
       )}
 
       <p className="text-xs text-texto-secundario">
-        Solo informativo: no reserva capacidad ni confirma ninguna fecha. Se calcula con los turnos y
-        excepciones configurados y con la carga ya programada; no incluye trabajo sin programar ni
-        descuenta las horas ya transcurridas de los turnos de hoy. No garantiza equipos libres.
+        Solo informativo: no reserva capacidad ni confirma ninguna fecha. Se calcula con la jornada y
+        excepciones configuradas y con la carga ya programada; no incluye trabajo sin programar ni
+        descuenta las horas ya transcurridas de hoy. No garantiza equipos libres.
         Elige un día con capacidad y pulsa «Usar este día» para fijar la fecha compromiso; al
         aceptar la revisión, Planeación recibe la orden con esa fecha.
       </p>
@@ -242,19 +242,19 @@ function FilaGrupo({
   if (grupo.turnosSobrecargados > 0) {
     avisos.push(
       grupo.turnosSobrecargados === 1
-        ? '1 turno ya está sobrecargado'
-        : `${grupo.turnosSobrecargados} turnos ya están sobrecargados`,
+        ? '1 día ya está sobrecargado'
+        : `${grupo.turnosSobrecargados} días ya están sobrecargados`,
     );
   }
   if (grupo.estado === 'con_capacidad' && grupo.recursosSinTurno > 0) {
-    avisos.push('hay equipos activos sin turnos configurados; el resumen está incompleto');
+    avisos.push('hay equipos activos sin capacidad configurada; el resumen está incompleto');
   }
   if (grupo.horasDisponibles !== null && grupo.horasRequeridas > grupo.horasDisponibles) {
     avisos.push('lo que pide el ruteo supera lo disponible en el periodo');
   }
   for (const operacion of grupo.operacionesMultidia ?? []) {
     avisos.push(
-      `${operacion.procesoNombre} requiere ${horas(operacion.horasRequeridas)} y un turno ofrece `
+      `${operacion.procesoNombre} requiere ${horas(operacion.horasRequeridas)} y un día ofrece `
       + `${horas(operacion.capacidadDia)}: se recomienda programarla en ${operacion.diasRecomendados} días`,
     );
   }
@@ -337,7 +337,7 @@ function FilaGrupo({
                       {formatearFechaCalendario(dia.fecha)}
                     </span>{' '}
                     · {horas(dia.horasDisponibles)} libres
-                    {dia.turnosSobrecargados > 0 ? ' · turno saturado' : ''}
+                    {dia.turnosSobrecargados > 0 ? ' · día saturado' : ''}
                     {!cabe ? ' · no cubre todo el ruteo' : ''}
                     {elegido ? ' · día elegido' : ''}
                   </span>

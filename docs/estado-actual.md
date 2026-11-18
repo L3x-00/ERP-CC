@@ -30,11 +30,12 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 
 ## Últimos cambios relevantes
 
-- **C18 — Horario laboral (2026-11-16):** lunes a viernes 9 h, sábado 4 h, domingo cerrado; turnos matutino/vespertino acotados. La misma regla se aplica en capacidad, planeación, producción y en la jornada del operador.
+- **C18 — Horario laboral (2026-11-16, jornada ajustada por C24):** lunes a viernes 8 h, sábado 4 h, domingo cerrado; matutino y vespertino son etiquetas. La misma regla se aplica en capacidad, planeación, producción y en la jornada del operador.
 - **C19 — Cierre por entrega (2026-11-16):** la orden pasa a `CERRADA` al entregar el 100 %, se reabre al anular la nota y el cierre administrativo completa costo y margen.
 - **PR #192 — Correcciones QA (2026-11-15):** fechas del negocio en Tijuana, permisos de calidad del operador, cierre excepcional del supervisor, adjuntos, estados, avisos de React y ajustes de accesibilidad.
 - **PR #193 — Cobertura y jornada (2026-11-16):** E2E de anulación de nota parcial y liberación de máquina tras pausa; unitarias de fechas sin hora y mensajes de corrida; jornada del operador derivada de `horasJornadaDia`.
 - **C20 (2026-11-17):** hora real de finalización en el cierre, pausa automática con bandera «Actualizar avance», corrección de piezas/hora real y control de jornada acumulada por día. PR #195.
+- **C24 — Turnos visuales y jornada continua (2026-11-18):** la jornada es continua de 8 h de lunes a viernes, 4 h el sábado y domingo cerrado; matutino y vespertino son solo etiquetas visuales y ya no reparten la capacidad. La capacidad es `equipos × jornada` e ignora `capacidades_recurso_turno`, que queda como legado. Los errores de arranque siempre traen causa exacta (`jornada_cerrada`, `recurso_sin_capacidad`, `recurso_capacidad_excedida`, `recurso_ocupado`) y la app muestra el detalle. Va en un PR anterior a la tanda **C23 — producción sin callejones**, que se renumera a `20261118160000/160100` al rebasar.
 - **C21 (2026-11-17):** jornada corrida de 8 h con comida descontada; declaración del tiempo real de cada bloque pausado; corrección cronológica desde el historial; pausas sobrantes marcadas como inválidas; tope de 3 pausas sin avance; dos opciones para el consumo de material y errores en modal con salidas accionables. PR #196.
 - **PR #201 — Horas por operación en Planeación (2026-11-18):** la bolsa y el formulario programan cada operación con las horas de su ruteo (`propuesta_item_ruteo.total_horas`); el total de la partida solo se usa cuando hay una única operación. Producción quedó normalizada: O-1126_09 reprogramada y cinco filas históricas corregidas con evento de auditoría.
 

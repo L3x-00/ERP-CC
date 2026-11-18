@@ -932,7 +932,10 @@ test.describe.serial('SII-B4 ola 2 — propuestas por UI: PDF, envío, revisione
       await expect(capacidad).toContainText('44.00 h');
       const disponible = consulta.locator('dl > div').filter({ hasText: 'Disponible' });
       await expect(disponible).toContainText('44.00 h');
-      await expect(consulta).toContainText('equipos activos sin turnos configurados');
+      // C24: la capacidad es por día (jornada continua) y ya no se muestran avisos
+      // de turnos. El recurso del fixture queda con capacidad configurada, así
+      // que no aparece el aviso de «equipos sin capacidad».
+      await expect(consulta).not.toContainText('sin turnos configurados');
       await expect(page.getByLabel('Fecha compromiso comercial')).toHaveValue(fechaCompromiso);
 
       const despues = await admin.from('programacion_areas').select('id, horas_estimadas', { count: 'exact' })

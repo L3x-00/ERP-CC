@@ -69,7 +69,7 @@ SELECT is((
 SELECT is((
   SELECT horas_netas FROM public.sesiones_trabajo
   WHERE operador_id = '00000000-0000-4000-8000-0000000c1501'
-), 9::numeric, 'El corte se registra exactamente al cumplir las 9 h de jornada');
+), 8::numeric, 'El corte se registra exactamente al cumplir las 8 h de jornada');
 
 SELECT is((
   SELECT motivo_pausa_codigo FROM public.sesiones_trabajo

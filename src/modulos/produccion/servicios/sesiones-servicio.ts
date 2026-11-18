@@ -123,6 +123,9 @@ export type CodigoErrorProduccion =
   | 'proceso_en_proceso_no_liberable'
   | 'programacion_ya_en_proceso'
   | 'sin_recurso_disponible'
+  | 'jornada_cerrada'
+  | 'recurso_sin_capacidad'
+  | 'recurso_capacidad_excedida'
   | 'operador_area_no_asignada'
   | 'corrida_ambigua'
   | 'cantidad_consumo_invalida'
@@ -272,6 +275,9 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'proceso_en_proceso_no_liberable',
   'programacion_ya_en_proceso',
   'sin_recurso_disponible',
+  'jornada_cerrada',
+  'recurso_sin_capacidad',
+  'recurso_capacidad_excedida',
   'operador_area_no_asignada',
   'corrida_ambigua',
   'cantidad_consumo_invalida',
@@ -655,6 +661,11 @@ export function mensajeErrorSesion(error: unknown): string {
   if (!(error instanceof ErrorProduccion)) return 'No se pudo registrar la sesión de producción';
 
   switch (error.codigo) {
+    case 'jornada_cerrada':
+    case 'recurso_sin_capacidad':
+    case 'recurso_capacidad_excedida':
+    case 'sin_recurso_disponible':
+      return detalleDelMensaje(error) ?? 'No hay recurso libre del área para esa fecha y turno';
     case 'cierre_sesion_invalido':
       return 'El cierre requiere datos válidos; el consumo de material solo es obligatorio cuando la ruta lo exige';
     case 'operador_o_programacion_con_sesion_activa':
@@ -684,9 +695,9 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'programacion_conflicto':
       return 'La pausa cambió en otra pantalla; actualiza el tablero';
     case 'recurso_ocupado':
-      return 'El recurso está ocupado; vuelve a intentarlo cuando esté libre';
+      return detalleDelMensaje(error) ?? 'El recurso está ocupado; vuelve a intentarlo cuando esté libre';
     case 'capacidad_no_disponible':
-      return 'La capacidad del recurso ya no permite reanudar';
+      return detalleDelMensaje(error) ?? 'La capacidad del recurso ya no permite reanudar';
     case 'programacion_no_bloqueada':
     case 'sesion_pausada_inexistente':
     case 'orden_no_reanudable':
@@ -864,8 +875,22 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'tipo_cambio_no_configurado':
       return 'Configura el tipo de cambio USD antes de registrar el consumo';
     default:
-      return 'No se pudo registrar la sesión de producción';
+      // C24: regla transversal: nunca un error genérico si la base explicó la causa.
+      return detalleDelMensaje(error) ?? 'No se pudo registrar la sesión de producción';
   }
+}
+
+/**
+ * C24: los RPC lanzan `codigo: detalle legible`. El detalle manda sobre el
+ * texto fijo para que el operador sepa qué corregir y no quede sin salida.
+ */
+function detalleDelMensaje(error: ErrorProduccion): string | null {
+  const mensaje = error.message ?? '';
+  const separador = mensaje.indexOf(':');
+  if (separador < 0) return null;
+  const detalle = mensaje.slice(separador + 1).trim();
+  if (detalle.length === 0 || detalle === error.codigo) return null;
+  return detalle.charAt(0).toUpperCase() + detalle.slice(1);
 }
 
 export { filaASesionTrabajo };

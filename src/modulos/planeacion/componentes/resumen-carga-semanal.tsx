@@ -20,7 +20,7 @@ export interface PropsResumenCargaSemanal {
   rango: RangoFechas;
   /** Filtro de recurso del calendario; área y turno no aplican a la matriz. */
   filtroRecursoId?: string | null;
-  /** Consulta en vuelo sin datos previos: aún no se puede declarar «sin turnos». */
+  /** Consulta en vuelo sin datos previos: aún no se puede declarar «sin capacidad». */
   cargando?: boolean;
 }
 
@@ -92,12 +92,12 @@ export function ResumenCargaSemanal({
                   <th scope="row" className="px-2 py-1 text-left font-medium">
                     {fila.codigo} · {fila.nombre}
                   </th>
-                  {fila.sinTurnos ? (
+                  {fila.sinCapacidad ? (
                     <td
                       colSpan={matriz.columnas.length}
                       className="px-2 py-1 text-texto-secundario"
                     >
-                      Sin turnos definidos
+                      Sin capacidad configurada
                     </td>
                   ) : (
                     matriz.columnas.map((fecha, indice) => {
@@ -119,7 +119,7 @@ export function ResumenCargaSemanal({
                     })
                   )}
                   <td className="px-2 py-1 font-mono" data-testid={`libre-${fila.codigo}`}>
-                    {fila.sinTurnos ? '—' : `${formatearHoras(fila.horasLibresTotales)} h`}
+                    {fila.sinCapacidad ? '—' : `${formatearHoras(fila.horasLibresTotales)} h`}
                   </td>
                 </tr>
               ))}

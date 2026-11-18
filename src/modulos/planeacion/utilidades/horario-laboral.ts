@@ -1,24 +1,24 @@
 import type { TurnoPlaneacion } from '@/modulos/planeacion/tipos/planeacion';
 
 /**
- * Horario laboral de la empresa (regla confirmada por el PO 2026-11-16):
+ * Horario laboral de la empresa (regla confirmada por el PO 2026-11-18):
  *
- * - Lunes a viernes: 08:00–17:00 continuas, 9 h efectivas.
+ * - Lunes a viernes: 8 h de jornada continua.
  * - Sábado: 08:00–12:00, 4 h.
  * - Domingo: cerrado.
  *
- * Los turnos se conservan acotados al horario:
- * - matutino: 08:00–13:00 (5 h de lunes a viernes; 4 h el sábado).
- * - vespertino: 13:00–17:00 (4 h de lunes a viernes; no aplica el sábado).
- * - nocturno: sin capacidad (la empresa cierra a las 17:00).
+ * C24: matutino y vespertino son SOLO etiquetas visuales de preferencia; no
+ * reparten la capacidad ni limitan la jornada. Ambas etiquetas ven la jornada
+ * completa del día. Nocturno no se ofrece (la empresa cierra a las 17:00).
  *
  * Es la fuente única para calendario, capacidad, planeación y producción.
  */
 
-export const HORAS_JORNADA_SEMANA = 9;
+export const HORAS_JORNADA_SEMANA = 8;
 export const HORAS_JORNADA_SABADO = 4;
-export const HORAS_TURNO_MATUTINO = 5;
-export const HORAS_TURNO_VESPERTINO = 4;
+/** C24: una etiqueta de turno no recorta la jornada; ve las horas completas del día. */
+export const HORAS_TURNO_MATUTINO = HORAS_JORNADA_SEMANA;
+export const HORAS_TURNO_VESPERTINO = HORAS_JORNADA_SEMANA;
 
 export const VENTANAS_TURNO: Record<TurnoPlaneacion, { inicio: string; fin: string }> = {
   matutino: { inicio: '08:00', fin: '13:00' },
@@ -46,29 +46,25 @@ export function horasJornadaDia(fecha: string): number {
   return dia === 6 ? HORAS_JORNADA_SABADO : HORAS_JORNADA_SEMANA;
 }
 
-/** Horas que el horario permite en un turno concreto para una fecha. */
+/** Horas de la jornada continua que ve una etiqueta de turno para una fecha. */
 export function horasTurnoLaboral(fecha: string, turno: TurnoPlaneacion): number {
-  const dia = diaSemanaCalendario(fecha);
-  if (dia === 0 || dia < 0) return 0;
-  if (dia === 6) return turno === 'matutino' ? HORAS_JORNADA_SABADO : 0;
-  if (turno === 'matutino') return HORAS_TURNO_MATUTINO;
-  if (turno === 'vespertino') return HORAS_TURNO_VESPERTINO;
-  return 0;
+  if (turno === 'nocturno') return 0;
+  return horasJornadaDia(fecha);
 }
 
-/** Turnos con capacidad para una fecha, en orden de jornada. */
+/** Etiquetas de turno disponibles para una fecha, en orden de jornada. */
 export function turnosDelDia(fecha: string): TurnoPlaneacion[] {
   const dia = diaSemanaCalendario(fecha);
   if (dia === 0 || dia < 0) return [];
-  if (dia === 6) return ['matutino'];
   return ['matutino', 'vespertino'];
 }
 
-/** Ventana horaria legible de un turno en una fecha; `null` si está cerrado. */
+/** Ventana horaria legible de una etiqueta de turno; `null` si el día está cerrado. */
 export function ventanaTurno(fecha: string, turno: TurnoPlaneacion): string | null {
   if (!turnosDelDia(fecha).includes(turno)) return null;
   const dia = diaSemanaCalendario(fecha);
-  if (turno === 'matutino') return dia === 6 ? '08:00–12:00' : '08:00–13:00';
+  if (dia === 6) return '08:00–12:00';
+  if (turno === 'matutino') return '08:00–13:00';
   if (turno === 'vespertino') return '13:00–17:00';
   return null;
 }
@@ -109,4 +105,4 @@ export function ajustarADiaLaboral(fecha: string): string {
 
 /** Texto corto del horario para ayudas y diagnósticos. */
 export const TEXTO_HORARIO_LABORAL =
-  'Lunes a viernes 08:00–17:00 (9 h) y sábado 08:00–12:00 (4 h); domingo cerrado.';
+  'Lunes a viernes 08:00–17:00 con jornada continua de 8 h y sábado 08:00–12:00 (4 h); domingo cerrado.';

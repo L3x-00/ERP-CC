@@ -75,7 +75,7 @@ describe('matriz de carga semanal (C9.1)', () => {
     expect(matriz?.filas).toHaveLength(1);
     expect(matriz?.filas[0]).toMatchObject({
       recursoId: RECURSO_A.id,
-      sinTurnos: false,
+      sinCapacidad: false,
       horasLibresTotales: 4,
     });
     expect(matriz?.filas[0].celdas[0]).toMatchObject({
@@ -184,7 +184,7 @@ describe('matriz de carga semanal (C9.1)', () => {
     expect(matriz?.filas[0].horasLibresTotales).toBe(27);
   });
 
-  it('un recurso sin turnos configurados se declara sinTurnos, con celdas alineadas', () => {
+  it('un recurso sin capacidad configurada se declara sinCapacidad, con celdas alineadas', () => {
     const matriz = construirMatrizCargaSemanal(
       [carga(RECURSO_A.id, '2026-09-21', 'matutino', 8, 4)],
       [RECURSO_A, RECURSO_B],
@@ -195,7 +195,7 @@ describe('matriz de carga semanal (C9.1)', () => {
     const filaB = matriz?.filas[1];
     expect(filaB).toMatchObject({
       recursoId: RECURSO_B.id,
-      sinTurnos: true,
+      sinCapacidad: true,
       horasLibresTotales: 0,
     });
     expect(filaB?.celdas).toHaveLength(matriz?.columnas.length ?? 0);

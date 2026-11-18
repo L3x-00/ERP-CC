@@ -6,6 +6,7 @@ import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtene
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
+import { HORAS_JORNADA_SEMANA } from '@/modulos/planeacion/utilidades/horario-laboral';
 
 const esquema = z
   .object({
@@ -18,7 +19,10 @@ const esquema = z
     jornadaOverrideHoras: z
       .number()
       .min(0.5, 'La jornada mínima es 0.5 h')
-      .max(9, 'La jornada máxima es de 9 h (lunes a viernes)')
+      .max(
+        HORAS_JORNADA_SEMANA,
+        `La jornada máxima es de ${HORAS_JORNADA_SEMANA} h (lunes a viernes)`,
+      )
       .nullable(),
   })
   .strict();
@@ -28,10 +32,9 @@ const esquema = z
  * instalada (equipos × jornada) se calcula en PostgreSQL con estos datos; aquí
  * solo se persisten con permiso de Planeación y auditoría.
  *
- * Cliente 2026-11-10: la consulta diaria enumera los turnos registrados, así que
- * un recurso sin turnos guardaba equipos/jornada pero el calendario seguía sin
- * horas. Al guardar su capacidad se registran los turnos base del horario
- * (matutino 5 h y vespertino 4 h) cuando el recurso no tiene ninguno.
+ * C24: la jornada es continua (8 h de lunes a viernes, 4 h el sábado) y el
+ * turno es solo una etiqueta visual. Ya no se registran turnos base: la consulta
+ * diaria calcula la capacidad con equipos × jornada e ignora el turno.
  */
 export async function actualizarCapacidadRecursoAccion(
   entrada: unknown,
@@ -65,56 +68,10 @@ export async function actualizarCapacidadRecursoAccion(
   }
   if (!data) return { exito: false, error: 'El recurso no existe' };
 
-  const turnoBase = await asegurarTurnoBase(admin, data.id);
-  if (!turnoBase.exito) return { exito: false, error: turnoBase.error };
-
   await registrarLog(usuario, 'actualizar_capacidad_recurso', 'planeacion', data.id, {
     cantidadEquipos: data.cantidad_equipos,
     jornadaOverrideHoras: data.capacidad_jornada_override_horas,
-    turnoBaseCreado: turnoBase.creado,
   }, correlationId);
 
   return { exito: true };
-}
-
-type ClienteAdmin = ReturnType<typeof crearClienteSupabaseAdmin>;
-
-/**
- * Registra los turnos base del horario (matutino 08:00–13:00 y vespertino
- * 13:00–17:00) solo cuando el recurso no tiene ninguno. `ignoreDuplicates` evita
- * pisar una configuración creada en paralelo y mantiene intactos los recursos
- * que ya tienen turnos.
- */
-async function asegurarTurnoBase(
-  admin: ClienteAdmin,
-  recursoId: string,
-): Promise<{ exito: true; creado: boolean } | { exito: false; error: string }> {
-  const { data: turnos, error: errorTurnos } = await admin
-    .from('capacidades_recurso_turno')
-    .select('turno')
-    .eq('recurso_id', recursoId)
-    .limit(1);
-
-  if (errorTurnos) {
-    console.error('[PLANEACION] Error al leer turnos del recurso:', errorTurnos);
-    return { exito: false, error: 'No se pudo revisar la capacidad por turno del recurso' };
-  }
-  if ((turnos ?? []).length > 0) return { exito: true, creado: false };
-
-  const { error: errorTurno } = await admin
-    .from('capacidades_recurso_turno')
-    .upsert(
-      [
-        { recurso_id: recursoId, turno: 'matutino', horas_capacidad: 5 },
-        { recurso_id: recursoId, turno: 'vespertino', horas_capacidad: 4 },
-      ],
-      { onConflict: 'recurso_id,turno', ignoreDuplicates: true },
-    );
-
-  if (errorTurno) {
-    console.error('[PLANEACION] Error al registrar el turno base:', errorTurno);
-    return { exito: false, error: 'Se guardaron equipos y jornada, pero falta registrar el turno base del equipo' };
-  }
-
-  return { exito: true, creado: true };
 }

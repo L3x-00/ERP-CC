@@ -12,6 +12,7 @@ import {
 } from '@/modulos/planeacion/utilidades/capacidad';
 import {
   HORAS_JORNADA_SABADO,
+  HORAS_JORNADA_SEMANA,
 } from '@/modulos/planeacion/utilidades/horario-laboral';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input } from '@/compartido/componentes/ui/input';
@@ -27,7 +28,6 @@ interface RecursoCapacidad {
   area: string;
   cantidadEquipos: number;
   overrideHoras: number | null;
-  horasTurno: { turno: string; horas: number }[];
 }
 
 /**
@@ -44,7 +44,7 @@ export function PanelCapacidadInstalada() {
       const { data, error } = await cliente
         .from('recursos_planeacion')
         .select(
-          'id, codigo, nombre, area, cantidad_equipos, capacidad_jornada_override_horas, capacidades_recurso_turno(turno, horas_capacidad)',
+          'id, codigo, nombre, area, cantidad_equipos, capacidad_jornada_override_horas',
         )
         .eq('activo', true)
         .order('codigo');
@@ -59,10 +59,6 @@ export function PanelCapacidadInstalada() {
           recurso.capacidad_jornada_override_horas === null
             ? null
             : Number(recurso.capacidad_jornada_override_horas),
-        horasTurno: (recurso.capacidades_recurso_turno ?? []).map((turno) => ({
-          turno: turno.turno,
-          horas: Number(turno.horas_capacidad),
-        })),
       }));
     },
     staleTime: 30_000,
@@ -72,7 +68,7 @@ export function PanelCapacidadInstalada() {
     <div id="capacidad-instalada" className="scroll-mt-24">
       <SeccionDesplegable
         titulo="Capacidad instalada"
-        descripcion="Equipos y jornada de cada recurso; de lunes a viernes la jornada es de 9 h"
+        descripcion="Equipos y jornada de cada recurso; la jornada es continua: 8 h de lunes a viernes"
         dataTestId="panel-capacidad-instalada"
         dataTestIdBoton="toggle-capacidad-instalada"
         claseContenido="pt-0"
@@ -81,10 +77,9 @@ export function PanelCapacidadInstalada() {
           className="mt-3 rounded-base border border-advertencia/40 bg-advertencia-suave px-3 py-2 text-xs text-advertencia-texto"
           data-testid="nota-turnos-capacidad"
         >
-          La capacidad se calcula como equipos × jornada. El horario de la empresa es lunes a
-          viernes de 08:00 a 17:00 (9 h) y sábado de 08:00 a 12:00 (4 h); el domingo no se labora.
-          El matutino cubre 08:00–13:00 (5 h) y el vespertino 13:00–17:00 (4 h). Si el equipo
-          todavía no tiene turnos, al guardar se registran ambos turnos base.
+          La capacidad se calcula como equipos × jornada. La jornada es continua: lunes a viernes
+          8 h, sábado 4 h y domingo cerrado. Matutino y vespertino son solo etiquetas visuales:
+          no reparten las horas ni hay que registrarlos para que el calendario muestre capacidad.
         </p>
         {consulta.isLoading && <p className="text-sm text-texto-secundario">Cargando recursos…</p>}
         {consulta.isError && (
@@ -120,7 +115,7 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
   const [mensaje, setMensaje] = useState<string | null>(null);
 
   const jornada = jornadaBaseHoras(
-    recurso.horasTurno.map((turno) => turno.horas),
+    [],
     override.trim() === '' ? null : Number(override),
   );
   const capacidad = capacidadInstaladaHoras(Number(equipos), jornada);
@@ -137,9 +132,13 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
     const overrideNumero = override.trim() === '' ? null : Number(override);
     if (
       overrideNumero !== null &&
-      (!Number.isFinite(overrideNumero) || overrideNumero < 0.5 || overrideNumero > 9)
+      (!Number.isFinite(overrideNumero) ||
+        overrideNumero < 0.5 ||
+        overrideNumero > HORAS_JORNADA_SEMANA)
     ) {
-      setMensaje('La jornada debe estar entre 0.5 y 9 horas (lunes a viernes)');
+      setMensaje(
+        `La jornada debe estar entre 0.5 y ${HORAS_JORNADA_SEMANA} horas (lunes a viernes)`,
+      );
       return;
     }
 
@@ -177,10 +176,7 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
           {recurso.codigo} · {recurso.nombre}
         </span>
         <span className="text-xs text-texto-secundario">
-          {recurso.area} · Turnos:{' '}
-          {recurso.horasTurno
-            .map((turno) => `${turno.turno} ${turno.horas} h`)
-            .join(' / ') || 'sin turnos'}
+          {recurso.area} · Jornada continua (matutino y vespertino son etiquetas)
         </span>
       </div>
       <form className="grid items-end gap-3 sm:grid-cols-3" onSubmit={guardar}>
@@ -209,9 +205,9 @@ function FilaCapacidad({ recurso }: { recurso: RecursoCapacidad }) {
             id={`jornada-${recurso.id}`}
             type="number"
             min="0.5"
-            max="9"
+            max={HORAS_JORNADA_SEMANA}
             step="0.5"
-            placeholder={`${jornadaBaseHoras(recurso.horasTurno.map((turno) => turno.horas), null)}`}
+            placeholder={`${HORAS_JORNADA_SEMANA}`}
             value={override}
             onChange={(evento) => {
               setOverride(evento.target.value);

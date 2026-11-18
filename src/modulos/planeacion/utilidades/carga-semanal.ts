@@ -17,8 +17,8 @@ import {
 /**
  * C9.1/P-01: matriz semanal Equipo × días para responder «¿cuántas horas tiene
  * ocupadas cada equipo y cuánto queda?». Se deriva de las cargas que PostgreSQL
- * calcula desde `capacidades_recurso_turno` (equipos × jornada), no de un
- * calendario laboral fijo.
+ * calcula con equipos × jornada del día (C24: una fila por equipo y día, con la
+ * etiqueta «jornada»), no de un calendario laboral fijo ni de los turnos.
  *
  * C18: con el horario de la empresa el sábado es día laboral (4 h), así que su
  * columna se muestra siempre que tenga capacidad; el domingo sigue cerrado y
@@ -47,9 +47,9 @@ export interface FilaCargaSemanal {
   recursoId: string;
   codigo: string;
   nombre: string;
-  /** El recurso no tiene ningún turno configurado en el rango consultado. */
-  sinTurnos: boolean;
-  /** Una celda por columna; `null` cuando ese día no tiene turno para el recurso. */
+  /** C24: el recurso no tiene capacidad configurada en el rango consultado. */
+  sinCapacidad: boolean;
+  /** Una celda por columna; `null` cuando ese día no tiene fila de capacidad. */
   celdas: (CeldaCargaSemanal | null)[];
   horasLibresTotales: number;
 }
@@ -107,7 +107,7 @@ export function construirMatrizCargaSemanal(
         recursoId: recurso.id,
         codigo: recurso.codigo,
         nombre: recurso.nombre,
-        sinTurnos: true,
+        sinCapacidad: true,
         celdas: columnas.map(() => null),
         horasLibresTotales: 0,
       };
@@ -142,7 +142,7 @@ export function construirMatrizCargaSemanal(
       recursoId: recurso.id,
       codigo: recurso.codigo,
       nombre: recurso.nombre,
-      sinTurnos: false,
+      sinCapacidad: false,
       celdas,
       horasLibresTotales: redondearHoras(
         celdas.reduce((total, celda) => total + (celda?.horasLibres ?? 0), 0),

@@ -1,14 +1,10 @@
-import type {
-  CargaCapacidadDiaria,
-  TurnoPlaneacion,
-} from '@/modulos/planeacion/tipos/indice';
-import { ETIQUETA_TURNO } from '@/modulos/planeacion/utilidades/etiquetas';
+import type { CargaCapacidadDiaria } from '@/modulos/planeacion/tipos/indice';
 
 /**
  * Cliente 2026-11-10: la guía de capacidad deja de ser un texto general. Cada
- * pantalla que ya conoce el dato (grupo sin equipos, equipo sin turnos, turno
- * sin capacidad) arma aquí los pasos concretos y la guía solo pinta lo que
- * falta. Lo ya configurado no se repite.
+ * pantalla que ya conoce el dato (grupo sin equipos, equipo sin capacidad)
+ * arma aquí los pasos concretos y la guía solo pinta lo que falta. Lo ya
+ * configurado no se repite.
  */
 export interface PasoGuiaCapacidad {
   clave: string;
@@ -37,15 +33,15 @@ export const PASOS_GENERALES_CAPACIDAD: readonly PasoGuiaCapacidad[] = [
     clave: 'equipos-y-jornada',
     titulo: 'Revisa equipos y jornada',
     detalle:
-      'En Planeación → Capacidad instalada, confirma cuántos equipos tiene cada recurso y, si aplica, su jornada por equipo (máximo 9 h de lunes a viernes). Al guardar, si el equipo no tenía turnos se registran el matutino (5 h) y el vespertino (4 h) del horario.',
+      'En Planeación → Capacidad instalada, confirma cuántos equipos tiene cada recurso y, si aplica, su jornada por equipo (máximo 8 h de lunes a viernes). No hay que registrar turnos: matutino y vespertino son solo etiquetas visuales.',
     href: HREF_CAPACIDAD_INSTALADA,
     etiqueta: 'Abrir Capacidad instalada',
   },
   {
-    clave: 'turnos-del-equipo',
-    titulo: 'Revisa los turnos del equipo',
+    clave: 'jornada-del-equipo',
+    titulo: 'Revisa la fecha y la jornada',
     detalle:
-      'El horario de la empresa es lunes a viernes 08:00–17:00 (matutino 08:00–13:00, vespertino 13:00–17:00) y sábado 08:00–12:00; el domingo no se labora. Un turno sin capacidad no aparece en el calendario.',
+      'La jornada es continua: lunes a viernes 8 h, sábado 4 h y domingo cerrado. Si la fecha cae en domingo o el equipo tiene una excepción de capacidad, no habrá horas disponibles ese día.',
   },
 ];
 
@@ -65,49 +61,39 @@ export function pasoCapacidadInstalada(
 
 export interface EntradaDiagnosticoTurno {
   recurso: { id: string; codigo: string; nombre: string } | null;
-  turno: TurnoPlaneacion;
   fecha: string;
-  /** Filas de carga del rango visible; se filtran por recurso. */
+  /** Filas de carga del rango visible; se filtran por recurso y fecha. */
   cargas: readonly CargaCapacidadDiaria[];
 }
 
 /**
- * Diagnóstico de un alta o reprogramación sobre un turno concreto. Solo afirma
- * lo que los datos prueban: si el equipo no tiene ninguna fila de capacidad, no
- * tiene turnos; si tiene filas pero no del turno elegido, le falta ese turno.
- * Cualquier otro caso se deja a la guía general.
+ * Diagnóstico de un alta o reprogramación sobre una fecha concreta. C24: el
+ * turno es solo una etiqueta, así que lo único que se puede afirmar es si el
+ * equipo tiene o no capacidad ese día (domingo cerrado, excepción en cero o
+ * jornada configurada). Si no hay filas para la fecha, no se inventa un paso.
  */
 export function diagnosticarCapacidadTurno({
   recurso,
-  turno,
   fecha,
   cargas,
 }: EntradaDiagnosticoTurno): PasoGuiaCapacidad[] {
   if (!recurso) return [];
-  const propias = cargas.filter((carga) => carga.recursoId === recurso.id);
-  if (propias.length === 0) {
-    return [
-      pasoCapacidadInstalada(
-        'equipo-sin-turnos',
-        `El equipo ${recurso.codigo} no tiene turnos registrados`,
-        'Sin turnos no hay horas que comparar. Abre Capacidad instalada y guarda equipos y jornada: se registran el matutino (5 h) y el vespertino (4 h) del horario. Si el equipo trabaja solo una parte del día, ajusta sus horas.',
-      ),
-    ];
-  }
+  const propias = cargas.filter(
+    (carga) => carga.recursoId === recurso.id && carga.fechaProgramada === fecha,
+  );
+  if (propias.length === 0) return [];
+  if (propias.some((carga) => horasCapacidadDe(carga) > 0)) return [];
 
-  const turnos = [...new Set(propias.map((carga) => carga.turno))];
-  if (!turnos.includes(turno)) {
-    const existentes = turnos
-      .map((configurado) => ETIQUETA_TURNO[configurado])
-      .join(', ');
-    return [
-      pasoCapacidadInstalada(
-        'equipo-sin-turno-elegido',
-        `El equipo ${recurso.codigo} no tiene capacidad en el turno ${ETIQUETA_TURNO[turno]}`,
-        `Solo tiene configurados: ${existentes}. Elige uno de esos turnos o pide que registren el turno ${ETIQUETA_TURNO[turno]} con sus horas para el ${fecha}.`,
-      ),
-    ];
-  }
+  return [
+    pasoCapacidadInstalada(
+      'equipo-sin-capacidad-dia',
+      `El equipo ${recurso.codigo} no tiene capacidad el ${fecha}`,
+      'Ese día está cerrado (domingo) o el equipo tiene una excepción de capacidad en cero. Elige un día laboral o revisa la capacidad instalada del equipo.',
+    ),
+  ];
+}
 
-  return [];
+function horasCapacidadDe(carga: CargaCapacidadDiaria): number {
+  const valor = Number(carga.horasCapacidad);
+  return Number.isFinite(valor) ? valor : 0;
 }

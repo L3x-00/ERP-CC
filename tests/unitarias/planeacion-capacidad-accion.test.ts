@@ -1,6 +1,6 @@
-// Cliente 2026-11-10: guardar equipos/jornada de un recurso sin turnos debe
-// registrar el turno base para que la consulta diaria y el calendario muestren
-// las horas. La acción no debe tocar los turnos de un recurso ya configurado.
+// C24: guardar equipos y jornada solo persiste esos dos datos. La jornada es
+// continua y el turno es una etiqueta visual, así que la acción ya no crea ni
+// modifica filas de `capacidades_recurso_turno`.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
@@ -11,10 +11,7 @@ const { usuarioMock, canMock, logMock, admin } = vi.hoisted(() => ({
   logMock: vi.fn(),
   admin: {
     actualizacion: undefined as unknown,
-    turnos: [] as { turno: string }[],
-    errorLectura: null as { message: string } | null,
-    errorUpsert: null as { message: string } | null,
-    upserts: [] as unknown[],
+    tablasTocadas: [] as string[],
   },
 }));
 
@@ -31,22 +28,12 @@ vi.mock('@/nucleo/auditoria/registrar-log', () => ({
 vi.mock('@/nucleo/supabase/admin', () => ({
   crearClienteSupabaseAdmin: () => ({
     from: (tabla: string) => {
-      if (tabla === 'recursos_planeacion') {
-        const builder: Record<string, unknown> = {};
-        builder.update = () => builder;
-        builder.eq = () => builder;
-        builder.select = () => builder;
-        builder.maybeSingle = async () => admin.actualizacion;
-        return builder;
-      }
+      admin.tablasTocadas.push(tabla);
       const builder: Record<string, unknown> = {};
-      builder.select = () => builder;
+      builder.update = () => builder;
       builder.eq = () => builder;
-      builder.limit = async () => ({ data: admin.turnos, error: admin.errorLectura });
-      builder.upsert = async (valores: unknown) => {
-        admin.upserts.push(valores);
-        return { error: admin.errorUpsert };
-      };
+      builder.select = () => builder;
+      builder.maybeSingle = async () => admin.actualizacion;
       return builder;
     },
   }),
@@ -82,10 +69,7 @@ beforeEach(() => {
   canMock.mockResolvedValue(true);
   logMock.mockResolvedValue(undefined);
   admin.actualizacion = RECURSO_ACTUALIZADO;
-  admin.turnos = [];
-  admin.errorLectura = null;
-  admin.errorUpsert = null;
-  admin.upserts = [];
+  admin.tablasTocadas = [];
 });
 
 const ENTRADA = {
@@ -94,51 +78,43 @@ const ENTRADA = {
   jornadaOverrideHoras: null,
 };
 
-describe('actualizarCapacidadRecursoAccion (D-02)', () => {
-  it('registra los turnos base del horario cuando el recurso no tiene turnos', async () => {
+describe('actualizarCapacidadRecursoAccion (D-02/C24)', () => {
+  it('solo persiste equipos y jornada, sin registrar turnos', async () => {
     const respuesta = await actualizarCapacidadRecursoAccion(ENTRADA);
 
     expect(respuesta).toEqual({ exito: true });
-    expect(admin.upserts).toEqual([
-      [
-        { recurso_id: RECURSO_ID, turno: 'matutino', horas_capacidad: 5 },
-        { recurso_id: RECURSO_ID, turno: 'vespertino', horas_capacidad: 4 },
-      ],
-    ]);
+    expect(admin.tablasTocadas).toEqual(['recursos_planeacion']);
     expect(logMock).toHaveBeenCalledWith(
       USUARIO,
       'actualizar_capacidad_recurso',
       'planeacion',
       RECURSO_ID,
-      expect.objectContaining({ turnoBaseCreado: true }),
+      {
+        cantidadEquipos: 1,
+        jornadaOverrideHoras: null,
+      },
       'correlacion-prueba',
     );
   });
 
-  it('no toca los turnos cuando el recurso ya tiene uno configurado', async () => {
-    admin.turnos = [{ turno: 'vespertino' }];
+  it('rechaza una jornada mayor a 8 h de lunes a viernes', async () => {
+    const respuesta = await actualizarCapacidadRecursoAccion({
+      ...ENTRADA,
+      jornadaOverrideHoras: 9,
+    });
 
-    const respuesta = await actualizarCapacidadRecursoAccion(ENTRADA);
-
-    expect(respuesta).toEqual({ exito: true });
-    expect(admin.upserts).toEqual([]);
-    expect(logMock).toHaveBeenCalledWith(
-      USUARIO,
-      'actualizar_capacidad_recurso',
-      'planeacion',
-      RECURSO_ID,
-      expect.objectContaining({ turnoBaseCreado: false }),
-      'correlacion-prueba',
-    );
+    expect(respuesta.exito).toBe(false);
+    if (!respuesta.exito) expect(respuesta.error).toContain('8 h');
+    expect(admin.tablasTocadas).toEqual([]);
   });
 
-  it('informa si no pudo registrar el turno base', async () => {
-    admin.errorUpsert = { message: 'fallo' };
+  it('informa si el recurso ya no existe', async () => {
+    admin.actualizacion = { data: null, error: null };
 
     const respuesta = await actualizarCapacidadRecursoAccion(ENTRADA);
 
     expect(respuesta.exito).toBe(false);
-    if (!respuesta.exito) expect(respuesta.error).toContain('turno base');
+    if (!respuesta.exito) expect(respuesta.error).toContain('no existe');
   });
 
   it('exige permiso para configurar la capacidad', async () => {
@@ -147,7 +123,7 @@ describe('actualizarCapacidadRecursoAccion (D-02)', () => {
     const respuesta = await actualizarCapacidadRecursoAccion(ENTRADA);
 
     expect(respuesta.exito).toBe(false);
-    expect(admin.upserts).toEqual([]);
+    expect(admin.tablasTocadas).toEqual([]);
     expect(logMock).not.toHaveBeenCalled();
   });
 });

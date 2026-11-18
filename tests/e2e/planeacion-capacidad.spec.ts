@@ -181,12 +181,12 @@ test.describe.serial('capacidad instalada reflejada en el calendario (D-02)', ()
     const fila = page
       .getByTestId('panel-capacidad-instalada')
       .getByTestId(`capacidad-recurso-${datos.codigo}`);
-    await expect(fila).toContainText('Turnos: sin turnos');
-    await expect(fila).toContainText('Equipos × jornada = 9 h de lunes a viernes');
+    await expect(fila).toContainText('Jornada continua (matutino y vespertino son etiquetas)');
+    await expect(fila).toContainText('Equipos × jornada = 8 h de lunes a viernes');
 
-    // Al guardar se registran los turnos base del horario: matutino 5 h y
-    // vespertino 4 h (9 h de jornada); sin ellos la consulta diaria no
-    // enumeraba el recurso y el calendario quedaba «sin turnos».
+    // C24: la jornada es continua (8 h) y no se registran turnos base. La
+    // consulta diaria calcula la capacidad con equipos × jornada, así que el
+    // calendario muestra horas desde el primer guardado.
     await fila.getByRole('button', { name: 'Guardar' }).click();
     await expect(fila.getByRole('status')).toContainText('Capacidad guardada.');
     await expect(fila.getByRole('button', { name: 'Guardado' })).toBeVisible();
@@ -194,20 +194,17 @@ test.describe.serial('capacidad instalada reflejada en el calendario (D-02)', ()
     await expect.poll(async () => {
       const { data } = await datos.admin
         .from('capacidades_recurso_turno')
-        .select('turno, horas_capacidad')
-        .eq('recurso_id', datos.recursoId)
-        .order('turno');
-      return (data ?? []).map((turno) => `${turno.turno}:${turno.horas_capacidad}`).join(',');
-    }).toBe('matutino:5,vespertino:4');
-
-    await expect(fila).toContainText('matutino 5 h');
-    await expect(fila).toContainText('vespertino 4 h');
+        .select('turno')
+        .eq('recurso_id', datos.recursoId);
+      return (data ?? []).length;
+    }).toBe(0);
 
     const resumen = page.getByTestId('resumen-carga-semanal');
     const filaResumen = resumen.locator('tr', { hasText: datos.codigo });
-    await expect(filaResumen).toContainText('0/9 h');
-    await expect(filaResumen).not.toContainText('Sin turnos definidos');
-    await expect(page.getByTestId(`libre-${datos.codigo}`)).toContainText('49 h');
+    await expect(filaResumen).toContainText('0/8 h');
+    await expect(filaResumen).not.toContainText('Sin capacidad configurada');
+    // Lunes a viernes 8 h + sábado 4 h = 44 h libres en la semana.
+    await expect(page.getByTestId(`libre-${datos.codigo}`)).toContainText('44 h');
   });
 });
 
@@ -469,7 +466,7 @@ test.describe.serial('carga semanal y semáforo de capacidad (C9.1)', () => {
       })
       .toBe(1);
 
-    // '6/8 h' con auto-espera; no se asevera ausencia de 'Sin turnos definidos'.
+    // '6/8 h' con auto-espera; no se asevera ausencia de 'Sin capacidad configurada'.
     // El locator se acota a la fila del recurso E2E: la base local conserva
     // equipos de otras corridas con la misma carga.
     const filaSemana = resumen.locator('tr', { hasText: datos.codigo });

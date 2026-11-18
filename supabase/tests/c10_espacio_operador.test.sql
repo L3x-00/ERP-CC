@@ -1,4 +1,4 @@
--- C10 - Espacio de operador: reclamos de proceso, jornada de 9 h y puente a sesion.
+-- C10 - Espacio de operador: reclamos de proceso, jornada de 8 h y puente a sesion.
 -- Verifica modelo, RPCs, exclusividad, capacidad diaria, liberacion y preparacion
 -- del recurso, ademas de privilegios (solo service_role).
 BEGIN;
@@ -8,7 +8,7 @@ SELECT plan(28);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: dos operadores, un cliente, un recurso con capacidad y dos partidas
--- (5 h y 5 h) con una sola meta de proceso cada una. La jornada del día es 9 h.
+-- (5 h y 5 h) con una sola meta de proceso cada una. La jornada del día es 8 h.
 -- -----------------------------------------------------------------------------
 INSERT INTO auth.users (id, email) VALUES
   ('00000000-0000-4000-8000-0000000c1001', 'c10-operador-1@prueba.local'),
@@ -112,7 +112,7 @@ SELECT throws_ok(
   'Otro operador no puede tomar una partida ya asignada');
 
 -- -----------------------------------------------------------------------------
--- 15-18. Capacidad diaria de 9 h y movimiento entre dias
+-- 15-18. Capacidad diaria de 8 h y movimiento entre dias
 -- -----------------------------------------------------------------------------
 SELECT throws_ok(
   $$ SELECT public.reclamar_proceso_operador(
@@ -123,7 +123,7 @@ SELECT throws_ok(
        '00000000-0000-4000-8000-0000000c1001',
        date_trunc('week', current_date)::date + 1, 'matutino') $$,
   '23514', 'capacidad_diaria_insuficiente',
-  'La jornada rechaza un proceso que rebasa las 9 h');
+  'La jornada rechaza un proceso que rebasa las 8 h');
 
 INSERT INTO c10 (clave, valor)
 SELECT 'reclamo_p2', id::text
@@ -147,7 +147,7 @@ SELECT throws_ok(
        '00000000-0000-4000-8000-0000000c1001',
        date_trunc('week', current_date)::date + 1, 'matutino') $$,
   '23514', 'capacidad_diaria_insuficiente',
-  'Mover una reserva tambien respeta las 9 h');
+  'Mover una reserva tambien respeta las 8 h');
 
 INSERT INTO c10 (clave, valor)
 SELECT 'fecha_p2', fecha::text

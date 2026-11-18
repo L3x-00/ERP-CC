@@ -62,7 +62,7 @@ SELECT ok((
     (SELECT (fecha_inicio AT TIME ZONE 'America/Tijuana')::date
      FROM public.sesiones_trabajo
      WHERE operador_id = '00000000-0000-4000-8000-0000000c2021'
-       AND estado_sesion = 'pausada' LIMIT 1)) >= 9
+       AND estado_sesion = 'pausada' LIMIT 1)) >= 8
 ), 'La jornada del día ya acumula las horas de la sesión pausada');
 
 SELECT lives_ok($$SELECT * FROM public.reanudar_sesion_trabajo_a20(

@@ -57,18 +57,18 @@ function pasoGrupo(grupo: DisponibilidadGrupo): PasoGuiaCapacidad {
 
   if (grupo.recursosSinTurno >= grupo.recursosActivos) {
     return pasoCapacidadInstalada(
-      `grupo-sin-turnos-${grupo.codigo}`,
+      `grupo-sin-capacidad-${grupo.codigo}`,
       grupo.recursosActivos === 1
-        ? `El equipo del grupo «${grupo.nombre}» no tiene turnos`
-        : `Los ${grupo.recursosActivos} equipos del grupo «${grupo.nombre}» no tienen turnos`,
-      'Sin turnos no hay horas de capacidad. Abre Capacidad instalada y guarda equipos y jornada: se registra el turno matutino base de 8 h por equipo. Si trabajan en otro turno, un administrador debe registrarlo con sus horas.',
+        ? `El equipo del grupo «${grupo.nombre}» no tiene capacidad configurada`
+        : `Los ${grupo.recursosActivos} equipos del grupo «${grupo.nombre}» no tienen capacidad configurada`,
+      'Sin capacidad no hay horas que sumar. Abre Capacidad instalada y guarda los equipos y la jornada: la jornada continua es de 8 h de lunes a viernes y 4 h el sábado.',
     );
   }
 
   return pasoCapacidadInstalada(
-    `grupo-turnos-incompletos-${grupo.codigo}`,
-    `${grupo.recursosSinTurno} de ${grupo.recursosActivos} equipos de «${grupo.nombre}» no tienen turnos`,
-    'Sus horas no se suman al total y el resumen queda incompleto. Guarda su capacidad en Capacidad instalada para crear el turno base y recupera esas horas.',
+    `grupo-capacidad-incompleta-${grupo.codigo}`,
+    `${grupo.recursosSinTurno} de ${grupo.recursosActivos} equipos de «${grupo.nombre}» no tienen capacidad`,
+    'Sus horas no se suman al total y el resumen queda incompleto. Guarda su capacidad en Capacidad instalada para recuperar esas horas.',
   );
 }
 
