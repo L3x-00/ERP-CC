@@ -17,6 +17,7 @@ import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { crearClienteSupabaseServidor } from '@/nucleo/supabase/servidor';
 import { dividirEnLotes } from '@/modulos/ordenes/utilidades/lotes';
 import { obtenerCompatibilidadRecursosServicio } from '@/modulos/planeacion/servicios/compatibilidad-servicio';
+import { pausarSesionesJornadaExcedidaServicio } from '@/modulos/produccion/servicios/corridas-servicio';
 import { prepararPartidasProgramables } from '@/modulos/planeacion/utilidades/partidas-programables';
 import { hoyIso } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 
@@ -114,6 +115,15 @@ export default async function PaginaPlaneacion({
   if (!puedeVer && !(await can(usuario, 'gestionar_planeacion'))) notFound();
 
   const cliente = await crearClienteSupabaseServidor();
+  const admin = crearClienteSupabaseAdmin();
+  // C27: Planeación también detiene el reloj. Si un operador cumple la jornada
+  // acumulada del día, la sesión debe pasar a «Pausada» aunque nadie tenga
+  // abierto el piso de Producción. Es idempotente y no bloquea la lectura.
+  try {
+    await pausarSesionesJornadaExcedidaServicio(admin, { operadorId: null });
+  } catch (error) {
+    console.error('[PLANEACION] No se pudieron pausar las sesiones vencidas:', error);
+  }
   const parametros = searchParams ? await searchParams : {};
   const reclamoId = typeof parametros.reclamoId === 'string' ? parametros.reclamoId : null;
   const solicitudProgramacion = reclamoId
@@ -155,11 +165,11 @@ export default async function PaginaPlaneacion({
   const fechaInicio = inicioSemana(fechaReferencia);
   const fechaFin = sumarDias(fechaInicio, 6);
   const [datosIniciales, bolsa] = await Promise.all([
-    obtenerDatosCalendarioPlaneacionServicio(cliente, crearClienteSupabaseAdmin(), {
+    obtenerDatosCalendarioPlaneacionServicio(cliente, admin, {
       fechaInicio,
       fechaFin,
     }),
-    obtenerBolsaPlaneacionServicio(cliente, crearClienteSupabaseAdmin(), hoy),
+    obtenerBolsaPlaneacionServicio(cliente, admin, hoy),
   ]);
 
   // C9.2/P06: el selector trabaja con las órdenes vigentes (ni canceladas ni

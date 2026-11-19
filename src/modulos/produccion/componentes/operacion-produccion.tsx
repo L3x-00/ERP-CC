@@ -250,6 +250,8 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     metaProcesoId?: string;
     motivoPausa?: string;
     notas?: string;
+    /** C27: hora real de conclusión cuando el operador olvidó cerrar. */
+    horaFin?: string;
     consumo?: {
       materialId: string;
       cantidadUsada: number;

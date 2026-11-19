@@ -14,6 +14,17 @@ export function horasTranscurridasSesion(fechaInicio: string, ahora: Date): numb
 }
 
 /**
+ * C27: valor para un campo `datetime-local` con la hora local del dispositivo
+ * (AAAA-MM-DDTHH:mm). Prellena la hora real de conclusión sin inventar un
+ * instante distinto al reloj del taller.
+ */
+export function ahoraLocalDatetimeInput(ahora: Date = new Date()): string {
+  const dos = (valor: number): string => String(valor).padStart(2, '0');
+  return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`
+    + `T${dos(ahora.getHours())}:${dos(ahora.getMinutes())}`;
+}
+
+/**
  * `true` cuando la sesión ya alcanzó la jornada y probablemente el cierre pida
  * autorización. No garantiza el bloqueo: las pausas reducen las horas netas.
  */
