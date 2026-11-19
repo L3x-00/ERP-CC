@@ -15,9 +15,12 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  # Solo se cancelan PRs: un push nuevo no debe abortar el nightly ni la
-  # validación de `main`.
+  # En PR se agrupa por número: un push nuevo cancela la corrida anterior (la
+  # única que ya no importa). En push/schedule se agrupa por SHA: cada merge
+  # tiene su propia corrida, así que GitHub no puede cancelar el run pendiente
+  # de un commit anterior al llegar otro merge seguido.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  # Solo se cancelan PRs: ni el nightly ni la validación de `main` se abortan.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Plan de pruebas proporcional al cambio.
@@ -282,27 +285,10 @@ jobs:
             --shard="$SHARD/$TOTAL_SHARDS" "${argumentos[@]}"
 
           # Un run donde todo quedó 'skipped' es un falso verde: se verifica
-          # que al menos una prueba se haya ejecutado de verdad.
-          node -e '
-            const fs = require("fs");
-            const informe = JSON.parse(fs.readFileSync("/tmp/e2e-resultados.json", "utf8"));
-            let ejecutadas = 0;
-            let saltadas = 0;
-            (function recorrer(suite) {
-              for (const spec of suite.specs || []) {
-                for (const prueba of spec.tests || []) {
-                  if (prueba.status === "skipped") saltadas += 1;
-                  else ejecutadas += 1;
-                }
-              }
-              for (const hija of suite.suites || []) recorrer(hija);
-            })(informe);
-            console.log(`E2E shard ${process.env.SHARD}/${process.env.TOTAL_SHARDS} · ejecutadas: ${ejecutadas} · saltadas: ${saltadas}`);
-            if (ejecutadas === 0) {
-              console.error("::error::Este shard E2E no ejecutó ninguna prueba (todas saltadas).");
-              process.exit(1);
-            }
-          '
+          # que al menos una prueba se haya ejecutado de verdad. Además se
+          # publica el conteo de flaky: el reintento no debe ocultar una falla
+          # intermitente.
+          node scripts/ci/verificar-e2e.mjs /tmp/e2e-resultados.json
 
       - name: Registrar logs de Supabase si algo falla
         if: failure()

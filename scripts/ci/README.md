@@ -12,9 +12,11 @@ correr todo siempre. Implementa las fases 1, 2 y 3 del plan de
 | `clasificar-cambios.mjs` | Convierte una lista de archivos modificados en un plan de pruebas (`nivel`, unitarias, integración, pgTAP, E2E). Es lo que consume `.github/workflows/ci.yml`. |
 | `ejecutar-unitarias.mjs` | Ejecuta Vitest en el modo indicado (`completas`, `cambiadas`, `archivos`, `ninguna`) con respaldo automático si `--changed` no encuentra pruebas. Con `--cobertura` mide cobertura (solo en `completas` y `cambiadas`). |
 | `resumen-cobertura.mjs` | Agrupa el `coverage-summary.json` por área de producto y publica una tabla en el job summary. |
+| `verificar-e2e.mjs` | Lee el JSON de un shard E2E: falla si no ejecutó ninguna prueba y publica el conteo de `flaky` (tests que pasaron tras reintento) en el log y el job summary. |
 | `tests/unitarias/ci-catalogo-pruebas.test.ts` | Impide que el catálogo quede obsoleto. |
 | `tests/unitarias/ci-clasificar-cambios.test.ts` | Fija el comportamiento del clasificador con casos reales. |
 | `tests/unitarias/ci-resumen-cobertura.test.ts` | Fija la agregación de cobertura por área. |
+| `tests/unitarias/ci-verificar-e2e.test.ts` | Fija el conteo de ejecutadas, saltadas y flaky del informe E2E. |
 
 ## Niveles
 
@@ -74,6 +76,10 @@ node scripts/ci/resumen-cobertura.mjs
 - `fail-fast: false`: un shard rojo no cancela los otros; el job agregado decide.
 - Cada shard valida que ejecutó al menos una prueba. Un shard donde todo quedó `skipped`
   es un fallo, no un verde.
+- **Flaky visible**: Playwright reintenta una vez en CI para no repetir el job completo
+  por un fallo de transporte. El shard publica cuántas pruebas pasaron tras reintento
+  (`flaky`), tanto en el log como en el job summary, y emite un `::warning::`. Así el
+  reintento no oculta una falla intermitente.
 
 ## Cobertura (Fase 3)
 
@@ -102,3 +108,13 @@ node scripts/ci/resumen-cobertura.mjs
 - **Borrar o renombrar pruebas no rompe el CI**: las rutas que ya no existen se podan de las listas explícitas (y si no queda ninguna, la capa pasa a "no ejecutar"). El catálogo sigue exigiendo que todo spec registrado exista.
 - **El job agregado no confía en `skipped`**: contrasta cada capa omitida contra el plan. Si un `if` se rompe y salta una capa obligatoria, el check final falla.
 - **E2E no puede quedar verde sin ejecutar**: se verifica que al menos una prueba haya corrido, además de exigir `E2E_HABILITAR_PRUEBAS_REMOTAS=si`.
+- **Concurrencia por SHA fuera de PR**: los PRs se agrupan por número (un push cancela la corrida anterior). `push` y `schedule` se agrupan por SHA, de modo que dos merges seguidos no hacen que GitHub cancele el run pendiente del primero: cada commit de `main` se valida.
+- **El flaky se publica, no se esconde**: el reintento de CI sigue existiendo, pero `verificar-e2e.mjs` reporta cuántas pruebas necesitaron reintento y emite un warning.
+
+## Decisiones aceptadas conscientemente
+
+| Tema | Por qué se acepta |
+| --- | --- |
+| Un PR solo de documentación omite typecheck, lint y todas las pruebas | El enrutamiento es por ruta: un archivo de código nunca cae en el nivel `docs`. Ejecutar el pipeline completo para un `.md` eliminaría el ahorro principal; el riesgo de que un cambio de código se clasifique como docs es nulo salvo error en los patrones, que están cubiertos por pruebas. |
+| El reparto de shards es por cantidad de tests, no por duración | Playwright no reparte por tiempo. El desbalance observado (5–8 min por shard) no afecta correctitud, aislamiento ni resultados; optimizarlo requeriría un reparto propio con historial de duraciones y no compensa. |
+| Avisos de deprecación de Node 20 en las actions | GitHub ya las ejecuta en Node 24. No afectan la ejecución; se actualizarán sus majors cuando estén disponibles (algunas, como `supabase/setup-cli@v1`, aún no ofrecen una versión sin Node 20). |
