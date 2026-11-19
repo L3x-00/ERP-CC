@@ -16,6 +16,8 @@
 # TESTING
 # ============================================================================
 /coverage
+/cobertura
+/cobertura-base
 *.lcov
 /test-results
 /playwright-report

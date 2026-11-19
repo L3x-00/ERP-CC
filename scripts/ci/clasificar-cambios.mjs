@@ -42,6 +42,13 @@ import {
  */
 const PORCENTAJE_SPECS_COMPLETO = 0.6;
 
+/**
+ * Número máximo de shards del E2E. Cada shard corre en su propio runner con su
+ * propio stack de Supabase, así que el aislamiento es total. El repo es público:
+ * los minutos no cuestan, solo hay que cuidar el límite de concurrencia.
+ */
+export const SHARDS_E2E_COMPLETO = 4;
+
 const coincide = (ruta, patrones) => patrones.some((patron) => new RegExp(patron).test(ruta));
 const esTotal = (ruta) => ARCHIVOS_TOTAL.includes(ruta) || coincide(ruta, PATRONES_TOTAL);
 const esDoc = (ruta) => coincide(ruta, PATRONES_DOCS);
@@ -169,7 +176,7 @@ export function clasificarCambios(archivos, opciones = {}) {
       integracion: { modo: 'completa', archivos: [] },
       concurrencia: true,
       pgtap: true,
-      e2e: { modo: 'completo', specs: [] },
+      e2e: { modo: 'completo', specs: [], shards: SHARDS_E2E_COMPLETO },
     };
   }
 
@@ -188,8 +195,8 @@ export function clasificarCambios(archivos, opciones = {}) {
 
     const e2e =
       totalSpecs > 0 && rutas.length / totalSpecs >= PORCENTAJE_SPECS_COMPLETO
-        ? { modo: 'completo', specs: [] }
-        : { modo: rutas.length > 0 ? 'specs' : 'no', specs: rutas };
+        ? { modo: 'completo', specs: [], shards: SHARDS_E2E_COMPLETO }
+        : { modo: rutas.length > 0 ? 'specs' : 'no', specs: rutas, shards: rutas.length > 0 ? 1 : 0 };
 
     return {
       version: VERSION_CATALOGO,
@@ -223,7 +230,7 @@ export function clasificarCambios(archivos, opciones = {}) {
       integracion: { modo: 'no', archivos: [] },
       concurrencia: false,
       pgtap: false,
-      e2e: { modo: 'no', specs: [] },
+      e2e: { modo: 'no', specs: [], shards: 0 },
     };
   }
 
@@ -243,7 +250,10 @@ export function clasificarCambios(archivos, opciones = {}) {
         : { modo: 'no', archivos: [] },
     concurrencia: false,
     pgtap: acc.pgtap.length > 0,
-    e2e: acc.e2e.length > 0 ? { modo: 'specs', specs: acc.e2e } : { modo: 'no', specs: [] },
+    e2e:
+      acc.e2e.length > 0
+        ? { modo: 'specs', specs: acc.e2e, shards: 1 }
+        : { modo: 'no', specs: [], shards: 0 },
   };
 }
 
@@ -260,7 +270,7 @@ function total({ archivos, motivo, modulos = [] }) {
     integracion: { modo: 'completa', archivos: [] },
     concurrencia: true,
     pgtap: true,
-    e2e: { modo: 'completo', specs: [] },
+    e2e: { modo: 'completo', specs: [], shards: SHARDS_E2E_COMPLETO },
   };
 }
 
@@ -288,6 +298,7 @@ export function archivosDesdeGit(base) {
 /* ------------------------------------------------------------------------- */
 
 function plano(clasificacion) {
+  const totalShards = clasificacion.e2e.shards ?? 0;
   return {
     nivel: clasificacion.nivel,
     typecheck: String(clasificacion.typecheck),
@@ -299,6 +310,10 @@ function plano(clasificacion) {
     pgtap: String(clasificacion.pgtap),
     e2e_modo: clasificacion.e2e.modo,
     e2e_specs: clasificacion.e2e.specs.join(' '),
+    e2e_total_shards: String(totalShards),
+    // GitHub rechaza una matriz vacía incluso cuando el job se salta por `if`.
+    // Por eso la lista nunca queda vacía; que no haya E2E lo decide `e2e_modo`.
+    e2e_shard_list: JSON.stringify(Array.from({ length: Math.max(totalShards, 1) }, (_, i) => i + 1)),
     modulos: clasificacion.modulos.join(' '),
   };
 }
@@ -320,7 +335,11 @@ function resumenMarkdown(clasificacion) {
     ['Integración', clasificacion.integracion.modo],
     ['Concurrencia', clasificacion.concurrencia ? 'sí' : 'no'],
     ['pgTAP', clasificacion.pgtap ? 'completo' : 'no'],
-    ['E2E', clasificacion.e2e.modo === 'specs' ? `${clasificacion.e2e.specs.length} specs` : clasificacion.e2e.modo],
+    ['E2E', clasificacion.e2e.modo === 'specs'
+      ? `${clasificacion.e2e.specs.length} specs`
+      : clasificacion.e2e.modo === 'completo'
+        ? `completo en ${clasificacion.e2e.shards} shards`
+        : clasificacion.e2e.modo],
   ];
 
   const omitidas = [];
@@ -424,7 +443,7 @@ export function podarInexistentes(clasificacion) {
 
   const e2e =
     clasificacion.e2e.modo === 'specs' && e2eSpecs.length === 0
-      ? { modo: 'no', specs: [] }
+      ? { modo: 'no', specs: [], shards: 0 }
       : { ...clasificacion.e2e, specs: e2eSpecs };
 
   return { ...clasificacion, unitarias, integracion, e2e };
@@ -474,7 +493,7 @@ function principal(argv) {
     console.log(`Unitarias: ${clasificacion.unitarias.modo}`);
     console.log(`Integración: ${clasificacion.integracion.modo}`);
     console.log(`pgTAP: ${clasificacion.pgtap ? 'completo' : 'no'}`);
-    console.log(`E2E: ${clasificacion.e2e.modo}${clasificacion.e2e.specs.length ? ` (${clasificacion.e2e.specs.length})` : ''}`);
+    console.log(`E2E: ${clasificacion.e2e.modo}${clasificacion.e2e.specs.length ? ` (${clasificacion.e2e.specs.length})` : ''}${clasificacion.e2e.shards > 1 ? ` · ${clasificacion.e2e.shards} shards` : ''}`);
   }
 
   if (args.githubOutput) escribirGithubOutput(args.githubOutput, plano(clasificacion));

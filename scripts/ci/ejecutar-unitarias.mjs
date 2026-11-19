@@ -10,6 +10,12 @@
  *   --modo archivos --archivos "a b"  Solo los archivos indicados.
  *   --modo ninguna                    No ejecuta nada (cambio de docs).
  *
+ * `--cobertura` activa la medición. Solo tiene sentido en los modos que miden
+ * código propio: `completas` (suite completa) y `cambiadas` (cobertura del
+ * diff: Vitest hereda `test.changed` en `coverage.changed`). En `archivos`
+ * (edición de specs) y `ninguna` se ignora a propósito: mediría una porción
+ * arbitraria y ensuciaría el histórico.
+ *
  * El respaldo es deliberado: `--changed` depende del grafo de imports. Si un alias,
  * una re-exportación o un archivo generado rompe ese grafo, Vitest devolvería
  * "No test files found" y el CI se vería verde sin haber probado nada.
@@ -23,23 +29,30 @@ const VITEST = join(RAIZ, 'node_modules', 'vitest', 'vitest.mjs');
 const MARCA_SIN_PRUEBAS = 'No test files found';
 
 function leerArgumentos(argv) {
-  const args = { modo: 'cambiadas', base: 'origin/main', archivos: '', respaldo: true };
+  const args = { modo: 'cambiadas', base: 'origin/main', archivos: '', respaldo: true, cobertura: false };
   for (let i = 0; i < argv.length; i += 1) {
     const actual = argv[i];
     if (actual === '--modo') args.modo = argv[++i];
     else if (actual === '--base') args.base = argv[++i];
     else if (actual === '--archivos') args.archivos = argv[++i] ?? '';
+    else if (actual === '--cobertura') args.cobertura = true;
     else if (actual === '--sin-respaldo') args.respaldo = false;
     else throw new Error(`Argumento no reconocido: ${actual}`);
   }
   return args;
 }
 
+/** La cobertura solo se mide cuando el modo cubre código propio de forma completa. */
+export function mideCobertura(modo) {
+  return modo === 'completas' || modo === 'cambiadas';
+}
+
 /** @returns {string[]} argumentos de Vitest para el modo indicado. */
-export function argumentosVitest({ modo, base, archivos }) {
+export function argumentosVitest({ modo, base, archivos, cobertura = false }) {
   const comunes = ['run', 'tests/unitarias'];
-  if (modo === 'completas') return comunes;
-  if (modo === 'cambiadas') return [...comunes, `--changed=${base}`];
+  const conCobertura = cobertura && mideCobertura(modo) ? ['--coverage'] : [];
+  if (modo === 'completas') return [...comunes, ...conCobertura];
+  if (modo === 'cambiadas') return [...comunes, `--changed=${base}`, ...conCobertura];
   if (modo === 'archivos') {
     const lista = archivos.split(/\s+/).filter(Boolean);
     return [...comunes, ...lista];
@@ -101,7 +114,7 @@ async function principal(argv) {
   console.warn(
     '[unitarias] Vitest no encontró pruebas afectadas para este diff. Se ejecuta la suite completa por seguridad.',
   );
-  const respaldo = await ejecutar(argumentosVitest({ modo: 'completas' }));
+  const respaldo = await ejecutar(argumentosVitest({ modo: 'completas', cobertura: args.cobertura }));
   return respaldo.codigo;
 }
 

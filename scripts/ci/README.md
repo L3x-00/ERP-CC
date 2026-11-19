@@ -1,7 +1,8 @@
 # CI proporcional al cambio
 
 Sistema que decide **qué capas de prueba** se ejecutan para cada cambio, en lugar de
-correr todo siempre. Es la Fase 1 del plan de `docs/INVESTIGACION-CI-PRUEBAS-20261119.md`.
+correr todo siempre. Implementa las fases 1, 2 y 3 del plan de
+`docs/INVESTIGACION-CI-PRUEBAS-20261119.md`.
 
 ## Piezas
 
@@ -9,9 +10,11 @@ correr todo siempre. Es la Fase 1 del plan de `docs/INVESTIGACION-CI-PRUEBAS-202
 | --- | --- |
 | `catalogo-pruebas.mjs` | Única fuente de verdad: módulo → specs E2E, rutas de `src/app` → módulo, archivos que invalidan todo. Datos puros + descubrimiento y validación. |
 | `clasificar-cambios.mjs` | Convierte una lista de archivos modificados en un plan de pruebas (`nivel`, unitarias, integración, pgTAP, E2E). Es lo que consume `.github/workflows/ci.yml`. |
-| `ejecutar-unitarias.mjs` | Ejecuta Vitest en el modo indicado (`completas`, `cambiadas`, `archivos`, `ninguna`) con respaldo automático si `--changed` no encuentra pruebas. |
+| `ejecutar-unitarias.mjs` | Ejecuta Vitest en el modo indicado (`completas`, `cambiadas`, `archivos`, `ninguna`) con respaldo automático si `--changed` no encuentra pruebas. Con `--cobertura` mide cobertura (solo en `completas` y `cambiadas`). |
+| `resumen-cobertura.mjs` | Agrupa el `coverage-summary.json` por área de producto y publica una tabla en el job summary. |
 | `tests/unitarias/ci-catalogo-pruebas.test.ts` | Impide que el catálogo quede obsoleto. |
 | `tests/unitarias/ci-clasificar-cambios.test.ts` | Fija el comportamiento del clasificador con casos reales. |
+| `tests/unitarias/ci-resumen-cobertura.test.ts` | Fija la agregación de cobertura por área. |
 
 ## Niveles
 
@@ -50,7 +53,44 @@ node scripts/ci/clasificar-cambios.mjs --archivos "src/modulos/gastos/acciones.t
 
 # Ejecutar solo las unitarias afectadas
 node scripts/ci/ejecutar-unitarias.mjs --modo cambiadas --base origin/main
+
+# Cobertura del diff (solo archivos tocados)
+pnpm test:cobertura:cambiados
+
+# Cobertura completa con umbrales (main / nightly)
+pnpm test:cobertura
+node scripts/ci/resumen-cobertura.mjs
 ```
+
+## E2E en shards (Fase 2)
+
+- La suite completa se reparte en **4 shards** de Playwright. Cada job levanta **su propio**
+  stack de Supabase, así que no hay colisiones entre specs ni estado compartido.
+- El modo focal (pocos specs) usa **un solo shard**: partir 3 specs en 4 jobs solo paga
+  el arranque del stack.
+- La matriz es dinámica: el plan publica `e2e_shard_list` y el job la expande con
+  `fromJSON`. Cuando no hay E2E la lista vale `[1]` (GitHub rechaza matrices vacías) pero
+  el job se salta por `e2e_modo == 'no'`.
+- `fail-fast: false`: un shard rojo no cancela los otros; el job agregado decide.
+- Cada shard valida que ejecutó al menos una prueba. Un shard donde todo quedó `skipped`
+  es un fallo, no un verde.
+
+## Cobertura (Fase 3)
+
+- `@vitest/coverage-v8` con `include: src/**/*.{ts,tsx}`; se excluyen declaraciones y los
+  tipos generados de Supabase.
+- Reporteros `text-summary`, `json-summary` y `lcov` en `cobertura/`.
+- **Umbrales congelados** (`vitest.config.ts`): solo se exigen con
+  `COBERTURA_UMBRAL=estricto`, que el workflow activa cuando corre la suite completa
+  (`main`, nightly, cambio transversal o total). Un PR normal mide la cobertura de su diff
+  y no se compara contra el umbral global. Línea base del 2026-11-19 (suite completa):
+  líneas 46,02 %, sentencias 44,59 %, funciones 46,14 %, ramas 42,12 %. Umbrales
+  congelados: 45 / 43 / 45 / 41.
+- **Cobertura del diff**: en modo `cambiadas`, Vitest hereda `test.changed` en
+  `coverage.changed`, así que el informe se limita a los archivos tocados.
+- El resumen por área se publica en el job summary y el informe queda como artefacto.
+- **Nightly** (06:00 UTC): el evento `schedule` fuerza `total` y ejecuta suite completa,
+  cobertura con umbrales y E2E completo en 4 shards.
 
 ## Decisiones de diseño
 
