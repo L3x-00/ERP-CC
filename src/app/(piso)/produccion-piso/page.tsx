@@ -44,6 +44,8 @@ export default async function PaginaProduccionPiso() {
   const operadorId = contexto?.operador.id ?? null;
   const espacio = await obtenerEspacioOperadorServicio(admin, operadorId);
   const inicioCarga = inicioSemana(espacio.hoy);
+  // La carga de equipos es una vista auxiliar: si su lectura falla, la terminal
+  // del operador debe seguir operando y la pestaña «Carga» explicar el fallo.
   const [resultadoMateriales, consumos, cargaEquipos] = await Promise.all([
     admin
       .from('catalogo_materiales')
@@ -54,7 +56,11 @@ export default async function PaginaProduccionPiso() {
       admin,
       espacio.procesos.map((proceso) => proceso.partidaId),
     ),
-    obtenerCargaEquiposServicio(admin, inicioCarga, sumarDias(inicioCarga, 6)),
+    obtenerCargaEquiposServicio(admin, inicioCarga, sumarDias(inicioCarga, 6))
+      .catch((error: unknown) => {
+        console.error('[PISO] No se pudo leer la carga de equipos:', error);
+        return null;
+      }),
   ]);
 
   if (resultadoMateriales.error) {
@@ -105,8 +111,9 @@ export default async function PaginaProduccionPiso() {
         motivosPausa={espacio.motivosPausa}
         hoy={espacio.hoy}
         dias={espacio.dias}
-        cargasEquipos={cargaEquipos.cargas}
-        recursosEquipos={cargaEquipos.recursos}
+        cargasEquipos={cargaEquipos?.cargas ?? []}
+        recursosEquipos={cargaEquipos?.recursos ?? []}
+        cargaEquiposError={cargaEquipos === null}
         operadorId={operadorId}
         soloLectura={soloLectura}
         nombreOperador={operador.nombreCompleto}

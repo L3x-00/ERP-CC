@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Verifica el resultado JSON de un shard E2E.
  *

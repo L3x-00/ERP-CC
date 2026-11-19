@@ -1,6 +1,8 @@
-#!/usr/bin/env node
 /**
  * Resumen legible de cobertura por área del producto.
+ *
+ * Nota: este módulo lo evalúa Vitest desde las pruebas unitarias; un shebang
+ * rompe el parseo en Windows. El script se invoca siempre con `node`.
  *
  * Lee el `coverage-summary.json` que produce Vitest (reporter `json-summary`) y
  * agrupa los archivos por módulo de dominio. Se publica en el resumen del job

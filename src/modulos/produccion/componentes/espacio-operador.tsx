@@ -74,6 +74,8 @@ export interface PropsEspacioOperador {
   /** Carga por equipo y día de la semana en curso (misma matriz de Planeación). */
   cargasEquipos: readonly CargaCapacidadDiaria[];
   recursosEquipos: readonly RecursoPlaneacion[];
+  /** La lectura de capacidad falló; el resto de la terminal sigue disponible. */
+  cargaEquiposError?: boolean;
   operadorId: string | null;
   soloLectura: boolean;
   nombreOperador: string;
@@ -108,6 +110,7 @@ export function EspacioOperador({
   dias,
   cargasEquipos,
   recursosEquipos,
+  cargaEquiposError = false,
   operadorId,
   soloLectura,
   nombreOperador,
@@ -497,7 +500,7 @@ export function EspacioOperador({
 
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div
-            className="inline-flex w-full rounded-lg border border-borde-fuerte p-1 lg:w-auto"
+            className="grid w-full grid-cols-2 gap-1 rounded-lg border border-borde-fuerte p-1 sm:inline-flex sm:w-auto"
             role="group"
             aria-label="Vista del espacio de operador"
           >
@@ -509,7 +512,7 @@ export function EspacioOperador({
                 onClick={() => setVista(valor)}
                 data-testid={`vista-${valor}`}
                 className={cn(
-                  'flex-1 rounded-md px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 sm:px-3 sm:text-sm lg:flex-none',
+                  'min-h-11 rounded-md px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 sm:flex-none',
                   vista === valor
                     ? 'bg-acento-hover text-white dark:bg-acento dark:text-fondo'
                     : 'text-texto-secundario hover:bg-superficie-2',
@@ -571,7 +574,12 @@ export function EspacioOperador({
       ) : null}
 
       {vista === 'carga' ? (
-        <VistaCargaEquipos cargas={cargasEquipos} recursos={recursosEquipos} hoy={hoy} />
+        <VistaCargaEquipos
+          cargas={cargasEquipos}
+          recursos={recursosEquipos}
+          hoy={hoy}
+          error={cargaEquiposError}
+        />
       ) : filtrados.length === 0 ? (
         <p className="rounded-lg border border-borde bg-superficie p-8 text-center text-sm text-texto-secundario">
           No hay procesos que coincidan con el filtro.

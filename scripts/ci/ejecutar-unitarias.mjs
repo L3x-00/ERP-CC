@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Ejecutor de pruebas unitarias proporcional al cambio.
  *

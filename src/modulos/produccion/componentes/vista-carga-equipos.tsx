@@ -30,6 +30,8 @@ export interface PropsVistaCargaEquipos {
   /** Carga por equipo y día de la semana en curso (una fila por equipo y jornada). */
   cargas: readonly CargaCapacidadDiaria[];
   recursos: readonly RecursoPlaneacion[];
+  /** La lectura de capacidad falló; el resto del panel sigue operando. */
+  error?: boolean;
   /** Fecha de negocio del operador; ancla la semana y el modo Día. */
   hoy: string;
 }
@@ -43,7 +45,12 @@ export interface PropsVistaCargaEquipos {
  * decidir a qué equipo reclamar y cuándo esperar; la validación definitiva de
  * capacidad sigue siendo de PostgreSQL al reclamar o mover.
  */
-export function VistaCargaEquipos({ cargas, recursos, hoy }: PropsVistaCargaEquipos) {
+export function VistaCargaEquipos({
+  cargas,
+  recursos,
+  hoy,
+  error = false,
+}: PropsVistaCargaEquipos) {
   const [modo, setModo] = useState<ModoCarga>('semana');
   const [diaActivo, setDiaActivo] = useState(hoy);
 
@@ -99,7 +106,7 @@ export function VistaCargaEquipos({ cargas, recursos, hoy }: PropsVistaCargaEqui
         </div>
       </header>
 
-      {modo === 'dia' ? (
+      {!error && modo === 'dia' ? (
         <div
           role="group"
           aria-label="Día de la semana"
@@ -132,7 +139,16 @@ export function VistaCargaEquipos({ cargas, recursos, hoy }: PropsVistaCargaEqui
         </div>
       ) : null}
 
-      {diaCerrado ? (
+      {error ? (
+        <p
+          role="alert"
+          className="rounded-lg border border-peligro/40 bg-peligro-suave p-4 text-sm text-peligro-texto"
+          data-testid="carga-equipos-error"
+        >
+          No se pudo leer la carga de equipos. La terminal sigue disponible;
+          recarga la página para reintentar.
+        </p>
+      ) : diaCerrado ? (
         <p
           className="rounded-lg border border-borde bg-superficie p-4 text-sm text-texto-secundario"
           data-testid="carga-dia-cerrado"
