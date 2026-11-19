@@ -30,7 +30,8 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 
 ## Últimos cambios relevantes
 
-- **C18 — Horario laboral (2026-11-16, jornada ajustada por C24):** lunes a viernes 8 h, sábado 4 h, domingo cerrado; matutino y vespertino son etiquetas. La misma regla se aplica en capacidad, planeación, producción y en la jornada del operador.
+- **Fix capacidad en día sin jornada (2026-11-19):** `obtener_carga_capacidad_diaria` conserva las horas reales de un recurso liberado aunque la fecha no tenga jornada (domingo o día cerrado); antes la fila desaparecía al quedar capacidad 0 y saldo ocupado 0, como si el trabajo real se hubiera borrado. Migración `20261119130000`.
+- **C18 - Horario laboral (2026-11-16, jornada ajustada por C24):** lunes a viernes 8 h, sábado 4 h, domingo cerrado; matutino y vespertino son etiquetas. La misma regla se aplica en capacidad, planeación, producción y en la jornada del operador.
 - **C19 — Cierre por entrega (2026-11-16):** la orden pasa a `CERRADA` al entregar el 100 %, se reabre al anular la nota y el cierre administrativo completa costo y margen.
 - **PR #192 — Correcciones QA (2026-11-15):** fechas del negocio en Tijuana, permisos de calidad del operador, cierre excepcional del supervisor, adjuntos, estados, avisos de React y ajustes de accesibilidad.
 - **PR #193 — Cobertura y jornada (2026-11-16):** E2E de anulación de nota parcial y liberación de máquina tras pausa; unitarias de fechas sin hora y mensajes de corrida; jornada del operador derivada de `horasJornadaDia`.
