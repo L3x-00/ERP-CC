@@ -6,6 +6,11 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT plan(19);
 
+-- C24 calcula la capacidad con la jornada laboral del día: current_date + N
+-- cae en fin de semana según la fecha y deja la fila fuera del resultado. Las
+-- fechas se anclan al lunes de la semana siguiente (lunes a jueves laborables).
+-- Ancla: date_trunc('week', current_date)::date + 7 = lunes siguiente.
+
 SELECT has_function(
   'public', 'obtener_carga_capacidad_diaria', ARRAY['date', 'date'],
   'La RPC de capacidad conserva su firma pública'
@@ -64,10 +69,10 @@ INSERT INTO public.programacion_areas (
   id, orden_id, partida_id, recurso_id, secuencia, estado_planeacion,
   fecha_programada, turno, horas_estimadas
 ) VALUES
-  ('00000000-0000-4000-8000-0000000c9351', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9331', '00000000-0000-4000-8000-0000000c9341', 1, 'en_proceso', current_date, 'matutino', 8),
-  ('00000000-0000-4000-8000-0000000c9352', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9332', '00000000-0000-4000-8000-0000000c9342', 1, 'completada', current_date + 1, 'matutino', 8),
-  ('00000000-0000-4000-8000-0000000c9353', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9333', '00000000-0000-4000-8000-0000000c9343', 1, 'completada', current_date + 2, 'matutino', 8),
-  ('00000000-0000-4000-8000-0000000c9354', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9334', '00000000-0000-4000-8000-0000000c9344', 1, 'bloqueada', current_date + 3, 'matutino', 8);
+  ('00000000-0000-4000-8000-0000000c9351', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9331', '00000000-0000-4000-8000-0000000c9341', 1, 'en_proceso', (date_trunc('week', current_date)::date + 7), 'matutino', 8),
+  ('00000000-0000-4000-8000-0000000c9352', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9332', '00000000-0000-4000-8000-0000000c9342', 1, 'completada', ((date_trunc('week', current_date)::date + 7) + 1), 'matutino', 8),
+  ('00000000-0000-4000-8000-0000000c9353', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9333', '00000000-0000-4000-8000-0000000c9343', 1, 'completada', ((date_trunc('week', current_date)::date + 7) + 2), 'matutino', 8),
+  ('00000000-0000-4000-8000-0000000c9354', '00000000-0000-4000-8000-0000000c9320', '00000000-0000-4000-8000-0000000c9334', '00000000-0000-4000-8000-0000000c9344', 1, 'bloqueada', ((date_trunc('week', current_date)::date + 7) + 3), 'matutino', 8);
 
 INSERT INTO public.sesiones_trabajo (
   id, orden_id, partida_id, programacion_id, operador_id, estado_sesion,
@@ -80,25 +85,25 @@ INSERT INTO public.sesiones_trabajo (
 
 SET LOCAL ROLE service_role;
 
-SELECT lives_ok($$SELECT * FROM public.obtener_carga_capacidad_diaria(current_date, current_date + 3)$$,
+SELECT lives_ok($$SELECT * FROM public.obtener_carga_capacidad_diaria((date_trunc('week', current_date)::date + 7), ((date_trunc('week', current_date)::date + 7) + 3))$$,
   'service_role puede consultar la capacidad C9.3');
-SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria(current_date, current_date) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9341'), 5::numeric,
+SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria((date_trunc('week', current_date)::date + 7), (date_trunc('week', current_date)::date + 7)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9341'), 5::numeric,
   'Las 3 horas reales descuentan el saldo ocupado de 8 a 5');
-SELECT is((SELECT horas_reales FROM public.obtener_carga_capacidad_diaria(current_date, current_date) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9341'), 3::numeric,
+SELECT is((SELECT horas_reales FROM public.obtener_carga_capacidad_diaria((date_trunc('week', current_date)::date + 7), (date_trunc('week', current_date)::date + 7)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9341'), 3::numeric,
   'La carga expone las horas reales');
-SELECT is((SELECT horas_exceso FROM public.obtener_carga_capacidad_diaria(current_date, current_date) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9341'), 0::numeric,
+SELECT is((SELECT horas_exceso FROM public.obtener_carga_capacidad_diaria((date_trunc('week', current_date)::date + 7), (date_trunc('week', current_date)::date + 7)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9341'), 0::numeric,
   'Sin rebasar el estimado no hay exceso');
 SELECT is((SELECT horas_estimadas FROM public.programacion_areas WHERE id = '00000000-0000-4000-8000-0000000c9351'), 8::numeric,
   'El estimado histórico permanece intacto');
-SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria(current_date + 1, current_date + 1) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9342'), 0::numeric,
+SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria(((date_trunc('week', current_date)::date + 7) + 1), ((date_trunc('week', current_date)::date + 7) + 1)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9342'), 0::numeric,
   'Una programación completada ya no ocupa capacidad');
-SELECT is((SELECT horas_reales FROM public.obtener_carga_capacidad_diaria(current_date + 1, current_date + 1) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9342'), 3::numeric,
+SELECT is((SELECT horas_reales FROM public.obtener_carga_capacidad_diaria(((date_trunc('week', current_date)::date + 7) + 1), ((date_trunc('week', current_date)::date + 7) + 1)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9342'), 3::numeric,
   'La programación completada conserva sus horas reales');
-SELECT is((SELECT horas_exceso FROM public.obtener_carga_capacidad_diaria(current_date + 2, current_date + 2) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9343'), 2::numeric,
+SELECT is((SELECT horas_exceso FROM public.obtener_carga_capacidad_diaria(((date_trunc('week', current_date)::date + 7) + 2), ((date_trunc('week', current_date)::date + 7) + 2)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9343'), 2::numeric,
   'El trabajo por encima del estimado se expone como exceso');
 SELECT is((SELECT horas_estimadas FROM public.programacion_areas WHERE id = '00000000-0000-4000-8000-0000000c9353'), 8::numeric,
   'El exceso tampoco reescribe el estimado');
-SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria(current_date + 3, current_date + 3) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9344'), 6::numeric,
+SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria(((date_trunc('week', current_date)::date + 7) + 3), ((date_trunc('week', current_date)::date + 7) + 3)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9344'), 6::numeric,
   'Una pausa no liberada conserva el saldo ocupado');
 
 RESET ROLE;
@@ -106,15 +111,15 @@ UPDATE public.sesiones_trabajo SET recurso_liberado = true
 WHERE id = '00000000-0000-4000-8000-0000000c9364';
 SET LOCAL ROLE service_role;
 
-SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria(current_date + 3, current_date + 3) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9344'), 0::numeric,
+SELECT is((SELECT horas_programadas FROM public.obtener_carga_capacidad_diaria(((date_trunc('week', current_date)::date + 7) + 3), ((date_trunc('week', current_date)::date + 7) + 3)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9344'), 0::numeric,
   'La liberación formal elimina el saldo ocupado durante el bloqueo');
-SELECT is((SELECT horas_reales FROM public.obtener_carga_capacidad_diaria(current_date + 3, current_date + 3) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9344'), 2::numeric,
+SELECT is((SELECT horas_reales FROM public.obtener_carga_capacidad_diaria(((date_trunc('week', current_date)::date + 7) + 3), ((date_trunc('week', current_date)::date + 7) + 3)) WHERE recurso_id = '00000000-0000-4000-8000-0000000c9344'), 2::numeric,
   'Liberar el recurso no borra las horas reales');
 SELECT ok(NOT has_function_privilege('authenticated', 'public.obtener_carga_capacidad_diaria(date,date)', 'EXECUTE'),
   'authenticated no ejecuta la función privilegiada');
 SELECT ok(NOT has_function_privilege('anon', 'public.obtener_carga_capacidad_diaria(date,date)', 'EXECUTE'),
   'anon no ejecuta la función privilegiada');
-SELECT is((SELECT count(*)::integer FROM public.obtener_carga_capacidad_diaria(current_date, current_date + 3) WHERE horas_exceso > 0), 1,
+SELECT is((SELECT count(*)::integer FROM public.obtener_carga_capacidad_diaria((date_trunc('week', current_date)::date + 7), ((date_trunc('week', current_date)::date + 7) + 3)) WHERE horas_exceso > 0), 1,
   'El rango informa exactamente una programación con exceso');
 
 SELECT * FROM finish();
