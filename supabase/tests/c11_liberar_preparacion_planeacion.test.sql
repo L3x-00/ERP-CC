@@ -9,6 +9,12 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT plan(11);
 
+-- Fecha laboral fija: el domingo no tiene capacidad y `programar_*` rechaza
+-- capacidad 0. Se programa el lunes de la semana siguiente.
+CREATE TEMP TABLE c11lib_fechas ON COMMIT DROP AS
+SELECT date_trunc('week', current_date)::date + 7 AS lunes;
+GRANT SELECT ON c11lib_fechas TO service_role;
+
 INSERT INTO auth.users (id, email, raw_user_meta_data)
 VALUES ('00000000-0000-4000-8000-0000000c11a1', 'c11lib-admin@prueba.local', '{}'::jsonb);
 UPDATE public.usuarios SET rol = 'admin', activo = true
@@ -58,7 +64,7 @@ SET LOCAL ROLE service_role;
 
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c11c1', '00000000-0000-4000-8000-0000000c11d1',
-  '00000000-0000-4000-8000-0000000c11e1', 1::smallint, current_date, 'matutino', 1, 1,
+  '00000000-0000-4000-8000-0000000c11e1', 1::smallint, (SELECT lunes FROM c11lib_fechas), 'matutino', 1, 1,
   '00000000-0000-4000-8000-0000000c11a1', NULL::uuid, NULL::uuid)$$,
   'La operación se programa para prepararla');
 
