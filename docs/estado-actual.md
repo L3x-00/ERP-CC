@@ -46,7 +46,7 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 
 ## Calidad
 
-- **Unitarias e integración:** Vitest. Último corte completo local (2026-11-19): 334 archivos y 2861 pruebas unitarias en verde; 307 de integración en verde en el corte previo.
+- **Unitarias e integración:** Vitest. Último corte completo local (2026-11-19): 335 archivos y 2867 pruebas unitarias en verde; 307 de integración en verde en el corte previo.
 - **Base de datos:** 113 archivos pgTAP (2464 pruebas) en verde en CI sobre base limpia (2026-11-19). La base local acumula residuos E2E: los pgTAP tocados se corren focales antes de cerrar.
 - **E2E:** Playwright, 73 escenarios en verde con Supabase local. CI ejecuta `e2e-local` sobre un build de producción.
 - **Base de datos:** pgTAP para RPCs, RLS, folios y máquinas de estado.
