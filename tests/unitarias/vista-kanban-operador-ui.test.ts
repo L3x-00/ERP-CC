@@ -43,6 +43,7 @@ function proceso(
     hechoPiezas: 0,
     pendientePiezas: 80,
     porcentaje: 0,
+    procesoCompleto: false,
     esFinal: true,
     piezasDisponibles: null,
     procesoPrevioNombre: null,

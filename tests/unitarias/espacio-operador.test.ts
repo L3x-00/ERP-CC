@@ -81,6 +81,7 @@ function crearProceso(
     hechoPiezas: 0,
     pendientePiezas: 10,
     porcentaje: 0,
+    procesoCompleto: false,
     esFinal: false,
     piezasDisponibles: null,
     procesoPrevioNombre: null,

@@ -20,7 +20,7 @@ import { detalleMaterial, etiquetaMaterial } from '@/compartido/utilidades/mater
 import { formatearFecha, formatearHora, formatearNumero } from '@/compartido/utilidades/formatear';
 import type { MotivoPausaCatalogo } from '@/modulos/produccion/servicios/consultas-b6-servicio';
 import type { CierreSesionRegistrado } from '@/modulos/produccion/servicios/sesiones-servicio';
-import type { ProcesoEspacioOperador } from '@/modulos/produccion/tipos/indice';
+import type { ProcesoEspacioOperador, EstadoSesionTrabajo } from '@/modulos/produccion/tipos/indice';
 import { ETIQUETAS_COLUMNA, etiquetaMotivoPausa } from '@/modulos/produccion/tipos/indice';
 import {
   AYUDA_HORAS_EXTRA,
@@ -81,7 +81,7 @@ import {
 import type { MaterialPiso } from '@/modulos/ordenes/componentes/control-piso-panel';
 
 export type ResultadoOperacion =
-  | { exito: true; datos?: CierreSesionRegistrado }
+  | { exito: true; datos?: CierreSesionRegistrado; estadoSesion?: EstadoSesionTrabajo }
   | { exito: false; error: string; codigo?: string };
 
 interface ResumenCierreSesion {
@@ -206,8 +206,19 @@ export function DetalleProcesoOperador({
     horaFinEditada.current = false;
   }, [proceso?.sesionActiva?.id]);
   // C20: corrección de la pausa automática (piezas, horas y notas).
-  const [avancePiezas, setAvancePiezas] = useState('0');
-  const [avanceHoras, setAvanceHoras] = useState('0');
+  // Se prefijan con lo ya declarado por la sesión pausada: reenviar el total
+  // (no 0) evita restar producción al registrar el consumo pendiente.
+  const sesionPausadaInicial = proceso?.ultimaSesion?.estadoSesion === 'pausada'
+    && !proceso.ultimaSesion.sesionInvalida
+    && !proceso.ultimaSesion.recursoLiberado
+    ? proceso.ultimaSesion
+    : null;
+  const [avancePiezas, setAvancePiezas] = useState(
+    () => (sesionPausadaInicial ? String(sesionPausadaInicial.piezasProducidas) : '0'),
+  );
+  const [avanceHoras, setAvanceHoras] = useState(
+    () => (sesionPausadaInicial ? String(sesionPausadaInicial.horasNetas) : '0'),
+  );
   const [avanceNotas, setAvanceNotas] = useState('');
   // C21: corrección de cualquier sesión pausada y consumo opcional.
   const [sesionCorreccionId, setSesionCorreccionId] = useState<string | null>(
@@ -504,9 +515,16 @@ export function DetalleProcesoOperador({
       mostrarErrorAvance(resultado);
       return;
     }
-    setAvanceGuardado(true);
-    setAvancePiezas('0');
-    setAvanceHoras('0');
+    // Solo se cierra el formulario cuando la pausa quedó resuelta. Si la sesión
+    // sigue pausada (operación completa con consumo pendiente, o avance
+    // parcial), el formulario debe seguir disponible para terminarla.
+    const estadoFinal = resultado.estadoSesion ?? resultado.datos?.estadoSesion;
+    const pausaResuelta = estadoFinal === 'finalizada' || estadoFinal === undefined;
+    setAvanceGuardado(pausaResuelta);
+    if (pausaResuelta) {
+      setAvancePiezas('0');
+      setAvanceHoras('0');
+    }
   }
 
   /** Errores de avance con salidas accionables, no callejones sin salida. */
@@ -1677,6 +1695,10 @@ export function DetalleProcesoOperador({
                 producidas y las horas que faltaron para la pausa: con eso se calcula la hora
                 real de término y se corrige el tiempo. No puedes continuar hasta hacerlo.
               </p>
+            ) : proceso.procesoCompleto ? (
+              <p className="text-xs text-advertencia-texto">
+                La operación ya está completa. Registra el consumo pendiente para cerrar la pausa.
+              </p>
             ) : proceso.puedeReanudar ? (
               <p className="text-xs text-advertencia-texto">
                 Puedes retomarla con «Continuar sesión pausada»; el avance y las horas
@@ -2428,6 +2450,18 @@ export function DetalleProcesoOperador({
               </div>
             ) : null}
 
+            {proceso.procesoCompleto
+              && proceso.sesiones.some((sesion) => sesion.estadoSesion === 'pausada' && !sesion.sesionInvalida && !sesion.recursoLiberado) ? (
+              <p
+                className="rounded-lg border border-advertencia/50 bg-advertencia-suave p-3 text-sm text-advertencia-texto"
+                data-testid="aviso-operacion-completa"
+              >
+                La operación ya está completa ({formatearNumero(proceso.hechoPiezas, 0)} de{' '}
+                {formatearNumero(proceso.metaPiezas, 0)} piezas). No hace falta continuar la
+                sesión: actualiza el avance de la pausa y, si la partida usa material, registra
+                el consumo para cerrarla.
+              </p>
+            ) : null}
             {avanceGuardado ? (
               <p
                 role="status"
@@ -2474,8 +2508,14 @@ export function DetalleProcesoOperador({
                   <Select
                     value={sesionCorreccionId ?? proceso.ultimaSesion?.id ?? ''}
                     onChange={(evento) => {
-                      setSesionCorreccionId(evento.target.value);
+                      const siguienteId = evento.target.value;
+                      setSesionCorreccionId(siguienteId);
                       setAvanceGuardado(false);
+                      const sesion = proceso.sesiones.find((item) => item.id === siguienteId);
+                      if (sesion) {
+                        setAvancePiezas(String(sesion.piezasProducidas));
+                        setAvanceHoras(String(sesion.horasNetas));
+                      }
                     }}
                     data-testid="avance-sesion"
                   >

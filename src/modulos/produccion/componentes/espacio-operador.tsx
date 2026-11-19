@@ -329,7 +329,7 @@ export function EspacioOperador({
     return ejecutar(proceso, async () => {
       const respuesta = await actualizarAvanceSesionAccion(datos);
       return respuesta.exito
-        ? { exito: true }
+        ? { exito: true, estadoSesion: respuesta.datos?.estadoSesion }
         : { exito: false, error: respuesta.error, ...(respuesta.codigo ? { codigo: respuesta.codigo } : {}) };
     }, 'Avance y hora real actualizados');
   }

@@ -754,12 +754,17 @@ export async function obtenerEspacioOperadorServicio(
       else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
       else if (pendienteActualizacionAvance) {
         motivoNoInicia = 'Actualiza el avance y la hora real antes de continuar';
+      } else if (pausado && procesoCompleto) {
+        motivoNoInicia = 'Operación completa: registra el consumo pendiente para cerrarla';
       } else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
 
+      // Una operación terminada no se reanuda: la sesión sigue pausada solo
+      // porque falta asentar el consumo de material antes de cerrarla.
       const puedeReanudar = operadorId !== null
         && reclamadoPorMi
         && !pendienteActualizacionAvance
         && sesionPausada
+        && !procesoCompleto
         && programacion?.estadoPlaneacion === 'bloqueada'
         && (orden.estado === 'pausada' || orden.estado === 'en_proceso');
 
@@ -795,6 +800,7 @@ export async function obtenerEspacioOperadorServicio(
         hechoPiezas,
         pendientePiezas,
         porcentaje,
+        procesoCompleto,
         esFinal: operacion.secuencia === ultimaSecuencia,
         piezasDisponibles: disponibilidad.disponiblePiezas,
         procesoPrevioNombre: disponibilidad.procesoPrevioNombre,
