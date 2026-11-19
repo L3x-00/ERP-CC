@@ -677,6 +677,68 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.getByTestId('formulario-actualizar-avance')).toBeTruthy();
   });
 
+  it('no ofrece reanudar una pausa sin piezas nuevas, pero deja cerrarla', () => {
+    const sesionPausada = {
+      id: 'sesion-pausada',
+      corridaId: null,
+      operadorId: 'operador-1',
+      operadorNombre: 'Operador de prueba',
+      estadoSesion: 'pausada' as const,
+      fechaInicio: '2026-11-19T08:00:00.000Z',
+      fechaFin: '2026-11-19T10:00:00.000Z',
+      piezasProducidas: 100,
+      horasNetas: 2,
+      motivoPausa: 'MATERIAL',
+      motivoPausaNota: null,
+      notas: null,
+      verificacionCompleta: true,
+    };
+    const sinPiezas = {
+      ...proceso,
+      columna: 'pausada',
+      sesionActiva: null,
+      ultimaSesion: sesionPausada,
+      sesiones: [sesionPausada],
+      hechoPiezas: 100,
+      metaPiezas: 250,
+      pendientePiezas: 150,
+      procesoCompleto: false,
+      piezasDisponibles: 0,
+      procesoPrevioNombre: 'Corte laser',
+      puedeReanudar: false,
+      puedeIniciar: false,
+      motivoNoInicia: 'Sin piezas de Corte laser: espera a que libere más piezas para reanudar',
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: sinPiezas,
+      hoy: '2026-11-19',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.getByTestId('aviso-sin-piezas-reanudar').textContent).toContain(
+      'Todavía no hay piezas de Corte laser',
+    );
+    expect(screen.queryByTestId('reanudar-detalle')).toBeNull();
+    expect(screen.getByTestId('cerrar-pausa-detalle')).toBeTruthy();
+  });
+
   it('aclara que cerrar la sesión en marcha no modifica las pausadas', async () => {
     const sesionPausada = {
       id: 'sesion-pausada',

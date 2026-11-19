@@ -739,16 +739,23 @@ export async function obtenerEspacioOperadorServicio(
         || orden.estado === 'pausada'
         || orden.estado === 'en_proceso';
       const pausado = sesionPausada || programacion?.estadoPlaneacion === 'bloqueada';
+      // C29: un proceso posterior no puede arrancar ni retomarse mientras el
+      // proceso anterior no le haya liberado piezas nuevas. La pausa no es una
+      // excepción: si ya consumió todo el lote, debe esperar más piezas.
+      const sinPiezasPrevias = disponibilidad.disponiblePiezas === 0;
+      const motivoSinPiezas = disponibilidad.procesoPrevioNombre
+        ? (sesionPausada
+          ? `Sin piezas de ${disponibilidad.procesoPrevioNombre}: espera a que libere más piezas para reanudar`
+          : `Sin piezas de ${disponibilidad.procesoPrevioNombre}: el proceso anterior aún no termina`)
+        : (sesionPausada
+          ? 'Sin piezas del proceso anterior: espera a que libere más piezas para reanudar'
+          : 'Sin piezas del proceso anterior');
 
       let motivoNoInicia: string | null = null;
       if (operadorId === null) motivoNoInicia = 'Vista de solo lectura';
       else if (!reclamo) motivoNoInicia = 'Reclama el proceso para iniciar';
       else if (!reclamadoPorMi) motivoNoInicia = 'Otro operador tiene el proceso';
-      else if (!sesionPausada && disponibilidad.disponiblePiezas === 0) {
-        motivoNoInicia = disponibilidad.procesoPrevioNombre
-          ? `Sin piezas de ${disponibilidad.procesoPrevioNombre}: el proceso anterior aún no termina`
-          : 'Sin piezas del proceso anterior';
-      } else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
+      else if (orden.estado === 'borrador' || orden.estadoSii === 'CONFIRMADA') {
         motivoNoInicia = 'La orden aún no se libera a Bandeja';
       } else if (!ordenIniciable) motivoNoInicia = 'La orden ya no está activa';
       else if (sesionActiva) motivoNoInicia = 'Ya hay una sesión activa en este proceso';
@@ -756,15 +763,18 @@ export async function obtenerEspacioOperadorServicio(
         motivoNoInicia = 'Actualiza el avance y la hora real antes de continuar';
       } else if (pausado && procesoCompleto) {
         motivoNoInicia = 'Operación completa: registra el consumo pendiente para cerrarla';
-      } else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
+      } else if (sinPiezasPrevias) motivoNoInicia = motivoSinPiezas;
+      else if (pausado) motivoNoInicia = 'Proceso pausado: reanuda la sesión';
 
       // Una operación terminada no se reanuda: la sesión sigue pausada solo
-      // porque falta asentar el consumo de material antes de cerrarla.
+      // porque falta asentar el consumo de material antes de cerrarla. Tampoco
+      // se reanuda sin piezas disponibles del proceso anterior (C29).
       const puedeReanudar = operadorId !== null
         && reclamadoPorMi
         && !pendienteActualizacionAvance
         && sesionPausada
         && !procesoCompleto
+        && !sinPiezasPrevias
         && programacion?.estadoPlaneacion === 'bloqueada'
         && (orden.estado === 'pausada' || orden.estado === 'en_proceso');
 
