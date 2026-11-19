@@ -288,5 +288,11 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | Doblado se podía reanudar con 0 piezas disponibles aunque Corte no hubiera liberado nada nuevo | `iniciar_sesion_trabajo_operador` omitía la validación `proceso_previo_sin_piezas` cuando existía una sesión pausada (C12), y el servicio/UI replicaban esa omisión en `puedeReanudar` | La disponibilidad del proceso previo se valida siempre, también al reanudar: `piezas_disponibles_proceso > 0`. El servidor lanza `proceso_previo_sin_piezas`; el servicio pone `puedeReanudar = false` y `motivoNoInicia` explica que hay que esperar más piezas. «Cerrar pausa sin producir» se mantiene disponible (no depende de `puedeReanudar`) para que la operación no quede atrapada esperando al proceso anterior |
 
+## 22. La ficha corregía el avance de la sesión equivocada tras reanudar
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Después de reanudar una pausa, la ficha mostraba «Actualizar avance y hora real» y al enviarlo fallaba; el operador sentía que no podía cerrar la sesión en marcha | Al reanudar se crea una sesión **activa** nueva y la pausa anterior queda como historial. Como `sesionCorreccionId` se inicializaba con `proceso.ultimaSesion` (la activa), el formulario de la pausa enviaba el id de la sesión activa y la RPC respondía `sesion_no_pausada`. Además, piezas y horas se prellenaban con 0 en vez de con lo ya declarado por la pausa | El formulario de avance se inicializa con la **pausa corregible más reciente** (nunca una sesión activa), y prefija piezas/horas desde esa misma pausa. En la ficha se oculta el motivo «Ya hay una sesión activa en este proceso» y el banner de reserva: el formulario de cierre ya está arriba y ambos datos son redundantes |
+
 
 
