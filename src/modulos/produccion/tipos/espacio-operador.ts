@@ -6,7 +6,7 @@ import type { EstadoSiiOrden } from '@/modulos/ordenes/tipos/orden-sii';
 
 /** C10: contratos del espacio de operador en piso. */
 
-export const VISTAS_ESPACIO_OPERADOR = ['kanban', 'calendario', 'areas'] as const;
+export const VISTAS_ESPACIO_OPERADOR = ['kanban', 'calendario', 'carga', 'areas'] as const;
 export const COLUMNAS_ESPACIO_OPERADOR = [
   'aprobada',
   'bandeja',

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/compartido/tipos/supabase';
 import {
+  COLUMNAS_RECURSO_PLANEACION_OPERATIVO,
   ESTADOS_PLANEACION,
   filaACargaCapacidadDiaria,
   filaAProgramacionAreaConOperacion,
@@ -278,6 +279,36 @@ export async function obtenerCargaCapacidadDiariaServicio(
 
   if (error) lanzarErrorPlaneacion(error.message);
   return (data ?? []).map(filaACargaCapacidadDiaria);
+}
+
+/**
+ * Lectura de solo lectura para el panel del operador: equipos activos y su carga
+ * por día en un rango de hasta 7 días. No expone programaciones, compromisos ni
+ * datos comerciales; la capacidad la sigue calculando PostgreSQL.
+ */
+export async function obtenerCargaEquiposServicio(
+  admin: SupabaseClient<Database>,
+  fechaInicio: string,
+  fechaFin: string,
+): Promise<{ recursos: RecursoPlaneacion[]; cargas: CargaCapacidadDiaria[] }> {
+  const respuestaRecursos = await admin
+    .from('recursos_planeacion')
+    .select(COLUMNAS_RECURSO_PLANEACION_OPERATIVO)
+    .eq('activo', true)
+    .order('codigo');
+
+  if (respuestaRecursos.error) lanzarErrorPlaneacion(respuestaRecursos.error.message);
+
+  const recursos = (respuestaRecursos.data ?? []).map((recurso) => filaARecursoPlaneacion(recurso));
+  const autorizados = new Set(recursos.map((recurso) => recurso.id));
+  // La RPC se ejecuta con service_role porque agrega capacidad; se acota a los
+  // recursos que la consulta de arriba permitió leer.
+  const cargas = await obtenerCargaCapacidadDiariaServicio(admin, fechaInicio, fechaFin);
+
+  return {
+    recursos,
+    cargas: cargas.filter((carga) => autorizados.has(carga.recursoId)),
+  };
 }
 
 /** Lee el calendario bajo el alcance RLS del cliente recibido, sin consultas N+1. */

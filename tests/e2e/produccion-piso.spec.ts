@@ -435,10 +435,17 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(tarjeta).toContainText('0/5');
       await expect(tarjeta).toContainText('2 h');
 
-      // Las tres vistas del espacio existen y comparten los mismos datos.
+      // Las cuatro vistas del espacio existen y comparten los mismos datos.
       await page.getByTestId('vista-calendario').click();
       await expect(page.getByTestId('vista-calendario-operador')).toBeVisible();
       await expect(page.locator('[data-testid^="dia-"]')).toHaveCount(7);
+      await page.getByTestId('vista-carga').click();
+      await expect(page.getByTestId('vista-carga-equipos')).toBeVisible();
+      await expect(page.getByTestId('resumen-carga-semanal')).toBeVisible();
+      await page.getByTestId('carga-modo-dia').click();
+      await expect(page.getByTestId('carga-modo-dia')).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.getByTestId('resumen-carga-semanal')).toBeVisible();
+      await page.getByTestId('carga-modo-semana').click();
       await page.getByTestId('vista-areas').click();
       await expect(page.getByTestId('vista-areas-operador')).toBeVisible();
       await expect(page.getByTestId('area-sin-area')).toBeVisible();
