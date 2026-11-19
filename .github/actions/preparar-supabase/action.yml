@@ -70,13 +70,13 @@ runs:
           fi
         done
 
-    # `analytics` es Logflare e `inbucket` es Mailpit: son los nombres que
-    # entiende el CLI 2.x. Se excluyen los servicios que ninguna prueba usa
-    # (studio, imgproxy, analytics, vector, edge-runtime e inbucket) para
-    # recortar descarga y arranque. `storage` sí se usa (27 referencias).
+    # Nombres de contenedor que acepta el CLI 2.109 (los avisa en un warning si
+    # se usa el nombre del servicio: `logflare`, no `analytics`; `mailpit`, no
+    # `inbucket`). Se excluyen los servicios que ninguna prueba usa para
+    # recortar arranque. `storage` sí se usa (27 referencias).
     - name: Levantar Supabase local (aplica migraciones)
       shell: bash
-      run: supabase start -x studio,imgproxy,analytics,vector,edge-runtime,inbucket
+      run: supabase start -x studio,imgproxy,logflare,vector,edge-runtime,mailpit
 
     - name: Exportar entorno del stack local
       shell: bash
