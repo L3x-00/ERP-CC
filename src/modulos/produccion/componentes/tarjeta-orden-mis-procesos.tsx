@@ -153,7 +153,7 @@ export function TarjetaOrdenMisProcesos({
                   <dd className="truncate font-medium text-texto-primario">{proceso.areaNombre}</dd>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <dt className="text-texto-tenue">Tiempo</dt>
+                  <dt className="text-texto-tenue">Tiempo trabajado</dt>
                   <dd className="font-semibold tabular-nums text-texto-primario">
                     {horasLegibles(horasTrabajadas)}
                   </dd>
@@ -173,6 +173,9 @@ export function TarjetaOrdenMisProcesos({
               </dl>
 
               <div className="flex items-center gap-2">
+                <span className="shrink-0 text-[11px] text-texto-secundario">
+                  Avance del proceso
+                </span>
                 <div
                   className="h-1.5 flex-1 overflow-hidden rounded-full bg-superficie-2"
                   role="progressbar"
