@@ -304,7 +304,6 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');
     await page.getByTestId('motivo-consumo').fill('Consumo E2E');
-    await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
     await page.getByRole('button', { name: 'Entendido' }).click();
@@ -326,7 +325,6 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     await page.getByLabel('Material').selectOption(caso.materialId);
     await page.getByLabel('Usado').fill('1');
     await page.getByTestId('motivo-consumo').fill('Consumo E2E');
-    await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
     await page.getByRole('button', { name: 'Entendido' }).click();
@@ -345,7 +343,6 @@ test.describe.serial('avance por proceso en producción (PRD-09/E2E-19)', () => 
     // C17: en Doblado se consumen las piezas cortadas, no la lámina.
     await page.getByLabel('Usado').fill('10');
     await page.getByTestId('motivo-consumo').fill('Consumo E2E');
-    await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByRole('status')).toContainText('Piezas consumidas: 10');
 
