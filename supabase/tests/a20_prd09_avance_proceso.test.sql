@@ -168,7 +168,7 @@ SELECT throws_ok($$SELECT * FROM public.cerrar_sesion_trabajo_operador(
   4, 'finalizada', NULL, NULL,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000b0030' AND secuencia = 1))$$,
-  '23514', 'programacion_no_en_proceso', 'Reintentar una sesión cerrada no vuelve a sumar');
+  '23514', 'sesion_no_activa', 'Reintentar una sesión cerrada no vuelve a sumar');
 SELECT is((
   SELECT sum(avance.cantidad_producida) FROM public.registros_avance_partida AS avance
   WHERE avance.meta_proceso_id = (

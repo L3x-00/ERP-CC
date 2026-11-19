@@ -127,6 +127,15 @@ export { obtenerConsumosMaterialOrdenServicio } from '@/modulos/produccion/servi
 export type { ConsumoMaterialOrden } from '@/modulos/produccion/servicios/consumos-orden-servicio';
 
 export {
+  cerrarPausaHuerfanaServicio,
+  obtenerDiagnosticoOrdenServicio,
+} from '@/modulos/produccion/servicios/diagnostico-servicio';
+export type {
+  DiagnosticoOrdenItem,
+  PausaHuerfanaCerrada,
+} from '@/modulos/produccion/servicios/diagnostico-servicio';
+
+export {
   EXTENSIONES_DOCUMENTO_ORDEN,
   TAMANO_MAXIMO_DOCUMENTO_ORDEN,
   listarDocumentosOrden,

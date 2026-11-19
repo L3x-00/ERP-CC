@@ -1,6 +1,6 @@
 # Estado actual
 
-**Corte:** 2026-11-17 · `main` = `6285817` (merge del PR #196).
+**Corte:** 2026-11-18 · `main` = `85bc76b` (merge del PR #203, C24).
 
 ## Resumen
 
@@ -35,14 +35,15 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 - **PR #192 — Correcciones QA (2026-11-15):** fechas del negocio en Tijuana, permisos de calidad del operador, cierre excepcional del supervisor, adjuntos, estados, avisos de React y ajustes de accesibilidad.
 - **PR #193 — Cobertura y jornada (2026-11-16):** E2E de anulación de nota parcial y liberación de máquina tras pausa; unitarias de fechas sin hora y mensajes de corrida; jornada del operador derivada de `horasJornadaDia`.
 - **C20 (2026-11-17):** hora real de finalización en el cierre, pausa automática con bandera «Actualizar avance», corrección de piezas/hora real y control de jornada acumulada por día. PR #195.
-- **C24 — Turnos visuales y jornada continua (2026-11-18):** la jornada es continua de 8 h de lunes a viernes, 4 h el sábado y domingo cerrado; matutino y vespertino son solo etiquetas visuales y ya no reparten la capacidad. La capacidad es `equipos × jornada` e ignora `capacidades_recurso_turno`, que queda como legado. Los errores de arranque siempre traen causa exacta (`jornada_cerrada`, `recurso_sin_capacidad`, `recurso_capacidad_excedida`, `recurso_ocupado`) y la app muestra el detalle. Va en un PR anterior a la tanda **C23 — producción sin callejones**, que se renumera a `20261118160000/160100` al rebasar.
+- **C24 — Turnos visuales y jornada continua (2026-11-18):** la jornada es continua de 8 h de lunes a viernes, 4 h el sábado y domingo cerrado; matutino y vespertino son solo etiquetas visuales y ya no reparten la capacidad. La capacidad es `equipos × jornada` e ignora `capacidades_recurso_turno`, que queda como legado. Los errores de arranque siempre traen causa exacta (`jornada_cerrada`, `recurso_sin_capacidad`, `recurso_capacidad_excedida`, `recurso_ocupado`) y la app muestra el detalle. PR #203, migración `20261118150000`.
 - **C21 (2026-11-17):** jornada corrida de 8 h con comida descontada; declaración del tiempo real de cada bloque pausado; corrección cronológica desde el historial; pausas sobrantes marcadas como inválidas; tope de 3 pausas sin avance; dos opciones para el consumo de material y errores en modal con salidas accionables. PR #196.
 - **PR #201 — Horas por operación en Planeación (2026-11-18):** la bolsa y el formulario programan cada operación con las horas de su ruteo (`propuesta_item_ruteo.total_horas`); el total de la partida solo se usa cuando hay una única operación. Producción quedó normalizada: O-1126_09 reprogramada y cinco filas históricas corregidas con evento de auditoría.
+- **C23 — Producción sin callejones sin salida (2026-11-18):** las horas reales de la partida se derivan de las sesiones (`tiempo_real_minutos` = suma de horas netas no inválidas) en todos los caminos; la corrección de avance aplica delta y topa contra meta y disponible; se puede cerrar o pausar una sesión aunque otra haya completado la operación; el trigger B2 permite descartar sesiones vacías; las pausas huérfanas de órdenes terminadas se cierran con una RPC administrativa auditada; y el administrador ve un diagnóstico de consistencia con aviso de entrega pendiente. Asignación de horas de una operación `en_proceso` ya cubierta por la C24. Migraciones `20261118160000/160100`.
 
 ## Calidad
 
-- **Unitarias e integración:** Vitest. Último corte completo: 2903 pruebas unitarias y 307 de integración en verde.
-- **Base de datos:** 108 archivos pgTAP en verde sobre Supabase local.
+- **Unitarias e integración:** Vitest. Último corte completo: 2957 pruebas unitarias y 307 de integración en verde.
+- **Base de datos:** 111 archivos pgTAP (2445 pruebas) en verde sobre Supabase local.
 - **E2E:** Playwright, 73 escenarios en verde con Supabase local. CI ejecuta `e2e-local` sobre un build de producción.
 - **Base de datos:** pgTAP para RPCs, RLS, folios y máquinas de estado.
 - **Gates por cambio:** `tsc --noEmit`, ESLint, pruebas proporcionales y E2E de los flujos tocados.

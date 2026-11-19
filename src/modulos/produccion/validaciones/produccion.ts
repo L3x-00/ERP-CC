@@ -198,6 +198,29 @@ export const esquemaConsultarOrdenConcluida = z.object({
 }).strict();
 
 /**
+ * C23: cierre administrativo de una pausa atrapada en una orden terminada. El
+ * administrador elige conservar el tiempo (opcionalmente con horas reales) o
+ * descartarlo; las piezas no se tocan.
+ */
+export const esquemaCerrarPausaHuerfana = z
+  .object({
+    sesionId: z.uuid('ID de sesión inválido'),
+    conservarTiempo: z.boolean({ error: 'Indica si conservas el tiempo de la pausa' }),
+    horasReales: z
+      .number()
+      .finite('Indica las horas reales')
+      .positive('Las horas reales deben ser mayores a cero')
+      .max(24, 'Las horas reales no pueden superar un día')
+      .optional(),
+    motivo: z.string().trim().min(3, 'Indica el motivo del cierre').max(500).optional(),
+  })
+  .strict()
+  .refine((valor) => valor.conservarTiempo || valor.horasReales === undefined, {
+    message: 'No indiques horas reales si vas a descartar el tiempo',
+    path: ['horasReales'],
+  });
+
+/**
  * C10: el operador reserva una operación (partida × proceso) para un día de su
  * jornada. La base vuelve a validar capacidad, área y propiedad de la partida.
  */

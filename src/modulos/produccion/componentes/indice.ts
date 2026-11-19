@@ -7,6 +7,8 @@ export { FichaOrdenProduccion } from './ficha-orden-produccion';
 export type { PropsFichaOrdenProduccion } from './ficha-orden-produccion';
 export { DetalleOrdenConcluida } from './detalle-orden-concluida';
 export type { PropsDetalleOrdenConcluida } from './detalle-orden-concluida';
+export { PanelSaludOrden } from './panel-salud-orden';
+export type { PropsPanelSaludOrden } from './panel-salud-orden';
 export { OperacionProduccion } from './operacion-produccion';
 export type { PropsOperacionProduccion } from './operacion-produccion';
 export { PanelOperadorProduccion } from './panel-operador-produccion';

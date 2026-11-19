@@ -25,3 +25,5 @@ export const CLAVE_DETALLE_ORDEN_CONCLUIDA = ['produccion', 'detalle-orden-concl
 export const CLAVE_ENTREGABLES_ORDEN = ['produccion', 'entregables-orden'] as const;
 /** Accesos rápidos de la ficha concluida: RFQ, propuesta, entregas y facturas. */
 export const CLAVE_ACCESOS_ORDEN = ['produccion', 'accesos-orden'] as const;
+/** C23: diagnóstico de consistencia de una orden (se anexa el ordenId). */
+export const CLAVE_DIAGNOSTICO_ORDEN = ['produccion', 'diagnostico-orden'] as const;

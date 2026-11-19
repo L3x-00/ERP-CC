@@ -56,6 +56,9 @@ SELECT is((
     '00000000-0000-4000-8000-0000000c2021')
 ), 1, 'La sesión del día se pausa automáticamente');
 
+-- C23: la pausa automática corta al cumplir la jornada corrida (8 h de lunes a
+-- viernes según C24), así que el día acumula esa jornada completa. El control de
+-- horas extra del cierre posterior sigue disparándose al sumar la nueva sesión.
 SELECT ok((
   SELECT privado.horas_netas_operador_dia(
     '00000000-0000-4000-8000-0000000c2021',

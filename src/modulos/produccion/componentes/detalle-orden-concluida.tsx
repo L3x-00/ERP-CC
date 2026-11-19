@@ -14,6 +14,7 @@ import { DocumentosOrdenPanel } from '@/modulos/produccion/componentes/documento
 import { FichaOrdenProduccion } from '@/modulos/produccion/componentes/ficha-orden-produccion';
 import { FormularioNotaEntrega } from '@/modulos/produccion/componentes/formulario-nota-entrega';
 import { HistorialSesionesProduccion } from '@/modulos/produccion/componentes/historial-sesiones-produccion';
+import { PanelSaludOrden } from '@/modulos/produccion/componentes/panel-salud-orden';
 import { ETIQUETAS_ESTADO } from '@/modulos/produccion/componentes/kanban-produccion';
 import type {
   AreaCatalogoProduccion,
@@ -83,7 +84,12 @@ export function DetalleOrdenConcluida({
       entregadas,
       pendientes,
       horasEstimadas: minutosEstimados / 60,
-      horasTrabajadas: sumar(orden.sesiones.map((sesion) => sesion.horasNetas)),
+      // C23: una pausa descartada no es tiempo trabajado real.
+      horasTrabajadas: sumar(
+        orden.sesiones
+          .filter((sesion) => !sesion.sesionInvalida)
+          .map((sesion) => sesion.horasNetas),
+      ),
     };
   }, [orden.partidas, orden.sesiones]);
 
@@ -91,7 +97,7 @@ export function DetalleOrdenConcluida({
 
   const sesionesFinalizadas = useMemo(
     () => [...orden.sesiones]
-      .filter((sesion) => sesion.estadoSesion === 'finalizada')
+      .filter((sesion) => sesion.estadoSesion === 'finalizada' && !sesion.sesionInvalida)
       .sort((primera, segunda) => (
         (segunda.fechaFin ?? segunda.actualizadoEn).localeCompare(
           primera.fechaFin ?? primera.actualizadoEn,
@@ -209,6 +215,8 @@ export function DetalleOrdenConcluida({
         </dl>
       </section>
 
+      <PanelSaludOrden ordenId={orden.id} esAdmin={esAdmin} />
+
       <AccesosRapidosOrden ordenId={orden.id} />
 
       <FichaOrdenProduccion
@@ -307,6 +315,17 @@ export function DetalleOrdenConcluida({
               </Button>
             ) : null}
           </div>
+
+          {notasEntrega.length === 0 ? (
+            <p
+              role="status"
+              className="mt-3 rounded-base border border-advertencia/30 bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto"
+              data-testid="aviso-entrega-pendiente"
+            >
+              La orden terminó sin nota de entrega registrada. Registra la entrega para completar el
+              ciclo administrativo.
+            </p>
+          ) : null}
 
           {notasEntrega.length > 0 ? (
             <ul className="mt-3 flex flex-col gap-1 text-sm" data-testid="notas-entrega-concluida">
