@@ -497,10 +497,8 @@ export async function actualizarAvanceSesionServicio(
 /** Cierra o pausa en PostgreSQL; el reloj, producción y recurso no vienen del cliente. */
 export async function cerrarSesionTrabajoServicio(
   admin: SupabaseClient<Database>,
-  entrada: Omit<CerrarSesionInput, 'pinConfirmacion'> & {
+  entrada: CerrarSesionInput & {
     operadorId: string;
-    /** El PIN lo valida la Server Action del operador; el servicio no lo usa. */
-    pinConfirmacion?: string;
   },
 ): Promise<CierreSesionRegistrado> {
   // C20: si el operador declaró la hora real de fin, se guarda antes del cierre

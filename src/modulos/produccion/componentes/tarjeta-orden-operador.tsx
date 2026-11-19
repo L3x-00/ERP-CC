@@ -5,6 +5,7 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { BarraProgreso } from '@/compartido/componentes/diseno/barra-progreso';
 import { formatearNumero } from '@/compartido/utilidades/formatear';
 import { cn } from '@/compartido/utilidades/cn';
+import { ContadorSesionVivo } from '@/modulos/produccion/componentes/contador-sesion-vivo';
 import {
   ETIQUETAS_COLUMNA,
   ETIQUETAS_URGENCIA,
@@ -176,6 +177,14 @@ export function TarjetaOrdenOperador({
                 </p>
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-texto-tenue">
                   <span>{horasLegibles(representante.horasEstimadas)}</span>
+                  {representante.sesionActiva ? (
+                    <ContadorSesionVivo
+                      fechaInicio={representante.sesionActiva.fechaInicio}
+                      limiteHoras={representante.horasEstimadas}
+                      testId={`contador-sesion-${representante.id}`}
+                      mostrarLimite={false}
+                    />
+                  ) : null}
                   {/* M7: la etiqueta nombra la operación, no el área del recurso. */}
                   <span>· {representante.procesoNombre || representante.areaNombre}</span>
                   {estadoDistinto ? (

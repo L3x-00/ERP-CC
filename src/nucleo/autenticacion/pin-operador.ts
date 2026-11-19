@@ -29,27 +29,6 @@ export async function verificarPin(pin: string, hash: string): Promise<boolean> 
 }
 
 /**
- * Reconfirma el PIN contra un operador ya identificado por una sesión HMAC.
- *
- * A diferencia del inicio de piso, un cierre crítico ya conoce al operador. Se
- * consulta exclusivamente esa fila para evitar enumerar hashes de otros
- * operadores y para que PIN repetidos no vuelvan ambiguo el resultado.
- */
-export async function confirmarPinDeOperador(operadorId: string, pin: string): Promise<boolean> {
-  const cliente = crearClienteSupabaseAdmin();
-  const { data, error } = await cliente
-    .from('usuarios')
-    .select('pin_operador')
-    .eq('id', operadorId)
-    .eq('rol', 'operador')
-    .eq('activo', true)
-    .maybeSingle();
-
-  if (error || !data?.pin_operador) return false;
-  return verificarPin(pin, data.pin_operador);
-}
-
-/**
  * Resultado discriminado de la búsqueda por PIN. `duplicado` es un fallo
  * cerrado explícito: un PIN compartido jamás autentica.
  */

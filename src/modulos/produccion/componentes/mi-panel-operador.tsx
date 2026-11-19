@@ -18,6 +18,7 @@ import {
 } from '@/compartido/componentes/ui/dialog';
 import { cn } from '@/compartido/utilidades/cn';
 import { HORAS_JORNADA_SABADO, HORAS_JORNADA_SEMANA, horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
+import { ContadorSesionVivo } from '@/modulos/produccion/componentes/contador-sesion-vivo';
 import {
   inicioSemana,
   sumarDias,
@@ -393,9 +394,19 @@ export function MiPanelOperador({
                       {proceso.codigoPieza} · {proceso.areaNombre}
                     </p>
 
-                    <div className="mt-3 flex justify-between text-xs text-texto-secundario">
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-texto-secundario">
                       <span>Avance del proceso: {Math.round(proceso.porcentaje)}%</span>
-                      <span>{horasLegibles(horasTrabajadas)} registradas</span>
+                      <span className="flex items-center gap-2">
+                        {proceso.sesionActiva ? (
+                          <ContadorSesionVivo
+                            fechaInicio={proceso.sesionActiva.fechaInicio}
+                            limiteHoras={proceso.horasEstimadas}
+                            testId={`contador-sesion-mi-panel-${proceso.id}`}
+                            mostrarLimite={false}
+                          />
+                        ) : null}
+                        <span>{horasLegibles(horasTrabajadas)} registradas</span>
+                      </span>
                     </div>
                   </button>
                 ))}

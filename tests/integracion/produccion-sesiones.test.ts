@@ -3,11 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   obtenerOperadorMock,
   obtenerUsuarioMock,
-  confirmarPinOperadorMock,
-  estaBloqueadoMock,
-  limpiarIntentosMock,
-  obtenerIdentificadorMock,
-  registrarIntentoMock,
   canMock,
   registrarLogMock,
   iniciarSesionMock,
@@ -16,11 +11,6 @@ const {
 } = vi.hoisted(() => ({
   obtenerOperadorMock: vi.fn(),
   obtenerUsuarioMock: vi.fn(),
-  confirmarPinOperadorMock: vi.fn(),
-  estaBloqueadoMock: vi.fn(),
-  limpiarIntentosMock: vi.fn(),
-  obtenerIdentificadorMock: vi.fn(),
-  registrarIntentoMock: vi.fn(),
   canMock: vi.fn(),
   registrarLogMock: vi.fn(),
   iniciarSesionMock: vi.fn(),
@@ -37,15 +27,6 @@ vi.mock('@/modulos/autenticacion/servicios/obtener-usuario-servidor', () => ({
 }));
 vi.mock('@/modulos/produccion/acciones/utilidades-acciones', () => ({
   obtenerActorProduccionParaMutacion: () => obtenerUsuarioMock(),
-}));
-vi.mock('@/nucleo/autenticacion/pin-operador', () => ({
-  confirmarPinDeOperador: (...argumentos: unknown[]) => confirmarPinOperadorMock(...argumentos),
-}));
-vi.mock('@/nucleo/autenticacion/limitar-intentos', () => ({
-  estaBloqueado: (...argumentos: unknown[]) => estaBloqueadoMock(...argumentos),
-  limpiarIntentos: (...argumentos: unknown[]) => limpiarIntentosMock(...argumentos),
-  obtenerIdentificadorSolicitante: () => obtenerIdentificadorMock(),
-  registrarIntentoFallido: (...argumentos: unknown[]) => registrarIntentoMock(...argumentos),
 }));
 vi.mock('@/nucleo/autenticacion/verificar-permiso', () => ({
   can: (...argumentos: unknown[]) => canMock(...argumentos),
@@ -114,11 +95,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   obtenerOperadorMock.mockResolvedValue(OPERADOR);
   obtenerUsuarioMock.mockResolvedValue(GERENTE);
-  confirmarPinOperadorMock.mockResolvedValue(true);
-  estaBloqueadoMock.mockResolvedValue(false);
-  limpiarIntentosMock.mockResolvedValue(undefined);
-  obtenerIdentificadorMock.mockResolvedValue('ip-prueba');
-  registrarIntentoMock.mockResolvedValue(undefined);
   canMock.mockResolvedValue(true);
   registrarLogMock.mockResolvedValue(undefined);
   iniciarSesionMock.mockResolvedValue({
@@ -213,40 +189,37 @@ describe('acciones seguras de sesiones de Producción', () => {
     });
   });
 
-  it('rechaza el cierre si el PIN no vuelve a confirmar al operador HMAC', async () => {
-    confirmarPinOperadorMock.mockResolvedValue(false);
+  it('no cierra si la cookie HMAC de operador no es válida', async () => {
+    obtenerOperadorMock.mockResolvedValue(null);
 
     const respuesta = await cerrarSesionOperadorAccion({
       sesionId: IDS.sesionId,
       piezasProducidas: 5,
       estadoDestino: 'finalizada',
-      pinConfirmacion: '4826',
       consumo: consumoCierre,
     });
 
-    expect(respuesta).toEqual({ exito: false, error: 'Confirmación de operador no válida' });
-    expect(confirmarPinOperadorMock).toHaveBeenCalledWith(OPERADOR.id, '4826');
-    expect(registrarIntentoMock).toHaveBeenCalledWith('ip-prueba', 'pin');
+    expect(respuesta.exito).toBe(false);
+    if (respuesta.exito) throw new Error('El cierre no debió aceptarse');
+    expect(respuesta.codigo).toBe('sesion_operador_invalida');
     expect(cerrarSesionMock).not.toHaveBeenCalled();
   });
 
-  it('cierra solo después de HMAC y PIN coincidentes, y audita el resultado', async () => {
+  it('cierra con la identidad HMAC, sin PIN ni rate-limit, y audita el resultado', async () => {
     const respuesta = await cerrarSesionOperadorAccion({
       sesionId: IDS.sesionId,
       piezasProducidas: 5,
       estadoDestino: 'finalizada',
-      pinConfirmacion: '4826',
       consumo: consumoCierre,
     });
 
     expect(respuesta.exito).toBe(true);
-    expect(limpiarIntentosMock).toHaveBeenCalledWith('ip-prueba', 'pin');
     expect(cerrarSesionMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       sesionId: IDS.sesionId,
       operadorId: OPERADOR.id,
-      pinConfirmacion: '4826',
       consumo: consumoCierre,
     }));
+    expect(cerrarSesionMock.mock.calls[0]?.[1]).not.toHaveProperty('pinConfirmacion');
     expect(registrarLogMock).toHaveBeenCalledWith(
       OPERADOR,
       'cerrar_sesion_trabajo',
@@ -255,6 +228,21 @@ describe('acciones seguras de sesiones de Producción', () => {
       expect.objectContaining({ horasNetas: 7 }),
       expect.anything(),
     );
+  });
+
+  it('rechaza un cierre con PIN porque el contrato ya no lo acepta', async () => {
+    const respuesta = await cerrarSesionOperadorAccion({
+      sesionId: IDS.sesionId,
+      piezasProducidas: 5,
+      estadoDestino: 'finalizada',
+      pinConfirmacion: '4826',
+      consumo: consumoCierre,
+    });
+
+    expect(respuesta.exito).toBe(false);
+    if (respuesta.exito) throw new Error('El cierre no debió aceptarse');
+    expect(respuesta.codigo).toBe('datos_invalidos');
+    expect(cerrarSesionMock).not.toHaveBeenCalled();
   });
 
   it('no genera una entrega para un usuario sin gestionar_produccion', async () => {

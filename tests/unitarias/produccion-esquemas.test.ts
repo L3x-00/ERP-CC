@@ -44,13 +44,12 @@ describe('esquemas de Producción', () => {
     }).success).toBe(false);
   });
 
-  it('acepta un cierre final con consumo y PIN de confirmación válidos', () => {
+  it('acepta un cierre final con consumo válido', () => {
     const resultado = esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
       piezasProducidas: 2,
       estadoDestino: 'finalizada',
       notas: 'Piezas inspeccionadas',
-      pinConfirmacion: '4826',
       consumo: {
         materialId: uuidMaterial,
         cantidadUsada: 2,
@@ -67,7 +66,6 @@ describe('esquemas de Producción', () => {
       sesionId: uuidSesion,
       piezasProducidas: 2.5,
       estadoDestino: 'finalizada',
-      pinConfirmacion: '4826',
       consumo: {
         materialId: uuidMaterial,
         cantidadUsada: 2,
@@ -84,7 +82,6 @@ describe('esquemas de Producción', () => {
       sesionId: uuidSesion,
       piezasProducidas: 0,
       estadoDestino: 'finalizada',
-      pinConfirmacion: '4826',
     }).success).toBe(true);
 
     expect(esquemaCerrarSesion.safeParse({
@@ -92,7 +89,6 @@ describe('esquemas de Producción', () => {
       piezasProducidas: 0,
       estadoDestino: 'pausada',
       motivoPausa: 'MATERIAL',
-      pinConfirmacion: '4826',
     }).success).toBe(true);
   });
 
@@ -108,7 +104,6 @@ describe('esquemas de Producción', () => {
       sesionId: uuidSesion,
       piezasProducidas: 0,
       estadoDestino: 'finalizada',
-      pinConfirmacion: '4826',
       consumo: consumoVacio,
     }).success).toBe(false);
 
@@ -117,7 +112,6 @@ describe('esquemas de Producción', () => {
       piezasProducidas: 0,
       estadoDestino: 'pausada',
       motivoPausa: 'MATERIAL',
-      pinConfirmacion: '4826',
       consumo: {
         materialId: uuidMaterial,
         cantidadUsada: 1,
@@ -127,12 +121,12 @@ describe('esquemas de Producción', () => {
     }).success).toBe(false);
   });
 
-  it.each(['482', '4826789', '48a6'])('rechaza PIN de confirmación inválido: %s', (pin) => {
+  it('rechaza un PIN de confirmación como campo no declarado', () => {
     expect(esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
       piezasProducidas: 0,
       estadoDestino: 'finalizada',
-      pinConfirmacion: pin,
+      pinConfirmacion: '4826',
     }).success).toBe(false);
   });
 
@@ -141,14 +135,12 @@ describe('esquemas de Producción', () => {
       sesionId: uuidSesion,
       piezasProducidas: 0,
       estadoDestino: 'pausada',
-      pinConfirmacion: '4826',
     }).success).toBe(false);
     expect(esquemaCerrarSesion.safeParse({
       sesionId: uuidSesion,
       piezasProducidas: -1,
       estadoDestino: 'pausada',
       motivoPausa: 'mantenimiento',
-      pinConfirmacion: '4826',
     }).success).toBe(false);
   });
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createElement } from 'react';
+import { act, createElement } from 'react';
 import { cleanup, render, screen, within } from '@testing-library/react';
 
 import { TarjetaOrdenMisProcesos } from '@/modulos/produccion/componentes/tarjeta-orden-mis-procesos';
@@ -108,6 +108,68 @@ describe('Mis procesos · una tarjeta por orden (punto 10)', () => {
       .click();
     expect(onGestionar).toHaveBeenCalledOnce();
     expect(onGestionar.mock.calls[0]?.[0]).toMatchObject({ id: 'p1' });
+  });
+
+  it('muestra el cronómetro en vivo del proceso iniciado y lo pinta en rojo al excederse', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-19T14:30:00.000Z'));
+    const enProceso = {
+      ...proceso('p4', 'Doblado CNC'),
+      columna: 'en_proceso',
+      reclamadoPorMi: true,
+      horasEstimadas: 3,
+      sesionActiva: {
+        id: 'sesion-1',
+        operadorId: 'operador-1',
+        operadorNombre: 'Operador',
+        estadoSesion: 'activa',
+        fechaInicio: '2026-11-19T10:00:00.000Z',
+        fechaFin: null,
+        pendienteActualizacionAvance: false,
+        sesionInvalida: false,
+        recursoLiberado: false,
+        piezasProducidas: 0,
+        horasNetas: 0,
+        motivoPausa: null,
+        motivoPausaNota: null,
+        notas: null,
+        verificacionCompleta: true,
+      },
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(TarjetaOrdenMisProcesos, {
+      grupo: GRUPO,
+      procesos: [{ proceso: enProceso, estado: 'en_proceso', horasTrabajadas: 4.5, piezasRegistradas: 2 }],
+      hoy: '2026-11-19',
+      procesando: null,
+      onIniciar: vi.fn(),
+      onReanudar: vi.fn(),
+      onLiberar: vi.fn(),
+      onGestionar: vi.fn(),
+    }));
+
+    const contador = screen.getByTestId('contador-sesion-p4');
+    act(() => {
+      vi.advanceTimersByTime(0);
+    });
+    expect(contador.textContent).toContain('04:30:00');
+    expect(contador.getAttribute('data-estado')).toBe('excedido');
+    vi.useRealTimers();
+  });
+
+  it('no muestra cronómetro cuando el proceso no tiene sesión iniciada', () => {
+    render(createElement(TarjetaOrdenMisProcesos, {
+      grupo: GRUPO,
+      procesos: [{ proceso: proceso('p5', 'Corte'), estado: 'pendiente', horasTrabajadas: 0, piezasRegistradas: 0 }],
+      hoy: '2026-11-19',
+      procesando: null,
+      onIniciar: vi.fn(),
+      onReanudar: vi.fn(),
+      onLiberar: vi.fn(),
+      onGestionar: vi.fn(),
+    }));
+
+    expect(screen.queryByTestId('contador-sesion-p5')).toBeNull();
   });
 
   it('deshabilita Gestionar proceso cuando ya se completó la producción', () => {

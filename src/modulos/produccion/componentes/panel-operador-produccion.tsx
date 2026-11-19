@@ -26,6 +26,7 @@ import {
 } from '@/modulos/produccion/utilidades/limites-piezas';
 
 import { CampoEntero } from './campo-entero';
+import { ContadorSesionVivo } from './contador-sesion-vivo';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DialogoErrorCierre, type DatosErrorCierre } from './dialogo-error-cierre';
 import { solicitarHorasExtraAccion } from '../acciones/solicitar-horas-extra';
@@ -88,15 +89,12 @@ export interface PropsPanelOperadorProduccion {
     metaProcesoId?: string;
     motivoPausa?: string;
     notas?: string;
-    horaFin?: string;
-    pinConfirmacion: string;
     consumo?: {
       materialId: string;
       cantidadUsada: number;
       cantidadScrap: number;
       motivo: string;
     };
-    minutosSetup?: number;
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -143,13 +141,10 @@ export function PanelOperadorProduccion({
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
-  const [horaFin, setHoraFin] = useState('');
-  const [pinConfirmacion, setPinConfirmacion] = useState('');
   const [materialId, setMaterialId] = useState('');
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
   const [motivoConsumo, setMotivoConsumo] = useState('');
-  const [minutosSetup, setMinutosSetup] = useState('');
   const [mensaje, setMensaje] = useState<MensajePanelOperador | null>(null);
   const [resumenCierre, setResumenCierre] = useState<ResumenCierreSesion | null>(null);
   const [registrarInspeccionCierre, setRegistrarInspeccionCierre] = useState(false);
@@ -203,11 +198,15 @@ export function PanelOperadorProduccion({
     ? orden?.partidas.find((partida) => partida.id === sesionActiva.partidaId) ?? null
     : null;
   const metasSesion = partidaSesionActiva?.metasProceso ?? [];
-  const secuenciaProgramacion = sesionActiva
+  const programacionSesionActiva = sesionActiva
     ? partidaSesionActiva?.programaciones.find(
       (programacion) => programacion.id === sesionActiva.programacionId,
-    )?.secuencia
-    : undefined;
+    ) ?? null
+    : null;
+  const sesionActivaRegistro = sesionActiva
+    ? orden?.sesiones.find((sesion) => sesion.id === sesionActiva.id) ?? null
+    : null;
+  const secuenciaProgramacion = programacionSesionActiva?.secuencia;
   const metaPorDefecto = metasSesion.find((meta) => meta.secuencia === secuenciaProgramacion)
     ?? metasSesion.find((meta) => meta.pendientePiezas > 0)
     ?? metasSesion[metasSesion.length - 1]
@@ -369,14 +368,6 @@ export function PanelOperadorProduccion({
         return;
       }
     }
-    const minutosSetupNumero = minutosSetup.trim() === '' ? undefined : Number(minutosSetup);
-    if (
-      minutosSetupNumero !== undefined
-      && (!Number.isFinite(minutosSetupNumero) || minutosSetupNumero < 0 || minutosSetupNumero > 1440)
-    ) {
-      fallarCierre('Los minutos de setup deben ser un número entre 0 y 1440.');
-      return;
-    }
     const resultado = await onCerrar({
       sesionId: sesionActiva.id,
       piezasProducidas: Number(piezasProducidas),
@@ -384,7 +375,6 @@ export function PanelOperadorProduccion({
       ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
-      ...(horaFin ? { horaFin } : {}),
       ...(incluirConsumo ? {
         consumo: {
           materialId,
@@ -393,8 +383,6 @@ export function PanelOperadorProduccion({
           motivo: motivoConsumo.trim(),
         },
       } : {}),
-      ...(minutosSetupNumero !== undefined ? { minutosSetup: minutosSetupNumero } : {}),
-      pinConfirmacion,
     });
     if (resultado.exito) {
       setMensaje({ texto: 'Sesión registrada y recurso liberado', tipo: 'estado' });
@@ -445,14 +433,21 @@ export function PanelOperadorProduccion({
               const aviso = `Falta costo confirmado de ${nombreMaterial}`;
               setNotas((previo) => (previo.trim() ? `${previo.trim()} · ${aviso}` : aviso));
               setMensaje({
-                texto: `${aviso}. La sesión quedó lista para pausar; confirma con tu PIN.`,
+                texto: `${aviso}. La sesión quedó lista para pausar; revisa los datos y confirma.`,
                 tipo: 'error',
               });
             },
           }],
         });
       } else if (resultado.codigo !== 'primera_pieza_pendiente') {
-        setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
+        setErrorCierre({
+          titulo: 'No se pudo cerrar la sesión',
+          mensaje: resultado.error,
+          acciones: [{
+            etiqueta: 'Revisar los datos y reintentar',
+            alElegir: () => setMensaje(null),
+          }],
+        });
       }
       if (resultado.codigo === 'horas_extra_sin_autorizacion') {
         // C12: el operador no llena solicitudes; el sistema la deja pendiente
@@ -467,13 +462,11 @@ export function PanelOperadorProduccion({
       }
       return;
     }
-    setPinConfirmacion('');
     setNotas('');
     setMaterialId('');
     setCantidadUsada('0');
     setCantidadMerma('0');
     setMotivoConsumo('');
-    setMinutosSetup('');
     if (incluirConsumo && materialSeleccionado && resultado.datos) {
       setResumenCierre({
         material: materialSeleccionado,
@@ -739,6 +732,22 @@ export function PanelOperadorProduccion({
       ) : sesionActiva ? (
         <form className="mt-4 flex flex-col gap-3" onSubmit={cerrar}>
           <p className="text-sm text-texto-secundario">Sesión activa en la orden seleccionada.</p>
+          {sesionActivaRegistro ? (
+            <div
+              className="flex flex-wrap items-center gap-2 rounded-md border border-borde bg-superficie-2/60 px-3 py-2 text-sm"
+              data-testid="sesion-en-curso-panel"
+            >
+              <span className="text-texto-secundario">
+                Inició {formatearFecha(sesionActivaRegistro.fechaInicio)}{' '}
+                {formatearHora(sesionActivaRegistro.fechaInicio)}
+              </span>
+              <ContadorSesionVivo
+                fechaInicio={sesionActivaRegistro.fechaInicio}
+                limiteHoras={programacionSesionActiva?.horasEstimadas ?? null}
+                testId="contador-sesion-panel"
+              />
+            </div>
+          ) : null}
           <div className="grid gap-1">
             <label className={CLASE_ETIQUETA}>
               {etiquetaPiezas} ahora
@@ -784,24 +793,6 @@ export function PanelOperadorProduccion({
               <option value="pausada">Pausar sesión</option>
             </Select>
           </label>
-          {estadoDestino === 'finalizada' ? (
-            <label className={CLASE_ETIQUETA}>
-              Minutos de setup (opcional)
-              <Input
-                className="min-h-11"
-                type="number"
-                min="0"
-                step="1"
-                value={minutosSetup}
-                onChange={(evento) => setMinutosSetup(evento.target.value)}
-                placeholder="0"
-                data-testid="minutos-setup"
-              />
-              <span className="text-xs font-normal text-texto-tenue">
-                Identifica el setup dentro del tiempo real; no se cobra dos veces.
-              </span>
-            </label>
-          ) : null}
           {estadoDestino === 'pausada' ? (
             <label className={CLASE_ETIQUETA}>
               Motivo de pausa
@@ -998,29 +989,6 @@ export function PanelOperadorProduccion({
               value={notas}
               onChange={(evento) => setNotas(evento.target.value)}
               required={estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota === true}
-            />
-          </label>
-          <label className={CLASE_ETIQUETA}>
-            Hora real de finalización (opcional)
-            <Input
-              className="min-h-11"
-              type="datetime-local"
-              value={horaFin}
-              onChange={(evento) => setHoraFin(evento.target.value)}
-              data-testid="hora-fin-cierre-panel"
-            />
-          </label>
-          <label className={CLASE_ETIQUETA}>
-            Confirmar PIN
-            <Input
-              className="min-h-11"
-              inputMode="numeric"
-              maxLength={6}
-              pattern="[0-9]{4,6}"
-              type="password"
-              value={pinConfirmacion}
-              onChange={(evento) => setPinConfirmacion(evento.target.value)}
-              required
             />
           </label>
           {mensaje?.tipo === 'error' && mensaje.codigo === 'primera_pieza_pendiente' ? (

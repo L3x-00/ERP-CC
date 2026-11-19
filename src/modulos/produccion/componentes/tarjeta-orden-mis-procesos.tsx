@@ -2,7 +2,12 @@
 
 import { BadgeEstado, type TonoEstado } from '@/compartido/componentes/diseno/badge-estado';
 import { Badge } from '@/compartido/componentes/ui/badge';
-import { horasLegibles, textoCompromiso } from '@/modulos/produccion/utilidades/formato-operador';
+import { ContadorSesionVivo } from '@/modulos/produccion/componentes/contador-sesion-vivo';
+import {
+  etiquetaFechaHora,
+  horasLegibles,
+  textoCompromiso,
+} from '@/modulos/produccion/utilidades/formato-operador';
 import { verboProceso } from '@/modulos/produccion/utilidades/procesos';
 import type { MiProceso, EstadoMiProceso } from '@/modulos/produccion/utilidades/mi-panel-operador';
 import type { GrupoOrdenEspacioOperador } from '@/modulos/produccion/tipos/espacio-operador';
@@ -171,6 +176,23 @@ export function TarjetaOrdenMisProcesos({
                   </dd>
                 </div>
               </dl>
+
+              {proceso.sesionActiva ? (
+                <div
+                  className="flex flex-wrap items-center gap-1.5 text-[11px]"
+                  data-testid={`sesion-en-curso-${proceso.id}`}
+                >
+                  <span className="text-texto-tenue">Sesión en curso</span>
+                  <ContadorSesionVivo
+                    fechaInicio={proceso.sesionActiva.fechaInicio}
+                    limiteHoras={proceso.horasEstimadas ?? null}
+                    testId={`contador-sesion-${proceso.id}`}
+                  />
+                  <span className="text-texto-tenue">
+                    inició {etiquetaFechaHora(proceso.sesionActiva.fechaInicio)}
+                  </span>
+                </div>
+              ) : null}
 
               <div className="flex items-center gap-2">
                 <span className="shrink-0 text-[11px] text-texto-secundario">

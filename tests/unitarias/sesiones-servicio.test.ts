@@ -33,7 +33,6 @@ describe('cerrarSesionTrabajoServicio', () => {
       operadorId: IDS.operador,
       piezasProducidas: 3,
       estadoDestino: 'finalizada',
-      pinConfirmacion: '4826',
       notas: 'Cierre de prueba',
       consumo: {
         materialId: IDS.material,
@@ -73,7 +72,6 @@ describe('cerrarSesionTrabajoServicio', () => {
       operadorId: IDS.operador,
       piezasProducidas: 0,
       estadoDestino: 'pausada',
-      pinConfirmacion: '4826',
       motivoPausa: 'MATERIAL',
     });
 
@@ -94,7 +92,6 @@ describe('cerrarSesionTrabajoServicio', () => {
       operadorId: IDS.operador,
       piezasProducidas: 3,
       estadoDestino: 'finalizada',
-      pinConfirmacion: '4826',
     });
 
     expect(rpc).toHaveBeenCalledWith('cerrar_sesion_trabajo_operador', {

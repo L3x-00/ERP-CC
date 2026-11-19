@@ -71,7 +71,6 @@ function capturarCierre() {
   fireEvent.change(screen.getByTestId('motivo-consumo'), {
     target: { value: 'Consumo de piezas cortadas' },
   });
-  fireEvent.change(screen.getByLabelText('Confirmar PIN'), { target: { value: '4826' } });
   fireEvent.submit(screen.getByTestId('cerrar-sesion-produccion').closest('form')!);
 }
 
@@ -141,7 +140,6 @@ describe('PanelOperadorProduccion — cierre de un proceso posterior', () => {
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'material-1' } });
     fireEvent.change(screen.getByLabelText('Usado'), { target: { value: '1' } });
     fireEvent.change(screen.getByTestId('motivo-consumo'), { target: { value: 'Consumo MDF' } });
-    fireEvent.change(screen.getByLabelText('Confirmar PIN'), { target: { value: '4826' } });
     fireEvent.submit(screen.getByTestId('cerrar-sesion-produccion').closest('form')!);
 
     const aviso = await screen.findByTestId('error-cierre-panel');
