@@ -254,5 +254,7 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | La cobertura es "teatro": un número global que nadie mira y que nadie mantiene | No había medición ni umbral | `@vitest/coverage-v8` mide solo `src/**/*.{ts,tsx}`; el resumen por área se publica en el job summary y el informe queda como artefacto |
 | Un PR toca código legado sin cobertura y el umbral global lo tumba | Se aplicaba el umbral de suite completa a una corrida parcial | Los umbrales congelados solo se exigen con `COBERTURA_UMBRAL=estricto` (suite completa). En PR se mide la cobertura del diff (`coverage.changed` hereda `--changed`) |
 | El nightly se cancela al hacer un push a `main` | `concurrency.cancel-in-progress` era `true` para todos los eventos | Solo se cancelan PRs; `push` a `main` y `schedule` no se interrumpen |
+| Dos merges seguidos dejan un commit de `main` sin validar | GitHub cancela el run *pendiente* del mismo grupo de concurrencia cuando llega otro | Fuera de PR el grupo incluye el SHA: cada merge tiene su propia corrida. En PR se agrupa por número para que un push nuevo sí cancele la corrida anterior |
+| Un test flaky pasa desapercibido porque el reintento lo deja en verde | Playwright reintenta una vez en CI y el reporte final queda exitoso | `verificar-e2e.mjs` publica el conteo de `flaky` en el log y el job summary y emite un `::warning::`; el reintento sigue existiendo, pero el dato es visible y no se normaliza |
 
 
