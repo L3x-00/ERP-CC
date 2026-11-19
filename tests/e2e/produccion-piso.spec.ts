@@ -444,6 +444,13 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(page.getByTestId('resumen-carga-semanal')).toBeVisible();
       await page.getByTestId('carga-modo-dia').click();
       await expect(page.getByTestId('carga-modo-dia')).toHaveAttribute('aria-pressed', 'true');
+      const diasCarga = page.locator('[data-testid^="carga-dia-"]');
+      await expect(diasCarga).toHaveCount(7);
+      // El domingo siempre está cerrado y el lunes siempre tiene jornada: así el
+      // caso no depende del día real en que corre la suite.
+      await diasCarga.last().click();
+      await expect(page.getByTestId('carga-dia-cerrado')).toBeVisible();
+      await diasCarga.first().click();
       await expect(page.getByTestId('resumen-carga-semanal')).toBeVisible();
       await page.getByTestId('carga-modo-semana').click();
       await page.getByTestId('vista-areas').click();

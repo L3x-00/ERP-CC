@@ -139,13 +139,13 @@ SELECT is(
 -- -----------------------------------------------------------------------------
 INSERT INTO public.propuestas (id, rfq_id, cliente_id, folio_cnc, responsable_id, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000c150', '00000000-0000-4000-8000-00000000c142',
-  '00000000-0000-4000-8000-00000000c141', 'CNC-1126_05',
+  '00000000-0000-4000-8000-00000000c141', 'CNC-9999_99',
   '00000000-0000-4000-8000-00000000c140', '00000000-0000-4000-8000-00000000c140');
 
 INSERT INTO public.propuesta_revisiones
   (id, propuesta_id, letra, folio_revision, estado, fecha_compromiso_comercial, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000c151', '00000000-0000-4000-8000-00000000c150',
-  'A', 'CNC-1126_05-A', 'DRAFT', current_date + 10, '00000000-0000-4000-8000-00000000c140');
+  'A', 'CNC-9999_99-A', 'DRAFT', current_date + 10, '00000000-0000-4000-8000-00000000c140');
 
 INSERT INTO public.propuesta_items (id, revision_id, codigo, descripcion, cantidad)
 VALUES ('00000000-0000-4000-8000-00000000c152', '00000000-0000-4000-8000-00000000c151',
@@ -173,7 +173,7 @@ SELECT is(privado.normalizar_ruteo_propuestas_draft(), 0,
 -- Revisión ya enviada: aunque el ruteo esté invertido, no se toca.
 INSERT INTO public.propuesta_revisiones (id, propuesta_id, letra, folio_revision, estado, motivo_creacion, creado_por)
 VALUES ('00000000-0000-4000-8000-00000000c153', '00000000-0000-4000-8000-00000000c150',
-  'B', 'CNC-1126_05-B', 'SENT', 'Revisión enviada al cliente', '00000000-0000-4000-8000-00000000c140');
+  'B', 'CNC-9999_99-B', 'SENT', 'Revisión enviada al cliente', '00000000-0000-4000-8000-00000000c140');
 SELECT set_config('sii.b4_rpc', 'on', true);
 INSERT INTO public.propuesta_items (id, revision_id, codigo, descripcion, cantidad)
 VALUES ('00000000-0000-4000-8000-00000000c154', '00000000-0000-4000-8000-00000000c153',

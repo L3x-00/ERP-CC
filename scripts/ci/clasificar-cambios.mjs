@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Clasificador de cambios → plan de pruebas.
  *

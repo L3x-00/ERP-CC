@@ -327,6 +327,27 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
     });
   });
 
+  it('no cuenta como capacidad configurada una fila de día cerrado con solo horas reales', () => {
+    // #210 conserva la fila cuando un día sin jornada tiene horas reales. Esa
+    // fila no aporta capacidad ni carga y no debe cambiar el estado del grupo.
+    const resumen = agregarDisponibilidad(entrada({
+      recursos: [{ id: 'rec-1', grupoEquipoId: 'g-router' }],
+      cargas: [carga({
+        recursoId: 'rec-1',
+        horasCapacidad: 0,
+        horasProgramadas: 0,
+        horasReales: 3,
+        horasDisponibles: 0,
+      })],
+    }));
+
+    expect(resumen.grupos.find((grupo) => grupo.codigo === 'ROUTER')).toMatchObject({
+      estado: 'sin_capacidad_configurada',
+      horasCapacidad: null,
+      horasDisponibles: null,
+    });
+  });
+
   it('no mezcla cargas de otros grupos, fuera del horizonte ni filas repetidas', () => {
     const fila = carga({ recursoId: 'rec-1', horasCapacidad: 8, horasProgramadas: 2, horasDisponibles: 6 });
     const resumen = agregarDisponibilidad(entrada({

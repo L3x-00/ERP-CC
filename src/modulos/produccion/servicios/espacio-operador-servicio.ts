@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { fechaLocalNegocio } from '@/compartido/utilidades/fecha-negocio';
 import type { Database, Tables } from '@/compartido/tipos/supabase';
 import { listarArchivosFichaOrden } from '@/modulos/ordenes/servicios/archivos-ficha-servicio';
 import { pausarSesionesJornadaExcedidaServicio } from '@/modulos/produccion/servicios/corridas-servicio';
@@ -59,11 +60,13 @@ export interface DatosEspacioOperador {
 
 const TAMANO_PAGINA = 500;
 
+/**
+ * AUD-12: «hoy» es la fecha de negocio del taller (America/Tijuana), no la del
+ * runtime. Con un servidor en UTC, la versión local cambiaba de día a las 17:00
+ * de Tijuana y movía la semana de la vista Carga.
+ */
 function fechaIsoLocal(ahora: Date = new Date()): string {
-  const anio = ahora.getFullYear();
-  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
-  const dia = String(ahora.getDate()).padStart(2, '0');
-  return `${anio}-${mes}-${dia}`;
+  return fechaLocalNegocio(ahora);
 }
 
 /** Horas de una operación: programación vigente o reparto del tiempo estimado. */

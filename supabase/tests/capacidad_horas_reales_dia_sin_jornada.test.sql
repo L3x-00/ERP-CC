@@ -26,7 +26,8 @@ VALUES ('00000000-0000-4000-8000-0000000d0120', 'OP-990100',
 INSERT INTO public.partidas_orden_produccion (
   id, orden_id, codigo_pieza, cantidad_solicitada, unidad_medida, operador_asignado_id
 ) VALUES
-  ('00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0120', 'DOM-1', 1, 'pieza', '00000000-0000-4000-8000-0000000d0101');
+  ('00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0120', 'DOM-1', 1, 'pieza', '00000000-0000-4000-8000-0000000d0101'),
+  ('00000000-0000-4000-8000-0000000d0132', '00000000-0000-4000-8000-0000000d0120', 'DOM-2', 1, 'pieza', '00000000-0000-4000-8000-0000000d0101');
 
 INSERT INTO public.recursos_planeacion (id, codigo, area, nombre, activo) VALUES
   ('00000000-0000-4000-8000-0000000d0141', 'DOM-R1', 'taller', 'Recurso con trabajo en domingo', true),
@@ -36,13 +37,20 @@ INSERT INTO public.programacion_areas (
   id, orden_id, partida_id, recurso_id, secuencia, estado_planeacion,
   fecha_programada, turno, horas_estimadas
 ) VALUES
-  ('00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0141', 1, 'bloqueada', (date_trunc('week', current_date)::date + 13), 'matutino', 8);
+  ('00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0141', 1, 'bloqueada', (date_trunc('week', current_date)::date + 13), 'matutino', 8),
+  -- Programación fuera del rango consultado: sus horas no deben aparecer ni
+  -- sumarse a la fila del domingo.
+  ('00000000-0000-4000-8000-0000000d0152', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0132', '00000000-0000-4000-8000-0000000d0141', 1, 'programada', current_date + 20, 'matutino', 8);
 
 INSERT INTO public.sesiones_trabajo (
   id, orden_id, partida_id, programacion_id, operador_id, estado_sesion,
   fecha_inicio, fecha_fin, horas_brutas, horas_netas, piezas_producidas, recurso_liberado
 ) VALUES
-  ('00000000-0000-4000-8000-0000000d0161', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0101', 'finalizada', now() - interval '4 hours', now() - interval '1 hour', 2, 2, 1, true);
+  ('00000000-0000-4000-8000-0000000d0161', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0101', 'finalizada', now() - interval '4 hours', now() - interval '1 hour', 2, 2, 1, true),
+  -- Dos sesiones sobre la misma programación se suman (2 + 3 = 5).
+  ('00000000-0000-4000-8000-0000000d0162', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0131', '00000000-0000-4000-8000-0000000d0151', '00000000-0000-4000-8000-0000000d0101', 'finalizada', now() - interval '1 hour', now(), 3, 3, 1, false),
+  -- 100 h fuera del rango: no deben filtrarse a la fila del domingo.
+  ('00000000-0000-4000-8000-0000000d0163', '00000000-0000-4000-8000-0000000d0120', '00000000-0000-4000-8000-0000000d0132', '00000000-0000-4000-8000-0000000d0152', '00000000-0000-4000-8000-0000000d0101', 'finalizada', now() - interval '4 hours', now() - interval '1 hour', 100, 100, 1, false);
 
 SET LOCAL ROLE service_role;
 
@@ -53,7 +61,7 @@ SELECT is((
     (date_trunc('week', current_date)::date + 13)
   )
   WHERE recurso_id = '00000000-0000-4000-8000-0000000d0141'
-), 2::numeric, 'El domingo conserva las 2 horas reales del recurso liberado');
+), 5::numeric, 'El domingo conserva las horas reales del recurso liberado (2 + 3 de la misma programación)');
 
 SELECT is((
   SELECT horas_programadas

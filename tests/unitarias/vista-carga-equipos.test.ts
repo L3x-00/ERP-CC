@@ -116,6 +116,21 @@ describe('VistaCargaEquipos', () => {
     expect(within(lunes).queryByText('LASER-01 · Láser de fibra')).not.toBeNull();
   });
 
+  it('muestra un aviso si la lectura de capacidad falló y conserva el panel', () => {
+    render(createElement(VistaCargaEquipos, {
+      cargas: [],
+      recursos: [],
+      hoy: HOY,
+      error: true,
+    }));
+
+    expect(screen.getByRole('heading', { name: 'Carga de equipos' })).toBeTruthy();
+    expect(screen.getByTestId('carga-equipos-error').textContent)
+      .toContain('No se pudo leer la carga de equipos');
+    expect(screen.queryByTestId('resumen-carga-semanal')).toBeNull();
+    expect(screen.queryByTestId('carga-dia-cerrado')).toBeNull();
+  });
+
   it('marca el día de hoy y explica que el domingo no se labora', () => {
     renderizar();
 
