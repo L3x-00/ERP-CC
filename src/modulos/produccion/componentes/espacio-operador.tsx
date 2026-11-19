@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/compartido/componentes/ui/badge';
 import { Button } from '@/compartido/componentes/ui/button';
@@ -37,10 +37,6 @@ import {
   type VerificacionInicio,
   type VistaEspacioOperador,
 } from '@/modulos/produccion/tipos/indice';
-import {
-  HORAS_JORNADA_PREDETERMINADA,
-  horasTranscurridasSesion,
-} from '@/modulos/produccion/utilidades/indice';
 import { horasLegibles } from '@/modulos/produccion/utilidades/formato-operador';
 import { DialogoChecklistInicio } from './dialogo-checklist-inicio';
 import { DetalleOrdenOperador } from './detalle-orden-operador';
@@ -142,53 +138,43 @@ export function EspacioOperador({
 
   const operativo = !soloLectura && operadorId !== null;
 
-  // C15: vigilante del tablero. Aunque el operador no abra la ficha, al cumplir
-  // la jornada la sesión se pausa y el tablero se refresca para mostrarla en
-  // «Pausada» tanto al operador como al supervisor. El servidor revalida la
-  // jornada real del turno antes de escribir.
-  const pausasIntentadas = useRef<Set<string>>(new Set());
-  const ultimaRevisionJornada = useRef(0);
-
+  // C27: vigilante del tablero. La jornada es acumulada por día y la decide el
+  // servidor: el cliente no compara reloj bruto contra 8 h (esa medición era la
+  // causa del desfase). Solo consulta al servidor y refresca cuando pausó algo.
   useEffect(() => {
     if (!operativo) return;
-    const sesionesActivas = procesos
+    const sesionActiva = procesos
       .map((proceso) => proceso.sesionActiva)
-      .filter((sesion): sesion is NonNullable<typeof sesion> => sesion !== null);
-    if (sesionesActivas.length === 0) return;
+      .find((sesion): sesion is NonNullable<typeof sesion> => sesion !== null);
+    if (!sesionActiva) return;
     let cancelado = false;
+    let falloAvisado = false;
 
-    const revisar = () => {
-      const ahora = Date.now();
-      if (ahora - ultimaRevisionJornada.current < 30_000) return;
-      ultimaRevisionJornada.current = ahora;
-      const vencida = sesionesActivas.find((sesion) => (
-        !pausasIntentadas.current.has(sesion.id)
-        && horasTranscurridasSesion(sesion.fechaInicio, new Date(ahora))
-          >= HORAS_JORNADA_PREDETERMINADA
-      ));
-      if (!vencida) return;
-      pausasIntentadas.current.add(vencida.id);
-      void pausarSesionJornadaAccion({ sesionId: vencida.id })
-        .then((respuesta) => {
-          if (cancelado) return;
-          if (!respuesta.exito || (respuesta.datos?.sesionesPausadas ?? 0) === 0) {
-            pausasIntentadas.current.delete(vencida.id);
-            return;
-          }
+    const revisar = async () => {
+      const respuesta = await pausarSesionJornadaAccion({ sesionId: sesionActiva.id });
+      if (cancelado) return;
+      if (!respuesta.exito) {
+        if (!falloAvisado) {
+          falloAvisado = true;
           setAviso({
             tipo: 'error',
-            texto: 'Se cumplió la jornada del turno: la sesión se pausó automáticamente. '
-              + 'Continúala en el siguiente turno o justifica horas extra si debes terminarla hoy.',
+            texto: `No se pudo verificar la jornada del turno: ${respuesta.error}`,
           });
-          enrutador.refresh();
-        })
-        .catch(() => {
-          pausasIntentadas.current.delete(vencida.id);
-        });
+        }
+        return;
+      }
+      falloAvisado = false;
+      if ((respuesta.datos?.sesionesPausadas ?? 0) === 0) return;
+      setAviso({
+        tipo: 'error',
+        texto: 'Se cumplió la jornada acumulada del día: la sesión se pausó automáticamente. '
+          + 'Continúala en el siguiente turno o justifica horas extra si debes terminarla hoy.',
+      });
+      enrutador.refresh();
     };
 
-    revisar();
-    const temporizador = window.setInterval(revisar, 60_000);
+    void revisar();
+    const temporizador = window.setInterval(() => void revisar(), 60_000);
     return () => {
       cancelado = true;
       window.clearInterval(temporizador);
@@ -356,6 +342,8 @@ export function EspacioOperador({
       estadoDestino: 'pausada' | 'finalizada';
       motivoPausa?: string;
       notas?: string;
+      /** C27: hora real de conclusión cuando el operador olvidó cerrar. */
+      horaFin?: string;
       consumo?: {
         materialId: string;
         cantidadUsada: number;
@@ -371,6 +359,7 @@ export function EspacioOperador({
         estadoDestino: datos.estadoDestino,
         ...(datos.motivoPausa ? { motivoPausa: datos.motivoPausa } : {}),
         ...(datos.notas ? { notas: datos.notas } : {}),
+        ...(datos.horaFin ? { horaFin: datos.horaFin } : {}),
         ...(datos.consumo ? { consumo: datos.consumo } : {}),
       };
 

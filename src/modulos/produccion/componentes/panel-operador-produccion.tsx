@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select, Textarea } from '@/compartido/componentes/ui/input';
@@ -24,6 +24,7 @@ import {
   ayudaLimitePiezas,
   validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/limites-piezas';
+import { ahoraLocalDatetimeInput } from '@/modulos/produccion/utilidades/horas-extra';
 
 import { CampoEntero } from './campo-entero';
 import { ContadorSesionVivo } from './contador-sesion-vivo';
@@ -89,6 +90,8 @@ export interface PropsPanelOperadorProduccion {
     metaProcesoId?: string;
     motivoPausa?: string;
     notas?: string;
+    /** C27: hora real de conclusión cuando el operador olvidó cerrar. */
+    horaFin?: string;
     consumo?: {
       materialId: string;
       cantidadUsada: number;
@@ -141,6 +144,23 @@ export function PanelOperadorProduccion({
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
+  // C27: hora real de conclusión. Solo se envía si el operador la corrige; de
+  // lo contrario el servidor sella el cierre con su propio reloj.
+  const horaFinRef = useRef<HTMLInputElement | null>(null);
+  const horaFinEditada = useRef(false);
+  const sesionHoraFinPrellenada = useRef<string | null>(null);
+
+  // El prellenado escribe en el DOM y no en el estado: así el HTML del servidor
+  // y el primer render del cliente coinciden (sin error de hidratación) y no se
+  // provoca un render en cascada.
+  useEffect(() => {
+    const idSesion = sesionActiva?.id ?? null;
+    if (sesionHoraFinPrellenada.current === idSesion) return;
+    sesionHoraFinPrellenada.current = idSesion;
+    horaFinEditada.current = false;
+    const campo = horaFinRef.current;
+    if (campo) campo.value = ahoraLocalDatetimeInput();
+  }, [sesionActiva?.id]);
   const [materialId, setMaterialId] = useState('');
   const [cantidadUsada, setCantidadUsada] = useState('0');
   const [cantidadMerma, setCantidadMerma] = useState('0');
@@ -316,6 +336,11 @@ export function PanelOperadorProduccion({
       fallarCierre(errorLimite);
       return;
     }
+    const valorHoraFin = horaFinRef.current?.value ?? '';
+    if (horaFinEditada.current && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(valorHoraFin)) {
+      fallarCierre('Indica la hora real de conclusión.');
+      return;
+    }
     const usada = Number(cantidadUsada);
     const merma = Number(cantidadMerma);
     // B7: el servidor decide si la ruta exige consumo. Si se captura, el motivo
@@ -375,6 +400,7 @@ export function PanelOperadorProduccion({
       ...(metaSeleccionada ? { metaProcesoId: metaSeleccionada.id } : {}),
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
+      ...(horaFinEditada.current && valorHoraFin ? { horaFin: valorHoraFin } : {}),
       ...(incluirConsumo ? {
         consumo: {
           materialId,
@@ -792,6 +818,24 @@ export function PanelOperadorProduccion({
               <option value="finalizada">Finalizar sesión</option>
               <option value="pausada">Pausar sesión</option>
             </Select>
+          </label>
+          <label className={CLASE_ETIQUETA}>
+            Hora real de conclusión
+            <Input
+              ref={horaFinRef}
+              type="datetime-local"
+              className="min-h-11"
+              defaultValue=""
+              required
+              onChange={() => {
+                horaFinEditada.current = true;
+              }}
+              data-testid="hora-fin-cierre-panel"
+            />
+            <span className="text-xs font-normal text-texto-tenue">
+              Si el proceso terminó antes y olvidaste cerrar la sesión, corrige esta hora para no
+              cargar horas de más.
+            </span>
           </label>
           {estadoDestino === 'pausada' ? (
             <label className={CLASE_ETIQUETA}>

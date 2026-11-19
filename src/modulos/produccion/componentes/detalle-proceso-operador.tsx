@@ -25,12 +25,12 @@ import { ETIQUETAS_COLUMNA, etiquetaMotivoPausa } from '@/modulos/produccion/tip
 import {
   AYUDA_HORAS_EXTRA,
   HORAS_JORNADA_PREDETERMINADA,
+  ahoraLocalDatetimeInput,
   ayudaLimitePiezas,
   etiquetaEstadoOrden,
   etiquetaEstadoPlaneacion,
   horasTranscurridasSesion,
   maximoPiezasProceso,
-  sesionCercaDeJornada,
   validarCantidadPiezas,
 } from '@/modulos/produccion/utilidades/indice';
 import { etiquetaPiezasProceso, verboProceso } from '@/modulos/produccion/utilidades/procesos';
@@ -117,6 +117,8 @@ export interface AccionesDetalleProceso {
     estadoDestino: 'pausada' | 'finalizada';
     motivoPausa?: string;
     notas?: string;
+    /** C27: hora real de conclusión cuando el operador olvidó cerrar. */
+    horaFin?: string;
     consumo?: {
       materialId: string;
       cantidadUsada: number;
@@ -191,6 +193,18 @@ export function DetalleProcesoOperador({
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
+  // C27: hora real de conclusión. Se prellena en el DOM con el reloj del
+  // dispositivo; solo viaja al servidor si el operador la corrige, para que un
+  // cierre normal siga tomando la hora del servidor. Escribir en el input (y no
+  // en el estado) evita un render en cascada y mantiene la hidratación.
+  const horaFinRef = useRef<HTMLInputElement | null>(null);
+  const horaFinEditada = useRef(false);
+  useEffect(() => {
+    const campo = horaFinRef.current;
+    if (!campo) return;
+    campo.value = ahoraLocalDatetimeInput();
+    horaFinEditada.current = false;
+  }, [proceso?.sesionActiva?.id]);
   // C20: corrección de la pausa automática (piezas, horas y notas).
   const [avancePiezas, setAvancePiezas] = useState('0');
   const [avanceHoras, setAvanceHoras] = useState('0');
@@ -269,8 +283,6 @@ export function DetalleProcesoOperador({
   const [mensajeJustificacion, setMensajeJustificacion] = useState<
     { tipo: 'ok' | 'error'; texto: string } | null
   >(null);
-  const pausaAutomaticaIntentada = useRef<string | null>(null);
-  const ultimaRevisionPausa = useRef(0);
 
   useEffect(() => {
     const ordenId = proceso?.ordenId;
@@ -322,37 +334,46 @@ export function DetalleProcesoOperador({
     return () => window.clearTimeout(temporizador);
   }, [resumenCierre, mensajeInspeccionCierre, mensajeRetrabajo, mensajeConsumoCliente]);
 
-  // C15: al cumplirse la jornada, el panel pausa la sesión por el operador.
-  // El servidor vuelve a verificar la jornada real del turno antes de pausar.
+  // C27: al cumplirse la jornada acumulada del día, el servidor pausa la
+  // sesión. El cliente ya no mide el reloj bruto contra 8 h: esa comparación
+  // era la que dejaba correr el proceso sin que la pausa se disparara.
   useEffect(() => {
     const sesion = proceso?.sesionActiva;
     if (!sesion || soloLectura) return;
-    const sesionId = sesion.id;
-    const revisar = () => {
-      if (cierreAbierto || pausaAutomaticaIntentada.current === sesionId) return;
-      const ahora = Date.now();
-      if (ahora - ultimaRevisionPausa.current < 30_000) return;
-      ultimaRevisionPausa.current = ahora;
-      const transcurridas = horasTranscurridasSesion(sesion.fechaInicio, new Date(ahora));
-      if (transcurridas < HORAS_JORNADA_PREDETERMINADA) return;
-      pausaAutomaticaIntentada.current = sesionId;
-      void pausarSesionJornadaAccion({ sesionId }).then((respuesta) => {
-        if (!respuesta.exito || (respuesta.datos?.sesionesPausadas ?? 0) === 0) {
-          pausaAutomaticaIntentada.current = null;
-          return;
+    let cancelado = false;
+    let falloAvisado = false;
+    const revisar = async () => {
+      // No interrumpir una captura de cierre en curso.
+      if (cierreAbierto) return;
+      const respuesta = await pausarSesionJornadaAccion({ sesionId: sesion.id });
+      if (cancelado) return;
+      if (!respuesta.exito) {
+        if (!falloAvisado) {
+          falloAvisado = true;
+          setMensaje({
+            exito: false,
+            codigo: 'pausa_automatica_error',
+            error: `No se pudo verificar la jornada del turno: ${respuesta.error}`,
+          });
         }
-        setMensaje({
-          exito: false,
-          codigo: 'pausa_automatica_jornada',
-          error: 'Se cumplió la jornada del turno: la sesión se pausó automáticamente. '
-            + 'Retómala en el siguiente turno o justifica horas extra si debes terminarla hoy.',
-        });
-        onPausaAutomatica?.();
+        return;
+      }
+      falloAvisado = false;
+      if ((respuesta.datos?.sesionesPausadas ?? 0) === 0) return;
+      setMensaje({
+        exito: false,
+        codigo: 'pausa_automatica_jornada',
+        error: 'Se cumplió la jornada acumulada del día: la sesión se pausó automáticamente. '
+          + 'Actualiza el avance y la hora real, o justifica horas extra si debes terminarla hoy.',
       });
+      onPausaAutomatica?.();
     };
-    revisar();
-    const temporizador = window.setInterval(revisar, 60_000);
-    return () => window.clearInterval(temporizador);
+    void revisar();
+    const temporizador = window.setInterval(() => void revisar(), 60_000);
+    return () => {
+      cancelado = true;
+      window.clearInterval(temporizador);
+    };
   }, [proceso?.sesionActiva, soloLectura, cierreAbierto, onPausaAutomatica]);
 
   if (!proceso) return null;
@@ -378,9 +399,13 @@ export function DetalleProcesoOperador({
   const horasSesion = proceso.sesionActiva
     ? horasTranscurridasSesion(proceso.sesionActiva.fechaInicio, ahoraAviso)
     : 0;
-  const avisoJornada = proceso.sesionActiva
-    ? sesionCercaDeJornada(proceso.sesionActiva.fechaInicio, ahoraAviso)
-    : false;
+  // C27: horas netas ya registradas en las sesiones de esta operación. La
+  // sesión en marcha se sumará cuando el servidor la cierre.
+  const horasNetasOperacion = proceso.sesiones.reduce(
+    (total, sesion) => total
+      + (sesion.estadoSesion === 'activa' ? 0 : sesion.horasNetas),
+    0,
+  );
   const etiquetaPiezas = etiquetaPiezasProceso(proceso.procesoNombre, proceso.areaMacro);
   const maximoPiezas = maximoPiezasProceso({
     metaProcesoId: proceso.metaProcesoId,
@@ -581,6 +606,11 @@ export function DetalleProcesoOperador({
     );
     if (errorLimitePiezas) {
       fallarCierre({ exito: false, error: errorLimitePiezas });
+      return;
+    }
+    const valorHoraFin = horaFinRef.current?.value ?? '';
+    if (horaFinEditada.current && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(valorHoraFin)) {
+      fallarCierre({ exito: false, error: 'Indica la hora real de conclusión.' });
       return;
     }
     const usada = Number(cantidadUsada);
@@ -784,6 +814,7 @@ export function DetalleProcesoOperador({
       estadoDestino,
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
+      ...(horaFinEditada.current && valorHoraFin ? { horaFin: valorHoraFin } : {}),
       ...(incluirConsumo
         ? {
             consumo: {
@@ -1523,11 +1554,15 @@ export function DetalleProcesoOperador({
           >
             <div>
               <p className="text-sm font-semibold text-advertencia-texto">
-                La sesión superó la jornada del turno
+                El día ya acumuló más de la jornada
               </p>
               <p className="text-xs text-texto-secundario">
-                Puedes justificar el exceso con un motivo (queda registrado para revisión) o
-                pedir que un responsable lo apruebe antes de cerrar.
+                La jornada son {HORAS_JORNADA_PREDETERMINADA} h netas del día y suma todas tus
+                sesiones (la comida de 12 a 13 no se cuenta). Este cierre agregaría el tiempo de
+                la sesión en marcha y superaría el límite del turno. Si el proceso terminó antes y
+                la sesión quedó abierta por olvido, corrige la <strong>hora real de conclusión</strong>
+                {' '}en el formulario y vuelve a intentar. Si de verdad trabajaste de más, justifica
+                el exceso o pide aprobación a un responsable.
               </p>
             </div>
             {mensajeJustificacion ? (
@@ -1541,6 +1576,24 @@ export function DetalleProcesoOperador({
               </p>
             ) : null}
             <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                tamano="sm"
+                variante="secundario"
+                onClick={() => {
+                  setCierreAbierto(true);
+                  window.setTimeout(() => {
+                    const campo = document.getElementById('hora-fin-cierre');
+                    if (campo instanceof HTMLInputElement) {
+                      campo.focus();
+                      campo.scrollIntoView({ block: 'center' });
+                    }
+                  }, 350);
+                }}
+                data-testid="corregir-hora-fin"
+              >
+                Corregir hora real
+              </Button>
               <Button
                 type="button"
                 tamano="sm"
@@ -1718,19 +1771,20 @@ export function DetalleProcesoOperador({
                   </p>
                 ) : null}
                 <p className="text-xs text-texto-secundario">
-                  La jornada del turno es de {HORAS_JORNADA_PREDETERMINADA} h. {AYUDA_HORAS_EXTRA}
+                  La jornada es de {HORAS_JORNADA_PREDETERMINADA} h netas acumuladas del día
+                  (la comida de 12 a 13 no se cuenta). {AYUDA_HORAS_EXTRA}
                 </p>
-                {avisoJornada ? (
-                  <p
-                    role="status"
-                    data-testid="aviso-horas-extra"
-                    className="rounded-md bg-advertencia-suave px-3 py-2 text-sm text-advertencia-texto"
-                  >
-                    Llevas {horasSesion.toFixed(1)} h en esta sesión. La jornada suma todas tus
-                    sesiones del día: si el total neto la supera, el cierre pedirá autorización
-                    de horas extra. Declara el avance antes de que se pause sola.
-                  </p>
-                ) : null}
+                <p
+                  data-testid="horas-netas-operacion"
+                  className="rounded-md bg-superficie-2 px-3 py-2 text-xs text-texto-secundario"
+                >
+                  {horasNetasOperacion > 0
+                    ? `Este proceso ya registró ${horasNetasOperacion.toFixed(2)} h netas en sesiones cerradas. `
+                    : 'Este proceso aún no tiene horas netas cerradas. '}
+                  Llevas {horasSesion.toFixed(1)} h de reloj en la sesión en marcha; el servidor
+                  suma todas tus sesiones del día y pausa la sesión cuando se cumplen las
+                  {' '}{HORAS_JORNADA_PREDETERMINADA} h netas.
+                </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-1">
                     <label className={CLASE_ETIQUETA}>
@@ -1756,6 +1810,24 @@ export function DetalleProcesoOperador({
                       <option value="finalizada">Finalizar sesión de trabajo</option>
                       <option value="pausada">Pausar sesión de trabajo</option>
                     </Select>
+                  </label>
+                  <label className={`${CLASE_ETIQUETA} sm:col-span-2`}>
+                    Hora real de conclusión
+                    <Input
+                      ref={horaFinRef}
+                      id="hora-fin-cierre"
+                      type="datetime-local"
+                      defaultValue=""
+                      required
+                      onChange={() => {
+                        horaFinEditada.current = true;
+                      }}
+                      data-testid="hora-fin-cierre"
+                    />
+                    <span className="text-xs font-normal text-texto-tenue">
+                      Se usa para calcular el tiempo real del proceso. Si terminó antes y olvidaste
+                      cerrar la sesión, corrige esta hora para no cargar horas de más.
+                    </span>
                   </label>
                   {estadoDestino === 'pausada' ? (
                     <label className={CLASE_ETIQUETA}>

@@ -541,7 +541,8 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     const panel = await screen.findByTestId('horas-extra-cierre');
-    expect(panel.textContent).toContain('La sesión superó la jornada del turno');
+    expect(panel.textContent).toContain('El día ya acumuló más de la jornada');
+    expect(screen.getByTestId('corregir-hora-fin')).toBeTruthy();
     expect(screen.getByTestId('justificar-horas-extra')).toBeTruthy();
     expect(screen.getByTestId('solicitar-horas-extra')).toBeTruthy();
     expect(solicitarHorasExtraAccion).not.toHaveBeenCalled();
@@ -937,7 +938,7 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.queryByTestId('aviso-material-sin-costo')).toBeNull();
   });
 
-  it('muestra el cronómetro de la sesión y ya no pide hora de fin ni minutos de setup', () => {
+  it('muestra el cronómetro y exige la hora real de conclusión prellenada', () => {
     render(createElement(DetalleProcesoOperador, {
       proceso,
       hoy: '2026-10-28',
@@ -963,10 +964,48 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.getByTestId('contador-sesion-detalle')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
-    expect(screen.queryByTestId('hora-fin-cierre')).toBeNull();
+    const campo = screen.getByTestId('hora-fin-cierre') as HTMLInputElement;
+    expect(campo.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u);
+    expect(campo.required).toBe(true);
     expect(screen.queryByTestId('minutos-setup')).toBeNull();
-    expect(screen.queryByLabelText(/Hora real de finalización/)).toBeNull();
-    expect(screen.queryByLabelText(/Minutos de setup/)).toBeNull();
+  });
+
+  it('envía la hora real de conclusión corregida por el operador', async () => {
+    const cerrar = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [{ id: 'material-1', codigo: 'AC-01', nombre: 'Acero', unidadBase: 'kg' }],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar,
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    fireEvent.change(screen.getByTestId('piezas-cierre'), { target: { value: '1' } });
+    fireEvent.change(screen.getByTestId('hora-fin-cierre'), {
+      target: { value: '2026-10-28T11:00' },
+    });
+    fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
+
+    await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
+    expect(cerrar).toHaveBeenCalledWith(
+      proceso,
+      expect.objectContaining({ horaFin: '2026-10-28T11:00' }),
+    );
   });
 
 });

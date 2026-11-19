@@ -783,7 +783,10 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'primera_pieza_pendiente':
       return 'Falta liberar la primera pieza antes de declarar producción';
     case 'horas_extra_sin_autorizacion':
-      return 'El tiempo neto acumulado del día supera la jornada del turno. Justifica el exceso o pide autorización a un responsable para cerrar.';
+      return 'La jornada son 8 h netas acumuladas del día (la comida de 12 a 13 no se cuenta). '
+        + 'Al cerrar, el tiempo de esta sesión más lo ya trabajado hoy supera ese límite. '
+        + 'Si el proceso terminó antes, corrige la hora real de conclusión. Si trabajaste de más, '
+        + 'justifica el exceso o pide autorización a un responsable.';
     case 'horas_extra_no_requeridas':
       return 'La sesión no excede la jornada del turno, así que no requiere horas extra.';
     case 'justificacion_horas_extra_invalida':
