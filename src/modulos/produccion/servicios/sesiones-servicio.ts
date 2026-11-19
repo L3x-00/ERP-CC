@@ -124,6 +124,7 @@ export type CodigoErrorProduccion =
   | 'programacion_ya_en_proceso'
   | 'sin_recurso_disponible'
   | 'jornada_cerrada'
+  | 'recurso_sin_equipos'
   | 'recurso_sin_capacidad'
   | 'recurso_capacidad_excedida'
   | 'operador_area_no_asignada'
@@ -282,6 +283,7 @@ const CODIGOS_ERROR: readonly CodigoErrorProduccion[] = [
   'programacion_ya_en_proceso',
   'sin_recurso_disponible',
   'jornada_cerrada',
+  'recurso_sin_equipos',
   'recurso_sin_capacidad',
   'recurso_capacidad_excedida',
   'operador_area_no_asignada',
@@ -674,10 +676,14 @@ export function mensajeErrorSesion(error: unknown): string {
 
   switch (error.codigo) {
     case 'jornada_cerrada':
+      return detalleDelMensaje(error) ?? 'Sin disponibilidad: ese día no tiene jornada laboral; elige de lunes a sábado.';
+    case 'recurso_sin_equipos':
+      return detalleDelMensaje(error) ?? 'Sin disponibilidad: no hay equipos activos del grupo que pide el proceso.';
     case 'recurso_sin_capacidad':
+      return detalleDelMensaje(error) ?? 'Sin disponibilidad: el equipo no tiene capacidad configurada para esa fecha; elige otro día.';
     case 'recurso_capacidad_excedida':
     case 'sin_recurso_disponible':
-      return detalleDelMensaje(error) ?? 'No hay recurso libre del área para esa fecha y turno';
+      return detalleDelMensaje(error) ?? 'Sin disponibilidad suficiente: el proceso no cabe en el tiempo libre del equipo ese día.';
     case 'cierre_sesion_invalido':
       return 'El cierre requiere datos válidos; el consumo de material solo es obligatorio cuando la ruta lo exige';
     case 'operador_o_programacion_con_sesion_activa':
@@ -707,7 +713,8 @@ export function mensajeErrorSesion(error: unknown): string {
     case 'programacion_conflicto':
       return 'La pausa cambió en otra pantalla; actualiza el tablero';
     case 'recurso_ocupado':
-      return detalleDelMensaje(error) ?? 'El recurso está ocupado; vuelve a intentarlo cuando esté libre';
+      return detalleDelMensaje(error)
+        ?? 'Equipo ocupado por otro proceso en curso. No puedes cancelar el trabajo de otro operador desde aquí; espera a que lo cierren o pausen, o elige otra fecha.';
     case 'capacidad_no_disponible':
       return detalleDelMensaje(error) ?? 'La capacidad del recurso ya no permite reanudar';
     case 'programacion_no_bloqueada':
