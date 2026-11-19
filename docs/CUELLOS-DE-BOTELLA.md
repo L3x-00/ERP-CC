@@ -239,7 +239,7 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | La C23 rebasada volvía a definir `reprogramar_partida_recurso` con capacidad por turno y mensajes genéricos tras la C24 | La migración renumerada (`20261118160000/160100`) conservaba el cuerpo original escrito antes de la C24 | Tras renumerar una migración **después** de otra que redefinió la misma función, hay que **borrar la definición duplicada** o copiar la versión vigente con el delta. Si la función ya incorpora la regla, se elimina del archivo y se deja un comentario que lo explique; nunca se deja el cuerpo viejo “por si acaso” |
 | Las pruebas `c20_hora_fin_y_avance_pausa` y `c20_cierre_riesgos` fallaban al rebasar por la jornada | Fijaban 9 h (540 min) de jornada; la C24 la dejó en 8 h (480 min) de lunes a viernes | Las pruebas de jornada se anclan a la regla vigente del PO: 480 min en día laboral y `horas_netas_operador_dia >= 8`. Al cambiar la jornada, revisar todas las expectativas numéricas de `c20_*` y `a20_prd09`, no solo la migración |
 
-## 17. CI proporcional al cambio
+## 17. CI proporcional al cambio, sharding y cobertura
 
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
@@ -248,5 +248,10 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | El job E2E queda verde sin ejecutar nada | Casi todos los specs hacen `test.skip` si `E2E_HABILITAR_PRUEBAS_REMOTAS` no vale `si`; un `skipped` cuenta como éxito para Playwright | El paso E2E exige la variable y, tras correr, verifica que al menos una prueba se ejecutó de verdad |
 | Una capa obligatoria se salta y el check agregado sigue en verde | El job `resultado` aceptaba `skipped` sin comparar con el plan | El job `resultado` contrasta cada capa omitida con los outputs de `clasificar`; si una capa exigida no corrió, falla |
 | Borrar o renombrar un test rompe el job con "No test files found" | El diff incluye rutas borradas y se pasaban tal cual a Vitest/Playwright | `podarInexistentes()` quita de las listas explícitas las rutas que ya no existen; si no queda ninguna, la capa pasa a no ejecutarse |
+| El E2E completo tarda 12 min aunque el resto del CI ya terminó | La suite corre en un solo runner y el stack de Supabase es único | La suite completa se reparte en 4 shards de Playwright, cada uno con su propio stack de Supabase (aislamiento total) y `fail-fast: false`. El modo focal usa 1 shard. La matriz la genera el plan (`e2e_shard_list`), no está fija en el YAML |
+| Un shard queda verde sin ejecutar pruebas | Playwright reporta `skipped` como éxito | Cada shard verifica que ejecutó al menos una prueba; si no, falla |
+| La cobertura es "teatro": un número global que nadie mira y que nadie mantiene | No había medición ni umbral | `@vitest/coverage-v8` mide solo `src/**/*.{ts,tsx}`; el resumen por área se publica en el job summary y el informe queda como artefacto |
+| Un PR toca código legado sin cobertura y el umbral global lo tumba | Se aplicaba el umbral de suite completa a una corrida parcial | Los umbrales congelados solo se exigen con `COBERTURA_UMBRAL=estricto` (suite completa). En PR se mide la cobertura del diff (`coverage.changed` hereda `--changed`) |
+| El nightly se cancela al hacer un push a `main` | `concurrency.cancel-in-progress` era `true` para todos los eventos | Solo se cancelan PRs; `push` a `main` y `schedule` no se interrumpen |
 
 

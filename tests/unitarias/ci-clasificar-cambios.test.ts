@@ -25,6 +25,7 @@ describe('clasificarCambios · documentación', () => {
     expect(r.integracion.modo).toBe('no');
     expect(r.pgtap).toBe(false);
     expect(r.e2e.modo).toBe('no');
+    expect(r.e2e.shards).toBe(0);
     expect(r.typecheck).toBe(false);
   });
 });
@@ -44,7 +45,7 @@ describe('clasificarCambios · solo pruebas', () => {
 
   it('ejecuta solo el spec E2E editado', () => {
     const r = clasificar(['tests/e2e/rfq-flujo.spec.ts']);
-    expect(r.e2e).toEqual({ modo: 'specs', specs: ['tests/e2e/rfq-flujo.spec.ts'] });
+    expect(r.e2e).toEqual({ modo: 'specs', specs: ['tests/e2e/rfq-flujo.spec.ts'], shards: 1 });
     expect(r.unitarias.modo).toBe('ninguna');
     expect(r.typecheck).toBe(true);
   });
@@ -111,6 +112,13 @@ describe('clasificarCambios · módulo concreto', () => {
     const r = clasificar(archivos, { totalSpecs: 1 });
     expect(r.e2e.modo).toBe('completo');
     expect(r.e2e.specs).toEqual([]);
+    expect(r.e2e.shards).toBe(4);
+  });
+
+  it('el modo focal usa un solo shard', () => {
+    const r = clasificar(['src/modulos/gastos/x.ts']);
+    expect(r.e2e.modo).toBe('specs');
+    expect(r.e2e.shards).toBe(1);
   });
 
   it('mantiene modo focal cuando el catálogo E2E es mucho mayor', () => {
@@ -157,6 +165,7 @@ describe('clasificarCambios · código compartido', () => {
     expect(r.unitarias.modo).toBe('completas');
     expect(r.integracion.modo).toBe('completa');
     expect(r.e2e.modo).toBe('completo');
+    expect(r.e2e.shards).toBe(4);
     expect(r.pgtap).toBe(true);
     expect(r.concurrencia).toBe(true);
   });
@@ -254,7 +263,11 @@ describe('podarInexistentes', () => {
     integracion: { modo: 'no' as const, archivos: [] },
     concurrencia: false,
     pgtap: false,
-    e2e: { modo: 'specs' as const, specs: ['tests/e2e/no-existe.spec.ts', 'tests/e2e/tema-global.spec.ts'] },
+    e2e: {
+      modo: 'specs' as const,
+      specs: ['tests/e2e/no-existe.spec.ts', 'tests/e2e/tema-global.spec.ts'],
+      shards: 1,
+    },
   };
 
   it('quita archivos borrados sin perder los vivos', () => {
@@ -270,17 +283,18 @@ describe('podarInexistentes', () => {
       e2e: { modo: 'specs', specs: ['tests/e2e/no-existe.spec.ts'] },
     });
     expect(r.unitarias).toEqual({ modo: 'ninguna', archivos: [] });
-    expect(r.e2e).toEqual({ modo: 'no', specs: [] });
+    expect(r.e2e).toEqual({ modo: 'no', specs: [], shards: 0 });
   });
 
   it('no toca los modos completos', () => {
     const r = podarInexistentes({
       ...base,
       unitarias: { modo: 'completas', archivos: [] },
-      e2e: { modo: 'completo', specs: [] },
+      e2e: { modo: 'completo', specs: [], shards: 4 },
     });
     expect(r.unitarias.modo).toBe('completas');
     expect(r.e2e.modo).toBe('completo');
+    expect(r.e2e.shards).toBe(4);
   });
 });
 
@@ -305,6 +319,29 @@ describe('argumentosVitest', () => {
 
   it('modo ninguna no ejecuta nada', () => {
     expect(argumentosVitest({ modo: 'ninguna', base: 'x', archivos: '' })).toEqual([]);
+  });
+
+  it('añade --coverage a la suite completa cuando se pide', () => {
+    expect(argumentosVitest({ modo: 'completas', base: 'x', archivos: '', cobertura: true })).toEqual([
+      'run',
+      'tests/unitarias',
+      '--coverage',
+    ]);
+  });
+
+  it('mide la cobertura del diff en modo cambiadas', () => {
+    expect(argumentosVitest({ modo: 'cambiadas', base: 'origin/main', archivos: '', cobertura: true })).toEqual([
+      'run',
+      'tests/unitarias',
+      '--changed=origin/main',
+      '--coverage',
+    ]);
+  });
+
+  it('ignora la cobertura cuando solo se editan specs', () => {
+    expect(
+      argumentosVitest({ modo: 'archivos', base: 'x', archivos: 'tests/unitarias/a.test.ts', cobertura: true }),
+    ).toEqual(['run', 'tests/unitarias', 'tests/unitarias/a.test.ts']);
   });
 
   it('rechaza modos desconocidos', () => {

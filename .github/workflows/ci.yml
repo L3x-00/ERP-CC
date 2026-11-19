@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Nightly: suite completa, cobertura con umbrales y E2E completo en shards.
+  # En los eventos que no son PR el clasificador siempre fuerza `total`.
+  schedule:
+    - cron: '0 6 * * *'
 
 permissions:
   contents: read
@@ -12,7 +16,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Solo se cancelan PRs: un push nuevo no debe abortar el nightly ni la
+  # validación de `main`.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Plan de pruebas proporcional al cambio.
 # El clasificador (scripts/ci/clasificar-cambios.mjs) decide qué capas se ejecutan.
@@ -33,6 +39,8 @@ jobs:
       pgtap: ${{ steps.plan.outputs.pgtap }}
       e2e_modo: ${{ steps.plan.outputs.e2e_modo }}
       e2e_specs: ${{ steps.plan.outputs.e2e_specs }}
+      e2e_total_shards: ${{ steps.plan.outputs.e2e_total_shards }}
+      e2e_shard_list: ${{ steps.plan.outputs.e2e_shard_list }}
     steps:
       # Historial completo: `vitest --changed`, `git diff base...HEAD` y el
       # clasificador necesitan el merge-base. El paquete del repo pesa ~11 MB.
@@ -100,6 +108,10 @@ jobs:
           fi
           exit "$estado"
 
+      # La cobertura solo se mide con la suite completa o con el diff
+      # (`cambiadas`), donde Vitest limita `coverage.changed` al diff. Los
+      # umbrales solo se exigen en la suite completa: aplicarlos a una corrida
+      # parcial daría falsos rojos por código legado no tocado.
       - name: Pruebas unitarias
         if: needs.clasificar.outputs.unitarias_modo != 'ninguna'
         shell: bash
@@ -107,11 +119,35 @@ jobs:
           MODO: ${{ needs.clasificar.outputs.unitarias_modo }}
           ARCHIVOS: ${{ needs.clasificar.outputs.unitarias_archivos }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          COBERTURA_UMBRAL: ${{ needs.clasificar.outputs.unitarias_modo == 'completas' && 'estricto' || '' }}
         run: |
-          node scripts/ci/ejecutar-unitarias.mjs \
-            --modo "$MODO" \
-            --base "${BASE_SHA:-origin/main}" \
+          argumentos=(
+            --modo "$MODO"
+            --base "${BASE_SHA:-origin/main}"
             --archivos "$ARCHIVOS"
+          )
+          if [ "$MODO" = "completas" ] || [ "$MODO" = "cambiadas" ]; then
+            argumentos+=(--cobertura)
+          fi
+          node scripts/ci/ejecutar-unitarias.mjs "${argumentos[@]}"
+
+      - name: Resumen de cobertura
+        if: >-
+          needs.clasificar.outputs.unitarias_modo == 'completas' ||
+          needs.clasificar.outputs.unitarias_modo == 'cambiadas'
+        shell: bash
+        run: node scripts/ci/resumen-cobertura.mjs --salida "$GITHUB_STEP_SUMMARY" --exigir
+
+      - name: Subir informe de cobertura
+        if: >-
+          needs.clasificar.outputs.unitarias_modo == 'completas' ||
+          needs.clasificar.outputs.unitarias_modo == 'cambiadas'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: cobertura/
+          if-no-files-found: error
+          retention-days: 7
 
   base_datos:
     name: pgTAP, integración y concurrencia
@@ -169,7 +205,10 @@ jobs:
         run: docker ps --format '{{.Names}}' && supabase status
 
   e2e:
-    name: E2E de navegador
+    # Un shard por runner, cada uno con su propio stack de Supabase: el
+    # aislamiento es total. La lista sale del plan (1 shard en modo focal,
+    # 4 en suite completa) y nunca está vacía aunque el job se salte.
+    name: E2E de navegador (${{ matrix.shard }}/${{ needs.clasificar.outputs.e2e_total_shards }})
     needs: clasificar
     if: needs.clasificar.outputs.e2e_modo != 'no'
     runs-on: ubuntu-latest
@@ -177,6 +216,10 @@ jobs:
     permissions:
       contents: read
       packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.clasificar.outputs.e2e_shard_list) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -214,6 +257,8 @@ jobs:
         env:
           MODO: ${{ needs.clasificar.outputs.e2e_modo }}
           SPECS: ${{ needs.clasificar.outputs.e2e_specs }}
+          SHARD: ${{ matrix.shard }}
+          TOTAL_SHARDS: ${{ needs.clasificar.outputs.e2e_total_shards }}
         run: |
           # Casi todos los specs hacen `test.skip` si este flag no vale 'si'.
           # Sin esta guarda, un cambio en la acción dejaría la suite en verde
@@ -233,7 +278,8 @@ jobs:
 
           export PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/e2e-resultados.json
           export PLAYWRIGHT_HTML_OPEN=never
-          pnpm exec playwright test --reporter=list,json,html "${argumentos[@]}"
+          pnpm exec playwright test --reporter=list,json,html \
+            --shard="$SHARD/$TOTAL_SHARDS" "${argumentos[@]}"
 
           # Un run donde todo quedó 'skipped' es un falso verde: se verifica
           # que al menos una prueba se haya ejecutado de verdad.
@@ -251,9 +297,9 @@ jobs:
               }
               for (const hija of suite.suites || []) recorrer(hija);
             })(informe);
-            console.log(`E2E ejecutadas: ${ejecutadas} · saltadas: ${saltadas}`);
+            console.log(`E2E shard ${process.env.SHARD}/${process.env.TOTAL_SHARDS} · ejecutadas: ${ejecutadas} · saltadas: ${saltadas}`);
             if (ejecutadas === 0) {
-              console.error("::error::La suite E2E no ejecutó ninguna prueba (todas saltadas).");
+              console.error("::error::Este shard E2E no ejecutó ninguna prueba (todas saltadas).");
               process.exit(1);
             }
           '
@@ -266,7 +312,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-shard-${{ matrix.shard }}
           path: |
             test-results/
             playwright-report/

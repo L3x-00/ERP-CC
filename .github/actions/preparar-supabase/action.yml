@@ -33,23 +33,21 @@ runs:
     # La precarga es una optimización: si un tag falla tras los reintentos, se
     # emite un warning y se deja que `supabase start` lo resuelva. Nunca debe
     # tumbar el job.
+    #
+    # Solo se precargan los servicios que el stack necesita (ver `-x` abajo).
+    # Studio, imgproxy, Logflare, Vector, edge-runtime y Mailpit pesan ~6 GB y
+    # ningún test ni semilla los usa; descargarlos costaba más que el arranque.
     - name: Precargar imágenes de Supabase secuencialmente
       shell: bash
       run: |
         imagenes=(
-          "edge-runtime:v1.74.2"
           "gotrue:v2.192.0"
-          "imgproxy:v3.8.0"
           "kong:2.8.1"
-          "logflare:1.45.6"
-          "mailpit:v1.30.2"
           "postgres:17.6.1.140"
           "postgres-meta:v0.96.6"
           "postgrest:v14.14"
           "realtime:v2.112.1"
           "storage-api:v1.61.7"
-          "studio:2026.06.29-sha-20290c7"
-          "vector:0.53.0-alpine"
         )
 
         for imagen in "${imagenes[@]}"; do
@@ -72,9 +70,13 @@ runs:
           fi
         done
 
+    # `analytics` es Logflare e `inbucket` es Mailpit: son los nombres que
+    # entiende el CLI 2.x. Se excluyen los servicios que ninguna prueba usa
+    # (studio, imgproxy, analytics, vector, edge-runtime e inbucket) para
+    # recortar descarga y arranque. `storage` sí se usa (27 referencias).
     - name: Levantar Supabase local (aplica migraciones)
       shell: bash
-      run: supabase start
+      run: supabase start -x studio,imgproxy,analytics,vector,edge-runtime,inbucket
 
     - name: Exportar entorno del stack local
       shell: bash
