@@ -40,6 +40,17 @@ SELECT 'meta_1', id FROM public.metas_proceso_partida
 WHERE partida_id = '00000000-0000-4000-8000-0000000c2206' AND secuencia = 1;
 GRANT SELECT ON c22_plan TO service_role;
 
+-- Fechas laborales fijas de la semana siguiente: el domingo no tiene capacidad
+-- y las RPC de programación rechazan una fecha con capacidad 0.
+CREATE TEMP TABLE c22_fechas (clave text PRIMARY KEY, valor date);
+INSERT INTO c22_fechas VALUES
+  ('lunes', date_trunc('week', current_date)::date + 7),
+  ('martes', date_trunc('week', current_date)::date + 8),
+  ('miercoles', date_trunc('week', current_date)::date + 9),
+  ('jueves', date_trunc('week', current_date)::date + 10),
+  ('viernes', date_trunc('week', current_date)::date + 11);
+GRANT SELECT ON c22_fechas TO service_role;
+
 SET LOCAL ROLE service_role;
 
 -- 1. La operación se programa repartida en dos días (8 + 7.25 h).
@@ -47,8 +58,8 @@ SELECT lives_ok($$SELECT * FROM public.programar_operacion_multidia_auditada(
   '00000000-0000-4000-8000-0000000c2205', '00000000-0000-4000-8000-0000000c2206',
   '00000000-0000-4000-8000-0000000c2207', 'matutino',
   jsonb_build_array(
-    jsonb_build_object('fecha', current_date, 'horas', 8),
-    jsonb_build_object('fecha', current_date + 1, 'horas', 7.25)
+    jsonb_build_object('fecha', (SELECT valor FROM c22_fechas WHERE clave = 'lunes'), 'horas', 8),
+    jsonb_build_object('fecha', (SELECT valor FROM c22_fechas WHERE clave = 'martes'), 'horas', 7.25)
   ),
   1, '00000000-0000-4000-8000-0000000c2201', NULL::uuid,
   (SELECT valor FROM c22_plan WHERE clave = 'meta_1'))$$,
@@ -64,7 +75,7 @@ SELECT is((
 SELECT throws_ok($$SELECT * FROM public.reprogramar_partida_recurso(
   (SELECT id FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c2206' AND es_continuacion = true),
-  '00000000-0000-4000-8000-0000000c2207', current_date + 4, 'matutino', 7.25, 1,
+  '00000000-0000-4000-8000-0000000c2207', (SELECT valor FROM c22_fechas WHERE clave = 'viernes'), 'matutino', 7.25, 1,
   (SELECT actualizado_en FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c2206' AND es_continuacion = true))$$,
   '23514', 'programacion_continuacion_no_operable',
@@ -74,7 +85,7 @@ SELECT throws_ok($$SELECT * FROM public.reprogramar_partida_recurso(
 SELECT lives_ok($$SELECT * FROM public.reprogramar_partida_recurso(
   (SELECT id FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c2206' AND es_continuacion = false),
-  '00000000-0000-4000-8000-0000000c2207', current_date + 5, 'matutino', 8, 1,
+  '00000000-0000-4000-8000-0000000c2207', (SELECT valor FROM c22_fechas WHERE clave = 'miercoles'), 'matutino', 8, 1,
   (SELECT actualizado_en FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c2206' AND es_continuacion = false))$$,
   'La fila principal se reprograma');
@@ -90,7 +101,7 @@ SELECT is((
   SELECT fecha_programada FROM public.programacion_areas
   WHERE partida_id = '00000000-0000-4000-8000-0000000c2206'
     AND estado_planeacion <> 'cancelada'
-), current_date + 5, 'La fila vigente queda en la fecha reprogramada');
+), (SELECT valor FROM c22_fechas WHERE clave = 'miercoles'), 'La fila vigente queda en la fecha reprogramada');
 
 -- 6. Las reservas de días anteriores se cancelan, no se duplican.
 SELECT is((
@@ -105,7 +116,7 @@ SELECT is((
 SELECT lives_ok($$SELECT * FROM public.reprogramar_partida_recurso(
   (SELECT id FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c2206' AND estado_planeacion <> 'cancelada'),
-  '00000000-0000-4000-8000-0000000c2207', current_date + 6, 'matutino', 8, 1,
+  '00000000-0000-4000-8000-0000000c2207', (SELECT valor FROM c22_fechas WHERE clave = 'jueves'), 'matutino', 8, 1,
   (SELECT actualizado_en FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c2206' AND estado_planeacion <> 'cancelada'))$$,
   'La operación reprogramada se puede volver a mover');

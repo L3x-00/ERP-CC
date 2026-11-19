@@ -45,6 +45,16 @@ SELECT 'meta_2', id FROM public.metas_proceso_partida
 WHERE partida_id = '00000000-0000-4000-8000-0000000c1608' AND secuencia = 1;
 GRANT SELECT ON c16_plan TO service_role;
 
+-- Fechas laborales fijas: el domingo no tiene capacidad y la RPC multidía
+-- rechaza una fecha con capacidad 0. Se usa el lunes, martes y miércoles
+-- de la semana siguiente.
+CREATE TEMP TABLE c16_fechas (clave text PRIMARY KEY, valor date);
+INSERT INTO c16_fechas VALUES
+  ('lunes', date_trunc('week', current_date)::date + 7),
+  ('martes', date_trunc('week', current_date)::date + 8),
+  ('miercoles', date_trunc('week', current_date)::date + 9);
+GRANT SELECT ON c16_fechas TO service_role;
+
 SET LOCAL ROLE service_role;
 
 -- 1-4. La operación de 15.25 h se reparte en 8 + 7.25 h.
@@ -52,8 +62,8 @@ SELECT lives_ok($$SELECT * FROM public.programar_operacion_multidia_auditada(
   '00000000-0000-4000-8000-0000000c1605', '00000000-0000-4000-8000-0000000c1606',
   '00000000-0000-4000-8000-0000000c1607', 'matutino',
   jsonb_build_array(
-    jsonb_build_object('fecha', current_date, 'horas', 8),
-    jsonb_build_object('fecha', current_date + 1, 'horas', 7.25)
+    jsonb_build_object('fecha', (SELECT valor FROM c16_fechas WHERE clave = 'lunes'), 'horas', 8),
+    jsonb_build_object('fecha', (SELECT valor FROM c16_fechas WHERE clave = 'martes'), 'horas', 7.25)
   ),
   1, '00000000-0000-4000-8000-0000000c1601', NULL::uuid,
   (SELECT valor FROM c16_plan WHERE clave = 'meta_1'))$$,
@@ -82,8 +92,8 @@ SELECT throws_ok($$SELECT * FROM public.programar_operacion_multidia_auditada(
   '00000000-0000-4000-8000-0000000c1605', '00000000-0000-4000-8000-0000000c1606',
   '00000000-0000-4000-8000-0000000c1607', 'matutino',
   jsonb_build_array(
-    jsonb_build_object('fecha', current_date, 'horas', 8),
-    jsonb_build_object('fecha', current_date + 1, 'horas', 7.25)
+    jsonb_build_object('fecha', (SELECT valor FROM c16_fechas WHERE clave = 'lunes'), 'horas', 8),
+    jsonb_build_object('fecha', (SELECT valor FROM c16_fechas WHERE clave = 'martes'), 'horas', 7.25)
   ),
   1, '00000000-0000-4000-8000-0000000c1601', NULL::uuid,
   (SELECT valor FROM c16_plan WHERE clave = 'meta_1'))$$,
@@ -104,8 +114,8 @@ SELECT throws_like($$SELECT * FROM public.programar_operacion_multidia_auditada(
   '00000000-0000-4000-8000-0000000c1605', '00000000-0000-4000-8000-0000000c1608',
   '00000000-0000-4000-8000-0000000c1607', 'matutino',
   jsonb_build_array(
-    jsonb_build_object('fecha', current_date, 'horas', 8),
-    jsonb_build_object('fecha', current_date + 2, 'horas', 1)
+    jsonb_build_object('fecha', (SELECT valor FROM c16_fechas WHERE clave = 'lunes'), 'horas', 8),
+    jsonb_build_object('fecha', (SELECT valor FROM c16_fechas WHERE clave = 'miercoles'), 'horas', 1)
   ),
   1, '00000000-0000-4000-8000-0000000c1601', NULL::uuid,
   (SELECT valor FROM c16_plan WHERE clave = 'meta_2'))$$,

@@ -94,7 +94,7 @@ SET LOCAL ROLE service_role;
 -- 1. Programación inicial de la partida P1 por su operación del ruteo.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9230',
-  '00000000-0000-4000-8000-0000000c9241', NULL::smallint, current_date, 'matutino', 3, 1,
+  '00000000-0000-4000-8000-0000000c9241', NULL::smallint, (date_trunc('week', current_date)::date + 7), 'matutino', 3, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9230' AND secuencia = 1))$$,
@@ -225,7 +225,7 @@ SELECT is((
 -- 22. P-04 (impedir): un recurso de otro grupo no se programa.
 SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9232',
-  '00000000-0000-4000-8000-0000000c9244', 1::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9244', 1::smallint, (date_trunc('week', current_date)::date + 7), 'matutino', 2, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
   '23514', 'recurso_incompatible',
   'P-04: un recurso de otro grupo no se puede programar');
@@ -233,7 +233,7 @@ SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
 -- 23. Un recurso del grupo que pide el ruteo sí se programa.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9232',
-  '00000000-0000-4000-8000-0000000c9243', 1::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9243', 1::smallint, (date_trunc('week', current_date)::date + 7), 'matutino', 2, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
   'P-04: un recurso del grupo del ruteo sí se programa');
 
@@ -241,7 +241,7 @@ SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
 SELECT throws_ok($$SELECT * FROM public.reprogramar_partida_recurso_auditada(
   (SELECT id FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9232'),
-  '00000000-0000-4000-8000-0000000c9244', current_date + 1, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9244', (date_trunc('week', current_date)::date + 8), 'matutino', 2, 1,
   (SELECT actualizado_en FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9232'),
   'Prueba de bloqueo por grupo', '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
@@ -251,7 +251,7 @@ SELECT throws_ok($$SELECT * FROM public.reprogramar_partida_recurso_auditada(
 -- 25. Máquinas distintas del mismo grupo sí se programan.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9235',
-  '00000000-0000-4000-8000-0000000c9245', 1::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9245', 1::smallint, (date_trunc('week', current_date)::date + 7), 'matutino', 2, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
   'P-04: otra máquina del mismo grupo también se programa');
 
@@ -279,20 +279,20 @@ SELECT is((
 -- 29. Sin grupos resueltos (ruteo y estación sin datos) nada se bloquea.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9233',
-  '00000000-0000-4000-8000-0000000c9244', 1::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9244', 1::smallint, (date_trunc('week', current_date)::date + 7), 'matutino', 2, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
   'P-04: sin datos de grupo no se bloquea');
 
 -- 30-31. Respaldo por «Equipo / estación» del desglose (maquina_asignada).
 SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9234',
-  '00000000-0000-4000-8000-0000000c9243', 1::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9243', 1::smallint, (date_trunc('week', current_date)::date + 7), 'matutino', 2, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
   '23514', 'recurso_incompatible',
   'P-04: la estación del desglose también ancla el grupo');
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9220', '00000000-0000-4000-8000-0000000c9234',
-  '00000000-0000-4000-8000-0000000c9244', 1::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9244', 1::smallint, (date_trunc('week', current_date)::date + 7), 'matutino', 2, 1,
   '00000000-0000-4000-8000-0000000c9201', NULL::uuid)$$,
   'P-04: la estación compatible sí se programa');
 

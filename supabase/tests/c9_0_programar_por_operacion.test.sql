@@ -6,6 +6,14 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
 SELECT plan(25);
 
+-- Fechas laborales fijas: `current_date` puede caer en domingo y
+-- `programar_partida_recurso` rechaza una fecha con capacidad 0. Se programa
+-- sobre el lunes y el martes de la semana siguiente.
+CREATE TEMP TABLE c90 ON COMMIT DROP AS
+SELECT 'lunes'::text AS clave, date_trunc('week', current_date)::date + 7 AS valor
+UNION ALL
+SELECT 'martes', date_trunc('week', current_date)::date + 8;
+
 -- Operador (cierre de sesión) y planeador admin (wrapper auditado).
 INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES
   ('00000000-0000-4000-8000-0000000c9a01', 'c90-operador@prueba.local', '{}'::jsonb),
@@ -49,7 +57,7 @@ SELECT is((
 -- 3-4. Programar por operación: secuencia nula, derivada de la meta.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, current_date, 'matutino', 3, 1,
+  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 3, 1,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9a30' AND secuencia = 1))$$,
   'Programar por operación acepta secuencia nula y deriva la de la meta');
@@ -64,7 +72,7 @@ SELECT is((
 -- 5. Duplicado de la misma operación.
 SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, current_date, 'matutino', 3, 1,
+  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 3, 1,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9a30' AND secuencia = 1))$$,
   '23505', 'programacion_duplicada', 'Una operación no se programa dos veces');
@@ -72,7 +80,7 @@ SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
 -- 6-7. Dos operaciones de la misma partida SÍ pueden usar el mismo recurso.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 2, 1,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9a30' AND secuencia = 2))$$,
   'Dos operaciones de la misma partida pueden usar el mismo recurso');
@@ -85,7 +93,7 @@ SELECT is((
 -- 8. Meta de otra partida.
 SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, current_date, 'matutino', 1, 1,
+  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 1, 1,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9a31'))$$,
   '23514', 'meta_proceso_no_corresponde', 'Una operación ajena a la partida se rechaza');
@@ -93,7 +101,7 @@ SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
 -- 9. Con operación no se captura secuencia manual.
 SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', 2::smallint, current_date, 'matutino', 1, 1,
+  '00000000-0000-4000-8000-0000000c9a41', 2::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 1, 1,
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9a30' AND secuencia = 2))$$,
   '23514', 'programacion_invalida', 'Con operación la secuencia manual se rechaza');
@@ -101,14 +109,14 @@ SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
 -- 10. Sin operación la secuencia manual sigue siendo obligatoria.
 SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, current_date, 'matutino', 1, 1,
+  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 1, 1,
   NULL::uuid)$$,
   '23514', 'programacion_invalida', 'Sin operación la secuencia manual es obligatoria');
 
 -- 11-12. Las filas heredadas conservan sus dos reglas y conviven con operaciones.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', 1::smallint, current_date, 'matutino', 1, 1)$$,
+  '00000000-0000-4000-8000-0000000c9a41', 1::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 1, 1)$$,
   'Las filas heredadas conservan la captura manual de secuencia');
 SELECT is((
   SELECT count(*)::integer FROM public.programacion_areas AS programacion
@@ -119,14 +127,16 @@ SELECT is((
 -- 13. La regla heredada partida×recurso sigue vigente.
 SELECT throws_ok($$SELECT * FROM public.programar_partida_recurso(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a30',
-  '00000000-0000-4000-8000-0000000c9a41', 2::smallint, current_date, 'matutino', 1, 1)$$,
+  '00000000-0000-4000-8000-0000000c9a41', 2::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 1, 1)$$,
   '23505', 'programacion_duplicada', 'La regla heredada partida×recurso sigue vigente');
 
 -- 14. La carga suma operaciones y heredadas sin cambiar la fórmula (3+2+1).
 SELECT is((
-  SELECT carga.horas_programadas FROM public.obtener_carga_capacidad_diaria(current_date, current_date) AS carga
+  SELECT carga.horas_programadas FROM public.obtener_carga_capacidad_diaria(
+    (SELECT valor FROM c90 WHERE clave = 'lunes'),
+    (SELECT valor FROM c90 WHERE clave = 'lunes')) AS carga
   WHERE carga.recurso_id = '00000000-0000-4000-8000-0000000c9a41'
-    AND carga.fecha_programada = current_date
+    AND carga.fecha_programada = (SELECT valor FROM c90 WHERE clave = 'lunes')
 ), 6::numeric, 'La carga suma operaciones y heredadas sin cambiar la fórmula');
 
 -- 15-16. Cierre sin meta explícita: el avance es de la operación programada.
@@ -196,7 +206,7 @@ SELECT lives_ok($$SELECT * FROM public.reprogramar_partida_recurso(
      AND meta_proceso_id = (
        SELECT id FROM public.metas_proceso_partida
        WHERE partida_id = '00000000-0000-4000-8000-0000000c9a30' AND secuencia = 2)),
-  '00000000-0000-4000-8000-0000000c9a41', current_date + 1, 'matutino', 2.5, 1,
+  '00000000-0000-4000-8000-0000000c9a41', (SELECT valor FROM c90 WHERE clave = 'martes'), 'matutino', 2.5, 1,
   (SELECT actualizado_en FROM public.programacion_areas
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9a30'
      AND meta_proceso_id = (
@@ -206,7 +216,7 @@ SELECT lives_ok($$SELECT * FROM public.reprogramar_partida_recurso(
 SELECT is((
   SELECT programacion.meta_proceso_id FROM public.programacion_areas AS programacion
   WHERE programacion.partida_id = '00000000-0000-4000-8000-0000000c9a30'
-    AND programacion.secuencia = 2 AND programacion.fecha_programada = current_date + 1
+    AND programacion.secuencia = 2 AND programacion.fecha_programada = (SELECT valor FROM c90 WHERE clave = 'martes')
 ), (
   SELECT id FROM public.metas_proceso_partida
   WHERE partida_id = '00000000-0000-4000-8000-0000000c9a30' AND secuencia = 2
@@ -215,12 +225,12 @@ SELECT is((
   SELECT programacion.fecha_programada::text FROM public.programacion_areas AS programacion
   WHERE programacion.partida_id = '00000000-0000-4000-8000-0000000c9a30'
     AND programacion.secuencia = 2 AND programacion.meta_proceso_id IS NOT NULL
-), (current_date + 1)::text, 'La fecha reprogramada es la nueva');
+), (SELECT valor::text FROM c90 WHERE clave = 'martes'), 'La fecha reprogramada es la nueva');
 
 -- 22-25. Wrapper auditado: programa por operación y el evento la conserva.
 SELECT lives_ok($$SELECT * FROM public.programar_partida_recurso_auditada(
   '00000000-0000-4000-8000-0000000c9a20', '00000000-0000-4000-8000-0000000c9a31',
-  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, current_date, 'matutino', 2, 1,
+  '00000000-0000-4000-8000-0000000c9a41', NULL::smallint, (SELECT valor FROM c90 WHERE clave = 'lunes'), 'matutino', 2, 1,
   '00000000-0000-4000-8000-0000000c9a02', '00000000-0000-4000-8000-000000c9ac01',
   (SELECT id FROM public.metas_proceso_partida
    WHERE partida_id = '00000000-0000-4000-8000-0000000c9a31'))$$,
