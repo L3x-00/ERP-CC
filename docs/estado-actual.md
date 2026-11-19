@@ -1,6 +1,6 @@
 # Estado actual
 
-**Corte:** 2026-11-19 · PR de auditoría C25 + vista Carga (base `main` = `818c3e5`).
+**Corte:** 2026-11-19 · C27 pausa por jornada acumulada y hora real de conclusión (base `main` = `06a08c7`).
 
 ## Resumen
 
@@ -30,6 +30,7 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 
 ## Últimos cambios relevantes
 
+- **C27 — Pausa automática por jornada acumulada del día (2026-11-19):** el barrido deja de medir solo la sesión en curso y usa la jornada acumulada del día (8 h netas, comida descontada): descuenta lo ya cerrado y corta la sesión activa cuando el total del día alcanza la jornada. Si el día ya estaba agotado, el trabajo es tiempo extra y lo gobierna la autorización del cierre, no la pausa al iniciar. El cliente ya no compara reloj bruto contra 8 h: consulta al servidor cada 60 s y muestra el error si la consulta falla. Planeación también dispara el barrido. El cierre exige la hora real de conclusión prellenada con el reloj del taller y el panel de horas extra explica el cálculo y ofrece corregir la hora real, justificar o pedir aprobación. Migración `20261119150000`. PR #217.
 - **Capacidad visible en días cerrados (2026-11-19):** las horas reales que la RPC conserva en un día sin jornada ya se ven en la matriz semanal de Planeación y en la vista «Carga» del operador: la columna del domingo aparece cuando solo tiene tiempo real registrado y la celda dice «N h reales» en lugar de un `0/0`. En Propuestas, un grupo cuyas únicas filas del horizonte sean de día cerrado con horas reales vuelve a declararse «sin capacidad configurada» en vez de «con capacidad 0». El diagnóstico de reprogramación mantiene el aviso correcto de «sin capacidad» para ese día, y las acciones de la tarjeta del operador recuperan el ancho completo.
 - **Fix capacidad en día sin jornada (2026-11-19):** `obtener_carga_capacidad_diaria` conserva las horas reales de un recurso liberado aunque la fecha no tenga jornada (domingo o día cerrado); antes la fila desaparecía al quedar capacidad 0 y saldo ocupado 0, como si el trabajo real se hubiera borrado. Migración `20261119130000`.
 - **C18 - Horario laboral (2026-11-16, jornada ajustada por C24):** lunes a viernes 8 h, sábado 4 h, domingo cerrado; matutino y vespertino son etiquetas. La misma regla se aplica en capacidad, planeación, producción y en la jornada del operador.
