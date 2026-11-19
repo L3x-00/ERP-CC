@@ -30,6 +30,7 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 
 ## Últimos cambios relevantes
 
+- **Capacidad visible en días cerrados (2026-11-19):** las horas reales que la RPC conserva en un día sin jornada ya se ven en la matriz semanal de Planeación y en la vista «Carga» del operador: la columna del domingo aparece cuando solo tiene tiempo real registrado y la celda dice «N h reales» en lugar de un `0/0`. En Propuestas, un grupo cuyas únicas filas del horizonte sean de día cerrado con horas reales vuelve a declararse «sin capacidad configurada» en vez de «con capacidad 0». El diagnóstico de reprogramación mantiene el aviso correcto de «sin capacidad» para ese día, y las acciones de la tarjeta del operador recuperan el ancho completo.
 - **Fix capacidad en día sin jornada (2026-11-19):** `obtener_carga_capacidad_diaria` conserva las horas reales de un recurso liberado aunque la fecha no tenga jornada (domingo o día cerrado); antes la fila desaparecía al quedar capacidad 0 y saldo ocupado 0, como si el trabajo real se hubiera borrado. Migración `20261119130000`.
 - **C18 - Horario laboral (2026-11-16, jornada ajustada por C24):** lunes a viernes 8 h, sábado 4 h, domingo cerrado; matutino y vespertino son etiquetas. La misma regla se aplica en capacidad, planeación, producción y en la jornada del operador.
 - **C19 — Cierre por entrega (2026-11-16):** la orden pasa a `CERRADA` al entregar el 100 %, se reabre al anular la nota y el cierre administrativo completa costo y margen.

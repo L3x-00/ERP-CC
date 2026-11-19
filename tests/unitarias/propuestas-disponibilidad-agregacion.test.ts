@@ -301,6 +301,31 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
     );
   });
 
+  it('un día cerrado con solo horas reales no finge capacidad configurada', () => {
+    // La RPC conserva la fila del domingo con horas reales aunque capacidad y
+    // carga programada sean 0. Ese grupo sigue sin capacidad configurada.
+    const resumen = agregarDisponibilidad(entrada({
+      recursos: [{ id: 'rec-1', grupoEquipoId: 'g-router' }],
+      cargas: [
+        carga({
+          recursoId: 'rec-1',
+          fechaProgramada: '2026-10-25',
+          horasCapacidad: 0,
+          horasProgramadas: 0,
+          horasReales: 2,
+          horasDisponibles: 0,
+        }),
+      ],
+    }));
+
+    expect(resumen.grupos.find((grupo) => grupo.codigo === 'ROUTER')).toMatchObject({
+      estado: 'sin_capacidad_configurada',
+      horasCapacidad: null,
+      horasCarga: null,
+      horasDisponibles: null,
+    });
+  });
+
   it('señala recursos sin turnos aun cuando otros equipos del grupo sí tienen capacidad', () => {
     const resumen = agregarDisponibilidad(entrada({
       recursos: [

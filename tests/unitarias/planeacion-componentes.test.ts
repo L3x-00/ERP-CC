@@ -666,6 +666,27 @@ describe('operación de Planeación en cliente', () => {
     );
   });
 
+  it('muestra el domingo con solo horas reales en la matriz, sin un 0/0 (día sin jornada)', () => {
+    const cliente = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity } } });
+    const domingo = {
+      ...DATOS.cargas[0],
+      fechaProgramada: '2026-09-20',
+      horasCapacidad: 0,
+      horasProgramadas: 0,
+      horasReales: 2.5,
+      horasDisponibles: 0,
+      porcentajeOcupacion: 0,
+      sobrecargado: false,
+    };
+    renderizarOperacion(cliente, PARTIDAS_POR_DEFECTO, {
+      datosIniciales: { ...DATOS, cargas: [...DATOS.cargas, domingo] },
+    });
+
+    const reales = screen.getByTestId('reales-CNC-01-2026-09-20');
+    expect(reales.textContent).toContain('2.5 h reales');
+    expect(screen.getByTestId('resumen-carga-semanal').textContent).not.toContain('0/0 h');
+  });
+
   it('mientras la capacidad carga no declara «Sin capacidad configurada» (C9.1)', () => {
     obtenerCalendarioMock.mockImplementation(() => new Promise(() => {}));
     usarTiendaPlaneacion.setState({
