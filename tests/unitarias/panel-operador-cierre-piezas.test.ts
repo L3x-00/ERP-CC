@@ -175,8 +175,9 @@ describe('PanelOperadorProduccion — cierre de un proceso posterior', () => {
       pendientePiezas: 150,
       disponiblePiezas: 0,
     };
+    const ordenBase = orden as unknown as Record<string, unknown>;
     const ordenPausada = {
-      ...orden,
+      ...ordenBase,
       estadoKanban: 'pausada',
       sesiones: [sesionPausada],
       partidas: [{
