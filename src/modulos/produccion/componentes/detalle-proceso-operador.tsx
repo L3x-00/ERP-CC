@@ -495,10 +495,18 @@ export function DetalleProcesoOperador({
   async function actualizarAvance(): Promise<void> {
     const sesionId = sesionCorreccionId ?? proceso?.ultimaSesion?.id;
     if (!proceso || !sesionId) return;
+    const sesionActual = proceso.sesiones.find((item) => item.id === sesionId);
+    const piezasDeclaradas = Number(avancePiezas) || 0;
+    // ¿Este avance deja la operación completa? El servidor solo mantiene la
+    // pausa cuando falta el consumo de material; en ese caso el formulario debe
+    // seguir visible para asentarlo. Un avance parcial sí cierra el formulario.
+    const hechoEsperado = proceso.hechoPiezas
+      + (piezasDeclaradas - (sesionActual?.piezasProducidas ?? 0));
+    const operacionCompleta = proceso.metaPiezas > 0 && hechoEsperado >= proceso.metaPiezas;
     const registrarConsumo = avanceMaterialId !== '';
     const resultado = await acciones.actualizarAvance(proceso, {
       sesionId,
-      piezasProducidas: Number(avancePiezas) || 0,
+      piezasProducidas: piezasDeclaradas,
       horasReales: Number(avanceHoras) || 0,
       ...(avanceNotas.trim() ? { notas: avanceNotas.trim() } : {}),
       ...(registrarConsumo
@@ -519,7 +527,9 @@ export function DetalleProcesoOperador({
     // sigue pausada (operación completa con consumo pendiente, o avance
     // parcial), el formulario debe seguir disponible para terminarla.
     const estadoFinal = resultado.estadoSesion ?? resultado.datos?.estadoSesion;
-    const pausaResuelta = estadoFinal === 'finalizada' || estadoFinal === undefined;
+    const pausaResuelta = estadoFinal === 'finalizada'
+      || estadoFinal === undefined
+      || !operacionCompleta;
     setAvanceGuardado(pausaResuelta);
     if (pausaResuelta) {
       setAvancePiezas('0');
