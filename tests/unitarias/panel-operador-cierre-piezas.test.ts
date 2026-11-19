@@ -149,4 +149,63 @@ describe('PanelOperadorProduccion — cierre de un proceso posterior', () => {
     expect((screen.getByLabelText('Resultado') as HTMLSelectElement).value).toBe('pausada');
     expect(cerrar).toHaveBeenCalledTimes(1);
   });
+
+  it('no ofrece continuar una pausa sin piezas nuevas del proceso anterior', () => {
+    const sesionPausada = {
+      id: 'sesion-pausada',
+      ordenId: 'orden-1',
+      partidaId: 'partida-1',
+      programacionId: 'programacion-1',
+      operadorId: 'operador-1',
+      estadoSesion: 'pausada',
+      fechaInicio: '2026-11-19T08:00:00.000Z',
+      fechaFin: '2026-11-19T10:00:00.000Z',
+      horasNetas: 2,
+      piezasProducidas: 100,
+      motivoPausa: null,
+      motivoPausaCodigo: 'MATERIAL',
+      motivoPausaNota: null,
+      notas: null,
+      creadoEn: '2026-11-19T08:00:00.000Z',
+      actualizadoEn: '2026-11-19T10:00:00.000Z',
+    };
+    const metaSinPiezas = {
+      ...metaDoblado,
+      hechoPiezas: 100,
+      pendientePiezas: 150,
+      disponiblePiezas: 0,
+    };
+    const ordenPausada = {
+      ...orden,
+      estadoKanban: 'pausada',
+      sesiones: [sesionPausada],
+      partidas: [{
+        id: 'partida-1',
+        codigoPieza: 'IT01',
+        programaciones: [{
+          id: 'programacion-1',
+          metaProcesoId: 'meta-2',
+          secuencia: 2,
+          estadoPlaneacion: 'bloqueada',
+          actualizadoEn: '2026-11-19T10:00:00.000Z',
+        }],
+        metasProceso: [metaSinPiezas],
+      }],
+    } as never;
+    const reanudar = vi.fn();
+
+    render(createElement(PanelOperadorProduccion, {
+      ...BASE,
+      orden: ordenPausada,
+      sesionActiva: null,
+      onCerrar: vi.fn(),
+      onIniciar: vi.fn(),
+      onReanudar: reanudar,
+    }));
+
+    const aviso = screen.getByTestId('aviso-sin-piezas-reanudar-panel');
+    expect(aviso.textContent).toContain('Sin piezas de Corte laser');
+    expect(screen.queryByText('Continuar sesión pausada')).toBeNull();
+    expect(reanudar).not.toHaveBeenCalled();
+  });
 });

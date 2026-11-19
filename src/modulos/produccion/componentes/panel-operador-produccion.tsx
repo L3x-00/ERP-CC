@@ -281,7 +281,17 @@ export function PanelOperadorProduccion({
           ? actual.id === programacion.metaProcesoId
           : actual.secuencia === programacion.secuencia)) ?? null;
         const completa = meta !== null && meta.pendientePiezas <= 0;
-        return { sesion, partida, programacion, completa };
+        // C29: sin piezas nuevas del proceso anterior no se reanuda; la pausa
+        // se puede cerrar desde la ficha sin producir.
+        const sinPiezas = !completa && meta !== null && meta.disponiblePiezas === 0;
+        return {
+          sesion,
+          partida,
+          programacion,
+          completa,
+          sinPiezas,
+          procesoPrevioNombre: meta?.procesoPrevioNombre ?? null,
+        };
       }
     }
     return null;
@@ -289,6 +299,12 @@ export function PanelOperadorProduccion({
 
   async function reanudar(): Promise<void> {
     if (!orden || !ultimaPausa || ultimaPausa.completa) return;
+    if (ultimaPausa.sinPiezas) {
+      setErrorReanudacion(ultimaPausa.procesoPrevioNombre
+        ? `Sin piezas de ${ultimaPausa.procesoPrevioNombre}: espera a que libere más piezas para reanudar.`
+        : 'Sin piezas del proceso anterior: espera a que libere más piezas para reanudar.');
+      return;
+    }
     setErrorReanudacion(null);
     const resultado = await onReanudar({
       ordenId: orden.id, partidaId: ultimaPausa.partida.id,
@@ -1141,11 +1157,18 @@ export function PanelOperadorProduccion({
               </Button>
             </>
           ) : null}
-          {ultimaPausa && !ultimaPausa.completa && operadorDisponible ? (
+          {ultimaPausa && !ultimaPausa.completa && !ultimaPausa.sinPiezas && operadorDisponible ? (
             <Button type="button" tamano="lg" variante="secundario"
               disabled={procesando} onClick={() => { setErrorReanudacion(null); setConfirmarReanudacion(true); }}>
               Continuar sesión pausada
             </Button>
+          ) : null}
+          {ultimaPausa?.sinPiezas && operadorDisponible ? (
+            <p className="text-sm text-texto-secundario" data-testid="aviso-sin-piezas-reanudar-panel">
+              Sin piezas de {ultimaPausa.procesoPrevioNombre ?? 'el proceso anterior'} todavía:
+              espera a que libere más piezas para reanudar. La pausa se puede cerrar desde la
+              ficha del proceso sin producir.
+            </p>
           ) : null}
         </div>
       )}
@@ -1236,9 +1259,15 @@ export function PanelOperadorProduccion({
               desde la ficha del proceso; no se puede continuar produciendo.
             </p>
           ) : null}
+          {ultimaPausa?.sinPiezas ? (
+            <p className="text-sm text-advertencia-texto" data-testid="pausa-sin-piezas">
+              Sin piezas de {ultimaPausa.procesoPrevioNombre ?? 'el proceso anterior'}: espera a
+              que el proceso anterior libere más piezas para reanudar.
+            </p>
+          ) : null}
           <DialogFooter className="static mt-2 shrink-0">
             <Button type="button" variante="contorno" disabled={procesando} onClick={() => setConfirmarReanudacion(false)}>Cancelar</Button>
-            <Button type="button" disabled={procesando || !ultimaPausa || ultimaPausa.completa} onClick={() => void reanudar()}>{procesando ? 'Reanudando…' : 'Continuar'}</Button>
+            <Button type="button" disabled={procesando || !ultimaPausa || ultimaPausa.completa || ultimaPausa.sinPiezas} onClick={() => void reanudar()}>{procesando ? 'Reanudando…' : 'Continuar'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

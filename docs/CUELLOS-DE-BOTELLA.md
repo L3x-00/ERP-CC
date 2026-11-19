@@ -282,5 +282,11 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | Tras declarar el total de piezas de una pausa, la ficha seguía mostrando «Continuar sesión pausada» y «Cerrar pausa sin producir» | La RPC `actualizar_avance_sesion_pausada` deja la sesión en `pausada` cuando la operación quedó completa pero falta el consumo de material (Opción 2: consumo en el cierre normal). `puedeReanudar` solo miraba el estado de la sesión y la programación `bloqueada`, no la completitud de la operación | `puedeReanudar` exige `!procesoCompleto`. Una operación terminada solo se cierra asentando el consumo desde el formulario de avance; la ficha muestra el aviso de operación completa y conserva ese formulario. Si la RPC responde `estadoSesion = 'pausada'`, el formulario no se oculta ni reinicia piezas/horas a 0 (se prefijan con lo ya declarado para no restar producción) |
 
+## 21. Reanudar un proceso posterior sin piezas (C29)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Doblado se podía reanudar con 0 piezas disponibles aunque Corte no hubiera liberado nada nuevo | `iniciar_sesion_trabajo_operador` omitía la validación `proceso_previo_sin_piezas` cuando existía una sesión pausada (C12), y el servicio/UI replicaban esa omisión en `puedeReanudar` | La disponibilidad del proceso previo se valida siempre, también al reanudar: `piezas_disponibles_proceso > 0`. El servidor lanza `proceso_previo_sin_piezas`; el servicio pone `puedeReanudar = false` y `motivoNoInicia` explica que hay que esperar más piezas. «Cerrar pausa sin producir» se mantiene disponible (no depende de `puedeReanudar`) para que la operación no quede atrapada esperando al proceso anterior |
+
 
 

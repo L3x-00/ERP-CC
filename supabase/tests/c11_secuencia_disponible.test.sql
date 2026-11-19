@@ -5,7 +5,7 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET LOCAL search_path = public, extensions;
-SELECT plan(16);
+SELECT plan(17);
 
 INSERT INTO auth.users (id, email)
 VALUES ('00000000-0000-4000-8000-0000000c1101', 'c11-operador@prueba.local');
@@ -158,7 +158,7 @@ SELECT is(privado.piezas_disponibles_proceso((
   WHERE partida_id = '00000000-0000-4000-8000-0000000c1104' AND secuencia = 2
 )), 0::numeric, 'La disponibilidad descuenta lo ya consumido por el doblado');
 
--- 13-14. Una sesión pausada se puede reanudar aunque el lote esté consumido.
+-- 13. Una sesión pausada NO se reanuda si ya consumió todo el lote previo.
 INSERT INTO public.sesiones_trabajo (
   id, orden_id, partida_id, programacion_id, operador_id, estado_sesion,
   fecha_inicio, fecha_fin, verificacion_inicio
@@ -173,24 +173,40 @@ INSERT INTO public.sesiones_trabajo (
 UPDATE public.programacion_areas SET estado_planeacion = 'en_preparacion'
 WHERE id = '00000000-0000-4000-8000-0000000c1122';
 
+SELECT throws_ok($$SELECT * FROM public.iniciar_sesion_trabajo_operador(
+  '00000000-0000-4000-8000-0000000c1103'::uuid, '00000000-0000-4000-8000-0000000c1104'::uuid,
+  '00000000-0000-4000-8000-0000000c1122'::uuid, '00000000-0000-4000-8000-0000000c1101'::uuid)$$,
+  '23514', 'proceso_previo_sin_piezas',
+  'Reanudar sin piezas nuevas también se bloquea');
+
+-- 14. Cuando el proceso previo libera más piezas, la reanudación procede.
+INSERT INTO public.registros_avance_partida (
+  partida_id, operador_id, cantidad_producida, meta_proceso_id
+) VALUES (
+  '00000000-0000-4000-8000-0000000c1104', '00000000-0000-4000-8000-0000000c1101', 20,
+  (SELECT id FROM public.metas_proceso_partida
+   WHERE partida_id = '00000000-0000-4000-8000-0000000c1104' AND secuencia = 1)
+);
+
 SELECT lives_ok($$SELECT * FROM public.iniciar_sesion_trabajo_operador(
   '00000000-0000-4000-8000-0000000c1103'::uuid, '00000000-0000-4000-8000-0000000c1104'::uuid,
   '00000000-0000-4000-8000-0000000c1122'::uuid, '00000000-0000-4000-8000-0000000c1101'::uuid)$$,
-  'Reanudar una sesión pausada no exige piezas nuevas');
+  'Con piezas nuevas del corte, la pausa se reanuda');
 
+-- 15. La reanudación deja una única sesión activa.
 SELECT is((
   SELECT count(*)::integer FROM public.sesiones_trabajo
   WHERE programacion_id = '00000000-0000-4000-8000-0000000c1122'
     AND estado_sesion = 'activa'
 ), 1, 'La reanudación deja una única sesión activa');
 
--- 15. El avance global de piso también respeta la secuencia.
+-- 16. El avance global de piso también respeta la secuencia.
 SELECT throws_ok($$SELECT public.registrar_avance_partida_op(
   '00000000-0000-4000-8000-0000000c1105', '00000000-0000-4000-8000-0000000c1101', 5, 0)$$,
   '23514', 'cantidad_excede_disponible_proceso',
   'El avance global no puede saltarse el proceso previo');
 
--- 16. La función de disponibilidad es interna.
+-- 17. La función de disponibilidad es interna.
 SELECT ok(NOT has_function_privilege('authenticated',
   'privado.piezas_disponibles_proceso(uuid)', 'EXECUTE'),
   'Un JWT no consulta la disponibilidad interna');

@@ -459,6 +459,15 @@ export function DetalleProcesoOperador({
     && !proceso.ultimaSesion.recursoLiberado
     ? proceso.ultimaSesion
     : null;
+  // C29: la pausa se puede cerrar aunque no haya piezas para reanudar; de otro
+  // modo la operación quedaría atrapada esperando al proceso anterior.
+  const puedeCerrarPausa = sesionPausada !== null
+    && !proceso.pendienteActualizacionAvance
+    && !proceso.procesoCompleto;
+  const sinPiezasParaReanudar = sesionPausada !== null
+    && !proceso.pendienteActualizacionAvance
+    && !proceso.procesoCompleto
+    && proceso.piezasDisponibles === 0;
   const materialClientePartida = materialCliente.filter(
     (material) => material.partidaId === proceso.partidaId,
   );
@@ -1709,6 +1718,11 @@ export function DetalleProcesoOperador({
               <p className="text-xs text-advertencia-texto">
                 La operación ya está completa. Registra el consumo pendiente para cerrar la pausa.
               </p>
+            ) : sinPiezasParaReanudar ? (
+              <p className="text-xs text-texto-secundario" data-testid="aviso-sin-piezas-reanudar">
+                Todavía no hay piezas de {nombreProcesoPrevio}: espera a que libere más piezas para
+                reanudar. Mientras tanto puedes cerrar esta pausa sin producir.
+              </p>
             ) : proceso.puedeReanudar ? (
               <p className="text-xs text-advertencia-texto">
                 Puedes retomarla con «Continuar sesión pausada»; el avance y las horas
@@ -2645,7 +2659,7 @@ export function DetalleProcesoOperador({
                   Continuar sesión pausada
                 </Button>
               ) : null}
-              {proceso.puedeReanudar && !proceso.pendienteActualizacionAvance ? (
+              {puedeCerrarPausa ? (
                 <Button type="button" variante="contorno" disabled={procesando} onClick={() => void cerrarPausa()} data-testid="cerrar-pausa-detalle">
                   Cerrar pausa sin producir
                 </Button>
