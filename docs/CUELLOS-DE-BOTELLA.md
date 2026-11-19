@@ -239,3 +239,14 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | La C23 rebasada volvía a definir `reprogramar_partida_recurso` con capacidad por turno y mensajes genéricos tras la C24 | La migración renumerada (`20261118160000/160100`) conservaba el cuerpo original escrito antes de la C24 | Tras renumerar una migración **después** de otra que redefinió la misma función, hay que **borrar la definición duplicada** o copiar la versión vigente con el delta. Si la función ya incorpora la regla, se elimina del archivo y se deja un comentario que lo explique; nunca se deja el cuerpo viejo “por si acaso” |
 | Las pruebas `c20_hora_fin_y_avance_pausa` y `c20_cierre_riesgos` fallaban al rebasar por la jornada | Fijaban 9 h (540 min) de jornada; la C24 la dejó en 8 h (480 min) de lunes a viernes | Las pruebas de jornada se anclan a la regla vigente del PO: 480 min en día laboral y `horas_netas_operador_dia >= 8`. Al cambiar la jornada, revisar todas las expectativas numéricas de `c20_*` y `a20_prd09`, no solo la migración |
 
+## 17. CI proporcional al cambio
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Un PR de documentación tarda 15-22 min y corre todo el E2E | El workflow solo tenía una lista blanca de 6 archivos; cualquier otro cambio ejecutaba todas las capas | El plan lo decide `scripts/ci/clasificar-cambios.mjs` (docs / pruebas / módulo / transversal / total). Ante cualquier ruta desconocida escala a `total`; nunca omite por ignorancia |
+| Se agrega un spec E2E o un módulo nuevo y el CI deja de cubrirlo (o se vuelve más lento) | El mapa módulo→specs vive en un solo lugar y hay que actualizarlo | `scripts/ci/catalogo-pruebas.mjs` es la única fuente de verdad. Si un spec o módulo no está registrado, el clasificador sale con código 2 y dice exactamente qué añadir. Ver `scripts/ci/README.md` |
+| El job E2E queda verde sin ejecutar nada | Casi todos los specs hacen `test.skip` si `E2E_HABILITAR_PRUEBAS_REMOTAS` no vale `si`; un `skipped` cuenta como éxito para Playwright | El paso E2E exige la variable y, tras correr, verifica que al menos una prueba se ejecutó de verdad |
+| Una capa obligatoria se salta y el check agregado sigue en verde | El job `resultado` aceptaba `skipped` sin comparar con el plan | El job `resultado` contrasta cada capa omitida con los outputs de `clasificar`; si una capa exigida no corrió, falla |
+| Borrar o renombrar un test rompe el job con "No test files found" | El diff incluye rutas borradas y se pasaban tal cual a Vitest/Playwright | `podarInexistentes()` quita de las listas explícitas las rutas que ya no existen; si no queda ninguna, la capa pasa a no ejecutarse |
+
+
