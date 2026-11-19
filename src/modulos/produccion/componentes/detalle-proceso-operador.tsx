@@ -156,6 +156,23 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   );
 }
 
+/**
+ * C21: pausa corregible más reciente. Nunca debe caer en una sesión activa:
+ * al reanudar, la pausa anterior queda como historial y la sesión activa es la
+ * más reciente; corregir el avance sobre ella falla con `sesion_no_pausada`.
+ */
+function pausaCorregible(
+  proceso: ProcesoEspacioOperador | null,
+): ProcesoEspacioOperador['sesiones'][number] | null {
+  if (!proceso) return null;
+  return [...proceso.sesiones]
+    .filter((sesion) => sesion.estadoSesion === 'pausada'
+      && !sesion.sesionInvalida
+      && !sesion.recursoLiberado)
+    .sort((primera, segunda) => segunda.fechaInicio.localeCompare(primera.fechaInicio)
+      || segunda.id.localeCompare(primera.id))[0] ?? null;
+}
+
 /** C10: ficha completa de la operación con las acciones que permite su estado. */
 export function DetalleProcesoOperador({
   proceso,
@@ -205,14 +222,10 @@ export function DetalleProcesoOperador({
     campo.value = ahoraLocalDatetimeInput();
     horaFinEditada.current = false;
   }, [proceso?.sesionActiva?.id]);
-  // C20: corrección de la pausa automática (piezas, horas y notas).
-  // Se prefijan con lo ya declarado por la sesión pausada: reenviar el total
-  // (no 0) evita restar producción al registrar el consumo pendiente.
-  const sesionPausadaInicial = proceso?.ultimaSesion?.estadoSesion === 'pausada'
-    && !proceso.ultimaSesion.sesionInvalida
-    && !proceso.ultimaSesion.recursoLiberado
-    ? proceso.ultimaSesion
-    : null;
+  // C20/C21: corrección de la pausa (piezas, horas y notas). Se prefija con la
+  // pausa corregible más reciente (nunca la sesión activa) para no restar
+  // producción ni enviar la corrección a la sesión equivocada.
+  const sesionPausadaInicial = pausaCorregible(proceso);
   const [avancePiezas, setAvancePiezas] = useState(
     () => (sesionPausadaInicial ? String(sesionPausadaInicial.piezasProducidas) : '0'),
   );
@@ -222,7 +235,7 @@ export function DetalleProcesoOperador({
   const [avanceNotas, setAvanceNotas] = useState('');
   // C21: corrección de cualquier sesión pausada y consumo opcional.
   const [sesionCorreccionId, setSesionCorreccionId] = useState<string | null>(
-    () => proceso?.ultimaSesion?.id ?? null,
+    () => sesionPausadaInicial?.id ?? null,
   );
   const [avanceMaterialId, setAvanceMaterialId] = useState('');
   const [avanceUsada, setAvanceUsada] = useState('0');
@@ -502,7 +515,7 @@ export function DetalleProcesoOperador({
 
   /** C21: declara piezas y tiempo real de cualquier sesión pausada. */
   async function actualizarAvance(): Promise<void> {
-    const sesionId = sesionCorreccionId ?? proceso?.ultimaSesion?.id;
+    const sesionId = sesionCorreccionId ?? pausaCorregible(proceso)?.id;
     if (!proceso || !sesionId) return;
     const sesionActual = proceso.sesiones.find((item) => item.id === sesionId);
     const piezasDeclaradas = Number(avancePiezas) || 0;
@@ -1681,15 +1694,6 @@ export function DetalleProcesoOperador({
           </section>
         ) : null}
 
-        {proceso.reclamo ? (
-          <p className="rounded-md bg-superficie-2 p-3 text-sm text-texto-secundario">
-            <span className="font-semibold text-texto-primario">Reserva: </span>
-            {proceso.reclamadoPorMi ? 'tuya' : `de ${proceso.nombreReclamante ?? 'otro operador'}`}
-            {' . '}{etiquetaDiaLargo(proceso.reclamo.fecha)} . {turnoLegible(proceso.reclamo.turno)}
-            {' . '}{horasLegibles(proceso.reclamo.horasEstimadas)}
-          </p>
-        ) : null}
-
         {sesionPausada ? (
           <section
             aria-label="Sesión pausada"
@@ -2530,7 +2534,7 @@ export function DetalleProcesoOperador({
                 <label className={CLASE_ETIQUETA}>
                   Sesión a actualizar
                   <Select
-                    value={sesionCorreccionId ?? proceso.ultimaSesion?.id ?? ''}
+                    value={sesionCorreccionId ?? sesionPausadaInicial?.id ?? ''}
                     onChange={(evento) => {
                       const siguienteId = evento.target.value;
                       setSesionCorreccionId(siguienteId);
@@ -2671,7 +2675,9 @@ export function DetalleProcesoOperador({
               ) : null}
             </div>
 
-            {proceso.motivoNoInicia ? (
+            {/* Con una sesión en marcha, el motivo de "ya hay una sesión activa"
+                es redundante: el formulario de cierre ya está arriba. */}
+            {proceso.motivoNoInicia && !proceso.sesionActiva ? (
               <p className="text-xs text-texto-secundario">{proceso.motivoNoInicia}</p>
             ) : null}
           </section>

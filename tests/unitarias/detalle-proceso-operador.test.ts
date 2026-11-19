@@ -788,6 +788,101 @@ describe('DetalleProcesoOperador', () => {
     expect(nota.textContent).toContain('historial independiente');
   });
 
+  it('actualiza la pausa anterior y no la sesión activa al reanudar', async () => {
+    const sesionPausada = {
+      id: 'sesion-pausada',
+      corridaId: null,
+      operadorId: 'operador-1',
+      operadorNombre: 'Operador de prueba',
+      estadoSesion: 'pausada' as const,
+      fechaInicio: '2026-10-28T08:00:00.000Z',
+      fechaFin: '2026-10-28T09:00:00.000Z',
+      piezasProducidas: 4,
+      horasNetas: 1,
+      motivoPausa: 'MATERIAL',
+      motivoPausaNota: null,
+      notas: null,
+      verificacionCompleta: true,
+      recursoLiberado: false,
+      sesionInvalida: false,
+    };
+    const reanudado = {
+      ...proceso,
+      sesiones: [proceso.sesionActiva, sesionPausada].filter(Boolean),
+      ultimaSesion: proceso.sesionActiva,
+      pendienteActualizacionAvance: false,
+    } as unknown as ProcesoEspacioOperador;
+    const actualizarAvance = vi.fn().mockResolvedValue({ exito: true, estadoSesion: 'pausada' });
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: reanudado,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance,
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect((screen.getByTestId('avance-sesion') as HTMLSelectElement).value).toBe('sesion-pausada');
+    fireEvent.submit(screen.getByTestId('formulario-actualizar-avance'));
+
+    await waitFor(() => expect(actualizarAvance).toHaveBeenCalledWith(
+      reanudado,
+      expect.objectContaining({ sesionId: 'sesion-pausada', piezasProducidas: 4, horasReales: 1 }),
+    ));
+  });
+
+  it('oculta la reserva y el motivo redundante de la sesión en marcha', () => {
+    const conReserva = {
+      ...proceso,
+      reclamo: {
+        fecha: '2026-10-28',
+        turno: 'matutino',
+        horasEstimadas: 2,
+        operadorId: 'operador-1',
+      },
+      motivoNoInicia: 'Ya hay una sesión activa en este proceso',
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: conReserva,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.queryByText(/Reserva:/)).toBeNull();
+    expect(screen.queryByText('Ya hay una sesión activa en este proceso')).toBeNull();
+  });
+
   it('en un proceso posterior asume consumo 1:1 cuando «Usado» queda en 0', async () => {
     const cerrar = vi.fn().mockResolvedValue({ exito: true } satisfies ResultadoOperacion);
     const doblado = {

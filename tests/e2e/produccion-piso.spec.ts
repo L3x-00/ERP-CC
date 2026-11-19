@@ -468,10 +468,11 @@ test.describe.serial('piso de Producción y entregas', () => {
       await expect(tarjetaReservada).toContainText('Reservado por ti');
 
       // La ficha muestra la ruta, el material y los archivos de la orden.
+      // C29: la ficha ya no repite el banner de reserva; la reserva se confirma
+      // en la tarjeta del proceso («Reservado por ti», arriba).
       await expect(detalle).toContainText('Ruta de fabricación');
       await expect(detalle).toContainText('Fabricación');
       await expect(detalle).toContainText('Planos y archivos');
-      await expect(detalle).toContainText('Reserva: tuya');
 
       // Iniciar desde el espacio reserva el recurso y abre la sesión real.
       await detalle.getByTestId('iniciar-detalle').click();
