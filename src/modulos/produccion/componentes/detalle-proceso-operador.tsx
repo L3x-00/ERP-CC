@@ -40,6 +40,7 @@ import {
   validarConsumoPiezasCierre,
 } from '@/modulos/produccion/utilidades/consumo-piezas';
 import { DialogoErrorCierre, type DatosErrorCierre } from '@/modulos/produccion/componentes/dialogo-error-cierre';
+import { ContadorSesionVivo } from '@/modulos/produccion/componentes/contador-sesion-vivo';
 import { registrarInspeccionAccion } from '@/modulos/produccion/acciones/registrar-inspeccion';
 import { registrarRetrabajoAccion } from '@/modulos/produccion/acciones/registrar-retrabajo';
 import { registrarConsumoPiezasAccion } from '@/modulos/produccion/acciones/registrar-consumo-piezas';
@@ -109,7 +110,6 @@ export interface AccionesDetalleProceso {
     cantidadUsada?: number;
     cantidadScrap?: number;
     motivoConsumo?: string | null;
-    pinConfirmacion?: string;
   }) => Promise<ResultadoOperacion>;
   cerrar: (proceso: ProcesoEspacioOperador, datos: {
     sesionId: string;
@@ -117,8 +117,6 @@ export interface AccionesDetalleProceso {
     estadoDestino: 'pausada' | 'finalizada';
     motivoPausa?: string;
     notas?: string;
-    horaFin?: string;
-    pinConfirmacion: string;
     consumo?: {
       materialId: string;
       cantidadUsada: number;
@@ -126,7 +124,6 @@ export interface AccionesDetalleProceso {
       motivo: string;
     };
     itemsIntegrados?: ItemIntegrado[];
-    minutosSetup?: number;
   }) => Promise<ResultadoOperacion>;
 }
 
@@ -191,17 +188,13 @@ export function DetalleProcesoOperador({
   const [cantidadMerma, setCantidadMerma] = useState('0');
   // B7: el consumo real exige motivo y el setup se identifica sin duplicar costo.
   const [motivoConsumo, setMotivoConsumo] = useState('');
-  const [minutosSetup, setMinutosSetup] = useState('');
   const [estadoDestino, setEstadoDestino] = useState<'pausada' | 'finalizada'>('finalizada');
   const [motivoPausa, setMotivoPausa] = useState('');
   const [notas, setNotas] = useState('');
-  const [pin, setPin] = useState('');
-  // C20: hora real declarada al cerrar y corrección de la pausa automática.
-  const [horaFin, setHoraFin] = useState('');
+  // C20: corrección de la pausa automática (piezas, horas y notas).
   const [avancePiezas, setAvancePiezas] = useState('0');
   const [avanceHoras, setAvanceHoras] = useState('0');
   const [avanceNotas, setAvanceNotas] = useState('');
-  const [avancePin, setAvancePin] = useState('');
   // C21: corrección de cualquier sesión pausada y consumo opcional.
   const [sesionCorreccionId, setSesionCorreccionId] = useState<string | null>(
     () => proceso?.ultimaSesion?.id ?? null,
@@ -466,14 +459,6 @@ export function DetalleProcesoOperador({
   async function actualizarAvance(): Promise<void> {
     const sesionId = sesionCorreccionId ?? proceso?.ultimaSesion?.id;
     if (!proceso || !sesionId) return;
-    if (!/^\d{4,6}$/.test(avancePin)) {
-      setErrorAvance({
-        titulo: 'Falta el PIN de operador',
-        mensaje: 'Escribe tu PIN de 4 a 6 dígitos para confirmar la actualización del avance.',
-        acciones: [],
-      });
-      return;
-    }
     const registrarConsumo = avanceMaterialId !== '';
     const resultado = await acciones.actualizarAvance(proceso, {
       sesionId,
@@ -488,7 +473,6 @@ export function DetalleProcesoOperador({
             motivoConsumo: avanceMotivoConsumo.trim() || 'Consumo al actualizar avance',
           }
         : {}),
-      ...(avancePin ? { pinConfirmacion: avancePin } : {}),
     });
     setMensaje(resultado);
     if (!resultado.exito) {
@@ -496,7 +480,6 @@ export function DetalleProcesoOperador({
       return;
     }
     setAvanceGuardado(true);
-    setAvancePin('');
     setAvancePiezas('0');
     setAvanceHoras('0');
   }
@@ -584,10 +567,6 @@ export function DetalleProcesoOperador({
   async function ejecutarCierre(): Promise<void> {
     if (!proceso?.sesionActiva) return;
     setErrorCierre(null);
-    if (!/^\d{4,6}$/.test(pin)) {
-      fallarCierre({ exito: false, error: 'El PIN debe tener entre 4 y 6 dígitos' });
-      return;
-    }
     const piezasCapturadas = Number(piezas);
     if (!Number.isInteger(piezasCapturadas) || piezasCapturadas < 0) {
       fallarCierre({ exito: false, error: 'Las piezas producidas deben ser un número entero' });
@@ -665,26 +644,6 @@ export function DetalleProcesoOperador({
         return;
       }
     }
-    const minutosSetupNumero = minutosSetup.trim() === '' ? undefined : Number(minutosSetup);
-    if (
-      minutosSetupNumero !== undefined
-      && (!Number.isFinite(minutosSetupNumero) || minutosSetupNumero < 0 || minutosSetupNumero > 1440)
-    ) {
-      fallarCierre({
-        exito: false,
-        error: 'Los minutos de setup deben ser un número entre 0 y 1440.',
-      });
-      return;
-    }
-    const minutosTranscurridos = horasSesion * 60;
-    if (minutosSetupNumero !== undefined && minutosSetupNumero > minutosTranscurridos + 1) {
-      fallarCierre({
-        exito: false,
-        error: `El setup (${minutosSetupNumero} min) no puede superar el tiempo transcurrido de la sesión (${Math.max(Math.floor(minutosTranscurridos), 0)} min).`,
-      });
-      return;
-    }
-
     if (estadoDestino === 'finalizada' && registrarRetrabajo && !retrabajoRegistrado) {
       const rUsado = Number(retrabajoUsado);
       const rMerma = Number(retrabajoMerma);
@@ -825,7 +784,6 @@ export function DetalleProcesoOperador({
       estadoDestino,
       ...(estadoDestino === 'pausada' && motivoSeleccionado ? { motivoPausa: motivoSeleccionado.codigo } : {}),
       ...(notas.trim() ? { notas: notas.trim() } : {}),
-      ...(horaFin ? { horaFin } : {}),
       ...(incluirConsumo
         ? {
             consumo: {
@@ -837,8 +795,6 @@ export function DetalleProcesoOperador({
           }
         : {}),
       ...(itemsIntegrados ? { itemsIntegrados } : {}),
-      ...(minutosSetupNumero !== undefined ? { minutosSetup: minutosSetupNumero } : {}),
-      pinConfirmacion: pin,
     });
     setMensaje(resultado);
     if (!resultado.exito) {
@@ -863,7 +819,7 @@ export function DetalleProcesoOperador({
               setNotas((previo) => (previo.trim() ? `${previo.trim()} · ${aviso}` : aviso));
               setMensaje({
                 exito: false,
-                error: `${aviso}. La sesión quedó lista para pausar: confirma con tu PIN.`,
+                error: `${aviso}. La sesión quedó lista para pausar: revisa los datos y confirma.`,
               });
             },
           }],
@@ -882,16 +838,21 @@ export function DetalleProcesoOperador({
           }],
         });
       } else if (resultado.codigo !== 'primera_pieza_pendiente') {
-        setErrorCierre({ titulo: 'No se pudo cerrar la sesión', mensaje: resultado.error });
+        setErrorCierre({
+          titulo: 'No se pudo cerrar la sesión',
+          mensaje: resultado.error,
+          acciones: [{
+            etiqueta: 'Revisar los datos y reintentar',
+            alElegir: () => setMensaje(null),
+          }],
+        });
       }
       setMensajeJustificacion(null);
       return;
     }
     if (resultado.exito) {
-      setPin('');
       setNotas('');
       setMotivoConsumo('');
-      setMinutosSetup('');
       // Punto 11: el cierre ya se registró; el formulario se repliega solo para
       // no dejar al operador con la captura abierta y el botón "Cerrar" a mano.
       setCierreAbierto(false);
@@ -1396,6 +1357,25 @@ export function DetalleProcesoOperador({
           ) : null}
           {proceso.esExterno ? <Dato etiqueta="Externo" valor={proceso.proveedorExterno ?? 'Sí'} /> : null}
         </dl>
+        {proceso.sesionActiva ? (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-borde bg-superficie-2/60 px-3 py-2 text-sm"
+            data-testid="sesion-en-curso-detalle"
+          >
+            <span className="text-texto-secundario">
+              Sesión iniciada {etiquetaFechaHora(proceso.sesionActiva.fechaInicio)}
+            </span>
+            <ContadorSesionVivo
+              fechaInicio={proceso.sesionActiva.fechaInicio}
+              limiteHoras={proceso.horasEstimadas}
+              testId="contador-sesion-detalle"
+            />
+            <span className="text-xs text-texto-tenue">
+              Estimado de la orden: {horasLegibles(proceso.horasEstimadas)}. Si ya se superó,
+              cierra la sesión igual: se registra el tiempo real.
+            </span>
+          </div>
+        ) : null}
         <div className="mt-3 grid gap-1">
           <p className="text-xs uppercase tracking-wide text-texto-tenue">Avance del proceso</p>
           <BarraProgreso valor={proceso.porcentaje} tono={proceso.columna === 'lista' ? 'exito' : 'acento'} mostrarPorcentaje etiqueta="Avance del proceso" />
@@ -1777,25 +1757,6 @@ export function DetalleProcesoOperador({
                       <option value="pausada">Pausar sesión de trabajo</option>
                     </Select>
                   </label>
-                  {estadoDestino === 'finalizada' ? (
-                    <label className={CLASE_ETIQUETA}>
-                      Minutos de setup (opcional)
-                      <Input
-                        type="number"
-                        min="0"
-                        max={Math.max(Math.floor(horasSesion * 60), 0)}
-                        step="1"
-                        value={minutosSetup}
-                        onChange={(evento) => setMinutosSetup(evento.target.value)}
-                        placeholder="0"
-                        data-testid="minutos-setup"
-                      />
-                      <span className="text-xs font-normal text-texto-tenue">
-                        Identifica el setup dentro del tiempo real; no se cobra dos veces. Máximo{' '}
-                        {Math.max(Math.floor(horasSesion * 60), 0)} min (tiempo transcurrido).
-                      </span>
-                    </label>
-                  ) : null}
                   {estadoDestino === 'pausada' ? (
                     <label className={CLASE_ETIQUETA}>
                       Motivo de pausa
@@ -2316,33 +2277,6 @@ export function DetalleProcesoOperador({
                   )}
                 </div>
                   <label className={CLASE_ETIQUETA}>
-                    Hora real de finalización (opcional)
-                    <Input
-                      type="datetime-local"
-                      value={horaFin}
-                      onChange={(evento) => setHoraFin(evento.target.value)}
-                      data-testid="hora-fin-cierre"
-                    />
-                    <span className="text-xs text-texto-tenue">
-                      Si la dejas vacía se registra la hora actual del cierre.
-                    </span>
-                  </label>
-
-                  <label className={CLASE_ETIQUETA}>
-                    PIN de confirmación
-                    <Input
-                      inputMode="numeric"
-                      maxLength={6}
-                      pattern="[0-9]{4,6}"
-                      type="password"
-                      value={pin}
-                      onChange={(evento) => setPin(evento.target.value)}
-                      required
-                      data-testid="pin-cierre"
-                    />
-                  </label>
-
-                  <label className={CLASE_ETIQUETA}>
                     Notas{estadoDestino === 'pausada' && motivoSeleccionado?.requiereNota
                       ? ' (obligatorias)'
                       : ' (opcional)'}
@@ -2572,25 +2506,6 @@ export function DetalleProcesoOperador({
                     </label>
                   </div>
                 ) : null}
-                <label className={CLASE_ETIQUETA}>
-                  PIN de operador <span className="text-peligro-texto" aria-hidden="true">*</span>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    required
-                    aria-required="true"
-                    maxLength={6}
-                    pattern="[0-9]{4,6}"
-                    aria-describedby="avance-pin-ayuda"
-                    value={avancePin}
-                    onChange={(evento) => setAvancePin(evento.target.value)}
-                    className="rounded-md border border-borde bg-superficie px-2 py-1 text-sm"
-                    data-testid="avance-pin"
-                  />
-                  <span id="avance-pin-ayuda" className="text-xs font-normal text-texto-tenue">
-                    Obligatorio: tu PIN de 4 a 6 dígitos.
-                  </span>
-                </label>
                 <Button type="submit" disabled={procesando} data-testid="actualizar-avance-detalle">
                   {procesando ? 'Actualizando…' : 'Actualizar avance'}
                 </Button>

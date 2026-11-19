@@ -65,21 +65,6 @@ async function crearUsuario(
   return data.user.id;
 }
 
-function horaLocalTaller(fecha: Date): string {
-  const partes = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'America/Tijuana',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(fecha);
-  const valor = (tipo: Intl.DateTimeFormatPartTypes): string =>
-    partes.find((parte) => parte.type === tipo)?.value ?? '';
-  return `${valor('year')}-${valor('month')}-${valor('day')}T${valor('hour')}:${valor('minute')}`;
-}
-
 async function prepararContexto(): Promise<ContextoE2E> {
   const admin = crearAdmin();
   const sufijo = randomUUID().slice(0, 8);
@@ -309,7 +294,6 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
     await expect(formulario).toBeVisible();
     await formulario.getByTestId('avance-piezas').fill('3');
     await formulario.getByTestId('avance-horas').fill('5');
-    await formulario.getByTestId('avance-pin').fill(caso.pinOperador);
     await formulario.getByTestId('actualizar-avance-detalle').click();
 
     // El formulario se cierra al guardar y deja una confirmación verde visible.
@@ -333,13 +317,8 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
 
     await page.getByTestId('alternar-cierre-sesion').click();
     await page.getByTestId('piezas-cierre').fill('2');
-    // Un minuto por delante: el reloj de la sesión tiene segundos y el input
-    // solo minutos; la RPC tolera hasta 2 min de margen hacia el futuro.
-    const { data: sesionActiva } = await caso.admin.from('sesiones_trabajo')
-      .select('fecha_inicio').eq('partida_id', caso.partidaId).eq('estado_sesion', 'activa').single();
-    const horaConclusion = horaLocalTaller(new Date(new Date(sesionActiva!.fecha_inicio).getTime() + 60_000));
-    await page.getByTestId('hora-fin-cierre').fill(horaConclusion);
-    await page.getByTestId('pin-cierre').fill(caso.pinOperador);
+    // Desde C26 la hora real de fin la registra el servidor al cerrar: el
+    // operador ya no captura una hora que no puede conocer.
     await page.getByTestId('cerrar-sesion-detalle').click();
     // El refresh del tablero puede descartar el diálogo de resumen; se espera
     // el estado persistido y luego se verifican los datos.
@@ -357,8 +336,9 @@ test.describe.serial('C20: pausa, actualización de avance y hora real de conclu
       .order('fecha_inicio', { ascending: false });
     const sesionFinal = (sesionesFinales ?? []).find((sesion) => Number(sesion.piezas_producidas) === 2);
     expect(sesionFinal, 'Debe existir la sesión cerrada con 2 piezas').toBeTruthy();
-    expect(sesionFinal?.fecha_fin_declarada).not.toBeNull();
-    expect(sesionFinal?.fecha_fin).toBe(sesionFinal?.fecha_fin_declarada);
+    expect(sesionFinal?.fecha_fin).not.toBeNull();
+    // Sin captura manual de hora, la sesión no declara un fin distinto al real.
+    expect(sesionFinal?.fecha_fin_declarada).toBeNull();
 
     const { data: partidaFinal } = await caso.admin.from('partidas_orden_produccion')
       .select('cantidad_producida')

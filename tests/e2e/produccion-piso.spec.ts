@@ -653,7 +653,6 @@ await expect(
     await page.getByLabel('Material').selectOption(contextoPrueba.materialId);
     await page.getByLabel('Usado').fill('5');
     await page.getByTestId('motivo-consumo').fill('Consumo E2E');
-    await page.getByLabel('Confirmar PIN').fill(contextoPrueba.pinOperador);
     await page.getByTestId('cerrar-sesion-produccion').click();
     await expect(page.getByTestId('resumen-cierre-sesion')).toContainText('Material usado');
     await page.getByRole('button', { name: 'Entendido' }).click();
@@ -823,7 +822,6 @@ await expect(
       await page.getByLabel('Resultado').selectOption('pausada');
       await page.getByLabel('Motivo de pausa').selectOption('MATERIAL');
       await page.getByLabel('Notas operativas').fill('Esperando insumo para continuar');
-      await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
       await page.getByTestId('cerrar-sesion-produccion').click();
       await expect(page.getByRole('status')).toContainText('Sesión registrada');
       await expect(page.getByRole('region', { name: 'Historial de sesiones' })).toContainText('Esperando insumo para continuar');
@@ -910,7 +908,6 @@ await expect(
       await page.getByLabel('Resultado').selectOption('pausada');
       await page.getByLabel('Motivo de pausa').selectOption('MATERIAL');
       await page.getByLabel('Notas operativas').fill('Sin lámina para continuar');
-      await page.getByLabel('Confirmar PIN').fill(caso.pinOperador);
       await page.getByTestId('cerrar-sesion-produccion').click();
       await expect(page.getByRole('status')).toContainText('Sesión registrada');
 

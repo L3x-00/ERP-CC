@@ -1,14 +1,7 @@
 'use server';
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
-import {
-  estaBloqueado,
-  limpiarIntentos,
-  obtenerIdentificadorSolicitante,
-  registrarIntentoFallido,
-} from '@/nucleo/autenticacion/limitar-intentos';
 import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
-import { confirmarPinDeOperador } from '@/nucleo/autenticacion/pin-operador';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import {
@@ -20,37 +13,34 @@ import {
 } from '@/modulos/produccion/servicios/indice';
 import { esquemaCerrarSesion } from '@/modulos/produccion/validaciones/indice';
 
-const MENSAJE_PIN_INVALIDO = 'Confirmación de operador no válida';
-const MENSAJE_BLOQUEADO = 'Demasiados intentos. Intenta de nuevo más tarde.';
+const MENSAJE_SESION_INVALIDA =
+  'Tu sesión de operador venció o no corresponde a esta sesión de trabajo. Vuelve a entrar con tu PIN y abre de nuevo la ficha del proceso.';
 
-/** La cookie HMAC identifica al operador y el PIN vuelve a confirmar su cierre crítico. */
+/** La cookie HMAC identifica al operador; el cierre se confirma solo con su sesión. */
 export async function cerrarSesionOperadorAccion(
   entrada: unknown,
 ): Promise<RespuestaAccion<CierreSesionRegistrado>> {
   const correlationId = nuevoCorrelationId();
   const analisis = esquemaCerrarSesion.safeParse(entrada);
   if (!analisis.success) {
-    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+    return {
+      exito: false,
+      error: analisis.error.issues[0]?.message ?? 'Datos inválidos',
+      codigo: 'datos_invalidos',
+    };
   }
 
   const operador = await obtenerOperadorParaMutacion(
     'cerrar_sesion_trabajo',
     analisis.data.sesionId,
   );
-  if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
-
-  const identificador = await obtenerIdentificadorSolicitante();
-  if (await estaBloqueado(identificador, 'pin')) {
-    return { exito: false, error: MENSAJE_BLOQUEADO };
+  if (!operador) {
+    return {
+      exito: false,
+      error: MENSAJE_SESION_INVALIDA,
+      codigo: 'sesion_operador_invalida',
+    };
   }
-
-  const pinConfirmado = await confirmarPinDeOperador(operador.id, analisis.data.pinConfirmacion);
-  if (!pinConfirmado) {
-    await registrarIntentoFallido(identificador, 'pin');
-    await registrarLog(operador, 'confirmacion_cierre_sesion_rechazada', 'produccion', analisis.data.sesionId, undefined, correlationId);
-    return { exito: false, error: MENSAJE_PIN_INVALIDO };
-  }
-  await limpiarIntentos(identificador, 'pin');
 
   try {
     const sesion = await cerrarSesionTrabajoServicio(crearClienteSupabaseAdmin(), {

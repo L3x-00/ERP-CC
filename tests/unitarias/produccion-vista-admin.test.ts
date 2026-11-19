@@ -95,7 +95,6 @@ describe('PanelOperadorProduccion — vista de administrador (sin PIN)', () => {
     fireEvent.change(screen.getByTestId('motivo-consumo'), {
       target: { value: 'Consumo de producción' },
     });
-    fireEvent.change(screen.getByLabelText('Confirmar PIN'), { target: { value: '4826' } });
     fireEvent.submit(screen.getByTestId('cerrar-sesion-produccion').closest('form')!);
 
     await waitFor(() => expect(cerrarSesion).toHaveBeenCalledTimes(1));

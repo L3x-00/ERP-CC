@@ -2,14 +2,7 @@
 
 import type { RespuestaAccion } from '@/compartido/tipos/indice';
 import type { UsuarioAutenticado } from '@/modulos/autenticacion/tipos/indice';
-import {
-  estaBloqueado,
-  limpiarIntentos,
-  obtenerIdentificadorSolicitante,
-  registrarIntentoFallido,
-} from '@/nucleo/autenticacion/limitar-intentos';
 import { obtenerOperadorParaMutacion } from '@/nucleo/autenticacion/obtener-operador-sesion';
-import { confirmarPinDeOperador } from '@/nucleo/autenticacion/pin-operador';
 import { can } from '@/nucleo/autenticacion/verificar-permiso';
 import { obtenerUsuarioServidor } from '@/modulos/autenticacion/servicios/obtener-usuario-servidor';
 import { registrarLog, nuevoCorrelationId } from '@/nucleo/auditoria/registrar-log';
@@ -23,14 +16,14 @@ import { esquemaActualizarAvanceSesion } from '@/modulos/produccion/validaciones
 
 type AvanceActualizado = Awaited<ReturnType<typeof actualizarAvanceSesionServicio>>;
 
-const MENSAJE_PIN_INVALIDO = 'Confirmación de operador no válida';
-const MENSAJE_BLOQUEADO = 'Demasiados intentos. Intenta de nuevo más tarde.';
+const MENSAJE_SESION_INVALIDA =
+  'Tu sesión de operador venció o no corresponde a esta sesión de trabajo. Vuelve a entrar con tu PIN y abre de nuevo la ficha del proceso.';
 
 /**
  * C20: corrige piezas y hora real de una pausa automática por jornada.
- * El operador dueño confirma con PIN; un administrador con
- * `gestionar_produccion` puede corregir sin PIN, igual que cierra sesiones
- * ajenas. El cierre administrativo normal queda intacto.
+ * El operador dueño queda identificado por su cookie HMAC y un administrador
+ * con `gestionar_produccion` puede corregir sesiones ajenas. El cierre
+ * administrativo normal queda intacto.
  */
 export async function actualizarAvanceSesionAccion(
   entrada: unknown,
@@ -38,7 +31,11 @@ export async function actualizarAvanceSesionAccion(
   const correlationId = nuevoCorrelationId();
   const analisis = esquemaActualizarAvanceSesion.safeParse(entrada);
   if (!analisis.success) {
-    return { exito: false, error: analisis.error.issues[0]?.message ?? 'Datos inválidos' };
+    return {
+      exito: false,
+      error: analisis.error.issues[0]?.message ?? 'Datos inválidos',
+      codigo: 'datos_invalidos',
+    };
   }
 
   const usuario = await obtenerUsuarioServidor();
@@ -54,20 +51,14 @@ export async function actualizarAvanceSesionAccion(
       'actualizar_avance_sesion',
       analisis.data.sesionId,
     );
-    if (!operador) return { exito: false, error: 'Sesión de operador no válida' };
+    if (!operador) {
+      return {
+        exito: false,
+        error: MENSAJE_SESION_INVALIDA,
+        codigo: 'sesion_operador_invalida',
+      };
+    }
 
-    const identificador = await obtenerIdentificadorSolicitante();
-    if (await estaBloqueado(identificador, 'pin')) {
-      return { exito: false, error: MENSAJE_BLOQUEADO };
-    }
-    const pin = analisis.data.pinConfirmacion;
-    if (!pin || !await confirmarPinDeOperador(operador.id, pin)) {
-      await registrarIntentoFallido(identificador, 'pin');
-      await registrarLog(operador, 'actualizacion_avance_pin_rechazada', 'produccion',
-        analisis.data.sesionId, undefined, correlationId);
-      return { exito: false, error: MENSAJE_PIN_INVALIDO };
-    }
-    await limpiarIntentos(identificador, 'pin');
     actor = operador;
   }
 

@@ -237,7 +237,6 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByTestId('motivo-consumo'), {
       target: { value: 'Consumo de producción' },
     });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
@@ -315,7 +314,6 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByTestId('motivo-consumo'), {
       target: { value: 'Consumo de producción' },
     });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
@@ -413,7 +411,6 @@ describe('DetalleProcesoOperador', () => {
     expect(screen.getByText('Máximo 10 piezas para esta operación.')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '11' } });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     expect((await screen.findByRole('alert')).textContent).toContain(
@@ -482,7 +479,6 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByTestId('motivo-consumo'), {
       target: { value: 'Consumo de piezas cortadas' },
     });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
@@ -542,7 +538,6 @@ describe('DetalleProcesoOperador', () => {
     }));
 
     fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     const panel = await screen.findByTestId('horas-extra-cierre');
@@ -717,7 +712,6 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByTestId('motivo-consumo'), {
       target: { value: 'Consumo de piezas cortadas' },
     });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledWith(doblado, expect.objectContaining({
@@ -777,7 +771,6 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByTestId('motivo-consumo'), {
       target: { value: 'Consumo de piezas cortadas' },
     });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     const dialogo = await screen.findByTestId('error-cierre-dialogo');
@@ -843,7 +836,6 @@ describe('DetalleProcesoOperador', () => {
     }));
 
     fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     await waitFor(() => expect(cerrar).toHaveBeenCalledOnce());
@@ -897,7 +889,6 @@ describe('DetalleProcesoOperador', () => {
     fireEvent.change(screen.getByLabelText('Piezas cortadas'), { target: { value: '2' } });
     fireEvent.change(screen.getByTestId('usado-cierre'), { target: { value: '1' } });
     fireEvent.change(screen.getByTestId('motivo-consumo'), { target: { value: 'Consumo MDF' } });
-    fireEvent.change(screen.getByLabelText('PIN de confirmación'), { target: { value: '4826' } });
     fireEvent.click(screen.getByTestId('cerrar-sesion-detalle'));
 
     const modal = await screen.findByTestId('error-cierre-dialogo');
@@ -945,9 +936,42 @@ describe('DetalleProcesoOperador', () => {
 
     expect(screen.queryByTestId('aviso-material-sin-costo')).toBeNull();
   });
+
+  it('muestra el cronómetro de la sesión y ya no pide hora de fin ni minutos de setup', () => {
+    render(createElement(DetalleProcesoOperador, {
+      proceso,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.getByTestId('contador-sesion-detalle')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('alternar-cierre-sesion'));
+    expect(screen.queryByTestId('hora-fin-cierre')).toBeNull();
+    expect(screen.queryByTestId('minutos-setup')).toBeNull();
+    expect(screen.queryByLabelText(/Hora real de finalización/)).toBeNull();
+    expect(screen.queryByLabelText(/Minutos de setup/)).toBeNull();
+  });
+
 });
 
-describe('actualizar avance: cierre visual y PIN obligatorio', () => {
+describe('actualizar avance: cierre visual sin PIN', () => {
   const sesionPausada = {
     id: 'sesion-pausada',
     corridaId: null,
@@ -1017,11 +1041,10 @@ describe('actualizar avance: cierre visual y PIN obligatorio', () => {
     expect(screen.getByTestId('formulario-actualizar-avance')).toBeDefined();
     fireEvent.change(screen.getByTestId('avance-piezas'), { target: { value: '40' } });
     fireEvent.change(screen.getByTestId('avance-horas'), { target: { value: '2' } });
-    fireEvent.change(screen.getByTestId('avance-pin'), { target: { value: '123456' } });
     fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
 
     await waitFor(() =>
-      expect(actualizar).toHaveBeenCalledWith(pausado, expect.objectContaining({ pinConfirmacion: '123456' })),
+      expect(actualizar).toHaveBeenCalledWith(pausado, expect.objectContaining({ piezasProducidas: 40 })),
     );
     await waitFor(() => expect(screen.queryByTestId('formulario-actualizar-avance')).toBeNull());
     expect(screen.getByTestId('avance-actualizado-confirmacion').textContent).toContain(
@@ -1029,14 +1052,16 @@ describe('actualizar avance: cierre visual y PIN obligatorio', () => {
     );
   });
 
-  it('no envía el avance sin PIN y explica cómo corregirlo', async () => {
-    const actualizar = vi.fn();
+  it('envía el avance solo con la sesión del operador, sin pedir PIN', async () => {
+    const actualizar = vi.fn().mockResolvedValue({ exito: true });
     montar(actualizar);
 
-    fireEvent.change(screen.getByTestId('avance-pin'), { target: { value: '' } });
+    fireEvent.change(screen.getByTestId('avance-piezas'), { target: { value: '12' } });
     fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
 
-    expect(await screen.findByText(/Escribe tu PIN de 4 a 6 dígitos/)).toBeDefined();
-    expect(actualizar).not.toHaveBeenCalled();
+    await waitFor(() => expect(actualizar).toHaveBeenCalledTimes(1));
+    const [, datos] = actualizar.mock.calls[0] ?? [];
+    expect(datos).not.toHaveProperty('pinConfirmacion');
+    expect(screen.queryByTestId('avance-pin')).toBeNull();
   });
 });

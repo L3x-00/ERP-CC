@@ -250,7 +250,6 @@ export function OperacionProduccion({ datosIniciales, operadorId, usuarioActualI
     metaProcesoId?: string;
     motivoPausa?: string;
     notas?: string;
-    pinConfirmacion: string;
     consumo?: {
       materialId: string;
       cantidadUsada: number;

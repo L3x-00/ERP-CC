@@ -338,7 +338,6 @@ export function EspacioOperador({
       cantidadScrap?: number;
       motivoConsumo?: string | null;
       notas?: string;
-      pinConfirmacion?: string;
     },
   ): Promise<ResultadoOperacion> {
     return ejecutar(proceso, async () => {
@@ -357,15 +356,12 @@ export function EspacioOperador({
       estadoDestino: 'pausada' | 'finalizada';
       motivoPausa?: string;
       notas?: string;
-      horaFin?: string;
-      pinConfirmacion: string;
       consumo?: {
         materialId: string;
         cantidadUsada: number;
         cantidadScrap: number;
         motivo: string;
       };
-      minutosSetup?: number;
     },
   ): Promise<ResultadoOperacion> {
     return ejecutar(proceso, async () => {
@@ -375,10 +371,7 @@ export function EspacioOperador({
         estadoDestino: datos.estadoDestino,
         ...(datos.motivoPausa ? { motivoPausa: datos.motivoPausa } : {}),
         ...(datos.notas ? { notas: datos.notas } : {}),
-        ...(datos.horaFin ? { horaFin: datos.horaFin } : {}),
         ...(datos.consumo ? { consumo: datos.consumo } : {}),
-        ...(datos.minutosSetup !== undefined ? { minutosSetup: datos.minutosSetup } : {}),
-        pinConfirmacion: datos.pinConfirmacion,
       };
 
       const respuesta = await cerrarSesionOperadorAccion({

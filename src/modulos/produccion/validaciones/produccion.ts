@@ -1,8 +1,4 @@
 import { z } from 'zod';
-import {
-  PIN_LONGITUD_MAXIMA,
-  PIN_LONGITUD_MINIMA,
-} from '@/nucleo/autenticacion/constantes';
 import { TURNOS_PLANEACION } from '@/modulos/planeacion/tipos/indice';
 import {
   ESTADOS_KANBAN_PRODUCCION,
@@ -11,7 +7,6 @@ import {
 } from '@/modulos/produccion/tipos/produccion';
 import { esquemaVerificacionInicio } from '@/modulos/produccion/validaciones/corridas';
 
-const PATRON_PIN_OPERADOR = new RegExp(`^\\d{${PIN_LONGITUD_MINIMA},${PIN_LONGITUD_MAXIMA}}$`);
 const ESTADOS_DESTINO_SESION = ['pausada', 'finalizada'] as const;
 const MOTIVOS_PAUSA_VALIDOS = [...MOTIVOS_PAUSA_SESION, ...MOTIVOS_PAUSA_CATALOGO] as const;
 
@@ -52,12 +47,6 @@ export const esquemaCerrarSesion = z
       .optional(),
     /** B7: identificación del setup dentro del tiempo real de la sesión. */
     minutosSetup: z.number().finite().min(0).max(1440).optional(),
-    pinConfirmacion: z
-      .string()
-      .regex(
-        PATRON_PIN_OPERADOR,
-        `El PIN debe tener entre ${PIN_LONGITUD_MINIMA} y ${PIN_LONGITUD_MAXIMA} dígitos`,
-      ),
     consumo: z.object({
       materialId: z.uuid('ID de material inválido'),
       cantidadUsada: z.number().finite().min(0),
@@ -268,8 +257,6 @@ export const esquemaActualizarAvanceSesion = z.object({
   cantidadUsada: z.number().finite().min(0).default(0),
   cantidadScrap: z.number().finite().min(0).default(0),
   motivoConsumo: z.string().trim().min(3, 'Indica el motivo del consumo').max(200).nullish(),
-  /** El operador la envía; el administrador no. La Server Action lo exige según el rol. */
-  pinConfirmacion: z.string().regex(PATRON_PIN_OPERADOR).optional(),
 }).strict();
 
 export type CerrarSesionInput = z.infer<typeof esquemaCerrarSesion>;
