@@ -14,6 +14,8 @@ import { sesionOperadorEsDelegada } from '@/nucleo/autenticacion/sesion';
 import { crearClienteSupabaseAdmin } from '@/nucleo/supabase/admin';
 import { EncabezadoTerminalOperador } from '@/modulos/produccion/componentes/encabezado-terminal-operador';
 import { consumoMaterialVisibleDesdeRegistro } from '@/modulos/produccion/utilidades/consumo-material-operador';
+import { obtenerCargaEquiposServicio } from '@/modulos/planeacion/servicios/indice';
+import { inicioSemana, sumarDias } from '@/modulos/planeacion/utilidades/fechas-planeacion';
 /**
  * Página de producción en piso. Revalida la cookie HMAC y la cuenta de operador
  * antes de cargar solo OP en proceso mediante un cliente privado de servidor.
@@ -41,7 +43,8 @@ export default async function PaginaProduccionPiso() {
   const admin = crearClienteSupabaseAdmin();
   const operadorId = contexto?.operador.id ?? null;
   const espacio = await obtenerEspacioOperadorServicio(admin, operadorId);
-  const [resultadoMateriales, consumos] = await Promise.all([
+  const inicioCarga = inicioSemana(espacio.hoy);
+  const [resultadoMateriales, consumos, cargaEquipos] = await Promise.all([
     admin
       .from('catalogo_materiales')
       .select('id, codigo, nombre, unidad_base, costo_vigente')
@@ -51,6 +54,7 @@ export default async function PaginaProduccionPiso() {
       admin,
       espacio.procesos.map((proceso) => proceso.partidaId),
     ),
+    obtenerCargaEquiposServicio(admin, inicioCarga, sumarDias(inicioCarga, 6)),
   ]);
 
   if (resultadoMateriales.error) {
@@ -101,6 +105,8 @@ export default async function PaginaProduccionPiso() {
         motivosPausa={espacio.motivosPausa}
         hoy={espacio.hoy}
         dias={espacio.dias}
+        cargasEquipos={cargaEquipos.cargas}
+        recursosEquipos={cargaEquipos.recursos}
         operadorId={operadorId}
         soloLectura={soloLectura}
         nombreOperador={operador.nombreCompleto}

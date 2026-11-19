@@ -1,5 +1,7 @@
 'use client';
 
+import { useId } from 'react';
+
 import { InsigniaSaturacion } from '@/modulos/planeacion/componentes/insignia-saturacion';
 import type {
   CargaCapacidadDiaria,
@@ -22,6 +24,10 @@ export interface PropsResumenCargaSemanal {
   filtroRecursoId?: string | null;
   /** Consulta en vuelo sin datos previos: aún no se puede declarar «sin capacidad». */
   cargando?: boolean;
+  /** Título visible; el panel del operador lo adapta a día o semana. */
+  titulo?: string;
+  /** Texto de apoyo bajo el título. */
+  descripcion?: string;
 }
 
 /**
@@ -35,21 +41,24 @@ export function ResumenCargaSemanal({
   rango,
   filtroRecursoId = null,
   cargando = false,
+  titulo = 'Carga semanal',
+  descripcion = 'Horas pendientes/capacidad por equipo; la columna Libre es lo que resta en el rango.',
 }: PropsResumenCargaSemanal) {
+  const idTitulo = useId();
   const matriz = construirMatrizCargaSemanal(cargas, recursos, rango, filtroRecursoId);
 
   return (
     <section
       data-testid="resumen-carga-semanal"
-      aria-labelledby="titulo-resumen-carga-semanal"
+      aria-labelledby={idTitulo}
       className="flex flex-col gap-2 rounded-base border border-borde bg-superficie p-3"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="titulo-resumen-carga-semanal" className="text-sm font-medium">
-          Carga semanal
+        <h2 id={idTitulo} className="text-sm font-medium">
+          {titulo}
         </h2>
         <p className="text-xs text-texto-secundario">
-          Horas pendientes/capacidad por equipo; la columna Libre es lo que resta en el rango.
+          {descripcion}
         </p>
       </div>
 

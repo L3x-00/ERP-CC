@@ -7,6 +7,7 @@ export {
   obtenerDatosCalendarioPlaneacionServicio,
   obtenerCompromisosCalendarioServicio,
   obtenerCargaCapacidadDiariaServicio,
+  obtenerCargaEquiposServicio,
   obtenerProgramacionesCalendarioServicio,
   programarOperacionMultidiaServicio,
   programarPartidaRecursoServicio,

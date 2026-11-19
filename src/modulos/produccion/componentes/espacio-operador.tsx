@@ -7,6 +7,10 @@ import { Button } from '@/compartido/componentes/ui/button';
 import { Input, Select } from '@/compartido/componentes/ui/input';
 import { cn } from '@/compartido/utilidades/cn';
 import { horasJornadaDia } from '@/modulos/planeacion/utilidades/horario-laboral';
+import type {
+  CargaCapacidadDiaria,
+  RecursoPlaneacion,
+} from '@/modulos/planeacion/tipos/indice';
 import {
   iniciarProcesoReclamadoAccion,
   liberarReclamoAccion,
@@ -47,6 +51,7 @@ import {
 } from './detalle-proceso-operador';
 import { VistaAreasOperador } from './vista-areas-operador';
 import { VistaCalendarioOperador } from './vista-calendario-operador';
+import { VistaCargaEquipos } from './vista-carga-equipos';
 import { VistaKanbanOperador } from './vista-kanban-operador';
 import { MiPanelOperador } from './mi-panel-operador';
 import type { MaterialPiso } from '@/modulos/ordenes/componentes/control-piso-panel';
@@ -54,6 +59,7 @@ import type { ConsumoMaterialVisible } from '@/modulos/produccion/utilidades/con
 const ETIQUETAS_VISTA: Record<VistaEspacioOperador, string> = {
   kanban: 'Kanban',
   calendario: 'Calendario',
+  carga: 'Carga',
   areas: 'Por área',
 };
 
@@ -65,6 +71,9 @@ export interface PropsEspacioOperador {
   hoy: string;
   /** Semana en curso con la carga reclamada por día. */
   dias: DiaCalendarioOperador[];
+  /** Carga por equipo y día de la semana en curso (misma matriz de Planeación). */
+  cargasEquipos: readonly CargaCapacidadDiaria[];
+  recursosEquipos: readonly RecursoPlaneacion[];
   operadorId: string | null;
   soloLectura: boolean;
   nombreOperador: string;
@@ -97,6 +106,8 @@ export function EspacioOperador({
   motivosPausa,
   hoy,
   dias,
+  cargasEquipos,
+  recursosEquipos,
   operadorId,
   soloLectura,
   nombreOperador,
@@ -498,7 +509,7 @@ export function EspacioOperador({
                 onClick={() => setVista(valor)}
                 data-testid={`vista-${valor}`}
                 className={cn(
-                  'flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 lg:flex-none',
+                  'flex-1 rounded-md px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-acento/40 sm:px-3 sm:text-sm lg:flex-none',
                   vista === valor
                     ? 'bg-acento-hover text-white dark:bg-acento dark:text-fondo'
                     : 'text-texto-secundario hover:bg-superficie-2',
@@ -509,36 +520,38 @@ export function EspacioOperador({
             ))}
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Input
-              className="min-h-11 sm:w-64"
-              type="search"
-              placeholder="Buscar folio, cliente, pieza…"
-              aria-label="Buscar proceso"
-              value={busqueda}
-              onChange={(evento) => setBusqueda(evento.target.value)}
-            />
-            <Select
-              className="min-h-11 sm:w-48"
-              aria-label="Filtrar por área"
-              value={areaFiltro}
-              onChange={(evento) => setAreaFiltro(evento.target.value)}
-            >
-              <option value="">Todas las áreas</option>
-              {areasMacro.map(([codigo, nombre]) => (
-                <option key={codigo} value={codigo}>{nombre}</option>
-              ))}
-            </Select>
-            <Button
-              variante={soloUrgentes ? 'destructivo' : 'contorno'}
-              tamano="lg"
-              aria-pressed={soloUrgentes}
-              onClick={() => setSoloUrgentes((valor) => !valor)}
-              data-testid="filtro-urgentes"
-            >
-              Solo urgentes
-            </Button>
-          </div>
+          {vista !== 'carga' ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                className="min-h-11 sm:w-64"
+                type="search"
+                placeholder="Buscar folio, cliente, pieza…"
+                aria-label="Buscar proceso"
+                value={busqueda}
+                onChange={(evento) => setBusqueda(evento.target.value)}
+              />
+              <Select
+                className="min-h-11 sm:w-48"
+                aria-label="Filtrar por área"
+                value={areaFiltro}
+                onChange={(evento) => setAreaFiltro(evento.target.value)}
+              >
+                <option value="">Todas las áreas</option>
+                {areasMacro.map(([codigo, nombre]) => (
+                  <option key={codigo} value={codigo}>{nombre}</option>
+                ))}
+              </Select>
+              <Button
+                variante={soloUrgentes ? 'destructivo' : 'contorno'}
+                tamano="lg"
+                aria-pressed={soloUrgentes}
+                onClick={() => setSoloUrgentes((valor) => !valor)}
+                data-testid="filtro-urgentes"
+              >
+                Solo urgentes
+              </Button>
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -557,7 +570,9 @@ export function EspacioOperador({
         </p>
       ) : null}
 
-      {filtrados.length === 0 ? (
+      {vista === 'carga' ? (
+        <VistaCargaEquipos cargas={cargasEquipos} recursos={recursosEquipos} hoy={hoy} />
+      ) : filtrados.length === 0 ? (
         <p className="rounded-lg border border-borde bg-superficie p-8 text-center text-sm text-texto-secundario">
           No hay procesos que coincidan con el filtro.
         </p>
@@ -606,7 +621,7 @@ export function EspacioOperador({
         </ul>
       </section>
 
-      {vista !== 'calendario' && operativo ? (
+      {vista !== 'calendario' && vista !== 'carga' && operativo ? (
         <p className="text-xs text-texto-tenue">
           «Reclamar» reserva el proceso para hoy en turno matutino. Para otro día, abre la ficha y
           elige fecha y turno, o arrástralo en el calendario.
