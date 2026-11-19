@@ -1,6 +1,6 @@
 # Estado actual
 
-**Corte:** 2026-11-19 · PR de auditoría C25 + vista Carga (base `main` = `1b87038`).
+**Corte:** 2026-11-19 · PR de auditoría C25 + vista Carga (base `main` = `818c3e5`).
 
 ## Resumen
 
@@ -30,6 +30,7 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 
 ## Últimos cambios relevantes
 
+- **Capacidad visible en días cerrados (2026-11-19):** las horas reales que la RPC conserva en un día sin jornada ya se ven en la matriz semanal de Planeación y en la vista «Carga» del operador: la columna del domingo aparece cuando solo tiene tiempo real registrado y la celda dice «N h reales» en lugar de un `0/0`. En Propuestas, un grupo cuyas únicas filas del horizonte sean de día cerrado con horas reales vuelve a declararse «sin capacidad configurada» en vez de «con capacidad 0». El diagnóstico de reprogramación mantiene el aviso correcto de «sin capacidad» para ese día, y las acciones de la tarjeta del operador recuperan el ancho completo.
 - **Fix capacidad en día sin jornada (2026-11-19):** `obtener_carga_capacidad_diaria` conserva las horas reales de un recurso liberado aunque la fecha no tenga jornada (domingo o día cerrado); antes la fila desaparecía al quedar capacidad 0 y saldo ocupado 0, como si el trabajo real se hubiera borrado. Migración `20261119130000`.
 - **C18 - Horario laboral (2026-11-16, jornada ajustada por C24):** lunes a viernes 8 h, sábado 4 h, domingo cerrado; matutino y vespertino son etiquetas. La misma regla se aplica en capacidad, planeación, producción y en la jornada del operador.
 - **C19 — Cierre por entrega (2026-11-16):** la orden pasa a `CERRADA` al entregar el 100 %, se reabre al anular la nota y el cierre administrativo completa costo y margen.
@@ -42,11 +43,11 @@ El código y las migraciones viven en este repositorio; el PO fusiona los PR y a
 - **PR #201 — Horas por operación en Planeación (2026-11-18):** la bolsa y el formulario programan cada operación con las horas de su ruteo (`propuesta_item_ruteo.total_horas`); el total de la partida solo se usa cuando hay una única operación. Producción quedó normalizada: O-1126_09 reprogramada y cinco filas históricas corregidas con evento de auditoría.
 - **C23 — Producción sin callejones sin salida (2026-11-18):** las horas reales de la partida se derivan de las sesiones (`tiempo_real_minutos` = suma de horas netas no inválidas) en todos los caminos; la corrección de avance aplica delta y topa contra meta y disponible; se puede cerrar o pausar una sesión aunque otra haya completado la operación; el trigger B2 permite descartar sesiones vacías; las pausas huérfanas de órdenes terminadas se cierran con una RPC administrativa auditada; y el administrador ve un diagnóstico de consistencia con aviso de entrega pendiente. Asignación de horas de una operación `en_proceso` ya cubierta por la C24. Migraciones `20261118160000/160100`.
 - **Panel del operador — carga de equipos (2026-11-19):** la terminal de piso (`/produccion-piso`) añade la vista «Carga» con la misma tabla Equipo × día de Planeación (`ResumenCargaSemanal`), con conmutador Día/Semana. El operador ve las horas pendientes/capacidad y las libres de cada equipo de la semana en curso sin salir de su panel; el domingo cerrado se explica en lugar de mostrar una tabla vacía. Sin migraciones.
-- **Auditoría C25 + Carga (2026-11-19):** «hoy» del espacio del operador usa la fecha de negocio (`America/Tijuana`), así la semana de Carga ya no cambia a las 17:00; un fallo al leer capacidad muestra un aviso local en la pestaña «Carga» sin tumbar la terminal; la barra de pestañas es 2×2 táctil en móvil; Propuestas no cuenta como «con capacidad» una fila de día cerrado que solo conserva horas reales (#210); `obtener_carga_capacidad_diaria` agrega las sesiones solo de las programaciones del rango con `LEFT JOIN LATERAL` (misma salida y contrato, migración `20261119140000`); el E2E de piso deja de depender del día real (domingo cerrado / lunes abierto) y los scripts de CI pierden el shebang para cargar en Vitest sobre Windows.
+- **Auditoría C25 + Carga (2026-11-19):** «hoy» del espacio del operador usa la fecha de negocio (`America/Tijuana`), así la semana de Carga ya no cambia a las 17:00; un fallo al leer capacidad muestra un aviso local en la pestaña «Carga» sin tumbar la terminal; la barra de pestañas es 2×2 táctil en móvil; `obtener_carga_capacidad_diaria` agrega las sesiones solo de las programaciones del rango con `LEFT JOIN LATERAL` (misma salida y contrato, migración `20261119140000`); el E2E de piso deja de depender del día real (domingo cerrado / lunes abierto) y los scripts de CI pierden el shebang para cargar en Vitest sobre Windows.
 
 ## Calidad
 
-- **Unitarias e integración:** Vitest. Último corte completo local (2026-11-19): 335 archivos y 2867 pruebas unitarias en verde; 307 de integración en verde en el corte previo.
+- **Unitarias e integración:** Vitest. Último corte completo local (2026-11-19): 335 archivos y 2871 pruebas unitarias en verde; 307 de integración en verde en el corte previo.
 - **Base de datos:** 113 archivos pgTAP (2464 pruebas) en verde en CI sobre base limpia (2026-11-19). La base local acumula residuos E2E: los pgTAP tocados se corren focales antes de cerrar.
 - **E2E:** Playwright, 73 escenarios en verde con Supabase local. CI ejecuta `e2e-local` sobre un build de producción.
 - **Base de datos:** pgTAP para RPCs, RLS, folios y máquinas de estado.

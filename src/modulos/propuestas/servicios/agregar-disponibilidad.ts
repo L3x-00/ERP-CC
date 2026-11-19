@@ -197,12 +197,15 @@ function capacidadDelGrupo(
   for (const fila of entrada.cargas) {
     if (!recursos.has(fila.recursoId)) continue;
     if (fila.fechaProgramada < fechaInicio || fila.fechaProgramada > fechaFin) continue;
-    // #210 conserva la fila de un día cerrado con horas reales para no borrar
-    // el trabajo registrado. Esa fila no aporta capacidad ni carga: no debe
-    // convertir «sin capacidad configurada» en «con capacidad» de 0 h.
-    if (fila.horasCapacidad <= 0 && fila.horasProgramadas <= 0 && fila.horasReales > 0) {
-      continue;
-    }
+    // Un día sin jornada puede conservar horas reales sin capacidad ni carga
+    // programada. Esa fila no aporta disponibilidad: si se contara, un grupo sin
+    // capacidad configurada se declararía «con capacidad» en 0 h. Una fila con
+    // capacidad 0 y sin horas reales sigue siendo una excepción configurada.
+    if (
+      fila.horasCapacidad <= 0
+      && fila.horasProgramadas <= 0
+      && fila.horasReales > 0
+    ) continue;
     const clave = `${fila.recursoId}|${fila.fechaProgramada}`;
     if (!turnos.has(clave)) turnos.set(clave, fila);
   }

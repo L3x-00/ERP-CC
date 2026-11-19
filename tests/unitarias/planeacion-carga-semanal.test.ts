@@ -32,6 +32,7 @@ function carga(
   turno: CargaCapacidadDiaria['turno'],
   horasCapacidad: number,
   horasProgramadas: number,
+  horasReales = 0,
 ): CargaCapacidadDiaria {
   return {
     recursoId,
@@ -40,7 +41,7 @@ function carga(
     turno,
     horasCapacidad,
     horasProgramadas,
-    horasReales: 0,
+    horasReales,
     horasExceso: 0,
     horasDisponibles: Math.max(0, horasCapacidad - horasProgramadas),
     porcentajeOcupacion:
@@ -151,6 +152,45 @@ describe('matriz de carga semanal (C9.1)', () => {
       fecha: '2026-09-27',
       horasProgramadas: 2,
       nivel: 'sobrecargado',
+    });
+  });
+
+  it('muestra el domingo con solo horas reales aunque capacidad y carga sean 0', () => {
+    const matriz = construirMatrizCargaSemanal(
+      [
+        carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 0),
+        // Día sin jornada: la RPC ahora conserva la fila porque hubo 1.5 h reales.
+        carga(RECURSO_A.id, '2026-09-27', 'matutino', 0, 0, 1.5),
+      ],
+      [RECURSO_A],
+      RANGO_SEMANA,
+    );
+
+    expect(matriz?.columnas).toContain('2026-09-27');
+    expect(matriz?.filas[0].celdas.at(-1)).toMatchObject({
+      fecha: '2026-09-27',
+      horasCapacidad: 0,
+      horasProgramadas: 0,
+      horasReales: 1.5,
+    });
+  });
+
+  it('las horas reales no alteran el saldo libre ni convierten 0/0 en capacidad', () => {
+    const matriz = construirMatrizCargaSemanal(
+      [
+        carga(RECURSO_A.id, '2026-09-21', 'matutino', 5, 2),
+        carga(RECURSO_A.id, '2026-09-27', 'matutino', 0, 0, 3),
+      ],
+      [RECURSO_A],
+      RANGO_SEMANA,
+    );
+
+    // El domingo suma 0 h libres: 5 − 2 = 3 h del lunes y nada del día cerrado.
+    expect(matriz?.filas[0].horasLibresTotales).toBe(3);
+    expect(matriz?.filas[0].celdas.at(-1)).toMatchObject({
+      horasLibres: 0,
+      horasProgramadas: 0,
+      horasReales: 3,
     });
   });
 

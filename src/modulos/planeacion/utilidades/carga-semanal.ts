@@ -22,9 +22,10 @@ import {
  *
  * C18: con el horario de la empresa el sábado es día laboral (4 h), así que su
  * columna se muestra siempre que tenga capacidad; el domingo sigue cerrado y
- * solo aparece si por excepción tiene trabajo programado. Ocultar el sábado
- * hacía que «Libre» omitiera 4 h de capacidad real y variara según si otro
- * equipo tenía carga ese día.
+ * solo aparece si por excepción tiene trabajo programado *o tiempo real
+ * registrado* (un equipo liberado en un día sin jornada conserva sus horas).
+ * Ocultar el sábado hacía que «Libre» omitiera 4 h de capacidad real y variara
+ * según si otro equipo tenía carga ese día.
  */
 
 /** Horas legibles sin ceros decorativos: `16`, `7.5`, `2.75`. */
@@ -39,6 +40,12 @@ export interface CeldaCargaSemanal {
   horasProgramadas: number;
   /** Suma por turno de `max(0, capacidad − programadas)`; la sobrecarga no resta. */
   horasLibres: number;
+  /**
+   * Tiempo real registrado ese día. No altera el saldo (`horasLibres`), pero se
+   * muestra porque un día sin jornada puede conservar trabajo real aunque su
+   * capacidad y su carga programada sean 0.
+   */
+  horasReales: number;
   /** Peor semáforo de los turnos del día. */
   nivel: NivelSemaforo;
 }
@@ -55,7 +62,7 @@ export interface FilaCargaSemanal {
 }
 
 export interface MatrizCargaSemanal {
-  /** Fechas reales del rango visibles: lun–vie siempre; sáb/dom sólo con carga. */
+  /** Fechas reales del rango visibles: lun–vie siempre; sáb/dom sólo con capacidad, carga o trabajo real. */
   columnas: string[];
   filas: FilaCargaSemanal[];
 }
@@ -82,12 +89,17 @@ export function construirMatrizCargaSemanal(
   );
   const fechasConCapacidad = new Set(
     cargasVisibles
-      .filter((carga) => carga.horasCapacidad > 0 || carga.horasProgramadas > 0)
+      .filter(
+        (carga) => carga.horasCapacidad > 0
+          || carga.horasProgramadas > 0
+          || carga.horasReales > 0,
+      )
       .map((carga) => carga.fechaProgramada),
   );
   // La RPC devuelve todos los días del rango, incluido fin de semana con
   // capacidad configurada; sábado se pinta si hay capacidad (día laboral) y
-  // domingo solo si tiene carga.
+  // domingo solo si tiene carga o tiempo real, para no ocultar el trabajo hecho
+  // en un día sin jornada.
   const hayDiaHabil = dias.some((fecha) => !esFinDeSemana(fecha));
   const columnas = dias.filter(
     (fecha) => !esFinDeSemana(fecha) || !hayDiaHabil || fechasConCapacidad.has(fecha),
@@ -118,11 +130,13 @@ export function construirMatrizCargaSemanal(
       if (delDia.length === 0) return null;
       let horasCapacidad = 0;
       let horasProgramadas = 0;
+      let horasReales = 0;
       let horasLibres = 0;
       let nivel: NivelSemaforo = 'disponible';
       for (const carga of delDia) {
         horasCapacidad += carga.horasCapacidad;
         horasProgramadas += carga.horasProgramadas;
+        horasReales += carga.horasReales;
         horasLibres += Math.max(0, carga.horasCapacidad - carga.horasProgramadas);
         nivel = nivelSemaforoMasGrave(
           nivel,
@@ -134,6 +148,7 @@ export function construirMatrizCargaSemanal(
         horasCapacidad: redondearHoras(horasCapacidad),
         horasProgramadas: redondearHoras(horasProgramadas),
         horasLibres: redondearHoras(horasLibres),
+        horasReales: redondearHoras(horasReales),
         nivel,
       };
     });

@@ -301,6 +301,31 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
     );
   });
 
+  it('un día cerrado con solo horas reales no finge capacidad configurada', () => {
+    // La RPC conserva la fila del domingo con horas reales aunque capacidad y
+    // carga programada sean 0. Ese grupo sigue sin capacidad configurada.
+    const resumen = agregarDisponibilidad(entrada({
+      recursos: [{ id: 'rec-1', grupoEquipoId: 'g-router' }],
+      cargas: [
+        carga({
+          recursoId: 'rec-1',
+          fechaProgramada: '2026-10-25',
+          horasCapacidad: 0,
+          horasProgramadas: 0,
+          horasReales: 2,
+          horasDisponibles: 0,
+        }),
+      ],
+    }));
+
+    expect(resumen.grupos.find((grupo) => grupo.codigo === 'ROUTER')).toMatchObject({
+      estado: 'sin_capacidad_configurada',
+      horasCapacidad: null,
+      horasCarga: null,
+      horasDisponibles: null,
+    });
+  });
+
   it('señala recursos sin turnos aun cuando otros equipos del grupo sí tienen capacidad', () => {
     const resumen = agregarDisponibilidad(entrada({
       recursos: [
@@ -324,27 +349,6 @@ describe('agregarDisponibilidad — capacidad, carga y disponible', () => {
       estado: 'con_capacidad',
       horasCapacidad: 0,
       horasDisponibles: 0,
-    });
-  });
-
-  it('no cuenta como capacidad configurada una fila de día cerrado con solo horas reales', () => {
-    // #210 conserva la fila cuando un día sin jornada tiene horas reales. Esa
-    // fila no aporta capacidad ni carga y no debe cambiar el estado del grupo.
-    const resumen = agregarDisponibilidad(entrada({
-      recursos: [{ id: 'rec-1', grupoEquipoId: 'g-router' }],
-      cargas: [carga({
-        recursoId: 'rec-1',
-        horasCapacidad: 0,
-        horasProgramadas: 0,
-        horasReales: 3,
-        horasDisponibles: 0,
-      })],
-    }));
-
-    expect(resumen.grupos.find((grupo) => grupo.codigo === 'ROUTER')).toMatchObject({
-      estado: 'sin_capacidad_configurada',
-      horasCapacidad: null,
-      horasDisponibles: null,
     });
   });
 
