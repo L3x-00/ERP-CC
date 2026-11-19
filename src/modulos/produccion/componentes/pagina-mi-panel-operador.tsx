@@ -318,12 +318,12 @@ export function PaginaMiPanelOperador({
         {indicadores.map((indicador) => {
           const Icono = indicador.icono;
           return (
-            <div key={indicador.titulo} className="rounded-xl border border-borde bg-superficie p-4">
+            <div key={indicador.titulo} className="rounded-lg border border-borde bg-superficie px-3 py-2.5">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-texto-secundario">{indicador.titulo}</span>
-                <Icono size={18} className="text-texto-secundario" aria-hidden="true" />
+                <span className="truncate text-[11px] text-texto-secundario">{indicador.titulo}</span>
+                <Icono size={16} className="shrink-0 text-texto-secundario" aria-hidden="true" />
               </div>
-              <p className="mt-3 text-3xl font-semibold tabular-nums text-texto-primario">
+              <p className="mt-1.5 text-2xl font-semibold tabular-nums text-texto-primario">
                 {indicador.valor}
               </p>
             </div>
@@ -332,10 +332,10 @@ export function PaginaMiPanelOperador({
       </div>
 
       <section aria-label="Jornada de hoy" data-testid="jornada-diaria-operador"
-        className="space-y-3 rounded-xl border border-borde bg-superficie p-5">
+        className="space-y-3 rounded-xl border border-borde bg-superficie p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="text-lg font-semibold text-texto-primario">Mi jornada de hoy</h3>
+            <h3 className="text-base font-semibold text-texto-primario">Mi jornada de hoy</h3>
             <p className="text-xs text-texto-secundario">{hoy} · Horas netas cerradas</p>
           </div>
           <p className="text-2xl font-bold tabular-nums text-texto-primario">
@@ -383,15 +383,15 @@ export function PaginaMiPanelOperador({
       </section>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-borde bg-superficie p-5">
+        <div className="flex items-baseline justify-between gap-3 rounded-lg border border-borde bg-superficie px-4 py-3">
           <p className="text-sm text-texto-secundario">Horas trabajadas registradas</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-texto-primario">
+          <p className="text-2xl font-semibold tabular-nums text-texto-primario">
             {formatearHoras(resumen.horasTrabajadas)}
           </p>
         </div>
-        <div className="rounded-xl border border-borde bg-superficie p-5">
+        <div className="flex items-baseline justify-between gap-3 rounded-lg border border-borde bg-superficie px-4 py-3">
           <p className="text-sm text-texto-secundario">Horas reservadas en reclamos</p>
-          <p className="mt-2 text-3xl font-semibold tabular-nums text-texto-primario">
+          <p className="text-2xl font-semibold tabular-nums text-texto-primario">
             {formatearHoras(resumen.horasReservadas)}
           </p>
         </div>
@@ -409,9 +409,9 @@ export function PaginaMiPanelOperador({
       ) : null}
 
       <section className="overflow-hidden rounded-xl border border-borde bg-superficie">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-borde p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-borde px-4 py-3">
           <div>
-            <h3 className="text-lg font-semibold text-texto-primario">Mis procesos</h3>
+            <h3 className="text-base font-semibold text-texto-primario">Mis procesos</h3>
             <p className="text-xs text-texto-secundario">
               {visibles.length} proceso(s) en la vista actual
             </p>
@@ -439,7 +439,7 @@ export function PaginaMiPanelOperador({
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 p-4 sm:p-5">
+          <div className="grid gap-3 p-3 sm:p-4 xl:grid-cols-2">
             {ordenesVisibles.map(({ grupo, procesos }) => (
               <TarjetaOrdenMisProcesos
                 key={grupo.ordenId}
