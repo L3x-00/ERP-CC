@@ -89,7 +89,19 @@ describe('mensajes operativos de corrida', () => {
 
   it('explica que no hay recurso libre del grupo al reclamar (A3)', () => {
     expect(mensajeErrorSesion(new ErrorProduccion('sin_recurso_disponible')))
-      .toBe('No hay recurso libre del área para esa fecha y turno');
+      .toContain('Sin disponibilidad suficiente');
+    expect(mensajeErrorSesion(new ErrorProduccion('recurso_sin_equipos')))
+      .toContain('no hay equipos activos');
+    expect(mensajeErrorSesion(new ErrorProduccion('recurso_sin_capacidad')))
+      .toContain('no tiene capacidad configurada');
+    expect(mensajeErrorSesion(new ErrorProduccion('recurso_ocupado')))
+      .toContain('No puedes cancelar el trabajo de otro operador');
+  });
+
+  it('muestra el detalle exacto que explica la RPC (C25)', () => {
+    const detalle = 'recurso_ocupado: LASER-01 (Láser fibra-01) está ocupado por la orden O-9 · IT02, operador Luis. No puedes cancelar el trabajo en curso de otro operador desde aquí.';
+    expect(mensajeErrorSesion(new ErrorProduccion('recurso_ocupado', detalle)))
+      .toContain('LASER-01 (Láser fibra-01) está ocupado por la orden O-9');
   });
 
   it('explica cada rechazo al reclamar una máquina liberada (C22)', () => {
