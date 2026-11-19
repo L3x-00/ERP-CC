@@ -224,6 +224,8 @@ export interface ProcesoEspacioOperador {
   hechoPiezas: number;
   pendientePiezas: number;
   porcentaje: number;
+  /** El proceso ya produjo todas sus piezas: no se puede continuar produciendo. */
+  procesoCompleto: boolean;
   esFinal: boolean;
   /** Piezas del proceso previo aún disponibles; null si es la primera operación. */
   piezasDisponibles: number | null;

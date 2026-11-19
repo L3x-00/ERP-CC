@@ -616,6 +616,67 @@ describe('DetalleProcesoOperador', () => {
     await waitFor(() => expect(cerrarPausa).toHaveBeenCalledWith(pausado));
   });
 
+  it('no ofrece continuar una operación completa: solo registrar el consumo y cerrar', () => {
+    const sesionPausada = {
+      id: 'sesion-pausada',
+      corridaId: null,
+      operadorId: 'operador-1',
+      operadorNombre: 'Operador de prueba',
+      estadoSesion: 'pausada' as const,
+      fechaInicio: '2026-10-27T17:52:00.000Z',
+      fechaFin: '2026-10-28T01:52:00.000Z',
+      piezasProducidas: 10,
+      horasNetas: 8,
+      motivoPausa: 'FIN_JORNADA',
+      motivoPausaNota: null,
+      notas: null,
+      verificacionCompleta: true,
+    };
+    const completo = {
+      ...proceso,
+      columna: 'lista',
+      sesionActiva: null,
+      ultimaSesion: sesionPausada,
+      sesiones: [sesionPausada],
+      hechoPiezas: 10,
+      pendientePiezas: 0,
+      porcentaje: 100,
+      procesoCompleto: true,
+      puedeReanudar: false,
+      puedeIniciar: false,
+      motivoNoInicia: 'Operación completa: registra el consumo pendiente para cerrarla',
+    } as unknown as ProcesoEspacioOperador;
+
+    render(createElement(DetalleProcesoOperador, {
+      proceso: completo,
+      hoy: '2026-10-28',
+      soloLectura: false,
+      procesando: false,
+      motivosPausa: [],
+      materiales: [],
+      consumos: [],
+      acciones: {
+        reclamar: vi.fn(),
+        mover: vi.fn(),
+        liberar: vi.fn(),
+        iniciar: vi.fn(),
+        reanudar: vi.fn(),
+        cerrarPausa: vi.fn(),
+        actualizarAvance: vi.fn(),
+        cerrar: vi.fn(),
+      },
+      onCerrar: vi.fn(),
+      presentacion: 'integrado',
+    }));
+
+    expect(screen.getByTestId('aviso-operacion-completa').textContent).toContain(
+      'La operación ya está completa',
+    );
+    expect(screen.queryByTestId('reanudar-detalle')).toBeNull();
+    expect(screen.queryByTestId('cerrar-pausa-detalle')).toBeNull();
+    expect(screen.getByTestId('formulario-actualizar-avance')).toBeTruthy();
+  });
+
   it('aclara que cerrar la sesión en marcha no modifica las pausadas', async () => {
     const sesionPausada = {
       id: 'sesion-pausada',
@@ -1019,7 +1080,7 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     estadoSesion: 'pausada' as const,
     fechaInicio: '2026-11-18T09:00:00.000Z',
     fechaFin: '2026-11-18T11:00:00.000Z',
-    piezasProducidas: 36,
+    piezasProducidas: 6,
     horasNetas: 2,
     motivoPausa: 'FIN_JORNADA',
     motivoPausaNota: null,
@@ -1033,6 +1094,10 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     sesionActiva: null,
     ultimaSesion: sesionPausada,
     sesiones: [sesionPausada],
+    hechoPiezas: 6,
+    metaPiezas: 10,
+    pendientePiezas: 4,
+    procesoCompleto: false,
     puedeReanudar: true,
     puedeIniciar: false,
   } as unknown as ProcesoEspacioOperador;
@@ -1089,6 +1154,23 @@ describe('actualizar avance: cierre visual sin PIN', () => {
     expect(screen.getByTestId('avance-actualizado-confirmacion').textContent).toContain(
       'actualizados correctamente',
     );
+  });
+
+  it('mantiene el formulario abierto si la pausa sigue pendiente de consumo', async () => {
+    const actualizar = vi.fn().mockResolvedValue({
+      exito: true,
+      estadoSesion: 'pausada',
+      datos: { id: sesionPausada.id, estadoSesion: 'pausada' },
+    });
+    montar(actualizar);
+
+    fireEvent.change(screen.getByTestId('avance-piezas'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('avance-horas'), { target: { value: '1' } });
+    fireEvent.click(screen.getByTestId('actualizar-avance-detalle'));
+
+    await waitFor(() => expect(actualizar).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('formulario-actualizar-avance')).toBeTruthy();
+    expect(screen.queryByTestId('avance-actualizado-confirmacion')).toBeNull();
   });
 
   it('envía el avance solo con la sesión del operador, sin pedir PIN', async () => {

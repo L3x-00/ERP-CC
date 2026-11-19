@@ -274,13 +274,21 @@ export function PanelOperadorProduccion({
       const partida = orden.partidas.find((item) => item.id === sesion.partidaId);
       const programacion = partida?.programaciones.find((item) =>
         item.id === sesion.programacionId && item.estadoPlaneacion === 'bloqueada');
-      if (partida && programacion) return { sesion, partida, programacion };
+      if (partida && programacion) {
+        // Una operación ya terminada no se reanuda: la pausa solo espera el
+        // consumo de material para cerrarse.
+        const meta = partida.metasProceso.find((actual) => (programacion.metaProcesoId
+          ? actual.id === programacion.metaProcesoId
+          : actual.secuencia === programacion.secuencia)) ?? null;
+        const completa = meta !== null && meta.pendientePiezas <= 0;
+        return { sesion, partida, programacion, completa };
+      }
     }
     return null;
   })();
 
   async function reanudar(): Promise<void> {
-    if (!orden || !ultimaPausa) return;
+    if (!orden || !ultimaPausa || ultimaPausa.completa) return;
     setErrorReanudacion(null);
     const resultado = await onReanudar({
       ordenId: orden.id, partidaId: ultimaPausa.partida.id,
@@ -1133,7 +1141,7 @@ export function PanelOperadorProduccion({
               </Button>
             </>
           ) : null}
-          {ultimaPausa && operadorDisponible ? (
+          {ultimaPausa && !ultimaPausa.completa && operadorDisponible ? (
             <Button type="button" tamano="lg" variante="secundario"
               disabled={procesando} onClick={() => { setErrorReanudacion(null); setConfirmarReanudacion(true); }}>
               Continuar sesión pausada
@@ -1222,9 +1230,15 @@ export function PanelOperadorProduccion({
               : null}
           </div> : null}
           {errorReanudacion ? <p role="alert" className="text-sm text-peligro-texto">{errorReanudacion}</p> : null}
+          {ultimaPausa?.completa ? (
+            <p className="text-sm text-advertencia-texto" data-testid="pausa-operacion-completa">
+              La operación ya está completa. Cierra la pausa registrando el consumo pendiente
+              desde la ficha del proceso; no se puede continuar produciendo.
+            </p>
+          ) : null}
           <DialogFooter className="static mt-2 shrink-0">
             <Button type="button" variante="contorno" disabled={procesando} onClick={() => setConfirmarReanudacion(false)}>Cancelar</Button>
-            <Button type="button" disabled={procesando || !ultimaPausa} onClick={() => void reanudar()}>{procesando ? 'Reanudando…' : 'Continuar'}</Button>
+            <Button type="button" disabled={procesando || !ultimaPausa || ultimaPausa.completa} onClick={() => void reanudar()}>{procesando ? 'Reanudando…' : 'Continuar'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -276,5 +276,11 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | --- | --- | --- |
 | La sesión seguía «Activa» después de 8 h de reloj y al cerrar aparecía «El tiempo neto acumulado del día supera la jornada del turno» | El vigilante del cliente comparaba el reloj bruto de la sesión contra 8 h, mientras el cierre y la base suman las horas **netas** acumuladas del día (comida descontada y sesiones cerradas). Con la pausa del mediodía o una reanudación, el bruto y el neto diverjeron | La jornada se mide siempre en el servidor como horas netas acumuladas del día (`privado.horas_netas_operador_dia`). La pausa automática descuenta lo ya cerrado y corta la sesión activa cuando el total del día alcanza la jornada; si el día ya estaba agotado no la pausa al iniciar (es tiempo extra y lo gobierna el cierre). El cliente no compara horas: consulta al servidor cada 60 s y muestra el error si falla. Cualquier prellenado de `datetime-local` se escribe en el DOM con un ref, no con `setState` en un efecto |
 
+## 20. Operación completa que sigue ofreciendo reanudar (C28)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Tras declarar el total de piezas de una pausa, la ficha seguía mostrando «Continuar sesión pausada» y «Cerrar pausa sin producir» | La RPC `actualizar_avance_sesion_pausada` deja la sesión en `pausada` cuando la operación quedó completa pero falta el consumo de material (Opción 2: consumo en el cierre normal). `puedeReanudar` solo miraba el estado de la sesión y la programación `bloqueada`, no la completitud de la operación | `puedeReanudar` exige `!procesoCompleto`. Una operación terminada solo se cierra asentando el consumo desde el formulario de avance; la ficha muestra el aviso de operación completa y conserva ese formulario. Si la RPC responde `estadoSesion = 'pausada'`, el formulario no se oculta ni reinicia piezas/horas a 0 (se prefijan con lo ya declarado para no restar producción) |
+
 
 
