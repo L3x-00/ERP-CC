@@ -165,6 +165,23 @@ describe('diagnosticarCapacidadTurno (guía de Planeación)', () => {
     expect(pasos[0].href).toBe('/planeacion#capacidad-instalada');
   });
 
+  it('documenta que un día cerrado con solo horas reales se explica como sin capacidad', () => {
+    // La RPC conserva la fila del domingo por las horas reales. La guía no puede
+    // inventar capacidad: el mensaje es correcto, solo que antes el día callaba.
+    const pasos = diagnosticarTurno({
+      cargas: [
+        carga({
+          recursoId: RECURSO.id,
+          fechaProgramada: '2026-11-10',
+          horasCapacidad: 0,
+          horasReales: 2,
+        }),
+      ],
+    });
+
+    expect(pasos[0].titulo).toBe('El equipo CNC-01 no tiene capacidad el 2026-11-10');
+  });
+
   it('no inventa un pendiente cuando el equipo sí tiene capacidad ese día', () => {
     expect(diagnosticarTurno({ cargas: [carga({ recursoId: RECURSO.id })] })).toEqual([]);
   });

@@ -111,15 +111,41 @@ export function ResumenCargaSemanal({
                   ) : (
                     matriz.columnas.map((fecha, indice) => {
                       const celda = fila.celdas[indice] ?? null;
+                      // Un día sin jornada conserva sus horas reales aunque no
+                      // tenga capacidad ni carga: la celda lo dice sin un 0/0.
+                      const soloTrabajoReal = celda !== null
+                        && celda.horasCapacidad === 0
+                        && celda.horasProgramadas === 0
+                        && celda.horasReales > 0;
                       return (
                         <td key={fecha} className="px-2 py-1">
                           {celda ? (
-                            <InsigniaSaturacion
-                              variante="celda"
-                              nivel={celda.nivel}
-                              horasProgramadas={celda.horasProgramadas}
-                              horasCapacidad={celda.horasCapacidad}
-                            />
+                            soloTrabajoReal ? (
+                              <span
+                                className="font-mono text-[11px] text-texto-secundario"
+                                title="Tiempo real registrado en un día sin jornada"
+                                data-testid={`reales-${fila.codigo}-${fecha}`}
+                              >
+                                {formatearHoras(celda.horasReales)} h reales
+                              </span>
+                            ) : (
+                              <span className="flex flex-col items-start gap-0.5">
+                                <InsigniaSaturacion
+                                  variante="celda"
+                                  nivel={celda.nivel}
+                                  horasProgramadas={celda.horasProgramadas}
+                                  horasCapacidad={celda.horasCapacidad}
+                                />
+                                {celda.horasReales > 0 ? (
+                                  <span
+                                    className="font-mono text-[10px] text-texto-tenue"
+                                    data-testid={`reales-${fila.codigo}-${fecha}`}
+                                  >
+                                    {formatearHoras(celda.horasReales)} h reales
+                                  </span>
+                                ) : null}
+                              </span>
+                            )
                           ) : (
                             <span className="text-texto-tenue">—</span>
                           )}

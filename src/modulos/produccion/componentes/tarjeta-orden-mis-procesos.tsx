@@ -200,7 +200,7 @@ export function TarjetaOrdenMisProcesos({
                     type="button"
                     disabled={procesando !== null}
                     onClick={() => onIniciar(proceso)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-md bg-acento px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-acento px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   >
                     Iniciar proceso
                   </button>
@@ -211,7 +211,7 @@ export function TarjetaOrdenMisProcesos({
                     type="button"
                     disabled={procesando !== null}
                     onClick={() => onReanudar(proceso)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-md bg-acento px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-acento px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   >
                     Continuar sesión
                   </button>
@@ -222,7 +222,7 @@ export function TarjetaOrdenMisProcesos({
                     type="button"
                     disabled={procesando !== null}
                     onClick={() => onLiberar(proceso)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-md border border-borde px-3 py-1.5 text-xs font-medium text-texto-primario hover:bg-superficie-2 disabled:opacity-50"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-borde px-3 py-1.5 text-xs font-medium text-texto-primario hover:bg-superficie-2 disabled:opacity-50"
                   >
                     Liberar reserva
                   </button>
@@ -235,8 +235,8 @@ export function TarjetaOrdenMisProcesos({
                   onClick={() => onGestionar(proceso)}
                   className={
                     puedeGestionar
-                      ? 'inline-flex min-h-11 items-center justify-center rounded-md border border-acento px-3 py-1.5 text-xs font-semibold text-acento-texto transition-colors hover:bg-acento-suave disabled:opacity-50'
-                      : 'inline-flex min-h-11 cursor-not-allowed items-center justify-center rounded-md bg-superficie-2 px-3 py-1.5 text-xs text-texto-secundario'
+                      ? 'inline-flex min-h-11 flex-1 items-center justify-center rounded-md border border-acento px-3 py-1.5 text-xs font-semibold text-acento-texto transition-colors hover:bg-acento-suave disabled:opacity-50'
+                      : 'inline-flex min-h-11 flex-1 cursor-not-allowed items-center justify-center rounded-md bg-superficie-2 px-3 py-1.5 text-xs text-texto-secundario'
                   }
                 >
                   {etiquetaGestion}
