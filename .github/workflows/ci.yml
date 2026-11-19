@@ -1,4 +1,3 @@
-
 name: CI
 
 on:
@@ -15,51 +14,61 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Plan de pruebas proporcional al cambio.
+# El clasificador (scripts/ci/clasificar-cambios.mjs) decide qué capas se ejecutan.
+# Regla: ante cualquier duda escala a suite completa; nunca omite por ignorancia.
 jobs:
-  # Detectar cambios visuales conocidos.
-  cambios:
+  clasificar:
+    name: Plan de pruebas
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      solo_ui: ${{ steps.clasificar.outputs.solo_ui }}
+      nivel: ${{ steps.plan.outputs.nivel }}
+      typecheck: ${{ steps.plan.outputs.typecheck }}
+      unitarias_modo: ${{ steps.plan.outputs.unitarias_modo }}
+      unitarias_archivos: ${{ steps.plan.outputs.unitarias_archivos }}
+      integracion_modo: ${{ steps.plan.outputs.integracion_modo }}
+      integracion_archivos: ${{ steps.plan.outputs.integracion_archivos }}
+      concurrencia: ${{ steps.plan.outputs.concurrencia }}
+      pgtap: ${{ steps.plan.outputs.pgtap }}
+      e2e_modo: ${{ steps.plan.outputs.e2e_modo }}
+      e2e_specs: ${{ steps.plan.outputs.e2e_specs }}
     steps:
-      - name: Obtener archivos modificados
-        if: github.event_name == 'pull_request'
-        id: archivos
-        uses: dorny/paths-filter@v3
+      # Historial completo: `vitest --changed`, `git diff base...HEAD` y el
+      # clasificador necesitan el merge-base. El paquete del repo pesa ~11 MB.
+      - uses: actions/checkout@v4
         with:
-          list-files: json
-          filters: |
-            todos:
-              - '**'
+          fetch-depth: 0
 
-      - name: Clasificar cambios
-        id: clasificar
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Calcular plan
+        id: plan
+        shell: bash
         env:
-          ARCHIVOS: ${{ steps.archivos.outputs.todos_files }}
+          EVENTO: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          node <<'NODE' >> "$GITHUB_OUTPUT"
-          const archivos = JSON.parse(process.env.ARCHIVOS || '[]');
+          comun=(--github-output "$GITHUB_OUTPUT" --resumen "$GITHUB_STEP_SUMMARY")
+          if [ "$EVENTO" = "pull_request" ]; then
+            node scripts/ci/clasificar-cambios.mjs --base "$BASE_SHA" "${comun[@]}"
+          else
+            # push a main y ejecuciones manuales: suite completa siempre.
+            node scripts/ci/clasificar-cambios.mjs --forzar-total "${comun[@]}"
+          fi
 
-          const permitidos = new Set([
-            'src/modulos/rfq/componentes/panel-archivos-rfq.tsx',
-            'src/modulos/rfq/componentes/tabla-items-rfq.tsx',
-            'src/modulos/rfq/componentes/panel-revision-rfq.tsx',
-            'src/modulos/rfq/utilidades/faltantes.ts',
-            'tests/unitarias/rfq-campos-faltantes.test.ts',
-            'tests/unitarias/rfq-panel-revision-responsive.test.ts',
-          ]);
-
-          const soloUi = archivos.length > 0 &&
-            archivos.every(archivo => permitidos.has(archivo));
-
-          console.log(`solo_ui=${soloUi}`);
-          NODE
-
-  # Siempre: tipos, lint y pruebas unitarias.
   verificacion:
+    name: Tipos, lint y unitarias
+    needs: clasificar
+    if: needs.clasificar.outputs.typecheck == 'true' || needs.clasificar.outputs.unitarias_modo != 'ninguna'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -71,25 +80,51 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm test
 
-  # E2E completo para cambios no clasificados como UI,
-  # push a main y ejecuciones manuales.
-  e2e-local:
+      # En paralelo: son independientes y cada uno cuesta ~30 s.
+      - name: Tipos y lint
+        shell: bash
+        run: |
+          ( pnpm typecheck > tsc.log 2>&1 ) & tsc_pid=$!
+          ( pnpm lint > lint.log 2>&1 ) & lint_pid=$!
+          estado=0
+          if ! wait "$tsc_pid"; then
+            echo "::error::pnpm typecheck falló"
+            tail -n 80 tsc.log
+            estado=1
+          fi
+          if ! wait "$lint_pid"; then
+            echo "::error::pnpm lint falló"
+            tail -n 80 lint.log
+            estado=1
+          fi
+          exit "$estado"
+
+      - name: Pruebas unitarias
+        if: needs.clasificar.outputs.unitarias_modo != 'ninguna'
+        shell: bash
+        env:
+          MODO: ${{ needs.clasificar.outputs.unitarias_modo }}
+          ARCHIVOS: ${{ needs.clasificar.outputs.unitarias_archivos }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          node scripts/ci/ejecutar-unitarias.mjs \
+            --modo "$MODO" \
+            --base "${BASE_SHA:-origin/main}" \
+            --archivos "$ARCHIVOS"
+
+  base_datos:
+    name: pgTAP, integración y concurrencia
+    needs: clasificar
+    if: >-
+      needs.clasificar.outputs.pgtap == 'true' ||
+      needs.clasificar.outputs.integracion_modo != 'no' ||
+      needs.clasificar.outputs.concurrencia == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: read
-    needs: [cambios, verificacion]
-    if: >-
-      ${{
-        needs.verificacion.result == 'success' &&
-        (github.event_name != 'pull_request' ||
-        needs.cambios.outputs.solo_ui != 'true')
-      }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -104,85 +139,124 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.0
+      - uses: ./.github/actions/preparar-supabase
 
-      # Evita que Supabase CLI descargue imágenes públicas de GHCR de forma
-      # anónima y alcance su límite compartido de peticiones.
-      - name: Autenticar descargas públicas de Supabase
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-
-      # El CLI intenta todos los servicios en paralelo. En los runners
-      # compartidos eso puede agotar el límite de ECR/GHCR antes de que el
-      # fallback termine. Precargamos las versiones fijadas por el CLI de una
-      # en una y las etiquetamos con el primer registro que este consulta.
-      - name: Precargar imágenes de Supabase secuencialmente
-        shell: bash
-        run: |
-          imagenes=(
-            "edge-runtime:v1.74.2"
-            "gotrue:v2.192.0"
-            "imgproxy:v3.8.0"
-            "kong:2.8.1"
-            "logflare:1.45.6"
-            "mailpit:v1.30.2"
-            "postgres:17.6.1.140"
-            "postgres-meta:v0.96.6"
-            "postgrest:v14.14"
-            "realtime:v2.112.1"
-            "storage-api:v1.61.7"
-            "studio:2026.06.29-sha-20290c7"
-            "vector:0.53.0-alpine"
-          )
-
-          for imagen in "${imagenes[@]}"; do
-            origen="ghcr.io/supabase/$imagen"
-            destino="public.ecr.aws/supabase/$imagen"
-            docker pull "$origen"
-            docker tag "$origen" "$destino"
-          done
-
-      - name: Levantar Supabase local (aplica migraciones)
-        run: supabase start
-
-      - name: Verificar permisos SQL tras todas las migraciones
+      - name: pgTAP (permisos SQL tras todas las migraciones)
+        if: needs.clasificar.outputs.pgtap == 'true'
         run: supabase test db
 
-      - name: Exportar entorno del stack local
+      - name: Integración contra Supabase local
+        if: needs.clasificar.outputs.integracion_modo != 'no'
+        shell: bash
+        env:
+          MODO: ${{ needs.clasificar.outputs.integracion_modo }}
+          ARCHIVOS: ${{ needs.clasificar.outputs.integracion_archivos }}
         run: |
-          source <(supabase status -o env)
-          case "$API_URL" in
-            http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*) ;;
-            *) echo "El stack de CI debe usar loopback" >&2; exit 1 ;;
-          esac
-          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY" >> "$GITHUB_ENV"
-          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
-          echo "SUPABASE_SERVICE_ROLE_KEY_LOCAL=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
-          echo "SUPABASE_URL_LOCAL=$API_URL" >> "$GITHUB_ENV"
-          echo "SECRETO_SESION_OPERADOR=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          echo "NEXT_PUBLIC_SITIO_URL=http://127.0.0.1:3100" >> "$GITHUB_ENV"
-          echo "E2E_HABILITAR_PRUEBAS_REMOTAS=si" >> "$GITHUB_ENV"
+          if [ "$MODO" = "archivos" ]; then
+            node tests/integracion/validar-entorno.mjs
+            read -r -a lista <<< "$ARCHIVOS"
+            pnpm exec vitest run --no-file-parallelism "${lista[@]}"
+          else
+            pnpm test:integracion
+          fi
+
+      - name: Concurrencia estricta (dos conexiones)
+        if: needs.clasificar.outputs.concurrencia == 'true'
+        run: pnpm test:concurrencia
+
+      - name: Registrar logs de Supabase si algo falla
+        if: failure()
+        run: docker ps --format '{{.Names}}' && supabase status
+
+  e2e:
+    name: E2E de navegador
+    needs: clasificar
+    if: needs.clasificar.outputs.e2e_modo != 'no'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: ./.github/actions/preparar-supabase
 
       - name: Provisionar fixture E2E
         run: |
           node supabase/semillas/e2e-local.mjs /tmp/e2e-fixture.json --exports > /tmp/e2e-exports.txt
           cat /tmp/e2e-exports.txt >> "$GITHUB_ENV"
 
-      - name: Integración completa contra Supabase local
-        run: pnpm test:integracion
+      - name: Cachear navegador de Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Instalar Chromium de Playwright
         run: pnpm exec playwright install --with-deps chromium
 
       - name: E2E de navegador (incluye OCR con stub local)
-        run: pnpm test:e2e
+        shell: bash
+        env:
+          MODO: ${{ needs.clasificar.outputs.e2e_modo }}
+          SPECS: ${{ needs.clasificar.outputs.e2e_specs }}
+        run: |
+          # Casi todos los specs hacen `test.skip` si este flag no vale 'si'.
+          # Sin esta guarda, un cambio en la acción dejaría la suite en verde
+          # sin ejecutar una sola prueba.
+          if [ "${E2E_HABILITAR_PRUEBAS_REMOTAS:-}" != "si" ]; then
+            echo "::error::E2E_HABILITAR_PRUEBAS_REMOTAS no vale 'si'; la suite se saltaría entera."
+            exit 1
+          fi
 
-      - name: Concurrencia estricta (dos conexiones)
-        run: pnpm test:concurrencia
+          argumentos=()
+          if [ "$MODO" = "specs" ]; then
+            for spec in $SPECS; do argumentos+=("$spec"); done
+            echo "Ejecutando ${#argumentos[@]} specs focalizados."
+          else
+            echo "Ejecutando la suite E2E completa."
+          fi
+
+          export PLAYWRIGHT_JSON_OUTPUT_NAME=/tmp/e2e-resultados.json
+          export PLAYWRIGHT_HTML_OPEN=never
+          pnpm exec playwright test --reporter=list,json,html "${argumentos[@]}"
+
+          # Un run donde todo quedó 'skipped' es un falso verde: se verifica
+          # que al menos una prueba se haya ejecutado de verdad.
+          node -e '
+            const fs = require("fs");
+            const informe = JSON.parse(fs.readFileSync("/tmp/e2e-resultados.json", "utf8"));
+            let ejecutadas = 0;
+            let saltadas = 0;
+            (function recorrer(suite) {
+              for (const spec of suite.specs || []) {
+                for (const prueba of spec.tests || []) {
+                  if (prueba.status === "skipped") saltadas += 1;
+                  else ejecutadas += 1;
+                }
+              }
+              for (const hija of suite.suites || []) recorrer(hija);
+            })(informe);
+            console.log(`E2E ejecutadas: ${ejecutadas} · saltadas: ${saltadas}`);
+            if (ejecutadas === 0) {
+              console.error("::error::La suite E2E no ejecutó ninguna prueba (todas saltadas).");
+              process.exit(1);
+            }
+          '
 
       - name: Registrar logs de Supabase si algo falla
         if: failure()
@@ -197,4 +271,76 @@ jobs:
             test-results/
             playwright-report/
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 1
+
+  # Job agregado para que la protección de rama tenga UN check estable.
+  # No basta con aceptar "skipped": se contrasta cada capa omitida contra el
+  # plan de pruebas. Si un `if` se rompe y salta una capa que el plan exigía,
+  # este job falla en vez de dejar el run en verde sin haber probado nada.
+  resultado:
+    name: Resultado de pruebas
+    needs: [clasificar, verificacion, base_datos, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluar resultado
+        shell: bash
+        env:
+          CLASIFICAR: ${{ needs.clasificar.result }}
+          VERIFICACION: ${{ needs.verificacion.result }}
+          BASE_DATOS: ${{ needs.base_datos.result }}
+          E2E: ${{ needs.e2e.result }}
+          TYPECHECK: ${{ needs.clasificar.outputs.typecheck }}
+          UNITARIAS_MODO: ${{ needs.clasificar.outputs.unitarias_modo }}
+          INTEGRACION_MODO: ${{ needs.clasificar.outputs.integracion_modo }}
+          CONCURRENCIA: ${{ needs.clasificar.outputs.concurrencia }}
+          PGTAP: ${{ needs.clasificar.outputs.pgtap }}
+          E2E_MODO: ${{ needs.clasificar.outputs.e2e_modo }}
+        run: |
+          echo "clasificar=$CLASIFICAR verificacion=$VERIFICACION base_datos=$BASE_DATOS e2e=$E2E"
+          echo "typecheck=$TYPECHECK unitarias=$UNITARIAS_MODO integracion=$INTEGRACION_MODO concurrencia=$CONCURRENCIA pgtap=$PGTAP e2e=$E2E_MODO"
+
+          fallo=0
+
+          exigir() {
+            local capa="$1" resultado="$2" requerida="$3"
+            if [ "$requerida" = "true" ]; then
+              if [ "$resultado" != "success" ]; then
+                echo "::error::La capa '$capa' era obligatoria según el plan y terminó en '$resultado'."
+                fallo=1
+              fi
+            else
+              case "$resultado" in
+                success|skipped) ;;
+                *)
+                  echo "::error::La capa '$capa' no terminó en verde ('$resultado')."
+                  fallo=1
+                  ;;
+              esac
+            fi
+          }
+
+          verificacion_requerida=false
+          if [ "$TYPECHECK" = "true" ] || [ "$UNITARIAS_MODO" != "ninguna" ]; then
+            verificacion_requerida=true
+          fi
+
+          base_datos_requerida=false
+          if [ "$PGTAP" = "true" ] || [ "$INTEGRACION_MODO" != "no" ] || [ "$CONCURRENCIA" = "true" ]; then
+            base_datos_requerida=true
+          fi
+
+          e2e_requerido=false
+          if [ "$E2E_MODO" != "no" ]; then
+            e2e_requerido=true
+          fi
+
+          exigir "clasificar" "$CLASIFICAR" true
+          exigir "verificacion" "$VERIFICACION" "$verificacion_requerida"
+          exigir "base_datos" "$BASE_DATOS" "$base_datos_requerida"
+          exigir "e2e" "$E2E" "$e2e_requerido"
+
+          if [ "$fallo" != "0" ]; then
+            exit 1
+          fi
+          echo "Todas las capas exigidas por el plan quedaron en verde."

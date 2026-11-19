@@ -28,7 +28,11 @@ export default defineConfig({
   workers: 1,
   timeout: 120_000,
   expect: { timeout: 15_000 },
-  reporter: 'list',
+  // Un flake de transporte no debe costar repetir el job completo (10–19 min).
+  retries: process.env.CI ? 1 : 0,
+  // Un `test.only` olvidado no puede dejar el resto de la suite sin ejecutar.
+  forbidOnly: Boolean(process.env.CI),
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL,
     acceptDownloads: true,
@@ -43,7 +47,9 @@ export default defineConfig({
         command: `pnpm build && node tests/e2e/servidor-con-stub-ocr.mjs`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
+        // Cubre el build de producción + arranque: 120 s solo alcanzaba para
+        // Next en frío y producía fallos intermitentes en CI.
+        timeout: 600_000,
         // El wrapper necesita una señal capturable para apagar Next y el stub
         // (con SIGKILL quedaría un next-server huérfano colgando el job de CI).
         gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },

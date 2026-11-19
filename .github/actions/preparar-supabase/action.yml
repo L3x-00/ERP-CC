@@ -1,0 +1,122 @@
+name: Preparar Supabase local
+description: >-
+  Instala el CLI de Supabase, precarga las imágenes públicas de forma secuencial
+  (evita el límite compartido de GHCR/ECR), levanta el stack local aplicando las
+  migraciones y exporta al entorno las variables del stack, exigiendo loopback.
+
+inputs:
+  version:
+    description: Versión del CLI de Supabase.
+    required: false
+    default: '2.109.0'
+
+runs:
+  using: composite
+  steps:
+    - uses: supabase/setup-cli@v1
+      with:
+        version: ${{ inputs.version }}
+
+    # Evita que Supabase CLI descargue imágenes públicas de GHCR de forma
+    # anónima y alcance su límite compartido de peticiones.
+    - name: Autenticar descargas públicas de Supabase
+      shell: bash
+      env:
+        GHCR_TOKEN: ${{ github.token }}
+      run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+    # El CLI intenta todos los servicios en paralelo. En los runners
+    # compartidos eso puede agotar el límite de ECR/GHCR antes de que el
+    # fallback termine. Precargamos las versiones fijadas por el CLI de una
+    # en una y las etiquetamos con el primer registro que este consulta.
+    #
+    # La precarga es una optimización: si un tag falla tras los reintentos, se
+    # emite un warning y se deja que `supabase start` lo resuelva. Nunca debe
+    # tumbar el job.
+    - name: Precargar imágenes de Supabase secuencialmente
+      shell: bash
+      run: |
+        imagenes=(
+          "edge-runtime:v1.74.2"
+          "gotrue:v2.192.0"
+          "imgproxy:v3.8.0"
+          "kong:2.8.1"
+          "logflare:1.45.6"
+          "mailpit:v1.30.2"
+          "postgres:17.6.1.140"
+          "postgres-meta:v0.96.6"
+          "postgrest:v14.14"
+          "realtime:v2.112.1"
+          "storage-api:v1.61.7"
+          "studio:2026.06.29-sha-20290c7"
+          "vector:0.53.0-alpine"
+        )
+
+        for imagen in "${imagenes[@]}"; do
+          origen="ghcr.io/supabase/$imagen"
+          destino="public.ecr.aws/supabase/$imagen"
+          descargada=0
+          for intento in 1 2 3; do
+            if docker pull "$origen"; then
+              descargada=1
+              break
+            fi
+            echo "Reintento $intento/3 para $origen" >&2
+            sleep $((intento * 5))
+          done
+          if [ "$descargada" = "1" ]; then
+            docker tag "$origen" "$destino" \
+              || echo "::warning::No se pudo etiquetar $origen como $destino."
+          else
+            echo "::warning::No se pudo precargar $origen; el CLI usará su registro de respaldo."
+          fi
+        done
+
+    - name: Levantar Supabase local (aplica migraciones)
+      shell: bash
+      run: supabase start
+
+    - name: Exportar entorno del stack local
+      shell: bash
+      run: |
+        # Se parsea `status -o env` línea a línea en vez de usar `source`:
+        # así un valor con espacios o metacaracteres no ejecuta código.
+        supabase status -o env > /tmp/supabase-status.env
+
+        valor_de() {
+          local linea
+          linea="$(grep -m1 "^$1=" /tmp/supabase-status.env || true)"
+          linea="${linea#*=}"
+          linea="${linea%\"}"
+          linea="${linea#\"}"
+          printf '%s' "$linea"
+        }
+
+        api_url="$(valor_de API_URL)"
+        anon_key="$(valor_de ANON_KEY)"
+        service_role_key="$(valor_de SERVICE_ROLE_KEY)"
+
+        if [ -z "$api_url" ] || [ -z "$anon_key" ] || [ -z "$service_role_key" ]; then
+          echo "El stack local no expuso API_URL, ANON_KEY o SERVICE_ROLE_KEY." >&2
+          cat /tmp/supabase-status.env >&2
+          exit 1
+        fi
+
+        case "$api_url" in
+          http://127.0.0.1:*|http://localhost:*|https://127.0.0.1:*|https://localhost:*) ;;
+          *)
+            echo "El stack de CI debe usar loopback, no '$api_url'." >&2
+            exit 1
+            ;;
+        esac
+
+        {
+          printf 'NEXT_PUBLIC_SUPABASE_URL=%s\n' "$api_url"
+          printf 'NEXT_PUBLIC_SUPABASE_ANON_KEY=%s\n' "$anon_key"
+          printf 'SUPABASE_SERVICE_ROLE_KEY=%s\n' "$service_role_key"
+          printf 'SUPABASE_SERVICE_ROLE_KEY_LOCAL=%s\n' "$service_role_key"
+          printf 'SUPABASE_URL_LOCAL=%s\n' "$api_url"
+          printf 'SECRETO_SESION_OPERADOR=%s\n' "$(openssl rand -hex 32)"
+          printf 'NEXT_PUBLIC_SITIO_URL=http://127.0.0.1:3100\n'
+          printf 'E2E_HABILITAR_PRUEBAS_REMOTAS=si\n'
+        } >> "$GITHUB_ENV"
