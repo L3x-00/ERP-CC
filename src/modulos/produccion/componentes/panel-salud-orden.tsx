@@ -30,7 +30,7 @@ const ETIQUETA_CODIGO: Record<string, string> = {
   meta_excede_piezas: 'Operación excede su meta',
   cantidad_producida_inconsistente: 'Cantidad producida inconsistente',
   produccion_sin_programacion: 'Producción sin operación programada',
-  pausa_huerfana: 'Pausa sin cerrar',
+  pausa_huerfana: 'Pausa pendiente de una orden terminada',
   sesion_vacia: 'Sesión vacía',
   sesion_activa_programacion_inoperable: 'Sesión activa sin operación',
   programacion_bloqueada_sin_sesion: 'Operación bloqueada sin sesión',
@@ -199,10 +199,10 @@ export function PanelSaludOrden({ ordenId, esAdmin = false }: PropsPanelSaludOrd
       <Dialog open={pausaSeleccionada !== null} onOpenChange={(abierto) => (abierto ? undefined : cerrarDialogo())}>
         <DialogContent className="max-w-md" data-testid="cerrar-pausa-huerfana">
           <DialogHeader>
-            <DialogTitle>Cerrar pausa huérfana</DialogTitle>
+            <DialogTitle>Cerrar pausa de una orden terminada</DialogTitle>
             <DialogDescription>
-              La orden ya terminó y esta pausa no puede retomarse. Elige qué hacer con su tiempo; las
-              piezas no cambian.
+              La orden ya terminó y este bloque de pausa quedó abierto. Elige qué hacer con su
+              tiempo; las piezas ya registradas no cambian.
             </DialogDescription>
           </DialogHeader>
 
