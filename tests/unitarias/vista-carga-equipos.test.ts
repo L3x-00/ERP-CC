@@ -150,7 +150,7 @@ describe('VistaCargaEquipos', () => {
     expect(screen.queryByTestId('resumen-carga-semanal')).toBeNull();
   });
 
-  it('muestra el equipo ocupado con orden, operador y tiempo transcurrido', () => {
+  it('el chip del equipo en uso cambia de color y abre el detalle del área', () => {
     render(
       createElement(VistaCargaEquipos, {
         cargas: CARGAS,
@@ -160,23 +160,55 @@ describe('VistaCargaEquipos', () => {
       }),
     );
 
-    const ocupado = screen.getByTestId('equipo-en-uso-LASER-01');
-    expect(ocupado.textContent).toContain('LASER-01 · Láser de fibra');
-    expect(ocupado.textContent).toContain('O-1126_09');
-    expect(ocupado.textContent).toContain('Ana Operadora');
-    expect(ocupado.textContent).toContain('Corte laser');
-    expect(ocupado.textContent).toContain('100/350');
+    const enUso = screen.getByTestId('estado-LASER-01');
+    expect(enUso.textContent).toBe('En uso');
+    expect(enUso.className).toContain('advertencia');
+    expect(screen.getByTestId('estado-CNC-01').textContent).toBe('Libre');
 
-    // La matriz distingue el equipo en marcha del que solo tiene capacidad.
-    expect(screen.getByTestId('en-uso-LASER-01').textContent).toContain('En uso');
-    expect(screen.queryByTestId('en-uso-CNC-01')).toBeNull();
+    fireEvent.click(enUso);
+
+    const dialogo = screen.getByTestId('detalle-carga-area');
+    expect(dialogo.textContent).toContain('LASER-01 · Láser de fibra');
+    expect(dialogo.textContent).toContain('Ocupado ahora');
+    expect(dialogo.textContent).toContain('O-1126_09');
+    expect(dialogo.textContent).toContain('Ana Operadora');
+    expect(dialogo.textContent).toContain('Corte laser');
+    expect(dialogo.textContent).toContain('100/350');
+    expect(within(dialogo).getByTestId('contador-detalle-area')).toBeTruthy();
   });
 
-  it('sin sesiones en marcha explica que no hay equipos en uso', () => {
+  it('el detalle lista los procesos trabajados hoy en el área', () => {
+    render(
+      createElement(VistaCargaEquipos, {
+        cargas: CARGAS,
+        recursos: RECURSOS,
+        hoy: HOY,
+        procesos: [procesoConTrabajo()],
+      }),
+    );
+
+    fireEvent.click(screen.getByTestId('estado-LASER-01'));
+
+    const dialogo = screen.getByTestId('detalle-carga-area');
+    expect(dialogo.textContent).toContain('Procesos trabajados hoy');
+    expect(dialogo.textContent).toContain('2 h · 40 piezas');
+
+    const trabajo = within(dialogo).getByTestId('trabajo-area-sesion-cerrada');
+    expect(trabajo.textContent).toContain('O-1126_08');
+    expect(trabajo.textContent).toContain('Corte laser');
+    expect(trabajo.textContent).toContain('Bruno Operador');
+    expect(trabajo.textContent).toContain('40');
+  });
+
+  it('un equipo libre abre su detalle sin proceso en marcha', () => {
     renderizar();
 
-    expect(screen.getByTestId('ocupacion-equipos-vacio').textContent)
-      .toContain('Cuando un operador inicie una sesión');
+    fireEvent.click(screen.getByTestId('estado-CNC-01'));
+
+    const dialogo = screen.getByTestId('detalle-carga-area');
+    expect(dialogo.textContent).toContain('Libre ahora');
+    expect(screen.getByTestId('detalle-carga-area-sin-proceso')).toBeTruthy();
+    expect(screen.getByTestId('detalle-carga-area-sin-trabajo')).toBeTruthy();
   });
 
   it('las horas ya trabajadas descuentan el saldo libre del equipo', () => {
@@ -235,5 +267,53 @@ function procesoEnMarcha(): ProcesoEspacioOperador {
       notas: null,
       verificacionCompleta: false,
     },
+    sesiones: [],
+  } as unknown as ProcesoEspacioOperador;
+}
+
+/** Proceso del mismo equipo con una sesión ya cerrada durante el día. */
+function procesoConTrabajo(): ProcesoEspacioOperador {
+  return {
+    id: 'proceso-laser-cerrado',
+    folioOrden: 'O-1126_08',
+    clienteNombre: 'FORESTAM',
+    codigoPieza: 'IT01',
+    procesoNombre: 'Corte laser',
+    unidadMedida: 'unidad',
+    metaPiezas: 350,
+    hechoPiezas: 40,
+    fechaCompromiso: '2026-11-23',
+    horasEstimadas: 3,
+    programacion: {
+      id: 'programacion-laser-cerrada',
+      fecha: '2026-11-18',
+      turno: 'matutino',
+      estadoPlaneacion: 'terminada',
+      horasEstimadas: 3,
+      recursoId: 'recurso-laser',
+      recursoCodigo: 'LASER-01',
+      recursoNombre: 'Láser de fibra',
+      actualizadoEn: '2026-11-18T20:00:00.000Z',
+    },
+    sesionActiva: null,
+    sesiones: [
+      {
+        id: 'sesion-cerrada',
+        operadorId: 'operador-bruno',
+        operadorNombre: 'Bruno Operador',
+        estadoSesion: 'finalizada',
+        fechaInicio: '2026-11-18T18:00:00.000Z',
+        fechaFin: '2026-11-18T20:00:00.000Z',
+        pendienteActualizacionAvance: false,
+        sesionInvalida: false,
+        recursoLiberado: false,
+        piezasProducidas: 40,
+        horasNetas: 2,
+        motivoPausa: null,
+        motivoPausaNota: null,
+        notas: null,
+        verificacionCompleta: true,
+      },
+    ],
   } as unknown as ProcesoEspacioOperador;
 }
