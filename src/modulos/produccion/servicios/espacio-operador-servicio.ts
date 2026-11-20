@@ -339,6 +339,33 @@ function sesionResumen(
 }
 
 /**
+ * C31/A9: una operación con meta propia nunca debe heredar las sesiones de
+ * otra operación de la misma partida. El fallback a `sesionesPartida` solo vale
+ * para partidas sin ruteo (una sola operación o meta heredada).
+ */
+export function sesionesDeOperacion(
+  programacion: ProgramacionArea | null,
+  sesionesPorProgramacion: ReadonlyMap<string, readonly SesionTrabajo[]>,
+  sesionesPartida: readonly SesionTrabajo[],
+  metaProcesoId: string | null,
+  cantidadMetas: number,
+  idsProgramacionPorMeta: ReadonlyMap<string, string> = new Map(),
+): SesionTrabajo[] {
+  if (programacion) return [...(sesionesPorProgramacion.get(programacion.id) ?? [])];
+  if (cantidadMetas <= 1) return [...sesionesPartida];
+  // Con varias metas, una operación no debe heredar la sesión activa de otra.
+  // Se excluyen las programaciones conocidas de las demás operaciones, pero se
+  // conservan las sesiones huérfanas (programación cancelada o sin meta) para
+  // no borrar el historial propio de esta operación.
+  const ajenas = new Set(
+    [...idsProgramacionPorMeta]
+      .filter(([meta]) => meta !== metaProcesoId)
+      .map(([, id]) => id),
+  );
+  return sesionesPartida.filter((sesion) => !ajenas.has(sesion.programacionId));
+}
+
+/**
  * C31/A2: unificación de «sin sesión» con el diagnóstico C23. Se ignoran
  * sesiones inválidas y pausas ya liberadas por administración.
  */
@@ -677,6 +704,11 @@ export async function obtenerEspacioOperadorServicio(
     const programacionHeredada = programaciones.find(
       (programacion) => programacion.metaProcesoId === null,
     ) ?? null;
+    const idsProgramacionPorMeta = new Map(
+      programaciones
+        .filter((programacion) => programacion.metaProcesoId !== null)
+        .map((programacion) => [programacion.metaProcesoId!, programacion.id] as const),
+    );
     const areaCodigo = partida.areaTrabajoCodigo ?? null;
     const area = areaCodigo ? areasPorCodigo.get(areaCodigo) ?? null : null;
     const areaRaiz = resolverAreaRaiz(areas, areaCodigo);
@@ -728,9 +760,14 @@ export async function obtenerEspacioOperadorServicio(
       // partida tenga una sola operación; el reclamo la adopta al preparar.
       const programacion = programacionOperacion
         ?? (metaProcesoId === null || metas.length === 1 ? programacionHeredada : null);
-      const sesionesOperacion = programacion
-        ? sesionesPorProgramacion.get(programacion.id) ?? []
-        : sesionesPartida;
+      const sesionesOperacion = sesionesDeOperacion(
+        programacion,
+        sesionesPorProgramacion,
+        sesionesPartida,
+        metaProcesoId,
+        metas.length,
+        idsProgramacionPorMeta,
+      );
       const sesionesOrdenadas = [...sesionesOperacion].sort((primera, segunda) => (
         segunda.fechaInicio.localeCompare(primera.fechaInicio)
         || segunda.id.localeCompare(primera.id)

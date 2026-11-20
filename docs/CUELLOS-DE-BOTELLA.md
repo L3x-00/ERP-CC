@@ -384,3 +384,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 
 | Síntoma | Causa real | Regla |
 | Al corregir el avance de una pausa muy corta, el campo «Tiempo real de este bloque» quedaba con tope 0 y no se podía usar | `horasBloquePausa` trunca a minutos completos para no superar la duración real; un bloque de 45 s daba 0 h y el input recibía `max={0}` | `maximoHorasVisiblesBloque` devuelve 1/60 h como techo visible cuando el bloque es menor a un minuto, sin inventar tiempo real; el texto sigue diciendo «menos de 1 min». Prueba: `tests/unitarias/formato-operador-bloque.test.ts` |
+
+## 38. Doblado aparece «En proceso» al iniciar Corte (A9)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| Al iniciar «Corte láser», la tarjeta de «DOBLADO_CNC» de la misma partida también mostraba «En proceso», «Sesión en curso 00:00:09 / 1.5 h» con la misma hora de inicio, aunque abajo decía «No hay piezas disponibles para doblar» | `obtenerEspacioOperadorServicio` resolvía la programación de cada operación por `meta_proceso_id`. Si el Doblado no tenía programación propia y la partida tenía varias metas, `programacion` quedaba nulo y caía en el fallback `sesionesPartida`, que incluía la sesión recién iniciada por Corte. La UI derivaba de ahí `sesionActiva`, la columna `en_proceso` y el badge «En proceso» | `sesionesDeOperacion` aísla las sesiones por operación: con programación propia usa `sesionesPorProgramacion`; con una sola meta conserva el fallback de la partida; con varias metas excluye las programaciones conocidas de las demás operaciones y conserva solo sesiones huérfanas para no borrar historial. El bloqueo por piezas de C29 queda intacto. Prueba: `tests/unitarias/c31-a9-sesiones-operacion.test.ts` |
