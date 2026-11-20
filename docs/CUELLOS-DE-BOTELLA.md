@@ -396,3 +396,9 @@ El PO fusiona a `main` (y por tanto a producción) desde GitHub. Los agentes tra
 | Síntoma | Causa real | Regla |
 | --- | --- | --- |
 | Al cerrar la sesión de Corte con consumo de material aparecía solo «No se pudo registrar la sesión de producción», sin indicar qué corregir | `mensajeErrorSesion` devolvía ese texto fijo para cualquier error que no fuera `ErrorProduccion`, y también para códigos no incluidos en `CODIGOS_ERROR`. La causa real quedaba solo en la consola del servidor | Ningún error llega genérico: los errores de otra capa muestran su mensaje exacto y el paso siguiente; los códigos no traducidos muestran el código y la acción a tomar. Se añaden los códigos del cierre con consumo (`cierre_consumo_invalido`, `proceso_corrida_no_corresponde`, `material_no_corresponde_corrida`). Prueba: `tests/unitarias/c31-a10-mensajes-error.test.ts` |
+
+## 40. Mensajes técnicos al cerrar la sesión (A11)
+
+| Síntoma | Causa real | Regla |
+| --- | --- | --- |
+| El aviso llegó a decir «El sistema rechazó la operación con el código desconocido…». El operador seguía sin saber si fallaba el material, la hora o las piezas, y el cronómetro continuaba corriendo | La corrección anterior sustituyó el genérico por el código técnico. Un texto con código no es una explicación ni da salida | `mensajes-error-produccion.ts` traduce cada error a una frase de piso que dice qué está mal y qué revisar, sin mostrar códigos. El diálogo ofrece además un botón con la acción concreta que enfoca el campo implicado (material, hora, piezas, consumo). Los códigos no previstos se convierten en frase legible, nunca se muestran tal cual. Prueba: `tests/unitarias/c31-a10-mensajes-error.test.ts` |

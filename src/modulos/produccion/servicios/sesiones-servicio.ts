@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { describirErrorProduccion } from '@/modulos/produccion/utilidades/mensajes-error-produccion';
 import type { Database } from '@/compartido/tipos/supabase';
 import type { EstadoPlaneacion } from '@/modulos/planeacion/tipos/indice';
 import {
@@ -698,9 +699,12 @@ export function mensajeErrorSesion(error: unknown): string {
   // otra capa, se muestra su causa exacta y el paso siguiente.
   if (!(error instanceof ErrorProduccion)) {
     const causa = error instanceof Error ? error.message.trim() : '';
-    return causa
-      ? `La operación no se pudo completar: ${causa}. Corrige lo indicado y vuelve a intentarlo; si continúa, pide a administración que revise la orden.`
-      : 'La operación no se pudo completar porque la respuesta del sistema no fue válida. Vuelve a cargar la ficha y reintenta; si continúa, pide a administración que revise la orden.';
+    if (!causa) {
+      return 'La operación no se pudo completar. Vuelve a cargar la ficha y reintenta; si continúa, pide a administración que revise la orden.';
+    }
+    const probableCodigo = /^[a-z][a-z0-9_]*$/u.test(causa) ? causa : null;
+    if (probableCodigo) return describirErrorProduccion(probableCodigo).mensaje;
+    return `${causa}. Revisa el dato indicado y vuelve a intentarlo.`;
   }
 
   switch (error.codigo) {
@@ -959,11 +963,13 @@ export function mensajeErrorSesion(error: unknown): string {
       return 'El material no tiene costo confirmado';
     case 'tipo_cambio_no_configurado':
       return 'Configura el tipo de cambio USD antes de registrar el consumo';
-    default:
-      // C24/C31-A10: regla transversal: nunca un error genérico. Si la base no
-      // tradujo el código, se muestra el código exacto y qué hacer.
+    default: {
+      // C24/C31-A11: regla transversal: nunca un error genérico ni técnico.
+      const crudo = error.message?.trim() ?? '';
+      if (/^[a-z][a-z0-9_]*$/u.test(crudo)) return describirErrorProduccion(crudo).mensaje;
       return detalleDelMensaje(error)
-        ?? `El sistema rechazó la operación con el código «${error.codigo}». Vuelve a cargar la ficha y reintenta; si continúa, comunica este código a administración.`;
+        ?? describirErrorProduccion(error.codigo).mensaje;
+    }
   }
 }
 
