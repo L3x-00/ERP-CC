@@ -162,6 +162,35 @@ describe('PanelOperadorProduccion — vista de administrador (sin PIN)', () => {
     })));
   });
 
+  it('muestra la pausa de otro proceso aunque la orden esté en_proceso', () => {
+    const ordenConPausa = {
+      id: 'orden-1',
+      folio: 'OP-000001',
+      estadoKanban: 'en_proceso',
+      sesiones: [{
+        id: 'sesion-pausada-1',
+        partidaId: 'partida-1',
+        programacionId: 'programacion-1',
+        operadorId: 'operador-1',
+        fechaInicio: '2026-11-15T22:19:00.000Z',
+        estadoSesion: 'pausada',
+      }],
+      partidas: [{ id: 'partida-1', codigoPieza: 'IT01', programaciones: [], metasProceso: [] }],
+    } as never;
+
+    render(createElement(PanelOperadorProduccion, {
+      ...BASE,
+      esAdmin: true,
+      orden: ordenConPausa,
+      onCerrarComoSupervisor: vi.fn().mockResolvedValue({ exito: true }),
+      responsables: {},
+    }));
+
+    const fila = screen.getByTestId('sesion-supervisor-sesion-pausada-1');
+    expect(fila.textContent).toContain('En pausa');
+    expect(screen.getByTestId('finalizar-sesion-supervisor-sesion-pausada-1')).toBeTruthy();
+  });
+
   it('mantiene la pausa con motivo desde el panel del administrador', async () => {
     const onCerrarComoSupervisor = vi.fn().mockResolvedValue({ exito: true });
     const ordenConSesion = {
